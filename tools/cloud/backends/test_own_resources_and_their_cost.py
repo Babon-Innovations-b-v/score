@@ -147,7 +147,12 @@ The invariants, each with the break that turns its test red (each applied once a
   or drop `memory_gb = round(handle.memory_peak / 1e9, 2)` in `record` -> unmeasured.
 - A claim the card queue refused says so (`queued`), so park.here holds its run's minutes while it waits there.
   Break: `return any(...)` -> `return False` in `queued`.
+- A claim that waits holding none is marked so (the runner's drive counts its node apart from --jobs, score/graph
+  CLAIM_WAITERS), the mark dropped once it holds one, and the mark of a process that died waiting is swept (2026-11-02:
+  76 of 80 marks were of dead processes). Break: `mark_waiting(not handles)` -> `mark_waiting(False)` in `take`; or
+  `other.unlink(missing_ok=True)` -> `pass` in `mark_waiting`.
 """
+import contextlib
 import json
 import os
 import pathlib
@@ -164,6 +169,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import card_queue  # noqa: E402
+import local  # noqa: E402
 import scaleway  # noqa: E402
 
 OURS = "project-ours"
@@ -191,7 +197,6 @@ def card_queue_folder(monkeypatch, tmp_path):
     monkeypatch.setattr(card_queue, "containers", lambda: "score-this-pc 3GiB / 27GiB")
     monkeypatch.setattr(card_queue, "SAMPLER", SAMPLER)
     monkeypatch.setattr(card_queue, "memory_gb", lambda: 27)  # this PC's 43 GiB less its reserve, whatever runs the test
-    import local
     monkeypatch.setattr(local, "OWN", True)  # each kind in its own container (SCORE_THIS_PC_OWN_CONTAINERS=1)
     monkeypatch.setenv("SCORE_CARD_SAMPLER", json.dumps(SAMPLER))  # the `run` under test reads the same card
     return card_queue.QUEUE
@@ -338,19 +343,17 @@ class Scaleway:
             address["server"] = {"id": "srv-racing"}
 
 
-@pytest.fixture
-def ledger_file(monkeypatch, tmp_path):
-    """The cloud ledger as a fresh file; its lines read back."""
+def ledger_lines():
+    """The cloud ledger's lines as written so far (the account's own fresh file)."""
+    import ledger
+    return [json.loads(line) for line in ledger.LEDGER.read_text().splitlines()] if ledger.LEDGER.exists() else []
+
+
+def scaleway_account(monkeypatch, tmp_path, request):
+    """One account holding our project's resources beside another's, the backend reaching it only through
+    `subprocess.run`, the cloud ledger a fresh file; no sleep waits, its quota pages and prices read from here."""
     import ledger
     monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
-    return lambda: [json.loads(line) for line in ledger.LEDGER.read_text().splitlines()] if ledger.LEDGER.exists() \
-        else []
-
-
-@pytest.fixture
-def world(monkeypatch, tmp_path, request):
-    """One account holding our project's resources beside another's, the backend reaching it only through
-    `subprocess.run`; no sleep waits, its quota pages and prices read from here."""
     account = Scaleway()
     account.namespaces = [namespace(OTHER, endpoint="rg/other"), namespace(OURS, endpoint="rg/ours")]
     account.secrets = [{"name": scaleway.RUNTIME_KEY_SECRET, "project_id": OTHER}]
@@ -427,348 +430,85 @@ ADDRESSES = [("bad: swapped and quarantined", BAD, None, OURS, ["create", "get",
 
 # A deleted machine's disk (60 GB) and address billed by the started hour: (minutes since its creation, hours billed).
 HOURS = [(61, 2), (2, 1)]
+ONE_HOUR = 60 * 0.00013 + 0.005  # 60 GB at EUR 0.00013 a GB-hour, one address at EUR 0.005 an hour
+CONSTRAINT = "Failed to detach block volume v-1: volume_id does not respect constraint"
 
-
-def test_only_our_projects_resources_are_taken_and_every_euro_they_cause_is_counted(world, ledger_file, monkeypatch,
-                                                                                     tmp_path):
-    import ledger
-    one_hour = 60 * 0.00013 + 0.005  # 60 GB at EUR 0.00013 a GB-hour, one address at EUR 0.005 an hour
-
-    # the container path: the runtime key (only another project's secret is listed) is made scoped to our project and
-    # kept only in Secret Manager; the registry is our own private namespace, made when only another's is listed
-    for row, listed, endpoint, making in NAMESPACES:
-        world.namespaces = list(listed or world.namespaces)
-        before = len(world.commands)
-        if endpoint == "public":
-            with pytest.raises(SystemExit, match="public"):
-                scaleway.registry()
-        else:
-            assert scaleway.registry() == {"endpoint": endpoint, "username": "nologin", "password": "SK"}, row
-        made = [command for command in world.commands[before:] if command[:3] == ("registry", "namespace", "create")]
-        assert len(made) == making, row
-        assert all(f"project-id={OURS}" in command and "is-public=false" in command for command in made), row
-    policies = [command for command in world.commands if command[:3] == ("iam", "policy", "create")]
-    assert len(policies) == 1 and f"rules.0.project-ids.0={OURS}" in policies[0] and "application-id=app" in policies[0]
-    assert {argument.split("=", 1)[1] for argument in policies[0] if ".permission-set-names." in argument} == {
-        "ObjectStorageFullAccess", "ContainerRegistryFullAccess"}
-    assert [command for command in world.commands if command[:3] == ("iam", "api-key", "create")
-            and f"default-project-id={OURS}" in command]
-    assert [command for command in world.commands if command[:3] == ("secret", "secret", "create")
-            and f"project-id={OURS}" in command]
-    assert json.loads(world.stored) == {"access_key": "AK2", "secret_key": "SK2"}
-    assert not any("SK2" in argument for command in world.commands for argument in command)
-
+# The Scaleway account's steps (see ASKS for the queue's): ("account",: the account of our project and another's),
+# ("listed", what the account lists, its records), ("registry", namespaces listed or None, the endpoint registry()
+# gives or "public" refused, namespaces made), ("runtime key",: made scoped to our project, kept only in Secret
+# Manager), ("month spend", euros), ("bill all", the last whole, what it reads or the words it raises), ("owners",
+# OWNERS), ("quotas", the IAM pages or "403", what zone_quotas reads), ("parked", our runs' parked records),
+# ("cloud offers", classes asked, {(class, zone): (stock word, stock)} or None, the zones' type lists read),
+# ("rent", number, *ADDRESSES row), ("refused but made", name: HTTP 500 that made it anyway), ("hours", HOURS),
+# ("cloud delete", machine, True / False / the words it raises), ("fee", machine, its disk-and-address euros or None),
+# ("refusals", (command head, Scaleway's words, the machine that vanishes meanwhile or None)), ("terminate", machine,
+# zone), ("delete address", id), ("delete disk", id, whether it raises), ("start if stopped", machine, words) or
+# ("leftovers", the loose addresses left).
+CLOUD = [
+    ("account",),
+    # the container path: the registry is our own private namespace, made when only another's is listed; the runtime
+    # key (only another project's secret is listed) is made scoped to our project and kept only in Secret Manager
+    *[("registry", listed, endpoint, made) for _, listed, endpoint, made in NAMESPACES],
+    ("runtime key",),
     # the bill: our project's own lines; the cap's whole bill reads every project and counts SCORE's usage
-    world.bill = BILL
-    assert scaleway.month_spend(OURS) == 1.5
-    read = scaleway.bill_all()
-    assert read["whole"] == 187.0 and read["lines"] == {
-        "farm-factory|/instance/server/l4_1_24g/fr-par-2": 10.0, "score-conductor|/storage/b": 2.5,
-        f"{SHARED}|/instance/server/l4_1_24g/fr-par-2": 40.0}
-    assert read["projects"] == {OURS: OURS, OTHER: OTHER, "farm-factory": "ff", "score-conductor": "sc", SHARED: "bp",
-                                "babon-worker": "bw"}
-    with pytest.raises(scaleway.Unread, match="below"):
-        scaleway.bill_all(last_whole=190.0)
-    names = {"ff": "farm-factory", "bp": SHARED, "xx": "babon-worker"}
-    assert [scaleway.owner_of({"project": project, "tags": tags}, names) for project, tags, _ in OWNERS] == [
-        owner for _, _, owner in OWNERS]
-    world.bill = []
-    with pytest.raises(scaleway.Unread, match="no line"):
-        scaleway.bill_all()
-
+    ("listed", "bill", BILL),
+    ("month spend", 1.5),
+    ("bill all", None, {"whole": 187.0, "lines": {"farm-factory|/instance/server/l4_1_24g/fr-par-2": 10.0,
+                                                   "score-conductor|/storage/b": 2.5,
+                                                   f"{SHARED}|/instance/server/l4_1_24g/fr-par-2": 40.0},
+                        "projects": {OURS: OURS, OTHER: OTHER, "farm-factory": "ff", "score-conductor": "sc",
+                                     SHARED: "bp", "babon-worker": "bw"}}),
+    ("bill all", 190.0, "below"),
+    ("owners", OWNERS),
+    ("listed", "bill", []),
+    ("bill all", None, "no line"),
     # offers: quotas read by type and zone, a processor class in every rent zone with quota, a card class in the card
-    # zones only, each zone's type list read once, a short type our run parked offered as parked (an expired record and
-    # a half-written one do not count)
-    world.types = TYPES
-    monkeypatch.setattr(scaleway, "quota_pages",
-                        lambda organization, key: QUOTA_PAGES if (organization, key) == ("org", "key") else [])
-    assert scaleway.zone_quotas() == {
+    # zones only, each zone's type list read once, a short type our run parked offered as parked (an expired record
+    # and a half-written one do not count)
+    ("listed", "types", TYPES),
+    ("quotas", QUOTA_PAGES, {
         ("POP2-HC-48C-96G", "nl-ams-2"): 1, ("POP2-HC-48C-96G", "fr-par-1"): 1, ("POP2-HC-48C-96G", "pl-waw-1"): 0,
         ("L4-1-24G", "fr-par-1"): float("inf"), ("L4-1-24G", "nl-ams-2"): 50, ("POP2-32C-128G", "fr-par-2"): 2,
-        ("POP2-32C-128G", "pl-waw-2"): 2}
-    parked = tmp_path / "parked"
-    parked.mkdir()
-    for index, record in enumerate([{"type": "POP2-32C-128G", "zone": "fr-par-2", "until": time.time() + 600},
-                                    {"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": time.time() - 60}]):
-        (parked / f"{index}.json").write_text(json.dumps(record))
-    (parked / "2.json").write_text("{\"type\": ")
-    monkeypatch.setattr(scaleway, "PARKED", parked)
-    monkeypatch.setattr(scaleway, "ZONES", ("fr-par-1", "fr-par-2", "pl-waw-2"))
-    monkeypatch.setattr(scaleway, "PROCESSOR_ZONES", ("nl-ams-2", "fr-par-1"))
-    zones_read = lambda: [command[-1] for command in world.commands  # noqa: E731
-                          if command[:3] == ("instance", "server-type", "list")]
-    found = scaleway.offers(["cpu-64c-128gb", "cpu-48c-96gb", "gpu-24gb", "cpu-32c-128gb"])
-    assert {(offer.machine_class, offer.zone): (offer.stock_word, offer.stock) for offer in found} == {
+        ("POP2-32C-128G", "pl-waw-2"): 2}),
+    ("parked", [{"type": "POP2-32C-128G", "zone": "fr-par-2", "until": 600},
+                {"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": -60}]),
+    ("set", scaleway, "ZONES", ("fr-par-1", "fr-par-2", "pl-waw-2")),
+    ("set", scaleway, "PROCESSOR_ZONES", ("nl-ams-2", "fr-par-1")),
+    ("cloud offers", ["cpu-64c-128gb", "cpu-48c-96gb", "gpu-24gb", "cpu-32c-128gb"], {
         ("cpu-48c-96gb", "fr-par-1"): ("available", 0), ("gpu-24gb", "fr-par-1"): ("available", 0),
         ("cpu-32c-128gb", "fr-par-2"): ("parked", 1), ("cpu-32c-128gb", "pl-waw-2"): ("shortage", 2),
-        ("cpu-48c-96gb", "nl-ams-2"): ("available", 0)}
-    assert zones_read() == ["zone=fr-par-1", "zone=fr-par-2", "zone=pl-waw-2", "zone=nl-ams-2"]
-    scaleway.offers(["gpu-24gb"])
-    assert zones_read()[4:] == ["zone=fr-par-1", "zone=fr-par-2", "zone=pl-waw-2"]  # a card-only ask: no processor zone
-
-    def refused_quotas(organization, key):  # the conductor's key reads no quota (403, 2026-10-24): none known
-        raise urllib.error.HTTPError("https://api.scaleway.com", 403, "Forbidden", {}, None)
-    monkeypatch.setattr(scaleway, "quota_pages", refused_quotas)
-    scaleway.zone_quotas.cache_clear()
-    assert scaleway.zone_quotas() is None
-
+        ("cpu-48c-96gb", "nl-ams-2"): ("available", 0)},
+     ["zone=fr-par-1", "zone=fr-par-2", "zone=pl-waw-2", "zone=nl-ams-2"]),
+    ("cloud offers", ["gpu-24gb"], None, ["zone=fr-par-1", "zone=fr-par-2", "zone=pl-waw-2"]),  # no processor zone
+    ("quotas", "403", None),  # the conductor's key reads no quota (403, 2026-10-24): none known
     # renting: a new machine's bad address is swapped for a fresh one and quarantined, or the machine deleted
-    terminated = lambda since: [command[3] for command in world.commands[since:]  # noqa: E731
-                                if command[:3] == ("instance", "server", "terminate")]
-    for number, (row, address, refusing, owner, sent, kept) in enumerate(ADDRESSES, 1):
-        name, since = f"blender-{number}", len(world.commands)
-        world.rent(address, owner)
-        world.refusals = [(("instance", "ip", refusing), f"scw ip {refusing} failed", lambda: None)] if refusing else []
-        offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb", price=0.02)
-        answer = scaleway.create(OURS, offer, name, [], 60)
-        assert answer[0] == (f"srv-{name}" if kept else None) and (answer[1] is None) == kept, row
-        assert terminated(since) == ([] if kept else [f"srv-{name}"]), row
-        ip = [command for command in world.commands[since:]
-              if command[:2] == ("instance", "ip") and command[2] != "list"]
-        assert [command[2] for command in ip] == sent, row
-        if kept and sent:
-            assert f"server=srv-{name}" in ip[0] and f"project-id={OURS}" in ip[0], row
-            assert ip[3][3] == f"ip-{name}" and f"tags.0={scaleway.QUARANTINED}" in ip[3], row
-
+    *[("rent", number, *address) for number, address in enumerate(ADDRESSES, 1)],
     # a refused order's own machine (HTTP 500 that made it anyway, 2026-10-22: stopped, billed, unwatched) and its own
     # loose address and disk are deleted, their euros its ledger line; another order's racing address is left alone
-    since = len(world.commands)
-    world.order = world.refuse_but_make
-    offer = types.SimpleNamespace(type="L4-1-24G", zone="fr-par-1", machine_class="gpu-24gb", price=0.013)
-    answer = scaleway.create(OURS, offer, "masks-1", [], 60)
-    assert answer[0] is None and "500" in answer[1]
-    assert terminated(since) == ["srv-made"] and "zone=fr-par-1" in next(
-        command for command in world.commands[since:] if command[2] == "terminate")
-    gone = sorted(command[3] for command in world.commands[since:] if command[2] == "delete")
-    assert gone == ["disk-new", "ip-new"]
-    lines = ledger_file()
-    assert [line["state"] for line in lines if line["kind"] in (ledger.RENT_STARTED, ledger.RENT_REFUSED)
-            and line["name"] == "masks-1"] == ["started", "refused"]  # the order's started line, closed by its refusal
-    fees = [line for line in lines if line["kind"] == "disk-and-address" and line["who"] == "scaleway.create"]
-    assert len(fees) == 1 and fees[0]["name"] == "masks-1"
-    assert fees[0]["euros"] == pytest.approx(0.005 + 60 * 0.00013)  # one address-hour, 60 GB for one hour
-
+    ("refused but made", "masks-1"),
     # every euro: a machine's disk and address are billed by the started hour from its creation, one ledger line
     # written when it is deleted; a machine already gone deletes nothing and writes nothing
-    created = 1791799200.0  # 2026-10-12T10:00:00Z
-    server = {"creation_date": made_at(created), "public_ips": [{"id": "ip"}]}
-    assert [scaleway.disk_and_address_euros(server, 60, created + minutes * 60) for minutes, _ in HOURS] == [
-        pytest.approx(hours * one_hour) for _, hours in HOURS]
-    assert scaleway.delete("srv-blender-2", "pl-waw-2") is True
-    assert scaleway.delete("srv-blender-2", "pl-waw-2") is False
-    written = [line for line in ledger_file() if line["batch"] == "disk-and-address-srv-blender-2"]
-    assert len(written) == 1 and written[0]["euros"] == pytest.approx(one_hour)
-
+    ("hours", HOURS),
+    ("cloud delete", "srv-blender-2", True), ("cloud delete", "srv-blender-2", False),
+    ("fee", "srv-blender-2", ONE_HOUR),
     # deleting what another sweep already deleted is done (surfaces-bake@wreck, 2026-10-13: two sweeps on one
     # leftover; the second's refused detach killed its job), any other refusal raises; a machine the zone is still
     # making refuses its terminate until it is made: waited out, then deleted (2026-11-05, surfaces-bake@camp)
-    constraint = "Failed to detach block volume v-1: volume_id does not respect constraint"
-    wreck = world.find(world.servers, "srv-wreck", "server")
-    world.refusals = [(("instance", "server", "terminate", "srv-wreck"), constraint,
-                       lambda: world.servers.remove(wreck)),
-                      (("instance", "server", "terminate", "srv-stuck"), constraint, lambda: None),
-                      (("instance", "server", "terminate", "srv-making"), ("precondition failed: , Cannot modify the "
-                       "SBS volumes of an instance in the state SessionState.PROVISION"), lambda: None),
-                      (("block", "volume", "delete", "v-1"), "permission denied", lambda: None)]
-    assert scaleway.delete("srv-wreck", "pl-waw-2") is False
-    with pytest.raises(RuntimeError, match="does not respect constraint"):
-        scaleway.delete("srv-stuck", "pl-waw-2")
-    assert scaleway.terminate("srv-making", "fr-par-2") is True
-    assert not [line for line in ledger_file() if line["batch"] in ("disk-and-address-srv-wreck",
-                                                                     "disk-and-address-srv-stuck")]
-    scaleway.delete_address("ip-1", "pl-waw-2")  # not found: another sweep's
-    scaleway.delete_disk("v-2", "pl-waw-2")
-    with pytest.raises(subprocess.CalledProcessError):
-        scaleway.delete_disk("v-1", "pl-waw-2")
-
+    ("refusals", [(("instance", "server", "terminate", "srv-wreck"), CONSTRAINT, "srv-wreck"),
+                  (("instance", "server", "terminate", "srv-stuck"), CONSTRAINT, None),
+                  (("instance", "server", "terminate", "srv-making"), ("precondition failed: , Cannot modify the SBS "
+                   "volumes of an instance in the state SessionState.PROVISION"), None),
+                  (("block", "volume", "delete", "v-1"), "permission denied", None)]),
+    ("cloud delete", "srv-wreck", False), ("cloud delete", "srv-stuck", "does not respect constraint"),
+    ("terminate", "srv-making", "fr-par-2"),
+    ("fee", "srv-wreck", None), ("fee", "srv-stuck", None),
+    ("delete address", "ip-1"),  # not found: another sweep's
+    ("delete disk", "v-2", False), ("delete disk", "v-1", True),
     # a machine whose state cannot be read is a refusal its waiter waits out and deletes, never a crash
-    assert "server not found" in scaleway.start_if_stopped("srv-unknown", "pl-waw-2")
-
+    ("start if stopped", "srv-unknown", "server not found"),
     # what is left: only our own loose address is a leftover, never another project's, one on a machine or the
     # quarantined bad address
-    assert scaleway.leftover_addresses(OURS, ("pl-waw-2",)) == [("ip-old", "pl-waw-2", "1.1.1.1")]
-
-
-def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, tmp_path):
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    restarted, execs = [], []
-
-    def docker(*arguments, **_):
-        restarted.extend([arguments] if arguments[0] == "restart" else [])
-        execs.extend([arguments[-1]] if arguments[2:4] == ("sh", "-c") else [])
-        layer = "90000000000"  # 90 GB, its set-ups' own past the limit too
-        return types.SimpleNamespace(returncode=0, stdout=layer if arguments[:2] == ("inspect", "--size") else "",
-                                     stderr="")
-    monkeypatch.setattr(local, "docker", docker)
-    offers = local.offers(["gpu-80gb", "gpu-24gb", "cpu-32c-128gb", "gpu-24gb-x2"])
-    assert [offer.machine_class for offer in offers] == ["gpu-24gb", "cpu-32c-128gb"]
-    assert {(offer.price, offer.stock_word) for offer in offers} == {(0.0, "parked")}  # batch.rent orders nothing
-    with pytest.raises(SystemExit, match="cloud-only"):
-        local.offers(["gpu-48gb", "gpu-80gb"])
-    with pytest.raises(ValueError, match="30 GB"):
-        local.take("judge", "key")
-    first = local.take("pixal", "key")
-    assert first["here"] and first["price"] == 0.0 and first["host"] == "172.17.0.2"
-    assert first["id"].startswith("score-this-pc-pixal:")  # its kind's own container
-    assert execs == [local.INSTALLER_CACHES]  # its layer past LAYER_LIMIT_GB: the caches went before the claim
-    assert local.take("pixal", "key") is None  # one claim a container
-    assert local.take("blender", "key") is None  # unmeasured, the Pixal3D claim holds the whole memory
-    assert local.delete("score-this-pc-pixal:another", "this-pc") is False and not restarted  # a watchdog's late delete
-    assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
-    local.delete(local.take("pixal", "key")["id"], "this-pc")
-    assert execs.count(local.INSTALLER_CACHES) == 1  # measured again only after LAYER_EVERY_SECONDS
-    import scaleway
-    monkeypatch.setattr(scaleway, "object_store", lambda: {"bucket": "the-library-bucket"})
-    assert local.object_store() == {"bucket": "the-library-bucket"}  # the library's blobs, where its secrets are
-
-
-def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_left_alone(monkeypatch, tmp_path):
-    import os
-    import capacity
-    import local
-    import spread
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
-    monkeypatch.setattr(capacity.provider, "cloud", local)
-    restarted, execs = [], []
-
-    def docker(*arguments, **_):
-        restarted.extend([arguments] if arguments[0] == "restart" else [])
-        execs.extend([(len(restarted), arguments[-1])] if arguments[2:4] == ("sh", "-c") else [])
-        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
-    monkeypatch.setattr(local, "docker", docker)
-    first = local.take("blender", "key")  # one place's bake row: every free turn
-    assert first["turns"] == 3 and spread.slots("blender", first) == [0, 0, 0]
-    assert local.take("blender", "key") is None  # every turn busy
-    ended = threading.Event()
-    spread.work_turn(first, spread.Shares([]), lambda *_: None, 0, ended)  # two of its slots ran out of work
-    spread.work_turn(first, spread.Shares([]), lambda *_: None, 0, ended)
-    second = local.take("blender", "key")  # another place's bake row, while the first still runs a job
-    assert second is not None and second["turns"] == 2 and spread.slots("blender", second) == [0, 0]
-    assert local.take("pixal", "key") is None  # its card share does not fit beside the Blender claims': it waits
-    local.let_go_turn(second["id"])
-    third = local.take("blender", "key")  # a turn is free: it joins the group's card, past the Pixal3D claim that
-    assert third is not None  # does not fit (card_queue.blocks), while that one has waited under its bound
-    local.let_go_turn(third["id"])
-    monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)
-    assert local.take("blender", "key") is None  # the Pixal3D claim waited its bound: nothing passes it now
-    for claim in (first, second, third):
-        local.ends_with(claim["id"], f"rm -rf /job/{claim['id']}")
-    execs.clear()
-    assert local.delete(first["id"], local.ZONE) is True and not restarted  # the others' jobs still run
-    assert not execs  # nothing of theirs goes: an input of one may be another's
-    assert local.delete(third["id"], local.ZONE) is True and not restarted
-    assert local.delete(second["id"], local.ZONE) is True and restarted  # the last to leave restarts it
-    assert execs == [(1, f"rm -rf /job/{second['id']}; {local.swept()}")]  # then every job file
-
-    alone = local.take("pixal", "key")
-    assert alone is not None
-    local.delete(alone["id"], local.ZONE)
-
-    home = tmp_path / "pc"  # the runner's folders a sweep empties: each once, never the container's own
-    monkeypatch.setattr(local.pathlib.Path, "home", lambda: home)
-    monkeypatch.setattr(local, "HOME", home / ".props")
-    monkeypatch.setattr(local, "REPO", pathlib.Path("/root/repo"))
-    monkeypatch.setattr(local.tempfile, "tempdir", str(tmp_path / "t"))
-    assert local.runner_paths() == [home, tmp_path / "t"]
-    for leftover in (home / ".props/store/take.png", home / "work/out/a.glb", tmp_path / "t/blender_tmp/x"):
-        leftover.parent.mkdir(parents=True, exist_ok=True)
-        leftover.write_text("x")
-    subprocess.run(["sh", "-c", local.swept()], check=True)
-    assert home.is_dir() and not any(home.iterdir()) and not any((tmp_path / "t").iterdir())
-
-
-def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_it_holds_one(monkeypatch, tmp_path):
-    """The runner's drive counts a node apart from --jobs while it holds such a mark (score/graph CLAIM_WAITERS); the
-    mark of a process that died waiting is swept (2026-11-02: 76 of 80 marks were of dead processes).
-    Break: tools/cloud/backends/local.py: '    mark_waiting(handle is None)' -> '    mark_waiting(False)'
-    Break: tools/cloud/backends/local.py: `            other.unlink(missing_ok=True)` -> `            pass`"""
-    import fcntl
-    import os
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
-    mark = local.waiting_claims() / str(os.getpid())
-    local.waiting_claims().mkdir(parents=True)
-    gone, alive = local.waiting_claims() / str(2**22 + 7), local.waiting_claims() / str(os.getppid())
-    gone.touch()  # a process that died while it waited (no pid is this high: Linux's pid_max at most 2**22)
-    alive.touch()
-    holder = local.LOCK.open("a+")
-    fcntl.flock(holder, fcntl.LOCK_EX)  # another claim holds the machine
-    assert local.take("blender", "key") is None and mark.exists()
-    assert not gone.exists() and alive.exists()  # the dead one's mark swept, a live one's kept
-    holder.close()
-    held = local.take("blender", "key")
-    assert held is not None and not mark.exists()
-    assert local.take("blender", "key") is None and not mark.exists()  # it waits for more, but holds a claim
-    local.delete(held["id"], local.ZONE)
-
-
-def test_this_pc_container_leaves_room_for_wsl_and_the_runs_own_steps(monkeypatch):
-    import local
-    pages = {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": 43 * 2**30 // 4096}
-    monkeypatch.setattr(local.os, "sysconf", pages.get)
-    assert local.memory_cap() == "27g"
-    pages["SC_PHYS_PAGES"] = 12 * 2**30 // 4096
-    assert local.memory_cap() == "8g"
-
-
-
-def test_this_pc_container_never_swaps_past_its_memory(monkeypatch):
-    import local
-    calls = []
-
-    def docker(*arguments, check=True, **options):
-        calls.append(arguments)
-        made = any(call[0] == "run" for call in calls)
-        return types.SimpleNamespace(returncode=0 if arguments[0] != "inspect" or made or found else 1,
-                                     stdout="true")
-    monkeypatch.setattr(local, "docker", docker)
-    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
-    monkeypatch.setattr(local, "answering", lambda name=None: "172.17.0.2")
-    monkeypatch.setattr(local.shutil, "which", lambda name: "/usr/bin/docker")
-    for found in (False, True):
-        calls.clear()
-        local.running("ssh-ed25519 key")
-        limited = [call for call in calls if call[0] in ("run", "update")]
-        assert len(limited) == 1 and limited[0][0] == ("update" if found else "run"), calls
-        swap = limited[0].index("--memory-swap")
-        assert limited[0][swap + 1] == "27g" == limited[0][limited[0].index("--memory") + 1], limited
-
-
-def test_this_pc_runs_blender_jobs_side_by_side_as_its_memory_holds_with_the_card_in_turns(monkeypatch, tmp_path):
-    import importlib
-    import capacity
-    import card_turn
-    import local
-    import spread
-    assert local.blender_at_once(8) == 1
-    pages = {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": 43 * 2**30 // 4096}  # this PC: a 27 GiB container
-    monkeypatch.setattr(local.os, "sysconf", pages.get)
-    try:
-        importlib.reload(local)
-        monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-        monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-        monkeypatch.setattr(capacity.provider, "cloud", local)
-        calls = []
-        monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
-        machine = local.take("blender", "key")
-        assert ("cp", str(local.CARD_TURN), f"{local.MACHINE}:{card_turn.STARTUP}/.card_turn.py.new") in calls
-        assert ("exec", local.MACHINE, "mv", f"{card_turn.STARTUP}/.card_turn.py.new",
-                f"{card_turn.STARTUP}/card_turn.py") in calls
-        assert spread.slots("blender", machine) == [0, 0, 0, 0]  # four side by side, all on the one card
-        local.delete(machine["id"], local.ZONE)
-        alone = local.take("pixal", "key")
-        assert spread.slots("pixal", alone) == [0]
-        local.delete(alone["id"], local.ZONE)
-    finally:
-        monkeypatch.undo()
-        importlib.reload(local)
+    ("leftovers", [("ip-old", "pl-waw-2", "1.1.1.1")])]
 
 
 class Operator:
@@ -793,29 +533,41 @@ class Operator:
         return {"FINISHED"}
 
 
-def test_card_turn_gives_the_card_to_its_slots_of_card_calls_at_a_time(tmp_path):
-    import card_turn
-    lock = str(tmp_path / "card.lock")
-    call = card_turn.turned(Operator.__call__, lock)
-    names = ["object.bake", "render.render", "object.bake", "object.bake", "render.opengl"]
-    threads = [threading.Thread(target=call, args=(Operator(name),)) for name in names]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
-    assert Operator.most[0] == card_turn.CARD_SLOTS == 2 and call.card_turn  # its slots full, never more
-    with card_turn.card_turn(lock), card_turn.card_turn(lock):  # bakes fill the card: a selection still runs
-        beside = threading.Thread(target=call, args=(Operator("object.select_all"),))
-        beside.start()
-        beside.join(5)
-        assert not beside.is_alive()
+# A Blender job's measured need past the container's 27 GiB (base's light passes, round 31), and the route's claim.
+ALONE = {"memory_gb": 29.8e9 / 2**30}
+ROUTE = {"card_gb": 1, "memory_gb": 3}
 
 
-# The card queue's admission as a run asks it (13.5 GB of card, 27 GiB of memory): (row, steps). A step is ("take",
-# share's name or None, job, card GB, priority, group, memory GiB, whether it is admitted), ("release", name),
-# ("drop", job, priority: a waiter that stopped asking), ("backfill", BACKFILL_SECONDS), ("status", the pattern its
-# status line matches) or ("sized", environment, BUDGET_GB and DESKTOP_GB as a fresh process reads them).
-QUEUE_ASKS = [
+# This PC's card queue and its claims as a run asks them (13.5 GB of card, 27 GiB of memory): (row, steps). A step is
+# ("take", share's name or None, job, card GB, priority, group, memory GiB, whether it is admitted: True, False, or
+# "in time" while it keeps asking), ("release", name), ("drop", job, priority: a waiter that stopped asking), ("set",
+# module, its constant, its value), ("status" or "measured", the pattern that line matches), ("sized", environment,
+# BUDGET_GB and DESKTOP_GB as a fresh process reads them), ("run", job, card GB: `card_queue run` of a command that
+# notes each start and lives until its input ends, once it holds its share), ("starts", job, its command's starts so
+# far, how many of the first are stopped), ("end", job: its input ends, the run exits 0), ("operators", Blender
+# operator names called at once through card_turn, the most card calls on the card together) or ("beside", the card
+# slots held, an operator that must still run within 5 s).
+# This PC's own steps: ("pc size", GiB of memory, memory_cap, Blender jobs at once as local loads), ("offers", the
+# classes a run asks, the classes offered or the words of the refusal), ("library store",: local's object store is the
+# Scaleway backend's), ("pc",: the PC's world, its container 27g (35g with a job alone, 20 GiB of room free for one at
+# first) and every docker call it makes kept), ("runner paths",), ("claim", name, kind, need, None when it waits, the
+# words of its refusal, or what the claim holds: turns, slots, id prefix, here, price, host, "not" another claim's
+# id), ("delete", name or machine id, what delete answers or None), ("mark", label: the docker calls so far, or with
+# "peaks" the Blender kind's takes so far), ("called", a docker call made), ("last update", the last update call),
+# ("uncapped since", label: no claim held under 27g), ("memory never" / "memory now", a cap the container's updates
+# never / last gave), ("waiters",: a dead process's waiting mark and a live one's), ("waiting", whether this process's
+# mark is there), ("waiters swept",), ("queued", kind, whether it is), ("lock free", container), ("card read", claim),
+# ("memory peak", claims, bytes all read), ("work out", claim: a slot out of work), ("let go", claim), ("ends with",
+# claims: each its clean-up), ("left alone since", label: no restart or exec), ("restarted", container),
+# ("restart and sweep since", label, claim: the last to leave restarts and sweeps), ("peaks since", label, takes and
+# alone memory takes added), ("sweep",: the runner's folders emptied, each kept), ("anon", anon and file bytes of the
+# bakes' container's cgroup), ("card turn copied",), ("started since", label, containers started), ("want",
+# "elsewhere" or "gone": a Blender job alone's want as another live process's), ("room", GiB free for a job alone),
+# ("measures", job, (card GB, memory GB) of its takes), ("held memory", job, the GiB its held shares hold), ("run
+# cap", claims at once) or ("containers", the containers made, each 27g of memory and swap and 20 of 24 cores, its
+# installer caches gone once).
+ASKS = [
+    ("the Scaleway backend takes only our project's resources and counts every euro they cause", CLOUD),
     ("a waiting sim body share goes before the env run's next claims", [
         ("take", "bake", "bake@lab", 9.7, "env-run", "blender", 0, True),
         ("take", None, "sim-body-l1", 6, "sim-body", None, 0, False),  # 9.7 + 6 passes 13.5: it waits
@@ -855,7 +607,7 @@ QUEUE_ASKS = [
         ("take", "second", "other blender", 9.7, "env-run", "blender", 8, True),
         ("take", None, "small proof", 1, "env-run", None, 1, False),  # 1 more passes 13.5: it waits too
         ("drop", "small proof", "env-run"),
-        ("backfill", 0),  # MOSS has waited long enough: nothing passes it now
+        ("set", card_queue, "BACKFILL_SECONDS", 0),  # MOSS has waited long enough: nothing passes it now
         ("take", None, "third blender", 9.7, "env-run", "blender", 8, False),
         ("drop", "third blender", "env-run"),
         ("release", "bakes"), ("release", "second"),
@@ -865,38 +617,549 @@ QUEUE_ASKS = [
     ("a claim that cannot fit beside an earlier priority keeps nothing out", [
         ("take", "tuning", "sim-body-l1d", 3, "sim-body", None, 0, True),
         ("take", None, "this-pc segment", None, "env-run", None, 0, False),  # the whole card: it waits
-        ("backfill", 0),
+        ("set", card_queue, "BACKFILL_SECONDS", 0),
         # segment cannot fit until the sim body share goes: it keeps nothing out meanwhile
         ("take", "likeness", "this-pc similar", 0.8, "env-run", None, 1, True),
         ("release", "likeness"), ("release", "tuning"),
-        ("take", None, "this-pc segment", None, "env-run", None, 0, True)])]  # alone on the card, it fits
+        ("take", None, "this-pc segment", None, "env-run", None, 0, True)]),  # alone on the card, it fits
+    ("a side job gives the card way to an env-run claim waiting and starts again after", [
+        ("run", "tuning", 6),
+        ("take", None, "pixal", 10.8, "env-run", None, 0, False),  # 6 + 10.8 passes the card: it waits
+        ("set", card_queue, "YIELD_SECONDS", 0),  # it has waited long enough: the side share is asked back
+        ("take", "film", "pixal", 10.8, "env-run", None, 0, "in time"),
+        ("starts", "tuning", 1, 1),  # the tuning was stopped, not left on the card beside the env-run claim
+        ("status", r"waits tuning"),  # its run waits again behind the env-run claim, its share given back
+        ("release", "film"),
+        ("starts", "tuning", 2, 1),  # started again once the env-run claim let go
+        ("end", "tuning"),
+        ("take", "after", "pixal", 10.8, "env-run", None, 0, True),  # it ended: its share is free
+        ("measured", r"^tuning: 2 takes, card 6\.39 GB \(2 alone\), cores ")]),  # both runs measured
+    # card_turn.py, inside each Blender process: the bake and the renders take one of the card's two slots, any other
+    # operator runs free beside them
+    ("Blender's card calls take the card's slots, never more, and nothing else waits for them", [
+        ("operators", ["object.bake", "render.render", "object.bake", "object.bake", "render.opengl"], 2),
+        ("beside", 2, "object.select_all")]),
+    # this PC orders nothing: what it serves is offered parked at EUR 0, its container sized to the PC's memory
+    ("this PC costs nothing and sizes its container to its memory", [
+        ("pc size", 43, "27g", 4), ("pc size", 12, "8g", 1),
+        ("offers", ["gpu-80gb", "gpu-24gb", "cpu-32c-128gb", "gpu-24gb-x2"], ["gpu-24gb", "cpu-32c-128gb"]),
+        ("offers", ["gpu-48gb", "gpu-80gb"], "cloud-only"),  # one card of at most 16 GB, never a second one
+        ("library store",)]),  # the library's blobs, where its secrets are
+    # one PC's day of claims: refusals by need, a side job's card share, kinds side by side in their own containers,
+    # two places' Blender claims sharing the bakes' container's turns, a Blender job past the container alone in the
+    # container raised for it, and sim body's measured share beside the bakes; the bakes' container's memory read from
+    # its cgroup (2026-10-31: `measured` showed "memory unmeasured" for every claim here): its anon bytes at their
+    # highest while a claim holds its share, a reading beside another claim in the same container left out
+    ("this PC takes a claim only while its measured need fits beside what is held", [
+        ("pc",), ("runner paths",),
+        # judged by its measured need alone; Kimodo's encoder on the card is the whole characters machine
+        ("claim", None, "judge", None, "30 GB"),
+        ("claim", None, "characters", None, "17 GB of card"),
+        ("claim", None, "characters", {"card_gb": 4, "memory_gb": 40}, "40.0 GB of memory"),
+        ("claim", None, "blender", {"memory_gb": 40}, "with the job alone"),
+        ("claim", "clips", "characters", {"card_gb": 4, "memory_gb": 17}, {"here": True}),  # clip steps fit
+        ("delete", "clips", None),
+        # the clip run: 20 of 24 cores, held to its 17 GB x 1.5, set back at its delete
+        ("called", ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", "score-this-pc-characters")),
+        ("called", ("update", "--memory", "26g", "--memory-swap", "26g", "score-this-pc-characters")),
+        ("last update", ("update", "--memory", "27g", "--memory-swap", "27g", "score-this-pc-characters")),
+        # a side job holds 6 GB of the card: claims hold their measured share beside it, or wait holding none
+        ("take", "side", "sim-body", 6, "other", None, 0, True),
+        ("claim", "likeness", "similar", None, {}),  # DINOv2's measured 0.8 GB fits beside it
+        ("take", "beside", "side memory", 1, "other", None, 20, True),  # it holds its measured 1.3 GB, not all 27
+        ("release", "beside"), ("delete", "likeness", None),
+        ("claim", "bake", "library", None, {}), ("delete", "bake", None),  # the library bakes' 1.4 GB fits too
+        ("waiters",),
+        ("claim", None, "pixal", None, None),  # 6 + 10.8 passes the card: it waits, holding no claim
+        ("waiting", True), ("waiters swept",),  # marked waiting; the dead one's mark swept
+        ("queued", "pixal", True), ("queued", "blender", False),  # in the queue: park.here holds its minutes
+        ("lock free", "score-this-pc-pixal"),  # its container's lock was let go
+        ("release", "side"),
+        ("mark", "pixal"),
+        ("claim", "pixal", "pixal", None, {"here": True, "price": 0.0, "host": "172.17.0.2",
+                                           "id": "score-this-pc-pixal:", "slots": [0]}),  # unmeasured: all memory
+        ("waiting", False),  # it holds a claim
+        ("take", None, "sim-body", 6, "other", None, 0, False),  # the claim holds its card share
+        ("claim", None, "characters", ROUTE, None),  # and all the memory: no kind beside it
+        ("claim", None, "blender", None, None),
+        ("claim", None, "pixal", None, None), ("waiting", False),  # one claim a container; it holds one
+        ("queued", "pixal", False),
+        ("card read", "pixal"),  # the card read while it holds it
+        ("mark", "late"),
+        ("delete", "score-this-pc-pixal:another", False),  # a watchdog's late delete
+        ("left alone since", "late"),  # the claim it names is still held: nothing restarted
+        ("delete", "pixal", None),
+        ("restarted", "score-this-pc-pixal"),  # its own claim ends: the container restarted
+        ("uncapped since", "pixal"),  # no measure: it keeps the container's 27g
+        ("drop", "this-pc characters", "env-run"),  # that claim stopped asking
+        ("take", "after", "sim-body", 6, "other", None, 0, True), ("release", "after"),
+        ("measured", r"this-pc pixal: 1 takes, card 6\.39 GB \(1 alone\)"),  # the claim was measured
+        # two places' Blender claims share the bakes' container's turns; it restarts only when the last leaves it
+        ("mark", "peaks"),
+        ("claim", "first", "blender", None, {"turns": 3, "slots": [0, 0, 0]}),  # one place's bake row: every turn
+        ("memory peak", ["first"], 3 * 10**9),  # its container's anon bytes alone
+        ("claim", None, "blender", None, None),  # every turn busy
+        ("work out", "first"), ("work out", "first"),  # two of its slots ran out of work
+        ("claim", "second", "blender", None, {"turns": 2, "slots": [0, 0]}),  # another place's, while the first runs
+        ("anon", 5 * 10**9, 0),  # both claims' jobs together
+        ("memory peak", ["first", "second"], 5 * 10**9),
+        ("claim", None, "pixal", None, None),  # its card share does not fit beside the Blender claims': it waits
+        ("let go", "second"),
+        # a turn is free: it joins the group's card, past the Pixal3D claim that does not fit (card_queue.blocks),
+        # while that one has waited under its bound
+        ("claim", "third", "blender", None, {}),
+        ("let go", "third"),
+        ("set", card_queue, "BACKFILL_SECONDS", 0),
+        ("claim", None, "blender", None, None),  # the Pixal3D claim waited its bound: nothing passes it now
+        ("ends with", ["first", "second", "third"]),
+        ("mark", "leaving"),
+        ("delete", "first", True), ("delete", "third", True),  # the others' jobs still run
+        ("left alone since", "leaving"),  # nothing of theirs goes either
+        ("delete", "second", True),
+        ("restart and sweep since", "leaving", "second"),  # the last to leave restarts it, then every job file goes
+        # the three shared claims are recorded as takes, and none of their readings (5 GB of two places together)
+        # counts as one alone in the container
+        ("peaks since", "peaks", (3, 0)),
+        ("sweep",),  # the runner's folders emptied, each kept
+        ("anon", 3 * 10**9, 9 * 10**9),  # their jobs gone
+        ("claim", "pixal", "pixal", None, {}),  # the Blender claims gone, the waiting Pixal3D claim goes
+        ("delete", "pixal", None),
+        ("set", card_queue, "BACKFILL_SECONDS", card_queue.BACKFILL_SECONDS),
+        # claims of different kinds run side by side, each in its own container, while they fit
+        ("mark", "kinds"),
+        ("claim", "bakes", "blender", None, {"turns": 3, "id": "score-this-pc:", "slots": [0, 0, 0]}),  # 22.1 GiB,
+        ("claim", "route", "characters", ROUTE, {"id": "score-this-pc-characters:"}),  # 25.1 GiB: it fits
+        ("card turn copied",),  # side by side, all on the one card
+        ("started since", "kinds", ["score-this-pc", "score-this-pc-characters"]),
+        ("memory peak", ["bakes"], 3 * 10**9),  # alone in its container: the route's claim is in its own
+        ("claim", None, "blender", ALONE, None),  # a Blender job past 27g waits for the shared claim to leave
+        ("claim", None, "pixal", None, None),  # unmeasured: the whole memory, so it waits for both
+        ("drop", "this-pc pixal", "env-run"),
+        ("delete", "route", None), ("delete", "bakes", None),
+        # the Blender job past the container runs alone, once the room it needs is free
+        ("claim", None, "blender", ALONE, None), ("memory never", "35g"),  # 20 GiB free: it waits
+        ("want", "elsewhere"),
+        ("claim", None, "blender", None, None),  # its want keeps new Blender claims out meanwhile
+        ("room", 33),
+        ("claim", "alone", "blender", ALONE, {"turns": 1, "slots": [0]}), ("memory now", "35g"),
+        ("claim", None, "blender", None, None),
+        ("delete", "alone", None), ("memory now", "27g"),  # back to the shared cap once it leaves
+        ("want", "gone"),
+        ("claim", "small", "blender", {"memory_gb": 6}, {"turns": 3}), ("delete", "small", None),
+        # the run did not ask for containers of their own: one, as before
+        ("set", local, "OWN", False),
+        ("claim", "bakes", "blender", None, {"id": "score-this-pc:"}),
+        ("claim", None, "characters", ROUTE, None),
+        ("delete", "bakes", None),
+        # sim body's claims measured by the queue: its measured share goes beside the bakes
+        ("measures", "this-pc sim-body", [(3.6, 3.12), (2.9, 2.4), (3.2, 2.9), (2.6, 2.1), (3.4, 2.7)]),
+        ("claim", "bakes", "blender", None, {}),  # 9.7 GB of card, 22.1 GiB
+        ("mark", "body"),
+        ("claim", "body", "sim-body", {"memory_gb": 1.86}, {"id": "score-this-pc:", "not": "bakes"}),  # 3.6 GB
+        ("uncapped since", "body"),  # its memory_gb is blender_cloud's Blender prediction (2 GB): never 3g
+        ("held memory", "this-pc sim-body", [4.4]),  # 3.12 GB x 1.5 = 4.4 GiB
+        ("claim", None, "sim-body", None, None),  # a second sim body: 16.9 GB of card does not fit, it waits
+        ("drop", "this-pc sim-body", "env-run"),
+        ("run cap", 2),  # similar's 0.8 and sim-body's 3.6; the bakes' 9.7 not
+        ("delete", "body", None), ("delete", "bakes", None),
+        # every container's limits as it is made or found made, its installer caches gone once at its first claim
+        # (its layer measured again only after LAYER_EVERY_SECONDS)
+        ("containers", {"score-this-pc-characters", "score-this-pc-similar", "score-this-pc", "score-this-pc-pixal"}),
+        # the Blender kind's memory: its claims' readings alone in the container, the 5 GB of two together left out
+        ("measured", r"(?m)^this-pc blender: \d+ takes, .*, memory 3\.0 GB \([1-9]\d* alone\)$")])]
 
 
-@pytest.mark.parametrize("row, steps", QUEUE_ASKS, ids=[row for row, _ in QUEUE_ASKS])
-def test_the_card_queue_admits_a_share_only_while_it_fits_and_no_waiter_before_it_blocks_it(row, steps, monkeypatch,
-                                                                                               card_queue_folder):
-    shares = {}
+def this_pc(monkeypatch, tmp_path):
+    """This PC's world for its claims: its container 27g (35g with a job alone, `room` GiB free for one), the bakes'
+    container's cgroup, the runner's folders a claim's clean-up empties, and every docker call it makes kept in
+    `calls` (one container, the characters', made before these limits: it takes them by update)."""
+    import capacity
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
+    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
+    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
+    world = types.SimpleNamespace(calls=[], made={"score-this-pc-characters"}, room=[20 * 2**30],
+                                  cgroup=tmp_path / "cgroup", home=tmp_path / "pc", temp=tmp_path / "t")
+    monkeypatch.setattr(local, "alone_room", lambda name=None: world.room[0])
+    monkeypatch.setattr(local, "answering", lambda name=None: "172.17.0.2")
+    monkeypatch.setattr(local.os, "cpu_count", lambda: 24)
+    monkeypatch.setattr(capacity.provider, "cloud", local)
+    monkeypatch.delenv("SCORE_MAX_MACHINES", raising=False)
+    world.cgroup.mkdir()  # the bakes' container's cgroup; the other containers have none here
+    (world.cgroup / "memory.stat").write_text(f"anon {3 * 10**9}\nfile {9 * 10**9}\n")  # the page cache is no need
+    monkeypatch.setattr(local, "cgroup_of", lambda name=local.MACHINE: world.cgroup if name == local.MACHINE else None)
+    monkeypatch.setattr(card_queue, "MEMORY_LOOK_SECONDS", 0.01)
+    (world.home / ".props").mkdir(parents=True)
+    world.temp.mkdir()
+    monkeypatch.setattr(local.pathlib.Path, "home", lambda: world.home)
+    monkeypatch.setattr(local, "HOME", world.home / ".props")
+    monkeypatch.setattr(local, "REPO", pathlib.Path("/root/repo"))
+    monkeypatch.setattr(local.tempfile, "tempdir", str(world.temp))
+
+    def docker(*arguments, **_):
+        world.calls.append(arguments)
+        if arguments[0] == "run":
+            world.made.add(arguments[arguments.index("--name") + 1])
+        state = arguments[:3] == ("inspect", "-f", "{{.State.Running}}")
+        layer = arguments[:2] == ("inspect", "--size")  # 90 GB, its set-ups' own past LAYER_LIMIT_GB
+        return types.SimpleNamespace(returncode=1 if state and arguments[3] not in world.made else 0,
+                                     stdout="true" if state else "90000000000" if layer else "", stderr="")
+    monkeypatch.setattr(local, "docker", docker)
+    world.mark = local.waiting_claims() / str(os.getpid())
+    return world
+
+
+def terminated(commands):
+    """The machines these account commands terminated, in order."""
+    return [command[3] for command in commands if command[:3] == ("instance", "server", "terminate")]
+
+
+def started(calls):
+    """The containers each claim started (each start sets its cores), in order."""
+    return [call[call.index("--name") + 1] if call[0] == "run" else call[-1] for call in calls if "--cpus" in call]
+
+
+def updates(calls):
+    """The memory each update of a container gave it, in order."""
+    return [call[call.index("--memory") + 1] for call in calls if call[0] == "update"]
+
+
+@pytest.mark.parametrize("row, steps", ASKS, ids=[row for row, _ in ASKS])
+def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_counted(
+        row, steps, monkeypatch, card_queue_folder, tmp_path, request):
+    import importlib
+    import capacity
+    import card_turn
+    import spread
+    held, runs, marks, pc, cloud = {}, {}, {}, None, None
+    lock = str(tmp_path / "card.lock")
+    call = card_turn.turned(Operator.__call__, lock)
     for number, step in enumerate(steps, 1):
         where = f"{row}, step {number}: {step}"
-        if step[0] == "take":
+        kind = step[0]
+        if kind == "take":
             _, name, job, card_gb, priority, group, memory, admitted = step
-            share = card_queue.take(job, card_gb, priority, group, memory=memory)
-            assert bool(share) == admitted, where
-            shares[name] = share
-        elif step[0] == "release":
-            card_queue.release(shares.pop(step[1]))
-        elif step[0] == "drop":
+            held.pop(name, None)
+
+            def admit():
+                held[name] = held.get(name) or card_queue.take(job, card_gb, priority, group, memory=memory)
+                return held[name]
+            assert (until(admit) if admitted == "in time" else bool(admit()) == admitted), where
+        elif kind == "release":
+            card_queue.release(held.pop(step[1]))
+        elif kind == "drop":
             card_queue.release(card_queue.WAITING.pop(step[1:]))
-        elif step[0] == "backfill":
-            monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", step[1])
-        elif step[0] == "status":
-            assert re.search(step[1], card_queue.status()), (where, card_queue.status())
-        else:
+        elif kind == "set":
+            monkeypatch.setattr(step[1], step[2], step[3])
+        elif kind in ("status", "measured"):
+            line = getattr(card_queue, kind)()
+            assert re.search(step[1], line), (where, line)
+        elif kind == "run":
+            noted = tmp_path / f"{step[1]}.starts"
+            command = f"import os, sys; open({str(noted)!r}, 'a').write(f'{{os.getpid()}}\\n'); sys.stdin.read()"
+            runs[step[1]] = subprocess.Popen(
+                [sys.executable, card_queue.__file__, "run", "--job", step[1], "--card-gb", str(step[2]), "--",
+                 sys.executable, "-c", command],
+                stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
+            request.addfinalizer(runs[step[1]].kill)  # a red run leaves no queue runner behind
+            assert until(lambda: noted.exists() and f"held {step[1]}" in card_queue.status()), where
+        elif kind == "starts":
+            noted = tmp_path / f"{step[1]}.starts"
+            assert until(lambda: len(noted.read_text().split()) == step[2]), (where, noted.read_text())
+            for pid in noted.read_text().split()[:step[3]]:
+                with pytest.raises(ProcessLookupError):
+                    os.kill(int(pid), 0)
+        elif kind == "end":
+            runs[step[1]].stdin.close()
+            assert runs[step[1]].wait(30) == 0, where
+        elif kind == "operators":
+            Operator.on_card[0] = Operator.most[0] = 0
+            threads = [threading.Thread(target=call, args=(Operator(name),)) for name in step[1]]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            assert Operator.most[0] == step[2] == card_turn.CARD_SLOTS and call.card_turn, (where, Operator.most[0])
+        elif kind == "beside":
+            with contextlib.ExitStack() as holding:
+                for _ in range(step[1]):
+                    holding.enter_context(card_turn.card_turn(lock))
+                beside = threading.Thread(target=call, args=(Operator(step[2]),))
+                beside.start()
+                beside.join(5)
+                assert not beside.is_alive(), where
+        elif kind == "sized":
             sized = subprocess.run([sys.executable, "-c",
                                     "import card_queue; print(card_queue.BUDGET_GB, card_queue.DESKTOP_GB)"],
                                    cwd=card_queue.__file__.rpartition("/")[0], capture_output=True, text=True,
                                    check=True, env={**os.environ, **step[1]})
             assert sized.stdout.split() == step[2], where
+        elif kind == "pc size":
+            try:
+                with monkeypatch.context() as sized:
+                    sized.setattr(local.os, "sysconf",
+                                  {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": step[1] * 2**30 // 4096}.get)
+                    importlib.reload(local)  # RUNS_AT_ONCE is sized as the module loads
+                    assert (local.memory_cap(), local.RUNS_AT_ONCE.get("blender", 1)) == step[2:], where
+            finally:
+                importlib.reload(local)
+                monkeypatch.setattr(local, "OWN", True)
+        elif kind == "offers":
+            if isinstance(step[2], str):
+                with pytest.raises(SystemExit, match=step[2]):
+                    local.offers(step[1])
+            else:
+                offered = local.offers(step[1])
+                assert [offer.machine_class for offer in offered] == step[2], where
+                assert {(offer.price, offer.stock_word) for offer in offered} == {(0.0, "parked")}, where
+        elif kind == "library store":
+            monkeypatch.setattr(scaleway, "object_store", lambda: {"bucket": "the-library-bucket"})
+            assert local.object_store() == {"bucket": "the-library-bucket"}, where
+        elif kind == "pc":
+            pc = this_pc(monkeypatch, tmp_path)
+        elif kind == "account":
+            cloud = scaleway_account(monkeypatch, tmp_path, request)
+        elif kind == "listed":
+            setattr(cloud, step[1], list(step[2]))
+        elif kind == "registry":
+            cloud.namespaces = list(step[1] or cloud.namespaces)
+            before = len(cloud.commands)
+            if step[2] == "public":
+                with pytest.raises(SystemExit, match="public"):
+                    scaleway.registry()
+            else:
+                assert scaleway.registry() == {"endpoint": step[2], "username": "nologin", "password": "SK"}, where
+            made = [command for command in cloud.commands[before:] if command[:3] == ("registry", "namespace", "create")]
+            assert len(made) == step[3], where
+            assert all(f"project-id={OURS}" in command and "is-public=false" in command for command in made), where
+        elif kind == "runtime key":
+            policies = [command for command in cloud.commands if command[:3] == ("iam", "policy", "create")]
+            assert len(policies) == 1 and f"rules.0.project-ids.0={OURS}" in policies[0] and \
+                "application-id=app" in policies[0], (where, policies)
+            assert {argument.split("=", 1)[1] for argument in policies[0] if ".permission-set-names." in argument} == {
+                "ObjectStorageFullAccess", "ContainerRegistryFullAccess"}, where
+            assert [command for command in cloud.commands if command[:3] == ("iam", "api-key", "create")
+                    and f"default-project-id={OURS}" in command], where
+            assert [command for command in cloud.commands if command[:3] == ("secret", "secret", "create")
+                    and f"project-id={OURS}" in command], where
+            assert json.loads(cloud.stored) == {"access_key": "AK2", "secret_key": "SK2"}, where
+            assert not any("SK2" in argument for command in cloud.commands for argument in command), where
+        elif kind == "month spend":
+            assert scaleway.month_spend(OURS) == step[1], where
+        elif kind == "bill all":
+            if isinstance(step[2], str):
+                with pytest.raises(scaleway.Unread, match=step[2]):
+                    scaleway.bill_all(**({"last_whole": step[1]} if step[1] else {}))
+            else:
+                read = scaleway.bill_all()
+                assert {key: read[key] for key in step[2]} == step[2], (where, read)
+        elif kind == "owners":
+            names = {"ff": "farm-factory", "bp": SHARED, "xx": "babon-worker"}
+            assert [scaleway.owner_of({"project": project, "tags": tags}, names) for project, tags, _ in step[1]] == [
+                owner for _, _, owner in step[1]], where
+        elif kind == "quotas":
+            if step[1] == "403":
+                def pages(organization, key):
+                    raise urllib.error.HTTPError("https://api.scaleway.com", 403, "Forbidden", {}, None)
+            else:
+                def pages(organization, key, listed=step[1]):
+                    return listed if (organization, key) == ("org", "key") else []
+            monkeypatch.setattr(scaleway, "quota_pages", pages)
+            scaleway.zone_quotas.cache_clear()
+            assert scaleway.zone_quotas() == step[2], where
+        elif kind == "parked":
+            parked = tmp_path / "parked"
+            parked.mkdir()
+            for index, record in enumerate(step[1]):
+                (parked / f"{index}.json").write_text(json.dumps({**record, "until": time.time() + record["until"]}))
+            (parked / f"{len(step[1])}.json").write_text("{\"type\": ")  # half-written
+            monkeypatch.setattr(scaleway, "PARKED", parked)
+        elif kind == "cloud offers":
+            before = len(cloud.commands)
+            found = scaleway.offers(step[1])
+            assert step[2] is None or {(offer.machine_class, offer.zone): (offer.stock_word, offer.stock)
+                                       for offer in found} == step[2], (where, found)
+            assert [command[-1] for command in cloud.commands[before:]
+                    if command[:3] == ("instance", "server-type", "list")] == step[3], where
+        elif kind == "rent":
+            _, number, _, address, refusing, owner, sent, kept = step
+            name, since = f"blender-{number}", len(cloud.commands)
+            cloud.rent(address, owner)
+            cloud.refusals = [(("instance", "ip", refusing), f"scw ip {refusing} failed", lambda: None)] \
+                if refusing else []
+            offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb",
+                                          price=0.02)
+            answer = scaleway.create(OURS, offer, name, [], 60)
+            assert answer[0] == (f"srv-{name}" if kept else None) and (answer[1] is None) == kept, where
+            assert terminated(cloud.commands[since:]) == ([] if kept else [f"srv-{name}"]), where
+            ip = [command for command in cloud.commands[since:]
+                  if command[:2] == ("instance", "ip") and command[2] != "list"]
+            assert [command[2] for command in ip] == sent, where
+            if kept and sent:
+                assert f"server=srv-{name}" in ip[0] and f"project-id={OURS}" in ip[0], where
+                assert ip[3][3] == f"ip-{name}" and f"tags.0={scaleway.QUARANTINED}" in ip[3], where
+        elif kind == "refused but made":
+            import ledger
+            since = len(cloud.commands)
+            cloud.order = cloud.refuse_but_make
+            offer = types.SimpleNamespace(type="L4-1-24G", zone="fr-par-1", machine_class="gpu-24gb", price=0.013)
+            answer = scaleway.create(OURS, offer, step[1], [], 60)
+            assert answer[0] is None and "500" in answer[1], where
+            assert terminated(cloud.commands[since:]) == ["srv-made"] and "zone=fr-par-1" in next(
+                command for command in cloud.commands[since:] if command[2] == "terminate"), where
+            assert sorted(command[3] for command in cloud.commands[since:] if command[2] == "delete") == [
+                "disk-new", "ip-new"], where
+            lines = ledger_lines()
+            assert [line["state"] for line in lines if line["kind"] in (ledger.RENT_STARTED, ledger.RENT_REFUSED)
+                    and line["name"] == step[1]] == ["started", "refused"], where  # its started line, then refused
+            fees = [line for line in lines if line["kind"] == "disk-and-address" and line["who"] == "scaleway.create"]
+            assert len(fees) == 1 and fees[0]["name"] == step[1], where
+            assert fees[0]["euros"] == pytest.approx(0.005 + 60 * 0.00013), where  # one address-hour, 60 GB an hour
+        elif kind == "hours":
+            created = 1791799200.0  # 2026-10-12T10:00:00Z
+            server = {"creation_date": made_at(created), "public_ips": [{"id": "ip"}]}
+            assert [scaleway.disk_and_address_euros(server, 60, created + minutes * 60) for minutes, _ in step[1]] == [
+                pytest.approx(hours * ONE_HOUR) for _, hours in step[1]], where
+        elif kind == "cloud delete":
+            if isinstance(step[2], str):
+                with pytest.raises(RuntimeError, match=step[2]):
+                    scaleway.delete(step[1], "pl-waw-2")
+            else:
+                assert scaleway.delete(step[1], "pl-waw-2") is step[2], where
+        elif kind == "fee":
+            written = [line["euros"] for line in ledger_lines() if line["batch"] == f"disk-and-address-{step[1]}"]
+            assert written == ([] if step[2] is None else [pytest.approx(step[2])]), (where, written)
+        elif kind == "refusals":
+            cloud.refusals = [(head, words, (lambda gone=gone: cloud.servers.remove(
+                cloud.find(cloud.servers, gone, "server"))) if gone else (lambda: None))
+                for head, words, gone in step[1]]
+        elif kind == "terminate":
+            assert scaleway.terminate(step[1], step[2]) is True, where
+        elif kind == "delete address":
+            scaleway.delete_address(step[1], "pl-waw-2")
+        elif kind == "delete disk":
+            with pytest.raises(subprocess.CalledProcessError) if step[2] else contextlib.nullcontext():
+                scaleway.delete_disk(step[1], "pl-waw-2")
+        elif kind == "start if stopped":
+            assert step[2] in scaleway.start_if_stopped(step[1], "pl-waw-2"), where
+        elif kind == "leftovers":
+            assert scaleway.leftover_addresses(OURS, ("pl-waw-2",)) == step[1], where
+        elif kind == "runner paths":
+            assert local.runner_paths() == [pc.home, pc.temp], where
+        elif kind == "claim":
+            _, name, claim_kind, need, expected = step
+            if isinstance(expected, str):
+                with pytest.raises(ValueError, match=expected):
+                    local.take(claim_kind, "key", need)
+                continue
+            claim = local.take(claim_kind, "key", need)
+            if expected is None:
+                assert claim is None, (where, claim)
+                continue
+            assert claim, where
+            held[name] = claim
+            for key, value in expected.items():
+                if key == "id":
+                    assert claim["id"].startswith(value), (where, claim)
+                elif key == "slots":
+                    assert spread.slots(claim_kind, claim) == value, (where, claim)
+                elif key == "not":
+                    assert claim["id"] != held[value]["id"], (where, claim, held[value])
+                else:
+                    assert claim[key] == value, (where, claim)
+        elif kind == "delete":
+            answer = local.delete(held[step[1]]["id"] if step[1] in held else step[1], local.ZONE)
+            assert step[2] is None or answer is step[2], (where, answer)
+        elif kind == "mark":
+            marks[step[1]] = len(pc.calls)
+            marks[f"{step[1]} peaks"] = card_queue.peaks().get("this-pc blender", {"takes": 0, "memory_takes": 0})
+        elif kind == "called":
+            assert step[1] in pc.calls, (where, pc.calls)
+        elif kind == "last update":
+            assert [made for made in pc.calls if made[0] == "update"][-1] == step[1], where
+        elif kind == "uncapped since":  # a claim held under the container's 27g
+            assert not [made for made in pc.calls[marks[step[1]]:]
+                        if made[:2] == ("update", "--memory") and made[2] != "27g"], where
+        elif kind == "memory never":
+            assert step[1] not in updates(pc.calls), where
+        elif kind == "memory now":
+            assert updates(pc.calls)[-1] == step[1], (where, updates(pc.calls))
+        elif kind == "waiters":
+            local.waiting_claims().mkdir(parents=True, exist_ok=True)
+            pc.gone, pc.alive = local.waiting_claims() / str(2**22 + 7), local.waiting_claims() / str(os.getppid())
+            pc.gone.touch()  # a process that died while it waited (no pid is this high: Linux's pid_max at most 2**22)
+            pc.alive.touch()
+        elif kind == "waiting":
+            assert pc.mark.exists() == step[1], where
+        elif kind == "waiters swept":
+            assert not pc.gone.exists() and pc.alive.exists(), where
+        elif kind == "queued":
+            assert local.queued(step[1]) == step[2], where
+        elif kind == "lock free":
+            with local.container_lock(step[1]).open("a+") as probe:
+                assert local.got(probe, True), where
+        elif kind == "card read":
+            assert until(lambda: local.CARDS[held[step[1]]["id"]].card_peak), where
+        elif kind == "memory peak":
+            assert until(lambda: all(local.CARDS[held[name]["id"]].memory_peak == step[2] for name in step[1])), where
+        elif kind == "work out":
+            spread.work_turn(held[step[1]], spread.Shares([]), lambda *_: None, 0, threading.Event())
+        elif kind == "let go":
+            local.let_go_turn(held[step[1]]["id"])
+        elif kind == "ends with":
+            for name in step[1]:
+                local.ends_with(held[name]["id"], f"rm -rf /job/{held[name]['id']}")
+        elif kind == "left alone since":
+            assert not [made for made in pc.calls[marks[step[1]]:] if made[0] in ("restart", "exec")], where
+        elif kind == "restarted":
+            assert [made for made in pc.calls if made[0] == "restart"][-1][-1] == step[1], where
+        elif kind == "restart and sweep since":
+            sent = f"rm -rf /job/{held[step[2]]['id']}; {local.swept()}"
+            assert [made for made in pc.calls[marks[step[1]]:] if made[0] in ("restart", "exec")] == [
+                ("restart", "-t", "5", local.MACHINE), ("exec", local.MACHINE, "sh", "-c", sent)], where
+        elif kind == "peaks since":
+            before, after = marks[f"{step[1]} peaks"], card_queue.peaks()["this-pc blender"]
+            assert (after["takes"] - before["takes"], after["memory_takes"] - before["memory_takes"]) == step[2], (
+                where, before, after)
+        elif kind == "sweep":
+            for leftover in (pc.home / ".props/store/take.png", pc.home / "work/out/a.glb",
+                             pc.temp / "blender_tmp/x"):
+                leftover.parent.mkdir(parents=True, exist_ok=True)
+                leftover.write_text("x")
+            subprocess.run(["sh", "-c", local.swept()], check=True)
+            assert pc.home.is_dir() and not any(pc.home.iterdir()) and not any(pc.temp.iterdir()), where
+            (pc.home / ".props").mkdir()
+        elif kind == "anon":
+            (pc.cgroup / "memory.stat").write_text(f"anon {step[1]}\nfile {step[2]}\n")
+        elif kind == "card turn copied":
+            assert ("cp", str(local.CARD_TURN), f"{local.MACHINE}:{card_turn.STARTUP}/.card_turn.py.new") in pc.calls
+            assert ("exec", local.MACHINE, "mv", f"{card_turn.STARTUP}/.card_turn.py.new",
+                    f"{card_turn.STARTUP}/card_turn.py") in pc.calls, where
+        elif kind == "started since":
+            assert started(pc.calls[marks[step[1]]:]) == step[2], where
+        elif kind == "want":
+            if step[1] == "elsewhere":  # as another live process's
+                (local.wanting() / str(os.getpid())).rename(local.wanting() / str(os.getppid()))
+            else:
+                (local.wanting() / str(os.getppid())).unlink()
+        elif kind == "room":
+            pc.room[0] = step[1] * 2**30
+        elif kind == "measures":
+            with (card_queue.QUEUE / "measures.jsonl").open("a") as measures:
+                for card_gb, memory_gb in step[2]:
+                    measures.write(json.dumps({"job": step[1], "card_gb": card_gb, "alone": True, "cores": 9.7,
+                                               "memory_gb": memory_gb, "memory_alone": True}) + "\n")
+        elif kind == "held memory":
+            assert [round(share["memory_gb"], 1) for share in card_queue.live("held")
+                    if share["job"] == step[1]] == step[2], where
+        elif kind == "run cap":
+            assert capacity.run_cap() == local.claims_at_once() == step[1], where
+        else:  # containers: each made or found made with its limits, its installer caches gone once
+            assert {(made[made.index("--memory") + 1], made[made.index("--memory-swap") + 1],
+                     made[made.index("--cpus") + 1]) for made in pc.calls if "--cpus" in made} == {("27g", "27g", "20")}
+            assert pc.made == step[1], where
+            assert [made[1] for made in pc.calls if made[-1] == local.INSTALLER_CACHES] == list(
+                dict.fromkeys(started(pc.calls))), where
 
 
 def until(done, seconds=30):
@@ -905,205 +1168,3 @@ def until(done, seconds=30):
     while not done() and time.time() < give_up:
         time.sleep(0.05)
     return done()
-
-
-# This PC's claims judged by their measured need alone, before anything is held: (kind, need, the words of its
-# refusal, or True when it takes this PC). Kimodo's encoder on the card is the whole characters machine.
-REFUSED = [("characters", None, "17 GB of card"),
-           ("characters", {"card_gb": 4, "memory_gb": 40}, "40.0 GB of memory"),
-           ("blender", {"memory_gb": 40}, "with the job alone"),
-           ("characters", {"card_gb": 4, "memory_gb": 17}, True)]  # a characters run of clip steps fits
-ALONE = {"memory_gb": 29.8e9 / 2**30}  # base's light passes, round 31: past the container's 27 GiB
-ROUTE = {"card_gb": 1, "memory_gb": 3}
-
-
-def test_this_pc_takes_a_claim_only_while_its_measured_need_fits_beside_what_is_held(monkeypatch, tmp_path):
-    """One PC's day of claims, in its container 27g (35g with a job alone, 20 GiB of room free for one at first):
-    refusals by need, a side job's card share, kinds side by side in their own containers, a Blender job past the
-    container alone in the container raised for it, and sim body's measured share beside the bakes."""
-    import capacity
-    import local
-    import spread
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
-    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
-    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
-    room = [20 * 2**30]
-    monkeypatch.setattr(local, "alone_room", lambda name=None: room[0])
-    monkeypatch.setattr(capacity.provider, "cloud", local)
-    monkeypatch.delenv("SCORE_MAX_MACHINES", raising=False)
-    started, calls = [], []
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: started.append(name) or "172.17.0.2")
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
-    updates = lambda: [call[call.index("--memory") + 1] for call in calls if call[0] == "update"]  # noqa: E731
-    drop = lambda kind: card_queue.release(card_queue.WAITING.pop((f"this-pc {kind}", "env-run")))  # noqa: E731
-
-    for kind, need, expected in REFUSED:
-        if expected is True:
-            clips = local.take(kind, "key", need)
-            assert clips["here"], (kind, need)
-            local.delete(clips["id"], local.ZONE)
-        else:
-            with pytest.raises(ValueError, match=expected):
-                local.take(kind, "key", need)
-
-    # a side job holds 6 GB of the card: claims hold their measured share beside it, or wait holding none
-    side = card_queue.take("sim-body", 6, "other")
-    likeness = local.take("similar", "key")  # DINOv2's measured 0.8 GB fits beside it
-    beside = card_queue.take("side memory", 1, "other", memory=20)  # it holds its measured 1.3 GB, not all 27
-    assert likeness and beside
-    card_queue.release(beside)
-    local.delete(likeness["id"], local.ZONE)
-    bake = local.take("library", "key")  # the library bakes' measured 1.4 GB fits beside it too
-    assert bake
-    local.delete(bake["id"], local.ZONE)
-    assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
-    assert local.queued("pixal") and not local.queued("blender")  # in the queue: park.here holds its minutes
-    with local.container_lock("score-this-pc-pixal").open("a+") as probe:
-        assert local.got(probe, True)  # its container's lock was let go
-    card_queue.release(side)
-    pixal = local.take("pixal", "key")  # unmeasured memory: the whole of it
-    assert pixal and card_queue.take("sim-body", 6, "other") is None  # the claim holds its card share
-    assert local.take("characters", "key", ROUTE) is None  # and all the memory: no kind beside it
-    assert not local.queued("pixal")
-    assert until(lambda: local.CARDS[pixal["id"]].card_peak)  # the card read while it holds it
-    local.delete(pixal["id"], local.ZONE)
-    drop("characters")  # that claim stopped asking
-    after = card_queue.take("sim-body", 6, "other")
-    assert after
-    card_queue.release(after)
-    assert "this-pc pixal: 1 takes, card 6.39 GB (1 alone)" in card_queue.measured()  # the claim was measured
-
-    # claims of different kinds run side by side, each in its own container, while they fit
-    before = len(started)
-    bakes = local.take("blender", "key")  # three turns: 3 x 6.7 + 2 = 22.1 GiB, 9.7 GB of card
-    route = local.take("characters", "key", ROUTE)  # 25.1 GiB and 10.7 GB: it fits
-    assert bakes["turns"] == 3 and bakes["id"].startswith("score-this-pc:"), bakes
-    assert route["id"].startswith("score-this-pc-characters:"), route
-    assert started[before:] == ["score-this-pc", "score-this-pc-characters"]
-    assert local.take("blender", "key", ALONE) is None  # a Blender job past 27g waits for the shared claim to leave
-    assert local.take("pixal", "key") is None  # unmeasured: the whole memory, so it waits for both
-    drop("pixal")
-    local.delete(route["id"], local.ZONE)
-    local.delete(bakes["id"], local.ZONE)
-
-    # the Blender job past the container runs alone, once the room it needs is free
-    assert local.take("blender", "key", ALONE) is None and "35g" not in updates()  # 20 GiB free: it waits
-    (local.wanting() / str(os.getpid())).rename(local.wanting() / str(os.getppid()))  # as another live process's
-    assert local.take("blender", "key") is None  # its want keeps new Blender claims out meanwhile
-    room[0] = 33 * 2**30
-    alone = local.take("blender", "key", ALONE)
-    assert alone["turns"] == 1 and spread.slots("blender", alone) == [0] and updates()[-1] == "35g", alone
-    assert local.take("blender", "key") is None
-    local.delete(alone["id"], local.ZONE)
-    assert updates()[-1] == "27g"  # back to the shared cap once it leaves
-    (local.wanting() / str(os.getppid())).unlink()  # that want is gone
-    small = local.take("blender", "key", {"memory_gb": 6})
-    assert small["turns"] == 3, small
-    local.delete(small["id"], local.ZONE)
-
-    # the run did not ask for containers of their own: one, as before
-    monkeypatch.setattr(local, "OWN", False)
-    bakes = local.take("blender", "key")
-    assert bakes["id"].startswith("score-this-pc:") and local.take("characters", "key", ROUTE) is None
-    local.delete(bakes["id"], local.ZONE)
-
-    # sim body's claims measured by the queue: its measured share goes beside the bakes
-    with (card_queue.QUEUE / "measures.jsonl").open("a") as measures:
-        for card_gb, memory_gb in ((3.6, 3.12), (2.9, 2.4), (3.2, 2.9), (2.6, 2.1), (3.4, 2.7)):
-            measures.write(json.dumps({"job": "this-pc sim-body", "card_gb": card_gb, "alone": True, "cores": 9.7,
-                                       "memory_gb": memory_gb, "memory_alone": True}) + "\n")
-    bakes = local.take("blender", "key")  # 9.7 GB of card, 22.1 GiB
-    body = local.take("sim-body", "key", {"memory_gb": 1.86})  # beside them: 3.6 GB, 3.12 GB x 1.5 = 4.4 GiB
-    assert body["id"].startswith("score-this-pc:") and body["id"] != bakes["id"], (body, bakes)
-    assert [round(share["memory_gb"], 1) for share in card_queue.live("held") if share["job"] == "this-pc sim-body"] \
-        == [4.4]
-    assert local.take("sim-body", "key") is None  # a second sim body: 16.9 GB of card does not fit, it waits
-    drop("sim-body")
-    assert capacity.run_cap() == local.claims_at_once() == 2  # similar's 0.8 and sim-body's 3.6; the bakes' 9.7 not
-    local.delete(body["id"], local.ZONE)
-    local.delete(bakes["id"], local.ZONE)
-
-
-def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_after(monkeypatch, card_queue_folder,
-                                                                                         tmp_path, request):
-    starts = tmp_path / "starts"
-    tuning = (f"import os, sys; open({str(starts)!r}, 'a').write(f'{{os.getpid()}}\\n'); sys.stdin.read()")
-    holder = subprocess.Popen([sys.executable, card_queue.__file__, "run", "--job", "tuning", "--card-gb", "6", "--",
-                               sys.executable, "-c", tuning],
-                              stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
-    request.addfinalizer(holder.kill)  # a red run leaves no queue runner behind (its command ends with it)
-    assert until(lambda: starts.exists() and "held tuning" in card_queue.status())
-    assert card_queue.take("pixal", 10.8, "env-run") is None  # 6 + 10.8 passes the card: it waits
-    monkeypatch.setattr(card_queue, "YIELD_SECONDS", 0)  # it has waited long enough: the side share is asked back
-    film = None
-
-    def admitted():
-        nonlocal film
-        film = film or card_queue.take("pixal", 10.8, "env-run")
-        return film
-
-    assert until(admitted)
-    first = int(starts.read_text().split()[0])
-    with pytest.raises(ProcessLookupError):
-        os.kill(first, 0)  # the tuning was stopped, not left on the card beside the env-run claim
-    assert "waits tuning" in card_queue.status()  # its run waits again behind the env-run claim, its share given back
-    card_queue.release(film)
-    assert until(lambda: len(starts.read_text().split()) == 2)  # started again once the env-run claim let go
-    holder.stdin.close()
-    assert holder.wait(30) == 0 and card_queue.take("pixal", 10.8, "env-run")  # it ended: its share is free
-    assert card_queue.measured().startswith("tuning: 2 takes, card 6.39 GB (2 alone), cores ")  # both runs measured
-
-
-def test_this_pc_claims_memory_is_read_from_its_container_and_counted_only_alone_there(monkeypatch, tmp_path):
-    """2026-10-31: `measured` showed "memory unmeasured" for every claim of this PC. A claim's memory is its
-    container's anon bytes (cgroup memory.stat) at their highest while it holds its share; a reading taken while
-    another claim held the same container (two places' Blender claims in score-this-pc) is not alone and is left out
-    of the kind's measure, as a card reading beside another share is."""
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"blender": 3})
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
-    monkeypatch.setattr(card_queue, "MEMORY_LOOK_SECONDS", 0.01)
-    cgroup = tmp_path / "cgroup"
-    cgroup.mkdir()
-    stat = cgroup / "memory.stat"
-    monkeypatch.setattr(local, "cgroup_of", lambda name=None: cgroup)
-    stat.write_text(f"anon {3 * 10**9}\nfile {9 * 10**9}\n")  # the page cache is not the claim's need
-    alone = local.take("blender", "key")
-    assert until(lambda: local.CARDS[alone["id"]].memory_peak)
-    local.delete(alone["id"], local.ZONE)
-    first = local.take("blender", "key")
-    local.let_go_turn(first["id"])
-    local.let_go_turn(first["id"])
-    second = local.take("blender", "key")  # another place's bake row in the same container
-    stat.write_text(f"anon {5 * 10**9}\nfile 0\n")  # both claims' jobs together
-    assert until(lambda: all(local.CARDS[claim["id"]].memory_peak == 5 * 10**9 for claim in (first, second)))
-    local.delete(second["id"], local.ZONE)
-    local.delete(first["id"], local.ZONE)
-    assert "memory 3.0 GB (1 alone)" in card_queue.measured().split("this-pc blender: 3 takes")[1]
-
-
-def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_memory(monkeypatch, tmp_path):
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "answering", lambda name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
-    monkeypatch.setattr(local.os, "cpu_count", lambda: 24)
-    calls = []
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments) or types.SimpleNamespace(
-        returncode=0, stdout="true", stderr=""))
-    machine = local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})
-    own = "score-this-pc-characters"
-    assert ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", own) in calls
-    assert ("update", "--memory", "26g", "--memory-swap", "26g", own) in calls  # 17 GB measured, x1.5
-    local.delete(machine["id"], "this-pc")
-    updates = [call for call in calls if call[0] == "update"]
-    assert updates[-1] == ("update", "--memory", "27g", "--memory-swap", "27g", own)  # set back
-    calls.clear()
-    local.delete(local.take("pixal", "key")["id"], "this-pc")
-    assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # no measure: 27g
-    calls.clear()  # a sim-body chain's memory_gb is blender_cloud's Blender prediction (2 GB), never its measure
-    local.delete(local.take("sim-body", "key", {"memory_gb": 1.86})["id"], "this-pc")
-    assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # not 3g
