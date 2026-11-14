@@ -94,7 +94,6 @@ MAY_SKIP = {
 # functions) at their count that day; only ever shrinks.
 FUNCTION_DEBT_DATE = "2026-11-01"
 FUNCTION_DEBT = {
-    ".claude/hooks/tests/test_hooks_block_only_their_rule_and_fail_open.py": 12,
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 23,
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 3,

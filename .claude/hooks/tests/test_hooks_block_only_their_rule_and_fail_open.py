@@ -9,7 +9,7 @@ test reads or edits the real config, the real checkout or its state folder; this
 
 The break that turns each test red (applied once each, seen red, reverted):
 
-- test_hooks_block_only_their_rule_and_fail_open, one row per call a guard answers from the call and its world alone:
+- test_hooks_block_only_their_rule_and_fail_open, one row per call a hook answers from the call and its world alone:
   - its accept_guard rows: `_owner_area_write` returns None at once. Drop `if _FRAMEWORK.search(path): return None`;
     or drop the `not _TEXT_FILE.search(path)` in `_file_offence`. Add `grant_benchmark` to `_OWNER_CALL`'s names. In
     `_owner_command`, `not _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check; or drop `spend_override|`
@@ -20,56 +20,56 @@ The break that turns each test red (applied once each, seen red, reverted):
     (CodeQL py/redos: exponential on many `!== `; the hook hangs past the row's 20 s, the harness fails it open); or
     to `([^\s=]+=\s+)*` (an env-prefixed accept passes).
   - its completion_guard rows: `claimed` returns `set()` at once. Drop `or _NEGATION.search(sentence)` in `claimed`;
-    or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
+    or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts). Its
+    as-listed rows (an incident, 2026-10-18: it imports score.stages, which needs pxr, so under the system python3 it
+    crashed on every stop and blocked nothing): the local hooks list runs it with `python3`.
+  - its torn_commit_guard rows: `sourced_shell_dirs` returns [] at once; or `blocks` returns False at once.
+  - its leftover_guard rows: `session_worktree` returns None at once.
+  - its soul_guard rows: `broken_rules` returns [] at once.
+  - its call_efficiency rows: `is_single_fast` returns False at once.
+  - its checkout_current rows: `catch_up` returns "" at once.
+  - its output_cap rows: `text_excerpt`'s `if matches:` made `if False:`; or `leave_alone` returns False at once; or
+    `capped_output`'s saving check made `if False:`.
   - its issue_guard rows: `_is_destructive_git` returns False at once. `_is_gh_issue_create` returns `"create" in`
     the joined tokens (a substring match, not adjacent tokens). `_areas` returns [] at once. `_open_roots` returns []
     at once; or `_check_duplicate` returns at once. `_check_dead_paths` returns at once; or `_check_size` returns at
     once; or `_check_edit_size` returns at once (an edit then grows an over-cap body unchecked).
   - its md_guard rows: the `tee` pattern taken out of `_SHELL_TARGETS`; or `_recent_typed_messages` returns `texts`
     (a yes 21 typed messages back is heard). `_approved` returns an empty set at once; or `_user_asked_for_markdown`
-    returns False at once (the user's yes is never heard).
+    returns False at once (the user's yes is never heard). Its timed rows: in `main`, ask `_user_asked_for_markdown`
+    before `not offenders` (a non-md call reads the transcript: it hangs on the pipe); or `_recent_typed_messages`
+    starts with `chunk = size` (the whole transcript read, over 100 ms).
   - its commit_guard rows: `bypass_in` returns None at once. `live_session_worktrees` returns [] at once.
     `is_git_commit` returns `"commit" in tokens` (any word).
   - its wait_guard rows: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once; or `tail_follow`
     returns None at once; or `long_timeout` returns None at once. Drop the `_MESSAGE.sub` in `blocked`; or drop
     `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked).
+  - its push-gate rows (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block
+    dropped (a grown debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a
+    failing touched test pushes); `touched_tests`'s `gpu` made [] (a GPU module is run, not left to a run by hand);
+    `main` returns 0 instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the
+    clean push's test file, a git-driving one here, then runs against the pushing repository's GIT_DIR); `checked`'s
+    `.venv` link dropped (the push from a clone moved off it, checked in a copy, has no environment for its test).
+  - its push-cap rows (.claude/hooks/pre-push and push_cap.py, in scratch repos): `claim`'s `len(today) >= cap` made
+    `>` (a 7th push of a 6-a-day cap goes); `limit_for` takes the first entry instead of the latest started one (the
+    later, lower limit never applies); the pre-push's `release` call dropped (a refused push keeps its slot);
+    `never_reached_main` returns False at once (a push the remote refused keeps its slot); `main`'s `uncounted` check
+    dropped (a release-only repository's push takes a slot), or `uncounted` returns True at once (every push passes
+    uncounted).
+  - its redo-guard rows (score.stages.moved and local/remake_freeze.py, in scratch repos): `remade_accepted` takes
+    `row["places"]` for a file-moved row too (a place the file does not move in counts); `remakes_line` sums every
+    row's euros, not the paid ones'; `main` returns 0 when `freeze` stands (an unnamed remade row pushes); `named`
+    drops its `why.strip()` (a bare list names rows); `standing_freeze` returns None on an unreadable file (a broken
+    freeze pushes).
   - its fail-open rows: accept_guard's `except Exception: return 0` made `return 2`.
-- test_completion_guard_runs_under_the_projects_python (an incident, 2026-10-18; it reads settings.json for the hook's
-  command, a wording check guarding the rule that a false done is refused): the local hooks list runs it with `python3`.
-- test_md_guard_reads_only_the_transcripts_end: in `main`, ask `_user_asked_for_markdown` before `not offenders` (a
-  non-md call reads the transcript: it hangs on the pipe); or `_recent_typed_messages` starts with `chunk = size` (the
-  whole transcript read, over 100 ms).
-- test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once. Its push-gate
-  half (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block dropped (a grown
-  debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a failing touched test
-  pushes); `touched_tests`'s `gpu` made [] (a GPU module is run, not left to a run by hand); `main` returns 0
-  instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the clean push's test
-  file, a git-driving one here, then runs against the pushing repository's GIT_DIR); `checked`'s `.venv` link
-  dropped (the push from a clone moved off it, checked in a copy, has no environment for its test). Its push-cap
-  half (.claude/hooks/pre-push and push_cap.py, in scratch repos): `claim`'s `len(today) >= cap` made `>` (a 7th push
-  of a 6-a-day cap goes); `limit_for` takes the first entry instead of the latest started one (the later, lower limit
-  never applies); the pre-push's `release` call dropped (a refused push keeps its slot); `never_reached_main` returns
-  False at once (a push the remote refused keeps its slot); `main`'s `uncounted` check dropped (a release-only
-  repository's push takes a slot), or `uncounted` returns True at once (every push passes uncounted). Its redo-guard half
-  (score.stages.moved and local/remake_freeze.py, in a scratch repo): `remade_accepted` takes `row["places"]` for a file-moved row too (a
-  place the file does not move in counts); `remakes_line` sums every row's euros, not the paid ones'; `main` returns
-  0 when `freeze` stands (an unnamed remade row pushes); `named` drops its `why.strip()` (a bare list names rows);
-  `standing_freeze` returns None on an unreadable file (a broken freeze pushes).
-- test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
-  [] at once.
-- test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
-- test_soul_guard_sends_a_too_long_or_em_dash_reply_back_at_most_twice: `broken_rules` returns [] at once.
-- test_call_efficiency_nudges_on_three_single_fast_commands_and_lands_a_row: `is_single_fast` returns False at once.
-- test_checkout_current_catches_up_and_says_when_it_cannot: `catch_up` returns "" at once.
-- test_output_cap_spills_a_long_output_whole_and_summarises_it: `text_excerpt`'s `if matches:` made `if False:`.
-- test_output_cap_leaves_what_the_agent_asked_for_alone: `leave_alone` returns False at once.
-- test_output_cap_caps_only_with_a_real_saving: `capped_output`'s saving check made `if False:`.
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/hooks/tests/
 """
 
 import concurrent.futures
+import functools
 import json
+import math
 import os
 import pathlib
 import runpy
@@ -92,8 +92,10 @@ def hook(name):
 
 
 def run(script, payload, env=None, cwd=None, timeout=None):
-    """(exit code, stderr, stdout) of a hook script given this payload (a dict as JSON, or raw text) on stdin."""
-    done = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, env=env, cwd=cwd,
+    """(exit code, stderr, stdout) of a hook script (or a command line, as a list) given this payload (a dict as JSON,
+    or raw text) on stdin."""
+    argv = script if isinstance(script, list) else [sys.executable, str(script)]
+    done = subprocess.run(argv, capture_output=True, text=True, env=env, cwd=cwd,
                           timeout=timeout,
                           input=payload if isinstance(payload, str) else json.dumps(payload))
     return done.returncode, done.stderr, done.stdout
@@ -282,11 +284,6 @@ def known_place_env(folder):
     return dict(os.environ, SCORE_GUARD_WITHIN=str(within), PROPS_WORK=str(folder / "work"))
 
 
-@pytest.fixture
-def known_place(tmp_path):
-    return known_place_env(tmp_path)
-
-
 def stop(name, last_text, entries=None, **more):
     """A Stop payload made in a world: the session `name` (see transcript), and per key in `more` another transcript
     ending with that text."""
@@ -316,22 +313,21 @@ HONEST_STOPS = [
 ]
 
 
-def test_completion_guard_runs_under_the_projects_python(tmp_path, known_place):
-    """It imports score.stages, which needs pxr: under the system python3 it crashed on every stop and so blocked
-    nothing (2026-10-18). The local hooks list runs it with the project's .venv python, and under that python a false
-    claim is refused with no import error."""
-    local = json.loads((HOOKS / "local" / "hooks.json").read_text())
-    commands = [entry["command"] for entry in local if "completion_guard.py" in entry["command"]]
-    assert commands and all(command.startswith("py=.venv/bin/python;") for command in commands)
-    main_venv = pathlib.Path(subprocess.run(["git", "-C", str(REPO), "rev-parse", "--path-format=absolute",
-                                             "--git-common-dir"], capture_output=True, text=True).stdout.strip())
-    python = main_venv.parent / ".venv/bin/python"
-    done = subprocess.run([str(python if python.exists() else sys.executable), "-I", str(hook("completion_guard.py"))],
-                          input=json.dumps({"transcript_path": transcript(tmp_path, f"The {PLACE} is complete now.")}),
-                          capture_output=True, text=True, env=known_place)
-    assert "ModuleNotFoundError" not in done.stderr
-    assert done.returncode == BLOCK and PLACE in done.stderr
+# As the local hooks list runs it: its own shell command for that event, in the checkout, the project's folder the
+# main checkout (whose .venv it falls back to). It imports score.stages, which needs pxr, so only the project's python
+# refuses a false claim; the system python3 crashes on the import and blocks nothing.
+LISTED_COMPLETION = {entry["event"]: entry["command"] for entry in json.loads((HOOKS / "local/hooks.json").read_text())
+                     if "completion_guard.py" in entry["command"]}
 
+
+def listed_completion(event):
+    """A world: completion_guard run by the local hooks list's command for this event, its place known."""
+    def make(world):
+        main = subprocess.run(["git", "-C", str(REPO), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                              capture_output=True, text=True).stdout.strip()
+        env = dict(known_place_env(world), CLAUDE_PROJECT_DIR=str(pathlib.Path(main).parent))
+        return ["bash", "-c", LISTED_COMPLETION[event]], env, REPO
+    return make
 
 
 
@@ -497,11 +493,6 @@ def md_world(folder):
     return guard, repo
 
 
-@pytest.fixture
-def md_repo(tmp_path):
-    return md_world(tmp_path)
-
-
 def md_write(repo, path, transcript=None):
     payload = {"tool_name": "Write", "tool_input": {"file_path": str(repo / path)}, "cwd": str(repo)}
     return dict(payload, transcript_path=str(transcript)) if transcript else payload
@@ -555,30 +546,27 @@ STANDING_EXCEPTIONS = [in_md_repo(make) for make in (
 )]
 
 
-def test_md_guard_reads_only_the_transcripts_end(md_repo, tmp_path):
-    guard, repo = md_repo
-    # A call that creates no .md answers without reading the transcript (a pipe nobody writes: a read never ends), and
-    # a new .md reads only the transcript's end for the yes: a long session's runs to hundreds of MB, read whole it
-    # took seconds a call, so the harness timed the guard out (failing open) 341 times.
-    unread = tmp_path / "unread.jsonl"
-    os.mkfifo(unread)
-    long_session = typed_transcript(repo, ["a line of chat " * 50] * 60000 + ["write a md file for it"])
-    # Each is timed against the same guard on a call it answers from the call alone (a listed path, no transcript), on
-    # the box as loaded now: the guard's own start-up is the box's, and on the gate's pods (2 slower cores, files side
-    # by side) a bare interpreter start took 0.07 s and the guard's 0.2 s, so only what the call's transcript adds is
-    # judged against the 100 ms.
-    alone = md_write(repo, "docs/asked-for.md")
-    for payload in (dict(md_bash(repo, "ls docs; git status"), transcript_path=str(unread)),
-                    md_write(repo, "docs/report.md", long_session)):
-        timings, starts = [], []
-        for _ in range(3):
-            started = time.monotonic()
-            assert run(guard, payload, timeout=10)[0] == ALLOW, payload
-            timings.append(time.monotonic() - started)
-            started = time.monotonic()
-            assert run(guard, alone, timeout=10)[0] == ALLOW
-            starts.append(time.monotonic() - started)
-        assert min(timings) - min(starts) < 0.1, (payload, timings, starts)
+def unread_pipe(world):
+    """A transcript path that is a pipe nobody writes: a guard that reads it never answers."""
+    pipe = world / "unread.jsonl"
+    os.mkfifo(pipe)
+    return str(pipe)
+
+
+# A call that creates no .md answers without reading the transcript, and a new .md reads only the transcript's end for
+# the yes: a long session's runs to hundreds of MB, read whole it took seconds a call, so the harness timed the guard
+# out (failing open) 341 times. Each is timed against the same guard on a call it answers from the call alone (a
+# listed path, no transcript), on the box as loaded now: the guard's own start-up is the box's, and on the gate's pods
+# (2 slower cores, files side by side) a bare interpreter start took 0.07 s and the guard's 0.2 s, so only what the
+# call's transcript adds is judged against the 100 ms.
+LISTED_ALONE = {"timed": in_md_repo(lambda repo, world: md_write(repo, "docs/asked-for.md"))}
+MD_TIMED = [
+    ("md", in_md_repo(lambda repo, world: dict(md_bash(repo, "ls docs; git status"),
+                                               transcript_path=unread_pipe(world))), "allow", (), LISTED_ALONE),
+    ("md", in_md_repo(lambda repo, world: md_write(repo, "docs/report.md", typed_transcript(
+        world / "long", ["a line of chat " * 50] * 60000 + ["write a md file for it"]))), "allow", (), LISTED_ALONE),
+]
+TIMED_ROUNDS, TRANSCRIPT_SECONDS = 3, 0.1
 
 
 # commit_guard: a session may not waive the commit guards, nor commit in the shared checkout while another session
@@ -645,7 +633,7 @@ COMMIT_ASKS = [
     ("commit-live", in_commit_world(f"cd {WORKTREE_W1}; git commit -m x"), "allow", ()),
     ("commit-live", in_commit_world(f"cd {WORKTREE_W1} && git commit -m x"), "allow", ()),
     # `~` reaches the guard unexpanded; it names the home directory as the shell would.
-    *(("commit-live", in_commit_world(elsewhere), "allow", (), lambda world: {"HOME": str(world)})
+    *(("commit-live", in_commit_world(elsewhere), "allow", (), {"env": lambda world: {"HOME": str(world)}})
       for elsewhere in ("git -C ~/repo/.claude/worktrees/w1 commit -m x",
                         "cd ~/repo/.claude/worktrees/w1 && git commit -m x")),
     # only git's own subcommand is a commit
@@ -654,21 +642,46 @@ COMMIT_ASKS = [
     *(("commit-live", in_commit_world(other), "allow", ())
       for other in ("git log --grep commit", 'gh issue comment 1 --body "git log shows the commit"',
                     "git status && echo commit")),
-    ("commit-live", in_commit_world("git commit -m x"), "allow", (), lambda world: {"WORKTREE_GUARD": "0"}),
+    ("commit-live", in_commit_world("git commit -m x"), "allow", (), {"env": lambda world: {"WORKTREE_GUARD": "0"}}),
 ]
 
 # torn_commit_guard: a commit may not need what it leaves behind.
 
-def torn_repo(folder, sourced=None):
-    """A repo holding torn_commit_guard.py (and a project.json listing these sourced dirs), all committed."""
+def torn_repo(folder, sourced=None, files=None):
+    """A repo holding torn_commit_guard.py (and a project.json listing these sourced dirs) and these files (path:
+    text), all committed."""
     hook_copy(folder, "torn_commit_guard.py", {"sourced_shell_dirs": sourced or []})
-    return git_repo(folder, {"lib/module_kept.py": "VALUE = 1\n"})
+    return git_repo(folder, {"lib/module_kept.py": "VALUE = 1\n", **(files or {})})
 
 
-def torn(repo, env=None):
-    """(exit code, stderr) of the guard run as git runs a pre-commit hook: in the repo's top folder."""
-    code, said, _ = run(repo / ".claude/hooks/torn_commit_guard.py", "", env=env or GIT_ENV, cwd=repo)
-    return code, said
+def torn_world(staged, sourced=None, committed=None, loose=None):
+    """A world: torn_commit_guard.py run as git runs a pre-commit hook (in the repo's top folder), its repo listing
+    these sourced dirs, holding the committed files, these staged ones and these written but never staged (path:
+    text)."""
+    def make(world):
+        repo = torn_repo(world / "repo", sourced, committed)
+        for path, text in staged.items():
+            stage(repo, path, text)
+        for path, text in (loose or {}).items():
+            (repo / path).parent.mkdir(parents=True, exist_ok=True)
+            (repo / path).write_text(text)
+        return repo / ".claude/hooks/torn_commit_guard.py", GIT_ENV, repo
+    return make
+
+
+FIRST_STEP = {"steps/10-first.sh": "made_here=1\n"}
+TORN_ASKS = [  # a git hook refuses with exit 1; a sourced step may read only what an earlier step made, or a default
+    ("torn-markers", "", "refuse", ("conflict markers",)),
+    ("torn-unmade", "", "refuse", ("made_nowhere",), {"lacks": ("made_here",)}),
+    ("torn-defaulted", "", "allow", ()),
+    # a staged test reading a fixture never committed; a tracked file merely dirty is a note, not a block
+    ("torn-uncommitted", "", "refuse", ("fixtures/case_fixture.json",)),
+    ("torn-uncommitted", "", "allow", (), {"env": lambda world: {"TORN_GUARD": "0"}}),
+    ("torn-staged", "", "allow", ()),
+    ("torn-dirty", "", "allow", ("note",)),
+]
+READS_FIXTURE = {"tests/test_reads.py": "DATA = 'fixtures/case_fixture.json'\n"}
+FIXTURE = {"fixtures/case_fixture.json": "{}\n"}
 
 
 def stage(repo, path, text):
@@ -695,150 +708,143 @@ def test_value_holds():
 '''
 
 
-def gate_clone(folder, moved_marker):
-    """A clone of this checkout with this tree's gate files, a module `tools/zz_gate` whose test passes, its
-    pre-push-moved a stand-in writing its stdin to `moved_marker`, all committed; (clone, its base commit)."""
-    git(folder.parent, "clone", "-q", "--shared", str(REPO), str(folder))
-    for name in GATE_FILES:
-        shutil.copy(REPO / name, folder / name)
-    moved = folder / ".claude/hooks/local/pre-push-moved"
-    moved.write_text(f"#!/usr/bin/env bash\ncat > {moved_marker}\n")
-    moved.chmod(0o755)
-    (folder / "tools/zz_gate").mkdir()
-    (folder / "tools/zz_gate/holds.py").write_text("VALUE = 1\n")
-    (folder / "tools/zz_gate/test_a_held_value_stays_held.py").write_text(HOLDS_TEST)
-    own = REPO / ".venv"
-    common = pathlib.Path(git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir")).parent / ".venv"
-    (folder / ".venv").symlink_to(own if own.exists() else common)
-    git(folder, "add", "-A")
-    git(folder, "commit", "-q", "-m", "base")
-    return folder, git(folder, "rev-parse", "HEAD")
+def main_push_line(repo, pushed="HEAD", base="HEAD~1"):
+    """The push line git hands a pre-push hook for a push of `pushed` onto main at `base`."""
+    return f"refs/heads/main {git(repo, 'rev-parse', pushed)} refs/heads/main {git(repo, 'rev-parse', base)}\n"
 
 
-def push(clone, base, files, away=False):
-    """(exit code, stderr, stdout) of the gate on a push to main of one commit on `base` writing these files; `away`
-    puts the clone back on `base` first, so the commit pushed is not the one checked out."""
-    git(clone, "reset", "-q", "--hard", base)
-    for path, text in files.items():
-        (clone / path).parent.mkdir(parents=True, exist_ok=True)
-        (clone / path).write_text(text)
-    git(clone, "add", "-A")
-    git(clone, "commit", "-q", "-m", "pushed")
-    line = f"refs/heads/main {git(clone, 'rev-parse', 'HEAD')} refs/heads/main {base}\n"
-    if away:
-        git(clone, "reset", "-q", "--hard", base)
-    as_git_runs_it = dict(GIT_ENV, GIT_DIR=str(clone / ".git"))  # a test's own scratch git must not inherit it
-    return run(clone / ".claude/hooks/local/pre-push", line, env=as_git_runs_it, cwd=clone, timeout=110)
+def gate_world(files, away=False):
+    """A world: a clone of this checkout with this tree's gate files, a module `tools/zz_gate` whose test passes and
+    its pre-push-moved a stand-in writing its stdin to world/moved.txt, all committed as the base; then one commit on
+    it writing files(clone) (path: text), its push line in world/push-line; `away` puts the clone back on the base, so
+    the commit pushed is not the one checked out. The gate runs as git runs it, its GIT_DIR the clone's."""
+    def make(world):
+        clone = world / "clone"
+        git(world, "clone", "-q", "--shared", str(REPO), str(clone))
+        for name in GATE_FILES:
+            shutil.copy(REPO / name, clone / name)
+        moved = clone / ".claude/hooks/local/pre-push-moved"
+        moved.write_text(f"#!/usr/bin/env bash\ncat > {world / 'moved.txt'}\n")
+        moved.chmod(0o755)
+        (clone / "tools/zz_gate").mkdir()
+        (clone / "tools/zz_gate/holds.py").write_text("VALUE = 1\n")
+        (clone / "tools/zz_gate/test_a_held_value_stays_held.py").write_text(HOLDS_TEST)
+        own = REPO / ".venv"
+        common = pathlib.Path(git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir")).parent / ".venv"
+        (clone / ".venv").symlink_to(own if own.exists() else common)
+        git(clone, "add", "-A")
+        git(clone, "commit", "-q", "-m", "base")
+        for path, text in files(clone).items():
+            (clone / path).parent.mkdir(parents=True, exist_ok=True)
+            (clone / path).write_text(text)
+        git(clone, "add", "-A")
+        git(clone, "commit", "-q", "-m", "pushed")
+        (world / "push-line").write_text(main_push_line(clone))
+        if away:
+            git(clone, "reset", "-q", "--hard", "HEAD~1")
+        # a test's own scratch git must not inherit GIT_DIR
+        return clone / ".claude/hooks/local/pre-push", dict(GIT_ENV, GIT_DIR=str(clone / ".git")), clone
+    return make
 
 
-def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path):
-    repo = torn_repo(tmp_path / "repo")
-    (repo / "fixtures").mkdir()
-    (repo / "fixtures" / "case_fixture.json").write_text("{}\n")  # never committed
-    stage(repo, "tests/test_reads.py", "DATA = 'fixtures/case_fixture.json'\n")
-    code, said = torn(repo)
-    assert code == 1 and "fixtures/case_fixture.json" in said, said
-    assert torn(repo, env=dict(GIT_ENV, TORN_GUARD="0"))[0] == 0
-    git(repo, "add", "fixtures/case_fixture.json")
-    assert torn(repo)[0] == 0
-    git(repo, "commit", "-q", "-m", "both")
-    (repo / "lib" / "module_kept.py").write_text("VALUE = 2\n")  # tracked, merely dirty: a note, not a block
-    stage(repo, "tests/test_kept.py", "from lib import module_kept\n")
-    code, said = torn(repo)
-    assert code == 0 and "note" in said, said
-    # The push gate: a grown debt file and a failing touched test are refused, a clean push goes on to the moved check.
-    # The four pushes are independent, each in a clone of its own with its own marker, so they run side by side.
-    # a file still on FUNCTION_DEBT, read from the guard itself: a hard-coded one went stale when its fold paid it off
+def grown_debt(clone):
+    """A file still on FUNCTION_DEBT, read from the guard itself (a hard-coded one went stale when its fold paid it
+    off), grown by one test function."""
     debt = next(iter(runpy.run_path(str(REPO / "tools" / "test_rule" / "check.py"))["FUNCTION_DEBT"]))
-    inside = "score/stages/sim_body/inside/rra/note.txt"
-    pushes = {"grown": (lambda clone: {debt: (clone / debt).read_text() + "\n\ndef test_grown():\n    pass\n"}, False),
-              "failing": (lambda clone: {"tools/zz_gate/holds.py": "VALUE = 2\n"}, False),
-              "clean": (lambda clone: {"tools/zz_gate/notes.txt": "x\n", inside: "x\n"}, False),
-              # the clone moved off the pushed commit: the gate checks it in a copy of its own
-              "away": (lambda clone: {"tools/zz_gate/notes.txt": "y\n"}, True)}
+    return {debt: (clone / debt).read_text() + "\n\ndef test_grown():\n    pass\n"}
 
-    def pushed(name):
-        marker = tmp_path / f"moved-{name}.txt"
-        clone, base = gate_clone(tmp_path / f"clone-{name}", marker)
-        files, away = pushes[name]
-        return (*push(clone, base, files(clone), away=away), marker)
-    with concurrent.futures.ThreadPoolExecutor(len(pushes)) as pool:
-        answers = dict(zip(pushes, pool.map(pushed, pushes)))
-    code, said, out, marker = answers["grown"]
-    assert code == 1 and "may not grow" in out and "test rule" in said and not marker.exists(), (said, out)
-    code, said, out, marker = answers["failing"]
-    assert code == 1 and "touched module's test failed" in said and not marker.exists(), (said, out)
-    code, said, out, marker = answers["clean"]
-    assert code == 0 and "passed in" in out and "1 test file" in out, (said, out)
-    assert "test_rra_moves_mass_and_torso_by_the_mean_residual.py needs a GPU, left to a run by hand" in out, out
-    assert marker.read_text().startswith("refs/heads/main "), marker.read_text()
-    code, said, out, marker = answers["away"]
-    assert code == 0 and "1 test file" in out and marker.exists(), (said, out)
-    push_cap_holds_the_days_limit_over_every_repository(tmp_path / "cap")
-    freeze_refuses_remade_accepted_rows_no_trailer_names(tmp_path / "freeze")
 
+def pushed_line(world):
+    return (world / "push-line").read_text()
+
+
+GATE_SECONDS = {"seconds": 110}  # the gate runs the touched module's test file
+GATE_ASKS = [  # a grown debt file and a failing touched test are refused; a clean push goes on to the moved check
+    ("gate-grown", pushed_line, "refuse", ("test rule",),
+     {"prints": ("may not grow",), "holds": {"moved.txt": None}, **GATE_SECONDS}),
+    ("gate-failing", pushed_line, "refuse", ("touched module's test failed",),
+     {"holds": {"moved.txt": None}, **GATE_SECONDS}),
+    ("gate-clean", pushed_line, "allow", (),
+     {"prints": ("passed in", "1 test file",
+                 "test_rra_moves_mass_and_torso_by_the_mean_residual.py needs a GPU, left to a run by hand"),
+      "begins": {"moved.txt": "refs/heads/main "}, **GATE_SECONDS}),
+    # the clone moved off the pushed commit: the gate checks it in a copy of its own
+    ("gate-away", pushed_line, "allow", (), {"prints": ("1 test file",), "begins": {"moved.txt": "refs/heads/main "},
+                                             **GATE_SECONDS}),
+]
+
+
+# The redo guard (pre-push-moved, score.stages.moved, remake_freeze.py): the push counts every accepted node it makes
+# again, free ones too, in one line; while a freeze stands a push remaking accepted rows is refused unless a pushed
+# commit's Remakes trailer names them with a reason; no freeze, a freeze past its day or nothing remade passes, and a
+# freeze file that cannot be read refuses.
 
 REMADE_COUNT = """import json, sys
 from score.stages import moved
 found = {"light": {"paid": True, "euros": 2.5, "code": True, "files": {}, "places": ["hub", "camp"]},
-         "images:pins": {"paid": False, "euros": 0, "code": True, "files": {}, "places": ["None"]},
+         "images:pins": {"paid": False, "euros": 1.5, "code": True, "files": {}, "places": ["None"]},
          "settle": {"paid": False, "euros": 0, "code": False, "files": {"a.py": ["hub"]}, "places": ["hub", "camp"]}}
 accepted = {"light@hub", "light@camp", "pins", "settle@camp"}
 remade = moved.remade_accepted(found, lambda node: "out" if node in accepted else None)
-print(json.dumps([row["node"] for row in remade]))
+print(json.dumps(sorted(row["node"] for row in remade)))
 print(moved.remakes_line(remade))"""
 
 
-def freeze_refuses_remade_accepted_rows_no_trailer_names(folder):
-    """The redo guard (pre-push-moved, score.stages.moved, remake_freeze.py): the push counts every accepted node it
-    makes again, free ones too, in one line; while a freeze stands a push remaking accepted rows is refused unless a
-    pushed commit's Remakes trailer names them with a reason; no freeze, a freeze past its day or nothing remade passes,
-    and a freeze file that cannot be read refuses."""
+def remade_world(world):
+    """score.stages.moved asked in this checkout by its own interpreter."""
     own = REPO / ".venv/bin/python"
     common = pathlib.Path(git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir")).parent / ".venv/bin/python"
-    counted = subprocess.run([str(own if own.exists() else common), "-c", REMADE_COUNT], cwd=REPO, capture_output=True,
-                             text=True, env=dict(GIT_ENV, PYTHONDONTWRITEBYTECODE="1"))
-    nodes, line = counted.stdout.strip().splitlines()[-2:]
-    # settle moved only by a file at hub, accepted only at camp: not remade
-    assert sorted(json.loads(nodes)) == ["light@camp", "light@hub", "pins"], counted.stderr
-    assert line == "this push re-makes 3 accepted rows (2 paid, EUR 5.00)", line
-    repo = folder / "repo"
-    repo.mkdir(parents=True)
-    git(repo, "init", "-q")
-    git(repo, "commit", "-q", "--allow-empty", "-m", "base")
-    base = git(repo, "rev-parse", "HEAD")
-    remakes = folder / "remakes.json"
-    freeze = folder / "freeze.json"
+    return [str(own if own.exists() else common), "-c", REMADE_COUNT], dict(GIT_ENV, PYTHONDONTWRITEBYTECODE="1"), REPO
 
-    def push(message, remade=("light@hub", "pins"), freeze_text='{"until": "2999-01-01", "reason": "the film"}'):
-        git(repo, "reset", "-q", "--hard", base)
+
+STANDING_FREEZE = '{"until": "2999-01-01", "reason": "the film"}'
+
+
+def freeze_world(message, remade=("light@hub", "pins"), freeze_text=STANDING_FREEZE):
+    """A world: remake_freeze.py on a push of one commit with this message, these accepted nodes remade (free ones)
+    and this freeze file (None: none)."""
+    def make(world):
+        repo = world / "repo"
+        repo.mkdir()
+        git(repo, "init", "-q")
+        git(repo, "commit", "-q", "--allow-empty", "-m", "base")
         git(repo, "commit", "-q", "--allow-empty", "-m", message)
+        remakes, freeze = world / "remakes.json", world / "freeze.json"
         remakes.write_text(json.dumps({"remade": [{"node": node, "paid": False, "euros": 0} for node in remade]}))
-        if freeze_text is None:
-            freeze.unlink(missing_ok=True)
-        else:
+        if freeze_text is not None:
             freeze.write_text(freeze_text)
-        line = f"refs/heads/main {git(repo, 'rev-parse', 'HEAD')} refs/heads/main {base}\n"
-        done = subprocess.run([sys.executable, str(HOOKS / "local/remake_freeze.py"), str(remakes)], input=line,
-                              capture_output=True, text=True, cwd=repo,
-                              env=dict(GIT_ENV, SCORE_PUSH_FREEZE=str(freeze)))
-        return done.returncode, done.stderr
-    code, said = push("fix")
-    assert code == 1 and "light@hub pins" in said and "Remakes: light pins: <why>" in said, said
-    code, said = push("fix\n\nRemakes: light: the hub's lamp was wrong")
-    assert code == 1 and "pins" in said and "light@hub" not in said, "a row left unnamed still refuses"
-    assert push("fix\n\nRemakes: light@hub, pins: both wrong")[0] == 0
-    assert push("fix\n\nRemakes: light pins:")[0] == 1, "a trailer with no reason names nothing"
-    assert push("fix", remade=())[0] == 0, "nothing remade passes the freeze"
-    assert push("fix", freeze_text=None)[0] == 0, "no freeze file, no freeze"
-    assert push("fix", freeze_text='{"until": "2000-01-01", "reason": "old"}')[0] == 0, "a freeze past its day"
-    code, said = push("fix", freeze_text="{not json")
-    assert code == 1 and "cannot be read" in said, said
+        return ([sys.executable, str(HOOKS / "local/remake_freeze.py"), str(remakes)],
+                dict(GIT_ENV, SCORE_PUSH_FREEZE=str(freeze)), repo)
+    return make
 
+
+def pushed_head(world):
+    return main_push_line(world / "repo")
+
+
+FREEZE_ASKS = [
+    # settle moved only by a file at hub, accepted only at camp: not remade
+    ("remade", "", "allow", (),
+     {"tail": ['["light@camp", "light@hub", "pins"]', "this push re-makes 3 accepted rows (2 paid, EUR 5.00)"]}),
+    ("freeze-unnamed", pushed_head, "refuse", ("light@hub pins", "Remakes: light pins: <why>")),
+    ("freeze-one-named", pushed_head, "refuse", ("pins",), {"lacks": ("light@hub",)}),  # a row left unnamed refuses
+    ("freeze-named", pushed_head, "allow", ()),
+    ("freeze-no-reason", pushed_head, "refuse", ()),  # a trailer with no reason names nothing
+    ("freeze-nothing", pushed_head, "allow", ()),
+    ("freeze-none", pushed_head, "allow", ()),
+    ("freeze-past", pushed_head, "allow", ()),
+    ("freeze-broken", pushed_head, "refuse", ("cannot be read",)),
+]
+
+
+# The push cap (.claude/hooks/pre-push and push_cap.py): a day's pushes to main over every repository sharing one
+# config stop at its limit, the latest limit started wins, a push the repository's own hook refused gives its slot
+# back, other branches are not counted, a release-only repository's pushes and a release tag pass uncounted, no
+# config is no cap and an unreadable one refuses.
 
 def capped_repo(folder, origin):
     """A scratch repo at `folder` (remote origin `origin`) holding the shared pre-push and push_cap.py, its own
-    pre-push a stand-in that refuses when LOCAL_REFUSES is 1; its pre-push hook's path."""
+    pre-push a stand-in that refuses when LOCAL_REFUSES is 1."""
     hooks = folder / ".claude/hooks"
     (hooks / "local").mkdir(parents=True)
     git(folder, "init", "-q")
@@ -848,107 +854,105 @@ def capped_repo(folder, origin):
     own = hooks / "local/pre-push"
     own.write_text('#!/usr/bin/env bash\ncat >/dev/null\n[ "${LOCAL_REFUSES:-0}" != 1 ]\n')
     own.chmod(0o755)
-    return hooks / "pre-push"
 
 
-def push_cap_holds_the_days_limit_over_every_repository(folder):
-    """The push cap: a day's pushes to main over every repository sharing one config stop at its limit, the latest
-    limit started wins, a push the repository's own hook refused gives its slot back, other branches are not
-    counted, a release-only repository's pushes and a release tag pass uncounted, no config is no cap and an
-    unreadable one refuses."""
-    first, second = capped_repo(folder / "one", "git@example.com:a/one.git"), capped_repo(folder / "two", "x/two")
-    config = folder / "cap.json"
-
-    def push(hook, branch="main", refuses=False, cap=config, ref="refs/heads/"):
-        line = f"{ref}{branch} {'1' * 40} {ref}{branch} {'2' * 40}\n"
-        done = subprocess.run(["bash", str(hook), "origin", "x"], input=line, capture_output=True, text=True,
-                              cwd=hook.parents[2], env=dict(GIT_ENV, HARNESS_PUSH_CAP=str(cap),
-                                                             LOCAL_REFUSES="1" if refuses else "0"))
-        return done.returncode, done.stderr
-
-    # 6 a day from long ago, 4 from a day that has not come: 6 holds, over both repositories.
-    config.write_text(json.dumps({"limits": [{"from": "2000-01-01", "per_day": 6}, {"from": "2999-01-01", "per_day": 4}],
-                                  "ledger": str(folder / "ledger.json")}))
-    answers = [push(hook) for hook in (first, second, first, second, first)]
-    assert all(code == 0 for code, _ in answers), answers
-    assert push(first, refuses=True)[0] == 1, "the repository's own hook still refuses"
-    assert push(second, branch="feature")[0] == 0, "another branch is no push to main"
-    assert push(second)[0] == 0, "the refused push gave its slot back: this is the 6th"
-    code, said = push(first)
-    assert code == 1 and "reached today's limit of 6" in said and "a/one.git" in said and "x/two" in said, said
-    # the latest started limit wins: 4 from today on
+def cap_world(world):
+    """A world: repositories one (remote git@example.com:a/one.git) and two (x/two) sharing cap configs in
+    world/caps. In one, a commit origin's main took and a later one it refused; refused.json a ledger of today holding
+    one's taken push and its refused one from long ago and from just now, and two's from long ago; kept.json the
+    entries it then keeps."""
+    one, two = world / "one", world / "two"
+    capped_repo(one, "git@example.com:a/one.git")
+    capped_repo(two, "x/two")
+    caps = world / "caps"
+    caps.mkdir()
     today = time.strftime("%Y-%m-%d", time.gmtime())
-    config.write_text(json.dumps({"limits": [{"from": "2000-01-01", "per_day": 6}, {"from": today, "per_day": 4}],
-                                  "ledger": str(folder / "later.json")}))
-    assert [push(first)[0] for _ in range(5)] == [0, 0, 0, 0, 1]
-    # releases: a release-only repository (by its name or whole url) and a release tag pass uncounted, both ways
-    assert push(second, ref="refs/tags/", branch="v1")[0] == 0, "a release tag is no push to main"
-    later = {"limits": [{"from": "2000-01-01", "per_day": 4}], "ledger": str(folder / "later.json")}
-    config.write_text(json.dumps(dict(later, uncounted=["one"])))
-    assert [push(first)[0] for _ in range(3)] == [0, 0, 0], "one is release-only: its pushes pass"
-    code, said = push(second)
-    assert code == 1 and "reached today's limit of 4" in said and said.count("a/one.git") == 4, said
-    config.write_text(json.dumps(dict(later, uncounted=["x/two"])))
-    assert push(second)[0] == 0 and push(first)[0] == 1, "two by its whole url passes; one is counted again"
-    assert push(first, cap=folder / "none.json")[0] == 0, "no config, no cap"
-    # a push the remote refused (its commit not on origin's main) gives its slot back at the next claim from its
-    # repository; one the remote took, one still on its way and another repository's keep theirs
-    one = first.parents[2]
+
+    def config(name, limits, ledger, **more):
+        (caps / name).write_text(json.dumps({"limits": [{"from": day, "per_day": count} for day, count in limits],
+                                             "ledger": str(world / ledger), **more}))
+    # 6 a day from long ago, 4 from a day that has not come: 6 holds, over both repositories
+    config("six.json", [("2000-01-01", 6), ("2999-01-01", 4)], "six-ledger.json")
+    config("today.json", [("2000-01-01", 6), (today, 4)], "later.json")  # the latest started limit wins
+    config("one-uncounted.json", [("2000-01-01", 4)], "later.json", uncounted=["one"])  # by its name
+    config("two-uncounted.json", [("2000-01-01", 4)], "later.json", uncounted=["x/two"])  # by its whole url
+    config("refused.json", [("2000-01-01", 4)], "refused.json")
+    (caps / "broken.json").write_text("{not json")
     git(one, "commit", "-q", "--allow-empty", "-m", "taken")
     taken = git(one, "rev-parse", "HEAD")
     git(one, "update-ref", "refs/remotes/origin/main", taken)
     git(one, "commit", "-q", "--allow-empty", "-m", "refused")
     refused = git(one, "rev-parse", "HEAD")
     old, recent = "2000-01-01T00:00:00+00:00", time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
-    entries = [{"repo": "git@example.com:a/one.git", "sha": taken, "at": old},
-               {"repo": "git@example.com:a/one.git", "sha": refused, "at": old},
-               {"repo": "git@example.com:a/one.git", "sha": refused, "at": recent},
-               {"repo": "x/two", "sha": refused, "at": old}]
-    (folder / "refused.json").write_text(json.dumps({today: entries}))
-    config.write_text(json.dumps({"limits": [{"from": "2000-01-01", "per_day": 4}],
-                                  "ledger": str(folder / "refused.json")}))
-    assert push(first)[0] == 0, "the refused push's slot came back: this is the 4th"
-    kept = json.loads((folder / "refused.json").read_text())[today]
-    assert [entry["at"] for entry in kept if entry["sha"] == refused] == [recent, old], kept
-    assert push(first)[0] == 1, "the remote's own push, the recent one and two's hold their slots"
-    config.write_text("{not json")
-    code, said = push(first)
-    assert code == 1 and "cannot be read" in said, said
+    entries = [["git@example.com:a/one.git", taken, old], ["git@example.com:a/one.git", refused, old],
+               ["git@example.com:a/one.git", refused, recent], ["x/two", refused, old]]
+    (world / "refused.json").write_text(json.dumps(
+        {today: [{"repo": repo, "sha": sha, "at": at} for repo, sha, at in entries]}))
+    (world / "kept.json").write_text(json.dumps([entries[0], entries[2], entries[3]]))
+    return None, GIT_ENV, None
 
 
-def test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract(tmp_path):
-    repo = torn_repo(tmp_path / "markers")
-    stage(repo, "notes.txt", "a\n<<<<<<< Updated upstream\nb\n=======\nc\n>>>>>>> Stashed changes\n")
-    code, said = torn(repo)
-    assert code == 1 and "conflict markers" in said, said
-    repo = torn_repo(tmp_path / "sourced", sourced=["steps"])
-    stage(repo, "steps/10-first.sh", 'made_here=1\n')
-    git(repo, "commit", "-q", "-m", "first step")
-    stage(repo, "steps/20-second.sh", 'echo "$made_here $made_nowhere"\n')
-    code, said = torn(repo)
-    assert code == 1 and "made_nowhere" in said and "made_here" not in said.replace("made_nowhere", ""), said
-    stage(repo, "steps/20-second.sh", 'echo "$made_here ${made_nowhere:-}"\n')  # a read with a default is safe
-    assert torn(repo)[0] == 0
+def cap_ask(verdict, words=(), repo="one", config="six.json", branch="main", ref="refs/heads/", refuses=False, **more):
+    """A push to `branch` from repository `repo` under the cap config `config`, its own pre-push refusing or not."""
+    return ("push-cap", f"{ref}{branch} {'1' * 40} {ref}{branch} {'2' * 40}\n", verdict, words,
+            {"hook": lambda world: (["bash", str(world / repo / ".claude/hooks/pre-push"), "origin", "x"], world / repo),
+             "env": lambda world: {"HARNESS_PUSH_CAP": str(world / "caps" / config),
+                                   "LOCAL_REFUSES": "1" if refuses else "0"}, **more})
+
+
+CAP_PUSH_ASKS = [  # asked in this order
+    *(cap_ask("allow", repo=repo) for repo in ("one", "two", "one", "two", "one")),
+    cap_ask("refuse", refuses=True),  # the repository's own hook still refuses
+    cap_ask("allow", repo="two", branch="feature"),  # another branch is no push to main
+    cap_ask("allow", repo="two"),  # the refused push gave its slot back: this is the 6th
+    cap_ask("refuse", ("reached today's limit of 6", "a/one.git", "x/two")),
+    *(cap_ask("allow", config="today.json") for _ in range(4)),
+    cap_ask("refuse", config="today.json"),
+    cap_ask("allow", repo="two", config="today.json", ref="refs/tags/", branch="v1"),  # a release tag
+    *(cap_ask("allow", config="one-uncounted.json") for _ in range(3)),  # one is release-only: its pushes pass
+    cap_ask("refuse", ("reached today's limit of 4",), repo="two", config="one-uncounted.json",
+            times={"a/one.git": 4}),
+    cap_ask("allow", repo="two", config="two-uncounted.json"),  # two by its whole url passes
+    cap_ask("refuse", config="two-uncounted.json"),  # one is counted again
+    cap_ask("allow", config="none.json"),  # no config, no cap
+    # a push the remote refused (its commit not on origin's main) gives its slot back at the next claim from its
+    # repository: this is the 4th; one the remote took, one still on its way and another repository's keep theirs
+    cap_ask("allow", config="refused.json"),
+    cap_ask("refuse", config="refused.json", ledger=("refused.json", "kept.json")),
+    cap_ask("refuse", ("cannot be read",), config="broken.json"),
+]
 
 
 # leftover_guard: a session may not end leaving its own worktree dirty; said once.
 
-def test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work(tmp_path):
-    repo = git_repo(tmp_path / "repo")
-    guard = hook_copy(tmp_path / "hooks_home", "leftover_guard.py")
+def leftover_world(world):
+    """A world: leftover_guard.py beside a repo whose session worktree w1 holds an uncommitted file, the shared
+    checkout an untracked file of someone else's."""
+    repo = git_repo(world / "repo")
+    guard = hook_copy(world / "hooks_home", "leftover_guard.py")
     worktree = repo / ".claude" / "worktrees" / "w1"
     git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
     (worktree / "half_done.py").write_text("x = 1\n")
-    stop = {"cwd": str(worktree), "session_id": "s1"}
-    code, _, out = run(guard, stop, env=GIT_ENV)
-    assert code == 0 and json.loads(out)["decision"] == "block" and "half_done.py" in out, out
-    assert run(guard, stop, env=GIT_ENV)[2] == ""  # said once per session
-    (repo / "someone_elses.py").write_text("y = 1\n")  # the shared checkout's dirt is everybody's: silent
-    assert run(guard, {"cwd": str(repo), "session_id": "s2"}, env=GIT_ENV)[2] == ""
-    assert run(guard, {"cwd": str(worktree), "session_id": "s3"}, env=dict(GIT_ENV, LEFTOVER_GUARD="0"))[2] == ""
+    (repo / "someone_elses.py").write_text("y = 1\n")
+    return guard, GIT_ENV, None
 
 
-# soul_guard: no em dash, and no long reply to a short question that did not ask for detail; nudge once.
+def ending(where, session):
+    """A Stop payload of this session, ended in the world's `where`."""
+    return lambda world: {"cwd": str(world / where), "session_id": session}
+
+
+SENT_BACK = {"fields": {("decision",): "block"}}
+LEFTOVER_ASKS = [  # asked in this order
+    ("leftover", ending("repo/.claude/worktrees/w1", "s1"), "said", ("half_done.py",), SENT_BACK),
+    ("leftover", ending("repo/.claude/worktrees/w1", "s1"), "quiet", ()),  # said once per session
+    ("leftover", ending("repo", "s2"), "quiet", ()),  # the shared checkout's dirt is everybody's
+    ("leftover", ending("repo/.claude/worktrees/w1", "s3"), "quiet", (),
+     {"env": lambda world: {"LEFTOVER_GUARD": "0"}}),
+]
+
+
+# soul_guard: no em dash, and no long reply to a short question that did not ask for detail; sent back at most twice.
 
 def soul_turn(folder, question, reply):
     lines = [{"type": "user", "message": {"role": "user", "content": question}},
@@ -959,70 +963,76 @@ def soul_turn(folder, question, reply):
     return {"transcript_path": str(path)}
 
 
-def test_soul_guard_sends_a_too_long_or_em_dash_reply_back_at_most_twice(tmp_path):
-    guard = HOOKS / "soul_guard.py"
-    long_reply = " ".join(["word"] * 150)
-    for name, question, reply, rule in (("a", "is it done?", "Yes — it is.", "Rule 3"),
-                                        ("b", "is it done?", long_reply, "Rules 2 and 5")):
-        code, _, out = run(guard, soul_turn(tmp_path / name, question, reply))
-        assert code == 0 and json.loads(out)["decision"] == "block" and rule in out, out
-    for name, question, reply, extra in (("c", "is it done?", "Yes, it is.", {}),
-                                         ("d", "explain in detail how the cache works", long_reply, {}),
-                                         ("f", "can u list me all modules and their groups", long_reply, {}),
-                                         ):
-        assert run(guard, dict(soul_turn(tmp_path / name, question, reply), **extra))[2] == "", name
-    # The rewrite is checked again: a still-long rewrite goes back once more, then the turn may end.
-    session = {"session_id": f"soul-twice-{tmp_path.name}"}
-    turn = soul_turn(tmp_path / "e", "is it done?", long_reply)
-    assert json.loads(run(guard, dict(turn, **session))[2])["decision"] == "block"
-    assert json.loads(run(guard, dict(turn, stop_hook_active=True, **session))[2])["decision"] == "block"
-    assert run(guard, dict(turn, stop_hook_active=True, **session))[2] == ""
+def soul(name, question, reply, rewrite=None):
+    """A Stop payload of one turn; with `rewrite` (False on the first stop, True on a stop after a send-back) in a
+    session of the world's own."""
+    def payload(world):
+        turn = soul_turn(world / name, question, reply)
+        if rewrite is None:
+            return turn
+        session = dict(turn, session_id=f"soul-twice-{world.name}")
+        return dict(session, stop_hook_active=True) if rewrite else session
+    return payload
+
+
+LONG_REPLY = " ".join(["word"] * 150)
+SOUL_ASKS = [  # asked in this order
+    ("soul", soul("a", "is it done?", "Yes — it is."), "said", ("Rule 3",), SENT_BACK),
+    ("soul", soul("b", "is it done?", LONG_REPLY), "said", ("Rules 2 and 5",), SENT_BACK),
+    ("soul", soul("c", "is it done?", "Yes, it is."), "quiet", ()),
+    ("soul", soul("d", "explain in detail how the cache works", LONG_REPLY), "quiet", ()),
+    ("soul", soul("f", "can u list me all modules and their groups", LONG_REPLY), "quiet", ()),
+    # the rewrite is checked again: a still-long rewrite goes back once more, then the turn may end
+    ("soul", soul("e", "is it done?", LONG_REPLY, rewrite=False), "said", (), SENT_BACK),
+    ("soul", soul("e", "is it done?", LONG_REPLY, rewrite=True), "said", (), SENT_BACK),
+    ("soul", soul("e", "is it done?", LONG_REPLY, rewrite=True), "quiet", ()),
+]
 
 
 # call_efficiency: count single fast commands; nudge on the third in a row; land one row a session at Stop.
 
-def test_call_efficiency_nudges_on_three_single_fast_commands_and_lands_a_row(tmp_path):
-    counter = hook_copy(tmp_path, "call_efficiency.py")
-    post = dict(os.environ, CLAUDE_HOOK="PostToolUse")
-    said = [run(counter, dict(bash(command), session_id="s1"), env=post)[2]
-            for command in ("ls", "cat a.txt", "git status")]
-    assert said[:2] == ["", ""] and "3 single fast commands" in said[2], said
-    assert json.loads(said[2])["hookSpecificOutput"]["hookEventName"] == "PostToolUse"
-    for command in ("ls && cat a.txt", "make tests", "ls", "cat b"):  # a bundle or a real job resets the streak
-        assert run(counter, dict(bash(command), session_id="s2"), env=post)[2] == "", command
-    code, stderr, _ = run(counter, {"session_id": "s1"}, env=dict(os.environ, CLAUDE_HOOK="Stop"))
-    assert code == 0 and "3 Bash calls" in stderr, stderr
-    rows = (tmp_path / ".claude/state/call-efficiency.jsonl").read_text().splitlines()
-    assert [json.loads(row)["single_fast"] for row in rows] == [3]
+EFFICIENCY_ASKS = [  # asked in this order
+    *(("efficiency", dict(bash(command), session_id="s1"), "quiet", ()) for command in ("ls", "cat a.txt")),
+    ("efficiency", dict(bash("git status"), session_id="s1"), "said", ("3 single fast commands",),
+     {"fields": {("hookSpecificOutput", "hookEventName"): "PostToolUse"}}),
+    # a bundle or a real job resets the streak
+    *(("efficiency", dict(bash(command), session_id="s2"), "quiet", ())
+      for command in ("ls && cat a.txt", "make tests", "ls", "cat b")),
+    ("efficiency", {"session_id": "s1"}, "allow", ("3 Bash calls",),
+     {"env": lambda world: {"CLAUDE_HOOK": "Stop"}, "rows": (".claude/state/call-efficiency.jsonl", "single_fast", [3])}),
+]
 
 
 # checkout_current: the shared checkout on main catches up with origin/main, and says so when it cannot.
 
-def test_checkout_current_catches_up_and_says_when_it_cannot(tmp_path):
-    origin = tmp_path / "origin.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True, env=GIT_ENV)
-    seed = git_repo(tmp_path / "seed", {"shared.txt": "one\n"})
-    git(seed, "push", "-q", str(origin), "main")
-    shared = tmp_path / "shared"
-    subprocess.run(["git", "clone", "-q", str(origin), str(shared)], check=True, env=GIT_ENV)
-    for round_number in range(3):
-        (seed / "shared.txt").write_text(f"remote {round_number}\n")
-        git(seed, "commit", "-q", "-am", f"remote {round_number}")
-    git(seed, "push", "-q", str(origin), "main")
-    hook_path = HOOKS / "checkout_current.py"
-    start = dict(GIT_ENV, CLAUDE_PROJECT_DIR=str(shared), CLAUDE_HOOK="SessionStart")
-    assert run(hook_path, {"session_id": "s1"}, env=start)[0] == 0
-    assert git(shared, "rev-parse", "HEAD") == git(shared, "rev-parse", "origin/main")  # caught up
-    (shared / "shared.txt").write_text("local\n")  # a local commit that conflicts with three new remote ones
-    git(shared, "commit", "-q", "-am", "local")
-    for round_number in range(3, 6):
-        (seed / "shared.txt").write_text(f"remote {round_number}\n")
-        git(seed, "commit", "-q", "-am", f"remote {round_number}")
-    git(seed, "push", "-q", str(origin), "main")
-    before = git(shared, "rev-parse", "HEAD")
-    code, said, _ = run(hook_path, {"session_id": "s2"}, env=start)
-    assert code == 0 and "cannot catch itself up" in said, said
-    assert git(shared, "rev-parse", "HEAD") == before and not git(shared, "status", "--porcelain", "-uno")  # as found
+def checkout_world(diverged):
+    """A world: checkout_current.py at session start on a shared clone that origin/main passed by three commits, the
+    clone (when `diverged`) holding a local commit that conflicts with them; the clone's HEAD tagged `before`."""
+    def make(world):
+        origin = world / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True, env=GIT_ENV)
+        seed = git_repo(world / "seed", {"shared.txt": "one\n"})
+        git(seed, "push", "-q", str(origin), "main")
+        shared = world / "shared"
+        subprocess.run(["git", "clone", "-q", str(origin), str(shared)], check=True, env=GIT_ENV)
+        if diverged:
+            (shared / "shared.txt").write_text("local\n")
+            git(shared, "commit", "-q", "-am", "local")
+        for round_number in range(3):
+            (seed / "shared.txt").write_text(f"remote {round_number}\n")
+            git(seed, "commit", "-q", "-am", f"remote {round_number}")
+        git(seed, "push", "-q", str(origin), "main")
+        git(shared, "tag", "before")
+        return HOOKS / "checkout_current.py", dict(GIT_ENV, CLAUDE_PROJECT_DIR=str(shared),
+                                                   CLAUDE_HOOK="SessionStart"), None
+    return make
+
+
+CHECKOUT_ASKS = [  # where the clone then stands, its tracked files as committed
+    ("checkout-behind", {"session_id": "s1"}, "allow", (), {"stands_at": ("shared", "origin/main")}),
+    ("checkout-diverged", {"session_id": "s2"}, "allow", ("cannot catch itself up",),
+     {"stands_at": ("shared", "before")}),
+]
 
 
 # output_cap: a long output goes whole to a file and the agent sees a short summary with its path.
@@ -1034,66 +1044,47 @@ def long_log():
     return "\n".join(lines)
 
 
-def capped(payload, spill_dir):
-    """The output the model sees instead (the Bash response shape), or None when the output is left as it was."""
-    code, said, out = run(HOOKS / "output_cap.py", payload, env=dict(os.environ, OUTPUT_CAP_DIR=str(spill_dir)))
-    assert code == 0, said
-    return json.loads(out)["hookSpecificOutput"]["updatedToolOutput"] if out.strip() else None
-
-
-def cap_bash(command, stdout, stderr="", **response):
-    return {"tool_name": "Bash", "session_id": "s1", "tool_use_id": "toolu_1", "tool_input": {"command": command},
+def cap_bash(command, stdout, stderr="", call="toolu_1", **response):
+    return {"tool_name": "Bash", "session_id": "s1", "tool_use_id": call, "tool_input": {"command": command},
             "tool_response": {"stdout": stdout, "stderr": stderr, "interrupted": False, "isImage": False, **response}}
 
 
-def test_output_cap_spills_a_long_output_whole_and_summarises_it(tmp_path):
-    log = long_log()
-    output = capped(cap_bash("python3 tools/usd/settle.py hub", log, "a warning on stderr",
-                             returnCodeInterpretation="exit 1"), tmp_path)
-    spill = tmp_path / "s1" / "toolu_1.txt"
-    assert spill.read_text() == "$ python3 tools/usd/settle.py hub\n" + log + "\n--- stderr ---\na warning on stderr"
-    assert (output["stderr"], output["interrupted"], output["returnCodeInterpretation"]) == ("", False, "exit 1")
-    text = output["stdout"]
-    assert str(spill) in text and "401 lines" in text  # 400 log lines and the stderr line
-    assert "step 0: fine," in text and "a warning on stderr" in text  # the first and the last lines
-    assert "201: ERROR: the bake of part 7 failed" in text and "251: Traceback" in text  # the errors between
-    assert "step 100: fine," not in text and len(text) < len(log) / 3
-    wide = "\n".join(f"{index} " + "y" * 900 for index in range(200))  # long lines are clipped too
-    text = capped(cap_bash("python3 diff.py", wide), tmp_path / "w")["stdout"]
-    assert "more chars]" in text and len(text) < 6000  # under the cap itself, from 181,000 chars
-    document = {"rows": [{"row": f"r{index}", "copies": 2} for index in range(300)], "place": "wreck"}
-    text = capped(cap_bash("python3 -c 'print(json)'", json.dumps(document, indent=1)), tmp_path / "j")["stdout"]
-    assert "JSON object, 2 keys" in text and "rows: array, 300 items" in text and 'place: "wreck"' in text
-    assert json.loads((tmp_path / "j/s1/toolu_1.txt").read_text().split("\n", 1)[1]) == document
-    text = capped(cap_bash("cd /x && cat tools/props/library/route.py", log), tmp_path / "c")["stdout"]
-    assert "whole-file cat of tools/props/library/route.py" in text and "offset, limit" in text
-
-
-def test_output_cap_leaves_what_the_agent_asked_for_alone(tmp_path):
-    log = long_log()
-    commands = ("sed -n '1,400p' route.py", "git log -p | head -500", "grep -c x big.log",
-                "awk 'NR>=10 && NR<=400' f", "cd /x; sed -n 1,300p a.py; echo ===; tail -n 200 b.py",
-                "FULL_OUTPUT=1 make tests", "cat tools/props/library/CLAUDE.md",
-                "ls x; cat .claude/skills/grill/SKILL.md", "ls y && cat a/CLAUDE.md 2>/dev/null | head -150")
-    payloads = [cap_bash(command, log) for command in commands] + [
-        cap_bash("ls", "a\nb\n"), cap_bash("cat a.png", log, isImage=True),
-        cap_bash("make tests", log, backgroundTaskId="b1"),
-        {"tool_name": "Read", "tool_input": {}, "tool_response": {"stdout": log}}]
-    with concurrent.futures.ThreadPoolExecutor(8) as pool:
-        answers = list(pool.map(lambda payload: capped(payload, tmp_path), payloads))
-    for payload, answer in zip(payloads, answers):
-        assert answer is None, payload["tool_input"]
-    assert not (tmp_path / "s1").exists()  # nothing spilled for what was left alone
-    assert capped(cap_bash("sed -n 1,20p a.py; cat big.log", log), tmp_path) is not None  # one stage not narrowed
-
-
-def test_output_cap_caps_only_with_a_real_saving(tmp_path):
-    """A JSON object of 40 keys of 150 characters each (about 6,600 chars): its outline names every key, so the
-    summary is about as long as the output and saves nothing."""
-    document = {f"k{index:02d}" + "x" * 147: "v" for index in range(40)}
-    assert len(json.dumps(document)) > 6000
-    assert capped(cap_bash("python3 report.py", json.dumps(document)), tmp_path) is None
-    assert not (tmp_path / "s1").exists()
+LOG = long_log()
+WIDE = "\n".join(f"{index} " + "y" * 900 for index in range(200))  # 181,000 chars of long lines, clipped too
+DOCUMENT = {"rows": [{"row": f"r{index}", "copies": 2} for index in range(300)], "place": "wreck"}
+SHOWN = ("hookSpecificOutput", "updatedToolOutput")
+CAP_ASKS = [  # each spills to {world}/s1/<its call>.txt
+    ("cap", cap_bash("python3 tools/usd/settle.py hub", LOG, "a warning on stderr", "toolu_1",
+                     returnCodeInterpretation="exit 1"), "said",
+     ("{world}/s1/toolu_1.txt", "401 lines",  # 400 log lines and the stderr line
+      "step 0: fine,", "a warning on stderr",  # the first and the last lines
+      "201: ERROR: the bake of part 7 failed", "251: Traceback"),  # the errors between
+     {"lacks": ("step 100: fine,",), "under": len(LOG) / 3,
+      "fields": {(*SHOWN, "stderr"): "", (*SHOWN, "interrupted"): False, (*SHOWN, "returnCodeInterpretation"): "exit 1"},
+      "holds": {"s1/toolu_1.txt": "$ python3 tools/usd/settle.py hub\n" + LOG + "\n--- stderr ---\na warning on stderr"}}),
+    ("cap", cap_bash("python3 diff.py", WIDE, call="toolu_2"), "said", ("more chars]",), {"under": 6000}),
+    ("cap", cap_bash("python3 -c 'print(json)'", json.dumps(DOCUMENT, indent=1), call="toolu_3"), "said",
+     ("JSON object, 2 keys", "rows: array, 300 items", 'place: "wreck"'),
+     {"holds": {"s1/toolu_3.txt": "$ python3 -c 'print(json)'\n" + json.dumps(DOCUMENT, indent=1)}}),
+    ("cap", cap_bash("cd /x && cat tools/props/library/route.py", LOG, call="toolu_4"), "said",
+     ("whole-file cat of tools/props/library/route.py", "offset, limit")),
+    ("cap", cap_bash("sed -n 1,20p a.py; cat big.log", LOG, call="toolu_5"), "said",  # one stage not narrowed
+     ("{world}/s1/toolu_5.txt",)),
+    # what the agent asked for is left alone, and nothing of it spills
+    *(("cap-alone", cap_bash(command, LOG), "quiet", ())
+      for command in ("sed -n '1,400p' route.py", "git log -p | head -500", "grep -c x big.log",
+                      "awk 'NR>=10 && NR<=400' f", "cd /x; sed -n 1,300p a.py; echo ===; tail -n 200 b.py",
+                      "FULL_OUTPUT=1 make tests", "cat tools/props/library/CLAUDE.md",
+                      "ls x; cat .claude/skills/grill/SKILL.md", "ls y && cat a/CLAUDE.md 2>/dev/null | head -150")),
+    *(("cap-alone", payload, "quiet", ())
+      for payload in (cap_bash("ls", "a\nb\n"), cap_bash("cat a.png", LOG, isImage=True),
+                      cap_bash("make tests", LOG, backgroundTaskId="b1"),
+                      {"tool_name": "Read", "tool_input": {}, "tool_response": {"stdout": LOG}})),
+    # A JSON object of 40 keys of 150 characters each (about 6,600 chars): its outline names every key, so the
+    # summary is about as long as the output and saves nothing.
+    ("cap-alone", cap_bash("python3 report.py", json.dumps({f"k{index:02d}" + "x" * 147: "v" for index in range(40)})),
+     "quiet", (), {"holds": {"s1": None}}),
+]
 
 
 # wait_guard: no waiting in the foreground; the project names its own long runs in project.json.
@@ -1208,10 +1199,52 @@ WORLDS = {
     "wait": lambda world: (hook_copy(world, "wait_guard.py", WAIT_CONFIG), None, None),
     **{f"open-{name}": open_world(name) for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"]},
     "spill-blocked": spill_blocked_world,
+    **{f"completion-listed-{event}": listed_completion(event) for event in ("Stop", "SubagentStop")},
+    "torn-markers": torn_world({"notes.txt": "a\n<<<<<<< Updated upstream\nb\n=======\nc\n>>>>>>> Stashed changes\n"}),
+    "torn-unmade": torn_world({"steps/20-second.sh": 'echo "$made_here $made_nowhere"\n'}, ["steps"], FIRST_STEP),
+    "torn-defaulted": torn_world({"steps/20-second.sh": 'echo "$made_here ${made_nowhere:-}"\n'}, ["steps"],
+                                 FIRST_STEP),
+    "torn-uncommitted": torn_world(READS_FIXTURE, loose=FIXTURE),
+    "torn-staged": torn_world({**READS_FIXTURE, **FIXTURE}),
+    "torn-dirty": torn_world({"tests/test_kept.py": "from lib import module_kept\n"},
+                             loose={"lib/module_kept.py": "VALUE = 2\n"}),
+    "gate-grown": gate_world(grown_debt),
+    "gate-failing": gate_world(lambda clone: {"tools/zz_gate/holds.py": "VALUE = 2\n"}),
+    "gate-clean": gate_world(lambda clone: {"tools/zz_gate/notes.txt": "x\n",
+                                            "score/stages/sim_body/inside/rra/note.txt": "x\n"}),
+    "gate-away": gate_world(lambda clone: {"tools/zz_gate/notes.txt": "y\n"}, away=True),
+    "remade": remade_world,
+    "freeze-unnamed": freeze_world("fix"),
+    "freeze-one-named": freeze_world("fix\n\nRemakes: light: the hub's lamp was wrong"),
+    "freeze-named": freeze_world("fix\n\nRemakes: light@hub, pins: both wrong"),
+    "freeze-no-reason": freeze_world("fix\n\nRemakes: light pins:"),
+    "freeze-nothing": freeze_world("fix", remade=()),
+    "freeze-none": freeze_world("fix", freeze_text=None),
+    "freeze-past": freeze_world("fix", freeze_text='{"until": "2000-01-01", "reason": "old"}'),
+    "freeze-broken": freeze_world("fix", freeze_text="{not json"),
+    "push-cap": cap_world,
+    "leftover": leftover_world,
+    "soul": lambda world: (HOOKS / "soul_guard.py", None, None),
+    "efficiency": lambda world: (hook_copy(world, "call_efficiency.py"), dict(os.environ, CLAUDE_HOOK="PostToolUse"),
+                                 None),
+    "checkout-behind": checkout_world(diverged=False),
+    "checkout-diverged": checkout_world(diverged=True),
+    **{name: lambda world: (HOOKS / "output_cap.py", dict(os.environ, OUTPUT_CAP_DIR=str(world)), None)
+       for name in ("cap", "cap-alone")},
 }
+SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap"}  # worlds whose hook keeps state between calls: asked in row order
 
-# One row a call: (world, payload or payload(world), verdict, words its reason holds, optional env(world) on top).
+# One row a call: (world, payload or payload(world), verdict, words its reason holds (`{world}` the world's folder),
+# optional more: env(world) on top, the hook and its folder(world) in place of the world's, seconds it may take, words
+# the hook must not say, words its stdout prints, words its reason holds this many times, its stdout's last lines, a
+# length its told text stays under, values the JSON it prints holds by key path, files the world then holds (None:
+# absent) or begins with, a JSONL file's field values, a ledger's entries other than this test's pushes against the
+# world's expected ones, where a repo of the world then stands with its tracked files as committed, and a call made in
+# the same world it must answer within TRANSCRIPT_SECONDS of, asked alone TIMED_ROUNDS times each).
 ROWS = [
+    *(("completion-listed-" + event, stop("listed", f"The {PLACE} is complete now."), "block", (PLACE,),
+       {"lacks": ("ModuleNotFoundError",)}) for event in ("Stop", "SubagentStop")),
+    *TORN_ASKS, *GATE_ASKS, *FREEZE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *CAP_ASKS,
     *(("accept", payload, "block", ("only the owner accepts or rejects",))
       for payload in OWNER_ACTIONS + OWN_LOCKS_AND_STEPS),
     ("accept", ENV_PREFIXED_ACCEPT, "block", ()),
@@ -1224,6 +1257,7 @@ ROWS = [
     *AREA_ASKS, *OPEN_WORK_ASKS, *BODY_ASKS,
     *(("md", payload, "block", ("go-ahead",)) for payload in NEW_MD_WITHOUT_A_YES),
     *(("md", payload, "allow", ()) for payload in STANDING_EXCEPTIONS),
+    *MD_TIMED,
     *COMMIT_ASKS,
     *(("wait", bash(command), "block",
        (reason, "run_in_background") + (("Add --detach.",) if "cloud" in reason else ()))
@@ -1232,12 +1266,31 @@ ROWS = [
     # never exit 2 and say nothing on what a hook cannot read; md_guard exits 1 on a tool_input that is no object
     *((f"open-{name}", payload, "open", ())
       for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"] for payload in GARBAGE),
-    ("spill-blocked", cap_bash("make tests", long_log()), "quiet", ()),
+    ("spill-blocked", cap_bash("make tests", LOG), "quiet", ()),
 ]
 NAMES = [f"{index:03d}-{row[0]}-{row[2]}" for index, row in enumerate(ROWS)]
+
+
+def spoken(out):
+    """Every string the JSON a hook printed holds, one a line; None when it printed no JSON."""
+    def strings(value):
+        if isinstance(value, dict):
+            return [text for item in value.values() for text in strings(item)]
+        if isinstance(value, list):
+            return [text for item in value for text in strings(item)]
+        return [value] if isinstance(value, str) else []
+    try:
+        return "\n".join(strings(json.loads(out)))
+    except ValueError:
+        return None
+
+
 VERDICTS = {  # (exit code, stderr, stdout, words) -> the row holds
     "block": lambda code, said, out, words: code == BLOCK and all(word in said for word in words),
-    "allow": lambda code, said, out, words: code == ALLOW,
+    "refuse": lambda code, said, out, words: code == 1 and all(word in said for word in words),
+    "allow": lambda code, said, out, words: code == ALLOW and all(word in said for word in words),
+    "said": lambda code, said, out, words: code == ALLOW and spoken(out) is not None and all(
+        word in spoken(out) for word in words),
     "open": lambda code, said, out, words: code != BLOCK and out.strip() == "",
     "quiet": lambda code, said, out, words: (code, out) == (ALLOW, ""),
 }
@@ -1248,36 +1301,100 @@ def made(value, world):
     return value(world) if callable(value) else value
 
 
-def ask(script, payload, env, cwd):
-    """run(...) of one call, or (None, why, "") when the hook gives no answer within ANSWER_SECONDS."""
+def ask(script, payload, env, cwd, seconds):
+    """run(...) of one call, or (None, why, "") when the hook gives no answer within `seconds`."""
     try:
-        return run(script, payload, env=env, cwd=cwd, timeout=ANSWER_SECONDS)
+        return run(script, payload, env=env, cwd=cwd, timeout=seconds)
     except subprocess.TimeoutExpired:
-        return None, f"no answer in {ANSWER_SECONDS} s", ""
+        return None, f"no answer in {seconds} s", ""
+
+
+def timed(call, baseline):
+    """The last answer to `call` asked alone TIMED_ROUNDS times, each beside `baseline`; with how much longer than the
+    baseline its quickest took, and every exit code of both."""
+    timings, starts, codes = [], [], []
+    for _ in range(TIMED_ROUNDS):
+        started = time.monotonic()
+        answer = ask(*call)
+        timings.append(time.monotonic() - started)
+        codes.append(answer[0])
+        started = time.monotonic()
+        codes.append(ask(*baseline)[0])
+        starts.append(time.monotonic() - started)
+    return (*answer, (min(timings) - min(starts), codes))
 
 
 @pytest.fixture(scope="module")
 def answers(tmp_path_factory):
-    """Every row's (exit code, stderr, stdout): each world made once in a scratch folder of its own, every call asked
-    side by side."""
-    worlds = {}
-    for name, make in WORLDS.items():
-        folder = tmp_path_factory.mktemp(name)
-        worlds[name] = (folder, *make(folder))
-    calls = []
-    for world, payload, _, _, *more in ROWS:
-        folder, script, env, cwd = worlds[world]
-        if more:
-            env = {**(env or os.environ), **more[0](folder)}
-        calls.append((script, made(payload, folder), env, cwd))
+    """Every row's (exit code, stderr, stdout, its world's folder, its timing or None): each world made once in a
+    scratch folder of its own, every call asked side by side, a sequential world's calls in row order, a timed call
+    alone after them."""
+    folders = {name: tmp_path_factory.mktemp(name) for name in WORLDS}
     with concurrent.futures.ThreadPoolExecutor(8) as pool:
-        return list(pool.map(lambda call: ask(*call), calls))
+        worlds = dict(zip(WORLDS, pool.map(lambda name: (folders[name], *WORLDS[name](folders[name])), WORLDS)))
+    calls, turns, alone = [], {}, {}
+    for index, (world, payload, _, _, *more) in enumerate(ROWS):
+        folder, script, env, cwd = worlds[world]
+        more = more[0] if more else {}
+        if "env" in more:
+            env = {**(env or os.environ), **more["env"](folder)}
+        if "hook" in more:
+            script, cwd = more["hook"](folder)
+        seconds = more.get("seconds", ANSWER_SECONDS)
+        calls.append((script, made(payload, folder), env, cwd, seconds))
+        if "timed" in more:
+            alone[index] = (script, made(more["timed"], folder), env, cwd, seconds)
+        else:
+            turns.setdefault(world if world in SEQUENTIAL else index, []).append(index)
+
+    def asked(indices):
+        return [(*ask(*calls[index]), None) for index in indices]
+    found = [None] * len(ROWS)
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:
+        for indices, said in zip(turns.values(), pool.map(asked, turns.values())):
+            for index, answer in zip(indices, said):
+                found[index] = answer
+    for index, baseline in alone.items():
+        found[index] = timed(calls[index], baseline)
+    return [(*answer[:3], worlds[ROWS[index][0]][0], answer[3]) for index, answer in enumerate(found)]
 
 
 @pytest.mark.parametrize("row", range(len(ROWS)), ids=NAMES)
 def test_hooks_block_only_their_rule_and_fail_open(answers, row):
-    """Each guard, asked as the harness asks it, blocks the calls its rule names with that rule's reason, lets every
-    other call through, and fails open on what it cannot read."""
-    _, _, verdict, words, *_ = ROWS[row]
-    code, said, out = answers[row]
-    assert VERDICTS[verdict](code, said, out, words), (NAMES[row], words, code, said[-600:], out[-300:])
+    """Each hook, asked as the harness asks it, blocks the calls its rule names with that rule's reason, lets every
+    other call through, says what it says once and only where its rule asks, leaves its world as the rule says, and
+    fails open on what it cannot read."""
+    _, _, verdict, words, *extra = ROWS[row]
+    more = extra[0] if extra else {}
+    code, said, out, folder, timing = answers[row]
+    words = [word.replace("{world}", str(folder)) for word in words]
+    why = (NAMES[row], words, code, said[-600:], out[-300:])
+    assert VERDICTS[verdict](code, said, out, words), why
+    told = said + (spoken(out) or "")
+    assert not [word for word in more.get("lacks", ()) if word in told], why
+    assert all(word in out for word in more.get("prints", ())), why
+    assert all(said.count(word) == count for word, count in more.get("times", {}).items()), why
+    if "tail" in more:
+        assert out.strip().splitlines()[-len(more["tail"]):] == more["tail"], why
+    assert len(spoken(out) or "") < more.get("under", math.inf), why
+    for path, value in more.get("fields", {}).items():
+        assert functools.reduce(lambda node, key: node[key], path, json.loads(out)) == value, (path, why)
+    for path, text in more.get("holds", {}).items():
+        there = folder / path
+        assert (there.read_text() if there.is_file() else there.exists() or None) == text, (path, why)
+    for path, start in more.get("begins", {}).items():
+        assert (folder / path).is_file() and (folder / path).read_text().startswith(start), (path, why)
+    if "ledger" in more:
+        ledger, expected = (json.loads((folder / path).read_text()) for path in more["ledger"])
+        entries = [entry for day in ledger.values() for entry in day if entry["sha"] != "1" * 40]
+        assert [[entry["repo"], entry["sha"], entry["at"]] for entry in entries] == expected, (entries, why)
+    if "timed" in more:
+        gap, codes = timing
+        assert gap < TRANSCRIPT_SECONDS and codes == [ALLOW] * 2 * TIMED_ROUNDS, (timing, why)
+    if "rows" in more:
+        path, field, values = more["rows"]
+        assert [json.loads(line)[field] for line in (folder / path).read_text().splitlines()] == values, why
+    if "stands_at" in more:
+        repo, ref = more["stands_at"]
+        assert git(folder / repo, "rev-parse", "HEAD") == git(folder / repo, "rev-parse", ref), why
+        assert not git(folder / repo, "status", "--porcelain", "-uno"), why
