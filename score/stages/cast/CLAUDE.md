@@ -46,7 +46,13 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   is the cast's make, wired in the stage table; it also turns each seated person away from its seat's back
   (`facing_seats`: the seat's parts over `BACK_OVER` above its top; cockpit's pilot sat facing his seat's back, 2026-11-14),
   and sits one on a bed (a seat deeper than `DEEP` ahead of it) `EDGE_IN` in from its nearest edge with its feet's room
-  clear, facing out (`edge_seated`; quarters' person_bed sat at its bunk's middle facing along it, 2026-11-14): scene_clips imports this package and through it every row from the
+  clear, facing out (`edge_seated`; quarters' person_bed sat at its bunk's middle facing along it, 2026-11-14), then
+  keeps a seated person only where its legs (three boxes round the seated clip's thighs, shins and feet) meet no solid
+  but its seat and, for its feet, the floor they stand on, and its own seat holds nothing over its head (`seated.py`:
+  camp's astronaut_5's thigh in a desk's pedestal, quarters' person_bed's head in its upper bunk, person_desk's feet in
+  cables, 2026-11-14); else it sits on another spot of its seat or a free seat of its row, else stands by its spot,
+  `unseated` naming what each seat's room ran into. The clear gate measures the same room (`seated.room_measured`).
+  scene_clips imports this package and through it every row from the
   assembly on, so an edit to `spread.py`, `measure.py` or `__init__.py` moves 242 accepted rows; `feet.py` moves the
   cast's key alone.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of

@@ -32,6 +32,19 @@ stands and judges, the laid hub the hub's rows among them, every cast then laid 
 - `feet.seats_faced`: `cast.on_support, cast.dealt = supported, dealt` made `pass`  -> the stood casts (the
   sitter dealt at its design's turn, facing its chair's back).
 - `feet.seats_faced`'s dealt: `dict(single, turn=...)` left as `single`  -> the stood casts (the same).
+- `seated.legs_of`: its feet's box dropped  -> the stood casts (the stool's sitter's feet in the cables unseen);
+  `THIGH_REACH` made 0.4  -> the same (the knees under the table's top); `front = front_of(person)` made `-front_of(person)` (the legs behind it)  ->
+  the same (the chair 0.40 m from the desk roomy).
+- `seated.feet_floor`: `>= -cast.STAND_SLACK` read as `>= -1.0`  -> the stood casts (the cables under the feet
+  their floor); `ground["on"] if` made `None if`  -> the same (the rug in the feet's way).
+- `seated.head_under`: `hits[0][1] <= seat + measure.top_of("seated")` read as `False`  -> the stood casts (the
+  bunk's sitter under the upper bed roomy).
+- `seated.roomed`: `*others` dropped  -> the stood casts (the sitter stood, not sat on the open chair); its
+  standing return made `return person`  -> the same (the sitter left at the desk).
+- `feet.seats_faced`: `seated.roomed(sat(person), ...)` made `sat(person)`  -> the stood casts (the sitter left at
+  the desk).
+- `seated.room_measured`: `cast.measured = measured` dropped  -> the stood casts (the clear gate's body at the desk
+  runs into nothing).
 - `feet.seat_depth`: `hits[:, 1] >= top - SEAT_BAND` read as `np.abs(hits[:, 1] - top) <= SEAT_BAND`  -> the stood
   casts (the bed's pillow ends it: its sitter left at its middle, as quarters' person_bed was).
 - `feet.edge_seated`: its `<= DEEP` return made `return person` always  -> the stood casts (the bed's sitter left at
@@ -113,7 +126,7 @@ from pxr import Usd, UsdGeom
 
 from score import checks, stages
 from score.stages import cast, gaps
-from score.stages.cast import driven, feet, layer, measure, spread, walks
+from score.stages.cast import driven, feet, layer, measure, seated, spread, walks
 from score.stages.scene_record import writer
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -318,6 +331,31 @@ SEATED = [
     ("a stool: keeps its turn", CHAIRS, "Objects/stool", 33.0, 33.0, None, None),
     ("a bed: 0.2 m in from a long edge, facing out over it", BED, "Objects/bed", 0.0, None, [-0.3, 0.0, 0.0], 90.0),
     ("a walled bed: the edge whose feet's room is clear", WALLED, "Objects/bed", 0.0, None, [0.325, 0.0, 0.0], -90.0),
+]
+# A seated body's legs and head need room (2026-11-14, sim-body): camp's astronaut_5 sat 0.40 m from a desk solid to
+# the floor, its thigh 12 cm in it; quarters' person_bed sat under its upper bunk, its head 10 cm in it; person_desk set
+# its feet 7 cm into cables on the floor. Two office chairs 3 m apart, one 0.40 m from a desk solid to the floor.
+OFFICE = np.concatenate([block((-0.25, 0.0, -0.25), (0.25, 0.45, 0.25)), block((-0.25, 0.45, 0.2), (0.25, 1.0, 0.25))])
+FLOOR = {"Floor/floor": block((-5, -0.1, -5), (5, 0.0, 5))}
+DESKED = dict(FLOOR, **{"Objects/office_1": OFFICE, "Objects/office_2": OFFICE + [3.0, 0.0, 0.0],
+                        "Objects/desk": block((-0.8, 0.0, -0.65), (0.8, 0.7, -0.4))})
+BUNK_LOW = block((-0.5, 0.0, -1.0), (0.5, 0.45, 1.0))
+# What a sitter facing -z with its seat 0.45 m up runs into with its legs or head: (id, the solids, its spot, its seat,
+# the solids named).
+ROOMS = [
+    ("an office chair 0.40 m from a desk", DESKED, [0.0, 0.0, 0.0], "Objects/office_1", ["Objects/desk"]),
+    ("the open office chair", DESKED, [3.0, 0.0, 0.0], "Objects/office_2", []),
+    ("a lower bunk 0.65 m under the upper", dict(FLOOR, **{"Objects/bunk": np.concatenate([
+        BUNK_LOW, block((-0.5, 1.1, -1.0), (0.5, 1.2, 1.0))])}), [0.0, 0.0, 0.0], "Objects/bunk", ["Objects/bunk"]),
+    ("a bed open over it", dict(FLOOR, **{"Objects/bunk": BUNK_LOW}), [0.0, 0.0, 0.0], "Objects/bunk", []),
+    ("a stool, cables 7 cm high under the feet", dict(FLOOR, **{"Objects/stool": CHAIRS["Objects/stool"],
+     "Objects/cables": block((-0.3, 0.0, -0.65), (0.3, 0.07, -0.5))}), [0.0, 0.0, 0.0], "Objects/stool",
+     ["Objects/cables"]),
+    ("a stool, a rug under the feet: their floor", dict(FLOOR, **{"Objects/stool": CHAIRS["Objects/stool"],
+     "Objects/rug": block((-1.0, 0.0, -1.0), (1.0, 0.02, -0.3))}), [0.0, 0.0, 0.0], "Objects/stool", []),
+    ("a stool, a table's top 0.5 m up over the knees", dict(FLOOR, **{"Objects/stool": CHAIRS["Objects/stool"],
+     "Objects/table": block((-0.6, 0.5, -1.0), (0.6, 0.55, -0.45))}), [0.0, 0.0, 0.0], "Objects/stool",
+     ["Objects/table"]),
 ]
 
 
@@ -815,6 +853,23 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
     assert [single["turn"] for single in singles] == [pytest.approx(0.0), 33.0]  # dealt at the turn it faces
     assert bedded["people"][0]["at"] == pytest.approx([0.31, 0.0, 0.0], abs=0.01)  # the record's spot the edge's
     assert (cast.on_support, cast.dealt) == (feet.SUPPORTED, feet.DEALT)  # cast's own back once the make ends
+    for name, solids, at, seat, into in ROOMS:
+        assert seated.seated_into(dict(sitter, at=at, seat_on=seat, turn=0.0), solids) == into, name
+    # one whose chair leaves no room sits on its row's open chair, or stands by its spot, named, when there is none
+    alone = {name: tris for name, tris in DESKED.items() if name != "Objects/office_2"}
+    with feet.seats_faced():
+        moved_on = cast.on_support({"people": [dict(sitter, anchor="on:office")]}, DESKED)["people"][0]
+        stood_by = cast.on_support({"people": [dict(sitter, anchor="on:office")]}, alone)["people"][0]
+    assert (moved_on["seat_on"], moved_on["at"], moved_on["doing"]) == ("Objects/office_2", [3.0, 0.0, 0.0],
+                                                                         "seated"), moved_on
+    assert (stood_by["doing"], stood_by["seat_on"], stood_by["at"]) == ("standing", None, [0.0, 0.0, 0.0]), stood_by
+    assert "Objects/office_1 into Objects/desk" in stood_by["unseated"], stood_by
+    with monkeypatch.context() as patched:  # the clear gate names what the legs run into
+        patched.setattr(cast, "checked_cast", lambda record, singles: [])
+        with seated.room_measured():
+            bodies = cast.measured({}, [dict(sitter, seat_on="Objects/office_1", turn=0.0)], None, DESKED, None,
+                                   "camp")["bodies"]
+    assert cast.measured is seated.MEASURED and bodies[0]["into"] == ["Objects/desk"], bodies
     eye = json.loads(PLACES.read_text())["shared"]["scale"]["eye_height"]
     rig = toy_rig()
     np.savez(tmp_path / "rig.npz", **rig)
