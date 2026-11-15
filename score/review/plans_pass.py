@@ -320,7 +320,8 @@ def laid_again(plan, inventory, shape, floors=()):
     """(the plan with today's writer steps that need no call made again, what changed said): held at its `floors`
     (plan_writing.floor_held, #128: its room row's, its lock's earlier plan's), fitted to its creator's `shape`
     (plan_writing.fitted), its flights laid (plan_writing.flights_laid: a flight ending in the air not built) and its
-    doorways as big as their doors (plan_fixes.doorways_fit), its gaps checked again, each left saying why (#72, #87: the stairwell's kept writing of 2026-11-02 had 56-degree
+    doorways as big as their doors (plan_fixes.doorways_fit), its roof the concept's (plan_writing.concept_roofed,
+    #128 D1: beams across it and no dome: flat), its gaps checked again, each left saying why (#72, #87: the stairwell's kept writing of 2026-11-02 had 56-degree
     flights, the flat's of 2026-11-04 a 4.78 x 4.78 m outline for its 6 x 5 m inside)."""
     answer = plan_writing.fitted(plan_writing.floor_held(copy.deepcopy(plan), floors), shape)
     said = answer.get("fixes", [])[len(plan.get("fixes", [])):]
@@ -332,7 +333,8 @@ def laid_again(plan, inventory, shape, floors=()):
         said = [*said, f"{len(stairs)} flights built from their rises and laid inside the walls apart ({steep} were "
                        f"steeper than {plan_checks.STEEPEST:g} degrees), {len(levels) - len(plan.get('levels') or [])} "
                        f"landings added"] + [f"{entry['item']}: {entry['why']}" for entry in unlanded]
-    said = [*said, *plan_fixes.doorways_fit(answer, inventory)]
+    answer, roofed = plan_writing.concept_roofed(answer, inventory)
+    said = [*said, *roofed, *plan_fixes.doorways_fit(answer, inventory)]
     answer = {**answer, "fixes": plans.said_once([*plan.get("fixes", []), *said])}
     answer["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(answer, inventory))
     return answer, said

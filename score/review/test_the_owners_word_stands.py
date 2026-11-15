@@ -276,7 +276,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_writing.py (2026-11-15, #128): floor_held's `if not area or not short:` made `if True:` (a writing shrunk
     to 4.7 m from its lock's 13.1 m kept), or flights_landed's `if air or None in landing:` made `if False:` (the
     street's stair ending in the air at 3 m built), or room_row's `int(row.get("count", 1) or 1) == 1 and` dropped
-    (twelve floor tiles taken for the room)
+    (twelve floor tiles taken for the room), or roof_beams' `if any(row_words(row) & CURVED_WORDS for row in rows):`
+    made `if False:` (a concept naming a dome roofed flat), or concept_roofed's `roofs = [{**roof, "kind": "flat",
+    "top": roof["eave"]} if roof in rising else roof ...]` made `roofs = plan["roofs"]` (the garage's game dome kept
+    over its concept's beams)
     plan_fixes.py (2026-11-15, #128): doorways_fit's `near["wide"] = max(float(near["wide"]), door_wide)` made
     `pass`, or `return fixes + (door_rows_widened(plan) if fixes else [])` made `return fixes` (the doorway wider
     than its plan door row: scene-record's `openings` fails)
@@ -3171,6 +3174,11 @@ FLOOR_ROWS = {"rows": [{"id": "floor_plates", "anchor": "ground", "size": [4.0, 
                       {"id": "floor_plate", "anchor": "floor", "count": 12, "size": [3.0, 3.0, 0.1]},
                       {"id": "roof_dome", "anchor": "on:left_wall", "size": [6.0, 6.0, 1.0]},
                       {"id": "rug_floor", "anchor": "floor", "size": [2.0, 3.0, 0.01]}]}
+BEAMED_ROOM = {"w": 11.9, "d": 12.66, "height": "walls 4.6 m, dome rising 1.3 m; pumped empty",
+               "roofs": [{"kind": "dome", "points": [[0, 0], [11.9, 0], [11.9, 12.66], [0, 12.66]], "eave": 4.6,
+                          "top": 5.9}]}
+BEAMED_ROWS = {"rows": [{"id": "ceiling_beam", "anchor": "roof", "count": 3, "size": [14.0, 0.2, 0.2]},
+                        {"id": "ceiling_lamp", "anchor": "on:ceiling_beam", "size": [0.4, 0.4, 0.5]}]}
 SQUARE_DOORS = {"flat": {"w": 6.0, "d": 5.0, "openings": [door([5.925, 1.344], "stairwell")]},
                 "stairwell": {"w": 7.4, "d": 4.0, "openings": [door([0.0, 0.88], "flat")]}}
 SQUARE_HELD = [{"place": "flat", "row": "left_building", "x": 0.0, "y": 16.0, "w": 6.0, "d": 5.0},
@@ -3244,6 +3252,14 @@ HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outco
       "fixes": [Containing("kept under 70% of its lock's earlier plan")]}),
     ("a room within 70% of its floors stays as written", lambda plan, floors: plan_writing.floor_held(
         plan, floors) is plan, (FLAT_ROOM, [(5.0, 5.0, "its room row")]), True),
+    # the concept's roof wins over the game's words (#128 D1): beams across the roof and no dome lay it flat on them
+    # (the garage's dome "rising 1.3 m"); a concept that names a dome keeps its dome
+    ("a beamed roof is flat at its eave", lambda plan, inventory: plan_writing.concept_roofed(plan, inventory)[0],
+     (BEAMED_ROOM, BEAMED_ROWS), {"roofs": [{"kind": "flat", "eave": 4.6, "top": 4.6}],
+                                  "height": "walls 4.6 m; pumped empty"}),
+    ("a domed concept keeps its dome", lambda plan, inventory: plan_writing.concept_roofed(plan, inventory)[0]
+     is plan, (BEAMED_ROOM, {"rows": [*BEAMED_ROWS["rows"], {"id": "dome_roof", "anchor": "roof",
+                                                             "size": [12.0, 12.0, 1.3]}]}), True),
     # two held places whose doors to each other open apart meet: the one on the holder's own floor moved by the gap and
     # off its sibling's box (the Square's stairwell opened its door to the flat 10.4 m from the flat's, 2026-11-05);
     # one held in a row's item stays where it is drawn, and two such are left for the gate to name

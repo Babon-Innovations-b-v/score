@@ -44,6 +44,7 @@ import contextlib
 import json
 import math
 import os
+import re
 import statistics
 import sys
 import time
@@ -95,6 +96,15 @@ ROOM_LEAST = 2.0
 # A flight ends on a floor (#128, D5): each end stands on a level at its height (or the place's +0.00 when it draws
 # no level there) within LANDED metres past it, or on another flight's end; one ending in the air is not built.
 LANDED = (0.1, 0.4)
+# The concept's roof wins over the game's words (#128, D1): a room whose concept reads beams across its roof (a row
+# held by the roof or ceiling, named a beam, truss or girder, at least BEAM_SPAN of the room's shorter side long) and
+# no dome, cupola or vault anywhere is roofed flat on them at its walls' top (the garage's 14 m ceiling beams under the
+# dome "rising 1.3 m" its old plan words gave it).
+BEAM_WORDS = {"beam", "beams", "truss", "trusses", "girder", "girders"}
+CURVED_WORDS = {"dome", "domes", "domed", "cupola", "vault", "vaulted", "arch", "arched"}
+ROOF_ANCHORS = {"roof", "ceiling"}
+BEAM_SPAN = 0.8
+ROOF_RISE = re.compile(r",?\s*\b(?:low\s+)?(?:dome|roof)\s+rising\s+(?:about\s+)?[\d.]+\s*m\b")
 ASKED = """You are an architect drawing the dimensioned floor plan of one place of a game environment, element by
 element. The first picture is the place's plan drawn from directly above (orthographic, north up, to scale): read every
 position and shape off it, where it is drawn, and never move, pack or tidy anything. The second picture is the place's
@@ -743,6 +753,44 @@ def room_floors(store, place, inventory, concept, before=None):
                                 earlier_floor(store, place, concept, before)) if floor]
 
 
+def row_words(row):
+    """The words of a row's id and name, lower case."""
+    return set(str(row.get("id", "")).lower().split("_")) | set(str(row.get("name") or "").lower().split())
+
+
+def roof_beams(plan, inventory):
+    """(id, length) of each row of the concept's inventory that is a beam across the room's roof (BEAM_WORDS, held by
+    the roof or ceiling, at least BEAM_SPAN of the plan's shorter side long); [] when the concept names a dome,
+    cupola or vault anywhere (CURVED_WORDS): its roof is curved, beams or not."""
+    rows = inventory.get("rows", [])
+    if any(row_words(row) & CURVED_WORDS for row in rows):
+        return []
+    span = min(float(plan.get("w") or 0.0), float(plan.get("d") or 0.0))
+    return [(row["id"], max(float(part) for part in row["size"][:2])) for row in rows
+            if row_words(row) & BEAM_WORDS and plan_checks.anchor_of(row) in ROOF_ANCHORS
+            and isinstance(row.get("size"), list) and len(row["size"]) >= 2
+            and all(number(part) for part in row["size"][:2])
+            and span and max(float(part) for part in row["size"][:2]) >= BEAM_SPAN * span]
+
+
+def concept_roofed(plan, inventory):
+    """(`plan` with the concept's roof, what changed said) (#128, D1): a room whose concept reads beams across its
+    roof and no curved roof (`roof_beams`) has each rising roof (a dome, vault, gable, shed, or one whose top is over
+    its eave) laid flat at its eave, and its height words' roof rise taken out; as it is otherwise."""
+    beams = roof_beams(plan, inventory)
+    rising = [roof for roof in plan.get("roofs") or []
+              if roof.get("kind") != "flat" or float(roof.get("top", roof["eave"])) > float(roof["eave"])]
+    if not beams or not rising:
+        return plan, []
+    roofs = [{**roof, "kind": "flat", "top": roof["eave"]} if roof in rising else roof for roof in plan["roofs"]]
+    height = ROOF_RISE.sub("", str(plan.get("height") or "")).strip(" ,;")
+    beam, length = beams[0]
+    said = [f"roof: the concept's {beam} ({length:g} m) spans the room and it shows no dome: "
+            f"{len(rising)} rising roof{'s' if len(rising) > 1 else ''} ({', '.join(sorted({roof['kind'] for roof in rising}))}) "
+            f"laid flat at {rising[0]['eave']:g} m on its beams"]
+    return {**plan, "roofs": roofs, **({"height": height} if "height" in plan else {})}, said
+
+
 def roof_of(roof):
     if not isinstance(roof, dict) or not points(roof.get("points")) or number(roof.get("eave")) is None:
         return None
@@ -1098,6 +1146,9 @@ def plan_from(answer, skeleton, inventory, shape=None, floors=()):
     plan["beyond"] = [row["id"] for row in inventory.get("rows", []) if row["id"] in said_beyond]
     # held at its floors, then a held place off its creator's shape fitted to it (#72), before its flights are laid
     plan = fitted(floor_held(plan, floors), shape)
+    plan, roofed = concept_roofed(plan, inventory)
+    if roofed:
+        plan["fixes"] = [*plan.get("fixes", []), *roofed]
     plan["stairs"], plan["levels"], unlanded = flights_laid(plan)
     plan["dropped"] = plan["dropped"] + unlanded
     plan["gaps"] = hold_gaps + plan_checks.checked(plan, inventory, plan["structure"])
