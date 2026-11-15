@@ -328,6 +328,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     `for stair in []:` (BAGS 3 left on the ramp)
     plan_fixes.py `nudged`: `others += [box for box in standing_low(plan, inventory, mover) if
     box != still[1:5]] + clear` -> `others += clear` (the box nudged into the suit)
+    plan_checks.py `attached`: `or frozenset((first, second)) in joined` dropped (the tunnel nudged out of the dome
+    it enters), or `joined_pairs`' `row.get("part") == "structure" and` dropped (the crate kept in the dome)
     plan_fixes.py `piled_on_own`: `piles(rows[row])` -> `False` (the sandbag pile stood on the
     floor), or `on_floor[row] not in plan_checks.FLOOR_ANCHORS` dropped (frame 2 taken off its wall)
     plan_fixes.py `floored`: `dict(row, anchor="floor")` -> `row` (RAIL 2 left 1 m up)
@@ -3577,6 +3579,16 @@ CROWDED_ROWS = {"rows": [{"id": "crate"}, {"id": "box"}, {"id": "suit", "anchor"
 PANELLED = {**CROWDED, "items": [*CROWDED["items"], ["PANEL 1", 0.0, 0.0, 10.0, 10.0, None, "item"]],
             "rows": {**CROWDED["rows"], "PANEL 1": ["wall_panel"]},
             "shapes": {**CROWDED["shapes"], "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0}}}
+# campgrounds' plan writing, 2026-11-09: its habitat tunnel moved 7.9 m out of the dome the concept shows it entering
+JOINED = {"w": 20.0, "d": 20.0, "items": [["DOME 1", 2.0, 2.0, 8.0, 8.0, None, "item"],
+                                          ["TUNNEL 1", 9.0, 5.0, 4.0, 2.0, None, "item"],
+                                          ["CRATE 1", 9.0, 2.5, 1.5, 1.5, None, "item"]],
+          "rows": {"DOME 1": ["dome"], "TUNNEL 1": ["habitat_tunnel"], "CRATE 1": ["crate"]}, "shapes": {}}
+JOINED_ROWS = {"picture": [1000, 1000], "rows": [
+    {"id": "dome", "part": "structure", "anchor": "ground", "boxes": [[100, 300, 500, 600]]},
+    {"id": "habitat_tunnel", "noun": "tunnel", "part": "structure", "anchor": "ground", "boxes": [],
+     "region": [450, 480, 550, 700]},
+    {"id": "crate", "part": "object", "anchor": "ground", "boxes": [[490, 400, 560, 470]]}]}
 # settle@flat and settle@engineroom, checkout 68: a plan fixed before piled() asked the row's words kept flat's second
 # stove 0.9 m up on its first, in its fridge, and the engine room's pipe 1 ran into its corner pipes
 KITCHEN = {"w": 6.0, "d": 5.0, "items": [["FRIDGE 1", 4.95, 1.95, 0.6, 0.6, "W", "item"],
@@ -3923,6 +3935,9 @@ FIXED = [  # (row, the plan writer's fix, its arguments, the answer as `holds` r
       "dropped": Meets(lambda dropped: dropped[0]["laid"] == 7)}, []),
     ("a nudge lands in no suit hung on the wall", plan_fixes.nudged, (CROWDED, CROWDED_ROWS), ANYTHING,
      {"items": Meets(lambda items: items[1][1:3] == [3.6, 3.45])}),
+    ("a tunnel the concept shows entering a dome stays in it; a crate in the dome is nudged out", plan_fixes.nudged,
+     (JOINED, JOINED_ROWS), Exactly(["crate 1: moved 1.1 m out of dome 1"]),
+     {"items": Meets(lambda items: items[1][1:3] == [9.0, 5.0])}),
     ("the room-sized wall panel blocks no nudge", plan_fixes.nudged,
      (PANELLED, {"rows": [*CROWDED_ROWS["rows"], {"id": "wall_panel", "anchor": "on:hull"}]}), ANYTHING,
      {"items": Meets(lambda items: items[1][1:3] == [3.6, 3.45])}),

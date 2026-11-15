@@ -289,20 +289,46 @@ def blocking(plan, inventory):
             and float((shape or {}).get("tall") or 1.0) > FLAT]
 
 
-def attached(first, second, anchored):
-    """Whether one of two rows stands on the other (its anchor `on:<the other>`)."""
-    return anchored.get(first) == f"on:{second}" or anchored.get(second) == f"on:{first}"
+def attached(first, second, anchored, joined=frozenset()):
+    """Whether one of two rows stands on the other (its anchor `on:<the other>`), or one is a connector the concept
+    shows joining the other (`joined`, joined_pairs): a tunnel's end goes into the dome it meets."""
+    return anchored.get(first) == f"on:{second}" or anchored.get(second) == f"on:{first}" \
+        or frozenset((first, second)) in joined
+
+
+def seen_boxes(row, picture):
+    """A row's boxes on the concept: SAM 3's, else its Gemini region's (a tunnel SAM 3 found no box for)."""
+    return [box for box in row.get("boxes") or [] if box] or (
+        [gemini_box(row["region"], picture)] if row.get("region") and picture else [])
+
+
+def joined_pairs(inventory):
+    """{frozenset((connector row, structure row))} of each connector (a tube, a tunnel) and each structure row (a
+    dome, a module, a hub: `part` structure, never the place itself) whose boxes meet on the concept within
+    JOIN_SEEN of the picture: what the connector joins, so the two stand into each other on the plan and are never
+    parted (campgrounds' habitat tunnel moved 7.9 m out of the dome it enters, base's tubes off its hub, 2026-11-15)."""
+    picture = inventory.get("picture")
+    rows = inventory.get("rows", [])
+    if not picture:
+        return frozenset()
+    margin = JOIN_SEEN * max(picture)
+    return frozenset(frozenset((join["id"], row["id"])) for join in rows if connector(join)
+                     for row in rows if row.get("part") == "structure" and not connector(row)
+                     and not whole(row, picture) and any(touching(box, other, margin)
+                                                         for box in seen_boxes(join, picture)
+                                                         for other in seen_boxes(row, picture)))
 
 
 def overlap_gaps(plan, inventory, grid):
-    """A gap for each two floor items sharing more than OVERLAP of the smaller one, unless one stands on the other."""
-    anchored = anchors(inventory)
+    """A gap for each two floor items sharing more than OVERLAP of the smaller one, unless one stands on the other or
+    joins it (attached)."""
+    anchored, joined = anchors(inventory), joined_pairs(inventory)
     found = [(item, row, grid.covered(polygon_of(item, shape)), middle_of(polygon_of(item, shape)))
              for item, row, shape in blocking(plan, inventory)]
     gaps = []
     for number, (item, row, mask, middle) in enumerate(found):
         for other, other_row, other_mask, _ in found[number + 1:]:
-            if attached(row, other_row, anchored):
+            if attached(row, other_row, anchored, joined):
                 continue
             shared = (mask & other_mask).sum()
             if shared > OVERLAP * min(mask.sum(), other_mask.sum()):

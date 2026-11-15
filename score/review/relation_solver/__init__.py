@@ -69,15 +69,15 @@ def movers(plan, inventory, reach):
 def problem_of(plan, inventory, moving):
     """The solver's problem for the floor things `moving` ([(item, row)]): their sizes, their plan spots as soft
     targets, the outline's box, and as obstacles the walls (but one a thing already stands in) and the other floor
-    things, a thing standing on another never kept from it."""
-    anchored = plan_checks.anchors(inventory)
+    things, a thing standing on another or joining it (plan_checks.attached) never kept from it."""
+    anchored, joined = plan_checks.anchors(inventory), plan_checks.joined_pairs(inventory)
     names = {item[0] for item, _ in moving}
     still = [(item, row) for item, row, _ in plan_checks.blocking(plan, inventory) if item[0] not in names]
     walls = [box for wall in plan.get("walls", []) for box in wall_boxes(wall)]
     outline = numpy.asarray(plan_checks.outline_of(plan), dtype=float)
-    avoids = [[0.0 if plan_checks.attached(row, other_row, anchored) else 1.0 for _, other_row in still]
+    avoids = [[0.0 if plan_checks.attached(row, other_row, anchored, joined) else 1.0 for _, other_row in still]
               + [0.0 if boxes_meet(item_box(item), wall) else 1.0 for wall in walls] for item, row in moving]
-    apart = [[0.0 if plan_checks.attached(row, other_row, anchored) else 1.0 for _, other_row in moving]
+    apart = [[0.0 if plan_checks.attached(row, other_row, anchored, joined) else 1.0 for _, other_row in moving]
              for _, row in moving]
     return _solver.Problem([item[3:5] for item, _ in moving], [item[1:3] for item, _ in moving], SOFT,
                            [*outline.min(axis=0), *outline.max(axis=0)],
