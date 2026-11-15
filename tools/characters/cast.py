@@ -51,8 +51,9 @@ CLEAR_TRIES = 8
 # many times (the kit has 63 looks: 27 men's and 36 women's builds, faces and hair).
 MIX_STEP = 1000
 MIX_TRIES = 200
-# A walk's pace in metres a second when the cast gives none: the walk clip's own (the game's crew walk).
-WALK_PACE = 1.333
+# A walk's pace in metres a second when the cast gives none (owner, 2026-11-15, "Try 1.0 m/s walks": at the walking
+# clip's own 1.333 a walker's sim body could not hold its residual): each walker's scene-made clip walks it.
+WALK_PACE = 1.0
 
 
 # --- who ----------------------------------------------------------------------------------------------------------

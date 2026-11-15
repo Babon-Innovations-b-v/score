@@ -353,13 +353,26 @@ def stood_smoothed(values):
     return np.linalg.solve(np.eye(len(values)) + smooth * bend.T @ bend, np.asarray(values, dtype=float))
 
 
+def stood_above(wanted, lowest):
+    """`stood_smoothed`'s move (`wanted`, m a frame) as its least squares held so no foot goes under the floor (at most
+    each frame's `lowest` sole, m): a foot landing heel first, sliding into the floor before Kimodo's contact holds it
+    and so standing on no frame there, was left 3.7 mm under it by the standing foot's move (2026-11-15, camp's 1.0
+    m/s walk, frames 68 and 139, its sim body 3.5 mm into its ground)."""
+    from scipy.optimize import lsq_linear
+    bend = np.diff(np.eye(len(wanted)), 2, axis=0)
+    smooth = (2.0 * np.sin(np.pi * STOOD_HZ / RATE)) ** -4
+    return lsq_linear(np.r_[np.eye(len(wanted)), np.sqrt(smooth) * bend], np.r_[wanted, np.zeros(len(bend))],
+                      bounds=(-np.inf, np.asarray(lowest, dtype=float))).x
+
+
 def stood(rig, local):
     """`local` with its travelling joint moved up or down frame by frame so its standing feet's soles rest on the
     bind's floor (y = 0): on every frame a foot stands (`soles` under STANCE_SPEED and STANCE_HIGH, and no other skin
     under it: a body sitting or kneeling on its floor is carried there, never pushed into it) the lowest
     standing sole is brought to it, a frame no foot stands on (a jump's flight) taking the move straight between its
     neighbours' (the first's or the last's beyond them), the whole smoothed (Whittaker's smoother: the move's squared
-    second differences weighed so it passes up to STOOD_HZ), so it never leaves what its standing frames ask.
+    second differences weighed so it passes up to STOOD_HZ), so it never leaves what its standing frames ask; where that
+    move leaves any foot under the floor, the same least squares held so none is (`stood_above`).
     A frame's own rotations are never changed; a clip on which no foot stands is as it came."""
     heights, speeds, others = soles(rig, local)
     standing = standing_of(heights, speeds, others)
@@ -367,7 +380,10 @@ def stood(rig, local):
     if not on.any():
         return np.asarray(local, dtype=float)
     frames = np.arange(len(local))
-    move = stood_smoothed(np.interp(frames, frames[on], np.where(standing, heights, np.inf).min(axis=1)[on]))
+    wanted = np.interp(frames, frames[on], np.where(standing, heights, np.inf).min(axis=1)[on])
+    move = stood_smoothed(wanted)
+    if (heights.min(axis=1) - move < -TOE_FLOOR).any():
+        move = stood_above(wanted, heights.min(axis=1))
     moved = np.array(local, dtype=float)
     moved[:, played.TRAVELLING_JOINT, 1, 3] -= move
     return moved

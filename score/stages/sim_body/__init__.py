@@ -67,6 +67,10 @@ skin it sits on rests on its seat's surface on every frame (`seated`): nested ac
 (`nest`), then raised onto a higher seat or lowered onto a lower one with its knees opened or bent so its feet stay
 where the clip stood them (`bent_down`).
 
+A walker on flat ground plays its own scene-made clip (scene-clips' walks Kimodo post-processed, flat_walks: in the
+clips rig beside people-clips-made's, with their own foot contacts, played by person_rig as those are; 2026-11-15, the
+owner's 1.0 m/s walks), a walker with none taken its cast clip.
+
 A climber (the cast's `stairs`, cast.on_stairs: a person its design stands on stairs, on its flight's first tread)
 plays its scene-made clip up or down its flight instead (scene-clips, an optional read: its rig.npz `clip_<clip>` and
 scene_clips.json entry, route_clip: its travel kept along its route and up its steps, only its Hips' height over the
@@ -79,9 +83,8 @@ no flight, so on a frame no foot stands the one nearest its tread carries, and w
 tread the Hips come down first (treads_stood's carrying and within_reach, 2026-11-14).
 
 Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
-with no activation dynamics), clips made for the ground for any walker but a climber (a flat-ground clip meets a step
-with its toe), a walker's cast path (the clip plays its own root path from the spot), the build's feet brought in
-(stance.narrowed).
+with no activation dynamics), a scene-made clip over steps for a walker who is no climber (it plays its cast clip),
+a walker's cast path (the clip plays its own root path from the spot), the build's feet brought in (stance.narrowed).
 """
 import concurrent.futures
 import hashlib
@@ -155,7 +158,8 @@ ATTRIBUTION = ("MyoFullBody: MyoSuite and myo_sim (MyoHub, Apache-2.0), as Muscl
                "its arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005, "
                "doi:10.1007/s10439-005-3320-7, and Saul et al. 2015, doi:10.1080/10255842.2014.916698")
 CLIPS_ROW = "people-clips-made"
-# The scene-made clips (score/stages/scene_clips), an optional read: a climber (the cast's `stairs`) plays its own.
+# The scene-made clips (score/stages/scene_clips), an optional read: a climber (the cast's `stairs`) and a walker on
+# flat ground play their own.
 SCENE_CLIPS_ROW = "scene-clips"
 SCENE_CLIPS = "scene_clips.json"  # its record (scene_clips.RECORD)
 # What a body's bone groups are calibrated on (#70: the static table, inside/calibration), the same for every person.
@@ -239,13 +243,15 @@ def make(inputs, out, seed, params):
     place = cast["place"]
     clips_rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))
     contacts = contacts_of(inputs[CLIPS_ROW], clips_rig)  # Kimodo's own foot contacts, its motions' (person_rig)
+    scene = scene_clips_of(inputs)
+    walks, walk_contacts = flat_walks(inputs, scene, clips_rig)
+    clips_rig, contacts = {**clips_rig, **walks}, {**contacts, **walk_contacts}
     body, gravity = gravity_of(place, inputs)
     solids = solids_of(inputs, place)
     job, records, left_out = {"rate": RATE / slowing(gravity), "clip rate": RATE, "gravity": gravity,
                                "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
     builds, clips = {}, {}
-    scene = scene_clips_of(inputs)
     for single in cast["characters"]:
         why = left_out_why(single, clips_rig, scene)
         if why:
@@ -266,6 +272,8 @@ def make(inputs, out, seed, params):
             plan, scene_rig = scene[single["name"]]
             clip = plan["clip"]
             rig = dict(rig, **{f"clip_{clip}": route_clip(clips_rig, built, scene_rig, plan)})
+        elif f"clip_{scene_clip_of(single, scene)}" in rig:  # a walker on flat ground plays its own (flat_walks)
+            clip = scene_clip_of(single, scene)
         kept = segments_of(rig)[0]
         worlds = clip_frames(rig, clip, kept)
         ground, under = ground_of(solids, worlds, own_frame(single["at"], single.get("turn", 0.0)))
@@ -328,6 +336,28 @@ def scene_clips_of(inputs):
         return {}
     scene_rig = dict(np.load(folder / "rig.npz"))
     return {plan["name"]: (plan, scene_rig) for plan in plans if f"clip_{plan['clip']}" in scene_rig}
+
+
+def flat_walks(inputs, scene, clips_rig):
+    """The scene-made clips walked on flat ground ({clip_<its clip>: its frames}: those Kimodo post-processed,
+    scene_clips' `postprocess`, on its floor) and Kimodo's foot contacts of them ({its clip: contacts}, `contacts_of`
+    on the scene-clips output), for the clips rig: person_rig plays them at a person's build, stood and their feet
+    corrected, as it plays people-clips-made's own (2026-11-15: a walker played people-clips-made's 1.333 m/s
+    walking clip, not its own walk at the cast's 1.0 m/s)."""
+    walks = {f"clip_{plan['clip']}": scene_rig[f"clip_{plan['clip']}"] for plan, scene_rig in scene.values()
+             if plan["postprocess"] and not plan.get("stairs")}
+    if not walks:
+        return {}, {}
+    scene_rig = next(iter(scene.values()))[1]
+    if [str(name) for name in scene_rig["names"]] != [str(name) for name in clips_rig["names"]]:
+        raise ValueError("the scene-made clips' rig has other joints than the clips rig")
+    contacts = contacts_of(inputs[SCENE_CLIPS_ROW], walks)
+    return walks, contacts
+
+
+def scene_clip_of(single, scene):
+    """The scene-made clip a walker plays (its scene_clips.json entry's `clip`), or None with none taken."""
+    return scene[single["name"]][0]["clip"] if single["name"] in scene else None
 
 
 def left_out_why(single, clips_rig, scene):

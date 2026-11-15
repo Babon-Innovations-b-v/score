@@ -6,24 +6,29 @@ through the scene, not a walk on a flat floor played over it.
              first tread to its last, cast.on_stairs' `stairs`, at one tread a stance, pace_of, asked with STAIRS'
              sentence, else a straight leg from its spot
              the way it faces, cast.py's front -z, for the walking sentence's seconds at its pace) walked at its pace
-             (cast.py WALK_PACE) one frame at a time at Kimodo's RATE, and the walk check run along it on the same
-             geometry the cast is measured on (its seed's base layer with its scene record, on its made ground:
-             cast/measure.py's knee-down ray for the ground under each frame, its body cylinder for what it runs
-             into): the route ends where it runs into a solid, finds no ground or would step over KNEE. The route
-             becomes Kimodo constraints (constraints_of) in Kimodo's canonical frame (its start at the origin, its
-             first heading +Z, its start's ground y = 0; the placement back into the scene recorded), raised by the
-             walk's `lift` (its start's ground over the lowest ground it walks or is asked on) so that lowest ground
-             is Kimodo's floor, y = 0, and the machine lowers the clip it makes by the same `lift` (see Not held):
+             (cast.py WALK_PACE, 1.0 m/s: owner, 2026-11-15, "Try 1.0 m/s walks") one frame at a time at Kimodo's RATE,
+             and the walk check run along it on the same geometry the cast is measured on (its seed's base layer with
+             its scene record, on its made ground: cast/measure.py's knee-down ray for the ground under each frame, its
+             body cylinder for what it runs into): the route ends where it runs into a solid, finds no ground or would
+             step over KNEE. The route becomes Kimodo constraints (constraints_of) in Kimodo's canonical frame (its
+             start at the origin, its first heading +Z, its start's ground y = 0; the placement back into the scene
+             recorded), raised by the walk's `lift` (its start's ground over the lowest ground it walks or is asked on)
+             so that lowest ground is Kimodo's floor, y = 0, and the machine lowers the clip it makes by the same `lift`
+             (see Not held):
                root2d      the route's root path and heading at every frame (dense: Kimodo is trained on dense
                            root paths)
-               left-foot,  each foot at its stance's middle, every STEP_FRAMES from FIRST_STANCE, right foot first
-               right-foot  (the cadence of people-clips-made's own walking clip), fewer than 20 a foot (Kimodo's
-                           limit): SOMA77's rest pose turned to the route's heading with its hips HIP_OVER_SOLE over
-                           the ground under that foot, so Kimodo's FK puts the sole on the scene's surface there
+               left-foot,  where the footfalls' ground is not flat (over FLAT_RELIEF) only: each foot at its
+               right-foot  stance's middle, every STEP_FRAMES from FIRST_STANCE, right foot first, fewer than 20 a
+                           foot (Kimodo's limit): SOMA77's rest pose turned to the route's heading with its hips
+                           HIP_OVER_SOLE over the ground under that foot, so Kimodo's FK puts the sole on the scene's
+                           surface there. A walk on flat ground is asked its route alone, with Kimodo's
+                           post-processing holding its feet on its floor (2026-11-15, the owner's 1.0 m/s walks: the
+                           best of the requests tried on camp's walker, against foot keyframes and post-processing off)
              Kimodo then makes each clip on one rented characters machine (tools/characters/clips/scene_clips.py
-             through tools/cloud/characters.py): `kimodo_gen` with the walking sentence, model and fixed seed of
-             people/clips.py and `--constraints`, `--no-postprocess` where the footfalls' ground is not flat (see
-             Not held), and SOMA-X's mean rig with every clip (the maker's prop_skeleton.py, as people-clips-made).
+             through tools/cloud/characters.py): `kimodo_gen` with its sentence (WALKING, a climber's STAIRS),
+             people/clips.py's model and fixed seed and `--constraints`, `--no-postprocess` where the footfalls'
+             ground is not flat (see Not held), and SOMA-X's mean rig with every clip (the maker's
+             prop_skeleton.py, as people-clips-made).
              Written as people-clips-made writes: rig.npz (clip_<name>), motions/ (<name>.npz Kimodo's own output,
              <name>.record.json) and make.json, and scene_clips.json (each walker's route, ground, footfalls,
              placement, what was cut or left out).
@@ -84,7 +89,12 @@ CLIP = "walking"  # the cast's clip a walker plays (people_rows.doing_of)
 RATE = 30  # Kimodo's frames a second (kimodo/exports/motion_io.py KIMODO_CONVERT_TARGET_FPS)
 MOST_SECONDS = 10.0  # Kimodo's longest clip a prompt (docs/source/key_concepts/limitations.md)
 MOST_KEYFRAMES = 19  # fewer than 20 constrained frames a constraint type (the same page)
-WALK_PACE = 1.333  # tools/characters/cast.py WALK_PACE, metres a second (test_... checks they agree)
+WALK_PACE = 1.0  # tools/characters/cast.py WALK_PACE, metres a second (test_... checks they agree)
+# A flat walk's sentence at 1.0 m/s (owner, 2026-11-15, "Try 1.0 m/s walks"): of seven tried on camp's astronaut_1's
+# route alone (seed 1), as sim-body plays each (person_rig on people-body-astronaut-made), this one stood both soles
+# within 5 mm of the floor on the most frames, 56 of 151 (the walking clip's own sentence 47; "... slowly at a calm,
+# relaxed pace" 41; "... strolling forward slowly" 43; "... slowly" 44; "... calmly" 47; "... walks ..." 51)
+WALKING = "a person walking forward slowly and calmly"
 # SOMA77's rest pose (Kimodo's standard T-pose: every local turn zero) by Kimodo's own FK (SOMASkeleton77.fk,
 # measured 2026-10-27): with the hips at the origin the left ankle (LeftFoot) at (0.1004, -0.9381, -0.0169), the left
 # toe end at (0.1003, -1.0052, 0.1806), the right mirrored; the toe end is the sole's lowest point.
@@ -93,7 +103,10 @@ FOOT_SIDE = 0.1004
 HEEL, TOE = -0.0169, 0.1806  # along the foot from the hips' line, where the ground under a foot is read
 # The cadence of people-clips-made's walking clip (seed 1, Kimodo-SOMA-RP-v1.1, 150 frames): the left foot down over
 # frames 0-16, 35-49, 69-84, 104-120, 139-149, the right over 17-32, 52-67, 86-104, 122-137: a stride 34.5 frames,
-# the right's first stance middle at frame 24.5.
+# the right's first stance middle at frame 24.5. A climber keeps it at 1.0 m/s (2026-11-15): Kimodo's 1.0 m/s walk
+# keeps about this cadence (its right's stance middles 23.5 to 130 in six steps, 17.75) and slows by shorter steps,
+# which a flight's treads fix; asked at 17.75 the stairwell's person_woman's sim body left 671 N of residual (404 N
+# with the slower sentence too), against 22 N at 17.25.
 STEP_FRAMES = 17.25
 FIRST_STANCE = 24
 END_MARGIN = 8  # frames: no stance asked for this near the clip's end
@@ -152,13 +165,10 @@ def pace_of(single):
 
 
 def sentence_of(single):
-    """The sentence a walker's clip is asked with: a climber's up or down its stairs (STAIRS), else the walking clip's
-    own (people/clips.py)."""
+    """The sentence a walker's clip is asked with: a climber's up or down its stairs (STAIRS), else WALKING."""
     if single.get("stairs"):
         return STAIRS[single["stairs"]["way"]]
-    sys.path.insert(0, str(PEOPLE))
-    import clips
-    return clips.SENTENCES[CLIP][0]
+    return WALKING
 
 
 def walked(points, pace):
@@ -296,12 +306,15 @@ def plan_of(single, found):
     relief = float(max(heights) - min(heights))
     # Kimodo never puts a foot under its floor (see Not held): the walk's lowest ground is its floor
     lift = float(grounds[0] - min(min(grounds), min(heights)))
+    flat = relief <= FLAT_RELIEF
+    if flat:  # asked its route alone: Kimodo's post-processing holds its feet on its floor
+        falls = []
     return {"name": single["name"], "clip": f"scene_{single['name']}", "pace": pace, "sentence": sentence_of(single),
             "stairs": single.get("stairs"),
             "seconds": seconds_of(kept), "frames": kept, "cut": cut,
             "placement": {"origin": np.round(origin, 5).tolist(), "turn": round(math.degrees(headings[0]), 4)},
             "route": np.round(np.column_stack([roots[:, 0], grounds, roots[:, 2]]), 4).tolist(),
-            "footfalls": falls, "relief": round(relief, 4), "postprocess": relief <= FLAT_RELIEF,
+            "footfalls": falls, "relief": round(relief, 4), "postprocess": flat,
             "lift": round(lift, 5), "constraints": constraints_of(roots, headings, falls, origin, lift)}, None
 
 

@@ -448,7 +448,7 @@ CASTS = [
                                        standing("c", [3.0, 0.0, 0.0]), standing("d", [3.1, 3.0, 0.0])],  # d on a
      {}, [], None, None, [["a", "b"]], [], [], None, (4, 4)),                                           # landing
     ("dealt a spot on a walk", None, None, [WALKER, standing("worker", [2.0, 0.0, 0.0])], {}, [], None, None, [],
-     ["walker walks 0.60 m from worker after 1.05 s (people keep 0.65 m apart)"], [], None, (2, 2)),
+     ["walker walks 0.65 m from worker after 1.35 s (people keep 0.65 m apart)"], [], None, (2, 2)),
     ("stood off the walk", None, None, [WALKER, standing("worker", [2.0, 0.0, 0.0])], {"worker": [2.0, 0.0, 5.0]}, [],
      None, None, [], [], [], None, (2, 2)),
     ("each its own variant", None, None, VARIANTS, {}, [], None, None, [], [], [], None, (2, 2)),

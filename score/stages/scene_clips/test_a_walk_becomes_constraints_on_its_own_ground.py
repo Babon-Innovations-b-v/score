@@ -17,6 +17,8 @@ held to the same rules:
   a descender walks it down, and the lowest ground it walks is Kimodo's floor (its `lift`), so no sole is asked under
   it, and the machine lowers the clip back onto its start's ground.
 - a walk off the kerb before its first stance stands every stance on the street, its start's floor not.
+- a walker on flat ground at the cast's own pace (1.0 m/s, owner 2026-11-15) walks the walking sentence's 5 s, 5 m,
+  asked its route alone (root2d, no foot) with WALKING's sentence and Kimodo's post-processing on.
 - a walker whose cast path runs into the wall is cut 0.25 m (its body's radius) before it; one cut under two seconds
   is left out.
 For every planned walker, in Kimodo's canonical frame the route starts at the origin heading +Z, and SOMA77's rest
@@ -43,6 +45,8 @@ test 2026-11-13), by the behaviour each one breaks:
   `"lift": 0.0`; constraints_of's `fall["ground"] + HIP_OVER_SOLE` made `fall["ground"]`.
 - the constraints start at the canonical origin heading +Z: canonical's `offset[:, 0] * sin + offset[:, 2] * cos`
   made `-offset[:, 0] * sin + offset[:, 2] * cos`.
+- a flat walk is asked its route alone: plan_of's `if flat:` made `if False:` (its feet asked at the walking clip's
+  cadence, 2026-11-15); sentence_of's `return WALKING` made the walking clip's own sentence.
 - a walk into the wall is cut before it: checked's `if clash:` made `if False:`.
 - the duration gives Kimodo its frames: seconds_of's `(frames + 0.5) / RATE` made `frames / RATE`.
 - the spec carries each clip's constraints: make_folder's `"postprocess": plan["postprocess"]` made
@@ -131,6 +135,9 @@ WALKERS = [
     ("walk off a kerb", "kerb", {"name": "man", "doing": "walking", "at": [0.0, 0.2, 0.0], "turn": -90.0,
                                  "pace": 1.333},
      {"relief": 0.2, "postprocess": False, "grounds": [0.0] * 7}),
+    ("walker on flat ground", "kerb", {"name": "flat", "doing": "walking", "at": [2.0, 0.0, 0.0], "turn": -90.0},
+     {"frames": 151, "end": (7.0, 1e-3), "pace": 1.0, "relief": 0.0, "postprocess": True, "falls": [],
+      "sentence": scene_clips.WALKING, "lift": 0.0, "asked": 1}),
     ("walk into the wall", "steps", dict(WALKER, name="walker_2", path=[[0.0, 0.0, 0.0], [12.0, 0.45, 0.0]]),
      {"cut": "runs into Structure/wall", "end": (10.0 - 0.25, 1.333 / 30)}),
     ("cut under two seconds", "steps", dict(WALKER, name="walker_3", at=[8.5, 0.45, 0.0]),
@@ -173,6 +180,8 @@ def held_to_its_ground(name, world, single, plan, expect):
             assert plan[key] == expect[key], (name, key, plan[key])
     if "turn" in expect:
         assert plan["placement"]["turn"] == pytest.approx(expect["turn"]), name
+    if "asked" in expect:  # a flat walk is asked its route alone (2026-11-15)
+        assert len(plan["constraints"]) == expect["asked"], name
     if "falls" in expect:
         assert [fall["frame"] for fall in falls] == expect["falls"], name  # 24 + 17.25 k, halves to even
     if "sides" in expect:
@@ -255,7 +264,7 @@ def test_a_walk_becomes_constraints_on_its_own_ground(tmp_path, monkeypatch):
     sys.path.insert(0, str(REPO / "tools/characters/people"))
     import clips as people_clips
     clips = spec["scene clips"]
-    assert clips["scene_walker_1"]["sentence"] == people_clips.SENTENCES["walking"][0]
+    assert clips["scene_walker_1"]["sentence"] == scene_clips.WALKING != people_clips.SENTENCES["walking"][0]
     assert clips["scene_walker_1"]["seconds"] == "5.0500"
     assert clips["scene_walker_1"]["postprocess"] is False and clips["scene_flat"]["postprocess"] is True
     assert json.loads((folder / clips["scene_walker_1"]["constraints"]).read_text()) == walker["constraints"]

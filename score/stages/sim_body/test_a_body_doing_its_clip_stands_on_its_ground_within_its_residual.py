@@ -131,6 +131,13 @@ into its one test, every break below seen red on it again):
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
 - its make on the place's cast, 2026-11-04: left_out_why's climber check dropped
   (the climber walks the flat clip through its steps).
+- no foot left under the floor, 2026-11-15: stood's `if (heights.min(axis=1) - move < -TOE_FLOOR).any():` made
+  `if False:` (a landing heel sliding into the floor, standing on no frame there, left 4 mm under by the standing
+  foot's move: camp's 1.0 m/s walk 3.7 mm, its sim body 3.5 mm into its ground).
+- a walker's own flat walk, 2026-11-15: make's `elif f"clip_{scene_clip_of(single, scene)}" in rig` made
+  `elif False` (camp's walker played people-clips-made's 1.333 m/s walking clip); flat_walks' `plan["postprocess"]`
+  made `True` (a walk asked over steps stood on a flat floor); flat_walks' `contacts_of(...)` made `{}` (its feet not
+  corrected).
 - its make on the place's cast, 2026-11-02: on_card's targets' folders dropped
   from its inputs (the machine has no targets).
 - its make on the place's cast, 2026-11-06 (every sim body run on a card): ran's
@@ -657,6 +664,26 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             got = sim_body.clip_frames(rig, clip, kept)[:, segment, :3, 3][:, axis]
         assert np.all((low <= got) & (got <= high)), f"{world} {clip} {what}: {got} not within {low}..{high}"
 
+    # a foot landing heel first slides into the floor before it stands, and `stood` lifts the Hips so no foot is under
+    # it (stood_above, 2026-11-15: camp's 1.0 m/s walk's landing heel 3.7 mm under on frames its other foot stood):
+    # two blocks for feet, the left still on the floor, the right sliding 1.5 m/s and 4 mm under on frames 12 to 16
+    pair = trimesh.creation.box(extents=(0.08, 0.06, 0.2), transform=trimesh.transformations.translation_matrix(
+        (0.0, 0.03, 0.0))).vertices
+    two = {"names": np.array(["Root", "Hips", "LeftFoot", "RightFoot"]), "parents": np.array([-1, 0, 1, 1]),
+           "points": np.r_[pair + [0.1, 0.0, 0.0], pair - [0.1, 0.0, 0.0]],
+           "weights": np.repeat(np.eye(4)[[2, 3]], len(pair), axis=0)}
+    two["bind"] = np.tile(np.eye(4), (4, 1, 1))
+    two["bind"][1:, :3, 3] = [[0.0, 0.5, 0.0], [0.1, 0.0, 0.0], [-0.1, 0.0, 0.0]]
+    walk = np.tile(np.eye(4), (30, 4, 1, 1))
+    walk[:, 1, :3, 3], walk[:, 2, :3, 3], walk[:, 3, :3, 3] = [0.0, 0.5, 0.0], [0.1, -0.5, 0.0], [-0.1, -0.5, 0.0]
+    walk[:, 3, 2, 3] = np.arange(30) * 0.05
+    walk[12:17, 3, 1, 3] -= 0.004
+    sunk = [sim_body._body.foot_lowest(two, walk, foot).min() for foot in sim_body._body.FEET]
+    walked_on = sim_body.stood(two, walk)
+    lows = np.array([sim_body._body.foot_lowest(two, walked_on, foot) for foot in sim_body._body.FEET])
+    assert sunk == pytest.approx([0.0, -0.004], abs=1e-9) and lows.min() >= -1e-6  # no foot under the floor
+    assert lows[0].max() < 0.0045 and lows[0][:5].max() < 1e-3  # lifted about as far (smoothed), and only near there
+
     (tmp_path / "judged").mkdir()
     for name, run, judging, answers, wanted, rougher in GATED:
         got, measures = judged(tmp_path / "judged", frames(40, **run), **judging)
@@ -755,6 +782,35 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     assert record["bodies"]["ann"]["measures"]["weight N"] == pytest.approx(81.0)
     assert "no scene-made clip up its stairs (stair_1)" in record["left out"][2]  # a climber never walks flat
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
+
+    # a walker on flat ground plays its own scene-made clip (flat_walks, 2026-11-15: camp's and street's walkers
+    # played people-clips-made's 1.333 m/s walking clip, not their 1.0 m/s walks), at its build, stood and given
+    # Kimodo's correction with the scene-made clip's own contacts; a walker whose scene clip is not flat keeps its own
+    scene = tmp_path / "scene-clips"
+    (scene / "motions").mkdir(parents=True)
+    walk = np.array(rig["clip_standing"])
+    walk[:, 1, 0, 3] = np.linspace(0.0, 1.0, len(walk))
+    np.savez(scene / "rig.npz", **{**rig, "clip_scene_gil": walk, "clip_scene_hal": walk})
+    np.savez(scene / "motions/scene_gil.npz", foot_contacts=np.ones((20, 6), dtype=bool))
+    (scene / sim_body.SCENE_CLIPS).write_text(json.dumps({"clips": [
+        {"name": "gil", "clip": "scene_gil", "postprocess": True, "stairs": None},
+        {"name": "hal", "clip": "scene_hal", "postprocess": False, "stairs": None}]}))
+    walkers = tmp_path / "made" / "walkers"
+    (walkers / "cast").mkdir(parents=True)
+    (walkers / "out").mkdir()
+    (walkers / "cast/cast.json").write_text(json.dumps({"place": "toy", "characters": [
+        {"name": "gil", "doing": "standing", "at": [1.0, 0.0, 2.0]},
+        {"name": "hal", "doing": "standing", "at": [1.0, 0.0, 2.0]}]}))
+    monkeypatch.setattr(sim_body, "ran", ran_for_real)
+    sim_body.make({**inputs, "cast": str(walkers / "cast"), sim_body.SCENE_CLIPS_ROW: str(scene)}, walkers / "out", 0,
+                  {})
+    walked = json.loads((walkers / "out" / sim_body.RECORD).read_text())["bodies"]
+    assert {name: body["played"] for name, body in walked.items()} == {"gil": "scene_gil", "hal": "standing"}
+    played_walk = sim_body.person_rig({**rig, "clip_scene_gil": walk}, None, {
+        "standing": np.ones((20, 6), dtype=bool), "scene_gil": np.ones((20, 6), dtype=bool)})[0]
+    frames_gil = json.loads((walkers / "out/measures/gil.json").read_text())
+    assert [frame["poses"][0][0] for frame in frames_gil] == pytest.approx(
+        sim_body.clip_frames(played_walk, "scene_gil", [1, 2])[:, 0, 0, 3])  # along its own walk, corrected
 
     # the layer: each segment an Xform holding the bone it rides, another bone under Bones, the muscles coloured by
     # activation; SOMA's joints leave the stage unchanged: every frame's poses the clip's own segment frames as the

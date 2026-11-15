@@ -130,7 +130,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   mean body's pickup, raw on its own offsets as played, rose its feet 9 mm on frames 15 to 30, the skin 5 to 7 mm
   over its floor, past `GAP`: 0 N pushed, 630 N on the pelvis' residual; its squat sank its skin 28 mm), so
   `person_rig` stands each clip's standing feet on the bind's floor (`_body.stood`: the travelling joint moved up or
-  down, the lowest standing sole brought to y = 0, smooth to `STOOD_HZ`, a flight bridged). It is the clip as the
+  down, the lowest standing sole brought to y = 0, smooth to `STOOD_HZ`, a flight bridged; where that move would
+  leave any foot under the floor, the same least squares held so none is, `stood_above`: 2026-11-15, camp's 1.0 m/s
+  walk's landing heel slid 3.7 mm into the floor on frames it stood on none). It is the clip as the
   stage plays it, its poses included: the drawn person and the sim body stand alike; never the sim body moved onto
   its ground. A walk's two feet stand at different heights at the change of foot, which no move of the whole body
   meets: it gets closer, not within `GAP`. Then Kimodo's own foot correction (2026-11-06, `played.contacted`, on a
@@ -195,6 +197,10 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   body's skin sat 4 to 5 cm into its floor (cockpit's pilot and quarters' two, 6.5 cm, 2026-11-03). `on floor` fails a
   body over `SUNK_MOST` (3 mm) into its ground, `lands` a carrying foot over `LANDED` (5 mm) off it, or a body no foot
   of which lands, but a seated one (`SEATED`, its seat carries it) fails only when its ground never carried it.
+- **A walker on flat ground plays its own scene-made clip** (2026-11-15, owner: "Try 1.0 m/s walks"): scene-clips'
+  flat walks (Kimodo post-processed them: `postprocess`) join the clips rig with their own foot contacts
+  (`flat_walks`), so `person_rig` plays, stands and corrects them as people-clips-made's clips; a walker with none
+  taken plays its cast clip.
 - **A climber plays its scene-made clip** (2026-11-04): a person the cast stands on a flight (`stairs`,
   cast.on_stairs) plays scene-clips' clip of it up or down its treads (`route_clip`: travel kept on the route, only
   the Hips' height over the route's ground scaled by the build), so its ground's push lands on each step; with none
