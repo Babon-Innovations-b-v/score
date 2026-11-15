@@ -312,6 +312,12 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
         pieces)]` -> `wall for wall in walls if chain_length(chain_of(wall, walls, bend)) >= need]`
     Break: score/review/holders/__init__.py: `spanning = kind == "wall" and spans(row)` -> `spanning = False`
     Break: score/review/holders/__init__.py: `return round(EYE_MOUNT - tall / 2, 3)` -> `return None`
+    #128: a 1 m jump seat against its wall keeps its foot on the floor, never centred 1.5 m up as a small wall thing;
+    a row's three monitors on one plan item, its concept boxes against three walls, stand one on each, where the boxes
+    project (they were packed along the left wall).
+    Break: score/review/holders/__init__.py: `| STAIR_WORDS | SEAT_WORDS):` -> `| STAIR_WORDS):`
+    Break: score/review/holders/__init__.py: `entry["pieces"] = seen_pieces(entry, items[entry["item"]], row, count,
+        plan, inventory) or wall_pieces(` -> `entry["pieces"] = [] or wall_pieces(`
     Break: score/review/holders/__init__.py: `seats_beside(found, items, rows, plan, tied)` -> `pass`
     Break: score/review/holders/__init__.py: `rails_along(found, plan)` -> `pass`
     Break: score/review/holders/__init__.py: stair_sides' `**({"height": float(stair["from"])} if "from" in stair else
@@ -1047,6 +1053,26 @@ CASES.append(case(
      {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}],
     want={("row", among("string_lights", "wall_light"), each("wall/to")): [[0.0, 12.0], [0.0, 12.0]],
           ("row", among("string_lights", "wall_light"), each("spot"), ordered): [[0.0, 4.0], [0.0, 8.0]]}))
+# wall-seat-on-floor, wall-spread-seen (#128): a seat's foot on the floor; copies on the walls the concept shows them on
+CASES.append(case(
+    "wall-seat-on-floor", relate,
+    plan_of([["JUMP SEAT 1", 0.2, 5.0, 0.5, 0.5, None, "item"]], {"JUMP SEAT 1": ["jump_seat"]}, walls=ROOM_WALLS),
+    [{"id": "jump_seat", "noun": "seat", "anchor": "wall", "size": [0.5, 0.5, 1.0]}],
+    want={"item/JUMP SEAT 1/how": "wall", "item/JUMP SEAT 1/height": ABSENT}))
+SEEN_CRATES = [(name, spot) for name, spot in (("crate_a", (2.0, 2.0)), ("crate_b", (18.0, 2.0)), ("crate_c", (10.0, 10.0)))]
+CASES.append(case(
+    "wall-spread-seen", relate,
+    plan_of([["MONITORS 1", 0.2, 4.0, 0.3, 2.0, None, "item"],
+             *[[name.upper().replace("_", " ") + " 1", x - 0.5, y - 0.5, 1.0, 1.0, None, "item"]
+               for name, (x, y) in SEEN_CRATES]],
+            {"MONITORS 1": ["monitors"], **{name.upper().replace("_", " ") + " 1": [name] for name, _ in SEEN_CRATES}},
+            walls=ROOM_WALLS, shapes={"MONITORS 1": {"count": 3}}),
+    [*[{"id": name, "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0],
+        "box": [x * 50 - 10, y * 50 - 20, x * 50 + 10, y * 50]} for name, (x, y) in SEEN_CRATES],
+     {"id": "monitors", "noun": "monitor", "anchor": "wall", "where": "around the room", "size": [0.4, 0.1, 0.3],
+      "count": 3, "boxes": [[15, 130, 35, 150], [965, 280, 985, 300], [490, 555, 510, 575]]}],
+    want={("item/MONITORS 1/pieces", each("spot")): [[0.0, 3.0], [20.0, 6.0], [10.0, 12.0]],
+          ("item/MONITORS 1/pieces", each("side")): [-1, 1, -1]}))
 HALL_ROWS = [{"id": "tools", "noun": "tool", "anchor": "wall", "where": "left wall", "size": [0.5, 0.05, 0.3], "count": 6},
              {"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "back", "size": [6.0, 0.2, 0.2]},
              {"id": "crane", "noun": "crane", "anchor": "wall", "where": "top, spanning left to right",

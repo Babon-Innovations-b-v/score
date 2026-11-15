@@ -41,7 +41,7 @@ ceiling) and how each is read.
   wall row whose words say it spans the room under the roof (`spans`) is held by the ceiling, and a ceiling row hung
   from it (`under_roof`) is marked `to roof`; a seat its words put at, by or around a holder row (`beside_holder`)
   stands before that holder's built side, `SEAT_GAP` clear, facing it (`seats_beside`); a stair's railings share its
-  sides (`rails_along`).
+  sides (`rails_along`). A row's copies on one plan item, its concept boxes one a piece, each go on the wall nearest its box's projected spot (`seen_pieces`, #128: workshop's 13 monitors "around the room"), unless a wall and its round facets hold its share only round a corner; a seat is never a small wall thing at EYE_MOUNT (docking_airlock's jump seats).
 - **Every opening on a built wall** (`loose_openings`): a plan opening on no wall the shell builds (its outline's or an
   inner one, design_shell.on_a_wall) is listed in the file's `loose`, the plan-side check (camp's airlock door in its
   dome's gap, street's stairwell opening, 2026-10-31).
