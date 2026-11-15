@@ -372,15 +372,33 @@ def round_walls(row, rows, plan):
     the room), its footprint's sides each the plan's room's (`w` and `d`, either way round) within its own thickness
     (its smallest side), that thickness under RUN_SLENDER of the room's short side. 2026-11-06: the cockpit's five red
     pipes read 9.414 by 9.8 m by 0.2 m on its wall panels, its room's footprint, were each made 9.8 m long and held on
-    its 8.94 m back wall, the engine room's three pipes 10.9 m on its 7.35 m walls; overruns sees only a line."""
+    its 8.94 m back wall, the engine room's three pipes 10.9 m on its 7.35 m walls; overruns sees only a line.
+    Also a run that fits the plan's floor no way round and lies along the wall row it is held on as the reading
+    measured that wall (along_holder): the plan is written apart from the reading, so its room differs from the
+    walls the reading measured (2026-11-15 re-reading: the cockpit's red pipes 9.414 by 9.8 m on its 9.414 by 9.8 m
+    wall panels, its plan 8.85 by 10.43 m; the engine room's pipe 10.9 m on its 10.9 m panels, its plan 11.72 by
+    8.68 m; storage's two pipes 7.7 m along its 7.7 m left wall, its plan 5.33 m square)."""
     own, anchor = reading_size(row), str(row.get("anchor") or "")
-    held = anchor == "wall" or any(other["id"] == anchor.partition("on:")[2] and other.get("part") == "wall"
-                                   for other in rows)
-    if own is None or not held or row.get("part") in KITS or not (plan or {}).get("w") or not plan.get("d"):
+    holder = next((other for other in rows if other["id"] == anchor.partition("on:")[2]
+                   and other.get("part") == "wall"), None)
+    if own is None or not (anchor == "wall" or holder) or row.get("part") in KITS or not (plan or {}).get("w") or \
+            not plan.get("d"):
         return False
     thick, room = min(own), sorted((float(plan["w"]), float(plan["d"])))
-    return thick < RUN_SLENDER * room[0] and all(
-        abs(side - wall) <= thick for side, wall in zip(sorted(own[:2]), room))
+    return thick < RUN_SLENDER * room[0] and (all(
+        abs(side - wall) <= thick for side, wall in zip(sorted(own[:2]), room)) or (
+        not floor_fit.fits(own, plan["w"], plan["d"]) and along_holder(own, reading_size(holder or {}))))
+
+
+def along_holder(own, wall):
+    """Whether a run's footprint (`own`, its reading's metres) lies along the wall row it is held on (`wall`, that
+    row's reading metres, None without): its long side the wall's within its own thickness, its short side no more
+    than the wall's and that thickness (a pipe thinner than its wall, or a run round a room the wall row measures
+    whole)."""
+    if wall is None:
+        return False
+    thick, (short, long), (wall_short, wall_long) = min(own), sorted(own[:2]), sorted(wall[:2])
+    return abs(long - wall_long) <= thick and short <= wall_short + thick
 
 
 def wall_lengths(plan):
@@ -394,13 +412,13 @@ def wall_lengths(plan):
 def walls_piece(row, rows, plan, pieces):
     """One of the `pieces` of a run a reading row measured round its room's walls (round_walls; `rows` the
     reading's): as long as the walls round the room over its pieces, no longer than its longest wall (each piece
-    fits a wall), its across and tall the reading's thickness, long along its reading's longer ground side; None for
-    any other row."""
+    fits a wall) nor the run the reading measured (one along a single wall), its across and tall the reading's
+    thickness, long along its reading's longer ground side; None for any other row."""
     if not round_walls(row, rows, plan):
         return None
     own = reading_size(row)
     lengths, thick = wall_lengths(plan), round(min(own), 3)
-    long = round(min(sum(lengths) / pieces, max(lengths)), 3)
+    long = round(min(sum(lengths) / pieces, max(lengths), max(own[:2])), 3)
     return [long, thick, thick] if own[0] >= own[1] else [thick, long, thick]
 
 

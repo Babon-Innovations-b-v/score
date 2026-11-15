@@ -37,7 +37,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   "size" and the holders' wall things, 2026-11-07), or groups.round_walls' `row.get("part") in KITS or ` dropped (a
   ceiling hung off its walls cut to a strip), or its `abs(side - wall) <= thick` -> `True` (2026-11-06: the cockpit's
   five red pipes read at its room's 9.414 by 9.8 m footprint, each made that long on its 8.94 m wall), or
-  groups.walls_piece's `max(lengths)` -> `math.inf` -> test_a_take_is_sized_by_its_reading_and_routed_...
+  groups.walls_piece's `max(lengths)` -> `math.inf`, or groups.along_holder -> `return False` (2026-11-15: the
+  cockpit's, engine room's and storage's pipes read along their wall rows kept at 9.8, 10.9 and 7.7 m on smaller
+  plans) or round_walls' `not floor_fit.fits(...) and ` dropped (a pipe that fits its floor cut to a wall)
+  -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.own_size: `return piece` (no box_shows_whole: the square's stage screen cut to 4.8 by 6 m) or
   box_shows_whole -> `return True` (the railing's box kept at 50 m) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.shown_from: `source = None` -> test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_...
@@ -562,6 +565,18 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.walls_piece(pipe, [pipe], engineroom, 1) == [0.2, 7.347, 0.2]  # no longer than its longest wall
     assert groups.walls_piece({**pipe, "size": [9.328, 10.9, 3.0]}, [pipe], engineroom, 3) is None  # no thin run
     assert groups.walls_piece({**pipe, "size": [6.0, 10.9, 0.2]}, [pipe], engineroom, 3) is None  # not its room's
+    # 2026-11-15 re-reading: the plan written apart from the reading's walls; the run lies along the wall row it hangs on
+    panels = {"id": "wall_panel", "part": "wall", "size": [9.328, 10.9, 3.5]}
+    held = {**pipe, "anchor": "on:wall_panel"}
+    written = {**engineroom, "w": 11.716, "d": 8.678}
+    assert groups.walls_piece(held, [held, panels], written, 1) == [0.2, 7.347, 0.2]
+    assert groups.walls_piece(held, [held], written, 1) is None  # held on no wall row the reading measured
+    assert groups.walls_piece({**held, "size": [6.0, 8.0, 0.2]}, [held, panels], written, 1) is None  # it fits
+    left = {"id": "left_wall", "part": "wall", "size": [7.7, 0.2, 3.0]}
+    thin = {"id": "pipe_thin", "anchor": "on:left_wall", "part": "object", "size": [7.7, 0.05, 0.05]}
+    storage = {"w": 5.333, "d": 5.333}
+    assert groups.walls_piece(thin, [thin, left], storage, 2) == [5.333, 0.05, 0.05]  # as long as its longest wall
+    assert groups.walls_piece({**thin, "size": [5.0, 0.05, 0.05]}, [thin, left], storage, 2) is None  # fits: one
     door = [1.2, 0.2, 2.1]  # four doors read, one 1.16 m item laid: the door a little wider than its footprint
     assert groups.row_size(door, [1.159, 0.706, 2.1], 4) == door
     assert groups.own_size(door, [1.159, 0.706, 2.1], 4) == door
