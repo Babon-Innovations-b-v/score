@@ -45,7 +45,7 @@ import numpy as np
 from score.review import concepts
 from score.review.plan_checks import HOLD_DRAWN, WALLS_ITEM, anchor_of, whole
 from score.stages.scene_record.plan import (INSTANCE, as_held, laid_outline, laid_size, name_of, on_holder,
-                                         outline_of, outlines_overlap, overlap_depth)
+                                         outline_of, outlines_overlap, overlap_depth, stretches, turn_of)
 from score.store import PROPS_HOME, stamp_key
 
 AREA = "plans"
@@ -899,23 +899,68 @@ def item_redrawn(plan, hold, old, new):
     return True
 
 
-def hold_fitted(plan, hold, size):
-    """(the hold at `size`, its middle kept; gaps): its row's item drawn on its box redrawn on the new one
-    (`item_redrawn`), each other floor item of `plan` the new box covers and the old did not pushed off it in place,
-    each change named."""
+ABUTS = 0.3  # metres: a sibling's box this near a hold's side, beside it along that side, stands against it (a wall)
+
+
+def sides_abutted(box, others):
+    """[(low, high) per axis]: whether a box among `others` [x, y, w, d] stands against `box`'s low and high side on
+    each axis (within ABUTS of it, beside it along that side)."""
+    found = []
+    for axis in (0, 1):
+        across = 1 - axis
+        beside = [other for other in others
+                  if min(box[across] + box[across + 2], other[across] + other[across + 2])
+                  - max(box[across], other[across]) > ABUTS]
+        found.append((any(abs(other[axis] + other[axis + 2] - box[axis]) <= ABUTS for other in beside),
+                      any(abs(other[axis] - box[axis] - box[axis + 2]) <= ABUTS for other in beside)))
+    return found
+
+
+def abutted_at(hold, size, others):
+    """(`hold` at `size`, the sides kept): on each axis the side a sibling stands against kept where it is, so the room
+    grows away from it (the ship's cockpit, storage, galley and shiplock fitted to their own plans about their middles
+    stood 0.24 to 0.39 m into the walkway and quarters they were drawn against, 2026-11-15), its middle kept on an axis
+    with a sibling against both sides or neither."""
+    fitted = room_at(hold, size)
+    old = [hold["x"], hold["y"], hold["w"], hold["d"]]
+    kept = []
+    for axis, (low, high) in enumerate(sides_abutted(old, others)):
+        key = ("x", "y")[axis]
+        if low and not high:
+            fitted[key] = old[axis]
+            kept.append(f"{key} {old[axis]:g}")
+        elif high and not low:
+            fitted[key] = round(old[axis] + old[axis + 2] - size[axis], 3)
+            kept.append(f"{key} {old[axis] + old[axis + 2]:g}")
+    return fitted, kept
+
+
+def hold_fitted(plan, hold, size, siblings=(), standing=None):
+    """(the hold at `size`, its middle kept, but a side a sibling hold of `siblings` (as drawn) stands against kept
+    (`abutted_at`; neither turned: a turned hold's box is no wall, the base's workshop against its tubes' boxes); gaps):
+    its row's item drawn on its box redrawn on the new one (`item_redrawn`), each other floor item of `plan` the new box
+    covers and the old did not pushed off it in place, never a sibling's own drawn item (on its box in `standing`, the
+    siblings as they stand now, else `siblings`), which moves only with its hold (the base's workshop, redrawn at 20 m
+    on 2026-11-15, pushed the airlock's module item and tube#3's off), each change named."""
     old = [hold["x"], hold["y"], hold["w"], hold["d"]]
     middle = [old[0] + old[2] / 2, old[1] + old[3] / 2]
-    fitted = room_at(hold, size)
+    boxes = [[sibling[key] for key in ("x", "y", "w", "d")] for sibling in siblings]
+    walls = [] if hold.get("turn") else [box for box, sibling in zip(boxes, siblings) if not sibling.get("turn")]
+    drawn = {drawn_item(plan, sibling, [sibling[key] for key in ("x", "y", "w", "d")])
+             for sibling in (siblings if standing is None else standing)}
+    fitted, kept = abutted_at(hold, size, walls)
     new = [fitted["x"], fitted["y"], fitted["w"], fitted["d"]]
     item_redrawn(plan, hold, old, new)
     at = [round(value, 2) for value in middle]
+    how = f"its side{'s' if len(kept) > 1 else ''} at {' and '.join(kept)} kept against its siblings" if kept else \
+        "its middle kept"
     gaps = [{"kind": "held", "item": name_of(hold), "row": hold.get("row"), "at": at,
              "words": f"{name_of(hold).replace('_', ' ')}'s spot was {old[2]:g} x {old[3]:g} m, its own plan "
-                      f"{size[0]:g} x {size[1]:g} m: the spot takes its plan's size, its middle kept"}]
+                      f"{size[0]:g} x {size[1]:g} m: the spot takes its plan's size, {how}"}]
     for number, item in enumerate(plan.get("items", [])):
         box = item[1:5]
-        if item[6] != "item" or hold.get("row") in plan.get("rows", {}).get(item[0], []) or overlap(box, old) \
-                or not overlap(box, new):
+        if item[6] != "item" or hold.get("row") in plan.get("rows", {}).get(item[0], []) or number in drawn \
+                or overlap(box, old) or not overlap(box, new):
             continue
         plan["items"][number] = [item[0], *pushed_out(box, new), *item[5:]]
         gaps.append({"kind": "held", "item": item[0], "with": name_of(hold), "at": at,
@@ -931,10 +976,11 @@ def holds_fitted(store, shown):
         return shown
     plan = copy.deepcopy(shown["plan"])
     gaps, holds, resized = [gap for gap in plan.get("gaps", []) if gap.get("kind") != "held"], [], set()
-    for hold in plan["holds"]:
+    for number, hold in enumerate(plan["holds"]):
         size = laid_own_size(store, hold)
         if size and (abs(size[0] - hold["w"]) > 0.001 or abs(size[1] - hold["d"]) > 0.001):
-            hold, moved = hold_fitted(plan, hold, size)
+            hold, moved = hold_fitted(plan, hold, size, [other for other in plan["holds"] if other is not hold],
+                                      [*holds, *plan["holds"][number + 1:]])
             gaps += moved
             resized.add(name_of(hold))
         holds.append(hold)
@@ -996,6 +1042,37 @@ def backed_off(hold, plan, at, other, other_plan):
     return None if laid_overlap(box, plan, other, other_plan) else [box["x"], box["y"], hold["w"], hold["d"]]
 
 
+def turned_met(hold, plan, at, there, other, other_plan):
+    """`hold` turned a quarter, a half or three quarters more about its middle, its box round its plan as turned, and
+    moved so its door at `at` stands on `there`: the first turn whose outline then clears `other`'s, else None; never
+    a stretched plan (a tube's run is its link). A place whose plan was written again with its door on another wall
+    (the base's airlock and garage, 2026-11-15, their doors met only by laying them across their tubes) is turned to
+    face its sibling's door back: of the turns, the one that then shares least floor with `other`, backed off it
+    (`backed_off`: a door stands a little in from its wall's line) by at most DOORS_MET, so the two still meet."""
+    from score.stages.scene_record.plan import DOORS_MET
+    if plan is None or stretches(plan):
+        return None
+    middle = [hold["x"] + hold["w"] / 2, hold["y"] + hold["d"] / 2]
+    found = []
+    for quarter in (1, 2, 3):
+        turned = {**hold, "turn": round((turn_of(hold) + 90.0 * quarter) % 360.0, 6)}
+        wide, deep = laid_size(turned, plan)
+        turned.update({"x": middle[0] - wide / 2, "y": middle[1] - deep / 2, "w": wide, "d": deep})
+        step = np.asarray(there, float) - on_holder(turned, plan, at)
+        turned.update({"x": round(turned["x"] + float(step[0]), 3), "y": round(turned["y"] + float(step[1]), 3)})
+        one, two = laid_outline(turned, plan), laid_outline(other, other_plan)
+        depth = min(overlap_depth(one, two), overlap_depth(two, one))
+        if depth <= DOORS_MET:
+            found.append((depth, quarter, turned))
+    if not found:
+        return None
+    _, _, turned = min(found, key=lambda entry: entry[:2])
+    if not laid_overlap(turned, plan, other, other_plan):
+        return turned
+    box = backed_off(turned, plan, at, other, other_plan)
+    return None if box is None else {**turned, "x": box[0], "y": box[1]}
+
+
 def doors_met(plan, holds, own, fitted=()):
     """(`holds` with each held place whose door to a held sibling opens apart from the sibling's door leading back moved
     so the two meet, the gaps saying so): the nearest such pair first, its `mover_of` moved by the gap between the two
@@ -1027,21 +1104,27 @@ def doors_met(plan, holds, own, fitted=()):
         hold = by_place[mover]
         box = [round(hold["x"] + float(step[0]), 3), round(hold["y"] + float(step[1]), 3), hold["w"], hold["d"]]
         sibling = [by_place[still][key] for key in ("x", "y", "w", "d")]
-        if laid_overlap({**hold, "x": box[0], "y": box[1]}, own.get(mover), by_place[still], own.get(still)):
-            door = pair["door"] if mover == name else pair["back"]
-            box = backed_off({**hold, "x": box[0], "y": box[1]}, own.get(mover), door["at"], by_place[still],
-                             own.get(still)) or pushed_out(box, sibling)
-        if any(laid_overlap({**hold, "x": box[0], "y": box[1]}, own.get(mover), spot, own.get(place))
+        placed = {**hold, "x": box[0], "y": box[1]}
+        if laid_overlap(placed, own.get(mover), by_place[still], own.get(still)):
+            door, there = (pair["door"], pair["there"]) if mover == name else (pair["back"], pair["spot"])
+            placed = turned_met(hold, own.get(mover), door["at"], there, by_place[still], own.get(still))
+            if placed is None:
+                box = backed_off({**hold, "x": box[0], "y": box[1]}, own.get(mover), door["at"], by_place[still],
+                                 own.get(still)) or pushed_out(box, sibling)
+                placed = {**hold, "x": box[0], "y": box[1]}
+            box = [placed[key] for key in ("x", "y", "w", "d")]
+        if any(laid_overlap(placed, own.get(mover), spot, own.get(place))
                for place, spot in by_place.items() if place != mover):
             continue
         old = [hold["x"], hold["y"], hold["w"], hold["d"]]
-        by_place[mover] = {**hold, "x": box[0], "y": box[1]}
+        by_place[mover] = placed
         moved.add(mover)
         item_redrawn(plan, hold, old, box)
         at = [round(old[0] + old[2] / 2, 2), round(old[1] + old[3] / 2, 2)]
         gaps.append({"kind": "held", "item": mover, "with": still, "at": at, "met": True,
-                     "words": f"{mover.replace('_', ' ')}'s spot moved {math.dist(old[:2], box[:2]):.1f} m so its "
-                              f"door to {still.replace('_', ' ')} meets {still.replace('_', ' ')}'s door back"})
+                     "words": f"{mover.replace('_', ' ')}'s spot moved {math.dist(old[:2], box[:2]):.1f} m"
+                              + (f", turned to {turn_of(placed):g} degrees," if turn_of(placed) != turn_of(hold) else "")
+                              + f" so its door to {still.replace('_', ' ')} meets {still.replace('_', ' ')}'s door back"})
         drawn = {drawn_item(plan, spot, [spot[key] for key in ("x", "y", "w", "d")]) for spot in by_place.values()}
         for number, item in enumerate(plan.get("items", [])):
             if item[6] != "item" or hold.get("row") in plan.get("rows", {}).get(item[0], []) or number in drawn \

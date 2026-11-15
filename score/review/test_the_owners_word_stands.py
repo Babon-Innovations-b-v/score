@@ -485,6 +485,13 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     Break: score/review/plans.py: doors_met's `box = backed_off(...) or pushed_out(box, sibling)` made
         `box = pushed_out(box, sibling)`
     Break: score/review/plans.py: doors_met's `or number in drawn` dropped
+    One whose door, written again on another wall, meets only laid across its sibling is turned to face it (the base's
+    airlock and garage, 2026-11-15).
+    Break: score/review/plans.py: doors_met's `placed = turned_met(...)` made `placed = None`
+    A hold fitted to its plan's size keeps the side a sibling stands against (the ship's rooms against its walkway).
+    Break: score/review/plans.py: abutted_at's `if low and not high:` made `if False:`
+    It never pushes a sibling's own drawn item (the base's workshop over the airlock's module item).
+    Break: score/review/plans.py: hold_fitted's `or number in drawn` dropped
     A writing's doorway to a sibling held once whose own plan leads no doorway back leads nowhere, said in its fixes; one
     a sibling's door meets, or a lead of its own names, stays (the Square's street to the stairwell, 2026-11-06).
     Break: score/review/plans.py: doors_led's `opening["to"] = None` dropped
@@ -3147,6 +3154,13 @@ def fitted_then_met(plan, hold, link, own):
             record_plan.hold_faults({**plan, "holds": met}))
 
 
+def fitted_beside(plan, hold, size, siblings):
+    """`plan`'s items once `hold` is fitted to `size` beside `siblings` (plans.hold_fitted, on a copy)."""
+    plan = copy.deepcopy(plan)
+    plans.hold_fitted(plan, hold, size, siblings)
+    return plan["items"]
+
+
 def door(at, to):
     """An opening of a plan: a 0.9 m door at `at` leading to `to`."""
     return {"kind": "door", "at": at, "wide": 0.9, "to": to}
@@ -3201,6 +3215,7 @@ TUBES = [{"place": "stairwell", "instance": f"stairwell#{number}", "row": "core"
           "w": 7.4, "d": 4.0} for number in (1, 2)]
 AIRLOCK_DOORS = {"lock": {"w": 4.0, "d": 4.0, "openings": [door([2.0, 0.08], "link")]},
                  "link": {"w": 2.0, "d": 6.0, "openings": [door([1.0, 6.0], "lock")]}}
+AIRLOCK_BACK_DOORS = {**AIRLOCK_DOORS, "lock": {"w": 4.0, "d": 4.0, "openings": [door([2.0, 3.92], "link")]}}
 LINKED = {"items": [["MODULE 1", 0.0, 8.0, 10.0, 10.0, None, "item"], ["LINK 1", 6.0, 3.0, 5.656854, 5.656854, None, "item"]],
           "rows": {"MODULE 1": ["module"], "LINK 1": ["link"]}}
 LOCK = {"place": "lock", "row": "module", "x": 0.0, "y": 8.0, "w": 10.0, "d": 10.0, "turn": 45}
@@ -3210,6 +3225,20 @@ HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outco
     ("a quarter-turned hold lays the shed's own 4 x 10 m turned", plans.laid_own_size,
      (THE_STORE, {"place": "shed", "turn": 90, "x": 0.0, "y": 0.0, "w": 1.0, "d": 1.0}), [10.0, 4.0]),
     ("a 45-degree hold lays its own box", plans.laid_own_size, (THE_STORE, TURNED_SHED), [9.899495, 9.899495]),
+    # a hold fitted to its plan's size keeps the side a sibling stands against, growing away from it (the ship's
+    # storage and galley fitted about their middles stood 0.25 to 0.3 m into its walkway, 2026-11-15)
+    ("a fitted hold keeps the side its sibling stands against", plans.abutted_at,
+     ({"place": "storage", "x": 0.0, "y": 0.0, "w": 4.0, "d": 6.0}, (5.0, 5.0), [[4.1, -3.0, 1.5, 12.0]]),
+     [{"x": -1.0, "y": 0.5, "w": 5.0, "d": 5.0}, ["x 4"]]),
+    # a hold grown over a sibling's own drawn item leaves it, which moves only with its hold (the base's workshop at
+    # 20 m pushed the airlock's module item off, 2026-11-15); a loose floor item it covers is pushed off
+    ("a fitted hold leaves a sibling's drawn item", fitted_beside,
+     ({"items": [["MODULE 1", 0.0, 8.0, 10.0, 10.0, None, "item"], ["LINK 1", 10.5, 8.0, 2.0, 2.0, None, "item"],
+                 ["CRATE 1", 10.5, 12.0, 1.0, 1.0, None, "item"]],
+       "rows": {"MODULE 1": ["module"], "LINK 1": ["link"]}},
+      {**LOCK, "turn": 45}, (14.0, 14.0), [{"place": "link", "row": "link", "x": 10.5, "y": 8.0, "w": 2.0, "d": 2.0}]),
+     [["MODULE 1", -2.0, 6.0, 14.0, 14.0, None, "item"], ["LINK 1", 10.5, 8.0, 2.0, 2.0, None, "item"],
+      ["CRATE 1", 12.0, 12.0, 1.0, 1.0, None, "item"]]),
     # a place held several times keeps each instance its own (the base's tubes); an instance names its place, a hold
     # turns from 0 up to 360 degrees, a lead names a place, an instance or one door of several by its spot
     ("an instance names its place", plans.checked_instance, ({"instance": "Tube#3", "turn": 90, "leads": {"hub": "lab"}},
@@ -3288,6 +3317,13 @@ HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outco
     # base's airlock: fitted from its 18.5 m module item to its 7 m plan, item left, its door 4 m off tube#3's, 2026-11-05)
     ("the airlock fitted to its plan meets tube#3's door", fitted_then_met, (LINKED, LOCK, LINK, AIRLOCK_DOORS),
      [True, True, True, False, [{"item": "lock"}], ["LINK 1", 6.0, 3.0, 5.656854, 5.656854, None, "item"], []]),
+    # its plan written again with its door on the far wall, met only laid across its link (the base's airlock and
+    # garage, 2026-11-15, their doors 3.1 and 11.8 m off their tubes'): turned to face the link's end, then met
+    ("the airlock written with its door on its back wall turns to meet tube#3's", fitted_then_met,
+     (LINKED, LOCK, LINK, AIRLOCK_BACK_DOORS),
+     [True, True, True, False, [{"item": "lock", "words": "lock's spot moved 3.6 m, turned to 225 degrees, so its door "
+                                 "to link meets link's door back"}],
+      ["LINK 1", 6.0, 3.0, 5.656854, 5.656854, None, "item"], []]),
 ]
 
 
