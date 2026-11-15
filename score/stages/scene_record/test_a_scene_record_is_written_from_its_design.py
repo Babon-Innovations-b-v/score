@@ -876,8 +876,8 @@ PLACED = [
     ("a roof's opening named on its cut", HOLED, [], None, OPENING_ROWS, {}, {"roof_opening": ["roof_1"]}, None, None),
     ("a roof's opening named on its cut before its panels row", HOLED, [], None, {**OPENING_ROWS, "roof": ["roof_panels"]},
      {}, {"roof_opening": ["roof_1"]}, None, None),
-    ("a shell the earth seed lays lays no pillars", {**WRITTEN, "shell": "kit", "inside": True}, [POSTS], None, None,
-     {}, {"posts": []}, None, None),
+    ("a shell the earth seed lays gets its pillars here", {**WRITTEN, "shell": "kit", "inside": True}, [POSTS], None, None,
+     {}, {"posts": ["posts_1", "posts_2"]}, None, None),
     ("an opening row on the lintel over its item's cut, things on a low deck on it", DECKED,
      [{"id": name, "route": "prop", "size": [1.0, 1.0, 0.5]}
       for name in ("crate", "box", "bag_deck", "bag_floor", "bag_ground")], None,
@@ -1281,7 +1281,9 @@ LIT_ROWS_LAID = {"floodlight_tower": ["lit 1"], "core": ["lit 2"], "screens": ["
 FURNISHED_STRUCTURE = {"deck_1": "slab", "wall_1": "slab", "wall_1_2": "slab", "wall_1_3": "slab", "wall_1_4": "slab",
                        "wall_2": "slab", "wall_3": "slab", "wall_3_2": "slab", "wall_3_3": "slab", "wall_4": "slab",
                        "roof_1": "slab", "stair_1": "stairs", "structural_ribs_1": "arch",
-                       "structural_ribs_2": "arch"}
+                       "structural_ribs_2": "arch",
+                       **{f"kit_frames_wall_{wall}_{part}": "slab" for wall, parts in ((1, 3), (3, 2))
+                          for part in range(1, parts + 1)}}
 # Each world the record is written or judged on, with what its pieces hold and its verdicts: its builder and its
 # arguments (None: none), what is read from it besides its own pieces, what its pieces hold, each row named with
 # exactly the pieces that name it, and each verdict (its name, the edits made to the world's files first (`record`,
@@ -1723,12 +1725,14 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     shell cuts: the lab's corridor openings on the lintel over the plan's own door (wall_1_3), the hangar's floor
     hatch on the flight going down through its deck's hatch (stair_2), its roof opening on a roof cut round its
     openings, and on nothing while its roof has none; the shell's own pillars stand in the place's frame, named
-    their row, painted (here named missing: no library), and none where the earth seed lays the shell.
+    their row, painted (here named missing: no library), and so where the earth seed lays the shell, whose base lays
+    only its deck, walls and roof (#128); its door frames are the wall kit's (score/stages/wall_kit), `slab` entries.
     Break: score/stages/scene_record/writer.py: `if words & FLOOR_WORDS:` -> `if False:`
     Break: score/stages/scene_record/writer.py: `name_open_cuts(design, shelled + flights, (rows or {}).get("opening",
         []))` -> `pass`
-    Break: score/stages/scene_record/writer.py: `if not inside(design) or design_shell.laid_for(design):` ->
-        `if not inside(design):`
+    Break: score/stages/scene_record/writer.py row_entries: `if not inside(design):` ->
+        `if not inside(design) or design_shell.laid_for(design):`
+    Break: score/stages/scene_record/writer.py record_of: the `kit_entries(...)` term dropped (the shed's frames gone)
     A roof with both its panels row and an opening names the opening on its cut (hangar's roof_opening, 2026-11-06).
     Break: score/stages/scene_record/writer.py shell: `name_open_cuts(design, found, (rows or {}).get("opening", []))`
         -> `pass`

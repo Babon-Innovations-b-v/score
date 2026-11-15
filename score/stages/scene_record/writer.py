@@ -14,7 +14,11 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  plan draws as a flight of steps; an `arch` at each plan item of an arched structure row of the
                  hand-in (design_shell.arched: a tube's ribs), at the row's size, named its row; each entry's surface the scene's surface library's for its kind
                  (surface-library@<place>, read as an `after`: design_shell.PART_KINDS), else none and
-                 `surface_missing` says why (the scene builder names it on the mesh, never paints another way)
+                 `surface_missing` says why (the scene builder names it on the mesh, never paints another way); the
+                 shell's own structural rows' pieces (design_shell.row_pieces: pillars, beams, pads, grates) for
+                 every enclosed place, its base's shell or its own; and its wall kit (score/stages/wall_kit, #128:
+                 frames round every opening, the panels, padded sections, dado and facades its code rows name) as
+                 `slab` and `specks` entries tracing to the library's wall kit algorithm by their `from`
     lights       at each plan item of a glowing row (its row kind, score/stages/row_kinds.py, or its concept
                  showing it glow, `{home}/design/light/<place>.json`, reading.concept_light) as many as its pieces,
                  and at least the things its reading counts over the row's items (lamp_count): over the item's
@@ -62,7 +66,7 @@ import numpy as np
 from score import contracts
 from score.review import holders, overhead, plan_checks, standing
 from score.review.plan_checks import WALLS_ITEM
-from score.stages import row_kinds
+from score.stages import row_kinds, wall_kit
 from score.stages.earth_seed import design_shell
 from score.stages.scene_record import concept_light, far
 from score.stages.scene_record import plan as place_plan
@@ -430,12 +434,53 @@ def name_open_cuts(design, entries, row_ids):
 def row_entries(design, place, library, handin):
     """The pieces the shell builds of its own structural rows (design_shell.row_pieces: pillars along the walls, beams
     under the roof, pads and grates at their plan items), each named its row, painted from the scene's library as its
-    part kind; none for a place whose shell the record does not lay."""
-    if not inside(design) or design_shell.laid_for(design):
+    part kind; none for a place the plan does not enclose. A room whose base lays its shell (design_shell.laid_for)
+    gets them here too: its base lays only the deck, walls and roof (2026-11-15, #128: no beam, pillar or grate of a
+    kit room was built)."""
+    if not inside(design):
         return []
     rows = [row for row in handin.get("rows", []) if row.get("route") == "plan"]
     return [dict(painted(shell_entry(name, 0, piece, design, said), kind, place, library), row=row_id)
             for row_id, name, piece, said, kind in design_shell.row_pieces(design, rows)]
+
+
+def kit_part(design, part):
+    """One solid of a wall kit piece (plan metres, heights over the floor) as a `slab` stood in the place's frame."""
+    points, floor = in_frame(design, part["points"])
+    return {"builder": "slab", "points": points, "low": round(floor + part["low"], 4),
+            "high": round(floor + part["high"], 4)}
+
+
+def kit_specks(design, specks):
+    """A wall kit piece's rivet heads ([x, y, height] in plan metres) as builders' `specks` numbers in the place's
+    frame."""
+    points, floor = in_frame(design, [spot[:2] for spot in specks])
+    return {"builder": "specks", "points": [[point[0], round(floor + spot[2], 4), point[1]]
+                                            for point, spot in zip(points, specks)], "across": wall_kit.RIVET}
+
+
+def kit_entries(design, place, library, handin):
+    """The wall kit (score/stages/wall_kit: frames round every opening, and the panels, padded sections, dado and
+    facades of the code rows the plan's shell lays, route `plan`) of an enclosed place: each solid of a piece a `slab`
+    entry, its rivets one `specks` entry, named kit_<piece>[_<n>], painted with the scene library variant its words
+    choose (wall_kit.surface), else none and why. Its `from` ends with the wall kit's code that made it, by which the
+    library check traces it to the wall kit algorithm entry. No `row`: a thin slab with a row is a raised floor pad
+    to the assembly (assembly/on_pads.py), so the rows stay named on the shell's pieces as before."""
+    if not inside(design):
+        return []
+    rows = [row for row in handin.get("rows", []) if row.get("route") == "plan"]
+    found = []
+    for piece in wall_kit.pieces(design, rows):
+        surface = wall_kit.surface(piece, library)
+        laid = [kit_part(design, part) for part in piece.parts] + \
+            ([kit_specks(design, piece.specks)] if piece.specks else [])
+        for number, numbers in enumerate(laid, 1):
+            entry = {"name": f"kit_{piece.name}" if len(laid) == 1 else f"kit_{piece.name}_{number}", **numbers,
+                     "plain": piece.plain, "from": piece.said, "surface": surface}
+            if surface is None:
+                entry["surface_missing"] = design_shell.missing_why(place, "wall", library)
+            found.append(entry)
+    return found
 
 
 def arch_entry(row, item, shape, design, number):
@@ -1526,7 +1571,8 @@ def record_of(plan, design, inputs):
               "structure": structure(plan, design, library_of(inputs), {
                   part: [row_id for row_id in ids if row_id not in {entry["row"] for entry in own}]
                   for part, ids in plan_rows(handin).items()}, handin) +
-              arch_entries(design, plan["place"], library_of(inputs), handin) + own,
+              arch_entries(design, plan["place"], library_of(inputs), handin) + own +
+              kit_entries(design, place, library_of(inputs), handin),
               "objects": design_objects(design, handin, relations) + far_laid[0],
               "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"]), read(inputs["dust"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}

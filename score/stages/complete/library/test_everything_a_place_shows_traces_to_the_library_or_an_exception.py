@@ -11,6 +11,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - trace.traced_finish: the finish record not read (`node = None`) -> test_a_finish_record_traces_a_baked_models_finish
 - trace.traced_source: the content-hash loop dropped -> test_a_model_traces_by_the_content_hash_of_its_file
 - entries.unvarianted: the variant selection kept -> test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant
+- trace.traced_source: the score:from algorithm branch dropped -> test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant
+  (a wall kit piece no longer traces to its algorithm entry)
 - entries.prim_paths: the placements not read -> test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements
 - entries.read: withdrawn entries shelved too -> test_a_withdrawn_entry_traces_nothing
 - entries.from_environment: the repository's default library when unset -> test_the_library_comes_only_from_score_lib_root
@@ -117,6 +119,18 @@ def test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant(tmp_path
                                  '        {\n            custom string score:effect:kind = "dust"\n        }\n    }\n}\n')
     rows = trace.rows(stage, trace.Context(place="fixture", shelf=entries.read(root)))
     assert [(row["kind"], row["by"]) for row in rows] == [("effect", "effect/dust@1")]
+    # a code-built structure piece traces to the algorithm entry its score:from names, and to nothing when none is held
+    kit_folder = tmp_path / "kit"
+    kit_folder.mkdir()
+    kit = ('def Xform "fixture"\n{\n    def Mesh "kit_frames_wall_1"\n    {\n        custom string score:kind = '
+           '"structure"\n        custom string score:from = "the frames of wall_1 (wall_kit.frames)"\n    }\n}\n')
+    sources = [(row["kind"], row["by"]) for row in trace.rows(stage_with(kit_folder, kit), trace.Context(
+        place="fixture", shelf=entries.read(root))) if row["aspect"] == "source"]
+    assert sources == [("structure", None)], sources
+    entry(root, "algorithm", "wall_kit")
+    sources = [(row["kind"], row["by"]) for row in trace.rows(stage_with(kit_folder, kit), trace.Context(
+        place="fixture", shelf=entries.read(root))) if row["aspect"] == "source"]
+    assert sources == [("structure", "algorithm/wall_kit@1")], sources
 
 
 def test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements(tmp_path):

@@ -25,7 +25,12 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   plan item (`design_shell.cut_for`); each plan item of an arched structure row of the hand-in
   (`design_shell.arched`: a tube's ribs) an `arch` at the row's size, painted as a wall, named its row. The shell's own structural rows of the hand-in are its pieces too (`design_shell.row_pieces`,
   `writer.row_entries`, 2026-11-05): pillars spaced round the walls, beams under the roof, a pad or grate at its plan
-  item, each `<row>_<n>` named its row and left out of the rows named on deck, wall and roof pieces; a deck is cut
+  item, each `<row>_<n>` named its row and left out of the rows named on deck, wall and roof pieces, in every enclosed
+  place, a room whose base lays its shell too (#128: its base lays only deck, walls and roof); the wall kit
+  (`score/stages/wall_kit`, `writer.kit_entries`, #128) lays the frames round every opening and the panels, padded
+  sections, dado and facades its code rows name as `slab` entries `kit_<piece>_<n>` (its rivets `specks`), named no
+  row (a thin slab with a row is a floor pad to assembly/on_pads.py), each tracing to the library's wall kit algorithm
+  by its `from`, its finish a scene library variant by its words, else the wall's; a deck is cut
   open over each flight going down from it (`design_shell.hatches`), and an opening row no plan item of its own cuts
   is named by its id's words on a free piece at a cut (`writer.name_open_cuts`: a roof's opening on a roof cut round
   its openings, a floor hatch on the flight down through it, any other on the lintel over a plan opening), else on

@@ -6,7 +6,9 @@ only; no store, no library code).
 
 A thing is a model (`score:model`, or a reference to a model file), a neighbour place, ground, sky, a code-built
 structure, a character, an effect's emitter, a light, a sound source, or loose geometry no thing holds. Its source
-traces, in this order, by the provenance attribute the export writes (`score:library`, an entry's address), a place
+traces, in this order, by the provenance attribute the export writes (`score:library`, an entry's address), a
+code-built structure piece by the algorithm entry its code is (its `score:from` ending "(<id>.<function>)": the wall
+kit), a place
 by its name, a model by the gltf it was built from (`score:model_sha256`, an entry's `model_sha256`), by the prim
 its entry's provenance names, or by the content hash of a file it is made of (its layers, references, payloads and
 asset paths) held by an entry of its kind. Its finishes trace, each bound material once, by `score:library`, by the
@@ -19,12 +21,16 @@ import dataclasses
 import datetime
 import os
 import posixpath
+import re
 
 from pxr import Sdf, Usd, UsdGeom, UsdLux, UsdShade
 
 from score.stages.complete.library import exceptions as written
 
 LIBRARY_ATTR = "score:library"
+# A code-built structure piece's score:from ends naming the code that built it, "(<algorithm id>.<function>)": the
+# wall kit's "(wall_kit.clad)" traces to the algorithm entry wall_kit.
+MADE_BY = re.compile(r"\(([a-z_]+)\.[a-z_]+\)\s*$")
 KIND_ATTR = "score:kind"
 # ground: a terrain piece is a model (the ground kind is retired, #47)
 LIBRARY_KINDS = {"model": ("model",), "place": ("place",), "ground": ("model",), "structure": ("model", "kit"),
@@ -145,6 +151,9 @@ def traced_source(prim, kind, context):
     named = authored(prim, LIBRARY_ATTR)
     if named and shelf.has(named):
         return named, "its score:library attribute"
+    built_by = MADE_BY.search(str(authored(prim, "score:from") or "")) if kind == "structure" else None
+    if built_by and shelf.of_id("algorithm", built_by.group(1)):
+        return shelf.of_id("algorithm", built_by.group(1)), "the library algorithm its score:from says built it"
     if kind == "place":
         address = shelf.of_id("place", authored(prim, "score:place") or prim.GetName())
         return (address, "the place by name") if address else (None, None)
