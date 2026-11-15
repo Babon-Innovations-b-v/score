@@ -181,8 +181,11 @@ def levelled(eye, aim):
 def start_eye(scenes, view):
     """Where a shot's walk starts: the camera's spot at eye height over the floor under it, or None when no floor of
     the stage lies within HELD of the camera's own eye height under it (a camera on a balcony the stage does not
-    draw). The floor is looked for from STEP_RISE over where the camera's own eye height puts it, so from under a desk
-    top or a table."""
+    draw), or for a camera `held` at its own eye (the scene record's concept view, high in the room looking down
+    across it as the concept does: never lowered to a walker's eye or levelled). The floor is looked for from
+    STEP_RISE over where the camera's own eye height puts it, so from under a desk top or a table."""
+    if view.get("held"):
+        return None
     spot = np.asarray(view["eye"], dtype=float)
     top = spot[1] - camera_paths.EYE_HEIGHT + camera_paths.STEP_RISE - camera_paths.CLIMB
     found = camera_paths.eyes_over(scenes, [spot[[0, 2]]], camera_paths.EYE_HEIGHT, [top])[0]

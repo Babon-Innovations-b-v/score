@@ -40,7 +40,10 @@ builds it unchanged; it lands as record/<place>.json in the output.
     environment  inside or not, and the sky at the place's site at its scene time from the physics (overhead.py: each
                  light over the horizon, every other body, every backdrop), which the light layer draws
                  (score/stages/light/sky.py); the record draws no sky and holds no air the design does not give
-    views        one from inside each doorway looking across, one from each of the plan's person spots (an inside
+    views        first the concept's view (`concept_view`, #128: high, CONCEPT_PITCH down at the floor's middle the
+                 way the concept looks, as far back in the room's free space as it stands clear; the film's first
+                 camera, `held` at its height), then one from inside each doorway looking across, one from each of
+                 the plan's person spots (an inside
                  place's only where the eye stands inside its outline: the others in `views_left_out`, with why); an
                  open place's spot at its floor stands on the terrain row's made ground under it (`terrain`, the one
                  thing made that the record reads: wreck's eyes stood under its ground, 2026-10-30); an eye at the
@@ -100,6 +103,22 @@ TURN_STEP = 15
 # is their cross product: round 33's spot-1 at shiplock looked straight down and every measure was NaN), so it is
 # given the floor's long axis as its up (`upright`).
 STEEP = 10.0
+# The concept's view, the record's first (#128 cause 6: the film opened at a door or a spot, a 1.6 m eye in a bunk,
+# outside a wall, a shelf at arm's length or facing the empty side): every concept is drawn "high three-quarter ... 35
+# to 45 degrees down" (score/review/concepts.py INSIDE_VIEW, OUTSIDE_VIEW). An inside place's eye stands
+# CONCEPT_UNDER under its walls' top (its cutaway's eye stands outside the walls; ours stays in the room, high,
+# looking down across it); an open place's rises CONCEPT_PITCH as it steps back. It looks at the floor's middle along
+# the way the concept looks (far.heading), from as far back as it stands clear, stepped back CONCEPT_STEP at a time:
+# CONCEPT_ROOM round it clear of walls and of anything less than CONCEPT_OVER under the eye, its look clear for
+# CONCEPT_LOOK; a room too tight for the first clearance tries the next (quarters' bunks, 4.5 m across).
+CONCEPT_PITCH = 40.0
+CONCEPT_ROOM = (1.0, 0.75, 0.5)
+CONCEPT_OVER = 0.3
+CONCEPT_LOOK = 1.5
+CONCEPT_UNDER = 0.4
+CONCEPT_STEP = 0.25
+# Anchors whose thing hangs off a wall or the ceiling: its column is solid to the eye (garage's shelf, 0.7 m off it).
+HUNG_ANCHORS = ("wall", "ceiling", "roof")
 # The day sky's picture (sky_dome): its brightness and colour balance in red, green and blue, and the picture's width
 # in texels. Fitted 2026-11-10 on campgrounds' light passes (10 views, the sky where the render met no surface, put
 # through their own AgX table) against its concept's sky (mean [231.7, 195.5, 159.2], blue to red 0.687), the one
@@ -835,6 +854,78 @@ def views(plan, eye_height, ground=None, clear=None, sight=None):
     return [upright(view, plan["floor"]) for view in found]
 
 
+def concept_tops(design, inventory):
+    """(grid, tops): plan_checks.Grid cells of the design and how high over its floor the solid in each reaches: a
+    wall all the way, a thing on the floor its shape's tall, one on another thing a metre over that, one hung off a wall
+    or the ceiling all the way; people, things seen far off and an item outlining the room (holders.outlines_room:
+    engineroom's wall panels, its middle says nothing) none."""
+    grid = plan_checks.Grid(design)
+    tops = np.zeros(grid.shape)
+    anchored, left_out = plan_checks.anchors(inventory), plan_checks.people(inventory) | plan_checks.afar(inventory)
+    for item, row, shape in plan_checks.placed_items(design):
+        if row in left_out or holders.outlines_room(item, design):
+            continue
+        anchor = anchored.get(row, "floor")
+        tall = float((shape or {}).get("tall") or 1.0)
+        top = tall if anchor in plan_checks.FLOOR_ANCHORS else np.inf if anchor in HUNG_ANCHORS else tall + 1.0
+        covered = grid.covered(plan_checks.polygon_of(item, shape))
+        tops[covered] = np.maximum(tops[covered], top)
+    for wall in design.get("walls", []):
+        tops[grid.covered(plan_checks.wall_polygon(wall))] = np.inf
+    return grid, tops
+
+
+def concept_view(design, inventory, eye_height, enclosed, ground=None, sight=None):
+    """The concept's view (CONCEPT_PITCH above): its eye stepped back from the floor's middle against the way the
+    concept looks (far.heading's away; looking north, the painting's near side at the plan's bottom, where no
+    projection fits), at least a person's eye over what it stands on, to the furthest step that stays inside the
+    outline and clear by the first of CONCEPT_ROOM that leaves one. `held`: the film stands at this eye
+    (tools/review/demo.py), never lowered to a walker's. None where no step stands clear."""
+    ways = far.heading(design, inventory)
+    away = ways[0] if ways is not None else np.array([0.0, -1.0])
+    said = "the way the concept looks (its plan fixes' projection)" if ways is not None else \
+        "north (no projection of the concept fits: its near side is the plan's bottom)"
+    grid, tops = concept_tops(design, inventory)
+    outline = np.asarray(plan_checks.outline_of(design), dtype=float)
+    middle = outline.mean(axis=0) if design.get("outline") else far.middle_of(design)
+    floor = float(place_plan.placed(design, *middle)[1])
+    ceiling_top = max((float(wall.get("tall") or 0.0) for wall in design.get("walls") or []), default=0.0) or \
+        ceiling(design)
+    high = floor + ceiling_top - CONCEPT_UNDER if enclosed and ceiling_top else None
+    roofs = [(np.asarray(roof["points"], dtype=float), float(roof.get("eave") or roof.get("top") or ceiling_top))
+             for roof in design.get("roofs") or [] if len(roof.get("points") or []) >= 3]
+    target = place_plan.placed(design, *middle)
+    if ground:
+        target[1] = ground(target[0], target[2]) or target[1]
+    best = None
+    for room in CONCEPT_ROOM:
+        for back in np.arange(CONCEPT_STEP, float(np.hypot(design["w"], design["d"])), CONCEPT_STEP):
+            spot = middle - away * back
+            if not plan_checks.inside(spot[None, :], outline)[0]:
+                break
+            eye = place_plan.placed(design, *spot)
+            stands = (ground(eye[0], eye[2]) if ground else None) or floor
+            rise = target[1] + back * math.tan(math.radians(CONCEPT_PITCH)) if high is None else \
+                min([high] + [floor + eave - CONCEPT_UNDER for points, eave in roofs
+                              if plan_checks.inside(spot[None, :], points)[0]])
+            eye[1] = max(rise, stands + eye_height)
+            near = np.linalg.norm(grid.centres - spot, axis=1).reshape(grid.shape) <= room
+            if not (stands + tops[near] > eye[1] - CONCEPT_OVER).any() and \
+                    not (sight and sight(eye, target, stands, CONCEPT_LOOK) is not None):
+                best = (back, eye, room)
+        if best is not None:
+            break
+    if best is None:
+        return None
+    back, eye, room = best
+    view = {"name": "concept", "eye": [round(float(value), 3) for value in eye],
+            "aim": [round(float(value), 3) for value in target], "fov": far.VIEW_FOV, "held": True,
+            "from": f"the concept's view: down at the floor's middle, looking {said}, {back:g} m back in the room's "
+                    f"free space, clear by {room:g} m"}
+    return upright(view, [[min(eye[0], target[0]) - 1, min(eye[2], target[2]) - 1],
+                          [max(eye[0], target[0]) + 1, max(eye[2], target[2]) + 1]])
+
+
 def looked(view, sight, base):
     """The view as it is when `sight` finds its look clear for CLEAR_LOOK; else turned about its eye to the nearest
     way TURN_STEP by TURN_STEP that is, said in its `from`; else marked `blind` with why (views_kept leaves it out)."""
@@ -857,9 +948,9 @@ def looked(view, sight, base):
 
 
 def sight_of(design, inventory):
-    """(eye, aim, base) -> how far along the look from `eye` toward `aim` (place frame) its first wall or floor thing
-    (plan_checks.blocking, as tall as its shape; its doorways open) stands, within CLEAR_LOOK, or None when none does;
-    `base` is the height the things stand on."""
+    """(eye, aim, base[, reach]) -> how far along the look from `eye` toward `aim` (place frame) its first wall or
+    floor thing (plan_checks.blocking, as tall as its shape; its doorways open) stands, within `reach` (CLEAR_LOOK),
+    or None when none does; `base` is the height the things stand on."""
     grid = plan_checks.Grid(design)
     tops = np.zeros(grid.shape)
     for item, _, shape in plan_checks.blocking(design, inventory):
@@ -872,9 +963,9 @@ def sight_of(design, inventory):
             tops[grid.covered(plan_checks.opening_polygon(opening))] = 0.0
     corner, east, south = place_plan.frame_of(design)
 
-    def first_hit(eye, aim, base):
+    def first_hit(eye, aim, base, reach=CLEAR_LOOK):
         look = (aim - eye) / max(float(np.linalg.norm(aim - eye)), 1e-9)
-        for along in np.arange(0.0, CLEAR_LOOK, grid.size / 2):
+        for along in np.arange(0.0, reach, grid.size / 2):
             point = eye + look * along
             across = point[[0, 2]] - corner[[0, 2]]
             spot = np.array([float(across @ east[[0, 2]]), float(across @ south[[0, 2]])])
@@ -1711,9 +1802,11 @@ def record_of(plan, design, inputs):
     ground = None if record["inside"] else ground_under(inputs, place)
     inventory = pathlib.Path(inputs.get("inventory") or "")
     rows = read(inventory) if inventory.is_file() else {}
-    record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground,
-                                                   clear_of(design, rows), sight_of(design, rows)), design,
-                                             record["inside"])
+    sight = sight_of(design, rows)
+    concept = concept_view(design, rows, eye, record["inside"], ground, sight)
+    record["views"], left_out = views_inside(
+        ([concept] if concept else []) + views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground,
+                                               clear_of(design, rows), sight), design, record["inside"])
     if left_out:
         record["views_left_out"] = left_out
     if far_laid[1]:

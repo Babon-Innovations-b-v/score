@@ -91,7 +91,13 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   carries that dust as its `sky_dome`, the day sky tools/usd/mars_sky.py
   draws (`writer.sky_dome`; 2026-11-02: left out since the old records went, every outdoor Mars sky was black). Kept
   out of data/physics/bodies.json and score/review/setting.py on purpose: those sit in about 200 rows' keys.
-- **Views** from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
+- **Views**: first the concept's (`concept_view`, #128 cause 6: the film's first camera stood in a bunk, outside a
+  wall, a shelf at arm's length or facing the empty side): down at the floor's middle the way the concept looks
+  (`far.heading`, else north), stepped back to the last step inside the outline clear by `CONCEPT_ROOM` (1 m, else
+  0.75 or 0.5 in a tight room) of walls, hung things and anything under the eye by less than `CONCEPT_OVER`, its
+  look clear for `CONCEPT_LOOK`; an inside place's eye `CONCEPT_UNDER` under its walls' top or the roof over it (a
+  cutaway's eye stands outside the walls; ours stays in the room, high, looking down across it), an open place's
+  rising `CONCEPT_PITCH` (40, the concepts' "35 to 45 degrees down"); `held`, so the film stands at its eye. Then views from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
   outline is left out with why (`views_left_out`), never written to see the walls from behind. A look that meets a wall or
   floor thing within 1 m (`CLEAR_LOOK`) turns to the nearest clear way, else is left out with why (2026-10-31: flat's
   spot-2 faced its wardrobe from 0.45 m).

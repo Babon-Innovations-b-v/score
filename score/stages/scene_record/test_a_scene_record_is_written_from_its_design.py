@@ -1062,6 +1062,25 @@ BOXED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None
                                          ["WARDROBE 4", 4.3, 5.4, 1.4, 0.3, None, "item"]],
          "rows": {f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
          "shapes": {f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)}}
+# The concept's view (#128 cause 6): a 10 m room walled 3 m high, roofed 2.4 m high over its south strip (y 6 to 10),
+# with a shelf hung on its south wall (x 4 to 6, y 9 to 9.5), seen from the south (no projection fits: no row boxed), and the same room's three crates boxed on a concept
+# seen from the west (up the picture is east: plan x = 10 (1 - foot), y = 10 across), each crate 0.3 m tall.
+CONCEPT_PICTURE = [1000, 1000]
+CONCEPT_WALLS = [{"from": one, "to": two, "tall": 3.0} for one, two in (
+    ([0, 0], [10, 0]), ([10, 0], [10, 10]), ([10, 10], [0, 10]), ([0, 10], [0, 0]))]
+SHELVED = {"w": 10.0, "d": 10.0, "walls": CONCEPT_WALLS, "items": [["SHELF 1", 4.0, 9.0, 2.0, 0.5, None, "item"]],
+           "rows": {"SHELF 1": ["shelf"]}, "shapes": {"SHELF 1": {"tall": 0.4}},
+           "roofs": [{"kind": "flat", "points": [[0, 6], [10, 6], [10, 10], [0, 10]], "eave": 2.4, "top": 2.4}]}
+SHELF_ROWS = [{"id": "shelf", "anchor": "wall", "size": [2.0, 0.5, 0.4], "count": 1}]
+CRATE_SPOTS = {"crate_a": ((2, 2), (0.2, 0.8)), "crate_b": ((8, 3), (0.3, 0.2)), "crate_c": ((5, 8), (0.8, 0.5))}
+SEEN_CRATES = {**SHELVED, "items": [[f"C {row}", x - 0.2, y - 0.2, 0.4, 0.4, None, "item"]
+                                    for row, ((x, y), _) in CRATE_SPOTS.items()],
+               "rows": {f"C {row}": [row] for row in CRATE_SPOTS},
+               "shapes": {f"C {row}": {"tall": 0.3} for row in CRATE_SPOTS}}
+SEEN_CRATE_ROWS = [{"id": row, "anchor": "floor", "size": [0.4, 0.4, 0.3], "count": 1,
+                    "boxes": [[across * 1000 - 50, foot * 1000 - 100, across * 1000 + 50, foot * 1000]]}
+                   for row, (_, (across, foot)) in CRATE_SPOTS.items()]
+NO_SPOTS = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [], "standing": []}
 # Each case: a plan, its hand-in rows, its relations (None: none kept) and the shell's own rows by part (None: none),
 # the view record its views are worked from (None: none) with where its made ground is looked for (the terrain row read
 # or not, the place), whether one is made there and whether the eyes are cleared of things (`clear`) and looks of
@@ -1111,6 +1130,17 @@ CASES = [(name, design, rows, relations, shell_rows, None, *laid)
      ({**CRATE_RECORD, "floor": [[-5.0, -5.0], [5.0, 4.0]], "doorways": [],
        "standing": [{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}]}, (False, "shed"), False, ("sight",)),
      {"spot-1": {"why": Matches("every way it turns")}}, {"view": [], "left out": ["spot-1"]}, None, None),
+    ("the concept's view stands high at the back of the room, a metre clear of the hung shelf", SHELVED, SHELF_ROWS,
+     None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
+     {"concept": {"eye": [0.0, 2.0, 3.0], "aim": [0.0, 0.0, 0.0], "held": True, "from": Matches("looking north")}},
+     {"view": ["concept"], "left out": []}, None, None),
+    ("the concept's view looks the way the concept does, held under the walls' top", SEEN_CRATES, SEEN_CRATE_ROWS,
+     None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
+     {"concept": {"eye": [-3.75, 2.6, 0.0], "aim": [0.0, 0.0, 0.0], "from": Matches("the way the concept looks")}},
+     {"view": ["concept"], "left out": []}, None, None),
+    ("an open place's concept view rises on to the plan's edge", {**SEEN_CRATES, "walls": []}, SEEN_CRATE_ROWS,
+     None, None, (NO_SPOTS, (False, "shed"), False, ("concept", "open")),
+     {"concept": {"eye": Near([-5.0, 4.195, 0.0], 0.01)}}, {"view": ["concept"], "left out": []}, None, None),
 ]
 
 
@@ -1247,7 +1277,11 @@ def laid_pieces(folder, design, rows, relations, shell_rows, view, far_off, kind
         ground = under is not None
         clear = writer.clear_of(design, {"rows": rows}) if "clear" in uses else None
         sight = writer.sight_of(design, {"rows": rows}) if "sight" in uses else None
-        views_kept, views_left = writer.views_inside(writer.views(record, 1.6, under, clear, sight), design, False)
+        seen = {"rows": rows, "picture": CONCEPT_PICTURE}
+        concept = writer.concept_view(design, seen, 1.6, "open" not in uses, under, writer.sight_of(design, seen)) \
+            if "concept" in uses else None
+        views_kept, views_left = writer.views_inside(([concept] if concept else []) +
+                                                     writer.views(record, 1.6, under, clear, sight), design, False)
         blocked = [kept_view["name"] for kept_view in views_kept
                    if sight and sight(np.array(kept_view["eye"]), np.array(kept_view["aim"]), 0.0) is not None]
         found += viewed(views_kept, True) + viewed(views_left, False)
@@ -1447,7 +1481,7 @@ RECORD_ROWS = [
      {"bench": ["bench_1"], "ceiling_lamp": ["ceiling_lamp_1"], "rail": ["rail_1", "rail_2", "rail_3"],
       "structural_ribs": ["structural_ribs_1", "structural_ribs_2", "painted structural_ribs_1",
                           "painted structural_ribs_2"],
-      "view": ["from-door-1", "from-door-2", "spot-1"], "left out": ["spot-2"]},
+      "view": ["concept", "from-door-1", "from-door-2", "spot-1"], "left out": ["spot-2"]},
      [*[(f"it passes {check.name}", {}, lambda output, inputs, check=check: check.judge(output, inputs, {}),
          checks.PASS, None) for check in gates.CHECKS],
       ("a door filled", {"record": lambda record: {**record, "structure": [*record["structure"], PLUG]}},
@@ -1914,7 +1948,22 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     picture had no sideways and every light measure was NaN (2026-10-30): a look straight down takes the floor's long
     axis as its up, a level look none.
     Break: score/stages/scene_record/writer.py: `return [upright(view, plan["floor"]) for view in found]` ->
-        `return found`"""
+        `return found`
+    #128 cause 6: the film's first camera stood in a bunk (habitat), outside a wall (shiplock), a shelf at arm's
+    length (garage) or facing the empty side (workshop). The record's first view is the concept's: down at the
+    floor's middle, stepped back the way the concept looks to the last step clear by a metre of walls and of anything
+    under the eye less than 0.3 m, 0.4 m under the walls' top or the roof over it: in a 10 m room walled 3 m high it
+    stops 3 m back from the middle, at (0, 2.0, 3), 1 m short of the shelf hung on the south wall, under the 2.4 m roof;
+    seen from the west on the crates' projection it stands 3.75 m back west, at (-3.75, 2.6, 0), under the walls' top;
+    an open place's rises 40 degrees on to its plan's edge, 5 m back and 5 tan 40 m up.
+    Break: score/stages/scene_record/writer.py: `top = tall if anchor in plan_checks.FLOOR_ANCHORS else np.inf if
+        anchor in HUNG_ANCHORS else tall + 1.0` -> `top = tall` (the eye 0.5 m off the shelf)
+    Break: score/stages/scene_record/writer.py: `away = ways[0] if ways is not None else np.array([0.0, -1.0])` ->
+        `away = np.array([0.0, -1.0])` (the crates' room seen from the south)
+    Break: score/stages/scene_record/writer.py: `high = floor + ceiling_top - CONCEPT_UNDER if enclosed and
+        ceiling_top else None` -> `high = None` (the eye risen 40 degrees, over the walls' top)
+    Break: score/stages/scene_record/writer.py: `if plan_checks.inside(spot[None, :], points)[0]])` ->
+        `if False])` (the eye 2.6 m up, in the roof)"""
     try:
         output, inputs = BUILDERS[world[0]](tmp_path, *world[1:]) if world else (None, None)
     except ValueError as refused:

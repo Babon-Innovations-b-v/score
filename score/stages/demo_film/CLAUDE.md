@@ -13,7 +13,7 @@ own sound; paid and cleared by the runner like any paid row.
   per-place records (`data/definitions/demo_films`) were the old concepts' and are retired (owner, 2026-10-21: all old
   stuff is retired).
 - **The camera** is the segment's, else the place's scene record's first (`first_camera`: the plan's first view, as the
-  scene record writes them); demo.py plans from the stage's own record (`scene.json`). The path starts there; the first frame is kept as `concept.png`, demo K8's still (no separate
+  scene record writes them: the concept's view, `held` at its own eye, never lowered to a walker's: demo.start_eye); demo.py plans from the stage's own record (`scene.json`). The path starts there; the first frame is kept as `concept.png`, demo K8's still (no separate
   render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
   which views.json records. A shot whose camera stands no clear spot falls back to the record's next clear camera
   (demo.spare_cameras), and a film whose kept shots show less than the longest walk-through showing it (`walk_seconds`)

@@ -32,6 +32,8 @@ tools/review/demo.py, by the behaviour's key words:
 - spare camera: film_shots never tries a spare camera.
 - ink drawn alone: inked saves the look without its lines.
 - key and title: named keeps the key as the title.
+- a concept view held (#128 cause 6): start_eye drops its `if view.get("held"): return None` (the 2.4 m eye lowered
+  to a walker's and levelled).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_a_films_shots_keep_clear_and_move_smoothly.py
 """
@@ -207,6 +209,11 @@ def test_a_films_shots_keep_clear_and_move_smoothly():
     assert len(rounded) == demo.ROUND_STEPS + 3, len(rounded)
     faults = walk_faults(scenes, move, demo.shot_frames(move, view, 0, per_shot), view, FLOOR)
     assert not faults, faults
+    # The scene record's concept view (#128 cause 6), 0.8 m over a walker's eye looking 40 degrees down, is `held`:
+    # it stands at its own eye, never lowered to a walker's or levelled to LOOK_DOWN.
+    high = dict(camera("concept", [-3.0, 2.4, 2.0], [-0.6, 0.4, 2.0]), held=True)
+    move = demo.shot_move(scenes, high, None, 0)
+    assert move["move"] == "stand" and move["eye"] == high["eye"] and not move["level"], move
 
     # An earlier take whose second shot comes nearer a wall than the clearance, planned again on the floor recorded
     # shorter since and with no spare: the clear shots are kept as they were, the near one planned anew on the
