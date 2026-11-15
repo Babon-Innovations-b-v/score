@@ -679,6 +679,30 @@ def lamp_count(row, laid):
     return pieces_of(row, laid)
 
 
+def lamp_high(item, row, design, mount, share, relation=None):
+    """Metres over the floor a glowing row's lamp at its plan item shines from: `share` (its library mount's `high`)
+    up its shape's height from its base; where its shape gives no height (a code or structure row's item, the walls
+    item), up the row's own height from where it is mounted: the height its wall relation gives it, else, on the
+    ceiling mount, its top under the ceiling, else the height its words give a wall thing (holders.mount_height: high
+    on its wall, above the bed); else up the ceiling from the floor (#128: hangar's wall lamps and quarters' string and
+    wall lights shone from the floor, 0 m over it, their shapes giving no height)."""
+    shape = (design.get("shapes") or {}).get(item[0]) or {}
+    base = float(shape.get("base") or 0.0)
+    if shape.get("tall"):
+        return base + float(shape["tall"]) * share
+    own = float(row["size"][2]) if sized(row) else 0.0
+    held = relation.get("height") if relation and relation.get("how") == "wall" else None
+    top = ceiling(design)
+    if held is not None:
+        return float(held) + own * share
+    if mount == "ceiling" and top:
+        return max(base, top - own) + own * share
+    said = holders.mount_height(item, row, design)
+    if said is not None:
+        return said[0] + own * share
+    return base + (top or 0.0) * share
+
+
 def item_lamps(item, row, rows, design, library, path, glow=None, relation=None, pieces=1):
     """The lights of a glowing row's plan item, `pieces` of them (lamp_count): one over its middle, several evenly
     along its path (spots_of; an item outlining the whole room along its box's long middle line, never round the room's
@@ -692,10 +716,9 @@ def item_lamps(item, row, rows, design, library, path, glow=None, relation=None,
     shape = (design.get("shapes") or {}).get(name) or {}
     room = holders.outlines_room(item, design)
     walled = relation is not None and relation.get("how") == "wall" and room
-    base, tall = float(shape.get("base") or 0.0), float(shape.get("tall") or (walled and ceiling(design)) or 0.0)
     mounts, words = library.mounts(path), library.mount_words(path)
-    share = float(mounts[library.mount_of(row, rows, words)]["high"])
-    high = base + tall * share
+    mount = library.mount_of(row, rows, words)
+    high = lamp_high(item, row, design, mount, float(mounts[mount]["high"]), relation)
     light = library.light_at(row, high, rows, mounts, words)
     energy, colour, attenuation = game_lamp()
     part, kind = glow_share(row, glow, path)
@@ -1275,13 +1298,38 @@ def along(path, share):
 
 def spots_of(item, shape, pieces, row):
     """[(plan point, x way)] of an item's pieces: one over its box's middle turned by its facing (`item_way`); several
-    evenly along its path (item_path), each its long side along it."""
+    evenly along its path (item_path), each its long side along it, spread across the box in lanes where it holds
+    more than one of them side by side (area_lanes)."""
     x, y, wide, deep = (float(value) for value in item[1:5])
     if pieces == 1:
         band = band_way(item, shape, row)
         return [(np.array([x + wide / 2, y + deep / 2]), item_way(item, row) if band is None else band)]
     path = item_path(item, shape)
-    return [along(path, (number + 0.5) / pieces) for number in range(pieces)]
+    lanes = area_lanes(item, shape, pieces, row)
+    if lanes == 1:
+        return [along(path, (number + 0.5) / pieces) for number in range(pieces)]
+    short = min(wide, deep)
+    across = np.array([0.0, 1.0]) if wide >= deep else np.array([1.0, 0.0])
+    found = []
+    for number in range(pieces):
+        point, way = along(path, (number + 0.5) / pieces)
+        found.append((point + across * short * ((number % lanes + 0.5) / lanes - 0.5), way))
+    return found
+
+
+def area_lanes(item, shape, pieces, row):
+    """How many lanes across its box an item's `pieces` are spread over: 1 for a polygon's outline, a row with no read
+    size or a box holding one of them across (a run: a pipe, a row of crates along a wall); else as many as its
+    short side holds side by side, at most as the pieces would stand on a grid the box's shape (each piece the next
+    lane in turn, so two stand on its diagonal: #128, hangar's crates and garage's boxes stood in one line down the
+    middle of the area the concept shows them scattered over)."""
+    if pieces < 2 or (shape.get("shape") == "polygon" and len(shape.get("points") or []) >= 3) or not sized(row):
+        return 1
+    wide, deep = float(item[3]), float(item[4])
+    fits = int(min(wide, deep) // min(float(row["size"][0]), float(row["size"][1])))
+    if fits < 2:
+        return 1
+    return int(min(fits, pieces, max(2, round(math.sqrt(pieces * min(wide, deep) / max(wide, deep))))))
 
 
 def band_way(item, shape, row):
@@ -1618,7 +1666,14 @@ def deck_height(design, spot):
     """The height of the highest deck lying on the floor (a plan level whose slab reaches down to it: nothing stands
     under it) whose outline holds a plan spot, else 0: a thing at the floor there stands on that deck (airlock's porch
     deck at 0.2 m, its sandbags laid inside its slab, 2026-10-30); a higher level may have things under it, so a thing
-    at the floor under it stays there."""
+    at the floor under it stays there. A spot in a pit sunk in the floor (design_shell.pits, levels_of: the hub's
+    2.33 m pit 0.9 m down) stands on the pit's floor (#128: the hub's cables and monitors in its pit stood over it on
+    nothing), never a piece at an item outlining the room (design_objects)."""
+    levels = design_shell.levels_of(design, design_shell.outline_of(design))
+    sunk = [float(levels[low]["height"]) for low in design_shell.pits(levels)
+            if design_shell.inside(spot, levels[low]["points"])]
+    if sunk:
+        return min(sunk)
     return max([0.0] + [float(level["height"]) for level in design.get("levels") or []
                         if len(level.get("points") or []) >= 3 and
                         0.0 < float(level.get("height") or 0.0) <= design_shell.SLAB + DECK_BELOW and
@@ -1674,6 +1729,8 @@ def design_objects(design, handin, relations=None):
                 if row_id in edged:
                     spot, way = past_edge_spot(item, design, spot, size)
                 height = floor_lift(design, spot, base) if base else deck_height(design, spot)
+                if holders.outlines_room(item, design):
+                    height = max(0.0, height)  # its middle says nothing of where it is: never down a pit there
                 if relation:
                     spot, way, height, on = related(design, relation, spot, way, height, size, piece)
                 if on and on["how"] == "wall" and plan_checks.connector(row):

@@ -45,7 +45,8 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   at each plan item of each prop or shell row of the batch's hand-in (`{home}/design/props/<place>.json`, prepare's
   handin.py: each row's route and the take that makes its model), `<row>_<n>`, on its spot at its shape's base,
   turned along its item; an item counting several, or a run the plan draws once, lays that many pieces along its
-  path (a polygon's outline, else its box's long line); a row the plan leaves on its walls item and places on an
+  path (a polygon's outline, else its box's long line), spread across a box holding more than one of them side by
+  side in lanes, each the next lane in turn (`writer.area_lanes`, #128: hangar's crates in one line); a row the plan leaves on its walls item and places on an
   item of its own too is laid at that item alone (`writer.item_rows`, 2026-11-06: camp's airlock door laid twice). A row on the ground the plan lays only against its edge
   (`shapes_first/floor_fit.past_edge`: a building round a square, its face the item) stands with its face on that
   edge's line, its body out past it off the floor, facing in (`writer.past_edge_spot`; at a corner the edge its item
@@ -54,7 +55,8 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   size stays named on the root's score:waiting. People are the cast's; a row the plan's shell lays itself (route
   `plan`) is named on a shell piece of its part (`row`), an opening row on the lintel over the cut its plan item makes
   (none where no wall is cut at it). A thing at the floor whose spot lies on a deck lying on the floor (a level at most
-  a slab and its gap high, so nothing stands under it: airlock's porch deck) stands on that deck's height.
+  a slab and its gap high, so nothing stands under it: airlock's porch deck) stands on that deck's height; one in a pit sunk in the floor (`design_shell.pits`: the hub's)
+  on the pit's floor.
 - **Each object carries what holds it** (#72, `on`): the place's relations (`{home}/design/relations/<place>.json`,
   score/review/holders, read only while their `plan` sha is the kept plan's, else `relations_left_out` says why). A
   door or window in its opening stands at the opening's middle on its sill, along its wall (`in`: middle, along, wide,
@@ -76,7 +78,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
 - **Lamps from the row kinds and the concept**: a light at each plan item of a glowing row (its row kind, or its
   concept showing it glow: `{home}/design/light/<place>.json`, the reading's concept light, its colour and brightness
   there; a row of the sky is the physics', no lamp), over its middle, as high on it as the library's lamp for the
-  row's mount says, numbered by that lamp; an item outlining the whole room (holders.outlines_room: engineroom's
+  row's mount says, numbered by that lamp (an item whose shape gives no height up the row's own height from its wall
+  relation's height, else under the ceiling for a ceiling mount, else its words' mount height: `writer.lamp_high`,
+  #128); an item outlining the whole room (holders.outlines_room: engineroom's
   wall panels) held on a wall stands its lamp on that wall's face at its relation's spot, `against` naming the face
   for the gate. A row lays as many lamps as its items' pieces and at least as many as its reading counts
   (`writer.lamp_count`, spread along each item or its wall's face; 2026-11-04: 23 rows in 13 places laid one lamp

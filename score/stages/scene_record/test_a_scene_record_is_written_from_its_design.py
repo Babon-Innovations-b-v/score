@@ -447,6 +447,31 @@ def lit_shed(folder):
             *[(f"{glowing} door", {"share": share, "as": kind}) for glowing, (share, kind) in shares]]
 
 
+# A 6 x 4 m room walled 4 m high with a 1.5 m pit 0.9 m down at its middle (the hub's), for placed_leftovers.
+LEFTOVERS = {"w": 6.0, "d": 4.0, "walls": [{"from": [0, 0], "to": [6, 0], "tall": 4.0, "thick": 0.2}], "shapes": {},
+             "pit": {"radius": 1.5, "floor": -0.9}, "items": []}
+
+
+def placed_leftovers(folder):
+    """#128's placement leftovers: two 0.8 m crates on a 2.4 x 5 m box and four 0.6 x 0.4 m crates on a 2.4 x 0.4 m
+    one (spots_of), a spot in the pit and one beside it (deck_height), and the height a lamp of a row whose item has
+    no shape height shines from (lamp_high) by its wall relation, its words and the ceiling."""
+    def spots(box, size, pieces):
+        return [[round(float(value), 3) for value in spot] for spot, _ in writer.spots_of(
+            ["CRATES 1", 0.0, 0.0, *box, None, "item"], {"shape": "rect"}, pieces, {"size": size})]
+    strip = ["STRIP 1", 1.0, 0.1, 1.0, 0.1, None, "item"]
+    above = {"id": "wall_light", "size": [1.0, 0.1, 0.1], "where": "above window"}
+    glow = {"id": "glow", "size": [0.3, 0.3, 0.2], "where": "middle"}
+    return [("area crates", {"spots": spots([2.4, 5.0], [0.8, 0.8, 0.8], 2)}),
+            ("crate run", {"spots": spots([2.4, 0.4], [0.6, 0.4, 0.4], 4)}),
+            ("pit", {"in": writer.deck_height(LEFTOVERS, [3.0, 2.0]),
+                     "beside": writer.deck_height(LEFTOVERS, [0.5, 0.5])}),
+            ("lamps", {"held": round(writer.lamp_high(strip, above, LEFTOVERS, "wall", 0.5,
+                                                      {"how": "wall", "height": 2.4}), 3),
+                       "said": round(writer.lamp_high(strip, above, LEFTOVERS, "wall", 0.5), 3),
+                       "ceiling": round(writer.lamp_high(strip, glow, LEFTOVERS, "ceiling", 0.05), 3)})]
+
+
 def kept_where(folder):
     """Where the scene record reads its kept relations and its concept light."""
     from score.stages.scene_record import concept_light
@@ -1572,6 +1597,13 @@ RECORD_ROWS = [
        checks.FAIL, ("the light of plan item 'WEST PANEL' stands off its wall",))]),
     ("the record reads its relations and concept light where holders and plans keep them", ("made", kept_where), None,
      {"relations": {"kept": review_holders.KEPT}, "concept light": {"kept": review_plans.KEPT_LIGHT}}, {}, []),
+    # two crates on a box holding two across stand on its diagonal, a box one crate wide keeps its run on its middle
+    # line; a thing in the hub's pit stands on its floor, 0.9 m down; a lamp with no shape height shines from its
+    # wall relation's 2.4 m, its words' 3 m (0.75 of the 4 m walls) or 0.2 m under the 4 m ceiling, up its own height
+    ("placement leftovers of #128", ("made", placed_leftovers), None,
+     {"area crates": {"spots": [[0.6, 1.25], [1.8, 3.75]]},
+      "crate run": {"spots": [[0.3, 0.2], [0.9, 0.2], [1.5, 0.2], [2.1, 0.2]]},
+      "pit": {"in": -0.9, "beside": 0.0}, "lamps": {"held": 2.45, "said": 3.05, "ceiling": 3.81}}, {}, []),
 ]
 ROWS = RECORD_ROWS + [pieces_row(*case) for case in CASES]
 
@@ -1967,7 +1999,13 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     2026-11-15 re-reading: the hub's roof windows, read as structure on its roof, were built by no piece of its dome.
     A structure row the plan's shell lays, anchored on a floor, wall or roof, is that part's row.
     Break: score/stages/scene_record/writer.py: plan_rows' `if part == "structure" and row.get("anchor") in
-        SHELL_PARTS.values():` -> `if False:` (the roof windows a part no piece builds)"""
+        SHELL_PARTS.values():` -> `if False:` (the roof windows a part no piece builds)
+    #128's placement leftovers: copies spread over their area, things in a pit on its floor, a lamp with no shape
+    height off the floor.
+    Break: score/stages/scene_record/writer.py spots_of: `if lanes == 1:` -> `if True:` (the two crates in one line)
+    Break: score/stages/scene_record/writer.py deck_height: `if sunk:` -> `if False:` (the pit's thing at 0 m)
+    Break: score/stages/scene_record/writer.py lamp_high: `if held is not None:` -> `if False:`, or
+        `if said is not None:` -> `if False:`, or `if mount == "ceiling" and top:` -> `if False:`"""
     assert writer.plan_rows({"rows": [{"id": "roof_window", "route": "plan", "part": "structure", "anchor": "roof"},
                                       {"id": "shell", "route": "plan", "part": "structure", "anchor": "ground"}]}) == \
         {"roof": ["roof_window"], "structure": ["shell"]}
