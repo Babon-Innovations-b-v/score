@@ -318,6 +318,21 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     Break: score/review/holders/__init__.py: `| STAIR_WORDS | SEAT_WORDS):` -> `| STAIR_WORDS):`
     Break: score/review/holders/__init__.py: `entry["pieces"] = seen_pieces(entry, items[entry["item"]], row, count,
         plan, inventory) or wall_pieces(` -> `entry["pieces"] = [] or wall_pieces(`
+    #128 (garage's 10 monitors 'above workbench' packed in one row at one height): a mounted row's box drawn over
+    another of its row's stands one tier up its wall, its foot where its stack meets the floor.
+    Break: score/review/holders/__init__.py: seen_pieces' `if tier:` -> `if False:`
+    #128 (habitat's curtains 'windows, doorways' stood on its floor along blank walls): a drape hangs beside a window,
+    one a side, its top PIECE_GAP over the window's head; one with no side left stays where on_wall puts it.
+    Break: score/review/holders/__init__.py: relation's `(beside_opening(item, row, plan, standing) if pieces == 1
+        else None)` -> `None`
+    #128 (quarters' books 'desk, window sill, top bunk' all on its desk): the concept's boxes pick among the rows its
+    where words name, so a book whose box stands on the bunk is on the bunk.
+    Break: score/review/holders/__init__.py: seen_holders' `alike += [other for other in named_holders(...)...]` ->
+        `... and False]`
+    #128 (habitat's table lamps drawn 0.8 m up over nothing, six of seven on its floor): one over nothing stands on a
+    table or desk top of its height, the top its row put fewest on, then the nearest.
+    Break: score/review/holders/__init__.py: stood_on's `return free_top(...) or {` -> `return None or {`, or
+        free_top's `key=lambda top: (put.count(top[0]),` -> `key=lambda top: (0,` (both lamps on the desk)
     Break: score/review/holders/__init__.py: `seats_beside(found, items, rows, plan, tied)` -> `pass`
     Break: score/review/holders/__init__.py: `rails_along(found, plan)` -> `pass`
     Break: score/review/holders/__init__.py: stair_sides' `**({"height": float(stair["from"])} if "from" in stair else
@@ -1073,6 +1088,41 @@ CASES.append(case(
       "count": 3, "boxes": [[15, 130, 35, 150], [965, 280, 985, 300], [490, 555, 510, 575]]}],
     want={("item/MONITORS 1/pieces", each("spot")): [[0.0, 3.0], [20.0, 6.0], [10.0, 12.0]],
           ("item/MONITORS 1/pieces", each("side")): [-1, 1, -1]}))
+CASES.append(case(
+    "wall-spread-tiers", relate,
+    plan_of([["MONITORS 1", 9.0, 11.5, 2.0, 0.3, None, "item"],
+             *[[name.upper().replace("_", " ") + " 1", x - 0.5, y - 0.5, 1.0, 1.0, None, "item"]
+               for name, (x, y) in SEEN_CRATES]],
+            {"MONITORS 1": ["monitors"], **{name.upper().replace("_", " ") + " 1": [name] for name, _ in SEEN_CRATES}},
+            walls=ROOM_WALLS, shapes={"MONITORS 1": {"count": 2, "base": 1.5}}),
+    [*[{"id": name, "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0],
+        "box": [x * 50 - 10, y * 50 - 20, x * 50 + 10, y * 50]} for name, (x, y) in SEEN_CRATES],
+     {"id": "monitors", "noun": "monitor", "anchor": "wall", "where": "back wall", "size": [0.4, 0.1, 0.3],
+      "count": 2, "boxes": [[490, 575, 510, 595], [490, 545, 510, 572]]}],
+    want={("item/MONITORS 1/pieces", each("spot")): [[10.0, 12.0], [10.0, 12.0]],
+          ("item/MONITORS 1/pieces", each("height")): [ABSENT, 1.85],  # the second over the first, as drawn
+          ("item/MONITORS 1/pieces", each("why"), lambda whys, root: ["1 over another in the concept" in why
+                                                                     for why in whys]): [False, True]}))
+CASES.append(case(
+    "wall-drape-at-window", relate,
+    plan_of([[f"CURTAIN {number}", x, 0.5, 1.0, 0.2, None, "item"] for number, x in ((1, 8.0), (2, 12.0), (3, 3.0))],
+            {f"CURTAIN {number}": ["curtain"] for number in (1, 2, 3)}, walls=ROOM_WALLS,
+            openings=[{"kind": "window", "at": [10.0, 0.0], "wide": 1.0, "angle": 0.0, "sill": 1.0, "head": 2.0}],
+            shapes={f"CURTAIN {number}": {"base": 0.0, "tall": 2.0} for number in (1, 2, 3)}),
+    [{"id": "curtain", "noun": "curtain", "anchor": "wall", "where": "windows, doorways", "size": [1.0, 0.1, 2.0]}],
+    want={("item", among("CURTAIN 1", "CURTAIN 2"), each("spot")): [[8.95, 0.0], [11.05, 0.0]],
+          ("item", among("CURTAIN 1", "CURTAIN 2", "CURTAIN 3"), each("height")): [0.05, 0.05, ABSENT]}))
+CASES.append(case(
+    "wall-spread-named-seen", relate,
+    plan_of([["DESK 1", 2.0, 2.0, 1.0, 0.6, None, "item"], ["BUNK BED 1", 10.0, 2.0, 2.0, 1.0, None, "item"],
+             ["BOOK 1", 2.3, 2.1, 0.2, 0.2, None, "item"], ["BOOK 2", 10.5, 2.3, 0.2, 0.2, None, "item"]],
+            {"DESK 1": ["desk"], "BUNK BED 1": ["bunk_bed"], "BOOK 1": ["book"], "BOOK 2": ["book"]},
+            shapes={"BOOK 1": {"base": 0.8, "tall": 0.03}, "BOOK 2": {"base": 1.8, "tall": 0.03}}),
+    [{"id": "desk", "noun": "desk", "anchor": "floor", "size": [1.0, 0.6, 0.8], "box": [100, 300, 200, 400]},
+     {"id": "bunk_bed", "noun": "bed", "anchor": "floor", "size": [2.0, 1.0, 1.8], "box": [500, 100, 700, 400]},
+     {"id": "book", "noun": "book", "anchor": "on:desk", "where": "desk, top bunk", "size": [0.2, 0.2, 0.03],
+      "count": 2, "boxes": [[140, 320, 150, 330], [600, 140, 610, 150]]}],
+    want={("item", among("BOOK 1", "BOOK 2"), each("holder")): ["DESK 1", "BUNK BED 1"]}))
 HALL_ROWS = [{"id": "tools", "noun": "tool", "anchor": "wall", "where": "left wall", "size": [0.5, 0.05, 0.3], "count": 6},
              {"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "back", "size": [6.0, 0.2, 0.2]},
              {"id": "crane", "noun": "crane", "anchor": "wall", "where": "top, spanning left to right",
@@ -1121,21 +1171,23 @@ LIT_ITEMS = [["DESK 1", 2.0, 2.0, 1.0, 0.6, None, "item"], ["SHELF 1", 8.0, 2.0,
              ["TV STAND 2", 17.0, 1.0, 1.2, 0.4, None, "item"], ["TV 1", 4.0, 9.0, 1.0, 0.1, None, "item"],
              ["LAMP 1", 2.3, 2.1, 0.3, 0.3, None, "item"], ["LAMP 2", 5.0, 5.0, 0.3, 0.3, None, "item"],
              ["LAMP 3", 8.3, 2.05, 0.3, 0.3, None, "item"], ["LAMP 4", 12.0, 5.0, 0.3, 0.3, None, "item"],
-             ["LAMP 5", 14.5, 8.5, 0.3, 0.3, None, "item"]]
+             ["LAMP 5", 14.5, 8.5, 0.3, 0.3, None, "item"], ["TABLE 1", 12.0, 1.0, 1.0, 1.0, None, "item"]]
 CASES.append(case(
     "wall-spread-stood-on", relate,
     plan_of(LIT_ITEMS, {item[0]: [item[0].rsplit(" ", 1)[0].lower().replace(" ", "_")] for item in LIT_ITEMS},
-            shapes={**{f"LAMP {number}": {"base": 0.8, "tall": 0.5} for number in (1, 2, 3, 5)},
+            shapes={**{f"LAMP {number}": {"base": 0.8, "tall": 0.5} for number in (1, 2, 3)},
+                    "LAMP 5": {"base": 0.5, "tall": 0.5},
                     "LAMP 4": {"base": 0.0, "tall": 0.5}, "TV 1": {"base": 0.4, "tall": 0.6}}),
     [{"id": "desk", "noun": "desk", "anchor": "floor", "size": [1.0, 0.6, 0.78]},
+     {"id": "table", "noun": "table", "anchor": "floor", "size": [1.0, 1.0, 0.8]},
      {"id": "shelf", "noun": "shelf", "anchor": "floor", "size": [1.0, 0.4, 1.2]},
      {"id": "rug", "noun": "rug", "anchor": "floor", "size": [2.0, 2.0, 0.02]},
      {"id": "tv_stand", "noun": "tv stand", "anchor": "floor", "size": [1.2, 0.4, 0.5]},
      {"id": "tv", "noun": "tv", "anchor": "floor", "where": "on tv stand", "size": [1.0, 0.1, 0.6]},
      {"id": "lamp", "noun": "lamp", "anchor": None, "where": "living areas, bedrooms", "size": [0.3, 0.3, 0.5]}],
     want={"item/LAMP 1/how": "top", "item/LAMP 1/holder": "DESK 1", "item/LAMP 1/holder row": "desk",
-          ("item", among("LAMP 2", "LAMP 3", "LAMP 5"), each("how")): ["floor"] * 3,
-          ("item", among("LAMP 2", "LAMP 3", "LAMP 5"), each("height")): [0.0, 0.0, 0.02],  # the last on the rug's top
+          ("item", among("LAMP 2", "LAMP 3"), each("holder")): ["TABLE 1", "TABLE 1"],  # the desk had one already
+          "item/LAMP 5/how": "floor", "item/LAMP 5/height": 0.02,  # no top of its 0.5 m: on the rug's top
           "item/LAMP 4": ABSENT, "item/TV 1/how": "top", "item/TV 1/holder": "TV STAND 1"}))
 CASES.append(case(
     "wall-spread-named-top", relate,

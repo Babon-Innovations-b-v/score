@@ -1172,8 +1172,12 @@ def alike_holders(row, holder, rows, laid):
 def seen_holders(row, holder, rows, laid):
     """The rows the concept shows the row's things standing on (hub's 38 monitors on its control bank and consoles, the
     reading's anchor naming one): for each of its boxes the row like its named holder (alike_holders) whose box
-    holds its foot, the named holder first; the named holder alone where none is seen."""
+    holds its foot, or a row laid on the plan its where words name (named_holders: quarters' books 'desk, window
+    sill, top bunk' and plant pots 'window sill, locker top', all anchored on the desk, #128), the named holder first;
+    the named holder alone where none is seen."""
     alike = alike_holders(row, holder, rows, laid)
+    alike += [other for other in named_holders(row, rows, laid) if other not in alike and other is not holder
+              and not kind_words(other) & kind_words(row)]  # never a thing of its own kind (camp's equipment boxes)
     shown = {found["id"]: found for box in plan_checks.boxes_of(row) if (found := standing_on(box, alike))}
     return [holder, *[found for found_id, found in shown.items() if found_id != holder["id"]]]
 
@@ -1350,8 +1354,59 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
         return None, (f"its holder {holder['id']} is neither laid on the plan nor a wall, floor or roof"
                       if holder is not None else None)
     found = in_opening(item, row, plan, inventory, taken, standing) if design_shell.fills_opening(row) else None
-    found = found or on_wall(item, row, plan, inventory, pieces)
+    found = found or (beside_opening(item, row, plan, standing) if pieces == 1 else None) or on_wall(
+        item, row, plan, inventory, pieces)
     return (found, None) if found else (None, "it stands on a wall, and the plan draws none")
+
+
+# The opening kinds a wall thing's where words can name it hangs at ("windows, doorways": habitat's curtains).
+OPENING_WORDS = {"window": "window", "doorway": "door", "door": "door"}
+# What hangs from over an opening's head (a keypad or a light by a door stays at its own mount height).
+DRAPE_WORDS = {"curtain", "drape", "blind"}
+
+
+def beside_opening(item, row, plan, standing=()):
+    """A wall relation hanging a drape (DRAPE_WORDS) its where words put at a kind of opening (OPENING_WORDS:
+    curtains 'windows, doorways') beside one of the plan's openings of that kind, the kinds in the order its words name them: at the
+    nearest side of one left free by its row in `standing` (the relations found before), PIECE_GAP past the opening's
+    edge, inside its wall's ends, on the side toward the item's plan spot, its top PIECE_GAP over the opening's head;
+    None with no free side. #128: habitat's six curtains stood on its floor along walls with no window."""
+    named = [OPENING_WORDS[word.rstrip("s")] for word in re.findall(r"[a-z]+", str(row.get("where") or "").lower())
+             if word.rstrip("s") in OPENING_WORDS]
+    walls = walls_of(plan)
+    if not named or not walls or design_shell.fills_opening(row) or not {
+            word.rstrip("s") for word in kind_words(row)} & DRAPE_WORDS:
+        return None
+    spot, long, tall = middle(item), max(built_long(row), PIECE_GAP), tall_of(item[0], row, plan)
+    taken = [numpy.asarray(entry["spot"], float) for entry in standing
+             if entry.get("row") == row["id"] and entry.get("how") == "wall" and entry.get("spot")]
+    for kind in dict.fromkeys(named):
+        sides = []
+        for opening in openings_of(plan):
+            if opening["kind"] != kind:
+                continue
+            at = numpy.asarray(opening["at"], float)
+            wall = min(walls, key=lambda wall: off_line(at, wall)[0])
+            start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+            length = float(numpy.linalg.norm(end - start))
+            way, along = (end - start) / max(length, 1e-9), float((at - start) @ (end - start)) / max(length, 1e-9)
+            for sign in (-1.0, 1.0):
+                there = along + sign * (float(opening.get("wide") or 0.0) / 2 + PIECE_GAP + long / 2)
+                place = start + way * there
+                if long / 2 <= there <= length - long / 2 and not any(
+                        float(numpy.linalg.norm(place - other)) < ONE_SPOT for other in taken):
+                    sides.append((float(numpy.linalg.norm(place - spot)), place, wall, opening))
+        if sides:
+            _, place, wall, opening = min(sides, key=lambda side: side[0])
+            side = off_line(spot, wall)[1] if off_line(spot, wall)[0] > 1e-6 else \
+                off_line(numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2]), wall)[1]
+            head = float(opening.get("head") or design_shell.DOOR_HEAD)
+            return {"how": "wall", "wall": {key: wall[key] for key in ("from", "to", "thick")}, "side": side,
+                    "spot": [round(float(value), 3) for value in place],
+                    "height": round(max(0.0, head + PIECE_GAP - tall), 3),
+                    "why": f"hung beside a {kind} its words name ({row.get('where')!r}), its top over the {kind}'s "
+                           "head"}
+    return None
 
 
 def plan_items(plan):
@@ -1613,24 +1668,57 @@ def seen_pieces(entry, item, row, count, plan, inventory):
     (wall_pieces), on the room's side; [] otherwise, or where a wall and the round facets it joins (chain_of at ROUND_BEND) hold its share only round a corner. The plan writer drew a row's copies as one item and the record
     spread them along its middle line (#128: workshop's 13 monitors 'around the room' stood one over another on one
     wall, garage's 10 monitors packed in 4.5 m where the concept spreads them over 3.6 m of their wall and up it)."""
-    seen, walls = seen_spots(row, plan, inventory), walls_of(plan)
+    base = wall_height(entry, plan)
+    tiers, feet = box_tiers(plan_checks.boxes_of(row)) if base > 0.0 else ([], [])
+    seen = seen_spots({**row, "boxes": feet} if feet else row, plan, inventory)
+    walls = walls_of(plan)
     if len(seen) != count or not walls:
         return []
+    tiers = tiers or [0] * len(seen)
     centre = numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2])
     groups = {}
-    for spot in seen:
+    for spot, tier in zip(seen, tiers):
         wall = min(walls, key=lambda wall: off_line(spot, wall)[0])
-        groups.setdefault(wall_key(wall), (wall, []))[1].append(spot)
-    if not all(holds_flat(chain_of(wall, walls, ROUND_BEND), row, len(spots)) for wall, spots in groups.values()):
+        groups.setdefault((wall_key(wall), tier), (wall, tier, []))[2].append(spot)
+    if not all(holds_flat(chain_of(wall, walls, ROUND_BEND), row, len(spots)) for wall, _, spots in groups.values()):
         return []  # a run of walls too short for its share: packed along the chain as before (galley's 3.5 m cabinets)
-    found = []
-    for wall, spots in groups.values():
+    found, pitch = [], tall_of(item[0], row, plan) + PIECE_GAP
+    for wall, tier, spots in groups.values():
         among = numpy.mean(spots, axis=0)  # the room's side is the side the concept's spots stand on
         side = off_line(among if off_line(among, wall)[0] > 1e-6 else centre, wall)[1]
         held = {**entry, "wall": {key: wall[key] for key in ("from", "to", "thick")}, "side": side,
                 "why": entry["why"] + "; on the wall nearest where the concept shows it"}
+        if tier:
+            held.update({"height": round(base + tier * pitch, 3),
+                         "why": held["why"] + f", {tier} over another in the concept"})
         found += wall_pieces(held, item, row, len(spots), walls, spots=spots)
     return found
+
+
+def box_tiers(boxes):
+    """([each concept box's tier: how many of the row's boxes stand one over another under it], [each box with its
+    foot at the foot of the lowest box of its stack]) for a wall row's boxes, ([], []) with none stacked. A box stands
+    over another of its row's whose box overlaps its width by over half the narrower's and whose middle is lower in
+    the picture, the highest such under it; its foot is where that stack meets the floor in the picture, so it projects
+    onto the plan where the stack stands (#128: garage's 10 monitors 'above workbench', three stacked over others,
+    packed in one row at one height)."""
+    def under(number):
+        left, top, right, bottom = boxes[number]
+        found = [(other[1], index) for index, other in enumerate(boxes) if index != number
+                 and min(right, other[2]) - max(left, other[0]) > min(right - left, other[2] - other[0]) / 2
+                 and (other[1] + other[3]) / 2 > (top + bottom) / 2]
+        return min(found)[1] if found else None
+    below = [under(number) for number in range(len(boxes))]
+    tiers, feet = [], []
+    for number, box in enumerate(boxes):
+        tier, root, seen = 0, number, {number}
+        while below[root] is not None and below[root] not in seen:
+            root = below[root]
+            seen.add(root)
+            tier += 1
+        tiers.append(tier)
+        feet.append([box[0], box[1], box[2], boxes[root][3]])
+    return (tiers, feet) if any(tiers) else ([], [])
 
 
 def wall_height(entry, plan):
@@ -2291,7 +2379,7 @@ def stood_under(found, items, rows, plan):
                          "on nothing")
 
 
-def stood_on(item, row, rows, plan, items, laid, tied):
+def stood_on(item, row, rows, plan, items, laid, tied, standing=()):
     """The relation of a floor row's own item its plan stands more than half its height (and STAND_REACH) up, its row
     naming no holder by its anchor: `top` of the highest thing laid under its box on the plan whose top is over half
     its base and no higher than it (STAND_REACH over at most; its own row's only where that row piles, people never),
@@ -2299,7 +2387,9 @@ def stood_on(item, row, rows, plan, items, laid, tied):
     on that thing's built top; else on the floor, which stood_under stands on what is under it. None for one on the
     floor. 2026-11-10: habitat's table lamps drawn 0.8 m up 'in living areas, bedrooms', hangar's bench tools 1 m up
     'on the work bench' and quarters' papers 0.8 m up 'on the floor, desk' had no relation, so the scene record laid
-    them where drawn, held by nothing, and the settle's drop let them fall."""
+    them where drawn, held by nothing, and the settle's drop let them fall. With neither, `top` of a top of its
+    height (free_top), so each one drawn up stands on a top, spread over them (#128: six of habitat's seven table
+    lamps stood on its floor)."""
     shape = shape_of(item[0], plan)
     base, tall = float(shape.get("base") or 0.0), tall_of(item[0], row, plan)
     if base <= max(STAND_REACH, tall / 2):
@@ -2324,7 +2414,34 @@ def stood_on(item, row, rows, plan, items, laid, tied):
         _, name, row_id = min(named)
         return {"how": "top", "holder": name, "holder row": row_id,
                 "why": f"on {row_id}'s top: its words say {row.get('where')!r}, its plan stands it {base:g} m up"}
-    return {"how": "floor", "why": "on the place's floor: its plan stands it up over nothing its row names"}
+    return free_top(item, row, rows, plan, items, laid, base, standing) or {
+        "how": "floor", "why": "on the place's floor: its plan stands it up over nothing its row names"}
+
+
+# A top is of a thing's height when it is within this many metres of the base its plan draws it at.
+TOP_REACH = 0.15
+# What a thing drawn up over nothing is put on: a thing its kind words say has a top to stand things on.
+TOP_WORDS = {"table", "desk", "counter", "workbench", "nightstand", "dresser", "sideboard", "cabinet", "console"}
+
+
+def free_top(item, row, rows, plan, items, laid, base, standing=()):
+    """`top` of the laid item of a row with a top to stand things on (TOP_WORDS; not its own row's) whose top is
+    within TOP_REACH of `base`, the one its row has put fewest on in `standing` (the relations found before), then the
+    nearest on the plan; None with none. #128: habitat's table lamps drawn 0.8 m up 'in living areas, bedrooms' over
+    nothing, six of seven on its floor."""
+    tops = [(name, row_id) for row_id, names in laid.items() if row_id != row["id"] and row_id in rows
+            and {word.rstrip("s") for word in kind_words(rows[row_id])} & TOP_WORDS
+            for name in names if name in items and name != item[0]
+            if abs(float(shape_of(name, plan).get("base") or 0.0) + tall_of(name, rows.get(row_id) or {}, plan)
+                   - base) <= TOP_REACH]
+    if not tops:
+        return None
+    put = [entry.get("holder") for entry in standing if entry.get("row") == row["id"] and entry.get("how") == "top"]
+    name, row_id = min(tops, key=lambda top: (put.count(top[0]),
+                                              float(numpy.linalg.norm(middle(items[top[0]]) - middle(item)))))
+    return {"how": "top", "holder": name, "holder row": row_id,
+            "why": f"on {row_id}'s top: its plan stands it {base:g} m up over nothing; the nearest top of that "
+                   "height its row had put fewest on"}
 
 
 def wall_held(row, rows):
@@ -2378,7 +2495,7 @@ def relations(plan, inventory, sha=None, kinds=None):
             if (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS:
                 got = (at_edge(row, plan, inventory, turn) if item[0] == plan_checks.WALLS_ITEM else None) or (
                     {"how": "floor", **spot} if (spot := floor_spot(item, row, plan, inventory, taken_stairs)) else
-                    None) or up_to_level(item, row, plan) or stood_on(item, row, rows, plan, items, laid, tied)
+                    None) or up_to_level(item, row, plan) or stood_on(item, row, rows, plan, items, laid, tied, found)
                 if got:
                     found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
                 continue
