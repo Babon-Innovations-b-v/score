@@ -672,21 +672,29 @@ def stood_off(start, run, out, length, reach, deep, band, built):
 # A built wall meets a wall's face at an end within this of it, metres (end_walls): flat's 0.12 m walls stand across
 # its plan spans' first and last 0.12 m.
 END_REACH = 0.5
+# A built wall stands across a wall's face only where it reaches more than this into the room, metres (end_walls): one
+# flush with the face is the face's own, its box's front a float32's rounding past the line (habitat's jambs beside its
+# door and window openings, their fronts at -4.80399990 for a face at -4.804).
+END_IN = 0.01
 
 
 def end_walls(start, run, out, length, built):
     """The boxes of the built walls (`built`, no thicker across than WALL_THICKEST) meeting a wall's face (start, run,
     out, `length` metres long) at its ends: each running across its line, from behind the face into the room, within
-    END_REACH of an end. A wall relation's span is the plan's wall line, which runs to the floor's corners past the
-    room faces of the walls built across its ends: flat's poster was laid in the first 0.12 m of its west wall's 5 m
-    span, 4.3 cm into the back wall built across it (settle@flat failed resting twice, 2026-11-15)."""
+    END_REACH of an end, more than END_IN into the room. A wall relation's span is the plan's wall line, which runs to
+    the floor's corners past the room faces of the walls built across its ends: flat's poster was laid in the first
+    0.12 m of its west wall's 5 m span, 4.3 cm into the back wall built across it (settle@flat failed resting twice,
+    2026-11-15). A wall piece flush with the face is none: habitat's jambs either side of its door openings, read as
+    walls across the face by rounding, took the stretches beside the openings, so its kitchen cabinets and a curtain
+    found no stretch clear of the openings and were laid across them, a cabinet into the pipe over the door and a note
+    hanging in the opening (settle@habitat failed resting twice, 2026-11-15)."""
     found = []
     for low, high in built:
         if min(high[0] - low[0], high[2] - low[2]) > WALL_THICKEST:
             continue
         corners = np.array([[x, z] for x in (low[0], high[0]) for z in (low[2], high[2])], float) - start
         off, along = corners @ out, corners @ run
-        if off.min() < 0.0 < off.max() and along.max() > 0.0 and along.min() < length \
+        if off.min() < 0.0 and off.max() > END_IN and along.max() > 0.0 and along.min() < length \
                 and (along.min() < END_REACH or along.max() > length - END_REACH):
             found.append((low, high))
     return found
