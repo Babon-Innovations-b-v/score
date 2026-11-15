@@ -81,7 +81,7 @@ def one(stage, place, entry, carried):
     others = [outline_of(stage, str(prim.GetPath())) for prim in (things.GetChildren() if things else [])
               if prim.GetName() not in left_out and prim.IsActive()]
     thing = (own, low_points, every, resting.weight_at(own))
-    move, on_other = spot(thing, (field, exact), (low, high), box, others), None
+    move, on_other = spot(thing, (field, exact), (low, high), box, others, kept=box), None
     if move is None:
         move, on_other = stacked(stage, place, entry, thing, (low, high), carried)
     if move is None or (on_other is not None and float(np.linalg.norm(move)) < fitting.MOVE_LEAST):
@@ -176,12 +176,15 @@ def stacked(stage, place, entry, thing, box_of, carried):
     return None, None
 
 
-def spot(thing, fields, box_of, box, others):
+def spot(thing, fields, box_of, box, others, kept=None):
     """The move [x, lift, z] of a thing (its mesh, low points, every point and weight; `box_of` its box) to the nearest
     spot FINE apart, its foot's middle over the holders' `box` (its footprint may reach past the box's edge, as a
     thing stands over a desk's front: what holds it is the rest's measure, its weight inside what it touches), where it
     rests on the top (crest_tops.may_rest, rest on the height field and on the surface, then stands, crest_tops.ASKED
-    spots at most) and meets none of `others` (outline_of's); None with none."""
+    spots at most) and meets none of `others` (outline_of's); None with none. With `kept` (its holders' box), only a
+    spot whose footprint reaches less than the held gate's fitting.HELD_MOST past it (fitting.off_holder's "top"): a
+    computer laid on greenhouse's desk rim, its middle over the box and its front 0.09 m past it, rested and was named
+    off its desk (assembly@greenhouse, 2026-11-15)."""
     field, exact = fields
     mesh, low_points, every, weight = thing
     low, high = (np.asarray(end, float) for end in box_of)
@@ -191,6 +194,12 @@ def spot(thing, fields, box_of, box, others):
     zs = np.arange(hold_low[2], hold_high[2] + FINE / 2, FINE)
     grid = np.stack(np.meshgrid(xs, zs, indexing="ij"), axis=-1).reshape(-1, 2)
     shifts = grid[np.argsort(np.hypot(grid[:, 0] - foot[0], grid[:, 1] - foot[2]), kind="stable")] - foot[[0, 2]]
+    if kept is not None:
+        keep_low, keep_high = (np.asarray(end, float)[[0, 2]] for end in kept)
+        past = np.maximum(keep_low - (low[[0, 2]] + shifts), (high[[0, 2]] + shifts) - keep_high).max(axis=1)
+        shifts = shifts[past < fitting.HELD_MOST - SAME]
+        if not len(shifts):
+            return None
     sieved = np.concatenate([part[crest_tops.may_rest(low_points, weight, field, part)] for part in np.array_split(
         shifts, max(1, -(-len(shifts) // crest_tops.SIEVED_AT_ONCE)))])
     asked = 0

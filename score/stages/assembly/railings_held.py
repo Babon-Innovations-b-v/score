@@ -17,8 +17,10 @@ back along the chord until it stands CLEAR of the wall, its other end where it w
     cut_back(points, axis, hulls)            the share of its length a chord keeps at each end so none of its points
                                              is in a wall
     change(mesh, row, hulls, under)          its world change: held, slid along itself to where it stands, cut back
-    laid(folder, place, rows)                each held row's railing of the place at `folder` laid by change; the
-                                             fits [{name, how "held", ...}], laid.json written again
+    met(chords)                              the shares a row's chords keep drawn back to where they cross
+    corners(row, changed)                    a row's railings drawn back where two meet at a corner, clear of each other
+    laid(folder, place, rows)                each held row's railing of the place at `folder` laid by change and
+                                             corners; the fits [{name, how "held", ...}], laid.json written again
 """
 import json
 import pathlib
@@ -252,19 +254,23 @@ def laid(folder, place, rows=None):
     layer = Sdf.Layer.FindOrOpen(str(folder / BASE_LAYER))
     stage.SetEditTarget(Usd.EditTarget(layer))
     hulls, under = wall_hulls(stage, place), built_under(stage, place)
-    fits = []
+    changed = {}
     for entry in entries:
         path = f"/{place}/Objects/{entry['name']}"
         prim = stage.GetPrimAtPath(path)
         mesh = fitting.surface_mesh(stage, path) if prim and prim.IsActive() else None
         if mesh is None:
             continue
-        found = change(mesh, by_id[entry["row"]], hulls, under)
+        changed[entry["name"]] = (entry, prim, mesh, change(mesh, by_id[entry["row"]], hulls, under))
+    for row in {entry["row"] for entry, *_ in changed.values()}:
+        corners(row, changed)
+    fits = []
+    for name, (entry, prim, _, found) in changed.items():
         if found is None:
             continue
         whole, words = found
         fitting.changed_by(prim, Gf.Matrix4d(whole.tolist()))
-        fits.append(fitting.laid_fit(stage, path, entry, "held", None, 0.0, 1.0, words))
+        fits.append(fitting.laid_fit(stage, path_of(place, name), entry, "held", None, 0.0, 1.0, words))
     if not fits:
         return []
     layer.Save()
@@ -276,5 +282,84 @@ def laid(folder, place, rows=None):
                            if "corners" in entry else {})}
                        if entry["name"] in moved else entry for entry in laid.get("objects", [])]
     laid["fitted"] = [*laid.get("fitted", []), *fits]
-    laid_path.write_text(json.dumps(laid, indent=1))
+    laid_path.write_text(json.dumps(made_waiting.roofed_again(laid, stage, place, moved), indent=1))
     return fits
+
+
+def path_of(place, name):
+    """A design object's path on the place's stage."""
+    return f"/{place}/Objects/{name}"
+
+
+def corners(row, changed):
+    """The railings of one row (`changed`: {name: (entry, prim, mesh, change's (change, words) or None)}, each
+    entry's change replaced in place) drawn back where two meet at a corner: each end running past its crossing with
+    another's line (met) drawn back to it, then each end still in another of the row cut back CLEAR of it (cut_back),
+    the words saying so. assembly@greenhouse, 2026-11-15: its five 9.4 m chords, laid along the sides of the upper
+    floor's opening, each crossed its two neighbours 1.8 m from its ends, 0.10 m inside them, and ran on to the walls."""
+    from scipy.spatial import ConvexHull
+    names = sorted(name for name, (entry, *_) in changed.items() if entry["row"] == row)
+    laid_points = {}
+    for name in names:
+        _, _, mesh, found = changed[name]
+        whole = found[0] if found is not None else np.eye(4)
+        points = np.vstack([mesh.vertices, mesh.sample(SAMPLES, seed=0)])
+        laid_points[name] = np.c_[points, np.ones(len(points))] @ whole[:, :3]
+    shares = met([laid_points[name] for name in names])
+    for name, kept in zip(names, shares):
+        points = laid_points[name]
+        axis = along_of(points)
+        drawn_in, laid_points[name] = cut(points, axis, kept)
+        changed[name] = changed[name][:3] + (worded(changed[name][3], drawn_in, kept, float(np.ptp(points @ axis)),
+                                                    "where it meets another of its row at a corner"),)
+    for name in names:
+        points = laid_points[name]
+        axis = along_of(points)
+        others = [ConvexHull(laid_points[other]) for other in names if other != name]
+        kept = cut_back(points, axis, others)
+        if kept is None:
+            continue
+        drawn_in, laid_points[name] = cut(points, axis, kept)
+        changed[name] = changed[name][:3] + (worded(changed[name][3], drawn_in, kept, float(np.ptp(points @ axis)),
+                                                    "clear of another of its row"),)
+
+
+def worded(found, drawn_in, kept, reach, why):
+    """A railing's change and words (`found`, or None) followed by `drawn_in` (cut's), its words naming each end it
+    draws back by fitting.MOVE_LEAST or more (`kept` shares of its `reach`, metres) and `why`."""
+    words = [f"cut back {reach * (1.0 - share):.2f} m {why}" for share in kept
+             if reach * (1.0 - share) >= fitting.MOVE_LEAST]
+    if not words:
+        return found
+    whole, said = found if found is not None else (np.eye(4), "")
+    return whole @ drawn_in, "; ".join([*([said] if said else []), *words])
+
+
+def met(chords):
+    """For each chord (its points [n, 3] as laid), the (share kept from the far end, share kept from the near end),
+    as cut takes them, drawing each end that runs past its crossing with another chord's line back to that crossing,
+    where the two lines cross within both chords' reach (two of one row meeting at a corner); (1.0, 1.0) with none."""
+    lines = []
+    for points in chords:
+        axis = along_of(points)
+        along = points @ axis
+        middle = points[:, [0, 2]].mean(axis=0)
+        lines.append((axis[[0, 2]], middle - axis[[0, 2]] * (middle @ axis[[0, 2]]), along.min(), along.max()))
+    shares = []
+    for number, (way, start, low, high) in enumerate(lines):
+        near, far = low, high
+        for other, (other_way, other_start, other_low, other_high) in enumerate(lines):
+            turn = way[0] * other_way[1] - way[1] * other_way[0]
+            if other == number or abs(turn) < 1e-6:
+                continue
+            gap = other_start - start
+            at = (gap[0] * other_way[1] - gap[1] * other_way[0]) / turn
+            other_at = (gap[0] * way[1] - gap[1] * way[0]) / turn
+            if not (low <= at <= high and other_low <= other_at <= other_high):
+                continue
+            if at > (low + high) / 2:
+                far = min(far, at)
+            else:
+                near = max(near, at)
+        shares.append(((far - low) / (high - low), (far - near) / (far - low)))
+    return shares

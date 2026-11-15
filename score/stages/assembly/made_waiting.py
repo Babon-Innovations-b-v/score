@@ -81,6 +81,19 @@ def laid_by_relations(stage, out, place, record, objects, baked=None):
         "fitted": fits}, indent=1))
 
 
+def roofed_again(laid, stage, place, names):
+    """`laid` (LAID's record) with the roofs its objects `names` pass up through read again on the stage as they
+    stand now (fitting.through_roofs), after a pass of the make moved them: assembly@greenhouse, 2026-11-15, its
+    railing_5 was named 0.52 m up through its roof, read as it was laid 4.5 m tall, after railings_held had held it
+    to its row's 1 m."""
+    names = set(names)
+    if not names:
+        return laid
+    found = fitting.through_roofs(stage, place, sorted(
+        name for name in names if (prim := stage.GetPrimAtPath(f"/{place}/Objects/{name}")) and prim.IsActive()))
+    return {**laid, "roofs": [*(roof for roof in laid.get("roofs", []) if roof["name"] not in names), *found]}
+
+
 def built_path(stage, place, name):
     """The path of a built piece of the place (fitting.walls: under its Structure, else its Shell)."""
     return f"/{place}/Structure/{name}" if stage.GetPrimAtPath(f"/{place}/Structure/{name}") else \

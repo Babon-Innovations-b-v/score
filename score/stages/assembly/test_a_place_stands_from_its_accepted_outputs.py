@@ -660,6 +660,9 @@ SLOPED_DESK = trimesh.util.concatenate([
     trimesh.convex.convex_hull(np.array([(x, y, z) for x in (40.0, 41.0) for y, z in (
         (0.0, 0.0), (0.1, 0.0), (0.6, 0.6), (0.0, 0.6))], float)),
     trimesh.creation.box(bounds=[(40.0, 0.0, 0.6), (41.0, 1.0, 0.74)])])
+BACKED_DESK = trimesh.util.concatenate([SLOPED_DESK.copy(), trimesh.creation.box(bounds=[(40.0, 0.0, 0.0),
+                                                                                          (41.0, 1.0, 0.25)])])
+BACKED_DESK.vertices[:, 0] += 4.0
 NARROW_DESK = SLOPED_DESK.copy()
 NARROW_DESK.vertices[:, 0] = np.where(NARROW_DESK.vertices[:, 0] > 40.5, 42.3, 42.0)
 WORKSHOP_BOXES = [on_top(f"box_{number}", "unit_1", "unit_2") for number in (1, 2, 3)]
@@ -670,6 +673,8 @@ DIVIDED_THINGS = [on_top("monitor_9", "desk_3"), on_top("paper_9", "monitor_9"),
 BAGS = [on_top("bags_9", "module_9")]
 MAKERS = [on_top(f"maker_{number}", f"counter_{number}") for number in range(2)]
 COMPUTERS = [on_top("computer_40", "desk_40")]
+DEEP_COMPUTERS = [on_top("computer_44", "desk_44")]
+WIDE_HALL = ((-2.0, -0.2), (0.2, 2.0))
 OVER_WRENCH = [on_top(name, "desk_70") for name in ("wrench_70", "book_70")]
 RIDING = [on_top(name, "desk_41") for name in ("computer_41", "cup_41")]
 CROWDED = [on_top(name, "desk_80") for name in ("monitor_80", "monitor_81")]
@@ -776,6 +781,15 @@ ON_TOPS = [  # the steps of one stage world of things laid on tops, in order: th
      "within": [("computer_40", "middle", (2,), 0.65 - 1e-6, 0.69),
                 ("computer_40", "high", (2,), np.nextafter(0.74, np.inf), np.inf)]},
     {"case": "the computer on the rim laid again", "lays": fine_tops.laid, "things": COMPUTERS, "fits": []},
+    # greenhouse (assembly@greenhouse, 2026-11-15): laid on the rim, two computers' fronts stood 0.09 m past their
+    # desks, and the held gate named them off their tops. A 0.3 m computer over that slope, its desk's back a level
+    # 0.25 m board, rests on the rim only with its front 6 cm or more past the desk: it is laid on the back board,
+    # within the desk by the gate's reach, and held.
+    {"case": "the deep computer laid on the desk's back board", "adds": {
+        "desk_44": BACKED_DESK, "computer_44": solid((44.4, 1.2, 0.3), (44.6, 1.4, 0.6))},
+     "lays": fine_tops.laid, "things": DEEP_COMPUTERS, "fits": ["computer_44"],
+     "within": [("computer_44", "high", (2,), -np.inf, 0.74 + fitting.HELD_MOST)],
+     "held": (["computer_44"], ["computer_44", "desk_44"], True)},
     # quarters (settle@quarters, 2026-11-13): a book laid 9.5 mm deep over a 1.3 cm wrench on its desk (fitting's
     # BOARD_CLEAR lets a box 1 cm into another) rested on the desk alone and leaned 7.9 degrees on the wrench. A thing
     # is judged on what it stands among lower than its top too: a 0.2 m book with one edge over a 1.3 cm wrench on a
@@ -1194,15 +1208,16 @@ def a_topped_place(folder):
     return folder / f"{TOY}.usda"
 
 
-def a_roofed_place(folder):
-    """A place `toy` in `folder` (no made ground): a hall of two walls 2 m tall at x -1.5 to -1.3 and 1.3 to 1.5, open
-    between them, and a roof slab 3 m across them, its foot 2.5 m up (0.5 m over the walls), with a fin 0.8 m under
-    its middle; the record lays the roof on the hall's top; its record and laid.json. The root's path."""
+def a_roofed_place(folder, walls=((-1.5, -1.3), (1.3, 1.5))):
+    """A place `toy` in `folder` (no made ground): a hall of two walls 2 m tall at x -1.5 to -1.3 and 1.3 to 1.5 (or
+    `walls`, their x spans), open between them, and a roof slab 3 m across, its foot 2.5 m up (0.5 m over the walls),
+    with a fin 0.8 m under its middle; the record lays the roof on the hall's top; its record and laid.json. The
+    root's path."""
     from pxr import Usd, UsdGeom
     (folder / "layers").mkdir(parents=True)
     base = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
-    hall = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.5, 0.0, -1.0), (-1.3, 2.0, 1.0)]),
-                                     trimesh.creation.box(bounds=[(1.3, 0.0, -1.0), (1.5, 2.0, 1.0)])])
+    hall = trimesh.util.concatenate([trimesh.creation.box(bounds=[(low, 0.0, -1.0), (high, 2.0, 1.0)])
+                                     for low, high in walls])
     roof = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.5, 2.5, -0.5), (1.5, 2.6, 0.5)]),
                                      trimesh.creation.box(bounds=[(-0.05, 1.7, -0.5), (0.05, 2.5, 0.5)])])
     for name, mesh in (("hall_1", hall), ("roof_1", roof)):
@@ -1482,9 +1497,12 @@ LET_DOWN = [
     {"case": "wreck's hatch at a lying hull's box top, 0.6 m off its crest", "made": (a_topped_place, {}),
      "lays": tops_levelled.laid, "said": ("name",), "fits": [("hatch_1",)], "lows": {"hatch_1": 2.0},
      "within": 0.01, "middle": {"hatch_1": ((None, 0.0), 0.15)}, "laid": ("hatch_1", None, 1e-3)},
-    {"case": "base's roof piece over the hall left unslid by the tops' laying", "made": (a_roofed_place, {}),
+    # (in a hall 4 m wide, its walls 0.2 m from its middle: a slide that sets the fin on a wall keeps the slab within
+    # the hall by the held gate's reach, which fine_tops keeps a spot within)
+    {"case": "base's roof piece over the hall left unslid by the tops' laying",
+     "made": (a_roofed_place, {"walls": WIDE_HALL}),
      "lays": tops_levelled.laid, "rows": ROOF_ROWS, "said": ("name",), "fits": [], "lows": {"roof_1": 1.7}},
-    {"case": "that slab, its row an object, laid by the tops' laying", "made": (a_roofed_place, {}),
+    {"case": "that slab, its row an object, laid by the tops' laying", "made": (a_roofed_place, {"walls": WIDE_HALL}),
      "lays": tops_levelled.laid, "rows": ROOF_OBJECT, "said": ("name",), "fits": [("roof_1",)]},
     {"case": "base's roof opening 0.5 m over the hall it spans", "made": (a_roofed_place, {}),
      "lays": roof_tops.let_down, "rows": ROOF_ROWS, "said": ("name", "moved", "top at"),
@@ -3778,6 +3796,8 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     Break: score/stages/assembly/fine_tops.py: spot's `if crest_tops.stands(mesh, exact, move):` -> `if False:` (the
         computer left over the desk's slope), its `xs = np.arange(hold_low[0], ...)`, `zs = ...` -> each
         `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left)
+    Break: score/stages/assembly/fine_tops.py: spot's `shifts = shifts[past < fitting.HELD_MOST - SAME]` dropped (the
+        deep computer laid on the rim, its front past the desk by more than the held gate's reach)
     Break: score/stages/assembly/fine_tops.py: one's `found + beside(stage, place, entry, carried, ...)` -> `found`
         or beside's `< under]` -> `< -1.0]` (the book laid on the slab alone, its foot 8 mm into the wrench's box, not
         on its top), or crest_tops.py: stands' `points[:, 1] - tops` -> `np.maximum(points[:, 1] - tops, 0.0)` (the
@@ -3796,7 +3816,12 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         6 cm box read not resting on the flat slab), or balance's `/ 4` -> `/ 0.5` (the box over the edge read resting)
     Break: score/stages/assembly/railings_held.py: held_up's `keep = min(1.0, ...)` -> `keep = 1.0` (the chord left 4.5
         m tall), cut_back's `if not inside(points[near], hulls):` -> `if True:` (its end left in the wall), change's
-        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening)"""
+        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening)
+    Break: score/stages/assembly/railings_held.py: met's `far = min(far, at)` -> `far = far` or `near = max(near,
+        at)` -> `near = near` (the chords crossing at corners left running 2 m past them), or corners' second `kept =
+        cut_back(points, axis, others)` -> `kept = None` (the chords met at their crossings, 5 cm in each other)
+    Break: score/stages/assembly/made_waiting.py: roofed_again's `if roof["name"] not in names` dropped (a roof read
+        before the object moved kept beside the one read again)"""
     for case, low, high, on, holders, more, scale, foot, words, walls, within, below, face, held in FIT:
         boxes = [tuple(np.asarray(end, float) for end in box) for box in holders]
         laid = fitting.fit(low, high, on, boxes, **more)
@@ -4106,6 +4131,10 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
                                                          if path.startswith("Objects/")))
         assert [name for name, _ in fitting.roofs(stage, TOY)] == roofs and [
             (one["name"], one["metres"]) for one in found] == through, f"{case}: {found}"
+        moved = sorted(path.split("/")[-1] for path in prims if path.startswith("Objects/"))
+        stale = {"roofs": [{"name": name, "roof": "roof_0", "metres": 9.9} for name in [*moved, "still_1"]]}
+        again = made_waiting.roofed_again(stale, stage, TOY, moved)["roofs"]
+        assert again == [stale["roofs"][-1], *found], f"{case}: {again}"
     for case, prims, names, laid_fits, after in MOVED_IN:
         stage = a_fitted_world(prims)
         walled = [{"name": name, "row": name[:-2], "on": GABLE_WALL} for name in names]
@@ -4439,6 +4468,30 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     assert not railings_held.inside(laid_chord.vertices, [wall]) and "slid -0." in words, words
     assert railings_held.outside_by(laid_chord, under) <= 0.05 < railings_held.outside_by(chord, under), words
     assert railings_held.change(laid_chord, RAILING, [wall], under) is None
+    # greenhouse (assembly@greenhouse, 2026-11-15): its five chords along the sides of the upper floor's opening each
+    # crossed its neighbours 1.8 m from its ends, 0.10 m in each other. A 10 m chord of a row crossing two others at
+    # right angles 2 m from each of its ends, they 2 m from theirs, is drawn back to both crossings and clear of them,
+    # they to it; a fourth whose line they cross past their reach is left.
+    corner = {}
+    for name, extents, middle in (("railing_1", (10.0, 1.0, 0.1), (3.0, 3.5, 0.0)),
+                                  ("railing_2", (0.1, 1.0, 10.0), (0.0, 3.5, 3.0)),
+                                  ("railing_3", (10.0, 1.0, 0.1), (3.0, 3.5, 20.0)),
+                                  ("railing_4", (0.1, 1.0, 10.0), (6.0, 3.5, 3.0))):
+        corner[name] = ({"name": name, "row": "railing"}, None, box_at(extents, middle), None)
+    railings_held.corners("railing", corner)
+    reaches = {}
+    for name, (_, _, mesh, found) in corner.items():
+        laid_corner = mesh.copy()
+        if found is not None:
+            laid_corner.apply_transform(found[0].T)
+        reaches[name] = laid_corner.bounds
+    assert 0.05 < reaches["railing_1"][0, 0] < 0.2 and 5.8 < reaches["railing_1"][1, 0] < 5.95 and \
+        "at a corner" in corner["railing_1"][3][1], reaches
+    assert all(-0.01 < reaches[name][0, 2] < 0.2 and np.isclose(reaches[name][1, 2], 8.0)
+               for name in ("railing_2", "railing_4")), reaches
+    assert corner["railing_3"][3] is None and np.allclose(reaches["railing_3"][:, 0], (-2.0, 8.0)), reaches
+    assert all(fitting.reach_into(fitting.box_corners(reaches["railing_1"]), fitting.box_corners(reaches[name])) <= 0.0
+               for name in ("railing_2", "railing_4")), reaches
     import triage
     from pxr import UsdGeom
     tops = Usd.Stage.CreateInMemory()

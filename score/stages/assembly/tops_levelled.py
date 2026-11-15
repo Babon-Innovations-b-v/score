@@ -55,7 +55,7 @@ def laid(folder, place, rows=None):
     laid_record["objects"] = [{**entry, **boxed(stage, place, entry["name"])} if entry["name"] in moved else entry
                               for entry in laid_record.get("objects", [])]
     laid_record["fitted"] = [*laid_record.get("fitted", []), *fits]
-    laid_path.write_text(json.dumps(laid_record, indent=1))
+    laid_path.write_text(json.dumps(made_waiting.roofed_again(laid_record, stage, place, moved), indent=1))
     return fits
 
 

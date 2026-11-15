@@ -90,7 +90,7 @@ def stood(folder, place):
                            if "corners" in entry else {})}
                        if entry["name"] in moved else entry for entry in laid.get("objects", [])]
     laid["fitted"] = [*laid.get("fitted", []), *fits]
-    laid_path.write_text(json.dumps(laid, indent=1))
+    laid_path.write_text(json.dumps(made_waiting.roofed_again(laid, stage, place, moved), indent=1))
     return fits
 
 
