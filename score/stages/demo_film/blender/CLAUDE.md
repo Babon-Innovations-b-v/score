@@ -2,7 +2,8 @@
 
 `film_frames.py` runs inside Blender on the rented card that draws a demo film's frames (blender_cloud.py ships this
 folder and `tools/blender/inside` with the job): `tools/blender/inside/usd_views.py` as it is, its camera keyed to the
-next frame's for motion blur (its docstring). The shutter and the next camera are worked out free, before the job, by
+next frame's for motion blur, its denoiser on the card and the scene kept between frames (its docstring: measured the
+same pictures, quicker). The shutter and the next camera are worked out free, before the job, by
 `../__init__.py` (`motion_blurred`).
 
 - **usd_views.py stays untouched for this.** Many paid rows declare it (light passes, library clips,

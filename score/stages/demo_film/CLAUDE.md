@@ -19,7 +19,7 @@ own sound; paid and cleared by the runner like any paid row.
   (demo.spare_cameras), and a film whose kept shots show less than the longest walk-through showing it (`walk_seconds`)
   fails before its frames are bought (`refuse_short`).
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
-  two shots of 4 s each (SHOTS, the finish plan of 2026-10-18: a place on screen about 7 s unbroken), 1280x720 at 24
+  two shots of 4 s each (SHOTS, the finish plan of 2026-10-18: a place on screen about 7 s unbroken), 1920x1080 at 24
   frames a second (192 frames), the look only (no ink): a 9 s film with its title card, which the length gate holds
   to (planned_seconds for the shots its views hold). The second shot is the record's `then` (a record camera's name
   or a spot of its own), else the record camera standing furthest from the first. A spot of its own is `eye` and
@@ -28,7 +28,10 @@ own sound; paid and cleared by the runner like any paid row.
   wall). The planner keeps clear of people and moving things (camera_paths), glides at one speed between eased ends and
   rounds its corners (demo.py); every frame carries the camera's motion blur towards the next (`motion_blurred`, drawn by
   `blender/film_frames.py`, its overlay: a 180 degree shutter, shorter where the picture moves fast, none standing still; no
-  mesh deformation blurred). About EUR 3.2 a place likely and 3.5 high (twice a measured 96-frame film's 1.6 and 1.75).
+  mesh deformation blurred; the denoiser on the card and the scene kept between frames, measured the same pictures, owner
+  2026-11-15: "just make rendering more efficient"). About EUR 2.2 a place likely and 3.0 high (`forecast`: every card's
+  lead, 12 min likely and 28 high, and 192 frames at 0.7 card minutes, the L4's measured 1920x1080 frame, at the saved
+  bill's L4 price), the frames dealt over as few cards as draw them in about 48 min each (`cards_for`, 3 a film).
 - **A film is one batch** (#21, owner 2026-10-20, replacing #20's paid preview): everything before the yes is free,
   the local preview (`tools/review/film_preview.py`) and the forecast (`python -m score.stages.demo_film forecast
   <place>`: frames, cards, card minutes and euros likely and high, from a scan of the accepted stage for fog,
@@ -38,7 +41,7 @@ own sound; paid and cleared by the runner like any paid row.
   The runner clears the row at its films' forecast high (`own_forecast`, `extra_forecast` as graph.Stage.forecast, from
   the node's inputs), the one figure the make holds each film to (fault 2026-10-25: cleared at the row's EUR 3.50, or
   at measured runs of 96-frame films, a fogged or a 192-frame film Blocked itself). Never lock for him.
-  The final is rendered once at 1280x720 over the cards `capacity.machines_for` sizes (no fixed card count), each
+  The final is rendered once at 1920x1080 over the cards `cards_for` sizes (no fixed card count), each
   job's deadline its frames at the forecast's high; a job that dies or passes it is a gap, never run again inside
   the batch, and filming it again is a new batch and a new yes. The gate holds each film to the size its views.json
   planned.
@@ -98,7 +101,8 @@ own sound; paid and cleared by the runner like any paid row.
   accepted gaps (as demo-film) and the place's physics-layer where it has one. Each shot the scripts ask (`wide`,
   `close` where a segment names it; the longest segment's seconds) is peel.py's job, its frames dealt over the cards
   the forecast sizes (`peel.sliced`: each slice its own frames into its own folder, jobs never sharing an output) in
-  one blender_cloud.py call on `CLASSES` cards, joined here into `<shot>/peel.mp4` (silent) and `peel.json`. Forecast
+  one blender_cloud.py call on `CLASSES` cards, joined here into `<shot>/peel.mp4` (silent) and `peel.json`, at
+  1280x720 (peel_rows `SIZE`: their cost at the films' 1920x1080 is not measured). Forecast
   from measured units: a render a pass, each a measured demo film frame (demo.FRAME_MINUTES, LIKELY_EUROS over its
   192 frames), high at FOG_FRAME_MINUTES for a pass drawing a fogged, volumed or glassed stage, else FRAME_SPREAD
   times; cleared at its high, refused past its clearance before anything is rented; each job's deadline its frames at

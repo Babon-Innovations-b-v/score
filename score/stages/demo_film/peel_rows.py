@@ -55,6 +55,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 BLENDER_SCRIPT = "score/stages/demo_film/blender/body_peel.py"
 TOOLS = (BLENDER_SCRIPT, "tools/review/demo.py", "tools/review/film_checks.py", "tools/usd/colliders.py")
 SAMPLES = 64  # peel.py's own
+# The peels' size: 1280x720, as their forecast's measured film frames were (demo_film.LIKELY_EUROS); the place films
+# went to 1920x1080 on 2026-11-15, a peel's cost at that size is not measured.
+SIZE = (1280, 720)
 WIDE, CLOSE = "wide", "close"
 SHOT_FILE, RECORD = "peel.mp4", "peel.json"
 LENGTH_SLACK = 0.5
@@ -306,7 +309,7 @@ def make_body(inputs, out, seed, params):
         folder = work / shot / "job"
         folder.mkdir(parents=True)
         close = walker(inputs, cast) if shot == CLOSE else None
-        jobs[shot] = peel.job_of(folder, cast, sim, person_of, seconds, demo_film.SIZE, SAMPLES, close, ground)
+        jobs[shot] = peel.job_of(folder, cast, sim, person_of, seconds, SIZE, SAMPLES, close, ground)
         glbs |= {person["glb"] for person in json.loads(jobs[shot].read_text())["people"]}
     render(cloud_jobs(jobs, planned, [sim, *sorted(glbs)]), node, pathlib.Path(out))
     made = finished(jobs, peel.PASSES, pathlib.Path(out))
@@ -329,7 +332,7 @@ def make_place(inputs, out, seed, params):
     physics = inputs.get("physics-layer")
     folder = pathlib.Path(out) / ".work" / WIDE / "job"
     folder.mkdir(parents=True)
-    jobs = {WIDE: peel.place_job(folder, stage_folder, physics, seconds, demo_film.SIZE, SAMPLES)}
+    jobs = {WIDE: peel.place_job(folder, stage_folder, physics, seconds, SIZE, SAMPLES)}
     render(cloud_jobs(jobs, planned, [stage_folder, *([physics] if physics else [])]), node, pathlib.Path(out))
     made = finished(jobs, peel.PLACE_PASSES, pathlib.Path(out))
     unshaped = json.loads(jobs[WIDE].read_text())["unshaped"]

@@ -11,6 +11,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
 score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py
 """
 import json
+import math
 import pathlib
 import shutil
 import subprocess
@@ -257,19 +258,21 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
 
     Within its forecast (#21): two shots of 4 s at 24 frames are 192 frames, one 96; the free scan finds a plain-card
     puff (fog) and a see-through pane, never the opaque wall, nor a prim the film leaves out, and leaves the stage's
-    files alone; fog or glass is priced high at FOG_FRAME_MINUTES a frame (over 20 times its likely euros), a plain
-    stage at FRAME_SPREAD over the measured frame time, its high the row's estimate. The runner clears the rows at their
-    films' forecast high, the figure film_one refuses over (fault 2026-10-25: cleared at the row's EUR 3.50, a fogged
-    film Blocked itself); a fogged film over a plain clearance is a new ask, and outside a cleared run nothing is
-    compared. A film's record keeps the longest walk-through showing it, and a plan whose shots show less is refused
-    before its frames are rented (fault 2026-10-25: a 3.5 s film Blocked the 7 s walk-through after everything was
-    bought); a film shown only as a hero still keeps one shot. The frames ask cards only, planned at SIZE over the jobs
-    the forecast sizes, no review frames, each job's deadline its frames at the forecast's high (the fogged hall's 3
-    frames a job at 17 minutes plus 10 to set up, 61), each job drawing into a folder of its own (blender_cloud's
-    shared_outputs) and drawn by film_frames, its first frame kept as concept.png. Each frame blurs by how fast its
-    picture moves towards the next frame of its shot (BLUR_SHOT): half a frame open (180 degrees), shorter where the
-    picture would streak further than MOST_STREAK of its width, none for a camera standing still or a shot's last
-    frame, never across a cut.
+    files alone; fog or glass is priced high at FOG_FRAME_MINUTES a frame (over 15 times its likely euros), a plain
+    stage at FRAME_SPREAD over the measured 1920x1080 frame time, its high under the row's estimate; a film is dealt
+    over as few cards as draw it in about CARD_FRAME_MINUTES each (2026-11-15: 17 cards at the 8-minute rule, two thirds
+    of the film's card minutes their lead), every card's lead and the frames priced at the card's bill. The runner
+    clears the rows at their films' forecast high, the figure film_one refuses over (fault 2026-10-25: cleared at the
+    row's EUR 3.50, a fogged film Blocked itself); a fogged film over a plain clearance is a new ask, and outside a
+    cleared run nothing is compared. A film's record keeps the longest walk-through showing it, and a plan whose shots
+    show less is refused before its frames are rented (fault 2026-10-25: a 3.5 s film Blocked the 7 s walk-through after
+    everything was bought); a film shown only as a hero still keeps one shot. The frames ask cards only, planned at SIZE
+    over the jobs the forecast sizes, no review frames, each job's deadline its frames at the forecast's high (the
+    fogged hall's 3 frames a job at 17 minutes plus 10 to set up, 61), each job drawing into a folder of its own
+    (blender_cloud's shared_outputs) and drawn by film_frames, its first frame kept as concept.png. Each frame blurs by
+    how fast its picture moves towards the next frame of its shot (BLUR_SHOT): half a frame open (180 degrees), shorter
+    where the picture would streak further than MOST_STREAK of its width, none for a camera standing still or a shot's
+    last frame, never across a cut.
 
     Break: score/stages/demo_film/__init__.py: `return films().get(place, {}).get("place") == place` -> `return True`
     Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json",
@@ -282,6 +285,10 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         `pass`
     Break: score/stages/demo_film/__init__.py: `high = FOG_FRAME_MINUTES if any(slow.values()) else likely *
         FRAME_SPREAD` -> `high = likely * FRAME_SPREAD`
+    Break: score/stages/demo_film/__init__.py: `math.ceil(frames * frame_minutes / CARD_FRAME_MINUTES)` ->
+        `math.ceil(frames * frame_minutes / 8)` (blender_cloud's 8-minute set-up rule: 17 cards for 192 frames)
+    Break: score/stages/demo_film/__init__.py: `card_minutes = jobs * CARD_LEAD_MINUTES + frames * likely` ->
+        `card_minutes = frames * likely`
     Break: score/stages/demo_film/__init__.py: `if opacity and opacity.Get() is not None and float(opacity.Get()) <
         1.0:` -> `if opacity and opacity.Get() is not None:`
     Break: score/stages/demo_film/__init__.py: `shots = len(film_cameras(record, film)[:SHOTS])` -> `shots = SHOTS`
@@ -465,17 +472,22 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     # the free scan and the price it sets: (stage, what it finds slow, the high frame minutes)
     scans = {}
     for name, text, slow, high_minutes in (
-            ("plain", PLAIN, NO_SLOW, demo.FRAME_MINUTES * demo_film.FRAME_SPREAD),
+            ("plain", PLAIN, NO_SLOW, demo_film.FRAME_MINUTES * demo_film.FRAME_SPREAD),
             ("fog", FOGGED, dict(NO_SLOW, fog=1), demo_film.FOG_FRAME_MINUTES),
             ("glass", GLASSED, dict(NO_SLOW, glass=1), demo_film.FOG_FRAME_MINUTES)):
         (tmp_path / f"{name}.usda").write_text(text)
         scans[name] = demo_film.forecast(tmp_path / f"{name}.usda", demo_film.SHOTS)
-        assert scans[name]["frames"] == 192 and scans[name]["frame_minutes"] == demo.FRAME_MINUTES, name
+        assert scans[name]["frames"] == 192 and scans[name]["frame_minutes"] == demo_film.FRAME_MINUTES, name
         assert scans[name]["slow"] == slow, (name, scans[name]["slow"])
         assert scans[name]["high_frame_minutes"] == high_minutes, (name, scans[name])
     plain, fog = scans["plain"], scans["fog"]
-    assert plain["euros"] == demo_film.LIKELY_EUROS and plain["high_euros"] == demo_film.EUROS
-    assert fog["high_euros"] > 20 * fog["euros"] and fog["jobs"] == plain["jobs"] >= 1
+    cards = math.ceil(192 * demo_film.FRAME_MINUTES / demo_film.CARD_FRAME_MINUTES)
+    rate = demo_film.card_euros_a_minute()
+    assert plain["jobs"] == cards < 192 * demo_film.FRAME_MINUTES / 8, (plain["jobs"], cards)
+    assert plain["euros"] == round((cards * demo_film.CARD_LEAD_MINUTES + 192 * demo_film.FRAME_MINUTES) * rate, 2)
+    assert plain["high_euros"] == round((cards * demo_film.CARD_HIGH_LEAD_MINUTES + 192 * demo_film.FRAME_MINUTES
+                                         * demo_film.FRAME_SPREAD) * rate, 2) <= demo_film.EUROS, plain
+    assert fog["high_euros"] > 15 * fog["euros"] and fog["jobs"] == plain["jobs"] >= 1
     assert "1 fog" in demo_film.forecast_line(fog), demo_film.forecast_line(fog)
     demo_film.refuse_over_clearance("hall", plain, demo_film.EUROS)
     demo_film.refuse_over_clearance("hall", fog, None)
@@ -837,7 +849,7 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     # slice its own frames into its own folder, all joined, judged on its film
     (tmp_path / "hall-peel.json").write_text(json.dumps(
         dict(peeling, segments=[{"cut": "place-peel", "shows": {"place": "hall"}, "seconds": 1.0}])))
-    monkeypatch.setattr(demo_film, "SIZE", SMALL)
+    monkeypatch.setattr(peel_rows, "SIZE", SMALL)
     monkeypatch.setattr(peel_rows, "forecast", lambda shots, passes, slow=None: dict(plain, jobs=3))
 
     def drawn_here(cloud, node, out):  # the cards' part, drawn here: each slice its own frames, in its own folder

@@ -32,7 +32,7 @@ the gate, and a new film is a new batch and a new yes.
            frames over SECONDS at demo.RATE, look only (no ink), each with the camera's motion blur
            (motion_blurred: the next frame's camera and a shutter set by how fast the picture moves, drawn by
            blender/film_frames.py); the frames rendered once at SIZE with the films' samples, dealt over the jobs
-           `forecast` sizes (capacity.machines_for on the likely frame minutes), each
+           `forecast` sizes (cards_for: as few cards as draw them in about CARD_FRAME_MINUTES each), each
            job's deadline its frames at the forecast's high frame minutes; demo.py's cut with the stage's sound
            layer. Per film:
            film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the first frame
@@ -48,6 +48,7 @@ the gate, and a new film is a new batch and a new yes.
                    (shots.py)
 """
 import json
+import math
 import os
 import pathlib
 import shutil
@@ -61,7 +62,7 @@ from score.stages import people_rows
 from score.stages.demo_film import shots
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-SIZE = (1280, 720)
+SIZE = (1920, 1080)
 # Two shots a place, each from its own camera, so a finished place stays on screen about 7 s unbroken instead of 3.5 s
 # (the finish plan for world 1, 2026-10-18); a place whose record holds one camera only gets one.
 SHOTS = 2
@@ -78,19 +79,37 @@ ACROSS_AIM = 1.2
 # of stock would be a fallback chain inside the batch (#21); none in stock waits for a card of the run's warm pool
 # (no stock never makes a gap: owner, 2026-10-23).
 CLASSES = "gpu-24gb"
-# Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
-# greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6 likely; the row's
-# estimate (what its clearance reserves while the stage is unmeasured) is twice the measured high, 1.75.
+# Two shots of 96 frames at 1280x720: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger
+# 2026-10-18: greenhouse, airlock, hangar, garage), so twice the measured 1.6 likely; the peels' renders are priced by
+# it (peel_rows). The row's estimate (what its clearance reserves while the stage is unmeasured) is twice the measured
+# high, 1.75; a plain film's forecast high stays under it.
 LIKELY_EUROS = 3.2
 EUROS = 3.5
 # A plain frame's high over its likely: the measured films' high over their median (1.75 / 1.6).
 FRAME_SPREAD = 1.75 / 1.6
+# A 1920x1080 frame's card minutes on CLASSES' card (an L4), the import aside: the hub at 1920x1080 on an L4
+# (2026-10-10, demo.FRAME_MINUTES) took 42 s with the denoiser on the processor and no motion blur. Measured on this
+# PC's card at 1920x1080 (2026-11-15, the hub and the airlock, 12 frames each, 8 processor cores as an L4 machine has):
+# the motion blur adds 2 to 8% of a frame, the denoiser on the card and the scene kept between frames
+# (blender/film_frames.py) take about 5 s off one (2.7 to 3.0 s a frame then, the card free), so the 42 s stands.
+FRAME_MINUTES = 0.7
 # A frame's card minutes, the forecast's high, where the stage holds fog, a volume or glass: the airlock's frames
-# inside its pump's fog took 47 s to 17 min each (2026-10-18). Its likely is demo.FRAME_MINUTES (0.7, the measured
-# 42 s); a stage without them is priced high at FRAME_SPREAD times that.
+# inside its pump's fog took 47 s to 17 min each (2026-10-18); a stage without them is priced high at FRAME_SPREAD
+# times FRAME_MINUTES.
 FOG_FRAME_MINUTES = 17.0
 # A frame job's minutes before its frames (demo.film_jobs' 10): the stage and its shown places loaded.
 JOB_LEAD_MINUTES = 10
+# A card's billed minutes besides its frames (rented and set up, the stage loaded, parked after), likely: the
+# 2026-10-18 films' EUR 1.6 for 96 frames on 8 cards at the saved bill's L4 EUR 0.7875 an hour is 122 card minutes,
+# less their frames at 17 s (1280x720 on an L4, demo.py's 14 to 20 s), 12 minutes a card. High: blender_cloud's 8
+# minutes of set-up, JOB_LEAD_MINUTES and park.py's longest idle card, 10.
+CARD_LEAD_MINUTES = 12.0
+CARD_HIGH_LEAD_MINUTES = 28.0
+# The frames a card draws, in card minutes at the likely frame time: a film is dealt over as few cards as hold it in
+# about this long, so each card's lead is at most a quarter of what it bills (owner, 2026-11-15: "i want one but within
+# the budget, just make rendering more efficient": at blender_cloud's 8-minute rule a 192-frame film took 17 cards,
+# two thirds of its card minutes their set-up and lead).
+CARD_FRAME_MINUTES = 4 * CARD_LEAD_MINUTES
 # The frames' Blender script: usd_views.py's views, each with the camera's motion blur.
 FRAMES_SCRIPT = "score/stages/demo_film/blender/film_frames.py"
 TOOLS = ("tools/review/demo.py", "tools/review/film_checks.py", "tools/review/renders.py",
@@ -326,26 +345,37 @@ def slow_parts(stage_path, left_out=()):
 
 
 def forecast(stage_path, shots, left_out=()):
-    """A film's free forecast before the creator's yes: its frames; the jobs they are dealt over
-    (capacity.machines_for on the likely frame minutes and blender_cloud's set-up, a card a job); the likely and high
-    minutes a frame (demo.FRAME_MINUTES; high FOG_FRAME_MINUTES where the scan finds fog, a volume or glass, else FRAME_SPREAD times
-    the likely); the card
-    minutes and the euros, likely and high (LIKELY_EUROS scaled from its measured film by frames and frame minutes); and what
-    the scan found, the `left_out` prims inactive."""
+    """A film's free forecast before the creator's yes: its frames; the jobs they are dealt over (cards, one job a
+    card: as few as draw them in about CARD_FRAME_MINUTES each); the likely and high minutes a frame (FRAME_MINUTES;
+    high FOG_FRAME_MINUTES where the scan finds fog, a volume or glass, else FRAME_SPREAD times the likely); the card
+    minutes, likely and high (every card's lead, CARD_LEAD_MINUTES, high CARD_HIGH_LEAD_MINUTES, and the frames), and
+    their euros at the saved bill's price of the card; and what the scan found, the `left_out` prims inactive."""
     demo, _ = film_tools()
-    sys.path.insert(0, str(REPO / "tools/cloud"))
-    import blender_cloud
-    import capacity
     frames = round(shots * SECONDS * demo.RATE)
     slow = slow_parts(stage_path, left_out)
-    likely = demo.FRAME_MINUTES
+    likely = FRAME_MINUTES
     high = FOG_FRAME_MINUTES if any(slow.values()) else likely * FRAME_SPREAD
-    euros = LIKELY_EUROS * frames / round(SHOTS * SECONDS * demo.RATE)
-    return {"frames": frames, "jobs": capacity.machines_for(frames, likely, blender_cloud.SETUP_MINUTES),
-            "frame_minutes": likely, "high_frame_minutes": high, "card_minutes": round(frames * likely),
-            "high_card_minutes": round(frames * high), "euros": round(euros, 2),
-            "high_euros": round(euros * high / likely, 2),
+    jobs = cards_for(frames, likely)
+    card_minutes = jobs * CARD_LEAD_MINUTES + frames * likely
+    high_card_minutes = jobs * CARD_HIGH_LEAD_MINUTES + frames * high
+    rate = card_euros_a_minute()
+    return {"frames": frames, "jobs": jobs, "frame_minutes": likely, "high_frame_minutes": high,
+            "card_minutes": round(card_minutes), "high_card_minutes": round(high_card_minutes),
+            "euros": round(card_minutes * rate, 2), "high_euros": round(high_card_minutes * rate, 2),
             "slow": {kind: len(paths) for kind, paths in slow.items()}}
+
+
+def cards_for(frames, frame_minutes):
+    """The cards a film's `frames` are dealt over: as few as draw them in about CARD_FRAME_MINUTES each at
+    `frame_minutes`, one at least, never more than its frames. From the film's own measured numbers, never the
+    ledger's per-job ones (preflight counts jobs, a film's forecast frames)."""
+    return max(1, min(frames, math.ceil(frames * frame_minutes / CARD_FRAME_MINUTES)))
+
+
+def card_euros_a_minute():
+    """The CLASSES card's euros a minute, the saved bill's (peel_rows.card_euros_a_minute)."""
+    from score.stages.demo_film import peel_rows
+    return peel_rows.card_euros_a_minute()
 
 
 def forecast_line(planned):
