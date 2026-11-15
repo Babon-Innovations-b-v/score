@@ -33,6 +33,13 @@ The design and the concept, read:
   Break: score/stages/crops/concept.py: `found["kinds"][kind]["count"] < FOUND_LEAST or found` -> `found`
   Break: score/stages/crops/concept.py: `return width(instance["box"]) > MERGED * statistics.median(` -> `return False
       and statistics.median(`
+  Greenhouse, 2026-11-16: its plants were counted in the plot's box, the largest planter SAM 3 found (a small wall
+  planter), and its small plants asked only by their name, a whole planter each: 0 in patches for both. Now a kind
+  is counted on its own bed row's boxes and keeps a noun only a kind on another bed shares: sprouts on a wall planter
+  are asked as "plants" too and counted there, not the greens' plants beside them.
+  Break: score/stages/crops/concept.py: `if any(inside(centre(instance["box"]), box) for box in
+      beds[kinds[kind]["bed"]])]` -> `if True]`
+  Break: score/stages/crops/crop_data.py: `and design_layers.holder_of(other, rows)["id"] == bed` -> `` (any sharer)
 
 The layer:
   Laid at the concept's spacing every bed carries plants and both gates pass; laid at twice it spacing fails; a plant
@@ -156,6 +163,7 @@ PLAN = {"w": 12.0, "d": 12.0, "levels": [{"name": "lower floor", "height": 0.4, 
 
 PICTURE = [2000, 2000]  # the concept's view, its plot seen square (no slant)
 PLOT = {"plot:raised garden bed": [{"box": [0, 0, 2000, 2000], "score": 0.9, "inside": 1.0, "fills": 1.0}]}
+BED_BOXES = {"planter_bed": [[0, 0, 2000, 2000]]}  # the reading's box of the planter bed row on the concept
 SQUARE = [-0.1, 0.1, -0.1, 0.1]  # a plant 0.2 m wide, its foot in its middle
 TRAY = [-1.15, 1.15, -0.4, 0.4]  # the greenhouse's planter tray, 2.3 m long, on beds of 0.6 m
 
@@ -342,11 +350,12 @@ def test_crops_grow_as_the_concept_grows_them(tmp_path):
     for name, seen, answer in MEASURED:
         folder = tmp_path / "concept" / name
         folder.mkdir(parents=True)
-        found = concept.measures(record, concept.on_picture({**PLOT, **on_tiles(seen, tiles)}, tiles), PICTURE)
+        found = concept.measures(record, concept.on_picture({**PLOT, **on_tiles(seen, tiles)}, tiles), PICTURE,
+                                 BED_BOXES)
         (folder / "concept.json").write_text(json.dumps(found))
         verdict = concept.judge_measured(folder, inputs, None)
         assert verdict.answer == answer, (name, verdict)
-    no_plot = concept.measures(record, concept.on_picture(on_tiles(SEEN, tiles), tiles), PICTURE)
+    no_plot = concept.measures(record, concept.on_picture(on_tiles(SEEN, tiles), tiles), PICTURE, BED_BOXES)
     (folder / "concept.json").write_text(json.dumps(no_plot))
     assert no_plot["plot"] is None and concept.judge_measured(folder, inputs, None).answer == checks.UNKNOWN
     measured = tmp_path / "concept" / MEASURED[0][0]
@@ -356,6 +365,19 @@ def test_crops_grow_as_the_concept_grows_them(tmp_path):
     assert all(abs(kinds[kind]["spacing"] - 1.5) < 0.01 for kind in kinds), kinds
     assert abs(kinds["lettuce"]["share"] - 450 ** 2 / 2000 ** 2) < 0.001, kinds["lettuce"]
     spacing = {kind: kinds[kind]["spacing"] for kind in kinds}
+    walled = dict(INVENTORY, rows=[{**row, "boxes": [[0, 0, 1000, 2000]]} if row["id"] == "planter_bed" else row
+                                   for row in INVENTORY["rows"]] + [
+        {"id": "wall_box", "name": "wall planter box", "noun": "planter", "count": 2, "anchor": "on:lower_floor",
+         "size": [1.0, 0.4, 0.4], "box": [1200, 0, 2000, 900]},
+        {**crop_row("sprouts", "sprouts", "plants"), "anchor": "on:wall_box"}])
+    two_beds = crop_data.record_of(walled, KINDS)
+    assert two_beds["kinds"]["greens"]["nouns"] == ["leafy bush", "plants"], two_beds["kinds"]
+    assert two_beds["kinds"]["sprouts"] == {"row": "sprouts", "nouns": ["sprouts", "plants"], "bed": "wall_box"}
+    on_both = {"greens:plants": grid((1300, 200), 3, 12, 8) + grid((200, 1500), 3, 12, 8),
+               "sprouts:plants": grid((1300, 200), 3, 12, 8) + grid((200, 1500), 3, 12, 8)}
+    both = concept.measures(two_beds, concept.on_picture({**PLOT, **on_tiles(on_both, tiles)}, tiles), PICTURE,
+                            concept.bed_boxes(walled, two_beds))["kinds"]
+    assert {kind: both[kind]["count"] for kind in ("greens", "sprouts")} == {"greens": 9, "sprouts": 9}, both
 
     # The layer: laid on the design's beds at the concept's spacing, and gated.
     inputs = {**inputs, "crops-concept": measured}

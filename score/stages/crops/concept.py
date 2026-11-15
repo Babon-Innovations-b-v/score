@@ -9,12 +9,16 @@ instances. Free measures here, kept in concept.json:
 
     plot       the plot instance with the largest mask: its pixel box and its mask's area (`fills` of a row boxed
                over the whole picture is the mask's share of the picture)
-    plants     every tile's instances mapped back onto the picture, centred in the plot's box, each the kind of its
-               noun; where boxes overlap over SAME_PLANT (one plant found twice: on two tiles, or by two kinds'
-               nouns) the earlier kind in the record's order keeps it (the more specific nouns first), within a
-               kind the surest
+    plants     every tile's instances mapped back onto the picture, each the kind of its noun, centred in a box of
+               its kind's own bed row (the reading's boxes of it on this concept, `bed_boxes`); where boxes overlap
+               over SAME_PLANT (one plant found twice: on two tiles, or by two kinds' nouns) the earlier kind in the
+               record's order keeps it (the more specific nouns first), within a kind the surest. Greenhouse,
+               2026-11-16: its plants counted in the plot's box, the largest planter SAM 3 found (a small wall
+               planter; the pit's raised beds not among its four surest), 0 of them in patches on the beds they grow
+               on
     kinds      per kind: its patches (plants linked within LINK median spacings, at least PATCH_LEAST; strays left
-               out and counted), their share of the plot (each patch's hull of centres widened by one spacing), and
+               out and counted), their share of its bed row's boxes (each patch's hull of centres widened by one
+               spacing), and
                its spacing in plant widths: the median distance from a plant to its nearest neighbour over the
                median plant's width (its box's); a box over MERGED median widths is several plants SAM 3 merged
                into one mass, left out
@@ -28,6 +32,7 @@ SAM 3 did not find (a kind's nouns are its inventory row's words; never typed as
 """
 import json
 import math
+import pathlib
 import statistics
 
 from score import checks
@@ -173,16 +178,23 @@ def kept_kind(found):
     return [instance for instance in found if not merged(instance, found)]
 
 
-def plants_in(instances, plot_box, kinds):
-    """Every kind's instances centred in the plot's box, each with its kind and noun, kind by kind in the crop data's
-    order, surest first, its merged masses left out (`kept_kind`); one dropped
+def bed_boxes(inventory, record):
+    """{bed row: [its boxes on the concept]}: the reading's boxes of each bed row (`boxes`, else its one `box`)."""
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    return {bed: [list(box) for box in rows[bed].get("boxes") or ([rows[bed]["box"]] if rows[bed].get("box") else [])]
+            for bed in record["beds"]}
+
+
+def plants_in(instances, beds, kinds):
+    """Every kind's instances centred in a box of its own bed row (`beds`: bed_boxes), each with its kind and noun,
+    kind by kind in the crop data's order, surest first, its merged masses left out (`kept_kind`); one dropped
     where it is a plant of its kind kept before it (`same_plant`), or shares over SAME_PLANT with any plant kept
     before it (so a plant two kinds' nouns find is the earlier kind's)."""
     kept = []
     for kind in kinds:
         found = [{**instance, "kind": kind, "noun": key.split(":", 1)[1]}
                  for key, listed in instances.items() if key.split(":", 1)[0] == kind for instance in listed
-                 if inside(centre(instance["box"]), plot_box)]
+                 if any(inside(centre(instance["box"]), box) for box in beds[kinds[kind]["bed"]])]
         found = sorted(kept_kind(found), key=lambda instance: -instance["score"])
         for instance in found:
             if not any(same_plant(instance["box"], other["box"]) if other["kind"] == kind
@@ -247,9 +259,9 @@ def patch_area(points):
     return hull * (across / (across - 1)) ** 2
 
 
-def kind_measures(plants, kinds, plot):
-    """{kind: plants in its patches, patches, strays, the patches' share of the plot, its spacing in plant widths
-    (None when not measurable)}."""
+def kind_measures(plants, kinds, plot, beds):
+    """{kind: plants in its patches, patches, strays, the patches' share of its bed row's boxes (`beds`), its spacing
+    in plant widths (None when not measurable)}; the slant the plot's."""
     slant = (plot["box"][3] - plot["box"][1]) / (plot["box"][2] - plot["box"][0])
     found = {}
     for kind in kinds:
@@ -258,7 +270,8 @@ def kind_measures(plants, kinds, plot):
         grouped = patches(floor)
         members = [point for group in grouped for point in group]
         widths = [plant["box"][2] - plant["box"][0] for plant, point in zip(own, floor) if point in members]
-        share = sum(patch_area(group) for group in grouped) * slant / plot["area"]
+        area = sum((box[2] - box[0]) * (box[3] - box[1]) for box in beds[kinds[kind]["bed"]])
+        share = sum(patch_area(group) for group in grouped) * slant / area if area else 0.0
         spacing = (statistics.median(nearest_distances(members)) / statistics.median(widths)
                    if len(members) >= PATCH_LEAST else None)
         found[kind] = {"count": len(members), "patches": len(grouped), "strays": len(own) - len(members),
@@ -267,13 +280,13 @@ def kind_measures(plants, kinds, plot):
     return found
 
 
-def measures(record, instances, size):
-    """concept.json's content from SAM 3's instances (on the whole picture)."""
+def measures(record, instances, size, beds):
+    """concept.json's content from SAM 3's instances (on the whole picture), each kind on its bed row's `beds`."""
     plot = the_plot(instances, size)
     if plot is None:
         return {"plot": None, "plants": [], "kinds": {}}
-    plants = plants_in(instances, plot["box"], record["kinds"])
-    return {"plot": plot, "plants": plants, "kinds": kind_measures(plants, record["kinds"], plot)}
+    plants = plants_in(instances, beds, record["kinds"])
+    return {"plot": plot, "plants": plants, "kinds": kind_measures(plants, record["kinds"], plot, beds)}
 
 
 def make_concept(inputs, out, seed, params):
@@ -289,7 +302,8 @@ def make_concept(inputs, out, seed, params):
         import box_masks_cloud
         box_masks_cloud.mask(out / "jobs.json", out / "instances.json")
     instances = on_picture(json.loads((out / "instances.json").read_text()), [box for _, box in tiles])
-    found = measures(record, instances, size)
+    beds = bed_boxes(json.loads(pathlib.Path(inputs["inventory"]).read_text()), record)
+    found = measures(record, instances, size, beds)
     (out / "concept.json").write_text(json.dumps(dict(found, size=size), indent=1))
 
 

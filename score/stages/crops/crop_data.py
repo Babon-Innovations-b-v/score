@@ -70,16 +70,20 @@ def record_of(inventory, kinds=None):
     beds = list(dict.fromkeys(design_layers.holder_of(row, rows)["id"] for row in crops))
     return {"place": inventory["place"],
             "concept": {"view": DESIGN_VIEW, "plot": {"nouns": nouns_of([rows[bed] for bed in beds])}},
-            "kinds": {row["id"]: {"row": row["id"], "nouns": kind_nouns(row, crops),
+            "kinds": {row["id"]: {"row": row["id"], "nouns": kind_nouns(row, crops, rows),
                                   "bed": design_layers.holder_of(row, rows)["id"]} for row in crops},
             "beds": beds}
 
 
-def kind_nouns(row, crops):
-    """A crop kind's words for SAM 3: its row's name, then its noun when no other crop row shares it (a plant two
-    kinds' words find is the earlier kind's, so a shared noun would give every plant to the first)."""
-    noun = row_kinds.words(row.get("noun"))
-    shared = any(row_kinds.words(other.get("noun")) == noun for other in crops if other is not row)
+def kind_nouns(row, crops, rows):
+    """A crop kind's words for SAM 3: its row's name, then its noun when no other crop row on its bed row shares it (a
+    plant two kinds' words find on one bed is the earlier kind's, so a shared noun would give every plant there to the
+    first). A kind is counted on its own bed's boxes (concept.py), so a noun shared with a kind on another bed is kept:
+    greenhouse, 2026-11-16, its small plants asked only as "small growing plants" were boxed a whole planter each,
+    none in a patch, where "plants" finds every seedling in those planters."""
+    noun, bed = row_kinds.words(row.get("noun")), design_layers.holder_of(row, rows)["id"]
+    shared = any(row_kinds.words(other.get("noun")) == noun and design_layers.holder_of(other, rows)["id"] == bed
+                 for other in crops if other is not row)
     return [word for word in dict.fromkeys([row_kinds.words(row.get("name")), "" if shared else noun]) if word]
 
 
