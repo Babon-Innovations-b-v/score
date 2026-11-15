@@ -1,6 +1,6 @@
 ---
 name: improve-env
-description: Brute-force an environment toward its locked concepts in rounds, each round a large workflow that scores every place's still against its concept, finds the shared causes and lands one fix stream per cause, then a free PC run and new stills. Use when the owner runs /improve-env.
+description: Brute-force an environment toward its locked concepts in rounds, each round a large workflow that scores every place's still against its concept, finds the shared causes and lands one fix stream per cause it finds, then a free PC run and new stills. Use when the owner runs /improve-env.
 disable-model-invocation: true
 ---
 
@@ -16,7 +16,7 @@ Argument: the environment (default `world1`, env1). Its rework issue holds every
    - per place, side by side: `STILLS=<dir> SCORE_REPO=<checkout at main> bash scripts/stills/prep.sh <place>` (compose and plan, read-only);
    - then `render.py <place> ...` in the background with `tools/cloud/detached.py --`: Blender one place at a time on the card queue.
    Done when `$STILLS/out/` holds a JPEG for every place or `render.jsonl` names why one has none.
-2. **Workflow.** Run `scripts/round.workflow.js` through the Workflow tool (`scriptPath`), args `{environment, places, stills: $STILLS, out: <job tmp>/improve-<round>, issue, round, streams: 8, model: "fable", notes}`. It compares (one agent per four places), plans the causes and lands up to 8 fix streams, each in its own worktree. Done when it returns.
+2. **Workflow.** Run `scripts/round.workflow.js` through the Workflow tool (`scriptPath`), args `{environment, places, stills: $STILLS, out: <job tmp>/improve-<round>, issue, round, model: "fable", notes}`. It compares (one agent per four places), plans the causes and lands one fix stream per cause it finds (owner, 2026-11-16: "one stream per cause the round finds"), each in its own worktree. Done when it returns.
 3. **Record.** Post one comment on the issue: the round's mean and per-place scores against the last round, the commits landed, each stream's undone work, the decisions agents made (one line each), and the `owner` list with prices. Done when the comment is posted.
 4. **Remake, free.** Bring the PC store onto the new main: re-readings and plan writings where the round changed reading or plan code (the owner's standing allowance), `python -m score.review.plans_pass refit <place>` for each place, then a free PC run of the environment (`tools/cloud/this_pc.py`), free only. Where a run session owns this PC, hand it these steps by message instead. Watch the run to its end with Monitor; done when every place has reached its lit stage again or names its fault.
 5. **Next round** from step 1.

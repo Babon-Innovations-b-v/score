@@ -3,15 +3,14 @@ export const meta = {
   description: 'One improve-env round: score every place still against its concept, find the shared causes, land one fix stream per cause',
   phases: [
     { title: 'Compare', detail: 'each place: still against concept, mismatches by cause' },
-    { title: 'Causes', detail: 'shared causes across places, ranked, cut into fix streams' },
-    { title: 'Fix', detail: 'one agent per stream, own worktree, tested, pushed to main' },
+    { title: 'Causes', detail: 'shared causes across places, ranked, one fix stream per cause' },
+    { title: 'Fix', detail: 'one agent per cause, own worktree, tested, pushed to main' },
   ],
 }
 
-// args: {environment, places: [..], stills, out, issue, round, streams: 8, model: 'fable', notes}
+// args: {environment, places: [..], stills, out, issue, round, model: 'fable', notes}; one fix stream per cause the round finds (owner, 2026-11-16)
 const input = args
 const MODEL = input.model || 'fable'
-const STREAMS = input.streams || 8
 
 const CAUSES = 'SHELL (walls, floors, ceilings, doors, openings, room sizes and shapes), TERRAIN (ground relief, craters, rocks, outside), OBJECT-LOOK (a model unlike the concept: wrong make, scale or pick), OBJECT-MISSING (in the concept, absent in the scene, or read but not laid), ARRANGEMENT (where things stand: spacing, facing, height, floating, piling, joins), SURFACES (finishes, colours, materials, glass), LIGHT (level, colour, sky, lamps), CAMERA (the first view: framing, height, blocked lens), OTHER (say what)'
 
@@ -80,12 +79,12 @@ const PLAN_SCHEMA = {
   required: ['summary', 'streams', 'owner'],
 }
 const plan = await agent(`
-You get round ${input.round}'s per-place findings for ${input.environment} (below). Read-only. Group them by root cause in the pipeline (a stage, a rule or a missing capability), rank by places hit times how badly, and cut the top causes into at most ${STREAMS} fix streams that can land side by side without editing the same functions. Read the environment's rework issue first (gh issue view ${input.issue} --comments): never re-plan what earlier rounds landed; build on what they left undone. Each stream's brief names the code to change, the places it should move, and the neighbouring streams' code it must leave alone. Anything that needs money or the owner's judgement goes to "owner", not to a stream. Write the full ranked result to ${input.out}/round-${input.round}-causes.md.
+You get round ${input.round}'s per-place findings for ${input.environment} (below). Read-only. Group them by root cause in the pipeline (a stage, a rule or a missing capability), rank by places hit times how badly, and make one fix stream per cause you find, however many that is. Two causes whose fixes would edit the same functions become one stream, so the streams can land side by side. Read the environment's rework issue first (gh issue view ${input.issue} --comments): never re-plan what earlier rounds landed; build on what they left undone. Each stream's brief names the code to change, the places it should move, and the neighbouring streams' code it must leave alone. Anything that needs money or the owner's judgement goes to "owner", not to a stream. Write the full ranked result to ${input.out}/round-${input.round}-causes.md.
 
 ${JSON.stringify(places)}`, { label: 'causes', phase: 'Causes', schema: PLAN_SCHEMA, model: MODEL })
 
 phase('Fix')
-const fixed = await parallel(plan.streams.slice(0, STREAMS).map(stream => () => agent(`
+const fixed = await parallel(plan.streams.map(stream => () => agent(`
 You fix one cause of the ${input.environment} scenes being far from their locked concepts (improve loop round ${input.round}; issue #${input.issue}, read it with its comments first). The owner's goal: make the environment better, following the framework's rules and objectives.
 Your cause: ${stream.cause}
 Places: ${stream.places.join(', ')}
