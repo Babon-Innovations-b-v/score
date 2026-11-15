@@ -61,6 +61,11 @@ into its one test, every break below seen red on it again):
   `gap < STANCE_HIGH` made `gap < 1.0` (the foot 4 cm over pulled down); `speeds[:, index] < STANCE_SPEED` dropped (the
   swinging foot pulled down); surface_under's `>= UPWARD` made `>= 0.0` (the steep face read as ground); its
   `heights <= ceilings` dropped (the shelf over the ankle read as its ground).
+- a climber's foot leaving its tread, 2026-11-15 (her left foot rising off it at frame 83 pulled 13.5 mm back down, a
+  19 mm drop in one frame, her sim body's sole 8.5 mm into the tread's edge at frame 82): tread_pins'
+  `np.maximum(speeds[:, index], rising(over[1]))` made `speeds[:, index]` (the foot lifting 1 cm a frame pulled
+  down); rising's `np.minimum(...)` made `np.zeros(len(gap))` (the same); its `np.maximum(np.diff(gap), 0.0)` made
+  `np.abs(np.diff(gap))` (the foot landing 9 mm a frame left over its tread).
 - a climber's foot on its tread on every frame, 2026-11-14 (her carrying foot 4 to 7 mm over her tread with the other
   in the air, frames 4 and 72 to 74, her straight leg out of Kimodo's IK's reach; no foot standing on frames 76 and
   93): within_reach's `REACH_MOST *` dropped (the Hips lowered 1 cm, short of the 0.2% the IK stops at); its bounds'
@@ -560,13 +565,16 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     still = np.repeat(foot["clip_tipped"][1:], 6, axis=0)
     swinging = np.array(still)
     swinging[:, 1, 0, 3] = np.arange(6) * 0.02  # 0.6 m/s along x
+    lifting = np.array(still)
+    lifting[:, 2, 1, 3] += np.arange(6) * 0.01  # 0.3 m/s up, still along the floor
     for name, clip, ground, wanted in (
             ("sunk 2 cm, a steep face under it, a shelf over its ankle", still,
              np.r_[square(0.02), steep, square(0.5, 0.1)], [0.02] * 6),
             ("standing 2 cm over its tread", still, square(-0.02), [-0.02] * 6),
             ("4 cm over its tread: not standing", still, square(-0.04), None),
             ("swinging 2 cm over: not standing", swinging, square(-0.02), None),
-            ("swinging 2 cm into it", swinging, square(0.02), [0.02] * 6)):
+            ("swinging 2 cm into it", swinging, square(0.02), [0.02] * 6),
+            ("lifting off its tread, 5 to 25 mm over it on three frames: not standing", lifting, square(-0.005), None)):
         pins.clear()
         stood_on = sim_body._body.treads_stood(foot, clip, ground)
         assert [pin[0] for pin in pins] == (["LeftFoot"] if wanted else []), name
@@ -574,6 +582,13 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             assert pins[0][1].tolist() == [True] * 6 and pins[0][2] == pytest.approx(wanted), name
             lowest = sim_body._body.foot_lowest(foot, stood_on, sim_body._body.FEET[0])
             assert lowest == pytest.approx(np.array(wanted), abs=1e-9), name  # its skin on its tread
+    # a foot coming down onto its tread 9 mm a frame is still lowered onto it (`rising` counts only a foot leaving it)
+    landing = np.repeat(foot["clip_tipped"][1:], 4, axis=0)
+    landing[:, 2, 1, 3] += (3 - np.arange(4)) * 0.009
+    pins.clear()
+    sim_body._body.treads_stood(foot, landing, square(-0.001))
+    assert [pin[0] for pin in pins] == ["LeftFoot"] and pins[0][1].all()
+    assert pins[0][2] == pytest.approx([-0.028, -0.019, -0.010, -0.001], abs=1e-6)
     # before Kimodo's first foot keyframe and after its last its Hips stood her over the landing out of the pin's reach
     # (ends_stood, 2026-11-14): the still foot 8 cm over its tread on 30 frames, keyframes at 10 and 20, is lowered
     # onto it on the frames outside them by its Hips alone, the keyframes' span left as Kimodo made it; a swinging foot

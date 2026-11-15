@@ -219,12 +219,13 @@ def treads_stood(rig, local, ground, asked=()):
 def tread_pins(rig, local, ground):
     """Each foot's (FEET's) frames it stands on the ground under it (`foot_over`) and its rise onto it there (m): a
     foot any point of which is in its ground, lifted till none is; one whose sole moves slower than STANCE_SPEED within
-    STANCE_HIGH over its ground, lowered onto it; and on a frame no foot does either, the foot nearest its ground
-    within STANCE_HIGH, lowered onto it (a walk has no flight: `carrying`). (None, None) for a foot the rig has no
-    skin or pin for."""
+    STANCE_HIGH over its ground, along it and off it (`rising`), lowered onto it; and on a frame no foot does
+    either, the foot nearest its ground within STANCE_HIGH, lowered onto it (a walk has no flight: `carrying`). (None,
+    None) for a foot the rig has no skin or pin for."""
     _, speeds, _ = soles(rig, local)
     overs = [foot_over(rig, local, ground, foot) for foot in FEET]
-    stands = [None if over is None else stands_of(*over, speeds[:, index]) for index, over in enumerate(overs)]
+    stands = [None if over is None else stands_of(*over, np.maximum(speeds[:, index], rising(over[1])))
+              for index, over in enumerate(overs)]
     found = []
     for index, over in enumerate(overs):
         if over is None:
@@ -235,6 +236,23 @@ def tread_pins(rig, local, ground):
         resting = resting | carrying(overs, stands, index)
         found.append((sunk | resting, np.where(sunk, depth, np.where(resting, -gap, 0.0))))
     return found
+
+
+def rising(gap):
+    """How fast a foot's lowest point leaves its ground on each frame (m/s, `foot_over`'s gap growing; the slower of
+    the steps into and out of the frame, as `soles` takes a sole's speed; inf where it has no ground on either): a
+    foot lifting off its tread moves slowly along it, so its sole's speed alone called it resting and the pin pulled it
+    back down (the stairwell's person_woman, 2026-11-15: her left foot rising 28 mm a frame off her tread at frame 83,
+    within STANCE_HIGH, lowered 13.5 mm onto it, a 19 mm drop in one frame that the path's 6 Hz low-pass met 5 mm early
+    at frame 82, where her sole bore on the tread's edge: her sim body's skin 8.5 mm into it). A foot nearing its
+    ground is not counted: her landing feet, left over their treads, hovered 7 to 17 mm on frames her other foot was
+    leaving, and her pelvis' residual rose to 66 N."""
+    gap = np.asarray(gap, dtype=float)
+    if len(gap) < 2:
+        return np.zeros(len(gap))
+    with np.errstate(invalid="ignore"):
+        step = np.nan_to_num(np.maximum(np.diff(gap), 0.0) * RATE, nan=np.inf)
+    return np.minimum(np.r_[step[:1], step], np.r_[step, step[-1:]])
 
 
 def stands_of(depth, gap, speed):

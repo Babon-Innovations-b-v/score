@@ -201,7 +201,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   `treads_stood` (2026-11-14, the stairwell's person_woman: her sole 4.2 cm into a tread between keyframes) puts each
   foot, on every frame it stands, on the ground under it: a foot any skin point of which is in the highest up-facing
   surface under it below its ankle (`surface_under`) lifted till none is, a still one within `STANCE_HIGH` over it
-  lowered onto it, by Kimodo's own end-effector pin (`played.pinned`). A walk has no flight: on a frame no foot does
+  (slow along it and off it, `rising`: 2026-11-15, her left foot rising off its tread at frame 83 was pulled
+  13.5 mm back down, a 19 mm drop in one frame the path's low-pass met early, her sim sole 8.5 mm into the tread's
+  edge at frame 82) lowered onto it, by Kimodo's own end-effector pin (`played.pinned`). A walk has no flight: on a frame no foot does
   either, the foot nearest its ground within `STANCE_HIGH` is lowered onto it too (`carrying`). Kimodo's two-bone IK
   stops a straight leg at 0.999 of its reach, so her carrying foot stayed 4 to 7 mm over her tread with the other in
   the air (frames 4 and 72 to 74, 977 N of residual): where a pin asks more than `REACH_MOST` of its leg the Hips come
