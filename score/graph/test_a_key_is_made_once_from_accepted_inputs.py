@@ -874,7 +874,9 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     Break: score/__main__.py: '        print(f"exit: {status}", flush=True)' -> '        pass'
     Break: score/__main__.py: '    release.join(POOL_RELEASE_SECONDS)' -> '    release.join()'
     Break: score/__main__.py: '    release_pool(os.environ.get(RUN_ID))\n    killed, spared = end_group()' -> '    killed, spared = end_group()\n    release_pool(os.environ.get(RUN_ID))'
-    Break: score/__main__.py: '                os.kill(os.getpid(), signal.SIGTERM)\n                return' -> '                return'"""
+    Break: score/__main__.py: '                os.kill(os.getpid(), signal.SIGTERM)\n                return' -> '                return'
+    Break: score/graph/__init__.py: '        self.desk("faults", node_name(stage, place), ".txt").unlink(missing_ok=True)  # another process may clear it' -> '        report = self.desk("faults", node_name(stage, place), ".txt")\n        if report.exists():\n            report.unlink()'
+    (a fault report cleared by another process between the look and the remove fails the node)"""
     from score import __main__ as command
     # STOPPED: the detached wrapper's wait holds a stopped run's pool release and its grace (2026-10-24, second Buy);
     # the detached rows started here, the exit rows driven before CLAIMED (they patch this process, beside none of
@@ -1200,6 +1202,16 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
         assert runner.conclude(top, "hangar", "made") == ("made", True)
         assert time.monotonic() - started < 1.0
         assert walks and all(prefix.split("/")[1] in nodes for prefix in walks), walks
+        # a fault report another process clears between this one's look and its remove (#120): it stands, no crash
+        cleared = runner.desk("faults", "top@hangar", ".txt")
+        cleared.parent.mkdir(parents=True, exist_ok=True)
+        cleared.write_text("old fault")
+        looked = pathlib.Path.exists
+        laddered.setattr(pathlib.Path, "exists", lambda path: looked(path) and (
+            path != cleared or path.unlink() is None))
+        assert runner.conclude(top, "hangar", "made") == ("made", True) and not looked(cleared)
+        assert runner.conclude(top, "hangar", "made") == ("made", True)
+        laddered.setattr(pathlib.Path, "exists", looked)
         for ended, staying in FORGOTTEN:
             known = json.loads(json.dumps(KNOWN))
             graph.forget(known, set(ended))

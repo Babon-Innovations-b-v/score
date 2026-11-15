@@ -2626,9 +2626,7 @@ class Runner:
             cause = self.standing(stage, place)
             if cause:
                 return f"{did}; fault report {self.fault_report(stage, place, did, cause)}", False
-        report = self.desk("faults", node_name(stage, place), ".txt")
-        if report.exists():
-            report.unlink()
+        self.desk("faults", node_name(stage, place), ".txt").unlink(missing_ok=True)  # another process may clear it
         return did, True
 
     def drive(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
