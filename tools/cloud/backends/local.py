@@ -50,6 +50,7 @@ nothing; the secrets and the object store are the Scaleway backend's.
 """
 import contextlib
 import fcntl
+import importlib.util
 import json
 import os
 import pathlib
@@ -108,9 +109,10 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # container of this image, the card's total read every 100 ms: 729 MiB over a steady 2324 before and after.
 # The library bakes (library_bake.py): the card queue's own measure of a claim alone on the card, 1.4 GB (2026-10-31,
 # card_queue.py measured; a Cycles bake is mostly processor work).
-# SAM 2's close-up regions (segment_worker.py): the card queue's own measure, 7.55 GB over 2 takes alone on the card
-# (2026-10-31, card_queue.py measured).
-CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4, "segment": 7.55}
+# The segment kind (SAM 2's close-up regions, segment_worker.py, and SAM 3's box masks, box_masks_cloud.py): the card
+# queue's own measure, 9.82 GB at the highest of 70 takes alone on the card (2026-11-16, card_queue.py measured; the
+# 7.55 of its first 2 takes, 2026-10-31, held a share below what its SAM 3 takes use).
+CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4, "segment": 9.9}
 # The memory GB a kind's claim holds when its run gives none (run.need's memory_gb comes first); a kind in neither
 # holds its measured share (measured_share), else the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs,
 # the worker's resident peak 1.26 GB.
@@ -627,11 +629,27 @@ def blender_at_once(memory_gb):
 RUNS_AT_ONCE = {"pixal": 1, "blender": blender_at_once(int(memory_cap()[:-1]) * 2**30 / 1e9)}
 
 
+def sibling(name):
+    """The backend module `name` beside this one (backends/<name>.py), loaded from this folder, not from the path: the
+    importer that put this folder on the path may have set the path back since, this module staying loaded
+    (prop_data.tools restores sys.path after its block; 2026-11-15, pixal@garage's SAM 3 claim in a later block of the
+    same process: No module named 'card_turn', the claim lost and the free run's masks with it)."""
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, pathlib.Path(__file__).resolve().parent / f"{name}.py")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            del sys.modules[name]  # a half-loaded module is never handed to the next caller
+            raise
+    return sys.modules[name]
+
+
 def card_in_turns(name=MACHINE):
     """card_turn.py into the container's Blender user startup folder, so every Blender there takes the card at most
     card_turn.CARD_SLOTS calls at a time while RUNS_AT_ONCE's Blender jobs share it."""
-    import card_turn
-
+    card_turn = sibling("card_turn")
     docker("exec", name, "mkdir", "-p", card_turn.STARTUP)
     # Copied beside and moved in, so a Blender of another claim starting meanwhile never reads half of it.
     docker("cp", str(CARD_TURN), f"{name}:{card_turn.STARTUP}/.{CARD_TURN.name}.new")
@@ -791,8 +809,7 @@ def leftover_disks(_account, zones=None):
 
 def secret(name):
     """A secret from the Scaleway backend's store, read by name (the only store the runners' secrets live in)."""
-    import scaleway
-    return scaleway.secret(name)
+    return sibling("scaleway").secret(name)
 
 
 def registry():
@@ -804,5 +821,4 @@ def object_store():
     handover from here puts in and a fetch takes out; tools/library/library_files.cloud_store). The runners' own inputs
     never go there: this PC's runs send them straight to the container (SCORE_INPUTS_DIRECT), and the cluster's paths
     stop at `registry`."""
-    import scaleway
-    return scaleway.object_store()
+    return sibling("scaleway").object_store()

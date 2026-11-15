@@ -85,7 +85,9 @@ The invariants, each with the break that turns its test red (each applied once a
 - This PC's claim runs as many Blender jobs side by side as its container's memory holds at a take's measured peak
   (27 GiB: three; a small PC: one), all on its one card, and every claim puts card_turn.py into the container's Blender
   startup folder. Break: drop `"blender": blender_at_once(...)` from `RUNS_AT_ONCE` -> one slot; or drop
-  `card_in_turns()` in `take` -> nothing is copied.
+  `card_in_turns()` in `take` -> nothing is copied. A claim made after the importer set its path back (this folder
+  off it, card_turn not loaded: prop_data.tools' later block, pixal@garage's SAM 3 masks 2026-11-15) still copies it.
+  Break: `import card_turn` for `sibling("card_turn")` in `card_in_turns` -> No module named 'card_turn'.
 - card_turn.py gives the card to CARD_SLOTS (two) card calls at a time (the Cycles bake, a render) across Blender
   processes, and leaves every other operator call free to run beside it. Break: in `turned`, call `call(...)` without
   `with card_turn(lock_path):` -> five bakes are on the card at once; or `range(CARD_SLOTS)` -> `range(1)` in
@@ -1048,6 +1050,11 @@ def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_
             assert local.runner_paths() == [pc.home, pc.temp], where
         elif kind == "claim":
             _, name, claim_kind, need, expected = step
+            # each claim as a runner's later block makes it: this folder off the path again and card_turn not loaded
+            # (prop_data.tools sets sys.path back after the block that loaded local)
+            monkeypatch.setattr(sys, "path", [entry for entry in sys.path if pathlib.Path(entry or ".").resolve()
+                                              != pathlib.Path(local.__file__).resolve().parent])
+            monkeypatch.delitem(sys.modules, "card_turn", raising=False)
             if isinstance(expected, str):
                 with pytest.raises(ValueError, match=expected):
                     local.take(claim_kind, "key", need)
