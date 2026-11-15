@@ -18,7 +18,10 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   `slab`, `gable`, `dome` and `tube_arc` (a vault) entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
   inside place (walls or roofs drawn, no terrain spots) whose base does not lay it already (`design_shell.laid_for`: a
   room whose plan says its kit holds its walls, laid by earth-seed); an open place has none. Every stair or ramp the
-  plan draws is a flight of `stairs`; the walls cut each opening a door or window row of the hand-in fills at its
+  plan draws is a flight of `stairs`, but one a row of its kind with a take lays (`writer.flight_takes`, #128: the last word of its id a ramp or stair,
+  rows and flights paired nearest first): that take is laid at the flight (`flight_objects`, at its footprint's
+  middle and low end, along its way up) or, for a row on a plan item of its own, at that item (`flights_named`),
+  the object's `flight` naming the flight it stands for, and no box flight beside it; the walls cut each opening a door or window row of the hand-in fills at its
   plan item (`design_shell.cut_for`); each plan item of an arched structure row of the hand-in
   (`design_shell.arched`: a tube's ribs) an `arch` at the row's size, painted as a wall, named its row. The shell's own structural rows of the hand-in are its pieces too (`design_shell.row_pieces`,
   `writer.row_entries`, 2026-11-05): pillars spaced round the walls, beams under the roof, a pad or grate at its plan

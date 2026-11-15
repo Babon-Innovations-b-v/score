@@ -104,6 +104,10 @@ SKY_WIDTH = 1024
 NOT_PLACES = ("outside", "sealed")
 # The routes whose rows' models the record lays at their plan items (prepare's groups.ROUTES): people are the cast's.
 LAID_ROUTES = ("prop", "shell")
+# The last word of a row's id that names the flight the plan draws for it, by the flight's kind: a ramp (the lander's
+# ramp), else a stair (the greenhouse's stairs); never a thing named for one (a stair railing, a step ladder).
+FLIGHT_NOUNS = {"ramp": frozenset(("ramp", "ramps")),
+                "stair": frozenset(("stair", "stairs", "staircase", "staircases", "steps"))}
 # The part of the place each piece of the shell is (design_shell.part_kind), as a reading's row says its part: a row
 # the plan lays itself (route `plan`) is named on a piece of its part, an opening on the piece over its cut (shell).
 SHELL_PARTS = {"deck": "floor", "wall": "wall", "roof": "roof"}
@@ -268,18 +272,123 @@ def stair(number, entry, design):
                     f"{max(1, steps)} steps up its footprint at {float(entry.get('angle') or 0.0):g} degrees"}
 
 
-def structure(plan, design, library=None, rows=None):
+def structure(plan, design, library=None, rows=None, handin=None):
     """The record's structure: an inside place's shell where its base does not lay it (its own rows, `rows`, named on
-    its pieces), and the plan's stairs, each painted from the scene's surface library (`library`: its materials.json
-    content, None while not made)."""
+    its pieces), and the plan's stairs but each the take of a row of the hand-in lays (flight_takes: never a box
+    flight beside a take), each painted from the scene's surface library (`library`: its materials.json content, None
+    while not made)."""
     shelled = shell(design, plan["place"], library, rows) if inside(design) and not design_shell.laid_for(design) \
         else []
+    taken = flight_takes(design, handin or {})
     flights = [painted(stair(number, entry, design), "stair", plan["place"], library)
-               for number, entry in enumerate(design.get("stairs") or [], 1)
-               if len(entry.get("points") or []) >= 3]
+               for number, entry in flights_of(design) if number not in taken]
     if shelled:
         name_open_cuts(design, shelled + flights, (rows or {}).get("opening", []))
     return shelled + flights
+
+
+def flights_of(design):
+    """[(number, flight)] of each stair or ramp the plan draws (a footprint of three points or more), numbered as the
+    record names them (`<kind>_<number>`, counting every drawn entry)."""
+    return [(number, entry) for number, entry in enumerate(design.get("stairs") or [], 1)
+            if len(entry.get("points") or []) >= 3]
+
+
+def flight_kind(row):
+    """The kind of flight (FLIGHT_NOUNS: ramp, stair) a row is by the last word of its id, else None."""
+    last = str(row.get("id") or "").lower().split("_")[-1]
+    return next((kind for kind, nouns in FLIGHT_NOUNS.items() if last in nouns), None)
+
+
+def flight_middle(entry):
+    """A flight's footprint's middle, in plan metres."""
+    return np.asarray(entry["points"], float).mean(axis=0)
+
+
+def row_distance(design, row_id, entry):
+    """Metres from a flight's middle to the nearest middle of a plan item of its own laying the row (the walls item
+    none), inf with none."""
+    items, tied = {item[0]: item for item in design.get("items") or []}, design.get("rows") or {}
+    middles = [np.array([float(items[name][1]) + float(items[name][3]) / 2,
+                         float(items[name][2]) + float(items[name][4]) / 2])
+               for name, ids in tied.items() if row_id in (ids or []) and name in items and name != WALLS_ITEM]
+    return min((float(np.linalg.norm(middle - flight_middle(entry))) for middle in middles), default=math.inf)
+
+
+def flight_takes(design, handin):
+    """{flight number: row id} of each flight the plan draws that a row of its kind (flight_kind) with a take
+    (models_of: the place's own baked model) lays, there in place of a box flight (2026-11-15, #128: the greenhouse's
+    baked stairs and the airlock's baked ramp stood unused while box flights were laid, and the engine room and the
+    camp grounds laid a box ramp beside their ramp's take). Each kind's rows and flights are paired nearest first (a
+    row's distance its nearest plan item's to the flight, row_distance; a row on no item last), one flight a row; a
+    flight left over takes its nearest row of its kind again (the greenhouse's one stairs row on its three flights).
+    A flight no row with a take of its kind names stays a flight of steps."""
+    models = models_of(handin)
+    rows = [row for row in handin.get("rows", []) if row["id"] in models and flight_kind(row)
+            and row.get("route", "prop") in LAID_ROUTES and not row.get("far")]
+    found = {}
+    for kind in FLIGHT_NOUNS:
+        ranked = sorted((row_distance(design, row["id"], entry), index, number, row["id"])
+                        for number, entry in flights_of(design) if (entry.get("kind") == "ramp") == (kind == "ramp")
+                        for index, row in enumerate(rows) if flight_kind(row) == kind)
+        paired = set()
+        for _, _, number, row_id in ranked:
+            if number not in found and row_id not in paired:
+                found[number] = row_id
+                paired.add(row_id)
+        for _, _, number, row_id in ranked:
+            if not own_item(design, row_id):  # one laid at its own item stands for one flight alone
+                found.setdefault(number, row_id)
+    return found
+
+
+def own_item(design, row_id):
+    """Whether the plan gives a row an item of its own (one laying it alone, never the walls item): the engine room's
+    RAMP 1, the garage's DOOR RAMP 1; never one it shares (the camp grounds' lander ramp on its lander's item)."""
+    return any(ids == [row_id] for name, ids in (design.get("rows") or {}).items() if name != WALLS_ITEM)
+
+
+def flown_rows(design, handin):
+    """{flight number: row id} of the flights a take is laid at in place of a box flight (flight_takes) whose row has
+    no plan item of its own (own_item): one with its own item is laid there by its relation (a ramp pitched up to its
+    level), its flight left unbuilt."""
+    return {number: row_id for number, row_id in flight_takes(design, handin).items() if not own_item(design, row_id)}
+
+
+def flights_named(design, handin, found):
+    """Name each flight a take laid at its row's own item stands for (flight_takes less flown_rows) on that row's
+    first object in `found` (`flight`, as the plan-matched gate counts it laid): the engine room's ramp at its RAMP 1,
+    no box ramp beside it."""
+    flown = flown_rows(design, handin)
+    drawn = dict(flights_of(design))
+    for number, row_id in sorted(flight_takes(design, handin).items()):
+        laid = next((entry for entry in found if entry["row"] == row_id and "flight" not in entry), None)
+        if number not in flown and laid is not None:
+            laid["flight"] = f"{drawn[number].get('kind', 'stair')}_{number}"
+
+
+def flight_objects(design, handin):
+    """The objects of the takes laid at the plan's flights (flown_rows): one at each flight its row lays, `<row>_<n>`,
+    over its footprint's middle at its low end's height, its long side along its way up, waiting on its row's model,
+    `flight` naming the flight it stands for (`<kind>_<number>`, as the plan-matched gate counts it laid); a flight
+    whose row is laid at an item of its own is named on that item's first piece (flights_named)."""
+    by_id, models, drawn = {row["id"]: row for row in handin.get("rows", [])}, models_of(handin), dict(flights_of(design))
+    found, counts = [], {}
+    for number, row_id in sorted(flown_rows(design, handin).items()):
+        entry, row, model = drawn[number], by_id[row_id], models[row_id]
+        size = by_id.get(model.removesuffix("_1"), row).get("size")
+        turn = math.radians(float(entry.get("angle") or 0.0))
+        low, high = float(entry["from"]), float(entry["to"])
+        way = np.array([math.cos(turn), math.sin(turn)]) * (1.0 if high >= low else -1.0)  # its way up
+        (point,), floor = in_frame(design, [flight_middle(entry)], min(low, high))
+        counts[row_id] = counts.get(row_id, 0) + 1
+        name = f"{entry.get('kind', 'stair')}_{number}"
+        found.append({"name": f"{row_id}_{counts[row_id]}", "row": row_id, "bake": model, "kind": "object",
+                      "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
+                      "waiting": waits(row, model, by_id), "flight": name,
+                      "from": f"the plan's {name.replace('_', ' ')}, inventory row {row_id}: its take laid in place "
+                              f"of a box flight, from {min(low, high):g} m up its footprint"})
+    return found
 
 
 def open_cuts(design, words):
@@ -1269,12 +1378,14 @@ def design_objects(design, handin, relations=None):
     how it rests there as its `rests` (leaning, attached: holders.rests), which the settle leans it or holds it by."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
     models, shapes, tied = models_of(handin), design.get("shapes") or {}, item_rows(design)
+    flown = set(flown_rows(design, handin).values())  # laid at the plan's flights alone (flight_objects)
     items = {}
     for item in design.get("items") or []:
         if len(item) > 6 and item[6] != "item":
             continue
         for row_id in tied.get(item[0]) or []:
-            if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES and not by_id[row_id].get("far"):
+            if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES and not by_id[row_id].get("far") \
+                    and row_id not in flown:
                 items.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
     found, edged, holding, laid_at = [], floor_fit.past_edge(design, handin), relations_of(relations), {}
     unheld = {(entry["item"], entry["row"]): entry["why"] for entry in (relations or {}).get("unheld", [])}
@@ -1309,6 +1420,8 @@ def design_objects(design, handin, relations=None):
                                   {"size": size}) else {}),
                               **({"rests": relation["rests"]} if relation and relation.get("rests") else {})})
                 laid_at.setdefault(item[0], []).append(found[-1]["name"])
+    flights_named(design, handin, found)
+    found += flight_objects(design, handin)
     hung_along(found)
     return holder_names(found, laid_at, arch_names(design, handin))
 
@@ -1412,7 +1525,7 @@ def record_of(plan, design, inputs):
               "floor": plan["floor"], "inside": inside(design),
               "structure": structure(plan, design, library_of(inputs), {
                   part: [row_id for row_id in ids if row_id not in {entry["row"] for entry in own}]
-                  for part, ids in plan_rows(handin).items()}) +
+                  for part, ids in plan_rows(handin).items()}, handin) +
               arch_entries(design, plan["place"], library_of(inputs), handin) + own,
               "objects": design_objects(design, handin, relations) + far_laid[0],
               "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"]), read(inputs["dust"])),

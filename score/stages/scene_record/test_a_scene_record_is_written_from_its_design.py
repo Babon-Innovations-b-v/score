@@ -577,6 +577,27 @@ ABSENT = object()
 #  - a ramp (settle@airlock, 2026-10-30: its end in its porch deck): with its relation (holders up_to_level), on a 20
 #    by 20 m plan it stands at the relation's spot, plan (8.9, 12), place (-1.1, 2), its long side turned up the way
 #    east, and its `on` gives the assembly the level's edge at place x -0.1, the way up +x and the level's 0.2 m top.
+#  - a take at its flight (#128, 2026-11-15: the greenhouse's baked stairs and the airlock's baked ramp unused, box
+#    flights laid; a box ramp beside the engine room's ramp take): on a 10 by 10 m plan (place (x, z) is plan
+#    (x - 5, y - 5)) the stairs row with a take and no item of its own is laid at its two stair flights, stairs_1 at
+#    flight 1's middle, plan (1.5, 2), place (-3.5, -3), turned south its way up, and stairs_2 at flight 3's, plan
+#    (6.5, 2), turned north (drawn down from 1 m), its foot at 0; the ramp row on its own item RAMP 1 stays there,
+#    plan (7, 7.7), naming the ramp flight 2 it stands for; no box flight is laid for those three, while ramp 4, which
+#    no row's take is left for, stays a flight of steps; the step ladder, a thing named for none, takes no flight.
+FLOWN = {"w": 10.0, "d": 10.0,
+         "items": [["RAMP 1", 6.0, 7.2, 2.0, 1.0, None, "item"], ["LADDER 1", 4.0, 4.0, 1.0, 1.0, None, "item"]],
+         "rows": {"RAMP 1": ["ramp"], "LADDER 1": ["step_ladder"]},
+         "stairs": [{"kind": "stair", "points": [[1.0, 1.0], [2.0, 1.0], [2.0, 3.0], [1.0, 3.0]], "from": 0.0,
+                     "to": 1.0, "angle": 90.0, "steps": 5},
+                    {"kind": "ramp", "points": [[6.0, 6.0], [8.0, 6.0], [8.0, 7.0], [6.0, 7.0]], "from": 0.0,
+                     "to": 0.2, "angle": 0.0, "steps": 0},
+                    {"kind": "stair", "points": [[6.0, 1.0], [7.0, 1.0], [7.0, 3.0], [6.0, 3.0]], "from": 1.0,
+                     "to": 0.0, "angle": 90.0, "steps": 5},
+                    {"kind": "ramp", "points": [[3.0, 8.0], [4.0, 8.0], [4.0, 9.0], [3.0, 9.0]], "from": 0.0,
+                     "to": 0.1, "angle": 0.0, "steps": 0}]}
+FLOWN_ROWS = [{"id": "stairs", "route": "shell", "size": [1.0, 2.0, 1.0]},
+              {"id": "ramp", "route": "shell", "size": [2.0, 1.0, 0.2]},
+              {"id": "step_ladder", "route": "prop", "size": [0.5, 0.5, 1.8]}]
 # The shed (WRITTEN) for its shell's own rows: a flight down from its floor through a hatch in its deck (DOWN), its
 # roof cut round an opening (HOLED), and a doorway item on its north door, a crate and bags on a 0.2 m porch deck,
 # a box and bags under a 2.5 m loft, bags off every deck on the ground (DECKED: the bags' plan base -0.2 m).
@@ -837,6 +858,15 @@ PLACED = [
                  "on": {"how": "ramp", "edge": [[-0.1, 4.0], [-0.1, -2.0]], "up": [1.0, 0.0], "top": 0.2,
                         "why": "up to the porch deck"}}},
      {"ramp": ["ramp_1"]}, None, None),
+    ("a take laid at its flight, never a box flight beside it", FLOWN, FLOWN_ROWS, None, None,
+     {"stairs_1": {"at": [-3.5, 0.0, -3.0], "rotation": Turned((0.0, 1.0)), "flight": "stair_1",
+                   "bake": "stairs_1"},
+      "stairs_2": {"at": [1.5, 0.0, -3.0], "rotation": Turned((0.0, -1.0), signed=False), "flight": "stair_3"},
+      "ramp_1": {"at": [2.0, 0.0, 2.7], "flight": "ramp_2"}, "step_ladder_1": {"flight": ABSENT},
+      "stair_1": ABSENT, "ramp_2": ABSENT, "stair_3": ABSENT, "ramp_4": {"builder": "stairs"}},
+     {"stairs": ["stairs_1", "stairs_2"], "ramp": ["ramp_1"], "step_ladder": ["step_ladder_1"]},
+     {"inventory": {"picture": [1000, 1000], "rows": []}, "unplaced": [],
+      "objects": {row["id"]: {"rows": [row["id"]]} for row in FLOWN_ROWS}}, None),
     ("opening rows with no item named at a cut their words fit, and the shell's pillars", DOWN, [POSTS], None,
      OPENING_ROWS,
      {"posts_1": {"row": "posts", "plain": "shell", "surface": None, "surface_missing": Starts("shed: ")},
@@ -1161,7 +1191,7 @@ def laid_pieces(folder, design, rows, relations, shell_rows, view, far_off, kind
     relations, left_out = writer.relations_input(given, "shed")
     handin = {"rows": rows, "objects": (far_off or {}).get("objects", {})}
     found = [*writer.design_objects(design, handin, relations),
-             *writer.structure({"place": "shed"}, design, None, shell_rows),
+             *writer.structure({"place": "shed"}, design, None, shell_rows, handin),
              *writer.row_entries(design, "shed", None, handin)] if design else []
     unplaced = ground = None
     blocked = []
@@ -1776,6 +1806,10 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     door, resting as the others lay it, carries none.
     Break: score/stages/scene_record/writer.py: `**({"rests": relation["rests"]} if relation and relation.get("rests")
         else {})` -> `**{}`
+    #128 (2026-11-15): a row's take is laid at the plan's flights it stands for, and no box flight is laid there.
+    Break: score/stages/scene_record/writer.py structure: `if number not in taken]` -> `if True]` (box flights beside)
+    Break: score/stages/scene_record/writer.py design_objects: `flights_named(design, handin, found)` -> `pass` (the
+        ramp on its own item names no flight)
     settle@street (2026-11-11): its 0.4 m red paper lanterns, against the side of their 1 cm lantern string, were
     shrunk to 16% and 2% to fit its height. Two lanterns against an 8 m string 1 cm thick are marked `below` (hung
     under it at their own size), a quarter and three quarters of the way along it; the garage door against its 6 m
