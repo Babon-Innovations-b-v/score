@@ -54,7 +54,7 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
 - **Each object carries what holds it** (#72, `on`): the place's relations (`{home}/design/relations/<place>.json`,
   score/review/holders, read only while their `plan` sha is the kept plan's, else `relations_left_out` says why). A
   door or window in its opening stands at the opening's middle on its sill, along its wall (`in`: middle, along, wide,
-  tall); a wall item at its relation's spot along its wall (`wall`: the face's ends, at the faces of the walls meeting it at a corner (`corner_trims`), and the way out into the room); one
+  tall); a wall item at its relation's spot along its wall (`wall`: the face's ends, at the faces of the walls meeting it at a corner (`corner_trims`), and the way out into the room; a piece the holders give only a chord its made length long takes the face of the plan wall its chord lies on, `piece_wall`, so a longer model is fitted on that wall, never shrunk to its chord: airlock's pipes at 28%, #128); one
   on, within or against a holder names the holder's objects (`holder`, and `out` for a face, with a moving door's recess `room` and `room_way` beside it, which the assembly keeps within the face's span). The assembly lays each by
   it at its built size (`assembly/fitting.py`); an item whose holder item lays no object keeps no `on` (`unheld`),
   and a holder the record lays as structure (a tube's arched rib) is named there (`holder scope`). A wall row past

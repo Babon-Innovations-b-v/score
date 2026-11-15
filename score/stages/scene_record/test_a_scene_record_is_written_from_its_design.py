@@ -939,6 +939,23 @@ PLACED = [
           ("a 20 m square of 0.2 m walls", zip(SQUARE, SQUARE[1:] + SQUARE[:1]), [[9.9, -9.9], [9.9, 9.9]]),
           ("a facet meeting it straight on trims nothing", [[[20.0, 0.0], [20.0, 20.0]], [[20.0, 20.0], [20.0, 30.0]]],
            [[9.9, -10.0], [9.9, 10.0]]))],
+    *[(f"a wall piece's face is its plan wall's, never its chord: {how}",
+       {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"]],
+        "rows": {"ON THE WALLS AND CEILING": ["lamp"]},
+        "walls": [{"from": start, "to": end, "thick": 0.2} for start, end in zip(SQUARE, SQUARE[1:] + SQUARE[:1])]},
+       [RELATED_ROWS[1]],
+       {"relations": [{"item": "ON THE WALLS AND CEILING", "row": "lamp", "how": "wall", "why": "against its wall",
+                       "wall": {"from": [20.0, 0.0], "to": [20.0, 20.0], "thick": 0.2}, "side": side,
+                       "spot": [20.0, 8.5], "height": 2.0,
+                       "pieces": [{"how": "wall", "wall": {"from": chord[0], "to": chord[1], "thick": 0.2},
+                                   "side": side, "spot": [20.0, 8.5], "height": 2.0,
+                                   "why": "against its wall; packed along its walls"}]}]}, None,
+       {"lamp_1": {"on.span": span, "on.out": [-1.0, 0.0]}}, {"lamp": ["lamp_1"]}, None, None)
+      for how, chord, side, span in (
+          ("its 1 m chord on the east wall", [[20.0, 8.0], [20.0, 9.0]], 1, [[9.9, -9.9], [9.9, 9.9]]),
+          ("a chord run against the wall's way keeps its way", [[20.0, 9.0], [20.0, 8.0]], -1,
+           [[9.9, 9.9], [9.9, -9.9]]),
+          ("a chord on no plan wall stays", [[19.0, 8.0], [19.0, 9.0]], 1, [[8.9, -2.0], [8.9, -1.0]]))],
     ("two lanterns against a thin string hang under it along it",
      {**RELATED, "items": [["STRING 1", 4.0, 4.0, 8.0, 0.1, None, "item"],
                            ["LANTERN 1", 6.0, 14.0, 0.4, 0.4, None, "item"],
@@ -1603,6 +1620,12 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     Break: score/stages/scene_record/writer.py design_objects: `if on and on["how"] == "wall" and
         plan_checks.connector(row):` -> `if False:` (the tunnel laid along its wall, across its doorway: workshop's
         glass tunnels, 2026-11-15)
+    A wall piece the holders give a chord only its made length long stands on the face of the plan wall its chord
+    lies on, run the chord's way, so the assembly fits a longer model on that wall, never shrunk to its chord
+    (airlock's 2.5 m pipes laid at 28%, #128, 2026-11-15); a chord on no plan wall stays its face.
+    Break: score/stages/scene_record/writer.py related: `relation = {**relation, "wall": piece_wall(design,
+        relation["wall"])}` -> `pass`, or piece_wall's `if float(run @ way) < 0:` -> `if False:`, or its
+        `(middle - first)[0])) > reach or` -> `(middle - first)[0])) > 99 or`
     Break: score/stages/scene_record/writer.py item_way: `lambda across, along: min(across, along) <= ELONGATED *
         max(across, along))` -> `lambda across, along: False)` (galley's table laid across its box, 2026-11-15)
     Break: score/stages/scene_record/writer.py spots_of: `item_way(item, row) if band is None else band` ->

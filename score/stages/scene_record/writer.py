@@ -1280,9 +1280,12 @@ def related(design, relation, spot, way, base, size, piece=0):
     (`hung`) where its plan lays it, its `on` how "between" them, which the assembly hangs it from once both are laid
     (assembly/hung_between: the square's lantern strings between its buildings); a ramp at its spot, run up its
     way, its `on` the level's edge, the way up and the level's top in the place's frame. None `on` on the floor, the
-    ceiling or past an edge."""
+    ceiling or past an edge. A piece's wall is the plan wall its chord lies on (piece_wall), so the assembly fits it
+    on that wall's face, never shrunk to its chord."""
     if "pieces" in relation:
         relation = relation["pieces"][min(piece, len(relation["pieces"]) - 1)]
+        if relation["how"] == "wall":
+            relation = {**relation, "wall": piece_wall(design, relation["wall"])}
     how = relation["how"]
     if how == "in":
         opening, wall = relation["opening"], relation.get("wall")
@@ -1334,6 +1337,42 @@ def related(design, relation, spot, way, base, size, piece=0):
     if how == "ceiling" and relation.get("to roof") and isinstance(size, list) and len(size) == 3:
         base = roof_under(design, spot) - float(size[2]) - ROOF_CLEAR  # its top at the roof's underside over it
     return spot, way, base, None
+
+
+# A wall piece's chord lies on a plan wall when it runs within this many degrees of the wall's line and its middle
+# within the wall's half thickness and CHORD_ON metres of it, between its ends (piece_wall).
+CHORD_TURN = 1.0
+CHORD_ON = 0.02
+
+
+def piece_wall(design, chord):
+    """The plan wall (holders.walls_of) a wall piece's chord lies on, run the chord's way, with its own thickness; the
+    chord itself where it lies on none (a chord across a round wall's facets). The holders give each piece of a row a
+    face only its made length long (holders.wall_pieces); the bake lays a model by its own shape (bake_job.fit_within),
+    so a model longer than that chord was shrunk to it: airlock's two 2.5 m valved pipes laid 0.7 m tall at 28% on
+    3.2 m of free wall, workshop's monitors and pipes so (#128 5b, the stills of 2026-11-15)."""
+    start, end = np.asarray(chord["from"], float), np.asarray(chord["to"], float)
+    length = float(np.linalg.norm(end - start))
+    if length < 1e-9:
+        return chord
+    run, middle = (end - start) / length, (start + end) / 2
+    for wall in holders.walls_of(design):
+        first, last = np.asarray(wall["from"], float), np.asarray(wall["to"], float)
+        span = float(np.linalg.norm(last - first))
+        if span < 1e-9:
+            continue
+        way = (last - first) / span
+        if abs(float(run[0] * way[1] - run[1] * way[0])) > math.sin(math.radians(CHORD_TURN)):
+            continue
+        reach = float(wall.get("thick") or 0.0) / 2 + CHORD_ON
+        along = float((middle - first) @ way)
+        if abs(float(way[0] * (middle - first)[1] - way[1] * (middle - first)[0])) > reach or not 0.0 <= along <= span:
+            continue
+        if float(run @ way) < 0:
+            first, last = last, first
+        return {"from": [round(float(value), 4) for value in first], "to": [round(float(value), 4) for value in last],
+                "thick": wall.get("thick", chord.get("thick"))}
+    return chord
 
 
 # A thing hung from the roof stands this far under its underside, metres: against it, never in it.
