@@ -82,7 +82,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.batch_groups: the Benchmarks group -> `if False:` -> test_a_batch_buys_only_what_the_owner_approved (PRESSES "the
   benchmarks: one item, ...")
 - api/routes.books_figure: `user.username` -> "someone" -> test_a_batch_buys_only_what_the_owner_approved (PRESSES "his
-  Google figure into the books")
+  model calls' month figure into the books")
 - flow.by_of: `return user.username` -> test_a_batch_buys_only_what_the_owner_approved (CHAT_TRIES "his yes, ...")
 - chat_yes.buy: drop `print(relations_kept(places))`, or move it after `flow.basket_made` -> a Buy plans on relations
   older than its plans while the sync is paused (Buy 91, 2026-11-12) ->
@@ -364,7 +364,7 @@ PRESSES = [  # (id, the world before his presses: knobs; his presses: (key, tick
                  "eta.likely_minutes": round(91.3 + 64.0, 1)},
       "state": "launched", "line": round(100.0 + 10.0 + 6.31 * 1.1, 2),  # spent, in flight, its high plus 10%
       "planned": [], "launched": [RunGroup((), (), benchmarks=True)], "launches": 1}),  # it plans each one itself
-    ("his Google figure into the books", {"books_figure": True, "buy": ()}, [("figure", 1030)],
+    ("his model calls' month figure into the books", {"books_figure": True, "buy": ()}, [("figure", 1030)],
      {"status": 200, "said": ["EUR 1030.00 entered by joey"], "written": [(1030.0, "joey")], "checkouts": 0,
       "line": None, "launches": 0}),
     # what each item really cost (the ledger's lines since the checkout; an older run's line is not its), against
@@ -478,7 +478,7 @@ def dug(found, path):
 
 def pressed(client, presses, held, settings):
     """His presses in order ("again": the last checkout run again under a yes; "hosted": his checkout of what he
-    chose, applied on the store's machine; "figure": his Google figure entered); (the last answer, the checkout ids
+    chose, applied on the store's machine; "figure": his model calls' month figure entered); (the last answer, the checkout ids
     each key gave, the seconds they took)."""
     import sys
     import time
@@ -815,7 +815,7 @@ def test_a_batch_buys_only_what_the_owner_approved(shop, settings, tmp_path, mon
     film, by phase or by place keeps, each judged on its table's rows;
     each press of his against a counter cleared of the last one's checkouts, refused in words, launched as one run at
     the batch's high plus 10%, or refused, failed or done after its line, as the PRESSES row says (pressed here or
-    applied on the store's machine; the Benchmarks item one batch of its own; his Google figure into the books),
+    applied on the store's machine; the Benchmarks item one batch of its own; his model calls' month figure into the books),
     then each pass's taking back of an ended batch's line and his results against the forecast. Then his Buys in
     chat at the conductor's door: a yes refused in words for all he did not approve, his Buys by stage, phase and
     place, and one yes's tries of its batch under its one budget. Then the launch
