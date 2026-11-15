@@ -3566,6 +3566,10 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     Break: score/stages/assembly/room_clear.py: `lamps_along.moved_with(stage, place, low, high, foot, 1.0, foot +
         move)` dropped (the lamp left in wall_4), or lamps_along.py's `if np.any(spot < np.asarray(low) - WITHIN) or
         ...: continue` -> `if False: continue` (the lamp beside the light carried too)
+    #128 (2026-11-15): quarters' wall lights and string lights were lit at their plan spots 0 m up while their models
+    were fitted 2.2 m up on the walls; each record lamp is put on its row's laid model (lamps_along.onto_models), at
+    its glowing part where it has one, its record spot kept; one already in its model, a row with none, a sun stay.
+    Break: lamps_along.on_model's `if glow is not None:` -> `if False:` (the panel's lamp off its glowing face)
     settle@habitat (2026-11-13): its rugs 4 and 7 to 10 lay across its partition walls and under a wall thing, and its
     bookshelf 2 and bunk bed 2 stood 2 and 4.4 cm into slanted walls, which the parting lets stand (its HELD_MOST); the
     drop took them as laid inside (its triangles still crossing past a 5 mm nudge) or slid the bed 92 cm. A 2 m rug
@@ -4130,6 +4134,29 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
                                                                 if path.startswith("Objects/")])}
             judged = fitting.held_faults({"objects": entries}, laid)
             assert judged == faults, f"{case}: {judged}"
+    # each record lamp put on its row's model as fitted (lamps_along.onto_models, #128): quarters' wall light laid at
+    # its plan spot 0 m up, its model fitted 2.2 m up on the wall; a panel's lamp at its glowing part; a lamp already
+    # in its model kept; a lamp of a row with no laid object, and a sun, never moved
+    stage = a_fitted_world({"Objects/wall_light_1": ("box", (-1.25, 2.2, 0.7), (-1.18, 2.27, 1.7)),
+                            "Objects/panel_1": ("box", (2.9, 1.2, -2.6), (3.0, 1.4, -2.4)),
+                            "Objects/panel_1/glow_face": ("box", (2.9, 1.3, -2.55), (2.95, 1.35, -2.5)),
+                            "Objects/lamp_1": ("box", (0.0, 0.0, 0.0), (0.4, 0.6, 0.4)),
+                            "Lights/light_1": ("lamp", (-0.4, 0.0, -0.1)), "Lights/light_2": ("lamp", (2.6, 1.3, -2.4)),
+                            "Lights/light_3": ("lamp", (0.2, 0.5, 0.2)), "Lights/light_4": ("lamp", (5.0, 1.0, 5.0))})
+    lit = {"objects": [{"name": "wall_light_1", "row": "wall_light", "at": [-0.39, 2.2, -0.07]},
+                       {"name": "panel_1", "row": "door_panel", "at": [2.6, 1.2, -2.4]},
+                       {"name": "lamp_1", "row": "table_lamp", "at": [0.2, 0.0, 0.2]}],
+           "lights": [{"type": "omni", "row": row, "at": at} for row, at in (
+               ("wall_light", [-0.4, 0.0, -0.1]), ("door_panel", [2.6, 1.3, -2.4]), ("table_lamp", [0.2, 0.5, 0.2]),
+               ("lander", [5.0, 1.0, 5.0]))] + [{"type": "sun", "toward": [0.0, -1.0, 0.0]}]}
+    moved = lamps_along.onto_models(stage, TOY, lit, {"wall_light_1", "panel_1", "lamp_1"})
+    spots = {name: np.array(UsdGeom.Xformable(stage.GetPrimAtPath(f"/{TOY}/Lights/{name}")).GetOrderedXformOps()[0]
+                            .Get()) for name in ("light_1", "light_2", "light_3", "light_4")}
+    assert sorted(moved) == [f"/{TOY}/Lights/light_1", f"/{TOY}/Lights/light_2"], moved
+    assert np.allclose(spots["light_1"], (-1.225, 2.235, 1.17), atol=1e-6), spots  # carried, held in its box, its middle height
+    assert np.allclose(spots["light_2"], (2.925, 1.325, -2.525), atol=1e-6), spots  # its glowing part's middle
+    assert np.allclose(spots["light_3"], (0.2, 0.5, 0.2)) and np.allclose(spots["light_4"], (5.0, 1.0, 5.0)), spots
+    assert np.allclose(lamps_along.laid_at(stage, f"/{TOY}/Lights/light_1", spots["light_1"]), (-0.4, 0.0, -0.1))
     for case, objects, laid, faults in HELD_FAULTS:
         found = fitting.held_faults({"objects": objects}, laid)
         assert found == faults, f"{case}: {found}"

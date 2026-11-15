@@ -9,7 +9,8 @@ there re-keys their paid rows.
           (the scene record's: its `bake` the model, its `row` its inventory row) is laid so at
           /<place>/Objects/<name>, where the settle, physics and motion find a laid object; then each object
           with an `on` (what holds it: in its opening, against a wall, on, within or against a holder) is laid by it
-          at its built size (fitting.py), and LAID written: every design object's box as laid and what was fitted
+          at its built size (fitting.py), and LAID written: every design object's box as laid and what was fitted;
+          each record lamp of a laid object's row then put on that model (lamps_along.onto_models)
           An entry whose row ground-join joined into the ground (`joined`, its join.json pieces: a terrain row, the
           terrain's) is laid there alone, under /<place>/Outside/Detail: it leaves score:waiting and is laid nowhere
           else (2026-10-30: camp's rocks stood twice, as an object and as ground)
@@ -17,7 +18,7 @@ there re-keys their paid rows.
 import json
 import pathlib
 
-from score.stages.assembly import fitting, on_pads
+from score.stages.assembly import fitting, lamps_along, on_pads
 from score.stages.assembly.record import BASE_LAYER, RECORD, WAITING
 
 # {objects: [{name, row, low, high}], holders: [{name, low, high}] (holders laid as structure: a tube's ribs), walls:
@@ -148,6 +149,7 @@ def lay(out, place, bake, joined=frozenset()):
             if "bake" in entry:
                 objects.append(entry["name"])
     laid_by_relations(stage, out, place, record, objects, baked)
+    lamps_along.onto_models(stage, place, record, objects)  # each lamp on its model as fitted
     if waiting:
         root.GetAttribute(WAITING).Set(waiting)
     elif root.HasAttribute(WAITING):
