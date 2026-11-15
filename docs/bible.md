@@ -176,10 +176,13 @@ blockout keep their record's `blockout` field, which tells the plan drawing thei
 **The scene inventory reading** (`reading.py`; runs on its own after a lock under the standing allowance, at most EUR 1
 a scene, cleared as `inventory-read`). Gemini 3.1 Pro names rows (name, noun, count, size in metres, anchor, region);
 SAM 3, on one rented card for every scene of the run, looks for each row by its own words, then its noun. Duplicates are
-merged first. The agreement cut-off: a row is kept only where both found it, its count SAM 3's instances. Kept as read
-without SAM 3: structure, terrain, sky, and rows holding or standing in a child scene. The large-single-object rule: a
-row Gemini counted once whose region covers at least 2% of the picture and is no other row's box is kept, boxed by its
-region (`seen_large`). The rest is kept as skipped, never a row, a gap or a plan input. Gaps are only kept rows with no
+merged first; two rows Gemini put in different regions are never merged. The agreement is by box, not by word
+(#128): a row is kept where SAM 3 found it under its own words or noun, or where a find no row of its word holds lies
+in the row's region under any word (`boxed_by_overlap`). A row Gemini read whole (metres, anchor, a region of at least
+0.1% of the picture that is no other row's box) is kept on its region alone (`seen_alone`). Gemini counts, SAM 3
+places: a kept row's count is Gemini's, its boxes SAM 3's, overlapping boxes one thing (`lumped`), at most its count.
+Kept as read without SAM 3: structure, terrain, sky, and rows holding or standing in a child scene. The rest is kept
+as skipped, never a row, a gap or a plan input. Gaps are only kept rows with no
 metres or no anchor. `--again` reads a scene again with SAM 3 only.
 
 **The plan method** (runs on its own after the reading, `plan_writing.AUTOMATIC`, cleared as `plan-write`; else his

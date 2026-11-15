@@ -198,10 +198,11 @@ stage as each stage is built; nothing moves before.
   `reading.py` reads a locked concept into its scene inventory, started on its own by the lock (`web.reading_started`):
   Gemini 3.1 Pro's rows, each with its size in metres judged against the place's outline (`plans.outline_from_holder`:
   the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
-  card (where, never size; its own words first, then its noun); only what both agree on is a row, its count SAM 3's
-  instances (owner, 2026-10-21), the structure, ground and rows holding an inside place or standing in one kept as read, duplicates
-  merged, a single object Gemini counted once over `LARGE` of the picture that SAM 3 found under no word kept with
-  Gemini's region as its box (`boxed_by` "gemini", the engine room's core), the rest kept apart as `skipped` (never a
+  card (where, never size; its own words first, then its noun); the two agree by box, not by word (#128: a find of any
+  word in a row's region, `boxed_by` "overlap"), a row Gemini read whole (metres, anchor, region, on no other row's
+  box) kept on its region (`boxed_by` "gemini"), its count Gemini's and its boxes SAM 3's, overlapping boxes one thing
+  (`lumped`), the structure, ground and rows holding an inside place or standing in one kept as read, duplicates
+  merged, the rest kept apart as `skipped` (never a
   row or a gap); `--again` reads a place already read again from its own rows, SAM 3 only; a kept row with no metres or anchor its gaps; a
   reading by an older method is read again from its own rows, SAM 3 only; a kept reading holding a row both readers
   put inside another row's thing (camp's "door" that is its fridge's glass door) has it merged into that thing by

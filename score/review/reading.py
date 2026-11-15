@@ -12,12 +12,16 @@ reading's cost is recorded and its running total shown in the cockpit). Its plan
 2. SAM 3 finds each row in the concept by its own words first, then its noun (tools/props/scene/box_masks.py on one
    rented card through tools/cloud/box_masks_cloud.py, every place of one reading run on the same card), each
    instance's pixel box kept on its row, and asks PROBES, generic words, for what no row names.
-3. Their agreement is the confidence cut-off (`agreed`, the owner, 2026-10-21): an object is a row only where Gemini
-   named it and SAM 3 found it, its count the instances SAM 3 found of it; a row SAM 3 found none of and a find no
-   row names are `skipped`, kept in the record with why and shown muted on the concept page, never a row, a gap, nor
-   read by prepare or the plan. One exception (`seen_large`, the engine room's energy core SAM 3 found under no
-   word, 2026-10-21): a single object Gemini counted once whose region covers LARGE of the picture, that no box of
-   another row is, is a row with Gemini's region its box (`boxed_by` "gemini"). The place's structure and ground (`structural`: STRUCTURE's walls, floors, shells,
+3. Their agreement is the confidence cut-off (`agreed`, the owner, 2026-10-21), agreed by box, not by word (#128,
+   2026-11-15: storage lost 13 of its 15 crates SAM 3 had boxed as "bag" and "case"): an object row is kept where
+   SAM 3 found it under its own words or noun, or where a find no row of its own word holds lies in the row's region
+   under any word (`boxed_by_overlap`, `boxed_by` "overlap"); one Gemini read with a clear size, anchor and region
+   is kept on Gemini alone (`seen_alone`, `boxed_by` "gemini"; the engine room's energy core, the airlock's console)
+   unless its region is a box another row holds. Gemini counts, SAM 3 places: a kept row's count is Gemini's, its
+   boxes SAM 3's, overlapping boxes one thing (`lumped`: a door and its leaves, a counter and its cupboards), at most
+   its count of them. A row with no clear size, anchor or region SAM 3 found none of, and a find no row holds, are
+   `skipped`, kept in the record with why and shown muted on the concept page, never a row, a gap, nor read by
+   prepare or the plan. The place's structure and ground (`structural`: STRUCTURE's walls, floors, shells,
    modules, tubes, terrain, sky, a row holding an inside place or standing in one) is no object detection and
    stays as read.
    Duplicates go first: one thing found twice is one box, two rows of one thing whose boxes overlap are one row
@@ -35,7 +39,7 @@ SCORE_BENCHMARK_GRANT names one) and each place's reading kept in the store, wri
                                              seconds {rows, boxes, card}, clearance}
 
 A place whose picked draw has a reading by today's METHOD is not read again (`to_read`) unless named with `--again`
-(a fix of how its rows are settled, `seen_large`); one read by an older method or again is read again from its own
+(a fix of how its rows are settled, `agreed`); one read by an older method or again is read again from its own
 rows, no Gemini call (`earlier_rows`). A place whose rows answer is off the
 row schema is kept with `refused` (why) and its call's euros, no SAM 3 asked for it, and is read again next time.
 Each row says what part of the place it is (`part`, PARTS), which prepare routes it by; a reading answered before
@@ -125,8 +129,14 @@ MARGIN = 0.05
 # the place's outline: #10, 2026-10-21; 5: only what both readers agree on is a row, duplicates merged, the rest
 # skipped: owner, 2026-10-21).
 METHOD = 5
-# A single object row SAM 3 found none of is kept at this share of the picture or more (`seen_large`).
-LARGE = 0.02
+# Two boxes of one row are one thing when this share of the smaller lies in the other (`lumped`): SAM 3's box of a
+# door and its boxes of the door's two leaves, of a counter and its cupboards (#128: the cockpit's 4 doors, 3 of one).
+LAPPED = 0.5
+# A find no row of its own word holds agrees with a row SAM 3 found none of when this share of it lies in the row's
+# region and it is at least SHARE of one of the row's things (its region over its count) (`boxed_by_overlap`, #128:
+# storage's crates SAM 3 boxed as "bag" and "case").
+INSIDE = 0.8
+SHARE = 0.25
 # A row whose noun names one of these is the place's structure or ground, kept as read whatever SAM 3 finds.
 STRUCTURE = {"wall", "walls", "floor", "floors", "ceiling", "ceilings", "roof", "roofs", "shell", "hull", "tube",
              "tubes", "tunnel", "tunnels", "ground", "terrain", "sea", "ocean", "sky", "skyline", "deck", "plaza",
@@ -674,21 +684,24 @@ def fit(box, row, size):
 
 
 def overlapping(first, second, size):
-    """Whether two rows are one thing in the picture: a box of each the same, or their regions the same."""
-    return (any(same(one, other) for one in first["boxes"] for other in second["boxes"])
-            or bool(first["region"] and second["region"]
-                    and same(pixels(first["region"], size, 0), pixels(second["region"], size, 0))))
+    """Whether two rows are one thing in the picture: their regions the same, or, where one has none, a box of each
+    the same (two rows Gemini put apart are two things, whatever box SAM 3 gave both: the square's side screens and
+    its stage screen, #128; the box goes to the one it fits, `unshared`)."""
+    if first["region"] and second["region"]:
+        return same(pixels(first["region"], size, 0), pixels(second["region"], size, 0))
+    return any(same(one, other) for one in first["boxes"] for other in second["boxes"])
 
 
 def merged_rows(rows, size):
     """(the rows, each one's boxes distinct, with every later object row of an earlier one's head noun whose boxes
-    or region overlap it merged into it, its boxes added; [{name, row, into}] of those merged)."""
+    or region overlap it merged into it, its boxes added, its count the larger Gemini read; [{name, row, into}] of
+    those merged)."""
     kept, merged = [], []
     for row in rows:
         into = next((other for other in kept if not structural(row) and not structural(other)
                      and head(other) == head(row) and overlapping(other, row, size)), None)
         if into:
-            into["boxes"] = distinct(into["boxes"] + row["boxes"])
+            into["boxes"], into["count"] = distinct(into["boxes"] + row["boxes"]), max(into["count"], row["count"])
             merged.append({"name": row["name"], "row": row["id"], "into": into["id"]})
         else:
             kept.append({**row, "boxes": distinct(row["boxes"])})
@@ -715,33 +728,70 @@ def reanchored(rows, gone):
     return rows
 
 
-def seen_large(rows, size):
-    """The rows with each object row SAM 3 found none of, that Gemini counted once ("generate") with a region of at
-    least LARGE of the picture which is no box another row holds, given that region as its one box (`boxed_by`
-    "gemini"): a thing that big is plainly there, SAM 3 only lacked its word."""
+def lumped(boxes):
+    """One box a thing of `boxes` (a row's, surest first): boxes of which LAPPED of the smaller lies in another are one
+    thing, at any remove, kept as its largest box, in the order of its surest box."""
+    groups = []
+    for box in boxes:
+        touching = [group for group in groups
+                    if any(shared(box, other) >= LAPPED * min(area(box), area(other)) for other in group)]
+        groups = [group for group in groups if all(group is not each for each in touching)]
+        groups.append([other for group in touching for other in group] + [box])
+    ordered = sorted(groups, key=lambda group: min(boxes.index(box) for box in group))
+    return [max(group, key=area) for group in ordered]
+
+
+def boxed_by_overlap(rows, finds, size):
+    """The rows with each object row SAM 3 found none of given every find of `finds` (pixel boxes no row of their own
+    word holds, under any word) of which INSIDE lies in its region, at least SHARE of one of its things (`boxed_by`
+    "overlap"): SAM 3 found it there under another word, so the two readers agree by box, not by word."""
+    for row in rows:
+        if row["boxes"] or structural(row) or not row["region"]:
+            continue
+        region = pixels(row["region"], size, 0)
+        least = SHARE * area(region) / max(row["count"], 1)
+        taken = [box for box in finds if shared(box, region) >= INSIDE * area(box) and area(box) >= least]
+        if taken:
+            row["boxes"], row["boxed_by"] = distinct(taken), "overlap"
+    return rows
+
+
+def seen_alone(rows, size):
+    """The rows with each object row SAM 3 found none of that Gemini read whole (its size in metres, what it stands
+    on, its region of at least SMALLEST of the picture) and whose region is no box another row holds, given that
+    region as its one box (`boxed_by` "gemini"; the engine room's energy core, #128's airlock console and vice)."""
     held = [box for row in rows for box in row["boxes"]]
     for row in rows:
         region = row["region"] and pixels(row["region"], size, 0)
-        if (region and not row["boxes"] and not structural(row) and row["kind"] == "generate" and row["count"] == 1
-                and area(region) >= LARGE * size[0] * size[1] and not any(same(region, box) for box in held)):
+        if (region and not row["boxes"] and not structural(row) and row["size"] and row["anchor"]
+                and area(region) >= SMALLEST * size[0] * size[1] and not any(same(region, box) for box in held)):
             row["boxes"], row["boxed_by"] = [[round(value, 1) for value in region]], "gemini"
     return rows
 
 
+def held_by(box, rows):
+    """Whether a kept row holds a find: one of its SAM 3 boxes (not Gemini's region: `seen_alone`) is the same thing
+    (`same`; a find inside a larger thing's box may be a thing of its own, still skipped)."""
+    return any(same(box, other) for row in rows if row.get("boxed_by") != "gemini" for other in row["boxes"])
+
+
 def agreed(rows, loose, things, size):
-    """(the inventory's rows: the structure as read and every object row SAM 3 found, its count the instances found,
-    and a large single one only Gemini found (`seen_large`); [{name, row, why, box}] skipped: an object row SAM 3
-    found none of (its region its box), a find no row names; [{name, row, into}] merged), duplicates gone first
-    (`merged_rows`, `unshared`)."""
+    """(the inventory's rows: the structure as read and every object row SAM 3 found under its words or noun, or under
+    any word in its region (`boxed_by_overlap`), or Gemini read whole (`seen_alone`), its count Gemini's and its
+    boxes SAM 3's, one a thing (`lumped`), at most its count of them; [{name, row, why, box}] skipped: an object row
+    none of these keeps (its region its box), a find no kept row holds; [{name, row, into}] merged), duplicates gone
+    first (`merged_rows`, `unshared`)."""
+    finds = [{"name": item["noun"], "box": item["box"]} for item in loose]
+    finds += [{"name": thing["word"], "box": thing["box"]} for thing in things]
     rows, merged = merged_rows([dict(row) for row in rows], size)
-    rows = seen_large(unshared(rows, size), size)
-    kept = [{**row, "count": len(row["boxes"]), "box": row["boxes"][0]} if row["boxes"] and not structural(row)
-            else row for row in rows if structural(row) or row["boxes"]]
+    rows = seen_alone(unshared(boxed_by_overlap(rows, [item["box"] for item in finds], size), size), size)
+    kept = [{**row, "boxes": (boxes := lumped(row["boxes"])[:row["count"]]), "box": boxes[0]}
+            if row["boxes"] and not structural(row) else row for row in rows if structural(row) or row["boxes"]]
     skipped = [{"name": row["name"], "row": row["id"], "why": ONLY_GEMINI,
                 "box": row["region"] and [round(value, 1) for value in pixels(row["region"], size, 0)]}
                for row in rows if not structural(row) and not row["boxes"]]
-    skipped += [{"name": item["noun"], "row": None, "why": ONLY_SAM, "box": item["box"]} for item in loose]
-    skipped += [{"name": thing["word"], "row": None, "why": ONLY_SAM, "box": thing["box"]} for thing in things]
+    skipped += [{"name": item["name"], "row": None, "why": ONLY_SAM, "box": item["box"]} for item in finds
+                if not held_by(item["box"], kept)]
     anchors = {row["id"]: row["anchor"] for row in rows}
     gone = {item["row"]: f"on:{item['into']}" for item in merged}
     gone |= {item["row"]: anchors[item["row"]] for item in skipped if item["row"]}

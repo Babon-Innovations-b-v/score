@@ -134,8 +134,14 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
   eight tests into the AGREED, READ_ANSWERS and GAP_WORDS rows, each break below applied again then and seen red):
     reading.py: `else row for row in rows if structural(row) or row["boxes"]]` made `else row for row in rows if
     row["boxes"]]`
-    reading.py: `and area(region) >= LARGE * size[0] * size[1]` made `and area(region) >= 0`
+    reading.py: `and area(region) >= SMALLEST * size[0] * size[1]` made `and area(region) >= 0`
     reading.py: `and head(other) == head(row) and overlapping(other, row, size)), None)` made `and False), None)`
+    reading.py: `rows = seen_alone(unshared(boxed_by_overlap(rows, [item["box"] for item in finds], size), size),
+    size)` made `rows = seen_alone(unshared(rows, size), size)` (a crate SAM 3 boxed as a bag skipped again)
+    reading.py: `(boxes := lumped(row["boxes"])[:row["count"]])` made `(boxes := row["boxes"])` (a door and its
+    leaves three doors again)
+    reading.py: `if first["region"] and second["region"]:` made `if False:` (the square's side screens merged into
+    its stage screen again)
     reading.py: `wrong += [] if row.get("kind") in KINDS else ["kind"]` made `wrong += []`
     reading.py: `raise concepts.Refused(str(unfinished)) from unfinished` made `return ""`
     plan_checks.py: `for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]` made
@@ -180,7 +186,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     environment_plan.py: `fixed[axis]) + CLEAR_M)` made `fixed[axis]))`
 - test_the_owners_word_stands, its picked place's reading (folded 2026-11-14 from ten tests into one store's wreck,
   dock, hull and shack read, parted, lit, read again and fixed; each break below applied again then, seen red):
-    reading.py: `{**row, "count": len(row["boxes"]), "box": row["boxes"][0]}` made `{**row, "box": row["boxes"][0]}`
+    reading.py: `{**row, "boxes": (boxes := lumped(row["boxes"])[:row["count"]]), "box": boxes[0]}` made `{**row,
+    "count": len(row["boxes"]), "box": row["boxes"][0]}` (Gemini counts, SAM 3 places: the drum read as 3)
     reading.py: `if sha and found["concept"] == sha and found.get("method")` made `if found.get("method")`
     reading.py: `again = {place: asked_again(store, place, folder) for place in places if earlier_rows(store,
     place)}` made `again = {}`
@@ -929,7 +936,7 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
     assert record["concept"] == sha and record["inventory"]["concept_pick"]["sha256"] == sha
     rows = {row["id"]: row for row in record["inventory"]["rows"]}
     assert rows["drum"]["boxes"] == [[0, 0, 20, 20], [40, 0, 60, 20]] and rows["drum"]["box"] == [0, 0, 20, 20]
-    assert rows["drum"]["count"] == 2  # read as 3, found twice: the instances found count
+    assert rows["drum"]["count"] == 3  # read as 3, found twice: Gemini counts, SAM 3 places
     assert rows["drum_right"]["boxes"] == [[150, 10, 170, 30]]  # one noun asked once, each instance to its region
     assert rows["drum"]["size"] == [0.6, 0.6, 0.9] and rows["mast"]["size"] == [0.4, 0.4, 18.0]  # its metres
     assert "lamp" not in rows and record["gaps"] == []  # only Gemini named it: skipped, no gap
@@ -2841,39 +2848,58 @@ def holds(got, want):
     return got == want
 
 
-AGREED = [  # (row, the rows Gemini read and SAM 3 boxed, SAM 3's own finds, the picture's size, kept, skipped,
-    # merged exactly: kept and skipped held as `holds` reads them, None for not asked)
-    ("the structure stays, a thing only one reader found is skipped",
+AGREED = [  # (row, the rows Gemini read and SAM 3 boxed, SAM 3's finds no row of their word holds, the picture's
+    # size, kept, skipped, merged exactly: kept and skipped held as `holds` reads them, None for not asked)
+    ("the structure stays, a thing only one reader found with no clear size or place is skipped",
      [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
-      row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], []),
-      row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]]),
+      row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], [], size=None),
+      row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]], count=2),
       row("cup", "cup", None, [], anchor="on:crate")], [{"word": "machine", "box": [50, 50, 60, 60]}], (100, 100),
      [{"id": "wall", "count": 1}, {"id": "dome", "count": 1}, {"id": "rock", "count": 1}, {"id": "chair", "count": 2}],
      [{"name": "crate", "why": reading.ONLY_GEMINI}, {"name": "cup", "why": reading.ONLY_GEMINI},
       {"name": "machine", "why": reading.ONLY_SAM}], []),
-    ("a large single object only Gemini found is boxed by its region; a counted, coded, small or taken one is not",
-     [row("core", "core", [200, 400, 600, 600], []),  # 8% of the picture, counted once: kept
-      row("drums", "drum", [0, 0, 500, 500], [], count=3),  # counted three times: one region is no box
-      row("pipes", "pipe", [0, 0, 500, 500], [], kind="code"),  # no object of its own
-      row("cup", "cup", [0, 0, 100, 100], []),  # 1%: too small to stand on Gemini alone
+    ("a find under another word in a row's region agrees with it by box; Gemini counts, SAM 3 places",
+     [row("crates", "crate", [0, 0, 500, 1000], [], count=3, size=None)],  # storage's crates, boxed as bags
+     [{"word": "bag", "box": [0, 0, 250, 250]}, {"word": "bag", "box": [300, 0, 550, 250]},
+      {"word": "bag", "box": [700, 300, 720, 320]},  # in its region, too small for one of its three
+      {"word": "object", "box": [600, 600, 700, 700]}], (1000, 1000),  # outside it
+     [{"id": "crates", "count": 3, "boxed_by": "overlap", "boxes": [[0, 0, 250, 250], [300, 0, 550, 250]],
+       "box": [0, 0, 250, 250]}],
+     [{"name": "bag", "box": [700, 300, 720, 320]}, {"name": "object", "box": [600, 600, 700, 700]}], []),
+    ("a row Gemini read whole is kept on its region alone; one with no size, a speck or on another's box is not",
+     [row("core", "core", [200, 400, 600, 600], []),  # its metres, anchor and region: kept
+      row("drums", "drum", [0, 0, 500, 500], [], count=3),  # counted three times: three, on one region
+      row("pipes", "pipe", [600, 0, 1000, 300], [], kind="code"),  # a fitting all the same
+      row("sign", "sign", [0, 600, 100, 700], [], size=None),  # no metres read
+      row("cup", "cup", [0, 0, 20, 20], []),  # 0.04% of the picture: a speck
       row("crate", "crate", [700, 700, 1000, 1000], []),  # its region is the bench's box: another's
       row("bench", "bench", None, [[700, 700, 1000, 1000]])], [], (1000, 1000),
      [{"id": "core", "box": [400.0, 200.0, 600.0, 600.0], "boxed_by": "gemini"},
+      {"id": "drums", "count": 3, "boxed_by": "gemini"}, {"id": "pipes", "boxed_by": "gemini"},
       {"id": "bench", "box": [700, 700, 1000, 1000], "boxed_by": NONE_OR_MISSING}],
-     [{"row": "drums"}, {"row": "pipes"}, {"row": "cup"}, {"row": "crate"}], None),
+     [{"row": "sign"}, {"row": "cup"}, {"row": "crate"}], None),
     ("one instance boxed twice on one row is one box",
      [row("chair", "chair", None, [[0, 0, 10, 10], [0, 0, 10, 11]])], [], (100, 100),
      [{"boxes": [[0, 0, 10, 10]], "count": 1}], None, None),
+    ("overlapping boxes of one row are one thing, its largest; never more boxes than Gemini counted",
+     [row("door", "door", None, [[0, 0, 50, 100], [5, 5, 25, 90], [28, 5, 48, 90], [80, 0, 95, 40]]),  # its leaves
+      row("jars", "jar", None, [[0, 60, 5, 65], [10, 60, 15, 65], [20, 60, 25, 65]], count=2)], [], (100, 100),
+     [{"id": "door", "count": 1, "boxes": [[0, 0, 50, 100]]},
+      {"id": "jars", "count": 2, "boxes": [[0, 60, 5, 65], [10, 60, 15, 65]]}], [], []),
     ("one box held by two rows goes to the one whose region it fits",
-     [row("locker", "locker", [500, 500, 600, 600], [[0, 0, 10, 10]]),
-      row("chest", "chest", [0, 0, 200, 200], [[0, 0, 10, 10], [40, 40, 50, 50]])], [], (100, 100),
+     [row("locker", "locker", [500, 500, 600, 600], [[0, 0, 10, 10]], size=None),
+      row("chest", "chest", [0, 0, 200, 200], [[0, 0, 10, 10], [40, 40, 50, 50]], count=2)], [], (100, 100),
      [{"id": "chest", "boxes": [[0, 0, 10, 10], [40, 40, 50, 50]]}], [{"name": "locker"}], None),
-    ("two rows of one thing are one row, both's instances counted once, a child on the merged one moved",
+    ("two rows of one thing are one row, both's instances counted once, its count the larger, a child moved",
      [row("cabinet", "cabinet", None, [[0, 0, 10, 10]]),
-      row("storage", "storage cabinets", None, [[0, 0, 10, 11], [60, 0, 70, 10]]),
+      row("storage", "storage cabinets", None, [[0, 0, 10, 11], [60, 0, 70, 10]], count=2),
       row("cup", "cup", None, [[62, 0, 64, 2]], anchor="on:storage")], [], (100, 100),
      [{"id": "cabinet", "count": 2}, {"id": "cup", "count": 1, "anchor": "on:cabinet"}], None,
      [{"name": "storage cabinets", "row": "storage", "into": "cabinet"}]),
+    ("two rows Gemini put apart are two things, whatever box SAM 3 gave both",  # the square's side screens
+     [row("screen", "screen", [0, 0, 500, 500], [[10, 10, 40, 40]]),
+      row("side", "screen", [600, 600, 900, 900], [[10, 10, 40, 40], [700, 700, 850, 850]])], [], (1000, 1000),
+     [{"id": "screen", "boxes": [[10, 10, 40, 40]]}, {"id": "side", "boxes": [[700, 700, 850, 850]]}], [], []),
 ]
 
 INSIDE_ROWS = [row("hangar", "building", None, []), row("ship", "spacecraft", None, [], anchor="on:hangar"),
