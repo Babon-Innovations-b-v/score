@@ -880,11 +880,14 @@ def views(plan, eye_height, ground=None, clear=None, sight=None):
 def concept_tops(design, inventory):
     """(grid, tops): plan_checks.Grid cells of the design and how high over its floor the solid in each reaches: a
     wall all the way, a thing on the floor its shape's tall, one on another thing a metre over that, one hung off a wall
-    or the ceiling all the way; people, things seen far off and an item outlining the room (holders.outlines_room:
-    engineroom's wall panels, its middle says nothing) none."""
+    or the ceiling all the way; people, things seen far off, an item outlining the room (holders.outlines_room:
+    engineroom's wall panels, its middle says nothing) and a walkway tube's ribs (hoops round its hull, its axis
+    clear: the tube's eight ribs held its eye 2 m from its middle, 2026-11-16) none."""
     grid = plan_checks.Grid(design)
     tops = np.zeros(grid.shape)
     anchored, left_out = plan_checks.anchors(inventory), plan_checks.people(inventory) | plan_checks.afar(inventory)
+    if design_shell.tube_of(design) and design_shell.tube_run(design) is not None:
+        left_out |= {row["id"] for row in (inventory or {}).get("rows") or [] if design_shell.arched(row)}
     for item, row, shape in plan_checks.placed_items(design):
         if row in left_out or holders.outlines_room(item, design):
             continue
@@ -902,8 +905,11 @@ def concept_view(design, inventory, eye_height, enclosed, ground=None, sight=Non
     """The concept's view (CONCEPT_PITCH above): its eye stepped back from the floor's middle against the way the
     concept looks (far.heading's away; looking north, the painting's near side at the plan's bottom, where no
     projection fits), at least a person's eye over what it stands on, to the furthest step that stays inside the
-    outline and clear by the first of CONCEPT_ROOM that leaves one. `held`: the film stands at this eye
-    (tools/review/demo.py), never lowered to a walker's. None where no step stands clear."""
+    outline and clear by the first of CONCEPT_ROOM that leaves one. In a walkway tube (design_shell.tube_of) the eye
+    stands on its axis line, looking along its run (the end the concept's way leans to) from no nearer its end than
+    the clearance, under its hull's crown (the tube's eye stood 2.8 m up over its 2.7 m crown, in its end doorway,
+    2026-11-16). `held`: the film stands at this eye (tools/review/demo.py), never lowered to a walker's. None where no
+    step stands clear."""
     ways = far.heading(design, inventory)
     away = ways[0] if ways is not None else np.array([0.0, -1.0])
     said = "the way the concept looks (its plan fixes' projection)" if ways is not None else \
@@ -915,6 +921,13 @@ def concept_view(design, inventory, eye_height, enclosed, ground=None, sight=Non
     ceiling_top = max((float(wall.get("tall") or 0.0) for wall in design.get("walls") or []), default=0.0) or \
         ceiling(design)
     high = floor + ceiling_top - CONCEPT_UNDER if enclosed and ceiling_top else None
+    tube, run, reach = design_shell.tube_of(design), design_shell.tube_run(design), np.inf
+    if tube is not None and run is not None and high is not None:
+        away = run if float(away @ run) >= 0 else -run
+        said = f"along the tube's run, {said}"
+        crown = float(design_shell.lowest_eave(design) or 0.0) + tube["axis"] + tube["radius"]
+        high = min(high, floor + crown - CONCEPT_UNDER)
+        reach = float(np.ptp(outline @ run)) / 2
     roofs = [(np.asarray(roof["points"], dtype=float), float(roof.get("eave") or roof.get("top") or ceiling_top))
              for roof in design.get("roofs") or [] if len(roof.get("points") or []) >= 3]
     target = place_plan.placed(design, *middle)
@@ -924,7 +937,7 @@ def concept_view(design, inventory, eye_height, enclosed, ground=None, sight=Non
     for room in CONCEPT_ROOM:
         for back in np.arange(CONCEPT_STEP, float(np.hypot(design["w"], design["d"])), CONCEPT_STEP):
             spot = middle - away * back
-            if not plan_checks.inside(spot[None, :], outline)[0]:
+            if back > reach - room or not plan_checks.inside(spot[None, :], outline)[0]:
                 break
             eye = place_plan.placed(design, *spot)
             stands = (ground(eye[0], eye[2]) if ground else None) or floor

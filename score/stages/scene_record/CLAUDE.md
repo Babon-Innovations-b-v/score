@@ -101,7 +101,8 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   0.75 or 0.5 in a tight room) of walls, hung things and anything under the eye by less than `CONCEPT_OVER`, its
   look clear for `CONCEPT_LOOK`; an inside place's eye `CONCEPT_UNDER` under its walls' top or the roof over it (a
   cutaway's eye stands outside the walls; ours stays in the room, high, looking down across it), an open place's
-  rising `CONCEPT_PITCH` (40, the concepts' "35 to 45 degrees down"); `held`, so the film stands at its eye. Then views from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
+  rising `CONCEPT_PITCH` (40, the concepts' "35 to 45 degrees down"); a walkway tube's on its axis line looking along
+  its run, under its hull's crown, no nearer its end than the clearance, its ribs leaving its axis clear; `held`, so the film stands at its eye. Then views from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
   outline is left out with why (`views_left_out`), never written to see the walls from behind. A look that meets a wall or
   floor thing within 1 m (`CLEAR_LOOK`) turns to the nearest clear way, else is left out with why (2026-10-31: flat's
   spot-2 faced its wardrobe from 0.45 m).

@@ -1106,6 +1106,19 @@ SEEN_CRATE_ROWS = [{"id": row, "anchor": "floor", "size": [0.4, 0.4, 0.3], "coun
                     "boxes": [[across * 1000 - 50, foot * 1000 - 100, across * 1000 + 50, foot * 1000]]}
                    for row, (_, (across, foot)) in CRATE_SPOTS.items()]
 NO_SPOTS = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [], "standing": []}
+# A walkway tube's concept view (2026-11-16: the tube's eye stood 2.8 m up over its 2.7 m crown, in its end doorway): a
+# 3.2 x 10 m tube, its hull 1.6 m round an axis 1.1 m up (crown 2.7 m), its 3.2 m side walls along its run (south),
+# a doorway at each end, a rib hooping it every 2 m (ribs leave its axis clear); seen from the south (no projection).
+RIBBED_TUBE = {"w": 3.2, "d": 10.0, "shape": "tube", "radius": 1.6, "axis": 1.1,
+               "walls": [{"from": [0, 0], "to": [0, 10], "tall": 3.2}, {"from": [3.2, 0], "to": [3.2, 10], "tall": 3.2}],
+               "roofs": [{"kind": "vault", "points": [[0, 0], [3.2, 0], [3.2, 10], [0, 10]], "eave": 0.0, "top": 3.2}],
+               "openings": [{"kind": "opening", "at": [1.6, 0.0], "wide": 2.2, "to": "hub"},
+                            {"kind": "opening", "at": [1.6, 10.0], "wide": 2.2, "to": "lab"}],
+               "items": [[f"RIB {number}", 0.0, 2.0 * number - 0.1, 3.2, 0.2, None, "item"] for number in range(1, 5)],
+               "rows": {f"RIB {number}": ["ribs"] for number in range(1, 5)},
+               "shapes": {f"RIB {number}": {"tall": 3.2} for number in range(1, 5)}}
+RIB_ROWS = [{"id": "ribs", "name": "structural ribs", "part": "structure", "anchor": "wall", "size": [3.2, 0.2, 3.2],
+             "count": 4}]
 # Each case: a plan, its hand-in rows, its relations (None: none kept) and the shell's own rows by part (None: none),
 # the view record its views are worked from (None: none) with where its made ground is looked for (the terrain row read
 # or not, the place), whether one is made there and whether the eyes are cleared of things (`clear`) and looks of
@@ -1162,6 +1175,10 @@ CASES = [(name, design, rows, relations, shell_rows, None, *laid)
     ("the concept's view looks the way the concept does, held under the walls' top", SEEN_CRATES, SEEN_CRATE_ROWS,
      None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
      {"concept": {"eye": [-3.75, 2.6, 0.0], "aim": [0.0, 0.0, 0.0], "from": Matches("the way the concept looks")}},
+     {"view": ["concept"], "left out": []}, None, None),
+    ("a tube's concept view stands on its axis under its crown, looking along its run clear of its end",
+     RIBBED_TUBE, RIB_ROWS, None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
+     {"concept": {"eye": Near([0.0, 2.3, 4.0], 0.01), "aim": [0.0, 0.0, 0.0], "from": Matches("along the tube's run")}},
      {"view": ["concept"], "left out": []}, None, None),
     ("an open place's concept view rises on to the plan's edge", {**SEEN_CRATES, "walls": []}, SEEN_CRATE_ROWS,
      None, None, (NO_SPOTS, (False, "shed"), False, ("concept", "open")),
@@ -1996,6 +2013,8 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
         ceiling_top else None` -> `high = None` (the eye risen 40 degrees, over the walls' top)
     Break: score/stages/scene_record/writer.py: `if plan_checks.inside(spot[None, :], points)[0]])` ->
         `if False])` (the eye 2.6 m up, in the roof)
+    Break: score/stages/scene_record/writer.py: `high = min(high, floor + crown - CONCEPT_UNDER)` -> `high = min(high,
+        floor + crown - CONCEPT_UNDER + 1)` (the tube's eye 2.8 m up, over its crown)
     2026-11-15 re-reading: the hub's roof windows, read as structure on its roof, were built by no piece of its dome.
     A structure row the plan's shell lays, anchored on a floor, wall or roof, is that part's row.
     Break: score/stages/scene_record/writer.py: plan_rows' `if part == "structure" and row.get("anchor") in
