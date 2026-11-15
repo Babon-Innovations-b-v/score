@@ -705,7 +705,23 @@ def wall_height(plan, entry, roof_eave, line=None, inner=False):
     if tube:
         return min(high, (roof_eave or 0.0) + tube["axis"] + tube["radius"])
     domed = under_dome(plan, line[0], line[1], float(entry.get("thick") or THICK), inner)
-    return high if domed is None else domed
+    return max([high if domed is None else domed] + under_shed(plan, line, float(entry.get("thick") or THICK)))
+
+
+def under_shed(plan, line, reach):
+    """The heights a wall on `line` (start, end) rises to under a shed roof over its ends (shed_high at each end
+    within `reach` plus BACKING of the shed's box): a shed's slab lies on its slope, so its high side's wall meets it
+    (raised only, never cut: D1)."""
+    found = []
+    for name, laid, _ in roofs(plan, outline_of(plan), 0.0):
+        for piece in laid:
+            if piece["builder"] != "quad":
+                continue
+            corners = np.asarray(piece["points"], float)
+            low, high = corners.min(axis=0) - reach - BACKING, corners.max(axis=0) + reach + BACKING
+            found += [shed_high(piece, end) for end in line if (np.asarray(end) >= low).all() and
+                      (np.asarray(end) <= high).all()]
+    return found
 
 
 def walls(plan, outline, roof_eave):
@@ -930,6 +946,12 @@ def roofs(plan, outline, high):
     """[(name, pieces, from)] of each written roof (module docstring), else a flat one on the walls' `high`; a glass
     roof's pieces (glazed) each say so (`glass`), a walkway tube's vault its hull's bands (tube_pieces)."""
     written = [entry for entry in plan.get("roofs") or [] if len(entry.get("points") or []) >= 3]
+    if not written and word_slope(plan):
+        low, top = word_slope(plan)
+        piece = {"points": [[float(x), float(y)] for x, y in to_walls(plan, outline)], "eave": low, "top": top,
+                 "low": shed_low(plan, {})}
+        return [("roof_1", shed_pieces(piece), f"no written roof: its height words' ceilings, {low:g} m at its "
+                                               f"{piece['low']} side up to {top:g} m across, one slope")]
     if not written:
         return [("roof_1", [slab_piece(to_walls(plan, outline), high, high + SLAB)],
                  f"no written roof: flat on the walls' {high:g} m")]
@@ -938,8 +960,10 @@ def roofs(plan, outline, high):
         points, eave = to_walls(plan, outline_of({"outline": entry["points"]})), float(entry["eave"])
         top = float(entry.get("top") or eave)
         domed, vaulted = entry.get("kind") == "dome", entry.get("kind") == "vault"
-        rising = top > eave + 1e-6 or domed
         holes = roof_holes(entry)
+        if word_slope(plan) and not holes and entry.get("kind", "flat") == "flat" and top <= eave + 1e-6:
+            eave, top = word_slope(plan)
+        rising = top > eave + 1e-6 or domed
         glass = {"glass": True} if entry.get("glass") is True else {}
         if not rising and holes:  # a flat roof with its openings cut: the pieces round them
             found.append((f"roof_{number}", [dict(slab_piece(part, eave, eave + SLAB), **glass)
@@ -1001,20 +1025,31 @@ def shed_low(plan, entry):
     return "N"
 
 
+def word_slope(plan):
+    """(low, high) of the ceilings the plan's height words give its front and its back (SLOPE_WORDS), when they
+    differ, else None: a roof written flat under such words slopes by them (#128: the cockpit's words, 2.43 m at the
+    back falling to 1.82 m at the front, drew a flat roof 3.5 m up). Its walls are never cut to them (D1: the
+    shiplock keeps its height)."""
+    found = SLOPE_WORDS.search(str(plan.get("height") or ""))
+    if not found or found.group(2) == found.group(4) or float(found.group(1)) == float(found.group(3)):
+        return None
+    return tuple(sorted((float(found.group(1)), float(found.group(3)))))
+
+
 def shed_faces(points, eave, top, low):
-    """A shed roof over an outline's box as its five flat faces, each four corners in plan metres [x, up, y] (an end's
-    fourth its third again): one slope from its eave along its `low` side (N, E, S or W) up to its top along the side
-    across, its high side, its two ends and its underside on the eave, a closed solid; the scene record draws each a
-    builders' `quad`."""
+    """A shed roof over an outline's box as its six flat faces, each four corners in plan metres [x, up, y]: a slab
+    SLAB thick whose underside is its slope, from its eave along its `low` side (N, E, S or W) up to its top along the
+    side across, its upper face SLAB over that, and its four edges, a closed solid; the scene record draws each a
+    builders' `quad`. The room's ceiling is the slope (roof_under, shed_high: 2026-11-16, the wedge's flat underside
+    on the eave hid every shed's slope from inside)."""
     xs, ys = [float(point[0]) for point in points], [float(point[1]) for point in points]
     west, east, north, south = min(xs), max(xs), min(ys), max(ys)
     box = [[west, north], [east, north], [east, south], [west, south]]
     turn = {"N": 0, "E": 1, "S": 2, "W": 3}[low]  # the box's corners from its low edge round clockwise
-    low_one, low_two, high_one, high_two = ([corner[0], eave, corner[1]] for corner in box[turn:] + box[:turn])
-    raised_one, raised_two = [high_one[0], top, high_one[2]], [high_two[0], top, high_two[2]]
-    return [[low_one, low_two, raised_one, raised_two], [high_one, high_two, raised_two, raised_one],
-            [low_two, high_one, raised_one, raised_one], [high_two, low_one, raised_two, raised_two],
-            [low_one, high_two, high_one, low_two]]
+    heights = [eave, eave, top, top]
+    under = [[corner[0], high, corner[1]] for corner, high in zip(box[turn:] + box[:turn], heights)]
+    over = [[corner[0], high + SLAB, corner[2]] for corner, high in zip(under, heights)]
+    return [under, over[::-1], *[[under[index], under[index - 1], over[index - 1], over[index]] for index in range(4)]]
 
 
 def shed_pieces(piece):
@@ -1027,7 +1062,7 @@ def shed_pieces(piece):
 def quad_triangles(piece):
     """A shed's face (a `quad` piece) as its triangles with area, turned outward from its shed's inside."""
     xs, ys = [float(point[0]) for point in piece["points"]], [float(point[1]) for point in piece["points"]]
-    middle = [(min(xs) + max(xs)) / 2, piece["eave"] + (piece["top"] - piece["eave"]) / 3, (min(ys) + max(ys)) / 2]
+    middle = [(min(xs) + max(xs)) / 2, (piece["eave"] + piece["top"] + SLAB) / 2, (min(ys) + max(ys)) / 2]
     one, two, three, four = piece["corners"]
     return outward_faces([triangle for triangle in ([one, two, three], [one, three, four])
                           if not flat_triangle(triangle)], middle)

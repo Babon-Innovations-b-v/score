@@ -93,6 +93,10 @@ Break: score/stages/shell_parts.py: `banded = plan.get("shape") == "tube"` -> `b
     "tube"` (a tube's glass bands asked no glass kind)
 Break: score/stages/scene_record/writer.py: `return tube_rib(row, item, design, number, middle, band)` -> `pass`
 Break: score/stages/scene_record/writer.py: `found.append(design_shell.shed_high(piece, spot))` -> `pass`
+Break: score/stages/earth_seed/design_shell.py: `if word_slope(plan) and not holes and` -> `if False and
+    word_slope(plan) and not holes and` (the cockpit's words drew a flat roof 3.5 m up)
+Break: score/stages/earth_seed/design_shell.py: `+ under_shed(plan, line, float(entry.get("thick") or THICK)))` ->
+    `+ [])` (a shed's high side left open over its walls)
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
 score/stages/earth_seed/test_a_scene_s_base_stands_from_its_design.py
@@ -460,12 +464,28 @@ def test_a_scene_s_base_stands_from_its_design(tmp_path, monkeypatch):
     sloped = dict(ROOM, walls=[], height="ceiling 2.5 m at the back, 3.0 m at the front",
                   roofs=[{"kind": "shed", "points": BOX, "eave": 2.5, "top": 3.0}])
     shed_faces = dict((name, parts) for name, parts, _ in design_shell.pieces(sloped))["roof_1"]
-    assert len(shed_faces) == 5 and {(face["builder"], face["low"]) for face in shed_faces} == {("quad", "S")}, \
+    assert len(shed_faces) == 6 and {(face["builder"], face["low"]) for face in shed_faces} == {("quad", "S")}, \
         shed_faces
     assert design_shell.shed_low(dict(ROOM), {"kind": "shed"}) == "N" and \
         design_shell.shed_low(ROOM, {"kind": "shed", "low": "E"}) == "E"
     roof_solid = [triangle for face in shed_faces for triangle in design_shell.solid(face)]
-    assert abs(volume(roof_solid) - 4.3 * 3.3 * 0.25) < 1e-6, volume(roof_solid)
+    # a slab on its slope: the room's ceiling is the slope, its underside never flat on the eave
+    assert abs(volume(roof_solid) - 4.3 * 3.3 * design_shell.SLAB) < 1e-6, volume(roof_solid)
+    assert abs(min(corner[1] for face in shed_faces for corner in face["corners"] if corner[2] > 3.0) - 2.5) < 1e-9
+    # a roof written flat (3.5 m) under words giving its front and back ceilings slopes by them, its walls never cut
+    # under them and its high side's walls up to meet it; a plan with such words and no roof gets the same slope
+    worded = dict(ROOM, height="ceiling 2.43 m at the back, sloping to 1.82 m at the front",
+                  walls=[dict(wall, tall=3.5) for wall in ROOM["walls"]],
+                  roofs=[dict(ROOM["roofs"][0], eave=3.5, top=3.5)])
+    worded_shell = dict((name, parts) for name, parts, _ in design_shell.pieces(worded))
+    assert {(face["eave"], face["top"], face["low"]) for face in worded_shell["roof_1"]} == {(1.82, 2.43, "N")}, \
+        worded_shell["roof_1"]
+    assert all(max(part["high"] for part in worded_shell[f"wall_{number}"]) == 3.5 for number in range(1, 5))
+    rising_walls = dict((name, parts) for name, parts, _ in design_shell.pieces(dict(
+        worded, height="ceiling 2.58 m at the front, 3.51 m at the back", roofs=[],
+        walls=[dict(wall, tall=None) for wall in ROOM["walls"]])))
+    assert {(face["eave"], face["top"]) for face in rising_walls["roof_1"]} == {(2.58, 3.51)} and \
+        max(part["high"] for part in rising_walls["wall_3"]) > 3.5, rising_walls["wall_3"]
     seed_shed = design_shell.placed(numpy.asarray(roof_solid).reshape(-1, 3), sloped)
     shed_drawn = numpy.vstack([mesh["points"] for number, face in enumerate(shed_faces) for mesh in scene.built_meshes(
         dict(writer.shell_entry("roof_1", number, face, sloped, ""), surface=None))])

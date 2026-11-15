@@ -16,7 +16,9 @@ the gates.
 - **Each shell is laid once, from the plan** (`design_shell.py`, one set of pieces for both layers): the earth seed
   lays a room whose kit holds its walls (shell `kit` and inside, or, its inside not said, one that writes walls:
   `laid_for`) as deck (its top at the floor), walls (the outline's, and every written wall the outline does not run
-  along centred on its line, `inner_walls`) with every opening cut and roof (a dome a sphere's cap, a vault a circle's arc, another rising roof a closed gable);
+  along centred on its line, `inner_walls`) with every opening cut and roof (a dome a sphere's cap, a vault a circle's arc, a pitched roof a closed gable, a shed a slab lying on its slope so the room's ceiling
+  is the slope, its high side's walls raised to meet it; a roof written flat, or none, under height words giving the
+  front and back ceilings, `word_slope`, slopes by them, walls never cut to them: D1);
   each outline wall on its written wall's line (`written_wall`, `face_reach`: the plan draws its outline round its
   walls' outer faces, each wall on its middle line, and holders lays a wall thing on that face; 2026-11-07, every
   walled room's wall things stood 0.2 to 0.5 m off its built walls), only an edge no written wall stands for BACKING
