@@ -577,8 +577,9 @@ def test_a_scene_s_base_stands_from_its_design(tmp_path, monkeypatch):
                              ("an enclosure on terrain spots", dict(enclosed, terrain={"spots": [[1, 1, 0.5]]})),
                              ("a roofed square", dict(OPEN, roofs=ROOM["roofs"])))),
         ("the scene record lays a room's stairs, not its shell",
-         [entry["builder"] for entry in writer.structure({"place": "room"}, plans["room with stairs"])],
-         ["stairs", "stairs"]),
+         sorted({(entry["builder"], entry["name"].split("_")[0])
+                 for entry in writer.structure({"place": "room"}, plans["room with stairs"])}),
+         [("slab", "ramp"), ("slab", "stair")]),
         # the parts a shell lays are named from the plan's words without building it (2026-10-27: asking by building
         # keyed the scene library, the surface tiles and the people, sound and palette rows behind them)
         *((f"the parts of {plan['title']} ({index}) are named without building", shell_parts.parts(plan),
