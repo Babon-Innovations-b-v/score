@@ -1065,11 +1065,17 @@ def number(value, what, low=0.0, high=BIGGEST):
     return round(found, 3)
 
 
+# A plan item's kinds: a row's item, a keep-clear zone, a growing plot, a flat roof's door opening, and a door row's
+# item standing in its doorway (a writing's, workshop's DOORWAY 1 of 2026-11-15: his edits laid on that writing were
+# refused for it, #128).
+ITEM_KINDS = ("item", "zone", "plot", "roof_door", "door")
+
+
 def checked_items(items):
     found = []
     for item in items:
         name, x, y, item_wide, item_deep, facing, kind = item
-        if facing not in (None, *SIDES) or kind not in ("item", "zone", "plot", "roof_door"):
+        if facing not in (None, *SIDES) or kind not in ITEM_KINDS:
             raise Refused(f"{name}: facing {facing!r} or kind {kind!r} is not a plan item's")
         found.append([str(name)[:80], number(x, f"{name} x", -BIGGEST), number(y, f"{name} y", -BIGGEST),
                       number(item_wide, f"{name} wide", 0.01), number(item_deep, f"{name} deep", 0.01), facing, kind])

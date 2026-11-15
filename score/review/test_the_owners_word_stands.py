@@ -216,6 +216,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
   then, seen red):
     plans.py: `tied[name] = [row_id, *riders.get(row_id, [])]` made `tied[name] = [row_id]`
     plans.py: `if len(doors) != len(base):` made `if False:`
+    plans.py: ITEM_KINDS' `"door"` dropped (workshop's writing, its door item, refused as his edit, #128)
     plans.py: `float(plan.get("w") or 6.0)` made `float(plan.get("w") or 5.0)`
     plans.py: `return shown is not None and shown["how"] != "derived"` made `return shown is not None`
     plans.py: `if design_done(store, place): kept_for_stage(store, place, record["plan"])` made `if False:
@@ -1859,6 +1860,12 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
             plans.edited(plan_store, "shed", {**plan, "doors": []}, "joey")
         with pytest.raises(plans.Refused, match="not a number"):
             plans.edited(plan_store, "shed", {**plan, "items": [["X", "far", 0, 1, 1, None, "item"]]}, "joey")
+        door_item = ["DOORWAY 1", 4.5, 0.0, 1.5, 0.2, "S", "door"]  # a door row's item, as workshop's writing lays it
+        assert plans.checked_items([door_item]) == [door_item]
+        with pytest.raises(plans.Refused, match="not a plan item's"):
+            plans.checked_items([[*door_item[:6], "hole"]])
+        with pytest.raises(plans.Refused, match="wide 0 lies outside"):
+            plans.checked_items([[door_item[0], 4.5, 0.0, 0.0, 0.2, "S", "door"]])  # a door is sized as any item is
         note = plans.note_of(plan_store, "shed", bare)  # a Correct with no note sends his kept edits
         assert note.startswith("I changed the plan by hand: item ") and plan["items"][0][0] in note
         assert plans.note_of(plan_store, "shed", {**bare, "note": "wider door"}) == "wider door"
