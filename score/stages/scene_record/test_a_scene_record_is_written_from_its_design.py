@@ -598,6 +598,13 @@ FLOWN = {"w": 10.0, "d": 10.0,
 FLOWN_ROWS = [{"id": "stairs", "route": "shell", "size": [1.0, 2.0, 1.0]},
               {"id": "ramp", "route": "shell", "size": [2.0, 1.0, 0.2]},
               {"id": "step_ladder", "route": "prop", "size": [0.5, 0.5, 1.8]}]
+# A lander's ramp row with a take and no item of its own, and the plan's ramp flight east 4 m up to 2 m (plan x 2 to
+# 6, y 4 to 5: place x -3 to 1, z -1 to 0): its take at the flight's middle carries the flight's high end (place x 1,
+# z -1 to 0, 2 m up) and its way up (+x) for the assembly to pitch it by (#128: the camp grounds' lander ramp lay flat).
+RAMP_FLOWN = {"w": 10.0, "d": 10.0, "items": [], "rows": {},
+              "stairs": [{"kind": "ramp", "points": [[2.0, 4.0], [6.0, 4.0], [6.0, 5.0], [2.0, 5.0]], "from": 0.0,
+                          "to": 2.0, "angle": 0.0, "steps": 0}]}
+RAMP_FLOWN_ROWS = [{"id": "lander_ramp", "route": "shell", "size": [4.0, 1.0, 0.2]}]
 # The shed (WRITTEN) for its shell's own rows: a flight down from its floor through a hatch in its deck (DOWN), its
 # roof cut round an opening (HOLED), and a doorway item on its north door, a crate and bags on a 0.2 m porch deck,
 # a box and bags under a 2.5 m loft, bags off every deck on the ground (DECKED: the bags' plan base -0.2 m).
@@ -872,10 +879,19 @@ PLACED = [
                    "bake": "stairs_1"},
       "stairs_2": {"at": [1.5, 0.0, -3.0], "rotation": Turned((0.0, -1.0), signed=False), "flight": "stair_3"},
       "ramp_1": {"at": [2.0, 0.0, 2.7], "flight": "ramp_2"}, "step_ladder_1": {"flight": ABSENT},
-      "stair_1": ABSENT, "ramp_2": ABSENT, "stair_3": ABSENT, "ramp_4": {"builder": "stairs"}},
+      "stair_1": ABSENT, "ramp_2": ABSENT, "stair_3": ABSENT, "ramp_4": {"builder": "slab"},
+      "ramp_4_2": {"builder": "slab", "low": 0.0, "high": 0.1}},
      {"stairs": ["stairs_1", "stairs_2"], "ramp": ["ramp_1"], "step_ladder": ["step_ladder_1"]},
      {"inventory": {"picture": [1000, 1000], "rows": []}, "unplaced": [],
       "objects": {row["id"]: {"rows": [row["id"]]} for row in FLOWN_ROWS}}, None),
+    ("a ramp take laid at its flight pitched up it", RAMP_FLOWN, RAMP_FLOWN_ROWS, None, None,
+     {"lander_ramp_1": {"at": [-1.0, 0.0, -0.5], "flight": "ramp_1", "on.how": "ramp",
+                        "on.edge": [[1.0, -1.0], [1.0, 0.0]], "on.up": [1.0, 0.0], "on.top": 2.0,
+                        "on.flight": "ramp_1", "on.why": Says("high end at 2 m")},
+      "ramp_1": ABSENT},
+     {"lander_ramp": ["lander_ramp_1"]},
+     {"inventory": {"picture": [1000, 1000], "rows": []}, "unplaced": [],
+      "objects": {row["id"]: {"rows": [row["id"]]} for row in RAMP_FLOWN_ROWS}}, None),
     ("opening rows with no item named at a cut their words fit, and the shell's pillars", DOWN, [POSTS], None,
      OPENING_ROWS,
      {"posts_1": {"row": "posts", "plain": "shell", "surface": None, "surface_missing": Starts("shed: ")},
@@ -1306,7 +1322,8 @@ LIT_ROWS_LAID = {"floodlight_tower": ["lit 1"], "core": ["lit 2"], "screens": ["
                  "wall_panel": ["lit 7", "lit 8", "lit 9"], "west_panel": ["lit 10"]}
 FURNISHED_STRUCTURE = {"deck_1": "slab", "wall_1": "slab", "wall_1_2": "slab", "wall_1_3": "slab", "wall_1_4": "slab",
                        "wall_2": "slab", "wall_3": "slab", "wall_3_2": "slab", "wall_3_3": "slab", "wall_4": "slab",
-                       "roof_1": "slab", "stair_1": "stairs", "structural_ribs_1": "arch",
+                       "roof_1": "slab", **{f"stair_1{f'_{step}' if step > 1 else ''}": "slab" for step in range(1, 6)},
+                       "structural_ribs_1": "arch",
                        "structural_ribs_2": "arch",
                        **{f"kit_frames_wall_{wall}_{part}": "slab" for wall, parts in ((1, 3), (3, 2))
                           for part in range(1, parts + 1)}}
@@ -1383,7 +1400,9 @@ RECORD_ROWS = [
       "lab's record": {"stands": ["tube#1"], "pairs": [], "leads": []},
       "hub's record": {"stands": ["tube#1"], "pairs": [], "leads": []}}, {},
      [("it holds", {}, held, checks.PASS, None)]),
-    # the shed's record: its shell cut round its north door (wall 1 into four), its stair, its ribs as arched bands
+    # the shed's record: its shell cut round its north door (wall 1 into four), its stair a slab a step (5 steps of
+    # 0.2 m up 2 m south: the top one's tread at 1 m on a 0.15 m waist under its riser, 0.65 m, never a column down to
+    # the floor), its ribs as arched bands
     # (the first rib's item (0, 1) lies east-west across the shed, its 3.2 m span centred at plan x 4, its feet at
     # -1.6 and 1.6, z -1.9), the light 5% up its lamp's 0.2 m over its 2.7 m base, the Sun the physics sees, the yard
     # its door leads to where the site holds it, and only the views standing inside its walls; every prop row's plan
@@ -1406,7 +1425,9 @@ RECORD_ROWS = [
                                Each({"surface": None, "surface_missing": Says("not made")}))},
       **{name: {"builder": builder} for name, builder in FURNISHED_STRUCTURE.items()},
       "deck_1": {"builder": "slab", "row": "shed_floor"},
-      "stair_1": {"builder": "stairs", "foot": [2.5, 0.0, 1.0], "top": [2.5, 1.0, 3.0]},
+      "stair_1": {"builder": "slab", "low": 0.0, "high": 0.2},
+      "stair_1_5": {"builder": "slab", "low": 0.65, "high": 1.0, "points": [[3.0, 2.6], [3.0, 3.0], [2.0, 3.0],
+                                                                             [2.0, 2.6]]},
       "stair drawn down": {"foot": [2.5, 0.0, 3.0], "top": [2.5, 1.0, 1.0]},
       "structural_ribs_1": {"builder": "arch", "plain": "shell", "feet": [[-1.6, -1.9], [1.6, -1.9]], "low": 0.0},
       "structural_ribs_2": {"builder": "arch", "plain": "shell"},
@@ -1848,6 +1869,13 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     Break: score/stages/scene_record/writer.py structure: `if number not in taken]` -> `if True]` (box flights beside)
     Break: score/stages/scene_record/writer.py design_objects: `flights_named(design, handin, found)` -> `pass` (the
         ramp on its own item names no flight)
+    #128 (2026-11-15): a box flight is a slab a step on its waist, never solid columns down to its foot (the street's
+    15 steps up to 3 m); a ramp take laid at its flight carries its high end for the assembly to pitch it up to (the
+    camp grounds' lander ramp lay flat, short of its hatch).
+    Break: score/stages/scene_record/writer.py flight_steps: `low = max(float(foot[1]), high - rise - STAIR_WAIST)` ->
+        `low = float(foot[1])`
+    Break: score/stages/scene_record/writer.py flight_objects: `laid["on"] = flight_ramp(design, entry, way, name)` ->
+        `pass`
     settle@street (2026-11-11): its 0.4 m red paper lanterns, against the side of their 1 cm lantern string, were
     shrunk to 16% and 2% to fit its height. Two lanterns against an 8 m string 1 cm thick are marked `below` (hung
     under it at their own size), a quarter and three quarters of the way along it; the garage door against its 6 m

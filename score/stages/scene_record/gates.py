@@ -109,9 +109,10 @@ def wall_faults(record, design):
 
 
 def stair_faults(record, design):
-    """Each stair or ramp the plan draws that the record does not lay: as a flight of steps, or as the take an object
-    laid in its place names (`flight`, writer.flight_objects)."""
-    laid = {entry["name"] for entry in record["structure"] if entry["builder"] == "stairs"} | \
+    """Each stair or ramp the plan draws that the record does not lay: as a flight of steps (its first step's slab
+    named the flight, writer.flight_steps; an older record's one `stairs` entry), or as the take an object laid in its
+    place names (`flight`, writer.flight_objects)."""
+    laid = {entry["name"] for entry in record["structure"] if entry["builder"] in ("stairs", "slab")} | \
         {entry["flight"] for entry in record.get("objects") or [] if entry.get("flight")}
     return [f"the plan's {entry.get('kind', 'stair')} {number} is not laid"
             for number, entry in enumerate(design.get("stairs") or [], 1)

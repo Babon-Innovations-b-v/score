@@ -1,7 +1,8 @@
 # score/stages/wall_kit/
 
 The wall kit (#128, cause 2): the detail a room's walls carry (opening frames, riveted panels, padded sections, dado,
-street facades with windows, sills, balconies and awnings), built by code from the plan and the code rows its shell
+street facades with windows, sills, balconies and awnings) and its ceiling panels (a roof row named a panel, hung under
+the roof's underside the scene record hands in, `writer.roof_under`: none where the roof rises steeply), built by code from the plan and the code rows its shell
 lays (route `plan`), laid by the scene record (`scene_record.writer.kit_entries`) as `slab` entries and its rivets as
 `specks` (builders tools/usd already has: a new builder there moved 83 paid rows' keys, people and pixal among them). `__init__.py`'s docstring has what each row's words lay.
 

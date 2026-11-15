@@ -2521,6 +2521,10 @@ import builders  # noqa: E402
 NAN = np.nan
 PITCH = math.asin(0.158 / 2.0)  # the ramp's 2 m plank from the ground up to its deck's 0.158 m top
 RAMP = {"how": "ramp", "edge": [[3.34, 8.19], [3.34, 2.08]], "up": [1.0, 0.0], "top": 0.2, "why": "up to the deck"}
+# A ramp take laid at the plan's flight (scene_record writer.flight_ramp) whose high end, 1 m up at x 43, no deck
+# holds (the camp grounds' lander hatch): its 2 m plank pitched 30 degrees up to it, its high end's foot there.
+FLOWN_RAMP = {"how": "ramp", "edge": [[43.0, 40.0], [43.0, 41.0]], "up": [1.0, 0.0], "top": 1.0, "flight": "ramp_1",
+              "why": "up the plan's ramp 1"}
 FLIGHT = builders.stairs((1.0, 0.0, 1.0), (3.0, 1.0, 3.0), 0.8, 5, "s")["points"]  # turned 45 degrees, 0.8 m wide
 SLAB_SIDE = 0.1 / np.sqrt(2.0)  # engineroom's slanted corner wall, (4, 0) to (6, 2), 0.1 m thick
 CORNER_SLAB = [(x + way * SLAB_SIDE, y, z - way * SLAB_SIDE) for x, z in ((4.0, 0.0), (6.0, 2.0)) for way in (1, -1)
@@ -2547,13 +2551,16 @@ CLEARED = [  # (case, its prims (a_fitted_world's), its entries (name, row, rela
                              ("locker_1", (15.5, 0.0, 12.0), (16.3, 2.9, 12.6)),
                              ("crate_2", (22.0, 0.0, 22.0), (22.5, 0.5, 22.5)),
                              ("cable_bundles_1", (29.8, 0.0, 30.0), (34.0, 2.0, 30.4)),  # clear of the ship,
-                             ("spaceship_1", (-1.0, 0.0, 30.5), (33.0, 2.0, 32.5))))},  # longer than the place
-     [("ramp_1", "ramp", RAMP), *[(name, name[:-2], None) for name in (
+                             ("spaceship_1", (-1.0, 0.0, 30.5), (33.0, 2.0, 32.5)),  # longer than the place
+                             ("lander_ramp_1", (40.0, 0.0, 40.0), (42.0, 0.2, 41.0))))},
+     [("ramp_1", "ramp", RAMP), ("lander_ramp_1", "lander_ramp", FLOWN_RAMP), *[(name, name[:-2], None) for name in (
          "sandbags_1", "porch_post_1", "lamp_1", "stairs_1", "locker_1", "crate_2", "cable_bundles_1", "spaceship_1")]],
      [("porch_post_1", "parted", 0.141, 1.0, None, None), ("cable_bundles_1", "parted", 0.34, 1.0, None, None),
       ("sandbags_1", "out", 0.158, 1.0, ["deck_2"], None), ("locker_1", "out", 0.5, 1.0, ["deck_3"], None),
-      ("ramp_1", "ramp", 0.114, 1.0, None, round(math.degrees(PITCH), 2))],
+      ("ramp_1", "ramp", 0.114, 1.0, None, round(math.degrees(PITCH), 2)),
+      ("lander_ramp_1", "ramp", 1.268, 1.0, None, 30.0)],
      {"Objects/ramp_1": ((NAN, 0.0, NAN), (3.19, 0.158 + 0.209 * math.cos(PITCH), NAN), (1e-4, 1e-5)),
+      "Objects/lander_ramp_1": ((NAN, NAN, NAN), (43.0, 1.0 + 0.2 * math.cos(math.radians(30.0)), NAN), (1e-4, 1e-5)),
       "Objects/sandbags_1": ((NAN, 0.158, NAN), (NAN, NAN, NAN), 1e-6),
       "Objects/porch_post_1": ((NAN, NAN, NAN), (NAN, NAN, 6.699), 1e-6),
       "Objects/locker_1": ((16.0, 0.0, 12.0), (NAN, NAN, NAN), ALLCLOSE),  # out across, never sunk under the floor
@@ -3465,7 +3472,11 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     in the slab and its porch post 0.14 m in wall_3, laid at the plan's estimates; the drop sank and tilted them. The
     assembly lays a ramp up its way onto its deck (the built static past its level's edge whose top is nearest the
     level's): its 2 m plank pitched asin(0.158 / 2) = 4.53 degrees from the ground to the deck's 0.158 m top, its high
-    end's foot on the deck's near side at x 3.19. A thing nothing holds that starts inside a deck or wall is moved the
+    end's foot on the deck's near side at x 3.19. A ramp take laid at the plan's flight whose high end no deck holds
+    (#128, 2026-11-15: the camp grounds' lander ramp lay flat, short of its hatch) is pitched up to that end: its 2 m
+    plank 30 degrees up to 1 m, its high end's foot at x 43.
+    Break: score/stages/assembly/fitting.py ramp_end: `if not on.get("flight"):` -> `if True:` (left flat)
+    A thing nothing holds that starts inside a deck or wall is moved the
     least way out: a sandbag 0.158 m into the deck's top up onto it, the post 0.141 m into the wall back to its face
     at z 6.699, a locker reaching up into a loft deck out past its side (never down under the floor), a 4.2 m cable
     bundle across a 0.14 m wall 0.34 m past the wall's near side (tube's, 2026-10-30); a ship longer than the place

@@ -1,6 +1,7 @@
 """Invariant: a room's walls carry the kit its code rows name, from the plan alone: a frame round every opening cut,
 riveted panels on every face once (none across an opening), a padded section at its plan item on the wall it stands
-on, a facade raised to its row's tall with windows over its ground storey; each piece painted with the scene library
+on, a facade raised to its row's tall with windows over its ground storey, a ceiling hung in riveted panels under its
+flat roof (none under a steep one); each piece painted with the scene library
 variant its words choose (else the wall's), laid by the scene record as `slab` and `specks` entries tools/usd builds.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -11,6 +12,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - wall_kit.facade: the wall not raised -> the facade stops at the wall's top
 - wall_kit.surface: the wall's surface always -> the padded section is painted as the wall
 - scene_record.writer.kit_entries: the place's frame not applied -> the entries stand in plan metres
+- wall_kit.is_ceiling_row: `row.get("part") == "roof"` made `False` -> the ceiling row hangs no panels
+- wall_kit.ceiling: the CEILING_SLOPE skip dropped -> panels hang under the steep roof
+- wall_kit.under_spots: corners not pulled in (`* 0.99` made `* 1.0`) -> a corner on the roof's edge reads no roof
+  and the edge panels are left out
 """
 import numpy as np
 
@@ -80,6 +85,20 @@ def test_a_wall_carries_the_kit_its_code_rows_name():
     rivets = named["wall_panels_wall_1_rivets"].specks
     assert len(rivets) == 4 * sum(1 for part in north.parts) and all(np.isclose(spot[1], 0.2 + wall_kit.RELIEF)
                                                                       for spot in rivets)
+    # a ceiling panel row hangs the room's ceiling (its walls' room faces, 5.6 by 3.6 m) in 5 by 3 panels under its
+    # flat roof, riveted, and none under a roof rising steeply across them (a dome's)
+    ceiling_row = {"id": "ceiling_panels", "name": "ceiling panels", "noun": "ceiling", "part": "roof",
+                   "size": [6, 4, 0.1], "route": "plan"}
+    roofed = [[0.21, 0.21], [5.79, 0.21], [5.79, 3.79], [0.21, 3.79]]  # its roof read a cm inside the walls
+    hung = {piece.name: piece for piece in wall_kit.pieces(
+        plan, [ceiling_row], lambda spot: 2.5 if wall_kit.design_shell.inside(spot, roofed) else 3.6)}
+    panels = hung["ceiling_panels_ceiling"].parts
+    low, high, bottom, top = bounds(hung["ceiling_panels_ceiling"])
+    assert len(panels) == 15 and np.allclose([*low, *high], [0.2, 0.2, 5.8, 3.8], atol=wall_kit.SEAM), (low, high)
+    assert np.isclose(top, 2.5) and np.isclose(bottom, 2.5 - wall_kit.CEILING_RELIEF)
+    assert len(hung["ceiling_panels_ceiling_rivets"].specks) == 4 * 15
+    for under in (None, lambda spot: 2.5 + spot[0] ** 2 / 4):
+        assert not [piece for piece in wall_kit.pieces(plan, [ceiling_row], under) if "ceiling" in piece.name]
     # the scene record lays each solid as a slab and each piece's rivets as specks in the place's frame, which
     # tools/usd builds, each saying the wall kit's code made it (the library check traces it so)
     entries = writer.kit_entries(plan, "room", LIBRARY, {"rows": ROWS})

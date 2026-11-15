@@ -25,6 +25,10 @@ tools/usd already has, so no row reading tools/usd moves). What a row lays follo
              it: cushions about CUSHION square, PAD_DEEP proud, in a trim frame, from its shape's base to its tall
     dado     a row named a dado, wainscot or skirting (DADO_WORDS): a band DADO high round every wall face and a rail
              on it
+    ceiling  a roof row (its part the roof, or its words a ceiling's) named a panel, plate or cladding: the room's
+             ceiling hung in panels (`ceiling`) under the roof's underside the scene record reads (`under`), each
+             CEILING_RELIEF deep, SEAM apart, grown like a wall's, a rivet at each whole panel's corner; none under a
+             roof rising more than CEILING_SLOPE across a panel (a dome, a vault)
     facade   a row named a facade or frontage (FACADE_WORDS): every outline wall line raised to the row's tall, a band
              at each storey (STOREY), windows (pane, frame, sill) BAY apart over the ground storey, a balcony with its
              rail at every other bay, alternating storey to storey, and an awning over each ground opening
@@ -81,6 +85,8 @@ BALCONY = (1.8, 0.9, 0.15)  # metres a balcony is wide, deep and thick
 BALCONY_RAIL = (1.0, 0.05)  # metres its rail is high and thick
 AWNING = (1.0, 0.06, 0.2)  # metres an awning reaches out, is thick, and overhangs its opening each side
 LEAST = 0.05  # metres of span a piece needs along its face to be laid
+CEILING_RELIEF = 0.008  # metres a ceiling panel hangs under its roof: less than a lamp hung to the roof stands off it
+CEILING_SLOPE = 0.06  # metres the roof's underside may rise across one ceiling panel; steeper (a dome, a vault) none
 
 
 @dataclasses.dataclass
@@ -416,16 +422,72 @@ def is_wall_row(row):
     return row.get("part") == "wall" or "wall" in row_words(row)
 
 
-def pieces(plan, rows):
+def is_ceiling_row(row):
+    """Whether a row is a ceiling's: its part the roof, or its words a ceiling's on a part that is no wall."""
+    return row.get("part") == "roof" or (row.get("part") != "wall" and "ceiling" in row_words(row))
+
+
+def under_spots(part):
+    """The spots a ceiling panel's roof underside is read at: its middle and each corner a hundredth of the way in
+    toward it (a corner on the roof's own edge reads no roof)."""
+    middle = np.mean(np.asarray(part, float), axis=0)
+    return [list(middle)] + [list(middle + (np.asarray(point, float) - middle) * 0.99) for point in part]
+
+
+def ceiling(plan, row, under):
+    """[Piece] of a ceiling row's panels (module docstring, ceiling): the room's ceiling (its outline grown to the
+    walls' room faces, design_shell.to_walls) split evenly into panels of at most PANEL each way (grown by the
+    ceiling's height over GROW_AT), SEAM apart, each CEILING_RELIEF deep with its top at the lowest of the roof's
+    underside over it (`under`: a plan spot [x, y] to metres over the floor); none where that underside rises more
+    than CEILING_SLOPE across one (a dome, a vault, a roof's opening); a rivet RIVET_IN in from each corner of a whole
+    panel (one no wall cuts)."""
+    room = [[float(x), float(y)] for x, y in design_shell.to_walls(plan, design_shell.outline_of(plan))]
+    corners = np.asarray(room, float)
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    grow = max(1.0, under(list((low + high) / 2)) / GROW_AT)
+    counts = np.maximum(1, np.ceil((high - low) / (PANEL * grow) - 1e-9)).astype(int)
+    step = (high - low) / counts
+    panels, rivets, half = [], [], SEAM / 2
+    for column in range(counts[0]):
+        for line in range(counts[1]):
+            west, north = low + step * [column, line] + half
+            east, south = low + step * [column + 1, line + 1] - half
+            part = design_shell.clipped(room, west, north, east, south)
+            if len(part) < 3 or abs(design_shell.signed_area(part)) < LEAST ** 2:
+                continue
+            heights = [under(spot) for spot in under_spots(part)]
+            if max(heights) - min(heights) > CEILING_SLOPE:
+                continue
+            face = min(heights) - CEILING_RELIEF
+            panels.append({"points": [[round(float(value), 4) for value in point] for point in part],
+                           "low": round(face, 4), "high": round(min(heights), 4)})
+            box = [[west, north], [east, north], [east, south], [west, south]]
+            if all(design_shell.inside(point, room) for point in box):
+                rivets += [[round(float(x), 4), round(float(y), 4), round(face, 4)]
+                           for x in (west + RIVET_IN, east - RIVET_IN) for y in (north + RIVET_IN, south - RIVET_IN)]
+    words = tuple(sorted(row_words(row)))
+    said = f"inventory row {row['id']}: the ceiling hung in panels of at most {PANEL * grow:.3g} m, " \
+           f"{CEILING_RELIEF:g} m under the roof (wall_kit.ceiling)"
+    found = [Piece(f"{row['id']}_ceiling", row["id"], panels, "plate", words + ("ceiling", "panel"), said)] \
+        if panels else []
+    if rivets:
+        found.append(Piece(f"{row['id']}_ceiling_rivets", row["id"], [], "trim", words + ("rivet", "bolt"),
+                           f"inventory row {row['id']}: a rivet at each whole ceiling panel's corner, {RIVET:g} m "
+                           "across (wall_kit.ceiling)", rivets))
+    return found
+
+
+def pieces(plan, rows, under=None):
     """[Piece] of the wall kit for a plan and the code rows its shell lays (module docstring): the frames round every
-    opening, then each row's own pieces by its words."""
+    opening, then each row's own pieces by its words; a ceiling row's panels only given the roof's underside
+    (`under`: a plan spot to metres over the floor, the scene record's writer.roof_under)."""
     walls = faces(plan)
     found = [piece for face in walls for piece in frames(face)]
     facades = [row for row in rows if row_words(row) & FACADE_WORDS]
     for row_id, laid in facade_faces(plan, facades).items():
         row = next(row for row in facades if row["id"] == row_id)
         found += [piece for face, thick in laid for piece in facade(face, row, thick)]
-    clad_by = None
+    clad_by = ceiled_by = None
     for row in sorted(rows, key=lambda row: not row_words(row) & CLADDING_WORDS):
         words = row_words(row)
         if words & FACADE_WORDS:
@@ -434,6 +496,10 @@ def pieces(plan, rows):
             found += padded(plan, row)
         elif words & DADO_WORDS:
             found += [piece for face in walls for piece in dado(face, row)]
+        elif words & CLADDING_WORDS and is_ceiling_row(row):
+            if under is not None and ceiled_by is None:
+                ceiled_by = row["id"]
+                found += ceiling(plan, row, under)
         elif words & PANEL_WORDS and is_wall_row(row):
             if own_items(plan, row) and (design_shell.sized(row) or [WHOLE_WALL])[0] < WHOLE_WALL:
                 found += plates(plan, row)

@@ -29,7 +29,8 @@ shrunk where it does not fit (never grown past its own model, but in an opening:
             where that wall stands behind the plan's line (opening_spot: hangar's and garage's shell walls stand
             0.15 m behind it), so its swing keeps touching its jamb and clear of it
     ramp    up its way onto its level's built deck: its foot on the ground it stands on, pitched by the slope from
-            there to the deck's top over its length, its high end's foot on the deck's near side (ramp_rest)
+            there to the deck's top over its length, its high end's foot on the deck's near side (ramp_rest); a
+            ramp take laid at the plan's flight with no deck there up to its flight's high end (ramp_end)
 
 and things nothing holds (no `on`) laid at their built size inside each other, a fixture or a wall are parted on the
 floor at that size, each in its own room and on its deck (on_deck), by the plan fixes' relation solver and then the
@@ -1131,20 +1132,35 @@ def side_along(box, up, side=min):
     return side(float(np.array([x, z]) @ up) for x in (box[0][0], box[1][0]) for z in (box[0][2], box[1][2]))
 
 
+def ramp_end(on, built):
+    """(top, where along `up`) of what a ramp's high end rests on: its deck's top and near side (ramp_deck), else, for
+    a ramp take laid at the plan's flight (`flight`, scene_record writer.flight_ramp), the flight's high end, its
+    `top` on its `edge`'s line (#128: the camp grounds' lander ramp climbs to its lander's hatch, which no deck holds);
+    None with neither."""
+    deck = ramp_deck(on, built)
+    if deck is not None:
+        return float(deck[1][1]), side_along(deck, np.asarray(on["up"], float))
+    if not on.get("flight"):
+        return None
+    return float(on["top"]), float(np.asarray(on["edge"], float).mean(axis=0) @ np.asarray(on["up"], float))
+
+
 def ramp_rest(low, high, on, built):
     """(pivot, axis, degrees, target) of a ramp laid by its relation `on` (module docstring) from its box (low, high),
     its long side laid up the way `up`: pitched about its low end's foot (`pivot`, about the level `axis` across that
-    way, then moved to `target`) by the slope from the ground it stands on to its deck's top over its length, so its
-    high end's foot rests on that deck's near side at its top; None with no deck built there (ramp_deck)."""
-    deck = ramp_deck(on, built)
-    if deck is None:
+    way, then moved to `target`) by the slope from the ground it stands on to its high end's top over its length, so
+    its high end's foot rests at what it rests on (ramp_end: its deck's near side at its top, else its flight's high
+    end); None with nothing there."""
+    end = ramp_end(on, built)
+    if end is None:
         return None
+    top, near = end
     up = np.asarray(on["up"], float)
     length = across(up, high - low)
-    angle = math.asin(float(np.clip((float(deck[1][1]) - float(low[1])) / max(length, 1e-9), 0.0, 1.0)))
+    angle = math.asin(float(np.clip((top - float(low[1])) / max(length, 1e-9), 0.0, 1.0)))
     way = np.array([up[0], 0.0, up[1]])
     pivot = foot_middle(low, high) - way * length / 2
-    reach = side_along(deck, up) - length * math.cos(angle) - float(pivot[[0, 2]] @ up)
+    reach = near - length * math.cos(angle) - float(pivot[[0, 2]] @ up)
     return pivot, np.cross(way, [0.0, 1.0, 0.0]), math.degrees(angle), pivot + way * reach
 
 
@@ -1403,12 +1419,12 @@ def out_of(low, high, box):
 
 
 def off_ramp(low, high, on, built):
-    """Metres a ramp's high end stands off its deck's near side along its way up; None with no deck built there."""
-    deck = ramp_deck(on, built)
-    if deck is None:
+    """Metres a ramp's high end stands off what it rests on along its way up (ramp_end: its deck's near side, else its
+    flight's high end); None with nothing there."""
+    end = ramp_end(on, built)
+    if end is None:
         return None
-    up = np.asarray(on["up"], float)
-    return abs(side_along((low, high), up, max) - side_along(deck, up))
+    return abs(side_along((low, high), np.asarray(on["up"], float), max) - end[1])
 
 
 def off(low, high, on, holders=()):

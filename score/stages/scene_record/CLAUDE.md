@@ -18,9 +18,13 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   `slab`, `gable`, `dome` and `tube_arc` (a vault) entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
   inside place (walls or roofs drawn, no terrain spots) whose base does not lay it already (`design_shell.laid_for`: a
   room whose plan says its kit holds its walls, laid by earth-seed); an open place has none. Every stair or ramp the
-  plan draws is a flight of `stairs`, but one a row of its kind with a take lays (`writer.flight_takes`, #128: the last word of its id a ramp or stair,
+  plan draws is a flight of steps, a `slab` a step on a `STAIR_WAIST` waist (`writer.flight_steps`, #128: never solid
+  columns down to its foot; its first step named the flight, `<kind>_<n>`, the rest `<kind>_<n>_<step>`; builders'
+  `stairs` is not edited, it moves 83 paid rows), but one a row of its kind with a take lays (`writer.flight_takes`, #128: the last word of its id a ramp or stair,
   rows and flights paired nearest first): that take is laid at the flight (`flight_objects`, at its footprint's
-  middle and low end, along its way up) or, for a row on a plan item of its own, at that item (`flights_named`),
+  middle and low end, along its way up; a ramp's `on` its flight's high end, `flight_ramp`, which the assembly
+  pitches it up to, onto a deck there or the flight's end itself, `fitting.ramp_end`) or, for a row on a plan item of
+  its own, at that item (`flights_named`),
   the object's `flight` naming the flight it stands for, and no box flight beside it; the walls cut each opening a door or window row of the hand-in fills at its
   plan item (`design_shell.cut_for`); each plan item of an arched structure row of the hand-in
   (`design_shell.arched`: a tube's ribs) an `arch` at the row's size, painted as a wall, named its row. The shell's own structural rows of the hand-in are its pieces too (`design_shell.row_pieces`,

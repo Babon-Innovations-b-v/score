@@ -82,6 +82,10 @@ DECK_BELOW = design_shell.DECK_BELOW
 LIBRARY_ROW = "surface-library"
 # A ramp is laid as a flight of steps this high each (metres), fine enough to walk as a slope.
 RAMP_STEP = 0.05
+# A box flight's waist: metres of slab under each step's riser foot (flight_steps), so a flight is treads on a stepped
+# slab with room under it, never solid columns down to its foot (#128: the street's 15 steps up to 3 m read as brown
+# columns, 2026-11-15).
+STAIR_WAIST = 0.15
 # A view stands this far inside its doorway (every view sees far.VIEW_FOV wide).
 VIEW_IN = 1.0
 AIM_HEIGHT = 1.0
@@ -284,16 +288,42 @@ def stair(number, entry, design):
                     f"{max(1, steps)} steps up its footprint at {float(entry.get('angle') or 0.0):g} degrees"}
 
 
+def flight_steps(flight):
+    """A box flight (stair: its foot, top, wide and steps in the place's frame) as one `slab` a step: its tread at its
+    rise, down its riser and STAIR_WAIST under that, never below the flight's foot, so the flight stands as steps on a
+    stepped slab with room under it, never a row of solid columns down to its foot (#128). tools/usd/builders.py's
+    `stairs` is left as it is (an edit there moves 83 paid rows' keys); this lays builders' `slab`, as the wall kit
+    does. The first step keeps the flight's name (`<kind>_<n>`: the plan-matched gate's, a hatch's), the others
+    `<kind>_<n>_<step>`."""
+    foot, top = np.asarray(flight["foot"], float), np.asarray(flight["top"], float)
+    run = top[[0, 2]] - foot[[0, 2]]
+    way = run / max(float(np.linalg.norm(run)), 1e-9)
+    side = np.array([-way[1], way[0]]) * float(flight["wide"]) / 2
+    steps = int(flight["steps"])
+    rise = (float(top[1]) - float(foot[1])) / steps
+    found = []
+    for step in range(steps):
+        near, far = foot[[0, 2]] + run * step / steps, foot[[0, 2]] + run * (step + 1) / steps
+        high = float(foot[1]) + rise * (step + 1)
+        low = max(float(foot[1]), high - rise - STAIR_WAIST)
+        found.append({"name": flight["name"] if step == 0 else f"{flight['name']}_{step + 1}", "builder": "slab",
+                      "points": [[round(float(x), 4), round(float(z), 4)]
+                                 for x, z in (near - side, far - side, far + side, near + side)],
+                      "low": round(low, 4), "high": round(high, 4),
+                      "from": f"{flight['from']}: step {step + 1}, its tread on a {STAIR_WAIST:g} m waist"})
+    return found
+
+
 def structure(plan, design, library=None, rows=None, handin=None):
     """The record's structure: an inside place's shell where its base does not lay it (its own rows, `rows`, named on
-    its pieces), and the plan's stairs but each the take of a row of the hand-in lays (flight_takes: never a box
-    flight beside a take), each painted from the scene's surface library (`library`: its materials.json content, None
+    its pieces), and the plan's stairs, each a slab a step (flight_steps), but each the take of a row of the hand-in
+    lays (flight_takes: never a box flight beside a take), each painted from the scene's surface library (`library`: its materials.json content, None
     while not made)."""
     shelled = shell(design, plan["place"], library, rows) if inside(design) and not design_shell.laid_for(design) \
         else []
     taken = flight_takes(design, handin or {})
-    flights = [painted(stair(number, entry, design), "stair", plan["place"], library)
-               for number, entry in flights_of(design) if number not in taken]
+    flights = [painted(step, "stair", plan["place"], library) for number, entry in flights_of(design)
+               if number not in taken for step in flight_steps(stair(number, entry, design))]
     if shelled:
         name_open_cuts(design, shelled + flights, (rows or {}).get("opening", []))
     return shelled + flights
@@ -395,12 +425,31 @@ def flight_objects(design, handin):
         (point,), floor = in_frame(design, [flight_middle(entry)], min(low, high))
         counts[row_id] = counts.get(row_id, 0) + 1
         name = f"{entry.get('kind', 'stair')}_{number}"
-        found.append({"name": f"{row_id}_{counts[row_id]}", "row": row_id, "bake": model, "kind": "object",
-                      "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
-                      "waiting": waits(row, model, by_id), "flight": name,
-                      "from": f"the plan's {name.replace('_', ' ')}, inventory row {row_id}: its take laid in place "
-                              f"of a box flight, from {min(low, high):g} m up its footprint"})
+        laid = {"name": f"{row_id}_{counts[row_id]}", "row": row_id, "bake": model, "kind": "object",
+                "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
+                "waiting": waits(row, model, by_id), "flight": name,
+                "from": f"the plan's {name.replace('_', ' ')}, inventory row {row_id}: its take laid in place "
+                        f"of a box flight, from {min(low, high):g} m up its footprint"}
+        if entry.get("kind") == "ramp":
+            laid["on"] = flight_ramp(design, entry, way, name)
+        found.append(laid)
     return found
+
+
+def flight_ramp(design, entry, way, name):
+    """The `on` (how "ramp", as related lays a ramp up to its level) of a ramp take laid at the plan's flight: the
+    flight's high end's edge across its footprint, its way up and its high end's height, in the place's frame, which
+    the assembly pitches the take by onto the deck there (fitting.ramp_rest), else, named its `flight`, up to that high
+    end itself (fitting.ramp_end), so it reaches what the flight reaches
+    (#128: the camp grounds' lander ramp lay flat on its footprint, short of the hatch, 2026-11-15)."""
+    points = np.asarray(entry["points"], float)
+    across = np.array([-way[1], way[0]])
+    along, side = points @ way, points @ across
+    edge = [way * along.max() + across * side.min(), way * along.max() + across * side.max()]
+    ends, top = in_frame(design, edge, max(float(entry["from"]), float(entry["to"])))
+    return {"how": "ramp", "edge": ends, "up": plan_way(design, way), "top": top, "flight": name,
+            "why": f"up the plan's {name.replace('_', ' ')} to its high end at "
+                   f"{max(float(entry['from']), float(entry['to'])):g} m"}
 
 
 def open_cuts(design, words):
@@ -468,8 +517,9 @@ def kit_specks(design, specks):
 
 
 def kit_entries(design, place, library, handin):
-    """The wall kit (score/stages/wall_kit: frames round every opening, and the panels, padded sections, dado and
-    facades of the code rows the plan's shell lays, route `plan`) of an enclosed place: each solid of a piece a `slab`
+    """The wall kit (score/stages/wall_kit: frames round every opening, and the panels, padded sections, dado,
+    facades and ceiling panels, hung under the roof's underside here, roof_under, of the code rows the plan's shell
+    lays, route `plan`) of an enclosed place: each solid of a piece a `slab`
     entry, its rivets one `specks` entry, named kit_<piece>[_<n>], painted with the scene library variant its words
     choose (wall_kit.surface), else none and why. Its `from` ends with the wall kit's code that made it, by which the
     library check traces it to the wall kit algorithm entry. No `row`: a thin slab with a row is a raised floor pad
@@ -478,7 +528,7 @@ def kit_entries(design, place, library, handin):
         return []
     rows = [row for row in handin.get("rows", []) if row.get("route") == "plan"]
     found = []
-    for piece in wall_kit.pieces(design, rows):
+    for piece in wall_kit.pieces(design, rows, lambda spot: roof_under(design, spot)):
         surface = wall_kit.surface(piece, library)
         laid = [kit_part(design, part) for part in piece.parts] + \
             ([kit_specks(design, piece.specks)] if piece.specks else [])
