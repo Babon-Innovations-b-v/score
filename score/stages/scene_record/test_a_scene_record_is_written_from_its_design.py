@@ -560,6 +560,9 @@ ABSENT = object()
 #    edge), stands at plan (35, 5), its body 20 to 50 m east, facing west; the 40 x 20 m one's strip at the foot,
 #    (5, 18) 10 x 2 m, at plan (10, 30), 20 to 40 m south, facing north; a kiosk on the ground off the edge stays
 #    centred on its item.
+#  - a band (assembly@base, 2026-11-15: its connecting tubes, each drawn a diagonal band from its hub to a module, laid
+#    north to south): a 15 m tube on a band drawn corner to corner of its 8 m box lies along the band, a crate on one
+#    keeps its facing's way.
 #  - a run along its long side (#36, 2026-10-31: the walkway's 12 m ceiling ducts turned by their facing across the
 #    hall): a duct long on the ground at an item long the other way to its facing lies along the item (its facing's
 #    way turned a quarter, writer.item_way); a chair, not long, keeps its facing on its box a little deeper than wide.
@@ -762,6 +765,29 @@ PLACED = [
      {"duct_1": {"rotation": (Turned((0.0, -1.0), signed=False), Turned("S", signed=False, not_=True))},
       "chair_1": {"rotation": Turned("S", signed=False)}},
      {"duct": ["duct_1"], "chair": ["chair_1"]}, None, None),
+    ("a long row on a band its item draws across its box lies along the band",
+     {"w": 10.0, "d": 10.0, "items": [["TUBE 1", 1.0, 1.0, 8.0, 8.0, None, "item"],
+                                      ["CRATE 1", 1.0, 1.0, 8.0, 8.0, None, "item"]],
+      "rows": {"TUBE 1": ["tube"], "CRATE 1": ["crate"]},
+      "shapes": {name: {"shape": "polygon", "points": [[1.0, 0.7143], [0.7143, 1.0], [0.0, 0.2857], [0.2857, 0.0]]}
+                 for name in ("TUBE 1", "CRATE 1")}},
+     [{"id": "tube", "route": "prop", "size": [3.0, 15.0, 3.0]},
+      {"id": "crate", "route": "prop", "size": [1.0, 1.0, 1.0]}],
+     None, None,
+     {"tube_1": {"rotation": Turned((math.sqrt(0.5), math.sqrt(0.5)))},
+      "crate_1": {"rotation": Turned((1.0, 0.0))}},
+     {"tube": ["tube_1"], "crate": ["crate_1"]}, None, None),
+    ("a passage against its wall runs out through it, a lamp on the wall along it",
+     {"w": 10.0, "d": 10.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 10.0, 10.0, None, "item"]],
+      "rows": {"ON THE WALLS AND CEILING": ["tunnel", "lamp"]}},
+     [{"id": "tunnel", "noun": "tunnel", "anchor": "wall", "route": "shell", "size": [3.0, 5.0, 3.0]},
+      {"id": "lamp", "anchor": "wall", "route": "prop", "size": [0.3, 0.2, 0.3]}],
+     {"relations": [{"item": "ON THE WALLS AND CEILING", "row": row, "how": "wall", "why": "against the wall nearest",
+                     "wall": {"from": [10.0, 0.0], "to": [10.0, 10.0], "thick": 0.2}, "side": 1, "spot": [10.0, at]}
+                    for row, at in (("tunnel", 3.0), ("lamp", 8.0))]}, None,
+     {"tunnel_1": {"on.how": "wall", "rotation": Turned((1.0, 0.0))},
+      "lamp_1": {"on.how": "wall", "rotation": Turned((0.0, -1.0))}},
+     {"tunnel": ["tunnel_1"], "lamp": ["lamp_1"]}, None, None),
     ("a facade past its edge",
      {**FACADE_PLAN, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
                                ["AC 1", 0.5, 10.0, 0.8, 0.4, None, "item"], ["DOOR 1", 5.0, 5.0, 1.0, 0.1, None, "item"],
@@ -1533,6 +1559,12 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     scene's instances (base's seven tubes, 2026-11-06) it passes. A row the plan also leaves on its walls item, once its
     fixes placed it on an item of its own, is laid once, at its own item (camp's airlock door, 2026-11-06).
     Break: score/stages/scene_record/writer.py item_rows: `if name != WALLS_ITEM or row not in placed]` -> `]`
+    Break: score/stages/scene_record/writer.py design_objects: `if on and on["how"] == "wall" and
+        plan_checks.connector(row):` -> `if False:` (the tunnel laid along its wall, across its doorway: workshop's
+        glass tunnels, 2026-11-15)
+    Break: score/stages/scene_record/writer.py spots_of: `item_way(item, row) if band is None else band` ->
+        `item_way(item, row)` (the tube laid north to south across its band), or band_way's
+        `or min(size[0], size[1]) > BAND_SHARE * max(size[0], size[1])` dropped (the crate turned onto the band)
     Break: score/stages/scene_record/gates.py: `and row["id"] not in said and counted.get(row["id"], 0) !=
         led.get(row["id"])]` -> `and row["id"] not in said]` (the instances the doorways lead to are no reason)
     Break: score/stages/scene_record/gates.py: led_instances' `if hold.get("instance") in led:` -> `if

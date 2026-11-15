@@ -112,6 +112,8 @@ ROOF_WORDS = frozenset(("roof", "ceiling", "skylight"))
 FLOOR_WORDS = frozenset(("floor", "hatch"))
 # An item's way (x across) in plan metres by its facing (None as north): turned east or west it lies across.
 FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.0), "W": (0.0, -1.0)}
+# A plan polygon (or a row's ground size) at most this wide across for its length is a band, long one way.
+BAND_SHARE = 0.5
 
 
 def files(place):
@@ -940,9 +942,30 @@ def spots_of(item, shape, pieces, row):
     evenly along its path (item_path), each its long side along it."""
     x, y, wide, deep = (float(value) for value in item[1:5])
     if pieces == 1:
-        return [(np.array([x + wide / 2, y + deep / 2]), item_way(item, row))]
+        band = band_way(item, shape, row)
+        return [(np.array([x + wide / 2, y + deep / 2]), item_way(item, row) if band is None else band)]
     path = item_path(item, shape)
     return [along(path, (number + 0.5) / pieces) for number in range(pieces)]
+
+
+def band_way(item, shape, row):
+    """The plan way a long row's one piece lays its long side along where its item's polygon is a band (its outline's
+    long axis, at most BAND_SHARE as wide across), signed toward its facing's way; None otherwise. Base's connecting
+    tubes, each drawn a diagonal band from its hub to a module on a square box, were laid north to south beside both
+    (assembly@base, 2026-11-15)."""
+    size = row["size"] if sized(row) else None
+    if shape.get("shape") != "polygon" or len(shape.get("points") or []) < 3 or not size \
+            or min(size[0], size[1]) > BAND_SHARE * max(size[0], size[1]):
+        return None
+    x, y, wide, deep = (float(value) for value in item[1:5])
+    points = np.array([[x + float(across) * wide, y + float(along) * deep] for across, along in shape["points"]])
+    _, axes = np.linalg.eigh(np.cov((points - points.mean(axis=0)).T))
+    long_way, cross_way = axes[:, 1], axes[:, 0]
+    length, across = (float(np.ptp(points @ way)) for way in (long_way, cross_way))
+    if length <= 0 or across > BAND_SHARE * length:
+        return None
+    facing = np.asarray(FACING_WAY.get(item[5], FACING_WAY[None]), float)
+    return long_way if float(long_way @ facing) >= 0 else -long_way
 
 
 def item_way(item, row):
@@ -1234,7 +1257,8 @@ def floor_lift(design, spot, base):
 def design_objects(design, handin, relations=None):
     """Every object of the design: one at each plan item (more where the item counts several, or a run the plan
     draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
-    as high as its shape's base, turned along its item, waiting on the bake's model of its row (made_waiting lays it
+    as high as its shape's base, turned along its item (a long row along the band its polygon draws, band_way; a
+    passage against its wall run out through it, never along it: workshop's glass tunnels), waiting on the bake's model of its row (made_waiting lays it
     once baked; one the bake never makes stays named on the stage's root). A row marked `far` is laid far off by
     far_objects alone, never at an item its plan laid it at too (the street's distant floodlights, laid at its end). A
     row on the ground the plan lays only against its edge (floor_fit.past_edge) stands past it (past_edge_spot), never
@@ -1268,6 +1292,8 @@ def design_objects(design, handin, relations=None):
                 height = floor_lift(design, spot, base) if base else deck_height(design, spot)
                 if relation:
                     spot, way, height, on = related(design, relation, spot, way, height, size, piece)
+                if on and on["how"] == "wall" and plan_checks.connector(row):
+                    way = np.array([-way[1], way[0]])  # a passage runs out through its wall, never along it
                 if on and on["how"] == "face" and thin_holder(size, row_size(by_id, models, on.get("holder row"))):
                     on = {**on, "below": True}  # hung under it (fitting.hung_under), never against its side
                 number += 1
