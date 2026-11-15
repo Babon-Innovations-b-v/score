@@ -59,7 +59,7 @@ def make(inputs, out, seed, params):
     railings_held.laid(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))  # held, off the walls
     tops_levelled.laid(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))  # a roof piece left
     roof_tops.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
-    face_down.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
+    face_down.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out), inputs.get("resting rules"))
     release()
     silence(inputs, out)
 

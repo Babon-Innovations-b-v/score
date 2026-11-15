@@ -13,10 +13,15 @@ its structural ribs (structure_mounted; four within a rib, seven on a rib's side
 up their ribs, lamps 5 to 7 into the deck, which the resting gate named "still inside after the nudge"
 (assembly@tube, 2026-11-12).
 
-    downs(stage, place, record, rows)   {name: metres down} of each such thing over nothing within TOLERANCE, let
-                                        down by the least gap of its foot's points to the first surface under them
-                                        (the made ground, or any other thing)
-    let_down(folder, place, rows)       each such thing of the place at `folder` moved down, with what it holds; the
+A row given no support whose words the resting rules' `hanging` names (triage.support_type: "clothes hanging on rack")
+is judged by touching too, so its face things stay: settle@street's hanging clothes 6 and 7, laid on drying rack 4's
+side 4.6 m up, were let down 4.64 m into the street's deck_2, which the resting gate named "still inside after the
+nudge" (2026-11-15).
+
+    downs(stage, place, record, rows, hanging)  {name: metres down} of each such thing over nothing within TOLERANCE,
+                                        let down by the least gap of its foot's points to the first surface under
+                                        them (the made ground, or any other thing)
+    let_down(folder, place, rows, rules)  each such thing of the place at `folder` moved down, with what it holds; the
                                         fits [{name, how "let down", ...}], laid.json written again
 """
 import json
@@ -31,18 +36,27 @@ from score.stages.assembly import BASE_LAYER, RECORD, fitting, made_waiting, on_
 STANDING = (None, "floor", "held")
 
 
-def faced_standing(record, rows=None):
+def faced_standing(record, rows=None, hanging_words=()):
     """The names of the record's things laid on their holder's side (`face`) whose row is judged standing: given no
     support but standing ones by the resting check's reading of the inventory `rows` (assembly.resting_rows: not every
     object of it on a face, mounted.on_faces, nor mounted on a wall or ceiling row, mounted.mounted, nor hung or
-    resting as laid); by the record alone (on_faces) without `rows`."""
+    resting as laid), and, given none, not hanging by the triage's own rules (a row's words among `hanging_words`, the
+    resting rules' `hanging`: hung_by_words); by the record alone (on_faces) without `rows`."""
     from score.stages.assembly import resting_rows
     from score.stages.assembly.mounted import on_faces
-    hanging = on_faces(record)
+    hanging = {**on_faces(record), **hung_by_words(rows, hanging_words)}
     given = {row["id"]: row.get("support") for row in resting_rows({"rows": rows or []}, record)["rows"]}
     return [entry["name"] for entry in record.get("objects") or []
             if (entry.get("on") or {}).get("how") == "face" and entry["row"] not in hanging
             and given.get(entry["row"]) in STANDING]
+
+
+def hung_by_words(rows, hanging_words):
+    """{row id: "hanging"} of the inventory `rows` naming no support whose id and name hold one of `hanging_words` (the
+    resting rules' `hanging`), as triage.support_type reads them: judged by touching, never standing."""
+    import triage
+    return {row["id"]: "hanging" for row in rows or [] if not row.get("support")
+            and triage.words_of(row) & set(hanging_words)}
 
 
 def gap_under(points, ground, others):
@@ -82,20 +96,20 @@ def tip_drop(points, gaps, weight):
     return float(rest.min()) if len(rest) and np.isfinite(rest.min()) else 0.0
 
 
-def downs(stage, place, record, rows=None):
-    """{name: metres} each faced thing of a standing row (faced_standing, by the inventory `rows`) is let down by: the
-    least gap of its foot's points (within TOLERANCE of its lowest: its back may touch its holder's side higher up,
-    solar_panels_5 at one point) to the first surface under them, where that is over TOLERANCE (gap_under); or, where
-    what its foot touches does not hold it, the least gap of the points that do not touch (tip_drop): quarters' flat
-    1.3 cm wrench, its back edge on its desk's back panel 0.25 m up and the rest over the floor, tipped
-    (settle@quarters, 2026-11-13)."""
+def downs(stage, place, record, rows=None, hanging_words=()):
+    """{name: metres} each faced thing of a standing row (faced_standing, by the inventory `rows` and the resting
+    rules' `hanging_words`) is let down by: the least gap of its foot's points (within TOLERANCE of its lowest: its
+    back may touch its holder's side higher up, solar_panels_5 at one point) to the first surface under them, where
+    that is over TOLERANCE (gap_under); or, where what its foot touches does not hold it, the least gap of the points
+    that do not touch (tip_drop): quarters' flat 1.3 cm wrench, its back edge on its desk's back panel 0.25 m up and
+    the rest over the floor, tipped (settle@quarters, 2026-11-13)."""
     import resting
     import trimesh
     ground = resting.ground_height(stage, place)
     things = stage.GetPrimAtPath(f"/{place}/Objects")
     names = [prim.GetName() for prim in (things.GetChildren() if things else [])]
     found = {}
-    for name in faced_standing(record, rows):
+    for name in faced_standing(record, rows, hanging_words):
         prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
         if not prim:
             continue
@@ -114,10 +128,11 @@ def downs(stage, place, record, rows=None):
     return found
 
 
-def let_down(folder, place, rows=None):
-    """Each faced thing of a standing row (by the inventory `rows`) of the place at `folder` moved down onto what is
-    under it (downs), what it holds moved with it; the base layer saved and laid.json's boxes and fits written again.
-    The fits, [] and nothing written when none moves."""
+def let_down(folder, place, rows=None, rules=None):
+    """Each faced thing of a standing row (by the inventory `rows` and the resting rules file `rules`, the one the
+    resting check judges by) of the place at `folder` moved down onto what is under it (downs), what it holds moved
+    with it; the base layer saved and laid.json's boxes and fits written again. The fits, [] and nothing written when
+    none moves."""
     from pxr import Gf, Sdf, Usd
     folder = pathlib.Path(folder)
     laid_path, record_path = folder / made_waiting.LAID, folder / RECORD
@@ -130,7 +145,8 @@ def let_down(folder, place, rows=None):
     entries = {entry["name"]: entry for entry in record.get("objects") or []}
     holding = fitting.holders_of(record)
     fits = []
-    for name, drop in sorted(downs(stage, place, record, rows).items()):
+    hanging_words = json.loads(pathlib.Path(rules).read_text())["hanging"] if rules else ()
+    for name, drop in sorted(downs(stage, place, record, rows, hanging_words).items()):
         held = [other for other in parting.carried(name, holding)
                 if other in entries and stage.GetPrimAtPath(f"/{place}/Objects/{other}")]
         for one in (name, *held):

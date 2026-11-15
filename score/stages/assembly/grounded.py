@@ -54,7 +54,7 @@ def grounded_seed(inputs, folder):
     roof_tops.let_down(folder, seed.name, inventory_rows(inputs))  # a roof piece onto the holder it roofs
     # a face thing of a row its inventory leaves standing onto what is under it, as wired.make (tube's wall lamps on
     # its ribs are mounted, so left)
-    face_down.let_down(folder, seed.name, inventory_rows(inputs))
+    face_down.let_down(folder, seed.name, inventory_rows(inputs), inputs.get("resting rules"))
     return root
 
 

@@ -1494,6 +1494,10 @@ LET_DOWN = [
     {"case": "that lamp, its row on the crate", "made": (a_faced_place, {}), "lays": face_down.let_down,
      "rows": [*RIBBED, {"id": "panel", "noun": "wall lamp", "anchor": "on:crate"}], "said": ("name", "moved"),
      "places": 3, "fits": [("panel_1", 0.4), ("cube_2", 0.4)]},
+    {"case": "street's hanging clothes: that panel's row named hanging by the resting rules",
+     "made": (a_faced_place, {}), "lays": face_down.let_down,
+     "rows": [*RIBBED, {"id": "panel", "name": "panel hanging on crate", "noun": "panel", "anchor": "on:crate"}],
+     "rules": ["hanging", "hook"], "said": ("name", "moved"), "places": 3, "fits": []},
     {"case": "wreck's hatch at a lying hull's box top, 0.6 m off its crest", "made": (a_topped_place, {}),
      "lays": tops_levelled.laid, "said": ("name",), "fits": [("hatch_1",)], "lows": {"hatch_1": 2.0},
      "within": 0.01, "middle": {"hatch_1": ((None, 0.0), 0.15)}, "laid": ("hatch_1", None, 1e-3)},
@@ -3223,6 +3227,9 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     Break: score/stages/assembly/fitting.py: walls_ahead's `<= deep]] = True` -> `<= 0.0]] = True` (the rack left in
         the wall folding back in front of its face), or its `taken |= alongs >= past if` -> `taken |= False if` (the
         face past the wall crossing it left free)
+    Break: score/stages/assembly/fitting.py: laid_bands' `*((at, at + tall) for at in lower_heights(tall, height,
+        mounted))]` -> `]` (street's rack 3, stood MOUNT_GAP under rack 2, laid at z 3 to 5 into the wall ahead, read
+        at its own height alone)
     held@garage, @habitat, @workshop (2026-10-30): a glass tunnel or corridor tube the concept shows meeting its
     module's wall from outside, laid against that wall, reached 0.09 to 0.30 m into the built wall; it joins the place
     through it, as a door stands in its opening, so the held gate excuses its wall, never a deck. A pipe laid against
@@ -3705,8 +3712,11 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         let down through the step onto the ground), or downs' `points = points[points[:, 1] <= ...]` -> `pass` (let
         down 0.1 m onto the rail its back rests on)
     Break: score/stages/assembly/face_down.py: faced_standing's `and given.get(entry["row"]) in STANDING` -> `` (the
-        panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows)` ->
+        panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows, hanging_words)` ->
         `faced_standing(record)`
+    Break: score/stages/assembly/face_down.py: hung_by_words' `and triage.words_of(row) & set(hanging_words)}` ->
+        `and False}`, or let_down's `if rules else ()` -> `if False else ()` (street's hanging panel, named hanging by
+        the resting rules, let down 0.4 m off its crate's side)
     Break: score/stages/assembly/face_down.py: tip_drop's `<= 0.0:` -> `<= np.inf:` (the tipping wrench
         left), or downs' `elif gap <= on_ground.TOLERANCE:` -> `elif False:` (caught on quarters' laid seed)
     Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name, inventory_rows(inputs))` ->
@@ -3888,6 +3898,13 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
                                               kept_out[keeping] if isinstance(keeping, str) else keeping, **more)
         assert (scale is None or laid_scale == scale) and np.allclose(laid_at, foot), \
             f"{case}: laid {laid_scale} at {laid_at}"
+    rack = (np.array([0.1, 1.0, 3.0]), np.array([0.5, 1.5, 5.0]))  # street's rack 3: 2 m on ALONG at z 3 to 5
+    under = [(np.array([0.1, 0.9, 0.0]), np.array([0.5, 1.4, 2.5]))]  # rack 2, laid before it 0.1 m lower
+    ahead = [run for band in fitting.laid_bands(*rack, under) for run in fitting.walls_ahead(KEPT_OUT[1][1], ALONG,
+                                                                                            band, 0.5)]
+    laid_at = fitting.on_wall(*rack, ALONG, ahead, under)[1]  # stood MOUNT_GAP under rack 2, clear of the wall ahead
+    assert fitting.laid_bands(*rack, ()) == [(1.0, 1.5)] and np.allclose(laid_at, (0.3, 0.35, 2.975)), \
+        f"street's rack stood under the one before it laid at {laid_at}, its bands {fitting.laid_bands(*rack, under)}"
     for case, prims, things, boxes, unfitted, held, near, passage, near_face, openings, swing in FITTED:
         stage = a_fitted_world(prims)
         entries = [{"name": name, "row": kind, "on": on} for name, kind, on in things]
@@ -4730,6 +4747,9 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
             laid["objects"].append({"name": "post_1", "low": [-0.05, 0.0, -0.5], "high": [0.05, 1.7, 0.5]})
             (place.parent / made_waiting.LAID).write_text(json.dumps(laid))
         rows = (case["rows"],) if "rows" in case else ()
+        if "rules" in case:  # the resting rules' hanging words, as the settle's declared file
+            (place.parent / "resting.json").write_text(json.dumps({"hanging": case["rules"]}))
+            rows = (*rows, str(place.parent / "resting.json"))
         fits = case["lays"](place.parent, TOY, *rows)
         said = [tuple(round(fit[key], case["places"]) if case.get("places") and isinstance(fit[key], float)
                       else fit[key] for key in case["said"]) for fit in fits]

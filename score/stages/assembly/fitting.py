@@ -714,9 +714,26 @@ def mounted_height(start, run, out, length, size, height, reach, deep, clear, mo
     wanted = min(reach, longest(height, clear)) - 1e-9
     if longest(height, [*clear, *mounted]) >= wanted:
         return height
-    lower = sorted({float(np.asarray(other, float)[:, 1].min()) - size[1] - MOUNT_GAP for other in mounted} - {height},
-                   reverse=True)
-    return next((at for at in lower if 0.0 <= at < height and longest(at, [*clear, *mounted]) >= wanted), height)
+    return next((at for at in lower_heights(size[1], height, mounted) if longest(at, [*clear, *mounted]) >= wanted),
+                height)
+
+
+def lower_heights(tall, height, mounted):
+    """The heights, highest first, a wall thing `tall` metres tall laid at `height` may be stood at instead
+    (mounted_height): MOUNT_GAP under each of the boxes `mounted` (low, high, or a turned one's corners), lower than its
+    own and never under the floor."""
+    return sorted({float(np.asarray(other, float)[:, 1].min()) - tall - MOUNT_GAP for other in mounted
+                   if 0.0 <= float(np.asarray(other, float)[:, 1].min()) - tall - MOUNT_GAP < height}, reverse=True)
+
+
+def laid_bands(low, high, mounted):
+    """The height bands (low, high) a wall thing with the box (low, high) may stand in on its wall (mounted_height):
+    its own and each of lower_heights' among the boxes `mounted`. The built walls in front of its face are read in
+    each (walls_ahead): read in its own band alone, settle@street's drying rack 3, stood MOUNT_GAP under rack 2 laid
+    before it on slanted wall_7, was laid in the corner where wall_8 folds back in front of the face, 0.05 m inside
+    it, as the run wall_8 takes was read at the rack's own height only (2026-11-15)."""
+    tall, height = float(high[1]) - float(low[1]), float(low[1])
+    return [(height, height + tall), *((at, at + tall) for at in lower_heights(tall, height, mounted))]
 
 
 # A built wall an opening's door is sunk into stands within this of the opening's middle, metres: hangar's and
@@ -2095,14 +2112,15 @@ def fitted(stage, place, entries, laid, cuts=None):
                 low, high = world_box(stage, path)
             walled = how in ("wall", "face") and name not in leaves
             clear = [*(box for leaf in sorted(done & leaves) for box in rooms(leaf)), *climbing] if walled else ()
+            others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
+                if walled else ()
             if turned:  # and out of the openings cut through its wall (wall_holes)
                 clear = [*clear, *vault_feet.wall_holes(faces(), faced(), entry["on"], (float(low[1]),
                                                                                        float(high[1])))]
-            if on_face:  # and out of the built walls standing in front of its face (walls_ahead)
+            if on_face:  # and out of the built walls standing in front of its face (walls_ahead), at each height
                 deep = wall_reach(low, high, *wall_line(entry["on"])[1:3], oriented_corners(stage, path))[1]
-                clear = [*clear, *walls_ahead(faces(), entry["on"], (float(low[1]), float(high[1])), deep)]
-            others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
-                if walled else ()
+                clear = [*clear, *(ahead for band in laid_bands(low, high, others)  # on_wall may stand it at
+                                   for ahead in walls_ahead(faces(), entry["on"], band, deep))]
             clear, ribbed = ribs.kept_clear(stage, place, path, entry["on"], clear, others, built) if turned \
                 else (clear, built)  # and clear of a curved hull's ribs, or on their front
             corners = oriented_corners(stage, path) if turned else None
