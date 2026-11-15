@@ -20,7 +20,8 @@ own tone curve, fitted on the render's look against its light.
     adapting_white(views, scales,          the colour of the light the views take from the groups at the scales
                    colours) -> rgb
     sweep(views, swept, target, held,      the scale of the swept lamps (from LAMP_SCALES, at most `most`) that
-          most) -> scale                   brings the place's brightness nearest its concept's
+          most, concept_spread) -> scale   brings the place's brightness nearest its concept's, keeping its contrast
+    contrast(views, scales) -> spread      the place's contrast: the median of its views' looks' luminance spread
     own_share(views, scales, groups)       the share of the views' light the place's own lamps give (median), on
                                            each group's whole-view sum
     sun_down(views, suns, target, scales,  the suns' greatest scale (from theirs down SCALES) at which `unblown`
@@ -57,7 +58,9 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   Both added on 2026-11-04, after the rules, by the light audit: hangar's sun swept to x19 (about 2.4 million lux)
   in a night hangar, its lamps 8% of its light; airlock's, garage's, tube's and hub's lamps at the 1/32 floor, 0.5 to
   5% of the light, their concepts' lamp pools gone. LAMP_SHARE_LEAST is the audit's own figure, set before any look
-  it judges is made.
+  it judges is made. Since 2026-11-15 (#128) those suns are off and never raised (light.SEALED_SUN: at the floor,
+  hangar's sun still lit its floor at about 4 klux through its roof opening), and the lamps keep the concept's
+  contrast (kept_contrast, the rule beside CONTRAST_WITHIN).
 - A lamp-lit place's lamps are swept up to the top of LAMP_SCALES (x1024), every other place's to the top of SCALES
   (x32), where the suns take over. Added on 2026-11-10, after the rules: the library's lamp strength is an estimate
   that grows with its reach, while the floor a lamp lights grows with the square of it, so a big room's lamps start
@@ -95,6 +98,14 @@ WHITE = 0.98
 BLOWN_MOST = 0.2
 HALVINGS = 5
 FLOOR = 1e-6
+# A lamp-lit place keeps its concept's contrast (2026-11-15, #128, set before any look it judges is made): its lamps
+# are swept only over the scales at which its contrast (the median over its views of the look's luminance between its
+# SPREAD_LOW and SPREAD_HIGH quantiles) stays at least its concept's over CONTRAST_WITHIN, or the most any scale
+# gives over it where that is less. Brightness alone was matched until then: engineroom's lamps at x45 washed its
+# pale room an even blue-white against its dark concept lit by its core, storage's ended 35% over its concept.
+SPREAD_LOW = 0.1
+SPREAD_HIGH = 0.9
+CONTRAST_WITHIN = BRIGHT_WITHIN
 # The guided filter (He, Sun and Tang 2010) that keeps a lamp group's sampling noise out of a mixed look (only the
 # render's combined light is denoised; the owner, 2026-10-20: the camp's look full of specks): a window GUIDED_REACH
 # halved pixels out each way, and edges of the look whose variance passes GUIDED_EDGE (about 8 levels of 255) kept.
@@ -384,16 +395,38 @@ def capped(swept, scale, factors=None, caps=None):
             for group in swept}
 
 
-def sweep(views, swept, target, held=None, most=None, factors=None, caps=None):
+def spread(luminance):
+    """A look's contrast: its luminance's SPREAD_HIGH quantile less its SPREAD_LOW one (0 to 1)."""
+    low, high = np.quantile(np.asarray(luminance, dtype=np.float64), (SPREAD_LOW, SPREAD_HIGH))
+    return float(high - low)
+
+
+def contrast(views, scales):
+    """The place's contrast at the scales: the median over its views of each view's look's spread."""
+    return float(np.median([spread(toned(curve, mixed(passes, scales))) for passes, curve in views.values()]))
+
+
+def kept_contrast(views, tried, target):
+    """Which of the `tried` scales ({scale: scales}) keep the place's contrast: at least CONTRAST_WITHIN under the
+    concept's (`target`), or under the most any of them reaches where that is less."""
+    found = {scale: contrast(views, scales) for scale, scales in tried.items()}
+    least = min(target, max(found.values())) / CONTRAST_WITHIN
+    return {scale for scale, value in found.items() if value >= least - 1e-9}
+
+
+def sweep(views, swept, target, held=None, most=None, factors=None, caps=None, concept_spread=None):
     """The scale (from LAMP_SCALES, at most `most` where given) of every swept lamp, each times its `factors` entry (its
     balance, else 1) and at most its `caps` entry (a faint emitter: x1), that brings the place's brightness nearest
-    `target`, the other groups at their `held` scales; 1.0 when no lamp is swept."""
+    `target`, the other groups at their `held` scales, among the scales that keep the place's contrast near
+    `concept_spread` (its concept's, where given: kept_contrast); 1.0 when no lamp is swept."""
     if not swept:
         return 1.0
-    tried = [scale for scale in LAMP_SCALES if most is None or scale <= most + 1e-9]
-    gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **capped(swept, scale, factors, caps))), FLOOR)
-                       / target)) for scale in tried]
-    return float(tried[int(np.argmin(gaps))])
+    tried = {float(scale): dict(held or {}, **capped(swept, scale, factors, caps))
+             for scale in LAMP_SCALES if most is None or scale <= most + 1e-9}
+    kept = kept_contrast(views, tried, concept_spread) if concept_spread else set(tried)
+    gaps = {scale: abs(np.log(max(place_brightness(views, scales), FLOOR) / target))
+            for scale, scales in tried.items() if scale in kept}
+    return min(gaps, key=gaps.get)
 
 
 def own_share(views, scales, groups):

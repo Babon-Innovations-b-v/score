@@ -45,7 +45,11 @@ gates.
   blowing a view past its concept is stepped down before the fill's sweep, only as far as that needs with the place
   and every view kept within (`mix.sun_down`; 2026-10-31: camp's sunlit shell, 2.2-4.3% blown in seven views).
   A sun is the physics': never swept past `mix.SUN_MOST` (its physical strength), and a lamp-lit place (inside, its
-  concept's light showing no daylight: `light.lamp_lit`) has its suns at the sweep's floor while its lamps are swept;
+  concept's light showing no daylight: `light.lamp_lit`) has its suns off (`light.SEALED_SUN`, never raised; its
+  fill can be: 2026-11-15, #128, hangar's sun at x1/32 still lit its floor at about 4 klux through its roof opening,
+  workshop's doorways let a sun shaft in), its lamps swept only over the scales that keep its concept's contrast
+  (`mix.kept_contrast`, `CONTRAST_WITHIN`; the suns, the fill and the `brightness` gate then aim at the brightness
+  that leaves; 2026-11-15: engineroom's lamps at x45 washed its pale room out);
   the gate `light source` fails a sun past SUN_MOST and a lamp-lit place its own lamps give under
   `mix.LAMP_SHARE_LEAST` of the light (2026-11-04, the light audit: hangar's sun at x19 in a night hangar, its
   lamps 8%; airlock's, garage's, tube's and hub's lamps at the 1/32 floor). A lamp-lit place's lamps are swept up to `mix.LAMP_SCALES`' top (x1024), every

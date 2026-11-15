@@ -70,6 +70,10 @@ light.strengths, and on a stage laid by passes.source):
 - light.strengths: `first` always {} (a lamp-lit place's suns not at the floor), or the suns' sweep without
   `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the strengths rows: airlock,
   2026-11-04).
+- light.strengths: `raised` holding a sealed sun too (`list(suns)`: a lamp-lit place's daylight swept back up where its
+  lamps cannot; the strengths rows: airlock by night, 2026-11-15).
+- mix.sweep: `kept = set(tried)` (the contrast bound dropped: the washed-out ramp row); light.judge_brightness:
+  `aim = target` (a place its contrast held judged on its concept's brightness: the verdict rows; both 2026-11-15).
 - measure.surface_cast: brightness left in (`* 128.0 / ...` dropped); light.judge_colour: `gap <= CAST_MOST` ->
   `True` (the measures' table: the cast and verdict rows, 2026-11-04).
 - measure.backdrop: every near pixel taken, not only those joined to the border, or the border's share rule dropped;
@@ -811,6 +815,11 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     glare_edge = np.where(np.arange(60) < 1, 2000.0 * lamp_ramp, 0.0)  # a glare: the place within x1.5 at the floor
     shade_ramp = np.tile(np.linspace(0.2, 1.8, 30), (20, 1))  # a light that varies: each view's tone curve has a slope
     left_third = (np.arange(30) < 10)[None, :]
+    # one lamp on the ramp, its concept far brighter (0.95) at a spread of 0.3: matched alone it washes the look out
+    washed = {"v": ({"lamp_0": shade_ramp, "combined": shade_ramp},
+                    mix.tone_curve(shade_ramp, toned_look(shade_ramp)))}
+    washed_free = mix.sweep(washed, ["lamp_0"], 0.95)
+    washed_held = mix.sweep(washed, ["lamp_0"], 0.95, concept_spread=0.3)
     camp_sun = np.where((np.arange(60) >= 54)[None, :], 3.0, 0.2) * np.ones((40, 60))  # the right tenth: a pale wall
     camp_fill = np.full((40, 60), 1e-3)
     camp_colour = np.repeat(np.repeat(np.repeat((camp_sun + camp_fill)[..., None], 3, axis=2), 2, axis=0), 2, axis=1)
@@ -857,6 +866,7 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     real_sweep = mix.sweep
     with monkeypatch.context() as patched:
         patched.setattr(light, "concept_brightness", brightness_of.get)
+        patched.setattr(light, "concept_contrast", {}.get)  # no contrast bound in these runs: its own rows below
         patched.setattr(light, "concept_extremes", {"camp": no_black}.get)
         patched.setattr(mix, "sweep", lambda views, groups, target, held=None, most=None, **kept: sweeps[-1].append(
             (list(groups), dict(held or {}), most)) or real_sweep(views, groups, target, held, most, **kept))
@@ -1108,9 +1118,9 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
               light.outside_shell([2.9, -0.05, -2.9], shell)), (True, False, False)),
             ("airlock's source: its sun within SUN_MOST, lamp-lit unread",
              (airlock_found["source"]["sun_most"] <= mix.SUN_MOST, airlock_found["source"]["lamp_lit"]), (True, None)),
-            ("airlock by night: its sun held at the floor, every sweep of it at most SUN_MOST",
-             (night_sweeps[0][1], all(most == mix.SUN_MOST for groups, _, most in night_sweeps if "lamp_3" in groups)),
-             ({"lamp_3": float(mix.SCALES[0])}, True)),
+            ("airlock by night: sealed, its sun off and never swept up, off at the end",
+             (night_sweeps[0][1], any("lamp_3" in groups for groups, _, _ in night_sweeps), swept_runs[
+                 "airlock by night"][0]["lamp_3"]), ({"lamp_3": light.SEALED_SUN}, False, light.SEALED_SUN)),
             ("airlock by night: its lamps to the top of LAMP_SCALES, past SCALES'",
              (night_sweeps[0][2], night_sweeps[0][2] > float(mix.SCALES[-1])), (float(mix.LAMP_SCALES[-1]), True)),
             ("airlock by day: its lamps to the top of SCALES", swept_runs["airlock by day"][2][0][2],
@@ -1120,6 +1130,11 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
             ("airlock under its Moon: the night light at 1, never swept",
              (swept_runs["airlock under its Moon"][0]["lamp_3"],
               any("lamp_3" in groups for groups, _, _ in swept_runs["airlock under its Moon"][2])), (1.0, False)),
+            ("a lamp-lit room washed out matching its concept's brightness: held where its contrast falls under its "
+             "concept's over CONTRAST_WITHIN, the next scale up past it",
+             (washed_held < washed_free, mix.contrast(washed, {"lamp_0": washed_held}) >= 0.3 / mix.CONTRAST_WITHIN,
+              mix.contrast(washed, {"lamp_0": washed_held * 2 ** 0.125}) < 0.3 / mix.CONTRAST_WITHIN),
+             (True, True, True)),
             ("hangar: the fill raised over the suns' sweep, written",
              (hangar_found["fill_scale"] > hangar_found["sun_scale"], hangar_scales["lamp_2"] == hangar_found[
                  "fill_scale"]), (True, True)),
@@ -1262,7 +1277,13 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
              {"brightness": {"source": {"lamp_lit": False, "lamp_share": 0.6, "sun_most": 19.0}}}, checks.FAIL, "x19"),
             ("a source not read", light.judge_source,
              {"brightness": {"source": {"lamp_lit": None, "lamp_share": 0.6, "sun_most": 1.0}}}, checks.UNKNOWN,
-             "not read")):
+             "not read"),
+            ("a lamp-lit place its concept's contrast held at half its concept's brightness", light.judge_brightness,
+             held_at(0.2, True), checks.PASS, "contrast 0.250 kept"),
+            ("the same place at half its concept's brightness, no contrast held", light.judge_brightness,
+             held_at(0.2, False), checks.FAIL),
+            ("a hold past its concept's brightness never raises what it is judged on", light.judge_brightness,
+             held_at(0.5, True), checks.FAIL)):
         (judged / "measures.json").write_text(json.dumps(measures))
         verdict = judge(judged, {}, {})
         assert verdict.answer == answer and all(word in verdict.reason for word in says), (said, verdict.reason)
@@ -1554,6 +1575,12 @@ def inside_functions(*names):
 
 
 # --- the sweep on passes made here ----------------------------------------------------------------------------------
+
+def held_at(aim, held):
+    """A light row's brightness measures: its concept 0.4, its one view 0.2, the sweep's contrast hold at `aim`."""
+    return {"brightness": {"concept": 0.4, "before": {"v": 0.1}, "after": {"v": 0.2}, "swept_scale": 1.0, "swept": 1,
+                           "contrast": {"concept": 0.3, "place": 0.25, "held": held, "aim": aim}}}
+
 
 def toned_look(light_in):
     """A look made from light by a known tone curve (light over one plus light)."""

@@ -139,6 +139,11 @@ CARD = 0.18
 # neutral), quarters' warm orange room cool (blue to red 0.89 against 0.72), flat and stairwell far more orange (0.42
 # and 0.49 against about 1.0); every light gate judged brightness, black and blown alone.
 CAST_MOST = 12.0
+# A lamp-lit place's suns are off (2026-11-15, #128, set before any look it judges is made): its concept shows it
+# sealed from daylight, so no sun shines in through its openings, never raised where its lamps cannot reach (its fill
+# is). Until then they stood at the floor of mix.SCALES: hangar's 127 klux sun at x1/32 still lit its floor through its
+# roof opening at about 4 klux, and workshop's doorways let a hard sun shaft into its lamp-lit room.
+SEALED_SUN = 0.0
 place_of = passes.place_of
 
 
@@ -432,6 +437,12 @@ def concept_brightness(place):
                            @ np.array([0.2126, 0.7152, 0.0722])).mean() for path in concept_pictures(place)]))
 
 
+def concept_contrast(place):
+    """The mean spread (mix.spread) of the place's concept pictures' luminance, each at its own size."""
+    return float(np.mean([mix.spread(np.asarray(Image.open(path).convert("RGB"), dtype=np.float64) / 255.0
+                                     @ np.array([0.2126, 0.7152, 0.0722])) for path in concept_pictures(place)]))
+
+
 def on_screen(spot, size, views):
     """The views whose picture a lamp's spot falls in."""
     found = []
@@ -507,27 +518,35 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     suns = [group for group, path in groups.items()
             if by_path[path].get("sun") and group in held and path not in night_lights]
     lit_by_lamps = lamp_lit(light, record)
-    first = {group: float(mix.SCALES[0]) for group in suns} if lit_by_lamps and swept else {}
+    fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
+    sealed = [group for group in suns if group != fill] if lit_by_lamps and swept else []
+    # a lamp-lit place's daylight is off (SEALED_SUN), its fill at the floor of SCALES (2026-11-15, #128)
+    first = {group: SEALED_SUN if group in sealed else float(mix.SCALES[0]) for group in suns} \
+        if lit_by_lamps and swept else {}
     top = float(mix.LAMP_SCALES[-1] if lit_by_lamps else mix.SCALES[-1])  # 2026-11-10: hangar's lamps stopped at x32
     # a faint emitter (a screen) swept with the lamps but never past its own share of a lamp: no screen lights a room
     # (2026-11-10: camp's screens and laptop at x32 gave 62% of its light, cool, under its warm daylight concept)
     caps = {group: 1.0 for group in fixed}
-    scale = mix.sweep(views, swept, target, first, top, caps=caps)
+    spread = concept_contrast(place) if lit_by_lamps else None
+    scale = mix.sweep(views, swept, target, first, top, caps=caps, concept_spread=spread)
+    held_by = spread and scale < mix.sweep(views, swept, target, first, top, caps=caps)  # its contrast stopped it
     scales = {**{group: first.get(group, 1.0) for group in groups}, **mix.capped(swept, scale, caps=caps)}
+    raised = [group for group in suns if group not in sealed]  # a sealed room's sky stays off: its fill can rise
     sun_scale = first[suns[0]] if first else 1.0
-    if suns and (mix.pinned(scale, top) or not mix.within(views, scales, target)):  # the lamps cannot: the sky can
-        sun_scale = mix.sweep(views, suns, target, scales, mix.SUN_MOST)
-        scales.update(dict.fromkeys(suns, sun_scale))
-    fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
+    # the concept's contrast is its look too: the suns and the fill are swept to the brightness it leaves
+    aim = mix.place_brightness(views, scales) if held_by else target
+    if raised and (mix.pinned(scale, top) or not mix.within(views, scales, aim)):  # the lamps cannot: the sky can
+        sun_scale = mix.sweep(views, raised, aim, scales, mix.SUN_MOST)
+        scales.update(dict.fromkeys(raised, sun_scale))
     concept = concept_extremes(place)
     looks = {view: (held, look) for view, (held, _, look) in rendered_views.items()}
-    lit = [group for group in suns if group != fill]
+    lit = [group for group in suns if group != fill and group not in sealed]
     if lit:  # a sun blowing out what it lights is stepped down, the fill swept after it (2026-10-31, camp)
-        sun_scale = mix.sun_down(views, lit, target, scales,
+        sun_scale = mix.sun_down(views, lit, aim, scales,
                                  lambda tried: exposed_within(looks, concept, tried, ("blown",)))
         scales.update(dict.fromkeys(lit, sun_scale))
     if fill:
-        scales[fill] = mix.fill_sweep(views, fill, target, scales, lambda tried: exposed_within(looks, concept, tried))
+        scales[fill] = mix.fill_sweep(views, fill, aim, scales, lambda tried: exposed_within(looks, concept, tried))
     # the lights' colours balanced to the concept's cast: the lamps' classes (the faint emitters' apart), each sun
     # and the fill; a sun only turned down (a sun stands at the most its sweep, its step down or its floor allowed:
     # camp's, stepped down to x0.77 for spot-15's blown wall, raised back to x1 by a balance, blew it again,
@@ -540,12 +559,13 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
             **{group: min(float(mix.SCALES[-1]), emitter_most or float(mix.SCALES[-1])) / max(scales[group], mix.FLOOR)
                for group in fixed if group in scales},
             **{group: 1.0 for group in lit}}
-    factors, balanced = colour_balance(place, passes_folder, rendered_views, scales, swept + suns, colours, record,
-                                       fixed, most, suns)
+    live = [group for group in suns if group not in sealed]  # a light that is off has no colour to balance
+    factors, balanced = colour_balance(place, passes_folder, rendered_views, scales, swept + live, colours, record,
+                                       fixed, most, live)
     if factors:
         def rules(tried):
             share = mix.own_share(views, tried, swept)
-            return (mix.within(views, tried, target), mix.views_within(views, tried, target),
+            return (mix.within(views, tried, aim), mix.views_within(views, tried, aim),
                     not lit_by_lamps or (share is not None and share >= mix.LAMP_SHARE_LEAST),
                     exposed_within(looks, concept, tried))
         kept, broken = rules(scales), []
@@ -554,7 +574,7 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
         gap_before = look_gap(passes_folder, place, rendered_views, scales, colours, cast_concept)
         for part in BALANCE_PARTS:  # the whole balance, else a part of it in log scale, never one breaking a rule
             tried, joint = balanced_scales(views, swept_to, scales, {group: value ** part for group, value in
-                                                                     factors.items()}, swept + suns, most)
+                                                                     factors.items()}, swept + live, most)
             broken = [name for name, was, now in zip(("the place's brightness", "every view's brightness",
                                                       "its own lamps' share", "its exposure"), kept, rules(tried))
                       if was and not now]
@@ -584,12 +604,12 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
             if group != unit[0]:
                 lamp_found[groups[group]]["one_with"] = groups[unit[0]]
     exposed = lambda tried: exposed_within(looks, concept, tried)  # noqa: E731
-    if fill and not (mix.views_within(views, scales, target) and mix.within(views, scales, target)
+    if fill and not (mix.views_within(views, scales, aim) and mix.within(views, scales, aim)
                      and exposed(scales)):
         # a blown lamp turned down takes its light from what it lit: the fill swept again on the lamps as they now
         # stand (2026-11-10: hangar's light_1 halved for its glare left spot-2, the floor in the ship's shadow, at
         # 0.120 against its concept's 0.304, under x2.5, its fill still at the floor its sweep set before)
-        scales[fill] = mix.fill_sweep(views, fill, target, scales, exposed)
+        scales[fill] = mix.fill_sweep(views, fill, aim, scales, exposed)
         lamp_found[groups[fill]]["scale"] = scales[fill]
     for unit in units:  # at the final scales: another lamp turned down after it moves its share
         entry = lamp_found[groups[unit[0]]]
@@ -606,6 +626,9 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
                     "source": {"lamp_lit": lit_by_lamps if swept else False, "lamp_share":
                                None if share is None else round(share, 4),
                                "sun_most": max((scales[group] for group in real), default=None)},
+                    "contrast": None if spread is None else {
+                        "concept": round(spread, 4), "place": round(mix.contrast(views, scales), 4),
+                        "held": bool(held_by), "aim": round(aim, 4)},
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
                     "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
@@ -1471,7 +1494,8 @@ def verdict(check, passed, reason, measures, better=None, findings=()):
 
 def judge_brightness(output, inputs, evidence):
     """The place's brightness (the median of its views' mean look luminance at the measured strengths) within
-    mix.BRIGHT_WITHIN of its concept's, every view within mix.VIEW_WITHIN."""
+    mix.BRIGHT_WITHIN of its concept's, every view within mix.VIEW_WITHIN; a lamp-lit place its concept's contrast held
+    under its concept's brightness (strengths' `contrast` held) within mix.BRIGHT_WITHIN of the brightness that left."""
     found = measures_of(output)["brightness"]
     target, views = found["concept"], found["after"]
     if not views:
@@ -1480,9 +1504,14 @@ def judge_brightness(output, inputs, evidence):
     off = [f"{name}: {value:.3f} against the concept's {target:.3f}" for name, value in views.items()
            if not target / mix.VIEW_WITHIN <= value <= target * mix.VIEW_WITHIN]
     ratio = place / target
-    passed = 1 / mix.BRIGHT_WITHIN <= ratio <= mix.BRIGHT_WITHIN and not off
+    spread = found.get("contrast") or {}
+    # held under its concept's brightness by its concept's contrast (mix.kept_contrast): judged on what that leaves
+    aim = spread["aim"] if spread.get("held") and spread["aim"] < target else target
+    passed = 1 / mix.BRIGHT_WITHIN <= place / aim <= mix.BRIGHT_WITHIN and not off
+    held = f", its contrast {spread['place']:.3f} kept against its concept's {spread['concept']:.3f} at " \
+           f"{aim:.3f}" if aim != target else ""
     return verdict("brightness", passed, f"the place {np.median(list(found['before'].values())):.3f} -> {place:.3f} "
-                   f"against its concept's {target:.3f} (x{ratio:.2f}, within x{mix.BRIGHT_WITHIN}); the lamps without "
+                   f"against its concept's {target:.3f} (x{ratio:.2f}, within x{mix.BRIGHT_WITHIN}{held}); the lamps without "
                    f"a shaft at x{found['swept_scale']:g} of the seed's ({found['swept']} lamps); {len(off)} views "
                    f"outside x{mix.VIEW_WITHIN}", {"ratio": round(ratio, 3), "views_off": len(off)},
                    {"views_off": "lower"}, off)
