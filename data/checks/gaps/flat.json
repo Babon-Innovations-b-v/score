@@ -1,0 +1,17 @@
+{
+ "gaps": [
+  {
+   "name": "table_lamp_1: a lamp tipping on its table",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "table_lamp_1"
+   ],
+   "reason": "The settle lays the flat's table lamp with its weight outside what it touches (tips 0.0665; as laid, 1 of the place's 30 objects with faults) on settle@flat's make and its automatic free remake (2026-11-15 on b5d079e81). Its second fail makes it the flat's one gap: this entry moves the same fault from the assembly's resting gate to complete, which fails it by name. The settle's resting is waived for the output that fails on this lamp alone, once poster_1's source fix (a wall poster fixed to its wall) has landed.",
+   "decided": "owner (@JoeyKardolus), his standing rule of 2026-11-09: \"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\", applied by the env1 run session with the score session, 2026-11-15 ~01:40 UTC",
+   "faults": [
+    "table_lamp_1: tips 0.0665: its weight falls outside what it touches"
+   ]
+  }
+ ]
+}
