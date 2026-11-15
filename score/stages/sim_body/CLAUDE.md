@@ -29,7 +29,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   owner's per-frame cap inside the solve (owner, 2026-10-28: every segment's turn within `FOLLOWED` degrees and the
   pelvis within `MOVE_MOST` of the fitted path on every frame, all rounds together; `cap_rows` linearises each
   segment's turn through the legs' `Footing`, `within_balls` solves the least squares over those balls by ADMM), the
-  move low-passed by construction (`filter_matrix`: a filtered move, so the filter cannot break the cap), the lumbar's
+  move low-passed by construction (`filter_matrix` at `MOVE_CUTOFF`, half the path's 6 Hz as the clip's stood move is:
+  a filtered move, so the filter cannot break the cap; at 6 Hz its answer to each heel strike shook the walkers past
+  their clips, 2026-11-15), the lumbar's
   needed moments beyond the fitted path's counted as residual moment (`demands`: RRA weighs the joints' actuators
   beside the residuals; without it the solve swung the trunk to cancel the pelvis' residual and left up to 340 N m on
   the lumbar's reserves, 2026-10-28), taken only when the measured residual, lumbar and move cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`Footing`, mink as the fit, its largest

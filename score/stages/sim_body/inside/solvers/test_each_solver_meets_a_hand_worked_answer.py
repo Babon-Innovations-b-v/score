@@ -6,6 +6,9 @@ Breaks (each applied once, seen red, reverted), 2026-10-28:
 - within_balls' projection `np.minimum(1.0, CAP_INSIDE / ...)` made `1.0`: the answer leaves its ball.
 - smoothed's `filtfilt(...) if ... else moves` made `moves`: a 15 Hz shake at 30 frames a second goes through.
 - stencils' `rate / (after - before)` made `rate`: a line's speed is doubled between its ends.
+2026-11-15:
+- filter_matrix's `smoothed(np.eye(count), rate, cutoff)` made `smoothed(np.eye(count), rate)`: the 5 Hz sway goes
+  through RRA's 3 Hz move filter at two thirds.
 
 Each solver is driven once on its hand-worked problem; each row names one measure of those answers, the value worked
 out by hand and how close it must come ("close": np.allclose at that atol; "within": the difference's norm of that
@@ -36,12 +39,16 @@ def answers():
     within_balls: |y - (2, 0, 0)|^2 with |y| at most CAP_INSIDE (0.95).
     filter_matrix: the low-pass (6 Hz) at 30 frames a second over 60 frames, applied to the shake.
     stencils: the speeds and accelerations over 6 frames, applied to the line.
+    filter_matrix at 3 Hz (RRA's move, `rra.MOVE_CUTOFF`) and at its default 6 Hz, applied to a 5 Hz sway.
     """
     system, wanted, costs = np.eye(2), np.array([1.0, -1.0]), np.full(2, 0.1)
     found, furthest = solvers.within_balls(np.eye(3), np.array([2.0, 0.0, 0.0]), np.eye(3), np.zeros(3))
     matrix = solvers.filter_matrix(60, RATE)
     speeds, accelerations = solvers.stencils(6, RATE)
+    sway = np.sin(2.0 * np.pi * 5.0 * np.arange(90) / RATE)
     return {
+        "a 5 Hz sway through 3 Hz, middle frames": (solvers.filter_matrix(90, RATE, 3.0) @ sway)[20:70],
+        "a 5 Hz sway through 6 Hz, its largest": np.abs(solvers.filter_matrix(90, RATE) @ sway)[20:70].max(),
         "least unbounded above": solvers.least(system, wanted, costs, np.full(2, np.inf)),
         "least with x1 at most 0.5": solvers.least(system, wanted, costs, np.array([0.5, np.inf])),
         "ball answer": found,
@@ -66,6 +73,10 @@ ROWS = [
     ("low-pass row sums", 1.0, "close", 1e-9, None),
     # the 15 Hz shake is taken out of the middle frames.
     ("low-pass shake, middle frames", 0.0, "within", 0.01, np.inf),
+    # a 5 Hz sway is taken down to under a tenth through 3 Hz (1 / (1 + (5/3)^4) = 0.07 before the warping) and
+    # mostly through 6 Hz (0.67 before the warping).
+    ("a 5 Hz sway through 3 Hz, middle frames", 0.0, "within", 0.1, np.inf),
+    ("a 5 Hz sway through 6 Hz, its largest", 0.7, "within", 0.15, np.inf),
     # 3 a second at every frame, its ends included.
     ("line's speeds", 3.0, "close", 1e-8, None),
     ("line's accelerations", 0.0, "close", 1e-9, None),

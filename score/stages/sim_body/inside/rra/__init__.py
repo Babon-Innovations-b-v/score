@@ -16,7 +16,7 @@ from rra._cap import (SKIN_SLACK, cap_rows, held_share, landed, off_clip, skin_e
 from rra._footed import Footing  # noqa: F401
 from rra._linear import adjusted_leads, frame_states, linearised, moved, residuals, sensitivities, trunk_moments  # noqa: F401
 from batched import within_balls_card
-from solvers import filter_matrix, within_balls
+from solvers import CUTOFF, filter_matrix, within_balls
 
 # The residual reduction's rounds (RRA is run again on its own output), the weight of a move the size of its cap
 # against a residual the size of its limit (RRA's tracking), RRATool's 0.1 m limit on the torso's centre of mass, and
@@ -29,6 +29,14 @@ TRACK = 0.01
 COM_MOST = 0.1
 RRA_HALVINGS = 3
 MASS_MOST = 0.02
+# RRA's move is low-passed at half the path's cutoff, as the clip's stood move is (`_body.STOOD_HZ`): at the path's
+# 6 Hz it answered each heel strike's residual with all that filter lets through, and its jerk (the third difference
+# weighs a frequency's cube) shook the walkers' lumbar, knees and thighs past their clips' (2026-11-15, this PC's card,
+# each node's record's inputs; jerk against the clip's, largest residual N / N m, frames within the limits, deepest mm,
+# 6 Hz then 3 Hz): camp's walker 1.50 then 1.36 (2.13), 4.7/5.0 then 4.5/4.9, 0.960 both, 3.3 then 2.7; the street's
+# 3.02 then 2.75 (2.18), 33.6/39.8 then 19.1/28.0, 0.907 both, 2.5 then 2.1; the stairwell's 1.70 then 1.40 (1.44),
+# 19.8/22.9 then 22.0/24.0, 0.856 then 0.865, 3.3 both
+MOVE_CUTOFF = CUTOFF / 2
 
 
 def reweighed(physics, path, residuals, home, made):
@@ -86,8 +94,9 @@ def reduced(physics, path, rate, clip_rate, limits, most, land, fitted, riders):
     (`reweighed`) on the mean residual, then the pelvis' and trunk's path (`adjusted_leads`) moved so the ground
     explains the movement: one least squares over every frame of the residual (force over `limits[0]`, moment over
     `limits[1]`), the lumbar's moments beyond the fitted path's (over `limits[1]`: `demands`) and the move (over its
-    cap, TRACK its weight: RRA's tracking), the move low-passed by construction (`filter_matrix`, on `clip_rate`: the
-    clip's own time; `rate` the time it is played at, the dynamics'), its feet kept where they stood by the legs
+    cap, TRACK its weight: RRA's tracking), the move low-passed by construction (`filter_matrix` at MOVE_CUTOFF, on
+    `clip_rate`: the clip's own time; `rate` the time it is played at, the dynamics'), its feet kept where they stood
+    by the legs
     (`land`: `Footing.footed`), and bounded inside the solve by the owner's per-frame cap
     (`cap_rows`: every segment's turn within `most[1]` and the pelvis within `most[0]` of the fitted path, all rounds
     together; `within_balls`), taken only when it lowers that cost as measured (halved up to RRA_HALVINGS times, else
@@ -100,7 +109,7 @@ def reduced(physics, path, rate, clip_rate, limits, most, land, fitted, riders):
     scale = np.concatenate([np.full(3, limits[0]), np.full(3, limits[1])])
     scale = np.tile(np.concatenate([scale, np.full(width - 6, limits[1])]), count)
     track = np.sqrt(TRACK) / np.tile([most[0]] * 3 + [most[1]] * (width - 3), count)
-    smooth = np.kron(filter_matrix(count, clip_rate), np.eye(width))
+    smooth = np.kron(filter_matrix(count, clip_rate, MOVE_CUTOFF), np.eye(width))
     total, current, recommended = np.zeros(count * width), path, []
     home = model.body_ipos[body_index(model, "torso")].copy()
     made = (model.body_mass.copy(), model.body_inertia.copy())

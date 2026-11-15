@@ -83,16 +83,17 @@ def within_balls(system, wanted, rows, values):
     return y, float(np.linalg.norm((rows @ y + values).reshape(-1, 3), axis=1).max())
 
 
-def smoothed(moves, rate):
-    """A move low-passed as the path is (`model.filtered`: CUTOFF, zero lag), so it adds no shake to the movement."""
-    low, high = butter(2, CUTOFF / (rate / 2))
+def smoothed(moves, rate, cutoff=CUTOFF):
+    """A move low-passed as the path is (`model.filtered`: CUTOFF, zero lag), so it adds no shake to the movement; at
+    `cutoff` where given."""
+    low, high = butter(2, cutoff / (rate / 2))
     return filtfilt(low, high, moves, axis=0) if len(moves) > 3 * max(len(low), len(high)) else moves
 
 
-def filter_matrix(count, rate):
+def filter_matrix(count, rate, cutoff=CUTOFF):
     """`smoothed` as a matrix on a per-frame value (count x count): the low-pass is linear, so a move made as this
-    matrix times any values is low-passed by construction."""
-    return smoothed(np.eye(count), rate)
+    matrix times any values is low-passed by construction (at `cutoff`)."""
+    return smoothed(np.eye(count), rate, cutoff)
 
 
 def stencils(count, rate):
