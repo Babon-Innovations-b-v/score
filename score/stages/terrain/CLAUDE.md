@@ -30,6 +30,17 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   takes its layer in place of terrain's (`stages.joined_ground`), and ground-fit judges the whole. Never add another
   way of making ground: the design's ground here is the named fallback, said so in every ground's `measures.json`
   (`made_by`, `MADE_BY`).
+- **The terrain kit is code** (`kit.py`; #128 D2, the owner, 2026-11-15: "NO TERRAIN or terrain assets"; the
+  library entry `algorithm/terrain_kit@1`, stamped `score:library` on its rocks): the inventory's crater, track and
+  skid rows and the natural ground's own field (low waves and pocks on regolith, drifts rising to terraced mesas and
+  cliffs on sand and rock past the plans' boxes) laid as one relief per ground in its first top scene's plan metres
+  (the tops on a body stand within metres of each other, so one frame; a relief per top doubled where they overlap),
+  and its rocks as `/<place>/Outside/rocks` (finish recipe `rock`). A crater or track the plan lays an item for
+  stands at the item (one over half the plan is a region: its count scattered); level within LEVEL_MARGIN of every
+  item that is no terrain row, every held place, person and terrain spot (planned craters only round the things
+  themselves), no rock there; listed in ground.json `kit`. A made ground (the square's plaza) takes its library
+  recipe by its words (`kit.made_recipe`: tiles, a road's wet_asphalt). It is the terrain rows' maker; ground-join
+  still seats a picture-made piece over it where one was made.
 - **Each place's layer** (`places/<place>.usdc`, `outside.py`): the ground in its own frame under `/<place>/Outside`,
   `near` (its plan's box grown by NEAR_MARGIN, 0.5 m apart) and `far` (out past the horizon an eye 12 m up sees, at
   least 1.5 km), static colliders, each only the points its triangles use; stamped a whole asset

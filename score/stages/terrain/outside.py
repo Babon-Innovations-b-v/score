@@ -127,10 +127,11 @@ def water(ground, place, found, sheets):
     return (np.concatenate(points), np.concatenate(triangles)) if triangles else None
 
 
-def write_mesh(stage, path, points, triangles, row, recipe, kind="ground"):
+def write_mesh(stage, path, points, triangles, row, recipe, kind="ground", library=None):
     """One ground mesh, a static collider, naming its row, the natural ground recipe its finish is made with by rule
     (`recipe`: [recipe, why], natural_grounds) and its finish missing until the surface line makes it; a `water`
-    sheet the same, no collider (water is not solid: colliders.NOT_SOLID_PLAINS)."""
+    sheet the same, no collider (water is not solid: colliders.NOT_SOLID_PLAINS); `library` the library entry that
+    made it (score:library: the terrain kit's rocks)."""
     kept, triangles = np.unique(triangles, return_inverse=True)  # only the points a triangle uses (the far grid's
     points, triangles = points[kept].astype(np.float32), triangles.reshape(-1, 3)  # middle is the near patch's)
     mesh = UsdGeom.Mesh.Define(stage, path)
@@ -148,6 +149,8 @@ def write_mesh(stage, path, points, triangles, row, recipe, kind="ground"):
         prim.CreateAttribute("score:ground:recipe", Sdf.ValueTypeNames.String).Set(recipe[0])
     if row:
         prim.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(row)
+    if library:
+        prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(library)
     if kind == "ground":
         colliders.solid(prim, points, triangles)
     return mesh

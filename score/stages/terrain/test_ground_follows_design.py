@@ -34,6 +34,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26; a
   DENT_REACH as a rise).
 - bounded.clipped: `np.clip(spline(...), low, high)` -> `spline(...)` (a spline rising past its highest spot).
 - bounded.install: `design.spline = spline` -> `pass` (design's own thin-plate spline, wreck's plane again).
+- kit (each applied once, seen red, reverted, 2026-11-15, #128): ground_relief's field and pocks not multiplied by
+  `level_share` (relief under the shed); rocks_of keeping every rock (`> -1`: rocks in the shed's box);
+  crater_height's `rim = 0.0`; piece_of's `if found & CRATER_WORDS` -> `if False` (no crater laid); ruts_height's
+  ruts half as deep; made_recipe returning None (the plaza with no recipe again).
 """
 import json
 import math
@@ -45,11 +49,15 @@ import trimesh
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 from score.stages import terrain
-from score.stages.terrain import bounded, design, fit, gates, join, outside, sight
+from score.stages.terrain import bounded, design, fit, gates, join, kit, outside, sight
 
 SPOTS = [[10.0, 10.0, 0.0], [30.0, 10.0, 2.0], [20.0, 30.0, -1.0], [20.0, 20.0, 1.0]]
 SITE = {"title": "SITE", "w": 40.0, "d": 40.0, "terrain": {"spots": SPOTS}, "structure": ["regolith"],
-        "holds": [{"place": "shed", "row": "shed", "x": 4.0, "y": 4.0, "w": 8.0, "d": 6.0}]}
+        "holds": [{"place": "shed", "row": "shed", "x": 4.0, "y": 4.0, "w": 8.0, "d": 6.0}],
+        "items": [["CRATER 1", 24.0, 22.0, 8.0, 8.0, None, "item"], ["TRACKS 1", 24.0, 2.0, 12.0, 6.0, None, "item"]],
+        "rows": {"CRATER 1": ["crater"], "TRACKS 1": ["tracks"]}}
+CRATER = {"id": "crater", "name": "crater", "noun": "crater", "terrain": True, "size": [8.0, 8.0, 1.2]}
+TRACKS = {"id": "tracks", "name": "tyre tracks", "noun": "tracks", "terrain": True}
 SHED = {"title": "SHED", "w": 8.0, "d": 6.0, "walls": [{"from": [0, 0], "to": [8, 0], "thick": 0.2, "tall": 3.0}]}
 ROOM = {"title": "ROOM", "w": 4.0, "d": 4.0}  # a scene no top holds and no site stands
 HILLS = {"id": "hills", "terrain": True, "part": "ground", "size": [40.0, 10.0, 5.0], "box": [0, 300, 2000, 400]}
@@ -73,7 +81,7 @@ def design_folder(root):
     for name in ("site", "shed"):
         (root / "sky" / f"{name}.json").write_text(json.dumps({**sky, "place": name, "top": "site"}))
     (root / "inventory/site.json").write_text(json.dumps({"picture": [2000, 1000], "rows": [
-        {"id": "regolith", "terrain": True}, HILLS, SEA]}))
+        {"id": "regolith", "terrain": True}, HILLS, SEA, CRATER, TRACKS]}))
     return {"plans": root / "plans", "skies": root / "sky", "inventories": root / "inventory",
             "reference": REPO / "data/physics/bodies.json"}
 
@@ -234,6 +242,33 @@ def test_ground_follows_design(tmp_path, monkeypatch):
     assert lowered < -1.0 and abs(points[np.argmin(np.hypot(*(points[:, [0, 2]] - spot).T)), 1] + 1.0) < 0.05
     region = design.water_region({"w": 40.0, "d": 40.0}, None, (-0.2, 0.2, ways), 100.0)
     assert list(region([[20.0, -30.0], [20.0, 10.0], [20.0, -90.0], [60.0, -30.0]])) == [True, False, False, False]
+
+    # the terrain kit (#128, "NO TERRAIN or terrain assets"): the plan's crater a bowl under its rim where its item
+    # lies, its tyre tracks two ruts TRACK_DEEP deep, the moon's field level under the shed it holds and round each
+    # person and terrain spot, no rock there, the rocks a mesh of the kit's with the library's rock recipe; a made
+    # ground (the square's plaza) takes the library's tiles
+    bare = kit.laid(ground, plans, inputs["inventories"], None)
+    assert [entry["piece"] for entry in bare["record"]] == ["crater", "track"] and bare["rocks"] == {}
+    relief = bare["reliefs"][0][1]
+    depth, rim = CRATER["size"][2], kit.RIM_SHARE * CRATER["size"][2]
+    assert np.allclose(relief([[28.0, 26.0], [32.0, 26.0], [28.0 + 4.0 * kit.RIM_FADE, 26.0]]),
+                       [rim - depth, rim, 0.0], atol=1e-6)
+    across = relief([[24.0 + x / 4, 2.0 + y / 4] for x in range(49) for y in range(25)])
+    assert abs(across.min() + kit.TRACK_DEEP) < 0.01 and across.max() <= 0.0, across.min()
+    natural = kit.laid(ground, plans, inputs["inventories"], "regolith")
+    relief, rocks = natural["reliefs"][0][1], natural["rocks"]["rocks"]
+    under_shed = [[4.0 + x, 4.0 + y] for x in range(9) for y in range(7)]
+    assert np.all(relief(under_shed) == 0.0) and np.all(relief(np.array(SPOTS)[:, :2]) == 0.0)
+    assert np.ptp(relief([[x, y] for x in range(-60, 100, 3) for y in range(-60, 100, 3)])) > 1.0
+    assert len(rocks) > 100 and not np.any((rocks[:, 0] > 2.5) & (rocks[:, 0] < 13.5) & (rocks[:, 1] > 2.5) &
+                                           (rocks[:, 1] < 11.5)), len(rocks)
+    stones = site_layer.GetPrimAtPath("/site/Outside/rocks")
+    assert stones.GetAttribute("score:library").Get() == kit.ADDRESS
+    assert stones.GetAttribute("score:ground:recipe").Get() == "rock" and stones.HasAPI(UsdPhysics.CollisionAPI)
+    assert [entry["piece"] for entry in made["kit"]] == ["crater", "track", "field", "rocks"], made["kit"]
+    assert kit.made_recipe({"id": "plaza", "name": "main plaza", "noun": "plaza"})[0] == "tiles"
+    assert kit.made_recipe({"id": "road", "noun": "street"})[0] == "wet_asphalt" and \
+        kit.made_recipe({"id": "g", "noun": "ground"}) == (None, None)
 
     # the sight, door and hole measures find an opening onto nothing and lose it once ground lies outside
     up = (0.0, 1.0, 0.0)

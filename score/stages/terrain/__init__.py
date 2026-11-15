@@ -29,7 +29,7 @@ from pxr import Sdf, Usd
 
 from score import contracts
 from score.stages import natural_grounds
-from score.stages.terrain import design, gates, outside
+from score.stages.terrain import design, gates, kit, outside
 
 FILES = {"plans": "{home}/design/plans", "skies": "{home}/design/sky", "inventories": "{home}/design/inventory",
          "reference": "{data}/physics/bodies.json"}
@@ -54,13 +54,15 @@ def row_of(ground, row, inventories):
 
 def recipe_of(ground, row, inventories, skies, table):
     """[the natural ground recipe the ground is made with, why] by rule (natural_grounds.of_row: its row's words,
-    else its body's physics, the setting of its first top scene's kept sky with the reference `table`; a plot's
-    none)."""
+    else its body's physics, the setting of its first top scene's kept sky with the reference `table`); a made
+    ground (the square's plaza) its library recipe by its words (kit.made_recipe)."""
     bodies = skies[sorted(ground["tops"])[0]]["setting"].get("bodies") or []
     body = next((body for body in bodies if body["body"] == ground["on"]), None) \
         if ground["kind"] == "body" else None
     entry = row_of(ground, row, inventories) if row else {"id": None}
-    return list(natural_grounds.of_row(entry, body, bodies, table))
+    recipe, why = natural_grounds.of_row(entry, body, bodies, table)
+    made, made_why = kit.made_recipe(entry) if recipe is None and row else (None, None)
+    return [made, made_why] if made else [recipe, why]
 
 
 def own_water_row(place, inventories, fallback):
@@ -81,33 +83,41 @@ def sheet_of(ground, place, found, sheets, inventories):
     return (*shown, row["id"], list(natural_grounds.of_row(row, None, [], {})))
 
 
-def write_layer(folder, place, found, row, recipe, sheet=None):
-    """The layer that draws the ground in the place's frame, a whole asset (whole_layer): places/<place>.usdc."""
+def write_layer(folder, place, found, row, recipe, sheet=None, rocks=None):
+    """The layer that draws the ground in the place's frame, a whole asset (whole_layer): places/<place>.usdc; the
+    terrain kit's rocks (kit.rock_mesh) as /<place>/Outside/rocks when any lie in it."""
     path = folder / "places" / f"{place}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path))
     stage = Usd.Stage.Open(layer)
     stage.DefinePrim(f"/{place}")
     outside.write(stage, place, found, row, recipe, sheet)
+    if rocks is not None:
+        outside.write_mesh(stage, f"/{place}/Outside/rocks", *rocks, row,
+                           ["rock", "the terrain kit's rocks are stone (kit.py)"], library=kit.ADDRESS)
     outside.whole_layer.stamped(layer, place).Save()
 
 
 def make_ground(name, ground, row, recipe, out, plans, inventories):
     """One ground's place layers, record and measures into out/<name>, its natural ground recipe (`recipe`,
     [recipe, why]) on its record and meshes, the far landforms of its places' inventories (design.far_reliefs) raised
-    on it and listed in its record (`far`)."""
+    on it and listed in its record (`far`), and the terrain kit's pieces (kit.laid: craters, tracks, the natural
+    ground's field and rocks) laid on it and listed in its record (`kit`)."""
     folder = out / name
     folder.mkdir(parents=True)
     far, raised = design.far_reliefs(ground, plans, inventories, outside.reach(ground))
     sheets, waters = design.waters(ground, plans, inventories, outside.reach(ground))
-    shaped = design.reliefs(ground) + far + [(source, relief) for source, relief, _, _ in sheets]
+    pieces = kit.laid(ground, plans, inventories, recipe[0])
+    shaped = design.reliefs(ground) + far + [(source, relief) for source, relief, _, _ in sheets] + pieces["reliefs"]
     laid = {place: outside.meshes(ground, place, shaped) for place in ground["places"]}
     for place, found in laid.items():  # the ground runs under a room's floor (outside.under_floor)
         found["near"] = (outside.under_floor(found["near"][0], plans[place]), found["near"][1])
     for place, found in laid.items():
-        write_layer(folder, place, found, row, recipe, sheet_of(ground, place, found, sheets, inventories))
+        write_layer(folder, place, found, row, recipe, sheet_of(ground, place, found, sheets, inventories),
+                    kit.rock_mesh(ground, place, pieces["rocks"], shaped))
     (folder / "ground.json").write_text(json.dumps({**ground, "ground": name, "row": row, "recipe": recipe[0],
-                                                    "recipe_by": recipe[1], "far": raised, "water": waters},
+                                                    "recipe_by": recipe[1], "far": raised, "water": waters,
+                                                    "kit": pieces["record"]},
                                                    indent=1))
     (folder / "measures.json").write_text(json.dumps({**MADE_BY, **gates.measured(ground, laid)}, indent=1))
 
