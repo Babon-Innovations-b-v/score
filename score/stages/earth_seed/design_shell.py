@@ -69,7 +69,7 @@ import numpy as np
 
 from score.stages.scene_record import plan as place_plan
 import score.stages.surfaces.palette_library as palette_library  # the module alone in the key, not the surface line
-from score.stages.shell_parts import LEVEL_OFF, encloses, laid_for, part_kind, raised  # noqa: F401
+from score.stages.shell_parts import LEVEL_OFF, encloses, glazed, laid_for, part_kind, raised  # noqa: F401
 from score.store import PROPS_HOME
 
 KEPT_RELATIONS = PROPS_HOME / "design" / "relations"  # holders.KEPT, held equal by the scene record's test
@@ -108,13 +108,11 @@ SPANNING = frozenset(("beam", "girder", "rafter", "truss", "joist"))
 FLUSH = 0.02  # metres a floor piece the plan gives no height stands over the floor (a grate laid in it)
 # The scene library's kinds each part takes its surface from, the first it names a variant for: one answer with the
 # paint's (palette_library.SHELL_KINDS), so a prop's finish can take the shell's own surface; a glass part (a glass
-# roof's, a tube's glass bands: `glass_<n>`, room) its library's glass, else its window's, else its roof's (the
-# library's ask names no glass kind of the shell's yet, so a scene whose library holds neither stands it opaque).
+# roof's, a tube's glass bands: `glass_<n>`, room) its library's glass (the library's ask names a glass kind wherever
+# the shell lays one, scene_library.shell_kinds by shell_parts.glazes), else its window's, else its roof's (a library
+# asked before that kind).
 GLASS_KINDS = ("glass", "window", "roof", "ceiling")
 PART_KINDS = {**palette_library.SHELL_KINDS, "glass": GLASS_KINDS}
-# A plan's height words that name a glass roof (greenhouse: "walls 2.8 m under a glass dome rising 3.4 m"): a glass
-# dome, roof, skylight, ceiling or vault (glazed).
-GLASS_WORDS = re.compile(r"\bglass (dome|roof|skylight|ceiling|vault)")
 # A plan's height words that give its ceiling at its front and its back (the ship's rooms: "ceiling 3.2 m at the
 # front, 3.51 m at the back"): the side a shed roof falls to (shed_low). The ship's plans run y back from its nose, so
 # its front is the plan's north.
@@ -467,24 +465,6 @@ def relation_cuts(relations):
     return [(entry.get("row"), {key: found["opening"][key] for key in ("at", "wide", "sill", "head")})
             for entry in (relations or {}).get("relations", []) for found in entry.get("pieces") or [entry]
             if (found.get("opening") or {}).get("cut")]
-
-
-def glazed(plan, rows):
-    """The plan with each rising roof (a dome, vault, gable or shed) its glass says glass (`glass` true): one its words
-    name (GLASS_WORDS: "a glass dome" its domes, a glass roof, skylight, ceiling or vault every rising one), or every
-    rising one where a roof row of `rows` (the inventory's, the hand-in's) says glass (the greenhouse's "glass dome
-    roof", the hub's "glass roof window"); a roof the plan writes glass or not keeps it (2026-11-15: the greenhouse's,
-    the hub's and the camp's glass domes stood opaque)."""
-    words = {kind for kind in GLASS_WORDS.findall(str(plan.get("height") or "").lower())}
-    by_row = any(row.get("part") == "roof" and "glass" in f"{row.get('name')} {row.get('noun')}".lower()
-                 for row in rows or [])
-    found = []
-    for entry in plan.get("roofs") or []:
-        rising = float(entry.get("top") or entry.get("eave") or 0.0) > float(entry.get("eave") or 0.0) + 1e-6 or \
-            entry.get("kind") == "dome"
-        named = entry.get("kind") in words or bool(words - {"dome"})
-        found.append(dict(entry, glass=True) if "glass" not in entry and rising and (named or by_row) else entry)
-    return {**plan, "roofs": found} if plan.get("roofs") else plan
 
 
 def cut_for(plan, rows, relations=None):

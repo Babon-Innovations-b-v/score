@@ -302,6 +302,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_writing.py: `if row_id not in placed and parent in placed:` made `if False:`
     plan_writing.py: roof_of's `**({"openings": openings} if openings else {})` made `**{}` (a roof's opening dropped:
     the hangar's roof door never cut, 2026-11-04)
+    plan_writing.py: roof_of's `**({"glass": True} if roof.get("glass") is True else {})` made `**{}` (a glass dome
+    written opaque: camp, 2026-11-15)
     plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
     plan_writing.py: `if AUTOMATIC: return compute.spending(` made `if True: return compute.spending(`
     web.py: `if not plan_writing.AUTOMATIC: price = plan_writing.price(store)` made `if True: price =
@@ -2393,6 +2395,10 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         assert plan["doors"] == [] and [opening["to"] for opening in plan["openings"]] == ["yard"], plan["openings"]
         assert len(plan["walls"]) == 4 and plan["roofs"][0]["top"] == 3.4 and plan["section"] == {"y": 1.5}
         assert [len(opening["points"]) for opening in plan["roofs"][0]["openings"]] == [4], plan["roofs"]  # a roof's hole
+        # a roof drawn as glass is written so, an opaque one says nothing (camp's glass domes, 2026-11-15)
+        drawn_roof = {"kind": "dome", "points": [[0, 0], [4, 0], [4, 3]], "eave": 2.5, "top": 4.0}
+        assert plan_writing.roof_of({**drawn_roof, "glass": True})["glass"] is True and "glass" not in \
+            plan_writing.roof_of({**drawn_roof, "glass": False}) and "glass" not in plan["roofs"][0], plan["roofs"]
         words = [gap["words"] for gap in plan["gaps"]]
         assert {"item": "ghost", "why": "no such row"} in plan["dropped"] and {"item": "walls", "why": "1 off the schema"} \
             in plan["dropped"]  # kept apart: no gap of his

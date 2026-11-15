@@ -85,8 +85,12 @@ Break: score/stages/earth_seed/design_shell.py: `return SIDES[first_side if floa
     second_side]` -> `return "N"`
 Break: score/stages/earth_seed/design_shell.py: `"vault" if vaulted else "gable" if entry.get("kind") == "pitched" else
     "shed"` -> `"vault" if vaulted else "gable"`
-Break: score/stages/earth_seed/design_shell.py: `named = entry.get("kind") in words or bool(words - {"dome"})` -> `named =
+Break: score/stages/shell_parts.py: `named = entry.get("kind") in words or bool(words - {"dome"})` -> `named =
     False`
+Break: score/stages/shell_parts.py: `return banded or any(entry.get("glass") is True for entry in roofs)` -> `return
+    banded` (the scene library is asked no glass kind for a glass roof the shell lays)
+Break: score/stages/shell_parts.py: `banded = plan.get("shape") == "tube"` -> `banded = False and plan.get("shape") ==
+    "tube"` (a tube's glass bands asked no glass kind)
 Break: score/stages/scene_record/writer.py: `return tube_rib(row, item, design, number, middle, band)` -> `pass`
 Break: score/stages/scene_record/writer.py: `found.append(design_shell.shed_high(piece, spot))` -> `pass`
 
@@ -417,6 +421,7 @@ def test_a_scene_s_base_stands_from_its_design(tmp_path, monkeypatch):
     assert abs(hull[:, 1].min()) < 1e-6 and abs(hull[:, 1].max() - 2.7) < 1e-6 and \
         abs(hull[:, 0].min()) < 1e-3, (hull[:, 1].min(), hull[:, 1].max(), hull[:, 0].min())
     assert {name for name, _, _ in design_shell.room(tube)} >= {"roof_1", "glass_1"}
+    assert shell_parts.glazes(tube, []) and not shell_parts.glazes(dict(tube, glass=None), [])  # its glass kind asked
     hull_entry = writer.shell_entry("roof_1", 0, bands[0], tube, "")
     drawn = numpy.vstack([mesh["points"] for mesh in scene.built_meshes(dict(hull_entry, surface=None))])
     seed_band = design_shell.placed(numpy.asarray(design_shell.solid(bands[0])).reshape(-1, 3), tube)
@@ -479,6 +484,10 @@ def test_a_scene_s_base_stands_from_its_design(tmp_path, monkeypatch):
     for label, plan, rows, expected in glazing:
         roof_pieces = dict((name, parts) for name, parts, _ in design_shell.pieces(design_shell.glazed(plan, rows)))
         assert all(bool(piece.get("glass")) is expected for piece in roof_pieces["roof_1"]), label
+        # the scene library is asked a glass kind exactly where the pieces lay a glass part (shell_parts.glazes)
+        laid_glass = any(piece.get("glass") for _, parts, _ in design_shell.pieces(design_shell.glazed(plan, rows))
+                         for piece in parts)
+        assert shell_parts.glazes(plan, rows) is laid_glass is expected, label
 
     # --- openings: a row filling an opening (door, window, gate, hatch or shutter, a panel) cuts one at its item on a
     # wall, its own wide, from its shape's base to its top; one at the plan's own opening cuts none more; a box is no

@@ -21,8 +21,10 @@ the place's +0.00):
     openings  [{kind: door|window|opening|gate, at, wide, angle, swing: left|right|double|slide|none, sill, head, to}]
     levels    [{name, height, points}]            floor areas at their heights
     stairs    [{kind: stair|ramp, points, from, to, angle (the way up), steps}]
-    roofs     [{kind: flat|dome|pitched|vault|shed, points, eave, top, openings: [{points}]}]: each opening a hole
-              the earth seed's shell cuts (design_shell.cut_out: the hangar's roof door, 2026-11-04)
+    roofs     [{kind: flat|dome|pitched|vault|shed, points, eave, top, openings: [{points}], glass}]: each opening a
+              hole the earth seed's shell cuts (design_shell.cut_out: the hangar's roof door, 2026-11-04); `glass`
+              true for a roof the concept draws as clear glass (camp's ribbed glass domes, 2026-11-15: no field held
+              it, so they stood opaque), kept only when true
     terrain   {spots [[x, y, height]], contours [{height, points}]}
     shapes    {item name: {shape: rect|circle|polygon, points [[u, v]] in 0..1 of its box, tall, base}}
     section   {y}                                 where the section view cuts, west to east
@@ -139,8 +141,10 @@ Write the plan as one JSON object with these keys:
   risers}}: each flight its own footprint between its landings (a switchback's flights side by side in their own
   lanes, never one over the next under head height), inside the walls, every landing where flights turn a level.
 - "roofs": every roof as drawn, {{"kind": "flat"|"dome"|"pitched"|"vault"|"shed", "points": its footprint, "eave": m,
-  "top": m, "openings": [{{"points": its footprint}}, ...]}}: each opening in a roof (a hatch, a skylight, a door in
-  the roof that opens to the sky) as wide and deep as the facts or the drawing give it, [] for a roof with none.
+  "top": m, "openings": [{{"points": its footprint}}, ...], "glass": true|false}}: each opening in a roof (a hatch, a
+  skylight, a door in the roof that opens to the sky) as wide and deep as the facts or the drawing give it, [] for a
+  roof with none; "glass" true for a roof the concept draws as clear glass one sees through (a glass dome or vault,
+  ribs or frames between its panes), else false.
 - "terrain": for ground outside, {{"spots": [[x, y, height m], ...], "contours": [{{"height": m, "points": [[x, y],
   ...]}}]}}: spot heights where the ground rises or falls and contour lines at an even step; {{}} for a place indoors.
 - "items": every row of the facts' rows that stands on the floor or the ground (its items' counts adding up to the
@@ -209,7 +213,8 @@ PLAN = shaped({
     "stairs": listed({"kind": chosen("stair", "ramp"), "points": POINTS, "from": NUMBER, "to": NUMBER,
                       "angle": NUMBER, "steps": {"type": "INTEGER"}}),
     "roofs": listed({"kind": chosen("flat", "dome", "pitched", "vault", "shed"), "points": POINTS, "eave": NUMBER,
-                     "top": NUMBER, "openings": listed({"points": POINTS})}),
+                     "top": NUMBER, "openings": listed({"points": POINTS}), "glass": {"type": "BOOLEAN"}},
+                    ["kind", "points", "eave", "top", "openings"]),
     "terrain": shaped({"spots": POINTS, "contours": listed({"height": NUMBER, "points": POINTS})}, []),
     "items": listed({"row": STRING, "count": {"type": "INTEGER"}, "box_2d": POINT,
                      "shape": chosen("rect", "circle", "polygon"), "points": POINTS,
@@ -798,7 +803,7 @@ def roof_of(roof):
                 if isinstance(opening, dict) and points(opening.get("points"))]
     return {"kind": roof.get("kind") if roof.get("kind") in ROOFS else "flat", "points": points(roof["points"]),
             "eave": number(roof["eave"]), "top": number(roof.get("top"), number(roof["eave"])),
-            **({"openings": openings} if openings else {})}
+            **({"openings": openings} if openings else {}), **({"glass": True} if roof.get("glass") is True else {})}
 
 
 def terrain_of(terrain):

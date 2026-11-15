@@ -113,18 +113,29 @@ def plan_files(place):
 # The words the question gives each shell part's library kind (palette_library.SHELL_KINDS, its first).
 SHELL_WORDS = {"deck": "the floor the place stands on", "level": "a raised deck or level of the place",
                "wall": "the room's walls", "roof": "the roof or ceiling over the room", "stair": "the stairs"}
+# The kind a glass part of the shell takes its surface by (design_shell.GLASS_KINDS, its first) and its words: clear
+# glass, so the `glass` recipe (the scene's flat surface keeps it see-through, tools/usd/export.library_materials).
+GLASS_KIND = "glass"
+GLASS_RECIPE = "glass"  # tools/props/library/recipes.py's glass
+CLEAR_GLASS = 0.2  # the share of light the shell's clear glass stops (UsdPreviewSurface opacity): a guess, not measured
+GLASS_SHELL_WORDS = ("the clear glass of the roof or its glass bands, seen through to the sky (the shell its locked "
+                     "plan lays; the glass recipe)")
 
 
-def shell_kinds(plan):
+def shell_kinds(plan, rows=None):
     """{library kind: the words for it} of each part of the shell the locked plan lays (design_shell: an enclosed
     place's deck, walls and roof, whoever lays them, else an open place's raised levels; `stair` for its flights),
-    each its part's first library kind (palette_library.SHELL_KINDS), the one the shell finds its surface by."""
+    each its part's first library kind (palette_library.SHELL_KINDS), the one the shell finds its surface by; and
+    `glass` where it lays a glass part (shell_parts.glazes by the plan and the inventory's `rows`: design_shell paints
+    it with this kind's surface first, PART_KINDS; 2026-11-15, asked none, the greenhouse's and the hub's glass took
+    their roof's surface, the tube's glass bands their wall's)."""
     from score.stages import shell_parts
     parts = shell_parts.parts(plan)
     if any(len(entry.get("points") or []) >= 3 for entry in plan.get("stairs") or []):
         parts.add("stair")
-    return {palette_library.SHELL_KINDS[part][0]: f"{SHELL_WORDS[part]} (the shell its locked plan lays)"
-            for part in sorted(parts)}
+    found = {palette_library.SHELL_KINDS[part][0]: f"{SHELL_WORDS[part]} (the shell its locked plan lays)"
+             for part in sorted(parts)}
+    return {**found, GLASS_KIND: GLASS_SHELL_WORDS} if shell_parts.glazes(plan, rows) else found
 
 
 def ground_files(place):
@@ -182,7 +193,8 @@ def kinds_of(inputs):
             found.setdefault(take["kind"], words + (SHEET_WORDS if take["kind"] in sheets else "")
                              + (PICTURE_WORDS if shows_picture(f"{take['kind']} {words}") else ""))
     if "plan" in inputs:
-        for kind, words in shell_kinds(json.loads(pathlib.Path(inputs["plan"]).read_text())).items():
+        rows = json.loads(pathlib.Path(inputs["inventory"]).read_text())["rows"] if "inventory" in inputs else None
+        for kind, words in shell_kinds(json.loads(pathlib.Path(inputs["plan"]).read_text()), rows).items():
             found.setdefault(kind, words)
     return dict(sorted(found.items()))
 
@@ -295,10 +307,22 @@ def library_of(place, answer, palette, method):
         family["variants"].setdefault(name, variant)
         for kind in filter(None, surface.get("kinds") or []):
             kinds.setdefault(kind, []).append(name)
+    cleared(families, kinds)
     return {"is": f"the surface library of {place}, made fresh from its design by {ROW} (scene_library.py)",
             "wear_levels": method["wear_levels"], "recipes": method["recipes"],
             "colour_settings": method.get("colour_settings", {}), "tokens": palette["tokens"],
             "dirt": palette["wear"]["dirt_token"], "families": families, "kinds": kinds, "pictures": {}}
+
+
+def cleared(families, kinds):
+    """Each variant of the shell's glass kind made with the glass recipe given its `opacity` (CLEAR_GLASS), in place:
+    the scene's flat surface (tools/usd/export.library_materials) draws it see-through, which the recipe's flat colour
+    alone never does (2026-11-15: the greenhouse's dome_glazing stood an opaque dark dome). A bake reads only its
+    recipe's own arguments, so a model's glass bakes as before."""
+    for family in families.values():
+        for name, variant in family["variants"].items():
+            if name in kinds.get(GLASS_KIND, []) and variant["recipe"] == GLASS_RECIPE:
+                variant["opacity"] = CLEAR_GLASS
 
 
 def ask(bodies):
@@ -350,6 +374,9 @@ def library_findings(found, kinds, sounds, grounds=None):
                 for kind, ground in (grounds or {}).items()
                 if not any(variants.get(name, {}).get("recipe") == ground["recipe"]
                            for name in found.get("kinds", {}).get(kind, []))]
+    failing += [f"kind {GLASS_KIND} has no clear glass (recipe {GLASS_RECIPE})"] * (
+        GLASS_KIND in kinds and bool(found.get("kinds", {}).get(GLASS_KIND)) and not any(
+            variants.get(name, {}).get("recipe") == GLASS_RECIPE for name in found["kinds"][GLASS_KIND]))
     for name, variant in variants.items():
         failing += [f"{name}: recipe {variant['recipe']} is not the method's"] * (
             variant["recipe"] not in found["recipes"])

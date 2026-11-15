@@ -10,6 +10,12 @@ Each test makes its own small world in a temporary folder or under $PROPS_HOME; 
 
 Breaks (each applied once, seen red, reverted), in score/stages/surfaces/ unless named; old -> new  -> the
 tests it turned red:
+- scene_library.py: `return {**found, GLASS_KIND: GLASS_SHELL_WORDS} if shell_parts.glazes(plan, rows) else found` ->
+  `return found`  -> every_part_takes_a_library_surface_and_is_held_to_it (a glass roof asked no glass kind)
+- scene_library.py: `variant["opacity"] = CLEAR_GLASS` -> `pass`  -> every_part_takes_a_library_surface_and_is_held_to_it
+  (the shell's glass drawn opaque)
+- scene_library.py: `GLASS_KIND in kinds and bool(` -> `False and bool(`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (a glass kind answered with paint passes)
 - registry.py: `if standing is None:` -> `if True:`  -> every_part_takes_a_library_surface_and_is_held_to_it (a second
   proposal stands as first proposed)
 - registry.py: `return re.sub(r"[^a-z0-9]+", "_", name.lower())` -> `return re.sub(r"[^a-z0-9]+", "_", name)`  ->
@@ -1260,6 +1266,30 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     # an open place with a raised level: its level is the floor's kind; one with neither lays no shell
     level = {"w": 6.0, "d": 4.0, "levels": [{"name": "stage", "points": SQUARE, "height": 0.5}]}
     assert list(scene_library.shell_kinds(level)) == ["floor"] and scene_library.shell_kinds({"w": 6.0, "d": 4.0}) == {}
+    # a glass roof the shell lays is asked its own glass kind, answered as clear glass the flat surface sees through
+    # (2026-11-15: asked none, the greenhouse's glass dome took its roof's surface and stood opaque)
+    domed = {"w": 6.0, "d": 4.0, "walls": [{}], "roofs": [{"kind": "dome", "points": SQUARE, "eave": 2.5, "top": 4.0}]}
+    glass_rows = [{"part": "roof", "name": "glass dome roof", "noun": "roof"}]
+    assert "glass" in scene_library.shell_kinds(domed, glass_rows) and "glass" not in scene_library.shell_kinds(domed)
+    glazed_answer = {"surfaces": [
+        {"name": "dome glazing", "family": "glass", "recipe": "glass", "token": "t", "roughness": 0.05, "metal": 0.0,
+         "sound": "glass", "kinds": ["glass", "roof"]},
+        {"name": "dark pane", "family": "glass", "recipe": "glass", "token": "t", "roughness": 0.05, "metal": 0.0,
+         "sound": "glass", "kinds": ["window"]},
+        {"name": "frame paint", "family": "paint", "recipe": "painted_metal", "token": "t", "roughness": 0.5,
+         "metal": 0.0, "sound": "metal", "kinds": ["glass"]}]}
+    glazed = scene_library.library_of("dome", json.dumps(glazed_answer), {"tokens": {"t": "#808080"},
+                                                                          "wear": {"dirt_token": "t"}},
+                                          json.loads(METHOD.read_text()))
+    panes = glazed["families"]["glass"]["variants"]
+    assert panes["dome_glazing"]["opacity"] == scene_library.CLEAR_GLASS and "opacity" not in panes["dark_pane"]
+    assert "opacity" not in glazed["families"]["paint"]["variants"]["frame_paint"]
+    glass_kind = {"glass": scene_library.GLASS_SHELL_WORDS}
+    assert not [found for found in scene_library.library_findings(glazed, glass_kind, {"glass", "metal"})
+                if "clear glass" in found]
+    unglazed = dict(glazed, kinds={"glass": ["frame_paint"]})
+    assert [found for found in scene_library.library_findings(unglazed, glass_kind, {"glass", "metal"})
+            if "clear glass" in found], "a glass kind answered with no glass recipe passes"
     assert scene_library.shows_picture("Wall posters") and scene_library.shows_picture("oil canvas")
     assert not scene_library.shows_picture("laser printer") and not scene_library.shows_picture("glass pane")
     # every old material retired (owner, 2026-10-21): the repository's library is the method alone, and a reader of a
