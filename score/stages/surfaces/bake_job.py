@@ -204,9 +204,9 @@ def model_gate():
 
 def laid_size(labelled, size, base, built=False, person=False):
     """A design entry's size in the kit frame (2026-11-08, #10: the plan wins on space, the model on shape): a
-    Pixal3D take at its labelled take's own proportions turned by `base`, scaled as one to the largest that fits
-    within its row's `size` (fitted_size), never stretched side by side to it: the bake stretched 264 of 386 takes more
-    than 20% off their own shape so, old_station's connecting tunnel (3 by 0.86 by 1.59 m) to its 3 by 1.5 by 1.5 m
+    Pixal3D take at its labelled take's own proportions turned by `base`, laid within its row's `size` by the two
+    sides that read, at most STRETCH_MOST off its shape (fitted_size, fit_within), never stretched side by side to
+    it: the bake stretched 264 of 386 takes more than 20% off their own shape so, old_station's connecting tunnel (3 by 0.86 by 1.59 m) to its 3 by 1.5 by 1.5 m
     row, its outline 0.70 as made and 0.466 stretched. A slender row or a code build (`built`) keeps its take's own
     proportions with its longest side the row's (turned_size): a thin run's box is its thickness on its two short
     sides, so fitting a sagging string side by side to its 8 by 0.01 by 0.01 crushed its sag flat (2026-10-26), and a
@@ -221,16 +221,37 @@ def laid_size(labelled, size, base, built=False, person=False):
 
 
 def fitted_size(labelled, size, base):
-    """The labelled take's size in the kit frame laid by `base` (nine numbers, rows), scaled as one to the largest
-    that fits within `size` (fit_within)."""
+    """The labelled take's size in the kit frame laid by `base` (nine numbers, rows), laid within `size` by the two
+    sides that read (fit_within)."""
     return fit_within(np.ptp(take_points(labelled) @ np.array(base, float).reshape(3, 3).T, axis=0), size)
 
 
+# A model is laid at most this far off its own proportions, any side against any other (fit_within): #10 found the
+# bake stretching 264 of 386 takes more than 20% off their shape, old_station's tunnel's outline 0.70 as made and
+# 0.466 stretched.
+STRETCH_MOST = 1.2
+# A model's free side (its row's thinnest, fit_within) is laid at most this many times its row's, as a flat row's depth
+# is (flat_fit.DEPTH_TIMES): workshop's monitors, their take 1.6 times deeper than wide for their 0.4 by 0.3 by 0.1 m
+# row, are laid 0.38 m wide and 0.3 deep, never 0.16 wide.
+FREE_MOST = 3.0
+
+
 def fit_within(found, size):
-    """`found` (a model's sides) scaled as one to the largest that fits within `size`, side for side."""
+    """`found` (a model's sides) laid on its row's `size` by the two sides that read (#128, cause 3): scaled as one to
+    the largest whose two sides other than the row's thinnest (a door's or a monitor's width and height, a desk's
+    footprint; of two thinnest alike, its depth) fit within the row's, its free side (the thinnest) never past
+    FREE_MOST of the row's nor past the row's next side (a crate's cube row holds it whole), then each side stretched
+    toward its row's, never past it, by STRETCH_MOST at most. Scaled as one to its tightest side, a door's or a
+    monitor's thin depth bound it: workshop's monitors were laid 0.16 m wide for their 0.4 m row, its workbench 1.18 m
+    long for its 2.0 m (env1, 2026-11-15)."""
     found = np.maximum(np.asarray(found, float), 1e-9)
-    scale = float(np.min(np.asarray(size, float) / found))
-    return [round(float(side * scale), 3) for side in found]
+    size = np.asarray(size, float)
+    scales = size / found
+    free = min((2, 1, 0), key=lambda side: float(size[side]))  # of two thinnest alike, the depth (z), then the height
+    face = [side for side in range(3) if side != free]
+    deepest = min(FREE_MOST * float(size[free]), float(np.min(size[face])))
+    scale = min(float(np.min(scales[face])), deepest / float(found[free]))
+    return [round(float(side), 3) for side in found * np.clip(scales, scale, scale * STRETCH_MOST)]
 
 
 def refitted(entries, written, labelled, built=False, person=False):

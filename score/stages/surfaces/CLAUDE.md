@@ -246,7 +246,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   airlock's locker lamp built 0.046 m across its 0.1 m box, outline 0.813 built, 0.409 baked fitted; such a take
   standing on its longest side while its row lies is turned by its row (`tumble.square_turn`), its long side along
   the wall or floor it runs on, never up (hangar's wall pipes stood 22.7 m in a 15 m hangar, #36, 2026-10-31); a Pixal3D take at its own
-  proportions, scaled as one to the largest that fits within its row (`bake_job.laid_size`, `fitted_size`; 2026-11-08,
+  proportions, laid by the two sides that read (`bake_job.fit_within`, #128, 2026-11-15: all but its row's thinnest,
+  that free side at most 3 times its row's and never past the row's next side, each side then stretched toward its
+  row's by `STRETCH_MOST` 20% at most; scaled as one to its tightest side, a door's or monitor's thin depth bound it,
+  workshop's monitors 0.16 m for their 0.4 m row) (`bake_job.laid_size`, `fitted_size`; 2026-11-08,
   #10: the plan wins on space, the model on shape; stretched to its row by axis, 264 of 386 baked takes were more than
   20% off their own shape, old_station's tunnel outline 0.70 as made, 0.466 stretched); a flat row's (the model gate's
   shape class "flat") by its face, its depth held apart at most 3 times its row's depth and never held under 5 cm

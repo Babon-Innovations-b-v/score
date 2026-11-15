@@ -318,7 +318,10 @@ tests it turned red:
 - bake_job.py: `return TURNS[min(TURNS, key=misfit)]` -> `return TURNS[0]`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: a take long along z for a row wide along x)
 - bake_job.py: `return fitted_size(labelled, size, base)` -> `return size` (laid_size: stretched to its row), or
-  `np.min(` -> `np.max(` (fit_within: past its row), or refitted's `if fits else entry` -> `if False else entry`  ->
+  `np.min(` -> `np.max(` (fit_within: past its row), or fit_within's `np.clip(scales, scale, scale * STRETCH_MOST)`
+  -> `scale` (the monitor laid 0.32 m wide), or `FREE_MOST * float(size[free])` -> `float(size[free])` (bound
+  by its depth again, 0.13 m wide), or flat_fit.py face_fit's `np.clip(size / found, ...)` -> `float(scale)` (the
+  face 1.0 m wide), or refitted's `if fits else entry` -> `if False else entry`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: the tunnel, the hanging row, the stool; REFITS; fit_within)
 - route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`, or tumble.py: `return f"its design lays it
   lying ({said})"` -> `return None`  -> every_part_takes_a_library_surface_and_is_held_to_it (its STAND_SQUARE rows)
@@ -1973,10 +1976,12 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                                      "stood": {"degrees": 9.0}}}
                 refitted = bake_job.refitted(stood, {"crate_1": {"size": [1.0, 1.0, 1.0]}}, crate, **words)
                 assert refitted == stood if size is None else refitted["crate_1"]["size"] == size, (case, refitted)
-            assert bake_job.fit_within([2.0, 1.0, 4.0], [1.0, 1.0, 1.0]) == [0.5, 0.25, 1.0]
+            # #128: laid by its width and height, its depth (its row's thinnest) free to 3 times its row's, each side
+            # stretched 20% at most toward its row's: workshop's monitor take, deeper than wide, 0.38 m wide, not 0.16
+            assert bake_job.fit_within([0.16, 0.09, 0.15], [0.4, 0.3, 0.1]) == [0.384, 0.216, 0.3]
             frame_row = [0.15, 0.2, 0.02]
             frame = a_box_take(folder / "frame", "frame-t1", (0.15, 0.2, 0.086))
-            assert bake_job.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.035, 0.047, 0.02]
+            assert bake_job.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.126, 0.167, 0.06]
             assert flat_fit.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
             for case, made, kit, size in FACE_FITS:
                 assert flat_fit.face_fit(made, kit) == size, case
@@ -4392,7 +4397,7 @@ BAKE_ENTRIES = [
     an_entry_case("a slender row keeps its take's proportions", "street", "string_1", "string-t1", (0.05, 1.0, 8.0),
                   a_design([8.0, 0.01, 0.01]), {"base": bake_job.TURNS[90], "size": [8.0, 1.0, 0.05]}),
     an_entry_case("a Pixal3D take is laid within its row's box", "airlock", "lamp_1", "lamp-t1", (0.4, 0.15, 0.046),
-                  a_design([0.4, 0.1, 0.1], 5000), {"size": [0.267, 0.1, 0.031]}),
+                  a_design([0.4, 0.1, 0.1], 5000), {"size": [0.32, 0.1, 0.037]}),
     an_entry_case("a code build bakes at its own section", "airlock", "lamp_2", "lamp-built-t1", (0.4, 0.15, 0.046),
                   a_design([0.4, 0.1, 0.1], 5000), {"base": bake_job.TURNS[0], "size": [0.4, 0.15, 0.046]},
                   code=True),
@@ -4401,10 +4406,10 @@ BAKE_ENTRIES = [
     an_entry_case("a code build for a row that stands keeps standing", "hangar", "pipes_2", "pipes-up-t1",
                   (4.9, 22.0, 0.4), a_design([0.4, 32.0, 0.4]), {"size": [7.127, 32.0, 0.582]}, code=True),
     an_entry_case("a Pixal3D tunnel is laid the largest within its row", "old_station", "tunnel_1", "tunnel-t1",
-                  (3.0, 0.856, 1.589), a_design([3.0, 1.5, 1.5]), {"size": [2.832, 0.808, 1.5]},
+                  (3.0, 0.856, 1.589), a_design([3.0, 1.5, 1.5]), {"size": [3.0, 0.97, 1.5]},
                   inventory=a_handin(TUNNEL, "tunnel-t1")),
     an_entry_case("a hanging row is laid within it too", "old_station", "ceiling_lamp_1", "ceiling_lamp-t1",
-                  (0.498, 0.868, 0.502), a_design([0.4, 0.5, 0.4]), {"size": [0.287, 0.5, 0.289]},
+                  (0.498, 0.868, 0.502), a_design([0.4, 0.5, 0.4]), {"size": [0.344, 0.5, 0.347]},
                   inventory=a_handin(CEILING_LAMP, "ceiling_lamp-t1")),
     an_entry_case("a person keeps his take's width for his row's height", "cockpit", "pilot_1", "pilot-t1",
                   (0.6, 1.0, 0.3), a_design(PILOT["kit"], 5000), {"size": [1.08, 1.8, 0.3]},
@@ -4413,7 +4418,7 @@ BAKE_ENTRIES = [
                   (0.58, 1.0, 0.3), a_design(OFFICER["kit"], 5000), {"size": [1.044, 1.8, 0.3]},
                   inventory=a_handin(OFFICER, "officer-t1"), rules=True),
     an_entry_case("a thing of the same take and row is laid within its row", "cockpit", "stool_1", "stool-t1",
-                  (0.6, 1.0, 0.3), a_design(STOOL["kit"], 5000), {"size": [0.5, 0.833, 0.25]},
+                  (0.6, 1.0, 0.3), a_design(STOOL["kit"], 5000), {"size": [0.5, 1.0, 0.3]},
                   inventory=a_handin(STOOL, "stool-t1"), rules=True),
     an_entry_case("a people line look stands in his raw take's pose", "people", "pilot-made", "pilot-made-s1",
                   (0.6, 1.0, 0.3), a_design([0.5, 1.8, 0.3], 5000),
@@ -4428,8 +4433,8 @@ ENTRY_CHECKS = {"refused", "refusal", "yaw", "raw pose", "kept"}  # a row's want
 # The bake job's stood takes (bake_job.refitted): a take stood square by the bake (its `stood`, no `kept`) is laid
 # again within its row at its new turn's proportions, one the stand kept, a code build's and a person's as they were.
 REFITS = [  # (case, its turn, refitted's own words, the size laid or None: as it was)
-    ("stood square: laid again within its row", 90, {}, [0.5, 0.5, 1.0]),
-    ("kept by the stand", 0, {}, [1.0, 0.5, 0.5]),
+    ("stood square: laid again within its row", 90, {}, [0.6, 0.6, 1.0]),
+    ("kept by the stand", 0, {}, [1.0, 0.6, 0.6]),
     ("a code build's", 90, {"built": True}, None),
     ("a person's", 90, {"person": True}, None),
 ]
@@ -4441,7 +4446,8 @@ REFITS = [  # (case, its turn, refitted's own words, the size laid or None: as i
 FACE_FITS = [  # (case, the made size, the row, laid)
     ("a door 10 cm deep for its 5 cm row keeps its 10 cm", (1.0, 2.0, 0.1), [1.0, 2.0, 0.05], [1.0, 2.0, 0.1]),
     ("a lumpy window 1.1 m deep for its 2 cm row is 6 cm", (1.2, 1.0, 1.1), [1.2, 1.0, 0.02], [1.2, 1.0, 0.06]),
-    ("the face within its row on both sides", (0.5, 0.5, 2.0), [2.0, 1.0, 0.1], [1.0, 1.0, 0.3]),
+    ("the face within its row on both sides, stretched 20% at most toward it", (0.5, 0.5, 2.0), [2.0, 1.0, 0.1],
+     [1.2, 1.0, 0.3]),
 ]
 
 

@@ -2147,7 +2147,7 @@ FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's sc
       "Objects/drying_rack_1": ("cube", (1.2, 0.1, 0.4), (2.0, 0.05, 3.0), 0.0)},
      [("pipe_1", "pipe", SHELL_WALL), ("lamp_1", "lamp", SHELL_WALL), ("drying_rack_1", "drying_rack", FACADE),
       ("shop_door_1", "shop_door", FACADE), ("door_1", "door", DOORWAY)],
-     {"door_1": (None, (-0.1, 0.0, -0.1), (1.0, 2.0, 0.1)), "pipe_1": (0.75, (-1.8, 0.0, 0.22), (2.4, 0.75, 0.24)),
+     {"door_1": (None, (0.0, 0.0, -0.1), (1.2, 2.2, 0.1)), "pipe_1": (0.75, (-1.8, 0.0, 0.22), (2.4, 0.75, 0.24)),
       "shop_door_1": (None, (2.0, 0.0, 4.75), (1.0, 2.0, 0.1)),
       "drying_rack_1": (1.0, (0.9, 0.0, 4.6), (1.2, 0.1, 0.4))},
      ["lamp_1"], [], 1e-8, ("door_1", (-0.6, 0.0, -0.9), (0.6, 1.8, 0.85)), None, {}, None),
@@ -2171,21 +2171,21 @@ FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's sc
          for name, middle in (("windows_1", 1.336), ("windows_2", 2.027))}},
      [(name, "windows", {**TUBE_WINDOW, "middle": [-1.6, 0.8, middle]})
       for name, middle in (("windows_1", 1.336), ("windows_2", 2.027))],
-     {"windows_1": (1.0, (-1.6, 0.8, 1.7785), (0.1022, 0.2439, 0.4756)),
-      "windows_2": (1.0, (-1.6, 0.8, 2.3701), (0.1022, 0.2439, 0.4756))},
-     [], ["windows_1", "windows_2"], 1e-4, None, None, {"windows_1": None, "windows_2": 1.0107}, None),
+     {"windows_1": (1.0, (-1.6, 0.8, 1.7785), (0.1022, 0.8, 1.115)),  # grown to its 0.8 m opening, rib to wall
+      "windows_2": (None, (-1.6, 0.8, 2.53), (0.1022, 0.8, 0.388))},  # in the part of its opening left, wall to rib
+     [], ["windows_1", "windows_2"], 1e-3, None, None, {"windows_1": None, "windows_2": 0.691}, None),
     ("#36 garage: a door turned so its own left edge faces +x and its -z the room, a pipe across its doorway, a lamp "
      "laid over one laid before it",
      {"Objects/pipe_1": ("cube", (3.2, 1.0, 0.32), (0.0, 0.5, 2.0), 0.0),
       "Objects/lamp_1": ("cube", (0.4, 0.3, 0.1), (0.0, 2.45, 0.15), 0.0),
       "Objects/lamp_2": ("cube", (0.4, 0.3, 0.1), (0.1, 2.45, 0.15), 0.0),
-      "Objects/door_1": ("cube", (1.0, 2.0, 0.1), (0.0, 1.0, 3.0), 180.0),
+      "Objects/door_1": ("cube", (0.8, 2.0, 0.1), (0.0, 1.0, 3.0), 180.0),
       "Shell/wall_2": ("cube", (1.2, 0.1, 0.2), (0.0, -0.05, 0.0), 0.0)},
      [("pipe_1", "pipe", SHELL_WALL), ("lamp_1", "lamp", SHELL_WALL), ("lamp_2", "lamp", SHELL_WALL),
       ("door_1", "door", DOORWAY)],
-     {"door_1": (None, (0.1, 0.0, 0.1), (1.0, 2.0, 0.1)), "lamp_2": (None, (0.4, 2.3, 0.15), (0.4, 0.3, 0.1)),
+     {"door_1": (None, (0.072, 0.0, 0.1), (1.056, 2.2, 0.1)), "lamp_2": (None, (0.4, 2.3, 0.15), (0.4, 0.3, 0.1)),
       "pipe_1": (0.75, (-1.8, 0.0, 0.22), (2.4, 0.75, 0.24))},
-     ["lamp_1"], ["door_1"], 1e-8, None, None, {}, ("door_1", (-0.4, 0.0, 0.1), (0.6, 2.0, 1.1))),
+     ["lamp_1"], ["door_1"], 1e-8, None, None, {}, ("door_1", (-0.456, 0.0, 0.1), (0.6, 2.2, 1.156))),
     ("habitat: a pipe 2.7 to 3.1 m up on a slanted wall 2.8 m tall, a dome's rim 0.3 m behind it, stands on the "
      "wall's face, never the rim", {**DOMED, "Objects/pipe_1": ("box", (1.9, 2.7, 1.9), (2.1, 3.1, 2.1))},
      [("pipe_1", "pipe", SLANT)], {"pipe_1": (1.0, (2.1, 2.7, 1.9), (0.2, 0.4, 0.2))}, [], [], 1e-6, None, None, {},
@@ -2371,22 +2371,28 @@ FIT = [  # (case, a laid thing's low and high, its relation, its holders' boxes,
     # unchecked), whether it is held laid there and not where the plan stood it)
     ("a 1.4 x 2.4 m door in its 1.2 x 2.1 m opening", (0.3, 0.0, 2.95), (1.7, 2.4, 3.05), OPENING, (), {},
      (1.2 / 1.4, 2.1 / 2.4, 2.1 / 2.4), (5.0, 0.0, 0.0), "narrowed to 86% across", None, None, None, ANY, False),
+    ("a 1.8 m door standing in its 2.1 m opening already, grown to its height (#128)", (4.4, 0.0, -0.05),
+     (5.6, 1.8, 0.05), OPENING, (), {}, (1.0, 2.1 / 1.8, 1.0), (5.0, 0.0, 0.0), "grown to 117% to fill it", None,
+     None, None, ANY, False),
     ("a 1.4 m door between built jambs 0.9 m apart", (0.3, 0.0, 2.95), (1.7, 2.1, 3.05), OPENING, JAMBS, {},
      (0.9 / 1.4, 1.0, 1.0), (5.0, 0.0, 0.0), None, None, None, None, ANY, False),
-    ("a 0.6 m door there against the jamb its left edge faces", (0.3, 0.0, 2.95), (0.9, 2.1, 3.05), OPENING, JAMBS,
-     {"left": (-1.0, 0.0)}, 1.0, (4.85, 0.0, 0.0), None, None, None, None, ANY, False),
+    ("a 0.6 m door there, stretched 20% across at most toward its jambs, against the jamb its left edge faces",
+     (0.3, 0.0, 2.95), (0.9, 2.1, 3.05), OPENING, JAMBS, {"left": (-1.0, 0.0)}, (1.2, 1.0, 1.0), (4.91, 0.0, 0.0),
+     "grown to 120% to fill it", None, None, None, ANY, False),
     ("a wall lamp laid at the room's middle, on its wall's face", (4.4, 0.0, 2.9), (4.6, 0.6, 3.9), WALL_FACE, (), {},
      1.0, (2.1, 0.0, 3.4), None, None, None, None, ANY, False),
-    ("a 2.4 m door laid on the plan's line of its 2.4 m opening, on the built wall's face", (-1.2, 0.0, 0.05),
-     (1.2, 2.4, 0.25), DOORWAY_1, [(wall["low"], wall["high"]) for wall in DOOR_WALLS], {}, 1.0, (0.0, 0.0, 0.0),
-     None, None, None, None, ANY, False),
-    ("a 2 m door there, its hinge on the jamb its own left edge faces", (-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), DOORWAY_1,
-     [(wall["low"], wall["high"]) for wall in DOOR_WALLS], {"left": (-1.0, 0.0)}, 1.0, (-0.2, 0.0, 0.0), None, None,
+    ("a 2.4 m door laid on the plan's line of its 2.4 m opening, on the built wall's face, grown to its 2.66 m "
+     "height, held to its width, its depth its own", (-1.2, 0.0, 0.05), (1.2, 2.4, 0.25), DOORWAY_1,
+     [(wall["low"], wall["high"]) for wall in DOOR_WALLS], {}, (1.0, 2.66 / 2.4, 1.0), (0.0, 0.0, 0.0), None, None,
      None, None, ANY, False),
-    *[(f"#36 garage: a 2 m door whose own -z way points {way} hangs on the wall's {face} face, its hinge at that "
-       "face's jamb corner, never on the deck's side", (-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), LEAF_OPENING,
-       [(wall["low"], wall["high"]) for wall in LEAF_WALLS], {"left": (-1.0, 0.0), "opens": opens}, 1.0,
-       (-0.2, 0.0, z), None, LEAF_WALLS, None, None, ANY, False)
+    ("a 1.6 m door there, grown to its height and 20% across, its hinge on the jamb its own left edge faces",
+     (-0.8, 0.0, 0.05), (0.8, 2.4, 0.25), DOORWAY_1, [(wall["low"], wall["high"]) for wall in DOOR_WALLS],
+     {"left": (-1.0, 0.0)}, (1.2 * 2.66 / 2.4, 2.66 / 2.4, 1.0), (-0.136, 0.0, 0.0), None, None, None, None, ANY,
+     False),
+    *[(f"#36 garage: a 1.6 m door whose own -z way points {way} hangs on the wall's {face} face, its hinge at that "
+       "face's jamb corner, never on the deck's side", (-0.8, 0.0, 0.05), (0.8, 2.4, 0.25), LEAF_OPENING,
+       [(wall["low"], wall["high"]) for wall in LEAF_WALLS], {"left": (-1.0, 0.0), "opens": opens},
+       (1.2 * 2.66 / 2.4, 2.66 / 2.4, 1.0), (-0.136, 0.0, z), None, LEAF_WALLS, None, None, ANY, False)
       for way, face, opens, z in (("out of the room", "outer", (0.0, -1.0), -0.276),
                                   ("into the room", "room", (0.0, 1.0), 0.0))],
     ("habitat: a cabinet whose wall is taken, floor to top, but for a stretch of no length is crowded, never shrunk "
@@ -3201,8 +3207,14 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         jamb), or its `if finish - begin >= wide - 1e-9]` -> `]` (laid in the 0.23 m stretch past a box it never
         fits); fitting.py's `for key in ("middle", "along", "wide")` -> `("middle", "along")` (the gate judges it off
         its whole opening)
-    Each thing of FIT is fitted by its relation: a door shrunk to its opening's height and held across its width
-    alone to it (or to the clear between its built jambs, the lab's entry passage, motion@lab round 35), its foot's
+    Break: score/stages/assembly/fitting.py: in_opening's `scale = float(on["tall"]) / max(...)` -> `scale =
+        min(1.0, float(on["tall"]) / max(...))` (the 2.4 m door left short of its 2.66 m opening, #128), or its
+        `min((end - start) / max(wide, 1e-9), FILL_STRETCH)` -> `min(..., 1.0)` (the 0.6 m door left a gap beside it),
+        or `scale[2 - run_axis] = min(1.0, ...)` dropped (its depth grown with its height), or fit's `and most - 1.0 <
+        SHRINK_LEAST` dropped (the 1.8 m door standing in its opening read as sitting, left short)
+    Each thing of FIT is fitted by its relation: a door grown or shrunk to its opening's height and held across its
+    width alone to it (or to the clear between its built jambs, the lab's entry passage, motion@lab round 35), a
+    narrower one stretched toward it by FILL_STRETCH at most, its depth never grown, its foot's
     middle at the opening's middle on its sill, a narrow one against the jamb its left edge faces; a wall lamp with
     its back on its wall's face, slid along to the face's nearest point. An opening of HOLE_WALL on a slanted plan
     wall (settle@street, 2026-11-11: restaurant door 2 stood 0.15 m in wall_2) is laid along the straight wall its

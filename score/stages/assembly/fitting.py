@@ -1,7 +1,7 @@
 """A design's object laid by its relation at its built size (issue #72; bible `architecture/layers`, assembly: the plan
 states the relations, the assembly lays by them): its scene record entry's `on` (scene_record/writer.related, from
 score/review/holders) says what holds it, and once its baked model and its holder's stand on the stage it is moved, and
-shrunk where it does not fit (never grown past its own model), so it sits
+shrunk where it does not fit (never grown past its own model, but in an opening: filled), so it sits
 
     top     on its holder's top, within its footprint (a monitor on its console, a lamp on its desk), then let down
             onto the built surface under it, as is one within it off its shelves (built_tops.let_down)
@@ -24,7 +24,7 @@ shrunk where it does not fit (never grown past its own model), so it sits
             front of the built ribs and pillars standing out of the face across it (stood_off); on a slanted wall on
             its built face behind its span, or the nearest along its `out` either way (face_near), its long side
             along it (along_its_wall)
-    in      in its opening: its middle on the opening's middle at its sill, as wide and tall as the opening at most,
+    in      in its opening: its middle on the opening's middle at its sill, grown or shrunk to fill it (in_opening),
             its middle on the face of its built wall it swings to (its own -z way), else on the wall's room face
             where that wall stands behind the plan's line (opening_spot: hangar's and garage's shell walls stand
             0.15 m behind it), so its swing keeps touching its jamb and clear of it
@@ -854,21 +854,32 @@ def jambs(on, walls, spot):
     return start, end
 
 
+# A door narrower than its opening at the opening's height is stretched across toward its clear width by this at most
+# (in_opening), as the bake lays a model at most 20% off its own shape (score/stages/surfaces/bake_job.py
+# STRETCH_MOST); narrower still, it hangs on its hinge's jamb (opening_spot).
+FILL_STRETCH = 1.2
+
+
 def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
-    """(scale, foot middle) of an object in its opening, no taller than it, on the face of its built wall it swings to
-    and against the jamb its own left edge faces (opening_spot); one wider than the clear width between its built
-    jambs (jambs) held to it across its width alone, as a thin build is held to its row's section (scale then a world
-    [x, y, z]), never left standing in its jambs (the lab's 1.447 m door in its 1.264 m clear opening)."""
+    """(scale, foot middle) of an object in its opening, filling it (#128, cause 3): as tall as it, grown or shrunk,
+    on the face of its built wall it swings to and against the jamb its own left edge faces (opening_spot); in an
+    opening along x or z held across its width alone to the clear width between its built jambs (jambs) where wider,
+    stretched toward it by FILL_STRETCH at most where narrower, its depth never grown past its own (scale then a world
+    [x, y, z]): never left standing in its jambs (the
+    lab's 1.447 m door in its 1.264 m clear opening), never a small leaf beside a hole (env1, 2026-11-15: lab's 1.46 m
+    door in its 2.66 m opening, docking_airlock's 1.02 m hatch, cockpit's 0.18 m windows); in a slanted one grown or
+    shrunk as one, then shrunk as one to its clear width where wider."""
     size = high - low
-    scale = min(1.0, float(on["tall"]) / size[1])
+    scale = float(on["tall"]) / max(float(size[1]), 1e-9)
     run_axis = 0 if abs(on["along"][0]) >= abs(on["along"][1]) else 2
     spot = opening_spot(on, walls, None, left, opens, points)
     start, end = jambs(on, walls, spot)
     wide = across(on["along"], size * scale)
-    if wide > end - start and not slanted(on):
+    if not slanted(on):
         scale = np.full(3, scale)
-        scale[run_axis] *= (end - start) / wide
-        wide = end - start
+        scale[run_axis] *= min((end - start) / max(wide, 1e-9), FILL_STRETCH)
+        scale[2 - run_axis] = min(1.0, scale[2 - run_axis])
+        wide = min(end - start, wide * FILL_STRETCH)
     elif wide > end - start:
         scale *= (end - start) / wide
         wide = end - start
@@ -1089,12 +1100,14 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
             return CROWDED       # kitchen cabinet, 2026-11-11: its turned box then had no frame, oriented_corners)
     else:
         scale, target = in_opening(low, high, on, boxes, left, opens, surface)
-    moved, least = float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale))
-    if moved < MOVE_LEAST and 1.0 - least < SHRINK_LEAST:
+    moved, least, most = (float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale)),
+                          float(np.max(scale)))
+    if moved < MOVE_LEAST and 1.0 - least < SHRINK_LEAST and most - 1.0 < SHRINK_LEAST:
         return None
     words = f"laid {how} ({on.get('why', '')}): moved {moved:.2f} m" + (
         (f", narrowed to {least:.0%} across to fit" if np.ndim(scale) else f", shrunk to {least:.0%} to fit")
-        if 1.0 - least >= SHRINK_LEAST else "")
+        if 1.0 - least >= SHRINK_LEAST else "") + (f", grown to {most:.0%} to fill it" if most - 1.0 >= SHRINK_LEAST
+                                                   else "")
     return scale, target, words, face
 
 

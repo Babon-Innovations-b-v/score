@@ -53,13 +53,16 @@ def depth_bound(depth):
 
 def face_fit(found, size):
     """`found` (a model's sides) on a flat row's `size`: scaled as one to the largest whose two face sides (all but the
-    row's thinnest) fit within the row's, then its depth (the row's thinnest side's) alone at most depth_bound."""
+    row's thinnest) fit within the row's, each face side then stretched toward its row's, never past it, by
+    bake_job.STRETCH_MOST at most (a door's leaf its row's width and height, #128), then its depth (the row's thinnest
+    side's) alone at most depth_bound."""
     found = np.maximum(np.asarray(found, float), 1e-9)
     size = np.asarray(size, float)
     thin = int(np.argmin(size))
     face = [side for side in range(3) if side != thin]
-    laid = found * float(np.min(size[face] / found[face]))
-    laid[thin] = min(laid[thin], depth_bound(size[thin]))
+    scale = float(np.min(size[face] / found[face]))
+    laid = found * np.clip(size / found, scale, scale * bake_job.STRETCH_MOST)
+    laid[thin] = min(found[thin] * scale, depth_bound(size[thin]))
     return [round(float(side), 3) for side in laid]
 
 

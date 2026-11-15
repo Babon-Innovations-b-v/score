@@ -165,15 +165,15 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
         found = likeness_row.model_checks(path, size, f"p_{name}", False)["model_check"]
         assert found["pass"] is passes, (name, found)
     # 2026-11-08 (#10): the bake lays a Pixal3D take at its own proportions within its row, so the check lays it so
-    # (drawn_size): old_station's tunnel, 3 by 0.86 by 1.59 m for its 3 by 1.5 by 1.5 m row, laid 2.832 by 0.808 by 1.5
+    # (drawn_size): old_station's tunnel, 3 by 0.86 by 1.59 m for its 3 by 1.5 by 1.5 m row, laid 3 by 0.97 by 1.5
     # and its wall judged there, never stretched to its row (its spread then 0.75: failed).
     tunnel = tmp_path / "tunnel.glb"
     trimesh.creation.box(extents=[3.0, 0.856, 1.589]).export(tunnel)
     row = {"id": "tunnel", "name": "right connecting tunnel", "anchor": "ground", "size": [3.0, 1.5, 1.5]}
     laid = likeness_row.drawn_size(row, tunnel, [row], {})
-    assert laid == [2.832, 1.5, 0.808], laid
+    assert laid == [3.0, 1.5, 0.97], laid
     found = likeness_row.model_checks(tunnel, laid, "p_tunnel", False)["model_check"]
-    assert found["pass"] and found["spread"] == 0.0, found
+    assert found["pass"] and found["spread"] < 0.2, found  # #128: stretched 20% at most toward its row
     # 2026-11-12 (#10): the bake lays a flat row's model by its face, its depth held apart (surfaces/flat_fit.py), so
     # the check draws it so (props/flat_drawn.py in drawn_size's place): quarters' picture frame, baked 0.15 by 0.178 by
     # 0.06 m for its 0.15 by 0.02 by 0.2 m row, was drawn 0.05 by 0.02 by 0.059 (fitted as one, its depth bound) and its
@@ -183,8 +183,8 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
     frame = tmp_path / "frame.glb"
     trimesh.creation.box(extents=[0.15, 0.178, 0.06]).export(frame)
     frame_row = {"id": "picture_frame", "name": "picture frame", "anchor": "on:wall", "size": [0.15, 0.02, 0.2]}
-    assert flat_drawn.UNFLAT(frame_row, frame, [frame_row], {}) == [0.05, 0.02, 0.059]
-    assert likeness_row.drawn_size(frame_row, frame, [frame_row], {}) == [0.15, 0.06, 0.178]
+    assert flat_drawn.UNFLAT(frame_row, frame, [frame_row], {}) == [0.15, 0.06, 0.2]  # #128: by its face too
+    assert likeness_row.drawn_size(frame_row, frame, [frame_row], {}) == [0.15, 0.06, 0.2]
     assert likeness_row.drawn_size(row, tunnel, [row], {}) == flat_drawn.UNFLAT(row, tunnel, [row], {})
     likeness = {stage.name: stage for stage in stages.STAGES}["likeness"]
     assert likeness.files("quarters")["flat drawn"] == "{repo}/score/stages/props/flat_drawn.py"
