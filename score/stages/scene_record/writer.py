@@ -122,6 +122,8 @@ FLOOR_WORDS = frozenset(("floor", "hatch"))
 FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.0), "W": (0.0, -1.0)}
 # A plan polygon (or a row's ground size) at most this wide across for its length is a band, long one way.
 BAND_SHARE = 0.5
+# A row's ground size, or a plan box, at most this wide across for its length is longer one way (writer.item_way).
+ELONGATED = 0.8
 
 
 def files(place):
@@ -1126,13 +1128,17 @@ def item_way(item, row):
     """The plan way one piece at an item lays its long side along (yaw_turn): its facing's (FACING_WAY), turned a
     quarter onto its box's long side where its row and its box are both long on the ground (thin_straight.slender on
     their ground sides) and the facing lays the row across the box: the walkway's two 12 m ceiling ducts, each on a
-    0.14 by 12 m box along the hall facing S, were laid across the hall (#36, 2026-10-31)."""
+    0.14 by 12 m box along the hall facing S, were laid across the hall (#36, 2026-10-31). With no facing, a row
+    longer one way than the other (ELONGATED) on a box so too lies along the box: galley's 2 by 0.8 m dining table on
+    its 1.1 by 2.4 m box was laid across it (the still of 2026-11-15)."""
     import score.stages.props.thin_straight as thin_straight
     way = np.asarray(FACING_WAY.get(item[5], FACING_WAY[None]), float)
     wide, deep = float(item[3]), float(item[4])
     size = row["size"] if sized(row) else None
-    if (size and thin_straight.slender((float(size[0]), float(size[1]), 0.0))
-            and thin_straight.slender((wide, deep, 0.0)) and (abs(way[0]) > abs(way[1])) != (wide > deep)):
+    long = (lambda across, along: thin_straight.slender((across, along, 0.0))) if item[5] is not None else (
+        lambda across, along: min(across, along) <= ELONGATED * max(across, along))
+    if (size and long(float(size[0]), float(size[1])) and long(wide, deep)
+            and (abs(way[0]) > abs(way[1])) != (wide > deep)):
         return np.array([-way[1], way[0]])
     return way
 

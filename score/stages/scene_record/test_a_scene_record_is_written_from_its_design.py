@@ -798,6 +798,15 @@ PLACED = [
      {"tube_1": {"rotation": Turned((math.sqrt(0.5), math.sqrt(0.5)))},
       "crate_1": {"rotation": Turned((1.0, 0.0))}},
      {"tube": ["tube_1"], "crate": ["crate_1"]}, None, None),
+    ("a long table facing nowhere lies along its long box, a square stool on one keeps the east way",
+     {"w": 4.0, "d": 6.0, "items": [["TABLE 1", 1.0, 2.0, 1.1, 2.4, None, "item"],
+                                    ["STOOL 1", 2.5, 2.0, 1.1, 2.4, None, "item"]],
+      "rows": {"TABLE 1": ["table"], "STOOL 1": ["stool"]}},
+     [{"id": "table", "route": "prop", "size": [2.0, 0.8, 0.8]},
+      {"id": "stool", "route": "prop", "size": [0.4, 0.4, 0.5]}],
+     None, None,
+     {"table_1": {"rotation": Turned((0.0, 1.0))}, "stool_1": {"rotation": Turned((1.0, 0.0))}},
+     {"table": ["table_1"], "stool": ["stool_1"]}, None, None),
     ("a passage against its wall runs out through it, a lamp on the wall along it",
      {"w": 10.0, "d": 10.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 10.0, 10.0, None, "item"]],
       "rows": {"ON THE WALLS AND CEILING": ["tunnel", "lamp"]}},
@@ -1594,6 +1603,8 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     Break: score/stages/scene_record/writer.py design_objects: `if on and on["how"] == "wall" and
         plan_checks.connector(row):` -> `if False:` (the tunnel laid along its wall, across its doorway: workshop's
         glass tunnels, 2026-11-15)
+    Break: score/stages/scene_record/writer.py item_way: `lambda across, along: min(across, along) <= ELONGATED *
+        max(across, along))` -> `lambda across, along: False)` (galley's table laid across its box, 2026-11-15)
     Break: score/stages/scene_record/writer.py spots_of: `item_way(item, row) if band is None else band` ->
         `item_way(item, row)` (the tube laid north to south across its band), or band_way's
         `or min(size[0], size[1]) > BAND_SHARE * max(size[0], size[1])` dropped (the crate turned onto the band)
