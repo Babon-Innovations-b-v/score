@@ -1966,6 +1966,7 @@ RIB = (np.array([1.0, 0.0, 0.0]), np.array([1.3, 5.0, 1.0]))  # standing 0.9 m o
 ENDS = [(np.array([-3.13, 0.0, 0.1]), np.array([-3.0, 2.5, 1.6])), (np.array([3.0, 0.0, 0.1]),
                                                                     np.array([3.13, 2.5, 1.6]))]  # walls at its ends
 WHOLE = ((-3.05, 2.35, 0.1), (3.05, 2.8, 0.3))  # a pipe along SHELL_WALL's whole face
+CROSSING = (np.array([-0.02, 0.0, -0.003]), np.array([6.0, 2.8, 0.12]))  # built across ALONG's start, 0.12 m in
 ON_WALL = [  # (case, a thing's low and high (None: its turned cube's), its wall, what it keeps out of (a KEPT_OUT case
     # or boxes), on_wall's other inputs (mounted, built; turned: (size, at, degrees) of a cube about +y, whose world box
     # and oriented corners it is laid by), its scale (None: unread), its foot's middle)
@@ -1986,6 +1987,8 @@ ON_WALL = [  # (case, a thing's low and high (None: its turned cube's), its wall
                 (np.array([-3.0, 2.0, 0.0]), np.array([3.0, 2.5, 10.0]))]}, 1.0, (0.0, 2.35, 1.1)),
     ("walkway: a pipe along its whole wall is never stood on the walls at the face's ends", *WHOLE, SHELL_WALL, (),
      {"built": ENDS}, 6 / 6.1, (0.0, 2.35, 0.1 + 0.1 * 6 / 6.1)),
+    ("flat: a poster laid in its span's first 0.12 m stands clear of the wall built across that end",
+     (0.1, 1.5, 0.0), (0.12, 2.1, 0.4), ALONG, (), {"built": [CROSSING]}, 1.0, (0.11, 1.5, 0.32)),
     ("hangar: a 7 m pipe on its 6 m wall stands under the one laid before it too", (-3.5, 2.35, 0.1), (3.5, 2.8, 0.3),
      SHELL_WALL, (), {"mounted": [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))]}, 6 / 7,
      (0.0, 2.1, 0.1 + 0.1 * 6 / 7)),
@@ -3302,6 +3305,9 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
         rib's front named off its wall), or held_faults' `elif on["how"] == "wall" and entry["name"] in shapes:` ->
         `elif False:` (habitat's pipe_6, flush on its slanted wall where the record laid it, named 0.59 m off it)
+    Break: score/stages/assembly/fitting.py: on_wall's `clear = [*clear, *end_walls(start, run, out, length, built)]`
+        -> `pass`, or end_walls' `if off.min() < 0.0 < off.max()` -> `if False` (flat's poster left 0.12 m into the
+        wall built across its span's start)
     Break: score/stages/assembly/fitting.py: fit's `if scale < SCALE_LEAST: return CROWDED` dropped (a wall thing with
         no stretch left shrunk to nothing), or oriented_corners' `or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12`
         dropped (a prim scaled flat: LinAlgError, Singular matrix)

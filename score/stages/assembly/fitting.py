@@ -505,10 +505,12 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None, built=()):
     where given: a pipe laid along a slanted wall is as deep as its box across, not as its world box (habitat's 3 m
     pipes on its 45 degree walls were laid 1.5 m off them, into each other at the corners, 2026-11-10). On a wall
     running along x or z it stands on the front of the built pieces standing out of the face across its reach
-    (`built`, their boxes; stood_off)."""
+    (`built`, their boxes; stood_off), and within the built walls meeting the face at its ends (end_walls)."""
     size, foot = high - low, foot_middle(low, high)
     on = stood_face(low, high, on, corners, built)
     start, run, out, length = wall_line(on)
+    if not slanted_wall(on):
+        clear = [*clear, *end_walls(start, run, out, length, built)]
     reach, deep = wall_reach(low, high, run, out, corners)
     along = float((foot[[0, 2]] - start) @ run)
     height = mounted_height(start, run, out, length, size, low[1], reach, deep, clear, mounted)
@@ -665,6 +667,29 @@ def stood_off(start, run, out, length, reach, deep, band, built):
                 and low[1] < band[1] and high[1] > band[0]:
             found.append(float(off.max()))
     return max(found)
+
+
+# A built wall meets a wall's face at an end within this of it, metres (end_walls): flat's 0.12 m walls stand across
+# its plan spans' first and last 0.12 m.
+END_REACH = 0.5
+
+
+def end_walls(start, run, out, length, built):
+    """The boxes of the built walls (`built`, no thicker across than WALL_THICKEST) meeting a wall's face (start, run,
+    out, `length` metres long) at its ends: each running across its line, from behind the face into the room, within
+    END_REACH of an end. A wall relation's span is the plan's wall line, which runs to the floor's corners past the
+    room faces of the walls built across its ends: flat's poster was laid in the first 0.12 m of its west wall's 5 m
+    span, 4.3 cm into the back wall built across it (settle@flat failed resting twice, 2026-11-15)."""
+    found = []
+    for low, high in built:
+        if min(high[0] - low[0], high[2] - low[2]) > WALL_THICKEST:
+            continue
+        corners = np.array([[x, z] for x in (low[0], high[0]) for z in (low[2], high[2])], float) - start
+        off, along = corners @ out, corners @ run
+        if off.min() < 0.0 < off.max() and along.max() > 0.0 and along.min() < length \
+                and (along.min() < END_REACH or along.max() > length - END_REACH):
+            found.append((low, high))
+    return found
 
 
 def mounted_height(start, run, out, length, size, height, reach, deep, clear, mounted):
