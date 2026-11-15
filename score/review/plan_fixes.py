@@ -1390,6 +1390,63 @@ def doors_kept(plan, inventory):
     return fixes
 
 
+DOOR_WORDS = {"door", "hatch", "gate"}  # a row whose id names one of these is a door its doorway holds
+DOOR_REACH = 1.5  # metres past its own size a door item's doorway may stand from its middle
+
+
+def doorways_fit(plan, inventory):
+    """Each doorway as big as the door standing in it (#128 D5: the airlock's 1.04 m doorways for its 1.2 x 2.1 m
+    door): for each plan item of a door row (its id's last word in DOOR_WORDS, with metres), the nearest doorway within its own
+    size and DOOR_REACH of its middle made at least the row's wide, its head at least the row's tall over its sill;
+    the fixes said. Never narrowed: a door smaller than its doorway is the fitting's to grow."""
+    sizes = {row["id"]: row["size"] for row in inventory.get("rows", []) if isinstance(row.get("size"), list)
+             and len(row["size"]) >= 3 and str(row["id"]).lower().split("_")[-1] in DOOR_WORDS
+             and all(isinstance(part, (int, float)) and part > 0 for part in row["size"][:3])}
+    openings = [opening for opening in plan.get("openings") or [] if opening.get("kind") in DOORWAY_KINDS
+                and isinstance(opening.get("at"), list)]
+    fixes = []
+    for name, x, y, wide, deep, *_ in plan.get("items", []):
+        row = next((row for row in plan.get("rows", {}).get(name) or [] if row in sizes), None)
+        if row is None or not openings or name == plan_checks.WALLS_ITEM:
+            continue
+        middle = numpy.array([x + wide / 2, y + deep / 2])
+        near = min(openings, key=lambda opening: float(numpy.linalg.norm(numpy.asarray(opening["at"]) - middle)))
+        if float(numpy.linalg.norm(numpy.asarray(near["at"]) - middle)) > max(wide, deep) + DOOR_REACH:
+            continue
+        door_wide, door_tall = float(sizes[row][0]), float(sizes[row][2])
+        sill = float(near.get("sill") or 0.0)
+        head = float(near["head"]) if near.get("head") is not None else None
+        if float(near["wide"]) < door_wide - 1e-6 or (head is not None and head - sill < door_tall - 1e-6):
+            fixes.append(f"{name.lower()}: its doorway at {near['at']} {float(near['wide']):g} m wide"
+                         + (f", {head - sill:g} m tall" if head is not None else "")
+                         + f" made as big as its door, {door_wide:g} x {door_tall:g} m")
+            near["wide"] = max(float(near["wide"]), door_wide)
+            if head is not None:
+                near["head"] = round(max(head, sill + door_tall), 3)
+    return fixes + (door_rows_widened(plan) if fixes else [])
+
+
+def door_rows_widened(plan):
+    """Each plan door row whose doorway (doorway_for, as doors_kept matches them) is wider than its metres given
+    the doorway's width, so the row and its doorway agree (scene_record's `openings` gate holds them equal); the
+    fixes said."""
+    left = [(number, opening) for number, opening in enumerate(plan.get("openings") or [])
+            if opening.get("kind") in DOORWAY_KINDS]
+    fixes = []
+    for door in plan.get("doors") or []:
+        if not (isinstance(door, list) and len(door) >= 3):
+            continue
+        place, metres, words, sill, along, lead = door_of(plan, door)
+        found = doorway_for(plan, place, metres, sill, lead, left, along)
+        if found is None:
+            continue
+        left.remove(found)
+        if float(found[1]["wide"]) > metres + 1e-6:
+            door[2 if place in SIDE_WAYS else 1] = float(found[1]["wide"])
+            fixes.append(f"{words or place}: its door row {metres:g} m wide made its doorway's {found[1]['wide']:g} m")
+    return fixes
+
+
 def doors_sized(plan):
     """Each doorway of an edit that a door row of it is (doorway_for, as doors_kept matches them) made its row's
     metres wide, where it stands and where it leads kept as the edit draws them: none moved, cut or dropped, which only
@@ -1526,15 +1583,15 @@ def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
     stood, runs split, missing things placed, facings turned, runs kept out of walls and stairs, things piled on their
     own row's though it does not pile stood on the floor or taken off, one row's runs in each other on a wall laid along
-    free walls, runs on a wall parted, stairs and ramps moved out of what is made larger than drawn, overlaps parted, in
-    that order (each later one on the earlier's plan), then what lies past its own outline brought inside it."""
+    free walls, runs on a wall parted, stairs and ramps moved out of what is made larger than drawn, overlaps parted,
+    doorways kept to their door rows and made as big as their doors, in that order (each later one on the earlier's plan), then what lies past its own outline brought inside it."""
     plan = copy.deepcopy(plan)
     fixes = brought_in(plan, inventory)
     project = projector(plan, inventory)
     fixes += stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
     fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + kept_apart(plan, inventory)
     fixes += nudged(plan, inventory)
-    fixes += doors_kept(plan, inventory) + kept_inside(plan, inventory)
+    fixes += doors_kept(plan, inventory) + doorways_fit(plan, inventory) + kept_inside(plan, inventory)
     return plan, fixes
 
 

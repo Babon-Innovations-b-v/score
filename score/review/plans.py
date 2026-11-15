@@ -751,7 +751,8 @@ def doors_led(store, place, shown):
 def edit_inside(store, place, shown):
     """`shown` with what his edit (or a redrawing, `redrawn`) lays past its own outline brought inside it
     (plan_fixes.kept_inside), each doorway its own door rows say its row's width (plan_fixes.doors_sized, where it
-    stands kept), nothing laid in a wall or its own row's (plan_fixes.kept_apart: flat's redrawing of 2026-11-05 its
+    stands kept) and as big as the door standing in it (plan_fixes.doorways_fit), nothing laid in a wall or its own
+    row's (plan_fixes.kept_apart: flat's redrawing of 2026-11-05 its
     second stove piled on its first) and each person spot standing in something moved out of it (`people_moved_out`, his
     things kept), each fix added to its `fixes`, as holds_fitted fits his edit's holds: no writing carries a fix over
     his edit (the hangar's edit of 2026-10-21 kept the 55.7 m writing's person spots and pipes past its 32 x 64 m; its
@@ -763,6 +764,7 @@ def edit_inside(store, place, shown):
     plan = copy.deepcopy(shown["plan"])
     inventory = inventory_of(store, place)
     fixes = plan_fixes.kept_inside(plan, inventory) + plan_fixes.doors_sized(plan)
+    fixes += plan_fixes.doorways_fit(plan, inventory or {"rows": []})
     fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})
     plan, moved = people_moved_out(plan, inventory or {"rows": []})
     fixes += moved

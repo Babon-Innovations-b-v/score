@@ -277,6 +277,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     to 4.7 m from its lock's 13.1 m kept), or flights_landed's `if air or None in landing:` made `if False:` (the
     street's stair ending in the air at 3 m built), or room_row's `int(row.get("count", 1) or 1) == 1 and` dropped
     (twelve floor tiles taken for the room)
+    plan_fixes.py (2026-11-15, #128): doorways_fit's `near["wide"] = max(float(near["wide"]), door_wide)` made
+    `pass`, or `return fixes + (door_rows_widened(plan) if fixes else [])` made `return fixes` (the doorway wider
+    than its plan door row: scene-record's `openings` fails)
     plans.py (2026-11-05, #72): newest_edit's `and found[-1].get("plan") is not None` dropped
     plans.py (2026-11-05, #72): doors_met's `step = (pair["there"] - pair["spot"]) * (1 if mover == name else -1)` made
     `* (1 if mover != name else -1)`, or `if overlap(box, sibling): box = pushed_out(box, sibling)` dropped, or mover_of's `if not
@@ -3153,6 +3156,11 @@ CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "outline": [],
                   {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
         "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
                     "to": 1.5, "angle": 270.0, "steps": 9}]}
+VAULT = {"w": 4.0, "d": 4.0, "outline": [[0, 0], [4.0, 0], [4.0, 4.0], [0, 4.0]], "leads": {},
+         "doors": [["S", 2.0, 0.9, "VAULT DOOR (0.9 x 2.0 m)"]], "rows": {"VAULT DOOR 1": ["vault_door"]},
+         "items": [["VAULT DOOR 1", 1.0, 3.8, 2.0, 0.2, "N", "item"]],
+         "openings": [{"kind": "door", "at": [2.0, 4.0], "wide": 0.9, "angle": 0.0, "sill": 0.0, "head": 2.0}]}
+VAULT_ROWS = {"rows": [{"id": "vault_door", "size": [2.0, 0.2, 2.2]}]}
 AIR_STAIR = {"w": 8.0, "d": 10.0, "doors": [], "items": [], "rows": {}, "walls": [],
              "outline": [[0, 0], [8.0, 0], [8.0, 10.0], [0, 10.0]],
              "levels": [{"name": "road", "height": 0.0, "points": [[2.0, 0], [6.0, 0], [6.0, 10.0], [2.0, 10.0]]},
@@ -3885,6 +3893,13 @@ def console_of(count):
 
 FIXED = [  # (row, the plan writer's fix, its arguments, the answer as `holds` reads it, the plan given it after
     # or None, and optionally what the same fix answers when given that plan again)
+    # a doorway is as big as its door (#128 D5: the shiplock's 0.9 m doorway for its 2 x 2 m vault door), its door
+    # row widened with it so the two agree; a doorway already bigger is never narrowed
+    ("a doorway made as big as its door", plan_fixes.doorways_fit, (VAULT, VAULT_ROWS),
+     [Containing("made as big as its door, 2 x 2.2 m"), Containing("its door row 0.9 m wide made its doorway's 2 m")],
+     {"openings": [{"wide": 2.0, "head": 2.2}], "doors": [["S", 2.0, 2.0, ANYTHING]]}, []),
+    ("a doorway bigger than its door is kept", plan_fixes.doorways_fit,
+     ({**VAULT, "openings": [{**VAULT["openings"][0], "wide": 3.0, "head": 2.5}]}, VAULT_ROWS), [], None),
     ("a thing the creator planned is laid from his plan: its own size and nose round the same middle, its rooms "
      "where his plan draws them", plan_writing.creator_laid, (ship_laid("E"),), [{"bridge", "hold"}, []],
      Exactly(SHIP_ON_HIS_PLAN)),
