@@ -149,7 +149,7 @@ def card_job(short, out, take, files):
     listing = out / f".bake-{take}.json"
     records, claimed, head, parts = files
     world = {name: path for name, path in short.items()
-             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations", "stance rules")}
+             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "recesses", "stance rules")}
     pixal = prop_env.PROPS_HOME / "work/pixal"
     closeup = [path for path in [pixal / f"{take}.svviews" / "input.png"] if path.exists()]
     listing.write_text(json.dumps({**{name: str(path) for name, path in world.items()}, "surfaces-parts": str(parts),
@@ -258,19 +258,17 @@ def recess_box(size, recess):
     return [[round(value, 4) for value in low], [round(value, 4) for value in high]]
 
 
-def recessed(entries, relations):
-    """`entries` with each recess the place's relations name (score/review/holders `recess`: a moving door's room in
-    its holder model) as a cut of its holder's entry ({"recess": [low, high]}, make_chunky.opened), at its built size."""
+def recessed(entries, recesses):
+    """`entries` with each of the place's `recesses` (score/review/holders `recesses`: a moving door's room in its
+    holder model) as a cut of its holder's entry ({"recess": [low, high]}, make_chunky.opened), at its built size."""
     found = {model: dict(entry, cuts=list(entry.get("cuts") or [])) for model, entry in entries.items()}
-    for relation in (relations or {}).get("relations", []):
-        for piece in relation.get("pieces") or [relation]:
-            recess = piece.get("recess") or relation.get("recess")
-            if recess and recess["model"] in found:
-                found[recess["model"]]["cuts"] += [{"recess": recess_box(found[recess["model"]]["size"],
-                                                                         dict(recess, along=along, room_side=side))}
-                                                   for along, side in zip(recess.get("pieces") or [recess["along"]],
-                                                                          recess.get("room_sides")
-                                                                          or [recess.get("room_side", 1.0)])]
+    for recess in recesses or []:
+        if recess["model"] in found:
+            found[recess["model"]]["cuts"] += [{"recess": recess_box(found[recess["model"]]["size"],
+                                                                     dict(recess, along=along, room_side=side))}
+                                               for along, side in zip(recess.get("pieces") or [recess["along"]],
+                                                                      recess.get("room_sides")
+                                                                      or [recess.get("room_side", 1.0)])]
     return found
 
 
@@ -420,15 +418,16 @@ def square_again_step(inputs, out):
 
 def bake_files(place):
     """The bake row's files (surface_data.bake_files), the pose rules it stands takes square by (stood_square:
-    stance.json's lying classes, the resting rules' ground debris) and the place's relations once derived
-    (score/review/holders): the recesses its moving doors need in their holder models (recessed). Here, not in surface_data.py or bake_job.py,
+    stance.json's lying classes, the resting rules' ground debris) and the place's recesses once derived
+    (score/review/holders keep): the room its moving doors need in their holder models (recessed), never the whole
+    relations file, whose other entries the bake does not read. Here, not in surface_data.py or bake_job.py,
     whose code the people line's paid rows hash too."""
     import surface_data
-    found = surface_data.DESIGN.parent / "relations" / f"{place}.json"
+    found = surface_data.DESIGN.parent / "recesses" / f"{place}.json"
     return {**surface_data.bake_files(place), "stance rules": "{data}/checks/stance.json",
             "close-up view": "{repo}/tools/props/closeup/check.py",  # take_outline's look-down, loaded by its path
             "resting rules": "{data}/checks/resting.json",
-            **({"relations": "{home}/design/relations/" + f"{place}.json"} if found.is_file() else {})}
+            **({"recesses": "{home}/design/recesses/" + f"{place}.json"} if found.is_file() else {})}
 
 
 def bake_job_step(inputs, out):
@@ -447,9 +446,9 @@ def bake_job_step(inputs, out):
     entries = {model: dict(bake_job.entry_of(model, written.get(model), labelled, built, person), name=model,
                            parts=str(labelled), regions=[])
                for model in head.pop("models")}
-    relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
+    recesses = json.loads(inputs["recesses"].read_text())["recesses"] if "recesses" in inputs else []
     entries = recessed(bake_job.refitted(stood_square(entries, labelled, take, inputs, built, person), written,
-                                         labelled, built, person), relations)
+                                         labelled, built, person), recesses)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]

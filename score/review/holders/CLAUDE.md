@@ -8,7 +8,7 @@ ceiling) and how each is read.
   model call, no machine. Same plan and inventory in, same file out.
 - **A file of its own.** `{home}/design/relations/<place>.json`, written by `keep` from the sync pass's plans pass
   (`plans_pass.main`, after the plans are kept), read by the scene record (`scene_record/writer.relations_input`).
-  Never in `design/plans/`: the kept plan keys props-inputs (the paid close-ups) and the surface library (the bake).
+  Never in `design/plans/`: the kept plan keys props-inputs (the paid close-ups) and the surface library (the bake). Its recesses (`recesses`) also go in `{home}/design/recesses/<place>.json`, the surfaces bake's only input from here (`route_bake.bake_files`), so a holders change keys no bake unless it moves a recess.
   It names the kept plan's sha; the scene record lays by it only while the plan is that one.
 - **In two stages' code keys.** `plans_pass` derives the file; two stages import this package, so any edit here
   re-keys them and every row after them (check `python -m score moved` before pushing): the scene record

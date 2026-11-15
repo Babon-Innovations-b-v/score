@@ -2410,7 +2410,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     # a moving door's holder bakes with its recess cut, a side wall and a back kept, the door clear in it (DOORS)
     holders_were = json.loads(json.dumps(DOOR_HOLDERS))
     for case, relations, holder, wanted, below, edges in DOORS:
-        found = route_bake.recessed(DOOR_HOLDERS, {"relations": relations})
+        found = route_bake.recessed(DOOR_HOLDERS, holders.recesses(relations))
         assert DOOR_HOLDERS == holders_were, case  # the entries as they were
         assert all(entry["cuts"] == [] for model, entry in found.items() if model != holder), (case, found)
         [cut] = found[holder]["cuts"]

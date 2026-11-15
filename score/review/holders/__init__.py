@@ -2394,9 +2394,26 @@ def loose_openings(plan):
             if not design_shell.on_a_wall(plan, opening)]
 
 
+def recesses(found):
+    """Each recess `found`'s relations name (a moving door's room in its holder model, recess_of), one a piece laid
+    (its own, else its relation's), in their order: all the surfaces bake reads of the relations (route_bake.recessed)."""
+    return [recess for relation in found for piece in relation.get("pieces") or [relation]
+            for recess in [piece.get("recess") or relation.get("recess")] if recess]
+
+
+def written(path, text):
+    """`text` written at `path` unless it holds it already; whether it changed."""
+    if path.is_file() and path.read_text() == text:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return True
+
+
 def keep(places):
-    """Each place's relations written where the scene record reads them, from its kept plan and scene inventory; the
-    places whose file changed."""
+    """Each place's relations written where the scene record reads them, from its kept plan and scene inventory, and
+    their recesses in a file of their own beside them (`design/recesses/<place>.json`, the surfaces bake's one input
+    of them, so a holder change that moves no recess keys no bake); the places whose relations changed."""
     changed = []
     for place in places:
         plan_path, inventory_path, path = (KEPT_PLANS / f"{place}.json", KEPT_INVENTORY / f"{place}.json",
@@ -2404,10 +2421,9 @@ def keep(places):
         if not (plan_path.is_file() and inventory_path.is_file()):
             continue
         text = plan_path.read_text()
-        found = json.dumps(relations(json.loads(text), json.loads(inventory_path.read_text()), plan_sha(text)),
-                           indent=1)
-        if not path.is_file() or path.read_text() != found:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(found)
+        found = relations(json.loads(text), json.loads(inventory_path.read_text()), plan_sha(text))
+        written(KEPT.parent / "recesses" / f"{place}.json",
+                json.dumps({"place": found["place"], "recesses": recesses(found["relations"])}, indent=1))
+        if written(path, json.dumps(found, indent=1)):
             changed.append(place)
     return changed
