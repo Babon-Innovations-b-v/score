@@ -85,6 +85,16 @@ SHIFT_STEP = 0.05
 SHIFT_REACH = 3.0
 FACINGS = ("N", "E", "S", "W")
 SEEN = ("toward", "away", "left", "right")  # the way a thing faces in the painting, from its viewer
+# A room keeps its floor (#128, 1a): a writing whose outline box keeps less than SHRUNK of the floor its room row (a
+# row counted once on the floor or ground, named a floor or hull by its id's words, at least ROOM_LEAST metres each
+# way) or its lock's earlier plan gives is scaled back up to it (the airlock written again at 4.7 x 5.2 m from 13.1 x
+# 13.1 m, the workshop at 11.2 x 11.5 m against its 16 x 14 m floor row).
+SHRUNK = 0.7
+ROOM_WORDS = {"floor", "hull"}
+ROOM_LEAST = 2.0
+# A flight ends on a floor (#128, D5): each end stands on a level at its height (or the place's +0.00 when it draws
+# no level there) within LANDED metres past it, or on another flight's end; one ending in the air is not built.
+LANDED = (0.1, 0.4)
 ASKED = """You are an architect drawing the dimensioned floor plan of one place of a game environment, element by
 element. The first picture is the place's plan drawn from directly above (orthographic, north up, to scale): read every
 position and shape off it, where it is drawn, and never move, pack or tidy anything. The second picture is the place's
@@ -508,12 +518,73 @@ def landings(stairs, levels):
     return added
 
 
+def end_landed(stair, head, stairs, levels):
+    """Whether a flight's foot or head (`head`) stands on a floor: a level at its height holding a point LANDED past
+    any of its end's corners or middle, the place's +0.00 where no level is drawn at that height, or another flight's
+    end at its height there."""
+    corners, off = end_edge(stair, head)
+    height = stair["to"] if head else stair["from"]
+    points = [*corners, (corners[0] + corners[1]) / 2]
+    if any(landed(levels, height, point + off * reach) for point in points for reach in LANDED):
+        return True
+    if abs(height) < SAME_HEIGHT and not any(abs(float(level["height"])) < SAME_HEIGHT for level in levels):
+        return True
+    middle = (corners[0] + corners[1]) / 2
+    return any(other is not stair and any(
+        abs((other["to"] if other_head else other["from"]) - height) < SAME_HEIGHT and float(numpy.linalg.norm(
+            sum(end_edge(other, other_head)[0]) / 2 - middle)) <= LANDING for other_head in (False, True))
+        for other in stairs)
+
+
+def end_landing(stair, head, outline):
+    """A landing level under a flight's foot or head (`head`): the box round its end and LANDING beyond it, kept
+    inside the plan's outline box; None when nothing of it is."""
+    corners, off = end_edge(stair, head)
+    found = numpy.asarray([*corners, *(corner + off * LANDING for corner in corners)])
+    edges = numpy.asarray(outline, dtype=float)
+    (low_x, low_y), (high_x, high_y) = (numpy.clip(found.min(axis=0), edges.min(axis=0), edges.max(axis=0)),
+                                        numpy.clip(found.max(axis=0), edges.min(axis=0), edges.max(axis=0)))
+    if high_x - low_x < 1e-3 or high_y - low_y < 1e-3:
+        return None
+    height = stair["to"] if head else stair["from"]
+    return {"name": f"landing at {height:g} m", "height": height,
+            "points": [[round(float(x), 3), round(float(y), 3)] for x, y in
+                       ((low_x, low_y), (high_x, low_y), (high_x, high_y), (low_x, high_y))]}
+
+
+def flights_landed(stairs, levels, outline):
+    """(the flights kept, the landings added, what was not built), #128 D5: a flight's end on no floor (`end_landed`)
+    is given a landing (`end_landing`) when the place has a floor at its height (a level, or another flight's end:
+    the stairwell's flights reach each storey beside its floor), and a flight with an end at a height the place has
+    no floor at all ends in the air and is not built, a dropped entry saying so (the street's 15 steps up to 3 m)."""
+    kept, added, dropped = [], [], []
+    for number, stair in enumerate(stairs, 1):
+        heights = [float(level["height"]) for level in levels] + [
+            other[key] for other in stairs if other is not stair for key in ("from", "to")]
+        ends = [(end, key, head) for end, key, head in (("foot", "from", False), ("head", "to", True))
+                if not end_landed(stair, head, stairs, levels + added)]
+        air = [f"{end} at {stair[key]:g} m" for end, key, _ in ends
+               if not any(abs(height - stair[key]) < SAME_HEIGHT for height in heights)]
+        landing = [end_landing(stair, head, outline) for _, _, head in ends]
+        if air or None in landing:
+            kind = stair.get("kind", "stair")
+            dropped.append({"item": f"{kind} {number}", "why": f"its {' and '.join(air) or 'end'} on no floor or "
+                                                                f"landing: a {kind} ending in the air is not built"})
+            continue
+        kept.append(stair)
+        added += landing
+    return kept, added, dropped
+
+
 def flights_laid(plan):
     """The plan's stairs built from their rises and placed inside its walls apart (`flights_placed`), and its levels
-    with a landing where flights turn (`landings`): (stairs, levels)."""
-    stairs = flights_placed(plan.get("stairs") or [], plan_checks.outline_of(plan), plan.get("walls") or [])
+    with a landing where flights turn (`landings`) and under a flight's end on no floor, a flight ending in the air
+    not built (`flights_landed`): (stairs, levels, dropped)."""
+    outline = plan_checks.outline_of(plan)
+    stairs = flights_placed(plan.get("stairs") or [], outline, plan.get("walls") or [])
     levels = list(plan.get("levels") or [])
-    return stairs, levels + landings(stairs, levels)
+    stairs, added, dropped = flights_landed(stairs, levels + landings(stairs, levels), outline)
+    return stairs, levels + landings(stairs, levels) + added, dropped
 
 
 # --- a held place fitted to its creator's shape (#72) ---------------------------------------------------------------
@@ -555,7 +626,7 @@ def mapped(plan, at, turn):
             else entry
 
     def walled(wall):
-        found = {**wall, "from": each([wall["from"]])[0], "to": each([wall["to"]])[0]}
+        found = {**wall, **{key: each([wall[key]])[0] for key in ("from", "to") if key in wall}}
         return {**found, "arc": {**wall["arc"], "centre": each([wall["arc"]["centre"]])[0]}} if wall.get("arc") \
             else found
 
@@ -621,6 +692,55 @@ def fitted(plan, shape):
     return {**found, "w": shape["w"], "d": shape["d"], "fixes": [*plan.get("fixes", []), said],
             "held": {**held, "fitted": {"from": [plan["w"], plan["d"]], "turned": turn,
                                         "scale": [round(along_x, 4), round(along_y, 4)]}}}
+
+
+def room_row(inventory):
+    """(wide, deep, its id) of the inventory's room row: of the rows counted once on the floor or ground whose id
+    names a floor or hull (ROOM_WORDS) at least ROOM_LEAST metres each way, the largest footprint (the airlock's
+    floor_plates 4 x 5 m, the cockpit's hull_shell); None with none (the hub's twelve 1.5 x 3 m floor plates are
+    tiles, not its room)."""
+    found = [(float(row["size"][0]) * float(row["size"][1]), float(row["size"][0]), float(row["size"][1]), row["id"])
+             for row in inventory.get("rows", []) if isinstance(row.get("size"), list) and len(row["size"]) >= 2
+             and all(number(part) for part in row["size"][:2]) and min(row["size"][:2]) >= ROOM_LEAST
+             and int(row.get("count", 1) or 1) == 1 and plan_checks.anchor_of(row) in plan_checks.FLOOR_ANCHORS
+             and set(str(row["id"]).lower().split("_")) & ROOM_WORDS]
+    return max(found)[1:] if found else None
+
+
+def floor_held(plan, floors):
+    """`plan` held at its floor (#128, 1a): when its outline box keeps less than SHRUNK of any floor of `floors`
+    ((wide, deep, what) each: its room row's, its lock's earlier plan's), its layout scaled up about its north-west
+    corner to the largest such floor, the same both ways (the drawing's proportions kept), its things at their own
+    size (`scaled_plan`), the fit said in its fixes; as it is otherwise."""
+    area = float(plan["w"]) * float(plan["d"])
+    short = [(wide * deep, wide, deep, what) for wide, deep, what in floors
+             if wide and deep and area < SHRUNK * wide * deep]
+    if not area or not short:
+        return plan
+    target, wide, deep, what = max(short)
+    scale = math.sqrt(target / area)
+    found = scaled_plan(plan, scale, scale)
+    said = (f"its floor {plan['w']:g} x {plan['d']:g} m kept under {SHRUNK:.0%} of {what}'s {wide:g} x {deep:g} m: "
+            f"its layout scaled {scale:.3f} to {found['w']:g} x {found['d']:g} m, its things at their own size")
+    return {**found, "fixes": [*plan.get("fixes", []), said]}
+
+
+def earlier_floor(store, place, concept, before):
+    """(w, d, what) of the place's newest plan written by today's METHOD from the picked concept `concept` before
+    `before` (a writing's `at`, None: now): the plan its lock had; None with none."""
+    found = next((writing for writing in reversed(writings(store, place)) if writing.get("concept") == concept
+                  and writing.get("method") == METHOD and not writing.get("refused") and writing.get("plan")
+                  and (before is None or writing["at"] < before)), None)
+    return found and (float(found["plan"]["w"]), float(found["plan"]["d"]),
+                      f"its lock's earlier plan of {found['at'][:16]}")
+
+
+def room_floors(store, place, inventory, concept, before=None):
+    """The floors a place's plan is held at (`floor_held`): its room row's (`room_row`) and its lock's earlier
+    plan's (`earlier_floor`), each one there is."""
+    row = room_row(inventory)
+    return [floor for floor in ((row[0], row[1], f"its room row {row[2]}") if row else None,
+                                earlier_floor(store, place, concept, before)) if floor]
 
 
 def roof_of(roof):
@@ -940,9 +1060,10 @@ def creator_laid(plan):
     return set(rooms), gaps
 
 
-def plan_from(answer, skeleton, inventory, shape=None):
+def plan_from(answer, skeleton, inventory, shape=None, floors=()):
     """The written plan: the skeleton (its outline box, doors, leads, lamps, elements, the stage table's keys) with the
-    answer's items, zones, inside places, standing spots and architecture, fitted to its creator's `shape` when it
+    answer's items, zones, inside places, standing spots and architecture, held at its `floors` (`floor_held`: its
+    room row's and its lock's earlier plan's), fitted to its creator's `shape` when it
     has one (`fitted`), its flights laid (`flights_laid`), and every gap: the skeleton's that still hold, what the
     answer left off the schema, and the free checks' (plan_checks.checked)."""
     if not isinstance(answer, dict):
@@ -975,8 +1096,10 @@ def plan_from(answer, skeleton, inventory, shape=None):
     plan["structure"] = structure_of(answer, inventory)
     said_beyond = answer.get("beyond") if isinstance(answer.get("beyond"), list) else []
     plan["beyond"] = [row["id"] for row in inventory.get("rows", []) if row["id"] in said_beyond]
-    plan = fitted(plan, shape)  # a held place off its creator's shape fitted to it (#72), before its flights are laid
-    plan["stairs"], plan["levels"] = flights_laid(plan)
+    # held at its floors, then a held place off its creator's shape fitted to it (#72), before its flights are laid
+    plan = fitted(floor_held(plan, floors), shape)
+    plan["stairs"], plan["levels"], unlanded = flights_laid(plan)
+    plan["dropped"] = plan["dropped"] + unlanded
     plan["gaps"] = hold_gaps + plan_checks.checked(plan, inventory, plan["structure"])
     return plan
 
@@ -1155,7 +1278,8 @@ def written_one(store, place, by, folder, ask):
     try:
         answer, skeleton, record["measured"] = measured(json.loads(reading.answer_text(response)), skeleton,
                                                          inventory, plans.holder_of(store, place) is not None)
-        record["plan"] = plan_from(answer, skeleton, inventory, plans.creator_shape(place))
+        record["plan"] = plan_from(answer, skeleton, inventory, plans.creator_shape(place),
+                                   room_floors(store, place, inventory, sha))
     except (ValueError, Refused) as refused:
         record["refused"] = f"the plan answer is no plan: {str(refused)[:200]}"
         return kept(store, record)

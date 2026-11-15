@@ -316,23 +316,35 @@ def refixed(store, place, by, ask, free=False):
             "euros": round(sum(call.get("euros", 0.0) for call in calls), 6), "calls": calls, "plan": plan})
 
 
-def laid_again(plan, inventory, shape):
-    """(the plan with today's writer steps that need no call made again, what changed said): fitted to its creator's
-    `shape` (plan_writing.fitted) and its flights laid (plan_writing.flights_laid), its gaps checked again, each left
-    saying why (#72, #87: the stairwell's kept writing of 2026-11-02 had 56-degree flights, the flat's of 2026-11-04 a
-    4.78 x 4.78 m outline for its 6 x 5 m inside)."""
-    answer = plan_writing.fitted(copy.deepcopy(plan), shape)
+def laid_again(plan, inventory, shape, floors=()):
+    """(the plan with today's writer steps that need no call made again, what changed said): held at its `floors`
+    (plan_writing.floor_held, #128: its room row's, its lock's earlier plan's), fitted to its creator's `shape`
+    (plan_writing.fitted) and its flights laid (plan_writing.flights_laid: a flight ending in the air not built), its
+    gaps checked again, each left saying why (#72, #87: the stairwell's kept writing of 2026-11-02 had 56-degree
+    flights, the flat's of 2026-11-04 a 4.78 x 4.78 m outline for its 6 x 5 m inside)."""
+    answer = plan_writing.fitted(plan_writing.floor_held(copy.deepcopy(plan), floors), shape)
     said = answer.get("fixes", [])[len(plan.get("fixes", [])):]
-    stairs, levels = plan_writing.flights_laid(answer)
+    stairs, levels, unlanded = plan_writing.flights_laid(answer)
     if stairs != (answer.get("stairs") or []) or levels != (answer.get("levels") or []):
         steep = sum(1 for gap in plan_checks.stair_gaps(answer) if "degrees" in gap["words"])
-        answer = {**answer, "stairs": stairs, "levels": levels}
+        answer = {**answer, "stairs": stairs, "levels": levels,
+                  "dropped": [*(answer.get("dropped") or []), *unlanded]}
         said = [*said, f"{len(stairs)} flights built from their rises and laid inside the walls apart ({steep} were "
                        f"steeper than {plan_checks.STEEPEST:g} degrees), {len(levels) - len(plan.get('levels') or [])} "
-                       f"landings added"]
+                       f"landings added"] + [f"{entry['item']}: {entry['why']}" for entry in unlanded]
     answer = {**answer, "fixes": plans.said_once([*plan.get("fixes", []), *said])}
     answer["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(answer, inventory))
     return answer, said
+
+
+def first_of(store, place, writing):
+    """The `at` of the writing `writing` was fixed from, through its fixes (`fixed_from`), back to the one written."""
+    by_at = {found["at"]: found for found in plan_writing.writings(store, place)}
+    seen = set()
+    while writing.get("fixed_from") in by_at and writing["fixed_from"] not in seen:
+        seen.add(writing["fixed_from"])
+        writing = by_at[writing["fixed_from"]]
+    return writing["at"]
 
 
 def refit(store, place, by, written_at=None):
@@ -344,7 +356,10 @@ def refit(store, place, by, written_at=None):
             if written_at else plan_writing.written_of(store, place)
         if writing is None or writing.get("refused"):
             raise ValueError(f"{place} has no writing {'made at ' + written_at if written_at else 'in force'}")
-        plan, said = laid_again(writing["plan"], plans.inventory_of(store, place), plans.creator_shape(place))
+        inventory = plans.inventory_of(store, place)
+        floors = plan_writing.room_floors(store, place, inventory, writing.get("concept"),
+                                          first_of(store, place, writing))
+        plan, said = laid_again(writing["plan"], inventory, plans.creator_shape(place), floors)
         if not said:
             return None
         return plan_writing.kept(store, {

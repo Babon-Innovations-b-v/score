@@ -273,6 +273,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_drawing.py (2026-11-05, #72): `OPEN + strip_of(place)` made `OPEN`
     plans_pass.py (2026-11-05, #87): laid_again's `stairs, levels = plan_writing.flights_laid(answer)` made `stairs,
     levels = answer.get("stairs") or [], answer.get("levels") or []`
+    plan_writing.py (2026-11-15, #128): floor_held's `if not area or not short:` made `if True:` (a writing shrunk
+    to 4.7 m from its lock's 13.1 m kept), or flights_landed's `if air or None in landing:` made `if False:` (the
+    street's stair ending in the air at 3 m built), or room_row's `int(row.get("count", 1) or 1) == 1 and` dropped
+    (twelve floor tiles taken for the room)
     plans.py (2026-11-05, #72): newest_edit's `and found[-1].get("plan") is not None` dropped
     plans.py (2026-11-05, #72): doors_met's `step = (pair["there"] - pair["spot"]) * (1 if mover == name else -1)` made
     `* (1 if mover != name else -1)`, or `if overlap(box, sibling): box = pushed_out(box, sibling)` dropped, or mover_of's `if not
@@ -894,11 +898,11 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
     for row_name, plan, inventory, kinds, want in GAP_WORDS:
         words = [gap["words"] for gap in plan_checks.checked(plan, inventory) if kinds is None or gap["kind"] in kinds]
         assert (want <= set(words)) if isinstance(want, set) else words == want, (row_name, words)
-    stairs, levels = plan_writing.flights_laid(STAIR_CORE)  # the writer lays the core's flights with no stair gap
-    assert not plan_checks.stair_gaps({**STAIR_CORE, "stairs": stairs, "levels": levels})
+    stairs, levels, dropped = plan_writing.flights_laid(STAIR_CORE)  # the writer lays the core's flights, no gap
+    assert not dropped and not plan_checks.stair_gaps({**STAIR_CORE, "stairs": stairs, "levels": levels})
     assert all(0.15 <= (stair["to"] - stair["from"]) / stair["steps"] <= 0.19 and 0.25 <= plan_checks.flight(
         stair)[3] / stair["steps"] <= 0.30 for stair in stairs), stairs
-    assert [level["name"] for level in levels] == ["landing at 1.5 m", "landing at 3 m"], levels
+    assert [level["name"] for level in levels] == ["top floor", "landing at 1.5 m", "landing at 3 m"], levels
     # the plan writer's free fixes, each on a plan of its own: what it answers and the plan it leaves
     with monkeypatch.context() as his_ship:
         his_ship.setattr(creator_plans, "PLANS", (lambda: SHIP,))
@@ -3143,11 +3147,22 @@ FLAT_SHAPE = {"w": 6.0, "d": 5.0, "from": "the kit's flat"}
 STREET = {"w": 10.0, "d": 6.0, "outline": [[0, 0], [10.0, 0], [10.0, 6.0], [0, 6.0]], "rows": {},
           "items": [["CAR 1", 0.0, 0.0, 4.0, 2.0, "E", "item"]], "doors": [["N", 2.0, 3.0, "GATE"]],
           "leads": {"N": {"to": "square"}}}
-CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "levels": [], "outline": [],
+CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "outline": [],
+        "levels": [{"name": "upper floor", "height": 1.5, "points": [[0, 0], [2.8, 0], [2.8, 1.0], [0, 1.0]]}],
         "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
                   {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
         "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
                     "to": 1.5, "angle": 270.0, "steps": 9}]}
+AIR_STAIR = {"w": 8.0, "d": 10.0, "doors": [], "items": [], "rows": {}, "walls": [],
+             "outline": [[0, 0], [8.0, 0], [8.0, 10.0], [0, 10.0]],
+             "levels": [{"name": "road", "height": 0.0, "points": [[2.0, 0], [6.0, 0], [6.0, 10.0], [2.0, 10.0]]},
+                        {"name": "pavement", "height": 0.2, "points": [[0, 0], [2.0, 0], [2.0, 10.0], [0, 10.0]]}],
+             "stairs": [{"kind": "stair", "points": [[0.5, 1.5], [1.5, 1.5], [1.5, 7.0], [0.5, 7.0]], "from": 0.2,
+                         "to": 3.0, "angle": 270.0, "steps": 15}]}
+FLOOR_ROWS = {"rows": [{"id": "floor_plates", "anchor": "ground", "size": [4.0, 5.0, 0.1]},
+                      {"id": "floor_plate", "anchor": "floor", "count": 12, "size": [3.0, 3.0, 0.1]},
+                      {"id": "roof_dome", "anchor": "on:left_wall", "size": [6.0, 6.0, 1.0]},
+                      {"id": "rug_floor", "anchor": "floor", "size": [2.0, 3.0, 0.01]}]}
 SQUARE_DOORS = {"flat": {"w": 6.0, "d": 5.0, "openings": [door([5.925, 1.344], "stairwell")]},
                 "stairwell": {"w": 7.4, "d": 4.0, "openings": [door([0.0, 0.88], "flat")]}}
 SQUARE_HELD = [{"place": "flat", "row": "left_building", "x": 0.0, "y": 16.0, "w": 6.0, "d": 5.0},
@@ -3199,6 +3214,28 @@ HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outco
       "doors": [["E", 7.2, 3.0, "GATE"]], "leads": Exactly({"E": {"to": "square"}})}),
     # a kept writing is laid again by the writer's free steps: its flights built from their rises (#87)
     ("a kept core's flights built", stairs_laid_again, (CORE,), [True, False, Containing("1 flights built")]),
+    # a flight ends on a floor (#128 D5): the street's 15 steps up to 3 m, where it has no floor, are not built and
+    # are named dropped; one reaching a height the place has a floor at beside its end is given a landing there
+    ("a flight ending in the air is not built", plan_writing.flights_laid, (AIR_STAIR,),
+     [[], [{"height": 0.0}, {"height": 0.2}],
+      [{"item": "stair 1", "why": Containing("head at 3 m on no floor or landing")}]]),
+    ("a flight beside its floor gets a landing", plan_writing.flights_laid,
+     ({**AIR_STAIR, "levels": [*AIR_STAIR["levels"], {"name": "deck", "height": 3.0, "points": [
+         [0, 0], [1.0, 0], [1.0, 1.0], [0, 1.0]]}]},),
+     [[{"from": 0.2, "to": 3.0}], [{"height": 0.0}, {"height": 0.2}, {"name": "deck"},
+                                   {"name": "landing at 3 m", "height": 3.0}], []]),
+    # a room keeps its floor (#128 1a): written at under 70% of its room row's or its lock's earlier plan's floor,
+    # its layout is scaled back up to the larger, its things at their own size; within 70% it stays as written
+    ("the room row: a floor or hull counted once, the largest", plan_writing.room_row, (FLOOR_ROWS,),
+     [4.0, 5.0, "floor_plates"]),
+    ("no room row from tiles or a lamp", plan_writing.room_row,
+     ({"rows": [FLOOR_ROWS["rows"][1], {"id": "floor_lamp", "size": [0.4, 0.4, 1.5]}]},), None),
+    ("a shrunk room held at its lock's earlier plan", plan_writing.floor_held,
+     (FLAT_ROOM, [(4.0, 5.0, "its room row"), (9.56, 9.56, "its lock's earlier plan")]),
+     {"w": 9.56, "d": 9.56, "items": [["BED 1", 3.0, 2.5, 2.0, 1.0, "E", "item"]],
+      "fixes": [Containing("kept under 70% of its lock's earlier plan")]}),
+    ("a room within 70% of its floors stays as written", lambda plan, floors: plan_writing.floor_held(
+        plan, floors) is plan, (FLAT_ROOM, [(5.0, 5.0, "its room row")]), True),
     # two held places whose doors to each other open apart meet: the one on the holder's own floor moved by the gap and
     # off its sibling's box (the Square's stairwell opened its door to the flat 10.4 m from the flat's, 2026-11-05);
     # one held in a row's item stays where it is drawn, and two such are left for the gate to name
@@ -3285,7 +3322,8 @@ WALLED = {"w": 6.0, "d": 4.0, "doors": [["S", 3.0, 1.0, "DOOR"]], "people": [[1.
 CRATE_ROW = {"rows": [{"id": "crate", "anchor": "floor", "count": 1}]}
 # the stairwell's flights (#87): 1.5 m over a 1 m run, one over the next in one lane, one through the east wall;
 # the writer builds each from its rise, lays them inside the core's walls apart and a landing where they turn
-STAIR_CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "levels": [],
+STAIR_CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {},
+              "levels": [{"name": "top floor", "height": 4.5, "points": [[0, 0], [2.8, 0], [2.8, 5.0], [0, 5.0]]}],
               "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
                         {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
               "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
