@@ -83,6 +83,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   anyway) -> test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.request_of: a reject's `takes` dropped (a retake of named takes remakes every take) ->
   test_the_cockpit_gets_the_store_whole_...
+- chat_decisions.request_of: the film lock's script sent without `"size": given["size"]` (his re-lock at 1080p
+  locks the old size) -> test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.apply: the `handed_back(store, yes_id, applied.detail)` after a refused apply dropped (a yes the
   cockpit refused stays used, 2026-11-05) -> test_the_cockpit_gets_the_store_whole_...
 - state/exported.py: `import numpy` at its top -> test_the_cockpit_gets_the_store_whole_...
@@ -567,6 +569,11 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
          {"film": "chat-film", "script": ANY},
          {"kind": "film-lock", "user": "joey", "payload": {"film": "chat-film", "script": ANY}},
          "", (lambda: picked(script.locked(settings.SCORE_HOME, "chat-film"), "title"), ("Chat, edited",))),
+        ("lock-film", "chat-film", {"size": "1920x1080"}, None,  # his re-lock at 1080p: the size alone moves
+         {"film": "chat-film", "script": ANY},
+         {"kind": "film-lock", "user": "joey", "payload": {"film": "chat-film", "script": ANY}},
+         "", (lambda: picked(script.locked(settings.SCORE_HOME, "chat-film"), "title", "size"),
+              ("Chat, edited", [1920, 1080]))),
         (review_web.BOOKS_MONTH, month, {"euros": "0"},
          ({"euros": "5"}, "changed since he answered", None),  # the books written since
          {"month": month, "euros": 0.0, "books": {}},
@@ -620,6 +627,8 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
         ("stop", "chat-stop", "Yes", "Q?", {"euros": "10", "line": "5"}, "only a cap names a line"),
         ("cap", "env1", "Yes", "Q?", {"euros": "300", "line": "400", "start": "2026-11-09T18:40"}, "is within its"),
         ("cap", "env1", "Yes", "Q?", {"euros": "300", "line": "255"}, "names the time its count starts"),
+        ("lock-film", "chat-film", "Yes", "Q?", {"size": "0x1080"}, "above 0 both ways"),
+        ("go", "world1", "Yes", "Q?", {"size": "1920x1080"}, "only a film lock names a size"),
         ("cap", "env1", "Yes", "Q?", {"euros": "nan", "line": "255", "start": "2026-11-09T18:40"}, "finite amount"),
     ]
     for decision, target, answer, question, given, why in unrecorded:

@@ -107,6 +107,7 @@ def parse(argv):
                                                  "(YYYY-MM) it applies to")
     for name in ("output", "check", "sha", "reason", "worse-reason", "euros", "purpose"):
         decide_yes.add_argument(f"--{name}", default="")
+    decide_yes.add_argument("--size", default="", help="a film lock's new frame size, WIDTHxHEIGHT")
     decide_yes.add_argument("--takes", default="", help="a reject's takes to remake, comma-separated")
     for name in ("line", "start", "month-cap", "finish", "standing"):  # a cap's (chat_decisions.cap_state)
         decide_yes.add_argument(f"--{name}", default="")
@@ -125,7 +126,7 @@ def decide_yes(options):
         yes = chat_decisions.record(options.decision, options.target, options.answer, options.question,
                                     output=options.output, check=options.check, sha=options.sha,
                                     reason=options.reason, worse_reason=options.worse_reason,
-                                    euros=options.euros, purpose=options.purpose,
+                                    euros=options.euros, purpose=options.purpose, size=options.size,
                                     takes=sorted(filter(None, options.takes.split(","))), line=options.line,
                                     start=options.start, month_cap=options.month_cap, finish=options.finish,
                                     standing=options.standing, close=options.close or None)

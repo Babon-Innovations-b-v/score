@@ -18,7 +18,9 @@ click makes on the store's machine (applying.apply, so every check of his click 
 
 Decisions and what each names: an accept or a reject names a node and one output, with the node's accepted output
 then; a waiver a node, one output and its check; lock-concept a place and one draw's sha, with its lock then;
-lock-film a film and the sha256 of its script as his editor shows it; go an environment: a run he started himself,
+lock-film a film and the sha256 of its script as his editor shows it, with `size` [width, height] when his yes
+changes only its frame size (owner, 2026-11-15, "Yes, re-lock at 1080p": the script locked as it stands with that
+size, also saved as his; its shots, order and length untouched); go an environment: a run he started himself,
 tagged score.review.web.OWNERS_GO, counts as a bought batch for review.IN_BATCH (owner, 2026-10-27, his "sure"); spend
 the name of his override (his yes to one run outside the runner, node `override`, the run carrying
 SCORE_SPEND_TICKET="override <name>"), its euros and what it is for, with no yes under that name yet (owner,
@@ -170,6 +172,18 @@ def cap_state(name, given):
             "open": True, **since}
 
 
+def film_size(size):
+    """[width, height] of a size given as "WxH" or a pair, each a whole number of pixels above 0; Refused else."""
+    parts = str(size).lower().split("x") if isinstance(size, str) else list(size)
+    try:
+        width, height = (int(part) for part in parts)
+    except (TypeError, ValueError):
+        raise Refused(f"a film's size is WIDTHxHEIGHT in pixels, not {size!r}") from None
+    if width <= 0 or height <= 0:
+        raise Refused(f"a film's size is above 0 both ways, not {size!r}")
+    return [width, height]
+
+
 def script_sha(found):
     return hashlib.sha256(json.dumps(found, sort_keys=True).encode()).hexdigest()
 
@@ -211,6 +225,10 @@ def record(decision, target, answer, question, store=None, **given):
         raise Refused(f"a {decision} says why, in his words: --reason")
     if given.get("takes") and decision != "reject":
         raise Refused("only a reject names takes to remake (--takes)")
+    if given.get("size") not in ("", None):
+        if decision != "lock-film":
+            raise Refused("only a film lock names a size (--size)")
+        given["size"] = film_size(given["size"])
     if given.get("purpose") and decision != "spend":
         raise Refused("only a spend names a purpose (--purpose)")
     if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH, "stop", "cap"):
@@ -256,8 +274,9 @@ def request_of(yes):
             "replaces": target["current"], "words": f"his yes in chat: {yes['answer']}", "yes": yes["id"]}}
     if yes["decision"] == "lock-concept":
         return {"kind": "concept-pick", "user": user, "payload": {"place": target["place"], "sha": target["sha"]}}
-    return {"kind": "film-lock", "user": user, "payload": {"film": target["film"],
-                                                          "script": film_script(target["film"])}}
+    found = film_script(target["film"])
+    return {"kind": "film-lock", "user": user, "payload": {"film": target["film"], "script": (
+        {**found, "size": given["size"]} if given.get("size") else found)}}
 
 
 def target_name(yes):
