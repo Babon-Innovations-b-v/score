@@ -114,10 +114,12 @@ def as_they_rest(inventory, record):
     never dropped or snapped down, never judged on its feet; the settle leans a leaning one itself (leaning_phase).
     2026-11-07: settle@storage judged its wall lights 2.5 m up the left wall as floating and its wall pipes as
     standing on nothing, the assembly as mounted. A ceiling row's thing the record lays standing on its holder's top
-    or within it stands (standing_on_ceilings)."""
-    from score.stages.assembly.mounted import mounted, on_faces, resting_as_laid
+    or within it stands (standing_on_ceilings); one filling its holder's opening within it is `fixed` unless given
+    another (mounted.filling_within)."""
+    from score.stages.assembly.mounted import filling_within, mounted, on_faces, resting_as_laid
     rows = with_anchors(inventory)["rows"]
-    given = {**on_faces(record or {}), **standing_on_ceilings(mounted({row["id"]: row for row in rows}), record),
+    given = {**filling_within(record or {}), **on_faces(record or {}),
+             **standing_on_ceilings(mounted({row["id"]: row for row in rows}), record),
              **resting_as_laid(record or {})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]} if row["id"] in given and not row.get("support")
                                   else row for row in rows]}

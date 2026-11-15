@@ -36,6 +36,21 @@ def resting_as_laid(record):
             if entry.get("rests") in ("leaning", "attached")}
 
 
+def filling_within(record):
+    """{row id: "fixed"} of the scene `record`'s rows whose every object fills its holder's opening standing within
+    it (`fills`, laid `within` and not hung there): part of its holder, laid at its opening's sill and never let onto
+    the holder's floor (built_tops.held_on), so judged as laid like an attached thing, never on its feet. A support
+    the row is given otherwise (mounted on a wall row, hung) comes first. assembly@base (2026-11-15): its 6 m garage
+    door, within its square module at the ground of the module's open front, its back half in the module's 16 cm
+    floor slab, was judged standing on the slab's top and the ground at once and leaned 7.2 degrees."""
+    rows = {}
+    for entry in record.get("objects") or []:
+        on = entry.get("on") or {}
+        rows.setdefault(entry["row"], []).append(bool(entry.get("fills")) and on.get("how") == "within"
+                                                 and not on.get("hangs"))
+    return {row_id: "fixed" for row_id, fills in rows.items() if all(fills)}
+
+
 def on_faces(record):
     """{row id: "hanging"} of the scene `record`'s rows whose every object is laid with its back on its holder's side
     (its relation `face`: the fitting lays it on that side, front_face, and the settle leaves it there, held.faced):

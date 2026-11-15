@@ -252,13 +252,15 @@ def resting_rows(inventory, record=None):
     (mounted.on_faces) or between two holders (hung_between.rows) `hanging`, unless it names its own:
     the triage judges it by touching (a hanging one touching nothing still fails, hanging free); each the record says
     rests leaning or attached `fixed` (mounted.resting_as_laid: as the settle lays it, never on its feet), and so each
-    roof piece on its holder's top (roof_tops.roofs: part of that holder's roof)."""
+    roof piece on its holder's top (roof_tops.roofs: part of that holder's roof) and, unless given another, each
+    filling its holder's opening within it (mounted.filling_within: a garage door in its module's open front)."""
     # not settling's held.py: its snap.py would key this row
     from score.stages.assembly import hung_between
-    from score.stages.assembly.mounted import mounted, on_faces, resting_as_laid
+    from score.stages.assembly.mounted import filling_within, mounted, on_faces, resting_as_laid
     from score.stages.assembly import on_tops  # a ceiling row's top thing stands on it
     from score.stages.assembly import roof_tops  # a roof piece on its holder's top is fixed to it
-    given = {**on_faces(record or {}), **hung_within(record or {}), **hung_between.rows(record or {}),
+    given = {**filling_within(record or {}), **on_faces(record or {}), **hung_within(record or {}),
+             **hung_between.rows(record or {}),
              **on_tops.standing(mounted({row["id"]: row for row in inventory["rows"]}), record),
              **roof_tops.roofs(inventory["rows"], record), **resting_as_laid(record or {})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]}

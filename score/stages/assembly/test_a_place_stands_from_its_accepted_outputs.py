@@ -1801,6 +1801,10 @@ LOCKERED = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor"
                      {"id": "box", "anchor": "on:locker"}, {"id": "lantern", "anchor": "on:locker"},
                      {"id": "window", "anchor": "on:locker"},
                      {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
+MODULED = {"rows": [{"id": "module", "noun": "building"}, {"id": "left_wall", "part": "wall"},
+                    {"id": "garage_door", "anchor": "on:module"}, {"id": "crate", "anchor": "on:module"},
+                    {"id": "hatch", "anchor": "on:module"}, {"id": "gate", "anchor": "on:module"},
+                    {"id": "shutter", "anchor": "on:left_wall"}]}
 
 
 def laid(name, row_id, how=None, holder="locker_1", hung=False, **more):
@@ -1848,6 +1852,20 @@ TRIAGED = [
                             laid("string_1", "string", "between"), laid("box_3", "box", "between")]},
      "supports": {"locker": None, "suit": "hanging", "string": "hanging", "crate": None, "box": None,
                   "lantern": "hanging", "window": None, "fixed_suit": "fixed"}},
+    # assembly@base (2026-11-15): its garage door, filling its square module's open front within it, its back half in
+    # the module's floor slab, was judged standing on the slab and the ground and leaned 7.2 degrees: a row whose every
+    # object fills its holder within it is fixed there; one within not filling (the crate), one filling and hung (the
+    # hatch), one also laid otherwise (the gate) or mounted on a wall row (the shutter) keeps its own.
+    {"name": "the base's garage door", "inventory": MODULED,
+     "record": {"objects": [laid("module_1", "module"), laid("garage_door_1", "garage_door", "within", "module_1",
+                                                             fills=True),
+                            laid("crate_1", "crate", "within", "module_1"),
+                            laid("hatch_1", "hatch", "within", "module_1", hung=True, fills=True),
+                            laid("gate_1", "gate", "within", "module_1", fills=True), laid("gate_2", "gate", "top",
+                                                                                           "module_1"),
+                            laid("shutter_1", "shutter", "within", "left_wall_1", fills=True)]},
+     "supports": {"module": None, "left_wall": None, "garage_door": "fixed", "crate": None, "hatch": None,
+                  "gate": None, "shutter": "wall"}},
 ]
 
 
@@ -2970,6 +2988,9 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         hung_within's `if all(hung)}` -> `if any(hung)}` (the airlock's lockers)
     Break: score/stages/assembly/mounted.py: on_faces' `if all(faced)}` -> `if any(faced)}`, or resting_rows'
         `**on_faces(record or {}), ` dropped (the airlock's lockers, the base's roofs)
+    Break: score/stages/assembly/mounted.py: filling_within's `if all(fills)}` -> `if any(fills)}`, or its `and not
+        on.get("hangs")` dropped, or resting_rows' `**filling_within(record or {}), ` dropped or moved to its end
+        (the base's garage door)
     Break: score/stages/assembly/__init__.py: resting_rows' `**hung_between.rows(record or {}),` dropped, or
         hung_between.py's rows `if all(hung)}` -> `if any(hung)}` (the airlock's lockers)
     Break: score/stages/assembly/__init__.py: `solid = sum(fault["what"] != "model" for fault in faults)` -> `solid =
