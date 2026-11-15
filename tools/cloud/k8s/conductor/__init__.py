@@ -54,6 +54,7 @@ POD = f"{NAME}-0"  # the StatefulSet's one pod
 CLAIM = "score-store"
 VOLUME_CLASS = "sbs-5k-retain"
 VOLUME_SIZE = "400Gi"
+BACKUP_OPT_OUT = ("owner.example/backup", "false")  # babon's volume-backup skips a claim so annotated
 NODE_ROLE = ("owner.example/role", "score-conductor")
 # The conductor's node: POP2-HM-8C-64G since 2026-11-10 (it was a POP2-HM-16C-128G at the cutover), its allocatable as
 # the cluster reported it that day, and the requests of the node's own DaemonSets (node feature discovery 5m / 64Mi,
@@ -366,7 +367,10 @@ def limit_range():
 
 
 def claim():
-    return {"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": meta(CLAIM, "store"),
+    """The store's volume, opted out of babon's nightly volume-backup snapshots (owner, 2026-11-15: 7 x 429 GB, EUR
+    3.5 a day): score's own restic backup copies the home to object storage every 30 minutes."""
+    metadata = {**meta(CLAIM, "store"), "annotations": {BACKUP_OPT_OUT[0]: BACKUP_OPT_OUT[1]}}
+    return {"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": metadata,
             "spec": {"accessModes": ["ReadWriteOnce"], "storageClassName": VOLUME_CLASS,
                      "resources": {"requests": {"storage": VOLUME_SIZE}}}}
 

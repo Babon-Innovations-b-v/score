@@ -5,7 +5,8 @@ Each invariant with the break that turns it red (each applied once, seen red, re
 
 - every pod that mounts the store (the conductor's, each CronJob's) is required on the conductor's role and beside the
   conductor's pod on its host, sharing the node's process ids, and the volume is one ReadWriteOnce claim of class
-  sbs-5k-retain; each pulls the private image with the registry's Secret. Break: drop `"podAffinity": ...` from
+  sbs-5k-retain, opted out of babon's nightly volume-backup snapshots (score's own restic backup holds it; owner,
+  2026-11-15). Break: drop the `annotations` from `claim`. Each pulls the private image with the registry's Secret. Break: drop `"podAffinity": ...` from
   `beside_conductor`, or `"hostPID": True` or `"imagePullSecrets"` from `pod_spec`. The scw config reaches each
   container only as the init container's copy (mode 600, user score's), never the Secret's group-readable file.
   Break: mount `scw-secret` at SCW_PATH in `mounts`. Every container, a run's drive Job's (score/conductor/cluster.py
@@ -70,6 +71,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         by_kind.setdefault(item["kind"], []).append(item)
     claim, = by_kind["PersistentVolumeClaim"]
     assert claim["spec"]["accessModes"] == ["ReadWriteOnce"] and claim["spec"]["storageClassName"] == "sbs-5k-retain"
+    assert claim["metadata"]["annotations"] == {"owner.example/backup": "false"}
     watcher, = [cron for cron in by_kind["CronJob"] if cron["metadata"]["name"] == conductor.CAP_WATCH]
     pods = [by_kind["StatefulSet"][0]["spec"]["template"]["spec"]] + [
         cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"] if cron is not watcher]
