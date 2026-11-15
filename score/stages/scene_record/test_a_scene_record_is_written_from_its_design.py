@@ -1963,7 +1963,14 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     Break: score/stages/scene_record/writer.py: `high = floor + ceiling_top - CONCEPT_UNDER if enclosed and
         ceiling_top else None` -> `high = None` (the eye risen 40 degrees, over the walls' top)
     Break: score/stages/scene_record/writer.py: `if plan_checks.inside(spot[None, :], points)[0]])` ->
-        `if False])` (the eye 2.6 m up, in the roof)"""
+        `if False])` (the eye 2.6 m up, in the roof)
+    2026-11-15 re-reading: the hub's roof windows, read as structure on its roof, were built by no piece of its dome.
+    A structure row the plan's shell lays, anchored on a floor, wall or roof, is that part's row.
+    Break: score/stages/scene_record/writer.py: plan_rows' `if part == "structure" and row.get("anchor") in
+        SHELL_PARTS.values():` -> `if False:` (the roof windows a part no piece builds)"""
+    assert writer.plan_rows({"rows": [{"id": "roof_window", "route": "plan", "part": "structure", "anchor": "roof"},
+                                      {"id": "shell", "route": "plan", "part": "structure", "anchor": "ground"}]}) == \
+        {"roof": ["roof_window"], "structure": ["shell"]}
     try:
         output, inputs = BUILDERS[world[0]](tmp_path, *world[1:]) if world else (None, None)
     except ValueError as refused:

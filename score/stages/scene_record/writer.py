@@ -1234,11 +1234,17 @@ def item_rows(design):
 
 
 def plan_rows(handin):
-    """{shell part: [row id]} of the rows the plan's shell lays itself (route `plan`), in the hand-in's order."""
+    """{shell part: [row id]} of the rows the plan's shell lays itself (route `plan`), in the hand-in's order; a
+    structure row (the plan names it its own shell, groups.plan_structure) anchored on a part of the shell (a floor,
+    wall or roof, SHELL_PARTS) is that part's, so its piece names it (2026-11-15 re-reading: the hub's roof windows,
+    read as structure on its roof, were built by no piece of its glass dome)."""
     found = {}
     for row in handin.get("rows", []):
         if row.get("route") == "plan":
-            found.setdefault(row.get("part"), []).append(row["id"])
+            part = row.get("part")
+            if part == "structure" and row.get("anchor") in SHELL_PARTS.values():
+                part = row["anchor"]
+            found.setdefault(part, []).append(row["id"])
     return found
 
 
