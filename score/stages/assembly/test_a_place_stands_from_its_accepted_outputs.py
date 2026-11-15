@@ -2601,6 +2601,12 @@ CLEARED = [  # (case, its prims (a_fitted_world's), its entries (name, row, rela
      [("bunk_bed_2", "parted", 1.749, 1.0, None, None)],
      {"Objects/bunk_bed_2": ((3.1, 0.0, 2.5), (NAN, NAN, NAN), ALLCLOSE),  # its own room's free spot
       **left(("Objects/bunk_bed_3", (-0.2, 0.0, 0.0), (3.3, 0.6, 1.0)))}, [], {}, {}, None),
+    ("assembly@base: a connecting tube standing into the module it joins is never parted, nor the module off it",
+     boxes_at("Objects", (("dome_module_1", (0.0, 0.0, 0.0), (4.0, 3.0, 4.0)),
+                          ("connecting_tube_1", (3.5, 0.0, 1.5), (7.0, 2.0, 2.5)))),
+     [("dome_module_1", "dome_module", None), ("connecting_tube_1", "connecting_tube", None)], [],
+     left(("Objects/dome_module_1", (0.0, 0.0, 0.0), (4.0, 3.0, 4.0)),
+          ("Objects/connecting_tube_1", (3.5, 0.0, 1.5), (7.0, 2.0, 2.5))), [], {}, {}, None),
     ("engineroom: a crate in a kit fixture by a slanted corner wall goes to a free spot clear of the wall's outline on "
      "the room's side, never along the wall into the corner",
      {**four_walls(3.0, 4.0), "Structure/wall_5": ("hull", CORNER_SLAB),
@@ -3495,6 +3501,8 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         `done, fits = set(), fits`
     Break: score/stages/assembly/fitting.py: `if crossing({**held, **after}, thin, slanted) >= crossing({**held,
         **boxes}, thin, slanted):` -> `if True:`
+    Break: score/stages/assembly/fitting.py: `joins = {entry["name"] for entry in entries if joining(entry)}` ->
+        `joins = set()` (base's connecting tube parted off the module it joins, assembly@base 2026-11-15)
     Break: score/stages/assembly/fitting.py: `return pivot, np.cross(way, [0.0, 1.0, 0.0]),` -> `return pivot,
         np.cross([0.0, 1.0, 0.0], way),`
     Break: score/stages/assembly/fitting.py: `fits += moved_out(stage, place, loose)` -> `fits += []`

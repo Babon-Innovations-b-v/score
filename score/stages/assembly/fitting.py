@@ -1297,6 +1297,13 @@ def passes(entry):
         set(str(entry.get("row") or "").split("_")) & set(PASSING))
 
 
+def joining(entry):
+    """Whether an entry's row is a passage (PASSING by any word of its name: a tube, a tunnel) that joins what it
+    meets: its ends stand into the modules and domes it joins, so parted never moves it nor anything off it (base's
+    connecting tubes parted 1.6 to 3.2 m off its hub, its greenhouse 6.35 m off a tube, assembly@base 2026-11-15)."""
+    return bool(set(str(entry.get("row") or "").split("_")) & set(PASSING))
+
+
 def depths(low, high, box):
     """[x, y, z] metres a box (low, high) reaches into another on each axis (one at most 0: they are apart)."""
     return np.minimum(np.asarray(high, float), box[1]) - np.maximum(np.asarray(low, float), box[0])
@@ -2605,7 +2612,8 @@ def parted(stage, place, entries, holding=()):
     starts, then the nearest free spot again for one the solver left crossing; each kept inside the box of the place's
     walls where its middle stands in it (bound_of), clear of every fixture, still thing and wall piece it shares
     height with, and of each slanted wall by its outline on the floor (slants), never through one), never shrunk; the
-    fixtures, the structure and the things nothing crowds never move, and the held
+    fixtures, the structure and the things nothing crowds never move, a passage (joining: a tube, a tunnel) neither
+    moves nor parts anything off it, its ends standing into what it joins, and the held
     things (`holding`, their names) are left out: fitted after, onto where their holders stand. Kept only when fewer
     stand inside each other or a static after (#72, settle@flat: its bed in its bedside table and wardrobe, laid
     bigger than the plan's estimates). One hung from the roof (the scene record's `under roof`) with no free spot is
@@ -2613,11 +2621,13 @@ def parted(stage, place, entries, holding=()):
     "left out"), a gap of its own; the fits [{name, how "parted" or "left out", ...}]. A thin thing turned off the
     floor's axes (thin_outline: a railing's world box holds the room beside it) is never parted and kept clear of by
     its outline, as a slanted wall is; each parted one stays on the deck it stands on (on_deck)."""
-    paths = {entry["name"]: f"/{place}/Objects/{entry['name']}" for entry in entries}
+    joins = {entry["name"] for entry in entries if joining(entry)}
+    paths = {entry["name"]: f"/{place}/Objects/{entry['name']}" for entry in entries if entry["name"] not in joins}
     outlines = {name: outline for name, path in paths.items() if (outline := thin_outline(stage, path)) is not None}
     boxes = {name: world_box(stage, path) for name, path in paths.items() if name not in outlines}
     held = {f"{scope}/{name}": box for scope in ("Objects", "Fixtures") for name, box in walls_in(stage, place, scope)
-            if scope == "Fixtures" or (name not in boxes and name not in outlines and name not in holding)}
+            if scope == "Fixtures" or (name not in boxes and name not in outlines and name not in holding
+                                       and name not in joins)}
     built = walls(stage, place)
     thin = statics(built)
     pieces = [box for name, box in thin if name.split("_")[0] == "wall"]
@@ -2632,7 +2642,7 @@ def parted(stage, place, entries, holding=()):
         return []
     fits = []
     for entry in entries:
-        if entry["name"] in outlines:
+        if entry["name"] in outlines or entry["name"] in joins:
             continue
         if entry["name"] in left:
             fits.append(left_out(stage, paths[entry["name"]], entry, boxes[entry["name"]]))
