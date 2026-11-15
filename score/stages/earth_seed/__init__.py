@@ -168,7 +168,8 @@ def make_seed(inputs, out, seed, params):
                   gaps=gaps)
     rows = read(inputs["design inventory"]).get("rows", [])  # its door and window rows cut their openings
     relations, _ = design_shell.relations_read(inputs, plan_path)  # the openings cut for doors the plan's do not hold
-    shell = design_shell.lay(out / place / "layers/base.usda", place, design_shell.cut_for(plan, rows, relations),
+    shell = design_shell.lay(out / place / "layers/base.usda", place,
+                             design_shell.glazed(design_shell.cut_for(plan, rows, relations), rows),
                              export, library_path(inputs))
     kit_path.write_text(json.dumps({**kit, "shell": shell}, indent=1))
     (out / GAPS).write_text(json.dumps({"models": [], "picks": [gap for gap in gaps if "row" in gap]}, indent=1))

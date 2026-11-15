@@ -183,16 +183,21 @@ def shell_entry(name, number, piece, design, said):
         entry.update(centre=points[0], radius=round(piece["radius"], 4), base=round(floor + piece["base"], 4),
                      rise=round(piece["rise"], 4), layer=2)
     elif piece["builder"] == "vault":  # builders' tube_arc runs along z from 0: turned a quarter about up to run east
-        arc = design_shell.vault_arc(entry.pop("points"), floor + piece["eave"], floor + piece["top"],
-                                     piece.get("lengthwise"))
+        arc = design_shell.piece_arc(dict(piece, points=entry.pop("points"), eave=floor + piece["eave"],
+                                          top=floor + piece["top"]))
         entry.update(builder="tube_arc", radius=round(arc["radius"], 4), axis_high=round(arc["axis_high"], 4),
-                     start=round(-arc["half"], 4), end=round(arc["half"], 4), length=round(arc["length"], 4),
+                     start=round(arc["from"], 4), end=round(arc["to"], 4), length=round(arc["length"], 4),
                      placed_at=[round(arc["start"][0], 4), 0.0, round(arc["start"][1], 4)],
                      placed_turn=[0.0, math.sqrt(0.5), 0.0, math.sqrt(0.5)] if arc["along"][0]
                      else [0.0, 0.0, 0.0, 1.0],
                      layer=2)
     elif piece["builder"] == "gable":
         entry.update(eave=round(floor + piece["eave"], 4), top=round(floor + piece["top"], 4), layer=2)
+    elif piece["builder"] == "quad":  # a shed roof's face: its corners stood in the place's frame
+        del entry["points"]
+        corners, _ = in_frame(design, [[corner[0], corner[2]] for corner in piece["corners"]])
+        entry.update(corners=[[x, round(floor + corner[1], 4), z] for (x, z), corner in zip(corners, piece["corners"])],
+                     layer=2)
     else:
         entry.update(low=round(floor + piece["low"], 4), high=round(floor + piece["high"], 4))
         if name.startswith("roof"):
@@ -210,7 +215,7 @@ def cut_piece(design, middle):
         if not at:
             continue
         cuts = design_shell.on_edge(openings, start, end, thick)
-        high = design_shell.wall_height(design, entry, eave)
+        high = design_shell.wall_height(design, entry, eave, (start, end), inner)
         spans = design_shell.inner_spans(length, cuts, high) if inner else \
             design_shell.spans(length, cuts, -DECK_BELOW - design_shell.SLAB, high)
         over = [number for number, (begin, finish, *_) in enumerate(spans)
@@ -234,7 +239,8 @@ def shell(design, place, library, rows=None):
     on the first piece of its part no other row names, an opening's on the piece over the cut its plan item makes
     (opening_pieces; none where no wall is cut at it: hangar's floor hatch named no lintel, 2026-10-30), else at a cut
     its words fit (name_open_cuts)."""
-    found = [painted(shell_entry(name, number, piece, design, said), design_shell.part_kind(name), place, library)
+    found = [painted(shell_entry(name, number, piece, design, said),
+                     "glass" if piece.get("glass") else design_shell.part_kind(name), place, library)
              for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
     by_name = {entry["name"]: entry for entry in found}
     for row_id in (rows or {}).get("opening", []):
@@ -487,17 +493,44 @@ def kit_entries(design, place, library, handin):
 
 def arch_entry(row, item, shape, design, number):
     """An arched row's band at its plan item (design_shell.arches): standing on the item's middle at its shape's base,
-    spanning the row's wide along the item's longer side, rising its tall, its deep both its thickness and its depth."""
+    spanning the row's wide along the item's longer side, rising its tall, its deep both its thickness and its depth;
+    in a walkway tube its hull's hoop (tube_rib)."""
     x, y, wide, deep = (float(value) for value in item[1:5])
     span, band, rise = (float(value) for value in row["size"])
-    way = np.array([1.0, 0.0]) if wide >= deep else np.array([0.0, 1.0])
     middle = np.array([x + wide / 2, y + deep / 2])
+    if design_shell.tube_of(design) and design_shell.tube_run(design) is not None:
+        return tube_rib(row, item, design, number, middle, band)
+    way = np.array([1.0, 0.0]) if wide >= deep else np.array([0.0, 1.0])
     feet, floor = in_frame(design, [middle - way * span / 2, middle + way * span / 2])
     return {"name": f"{row['id']}_{number}", "builder": "arch", "feet": feet,
             "low": round(floor + float(shape.get("base") or 0.0), 4), "rise": rise, "thick": band, "deep": band,
             "plain": "shell", "row": row["id"],
             "from": f"plan item {item[0]!r}, inventory row {row['id']}: an arch {span:g} m across and {rise:g} m "
                     f"high, {band:g} m thick (earth_seed/design_shell.arched)"}
+
+
+def tube_rib(row, item, design, number, middle, band):
+    """A walkway tube's rib (design_shell.tube_of) at its plan item: a hoop round the hull's circle on the inside of
+    it, its section `band` across, standing square to the tube's run at the item's place along it, its middle on the
+    tube's axis (builders' `torus`, turned up; its foot under the deck hidden by it). The tube's ribs stood as arches
+    as tall as they were wide, off its round hull (2026-11-15)."""
+    tube, run = design_shell.tube_of(design), design_shell.tube_run(design)
+    outline = np.asarray(design_shell.outline_of(design), float)
+    across = int(run[0] > run[1])  # the plan axis across the run: the tube's axis stands at its middle
+    middle = middle.copy()
+    middle[across] = (outline[:, across].min() + outline[:, across].max()) / 2
+    (spot, ahead), floor = in_frame(design, [middle, middle + run])
+    axis_high = floor + float(design_shell.lowest_eave(design) or 0.0) + tube["axis"]
+    along_z = abs(ahead[1] - spot[1]) >= abs(ahead[0] - spot[0])
+    half = round(math.sqrt(0.5), 6)
+    return {"name": f"{row['id']}_{number}", "builder": "torus", "inner": round(tube["radius"] - band, 4),
+            "outer": round(tube["radius"], 4), "height": 0.0,
+            "placed_at": [spot[0], round(axis_high, 4), spot[1]],
+            "placed_turn": [half, 0.0, 0.0, half] if along_z else [0.0, 0.0, half, half],
+            "plain": "shell", "row": row["id"],
+            "from": f"plan item {item[0]!r}, inventory row {row['id']}: a hoop round its walkway tube's hull, "
+                    f"{tube['radius']:g} m round its axis {tube['axis']:g} m over the deck, {band:g} m thick "
+                    "(earth_seed/design_shell.arched, tube_of)"}
 
 
 def arch_entries(design, place, library, handin):
@@ -1309,7 +1342,8 @@ ROOF_CLEAR = 0.01
 
 def roof_under(design, spot):
     """The underside of the place's roof over a plan spot, metres over the floor, as design_shell builds it: a slab's
-    or a gable's (closed on its eave) at its eave, a dome's on its sphere's cap, a vault's on its arc; the lowest of
+    or a gable's (closed on its eave) at its eave, a shed's on its slope, a dome's on its sphere's cap, a vault's on
+    its arc; the lowest of
     those over the spot; the walls' height (the place's ceiling) under none."""
     found = []
     for name, laid, _ in design_shell.pieces(design):
@@ -1321,8 +1355,10 @@ def roof_under(design, spot):
                     found.append(float(piece["base"]) + math.sqrt(max(sphere ** 2 - reach ** 2, 0.0)) -
                                  (sphere - float(piece["rise"])))
             elif design_shell.inside(spot, piece["points"]):
-                if piece["builder"] == "vault":
-                    arc = design_shell.vault_arc(piece["points"], piece["eave"], piece["top"], piece.get("lengthwise"))
+                if piece["builder"] == "quad":
+                    found.append(design_shell.shed_high(piece, spot))
+                elif piece["builder"] == "vault":
+                    arc = design_shell.piece_arc(piece)
                     across = abs(float(np.subtract(spot, arc["start"]) @ [arc["along"][1], -arc["along"][0]]))
                     found.append(arc["axis_high"] + math.sqrt(max(arc["radius"] ** 2 - across ** 2, 0.0)))
                 else:
@@ -1566,7 +1602,8 @@ def record_of(plan, design, inputs):
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     handin = read(inputs["hand-in"])
     relations, stale = relations_input(inputs, place)
-    design = design_shell.cut_for(design, handin.get("rows", []), relations)
+    design = design_shell.glazed(design_shell.cut_for(design, handin.get("rows", []), relations),
+                                 handin.get("rows", []))
     far_laid = far_objects(design, handin, inputs.get("inventory"))
     own = row_entries(design, place, library_of(inputs), handin)
     record = {"place": place,

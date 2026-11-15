@@ -107,8 +107,29 @@ UPRIGHT = frozenset(("pillar", "column", "post"))
 SPANNING = frozenset(("beam", "girder", "rafter", "truss", "joist"))
 FLUSH = 0.02  # metres a floor piece the plan gives no height stands over the floor (a grate laid in it)
 # The scene library's kinds each part takes its surface from, the first it names a variant for: one answer with the
-# paint's (palette_library.SHELL_KINDS), so a prop's finish can take the shell's own surface.
-PART_KINDS = palette_library.SHELL_KINDS
+# paint's (palette_library.SHELL_KINDS), so a prop's finish can take the shell's own surface; a glass part (a glass
+# roof's, a tube's glass bands: `glass_<n>`, room) its library's glass, else its window's, else its roof's (the
+# library's ask names no glass kind of the shell's yet, so a scene whose library holds neither stands it opaque).
+GLASS_KINDS = ("glass", "window", "roof", "ceiling")
+PART_KINDS = {**palette_library.SHELL_KINDS, "glass": GLASS_KINDS}
+# A plan's height words that name a glass roof (greenhouse: "walls 2.8 m under a glass dome rising 3.4 m"): a glass
+# dome, roof, skylight, ceiling or vault (glazed).
+GLASS_WORDS = re.compile(r"\bglass (dome|roof|skylight|ceiling|vault)")
+# A plan's height words that give its ceiling at its front and its back (the ship's rooms: "ceiling 3.2 m at the
+# front, 3.51 m at the back"): the side a shed roof falls to (shed_low). The ship's plans run y back from its nose, so
+# its front is the plan's north.
+SLOPE_WORDS = re.compile(r"(\d+(?:\.\d+)?) ?m at the (front|back)[^0-9]*?(\d+(?:\.\d+)?) ?m at the (front|back)")
+SIDES = {"front": "N", "back": "S"}
+LOW_SIDES = ("N", "E", "S", "W")
+# A pit (pits): a level standing more than LEVEL_OFF under another, every point of it this far inside that one's
+# outline and its area under PIT_SHARE of it; a data plan's `pit` (the hub's: {radius, floor}) a circle of PIT_SIDES.
+PIT_INSIDE, PIT_SHARE, PIT_SIDES = 0.05, 0.8, 24
+# A dome stands on a written round wall (round_wall) whose radius is at least this share of its footprint's shorter
+# half.
+ROUND_SHARE = 0.5
+# An inner wall meets a dome over it only along its rim (under_dome): its line no nearer the dome's middle than this
+# share of its radius.
+RIM = 0.8
 
 
 # --- outlines ----------------------------------------------------------------------------------------------------
@@ -224,29 +245,92 @@ def vault_way(points, openings):
     return ends >= sides
 
 
-def vault_arc(points, eave, top, lengthwise=None):
+def vault_arc(points, eave, top, lengthwise=None, circle=None, span=None):
     """A vault over an outline's box as tools/usd/builders' `tube_arc` draws it: the circle's `radius`, its axis'
-    height (`axis_high`), the arc's half angle (degrees from straight up), and its run: `start` the middle of its
-    west or north end, `along` its unit way ([1, 0] east, [0, 1] south) east when `lengthwise` (vault_way's), else
-    south (None: along the box's longer side), `length` that side."""
+    height (`axis_high`), the arc's half angle (degrees from straight up) and the angles it runs between (`from`,
+    `to`: -half to half, else its `span`), and its run: `start` the middle of its west or north end, `along` its unit
+    way ([1, 0] east, [0, 1] south) east when `lengthwise` (vault_way's), else south (None: along the box's longer
+    side), `length` that side. A walkway tube's vault (`circle`: {radius, axis}, tube_of) is its hull's own circle, its
+    axis `axis` over the eave, round from deck to deck (tube_bands), not the arc through the box's sides and top (the
+    tube's 3.2 m box drew a 2 m arc rising as high as it was wide, its walls flat, 2026-11-15)."""
     xs, ys = [float(point[0]) for point in points], [float(point[1]) for point in points]
     west, east, north, south = min(xs), max(xs), min(ys), max(ys)
     lengthwise = east - west >= south - north if lengthwise is None else lengthwise
     half, rise = ((south - north) if lengthwise else (east - west)) / 2, top - eave
-    radius = (half ** 2 + rise ** 2) / (2 * rise)
+    if circle:
+        radius, axis_high = float(circle["radius"]), eave + float(circle["axis"])
+        meet = float(np.degrees(np.arccos(np.clip(-float(circle["axis"]) / radius, -1.0, 1.0))))
+    else:
+        radius = (half ** 2 + rise ** 2) / (2 * rise)
+        axis_high, meet = top - radius, float(np.degrees(np.arctan2(half, radius - rise)))
     start = [west, (north + south) / 2] if lengthwise else [(west + east) / 2, north]
-    return {"radius": radius, "axis_high": top - radius, "half": float(np.degrees(np.arctan2(half, radius - rise))),
+    low, high = (float(span[0]), float(span[1])) if span else (-meet, meet)
+    return {"radius": radius, "axis_high": axis_high, "half": meet, "from": low, "to": high,
             "start": start, "along": [1.0, 0.0] if lengthwise else [0.0, 1.0],
             "length": (east - west) if lengthwise else (south - north)}
 
 
-def vault(points, eave, top, lengthwise=None, segments=24):
-    """A vault's arc (vault_arc) in plan metres [x, up, y], the triangles tools/usd/builders' `tube_arc` draws."""
-    arc = vault_arc(points, eave, top, lengthwise)
+def tube_of(plan):
+    """A walkway tube's hull ({radius, axis, glass}: its circle, its axis over its deck, its glass bands' bearings off
+    its crown or None) where the plan is one (`shape: tube` with its radius and its axis under it: the base's tubes,
+    scene_record.plan.tube_walls_of), else None."""
+    if plan.get("shape") != "tube" or not plan.get("radius") or plan.get("axis") is None:
+        return None
+    radius, axis = float(plan["radius"]), float(plan["axis"])
+    glass = [float(value) for value in plan.get("glass") or []]
+    return {"radius": radius, "axis": axis, "glass": sorted(glass) if len(glass) == 2 else None} \
+        if 0.0 <= axis < radius else None
+
+
+def tube_bands(tube):
+    """[(from, to, glass)] degrees off the crown of a tube's hull round from deck to deck (where its circle meets the
+    deck, its axis over it), its glass bands each side their own (the plan's `glass` bearings: the tube's windows onto
+    the Moon, 38 to 104 degrees each side)."""
+    meet = float(np.degrees(np.arccos(-tube["axis"] / tube["radius"])))
+    if not tube["glass"]:
+        return [(-meet, meet, False)]
+    low, high = max(0.0, tube["glass"][0]), min(meet, tube["glass"][1])
+    if high <= low:
+        return [(-meet, meet, False)]
+    cuts = [(-meet, -high, False), (-high, -low, True), (-low, low, False), (low, high, True), (high, meet, False)]
+    return [band for band in cuts if band[1] - band[0] > 1e-6]
+
+
+def tube_run(plan):
+    """A walkway tube's run, a unit way [x, y] in plan metres (its vault's, vault_way), else None."""
+    if not tube_of(plan):
+        return None
+    vaults = [entry for entry in plan.get("roofs") or [] if entry.get("kind") == "vault" and
+              len(entry.get("points") or []) >= 3]
+    if not vaults:
+        return None
+    return np.array([1.0, 0.0]) if vault_way(vaults[0]["points"], plan_openings(plan)) else np.array([0.0, 1.0])
+
+
+def hull_side(plan, start, end):
+    """Whether an outline edge from `start` to `end` runs along a walkway tube's run (tube_run, within ALONG_TURN): its
+    hull is the wall there, so none is built (the tube stood flat walls 3.2 m high through its round hull)."""
+    run = tube_run(plan)
+    if run is None:
+        return False
+    way = np.subtract(end, start)
+    return abs(float(way @ run)) >= np.cos(np.radians(ALONG_TURN)) * float(np.linalg.norm(way))
+
+
+def piece_arc(piece):
+    """A vault piece's arc (vault_arc) from its own numbers."""
+    return vault_arc(piece["points"], piece["eave"], piece["top"], piece.get("lengthwise"), piece.get("circle"),
+                     piece.get("span"))
+
+
+def vault(piece, segments=24):
+    """A vault piece's arc (piece_arc) in plan metres [x, up, y], the triangles tools/usd/builders' `tube_arc`
+    draws."""
+    arc = piece_arc(piece)
     along = np.array([arc["along"][0], 0.0, arc["along"][1]])
     across = np.array([arc["along"][1], 0.0, -arc["along"][0]])
     start = np.array([arc["start"][0], 0.0, arc["start"][1]])
-    angles = np.radians(np.linspace(-arc["half"], arc["half"], segments + 1))
+    angles = np.radians(np.linspace(arc["from"], arc["to"], segments + 1))
     rows = [[start + across * arc["radius"] * np.sin(angle) + along * run
              + [0.0, arc["axis_high"] + arc["radius"] * np.cos(angle), 0.0] for run in (0.0, arc["length"])]
             for angle in angles]
@@ -385,6 +469,24 @@ def relation_cuts(relations):
             if (found.get("opening") or {}).get("cut")]
 
 
+def glazed(plan, rows):
+    """The plan with each rising roof (a dome, vault, gable or shed) its glass says glass (`glass` true): one its words
+    name (GLASS_WORDS: "a glass dome" its domes, a glass roof, skylight, ceiling or vault every rising one), or every
+    rising one where a roof row of `rows` (the inventory's, the hand-in's) says glass (the greenhouse's "glass dome
+    roof", the hub's "glass roof window"); a roof the plan writes glass or not keeps it (2026-11-15: the greenhouse's,
+    the hub's and the camp's glass domes stood opaque)."""
+    words = {kind for kind in GLASS_WORDS.findall(str(plan.get("height") or "").lower())}
+    by_row = any(row.get("part") == "roof" and "glass" in f"{row.get('name')} {row.get('noun')}".lower()
+                 for row in rows or [])
+    found = []
+    for entry in plan.get("roofs") or []:
+        rising = float(entry.get("top") or entry.get("eave") or 0.0) > float(entry.get("eave") or 0.0) + 1e-6 or \
+            entry.get("kind") == "dome"
+        named = entry.get("kind") in words or bool(words - {"dome"})
+        found.append(dict(entry, glass=True) if "glass" not in entry and rising and (named or by_row) else entry)
+    return {**plan, "roofs": found} if plan.get("roofs") else plan
+
+
 def cut_for(plan, rows, relations=None):
     """The plan with the openings its door and window rows fill (row_openings) and those its relations cut
     (relation_cuts) for its walls to cut. Each relation's cut is cut where the scene record lays its door or window
@@ -494,7 +596,7 @@ def wall_lines(plan):
     for index, start in enumerate(outline):
         end = outline[(index + 1) % len(outline)]
         entry = written_wall(plan, start, end)
-        if np.linalg.norm(np.subtract(end, start)) >= 1e-6:
+        if np.linalg.norm(np.subtract(end, start)) >= 1e-6 and not hull_side(plan, start, end):
             found.append((f"wall_{index + 1}", start, end, float(entry.get("thick") or THICK), entry, False))
     found += [(f"wall_{number}", start, end, float(entry.get("thick") or THICK), entry, True)
               for number, (start, end, entry) in enumerate(inner_walls(plan), len(outline) + 1)]
@@ -611,10 +713,19 @@ def inner_spans(length, cuts, high):
     return [span for span in spans(length, cuts, -DECK_BELOW - SLAB, high) if span[1] - span[0] > 1e-6]
 
 
-def wall_height(plan, entry, roof_eave):
-    """A wall's top: its written height, else the words' ceiling, else STOREY; raised to the roof's eave over it."""
+def wall_height(plan, entry, roof_eave, line=None, inner=False):
+    """A wall's top: its written height, else the words' ceiling, else STOREY; raised to the roof's eave over it. A
+    wall on `line` (start, end) under a dome stands to the dome's cap over it (under_dome); one across a walkway
+    tube's run no higher than its hull's crown (tube_of)."""
     tall = float(entry.get("tall") or measured_ceiling(plan) or STOREY)
-    return max(tall, roof_eave or 0.0)
+    high = max(tall, roof_eave or 0.0)
+    if line is None:
+        return high
+    tube = tube_of(plan)
+    if tube:
+        return min(high, (roof_eave or 0.0) + tube["axis"] + tube["radius"])
+    domed = under_dome(plan, line[0], line[1], float(entry.get("thick") or THICK), inner)
+    return high if domed is None else domed
 
 
 def walls(plan, outline, roof_eave):
@@ -637,8 +748,10 @@ def walls(plan, outline, roof_eave):
         if length < 1e-6:
             continue
         along = (end - start) / length
+        if hull_side(plan, start, end):
+            continue
         cuts = on_edge(openings, start, end, thick[index])
-        high = wall_height(plan, entries[index], roof_eave)
+        high = wall_height(plan, entries[index], roof_eave, (start, end))
         parts = []
         for begin, finish, bottom, top in spans(length, cuts, -DECK_BELOW - SLAB, high):
             near = [inner[index] if begin <= 1e-9 else start + along * begin + normals[index] * reach[index],
@@ -663,7 +776,7 @@ def inner_pieces(plan, count, openings, roof_eave):
         length, thick = float(np.linalg.norm(end - start)), float(entry.get("thick") or THICK)
         along, half = (end - start) / length, outward(start, end) * thick / 2
         cuts = on_edge(openings, start, end, thick)
-        high = wall_height(plan, entry, roof_eave)
+        high = wall_height(plan, entry, roof_eave, (start, end), True)
         parts = [slab_piece([list(start + along * begin - half), list(start + along * finish - half),
                              list(start + along * finish + half), list(start + along * begin + half)], bottom, top)
                  for begin, finish, bottom, top in inner_spans(length, cuts, high)]
@@ -683,19 +796,136 @@ def slab_piece(points, low, high):
 
 
 def decks(plan, outline):
-    """[(name, pieces, from)] of each level's slab (else the outline's at the floor)."""
-    levels = [level for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3] or \
-        [{"name": "floor", "height": 0.0, "points": outline}]
+    """[(name, pieces, from)] of each level's slab (else the outline's at the floor, levels_of), each cut open over the
+    flights going down from it (hatches) and over every pit sunk in it (pits, ringed)."""
+    levels = levels_of(plan, outline)
+    sunk = pits(levels)
     found = []
     for number, level in enumerate(levels, 1):
         points = to_walls(plan, outline_of({"outline": level["points"]}))
         top = float(level["height"]) - DECK_BELOW
         holes = [box for _, box in hatches(plan, level)]
+        parts = [points]
+        for low in sorted(low for low, high in sunk.items() if high == number - 1):
+            parts = [piece for part in parts for piece in ringed(part, outline_of({"outline": levels[low]["points"]}))]
         found.append((f"deck_{number}", [slab_piece(part, top - SLAB, top) for part in
-                                         (cut_out(points, holes) if holes else [points])],
+                                         ([piece for part in parts for piece in cut_out(part, holes)] if holes
+                                          else parts)],
                       f"the plan's level {level.get('name', number)!r} at {float(level['height']):g} m: its deck "
                       f"{SLAB:g} m thick, {DECK_BELOW:g} m under it, out to the walls' room faces" +
-                      (f", {len(holes)} hatches cut over the flights going down from it" if holes else "")))
+                      (f", {len(holes)} hatches cut over the flights going down from it" if holes else "") +
+                      "".join(f", open over the pit {levels[low].get('name', low + 1)!r} sunk in it"
+                              for low, high in sunk.items() if high == number - 1)))
+    return found
+
+
+def levels_of(plan, outline):
+    """The plan's levels (each of three points or more; none written, its outline's floor at 0) and a data plan's pit
+    no level sinks already (`pit`: {radius, floor}, the hub's 2.33 m pit 0.9 m down, which no level drew and nothing
+    built): a circle of PIT_SIDES round the outline's box middle at its floor."""
+    levels = [level for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3] or \
+        [{"name": "floor", "height": 0.0, "points": outline}]
+    pit = plan.get("pit")
+    if isinstance(pit, dict) and pit.get("radius") and pit.get("floor") is not None and not pits(levels):
+        centre = (np.min(outline, axis=0) + np.max(outline, axis=0)) / 2
+        turns = np.radians(np.arange(PIT_SIDES) * 360.0 / PIT_SIDES)
+        circle = [[float(centre[0] + float(pit["radius"]) * np.cos(turn)),
+                   float(centre[1] + float(pit["radius"]) * np.sin(turn))] for turn in turns]
+        levels = levels + [{"name": "pit", "height": float(pit["floor"]), "points": circle}]
+    return levels
+
+
+def pits(levels):
+    """{index of a pit: index of the level it is sunk in} of `levels`: a level standing more than LEVEL_OFF under
+    another, every point of it inside that one's outline and over PIT_INSIDE from its edges, its area under PIT_SHARE
+    of that one's (the greenhouse's planting pit, its lower floor inside its upper floor's ring, 2026-11-15: the upper
+    deck covered it whole); sunk in the lowest such level."""
+    found = {}
+    for low, level in enumerate(levels):
+        outer = [index for index, other in enumerate(levels) if index != low and
+                 float(other["height"]) > float(level["height"]) + LEVEL_OFF and
+                 abs(signed_area(level["points"])) < PIT_SHARE * abs(signed_area(other["points"])) and
+                 all(inside(point, other["points"]) and
+                     min(off_line(point, one, two) for one, two in zip(other["points"], other["points"][1:] +
+                                                                        other["points"][:1])) > PIT_INSIDE
+                     for point in level["points"])]
+        if outer:
+            found[low] = min(outer, key=lambda index: float(levels[index]["height"]))
+    return found
+
+
+def ringed(points, hole):
+    """The outline (plan metres, clockwise on a map) less a hole inside it, as outlines round it: from each edge of the
+    hole out to the outline along the rays from the hole's middle through its ends, the outline's corners between
+    them kept; both seen whole from that middle (each point's bearing from it rising round the outline), else the
+    outline less the hole's box (cut_out)."""
+    middle = np.asarray(hole, float).mean(axis=0)
+    if not (seen_round(points, middle) and seen_round(hole, middle)):
+        corners = np.asarray(hole, float)
+        return cut_out(points, [(*corners.min(axis=0).tolist(), *corners.max(axis=0).tolist())])
+    bearings = [bearing(point, middle) for point in points]
+    found = []
+    for one, two in zip(hole, hole[1:] + hole[:1]):
+        first, second = bearing(one, middle), bearing(two, middle)
+        width = (second - first) % (2 * np.pi)
+        between = sorted(((value - first) % (2 * np.pi), index) for index, value in enumerate(bearings)
+                         if 1e-9 < (value - first) % (2 * np.pi) < width - 1e-9)
+        found.append([list(map(float, one)), list(map(float, two)), ray_hit(points, middle, second)] +
+                     [list(map(float, points[index])) for _, index in reversed(between)] +
+                     [ray_hit(points, middle, first)])
+    return found
+
+
+def bearing(point, middle):
+    """A point's bearing from `middle` in radians (atan2 of its y and x offsets: rising clockwise on a map)."""
+    return float(np.arctan2(point[1] - middle[1], point[0] - middle[0]))
+
+
+def seen_round(points, middle):
+    """Whether an outline is seen whole from `middle`: walking it, every step's bearing from there rises, once round."""
+    steps = [(bearing(two, middle) - bearing(one, middle) + np.pi) % (2 * np.pi) - np.pi
+             for one, two in zip(points, points[1:] + points[:1])]
+    return all(step > 1e-9 for step in steps) and abs(sum(steps) - 2 * np.pi) < 1e-6
+
+
+def ray_hit(points, middle, angle):
+    """Where the ray from `middle` at bearing `angle` first meets the outline, [x, y]."""
+    way = np.array([np.cos(angle), np.sin(angle)])
+    nearest = None
+    for one, two in zip(points, points[1:] + points[:1]):
+        one, two = np.asarray(one, float), np.asarray(two, float)
+        edge = two - one
+        across = way[0] * (-edge[1]) - way[1] * (-edge[0])
+        if abs(across) < 1e-12:
+            continue
+        gap = one - middle
+        reach = (gap[0] * (-edge[1]) - gap[1] * (-edge[0])) / across
+        share = (way[0] * gap[1] - way[1] * gap[0]) / across
+        if reach > 1e-9 and -1e-9 <= share <= 1 + 1e-9 and (nearest is None or reach < nearest):
+            nearest = reach
+    return [float(value) for value in middle + way * nearest]
+
+
+def pit_walls(plan, outline, number):
+    """[(name, pieces, from)] of the wall round each pit (pits, levels_of), named on from `number`: a slab THICK thick
+    behind each edge of the pit, from under its deck up to the deck of the level it is sunk in, so the pit's sides
+    stand closed (the greenhouse's planting pit, the hub's)."""
+    levels = levels_of(plan, outline)
+    found = []
+    for low, high in sorted(pits(levels).items()):
+        hole = outline_of({"outline": levels[low]["points"]})
+        bottom, top = float(levels[low]["height"]) - DECK_BELOW - SLAB, float(levels[high]["height"]) - DECK_BELOW
+        parts = []
+        for one, two in zip(hole, hole[1:] + hole[:1]):
+            out = outward(one, two) * THICK
+            parts.append(slab_piece([one, two, list(np.asarray(two) + out), list(np.asarray(one) + out)], bottom,
+                                    top))
+        found.append((f"wall_{number}", parts,
+                      f"the wall round the pit {levels[low].get('name', low + 1)!r} at {float(levels[low]['height']):g}"
+                      f" m, sunk in the level {levels[high].get('name', high + 1)!r} at "
+                      f"{float(levels[high]['height']):g} m: {THICK:g} m thick behind its edges, from {bottom:g} m up "
+                      f"to {top:g} m"))
+        number += 1
     return found
 
 
@@ -717,36 +947,136 @@ def hatches(plan, level):
 
 
 def roofs(plan, outline, high):
-    """[(name, pieces, from)] of each written roof (module docstring), else a flat one on the walls' `high`."""
+    """[(name, pieces, from)] of each written roof (module docstring), else a flat one on the walls' `high`; a glass
+    roof's pieces (glazed) each say so (`glass`), a walkway tube's vault its hull's bands (tube_pieces)."""
     written = [entry for entry in plan.get("roofs") or [] if len(entry.get("points") or []) >= 3]
     if not written:
         return [("roof_1", [slab_piece(to_walls(plan, outline), high, high + SLAB)],
                  f"no written roof: flat on the walls' {high:g} m")]
-    found = []
+    found, tube = [], tube_of(plan)
     for number, entry in enumerate(written, 1):
         points, eave = to_walls(plan, outline_of({"outline": entry["points"]})), float(entry["eave"])
         top = float(entry.get("top") or eave)
-        rising = top > eave + 1e-6
         domed, vaulted = entry.get("kind") == "dome", entry.get("kind") == "vault"
+        rising = top > eave + 1e-6 or domed
         holes = roof_holes(entry)
+        glass = {"glass": True} if entry.get("glass") is True else {}
         if not rising and holes:  # a flat roof with its openings cut: the pieces round them
-            found.append((f"roof_{number}", [slab_piece(part, eave, eave + SLAB) for part in cut_out(points, holes)],
+            found.append((f"roof_{number}", [dict(slab_piece(part, eave, eave + SLAB), **glass)
+                                             for part in cut_out(points, holes)],
                           f"the plan's flat roof, eave {eave:g} m: a slab {SLAB:g} m thick on it, its "
                           f"{len(holes)} openings cut"))
             continue
-        piece = (dome_piece(points, eave, top) if domed else
-                 {"builder": "vault" if vaulted else "gable", "points": [[float(x), float(y)] for x, y in points],
-                  "eave": eave, "top": top}) \
+        if vaulted and rising and tube:
+            found.append((f"roof_{number}", tube_pieces(plan, points, eave, tube, glass),
+                          f"the plan's vault roof over its walkway tube: its hull a circle of {tube['radius']:g} m, "
+                          f"its axis {tube['axis']:g} m over the eave {eave:g} m, round from deck to deck" +
+                          (f", glass from {tube['glass'][0]:g} to {tube['glass'][1]:g} degrees off its crown each "
+                           "side" if tube["glass"] else "")))
+            continue
+        piece = (dome_piece(points, eave, top, round_wall(plan, entry["points"])) if domed else
+                 {"builder": "vault" if vaulted else "gable" if entry.get("kind") == "pitched" else "shed",
+                  "points": [[float(x), float(y)] for x, y in points], "eave": eave, "top": top}) \
             if rising else slab_piece(points, eave, eave + SLAB)
         if piece["builder"] == "vault":
             piece["lengthwise"] = vault_way(points, plan_openings(plan))
-        found.append((f"roof_{number}", [piece],
+        if piece["builder"] == "shed":
+            piece["low"] = shed_low(plan, entry)
+        parts = shed_pieces(piece) if piece["builder"] == "shed" else [piece]
+        found.append((f"roof_{number}", [dict(part, **glass) for part in parts],
                       f"the plan's {entry.get('kind', 'flat')} roof, eave {eave:g} m" +
-                      (f", top {top:g} m: " + ("a dome over the circle round it" if domed else
+                      (f", top {top:g} m: " + ((f"a dome over the circle round it from {piece['base']:g} m"
+                                                if top > eave + 1e-6 else
+                                                f"written with no rise, a dome rising {piece['rise']:g} m to its "
+                                                f"top from {piece['base']:g} m") if domed else
                                                "a circle's arc across its box, running " +
                                                ("east" if piece.get("lengthwise") else "south") if vaulted else
+                                               f"one slope falling to its {piece['low']} side"
+                                               if piece["builder"] == "shed" else
                                                "a gable along its box's longer side") if rising else
-                       f": a slab {SLAB:g} m thick on it")))
+                       f": a slab {SLAB:g} m thick on it") + (", glass" if glass else "")))
+    return found
+
+
+def tube_pieces(plan, points, eave, tube, glass):
+    """A walkway tube's vault as its hull's bands (tube_bands), each a vault piece on the tube's circle running its
+    way (vault_way), a glass band's (and every band of a glass roof) saying so."""
+    lengthwise = vault_way(points, plan_openings(plan))
+    crown = eave + tube["axis"] + tube["radius"]
+    return [{"builder": "vault", "points": [[float(x), float(y)] for x, y in points], "eave": eave, "top": crown,
+             "lengthwise": lengthwise, "circle": {"radius": tube["radius"], "axis": tube["axis"]},
+             "span": [low, high], **({"glass": True} if band or glass else {})} for low, high, band in tube_bands(tube)]
+
+
+def shed_low(plan, entry):
+    """The side (N, E, S or W) a shed roof falls to: its written `low`, else the side its plan's height words give the
+    lower ceiling (SLOPE_WORDS: the front the plan's north, the back its south), else north."""
+    if entry.get("low") in LOW_SIDES:
+        return entry["low"]
+    found = SLOPE_WORDS.search(str(plan.get("height") or ""))
+    if found:
+        first, first_side, second, second_side = found.groups()
+        if first_side != second_side and float(first) != float(second):
+            return SIDES[first_side if float(first) < float(second) else second_side]
+    return "N"
+
+
+def shed_faces(points, eave, top, low):
+    """A shed roof over an outline's box as its five flat faces, each four corners in plan metres [x, up, y] (an end's
+    fourth its third again): one slope from its eave along its `low` side (N, E, S or W) up to its top along the side
+    across, its high side, its two ends and its underside on the eave, a closed solid; the scene record draws each a
+    builders' `quad`."""
+    xs, ys = [float(point[0]) for point in points], [float(point[1]) for point in points]
+    west, east, north, south = min(xs), max(xs), min(ys), max(ys)
+    box = [[west, north], [east, north], [east, south], [west, south]]
+    turn = {"N": 0, "E": 1, "S": 2, "W": 3}[low]  # the box's corners from its low edge round clockwise
+    low_one, low_two, high_one, high_two = ([corner[0], eave, corner[1]] for corner in box[turn:] + box[:turn])
+    raised_one, raised_two = [high_one[0], top, high_one[2]], [high_two[0], top, high_two[2]]
+    return [[low_one, low_two, raised_one, raised_two], [high_one, high_two, raised_two, raised_one],
+            [low_two, high_one, raised_one, raised_one], [high_two, low_one, raised_two, raised_two],
+            [low_one, high_two, high_one, low_two]]
+
+
+def shed_pieces(piece):
+    """A shed roof piece (points, eave, top, low) as its faces (shed_faces), each a `quad` piece of its four corners
+    that keeps the shed's numbers (roof_under reads its slope, shed_high)."""
+    return [{"builder": "quad", "corners": face, **{key: piece[key] for key in ("points", "eave", "top", "low")}}
+            for face in shed_faces(piece["points"], piece["eave"], piece["top"], piece["low"])]
+
+
+def quad_triangles(piece):
+    """A shed's face (a `quad` piece) as its triangles with area, turned outward from its shed's inside."""
+    xs, ys = [float(point[0]) for point in piece["points"]], [float(point[1]) for point in piece["points"]]
+    middle = [(min(xs) + max(xs)) / 2, piece["eave"] + (piece["top"] - piece["eave"]) / 3, (min(ys) + max(ys)) / 2]
+    one, two, three, four = piece["corners"]
+    return outward_faces([triangle for triangle in ([one, two, three], [one, three, four])
+                          if not flat_triangle(triangle)], middle)
+
+
+def flat_triangle(triangle):
+    """Whether a triangle has no area (an end face's repeated corner)."""
+    corners = np.asarray(triangle, float)
+    return float(np.linalg.norm(np.cross(corners[1] - corners[0], corners[2] - corners[0]))) < 1e-12
+
+
+def shed_high(piece, spot):
+    """The height of a shed piece's slope over a plan spot: its eave on its low side, its top on the side across."""
+    xs, ys = [float(point[0]) for point in piece["points"]], [float(point[1]) for point in piece["points"]]
+    west, east, north, south = min(xs), max(xs), min(ys), max(ys)
+    share = {"N": (spot[1] - north) / max(south - north, 1e-9), "S": (south - spot[1]) / max(south - north, 1e-9),
+             "W": (spot[0] - west) / max(east - west, 1e-9), "E": (east - spot[0]) / max(east - west, 1e-9)}
+    rise = float(piece["top"]) - float(piece["eave"])
+    return float(piece["eave"]) + rise * float(np.clip(share[piece["low"]], 0.0, 1.0))
+
+
+def outward_faces(triangles, middle):
+    """Triangles each turned so its normal points away from `middle` (a convex solid's inside point)."""
+    found = []
+    for one, two, three in triangles:
+        corners = np.asarray([one, two, three], float)
+        normal = np.cross(corners[1] - corners[0], corners[2] - corners[0])
+        found.append([one, two, three] if float(normal @ (corners.mean(axis=0) - np.asarray(middle, float))) >= 0
+                     else [one, three, two])
     return found
 
 
@@ -793,13 +1123,68 @@ def clipped(points, west, north, east, south):
     return points
 
 
-def dome_piece(points, eave, top):
+def dome_piece(points, eave, top, circle=None):
     """A dome over an outline (plan metres), in the numbers tools/usd/builders' `dome` takes: a sphere's cap from the
-    eave up to the top over the circle round the outline's box middle that holds every point."""
-    centre = (np.min(points, axis=0) + np.max(points, axis=0)) / 2
-    radius = float(np.max(np.linalg.norm(np.asarray(points, float) - centre, axis=1)))
+    eave up to the top over the circle round the outline's box middle that holds every point, else over the round
+    wall it stands on (`circle`, round_wall). A dome written with no rise (its top its eave: the camp's, 8 m) is the
+    half sphere over its circle, its top where written, so it rises from its walls' heads, never more than its top
+    off the floor."""
+    if circle:
+        centre, radius = np.asarray(circle["centre"], float), float(circle["radius"])
+    else:
+        centre = (np.min(points, axis=0) + np.max(points, axis=0)) / 2
+        radius = float(np.max(np.linalg.norm(np.asarray(points, float) - centre, axis=1)))
+    if top - eave <= 1e-6:  # a dome written with no rise
+        rise = min(float(top), radius)
+        return {"builder": "dome", "centre": [float(centre[0]), float(centre[1])], "radius": radius,
+                "base": float(top) - rise, "rise": rise}
     return {"builder": "dome", "centre": [float(centre[0]), float(centre[1])], "radius": radius, "base": float(eave),
             "rise": float(top - eave)}
+
+
+def dome_high(piece, reach):
+    """The height of a dome piece's cap `reach` metres out from its middle (its base past its circle)."""
+    radius, rise = float(piece["radius"]), float(piece["rise"])
+    sphere = (radius ** 2 + rise ** 2) / (2 * rise)
+    reach = min(float(reach), radius)
+    return float(piece["base"]) + float(np.sqrt(max(sphere ** 2 - reach ** 2, 0.0))) - (sphere - rise)
+
+
+def domes_of(plan):
+    """The dome pieces of the plan's written roofs (roofs' own, dome_piece)."""
+    return [dome_piece(to_walls(plan, outline_of({"outline": entry["points"]})), float(entry["eave"]),
+                       float(entry.get("top") or entry["eave"]), round_wall(plan, entry["points"]))
+            for entry in plan.get("roofs") or [] if entry.get("kind") == "dome" and len(entry.get("points") or []) >= 3]
+
+
+def round_wall(plan, points):
+    """The circle ({centre, radius}, its middle line) of the widest written round wall (an `arc`) a dome's footprint
+    `points` stands on: its centre inside the footprint and its radius at least ROUND_SHARE of the footprint box's
+    shorter half; else None (the camp's dome footprint ran 1.4 m past its 4.8 m round wall, so its dome stood 6.2 m
+    wide over a wall raised to meet it)."""
+    corners = np.asarray(points, float)
+    half = float(np.min(corners.max(axis=0) - corners.min(axis=0))) / 2
+    arcs = [entry["arc"] for entry in plan.get("walls") or [] if isinstance(entry, dict) and entry.get("arc")
+            and inside([float(value) for value in entry["arc"]["centre"]], points) and
+            float(entry["arc"]["radius"]) >= ROUND_SHARE * half]
+    widest = max(arcs, key=lambda arc: float(arc["radius"]), default=None)
+    return {"centre": [float(value) for value in widest["centre"]], "radius": float(widest["radius"])} \
+        if widest else None
+
+
+def under_dome(plan, start, end, thick, inner=False):
+    """The height a wall from `start` to `end` stands to under a dome over it (both its ends within the dome's circle,
+    its thickness and ON_WALL; an inner wall only along the dome's rim, its line no nearer the middle than RIM of its
+    radius: a partition keeps its own height), else None: the dome's cap over the point of its line nearest the
+    dome's middle, so the wall meets the dome all along (a camp dome written 8 m tall stood an 8 m drum under it; the
+    garage's square room left a 0.7 m gap between its 4.6 m walls and the dome rising over their middles)."""
+    for piece in domes_of(plan):
+        reach = float(piece["radius"]) + thick + ON_WALL
+        nearest = off_line(piece["centre"], start, end)
+        if all(float(np.linalg.norm(np.subtract(point, piece["centre"]))) <= reach for point in (start, end)) and \
+                not (inner and nearest < RIM * float(piece["radius"])):
+            return dome_high(piece, nearest)
+    return None
 
 
 def lowest_eave(plan):
@@ -815,7 +1200,8 @@ def pieces(plan):
     scene_record.writer)."""
     outline = outline_of(plan)
     eave = lowest_eave(plan)
-    found = decks(plan, outline) + walls(plan, outline, eave)
+    found = decks(plan, outline) + walls(plan, outline, eave) + \
+        pit_walls(plan, outline, len(outline) + len(inner_walls(plan)) + 1)
     high = eave if eave is not None else (measured_ceiling(plan) or STOREY)
     return found + roofs(plan, outline, high)
 
@@ -825,7 +1211,9 @@ def solid(piece):
     if piece["builder"] == "gable":
         return gable(piece["points"], piece["eave"], piece["top"])
     if piece["builder"] == "vault":
-        return vault(piece["points"], piece["eave"], piece["top"], piece.get("lengthwise"))
+        return vault(piece)
+    if piece["builder"] == "quad":
+        return quad_triangles(piece)
     if piece["builder"] == "dome":
         return dome(piece["centre"], piece["radius"], piece["base"], piece["rise"])
     return prism(piece["points"], piece["low"], piece["high"])
@@ -833,8 +1221,19 @@ def solid(piece):
 
 def room(plan):
     """[(name, triangles, from)] of a room's deck, walls and roof, each its pieces' solids."""
-    return [(name, [triangle for piece in parts for triangle in solid(piece)], said)
-            for name, parts, said in pieces(plan)]
+    found = []
+    for name, parts, said in pieces(plan):
+        glazed_parts = [piece for piece in parts if piece.get("glass")]
+        found.append((name, [triangle for piece in parts if not piece.get("glass") for triangle in solid(piece)], said))
+        if glazed_parts:  # a glass roof's pieces their own part, painted as glass (PART_KINDS)
+            found.append((f"glass_{part_number(name)}",
+                          [triangle for piece in glazed_parts for triangle in solid(piece)], said + ": its glass"))
+    return found
+
+
+def part_number(name):
+    """A part's number from its name (`roof_3`: 3)."""
+    return name.rsplit("_", 1)[1]
 
 
 def levels(plan):
@@ -1053,7 +1452,7 @@ def surface_for(kind, library):
     floor took hazard_frame_paint, its ochre edging, before deck_floor_plate (light@docking_airlock's cast 28.5 levels
     warm), galley's its cushion bumper, hub's its dark trim, walkway's its shadow recess (2026-11-10). Chosen here, not
     in palette_library.shell_surface, whose code keys the paid finish route that offers the shell's surfaces as fits."""
-    words = palette_library.SHELL_KINDS[kind]
+    words = PART_KINDS[kind]
     kinds = (library or {}).get("kinds") or {}
     found = next((kinds[wanted] for wanted in words if kinds.get(wanted)), None)
     if not found:

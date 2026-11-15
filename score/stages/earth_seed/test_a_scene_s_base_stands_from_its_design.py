@@ -71,6 +71,25 @@ Break: score/stages/earth_seed/design_shell.py: `tools.colliders.solid(prim.GetP
 Break: score/stages/earth_seed/design_shell.py: `paint(stage, prim, place, part_kind(name), library, scene)` ->
     `pass`
 
+Break: score/stages/earth_seed/design_shell.py: `    if top - eave <= 1e-6:  # a dome written with no rise` -> `    if
+    False:`
+Break: score/stages/earth_seed/design_shell.py: `return high if domed is None else domed` -> `return high`
+Break: score/stages/earth_seed/design_shell.py: `        if hull_side(plan, start, end):
+            continue` -> `        pass`
+Break: score/stages/earth_seed/design_shell.py: `if vaulted and rising and tube:` -> `if False:`
+Break: score/stages/earth_seed/design_shell.py: `for low in sorted(low for low, high in sunk.items() if high == number -
+    1):` -> `for low in []:`
+Break: score/stages/earth_seed/design_shell.py: `pit_walls(plan, outline, len(outline) + len(inner_walls(plan)) + 1)` ->
+    `[]`
+Break: score/stages/earth_seed/design_shell.py: `return SIDES[first_side if float(first) < float(second) else
+    second_side]` -> `return "N"`
+Break: score/stages/earth_seed/design_shell.py: `"vault" if vaulted else "gable" if entry.get("kind") == "pitched" else
+    "shed"` -> `"vault" if vaulted else "gable"`
+Break: score/stages/earth_seed/design_shell.py: `named = entry.get("kind") in words or bool(words - {"dome"})` -> `named =
+    False`
+Break: score/stages/scene_record/writer.py: `return tube_rib(row, item, design, number, middle, band)` -> `pass`
+Break: score/stages/scene_record/writer.py: `found.append(design_shell.shed_high(piece, spot))` -> `pass`
+
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
 score/stages/earth_seed/test_a_scene_s_base_stands_from_its_design.py
 """
@@ -356,6 +375,111 @@ def test_a_scene_s_base_stands_from_its_design(tmp_path, monkeypatch):
         assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, \
             (label, "the record's is not the seed's")
 
+    # --- the shapes the concepts draw (#128, 2026-11-15: the camp's 8 m domes stood as drums with flat tops, the
+    # tube's hull an arc as tall as it was wide between flat walls, the greenhouse's and hub's pits never built, their
+    # glass roofs opaque, every shed roof a gable). A dome written with no rise is a half sphere on the round wall it
+    # stands on (ROOM's round wall of 1.4 m: rise 1.4, from 4 - 1.4 = 2.6 m), and each wall under a dome meets its
+    # cap: ROOM's north wall, its line 1.5 m from the dome's middle, stands to the cap there.
+    round_wall_of = {"arc": {"centre": [2.0, 1.5], "radius": 1.4, "start": 0.0, "end": 359.0}, "thick": 0.2,
+                     "tall": 4.0}
+    flat_dome = dict(ROOM, walls=ROOM["walls"] + [round_wall_of],
+                     roofs=[{"kind": "dome", "points": BOX, "eave": 4.0, "top": 4.0}])
+    (dome_one,) = dict((name, parts) for name, parts, _ in design_shell.pieces(flat_dome))["roof_1"]
+    assert numpy.allclose([*dome_one["centre"], dome_one["radius"], dome_one["base"], dome_one["rise"]],
+                          [2.0, 1.5, 1.4, 2.6, 1.4]), dome_one
+    domed_box = dict(ROOM, roofs=[{"kind": "dome", "points": BOX, "eave": 2.5, "top": 4.0}])
+    (cap_piece,) = design_shell.domes_of(domed_box)
+    north = numpy.asarray(shell_of(domed_box)["wall_1"]).reshape(-1, 3)
+    assert abs(north[:, 1].max() - design_shell.dome_high(cap_piece, 1.5)) < 1e-9 and north[:, 1].max() > 2.5 \
+        and abs(north[:, 1].max() - design_shell.wall_height(domed_box, ROOM["walls"][0], 2.5,
+                                                             ([0.0, 0.0], [4.0, 0.0]))) < 1e-9, north[:, 1].max()
+    assert design_shell.round_wall(flat_dome, BOX) == {"centre": [2.0, 1.5], "radius": 1.4}, round_wall_of
+    # a walkway tube (radius 1.6, axis 1.1, glass 38 to 104 degrees off its crown) on a 3.2 x 10 m box, open at both
+    # ends: no wall along its run, its end walls no higher than its crown (2.7 m), its hull the circle from deck to
+    # deck in five bands (the circle meets the deck at acos(-1.1 / 1.6) = 133.43 degrees), two of them glass, laid as
+    # their own part; its rib round the circle, carried asin(1.1 / 1.6) = 43.43 degrees under its axis to the deck
+    run_box = [[0.0, 0.0], [3.2, 0.0], [3.2, 10.0], [0.0, 10.0]]
+    tube = dict(ROOM, shape="tube", radius=1.6, axis=1.1, glass=[38.0, 104.0], outline=run_box, w=3.2, d=10.0,
+                walls=[{"from": [0.0, 0.0], "to": [0.0, 10.0], "thick": 0.1, "tall": 3.2},
+                       {"from": [3.2, 0.0], "to": [3.2, 10.0], "thick": 0.1, "tall": 3.2}],
+                roofs=[{"kind": "vault", "points": run_box, "eave": 0.0, "top": 3.2}],
+                openings=[{"kind": "opening", "at": [1.6, y], "wide": 2.2, "sill": 0.0, "head": 2.6, "to": "hub"}
+                          for y in (0.0, 10.0)])
+    tube_parts = dict((name, parts) for name, parts, _ in design_shell.pieces(tube))
+    assert sorted(name for name in tube_parts if name.startswith("wall")) == ["wall_1", "wall_3"], tube_parts.keys()
+    assert all(abs(piece["high"] - 2.7) < 1e-9 or piece["high"] < 2.7 for name in ("wall_1", "wall_3")
+               for piece in tube_parts[name]), tube_parts["wall_1"]
+    bands = tube_parts["roof_1"]
+    assert [round(value, 2) for piece in bands for value in piece["span"]] == \
+        [-133.43, -104.0, -104.0, -38.0, -38.0, 38.0, 38.0, 104.0, 104.0, 133.43] and \
+        [bool(piece.get("glass")) for piece in bands] == [False, True, False, True, False], bands
+    hull = numpy.vstack([numpy.asarray(design_shell.solid(piece)).reshape(-1, 3) for piece in bands])
+    assert abs(hull[:, 1].min()) < 1e-6 and abs(hull[:, 1].max() - 2.7) < 1e-6 and \
+        abs(hull[:, 0].min()) < 1e-3, (hull[:, 1].min(), hull[:, 1].max(), hull[:, 0].min())
+    assert {name for name, _, _ in design_shell.room(tube)} >= {"roof_1", "glass_1"}
+    hull_entry = writer.shell_entry("roof_1", 0, bands[0], tube, "")
+    drawn = numpy.vstack([mesh["points"] for mesh in scene.built_meshes(dict(hull_entry, surface=None))])
+    seed_band = design_shell.placed(numpy.asarray(design_shell.solid(bands[0])).reshape(-1, 3), tube)
+    assert numpy.linalg.norm(seed_band[:, None] - drawn[None], axis=2).min(axis=1).max() < 1e-3, "tube band"
+    rib = writer.arch_entry({"id": "ribs", "size": [3.2, 0.2, 3.2]}, ["RIBS 1", 0.0, 4.9, 3.2, 0.2, None, "item"],
+                            {}, tube, 1)
+    ring = numpy.vstack([mesh["points"] for mesh in scene.built_meshes(dict(rib, surface=None))])
+    plan_ring = numpy.column_stack([ring[:, 0], ring[:, 1], ring[:, 2]]) - design_shell.placed([[[1.6, 1.1, 5.0]]],
+                                                                                              tube)[0]
+    reach = numpy.hypot(plan_ring[:, 0], plan_ring[:, 1])
+    assert abs(reach.max() - 1.6) < 1e-6 and abs(reach.min() - 1.4) < 1e-6 and \
+        numpy.abs(plan_ring[:, 2]).max() < 0.1 + 1e-6, (reach.min(), reach.max(), numpy.abs(plan_ring[:, 2]).max())
+    # a pit: a level 1 m under the floor of a 10 x 10 m room, 4 x 4 m in its middle, cuts the floor's deck open over
+    # it (100 - 16 square metres left, 0.2 m thick) and stands a wall round it from under its deck up to the floor; a
+    # data plan's pit (the hub's {radius, floor}) is that level, a circle round the room's middle
+    hall = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]]
+    hole = [[3.0, 3.0], [7.0, 3.0], [7.0, 7.0], [3.0, 7.0]]
+    pitted = dict(ROOM, outline=hall, w=10.0, d=10.0, walls=[], openings=[], roofs=[],
+                  levels=[{"name": "floor", "height": 0.0, "points": hall},
+                          {"name": "pit", "height": -1.0, "points": hole}])
+    pit_shell = shell_of(pitted)
+    floor_area = abs(volume(pit_shell["deck_1"])) / design_shell.SLAB
+    grown_side = 10.0 + 2 * design_shell.BACKING
+    assert abs(floor_area - (grown_side ** 2 - 16.0)) < 1e-6, floor_area
+    pit_wall = numpy.asarray(pit_shell["wall_5"]).reshape(-1, 3)
+    assert abs(pit_wall[:, 1].min() + 1.2) < 1e-9 and abs(pit_wall[:, 1].max()) < 1e-9 and \
+        abs(volume(pit_shell["wall_5"]) - 4 * 4.0 * design_shell.THICK * 1.2) < 0.4, volume(pit_shell["wall_5"])
+    hub_pit = design_shell.levels_of(dict(pitted, levels=pitted["levels"][:1], pit={"radius": 2.0, "floor": -0.9}),
+                                     hall)
+    assert len(hub_pit) == 2 and hub_pit[1]["height"] == -0.9 and design_shell.pits(hub_pit) == {1: 0} and \
+        numpy.allclose(numpy.linalg.norm(numpy.subtract(hub_pit[1]["points"], [5.0, 5.0]), axis=1), 2.0)
+    assert design_shell.pits([pitted["levels"][0], dict(pitted["levels"][0], height=3.0)]) == {}, "a storey is no pit"
+    # a shed roof falls one way, to the side its words give the lower ceiling (the front the plan's north), a flat
+    # roof written rising too; its five faces a closed solid (BOX grown 0.15 m: 4.3 x 3.3 m, 0.5 m rise, half of it on
+    # average), each a quad the scene record draws as the seed's
+    sloped = dict(ROOM, walls=[], height="ceiling 2.5 m at the back, 3.0 m at the front",
+                  roofs=[{"kind": "shed", "points": BOX, "eave": 2.5, "top": 3.0}])
+    shed_faces = dict((name, parts) for name, parts, _ in design_shell.pieces(sloped))["roof_1"]
+    assert len(shed_faces) == 5 and {(face["builder"], face["low"]) for face in shed_faces} == {("quad", "S")}, \
+        shed_faces
+    assert design_shell.shed_low(dict(ROOM), {"kind": "shed"}) == "N" and \
+        design_shell.shed_low(ROOM, {"kind": "shed", "low": "E"}) == "E"
+    roof_solid = [triangle for face in shed_faces for triangle in design_shell.solid(face)]
+    assert abs(volume(roof_solid) - 4.3 * 3.3 * 0.25) < 1e-6, volume(roof_solid)
+    seed_shed = design_shell.placed(numpy.asarray(roof_solid).reshape(-1, 3), sloped)
+    shed_drawn = numpy.vstack([mesh["points"] for number, face in enumerate(shed_faces) for mesh in scene.built_meshes(
+        dict(writer.shell_entry("roof_1", number, face, sloped, ""), surface=None))])
+    assert numpy.linalg.norm(seed_shed[:, None] - shed_drawn[None], axis=2).min(axis=1).max() < 1e-6, "shed"
+    under = [writer.roof_under(sloped, spot) for spot in ([2.0, 3.1], [2.0, -0.1])]  # 0.05 m in from each edge
+    assert numpy.allclose(under, [2.5 + 0.5 * 0.05 / 3.3, 3.0 - 0.5 * 0.05 / 3.3]), under
+    assert dict((name, parts) for name, parts, _ in design_shell.pieces(dict(sloped, roofs=[dict(
+        sloped["roofs"][0], kind="flat")])))["roof_1"][0]["builder"] == "quad"
+    # glass: the words' glass dome, a roof row that says glass; a roof the plan writes keeps its word
+    glazing = [("the words name a glass dome", dict(domed_box, height="walls 2.5 m under a glass dome"), [], True),
+               ("a roof row says glass", domed_box, [{"part": "roof", "name": "glass roof window"}], True),
+               ("a wall row's glass is no roof's", domed_box, [{"part": "wall", "name": "glass wall"}], False),
+               ("the plan writes it opaque", dict(domed_box, roofs=[dict(domed_box["roofs"][0], glass=False)],
+                                                  height="a glass dome"), [], False),
+               ("a flat roof is never glazed by words", dict(ROOM, height="a glass roof"), [], False)]
+    for label, plan, rows, expected in glazing:
+        roof_pieces = dict((name, parts) for name, parts, _ in design_shell.pieces(design_shell.glazed(plan, rows)))
+        assert all(bool(piece.get("glass")) is expected for piece in roof_pieces["roof_1"]), label
+
     # --- openings: a row filling an opening (door, window, gate, hatch or shutter, a panel) cuts one at its item on a
     # wall, its own wide, from its shape's base to its top; one at the plan's own opening cuts none more; a box is no
     # panel and a panel-shaped lid fills none (2026-10-26: Batch 1's doors and windows stood against uncut walls). The
@@ -474,6 +598,8 @@ def test_a_scene_s_base_stands_from_its_design(tmp_path, monkeypatch):
         ("a roof's is the ceiling's", design_shell.surface_for("roof", library), "ceiling_panel"),
         ("a wall the library gives none has none", design_shell.surface_for("wall", library), None),
         ("no library, no surface", design_shell.surface_for("wall", None), None),
+        ("glass takes the roof's where the library names no glass or window", design_shell.surface_for("glass", library),
+         "ceiling_panel"),
         ("a kind the library names none of says so",
          "names no surface" in design_shell.missing_why("x", "wall", library), True),
         ("no library says it is not made", "not made" in design_shell.missing_why("x", "wall", None), True)]
