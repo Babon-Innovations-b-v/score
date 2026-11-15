@@ -497,6 +497,12 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     Break: score/review/plans.py: doors_led's `opening["to"] = None` dropped
     Break: score/review/plans.py: doors_led's `or doors_to(as_held(once_held[sibling], found), place)` dropped
     Break: score/review/plans.py: doors_led's `{sibling, opening.get("to")} & named` made `set()`
+    A missing thing with no SAM box is placed where its Gemini region projects (camp's small rocks, 2026-11-15).
+    Break: score/review/plan_fixes.py: placed_missing's `plan_checks.seen_boxes(row, inventory.get("picture"))` made
+        `plan_checks.boxes_of(row)`
+    A redrawing of a writing is laid over it with its doorways so led, never over the raw writing.
+    Break: score/review/plans.py: redrawn's `shown = doors_led(store, place, doors_known(store, place,
+        shown_plan(store, place)))` made `shown = shown_plan(store, place)`
     A doorway its own hold leads elsewhere is judged there (the base's airlock door to the hub, led to tube#3).
     Break: score/review/plans.py: doors_led's `led = as_held(once_held[place], plan).get("openings") or []` made
         `led = plan.get("openings") or []`
@@ -2058,6 +2064,11 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         written(plan_store, "barn", {**barn, "leads": {"W": {"to": "shed"}}})  # a fixed door: left for the gate to show
         assert [opening["to"] for opening in plans.current(plan_store, "barn")["plan"]["openings"]] == ["shed", "yard"]
         written(plan_store, "barn", barn)
+        # a redrawing of such a writing keeps its doorway led nowhere: laid over the writing as shown, never raw (the
+        # street's redrawing of 2026-11-15 kept its door to the stairwell, plan@square's held gate)
+        plans.redrawn(plan_store, "barn", {"notes": "its cart stays"}, "an agent", asked)
+        assert [opening["to"] for opening in plans.newest_edit(plan_store, "barn")["plan"]["openings"]] == [None, "yard"]
+        plans.edit_replaced(plan_store, "barn", "an agent", asked)
         yard_holds = plans.current(plan_store, "yard")["plan"]["holds"]
         plans.edited(plan_store, "yard", {**edit, "holds": [yard_holds[0], {**yard_holds[1], "leads": {"shed": "pipe#1"}}, {
             "place": "pipe", "row": None, "x": 5.0, "y": 0.0, "w": 5.0, "d": 2.0, "instance": "pipe#1"}]}, "joey")
@@ -3986,6 +3997,13 @@ FIXED = [  # (row, the plan writer's fix, its arguments, the answer as `holds` r
      placed_where_shown, one_laid("sack", "a knee high pile"), placed_said("sack"), missing_placed("SACK", 0.2)),
     ("missing things of a row whose words do not pile stand on the floor", placed_where_shown,
      one_laid("railing", "waist high"), placed_said("railing"), missing_placed("RAILING", None)),
+    # 2026-11-15: camp's small rocks rock_6 and rock_10, read whole with no SAM box, stayed off its plan
+    ("a missing thing with no SAM box is placed where its Gemini region projects", placed_where_shown,
+     (stand_in_plan(), {"picture": [1000, 1000], "rows": [*ROWS, {"id": "rock", "count": 1, "size": [0.2, 0.1, 0.1],
+                                                                  "region": [500, 600, 600, 700]}]}),
+     ["barrel: 1 more placed where the concept shows them", "rock: 1 more placed where the concept shows them"],
+     {"items": [*stand_in_plan()["items"], ["BARREL 2", 1.5, 6.5, 1.0, 1.0, None, "item"],
+                ["ROCK 1", 6.4, 5.95, 0.2, 0.1, None, "item"]]}),
     ("a box of four things drawn apart as one is a run gap", plan_checks.run_gaps, (TREES, TREE_ROW),
      [{"kind": "arrangement", "item": "TREE 1"}], None),
     ("a box of things drawn apart is split round its spread, each its own size and shape", plan_fixes.split_runs,

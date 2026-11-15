@@ -197,7 +197,9 @@ def piled(plan, row, box, tall):
 
 def placed_missing(plan, inventory, project):
     """Each row on the floor placed fewer times than the concept counts given its missing things where its boxes
-    project, those nearest a thing already laid taken as that one's; a thing of a row that piles whose footprint
+    project (SAM 3's, else its Gemini region's: plan_checks.seen_boxes; camp's small rocks rock_6 and rock_10, read
+    whole with no SAM box, stayed off its plan, 2026-11-15), those nearest a thing already laid taken as that one's; a
+    thing of a row that piles whose footprint
     crosses one of its row's piled on it (piled), never standing in it; the fixes said."""
     if project is None:
         return []
@@ -207,7 +209,7 @@ def placed_missing(plan, inventory, project):
             continue
         laid = [(item, shape) for item, row_id, shape in plan_checks.placed_items(plan) if row_id == row["id"]]
         placed = sum(int((shape or {}).get("count") or 1) for _, shape in laid)
-        spots = [project(box) for box in plan_checks.boxes_of(row)]
+        spots = [project(box) for box in plan_checks.seen_boxes(row, inventory.get("picture"))]
         for item, shape in laid:  # each laid thing takes the spots nearest it, as many as it counts
             middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
             for _ in range(int((shape or {}).get("count") or 1)):

@@ -1308,8 +1308,11 @@ def redrawn(store, place, changes, by, asked):
     its tubes meet them, the tube drawn as its 3.2 m section): `changes`, fields of REDRAWN, laid over the plan shown
     now (`shown_plan`), its holds and items checked as his edit's are, its openings each a doorway or window on a spot,
     its free checks run again; kept as an edit (how: redrawn) with `asked` ({words, at, reason}); the record. Refused
-    on any other field, a size or spot that is no number, or with no plan shown yet."""
-    shown = shown_plan(store, place)
+    on any other field, a size or spot that is no number, or with no plan shown yet. A writing is redrawn with its
+    doorways led as it is shown (`doors_known`, `doors_led`): laid over it raw, the redrawing kept the doors those
+    steps lead nowhere, and as an edit no step leads them again (the street's redrawing of 2026-11-15 kept its door
+    to the stairwell, plan@square's held check)."""
+    shown = doors_led(store, place, doors_known(store, place, shown_plan(store, place)))
     if shown is None:
         raise Refused(f"{place} has no plan shown yet to redraw")
     unknown = sorted(set(changes) - set(REDRAWN))
