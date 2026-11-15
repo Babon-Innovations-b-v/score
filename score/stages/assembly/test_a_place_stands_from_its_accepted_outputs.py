@@ -224,6 +224,15 @@ def a_resting_place(root, case):
 # declared folder, or none at all, is unknown. Round 32's docking airlock (2026-11-11): its door's window and its suit
 # in its locker, laid within their holders by the plan, failed as overlaps "still inside after the nudge": a window the
 # record lays 30 cm within its door passes; the same pair with no planned relation, or laid on it, still fails.
+# airlock's porch post (assembly@airlock, 2026-11-15): a structure row on the ground, dropped as loose furniture, turned
+# 14 degrees about its upright on its 2.5 cm foot and failed unstable twice: a built post standing on the ground is
+# fixed where it stands and passes the same drop; an object row, or a structure row whose own support says it stands
+# loose, still fails it.
+YAW = np.radians(14.0)
+TURNED = {"objects": {"post_1": {"motion": [[np.cos(YAW), 0.0, np.sin(YAW), 0.0], [0.0, 1.0, 0.0, 0.0],
+                                            [-np.sin(YAW), 0.0, np.cos(YAW), 0.0], [0.0, 0.0, 0.0, 1.0]],
+                                 "inside": [], "moving": 0.0}}}
+POSTED = {"pieces": [("post", "box", (6, 0, 0))], "fixed in kit": [], "evidence": TURNED}
 SUNK = {"pieces": [("plate", "box", (6, -0.4, 0))], "rows": [row("plate", group="kit: floor")]}
 PAIR = {"pieces": [("door", "box", (6, 0, 0)), ("window", "box", (6.3, 0, 0))], "rows": [row("door"), row("window")],
         "fixed in kit": []}
@@ -242,6 +251,12 @@ RESTED = [
      "record": [DOOR_1, {"name": "window_1", "row": "window", "on": {"how": "within", "holder": ["door_1"]}}]},
     {"name": "a window laid on its door's top", **PAIR, "answer": checks.FAIL,
      "record": [DOOR_1, {"name": "window_1", "row": "window", "on": {"how": "top", "holder": ["door_1"]}}]},
+    {"name": "a built post on the ground turned in the drop", **POSTED, "answer": checks.PASS,
+     "rows": [row("post", anchor="ground", part="structure")]},
+    {"name": "an object post on the ground turned in the drop", **POSTED, "answer": checks.FAIL, "finding": "unstable",
+     "rows": [row("post", anchor="ground", part="object")]},
+    {"name": "a built post saying it stands loose turned in the drop", **POSTED, "answer": checks.FAIL,
+     "finding": "unstable", "rows": [row("post", anchor="ground", part="structure", support="floor")]},
 ]
 
 
@@ -3042,6 +3057,9 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         or resting_within.py: `and not planned_overlap(fault, within)]` -> `]` (a window laid within its door)
     Break: score/stages/assembly/resting_within.py: laid_within's `== "within"}` -> `in ("within", "top")}` (a window
         laid on its door's top)
+    Break: score/stages/assembly/resting_within.py: built_standing's `if row.get("part") == "structure"` -> `if False`
+        (a built post on the ground turned in the drop), or `and not row.get("support")` -> `` (a built post saying
+        it stands loose)
     Break: score/stages/assembly/__init__.py: `"inventories": "{home}/design/inventory"` -> `"inventories":
         "{data}/inventory"` (earth-seed's folder)
     Break: score/stages/assembly/__init__.py: `return pathlib.Path(inventories) / pathlib.Path(named).name if named else
@@ -4176,7 +4194,7 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         name = case["name"]
         output, world = a_resting_place(tmp_path / "rested" / str(number), case)
         evidence = output.parent / "settled.json"
-        evidence.write_text(json.dumps({"objects": {}}))
+        evidence.write_text(json.dumps(case.get("evidence", {"objects": {}})))
         verdict = judge_resting(output, world, evidence)
         assert verdict.answer == case["answer"], f"{name}: {verdict.answer}, {verdict.reason}, {verdict.findings}"
         if "finding" in case:
