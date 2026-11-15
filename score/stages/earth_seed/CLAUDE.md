@@ -39,7 +39,8 @@ the gates.
 - **Each part's surface is the scene's own surface library's** (surface-library@<place>, its `materials.json`, read
   as an `after`; a place with no surface line reads without it): the first variant its `kinds` gives the part's kind
   (`PART_KINDS`, palette_library.SHELL_KINDS: a deck the floor's, a wall the wall's, a roof the roof's else the
-  ceiling's), laid under /<place>/Library and bound; none, and the part names why (`score:surface:missing`), never
+  ceiling's; a glass part the `glass` kind's, which the library is asked wherever `shell_parts.glazes`, its glass
+  recipe variant carrying `opacity` so the flat surface is seen through), laid under /<place>/Library and bound; none, and the part names why (`score:surface:missing`), never
   painted another way. A prop's paint takes the same shell surfaces (palette_library.shell_surfaces). Every part is a
   static collider (kind structure, `score:plain shell`), so the collision gate holds it and the placeholder gate reads
   it as the scene's own shell.

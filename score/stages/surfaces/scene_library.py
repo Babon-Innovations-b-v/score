@@ -51,6 +51,10 @@ SETTINGS = ("roughness", "metal")
 # (its `pictures` are empty), so none is offered or kept (surface-library@people, 2026-10-22: suit_patches as `printed`
 # with no picture stopped the bake, recipes.arguments wanting its `image`).
 PICTURED = ("screen", "printed")
+# The rust rule (#128, 2026-11-15): asked with no word on it, 13 of env1's scene libraries made rusted_metal of plain
+# worn steel (docking_airlock's seat frame, tube's lamp cage, lab's door slab, habitat's rim trim, greenhouse's hull
+# panels and stair iron), and its blooms at the scene's wear baked orange rust over doors, railings, lamps and
+# consoles whose close-ups are grey (greenhouse's wall lamp 64% of its area off, the hub's consoles).
 QUESTION = """You make the surface library of one 3D scene: every surface its objects and structure are painted
 with, each a variant of one procedural recipe, in the scene's own palette tokens. {pictures}
 The scene's palette (token: colour, what wears it):
@@ -70,7 +74,10 @@ from the palette, its roughness and metal from 0 to 1, its colours (a token of t
 above, the colour that setting draws on this surface), the surface it sounds like, and the kinds it is for. Choose each recipe by what the surface is and how it is
 made, its token by its colour in the picture. A recipe that draws a pattern of its own (a quilt, tiles, a grid,
 boards, a mottled pile, rows of writing) is only for a surface the picture shows with that pattern; a plain surface
-takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face: where the picture shows a pile or a
+takes a plain recipe. A recipe that rusts (rusted_metal) blooms rust over the whole surface as far as the scene's
+wear: it is only for a surface the picture shows orange-brown rust over much of; worn, scuffed, grimy, dark or
+rust-streaked steel, paint or trim takes a plain metal or paint recipe, the scene's wear and dirt its own. A kind
+"glass" is the shell's clear glass, seen through: give it the glass recipe. A flat sheet (a kind marked so) shows nothing but its face: where the picture shows a pile or a
 mottle on it, or writing or print, give it the recipe that draws that (pile; written, its ink the second colour). A
 thing that shows a picture (a kind marked so: a photo, a print, a painting) is painted with its picture, never its
 glass or one plain colour: give the picture the recipe that draws print (written), its token the picture's main colour
