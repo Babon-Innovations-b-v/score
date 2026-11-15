@@ -129,14 +129,22 @@ def cut_out(closeup, folder):
 
 def write_take(take, row, closeup, faces, pixal, cuts):
     """The take's files (module docstring) in `pixal` from its passed `closeup`, cut out into `cuts`; the Pixal3D
-    take's files there are removed first."""
+    take's files there are removed first, the folder held (pixal_takes.held) from that removal to the last file, so
+    no take_back puts the Pixal3D take's files back between."""
     import trimesh
-    if (pixal / f"{take}.svviews").exists():
-        thin_straight.unbuild(take, pixal)
+    import score.stages as stages
     picture = Image.open(cut_out(closeup, cuts)).convert("RGBA")
     mesh = build(row, picture)
     mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
         baseColorFactor=[*(thin_straight.colour(picture) / 255.0), 1.0]))
+    with stages.pixal_takes_tool().held(pixal):
+        return written(take, row, closeup, faces, pixal, picture, mesh)
+
+
+def written(take, row, closeup, faces, pixal, picture, mesh):
+    """The take's camera folder, its built `mesh` and `picture` written in `pixal` in place of its Pixal3D take's."""
+    if (pixal / f"{take}.svviews").exists():
+        thin_straight.unbuild(take, pixal)
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True)
     picture.save(views / "input.png")

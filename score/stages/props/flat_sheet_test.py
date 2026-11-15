@@ -10,7 +10,10 @@ pixal_row.sheet_builds building only takes with no finished model again (`and no
 flat_sheet.flat_model(...))` -> `and not finished(...)`) turns
 test_the_pixal_row_builds_a_sheet_whose_finish_made_no_model_and_keeps_it red (the paper's lump kept); flat_model
 always False turns it red too (the flat mat rebuilt), and flat_model at the row's SHEET_SHARE again turns it red (the
-framed door rebuilt as a one-colour sheet).
+framed door rebuilt as a one-colour sheet). write_take writing without holding its folder (`with
+stages.pixal_takes_tool().held(pixal):` dropped) turns
+test_the_take_replaces_the_pixal3d_one_where_the_finish_route_and_the_likeness_row_read_it red (another holder, such
+as another process's take_back, gets the folder between the Pixal3D take's removal and the build's own files).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/flat_sheet_test.py
 """
@@ -122,7 +125,23 @@ def test_the_take_replaces_the_pixal3d_one_where_the_finish_route_and_the_likene
     (pixal / "q_rug.svviews/transforms.json").write_text("{}")
     (pixal / "q_rug.glb").write_text("raw")
     picture = closeup(tmp_path / "rug.png")
+    import fcntl
+    import os
+    unbuild, kept_out = thin_straight.unbuild, []
+
+    def unbuilt(take, folder):
+        """The removal, then another holder of the folder asked for it (take_back's lock, pixal_takes.held)."""
+        unbuild(take, folder)
+        handle = os.open(folder, os.O_RDONLY)
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            kept_out.append(take)
+        finally:
+            os.close(handle)
+    monkeypatch.setattr(thin_straight, "unbuild", unbuilt)
     flat_sheet.write_take("q_rug", RUG, picture, 19000, pixal, tmp_path / "cut")
+    assert kept_out == ["q_rug"]  # no take_back puts the Pixal3D take back while the build replaces it
     assert sorted(path.name for path in pixal.iterdir()) == ["q_rug-19000.glb", "q_rug-final.glb", "q_rug.glb",
                                                             "q_rug.svviews"]
     assert sorted(path.name for path in (pixal / "q_rug.svviews").iterdir()) == ["code.json", "input.png"]

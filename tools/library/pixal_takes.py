@@ -9,6 +9,7 @@ with `-` as `_`; its title is the take's own name).
     pixal_takes.take_back(take, folder)     # the take's missing files fetched back into `folder`; the names put back
     pixal_takes.taken_in(takes, folder)     # the takes committed to the library through `score-lib take-in --save`
     pixal_takes.read_back(take, folder)     # None when the library hands back every file at its size and hash
+    with pixal_takes.held(folder): ...      # the folder's takes this process's alone while the block runs
 
 `take_back` is what every reader of work/pixal goes through: score/stages/__init__.py calls it for a row's takes
 before the row's files are read, so a take freed by `offload-pixal` (score/conductor/disk.py) comes back, the same
@@ -16,6 +17,8 @@ bytes, before anything reads or hashes it. Nothing here makes or changes a take:
 (score/graph/_code.py FRAMEWORK). The library is reached as library_files.py reaches it (its own command, its entry
 records read only for each file's sha256).
 """
+import contextlib
+import fcntl
 import functools
 import json
 import os
@@ -85,17 +88,35 @@ def take_back(take, folder):
     and linked in its place, made beside it and renamed in; the names put back ([] when none was missing or the
     library holds no such take). LibraryUnreachable when the library holds it and cannot hand it back."""
     folder = pathlib.Path(folder)
-    if all((folder / f"{take}{suffix}").exists() for suffix in (".glb", "-final.glb", ".svviews")):
-        return []
-    record = newest_record(take)
-    if record is None:
-        return []
-    missing = [name for name in sorted(record["files"]) if not (folder / name).exists()]
-    for name in missing:
-        reference = library_files.reference(record["address"], name)
-        cached = library_files.from_library(reference, library_files.parsed(reference))
-        placed(cached, folder / name)
-    return missing
+    with held(folder):
+        if all((folder / f"{take}{suffix}").exists() for suffix in (".glb", "-final.glb", ".svviews")):
+            return []
+        record = newest_record(take)
+        if record is None:
+            return []
+        missing = [name for name in sorted(record["files"]) if not (folder / name).exists()]
+        for name in missing:
+            reference = library_files.reference(record["address"], name)
+            cached = library_files.from_library(reference, library_files.parsed(reference))
+            placed(cached, folder / name)
+        return missing
+
+
+@contextlib.contextmanager
+def held(folder):
+    """The block run with `folder` (a work/pixal) locked to this process: an exclusive flock on the folder itself, so
+    `take_back` never puts a take's files back while a code build replaces them (flat_sheet.write_take: removed,
+    then written). Another process's take_back ran between the two (stairwell's open door, 2026-11-16: the runner's
+    files pass for another node put the Pixal3D take's camera folder back, and the build's own folder was then
+    "File exists"). Not re-entrant: a block never takes it twice."""
+    folder = pathlib.Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    handle = os.open(folder, os.O_RDONLY)
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield folder
+    finally:
+        os.close(handle)
 
 
 def placed(cached, target):
