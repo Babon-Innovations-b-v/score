@@ -110,9 +110,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 high within that batch total, every try's spend in it (owner,
                                                 2026-10-26: "the stop should be a total of the batch, not per try")
                                                 (score/dashboard/checkout/chat_yes.py); prints its id
-    release-pin <commit> <replaced pin>         the release's commit noted for update.py (followed while the
-                                                cockpit still pins the replaced one), then the update run once:
-                                                `score.dashboard release` asks it, so the door runs the released code
+    release-pin <commit> <replaced pin>         the commit noted, then update.py run once; since update.py follows
+                                                origin/main (the cockpit went, 2026-11-16) only a conductor still on
+                                                the old update.py reads the note (the one move onto the new one)
     buy <yes id> [--phase <phase>]              python -m score.dashboard buy: his Buy under that yes, once, as his
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,

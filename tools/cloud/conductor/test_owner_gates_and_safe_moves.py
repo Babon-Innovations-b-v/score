@@ -99,8 +99,8 @@ The health record (health_push.py) errs on busy:
   `and token() is not None` -> `` (the link stays without the secret, NotHere never fires).
 
 The checkout moves (update.py):
-- It follows the cockpit's pin, refuses a pin off main, follows origin/main forward only while the cockpit has none,
-  and moves nothing when the pin cannot be read. Break: fall back to origin/main when the pin read fails.
+- It follows origin/main forward only (the cockpit whose pin it followed went, owner 2026-11-16), and refuses a checkout
+  not behind it. Break: `target` drops the ancestor check.
 - `.venv` (and after the move the prop environment) syncs only when uv.lock moved; a missing prop environment is built.
   Break: `lock_changed` always True.
 - It waits while score starts from the checkout, while a run works in its frozen copy, while the checkout has changes;
@@ -110,16 +110,15 @@ The checkout moves (update.py):
   hours for memory held the conductor off its pin). Break: `idle_copies` drops the `running` test -> a working run is
   passed by. Break: drop the `if runs and lock_changed` refusal -> .venv is synced under an idle run.
 - A move that changes units/ installs them (`boot.sh units`), so a new unit is live without a boot; the pinned Claude
-  Code is installed by a move when it is not there; a release's commit noted by the door's release-pin is followed
-  while the cockpit still pins the commit it replaced.
+  Code is installed by a move when it is not there; the door's release-pin runs the update at once.
   Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
-  Break: `units_installed` returns "". Break: `claude_installed` returns "". Break: `released_over` returns the pin
-  first. Break: agent_door.release_pinned drops its `run(...)` of update.py.
-  (These cases are rows of CASES, each break seen red: the pin read -> unread-pin-moves-nothing; `lock_changed` ->
+  Break: `units_installed` returns "". Break: `claude_installed` returns "". Break: agent_door.release_pinned drops
+  its `run(...)` of update.py.
+  (These cases are rows of CASES, each break seen red: the ancestor check -> ahead-of-main-refused; `lock_changed` ->
   a-pin-reached-moves-and-syncs-nothing; `idle_copies` -> running-run-holds-any-move; the idle-run refusal ->
   idle-run-holds-a-lock-move; `frozen_users` -> frozen-run-holds-any-move; `pass_updates_first` ->
   sync-pass-holds-a-lock-move, and returning False -> sync-pass-of-a-unit-updating-first, whose unit is the one
-  rendered for the boot's checkout; `released_over` and release_pinned -> release-followed-before-the-host-builds;
+  rendered for the boot's checkout; release_pinned -> release-pin-runs-the-update;
   `units_installed` -> units-changed-installed; `claude_installed` -> claude-code-pinned-installed.)
 - score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
   moves, and an identity it has stays (2026-10-28: every library commit on the conductor failed for want of one).
@@ -958,7 +957,7 @@ def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(doo
     checkout, env_file = booted_home / "projects" / "score", booted_home / ".config" / "score" / "dashboard.env"
     sync_units = [units / name for name in ("score-sync.service", "score-sync.timer")]  # where install-sync puts them
     for path in sync_units:
-        path.write_text(timer.unit_text(path.name, checkout, env_file, timer.SECRET, pull=False))
+        path.write_text(timer.unit_text(path.name, checkout, env_file, pull=False))
     verified = subprocess.run(["systemd-analyze", "--user", "verify", *map(str, sync_units)], capture_output=True,
                               text=True)
     assert verified.returncode == 0 and not (verified.stderr + verified.stdout).strip(), verified.stderr
@@ -1370,7 +1369,7 @@ def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(doo
         # Two updates take turns on the checkout's lock.
         called = []
         with pytest.MonkeyPatch.context() as patched:
-            patched.setattr(update, "update", lambda repo, url: called.append(repo) or "update: at test")
+            patched.setattr(update, "update", lambda repo: called.append(repo) or "update: at test")
             with open(world.checkout / ".git" / "score-update.lock", "w") as held:
                 fcntl.flock(held, fcntl.LOCK_EX)
                 second = threading.Thread(target=update.main, args=(["--repo", str(world.checkout)],))
@@ -1577,9 +1576,7 @@ OPTIONAL = ("google-billing-reader", "score-k8s-kubeconfig", "score-k8s-settings
 
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org", "GIT_COMMITTER_NAME": "t",
            "GIT_COMMITTER_EMAIL": "t@example.org", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
-TOKEN = "t" * 40
-HOSTED = "hosted"  # a cockpit that pins nothing yet (its mode, no commit)
-ABSENT = "absent"  # pin.json holds no pin: the update stopped before it read one
+ABSENT = "absent"  # pin.json holds no commit: the update stopped before it fetched main
 RUN = b"/x/.venv/bin/python\0-m\0score\0run\0world1\0"
 SYNC_PASS = b"/x/.venv/bin/python\0-m\0score.dashboard\0sync\0"
 RENDERED = "rendered"  # the sync unit as timer.unit_text renders it for the boot's checkout
@@ -1601,35 +1598,6 @@ def commit(repo, name, text):
     return git(repo, "rev-parse", "HEAD")
 
 
-@contextlib.contextmanager
-def cockpit(answer):
-    """A local cockpit, its base URL: /api/sync/pin with the token answers what `answer` (a dict, changed between
-    calls) holds, anything else the hosting proxy's own /healthz body or 401, as the proxy and the token check do."""
-    class Health(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            signed_in = self.headers.get("Authorization") == f"Bearer {TOKEN}"
-            if self.path == "/healthz":
-                body, status = json.dumps({"ok": True}).encode(), 200
-            elif self.path == "/api/sync/pin" and signed_in:
-                body, status = json.dumps(answer).encode(), 200
-            else:
-                body, status = b'{"detail": "a sync needs the sync token"}', 401
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(body)
-
-        def log_message(self, *args):
-            pass
-
-    server = http.server.HTTPServer(("127.0.0.1", 0), Health)
-    threading.Thread(target=server.serve_forever, kwargs={"poll_interval": POLL}, daemon=True).start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}"
-    finally:
-        server.shutdown()
-
-
 def origin_commits(origin, boot_log):
     """Main's commits by name (uv.lock, a.txt, uv.lock, boot.sh, a unit, b.txt, boot.sh pinning Claude Code 9.9.9)
     and `side`, one commit on a branch off main."""
@@ -1647,31 +1615,28 @@ def origin_commits(origin, boot_log):
     return commits
 
 
-def case(name, start, pin, *, head=None, has=(), lacks=(), ends="", uv=(), boot=(), noted="pin", token=TOKEN,
+def case(name, start, main, *, head=None, has=(), lacks=(), ends="", uv=(), boot=(), noted="main",
          release=None, home=(), processes=(), registry=None, sync_unit=None, dirty=False, library=None, email=None):
-    """One moment of the conductor's checkout: where it stands (`start`), what the cockpit pins (`pin`, a commit's
-    name or HOSTED), what lives beside it (`home` files, `processes` {pid: (command line, "frozen" or "checkout")},
+    """One moment of the conductor's checkout: where it stands (`start`), where origin's main stands (`main`, a
+    commit's name), what lives beside it (`home` files, `processes` {pid: (command line, "frozen" or "checkout")},
     a `registry` entry (gauges, fresh) for the frozen copy, the installed `sync_unit`, uncommitted changes, score_lib's
-    `library` identity: "none" or an email), whether the door's release-pin brings it (`release`: (commit, replaced));
+    `library` identity: "none" or an email), whether the door's release-pin runs it (`release`: (commit, replaced));
     then what the update leaves: the commit it stands at (`head`, default `start`), words the line has, lacks and ends
-    with, the uv and boot.sh calls made, the pin noted for the Machine card (default the pin read) and score_lib's
+    with, the uv and boot.sh calls made, the commit noted for the Machine card (default main's) and score_lib's
     email."""
-    if noted == "pin":
-        noted = None if pin == HOSTED else pin
-    return dict(name=name, start=start, pin=pin, head=head or start, has=has, lacks=lacks, ends=ends, uv=uv, boot=boot,
-                noted=noted, token=token, release=release, home=home, processes=dict(processes), registry=registry,
+    if noted == "main":
+        noted = main
+    return dict(name=name, start=start, main=main, head=head or start, has=has, lacks=lacks, ends=ends, uv=uv,
+                boot=boot, noted=noted, release=release, home=home, processes=dict(processes), registry=registry,
                 sync_unit=sync_unit, dirty=dirty, library=library, email=email)
 
 
 IN_FROZEN = {5151: (RUN, "frozen")}
 CASES = [
-    # A release's commit, noted through the door's release-pin, is followed while the cockpit still pins the commit
-    # it replaced (the door runs released code before the host has built); a pin that moved on is followed again.
-    case("release-followed-before-the-host-builds", "lock1", "lock1", head="a", release=("a", "lock1"),
-         has=("release-pin: ", "the release's commit"), noted="a"),
-    case("release-passed-by-a-pin-that-moved-on", "a", "lock3", release=("a", "lock1"), head="lock3",
-         has=(".venv synced",), uv=(DASHBOARD_SYNC,)),
-    case("a-pin-reached-moves-and-syncs-nothing", "a", "a", has=("update: at ",)),
+    # The door's release-pin runs the update at once; main reached moves and syncs nothing; a lock move syncs .venv.
+    case("release-pin-runs-the-update", "lock1", "a", head="a", release=("a", "lock1"), has=("release-pin: ",)),
+    case("main-reached-moves-and-syncs-nothing", "a", "a", has=("update: at ",)),
+    case("main-moved-on-syncs-a-lock-move", "a", "lock3", head="lock3", has=(".venv synced",), uv=(DASHBOARD_SYNC,)),
     # A move that changes units/ installs them (2026-10-31: the disk sweep's own timer waited for a boot); the pinned
     # Claude Code is installed by a move when it is not there (owner, 2026-11-05).
     case("units-changed-installed", "lock3", "unit", head="unit", ends=", the units installed", boot=("units",)),
@@ -1686,11 +1651,11 @@ CASES = [
          lacks=("prop environment",)),
     case("lock-move-syncs-the-prop-environment", "lock1", "lock3", head="lock3", home=("machine.json", "env/bin/python"),
          has=("the prop environment synced",), uv=(DASHBOARD_SYNC, PROPS_SYNC)),
-    # A pin off main is refused, an unread pin moves nothing, no pin follows origin/main forward.
-    case("pin-off-main-refused", "lock1", "side", has=("refused",)),
-    case("unread-pin-moves-nothing", "lock1", "a", token="wrong", noted=ABSENT,
-         has=("update: not now, the cockpit's pin could not be read", "401")),
-    case("no-pin-follows-main", "lock1", HOSTED, head="claude", has=("origin/main",),
+    # Main is followed forward only: a checkout ahead of it or off it is refused; main's tip several commits on is
+    # reached in one move.
+    case("ahead-of-main-refused", "a", "lock1", has=("refused", "not behind origin/main")),
+    case("off-main-refused", "side", "claude", has=("refused",)),
+    case("main-followed-to-its-tip", "lock1", "claude", head="claude", has=("origin/main",),
          uv=(DASHBOARD_SYNC,), boot=("units", "claude")),
     # A live run in its frozen copy holds every move; one whose fresh registry entry runs and buys nothing (2026-11-02)
     # holds back only a uv.lock move; a stale entry says nothing of now; score starting from the checkout holds it.
@@ -1711,7 +1676,7 @@ CASES = [
          has=("->",)),
     case("stale-idle-entry-holds", "lock1", "a", processes=IN_FROZEN, registry=({"running": 0, "buys": 0}, False),
          has=("5151",)),
-    case("score-starting-from-the-checkout-holds", "lock1", HOSTED, processes={4242: (RUN, "checkout")},
+    case("score-starting-from-the-checkout-holds", "lock1", "claude", processes={4242: (RUN, "checkout")},
          noted=ABSENT, has=("not now", "4242")),
     # A sync pass holds back only a uv.lock move (2026-10-25); the line names a unit with no update before its pass.
     case("sync-pass-lets-a-move-by", "lock1", "a", head="a", processes={6161: (SYNC_PASS, "checkout")}, has=("->",)),
@@ -1732,7 +1697,7 @@ CASES = [
 def checkout_world(folder, home):
     """User score's `home` as boot.sh left it, its checkout replaced by a clone of an origin (origin_commits) in
     `folder`, with a uv and a boot.sh logging their calls, a proc folder, the data volume as the update's home, the
-    installed sync unit's path, score_lib's place beside the checkout and one cockpit whose answer each case sets."""
+    installed sync unit's path and score_lib's place beside the checkout."""
     origin = folder / "origin"
     origin.mkdir()
     commits = origin_commits(origin, folder / "boot.log")
@@ -1740,13 +1705,11 @@ def checkout_world(folder, home):
     shutil.rmtree(checkout)
     subprocess.run(["git", "clone", "-q", str(origin), str(checkout)], check=True, env={**os.environ, **GIT_ENV})
     uv = executable(folder / "uv", f"#!/bin/sh\necho \"${{UV_PROJECT_ENVIRONMENT:-}} $*\" >> {folder / 'uv.log'}\n")
-    answer = {}
-    with cockpit(answer) as url:
-        yield types.SimpleNamespace(folder=folder, commits=commits, checkout=checkout, uv=uv, url=url, answer=answer,
-                                    home=home / ".farm-factory-props", proc=folder / "proc",
-                                    sync_unit=home / ".config" / "systemd" / "user" / "score-sync.service",
-                                    library=home / "projects" / "score_lib", uv_log=folder / "uv.log",
-                                    boot_log=folder / "boot.log")
+    yield types.SimpleNamespace(folder=folder, commits=commits, checkout=checkout, uv=uv, origin=origin,
+                                home=home / ".farm-factory-props", proc=folder / "proc",
+                                sync_unit=home / ".config" / "systemd" / "user" / "score-sync.service",
+                                library=home / "projects" / "score_lib", uv_log=folder / "uv.log",
+                                boot_log=folder / "boot.log")
 
 
 def stands(world, row):
@@ -1784,9 +1747,7 @@ def stands(world, row):
         subprocess.run(["git", "init", "-q", str(world.library)], check=True)
         if row["library"] != "none":
             git(world.library, "config", "user.email", row["library"])
-    world.answer.clear()
-    world.answer.update({"ok": True, "mode": "hosted"} if row["pin"] == HOSTED else
-                        {"ok": True, "commit": world.commits[row["pin"]]})
+    git(world.origin, "update-ref", "refs/heads/main", world.commits[row["main"]])
 
 
 def moved(world, row):
@@ -1794,8 +1755,8 @@ def moved(world, row):
     import agent_door
 
     def move():
-        return update.update(world.checkout, world.url, uv=str(world.uv), proc=world.proc, token=lambda: row["token"],
-                             home=world.home, sync_unit=world.sync_unit)
+        return update.update(world.checkout, uv=str(world.uv), proc=world.proc, home=world.home,
+                             sync_unit=world.sync_unit)
     if not row["release"]:
         return move()
     ran = []
