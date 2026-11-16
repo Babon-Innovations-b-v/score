@@ -87,6 +87,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   locks the old size) -> test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.apply: the `handed_back(store, yes_id, applied.detail)` after a refused apply dropped (a yes the
   cockpit refused stays used, 2026-11-05) -> test_the_cockpit_gets_the_store_whole_...
+- chat_decisions.request_of: a spend's payload without its `cap` (his "Count it under the env1 cap" lost, C10 refuses
+  the run; 2026-11-16) -> test_the_cockpit_gets_the_store_whole_...
 - state/exported.py: `import numpy` at its top -> test_the_cockpit_gets_the_store_whole_...
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_the_cockpit_gets_the_store_whole_...
 """
@@ -536,14 +538,14 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
          {"kind": "decision", "user": "joey", "payload": {"node": "closeup@alpha", "output": output,
                                                           "decision": "reject", "worse_reason": "", **takes}},
          "", (lambda: world.store.rejects("closeup@alpha")[-1]["takes"], ["stool_1"])),
-        ("spend", "relight-hangar", {"euros": "4", "purpose": "one relight"},
+        ("spend", "relight-hangar", {"euros": "4", "purpose": "one relight", "under_cap": "env1"},
          ({"euros": "2", "purpose": "relight"}, "gone since the question", None),  # the name took a yes since
-         {"override": "relight-hangar", "euros": 4.0, "purpose": "one relight"},
+         {"override": "relight-hangar", "euros": 4.0, "purpose": "one relight", "cap": "env1"},
          {"kind": "spend-override", "user": "joey", "payload": {"name": "relight-hangar", "euros": 4.0,
-                                                                "purpose": "one relight"}},
-         'SCORE_SPEND_TICKET="override relight-hangar"',
-         (lambda: picked(world.store.spend_yes("override", "relight-hangar"), "euros", "by", "purpose"),
-          (4.0, "joey", "one relight"))),
+                                                                "purpose": "one relight", "cap": "env1"}},
+         'SCORE_SPEND_TICKET="override relight-hangar"',  # counted under the env1 cap, as he said
+         (lambda: picked(world.store.spend_yes("override", "relight-hangar"), "euros", "by", "purpose", "cap"),
+          (4.0, "joey", "one relight", "env1"))),
         ("stop", "chat-stop", {"euros": "10"}, ({"euros": "12"}, "changed since he answered", None),  # a line since
          {"world": "chat-stop", "euros": 10.0, "line": None},
          {"kind": "stop-line", "user": "joey", "payload": {"world": "chat-stop", "euros": 10.0,
@@ -617,6 +619,8 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
         *[("spend", name, "Yes", "Q?", {"euros": euros, "purpose": purpose}, why) for euros, purpose, name, why in (
             ("4", "", "a", "says what it is for"), ("0", "x", "a", "above 0"), ("four", "x", "a", "as an amount"),
             ("4", "x", "relight-hangar", "holds a yes already"))],
+        ("spend", "a", "Yes", "Q?", {"euros": "4", "purpose": "x", "under_cap": "env2"}, "env1 cap or none"),
+        ("accept", "closeup@alpha", "Yes", "Q?", {"output": output, "under_cap": "env1"}, "only a spend counts under"),
         *[(review_web.BOOKS_MONTH, target, "Yes", "Q?", {"euros": euros}, why) for euros, target, why in (
             ("-1", month, "finite figure"), ("nan", month, "finite figure"), ("zero", month, "as an amount"),
             ("", month, "as an amount"), ("0", "2020-01", "this month's provider figure only"))],

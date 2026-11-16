@@ -65,6 +65,9 @@ ask, since 2026-11-08), or over ssh to `--host`.
   surfaces-bake runs on the cluster (provider.sent_from_this_pc, where the backend is chosen: SCORE_CLOUD=k8s for its
   kind, the free-only setting dropped for it, never moved on to machines rented from here), where every rent point asks that override (compute.require_cloud: its euros less
   what is booked under it, the books, the env1 cap) and its batch is held to what is left of it (ledger.batch_cap).
+  While env1's cap is open (C10) only an override recorded with `--under-cap env1` rents: it is env1's spend, its
+  euros left plus 10% held to the cap's line (compute.override_under_cap; owner, 2026-11-16, "Count it under the
+  env1 cap (Recommended)").
   Every other card job stays on this PC's card at EUR 0.
 - **Pause, resume, status** (owner, 2026-10-28: "make it so that you can ez pause and resume using my system, as i do
   wanne be able to play some games at some points"): `pause` records the live run (HOME's run registry: its id,

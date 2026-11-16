@@ -132,7 +132,7 @@ as an argument list, never through a shell, and only when it is one of these:
     buy-log                                     the tail of the newest Buy's log the door started: its checkout
                                                 line and its result
     decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] [--euros E]
-               [--purpose P] [--size WxH] <answer> <question>
+               [--purpose P] [--under-cap env1] [--size WxH] <answer> <question>
                                                 python -m score.dashboard decide-yes: the owner's quoted yes, asked in
                                                 a Claude Code session, to one accept, reject, waive, lock-concept,
                                                 lock-film, go, spend override (his yes to one run outside the

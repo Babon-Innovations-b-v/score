@@ -70,6 +70,8 @@ Each break (applied once, seen red, reverted), in score/adapters/compute/__init_
 - restored grant: restore_grant skips settle_grant.
 - the env1 cap: require_cloud's `why = cap_refusal(None, 0.0, env1=env1, own=(node, key))` becomes `why = None`;
   or guard.cap_refusal's stale check compares only the reading's own time; or cap_stop's env1 ignores GRANT.
+- an override under the env1 cap: override_under_cap returns None (C10 refuses it), or cap_check asks it with `0.0`
+  for its euros left (its room no longer held to the line).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py
 """
@@ -429,7 +431,8 @@ PLAIN = types.SimpleNamespace(NAME="plain")
 #   ("hold", whose) ... ("let go",): compute.spending held open across the steps between: the newest cleared run's
 #     ticket, a ticket the runner hands out but never cleared ("uncleared"), or ("override", name) the owner's
 #     override with the runner's store named; letting go leaves no ticket and no store named
-#   ("override", name, euros): the owner's override yes; ("ledger", lines): the ledger from now on
+#   ("override", name, euros[, fields]): the owner's override yes (fields: its `cap`); ("ledger", lines): the ledger
+#     from now on
 #   ("cap", fields or None): the env1 cap opened at these fields (its start an hour ago, its finish a day on) or
 #     closed; ("cap reading", counter, fields): its watcher's newest reading a minute ago (good_at: seconds from now)
 #   ("command", arguments, who, expected): `score.review stop <world> ...` with no terminal, or at his terminal by an
@@ -910,7 +913,7 @@ ASKS = [
                             ("answers", BOOKS.batch_cap, (), [BOOKS.BATCH_EUROS, ANYTHING])]},  # outside, it stands
                  id="a rent point refuses outside a cleared run or the owner's override"),
     # the env1 cap (the plan of 2026-11-09, B2): the whole bill's counter past the line refuses every rent point, an
-    # override or a grant with euros left is refused while the cap is open, a start whose high (plus 10% and the
+    # override or a grant with euros left is refused while the cap is open (one his yes counts under it is env1's), a start whose high (plus 10% and the
     # standing to the finish) would pass the line is refused, an unread or stale bill refuses (fails closed), and the
     # stop lines keep their batch project's baseline beside the whole bill
     pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
@@ -935,6 +938,16 @@ ASKS = [
                             ("answers", compute.cap_stop, (), Says("no other paid run")), ("let go",),
                             ("answers", compute.cap_stop, (), Says("no other paid run"),  # a grant's run: C10 too
                              {"env": {compute.GRANT: "grant-1"}}),
+                            # his override counted under the cap (2026-11-16) is env1's spend: it rents while its
+                            # euros left plus 10% and the standing fit under the line (200 + 38.50 + 10 of 255)
+                            ("override", "rebake-35", 35.0, {"cap": guard.CAP}),
+                            ("hold", (compute.OVERRIDE, "rebake-35")),
+                            ("answers", compute.require_cloud, ("a batch",), {"euros": 35.0}),
+                            ("answers", compute.cap_stop, (), None), ("let go",),
+                            ("override", "rebake-50", 50.0, {"cap": guard.CAP}),
+                            ("hold", (compute.OVERRIDE, "rebake-50")),
+                            ("answers", compute.require_cloud, ("a batch",), Refuses("this start's high EUR 50.00")),
+                            ("let go",),
                             ("answers", guard.spent_since, (START, {MONTH: {  # its batch project's bill, not the whole
                                 "bill": 150.0, "ledger": 90.0, "google": 0.0, "bill_all": 9e3}}), 50.0),
                             ("answers", compute.cloud_bill_all, (), Exactly(
@@ -1313,7 +1326,8 @@ def test_paid_work_starts_only_inside_its_clearance(row, monkeypatch):
                 assert compute.TICKET not in os.environ and compute.STORE not in os.environ, step
                 continue
             if step[0] == "override":
-                runner.store.write_spend_yes(compute.OVERRIDE, step[1], {"euros": step[2], "at": graph.now()})
+                runner.store.write_spend_yes(compute.OVERRIDE, step[1], {"euros": step[2], "at": graph.now(),
+                                                                         **(step[3] if len(step) > 3 else {})})
                 continue
             if step[0] == "ledger":
                 ledger(*step[1])

@@ -1178,7 +1178,16 @@ def override_room(store=None):
     if yes is None:
         return None
     euros, spent = float(yes.get("euros") or 0.0), override_spent(named[1])
-    return {"name": named[1], "euros": euros, "spent": round(spent, 2), "left": round(euros - spent, 2)}
+    return {"name": named[1], "euros": euros, "spent": round(spent, 2), "left": round(euros - spent, 2),
+            **({"cap": yes["cap"]} if yes.get("cap") else {})}
+
+
+def override_under_cap(store=None):
+    """The override_room of the owner's override SCORE_SPEND_TICKET names when his yes counts it under the env1 cap
+    (its `cap` names guard.CAP: decide-yes spend --under-cap env1; owner, 2026-11-16, "Count it under the env1 cap"),
+    else None. Such a run is env1's spend for C10, its whole room held to the cap's line at every rent point."""
+    room = override_room(store)
+    return room if room and room.get("cap") == guard.CAP and not os.environ.get(GRANT) else None
 
 
 def override_refusal(room, high):
@@ -1235,14 +1244,16 @@ def require_cloud(what):
 
 
 def cap_check(what):
-    """The env1 cap at a cloud rent point (cap_refusal for the run SCORE_SPEND_TICKET names); Refused when it refuses.
+    """The env1 cap at a cloud rent point (cap_refusal for the run SCORE_SPEND_TICKET names: a cleared env1 run, or an
+    override his yes counts under the cap, whose euros left plus 10% must fit under its line); Refused when it refuses.
     Asked by require_cloud, and by the backend's own order (scaleway.create) for batch.rent, whose file the pixal and
     rough-model rows declare."""
     named = os.environ.get(TICKET, "").split()  # two words wherever require_cleared passed
     node, key = named if len(named) == 2 else (None, None)
     cleared = ticket_store().clearances(node, key) if node else []
-    env1 = bool(cleared) and not os.environ.get(GRANT) and not cleared[-1].get("grant")
-    why = cap_refusal(None, 0.0, env1=env1, own=(node, key))
+    under = override_under_cap() if node == OVERRIDE else None
+    env1 = bool(under) or (bool(cleared) and not os.environ.get(GRANT) and not cleared[-1].get("grant"))
+    why = cap_refusal(None, max(under["left"], 0.0) if under else 0.0, env1=env1, own=(node, key))
     if why:
         raise Refused(f"{what}: {why}")
 
@@ -1285,7 +1296,7 @@ def cap_stop(store=None):
     """Why a running paid run stops now under the env1 cap (cap_refusal with no start asked for: the counter at the
     line, the bill unread past 15 minutes, or a run not env1's while the cap is open), or None."""
     named = os.environ.get(TICKET, "").split()
-    env1 = not (named and named[0] == OVERRIDE) and not os.environ.get(GRANT)
+    env1 = (not (named and named[0] == OVERRIDE) and not os.environ.get(GRANT)) or bool(override_under_cap(store))
     return cap_refusal(store, 0.0, env1=env1)
 
 

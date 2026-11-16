@@ -178,17 +178,19 @@ def read_books_back(user):
 
 
 def spend_override(user, payload):
-    """The owner's override yes for one run outside the runner (score.review.web.spend_override), in words: local
-    written, hosted queued; refused for anyone else, in an agent's process, for a name that is not plain, euros that
-    are not an amount above 0, no purpose, or a name that holds a yes already."""
+    """The owner's override yes for one run outside the runner (score.review.web.spend_override), with the cap it
+    counts under when the payload names one (`cap`), in words: local written, hosted queued; refused for anyone else, in
+    an agent's process, for a name that is not plain, euros that are not an amount above 0, no purpose, or a name that
+    holds a yes already."""
     name, amount = str(payload.get("name") or ""), euro_amount(payload.get("euros"))
-    purpose = str(payload.get("purpose") or "").strip()
+    purpose, cap = str(payload.get("purpose") or "").strip(), payload.get("cap") or None
     if not SCENE_NAME.fullmatch(name):
         return f"refused: {name!r} is not a plain override name"
     if not amount or not purpose:
         return "refused: an override names its euros above 0 and says what it is for"
     if hosted():
-        return queued_for_store("spend-override", user, {"name": name, "euros": amount, "purpose": purpose},
+        return queued_for_store("spend-override", user, {"name": name, "euros": amount, "purpose": purpose,
+                                                         **({"cap": cap} if cap else {})},
                                 f"says yes to EUR {amount:.2f} for {name}")
     why = owner_figure_off_why(user)
     if why:
@@ -196,12 +198,13 @@ def spend_override(user, payload):
     from score import review
     from score.review import web
     try:
-        yes = web.spend_override(state.source().store, name, amount, by=user, purpose=purpose)
+        yes = web.spend_override(state.source().store, name, amount, by=user, purpose=purpose, cap=cap)
     except FileExistsError:
         return f"refused: the override {name} holds a yes already"
     except (review.Refused, PermissionError) as refused:
         return f"refused: {refused}"
-    return (f"spend yes: override {name} at EUR {yes['euros']:.2f}, for {purpose}; its run carries "
+    return (f"spend yes: override {name} at EUR {yes['euros']:.2f}, for {purpose}"
+            f"{f', counted under the {cap} cap' if cap else ''}; its run carries "
             f"SCORE_SPEND_TICKET=\"override {name}\"")
 
 

@@ -8,7 +8,8 @@ click makes on the store's machine (applying.apply, so every check of his click 
                         the store (grants/decide/<id>.json, score.review.web): `target` what it applies to as it stands
                         at the question (state_of), `given` his words for it: reason, worse_reason, check, a
                         reject's takes (the takes of that output to remake, the rest kept: graph.Stage.retakes), a
-                        spend's euros and purpose, a books month's euros, and a stop line's euros (and reason)
+                        spend's euros, purpose and the cap it counts under, a books month's euros, and a stop line's
+                        euros (and reason)
     apply(yes id, store)
                         his decision under that yes, once: refused when there is no quoted yes, it was used already
                         (grants/decide-used/<id>.json, written before it is applied; a refused or failed apply hands
@@ -54,6 +55,7 @@ from score.dashboard.sync import applying
 
 DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", web.BOOKS_MONTH, "stop", "cap")
 CAP_FIGURES = ("euros", "line", "month_cap", "standing")  # a cap's amounts; its `start` and `finish` are times
+UNDER_CAP = "env1"  # the one cap a spend counts under (compute.guard.CAP; compute is not imported in a hosted process)
 
 
 class Refused(RuntimeError):
@@ -84,10 +86,14 @@ def film_script(film):
         raise Refused(f"no film script {film}: {missing}") from None
 
 
-def override_state(store, name, euros, purpose):
-    """{override, euros, purpose}: his override yes as asked; Refused for euros that are not a positive amount, no
-    purpose, or a name that holds a yes already (one name, one run: a new run gets a new name)."""
+def override_state(store, name, euros, purpose, under_cap=None):
+    """{override, euros, purpose[, cap]}: his override yes as asked, `cap` the env1 cap it counts under when he said so
+    (--under-cap env1: env1's spend for C10, held to the cap's line; owner, 2026-11-16, "Count it under the env1
+    cap"); Refused for euros that are not a positive amount, no purpose, a cap other than env1's, or a name that holds
+    a yes already (one name, one run: a new run gets a new name)."""
     from score.review import web
+    if under_cap and under_cap != UNDER_CAP:
+        raise Refused(f"a spend counts under the {UNDER_CAP} cap or none, not {under_cap!r}")
     try:
         amount = float(euros)
     except (TypeError, ValueError):
@@ -98,7 +104,7 @@ def override_state(store, name, euros, purpose):
         raise Refused("a spend says what it is for, in his words: --purpose")
     if web.override_yes(store, name) is not None:
         raise Refused(f"the override {name} holds a yes already: a new run gets a new name")
-    return {"override": name, "euros": amount, "purpose": str(purpose)}
+    return {"override": name, "euros": amount, "purpose": str(purpose), **({"cap": under_cap} if under_cap else {})}
 
 
 def books_state(month, euros):
@@ -201,7 +207,7 @@ def state_of(decision, target, given, store):
     if decision == "lock-film":
         return {"film": target, "script": script_sha(film_script(target))}
     if decision == "spend":
-        return override_state(store, target, given.get("euros"), given.get("purpose"))
+        return override_state(store, target, given.get("euros"), given.get("purpose"), given.get("under_cap"))
     if decision == web.BOOKS_MONTH:
         return books_state(target, given.get("euros"))
     if decision == "stop":
@@ -231,6 +237,8 @@ def record(decision, target, answer, question, store=None, **given):
         given["size"] = film_size(given["size"])
     if given.get("purpose") and decision != "spend":
         raise Refused("only a spend names a purpose (--purpose)")
+    if given.get("under_cap") and decision != "spend":
+        raise Refused("only a spend counts under a cap (--under-cap)")
     if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH, "stop", "cap"):
         raise Refused("only a spend, a books month, a stop line or a cap names euros (--euros)")
     if decision != "cap" and any(given.get(field) not in ("", None) for field in (
@@ -259,7 +267,8 @@ def request_of(yes):
             "reason": given.get("reason", "")}}
     if yes["decision"] == "spend":
         return {"kind": "spend-override", "user": user, "payload": {
-            "name": target["override"], "euros": target["euros"], "purpose": target["purpose"]}}
+            "name": target["override"], "euros": target["euros"], "purpose": target["purpose"],
+            **({"cap": target["cap"]} if target.get("cap") else {})}}
     if yes["decision"] == web.BOOKS_MONTH:
         return {"kind": "books-figure", "user": user, "payload": {"euros": target["euros"]}}
     if yes["decision"] == "stop":

@@ -278,13 +278,14 @@ def waived(store, node, output, check, by, reason):
     return review.waive(store, node, record["key"], check, name, reason)
 
 
-def spend_override(store, name, euros, by, purpose):
+def spend_override(store, name, euros, by, purpose, cap=None):
     """The owner's override yes for one run outside the runner under `name` (node `override`, the run carrying
-    SCORE_SPEND_TICKET="override <name>"), at his euros and for his purpose, by his signed-in name; the yes.
+    SCORE_SPEND_TICKET="override <name>"), at his euros and for his purpose, by his signed-in name, counted under the
+    cap `cap` names when given (compute.override_under_cap); the yes.
     FileExistsError when the name holds a yes already; PermissionError in a process an agent started (the store's own
     barrier)."""
     from score.adapters import compute
-    return review.spend(store, compute.OVERRIDE, name, euros, checked_by(by), purpose=purpose)
+    return review.spend(store, compute.OVERRIDE, name, euros, checked_by(by), purpose=purpose, cap=cap)
 
 
 def override_yes(store, name):
