@@ -22,6 +22,8 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        and held in a pose of its clip, a ground marked as the ground
     dome(folder, name, radius, at, ...)                the dome shell algorithm (dome_shell.py) laid: glass shell, curved ribs
     tube(folder, name, radius, length, at, turn, ...)  the dome shell algorithm's ribbed glass tunnel laid
+    stairs(folder, name, storeys, at, turn)            the stair core algorithm (stair_core.py) laid: a walkable
+                                                       switchback stairwell, its doorways answered
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
     palette(folder, library, wear, dirt)               the place's one surface library (its scene palette's families
@@ -72,6 +74,7 @@ WORN = ("made", "suit")
 FAR = "far"
 CLIP = "standing"  # the clip a laid character is held in by default, at its start
 DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its code: dome_shell.py)
+STAIRS = "algorithm/stair_core"  # the stair core algorithm's (stair_core.py)
 
 
 class Refused(ValueError):
@@ -391,6 +394,27 @@ def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     return {"name": name, "address": address, "usd": relative, "radius": radius, "length": length, "hoops": hoops}
 
 
+def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), mirror=False, address=STAIRS):
+    """The stair core algorithm (stair_core.py) laid as Objects/<name>: a switchback stairwell `storeys` storeys tall
+    of real size, its file written once under the place's assets; its parts `slab`, `steps`, `wall`, `dado`,
+    `balusters` and `handrail` ready for their surfaces (`mirror`: the other hand, x taken as its length less x),
+    and its doorways (wall, along from, along to, sill, head in
+    its own frame) answered for the doors laid in them."""
+    from score.stages.place_build import stair_core
+    storeys = stair_core.STOREYS if storeys is None else int(storeys)
+    if storeys < 1:
+        raise Refused(f"a stair core needs one storey or more ({storeys})")
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / f"core_s{storeys}{'_m' if mirror else ''}.usda"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.unlink(missing_ok=True)
+    doors = stair_core.core(target, storeys, bool(mirror))
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
+                              (at, turn, (1.0, 1.0, 1.0)), False)
+    saved(stage)
+    return {"name": name, "address": address, "usd": relative, "storeys": storeys, "mirror": bool(mirror), "doorways": doors}
+
+
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     """A flat ground disc of `radius` metres (dome_shell.disc_file) laid as Objects/<name> and marked as the place's
     ground (so the renderer lays no plane of its own); its one part `ground` ready for a surface."""
@@ -677,12 +701,13 @@ def sun_frame(elevation, heading):
                        towards[0], towards[1], towards[2], 0.0, 0.0, 0.0, 0.0, 1.0)
 
 
-def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", turn=0.0):
+def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", turn=0.0, background=None):
     """A library sky (a light entry holding a sky dome and its DomeLight) laid as the place's own sky: its dome under
     Objects/sky, its DomeLight as /<place>/Environment (the ambient light and exposure the renderer takes as the
     stage's sky), and its sun a distant light Lights/sun from `elevation` and `heading` degrees, `strength` its
     intensity, in `colour` ('#rrggbb'); the dome turned `turn` degrees about up, so the glow its picture holds round
-    its own sun stands where the sun is laid."""
+    its own sun stands where the sun is laid; `background` ('#rrggbb', a palette token's colour) the sky the camera
+    sees in place of the entry's own (a night sky's blue where the entry's is black)."""
     address, record, copied = fetch(folder, address)
     if record["kind"] != "light":
         raise Refused(f"{address} is a {record['kind']}, not a light")
@@ -698,6 +723,9 @@ def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", tur
     environment.GetReferences().ClearReferences()
     environment.GetReferences().AddReference(relative, domes[0])
     environment.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
+    if background is not None:
+        environment.CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(
+            Gf.Vec3f(*colour_of(background)))
     sun = UsdLux.DistantLight.Define(stage, f"/{place}/Lights/sun")
     UsdGeom.Xformable(sun).ClearXformOpOrder()
     UsdGeom.Xformable(sun).AddTransformOp().Set(sun_frame(float(elevation), float(heading)))
@@ -759,7 +787,7 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
-STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "surface": surface, "light": light, "snap": snap, "remove": remove,
+STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "camera": camera, "sky": sky, "view": view}
 
 

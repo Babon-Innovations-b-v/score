@@ -26,6 +26,7 @@ BLENDER = pathlib.Path(os.environ.get(
 # The X and GL libraries this PC's Blender needs (colon separated), put before WSL's own on LD_LIBRARY_PATH.
 LIBRARIES = os.environ.get("SCORE_BLENDER_LIBS", "")
 WIDTH = 768  # the preview's pixels across
+FINAL_SIZE = (1920, 1080)  # a final render's pixels (owner, 2026-11-16: final views at 1920x1080), whatever the concept's aspect
 FREE_GB = 12  # a Blender starts only with more memory than this available
 MEMORY = "8G"  # its scope's cap
 CARD_GB = "8"  # its share of the card
@@ -37,7 +38,7 @@ class RenderFailed(RuntimeError):
 
 def views(record, width=WIDTH, names=(), final=False):
     """usd_views' listing of the concept view and the named views `names` (place_build.view; their look only), the
-    concept's aspect kept; at the review's samples, or the films' when `final`."""
+    concept's aspect kept; at the review's samples, or the films' at FINAL_SIZE when `final`."""
     wide, tall = record["size"]
     camera = record["camera"]
     unknown = sorted(set(names) - set(record.get("views", {})))
@@ -47,7 +48,8 @@ def views(record, width=WIDTH, names=(), final=False):
                "fov": camera["fov"]}]
     listed += [{"name": name, "eye": record["views"][name]["eye"], "aim": record["views"][name]["aim"],
                 "up": [0.0, 1.0, 0.0], "fov": record["views"][name]["fov"], "look_only": True} for name in names]
-    return {"size": [width, max(1, round(width * tall / wide))], "review": not final, "views": listed}
+    size = list(FINAL_SIZE) if final else [width, max(1, round(width * tall / wide))]
+    return {"size": size, "review": not final, "views": listed}
 
 
 def available_gb():

@@ -9,11 +9,12 @@
                                        [--meridians n] [--rings n] [--rib m] [--opening around,radius,centre ...]
     python -m score.stages.place_build tube <folder> <name> --radius m --length m [--at x,y,z] [--turn rx,ry,rz]
                                        [--hoops n] [--rib m] [--cap width,height]
+    python -m score.stages.place_build stairs <folder> <name> [--storeys n] [--at x,y,z] [--turn rx,ry,rz] [--mirror]
     python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
     python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--pad x,z,radius ...]
     python -m score.stages.place_build sky <folder> <light/id> --elevation deg --heading deg [--strength s]
-                                       [--colour #rrggbb] [--turn degrees]
+                                       [--colour #rrggbb] [--turn degrees] [--background #rrggbb]
     python -m score.stages.place_build view <folder> <name> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build batch <folder> <steps.json>
     python -m score.stages.place_build snap <folder> <name> [--grid metres]
@@ -41,7 +42,10 @@ A glTF-only model or take (our picture-made props) is laid in its own bake and p
 `palette` takes in the place's one surface library (a scene's surface-library output: its ProcFunc recipe variants
 and palette tokens, the ones its props were painted from) with the place's wear and dirt; `surface ... palette/<variant>`
 then lays that variant, which the render draws as its recipe (edge wear, dirt, relief), so props, shells and floors
-share one palette. `render --final` renders at the films' samples (denoised) instead of the review's.
+share one palette. `render --final` renders at the films' samples (denoised) instead of the review's, 1920x1080.
+`stairs` lays the stair core algorithm (stair_core.py): a walkable switchback stairwell of real size, its flats'
+blocks and glazed front, parts `slab`, `steps`, `wall`, `dado`, `block`, `glass`, `frame`, `balusters`, `handrail`;
+it answers its doorways for the doors laid in them (`--mirror`: the other hand).
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
 """
@@ -122,6 +126,9 @@ def run(args):
     if args.step == "tube":
         return place_build.tube(args.folder, args.name, args.radius, args.length, numbers(args.at), numbers(args.turn),
                                 args.hoops, args.rib, cap=numbers(args.cap) if args.cap else None)
+    if args.step == "stairs":
+        return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
+                                  args.mirror)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "terrain":
@@ -129,7 +136,7 @@ def run(args):
                                    [numbers(pad) for pad in args.pad])
     if args.step == "sky":
         return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour,
-                               args.turn)
+                               args.turn, args.background)
     if args.step == "view":
         return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov)
     if args.step == "batch":
@@ -202,6 +209,13 @@ def parser():
     step.add_argument("--hoops", type=int)
     step.add_argument("--rib", type=float)
     step.add_argument("--cap")
+    step = steps.add_parser("stairs")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--storeys", type=int)
+    step.add_argument("--at", default="0,0,0")
+    step.add_argument("--turn", default="0,0,0")
+    step.add_argument("--mirror", action="store_true")
     step = steps.add_parser("ground")
     step.add_argument("folder")
     step.add_argument("name")
@@ -221,6 +235,7 @@ def parser():
     step.add_argument("--strength", type=float, default=1.0)
     step.add_argument("--colour", default="#ffffff")
     step.add_argument("--turn", type=float, default=0.0)
+    step.add_argument("--background")
     step = steps.add_parser("view")
     step.add_argument("folder")
     step.add_argument("name")

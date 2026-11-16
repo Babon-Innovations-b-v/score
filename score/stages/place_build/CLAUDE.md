@@ -53,7 +53,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   in it), `trims` end its skin on the domes' glass, and its skin is solid to WALL_HIGH over its deck (part `wall`).
 - **A model's own layers** (`<file>_glow.usdc`, a monitor's screen) are laid with it as children, each a part a
   surface can take (`surface --part glow palette/screen_glow`).
-- **`render --final`** renders at the films' samples; the views take AgX's medium high contrast look.
+- **`render --final`** renders at the films' samples at 1920x1080; the views take AgX's medium high contrast look.
+- **The stair core** (stair_core.py, `stairs`, owner 2026-11-16: "real walkable stairs with landings"): a switchback
+  stairwell of real size (0.167 m risers, 0.28 m treads, 1.2 m flights, a waist under each so the flight below keeps
+  its head height), every piece a closed solid of real thickness, its faces turned out (the walkers' floor reads a top
+  by its normal), the ground slab laid in pieces (MuJoCo let a mat fall through one face across the whole place); its
+  doorways cut in its walls with a hall behind each flat's door, railings on every open edge, flats' blocks either
+  side and a glazed front. Panes are one face each (a closed pane's two thin-glass skins ring with light).
+- **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
 - Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;

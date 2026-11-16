@@ -11,7 +11,8 @@ filled) laid as the ground with its building pads levelled to the laid height an
 laid as the place's own Environment with a sun shining from where it is asked; the place's palette (a scene's surface
 library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an opening (glass and plinth) and a tunnel
 with a doorway in its end wall, its skin trimmed by the dome it joins and solid below its glass; a model's glow layer
-laid with it as a part; a named view listed beside the
+laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
+than a knee, its flat's doorway cut through its back wall; a final render at 1920x1080; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side.
 
@@ -48,6 +49,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
 - place_build.surface: the palette spec left off the look -> the panel's look carries no recipe spec
 - place_build.palette_spec: the place's wear and dirt replaced by 0 -> the spec's wear is not the palette's
+- stair_core.outward: `volume > 0` made `volume < 0` -> the treads look down
+- stair_core.holed: the holes left out -> the back wall stands in the flat's doorway
+- render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
 """
@@ -61,7 +65,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import measure, relief, render
+from score.stages.place_build import measure, relief, render, stair_core
 
 
 def library(root, files):
@@ -140,6 +144,31 @@ def part_middles(mesh, part):
     starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
     subset = next(item for item in UsdGeom.Subset.GetAllGeomSubsets(mesh) if item.GetPrim().GetName() == part)
     return np.array([points[indices[starts[face]:starts[face] + counts[face]]].mean(axis=0)
+                     for face in subset.GetIndicesAttr().Get()])
+
+
+def part_facings(mesh, part):
+    """Each face of a named part as its middle (x, y, z) and its unit normal by its winding (nx, ny, nz)."""
+    points = np.array(mesh.GetPointsAttr().Get(), dtype=float)
+    counts, indices = mesh.GetFaceVertexCountsAttr().Get(), np.array(mesh.GetFaceVertexIndicesAttr().Get())
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    subset = next(item for item in UsdGeom.Subset.GetAllGeomSubsets(mesh) if item.GetPrim().GetName() == part)
+    found = []
+    for face in subset.GetIndicesAttr().Get():
+        corners = points[indices[starts[face]:starts[face] + counts[face]]]
+        normal = np.cross(corners[1] - corners[0], corners[2] - corners[0])
+        found.append(np.concatenate([corners.mean(axis=0), normal / np.linalg.norm(normal)]))
+    return np.array(found)
+
+
+def part_bounds(mesh, part):
+    """Each face of a named part as its box: (faces, 2, 3), low and high corners."""
+    points = np.array(mesh.GetPointsAttr().Get(), dtype=float)
+    counts, indices = mesh.GetFaceVertexCountsAttr().Get(), np.array(mesh.GetFaceVertexIndicesAttr().Get())
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    subset = next(item for item in UsdGeom.Subset.GetAllGeomSubsets(mesh) if item.GetPrim().GetName() == part)
+    return np.array([[points[indices[starts[face]:starts[face] + counts[face]]].min(axis=0) - 1e-6,
+                      points[indices[starts[face]:starts[face] + counts[face]]].max(axis=0) + 1e-6]
                      for face in subset.GetIndicesAttr().Get()])
 
 
@@ -240,7 +269,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         {"step": "ground", "name": "regolith", "radius": 3.0},
         {"step": "put", "name": "cup", "address": "take/cup"},
         {"step": "tube", "name": "tunnel", "radius": 1.5, "length": 4.0, "at": [20, 0, 0], "hoops": 3},
-        {"step": "put", "name": "shelf", "address": "model/cabinet", "at": [9, 0.75, 0], "rest": True}])
+        {"step": "put", "name": "shelf", "address": "model/cabinet", "at": [9, 0.75, 0], "rest": True},
+        {"step": "stairs", "name": "stairwell", "storeys": 1, "mirror": True}])
     refusals = []
     for step in (lambda: place_build.put(folder, "plan", "kit/plan_only"),
                  lambda: place_build.surface(folder, "wall", "surface/boards")):
@@ -270,7 +300,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/rim"), (1.0, 0.0, 0.0))
     tint = UsdShade.Shader(stage.GetPrimAtPath("/yard/Looks/dune/colour")).GetInput("scale").Get()
     assert np.allclose(tint, (1.0, 0.2158605, 0.0, 1.0), atol=1e-5)
-    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 9
+    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 10
     door_look = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo/door")).ComputeBoundMaterial()[0]
     door_map = UsdShade.Shader(stage.GetPrimAtPath(f"{door_look.GetPath()}/base")).GetInput("file").Get()
     assert np.allclose(Image.open(door_map.resolvedPath).getpixel((0, 0)), (200, 0, 0))
@@ -312,7 +342,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
                               {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune", "screen", "holed", "hall", "panel"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune", "screen", "holed", "hall", "panel", "stairwell"} and not stage.GetPrimAtPath("/yard/Objects/gone")
     laid_terrain = stage.GetPrimAtPath("/yard/Objects/plain")
     ground_points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/plain/geo")).GetPointsAttr().Get())
     in_pad = np.hypot(ground_points[:, 0], ground_points[:, 2] - 30.0) < 5.0  # the terrain's own frame
@@ -327,7 +357,17 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)
     assert np.allclose(shines, (-np.cos(np.radians(30)), -0.5, 0.0), atol=1e-6)
     assert place_build.pose_of(stage.GetPrimAtPath("/yard/Objects/sky"))[1] == [0.0, 30.0, 0.0]
-    assert render.views(place_build.record_of(folder), 80, [], final=True)["review"] is False
+    final = render.views(place_build.record_of(folder), 80, [], final=True)
+    assert final["review"] is False and final["size"] == [1920, 1080]
+    core = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/stairwell/geo"))
+    treads, walls = part_facings(core, "steps"), part_bounds(core, "wall")
+    up = treads[np.abs(treads[:, 4]) > 0.99]
+    rises = np.diff(np.unique(np.round(up[up[:, 4] > 0, 1], 3)))
+    door = batched[11]["doorways"][1]  # the first floor's flat door, in the back wall
+    middle = (stair_core.LONG - (door[1] + door[2]) / 2, (door[3] + door[4]) / 2, stair_core.DEEP + stair_core.WALL / 2)
+    in_door = np.all((walls[:, 0, :2] <= middle[:2]) & (walls[:, 1, :2] >= middle[:2]), axis=1) \
+        & (np.abs(walls[:, 0, 2] - middle[2]) <= stair_core.WALL / 2 + 1e-3)  # a wall face across the doorway
+    assert len(up) and (up[:, 4] > 0).all() and rises.max() <= 0.3 and not in_door.any()
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
