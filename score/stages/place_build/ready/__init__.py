@@ -25,7 +25,8 @@ wall: `on ... wall:<object>`), `character` (a person, posed as the renderer pose
 - `door does not fit`: seen straight through the door's plane on a FIT_CELL grid, the opening round it (what no wall,
   shell or connector closes within FIT_DEPTH of it, from its threshold up) shows a gap wider than FIT between the
   door's outline and the wall, or the door lies over the wall further than FIT past the opening's edge (a hinge or a
-  latch, shorter than HINGE, lies on its jamb): a leaf that is not the opening's shape and size (a rectangular door in a round opening, a hatch too small for it).
+  latch, shorter than HINGE, lies on its jamb): a leaf that is not the opening's shape and size (a rectangular
+  door in a round opening, a hatch too small for it).
 - `person floating` / `person sinks`: a person's feet (each foot's lowest skin), or, seated, the seat, more than
   CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above.
 - `broken body`: a person's skin torn by its skinning, a missing head, hand or foot, or a height or proportions no
@@ -398,7 +399,8 @@ def door_faults(laid, name):
 
 def door_outline(laid, name):
     """What the door's plane shows, seen straight through it on a FIT_CELL grid from its threshold to FRAME over its
-    top and FRAME past each side: (the door's cells, the cells a wall closes within FIT_DEPTH of it)."""
+    top and FRAME past each side: (the door's cells, the cells a wall closes within FIT_DEPTH of it). Only the
+    triangles of the door and its walls within that slab are cast against, so a big terrain or shell costs nothing."""
     walls = [laid.number[other] for other in laid.with_role("structure", "shell", "connector")]
     middle, axes, half = frame_of(laid, name)
     across = np.arange(-half[0] - FRAME, half[0] + FRAME + 1e-9, FIT_CELL)
@@ -406,7 +408,18 @@ def door_outline(laid, name):
     grid_u, grid_v = np.meshgrid(across, up, indexing="ij")
     depth = half[2] + FIT_DEPTH
     origins = middle + grid_u.reshape(-1, 1) * axes[0] + grid_v.reshape(-1, 1) * axes[1] + depth * axes[2]
-    _, rays, owners, along = laid.hits(origins, np.tile(-axes[2], (len(origins), 1)))
+    ends = np.vstack([origins, origins - 2 * depth * axes[2]])
+    triangles = laid.joined.triangles
+    close = np.isin(laid.owner, walls + [laid.number[name]]) \
+        & np.all(triangles.max(axis=1) >= ends.min(axis=0), axis=1) \
+        & np.all(triangles.min(axis=1) <= ends.max(axis=0), axis=1)
+    if not close.any():
+        shape = grid_u.shape
+        return np.zeros(shape, dtype=bool), np.zeros(shape, dtype=bool)
+    local = trimesh.Trimesh(triangles[close].reshape(-1, 3), np.arange(3 * close.sum()).reshape(-1, 3), process=False)
+    where, rays, faces = local.ray.intersects_location(origins, np.tile(-axes[2], (len(origins), 1)),
+                                                       multiple_hits=True)
+    owners, along = laid.owner[close][faces], np.linalg.norm(where - origins[rays], axis=1)
     near = along <= 2 * depth
     door = np.zeros(len(origins), dtype=bool)
     door[rays[near & (owners == laid.number[name])]] = True
