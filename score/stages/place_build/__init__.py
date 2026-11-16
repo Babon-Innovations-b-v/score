@@ -240,13 +240,20 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
     return laid
 
 
-def ground_height(stage, place, x, z):
-    """The height of the laid ground (every object marked score:ground) at (x, z): its highest face over that spot,
-    found among the points within reach and read off the nearest face's plane; Refused when nothing laid lies under."""
+GROUND_POINTS = {}  # {(scene path, its grounds and their poses): their points in the scene} while a batch runs
+
+
+def ground_points(stage, place):
+    """Every point of the laid ground (each object marked score:ground) in the scene's frame; read once a batch for the
+    same grounds where they lie."""
+    grounds = [prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()
+               if prim.GetAttribute("score:ground").Get()]
+    key = (stage.GetRootLayer().realPath, tuple((str(prim.GetPath()), str(prim.GetReferences()),
+                                                 str(pose_of(prim))) for prim in grounds))
+    if key in GROUND_POINTS:
+        return GROUND_POINTS[key]
     points = []
-    for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
-        if not prim.GetAttribute("score:ground").Get():
-            continue
+    for prim in grounds:
         for inside in Usd.PrimRange(prim):
             if inside.IsA(UsdGeom.Mesh):
                 own = np.array(UsdGeom.Mesh(inside).GetPointsAttr().Get(), dtype=np.float64)
@@ -255,6 +262,15 @@ def ground_height(stage, place, x, z):
     if not points:
         raise Refused("no ground is laid to stand on")
     points = np.concatenate(points)
+    if stage.GetRootLayer().realPath in HELD:
+        GROUND_POINTS[key] = points
+    return points
+
+
+def ground_height(stage, place, x, z):
+    """The height of the laid ground (every object marked score:ground) at (x, z): its highest face over that spot,
+    found among the points within reach and read off the nearest face's plane; Refused when nothing laid lies under."""
+    points = ground_points(stage, place)
     distance = np.hypot(points[:, 0] - x, points[:, 2] - z)
     nearest = np.argsort(distance)[:3]
     if distance[nearest[0]] > 50.0:
@@ -663,4 +679,5 @@ def batch(folder, steps):
                 answers.append({"refused": str(why), "step": number})
     finally:
         HELD.pop(path)
+        GROUND_POINTS.clear()
     return answers
