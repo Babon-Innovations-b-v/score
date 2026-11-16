@@ -305,8 +305,9 @@ def ground_points(stage, place):
     of three point numbers); read once a batch for the same grounds where they lie."""
     grounds = [prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()
                if prim.GetAttribute("score:ground").Get()]
-    key = (stage.GetRootLayer().realPath, tuple((str(prim.GetPath()), str(prim.GetReferences()),
-                                                 str(pose_of(prim))) for prim in grounds))
+    key = (stage.GetRootLayer().realPath, tuple((str(prim.GetPath()), str(prim.GetMetadata("references")),
+                                                 str(pose_of(prim))) for prim in grounds))  # the references' items,
+    # never the References handle's repr (its address changes, so every rock read the ground again and kept it)
     if key in GROUND_POINTS:
         return GROUND_POINTS[key]
     points, triangles, count = [], [], 0

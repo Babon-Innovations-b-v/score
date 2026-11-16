@@ -35,6 +35,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.ribs: the rib lifted inward (`- out`) -> the dome's box stays inside its radius
 - place_build.rested: the lift's sign flipped -> the shelf on the table sinks a metre under it
 - dome_shell.hoop_ribs: the hoop lifted inward (`- out`) -> the tunnel's box stays inside its radius
+- place_build.ground_points: the key made of the References handle's repr -> the ground is read again for a stone
 - place_build.ground_height: the nearest point's x read for its height -> the stone floats far off the slope
 - place_build.ground_height: no face searched (the nearest points' weighted height) -> the stone stands off the
   slope's plane by more than a millimetre
@@ -305,6 +306,18 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.sky(folder, "light/sky", elevation=30, heading=0, turn=30, exposure=0.7)
     place_build.view(folder, "inside", eye=(0, 1.6, 0), aim=(1, 1.6, 0), fov=70)
     stone = place_build.put(folder, "stone", "model/cabinet", at=(80, -0.1, 0), rest=True, on_ground=True)
+    reads = []
+
+    class Reads(dict):
+        def __setitem__(self, key, value):
+            reads.append(key)
+            super().__setitem__(key, value)
+    monkeypatch.setattr(place_build, "GROUND_POINTS", Reads())
+    pebbles = place_build.batch(folder, [{"step": "put", "name": f"pebble{number}", "address": "model/cabinet",
+                                          "at": [70, 0, number], "on_ground": True} for number in range(3)])
+    assert len(reads) == 1 and all("refused" not in pebble for pebble in pebbles), pebbles  # one ground read
+    for number in range(3):
+        place_build.remove(folder, f"pebble{number}")
     place_build.put(folder, "gone", "kit/box_piece")
     place_build.remove(folder, "gone")
     shown = place_build.listing(folder)
