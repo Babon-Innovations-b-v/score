@@ -1,10 +1,8 @@
-"""Invariant: what the cockpit reads is the store and the runner's figures as they are, to the signed-in only: the
-places grouped by the look rule and each stage by the stage table's reads (never a hand list), the month's money a
-total that is never whole while a line is partial or unread with no stop or cost set from the cockpit, a file served
-only when a page listed it, every route closed without a session, the owner's routes to the owner, every write
-behind the CSRF header and an Origin, and the owner's decisions through the same gate as the review page.
+"""Invariant: the dashboard reads the store and the runner's figures as they are: the places grouped by the look rule
+and each stage by the stage table's reads (never a hand list), the month's money a total that is never whole while a
+line is partial or unread with no stop or cost set here, and the plan showing what the accepted assembly laid.
 
-Breaks that turn test_the_cockpit_shows_the_store_as_read red (each applied once and seen red, then reverted):
+Breaks that turn test_the_store_is_read_as_it_is red (each applied once and seen red, then reverted):
 - groups.look_of: drop the `prologue_<place>` name (`(f"prologue_{place}", place)` -> `(place,)`) -> LOOK_OF row beta
 - groups.label: drop the PEOPLE prefix branch -> LABELS row people-dress-nev-work
 - groups.layers: drop the `reads_assembly` shortcut (`row.name == "assembly" or reads_assembly(...)` ->
@@ -14,36 +12,20 @@ Breaks that turn test_the_cockpit_shows_the_store_as_read red (each applied once
 - money.with_bill_days: `{**days.get(today, {}), **read}` -> `read` -> the second read of the month keeps its day
 - groups.LAYER_OF_INPUT: surfaces-bake as "base" -> the made-up stage table's layers (closeup, surfaces-bake)
 - money.view: `stop=None` -> MONEY row "the runner's whole lines"
-- api/routes.place_detail: the unknown-place 404 dropped -> route row /api/places/nowhere
-- api/routes.healthz: `"commit": None` -> healthz names the commit
-- api/routes: a `/money/stop` route added -> route row /api/money/stop
-- api/routes.basket_remove: nothing deleted -> the basket round trip
-- api/routes.decision: a missing worse_reason filled in -> the worse close-up accepted without a reason (409)
-- api/routes.advance: a refused advance answered 200 -> the advance with no output (409)
-- api/routes.on_its_way: without `no-store` -> the hosted stand-in's cache-control
 - costs.hours: `{minutes % 60:02d}` -> `{minutes % 60}` -> HOURS row 125
-- api/deps.py: the session check (401) dropped -> route rows of nobody
-- api/deps.py: the owner check dropped -> route rows of the guest
-- api/deps.py: the Origin check dropped -> the write without an Origin
-- api/routes.file: `state.source().file(sha)` -> `... or ("x.png", store_root / "objects/blobs" / sha)` (any stored
-  sha served) -> route row of the unlisted blob
 - local.laid_on_plan: `corner, east, south = frame_of(plan)` -> `corner, east, south = np.zeros(3), np.array([1.0,
   0.0, 0.0]), np.array([0.0, 0.0, 1.0])` (the place's frame shown as the plan's) -> LAID_ON_PLAN row hut
 """
 import datetime
-import hashlib
 import json
 import pathlib
 import types
 
 import pytest
-from django.test import override_settings
-from fastapi.testclient import TestClient
 
 from score import stages
 from score.dashboard.state import costs, groups, money
 from score.dashboard.state.models import CostLine, PlaceCard, Spend, StyleGroup
-from score.dashboard.tests.fixture import ORIGIN, api
 
 pytestmark = pytest.mark.django_db(transaction=True)
 MONTH = "2026-10"
@@ -118,10 +100,7 @@ def laid_source(tmp_path):
                                  blob_path=lambda sha: tmp_path / sha)
 
 
-def test_the_cockpit_shows_the_store_as_read(world, settings, tmp_path):
-    from score.dashboard.pages import seen
-    from score.dashboard.pages.models import ChangeRequest
-    from score.dashboard.site.asgi import app
+def test_the_store_is_read_as_it_is(world, settings, tmp_path):
     from score.dashboard.state.local import LocalSource
 
     # the look rule, a step's words and the minutes, as tables of input and the answer
@@ -185,87 +164,3 @@ def test_the_cockpit_shows_the_store_as_read(world, settings, tmp_path):
     source = laid_source(tmp_path)
     for place, laid in LAID_ON_PLAN:
         assert LocalSource.laid_on_plan(source, place, {"w": 20.0, "d": 12.0}) == laid, place
-
-    # the served cockpit: open to no one without a session but healthz, the owner's routes his alone
-    nobody = TestClient(app, base_url=ORIGIN, client=("127.0.0.1", 50000))
-    owner, guest = api("joey"), api("guest")
-    secret = b"in the store, but no listing names it"
-    unlisted = hashlib.sha256(secret).hexdigest()
-    (world.root / "store/objects/blobs" / unlisted).write_bytes(secret)
-    routes = [  # (who, method, path, body, the answers allowed)
-        *[("nobody", "get", path, None, {401}) for path in
-          ("/api/state", "/api/spend", "/api/money", "/api/requests", "/files/" + "0" * 64, "/api/docs")],
-        *[("owner", "get", path, None, {200}) for path in
-          ("/api/state", "/api/places/alpha", "/api/places/alpha/steps/closeup", "/api/world/steps/terrain",
-           "/api/spend", "/api/money")],
-        ("owner", "get", "/api/places/nowhere", None, {404}),
-        ("owner", "get", "/api/places/alpha/steps/nothing", None, {404}),
-        ("guest", "get", "/api/basket/items", None, {403}),
-        ("guest", "post", "/api/basket/items", {"place": "alpha", "stage": "plan"}, {403}),
-        ("guest", "post", "/api/decisions", {"node": "closeup@alpha", "output": "x", "decision": "accept"}, {403}),
-        ("guest", "post", "/api/launches", {"plan_id": 1, "confirm": True}, {403}),
-        ("guest", "post", "/api/advances", {"node": "assembly@alpha", "output": world.outputs["assembly@alpha"]},
-         {403}),
-        # owner rule (2026-10-20): no stop he sets, no month's stop; the Buy's yes writes the batch's stop
-        *[("owner", "post", route, {"euros": 5}, {404, 405}) for route in
-          ("/api/money/owner-costs", "/api/money/stop", "/api/money/month")],
-        # a file is served only when a listing names it, never a stored blob by its sha alone
-        ("owner", "get", f"/files/{unlisted}", None, {404}),
-        ("owner", "get", "/files/" + "f" * 64, None, {404}),
-        ("owner", "get", "/files/../etc", None, {404}),
-        ("owner", "get", f"/thumbs/{'b' * 64}.jpg", None, {404}),  # local: a missing picture stays a 404
-    ]
-    clients = {"nobody": nobody, "owner": owner, "guest": guest}
-    for who, method, path, body, allowed in routes:
-        answer = getattr(clients[who], method)(path, **({} if body is None else {"json": body}))
-        assert answer.status_code in allowed, (who, method, path, answer.status_code)
-    assert owner.get("/api/launches").json() == []
-    # healthz is open to anyone and names the commit the image was built at (the score-update timer's pin)
-    assert nobody.get("/healthz").json() == {"ok": True, "mode": "local", "commit": None}
-    settings.SCORE_COMMIT = "a" * 40
-    answer = nobody.get("/healthz")
-    assert answer.status_code == 200 and answer.json()["commit"] == "a" * 40
-
-    # the listed picture is served as its kind, its thumb as a jpeg
-    detail = owner.get("/api/places/alpha/steps/closeup").json()
-    picture = next(item for item in detail["files"] if item["kind"] == "image")
-    assert owner.get(picture["url"]).headers["content-type"] == "image/png"
-    assert owner.get(picture["thumb_url"]).headers["content-type"] == "image/jpeg"
-
-    # a write without the CSRF header or without an Origin is refused and keeps nothing
-    asked = {"place": "alpha", "stage": "closeup", "words": "redder"}
-    assert owner.post("/api/requests", json=asked, headers={"X-CSRFToken": ""}).status_code == 403
-    origin = owner.headers.pop("Origin")
-    assert owner.post("/api/requests", json=asked).status_code == 403
-    owner.headers["Origin"] = origin
-    assert not ChangeRequest.objects.exists()
-    # with both, a change request and the basket round trip
-    made = owner.post("/api/requests", json=asked)
-    assert made.status_code == 200 and made.json()["node"] == "closeup@alpha"
-    assert [item["words"] for item in owner.get("/api/requests").json()] == ["redder"]
-    listed = owner.post("/api/basket/items", json={"place": "alpha", "stage": "closeup"}).json()
-    assert [(item["place"], item["stage"]) for item in listed] == [("alpha", "closeup")]
-    assert owner.delete(f"/api/basket/items/{listed[0]['id']}").json() == []
-
-    # a worse output (the fixture's close-up with one more fault than the accepted) is accepted only with a reason
-    waiting, before = world.outputs["closeup@alpha waiting"], world.store.accepted("closeup@alpha")
-    refused = owner.post("/api/decisions", json={"node": "closeup@alpha", "output": waiting, "decision": "accept"})
-    assert refused.status_code == 409 and world.store.accepted("closeup@alpha") == before
-    taken = owner.post("/api/decisions", json={"node": "closeup@alpha", "output": waiting, "decision": "accept",
-                                               "worse_reason": "fine"})
-    assert taken.status_code == 200 and world.store.accepted("closeup@alpha") == waiting
-
-    # an advance is kept only for a known node and output
-    output = world.outputs["assembly@alpha"]
-    answer = owner.post("/api/advances", json={"node": "assembly@alpha", "output": output})
-    assert answer.status_code == 200 and seen.advanced("assembly@alpha", output), answer.text
-    assert owner.post("/api/advances", json={"node": "nothing@alpha", "output": output}).status_code == 404
-    assert owner.post("/api/advances", json={"node": "assembly@alpha", "output": ""}).status_code == 409
-
-    # hosted: a picture not yet up is a stand-in fetched again later, never a broken image
-    with override_settings(SCORE_MODE="hosted"):
-        for path in (f"/files/{'a' * 64}", f"/thumbs/{'a' * 64}.jpg"):
-            answer = owner.get(path)
-            assert answer.status_code == 200 and answer.headers["content-type"].startswith("image/svg+xml"), path
-            assert answer.headers["cache-control"] == "no-store", path
-        assert owner.get("/files/not-a-sha").status_code == 404

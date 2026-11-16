@@ -1,5 +1,5 @@
-"""The VM's always-on units as one process in the conductor's pod (a pod has no systemd): the listener kept running,
-each timer's commands at its interval, resume at the start and every RESUME_SECONDS. The sync pass and the backups are CronJobs beside
+"""The VM's always-on units as one process in the conductor's pod (a pod has no systemd): an always-on unit kept
+running (none since the cockpit's listener went, 2026-11-16), each timer's commands at its interval, resume at the start and every RESUME_SECONDS. The sync pass and the backups are CronJobs beside
 it (`__init__.CRONJOBS`), so a pass never blocks a timer here.
 
     python3 -I tools/cloud/k8s/conductor/units.py      # the conductor container's last step (score-conductor-start)
@@ -7,7 +7,7 @@ it (`__init__.CRONJOBS`), so a pass never blocks a timer here.
 Each command runs as its unit ran it: the env file's NAME=value lines in its environment (EnvironmentFile), the free-
 only latch's file too for the commands the VM gave it, through /bin/sh, its output into this process's (the pod's
 log, read by `score.conductor logs` and `kubectl logs`) prefixed with the unit's name. A failed command is said and
-its timer goes on (the VM's `ExecStart=-`); the listener is started again `RESTART_SECONDS` after it ends. SIGTERM
+its timer goes on (the VM's `ExecStart=-`); an always-on unit is started again `RESTART_SECONDS` after it ends. SIGTERM
 (the pod's stop) is passed on to every command still running, which then has the pod's grace to end.
 """
 import os
@@ -27,11 +27,8 @@ RESTART_SECONDS = 30
 # its run `running`, and resume starts it again once (score/graph/runs.cut_at_this_boot; the rehearsal of 2026-11-07).
 RESUME_SECONDS = 300
 TICK_SECONDS = 5
-TOKEN = 'SCORE_SYNC_TOKEN="$("$SCORE_SECRET_READER" score-cockpit-sync-token)" && [ -n "$SCORE_SYNC_TOKEN" ] && ' \
-        "export SCORE_SYNC_TOKEN && exec "
 # (unit, seconds between starts or None for the always-on one, the first start's delay, its commands)
 UNITS = (
-    ("listen", None, 0, (f"{TOKEN}{PY} -m score.dashboard listen",)),
     ("resume", RESUME_SECONDS, 0, (f"{PY} -m score resume",)),
     ("health", 60, 60, (f"{PY} -m score.conductor health --write",
                         f"/usr/bin/python3 -I {REPO}/tools/cloud/conductor/health_push.py")),

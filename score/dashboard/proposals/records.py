@@ -1,17 +1,14 @@
-"""Where the basket is kept and how it is read: one layout in the dashboard's home (local mode) and in the state export
-(hosted mode), so both sides read it with these functions. Plain files only: no store, no stages.
+"""Where the basket is kept and how it is read, in the dashboard's home. Plain files only: no store, no stages.
 
     <root>/index.json                       the basket (make.py): {made_at, commit, refusal, missing, items}
     <root>/declared.json                    a department's items, by id (`declared`): kept across makes
     <root>/answers.json                     the owner's answers to the items' questions (`answers`): agents read them
-    <root>/<place>/details.json             the place's free after and its items' inputs (details.py)
-    <root>/<place>/web3d/<place>.json, <place>-light.glb, <place>.glb, <place>-around.glb   the after's 3D web copy
-    <root>/<place>/inputs/<n>.jpg           the pictures a paid node would be made from
-    <root>/item-<id>/details.json, inputs/  a declared item's own pictures and files
+    <root>/<place>/details.json             a place's details, as older makes wrote them (none since the cockpit
+                                            went, 2026-11-16)
 
 An item: {id, title (a declared item's), places, place (its one place, else None), layers, nodes: {node: price},
 why: {node: why}, again: [node], missing: [words], declared, for (the places whose line holds it), totals, version}. `version` hashes its nodes and why,
-so a buy is of the item he saw. The environment's own rows keep their details under ENVIRONMENT.
+so a buy is of the item he saw.
 
 A declared item (`python -m score.dashboard basket-item`): {title, sentence, nodes: [patterns of the paid nodes it
 takes, any place], pictures: [paths], files: [paths], questions: [{ask, recommended}]}. A declaration with an
@@ -20,10 +17,8 @@ automatic item's id and no node patterns gives that item its words and questions
 import json
 import pathlib
 import re
-import shutil
 
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
-FILE = re.compile(r"^(web3d|inputs)/[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
 INDEX = "index.json"
 DETAILS = "details.json"
 DECLARED = "declared.json"
@@ -117,21 +112,3 @@ def put_index(root, found):
     """Write the basket's index, swapped in whole."""
     pathlib.Path(root).mkdir(parents=True, exist_ok=True)
     swapped_json(pathlib.Path(root) / INDEX, found)
-
-
-def put_place(root, partial, place, found):
-    """Swap the finished folder `partial` in for the place's old one, its details.json written; the folder."""
-    target = folder(root, place)
-    (partial / DETAILS).write_text(json.dumps(found, indent=1))
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.rmtree(target, ignore_errors=True)
-    partial.rename(target)
-    return target
-
-
-def file_path(root, place, name):
-    """A place's basket file (web3d/ or inputs/), or None when it has no such file."""
-    if not FILE.match(name or "") or ".." in name:
-        return None
-    path = folder(root, place) / name
-    return path if path.is_file() else None

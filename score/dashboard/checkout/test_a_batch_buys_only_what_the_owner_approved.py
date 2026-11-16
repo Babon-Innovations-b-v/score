@@ -77,11 +77,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   (PRESSES "stopped by the grow and resumed")
 - flow.launch: drop `record.launch = started` -> test_a_batch_buys_only_what_the_owner_approved
   (PRESSES "his hosted checkout")
-- results.billed_by_node: `(euros + line.euros, ...)` -> `(line.euros, ...)` ->
-  test_a_batch_buys_only_what_the_owner_approved (PRESSES "his results against the forecast")
 - flow.batch_groups: the Benchmarks group -> `if False:` -> test_a_batch_buys_only_what_the_owner_approved (PRESSES "the
   benchmarks: one item, ...")
-- api/routes.books_figure: `user.username` -> "someone" -> test_a_batch_buys_only_what_the_owner_approved (PRESSES "his
+- actions.set_books_figure: `by=user` -> `by="someone"` -> test_a_batch_buys_only_what_the_owner_approved (PRESSES "his
   model calls' month figure into the books")
 - flow.by_of: `return user.username` -> test_a_batch_buys_only_what_the_owner_approved (CHAT_TRIES "his yes, ...")
 - chat_yes.buy: drop `print(relations_kept(places))`, or move it after `flow.basket_made` -> a Buy plans on relations
@@ -129,7 +127,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - guard.plan_body: room without `- spend.reserved` -> test_a_batch_buys_only_what_the_owner_approved (WORKED "measured")
 - guard.plan_body: high `totals["high_euros"]` -> test_a_batch_buys_only_what_the_owner_approved (WORKED "unmeasured
   ...")
-- guard.launch: `record.state = "refused"` always -> test_a_batch_buys_only_what_the_owner_approved (the confirm page)
+- guard.launch: `record.state = "refused"` always -> test_a_batch_buys_only_what_the_owner_approved (actions.launch once ticked)
 - localrun.run_env: `SECRETS + RUN_TAGS` -> `SECRETS` -> test_a_batch_buys_only_what_the_owner_approved (LAUNCHED, its
   environment)
 - localrun.run_env: drop the CLUSTER_DEFAULTS lines -> test_a_batch_buys_only_what_the_owner_approved (the cluster's
@@ -151,17 +149,16 @@ import types
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
 from django.utils import timezone
 
 from score.dashboard.checkout import flow, pricing
 from score.dashboard.launch import guard, localrun
 from score.dashboard.launch.backend import Billed, LaunchHandle, RunGroup
-from score.dashboard.pages import basket
+from score.dashboard.pages import actions, basket
 from score.dashboard.pages.models import BasketChoice, BasketItem, Checkout, Launch, Plan
 from score.dashboard.proposals import make, records
 from score.dashboard.tests import fixture
-from score.dashboard.tests.fixture import FakeBackend, api
+from score.dashboard.tests.fixture import FakeBackend
 from score.graph import runs
 from score.store import AGENT_MARKERS
 
@@ -206,8 +203,11 @@ def bought(shop, *idents, version=None):
                                     by="joey")
 
 
-def checked_out(client, key, confirmed=True):
-    return client.post("/api/checkout", json={"key": key * 16, "confirmed": confirmed}).json()
+def checked_out(user, key, confirmed=True):
+    """His checkout of the items he chose to buy, as flow.start takes it: its words and the checkout made."""
+    seen = [{"id": choice.item, "version": choice.version} for choice in BasketChoice.objects.filter(choice="buy")]
+    record, said = flow.start(user, key * 16, confirmed, seen)
+    return {"said": said, "checkout": {"id": record.pk} if record else None}
 
 
 def launches():
@@ -359,27 +359,11 @@ PRESSES = [  # (id, the world before his presses: knobs; his presses: (key, tick
      [("e", True)],
      {"put": "benchmarks: EUR 1.50 to 6.31, 2 to run, 1 gaps",
       "proposal": ("benchmarks", {"title": "Benchmarks", "gaps.0.id": "batch-direct"}),
-      "screen": {"items.benchmarks.likely": 1.5, "items.benchmarks.high": 2.81, "items.benchmarks.guessed": 3.5,
-                 "items.benchmarks.nodes": 2, "items.benchmarks.blocked": False, "stop": round(6.31 * 1.1, 2),
-                 "eta.likely_minutes": round(91.3 + 64.0, 1)},
       "state": "launched", "line": round(100.0 + 10.0 + 6.31 * 1.1, 2),  # spent, in flight, its high plus 10%
       "planned": [], "launched": [RunGroup((), (), benchmarks=True)], "launches": 1}),  # it plans each one itself
     ("his model calls' month figure into the books", {"books_figure": True, "buy": ()}, [("figure", 1030)],
      {"status": 200, "said": ["EUR 1030.00 entered by joey"], "written": [(1030.0, "joey")], "checkouts": 0,
-      "line": None, "launches": 0}),
-    # what each item really cost (the ledger's lines since the checkout; an older run's line is not its), against
-    # its forecast, with its new outputs and failed gates as each is made
-    ("his results against the forecast", {"buy": ("alpha-pieces", "beta-pieces"), "bill": [
-        ("closeup@alpha", 8.5, 25.0, None), ("closeup@alpha", 0.5, 0.0, None),
-        ("closeup@beta", 99.0, 5.0, "2026-01-01T00:00:00Z")]}, [("j", True)],
-     {"state": "launched", "launches": 1, "results": [
-         (("alpha", (), {"tweak": 7}), {
-             "euros": 9.0, "forecast.high_euros": 30.0, "items.#": 2, "items.0.id": "alpha-pieces",
-             "items.0.euros": 9.0, "items.0.forecast.high_euros": 15.0, "items.0.nodes.#": 1,
-             "items.0.nodes.0.new": True, "items.0.nodes.0.output": "made", "items.0.nodes.0.minutes": 25.0,
-             "items.0.nodes.0.verdicts": [{"check": "looks", "answer": "pass", "reason": "0 faults"}],
-             "items.1.euros": None, "items.1.nodes.0.output": None, "items.1.nodes.0.new": False}),
-         (("beta", ("fail",), {"faults": 4, "tweak": 8}), {"items.1.new_outputs": 1, "items.1.failed_gates": 1})]})]
+      "line": None, "launches": 0})]
 
 RUN_COMMANDS = [  # (id, the group, jobs, the conductor's cores, the runner command after its python)
     ("both nodes named", RunGroup(("alpha",), ("closeup@alpha", "pixal@alpha")), 8, 16,
@@ -476,7 +460,7 @@ def dug(found, path):
     return found
 
 
-def pressed(client, presses, held, settings):
+def pressed(user, presses, held, settings):
     """His presses in order ("again": the last checkout run again under a yes; "hosted": his checkout of what he
     chose, applied on the store's machine; "figure": his model calls' month figure entered); (the last answer, the checkout ids
     each key gave, the seconds they took)."""
@@ -503,10 +487,10 @@ def pressed(client, presses, held, settings):
                 answer = {"said": applied.detail, "applied": applied.state, "launch_id": applied.launch_id}
                 continue
             if key == "figure":
-                given = client.post("/api/money/books-figure", json={"euros": ticked})
-                answer = {**given.json(), "status": given.status_code}
+                said = actions.set_books_figure(user.username, ticked)
+                answer = {"said": said, "status": 409 if said.startswith(("refused", "decisions are off")) else 200}
                 continue
-            answer = checked_out(client, key, ticked)
+            answer = checked_out(user, key, ticked)
             if answer.get("checkout"):
                 ids.setdefault(key, set()).add(answer["checkout"]["id"])
         return answer, ids, time.monotonic() - began
@@ -816,12 +800,12 @@ def test_a_batch_buys_only_what_the_owner_approved(shop, settings, tmp_path, mon
     each press of his against a counter cleared of the last one's checkouts, refused in words, launched as one run at
     the batch's high plus 10%, or refused, failed or done after its line, as the PRESSES row says (pressed here or
     applied on the store's machine; the Benchmarks item one batch of its own; his model calls' month figure into the books),
-    then each pass's taking back of an ended batch's line and his results against the forecast. Then his Buys in
+    then each pass's taking back of an ended batch's line. Then his Buys in
     chat at the conductor's door: a yes refused in words for all he did not approve, his Buys by stage, phase and
     place, and one yes's tries of its batch under its one budget. Then the launch
     guard's way in, one basket all through: it groups the basket for the runner, works its plan out
     from the backend (the runner prices; an unmeasured node held at its estimate in the high only), refuses a
-    launch in words for every reason, launches through the confirm page only when ticked and follows the run to
+    launch in words for every reason, launches (actions.launch) only when ticked and follows the run to
     its result; the local backend under it gives the runner its command and an environment without the dashboard's
     secrets, prices through `score price`, reads the ledger by node since the batch, and reads each result line as
     its state. The real `score run --detach` of a run with nothing to make and nothing paid (the camp's physics
@@ -894,21 +878,19 @@ def test_a_batch_buys_only_what_the_owner_approved(shop, settings, tmp_path, mon
             known(given)
     for name, chosen, out, left in PLACES_LEFT:  # by place (the door's buy --place / --leave-place)
         assert flow.places_left(BY_PLACE, chosen, out, NEEDS.__getitem__) == left, name
-    client = api()
+    owner = get_user_model().objects.create_user("joey", password="a long enough password")
     for name, knobs, presses, left in PRESSES:
         counter_cleared()
         before = stop_line(shop)
         with monkeypatch.context() as patched:
             met = world_before(shop, settings, knobs, patched, tmp_path)
-            screen = client.get("/api/screens/buy").json() if "screen" in left else {}
-            assert all(dug(screen, path) == value for path, value in left.get("screen", {}).items()), (name, screen)
             assert "put" not in left or met["put"][0] == left["put"], (name, met["put"])
             if "proposal" in left:
                 ident, fields = left["proposal"]
                 root = settings.SCORE_HOME / "proposals"
                 assert [each["id"] for each in records.items(root)].count(ident) == 1, name  # a second put replaces
                 assert all(dug(records.item(root, ident), path) == value for path, value in fields.items()), name
-            answer, ids, took = pressed(client, presses, knobs.get("held"), settings)
+            answer, ids, took = pressed(owner, presses, knobs.get("held"), settings)
             record, line = Checkout.objects.order_by("-pk").first(), stop_line(shop)
             assert all(words in answer.get("said", "") for words in left.get("said", ())), (name, answer)
             assert left.get("checkouts", Checkout.objects.count()) == Checkout.objects.count(), name
@@ -973,18 +955,6 @@ def test_a_batch_buys_only_what_the_owner_approved(shop, settings, tmp_path, mon
                 patched.setattr(FakeBackend, "spent",
                                 FakeBackend.spent if room is None else line["euros"] - FakeBackend.reserved - room)
                 assert flow.room_refusals(next_try[0], FakeBackend()) == "", (name, room)
-            if "bill" in knobs:
-                since = record.at.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                patched.setattr(FakeBackend, "bill", [Billed(node, euros, minutes, at or since)
-                                                      for node, euros, minutes, at in knobs["bill"]])
-            for (place, extra, options), fields in left.get("results", ()):
-                new = fixture.made(shop.store, shop.root / "work", "closeup", place, *extra, minutes_ago=0, **options)
-                shop.source.refresh()  # the cockpit reads the store's index again within a minute; the test at once
-                found = client.get(f"/api/checkout/{record.pk}/results").json()
-                assert all(dug(found, path) == (new if value == "made" else value)
-                           for path, value in fields.items()), (name, place, found)
-            assert "results" not in left or \
-                client.get(f"/api/checkout/{record.pk + 999}/results").status_code == 404, name
     # his Buy approved in chat (checkout/chat_yes.py), at the conductor's door: a yes refused in words for what he
     # did not approve, then his Buys by stage, phase and place, then one yes's tries of its batch
     counter_cleared()
@@ -1124,18 +1094,16 @@ def test_a_batch_buys_only_what_the_owner_approved(shop, settings, tmp_path, mon
                      "rebuy_reason": None, **given}
         assert guard.refusals(edited(plan, edits), **arguments) == words, name
     settings.SCORE_STORE_WRITABLE = True
-    # the confirm page: its basket the plan's, launched only once ticked, followed to its result line
+    # actions.launch: its basket the plan's, launched only once ticked, followed to its result line
     monkeypatch.setattr(FakeBackend, "log_folder", str(tmp_path))
     for each in GROUPED[0][1]:
         BasketItem.objects.create(place=each.place, stage=each.stage, added_by="joey")
-    client = Client()
-    client.force_login(get_user_model().objects.get(username="joey"))
-    assert client.post(f"/basket/confirm/{plan.pk}/", {}).status_code == 200  # not ticked
+    assert actions.launch("joey", plan, False, "")[0] is None  # not ticked
     assert not Launch.objects.exists()
     monkeypatch.setattr(guard, "launch_soon", lambda record, chosen: guard.launch(record, chosen, FakeBackend()))
-    answer = client.post(f"/basket/confirm/{plan.pk}/", {"confirm": "yes"})
+    confirmed, said = actions.launch("joey", plan, True, "")
     launched = Launch.objects.get()
-    assert answer.status_code == 302 and launched.state == "running", launched.result
+    assert confirmed is not None and launched.state == "running", (said, launched.result)
     assert guard.polled(launched, FakeBackend()).state == "done"
     assert [call[1:] for call in launches()] == [(group, 4, None) for group in GROUPED[0][2]]
     # the local backend: the runner's command and environment for the plan's run of both places

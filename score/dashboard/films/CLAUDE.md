@@ -1,38 +1,26 @@
 # score/dashboard/films/
 
 The film script (CONTEXT.md): `__init__.py`'s docstring has the format and the render hook; `script.py` the cut types,
-their defaults, the clock, the checks and the lock; `default.py` an environment's default film; `media.py` what exists per place (films, hero, 3D copy, layers, step
-pictures); `render.py` the render items. The pages are `pages/films.py`, `templates/pages/film*.html` and
-`static/pages/film.js` (the editor and the three.js preview), `film.css`. `takes.py` is a screen take's steps and
-its refusal (CONTEXT.md "screen take"). `preview/` (store's machine only, never imported hosted) renders a script's
-free preview end to end (`python -m score.dashboard film-preview <film> [--export DIR]`, `make.py`'s docstring; every
-sync pass runs it for each locked script whose preview is missing or not of the lock, `sync/client.film_previews`, so
-the environment-film row's takes follow a lock on any store's machine): the
-takes recorded in headless Chromium on a hosted-mode cockpit of its own over a state export, signed in as the owner by
-the proxy header (`recorder.mjs`), the setting animation and scale zoom drawn by `scene.js` from `scenes.py` (the
-setting's physics through `score/review/overhead.py`, the environment plan's sites and blocks, the locked concepts,
-each body's colour from its `body-face-<body>` row's face), the other cuts through the FILM page's own player, joined by ffmpeg on the script's
-clock over the bed the sound stage made from the design for the first place it shows (`make.bed_sound`, the state's
-`sound_beds`; silent, "waiting on the sound bed", while none is made, never a library name); out to `$SCORE_DASHBOARD_HOME/films/previews/<film>.mp4|.json`, which the FILM page
-plays (`/film-preview/<film>.mp4`, api/routes.py, with ranges) and the export carries (`films/`).
+their defaults, the clock, the checks and the lock; `default.py` an environment's default film; `media.py` what exists
+per place; `render.py` the render items; `takes.py` a screen take's steps and its refusal (CONTEXT.md "screen take");
+`preview/scenes.py` a setting animation's and scale zoom's scene. The FILM pages, their editor and the free preview's
+recorder went with the cockpit (owner, 2026-11-16); his Lock is a chat decision (`decide-yes lock-film`,
+`pages/films.film_locked`).
 
 Rules:
 
-- **Plain files, both modes.** Nothing here imports `score.stages`, `score.store` or `tools.*`: the hosted process
-  reads it too. The format is plain JSON so showcase.py and the demo-film rows read it without importing this package.
-- **The cockpit writes only its home** (`$SCORE_DASHBOARD_HOME/films/<film>.json`); `data/films/<film>.json` is the
-  starter, changed by a commit, never by the page. No stage reads either, so no key moves.
+- **Plain files.** Nothing here imports `score.stages`, `score.store` or `tools.*`. The format is plain JSON so showcase.py and the demo-film rows read it without importing this package.
+- **Only the dashboard's home is written** (`$SCORE_DASHBOARD_HOME/films/<film>.json`); `data/films/<film>.json` is the
+  starter, changed by a commit. No stage reads either, so no key moves.
 - **The lock is the one input a stage reads** (owner, 2026-10-21: the film is a design step, after the scenes and
-  before Buy, the top bar's Film). His Lock (`/film/<film>/lock/`, SyncRequest `film-lock`, applied on the store's
-  machine by `pages/films.film_locked`, hosted through the sync and on the hosted home at once) saves the script as
-  the editor shows it and keeps a copy in `$SCORE_DASHBOARD_HOME/films/locked/<film>.json` (`script.lock`); the
+  before Buy). His Lock (his chat `lock-film`, request kind `film-lock`, applied by `pages/films.film_locked`) saves
+  the script as his yes named it and keeps a copy in `$SCORE_DASHBOARD_HOME/films/locked/<film>.json` (`script.lock`); the
   environment-film row reads only those (`score/stages/demo_film/final.py`, the environment's `dashboard` root), so a
   lock, a changed lock or an unlock moves its key. Locked, nothing saves over it; Unlock is refused once a checkout
-  since the lock bought a film row (`script.FILM_STAGES`; hosted, any checkout sent since). Buy waits for it as for a
-  scene's design: while the environment has no locked script (`screens.film_waits`) the Buy screen says "film script
-  not locked", `screens.now_items` leaves out every item holding a film row and the checkout refuses one.
+  since the lock bought a film row (`script.FILM_STAGES`). Buy waits for it as for a
+  scene's design: while the environment has no locked script (`screens.film_waits`, "film script not locked"), `screens.now_items` leaves out every item holding a film row and the checkout refuses one.
 - **Every environment opens on its default film** (owner, 2026-10-21: "just do my script as the default setup u can
-  then change"): `/film/` goes to the environment's film (`script.default_name`: its starter marked `"default": true`,
+  then change"): the environment's film is (`script.default_name`: its starter marked `"default": true`,
   environment 1's `env1_demo`, even where a saved copy lost the mark; else a saved script so marked; else
   `<world>-film`), built until he saves it by `default.py` from his script's
   structure filled in from the environment's own setting and scenes (the site holding the most scenes, its first
@@ -53,30 +41,20 @@ Rules:
   through (`default.place_peel`, owner 2026-11-05: "every scene needs the peel"; asked whether that meant adding
   people or peeling the place itself: "2"): the same view finished, its bare models and its physics bodies, so every
   walked scene has one peel; env1_demo's made by the same `sim_bodies`, and the environment film refuses a lock
-  missing one; the FILM page plays it like a layer peel, its `waiting` note on until a row draws it. Its words and shots follow the design, never
+  missing one. Its words and shots follow the design, never
   the tree (audit, 2026-11-04): a walk is said Inside or Outside by its scene record's `inside` (`WorldState.
   scene_inside`), the rooms leg the same; a shell with a plan of its own (the Base) is walked like any top scene; a
   scene whose plan names its eye ("balcony eye 10.6 m", `default.designed_eye`) is a still from there, never walked;
   site metres from the environment plan as it stands. `script.design_faults` (from `default.design_of` of the facts
   now) checks a script for each of these, and his Lock of an environment's script is refused while one stands, so a
   script that froze data since moved is locked again only once it says what the design says. A default is complete: every segment names a real scene, each long enough
-  to read (the physics animation 12 s, `script.CUTS` defaults the same), its target its own length. The list of every
-  film is `/film/all/`.
-- **The page is a cockpit** (owner, 2026-10-21: "this is not at all easy to use"; the design page's panels, enlarge
-  buttons and rail, `design.js`): the player (live, or the rendered free preview), under it the storyboard (a card a
-  segment, its thumbnail a frame of its take in the rendered preview, else its scene's hero; drag to reorder, click to
-  edit, Add segment's cut types in plain words grouped by `script.GROUPS`), the rail the lock, one cost line ("render
-  EUR x, n to render, m free", its items, prices' basis and basket rows folded) and the chosen segment's fields, only
-  those its cut needs. Every change saves itself (autosave, owner only, not while locked); no defaults table, no
-  ledger ids or frame maths on the page.
-- **Free preview, priced renders.** The preview uses only what exists (the web copies, accepted films, step
-  pictures). A render item is priced only from measured runs (`render.MEASURED`, film frames per place in
-  `render.FILM_FRAME_EUROS`, read from the cloud ledgers; stills as look frames); a kind never rendered on a card reads "not measured
+  to read (the physics animation 12 s, `script.CUTS` defaults the same), its target its own length.
+- **Priced renders.** A render item is priced only from measured runs (`render.MEASURED`, film frames per place in
+  `render.FILM_FRAME_EUROS`, read from the cloud ledgers; stills as look frames); a kind never rendered reads "not measured
   yet". The basket takes only rows that exist (demo-film@<place>); nothing here plans, launches or calls a cloud.
 - **A take never spends.** Every request but a GET is aborted, and a click on a button that posts a form, names a
-  price or carries a spend word (`takes.SPEND_WORDS`) refuses the whole preview; the script check refuses one named so
-  before anything runs. A page that is not as the owner sees it (a locked place has no Redraw) is said in the
-  segment's `why`, never staged.
+  price or carries a spend word (`takes.SPEND_WORDS`) is refused; the script check refuses one named so before
+  anything runs.
 - **What waits is marked.** A segment showing a stand-in (a plan's masses for a finished place, a concept for a finished
-  room, a waiting inventory) names what it waits on in `waiting`, and says so on screen (a scale zoom leg's `tag`).
+  room, a waiting inventory) names what it waits on in `waiting`, (a scale zoom leg's `tag`).
 - Tests: `films/test_a_film_is_timed_checked_and_priced_from_its_script.py` (the fixture environment, temp homes).

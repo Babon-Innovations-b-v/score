@@ -17,12 +17,10 @@ frame that shows them best (their points carried through that frame's camera fro
 
 Rules:
 
-- **Local only.** `state/local.py` imports this package inside its methods; the hosted process never does
-  (`sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py` `test_hosted_renders_every_page_light` fails on `score.dashboard.previews` or matplotlib in a hosted process). Previews
-  reach the hosted cockpit as exported pictures, never as code.
+- **Local only.** `state/local.py` imports this package inside its methods.
 - **Pick by file, never by stage name.** A new kind of output gets a drawer keyed on what its files hold.
 - **Made once, kept.** `<home>/previews/<VERSION>/<output>.png`, one at a time, one thread. `VERSION` carries the
   drawers' code version (`state/versions.py`), so a change to any drawer draws every kept picture again. Served and exported under `preview.png` with
   `preview_id(output)`, 64 hex, so `/files` and `/thumbs` serve it like any listed picture.
-- **Never write the store**, never name a provider (`tests/test_cockpit_is_the_owners_true_view.py`), never move a paid row: nothing
+- **Never write the store**, never name a provider, never move a paid row: nothing
   here is in a stage's code key (`python -m score.stages.moved origin/main`).

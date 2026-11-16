@@ -1,13 +1,11 @@
-"""What scene.js draws for a setting animation and a scale zoom, worked out from what exists: the setting's bodies on
+"""A setting animation's and a scale zoom's scene, worked out from what exists: the setting's bodies on
 their orbits (score/review/overhead.py, frame by frame), the environment plan's sites, blocks and skies, the picked
 concepts, and each body's and ground's colour from its face (the `body-face-<body>` rows' outputs, in the state's
-`body_faces`; a plain colour of its own, said waiting, while its row has not run). Read from the export
-the preview's cockpit serves (state.json), so the scenes and the takes show the same state."""
+`body_faces`; a plain colour of its own, said waiting, while its row has not run)."""
 import colorsys
 import datetime
 import hashlib
 import math
-import pathlib
 
 from score.dashboard.pages.setting_picture import REACH, disc_size
 from score.review import overhead
@@ -287,5 +285,3 @@ def scene_for(state, segment, rate):
         return {"legs": [tagged(state, leg)], "rate": rate}
     return {"legs": zoom_legs(state, segment, setting, rate), "rate": rate}
 
-
-SCENE_JS = pathlib.Path(__file__).with_name("scene.js")

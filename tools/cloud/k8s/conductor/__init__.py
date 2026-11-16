@@ -21,7 +21,7 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   copy's user names a pid that every other writer reads and signals as on the VM (the sweep's clean-frozen and the
   kill switch read and end them), never a pid of another pod's namespace.
 - **The conductor** (StatefulSet `score-conductor`, one pod): the container `conductor` runs the VM's always-on units
-  (`units.py`: the listener, health, update, secrets, sweep, resume at start and every 5 minutes); the container `door` is the agents'
+  (`units.py`: health, update, secrets, sweep, resume at start and every 5 minutes); the container `door` is the agents'
   door as a service (port `DOOR_PORT`, `tools/cloud/conductor/door_service.py`), reached only by `kubectl
   port-forward` to this pod: the NetworkPolicy refuses every other way in.
 - **CronJobs**: the sync pass (`score-sync`, every 5 min, Forbid: one pass at a time, the update first as the VM's
@@ -132,8 +132,7 @@ IMAGE_VARIABLE = "SCORE_CONDUCTOR_IMAGE"  # the pod's own image by digest, which
 CRONJOBS = (  # name, schedule, the VM unit's commands in order, resources
     ("score-sync", "*/5 * * * *",
      (f"/usr/bin/python3 -I {REPO}/tools/cloud/conductor/update.py --repo {REPO}",
-      'SCORE_SYNC_TOKEN="$("$SCORE_SECRET_READER" score-cockpit-sync-token)" && [ -n "$SCORE_SYNC_TOKEN" ] && '
-      f'export SCORE_SYNC_TOKEN && exec {PYTHON} -m score.dashboard sync'), SYNC),
+      f"exec {PYTHON} -m score.dashboard sync"), SYNC),
     ("score-backup", "0,30 * * * *", (f"exec {PYTHON} -m score.store.backup backup",), BACKUP),
     ("score-backup-check", "15 4 * * *",
      (f"{PYTHON} -m score.store.backup forget", f"exec {PYTHON} -m score.store.backup check"), BACKUP),

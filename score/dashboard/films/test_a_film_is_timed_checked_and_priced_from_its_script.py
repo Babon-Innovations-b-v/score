@@ -1,13 +1,12 @@
 """Invariant: a film is its script: timed on the script's own clock, checked in words, its render items priced from
-measured frames only (reused, free, the basket's place film row, or new), saved and locked in the cockpit's home by the
-owner only, its lock what the film rows and Buy wait for; the free preview cut on the same clock with the design's
-sound bed and the setting drawn from its own physics; environment 1's starters sound and complete, and every other
-environment's default built from its own scenes.
+measured frames only (reused, free, the basket's place film row, or new), locked in the dashboard's home by the
+owner's chat decision, its lock what the film rows and Buy wait for; the setting drawn from its own physics;
+environment 1's starters sound and complete, and every other environment's default built from its own scenes.
 
 One test, test_a_film_is_timed_checked_and_priced_from_its_script: the clock table (CLOCK), the fault table (rows
-built in the body from the starters and the default films), the priced film (PRICED), one cockpit world driven
-through its pages (film step, Buy, editor, save, basket, lock, preview, new film), the default film of an environment
-of its own (with and without people) and the preview's drawn setting and bed. Each break names the part it turns red.
+built in the body from the starters and the default films), the priced film (PRICED), the lock and the Buy that waits
+for it, the default film of an environment of its own (with and without people) and the drawn setting. Each break
+names the part it turns red.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - script.OVERLAPPING without "push" -> the clock table's "overlaps" row
@@ -16,18 +15,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.walk_item: reuse without the film shot's length check -> PRICED's 3.5 s and 7 s walks of alpha
 - render.FILM_FRAMES = 120 -> the film shot against the demo-film rows
 - script.faults: every named place counted unknown -> the fault table's starter rows
-- render.segment_item: an unrendered cut priced as "film" -> the editor's priced answer, PRICED's exploded row
-- pages/films.film_save: the owner check -> `if False:` -> the cockpit world's save by another
-- render.walk_item: the basket row for any place film -> the cockpit world's basket
-- pages/films.film_new: `script.blank(film, film)` -> the cockpit world's new film
 - takes.step_faults: the spending-click check -> `if False:` -> the fault table's "screen take" row
 - render.FILMED_LAYERS without "room" -> PRICED's zoom into the hub's rooms
-- preview/make.XFADES push -> "slideright" -> the clock table's "joined" row
-- preview/make.bed_sound: `if beds.get(place)` -> `if place in beds` -> the bed table
 - preview/scenes.scales: a moon's ring `+ 22.0` -> `+ 30.0` -> the setting drawn to the picture's scale
-- api/routes.film_preview: a plain Response in place of the FileResponse (no ranges) -> the cockpit world's preview
-- pages/films.bought_since: `return ""` -> the cockpit world's Unlock after a checkout
-- script.films_node: `return False` -> the cockpit world's Buy before and after the lock
+- pages/films.bought_since: `return ""` -> the lock's Unlock after a checkout
+- script.films_node: `return False` -> the Buy before and after the lock
 - default.sim_bodies: the CLIPS_TRUE_ON scenes not put first -> the sim bodies part's order
 - default.sim_bodies: `entry[0] in walked and entry[0] not in people` -> `False` -> the place peels, the env1 starter
 - default.people_of: a crowd-only place's `else None` dropped (its walks given) -> the people rows read
@@ -38,12 +30,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - script.design_faults: each of its checks (record, rooms_faults, finished stage, eye, apart_faults) -> `if False:` ->
   the frozen default film's design faults
 - default.refreshed: zoom_refreshed, shot_refreshed or tops_shot skipped (as it is) -> the refreshed default film
-- script.default_name: the saved scripts read before the starters -> the cockpit world's film step
-- preview/make.beat_offset: rounded to 1 place -> the beat table
+- script.default_name: the saved scripts read before the starters -> the default film's name
 - preview/scenes.LIT_DEGREES = -90 -> the zoom's arrival in daylight
 - preview/scenes.face_colour: hex pairs read (3, 1, 5) -> the body's face colour
 - state/local.DESIGNED_BED: "the scene's design" -> the sound stage's designed bed
-- preview/make.node_used: without the version -> the recorder's node
 """
 import json
 import math
@@ -53,40 +43,15 @@ import types
 
 import pytest
 from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.test import Client
+from django.http import Http404
 
 from score.dashboard.films import render, script, takes
-from score.dashboard.pages.models import BasketItem
-from score.dashboard.tests.fixture import api
 
-# The preview's player is served by the FastAPI app in its own thread, so the world is committed, not rolled back.
 pytestmark = pytest.mark.django_db(transaction=True)
-
-
-def signed_in(name="joey"):
-    user, made = get_user_model().objects.get_or_create(username=name)
-    if made:
-        user.set_password("a long enough password")
-        user.save()
-    client = Client(enforce_csrf_checks=False)
-    client.force_login(user)
-    return client
 
 
 def a_script(segments, **more):
     return {**script.blank("trailer", "A trailer"), "segments": segments, **more}
-
-
-def outside_ids_fold(html):
-    """The page's visible text outside <details class=\"ids\">, its tags and scripts dropped."""
-    html = re.sub(r'<details class="ids">.*?</details>', "", html, flags=re.S)
-    html = re.sub(r"<script.*?</script>", "", html, flags=re.S)
-    return re.sub(r"<[^>]+>", " ", html)
-
-
-def editor_of(html):
-    return json.loads(re.search(r'<script id="film-data" type="application/json">(.*?)</script>', html, re.S).group(1))
 
 
 def design_scenes(repo):
@@ -98,7 +63,7 @@ def design_scenes(repo):
             | {scene for look in looks.values() if isinstance(look, dict) for scene in look.get("scenes", [])})
 
 
-# The clock: each row's segments (and defaults) timed, its total, where its cuts fall and how the preview joins them.
+# The clock: each row's segments (and defaults) timed and its total.
 OVERLAPS = [{"cut": "title", "transition": "fade-through-black"},
             {"cut": "walk-through", "shows": {"place": "alpha"}, "transition": "cross-fade"},
             {"cut": "step-card", "shows": {"place": "alpha", "step": "plan"}, "transition": "push", "seconds": 2},
@@ -106,15 +71,6 @@ OVERLAPS = [{"cut": "title", "transition": "fade-through-black"},
 CLOCK = [
     ("overlaps", OVERLAPS, None, {"timeline": [(0.0, 4.0), (3.5, 7.0), (10.0, 2.0), (12.0, 4.0)], "total": 16.0}),
     ("overlaps, walks of 5 s", OVERLAPS, {"walk-through": 5.0}, {"total": 14.0}),
-    ("joined", [{"cut": "title", "transition": "fade-through-black", "seconds": 4},
-                {"cut": "text", "transition": "fade-through-black", "seconds": 3},
-                {"cut": "text", "transition": "cross-fade", "seconds": 3},
-                {"cut": "text", "transition": "push", "seconds": 2}], None,
-     {"total": 11.0, "made": "j3", "joined": ["transition=fade:duration=0.5:offset=6.500", "transition=slideleft",
-                                              "concat=n=2", "fade=t=out:st=3.750"]}),
-    ("beats", [{"cut": "title", "transition": "fade-through-black", "seconds": 4},
-               {"cut": "text", "transition": "cross-fade", "seconds": 3},
-               {"cut": "text", "transition": "fade-through-black", "seconds": 3}], None, {"cuts": [3.75, 6.5]}),
 ]
 
 # One film priced segment by segment: (segment, how it is made, the item's fields that must be so). The media: alpha
@@ -168,12 +124,6 @@ SPENDING = [("Draw fresh", True), ("Pick", True), ("Buy", True), ("Keep", True),
             ("EUR 0.15", True), ("hub, picked", False), ("Places", False)]
 
 # The bed: the sound stage's output for the first place the film shows, else the first place with one, else silence.
-BEDS = {"base": [{"sha": "b1"}], "hub": [], "lab": [{"sha": "l1"}]}
-BED_FILM = {"segments": [{"shows": {"world": "w"}}, {"shows": {"place": "hub"}}, {"shows": {"place": "base"}}]}
-BEDDED = [("first shown with one", BED_FILM, BEDS, ("base", "blobs/b1")),
-          ("none shown", {"segments": []}, BEDS, ("base", "blobs/b1")),
-          ("none made", BED_FILM, {}, (None, None))]
-
 
 def fault_found(wanted, found):
     """A wanted fault is in the list: a string word for word, a pattern somewhere in one."""
@@ -183,14 +133,13 @@ def fault_found(wanted, found):
 
 
 def test_a_film_is_timed_checked_and_priced_from_its_script(world, tmp_path, monkeypatch):
-    """A film's script judged on its clock, its words and its prices, the cockpit's pages that save, lock and buy it,
+    """A film's script judged on its clock, its words and its prices, its lock and the Buy that waits for it,
     and the default films and preview built from an environment's own design."""
-    import numpy
     from score import review
-    from score.dashboard import state as dashboard_state
     from score.dashboard.checkout import flow
+    from score.dashboard.pages import films as films_page
     from score.dashboard.films import default
-    from score.dashboard.films.preview import make, scenes
+    from score.dashboard.films.preview import scenes
     from score.dashboard.pages.models import Checkout
     from score.dashboard.state import local, screens
     from score.dashboard.tests.fixture import FakeBackend
@@ -199,23 +148,13 @@ def test_a_film_is_timed_checked_and_priced_from_its_script(world, tmp_path, mon
     repo = settings.SCORE_REPO
     home = settings.SCORE_HOME
 
-    # The clock: a cross-fade overlaps, a push does not, a cut does not; the preview joins and fades on it.
+    # The clock: a cross-fade overlaps, a push does not, a cut does not.
     for name, segments, defaults, wanted in CLOCK:
         film = a_script(segments, **({"defaults": defaults} if defaults else {}))
         if "timeline" in wanted:
             assert script.timeline(film) == wanted["timeline"], name
         if "total" in wanted:
             assert script.total_seconds(film) == wanted["total"], name
-        if "cuts" in wanted:
-            assert make.cut_moments(film) == wanted["cuts"], name
-        if "joined" in wanted:
-            joined, made, total = make.joined_filter(film, [script.seconds_of(film, shot) for shot in segments])
-            assert (made, total) == (wanted["made"], wanted["total"]), name
-            assert all(part in joined for part in wanted["joined"]), (name, joined)
-    rises = numpy.zeros(240)
-    rises[[10, 58, 106, 154, 202]] = 5.0  # a beat every 2 s at 24 a second, the first 10 frames in
-    for beats, offset in ((rises, round(10 / 24, 3)), (numpy.full(240, 0.1), 0.0)):
-        assert make.beat_offset(beats, [4.0, 6.0], 24) == offset
 
     # The starters (environment 1's own, read from the repository) and the default films they set the pattern for.
     world1, world1_origin = script.read(repo, "/nonexistent", "k9")
@@ -464,12 +403,8 @@ def test_a_film_is_timed_checked_and_priced_from_its_script(world, tmp_path, mon
     assert setting_leg["tag"] == f"Moon, Mars: {scenes.WAITING}" and "waits" not in setting_leg
     assert world_leg["tag"] == "Plan" and world_leg["color"] == [0.2, 0.4, 0.6]
 
-    # The preview's bed: the sound stage's output (the state's sound_beds), never a library name; none made, none,
-    # its record saying it waits; the state knows a designed bed by the word the sound stage writes on it.
+    # The state knows a designed bed by the word the sound stage writes on it.
     with monkeypatch.context() as patched:
-        patched.setattr(dashboard_state, "source", lambda: types.SimpleNamespace(blob_path=lambda sha: f"blobs/{sha}"))
-        for row, film, beds, bed in BEDDED:
-            assert make.bed_sound(film, {"sound_beds": beds}) == bed, row
         patched.setattr(sound, "beds", types.SimpleNamespace(
             of_place=lambda place, inputs: {"facts": {}, "sounds": ["hum"]}))
         for name in ("object_uses", "moving_uses", "bank_uses", "voice_uses"):
@@ -477,21 +412,9 @@ def test_a_film_is_timed_checked_and_priced_from_its_script(world, tmp_path, mon
         patched.setattr(sound, "read_json", lambda path: {})
         (designed,) = sound.uses_of("alpha", {"surfaces": None})
         assert (designed["sound"], designed["role"], designed["from"]) == ("hum", "room", local.DESIGNED_BED)
-    assert make.record_of({"film": "f", "segments": []}, 1.0, None, 0.0)["bed"] == make.WAITING_BED
-    # a recorder failure names the node the path found, with the version the sync line lacked
-    (tmp_path / "node").write_text("#!/bin/sh\necho v18.19.1\n")
-    (tmp_path / "node").chmod(0o755)
-    assert make.node_used(str(tmp_path)) == f"node {tmp_path / 'node'} v18.19.1"
-    assert make.node_used(str(tmp_path / "none")) == "no node on the PATH"
-
-    # The cockpit's world: the pages that open, save, price, buy, lock and play a film, in the owner's order.
-    monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
-    player = api()
-    owner, other = signed_in(), signed_in("other")
-    # the Film step opens on the environment's own film: nothing saved, its world's
-    assert owner.get("/film/")["Location"] == "/film/world1-film/"
-    # Buy waits for the Film step as it waits for a scene's design: an item holding a film row is not bought, and the
+    # Buy waits for the film as it waits for a scene's design: an item holding a film row is not bought, and the
     # checkout refuses one, while no film script is locked
+    monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
     shutil.rmtree(home / script.LOCKED_FOLDER, ignore_errors=True)  # the home is the session's
     price = {"likely_euros": 1.0, "high_euros": 2.0, "runs": 1}
     buyable = [{"id": f"alpha-{layer}", "place": "alpha", "layers": [layer], "places": ["alpha"],
@@ -500,95 +423,34 @@ def test_a_film_is_timed_checked_and_priced_from_its_script(world, tmp_path, mon
     assert screens.film_waits() == "film script not locked"
     assert [item["id"] for item in screens.now_items(buyable, ["alpha"])] == ["alpha-stage"]
     assert any("film script not locked" in refusal for refusal in flow.item_refusals(buyable))
-    html = owner.get("/buy/").content.decode()
-    assert "film script not locked" in html and 'href="/film/"' in html
-    # the editor: the saved script, its places' media, every cut, its items priced; node ids only inside the ids
-    # fold (owner rule #42, wording)
-    script.save(home, a_script([{"cut": "title", "text": "A trailer"},
-                                {"cut": "walk-through", "shows": {"place": "alpha"}, "text": "Alpha", "seconds": 3.5},
-                                {"cut": "layer-split", "shows": {"place": "alpha"}}]))
-    listing = owner.get("/film/all/").content.decode()
-    assert "/film/trailer/" in listing and "A trailer" in listing
-    html = owner.get("/film/trailer/").content.decode()
-    editor = editor_of(html)
-    assert editor["origin"] == "saved" and editor["places"]["alpha"]["film"]["url"].startswith("/files/")
-    assert set(editor["cuts"]) >= {"walk-through", "orbit", "hero-still", "exploded", "isolate", "layer-focus",
-                                   "layer-split", "step-card", "before-after", "title", "text"}
-    assert [item["how"] for item in editor["answer"]["items"]] == ["free", "reuse", "new"]
-    assert editor["answer"]["totals"]["unmeasured"] == ["layer-split"]
-    assert re.search(r"\b[a-z][a-z-]+@(alpha|beta)\b", outside_ids_fold(html)) is None
-    assert owner.get("/film/nothing/").status_code == 404
-    # saving writes the cockpit's home only, refuses a script with faults, and only the owner saves
-    changed = a_script([{"cut": "orbit", "shows": {"place": "alpha"}}, {"cut": "text", "text": "the end"}])
-    answer = owner.post("/film/trailer/save/", json.dumps(changed), content_type="application/json")
-    assert answer.status_code == 200 and answer.json()["saved"] and answer.json()["totals"]["frames"] == 144
-    assert json.loads(script.saved_path(home, "trailer").read_text())["segments"][-1]["text"] == "the end"
-    assert not (tmp_path / "repo").exists()
-    wrong = a_script([{"cut": "orbit", "shows": {"place": "nowhere"}}])
-    refused = owner.post("/film/trailer/save/", json.dumps(wrong), content_type="application/json")
-    assert refused.status_code == 400 and "segment 1: no scene 'nowhere'" in refused.json()["faults"]
-    assert other.post("/film/trailer/save/", json.dumps(changed), content_type="application/json").status_code == 403
-    assert other.post("/film/trailer/compile/", json.dumps(changed), content_type="application/json").status_code == 200
-    # the basket takes only a place film row, and launches nothing
-    review.reject(world.store, "demo-film@beta", world.outputs["demo-film@beta"], by="joey", reason="test")
-    world.source.refresh()
-    script.save(home, a_script([{"cut": "walk-through", "shows": {"place": "alpha"}},
-                                {"cut": "walk-through", "shows": {"place": "beta"}},
-                                {"cut": "exploded", "shows": {"place": "alpha"}}]))
-    assert other.post("/film/trailer/basket/").status_code == 403
-    owner.post("/film/trailer/basket/")
-    assert [(item.place, item.stage) for item in BasketItem.objects.all()] == [("beta", "demo-film")]
-    assert not [call for call in FakeBackend.calls if call[0] == "launch"]
-    # the Lock: the script as the editor shows it saved and locked in the cockpit's home (what the environment-film
-    # row reads, and what Buy waits for), nothing saved over it while locked, Unlock until a batch buys a film row on it
+    # his Lock (a chat decision, lock-film: pages/films.film_locked): the script as his editor shows it saved and
+    # locked in the dashboard's home (what the environment-film row reads, and what Buy waits for); another film's
+    # script refused; Unlock until a batch buys a film row on it
     locked = a_script([{"cut": "walk-through", "shows": {"place": "alpha"}}])
-
-    def locking(client, body):
-        return client.post("/film/trailer/lock/", json.dumps(body), content_type="application/json")
-
-    assert locking(other, locked).status_code == 403
-    assert locking(owner, {**locked, "film": "other"}).status_code == 409
-    answer = locking(owner, locked)
-    assert answer.status_code == 200 and answer.json() == {"said": "locked trailer", "locked": True}
+    assert films_page.film_locked("joey", {"film": "trailer", "script": {**locked, "film": "other"}}).startswith(
+        "refused")
+    assert films_page.film_locked("joey", {"film": "trailer", "script": locked}) == "locked trailer"
     assert script.locked(home, "trailer") == locked == script.read(tmp_path / "repo", home, "trailer")[0]
+    assert films_page.script_or_404("trailer") == (locked, "saved")
     assert script.locked_films(home, "world1") == ["trailer"]
     assert screens.film_waits() == ""
     assert [item["id"] for item in screens.now_items(buyable, ["alpha"])] == ["alpha-stage", "alpha-films"]
     assert not any("film" in refusal for refusal in flow.item_refusals(buyable))
-    refused = owner.post("/film/trailer/save/", json.dumps(locked), content_type="application/json")
-    assert refused.status_code == 409 and refused.json()["faults"] == ["it is locked: unlock it to change it"]
-    assert editor_of(owner.get("/film/trailer/").text)["locked"] is True
-    assert locking(owner, {}).json() == {"said": "unlocked trailer", "locked": False}
+    assert films_page.film_locked("joey", {"film": "trailer"}) == "unlocked trailer"
     assert script.locked(home, "trailer") is None
-    locking(owner, locked)
+    films_page.film_locked("joey", {"film": "trailer", "script": locked})
     Checkout.objects.create(key="k" * 32, by="joey", state="launched",
                             items=[{"id": "beta-films", "nodes": {"demo-film@beta": {}}}])
-    stands = locking(owner, {})
-    assert stands.status_code == 409 and "bought its film rows on this lock" in stands.json()["faults"][0]
+    assert "bought its film rows on this lock" in films_page.film_locked("joey", {"film": "trailer"})
     assert script.locked(home, "trailer") == locked
-    # the film page plays its rendered preview and seeks in it
-    video, record = script.preview_files(home, False, "trailer")
-    video.parent.mkdir(parents=True, exist_ok=True)
-    video.write_bytes(bytes(range(256)) * 40)
-    record.write_text(json.dumps({"made_at": "2026-10-21T12:00:00+00:00", "seconds": 5.5, "script": locked,
-                                  "segments": [{"index": 1, "start": 0.0}, {"index": 2, "start": 3.5}]}))
-    editor = editor_of(player.get("/film/trailer/").text)
-    assert editor["preview"]["url"].startswith("/film-preview/trailer.mp4") and "screen-take" in editor["recorded"]
-    played = player.get("/film-preview/trailer.mp4", headers={"Range": "bytes=100-199"})
-    assert played.status_code == 206 and played.content == (bytes(range(256)) * 40)[100:200]
-    assert player.get("/film-preview/other.mp4").status_code == 404
-    # a new film starts with its title card; a film named "new" is refused
-    assert owner.post("/film/new/", {"film": "teaser", "title": "A teaser"}).status_code == 302
-    teaser, origin = script.read(tmp_path / "repo", home, "teaser")
-    assert origin == "saved" and teaser["segments"][0]["cut"] == "title" and teaser["title"] == "A teaser"
-    owner.post("/film/new/", {"film": "new", "title": "x"})
-    assert script.read(tmp_path / "repo", home, "new")[0] is None
-    # the Film step opens on a saved script marked default; then on a starter marked default even where a saved
-    # copy lost the mark (the hosted home of 2026-10-21)
+    with pytest.raises(Http404):
+        films_page.script_or_404("nothing")
+    # the default film is a saved script marked default; then a starter marked default even where a saved copy lost
+    # the mark (the hosted home of 2026-10-21)
     script.save(home, {**a_script([]), "film": "mine", "default": True})
-    assert other.get("/film/")["Location"] == "/film/mine/"
+    assert script.default_name(tmp_path / "repo", home, "world1") == "mine"
     (tmp_path / "repo/data/films").mkdir(parents=True)
     (tmp_path / "repo/data/films/zz_demo.json").write_text(json.dumps({**a_script([]), "film": "zz_demo",
                                                                         "default": True}))
     script.save(home, {**a_script([]), "film": "zz_demo"})
-    assert signed_in("third").get("/film/")["Location"] == "/film/zz_demo/"
+    assert script.default_name(tmp_path / "repo", home, "world1") == "zz_demo"

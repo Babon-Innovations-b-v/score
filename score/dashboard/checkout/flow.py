@@ -254,7 +254,7 @@ def basket_made(chosen=None, phase=None, places=None):
                      phases=tuple(name for name in (phase or "").split(",") if name))
     try:
         return make.make(settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", chosen=chosen or guard.backend(),
-                         plan_only=True, group=group)
+                         group=group)
     except RuntimeError as failed:
         raise Refused(f"the basket could not be made again from the runner's plan now: {failed}") from failed
 

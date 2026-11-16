@@ -1,10 +1,8 @@
-"""SCORE's dashboard: one ASGI app, Django pages and a FastAPI /api, over the store's state (score/dashboard/CLAUDE.md).
+"""SCORE's owner decisions and Buys made in chat, and the store's upkeep pass (score/dashboard/CLAUDE.md). The
+creator cockpit's pages and hosted side went (owner, 2026-11-16).
 
-    .venv/bin/python -m score.dashboard serve            # local: beside the store, 127.0.0.1:8780
-    .venv/bin/python -m score.dashboard owner <name>     # local: the one owner account, password from a terminal
-    .venv/bin/python -m score.dashboard export --out DIR # the state export a hosted dashboard reads
-    .venv/bin/python -m score.dashboard sync             # store side: push the export, pull and apply requests
-    .venv/bin/python -m score.dashboard check            # Django's own checks of the settings
+    .venv/bin/python -m score.dashboard decide-yes|decide|buy-yes|buy|batch-money ...   # from the agents' door
+    .venv/bin/python -m score.dashboard sync                                            # the upkeep pass
 
 No stage imports this package and none of its modules is on sys.path: every import is dotted from score.dashboard.
 """
