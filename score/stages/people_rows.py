@@ -12,38 +12,22 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
                                                      its row makes, in the place's frame),
                                            "dress": {"surface": <library fabric> | null, ...}}}}}}
 
-A row's `dress` is what its people wear, read off the design (score/stages/people_clothes.py: of the people place's
-fabrics its words name, the nearest its measured torso), each person of a row with a surface dressed by
-`people-dress-<look>-in-<surface>`. Each person its own variant (owner, 2026-10-25: "Each one looks different"): the
-people of one look in a place are numbered 0, 1, ... (`persons`), the first the look's plain dress row, each other
-`-v<n>`, the same body finished in other library surfaces (score/stages/people/dress.py's `varied`), so no two people of
-a place look the same and the bodies are not made again. One body a look (owner, 2026-10-22: "make bodies one per
-look"): people rows are grouped into looks by what the reading says they are and wear (`look_of`: the row's words before
-where it stands or what it holds, its pose and colour words left out, so a seated astronaut and five standing ones in
-another scene are one `astronaut-made`), each person of a row standing as its row's look on its person spot, its colour
-its row's dress (the rule above); a named person (a capitalised word in its row's name) or the player is a look of its
-own, `<place>_<row>-made`. A crowd one far look in a few palettes of clothes (CONTEXT.md "crowd"): the line's look its
-row's words match (`crowd_look`), else its own words' look, its palettes that look's first `crowd_variants` variants
-(the dress rows `-v<n>`, as a place's people of one look: other surfaces of the line's scene library on the same body,
-baked, never a flat colour). The outfit `made` is the clothes as the concept draws them on the
-body the people route makes, its face the made one (tools/characters/maker/route_head.py FACE; `drawn` there is the
-owner's open choice, never what a row asks for). Each look's maker spec (data/people/specs/<character>.json: who from
-its row's words, the build from the row's metres, face, hair and clothes as the locked concept draws them, which the
-close-up is drawn from: drawn_from; the row that draws a look is its largest standing person, `origin_of`) and its take
-on the people line are written on every refresh (`designed_specs`, `with_designed`); no hand-written character file
-stands before a design's person. Which looks get a full body and which a far one follows from
-each person row's `share` (score/stages/people_bodies/full.py: under FAR_SHARE far, a crowd far always). The cast
-(score/stages/cast) and the characters layer read who is in a place from here, never the old game records
-(data/characters) or the lost concept pictures; the people line's bake entries take each look's size from the person row
-that maps it (`size_of`).
+A row's `dress` is what its people wear (`{"surface": <library fabric> | null}`), each person of a row with a surface
+dressed by `people-dress-<look>-in-<surface>`. Each person its own variant (owner, 2026-10-25: "Each one looks
+different"): the people of one look in a place are numbered 0, 1, ... (`persons`), the first the look's plain dress row,
+each other `-v<n>`, the same body finished in other library surfaces (score/stages/people/dress.py's `varied`), so no
+two people of a place look the same and the bodies are not made again. One body a look (owner, 2026-10-22: "make
+bodies one per look"): people rows are grouped into looks by what they say they are and wear (`look_of`: the row's
+words before where it stands or what it holds, its pose and colour words left out, so a seated astronaut and five
+standing ones in another scene are one `astronaut-made`); a named person (a capitalised word in its row's name) or the
+player is a look of its own, `<place>_<row>-made`. A crowd is one far look in a few palettes of clothes (CONTEXT.md
+"crowd"), its palettes that look's first `crowd_variants` variants. The cast (score/stages/cast) and the characters
+layer read who is in a place from here, each person on its row's plan people spot (`placed_spots`, `dealt_spots`).
 
-    .venv/bin/python -m score.stages.people_refresh   # refresh from the store's current readings and plans
-
-A refresh copies each reading's people rows again, but those its plan shows beyond the place (`beyond`, as
-groups.current routes them), and keeps
-every hand-made choice (looks, crowd: a row's fields recorded with its `why`) of a row read from the same concept; any
-other row is read again from its design (its drawn looks, the crowd's look by its words). A crowd's ground is taken
-from the plan again on every refresh. Then it writes the people line's data for its mapped looks (`write_line`).
+rows.json is kept data: the refresh that wrote it again from each concept's reading (people_refresh.py, the dress
+picked off the concept's pixels by people_clothes.py, the line's specs and takes written from the rows) was wiped with
+the per-picture pipeline (owner, #128, 2026-11-16); the line's records (data/props, data/inventory, data/surfaces
+people.json, data/people/specs) stand as last written.
 """
 import json
 import pathlib
@@ -51,34 +35,21 @@ import re
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 ROWS = REPO / "data/people/rows.json"
-LINE = "people"
-LINE_FILES = {"props": REPO / "data/props/people.json", "inventory": REPO / "data/inventory/people.json",
-              "surfaces": REPO / "data/surfaces/people.json"}
-SPECS = REPO / "data/people/specs"
 # A look written from its person rows wears the clothes its concept draws it in, on the route's made body and face.
 OUTFIT = "made"
-TAKE = "{look}-s1"  # a look's take on the line, as pixal@people names it
-# A body's build by its row's shoulders (the wider side of a standing row's footprint, the narrower of a seated one's,
-# whose legs run forward), metres: under SLIM slim, over BROAD broad, else average. Bounds of a person's box as the
-# readings size them (0.3 to 0.8 m), not of the bare body: a suit or a coat is inside the box.
-SLIM, BROAD = 0.45, 0.65
 # A crowd wears this many variants of its look's body at most (CONTEXT.md "crowd": a few palettes of clothes; the
 # square's first crowd wore five, 2026-10-12), never more than the people SAM 3 counted in it.
 CROWD_VARIANTS = 5
 # A crowd's draws in cast.py (tools/characters/cast.py's crowd_copies): each copy turned up to TURN_JITTER radians off
 # facing the place's middle and HEIGHT_JITTER of its height taller or shorter (the square's first crowd's, 2026-10-12).
 TURN_JITTER, HEIGHT_JITTER = 0.35, 0.06
-# A row's hand-made fields, kept over a refresh of the same concept when recorded with their `why`.
-CHOSEN = ("looks", "crowd", "why")
 # The words that say a row is a crowd, not who is in it: they count only between looks that share no other word.
 CROWD_WORDS = {"crowd", "people", "person", "group"}
 # A look is what its people are and wear: a row's words from one of these on say where it stands or what it holds.
 CLAUSE_WORDS = {"on", "at", "by", "near", "under", "behind", "beside", "next", "inside", "outside", "beneath", "above",
                 "against", "around", "along", "across", "holding", "carrying", "pushing", "pulling", "looking", "from"}
-# How a person stands (its clip, doing_of) and its colours (its dress, people_clothes.py) vary a look; they make none.
+# How a person stands (its clip, doing_of) and its colours (its dress) vary a look; they make none.
 POSE_WORDS = {"seated", "sitting", "standing", "walking", "kneeling", "lying", "distant", "far"}
-# The clips a person sits in (doing_of): "sitting" on the ground, knees drawn up; "seated" on a seat, feet on the floor.
-SITTING = ("sitting", "seated")
 # The words of an anchor's row id that name a seat (a row anchored `on:<id>` sits on it: doing_of): camp's dining
 # stool and office chair, the cockpit's pilot seat, the quarters' bunk bed and chair (8 people sat on the floor in a
 # ground-sit, 2026-11-04, their anchors lost in rows.json).
@@ -90,7 +61,7 @@ COLOUR_WORDS = {"white", "black", "grey", "gray", "blue", "red", "green", "yello
 # batch dresses (audit 2026-11-04: astronaut_suit, astronaut_spacesuit and person_spacesuit, 10 people, never laid).
 WORN_BY = {"spacesuit": "astronaut"}
 # The garments a who already wears, which name no other look ("astronaut in white suit" is the astronaut look; the
-# suit's colour is its dress, people_clothes.py); and the words for anyone, which a garment's wearer replaces.
+# suit's colour is its dress); and the words for anyone, which a garment's wearer replaces.
 IMPLIED = {"astronaut": {"suit", "spacesuit", "helmet"}}
 ANYONE = {"person", "man", "woman"}
 PLURALS = {"people": "person", "men": "man", "women": "woman", "children": "child"}
@@ -132,7 +103,7 @@ def seat_of(row):
 
 
 def surface_of(fields):
-    """The library fabric a row's people wear (its `dress`, people_clothes.py), or None: the look's own paint."""
+    """The library fabric a row's people wear (its `dress`), or None: the look's own paint."""
     return (fields.get("dress") or {}).get("surface")
 
 
@@ -270,33 +241,7 @@ def crowd_record(row, fields, entry):
             "why": f"row {row} of the picked design's scene inventory"}
 
 
-def person_sized(size):
-    """Whether a row's [wide, deep, tall] is one person's: its tall side the longest (a crowd row's is its extent)."""
-    return isinstance(size, list) and len(size) == 3 and size[2] >= max(size[:2])
-
-
-def size_of(look, found=None):
-    """({size [wide, deep, tall] metres}, "<place>/<row>") of the row that draws the look (origin_of) when it is one
-    person's size, else one member's (member_size); None when no row maps the look."""
-    found = found or read()
-    origin = origin_of(look, found)
-    if origin and person_sized(origin[2].get("size")):
-        return origin[2]["size"], f"{origin[0]}/{origin[1]}"
-    return member_size(look, found)
-
-
-def member_size(look, found):
-    """(size, "<place>/<row>") of one member of the row that draws the look when its size is the row's extent (a
-    crowd's, or a row of several people standing apart: the stairwell's walkway people): an average build's box
-    (between SLIM and BROAD) as tall as the row; None with no such row."""
-    origin = origin_of(look, found)
-    if not origin or not (isinstance(origin[2].get("size"), list) and len(origin[2]["size"]) == 3):
-        return None
-    side = round((SLIM + BROAD) / 2, 3)
-    return [side, side, origin[2]["size"][2]], f"{origin[0]}/{origin[1]}"
-
-
-# --- the refresh from the store (free) ----------------------------------------------------------------------------
+# --- a row's look by its words ------------------------------------------------------------------------------------
 
 def word_list(text):
     """A text's content words in order, once each, lower case, a plural's s dropped (astronauts, astronaut)."""
@@ -337,54 +282,6 @@ def worn_by(words):
     return [word for word in words if not any(word in IMPLIED.get(who, ()) for who in words)]
 
 
-def look_words(look, entry):
-    """A line look's words: its spec's description (the file its take entry names) and its take's clothes
-    (`object`)."""
-    description = json.loads((REPO / entry["spec"]).read_text())["description"]
-    return words_of(f"{description} {entry.get('object', '')}")
-
-
-def crowd_look(place, row, line=None):
-    """A crowd row's far look, from its words (its name and noun): the people line's look (`line`, {look: take entry},
-    bodies.looks()) sharing the most of them, a crowd word (CROWD_WORDS) counting only between looks that share no
-    other, a far-only look first on a tie; its own words' look (look_of: `crowd-made`, `alien-made`) when no look
-    shares a word, or when the row names who is in it (a word beyond the crowd words: aliens, colonists) and no look
-    shares one of those. A look written from design rows (`-made`, or its spec in SPECS) is never matched by words:
-    its spec repeats its row's words, so matching it would give every "crowd of people" whichever such look the last
-    refresh wrote, and a second refresh would not give the first one's answer."""
-    if line is None:
-        from score.stages.people_bodies import bodies
-        line = bodies.looks()
-    line = {look: entry for look, entry in line.items()
-            if not look.endswith(f"-{OUTFIT}") and not (REPO / entry["spec"]).is_relative_to(SPECS)}
-    said = words_of(f"{row['name']} {row['noun']}")
-
-    def score(look):
-        shared = said & look_words(look, line[look])
-        return len(shared - CROWD_WORDS), len(shared & CROWD_WORDS), bool(line[look].get("far_only"))
-    best = max(sorted(line), key=score, default=None)
-    needed = 1 if said - CROWD_WORDS else 0  # who the row names must be matched, not just that it is a crowd
-    return best if best and score(best)[0] >= needed and score(best)[:2] != (0, 0) else look_of(place, row, crowd=True)
-
-
-def default_choice(place, row):
-    """A row's looks read from its design: a crowd's far look by its words, else each of its people its row's look
-    (look_of)."""
-    if row["noun"] == "crowd" or "crowd" in row["name"]:
-        return {"crowd": crowd_look(place, row)}
-    return {"looks": [look_of(place, row)] * row.get("count", 1)}
-
-
-def crowd_ground(plan, row_id):
-    """[[left, near, wide, long], ...] in the place's frame of each plan item the row makes (the plan's `rows`)."""
-    from score.stages.scene_record.plan import items_of
-    if not plan or not plan.get("items"):
-        return []
-    return [[item["box"][0], item["box"][1], round(item["box"][2] - item["box"][0], 4),
-             round(item["box"][3] - item["box"][1], 4)]
-            for item in items_of(plan) if row_id in (item["rows"] or [])]
-
-
 def placed_spots(plan):
     """The plan's people spots and its middle in the place's frame (scene_record.plan.placed), each spot the plan
     stood for a people row keeping that row's id as its fourth value ([x, y, z, row]; a view's spot only [x, y, z])."""
@@ -394,157 +291,3 @@ def placed_spots(plan):
              for spot in plan.get("people", [])
              if len(spot) >= 2 and all(isinstance(value, (int, float)) for value in spot[:2])]
     return spots, placed(plan, plan.get("w", 0.0) / 2, plan.get("d", 0.0) / 2).tolist()
-
-
-def concept_share(row, picture):
-    """The share of the concept's frame height the row's tallest box fills (its SAM 3 instance boxes, [x0, y0, x1, y1]
-    pixels, else its one box; `picture` the concept's [wide, high] pixels: a kept inventory's `picture`, a current
-    reading's `size`), or None with no box or picture size."""
-    boxes = row.get("boxes") or ([row["box"]] if row.get("box") else [])
-    if not boxes or not (isinstance(picture, list) and len(picture) == 2 and picture[1]):
-        return None
-    return round(max(box[3] - box[1] for box in boxes) / picture[1], 4)
-
-
-def refreshed_place(place, inventory, plan, old, fabrics, picture=None):
-    """One place's entry from its current reading (`inventory`, groups.current's) and plan, keeping `old`'s hand-made
-    choices (a row's recorded with its `why`) where it was read from the same concept; each row's dress read off its
-    words and the concept (`picture` H x W x 3, 0..255, or None) among `fabrics` ({fabric: CIELAB}, the people line's
-    own: people_refresh.line_fabrics(store); never a default, which read the retired repository library and chose none).
-    A people row the plan says the painting shows beyond the place (its `beyond`: through a window, past its edge, far
-    off) is left out: it belongs to the place it stands in, never stood here (the stairwell's and the
-    street's crowds are the square's, seen in the background: Batch 1, 2026-10-25). groups.current routes it so
-    (route "skyline"), unless it stands on a row laid here (groups.stood_beyond: the stairwell's man on its stairs)."""
-    from score.stages import people_clothes
-    concept = inventory["concept_pick"]["sha256"]
-    kept = old["rows"] if old and old["concept"] == concept else {}
-    rows = {}
-    for row in inventory["rows"]:
-        if row["route"] != "people":
-            continue
-        copied = {**{key: row.get(key) for key in ("name", "noun", "count", "size", "where", "anchor")},
-                  "share": concept_share(row, inventory.get("picture") or inventory.get("size"))}
-        held = kept.get(row["id"], {})
-        chosen = {key: held[key] for key in CHOSEN if key in held} if "why" in held else {}
-        rows[row["id"]] = {**copied, **(chosen or default_choice(place, row)),
-                           "dress": people_clothes.worn(row, picture, fabrics)}
-        if "crowd" in rows[row["id"]]:
-            rows[row["id"]]["ground"] = crowd_ground(plan, row["id"])
-    spots, middle = placed_spots(plan) if plan else ([], [0.0, 0.0, 0.0])
-    return {"concept": concept, "spots": spots, "middle": middle, "rows": rows}
-
-
-def line_looks():
-    """The looks the people line's surface data takes (data/surfaces/people.json)."""
-    from score.stages.people_bodies import bodies
-    return set(bodies.looks())
-
-
-# --- the people line's data for the mapped looks -------------------------------------------------------------------
-
-def build_of(fields):
-    """A person row's build from its metres: its shoulders (the wider side of its footprint, the narrower when it
-    sits) against SLIM and BROAD."""
-    wide, deep = fields["size"][:2]
-    shoulders = min(wide, deep) if doing_of(fields) in SITTING else max(wide, deep)
-    return "slim" if shoulders < SLIM else "broad" if shoulders > BROAD else "average"
-
-
-def mapping_rows(found):
-    """{look: (place, row, fields, concept)} of the row that draws each look: of the rows that map it, the largest
-    (its `share` of its concept's frame) of those whose people stand one person's size, of those a row whose words
-    alone name the look before one read into it by its garment (look_of's worn_by: the lab's "person in spacesuit", its
-    tallest box a bare-headed bust, wears the astronaut look and does not draw it), the first (places and rows in
-    order) on a tie; a look's spec, size and close-up all come from it."""
-    def rank(place, row, fields, look):
-        standing = person_sized(fields.get("size")) and doing_of(fields) not in SITTING
-        said = look_of(place, {"id": row, "name": fields.get("name") or "", "noun": fields.get("noun") or ""},
-                       "crowd" in fields, folded=False) == look
-        return standing, said, fields.get("share") or 0.0
-    mapped = {}
-    for place, entry in sorted(found["places"].items()):
-        for row, fields in sorted(entry["rows"].items()):
-            for look in dict.fromkeys(fields.get("looks", []) + ([fields["crowd"]] if fields.get("crowd") else [])):
-                if look not in mapped or rank(place, row, fields, look) > rank(*mapped[look][:3], look):
-                    mapped[look] = (place, row, fields, entry["concept"])
-    return mapped
-
-
-def origin_of(look, found):
-    """(place, row, fields, concept) of the row that draws the look (mapping_rows), or None."""
-    return mapping_rows(found).get(look)
-
-
-def designed_spec(look, place, row, fields, concept):
-    """The maker's spec (tools/characters/maker/spec.py, the prop route) of a look written from the person row that
-    maps it: who by the row's words and where the concept draws it, the build by its metres (build_of), face, hair
-    and clothes as drawn in the locked concept, which the line's close-up is drawn from (drawn_from); asked for by
-    the creator's pick of that concept."""
-    character, outfit = split_look(look)
-    member = "one person of the " if "crowd" in fields else ""
-    build = build_of(fields) if person_sized(fields.get("size")) else "average"
-    drawn = f"as drawn in the {place} concept"
-    return {"name": character, "kind": "person", "route": "prop",
-            "approved": f"the creator's pick of the {place} concept ({concept[:8]}): its scene inventory's people row "
-                        f"{row} (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
-            "why": f"{member}{fields['name']} of the {place} concept, {fields.get('where') or 'in the place'}",
-            "references": [], "description": f"{member}{fields['name']}, {'an' if build == 'average' else 'a'} "
-                                             f"{build} build, {drawn}",
-            "outfit_words": {outfit: f"the clothes {drawn}"}, "outfits": [outfit],
-            "hair": f"the hair {drawn}", "face": f"the face {drawn}"}
-
-
-def designed_specs(found, surfaces):
-    """{look: spec} of every look the designs map that no hand-written spec on the line makes (its take's `spec` out
-    of SPECS), each written from its row (designed_spec)."""
-    handmade = {look for look, take in surfaces["bake"]["models"].items()
-                if take in surfaces["takes"] and not (REPO / surfaces["takes"][take]["spec"]).is_relative_to(SPECS)}
-    return {look: designed_spec(look, *origin) for look, origin in sorted(mapping_rows(found).items())
-            if look not in handmade}
-
-
-def spec_path(spec):
-    return SPECS / f"{spec['name']}.json"
-
-
-def with_designed(specs, props, inventory, surfaces):
-    """The people line's three records with each designed look's object, row and take (its spec at spec_path), in
-    place of any it had: (props, inventory, surfaces)."""
-    takes = {look: TAKE.format(look=look) for look in specs}
-    objects = {look: {"route": "prop", "take": take, "layer": LINE, "failures": {
-        "parts": f"split a second time by people-look-parts-{look} (SAM 2.1, GeoSAM2, the judge's materials) for the "
-                 "garments the route binds by limb, beside the loop's finish-route split",
-        "body": f"people-body-{look} builds from the raw Pixal3D take, not the loop's baked model handed on in "
-                "made.json"}} for look, take in takes.items()}
-    rows = [{"id": look, "name": spec["outfit_words"][split_look(look)[1]], "prop": look}
-            for look, spec in specs.items()]
-    entries = {take: {"places": [LINE], "library_places": [LINE], "place": LINE, "kind": "person",
-                      "object": specs[look]["outfit_words"][split_look(look)[1]],
-                      "spec": str(spec_path(specs[look]).relative_to(REPO)), "outfit": split_look(look)[1]}
-               for look, take in takes.items()}
-    return ({**props, "objects": {**props["objects"], **objects}},
-            {**inventory, "rows": [row for row in inventory["rows"] if row["id"] not in specs] + rows},
-            {**surfaces, "takes": {**surfaces["takes"], **entries},
-             "bake": {**surfaces["bake"], "models": {**surfaces["bake"]["models"], **takes}}})
-
-
-def spec_of(look, surfaces):
-    """A look's spec as the line's take of it names it."""
-    return json.loads((REPO / surfaces["takes"][surfaces["bake"]["models"][look]]["spec"]).read_text())
-
-
-def description_of(look, specs=None, surfaces=None):
-    """Who a look is, from its spec (a designed one in `specs`, else the file its take names; the prop route the
-    people are made by): "a Chinese man in his thirties, ..." or "seated astronaut, an average build, as drawn in the
-    airlock concept", which the reading's words, the clothes alone, lack."""
-    if specs and look in specs:
-        return specs[look]["description"]
-    surfaces = surfaces or json.loads(LINE_FILES["surfaces"].read_text())
-    return spec_of(look, surfaces)["description"]
-
-
-def described(look, row, specs, surfaces):
-    """A line row's words, the close-up's (score/stages/props/closeup_row.py reads `name`): its spec's description,
-    then the clothes as read (`clothes`, kept on the row so a second write does not describe it twice)."""
-    clothes = row.get("clothes", row["name"])
-    return {"name": f"{description_of(look, specs, surfaces)}; {clothes}", "clothes": clothes}

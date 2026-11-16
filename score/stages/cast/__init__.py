@@ -523,8 +523,7 @@ def short_of(cast):
     short += [f"{name} refused: {words}" for name, words in sorted((cast.get("refused") or {}).items())]
     crowd = cast["crowd"]
     if crowd and crowd["asked"] is None and crowd.get("grounds") is None:
-        short.append(f"the crowd's ground is not read from the plan yet: refresh data/people/rows.json "
-                     f"(python -m score.stages.people_refresh) ({crowd['look']})")
+        short.append(f"the crowd's row in data/people/rows.json names no ground ({crowd['look']})")
     elif crowd and crowd["asked"] is None:
         short.append(f"the crowd's row makes no item on the plan, so it has no ground ({crowd['look']})")
     elif crowd and crowd.get("packed") and not crowd["copies"]:

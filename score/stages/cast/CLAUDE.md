@@ -15,11 +15,10 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **The design says who, the stage says where they fit.** Each person is dealt to the plan's people spots in turn and
   stood on the seed's measured ground round it, clear of every solid and of each other, or left out and named; a
-  design's crowd stands on the plan items its row makes (rows.json's `ground`, taken from the plan on every refresh),
+  design's crowd stands on the plan items its row makes (rows.json's `ground`),
   as many as SAM 3 counted, else as many as fit packed (one mass SAM 3 could not part: it asks the copies that fit, and fails only when none do); a crowd row with no plan item
   has no ground, and `counted` names it short. Never hand-place a person to pass a gate:
-  put the design right (`python -m score.stages.people_refresh` refreshes rows.json from the store and keeps each row's
-  looks while its concept stands).
+  put the design right in `data/people/rows.json`.
 - **A seated person sits on its seat** (`on_support`, 2026-11-04: 8 seated people sat on the floor in a ground-sit).
   rows.json carries each row's reading `anchor`; a sitting row anchored `on:<seat>` (its id's words name one,
   `people_rows.seat_of`) plays the `seated` clip and is put on the nearest seat of that row not taken, measured on the
@@ -62,7 +61,7 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   `cast` and `cast_check` inside the make and the gates, and the stage declares both files as inputs. Constants
   copied from them (body sizes) are checked in `test_people_stand_clear_or_are_named.py`.
 - **`made` reads the SOMA-shell route's dress rows.** A look is made when its dress row (`people-dress-<look>`,
-  `-in-<surface>` where the person's design row wears a fabric of its own: `../people_clothes.py`) stands usable; the cast reads them as optional
+  `-in-<surface>` where the person's design row wears a fabric of its own: its `dress` in rows.json) stands usable; the cast reads them as optional
   inputs (`Stage.optional`), so a look with none stays not made, named: `made` passes with it as a finding (an accepted gap carried
   down, never a stop: the owner's rule, 2026-10-13), and complete's people check fails it by name.
   `drapes` is retired (2026-10-13): the SOMA-shell rig replaced the drapes route (owner, 2026-10-12 21:40), and the

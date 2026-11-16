@@ -151,47 +151,21 @@ Breaks (each applied once, seen red, reverted), in score/stages/row_kinds.py:
 
 --- every designed person is a look of the line ---
 
-Every person a picked design shows is a look of the shared people line, written from the design alone
-(people_rows.py, data/people/rows.json, #26): every people row maps to looks the line holds, one look (one body) for
-the people the rows say are and wear the same, written from its largest standing row (its spec and take); a crowd to
-one far look read off its words, standing on the plan items its row makes, in a few variants of its body; each person
-stood on the plan's people spots, each of a look its own variant; the line's data is exactly what rows.json maps,
-each look baked at its person row's size and drawn from the person that maps it; a refresh keeps a hand-made choice
-only while its concept stands; a row wears the fabric its words name nearest its measured torso.
+Every person a picked design shows is a look of the shared people line (people_rows.py, data/people/rows.json, #26):
+every people row maps to looks the line holds, one look (one body) for the people the rows say are and wear the same; a
+crowd one far look on its ground in a few variants of its body; each person stood on the plan's people spots, each of
+a look its own variant, wearing its row's dress.
 
 Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
 - `look_of`: the pose and colour words kept in the look's name  -> the JUDGED look rows (seated astronaut).
-- `crowd_ground`: every plan item taken, not only the row's  -> the CROWD_GROUNDS rows (the bench is crowd ground).
 - `persons`: every person given variant 0  -> the deck's cast ("each its own variant").
 - `placed_spots`: a spot's two plan coordinates swapped  -> the deck's cast (the spot (1, 1) of a 20 x 10 plan
   stands at (-9, 0, -4)).
 - `placed_spots`: the row tag dropped  -> the swapped cast (the pilot dealt the officer's spot, its row id first).
 - `dealt_spots`: `own = tagged.get(person["row"]) or untagged` read as `own = untagged`  -> the deck's cast (the
   pilots on the place's middle).
-- `refreshed_place`: a kept pick taken with no `why`  -> the refresh rows (a pick with no why kept).
-- `crowd_look`: `needed = 0` (the crowd word alone decides)  -> the CROWD_LOOKS rows ("crowd of aliens").
-- `mapping_rows`: `if look not in mapped or ...` read as `if look in mapped and ...` (no look mapped)  -> the home's
-  people rows mapping the astronaut, the designed specs and the line's data.
-- `mapping_rows`: a sitting row ranked like a standing one  -> the designed specs (the pilot drawn from the seated
-  copilot).
 - score/stages/complete/prepare/groups.py `stood_beyond`: `and anchors[row_id] not in found` dropped  -> the deck's
   beyond rows (the man on its own stairs left out).
-- `mapping_rows`: `said` left out of `rank` (`return standing, fields.get("share") or 0.0`)  -> the designed specs
-  (the astronaut drawn from the "person in spacesuit").
-- `size_of`: `person_sized` not asked (`if origin:`)  -> the line's crowd look (the crowd's extent as one person).
-- score/stages/people_refresh.py `drawn_from`: the tallest box read with `min`  -> the toy kept inventories' astronaut
-  (drawn from SAM 3's tallest instance).
-- `described`: the spec's description left out (`"name": clothes`)  -> the line's data (no longer as rows.json
-  writes it).
-- score/stages/props/closeup_row.py `inventory_rows`: the words the clothes alone (`row.get("clothes", row["name"])`)
-  -> the line's close-up words.
-- score/stages/people_clothes.py `worn`: the nearest fabric read with `max`  -> the DRESSED rows.
-- score/stages/people_clothes.py `said_colour`: `return []`  -> the DRESSED shaded white suit row (dressed in the dark
-  seam cloth).
-- score/stages/people_clothes.py `worn`: drop the `if not candidates:` return  -> the DRESSED names no fabric row (a
-  measured torso whose words name no fabric wears its look's own paint).
-- score/stages/people_clothes.py `fabrics_of`: `if not lab_of:` -> `if False:` (an empty library answers {})  -> the
-  library with no fabric (NoFabrics).
 - `worn_by`: `IMPLIED.get(who, ())` -> `()` (astronaut_suit-made), or `wearers = []` (person_spacesuit-made)  ->
   the JUDGED look rows (astronaut in spacesuit, person in spacesuit).
 
@@ -373,7 +347,7 @@ from score import checks, contracts, graph, review, stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.graph import _code, rebuy  # noqa: E402
 from score.stages import (batch_gaps, design_layers, gaps, layer_base, moved, natural_grounds,  # noqa: E402
-                          people_gaps, people_refresh, people_rows, row_kinds)
+                          people_gaps, people_rows, row_kinds)
 from score.stages.surfaces import claude_asks, route_views  # noqa: E402
 from score.store import PROPS_HOME, Store, file_hash, tree_hash as store_tree_hash  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
@@ -1723,18 +1697,13 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
         if loose:
             (repo / "loose.txt").unlink()
 
-    # every designed person is a look of the people line, written from the design alone: every people row of the
-    # home's designs maps to looks the line holds, one look (one body) for the camp's, the garage's and the airlock's
-    # astronauts, each look asking for the drawn face
-    sys.path.insert(0, str(REPO / "tools/characters/maker"))
-    import spec as specs
+    # every designed person is a look of the people line: every people row of the home's designs maps to looks the
+    # line holds, one look (one body) for the camp's, the garage's and the airlock's astronauts
     import copy
-    import numpy as np
-    from score.stages import people_clothes
     from score.stages.complete.prepare import groups
-    from score.stages.props import closeup_row
+    from score.stages.people_bodies import bodies
     found = people_rows.read()
-    line = people_rows.line_looks()
+    line = set(bodies.looks())
     for place, held_entry in found["places"].items():
         for row_id, fields in held_entry["rows"].items():
             if "crowd" in fields:
@@ -1742,107 +1711,17 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
             else:
                 assert len(fields["looks"]) == fields["count"], (place, row_id)  # a look for each person
                 assert all(look in line for look in fields["looks"]), (place, row_id)  # every person can be made
-    assert people_rows.mapping_rows(found)["astronaut-made"]
     assert {fields["looks"][0] for place in ("camp", "garage", "airlock") for fields in
             found["places"][place]["rows"].values()} == {"astronaut-made"}
-    assert all(look.endswith(f"-{people_rows.OUTFIT}") for look in line), "a row asks for the drawn face"
 
-    # the line's data is exactly what rows.json maps (run python -m score.stages.people_refresh), each look baked at
-    # its person row's size: kept inventories holding the boxes the line already draws from give the line back
-    records = {name: json.loads(path.read_text()) for name, path in people_rows.LINE_FILES.items()}
-    held = {}
-    for line_row in records["inventory"]["rows"]:
-        if line_row.get("view"):
-            place, row_id = people_rows.size_of(line_row["id"])[1].split("/", 1)
-            held.setdefault(place, []).append({"id": row_id, "box": line_row["box"]})
-    props, inventory, surfaces = people_refresh.line_rows(
-        found, *copy.deepcopy([records["props"], records["inventory"], records["surfaces"]]),
-        kept_inventories(tmp_path / "kept-line", held))
-    assert (props, inventory, surfaces) == (records["props"], records["inventory"], records["surfaces"]), \
-        "the line's data is not written from rows.json: run python -m score.stages.people_refresh"
-    assert set(props["objects"]) == people_rows.every_look()  # every look the designs map, each on the line
-    assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
-    assert all(entry["spec"].startswith("data/people/specs/") for entry in surfaces["takes"].values()), \
-        "every look on the line is written from a design's row (the hand-made makes were retired, 2026-10-21)"
-    assert people_rows.size_of("person_uniform-made")[1] == "tube/person_right"  # the larger of the tube's two rows
-    size, origin = people_rows.size_of("crowd-made")
-    assert people_rows.person_sized(size) and origin == "square/crowd"  # one member, never the crowd's extent
-    # each close-up's words say who the look is (#26: the first people benchmark drew its player, a Chinese man in
-    # his thirties by his spec, as someone else): its spec's description, then its clothes
-    rows = {row["id"]: row for row in inventory["rows"]}
-    words = {row["id"]: row["words"] for row in closeup_row.inventory_rows(inventory, people_rows.every_look())}
-    assert words["person_uniform-made"].startswith("person in uniform, an average build")
-    for look, said in words.items():
-        assert said == f"{people_rows.description_of(look)}; {rows[look]['clothes']}", look
-    # each line row is drawn from the picked design's person row that maps it (its view the kept concept, its box SAM
-    # 3's tallest instance, grounded), so no take row and no work folder stands before the line; the line is approved
-    # by those picks
-    boxes = [[number, 0, number + 1, 2 + number % 3] for number in range(5)]
-    props, inventory, _ = people_refresh.line_rows(
-        found, *copy.deepcopy([records["props"], records["inventory"], records["surfaces"]]),
-        kept_inventories(tmp_path / "kept-toy", {"tube": [{"id": "person_right", "box": [1, 2, 3, 4]}],
-                                                 "garage": [{"id": "astronaut", "box": boxes[0], "boxes": boxes}]}))
-    rows = {row["id"]: row for row in inventory["rows"]}
-    right = rows["person_uniform-made"]
-    assert (right["view"], right["box"], right["prop"]) == ("tube", [1, 2, 3, 4], "person_uniform-made") and \
-        right["grounded"], right
-    assert rows["crowd-made"]["view"] is None, "the square keeps no inventory here"
-    assert (rows["astronaut-made"]["view"], rows["astronaut-made"]["box"]) == ("garage", boxes[2])  # its tallest
-    assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
-                                          for place in ("garage", "tube")]
-    assert inventory["approved"]["by"] == "the creator's pick" and inventory["approved"]["places"] == ["garage", "tube"]
-    assert "closeup" not in props["objects"]["person_uniform-made"]
-    # a design's person is made from its row, never a hand-written character file: who by the row's words, the build
-    # by its metres, a spec the maker takes, and a take on the line
-    specs_made = people_rows.designed_specs(DESIGNED, records["surfaces"])
-    assert set(specs_made) == {"pilot_suit-made", "guest-made", "crowd-made"}
-    pilot = specs_made["pilot_suit-made"]
-    assert pilot["name"] == "pilot_suit" and pilot["outfits"] == ["made"] and "abcdef01" in pilot["approved"]
-    assert pilot["description"] == "pilot in a red suit, a slim build, as drawn in the deck concept", pilot
-    assert people_rows.size_of("pilot_suit-made", DESIGNED) == ([0.3, 0.4, 1.7], "deck/pilot")
-    assert "a broad build" in specs_made["guest-made"]["description"]  # seated: its narrower side, 0.7 m
-    assert specs_made["crowd-made"]["description"].startswith("one person of the crowd of people, an average build")
-    assert all(not specs.problems_of(spec) for spec in specs_made.values()), \
-        [specs.problems_of(spec) for spec in specs_made.values()]
-    redesigned = copy.deepcopy(DESIGNED)
-    deck = redesigned["places"]["deck"]["rows"]
-    # a row read into a look by its garment wears it and draws it only where no row's words name it
-    deck["suited"] = {"name": "person in spacesuit", "noun": "person", "count": 1, "size": [0.5, 0.5, 1.8],
-                      "share": 0.9, "looks": ["astronaut-made"]}
-    assert people_rows.origin_of("astronaut-made", redesigned)[1] == "suited"
-    deck["astronaut"] = {"name": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.4, 1.8], "share": 0.1,
-                         "looks": ["astronaut-made"]}
-    assert people_rows.origin_of("astronaut-made", redesigned)[1] == "astronaut", \
-        "drawn from the lab's bare-headed bust"
-    assert people_rows.member_size("crowd-made", redesigned) == ([0.55, 0.55, 1.8], "deck/crowd")
-    # five people standing apart on 10 x 30 m are baked at one member's size
-    deck["walkway_crowd"] = {"name": "people on walkway", "noun": "people", "count": 5, "size": [10.0, 30.0, 1.8],
-                             "share": 0.06, "looks": ["person-made"] * 5}
-    size, origin = people_rows.size_of("person-made", redesigned)
-    assert people_rows.person_sized(size) and origin == "deck/walkway_crowd", (size, origin)
-    props, inventory, lined = people_rows.with_designed(specs_made, {"objects": {}}, {"rows": []}, records["surfaces"])
-    take = lined["bake"]["models"]["pilot_suit-made"]
-    assert take == "pilot_suit-made-s1" and props["objects"]["pilot_suit-made"]["take"] == take
-    assert lined["takes"][take]["spec"] == "data/people/specs/pilot_suit.json"
-    assert lined["takes"][take]["outfit"] == "made" and {row["id"] for row in inventory["rows"]} == set(specs_made)
-
-    # the deck's refresh: a people row the plan shows beyond the place is not its own unless it stands on a row laid
-    # here; a crowd stands on the plan items its row makes; each person on its row's own plan spot, each of one look its
-    # own variant (owner, 2026-10-25: "Each one looks different"); the worker wears the fabric its words name nearest
-    # its torso, the pilot, naming none, its look's own paint
-    labels = people_clothes.labels()
-
-    def lab(srgb):
-        return [float(value) for value in labels.lab(np.array(srgb, dtype=float)[None] / 255)[0]]
+    # the deck: a people row the plan shows beyond the place is not its own unless it stands on a row laid here; each
+    # person on its row's own plan spot, each of one look its own variant (owner, 2026-10-25: "Each one looks
+    # different"), wearing its row's dress; the crowd on its ground
     beyond = groups.stood_beyond(DECK_ROWS, set(DECK_PLAN["beyond"]))
     assert beyond == {"far_crowd", "far_stage", "singer"}, beyond  # the man stands on the place's own stairs
-    reading = {"concept_pick": {"sha256": "0badcafe"}, "rows": [groups.routed(row, set(), beyond) for row in DECK_ROWS]}
-    fabrics = {name: lab(srgb) for name, srgb in FABRICS.items()}
-    deck_entry = people_rows.refreshed_place("deck", reading, DECK_PLAN, None, fabrics, a_concept(BLUE))
-    assert set(deck_entry["rows"]) == {"crowd", "pilot", "worker", "man"}, set(deck_entry["rows"])
-    assert deck_entry["rows"]["crowd"]["crowd"] == "crowd-made", "a crowd takes no look drawn from another scene's row"
-    for plan, row_id, ground in CROWD_GROUNDS:
-        assert people_rows.crowd_ground(plan, row_id) == ground, (row_id, ground)
+    spots, middle = people_rows.placed_spots(DECK_PLAN)
+    assert spots == DECK_ENTRY["spots"] and middle == DECK_ENTRY["middle"], (spots, middle)
+    deck_entry = DECK_ENTRY
     deck = {"places": {"deck": deck_entry}}
     cast = people_rows.cast_record("deck", deck)
     assert {person["name"]: (person["at"], person["look"], person["variant"], person["surface"])
@@ -1879,55 +1758,6 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     assert {person["name"]: person["at"] for person in
             people_rows.cast_record("deck", {"places": {"deck": swapped}})["people"]} == {
         "a_pilot": [2.0, 0.0, 2.0], "b_officer": [1.0, 0.0, 1.0], "c_guest": [9.0, 0.0, 9.0]}
-    # a refresh keeps a hand-made choice (one recorded with its why) only while its concept stands
-    old = copy.deepcopy(deck_entry)
-    old["rows"]["pilot"]["looks"] = ["deck_pilot-made", "person_uniform-made", "person_uniform-made"]
-    for why, concept, look in ((None, "0badcafe", "person_uniform-made"), ("the owner's pick: the player", "0badcafe",
-                                                                           "deck_pilot-made"),
-                               ("the owner's pick: the player", "two", "person_uniform-made")):
-        if why:
-            old["rows"]["pilot"]["why"] = why
-        again = people_rows.refreshed_place("deck", {**reading, "concept_pick": {"sha256": concept}}, DECK_PLAN, old,
-                                            fabrics, None)
-        assert again["rows"]["pilot"]["looks"][0] == look, (why, concept, again["rows"]["pilot"])
-    # the fabrics are the people line's own library's (surface-library@people): its fabric family alone, and an
-    # empty one is refused (the repository's, read until 2026-11-04, held none, so no row's clothes were chosen)
-    library = {"jacket_blue": {"family": "fabric", "colour": [0.02, 0.05, 0.3]},
-               "boot": {"family": "rubber", "colour": [0.1, 0.1, 0.1]}}
-    assert set(people_clothes.fabrics_of(library)) == {"jacket_blue"}
-    with pytest.raises(people_clothes.NoFabrics):
-        people_clothes.fabrics_of({"boot": library["boot"]})
-    for case, dress_row, given, torso, surface, near in DRESSED:
-        dress = people_rows.refreshed_place("deck", {**reading, "rows": [dress_row]}, None, None,
-                                            {name: lab(srgb) for name, srgb in given.items()},
-                                            a_concept(torso))["rows"][dress_row["id"]]["dress"]
-        measured = (None if dress["de"] is None else "near" if dress["de"] < 1
-                    else "far" if dress["de"] > people_clothes.WITHIN else "between")
-        assert (dress["surface"], measured) == (surface, near), (case, dress)
-        assert (dress["torso_lab"] is None) is (torso is None), (case, dress)
-    worker, pilot = deck_entry["rows"]["worker"]["dress"], deck_entry["rows"]["pilot"]["dress"]
-    assert worker["figures"] == 1 and "suit_light_blue" in worker["named"] and not any(
-        "light" in name and "blue" not in name for name in worker["named"]), worker
-    assert pilot["surface"] is None and pilot["named"] == [], pilot
-    # a crowd's look is read off its words (no city square's coats on every crowd)
-    (tmp_path / "citizen.json").write_text(json.dumps({"description": "a man in his thirties, an ordinary citizen in the "
-                                                                      "crowd"}))
-    (tmp_path / "astronaut.json").write_text(json.dumps({"description": "a man in his thirties, an astronaut of a Moon "
-                                                                        "base"}))
-    (tmp_path / "drawn.json").write_text(json.dumps({"description": "one person of the crowd of people, as drawn in "
-                                                                    "the square concept"}))
-    plain_line = {"citizen-coat": {"object": "a person in a plain mid grey coat", "far_only": True,
-                                   "spec": str(tmp_path / "citizen.json")},
-                  "astronaut-work": {"object": "a person in a dark navy one-piece work suit",
-                                     "spec": str(tmp_path / "astronaut.json")}}
-    square = {"square_crowd-drawn": {"object": "one person of the crowd of people", "far_only": True,
-                                     "spec": str(people_rows.SPECS / "square_crowd.json")},
-              "people-made": {"object": "one person of the crowd of people", "far_only": True,
-                              "spec": str(tmp_path / "drawn.json")}}
-    lines = {"line": plain_line, "square": square, "both": {**plain_line, **square}}
-    for name, noun, read, look in CROWD_LOOKS:
-        assert people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, lines[read]) == look, \
-            (name, noun, read)
 
     # the copy of a seed a layer is written over takes a save, though the store's seed is read-only
     folder = tmp_path / "seed"
@@ -1942,7 +1772,6 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
 
 # --- every designed person is a look of the line ---
 
-TORSO = [20, 10, 60, 90]  # the box of the worker's torso in a 100 x 100 concept
 FAR_ROWS = [{"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "count": 3, "route": "people",
              "anchor": "ground"},
             {"id": "stairs", "route": "prop", "anchor": "floor"},
@@ -1952,13 +1781,13 @@ FAR_ROWS = [{"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "cou
             {"id": "singer", "name": "singer on the far stage", "noun": "singer", "count": 1, "route": "people",
              "anchor": "on:far_stage"}]
 # the deck as its design reads: a crowd on the plan item its row makes, three people in uniform on their own plan
-# spots, a worker in a blue jumpsuit whose torso the concept paints, a chair, and the rows the plan shows beyond the
+# spots, a worker in a blue jumpsuit, a chair, and the rows the plan shows beyond the
 # place (a man on the deck's own stairs is the deck's; 2026-10-26: the stairwell's man and woman were made by nothing)
 DECK_ROWS = [{"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"},
              {"id": "pilot", "name": "person in uniform", "noun": "person", "count": 3, "size": [0.5, 0.3, 1.8],
               "route": "people"},
              {"id": "worker", "name": "worker in blue jumpsuit", "where": "near the light", "noun": "worker",
-              "count": 1, "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [TORSO]},
+              "count": 1, "size": [0.5, 0.3, 1.8], "route": "people"},
              {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop", "anchor": "floor"},
              *FAR_ROWS]
 DECK_PLAN = {"w": 20.0, "d": 10.0, "items": [["CROWD 1", 2.0, 1.0, 6.0, 4.0, None, "item"],
@@ -1967,69 +1796,22 @@ DECK_PLAN = {"w": 20.0, "d": 10.0, "items": [["CROWD 1", 2.0, 1.0, 6.0, 4.0, Non
              "beyond": ["far_crowd", "man", "far_stage", "singer"],
              "people": [[1.0, 1.0, 0, "pilot"], [3.0, 2.0, 0, "pilot"], [5.0, 3.0, 0, "pilot"]]}
 CROWD_SPREAD = [-8.0, -4.0, 6.0, 4.0]  # the CROWD item's box in the place's frame (unframed: the plan's middle at 0)
-# (plan, row, its crowd ground): the plan items the row makes, none for another row or no plan
-CROWD_GROUNDS = [(DECK_PLAN, "crowd", [CROWD_SPREAD]), (DECK_PLAN, "pilot", []), (None, "crowd", [])]
+# the deck's rows.json entry: its people on the plan's people spots, the crowd on the plan item its row makes, the
+# worker dressed in the fabric its row names, every other row its look's own paint
+DECK_ENTRY = {"concept": "0badcafe", "spots": [[-9.0, 0.0, -4.0, "pilot"], [-7.0, 0.0, -3.0, "pilot"],
+                                               [-5.0, 0.0, -2.0, "pilot"]], "middle": [0.0, 0.0, 0.0], "rows": {
+    "crowd": {"name": "crowd of people", "noun": "people", "count": 1, "crowd": "crowd-made",
+              "dress": {"surface": None}, "ground": [CROWD_SPREAD]},
+    "pilot": {"name": "person in uniform", "noun": "person", "count": 3, "size": [0.5, 0.3, 1.8],
+              "looks": ["person_uniform-made"] * 3, "dress": {"surface": None}},
+    "worker": {"name": "worker in blue jumpsuit", "noun": "worker", "count": 1, "size": [0.5, 0.3, 1.8],
+               "where": "near the light", "looks": ["worker_jumpsuit-made"], "dress": {"surface": "jacket_blue"}},
+    "man": {"name": "man on the stairs", "noun": "man", "count": 1, "anchor": "on:stairs", "looks": ["man-made"],
+            "dress": {"surface": None}}}}
 # (the crowd row's count, the crowd's count, its palettes): SAM 3's people when it told them apart, and never more
 # variants of its look's body than it counted
 CROWD_COUNTS = [(1, None, list(range(people_rows.CROWD_VARIANTS))), (30, 30, list(range(people_rows.CROWD_VARIANTS))),
                 (3, 3, [0, 1, 2])]
-# the people line's fabrics as sRGB stand-ins (every old surface retired on 2026-10-21)
-BLUE = [38, 64, 150]
-FABRICS = {"jacket_blue": BLUE, "suit_light_blue": [150, 180, 220], "suit_grey": [128, 128, 128]}
-WHITES = {"white_suit": [235, 235, 235], "suit_seam": [60, 60, 60]}
-WHITE = {"id": "astronaut", "name": "astronaut in white suit", "noun": "astronaut", "count": 1,
-         "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [TORSO]}
-# (case, the row, the fabrics, the torso's sRGB or None for no concept kept, the fabric worn, its dE: "near" under 1,
-# "far" over people_clothes.WITHIN, "between" within it, None unmeasured): the fabric its words name nearest the torso
-# within WITHIN, a colour the words say theirs (a white suit in a dim concept is the white fabric, never the dark one
-# nearer); a row naming none wears its look's own paint though its torso (one `box`) is measured
-DRESSED = [("blue torso", DECK_ROWS[2], FABRICS, BLUE, "jacket_blue", "near"),
-           ("orange torso", DECK_ROWS[2], FABRICS, [230, 90, 20], None, "far"),
-           ("no concept", DECK_ROWS[2], FABRICS, None, None, None),
-           ("shaded white suit", WHITE, WHITES, [70, 70, 72], "white_suit", "between"),
-           ("names no fabric", {"id": "pilot", "name": "person", "noun": "person", "count": 1,
-                                "size": [0.5, 0.3, 1.8], "route": "people", "box": TORSO}, FABRICS, BLUE, None, None)]
-# (the crowd's words, its noun, the line it reads, its look): the look sharing the most of the row's words, a crowd
-# word only between looks that share no other, a new look when none shares one; who the row names decides, never its
-# crowd word alone; a look drawn from another scene's crowd row is that row's own, however its words match
-CROWD_LOOKS = [("crowd of people", "people", "line", "citizen-coat"),  # "an ordinary citizen in the crowd"
-               ("crowd of astronauts", "crowd", "line", "astronaut-work"),  # "an astronaut of a Moon base"
-               ("flock of penguins", "penguin", "line", "flock_penguin-made"),  # its own words' (designed_specs)
-               ("crowd of aliens", "crowd", "line", "alien-made"),
-               ("crowd of martian colonists", "crowd", "line", "martian_colonist-made"),
-               ("crowd of shoppers in grey coats", "crowd", "line", "citizen-coat"),
-               ("crowd of people", "crowd", "square", "crowd-made"),
-               ("crowd of people", "crowd", "both", "citizen-coat")]
-# a design's people as people_rows.read() gives them, made into specs from the rows alone (#26): the pilot drawn from
-# its largest standing person, never the bigger seated one
-DESIGNED = {"places": {"deck": {"concept": "abcdef0123", "rows": {
-    "pilot": {"name": "pilot in a red suit", "noun": "person", "count": 2, "size": [0.3, 0.4, 1.7],
-              "where": "standing at the console", "share": 0.2, "looks": ["pilot_suit-made"] * 2},
-    "guest": {"name": "seated guest", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
-              "where": "sitting on a sofa", "looks": ["guest-made"]},
-    "copilot": {"name": "seated pilot in a suit", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
-                "where": "sitting at the console", "share": 0.5, "looks": ["pilot_suit-made"]},
-    "crowd": {"name": "crowd of people", "noun": "crowd", "count": 1, "size": [8.0, 9.0, 1.8],
-              "crowd": "crowd-made"}}}}}
-
-
-def a_concept(srgb):
-    """A 100 x 100 concept, dark, the torso box painted the given sRGB (0..255); None stays None (no concept kept)."""
-    import numpy as np
-    if srgb is None:
-        return None
-    picture = np.full((100, 100, 3), 20, dtype=np.uint8)
-    left, top, right, bottom = TORSO
-    picture[top:bottom, left:right] = srgb
-    return picture
-
-
-def kept_inventories(folder, rows):
-    """A folder of kept inventories, {place: [rows]} each written as <place>.json."""
-    folder.mkdir()
-    for place, held in rows.items():
-        (folder / f"{place}.json").write_text(json.dumps({"rows": held}))
-    return folder
 
 
 # --- an accepted gap moves only its named faults ---

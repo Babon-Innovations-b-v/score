@@ -317,7 +317,6 @@ SHARE_DESIGN = {"places": {"a": {"rows": {"near": {"looks": ["near-work"], "shar
                                           "far": {"looks": ["far-work"], "share": 0.05},
                                           "unmeasured": {"looks": ["plain-work"], "share": None},
                                           "crowd": {"crowd": "crowd-coat", "share": 0.4}}}}}
-TALLEST = {"boxes": [[0, 100, 50, 484], [0, 0, 10, 100]], "box": [0, 0, 10, 100]}
 CAST = {"rows.json": {"places": {"lab": {"concept": "a test", "rows": {
             "a": {"name": "person walking", "count": 1, "looks": ["bram-work"]},
             "b": {"name": "person", "where": "at a desk", "count": 1, "looks": ["bram-work"]}}}}, "new": {}},
@@ -448,18 +447,14 @@ CASES = [
     Case("worn as painted beside a named surface", dress.worn_name,
          ("suit_white", SURFACES, {"surface": "suit_grey", "variant": 1}, "cloth"), "suit_white"),
     Case("suit_blue the library lacks", dress.worn_name, ("suit_white", SURFACES, {"surface": "suit_blue"}, "cloth"),
-         Raises(RuntimeError, ("suit_blue", "people_refresh"))),
+         Raises(RuntimeError, ("suit_blue", "rows.json"))),
     *[Case(f"variant {number} told apart", dress.variant_gap, (WORN, SURFACES, {"variant": number}), None)
       for number in range(6)],
     Case("variant 6 a gap", dress.variant_gap, (WORN, SURFACES, {"variant": 6}),
          Contains(("variant 0", "fabric, skin"))),
     # which looks get a full body is the design's: a quarter of the frame's height is full, a twentieth far, no
-    # share measured full, a crowd's look far; the share is the tallest of the row's boxes over the picture's height
+    # share measured full, a crowd's look far
     Case("full or far by share", full.full_looks, (SHARE_DESIGN,), {"near-work", "plain-work"}),
-    Case("the tallest box's share", people_rows.concept_share, (TALLEST, [2752, 1536]), 0.25),
-    Case("one box's share", people_rows.concept_share, ({"box": [0, 0, 10, 153.6]}, [2752, 1536]), 0.1),
-    Case("no box, no share", people_rows.concept_share, ({}, [2752, 1536]), None),
-    Case("no picture size, no share", people_rows.concept_share, (TALLEST, None), None),
     Case("clearance eases out and back", clearance.spread, (np.eye(1, 20, 10).ravel() * 0.3,), Holds(
         "the peak kept, eased before it, still at the ends", lambda eased: eased[10] >= 0.3 and eased[8] > 0
         and eased[0] == 0 and eased[19] == 0)),

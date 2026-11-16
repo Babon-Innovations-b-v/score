@@ -432,7 +432,7 @@ KIT_SEEDS = 200
 CASTS = [
     ("no crowd", UNAIMED, None, [], {}, "SEFA'S BUNK", None, None, [], [], [], None, (0, 0)),
     ("unread", UNAIMED, KIT_CROWD, [], {}, "SEFA'S BUNK", None, (0, None, None, 0), [], [], None,
-     "not read from the plan yet", (3, 2)),
+     "names no ground", (3, 2)),
     ("no ground", UNAIMED, dict(KIT_CROWD, count=3, grounds=[]), [], {}, "SEFA'S BUNK", None, (0, None, None, 0), [],
      [], ["the crowd's row makes no item on the plan, so it has no ground (kit_m_avg/coat-grey)"], None, (3, 2)),
     ("aimed off its items", UNAIMED, STRIPS, [], {}, "SEFA'S BUNK", None, None, None, None, None, None, (0, 0)),

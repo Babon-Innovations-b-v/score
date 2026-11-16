@@ -28,16 +28,16 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   place's hand-in alike): one person, or one member of a crowd row, front on in the rig's A-pose, never the concept's
   pose; its gate is `check.person_faults` (framed, arms clear of the body: Pixal3D fused Nev's), not a box's
   proportions (the rig sizes the body). **The line holds the looks the locked designs map** (`data/people/rows.json`,
-  `../people_rows.py`, #26): each look's size and bake entry the metres of the person row that maps it, written by
-  `python -m score.stages.people_refresh`; one body a look (owner, 2026-10-22): rows are grouped into looks by what
+  `../people_rows.py`, #26): each look's size and bake entry the metres of the person row that maps it, as the
+  people rows' refresh last wrote them (the refresh, which read rows, specs and clothes off each concept, was wiped
+  with the per-picture pipeline: owner, #128, 2026-11-16; the line's records are kept data now); one body a look (owner, 2026-10-22): rows are grouped into looks by what
   they are and wear (`people_rows.look_of`: `astronaut-made`, `worker_jumpsuit-made`, a crowd's `crowd-made`; pose
   and colour vary a look through its clip and dress, a named person or the player is `<place>_<row>-made`), the
   outfit `made` the route's made body and face (`route_head.FACE`; `drawn` is the owner's open choice there, never
-  what a row asks for), each look with its maker spec written from its largest standing row (`data/people/specs/`, generated, never
-  edited by hand: who by its words, the build by its metres, face, hair and clothes as drawn in its concept) and its
-  take on the line, so every design's person can be made with no hand-written character file. **Each line row is drawn from the person that maps it** (`people_rows.drawn_from`, #26): its view the
-  mapping place's kept concept, its box SAM 3's in that concept's reading (`grounded`), the line's inventory
-  approved by those locks (recorded as "the creator's pick", which the Pixal3D batch takes), and no close-up named, so
+  what a row asks for), each look with its maker spec (`data/people/specs/`: who by its row's words, the build by its metres, face, hair and
+  clothes as drawn in its concept) and its take on the line. Each line row is drawn from the person that mapped it:
+  its view the mapping place's kept concept, its box SAM 3's in that concept's reading (`grounded`), the line's
+  inventory approved by those locks (recorded as "the creator's pick", which the Pixal3D batch takes), and no close-up named, so
   `closeup@people` draws it (Pro, `stage.PERSON`) and `pixal@people` makes its take (`<look>-s1`): the whole line,
   bodies included, is one `score run`, with no take row first. **Accepted gaps today:** a hair finish fails the
   paint's colour gate by name (the old people-paint left hair out, `hair.py`, deleted with it).
@@ -65,16 +65,10 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   check's faults. A person's variant (`-v<n>`, `varied`) wears other surfaces of the same families from the people
   line's scene library (surface-library@people, `library_surfaces`), never the repo's method library, which holds none. skel_usd carries the three maps and `score:surface` into the asset. Tests:
   `test_looks_dressed_from_the_library_and_judged_by_measure.py`.
-- **The concept decides the clothes** (owner, 2026-10-13), per person row and from the design alone
-  (`../people_clothes.py`, each row's `dress` in `data/people/rows.json`, written by the people rows' refresh): of the
-  people line's own scene library's fabrics (surface-library@people, `people_refresh.line_fabrics`; a refresh on
-  a library with no fabric is refused, `NoFabrics`: the retired repository library chose no row's clothes until
-  2026-11-04), those whose name shares a word with the row's name as read, the nearest by dE to
-  the row's torso measured on the locked concept, used only within dE 32 (lightness never chooses on its own, the
-  concepts are dim and warm-lit). A person of that row wears it on every fabric surface but a print through the dress
-  row `people-dress-<look>-in-<surface>`; a row naming no fabric, or none that near, wears its look's own paint (the
-  plain row, its look already drawn from that person). No hand-kept list of places or colours. A colour with no
-  surface that near is reported in the row's `why`, never added to the library here (a library edit re-keys every
-  place's paint).
+- **A row's clothes are its `dress`** (`data/people/rows.json`, a fabric of the people line's own scene library,
+  surface-library@people, or null): a person of that row wears it on every fabric surface but a print through the
+  dress row `people-dress-<look>-in-<surface>`; a null dress wears its look's own paint. A fabric the library does not
+  hold is refused by name (`dress.worn_name`). The pick of the fabric off the concept's torso colour
+  (people_clothes.py) was wiped with the per-picture pipeline (owner, #128, 2026-11-16).
 - **Belts are cloth** (owner, 2026-10-13): rigid means helmets, boots, visors and tools; a belt and its buckle ride
   the shell with the clothing and are no rigid part in any gate.

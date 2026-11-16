@@ -8,7 +8,7 @@ data/surfaces/people.json; after the loop:
     people-clips-made                the Kimodo clips and the rig every body plays (people_bodies/made_clips.py)
     people-body-<look>               a look's body: build, the people route and every body gate (people_bodies/bodies.py)
     people-dress-<look>              the loop's library surfaces laid on the body and baked there (dress.py, paid)
-    people-dress-<look>-in-<surface> the same worn in a fabric a design's person row reads (people_clothes.py)
+    people-dress-<look>-in-<surface> the same worn in the fabric a person row's dress names (rows.json)
     people-dress-<look>[-in-<s>]-v<n> a person's own variant: other library surfaces and wear on the same body
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look-<look>               a full look's review page, one a look the designs name (look.py)
@@ -82,7 +82,7 @@ LOOKS = tuple(map(look_row, FULL))
 
 def worn_rows():
     """A dress row for each line look a design's person row dresses in a fabric of its own (people_rows.every_dressed:
-    the row's words and its measured torso, score/stages/people_clothes.py) or a person wears in a variant of its own."""
+    the row's `dress` in data/people/rows.json) or a person wears in a variant of its own."""
     return [dress_row(look, surface, variant)
             for look, surface, variant in sorted(people_rows.every_dressed(), key=lambda dressed: str(dressed))
             if look in bodies.looks()]
