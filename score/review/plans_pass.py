@@ -394,18 +394,27 @@ def laid_rows(place):
 
 
 # A row the shell lays as its openings or flights (the record counts their doorways and flights, not plan items: the
-# greenhouse's stairs, 3 flights laid for its 2), never recounted by its items.
+# greenhouse's stairs, 3 flights laid for its 2), never recounted by its items, unless the plan lays it on things.
 OPENING_WORDS = frozenset(("door", "doors", "doorway", "doorways", "window", "windows", "opening", "openings"))
 
 
 def recountable(row, plan):
     """Whether `recounted` lays the row by its plan items: not a door, window or flight of the shell, nor one the
     plan's notes or its shapes' notes give a reason for (the plan-matched gate leaves those: the stairwell's railings
-    laid along its flights)."""
+    laid along its flights). A door or window row the plan lays on things of its own (items of kind `item`, each an
+    object of the record) is recounted: the shell lays it in an opening only when no such item holds it (#128,
+    2026-11-16: the street's restaurant door, 1 read, laid as an object at each of its 3 plan items)."""
     from score.stages.scene_record import writer
     said = str([plan.get("notes") or [], [(shape or {}).get("note") for shape in (plan.get("shapes") or {}).values()]])
-    return (str(row["id"]).lower().split("_")[-1] not in OPENING_WORDS and writer.flight_kind(row) is None
-            and row["id"] not in said)
+    shells = str(row["id"]).lower().split("_")[-1] in OPENING_WORDS and not counted_laid(plan, row["id"])[1]
+    return not shells and writer.flight_kind(row) is None and row["id"] not in said
+
+
+def in_doorway(plan, item):
+    """Whether the plan item's middle stands in one of the plan's openings (plan_checks.opening_polygon)."""
+    middle = numpy.asarray([[item[1] + item[3] / 2, item[2] + item[4] / 2]], dtype=float)
+    return any(plan_checks.inside(middle, plan_checks.opening_polygon(opening))[0]
+               for opening in plan.get("openings") or [] if opening.get("at") and opening.get("wide"))
 
 
 def counted_laid(plan, row_id):
@@ -415,9 +424,13 @@ def counted_laid(plan, row_id):
 
 
 def lowered(plan, row_id, excess):
-    """`excess` copies of the row taken off the plan, its last laid first (a run's count lowered and its long side
-    shortened with it, a single thing dropped); how many it could not take off."""
-    for item, shape in reversed(counted_laid(plan, row_id)[0]):
+    """`excess` copies of the row taken off the plan, its last laid first, a door or window row's copy standing in an
+    opening last (a run's count lowered and its long side shortened with it, a single thing dropped; the street's
+    door in its doorway kept, #128); how many it could not take off."""
+    laid = list(reversed(counted_laid(plan, row_id)[0]))
+    if str(row_id).lower().split("_")[-1] in OPENING_WORDS:
+        laid.sort(key=lambda pair: in_doorway(plan, pair[0]))
+    for item, shape in laid:
         if excess <= 0:
             break
         count = int((shape or {}).get("count") or 1)

@@ -352,6 +352,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     it enters), or `joined_pairs`' `row.get("part") == "structure" and` dropped (the crate kept in the dome)
     plans_pass.py `unread_elements_dropped`: `if not gone:` -> `if True:` (the street's chair element kept on
     a row no longer read)
+    plans_pass.py `recountable`: `and not counted_laid(plan, row["id"])[1]` dropped (the shop door's 3 copies at
+    plan items left as laid, #128), or `lowered`'s `laid.sort(key=...)` dropped (SHOP_DOOR 1 kept, not the one in
+    its doorway)
     plan_checks.py `join_gaps`: `for row in sorted(set(joiners) & set(seen))` -> `for row in sorted(seen)` with
     `joiners.get(row, {"tunnel"})` (the radiator beside the tunnel read as joined), or `for join in joiners[row]` ->
     `for join in rows if connector(rows[join])` (the dome counted joined by the tube laid beside it, not its tunnel)
@@ -2324,24 +2327,30 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         fixed, fixes = plan_fixes.fixed(beyond, foot)
         assert not plans_pass.unsettled({**fixed, "fixes": fixes}, foot)
         # an agent's edit laid on an older reading carried onto the one in force: a row laid more often than read
-        # loses its last copies, a row no longer read is taken off, the shell's doors and a row the notes give a
-        # reason for left as laid
+        # loses its last copies, a row no longer read is taken off, the shell's doors (on door-kind items, laid in
+        # their openings) and a row the notes give a reason for left as laid; a door row laid as things at plan items
+        # recounted, its copy in a doorway kept (#128: the street's restaurant door, 1 read, 3 laid)
         older = {"w": 10.0, "d": 10.0, "notes": ["barrels: two stand behind the wall"], "shapes": {}, "items": [
-            [f"{name} {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "item"]
+            [f"{name} {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "door" if name == "DOOR" else "item"]
             for name, many in (("CRATE", 3), ("GONE", 1), ("DOOR", 2), ("BARRELS", 3)) for number in range(1, many + 1)]}
+        older["items"] += [[f"SHOP_DOOR {number}", 0.0, 2.0 * number, 0.1, 1.0, "E", "item"] for number in (1, 2, 3)]
+        older["openings"] = [{"kind": "door", "at": [0.0, 4.5], "wide": 1.0, "angle": 90.0, "to": None}]
         older["rows"] = {item[0]: [item[0].split()[0].lower()] for item in older["items"]}
         older["elements"] = [{"element": "chair", "rows": ["gone"]}, {"element": "crates", "rows": ["crate", "gone"]}]
         reread = {"picture": [100, 100], "rows": [{"id": "crate", "count": 2, "size": [1.0, 1.0, 1.0]},
-                                                   {"id": "door", "count": 1}, {"id": "barrels", "count": 1}]}
+                                                   {"id": "door", "count": 1}, {"id": "barrels", "count": 1},
+                                                   {"id": "shop_door", "count": 1}]}
         recount, said = plans_pass.recounted(older, reread)
         assert [item[0] for item in recount["items"]] == [
-            "CRATE 1", "CRATE 2", "DOOR 1", "DOOR 2", "BARRELS 1", "BARRELS 2", "BARRELS 3"], recount["items"]
-        assert said[:4] == ["gone 1: its row gone is no longer read, so taken off",
+            "CRATE 1", "CRATE 2", "DOOR 1", "DOOR 2", "BARRELS 1", "BARRELS 2", "BARRELS 3", "SHOP_DOOR 2"], \
+            recount["items"]
+        assert said[:5] == ["gone 1: its row gone is no longer read, so taken off",
                             "concept element 'chair': its row gone is no longer read, so taken off the plan",
                             "concept element 'crates': its row gone is no longer read, so taken off it",
-                            "crate: 3 laid, its reading counts 2, so 1 taken off"], said
+                            "crate: 3 laid, its reading counts 2, so 1 taken off",
+                            "shop door: 3 laid, its reading counts 1, so 2 taken off"], said
         assert recount["elements"] == [{"element": "crates", "rows": ["crate"]}], recount["elements"]
-        assert plans_pass.recounted(recount, reread)[1] == [] and len(older["items"]) == 9
+        assert plans_pass.recounted(recount, reread)[1] == [] and len(older["items"]) == 12
         # the lock's copies dropped, one astronaut left; a numbered spot short of its row's count given its row back,
         # one more of that full row a copy; a spot in a wall, the crate or another person moved to the nearest clear
         # floor, one near but clear left where it was placed
