@@ -28,6 +28,8 @@
     python -m score.stages.place_build compare <folder>
     python -m score.stages.place_build review <folder> [--box x0,z0,x1,z1 | --prefix name] [--width pixels] [--out dir]
     python -m score.stages.place_build viewer <folder> [--glb path] [--box x0,z0,x1,z1 | --prefix name] [--megabytes m]
+    python -m score.stages.place_build on <folder> <name> <floor|object|wall:object> [--level n] [--height m]
+    python -m score.stages.place_build check <folder> [--no-settle]
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
 `put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
@@ -53,6 +55,11 @@ one fast Blender call onto one contact sheet, a physics check's faults boxed in 
 scene as one compressed GLB for a browser viewer.
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
+`on` lays an object at rest in contact on its support: `floor`, an object's top (or its `--level` n-th surface that
+looks up, a shelf), or `wall:<object>` at `--height` over the floor (ready/). `check` tells, per object, everything that
+keeps the place from being physics ready (floating, penetration, no support, tipping, a door in no opening, a walkway
+under 0.9 m, a connector joined to nothing or with no floor, no collision geometry, unstable when let go in MuJoCo):
+one JSON line of counts, the full list in <folder>/ready.json.
 """
 import argparse
 import json
@@ -169,6 +176,12 @@ def run(args):
         if args.step == "review":
             return review.review(args.folder, box, args.prefix, args.width, args.out)
         return review.viewer(args.folder, args.glb, box, args.prefix, args.megabytes)
+    if args.step == "on":
+        from score.stages.place_build import ready
+        return ready.on(args.folder, args.name, args.support, args.level, args.height)
+    if args.step == "check":
+        from score.stages.place_build import ready
+        return ready.check(args.folder, not args.no_settle)
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -283,6 +296,14 @@ def parser():
         step.add_argument("name")
     for name in ("list", "compare"):
         steps.add_parser(name).add_argument("folder")
+    step = steps.add_parser("on")
+    for name in ("folder", "name", "support"):
+        step.add_argument(name)
+    step.add_argument("--level", type=int)
+    step.add_argument("--height", type=float)
+    step = steps.add_parser("check")
+    step.add_argument("folder")
+    step.add_argument("--no-settle", action="store_true")
     step = steps.add_parser("render")
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)
