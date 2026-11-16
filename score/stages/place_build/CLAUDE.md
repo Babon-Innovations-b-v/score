@@ -13,6 +13,17 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **Render through the card queue only** (`render.py`: usd_views.py, Cycles review samples, a memory-capped scope,
   more than 12 GB free); a long one is started with tools/cloud/detached.py, never waited on in the foreground. Set
   `SCORE_BLENDER_LIBS` to the X/GL libraries this PC's Blender needs.
-- **`start --split` rents a SAM 3 card** (score/review/concept_objects.py): a paid step, its spend rules apply.
+- **`start --split` runs SAM 3 free on this PC's card** (score/review/concept_objects.py under SCORE_CLOUD=local and
+  SCORE_FREE_ONLY=1, tools/cloud/backends/local.py's segment claim); never a rented card.
+- **Parts.** A kit piece's or model's colour regions are GeomSubsets; `surface --part` binds a surface on one, and the
+  object's whole look then goes on every shape and every other part, so no baked colour shows anywhere.
+- **glTF-only entries** are converted once at `put` (gltf.py: geometry, a part a material, no finish).
+- **Characters** are laid as their own SkelRoot (never an Xform over it), dressed in one body group (WORN) and held
+  still in a clip with tools/characters/cast.py's own steps.
+- **The dome shell** (dome_shell.py, `dome`) is code-made: its shell and ribs are parts for their surfaces.
+- **The preview's Blender script is blender_views.py**, usd_views.py with a laid ground as the ground and see-through
+  looks as thin glass, patched in there so the films' and physics' renders (which key usd_views.py) never move.
+- **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
-- Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch).
+- Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;
+  blender_views.py is checked by a render of the fixture scene, never in the test).

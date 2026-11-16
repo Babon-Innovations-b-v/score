@@ -16,12 +16,18 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     start(folder, place, concept, objects=None)        a new place folder; the camera a starting guess (CAMERA)
     start_objects(folder, objects)                     the concept's object list taken in
     camera(folder, eye, aim, fov)                      the concept's camera as the agent estimates it
-    put(folder, name, address, at, turn, scale)        a library entry fetched and laid (again) under Objects
+    put(folder, name, address, at, turn, scale, ground, wear, clip, second)
+                                                       a library entry fetched and laid (again) under Objects: a
+                                                       glTF-only entry converted once (gltf.py), a character dressed
+                                                       and held in a pose of its clip, a ground marked as the ground
+    dome(folder, name, radius, at, ...)                the dome shell algorithm (dome_shell.py) laid: glass shell, curved ribs
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
-    surface(folder, name, address, colour=None)        a library surface on an object (a recipe in a palette colour)
+    surface(folder, name, address, colour, part)       a library surface on an object, or on one of its named parts
     light(folder, name, address, at, watts, radius, colour)
     remove(folder, name)                               an object or light taken out
     listing(folder)                                    what the scene holds, as the agent reads it
+    batch(folder, steps)                               many steps (put, surface, light, snap, remove, dome) in one
+                                                       process: a whole relayout in seconds
 
 Rendering is render.py, the compare measure.py, the command line __main__.py.
 """
@@ -41,8 +47,15 @@ from score import library  # noqa: E402
 # A new place's camera before the agent estimates the concept's: eye height standing at the origin, looking along -z
 # level, 60 degrees across the picture.
 CAMERA = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -1.0], "fov": 60.0}
-# The roles of an entry's file that can be laid in a scene, first found wins.
+# The roles of an entry's file that can be laid in a scene, first found wins; a glTF one is converted (gltf.py).
 USD_ROLES = ("usd",)
+GLTF_ROLES = ("gltf", "web3d")
+# A character's body group shown by default (its others made invisible), the first it has: the made body, the suit;
+# its far group (a low-detail stand-in) never by default.
+WORN = ("made", "suit")
+FAR = "far"
+CLIP = "standing"  # the clip a laid character is held in by default, at its start
+DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its code: dome_shell.py)
 
 
 class Refused(ValueError):
@@ -155,17 +168,26 @@ def fetch(folder, address):
 
 
 def usd_file(record, copied):
-    """The entry's USD file to lay, or Refused naming what it holds instead."""
+    """The entry's USD file to lay (a glTF-only entry's converted once beside it, gltf.py), or Refused naming what it
+    holds instead."""
     for role in USD_ROLES:
         for name, info in record["files"].items():
             if info.get("role") == role:
                 return copied[name]
+    for name, info in record["files"].items():
+        if info.get("role") in GLTF_ROLES and pathlib.Path(name).suffix in (".glb", ".gltf"):
+            from score.stages.place_build import gltf
+            return gltf.converted(copied[name])
     roles = sorted({info.get("role") for info in record["files"].values()})
     raise Refused(f"{record['address']}: no USD file to lay (its files are {', '.join(roles)})")
 
 
+HELD = {}  # {scene path: its open stage} while a batch runs, so its steps compose the scene once
+
+
 def opened(folder):
-    stage = Usd.Stage.Open(str(scene_path(folder)))
+    path = str(scene_path(folder).resolve())
+    stage = HELD.get(path) or Usd.Stage.Open(path)
     return stage, stage.GetDefaultPrim().GetName()
 
 
@@ -178,22 +200,80 @@ def posed(prim, at, turn, scale):
     xform.AddScaleOp().Set(Gf.Vec3f(*scale))
 
 
-def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0)):
+def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0), ground=False,
+        wear=None, clip=None, second=0.0):
     """The library entry laid as Objects/<name> (laid again when the name is taken: its reference and pose
-    replaced, its surface kept); the scene saved."""
+    replaced, its surface kept); the scene saved. `ground` marks it as the place's ground (the renderer then lays no
+    plane of its own); a character wears `wear` (its body groups, WORN's first by default) and is held still in its
+    clip `clip` (CLIP by default) `second` seconds in."""
     address, record, copied = fetch(folder, address)
     asset = usd_file(record, copied)
     stage, place = opened(folder)
     path = f"/{place}/Objects/{name}"
-    prim = UsdGeom.Xform.Define(stage, path).GetPrim()
-    prim.GetReferences().ClearReferences()
-    relative = "./" + asset.resolve().relative_to(pathlib.Path(folder).resolve()).as_posix()
-    prim.GetReferences().AddReference(relative)
-    posed(prim, at, turn, scale)
-    prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
-    prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(record["kind"])
+    relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground)
+    laid = {"name": name, "address": address, "usd": relative}
+    if record["kind"] == "character":
+        laid.update(dressed(stage, path, asset, wear, clip, second))
     stage.GetRootLayer().Save()
-    return {"name": name, "address": address, "usd": relative}
+    return laid
+
+
+def laid_reference(stage, path, folder, asset, address, kind, pose, ground):
+    """The prim at `path` referencing `asset` (a file in the place folder), posed (at, turn, scale) and carrying its
+    library address, kind and ground mark; the reference as written."""
+    prim = stage.DefinePrim(path)
+    prim.SetTypeName("")  # the entry's own type (a character's SkelRoot) composes through, never an Xform over it
+    prim.GetReferences().ClearReferences()
+    relative = "./" + pathlib.Path(asset).resolve().relative_to(pathlib.Path(folder).resolve()).as_posix()
+    prim.GetReferences().AddReference(relative)
+    posed(prim, *pose)
+    prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
+    prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)
+    prim.CreateAttribute("score:ground", Sdf.ValueTypeNames.Bool).Set(bool(ground))
+    return relative
+
+
+def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridians=None, rings=None, rib=None,
+         address=DOME):
+    """The dome shell algorithm's dome (dome_shell.py) of `radius` metres laid as Objects/<name>: its file written once
+    under the place's assets for its sizes, its parts `shell` and `ribs` ready for their surfaces."""
+    from score.stages.place_build import dome_shell
+    sizes = {"meridians": meridians or dome_shell.MERIDIANS, "rings": dome_shell.RINGS if rings is None else rings,
+             "rib": rib or dome_shell.RIB}
+    if radius <= 0 or sizes["meridians"] < 3 or sizes["rings"] < 0 or sizes["rib"] <= 0:
+        raise Refused(f"a dome needs a radius over 0, 3 or more meridians, 0 or more rings and a rib over 0 ({radius}, "
+                      f"{sizes})")
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
+        f"r{radius:g}_m{sizes['meridians']}_r{sizes['rings']}_w{sizes['rib']:g}.usda")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        dome_shell.shell(target, float(radius), **sizes)
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
+                              (at, turn, (1.0, 1.0, 1.0)), False)
+    stage.GetRootLayer().Save()
+    return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
+
+
+def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
+    """A laid character's body groups `wear` shown (WORN's first it has by default) and every other made invisible,
+    its skeleton held still in `clip` `second` seconds in (tools/characters/cast.py's own steps)."""
+    sys.path.insert(0, str(REPO / "tools/characters"))
+    import cast
+    groups, clips = cast.asset_facts(asset)
+    worn = list(wear) if wear else [next((group for group in WORN if group in groups),
+                                         next((group for group in groups if group != FAR), None))]
+    unknown = sorted(set(worn) - set(groups))
+    if unknown or not worn[0]:
+        raise Refused(f"{path}: no body group {', '.join(map(str, unknown))} (it has {', '.join(groups)})")
+    cast.dressed(stage, path, groups, worn)
+    if not clips:  # a body with no clips stands in its rest pose
+        return {"wear": worn, "clip": None, "second": 0.0}
+    clip = clip or (CLIP if CLIP in clips else sorted(clips)[0])
+    if clip not in clips:
+        raise Refused(f"{path}: no clip {clip} (it has {', '.join(sorted(clips))})")
+    cast.held_still(stage, path, asset, clip, second)
+    return {"wear": worn, "clip": clip, "second": second}
 
 
 def object_prim(stage, place, name):
@@ -259,10 +339,41 @@ def look_shader(stage, path, copied, colour):
     return look
 
 
-def surface(folder, name, address, colour=None):
+def parts_of(prim):
+    """{part name: [its GeomSubsets]} of the object's meshes (a model's named colour regions)."""
+    found = {}
+    for inside in Usd.PrimRange(prim):
+        if inside.IsA(UsdGeom.Subset):
+            found.setdefault(inside.GetName(), []).append(inside)
+    return found
+
+
+def rebind(stage, place, prim):
+    """The object's looks bound: its whole look over everything inside it (stronger than anything there, so a model's
+    own baked colour never shows) while it has no part looks; with part looks, each part's look on its subsets and the
+    whole look (when it has one) on every shape and every other subset, so what no part names still wears it."""
+    name = prim.GetName()
+    whole = UsdShade.Material(stage.GetPrimAtPath(f"/{place}/Looks/{name}"))
+    named = {inside.GetName()[len(name) + 2:]: UsdShade.Material(inside)
+             for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
+             if inside.GetName().startswith(f"{name}__")}
+    if not named:
+        if whole:
+            UsdShade.MaterialBindingAPI.Apply(prim).Bind(whole, UsdShade.Tokens.strongerThanDescendants)
+        return
+    UsdShade.MaterialBindingAPI.Apply(prim).UnbindDirectBinding()
+    for inside in Usd.PrimRange(prim):
+        part = inside.GetName() if inside.IsA(UsdGeom.Subset) else None
+        if part in named:
+            UsdShade.MaterialBindingAPI.Apply(inside).Bind(named[part])
+        elif whole and (part is not None or inside.IsA(UsdGeom.Gprim)):
+            UsdShade.MaterialBindingAPI.Apply(inside).Bind(whole)
+
+
+def surface(folder, name, address, colour=None, part=None):
     """The library surface `address` worn by the object, bound over everything inside it (so a model's own baked
-    colour never shows): a variant as the library makes it, or in the palette colour `colour` ('#rrggbb'); a recipe
-    in `colour`."""
+    colour never shows), or, given `part`, by that named colour region alone (its GeomSubsets): a variant as the
+    library makes it, or in the palette colour `colour` ('#rrggbb'); a recipe in `colour`."""
     address = resolved_address(address, library_root())
     record = entry_of(address)
     if record["kind"] != "surface":
@@ -270,13 +381,18 @@ def surface(folder, name, address, colour=None):
     _, _, copied = fetch(folder, address)
     stage, place = opened(folder)
     prim = object_prim(stage, place, name)
-    look = look_shader(stage, f"/{place}/Looks/{name}", copied, colour)
-    UsdShade.MaterialBindingAPI.Apply(prim).Bind(look, UsdShade.Tokens.strongerThanDescendants)
-    prim.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
-    if colour is not None:
-        prim.CreateAttribute("score:surface:colour", Sdf.ValueTypeNames.String).Set(colour)
+    if part is not None and part not in parts_of(prim):
+        raise Refused(f"{name} has no part {part} (its parts are {', '.join(sorted(parts_of(prim))) or 'none'})")
+    look_name = name if part is None else f"{name}__{part}"
+    look = look_shader(stage, f"/{place}/Looks/{look_name}", copied, colour)
+    look.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
+    rebind(stage, place, prim)
+    if part is None:
+        prim.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
+        if colour is not None:
+            prim.CreateAttribute("score:surface:colour", Sdf.ValueTypeNames.String).Set(colour)
     stage.GetRootLayer().Save()
-    return {"name": name, "surface": address, "colour": colour}
+    return {"name": name, "surface": address, "colour": colour, "part": part}
 
 
 def light(folder, name, at, watts, radius=0.05, colour="#ffffff", address="light/lamp"):
@@ -299,6 +415,8 @@ def remove(folder, name):
     """The object (and its look) or light called `name` taken out of the scene."""
     stage, place = opened(folder)
     paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Looks", "Lights")]
+    paths += [str(inside.GetPath()) for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
+              if inside.GetName().startswith(f"{name}__")]
     found = [path for path in paths if stage.GetPrimAtPath(path)]
     if not found:
         raise Refused(f"the scene holds no object or light {name}")
@@ -312,6 +430,8 @@ def listing(folder):
     """Each object (its address, pose, surface and box in the scene, metres) and light, as the agent reads them."""
     stage, place = opened(folder)
     boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    looks = {inside.GetName(): inside.GetAttribute("score:surface").Get()
+             for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()}
     objects = []
     for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
         at, turn, scale = pose_of(prim)
@@ -320,9 +440,39 @@ def listing(folder):
                         "at": at, "turn": turn, "scale": scale,
                         "surface": prim.GetAttribute("score:surface").Get(),
                         "colour": prim.GetAttribute("score:surface:colour").Get(),
+                        "parts": {part: looks.get(f"{prim.GetName()}__{part}") for part in sorted(parts_of(prim))},
                         "box": [[round(value, 3) for value in box.GetMin()],
                                 [round(value, 3) for value in box.GetMax()]] if not box.IsEmpty() else None})
     lights = [{"name": prim.GetName(), "at": pose_of(prim)[0],
                "watts": UsdLux.SphereLight(prim).GetIntensityAttr().Get()}
               for prim in stage.GetPrimAtPath(f"/{place}/Lights").GetChildren()]
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
+
+
+STEPS = {"put": put, "dome": dome, "surface": surface, "light": light, "snap": snap, "remove": remove,
+         "camera": camera}
+
+
+def batch(folder, steps):
+    """Many steps in one process, the scene composed once (`steps`: [{"step": <one of STEPS>, its arguments by name}],
+    points as lists, a single scale number for all three axes); each step's answer in order, a refused one as
+    {"refused": why, "step": its number} while the rest go on."""
+    path = str(scene_path(folder).resolve())
+    HELD[path] = Usd.Stage.Open(path)
+    answers = []
+    try:
+        for number, given in enumerate(steps):
+            given = dict(given)
+            step = given.pop("step", None)
+            if step not in STEPS:
+                answers.append({"refused": f"no step {step!r} (steps are {', '.join(STEPS)})", "step": number})
+                continue
+            if isinstance(given.get("scale"), (int, float)):
+                given["scale"] = [float(given["scale"])] * 3
+            try:
+                answers.append(STEPS[step](folder, **given))
+            except (Refused, TypeError) as why:
+                answers.append({"refused": str(why), "step": number})
+    finally:
+        HELD.pop(path)
+    return answers

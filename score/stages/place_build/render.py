@@ -1,5 +1,5 @@
-"""The scene seen from the concept's camera at preview quality: tools/blender/inside/usd_views.py on this PC's card
-(Cycles on the card, its review samples, denoised), through the card queue, in a memory-capped scope, one Blender at
+"""The scene seen from the concept's camera at preview quality: tools/blender/inside/usd_views.py (through
+blender_views.py: a laid ground as the ground, see-through looks as thin glass) on this PC's card (Cycles on the card, its review samples, denoised), through the card queue, in a memory-capped scope, one Blender at
 a time. Writes <folder>/render/concept-look.png and concept-mask.png (the objects' silhouette), copied to
 <folder>/render.png and <folder>/render-mask.png beside the concept.
 
@@ -19,7 +19,7 @@ import time
 from score.stages import place_build
 
 REPO = place_build.REPO
-SCRIPT = REPO / "tools/blender/inside/usd_views.py"
+SCRIPT = pathlib.Path(__file__).resolve().parent / "blender_views.py"
 QUEUE = REPO / "tools/cloud/backends/card_queue.py"
 BLENDER = pathlib.Path(os.environ.get(
     "SCORE_BLENDER", pathlib.Path.home() / ".farm-factory-props/blender-mcp/blender-5.2.2/blender"))
