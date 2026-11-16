@@ -3,8 +3,8 @@ being walked in and pushed (a crate floating 40 cm over the ground; two crates 1
 free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it; a tunnel whose far end
 joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and moves when let go in MuJoCo; an object
 with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
-over the ground; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
-while what rests right passes (the walls, the door filling its opening, the desk, a monitor laid `on` the desk, a
+over the ground; a walker (time-sampled) 30 cm over it, told by its planted foot alone; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
+while what rests right passes (the walls, a walker stepping with its left foot 10 cm up, the door filling its opening, the desk, a monitor laid `on` the desk, a
 panel mounted `on` a wall, a crate on the ground, a rock sunk 30 cm into it, a round hatch in the doorway its tunnel's end wall cut to its own
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support;
@@ -27,7 +27,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - settle_mujoco.settled: the steps left out -> the tipping box reads stable
 - ready.held_by: the desk whose box holds the pad left out of the pad's statics -> the pad falls through it, unstable
 - ready.fit_faults: `gap > FIT` made `gap > 1.0` -> the small door passes; `past > FIT` the same -> the big one passes
-- ready.person_faults: `abs(gap) > CONTACT` made `> 1.0` -> the floating person passes
+- ready.person_faults: `abs(gap) > CONTACT` made `> 1.0` -> the floating person passes (and the floating walker)
+- ready.walks: taken as always False -> the walker with its left foot stepping 10 cm up reads floating
 - people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
 - dome_shell.inside_outline: the count's `% 2` dropped -> the round hatch's doorway is not cut and it does not fit
 - place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
@@ -140,16 +141,21 @@ def skinned(stage, path, points, faces, joints):
     binding.CreateGeomBindTransformAttr(Gf.Matrix4d(1))
 
 
-def person(stage, place, name, spot, without=(), torn=False):
+def person(stage, place, name, spot, without=(), torn=False, stepping=False):
     """A person 1.7 m tall of boxes bound to a skeleton (head, hands, legs, feet), standing at `spot`, held still;
     `without` its parts left off, `torn` a sleeve from its chest to its left hand pulled 12 cm out (more than double, under
-    route_stretch.MOST_METRES). Its SkelRoot's
+    route_stretch.MOST_METRES), `stepping` its left foot lifted 10 cm and its spot time-sampled a step on (a walker). Its
+    SkelRoot's
     box reaches 40 cm under its feet, as a real body's box holds every clip at once."""
     import trimesh
     root = UsdSkel.Root.Define(stage, f"/{place}/Objects/{name}")
     root.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("character")
     root.CreateExtentAttr([Gf.Vec3f(-0.5, -0.4, -0.5), Gf.Vec3f(0.5, 1.8, 0.5)])
     place_build.posed(root.GetPrim(), spot, (0, 0, 0), (1, 1, 1))
+    if stepping:
+        move = UsdGeom.Xformable(root.GetPrim()).GetOrderedXformOps()[0]
+        move.Set(Gf.Vec3d(*spot), 0.0)
+        move.Set(Gf.Vec3d(spot[0], spot[1], spot[2] + 0.7), 24.0)
     skeleton = UsdSkel.Skeleton.Define(stage, f"{root.GetPath()}/Skeleton")
     order = list(JOINTS)
     skeleton.CreateJointsAttr(order)
@@ -159,7 +165,8 @@ def person(stage, place, name, spot, without=(), torn=False):
     skeleton.CreateRestTransformsAttr([Gf.Matrix4d(1).SetTranslate(Gf.Vec3d(*map(float, local[joint]))) for joint in order])
     held = UsdSkel.Animation.Define(stage, f"{root.GetPath()}/Held")
     held.CreateJointsAttr(order)
-    moved = {joint: local[joint] + ([0.12, 0, 0] if torn and joint.endswith("LeftHand") else 0) for joint in order}
+    moved = {joint: local[joint] + ([0.12, 0, 0] if torn and joint.endswith("LeftHand") else 0)
+             + ([0, 0.1, 0] if stepping and joint.endswith("LeftFoot") else 0) for joint in order}
     held.CreateTranslationsAttr([Gf.Vec3f(*map(float, moved[joint])) for joint in order])
     held.CreateRotationsAttr([Gf.Quatf(1)] * len(order))
     held.CreateScalesAttr([Gf.Vec3h(1, 1, 1)] * len(order))
@@ -265,6 +272,8 @@ def planted(folder):
     person(stage, place, "person_float", (-5.5, floor + 0.3, 1.5))
     person(stage, place, "person_broken", (-5.5, floor, -1.5), without=("Head", "RightHand"))
     person(stage, place, "person_torn", (-5.5, floor, -3.0), torn=True)
+    person(stage, place, "walker", (-5.5, floor, 3.0), stepping=True)
+    person(stage, place, "walker_float", (-5.5, floor + 0.3, 4.3), stepping=True)
     hatch(stage, place, "hatch_round", (-6.5, 0.0, -6.0), 1.0, 1.0)
     hatch(stage, place, "hatch_squared", (-6.5, 0.0, 6.0), 1.0, 1.0)
     decal = UsdGeom.Xform.Define(stage, f"/{place}/Objects/decal").GetPrim()
@@ -315,7 +324,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     found = json.loads(pathlib.Path(summary["file"]).read_text())["objects"]
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}
     print(json.dumps(summary))
-    for name in ("wall", "desk", "monitor", "panel", "crate_ok", "rock_sunk", "bulkhead", "person_ok",
+    for name in ("wall", "desk", "monitor", "panel", "crate_ok", "rock_sunk", "bulkhead", "person_ok", "walker",
                  "ground", "field", "sky", *(f"rock{number}" for number in range(300))):
         assert name not in told, (name, found.get(name))
     assert "floating" in told["rock_float"] and "penetration" in told["crate_in_rock"], \
@@ -335,6 +344,8 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
         found["door_big"]
     assert {fault.get("foot") for fault in found["person_float"] if fault["fault"] == "person floating"} \
         == {"left", "right"}, found["person_float"]
+    assert {fault.get("foot") for fault in found["walker_float"] if fault["fault"] == "person floating"} \
+        == {"right"}, found["walker_float"]  # its planted foot, the left one stepping 10 cm up
     assert any(set(fault.get("missing", ())) == {"head", "right hand"} for fault in found["person_broken"]), \
         found["person_broken"]
     assert any(fault.get("torn", 0) > 0.5 for fault in found["person_torn"]), found["person_torn"]

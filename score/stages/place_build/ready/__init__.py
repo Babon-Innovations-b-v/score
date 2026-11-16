@@ -28,7 +28,8 @@ laid as an object, `score:kind` light: light the renderer draws, never a solid, 
   door's outline and the wall, or the door lies over the wall further than FIT past the opening's edge (a hinge or a
   latch, shorter than HINGE, lies on its jamb): a leaf that is not the opening's shape and size (a rectangular
   door in a round opening, a hatch too small for it).
-- `person floating` / `person sinks`: a person's feet (each foot's lowest skin), or, seated, the seat, more than
+- `person floating` / `person sinks`: a person's feet (each foot's lowest skin; a walker's planted, lower foot alone,
+  `walks`), or, seated, the seat, more than
   CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above.
 - `broken body`: a person's skin torn by its skinning, a missing head, hand or foot, or a height or proportions no
   person has (people.shape_faults).
@@ -534,6 +535,11 @@ def contact_of(laid, points):
     return under_gap(laid, points[np.argsort(points[:, 1])[:FOOT // 10]])
 
 
+def walks(prim):
+    """Whether a person moves through the stage's time (a walker laid with its route as time samples), not held still."""
+    return any(op.GetAttr().GetNumTimeSamples() > 1 for op in UsdGeom.Xformable(prim).GetOrderedXformOps())
+
+
 def person_faults(laid, name):
     """A person not standing on both feet (or sitting on its seat) within CONTACT of a support, or inside another
     object, or with a broken body."""
@@ -542,6 +548,9 @@ def person_faults(laid, name):
         return [{"fault": "no collision geometry", "why": "it has no skinned mesh to collide by"}]
     feet = {side[0]: contact_of(laid, body.points_of(*people.PARTS["feet"], side=side))
             for side in (people.LEFT, people.RIGHT)}
+    if walks(laid.prims[name]):  # a walker always has a foot in the air: its planted (lower) foot is held to CONTACT
+        planted = min(feet, key=lambda side: abs(feet[side][0]) if np.isfinite(feet[side][0]) else np.inf)
+        feet = {planted: feet[planted]}
     seat_joints = body.seat_joints()
     seat = contact_of(laid, np.asarray(body.mesh.vertices)[[path in seat_joints for path in body.joint_of]])
     standing = all(abs(gap) <= CONTACT for gap, _ in feet.values())
