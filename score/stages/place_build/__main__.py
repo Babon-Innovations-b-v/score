@@ -10,7 +10,7 @@
     python -m score.stages.place_build tube <folder> <name> --radius m --length m [--at x,y,z] [--turn rx,ry,rz]
                                        [--hoops n] [--rib m] [--cap width,height]
     python -m score.stages.place_build stairs <folder> <name> [--storeys n] [--at x,y,z] [--turn rx,ry,rz] [--mirror]
-                                       [--curtain]
+                                       [--curtain] [--cut]
     python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
     python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--pad x,z,radius ...]
@@ -158,7 +158,7 @@ def run(args):
                                 cap_door=args.cap_door)
     if args.step == "stairs":
         return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
-                                  args.mirror, curtain=args.curtain)
+                                  args.mirror, curtain=args.curtain, cut=args.cut)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "terrain":
@@ -273,6 +273,7 @@ def parser():
     step.add_argument("--turn", default="0,0,0")
     step.add_argument("--mirror", action="store_true")
     step.add_argument("--curtain", action="store_true")
+    step.add_argument("--cut", action="store_true")
     step = steps.add_parser("ground")
     step.add_argument("folder")
     step.add_argument("name")
