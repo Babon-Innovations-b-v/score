@@ -143,7 +143,8 @@ def run(args):
                                 args.meridians, args.rings, args.rib, openings=[numbers(hole) for hole in args.opening])
     if args.step == "tube":
         return place_build.tube(args.folder, args.name, args.radius, args.length, numbers(args.at), numbers(args.turn),
-                                args.hoops, args.rib, cap=numbers(args.cap) if args.cap else None)
+                                args.hoops, args.rib, cap=numbers(args.cap) if args.cap else None,
+                                cap_door=args.cap_door)
     if args.step == "stairs":
         return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
                                   args.mirror)
@@ -245,6 +246,7 @@ def parser():
     step.add_argument("--hoops", type=int)
     step.add_argument("--rib", type=float)
     step.add_argument("--cap")
+    step.add_argument("--cap-door", help="a laid door whose own outline the end wall's doorway is cut to")
     step = steps.add_parser("stairs")
     step.add_argument("folder")
     step.add_argument("name")

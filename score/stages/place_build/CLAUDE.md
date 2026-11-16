@@ -52,7 +52,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   parts share the props' finishes. The recipes need pandas beside Blender (`$PROPS_HOME/blender-mcp/pf-site`).
 - **Physics-ready structure**: `dome --opening around,radius,centre` cuts glass, ribs and plinth where a tube joins
   (a collar rib round it); `tube --cap w,h` closes its far end with a wall holding a doorway (an airlock's door sits
-  in it), `trims` end its skin on the domes' glass, and its skin is solid to WALL_HIGH over its deck (part `wall`).
+  in it; `--cap-door <door>` cuts that doorway to the laid door's own outline, so a round hatch gets a round one, its
+  hinges and latch left on the jamb; lay the door first), `trims` end its skin on the domes' glass, and its skin is solid to WALL_HIGH over its deck (part `wall`).
 - **A model's own layers** (`<file>_glow.usdc`, a monitor's screen) are laid with it as children, each a part a
   surface can take (`surface --part glow palette/screen_glow`).
 - **`render --final`** renders at the films' samples at 1920x1080; the views take AgX's medium high contrast look.
