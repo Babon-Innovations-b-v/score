@@ -30,6 +30,10 @@ DENSITY = 400.0  # kg a cubic metre: a crate, a cabinet; the rest pose does not 
 # face starts 1 cm inside its plate and is pushed up that far, well under the check's few cm.
 STATIC_SKIN = 0.02
 SMALLEST = 1e-8  # a static triangle with less area (square metres) is no surface
+# Each model's arena (bytes) for its contacts and constraints: MuJoCo's default sizes it from the model alone, and a
+# hull resting on a dense made model's plates (a TRELLIS.2 desk, 2026-11-16: 10,935 contacts) ran past it with
+# "mj_stackAlloc: out of memory"; 64 MB holds over 150,000 contacts, eight pool processes 0.5 GB.
+ARENA = 64 * 1024 * 1024
 
 
 def plates(triangles):
@@ -48,6 +52,7 @@ def model_of(hull, statics):
     spec = mujoco.MjSpec()
     spec.option.gravity = [0.0, -GRAVITY, 0.0]
     spec.option.timestep = STEP
+    spec.memory = ARENA
     middle = hull.mean(axis=0)
     spec.add_mesh(name="loose", uservert=(hull - middle).ravel().tolist())
     body = spec.worldbody.add_body(name="loose", pos=middle.tolist())
