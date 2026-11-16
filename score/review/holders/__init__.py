@@ -1445,6 +1445,10 @@ ONE_SPOT = 0.02
 # Two wall things' built boxes may meet by this much, metres, and stand clear of each other (scene_record/gates'
 # laid-as-designed judges by it): a touch, never one in the other.
 WALL_TOUCH = 0.05
+# The scene record writes a laid spot to 4 decimals (writer's `at`), so two wall things this holders' boxes meet by
+# exactly WALL_TOUCH can meet by a hair more as laid: they are parted from WALL_TOUCH less this, metres (2026-11-16:
+# lab's 0.05 m deep tool board over its 0.1 m pipe and control panel met by 0.04999 here, 0.050001 as laid).
+LAID_ROUNDING = 0.001
 # Two walls meet in a chain where their ends lie within this of each other, metres; a run of one piece goes round a
 # meeting no sharper than ROUND_BEND degrees (a round wall's facets), a run of several round a corner up to
 # CORNER_BEND (never doubling back along a wall's other face).
@@ -1884,11 +1888,12 @@ def wall_band(row, height, tall, wall, plan):
 
 
 def meets_laid(context, row, plan, height, laid, taken=()):
-    """Whether a wall thing (relation_box of `context` at `height`) meets any box in `laid` by more than WALL_TOUCH, or
+    """Whether a wall thing (relation_box of `context` at `height`) meets any box in `laid` by more than WALL_TOUCH
+    (less LAID_ROUNDING: as the scene record lays it), or
     stands where one of its row's laid before it stands (`taken`, [(row id, plan spot, height)]: within ONE_SPOT on
     its wall's line and in height, either face of the wall: the scene record lays both at that one spot)."""
     box = relation_box(context, row, plan, height)
-    return any(boxes_meet(box, other) > WALL_TOUCH for other in laid) or any(
+    return any(boxes_meet(box, other) > WALL_TOUCH - LAID_ROUNDING for other in laid) or any(
         row_id == context["row"] and math.dist(spot, context["spot"]) < ONE_SPOT and abs(stood - height) < ONE_SPOT
         for row_id, spot, stood in taken)
 
@@ -2082,7 +2087,7 @@ def laid_apart(found, rows, plan, first=()):
                     piece["why"] += f"; moved to the nearest wall with room for it, its own ({was['from']} to " \
                                     f"{was['to']}) full"
                 elif all(entry is not was for was in stuck) and any(
-                        long < built_long(row) and boxes_meet(box, relation_box(context, row, plan, height)) > WALL_TOUCH
+                        long < built_long(row) and boxes_meet(box, relation_box(context, row, plan, height)) > WALL_TOUCH - LAID_ROUNDING
                         for box, long in laid):
                     stuck.append(entry)
             laid.append((relation_box(context, row, plan, height), built_long(row)))

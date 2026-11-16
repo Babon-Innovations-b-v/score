@@ -358,6 +358,10 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     Break: score/review/holders/__init__.py: `if (spot := slid_clear(context, row, plan, height, boxes, taken)) is not
         None:` -> `if False:`
     Break: score/review/holders/__init__.py: `if height <= 0.0:` -> `if False:`
+    2026-11-16 (laid-as-designed@lab: its 0.05 m deep tool board over a 0.1 m pipe met it by 0.04999 m here, 0.050001
+    as laid): a 1 m board 0.05 m deep drawn over a 0.1 m deep duct on one wall is parted from it.
+    Break: score/review/holders/__init__.py: `> WALL_TOUCH - LAID_ROUNDING for other in laid)` -> `> WALL_TOUCH for
+        other in laid)`
     2026-11-07 (laid-as-designed@cockpit, @habitat, @workshop, @stairwell): a wall thing is parted at the size it is
     made at (prepare's groups.made_size: a run read round the room's walls one piece of it; a rug keeps its reading's);
     four 3 m pipes 'upper walls' on a 3.5 by 2 m room's south wall, which holds two (its band 2.2 to 2.6 m), put the
@@ -1302,6 +1306,13 @@ CASES.append(case(
             walls=[{**wall, "tall": 11.8} for wall in ROOM_WALLS], shapes={"CONDUIT 1": {"base": 12.0}}),
     [{"id": "conduit", "noun": "conduit", "anchor": "wall", "size": [3.0, 0.1, 12.0]}],
     want={"item/CONDUIT 1/height": 0.0}))
+CASES.append(case(
+    "wall-spread-a-thin-board-over-a-duct", relate,
+    plan_of([["DUCT 1", 8.0, 0.1, 2.0, 0.1, None, "item"], ["BOARD 1", 8.5, 0.1, 1.0, 0.05, None, "item"]],
+            {"DUCT 1": ["duct"], "BOARD 1": ["board"]}, walls=ROOM_WALLS),
+    [{"id": "duct", "noun": "duct", "anchor": "wall", "size": [2.0, 0.1, 2.5]},
+     {"id": "board", "noun": "board", "anchor": "wall", "size": [1.0, 0.05, 0.5]}],
+    want={(clear,): AtMost(holders.WALL_TOUCH - holders.LAID_ROUNDING)}))  # lab, 2026-11-16: parted, not touching
 NARROW = [{"from": [0.0, 0.0], "to": [3.2, 0.0], "thick": 0.1, "tall": 3.0},
           {"from": [3.2, 0.0], "to": [3.2, 1.0], "thick": 0.1, "tall": 3.0},
           {"from": [3.2, 1.0], "to": [0.0, 1.0], "thick": 0.1, "tall": 3.0},
