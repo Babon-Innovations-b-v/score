@@ -282,16 +282,17 @@ def lowest_points(mesh, count=FOOT):
     return points[np.argsort(points[:, 1])[:count]]
 
 
-def gaps_down(laid, name, points, only=None):
+def gaps_down(laid, name, points, only=None, start=RAY_START):
     """How far each point stands over the surface straight under it, not its own (inf where none is), and whose
-    surface that is (-1 where none); `only`, a list of objects, limits what counts."""
-    origins = points + [0.0, RAY_START, 0.0]
+    surface that is (-1 where none); `only`, a list of objects, limits what counts; the rays start `start` over the
+    points."""
+    origins = points + [0.0, start, 0.0]
     _, rays, owners, along = laid.hits(origins, np.tile([0.0, -1.0, 0.0], (len(origins), 1)), among=only)
     allowed = owners != laid.number[name] if only is None else np.isin(owners, [laid.number[other] for other in only])
     gaps, under = np.full(len(points), np.inf), np.full(len(points), -1)
     order = np.argsort(along[allowed])[::-1]  # the nearest last, so it is the one kept
     picked_rays = rays[allowed][order]
-    gaps[picked_rays] = along[allowed][order] - RAY_START
+    gaps[picked_rays] = along[allowed][order] - start
     under[picked_rays] = owners[allowed][order]
     return gaps, under
 
@@ -300,7 +301,8 @@ def support_faults(laid, name):
     """A standing object's floating, missing support and tipping, each with its measure."""
     mesh = laid.meshes[name]
     lowest = lowest_points(mesh)
-    gaps, under = gaps_down(laid, name, lowest)
+    bedded = laid.roles[name] == "fixed"  # a rock may lie sunk to any depth: its rays start at its own top
+    gaps, under = gaps_down(laid, name, lowest, start=float(np.ptp(mesh.bounds[:, 1])) if bedded else RAY_START)
     if not np.isfinite(gaps).any():
         return [{"fault": "no support", "why": "nothing lies under it to stand on"}]
     nearest = int(np.argmin(gaps))

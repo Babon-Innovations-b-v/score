@@ -5,7 +5,7 @@ joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and
 with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
 over the ground; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
 while what rests right passes (the walls, the door filling its opening, the desk, a monitor laid `on` the desk, a
-panel mounted `on` a wall, a crate on the ground, a round hatch in the doorway its tunnel's end wall cut to its own
+panel mounted `on` a wall, a crate on the ground, a rock sunk 30 cm into it, a round hatch in the doorway its tunnel's end wall cut to its own
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support;
 and a walker's route goes round a crate in its way on that same floor and through every spot it is sent through, every point of it standing there, and is refused
@@ -16,6 +16,7 @@ laid as an object (`score:kind` light) is no solid: never told, never stood on.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
+- ready.support_faults: `bedded` taken as False -> the rock sunk 30 cm reads as standing on nothing
 - ready.crossing_depths: `count % 2` made `count % 2 == 0` -> the overlapping crates pass
 - ready.door_faults: the `open_sides` list left empty -> the free-standing door passes
 - ready.room_for_walkway: ERODED made 0 -> the blocked door's far side reads reached
@@ -248,6 +249,7 @@ def planted(folder):
     box(stage, place, "hatch_free", (1.0, 2.0, 0.05), (2.5, 0.0, 3.0))
     box(stage, place, "bulkhead", (3.0, 2.8, 0.2), (-4.5, 0.0, 2.3))
     box(stage, place, "crate_ok", (0.5, 0.5, 0.5), (4.0, 0.0, 1.0))
+    box(stage, place, "rock_sunk", (0.6, 0.6, 0.6), (-2.0, -0.32, 5.6))  # bedded 30 cm in the ground
     box(stage, place, "crate_float", (0.5, 0.5, 0.5), (-1.0, 0.4, -4.5))
     box(stage, place, "crate_a", (0.5, 0.5, 0.5), (1.5, 0.0, -3.5))
     box(stage, place, "crate_b", (0.5, 0.5, 0.5), (1.9, 0.0, -3.5))
@@ -313,7 +315,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     found = json.loads(pathlib.Path(summary["file"]).read_text())["objects"]
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}
     print(json.dumps(summary))
-    for name in ("wall", "desk", "monitor", "panel", "crate_ok", "bulkhead", "person_ok",
+    for name in ("wall", "desk", "monitor", "panel", "crate_ok", "rock_sunk", "bulkhead", "person_ok",
                  "ground", "field", "sky", *(f"rock{number}" for number in range(300))):
         assert name not in told, (name, found.get(name))
     assert "floating" in told["rock_float"] and "penetration" in told["crate_in_rock"], \
