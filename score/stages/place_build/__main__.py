@@ -13,7 +13,7 @@
     python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--pad x,z,radius ...]
     python -m score.stages.place_build sky <folder> <light/id> --elevation deg --heading deg [--strength s]
-                                       [--colour #rrggbb]
+                                       [--colour #rrggbb] [--turn degrees]
     python -m score.stages.place_build view <folder> <name> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build batch <folder> <steps.json>
     python -m score.stages.place_build snap <folder> <name> [--grid metres]
@@ -123,7 +123,8 @@ def run(args):
         return place_build.terrain(args.folder, args.name, args.address, numbers(args.at), numbers(args.turn),
                                    [numbers(pad) for pad in args.pad])
     if args.step == "sky":
-        return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour)
+        return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour,
+                               args.turn)
     if args.step == "view":
         return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov)
     if args.step == "batch":
@@ -209,6 +210,7 @@ def parser():
     step.add_argument("--heading", type=float, required=True)
     step.add_argument("--strength", type=float, default=1.0)
     step.add_argument("--colour", default="#ffffff")
+    step.add_argument("--turn", type=float, default=0.0)
     step = steps.add_parser("view")
     step.add_argument("folder")
     step.add_argument("name")

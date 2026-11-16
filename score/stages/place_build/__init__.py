@@ -452,8 +452,22 @@ def look_shader(stage, path, copied, colour):
         shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(settings.get("roughness", 0.6)))
         look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     if colour is not None:
-        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour_of(colour)))
+        tinted(stage, shader, colour)
     return look
+
+
+def tinted(stage, shader, colour):
+    """The look's colour set to `colour`: its diffuse colour, or, when that comes from an image surface's map, the
+    map multiplied by it (the texture's scale, which Blender's reader brings in as a multiply), so a scanned ground
+    takes the planet's tint and keeps its grain."""
+    linear = colour_of(colour)
+    source = shader.GetInput("diffuseColor")
+    connected = source.GetConnectedSources()[0] if source else []
+    if connected:
+        texture = UsdShade.Shader(connected[0].source.GetPrim())
+        texture.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(*linear, 1.0))
+        return
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*linear))
 
 
 def parts_of(prim):
@@ -490,7 +504,8 @@ def rebind(stage, place, prim):
 def surface(folder, name, address, colour=None, part=None):
     """The library surface `address` worn by the object, bound over everything inside it (so a model's own baked
     colour never shows), or, given `part`, by that named colour region alone (its GeomSubsets): a variant as the
-    library makes it, or in the palette colour `colour` ('#rrggbb'); a recipe in `colour`."""
+    library makes it, or in the palette colour `colour` ('#rrggbb'; an image surface's map tinted by it); a recipe in
+    `colour`."""
     address = resolved_address(address, library_root())
     record = entry_of(address)
     if record["kind"] != "surface":
@@ -540,11 +555,12 @@ def sun_frame(elevation, heading):
                        towards[0], towards[1], towards[2], 0.0, 0.0, 0.0, 0.0, 1.0)
 
 
-def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff"):
+def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", turn=0.0):
     """A library sky (a light entry holding a sky dome and its DomeLight) laid as the place's own sky: its dome under
     Objects/sky, its DomeLight as /<place>/Environment (the ambient light and exposure the renderer takes as the
     stage's sky), and its sun a distant light Lights/sun from `elevation` and `heading` degrees, `strength` its
-    intensity, in `colour` ('#rrggbb')."""
+    intensity, in `colour` ('#rrggbb'); the dome turned `turn` degrees about up, so the glow its picture holds round
+    its own sun stands where the sun is laid."""
     address, record, copied = fetch(folder, address)
     if record["kind"] != "light":
         raise Refused(f"{address} is a {record['kind']}, not a light")
@@ -555,7 +571,7 @@ def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff"):
         raise Refused(f"{address}: its USD holds no DomeLight (no sky)")
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/sky", folder, source, address, record["kind"],
-                              ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), False)
+                              ((0.0, 0.0, 0.0), (0.0, float(turn), 0.0), (1.0, 1.0, 1.0)), False)
     environment = stage.DefinePrim(f"/{place}/Environment", "DomeLight")
     environment.GetReferences().ClearReferences()
     environment.GetReferences().AddReference(relative, domes[0])

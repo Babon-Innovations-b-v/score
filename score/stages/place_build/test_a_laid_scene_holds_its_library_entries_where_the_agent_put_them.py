@@ -15,6 +15,7 @@ colour difference of the two pictures, and draws them side by side.
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
+- place_build.tinted: the colour set on the diffuse input though a map feeds it -> the sand's map keeps no tint
 - place_build.look_shader: `strongerThanDescendants` made `weakerThanDescendants` -> the piece's own look wins
 - place_build.usd_file: the first file taken whatever its role -> a record-only entry is laid
 - place_build.rebind: the whole look left off the unnamed parts -> the crate's lid keeps its baked green
@@ -35,6 +36,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - relief.padded_file: the pad's share inverted (`keep = eased`) -> the pad keeps its slope, the far ground goes flat
 - relief.turned_pads: the turn's sine signs swapped -> the pad lands off the dome's spot on the turned terrain
 - place_build.sun_frame: `towards` negated -> the sun shines up from under the ground
+- place_build.sky: the turn left off the dome -> the sky dome stays unturned
 - render.views: the named views left out -> the inside view is not rendered
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
 """
@@ -100,6 +102,12 @@ def library(root, files):
                '</steel/surface.outputs:surface>\n def Shader "surface"\n {\n  uniform token info:id = '
                '"UsdPreviewSurface"\n  color3f inputs:diffuseColor = (0.3, 0.3, 0.4)\n  token outputs:surface\n }\n}\n')
     entry("surface", "steel", {"material.usda": ("usd", variant), "surface.json": ("record", "{}")})
+    mapped = ('#usda 1.0\n(\n defaultPrim = "sand"\n)\ndef Material "sand"\n{\n token outputs:surface.connect = '
+              '</sand/surface.outputs:surface>\n def Shader "colour"\n {\n  uniform token info:id = "UsdUVTexture"\n'
+              '  asset inputs:file = @./colour.jpg@\n  float3 outputs:rgb\n }\n def Shader "surface"\n {\n'
+              '  uniform token info:id = "UsdPreviewSurface"\n  color3f inputs:diffuseColor.connect = '
+              '</sand/colour.outputs:rgb>\n  token outputs:surface\n }\n}\n')
+    entry("surface", "sand", {"material.usda": ("usd", mapped), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
     entry("light", "lamp", {"lamps.json": ("record", "{}")})
     entry("model", "slope", {"terrain.usdc": ("usd", None)})
@@ -185,6 +193,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.surface(folder, "wall", "surface/steel")
     place_build.surface(folder, "crate", "surface/boards", colour="#ff0000")
     place_build.surface(folder, "crate", "surface/steel", part="top")
+    place_build.put(folder, "dune", "kit/box_piece", at=(6, 0, 0))
+    place_build.surface(folder, "dune", "surface/sand", colour="#ff8000")
     place_build.light(folder, "bulb", at=(0, 2.5, 0), watts=100)
     batched = place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
@@ -204,7 +214,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         except place_build.Refused as why:
             refusals.append(str(why))
     place_build.terrain(folder, "plain", "model/slope", at=(0, 0, 0), turn=(0, 90, 0), pads=[(30.0, 0.0, 5.0)])
-    place_build.sky(folder, "light/sky", elevation=30, heading=0)
+    place_build.sky(folder, "light/sky", elevation=30, heading=0, turn=30)
     place_build.view(folder, "inside", eye=(0, 1.6, 0), aim=(1, 1.6, 0), fov=70)
     stone = place_build.put(folder, "stone", "model/cabinet", at=(80, -0.1, 0), rest=True, on_ground=True)
     place_build.put(folder, "gone", "kit/box_piece")
@@ -223,6 +233,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/top"), (0.3, 0.3, 0.4))
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/rim"), (1.0, 0.0, 0.0))
+    tint = UsdShade.Shader(stage.GetPrimAtPath("/yard/Looks/dune/colour")).GetInput("scale").Get()
+    assert np.allclose(tint, (1.0, 0.2158605, 0.0, 1.0), atol=1e-5)
     assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 7
     door_look = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo/door")).ComputeBoundMaterial()[0]
     door_map = UsdShade.Shader(stage.GetPrimAtPath(f"{door_look.GetPath()}/base")).GetInput("file").Get()
@@ -247,7 +259,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
                               {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune"} and not stage.GetPrimAtPath("/yard/Objects/gone")
     laid_terrain = stage.GetPrimAtPath("/yard/Objects/plain")
     ground_points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/plain/geo")).GetPointsAttr().Get())
     in_pad = np.hypot(ground_points[:, 0], ground_points[:, 2] - 30.0) < 5.0  # the terrain's own frame
@@ -261,6 +273,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     shines = sun.TransformDir(Gf.Vec3d(0, 0, -1))
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)
     assert np.allclose(shines, (-np.cos(np.radians(30)), -0.5, 0.0), atol=1e-6)
+    assert place_build.pose_of(stage.GetPrimAtPath("/yard/Objects/sky"))[1] == [0.0, 30.0, 0.0]
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
