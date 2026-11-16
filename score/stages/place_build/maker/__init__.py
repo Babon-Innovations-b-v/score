@@ -34,7 +34,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 ENV = "envs/trellis2"  # under PROPS_HOME: setup.sh's
 SAMPLES = 20000  # surface points a fit and a grade read
-CARD_GB = 14  # TRELLIS.2's card peak at the 1024 cascade (the test: 13.9 GB beside the desktop, 15.9 at the most)
+CARD_GB = 10  # TRELLIS.2's card share at the 1024 cascade: 8.6 GB measured with the attention stand-in (2026-11-16)
 MEMORY = "20G"  # its RAM cap (the test: 16.2 GB at the most)
 SOURCE = "trellis2"  # score_lib config/sources.toml
 
