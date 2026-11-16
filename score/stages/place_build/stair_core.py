@@ -23,8 +23,9 @@ Parts, for their library surfaces (place_build.surface --part):
 - `balusters` and `handrail`: the railings along the open front and the well, BALUSTER bars every BALUSTER_STEP and a
   rail RAIL high over the pitch line (LANDING_RAIL over a landing).
 
-    core(path, storeys=STOREYS, mirror=False)
-                                  the core written as a USD file at `path` (`mirror`: the other hand); its
+    core(path, storeys=STOREYS, mirror=False, curtain=False)
+                                  the core written as a USD file at `path` (`mirror`: the other hand,
+                                  `curtain`: a storey-high glazed front); its
                                   doorways [(wall, along from, along to, sill, head)] in the unmirrored frame
     doorways(storeys=STOREYS)     the doorways alone, for the doors laid in them
 """
@@ -76,6 +77,9 @@ WINDOWS = (1.3, 3.7)  # a storey's windows' middles in from the shaft's left wal
 WINDOW = (1.2, 0.9, 2.4)  # a window's width, sill and head over its floor
 FRAME_BAR = (0.05, 0.06)  # a window frame bar's face and depth
 PANE = 0.7  # a window's panes no wider than this between mullions
+CURTAIN_PIER = 0.15  # a curtain front's corner piers, in from the shaft's side walls
+CURTAIN_SPANDREL = 0.05  # a curtain front's opening's clearance over its floor and under the slab over it
+CURTAIN_PANE = 1.4  # a curtain front's mullions no further apart than this
 
 
 def top(storeys):
@@ -224,9 +228,15 @@ def windows(storeys, inner, way):
     return found
 
 
-def front_windows(storeys):
+def front_windows(storeys, curtain=False):
     """The shaft's own windows in its front wall: over each floor landing, each flight and each half landing, clear
-    of the slabs behind them: [(x from, x to, sill, head)]."""
+    of the slabs behind them; with `curtain` one storey-high glazed opening a storey across the whole shaft, the wall
+    left only as the slab edges and corner piers (a glazed stair tower, so the look in reads as the concept's cut):
+    [(x from, x to, sill, head)]."""
+    if curtain:
+        return [(CURTAIN_PIER, LONG - CURTAIN_PIER, storey * STOREY + CURTAIN_SPANDREL,
+                 min((storey + 1) * STOREY, top(storeys)) - SLAB - CURTAIN_SPANDREL)
+                for storey in range(storeys + 1)]
     found = []
     for storey in range(storeys + 1):
         floor = storey * STOREY
@@ -237,7 +247,7 @@ def front_windows(storeys):
     return found
 
 
-def glazed(holes, middle_z):
+def glazed(holes, middle_z, pane=PANE):
     """A pane (one face: the preview draws a see-through look as a thin skin, and a closed pane's two skins ring
     with light) and its frame (a bar round it and mullions no more than PANE apart) in each hole: [(part, solid)]."""
     bar, depth = FRAME_BAR
@@ -250,7 +260,7 @@ def glazed(holes, middle_z):
                    ("frame", box((x0, head - bar, z0), (x1, head, z1))),
                    ("frame", box((x0, sill + bar, z0), (x0 + bar, head - bar, z1))),
                    ("frame", box((x1 - bar, sill + bar, z0), (x1, head - bar, z1)))]
-        panes = max(2, round((x1 - x0) / PANE))
+        panes = max(2, round((x1 - x0) / pane))
         for number in range(1, panes):
             x = x0 + (x1 - x0) * number / panes
             pieces.append(("frame", box((x - bar / 2, sill + bar, z0), (x + bar / 2, head - bar, z1))))
@@ -274,11 +284,12 @@ def block(storeys, inner, way):
     return pieces + glazed(holes, -FACADE + WALL / 2)
 
 
-def front(storeys):
-    """The shaft's front wall (z -WALL to 0) with its windows glazed: [(part, solid)]."""
-    holes = front_windows(storeys)
+def front(storeys, curtain=False):
+    """The shaft's front wall (z -WALL to 0) with its windows glazed (`curtain`: a storey-high curtain wall, its
+    mullions CURTAIN_PANE apart): [(part, solid)]."""
+    holes = front_windows(storeys, curtain)
     walls = [("wall", made) for made in holed((-WALL, 0.0, -WALL), (LONG + WALL, top(storeys), 0.0), 0, holes)]
-    return walls + glazed(holes, -WALL / 2)
+    return walls + glazed(holes, -WALL / 2, CURTAIN_PANE if curtain else PANE)
 
 
 def band(line, cuts=()):
@@ -397,10 +408,11 @@ def outward(piece):
     return part, (points, faces if volume > 0 else [list(reversed(face)) for face in faces])
 
 
-def core(path, storeys=STOREYS, mirror=False):
+def core(path, storeys=STOREYS, mirror=False, curtain=False):
     """The stair core written at `path`: /stair_core with its mesh `geo` and its parts (the module's list); with
-    `mirror` the other hand (floor landings at x LONG - LANDING to LONG, the flights rising towards -x)."""
-    pieces = structure(storeys) + front(storeys) + block(storeys, -WALL, -1) + block(storeys, LONG + WALL, 1) \
+    `mirror` the other hand (floor landings at x LONG - LANDING to LONG, the flights rising towards -x), with
+    `curtain` its front a storey-high curtain wall instead of a window over each landing and flight."""
+    pieces = structure(storeys) + front(storeys, curtain) + block(storeys, -WALL, -1) + block(storeys, LONG + WALL, 1) \
         + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces
     dome_shell.written(path, "stair_core", [outward(piece) for piece in pieces])

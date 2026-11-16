@@ -10,6 +10,7 @@
     python -m score.stages.place_build tube <folder> <name> --radius m --length m [--at x,y,z] [--turn rx,ry,rz]
                                        [--hoops n] [--rib m] [--cap width,height]
     python -m score.stages.place_build stairs <folder> <name> [--storeys n] [--at x,y,z] [--turn rx,ry,rz] [--mirror]
+                                       [--curtain]
     python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
     python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--pad x,z,radius ...]
@@ -54,7 +55,8 @@ then lays that variant, which the render draws as its recipe (edge wear, dirt, r
 share one palette. `render --final` renders at the films' samples (denoised) instead of the review's, 1920x1080.
 `stairs` lays the stair core algorithm (stair_core.py): a walkable switchback stairwell of real size, its flats'
 blocks and glazed front, parts `slab`, `steps`, `wall`, `dado`, `block`, `glass`, `frame`, `balusters`, `handrail`;
-it answers its doorways for the doors laid in them (`--mirror`: the other hand).
+it answers its doorways for the doors laid in them (`--mirror`: the other hand; `--curtain`: its front a storey-high
+curtain wall, the slab edges and corner piers left, so the look in reads as a cut-away's).
 `review` renders a region's plan (grid, names), corners, door and middle eye-height views and compartment close-ups in
 one fast Blender call onto one contact sheet, a physics check's faults boxed in red (review.py); `viewer` writes the
 scene as one compressed GLB for a browser viewer.
@@ -156,7 +158,7 @@ def run(args):
                                 cap_door=args.cap_door)
     if args.step == "stairs":
         return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
-                                  args.mirror)
+                                  args.mirror, curtain=args.curtain)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "terrain":
@@ -270,6 +272,7 @@ def parser():
     step.add_argument("--at", default="0,0,0")
     step.add_argument("--turn", default="0,0,0")
     step.add_argument("--mirror", action="store_true")
+    step.add_argument("--curtain", action="store_true")
     step = steps.add_parser("ground")
     step.add_argument("folder")
     step.add_argument("name")

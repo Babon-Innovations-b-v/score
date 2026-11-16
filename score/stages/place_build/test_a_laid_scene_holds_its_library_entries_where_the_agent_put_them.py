@@ -59,6 +59,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
 - dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
 - place_build.surface: the palette spec left off the look -> the panel's look carries no recipe spec
+- stair_core.front_windows: the curtain's head left at the storey line (no `- SLAB`) -> the curtain front's glass runs
+  into the slab over it
 - film.route: every leg straight, never walked -> the lane's film finds no clear way round its wall
 - film.distances: the hold drifting at 0.1 m a frame -> the film does not open still on the concept's view
 - film.rounded: the cut corners kept unchecked -> a frame stands nearer the wall than the clearance
@@ -394,6 +396,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     in_door = np.all((walls[:, 0, :2] <= middle[:2]) & (walls[:, 1, :2] >= middle[:2]), axis=1) \
         & (np.abs(walls[:, 0, 2] - middle[2]) <= stair_core.WALL / 2 + 1e-3)  # a wall face across the doorway
     assert len(up) and (up[:, 4] > 0).all() and rises.max() <= 0.3 and not in_door.any()
+    curtain = stair_core.front_windows(2, curtain=True)  # a storey-high glazed front, clear of the slab over each
+    assert len(curtain) == 3 and all(x1 - x0 > stair_core.LONG - 0.5 and head - sill > 2.4
+                                     and head <= (sill // stair_core.STOREY + 1) * stair_core.STOREY - stair_core.SLAB
+                                     for x0, x1, sill, head in curtain)
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
