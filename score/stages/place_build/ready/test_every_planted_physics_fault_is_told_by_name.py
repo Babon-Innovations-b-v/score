@@ -8,7 +8,7 @@ while what rests right passes (the walls, the door filling its opening, the desk
 panel mounted `on` a wall, a crate on the ground, a round hatch in the doorway its tunnel's end wall cut to its own
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support;
-and a walker's route goes round a crate in its way on that same floor, every point of it standing there, and is refused
+and a walker's route goes round a crate in its way on that same floor and through every spot it is sent through, every point of it standing there, and is refused
 where no floor is (the walkers' ground, `solids`, holds the wall and not the open door). A field of 300 rocks bedded in
 a second ground passes, while a rock 30 cm over it floats and a crate laid into a rock penetrates it, and a rock's
 support is cast against only the faces under it (camp's 660 rocks on a terrain ran the check out of 14 GB); a sky dome
@@ -32,6 +32,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
 - ready.near_ground: `kept` taken as every face -> the far terrain is held whole
 - ready.straightened: `in_sight` taken as always True -> the route runs straight through crate_ok
+- ready.route: the legs straightened as one path -> the walk skips the spot it is sent through
 - ready.nearest_to_surface: `+ longest` dropped -> a ring off a coarse box's face reads its corner's distance, not its own
 - ready.ray_box: the box left open on every axis -> a rock's support query reaches every rock's faces
 - ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
@@ -297,6 +298,8 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     clear_of_crate = (sampled[:, 0] < 4.0 - 0.3) | (sampled[:, 0] > 4.5 + 0.3) | (sampled[:, 2] < 1.0 - 0.3) \
         | (sampled[:, 2] > 1.5 + 0.3)
     assert clear_of_crate.all() and metres > 1.9, (walk.tolist(), metres)
+    by_way, _ = ready.route(folder, [(4.25, 0.0, 0.7), (3.0, 0.0, 2.2), (4.25, 0.0, 2.6)])
+    assert min(np.hypot(x - 3.0, z - 2.2) for x, _, z in by_way) < 0.35, by_way  # the spot it is sent through
     try:
         ready.route(folder, [(4.25, 0.0, 0.7), (4.25, 2.0, 2.6)])
         raise AssertionError("a spot with no floor under it was routed to")

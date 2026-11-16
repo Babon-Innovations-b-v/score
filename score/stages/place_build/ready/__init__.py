@@ -726,7 +726,7 @@ def route(folder, through):
     graph = graph.tocsr()
     middles = grid.middles()[span_cells]
     spans = [span_at(grid, span_cells, span_heights, standing, np.asarray(spot, float)) for spot in through]
-    path = [spans[0]]
+    legs = [] if len(spans) > 1 else [[spans[0]]]
     for start, end in zip(spans[:-1], spans[1:]):
         distances, before = dijkstra(graph, directed=False, indices=start, return_predecessors=True)
         if not np.isfinite(distances[end]):
@@ -736,8 +736,7 @@ def route(folder, through):
         while at != start:
             leg.append(at)
             at = before[at]
-        path += leg[::-1]
-    points = np.column_stack([middles[path, 0], span_heights[path], middles[path, 1]])
+        legs.append([start, *leg[::-1]])
     cell_of = {}
     for span in np.flatnonzero(standing):
         cell_of.setdefault(int(span_cells[span]), []).append(float(span_heights[span]))
@@ -750,7 +749,9 @@ def route(folder, through):
         heights = cell_of.get(int(np.ravel_multi_index((column, row), grid.shape)), [])
         return any(abs(height - point[1]) <= reach.KNEE / 2 for height in heights)
 
-    walked = rounded(straightened(points, standing_at))
+    corners = [straightened(np.column_stack([middles[leg, 0], span_heights[leg], middles[leg, 1]]), standing_at)
+               for leg in legs]  # each leg on its own, so every given spot stays a corner of the route
+    walked = rounded(np.concatenate([corners[0], *[leg[1:] for leg in corners[1:]]]))
     length = float(np.linalg.norm(np.diff(walked[:, [0, 2]], axis=0), axis=1).sum())
     return np.round(walked, 4).tolist(), round(length, 3)
 
