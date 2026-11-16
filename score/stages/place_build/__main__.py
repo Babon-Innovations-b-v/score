@@ -30,6 +30,8 @@
     python -m score.stages.place_build viewer <folder> [--glb path] [--box x0,z0,x1,z1 | --prefix name] [--megabytes m]
     python -m score.stages.place_build on <folder> <name> <floor|object|wall:object> [--level n] [--height m]
     python -m score.stages.place_build check <folder> [--no-settle]
+    python -m score.stages.place_build film <folder> [--through 'stop;stop'] [--seconds s] [--eye m] [--seed n]
+    python -m score.stages.place_build film-render <folder> [--every n] [--final] [--out dir]
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
 `put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
@@ -60,6 +62,10 @@ looks up, a shelf), or `wall:<object>` at `--height` over the floor (ready/). `c
 keeps the place from being physics ready (floating, penetration, no support, tipping, a door in no opening, a walkway
 under 0.9 m, a connector joined to nothing or with no floor, no collision geometry, unstable when let go in MuJoCo):
 one JSON line of counts, the full list in <folder>/ready.json.
+`film` plans the place's film (film.py): still on the concept's view, a clear glide down, then through the stops at
+eye height (or in free air), clear of every solid the check reads, written to <folder>/film/path.json with its
+measures; `film-render` renders every `--every`th frame through the card queue (half size at the review's samples, or
+`--final` at the films' 1920x1080), with the seconds a frame.
 """
 import argparse
 import json
@@ -68,7 +74,7 @@ import sys
 from score.stages import place_build
 
 
-POINTS = ("--at", "--turn", "--eye", "--aim", "--scale", "--pad", "--box")
+POINTS = ("--at", "--turn", "--eye", "--aim", "--scale", "--pad", "--box", "--through")
 
 
 def with_negatives(given):
@@ -170,6 +176,12 @@ def run(args):
         from score.stages.place_build import render
         return render.render(args.folder, args.width, [name for name in (args.views or "").split(",") if name],
                              args.final)
+    if args.step in ("film", "film-render"):
+        from score.stages.place_build import film
+        if args.step == "film":
+            return film.path(args.folder, args.through.split(";") if args.through else None, args.seconds, args.eye,
+                             args.seed)
+        return film.render(args.folder, args.every, args.final, args.out)
     if args.step in ("review", "viewer"):
         from score.stages.place_build import review
         box = numbers(args.box) if args.box else None
@@ -314,6 +326,18 @@ def parser():
         step.add_argument("folder")
         step.add_argument("--box")
         step.add_argument("--prefix")
+    filmed = steps.add_parser("film")
+    filmed.add_argument("folder")
+    filmed.add_argument("--through", help="stops by ';': a named view, x,z (eye height over the floor) or x,y,z, "
+                                          "either ending >ax,ay,az to look there")
+    filmed.add_argument("--seconds", type=float, default=25.0)
+    filmed.add_argument("--eye", type=float, default=1.6)
+    filmed.add_argument("--seed", type=int, default=0)
+    rendered = steps.add_parser("film-render")
+    rendered.add_argument("folder")
+    rendered.add_argument("--every", type=int, default=1)
+    rendered.add_argument("--final", action="store_true")
+    rendered.add_argument("--out")
     steps.choices["review"].add_argument("--width", type=int, default=960)
     steps.choices["review"].add_argument("--out")
     steps.choices["viewer"].add_argument("--glb")

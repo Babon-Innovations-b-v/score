@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall; a final render at 1920x1080; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -58,6 +58,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
 - dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
 - place_build.surface: the palette spec left off the look -> the panel's look carries no recipe spec
+- film.route: every leg straight, never walked -> the lane's film finds no clear way round its wall
+- film.distances: the hold drifting at 0.1 m a frame -> the film does not open still on the concept's view
+- film.rounded: the cut corners kept unchecked -> a frame stands nearer the wall than the clearance
+- film.distances: the walk's speed kept to the end -> the camera does not slow to a stop
 - place_build.palette_spec: the place's wear and dirt replaced by 0 -> the spec's wear is not the palette's
 - stair_core.outward: `volume > 0` made `volume < 0` -> the treads look down
 - stair_core.holed: the holes left out -> the back wall stands in the flat's doorway
@@ -80,7 +84,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import measure, relief, render, review, stair_core
+from score.stages.place_build import film, measure, relief, render, review, stair_core
 
 
 def library(root, files):
@@ -414,6 +418,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("score:exposure").Get() == np.float32(2.5)
     assert np.allclose(moon.TransformDir(Gf.Vec3d(0, 0, -1)), (0.0, -0.5, -np.cos(np.radians(30))), atol=1e-6)
     reviewed(folder)
+    filmed(tmp_path)
 
 
 def reviewed(folder):
@@ -446,3 +451,24 @@ def reviewed(folder):
     red = (marked[..., 0] > 200) & (marked[..., 1] < 50) & (marked[..., 2] < 50)
     around = red[crate[0][1] - 2:crate[1][1] + 3, crate[0][0] - 2:crate[1][0] + 3].sum()
     assert faults == {"crate": "floating"} and around > 10 and red.sum() == around
+
+
+def filmed(tmp_path):
+    """A film's path on a lane walled across but for a gap: still on the concept's view first, round the wall
+    (never through it) at eye height, every frame clear of every solid, and slowing to a stop at its end."""
+    folder = tmp_path / "lane"
+    place_build.start(folder, "lane", tmp_path / "concept.png")
+    place_build.blocks(folder, "road", [[-12, -0.3, -12, 12, 0, 30, "road"]], ground=True)
+    place_build.blocks(folder, "wall", [[-12, 0, 9.5, 1, 3, 10.5, "wall"]])
+    place_build.camera(folder, (0, 8, -12), (0, 0, 10), 40)
+    made = film.path(folder, ["-4,4", "-4,16>-4,1.6,30"], seconds=6.0)
+    frames = json.loads((folder / "film" / "path.json").read_text())["views"]
+    eyes = np.array([frame["eye"] for frame in frames])
+    crossing = eyes[np.abs(eyes[:, 2] - 10.0) < 0.6]
+    steps = np.linalg.norm(np.diff(eyes, axis=0), axis=1)
+    assert made["frames"] == 6 * film.FPS == len(frames) and made["frames_too_near"] == 0
+    assert np.allclose(eyes[:film.FPS], [0, 8, -12], atol=0.05) and frames[0]["fov"] == 40
+    assert np.allclose(frames[0]["aim"], np.array([0, 8, -12]) + 10 * np.array([0, -8, 22]) / np.hypot(8, 22), atol=0.01)
+    assert len(crossing) and (crossing[:, 0] > 1.0 + film.CLEAR).all() and np.isclose(eyes[-1, 1], film.EYE, atol=0.01)
+    assert made["least_clearance"] >= film.CLEAR and steps[-3:].max() < steps.max() / 4
+

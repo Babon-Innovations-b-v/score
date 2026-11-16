@@ -81,5 +81,11 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   (the stones) never frames the region. `viewer` writes the scene as one Draco GLB (viewer_glb.py, no card), its
   textures halved until it fits 15 MB, for the owner to orbit.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
+- **The film** (film.py, `film`, `film-render`; owner 2026-11-16: "get me my demo"): a camera path that holds on the
+  concept's view, glides down clear of everything and moves through the place's stops (named views with their aims,
+  `x,z` at eye height over the floor walked by tools/usd/camera_paths.py's legs, or `x,y,z` in free air; `>x,y,z`
+  aims one), against the physics check's own solids (ready.Place, its lights left out). Its speed and look are eased,
+  never jump; a frame carries the stage's time code, so walkers laid as time samples move with it. A glazed or closed
+  place is filmed from free air outside its glass, never through a closed door.
 - Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;
   blender_views.py is checked by a render of the fixture scene, never in the test).
