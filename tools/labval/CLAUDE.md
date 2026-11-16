@@ -88,7 +88,7 @@ SOMA body npz, and MoGe-2's point maps of each video.
   camera (`labval.neutral`; gemx and moge clusters' `--static` make those runs), as a static calibration does. On the
   held-out subjects it made every one worse (pelvis tilt bias +5.4 to +7.8, elbows -23 to -30, matched MAE 5.13 to
   5.29): the lab's IK does not stand a subject at the model's zero. The validation is scored without it
-  (paper/motor/evidence/static-neutral-2026-11-08.txt).
+  (MOTOR's paper/motor/evidence/static-neutral-2026-11-08.txt).
 - **PBL, the baseline** (`pbl/`, its overlay; #98, 2026-11-08): the Portable Biomechanics Laboratory's released
   monocular pipeline (AGPL-3.0, fetched pinned, never copied in) on all 720 inputs, given the chain's camera and
-  floor, its OpenSim-named coordinates scored by this scorer (paper/motor/evidence/pbl-labval-2026-11-08.txt).
+  floor, its OpenSim-named coordinates scored by this scorer (MOTOR's paper/motor/evidence/pbl-labval-2026-11-08.txt).

@@ -4,7 +4,7 @@
     "paper/score/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/score/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
     "paper/score/source/refs.bib": "6a684b769f1bf91045d87988102d5dd8cf2cf6906c1b2dc2867155be455b531d",
-    "paper/score/source/score.md": "595a4688507b9e3f7b45a2e13f1b17da0d5feac8380ccfb2f60bf13946de02a9"
+    "paper/score/source/score.md": "3ff0ae58b98824b2e945d18d21f030bbbc196307f4f0bcafed121258d85e8864"
   },
   "outputs": {
     "paper/score/arxiv/content/abstract.tex": "bb0b602f5e2d08259184afc43f14c8a27e03a04870ece5d0105f7466fba571b7",
@@ -15,10 +15,10 @@
     "paper/score/arxiv/content/method_building_an_environment.tex": "b5fd551bbdfe013f34e98294919a9960b7e3470966ae760f779f7be0858e9d1f",
     "paper/score/arxiv/content/teaser.tex": "52c442ed1d2222c32238b49c8483edf106aee8081b287ab0abe9d363f8c9bf4b",
     "paper/score/arxiv/main.bbl": "a0e5b4a89be5a29b6333b812e1c9f36b462cfc4b61f0259e9b2fef6f25e43125",
-    "paper/score/arxiv/main.pdf": "7995b3de388e7d31b54d60f383aa2e92a48f6cf20c97a96b25b220c2a03e08b8",
+    "paper/score/arxiv/main.pdf": "17ed90d2a85d7d916aa6d192b4da3bdd35541a2de3b98e3c34cb7881a2e356dd",
     "paper/score/arxiv/main.tex": "21c184d5dbc4cb81901336b973ec767c262b64e62463940213f0069be29c6650",
     "paper/score/arxiv/refs.bib": "6a684b769f1bf91045d87988102d5dd8cf2cf6906c1b2dc2867155be455b531d",
-    "paper/score/out/score.pdf": "2ba2d4c03cafd08a7b28e3f1c3c0f61ca78f451a8c51d15a04ef4a9379218dac",
+    "paper/score/out/score.pdf": "4b50a2c607312bb98f1ebd8ffd24baaa05c84d40f31507d05d6bd8817c7f687c",
     "paper/score/out/score.tex": "c16423f5988fdee8c2bc4c04540ad2b8444c2c4cfc035c46d110fd286dd19e4b"
   }
 }
