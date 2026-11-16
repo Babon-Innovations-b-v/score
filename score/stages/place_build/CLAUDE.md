@@ -33,7 +33,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **The sky and its sun** (`sky`): a light entry's sky dome laid as the place's own `/<place>/Environment` (the
   renderer's ambient light and exposure) and a distant sun from an elevation and heading, the dome turned (`--turn`)
   so its picture's glow stands where the sun is; never a far sphere lamp.
-- **The tunnel** (`tube`): the dome shell algorithm's ribbed glass tube between two domes (parts shell, ribs, deck).
+- **The tunnel** (`tube`): the dome shell algorithm's ribbed glass tube between two domes (parts shell, ribs, deck);
+  an end wall's rim is drawn in to the tube's circle, never stepped. A tube's file is cached under the place's
+  `assets/algorithm/` by its sizes: delete it there after changing dome_shell.py, or the old one is laid.
 - **Standing on things**: `put --rest` lays a piece's lowest point at the given height (a floor, a table top);
   `--on-ground` reads that height over the laid ground there (a rock on a terrain's relief).
 - **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only.

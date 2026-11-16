@@ -10,7 +10,8 @@ USD refused by name, a removed object gone; a real terrain's heightfield (fine p
 filled) laid as the ground with its building pads levelled to the laid height and the ground beyond untouched; a sky
 laid as the place's own Environment with a sun shining from where it is asked; the place's palette (a scene's surface
 library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an opening (glass and plinth) and a tunnel
-with a doorway in its end wall, its skin trimmed by the dome it joins and solid below its glass; a model's glow layer
+with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
+joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
 than a knee, its flat's doorway cut through its back wall; a final render at 1920x1080; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
@@ -51,6 +52,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.night: the exposure left off -> the night renders at the day's exposure
 - dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
 - dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
+- dome_shell.on_circle: a corner kept where it lies -> the end wall's rim steps out past the tube's circle
 - dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
 - dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
 - place_build.surface: the palette spec left off the look -> the panel's look carries no recipe spec
@@ -344,6 +346,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     cap_middles, hall_skin = part_middles(hall, "cap"), np.vstack([part_middles(hall, "shell"), part_middles(hall, "wall")])
     doorway = (np.abs(cap_middles[:, 0]) < 0.75) & (cap_middles[:, 1] > 0.5) & (cap_middles[:, 1] < 2.4)
     assert len(cap_middles) and not doorway.any() and np.allclose(cap_middles[:, 2].max(), 3.0, atol=0.01)
+    cap_points = np.array(hall.GetPointsAttr().Get())[np.array(hall.GetFaceVertexIndicesAttr().Get()).reshape(-1, 4)[
+        np.array(next(item for item in UsdGeom.Subset.GetAllGeomSubsets(hall) if item.GetPrim().GetName() == "cap")
+                 .GetIndicesAttr().Get())]].reshape(-1, 3)
+    off_axis = np.hypot(cap_points[:, 0], cap_points[:, 1] - 1.5)
+    assert off_axis.max() <= 1.5 + 1e-5 and np.count_nonzero(off_axis > 1.5 - 1e-5) > 50
     assert np.linalg.norm(hall_skin - [0.0, 0.0, -3.0], axis=1).min() >= 4.0 and hall_skin[:, 2].min() < 0.5
     assert part_middles(hall, "wall")[:, 1].max() < 0.45 + 0.8 < part_middles(hall, "shell")[:, 1].min()
     assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["base", "deck", "ribs", "shell"]

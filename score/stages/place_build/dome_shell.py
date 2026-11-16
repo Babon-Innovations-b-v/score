@@ -325,10 +325,17 @@ def tube_deck(radius, length):
     return [(-half, height, 0.0), (half, height, 0.0), (half, height, length), (-half, height, length)], [[0, 3, 2, 1]]
 
 
+def on_circle(x, y, radius):
+    """An end wall's corner (x, y) drawn in to the tube's circle (centre (0, radius)) when it lies outside it."""
+    off = math.hypot(x, y - radius)
+    return (x, y) if off <= radius else (x * radius / off, radius + (y - radius) * radius / off)
+
+
 def end_wall(radius, length, width, height):
     """The tunnel's far end closed by a wall CAP_THICK thick (its outer face at `length`) holding a doorway `width`
     across and `height` up from the deck: its front and back faces in CAP_CELL cells inside the skin and outside the
-    doorway, and the doorway's four reveals; (points, quads)."""
+    doorway, a cell the skin crosses drawn in to the skin's circle (so the wall's rim is round, never stepped), and the
+    doorway's four reveals; (points, quads)."""
     floor = FLOOR * radius
     def lines(low, high, edges):
         count = max(1, round((high - low) / CAP_CELL))
@@ -340,11 +347,12 @@ def end_wall(radius, length, width, height):
         for left, right in zip(across, across[1:]):
             for low, high in zip(up, up[1:]):
                 middle = ((left + right) / 2, (low + high) / 2)
-                if math.hypot(middle[0], middle[1] - radius) > radius or (
+                corners = [(left, low), (right, low), (right, high), (left, high)]
+                if all(math.hypot(x, y - radius) >= radius for x, y in corners) or (
                         abs(middle[0]) < width / 2 and middle[1] < floor + height):
                     continue
                 first = len(points)
-                points += [(left, low, depth), (right, low, depth), (right, high, depth), (left, high, depth)]
+                points += [(*on_circle(x, y, radius), depth) for x, y in corners]
                 quad = [first, first + 1, first + 2, first + 3]
                 faces.append(quad[::-1] if wound else quad)
     half, top = width / 2, floor + height
