@@ -9,9 +9,15 @@ laid place needs, made here so the films' and the physics' renders (which key us
   it and darkens the shadow it casts like a block of glass; or as its alpha) is drawn as a thin glass skin: light passes it tinted by its colour as much as it is opaque, and it gives back a Fresnel share of what
   is around it at its roughness, so a dome's glass shows what stands inside and throws only a faint shadow, never a
   dark shell.
+- **An image surface tiles at its own size.** A look whose maps come from an image surface entry (its surface.json
+  beside them names `tile_metres`, the ground a map covers, as the CC0 PBR sets take in) reads its maps by the
+  object's own position (metres in its file, the frame its normals are in, so the box projection picks the right
+  face; an object laid at a scale tiles at that scale) over that size, box-projected, so a wall, floor or dome shows
+  the finish at its real size whatever its own texture coordinates are (kit pieces' map into a palette).
 
     blender -b --python blender_views.py -- <stage.usda> <views.json> <out folder>   (usd_views.py's arguments)
 """
+import json
 import pathlib
 import sys
 
@@ -84,6 +90,48 @@ def thin_glass(objects):
     return changed
 
 
+BOX_BLEND = 0.3  # how softly a box-projected map blends across a corner
+
+
+def tile_metres(node):
+    """The ground one copy of an image texture node's map covers, from the image surface's surface.json beside it;
+    None for any other map (a model's bake keeps its own texture coordinates)."""
+    image = getattr(node, "image", None)
+    if image is None or not image.filepath:
+        return None
+    record = pathlib.Path(bpy.path.abspath(image.filepath)).parent / "surface.json"
+    if not record.is_file():
+        return None
+    return json.loads(record.read_text()).get("tile_metres")
+
+
+def tiled_maps(objects):
+    """Every image surface's maps read by the object's own position over their tile, box-projected (the module's
+    rule); the looks it changed."""
+    changed = []
+    for material in {slot.material for item in objects if item.type == "MESH" for slot in item.material_slots
+                     if slot.material and slot.material.use_nodes}:
+        tree = material.node_tree
+        maps = [(node, tile_metres(node)) for node in tree.nodes if node.type == "TEX_IMAGE"]
+        maps = [(node, tile) for node, tile in maps if tile]
+        if not maps:
+            continue
+        where = tree.nodes.new("ShaderNodeTexCoord")
+        for node, tile in maps:
+            scaled = tree.nodes.new("ShaderNodeVectorMath")
+            scaled.operation = "SCALE"
+            scaled.inputs["Scale"].default_value = 1.0 / float(tile)
+            tree.links.new(where.outputs["Object"], scaled.inputs[0])
+            for link in list(node.inputs["Vector"].links):
+                tree.links.remove(link)
+            tree.links.new(scaled.outputs["Vector"], node.inputs["Vector"])
+            node.projection = "BOX"
+            node.projection_blend = BOX_BLEND
+        changed.append(material.name)
+    print("blender_views: tiled maps", sorted(changed))
+    return changed
+
+
 def with_laid_ground(importer):
     def imported(stage):
         return joined_ground(importer(stage))
@@ -93,6 +141,7 @@ def with_laid_ground(importer):
 def with_thin_glass(haze):
     def drawn(objects):
         thin_glass(objects)
+        tiled_maps(list(bpy.data.objects))  # the laid ground too, which usd_views keeps out of `objects`
         return haze(objects)
     return drawn
 

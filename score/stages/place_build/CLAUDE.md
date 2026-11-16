@@ -17,10 +17,16 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   SCORE_FREE_ONLY=1, tools/cloud/backends/local.py's segment claim); never a rented card.
 - **Parts.** A kit piece's or model's colour regions are GeomSubsets; `surface --part` binds a surface on one, and the
   object's whole look then goes on every shape and every other part, so no baked colour shows anywhere.
-- **glTF-only entries** are converted once at `put` (gltf.py: geometry, a part a material, no finish).
+- **glTF-only entries** (our picture-made models and takes) are converted once at `put` (gltf.py): a part a material,
+  each wearing its own bake and paint (base colour, metal-roughness and normal maps), a take's `-final` model first;
+  `surface` puts a library surface over a part or the whole when a bake is wrong.
 - **Characters** are laid as their own SkelRoot (never an Xform over it), dressed in one body group (WORN) and held
   still in a clip with tools/characters/cast.py's own steps.
-- **The dome shell** (dome_shell.py, `dome`) is code-made: its shell and ribs are parts for their surfaces.
+- **The dome shell** (dome_shell.py, `dome`) is code-made: its shell, ribs and deck are parts for their surfaces;
+  `ground` lays the same flat disc alone as the place's ground.
+- **Image surfaces** (`surface/ambientcg_*`, CC0 PBR sets taken in with their source in each entry's provenance and
+  surface.json) tile at their own `tile_metres` in the preview, box-projected in the object's own frame
+  (blender_views.py); a model's bake keeps its own texture coordinates.
 - **The preview's Blender script is blender_views.py**, usd_views.py with a laid ground as the ground and see-through
   looks as thin glass, patched in there so the films' and physics' renders (which key usd_views.py) never move.
 - **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.

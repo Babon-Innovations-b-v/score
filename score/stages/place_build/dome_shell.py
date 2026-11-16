@@ -4,7 +4,12 @@ one surface, faces outward) and `ribs` (curved square-section ribs over it: `mer
 and `rings` level rings between), so the placing agent wears each part its own library surface
 (place_build.surface --part shell surface/clear_glass, --part ribs a metal).
 
+A third part, `deck`, is the dome's floor: a flat disc of its radius DECK over y = 0, faces up. The same disc alone, of any
+radius, is a laid ground (`disc_file`, place_build.ground), so a regolith or concrete surface has a ground to lie on
+with no kit piece's stylised terrain under it.
+
     shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB)   the dome written as a USD file at `path`
+    disc_file(path, radius)                                          a flat ground disc written at `path`
 """
 import math
 
@@ -13,6 +18,7 @@ from pxr import Gf, Usd, UsdGeom, Vt
 MERIDIANS = 12  # ribs from the ground to the top
 RINGS = 3  # level ribs between the ground and the top, evenly by angle
 RIB = 0.12  # a rib's square section, metres
+DECK = 0.02  # the deck's height over y = 0, so it never fights a ground laid under the dome
 STEPS = 48  # points around the dome and along each rib (a quarter arc takes STEPS // 4)
 
 
@@ -36,6 +42,21 @@ def skin(radius):
     top = len(points) - 1
     faces += [[(up_steps - 1) * STEPS + around, top, (up_steps - 1) * STEPS + (around + 1) % STEPS]
               for around in range(STEPS)]
+    return points, faces
+
+
+def disc(radius, height=0.0):
+    """A flat disc of `radius` at y = `height` in rings STEPS around (rings about a metre apart, at least 2): its points
+    and faces, wound to face up."""
+    count = max(2, math.ceil(radius))
+    points = [(0.0, height, 0.0)] + [(radius * ring / count * math.cos(2 * math.pi * around / STEPS), height,
+                                   radius * ring / count * math.sin(2 * math.pi * around / STEPS))
+                                  for ring in range(1, count + 1) for around in range(STEPS)]
+    faces = [[0, 1 + (around + 1) % STEPS, 1 + around] for around in range(STEPS)]
+    for ring in range(count - 1):
+        inner, outer = 1 + ring * STEPS, 1 + (ring + 1) * STEPS
+        faces += [[inner + around, inner + (around + 1) % STEPS, outer + (around + 1) % STEPS, outer + around]
+                  for around in range(STEPS)]
     return points, faces
 
 
@@ -76,28 +97,40 @@ def ribs(radius, meridians, rings, rib):
     return made
 
 
-def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB):
-    """The dome written at `path`: /dome (y up, metres) with its mesh `geo` and its parts `shell` and `ribs`."""
+def written(path, root_name, pieces):
+    """`pieces` [(part name, (points, faces))] written at `path` as /<root_name> (y up, metres) with one mesh `geo`,
+    each piece a named part; the path."""
     stage = Usd.Stage.CreateNew(str(path))
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
-    root = UsdGeom.Xform.Define(stage, "/dome")
+    root = UsdGeom.Xform.Define(stage, f"/{root_name}")
     stage.SetDefaultPrim(root.GetPrim())
-    points, faces = skin(radius)
-    shell_faces = list(range(len(faces)))
-    for rib_points, rib_faces in ribs(radius, meridians, rings, rib):
-        offset = len(points)
-        points += rib_points
-        faces += [[offset + index for index in face] for face in rib_faces]
-    mesh = UsdGeom.Mesh.Define(stage, "/dome/geo")
+    points, faces, parts = [], [], {}
+    for part, (piece_points, piece_faces) in pieces:
+        offset, first = len(points), len(faces)
+        points += piece_points
+        faces += [[offset + index for index in face] for face in piece_faces]
+        parts.setdefault(part, []).extend(range(first, len(faces)))
+    mesh = UsdGeom.Mesh.Define(stage, f"/{root_name}/geo")
     mesh.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(*point) for point in points]))
     mesh.CreateFaceVertexCountsAttr([len(face) for face in faces])
     mesh.CreateFaceVertexIndicesAttr([index for face in faces for index in face])
     mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
     mesh.CreateDoubleSidedAttr(True)
-    binding = UsdGeom.Subset.CreateGeomSubset
-    binding(mesh, "shell", UsdGeom.Tokens.face, shell_faces, "materialBind", UsdGeom.Tokens.nonOverlapping)
-    binding(mesh, "ribs", UsdGeom.Tokens.face, list(range(len(shell_faces), len(faces))), "materialBind",
-            UsdGeom.Tokens.nonOverlapping)
+    for part, part_faces in parts.items():
+        UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face, part_faces, "materialBind",
+                                        UsdGeom.Tokens.nonOverlapping)
     stage.GetRootLayer().Save()
     return path
+
+
+def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB):
+    """The dome written at `path`: /dome with its mesh `geo` and its parts `shell`, `ribs` and `deck`."""
+    return written(path, "dome", [("shell", skin(radius)),
+                                  *[("ribs", made) for made in ribs(radius, meridians, rings, rib)],
+                                  ("deck", disc(radius, DECK))])
+
+
+def disc_file(path, radius):
+    """A laid ground's flat disc of `radius` written at `path`: /ground with its mesh `geo`, one part `ground`."""
+    return written(path, "ground", [("ground", disc(radius))])

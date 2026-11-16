@@ -167,6 +167,13 @@ def fetch(folder, address):
     return address, record, copied
 
 
+def finished_first(name):
+    """A glTF's rank among an entry's models: a take's finished model (`-final`, its bake and paint) first, then a
+    made model's full one, then the rest by name (a take's raw model and its reduced ones last)."""
+    stem = pathlib.Path(name).stem
+    return (not stem.endswith("-final"), stem != "full", name)
+
+
 def usd_file(record, copied):
     """The entry's USD file to lay (a glTF-only entry's converted once beside it, gltf.py), or Refused naming what it
     holds instead."""
@@ -174,10 +181,11 @@ def usd_file(record, copied):
         for name, info in record["files"].items():
             if info.get("role") == role:
                 return copied[name]
-    for name, info in record["files"].items():
-        if info.get("role") in GLTF_ROLES and pathlib.Path(name).suffix in (".glb", ".gltf"):
-            from score.stages.place_build import gltf
-            return gltf.converted(copied[name])
+    models = [name for name, info in record["files"].items()
+              if info.get("role") in GLTF_ROLES and pathlib.Path(name).suffix in (".glb", ".gltf")]
+    if models:
+        from score.stages.place_build import gltf
+        return gltf.converted(copied[min(models, key=finished_first)])
     roles = sorted({info.get("role") for info in record["files"].values()})
     raise Refused(f"{record['address']}: no USD file to lay (its files are {', '.join(roles)})")
 
@@ -253,6 +261,23 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
                               (at, turn, (1.0, 1.0, 1.0)), False)
     stage.GetRootLayer().Save()
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
+
+
+def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
+    """A flat ground disc of `radius` metres (dome_shell.disc_file) laid as Objects/<name> and marked as the place's
+    ground (so the renderer lays no plane of its own); its one part `ground` ready for a surface."""
+    from score.stages.place_build import dome_shell
+    if radius <= 0:
+        raise Refused(f"a ground needs a radius over 0 ({radius})")
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / f"ground_r{radius:g}.usda"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        dome_shell.disc_file(target, float(radius))
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
+                              (at, (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), True)
+    stage.GetRootLayer().Save()
+    return {"name": name, "address": address, "usd": relative, "radius": radius, "ground": True}
 
 
 def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
@@ -449,7 +474,7 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
-STEPS = {"put": put, "dome": dome, "surface": surface, "light": light, "snap": snap, "remove": remove,
+STEPS = {"put": put, "dome": dome, "ground": ground, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "camera": camera}
 
 

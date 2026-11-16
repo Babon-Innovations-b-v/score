@@ -7,6 +7,7 @@
                                        [--second s]
     python -m score.stages.place_build dome <folder> <name> --radius m [--at x,y,z] [--turn rx,ry,rz]
                                        [--meridians n] [--rings n] [--rib m]
+    python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
     python -m score.stages.place_build batch <folder> <steps.json>
     python -m score.stages.place_build snap <folder> <name> [--grid metres]
     python -m score.stages.place_build surface <folder> <name> <surface/id[@version]> [--colour #rrggbb]
@@ -20,7 +21,10 @@
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
 `put --ground` marks the piece as the place's ground, so the render lays no grey plane of its own; a character is
 dressed in its body group (`--wear`, its made body by default) and held still in a clip (`--clip`, `--second`).
-`dome` lays the dome shell algorithm (dome_shell.py): its parts `shell` and `ribs` take a surface each (`surface --part`).
+`dome` lays the dome shell algorithm (dome_shell.py): its parts `shell`, `ribs` and `deck` (its floor) take a surface
+each (`surface --part`). `ground` lays a flat disc as the place's ground (its part `ground`), for a library surface
+such as surface/ambientcg_ground054; an image surface's maps tile at their real size in the render.
+A glTF-only model or take (our picture-made props) is laid in its own bake and paint.
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
 """
@@ -55,20 +59,31 @@ def scale_of(text):
     return values * 3 if len(values) == 1 else values
 
 
-# The free route for SAM 3: this PC's card as the runners' one machine (tools/cloud/this_pc.py's own settings).
-THIS_PC = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1"}
+def this_pc_environment():
+    """The free route for SAM 3, tools/cloud/this_pc.py's own: this PC's card as the runners' one machine, free only,
+    in this PC's run home (its runner key and books; the pilot's split was refused for the PC's home having no key)."""
+    import pathlib
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools" / "cloud"))
+    import this_pc
+    return this_pc.run_environment(this_pc.prepared(this_pc.HOME))
+
+
+# The split's own process: the cloud tools read PROPS_HOME and the backend once, when imported, so they load in a
+# process started in this PC's run environment, never in this one (where this_pc.py has loaded them already).
+SPLIT = ("import json, sys\nfrom score.review import concept_objects\n"
+         "json.dump(concept_objects.objects(sys.argv[1], sys.argv[2]), open(sys.argv[3], 'w'), indent=1)")
 
 
 def split(args):
     """The concept split into objects by SAM 3 on this PC's card (free), its answer written as
     <folder>/split/objects.json."""
-    import os
-    os.environ.update(THIS_PC)  # before the cloud tools load: provider.py reads the backend once, when imported
-    from score.review import concept_objects
-    found = concept_objects.objects(args.concept, f"{args.folder}/split")
+    import pathlib
+    import subprocess
     path = f"{args.folder}/split/objects.json"
-    with open(path, "w") as out:
-        json.dump(found, out, indent=1)
+    done = subprocess.run([sys.executable, "-c", SPLIT, str(args.concept), f"{args.folder}/split", path],
+                          env=this_pc_environment(), cwd=pathlib.Path(__file__).resolve().parents[3])
+    if done.returncode != 0:
+        raise place_build.Refused(f"the concept split on this PC's card failed (exit {done.returncode})")
     return path
 
 
@@ -87,6 +102,8 @@ def run(args):
     if args.step == "dome":
         return place_build.dome(args.folder, args.name, args.radius, numbers(args.at), numbers(args.turn),
                                 args.meridians, args.rings, args.rib)
+    if args.step == "ground":
+        return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "batch":
         with open(args.steps) as given:
             return place_build.batch(args.folder, json.load(given))
@@ -141,6 +158,11 @@ def parser():
     step.add_argument("--meridians", type=int)
     step.add_argument("--rings", type=int)
     step.add_argument("--rib", type=float)
+    step = steps.add_parser("ground")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--radius", type=float, required=True)
+    step.add_argument("--at", default="0,0,0")
     step = steps.add_parser("batch")
     step.add_argument("folder")
     step.add_argument("steps")

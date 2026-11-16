@@ -2,8 +2,9 @@
 from its own copy under the place's assets, in metres in a y-up stage, its spot and turns snapped onto the grid; a
 surface bound over the model's own colour (a variant as the library makes it, a recipe in the palette colour asked,
 refused without one), or on one named part alone while the rest keeps the whole look; a glTF-only model converted with a
-part a material; a character dressed in its made body (its far one hidden) and held still in its clip, its own
-SkelRoot kept; a ground marked as the ground; the dome shell's glass skin and curved ribs as two parts at its radius;
+part a material, each wearing its own bake (its base colour map beside it, read by the mesh's texture coordinates),
+a take's finished model laid before its raw one; a ground disc laid as the ground; a character dressed in its made body (its far one hidden) and held still in its clip, its own
+SkelRoot kept; a ground marked as the ground; the dome shell's glass skin, curved ribs and deck as three parts at its radius;
 a batch of steps run in one call, a refused one named while the rest go on; a lamp where it is laid; an entry with no
 USD refused by name, a removed object gone; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side.
@@ -17,6 +18,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.laid_reference: the prim defined as an Xform -> the character's prim is an Xform, not its SkelRoot
 - place_build.dressed: WORN's "made" made "far" -> the far body shows and the made one is hidden
 - gltf.part_name: the material's name dropped (`part_<n>` always) -> the glTF's parts lose their names
+- gltf.look: the maps left out -> the door part wears no base colour map (its bake is lost)
+- place_build.finished_first: `-final` not ranked first -> the take's raw model is laid
+- place_build.ground: the ground mark left False -> the laid disc is no ground
 - dome_shell.ribs: the rib lifted inward (`- out`) -> the dome's box stays inside its radius
 - place_build.batch: a refused step stops the batch -> the step after it is never laid
 - measure.coverage: `shape & silhouette` made `shape` -> the uncovered object reads covered
@@ -76,6 +80,9 @@ def library(root, files):
     glb = tmp_glb(root.parent)
     entry("model", "cabinet", {"cabinet.glb": ("gltf", None)})
     (files / "model/cabinet@1/cabinet.glb").write_bytes(glb)
+    entry("take", "cup", {"cup.glb": ("gltf", None), "cup-final.glb": ("gltf", None)})
+    for name in ("cup.glb", "cup-final.glb"):
+        (files / f"take/cup@1/{name}").write_bytes(glb)
     entry("character", "walker", {"character.usda": ("usd", character())})
     variant = ('#usda 1.0\n(\n defaultPrim = "steel"\n)\ndef Material "steel"\n{\n token outputs:surface.connect = '
                '</steel/surface.outputs:surface>\n def Shader "surface"\n {\n  uniform token info:id = '
@@ -86,9 +93,12 @@ def library(root, files):
 
 
 def tmp_glb(folder):
-    """A glTF of two boxes, one in a material named `door`, one in an unnamed one, the second lifted 1 m."""
+    """A glTF of two boxes, one in a material named `door` baked in a red map, one in an unnamed one, the second
+    lifted 1 m."""
     door = trimesh.creation.box((1, 1, 1))
-    door.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(name="door"))
+    door.visual = trimesh.visual.TextureVisuals(
+        uv=np.zeros((len(door.vertices), 2)), material=trimesh.visual.material.PBRMaterial(
+            name="door", baseColorTexture=Image.new("RGB", (4, 4), (200, 0, 0))))
     body = trimesh.creation.box((1, 1, 1))
     body.apply_translation((0, 1, 0))
     body.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
@@ -114,6 +124,12 @@ def character():
     clip.CreateRotationsAttr().Set(Vt.QuatfArray([Gf.Quatf(1)]), 0)
     clip.CreateScalesAttr().Set(Vt.Vec3hArray([Gf.Vec3h(1)]), 0)
     return body.GetRootLayer().ExportToString()
+
+
+def shown_ground(stage, shown):
+    """(the laid ground disc's ground mark, its parts)."""
+    return (stage.GetPrimAtPath("/yard/Objects/regolith").GetAttribute("score:ground").Get(),
+            next(item for item in shown["objects"] if item["name"] == "regolith")["parts"])
 
 
 def bound_colour(stage, path):
@@ -156,7 +172,9 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         {"step": "put", "name": "missing", "address": "kit/plan_only"},
         {"step": "put", "name": "cabinet", "address": "model/cabinet"},
         {"step": "put", "name": "walker", "address": "character/walker", "at": [2, 0, 2]},
-        {"step": "dome", "name": "dome", "radius": 5.0, "meridians": 8, "rings": 2, "rib": 0.1}])
+        {"step": "dome", "name": "dome", "radius": 5.0, "meridians": 8, "rings": 2, "rib": 0.1},
+        {"step": "ground", "name": "regolith", "radius": 3.0},
+        {"step": "put", "name": "cup", "address": "take/cup"}])
     refusals = []
     for step in (lambda: place_build.put(folder, "plan", "kit/plan_only"),
                  lambda: place_build.surface(folder, "wall", "surface/boards")):
@@ -180,7 +198,12 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/top"), (0.3, 0.3, 0.4))
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/rim"), (1.0, 0.0, 0.0))
-    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True, False, False, False]
+    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 5
+    door_look = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo/door")).ComputeBoundMaterial()[0]
+    door_map = UsdShade.Shader(stage.GetPrimAtPath(f"{door_look.GetPath()}/base")).GetInput("file").Get()
+    assert np.allclose(Image.open(door_map.resolvedPath).getpixel((0, 0)), (200, 0, 0))
+    assert UsdGeom.PrimvarsAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo")).GetPrimvar("st").HasValue()
+    assert batched[6]["usd"].endswith("cup-final.usdc") and shown_ground(stage, shown) == (True, {"ground": None})
     assert stage.GetPrimAtPath("/yard/Objects/floor").GetAttribute("score:ground").Get() is True
     cabinet_parts = sorted(next(item for item in shown["objects"] if item["name"] == "cabinet")["parts"])
     assert cabinet_parts[0] == "door" and cabinet_parts[1].startswith("part_") and len(cabinet_parts) == 2
@@ -191,11 +214,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     held = UsdSkel.Animation(stage.GetPrimAtPath("/yard/Objects/walker/Held"))
     assert (walker.GetTypeName(), shown_groups) == ("SkelRoot", {"far": "invisible", "made": "inherited"})
     assert list(held.GetTranslationsAttr().Get()) == [Gf.Vec3f(0, 1, 0)] and batched[3]["clip"] == "standing"
-    assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["ribs", "shell"]
+    assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["deck", "ribs", "shell"]
     assert np.allclose(boxes["dome"], [[-5.1, 0.0, -5.1], [5.1, 5.1, 5.1]], atol=0.02)
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup"} and not stage.GetPrimAtPath("/yard/Objects/gone")
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
     assert measure.lab(Image.open(folder / "concept.png").convert("RGB"))[0, 0, 2] < -40
     assert Image.open(compared["picture"]).size == (3 * measure.PANEL, measure.PANEL // 2)
