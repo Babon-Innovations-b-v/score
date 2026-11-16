@@ -453,6 +453,16 @@ def connector_axis(mesh):
     return ends, direction, float(np.abs(flat @ np.array([-axis[1], axis[0]])).max())
 
 
+def ring_distance(mesh, ring):
+    """How far an end ring comes to a mesh: its nearest point's distance, or, when the mesh's box lies further than
+    JOIN from the ring's, that box gap (a lower bound, so a far shell is never searched point by point)."""
+    low, high = mesh.bounds
+    box_gap = float(np.linalg.norm(np.maximum(0.0, np.maximum(low - ring.max(axis=0), ring.min(axis=0) - high))))
+    if box_gap > JOIN:
+        return box_gap
+    return float(trimesh.proximity.closest_point(mesh, ring)[1].min())
+
+
 def connector_faults(laid, name, floor):
     """A connector with an end joined to nothing (a shell, wall, another connector, or a door closing it: an
     airlock's outer end), or no walkable floor along it."""
@@ -463,8 +473,7 @@ def connector_faults(laid, name, floor):
     faults = []
     for label, end in zip(("start", "end"), ends):
         ring = points[np.abs((points - end) @ direction) <= 0.15]
-        nearest = min((float(trimesh.proximity.closest_point(laid.meshes[other], ring)[1].min())
-                       for other in structure), default=np.inf)
+        nearest = min((ring_distance(laid.meshes[other], ring) for other in structure), default=np.inf)
         if nearest > JOIN:
             faults.append({"fault": "connector", "end": label, "gap": round(nearest, 3) if np.isfinite(nearest) else None,
                            "why": f"its {label} joins nothing: the nearest shell or wall is "
