@@ -43,6 +43,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.sky: the turn left off the dome -> the sky dome stays unturned
 - render.views: the named views left out -> the inside view is not rendered
 - render.views: `review` kept True when final -> the final render runs at the review's samples
+- dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
+- place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
+- place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
+- place_build.night: the exposure left off -> the night renders at the day's exposure
 - dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
 - dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
 - dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
@@ -373,3 +377,23 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
     assert measure.lab(Image.open(folder / "concept.png").convert("RGB"))[0, 0, 2] < -40
     assert Image.open(compared["picture"]).size == (3 * measure.PANEL, measure.PANEL // 2)
+    built = place_build.blocks(folder, "kerb", [[0, 0, 0, 2, 0.15, 0.3, "kerb"], [0, 0, 0.3, 2, 0.004, 0.5, "line"]],
+                               at=(50, 0, 50))
+    place_build.blocks(folder, "road", [[0, -0.3, 0, 4, 0, 4, "road"]], at=(60, 0, 60), ground=True)
+    place_build.put(folder, "sill", "kit/box_piece", at=(50, 1, 52), role="mount", support="wall:kerb")
+    place_build.night(folder, [0.01, 0.04, 0.08], [0.01, 0.04, 0.08], 2.5,
+                      {"elevation": 30, "heading": 90, "strength": 0.01, "colour": [0.5, 0.7, 1.0]})
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    kerb = trimesh.Trimesh(*[np.array(value) for value in (
+        UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/kerb/geo")).GetPointsAttr().Get(),
+        np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/kerb/geo")).GetFaceVertexIndicesAttr().Get()
+                 ).reshape(-1, 3))]).split(only_watertight=False)
+    marks = {name: [stage.GetPrimAtPath(f"/yard/Objects/{name}").GetAttribute(f"score:{key}").Get()
+                    for key in ("role", "support", "ground")] for name in ("kerb", "road", "sill")}
+    moon = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Lights/moon")).ComputeLocalToWorldTransform(0)
+    assert built["boxes"] == 2 and len(kerb) == 2 and all(piece.is_watertight and piece.volume > 0 for piece in kerb)
+    assert sorted(subset.GetPrim().GetName() for subset in UsdGeom.Subset.GetAllGeomSubsets(
+        UsdGeom.Imageable(stage.GetPrimAtPath("/yard/Objects/kerb/geo")))) == ["kerb", "line"]
+    assert marks == {"kerb": ["structure", None, False], "road": [None, None, True], "sill": ["mount", "wall:kerb", False]}
+    assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("score:exposure").Get() == np.float32(2.5)
+    assert np.allclose(moon.TransformDir(Gf.Vec3d(0, 0, -1)), (0.0, -0.5, -np.cos(np.radians(30))), atol=1e-6)

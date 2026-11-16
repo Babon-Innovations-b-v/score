@@ -61,6 +61,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   doorways cut in its walls with a hall behind each flat's door, railings on every open edge, flats' blocks either
   side and a glazed front. Panes are one face each (a closed pane's two thin-glass skins ring with light).
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
+- **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
+  straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of
+  parts: a road and kerbed pavements of slabs laid as ground, a building's walls with its window openings, reveals and
+  a shop's room as a structure (`score:role`). A window, sign or air conditioner flush on a wall is `put` with
+  `role` "mount" and `support` "wall:<building>", so the check (ready/) judges it against that wall.
+- **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
+  the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
+  and a moon light; `haze` a box of haze (tools/usd/scene.py's haze body) the renderer fills.
 - **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
 - Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;

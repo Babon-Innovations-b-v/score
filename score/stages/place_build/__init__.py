@@ -25,6 +25,8 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     stairs(folder, name, storeys, at, turn)            the stair core algorithm (stair_core.py) laid: a walkable
                                                        switchback stairwell, its doorways answered
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
+    blocks(folder, name, boxes, at, turn, ground)      solid chamfered boxes (dome_shell.blocks_file) as one object: a
+                                                       road and kerbed pavements (ground) or a building (structure)
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
     palette(folder, library, wear, dirt)               the place's one surface library (its scene palette's families
                                                        and tokens, as its props were painted from) taken in
@@ -34,11 +36,16 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     sky(folder, address, elevation, heading, strength, colour)
                                                        a library sky laid as the place's own (its dome, its
                                                        ambient light as /<place>/Environment) and its sun
+    night(folder, ambient, background, exposure, moon, glow)
+                                                       a night sky with no picture: the night's physics as the
+                                                       Environment's light and exposure, the moon a distant light
+    haze(folder, name, centre, size, colour, density, forward, reach)
+                                                       a box of haze (tools/usd/scene.py's haze body) the renderer fills
     view(folder, name, eye, aim, fov)                  a named view besides the concept's (render --views)
     remove(folder, name)                               an object or light taken out
     listing(folder)                                    what the scene holds, as the agent reads it
-    batch(folder, steps)                               many steps (put, surface, light, snap, remove, dome) in one
-                                                       process: a whole relayout in seconds
+    batch(folder, steps)                               many steps (every one above but start and listing; blocks,
+                                                       night and haze only here) in one process: a relayout in seconds
 
 Rendering is render.py, the compare measure.py, the command line __main__.py.
 """
@@ -235,13 +242,15 @@ def posed(prim, at, turn, scale):
 
 
 def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0), ground=False,
-        wear=None, clip=None, second=0.0, rest=False, on_ground=False):
+        wear=None, clip=None, second=0.0, rest=False, on_ground=False, role=None, support=None):
     """The library entry laid as Objects/<name> (laid again when the name is taken: its reference and pose
     replaced, its surface kept); the scene saved. `ground` marks it as the place's ground (the renderer then lays no
     plane of its own); a character wears `wear` (its body groups, WORN's first by default) and is held still in its
     clip `clip` (CLIP by default) `second` seconds in; `rest` lifts or lowers it so its lowest point lies at `at`'s
     height (a model whose origin is not at its foot stands on the floor or table it is put on); `on_ground` takes
-    `at`'s height as above the laid ground under it (a rock on a real terrain's relief, sunk in by a negative one)."""
+    `at`'s height as above the laid ground under it (a rock on a real terrain's relief, sunk in by a negative one);
+    `role` and `support` are written as its `score:role` and `score:support` (a window laid flush on its building's
+    wall: role "mount", support "wall:<building>"), which the physics check (ready/) reads."""
     address, record, copied = fetch(folder, address)
     asset = usd_file(record, copied)
     stage, place = opened(folder)
@@ -257,8 +266,16 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         laid.update(dressed(stage, path, asset, wear, clip, second))
     if rest:
         laid["at"] = rested(stage, path, at, turn, scale)
+    marked(stage.GetPrimAtPath(path), role, support)
     saved(stage)
     return laid
+
+
+def marked(prim, role=None, support=None):
+    """The object's role and support written as `score:role` and `score:support` when given."""
+    for key, value in (("role", role), ("support", support)):
+        if value:
+            prim.CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(str(value))
 
 
 def layered(stage, path, folder, asset, record, copied):
@@ -430,6 +447,28 @@ def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
                               (at, (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), True)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "radius": radius, "ground": True}
+
+
+def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground=False, address=DOME):
+    """Solid chamfered boxes (dome_shell.blocks_file: each [x0, y0, z0, x1, y1, z1, part] in its own frame) laid as
+    one object Objects/<name>: a road and its kerbed pavements with `ground` (the place's walked ground), else a
+    structure (`score:role` structure: a building's walls, a step); each part ready for its surface."""
+    import hashlib
+    from score.stages.place_build import dome_shell
+    boxes = [[float(value) for value in box[:6]] + [str(box[6])] for box in boxes]
+    if not boxes or any(len(box) != 7 or box[3] <= box[0] or box[4] <= box[1] or box[5] <= box[2] for box in boxes):
+        raise Refused(f"blocks need one box or more, each x0, y0, z0, x1, y1, z1, part with x1 > x0, y1 > y0, z1 > z0")
+    key = hashlib.sha256(json.dumps(boxes).encode()).hexdigest()[:16]
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / f"blocks_{key}.usda"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        dome_shell.blocks_file(target, boxes)
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
+                              (at, turn, (1.0, 1.0, 1.0)), ground)
+    marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else "structure")
+    saved(stage)
+    return {"name": name, "address": address, "usd": relative, "boxes": len(boxes), "ground": bool(ground)}
 
 
 def terrain(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), pads=()):
@@ -737,6 +776,49 @@ def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", tur
     return {"sky": address, "usd": relative, "sun": {"elevation": elevation, "heading": heading, "strength": strength}}
 
 
+def night(folder, ambient, background, exposure, moon, glow=None):
+    """A night sky with no picture (the night's physics, score/stages/light/night.py, worked out for the place and
+    passed in): /<place>/Environment a DomeLight of the moonlit and city-lit air's `ambient` light ([r, g, b], linear),
+    the `background` the camera sees ([r, g, b]) and the camera's `exposure` (a multiplier); `moon` {elevation,
+    heading, strength, colour [r, g, b], angle} a distant light Lights/moon; `glow` {threshold, intensity} the bloom
+    of whatever is brighter than the threshold."""
+    stage, place = opened(folder)
+    stage.RemovePrim(f"/{place}/Environment")
+    environment = UsdLux.DomeLight.Define(stage, f"/{place}/Environment")
+    environment.CreateIntensityAttr(1.0)
+    environment.CreateColorAttr(Gf.Vec3f(*[float(value) for value in ambient]))
+    prim = environment.GetPrim()
+    prim.CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(*[float(value) for value in background]))
+    prim.CreateAttribute("score:exposure", Sdf.ValueTypeNames.Float).Set(float(exposure))
+    for key, value in (glow or {}).items():
+        prim.CreateAttribute(f"score:glow_{key}", Sdf.ValueTypeNames.Float).Set(float(value))
+    lamp = UsdLux.DistantLight.Define(stage, f"/{place}/Lights/moon")
+    UsdGeom.Xformable(lamp).ClearXformOpOrder()
+    UsdGeom.Xformable(lamp).AddTransformOp().Set(sun_frame(float(moon["elevation"]), float(moon["heading"])))
+    lamp.CreateIntensityAttr(float(moon["strength"]))
+    lamp.CreateAngleAttr(float(moon.get("angle", 0.5)))
+    lamp.CreateColorAttr(Gf.Vec3f(*[float(value) for value in moon["colour"]]))
+    saved(stage)
+    return {"night": {"ambient": list(ambient), "exposure": exposure}, "moon": moon}
+
+
+def haze(folder, name, centre, size, colour, density, forward=0.0, reach=None):
+    """A box of haze (tools/usd/scene.py's haze body: a see-through shell the renderer fills with fog of `colour`,
+    `density` its thickness a metre, `forward` its forward throw, only out to `reach` metres from the eye) laid as
+    /<place>/Haze/<name>, beside the objects (no body to collide with)."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene as usd_scene
+    stage, place = opened(folder)
+    entry = {"shape": "box", "centre": [float(value) for value in centre], "size": [float(value) for value in size],
+             "colour": colour, "density": float(density), "forward": float(forward)}
+    if reach:
+        entry["reach"] = float(reach)
+    usd_scene.write_haze_volume(stage, f"{place}/Haze/{name}", entry, None)
+    saved(stage)
+    return {"haze": name, "density": density}
+
+
 def view(folder, name, eye, aim, fov):
     """A named view besides the concept's (an inside view at eye height, a low view across the ground), rendered
     with the concept's by `render --views`."""
@@ -788,7 +870,7 @@ def listing(folder):
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "camera": camera, "sky": sky, "view": view}
+         "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze}
 
 
 def batch(folder, steps):

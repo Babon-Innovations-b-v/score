@@ -13,6 +13,13 @@ with no kit piece's stylised terrain under it.
     disc_file(path, radius)                                          a flat ground disc written at `path`
     tube(path, radius, length, hoops=HOOPS, rib=RIB, cap=None, trims=())
                                                                      a ribbed glass tunnel written at `path`
+    blocks_file(path, boxes, bevel=BEVEL)                            solid boxes (a road, a kerbed pavement, a
+                                                                     building's walls) written at `path`
+
+**Blocks** (physics ready, the street: "no paper-thin walls, bevels on edges"): a straight-sided structure is laid as
+solid boxes, each (x0, y0, z0, x1, y1, z1, part) in the object's own frame, its edges chamfered BEVEL so they catch
+the light and the recipes' edge wear; every box a closed solid the walkers and a pushed object collide with, and each
+box's part takes its own surface.
 
 **Openings** (physics ready, owner 2026-11-16: "door is outside of the wall"): a dome's `openings` are level round
 holes, each (around degrees from +x towards +z, radius, centre height), the size of the tunnel or airlock tube that
@@ -30,6 +37,7 @@ deck), `ribs` and `deck`.
 """
 import math
 
+import numpy as np
 from pxr import Gf, Usd, UsdGeom, Vt
 
 MERIDIANS = 12  # ribs from the ground to the top
@@ -46,6 +54,7 @@ CAP_THICK = 0.16  # a tunnel end wall's thickness
 CAP_CELL = 0.05  # the end wall's grid, metres
 TRIM_RING = 0.1  # a trimmed tube's rings apart, metres, so its end follows the dome's glass closely
 WALL_HIGH = 0.8  # a tube's solid lower wall over its deck, metres
+BEVEL = 0.02  # a block's chamfer, metres (never more than a third of its thinnest side)
 
 
 def unit(angle_around, angle_up):
@@ -359,3 +368,40 @@ def tube(path, radius, length, hoops=HOOPS, rib=RIB, cap=None, trims=()):
     if cap:
         pieces.append(("cap", end_wall(radius, length, float(cap[0]), float(cap[1]))))
     return written(path, "tube", pieces)
+
+
+def chamfered_box(low, high, bevel=BEVEL):
+    """A closed box from `low` to `high` (x, y, z) with every edge chamfered `bevel` metres (at most a third of its
+    thinnest side): its points and triangles, wound to face out."""
+    from scipy.spatial import ConvexHull
+    low, high = np.asarray(low, dtype=np.float64), np.asarray(high, dtype=np.float64)
+    if np.any(high - low <= 0):
+        raise ValueError(f"a block needs its high corner past its low one ({low.tolist()}, {high.tolist()})")
+    cut = min(float(bevel), float((high - low).min()) / 3)
+    middle, half = (low + high) / 2, (high - low) / 2
+    points = []
+    for signs in np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)], dtype=np.float64):
+        for axis in range(3):
+            inset = half - cut
+            inset[axis] = half[axis]
+            points.append(middle + signs * inset)
+    points = np.unique(np.round(np.array(points), 9), axis=0)
+    hull = ConvexHull(points)
+    triangles = []
+    for simplex, plane in zip(hull.simplices, hull.equations):
+        first, second, third = points[simplex]
+        if np.dot(np.cross(second - first, third - first), plane[:3]) < 0:
+            simplex = simplex[[0, 2, 1]]
+        triangles.append([int(index) for index in simplex])
+    return [tuple(point) for point in points.tolist()], triangles
+
+
+def blocks_file(path, boxes, bevel=BEVEL):
+    """Solid chamfered boxes written at `path`: /blocks with one mesh `geo`, each box (x0, y0, z0, x1, y1, z1, part)
+    a closed solid in its part (the module's rule)."""
+    pieces = []
+    for box in boxes:
+        if len(box) != 7:
+            raise ValueError(f"a block is x0, y0, z0, x1, y1, z1, part ({box})")
+        pieces.append((str(box[6]), chamfered_box(box[:3], box[3:6], bevel)))
+    return written(path, "blocks", pieces)
