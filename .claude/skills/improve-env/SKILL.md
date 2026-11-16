@@ -14,7 +14,7 @@ Argument: the environment (default `world1`, env1). Its rework issue holds every
 
 1. **Stills.** Make a free 1080p still of every place's first film frame from the PC store, into a fresh scratch folder `$STILLS` under the job's tmp (never `/tmp`):
    - per place, side by side: `STILLS=<dir> SCORE_REPO=<checkout at main> bash scripts/stills/prep.sh <place>` (compose and plan, read-only);
-   - then `render.py <place> ...` in the background with `tools/cloud/detached.py --`: Blender one place at a time on the card queue.
+   - then `render.py <place> ...` in the background with `tools/cloud/detached.py --`: Blender one place at a time on the card queue. Blender needs the X and GL libraries this PC lacks in `$STILLS/clibs` (copy the folder from an earlier round's `$STILLS`); without them every render fails on `libSM.so.6`.
    Done when `$STILLS/out/` holds a JPEG for every place or `render.jsonl` names why one has none.
 2. **Workflow.** Run `scripts/round.workflow.js` through the Workflow tool (`scriptPath`), args `{environment, places, stills: $STILLS, out: <job tmp>/improve-<round>, issue, round, model: "fable", notes}`. It compares (one agent per four places), plans the causes and lands one fix stream per cause it finds (owner, 2026-11-16: "one stream per cause the round finds"), each in its own worktree. Done when it returns.
 3. **Record.** Post one comment on the issue: the round's mean and per-place scores against the last round, the commits landed, each stream's undone work, the decisions agents made (one line each), and the `owner` list with prices. Done when the comment is posted.
