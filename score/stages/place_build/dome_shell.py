@@ -300,13 +300,18 @@ def tube_sides(radius, length, trims=()):
 
 def hoop_ribs(radius, length, hoops, rib, trims=()):
     """The tunnel's ring ribs, `hoops` of them evenly from end to end (both ends included when two or more); trimmed,
-    evenly over the stretch whose top stands outside the trim spheres."""
+    evenly over the stretch where the whole ring over the deck stands outside the trim spheres (a ring whose top only
+    clears a dome's glass stands its sides inside the dome)."""
     made = []
     start, end = 0.0, length
     if trims:
-        tops = [spot for spot in (length * step / 200 for step in range(201))
-                if not in_trims((0.0, 2 * radius, spot), trims)]
-        start, end = (min(tops), max(tops)) if tops else (0.0, length)
+        deck = FLOOR * radius
+        ring = [(radius * math.cos(2 * math.pi * step / STEPS), radius + radius * math.sin(2 * math.pi * step / STEPS))
+                for step in range(STEPS)]
+        ring = [(x, y) for x, y in ring if y >= deck]
+        clear = [spot for spot in (length * step / 200 for step in range(201))
+                 if not any(in_trims((x, y, spot), trims) for x, y in ring)]
+        start, end = (min(clear), max(clear)) if clear else (0.0, length)
     spots = [(start + end) / 2.0] if hoops == 1 else [start + (end - start) * number / (hoops - 1)
                                                      for number in range(hoops)]
     arounds = [2 * math.pi * step / STEPS for step in range(STEPS)]
