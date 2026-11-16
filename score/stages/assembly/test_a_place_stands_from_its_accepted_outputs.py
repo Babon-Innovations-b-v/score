@@ -1546,14 +1546,14 @@ DESIGN = {"rows": [{"id": "wall", "noun": "wall", "kind": "code", "anchor": "flo
 
 # A crate on the floor: a loose row, so its place needs the settle.
 CRATE = {"id": "crate", "noun": "crate", "kind": "generate", "anchor": "floor"}
-EVERY = ["characters-layer", "crops-layer", "effects-layer", "motion", "light", "sound"]
+EVERY = ["characters-layer", "effects-layer", "motion", "light", "sound"]
 # Each place's layers: its design (None: a place with no design), the layer stages the assembly took and the sounds it
 # placed nowhere; the layers its design needs, and the layers gate's answer and the layers it waits on, each by name.
 # DESIGN's person needs its characters layer, the kettle its effects, the door its motion, the plants on the planter
-# their crops; no loose row, so no settle; light and sound always.
+# none (no crops layer since #128); no loose row, so no settle; light and sound always.
 LAYERED = [
     {"name": "the design taking four", "design": DESIGN, "took": ["sound", "effects-layer", "motion", "light"],
-     "needs": EVERY, "answer": checks.UNKNOWN, "waits": (f"characters-layer@{TOY}", f"crops-layer@{TOY}")},
+     "needs": EVERY, "answer": checks.UNKNOWN, "waits": (f"characters-layer@{TOY}",)},
     {"name": "the design taking all", "design": DESIGN, "took": EVERY, "needs": EVERY, "answer": checks.PASS,
      "waits": ()},
     {"name": "a sound placed nowhere", "design": DESIGN, "took": EVERY, "unplaced": ["hum"], "needs": EVERY,

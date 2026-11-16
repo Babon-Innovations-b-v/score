@@ -17,7 +17,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.props.thin_straight as thin_straight
 from score.stages.surfaces.surface_gates import guarded
 
-# One SAM 3 card for a place's rows, as the crops' concept row prices its own (score/stages/crops/concept.py EUROS).
+# One SAM 3 card for a place's rows.
 EUROS = 0.5
 
 

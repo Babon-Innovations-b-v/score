@@ -56,10 +56,9 @@ PERSON_MINUTES = 43
 # Room for the environments, CUDA and the Llama 3 encoder (sized when it held six, Hi3DGen's and klein's among them).
 DISK_GB = 200
 POLL_SECONDS = 30
-# The programs of tools/characters a make folder may run, by the name its spec gives: the maker's chain, and a body's
-# motion read off a video (score/stages/video_clips), and the scene-made clips (score/stages/scene_clips).
-PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "video_motion.py": "clips/video_motion.py",
-            "scene_clips.py": "clips/scene_clips.py"}
+# The programs of tools/characters a make folder may run, by the name its spec gives: the maker's chain and the
+# scene-made clips (score/stages/scene_clips).
+PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "scene_clips.py": "clips/scene_clips.py"}
 # The steps measured on a 16 GB card (this PC's RTX 5080, 2026-10-27: scene_clips.py's Kimodo and rig steps in 87 s,
 # card peak 3.66 GB, 1.7 GB Kimodo's) with Kimodo's text encoder on the processor (TEXT_ENCODER_DEVICE=cpu, ENCODER),
 # which then holds 16.7 GB of system memory.

@@ -6,9 +6,6 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   drapes passes).
 - effects_and_motion_both_ways: contents.unmet's `return [need for need in needs if not any(need in name for name in
   names)]` made `return []`.
-- crops_both_ways: contents.judge_crops' `faults = [] if share >= least else` made `if share >= 0 else`; and
-  (2026-11-11, beds no longer tagged soil, greenhouse unknown) its `.Get() in beds` made `.Get() is not None` (the
-  rug counted a bed, so both beds planted read short).
 - likeness_and_paint_both_ways: contents.judge_likeness' `if prim.GetAttribute("score:row").Get() not in held` made
   `if False`; and (2026-11-10) its `and prim.GetAttribute("score:model").Get() not in models` dropped (a row on a
   held row's model fails).
@@ -217,39 +214,6 @@ def effects_and_motion_both_ways():
         stage.GetRootLayer().Save()
         cases.append(("an emitter laid on the row's object", judged("effects", path), contents.PASS))
         return problems_of(cases)
-
-
-def crops_both_ways():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        world_data(folder, design=[row("planter", "planter"), row("greens", "plants", anchor="on:planter")])
-        path = bare_stage(folder)
-        stage = Usd.Stage.Open(str(path))
-        for number, x in enumerate((0.0, 3.0)):
-            tile = UsdGeom.Mesh.Define(stage, f"/{PLACE}/bed_{number}")
-            tile.CreatePointsAttr([(x - 0.5, 0, -0.5), (x + 0.5, 0, -0.5), (x + 0.5, 0, 0.5), (x - 0.5, 0, 0.5)])
-            tile.CreateFaceVertexCountsAttr([4])
-            tile.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-            tile.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("planter")  # its bed row's
-        loose = UsdGeom.Mesh.Define(stage, f"/{PLACE}/rug_1")  # an object of no bed row is no bed to plant
-        loose.CreatePointsAttr([(9.5, 0, -0.5), (10.5, 0, -0.5), (10.5, 0, 0.5), (9.5, 0, 0.5)])
-        loose.CreateFaceVertexCountsAttr([4])
-        loose.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-        loose.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("rug")
-        plants = UsdGeom.PointInstancer.Define(stage, f"/{PLACE}/Crops/lettuce")
-        plants.CreatePositionsAttr([(0.1, 0, 0.1)])
-        stage.GetRootLayer().Save()
-        half = judged("crops", path)
-        plants.CreatePositionsAttr([(0.1, 0, 0.1), (2.9, 0, -0.2)])
-        stage.GetRootLayer().Save()
-        both = judged("crops", path)
-        plants.CreatePositionsAttr([])
-        stage.GetRootLayer().Save()
-        world_data(folder, design=[row("fern", "plants")])  # a plant on the floor, no bed: no crops here
-        return problems_of([("one of two beds planted", half, contents.FAIL),
-                            ("both beds planted", both, contents.PASS),
-                            ("a design with no crops", judged("crops", path), contents.PASS),
-                            ("a place with no design", judged("crops", path, place="elsewhere"), contents.UNKNOWN)])
 
 
 def shared_take_cases(stage, path, likeness):
@@ -469,7 +433,7 @@ def the_bed_from_the_design_both_ways():
         return problems_of(cases)
 
 
-TESTS = (people_both_ways, effects_and_motion_both_ways, crops_both_ways, likeness_and_paint_both_ways,
+TESTS = (people_both_ways, effects_and_motion_both_ways, likeness_and_paint_both_ways,
          light_sound_neighbours_and_game_both_ways, the_assembled_record_and_a_waiting_entry_both_ways,
          a_far_look_near_a_view_both_ways, the_bed_from_the_design_both_ways)
 

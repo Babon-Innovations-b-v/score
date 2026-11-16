@@ -14,7 +14,7 @@ take's display parts, over its bake. The module docstring has the make and the g
   (`take`, run after the assembly's make by `assembled`, wrapped in the stage table so the assembly package, which
   paid rows import, stays unedited). `row-kinds.json` keeps `shows` null;
   `data/checks/screens.json` names this stage for it and only the motion row's `covered` reads it, so no row that
-  declares row-kinds.json (sound, settle, crops, the bake) moves. Run `score moved` before a push: an edit under
+  declares row-kinds.json (sound, settle, the bake) moves. Run `score moved` before a push: an edit under
   `tools/props/library/` or to `row-kinds.json` re-buys paid rows.
 - **Display parts**: a model's lit surfaces (a `glowing` recipe or the screen family in the bake's `specs.json`) whose
   library name holds a screen word (`screens.json` `words`), else its largest lit one; all of them one picture, seeded

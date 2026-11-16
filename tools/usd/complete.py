@@ -38,9 +38,9 @@ agent finishing while validations are stale). The requirements:
                   row's object (the automatic playtest; the interact press waits for interactable assets).
                   Experimental (EXPERIMENTAL says why): its faults are shown, not counted; what counts is that it was
                   recorded on this stage as it is now
-    people, effects, motion, crops, likeness, painted, light, sound, neighbours, game
+    people, effects, motion, likeness, painted, light, sound, neighbours, game
                   the contents checks (contents.py, its docstring has each): what the place holds, against its cast,
-                  its expected effects and motions, its crops, its close-ups, its paint, its light and sound layers,
+                  its expected effects and motions, its close-ups, its paint, its light and sound layers,
                   the places it shows, and no record citing the game. The runner's complete stage
                   (score/stages/complete) runs these same checks, and every one above but resting (the assembly's
                   gate judges it on its drop run), on the place's assembled stage: one gate, two ways in

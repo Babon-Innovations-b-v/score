@@ -82,7 +82,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `earth_place`: always True  -> the PER_PLACE cast kit rows (the cockpit's cast declares no kit of its own).
 - data/checks/row-kinds.json: its "about" naming `{home}/work/old`  -> the data's work-folder paths (a wording
   check guarding the rule above).
-- `MOTION_LAYER`: growth's `crops-layer` written `crops`  -> the motion layer patterns that name no row.
+- `MOTION_LAYER`: bodies' `cast` written `casts`  -> the motion layer patterns that name no row.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> the KEYED terrain rows and the rows
   above, and the push gate's TREE_EDITS framework-only row.
 - `scripts_declared`: the row returned as it was  -> the started-scripts check (every
@@ -115,14 +115,14 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 The cases of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps, the one test these two sections and the accepted-gap
 section below fold into.
 Which layers a scene has is read off its design alone, and the stage table and the assembly's layers gate give one
-answer (design_layers.py): each row shows the layer its kind does, crops are plants on a bed and never a potted plant,
+answer (design_layers.py): each row shows the layer its kind does, a plant shows none,
 every scene with a design has light and sound, a place with no kept design has no layer at all, and for a design kept
 where the plan stage keeps it every layer row the assembly's gate waits on is a row the table holds for the place, and
 no other. On designs and row-kind rules written here.
 
 Breaks (each applied once, seen red, reverted), in score/stages/design_layers.py:
 - `DOES`: `"loose": "physics"` dropped  -> the kettle row (it shows no physics).
-- `on_bed`: `or "grows" in ...` dropped  -> the plants-on-a-rack row (its greens are no crops).
+- `on_bed`: `or "grows" in ...` dropped  -> the plants-on-a-rack row (the rack is no bed).
 - `plants_of`: the beds kept among the plants (`if row["id"] not in beds` dropped)  -> the plants-and-beds row.
 - `has_layer`: `if place is None or not path.is_file(): return False` read as returning True  ->
   the barn's has_layer row.
@@ -745,21 +745,21 @@ JUDGED = [
      {"motion", "light", "sound"}),
     ("crowd", design_layers.kinds_of, ({"rows": [row("crowd", "crowd")]}, KINDS), {"people", "light", "sound"}),
     ("bare room", design_layers.kinds_of, ({"rows": [row("wall", "wall", kind="code")]}, KINDS), {"light", "sound"}),
-    # crops are plants on a raised planter (a row that grows itself), on a rack, or on a bed by its noun; a potted
-    # plant on the floor or on a desk is not
+    # a plant shows no layer of its own (the crops layer was dropped, #128): on a planter, on a bed or potted
     ("plants on a planter", design_layers.kinds_of,
-     ({"rows": [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]}, KINDS),
-     {"crops", "light", "sound"}),
-    ("plants on a rack", design_layers.kinds_of,
-     ({"rows": [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]}, KINDS), {"crops", "light", "sound"}),
+     ({"rows": [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]}, KINDS), {"light", "sound"}),
     ("plants on a bed", design_layers.kinds_of,
      ({"rows": [row("bed", "bed", kind="code"), row("greens", "plants", anchor="on:bed")]}, KINDS),
-     {"crops", "light", "sound"}),
+     {"light", "sound"}),
     ("potted plants", design_layers.kinds_of,
      ({"rows": [row("desk", "desk"), row("pot", "plant", anchor="on:desk"), row("fern", "plant")]}, KINDS),
      {"light", "sound"}),
     # plants are every growing row, and the planter under crops is their bed
     ("plants and beds", design_layers.plants_of, (SCENE, KINDS), {"rows": 2, "objects": 7, "crops": 1, "beds": 11}),
+    # a row that grows itself (a rack) is the bed of the plants on it
+    ("plants on a rack", design_layers.plants_of,
+     ({"rows": [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]}, KINDS),
+     {"rows": 1, "objects": 1, "crops": 1, "beds": 1}),
     ("no plants", design_layers.plants_of, ({"rows": [row("desk", "desk")]}, KINDS), EMPTY_PLANTS),
     *[(f"house plant: {noun}", design_layers.plants_of, ({"rows": [row("green", noun)]}, HOUSE), ONE_PLANT)
       for noun in ("tree", "palm", "shrub", "bush", "moss", "fern", "flower")],
@@ -1265,7 +1265,7 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     needed = assembly.needed_layers(KEPT["hangar"], house)
     rows = {stage.name for stage in stages.STAGES if stage.grain == "place" and stage.name in assembly.NEEDS.values()
             and stage.applies is not None and stage.applies("hangar")}
-    assert needed == ["characters-layer", "crops-layer", "effects-layer", "motion", "settle", "light", "sound"]
+    assert needed == ["characters-layer", "effects-layer", "motion", "settle", "light", "sound"]
     assert rows == set(needed), rows
 
     stage = Usd.Stage.CreateInMemory()

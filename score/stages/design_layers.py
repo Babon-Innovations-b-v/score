@@ -7,7 +7,6 @@ two cannot disagree, and a new environment or a scene added in the app needs no 
 shows a layer of kind:
 
     people         a row that acts (a person, an astronaut, a crowd): its cast and characters layer
-    crops          a row that grows standing on a bed (BEDS, or a row that grows itself: a planter): the beds' crops
     effects        a row that emits (a kettle, a stove): its effects layer
     motion         a row that moves (a door, a crane, a lift, a machine): its motion layer, which moves the row's
                    own laid objects (their models are the prop pipeline's, laid by the assembly like any other); and
@@ -28,10 +27,10 @@ from score.store import PROPS_HOME
 
 KEPT = PROPS_HOME / "design" / "inventory"
 PATTERN = "{home}/design/inventory/{place}.json"
-# What a crop row stands on: a row of one of these nouns, or a row that grows itself (a planter).
+# What a plant on a bed stands on (plants_of): a row of one of these nouns, or a row that grows itself (a planter).
 BEDS = {"bed", "beds", "planter", "planters", "plot", "plots", "trough", "troughs", "field", "fields"}
 EVERY_SCENE = ("light", "sound")
-# The layer a row shows by what its kind does (row_kinds.does); crops by its own rule (row_layers).
+# The layer a row shows by what its kind does (row_kinds.does).
 DOES = {"acts": "people", "emits": "effects", "moves": "motion", "loose": "physics"}
 
 
@@ -51,10 +50,7 @@ def on_bed(row, rows, kinds):
 def row_layers(row, rows, kinds):
     """The layer kinds one row shows (module docstring)."""
     done = row_kinds.does(row_kinds.kind_of(row, kinds), kinds)
-    found = {DOES[what] for what in done if what in DOES}
-    if "grows" in done and on_bed(row, rows, kinds):
-        found.add("crops")
-    return found
+    return {DOES[what] for what in done if what in DOES}
 
 
 def kinds_of(inventory, kinds=None):
@@ -68,7 +64,7 @@ def kinds_of(inventory, kinds=None):
 
 def plants_of(inventory, kinds):
     """A design's plants (CONTEXT.md "plant"), every one a model of the prop pipeline: {rows, objects (their
-    counts), crops (the rows of them growing on a bed, which the crops layer also lays), beds (the objects those
+    counts), crops (the rows of them growing on a bed), beds (the objects those
     stand on)}. A planter its crops stand on is their bed, not a plant of its own."""
     rows = {row["id"]: row for row in inventory.get("rows", [])}
     growing = row_kinds.rows_that(inventory, "grows", kinds)

@@ -19,7 +19,7 @@ PHASES = (
                 "straight-masks", "likeness-calibration")),
     ("surfaces", ("finish-route-*", "surface-library", "surfaces-*", "surface-tiles", "earth-seed", "body-face-*",
                   "likeness", "scene-record", "screens")),
-    ("people", ("people-*", "cast", "sim-body", "scene-clips", "characters-layer", "motion", "crops-*", "ground-join",
+    ("people", ("people-*", "cast", "sim-body", "scene-clips", "characters-layer", "motion", "ground-join",
                 "settle")),
     ("light-sound", ("light-layer", "light-passes", "light", "sound", "effects-*")),
     ("assembly", ("assembly", "neighbours", "scene-tree", "ground-fit", "complete", "physics-*")),

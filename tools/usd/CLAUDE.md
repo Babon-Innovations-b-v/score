@@ -91,7 +91,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `contents.py` is the gate's contents checks (its docstring has each): people against the cast its design gives
   (`data/people/rows.json`; every look a made model of the people prop route, never SOMA's mesh in drapes), effects
   and motions against the rows of its design that emit and move (its locked concept's scene inventory, each row's
-  row kind: `score/stages/row_kinds.py`), crop density where its design shows crops (`score/stages/design_layers.py`),
+  row kind: `score/stages/row_kinds.py`),
   every generated row held to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and
   sound layers, the shown places, and no record citing the game. Never a list written per place: a place with no
   design is unknown. `test_each_contents_check_passes_what_holds_and_fails_what_lacks.py` checks each both ways.

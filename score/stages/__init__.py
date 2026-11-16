@@ -37,10 +37,10 @@ import tempfile
 from score import checks, contracts, graph, review
 from score.adapters.models import claude_code
 from score.checks import grain
-from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
+from score.stages import (assembly, cast, complete, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           scene_clips, screens, shapes_first, sim_body, sound,
-                          surface_tiles, surfaces, terrain, video_clips)
+                          surface_tiles, surfaces, terrain)
 from score.stages.cast import feet as cast_feet  # cast's make: its own module, so no other row's key moves with it
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
     parts_kept, recheck_picks, route_check, uv_layout, bake_fitted
@@ -896,7 +896,7 @@ LIBRARY_READERS = {"surfaces-paint": surfaces.data.record, "surfaces-bake": surf
 
 
 def library_narrowed(row):
-    """A paint or bake row (and its crops twins) keyed on the library surfaces and place.json entries it
+    """A paint or bake row keyed on the library surfaces and place.json entries it
     reads, not the whole library folder and place.json: one surface added for one place re-keyed every place's paint
     and bake (the hub's assembly wanted about EUR 60 of re-buys, 2026-10-13). Set here, in the table, so no other
     row's code version moves; surfaces/carry.py carries each accepted output over to its narrower key once."""
@@ -1042,22 +1042,17 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
               close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
-          *light.ROWS, *crops.ROWS,
-          surface_tiles.STAGE,
-          # Experimental (#52): each animal row a design shows, its body and its clips (score/stages/animals).
-          *animals.rows(),
-          # Experimental (#52): a body's motion read off each video the creator uploaded (score/stages/video_clips).
-          *video_clips.rows())
+          *light.ROWS,
+          surface_tiles.STAGE)
 
 # Rows (fnmatch patterns) whose started scripts stay undeclared: declaring them would buy a row again in the cloud
 # (score moved on this PC's home, 2026-10-28). The prop route's head: rough-model (its re-make copies the take on disk,
 # free, but the runner cannot know the copy is the same), rough-align and props-inputs (free) re-made make every
 # close-up again (Nano Banana Pro, EUR 13.40 a place), then pixal (EUR 20 a place); the palette and surface-library
 # (Claude asks, free) re-asked, and surface-tiles itself, make the surface tiles again on rented cards (EUR 1 a
-# place); crops-concept and crops-boxes are paid cloud asks (EUR 0.50 each). Every other row declares what its code
-# starts by path (scripts_declared).
+# place). Every other row declares what its code starts by path (scripts_declared).
 STARTED_LEFT = ("rough-model", "rough-align", "props-inputs", "pixal", "finish-route-palette", "surface-library",
-                "surface-tiles", "crops-concept", "crops-boxes")
+                "surface-tiles")
 # What tools/props/library/recipes.py imports in Blender: the vendored ProcFunc and Infinigen2 (as released).
 RECIPES = "{repo}/tools/props/library/recipes.py"
 VENDORED_RECIPES = {"recipes procfunc": "{repo}/vendor/procfunc/src", "recipes infinigen2": "{repo}/vendor/infinigen2/src"}
@@ -1101,8 +1096,7 @@ def scripts_declared(row):
 # patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
 MOTION_LAYER = {"rigid": ("motion",),  # joints and paths: hinge, rail, lane, spin; the motion check
                 "physics": ("settle", "physics-layer", "physics-trial"),  # settling, falling, cloth
-                "bodies": ("cast", "characters-layer", "people-body-*", "people-dress-*", "people-clips"),
-                "growth": ("crops-layer",)}
+                "bodies": ("cast", "characters-layer", "people-body-*", "people-dress-*", "people-clips")}
 
 
 # The gates an accepted gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
@@ -1150,8 +1144,7 @@ BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                "surfaces-check": ("baked matches its surfaces", "triangles within budget", "stands level",
                                   "texture layout sound"),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
-               "sound": ("likeness", "events", "voices"), "crops-layer": ("on beds", "spacing"),
-               "crops-look": ("density",), "motion": ("designed",), "screens": ("pictured",),
+               "sound": ("likeness", "events", "voices"), "motion": ("designed",), "screens": ("pictured",),
                # a place's people-made hands on its people rows' looks: one whose take a paid step left out (camp's
                # astronaut_1, no finish list in the batch, 2026-11-10) is that gap, carried in by the likeness, and its
                # `made` fault on the look moves by name, never failing a place whose only look it is
@@ -1238,7 +1231,6 @@ def accepted_gaps(row):
 # light-passes (its looks ship only through light's mix) and the
 # people's close-ups (an image model's, not a render).
 GRAIN_PICTURES = {"light": "looks/*/*-look.png", "demo-film": "concept.png", "demo-film-extra": "*/concept.png",
-                  "crops-look": "render/*-look.png",
                   "physics-trial": "frames/*-look.png"}
 
 
@@ -2060,8 +2052,7 @@ STAGES = tuple(map(seed_stamped, map(remade_kept, STAGES)))
 
 def railing_held(row):
     """pixal and likeness (props/railing_hold.py ROWS) declaring railing_hold.py as a file of theirs, so their keys move
-    with how a railing is held: here, in the table, not in pixal_row or likeness_row (the crops' look reads them through
-    the prop route's table), and as a file, not a make wrapper (the table's wrappers keep a row's code version)."""
+    with how a railing is held: here, in the table, not in pixal_row or likeness_row, and as a file, not a make wrapper (the table's wrappers keep a row's code version)."""
     if row.name not in railing_hold.ROWS:
         return row
 

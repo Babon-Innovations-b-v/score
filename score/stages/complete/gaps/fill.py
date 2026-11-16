@@ -11,11 +11,10 @@ Exactly one of node and work is set.
 from score import stages
 
 # A missing row's maker by how the inventory says it is made: (the stage, the work when it does not run here).
-ROUTE, CROP = "route", "crop"
+ROUTE = "route"
 CONCEPT, PLAN, ROUGH_MODEL = "concept", "plan", "rough-model"
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: its design hand-in (prepare)"),
-    CROP: ("crops-layer", None),
     CONCEPT: (None, "the creator's concept for {place}, drawn and locked on its concept page"),
     PLAN: ("plan", "a kept plan of {place} with its leads (the plan review)"),
     ROUGH_MODEL: (ROUGH_MODEL, None),
@@ -24,7 +23,7 @@ FILLERS = {
 COMPLETE = "complete"
 COMPLETE_GATES = {"people": "characters-layer", "likeness": "likeness", "motion": "motion",
                   "painted": "surfaces-paint", "effects": "effects-layer",
-                  "crops": "crops-layer", "light": "light", "sound": "sound", "neighbours": "neighbours"}
+                  "light": "light", "sound": "sound", "neighbours": "neighbours"}
 COMPLETE_WORK = {"game": "a record that cites the game, written again from SCORE's own data",
                  "picks": "the owner's picked model shown, or a written decision for the model shown instead",
                  "reach": "a way on the floor to the row's standing spot (the reach check is experimental)",
@@ -52,20 +51,10 @@ def filled(stage, work, place):
 
 
 def made_by(row, place):
-    """How a scene inventory row is made, as FILLERS names it: a crop (a row of a crop kind of the place's design,
-    crop_data), else the shared loop, whatever the row's own kind says (a moving machine's model too: the motion layer
-    moves the loop's models; no row is built in code since the code fallback was removed, 2026-10-22)."""
-    return CROP if row["id"] in crop_rows(place) else ROUTE
-
-
-def crop_rows(place):
-    """The rows of the crop kinds the place's kept design shows (crop_data.record_of), none without a design."""
-    import json
-
-    from score.stages import design_layers
-    import score.stages.crops.crop_data as crop_data
-    path = design_layers.KEPT / f"{place}.json"
-    return set(crop_data.record_of(json.loads(path.read_text()))["kinds"]) if path.is_file() else set()
+    """How a scene inventory row is made, as FILLERS names it: the shared loop, whatever the row's own kind says (a
+    moving machine's model too: the motion layer moves the loop's models; no row is built in code since the code
+    fallback was removed, 2026-10-22)."""
+    return ROUTE
 
 
 def missing_row(row, place):

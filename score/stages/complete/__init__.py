@@ -9,7 +9,7 @@ gates:
     the rest      tools/usd/complete.py's checks, the same code that gate runs on a work stage (one gate, two ways
                   in), on the place's assembled stage: its neighbours output where the place shows others, else its
                   assembly. Rows, made-only, placeholders, picks, boxes, and the contents checks (tools/usd/contents.py:
-                  people, effects, motion, crops, likeness, painted, light, sound, neighbours, game), the contents
+                  people, effects, motion, likeness, painted, light, sound, neighbours, game), the contents
                   reading the accepted likeness and surfaces-check outputs it reads (and the characters layer's, once
                   the cast stage's characters-layer row is in the table and in `after`: until then the people check
                   judges the seed's bodies); reach (experimental) passes once recorded, its faults shown. Resting is

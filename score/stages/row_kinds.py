@@ -4,8 +4,8 @@ row's reading noun, or the longest end of its name that ends in that noun: a "ye
 an overhead crane, a "robotic arm" read as an arm a robot; its name's last word only for a row read with no noun), never from a model call or a record
 written per scene. The effects, motion and physics stages read their work from it, and the layers a scene needs follow
 from it (design_layers.py, the stage table's and the assembly's one answer): a scene needs effects when a row emits,
-motion when a row moves, physics when a row is loose, crops when a row grows on a bed, people when a row acts. A row
-that roams (an animal) gets its own body and clips rows (score/stages/animals).
+motion when a row moves, physics when a row is loose, people when a row acts. A row that grows (a plant) or roams
+(an animal) shows no layer of its own (#128).
 
     kind_of(row, table)          the row's kind, or None
     does(kind, table)            what a kind's objects do: {"emits", "moves", "loose", "glows", "shows", "grows",

@@ -44,7 +44,7 @@ LABELS = [("people-dress-nev-work", "dressed body of the nev-work look"),
 HOURS = [(125, "2 h 05 min"), (14, "14 min")]
 # the real stage table: a place stage's layer as the stage table's reads give it
 REAL_LAYERS = [("closeup", "pieces"), ("pixal", "pieces"), ("surfaces-paint", "pieces"), ("light-passes", "light"),
-               ("cast", "characters"), ("plan", "base"), ("crops-layer", "crops")]
+               ("cast", "characters"), ("plan", "base")]
 # a 20 x 12 m plan with no frame stands its middle on the place's origin: place (x, z) is plan (x + 10, z + 6)
 LAID_ON_PLAN = [("hut", [{"name": "garage_door_1", "row": "garage_door", "box": [12.0, 9.4, 18.0, 9.9],
                           "fitted": "laid face: moved 1.70 m"},

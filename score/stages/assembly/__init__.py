@@ -10,7 +10,7 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       record, said unverified; an entry marked `waiting` lays nothing and is named on the root prim
                       (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
-             layers   each layer stage of LAYERS the table holds (effects, motion, light, motion models, crops, settle,
+             layers   each layer stage of LAYERS the table holds (effects, motion, light, motion models, settle,
                       characters; all experimental) as a sublayer of its own with its
                       assets, in place of the seed's of that name,
                       the root's sublayers in ORDER and its time range as long as the longest layer's
@@ -89,18 +89,17 @@ def files(place):
 SEED_PARTS = ("layers", "assets", "inputs.json")
 # The layer stages the assembly takes, each a sublayer of the root of its own: {stage: ((schema, version) read, its
 # layer file, its assets folder or None)}. A stage joins the assembly's reads the day it joins the stage table
-# (score/stages.layered): the motion, light and crops rows land after this table.
+# (score/stages.layered): the motion and light rows land after this table.
 LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets/effects"),
           "motion": (("motion-layer", 2), "layers/motion.usda", None),
           "light": (("light", 1), "layers/light.usda", "assets/light"),
-          "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets"),
           "settle": (("settle-layer", 1), "layers/settle.usda", None),
           "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters")}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surface-tiles": ("surface-tiles", 1),
          "surface-library": ("surface-library", 1), **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
 # The layer stage the assembly takes for each layer kind a design shows (design_layers; the physics' settle layer).
-NEEDS = {"people": "characters-layer", "crops": "crops-layer", "effects": "effects-layer", "motion": "motion",
+NEEDS = {"people": "characters-layer", "effects": "effects-layer", "motion": "motion",
          "physics": "settle", "light": "light", "sound": "sound"}
 # One drop run's estimate: up to half an hour of the physics trial's card with its start (tools/usd/drop.py; the
 # ledger's Blender settle runs of 2026-10-10 cost EUR 0 to 0.85).

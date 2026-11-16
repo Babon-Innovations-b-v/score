@@ -22,7 +22,7 @@ WAITING = "score:waiting"
 BASE_LAYER = "./layers/base.usda"
 GROUND_LAYER = "layers/ground.usdc"
 # The root's sublayers, strongest first, by file name.
-ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "machines", "settle", "ground", "base")
+ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "machines", "settle", "ground", "base")
 # How far a piece's transform may differ from the kit's (any matrix entry) and still stand where it is.
 SAME = 1e-4
 

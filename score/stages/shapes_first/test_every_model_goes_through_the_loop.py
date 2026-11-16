@@ -244,7 +244,6 @@ READS_THE_LOOP = {
                     "model",
     "surface-tiles": "tile pictures of the scene's library surfaces for its shell, lays no model",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
-    "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
     "motion": "the moving objects' baked models laid as the settle lays them: not on an adapter yet (#41's motion "
               "track)",
     "effects-layer": "the emitting objects' baked models laid as the settle lays them: not on an adapter yet (#41)",
@@ -263,7 +262,6 @@ MAKES_NO_MODEL = {
     "settle": "rest poses of the made models", "sound": "sounds", "demo-film*": "films",
     "physics-trial": "a physics trial",
     "light-passes": "renders", "surface-tiles": "surface tile pictures",
-    "crops-concept": "a concept picture", "crops-boxes": "measured boxes", "crops-look": "renders",
     "straight-masks": "SAM 3 masks of the thin straight rows, read by prepare's prediction alone",
     "body-face-*": "a body's face palette and recipe variant", "people-clips-made": "Kimodo clips and the mean rig",
     "scene-clips": "Kimodo clips of each walker walked along its own route on the scene's ground",

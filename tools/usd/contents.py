@@ -21,11 +21,8 @@ blocks like fail.
     motion      every moving thing of its accepted motion output (motion@<place>'s moves.json, made from its design)
                 moves on the stage (time samples), and every row of its design that moves is one of them or written
                 down as still with why; a design that moves with no motion output read is unknown
-    crops       where its design shows crops (score/stages/design_layers.py): the share of soil tiles (meshes said
-                `soil`) with a plant of the crops layer (/<place>/Crops, a point instancer a kind) over them, at
-                least PLANTED_SHARE
     The design is the place's locked concept's scene inventory, kept under DESIGN; a place with none answers unknown
-    on effects, motion and crops.
+    on effects and motion.
     likeness    every generated row's object (inventory kind `generate`) held to its close-up: the place's accepted
                 likeness output (the props rows) names it, or a ship place's made piece the likeness of the place
                 whose bake laid it (read beside); none for a place with generated models is unknown
@@ -67,9 +64,6 @@ DATA = REPO / "data"
 BODIES = pathlib.Path(os.environ.get("MOTION_WORK", pathlib.Path.home() / ".farm-factory-motion/work")) / "bodies"
 DESIGN = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "design/inventory"
 ROW_KINDS = "checks/row-kinds.json"
-# The share of a place's soil tiles its crops must plant where its design shows crops: a tenth left for the paths
-# and bare ends a concept shows between beds.
-PLANTED_SHARE = 0.9
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 LIGHT_LAYER = "./layers/light.usda"
 ASSEMBLED_SCENE = "scene.json"  # the record the assembly stage built the stage from, beside its root
@@ -391,54 +385,6 @@ def judge_motion(stage, place, inventory, outputs):
                            f"{', '.join(needs) or 'none'}")
 
 
-# --- crops ----------------------------------------------------------------------------------------------------------
-
-def plants(stage, place):
-    """(x, z) of every plant of the crops layer: each point of each point instancer under /<place>/Crops, in the
-    place's frame."""
-    from pxr import Gf, Usd, UsdGeom
-    scope = stage.GetPrimAtPath(f"/{place}/Crops")
-    found = []
-    for prim in (Usd.PrimRange(scope) if scope else []):
-        if prim.IsA(UsdGeom.PointInstancer):
-            matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
-            for point in UsdGeom.PointInstancer(prim).GetPositionsAttr().Get() or []:
-                at = matrix.Transform(Gf.Vec3d(point))
-                found.append((at[0], at[2]))
-    return found
-
-
-def bed_rows(found):
-    """The rows of a design holding its crops (score/stages/crops/crop_data.record_of's beds: the planter beds)."""
-    return set(stages_module("crops.crop_data").record_of(found, row_rules())["beds"])
-
-
-def judge_crops(stage, place, inventory, outputs):
-    """Where the place's design shows crops, the share of its beds (the objects of the rows holding its crops,
-    bed_rows) with a plant of the crops layer over them at least PLANTED_SHARE. 2026-11-11: it counted tiles said
-    soil (score:plain), which nothing writes since the beds became the plan's objects, so greenhouse's was unknown."""
-    from pxr import Usd, UsdGeom
-    found = design(place)
-    if found is None:
-        return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
-    if "crops" not in stages_module("design_layers").kinds_of(found, row_rules()):
-        return PASS, [], "no crops here"
-    least, beds = PLANTED_SHARE, bed_rows(found)
-    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
-    soil = [cache.ComputeWorldBound(prim).ComputeAlignedRange() for prim in stage.Traverse()
-            if prim.HasAttribute("score:row") and prim.GetAttribute("score:row").Get() in beds
-            and not str(prim.GetPath()).startswith(f"/{place}/Places/")]
-    crops = plants(stage, place)
-    if not soil:
-        return UNKNOWN, [], f"no bed ({', '.join(sorted(beds)) or 'no row holds its crops'}) on the stage to plant"
-    planted = sum(any(tile.GetMin()[0] <= x <= tile.GetMax()[0] and tile.GetMin()[2] <= z <= tile.GetMax()[2]
-                      for x, z in crops) for tile in soil)
-    share = planted / len(soil)
-    faults = [] if share >= least else [f"{planted} of {len(soil)} beds planted ({share:.2f}), under {least}"
-                                        + ("; no crops layer (/<place>/Crops) on the stage" if not crops else "")]
-    return outcome(faults, f"{planted} of {len(soil)} beds planted ({share:.2f})")
-
-
 # --- likeness and paint ---------------------------------------------------------------------------------------------
 
 def laid_rows(stage, place):
@@ -688,7 +634,7 @@ def waiting_row(entry):
     return row if row and number.isdigit() else name
 
 
-JUDGES = {"people": judge_people, "effects": judge_effects, "motion": judge_motion, "crops": judge_crops,
+JUDGES = {"people": judge_people, "effects": judge_effects, "motion": judge_motion,
           "likeness": judge_likeness, "painted": judge_painted, "light": judge_light,
           "sound": judge_sound, "neighbours": judge_neighbours, "game": judge_game,
           "waiting": judge_waiting}

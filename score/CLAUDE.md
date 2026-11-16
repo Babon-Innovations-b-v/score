@@ -287,7 +287,7 @@ stage as each stage is built; nothing moves before.
   the plans' terrain spots), gated on spots and curve; `ground-fit@<place>` (free) judges each place standing on it:
   ground level under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish route to checked bake (its overlay; per-place data its design's, `{home}/design/surfaces/`, the people line's in
-  `data/surfaces/`). Which layer rows a place has (people, crops, effects, motion, physics, light, sound) is read off its design alone, `stages/design_layers.py` (its locked concept's scene inventory, each row's
+  `data/surfaces/`). Which layer rows a place has (people, effects, motion, physics, light, sound) is read off its design alone, `stages/design_layers.py` (its locked concept's scene inventory, each row's
   row kind): the table's `designed(kind)` and the assembly's layers gate (`assembly.needed_layers`, reading the same
   kept inventory as its `design` input) give one answer, so the gate never waits on a layer the table has no row for
   and no row's places are a hand-written list. `effects-layer` (experimental: a place whose design shows a row that
@@ -341,7 +341,7 @@ stage as each stage is built; nothing moves before.
   from its design (`stages/motion/from_design.py`: each object of a moving row swings, spins or stands by its kind's
   rule), gated on clear, speeds, loops, grounded, covered, designed and the motion check (its overlay). The three
   take their work from one row-kind classification (`stages/row_kinds.py`, `data/checks/row-kinds.json`, CONTEXT.md
-  "row kind"), never from a record written per scene. These rows, settle, physics, the cast and people rows and the crops rows are the one motion
+  "row kind"), never from a record written per scene. These rows, settle, physics, the cast and people rows are the one motion
   layer (CONTEXT.md "motion"; `stages.MOTION_LAYER` names them by module).
   `light-layer`, `light-passes` (paid) and `light` (experimental, `stages/light`, its overlay) make each place's
   light layer: today's lamps over the seed and its sky from the environment concept's physics overhead at its site

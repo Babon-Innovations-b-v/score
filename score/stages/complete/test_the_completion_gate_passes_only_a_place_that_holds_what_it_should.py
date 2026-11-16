@@ -33,7 +33,7 @@ import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # 
 
 # The stage's own list (its docstring, score/CLAUDE.md): the manifest, then complete.py's checks but resting.
 WHOLE = {"manifest", "rows", "made_only", "placeholders", "picks", "boxes", "reach", "people", "effects", "motion",
-         "crops", "likeness", "painted", "light", "sound", "neighbours", "game", "waiting"}
+         "likeness", "painted", "light", "sound", "neighbours", "game", "waiting"}
 
 
 def answers(folder):

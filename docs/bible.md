@@ -321,7 +321,7 @@ branch names a scene or a world.
 
 - **Which layers a scene has** (`score/stages/design_layers.py`): from its kept scene inventory's row kinds
   (`row_kinds.py`, `data/checks/row-kinds.json`, worked out from each row's noun, never a model call): people where a
-  row acts, crops where one grows on a bed, effects where one emits, motion where one moves, settle and physics where
+  row acts, effects where one emits, motion where one moves, settle and physics where
   one is loose; light and sound in every designed scene. The stage table (`stages.designed`) and the assembly's
   `layers` gate (`assembly.needed_layers`) read this one answer, so the gate never waits on a layer no row makes. No
   kept inventory: no layer rows, and the gate answers unknown.
@@ -444,9 +444,8 @@ branch names a scene or a world.
   Kimodo has no ground of its own and its post-processing pulls a toe in contact back to one flat floor, so a clip
   over ground that is not flat is made without it, its skate left to the sim body's contacts. Gated on `made`, `path
   held` (hips 10 cm off the route on the mean) and `feet held` (soles 5 cm off their ground). Nothing reads it yet.
-- **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed). Every other
-  plant (CONTEXT.md: a tree, a shrub, a potted plant) is a model like any other and no layer of its own; the Buy
-  screen counts every plant of the design (`design_layers.plants_of`) apart from the crops' steps (owner, 2026-10-24).
+- **Plants** (CONTEXT.md "plant"): every plant, on a bed or not, is a model like any other and no layer of its own;
+  the crops layer, the animal rows and the video clip rows were dropped (owner, 2026-11-16, #128).
 - **The assembly** (`score/stages/assembly`): one stage per scene from every layer's accepted output (`assembly.READS`),
   gated on `layers`, placeholders, resting and `collision` (`tools/usd/colliders.py`: every wall, floor, stair and
   ground has a collider, every model its own; a body in the sky none).
@@ -542,11 +541,12 @@ it is off until a flag or a spec asks. Nothing here is a result; the paper's gap
 what proves it.
 
 - **The layers above** (scene record, ground, effects, motion, settle, physics trial, light passes, sound, people,
-  crops, neighbours, scene tree): none has passed on a designed scene yet. Each is proven when a scene's line passes its gates and the owner has
+  neighbours, scene tree): none has passed on a designed scene yet. Each is proven when a scene's line passes its gates and the owner has
   seen (or heard) the layer.
 - **The people line** (`score/stages/people`, `tools/characters/maker`): Pixal3D bodies rigged with SOMA-X and Kimodo's
   clips. Proven when its looks pass every body gate on every clip and the owner picks them.
-- **The animal route** (`tools/characters/animals/`, `make.py --experimental`). Proven when an animal moves in a scene.
+- **The animal route** (`tools/characters/animals/`, `make.py --experimental`; no animal rows since #128). Proven when an
+  animal moves in a scene.
 - **The reach check** (`tools/usd/reach.py`): shown, not counted. Counted once the owner sets the scenery rule and it
   has caught a real unreachable row.
 - **The render-and-compare** (`tools/usd/compare.py`) and **the style measure** (`tools/review/style.py`): candidate

@@ -26,7 +26,7 @@ TOOLS = {
         "use": WIRED, "image": "pixal", "names": ("image-to-3dlab",),
         "callers": ("tools/props/pixal.py", "tools/props/paths.py", "tools/cloud/batch.py",
                     "tools/cloud/images/pixal/Dockerfile"),
-        "stages": ("props", "crops"),
+        "stages": ("props",),
         "why": "Pixal3D, the model made from a picture (asset route locked 2026-09-28), always through pixal.py"},
     "infinigen2": {
         "use": WIRED, "image": None, "names": ("infinigen2",),
@@ -53,10 +53,9 @@ TOOLS = {
     "sam3dbody-cpp": {
         "use": WIRED, "image": "characters-motion", "names": ("sam3dbody-cpp",),
         "callers": ("tools/characters/maker/body_picture.py", "tools/cloud/characters.py",
-                    "tools/characters/clips/video_motion.py", "tools/cloud/images/characters-motion/Dockerfile"),
-        "stages": ("video_clips",),
-        "why": "SAM 3D Body: the body read off a person's close-up (body_picture.py, on rented cards) and a body's "
-               "motion read off the creator's video, the video clip rows (score/stages/video_clips, #52)"},
+                    "tools/cloud/images/characters-motion/Dockerfile"),
+        "stages": ("people_bodies",),
+        "why": "SAM 3D Body: the body read off a person's close-up (body_picture.py, on rented cards)"},
     "sam-3d-body": {
         "use": LEFT_OUT, "image": None, "names": (), "callers": (), "stages": (),
         "why": "Meta's original Python release, kept for its licence and as the reference of sam3dbody-cpp, which "
