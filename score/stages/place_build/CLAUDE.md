@@ -24,6 +24,12 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   still in a clip with tools/characters/cast.py's own steps.
 - **The dome shell** (dome_shell.py, `dome`) is code-made: its shell, ribs and deck are parts for their surfaces;
   `ground` lays the same flat disc alone as the place's ground.
+- **A real ground** (relief.py, `terrain`): a terrain entry is a heightfield model read from a public-domain HiRISE
+  DTM (range requests, never the whole file), its own posts near the centre and wider out to the horizon, bent with
+  the planet; `terrain --pad x,z,r` levels a building's site to the laid height and eases it into the ground.
+- **The sky and its sun** (`sky`): a light entry's sky dome laid as the place's own `/<place>/Environment` (the
+  renderer's ambient light and exposure) and a distant sun from an elevation and heading; never a far sphere lamp.
+- **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only.
 - **Image surfaces** (`surface/ambientcg_*`, CC0 PBR sets taken in with their source in each entry's provenance and
   surface.json) tile at their own `tile_metres` in the preview, box-projected in the object's own frame
   (blender_views.py); a model's bake keeps its own texture coordinates.

@@ -8,6 +8,11 @@
     python -m score.stages.place_build dome <folder> <name> --radius m [--at x,y,z] [--turn rx,ry,rz]
                                        [--meridians n] [--rings n] [--rib m]
     python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
+    python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
+                                       [--pad x,z,radius ...]
+    python -m score.stages.place_build sky <folder> <light/id> --elevation deg --heading deg [--strength s]
+                                       [--colour #rrggbb]
+    python -m score.stages.place_build view <folder> <name> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build batch <folder> <steps.json>
     python -m score.stages.place_build snap <folder> <name> [--grid metres]
     python -m score.stages.place_build surface <folder> <name> <surface/id[@version]> [--colour #rrggbb]
@@ -15,7 +20,7 @@
     python -m score.stages.place_build light <folder> <name> --at x,y,z --watts W [--radius m] [--colour #rrggbb]
     python -m score.stages.place_build remove <folder> <name>
     python -m score.stages.place_build list <folder>
-    python -m score.stages.place_build render <folder> [--width pixels]
+    python -m score.stages.place_build render <folder> [--width pixels] [--views name,name]
     python -m score.stages.place_build compare <folder>
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
@@ -24,6 +29,10 @@ dressed in its body group (`--wear`, its made body by default) and held still in
 `dome` lays the dome shell algorithm (dome_shell.py): its parts `shell`, `ribs` and `deck` (its floor) take a surface
 each (`surface --part`). `ground` lays a flat disc as the place's ground (its part `ground`), for a library surface
 such as surface/ambientcg_ground054; an image surface's maps tile at their real size in the render.
+`terrain` lays a heightfield terrain entry (relief.py, a real DTM's relief) as the ground, each `--pad` (a building's
+site) levelled to its laid height. `sky` lays a light entry's sky dome as the place's own sky and a sun from
+`--elevation` and `--heading` (degrees round from +x towards +z). `view` names a camera besides the concept's;
+`render --views` draws those too, as <folder>/view-<name>.png.
 A glTF-only model or take (our picture-made props) is laid in its own bake and paint.
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
@@ -35,7 +44,7 @@ import sys
 from score.stages import place_build
 
 
-POINTS = ("--at", "--turn", "--eye", "--aim", "--scale")
+POINTS = ("--at", "--turn", "--eye", "--aim", "--scale", "--pad")
 
 
 def with_negatives(given):
@@ -104,6 +113,13 @@ def run(args):
                                 args.meridians, args.rings, args.rib)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
+    if args.step == "terrain":
+        return place_build.terrain(args.folder, args.name, args.address, numbers(args.at), numbers(args.turn),
+                                   [numbers(pad) for pad in args.pad])
+    if args.step == "sky":
+        return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour)
+    if args.step == "view":
+        return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov)
     if args.step == "batch":
         with open(args.steps) as given:
             return place_build.batch(args.folder, json.load(given))
@@ -119,7 +135,7 @@ def run(args):
         return place_build.listing(args.folder)
     if args.step == "render":
         from score.stages.place_build import render
-        return render.render(args.folder, args.width)
+        return render.render(args.folder, args.width, [name for name in (args.views or "").split(",") if name])
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -163,6 +179,25 @@ def parser():
     step.add_argument("name")
     step.add_argument("--radius", type=float, required=True)
     step.add_argument("--at", default="0,0,0")
+    step = steps.add_parser("terrain")
+    for name in ("folder", "name", "address"):
+        step.add_argument(name)
+    step.add_argument("--at", default="0,0,0")
+    step.add_argument("--turn", default="0,0,0")
+    step.add_argument("--pad", action="append", default=[])
+    step = steps.add_parser("sky")
+    step.add_argument("folder")
+    step.add_argument("address")
+    step.add_argument("--elevation", type=float, required=True)
+    step.add_argument("--heading", type=float, required=True)
+    step.add_argument("--strength", type=float, default=1.0)
+    step.add_argument("--colour", default="#ffffff")
+    step = steps.add_parser("view")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--eye", required=True)
+    step.add_argument("--aim", required=True)
+    step.add_argument("--fov", type=float, required=True)
     step = steps.add_parser("batch")
     step.add_argument("folder")
     step.add_argument("steps")
@@ -191,6 +226,7 @@ def parser():
     step = steps.add_parser("render")
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)
+    step.add_argument("--views")
     return made
 
 

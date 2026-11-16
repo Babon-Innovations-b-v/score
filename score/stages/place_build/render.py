@@ -3,9 +3,9 @@ blender_views.py: a laid ground as the ground, see-through looks as thin glass) 
 a time. Writes <folder>/render/concept-look.png and concept-mask.png (the objects' silhouette), copied to
 <folder>/render.png and <folder>/render-mask.png beside the concept.
 
-    views(record, width)        usd_views' views.json for the concept's camera at `width` pixels across
-    command(folder, width)      the queued Blender command
-    render(folder, width)       run it; {"render", "mask", "seconds"} or RenderFailed with the log's tail
+    views(record, width, names)     usd_views' views.json for the concept's camera and the named views, `width` across
+    command(folder, width, names)   the queued Blender command
+    render(folder, width, names)    run it; {"render", "mask", "views", "seconds"} or RenderFailed with the log's tail
 
 A long render is started detached (tools/cloud/detached.py), never waited on in the foreground.
 """
@@ -35,13 +35,19 @@ class RenderFailed(RuntimeError):
     """The preview render did not write its pictures."""
 
 
-def views(record, width=WIDTH):
-    """usd_views' listing of the one concept view, the concept's aspect kept."""
+def views(record, width=WIDTH, names=()):
+    """usd_views' listing of the concept view and the named views `names` (place_build.view; their look only), the
+    concept's aspect kept."""
     wide, tall = record["size"]
     camera = record["camera"]
-    return {"size": [width, max(1, round(width * tall / wide))], "review": True,
-            "views": [{"name": "concept", "eye": camera["eye"], "aim": camera["aim"], "up": [0.0, 1.0, 0.0],
-                       "fov": camera["fov"]}]}
+    unknown = sorted(set(names) - set(record.get("views", {})))
+    if unknown:
+        raise place_build.Refused(f"no view {', '.join(unknown)} (views: {', '.join(record.get('views', {}))})")
+    listed = [{"name": "concept", "eye": camera["eye"], "aim": camera["aim"], "up": [0.0, 1.0, 0.0],
+               "fov": camera["fov"]}]
+    listed += [{"name": name, "eye": record["views"][name]["eye"], "aim": record["views"][name]["aim"],
+                "up": [0.0, 1.0, 0.0], "fov": record["views"][name]["fov"], "look_only": True} for name in names]
+    return {"size": [width, max(1, round(width * tall / wide))], "review": True, "views": listed}
 
 
 def available_gb():
@@ -51,13 +57,13 @@ def available_gb():
     raise RuntimeError("no MemAvailable in /proc/meminfo")
 
 
-def command(folder, width=WIDTH):
+def command(folder, width=WIDTH, names=()):
     """The card queue's command rendering the scene: its views.json written into <folder>/render."""
     folder = pathlib.Path(folder).resolve()
     out = folder / "render"
     out.mkdir(exist_ok=True)
     listing = out / "views.json"
-    listing.write_text(json.dumps(views(place_build.record_of(folder), width), indent=1))
+    listing.write_text(json.dumps(views(place_build.record_of(folder), width, names), indent=1))
     blender = [str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(SCRIPT), "--",
                str(place_build.scene_path(folder)), str(listing), str(out)]
     libraries = ":".join(filter(None, [LIBRARIES, "/usr/lib/wsl/lib"]))
@@ -67,15 +73,16 @@ def command(folder, width=WIDTH):
             "--priority", "other", "--", *scoped]
 
 
-def render(folder, width=WIDTH):
-    """The preview rendered and copied beside the concept."""
+def render(folder, width=WIDTH, names=()):
+    """The preview rendered and copied beside the concept, and each named view in `names` as <folder>/view-<name>.png."""
     free = available_gb()
     if free <= FREE_GB:
         raise RenderFailed(f"{free:.1f} GB memory available, a Blender needs over {FREE_GB}")
     folder = pathlib.Path(folder)
     log = folder / "render" / "blender.log"
-    queued = command(folder, width)
-    for stale in ("render/concept-look.png", "render/concept-mask.png", "render.png", "render-mask.png"):
+    queued = command(folder, width, names)
+    stale_views = [f"render/{name}-look.png" for name in names] + [f"view-{name}.png" for name in names]
+    for stale in ("render/concept-look.png", "render/concept-mask.png", "render.png", "render-mask.png", *stale_views):
         (folder / stale).unlink(missing_ok=True)
     began = time.time()
     with log.open("w") as out:
@@ -86,5 +93,12 @@ def render(folder, width=WIDTH):
         raise RenderFailed(f"exit {done.returncode}, log {log}: {tail}")
     shutil.copyfile(look, folder / "render.png")
     shutil.copyfile(mask, folder / "render-mask.png")
-    return {"render": str(folder / "render.png"), "mask": str(folder / "render-mask.png"),
+    shown = {}
+    for name in names:
+        made = folder / "render" / f"{name}-look.png"
+        if not made.exists():
+            raise RenderFailed(f"the view {name} wrote no picture, log {log}")
+        shutil.copyfile(made, folder / f"view-{name}.png")
+        shown[name] = str(folder / f"view-{name}.png")
+    return {"render": str(folder / "render.png"), "mask": str(folder / "render-mask.png"), "views": shown,
             "seconds": round(time.time() - began, 1)}

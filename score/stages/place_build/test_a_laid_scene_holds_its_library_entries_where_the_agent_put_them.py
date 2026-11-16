@@ -6,7 +6,10 @@ part a material, each wearing its own bake (its base colour map beside it, read 
 a take's finished model laid before its raw one; a ground disc laid as the ground; a character dressed in its made body (its far one hidden) and held still in its clip, its own
 SkelRoot kept; a ground marked as the ground; the dome shell's glass skin, curved ribs and deck as three parts at its radius;
 a batch of steps run in one call, a refused one named while the rest go on; a lamp where it is laid; an entry with no
-USD refused by name, a removed object gone; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
+USD refused by name, a removed object gone; a real terrain's heightfield (fine posts near its centre, wider out, its gaps
+filled) laid as the ground with its building pads levelled to the laid height and the ground beyond untouched; a sky
+laid as the place's own Environment with a sun shining from where it is asked; a named view listed beside the
+concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -24,6 +27,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.ribs: the rib lifted inward (`- out`) -> the dome's box stays inside its radius
 - place_build.batch: a refused step stops the batch -> the step after it is never laid
 - measure.coverage: `shape & silhouette` made `shape` -> the uncovered object reads covered
+- relief.graded_axis: FAR_GROWTH left off (every post 1 m) -> the far posts are not wider than the near ones
+- relief.filled: the gap left NaN -> the terrain holds a NaN height
+- relief.padded_file: the pad's share inverted (`keep = eased`) -> the pad keeps its slope, the far ground goes flat
+- relief.turned_pads: the turn's sine signs swapped -> the pad lands off the dome's spot on the turned terrain
+- place_build.sun_frame: `towards` negated -> the sun shines up from under the ground
+- render.views: the named views left out -> the inside view is not rendered
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
 """
 import json
@@ -36,7 +45,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import measure
+from score.stages.place_build import measure, relief, render
 
 
 def library(root, files):
@@ -90,6 +99,13 @@ def library(root, files):
     entry("surface", "steel", {"material.usda": ("usd", variant), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
     entry("light", "lamp", {"lamps.json": ("record", "{}")})
+    entry("model", "slope", {"terrain.usdc": ("usd", None)})
+    heights = np.add.outer(np.arange(301) * 0.1, np.zeros(301))  # rising 0.1 m a metre down the rows, 300 m square
+    heights[150, 40] = np.nan  # a no-data post
+    relief.heightfield_file(relief.filled(heights), 1.0, files / "model/slope@1/terrain.usdc", near=20.0)
+    sky = ('#usda 1.0\n(\n defaultPrim = "sky_dome"\n)\ndef Xform "sky_dome"\n{\n def DomeLight "Environment"\n {\n'
+           '  float inputs:intensity = 0.2\n }\n}\n')
+    entry("light", "sky", {"sky.usda": ("usd", sky)})
 
 
 def tmp_glb(folder):
@@ -182,6 +198,9 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
             step()
         except place_build.Refused as why:
             refusals.append(str(why))
+    place_build.terrain(folder, "plain", "model/slope", at=(0, 0, 0), turn=(0, 90, 0), pads=[(30.0, 0.0, 5.0)])
+    place_build.sky(folder, "light/sky", elevation=30, heading=0)
+    place_build.view(folder, "inside", eye=(0, 1.6, 0), aim=(1, 1.6, 0), fov=70)
     place_build.put(folder, "gone", "kit/box_piece")
     place_build.remove(folder, "gone")
     shown = place_build.listing(folder)
@@ -216,9 +235,24 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert list(held.GetTranslationsAttr().Get()) == [Gf.Vec3f(0, 1, 0)] and batched[3]["clip"] == "standing"
     assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["deck", "ribs", "shell"]
     assert np.allclose(boxes["dome"], [[-5.1, 0.0, -5.1], [5.1, 5.1, 5.1]], atol=0.02)
-    assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0}]
+    assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
+                              {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    laid_terrain = stage.GetPrimAtPath("/yard/Objects/plain")
+    ground_points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/plain/geo")).GetPointsAttr().Get())
+    in_pad = np.hypot(ground_points[:, 0], ground_points[:, 2] - 30.0) < 5.0  # the terrain's own frame
+    far = np.abs(ground_points[:, 2]) > 100.0
+    posts = np.diff(np.unique(ground_points[:, 0]))
+    assert laid_terrain.GetAttribute("score:ground").Get() and np.isfinite(ground_points).all()
+    assert np.allclose(ground_points[in_pad, 1], 0.0) and np.ptp(ground_points[far, 1]) > 20.0
+    assert posts.max() > 2.0 and np.isclose(posts.min(), 1.0)
+    sun = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Lights/sun")).ComputeLocalToWorldTransform(0)
+    shines = sun.TransformDir(Gf.Vec3d(0, 0, -1))
+    assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)
+    assert np.allclose(shines, (-np.cos(np.radians(30)), -0.5, 0.0), atol=1e-6)
+    listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
+    assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
     assert measure.lab(Image.open(folder / "concept.png").convert("RGB"))[0, 0, 2] < -40
     assert Image.open(compared["picture"]).size == (3 * measure.PANEL, measure.PANEL // 2)

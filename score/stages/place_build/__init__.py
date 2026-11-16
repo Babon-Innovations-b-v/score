@@ -21,9 +21,14 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        glTF-only entry converted once (gltf.py), a character dressed
                                                        and held in a pose of its clip, a ground marked as the ground
     dome(folder, name, radius, at, ...)                the dome shell algorithm (dome_shell.py) laid: glass shell, curved ribs
+    terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
     surface(folder, name, address, colour, part)       a library surface on an object, or on one of its named parts
     light(folder, name, address, at, watts, radius, colour)
+    sky(folder, address, elevation, heading, strength, colour)
+                                                       a library sky laid as the place's own (its dome, its
+                                                       ambient light as /<place>/Environment) and its sun
+    view(folder, name, eye, aim, fov)                  a named view besides the concept's (render --views)
     remove(folder, name)                               an object or light taken out
     listing(folder)                                    what the scene holds, as the agent reads it
     batch(folder, steps)                               many steps (put, surface, light, snap, remove, dome) in one
@@ -280,6 +285,29 @@ def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     return {"name": name, "address": address, "usd": relative, "radius": radius, "ground": True}
 
 
+def terrain(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), pads=()):
+    """A library terrain (a heightfield model, relief.py) laid as Objects/<name> and marked as the place's ground,
+    with each pad (x, z, radius in the scene's frame) levelled to the laid height and eased into the ground round
+    it, as a building's site is graded: its padded copy written once under the place's assets."""
+    import hashlib
+    from score.stages.place_build import relief
+    address, record, copied = fetch(folder, address)
+    source = usd_file(record, copied)
+    pads = [tuple(float(value) for value in pad) for pad in pads]
+    if any(len(pad) != 3 or pad[2] <= 0 for pad in pads):
+        raise Refused(f"a pad is x, z and a radius over 0 ({pads})")
+    own = relief.turned_pads(pads, at, float(turn[1])) if pads else []
+    key = hashlib.sha256(json.dumps([address, [list(pad) for pad in own]]).encode()).hexdigest()[:12]
+    target = pathlib.Path(source).with_name(f"padded_{key}.usdc")
+    if not target.exists():
+        relief.padded_file(source, target, own)
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, record["kind"],
+                              (at, turn, (1.0, 1.0, 1.0)), True)
+    stage.GetRootLayer().Save()
+    return {"name": name, "address": address, "usd": relative, "pads": pads, "ground": True}
+
+
 def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
     """A laid character's body groups `wear` shown (WORN's first it has by default) and every other made invisible,
     its skeleton held still in `clip` `second` seconds in (tools/characters/cast.py's own steps)."""
@@ -436,6 +464,61 @@ def light(folder, name, at, watts, radius=0.05, colour="#ffffff", address="light
     return {"name": name, "light": address, "at": list(at), "watts": watts}
 
 
+def sun_frame(elevation, heading):
+    """The turn of a distant light (UsdLux shines down its own -z) whose light comes from `elevation` degrees over the
+    horizon and `heading` degrees round from +x towards +z, as a 4 x 4 matrix."""
+    import math
+    up, round_ = math.radians(elevation), math.radians(heading)
+    towards = Gf.Vec3d(math.cos(up) * math.cos(round_), math.sin(up), math.cos(up) * math.sin(round_))
+    across = Gf.Cross(Gf.Vec3d(0.0, 1.0, 0.0), towards).GetNormalized()
+    upward = Gf.Cross(towards, across)
+    return Gf.Matrix4d(across[0], across[1], across[2], 0.0, upward[0], upward[1], upward[2], 0.0,
+                       towards[0], towards[1], towards[2], 0.0, 0.0, 0.0, 0.0, 1.0)
+
+
+def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff"):
+    """A library sky (a light entry holding a sky dome and its DomeLight) laid as the place's own sky: its dome under
+    Objects/sky, its DomeLight as /<place>/Environment (the ambient light and exposure the renderer takes as the
+    stage's sky), and its sun a distant light Lights/sun from `elevation` and `heading` degrees, `strength` its
+    intensity, in `colour` ('#rrggbb')."""
+    address, record, copied = fetch(folder, address)
+    if record["kind"] != "light":
+        raise Refused(f"{address} is a {record['kind']}, not a light")
+    source = usd_file(record, copied)
+    held = Usd.Stage.Open(str(source))  # held while its prims are read
+    domes = [prim.GetPath() for prim in held.Traverse() if prim.IsA(UsdLux.DomeLight)]
+    if not domes:
+        raise Refused(f"{address}: its USD holds no DomeLight (no sky)")
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/sky", folder, source, address, record["kind"],
+                              ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), False)
+    environment = stage.DefinePrim(f"/{place}/Environment", "DomeLight")
+    environment.GetReferences().ClearReferences()
+    environment.GetReferences().AddReference(relative, domes[0])
+    environment.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
+    sun = UsdLux.DistantLight.Define(stage, f"/{place}/Lights/sun")
+    UsdGeom.Xformable(sun).ClearXformOpOrder()
+    UsdGeom.Xformable(sun).AddTransformOp().Set(sun_frame(float(elevation), float(heading)))
+    sun.CreateIntensityAttr(float(strength))
+    sun.CreateAngleAttr(0.35)  # the sun's width seen from Mars, degrees
+    sun.CreateColorAttr(Gf.Vec3f(*colour_of(colour)))
+    sun.GetPrim().CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
+    stage.GetRootLayer().Save()
+    return {"sky": address, "usd": relative, "sun": {"elevation": elevation, "heading": heading, "strength": strength}}
+
+
+def view(folder, name, eye, aim, fov):
+    """A named view besides the concept's (an inside view at eye height, a low view across the ground), rendered
+    with the concept's by `render --views`."""
+    if name == "concept":
+        raise Refused("the concept's own view is set with `camera`")
+    record = record_of(folder)
+    record.setdefault("views", {})[name] = {"eye": [float(value) for value in eye],
+                                            "aim": [float(value) for value in aim], "fov": float(fov)}
+    write_record(folder, record)
+    return {name: record["views"][name]}
+
+
 def remove(folder, name):
     """The object (and its look) or light called `name` taken out of the scene."""
     stage, place = opened(folder)
@@ -474,8 +557,8 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
-STEPS = {"put": put, "dome": dome, "ground": ground, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "camera": camera}
+STEPS = {"put": put, "dome": dome, "ground": ground, "terrain": terrain, "surface": surface, "light": light, "snap": snap, "remove": remove,
+         "camera": camera, "sky": sky, "view": view}
 
 
 def batch(folder, steps):
