@@ -445,6 +445,27 @@ def unread_dropped(plan, inventory):
     return said
 
 
+def unread_elements_dropped(plan, inventory):
+    """The plan's concept elements with the rows the reading no longer has taken off them, an element left naming
+    nothing (no row, door, object, decal, item or drop) taken off whole; the fixes said. The street's redrawing kept
+    its "chair" element on diner_seated_chair once the reading of 2026-11-16 no longer read it (plan@street mapped)."""
+    ids = {row["id"] for row in inventory.get("rows", [])}
+    kept, said = [], []
+    for element in plan.get("elements") or []:
+        gone = [row for row in element.get("rows") or [] if row not in ids]
+        if not gone:
+            kept.append(element)
+            continue
+        left = {**element, "rows": [row for row in element["rows"] if row in ids]}
+        if any(left.get(key) for key in ("rows", "door", "object", "decal", "item", "drop")):
+            kept.append(left)
+        said.append(f"concept element {element.get('element')!r}: its row {', '.join(gone)} is no longer read, so "
+                    f"taken off {'it' if left in kept else 'the plan'}")
+    if said:
+        plan["elements"] = kept
+    return said
+
+
 def recounted(plan, inventory, rows=None):
     """(the plan with each row laid as often as the reading counts, the fixes said), free: things of rows no longer
     read taken off (`unread_dropped`), each row of `rows` (None: every row) laid more often than it counts given its
@@ -453,7 +474,7 @@ def recounted(plan, inventory, rows=None):
     holders.relations holds it on its wall or holder there), as count_gaps counts them (a structure row, one beyond
     and a row the plan's `dropped` names left as they are). Everything else is the plan's own."""
     plan = copy.deepcopy(plan)
-    unread = unread_dropped(plan, inventory)
+    unread = unread_dropped(plan, inventory) + unread_elements_dropped(plan, inventory)
     plan, said = surplus_lowered(plan, inventory, rows)
     said = unread + said
     # placed_missing places every short row by its items' first rows: a row the record lays no object of, and one
@@ -527,7 +548,8 @@ def carried(store, place):
     plan, said = recounted(shown["plan"], inventory, laid_rows(place))
     if not said:
         return None
-    return plans.redrawn(store, place, {key: plan[key] for key in ("items", "rows", "shapes")}, CARRIED_BY, {
+    return plans.redrawn(store, place, {key: plan[key] for key in ("items", "rows", "shapes", "elements")
+                                        if key in plan}, CARRIED_BY, {
         "words": CARRIED_WORDS, "at": CARRIED_AT, "reading": read["at"],
         "reason": f"{place}'s plan in force is an agent's edit of {edit['at'][:16]} laid on an older reading than its "
                   f"reading of {read['at'][:16]}, and as the newest edit it wins over the writings of that reading, "

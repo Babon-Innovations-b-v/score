@@ -350,6 +350,11 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     box != still[1:5]] + clear` -> `others += clear` (the box nudged into the suit)
     plan_checks.py `attached`: `or frozenset((first, second)) in joined` dropped (the tunnel nudged out of the dome
     it enters), or `joined_pairs`' `row.get("part") == "structure" and` dropped (the crate kept in the dome)
+    plans_pass.py `unread_elements_dropped`: `if not gone:` -> `if True:` (the street's chair element kept on
+    a row no longer read)
+    plan_checks.py `join_gaps`: `for row in sorted(set(joiners) & set(seen))` -> `for row in sorted(seen)` with
+    `joiners.get(row, {"tunnel"})` (the radiator beside the tunnel read as joined), or `for join in joiners[row]` ->
+    `for join in rows if connector(rows[join])` (the dome counted joined by the tube laid beside it, not its tunnel)
     plan_fixes.py `piled_on_own`: `piles(rows[row])` -> `False` (the sandbag pile stood on the
     floor), or `on_floor[row] not in plan_checks.FLOOR_ANCHORS` dropped (frame 2 taken off its wall)
     plan_fixes.py `floored`: `dict(row, anchor="floor")` -> `row` (RAIL 2 left 1 m up)
@@ -2325,13 +2330,17 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
             [f"{name} {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "item"]
             for name, many in (("CRATE", 3), ("GONE", 1), ("DOOR", 2), ("BARRELS", 3)) for number in range(1, many + 1)]}
         older["rows"] = {item[0]: [item[0].split()[0].lower()] for item in older["items"]}
+        older["elements"] = [{"element": "chair", "rows": ["gone"]}, {"element": "crates", "rows": ["crate", "gone"]}]
         reread = {"picture": [100, 100], "rows": [{"id": "crate", "count": 2, "size": [1.0, 1.0, 1.0]},
                                                    {"id": "door", "count": 1}, {"id": "barrels", "count": 1}]}
         recount, said = plans_pass.recounted(older, reread)
         assert [item[0] for item in recount["items"]] == [
             "CRATE 1", "CRATE 2", "DOOR 1", "DOOR 2", "BARRELS 1", "BARRELS 2", "BARRELS 3"], recount["items"]
-        assert said[:2] == ["gone 1: its row gone is no longer read, so taken off",
+        assert said[:4] == ["gone 1: its row gone is no longer read, so taken off",
+                            "concept element 'chair': its row gone is no longer read, so taken off the plan",
+                            "concept element 'crates': its row gone is no longer read, so taken off it",
                             "crate: 3 laid, its reading counts 2, so 1 taken off"], said
+        assert recount["elements"] == [{"element": "crates", "rows": ["crate"]}], recount["elements"]
         assert plans_pass.recounted(recount, reread)[1] == [] and len(older["items"]) == 9
         # the lock's copies dropped, one astronaut left; a numbered spot short of its row's count given its row back,
         # one more of that full row a copy; a spot in a wall, the crate or another person moved to the nearest clear
@@ -3459,8 +3468,8 @@ MEASURED = [  # (row, the footprint measure, its arguments: answer, skeleton, in
 
 
 CONCEPT_ROWS = {"picture": [1000, 1000], "rows": [  # a hub in the middle, a dome left, a hangar behind, a tube hub-dome
-    {"id": "hub", "count": 1, "boxes": [[400, 400, 600, 600]]},
-    {"id": "dome", "count": 1, "boxes": [[100, 420, 250, 580]]},
+    {"id": "hub", "count": 1, "part": "structure", "boxes": [[400, 400, 600, 600]]},
+    {"id": "dome", "count": 1, "part": "structure", "boxes": [[100, 420, 250, 580]]},
     {"id": "hangar", "count": 1, "boxes": [[350, 50, 650, 200]]},
     {"id": "tube", "count": 1, "boxes": [[250, 480, 400, 520]]}]}
 AS_DRAWN = {"w": 40.0, "d": 40.0, "doors": [], "people": [[30.0, 35.0]],
@@ -3484,6 +3493,17 @@ DINER = {"w": 6.0, "d": 4.0, "doors": [], "people": [[4.0, 3.0, None, "diner"]],
          "items": [["CRATE 1", 1.0, 1.0, 1.0, 1.0, None, "item"], ["DINER 1", 1.2, 1.2, 0.5, 0.5, None, "item"],
                    ["DISTANT FLAG 1", 9.0, 1.0, 1.0, 1.0, None, "item"]],
          "rows": {"CRATE 1": ["crate"], "DINER 1": ["diner"], "DISTANT FLAG 1": ["distant_flag"]}}
+TUNNEL_ROWS = {"picture": [1000, 1000], "rows": [  # a dome left, its tunnel right of it, a radiator at the tunnel's
+    # end, a tube far right that joins nothing (old_station, 2026-11-16)
+    {"id": "dome", "count": 1, "part": "structure", "boxes": [[100, 420, 250, 580]]},
+    {"id": "tunnel", "count": 1, "part": "structure", "boxes": [[250, 480, 400, 520]]},
+    {"id": "radiator", "count": 1, "part": "item", "boxes": [[400, 450, 450, 520]]},
+    {"id": "tube", "count": 1, "part": "structure", "boxes": [[800, 480, 950, 520]]}]}
+TUNNEL_OFF = {"w": 40.0, "d": 40.0, "doors": [], "people": [[30.0, 35.0]],
+              "items": [["DOME 1", 2.0, 21.0, 8.0, 8.0, None, "item"], ["TUBE 1", 10.0, 24.0, 10.0, 2.0, None, "item"],
+                        ["TUNNEL 1", 2.0, 34.0, 10.0, 2.0, None, "item"],
+                        ["RADIATOR 1", 30.0, 10.0, 2.0, 1.0, None, "item"]],
+              "rows": {"DOME 1": ["dome"], "TUBE 1": ["tube"], "TUNNEL 1": ["tunnel"], "RADIATOR 1": ["radiator"]}}
 GAP_WORDS = [  # (row, a written plan, its inventory, the gap kinds read or None for all, the gaps' words: a list is
     # exactly them, a set is among them)
     ("laid as the concept, seen from the south", AS_DRAWN, CONCEPT_ROWS, {"arrangement", "joined"}, []),
@@ -3492,6 +3512,8 @@ GAP_WORDS = [  # (row, a written plan, its inventory, the gap kinds read or None
         ["TUBE 1", 2.0, 34.0, 10.0, 2.0, None, "item"]]}, CONCEPT_ROWS, {"arrangement", "joined"},
      {"dome is left of hub in the concept, right of it on the plan",
       "hub is joined by a tube in the concept, by none on the plan"}),
+    ("a radiator drawn at a tunnel's end is not joined; a dome is joined by its own tunnel, not a tube beside it",
+     TUNNEL_OFF, TUNNEL_ROWS, {"joined"}, ["dome is joined by a tunnel in the concept, by none on the plan"]),
     ("a run of 6 crates is all 6, each row where drawn and facing as drawn", DESKS, DESK_ROWS, None, []),
     ("the pad off to the side, the desk turned away", {**DESKS, "items": [
         ["PAD 1", 22.0, 10.0, 4.0, 4.0, None, "item"], ["DESK 1", 1.0, 10.0, 2.0, 1.0, "N", "item"], *DESK_LAID[2:]]},

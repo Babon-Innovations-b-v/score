@@ -1298,7 +1298,7 @@ def edited(store, place, plan, by, how="edited", calls=None, asked=None):
 
 # What a free redrawing of a plan may give (`redrawn`): its drawing's fields; anything else is kept as shown.
 REDRAWN = ("title", "w", "d", "height", "outline", "walls", "openings", "doors", "leads", "levels", "roofs", "stairs",
-           "items", "rows", "shapes", "people", "holds", "notes", "length")
+           "items", "rows", "shapes", "people", "holds", "notes", "length", "elements")
 OPENING_KINDS = ("door", "gate", "opening", "window")
 
 

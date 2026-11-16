@@ -748,23 +748,26 @@ def touching(box, other, margin):
 
 
 def join_gaps(plan, inventory):
-    """A gap for each row a connector (a tube, a corridor) meets in the concept that no connector meets on the plan."""
-    picture = inventory.get("picture")
+    """A gap for each structure row a connector meets in the concept (joined_pairs: a dome, a module, a hub; never a
+    radiator or a sandbag only drawn beside a tunnel) that none of its own connectors meets on the plan, naming the
+    connector that meets it (old_station's radiator, sandbags and mast each read as joined by its first tunnel, so the
+    fixes laid a "connecting tunnel left" at each, 2026-11-16)."""
     rows = {row["id"]: row for row in inventory.get("rows", [])}
-    joins = [row for row in rows.values() if connector(row)]
-    if not picture or not joins:
-        return []
-    seen = concept_spots(plan, inventory)
-    margin = JOIN_SEEN * max(picture)
-    joined = {row for row, (*_, box) in seen.items() if not connector(rows[row]) and any(
-        touching(box, join_box, margin) for join in joins for join_box in join.get("boxes") or [] if join_box)}
-    boxes = laid_boxes(plan)
-    laid_joins = [box for join in joins for box in boxes.get(join["id"], [])]
-    joiner = said_name(joins[0]["id"])
-    return [{"kind": "joined", "item": row, "row": row, "at": middle_of([boxes[row][0][:2], boxes[row][0][2:]]),
-             "words": f"{said_name(row)} is joined by a {joiner} in the concept, by none on the plan"}
-            for row in sorted(joined) if boxes.get(row)
-            and not any(touching(box, join_box, JOIN_LAID) for box in boxes[row] for join_box in laid_joins)]
+    joiners = {}
+    for pair in joined_pairs(inventory):
+        join, row = sorted(pair, key=lambda part: not connector(rows[part]))
+        joiners.setdefault(row, set()).add(join)
+    seen, boxes = concept_spots(plan, inventory), laid_boxes(plan)
+    gaps = []
+    for row in sorted(set(joiners) & set(seen)):
+        laid_joins = [box for join in joiners[row] for box in boxes.get(join, [])]
+        if boxes.get(row) and not any(touching(box, join_box, JOIN_LAID) for box in boxes[row]
+                                      for join_box in laid_joins):
+            joiner = " or ".join(said_name(join) for join in sorted(joiners[row]))
+            gaps.append({"kind": "joined", "item": row, "row": row,
+                         "at": middle_of([boxes[row][0][:2], boxes[row][0][2:]]),
+                         "words": f"{said_name(row)} is joined by a {joiner} in the concept, by none on the plan"})
+    return gaps
 
 
 def checked(plan, inventory, structure=()):
