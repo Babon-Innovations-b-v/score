@@ -1098,12 +1098,12 @@ BOXED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None
          "rows": {f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
          "shapes": {f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)}}
 # The concept's view (#128 cause 6): a 10 m room walled 3 m high, roofed 2.4 m high over its south strip (y 6 to 10),
-# with a shelf hung on its south wall (x 4 to 6, y 9 to 9.5), seen from the south (no projection fits: no row boxed), and the same room's three crates boxed on a concept
+# with a shelf hung on its south wall (x 0.5 to 2.5, y 9 to 9.5), seen from the south (no projection fits: no row boxed), and the same room's three crates boxed on a concept
 # seen from the west (up the picture is east: plan x = 10 (1 - foot), y = 10 across), each crate 0.3 m tall.
 CONCEPT_PICTURE = [1000, 1000]
 CONCEPT_WALLS = [{"from": one, "to": two, "tall": 3.0} for one, two in (
     ([0, 0], [10, 0]), ([10, 0], [10, 10]), ([10, 10], [0, 10]), ([0, 10], [0, 0]))]
-SHELVED = {"w": 10.0, "d": 10.0, "walls": CONCEPT_WALLS, "items": [["SHELF 1", 4.0, 9.0, 2.0, 0.5, None, "item"]],
+SHELVED = {"w": 10.0, "d": 10.0, "walls": CONCEPT_WALLS, "items": [["SHELF 1", 0.5, 9.0, 2.0, 0.5, None, "item"]],
            "rows": {"SHELF 1": ["shelf"]}, "shapes": {"SHELF 1": {"tall": 0.4}},
            "roofs": [{"kind": "flat", "points": [[0, 6], [10, 6], [10, 10], [0, 10]], "eave": 2.4, "top": 2.4}]}
 SHELF_ROWS = [{"id": "shelf", "anchor": "wall", "size": [2.0, 0.5, 0.4], "count": 1}]
@@ -1178,21 +1178,24 @@ CASES = [(name, design, rows, relations, shell_rows, None, *laid)
      ({**CRATE_RECORD, "floor": [[-5.0, -5.0], [5.0, 4.0]], "doorways": [],
        "standing": [{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}]}, (False, "shed"), False, ("sight",)),
      {"spot-1": {"why": Matches("every way it turns")}}, {"view": [], "left out": ["spot-1"]}, None, None),
-    ("the concept's view stands high at the back of the room, a metre clear of the hung shelf", SHELVED, SHELF_ROWS,
-     None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
-     {"concept": {"eye": [0.0, 2.0, 3.0], "aim": [0.0, 0.0, 0.0], "held": True, "from": Matches("looking north")}},
+    ("the concept's view stands high in the back corner, a metre clear of the hung shelf, 20 degrees down", SHELVED,
+     SHELF_ROWS, None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
+     {"concept": {"eye": [-3.005, 2.0, 3.005], "aim": [0.88, 0.0, -0.88], "held": True,
+                  "from": Matches("north .* 20 degrees down")}},
      {"view": ["concept"], "left out": []}, None, None),
     ("the concept's view looks the way the concept does, held under the walls' top", SEEN_CRATES, SEEN_CRATE_ROWS,
      None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
-     {"concept": {"eye": [-3.75, 2.6, 0.0], "aim": [0.0, 0.0, 0.0], "from": Matches("the way the concept looks")}},
+     {"concept": {"eye": [-3.889, 2.6, -3.889], "aim": [1.162, 0.0, 1.162],
+                  "from": Matches("the way the concept looks")}},
      {"view": ["concept"], "left out": []}, None, None),
     ("a tube's concept view stands on its axis under its crown, looking along its run clear of its end",
      RIBBED_TUBE, RIB_ROWS, None, None, (NO_SPOTS, (False, "shed"), False, ("concept",)),
-     {"concept": {"eye": Near([0.0, 2.3, 4.0], 0.01), "aim": [0.0, 0.0, 0.0], "from": Matches("along the tube's run")}},
+     {"concept": {"eye": Near([0.0, 2.3, 4.0], 0.01), "aim": [0.0, 0.0, -2.319],
+                  "from": Matches("along the tube's run")}},
      {"view": ["concept"], "left out": []}, None, None),
-    ("an open place's concept view rises on to the plan's edge", {**SEEN_CRATES, "walls": []}, SEEN_CRATE_ROWS,
-     None, None, (NO_SPOTS, (False, "shed"), False, ("concept", "open")),
-     {"concept": {"eye": Near([-5.0, 4.195, 0.0], 0.01)}}, {"view": ["concept"], "left out": []}, None, None),
+    ("an open place's concept view rises in its back corner to look 30 degrees down at the plan's far edge",
+     {**SEEN_CRATES, "walls": []}, SEEN_CRATE_ROWS, None, None, (NO_SPOTS, (False, "shed"), False, ("concept", "open")),
+     {"concept": {"eye": Near([-4.95, 9.083, -4.95], 0.01), "aim": [4.95, 1.0, 4.95]}}, {"view": ["concept"], "left out": []}, None, None),
 ]
 
 
@@ -2020,18 +2023,27 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     Break: score/stages/scene_record/writer.py: `return [upright(view, plan["floor"]) for view in found]` ->
         `return found`
     #128 cause 6: the film's first camera stood in a bunk (habitat), outside a wall (shiplock), a shelf at arm's
-    length (garage) or facing the empty side (workshop). The record's first view is the concept's: down at the
-    floor's middle, stepped back the way the concept looks to the last step clear by a metre of walls and of anything
-    under the eye less than 0.3 m, 0.4 m under the walls' top or the roof over it: in a 10 m room walled 3 m high it
-    stops 3 m back from the middle, at (0, 2.0, 3), 1 m short of the shelf hung on the south wall, under the 2.4 m roof;
-    seen from the west on the crates' projection it stands 3.75 m back west, at (-3.75, 2.6, 0), under the walls' top;
-    an open place's rises 40 degrees on to its plan's edge, 5 m back and 5 tan 40 m up.
+    length (garage) or facing the empty side (workshop); 2026-11-16, aimed down at the floor's middle from under the
+    walls' top, airlock's first still looked straight down at its bare floor and galley's at floor and chairs, no wall.
+    The record's first view is the concept's: stepped from the floor's middle toward the corner behind the way the
+    concept looks to the last step clear by a metre of walls and of anything under the eye less than 0.3 m, 0.4 m
+    under the walls' top or the roof over it, looking back through the middle at the far edge 1 m over the floor, its
+    pitch held within 20 to 40 degrees down: in a 10 m room walled 3 m high seen from the south it stops in the south
+    west at (-3.005, 2.0, 3.005), 1 m short of the shelf hung on the south wall's west end, under the 2.4 m roof, and
+    looks 20 degrees down (the far corner 1 m up is 4 degrees down), aiming at the floor 4.1 m on; seen from the west
+    on the crates' projection it stands in the north west, at (-3.889, 2.6, -3.889), under the walls' top; an open
+    place's stands in its back corner and rises to look 30 degrees down at the far corner 1 m up, 9.9 sqrt 2 m off.
     Break: score/stages/scene_record/writer.py: `top = tall if anchor in plan_checks.FLOOR_ANCHORS else np.inf if
         anchor in HUNG_ANCHORS else tall + 1.0` -> `top = tall` (the eye 0.5 m off the shelf)
-    Break: score/stages/scene_record/writer.py: `away = ways[0] if ways is not None else np.array([0.0, -1.0])` ->
-        `away = np.array([0.0, -1.0])` (the crates' room seen from the south)
+    Break: score/stages/scene_record/writer.py: `ways = far.heading(design, inventory)` -> `ways = None` (the crates'
+        room seen from the south)
+    Break: score/stages/scene_record/writer.py: concept_aim's `pitch = min(max(` ... `)` -> `pitch =
+        math.degrees(math.atan2(eye[1] - far_point[1], across))` (the shelf room's view 4 degrees down, its aim the far
+        corner)
+    Break: score/stages/scene_record/writer.py: `target = concept_aim(eye, far_point, min(under, floor))` -> `target =
+        place_plan.placed(design, *middle)` (aimed at the floor's middle)
     Break: score/stages/scene_record/writer.py: `high = floor + ceiling_top - CONCEPT_UNDER if enclosed and
-        ceiling_top else None` -> `high = None` (the eye risen 40 degrees, over the walls' top)
+        ceiling_top else None` -> `high = None` (the eye risen 30 degrees, over the walls' top)
     Break: score/stages/scene_record/writer.py: `if plan_checks.inside(spot[None, :], points)[0]])` ->
         `if False])` (the eye 2.6 m up, in the roof)
     Break: score/stages/scene_record/writer.py: `high = min(high, floor + crown - CONCEPT_UNDER)` -> `high = min(high,

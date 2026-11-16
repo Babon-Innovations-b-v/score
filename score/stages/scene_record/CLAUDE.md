@@ -96,12 +96,15 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   draws (`writer.sky_dome`; 2026-11-02: left out since the old records went, every outdoor Mars sky was black). Kept
   out of data/physics/bodies.json and score/review/setting.py on purpose: those sit in about 200 rows' keys.
 - **Views**: first the concept's (`concept_view`, #128 cause 6: the film's first camera stood in a bunk, outside a
-  wall, a shelf at arm's length or facing the empty side): down at the floor's middle the way the concept looks
-  (`far.heading`, else north), stepped back to the last step inside the outline clear by `CONCEPT_ROOM` (1 m, else
-  0.75 or 0.5 in a tight room) of walls, hung things and anything under the eye by less than `CONCEPT_OVER`, its
-  look clear for `CONCEPT_LOOK`; an inside place's eye `CONCEPT_UNDER` under its walls' top or the roof over it (a
-  cutaway's eye stands outside the walls; ours stays in the room, high, looking down across it), an open place's
-  rising `CONCEPT_PITCH` (40, the concepts' "35 to 45 degrees down"); a walkway tube's on its axis line looking along
+  wall, a shelf at arm's length or facing the empty side; 2026-11-16, aimed at the floor's middle, airlock's still
+  looked straight down at bare floor): a high three-quarter view from the corner behind the way the concept looks
+  (`far.heading`, else north; `concept_corner`, else straight back in a corridor too narrow for it), stepped from the
+  floor's middle to the last step inside the outline clear by `CONCEPT_ROOM` (1 m, else 0.75 or 0.5 in a tight room)
+  of walls, hung things and anything under the eye by less than `CONCEPT_OVER`, its look clear for `CONCEPT_LOOK`,
+  looking back through the middle at the far edge `CONCEPT_AIM` (1 m) over its floor, its pitch held within
+  `CONCEPT_PITCHES` (20 to 40 degrees down; nearer along the look where it would aim under the floor); an inside
+  place's eye `CONCEPT_UNDER` under its walls' top or the roof over it (a cutaway's eye stands outside the walls; ours
+  stays in the room), an open place's rising to look `CONCEPT_PITCH` (30) down at the plan's far edge; a walkway tube's on its axis line looking along
   its run, under its hull's crown, no nearer its end than the clearance, its ribs leaving its axis clear; `held`, so the film stands at its eye. Then views from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
   outline is left out with why (`views_left_out`), never written to see the walls from behind. A look that meets a wall or
   floor thing within 1 m (`CLEAR_LOOK`) turns to the nearest clear way, else is left out with why (2026-10-31: flat's

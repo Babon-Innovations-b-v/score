@@ -40,9 +40,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
     environment  inside or not, and the sky at the place's site at its scene time from the physics (overhead.py: each
                  light over the horizon, every other body, every backdrop), which the light layer draws
                  (score/stages/light/sky.py); the record draws no sky and holds no air the design does not give
-    views        first the concept's view (`concept_view`, #128: high, CONCEPT_PITCH down at the floor's middle the
-                 way the concept looks, as far back in the room's free space as it stands clear; the film's first
-                 camera, `held` at its height), then one from inside each doorway looking across, one from each of
+    views        first the concept's view (`concept_view`, #128: high in the corner behind the way the concept
+                 looks, as far back in the room's free space as it stands clear, across at the far edge CONCEPT_PITCHES
+                 down; the film's first camera, `held` at its height), then one from inside each doorway looking across, one from each of
                  the plan's person spots (an inside
                  place's only where the eye stands inside its outline: the others in `views_left_out`, with why); an
                  open place's spot at its floor stands on the terrain row's made ground under it (`terrain`, the one
@@ -105,18 +105,24 @@ TURN_STEP = 15
 STEEP = 10.0
 # The concept's view, the record's first (#128 cause 6: the film opened at a door or a spot, a 1.6 m eye in a bunk,
 # outside a wall, a shelf at arm's length or facing the empty side): every concept is drawn "high three-quarter ... 35
-# to 45 degrees down" (score/review/concepts.py INSIDE_VIEW, OUTSIDE_VIEW). An inside place's eye stands
-# CONCEPT_UNDER under its walls' top (its cutaway's eye stands outside the walls; ours stays in the room, high,
-# looking down across it); an open place's rises CONCEPT_PITCH as it steps back. It looks at the floor's middle along
-# the way the concept looks (far.heading), from as far back as it stands clear, stepped back CONCEPT_STEP at a time:
-# CONCEPT_ROOM round it clear of walls and of anything less than CONCEPT_OVER under the eye, its look clear for
-# CONCEPT_LOOK; a room too tight for the first clearance tries the next (quarters' bunks, 4.5 m across).
-CONCEPT_PITCH = 40.0
+# to 45 degrees down" (score/review/concepts.py INSIDE_VIEW, OUTSIDE_VIEW), from high in one corner across the room at
+# its far walls. Its eye steps from the floor's middle toward the outline's corner furthest behind the way the concept
+# looks (far.heading), as far as it stands clear, CONCEPT_STEP at a time: CONCEPT_ROOM round it clear of walls and of
+# anything less than CONCEPT_OVER under the eye, its look clear for CONCEPT_LOOK; a room too tight for the first
+# clearance tries the next (quarters' bunks, 4.5 m across). It looks back through the middle at the far edge,
+# CONCEPT_AIM over its floor, its pitch held within CONCEPT_PITCHES down (2026-11-16: aimed at the floor's middle from
+# under the walls' top, airlock's first still looked straight down at its bare floor and galley's at floor and chairs,
+# no wall). An inside place's eye stands CONCEPT_UNDER under its walls' top (its cutaway's eye stands outside the
+# walls; ours stays in the room); an open place's rises to look CONCEPT_PITCH down at the plan's far edge.
+CONCEPT_PITCH = 30.0
+CONCEPT_PITCHES = (20.0, 40.0)
+CONCEPT_AIM = 1.0
 CONCEPT_ROOM = (1.0, 0.75, 0.5)
 CONCEPT_OVER = 0.3
 CONCEPT_LOOK = 1.5
 CONCEPT_UNDER = 0.4
 CONCEPT_STEP = 0.25
+CONCEPT_EDGE_STEP = 0.1
 # Anchors whose thing hangs off a wall or the ceiling: its column is solid to the eye (garage's shelf, 0.7 m off it).
 HUNG_ANCHORS = ("wall", "ceiling", "roof")
 # The day sky's picture (sky_dome): its brightness and colour balance in red, green and blue, and the picture's width
@@ -905,19 +911,54 @@ def concept_tops(design, inventory):
     return grid, tops
 
 
+def concept_corner(outline, middle, ways):
+    """The unit plan way from `middle` to the outline's corner furthest behind the way the concept looks (`ways`:
+    far.heading's away and right), the left one of two as far behind, so the eye looks across the room at its far
+    walls; straight back where the corner is the middle."""
+    away, right = ways
+    offsets = outline - middle
+    corner = offsets[int(np.argmax(-(offsets @ away) - 1e-3 * (offsets @ right)))]
+    length = float(np.linalg.norm(corner))
+    return corner / length if length > 1e-9 else -away
+
+
+def far_edge(outline, spot, look):
+    """The last plan point CONCEPT_EDGE_STEP by CONCEPT_EDGE_STEP from `spot` along `look` that lies inside the
+    outline: the far edge the concept's view aims at."""
+    steps = np.arange(0.0, float(np.ptp(outline, axis=0).sum()) + CONCEPT_EDGE_STEP, CONCEPT_EDGE_STEP)
+    points = spot + np.outer(steps, look)
+    inside = plan_checks.inside(points, outline)
+    leaves = np.flatnonzero(~inside)
+    return points[max(int(leaves[0]) - 1, 0)] if len(leaves) else points[-1]
+
+
+def concept_aim(eye, far_point, floor):
+    """The point the concept's view aims at from `eye`: toward `far_point` (place frame, CONCEPT_AIM over its floor)
+    with its pitch held within CONCEPT_PITCHES down, brought nearer along the look where it would aim under `floor`."""
+    flat = np.array([far_point[0] - eye[0], far_point[2] - eye[2]])
+    across = max(float(np.linalg.norm(flat)), 1e-9)
+    pitch = min(max(math.degrees(math.atan2(eye[1] - far_point[1], across)), CONCEPT_PITCHES[0]), CONCEPT_PITCHES[1])
+    slope = math.tan(math.radians(pitch))
+    reach = across if eye[1] - across * slope >= floor else max(eye[1] - floor, 0.0) / slope
+    return np.array([eye[0] + flat[0] / across * reach, eye[1] - reach * slope, eye[2] + flat[1] / across * reach])
+
+
 def concept_view(design, inventory, eye_height, enclosed, ground=None, sight=None):
-    """The concept's view (CONCEPT_PITCH above): its eye stepped back from the floor's middle against the way the
-    concept looks (far.heading's away; looking north, the painting's near side at the plan's bottom, where no
-    projection fits), at least a person's eye over what it stands on, to the furthest step that stays inside the
-    outline and clear by the first of CONCEPT_ROOM that leaves one. In a walkway tube (design_shell.tube_of) the eye
-    stands on its axis line, looking along its run (the end the concept's way leans to) from no nearer its end than
-    the clearance, under its hull's crown (the tube's eye stood 2.8 m up over its 2.7 m crown, in its end doorway,
-    2026-11-16). `held`: the film stands at this eye (tools/review/demo.py), never lowered to a walker's. None where no
-    step stands clear."""
+    """The concept's view (CONCEPT_PITCHES above): its eye stepped from the floor's middle toward the corner behind the
+    way the concept looks (`concept_corner`; looking north, the painting's near side at the plan's bottom, where no
+    projection fits; straight back against it where no step that way stands clear: walkway's 1.5 m corridor), at least
+    a person's eye over what it stands on, to the furthest step that stays inside the outline and clear by the first
+    of CONCEPT_ROOM that leaves one, aimed back through the middle at the far edge
+    (`far_edge`, `concept_aim`). In a walkway tube (design_shell.tube_of) the eye stands on its axis line, looking
+    along its run (the end the concept's way leans to) from no nearer its end than the clearance, under its hull's
+    crown (the tube's eye stood 2.8 m up over its 2.7 m crown, in its end doorway, 2026-11-16). `held`: the film
+    stands at this eye (tools/review/demo.py), never lowered to a walker's. None where no step stands clear."""
     ways = far.heading(design, inventory)
-    away = ways[0] if ways is not None else np.array([0.0, -1.0])
-    said = "the way the concept looks (its plan fixes' projection)" if ways is not None else \
-        "north (no projection of the concept fits: its near side is the plan's bottom)"
+    if ways is None:
+        ways = (np.array([0.0, -1.0]), np.array([1.0, 0.0]))
+        said = "north (no projection of the concept fits: its near side is the plan's bottom)"
+    else:
+        said = "the way the concept looks (its plan fixes' projection)"
     grid, tops = concept_tops(design, inventory)
     outline = np.asarray(plan_checks.outline_of(design), dtype=float)
     middle = outline.mean(axis=0) if design.get("outline") else far.middle_of(design)
@@ -925,43 +966,48 @@ def concept_view(design, inventory, eye_height, enclosed, ground=None, sight=Non
     ceiling_top = max((float(wall.get("tall") or 0.0) for wall in design.get("walls") or []), default=0.0) or \
         ceiling(design)
     high = floor + ceiling_top - CONCEPT_UNDER if enclosed and ceiling_top else None
-    tube, run, reach = design_shell.tube_of(design), design_shell.tube_run(design), np.inf
+    walks, reach = ((concept_corner(outline, middle, ways), "toward its corner behind"),
+                    (-ways[0], "straight back against")), np.inf
+    tube, run = design_shell.tube_of(design), design_shell.tube_run(design)
     if tube is not None and run is not None and high is not None:
-        away = run if float(away @ run) >= 0 else -run
-        said = f"along the tube's run, {said}"
+        walks = ((-run if float(ways[0] @ run) >= 0 else run, "back along the tube's run against"),)
         crown = float(design_shell.lowest_eave(design) or 0.0) + tube["axis"] + tube["radius"]
         high = min(high, floor + crown - CONCEPT_UNDER)
         reach = float(np.ptp(outline @ run)) / 2
     roofs = [(np.asarray(roof["points"], dtype=float), float(roof.get("eave") or roof.get("top") or ceiling_top))
              for roof in design.get("roofs") or [] if len(roof.get("points") or []) >= 3]
-    target = place_plan.placed(design, *middle)
-    if ground:
-        target[1] = ground(target[0], target[2]) or target[1]
     best = None
-    for room in CONCEPT_ROOM:
+    for (walk, words), room in ((walk, room) for walk in walks for room in CONCEPT_ROOM):
         for back in np.arange(CONCEPT_STEP, float(np.hypot(design["w"], design["d"])), CONCEPT_STEP):
-            spot = middle - away * back
+            spot = middle + walk * back
             if back > reach - room or not plan_checks.inside(spot[None, :], outline)[0]:
                 break
             eye = place_plan.placed(design, *spot)
             stands = (ground(eye[0], eye[2]) if ground else None) or floor
-            rise = target[1] + back * math.tan(math.radians(CONCEPT_PITCH)) if high is None else \
+            far_point = place_plan.placed(design, *far_edge(outline, spot, -walk))
+            under = (ground(far_point[0], far_point[2]) if ground else None) or far_point[1]
+            far_point[1] = under + CONCEPT_AIM
+            across = float(np.hypot(far_point[0] - eye[0], far_point[2] - eye[2]))
+            rise = far_point[1] + across * math.tan(math.radians(CONCEPT_PITCH)) if high is None else \
                 min([high] + [floor + eave - CONCEPT_UNDER for points, eave in roofs
                               if plan_checks.inside(spot[None, :], points)[0]])
             eye[1] = max(rise, stands + eye_height)
+            target = concept_aim(eye, far_point, min(under, floor))
             near = np.linalg.norm(grid.centres - spot, axis=1).reshape(grid.shape) <= room
             if not (stands + tops[near] > eye[1] - CONCEPT_OVER).any() and \
                     not (sight and sight(eye, target, stands, CONCEPT_LOOK) is not None):
-                best = (back, eye, room)
+                best = (back, eye, target, room, words)
         if best is not None:
             break
     if best is None:
         return None
-    back, eye, room = best
+    back, eye, target, room, words = best
+    look = target - eye
+    pitch = math.degrees(math.atan2(-look[1], float(np.hypot(look[0], look[2]))))
     view = {"name": "concept", "eye": [round(float(value), 3) for value in eye],
             "aim": [round(float(value), 3) for value in target], "fov": far.VIEW_FOV, "held": True,
-            "from": f"the concept's view: down at the floor's middle, looking {said}, {back:g} m back in the room's "
-                    f"free space, clear by {room:g} m"}
+            "from": f"the concept's view: {back:g} m back in the room's free space {words} the way it looks, "
+                    f"{said}, across at the far edge {pitch:.0f} degrees down, clear by {room:g} m"}
     return upright(view, [[min(eye[0], target[0]) - 1, min(eye[2], target[2]) - 1],
                           [max(eye[0], target[0]) + 1, max(eye[2], target[2]) + 1]])
 
