@@ -438,23 +438,28 @@ def walkway_faults(laid):
 # --- connectors ---------------------------------------------------------------------------------------------------
 
 def connector_axis(mesh):
-    """A tube's two ends (its axis' ends, at its middle height) and its half width: its longest horizontal extent."""
+    """A tube's two ends (its axis' ends, at its middle height) and its half width. The axis is the level way its
+    skin's faces turn least towards (a tube's skin faces out across its axis, weighed by area), so neither a tube as
+    wide as it is long nor a finely cut end wall turns it across the tube."""
+    normals = np.asarray(mesh.face_normals)[:, [0, 2]] * np.sqrt(np.asarray(mesh.area_faces))[:, None]
+    _, vectors = np.linalg.eigh(normals.T @ normals)
+    axis = vectors[:, 0]
     points = np.asarray(mesh.vertices)
     flat = points[:, [0, 2]] - points[:, [0, 2]].mean(axis=0)
-    _, _, rows = np.linalg.svd(flat, full_matrices=False)
-    along = flat @ rows[0]
+    along = flat @ axis
     middle = points.mean(axis=0)
-    direction = np.array([rows[0][0], 0.0, rows[0][1]])
+    direction = np.array([axis[0], 0.0, axis[1]])
     ends = [middle + direction * along.min(), middle + direction * along.max()]
-    return ends, direction, float(np.abs(flat @ rows[1]).max())
+    return ends, direction, float(np.abs(flat @ np.array([-axis[1], axis[0]])).max())
 
 
 def connector_faults(laid, name, floor):
-    """A connector with an end joined to nothing, or no walkable floor along it."""
+    """A connector with an end joined to nothing (a shell, wall, another connector, or a door closing it: an
+    airlock's outer end), or no walkable floor along it."""
     mesh = laid.meshes[name]
     ends, direction, _ = connector_axis(mesh)
     points = np.asarray(mesh.vertices)
-    structure = [other for other in laid.with_role("shell", "structure", "connector") if other != name]
+    structure = [other for other in laid.with_role("shell", "structure", "connector", "door") if other != name]
     faults = []
     for label, end in zip(("start", "end"), ends):
         ring = points[np.abs((points - end) @ direction) <= 0.15]
