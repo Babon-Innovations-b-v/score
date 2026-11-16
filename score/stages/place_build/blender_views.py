@@ -136,7 +136,8 @@ def tiled_maps(objects):
     return changed
 
 
-DICING_PIXELS = 3.0  # an adaptive subdivision's micro-face size on screen, pixels
+DICING_PIXELS = 3.0  # an adaptive subdivision's micro-face size on screen, pixels, in a DICING_WIDTH-wide picture
+DICING_WIDTH = 1100  # a wider picture cuts its faces as coarse on the ground (its 8 GB held a low view at 1100, not 1500)
 DISPLACEMENT_LEVELS = 5  # the deepest a displaced ground's faces are cut
 OFFSCREEN_DICING = 25.0  # how much coarser faces out of the picture are cut (the 2.6 km ground is mostly out of it)
 
@@ -182,7 +183,7 @@ def displaced(ground):
         cut.subdivision_type = "SIMPLE"
         cut.use_adaptive_subdivision = True
         cut.adaptive_space = "PIXEL"
-        cut.adaptive_pixel_size = DICING_PIXELS
+        cut.adaptive_pixel_size = DICING_PIXELS * max(1.0, bpy.context.scene.render.resolution_x / DICING_WIDTH)
         cut.render_levels = DISPLACEMENT_LEVELS
         bpy.context.scene.cycles.offscreen_dicing_scale = OFFSCREEN_DICING
     print("blender_views: displaced", sorted(changed))
