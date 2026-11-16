@@ -130,13 +130,14 @@ def disc(radius, height=0.0):
     return points, faces
 
 
-def swept(path, outward, side, rib, closed):
-    """A square-section rib along `path`: at each point its section stands outward from the skin by `rib` and spans
-    `rib` along `side`; (points, quads), open at its ends unless `closed`."""
+def swept(path, outward, side, rib, closed, stand=None):
+    """A square-section rib along `path`: at each point its section stands outward from the skin by `rib` (`stand`
+    when given, a flat band) and spans `rib` along `side`; (points, quads), open at its ends unless `closed`."""
+    stand = rib if stand is None else stand
     points = []
     for at, out, across in zip(path, outward, side):
         for along, lift in ((-0.5, 0.0), (0.5, 0.0), (0.5, 1.0), (-0.5, 1.0)):
-            points.append(tuple(at[axis] + across[axis] * along * rib + out[axis] * lift * rib for axis in range(3)))
+            points.append(tuple(at[axis] + across[axis] * along * rib + out[axis] * lift * stand for axis in range(3)))
     faces = []
     count = len(path)
     for step in range(count if closed else count - 1):
@@ -156,14 +157,15 @@ def cut_swept(path, outward, side, rib, closed, openings):
                   [side[index] for index in stretch], rib, False) for stretch in stretches]
 
 
-def ribs(radius, meridians, rings, rib, openings=()):
-    """Every rib of the dome as (points, quads): the meridians ground to top, the rings level between, each cut where
-    it crosses an opening."""
+def ribs(radius, meridians, rings, rib, openings=(), oculus=0.0):
+    """Every rib of the dome as (points, quads): the meridians ground to top (to the oculus ring when there is one),
+    the rings level between, each cut where it crosses an opening."""
     made = []
     up_steps = STEPS // 4 * (FINE if openings else 1)
+    top = math.acos(min(oculus / radius, 1.0)) if oculus > 0 else math.pi / 2
     for number in range(meridians):
         around = 2 * math.pi * number / meridians
-        ups = [math.pi / 2 * step / up_steps for step in range(up_steps + 1)]
+        ups = [top * step / up_steps for step in range(up_steps + 1)]
         outward = [unit(around, up) for up in ups]
         made += cut_swept([tuple(radius * value for value in out) for out in outward], outward,
                           [(-math.sin(around), 0.0, math.cos(around))] * len(ups), rib, False, openings)
@@ -198,12 +200,45 @@ def collars(radius, rib, openings):
     return made
 
 
-def plinth(radius, openings=()):
-    """The base ring round the dome's foot: a rectangular section BASE_WIDE wide (mostly outside the skin) and
-    BASE_HIGH high, cut at the openings; (points, quads) pieces."""
+def oculus_ring(radius, oculus, rib):
+    """The crown ring where the meridians end (the concept's top hatch): a wide rib round the skin's circle of radius
+    `oculus`; one (points, quads) piece."""
+    up = math.acos(min(oculus / radius, 1.0))
+    arounds = [2 * math.pi * step / STEPS for step in range(STEPS)]
+    outward = [unit(around, up) for around in arounds]
+    return swept([tuple(radius * value for value in out) for out in outward], outward,
+                 [(-math.sin(up) * math.cos(around), math.cos(up), -math.sin(up) * math.sin(around))
+                  for around in arounds], rib * 2.0, True)
+
+
+STRIP_WIDE, STRIP_THICK, STRIP_IN = 0.05, 0.025, 0.06  # a light strip's band, and how far inside the skin it hangs
+
+
+def strips(radius, heights, openings=()):
+    """A thin lamp band inside the skin, level at each of `heights` metres over the floor (the concept's glowing
+    arcs), cut at the openings; (points, quads) pieces for the part `strip`."""
+    made = []
+    around_steps = STEPS * (FINE if openings else 1)
+    for height in heights:
+        up = math.asin(min(float(height) / radius, 0.99))
+        arounds = [2 * math.pi * step / around_steps for step in range(around_steps)]
+        inward = [tuple(-value for value in unit(around, up)) for around in arounds]
+        path = [tuple((radius - STRIP_IN) * -value for value in inn) for inn in inward]
+        side = [(-math.sin(up) * math.cos(around), math.cos(up), -math.sin(up) * math.sin(around)) for around in arounds]
+        stretches = runs([tuple(radius * -value for value in inn) for inn in inward], openings)
+        for stretch in stretches:
+            closed = len(stretches) == 1 and len(stretch) == around_steps
+            made.append(swept([path[index] for index in stretch], [inward[index] for index in stretch],
+                              [side[index] for index in stretch], STRIP_WIDE, closed, STRIP_THICK))
+    return made
+
+
+def plinth(radius, openings=(), high=BASE_HIGH, wide=BASE_WIDE):
+    """The base ring round the dome's foot: a rectangular section `wide` (mostly outside the skin) and `high`, cut at
+    the openings; (points, quads) pieces."""
     around_steps = STEPS * FINE
-    inner, outer = radius - 0.25 * BASE_WIDE, radius + 0.75 * BASE_WIDE
-    middles = [(radius * math.cos(2 * math.pi * step / around_steps), BASE_HIGH / 2,
+    inner, outer = radius - 0.25 * wide, radius + 0.75 * wide
+    middles = [(radius * math.cos(2 * math.pi * step / around_steps), high / 2,
                 radius * math.sin(2 * math.pi * step / around_steps)) for step in range(around_steps)]
     stretches = runs(middles, openings)
     whole = len(stretches) == 1 and len(stretches[0]) == around_steps
@@ -212,7 +247,7 @@ def plinth(radius, openings=()):
         points = []
         for index in stretch:
             angle = 2 * math.pi * index / around_steps
-            for reach, high in ((inner, 0.0), (outer, 0.0), (outer, BASE_HIGH), (inner, BASE_HIGH)):
+            for reach, high in ((inner, 0.0), (outer, 0.0), (outer, high), (inner, high)):
                 points.append((reach * math.cos(angle), high, reach * math.sin(angle)))
         count = len(stretch)
         faces = []
@@ -254,15 +289,19 @@ def written(path, root_name, pieces):
     return path
 
 
-def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB, openings=()):
-    """The dome written at `path`: /dome with its mesh `geo` and its parts `shell`, `ribs`, `deck` and `base`, cut at
-    its `openings` (the module's rule)."""
+def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB, openings=(), base_high=BASE_HIGH,
+          base_wide=BASE_WIDE, oculus=0.0, strip_heights=()):
+    """The dome written at `path`: /dome with its mesh `geo` and its parts `shell`, `ribs`, `deck` and `base` (and
+    `strip` when it has light strips), cut at its `openings` (the module's rule); an `oculus` ring crowns it where the
+    meridians end."""
     openings = [tuple(float(value) for value in opening) for opening in openings]
     return written(path, "dome", [("shell", skin(radius, openings)),
-                                  *[("ribs", made) for made in ribs(radius, meridians, rings, rib, openings)],
+                                  *[("ribs", made) for made in ribs(radius, meridians, rings, rib, openings, oculus)],
                                   *[("ribs", made) for made in collars(radius, rib, openings)],
+                                  *([("ribs", oculus_ring(radius, oculus, rib))] if oculus > 0 else []),
+                                  *[("strip", made) for made in strips(radius, strip_heights, openings)],
                                   ("deck", disc(radius, DECK)),
-                                  *[("base", made) for made in plinth(radius, openings)]])
+                                  *[("base", made) for made in plinth(radius, openings, base_high, base_wide)]])
 
 
 def disc_file(path, radius):

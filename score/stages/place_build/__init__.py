@@ -400,10 +400,12 @@ def laid_reference(stage, path, folder, asset, address, kind, pose, ground):
 
 
 def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridians=None, rings=None, rib=None,
-         address=DOME, openings=()):
+         address=DOME, openings=(), base=None, oculus=None, strips=()):
     """The dome shell algorithm's dome (dome_shell.py) of `radius` metres laid as Objects/<name>: its file written once
     under the place's assets for its sizes and `openings` ([around degrees, radius, centre height] in its own frame,
-    where a tunnel or airlock joins it), its parts `shell`, `ribs`, `deck` and `base` ready for their surfaces."""
+    where a tunnel or airlock joins it), its parts `shell`, `ribs`, `deck` and `base` ready for their surfaces;
+    `base` [high, wide] its plinth's section, `oculus` its crown ring's radius, `strips` the heights of its light
+    strips (part `strip`)."""
     from score.stages.place_build import dome_shell
     sizes = {"meridians": meridians or dome_shell.MERIDIANS, "rings": dome_shell.RINGS if rings is None else rings,
              "rib": rib or dome_shell.RIB}
@@ -412,10 +414,14 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
                       f"{sizes})")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
         f"r{radius:g}_m{sizes['meridians']}_r{sizes['rings']}_w{sizes['rib']:g}"
-        + "".join(f"_o{around:g},{hole:g},{centre:g}" for around, hole, centre in openings) + ".usda")
+        + "".join(f"_o{around:g},{hole:g},{centre:g}" for around, hole, centre in openings)
+        + (f"_b{base[0]:g},{base[1]:g}" if base else "") + (f"_k{oculus:g}" if oculus else "")
+        + ("_s" + ",".join(f"{height:g}" for height in strips) if strips else "") + ".usda")
     target.parent.mkdir(parents=True, exist_ok=True)
     if not target.exists():
-        dome_shell.shell(target, float(radius), openings=openings, **sizes)
+        made = {"base_high": float(base[0]), "base_wide": float(base[1])} if base else {}
+        dome_shell.shell(target, float(radius), openings=openings, oculus=float(oculus or 0.0),
+                         strip_heights=[float(height) for height in strips], **made, **sizes)
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)

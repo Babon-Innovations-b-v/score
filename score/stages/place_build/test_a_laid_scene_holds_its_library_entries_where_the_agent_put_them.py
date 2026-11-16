@@ -59,6 +59,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.on_circle: a corner kept where it lies -> the end wall's rim steps out past the tube's circle
 - dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
 - dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
+- dome_shell.ribs: the oculus ignored (meridians to the top) -> a rib crosses the dome's crown
+- dome_shell.strips: the band stood outward (`inward` negated) -> the light strip hangs outside the glass
+- dome_shell.plinth: the asked height left off (BASE_HIGH always) -> the deep base ring stays 0.22 m
 - place_build.surface: the palette spec left off the look -> the panel's look carries no recipe spec
 - stair_core.front_windows: the curtain's head left at the storey line (no `- SLAB`) -> the curtain front's glass runs
   into the slab over it
@@ -287,7 +290,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         {"step": "put", "name": "cabinet", "address": "model/cabinet"},
         {"step": "put", "name": "walker", "address": "character/walker", "at": [2, 0, 2]},
         {"step": "dome", "name": "dome", "radius": 5.0, "meridians": 8, "rings": 2, "rib": 0.1},
-        {"step": "dome", "name": "holed", "radius": 5.0, "at": [40, 0, 0], "openings": [[0, 1.2, 1.0]]},
+        {"step": "dome", "name": "holed", "radius": 5.0, "at": [40, 0, 0], "openings": [[0, 1.2, 1.0]],
+         "base": [0.4, 0.3], "oculus": 0.8, "strips": [2.0]},
         {"step": "tube", "name": "hall", "radius": 1.5, "length": 3.0, "at": [60, 0, 0], "cap": [1.6, 2.0],
          "trims": [[0, 0, -3.0, 4.0]]},
         {"step": "ground", "name": "regolith", "radius": 3.0},
@@ -365,6 +369,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     base_middles = part_middles(holed, "base")
     assert not in_hole.any() and len(shell_middles) > 1000
     assert not ((base_middles[:, 0] > 4.0) & (np.abs(base_middles[:, 2]) < 0.5)).any() and len(base_middles)
+    strip_middles, rib_middles = part_middles(holed, "strip"), part_middles(holed, "ribs")
+    assert np.allclose(base_middles[:, 1].max(), 0.4, atol=0.01) and len(strip_middles)
+    assert np.abs(strip_middles[:, 1] - 2.0).max() < 0.1 and np.linalg.norm(strip_middles, axis=1).max() < 5.0 - 0.05
+    assert np.hypot(rib_middles[:, 0], rib_middles[:, 2]).min() > 0.6  # the meridians end at the oculus ring
     hall = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/hall/geo"))
     cap_middles, hall_skin = part_middles(hall, "cap"), np.vstack([part_middles(hall, "shell"), part_middles(hall, "wall")])
     doorway = (np.abs(cap_middles[:, 0]) < 0.75) & (cap_middles[:, 1] > 0.5) & (cap_middles[:, 1] < 2.4)

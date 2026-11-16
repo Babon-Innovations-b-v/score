@@ -24,6 +24,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   still in a clip with tools/characters/cast.py's own steps.
 - **The dome shell** (dome_shell.py, `dome`) is code-made: its shell, ribs and deck are parts for their surfaces;
   `ground` lays the same flat disc alone as the place's ground.
+  In a batch, a dome's `base` [high, wide] deepens its plinth ring, `oculus` crowns it with a ring where the meridians end, `strips`
+  hangs thin lamp bands inside the glass at those heights (part `strip`, for a glowing palette variant).
 - **A real ground** (relief.py, `terrain`): a terrain entry is a heightfield model read from a public-domain HiRISE
   DTM (range requests, never the whole file), its own posts near the centre and wider out to the horizon, bent with
   the planet; `terrain --pad x,z,r` levels a building's site to the laid height and eases it into the ground.
