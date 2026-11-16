@@ -10,7 +10,7 @@ stops its step and sends the work back one step, never forward with a flag. Bibl
   route.py's kit room run, which went with the old concepts. A scene's shell is laid from its locked plan
   (`score/stages/earth_seed/design_shell.py`).
 - **Real meshes, never boxes.** `room.py` places every kit piece's own model exactly as `HubKit` does (its model
-  file, its fit into its laid box, its turn); `model.py` and the visual check (`score/stages/complete/visual`) read it.
+  file, its fit into its laid box, its turn); `model.py` reads it.
 - `model.py` (G5): watertight, pieces, proportion spread on the sides the shape class can be judged on, thinnest wall
   (3 mm, or solid through its own thickness for a kind laid thinner: `least_wall`). The pixal and likeness rows
   declare it, so an edit re-keys them.

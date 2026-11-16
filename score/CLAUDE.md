@@ -335,14 +335,12 @@ stage as each stage is built; nothing moves before.
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
   (`stages/complete/test_the_completion_gate_passes_only_a_place_that_holds_what_it_should.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
   not one of its gates: a standalone check of the accepted assembly against the library, its findings the cockpit's
-  problems. Nor is the visual check (`stages/complete/visual`, its overlay): it reads the films, made only once
-  complete passes, and writes its findings, with their pictures, the same way. Nor is the USD check
+  problems. (The visual and materials checks, picture judges of the films and of texture detail and finish borders,
+  were wiped with the owner's dropping picture judges as checks on #128, 2026-11-16.) Nor is the USD check
   (`stages/complete/usd`, its overlay): SCORE's curated usd-validation-nvidia rules on each place's composed stage,
   its errors the cockpit's problems, run by the sync pass. (The old ship kit's made pieces laid on
   its base, `ship_made.py`, and `complete-boxes`, which measured the old inventories' boxes, were retired with the old
-  kits and inventories on 2026-10-21: a design's every box is its reading's.) The materials checks (`stages/complete/materials`, its overlay: texture detail
-  near cameras, finish-border raggedness) are not gates either: standalone and
-  free, their findings reach the cockpit as problems with their pictures. `surface-tiles` (paid, its overlay) bakes
+  kits and inventories on 2026-10-21: a design's every box is its reading's.) `surface-tiles` (paid, its overlay) bakes
   each library surface a place's room shell takes as a repeating tile, and the assembly draws the shell with them.
   `settle` (experimental, paid, its overlay; a place whose design shows a loose row) drops a place's loose objects
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly

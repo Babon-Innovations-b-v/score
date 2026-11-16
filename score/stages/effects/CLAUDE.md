@@ -50,8 +50,7 @@ design.
 - **Only scenes whose design shows a row that emits have the row** (the table's `designed("effects")`). The paid
   `effects-look` (the launch's stills before and after, its `shown` and `lit` gates) was retired on 2026-10-21 with
   the launch's records: the layer's `footage` and `light` gates measure each emitter of any scene on the baked
-  particles, and the films' visual check (`../complete/visual`) sees them; a new render of its own would only repeat
-  them.
+  particles; a new render of its own would only repeat them.
   Today's measured kinds are steam off a kettle and a hob, a humidifier's mist and a drilling rig's cuttings (the
   first effect Newton makes: a granular pile by implicit MPM, `inside/`, drawn as a surface from all its grains, its
   flank held to the slip faces measured on Mars); the old records' pump-down fog,
