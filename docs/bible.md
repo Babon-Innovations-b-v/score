@@ -513,78 +513,31 @@ branch names a scene or a world.
 
 ## architecture/cockpit
 
-The creator cockpit (`score/dashboard`, its overlay has the detail) is the one page the creator runs SCORE from. It
-reads the runner and the review tools and judges nothing itself. Words a person reads: scene (never place), physics
-(never setting), lock (never pick); code, routes and stored ids keep the old words.
+The creator cockpit (`score/dashboard`'s pages, its web app and its hosted side, with the sync that fed it) went on
+2026-11-16 (owner: "cockpit can also go"; #128), with the old per-picture pipeline it showed. What it applied stays,
+reached only from chat through the agents' door (`tools/cloud/conductor/agent_door.py`) and `tools/cloud/this_pc.py`:
+the owner's decisions (`decide-yes`, `decide`: `score/dashboard/sync/chat_decisions.py`, `sync/applying.apply`), the
+Buy and its batch money (`buy-yes`, `buy`, `batch-money`: `score/dashboard/checkout/chat_yes.py`, `flow.py`,
+`watched.batch_money`) and the money guards. The cockpit kept from 2026-10-27 ("the cockpit is also just there for us
+to make us accountable for making the framework usable for other people") is no longer a surface: his recorded yes
+in chat is the one record of each decision.
 
-**Two sides.**
-
-- **The store's machine, the conductor**: one always-on cloud machine of our own (until the move, his PC) holding the
-  store, the runner, `score.review.web` (every draw, reading, plan writing and their spend), the previews, the sync
-  pass (`python -m score.dashboard sync`) and the listener (`python -m score.dashboard listen`), as user `score`'s
-  units, rendered by the same `install-sync` (without `--host`: the cockpit's `/api/sync/pin` names the commit it runs;
-  `--no-pull`: its score-update timer follows that commit). It always calls out to the hosted side, never the other
-  way, and names itself on every sync call.
-- **His PC** keeps only a browser, the Claude Code sessions and the release (`score.dashboard release --host ...`,
-  the coordinating session's job, from his checkout of the hosting repository).
-- **One store's machine**: the hosted side records the machine of the first export that names one
-  (`sync/one_store.py`). An export from another machine is shown, but none of its claims is granted, so it applies
-  nothing, until the owner clicks 'This is the store's machine now' on the Machine card (owner only, asked twice).
-  So during the move the PC and the conductor never both act as the store.
-- **The Machine card** on Home and `/machine/`: its name, size and state, the last backup's age (red past 2 h), the
-  last export's age (red past 15 min: the store's machine is not reaching the cockpit), its own month's bill (its
-  own cloud project, so never in a batch's spend or stop), its health and log tails (`machine.json` in the export),
-  and the owner's kill switch: Stop everything (every run stopped, parked machines deleted, paid work latched off)
-  and Allow paid work again, each asked twice and applied by the listener through `score.conductor.kill`.
-- **Hosted**: the same app as one ASGI process (`score/dashboard/site/asgi.py`: Django pages, FastAPI `/api`) reading
-  the last pushed export (`state/exported.py`). It never imports the store, the stages, numpy or usd-core.
-- **A hosted click** becomes a SyncRequest. The listener (`score-listen.service`, one long call held open) answers
-  concept, environment and plan requests within about a second, and a hosted Buy within seconds through the same
-  checkout (owner, 2026-10-24: "can we make that delay less for the following runs"); a Buy whose price needs a fresh
-  pass (a pass pricing now, a dirty checkout, the price, prepare's figure or the basket on other code, the basket older
-  than prepare: `client.buy_waits`) is said so on the request and left for the pass. The sync pass applies the rest. Both claim a request
-  once and apply it through the same `pages/actions.py` function the local cockpit uses (`sync/applying.py`).
-
-**The sync pass** (`score-sync.timer`, every 5 minutes, installed by `install-sync`; its token read by name from his
-secret manager each pass): refuse a dirty or unpushed checkout, library sweep, gaps, kept plans, prepare's estimate,
-the runner's price (a failed price stops the pass), the basket, push the export, apply waiting requests, report
-launches. It pushes its export even when the checkout moved during the pass, so his locks and designs always arrive;
-the price and estimate then name an older commit, show as stale, and Buy waits for the next pass. The export is
-content-addressed and swapped whole once every file is up.
-
-**The walk.**
-
-- **Home** `/`: the environments, the month's spend, Stats, Library, Buy, the Machine card (`/machine/`).
-- **Environment concept** `/environments/<world>/`: Style, Physics, Reference pictures and Scenes cards, Lock and
-  Unlock (asked twice), a short set interview while unlocked; its Plan opens the environment plan.
-- **Scenes** `/places/`: a tile per top scene, `?in=` steps into child scenes; Draw all with its price.
-- **Design page** `/concept/<place>/` (`/plan/<place>/` opens at its plan): one screen of panels (the concept with its
-  draws, the inventory, the top-down drawing, the plan with its section), each enlarging to fill the screen, beside
-  one action rail (draw, lock, notes, child scenes, gaps, Make plan, Correct, each with its price). Its trail names
-  every scene it sits within. The concept review and the plan review are this page (`architecture/design`).
-- **Scene** `/place/<place>/`: its 3D view, its scene tree with gap dots, its gaps.
-- **Film** `/film/`: the script editor and free preview, Lock and Unlock (`architecture/lifecycles`).
-- **Buy** `/buy/`: what Buy buys now, its stop and ETA, what waits and why (`architecture/lifecycles`).
-- **Batch** `/buy/run/`: the run monitor the Buy's yes opens (Home links to it while a batch lives): its state, ETA
-  left and Stop everything; spent against its likely, high and stop; a row a scene with its rows done; the warm pool;
-  the problems. Read on the store's machine from the batch's own files (`state/batch_run.py`), carried hosted in the
-  export as `batch-run.json` and, while the batch lives, sent by the listener every minute (`PUT /api/sync/batch-run`),
-  so the hosted page is at most about two minutes old.
-- **Money**: the month's cloud and model-call spend on every screen ("at least" while a line is unread); the books
-  buttons (read the bills back, enter the model calls' month) show only while needed.
-- The top bar's back and forward move up a layer and down again to the one last opened, not through browser history.
+**The upkeep pass** (`python -m score.dashboard sync`, the conductor's `score-sync` every 5 minutes): refuse a dirty
+or unpushed checkout, the disk sweep, the library handover and sweep, gaps, kept plans, prepare's estimate, the
+runner's price (a failed price stops the pass), the basket a Buy buys from, the checkouts tidied, the USD check. Its
+export push and request pull to the hosted side, the listener, the release command and the pages are being removed
+with the code wipe of #128; until it lands they are dead weight, never a route for a decision.
 
 **Owner-only.** Accept, reject, advance, waivers, the books figure, the read-back and the kill switch are applied only
-when the request's user is the machine's `SCORE_OWNER`; Buy answers 403 to anyone else. A draw, Discuss or plan writing is his yes at the
-price shown, refused if the price moved. Agents are kept from these by a barrier, not a lock: the store refuses its
+as the machine's `SCORE_OWNER`, through his recorded yes. Agents are kept from these by a barrier, not a lock: the store refuses its
 owner areas (accepts, rejects, waivers, spend yeses, clearances, stops, grants) to any process Claude Code started,
 the runner's own automatic accept and clearance excepted; `python -m score.review` wants a terminal; and
 `.claude/hooks/local/accept_guard.py` blocks the other routes. An agent's design edit is written only with his words and the
 time attached (`score/review/plans.py` `kept_record`, `asked`; `workflow/loop`).
 
 **Owner-only decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat aswell").
-Every owner-only decision may also be his answer in a Claude Code session, applied exactly like his click: an accept,
-a reject, a waiver, a concept lock, a film lock, a spend override (his yes to one run outside the runner; owner,
+Every owner-only decision is his answer in a Claude Code session, the only way it is made since the cockpit went (owner, 2026-11-16:
+"cockpit can also go"): an accept, a reject, a waiver, a concept lock, a film lock, a spend override (his yes to one run outside the runner; owner,
 2026-11-02: "we talked about this, those kinda rules are stupid"), his Google month (the figure that makes the month's
 books known, 2026-11-02), as a Buy already was (`checkout/chat_yes.py`). The session asks with
 its question tool, naming what the decision applies to; `decide-yes` records his yes once in the store
@@ -593,22 +546,15 @@ output and the node's accepted output then; the check; the place, the draw and i
 of its script as his editor shows it; the override's name, euros and purpose, refused once a yes stands under that
 name, `decide-yes spend <name> --euros E --purpose P`, its run then carrying `SCORE_SPEND_TICKET="override <name>"`;
 the Google month's month, this one only, its euros and the month's books as they stood, `decide-yes google-month
-<YYYY-MM> --euros E`, applied as his "Enter it in the books"), and `decide <yes id>` applies it once (`grants/decide-used/<id>.json`, written
-first) as the request his click makes, through `sync/applying.apply` with his name and the agent markers lifted in that
-process only (`score.review.web.as_owner_deciding`), so every check of his click runs; it is refused when its target
+<YYYY-MM> --euros E`, applied as the books figure), and `decide <yes id>` applies it once (`grants/decide-used/<id>.json`, written
+first) as the request his cockpit click once made, through `sync/applying.apply` with his name and the agent markers lifted in that
+process only (`score.review.web.as_owner_deciding`), so every check of that click runs; it is refused when its target
 changed since the question (`score/dashboard/sync/chat_decisions.py`). Both are
 verbs of the agents' door, and of `tools/cloud/this_pc.py` against a run's own home on his PC (its records reach the
 conductor with that run's push). The accept guard still blocks an agent's own accept, reject, waive, lock or spend, and the
 apply command without a recorded yes's id. His go for a run (`decide-yes go <environment>`) is carried by the run
 (`SCORE_OWNERS_GO`), which then counts as a bought batch for the in-batch accept (`architecture/lifecycles`).
 
-The cockpit stays the surface other creators use (owner, 2026-10-27: "the cockpit is also just there for us to make us
-accountable for making the framework usable for other people"): kept complete and working, so the framework stays
-usable by people who are not in a session. A decision made in chat writes the same record as his click and shows on
-the cockpit as his, so the two never diverge.
-
-**Release.** `build/release`: the coordinating session moves the hosted pin once for a group of landed
-changes.
 
 ## architecture/experimental
 
