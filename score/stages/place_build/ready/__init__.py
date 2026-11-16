@@ -8,8 +8,8 @@ named support.
 Each object of /<place>/Objects has a role, from its `score:role` when it has one, else from what it is: `ground` (a
 laid ground or terrain), `shell` and `connector` (the dome shell algorithm's domes and tubes), `door` (a door, hatch or
 airlock), `structure` (a wall, bulkhead, frame), `fixed` (a rock bedded in the ground, or `score:fixed`), `mount` (on a
-wall: `on ... wall:<object>`), `character` (a person: sim body's, not judged here) or `prop` (everything else: it can
-be pushed). The faults, each with its measure:
+wall: `on ... wall:<object>`), `character` (a person, posed as the renderer poses it: people.py) or `prop`
+(everything else: it can be pushed). The faults, each with its measure:
 
 - `no collision geometry`: an object with no triangles to collide by.
 - `floating`: a prop, fixed piece, structure or door whose lowest points clear what is under them by over TOLERANCE
@@ -20,6 +20,14 @@ be pushed). The faults, each with its measure:
   lies inside another closed object; joined structure and a rock bedded in the ground are not faults.
 - `door not in an opening`: a door with no wall or shell round its sides and top within FRAME, or a wall straight
   behind it (no opening cut).
+- `door does not fit`: seen straight through the door's plane on a FIT_CELL grid, the opening round it (what no wall,
+  shell or connector closes within FIT_DEPTH of it, from its threshold up) shows a gap wider than FIT between the
+  door's outline and the wall, or the door lies over the wall further than FIT past the opening's edge: a leaf
+  that is not the opening's shape and size (a rectangular door in a round opening, a hatch too small for it).
+- `person floating` / `person sinks`: a person's feet (each foot's lowest skin), or, seated, the seat, more than
+  CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above.
+- `broken body`: a person's skin torn by its skinning, a missing head, hand or foot, or a height or proportions no
+  person has (people.shape_faults).
 - `walkway`: the walkers' floor (reach.py's Recast-style spans of every surface, doors open, eroded by half of WALKWAY)
   does not join both sides of every door, and every shell and connector, in one walkable piece WALKWAY wide.
 - `connector`: a tube whose end ring stays over JOIN from every other shell or structure, or that has no walkable floor
@@ -35,9 +43,12 @@ import sys
 
 import numpy as np
 import trimesh
+from scipy import ndimage
 from pxr import Sdf, Usd, UsdGeom
 
 from score.stages import place_build
+
+from score.stages.place_build.ready import people
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "tools/usd"))
@@ -57,6 +68,10 @@ WALKWAY = 0.9  # the narrowest way the walkers need (owner's brief, 2026-11-16: 
 ERODED = int((WALKWAY / reach.CELL - 1) // 2)  # cells taken off each side of a way, so one WALKWAY wide keeps one
 JOIN = 0.3  # how near a connector's end ring must come to the structure it joins (metres)
 CONNECTOR_STEP = 0.25  # a connector's floor is looked for this often along it (metres)
+FIT = 0.05  # metres a door's outline may stand off its opening's edge, or lie over the wall past it
+FIT_CELL = 0.02  # metres between the rays read through a door's plane
+FIT_DEPTH = 0.5  # metres before and behind a door's plane where a wall closes its opening
+CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, what is under it
 SETTLE_MOVE = 0.05  # metres
 SETTLE_TURN = 8.0  # degrees
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
@@ -148,6 +163,8 @@ class Place:
         self.prims = {prim.GetName(): prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()}
         self.roles = {name: role_of(prim) for name, prim in self.prims.items()}
         self.meshes = {name: solid_of(prim) for name, prim in self.prims.items() if self.roles[name] != "character"}
+        self.people = {name: people.posed_body(prim) for name, prim in self.prims.items()
+                       if self.roles[name] == "character"}
         self.names = sorted(name for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces))
         if not self.names:
             raise place_build.Refused("the scene holds no object with triangles to check")
@@ -260,11 +277,11 @@ def body_samples(mesh):
     return np.vstack(points), np.vstack(middles)
 
 
-def crossing_depths(laid, name, others):
-    """How deep this object's surface lies inside each other object: {other: the furthest such point's distance to
-    the other's surface}, a point counted inside where a ray from the middle of its piece to it crosses the other an
-    odd number of times."""
-    points, middles = body_samples(laid.meshes[name])
+def crossing_depths(laid, name, others, mesh=None):
+    """How deep this object's surface (or `mesh`, a person's skin) lies inside each other object: {other: the furthest
+    such point's distance to the other's surface}, a point counted inside where a ray from the middle of its piece to
+    it crosses the other an odd number of times."""
+    points, middles = body_samples(laid.meshes[name] if mesh is None else mesh)
     lengths = np.linalg.norm(points - middles, axis=1)
     keep = lengths > 1e-6
     points, middles, lengths = points[keep], middles[keep], lengths[keep]
@@ -351,6 +368,107 @@ def door_faults(laid, name):
         faults.append({"fault": "door not in an opening", "blocked": behind,
                        "why": f"a wall lies straight {' and '.join(behind)} of it: no opening is cut where it stands"})
     return faults
+
+
+def door_outline(laid, name):
+    """What the door's plane shows, seen straight through it on a FIT_CELL grid from its threshold to FRAME over its
+    top and FRAME past each side: (the door's cells, the cells a wall closes within FIT_DEPTH of it)."""
+    walls = [laid.number[other] for other in laid.with_role("structure", "shell", "connector")]
+    middle, axes, half = frame_of(laid, name)
+    across = np.arange(-half[0] - FRAME, half[0] + FRAME + 1e-9, FIT_CELL)
+    up = np.arange(-half[1] + FIT_CELL / 2, half[1] + FRAME + 1e-9, FIT_CELL)
+    grid_u, grid_v = np.meshgrid(across, up, indexing="ij")
+    depth = half[2] + FIT_DEPTH
+    origins = middle + grid_u.reshape(-1, 1) * axes[0] + grid_v.reshape(-1, 1) * axes[1] + depth * axes[2]
+    _, rays, owners, along = laid.hits(origins, np.tile(-axes[2], (len(origins), 1)))
+    near = along <= 2 * depth
+    door = np.zeros(len(origins), dtype=bool)
+    door[rays[near & (owners == laid.number[name])]] = True
+    wall = np.zeros(len(origins), dtype=bool)
+    wall[rays[near & np.isin(owners, walls)]] = True
+    return door.reshape(grid_u.shape), wall.reshape(grid_u.shape)
+
+
+def fit_faults(laid, name):
+    """A door that does not fill its opening: the widest gap between its outline and the wall round it (the free
+    cells joined to the door's own), and how far it lies over the wall past the opening's edge."""
+    door, wall = door_outline(laid, name)
+    if not door.any():
+        return []
+    labels, _ = ndimage.label(door | ~wall)
+    opening = np.isin(labels, np.unique(labels[door])) & ~door
+    gap = float(ndimage.distance_transform_edt(~door)[opening].max()) * FIT_CELL if opening.any() else 0.0
+    over = door & wall
+    past = float(ndimage.distance_transform_edt(wall)[over].max()) * FIT_CELL if over.any() else 0.0
+    faults = []
+    if gap > FIT:
+        leaks = opening[0].any() or opening[-1].any() or opening[:, -1].any()
+        faults.append({"fault": "door does not fit", "gap": round(gap, 3),
+                       "why": f"its opening stands {'over ' if leaks else ''}{gap * 100:.0f} cm clear of its outline "
+                              f"(at most {FIT * 100:.0f}): the door is not the opening's shape and size"})
+    if past > FIT:
+        faults.append({"fault": "door does not fit", "over": round(past, 3),
+                       "why": f"it lies over the wall {past * 100:.0f} cm past its opening's edge (at most "
+                              f"{FIT * 100:.0f})"})
+    return faults
+
+
+# --- people -------------------------------------------------------------------------------------------------------
+
+def under_gap(laid, points):
+    """How far the lowest of `points` stands over the nearest surface straight under them (negative: sunk into it),
+    and whose surface that is; (inf, None) when nothing lies under them."""
+    origins = points + [0.0, RAY_START, 0.0]
+    _, rays, owners, along = laid.hits(origins, np.tile([0.0, -1.0, 0.0], (len(origins), 1)))
+    if not len(rays):
+        return np.inf, None
+    gaps = np.full(len(points), np.inf)
+    whose = np.full(len(points), -1)
+    order = np.argsort(along)[::-1]
+    gaps[rays[order]] = along[order] - RAY_START
+    whose[rays[order]] = owners[order]
+    lowest = int(np.argmin(gaps))
+    return float(gaps[lowest]), (laid.names[whose[lowest]] if np.isfinite(gaps[lowest]) else None)
+
+
+def contact_of(laid, points):
+    """A part's contact: its lowest skin's gap to what is under it, and that support."""
+    if not len(points):
+        return np.inf, None
+    return under_gap(laid, points[np.argsort(points[:, 1])[:FOOT // 10]])
+
+
+def person_faults(laid, name):
+    """A person not standing on both feet (or sitting on its seat) within CONTACT of a support, or inside another
+    object, or with a broken body."""
+    body = laid.people[name]
+    if body is None:
+        return [{"fault": "no collision geometry", "why": "it has no skinned mesh to collide by"}]
+    feet = {side[0]: contact_of(laid, body.points_of(*people.PARTS["feet"], side=side))
+            for side in (people.LEFT, people.RIGHT)}
+    seat_joints = body.seat_joints()
+    seat = contact_of(laid, np.asarray(body.mesh.vertices)[[path in seat_joints for path in body.joint_of]])
+    standing = all(abs(gap) <= CONTACT for gap, _ in feet.values())
+    faults = []
+    if not standing and not abs(seat[0]) <= CONTACT:
+        for side, (gap, support) in feet.items():
+            if not np.isfinite(gap):
+                faults.append({"fault": "person floating", "foot": side, "gap": None,
+                               "why": f"nothing lies under its {side} foot"})
+            elif abs(gap) > CONTACT:
+                kind = "person floating" if gap > 0 else "person sinks"
+                faults.append({"fault": kind, "foot": side, "gap": round(gap, 3), "support": support,
+                               "why": f"its {side} foot stands {abs(gap) * 100:.1f} cm "
+                                      f"{'over' if gap > 0 else 'into'} {support} (at most {CONTACT * 100:.0f})"})
+    others = [other for other in laid.names if laid.roles[other] != "ground"
+              and np.all(laid.meshes[other].bounds[0] <= body.mesh.bounds[1])
+              and np.all(laid.meshes[other].bounds[1] >= body.mesh.bounds[0])]
+    if others:
+        faults += [{"fault": "penetration", "other": other, "depth": round(depth, 3),
+                    "why": f"its skin lies {depth * 100:.1f} cm inside {other}"}
+                   for other, depth in sorted(crossing_depths(laid, name, others, body.mesh).items())
+                   if depth > TOLERANCE]
+    return faults + people.shape_faults(body)
 
 
 # --- walkways -----------------------------------------------------------------------------------------------------
@@ -567,7 +685,7 @@ def object_faults(laid, name):
     if role in JUDGED_INSIDE:
         faults += penetration_faults(laid, name)
     if role == "door":
-        faults += door_faults(laid, name)
+        faults += door_faults(laid, name) + fit_faults(laid, name)
     if role == "mount":
         faults += mount_faults(laid, name)
     return faults
@@ -594,6 +712,10 @@ def check(folder, settle=True):
              for name in laid.prims if laid.roles[name] != "character" and name not in laid.names}
     for name in laid.names:
         faults = object_faults(laid, name)
+        if faults:
+            found.setdefault(name, []).extend(faults)
+    for name in laid.people:
+        faults = person_faults(laid, name)
         if faults:
             found.setdefault(name, []).extend(faults)
     walkways, floor = walkway_faults(laid)

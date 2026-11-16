@@ -2,8 +2,11 @@
 being walked in and pushed (a crate floating 40 cm over the ground; two crates 10 cm inside each other; a door standing
 free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it; a tunnel whose far end
 joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and moves when let go in MuJoCo; an object
-with no triangles), while what rests right passes (the walls, the door in its opening, the desk, a monitor laid `on`
-the desk, a panel mounted `on` a wall, a crate on the ground); and `on` lays an object in contact with its support.
+with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
+over the ground; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
+while what rests right passes (the walls, the door filling its opening, the desk, a monitor laid `on` the desk, a
+panel mounted `on` a wall, a crate on the ground, a person laid at rest on the ground though its SkelRoot's box
+reaches 40 cm under its feet); and `on` lays an object in contact with its support.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -15,13 +18,17 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.placed_on: the gap left unsubtracted -> the monitor floats over the desk
 - ready.check: the no-collision list left empty -> the decal passes
 - settle_mujoco.settled: the steps left out -> the tipping box reads stable
+- ready.fit_faults: `gap > FIT` made `gap > 1.0` -> the small door passes; `past > FIT` the same -> the big one passes
+- ready.person_faults: `abs(gap) > CONTACT` made `> 1.0` -> the floating person passes
+- people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
+- place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
 """
 import json
 import pathlib
 
 import numpy as np
 from PIL import Image
-from pxr import Gf, Sdf, UsdGeom
+from pxr import Gf, Sdf, UsdGeom, UsdSkel, Vt
 
 from score.stages import place_build
 from score.stages.place_build import ready
@@ -64,6 +71,83 @@ def wall(stage, place):
         block.AddScaleOp().Set(Gf.Vec3f(*size))
 
 
+def wall_along_z(stage, place, name, x, blocks):
+    """A wall 0.2 m thick across x at `x`, one object of blocks (z low, z high, y low, y high)."""
+    holder = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{name}")
+    holder.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("model")
+    for number, (z_low, z_high, y_low, y_high) in enumerate(blocks):
+        block = UsdGeom.Cube.Define(stage, f"{holder.GetPath()}/block{number}")
+        block.CreateSizeAttr(1.0)
+        block.AddTranslateOp().Set(Gf.Vec3d(x, (y_low + y_high) / 2, (z_low + z_high) / 2))
+        block.AddScaleOp().Set(Gf.Vec3f(0.2, y_high - y_low, z_high - z_low))
+
+
+JOINTS = {"Root": (0, 0, 0), "Root/Hips": (0, 0.9, 0), "Root/Hips/Spine": (0, 1.3, 0),
+          "Root/Hips/Spine/Head": (0, 1.5, 0), "Root/Hips/Spine/LeftHand": (0.3, 1.0, 0),
+          "Root/Hips/Spine/RightHand": (-0.3, 1.0, 0), "Root/Hips/LeftLeg": (0.1, 0.9, 0),
+          "Root/Hips/LeftLeg/LeftShin": (0.1, 0.5, 0), "Root/Hips/LeftLeg/LeftShin/LeftFoot": (0.1, 0.08, 0),
+          "Root/Hips/RightLeg": (-0.1, 0.9, 0), "Root/Hips/RightLeg/RightShin": (-0.1, 0.5, 0),
+          "Root/Hips/RightLeg/RightShin/RightFoot": (-0.1, 0.08, 0)}
+PARTS = {"Root/Hips/Spine/Head": ((0, 1.6, 0), (0.2, 0.2, 0.2)), "Root/Hips/Spine": ((0, 1.2, 0), (0.35, 0.6, 0.2)),
+         "Root/Hips/Spine/LeftHand": ((0.3, 1.0, 0), (0.08, 0.1, 0.08)),
+         "Root/Hips/Spine/RightHand": ((-0.3, 1.0, 0), (0.08, 0.1, 0.08)),
+         "Root/Hips/LeftLeg": ((0.1, 0.7, 0), (0.12, 0.4, 0.12)), "Root/Hips/RightLeg": ((-0.1, 0.7, 0), (0.12, 0.4, 0.12)),
+         "Root/Hips/LeftLeg/LeftShin": ((0.1, 0.29, 0), (0.1, 0.42, 0.1)),
+         "Root/Hips/RightLeg/RightShin": ((-0.1, 0.29, 0), (0.1, 0.42, 0.1)),
+         "Root/Hips/LeftLeg/LeftShin/LeftFoot": ((0.1, 0.04, 0.05), (0.1, 0.08, 0.25)),
+         "Root/Hips/RightLeg/RightShin/RightFoot": ((-0.1, 0.04, 0.05), (0.1, 0.08, 0.25))}
+
+
+def skinned(stage, path, points, faces, joints):
+    """A mesh under a skeleton, each point bound wholly to its joint's number."""
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(points, np.float32)))
+    mesh.CreateFaceVertexCountsAttr([3] * len(faces))
+    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(faces, np.int32).reshape(-1)))
+    binding = UsdSkel.BindingAPI.Apply(mesh.GetPrim())
+    binding.CreateJointIndicesPrimvar(False, 1).Set(Vt.IntArray(list(map(int, joints))))
+    binding.CreateJointWeightsPrimvar(False, 1).Set(Vt.FloatArray([1.0] * len(joints)))
+    binding.CreateGeomBindTransformAttr(Gf.Matrix4d(1))
+
+
+def person(stage, place, name, spot, without=(), torn=False):
+    """A person 1.7 m tall of boxes bound to a skeleton (head, hands, legs, feet), standing at `spot`, held still;
+    `without` its parts left off, `torn` a sleeve from its chest to its left hand pulled 12 cm out (more than double, under
+    route_stretch.MOST_METRES). Its SkelRoot's
+    box reaches 40 cm under its feet, as a real body's box holds every clip at once."""
+    import trimesh
+    root = UsdSkel.Root.Define(stage, f"/{place}/Objects/{name}")
+    root.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("character")
+    root.CreateExtentAttr([Gf.Vec3f(-0.5, -0.4, -0.5), Gf.Vec3f(0.5, 1.8, 0.5)])
+    place_build.posed(root.GetPrim(), spot, (0, 0, 0), (1, 1, 1))
+    skeleton = UsdSkel.Skeleton.Define(stage, f"{root.GetPath()}/Skeleton")
+    order = list(JOINTS)
+    skeleton.CreateJointsAttr(order)
+    skeleton.CreateBindTransformsAttr([Gf.Matrix4d(1).SetTranslate(Gf.Vec3d(*JOINTS[joint])) for joint in order])
+    local = {joint: np.subtract(JOINTS[joint], JOINTS[joint.rsplit("/", 1)[0]] if "/" in joint else 0).astype(float)
+             for joint in order}
+    skeleton.CreateRestTransformsAttr([Gf.Matrix4d(1).SetTranslate(Gf.Vec3d(*map(float, local[joint]))) for joint in order])
+    held = UsdSkel.Animation.Define(stage, f"{root.GetPath()}/Held")
+    held.CreateJointsAttr(order)
+    moved = {joint: local[joint] + ([0.12, 0, 0] if torn and joint.endswith("LeftHand") else 0) for joint in order}
+    held.CreateTranslationsAttr([Gf.Vec3f(*map(float, moved[joint])) for joint in order])
+    held.CreateRotationsAttr([Gf.Quatf(1)] * len(order))
+    held.CreateScalesAttr([Gf.Vec3h(1, 1, 1)] * len(order))
+    binding = UsdSkel.BindingAPI.Apply(skeleton.GetPrim())
+    binding.CreateAnimationSourceRel().SetTargets([held.GetPath()])
+    UsdSkel.BindingAPI.Apply(root.GetPrim()).CreateSkeletonRel().SetTargets([skeleton.GetPath()])
+    for number, (joint, (middle, size)) in enumerate(PARTS.items()):
+        if any(joint.endswith(part) for part in without):
+            continue
+        part = trimesh.creation.box(size)
+        skinned(stage, f"{root.GetPath()}/part{number}", part.vertices + middle, part.faces,
+                [order.index(joint)] * len(part.vertices))
+    if torn:
+        sleeve = [(0.2, 1.1, 0.1), (0.2, 1.15, 0.1), (0.26, 1.1, 0.1), (0.26, 1.15, 0.1)]
+        joints = [order.index("Root/Hips/Spine")] * 2 + [order.index("Root/Hips/Spine/LeftHand")] * 2
+        skinned(stage, f"{root.GetPath()}/sleeve", sleeve, [(0, 2, 1), (1, 2, 3)], joints)
+
+
 def planted(folder):
     """The fixture place: a ground disc, a wall with a 1.2 m opening and its door, and every planted fault."""
     concept = folder / "concept.png"
@@ -75,7 +159,11 @@ def planted(folder):
     place_build.tube(folder, "crawl", 0.7, 2.0, (3.5, 0.0, -5.0), (0.0, 90.0, 0.0))
     stage, place = place_build.opened(folder)
     wall(stage, place)
-    box(stage, place, "door", (1.0, 2.0, 0.05), (-0.5, 0.0, -0.025))
+    box(stage, place, "door", (1.18, 2.08, 0.05), (-0.59, 0.0, -0.025))  # 1 to 2 cm inside its opening
+    wall_along_z(stage, place, "wall2", 5.5, [(-2.5, -1.6, 0, 2.5), (-0.4, 0.4, 0, 2.5), (1.6, 2.5, 0, 2.5),
+                                              (-1.6, -0.4, 2.1, 2.5), (0.4, 1.6, 2.1, 2.5)])
+    box(stage, place, "door_small", (0.05, 2.1, 0.8), (5.475, 0.0, -1.4))
+    box(stage, place, "door_big", (0.05, 2.4, 1.6), (5.375, 0.0, 0.2))
     box(stage, place, "blocker", (2.4, 1.0, 1.1), (-1.2, 0.0, -1.4))
     box(stage, place, "hatch_free", (1.0, 2.0, 0.05), (2.5, 0.0, 3.0))
     box(stage, place, "bulkhead", (3.0, 2.8, 0.2), (-4.5, 0.0, 2.3))
@@ -87,6 +175,12 @@ def planted(folder):
     box(stage, place, "monitor", (0.5, 0.35, 0.1), (-2.65, 1.5, -2.8))
     box(stage, place, "tipper", (0.4, 0.4, 0.4), (-3.3, 0.75, -2.9))
     box(stage, place, "panel", (0.6, 0.4, 0.05), (2.0, 0.5, 1.0))
+    floor = ready.levels_under(ready.Place(stage, place), "ground", (-5.5, 0.0))[-1]
+    person(stage, place, "person_ok", (-5.5, floor, 0.0))
+    place_build.rested(stage, f"/{place}/Objects/person_ok", (-5.5, floor, 0.0), (0, 0, 0), (1, 1, 1))
+    person(stage, place, "person_float", (-5.5, floor + 0.3, 1.5))
+    person(stage, place, "person_broken", (-5.5, floor, -1.5), without=("Head", "RightHand"))
+    person(stage, place, "person_torn", (-5.5, floor, -3.0), torn=True)
     decal = UsdGeom.Xform.Define(stage, f"/{place}/Objects/decal").GetPrim()
     decal.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("model")
     stage.GetRootLayer().Save()
@@ -103,7 +197,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     found = json.loads(pathlib.Path(summary["file"]).read_text())["objects"]
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}
     print(json.dumps(summary))
-    for name in ("wall", "desk", "monitor", "panel", "crate_ok", "bulkhead",
+    for name in ("wall", "desk", "monitor", "panel", "crate_ok", "bulkhead", "person_ok",
                  "ground"):
         assert name not in told, (name, found.get(name))
     assert told["door"] == {"walkway"}, found["door"]
@@ -115,6 +209,15 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     assert any("unwalkable" in fault for fault in found["crawl"]), found["crawl"]
     assert told["decal"] == {"no collision geometry"}, found["decal"]
     assert "tips" in told["tipper"], found["tipper"]
+    assert any(fault.get("gap", 0) > 0.15 for fault in found["door_small"] if fault["fault"] == "door does not fit"), \
+        found["door_small"]
+    assert any(fault.get("over", 0) > 0.15 for fault in found["door_big"] if fault["fault"] == "door does not fit"), \
+        found["door_big"]
+    assert {fault.get("foot") for fault in found["person_float"] if fault["fault"] == "person floating"} \
+        == {"left", "right"}, found["person_float"]
+    assert any(set(fault.get("missing", ())) == {"head", "right hand"} for fault in found["person_broken"]), \
+        found["person_broken"]
+    assert any(fault.get("torn", 0) > 0.5 for fault in found["person_torn"]), found["person_torn"]
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")
         return

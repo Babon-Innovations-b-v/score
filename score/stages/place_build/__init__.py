@@ -361,13 +361,24 @@ def ground_height(stage, place, x, z):
     return float(np.sum(points[nearest[:3], 1] * weights) / np.sum(weights))
 
 
-def rested(stage, path, at, turn, scale):
-    """The prim at `path` moved up or down so its lowest point lies at at[1]; its new spot."""
+def lowest_of(stage, path):
+    """The prim's lowest point's height as drawn: a person's posed skin (its SkelRoot's box is every clip's at once,
+    which left a held woman 40 cm over her landing), else its box; None when it has no shape."""
+    from score.stages.place_build.ready import people
+    body = people.posed_body(stage.GetPrimAtPath(path))
+    if body is not None:
+        return float(body.mesh.bounds[0][1])
     boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     box = boxes.ComputeWorldBound(stage.GetPrimAtPath(path)).ComputeAlignedRange()
-    if box.IsEmpty():
+    return None if box.IsEmpty() else box.GetMin()[1]
+
+
+def rested(stage, path, at, turn, scale):
+    """The prim at `path` moved up or down so its lowest point lies at at[1]; its new spot."""
+    lowest = lowest_of(stage, path)
+    if lowest is None:
         raise Refused(f"{path} has no shape to rest")
-    spot = [float(at[0]), float(at[1]) + float(at[1]) - box.GetMin()[1], float(at[2])]
+    spot = [float(at[0]), float(at[1]) + float(at[1]) - lowest, float(at[2])]
     posed(stage.GetPrimAtPath(path), spot, turn, scale)
     return spot
 
