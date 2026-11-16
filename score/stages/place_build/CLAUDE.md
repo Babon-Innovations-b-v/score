@@ -64,7 +64,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   its head height), every piece a closed solid of real thickness, its faces turned out (the walkers' floor reads a top
   by its normal), the ground slab laid in pieces (MuJoCo let a mat fall through one face across the whole place); its
   doorways cut in its walls with a hall behind each flat's door, railings on every open edge, flats' blocks either
-  side and a glazed front. Panes are one face each (a closed pane's two thin-glass skins ring with light).
+  side and a glazed front. Panes are one face each (a closed pane's two thin-glass skins ring with light). `--one-block` keeps only the
+  flats' block the entrance opens into, so a cut-away's far wall stands free to the street and the sky beyond.
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
   straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of

@@ -515,28 +515,30 @@ def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
 
 
 def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), mirror=False, address=STAIRS,
-           curtain=False, cut=False):
+           curtain=False, cut=False, one_block=False):
     """The stair core algorithm (stair_core.py) laid as Objects/<name>: a switchback stairwell `storeys` storeys tall
     of real size, its file written once under the place's assets; its parts `slab`, `steps`, `wall`, `dado`,
     `balusters` and `handrail` ready for their surfaces (`mirror`: the other hand, x taken as its length less x;
     `curtain`: its front a storey-high curtain wall),
     and its doorways (wall, along from, along to, sill, head in
-    its own frame) answered for the doors laid in them (`cut`: its front wall left out, a section's cut-away)."""
+    its own frame) answered for the doors laid in them (`cut`: its front wall left out, a section's cut-away;
+    `one_block`: only the flats' block its entrance opens into)."""
     from score.stages.place_build import stair_core
     storeys = stair_core.STOREYS if storeys is None else int(storeys)
     if storeys < 1:
         raise Refused(f"a stair core needs one storey or more ({storeys})")
-    named = f"core_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}{'_o' if cut else ''}.usda"
+    named = f"core_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}{'_o' if cut else ''}{'_1' if one_block else ''}.usda"
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / named
     target.parent.mkdir(parents=True, exist_ok=True)
     target.unlink(missing_ok=True)
-    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut))
+    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block))
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "storeys": storeys, "mirror": bool(mirror),
-            "curtain": bool(curtain), "cut": bool(cut), "doorways": doors}
+            "curtain": bool(curtain), "cut": bool(cut),
+            "one_block": bool(one_block), "doorways": doors}
 
 
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):

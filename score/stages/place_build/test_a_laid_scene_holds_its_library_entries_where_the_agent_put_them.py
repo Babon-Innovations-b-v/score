@@ -73,6 +73,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.outward: `volume > 0` made `volume < 0` -> the treads look down
 - stair_core.holed: the holes left out -> the back wall stands in the flat's doorway
 - stair_core.core: the front kept when `cut` -> the cut-away still stands behind its front wall
+- stair_core.core: the second block kept with `one_block` -> a flats' block stands past the shaft's far wall
 - render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
@@ -422,11 +423,13 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert len(curtain) == 3 and all(x1 - x0 > stair_core.LONG - 0.5 and head - sill > 2.4
                                      and head <= (sill // stair_core.STOREY + 1) * stair_core.STOREY - stair_core.SLAB
                                      for x0, x1, sill, head in curtain)
-    stair_core.core(tmp_path / "cut.usda", 1, cut=True)
+    stair_core.core(tmp_path / "cut.usda", 1, cut=True, one_block=True)
     cut_stage = Usd.Stage.Open(str(tmp_path / "cut.usda"))
     cut = np.asarray(UsdGeom.Mesh(cut_stage.GetPrimAtPath("/stair_core/geo")).GetPointsAttr().Get())
     in_front = (cut[:, 0] > 0) & (cut[:, 0] < stair_core.LONG) & (cut[:, 2] < 0) & (cut[:, 1] > 0.5)
     assert not in_front.any(), cut[in_front][:3]  # the cut-away holds no front wall over its open front
+    standing = cut[cut[:, 1] > 0.5]  # one block: nothing stands past the shaft's far wall, the entrance's block kept
+    assert standing[:, 0].max() <= stair_core.LONG + stair_core.WALL + 1e-6 and standing[:, 0].min() < -stair_core.BLOCK
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)

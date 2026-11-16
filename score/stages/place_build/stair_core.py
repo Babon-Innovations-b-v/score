@@ -23,10 +23,10 @@ Parts, for their library surfaces (place_build.surface --part):
 - `balusters` and `handrail`: the railings along the open front and the well, BALUSTER bars every BALUSTER_STEP and a
   rail RAIL high over the pitch line (LANDING_RAIL over a landing).
 
-    core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False)
+    core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False)
                                   the core written as a USD file at `path` (`mirror`: the other hand,
                                   `curtain`: a storey-high glazed front, `cut`: no front wall, the cut-away the
-                                  concept looks into); its
+                                  concept looks into, `one_block`: the entrance's flats' block alone); its
                                   doorways [(wall, along from, along to, sill, head)] in the unmirrored frame
     doorways(storeys=STOREYS)     the doorways alone, for the doors laid in them
 """
@@ -409,13 +409,14 @@ def outward(piece):
     return part, (points, faces if volume > 0 else [list(reversed(face)) for face in faces])
 
 
-def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False):
+def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False):
     """The stair core written at `path`: /stair_core with its mesh `geo` and its parts (the module's list); with
     `mirror` the other hand (floor landings at x LONG - LANDING to LONG, the flights rising towards -x), with
     `curtain` its front a storey-high curtain wall instead of a window over each landing and flight, with `cut` the
-    front wall left out (a section's cut-away, the open front guarded by its railings)."""
+    front wall left out (a section's cut-away, the open front guarded by its railings), with `one_block` only the
+    flats' block the entrance opens into, the shaft's far side wall standing free to the street."""
     pieces = structure(storeys) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1) \
-        + block(storeys, LONG + WALL, 1) \
+        + ([] if one_block else block(storeys, LONG + WALL, 1)) \
         + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces
     dome_shell.written(path, "stair_core", [outward(piece) for piece in pieces])
