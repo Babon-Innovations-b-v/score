@@ -752,10 +752,8 @@ state is a label (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-hu
 
 **Before you push.** The test of the module you touched when it is quick, and `python3 docs/adr/tools/check_index.py`; the push gate runs the touched modules' tests, and the whole suite runs only by hand (`make tests`). The repo works on
 `main` only (ADR-0001), so a push is the ship. A push to main is refused when the test rule or a touched module's
-test fails, or when the pushed commit moves a paid row's key (its code, its stage table part or a file it declares,
-`python -m score.stages.moved <main> HEAD`, about a minute) and no pushed commit's `Moved-rows: <row or node> ...:
-<reason>` trailer names it (`.claude/hooks/local/pre-push`, then `pre-push-moved` while `git config score.movedCheck
-true`, which bootstrap sets). Which paid rows a run would buy again (`python -m score moved`, scratch remakes, minutes)
+test fails (`.claude/hooks/local/pre-push`); which rows a push moves is not asked (owner, 2026-11-16: the push-time
+moved check removed; `python -m score.stages.moved <main> HEAD` lists them by hand). Which paid rows a run would buy again (`python -m score moved`, scratch remakes, minutes)
 is asked before a Buy or a run starts, not at the push (owner, 2026-11-07: "shouldnt the rebuy check just be before a
 buy"). The shared pre-push also caps pushes to main per UTC day over the repositories on the box whose push starts a
 paid gate run (`.claude/hooks/push_cap.py`, limits in `~/.config/harness/push-cap.json`); this repository's push

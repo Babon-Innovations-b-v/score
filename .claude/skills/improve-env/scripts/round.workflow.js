@@ -17,7 +17,7 @@ const CAUSES = 'SHELL (walls, floors, ceilings, doors, openings, room sizes and 
 const RULES = `
 House rules for this round (root CLAUDE.md applies in full; these are the ones that bite):
 - Free only: no cloud runs, no Buy, no paid model calls, no accepts, rejects, waivers or locks. Readings and plan writings run under the owner's standing allowance only when the coordinator starts them, never from here.
-- Never land an edit that moves the keys of paid model-making rows (picture-made models, people-dress, model bakes): the pre-push moved check lists what a commit moves; if model-making rows are on it, find another way or leave it undone and say so. Moving settle, light, film, sim-body and scene-record rows is fine with a Moved-rows trailer naming the environment's rework issue.
+- Never land an edit that moves the keys of paid model-making rows (picture-made models, people-dress, model bakes): `python -m score.stages.moved origin/main` lists what a change moves; if model-making rows are on it, find another way or leave it undone and say so. Moving settle, light, film, sim-body and scene-record rows is fine; name the environment's rework issue in the commit message.
 - Everything a place shows comes from the library: new shapes, kits and finishes are code-made library entries or data/library recipes, never a one-off.
 - Checks are never loosened to pass. Fix the source a failure comes from.
 - One test file per module with ONE test function; run only your module's test (make tests TESTS=<file>, under 60 s); write each break in its docstring and see it go red once.

@@ -15,18 +15,11 @@ world row]}.
 
 `python -m score moved` asks the dearer question of every world: which paid rows with an accepted output a drive
 would buy again (rebuy.buys, scratch remakes), each at its price and why; a run asks it before it starts (rebuy.py's
-refusal over EUR 5). The push gate asks only the cheap one (owner, 2026-11-07: "shouldnt the rebuy check just be
-before a buy"; the dearer one took 15 to 20 minutes a push): `python -m score moved --pre-push`
-(.claude/hooks/local/pre-push-moved) refuses a push to main whose commit moves a paid row of any world (by its code,
-its stage table part or a declared file, against main's commit, the remote's sha) unless a pushed commit's
-"Moved-rows: <row or node> ...: <reason>" trailer names it; main's commit unknown (a new ref) refuses.
+refusal over EUR 5). Neither is asked at a push (owner, 2026-11-16: the push-time check was removed).
 
     found = moved.rebuys(runner, nodes)          # [rebuy.Buy] of the re-buys, priced
     moved.listing({"world1": found})             # the lines `score moved` prints, with the total
-    pushes = moved.main_pushes(push_lines)       # (local sha, remote sha) of each push line to main, deletions left out
-    found = moved.moved(remote)                  # every row the working tree moves against main's commit
-    moved.unnamed_paid(found, moved.pushed_reasons(pushes))   # the paid rows no "Moved-rows:" trailer names
-    remade = moved.remade_accepted(found, store.accepted)       # the accepted nodes it makes again, free ones too
+    found = moved.moved(base)                    # every row the working tree moves against `base`
 
 Why: about EUR 65 of re-buys (view maps, turntables, the
 cockpit library push) came from code and data changes nobody saw would move a paid row's key, 2026-10-17.
@@ -64,10 +57,7 @@ for world, make in sorted(getattr(stages, "WORLDS", {"world1": stages.world1}).i
         for row in tables.get(world, stages.STAGES):
             found[now.row_name(world, row.name)] = now.row_entry(runner, row, places, repo)
 print(json.dumps(found))""" % str(pathlib.Path(__file__).resolve())
-TRAILER = "Moved-rows"
 MOVED_EXIT = 3
-ZERO = "0" * 40
-MAIN = "refs/heads/main"
 
 
 def row_name(world, row):
@@ -159,30 +149,6 @@ def moved_rows(before, after):
     return found
 
 
-def remade_accepted(found, accepted):
-    """[{"node", "paid", "euros"}] of every node of a moved row (moved's answer) that stands accepted (`accepted`: a
-    node's accepted output or None, the store's): a row moved by its code or table part at each place it is declared
-    at, one moved by a declared file at the places that file moves in. The next run makes these again, free ones too:
-    the redo loop of 2026-11-10 (655 rows queued by a few fixes; #107 is the root fix) counted only the paid ones."""
-    remade = []
-    for name, row in sorted(found.items()):
-        stage = name.rpartition(":")[2]
-        places = row["places"] if row["code"] else sorted({place for places in row["files"].values()
-                                                           for place in places})
-        for place in places:
-            node = stage if place == "None" else f"{stage}@{place}"
-            if accepted(node):
-                remade.append({"node": node, "paid": row["paid"], "euros": row.get("euros", 0)})
-    return remade
-
-
-def remakes_line(remade):
-    """The push's one summary line of remade_accepted's answer."""
-    paid = [row for row in remade if row["paid"]]
-    return (f"this push re-makes {len(remade)} accepted rows ({len(paid)} paid, "
-            f"EUR {sum(row['euros'] for row in paid):.2f})")
-
-
 def edited_into_framework(base, head=None):
     """The repository files the change from `base` to `head` (default: the working tree) moves into FRAMEWORK and
     edits too. A plain move keeps the outputs of the rows that read it (graph's narrowing carry); an edit in the same
@@ -216,63 +182,6 @@ def listing(rows_by_world, what="paid rows with an accepted output this tree wou
     for world, rows in rows_by_world.items():
         lines += [f"  {world} {row.node}: EUR {row.euros:.2f}, {row.why}" for row in rows]
     return "\n".join(lines)
-
-
-def main_pushes(push_lines):
-    """(local sha, remote sha) of each of git's pre-push lines ("<local ref> <local sha> <remote ref> <remote sha>")
-    that updates main; a deletion (local sha all zeros), a tag and any other branch are left out."""
-    words = [line.split() for line in push_lines if line.strip()]
-    return [(local, remote) for _, local, ref, remote in words if ref == MAIN and local != ZERO]
-
-
-def git_lines(*words):
-    """The non-empty output lines of a git command run in this repository."""
-    found = subprocess.run(["git", "-C", str(REPO), *words], capture_output=True, text=True, check=True)
-    return [line.strip() for line in found.stdout.splitlines() if line.strip()]
-
-
-def pushed_commits(local, remote):
-    """The commits a push of `local` over `remote` sends: those after the remote's commit, or for a new remote ref
-    those on no remote yet."""
-    return git_lines("rev-list", *([local, "--not", "--remotes"] if remote == ZERO else [f"{remote}..{local}"]))
-
-
-def trailer_reasons(commit):
-    """The non-empty "Moved-rows: <...>" trailer values of one commit's message."""
-    return git_lines("log", "-1", f"--format=%(trailers:key={TRAILER},valueonly)", commit)
-
-
-def pushed_reasons(pushes):
-    """Every Moved-rows trailer value carried by a commit the pushes send."""
-    return [reason for push in pushes for commit in pushed_commits(*push) for reason in trailer_reasons(commit)]
-
-
-def trailer_nodes(reason):
-    """The nodes a trailer value "<node> ...: <reason>" lists before its colon (spaces or commas between them); none
-    when it gives no reason."""
-    listed, colon, why = reason.partition(":")
-    return set(listed.replace(",", " ").split()) if colon and why.strip() else set()
-
-
-def row_named(row, reasons):
-    """True when a trailer value lists the row, with a reason: by its name (an environment's prefix,
-    "images:", left off or not) or a node of it ("bake@hangar: why" names bake, "bake2@hangar: why", "bake" alone
-    with no reason, nor "film: it reads bake" do not)."""
-    names = {row, row.rpartition(":")[2]}
-    return any(node in names or node.partition("@")[0] in names for reason in reasons
-               for node in trailer_nodes(reason))
-
-
-def unnamed_paid(found, reasons):
-    """The paid rows of `found` (moved's answer) no Moved-rows trailer names, sorted."""
-    return sorted(name for name, row in found.items() if row["paid"] and not row_named(name, reasons))
-
-
-def tree_is_at(commit):
-    """True when this repository's checkout is `commit` with nothing changed or untracked: what is checked is what
-    is pushed."""
-    head = git_lines("rev-parse", "HEAD")
-    return head == [git_lines("rev-parse", commit)[0]] and not git_lines("status", "--porcelain")
 
 
 def moved_listing(found):

@@ -151,13 +151,9 @@ stage as each stage is built; nothing moves before.
   version and the repository's code files as at the lock, its inputs' accepted outputs above all; a moved input or data
   file makes it again; a stage whose gate code changed since the lock's commit, `Runner.gates_moved`, judges the locked
   output again and makes it when those gates fail it or cannot tell (unknown) beyond its accepted and batch gaps,
-  `fails_today`; a gate unchanged since the lock is never judged again there); `status` prints each lock and the nodes kept by it. `python -m score moved` lists the paid rows a tree would buy again;
-  `.claude/hooks/local/pre-push-moved` refuses a push whose commit moves a paid row's key (`score.stages.moved`: code,
-  table part, declared files; about a minute) without a `Moved-rows:` reason, prints "this push re-makes N accepted
-  rows (P paid, EUR X)" (`moved.remade_accepted`, free ones too; #107 is the root fix; the env1 push freeze that
-  refused remade accepted rows ended on #128, owner 2026-11-16) (the push gate,
-  .claude/hooks/local/pre-push, hands it every push to main while `git config score.movedCheck true`, which
-  bootstrap sets). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
+  `fails_today`; a gate unchanged since the lock is never judged again there); `status` prints each lock and the nodes kept by it. `python -m score moved` lists the paid rows a tree would buy again,
+  and `python -m score.stages.moved <base> [<head>]` the rows a change moves (code, table part, declared files), both
+  by hand; no push runs either (owner, 2026-11-16: the push-time moved check removed). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
   `graph/pod.py` (FRAMEWORK, #76) makes a free node in a pod from its whole key alone: the conductor's `job_of` (with

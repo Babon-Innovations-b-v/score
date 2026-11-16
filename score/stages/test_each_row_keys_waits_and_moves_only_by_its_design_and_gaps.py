@@ -2,7 +2,7 @@
 its gaps say: its code version moves with its own code alone, the layers a scene has are read off its design, a row's
 kind off its own words, every designed person is a look of the people line, a ground follows its words then its
 physics, a layer's copy of a read-only seed takes a save, an accepted gap or a batch gap moves only the faults it
-names, and the push gate names the paid rows a change would buy again. One section a top-level module below, each
+names, and `score moved` names the paid rows a change would buy again. One section a top-level module below, each
 test under its section's heading in the code; the fixtures are each section's own, small, in temporary folders.
 
 --- rows key and wait only on what they read ---
@@ -84,7 +84,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   check guarding the rule above).
 - `MOTION_LAYER`: bodies' `cast` written `casts`  -> the motion layer patterns that name no row.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> the KEYED terrain rows and the rows
-  above, and the push gate's TREE_EDITS framework-only row.
+  above, and the moved part's TREE_EDITS framework-only row.
 - `scripts_declared`: the row returned as it was  -> the started-scripts check (every
   row that starts a script, surfaces-bake's recipes.py among them); score/graph/_code.py `script_imports`: the files
   beside a script dropped  -> the same test (make_chunky.py's bake.py, pieces.py ...); `STARTED_LEFT` with a row that
@@ -254,62 +254,36 @@ Breaks (each applied once, seen red, reverted), in score/stages/batch_gaps.py:
 - a fault no batch gap names, and a take lost with none: the gaps section's `moved` break (`all` read as `any`)  ->
   test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (the changed crate take; the LINES lost-crate row).
 
---- push gate names the paid rows it moves ---
+--- `score moved` names the paid rows a change moves ---
 
-The push gate (moved.py, `score moved --pre-push`, .claude/hooks/local/pre-push-moved) asks only the cheap question, in
-about a minute: the rows the pushed commit moves against main's (code, stage table part, declared files, every world),
-refusing a push to main only for a moved paid row no Moved-rows trailer names with a reason; a move no file explains
-(a params, contract or model change) is refused like any other, and the hook leaves no process or checkout behind.
-`score moved` (no --pre-push) still names the paid rows a change would buy again, each with its price and why: a
-run's question before it starts (owner, 2026-11-07: "shouldnt the rebuy check just be before a buy"; asked at every
-push it took 15 to 20 minutes).
+`score moved` names the paid rows a change would buy again, each with its price and why: a run's question before it
+starts (owner, 2026-11-07: "shouldnt the rebuy check just be before a buy"). `python -m score.stages.moved <base>
+[<head>]` lists by hand the rows a change moves (code, stage table part, declared files, every world); a move no file
+explains (a params, contract or model change) is listed like any other. Nothing is asked at a push (owner, 2026-11-16:
+the push-time check removed).
 
 A toy git repository stands in for this one (moved.REPO, _code.REPO): a paid render whose make sits in it and imports
 a framework file, a paid bake, each reading a data file of its own, and a paid film reading an unpaid drawing of a
-third data file. The hook itself is run against a toy repository whose score package only records what it was given.
+third data file.
 
 Faults it guards (2026-10-17): about EUR 65 of re-buys (view maps, turntables, the cockpit library push) came from
-code and data changes nobody saw would move a paid row's key before they were pushed (8b402226: blender_cloud.py,
-outside every code version but declared by the turntables; 1f90a0fe: new gap files a paid row declares). The first
-hook refused every push over drift already on main, refused branch deletions and took any trailer as leave for every
-row; its second form let a framework-only push through unchecked and only warned of a move no file explains. On
-2026-11-07 cb8b4557 moved a paid images row through images.json, a world the snapshot did not cover.
+code and data changes nobody saw would move a paid row's key (8b402226: blender_cloud.py, outside every code version
+but declared by the turntables; 1f90a0fe: new gap files a paid row declares).
 
-Its checks are the push-gate part of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps: TREE_EDITS rows
-on the toy's working tree, its trailer commit and pre-push check, its framework move, PUSH_LINES, ROW_NAMED and the
-hook's HOOK_CASES rows.
+Its checks are the moved part of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps: TREE_EDITS rows on
+the toy's working tree, its snapshots and its framework move.
 
-Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .claude/hooks/local/pre-push-moved:
+Breaks (each applied once, seen red, reverted), in score/stages/moved.py:
 - `total`: `sum(row.euros ...)` read as `sum(0 * row.euros ...)`  -> the TREE_EDITS file-one-paid-row-reads row
   ("about EUR 3.00").
-- `main_pushes`: `ref == MAIN and` dropped  -> the PUSH_LINES rows.
-- `trailer_nodes`: `and why.strip()` dropped  -> the ROW_NAMED rows ("bake@hangar:  ").
-- `unnamed_paid`: `not row_named(...)` read as `row_named(...)`  -> the trailer commit (render let go, bake refused);
-  its `row["paid"] and` dropped  -> the TREE_EDITS row moved through what it reads (the free draw row refused).
-- `row_named`: `node.partition("@")[0] in names` read as `node.startswith(row)`  -> the ROW_NAMED rows (bake2 names
-  bake).
 - `moved_rows`: its `before[name].get("table") != row.get("table")` dropped  -> the TREE_EDITS move no file explains.
 - `edited_into_framework`: `after - before` read as `before - after`  -> the framework move.
-- .claude/hooks/local/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the HOOK_CASES
-  changed-tree row (the checkout is left behind).
 - score/__main__.py `moved_check`: `> 0` read as `>= 0`  -> the TREE_EDITS nothing-changed row.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out  -> the TREE_EDITS framework-only row.
 - score/graph/rebuy.py `buys`: `if remade[name]` read as `if not remade[name]`  -> the TREE_EDITS row moved through
   what it reads.
-- score/__main__.py `pre_push_check`: `if remote == moved.ZERO` check dropped  -> the pre-push check of an unknown
-  main.
 - `snapshot`: `shutil.rmtree(holder)` made `pass`, or its `worktree remove` made `pass`  -> the snapshot of an unknown
-  commit or a failing tree, and the HOOK_CASES out-of-time row.
-- `tree_is_at`: the `git status --porcelain` check dropped  -> the pre-push check of a changed tree.
-- the hook's `= true ] || exit 0` read as `|| true`  -> the HOOK_CASES off row.
-- the hook's `[ ! -d "$home/store/objects" ]` dropped, or its candidate loop's `break` dropped (this PC's run home
-  read over a default home holding a store)  -> the HOOK_CASES home rows.
-- the hook's `[ "$remote_ref" = refs/heads/main ] &&` dropped  -> the HOOK_CASES tag and other-branch rows.
-- the hook's `rm -rf "$checkout"` dropped  -> the HOOK_CASES no-worktree row (its TMPDIR not empty).
-- the hook's `grep -qs -- "--pre-push"` read as `grep -qs -- ""`  -> the HOOK_CASES before-score-moved row.
-- the hook's `|| echo 3600` read as `|| echo 900`  -> every HOOK_CASES row that runs the check.
-- the hook's main-checkout python (`$(git rev-parse --git-common-dir)/..`) read as `$repo`  -> the HOOK_CASES
-  worktree row.
+  commit or a failing tree.
 """
 
 import ast
@@ -329,7 +303,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import types
 from unittest import mock
 
@@ -871,8 +844,8 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     assembly's gate waits on; a row's objects are found outside the layers' scopes, anything else a stranger. An
     accepted gap moves only the faults it names and is read only by complete and the row it names; complete fails
     each by name, and an owner's gap is never dropped unless retired on a passing output. A failed paid take is a gap
-    carried down its line. The push gate names the paid rows a change moves, refuses a push to main only for those no
-    trailer names, and its hook runs the check from the right checkout, home and python and leaves nothing behind.
+    carried down its line. `score moved` names the paid rows a change would buy again and the rows it moves, and a
+    snapshot leaves no checkout behind.
     A row's code version moves with its own code alone, a row made again elsewhere than a place's own layer moves
     none of its readers, a per-take function reads only what its key holds, and a Claude ask cut short is never a
     row's output; each row waits on, reads beside and applies where its design and its reads
@@ -1598,13 +1571,13 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     ROWS["surfaces-paint"].make({"surfaces-bake": baked}, clean, 0, {})
     assert not (clean / batch_gaps.FILE).exists()
 
-    # the push gate: on a toy repository with every row made and accepted, each working-tree edit is listed by
-    # `score moved` as the paid rows it buys again, with price and why, and refused at a push only for a paid row moved
+    # `score moved`: on a toy repository with every row made and accepted, each working-tree edit is listed as the
+    # paid rows it buys again, with price and why, and by `score.stages.moved` as the rows it moves
     main = command()
     with toy() as repo:
         store = made(repo)
         before = snap(repo, store)
-        for case, files, table, buys, moved_now, refusal in TREE_EDITS:
+        for case, files, table, buys, moved_now in TREE_EDITS:
             for name, text in files.items():
                 (repo / name).write_text(text)
             if buys is not None:
@@ -1616,9 +1589,6 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
                 assert all(f"toy {node}: EUR {euros:.2f}, {why}" in printed for node, euros, why in buys), printed
             found = moved.moved_rows(before, snap(repo, store, **table))
             assert moves(found) == moved_now, (case, found)
-            printed, code = exit_code(main.pushed_check, found, [])
-            assert code == (moved.MOVED_EXIT if refusal else 0), (case, printed)
-            assert all(said in printed for said in refusal), (case, printed)
             git(repo, "checkout", "--", ".")
         # an unknown commit, or one whose tree cannot work out a snapshot (the toy has no score), raises and leaves
         # no checkout behind
@@ -1627,75 +1597,15 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
             with pytest.raises(subprocess.CalledProcessError):
                 moved.snapshot(commit)
         assert set(repo.parent.glob("moved-*")) == checkouts and len(git(repo, "worktree", "list").splitlines()) == 1
-        # a pushed commit's trailer lets only the rows it names go; the pre-push check works it out on a clean
-        # checkout of the pushed commit against main's, never on a changed tree or an unknown main
-        line, tip = pushed(repo, "data: a brighter hall and a new make\n\nMoved-rows: bake@hangar: the owner asked",
-                           {"bake.txt": "a hall's brighter light", "toy_render.py": RENDER_MAKE + "\n# moved\n"})
-        sys.modules.pop("toy_render", None)
-        found = moved.moved_rows(before, snap(repo, store))
-        assert sorted(found) == ["bake", "render"], found
-        reasons = moved.pushed_reasons(moved.main_pushes([line]))
-        assert reasons == ["bake@hangar: the owner asked"]
-        assert moved.pushed_reasons([(tip, moved.ZERO)]) == reasons  # a new remote ref: commits on no remote yet
-        bases = []
-        moved.moved = lambda base, head=None: bases.append((base, head)) or found
-        (repo / "draw.txt").write_text("not committed")
-        printed, code = exit_code(main.pre_push_check, [line])
-        assert code != 0 and "clean checkout" in printed and bases == [], printed
-        git(repo, "checkout", "--", "draw.txt")
-        printed, code = exit_code(main.pre_push_check, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
-        assert code != 0 and "not known" in printed and bases == [], printed
-        printed, code = exit_code(main.pre_push_check, [line])
-        assert code == moved.MOVED_EXIT and "Moved-rows: render: <why>" in printed, printed
-        assert bases == [(line.split()[3], None)]
-        printed, code = exit_code(main.pushed_check, found, reasons + ["render: a new make"])
-        assert code == 0 and "Moved-rows: bake@hangar: the owner asked" in printed, printed
         # a module moved into FRAMEWORK and edited in the same change makes the rows that read it again (no narrowing
         # carry): it is named, a plain move is not
         (repo / "score/graph").mkdir(parents=True)
         declared = repo / "score/graph/_code.py"
         declared.write_text("FRAMEWORK = {REPO / name for name in ()}\n")
-        first = pushed(repo, "helpers", {"plain.py": "A = 1\n", "edited.py": "B = 1\n"})[1]
+        first = commit_files(repo, "helpers", {"plain.py": "A = 1\n", "edited.py": "B = 1\n"})
         declared.write_text("FRAMEWORK = {REPO / name for name in ('plain.py', 'edited.py')}\n")
-        second = pushed(repo, "helpers into the framework", {"edited.py": "B = 2\n"})[1]
+        second = commit_files(repo, "helpers into the framework", {"edited.py": "B = 2\n"})
         assert moved.edited_into_framework(first, second) == ["edited.py"]
-    for lines, pushes in PUSH_LINES:
-        assert moved.main_pushes(lines) == pushes, lines
-    printed, code = exit_code(main.pre_push_check, NOT_MAIN)
-    assert code == 0 and "nothing pushed to main" in printed, printed
-    for row_name, reasons, is_named in ROW_NAMED:
-        assert moved.row_named(row_name, reasons) is is_named, (row_name, reasons)
-
-    # the hook runs the check only for a push to main once the owner turned it on, from the right checkout, home and
-    # python, within its time, and leaves no checkout, process or temporary file behind
-    hooks = hook_world()
-    for case, name, where, line, on, limit, loose, exit_with, env, code, said, record, timeout in HOOK_CASES:
-        repo = hooks[name]
-        values = {**hooks, "tip": git(repo, "rev-parse", "HEAD")}
-        configured(repo, "score.movedCheck", "true" if on else None)
-        configured(repo, "score.movedTimeout", limit)
-        trees = git(repo, "worktree", "list")
-        if loose:
-            (repo / "loose.txt").write_text("not committed")
-        line = placed(line, values)
-        ran, printed, wrote, given, temp = hook(values[where], [line], exit_with,
-                                                   {key: placed(value, values) for key, value in env.items()})
-        assert ran == code and (said in printed if said else printed == ""), (case, ran, printed)
-        assert given == timeout, (case, given)
-        if record is None:
-            assert wrote is None, (case, wrote)
-        elif record == ENDED:
-            assert isinstance(wrote, int) and gone(wrote), (case, wrote)
-        else:
-            for key, value in record.items():
-                if value == GONE:
-                    assert wrote[key] != str(repo) and not pathlib.Path(wrote[key]).exists(), (case, wrote)
-                else:
-                    assert wrote[key] == placed(value, values), (case, key, wrote)
-        assert list(temp.iterdir()) == [] and git(repo, "worktree", "list") == trees, case
-        assert sorted(path.name for path in repo.parent.iterdir()) == ["repo"], case
-        if loose:
-            (repo / "loose.txt").unlink()
 
     # every designed person is a look of the people line: every people row of the home's designs maps to looks the
     # line holds, one look (one body) for the camp's, the garage's and the airlock's astronauts
@@ -2114,7 +2024,7 @@ def measured_clean(monkeypatch):
                         lambda inputs, out: baked_colour.measure_step(baked_colour.prop_env.short(inputs), out))
 
 
-# --- push gate names the paid rows it moves ---
+# --- `score moved` names the paid rows a change moves ---
 
 TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
 
@@ -2163,8 +2073,7 @@ def toy():
     """A git repository standing in for this one (the render's make, a framework file it imports, three data files)
     for the time of a `with`; the framework's globals and the command's hooks are put back afterwards."""
     main = command()
-    kept = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal,
-            moved.moved)
+    kept = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal)
     repo = pathlib.Path(tempfile.mkdtemp()).resolve()
     git(repo, "init", "-q")
     (repo / "toy_render.py").write_text(RENDER_MAKE)
@@ -2184,8 +2093,7 @@ def toy():
     try:
         yield repo
     finally:
-        (_code.REPO, _code.FRAMEWORK, moved.REPO, sys.path[:], compute.books_refusal,
-         moved.moved) = kept
+        (_code.REPO, _code.FRAMEWORK, moved.REPO, sys.path[:], compute.books_refusal) = kept
         _code.search_folders.cache_clear()
 
 
@@ -2225,13 +2133,11 @@ def exit_code(call, *args):
     return printed.getvalue() + said.getvalue(), 0
 
 
-def pushed(repo, message, files):
-    """Commit `files` ({name: text}) over the toy repository's tip; (the git push line to main, tip)."""
-    base = git(repo, "rev-parse", "HEAD")
+def commit_files(repo, message, files):
+    """Commit `files` ({name: text}) over the toy repository's tip; the new tip."""
     for name, text in files.items():
         (repo / name).write_text(text)
-    tip = committed(repo, message)
-    return f"refs/heads/main {tip} refs/heads/main {base}", tip
+    return committed(repo, message)
 
 
 def snap(repo, store, **table):
@@ -2246,188 +2152,18 @@ def moves(found):
 
 
 # (case, files written over the toy's commit, the table's change, the paid rows `score moved` lists (node, euros, why),
-# the rows the push gate finds moved, what its refusal says (none: the push goes)): a declared file moves its paid
-# row; a framework-only edit nothing; a free row's file the paid row reading it (a run's re-buy question before it
-# starts, never the push's); a table edit (a row's params here; a contract, a model or an after alike) moves the row
-# with no file of its own changed, refused like any other
+# the rows `score.stages.moved` finds moved): a declared file moves its paid row; a framework-only edit nothing; a free
+# row's file the paid row reading it; a table edit (a row's params here; a contract, a model or an after alike) moves
+# the row with no file of its own changed
 TREE_EDITS = [
-    ("nothing changed", {}, {}, [], {}, []),
+    ("nothing changed", {}, {}, [], {}),
     ("a file one paid row reads", {"bake.txt": "a hall's brighter light"}, {}, [("bake@hangar", 3.0, "brief changed")],
-     {"bake": (True, False, {"bake.txt": ["hangar"]})}, ["bake (paid): bake.txt (1 places)", "Moved-rows: bake: <why>"]),
-    ("a framework-only edit", {"toy_frame.py": 'WORD = "made by the framework: "\n'}, {}, [], {}, []),
+     {"bake": (True, False, {"bake.txt": ["hangar"]})}),
+    ("a framework-only edit", {"toy_frame.py": 'WORD = "made by the framework: "\n'}, {}, [], {}),
     ("a row moved through what it reads", {"draw.txt": "a hall's new plan"}, {}, [("film@hangar", 2.0, "reads draw@hangar")],
-     {"draw": (False, False, {"draw.txt": ["hangar"]})}, []),
-    ("a move no file explains", {}, {"bake_params": {"light": 2}}, None, {"bake": (True, True, {})},
-     ["Moved-rows: bake: <why>"]),
+     {"draw": (False, False, {"draw.txt": ["hangar"]})}),
+    ("a move no file explains", {}, {"bake_params": {"light": 2}}, None, {"bake": (True, True, {})}),
 ]
-
-# (git's pre-push lines, the (local sha, remote sha) pushes to main among them): a deletion, a tag and another branch
-# are none
-TIP, BASE = "a" * 40, "b" * 40
-NOT_MAIN = [f"refs/heads/main {moved.ZERO} refs/heads/main {BASE}", f"refs/tags/v1 {TIP} refs/tags/v1 {moved.ZERO}",
-            f"refs/heads/side {TIP} refs/heads/side {BASE}"]
-PUSH_LINES = [(NOT_MAIN, []), (NOT_MAIN + [f"HEAD {TIP} refs/heads/main {BASE}"], [(TIP, BASE)])]
-
-# (row, Moved-rows trailer values, named): "<row or node> ...: <reason>" names a row by its name or a node of it, an
-# environment's prefix left off or not; never with no reason, only in another row's reason, or by another row's prefix
-ROW_NAMED = [("bake", ["bake@hangar film@hangar: the owner asked"], True), ("film", ["bake, film: the owner asked"], True),
-             ("images:image-proof-runner", ["image-proof-runner: a new build"], True),
-             ("bake", ["bake@hangar"], False), ("bake", ["bake@hangar:  "], False),
-             ("bake", ["film@hangar: it reads bake@hangar"], False), ("bake", ["bake2@hangar: another row"], False)]
-
-HOOK = REPO / ".claude/hooks/local/pre-push-moved"
-
-
-RECORDER = """import json, os, pathlib, sys
-pathlib.Path(os.environ["HOOK_RECORD"]).write_text(json.dumps({"cwd": os.getcwd(), "argv": sys.argv[1:],
-    "stdin": sys.stdin.read(), "python": sys.executable, "home": os.environ.get("PROPS_HOME")}))
-sys.exit(int(os.environ.get("HOOK_EXIT", "0")))  # stands in for: score moved --pre-push
-"""
-
-
-STALLED = """import os, pathlib, sys
-del sys.modules["score"]  # this toy package: the real score command is loaded in its place
-sys.path.insert(0, os.environ["SCORE_REPO"])
-from score import __main__ as real
-from score.stages import moved
-moved.REPO = pathlib.Path.cwd()
-sleeper = "import os, pathlib, time; pathlib.Path(%r).write_text(str(os.getpid())); time.sleep(600)"
-moved.moved = lambda base, head=None: moved.snapshot("HEAD", sleeper % os.environ["HOOK_RECORD"])
-real.main(["moved", "--pre-push"])  # never --pre-push --again
-"""
-
-
-def hook_repo(command_text=RECORDER):
-    """A toy repository whose score package records how the hook ran it (or runs `command_text`), with its own .venv
-    python; it sits alone in a folder of its own, where moved.snapshot puts its checkouts."""
-    repo = pathlib.Path(tempfile.mkdtemp()).resolve() / "repo"
-    repo.mkdir()
-    git(repo, "init", "-q")
-    (repo / "score").mkdir()
-    (repo / "score/__init__.py").write_text("")
-    (repo / "score/__main__.py").write_text(command_text)
-    (repo / ".gitignore").write_text(".venv/\n__pycache__/\n")
-    (repo / ".venv/bin").mkdir(parents=True)
-    (repo / ".venv/bin/python").symlink_to(sys.executable)
-    committed(repo)
-    return repo
-
-
-def stalled_repo():
-    """A hook repository whose score command works out a commit in a checkout of its own while its child sleeps,
-    with this environment's own python (a bare link to it would leave the venv)."""
-    repo = hook_repo(STALLED)
-    python = repo / ".venv/bin/python"
-    python.unlink()
-    python.write_text(f'#!/usr/bin/env bash\nexec {sys.executable} "$@"\n')
-    python.chmod(0o755)
-    return repo
-
-
-def hook(where, push_lines, exit_with=0, env=None):
-    """Run .claude/hooks/local/pre-push-moved in `where` (with `env` added to its environment, a None value taken out
-    of it; PROPS_HOME a home holding a store unless `env` names one; TMPDIR an empty folder of its own; `timeout` a
-    shim recording the limit it was given); (its exit code, its output, the recorder's record or None, the timeout's
-    limit or None, its TMPDIR)."""
-    scratch = pathlib.Path(tempfile.mkdtemp())
-    record, limit, temp, shim, home = (scratch / "record.json", scratch / "limit.txt", scratch / "tmp", scratch / "shim",
-                                       scratch / "home")
-    for folder in (temp, shim, home / "store/objects"):
-        folder.mkdir(parents=True)
-    (shim / "timeout").write_text(f'#!/usr/bin/env bash\necho "$1" > "$TIMEOUT_RECORD"\n'
-                                  f'exec {shutil.which("timeout")} "$@"\n')
-    (shim / "timeout").chmod(0o755)
-    environment = {**os.environ, "PROPS_HOME": str(home), "HOOK_RECORD": str(record), "HOOK_EXIT": str(exit_with),
-                   "TMPDIR": str(temp), "PATH": f"{shim}:{os.environ['PATH']}", "TIMEOUT_RECORD": str(limit),
-                   **(env or {})}
-    ran = subprocess.run(["bash", str(HOOK), "origin", "toy"], cwd=where, input="\n".join(push_lines) + "\n",
-                         capture_output=True, text=True,
-                         env={name: value for name, value in environment.items() if value is not None})
-    return (ran.returncode, ran.stdout + ran.stderr, json.loads(record.read_text()) if record.exists() else None,
-            limit.read_text().strip() if limit.exists() else None, temp)
-
-
-def gone(pid):
-    """True once process `pid` has ended (waited for up to 10 s)."""
-    for _ in range(100):
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return True
-        time.sleep(0.1)
-    return False
-
-
-GONE = "a checkout of the pushed commit, removed afterwards"
-ENDED = "the pid of a child that has ended"
-MAIN_LINE = "refs/heads/main {tip} refs/heads/main {zero}"
-
-# (case, repository, run in, its push line, score.movedCheck, score.movedTimeout, a loose file, the score command's
-# exit, environment, the hook's exit, what it says (empty: nothing), the record its score command wrote, the
-# timeout's limit): the hook is off until the owner turns it on and passes deletions, tags and other branches at once;
-# it runs the command in this checkout at the pushed commit, else in a worktree of it, removed afterwards, and
-# refuses when none can be made; a commit made before score moved is not checked; it reads the places from PROPS_HOME,
-# else the default home once it holds a store, else this PC's run home, and with none goes on, said; a worktree runs
-# the main checkout's python; the check has an hour unless told otherwise, and one that runs out of time ends its child
-HOOK_CASES = [
-    ("off", "repo", "repo", MAIN_LINE, False, None, False, 0, {}, 0, "", None, None),
-    ("on", "repo", "repo", MAIN_LINE, True, None, False, 0, {}, 0, "",
-     {"cwd": "{repo}", "argv": ["moved", "--pre-push"], "stdin": MAIN_LINE + "\n",
-      "python": "{repo}/.venv/bin/python"}, "3600"),
-    ("its exit passed on", "repo", "repo", MAIN_LINE, True, None, False, 3, {}, 3, "", {"cwd": "{repo}"}, "3600"),
-    ("a deletion", "repo", "repo", "(delete) {zero} refs/heads/main {tip}", True, None, False, 3, {}, 0, "", None, None),
-    ("a tag", "repo", "repo", "refs/tags/v1 {tip} refs/tags/v1 {zero}", True, None, False, 3, {}, 0, "", None, None),
-    ("another branch", "repo", "repo", "refs/heads/side {tip} refs/heads/side {zero}", True, None, False, 3, {}, 0, "",
-     None, None),
-    ("a changed tree", "repo", "repo", MAIN_LINE, True, None, True, 0, {}, 0, "", {"cwd": GONE}, "3600"),
-    ("no worktree can be made", "repo", "repo", "refs/heads/main {unknown} refs/heads/main {zero}", True, None, False,
-     0, {}, 1, "refused", None, None),
-    ("before score moved", "repo", "repo", "refs/heads/main {older} refs/heads/main {zero}", True, None, False, 0, {}, 0,
-     "predates score moved", None, None),
-    ("no home with a store", "repo", "repo", MAIN_LINE, True, None, False, 0, {"PROPS_HOME": "{bare}"}, 0,
-     "no home with a store", None, None),
-    ("this PC's run home", "repo", "repo", MAIN_LINE, True, None, False, 0,
-     {"PROPS_HOME": None, "HOME": "{bare}", "SCORE_THIS_PC_HOME": "{pulled}"}, 0, "", {"home": "{pulled}"}, "3600"),
-    ("the default home first", "repo", "repo", MAIN_LINE, True, None, False, 0,
-     {"PROPS_HOME": None, "HOME": "{homed}", "SCORE_THIS_PC_HOME": "{pulled}"}, 0, "",
-     {"home": "{homed}/.farm-factory-props"}, "3600"),
-    ("a worktree", "repo", "tree", MAIN_LINE, True, None, False, 0, {}, 0, "",
-     {"cwd": "{tree}", "python": "{repo}/.venv/bin/python"}, "3600"),
-    ("out of time", "stalled", "stalled", "refs/heads/main {tip} refs/heads/main {tip}", True, "15", False, 0,
-     {"SCORE_REPO": str(REPO)}, 124, "ran past 15 s", ENDED, "15"),
-]
-
-
-def placed(value, world):
-    """`value` with every {name} of `world` filled in (a list's items alike)."""
-    if isinstance(value, list):
-        return [placed(item, world) for item in value]
-    return value.format(**world) if isinstance(value, str) else value
-
-
-def hook_world():
-    """The hook's two repositories, the worktree of the first, its commit made before score moved, and the homes the
-    hook reads from: no store, this PC's run home and a default home holding a store; {name: path or commit}."""
-    repo, stalled = hook_repo(), stalled_repo()
-    folders = {name: pathlib.Path(tempfile.mkdtemp()).resolve() for name in ("bare", "pulled", "homed", "trees")}
-    (folders["pulled"] / "store/objects").mkdir(parents=True)
-    (folders["homed"] / ".farm-factory-props/store/objects").mkdir(parents=True)
-    tree = folders.pop("trees") / "tree"
-    git(repo, "worktree", "add", "-q", "--detach", str(tree))
-    tip = git(repo, "rev-parse", "HEAD")
-    git(repo, "checkout", "-q", "-b", "older")
-    (repo / "score/__main__.py").write_text(RECORDER.replace("score moved --pre-push", "an older command"))
-    older = committed(repo, "before score moved")
-    git(repo, "checkout", "-q", "-")
-    return {"repo": repo, "stalled": stalled, "tree": tree, "tip": tip, "older": older, "zero": moved.ZERO,
-            "unknown": "f" * 40, **folders}
-
-
-def configured(repo, key, value):
-    """Set git config `key` to `value` in `repo`, or take it out when None."""
-    words = ["config", key, value] if value is not None else ["config", "--unset-all", key]
-    subprocess.run(["git", "-C", str(repo), *words], capture_output=True, check=value is not None)
-
 
 # --- a per-take function the table keeps reads only what its key holds -------------------------------------------------
 

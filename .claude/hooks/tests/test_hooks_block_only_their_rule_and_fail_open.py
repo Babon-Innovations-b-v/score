@@ -47,7 +47,7 @@ The break that turns each test red (applied once each, seen red, reverted):
   - its push-gate rows (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block
     dropped (a grown debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a
     failing touched test pushes); `touched_tests`'s `gpu` made [] (a GPU module is run, not left to a run by hand);
-    `main` returns 0 instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the
+    `main` returns 0 whatever `checked` answered (a refused gate pushes); `main`'s `GIT_HOOK_ENV` pop dropped (the
     clean push's test file, a git-driving one here, then runs against the pushing repository's GIT_DIR); `checked`'s
     `.venv` link dropped (the push from a clone moved off it, checked in a copy, has no environment for its test).
   - its push-cap rows (.claude/hooks/pre-push and push_cap.py, in scratch repos): `claim`'s `len(today) >= cap` made
@@ -56,8 +56,6 @@ The break that turns each test red (applied once each, seen red, reverted):
     `never_reached_main` returns False at once (a push the remote refused keeps its slot); `main`'s `uncounted` check
     dropped (a release-only repository's push takes a slot), or `uncounted` returns True at once (every push passes
     uncounted).
-  - its redo-count row (score.stages.moved): `remade_accepted` takes `row["places"]` for a file-moved row too (a
-    place the file does not move in counts); `remakes_line` sums every row's euros, not the paid ones'.
   - its fail-open rows: accept_guard's `except Exception: return 0` made `return 2`.
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/hooks/tests/
@@ -711,8 +709,8 @@ def main_push_line(repo, pushed="HEAD", base="HEAD~1"):
 
 
 def gate_world(files, away=False):
-    """A world: a clone of this checkout with this tree's gate files, a module `tools/zz_gate` whose test passes and
-    its pre-push-moved a stand-in writing its stdin to world/moved.txt, all committed as the base; then one commit on
+    """A world: a clone of this checkout with this tree's gate files, a module `tools/zz_gate` whose test passes, all
+    committed as the base; then one commit on
     it writing files(clone) (path: text), its push line in world/push-line; `away` puts the clone back on the base, so
     the commit pushed is not the one checked out. The gate runs as git runs it, its GIT_DIR the clone's."""
     def make(world):
@@ -720,9 +718,6 @@ def gate_world(files, away=False):
         git(world, "clone", "-q", "--shared", str(REPO), str(clone))
         for name in GATE_FILES:
             shutil.copy(REPO / name, clone / name)
-        moved = clone / ".claude/hooks/local/pre-push-moved"
-        moved.write_text(f"#!/usr/bin/env bash\ncat > {world / 'moved.txt'}\n")
-        moved.chmod(0o755)
         (clone / "tools/zz_gate").mkdir()
         (clone / "tools/zz_gate/holds.py").write_text("VALUE = 1\n")
         (clone / "tools/zz_gate/test_a_held_value_stays_held.py").write_text(HOLDS_TEST)
@@ -756,46 +751,15 @@ def pushed_line(world):
 
 
 GATE_SECONDS = {"seconds": 110}  # the gate runs the touched module's test file
-GATE_ASKS = [  # a grown debt file and a failing touched test are refused; a clean push goes on to the moved check
-    ("gate-grown", pushed_line, "refuse", ("test rule",),
-     {"prints": ("may not grow",), "holds": {"moved.txt": None}, **GATE_SECONDS}),
-    ("gate-failing", pushed_line, "refuse", ("touched module's test failed",),
-     {"holds": {"moved.txt": None}, **GATE_SECONDS}),
+GATE_ASKS = [  # a grown debt file and a failing touched test are refused; a clean push passes
+    ("gate-grown", pushed_line, "refuse", ("test rule",), {"prints": ("may not grow",), **GATE_SECONDS}),
+    ("gate-failing", pushed_line, "refuse", ("touched module's test failed",), GATE_SECONDS),
     ("gate-clean", pushed_line, "allow", (),
      {"prints": ("passed in", "1 test file",
                  "test_rra_moves_mass_and_torso_by_the_mean_residual.py needs a GPU, left to a run by hand"),
-      "begins": {"moved.txt": "refs/heads/main "}, **GATE_SECONDS}),
+      **GATE_SECONDS}),
     # the clone moved off the pushed commit: the gate checks it in a copy of its own
-    ("gate-away", pushed_line, "allow", (), {"prints": ("1 test file",), "begins": {"moved.txt": "refs/heads/main "},
-                                             **GATE_SECONDS}),
-]
-
-
-# The redo count (pre-push-moved, score.stages.moved): the push counts every accepted node it makes again, free ones
-# too, in one line.
-
-REMADE_COUNT = """import json, sys
-from score.stages import moved
-found = {"light": {"paid": True, "euros": 2.5, "code": True, "files": {}, "places": ["hub", "camp"]},
-         "images:pins": {"paid": False, "euros": 1.5, "code": True, "files": {}, "places": ["None"]},
-         "settle": {"paid": False, "euros": 0, "code": False, "files": {"a.py": ["hub"]}, "places": ["hub", "camp"]}}
-accepted = {"light@hub", "light@camp", "pins", "settle@camp"}
-remade = moved.remade_accepted(found, lambda node: "out" if node in accepted else None)
-print(json.dumps(sorted(row["node"] for row in remade)))
-print(moved.remakes_line(remade))"""
-
-
-def remade_world(world):
-    """score.stages.moved asked in this checkout by its own interpreter."""
-    own = REPO / ".venv/bin/python"
-    common = pathlib.Path(git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir")).parent / ".venv/bin/python"
-    return [str(own if own.exists() else common), "-c", REMADE_COUNT], dict(GIT_ENV, PYTHONDONTWRITEBYTECODE="1"), REPO
-
-
-REDO_ASKS = [
-    # settle moved only by a file at hub, accepted only at camp: not remade
-    ("remade", "", "allow", (),
-     {"tail": ['["light@camp", "light@hub", "pins"]', "this push re-makes 3 accepted rows (2 paid, EUR 5.00)"]}),
+    ("gate-away", pushed_line, "allow", (), {"prints": ("1 test file",), **GATE_SECONDS}),
 ]
 
 
@@ -1175,7 +1139,6 @@ WORLDS = {
     "gate-clean": gate_world(lambda clone: {"tools/zz_gate/notes.txt": "x\n",
                                             "score/stages/sim_body/inside/rra/note.txt": "x\n"}),
     "gate-away": gate_world(lambda clone: {"tools/zz_gate/notes.txt": "y\n"}, away=True),
-    "remade": remade_world,
     "push-cap": cap_world,
     "leftover": leftover_world,
     "soul": lambda world: (HOOKS / "soul_guard.py", None, None),
@@ -1198,7 +1161,7 @@ SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap"}  # worlds whose hook
 ROWS = [
     *(("completion-listed-" + event, stop("listed", f"The {PLACE} is complete now."), "block", (PLACE,),
        {"lacks": ("ModuleNotFoundError",)}) for event in ("Stop", "SubagentStop")),
-    *TORN_ASKS, *GATE_ASKS, *REDO_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *CAP_ASKS,
+    *TORN_ASKS, *GATE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *CAP_ASKS,
     *(("accept", payload, "block", ("only the owner accepts or rejects",))
       for payload in OWNER_ACTIONS + OWN_LOCKS_AND_STEPS),
     ("accept", ENV_PREFIXED_ACCEPT, "block", ()),

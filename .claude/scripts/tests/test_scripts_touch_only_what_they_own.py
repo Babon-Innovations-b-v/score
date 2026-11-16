@@ -35,7 +35,7 @@ The break that turns each test red (applied once each, seen red, reverted):
   without copying it; or its runtime build ignores PROPS_HOME; or
   ssh-agent.sh's `elif github_answers git@github.com` branch dropped (a box whose port 22 works gets the 443
   fallback); or its `grep -qF 'ssh/agent/agent.sock'` made `false` (a re-run writes the ~/.bashrc block twice); or
-  use_repo_hooks' `config score.movedCheck true` dropped (the push gate's re-buy check stays off).
+  use_repo_hooks' `config core.hooksPath .claude/hooks` dropped (the repo's git hooks never run).
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/scripts/tests/
 """
@@ -380,7 +380,7 @@ CASES = [
                 (MEMORY + ".bak.*", ("matches", 1)),
                 ("{tmp}/elsewhere/env/bin/python", True),
                 ("{home}/.ssh", False), ("{home}/.bashrc", False)],
-         git_config={"core.hooksPath": ".claude/hooks", "score.movedCheck": "true"}),
+         git_config={"core.hooksPath": ".claude/hooks"}),
     ssh_agent("refused", [f"{PROBE} git@github.com", f"{PROBE} -p 443 git@ssh.github.com"], 1),  # 443 tried, kept
     ssh_agent("ok", [f"{PROBE} git@github.com", f"{PROBE} git@github.com"], 0),  # 22 works: 443 never tried
 ]

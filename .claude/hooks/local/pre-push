@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The push gate: a push to main is refused when the test rule, a touched module's test or the re-buy check fails.
+"""The push gate: a push to main is refused when the test rule, or a touched module's test fails.
 
 Git runs .claude/hooks/pre-push (core.hooksPath .claude/hooks), which hands its arguments and the push lines on stdin
 to this file. On a push to refs/heads/main, in a checkout of the commit pushed (this one when it is that commit with
@@ -9,9 +9,7 @@ nothing changed, else a temporary worktree of it, removed afterwards):
 2. the one test file of each module the pushed commits touch (`git diff --name-only <remote sha>..<local sha>`), run
    by `make tests TESTS=...` (each in its sandbox, at the Makefile's TEST_SECONDS), at most JOBS at once, the whole run inside
    `score.pushTestSeconds` (default 600), which it prints; a failure or the budget running out refuses the push. A
-   test file `MAY_SKIP` marks as needing a GPU is left to a run by hand (`make tests` on a GPU box) and named;
-3. hands the push lines on to .claude/hooks/local/pre-push-moved (a moved paid row needs its Moved-rows trailer, on
-   when `score.movedCheck` is true) and answers with its exit code.
+   test file `MAY_SKIP` marks as needing a GPU is left to a run by hand (`make tests` on a GPU box) and named.
 
 Deletions, tags and other branches pass at once.
 """
@@ -26,7 +24,6 @@ import time
 ZERO = "0" * 40
 JOBS = 2  # this PC runs at most two heavy processes
 BUDGET_SECONDS = 600
-HERE = pathlib.Path(__file__).resolve().parent
 # What git sets for its hook, which would point every git a test runs at this repository instead of its own scratch one.
 GIT_HOOK_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
                 "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_QUARANTINE_PATH", "GIT_NAMESPACE")
@@ -150,7 +147,7 @@ def checked(repo, base, tip):
 
 
 def main():
-    """The gate, then the re-buy check's answer."""
+    """The gate's answer: 0 when the push may go on, 1 when it is refused."""
     lines = sys.stdin.read()
     for name in GIT_HOOK_ENV:
         os.environ.pop(name, None)
@@ -159,9 +156,7 @@ def main():
         return 0
     repo = git("rev-parse", "--show-toplevel")
     remote, tip = pushed
-    if not checked(repo, base_of(remote, tip, repo), tip):
-        return 1
-    return subprocess.run([str(HERE / "pre-push-moved"), *sys.argv[1:]], input=lines, text=True).returncode
+    return 0 if checked(repo, base_of(remote, tip, repo), tip) else 1
 
 
 if __name__ == "__main__":

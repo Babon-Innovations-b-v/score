@@ -9,7 +9,7 @@
     .venv/bin/python -m score spend --read-back       # the month's Scaleway and Google bills read back into the books (#13)
     .venv/bin/python -m score spend --google-month EUR   # the owner's own: Google's month before its ledger began again
     .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
-    .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
+    .venv/bin/python -m score moved                   # the paid rows this tree would buy again, every environment
     .venv/bin/python -m score resume [--dry]          # start again the runs a reboot cut off (score/graph/runs.py)
     .venv/bin/python -m score preflight <environment> [--phase P] [--stage S ...] [--place P]  # a phase's free check
 
@@ -77,12 +77,7 @@ cache answers at EUR 0) and refuses, before detaching, when buying again rows th
 would cost over EUR 5, unless given --rebuy-reason, which goes into the run's log and the cloud ledger.
 
 `moved` lists, read-only, every paid row with an accepted output this working tree would buy again over every
-environment's places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0. With --pre-push
-(.claude/hooks/local/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it asks
-only the cheap question, in about a minute: the rows that commit moves against main's (score.stages.moved: code, stage
-table part, declared files), refusing a moved paid row unless a pushed commit's "Moved-rows: <row or node> ...:
-<reason>" trailer names it; main's commit unknown refuses. The re-buy question is a run's, before it starts. The hook runs while `git config score.movedCheck true`
-(.claude/scripts/bootstrap.sh sets it), reading the places from PROPS_HOME or the first home holding a store.
+environment's places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0.
 
 One commit per store (score/graph/runs.py): `run` refuses while a live run from another commit holds the store (naming
 it, its commit and its worktree), or one at the same commit would make some of the same nodes (one not standing
@@ -239,8 +234,7 @@ def parse(argv):
     price.add_argument("--json", action="store_true", help="the prices as one JSON object (the only form)")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
-    commands.add_parser("moved").add_argument("--pre-push", action="store_true",
-                                              help="git's push lines on stdin: refuse the paid rows a push moves")
+    commands.add_parser("moved")
     commands.add_parser("resume").add_argument("--dry", action="store_true", help="only list the runs it would start")
     check = commands.add_parser("preflight")
     check.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
@@ -1553,46 +1547,8 @@ def moved_check(rows_by_world):
         sys.exit(moved.MOVED_EXIT)
 
 
-def pre_push_check(push_lines):
-    """The pre-push hook's check of the commit pushed to main (none passes at once): the rows this checkout, which
-    must be that commit, moves against main's commit (moved.moved, every world), refused while a paid one is not named
-    in a pushed commit's Moved-rows trailer (pushed_check). The re-buy question (scratch remakes) is a run's, before it
-    starts, not a push's (owner, 2026-11-07: "shouldnt the rebuy check just be before a buy")."""
-    pushes = moved.main_pushes(push_lines)
-    if not pushes:
-        print("moved check: nothing pushed to main, not checked", flush=True)
-        return
-    tip, remote = pushes[-1]
-    if not moved.tree_is_at(tip):
-        sys.exit(f"refused: the moved check must run in a clean checkout of {tip} (.claude/hooks/local/pre-push-moved makes one)")
-    if remote == moved.ZERO:
-        sys.exit("refused: main's commit is not known (a new ref), so the rows this push moves cannot be worked out")
-    print(f"moved check: the rows {tip[:12]} moves against main's {remote[:12]}, every world...", flush=True)
-    try:
-        found = moved.moved(remote)
-    except subprocess.CalledProcessError:
-        sys.exit(f"refused: the rows {tip[:12]} moves could not be worked out (the reason above)")
-    print(moved.remakes_line(moved.remade_accepted(found, Store.default().accepted)), flush=True)
-    pushed_check(found, moved.pushed_reasons(pushes))
-
-
-def pushed_check(found, reasons):
-    """Print the moved rows (moved.moved's answer); refuse (exit moved.MOVED_EXIT) while a paid one is named in no
-    Moved-rows trailer of `reasons`."""
-    print(moved.moved_listing(found), flush=True)
-    refused = moved.unnamed_paid(found, reasons)
-    if not refused:
-        if reasons:
-            print(f"{moved.TRAILER}: " + "; ".join(reasons), flush=True)
-        return
-    print(f"refused: this push moves paid rows no '{moved.TRAILER}:' trailer names. If the next run should buy them "
-          f"again, add to a pushed commit: '{moved.TRAILER}: {' '.join(refused)}: <why>'.", file=sys.stderr, flush=True)
-    sys.exit(moved.MOVED_EXIT)
-
-
 def stop_on_term(signal_number, frame):
-    """End with SystemExit on SIGTERM (the hook's timeout), so the `finally` blocks run: subprocess.run ends the child
-    it waits on and moved.snapshot removes its checkout and folder."""
+    """End with SystemExit on SIGTERM, so the `finally` blocks run: subprocess.run ends the child it waits on."""
     sys.exit(f"stopped by signal {signal_number}")
 
 
@@ -1889,10 +1845,7 @@ def main(argv=None):
         return
     if options.command == "moved":
         signal.signal(signal.SIGTERM, stop_on_term)
-        if options.pre_push:
-            pre_push_check(sys.stdin.read().splitlines())
-        else:
-            moved_check(every_world_moved())
+        moved_check(every_world_moved())
         return
     if options.command == "resume":
         runs.resume(options.dry, say=lambda line: print(line, flush=True))
