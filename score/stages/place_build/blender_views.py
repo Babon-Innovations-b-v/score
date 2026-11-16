@@ -231,7 +231,8 @@ def upright(item):
 
 def recipe_looks(objects, specs):
     """Every look the stage marks as a palette variant replaced, in every slot it fills, by its recipe drawn
-    (the module's rule), each object wearing one set upright first; the looks it changed."""
+    (the module's rule), each object wearing one set upright first, one material drawn a spec (hundreds of windows
+    wearing one frame paint share it: a material each held a street's preview over 8 GB); the looks it changed."""
     if not specs:
         return []
     sys.path.insert(0, str(RECIPES_AT))
@@ -248,15 +249,17 @@ def recipe_looks(objects, specs):
             name = slot.material.name.split(".")[0] if slot.material else None
             if name not in specs:
                 continue
-            if name not in drawn:
-                spec = specs[name]
+            spec = specs[name]
+            key = json.dumps(spec, sort_keys=True)  # one material a variant, however many objects wear it
+            if key not in drawn:
                 material = recipes.shaded(recipes.channels(spec, spec["wear"], spec["dirt"], spec["seed"])).item()
                 material.displacement_method = "BUMP"
                 material.name = f"{name}-recipe"
-                drawn[name] = material
+                drawn[key] = material
+            if name not in changed:
                 changed.append(name)
-            slot.material = drawn[name]
-    print("blender_views: recipes", sorted(changed))
+            slot.material = drawn[key]
+    print("blender_views: recipes", len(drawn), "drawn for", len(changed), "looks")
     return changed
 
 
