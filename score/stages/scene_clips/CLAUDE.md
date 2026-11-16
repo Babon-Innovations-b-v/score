@@ -7,7 +7,8 @@ cannot hold (with its evidence) and the price; `tools/characters/clips/scene_cli
 
 - **The route and its ground are the cast's.** The route is the cast's `path`, else a straight leg from the spot the
   way it faces, and it is checked on the very geometry the cast is measured on (`cast/measure.py`: the knee-down ray,
-  the body cylinder). Never sample a ground of its own or a flat floor.
+  the body cylinder), a place_build scene's own solids when one is taken (input `place-build`, place_build/ready
+  `solids`; its walkers' `path` from `place_build route`). Never sample a ground of its own or a flat floor.
 - **Only Kimodo's real constraint API.** `constraints_of` writes Kimodo's constraints JSON (`root2d` dense, `left-foot`
   and `right-foot` at stance middles, fewer than 20 a foot); its FK was checked against Kimodo's own
   (`SOMASkeleton77.fk`, `load_constraints_lst`, 2026-10-27: soles on the asked ground to 0.1 mm, toes where their

@@ -34,6 +34,7 @@
     python -m score.stages.place_build film-render <folder> [--every n] [--final] [--out dir]
     python -m score.stages.place_build make <folder> <name> <take/<take>|concept/<n>|like|picture.png> --material class
                                        (--like model/<id> | --height m)
+    python -m score.stages.place_build route <folder> --through x,y,z --through x,y,z [--through x,y,z ...]
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
 `put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
@@ -72,6 +73,8 @@ measures; `film-render` renders every `--every`th frame through the card queue (
 SAM 3 mask, or the picture the `--like` model was made from; set over the `--like` model it replaces (or `--height`
 metres tall), its paint graded to the place's palette, CoACD hulls and mass from its `--material` class, taken into
 score_lib as a draft model entry; `put` then lays its address.
+`route` answers a walker's way through the `--through` spots, in order, on the check's walkers' floor (doors open,
+0.9 m wide): the shortest one, its corners rounded, for a walker's cast `path` (scene clips, sim body).
 """
 import argparse
 import json
@@ -204,6 +207,10 @@ def run(args):
     if args.step == "make":
         from score.stages.place_build import maker
         return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height)
+    if args.step == "route":
+        from score.stages.place_build import ready
+        points, length = ready.route(args.folder, [numbers(spot) for spot in args.through])
+        return {"route": points, "metres": length}
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -333,6 +340,9 @@ def parser():
     step.add_argument("--material", required=True)
     step.add_argument("--like")
     step.add_argument("--height", type=float)
+    step = steps.add_parser("route")
+    step.add_argument("folder")
+    step.add_argument("--through", action="append", required=True)
     step = steps.add_parser("render")
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)

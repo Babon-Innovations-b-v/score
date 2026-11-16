@@ -7,7 +7,9 @@ over the ground; a round hatch in a square doorway; a person with no head and no
 while what rests right passes (the walls, the door filling its opening, the desk, a monitor laid `on` the desk, a
 panel mounted `on` a wall, a crate on the ground, a round hatch in the doorway its tunnel's end wall cut to its own
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
-reaches 40 cm under its feet); and `on` lays an object in contact with its support.
+reaches 40 cm under its feet); and `on` lays an object in contact with its support;
+and a walker's route goes round a crate in its way on that same floor, every point of it standing there, and is refused
+where no floor is (the walkers' ground, `solids`, holds the wall and not the open door).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -24,6 +26,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
 - dome_shell.inside_outline: the count's `% 2` dropped -> the round hatch's doorway is not cut and it does not fit
 - place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
+- ready.straightened: `in_sight` taken as always True -> the route runs straight through crate_ok
 """
 import json
 import pathlib
@@ -215,6 +218,20 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     panel = ready.on(folder, "panel", "wall:wall", height=1.2)
     assert abs(monitor["at"][1] - (0.75 + 0.175)) < 0.01, monitor  # its bottom on the desk's top
     assert abs(panel["at"][2] - (0.1 + 0.025)) < 0.01 and abs(panel["at"][1] - 1.4) < 0.03, panel
+    walk, metres = ready.route(folder, [(4.25, 0.0, 0.7), (4.25, 0.0, 2.6)])
+    walk = np.asarray(walk)
+    along = np.linspace(0.0, 1.0, 20)[:, None]
+    sampled = np.concatenate([start + (end - start) * along for start, end in zip(walk[:-1], walk[1:])])
+    clear_of_crate = (sampled[:, 0] < 4.0 - 0.3) | (sampled[:, 0] > 4.5 + 0.3) | (sampled[:, 2] < 1.0 - 0.3) \
+        | (sampled[:, 2] > 1.5 + 0.3)
+    assert clear_of_crate.all() and metres > 1.9, (walk.tolist(), metres)
+    try:
+        ready.route(folder, [(4.25, 0.0, 0.7), (4.25, 2.0, 2.6)])
+        raise AssertionError("a spot with no floor under it was routed to")
+    except place_build.Refused:
+        pass
+    ground = ready.solids(folder)
+    assert "wall" in ground and "door" not in ground and ground["wall"].shape[1:] == (3, 3), sorted(ground)
     summary = ready.check(folder)
     found = json.loads(pathlib.Path(summary["file"]).read_text())["objects"]
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}

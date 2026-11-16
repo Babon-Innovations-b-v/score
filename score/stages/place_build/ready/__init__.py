@@ -4,6 +4,8 @@ named support.
 
     check(folder, settle=True) -> {counts..., "file": <folder>/ready.json}
     on(folder, name, support, level=None, height=None)
+    solids(folder) -> {object: triangles}       what a walker stands on and runs into (sim body's, scene clips' ground)
+    route(folder, through) -> (points, length)  a walker's way through spots on the walkers' floor WALKWAY wide
 
 Each object of /<place>/Objects has a role, from its `score:role` when it has one, else from what it is: `ground` (a
 laid ground or terrain), `shell` and `connector` (the dome shell algorithm's domes and tubes), `door` (a door, hatch or
@@ -66,6 +68,9 @@ MAX_SPLIT = 200_000  # an object with more faces is taken whole, not split into 
 FRAME = 0.3  # how far past a door's edge its wall must be (metres)
 WALKWAY = 0.9  # the narrowest way the walkers need (owner's brief, 2026-11-16: at least 0.9 m)
 ERODED = int((WALKWAY / reach.CELL - 1) // 2)  # cells taken off each side of a way, so one WALKWAY wide keeps one
+INPUT = "place-build"  # the input a sim body or scene clips run takes a place_build scene's folder by
+ROUND = 0.6  # metres before and after a route's corner its turn starts and ends (at most a third of either leg)
+TURN_POINTS = 7  # points along a corner's turn
 JOIN = 0.3  # how near a connector's end ring must come to the structure it joins (metres)
 CONNECTOR_STEP = 0.25  # a connector's floor is looked for this often along it (metres)
 FIT = 0.05  # metres a door's outline may stand off its opening's edge, or lie over the wall past it
@@ -558,6 +563,109 @@ def walkway_faults(laid):
              "why": (f"no floor {WALKWAY} m wide to stand on there" if not found else
                      f"no way {WALKWAY} m wide joins it to the rest")}
             for name, found in sorted(reached.items()) if main not in found], (grid, span_cells, span_heights, standing)
+
+
+# --- the walkers' ground and routes (sim body, scene clips) -------------------------------------------------------
+
+def solids(folder):
+    """{object: its triangles in the scene's frame (n x 3 x 3)} of every object a walker may stand on or run into:
+    each one the check reads, doors left out as the walkers' floor leaves them (open), characters never."""
+    stage, place = place_build.opened(folder)
+    laid = Place(stage, place)
+    return {name: np.asarray(laid.meshes[name].triangles) for name in laid.names if laid.roles[name] != "door"}
+
+
+def span_at(grid, span_cells, span_heights, standing, spot):
+    """The standing span nearest a spot (x, y, z) within a knee of its height; Refused when none is."""
+    middles = grid.middles()[span_cells]
+    near = standing & (np.abs(span_heights - spot[1]) <= reach.KNEE)
+    if not near.any():
+        raise place_build.Refused(f"no floor a walker stands on within a knee of {np.round(spot, 2).tolist()}")
+    candidates = np.flatnonzero(near)
+    return int(candidates[np.argmin(np.hypot(middles[candidates, 0] - spot[0], middles[candidates, 1] - spot[2]))])
+
+
+def in_sight(points, standing_at):
+    """Whether a straight line between two route points keeps to the walkers' floor: every sample along it, a fifth of
+    a cell apart, over a standing span within half a knee of the line's height there."""
+    start, end = points
+    count = max(2, int(np.linalg.norm(end[[0, 2]] - start[[0, 2]]) / (reach.CELL / 5)) + 1)
+    return all(standing_at(start + (end - start) * share) for share in np.linspace(0.0, 1.0, count))
+
+
+def straightened(path, standing_at):
+    """The grid path's corners alone: from each kept point, the farthest later point in sight of it."""
+    kept, at = [path[0]], 0
+    while at < len(path) - 1:
+        reach_to = at + 1
+        for later in range(len(path) - 1, at + 1, -1):
+            if in_sight((path[at], path[later]), standing_at):
+                reach_to = later
+                break
+        kept.append(path[reach_to])
+        at = reach_to
+    return np.array(kept)
+
+
+def rounded(corners, radius=ROUND):
+    """The corners' route with each inner corner turned through a quadratic curve from `radius` before it to `radius`
+    after it (at most a third of either leg), so a walker's heading turns over a few steps, not in one frame."""
+    if len(corners) < 3:
+        return corners
+    points = [corners[0]]
+    for before, corner, after in zip(corners[:-2], corners[1:-1], corners[2:]):
+        into = min(radius, np.linalg.norm((corner - before)[[0, 2]]) / 3)
+        out = min(radius, np.linalg.norm((after - corner)[[0, 2]]) / 3)
+        first = corner + (before - corner) / np.linalg.norm((before - corner)[[0, 2]]) * into
+        last = corner + (after - corner) / np.linalg.norm((after - corner)[[0, 2]]) * out
+        for share in np.linspace(0.0, 1.0, TURN_POINTS):
+            points.append((1 - share) ** 2 * first + 2 * (1 - share) * share * corner + share ** 2 * last)
+    points.append(corners[-1])
+    return np.array(points)
+
+
+def route(folder, through):
+    """A walker's route through the given spots (x, y, z) on the walkers' floor WALKWAY wide (the check's own, doors
+    open): the shortest way over standing spans between each spot and the next, its corners kept and rounded.
+    [[x, y, z], ...] and its length along the ground; Refused when a spot has no floor or no way joins two."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import dijkstra
+    stage, place = place_build.opened(folder)
+    laid = Place(stage, place)
+    grid, span_cells, span_heights, standing, pieces = walkers_floor(laid)
+    starts, ends, _ = reach.steps_between(grid, span_cells, span_heights)
+    both = standing[starts] & standing[ends]
+    graph = coo_matrix((np.full(both.sum(), reach.CELL), (starts[both], ends[both])), shape=(len(span_cells),) * 2)
+    graph = graph.tocsr()
+    middles = grid.middles()[span_cells]
+    spans = [span_at(grid, span_cells, span_heights, standing, np.asarray(spot, float)) for spot in through]
+    path = [spans[0]]
+    for start, end in zip(spans[:-1], spans[1:]):
+        distances, before = dijkstra(graph, directed=False, indices=start, return_predecessors=True)
+        if not np.isfinite(distances[end]):
+            raise place_build.Refused(f"no way {WALKWAY} m wide joins {np.round(middles[start], 2).tolist()} to "
+                             f"{np.round(middles[end], 2).tolist()}")
+        leg, at = [], end
+        while at != start:
+            leg.append(at)
+            at = before[at]
+        path += leg[::-1]
+    points = np.column_stack([middles[path, 0], span_heights[path], middles[path, 1]])
+    cell_of = {}
+    for span in np.flatnonzero(standing):
+        cell_of.setdefault(int(span_cells[span]), []).append(float(span_heights[span]))
+
+    def standing_at(point):
+        column = int(np.floor((point[0] - (grid.xs[0] - reach.CELL / 2)) / reach.CELL))
+        row = int(np.floor((point[2] - (grid.zs[0] - reach.CELL / 2)) / reach.CELL))
+        if not (0 <= column < grid.shape[0] and 0 <= row < grid.shape[1]):
+            return False
+        heights = cell_of.get(int(np.ravel_multi_index((column, row), grid.shape)), [])
+        return any(abs(height - point[1]) <= reach.KNEE / 2 for height in heights)
+
+    walked = rounded(straightened(points, standing_at))
+    length = float(np.linalg.norm(np.diff(walked[:, [0, 2]], axis=0), axis=1).sum())
+    return np.round(walked, 4).tolist(), round(length, 3)
 
 
 # --- connectors ---------------------------------------------------------------------------------------------------

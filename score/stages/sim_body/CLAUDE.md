@@ -171,7 +171,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
-- **It stands on the scene's own ground**: the stage the cast is measured on (`layer_base.built` with the scene
+- **It stands on the scene's own ground**: a place_build scene's when one is taken (input `place-build`, its folder:
+  place_build/ready's `solids`, the physics check's own objects, doors open; #128, 2026-11-16), else the stage the cast is measured on (`layer_base.built` with the scene
   record, `cast/measure.solids` on the terrain row's made ground), the solids within `REACH` of each clip's path,
   their drawn triangles themselves: the ground reaction force acts only on a point of the person's drawn skin touching it (SOMA's mesh carried by the
   bones each segment rides, `inside/contact` `Skin`; MyoFullBody's colliders are not the contact since 2026-11-01:

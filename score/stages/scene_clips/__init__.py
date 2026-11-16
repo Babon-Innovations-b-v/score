@@ -79,6 +79,7 @@ from score import contracts
 from score.checks import FAIL, PASS, UNKNOWN, Check, Verdict
 from score.stages import layer_base
 from score.stages.cast import measure
+from score.stages.place_build import ready
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PEOPLE = REPO / "tools/characters/people"
@@ -375,7 +376,9 @@ def make(inputs, out, seed, params):
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
     place, walkers = cast["place"], walkers_of(cast)
     plans, left_out = [], []
-    if walkers:
+    if walkers and ready.INPUT in inputs:  # a place_build scene: the physics check's own solids
+        found = ready.solids(inputs[ready.INPUT])
+    elif walkers:
         with layer_base.built(inputs) as folder:
             found = measure.solids(folder / "layers/base.usda", place, made_ground(inputs, place))
         for single in walkers:

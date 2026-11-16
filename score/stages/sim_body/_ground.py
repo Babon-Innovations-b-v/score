@@ -7,6 +7,7 @@ import numpy as np
 from score.stages import cast as cast_stage
 from score.stages import layer_base
 from score.stages.cast import measure
+from score.stages.place_build import ready
 
 REACH = 1.0  # metres round a body's clip path (its segments, across the ground) whose solids it may touch
 # A dressed body's Turned, degrees about up: the people build's root node (tools/characters/maker/prop_build.py build,
@@ -15,8 +16,12 @@ TURNED = 180.0
 
 
 def solids_of(inputs, place):
-    """{solid: its triangles in the place's frame} of the stage the cast is measured on: the seed's base layer with its
-    scene record written in, on the place's made ground (the cast's own reading, cast/measure.solids); no water."""
+    """{solid: its triangles in the place's frame} of the stage the cast is measured on: a place_build scene's when one
+    is taken (`place-build`, its folder: the physics check's own solids, place_build/ready.solids), else the seed's
+    base layer with its scene record written in, on the place's made ground (the cast's own reading,
+    cast/measure.solids); no water."""
+    if ready.INPUT in inputs:
+        return ready.solids(inputs[ready.INPUT])
     with layer_base.built(inputs) as folder:
         found = measure.solids(pathlib.Path(folder) / "layers/base.usda", place, cast_stage.made_ground(inputs, place))
     return {name: tris for name, tris in found.items() if not name.startswith(measure.WATER)}
