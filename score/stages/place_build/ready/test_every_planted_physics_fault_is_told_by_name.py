@@ -3,9 +3,10 @@ being walked in and pushed (a crate floating 40 cm over the ground; two crates 1
 free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it; a tunnel whose far end
 joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and moves when let go in MuJoCo; an object
 with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
-over the ground; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
+over the ground; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
 while what rests right passes (the walls, the door filling its opening, the desk, a monitor laid `on` the desk, a
-panel mounted `on` a wall, a crate on the ground, a person laid at rest on the ground though its SkelRoot's box
+panel mounted `on` a wall, a crate on the ground, a round hatch in the doorway its tunnel's end wall cut to its own
+outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -21,6 +22,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.fit_faults: `gap > FIT` made `gap > 1.0` -> the small door passes; `past > FIT` the same -> the big one passes
 - ready.person_faults: `abs(gap) > CONTACT` made `> 1.0` -> the floating person passes
 - people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
+- dome_shell.inside_outline: the count's `% 2` dropped -> the round hatch's doorway is not cut and it does not fit
 - place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
 """
 import json
@@ -148,6 +150,22 @@ def person(stage, place, name, spot, without=(), torn=False):
         skinned(stage, f"{root.GetPath()}/sleeve", sleeve, [(0, 2, 1), (1, 2, 3)], joints)
 
 
+def hatch(stage, place, name, tunnel_at, radius, length):
+    """A round hatch 1 m across standing on a tunnel's deck in the plane of its end wall (the tunnel along +x)."""
+    import trimesh
+    from score.stages.place_build import dome_shell
+    deck = tunnel_at[1] + dome_shell.FLOOR * radius
+    disc = trimesh.creation.cylinder(radius=0.5, height=0.05, sections=48)
+    disc.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, (0, 1, 0)))
+    disc.apply_translation((tunnel_at[0] + length - dome_shell.CAP_THICK / 2, deck + 0.5, tunnel_at[2]))
+    holder = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{name}")
+    holder.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("model")
+    mesh = UsdGeom.Mesh.Define(stage, f"{holder.GetPath()}/geo")
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(disc.vertices, np.float32)))
+    mesh.CreateFaceVertexCountsAttr([3] * len(disc.faces))
+    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(disc.faces, np.int32).reshape(-1)))
+
+
 def planted(folder):
     """The fixture place: a ground disc, a wall with a 1.2 m opening and its door, and every planted fault."""
     concept = folder / "concept.png"
@@ -181,9 +199,13 @@ def planted(folder):
     person(stage, place, "person_float", (-5.5, floor + 0.3, 1.5))
     person(stage, place, "person_broken", (-5.5, floor, -1.5), without=("Head", "RightHand"))
     person(stage, place, "person_torn", (-5.5, floor, -3.0), torn=True)
+    hatch(stage, place, "hatch_round", (-6.5, 0.0, -6.0), 1.0, 1.0)
+    hatch(stage, place, "hatch_squared", (-6.5, 0.0, 6.0), 1.0, 1.0)
     decal = UsdGeom.Xform.Define(stage, f"/{place}/Objects/decal").GetPrim()
     decal.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("model")
     stage.GetRootLayer().Save()
+    place_build.tube(folder, "lock_round", 1.0, 1.0, (-6.5, 0.0, -6.0), (0.0, 90.0, 0.0), cap_door="hatch_round")
+    place_build.tube(folder, "lock_squared", 1.0, 1.0, (-6.5, 0.0, 6.0), (0.0, 90.0, 0.0), cap=[1.0, 1.0])
     return folder
 
 
@@ -218,6 +240,8 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     assert any(set(fault.get("missing", ())) == {"head", "right hand"} for fault in found["person_broken"]), \
         found["person_broken"]
     assert any(fault.get("torn", 0) > 0.5 for fault in found["person_torn"]), found["person_torn"]
+    assert "door does not fit" not in told.get("hatch_round", ()), found["hatch_round"]
+    assert "door does not fit" in told["hatch_squared"], found.get("hatch_squared")
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")
         return

@@ -331,50 +331,88 @@ def on_circle(x, y, radius):
     return (x, y) if off <= radius else (x * radius / off, radius + (y - radius) * radius / off)
 
 
-def end_wall(radius, length, width, height):
-    """The tunnel's far end closed by a wall CAP_THICK thick (its outer face at `length`) holding a doorway `width`
-    across and `height` up from the deck: its front and back faces in CAP_CELL cells inside the skin and outside the
-    doorway, a cell the skin crosses drawn in to the skin's circle (so the wall's rim is round, never stepped), and the
-    doorway's four reveals; (points, quads)."""
+def doorway_outline(cap):
+    """A doorway's outline, anticlockwise (x across from the tunnel's axis, y up from its deck): `cap` as [width,
+    height] (a rectangle) or as the door's own outline, its points in order round it (an octagonal hatch's octagon)."""
+    cap = [cap] if np.ndim(cap) == 1 and len(cap) == 2 and np.ndim(cap[0]) == 0 else cap
+    if len(cap) == 1:
+        width, height = float(cap[0][0]), float(cap[0][1])
+        return np.array([(-width / 2, 0.0), (width / 2, 0.0), (width / 2, height), (-width / 2, height)])
+    points = np.asarray(cap, dtype=np.float64)
+    following = np.roll(points, -1, axis=0)
+    area = float(np.sum(points[:, 0] * following[:, 1] - following[:, 0] * points[:, 1]))
+    return points if area > 0 else points[::-1]
+
+
+def inside_outline(outline, x, y):
+    """Whether (x, y) lies inside the outline (a ray to its right crosses its edges an odd number of times)."""
+    following = np.roll(outline, -1, axis=0)
+    spans = (outline[:, 1] > y) != (following[:, 1] > y)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        crossing = outline[:, 0] + (y - outline[:, 1]) * (following[:, 0] - outline[:, 0]) \
+            / (following[:, 1] - outline[:, 1])
+    return bool(np.count_nonzero(spans & (crossing > x)) % 2)
+
+
+def onto_outline(outline, x, y):
+    """A corner inside the doorway moved out to the nearest point of its outline, so the wall's edge follows the door's
+    shape, never stepped; a corner outside it kept."""
+    if not inside_outline(outline, x, y):
+        return x, y
+    following = np.roll(outline, -1, axis=0)
+    edges = following - outline
+    along = np.clip(((x - outline[:, 0]) * edges[:, 0] + (y - outline[:, 1]) * edges[:, 1])
+                    / np.maximum((edges ** 2).sum(axis=1), 1e-12), 0.0, 1.0)
+    nearest = outline + edges * along[:, None]
+    best = int(np.argmin(np.hypot(nearest[:, 0] - x, nearest[:, 1] - y)))
+    return float(nearest[best, 0]), float(nearest[best, 1])
+
+
+def end_wall(radius, length, cap):
+    """The tunnel's far end closed by a wall CAP_THICK thick (its outer face at `length`) holding a doorway of the
+    door's own shape (`cap`: [width, height], or the door's outline points; doorway_outline) up from the deck: its
+    front and back faces in CAP_CELL cells inside the skin and outside the doorway, a cell the skin crosses drawn in to
+    the skin's circle and one the doorway crosses out to its outline (so both rims follow their shapes, never
+    stepped), and a reveal along each edge of the doorway off the deck; (points, quads)."""
     floor = FLOOR * radius
+    outline = doorway_outline(cap) + [0.0, floor]
     def lines(low, high, edges):
         count = max(1, round((high - low) / CAP_CELL))
         return sorted(set([low + (high - low) * step / count for step in range(count + 1)] + list(edges)))
-    across = lines(-radius, radius, (-width / 2, width / 2))
-    up = lines(floor, 2 * radius, (floor + height,))
+    across = lines(-radius, radius, outline[:, 0])
+    up = lines(floor, 2 * radius, outline[:, 1])
     points, faces = [], []
     for depth, wound in ((length, False), (length - CAP_THICK, True)):
         for left, right in zip(across, across[1:]):
             for low, high in zip(up, up[1:]):
                 middle = ((left + right) / 2, (low + high) / 2)
                 corners = [(left, low), (right, low), (right, high), (left, high)]
-                if all(math.hypot(x, y - radius) >= radius for x, y in corners) or (
-                        abs(middle[0]) < width / 2 and middle[1] < floor + height):
+                if all(math.hypot(x, y - radius) >= radius for x, y in corners) or inside_outline(outline, *middle):
                     continue
                 first = len(points)
-                points += [(*on_circle(x, y, radius), depth) for x, y in corners]
+                points += [(*on_circle(*onto_outline(outline, x, y), radius), depth) for x, y in corners]
                 quad = [first, first + 1, first + 2, first + 3]
                 faces.append(quad[::-1] if wound else quad)
-    half, top = width / 2, floor + height
-    for corners in (((-half, floor), (-half, top)), ((-half, top), (half, top)), ((half, top), (half, floor))):
-        (x0, y0), (x1, y1) = corners
+    for (x0, y0), (x1, y1) in zip(outline, np.roll(outline, -1, axis=0)):
+        if max(y0, y1) <= floor + 1e-6:
+            continue
         first = len(points)
-        points += [(x0, y0, length), (x1, y1, length), (x1, y1, length - CAP_THICK), (x0, y0, length - CAP_THICK)]
+        points += [(x1, y1, length), (x0, y0, length), (x0, y0, length - CAP_THICK), (x1, y1, length - CAP_THICK)]
         faces.append([first, first + 1, first + 2, first + 3])
     return points, faces
 
 
 def tube(path, radius, length, hoops=HOOPS, rib=RIB, cap=None, trims=()):
     """The tunnel written at `path`: /tube with its mesh `geo` and its parts `shell`, `ribs` and `deck`, and `cap`
-    (its end wall with a doorway, `cap` = (width, height)) when asked; its skin and hoops trimmed by `trims` (the
-    spheres, x, y, z, radius in its own frame, of the domes it joins)."""
+    (its end wall with a doorway, `cap` = (width, height) or the door's outline points, end_wall) when asked; its skin
+    and hoops trimmed by `trims` (the spheres, x, y, z, radius in its own frame, of the domes it joins)."""
     trims = [tuple(float(value) for value in trim) for trim in trims]
     glass, wall = tube_sides(radius, length, trims)
     pieces = [("shell", glass), ("wall", wall),
               *[("ribs", made) for made in hoop_ribs(radius, length, hoops, rib, trims)],
               ("deck", tube_deck(radius, length))]
     if cap:
-        pieces.append(("cap", end_wall(radius, length, float(cap[0]), float(cap[1]))))
+        pieces.append(("cap", end_wall(radius, length, cap)))
     return written(path, "tube", pieces)
 
 

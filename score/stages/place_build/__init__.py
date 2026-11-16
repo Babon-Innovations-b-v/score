@@ -422,20 +422,80 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
 
 
+def cap_key(cap):
+    """A tunnel cap's part of its file's name: `_c<width>,<height>`, or `_o<hash>` of a door's outline points."""
+    import hashlib
+    if not cap:
+        return ""
+    if len(cap) == 2 and all(isinstance(value, (int, float)) for value in cap):
+        return f"_c{cap[0]:g},{cap[1]:g}"
+    return "_o" + hashlib.sha256(json.dumps([[round(float(value), 4) for value in point] for point in cap])
+                                 .encode()).hexdigest()[:10]
+
+
+def door_outline(folder, door, radius, at, turn):
+    """A laid door's outline seen along a tunnel laid at `at`, `turn` of `radius`: its points in the tunnel's frame (x
+    across its axis, y up from its deck), for its cap's doorway (a round hatch takes a round doorway)."""
+    from score.stages.place_build import dome_shell, ready
+    stage, place = opened(folder)
+    solid = ready.solid_of(object_prim(stage, place, door))
+    if solid is None:
+        raise Refused(f"{door} has no shape to cut a doorway for")
+    frame = (Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(1, 0, 0), float(turn[0])))
+             * Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), float(turn[1])))
+             * Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 0, 1), float(turn[2])))
+             * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*map(float, at))))
+    inverse = np.asarray(frame.GetInverse())
+    own = np.asarray(solid.vertices) @ inverse[:3, :3] + inverse[3, :3]
+    return leaf_outline(own[:, 0], np.maximum(0.0, own[:, 1] - dome_shell.FLOOR * radius))
+
+
+OUTLINE_BAND = 0.02  # metres of height a door's outline is read across at a time
+OUTLINE_SPAN = 0.25  # metres of height a door's edge is the median over, so a hinge's knuckle or a latch is no edge
+
+
+def leaf_outline(across, up):
+    """A door's outline in order round it, from its points (across, up): up its left edge and down its right, each
+    OUTLINE_BAND's widest reach that side, held in to the median of its OUTLINE_SPAN where it juts past it, so what
+    sticks out of the leaf's edge on a short stretch (a hinge, a latch) does not widen the doorway into a gap beside
+    the leaf while its curves (a hatch's rounded foot) are kept."""
+    bands = np.floor(up / OUTLINE_BAND).astype(int)
+    heights, left, right = [], [], []
+    for band in np.unique(bands):
+        inside = bands == band
+        heights.append(float(up[inside].mean()))
+        left.append(float(across[inside].min()))
+        right.append(float(across[inside].max()))
+    reach = max(1, int(round(OUTLINE_SPAN / OUTLINE_BAND / 2)))
+    left, right = np.array(left), np.array(right)
+    medians = [np.array([np.median(values[max(0, at - reach):at + reach + 1]) for at in range(len(values))])
+               for values in (left, right)]
+    held_left, held_right = np.maximum(left, medians[0]), np.minimum(right, medians[1])
+    sole = up <= up.min() + 0.005  # the door's very foot: a hatch rounded at its bottom is narrow where it stands
+    return ([[float(across[sole].min()), float(up.min())]]
+            + [[float(edge), height] for edge, height in zip(held_left, heights)]
+            + [[float(left[-1]), float(up.max())], [float(right[-1]), float(up.max())]]
+            + [[float(edge), height] for edge, height in reversed(list(zip(held_right, heights)))]
+            + [[float(across[sole].max()), float(up.min())]])
+
+
 def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), hoops=None, rib=None, address=DOME,
-         cap=None, trims=()):
+         cap=None, trims=(), cap_door=None):
     """The dome shell algorithm's ribbed glass tunnel (dome_shell.tube) of `radius` and `length` metres laid as
     Objects/<name>, lying along its own +z from `at`; its parts `shell`, `ribs` and `deck` ready for their surfaces,
-    and with `cap` ([door width, door height]) an end wall `cap` at its far end holding a doorway that size; `trims`
+    and with `cap` ([door width, door height], or the door's outline: door_outline) an end wall `cap` at its far end
+    holding a doorway that shape; `cap_door` (a laid door's name) cuts it to that door's own outline instead; `trims`
     ([x, y, z, radius] in its own frame: the domes it joins) end its skin on their glass."""
     from score.stages.place_build import dome_shell
     hoops = dome_shell.HOOPS if hoops is None else hoops
     rib = rib or dome_shell.RIB
+    if cap_door:
+        cap = np.round(door_outline(folder, cap_door, radius, at, turn), 4).tolist()
     if radius <= 0 or length <= 0 or hoops < 0 or rib <= 0:
         raise Refused(f"a tunnel needs a radius and length over 0, 0 or more hoops and a rib over 0 ({radius}, "
                       f"{length}, {hoops}, {rib})")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
-        f"tube_r{radius:g}_l{length:g}_h{hoops}_w{rib:g}" + (f"_c{cap[0]:g},{cap[1]:g}" if cap else "")
+        f"tube_r{radius:g}_l{length:g}_h{hoops}_w{rib:g}" + cap_key(cap)
         + "".join("_t" + ",".join(f"{value:.3f}" for value in trim) for trim in trims) + ".usda")
     target.parent.mkdir(parents=True, exist_ok=True)
     if not target.exists():

@@ -22,8 +22,8 @@ wall: `on ... wall:<object>`), `character` (a person, posed as the renderer pose
   behind it (no opening cut).
 - `door does not fit`: seen straight through the door's plane on a FIT_CELL grid, the opening round it (what no wall,
   shell or connector closes within FIT_DEPTH of it, from its threshold up) shows a gap wider than FIT between the
-  door's outline and the wall, or the door lies over the wall further than FIT past the opening's edge: a leaf
-  that is not the opening's shape and size (a rectangular door in a round opening, a hatch too small for it).
+  door's outline and the wall, or the door lies over the wall further than FIT past the opening's edge (a hinge or a
+  latch, shorter than HINGE, lies on its jamb): a leaf that is not the opening's shape and size (a rectangular door in a round opening, a hatch too small for it).
 - `person floating` / `person sinks`: a person's feet (each foot's lowest skin), or, seated, the seat, more than
   CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above.
 - `broken body`: a person's skin torn by its skinning, a missing head, hand or foot, or a height or proportions no
@@ -71,6 +71,7 @@ CONNECTOR_STEP = 0.25  # a connector's floor is looked for this often along it (
 FIT = 0.05  # metres a door's outline may stand off its opening's edge, or lie over the wall past it
 FIT_CELL = 0.02  # metres between the rays read through a door's plane
 FIT_DEPTH = 0.5  # metres before and behind a door's plane where a wall closes its opening
+HINGE = 0.25  # metres: what juts from a door's edge on a shorter stretch (a hinge, a latch) may lie on its jamb
 CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, what is under it
 SETTLE_MOVE = 0.05  # metres
 SETTLE_TURN = 8.0  # degrees
@@ -398,7 +399,8 @@ def fit_faults(laid, name):
     labels, _ = ndimage.label(door | ~wall)
     opening = np.isin(labels, np.unique(labels[door])) & ~door
     gap = float(ndimage.distance_transform_edt(~door)[opening].max()) * FIT_CELL if opening.any() else 0.0
-    over = door & wall
+    leaf = ndimage.binary_opening(door, structure=np.ones((1, int(round(HINGE / FIT_CELL)) + 1), dtype=bool))
+    over = leaf & wall
     past = float(ndimage.distance_transform_edt(wall)[over].max()) * FIT_CELL if over.any() else 0.0
     faults = []
     if gap > FIT:
