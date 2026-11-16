@@ -21,6 +21,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.placed_on: the gap left unsubtracted -> the monitor floats over the desk
 - ready.check: the no-collision list left empty -> the decal passes
 - settle_mujoco.settled: the steps left out -> the tipping box reads stable
+- ready.held_by: the desk whose box holds the pad left out of the pad's statics -> the pad falls through it, unstable
 - ready.fit_faults: `gap > FIT` made `gap > 1.0` -> the small door passes; `past > FIT` the same -> the big one passes
 - ready.person_faults: `abs(gap) > CONTACT` made `> 1.0` -> the floating person passes
 - people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
@@ -66,6 +67,19 @@ def desk(stage, place):
         leg.CreateSizeAttr(1.0)
         leg.AddTranslateOp().Set(Gf.Vec3d(x, -0.375, z))
         leg.AddScaleOp().Set(Gf.Vec3f(0.05, 0.70, 0.05))
+
+
+def hutch(stage, place):
+    """A desk with a raised back: a top 1.0 x 0.05 x 0.6 at 0.75 m on two side panels, a back panel to 1.15 m, its
+    corner at (0.2, 4.4); its box holds what lies on its top."""
+    prim = box(stage, place, "hutch", (1.0, 0.05, 0.6), (0.2, 0.70, 4.4))
+    for name, size, middle in (("left", (0.05, 0.70, 0.6), (-0.475, -0.375, 0.0)),
+                               ("right", (0.05, 0.70, 0.6), (0.475, -0.375, 0.0)),
+                               ("back", (1.0, 0.45, 0.05), (0.0, 0.2, 0.275))):
+        panel = UsdGeom.Cube.Define(stage, f"{prim.GetPath()}/{name}")
+        panel.CreateSizeAttr(1.0)
+        panel.AddTranslateOp().Set(Gf.Vec3d(*middle))
+        panel.AddScaleOp().Set(Gf.Vec3f(*size))
 
 
 def wall(stage, place):
@@ -199,6 +213,8 @@ def planted(folder):
     box(stage, place, "monitor", (0.5, 0.35, 0.1), (-2.65, 1.5, -2.8))
     box(stage, place, "tipper", (0.4, 0.4, 0.4), (-3.3, 0.75, -2.9))
     box(stage, place, "panel", (0.6, 0.4, 0.05), (2.0, 0.5, 1.0))
+    hutch(stage, place)
+    box(stage, place, "pad", (0.3, 0.03, 0.2), (0.55, 0.75, 4.55))  # on the hutch's top, inside its box
     floor = ready.levels_under(ready.Place(stage, place), "ground", (-5.5, 0.0))[-1]
     person(stage, place, "person_ok", (-5.5, floor, 0.0))
     place_build.rested(stage, f"/{place}/Objects/person_ok", (-5.5, floor, 0.0), (0, 0, 0), (1, 1, 1))
@@ -272,4 +288,5 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")
         return
-    assert "unstable" in told["tipper"] and "unstable" not in told.get("crate_ok", ()), found["tipper"]
+    assert "unstable" in told["tipper"] and "unstable" not in told.get("crate_ok", ()) \
+        and "unstable" not in told.get("pad", ()), (found["tipper"], found.get("pad"))

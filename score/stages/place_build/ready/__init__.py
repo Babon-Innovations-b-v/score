@@ -777,16 +777,15 @@ def connector_faults(laid, name, floor):
 # --- settle in MuJoCo ---------------------------------------------------------------------------------------------
 
 def held_by(laid, name):
-    """The objects this one holds or is held by (one's box middle inside the other's box): left out of its statics,
-    since its one convex hull would close over what a cabinet stores."""
+    """The objects this one holds (their box middle inside its box): left out of its statics, since its one convex
+    hull would close over what a cabinet stores. What holds it stays in: a laptop on a desk with a raised back lies
+    inside the desk's box and rests on its top's triangles."""
     low, high = laid.meshes[name].bounds
     held = []
     for other in laid.overlapping(name):
         other_low, other_high = laid.meshes[other].bounds
-        middle, other_middle = (other_low + other_high) / 2, (low + high) / 2
-        if laid.roles[other] in ("prop", "mount") and (np.all((middle >= low) & (middle <= high))
-                                                     or np.all((other_middle >= other_low)
-                                                               & (other_middle <= other_high))):
+        middle = (other_low + other_high) / 2
+        if laid.roles[other] in ("prop", "mount") and np.all((middle >= low) & (middle <= high)):
             held.append(other)
     return held
 
