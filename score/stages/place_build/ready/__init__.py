@@ -176,8 +176,13 @@ class Place:
 # --- resting on a support -----------------------------------------------------------------------------------------
 
 def lowest_points(mesh, count=FOOT):
-    """The object's lowest points: of its corners and a seeded sample of its surface, the `count` lowest."""
+    """The object's lowest points: of its corners and a seeded sample of its surface, the `count` lowest, or, when
+    more than `count` lie within TOLERANCE of the lowest (a flat foot: a mat, a crate's base), `count` of those drawn
+    evenly, so the foot is read across its whole area and not where it dips a millimetre."""
     points = np.vstack([np.asarray(mesh.vertices), mesh.sample(count * 4, seed=0)])
+    foot = points[points[:, 1] <= points[:, 1].min() + TOLERANCE]
+    if len(foot) > count:
+        return foot[np.random.default_rng(0).choice(len(foot), count, replace=False)]
     return points[np.argsort(points[:, 1])[:count]]
 
 
