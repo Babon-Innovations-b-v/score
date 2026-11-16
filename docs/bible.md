@@ -166,44 +166,23 @@ draw is current only under the current wording, the same parent locks, the same 
 Redraw with notes is two calls under one yes: Gemini 3.1 Pro rewrites the prompt from the draw, the marks, the notes,
 the marked parent locks and the open discussion, the rewrite becomes the scene's wording, then one draw. Discuss is one
 Gemini call answering his note about the draw shown; the thread goes into the next redraw and is closed by it. Lock
-picks a draw: the lock is the approval, hands the concept to score_lib and starts the reading. Every price comes from
+picks a draw: the lock is the approval and hands the concept to score_lib. Every price comes from
 `data/costs/per-unit.json`, and a click whose shown price no longer matches is refused.
 
 No grey model is built in code before a concept (the blockout, retired 2026-10-23: "we have the prop pipeline to get
 the rough shapes first anyway"); a scene's rough shapes are its rough model (`stages/rough_model`). Locks drawn on a
-blockout keep their record's `blockout` field, which tells the plan drawing their fixed south-east view.
+blockout keep their record's `blockout` field.
 
-**The scene inventory reading** (`reading.py`; runs on its own after a lock under the standing allowance, at most EUR 1
-a scene, cleared as `inventory-read`). Gemini 3.1 Pro names rows (name, noun, count, size in metres, anchor, region);
-SAM 3, on one rented card for every scene of the run, looks for each row by its own words, then its noun. Duplicates are
-merged first; two rows Gemini put in different regions are never merged. The agreement is by box, not by word
-(#128): a row is kept where SAM 3 found it under its own words or noun, or where a find no row of its word holds lies
-in the row's region under any word (`boxed_by_overlap`). A row Gemini read whole (metres, anchor, a region of at least
-0.1% of the picture that is no other row's box) is kept on its region alone (`seen_alone`). Gemini counts, SAM 3
-places: a kept row's count is Gemini's, its boxes SAM 3's, overlapping boxes one thing (`lumped`), at most its count.
-Kept as read without SAM 3: structure, terrain, sky, and rows holding or standing in a child scene. The rest is kept
-as skipped, never a row, a gap or a plan input. Gaps are only kept rows with no
-metres or no anchor. `--again` reads a scene again with SAM 3 only.
-
-**The plan method** (runs on its own after the reading, `plan_writing.AUTOMATIC`, cleared as `plan-write`; else his
-Make plan click):
-
-1. **Top-down drawing** (`plan_drawing.py`): one Nano Banana Pro call redraws the locked concept from straight above,
-   the parent's plan sent with this scene's box marked.
-2. **Written plan** (`plan_writing.py`): one Gemini 3.1 Pro call reads each element's position off that drawing (never
-   packed from words), in metres from the scene's box on its parent's plan, else from the rows' metres, in the house
-   schema with its architecture (outline, walls, openings with swing, levels, stairs, roofs, terrain, a section). A run
-   of shelving or crates is one item with its count.
-3. **Checks against the concept** (`plan_checks.py`, free): every row placed as often as it counts, inside the outline,
-   no two on the floor in each other, every door and standing spot reached on foot, child scenes tiling, and the
-   arrangement as the concept shows it (order, place across the view, facing).
-4. **The fix step** (`plan_fixes.py`): free fixes first (people stood on spots, spread runs split, missing things
-   placed where their boxes project, facings turned, overlaps parted inside the walls), then at most two automatic
-   Corrects (notes rounds back to Gemini), each kept only when it leaves fewer gaps. Things the nudge left in each
-   other (a pile of sandbags) are parted by IsaacLab-Arena's relation solver ported to numpy
-   (`review/relation_solver`, Apache-2.0, free and seeded; plan spots soft targets, walls and the other things box
-   obstacles), its answer kept only when the checks find fewer overlaps and nothing new; the sync pass runs it
-   (`plans_pass.settled_again`), so it is in no stage's key. Only what is left shows as gaps, each saying why.
+**The concept split** (`concept_objects.py`, #128, owner 2026-11-16). The per-picture reading chain (Gemini's rows
+and counts, their parts and light asks, the plan drawing, the plan writing and its fixes) is wiped: "also code for just
+score, like we have seen this approach just doesnt work". The whole scene is split by segmenting the concept picture:
+SAM 3, on one card, asks every word over the whole picture (generic probes, or the nouns the placing agent names); each
+instance is one object with its box, score, word and full-size mask, one that is the same thing as a surer one
+dropped. That list is what the placing agent lays kit pieces and library models by. Readings and plan writings the old
+chain kept stay readable (`reading.reading_of`, `plans.written`) for the stages that still lay places from them, until
+those go too. `plan_checks.py`'s free checks remain (every row placed as often as it counts, inside the outline, no two
+on the floor in each other, every door and standing spot reached on foot, child scenes tiling); the relation solver
+(`review/relation_solver`, IsaacLab-Arena's ported to numpy, Apache-2.0) remains as score_lib's room_layout algorithm.
 
 Invariants: his plan and edits always win (a plan written after his edit is shown as an `edited` gap, never over it);
 creator data wins (the ship's floor plan, `data/definitions/ship_floor.json`, is laid at its own size where the drawing

@@ -6,16 +6,16 @@ ceiling) and how each is read.
 
 - **Derived free, never asked.** From the kept plan, the scene inventory's anchors and the concept's SAM boxes: no
   model call, no machine. Same plan and inventory in, same file out.
-- **A file of its own.** `{home}/design/relations/<place>.json`, written by `keep` from the sync pass's plans pass
-  (`plans_pass.main`, after the plans are kept), read by the scene record (`scene_record/writer.relations_input`).
+- **A file of its own.** `{home}/design/relations/<place>.json`, written by `keep` from `plans keep` (`plans.main`,
+  after the plans are kept), read by the scene record (`scene_record/writer.relations_input`).
   Never in `design/plans/`: the kept plan keys props-inputs (the paid close-ups) and the surface library (the bake). Its recesses (`recesses`) also go in `{home}/design/recesses/<place>.json`, the surfaces bake's only input from here (`route_bake.bake_files`), so a holders change keys no bake unless it moves a recess.
   It names the kept plan's sha; the scene record lays by it only while the plan is that one.
-- **In two stages' code keys.** `plans_pass` derives the file; two stages import this package, so any edit here
+- **In two stages' code keys.** `plans keep` derives the file; two stages import this package, so any edit here
   re-keys them and every row after them (check `python -m score moved` before pushing): the scene record
   (`scene_record/writer.py`, for `outlines_room`), and so everything laid from it, and the assembly
   (`assembly/mounted.py`'s `holder_kind`, imported inside its function). It imports prepare's `groups` (`built_rows`: a wall
-  thing parted at `groups.made_size`, its hand-in size), so `groups.py` is in those keys too. Never import it from `plans.py`,
-  `plan_writing.py`, `plan_fixes.py`, `plan_checks.py` or another stage. Both read the relations from the file,
+  thing parted at `groups.made_size`, its hand-in size), so `groups.py` is in those keys too. Never import it at a module's top from `plans.py`,
+  `plan_checks.py` or another stage. Both read the relations from the file,
   never derive them again.
 - **Every door and window in an opening, every item placed** (#72, owner 2026-10-29: "this is still not good"): a
   door the plan's openings do not hold gets one cut for it (`cut_in`, cut by the earth seed's and the scene record's

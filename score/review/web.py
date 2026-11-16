@@ -406,30 +406,7 @@ def concept_pick(store, place, sha, by):
         record = concepts.pick(store, place, sha, name)
     except concepts.Refused as refused:
         raise review.Refused(str(refused)) from refused
-    return {**record, "library": concepts.handed_over(store, place),
-            **({"reading": reading_started(store, place, name)} if sha else {})}
-
-
-def reading_started(store, place, by, start=None):
-    """His pick starts the scene inventory reading of the picked draw on its own (score/review/reading.py; the
-    owner's standing allowance of 2026-10-21: no yes asked), a process of its own that outlives this one; its log's
-    path."""
-    import os
-    import shutil
-    import subprocess
-    import sys
-    from score.review import concepts, reading
-    from score.store import stamp_key
-    log = store.cache / reading.AREA / "logs" / f"{place}-{stamp_key(concepts.now())}.log"
-    log.parent.mkdir(parents=True, exist_ok=True)
-    # Under a systemd service (the listener) in a scope of its own, so the listener's hourly restart does not kill it.
-    scope = (["systemd-run", "--user", "--scope", "--quiet", "--collect"]
-             if os.environ.get("INVOCATION_ID") and shutil.which("systemd-run") else [])
-    with log.open("w") as out:
-        (start or subprocess.Popen)([*scope, sys.executable, "-m", "score.review.reading", place, "--by", by],
-                                    env={**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}, stdout=out,
-                                    stderr=subprocess.STDOUT, start_new_session=True, cwd=str(concepts.REPO))
-    return str(log)
+    return {**record, "library": concepts.handed_over(store, place)}
 
 
 def concept_discuss(store, place, request, euros, by, run=None):
@@ -554,37 +531,6 @@ def plan_named(store, place, names, by):
         return plans.name_inside(store, place, names, checked_by(by))
     except plans.Refused as refused:
         raise review.Refused(str(refused)) from refused
-
-
-def plan_write(store, place, euros, by, run=None):
-    """His Make plan on a plan page: the place's plan written (score/review/plan_writing.py) as its own process, one
-    Gemini call; with plan_writing.AUTOMATIC off his click is his yes for exactly that call at `euros` (refused when
-    its price moved), on, the standing allowance clears it. Its record's line. review.Refused for an empty or the
-    runner's name, a price that moved, or a writing refused (its words); PermissionError in an agent's process."""
-    import json
-    import os
-    import subprocess
-    import sys
-    from score.review import concepts, plan_writing
-    from score.store import stamp_key
-    name = checked_by(by)
-    env = {**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}
-    if not plan_writing.AUTOMATIC:
-        price = plan_writing.price(store)
-        if abs(float(euros) - price) > 0.005:
-            raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's price (EUR {price:.2f}): "
-                                 "read the page again")
-        key = f"plan-write-{place}-{stamp_key(review.now())}"
-        review.spend(store, "override", key, price, name, purpose=f"plan writing: one plan of {place} (Gemini)")
-        env["SCORE_SPEND_TICKET"] = f"override {key}"
-    done = (run or subprocess.run)([sys.executable, "-m", "score.review.plan_writing", place, "--by", name],
-                                   env=env, capture_output=True, text=True, timeout=plan_writing.TIMEOUT + 60,
-                                   cwd=str(concepts.REPO))
-    if done.returncode != 0:
-        raise review.Refused((done.stderr.strip().splitlines() or ["the writing failed"])[-1]
-                             .removeprefix("refused: "))
-    lines = done.stdout.strip().splitlines()
-    return json.loads(lines[-1]) if lines else {"place": place, "written": "already"}
 
 
 def plan_revise(store, place, request, euros, by, run=None):

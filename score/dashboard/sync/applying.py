@@ -23,7 +23,6 @@ CONCEPT_KINDS = ("concept-draw", "concept-discuss", "concept-pick", "concept-wor
 ENVIRONMENT_KINDS = ("environment-ask", "environment-save", "environment-reference")
 # The plan review's (score/review/plans.py): his plan kept, inside places named, a Correct with notes.
 PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, "plan-revise": actions.plan_revise,
-              "plan-write": actions.plan_write,
               "env-plan-edit": actions.environment_plan_edit,
               "env-plan-write": actions.environment_plan_write}
 # The Machine card's two owner buttons (the kill switch): every run stopped, parked machines deleted and paid work

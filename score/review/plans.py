@@ -2,8 +2,8 @@
 automatically once its concept is picked and its scene inventory read from it (owner, 2026-10-21: picking the
 concept is the approval; the plan page is for inspecting and fixing it, his edits redoing what follows).
 
-The plan shown is written by the prompt model (plan_writing.py, `made_plan`); until it is, a rough one is drawn free
-from data already there (`derived`, also the skeleton the writing starts from): a bare plan of the house schema
+The plan shown is the one the prompt model wrote, kept (`written`, `made_plan`; the writer itself wiped, #128); without
+one, a rough one is drawn free from data already there (`derived`): a bare plan of the house schema
 (the filed plans of the old concepts were retired, 2026-10-21), its outline from the layer above's plan (its
 box in that plan's `holds`), and its items from its scene inventory, each item tied to its inventory row (a row laid
 at a spot stands there, one with none along the walls in the order its SAM box stands on the picture (never projected);
@@ -54,6 +54,9 @@ KEPT = PROPS_HOME / "design" / "plans"  # the plan the plan stage reads (stages.
 KEPT_INVENTORY = PROPS_HOME / "design" / "inventory"  # and the scene inventory it was made from
 KEPT_CONCEPT = PROPS_HOME / "design" / "concepts"  # and the picked concept both were made from (its `concept` input)
 KEPT_LIGHT = PROPS_HOME / "design" / "light"  # and that concept's light (reading.concept_light), once read
+# The plans the wiped plan writer kept (#128), read as written: its store area and its last method.
+WRITTEN = "plan-writings"
+WRITTEN_METHOD = 7
 SIDES = ("N", "S", "E", "W")
 FACINGS = {0: "N", 90: "E", 180: "S", 270: "W"}
 GAP = 0.3  # metres between items laid along the walls, and round inside places laid in their holder
@@ -412,7 +415,7 @@ def items_from(plan, inventory):
     laid along the walls in the order their boxes stand on the picked concept left to right (`across`), sized by
     `measured` (its reading's metres), tied to its row and the rows riding on it; one walls-and-ceiling item over the
     whole floor, the rows that are the place itself (`whole`) on it; `unsized` [(item, row id)] the items nothing
-    gives a size. The written plan (plan_writing.py) places them; this one is the free stand-in until it is."""
+    gives a size. A kept written plan places them (`written`); this one is the free stand-in without one."""
     picture = inventory.get("picture")
     rows = [row for row in inventory.get("rows", []) if not whole(row, picture)]
     riders = children(rows)
@@ -600,9 +603,22 @@ def derived(store, place):
 
 
 def written(store, place):
-    """The plan written for `place` from its pick and inventory (plan_writing.written_of), None while none is."""
-    from score.review import plan_writing
-    return plan_writing.written_of(store, place)
+    """The plan kept written for `place` from its pick and the reading in force, by the writer's last METHOD
+    (WRITTEN_METHOD), None while none is. Plans are written no more (#128: the plan writer wiped); kept ones are read."""
+    from score.review import reading
+    sha, found = concepts.picked(store, place), reading.reading_of(store, place)
+    read_at = found and found["at"]
+    return next((record for record in reversed([store.read(key) for key in sorted(
+                     concepts.keys_under(store, f"{WRITTEN}/{place}/"))])
+                 if sha and record["concept"] == sha and record.get("reading") == read_at
+                 and record.get("method") == WRITTEN_METHOD and not record.get("refused")), None)
+
+
+def writing_kept(store, record):
+    """One written plan record written once in the store (the stand-in writings the tests of the stages that still
+    read them lay); the record."""
+    store.write_once(f"{WRITTEN}/{record['place']}/{stamp_key(record['at'])}.json", record)
+    return record
 
 
 def made_plan(store, place):
@@ -615,9 +631,6 @@ def made_plan(store, place):
         shape = creator_shape(place)  # a writing from before shapes were kept is checked against its shape too
         written_plan = {**found["plan"], "held": shape} if shape and "held" not in found["plan"] else found["plan"]
         plan = {**written_plan, "gaps": checked_again(written_plan, inventory_of(store, place))}
-        if "fixes" in plan:  # fixed after writing (plan_fixes): each gap left says why no fix took
-            from score.review import plan_fixes
-            plan["gaps"] = plan_fixes.why_left(plan["gaps"])
         if "holds" in plan:  # an inside place he took off since it was written is laid out no more
             inside = set(proposed_inside(store, place))
             plan["holds"] = [hold for hold in plan["holds"] if hold["place"] in inside]
@@ -749,25 +762,13 @@ def doors_led(store, place, shown):
 
 
 def edit_inside(store, place, shown):
-    """`shown` with what his edit (or a redrawing, `redrawn`) lays past its own outline brought inside it
-    (plan_fixes.kept_inside), each doorway its own door rows say its row's width (plan_fixes.doors_sized, where it
-    stands kept) and as big as the door standing in it (plan_fixes.doorways_fit), nothing laid in a wall or its own
-    row's (plan_fixes.kept_apart: flat's redrawing of 2026-11-05 its
-    second stove piled on its first) and each person spot standing in something moved out of it (`people_moved_out`, his
-    things kept), each fix added to its `fixes`, as holds_fitted fits his edit's holds: no writing carries a fix over
-    his edit (the hangar's edit of 2026-10-21 kept the 55.7 m writing's person spots and pipes past its 32 x 64 m; its
-    redrawing of 2026-11-05 too; habitat's edit its writing's 0.237 m hatches; greenhouse's redrawing of 2026-11-05 its
-    astronaut_2 in its grow light frame, 2026-11-08); a writing is fixed as a writing (plans_pass)."""
+    """`shown` with each person spot of his edit (or a redrawing, `redrawn`) standing in something moved out of it
+    (`people_moved_out`, his things kept), each fix added to its `fixes` (greenhouse's redrawing of 2026-11-05 its
+    astronaut_2 in its grow light frame, 2026-11-08). The plan writer's free fixes went with it (#128)."""
     if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):
         return shown
-    from score.review import plan_fixes
     plan = copy.deepcopy(shown["plan"])
-    inventory = inventory_of(store, place)
-    fixes = plan_fixes.kept_inside(plan, inventory) + plan_fixes.doors_sized(plan)
-    fixes += plan_fixes.doorways_fit(plan, inventory or {"rows": []})
-    fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})
-    plan, moved = people_moved_out(plan, inventory or {"rows": []})
-    fixes += moved
+    plan, fixes = people_moved_out(plan, inventory_of(store, place) or {"rows": []})
     return {**shown, "plan": {**plan, "fixes": said_once([*plan.get("fixes", []), *fixes])}} if fixes else shown
 
 
@@ -784,8 +785,8 @@ def people_moved_out(plan, inventory):
     """(the plan with no person standing in a wall, a thing or another person, the fixes said): in order each person
     spot whose footprint overlaps a wall, a floor thing or a spot kept before it moved to the nearest floor inside the
     outline where it overlaps none; every other spot, and every thing, kept as placed. Spots of rows beyond or afar
-    stand out there on purpose; a spot with no such floor is left. A writing gets it in the pass
-    (plans_pass.spaced_people), his edit or a redrawing when shown (`edit_inside`)."""
+    stand out there on purpose; a spot with no such floor is left. His edit or a redrawing gets it when shown
+    (`edit_inside`)."""
     from score.review import plan_checks, standing
     spots, fixes = plan.get("people") or [], []
     if not spots:
@@ -1615,22 +1616,19 @@ def main(argv):
     from score.store import Store
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
     if argv == ["keep"]:
-        from score.review import plan_writing
         # every scene of the tree, a parent scene with no plan in the data among them (the Moon base): its kept plan
         # lays out its child scenes for the scene tree (stages/assembly/scene_tree.py)
         laid = tree(store)["within"]
         places = sorted({*(path.stem for path in KEPT.glob("*.json")), *laid, *laid.values()})
-        # a locked, read place with no plan written from its reading (a reading before today's METHOD, a run cut off)
-        # gets it on its own under the standing allowance; kept on a later pass
-        owed = plan_writing.owed(store, places) if plan_writing.AUTOMATIC else []
-        writing = f"; plans of {', '.join(owed)} being written: {plan_writing.started(store, owed)}" if owed else ""
         kept, changed = keep(store, places)
-        from score.review import scene_sky
+        from score.review import holders, scene_sky
+        related = holders.keep(sorted(path.stem for path in KEPT.glob("*.json")))  # what the scene record lays by
         skies, _ = scene_sky.keep(store, places)  # each scene's sky inputs, which its light layer reads
         # changed, or not made yet (a run refused while another held the store is asked again next pass)
         again = [place for place in sorted({*changed, *kept}) if place in changed or not made(store, place)]
         print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed; skies {len(skies)} kept"
-              + (f"; plan rows of {len(again)} made again: {made_again(again)}" if again else "") + writing)
+              + (f"; plan rows of {len(again)} made again: {made_again(again)}" if again else "")
+              + (f"; relations of {len(related)} derived again" if related else ""))
         return 0
     place, request, by = argv
     try:

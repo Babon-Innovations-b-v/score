@@ -12,8 +12,7 @@ Every model is a stand-in: no call is made and nothing is spent. Each test's sto
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/review/test_the_owners_word_stands.py
 
 Each test turns red under the break written for it below (each applied once and seen red, 2026-10-26): the test, then
-the file and the exact change. The free fixes' and the sync pass's plans keep tests came in from plan_fixes_test.py
-and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wording tests read kept plans of their own
+the file and the exact change. The Square's wording tests read kept plans of their own
 (SQUARE_PLANS, 2026-10-28): they had read the real home's, so in a bare PROPS_HOME they failed.
 - test_the_owners_word_stands (the review's accept, reject, waiver, page, web decision and stop line in one tally
   store, and the got-worse judge's rows; folded 2026-11-13 from fourteen tests, each break below applied again
@@ -130,20 +129,11 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     overhead.py: `if other["body"] == on or other.get("lux") is not None:` made `if other.get("lux") is not None:`
     overhead.py: `hour = 2.0 * math.pi * since / (light["day_hours"] / 24.0)` made `hour = 0.0`
     overhead.py: `360.0 * 24.0 / body["day_hours"]` made `360.0 * 24.0 / 24.0`
-- test_the_owners_word_stands, its reading's agreement and schema and its plan's gaps (folded 2026-11-14 from
-  eight tests into the AGREED, READ_ANSWERS and GAP_WORDS rows, each break below applied again then and seen red):
-    reading.py: `else row for row in rows if structural(row) or row["boxes"]]` made `else row for row in rows if
-    row["boxes"]]`
-    reading.py: `and area(region) >= SMALLEST * size[0] * size[1]` made `and area(region) >= 0`
-    reading.py: `and head(other) == head(row) and overlapping(other, row, size)), None)` made `and False), None)`
-    reading.py: `rows = seen_alone(unshared(boxed_by_overlap(rows, [item["box"] for item in finds], size), size),
-    size)` made `rows = seen_alone(unshared(rows, size), size)` (a crate SAM 3 boxed as a bag skipped again)
-    reading.py: `(boxes := lumped(row["boxes"])[:row["count"]])` made `(boxes := row["boxes"])` (a door and its
-    leaves three doors again)
-    reading.py: `if first["region"] and second["region"]:` made `if False:` (the square's side screens merged into
-    its stage screen again)
-    reading.py: `wrong += [] if row.get("kind") in KINDS else ["kind"]` made `wrong += []`
-    reading.py: `raise concepts.Refused(str(unfinished)) from unfinished` made `return ""`
+- test_the_owners_word_stands, its concept split by SAM 3 (2026-11-16, #128; applied once and seen red):
+    concept_objects.py: distinct's `if not any(same(box, other["box"]) for other in kept):` made `if True:` (the
+    machine SAM 3 found where a surer crate lies kept as a second object)
+- test_the_owners_word_stands, its plan's gaps (folded 2026-11-14 from eight tests into the GAP_WORDS rows, each
+  break below applied again then and seen red; the reading's rows went with the reading chain, #128):
     plan_checks.py: `for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]` made
     `for first, second, axis, said, drawn in relations(seen, laid, turn) if False]`
     plan_checks.py: `if count > 1 and things and item[3] * item[4] > max(SPREAD * things, things + SPREAD_SLACK):`
@@ -176,7 +166,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     concept_version(store)` made `return found.get("method") == METHOD`
     environment_plan.py: `round(-(far * far) / (2 * radius), 4) if radius else 0.0` made `round(-(far * far) / (2 *
     radius), 4) if radius else -1.0`
-    environment_plan.py: `plan_writing.cleared(store, [f"environment-{world}"]` made `plan_writing.cleared(store,
+    environment_plan.py: `writing_cleared(store, [f"environment-{world}"]` made `writing_cleared(store,
     [world]`
     environment_plan.py: `if found["metres"] < SAME_SPOT]` made `if found["metres"] < 0]`
     scene_sky.py: `if site["place"] == top and site.get("time"):` made `if site["place"] == place and
@@ -184,33 +174,6 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     scene_sky.py: `elif before is not None: path.unlink()` made `elif False: path.unlink()`
 - test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
     environment_plan.py: `fixed[axis]) + CLEAR_M)` made `fixed[axis]))`
-- test_the_owners_word_stands, its picked place's reading (folded 2026-11-14 from ten tests into one store's wreck,
-  dock, hull and shack read, parted, lit, read again and fixed; each break below applied again then, seen red):
-    reading.py: `{**row, "boxes": (boxes := lumped(row["boxes"])[:row["count"]]), "box": boxes[0]}` made `{**row,
-    "count": len(row["boxes"]), "box": row["boxes"][0]}` (Gemini counts, SAM 3 places: the drum read as 3)
-    reading.py: `if sha and found["concept"] == sha and found.get("method")` made `if found.get("method")`
-    reading.py: `again = {place: asked_again(store, place, folder) for place in places if earlier_rows(store,
-    place)}` made `again = {}`
-    reading.py: `refused = {place: answer for place, answer in asked_places.items() if isinstance(answer[0], str)}`
-    made `refused = {}`
-    reading.py: `and (any("part" not in row for row in found["inventory"]["rows"]) or not parts_current(store,
-    found))]` made `and (not parts_current(store, found))]`
-    reading.py: `again = None if record.get("parts_version", 1) >= PARTS_VERSION else asked_parts_of(store, record,
-    current=True)` made `again = None`
-    reading.py: `wrong += ["scene"] if scene["unseen"] and not COLOUR.fullmatch(str(scene["unseen_colour"])) else
-    []` made `wrong += []`
-    reading.py: `if again else unlit(store, places)` made `if False else unlit(store, places)`
-    reading.py: `{"text": LIGHT_ASKED.read_text().format(` made `{"text": WORDS.format(`, the file's words put back
-    in reading.py as `WORDS` (the words in code again)
-    reading_fixes.py: `rows = reading.reanchored([dict(row) for row in rows], {item["row"]: f"on:{item['into']}" for
-    item in merged})` made `rows = [dict(row) for row in rows]`; `rows, added = seats_added(rows)` made `added = {}`
-    (the crew left on the floor, no bench)
-- test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
-    reading_fixes.py: `INSIDE = 0.9` made `INSIDE = 0.5`; `if len(named) == 1 and` made `if named and` (a sitter
-    on "a stool" anchored on one of two); `people_rows.seat_of(` made `bool(` (anchored on the table);
-    `if row["id"] in people and said and not people_rows.seat_of(row)` made `if row["id"] in people and said` (a
-    stool added under the pilot already seated); `and not any(` made `and not all(` (a third stool beside the two named);
-    `round(tall * SEAT_SHARE * BACKED.get(seat, 1.0), 3)` made `round(tall, 3)` (a bench as tall as its sitter)
 - test_the_owners_word_stands, its plan review (folded 2026-11-14 from nine tests into one store's yard and
   shed picked, written, edited, corrected and unpicked, a hut and a farm added; each break below applied again
   then, seen red):
@@ -259,203 +222,15 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_checks.py: `if (mask & other_mask).sum() > OVERLAP * min(mask.sum(), other_mask.sum())]` made `if False]`
 - test_the_owners_word_stands (folded 2026-11-14 into its GAP_WORDS and its stair core's rows; each break applied again then, seen red):
     plan_checks.py: stair_gaps' `if slope > STEEPEST:` made `if False:`
-    plan_writing.py: fits' `return not any(plan_checks.too_close(samples, share, low, high, other) for other in laid)`
-    made `return True`
 - test_the_owners_word_stands, its plan review's held spots (folded 2026-11-14, see below):
-    plan_drawing.py (2026-11-04, #72): OUTLINE's "not its shape" wording made "draw this place filling exactly that
-    box's shape"
-    plan_drawing.py (2026-11-04): `outline=(OUTLINE + ("" if inside else OPEN))` made `outline=OUTLINE`, or ASKED's
-    open-ground outline sentence dropped
     concepts.py (2026-11-04): keys_under's `root / prefix.rpartition("/")[0]` made `root / prefix`
     plan_checks.py (2026-11-05, #72): shape_gaps' `if not held or held.get("fitted") or shape_off(plan["w"],
     plan["d"], held) <= SHAPE_SLACK:` made `if True:`
-    plan_writing.py (2026-11-05, #72): fitted's `found = turned_quarter(plan) if turn else plan` made `found = plan`,
-    or mapped's item_of `middle = at([x + wide / 2, y + deep / 2])` made `middle = at([x, y])`
-    plan_drawing.py (2026-11-05, #72): `OPEN + strip_of(place)` made `OPEN`
-    plans_pass.py (2026-11-05, #87): laid_again's `stairs, levels = plan_writing.flights_laid(answer)` made `stairs,
-    levels = answer.get("stairs") or [], answer.get("levels") or []`
-    plan_writing.py (2026-11-15, #128): floor_held's `if not area or not short:` made `if True:` (a writing shrunk
-    to 4.7 m from its lock's 13.1 m kept), or flights_landed's `if air or None in landing:` made `if False:` (the
-    street's stair ending in the air at 3 m built), or room_row's `int(row.get("count", 1) or 1) == 1 and` dropped
-    (twelve floor tiles taken for the room), or roof_beams' `if any(row_words(row) & CURVED_WORDS for row in rows):`
-    made `if False:` (a concept naming a dome roofed flat), or concept_roofed's `roofs = [{**roof, "kind": "flat",
-    "top": roof["eave"]} if roof in rising else roof ...]` made `roofs = plan["roofs"]` (the garage's game dome kept
-    over its concept's beams)
-    plan_fixes.py (2026-11-15, #128): doorways_fit's `near["wide"] = max(float(near["wide"]), door_wide)` made
-    `pass`, or `return fixes + (door_rows_widened(plan) if fixes else [])` made `return fixes` (the doorway wider
-    than its plan door row: scene-record's `openings` fails)
     plans.py (2026-11-05, #72): newest_edit's `and found[-1].get("plan") is not None` dropped
     plans.py (2026-11-05, #72): doors_met's `step = (pair["there"] - pair["spot"]) * (1 if mover == name else -1)` made
     `* (1 if mover != name else -1)`, or `if overlap(box, sibling): box = pushed_out(box, sibling)` dropped, or mover_of's `if not
     by_place[place].get("row")` made `if True`
     plans.py (2026-11-05, #72): current's `edit_inside(store, place, ...)` dropped (the edit shown as made)
-    plan_fixes.py (2026-11-06): doors_sized's `found[1]["wide"] = metres` made `pass` (an edit's 0.237 m hatch shown
-    for its 2.2 m row)
-- test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
-    plan_writing.py: `keys[0]: left + wide / 2 if middle else left` made `keys[0]: left`
-    plan_writing.py (2026-11-03, #72): `found = rows_scale(answer, inventory)` moved under the held branch's return
-    of its box each way (`(skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1]))`), and
-    `skeleton = {**skeleton, "w": wide, "d": deep, ...}` made `if not held:` only; `doors_along` returning the
-    skeleton's doors as they are
-- test_the_owners_word_stands, its plan writing (folded 2026-11-14 from four tests, the shed's writing, a writing
-  only inside his yes with the flag off, his click asking none with it on and a read place owed unless refused, into
-  one store's shed, hut and yard written; each break below applied again then and seen red):
-    plan_writing.py: `if row_id not in placed and parent in placed:` made `if False:`
-    plan_writing.py: roof_of's `**({"openings": openings} if openings else {})` made `**{}` (a roof's opening dropped:
-    the hangar's roof door never cut, 2026-11-04)
-    plan_writing.py: roof_of's `**({"glass": True} if roof.get("glass") is True else {})` made `**{}` (a glass dome
-    written opaque: camp, 2026-11-15)
-    plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
-    plan_writing.py: `if AUTOMATIC: return compute.spending(` made `if True: return compute.spending(`
-    web.py: `if not plan_writing.AUTOMATIC: price = plan_writing.price(store)` made `if True: price =
-    plan_writing.price(store)`
-    plan_writing.py: `return [place for place in to_write(store, places) if not refused_now(store, place)]` made
-    `return to_write(store, places)`
-- test_the_owners_word_stands, its FIXED rows (folded 2026-11-14 from four tests, a thing the creator planned, a
-  scene added in the app's doors, a missing thing piled on one of its row and a box drawn apart split, into one table
-  of the plan writer's fixes, each answer and the plan it leaves read through the same `holds`; each break below
-  applied again then and seen red):
-    plan_writing.py: `middle = [x + wide / 2, y + deep / 2] if facing is None:` made `middle = [x, y] if facing is
-    None:`
-    plan_writing.py: `to = holder if opening.get("to") == place else opening.get("to")` made `to =
-    opening.get("to")`
-    plan_fixes.py: `            if base:` made `            if False:`; or `default=0.0) if piles(row) else 0.0` made
-    `default=0.0)`
-    plan_fixes.py: `for spot in spots: added_item(plan, row["id"], spot, size, shape)` made `for spot in spots[:1]:`
-- test_the_owners_word_stands, its FIXED rows of the free fixes (folded 2026-11-14 from the free fixes' own test into
-  rows of the same table, a plan of its own a fix, what it answers, the plan it leaves and what it answers given that
-  plan again; each break below applied again then and seen red):
-    plan_fixes.py: `plan["people"] = stood + found` made `plan["people"] = found + stood`
-    plan_fixes.py: `opening.update(wide=metres, **({"to": lead} if lead is not None else {}))` ->
-    `pass`
-    plan_fixes.py: `left.remove(spare)` -> `pass` (the moved doorway kept on its drawn wall)
-    plan_fixes.py: `lead = (leads.get(f"{key}:{float(door[1]):g}") if sided else None) or (` ->
-    `lead = (None) or (` (two doors on one wall lead where its side's one lead does)
-    plan_fixes.py: `float(pair[1]["at"][0 if place in ("N", "S") else 1]) - float(along)))` ->
-    `0.0))` (a wall's first doorway taken by its first door row, wherever along it stands)
-    plan_checks.py: `for item in plan.get("items", []):  # every row tied to an item` loop ->
-    placed_items' floor rows alone
-    plan_fixes.py `runs_kept_clear`: `box = trimmed(box, blocker, along) if crosses else
-    shifted(box, blocker, along)` -> `box = shifted(box, blocker, along)`, or `shape["count"] = kept` dropped,
-    or its `count_said(plan, row, ...)` dropped (the cut bags a count gap again, placed back as missing)
-    plan_fixes.py `run_doubles_dropped`: `abs(float((run_shape or {}).get("base") or 0.0) - base) <
-    1e-3 and` dropped (the bag piled on the run taken off), or `> plan_checks.OVERLAP * item[3] * item[4]` ->
-    `> 0` (the bag touching the run's end taken off)
-    plan_fixes.py `wall_runs_parted`: `if kept < count:` -> `if False:` (the cut pipe unsaid)
-    plan_fixes.py `laid_of`: `int((plan.get("shapes", {}).get(item[0]) or {}).get("count") or 1)`
-    -> `1` (the record lays one bag a run)
-    plan_fixes.py `walls_and_stairs`: `for stair in plan.get("stairs") or []:` ->
-    `for stair in []:` (BAGS 3 left on the ramp)
-    plan_fixes.py `nudged`: `others += [box for box in standing_low(plan, inventory, mover) if
-    box != still[1:5]] + clear` -> `others += clear` (the box nudged into the suit)
-    plan_checks.py `attached`: `or frozenset((first, second)) in joined` dropped (the tunnel nudged out of the dome
-    it enters), or `joined_pairs`' `row.get("part") == "structure" and` dropped (the crate kept in the dome)
-    plans_pass.py `unread_elements_dropped`: `if not gone:` -> `if True:` (the street's chair element kept on
-    a row no longer read)
-    plans_pass.py `recountable`: `and not counted_laid(plan, row["id"])[1]` dropped (the shop door's 3 copies at
-    plan items left as laid, #128), or `lowered`'s `laid.sort(key=...)` dropped (SHOP_DOOR 1 kept, not the one in
-    its doorway)
-    plan_checks.py `join_gaps`: `for row in sorted(set(joiners) & set(seen))` -> `for row in sorted(seen)` with
-    `joiners.get(row, {"tunnel"})` (the radiator beside the tunnel read as joined), or `for join in joiners[row]` ->
-    `for join in rows if connector(rows[join])` (the dome counted joined by the tube laid beside it, not its tunnel)
-    plan_fixes.py `piled_on_own`: `piles(rows[row])` -> `False` (the sandbag pile stood on the
-    floor), or `on_floor[row] not in plan_checks.FLOOR_ANCHORS` dropped (frame 2 taken off its wall)
-    plan_fixes.py `floored`: `dict(row, anchor="floor")` -> `row` (RAIL 2 left 1 m up)
-    plan_fixes.py `unpiled`: `surplus.append(item)` -> `pass` (the boxed-in stove grounded in
-    its first), or `size = [side + 2 * (MARGIN + grid.size) ...]` -> `item[3:5]` (STOVE 2 touching the fridge)
-    plan_fixes.py `surplus_dropped`: `plan.setdefault("dropped", []).append(...)` dropped (the
-    stove row's count a gap again)
-    plan_fixes.py `projector`: `if matrix is None or float(numpy.linalg.norm(...).max()) <
-    SPREAD_LEAST:` -> `if matrix is None:` (every box sent to the room's middle)
-    plan_fixes.py `flights_cleared`: `if into is None or plan_checks.inside(corners, ...` ->
-    `if into is None:` (the lander's ramp moved off its lander), or `made_things`' outline test dropped (the
-    stair moved for the 30 m tower), or `made_outline`'s `max(float(wide), item[3])` -> `item[3]` (no ramp moved)
-    plans_pass.py `unsettled`: `or bool(plan_fixes.kept_apart(copy.deepcopy(plan), inventory))`
-    dropped, or settled_again's `apart = plan_fixes.kept_apart(answer, inventory)` -> `apart = []`
-    plan_fixes.py `piled_on_own`: `if under and min(under) < plan_checks.LOW:` -> `if under:`
-    (the overhead string 2 brought down to string 1's 6 m and moved)
-    plan_fixes.py `wall_runs_parted`: the height band test dropped (PIPE 3 cut into PIPE 1's), or
-    `other_row != row` dropped (the panel cut off the pipes), or `continue  # no run` dropped (the panel cut)
-    plan_fixes.py `standing_low`: `left_out |= {... holders.holder_kind(row) is not None}`
-    dropped (the room-sized wall panel blocks every nudge)
-    plan_fixes.py `wall_runs_spread`: `{other[1] for other in runs}` -> `set()` (PIPE 2 laid on
-    PIPE 1's own north wall, still in it), or `any(in_each_other(run, other) for other in kept) and` dropped
-    (PIPE 1 and the lone south pipe moved too)
-    plan_fixes.py `in_each_other`: `and run[4] < other[5] and other[4] < run[5]` dropped (the pipe
-    3 m up moved off the north wall)
-    plan_fixes.py `wall_runs`: `int(shape.get("count") or 1) > 1 or` dropped (the counted run
-    moved), or `holders.spans(rows[row]) or` dropped (the crane moved)
-    plan_fixes.py `open_gaps`: `+ stack_gaps(plan, inventory)` dropped (the stacked pipes with
-    no gap)
-    plan_fixes.py `wall_runs_spread`: `surplus.append(run[0])` -> `pass` (PIPE 5 left in PIPE 1),
-    or `continue` after it dropped (PIPE 5 kept beside its drop), or `fixes += surplus_dropped(...)` dropped
-    plan_fixes.py `off_flights`: `if laid_of(plan, row) - len(surplus.get(row, [])) > 1:` ->
-    `if True:` (a row's last bed taken off), or `-> if False:` (BED 1 left on the stairs beside BED 2)
-    plan_fixes.py `surplus_dropped`: `return fixes + resting_dropped(...)` -> `return fixes` (POT
-    1 left 0.5 m up where BED 1 went); `resting_dropped`: its `laid_of(...) - ... > 1` -> `True` (the pot row's
-    last taken off)
-    plan_fixes.py `eaves_raised`: `>= plan_checks.LOW` -> `>= 0.0` (the tube's vault on its
-    floor raised), or `roof["top"] = round(...)` dropped (the dome's rise lost)
-    plan_fixes.py `stair_rows_dropped`: the `any(other.get("anchor") == ...)` test dropped (the
-    staircase its railing stands on taken off), or `if not flights: return []` -> `if False:` (stairs taken off a
-    plan with no flights)
-    plan_fixes.py `on_flights`: `and not any(crossing(drawn, points) ...)` dropped (the ramp's
-    cart moved), or `plan_checks.inside(made, outline).all() and` dropped (the hall made past the plan moved)
-    plan_fixes.py `off_flights`: `| ~level` dropped (the chair laid off its level)
-    plan_fixes.py `ramps_walled`: `if plan_checks.past_walls(...)` -> `if True:` (the ramp clear of
-    the walls taken off) or `if False:` (the ramp laid through the wall kept)
-    plan_fixes.py `runs_laid_out`: `range(count, 0, -1)` -> `range(1, 0, -1)` (BAGS 1 cut to one),
-    the drawn box's `taken & standing.under(...)` test -> `False` (BAGS 1 left in the suit), or its
-    `count_said(...)` dropped (the cut bags unsaid); `run_room`'s off-outline room -> `pass` (BAGS 4 pulled
-    inside); `taken_floor`'s `laid_polygon(...)` -> `plan_checks.polygon_of(other, shape)` (the bags left where
-    the holders lay the ramp)
-    plan_fixes.py `hung_runs`: `long >= RUN_SHARE * short and` dropped (the hung lamps moved to a
-    wall), or `hung_runs_laid_out`'s `item[1:5] = first` -> `pass` (the cables left in one another)
-    plan_fixes.py `tops_cut`: `if used + needs <= long + 1e-9 or not kept:` -> `if True:` (five
-    0.5 m monitors kept on a 2 m desk), or -> `if not kept:` (three that fit cut to one)
-- test_the_owners_word_stands, its FIXED rows of a Correct kept or not and a row brought in from beyond (folded
-  2026-11-14 from two tests into rows of the same table: the shed's and the hut's stand-in Corrects, the airlock's
-  sandbags at the concept's foot, lab's people on spots inside, stairwell's unstood man, the hangar's spread workers
-  and the garage's things past its outline; each break below applied again then and seen red):
-    plan_fixes.py: `if len(open_gaps(answer, inventory)) >= len(left): break` made `if False: break`
-    plan_fixes.py: `plan["beyond"] = [row for row in plan.get("beyond", []) if row in kept]` made `plan["beyond"] =
-    plan.get("beyond", [])`
-    plans_pass.py: `if plan_checks.inside(numpy.asarray(points, dtype=float), outline).all()]` made `if False]`
-    plans_pass.py: `return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not in have]` made
-    `return []`
-    plans_pass.py `stood_again`: `+ spread_people(answer, inventory)` dropped (the hangar's workers stand on no spot)
-    plan_fixes.py `items_inside`: `clipped = [min(box[2], outer[2]), min(box[3], outer[3])]` made `clipped =
-    box[2:]` (the facade left past the wall)
-    plan_fixes.py `people_inside`: `walls_things | ~inside` made `walls_things` (its footprint past the outline)
-    plan_fixes.py `moved_inside`: its clamp dropped (`x, y = box[:2]`) (the facade left past the wall)
-    plan_fixes.py `frame_inside`: `plan.pop("frame")` dropped
-    plans_pass.py `unsettled`: the `plan_fixes.kept_inside` line dropped
-- the sync pass's plans keep in test_the_owners_word_stands (folded 2026-11-14 from the narrow walk, the keep in one
-  moment, a plan fixed before a fix it needs, a pile parted, an accepted row never parted, a plan placing more, a
-  Correct's copies of a person and a done place with no kept plan: one store's habitat, airlock, galley, hold, plaza,
-  bay and lock driven through plans_pass.main; each break below applied again then, at today's code, seen red):
-    (narrow walk) plans_pass.py: `if path.is_file() and not path.name.endswith(".partial")` made `if path.is_file()`
-    (one moment) plans_pass.py: `with plans.one_moment():` made `with contextlib.nullcontext():`
-    (the plaza, fixed before a fix it needs) plans_pass.py: `return bool(lacking) and len(missing(plan_fixes.fixed(
-    plan, inventory)[0], inventory)) < lacking` made `return False`
-    (the airlock's pile) plans_pass.py (settled_again): `if more or spaced or stood` made `if spaced or stood`
-    (an accepted row never parted, the bay's bag before the keep) plans_pass.py: `return store.accepted(
-    f"plan@{place}") is None` made `return True`; (parted_first) `or not unsettled(` made `or not parting(store,
-    place) or not unsettled(` (an accepted row's free re-fix kept a pass later; the lock's spacing too);
-    (settled_again) `if doors or within or apart:` made `if False:` (a person left in what kept_apart moved)
-    (the galley and hold, placing more) plans_pass.py (settled_again): `relation_solver.parted(plan, inventory) if
-    parts else (plan, [])` made `... if True else ...`
-    (the lock's copies of a person) plans_pass.py `unnumbered`: `elif row and placed[row["id"]] < int(row.get("count",
-    1) or 1):` made `elif row:` (a copy by row kept); `elif row or any(standing.in_each_other(...) ...):` made
-    `elif row:` (the copies by position kept); `spots.append([*spot[:3], row["id"]])` made `spots.append(spot)` (no
-    row given back); plans.py (people_moved_out) `standing.blocked(plan, shell_floored(plan, inventory), grid,
-    sits_on)` made `standing.blocked(plan, inventory, grid, sits_on)` (the spot in the crate on the shell's deck
-    kept); standing.py `in_each_other`: `< (size[0] + other_size[0]) / 2` made `< (size[0] + other_size[0]) / 2 +
-    0.2` (the near spot moved); standing.py `stands_in`: `bool((walls_things & under(grid, spot, size)).any()) or`
-    dropped (the spot in the wall kept); plans_pass.py (unsettled) `or bool(spaced_people(plan, inventory)[1])`
-    dropped; plans.py (people_moved_out) `< STILL_M` made `< 0` (a spot the free search hands back where it stands
-    logs a 0.00 m move every pass)
-    (a done place with no kept plan) plans_pass.py: `if not (plans.KEPT / f"{place}.json").is_file()` made `if True`
 - test_the_owners_word_stands, its plan review's held spots (folded 2026-11-14 from
   test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so into the plan review's store:
   the yard he edits to 30 m round its held shed, the shed locked again with his edits back and written 4 x 10 m, the
@@ -476,14 +251,12 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     Break: score/review/plan_checks.py: `boxes = [hold_outline(plan, hold) for hold in holds]` ->
         `boxes = [hold_outline({}, hold) for hold in holds]`
     A free redrawing under the owner's standing word on design fixes is kept as an edit with its reason, and shown with
-    what it lays past its outline brought inside; one giving a field no drawing has, or no reason, is refused.
+    its person spots moved out of things; one giving a field no drawing has, or no reason, is refused.
     Break: score/review/plans.py: `if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):` ->
         `if shown is None or shown["how"] not in ("edited", "revised"):`
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: edit_inside's `plan, moved = people_moved_out(plan, inventory or {"rows": []})` dropped
         (greenhouse's redrawn astronaut_2 kept in its grow light frame, 2026-11-08)
-    Break: score/review/plans.py: edit_inside's `fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})`
-        dropped (the bay's redrawn second stove kept 0.9 m up on its first)
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
         `if False:`
     A hold fitted to its plan's size takes its row's drawn item with it and moves, its item too, so its door meets its
@@ -505,11 +278,6 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     Break: score/review/plans.py: doors_led's `opening["to"] = None` dropped
     Break: score/review/plans.py: doors_led's `or doors_to(as_held(once_held[sibling], found), place)` dropped
     Break: score/review/plans.py: doors_led's `{sibling, opening.get("to")} & named` made `set()`
-    A missing thing with no SAM box is placed where its Gemini region projects (camp's small rocks, 2026-11-15).
-    Break: score/review/plan_fixes.py: placed_missing's `plan_checks.seen_boxes(row, inventory.get("picture"))` made
-        `plan_checks.boxes_of(row)`
-    One on the floor its reading gave no metres takes the footprint its box projects to (hangar's floor hatch, #128).
-    Break: score/review/plan_fixes.py: placed_missing's `else floor_footprint(row, inventory, project)` made `else None`
     A redrawing of a writing is laid over it with its doorways so led, never over the raw writing.
     Break: score/review/plans.py: redrawn's `shown = doors_led(store, place, doors_known(store, place,
         shown_plan(store, place)))` made `shown = shown_plan(store, place)`
@@ -521,11 +289,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     Break: score/review/plans.py: doors_known's `opening["to"] = None` dropped
     Break: score/review/plans.py: doors_known's `or to in rows` dropped
 """
-import contextlib
 import copy
 import datetime
-import functools
-import hashlib
 import io
 import json
 import math
@@ -534,17 +299,14 @@ import pathlib
 import re
 import subprocess
 import sys
-import tempfile
 
-import numpy
 import pytest
 from PIL import Image
 
 from score import checks, contracts, graph, review, stages
 from score.adapters import compute
-from score.review import (concepts, creator_plans, discuss, environment_concept, environment_concept as ec, environment_plan,
-                          holders, overhead, plan_checks, plan_drawing, plan_fixes, plan_writing, plans, plans_pass, reading,
-                          reading_fixes, scene_sky, setting, standing, web)
+from score.review import (concept_objects, concepts, discuss, environment_concept, environment_concept as ec,
+                          environment_plan, overhead, plan_checks, plans, reading, scene_sky, setting, web)
 from score.stages.scene_record import plan as record_plan
 from score.store import RUNNER, Store, runtime_store
 
@@ -905,206 +667,11 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
     again = thing_in(sky(invented, ("home", 0.0, 0.0), "2100-01-02T06:00:00Z"), "light")["altitude"]
     assert again == pytest.approx(heights[0], abs=1.5)  # back where it was, less its orbit's turn of 1.5 degrees
 
-    # the scene inventory reading: only what both readers agree on is a row, each answer off its schema refused
-    for row_name, rows, found_by_sam, size, kept, skipped, merged in AGREED:
-        got = reading.agreed(rows, [], found_by_sam, size)
-        for want, answer in zip((kept, skipped), got):
-            assert want is None or holds(answer, want), (row_name, answer)
-        assert merged is None or got[2] == merged, (row_name, got[2])  # the merged column exactly, no extra key
-    assert reading.inside_rows(INSIDE_ROWS, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
-    for row_name, function, arguments, want in [*READ_ANSWERS, *SEATED_AND_PARTED, *PRICED_AND_CLEARED, *MEASURED]:
-        function = getattr(reading, function) if isinstance(function, str) else function
-        if isinstance(want, Refusal):
-            with pytest.raises(concepts.Refused, match=want):
-                function(*arguments)
-                pytest.fail(f"{row_name}: taken")
-        else:
-            answer = function(*arguments)
-            assert holds(answer, want), (row_name, answer)
-    seated = reading_fixes.seats_added(ALONE)[0]  # the bench added: its sitter seated, no part merged
-    assert reading_fixes.seats_missing(seated) == {} and reading_fixes.parts_apart(seated, SIZE)[1] == []
-    parts = reading.parts_schema(["drum", "mast"])["properties"]["parts"]  # the parts ask answers under a schema
-    assert parts["required"] == ["drum", "mast"] and parts["properties"]["mast"]["enum"] == list(reading.PARTS)
 
     # a written plan's gaps against its concept: where each row stands and faces, what joins, what counts
     for row_name, plan, inventory, kinds, want in GAP_WORDS:
         words = [gap["words"] for gap in plan_checks.checked(plan, inventory) if kinds is None or gap["kind"] in kinds]
         assert (want <= set(words)) if isinstance(want, set) else words == want, (row_name, words)
-    stairs, levels, dropped = plan_writing.flights_laid(STAIR_CORE)  # the writer lays the core's flights, no gap
-    assert not dropped and not plan_checks.stair_gaps({**STAIR_CORE, "stairs": stairs, "levels": levels})
-    assert all(0.15 <= (stair["to"] - stair["from"]) / stair["steps"] <= 0.19 and 0.25 <= plan_checks.flight(
-        stair)[3] / stair["steps"] <= 0.30 for stair in stairs), stairs
-    assert [level["name"] for level in levels] == ["top floor", "landing at 1.5 m", "landing at 3 m"], levels
-    # the plan writer's free fixes, each on a plan of its own: what it answers and the plan it leaves
-    with monkeypatch.context() as his_ship:
-        his_ship.setattr(creator_plans, "PLANS", (lambda: SHIP,))
-        his_ship.setattr(plan_fixes, "corrected", correcting)
-        for row_name, fix, arguments, want, plan_want, *again in FIXED:
-            arguments = copy.deepcopy(arguments)
-            answer = fix(*arguments)
-            assert answer is arguments[0] if want is THE_PLAN_ITSELF else holds(answer, want), (row_name, answer)
-            assert not again or holds(fix(*arguments), again[0]), (row_name, "given its own plan again")
-            assert plan_want is None or holds(arguments[0], plan_want), (row_name, arguments[0])
-
-    monkeypatch.delenv(AGENT_MARKERS[0])
-    # a picked place's reading in a store of its own: read once inside its clearance, an answer off its schema kept
-    # with its cost and read again, its parts and its concept's light asked after it once each, an older reading read
-    # again by SAM 3 only, a part fixed free, a new pick with no reading until read
-    read_store = Store.in_folder(tmp_path / "reading")
-    sha = picked_place(read_store, tmp_path)
-    cleared = []
-
-    def clear(store, places, euros):
-        cleared.append((places, euros))
-        return compute.reading_clearance(store, places, euros)
-    with pytest.raises(concepts.Refused, match="lab: no locked concept"):  # read only after its own pick
-        reading.read(read_store, ["wreck", "lab"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)
-    off = lambda store, place, folder: ("row 'earth' has no valid anchor", 0.02, 9.0, None, None)  # noqa: E731
-    assert reading.read(read_store, ["wreck"], "joey", ask=off, boxes=stand_in_boxes) == []
-    [refused] = reading.readings(read_store, "wreck")
-    assert "anchor" in refused["refused"] and reading.spent(read_store, ["wreck"]) == 0.02  # its cost kept
-    assert reading.reading_of(read_store, "wreck") is None and reading.to_read(read_store, ["wreck"]) == ["wreck"]
-    with monkeypatch.context() as patched:
-        patched.setattr(compute, "READING_GEMINI_EUROS", 0.05)
-        assert cleared == []
-        [record] = reading.read(read_store, ["wreck"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)
-        assert cleared == [(["wreck"], 0.05)]
-    assert record["concept"] == sha and record["inventory"]["concept_pick"]["sha256"] == sha
-    rows = {row["id"]: row for row in record["inventory"]["rows"]}
-    assert rows["drum"]["boxes"] == [[0, 0, 20, 20], [40, 0, 60, 20]] and rows["drum"]["box"] == [0, 0, 20, 20]
-    assert rows["drum"]["count"] == 3  # read as 3, found twice: Gemini counts, SAM 3 places
-    assert rows["drum_right"]["boxes"] == [[150, 10, 170, 30]]  # one noun asked once, each instance to its region
-    assert rows["drum"]["size"] == [0.6, 0.6, 0.9] and rows["mast"]["size"] == [0.4, 0.4, 18.0]  # its metres
-    assert "lamp" not in rows and record["gaps"] == []  # only Gemini named it: skipped, no gap
-    assert [(item["name"], item["why"], item["box"]) for item in record["skipped"]] == [
-        ("lamp", reading.ONLY_GEMINI, [90.0, 0.0, 110.0, 10.0]), ("drum", reading.ONLY_SAM, [100, 60, 110, 70]),
-        ("object", reading.ONLY_SAM, [150, 50, 180, 80])]
-    assert [row["id"] for row in record["answered"]] == ["drum", "drum_right", "mast", "lamp"]  # kept as answered
-    assert record["euros"] == {"rows": 0.03, "boxes": 0.12, "total": 0.15}
-    assert record["seconds"] == {"rows": 12.0, "boxes": 60.0, "card": 540.0}
-    assert reading.reading_of(read_store, "wreck") == record
-    assert reading.spent(read_store, ["wreck", "lab"]) == round(0.02 + 0.15, 4)
-    assert reading.read(read_store, ["wreck"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes) == []
-    assert len(cleared) == 1  # read from this pick already: nothing asked, nothing cleared
-    assert reading.row_boxes(read_store, "wreck", "drum_right") == [[150, 10, 170, 30]]
-    assert reading.row_boxes(read_store, "wreck", "lamp") is None
-    assert reading.row_boxes(read_store, "wreck", "nothing") is None
-    assert reading.row_boxes(read_store, "lab", "drum") is None
-
-    ids = [row["id"] for row in record["inventory"]["rows"]]  # its parts: asked once, inside the reading's clearance
-    assert reading.unparted(read_store, ["wreck"]) == ["wreck"]  # the stand-in answered no parts
-    for answer in ('{"parts": {"drum": "object", "drum_right": "object"}}',
-                   '{"parts": {"drum": "object", "drum_right": "object", "mast": "pole"}}'):
-        with pytest.raises(concepts.Refused, match="'mast'"):  # a row missing, or a part off PARTS
-            reading.parts_of(answer, ids)
-    off = lambda store, place, folder: ("no valid part for 'mast'", 0.01, 3.0)  # noqa: E731
-    assert reading.parted(read_store, ["wreck"], "joey", ask=off) == []
-    assert reading.unparted(read_store, ["wreck"]) == ["wreck"]  # refused: asked again next time
-    parts = lambda part: lambda store, place, folder: (reading.parts_of(  # noqa: E731
-        '{"parts": {"drum": "object", "drum_right": "object", "mast": "%s"}}' % part, ids), 0.02, 4.0)
-    [kept] = reading.parted(read_store, ["wreck", "lab"], "joey", ask=parts("structure"))
-    assert kept["reading"] == record["at"] and kept["parts"]["mast"] == "structure"
-    now = reading.reading_of(read_store, "wreck")
-    assert [row["part"] for row in now["inventory"]["rows"]] == ["object", "object", "structure"]
-    assert now["at"] == record["at"] and reading.unparted(read_store, ["wreck"]) == []  # its rows kept
-    assert reading.parted(read_store, ["wreck"], "joey", ask=None) == []  # parted already: nothing asked
-    assert reading.spent(read_store, ["wreck"]) == round(0.02 + 0.15 + 0.01 + 0.02, 4)
-
-    dark = {"glows": False, "glowing": "", "colour": "", "brightness": 0}  # its concept's light: asked once
-    lamp = {"id": "mast", "glows": True, "glowing": "its lamp", "colour": "#ffd29a", "brightness": 0.5}
-    scene = {"daylight": False, "unseen": True, "unseen_colour": "#8899aa"}
-    lit_answer = lambda rows, seen=scene: json.dumps({"rows": rows, "scene": seen})  # noqa: E731
-    lit_rows = [{"id": "drum", **dark}, {"id": "drum_right", **dark}, lamp]
-    for answer, why in ((lit_answer(lit_rows[:2]), "every row"),
-                        (lit_answer(lit_rows[:2] + [{**lamp, "colour": "warm"}]), "'mast'"),
-                        (lit_answer(lit_rows, {**scene, "unseen_colour": ""}), "'scene'")):
-        with pytest.raises(concepts.Refused, match=why):
-            reading.light_of(answer, ids)
-    assert reading.light_schema(ids)["properties"]["rows"]["items"]["properties"]["id"]["enum"] == ids
-    assert reading.unlit(read_store, ["wreck"]) == ["wreck"]
-    lights = lambda text: lambda store, place, folder: (reading.light_of(text, ids), 0.03, 5.0)  # noqa: E731
-    unseen_off = {"daylight": False, "unseen": False, "unseen_colour": ""}
-    [kept] = reading.lit(read_store, ["wreck", "lab"], "joey", ask=lights(lit_answer(
-        [{"id": item, **dark} for item in ids], unseen_off)))
-    assert kept["reading"] == record["at"] and not reading.concept_light(read_store, "wreck")["scene"]["unseen"]
-    assert reading.unlit(read_store, ["wreck"]) == [] and reading.lit(read_store, ["wreck"], "joey", ask=None) == []
-    [again] = reading.lit(read_store, ["wreck", "lab"], "joey", ask=lights(lit_answer(lit_rows)), again=True)
-    assert again["reading"] == record["at"]  # named again (its words changed): asked once more, the newest read
-    assert reading.concept_light(read_store, "wreck")["scene"]["unseen"]
-    assert reading.concept_light(read_store, "wreck")["rows"]["mast"]["glows"]
-    assert reading.spent(read_store, ["wreck"]) == round(0.02 + 0.15 + 0.01 + 0.02 + 0.03 + 0.03, 4)
-    from score.graph import _code  # the light's words are a file the ask reads, in no paid row's code
-    glows_line = (concepts.DATA / "reading/light.txt").read_text().splitlines()[2]  # its own words, no other ask's
-    held = _code.source_files([reading.asked_light, reading.lit])
-    assert _code.REPO / "score/review/reading.py" in held and not any(glows_line in path.read_text() for path in held)
-    with monkeypatch.context() as patched:
-        words, bodies = tmp_path / "light.txt", []
-        words.write_text("Say how the place is lit, a lamp out of view at night too.\n{rows}")
-        patched.setattr(reading, "LIGHT_ASKED", words)
-        patched.setattr(reading, "asked", lambda body: (bodies.append(body), ({}, 1.0))[1])
-        patched.setattr(reading, "answer_text", lambda response: "{}")
-        patched.setattr(reading, "call_euros", lambda response: 0.03)
-        reading.asked_light(read_store, "wreck", tmp_path)
-    assert bodies[0]["contents"][0]["parts"][0]["text"].startswith("Say how the place is lit, a lamp out of view")
-
-    [again] = reading.read(read_store, ["wreck"], "joey", clear=clear, ask=None, boxes=stand_in_boxes, again=True)
-    assert again["euros"]["rows"] == 0.0 and again["answered"] == record["answered"]  # its own rows, SAM 3 only
-    assert reading.reading_of(read_store, "wreck") == again
-    concepts.pick(read_store, "wreck", None, "joey")  # a new pick: no reading until it is read
-    assert reading.reading_of(read_store, "wreck") is None and reading.to_read(read_store, ["wreck"]) == []
-
-    with monkeypatch.context() as patched:  # rows answered under an older PARTS have their parts asked again once
-        picked_place(read_store, tmp_path, "dock")
-        patched.setattr(reading, "PARTS_VERSION", 1)
-        reading.read(read_store, ["dock"], "joey", ask=parted_rows, boxes=stand_in_boxes)
-        patched.setattr(reading, "PARTS_VERSION", 2)
-        assert reading.unparted(read_store, ["dock"]) == ["dock"]
-        [kept] = reading.parted(read_store, ["dock"], "joey", ask=parts("wall"))
-        assert kept["version"] == 2 and reading.unparted(read_store, ["dock"]) == []
-        rows = reading.reading_of(read_store, "dock")["inventory"]["rows"]
-        assert [row["part"] for row in rows] == ["object", "object", "wall"]  # today's parts over its own
-        assert reading.parted(read_store, ["dock"], "joey", ask=None) == []  # asked under today's version: not again
-
-    hull = picked_place(read_store, tmp_path, "hull")  # a reading by an older method: read again by SAM 3 only
-    old = [{**dict(READ_ROWS[2]), "view": "v1", "box": None, "boxes": [], "size": [0.4, 0.4, 18.0],
-            "size_words": "tall", "thing": "", "name": "glass greenhouse dome", "noun": "building", "id": "greenhouse",
-            "terrain": False, "kind": "generate", "anchor": "ground", "where": "left", "region": [0, 0, 1000, 1000]}]
-    reading.kept(read_store, {"place": "hull", "concept": hull, "at": "2026-01-01T08:00:00+00:00", "by": "joey",
-                              "method": 4, "size": [200, 100], "inventory": {"rows": old}, "gaps": [],
-                              "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13}, "seconds": {}})
-    asked = []
-
-    def boxes(jobs, folder):
-        asked.append([item["nouns"] for item in jobs[0]["rows"]])
-        return {"hull.#greenhouse": [{"box": [10, 10, 90, 90]}], "hull.=building": []}, {
-            "euros": 0.08, "wall_minutes": 5.0, "machines": []}
-    never = lambda store, place, folder: pytest.fail("Gemini asked again")  # noqa: E731
-    [record] = reading.read(read_store, ["hull"], "joey", ask=never, boxes=boxes)
-    assert asked[0][:2] == [["glass greenhouse dome"], ["building"]]  # its own words, then its noun
-    assert record["inventory"]["rows"][0]["boxes"] == [[10, 10, 90, 90]]
-    assert record["from"].startswith("inventory-readings/hull/")
-    assert record["euros"] == {"rows": 0.0, "boxes": 0.08, "total": 0.08}
-    assert record["answered"][0]["metres"] == [0.4, 0.4, 18.0]
-    assert reading.spent(read_store, ["hull"]) == 0.21 and reading.cost(read_store, record)["euros"] == 0.21
-
-    shack = picked_place(read_store, tmp_path, "shack")  # a reading holding a part: fixed once, free
-    reading.kept(read_store, {"place": "shack", "concept": shack, "at": "2026-01-01T08:00:00+00:00", "by": "joey",
-                              "method": reading.METHOD, "parts_version": reading.PARTS_VERSION, "size": list(SIZE),
-                              "inventory": {"rows": [FRIDGE, DOOR, HANDLE, CREW]}, "gaps": [], "skipped": [],
-                              "merged": [], "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13}, "seconds": {}})
-    assert reading_fixes.to_fix(read_store, ["shack"]) == ["shack"]
-    [record] = reading_fixes.fix(read_store, ["shack"], "test")
-    assert reading.reading_of(read_store, "shack") == record
-    assert record["from"].startswith("inventory-readings/shack/")
-    assert [(item["id"], item["anchor"]) for item in record["inventory"]["rows"]] == [
-        ("fridge", "floor"), ("handle", "on:fridge"), ("crew", "on:crew_bench"), ("crew_bench", "floor")]
-    assert record["seated"] == [{"row": "crew", "anchor": "on:crew_bench"}]
-    assert record["merged"] == [{"name": "door", "row": "door", "into": "fridge"}]
-    assert record["euros"]["total"] == 0.0 and record["parts_version"] == reading.PARTS_VERSION
-    assert reading_fixes.to_fix(read_store, ["shack"]) == []
-    assert reading_fixes.fix(read_store, ["shack"], "test") == []
-    assert reading_fixes.said([record]) == "readings fixed: shack"
-    assert reading_fixes.said([]) == "readings: none to fix"
 
     # concept draws, Discusses and picks in a store of their own: a paid call only inside his yes at today's price,
     # each wording from the place's data, a change above putting the draw under it out of date
@@ -1337,17 +904,9 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         assert concepts.picked(draws_store, "campgrounds") == first["sha"]
         concepts.pick(draws_store, "campgrounds", None, "joey")
         assert concepts.picked(draws_store, "campgrounds") is None
-        started = []  # his pick starts its scene inventory reading, a process of its own in the pick's store
-        log = web.reading_started(draws_store, "campgrounds", "joey",
-                                  start=lambda argv, **named: started.append((argv, named)))
-        [(argv, named)] = started
-        assert argv[-5:] == ["-m", "score.review.reading", "campgrounds", "--by", "joey"] and named["start_new_session"]
-        assert named["env"]["SCORE_SPEND_STORE"] == str(draws_store.cache.parent) and log.endswith(".log")
-        with monkeypatch.context() as reading_now:
-            reading_now.setattr(web, "reading_started", lambda store, place, by: started.append((place, by)) or "log")
-            assert web.concept_pick(draws_store, "campgrounds", first["sha"], "joey")["library"] == "library: stand-in"
-            assert started[1:] == [("campgrounds", "joey")]  # no yes asked
-            assert "reading" not in web.concept_pick(draws_store, "campgrounds", None, "joey") and len(started) == 2
+        # his pick hands the place to the library and starts no reading (#128: readings are made no more)
+        assert web.concept_pick(draws_store, "campgrounds", first["sha"], "joey")["library"] == "library: stand-in"
+        assert "reading" not in web.concept_pick(draws_store, "campgrounds", None, "joey")
         with monkeypatch.context() as library:  # a pick handed to the library by its own concept command
             from score.stages.library import backend
             library.setattr(concepts, "handed_over", HANDED_OVER)
@@ -1726,7 +1285,7 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         shown.clear()
         shown.update(moon)
         kept_setting(sites_store, today)
-        patched.setattr(plan_writing, "call_euros", lambda found: 0.07)
+        patched.setattr(environment_plan, "call_euros", lambda found: 0.07)
         free, asked, clears = environment_plan.derived(sites_store), [], []
 
         def ask(body):
@@ -1811,8 +1370,6 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         assert plans.holder_of(plan_store, "shed") is None and not plans.made(plan_store, "yard")
         # a holder with no outline of its own (the base): the shed, 6 x 6 m with no plan of its own, is inside it
         assert plans.outline_from_inside(plan_store, "yard") == (6.6, 6.6)
-        assert reading.outline_of(plan_store, "yard") == (6.6, 6.6)  # the reading sizes its rows against it
-        assert reading.outline_of(plan_store, "nowhere") is None
         picked(plan_store, "yard")  # the pick is the approval: its inventory read, its plan is made
         assert plans.current(plan_store, "yard")["plan"]["w"] == 6.6 and plans.made(plan_store, "yard")
         plans.name_inside(plan_store, "yard", ["Tool Hut"], "joey")
@@ -1942,9 +1499,6 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         # a spot takes its child scene's own plan size, centred where it sat, and says so (owner, 2026-10-25: "the
         # framework should be able to solve [it] agnosticly"): the yard he edits to a 30 m plan, its held shed moved to
         # a spot of it and a cart beside, the shed locked again with his edits back and then written 4 x 10 m
-        # the yard's 30 m plan asks plan_fixes.offsets for its 42.4 m reach on every item it brings inside: one grid of the
-        # same nine million offsets each time, 3.6 s apiece, made once here (the function is pure, its answer only read)
-        planned.setattr(plan_fixes, "offsets", functools.lru_cache(maxsize=2)(plan_fixes.offsets))
         plan = plans.current(plan_store, "yard")["plan"]
         shed_hold = next(hold for hold in plan["holds"] if hold["place"] == "shed")
         plan["w"] = plan["d"] = 30.0
@@ -1976,35 +1530,14 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
             else:
                 answer = function(*arguments)
                 assert holds(answer, want), (row_name, answer)
-        # its drawing is asked at its own proportions in a square frame, never its spot's shape (#72: the flat drawn to
-        # the Square's thin strip of it)
-        wording = plan_drawing.wording_of(plan_store, "shed")
-        assert "not its shape" in wording and "filling exactly" not in wording and plan_drawing.FRAME == "1:1"
-        # an open place held by another is drawn as its own ground alone, a room is not (the street drawn as its shops'
-        # rooms and the Square's corner, outlined as the whole frame, 2026-11-04)
-        for inside in (True, False):
-            planned.setattr(plan_drawing.concepts, "indoors", lambda plan_store, place, inside=inside: inside)
-            assert (plan_drawing.OPEN in plan_drawing.wording_of(plan_store, "shed")) is not inside
-        assert "never round a building's rooms" in plan_writing.ASKED
         # a prefix walk gives the keys a whole-plan_store walk gives, a part of a folder's name too
         for prefix in ("concepts/", "concepts/sh", "plans/shed/", "nothing/"):
             assert concepts.keys_under(plan_store, prefix) == plan_store.objects.keys(prefix)
-        # an open place with a shape is told its strip's metres and the way it runs in its drawing's wording
-        planned.setattr(plan_drawing.plans, "creator_shape", lambda place, path=None: {"w": 8.0, "d": 36.0})
-        assert "36 m from north to south, its long side running north to south" in plan_drawing.wording_of(plan_store, "shed")
         # his edit replaced by its writing on his yes in chat: the plan shown is the one made without him again
         assert plans.current(plan_store, "yard")["how"] == "edited"
         plans.edit_replaced(plan_store, "yard", "an agent, on his yes", {"words": "Replace my edit", "question": "Replace?",
                                                                      "at": "2026-11-04T14:15"})
         assert plans.newest_edit(plan_store, "yard") is None and plans.current(plan_store, "yard")["how"] != "edited"
-        # his edit's things past its own outline are brought inside it when it is shown (the hangar's 2026-10-21 edit kept
-        # a 55.7 m writing's spots and crates past its 32 x 64 m), each fix said; the edit itself is kept as he made it
-        edit = {**plans.current(plan_store, "yard")["plan"], "w": 30.0, "d": 30.0, "holds": [],
-                "items": [["CART 1", 29.8, 20.0, 1.0, 1.0, None, "item"]], "people": [[34.0, 10.0]]}
-        plans.edited(plan_store, "yard", edit, "joey")
-        shown = plans.current(plan_store, "yard")["plan"]
-        assert shown["items"][0][1:5] == [29.0, 20.0, 1.0, 1.0] and 29.0 <= shown["people"][0][0] < 30.0, shown["people"]
-        assert len(shown["fixes"]) == len(edit.get("fixes", [])) + 2 and plans.newest_edit(plan_store, "yard")["plan"]["items"][0][1] == 29.8
         # a free redrawing under his standing word on design fixes (#72: the base's tube drawn as its 3.2 m section): kept
         # as an edit with its reason, shown; a field no drawing has, or no reason, refused
         asked = {"words": "design fixes following his rules are ours", "at": "2026-11-05T03:00", "reason": "its section"}
@@ -2019,11 +1552,6 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
             "doors", "leads", "openings", "people", "w"]
         shown = plans.current(plan_store, "shed")  # what it lays past its outline brought inside, as his edit's is
         assert (shown["how"], shown["plan"]["w"], shown["plan"]["d"]) == ("redrawn", 5.0, 10.0), shown["how"]
-        # and each doorway its own door rows say shown at its row's width where it is drawn, the edit kept as made (habitat's
-        # edit of 2026-10-25 kept its writing's 0.237 m hatches for its 2.2 m rows, the greenhouse's redrawing a 1.305 m one)
-        assert [(opening["at"], opening["wide"]) for opening in shown["plan"]["openings"]] == [([0.0, 2.0], 2.2)] and \
-            record["plan"]["openings"][0]["wide"] == 0.9, shown["plan"]["openings"]
-        assert shown["plan"]["people"][0][0] < 5.0 and record["plan"]["people"] == [[7.0, 2.0]], shown["plan"]["people"]
         # and a person spot standing in a thing on a floor of its shell moved out of it, the thing kept where drawn
         # (greenhouse's redrawing of 2026-11-05 kept astronaut_2 in its grow light frame on its lower floor, 2026-11-08)
         framed = [{"id": "frame", "anchor": "on:deck", "size": [2.0, 2.0, 2.0], "count": 1, "at": []},
@@ -2041,15 +1569,13 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         shown = plans.current(plan_store, "bay")["plan"]
         assert not (1.75 < shown["people"][0][0] < 4.25 and 1.75 < shown["people"][0][1] < 4.25) and shown["items"][0][1:5] == [
             2.0, 2.0, 2.0, 2.0] and plans.newest_edit(plan_store, "bay")["plan"]["people"][0][:2] == [3.0, 3.0], shown["people"]
-        # and its second stove piled on its first stood on the floor beside it (flat's redrawing of 2026-11-05, settle@flat
-        # in env1 checkout 68), the edit kept as made
-        assert shown["shapes"]["STOVE 2"]["base"] == 0.0 and shown["items"][2][1:3] != [5.2, 0.6] and \
-            plans.newest_edit(plan_store, "bay")["plan"]["shapes"]["STOVE 2"]["base"] == 0.9, shown["items"]
         # a writing's doorway to a sibling held once whose own plan leads none back leads nowhere, said; one the sibling's
         # door meets, or a lead of its own names, stays (the Square's street, written again with an opening to the
         # stairwell, whose own street gate leads outside since its edit: plan@square's held gate, 2026-11-06)
         (data / "places/within.json").write_text(json.dumps({"within": {"shed": {"within": "yard"},
                                                                         "barn": {"within": "yard"}}, "shells": {}}))
+        edit = {**plans.current(plan_store, "yard")["plan"], "w": 30.0, "d": 30.0, "holds": [],
+                "items": [["CART 1", 29.0, 20.0, 1.0, 1.0, None, "item"]], "people": []}
         plans.edited(plan_store, "yard", {**edit, "holds": [
             {"place": "shed", "row": None, "x": 0.0, "y": 0.0, "w": 5.0, "d": 10.0},
             {"place": "barn", "row": None, "x": 10.0, "y": 0.0, "w": 4.0, "d": 4.0}]}, "joey")
@@ -2213,306 +1739,26 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         assert plans.removed(rooms, plans.within_file()[0]) == ["shed"]
         assert stages.places(world, rooms) == ["yard"]  # the build follows him: no stage line for it
 
-    # the sync pass's plans keep (plans_pass.main) over one store's written places: a free re-fix of a settled-by-it
-    # writing made before the keep and outside its moment (parted only where its plan row stands unaccepted, people
-    # spaced either way), a re-fix that may ask Corrects left to a process of its own, the keep inside one moment over
-    # the narrow walk, and a done place with no kept plan given one. Each writing below is a place of the world:
-    # habitat and airlock: six sandbags in one spot, fixed once (habitat's plan row accepted, airlock's not, review of
-    # 2026-10-26); galley and hold: the same never fixed (hold's row accepted); plaza: fixed before rows at the
-    # concept's foot were brought in from beyond (airlock, 2026-10-26); bay: a bag laid again in its own row's run
-    # (settle@airlock, 2026-11-09, its row accepted); lock: a Correct's copies of a person and spots standing in a wall,
-    # a crate and each other (airlock, 2026-10-30; hangar's workers, camp's astronauts), its row accepted
-    with monkeypatch.context() as passing:
-        cube = [1.0, 1.0, 1.0]
-        bags = [[f"SANDBAGS {number}", 1.2, 1.3, 0.6, 0.35, None, "item"] for number in range(1, 7)]
-        piled = {"w": 3.0, "d": 3.0, "doors": [], "people": [], "items": bags, "fixes": ["earlier fix"], "gaps": [],
-                 "rows": {item[0]: ["sandbags"] for item in bags}}
-        sandbags = {"rows": [{"id": "sandbags", "anchor": "ground", "count": 6, "size": [0.6, 0.35, 0.15]}]}
-        unfixed = {key: value for key, value in piled.items() if key != "fixes"}
-        beyond_items = [["BARREL 1", 1.5, 4.5, 1.0, 1.0, None, "item"], ["BARREL 2", 7.5, 4.5, 1.0, 1.0, None, "item"],
-                        ["PALLET 1", 4.5, 7.5, 1.0, 1.0, None, "item"], ["DESK 1", 7.5, 2.5, 1.0, 1.0, None, "item"]]
-        beyond = {"w": 10.0, "d": 10.0, "doors": [], "people": [], "items": beyond_items, "structure": ["plates"],
-                  "fixes": [], "beyond": ["sandbags"],
-                  "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in beyond_items}}
-        foot = {"picture": [1000, 1000], "rows": [
-            {"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
-            {"id": "barrel", "count": 2, "size": cube, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
-            {"id": "pallet", "anchor": "on:plates", "count": 1, "size": cube, "boxes": [[450, 700, 550, 800]]},
-            {"id": "desk", "count": 1, "size": cube, "boxes": [[750, 200, 850, 300]]},
-            {"id": "sandbags", "anchor": "ground", "count": 1, "size": cube, "boxes": [[450, 900, 550, 1000]]}]}
-        doubled = {"w": 6.0, "d": 6.0, "doors": [], "people": [], "fixes": ["earlier fix"], "gaps": [],
-                   "items": [["SANDBAGS 1", 1.0, 1.0, 3.0, 0.5, None, "item"],
-                             ["SANDBAGS 2", 1.2, 1.1, 0.6, 0.4, None, "item"]],
-                   "rows": {"SANDBAGS 1": ["sandbags"], "SANDBAGS 2": ["sandbags"]},
-                   "shapes": {"SANDBAGS 1": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": 5},
-                              "SANDBAGS 2": {"shape": "rect", "tall": 0.2, "base": -0.2}}}
-        sixbags = {"rows": [{"id": "sandbags", "anchor": "ground", "count": 6, "size": [0.6, 0.4, 0.2]}]}
-        corners = [[0.0, 0.0], [6.0, 0.0], [6.0, 6.0], [0.0, 6.0], [0.0, 0.0]]
-        walls = [{"from": one, "to": other, "thick": 0.2} for one, other in zip(corners, corners[1:])]
-        copied = {"w": 6.0, "d": 6.0, "doors": [], "walls": walls, "fixes": ["earlier fix"], "gaps": [],
-                  "items": [["CRATE 1", 4.0, 1.0, 1.0, 1.0, None, "item"]], "rows": {"CRATE 1": ["crate"]},
-                  "people": [[3.0, 3.0, 0.0, "astronaut"], [3.04, 3.03, 0.0, 1], [3.02, 3.06, 0.0, 1], [0.2, 3.0],
-                             [4.5, 1.5], [0.45, 4.5], [3.65, 3.0], [3.3, 3.1], [1.5, 4.5, 0.0, 2], [5.0, 5.0, 0.0, 2]]}
-        crew = {"rows": [{"id": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.6, 1.4]},
-                         {"id": "pilot_2", "noun": "person", "count": 1, "size": [0.6, 0.6, 1.8]},
-                         {"id": "crate", "count": 1, "size": [1.0, 1.0, 1.0]}]}
-        world = {"habitat": (piled, sandbags), "airlock": (piled, sandbags), "galley": (unfixed, sandbags),
-                 "hold": (unfixed, sandbags), "plaza": (beyond, foot), "bay": (doubled, sixbags),
-                 "lock": (copied, crew)}
-        accepted = {f"plan@{place}": "the accepted output" for place in ("habitat", "hold", "bay", "lock")}
-        pass_folder = tmp_path / "plans-pass"
-        pass_store = Store.in_folder(pass_folder / "store")
-        (pass_folder / "kept").mkdir(parents=True)
-        (pass_folder / "kept/habitat.json").write_text("{}")  # the one place whose plan is kept for the stage
-        seen, kept = [], {}
-        passing.setattr(Store, "accepted", lambda self, node: accepted.get(node))
-        passing.setattr(plan_writing, "written_of", lambda store, place: {"place": place, "at": "then",
-                                                                          "plan": copy.deepcopy(world[place][0])})
-        passing.setattr(plans, "inventory_of", lambda store, place: world[place][1])
-        passing.setattr(plan_writing, "kept", lambda store, record: seen.append(
-            ("kept", record["place"], plans.HELD.get() is None)) or kept.setdefault(record["place"], record))
-        passing.setattr(plan_writing, "AUTOMATIC", True)
-        passing.setattr(plans, "KEPT", pass_folder / "kept")
-        passing.setattr(holders, "KEPT_PLANS", pass_folder / "kept")
-        passing.setattr(holders, "KEPT_INVENTORY", pass_folder / "kept-inventory")
-        passing.setattr(stages, "places", lambda world_of, store: list(world))
-        passing.setattr(plans, "keep", lambda store, places: seen.append(
-            ("keep", places, plans.HELD.get() is not None)) or (places, places))
-        whole = runtime_store.FolderStore.keys
-        passing.setattr(runtime_store.FolderStore, "keys", whole)  # main installs the narrow walk: the whole one after
+    # the concept picture split into its objects by SAM 3: every word over the whole picture once, an instance that is
+    # the same thing as a surer one under another word dropped, each kept with its own mask
+    split = tmp_path / "split"
+    (tmp_path / "concept.png").write_bytes(a_picture())
+    asked_jobs = []
 
-        def kept_main(argv):
-            seen.append(("main", argv, plans.HELD.get() is not None,
-                         runtime_store.FolderStore.keys is plans_pass.narrow_keys))
-            print("plans for the plan stage: 1 kept")
-            return 0
-        passing.setattr(plans, "main", kept_main)
-        passing.setattr(plans_pass.fixing, "__defaults__",
-                        (lambda command, **options: seen.append(("fixing", command)),))
-        passing.setenv(compute.STORE, str(pass_folder / "store"))
-        said = io.StringIO()
-        with contextlib.redirect_stdout(said):
-            assert plans_pass.main() == 0
-        fixing = [event[1] for event in seen if event[0] == "fixing"][0]
-        line = said.getvalue()
-        assert line.startswith("plans for the plan stage: 1 kept; plans of airlock, bay, lock parted; plans of airlock, "
-                               "galley, hold, plaza, bay, lock being fixed: "), line
-        assert line.strip().endswith(".log") and fixing[-8:] == [
-            "score.review.plans_pass", "fix", "airlock", "galley", "hold", "plaza", "bay", "lock"], fixing
-        # the free re-fixes made first, outside the moment; the done places with no kept plan given theirs and the keep
-        # run inside it over the narrow walk; then the unsettled ones started in a process of their own
-        assert seen[:3] == [("kept", "airlock", True), ("kept", "bay", True), ("kept", "lock", True)], seen
-        assert seen[3:] == [("keep", ["airlock", "galley", "hold", "plaza", "bay", "lock"], True),
-                            ("main", ["keep"], True, True), ("fixing", fixing)], seen
-        assert plans_pass.restored(pass_store) == ["airlock", "galley", "hold", "plaza", "bay", "lock"]
-        assert not plans_pass.parting(pass_store, "habitat") and plans_pass.parting(pass_store, "airlock")
-        assert plans_pass.refixed(pass_store, "habitat", "test", plans_pass.unasked) is None
-        assert all(record["euros"] == 0.0 and record["calls"] == [] for record in kept.values()), kept
-        # the pile parted free (no Correct asked for overlaps alone), its earlier fixes kept, and settled
-        parted = kept["airlock"]["plan"]
-        assert not plans_pass.placing_more(piled, sandbags) and plans_pass.unsettled(piled, sandbags)
-        assert parted["fixes"][0] == "earlier fix" and len(parted["fixes"]) >= 6
-        assert not [gap for gap in parted["gaps"] if gap["kind"] == "overlap"]
-        assert not plans_pass.unsettled(parted, sandbags)
-        # the accepted bay's bag laid again in its own row's run taken off before the keep, accepted row or not
-        assert not plans_pass.placing_more(doubled, sixbags) and plans_pass.unsettled(doubled, sixbags, False)
-        assert [item[0] for item in kept["bay"]["plan"]["items"]] == ["SANDBAGS 1"], kept["bay"]
-        # a never-fixed writing's re-fix in its own process, its accepted row's without the solver: nothing asked
-        asked = []
-        refit, calls = plans_pass.settled_again(None, "hold", {**unfixed, "fixes": []}, sandbags, asked.append,
-                                                parts=False)
-        assert refit["items"] == unfixed["items"] and calls == [] and asked == []
-        # the plaza's rows at the concept's foot, brought in from beyond once fixed again, settle it
-        assert plans_pass.unsettled(beyond, foot)
-        fixed, fixes = plan_fixes.fixed(beyond, foot)
-        assert not plans_pass.unsettled({**fixed, "fixes": fixes}, foot)
-        # an agent's edit laid on an older reading carried onto the one in force: a row laid more often than read
-        # loses its last copies, a row no longer read is taken off, the shell's doors (on door-kind items, laid in
-        # their openings) and a row the notes give a reason for left as laid; a door row laid as things at plan items
-        # recounted, its copy in a doorway kept (#128: the street's restaurant door, 1 read, 3 laid)
-        older = {"w": 10.0, "d": 10.0, "notes": ["barrels: two stand behind the wall"], "shapes": {}, "items": [
-            [f"{name} {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "door" if name == "DOOR" else "item"]
-            for name, many in (("CRATE", 3), ("GONE", 1), ("DOOR", 2), ("BARRELS", 3)) for number in range(1, many + 1)]}
-        older["items"] += [[f"SHOP_DOOR {number}", 0.0, 2.0 * number, 0.1, 1.0, "E", "item"] for number in (1, 2, 3)]
-        older["openings"] = [{"kind": "door", "at": [0.0, 4.5], "wide": 1.0, "angle": 90.0, "to": None}]
-        older["rows"] = {item[0]: [item[0].split()[0].lower()] for item in older["items"]}
-        older["elements"] = [{"element": "chair", "rows": ["gone"]}, {"element": "crates", "rows": ["crate", "gone"]}]
-        reread = {"picture": [100, 100], "rows": [{"id": "crate", "count": 2, "size": [1.0, 1.0, 1.0]},
-                                                   {"id": "door", "count": 1}, {"id": "barrels", "count": 1},
-                                                   {"id": "shop_door", "count": 1}]}
-        recount, said = plans_pass.recounted(older, reread)
-        assert [item[0] for item in recount["items"]] == [
-            "CRATE 1", "CRATE 2", "DOOR 1", "DOOR 2", "BARRELS 1", "BARRELS 2", "BARRELS 3", "SHOP_DOOR 2"], \
-            recount["items"]
-        assert said[:5] == ["gone 1: its row gone is no longer read, so taken off",
-                            "concept element 'chair': its row gone is no longer read, so taken off the plan",
-                            "concept element 'crates': its row gone is no longer read, so taken off it",
-                            "crate: 3 laid, its reading counts 2, so 1 taken off",
-                            "shop door: 3 laid, its reading counts 1, so 2 taken off"], said
-        assert recount["elements"] == [{"element": "crates", "rows": ["crate"]}], recount["elements"]
-        assert plans_pass.recounted(recount, reread)[1] == [] and len(older["items"]) == 12
-        # the lock's copies dropped, one astronaut left; a numbered spot short of its row's count given its row back,
-        # one more of that full row a copy; a spot in a wall, the crate or another person moved to the nearest clear
-        # floor, one near but clear left where it was placed
-        spots = kept["lock"]["plan"]["people"]
-        assert not plans_pass.placing_more(copied, crew) and plans_pass.unsettled(copied, crew, parts=False)
-        assert len(spots) == 7 and [spot for spot in spots if len(spot) >= 4] == [
-            copied["people"][0], [1.5, 4.5, 0.0, "pilot_2"]], spots
-        assert spots[3:5] == [[0.45, 4.5], [3.65, 3.0]], spots  # near a wall, near the astronaut: clear, kept
-        wall_one, crate_one, person_one = spots[1], spots[2], spots[5]
-        assert 0.1 + 0.3 - 0.05 <= wall_one[0] < 0.2 + 0.3 and abs(wall_one[1] - 3.0) < 0.05, wall_one
-        assert not (3.75 < crate_one[0] < 5.25 and 0.75 < crate_one[1] < 2.25)
-        assert math.dist(crate_one, [4.5, 1.5]) < 0.9
-        assert all(abs(person_one[0] - other[0]) >= 0.6 - 0.05 or abs(person_one[1] - other[1]) >= 0.6 - 0.05
-                   for other in spots[:5]), spots
-        assert not plans_pass.unsettled(kept["lock"]["plan"], crew, parts=False)
-        assert len(kept["lock"]["plan"]["fixes"]) == 8, kept["lock"]["plan"]["fixes"]
-        # the free search handing back the spot itself (its rounded cell centre) is no move: no fix, the plan settled
-        # (2026-11-03: lab and workshop logged "moved 0.00 m" on every sync pass, re-keying terrain and every line)
-        with monkeypatch.context() as still:
-            still.setattr(standing, "nearest_free", lambda spot, *rest: [spot[0] + 0.0004, spot[1]])
-            assert plans_pass.spaced_people({**copied, "people": [[0.2, 3.0]]}, crew) == (
-                {**copied, "people": [[0.2, 3.0]]}, [])
-        # a floor thing on a floor of the shell (a row of the plan's structure) is stood in too (2026-11-07:
-        # greenhouse's astronaut_2 kept in its grow light frame on its lower floor, and the cast left it out)
-        on_deck = {"rows": [*crew["rows"][:2], {**crew["rows"][2], "anchor": "on:deck"}]}
-        shelled, moved = plans_pass.spaced_people({**copied, "structure": ["deck"], "people": [[4.5, 1.5]]}, on_deck)
-        assert moved and not (3.75 < shelled["people"][0][0] < 5.25 and 0.75 < shelled["people"][0][1] < 2.25), shelled
-        # the people spaced after what kept_apart changed, so the writing kept is settled, not one more re-fix
-        # (airlock's astronaut stood 0.02 m in something once its sandbags were off, re-fixed a pass later)
-        shoved = {"w": 6.0, "d": 6.0, "doors": [], "people": [[3.0, 3.0]], "fixes": ["earlier fix"], "gaps": [],
-                  "items": [["CRATE 1", 0.5, 0.5, 1.0, 1.0, None, "item"]], "rows": {"CRATE 1": ["crate"]}}
-        crates = {"rows": [{"id": "crate", "anchor": "ground", "count": 1, "size": [1.0, 1.0, 1.0]}]}
-        # a person standing in a thing alone wants a re-fix, one standing clear of it none
-        assert plans_pass.unsettled({**shoved, "people": [[1.0, 1.0]]}, crates, parts=False)
-        assert not plans_pass.unsettled({**shoved, "people": [[4.0, 4.0]]}, crates, parts=False)
-        with monkeypatch.context() as apart:
-            apart.setattr(plan_fixes, "kept_apart", lambda plan, inventory: plan["items"][0].__setitem__(
-                slice(1, 3), [2.5, 2.5]) or ["moved"])
-            moved_off, calls = plans_pass.settled_again(None, "airlock", shoved, crates, plans_pass.unasked,
-                                                        parts=False)
-        assert moved_off["items"][0][1:3] == [2.5, 2.5] and not (2.5 < moved_off["people"][0][0] < 3.5 and
-                                                                 2.5 < moved_off["people"][0][1] < 3.5), moved_off
-        # the narrow walk (main's) answers as the whole store's walk, a partial write left out
-        for key in ["outputs/a.json", "outputs/ab/c.json", "outputs/b.json", "plans/x/edits/1.json",
-                    "plans/xy/edits/2.json", "blobs/abc", "top.json"]:
-            pass_store.objects.write_bytes(key, b"{}")
-        pass_store.objects.write_bytes("outputs/half.json.partial", b"")
-        for prefix in ("", "outputs/", "outputs/a", "outputs/ab/", "plans/x", "plans/x/", "plans/x/edits/1", "to",
-                       "missing/", "missing/deeper/x"):
-            assert plans_pass.narrow_keys(pass_store.objects, prefix) == whole(pass_store.objects, prefix), prefix
-
-    # the plan writing in a store of its own, the yard holding the shed and a hut read beside it: no Make plan click
-    # spends while the allowance stands, outside it a writing runs only inside his yes at today's price; the shed's
-    # writing is a plan of the stage tables' schema, each failed check a named gap, written once unless asked again,
-    # his edits checked again; a reading writes its plan on its own only under the allowance; a read place with no plan
-    # is owed unless refused, his Make plan writing it again, and an older method's dearer call is no price of today's
-    with monkeypatch.context() as writing:
-        writing.delenv("SCORE_SPEND_TICKET", raising=False)  # the concept draws' yes is no yes of a writing
-        write_store = Store.in_folder(tmp_path / "writing")
-        plan_data(write_store, tmp_path / "plan-writing", writing)
-        asked, ask = writing_stand_ins(writing)
-        picked(write_store, "shed")
-        assert plans.current(write_store, "shed")["how"] == "derived"
-        assert plan_writing.owed(write_store, ["shed", "yard"]) == ["shed"]  # the yard not read yet
-        ran = []
-
-        def clicked(argv, env, **named):  # his Make plan's process, standing in: it prints no record
-            ran.append(env)
-            return subprocess.CompletedProcess(argv, 0, "", "")
-
-        assert web.plan_write(write_store, "shed", 0.0, "joey", run=clicked) == {"place": "shed", "written": "already"}
-        assert ran[0].get("SCORE_SPEND_TICKET", "") == ""  # under the allowance his click is no yes of his
-
-        def made(argv, env, **named):  # his Make plan's process inside his yes: the ticket it is given is its clearance
-            writing.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
-            record, = plan_writing.write(write_store, [argv[-3]], argv[-1], ask=ask)
-            return subprocess.CompletedProcess(argv, 0, plan_writing.said(record) + "\n", "")
-
-        with writing.context() as off:
-            off.setattr(plan_writing, "AUTOMATIC", False)
-            with pytest.raises(compute.Refused):
-                plan_writing.write(write_store, ["shed"], "joey", ask=ask)
-            with pytest.raises(web.review.Refused, match="not today's price"):
-                web.plan_write(write_store, "shed", 0.09, "joey", run=made)
-        assert asked == [] and ran == [ran[0]]  # nothing asked, nothing run
-
-        clears = []
-        price = plan_writing.price(write_store)
-        record, = plan_writing.write(write_store, ["shed"], "the allowance", clear=clearing(clears), ask=ask)
-        assert clears == [(compute.PLAN_WRITING, ["shed"], price)] and record["euros"] == 0.04
-        assert record["drawing_euros"] == 0.12 and record["measured"] == {"metres a unit": [0.01, 0.01],
-                                                                          "by": "its rows' metres"}
-        assert "a bench, 2 a crate" in ask.drawn[0] and len(asked[0]["contents"][0]["parts"]) == 3
-        assert plan_writing.spent(write_store, ["shed"]) == 0.16 and plan_writing.price(write_store) == 0.16
-        plan = plans.current(write_store, "shed")["plan"]
-        assert plans.current(write_store, "shed")["how"] == "written"
-        items = {item[0]: item for item in plan["items"]}
-        assert items["BENCH 1"] == ["BENCH 1", 1.0, 0.3, 2.0, 0.6, "S", "item"]
-        assert plan["rows"]["BENCH 1"] == ["bench", "vice"]  # the vice rides on it, placed by no item of its own
-        assert plan["shapes"]["CRATE 1"]["shape"] == "circle" and plan["shapes"]["LAMP 1"]["base"] == 2.0
-        # no filed plan names its doors (retired 2026-10-21): its doorway is the answer's opening, leading to the yard
-        assert plan["doors"] == [] and [opening["to"] for opening in plan["openings"]] == ["yard"], plan["openings"]
-        assert len(plan["walls"]) == 4 and plan["roofs"][0]["top"] == 3.4 and plan["section"] == {"y": 1.5}
-        assert [len(opening["points"]) for opening in plan["roofs"][0]["openings"]] == [4], plan["roofs"]  # a roof's hole
-        # a roof drawn as glass is written so, an opaque one says nothing (camp's glass domes, 2026-11-15)
-        drawn_roof = {"kind": "dome", "points": [[0, 0], [4, 0], [4, 3]], "eave": 2.5, "top": 4.0}
-        assert plan_writing.roof_of({**drawn_roof, "glass": True})["glass"] is True and "glass" not in \
-            plan_writing.roof_of({**drawn_roof, "glass": False}) and "glass" not in plan["roofs"][0], plan["roofs"]
-        words = [gap["words"] for gap in plan["gaps"]]
-        assert {"item": "ghost", "why": "no such row"} in plan["dropped"] and {"item": "walls", "why": "1 off the schema"} \
-            in plan["dropped"]  # kept apart: no gap of his
-        # the overlap parted before it is shown; the second crate has no box to place it by, so it is left, saying why
-        assert words == [f"crate: 2 in the concept, 1 on the plan: {plan_fixes.WHY['placed']}"]
-        assert [fix for fix in plan["fixes"] if "moved" in fix and "out of" in fix]
-        assert not [word for word in words if "reached" in word or "outside" in word]
-        assert plan_writing.write(write_store, ["shed"], "the allowance", clear=clearing(clears), ask=ask) == []  # once
-        # asked again (a writing made by a retired measure, #72), it is written again though written
-        again, = plan_writing.write(write_store, ["shed"], "the allowance", clear=clearing(clears), ask=ask, again=True)
-        assert again["at"] > record["at"] and plan_writing.written_of(write_store, "shed")["at"] == again["at"]
-        plan["items"] = [[*item[:2], 0.3, *item[3:]] if item[0] == "CRATE 1" else item for item in plan["items"]]
-        plan["items"].append(["CRATE 2", 3.2, 2.0, 0.5, 0.5, None, "item"])
-        plan["rows"]["CRATE 2"] = ["crate"]
-        plans.edited(write_store, "shed", plan, "joey")
-        words = [gap["words"] for gap in plans.current(write_store, "shed")["plan"]["gaps"]]
-        assert "bench 1 and crate 1 stand in each other (north)" in words
-        assert "crate: 2 in the concept, 1 on the plan" not in words  # his second crate counts
-        plan["items"] = [[*item[:2], 2.0, *item[3:]] if item[0] == "CRATE 1" else item for item in plan["items"]]
-        plan["items"] = [item for item in plan["items"] if item[0] != "CRATE 2"]
-        plans.edited(write_store, "shed", plan, "joey")
-        words = [gap["words"] for gap in plans.current(write_store, "shed")["plan"]["gaps"]]
-        assert "bench 1 and crate 1 stand in each other (north)" not in words  # his move, checked again
-
-        # a reading writes its plan on its own under the allowance, and nothing with it off
-        writing.setattr(plan_writing, "asked", ask)
-        picked(write_store, "hut", PLAN_ROWS["shed"])
-        assert reading.planned(write_store, ["hut"], "the allowance") == 0
-        assert plans.current(write_store, "hut")["how"] == "written"
-        picked(write_store, "yard", PLAN_ROWS["shed"])
-        with writing.context() as off:
-            off.setattr(plan_writing, "AUTOMATIC", False)
-            assert reading.planned(write_store, ["yard"], "the allowance") == 0
-            assert plan_writing.writings(write_store, "yard") == []
-        # a read place with no plan is owed until a writing of it is refused; then only his Make plan writes it again
-        assert plan_writing.owed(write_store, ["shed", "yard"]) == ["yard"]
-        refused = {"place": "yard", "concept": plans.pick_of(write_store, "yard"), "method": plan_writing.METHOD,
-                   "reading": plan_writing.reading_at(write_store, "yard"), "at": "2026-10-21T00:00:00+00:00",
-                   "euros": 0.2, "refused": "no plan"}
-        plan_writing.kept(write_store, refused)
-        assert plan_writing.to_write(write_store, ["yard"]) == ["yard"] and plan_writing.owed(write_store, ["yard"]) == []
-        price = plan_writing.price(write_store)
-        plan_writing.kept(write_store, {**refused, "method": 1, "at": "2026-10-21T00:00:01+00:00", "euros": 0.9})
-        assert plan_writing.price(write_store) == price  # an older method's dearer call is no price of today's
-        started = []
-        assert plan_writing.started(write_store, ["yard"], start=lambda argv, **named: started.append(argv)).endswith(
-            ".log")
-        assert started[0][-2:] == ["score.review.plan_writing", "yard"]
-        with writing.context() as off:  # his Make plan, outside the allowance: his yes for exactly today's price
-            off.setattr(plan_writing, "AUTOMATIC", False)
-            assert web.plan_write(write_store, "yard", price, "joey", run=made)["place"] == "yard"
-            yes, = [write_store.read(key) for key in write_store.objects.keys("spend-yes/") if "plan-write-yard" in key]
-            assert yes["euros"] == price and yes["by"] == "joey"
-            assert plans.current(write_store, "yard")["how"] == "written" and plan_writing.owed(write_store, ["yard"]) == []
+    def segmented(jobs_path, out):
+        asked_jobs.extend(json.loads(pathlib.Path(jobs_path).read_text()))
+        (out.parent / "masks.masks").mkdir()
+        for name in ("crate.0", "crate.1", "machine.0"):
+            (out.parent / "masks.masks" / f"{name}.png").write_bytes(a_picture())
+        out.write_text(json.dumps({"crate": [{"box": [0, 0, 10, 10], "score": 0.9}, {"box": [20, 0, 30, 10], "score": 0.5}],
+                                   "machine": [{"box": [1, 0, 10, 10], "score": 0.7}, {"box": [40, 40, 60, 60], "score": 0.6}]}))
+    found = concept_objects.objects(tmp_path / "concept.png", split, ("crate", "machine"), run=segmented)
+    [job] = asked_jobs
+    assert [row["nouns"] for row in job["rows"]] == [["crate"], ["machine"]] and all(
+        row["masks"] and row["box"] == [0, 0, 64, 40] for row in job["rows"]), job
+    assert [(entry["word"], entry["box"], entry["mask"] and pathlib.Path(entry["mask"]).name) for entry in found] == [
+        ("crate", [0, 0, 10, 10], "crate.0.png"), ("machine", [40, 40, 60, 60], None),
+        ("crate", [20, 0, 30, 10], "crate.1.png")], found
 
     monkeypatch.setattr(store, "is_framework_store", lambda: True)  # an agent's process keeps no version or reference
     monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
@@ -2550,7 +1796,7 @@ def prompt_stand_in(asked, answer="The corrected prompt."):
 
 def ready_above(monkeypatch, box=(0, 0, 32, 20)):
     """Stand-ins for the layer above's scene inventory reading, its made plan and the box of the row holding a place
-    (reading.py's and the plan's own tests own those)."""
+    (the plan's own checks own those)."""
     from score.review import reading
     monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})
     monkeypatch.setattr(concepts, "plan_made", lambda store, place: True)
@@ -2785,52 +2031,6 @@ def timed(store, when):
 # --- the scene inventory reading: only what both readers agree on is a row --------------------------------------------
 
 
-READ_ROWS = [{"id": "drum", "name": "rusted fuel drum", "noun": "drum", "kind": "generate", "count": 3,
-         "size": "waist high", "metres": [0.6, 0.6, 0.9], "anchor": "ground", "where": "left",
-         "region": [0, 0, 300, 350]},
-        {"id": "drum_right", "name": "blue drum", "noun": "drum", "kind": "generate", "count": 1,
-         "size": "waist high", "metres": [0.6, 0.6, 0.9], "anchor": "ground", "where": "right",
-         "region": [0, 600, 500, 1000]},
-        {"id": "mast", "name": "radio mast", "noun": "mast", "kind": "code", "count": 1, "size": "ten people tall",
-         "metres": [0.4, 0.4, 18], "anchor": "ground", "where": "centre", "region": [0, 400, 1000, 600]},
-        {"id": "lamp", "name": "lamp", "noun": "lamp", "kind": "code", "count": 1, "size": "a hand",
-         "anchor": "on:mast", "where": "top of the mast", "region": [0, 450, 100, 550]}]
-
-
-def picked_place(store, tmp_path, place="wreck"):
-    """A place with one draw, picked: its sha."""
-    buffer = io.BytesIO()
-    Image.new("RGB", (200, 100), (90, 60, 40)).save(buffer, "PNG")
-    sha = hashlib.sha256(buffer.getvalue()).hexdigest()
-    (tmp_path / "draw.png").write_bytes(buffer.getvalue())
-    store.put_blob(tmp_path / "draw.png", sha)
-    store.write_once(f"concepts/{place}/draws/1.json", {"place": place, "sha": sha, "name": "d.png"})
-    concepts.pick(store, place, sha, "joey")
-    return sha
-
-
-def stand_in_rows(store, place, folder):
-    path = reading.picture_path(store, concepts.picked(store, place), folder)
-    return [{"terrain": False, **row} for row in READ_ROWS], 0.03, 12.0, path, (200, 100)
-
-
-def parted_rows(store, place, folder):
-    """stand_in_rows answered with each row's part: the mast a structure, the rest objects."""
-    rows, *rest = stand_in_rows(store, place, folder)
-    return [{**row, "part": "structure" if row["id"] == "mast" else "object"} for row in rows], *rest
-
-
-def stand_in_boxes(jobs, folder):
-    """SAM 3 finds, in the one job's place, two drums on the left (one twice), one on the right, one where no drum row
-    stands, the mast, no lamp, and a crate no row names."""
-    place = jobs[0]["rows"][0]["key"].split(".")[0]
-    drum = [{"box": [0, 0, 20, 20]}, {"box": [1, 1, 20, 20]}, {"box": [40, 0, 60, 20]}, {"box": [150, 10, 170, 30]},
-            {"box": [100, 60, 110, 70]}]
-    return ({f"{place}.=drum": drum, f"{place}.=mast": [{"box": [90, 0, 110, 100]}], f"{place}.=lamp": [],
-             f"{place}.~object": [{"box": [150, 50, 180, 80]}, {"box": [0, 0, 20, 20]}], f"{place}.~person": []},
-            {"euros": 0.12, "wall_minutes": 10.0, "machines": [{"unit_seconds": [60.0]}]})
-
-
 def row(row_id, noun, region, boxes, **more):
     """An inventory row as boxed_rows gives it, for the agreement's tests."""
     return {"id": row_id, "name": more.pop("name", noun), "noun": noun, "kind": "generate", "count": 1,
@@ -2868,9 +2068,6 @@ class Between:
 
 class Said:
     """A wanted value that is words: a non-empty string."""
-
-
-SAID = Said()
 
 
 class Containing(str):
@@ -2924,162 +2121,11 @@ def holds(got, want):
     return got == want
 
 
-AGREED = [  # (row, the rows Gemini read and SAM 3 boxed, SAM 3's finds no row of their word holds, the picture's
-    # size, kept, skipped, merged exactly: kept and skipped held as `holds` reads them, None for not asked)
-    ("the structure stays, a thing only one reader found with no clear size or place is skipped",
-     [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
-      row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], [], size=None),
-      row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]], count=2),
-      row("cup", "cup", None, [], anchor="on:crate")], [{"word": "machine", "box": [50, 50, 60, 60]}], (100, 100),
-     [{"id": "wall", "count": 1}, {"id": "dome", "count": 1}, {"id": "rock", "count": 1}, {"id": "chair", "count": 2}],
-     [{"name": "crate", "why": reading.ONLY_GEMINI}, {"name": "cup", "why": reading.ONLY_GEMINI},
-      {"name": "machine", "why": reading.ONLY_SAM}], []),
-    ("a find under another word in a row's region agrees with it by box; Gemini counts, SAM 3 places",
-     [row("crates", "crate", [0, 0, 500, 1000], [], count=3, size=None)],  # storage's crates, boxed as bags
-     [{"word": "bag", "box": [0, 0, 250, 250]}, {"word": "bag", "box": [300, 0, 550, 250]},
-      {"word": "bag", "box": [700, 300, 720, 320]},  # in its region, too small for one of its three
-      {"word": "object", "box": [600, 600, 700, 700]}], (1000, 1000),  # outside it
-     [{"id": "crates", "count": 3, "boxed_by": "overlap", "boxes": [[0, 0, 250, 250], [300, 0, 550, 250]],
-       "box": [0, 0, 250, 250]}],
-     [{"name": "bag", "box": [700, 300, 720, 320]}, {"name": "object", "box": [600, 600, 700, 700]}], []),
-    ("a row Gemini read whole is kept on its region alone; one with no size, a speck or on another's box is not",
-     [row("core", "core", [200, 400, 600, 600], []),  # its metres, anchor and region: kept
-      row("drums", "drum", [0, 0, 500, 500], [], count=3),  # counted three times: three, on one region
-      row("pipes", "pipe", [600, 0, 1000, 300], [], kind="code"),  # a fitting all the same
-      row("sign", "sign", [0, 600, 100, 700], [], size=None),  # no metres read
-      row("cup", "cup", [0, 0, 20, 20], []),  # 0.04% of the picture: a speck
-      row("crate", "crate", [700, 700, 1000, 1000], []),  # its region is the bench's box: another's
-      row("bench", "bench", None, [[700, 700, 1000, 1000]])], [], (1000, 1000),
-     [{"id": "core", "box": [400.0, 200.0, 600.0, 600.0], "boxed_by": "gemini"},
-      {"id": "drums", "count": 3, "boxed_by": "gemini"}, {"id": "pipes", "boxed_by": "gemini"},
-      {"id": "bench", "box": [700, 700, 1000, 1000], "boxed_by": NONE_OR_MISSING}],
-     [{"row": "sign"}, {"row": "cup"}, {"row": "crate"}], None),
-    ("one instance boxed twice on one row is one box",
-     [row("chair", "chair", None, [[0, 0, 10, 10], [0, 0, 10, 11]])], [], (100, 100),
-     [{"boxes": [[0, 0, 10, 10]], "count": 1}], None, None),
-    ("overlapping boxes of one row are one thing, its largest; never more boxes than Gemini counted",
-     [row("door", "door", None, [[0, 0, 50, 100], [5, 5, 25, 90], [28, 5, 48, 90], [80, 0, 95, 40]]),  # its leaves
-      row("jars", "jar", None, [[0, 60, 5, 65], [10, 60, 15, 65], [20, 60, 25, 65]], count=2)], [], (100, 100),
-     [{"id": "door", "count": 1, "boxes": [[0, 0, 50, 100]]},
-      {"id": "jars", "count": 2, "boxes": [[0, 60, 5, 65], [10, 60, 15, 65]]}], [], []),
-    ("one box held by two rows goes to the one whose region it fits",
-     [row("locker", "locker", [500, 500, 600, 600], [[0, 0, 10, 10]], size=None),
-      row("chest", "chest", [0, 0, 200, 200], [[0, 0, 10, 10], [40, 40, 50, 50]], count=2)], [], (100, 100),
-     [{"id": "chest", "boxes": [[0, 0, 10, 10], [40, 40, 50, 50]]}], [{"name": "locker"}], None),
-    ("two rows of one thing are one row, both's instances counted once, its count the larger, a child moved",
-     [row("cabinet", "cabinet", None, [[0, 0, 10, 10]]),
-      row("storage", "storage cabinets", None, [[0, 0, 10, 11], [60, 0, 70, 10]], count=2),
-      row("cup", "cup", None, [[62, 0, 64, 2]], anchor="on:storage")], [], (100, 100),
-     [{"id": "cabinet", "count": 2}, {"id": "cup", "count": 1, "anchor": "on:cabinet"}], None,
-     [{"name": "storage cabinets", "row": "storage", "into": "cabinet"}]),
-    ("two rows Gemini put apart are two things, whatever box SAM 3 gave both",  # the square's side screens
-     [row("screen", "screen", [0, 0, 500, 500], [[10, 10, 40, 40]]),
-      row("side", "screen", [600, 600, 900, 900], [[10, 10, 40, 40], [700, 700, 850, 850]])], [], (1000, 1000),
-     [{"id": "screen", "boxes": [[10, 10, 40, 40]]}, {"id": "side", "boxes": [[700, 700, 850, 850]]}], [], []),
-]
-
-INSIDE_ROWS = [row("hangar", "building", None, []), row("ship", "spacecraft", None, [], anchor="on:hangar"),
-               row("hatch", "door", None, [], anchor="on:ship"), row("cup", "cup", None, [])]
-
-
 class Refusal(str):
     """A row's outcome that is a refusal (concepts.Refused) whose words match this pattern."""
 
 
-ROW_ANSWER = '{"rows": [{"id": "a", "name": "a", "noun": "a", "kind": "code", "count": 1, "size": "s", ' \
-             '"anchor": "floor", "where": "w", "terrain": false, "part": "object"}]}'
-CUT = {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"rows": [{'}]}}],
-       "usageMetadata": {"candidatesTokenCount": 2400, "thoughtsTokenCount": 63136}}
-UNREAD = {"id": "a", "anchor": None, "region": None, "terrain": False, "count": 1, "size": None,
-          "boxes": [[0, 0, 1, 1]]}
-READ_ANSWERS = [  # (row, the reading's judging function, its arguments, the outcome as `holds` reads it, or a Refusal)
-    ("a row on the schema is read, its region unread", "rows_of", (ROW_ANSWER,), [{"id": "a", "region": None}]),
-    ("a count of 0", "rows_of", (ROW_ANSWER.replace('"count": 1', '"count": 0'),), Refusal("count")),
-    ("a kind off the list", "rows_of", (ROW_ANSWER.replace('"kind": "code"', '"kind": "mechanic"'),), Refusal("kind")),
-    ("terrain not a bool", "rows_of", (ROW_ANSWER.replace('"terrain": false', '"terrain": "no"'),), Refusal("terrain")),
-    ("a part off the list", "rows_of", (ROW_ANSWER.replace('"part": "object"', '"part": "lamp"'),), Refusal("part")),
-    ("an anchor on no row is a gap of its row, not a refusal", "rows_of", (ROW_ANSWER.replace('"floor"', '"on:b"'),),
-     [{"anchor": None}]),
-    ("no JSON", "rows_of", ("rows: none",), Refusal("no JSON")),
-    ("an anchor on a row", "anchor_of", ("a", ["a", "b"]), "on:a"),
-    ("a region drawn inside out", "region_of", ([10, 20, 5, 30],), None),
-    ("a region", "region_of", ([10, 20, 500, 300],), [10, 20, 500, 300]),
-    ("a row with no size or anchor has both gaps", "gaps", ([UNREAD],), [{"kind": "size"}, {"kind": "anchor"}]),
-    ("ground the plan sizes is no gap", "gaps", ([{"id": "g", "anchor": "ground", "terrain": True, "size": None}],),
-     []),
-    ("metres, three", "metres_of", ([4.8, 1.9, 1.5],), [4.8, 1.9, 1.5]),
-    ("metres, two", "metres_of", ([4.8, 1.9],), None),
-    ("metres, one of them 0", "metres_of", ([4.8, 0, 1.5],), None),
-    ("metres in words", "metres_of", ("4.8 m",), None),
-    ("metres, one a bool", "metres_of", ([True, 1, 1],), None),
-    ("an answer cut at its token limit is refused, its thinking named", "answer_text", (CUT,),
-     Refusal("MAX_TOKENS .*thinking 63136")),
-    ("a finished answer is its text", "answer_text",
-     ({**CUT, "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": '{"rows": []}'}]}}]},),
-     '{"rows": []}'),
-]
-
-
 # --- reading fixes: a part of another row's thing merged into it, free ------------------------------------------------
-
-
-SIZE = (1000, 1000)
-
-
-FRIDGE = row("fridge", "fridge", [200, 810, 360, 870], [[810, 200, 870, 360]], part="object")
-
-
-DOOR = row("door", "door", [210, 820, 340, 870], [[825, 220, 860, 330]], part="object")
-
-
-HANDLE = row("handle", "handle", [250, 830, 260, 840], [[830, 250, 840, 260]], anchor="on:door", part="object")
-
-
-CREW = row("crew", "person", [100, 500, 300, 600], [[500, 100, 600, 300]], where="sitting on a bench", part="object")
-
-
-PARTED = [FRIDGE, DOOR,
-          row("chair", "chair", [500, 500, 700, 700], [[500, 500, 700, 700]]),  # a person sits in it: 60% inside
-          row("person", "person", [480, 500, 680, 700], [[500, 480, 700, 600]]),
-          row("desk", "desk", [0, 0, 100, 100], [[0, 0, 100, 100]]),
-          row("laptop", "laptop", [0, 0, 90, 90], [[10, 10, 50, 50]], anchor="on:desk")]  # stands on it: its own
-SITTERS = [row("bench", "bench", None, []), row("table", "table", None, []),
-           row("stool_1", "stool", None, [], name="dining stool"), row("stool_2", "stool", None, [], name="stool"),
-           row("astronaut", "person", None, [], name="seated astronaut", where="sitting on bench 1"),
-           row("diner", "person", None, [], name="person sitting at a table"),
-           row("eater", "person", None, [], where="sitting at dining table"),
-           row("visitor", "person", None, [], where="sitting on a stool"),  # two stools: which, unread
-           row("pilot", "person", None, [], where="sitting on the bench", anchor="on:bench")]
-ALONE = [row("floor_plates", "floor", None, []),
-         row("crew", "astronaut", [400, 400, 600, 500], [[400, 400, 500, 600]], name="seated astronaut",
-             where="sitting on bench", anchor="on:floor_plates", size=[0.6, 0.6, 1.4]),
-         row("kid", "person", None, [], where="sitting on the floor"), row("pilot_seat", "seat", None, []),
-         row("pilot", "person", None, [], where="sitting on a stool", anchor="on:pilot_seat")]
-SEATED_AND_PARTED = [  # (row, the reading fix, its arguments, the outcome as `holds` reads it)
-    ("only a row both readers put inside another row's thing is a part of it", reading_fixes.parts_apart,
-     (PARTED, SIZE), [[{"id": "fridge"}, {"id": "chair"}, {"id": "person"}, {"id": "desk"}, {"id": "laptop"}],
-                      Exactly([{"name": "door", "row": "door", "into": "fridge"}])]),
-    ("a sitter on or at one seat a row is, anchored elsewhere, is anchored on it; at no seat, or two, it stays",
-     reading_fixes.seats_named, (SITTERS,), Exactly({"astronaut": "on:bench", "eater": "on:stool_1"})),
-    ("a sitter at a seat no row holds gets one; at a held seat, on the floor or already seated none",
-     reading_fixes.seats_missing, (SITTERS,), Exactly({"diner": "chair"})),
-    ("a seated astronaut on the floor gets a bench added under him, sized from him", reading_fixes.seats_added,
-     (ALONE,), [[{"id": "floor_plates"}, {"id": "crew"},
-                 {"id": "crew_bench", "anchor": "on:floor_plates", "size": [0.6, 0.6, 0.49],
-                  "region": [500.0, 400, 600, 500], "seat_for": "crew", "added": {"reason": SAID}},
-                 {"id": "kid"}, {"id": "pilot_seat"}, {"id": "pilot"}], Exactly({"crew": "on:crew_bench"})]),
-]
-
-PRICED_AND_CLEARED = [  # (row, the judging function, its arguments, the outcome as `holds` reads it)
-    ("a call's cost is read from its token usage", discuss.call_euros,
-     ({"usageMetadata": {"promptTokenCount": 2700, "candidatesTokenCount": 200, "thoughtsTokenCount": 1700}},),
-     Between(0.02, 0.04)),
-    ("sites on a plot are moved clear across it, the shed past the barn's edge", environment_plan.cleared,
-     ([{"place": "barn", "x": 0.0, "y": 0.0, "footprint": [[-20, -10], [20, -10], [20, 10], [-20, 10]]},
-       {"place": "shed", "x": 0.0, "y": 15.0, "footprint": [[-2, -2], [2, -2], [2, 2], [-2, 2]]}], None),
-     [Exactly({"place": "barn", "x": 0.0, "y": 0.0, "footprint": [[-20, -10], [20, -10], [20, 10], [-20, 10]]}),
-      {"x": 0.0, "y": 10.0 + 2.0 + environment_plan.CLEAR_M}]),
-]
 
 
 # --- the plan review: his edits win, a locked room moves only by his edit ---------------------------------------------
@@ -3146,10 +2192,9 @@ def picked(store, place, rows=None, size=None):
 
 
 def written(store, place, plan):
-    """The place's plan as plan_writing keeps a writing of its reading."""
-    from score.review import plan_writing
-    plan_writing.kept(store, {"place": place, "concept": PICK, "reading": plan_writing.reading_at(store, place),
-                              "method": plan_writing.METHOD, "by": "test", "at": concepts.now(), "plan": plan})
+    """The place's plan as the plan writer kept a writing of its reading (plans.written reads it)."""
+    plans.writing_kept(store, {"place": place, "concept": PICK, "reading": reading.reading_of(store, place)["at"],
+                               "method": plans.WRITTEN_METHOD, "by": "test", "at": concepts.now(), "plan": plan})
 
 
 THE_STORE = object()  # a held-spot row's argument standing for the plan review's own store, the shed written 4 x 10 m
@@ -3164,18 +2209,6 @@ def gaps_laid(plan, *more):
     """plan_checks.hold_gaps of `plan` against its own grid and outline (`more`: the plan's keys replaced first)."""
     grid = plan_checks.Grid(plan)
     return plan_checks.hold_gaps({**plan, **dict(more)}, grid, grid.covered(plan_checks.outline_of(plan)))
-
-
-def fitted_again(plan, shape):
-    """(the shape gaps of `plan` fitted to `shape`, whether fitting the fitted plan again fits it again)."""
-    fit = plan_writing.fitted(plan, shape)
-    return plan_checks.shape_gaps(fit), "fitted" in plan_writing.fitted(fit, shape)["held"]
-
-
-def stairs_laid_again(plan):
-    """(whether `plan` has stair gaps, whether it has any laid again by plans_pass.laid_again, what that said first)."""
-    laid, said = plans_pass.laid_again(plan, {"rows": []}, None)
-    return bool(plan_checks.stair_gaps(plan)), bool(plan_checks.stair_gaps(laid)), said[0]
 
 
 def doors_meeting(plan, held, own, fitted=()):
@@ -3223,35 +2256,6 @@ FLAT_ROOM = {"w": 4.78, "d": 4.78, "outline": [[0, 0], [4.78, 0], [4.78, 4.78], 
              "items": [["BED 1", 1.0, 1.0, 2.0, 1.0, "E", "item"]], "doors": [["E", 2.39, 0.9, "DOOR"]],
              "leads": {"E": {"to": "stairwell"}}}
 FLAT_SHAPE = {"w": 6.0, "d": 5.0, "from": "the kit's flat"}
-STREET = {"w": 10.0, "d": 6.0, "outline": [[0, 0], [10.0, 0], [10.0, 6.0], [0, 6.0]], "rows": {},
-          "items": [["CAR 1", 0.0, 0.0, 4.0, 2.0, "E", "item"]], "doors": [["N", 2.0, 3.0, "GATE"]],
-          "leads": {"N": {"to": "square"}}}
-CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "outline": [],
-        "levels": [{"name": "upper floor", "height": 1.5, "points": [[0, 0], [2.8, 0], [2.8, 1.0], [0, 1.0]]}],
-        "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
-                  {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
-        "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
-                    "to": 1.5, "angle": 270.0, "steps": 9}]}
-VAULT = {"w": 4.0, "d": 4.0, "outline": [[0, 0], [4.0, 0], [4.0, 4.0], [0, 4.0]], "leads": {},
-         "doors": [["S", 2.0, 0.9, "VAULT DOOR (0.9 x 2.0 m)"]], "rows": {"VAULT DOOR 1": ["vault_door"]},
-         "items": [["VAULT DOOR 1", 1.0, 3.8, 2.0, 0.2, "N", "item"]],
-         "openings": [{"kind": "door", "at": [2.0, 4.0], "wide": 0.9, "angle": 0.0, "sill": 0.0, "head": 2.0}]}
-VAULT_ROWS = {"rows": [{"id": "vault_door", "size": [2.0, 0.2, 2.2]}]}
-AIR_STAIR = {"w": 8.0, "d": 10.0, "doors": [], "items": [], "rows": {}, "walls": [],
-             "outline": [[0, 0], [8.0, 0], [8.0, 10.0], [0, 10.0]],
-             "levels": [{"name": "road", "height": 0.0, "points": [[2.0, 0], [6.0, 0], [6.0, 10.0], [2.0, 10.0]]},
-                        {"name": "pavement", "height": 0.2, "points": [[0, 0], [2.0, 0], [2.0, 10.0], [0, 10.0]]}],
-             "stairs": [{"kind": "stair", "points": [[0.5, 1.5], [1.5, 1.5], [1.5, 7.0], [0.5, 7.0]], "from": 0.2,
-                         "to": 3.0, "angle": 270.0, "steps": 15}]}
-FLOOR_ROWS = {"rows": [{"id": "floor_plates", "anchor": "ground", "size": [4.0, 5.0, 0.1]},
-                      {"id": "floor_plate", "anchor": "floor", "count": 12, "size": [3.0, 3.0, 0.1]},
-                      {"id": "roof_dome", "anchor": "on:left_wall", "size": [6.0, 6.0, 1.0]},
-                      {"id": "rug_floor", "anchor": "floor", "size": [2.0, 3.0, 0.01]}]}
-BEAMED_ROOM = {"w": 11.9, "d": 12.66, "height": "walls 4.6 m, dome rising 1.3 m; pumped empty",
-               "roofs": [{"kind": "dome", "points": [[0, 0], [11.9, 0], [11.9, 12.66], [0, 12.66]], "eave": 4.6,
-                          "top": 5.9}]}
-BEAMED_ROWS = {"rows": [{"id": "ceiling_beam", "anchor": "roof", "count": 3, "size": [14.0, 0.2, 0.2]},
-                        {"id": "ceiling_lamp", "anchor": "on:ceiling_beam", "size": [0.4, 0.4, 0.5]}]}
 SQUARE_DOORS = {"flat": {"w": 6.0, "d": 5.0, "openings": [door([5.925, 1.344], "stairwell")]},
                 "stairwell": {"w": 7.4, "d": 4.0, "openings": [door([0.0, 0.88], "flat")]}}
 SQUARE_HELD = [{"place": "flat", "row": "left_building", "x": 0.0, "y": 16.0, "w": 6.0, "d": 5.0},
@@ -3307,47 +2311,6 @@ HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outco
     # a held place off its creator's shape by more than SHAPE_SLACK on an axis is fitted to it, its things at their own
     # size, and one not fitted is a gap (#72: the flat written 4.78 x 4.78 m for its 6 x 5 m inside)
     ("the flat off its shape", plan_checks.shape_gaps, ({**FLAT_ROOM, "held": FLAT_SHAPE},), [{"kind": "shape"}]),
-    ("the flat fitted to its shape", plan_writing.fitted, (FLAT_ROOM, FLAT_SHAPE),
-     {"w": 6.0, "d": 5.0, "held": {"fitted": {"scale": [1.2552, 1.046]}},
-      "items": [["BED 1", 1.51, 1.069, 2.0, 1.0, "E", "item"]], "doors": [["E", 2.5, 0.9, "DOOR"]]}),
-    ("the fitted flat: no shape gap, fitted again as it is", fitted_again, (FLAT_ROOM, FLAT_SHAPE), [[], False]),
-    # one whose proportions run the other way is turned a quarter first (the street drawn east to west for its 8 x
-    # 36 m strip north to south): its things, facings, doors and leads with it
-    ("the street turned a quarter", plan_writing.fitted, (STREET, {"w": 8.0, "d": 36.0}),
-     {"held": {"fitted": {"turned": True}}, "w": 8.0, "d": 36.0, "items": [["CAR 1", 5.667, 5.2, 2.0, 4.0, "S", "item"]],
-      "doors": [["E", 7.2, 3.0, "GATE"]], "leads": Exactly({"E": {"to": "square"}})}),
-    # a kept writing is laid again by the writer's free steps: its flights built from their rises (#87)
-    ("a kept core's flights built", stairs_laid_again, (CORE,), [True, False, Containing("1 flights built")]),
-    # a flight ends on a floor (#128 D5): the street's 15 steps up to 3 m, where it has no floor, are not built and
-    # are named dropped; one reaching a height the place has a floor at beside its end is given a landing there
-    ("a flight ending in the air is not built", plan_writing.flights_laid, (AIR_STAIR,),
-     [[], [{"height": 0.0}, {"height": 0.2}],
-      [{"item": "stair 1", "why": Containing("head at 3 m on no floor or landing")}]]),
-    ("a flight beside its floor gets a landing", plan_writing.flights_laid,
-     ({**AIR_STAIR, "levels": [*AIR_STAIR["levels"], {"name": "deck", "height": 3.0, "points": [
-         [0, 0], [1.0, 0], [1.0, 1.0], [0, 1.0]]}]},),
-     [[{"from": 0.2, "to": 3.0}], [{"height": 0.0}, {"height": 0.2}, {"name": "deck"},
-                                   {"name": "landing at 3 m", "height": 3.0}], []]),
-    # a room keeps its floor (#128 1a): written at under 70% of its room row's or its lock's earlier plan's floor,
-    # its layout is scaled back up to the larger, its things at their own size; within 70% it stays as written
-    ("the room row: a floor or hull counted once, the largest", plan_writing.room_row, (FLOOR_ROWS,),
-     [4.0, 5.0, "floor_plates"]),
-    ("no room row from tiles or a lamp", plan_writing.room_row,
-     ({"rows": [FLOOR_ROWS["rows"][1], {"id": "floor_lamp", "size": [0.4, 0.4, 1.5]}]},), None),
-    ("a shrunk room held at its lock's earlier plan", plan_writing.floor_held,
-     (FLAT_ROOM, [(4.0, 5.0, "its room row"), (9.56, 9.56, "its lock's earlier plan")]),
-     {"w": 9.56, "d": 9.56, "items": [["BED 1", 3.0, 2.5, 2.0, 1.0, "E", "item"]],
-      "fixes": [Containing("kept under 70% of its lock's earlier plan")]}),
-    ("a room within 70% of its floors stays as written", lambda plan, floors: plan_writing.floor_held(
-        plan, floors) is plan, (FLAT_ROOM, [(5.0, 5.0, "its room row")]), True),
-    # the concept's roof wins over the game's words (#128 D1): beams across the roof and no dome lay it flat on them
-    # (the garage's dome "rising 1.3 m"); a concept that names a dome keeps its dome
-    ("a beamed roof is flat at its eave", lambda plan, inventory: plan_writing.concept_roofed(plan, inventory)[0],
-     (BEAMED_ROOM, BEAMED_ROWS), {"roofs": [{"kind": "flat", "eave": 4.6, "top": 4.6}],
-                                  "height": "walls 4.6 m; pumped empty"}),
-    ("a domed concept keeps its dome", lambda plan, inventory: plan_writing.concept_roofed(plan, inventory)[0]
-     is plan, (BEAMED_ROOM, {"rows": [*BEAMED_ROWS["rows"], {"id": "dome_roof", "anchor": "roof",
-                                                             "size": [12.0, 12.0, 1.3]}]}), True),
     # two held places whose doors to each other open apart meet: the one on the holder's own floor moved by the gap and
     # off its sibling's box (the Square's stairwell opened its door to the flat 10.4 m from the flat's, 2026-11-05);
     # one held in a row's item stays where it is drawn, and two such are left for the gate to name
@@ -3376,64 +2339,6 @@ HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outco
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
 
 
-ANSWER = {
-    "outline": [[0, 0], [4, 0], [4, 3], [0, 3]],
-    "walls": [{"from": [0, 0], "to": [4, 0], "thick": 0.2, "tall": 2.5}, {"from": [4, 0], "to": [4, 3], "thick": 0.2},
-              {"from": [4, 3], "to": [0, 3], "thick": 0.2}, {"from": [0, 3], "to": [0, 0], "thick": 0.2},
-              {"from": "nowhere"}],
-    "openings": [{"kind": "door", "at": [2.0, 3.0], "wide": 0.9, "angle": 0, "swing": "left", "head": 2.1,
-                  "to": "yard"}],
-    "levels": [{"name": "floor", "height": 0, "points": [[0, 0], [4, 0], [4, 3], [0, 3]]}],
-    "roofs": [{"kind": "pitched", "points": [[0, 0], [4, 0], [4, 3], [0, 3]], "eave": 2.5, "top": 3.4,
-               "openings": [{"points": [[1, 1], [2, 1], [2, 2], [1, 2]]}, {"points": [[1, 1]]}]}],
-    "terrain": {},
-    "structure": ["lamp_nowhere"],
-    "items": [{"row": "bench", "x": 2.0, "y": 0.6, "wide": 2.0, "deep": 0.6, "shape": "rect", "facing": "S",
-               "tall": 0.9, "base": 0},
-              {"row": "crate", "x": 2.2, "y": 0.7, "wide": 0.5, "deep": 0.5, "shape": "circle", "tall": 0.5},
-              {"row": "lamp", "x": 0.2, "y": 1.5, "wide": 0.3, "deep": 0.2, "tall": 0.3, "base": 2.0},
-              {"row": "ghost", "x": 1, "y": 1, "wide": 1, "deep": 1}],
-    "people": [[1.0, 2.0]],
-    "section": {"y": 1.5},
-}
-
-
-def response(answer):
-    return {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(answer)}]}}],
-            "usageMetadata": {}}
-
-
-UNITS = 100  # drawing units a metre in the stand-in answer: the rows' metres measure it back
-
-
-def writing_stand_ins(monkeypatch):
-    """The plan writer's paid calls stood in: each writing 0.04 EUR, its top-down drawing a white picture at 0.12 EUR
-    (its wordings kept in `ask.drawn`), each ask answering ANSWER at UNITS a metre (its bodies kept); the asked list and
-    the ask."""
-    asked, drawn = [], []
-    monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.04)
-
-    def drawing(wording, pictures, frame):
-        drawn.append(wording)
-        buffer = io.BytesIO()
-        Image.new("RGB", (500, 400), (255, 255, 255)).save(buffer, "PNG")
-        return buffer.getvalue(), 0.12, 1.0
-    monkeypatch.setattr(plan_drawing, "called", drawing)
-
-    def ask(body):
-        asked.append(body)
-        return response(plan_writing.metred(ANSWER, (UNITS, UNITS), (0, 0))), 1.0
-    ask.drawn = drawn
-    return asked, ask
-
-
-def clearing(cleared_for):
-    def clear(store, places, euros, node):
-        cleared_for.append((node, places, euros))
-        return compute.reading_clearance(store, places, euros, node=node)
-    return clear
-
-
 WALLED = {"w": 6.0, "d": 4.0, "doors": [["S", 3.0, 1.0, "DOOR"]], "people": [[1.0, 1.0]],
           "items": [["WALL OF CRATES 1", 0.0, 2.0, 6.0, 0.6, None, "item"]], "rows": {"WALL OF CRATES 1": ["crate"]},
           "holds": [{"place": "a", "x": 0, "y": 0, "w": 3, "d": 2}, {"place": "b", "x": 2, "y": 0, "w": 3, "d": 2},
@@ -3451,29 +2356,6 @@ STAIR_CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {},
                           "to": 1.5, "angle": 270.0, "steps": 9},
                          {"kind": "stair", "points": [[2.2, 3.0], [3.2, 3.0], [3.2, 4.0], [2.2, 4.0]], "from": 3.0,
                           "to": 4.5, "angle": 270.0, "steps": 9}]}
-
-
-BOX_2D = {"outline": [[0, 0], [1000, 0], [1000, 1000], [0, 1000]],
-          "items": [{"row": "bench", "box_2d": [100, 200, 160, 400]}],
-          "places": [{"place": "nook", "box_2d": [500, 500, 700, 800]}]}
-BENCH_METRES = {"rows": [{"id": "bench", "size": [2.0, 0.6, 0.9]}]}
-HELD_BOX = {"w": 2.0, "d": 6.0, "doors": [["S", 1.0, 0.9, "DOOR"], ["E", 3.0, 0.9, "DOOR"]]}
-ROWS_METRES = Exactly({"metres a unit": [0.01, 0.01], "by": "its rows' metres"})
-MEASURED = [  # (row, the footprint measure, its arguments: answer, skeleton, inventory, held; found, skeleton, how)
-    ("a footprint answered as box_2d is measured from its box", plan_writing.measured,
-     (BOX_2D, {"w": 1.0, "d": 1.0}, BENCH_METRES, False),
-     [{"items": [{"x": 3.0, "y": 1.3, "wide": 2.0, "deep": 0.6}], "places": [{"x": 5.0, "y": 5.0, "w": 3.0, "d": 2.0}]},
-      {"w": 10, "d": 10}, ROWS_METRES]),
-    # a held place keeps its own size: its rows' metres both ways and its drawn outline, never its holder's box shape
-    # (#72: the Square's 2.145 x 6.609 m strip stretched the flat 2.3x across); its doors keep their share of the wall
-    ("a held place keeps its rows' metres and its doors their share of the wall", plan_writing.measured,
-     (BOX_2D, HELD_BOX, BENCH_METRES, True),
-     [{"items": [{"wide": 2.0}]}, {"w": 10, "d": 10, "doors": [["S", 5.0, 0.9, "DOOR"], ["E", 5.0, 0.9, "DOOR"]]},
-      ROWS_METRES]),
-    ("a held place no row tells is measured by its box's floor, the same both ways", plan_writing.measured,
-     (BOX_2D, HELD_BOX, {"rows": []}, True),
-     [{}, {"w": 3.464, "d": 3.464}, {"metres a unit": [0.00346, 0.00346]}]),
-]
 
 
 CONCEPT_ROWS = {"picture": [1000, 1000], "rows": [  # a hub in the middle, a dome left, a hangar behind, a tube hub-dome
@@ -3544,767 +2426,3 @@ GAP_WORDS = [  # (row, a written plan, its inventory, the gap kinds read or None
      {"stair 1 rises 1.5 m over a 1.00 m run, 56 degrees (steeper than 42)", "stair 1 and stair 2 overlap, under 2 m apart",
       "stair 3 lies past its walls (south-east)"}),
 ]
-
-
-# --- the free fixes of a written plan (plan_fixes.py): free first, a Correct kept only when it leaves fewer gaps -------
-
-ROWS = [  # three rows boxed once on a 1000 px concept, laid so the projection is x = 10 across, y = 10 foot
-    {"id": "desk", "count": 1, "size": [1.0, 1.0, 1.0], "boxes": [[150, 400, 250, 500]]},
-    {"id": "rack", "count": 1, "size": [1.0, 1.0, 1.0], "boxes": [[750, 400, 850, 500]]},
-    {"id": "pad", "count": 1, "size": [1.0, 1.0, 1.0], "boxes": [[450, 800, 550, 900]]},
-    {"id": "barrel", "count": 2, "size": [1.0, 1.0, 1.0], "boxes": [[150, 600, 250, 700], [750, 600, 850, 700]]},
-    {"id": "worker", "noun": "person", "count": 1, "boxes": [[480, 200, 520, 300]]},
-    {"id": "crate", "count": 1, "size": [0.6, 0.6, 0.6]}]
-
-
-def stand_in_plan():
-    items = [["DESK 1", 1.5, 4.5, 1.0, 1.0, "N", "item"], ["RACK 1", 7.5, 4.5, 1.0, 1.0, None, "item"],
-             ["PAD 1", 4.5, 8.5, 1.0, 1.0, None, "item"], ["BARREL 1", 7.5, 6.5, 1.0, 1.0, None, "item"],
-             ["WORKER 1", 4.8, 2.8, 0.4, 0.4, None, "item"], ["CRATE 1", 1.8, 4.8, 0.6, 0.6, None, "item"]]
-    return {"w": 10.0, "d": 10.0, "doors": [], "people": [[9.5, 9.5]], "items": items,
-            "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in items},
-            "shapes": {"DESK 1": {"shape": "rect", "seen": ["toward"]}}}
-
-
-SHIP = {"what": "the ship's floor plan", "places": ["bridge", "hold"], "length": 10.0, "wide": 4.0, "base": 1.0,
-        "tall": 3.0, "outline": [[0, 0], [2, 4], [2, 10], [-2, 10], [-2, 4]],
-        "rooms": {"bridge": [[-1, 2], [1, 2], [1, 5], [-1, 5]], "hold": [[-2, 5], [2, 5], [2, 10], [-2, 10]]}}
-
-
-def ship_laid(nose):
-    """A plan holding the bridge and the hold on its ship's 4 x 2 m box, the ship's nose read as `nose`."""
-    return {"items": [["SHIP 1", 18.0, 9.0, 4.0, 2.0, nose, "item"]], "rows": {"SHIP 1": ["ship"]}, "shapes": {},
-            "holds": [{"place": "bridge", "row": "ship", "x": 0, "y": 0, "w": 1, "d": 1},
-                      {"place": "hold", "row": "ship", "x": 1, "y": 0, "w": 1, "d": 1}]}
-
-
-SHIP_ON_HIS_PLAN = {  # its own 10 x 4 m, nose east, the same middle; its rooms where his plan draws them
-    "items": [["SHIP 1", 15.0, 8.0, 10.0, 4.0, "E", "item"]], "rows": {"SHIP 1": ["ship"]},
-    "shapes": {"SHIP 1": {"shape": "polygon", "points": [[1.0, 0.5], [0.6, 1.0], [0.0, 1.0], [0.0, 0.0], [0.6, 0.0]],
-                          "tall": 3.0, "base": 1.0, "planned": "the ship's floor plan"}},
-    "holds": [{"place": "bridge", "row": "ship", "x": 20.0, "y": 9.0, "w": 3.0, "d": 2.0},
-              {"place": "hold", "row": "ship", "x": 15.0, "y": 8.0, "w": 5.0, "d": 4.0}]}
-BARE = {**plans.base_plan("no_such_place"), "w": 3.0, "d": 2.0}  # a scene added in the app: no doors of its own
-OPENINGS = [{"kind": "door", "at": [11.5, 7.0], "wide": 0.9, "sill": 0.0, "head": 2.1, "to": "airlock"},
-            {"kind": "gate", "at": [13.05, 5.6], "wide": 1.2, "sill": 0.0, "head": 2.4, "to": "outside"},
-            {"kind": "door", "at": [0.0, 1.0], "wide": 0.9, "sill": 0.0, "head": 2.1, "to": "sealed"}]
-HELD_DOORS = {**BARE, "doors": [["S", 1.5, 0.9, "door 0.9 x 2.1 m"], ["E", 0.6, 1.2, "gate 1.2 x 2.4 m"]], "leads": {
-    "S": {"to": "hangar", "why": "the hangar plan's door at [11.5, 7.0] is in this place's S wall"},
-    "E": {"to": "outside", "why": "the hangar plan's gate at [13.05, 5.6] is in this place's E wall"}}}
-OWN_DOORS = {**BARE, "doors": [["N", 1.0, 0.9, "DOOR"]], "leads": {"N": {"to": "sealed", "why": "filed"}}}
-TREE_ROW = {"rows": [{"id": "tree", "count": 4, "size": [1.0, 1.0, 5.0]}]}
-TREES = {"w": 12.0, "d": 12.0, "doors": [], "people": [], "items": [["TREE 1", 1.0, 1.0, 10.0, 10.0, None, "item"]],
-         "rows": {"TREE 1": ["tree"]}, "shapes": {"TREE 1": {"shape": "circle", "count": 4}}}
-TREES_SPLIT = {**TREES, "items": [["TREE 1", 1.0, 1.0, 1.0, 1.0, None, "item"],
-                                  ["TREE 2", 10.0, 1.0, 1.0, 1.0, None, "item"],
-                                  ["TREE 3", 10.0, 10.0, 1.0, 1.0, None, "item"],
-                                  ["TREE 4", 1.0, 10.0, 1.0, 1.0, None, "item"]],
-               "rows": {f"TREE {number}": ["tree"] for number in range(1, 5)},
-               "shapes": {f"TREE {number}": {"shape": "circle"} for number in range(1, 5)}}
-THE_PLAN_ITSELF = object()  # a wanted answer that is the very plan the fix was given, kept as it is
-
-
-def one_laid(row_id, words):
-    """stand_in_plan with one of the row's three things laid at plan (3.0, 2.1) and its inventory: two more boxed at
-    (3.5, 2.3), crossing the laid one, and (6.3, 2.3), its words `words`."""
-    plan, name = stand_in_plan(), row_id.upper()
-    plan["items"].append([f"{name} 1", 3.0, 2.1, 0.6, 0.4, None, "item"])
-    plan["rows"][f"{name} 1"] = [row_id]
-    return plan, {"picture": [1000, 1000], "rows": [*ROWS, {
-        "id": row_id, "count": 3, "size": [0.6, 0.4, 0.2], "size_words": words,
-        "boxes": [[300, 200, 360, 230], [320, 200, 380, 230], [600, 200, 660, 230]]}]}
-
-
-def placed_where_shown(plan, inventory):
-    """plan_fixes.placed_missing as the free fixes call it: through the plan's own projection of the concept."""
-    return plan_fixes.placed_missing(plan, inventory, plan_fixes.projector(plan, inventory))
-
-
-def placed_said(row_id):
-    """What placed_where_shown says it placed: the row's two missing things and the stand-in's missing barrel."""
-    return ["barrel: 1 more placed where the concept shows them", f"{row_id}: 2 more placed where the concept shows them"]
-
-
-def missing_placed(name, piled):
-    """The plan's items and shapes once the row's two missing things are placed: the crossing one at (3.2, 2.1), on the
-    laid one at its 0.2 m when `piled`, the other at (6.0, 2.1) on the floor; the stand-in's missing barrel beside."""
-    return {"items": [*stand_in_plan()["items"], [f"{name} 1", 3.0, 2.1, 0.6, 0.4, None, "item"],
-                      ["BARREL 2", 1.5, 6.5, 1.0, 1.0, None, "item"], [f"{name} 2", 3.2, 2.1, 0.6, 0.4, None, "item"],
-                      [f"{name} 3", 6.0, 2.1, 0.6, 0.4, None, "item"]],
-            "shapes": Exactly({"DESK 1": {"shape": "rect", "seen": ["toward"]}, "BARREL 2": {"shape": "rect"},
-                               f"{name} 2": {"shape": "rect", **({"base": piled} if piled else {})},
-                               f"{name} 3": {"shape": "rect"}})}
-
-
-CUBE = [1.0, 1.0, 1.0]
-FOOT_ROWS = {"picture": [1000, 1000], "rows": [  # sandbags boxed at the concept's foot, marked beyond with no item
-    {"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
-    {"id": "barrel", "count": 2, "size": CUBE, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
-    {"id": "pallet", "anchor": "on:plates", "count": 1, "size": CUBE, "boxes": [[450, 700, 550, 800]]},
-    {"id": "desk", "count": 1, "size": CUBE, "boxes": [[750, 200, 850, 300]]},
-    {"id": "sandbags", "anchor": "ground", "count": 1, "size": CUBE, "boxes": [[450, 900, 550, 1000]]}]}
-FOOT_ITEMS = [["BARREL 1", 1.5, 4.5, 1.0, 1.0, None, "item"], ["BARREL 2", 7.5, 4.5, 1.0, 1.0, None, "item"],
-              ["PALLET 1", 4.5, 7.5, 1.0, 1.0, None, "item"], ["DESK 1", 7.5, 2.5, 1.0, 1.0, None, "item"]]
-AT_THE_FOOT = {"w": 10.0, "d": 10.0, "doors": [], "people": [], "items": FOOT_ITEMS, "structure": ["plates"],
-               "beyond": ["sandbags"], "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in FOOT_ITEMS}}
-NO_ROWS = {"rows": []}
-SQUARE = [[0, 0], [10, 0], [10, 10], [0, 10]]
-SPOTS_BEYOND = {"w": 10.0, "d": 10.0, "outline": SQUARE, "items": [],  # lab, 2026-11-02: its people on spots inside
-                "people": [[2.0, 3.0, 0.0, "person"], [7.0, 6.0, 0.0, "person"], [4.0, 12.0, 0.0, "walker"],
-                           [5.0, 5.0, 0.0, "walker"]], "beyond": ["person", "walker", "skyline"]}
-MAN_ROW = {"rows": [{"id": "person_man", "noun": "man", "name": "man walking up stairs", "count": 1}]}
-UNSTOOD = {"w": 10.0, "d": 10.0, "outline": SQUARE, "people": [[1.5, 3.0]],  # stairwell's writing of 2026-10-21
-           "items": [["PERSON MAN 1", 3.0, 3.0, 0.6, 0.6, None, "item"]], "rows": {"PERSON MAN 1": ["person_man"]},
-           "beyond": ["person_man", "skyline"], "fixes": []}
-STOOD = {**UNSTOOD, "items": [], "rows": {}, "people": [[3.3, 3.3, 0.0, "person_man"], [1.5, 3.0]]}
-WORKERS = {"rows": [{"id": "worker_blue", "noun": "worker", "name": "worker in blue", "count": 4,
-                     "size": [0.5, 0.3, 1.8]}, {"id": "crate", "noun": "crate", "name": "crate", "count": 1}]}
-HANGAR = {"w": 32.0, "d": 64.0, "people": [[40.0, 10.0]], "items": [["CRATE 1", 6.0, 14.0, 6.0, 6.0, None, "item"]],
-          "rows": {"CRATE 1": ["crate"]}, "fixes": []}
-SPREAD = {**HANGAR, "people": [  # its four workers on the free floor inside its 32 x 64 m, clear of the crate
-    [40.0, 10.0], [8.24, 13.84, 0.0, "worker_blue"], [23.76, 24.24, 0.0, "worker_blue"],
-    [23.76, 47.92, 0.0, "worker_blue"], [8.24, 39.76, 0.0, "worker_blue"]]}
-GARAGE = {"w": 12.0, "d": 12.0, "outline": [[0, 0], [12, 0], [12, 12], [0, 12]], "fixes": [], "rows": {},
-          "items": [["PIPE 1", -5.0, 1.5, 10.0, 0.1, None, "item"], ["FACADE 1", -3.01, 11.8, 14.0, 0.6, None, "item"],
-                    ["GLASS TUNNEL 1", -4.0, 5.0, 4.0, 2.0, None, "item"], ["CRATE 1", 4.0, 4.0, 1.0, 1.0, None, "item"]],
-          "people": [[7.0, 14.3]], "frame": {"anchor": {"plan": [60.0, 3.0], "place": [0, 0, 0]}}}
-GARAGE_INSIDE = {key: value for key, value in GARAGE.items() if key != "frame"} | {
-    "items": [["PIPE 1", 0.0, 1.5, 10.0, 0.1, None, "item"], ["FACADE 1", 0.0, 11.4, 12.0, 0.6, None, "item"],
-              ["GLASS TUNNEL 1", -4.0, 5.0, 4.0, 2.0, None, "item"], ["CRATE 1", 4.0, 4.0, 1.0, 1.0, None, "item"]],
-    "people": [[6.975, 11.775]]}
-STOOL_ROWS = {"picture": [1000, 1000], "rows": [row for row in ROWS if row["id"] != "barrel"] + [
-    {"id": "stool", "count": 1, "size": [0.5, 0.5, 0.5]}]}  # no box: no free fix places it
-STOOD_TURNED_MOVED = ["worker: stood as 1 person spot where the concept shows them",
-                      "desk 1: turned to face toward as in the concept", "crate 1: moved 0.8 m out of desk 1"]
-STOOL_ASKED = {"euros": 0.07, "notes": ["stool: 1 in the concept, 0 on the plan"]}
-unsettled_unparted = functools.partial(plans_pass.unsettled, parts=False)
-
-
-def placed_gaps(plan, inventory, structure):
-    """The rows plan_checks.checked lists as placed gaps on `plan`, `structure` the place's own shell rows."""
-    return [gap["row"] for gap in plan_checks.checked(plan, inventory, structure) if gap["kind"] == "placed"]
-
-
-def correcting(store, place, plan, left, ask):
-    """A stand-in Correct: the shed's lays the stool its gaps name, the hut's changes nothing; its call sends the
-    gaps' words as its notes at 0.07 euros."""
-    laid = [["STOOL 1", 3.0, 3.0, 0.5, 0.5, None, "item"]] if place == "shed" else []
-    return ({**plan, "items": plan["items"] + laid, "rows": {**plan["rows"], "STOOL 1": ["stool"]}} if laid else plan,
-            {"euros": 0.07, "notes": [gap["words"] for gap in left]})
-
-
-STAND_IN_ROWS = {"picture": [1000, 1000], "rows": ROWS}
-
-
-def gap_kinds(plan, inventory):
-    """The kinds of the gaps plan_checks.checked lists on `plan`."""
-    return [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
-
-
-def laid_boxes(plan):
-    """Each item's laid box [x, y, w, d] by its name."""
-    return {item[0]: item[1:5] for item in plan["items"]}
-
-
-def kept_apart_of(plan, inventory):
-    """(the items, the fixes said) plan_fixes.kept_apart leaves on a copy of `plan`."""
-    plan = copy.deepcopy(plan)
-    said = plan_fixes.kept_apart(plan, inventory)
-    return plan["items"], said
-
-
-def stacked_left(plan, inventory):
-    """The stacked gaps left open on `plan`, each saying why."""
-    return [gap for gap in plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory)) if gap["kind"] == "stacked"]
-
-
-def flight_gaps_left(plan, inventory):
-    """The things left on a flight as made, each saying why."""
-    return plan_fixes.why_left(plan_fixes.flight_gaps(plan, inventory))
-
-
-NO_DROPPED = Meets(lambda plan: "dropped" not in plan)
-# 2026-11-04 audit: the doorways are the design's door rows (habitat's 2.2 m hatches drawn 0.237 m wide, galley's W
-# door drawn on its S wall), and a wall row re-counted is a gap like a floor row (lab's pipes 10 to 6)
-DOORED = {"w": 10.0, "d": 10.0, "items": [["PIPE 1", 0.0, 2.0, 0.2, 3.0, None, "item"]], "rows": {"PIPE 1": ["pipe"]},
-          "doors": [["N", 5.0, 1.0, "DOOR N 1.0 x 2.2 m"], ["W", 3.0, 0.9, "HATCH W 0.9 x 2.0 m"]],
-          "leads": {"N": {"to": "yard"}, "W": {"to": "sealed"}},
-          "openings": [{"kind": "door", "at": [5.0, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2, "to": "yard"},
-                       {"kind": "door", "at": [5.0, 10.0], "wide": 1.4, "sill": 0.0, "head": 2.0, "to": "sealed"},
-                       {"kind": "window", "at": [10.0, 5.0], "wide": 1.0, "sill": 1.0, "head": 2.0, "to": None}]}
-# the walkway's east wall (2026-11-05): its galley door shut, its quarters door leading there by its own lead
-WALKWAY = {"w": 2.0, "d": 12.0,
-           "doors": [["E", 3.0, 0.9, "DOOR to the galley"], ["E", 9.0, 0.9, "DOOR to the quarters"]],
-           "leads": {"E": {"to": "sealed"}, "E:9": {"to": "quarters"}},
-           "openings": [{"kind": "door", "at": [2.0, 9.2], "wide": 0.9, "sill": 0.0, "to": "sealed"},
-                        {"kind": "door", "at": [2.0, 3.1], "wide": 0.9, "sill": 0.0, "to": "sealed"}]}
-PIPE_WALL = {"id": "pipe", "anchor": "wall", "count": 3, "size": [0.2, 3.0, 0.2]}
-# settle@airlock, checkout 67: a run of sandbags through its east wall, one into its ramp's stairs, one nudged into
-# the empty suit hung on its back wall
-BAGS_ROW = {"id": "bags", "anchor": "ground", "count": 1, "size": [0.6, 0.5, 0.2]}
-RUNS = {"w": 10.0, "d": 10.0, "items": [["BAGS 1", 1.0, 2.0, 7.0, 0.5, None, "item"],
-                                        ["BAGS 2", 1.0, 8.8, 3.0, 0.5, None, "item"],
-                                        ["BAGS 3", 6.5, 6.0, 3.0, 0.5, None, "item"],
-                                        ["PIPE 1", 5.9, 1.0, 0.2, 3.0, None, "item"]],
-        "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "PIPE 1": ["pipe"]},
-        "shapes": {**{f"BAGS {number}": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": count}
-                      for number, count in ((1, 7), (2, 3), (3, 3))},
-                   "PIPE 1": {"shape": "rect", "tall": 0.2, "count": 2}},
-        "walls": [{"from": [6.0, 0.0], "to": [6.0, 5.0], "thick": 0.2}, {"from": [0.0, 9.0], "to": [5.0, 9.0],
-                                                                          "thick": 0.2}],
-        "stairs": [{"kind": "ramp", "points": [[7.0, 5.0], [8.0, 5.0], [8.0, 7.0], [7.0, 7.0]]}]}
-RUN_ROWS = {"rows": [BAGS_ROW, {**PIPE_WALL, "anchor": "on:wall"}]}
-DOUBLED = {"w": 10.0, "d": 10.0, "items": [["BAGS 1", 1.0, 1.0, 3.0, 0.5, None, "item"],
-                                           ["BAGS 2", 1.2, 1.1, 0.6, 0.4, None, "item"],
-                                           ["BAGS 3", 1.2, 1.1, 0.6, 0.4, None, "item"],
-                                           ["BAGS 4", 3.9, 1.4, 0.6, 0.4, None, "item"],
-                                           ["CRATE 1", 2.0, 1.0, 0.6, 0.4, None, "item"]],
-           "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "BAGS 4": ["bags"],
-                    "CRATE 1": ["crate"]},
-           "shapes": {"BAGS 1": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": 5},
-                      "BAGS 2": {"shape": "rect", "tall": 0.2, "base": -0.2},
-                      "BAGS 3": {"shape": "rect", "tall": 0.2, "base": 0.0},
-                      "BAGS 4": {"shape": "rect", "tall": 0.2, "base": -0.2},
-                      "CRATE 1": {"shape": "rect", "tall": 0.5, "base": -0.2}}}
-CROWDED = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 2.0, 4.0, 2.0, 2.0, None, "item"],
-                                           ["BOX 1", 3.6, 4.5, 0.8, 0.5, None, "item"],
-                                           ["SUIT 1", 4.5, 4.4, 0.5, 0.7, "W", "item"]],
-           "rows": {"CRATE 1": ["crate"], "BOX 1": ["box"], "SUIT 1": ["suit"]},
-           "shapes": {"SUIT 1": {"shape": "rect", "tall": 1.8, "base": 0.1}}}
-CROWDED_ROWS = {"rows": [{"id": "crate"}, {"id": "box"}, {"id": "suit", "anchor": "on:wall"}]}
-PANELLED = {**CROWDED, "items": [*CROWDED["items"], ["PANEL 1", 0.0, 0.0, 10.0, 10.0, None, "item"]],
-            "rows": {**CROWDED["rows"], "PANEL 1": ["wall_panel"]},
-            "shapes": {**CROWDED["shapes"], "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0}}}
-# campgrounds' plan writing, 2026-11-09: its habitat tunnel moved 7.9 m out of the dome the concept shows it entering
-JOINED = {"w": 20.0, "d": 20.0, "items": [["DOME 1", 2.0, 2.0, 8.0, 8.0, None, "item"],
-                                          ["TUNNEL 1", 9.0, 5.0, 4.0, 2.0, None, "item"],
-                                          ["CRATE 1", 9.0, 2.5, 1.5, 1.5, None, "item"]],
-          "rows": {"DOME 1": ["dome"], "TUNNEL 1": ["habitat_tunnel"], "CRATE 1": ["crate"]}, "shapes": {}}
-JOINED_ROWS = {"picture": [1000, 1000], "rows": [
-    {"id": "dome", "part": "structure", "anchor": "ground", "boxes": [[100, 300, 500, 600]]},
-    {"id": "habitat_tunnel", "noun": "tunnel", "part": "structure", "anchor": "ground", "boxes": [],
-     "region": [450, 480, 550, 700]},
-    {"id": "crate", "part": "object", "anchor": "ground", "boxes": [[490, 400, 560, 470]]}]}
-# settle@flat and settle@engineroom, checkout 68: a plan fixed before piled() asked the row's words kept flat's second
-# stove 0.9 m up on its first, in its fridge, and the engine room's pipe 1 ran into its corner pipes
-KITCHEN = {"w": 6.0, "d": 5.0, "items": [["FRIDGE 1", 4.95, 1.95, 0.6, 0.6, "W", "item"],
-                                         ["STOVE 1", 4.94, 2.59, 0.54, 1.0, "W", "item"],
-                                         ["STOVE 2", 4.58, 2.13, 0.8, 0.6, None, "item"],
-                                         ["BAGS 1", 1.0, 1.0, 1.0, 0.5, None, "item"],
-                                         ["BAGS 2", 1.2, 1.1, 1.0, 0.5, None, "item"],
-                                         ["RAIL 1", 0.5, 3.0, 1.0, 1.0, None, "item"],
-                                         ["RAIL 2", 0.6, 3.1, 1.0, 1.0, None, "item"],
-                                         ["PANEL 1", 0.0, 0.0, 6.0, 5.0, None, "item"],
-                                         ["PIPE 1", 1.0, 0.0, 4.0, 0.3, None, "item"],
-                                         ["PIPE 2", 0.8, 0.0, 0.6, 0.3, None, "item"],
-                                         ["PIPE 3", 4.6, 0.0, 0.6, 0.3, None, "item"],
-                                         ["STRING 1", 0.0, 4.0, 6.0, 0.2, None, "item"],
-                                         ["STRING 2", 0.0, 4.1, 6.0, 0.2, None, "item"],
-                                         ["FRAME 1", 3.0, 4.8, 0.5, 0.1, None, "item"],
-                                         ["FRAME 2", 3.1, 4.8, 0.5, 0.1, None, "item"]],
-           "rows": {"FRIDGE 1": ["fridge"], "STOVE 1": ["stove"], "STOVE 2": ["stove"], "BAGS 1": ["sandbags"],
-                    "BAGS 2": ["sandbags"], "RAIL 1": ["railing"], "RAIL 2": ["railing"],
-                    "PANEL 1": ["wall_panel"], "PIPE 1": ["pipe"], "PIPE 2": ["pipe"], "PIPE 3": ["pipe"],
-                    "STRING 1": ["lantern_string"], "STRING 2": ["lantern_string"], "FRAME 1": ["frame"],
-                    "FRAME 2": ["frame"]},
-           "shapes": {"FRIDGE 1": {"shape": "rect", "tall": 1.8, "base": 0.0},
-                      "STOVE 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
-                      "STOVE 2": {"shape": "rect", "tall": 0.9, "base": 0.9},
-                      "BAGS 1": {"shape": "rect", "tall": 0.3, "base": 0.0},
-                      "BAGS 2": {"shape": "rect", "tall": 0.3, "base": 0.3},
-                      "RAIL 1": {"shape": "rect", "tall": 1.0, "base": 0.0},
-                      "RAIL 2": {"shape": "rect", "tall": 1.0, "base": 1.0},
-                      "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0},
-                      "PIPE 1": {"shape": "rect", "tall": 0.2, "base": 2.5},
-                      "PIPE 2": {"shape": "rect", "tall": 0.2, "base": 2.5},
-                      "PIPE 3": {"shape": "rect", "tall": 0.2, "base": 1.0},
-                      "STRING 1": {"shape": "rect", "tall": 0.5, "base": 6.0},
-                      "STRING 2": {"shape": "rect", "tall": 0.5, "base": 6.5},
-                      "FRAME 1": {"shape": "rect", "tall": 0.6, "base": 0.2},
-                      "FRAME 2": {"shape": "rect", "tall": 0.6, "base": 1.2}}}
-KITCHEN_ROWS = {"rows": [{"id": "fridge"}, {"id": "stove"}, {"id": "sandbags", "where": "a pile by the door"},
-                         {"id": "grating", "anchor": "ground"}, {"id": "railing", "anchor": "on:grating"},
-                         {"id": "hull", "anchor": "ground", "part": "wall"},
-                         {"id": "wall_panel", "anchor": "on:hull", "part": "wall"},
-                         {"id": "pipe", "anchor": "on:wall_panel"},
-                         {"id": "lantern_string", "anchor": "on:grating"},
-                         {"id": "frame", "anchor": "on:wall_panel"}]}
-KITCHEN_WRITTEN = {**KITCHEN, "fixes": []}  # a writing fixed before kept_apart: the pass fixes it again
-KITCHEN_PIPED = {**KITCHEN_WRITTEN, "shapes": {**KITCHEN["shapes"], "PIPE 1": {**KITCHEN["shapes"]["PIPE 1"],
-                                                                              "count": 8}}}
-BOXED_IN = {**KITCHEN, "items": [*KITCHEN["items"], ["CRATE 9", 0.0, 0.0, 6.0, 5.0, None, "item"]],  # the whole floor
-            "rows": {**KITCHEN["rows"], "CRATE 9": ["crate"]},  # taken: its second stove alone piled, its rail stood
-            "shapes": {**KITCHEN["shapes"], "RAIL 2": {**KITCHEN["shapes"]["RAIL 2"], "base": 0.0}}}
-BOXED_ROWS = {"rows": [*KITCHEN_ROWS["rows"], {"id": "crate"}]}
-
-
-def symmetric_fit():
-    """settle@engineroom, checkout 68: its grating, doors and windows each laid round the room's middle, so the fit
-    sent every concept box to it and its four missing railings were laid on one spot: (the plan, its concept's rows)."""
-    plan, rows = {"w": 10.0, "d": 10.0, "items": [], "rows": {}}, []
-    for number, (row, near, far) in enumerate((("grate", [2.0, 5.0], [8.0, 5.0]), ("door", [5.0, 1.0], [5.0, 9.0]),
-                                               ("lamp", [3.0, 3.0], [7.0, 7.0]))):
-        rows.append({"id": row, "count": 2, "boxes": [[100 + 300 * number, 400, 200 + 300 * number, 500 + 100 * side]
-                                                      for side in (0, 1)]})
-        for side, (x, y) in enumerate((near, far)):
-            plan["items"].append([f"{row.upper()} {side + 1}", x - 0.5, y - 0.5, 1.0, 1.0, None, "item"])
-            plan["rows"][f"{row.upper()} {side + 1}"] = [row]
-    return plan, {"picture": [1000, 1000], "rows": rows}
-
-
-SYMMETRIC = symmetric_fit()
-# settle@campgrounds, checkout 68: habitat dome 2 drawn a 6.37 m circle, made 10 m across (its read size), its ramp
-# laid 0.62 m off the circle and so inside the dome
-DOMED = {"w": 24.0, "d": 24.0, "items": [["DOME 1", 3.0, 3.0, 6.0, 6.0, None, "item"],
-                                         ["LANDER 1", 14.0, 2.0, 6.0, 6.0, None, "item"],
-                                         ["TOWER 1", 2.0, 16.0, 4.0, 4.0, None, "item"]],
-         "rows": {"DOME 1": ["dome"], "LANDER 1": ["lander"], "TOWER 1": ["tower"]},
-         "shapes": {"DOME 1": {"shape": "circle", "tall": 6.0}, "LANDER 1": {"shape": "circle", "tall": 8.0},
-                    "TOWER 1": {"shape": "rect", "tall": 30.0}},
-         "stairs": [{"kind": "ramp", "points": [[5.5, 9.6], [6.5, 9.6], [6.5, 11.6], [5.5, 11.6]], "from": 0.0,
-                     "to": 0.5, "angle": 90.0},
-                    {"kind": "ramp", "points": [[16.5, 7.0], [17.5, 7.0], [17.5, 9.0], [16.5, 9.0]], "from": 0.0,
-                     "to": 2.0, "angle": 270.0},
-                    {"kind": "stair", "points": [[7.0, 17.0], [8.0, 17.0], [8.0, 19.0], [7.0, 19.0]], "from": 0.0,
-                     "to": 3.0, "angle": 0.0}]}
-MADE_ROWS = {"rows": [{"id": "dome", "anchor": "ground", "size": [10.0, 10.0, 6.0]},
-                      {"id": "lander", "anchor": "ground", "size": [8.0, 8.0, 8.0]},
-                      {"id": "tower", "anchor": "ground", "size": [30.0, 30.0, 30.0]}]}
-# settle@garage, checkout 68: split_runs laid seven 10 m pipes along x, items_inside clamped three into one corner at
-# [0, 0] and the holders stood them over one another on the north wall
-GARAGE_PIPES = {"w": 12.0, "d": 12.0, "outline": [[0.0, 0.0], [12.0, 0.0], [12.0, 12.0], [0.0, 12.0]],
-                "walls": [{"from": [0.0, 0.0], "to": [12.0, 0.0], "thick": 0.3},
-                          {"from": [12.0, 0.0], "to": [12.0, 12.0], "thick": 0.3},
-                          {"from": [12.0, 12.0], "to": [0.0, 12.0], "thick": 0.3},
-                          {"from": [0.0, 12.0], "to": [0.0, 0.0], "thick": 0.3}],
-                "items": [["PIPE 1", 0.0, 0.0, 10.0, 0.1, None, "item"], ["PIPE 2", 0.0, 0.0, 10.0, 0.1, None, "item"],
-                          ["PIPE 3", 0.0, 0.0, 10.0, 0.1, None, "item"], ["PIPE 4", 1.0, 11.9, 10.0, 0.1, None, "item"],
-                          ["PIPE 5", 0.5, 0.0, 10.0, 0.1, None, "item"], ["PIPE 6", 0.0, 0.0, 10.0, 0.1, None, "item"],
-                          ["DUCT 1", 1.0, 0.0, 8.0, 0.2, None, "item"], ["CRANE 1", 1.0, 0.5, 10.0, 1.0, None, "item"],
-                          ["CRANE 2", 1.0, 3.0, 10.0, 1.0, None, "item"]],
-                "rows": {**{f"PIPE {number}": ["pipe"] for number in range(1, 7)}, "DUCT 1": ["pipe"],
-                         "CRANE 1": ["crane"], "CRANE 2": ["crane"]},
-                "shapes": {**{f"PIPE {number}": {"shape": "rect", "tall": 0.1, "base": 0.0} for number in range(1, 7)},
-                           "PIPE 6": {"shape": "rect", "tall": 0.1, "base": 3.0},
-                           "DUCT 1": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2},
-                           "CRANE 1": {"shape": "rect", "tall": 1.0, "base": 6.0},
-                           "CRANE 2": {"shape": "rect", "tall": 1.0, "base": 6.0}}}
-GARAGE_PIPE_ROWS = {"rows": [{"id": "pipe", "anchor": "wall", "where": "walls", "size": [10.0, 0.1, 0.1], "count": 8},
-                             {"id": "crane", "anchor": "wall", "where": "top, spanning left to right",
-                              "size": [10.0, 1.0, 1.0], "count": 2}]}
-# settle@greenhouse, checkout 68: its upper floor at 3 m stood over its dome's 2.8 m eave, its reading's stairs row laid
-# two stairs objects on the shell's three flights, and planter beds made 2.5 m stood on the flights' feet
-EAVED = {"w": 10.0, "d": 10.0, "walls": [{"from": [0.0, 0.0], "to": [10.0, 0.0], "tall": 2.8}],
-         "levels": [{"name": "lower floor", "height": 0.0, "points": [[3, 3], [7, 3], [7, 7], [3, 7]]},
-                    {"name": "upper floor", "height": 3.0, "points": [[0, 0], [10, 0], [10, 10], [0, 10]]}],
-         "roofs": [{"kind": "dome", "points": [[0, 0], [10, 0], [10, 10], [0, 10]], "eave": 2.8, "top": 6.2}]}
-
-
-def eaved(low, roof):
-    """EAVED with its one level at `low` and its roof's own values `roof`."""
-    return {**EAVED, "levels": [{**EAVED["levels"][1], "height": low}], "roofs": [{**EAVED["roofs"][0], **roof}]}
-
-
-FLIGHTS = [{"kind": "stair", "points": [[0.2, 2.0], [1.2, 2.0], [1.2, 4.0], [0.2, 4.0]], "from": 0.0, "to": 3.0,
-            "angle": 270.0, "steps": 8}]
-STAIRS_WALLED = {"stairs": FLIGHTS, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 6.0, None, "item"],
-                                              ["STAIRCASE 1", 4.0, 0.0, 1.0, 3.0, None, "item"]],
-                 "rows": {"ON THE WALLS AND CEILING": ["outer_wall", "stairs"], "STAIRCASE 1": ["staircase"]},
-                 "shapes": {}}
-STAIR_ROWS = {"rows": [{"id": "outer_wall", "noun": "wall"}, {"id": "stairs", "noun": "stairs"},
-                       {"id": "staircase", "noun": "stairs"}, {"id": "stair_railing", "noun": "railing",
-                                                               "anchor": "on:staircase"}]}
-BEDS = {"w": 6.0, "d": 6.0, "stairs": FLIGHTS,
-        "levels": [{"name": "floor", "height": 0.0, "points": [[0, 0], [6, 0], [6, 4.6], [0, 4.6]]},
-                   {"name": "gallery", "height": 3.0, "points": [[0, 4.6], [6, 4.6], [6, 6], [0, 6]]}],
-        "items": [["CHAIR 1", 1.3, 4.3, 0.3, 0.3, None, "item"], ["BED 1", 2.5, 2.5, 0.5, 0.5, None, "item"],
-                  ["CART 1", 0.5, 3.8, 0.4, 0.4, None, "item"], ["HALL 1", 1.25, 1.0, 0.5, 0.5, None, "item"]],
-        "rows": {"CHAIR 1": ["chair"], "BED 1": ["bed"], "CART 1": ["cart"], "HALL 1": ["hall"]},
-        "shapes": {name: {"shape": "rect", "tall": 0.5, "base": 0.0} for name in ("CHAIR 1", "BED 1", "CART 1",
-                                                                                "HALL 1")}}
-BED_ROWS = {"rows": [{"id": "chair", "size": [1.0, 1.0, 0.9]}, {"id": "bed", "size": [5.0, 5.0, 0.5]},
-                     {"id": "cart", "size": [0.6, 0.6, 0.8]}, {"id": "hall", "size": [9.0, 9.0, 9.0]}]}
-BEDS_CLEAR = {**BEDS, "items": [["CHAIR 1", 1.625, 3.875, 0.3, 0.3, None, "item"], *BEDS["items"][1:]]}  # its chair
-# moved off the stairs. greenhouse's live plan (2026-11-09): eleven planter beds made up to 2.5 m on a lower floor that
-# holds six clear of the stairs
-BEDS_ROWED = {**BEDS_CLEAR, "items": [*BEDS_CLEAR["items"], ["BED 2", 3.6, 0.1, 0.5, 0.5, None, "item"]],
-              "rows": {**BEDS["rows"], "BED 2": ["bed"]}}
-POTTED_ROWS = {"rows": [*BED_ROWS["rows"], {"id": "pot", "anchor": "on:bed", "size": [0.3, 0.3, 0.3]}]}
-
-
-def potted_beds(others):
-    """greenhouse's live plan (2026-11-09): its plants 2 stood on planter bed 2, taken off its flights' feet, so 0.5 m
-    up over bare floor. BEDS_CLEAR with POT 1 on BED 1, and with `others` BED 2 with POT 2 on it: neither row's last."""
-    potted = copy.deepcopy(BEDS_CLEAR)
-    potted["items"].append(["POT 1", 2.6, 2.6, 0.3, 0.3, None, "item"])
-    if others:
-        potted["items"] += [["BED 2", 3.6, 0.1, 0.5, 0.5, None, "item"], ["POT 2", 3.7, 0.2, 0.3, 0.3, None, "item"]]
-    potted["rows"].update({"BED 2": ["bed"], "POT 1": ["pot"], "POT 2": ["pot"]})
-    potted["shapes"].update({name: {"shape": "rect", "tall": 0.3, "base": 0.5} for name in ("POT 1", "POT 2")})
-    return potted
-
-
-POTTED_ONE = potted_beds(False)
-# settle@airlock, env1 checkout 71: sandbags made 0.6 x 0.4 m, 6 on a 0.4 x 1.23 m box, parted by the assembly into
-# one another and its locker's suit; its ramp, laid by the holders up to its locker floor's edge, through a wall
-SACKS = {"w": 6.0, "d": 4.0, "walls": [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.1}],
-         "items": [["BAGS 1", 0.5, 0.5, 1.2, 0.5, None, "item"], ["BAGS 2", 3.5, 3.0, 1.3, 0.5, None, "item"],
-                   ["BAGS 3", 0.2, 2.6, 0.6, 1.2, None, "item"], ["SUIT 1", 2.0, 0.3, 0.5, 0.5, "S", "item"],
-                   ["BAGS 4", 3.0, 4.3, 1.2, 0.8, None, "item"]],
-         "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "SUIT 1": ["suit"],
-                  "BAGS 4": ["bags"]},
-         "shapes": {"BAGS 1": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 4},
-                    "BAGS 2": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2},
-                    "BAGS 3": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 9},
-                    "SUIT 1": {"shape": "rect", "tall": 1.8, "base": 0.0},
-                    "BAGS 4": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 3}}}
-SACK_ROWS = {"rows": [{"id": "bags", "anchor": "ground", "count": 18, "size": [0.6, 0.4, 0.2]},
-                      {"id": "suit", "anchor": "on:back_wall", "count": 1, "size": [0.6, 0.4, 1.8]}]}
-
-
-def bags_three_cut(plan):
-    """Whether BAGS 3's run of nine is cut to fewer the 4 m room holds end to end inside it, as long as they are as
-    made, the cut said in `dropped`."""
-    kept, box = plan["shapes"]["BAGS 3"]["count"], laid_boxes(plan)["BAGS 3"]
-    return kept < 9 and box[2:] == [0.4, round(0.6 * kept, 3)] and 0.0 <= box[1] and box[1] + box[3] <= 4.0 and \
-        plan["dropped"] == [{"item": "bags", "why": f"{9 - kept} fewer of it laid, its runs as long as their free "
-                                                    f"floor holds as made: {9 + kept} laid", "laid": 9 + kept}]
-
-
-# settle@storage, 2026-11-10: six 2 m cable bundles "round the ceiling edges" on one 2.68 m box, laid 0.45 m apart
-# in one another
-SQUARE_HALL = [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]]
-HUNG_HALL = {"w": 6.0, "d": 4.0, "outline": SQUARE_HALL,
-             "walls": [{"from": start, "to": end, "thick": 0.2}
-                       for start, end in zip(SQUARE_HALL, SQUARE_HALL[1:] + SQUARE_HALL[:1])],
-             "items": [["CABLES 1", 1.0, 0.1, 2.6, 0.1, None, "item"], ["LAMPS 1", 2.5, 1.5, 0.5, 0.5, None, "item"]],
-             "rows": {"CABLES 1": ["cables"], "LAMPS 1": ["lamps"]},
-             "shapes": {"CABLES 1": {"shape": "rect", "tall": 0.1, "base": 3.0, "count": 6},
-                        "LAMPS 1": {"shape": "rect", "tall": 0.2, "base": 2.8, "count": 3}}}
-HUNG_ROWS = {"rows": [{"id": "cables", "anchor": "ceiling", "count": 6, "size": [2.0, 0.1, 0.1]},
-                      {"id": "lamps", "anchor": "ceiling", "count": 3, "size": [0.4, 0.4, 0.2]}]}
-RAMP_ROW = {"id": "ramp", "name": "metal ramp", "noun": "ramp", "anchor": "ground", "count": 1, "size": [1.2, 2.0, 0.2]}
-
-
-def loft_ramp(walled_off):
-    """A 6 m room with a loft at 0.5 m and a ramp laid toward it; `walled_off` a wall between the ramp and the loft."""
-    return {"w": 6.0, "d": 6.0, "walls": [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.1}] + (
-                [{"from": [3.0, 0.0], "to": [3.0, 6.0], "thick": 0.1}] if walled_off else []),
-            "levels": [{"name": "loft", "height": 0.5, "points": [[4, 0], [6, 0], [6, 6], [4, 6]]}],
-            "items": [["RAMP 1", 1.0, 2.5, 1.0, 1.0, None, "item"]], "rows": {"RAMP 1": ["ramp"]},
-            "shapes": {"RAMP 1": {"shape": "rect", "tall": 0.3, "base": 0.0}}}
-
-
-LOFT_BAGGED = loft_ramp(False)  # a run clear of the ramp as drawn, in it where the holders lay it
-LOFT_BAGGED["items"].append(["BAGS 1", 2.2, 2.8, 1.2, 0.4, None, "item"])
-LOFT_BAGGED["rows"]["BAGS 1"] = ["bags"]
-LOFT_BAGGED["shapes"]["BAGS 1"] = {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2}
-# hub, 2026-11-11: 16 monitor screens on a 1.75 m console top, 19 on a 2.73 m bank, laid in one another
-MONITOR_ROWS = {"rows": [{"id": "desk", "anchor": "floor", "count": 1, "size": [2.0, 0.8, 0.8]},
-                         {"id": "monitor", "anchor": "floor", "count": 5, "size": [0.5, 0.1, 0.4]}]}
-
-
-def console_of(count):
-    """A 2 m desk with `count` monitors drawn 0.4 m apart over it, 0.8 m up: on its top."""
-    console = {"w": 6.0, "d": 4.0, "items": [["DESK 1", 1.0, 1.0, 2.0, 0.8, "S", "item"]],
-               "rows": {"DESK 1": ["desk"]}, "shapes": {"DESK 1": {"shape": "rect", "tall": 0.8, "base": 0.0}}}
-    for number in range(1, count + 1):
-        console["items"].append([f"MONITOR {number}", 0.6 + 0.4 * number, 1.3, 0.5, 0.1, "S", "item"])
-        console["rows"][f"MONITOR {number}"] = ["monitor"]
-        console["shapes"][f"MONITOR {number}"] = {"shape": "rect", "tall": 0.4, "base": 0.8}
-    return console
-
-
-FIXED = [  # (row, the plan writer's fix, its arguments, the answer as `holds` reads it, the plan given it after
-    # or None, and optionally what the same fix answers when given that plan again)
-    # a doorway is as big as its door (#128 D5: the shiplock's 0.9 m doorway for its 2 x 2 m vault door), its door
-    # row widened with it so the two agree; a doorway already bigger is never narrowed
-    ("a doorway made as big as its door", plan_fixes.doorways_fit, (VAULT, VAULT_ROWS),
-     [Containing("made as big as its door, 2 x 2.2 m"), Containing("its door row 0.9 m wide made its doorway's 2 m")],
-     {"openings": [{"wide": 2.0, "head": 2.2}], "doors": [["S", 2.0, 2.0, ANYTHING]]}, []),
-    ("a doorway bigger than its door is kept", plan_fixes.doorways_fit,
-     ({**VAULT, "openings": [{**VAULT["openings"][0], "wide": 3.0, "head": 2.5}]}, VAULT_ROWS), [], None),
-    ("a thing the creator planned is laid from his plan: its own size and nose round the same middle, its rooms "
-     "where his plan draws them", plan_writing.creator_laid, (ship_laid("E"),), [{"bridge", "hold"}, []],
-     Exactly(SHIP_ON_HIS_PLAN)),
-    ("a planned thing whose nose was not read is laid nose east, said", plan_writing.creator_laid, (ship_laid(None),),
-     [{"bridge", "hold"}, [{"words": "the way ship 1's nose points was not read: laid nose E"}]], None),
-    # a scene added in the app gets a door for each of its holder's openings in its walls: one into it leads back to
-    # the holder, one in a shared outer wall where that opening leads; the plan stage reads its height off its words
-    ("a scene added in the app takes its doors from its holder's openings into it", plan_writing.held_doors,
-     (BARE, "airlock", "hangar", [10.0, 5.0, 3.0, 2.0], OPENINGS), Exactly(HELD_DOORS), None),
-    ("the plan stage cuts those doors, each its height read off its words", record_plan.doors_of,
-     (HELD_DOORS, {"rows": []}), [{"side": "south", "leads": "hangar", "tall": 2.1, "cut": True},
-                                  {"side": "east", "leads": "outside", "tall": 2.4, "cut": True}], None),
-    ("a place with doors of its own keeps them", plan_writing.held_doors,
-     (OWN_DOORS, "airlock", "hangar", [10.0, 5.0, 3.0, 2.0], OPENINGS), THE_PLAN_ITSELF, None),
-    # 2026-10-30: placed_missing laid each missing copy at full size with no neighbour check (airlock's sandbags in each
-    # other by 5 to 25 cm); 2026-11-06: the engine room's railings piled 1 to 4 m over one another the same way. Only a
-    # row whose words say its things pile piles; railings laid alike all stand on the floor
-    ("a missing thing crossing one of its row whose words pile is piled on it, the other on the floor",
-     placed_where_shown, one_laid("sack", "a knee high pile"), placed_said("sack"), missing_placed("SACK", 0.2)),
-    ("missing things of a row whose words do not pile stand on the floor", placed_where_shown,
-     one_laid("railing", "waist high"), placed_said("railing"), missing_placed("RAILING", None)),
-    # 2026-11-15: camp's small rocks rock_6 and rock_10, read whole with no SAM box, stayed off its plan
-    ("a missing thing with no SAM box is placed where its Gemini region projects", placed_where_shown,
-     (stand_in_plan(), {"picture": [1000, 1000], "rows": [*ROWS, {"id": "rock", "count": 1, "size": [0.2, 0.1, 0.1],
-                                                                  "region": [500, 600, 600, 700]}]}),
-     ["barrel: 1 more placed where the concept shows them", "rock: 1 more placed where the concept shows them"],
-     {"items": [*stand_in_plan()["items"], ["BARREL 2", 1.5, 6.5, 1.0, 1.0, None, "item"],
-                ["ROCK 1", 6.4, 5.95, 0.2, 0.1, None, "item"]]}),
-    # 2026-11-16 (#128): hangar's floor hatch, read with no metres (Gemini gives a hole in the floor none), was placed
-    # by nothing; one on the floor takes the footprint its box projects to, one off the floor stays unplaced
-    ("a missing thing on the floor read with no metres is placed at the footprint its box projects to",
-     placed_where_shown,
-     (stand_in_plan(), {"picture": [1000, 1000], "rows": [
-         *ROWS, {"id": "floor_hatch", "count": 1, "size": None, "anchor": "floor", "region": [500, 600, 600, 700]},
-         {"id": "lamp", "count": 1, "size": None, "anchor": "ceiling", "region": [500, 600, 600, 700]}]}),
-     ["barrel: 1 more placed where the concept shows them",
-      "floor hatch: 1 more placed where the concept shows them"],
-     {"items": [*stand_in_plan()["items"], ["BARREL 2", 1.5, 6.5, 1.0, 1.0, None, "item"],
-                ["FLOOR HATCH 1", 6.0, 5.5, 1.0, 1.0, None, "item"]]}),
-    ("a box of four things drawn apart as one is a run gap", plan_checks.run_gaps, (TREES, TREE_ROW),
-     [{"kind": "arrangement", "item": "TREE 1"}], None),
-    ("a box of things drawn apart is split round its spread, each its own size and shape", plan_fixes.split_runs,
-     (TREES, TREE_ROW, None), Exactly(["tree 1: split into its 4 things"]), Exactly(TREES_SPLIT)),
-    ("split, it is no run gap", plan_checks.run_gaps, (TREES_SPLIT, TREE_ROW), [], None),
-    # 2026-10-26: the airlock's sandbags at its picture's foot were marked beyond and had no plan item, its rows of
-    # several things and its rows on the floor plates fitting no projection; the check lists them all the same
-    ("a row at the concept's foot marked beyond is a placed gap all the same", placed_gaps,
-     (AT_THE_FOOT, FOOT_ROWS, ["plates"]), ["sandbags"], None),
-    ("brought in from beyond, it is placed where its box's foot projects, at y = 10", plan_fixes.fixed,
-     (AT_THE_FOOT, FOOT_ROWS), [{"beyond": [], "items": [*FOOT_ITEMS, ["SANDBAGS 1", 4.5, 9.5, 1.0, 1.0, None, "item"]]},
-                                ["sandbags: at the concept's foot, so on this place's ground, not beyond it",
-                                 "sandbags: 1 more placed where the concept shows them"]], None),
-    # lab, 2026-11-02: a row marked beyond whose person spots all stand inside is in; one seen past a window stays
-    ("people on spots inside the outline are in the place, not beyond it", plans_pass.brought_inside, (SPOTS_BEYOND,),
-     [{"beyond": ["walker", "skyline"]}, ["person: stands on person spots inside this place, so in it, not beyond it"]],
-     None),
-    ("plans keep fixes people marked beyond inside again, free", unsettled_unparted, (SPOTS_BEYOND, NO_ROWS), True, None),
-    # stairwell, 2026-11-02: a writing older than stood_people, its man on the stairs on no spot and marked beyond
-    ("a people row a writing never stood is unstood", plans_pass.unstood, (UNSTOOD, MAN_ROW), ["person_man"], None),
-    ("plans keep fixes an unstood writing again, free", unsettled_unparted, (UNSTOOD, MAN_ROW), True, None),
-    ("an unstood row is stood where its item lies, the item no furniture", plans_pass.stood_again, (UNSTOOD, MAN_ROW),
-     [Exactly(STOOD), ["person man: stood as 1 person spot where the concept shows them"]], None),
-    ("stood, it is brought in from beyond", plans_pass.brought_inside, (STOOD,),
-     [{"beyond": ["skyline"]}, ["person man: stands on person spots inside this place, so in it, not beyond it"]], None),
-    ("a writing whose people all stand is left as it is", plans_pass.stood_again, (STOOD, MAN_ROW),
-     [Exactly(STOOD), []], None),
-    # the hangar's eight workers stood on none, four dealt view spots outside it (2026-11-04): no box projects and no
-    # thing is laid, so its count spreads over the free floor inside the outline, clear of the crate
-    ("a row with no box that projects and no thing laid is spread over the free floor", plans_pass.stood_again,
-     (HANGAR, WORKERS), [Exactly(SPREAD), ["worker blue: no box of it projects, so its 4 people spread over the free "
-                                          "floor"]], None),
-    ("spread, it is no unstood row", plans_pass.unstood, (SPREAD, WORKERS), [], None),
-    # 2026-11-05: the garage's 10 m pipes 5 m past its wall, the galley's spot at x 5.72 in 4.64 m, the Square's frame
-    # anchor at [60, 3] in its 29 m: an item moved the least way, a run longer than the side clipped first, a person
-    # spot to the nearest free floor with its footprint inside, a frame in another plan's metres dropped
-    ("plans keep fixes what a plan lays past its outline again, free", unsettled_unparted, (GARAGE, NO_ROWS), True,
-     None),
-    ("what the plan lays past its own outline is brought inside it", plan_fixes.kept_inside, (GARAGE, NO_ROWS),
-     ["its frame's anchor [60.0, 3.0] lay outside its 12 x 12 m plan, set in another plan's metres: dropped, the plan "
-      "stands unturned", "pipe 1: moved 5.00 m inside the plan's outline", "facade 1: clipped from 14 x 0.6 m to 12 x "
-      "0.6 m and moved 3.04 m inside the plan's outline", "a standing spot: its spot [7.0, 14.3] moved 2.53 m inside "
-      "the plan's outline"], Exactly(GARAGE_INSIDE)),
-    ("brought inside, nothing is brought in again", plan_fixes.kept_inside, (GARAGE_INSIDE, NO_ROWS), [], None),
-    # a Correct is kept only when it leaves fewer gaps, and what is left says why (stand-in Corrects: `correcting`)
-    ("a Correct that lays the missing stool is kept, the stool's gap its notes", functools.partial(
-        plan_fixes.settled, None, "shed"), (stand_in_plan(), STOOL_ROWS, None),
-     [{"gaps": [], "fixes": [*STOOD_TURNED_MOVED, "the prompt model corrected 1 gaps", STOOD_TURNED_MOVED[0]]},
-      [STOOL_ASKED]], None),
-    ("a Correct that changes nothing is not kept, the stool's gap left saying why", functools.partial(
-        plan_fixes.settled, None, "hut"), (stand_in_plan(), STOOL_ROWS, None),
-     [{"gaps": [{"words": f"stool: 1 in the concept, 0 on the plan: {plan_fixes.WHY['placed']}"}],
-       "fixes": STOOD_TURNED_MOVED}, [STOOL_ASKED]], None),
-    # the free fixes on the stand-in plan: people stood (a person no furniture), the missing barrel where its box
-    # projects, the desk facing the viewer as in the concept; no gap left
-    ("the stand-in plan has placed, people, overlap and arrangement gaps", gap_kinds, (stand_in_plan(), STAND_IN_ROWS),
-     Meets(lambda kinds: {"placed", "people", "overlap", "arrangement"} <= set(kinds)), None),
-    ("the free fixes stand people, place the missing, face the desk: four fixes and no gap left", plan_fixes.fixed,
-     (stand_in_plan(), STAND_IN_ROWS), [All(
-         {"people": Meets(lambda people: people[:2] == [[5.0, 3.0, 0.0, "worker"], [9.5, 9.5]])},
-         Meets(lambda plan: "WORKER 1" not in laid_boxes(plan)),
-         Meets(lambda plan: sorted(box[:2] for name, box in laid_boxes(plan).items() if name.startswith("BARREL"))
-               == [[1.5, 6.5], [7.5, 6.5]]),
-         Meets(lambda plan: next(item for item in plan["items"] if item[0] == "DESK 1")[5] == "S"),
-         Meets(lambda plan: plan_checks.checked(plan, STAND_IN_ROWS) == [])), Meets(lambda fixes: len(fixes) == 4)],
-     None),
-    ("a plan's doorways are its door rows: as wide as said, on the side said, leading where its lead does",
-     plan_fixes.doors_kept, (DOORED, {}), [SAID, SAID],
-     {"openings": [{"at": [5.0, 0.0], "wide": 1.0, "to": "yard"}, {"at": [0.0, 3.0], "wide": 0.9, "to": "sealed"},
-                   {"at": [10.0, 5.0], "wide": 1.0, "to": None}]}, []),
-    ("two door rows on one wall each take the doorway nearest where they stand along it, each by its own lead",
-     plan_fixes.doors_kept, (WALKWAY, {}), ANYTHING,
-     {"openings": [{"at": [2.0, 9.2], "to": "quarters"}, {"at": [2.0, 3.1], "to": "sealed"}]}),
-    ("a wall row re-counted is a gap like a floor row", plan_checks.count_gaps, (DOORED, {"rows": [PIPE_WALL]}, set()),
-     [{"words": "pipe: 3 in the concept, 1 on the plan"}], None),
-    # a run a wall or stair crosses keeps its longer side, its count cut with its length; one a wall runs along moves
-    # off it; a run on a wall is left there. 2026-11-09: the cut said nowhere, the next pass laid the five cut bags
-    # back; the cut is said with what it lays, so the row's count is no gap
-    ("runs are kept clear of the walls and stairs, the cut said with what it lays", plan_fixes.runs_kept_clear,
-     (RUNS, RUN_ROWS), [SAID, SAID, SAID], All(
-         Meets(lambda plan: [(item[1:5], plan["shapes"][item[0]]["count"]) for item in plan["items"]] == [
-             ([1.0, 2.0, 4.85, 0.5], 5), ([1.0, 9.15, 3.0, 0.5], 3), ([8.05, 6.0, 1.45, 0.5], 1),
-             ([5.9, 1.0, 0.2, 3.0], 2)]),
-         {"dropped": Exactly([{"item": "bags", "why": "4 fewer of it laid, its runs cut clear of the walls and "
-                                                      "stairs: 9 laid", "laid": 9}])},
-         Meets(lambda plan: plan_checks.count_gaps(plan, {"rows": [{**BAGS_ROW, "count": 13}]}, set()) == [])), []),
-    ("a single bag laid in its own row's run at its base is taken off; one piled on it, one touching its end and "
-     "another row's left", plan_fixes.run_doubles_dropped, (DOUBLED, {"rows": [BAGS_ROW, {"id": "crate"}]}),
-     Exactly(["bags: bags 2 taken off, 1 laid again in its own row's run, which lays its pieces there: 7 laid"]),
-     {"items": Meets(lambda items: [item[0] for item in items] == ["BAGS 1", "BAGS 3", "BAGS 4", "CRATE 1"]),
-      "dropped": Meets(lambda dropped: dropped[0]["laid"] == 7)}, []),
-    ("a nudge lands in no suit hung on the wall", plan_fixes.nudged, (CROWDED, CROWDED_ROWS), ANYTHING,
-     {"items": Meets(lambda items: items[1][1:3] == [3.6, 3.45])}),
-    ("a tunnel the concept shows entering a dome stays in it; a crate in the dome is nudged out", plan_fixes.nudged,
-     (JOINED, JOINED_ROWS), Exactly(["crate 1: moved 1.1 m out of dome 1"]),
-     {"items": Meets(lambda items: items[1][1:3] == [9.0, 5.0])}),
-    ("the room-sized wall panel blocks no nudge", plan_fixes.nudged,
-     (PANELLED, {"rows": [*CROWDED_ROWS["rows"], {"id": "wall_panel", "anchor": "on:hull"}]}), ANYTHING,
-     {"items": Meets(lambda items: items[1][1:3] == [3.6, 3.45])}),
-    # a stove is stood on the floor clear of both; a railing on a floor grating too, a sandbag pile stays piled; the
-    # longer pipe is cut off the corner one, a wall panel and a pipe at another height left, strings overhead and
-    # frames hung over each other on a wall left. Fixed once, the plan says nothing more
-    ("what is piled on its own row's though it does not pile is stood apart, runs on a wall parted",
-     plan_fixes.kept_apart, (KITCHEN, KITCHEN_ROWS), [SAID, SAID, SAID], All(
-         {"shapes": {"STOVE 2": {"base": 0.0}, "RAIL 2": {"base": 0.0}, "BAGS 2": {"base": 0.3},
-                     "STRING 2": {"base": 6.5}, "FRAME 2": {"base": 1.2}}},
-         Meets(lambda plan: laid_boxes(plan)["STOVE 2"][2:] == [0.8, 0.6] and not any(plan_fixes.overlapping(
-             [laid_boxes(plan)["STOVE 2"][0] - 0.04, laid_boxes(plan)["STOVE 2"][1] - 0.04, 0.88, 0.68],
-             laid_boxes(plan)[other]) for other in ("FRIDGE 1", "STOVE 1"))),
-         Meets(lambda plan: not plan_fixes.overlapping(laid_boxes(plan)["RAIL 2"], laid_boxes(plan)["RAIL 1"])),
-         Meets(lambda plan: holds(laid_boxes(plan), {
-             "BAGS 2": [1.2, 1.1, 1.0, 0.5], "STRING 2": [0.0, 4.1, 6.0, 0.2], "FRAME 2": [3.1, 4.8, 0.5, 0.1],
-             "PIPE 1": [1.45, 0.0, 3.55, 0.3], "PIPE 3": [4.6, 0.0, 0.6, 0.3], "PANEL 1": [0.0, 0.0, 6.0, 5.0]})),
-         NO_DROPPED), []),
-    ("a counted pipe cut off the corner one lays one fewer, said", plan_fixes.wall_runs_parted,
-     (KITCHEN_PIPED, KITCHEN_ROWS), ANYTHING,
-     {"shapes": {"PIPE 1": {"count": 7}}, "dropped": Exactly([{"item": "pipe", "why": "1 fewer of it laid, pipe 1 cut "
-                                                                      "clear of the piece at its corner: 9 laid",
-                                                               "laid": 9}])}),
-    ("plans keep fixes a writing fixed before kept_apart again, free", unsettled_unparted,
-     (KITCHEN_WRITTEN, KITCHEN_ROWS), True, None),
-    ("settled again, it lays and says what kept_apart does, and wants no more", functools.partial(
-        plans_pass.settled_again, None, "kitchen", parts=False), (KITCHEN_WRITTEN, KITCHEN_ROWS, None), [All(
-            Meets(lambda again: (again["items"], again["fixes"]) == kept_apart_of(KITCHEN, KITCHEN_ROWS)),
-            Meets(lambda again: not plans_pass.unsettled(again, KITCHEN_ROWS, parts=False))), ANYTHING], None),
-    ("a piled stove with no free floor is taken off, its row's count no gap", plan_fixes.unpiled,
-     (BOXED_IN, BOXED_ROWS),
-     Exactly(["stove: stove 2 taken off, 1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid"]),
-     All(Meets(lambda plan: "STOVE 2" not in laid_boxes(plan) and "STOVE 1" in laid_boxes(plan)),
-         {"dropped": Exactly([{"item": "stove", "why": "1 more of it than the place's free floor holds (0.8 x 0.6 m "
-                                                       "each): 1 laid", "laid": 1}])},
-         Meets(lambda plan: not plan_checks.count_gaps(plan, {"rows": [{"id": "stove", "count": 2}]}, set())))),
-    ("a fit that sends every concept box to the room's middle has three anchors", plan_checks.projection_anchors,
-     SYMMETRIC, Meets(lambda anchors: len(anchors) == 3), None),
-    ("such a fit is none", plan_fixes.projector, SYMMETRIC, None, None),
-    # the ramp moves out of the dome as made; the lander's ramp up into its lander as drawn stays; a building made
-    # past the plan's edge moves no stair
-    ("a ramp in a building made larger than drawn moves out of it", plan_fixes.kept_apart, (DOMED, MADE_ROWS),
-     Exactly(["ramp 1: moved 1.48 m out of dome 1 as it is made (10.0 m across, drawn 6.00 m)"]),
-     {"stairs": [{"points": Meets(lambda ramp: min(point[1] for point in ramp) >= 11.05
-                                  and [point[0] for point in ramp] == [5.5, 6.5, 6.5, 5.5])},
-                 {"points": [[16.5, 7.0], [17.5, 7.0], [17.5, 9.0], [16.5, 9.0]]},
-                 {"points": [[7.0, 17.0], [8.0, 17.0], [8.0, 19.0], [7.0, 19.0]]}]}, []),
-    # each pipe in one of its row's on a wall is laid along a wall none of its row lies on, the nearest first; one with
-    # no such wall left is more than the walls hold: taken off, said in `dropped`; the first on its wall, a pipe 3 m
-    # up, a counted run of pipes and a crane spanning the hall stay as laid
-    ("pipes laid in one another are six stacked gaps, each saying why", stacked_left, (GARAGE_PIPES, GARAGE_PIPE_ROWS),
-     Meets(lambda left: len(left) == 6 and left[0]["words"].endswith(plan_fixes.WHY["stacked"])), None),
-    ("a wall's runs of one row are spread along free walls, one past what the walls hold taken off",
-     plan_fixes.wall_runs_spread, (GARAGE_PIPES, GARAGE_PIPE_ROWS),
-     Exactly(["pipe 2: laid along the west wall, out of its row's others on its own",
-              "pipe 3: laid along the east wall, out of its row's others on its own",
-              "pipe: pipe 5 taken off, 1 more of it than the place's wall room holds (10 x 0.1 m each): 7 laid"]),
-     All(Meets(lambda plan: holds(laid_boxes(plan), {
-         "PIPE 1": [0.0, 0.0, 10.0, 0.1], "PIPE 2": [0.0, 1.0, 0.1, 10.0], "PIPE 3": [11.9, 1.0, 0.1, 10.0],
-         "PIPE 4": [1.0, 11.9, 10.0, 0.1], "PIPE 6": [0.0, 0.0, 10.0, 0.1], "DUCT 1": [1.0, 0.0, 8.0, 0.2],
-         "CRANE 2": [1.0, 3.0, 10.0, 1.0]}) and "PIPE 5" not in laid_boxes(plan)),
-         {"dropped": Exactly([{"item": "pipe", "laid": 7, "why": "1 more of it than the place's wall room holds "
-                                                                 "(10 x 0.1 m each): 7 laid"}])},
-         Meets(lambda plan: plan_fixes.stack_gaps(plan, GARAGE_PIPE_ROWS) == [])), []),
-    # the eave is raised a storey over that floor, its rise kept; a floor at 0.1 m or a vault on its floor left
-    ("an eave under an upper floor is raised a storey over it, its rise kept", plan_fixes.eaves_raised, (EAVED,),
-     Exactly(["dome roof 1: its eave raised from 2.8 m to 5.8 m, a storey (2.8 m) over its upper floor at 3 m"]),
-     {"roofs": [{"top": 9.2}]}),
-    ("a floor at 0.1 m raises no eave", plan_fixes.eaves_raised, (eaved(0.1, {"kind": "dome", "eave": 2.5,
-                                                                             "top": 3.5}),), [],
-     {"roofs": [{"eave": 2.5}]}),
-    ("a vault on its floor is left", plan_fixes.eaves_raised, (eaved(0.0, {"kind": "vault", "eave": 0.0, "top": 3.2}),),
-     [], {"roofs": [{"eave": 0.0}]}),
-    # the stairs row taken off where the plan draws flights, a staircase its railing stands on and a railing kept
-    ("a plan with no flights keeps its stairs rows", plan_fixes.stair_rows_dropped,
-     ({**STAIRS_WALLED, "stairs": []}, STAIR_ROWS), [], None),
-    ("the stairs row is taken off where the shell builds the plan's flights", plan_fixes.stair_rows_dropped,
-     (STAIRS_WALLED, STAIR_ROWS), Exactly(["stairs: taken off, the shell builds the plan's 1 flights"]),
-     {"rows": Exactly({"ON THE WALLS AND CEILING": ["outer_wall"], "STAIRCASE 1": ["staircase"]}),
-      "dropped": Exactly([{"item": "stairs", "why": "the shell builds the plan's 1 flights"}])}),
-    # a thing on a flight as made moved off it on its own level, one with no such floor left a gap, one drawn on the
-    # flight (a cart on its ramp) and one made past the plan (a hall's face) left
-    ("a thing on a flight as made moves off it on its own level; the rest left, the bed a flight gap",
-     plan_fixes.off_flights, (BEDS, BED_ROWS), Meets(lambda moved: len(moved) == 1
-                                                     and moved[0].startswith("chair 1: moved")), All(
-         Meets(lambda plan: (lambda chair: chair[1] + 0.5 <= 4.6 and not plan_fixes.crossing(numpy.array(
-             [[chair[0] - 0.5, chair[1] - 0.5], [chair[0] + 0.5, chair[1] - 0.5], [chair[0] + 0.5, chair[1] + 0.5],
-              [chair[0] - 0.5, chair[1] + 0.5]]), numpy.asarray(FLIGHTS[0]["points"])))(
-             [laid_boxes(plan)["CHAIR 1"][0] + 0.15, laid_boxes(plan)["CHAIR 1"][1] + 0.15])),
-         Meets(lambda plan: holds(laid_boxes(plan), {"BED 1": [2.5, 2.5, 0.5, 0.5], "CART 1": [0.5, 3.8, 0.4, 0.4],
-                                                     "HALL 1": [1.25, 1.0, 0.5, 0.5]})),
-         Meets(lambda plan: [gap["item"] for gap in flight_gaps_left(plan, BED_ROWS)] == ["BED 1"] and
-               flight_gaps_left(plan, BED_ROWS)[0]["words"].endswith(plan_fixes.WHY["flight"])))),
-    ("a bed with no such floor whose row lays another is taken off, said in `dropped`", plan_fixes.off_flights,
-     (BEDS_ROWED, BED_ROWS), Exactly(["bed: bed 1 taken off, 1 more of it than its level's floor clear of the stairs "
-                                      "holds (up to 5 x 5 m as made each): 1 laid"]), All(
-         {"items": Meets(lambda items: [item[0] for item in items] == ["CHAIR 1", "CART 1", "HALL 1", "BED 2"]),
-          "dropped": Meets(lambda dropped: dropped[0]["laid"] == 1)},
-         Meets(lambda plan: plan_fixes.flight_gaps(plan, BED_ROWS) == []))),
-    ("what the plan places on a thing taken off goes too, its row laying another, said", plan_fixes.off_flights,
-     (potted_beds(True), POTTED_ROWS), Meets(lambda said: said[-1] == "pot: pot 1 taken off, its holder was dropped: "
-                                                                      "1 laid"),
-     All(Meets(lambda plan: "POT 1" not in laid_boxes(plan) and laid_boxes(plan)["POT 2"] == [3.7, 0.2, 0.3, 0.3]),
-         {"dropped": Meets(lambda dropped: dropped[-1] == {"item": "pot", "why": "its holder was dropped: 1 laid",
-                                                           "laid": 1})})),
-    ("a row's last on a thing taken off stays", plan_fixes.surplus_dropped,
-     (POTTED_ONE, POTTED_ROWS, [POTTED_ONE["items"][1]]),
-     Meets(lambda said: said[-1].startswith("bed: bed 1 taken off")),
-     All(Meets(lambda plan: laid_boxes(plan)["POT 1"] == [2.6, 2.6, 0.3, 0.3]),
-         {"dropped": Meets(lambda dropped: [entry["item"] for entry in dropped] == ["bed"])})),
-    # a run is laid as long as its pieces as made, clear of a suit standing low by a wall, its count what a free floor
-    # within reach holds, said in `dropped`; a run that holds its pieces is left
-    ("runs are laid as long as their pieces as made, clear of what stands by them, cut to their free floor",
-     plan_fixes.runs_laid_out, (SACKS, SACK_ROWS), [SAID, SAID, SAID], All(
-         {"shapes": {"BAGS 1": {"count": 4}, "BAGS 2": {"count": 2}, "BAGS 4": {"count": 3}}},
-         Meets(lambda plan: laid_boxes(plan)["BAGS 2"] == [3.5, 3.0, 1.3, 0.5]),  # it holds its two
-         Meets(lambda plan: laid_boxes(plan)["BAGS 1"][2:] == [2.4, 0.4] and not plan_fixes.overlapping(
-             laid_boxes(plan)["BAGS 1"], laid_boxes(plan)["SUIT 1"])),  # off the suit, as long as its four as made
-         Meets(bags_three_cut),
-         Meets(lambda plan: laid_boxes(plan)["BAGS 4"][1] >= 4.0)), []),  # drawn past the outline, kept past it
-    # a run hung from the roof is hung end to end along the walls under it, nearest first, as many a wall as its face
-    # holds; lamps hung in a cluster are no run and stay
-    ("a run hung from the roof is hung along the walls under it", plan_fixes.hung_runs_laid_out,
-     (HUNG_HALL, HUNG_ROWS), [SAID], All(
-         Meets(lambda plan: {item[0]: (item[1:5], plan["shapes"][item[0]].get("count")) for item in plan["items"]} == {
-             "CABLES 1": ([1.0, 0.1, 4.0, 0.1], 2), "LAMPS 1": ([2.5, 1.5, 0.5, 0.5], 3),
-             "CABLES 2": ([0.1, 1.0, 0.1, 2.0], 1), "CABLES 3": ([5.8, 1.0, 0.1, 2.0], 1),
-             "CABLES 4": ([1.0, 3.8, 4.0, 0.1], 2)}), NO_DROPPED), []),
-    # a ramp laid through a wall is taken off, one laid clear of the walls left
-    ("a ramp the holders lay up through a wall is taken off", plan_fixes.ramps_walled,
-     (loft_ramp(True), {"rows": [RAMP_ROW]}),
-     Exactly(["ramp: ramp 1 taken off, 1 laid up to a raised level through a wall: 0 laid"]), {"items": []}),
-    ("a ramp laid clear of the walls is left", plan_fixes.ramps_walled, (loft_ramp(False), {"rows": [RAMP_ROW]}), [],
-     {"items": [ANYTHING]}),
-    ("a run clear of the ramp as drawn, in it where the holders lay it, is moved out of it", plan_fixes.runs_laid_out,
-     (LOFT_BAGGED, {"rows": [RAMP_ROW, SACK_ROWS["rows"][0]]}), [SAID],
-     {"items": Meets(lambda items: not plan_fixes.overlapping(items[1][1:5], [2.0, 2.4, 2.0, 1.2]))}),
-    # the things of a row stood on a top are cut to those that stand side by side along it as made, the nearest its
-    # middle kept, the rest said in `dropped`; as many as fit are all kept
-    ("five 0.5 m monitors on a 2 m desk are cut to the three nearest its middle", plan_fixes.tops_cut,
-     (console_of(5), MONITOR_ROWS), ANYTHING,
-     {"items": Meets(lambda items: [item[0] for item in items][1:] == ["MONITOR 2", "MONITOR 3", "MONITOR 4"]),
-      "dropped": Exactly([{"item": "monitor", "why": "2 more of it than its holders' tops hold side by side as made: "
-                                                    "3 laid", "laid": 3}])}, []),
-    ("three that fit are all kept", plan_fixes.tops_cut, (console_of(3), MONITOR_ROWS), [], All(
-        {"items": Meets(lambda items: [item[0] for item in items][1:] == ["MONITOR 1", "MONITOR 2", "MONITOR 3"])},
-        NO_DROPPED), []),
-]
-

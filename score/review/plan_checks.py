@@ -1,4 +1,4 @@
-"""The free checks on a written plan (CONTEXT.md "plan"; score/review/plan_writing.py), each failure a named gap of the
+"""The free checks on a plan (CONTEXT.md "plan"; score/review/plans.py), each failure a named gap of the
 plan, never guessed past: every inventory row placed once (as many items as it counts), every item inside the
 outline, no two items on the floor overlapping (a row on another row, and a row on a wall or the ceiling, excepted),
 every door and standing spot reachable on foot from the others, and the inside places tiling the outline without
@@ -554,7 +554,7 @@ def shape_off(wide, deep, shape):
 
 
 def shape_gaps(plan):
-    """A gap when the plan of a held place with a creator's shape (its `held`, stamped by plan_writing.fitted) has an
+    """A gap when the plan of a held place with a creator's shape (its `held`, stamped by the plan writer, #128 wiped) has an
     outline more than SHAPE_SLACK off it on an axis and was not fitted to it."""
     held = plan.get("held")
     if not held or held.get("fitted") or shape_off(plan["w"], plan["d"], held) <= SHAPE_SLACK:

@@ -707,16 +707,11 @@ class LocalSource:
                 for node, entries in found.items() if entries}
 
     def inventory_readings(self, places):
-        """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw
-        (with `cost`, what it and the readings it was read again from took, and `structural`, the ids of its rows
-        that are the place's structure or ground) and what every reading cost."""
+        """{inventory_readings}: each place's kept reading of its picked draw (score/review/reading.py; readings are
+        made no more, #128)."""
         from score.review import reading
         found = {place: reading.reading_of(self.store, place) for place in places}
-        return {"inventory_readings": {place: {**read, "cost": reading.cost(self.store, read),
-                                               "structural": [row["id"] for row in read["inventory"]["rows"]
-                                                              if reading.structural(row)]}
-                                       for place, read in found.items() if read},
-                "inventory_spend": reading.spent(self.store, places)}
+        return {"inventory_readings": {place: read for place, read in found.items() if read}}
 
     def concept_wording(self, node):
         """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, why it cannot be
@@ -731,10 +726,9 @@ class LocalSource:
                                        for name, sha in concepts.sent_picks(self.store, node).items()])
 
     def plan_review(self):
-        """{plan_reviews, plan_named, plan_revise_euros, plan_write_euros, plan_automatic, plan_spend} of the plan
-        review (score/review/plans.py, plan_writing.py): the plan each place or shell shows once its scene inventory
-        counts, the inside places he named, a writing's price, whether it runs on its own and what all cost."""
-        from score.review import plan_writing, plans
+        """{plan_reviews, plan_named, plan_revise_euros} of the plan review (score/review/plans.py): the plan each
+        place or shell shows once its scene inventory counts and the inside places he named."""
+        from score.review import plans
         found, named = {}, {}
         for node in self.design_nodes():
             if names := plans.named(self.store, node):
@@ -742,11 +736,8 @@ class LocalSource:
             shown = plans.current(self.store, node)
             if shown is None:
                 continue
-            found[node] = PlanReview(**shown, drawing=self.plan_drawing_ref(node), laid=self.laid_on_plan(node, shown["plan"]))
-        nodes = self.design_nodes()
-        return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros(),
-                "plan_write_euros": plan_writing.price(self.store), "plan_automatic": plan_writing.AUTOMATIC,
-                "plan_spend": plan_writing.spent(self.store, nodes)}
+            found[node] = PlanReview(**shown, laid=self.laid_on_plan(node, shown["plan"]))
+        return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros()}
 
     def laid_on_plan(self, node, plan):
         """What the place's accepted assembly laid (its LAID file, assembly/made_waiting.py), each object's box in the
@@ -766,17 +757,6 @@ class LocalSource:
                 [round(float(max(spot[axis] for spot in spots)), 3) for axis in (0, 1)]
         return [{"name": entry["name"], "row": entry["row"], "box": on_plan(entry["low"], entry["high"]),
                  "fitted": fitted.get(entry["name"])} for entry in laid.get("objects", [])]
-
-    def plan_drawing_ref(self, node):
-        """The FileRef of the top-down drawing `node`'s written plan was measured from (score/review/plan_drawing.py),
-        None while none is written or its bytes are not in the store's blobs."""
-        from score.review import plan_writing
-        sha = (plan_writing.written_of(self.store, node) or {}).get("drawing")
-        blob = self.blob_path(sha) if sha else None
-        if not blob or not blob.is_file():
-            return None
-        self.known.add(sha, f"{node}-plan-drawing.png", blob)
-        return file_ref(sha, f"{node}-plan-drawing.png", blob.stat().st_size)
 
     def design_nodes(self):
         """Every place and shell a concept is designed for: the environment concept's places (never a stage line that is no

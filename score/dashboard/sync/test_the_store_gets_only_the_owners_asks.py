@@ -14,10 +14,6 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - client.sync_pass: the basket not made -> the test
 - client.sync_pass: the tree refusal ignored -> the test
 - client.tree_refusal: uncommitted changes ignored -> the test
-- client.readings_fixed: `reading_fixes.said(...)` -> `str(...)` (its words never said) ->
-  the test
-- client.asked_of_readings: the Stop everything check -> `if False:` -> the test
-- client.light_read: asks the unparted places -> the test
 - client.step_run: the group not ended -> the test
 - review/web.as_owner_deciding: `with markers_lifted():` -> `with contextlib.nullcontext():` ->
   the test
@@ -70,9 +66,6 @@ def offline(monkeypatch):
     kept as lines, so no test pass reads the real library, hands to it, fetches a picture, asks a model, removes a copy
     or writes a plan where the plan stage reads it."""
     monkeypatch.setattr(client, "plans_kept", lambda: "plans for the plan stage: test")
-    monkeypatch.setattr(client, "readings_fixed", lambda store_root: "readings: test")
-    monkeypatch.setattr(client, "parts_read", lambda store_root: "parts: test")
-    monkeypatch.setattr(client, "light_read", lambda store_root: "light: test")
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
@@ -119,7 +112,7 @@ def test_the_store_gets_only_the_owners_asks(owner_books, tmp_path, settings, mo
           for kind in ("stop", "month")],
         *[(f"{kind} naming a path", kind, "joey", payload, False, "refused", "is not a scene name")
           for kind, payload in (("concept-pick", {"place": "../../accepts", "sha": None}),
-                                ("plan-write", {"place": "a/b", "euros": 0.0}),
+                                ("plan-named", {"place": "a/b", "names": []}),
                                 ("environment-save", {"world": "..", "concept": {}, "locked": False}))],
         ("a library address not in it", "library", "joey", {"action": "withdraw", "addresses": [
             "--upload-pack=touch x"]}, False, "refused", "is not in the library"),
@@ -315,39 +308,7 @@ def test_the_store_gets_only_the_owners_asks(owner_books, tmp_path, settings, mo
         assert why in str(refused.value), (decision, target, given, str(refused.value))
 
 
-    # the pass's own steps, on the same world: no reading is fixed; the parts and the light of each locked place are
-    # asked once (one call a place, under the reading's clearance) and never while Stop everything holds; a step's
-    # leftovers end with it, and a step out of time is ended and says so
-    from score.review import reading
-    from score.store import Store
-    monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
-    monkeypatch.setattr("score.adapters.compute.books_refusal", lambda: None)
-    monkeypatch.delenv("SCORE_BENCHMARK_GRANT", raising=False)
-    assert client.readings_fixed(world.source.store_root) == "readings: none to fix"
-    store = Store.in_folder(world.source.store_root)
-    unlit = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
-    asks = [  # (the pass's step, its words, the places it leaves unread, an answer of one row, its scene, euros a call)
-        (client.parts_read, "parts", reading.unparted, "object", None, 0.05),
-        (client.light_read, "light", reading.unlit, unlit, {"daylight": True, "unseen": False, "unseen_colour": ""},
-         0.04),
-    ]
-    for step, label, unread, row_answer, scene, euros in asks:
-        places, asked = unread(store, ["alpha", "beta"]), []
-        assert places, label
-
-        def ask(store, place, folder, row_answer=row_answer, scene=scene, euros=euros, asked=asked):
-            asked.append(place)
-            rows = {row["id"]: row_answer for row in reading.reading_of(store, place)["inventory"]["rows"]}
-            return (rows if scene is None else {"rows": rows, "scene": scene}), euros, 1.0
-        monkeypatch.setattr(client, "free_only_followed", lambda: True)
-        assert step(world.source.store_root, ask=None) == (
-            f"{label} not read for {len(places)} places: refused, Stop everything holds (free only)")
-        monkeypatch.setattr(client, "free_only_followed", lambda: False)
-        assert step(world.source.store_root, ask=ask) == f"{label} read: {len(places)} places, " \
-            f"EUR {euros * len(places):.2f}"
-        assert sorted(asked) == sorted(places) and unread(store, places) == [], label
-        assert step(world.source.store_root, ask=ask) == f"{label}: none missing" and len(asked) == len(places), label
-        assert scene is None or reading.concept_light(store, places[0])["scene"] == scene
+    # the pass's own steps: a step's leftovers end with it, and a step out of time is ended and says so
     settings.SCORE_REPO = tmp_path
     # the leftover lets go of the step's output, so only the group's end can stop it
     leftover = ("import subprocess, time; print(subprocess.Popen(['sleep', '60'], stdout=subprocess.DEVNULL, "

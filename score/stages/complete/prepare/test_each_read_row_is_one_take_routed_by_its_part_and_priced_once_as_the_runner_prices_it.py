@@ -478,17 +478,17 @@ def a_read_store(place, sha, rows, concept=None, picture=None):
 
 
 def written(store, place):
-    """The place's plan written from its reading (plan_writing's record): its design done, so it is a place of the
-    build (stages.places: no plan is filed in the data since 2026-10-21)."""
-    from score.review import concepts, plan_writing, plans
+    """The place's plan written from its reading (a kept writing, plans.written): its design done, so it is a place of
+    the build (stages.places: no plan is filed in the data since 2026-10-21)."""
+    from score.review import concepts, plans, reading
     shown = plans.current(store, place)
     if shown is None:
         return
     plan = shown["plan"]  # the rough plan, less the items of rows its reading gave no size (no size of its own)
     unsized = {gap["row"] for gap in plan.get("gaps", []) if gap["kind"] == "size"}
     plan = {**plan, "items": [item for item in plan["items"] if not set(plan["rows"].get(item[0], [])) & unsized]}
-    plan_writing.kept(store, {"place": place, "concept": concepts.picked(store, place),
-                              "reading": plan_writing.reading_at(store, place), "method": plan_writing.METHOD,
+    plans.writing_kept(store, {"place": place, "concept": concepts.picked(store, place),
+                              "reading": reading.reading_of(store, place)["at"], "method": plans.WRITTEN_METHOD,
                               "by": "test", "at": concepts.now(), "plan": plan})
 
 
@@ -769,7 +769,7 @@ def test_a_row_is_routed_by_its_part_and_the_plan_lays_only_the_shell_it_draws()
 
 def test_a_row_whose_part_is_not_read_is_an_input_gap_until_its_parts_are_asked():
     """A reading answered before `part` was asked: each row with no part has no route and its take is an input gap
-    (never bought, never guessed a prop) until reading.parted asks them; its rows, boxes and plan stay as they were."""
+    (never bought, never guessed a prop) until a parts record gives them; its rows, boxes and plan stay as they were."""
     from score.review import reading
     store = a_read_store("wreck", "d" * 64, [{**a_read_row("crate", "generate", "crate"), "size": [0.5, 0.4, 0.4]}])
     record = reading.reading_of(store, "wreck")
@@ -777,13 +777,12 @@ def test_a_row_whose_part_is_not_read_is_an_input_gap_until_its_parts_are_asked(
     store.objects.path(next(iter(store.objects.keys("inventory-readings/wreck/")))).write_text(json.dumps(record))
     found, waiting = groups.current(store, ["wreck"])
     assert waiting == [] and found["wreck"]["rows"][0]["route"] is None
-    assert reading.unparted(store, ["wreck"]) == ["wreck"]
     runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     made = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
     [take] = [take for take in made["takes"] if take["place"] == "wreck"]
     assert take["status"] == "input gap" and contract.PART_UNREAD in take["inputs"], take
     store.write_once("inventory-parts/wreck/1.json", {"place": "wreck", "reading": record["at"],
-                                                       "parts": {"crate": "object"}})  # as reading.parted keeps it
+                                                       "parts": {"crate": "object"}})  # as the reading's parts were kept
     found, waiting = groups.current(store, ["wreck"])
     assert waiting == [] and found["wreck"]["rows"][0]["route"] == "prop"
 
@@ -983,10 +982,10 @@ class Locked:
 
     def written(self, place, at, reading_at, method=None):
         """A plan of `place` written at `at` from its reading made at `reading_at` (today's METHOD unless `method`)."""
-        from score.review import plan_writing
-        self.store.write_once(f"plan-writings/{place}/{at}.json", {
+        from score.review import plans
+        self.store.write_once(f"{plans.WRITTEN}/{place}/{at}.json", {
             "place": place, "concept": self.SHA, "reading": reading_at, "at": at, "by": "runner",
-            "method": method or plan_writing.METHOD, "plan": {"w": 4, "d": 3, "items": []}})
+            "method": method or plans.WRITTEN_METHOD, "plan": {"w": 4, "d": 3, "items": []}})
 
     def edited(self, place, at):
         """His edit of `place`'s plan made at `at` on its lock."""

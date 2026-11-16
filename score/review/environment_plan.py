@@ -12,9 +12,8 @@ A site's footprint, size and blocks are its top scene's own plan, the one its pl
 one exists, is registered to that plan (stages/rough_model, rough-align), so the plan stays the one source.
 
 It is made like a place's plan: what data already says is worked out free (`facts_of`: each site's place and its plan's shape,
-the fall of its ground's curve round it); Gemini 3.1 Pro writes the rest (`write`: one direct call through the plan
-writer's own call, score/review/plan_writing.py, run without asking under the owner's standing allowance of
-2026-10-21 for plan writing); the code then checks it, keeps the fixed facts over the answer, and works out the
+the fall of its ground's curve round it); Gemini 3.1 Pro writes the rest (`write`: one direct call, `asked`, run
+without asking under the owner's standing allowance of 2026-10-21 for plan writing, `writing_cleared`); the code then checks it, keeps the fixed facts over the answer, and works out the
 distances and what each site sees overhead (`settled`). Until it is written the plan shown is the free one
 (`derived`). Two sites whose footprints would stand closer than CLEAR_M are parted on every settle (`cleared`), the
 setting itself untouched; a spot the creator gave a site himself is never moved. He fixes it on its plan page (a site's scene time), his edit kept as his own and settled again;
@@ -35,13 +34,19 @@ import argparse
 import datetime
 import json
 import math
+import statistics
 import sys
+import time
+import urllib.error
 
 from score.review import concepts, overhead, setting as settings
 from score.store import stamp_key
 
 AREA = "environment-plans"
 METHOD = 2  # 2: sites placed by the environment concept's setting, at true sizes
+CALLER = "plan-writing"  # its call's name on the Google ledger (compute.GOOGLE_CALLERS' plan writing)
+TIMEOUT = 600
+ESTIMATE = 0.05  # euros of one writing until one is measured (google_spend's Gemini 3.1 Pro estimate)
 NOTE_MOST = 300  # characters of a written ground's words
 LOOK_MOST = 400  # characters of a site's look the writing is told
 ITEMS_MOST = 30  # a site's plan items the writing is told
@@ -588,20 +593,65 @@ def asked_body(facts):
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": PLAN}}
 
 
-def write(store, by, world=None, ask=None, clear=None):
-    """Write the environment's plan: one Gemini call through the plan writer (plan_writing.asked), cleared as a plan
-    writing under the owner's standing allowance; the record kept (refused when the answer is no plan)."""
+def asked(body):
+    """One Gemini call (google_spend, on its ledger, never cached); (response, seconds)."""
+    _, google_spend, secret_store = concepts.tools()
+    began = time.time()
+    try:
+        response = google_spend.generate(concepts.PROMPT_MODEL, body, secret_store.secret("gemini-api-key"), TIMEOUT,
+                                         caller=CALLER)
+    except urllib.error.HTTPError as error:
+        raise concepts.Refused(f"the model refused ({error.code})") from error
+    return response, round(time.time() - began, 1)
+
+
+def answer_text(response):
+    """The finished answer's text (google_spend.answer_text); concepts.Refused naming the finish reason when the model
+    did not finish it (cut at the output limit, blocked), never the JSON error a cut answer parses into."""
+    _, google_spend, _ = concepts.tools()
+    try:
+        return google_spend.answer_text(response)
+    except google_spend.Unfinished as unfinished:
+        raise concepts.Refused(str(unfinished)) from unfinished
+
+
+def call_euros(response):
+    """What one answered call cost, as google_spend wrote it on its ledger."""
+    _, google_spend, _ = concepts.tools()
+    usage = response.get("usageMetadata", {})
+    tier = usage.get("serviceTier") or response.get("serviceTier")
+    return round(google_spend.dollars(concepts.PROMPT_MODEL, usage) * google_spend.TIER_PRICE.get(str(tier).lower(), 1.0)
+                 * google_spend.EUROS_PER_DOLLAR, 6)
+
+
+def price(store=None):
+    """The euros one writing is priced at: the median measured writing of today's METHOD, else ESTIMATE, rounded up
+    to the cent."""
+    found = [record["euros"] for record in (store.read(key) for key in concepts.keys_under(store, f"{AREA}/"))
+             if record.get("method") == METHOD and "euros" in record] if store else []
+    return math.ceil(round((statistics.median(found) if found else ESTIMATE) * 100, 6)) / 100
+
+
+def writing_cleared(store, places, euros, clear=None):
+    """The spend block one writing runs in: under the owner's standing allowance for plan writing
+    (compute.reading_clearance's PLAN_WRITING node)."""
     from score.adapters import compute
-    from score.review import plan_writing, reading
+    return compute.spending((clear or compute.reading_clearance)(store, places, euros, node=compute.PLAN_WRITING))
+
+
+def write(store, by, world=None, ask=None, clear=None):
+    """Write the environment's plan: one Gemini call (`asked`), cleared as a plan writing under the owner's standing
+    allowance (`writing_cleared`); the record kept (refused when the answer is no plan)."""
+    from score.adapters import compute
     world = world or world_name()
     facts = facts_of(store, world)
-    with plan_writing.cleared(store, [f"environment-{world}"], plan_writing.price(store), clear):
+    with writing_cleared(store, [f"environment-{world}"], price(store), clear):
         compute.require_cleared("a plan writing", store)
-        response, seconds = (ask or plan_writing.asked)(asked_body(facts))
+        response, seconds = (ask or asked)(asked_body(facts))
     record = {"world": world, "at": concepts.now(), "by": by, "method": METHOD, "environment": concept_version(store),
-              "euros": plan_writing.call_euros(response), "seconds": seconds}
+              "euros": call_euros(response), "seconds": seconds}
     try:
-        record["plan"] = plan_from(json.loads(reading.answer_text(response)), derived(store, world), store)
+        record["plan"] = plan_from(json.loads(answer_text(response)), derived(store, world), store)
     except (ValueError, TypeError, AttributeError) as wrong:
         record["refused"] = f"the plan answer is no plan: {str(wrong)[:200]}"
     store.write_once(f"{AREA}/{world}/writings/{stamp_key(record['at'])}.json", record)

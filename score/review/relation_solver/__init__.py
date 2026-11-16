@@ -1,10 +1,10 @@
-"""The plan fixes' fallback for crowded plans (`parted`): the floor things the free fixes left standing in each other
-(plan_checks.overlap_gaps after plan_fixes.nudged: a pile of sandbags) parted by IsaacLab-Arena's relation solver,
+"""Crowded plans parted (`parted`; score_lib's room_layout algorithm): the floor things standing in each other
+(plan_checks.overlap_gaps: a pile of sandbags) parted by IsaacLab-Arena's relation solver,
 ported to numpy (`_solver.py`, Apache-2.0, its LICENSE beside it), free on the CPU and seeded. Each thing's plan spot
 is a soft target, the walls and every other floor thing are box obstacles, and the outline's box holds them; a thing
 of the place's own shell (its `structure`) never moves. The solved plan is kept only when today's checks find fewer
-overlaps and no more gaps of any other kind, and what still overlaps stays a gap. Called from plans_pass only, so it
-is in no stage's code key.
+overlaps and no more gaps of any other kind, and what still overlaps stays a gap. No stage imports the package, so
+it is in no stage's code key (the plan writer's pass that called it was wiped, #128; the library keeps it).
 
     plan, fixes = relation_solver.parted(plan, inventory)   # fixes [] and the plan as given when nothing was parted
 """
@@ -14,11 +14,12 @@ import math
 
 import numpy
 
-from score.review import plan_checks, plan_fixes
+from score.review import plan_checks
 from score.review.relation_solver import _solver
 
 SOFT = 1.0  # the pull back to a thing's plan spot a metre off: weaker than the outline's (100) and an overlap's
 PIECE = 0.5  # metres: a wall is boxed in pieces this long at most, so a slanted or curved one stays thin
+MARGIN = 0.05  # metres left between two things parted
 NEIGHBOURS = (0.0, 1.0)  # metres round the things in each other whose floor things move too, tried in turn
 SEED = 0
 
@@ -83,7 +84,7 @@ def problem_of(plan, inventory, moving):
                            [*outline.min(axis=0), *outline.max(axis=0)],
                            [item_box(item) for item, _ in still] + walls,
                            numpy.asarray(avoids).reshape(len(moving), len(still) + len(walls)), apart,
-                           plan_fixes.MARGIN)
+                           MARGIN)
 
 
 def moved(plan, inventory, names):

@@ -271,7 +271,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     (hangar's 8 pipes on 7 items: its first laid 2 at its one spot); a door row on the walls item and on an item of its
     own has no walls-item relation, which the record never lays, so its item takes the plan's door opening at it
     (street's restaurant doors and shutters: openings on the walls item crowded their wall, its own kept at one
-    spot). Only a row whose words say it piles piles (PILE_WORDS, plan_fixes' own).
+    spot). Only a row whose words say it piles piles (PILE_WORDS).
     2026-11-06 (laid-as-designed's floor part): railings "around engines", four drawn on one box and piled 0 to 3 m
     by the plan's fixes, stand round the two engines' sides on the floor, each its own spot (around_holders); a lantern
     string "above plaza" 6 m up hangs between the two towers that reach it (hung_between), and with no towers stays
@@ -441,7 +441,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score.review import holders, plan_checks, plan_fixes  # noqa: E402
+from score.review import holders, plan_checks  # noqa: E402
 
 PICTURE = [1000, 600]
 ABSENT = type("Absent", (), {"__repr__": lambda self: "ABSENT"})()  # a key the answer does not hold
@@ -1356,8 +1356,6 @@ CASES.append(case("wall-spread-a-pile-piles", holders.piles, {"id": "sandbags", 
                   want={(): True}))
 CASES.append(case("wall-spread-a-railing-does-not-pile", holders.piles,
                   {"id": "railing", "where": "around engines", "size_words": "waist high"}, want={(): False}))
-CASES.append(case("wall-spread-pile-words-are-plan-fixes-own", getattr, holders, "PILE_WORDS",
-                  want={(): plan_fixes.PILE_WORDS}))
 ENGINE_RAILINGS = {f"RAILING {number}": ["railing"] for number in range(1, 5)}
 CASES.append(case(
     "wall-spread-around-engines", relate,

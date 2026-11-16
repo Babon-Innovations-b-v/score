@@ -134,7 +134,7 @@ LEANING, ATTACHED = "leaning", "attached"
 LEAN_WORDS = {"leaning", "leans", "leant", "leaned", "propped"}
 ATTACH_WORDS = {"attached", "bolted", "welded", "clamped", "screwed", "strapped", "fastened", "affixed"}
 # A row's words that say its things pile on one another (airlock's sandbags, "knee high pile"): only such a row's things
-# stand on their own row's (plan_fixes.PILE_WORDS, held equal by the test; the scene record's laid-as-designed gate).
+# stand on their own row's (the scene record's laid-as-designed gate).
 PILE_WORDS = {"pile", "piles", "piled", "stack", "stacks", "stacked", "heap", "heaps", "heaped"}
 # A floor row's where words that say its things stand round a holder row its other words name (engineroom's railings
 # "around engines"): laid as pieces round that holder's built outline (around_holders), never at one spot or stacked.
@@ -2569,7 +2569,7 @@ def loose_openings(plan):
     outline's and its inner walls): [{opening, at, why}] of each that sits on none, which no wall is cut for (the
     lab's doors stood in their entry passages' end walls, which the shell did not build, motion@lab round 35). An open
     place's opening is a doorway into a building its facade row stands for, no opening of a wall of its own (the
-    street's stairwell door, its plan drawing no walls: an open ground has none, plan_writing)."""
+    street's stairwell door, its plan drawing no walls: an open ground has none)."""
     if "wall" not in shell_parts.parts(plan):
         return []
     return [{"opening": number + 1, "at": opening["at"], "why": "it sits on no wall the shell builds"}

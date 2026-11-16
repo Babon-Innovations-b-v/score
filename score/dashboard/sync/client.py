@@ -119,55 +119,6 @@ def library_sweep():
         return f"library sweep failed: {type(error).__name__}: {error}"
 
 
-def readings_fixed(store_root):
-    """Every locked place's reading fixed where it holds a part of another row's thing read as a thing of its own
-    (score/review/reading_fixes.py: free, from its own rows and boxes), so the parts, light and plans after it in
-    the pass are of the right rows; its words. One that fails is said, and the pass goes on."""
-    from score.review import concepts, reading_fixes
-    from score.store import Store
-    store = Store.in_folder(store_root)
-    try:
-        return reading_fixes.said(reading_fixes.fix(store, concepts.placed(store), "the sync pass"))
-    except Exception as error:  # reported in the pass's line, never swallowed
-        return f"reading fixes failed: {type(error).__name__}: {error}"[:400]
-
-
-def parts_read(store_root, ask=None):
-    """The parts asked of every locked place whose reading's rows have none (score/review/reading.py parted), so the
-    gaps, plans, prepare and price after it in the pass route those rows; its words (`asked_of_readings`)."""
-    from score.review import reading
-    return asked_of_readings(store_root, "parts", reading.unparted, reading.parted, ask)
-
-
-def light_read(store_root, ask=None):
-    """The concept's light (which rows glow, their colour and brightness, whether daylight lights the place) asked of
-    every locked place whose reading has none (score/review/reading.py lit), so the plans kept after it in the pass
-    carry it to the scene record's lamps, the light layer's fill and the environment plan's scene time; its words
-    (`asked_of_readings`)."""
-    from score.review import reading
-    return asked_of_readings(store_root, "light", reading.unlit, reading.lit, ask)
-
-
-def asked_of_readings(store_root, noun, missing_of, asked, ask=None):
-    """One reading question asked of every locked place `missing_of` names (one model call a place under the
-    reading's clearance, the owner's standing allowance of 2026-10-21, its cost kept where the cockpit's running total
-    reads it); its words. The store at `store_root` (the pass's source's). Refused while Stop everything holds; one
-    that fails is said, and the pass goes on."""
-    from score.review import concepts
-    from score.store import Store
-    store = Store.in_folder(store_root)
-    missing = missing_of(store, concepts.placed(store))
-    if not missing:
-        return f"{noun}: none missing"
-    if free_only_followed():
-        return f"{noun} not read for {len(missing)} places: refused, Stop everything holds (free only)"
-    try:
-        found = asked(store, missing, "the sync pass (the owner's standing allowance)", **({"ask": ask} if ask else {}))
-    except Exception as error:  # reported in the pass's line, never swallowed
-        return f"{noun} failed: {type(error).__name__}: {error}"[:400]
-    return f"{noun} read: {len(found)} places, EUR {sum(record['euros']['total'] for record in found):.2f}"
-
-
 def gaps_sweep():
     """Every place's gaps written where the place pages read them (score.stages.complete.gaps, free, seconds, in a
     process of its own: it reads OpenUSD); its summary line. One that fails is said in the pass's words, and the pass
@@ -269,9 +220,8 @@ def remake_prepared():
 def plans_kept():
     """Every place's plan (made from its picked concept and its inventory, or his edit) where the plan stage reads
     it, and the plan row made again for those that changed or are not made yet (score.review.plans keep, free,
-    local, its run detached; score.review.plans_pass: the same in seconds), so the batch is made from the plan his
-    cockpit shows; its line."""
-    return step_line("score.review.plans_pass", "plans failed")
+    local, its run detached), so the batch is made from the plan kept; its line."""
+    return step_line("score.review.plans", "plans failed", "keep")
 
 
 
@@ -355,20 +305,17 @@ def sync_pass(source, chosen=None):
         return f"REFUSED: nothing done: {refused}; {copies}"
     handing = library_handing(source.world.name)  # every accept to the library, a failed handover again (#40)
     swept = library_sweep()
-    readings = readings_fixed(source.store_root)  # before the parts, light and plans: each reads its rows
-    parts = parts_read(source.store_root)  # before the gaps, plans, prepare and price: each routes rows by part
-    lights = light_read(source.store_root)  # before the plans kept: they carry it to the lamps and scene times
     gaps = gaps_sweep()
     planned = plans_kept()  # before prepare and the price: both read the plans the plan stage reads
     prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
     demos = library_demos()
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
-        return (f"REFUSED: {failed}; {copies}; {handing}; {swept}; {readings}; {parts}; {lights}; {gaps}; {planned}; "
+        return (f"REFUSED: {failed}; {copies}; {handing}; {swept}; {gaps}; {planned}; "
                 f"{prepared}; {benched}; {pictured}; {demos}")
     basket = basket_made(chosen)  # after prepare (its benchmarks) and the price
     tidy = checkouts_tidied(chosen)
     usd = usd_sweep()
-    return (f"{tidy}; {copies}; {swept}; {handing}; {readings}; {parts}; {lights}; {gaps}; {usd}; {priced}; {planned}; "
+    return (f"{tidy}; {copies}; {swept}; {handing}; {gaps}; {usd}; {priced}; {planned}; "
             f"{prepared}; {benched}; {basket}; {pictured}; {demos}")
 

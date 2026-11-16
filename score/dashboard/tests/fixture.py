@@ -171,11 +171,11 @@ def designed(store, node, sha, props):
     """`node`'s design done: its concept `sha` picked, its scene inventory read from it and kept in the design under
     `props` (the cockpit's home) and its plan written from that reading, so it is a place of the build (stages.places:
     no place is filed in the data since 2026-10-21)."""
-    from score.review import plan_writing
+    from score.review import plans
     an_inventory_read(store, None, node, sha, at="2026-10-20T09:10:00+00:00")
     kept_inventory(props, node, sha)
-    plan_writing.kept(store, {"place": node, "concept": sha, "reading": plan_writing.reading_at(store, node),
-                              "method": plan_writing.METHOD, "by": "test", "at": "2026-10-20T09:30:00+00:00",
+    plans.writing_kept(store, {"place": node, "concept": sha, "reading": "2026-10-20T09:10:00+00:00",
+                              "method": plans.WRITTEN_METHOD, "by": "test", "at": "2026-10-20T09:30:00+00:00",
                               "euros": 0.0,
                               "plan": {"title": node.upper(), "w": 6.0, "d": 4.0, "height": "", "doors": [],
                                        "items": [], "rows": {}, "people": [], "gaps": []}})

@@ -5,7 +5,7 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
 `plan.py`, `writer.py` and `gates.py` theirs.
 
 - **The design is the only input**: the place's kept plan (`{home}/design/plans/<place>.json`: his edit, else the
-  written plan, in plan_writing's schema: outline, walls, openings, levels, stairs, roofs, items with their shapes and
+  written plan, in the plan writer's schema (writer wiped, #128; kept writings read by plans.written): outline, walls, openings, levels, stairs, roofs, items with their shapes and
   rows, person spots, holds), the plan row's plan.json (the same plan in the place's frame, its `doorways` and
   `standing`), its scene inventory (row kinds: which rows glow), the library's lamp (`data/library/lamps.json`) and
   its sky inputs (`{home}/design/sky/<place>.json`, scene_sky.keep's: the environment concept's physics, its site and

@@ -218,10 +218,9 @@ class WorldState(BaseModel):
     # {place: {concept, rows}} of each scene inventory file (score/review/concepts.inventory_read): it counts only while
     # `concept` is the place's picked draw (screens.inventory_current).
     inventories: dict[str, dict] = {}
-    # {place: its newest scene inventory reading of its picked draw} (score/review/reading.py: rows with SAM 3's boxes,
-    # gaps, euros, seconds) and what every reading cost in sum (None: not read).
+    # {place: its newest kept scene inventory reading of its picked draw} (score/review/reading.py: rows with SAM 3's
+    # boxes, gaps, euros, seconds).
     inventory_readings: dict[str, dict] = {}
-    inventory_spend: float | None = None
     # The environment concept (score/review/environment_concept.py): {concept {style, setting, references, places},
     # locked, by, at, versions, prefilled} as its page shows it (today's data, locked, while no version is kept), the
     # euros of one interview answer (None: not measured) and {reference's picture path: FileRef} of those here.
@@ -229,15 +228,10 @@ class WorldState(BaseModel):
     environment_ask_euros: float | None = None
     environment_pictures: dict[str, FileRef] = {}
     # The plan review's (score/review/plans.py): each place's or shell's plan, made once its scene inventory counts,
-    # the inside places he named on its concept page, and the euros of one Correct with notes (None: not measured);
-    # plan writing's (score/review/plan_writing.py): the euros of one Make plan, whether plans are written on their own
-    # after a reading (the standing allowance) and what every writing cost in sum (None: not read).
+    # the inside places he named on its concept page, and the euros of one Correct with notes (None: not measured).
     plan_reviews: dict[str, "PlanReview"] = {}
     plan_named: dict[str, list[str]] = {}
     plan_revise_euros: float | None = None
-    plan_write_euros: float | None = None
-    plan_automatic: bool = False
-    plan_spend: float | None = None
     # The environment's plan (score/review/environment_plan.py): {plan {environment, time, setting, maps [{on, name,
     # ground, radius_m, sites, distances}], gaps}, how (derived, written, edited), at, by}: each site's size, footprint
     # and blocks its top scene's own plan.
@@ -264,7 +258,6 @@ class PlanReview(BaseModel):
     how: str
     at: str | None = None
     by: str | None = None
-    drawing: FileRef | None = None  # the top-down drawing its written plan was measured from (review/plan_drawing.py)
     # what the place's accepted assembly laid, on the plan: [{name, row, box [x0, y0, x1, y1] in plan metres, fitted:
     # how its relation moved or shrank it, None where it sits as the plan draws it}] (assembly/made_waiting.LAID)
     laid: list[dict] = []

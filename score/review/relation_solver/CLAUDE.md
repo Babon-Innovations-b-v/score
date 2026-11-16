@@ -1,9 +1,8 @@
 # score/review/relation_solver/
 
-The plan fixes' fallback for crowded plans: `parted(plan, inventory)` parts the floor things the free fixes
-(`plan_fixes.nudged`) left in each other, with IsaacLab-Arena's relation solver ported to numpy (`_solver.py`).
-Called by `plans_pass.settled_again` after `plan_fixes.settled`; `plans_pass.unsettled` re-fixes a plan it would part,
-only where its plan row stands unaccepted (`plans_pass.parting`), a free one before the keep (`parted_first`).
+Crowded plans parted: `parted(plan, inventory)` parts the floor things standing in each other with IsaacLab-Arena's
+relation solver ported to numpy (`_solver.py`); score_lib's room_layout algorithm. The plan writer's pass that called
+it went with the per-picture chain (#128); no score module calls the package now.
 
 Rules:
 
@@ -17,8 +16,8 @@ Rules:
   only when `plan_checks.checked` finds fewer overlaps and no more gaps of any other kind. What still overlaps stays a
   gap. Boxes only: a turned (polygon) footprint is solved as its box, so a diagonal crowd may stay unparted (the
   habitat's turned furniture in its kept plan of 2026-10-21: 5 pairs left).
-- **In no stage's code key, but `_solver.py`.** Only `plans_pass` imports the package; never import it from
-  `plan_fixes.py`, `plans.py`, `plan_writing.py` or a stage (an edit there re-keys about 74 paid rows: `python -m
+- **In no stage's code key, but `_solver.py`.** Nothing imports the package; never import it from
+  `plans.py` or a stage (an edit there re-keys about 74 paid rows: `python -m
   score.stages.moved origin/main`). `assembly/fitting.parted_spots` imports `_solver` alone, by its full module name
   (`from score.review.relation_solver._solver import ...`), so only `_solver.py` (numpy only) is in the assembly's,
   light's and settle's keys (#72): an edit of `_solver.py` re-keys those rows; `__init__.py` re-keys none.

@@ -47,8 +47,15 @@ def matching(pairs, box):
 
 
 def save_masks(found, rows, folder):
-    """Each row asking for its mask (`"mask": true`) whose words SAM 3 found: its matching mask as folder/<key>.png."""
+    """Each row asking for its mask (`"mask": true`) whose words SAM 3 found: its matching mask as folder/<key>.png;
+    each asking for every one (`"masks": true`, score/review/concept_objects.py): each instance it keeps, surest
+    first, as folder/<key>.<n>.png."""
     for row in rows:
+        if row.get("masks"):
+            pairs = sorted((pair for word in row["nouns"] for pair in found[word]), key=lambda pair: -pair[1])
+            for number, (mask, _) in enumerate(pairs[:row.get("keep", KEEP)]):
+                Image.fromarray(mask.astype("uint8") * 255).save(folder / f"{row['key']}.{number}.png")
+            continue
         mask = matching([pair for word in row["nouns"] for pair in found[word]], row["box"]) if row.get("mask") else None
         if mask is not None:
             Image.fromarray(mask.astype("uint8") * 255).save(folder / f"{row['key']}.png")

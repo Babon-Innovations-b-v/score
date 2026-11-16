@@ -194,21 +194,13 @@ stage as each stage is built; nothing moves before.
   version is out of date, and its places with what each may hold start within.json's proposal (`places_in_force`);
   each draw is copied to the private bucket as it is made (`concept-draws/<sha>.png` and `.json`; a failed copy is
   named in its record), and each lock or unlock is handed to score_lib through its own `score-lib concept` command.
-  `reading.py` reads a locked concept into its scene inventory, started on its own by the lock (`web.reading_started`):
-  Gemini 3.1 Pro's rows, each with its size in metres judged against the place's outline (`plans.outline_from_holder`:
-  the layer above's box, its own plan, else round its inside places), then SAM 3's boxes of each row on one rented
-  card (where, never size; its own words first, then its noun); the two agree by box, not by word (#128: a find of any
-  word in a row's region, `boxed_by` "overlap"), a row Gemini read whole (metres, anchor, region, on no other row's
-  box) kept on its region (`boxed_by` "gemini"), its count Gemini's and its boxes SAM 3's, overlapping boxes one thing
-  (`lumped`), the structure, ground and rows holding an inside place or standing in one kept as read, duplicates
-  merged, the rest kept apart as `skipped` (never a
-  row or a gap); `--again` reads a place already read again from its own rows, SAM 3 only; a kept row with no metres or anchor its gaps; a
-  reading by an older method is read again from its own rows, SAM 3 only; a kept reading holding a row both readers
-  put inside another row's thing (camp's "door" that is its fridge's glass door) has it merged into that thing by
-  `reading_fixes.py` (free, a new reading; the sync pass runs it before parts, light and plans: not in reading.py,
-  which is in the code version of 74 paid rows); each
-  reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no lock of its own.
-  `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the locked concept.
+  The per-picture reading chain is wiped (#128, owner 2026-11-16: "also code for just score, like we have seen this
+  approach just doesnt work"): no Gemini rows, counts, parts or light asks and no plan writing. `concept_objects.py`
+  splits a concept picture into its objects with SAM 3 (`objects`: every word asked over the whole picture on one card
+  through `tools/cloud/box_masks_cloud.py`, the generic PROBES unless the placing agent names its own nouns; each
+  instance a box, score, word and full-size mask, one the same thing as a surer one dropped): the placing agent's
+  object list. `reading.py` only reads what the old chain kept (`reading_of`, `concept_light`, `row_boxes`, the parts
+  over a reading) for the stages that still lay places from it, until they go too.
   `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its lock, inventory and the layer
   above's plan, his edits and named inside places kept under `plans/` (his process only), a Correct with notes one
   direct Gemini call inside his click's yes (`web.plan_revise`), `made` and `holder_of` (the row and SAM box holding an
@@ -217,30 +209,12 @@ stage as each stage is built; nothing moves before.
   his edit, always (a plan written after it is named as a gap, never shown over it), else the plan made without him
   (`made_plan`: written, else the rough one laid from the inventory, its SAM boxes only ordering it), each locked
   inside scene kept in the room its locked draw was drawn on (`locked_rooms_kept`): only his edit moves a locked
-  scene's room (owner, 2026-10-21). `plan_writing.py` writes a place's plan, measured off a drawing (owner, 2026-10-21):
-  first `plan_drawing.py`'s top-down drawing (one Nano Banana Pro call redrawing the locked concept from directly above on its
-  outline on the layer above's plan, kept under `plan-drawings/<place>/`, once per lock and outline), then one Gemini
-  3.1 Pro call reading positions and footprints off it in its units, which part is which from the locked concept, the
-  inventory's metres, the layer above's plan and its inside places (the stage table's schema plus outline, walls,
-  openings, levels, stairs, roofs, terrain, shapes, section), turned into metres by the holder's box or the rows'
-  metres, kept under `plan-writings/<place>/`; a thing the creator already planned (`creator_plans.py`: the ship's
-  floor plan, its hull outline and rooms, held by the hangar's row holding its rooms) is laid from his plan at its own
-  size, its middle where drawn and its nose the way drawn, and the drawing is asked for it at that size in its box's
-  frame; then `plan_checks.py`'s free checks (the arrangement against the
-  concept's SAM boxes, left of, behind, place across the view, the way a thing faces, what a tube joins, among them; a
-  run of crates one item with its `count`, only things drawn touching: a counted box far larger than its things side
-  by side is a gap, `run_gaps`; a people row is never a thing: it stands on person spots, `plan["people"]` entries
-  [x, y, facing, row], the cast's spots), each failure a plain gap with where it is, fixed before it is shown
-  (`plan_fixes.py`, owner 2026-10-21: "gaps should only show things that cant be fixed auto"): the free fixes (people
-  stood where their SAM boxes project, a box of things drawn apart split, the missing placed where their boxes
-  project, facings turned the concept's way, overlaps parted inside the walls), then at most two automatic Corrects
-  by the gaps left, each kept only when it leaves fewer, their cost kept with the writing; what is left says why; his
-  edits and the rooms are never touched; `python -m score.review.plan_fixes <place> ...` fixes plans written before, and the sync pass's `plans keep` fixes again on its own every written plan never fixed or that today's free fixes place more of (`plans_pass.unsettled`), and parts the things the free fixes left in each other with IsaacLab-Arena's relation solver ported to numpy (`review/relation_solver`, its overlay: free, seeded, plan spots soft, walls and other things box obstacles, kept only when the checks find fewer overlaps and nothing new; never on a plan whose plan row stands accepted, and a free part made before the keep so the plan row is made once from it);
-  run on its own after a reading
-  (`reading.planned`, `AUTOMATIC`: the owner's standing allowance, `compute.reading_clearance(node=PLAN_WRITING)`), else
-  on his Make plan click as his spend yes (`web.plan_write`).
+  scene's room (owner, 2026-10-21); a kept written plan (`written`: `plan-writings/<place>/`, the wiped writer's last
+  METHOD, from the reading in force) is read as written; his edit or a redrawing has its person spots moved out of
+  things (`edit_inside`). `plan_checks.py` holds the free checks (the arrangement against the concept's SAM boxes, a
+  run's `count`, person spots as `plan["people"]` [x, y, facing, row]), each failure a plain gap with where it is.
   No grey model is built before a concept (the blockout, retired by the owner 2026-10-23: a scene's rough
-  shapes are its rough model); `plan_drawing.from_south_east` reads the old locks' `blockout` field for their view.
+  shapes are its rough model).
   `concepts.step_refusal` waits only for the place's outline on the layer
   above's plan (`outlined`: held by a row or by the holder's own walls). `setting.py` is an environment's setting
   (CONTEXT.md "setting", owner 2026-10-21), part of its environment concept: its bodies (a real one takes the cited
@@ -253,8 +227,8 @@ stage as each stage is built; nothing moves before.
   No branch names a world. `environment_plan.py` is the environment's plan (CONTEXT.md "environment plan"): a map a
   ground of the concept's setting, each top place's site where the setting puts it (the ground's fall from its true
   radius), its footprint, size and blocks its top scene's own plan (`plans.current`, read again on every settle,
-  `from_plan`: never written or edited apart, owner 2026-10-23), its scene times and terrain spots written by the
-  plan writer's call (`plan_writing.asked`, cleared like a plan writing), the fixed facts kept over the answer, the
+  `from_plan`: never written or edited apart, owner 2026-10-23), its scene times and terrain spots written by
+  one Gemini call of its own (`asked`, cleared like a plan writing, `writing_cleared`), the fixed facts kept over the answer, the
   true distances, sites that would overlap parted (`cleared`: the smaller out along its bearing to `CLEAR_M` apart;
   one the creator placed himself never moves, two of his overlapping a gap) and what each site sees overhead worked out (`settled`, again on every
   read); kept under

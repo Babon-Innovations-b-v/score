@@ -531,14 +531,14 @@ ASKED = {
 def designed(store, place):
     """`place`'s design done in `store`: a concept locked, its scene inventory read from it and its plan written from
     that reading (plans.design_done)."""
-    from score.review import concepts, plan_writing, reading
+    from score.review import concepts, plans, reading
     sha = place.ljust(64, "0")
     concepts.recorded(store, f"concepts/{place}/picks/2026-10-20T09-00-00.json",
                       {"place": place, "sha": sha, "by": "joey", "at": "2026-10-20T09:00:00+00:00"})
     reading.kept(store, {"place": place, "concept": sha, "at": "2026-10-20T09:10:00+00:00", "method": reading.METHOD,
                          "inventory": {"rows": [{"id": "desk", "name": "desk", "count": 1}]}})
-    plan_writing.kept(store, {"place": place, "concept": sha, "reading": "2026-10-20T09:10:00+00:00",
-                              "method": plan_writing.METHOD, "at": "2026-10-20T09:30:00+00:00", "by": "test",
+    plans.writing_kept(store, {"place": place, "concept": sha, "reading": "2026-10-20T09:10:00+00:00",
+                              "method": plans.WRITTEN_METHOD, "at": "2026-10-20T09:30:00+00:00", "by": "test",
                               "euros": 0.0,
                               "plan": {"title": place.upper(), "w": 3.0, "d": 3.0, "items": [], "doors": []}})
 

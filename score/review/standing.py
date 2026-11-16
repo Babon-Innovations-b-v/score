@@ -1,8 +1,8 @@
 """Where a person can stand on a plan: a person's footprint (their people row's size) overlaps no wall, no floor thing
 and no other person, with no slack, and when it does the nearest floor inside the outline where it overlaps none.
-The pass's person spots (plans_pass.spaced_people) and the scene record's views (scene_record/writer.py: an eye stands
+An edit's person spots (plans.people_moved_out) and the scene record's views (scene_record/writer.py: an eye stands
 where a person would) are held to it alike (#36, 2026-10-30: the airlock's three spots within 7 cm, wreck's views).
-Its own module so the scene record's key reads it without the pass's."""
+Its own module so the scene record's key reads it without the plan review's."""
 import math
 
 import numpy

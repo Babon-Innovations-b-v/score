@@ -295,7 +295,7 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
         events.append((module, given["cwd"], given["env"]["PROPS_HOME"], given["env"]["SCORE_FREE_ONLY"]))
         if module in failing:
             return subprocess.CompletedProcess(command, 1, "", "Traceback\nKeyError: 'hangar'\n")
-        if module == "score.review.plans_pass":
+        if module == "score.review.plans":
             holding.append({"id": "plan-run", "pid": 1})
         if module == "score.stages.complete.prepare":
             assert not holding, "prepare ran while the plan row run held the store"
@@ -326,7 +326,7 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
         here.setenv(this_pc.SPEND_TICKET, "override stray")  # a ticket in this shell spends nothing here
         here.setenv(this_pc.THIS_PC_SENDS, "surfaces-bake-")
         assert this_pc.run(home, ["world1"]) == 0
-        assert events == [("score.review.plans_pass", this_pc.REPO, str(home), "1"), ("waited", 5),
+        assert events == [("score.review.plans", this_pc.REPO, str(home), "1"), ("waited", 5),
                           ("score.stages.complete.prepare", this_pc.REPO, str(home), "1")]
         command, environment, size = started[1]
         assert size == [8.0, 24.0, 4.0] and this_pc.OWNERS_GO not in environment
@@ -360,8 +360,8 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
         rented = {name: value for name, value in calls["surfaces-bake-hub"].items() if name != "SCORE_CLOUD"}
         with pytest.raises(SystemExit, match="never rented from it"):
             provider.sent_from_this_pc(rented, ["blender_cloud.py", "job.json", "--who", "surfaces-bake-hub"])
-        failing.add("score.review.plans_pass")
-        with pytest.raises(SystemExit, match="score.review.plans_pass failed .exit 1.: KeyError: 'hangar'"):
+        failing.add("score.review.plans")
+        with pytest.raises(SystemExit, match="score.review.plans keep failed .exit 1.: KeyError: 'hangar'"):
             this_pc.run(home, ["world1"])
         assert len(started) == 3  # no score run after a failed step
         # decide-yes and decide: the cockpit's command against this home's store, the owner his cockpit names
@@ -421,7 +421,7 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
             assert resumed[1][0][3:] == ["worktree", "add", "--detach", "--force", str(home / "resume-code"), "a" * 40]
             # the design brought up to date by the paused run's own code, in its home, before it starts again
             assert [(command[1:], given["cwd"], given["env"]["PROPS_HOME"]) for command, given in resumed[2:-1]] == [
-                (["-m", module], home / "resume-code", str(home)) for module in this_pc.DESIGN_STEPS]
+                (["-m", *step], home / "resume-code", str(home)) for step in this_pc.DESIGN_STEPS]
             command, given = resumed[-1]
             assert command[1:] == ["-m", "score", *entry["argv"], "--detach"] and given["cwd"] == home / "resume-code"
             assert {key: given["env"][key] for key in ("SCORE_MIN_FREE_GB", this_pc.OWNERS_GO, "SCORE_FREE_ONLY",

@@ -77,7 +77,7 @@ def run_jobs(machine, share, card, jobs, out):
                                 f"{REMOTE}/out.json", stdout=log, stderr=subprocess.STDOUT)
     finally:
         batch.copy(folder, [f"root@{host}:{REMOTE}/out.json"], str(out))
-        if any(row.get("mask") for job in jobs for row in job["rows"]):  # box_masks.py's masks asked for, if any came
+        if any(row.get("mask") or row.get("masks") for job in jobs for row in job["rows"]):  # masks asked for
             batch.copy(folder, [f"root@{host}:{REMOTE}/out.masks/"], str(out.parent / f"{out.stem}.masks"))
         machine["made"] = len(jobs)
     machine.setdefault("unit_seconds", []).append(round(time.time() - began, 1))

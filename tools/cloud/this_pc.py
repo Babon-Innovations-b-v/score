@@ -121,7 +121,7 @@ RESTART_HOURS = 2
 BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.graph.heartbeat_line
 # The sync pass's free steps that bring the design up to date (score/dashboard/sync/client.py plans_kept, then
 # remake_prepared): the plans the plan stage reads, then the hand-ins prepare writes from them.
-DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
+DESIGN_STEPS = (("score.review.plans", "keep"), ("score.stages.complete.prepare",))  # each its module and arguments
 OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
 # A run given --spend-ticket: the owner's override it runs under, and the blender_cloud.py callers (their --who's start)
 # it sends to the cluster under it (provider.THIS_PC_SENDS); the surfaces-bake rows' (route_bake.make_bake).
@@ -384,8 +384,9 @@ def design_current(home, code, environment):
     `code` under `environment` (HOME's, free only), a plan row run the kept plans start waited out; their first
     lines. A step that fails stops the run: a stale hand-in builds the wrong sizes."""
     said = []
-    for module in DESIGN_STEPS:
-        done = asked([str(REPO / ".venv/bin/python"), "-m", module], cwd=code, env=environment,
+    for step in DESIGN_STEPS:
+        module = " ".join(step)
+        done = asked([str(REPO / ".venv/bin/python"), "-m", *step], cwd=code, env=environment,
                      stdin=subprocess.DEVNULL)
         if done.returncode:
             raise SystemExit(f"{module} failed (exit {done.returncode}): "
