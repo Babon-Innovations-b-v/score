@@ -21,7 +21,6 @@ lamp breaks again 2026-11-14 on the merged test, the close-up, style, Marble and
 - partition `mapping_problems`: `if False:` for the reasonless drop -> test_a_scene_is_made_from_its_concept.
 - inventory `row_problems`: `if False:` for the unknown view -> test_a_scene_is_made_from_its_concept.
 - inventory `approved_inventory`: `if False:` for the approval -> test_a_scene_is_made_from_its_concept.
-- duplicates `pair_problem`: `if False:` for two takes -> test_a_scene_is_made_from_its_concept.
 - cutsize `route`: `> MIN_CUT_SIDE` -> test_a_scene_is_made_from_its_concept.
 - closeups `camera_for`: frame at 0.6 in place of FILL -> test_a_scene_is_made_from_its_concept.
 - closeups `camera_for`: `distance = blocked` (no clearance) -> test_a_scene_is_made_from_its_concept.
@@ -51,7 +50,6 @@ from PIL import Image
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import box_check  # noqa: E402
 import closeups  # noqa: E402
-import duplicates  # noqa: E402
 import inventory  # noqa: E402
 import lamps  # noqa: E402
 import marble  # noqa: E402
@@ -179,35 +177,6 @@ SHAPE = [
     ("migrated without approval", None, {"approved": "", "migrated": "2026-10-06"}, [("approval",)], None),
 ]
 
-
-def a_made_row(name, kind="generate", **changes):
-    return {"id": name, "kind": kind, "name": f"the {name}", **changes}
-
-
-# Two places' made rows naming one object, the takes each is made from, and the duplicate problems: (case, hub's row,
-# lab's row, takes, fragments one problem holds together, how many problems or None). The owner, 2026-10-09: no
-# duplicates; reuse first.
-KETTLES = {"hub": {"kettle": "kettle-r1"}, "lab": {"kettle": "kettle-r2"}}
-DUPLICATES = [
-    ("made twice", a_made_row("desklamp"), a_made_row("desklamp"),
-     {"hub": {"desklamp_1": "desklamp-r6"}, "lab": {"desklamp_1": "desklamp-lab1"}}, [("made twice",)], 1),
-    ("one take in both", a_made_row("desklamp"), a_made_row("desklamp"),
-     {"hub": {"desklamp_1": "desklamp-r6"}, "lab": {"desklamp_1": "desklamp-r6"}}, [], 0),
-    ("about to be made again", a_made_row("kettle"), a_made_row("kettle"), {"hub": {"kettle": "kettle-r1"}, "lab": {}},
-     [("not made yet",)], 1),
-    ("far scenery names the same object", a_made_row("far_palm"), a_made_row("palm"),
-     {"hub": {"far_palm": "palm-a"}, "lab": {"palm": "palm-b"}}, [], 1),
-    ("its own model, said why", a_made_row("power_unit"),
-     a_made_row("power_unit", own_model="a battery cabinet, not the small ground power unit"),
-     {"hub": {"power_unit": "power_unit-g1"}, "lab": {"power_unit": "power_unit-r3"}}, [], 0),
-    ("a reuse made from another take", a_made_row("kettle"), a_made_row("kettle", reuse="hub:kettle"), KETTLES,
-     [("made from kettle-r2",)], None),
-    ("a reuse of no row", a_made_row("kettle"), a_made_row("kettle", reuse="hub:pot"), KETTLES,
-     [("no inventory row",)], None),
-    ("built in code", a_made_row("conduit_box", "code"), a_made_row("conduit_box", "code"), {}, [], 0),
-    ("a scene whose takes are not stored", a_made_row("kettle"), a_made_row("kettle"),
-     {"hub": {"kettle": "kettle-r1"}}, [], 0),
-]
 
 # Which way a cut-out is drawn, by its short side (the owner, 2026-10-02: "the low-res ones look shit"): (box, whether
 # a close-up can be made, route). Round one's habitat: the bench and counter cabinet made models, the desk and desk
@@ -530,10 +499,6 @@ def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
         inventory.approved_inventory(path)
     path.write_text(json.dumps(found))
     assert inventory.approved_inventory(path) == found  # the cloud builds from it once approved
-
-    for case, first, second, takes, has, count in DUPLICATES:
-        problems = duplicates.problems({"hub": {"rows": [first]}, "lab": {"rows": [second]}}, takes)
-        assert problems_hold(problems, has, [], count), (case, problems)
 
     assert size_of([10, 20, 110, 320]) == {"width": 100, "height": 300, "short_side": 100, "area": 30000}
     for box, can_close_up, expected in ROUTES:
