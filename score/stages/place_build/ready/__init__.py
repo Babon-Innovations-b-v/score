@@ -693,7 +693,20 @@ def ring_distance(mesh, ring):
     box_gap = float(np.linalg.norm(np.maximum(0.0, np.maximum(low - ring.max(axis=0), ring.min(axis=0) - high))))
     if box_gap > JOIN:
         return box_gap
-    return float(trimesh.proximity.closest_point(mesh, ring)[1].min())
+    return nearest_to_surface(mesh, ring)
+
+
+def nearest_to_surface(mesh, points, chunk=64):
+    """The least distance from any of `points` to the mesh's surface, exact: only the points whose nearest vertex lies
+    within the mesh's longest edge of the least such vertex distance can be nearest (any point of a face lies within
+    its longest edge of one of its corners), searched a chunk at a time, so a dense made model (half a million faces,
+    TRELLIS.2's) and a ring standing a hand off it cost no more memory than a small one (they took 8 GB at once)."""
+    from scipy.spatial import cKDTree
+    vertex_gaps = cKDTree(np.asarray(mesh.vertices)).query(points)[0]
+    longest = float(mesh.edges_unique_length.max()) if len(mesh.edges_unique) else 0.0
+    near = np.asarray(points)[vertex_gaps <= vertex_gaps.min() + longest]
+    return min(float(trimesh.proximity.closest_point(mesh, near[start:start + chunk])[1].min())
+               for start in range(0, len(near), chunk))
 
 
 def connector_faults(laid, name, floor):

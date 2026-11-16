@@ -27,11 +27,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.inside_outline: the count's `% 2` dropped -> the round hatch's doorway is not cut and it does not fit
 - place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
 - ready.straightened: `in_sight` taken as always True -> the route runs straight through crate_ok
+- ready.nearest_to_surface: `+ longest` dropped -> a ring off a coarse box's face reads its corner's distance, not its own
 """
 import json
 import pathlib
 
 import numpy as np
+import trimesh
 from PIL import Image
 from pxr import Gf, Sdf, UsdGeom, UsdSkel, Vt
 
@@ -214,6 +216,9 @@ def planted(folder):
 
 def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     folder = planted(tmp_path)
+    coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
+    corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)
+    assert abs(ready.nearest_to_surface(coarse, np.array([[0.0, 1.5, 0.0], corner])) - 0.5) < 1e-6
     monitor = ready.on(folder, "monitor", "desk")
     panel = ready.on(folder, "panel", "wall:wall", height=1.2)
     assert abs(monitor["at"][1] - (0.75 + 0.175)) < 0.01, monitor  # its bottom on the desk's top
