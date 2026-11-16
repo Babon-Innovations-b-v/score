@@ -91,7 +91,7 @@ def new_stage(path, place):
     stage.SetDefaultPrim(root.GetPrim())
     for part in ("Objects", "Looks", "Lights"):
         UsdGeom.Scope.Define(stage, f"/{place}/{part}")
-    stage.GetRootLayer().Save()
+    saved(stage)
 
 
 def start(folder, place, concept, objects=None):
@@ -201,6 +201,13 @@ def usd_file(record, copied):
 HELD = {}  # {scene path: its open stage} while a batch runs, so its steps compose the scene once
 
 
+def saved(stage):
+    """The scene written to its file, unless a batch holds it open (the batch writes it once at its end: saving a
+    stage of a thousand objects after each of a thousand steps took minutes)."""
+    if stage.GetRootLayer().realPath not in HELD:
+        stage.GetRootLayer().Save()
+
+
 def opened(folder):
     path = str(scene_path(folder).resolve())
     stage = HELD.get(path) or Usd.Stage.Open(path)
@@ -236,7 +243,7 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         laid.update(dressed(stage, path, asset, wear, clip, second))
     if rest:
         laid["at"] = rested(stage, path, at, turn, scale)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return laid
 
 
@@ -323,7 +330,7 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
 
 
@@ -344,7 +351,7 @@ def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "address": address, "usd": relative, "radius": radius, "length": length, "hoops": hoops}
 
 
@@ -361,7 +368,7 @@ def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), True)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "address": address, "usd": relative, "radius": radius, "ground": True}
 
 
@@ -384,7 +391,7 @@ def terrain(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), pad
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, record["kind"],
                               (at, turn, (1.0, 1.0, 1.0)), True)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "address": address, "usd": relative, "pads": pads, "ground": True}
 
 
@@ -436,7 +443,7 @@ def snap(folder, name, grid=0.5):
     at = [on_grid(at[0], grid), at[1], on_grid(at[2], grid)]
     turn = [on_grid(value, 90.0) for value in turn]
     posed(prim, at, turn, scale)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "at": at, "turn": turn}
 
 
@@ -539,7 +546,7 @@ def surface(folder, name, address, colour=None, part=None):
         prim.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
         if colour is not None:
             prim.CreateAttribute("score:surface:colour", Sdf.ValueTypeNames.String).Set(colour)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "surface": address, "colour": colour, "part": part}
 
 
@@ -555,7 +562,7 @@ def light(folder, name, at, watts, radius=0.05, colour="#ffffff", address="light
     lamp.CreateRadiusAttr(float(radius))
     lamp.CreateColorAttr(Gf.Vec3f(*colour_of(colour)))
     lamp.GetPrim().CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"name": name, "light": address, "at": list(at), "watts": watts}
 
 
@@ -599,7 +606,7 @@ def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", tur
     sun.CreateAngleAttr(0.35)  # the sun's width seen from Mars, degrees
     sun.CreateColorAttr(Gf.Vec3f(*colour_of(colour)))
     sun.GetPrim().CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"sky": address, "usd": relative, "sun": {"elevation": elevation, "heading": heading, "strength": strength}}
 
 
@@ -626,7 +633,7 @@ def remove(folder, name):
         raise Refused(f"the scene holds no object or light {name}")
     for path in found:
         stage.RemovePrim(path)
-    stage.GetRootLayer().Save()
+    saved(stage)
     return {"removed": name}
 
 
@@ -678,6 +685,7 @@ def batch(folder, steps):
             except (Refused, TypeError) as why:
                 answers.append({"refused": str(why), "step": number})
     finally:
-        HELD.pop(path)
+        held = HELD.pop(path)
+        held.GetRootLayer().Save()
         GROUND_POINTS.clear()
     return answers

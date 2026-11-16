@@ -136,8 +136,8 @@ def tiled_maps(objects):
     return changed
 
 
-DICING_PIXELS = 2.0  # an adaptive subdivision's micro-face size on screen, pixels
-DISPLACEMENT_LEVELS = 6  # the deepest a displaced ground's faces are cut
+DICING_PIXELS = 3.0  # an adaptive subdivision's micro-face size on screen, pixels
+DISPLACEMENT_LEVELS = 5  # the deepest a displaced ground's faces are cut
 OFFSCREEN_DICING = 25.0  # how much coarser faces out of the picture are cut (the 2.6 km ground is mostly out of it)
 
 
