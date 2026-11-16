@@ -25,6 +25,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.finished_first: `-final` not ranked first -> the take's raw model is laid
 - place_build.ground: the ground mark left False -> the laid disc is no ground
 - dome_shell.ribs: the rib lifted inward (`- out`) -> the dome's box stays inside its radius
+- place_build.rested: the lift's sign flipped -> the shelf on the table sinks a metre under it
+- dome_shell.hoop_ribs: the hoop lifted inward (`- out`) -> the tunnel's box stays inside its radius
+- place_build.ground_height: the nearest point's x read for its height -> the stone floats far off the slope
 - place_build.batch: a refused step stops the batch -> the step after it is never laid
 - measure.coverage: `shape & silhouette` made `shape` -> the uncovered object reads covered
 - relief.graded_axis: FAR_GROWTH left off (every post 1 m) -> the far posts are not wider than the near ones
@@ -190,7 +193,9 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         {"step": "put", "name": "walker", "address": "character/walker", "at": [2, 0, 2]},
         {"step": "dome", "name": "dome", "radius": 5.0, "meridians": 8, "rings": 2, "rib": 0.1},
         {"step": "ground", "name": "regolith", "radius": 3.0},
-        {"step": "put", "name": "cup", "address": "take/cup"}])
+        {"step": "put", "name": "cup", "address": "take/cup"},
+        {"step": "tube", "name": "tunnel", "radius": 1.5, "length": 4.0, "at": [20, 0, 0], "hoops": 3},
+        {"step": "put", "name": "shelf", "address": "model/cabinet", "at": [9, 0.75, 0], "rest": True}])
     refusals = []
     for step in (lambda: place_build.put(folder, "plan", "kit/plan_only"),
                  lambda: place_build.surface(folder, "wall", "surface/boards")):
@@ -201,6 +206,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.terrain(folder, "plain", "model/slope", at=(0, 0, 0), turn=(0, 90, 0), pads=[(30.0, 0.0, 5.0)])
     place_build.sky(folder, "light/sky", elevation=30, heading=0)
     place_build.view(folder, "inside", eye=(0, 1.6, 0), aim=(1, 1.6, 0), fov=70)
+    stone = place_build.put(folder, "stone", "model/cabinet", at=(80, -0.1, 0), rest=True, on_ground=True)
     place_build.put(folder, "gone", "kit/box_piece")
     place_build.remove(folder, "gone")
     shown = place_build.listing(folder)
@@ -217,7 +223,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/top"), (0.3, 0.3, 0.4))
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/rim"), (1.0, 0.0, 0.0))
-    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 5
+    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 7
     door_look = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo/door")).ComputeBoundMaterial()[0]
     door_map = UsdShade.Shader(stage.GetPrimAtPath(f"{door_look.GetPath()}/base")).GetInput("file").Get()
     assert np.allclose(Image.open(door_map.resolvedPath).getpixel((0, 0)), (200, 0, 0))
@@ -227,6 +233,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     cabinet_parts = sorted(next(item for item in shown["objects"] if item["name"] == "cabinet")["parts"])
     assert cabinet_parts[0] == "door" and cabinet_parts[1].startswith("part_") and len(cabinet_parts) == 2
     assert np.allclose(boxes["cabinet"], [[-0.5, -0.5, -0.5], [0.5, 1.5, 0.5]], atol=1e-3)
+    assert np.allclose(boxes["shelf"], [[8.5, 0.75, -0.5], [9.5, 2.75, 0.5]], atol=1e-3)
     walker = stage.GetPrimAtPath("/yard/Objects/walker")
     shown_groups = {group: UsdGeom.Imageable(stage.GetPrimAtPath(f"/yard/Objects/walker/Turned/Body/{group}"))
                     .ComputeVisibility() for group in ("far", "made")}
@@ -234,11 +241,13 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert (walker.GetTypeName(), shown_groups) == ("SkelRoot", {"far": "invisible", "made": "inherited"})
     assert list(held.GetTranslationsAttr().Get()) == [Gf.Vec3f(0, 1, 0)] and batched[3]["clip"] == "standing"
     assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["deck", "ribs", "shell"]
+    assert sorted(next(item for item in shown["objects"] if item["name"] == "tunnel")["parts"]) == ["deck", "ribs", "shell"]
+    assert np.allclose(boxes["tunnel"], [[18.38, -0.12, 0.0], [21.62, 3.12, 4.0]], atol=0.01)
     assert np.allclose(boxes["dome"], [[-5.1, 0.0, -5.1], [5.1, 5.1, 5.1]], atol=0.02)
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
                               {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone"} and not stage.GetPrimAtPath("/yard/Objects/gone")
     laid_terrain = stage.GetPrimAtPath("/yard/Objects/plain")
     ground_points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/plain/geo")).GetPointsAttr().Get())
     in_pad = np.hypot(ground_points[:, 0], ground_points[:, 2] - 30.0) < 5.0  # the terrain's own frame
@@ -247,6 +256,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert laid_terrain.GetAttribute("score:ground").Get() and np.isfinite(ground_points).all()
     assert np.allclose(ground_points[in_pad, 1], 0.0) and np.ptp(ground_points[far, 1]) > 20.0
     assert posts.max() > 2.0 and np.isclose(posts.min(), 1.0)
+    assert np.isclose(stone["at"][1], 0.5 + 8.0 - 0.1, atol=0.1)  # 80 m along the turned slope: 8 m up, base on it
     sun = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Lights/sun")).ComputeLocalToWorldTransform(0)
     shines = sun.TransformDir(Gf.Vec3d(0, 0, -1))
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)

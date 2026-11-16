@@ -29,6 +29,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   the planet; `terrain --pad x,z,r` levels a building's site to the laid height and eases it into the ground.
 - **The sky and its sun** (`sky`): a light entry's sky dome laid as the place's own `/<place>/Environment` (the
   renderer's ambient light and exposure) and a distant sun from an elevation and heading; never a far sphere lamp.
+- **The tunnel** (`tube`): the dome shell algorithm's ribbed glass tube between two domes (parts shell, ribs, deck).
+- **Standing on things**: `put --rest` lays a piece's lowest point at the given height (a floor, a table top);
+  `--on-ground` reads that height over the laid ground there (a rock on a terrain's relief).
 - **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only.
 - **Image surfaces** (`surface/ambientcg_*`, CC0 PBR sets taken in with their source in each entry's provenance and
   surface.json) tile at their own `tile_metres` in the preview, box-projected in the object's own frame

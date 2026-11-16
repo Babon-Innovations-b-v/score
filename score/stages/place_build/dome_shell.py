@@ -10,6 +10,11 @@ with no kit piece's stylised terrain under it.
 
     shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB)   the dome written as a USD file at `path`
     disc_file(path, radius)                                          a flat ground disc written at `path`
+    tube(path, radius, length, hoops=HOOPS, rib=RIB)                 a ribbed glass tunnel written at `path`
+
+The tunnel between two domes (the concept's ribbed glass tube) is the same skin and ribs round a level axis: a
+cylinder of `radius` lying along +z from 0 to `length`, its bottom on y = 0, `hoops` ring ribs evenly along it and
+a flat deck (its floor) FLOOR of its radius up, parts `shell`, `ribs` and `deck`.
 """
 import math
 
@@ -19,6 +24,8 @@ MERIDIANS = 12  # ribs from the ground to the top
 RINGS = 3  # level ribs between the ground and the top, evenly by angle
 RIB = 0.12  # a rib's square section, metres
 DECK = 0.02  # the deck's height over y = 0, so it never fights a ground laid under the dome
+HOOPS = 5  # ring ribs along a tunnel
+FLOOR = 0.3  # a tunnel's deck height over its bottom, in its radius
 STEPS = 48  # points around the dome and along each rib (a quarter arc takes STEPS // 4)
 
 
@@ -134,3 +141,40 @@ def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB):
 def disc_file(path, radius):
     """A laid ground's flat disc of `radius` written at `path`: /ground with its mesh `geo`, one part `ground`."""
     return written(path, "ground", [("ground", disc(radius))])
+
+
+def tube_skin(radius, length):
+    """A level cylinder's skin along +z (its bottom on y = 0), rings about a metre apart, faces wound outward."""
+    count = max(1, math.ceil(length))
+    points = [(radius * math.cos(2 * math.pi * around / STEPS), radius + radius * math.sin(2 * math.pi * around / STEPS),
+               length * along / count) for along in range(count + 1) for around in range(STEPS)]
+    faces = [[along * STEPS + around, along * STEPS + (around + 1) % STEPS, (along + 1) * STEPS + (around + 1) % STEPS,
+              (along + 1) * STEPS + around] for along in range(count) for around in range(STEPS)]
+    return points, faces
+
+
+def hoop_ribs(radius, length, hoops, rib):
+    """The tunnel's ring ribs, `hoops` of them evenly from end to end (both ends included when two or more)."""
+    made = []
+    spots = [length / 2.0] if hoops == 1 else [length * number / (hoops - 1) for number in range(hoops)]
+    arounds = [2 * math.pi * step / STEPS for step in range(STEPS)]
+    outward = [(math.cos(around), math.sin(around), 0.0) for around in arounds]
+    for spot in spots:
+        spot = min(max(spot, rib / 2.0), length - rib / 2.0)
+        made.append(swept([(radius * out[0], radius + radius * out[1], spot) for out in outward], outward,
+                          [(0.0, 0.0, 1.0)] * STEPS, rib, closed=True))
+    return made
+
+
+def tube_deck(radius, length):
+    """The tunnel's floor: a flat strip FLOOR of its radius over its bottom, as wide as the skin there, faces up."""
+    height = FLOOR * radius
+    half = math.sqrt(max(radius ** 2 - (radius - height) ** 2, 0.0))
+    return [(-half, height, 0.0), (half, height, 0.0), (half, height, length), (-half, height, length)], [[0, 3, 2, 1]]
+
+
+def tube(path, radius, length, hoops=HOOPS, rib=RIB):
+    """The tunnel written at `path`: /tube with its mesh `geo` and its parts `shell`, `ribs` and `deck`."""
+    return written(path, "tube", [("shell", tube_skin(radius, length)),
+                                  *[("ribs", made) for made in hoop_ribs(radius, length, hoops, rib)],
+                                  ("deck", tube_deck(radius, length))])

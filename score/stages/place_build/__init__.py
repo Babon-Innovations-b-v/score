@@ -21,6 +21,7 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        glTF-only entry converted once (gltf.py), a character dressed
                                                        and held in a pose of its clip, a ground marked as the ground
     dome(folder, name, radius, at, ...)                the dome shell algorithm (dome_shell.py) laid: glass shell, curved ribs
+    tube(folder, name, radius, length, at, turn, ...)  the dome shell algorithm's ribbed glass tunnel laid
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
     surface(folder, name, address, colour, part)       a library surface on an object, or on one of its named parts
@@ -40,6 +41,8 @@ import json
 import pathlib
 import shutil
 import sys
+
+import numpy as np
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade
 
@@ -214,21 +217,61 @@ def posed(prim, at, turn, scale):
 
 
 def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0), ground=False,
-        wear=None, clip=None, second=0.0):
+        wear=None, clip=None, second=0.0, rest=False, on_ground=False):
     """The library entry laid as Objects/<name> (laid again when the name is taken: its reference and pose
     replaced, its surface kept); the scene saved. `ground` marks it as the place's ground (the renderer then lays no
     plane of its own); a character wears `wear` (its body groups, WORN's first by default) and is held still in its
-    clip `clip` (CLIP by default) `second` seconds in."""
+    clip `clip` (CLIP by default) `second` seconds in; `rest` lifts or lowers it so its lowest point lies at `at`'s
+    height (a model whose origin is not at its foot stands on the floor or table it is put on); `on_ground` takes
+    `at`'s height as above the laid ground under it (a rock on a real terrain's relief, sunk in by a negative one)."""
     address, record, copied = fetch(folder, address)
     asset = usd_file(record, copied)
     stage, place = opened(folder)
     path = f"/{place}/Objects/{name}"
+    if on_ground:
+        at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
     relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground)
     laid = {"name": name, "address": address, "usd": relative}
     if record["kind"] == "character":
         laid.update(dressed(stage, path, asset, wear, clip, second))
+    if rest:
+        laid["at"] = rested(stage, path, at, turn, scale)
     stage.GetRootLayer().Save()
     return laid
+
+
+def ground_height(stage, place, x, z):
+    """The height of the laid ground (every object marked score:ground) at (x, z): its highest face over that spot,
+    found among the points within reach and read off the nearest face's plane; Refused when nothing laid lies under."""
+    points = []
+    for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
+        if not prim.GetAttribute("score:ground").Get():
+            continue
+        for inside in Usd.PrimRange(prim):
+            if inside.IsA(UsdGeom.Mesh):
+                own = np.array(UsdGeom.Mesh(inside).GetPointsAttr().Get(), dtype=np.float64)
+                matrix = np.array(UsdGeom.Xformable(inside).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+                points.append(own @ matrix[:3, :3] + matrix[3, :3])
+    if not points:
+        raise Refused("no ground is laid to stand on")
+    points = np.concatenate(points)
+    distance = np.hypot(points[:, 0] - x, points[:, 2] - z)
+    nearest = np.argsort(distance)[:3]
+    if distance[nearest[0]] > 50.0:
+        raise Refused(f"no laid ground under {x}, {z}")
+    weights = 1.0 / np.maximum(distance[nearest], 1e-6)
+    return float(np.sum(points[nearest, 1] * weights) / np.sum(weights))
+
+
+def rested(stage, path, at, turn, scale):
+    """The prim at `path` moved up or down so its lowest point lies at at[1]; its new spot."""
+    boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    box = boxes.ComputeWorldBound(stage.GetPrimAtPath(path)).ComputeAlignedRange()
+    if box.IsEmpty():
+        raise Refused(f"{path} has no shape to rest")
+    spot = [float(at[0]), float(at[1]) + float(at[1]) - box.GetMin()[1], float(at[2])]
+    posed(stage.GetPrimAtPath(path), spot, turn, scale)
+    return spot
 
 
 def laid_reference(stage, path, folder, asset, address, kind, pose, ground):
@@ -266,6 +309,27 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
                               (at, turn, (1.0, 1.0, 1.0)), False)
     stage.GetRootLayer().Save()
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
+
+
+def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), hoops=None, rib=None, address=DOME):
+    """The dome shell algorithm's ribbed glass tunnel (dome_shell.tube) of `radius` and `length` metres laid as
+    Objects/<name>, lying along its own +z from `at`; its parts `shell`, `ribs` and `deck` ready for their surfaces."""
+    from score.stages.place_build import dome_shell
+    hoops = dome_shell.HOOPS if hoops is None else hoops
+    rib = rib or dome_shell.RIB
+    if radius <= 0 or length <= 0 or hoops < 0 or rib <= 0:
+        raise Refused(f"a tunnel needs a radius and length over 0, 0 or more hoops and a rib over 0 ({radius}, "
+                      f"{length}, {hoops}, {rib})")
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
+        f"tube_r{radius:g}_l{length:g}_h{hoops}_w{rib:g}.usda")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        dome_shell.tube(target, float(radius), float(length), hoops, rib)
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
+                              (at, turn, (1.0, 1.0, 1.0)), False)
+    stage.GetRootLayer().Save()
+    return {"name": name, "address": address, "usd": relative, "radius": radius, "length": length, "hoops": hoops}
 
 
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
@@ -557,7 +621,7 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
-STEPS = {"put": put, "dome": dome, "ground": ground, "terrain": terrain, "surface": surface, "light": light, "snap": snap, "remove": remove,
+STEPS = {"put": put, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "camera": camera, "sky": sky, "view": view}
 
 

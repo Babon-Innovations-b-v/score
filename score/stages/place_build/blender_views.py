@@ -14,6 +14,10 @@ laid place needs, made here so the films' and the physics' renders (which key us
   object's own position (metres in its file, the frame its normals are in, so the box projection picks the right
   face; an object laid at a scale tiles at that scale) over that size, box-projected, so a wall, floor or dome shows
   the finish at its real size whatever its own texture coordinates are (kit pieces' map into a palette).
+- **A laid ground's image surface is displaced.** When its surface.json names `displacement_metres` and lists a
+  `displacement` map, the ground's look reads that map over the same tile and moves the skin by it (Cycles' adaptive
+  subdivision, finer where the eye is close), so the scanned ground's pebbles and ripples stand up in a low view
+  instead of being painted flat.
 
     blender -b --python blender_views.py -- <stage.usda> <views.json> <out folder>   (usd_views.py's arguments)
 """
@@ -132,6 +136,57 @@ def tiled_maps(objects):
     return changed
 
 
+DICING_PIXELS = 1.5  # an adaptive subdivision's micro-face size on screen, pixels
+DISPLACEMENT_LEVELS = 8  # the deepest a displaced ground's faces are cut
+
+
+def surface_record(node):
+    """The image surface's surface.json beside an image texture node's map, or None."""
+    image = getattr(node, "image", None)
+    if image is None or not image.filepath:
+        return None, None
+    folder = pathlib.Path(bpy.path.abspath(image.filepath)).parent
+    record = folder / "surface.json"
+    return (json.loads(record.read_text()), folder) if record.is_file() else (None, None)
+
+
+def displaced(ground):
+    """The laid ground's image surfaces displaced by their own height maps (the module's rule); the looks changed."""
+    changed = []
+    for material in {slot.material for slot in ground.material_slots if slot.material and slot.material.use_nodes}:
+        tree = material.node_tree
+        found = next(((node, *surface_record(node)) for node in tree.nodes if node.type == "TEX_IMAGE"
+                      and surface_record(node)[0] and surface_record(node)[0].get("displacement_metres")), None)
+        if found is None:
+            continue
+        colour_node, record, folder = found
+        heights = next((name for name in record.get("maps", []) if name.startswith("displacement")), None)
+        if heights is None or not (folder / heights).is_file():
+            continue
+        height_map = tree.nodes.new("ShaderNodeTexImage")
+        height_map.image = bpy.data.images.load(str(folder / heights), check_existing=True)
+        height_map.image.colorspace_settings.name = "Non-Color"
+        height_map.projection, height_map.projection_blend = "BOX", BOX_BLEND
+        tree.links.new(colour_node.inputs["Vector"].links[0].from_socket, height_map.inputs["Vector"])
+        move = tree.nodes.new("ShaderNodeDisplacement")
+        move.inputs["Midlevel"].default_value = 0.5
+        move.inputs["Scale"].default_value = float(record["displacement_metres"])
+        tree.links.new(height_map.outputs["Color"], move.inputs["Height"])
+        output = next(node for node in tree.nodes if node.type == "OUTPUT_MATERIAL")
+        tree.links.new(move.outputs["Displacement"], output.inputs["Displacement"])
+        material.displacement_method = "BOTH"
+        changed.append(material.name)
+    if changed:
+        cut = ground.modifiers.new("displaced", "SUBSURF")
+        cut.subdivision_type = "SIMPLE"
+        cut.use_adaptive_subdivision = True
+        cut.adaptive_space = "PIXEL"
+        cut.adaptive_pixel_size = DICING_PIXELS
+        cut.render_levels = DISPLACEMENT_LEVELS
+    print("blender_views: displaced", sorted(changed))
+    return changed
+
+
 def with_laid_ground(importer):
     def imported(stage):
         return joined_ground(importer(stage))
@@ -142,6 +197,9 @@ def with_thin_glass(haze):
     def drawn(objects):
         thin_glass(objects)
         tiled_maps(list(bpy.data.objects))  # the laid ground too, which usd_views keeps out of `objects`
+        ground = bpy.data.objects.get(GROUND)
+        if ground is not None and ground.type == "MESH":
+            displaced(ground)
         return haze(objects)
     return drawn
 

@@ -4,9 +4,11 @@
     python -m score.stages.place_build camera <folder> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build put <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--scale s|sx,sy,sz] [--ground] [--wear group,group] [--clip name]
-                                       [--second s]
+                                       [--second s] [--rest] [--on-ground]
     python -m score.stages.place_build dome <folder> <name> --radius m [--at x,y,z] [--turn rx,ry,rz]
                                        [--meridians n] [--rings n] [--rib m]
+    python -m score.stages.place_build tube <folder> <name> --radius m --length m [--at x,y,z] [--turn rx,ry,rz]
+                                       [--hoops n] [--rib m]
     python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
     python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--pad x,z,radius ...]
@@ -24,7 +26,8 @@
     python -m score.stages.place_build compare <folder>
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
-`put --ground` marks the piece as the place's ground, so the render lays no grey plane of its own; a character is
+`put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
+height as above the laid ground there (a rock on a terrain's relief). `put --ground` marks the piece as the place's ground, so the render lays no grey plane of its own; a character is
 dressed in its body group (`--wear`, its made body by default) and held still in a clip (`--clip`, `--second`).
 `dome` lays the dome shell algorithm (dome_shell.py): its parts `shell`, `ribs` and `deck` (its floor) take a surface
 each (`surface --part`). `ground` lays a flat disc as the place's ground (its part `ground`), for a library surface
@@ -107,10 +110,13 @@ def run(args):
     if args.step == "put":
         return place_build.put(args.folder, args.name, args.address, numbers(args.at), numbers(args.turn),
                                scale_of(args.scale), args.ground, args.wear.split(",") if args.wear else None,
-                               args.clip, args.second)
+                               args.clip, args.second, args.rest, args.on_ground)
     if args.step == "dome":
         return place_build.dome(args.folder, args.name, args.radius, numbers(args.at), numbers(args.turn),
                                 args.meridians, args.rings, args.rib)
+    if args.step == "tube":
+        return place_build.tube(args.folder, args.name, args.radius, args.length, numbers(args.at), numbers(args.turn),
+                                args.hoops, args.rib)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "terrain":
@@ -165,6 +171,8 @@ def parser():
     step.add_argument("--wear")
     step.add_argument("--clip")
     step.add_argument("--second", type=float, default=0.0)
+    step.add_argument("--rest", action="store_true")
+    step.add_argument("--on-ground", action="store_true")
     step = steps.add_parser("dome")
     step.add_argument("folder")
     step.add_argument("name")
@@ -173,6 +181,15 @@ def parser():
     step.add_argument("--turn", default="0,0,0")
     step.add_argument("--meridians", type=int)
     step.add_argument("--rings", type=int)
+    step.add_argument("--rib", type=float)
+    step = steps.add_parser("tube")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--radius", type=float, required=True)
+    step.add_argument("--length", type=float, required=True)
+    step.add_argument("--at", default="0,0,0")
+    step.add_argument("--turn", default="0,0,0")
+    step.add_argument("--hoops", type=int)
     step.add_argument("--rib", type=float)
     step = steps.add_parser("ground")
     step.add_argument("folder")
