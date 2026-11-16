@@ -13,7 +13,15 @@ Breaks (each applied once, seen red, reverted):
 - agent_door.py `store_missing`: name every path, not only those missing -> the push carries files the conductor
   holds (its own add-only refusal is the door's test).
 - this_pc.py `ENVIRONMENT`: drop "SCORE_FREE_ONLY": "1" -> a run here may buy (its runs are not free only).
-- this_pc.py `run_environment`: drop `found.pop(OWNERS_GO, None)` -> a go from this shell tags every run.
+- this_pc.py `run_environment`: drop `found.pop(OWNERS_GO, None)` -> a go from this shell tags every run; or drop
+  SPEND_TICKET from its pops -> a ticket from this shell rides on a run given none; or `if ticket` -> `if False` -> a
+  run given --spend-ticket carries no override and its bakes stay on this card.
+- provider.py `sent_from_this_pc`: drop `if not any(who.startswith(word) ...): return` -> every Blender call of the
+  run sent and paid, not surfaces-bake's alone; or drop `environ.pop("SCORE_FREE_ONLY", None)` -> the sent call stays
+  free only and is refused at its rent point; or drop the `raise SystemExit` -> a sent call moved on to machines
+  rented with this PC's stand-in self-delete key.
+- this_pc.py `ticket_refusal`: drop the `is_file` refusal -> a run spends under an override not applied here; or the
+  euros one -> an override with no euros starts.
 - this_pc.py `deciding`: `run_environment(home)` -> `os.environ` -> the decision reaches the PC's old home.
 - this_pc.py `push`: drop the `except FileNotFoundError: continue` -> a file a live run removed after the listing
   ends the push (2026-10-28).
@@ -62,6 +70,7 @@ import pytest
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import provider  # noqa: E402
 import this_pc  # noqa: E402
 
 
@@ -314,21 +323,53 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
             "SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1"}
         assert environment["PROPS_HOME"] == str(home) and environment[this_pc.OWNERS_GO] == GO
         holding.clear()  # the live run ended
+        here.setenv(this_pc.SPEND_TICKET, "override stray")  # a ticket in this shell spends nothing here
+        here.setenv(this_pc.THIS_PC_SENDS, "surfaces-bake-")
         assert this_pc.run(home, ["world1"]) == 0
         assert events == [("score.review.plans_pass", this_pc.REPO, str(home), "1"), ("waited", 5),
                           ("score.stages.complete.prepare", this_pc.REPO, str(home), "1")]
         command, environment, size = started[1]
         assert size == [8.0, 24.0, 4.0] and this_pc.OWNERS_GO not in environment
+        assert this_pc.SPEND_TICKET not in environment and this_pc.THIS_PC_SENDS not in environment
+        # --spend-ticket: refused until the owner's override stands applied in this home's books with euros; then the
+        # run stays free only on this PC's card, under the override, sending surfaces-bake's Blender calls alone
+        arguments, ticket = this_pc.ticket_taken(["world1", "--spend-ticket", "env1-rebake-cloud", "--place", "hub"])
+        assert arguments == ["world1", "--place", "hub"] and ticket == "env1-rebake-cloud"
+        with pytest.raises(SystemExit, match="--spend-ticket names"):
+            this_pc.ticket_taken(["world1", "--spend-ticket", "--place"])
+        assert "no spend override 'env1-rebake-cloud' applied" in this_pc.ticket_refusal(home, ticket)
+        yes = home / "store/objects/spend-yes/override/env1-rebake-cloud.json"
+        write(yes, this_pc.json.dumps({"node": "override", "key": ticket, "euros": 0}))
+        assert "names no euros" in this_pc.ticket_refusal(home, ticket)
+        yes.unlink()
+        write(yes, this_pc.json.dumps({"node": "override", "key": ticket, "euros": 35.0}))
+        assert this_pc.ticket_refusal(home, ticket) is None
+        assert this_pc.run(home, arguments, None, ticket) == 0
+        command, environment, _ = started[2]
+        assert command[-1] == "--free" and {key: environment[key] for key in this_pc.ENVIRONMENT} == this_pc.ENVIRONMENT
+        assert environment[this_pc.SPEND_TICKET] == "override env1-rebake-cloud"
+        assert environment[this_pc.THIS_PC_SENDS] == "surfaces-bake-"
+        # where the backend is chosen: surfaces-bake's blender_cloud.py call alone goes to the cluster, its free-only
+        # setting dropped; another call stays on this card; a sent call moved on to rented machines is refused
+        calls = {who: dict(environment) for who in ("surfaces-bake-hub", "score runner, settle@hub")}
+        for who, variables in calls.items():
+            provider.sent_from_this_pc(variables, ["/repo/tools/cloud/blender_cloud.py", "job.json", "--who", who])
+        assert [{name: calls[who].get(name) for name in ("SCORE_CLOUD", "SCORE_CLOUD_KINDS", "SCORE_FREE_ONLY")}
+                for who in calls] == [{"SCORE_CLOUD": "k8s", "SCORE_CLOUD_KINDS": "blender", "SCORE_FREE_ONLY": None},
+                                      {"SCORE_CLOUD": "local", "SCORE_CLOUD_KINDS": None, "SCORE_FREE_ONLY": "1"}]
+        rented = {name: value for name, value in calls["surfaces-bake-hub"].items() if name != "SCORE_CLOUD"}
+        with pytest.raises(SystemExit, match="never rented from it"):
+            provider.sent_from_this_pc(rented, ["blender_cloud.py", "job.json", "--who", "surfaces-bake-hub"])
         failing.add("score.review.plans_pass")
         with pytest.raises(SystemExit, match="score.review.plans_pass failed .exit 1.: KeyError: 'hangar'"):
             this_pc.run(home, ["world1"])
-        assert len(started) == 2  # no score run after a failed step
+        assert len(started) == 3  # no score run after a failed step
         # decide-yes and decide: the cockpit's command against this home's store, the owner his cockpit names
         here.delenv("SCORE_OWNER", raising=False)
         here.setattr(this_pc, "DASHBOARD_ENV", tmp_path / "dashboard.env")
         (tmp_path / "dashboard.env").write_text("SCORE_OWNER=joey\n")
         assert this_pc.deciding(home, "decide", [GO]) == 0
-        command, environment, _ = started[2]
+        command, environment, _ = started[3]
         assert command[1:] == ["-m", "score.dashboard", "decide", GO]
         assert environment["PROPS_HOME"] == str(home) and environment["SCORE_OWNER"] == "joey"
         assert this_pc.OWNERS_GO not in environment

@@ -141,5 +141,34 @@ def billing():
     return load(DEFAULT) if cloud.NAME == "local" else cloud
 
 
+# A run on this PC's card under the owner's override (this_pc.py --spend-ticket; owner, 2026-11-16, "Yes, cloud, up to
+# EUR 35 (Recommended)" to env1's re-bake on cloud cards): a blender_cloud.py call whose --who begins with one of these
+# comma-separated words runs on the cluster under that override, every other call staying on this PC's card. Set here,
+# where the backend is chosen, so no row declaring blender_cloud.py as a file moves.
+THIS_PC_SENDS = "SCORE_THIS_PC_SENDS"
+SENT_RUNNER = "blender_cloud.py"
+
+
+def sent_from_this_pc(environ, argv):
+    """`environ` changed in place for a blender_cloud.py call (`argv`) that SCORE_THIS_PC_SENDS sends from this PC's
+    card: SCORE_CLOUD=k8s for its job kind alone and the run's free-only setting dropped, so its rent points ask the
+    override SCORE_SPEND_TICKET names; SystemExit for such a call about to rent machines (cluster_jobs.Elsewhere's move
+    on): this PC's home holds a stand-in self-delete key, so a machine rented from it could not delete itself."""
+    words = [word.strip() for word in environ.get(THIS_PC_SENDS, "").split(",") if word.strip()]
+    if not words or pathlib.Path(argv[0] if argv else "").name != SENT_RUNNER:
+        return
+    who = argv[argv.index("--who") + 1] if "--who" in argv[:-1] else ""
+    if not any(who.startswith(word) for word in words):
+        return
+    chosen = environ.get("SCORE_CLOUD")
+    if chosen == "local":
+        environ.pop("SCORE_FREE_ONLY", None)
+        environ.update({"SCORE_CLOUD": CLUSTER, CLUSTER_KINDS: RUNNER_KINDS[SENT_RUNNER]})
+    elif chosen != CLUSTER:
+        raise SystemExit(f"{who}: sent from this PC to the cluster, never rented from it (its self-delete key is a "
+                         "stand-in); try again later")
+
+
 DEFAULT = "scaleway"
+sent_from_this_pc(os.environ, sys.argv)
 cloud = load()

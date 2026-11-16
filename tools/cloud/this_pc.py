@@ -7,6 +7,7 @@ the cockpit.
     python3 tools/cloud/this_pc.py pull | push | run [<score run arguments>]
     python3 tools/cloud/this_pc.py decide-yes ... | decide <yes id>   # the owner's decisions in chat, below
     python3 tools/cloud/this_pc.py env1 --go <go id>   # a run the owner gave his go: a bought batch, below
+    python3 tools/cloud/this_pc.py env1 --spend-ticket <override name>   # its bakes on the cluster, paid, below
     python3 tools/cloud/this_pc.py pause | resume | status   # free this PC (games), pick the run up again, below
     python3 tools/cloud/this_pc.py stop     # end the live run and its workers: SIGTERM, then SIGKILL after STOP_SECONDS
 
@@ -55,6 +56,16 @@ ask, since 2026-11-08), or over ssh to `--host`.
   bought batch, so the run doesn't stop for clicks"): `decide-yes go world1 <answer> <question>` records it in HOME's
   store, and `env1 --go <go id>` (or `run ... --go <go id>`) tags the run SCORE_OWNERS_GO, so the runner takes it as a
   bought batch for review.IN_BATCH (score.review.web.owners_go checks the go is his); without a go nothing changes.
+- **A paid route for the bakes** (owner, 2026-11-16, "Yes, cloud, up to EUR 35 (Recommended)" to moving env1's
+  re-bake to the cloud): `env1 --spend-ticket <name>` (or `run ... --spend-ticket <name>`) needs his spend override
+  `<name>` recorded and applied in HOME's books (`decide-yes spend <name> --euros E ...`, then `decide <yes id>`) and
+  the tenant cluster in reach from this shell (agent_door.cluster_check: SCORE_K8S_PROVIDER=scaleway/tenant and the
+  box's SCORE_K8S_ settings), else it is refused naming why. The run stays free only on this PC's card, and carries
+  SCORE_SPEND_TICKET="override <name>" and SCORE_THIS_PC_SENDS (SENT_TO_CLOUD): each blender_cloud.py call of
+  surfaces-bake runs on the cluster (provider.sent_from_this_pc, where the backend is chosen: SCORE_CLOUD=k8s for its
+  kind, the free-only setting dropped for it, never moved on to machines rented from here), where every rent point asks that override (compute.require_cloud: its euros less
+  what is booked under it, the books, the env1 cap) and its batch is held to what is left of it (ledger.batch_cap).
+  Every other card job stays on this PC's card at EUR 0.
 - **Pause, resume, status** (owner, 2026-10-28: "make it so that you can ez pause and resume using my system, as i do
   wanne be able to play some games at some points"): `pause` records the live run (HOME's run registry: its id,
   arguments, commit, and the SCORE_ variables it ran with, its go and SCORE_MIN_FREE_GB among them) in PAUSED, sends
@@ -84,7 +95,7 @@ import time
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools" / "cloud" / "conductor"))
 
-from agent_door import PULLED, PUSHED, env_file_values, manifest, walked  # noqa: E402
+from agent_door import PULLED, PUSHED, Refused, cluster_check, env_file_values, manifest, walked  # noqa: E402
 
 HOME = pathlib.Path(os.environ.get("SCORE_THIS_PC_HOME", pathlib.Path.home() / ".score-this-pc"))
 DASHBOARD_ENV = pathlib.Path.home() / ".config" / "score" / "dashboard.env"  # this PC's cockpit's, its SCORE_OWNER
@@ -109,6 +120,12 @@ BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.grap
 # remake_prepared): the plans the plan stage reads, then the hand-ins prepare writes from them.
 DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
 OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
+# A run given --spend-ticket: the owner's override it runs under, and the blender_cloud.py callers (their --who's start)
+# it sends to the cluster under it (provider.THIS_PC_SENDS); the surfaces-bake rows' (route_bake.make_bake).
+SPEND_TICKET = "SCORE_SPEND_TICKET"
+THIS_PC_SENDS = "SCORE_THIS_PC_SENDS"  # provider.THIS_PC_SENDS
+SENT_TO_CLOUD = "surfaces-bake-"
+OVERRIDE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 REPLACEABLE = "work/pixal"  # the takes, remade here in place; the one folder a push replaces in (agent_door.REPLACEABLE)
 SET_ASIDE = ("work/pixal/retaken/", "work/pixal/replaced/")  # a retake's and a replace's kept old files, never replaced
 BLOBS = "store/objects/"  # the store's objects, written once by content and key: one held here is never pulled again
@@ -247,12 +264,39 @@ def prepared(home):
     return home
 
 
-def run_environment(home, go=None):
-    """The environment a run here gets: PROPS_HOME the pulled home, this PC's card, free only, inputs direct, and the
-    owner's go when one is named (no go taken from this shell)."""
+def run_environment(home, go=None, ticket=None):
+    """The environment a run here gets: PROPS_HOME the pulled home, this PC's card, free only, inputs direct, the
+    owner's go when one is named, and with `ticket` (an override's name) that override as the run's spend ticket and
+    SENT_TO_CLOUD sent to the cluster under it (no go or ticket taken from this shell)."""
     found = {**os.environ, **ENVIRONMENT, "PROPS_HOME": str(home)}
-    found.pop(OWNERS_GO, None)
-    return {**found, **({OWNERS_GO: go} if go else {})}
+    for name in (OWNERS_GO, SPEND_TICKET, THIS_PC_SENDS):
+        found.pop(name, None)
+    paid = {SPEND_TICKET: f"override {ticket}", THIS_PC_SENDS: SENT_TO_CLOUD} if ticket else {}
+    return {**found, **({OWNERS_GO: go} if go else {}), **paid}
+
+
+def ticket_taken(arguments):
+    """(arguments without `--spend-ticket <override name>`, the name or None)."""
+    if "--spend-ticket" not in arguments:
+        return list(arguments), None
+    at = arguments.index("--spend-ticket")
+    if at + 1 >= len(arguments) or not OVERRIDE_NAME.fullmatch(arguments[at + 1]):
+        raise SystemExit("--spend-ticket names the owner's spend override: --spend-ticket <name>, as decide-yes spend "
+                         "recorded it")
+    return [*arguments[:at], *arguments[at + 2:]], arguments[at + 1]
+
+
+def ticket_refusal(home, name):
+    """Why a run here may not spend under the owner's override `name`, or None: his yes must stand applied in `home`'s
+    books (the store's spend-yes/override/<name>.json, which `decide <yes id>` writes) with euros to spend."""
+    path = home / "store" / "objects" / "spend-yes" / "override" / f"{name}.json"
+    if not path.is_file():
+        return (f"no spend override {name!r} applied in {home}'s books: record and apply his yes first "
+                f"(decide-yes spend {name} --euros E --purpose P <answer> <question>, then decide <yes id>)")
+    euros = float(json.loads(path.read_text()).get("euros") or 0.0)
+    if euros <= 0:
+        return f"the spend override {name!r} in {home}'s books names no euros: nothing to spend"
+    return None
 
 
 def go_taken(arguments):
@@ -349,10 +393,11 @@ def design_current(home, code, environment):
     return "; ".join(said)
 
 
-def run(home, arguments, go=None):
-    """`score run` here on this PC's card, tagged with the owner's go when one is named, its design brought up to
-    date first unless a run is live in `home`; its exit status."""
-    environment = run_environment(prepared(home), go)
+def run(home, arguments, go=None, ticket=None):
+    """`score run` here on this PC's card, tagged with the owner's go when one is named, under the owner's override
+    `ticket` when one is named (run_environment), its design brought up to date first unless a run is live in `home`;
+    its exit status."""
+    environment = run_environment(prepared(home), go, ticket)
     entry = live_run(home)
     print(design_current(home, REPO, environment) if entry is None else
           f"the design left as it is: run {entry['id']} is live and reads it", flush=True)
@@ -598,7 +643,8 @@ def main(argv=None):
     parser.add_argument("command", choices=("env1", "pull", "run", "push", "decide-yes", "decide",
                                                         "pause", "resume", "status", "stop"))
     parser.add_argument("arguments", nargs=argparse.REMAINDER, help="run: score run's arguments (default world1), "
-                        "--go <go id>, --no-push <reason> and --restart-reason <why> among them; decide-yes and decide: the door's verbs' arguments")
+                        "--go <go id>, --spend-ticket <override name>, --no-push <reason> and --restart-reason <why> "
+                        "among them; decide-yes and decide: the door's verbs' arguments")
     parser.add_argument("--host", help="an ssh door's address (default: the cluster conductor's door)")
     parser.add_argument("--key", default="~/.ssh/score_conductor_agents", help="the agents' ssh key to the door")
     options = parser.parse_args(argv)
@@ -611,9 +657,15 @@ def main(argv=None):
     arguments, go = go_taken(options.arguments)
     arguments, reason = no_push_taken(arguments)
     arguments, restart = restart_taken(arguments)
+    arguments, ticket = ticket_taken(arguments)
     running = options.command in ("env1", "run")
     if running:
-        refused = start_refusal(home, restart)
+        refused = start_refusal(home, restart) or (ticket and ticket_refusal(home, ticket))
+        if ticket and not refused:
+            try:
+                print(cluster_check(os.environ).splitlines()[0], flush=True)
+            except Refused as gap:
+                refused = f"its bakes go to the cluster under override {ticket}: {gap}"
         if refused:
             raise SystemExit(f"{options.command}: refused, {refused}")
         if restart:
@@ -624,7 +676,7 @@ def main(argv=None):
         host = options.host
         files, size = pull(home, door_command(host, options.key, "store-pull"))
         print(f"pulled {files} files ({size / 1e9:.2f} GB) into {home}")
-    status = run(home, arguments or ["world1"], go) if running else 0
+    status = run(home, arguments or ["world1"], go, ticket) if running else 0
     if options.command == "push" or (running and reason is None):
         host = host or options.host
         files, size = push(home, door_command(host, options.key, "store-push --missing"),
