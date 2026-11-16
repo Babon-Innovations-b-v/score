@@ -58,6 +58,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
 - dome_shell.on_circle: a corner kept where it lies -> the end wall's rim steps out past the tube's circle
 - dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
+- dome_shell.onto_trims: no point slid (the face kept or left by its middle) -> the hall's end steps along the glass
 - dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
 - dome_shell.ribs: the oculus ignored (meridians to the top) -> a rib crosses the dome's crown
 - dome_shell.strips: the band stood outward (`inward` negated) -> the light strip hangs outside the glass
@@ -383,7 +384,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
                  .GetIndicesAttr().Get())]].reshape(-1, 3)
     off_axis = np.hypot(cap_points[:, 0], cap_points[:, 1] - 1.5)
     assert off_axis.max() <= 1.5 + 1e-5 and np.count_nonzero(off_axis > 1.5 - 1e-5) > 50
-    assert np.linalg.norm(hall_skin - [0.0, 0.0, -3.0], axis=1).min() >= 4.0 and hall_skin[:, 2].min() < 0.5
+    assert np.linalg.norm(hall_skin - [0.0, 0.0, -3.0], axis=1).min() >= 4.0 - 1e-3 and hall_skin[:, 2].min() < 0.5
+    hall_points = np.array(hall.GetPointsAttr().Get())
+    on_glass = np.abs(np.linalg.norm(hall_points - [0.0, 0.0, -3.0], axis=1) - 4.0) < 1e-3
+    assert np.count_nonzero(on_glass) >= 40  # its end runs along the dome's glass, never in steps
     assert part_middles(hall, "wall")[:, 1].max() < 0.45 + 0.8 < part_middles(hall, "shell")[:, 1].min()
     assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["base", "deck", "ribs", "shell"]
     assert sorted(next(item for item in shown["objects"] if item["name"] == "tunnel")["parts"]) == ["deck", "ribs", "shell", "wall"]

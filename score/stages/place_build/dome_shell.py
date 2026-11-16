@@ -314,17 +314,30 @@ def in_trims(point, trims):
     return any(math.dist(point, trim[:3]) < trim[3] for trim in trims)
 
 
+def onto_trims(point, trims, length):
+    """`point` slid along the tube's axis out of any trim sphere it lies inside, onto that sphere's glass on the
+    tube's side of it; (the point, whether it was moved)."""
+    x, y, z = point
+    for cx, cy, cz, reach in trims:
+        if math.dist(point, (cx, cy, cz)) < reach:
+            half = math.sqrt(max(reach * reach - (x - cx) ** 2 - (y - cy) ** 2, 0.0))
+            return (x, y, cz + half if cz < length / 2 else cz - half), True
+    return point, False
+
+
 def tube_skin(radius, length, trims=()):
     """A level cylinder's skin along +z (its bottom on y = 0), rings about a metre apart (TRIM_RING apart when
-    trimmed), faces wound outward; a face whose middle lies inside a trim sphere left out, so the tube ends on the
-    dome's glass instead of standing into the room."""
+    trimmed), faces wound outward; a point inside a trim sphere slid along the axis onto its glass and a face with
+    every corner inside left out, so the tube ends on the dome's glass along a smooth edge instead of standing into
+    the room or ending in steps."""
     count = max(1, math.ceil(length / (TRIM_RING if trims else 1.0)))
-    points = [(radius * math.cos(2 * math.pi * around / STEPS), radius + radius * math.sin(2 * math.pi * around / STEPS),
-               length * along / count) for along in range(count + 1) for around in range(STEPS)]
+    ring = [(radius * math.cos(2 * math.pi * around / STEPS), radius + radius * math.sin(2 * math.pi * around / STEPS),
+             length * along / count) for along in range(count + 1) for around in range(STEPS)]
+    slid = [onto_trims(point, trims, length) for point in ring]
+    points = [point for point, _ in slid]
     faces = [[along * STEPS + around, along * STEPS + (around + 1) % STEPS, (along + 1) * STEPS + (around + 1) % STEPS,
               (along + 1) * STEPS + around] for along in range(count) for around in range(STEPS)]
-    faces = [face for face in faces
-             if not in_trims(tuple(sum(points[index][axis] for index in face) / 4 for axis in range(3)), trims)]
+    faces = [face for face in faces if not all(slid[index][1] for index in face)]
     return points, faces
 
 
