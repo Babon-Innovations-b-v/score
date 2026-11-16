@@ -39,7 +39,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   five red pipes read at its room's 9.414 by 9.8 m footprint, each made that long on its 8.94 m wall), or
   groups.walls_piece's `max(lengths)` -> `math.inf`, or groups.along_holder -> `return False` (2026-11-15: the
   cockpit's, engine room's and storage's pipes read along their wall rows kept at 9.8, 10.9 and 7.7 m on smaller
-  plans) or round_walls' `not floor_fit.fits(...) and ` dropped (a pipe that fits its floor cut to a wall)
+  plans) or round_walls' `not floor_fit.fits(...) and ` dropped (a pipe that fits its floor cut to a wall), or its
+  `anchor == "wall"` -> `False` (2026-11-16: the stairwell's conduit on its walls kept 12 m on a 7.31 m wall face)
+  -> test_a_take_is_sized_by_its_reading_and_routed_...
+- groups.path_piece -> `return None` (2026-11-16: the greenhouse's railing on one octagon path made 50 m on its
+  14.52 m floor) or its `floor_fit.fits(...)` check dropped (an 8 m railing that fits cut to its path)
   -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.own_size: `return piece` (no box_shows_whole: the square's stage screen cut to 4.8 by 6 m) or
   box_shows_whole -> `return True` (the railing's box kept at 50 m) -> test_a_take_is_sized_by_its_reading_and_routed_...
@@ -577,6 +581,20 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     storage = {"w": 5.333, "d": 5.333}
     assert groups.walls_piece(thin, [thin, left], storage, 2) == [5.333, 0.05, 0.05]  # as long as its longest wall
     assert groups.walls_piece({**thin, "size": [5.0, 0.05, 0.05]}, [thin, left], storage, 2) is None  # fits: one
+    # 2026-11-16 carried plan: the stairwell's conduit anchored on the walls themselves, one item over the floor
+    stair = {"w": 7.421, "d": 4.058, "items": [["CONDUIT PIPES 1", 0, 0, 7.421, 4.058, "S", "item"]],
+             "rows": {"CONDUIT PIPES 1": ["conduit_pipes"]}, "shapes": {"CONDUIT PIPES 1": {"shape": "rect"}}}
+    walled = {"id": "conduit_pipes", "count": 1, "anchor": "wall", "part": "object", "size": [12.0, 0.1, 12.0]}
+    assert groups.made_size(walled, [walled], stair, groups.plan_sizes_of(stair, [walled])) == [7.421, 0.1, 0.1]
+    assert groups.walls_piece({**walled, "anchor": "floor"}, [walled], stair, 1) is None  # on no wall: no wall run
+    # 2026-11-16: the greenhouse's railing read 50 m round its upper floor, laid on one octagon path
+    green = {"w": 14.517, "d": 15.499, "items": [["RAILING 1", 2.84, 3.032, 8.837, 1.887, None, "item"]],
+             "rows": {"RAILING 1": ["railing"]}, "shapes": {"RAILING 1": {"shape": "polygon", "count": 1, "tall": 1.0,
+                                                                          "points": [[0, 0], [1, 0], [1, 1]]}}}
+    railing = {"id": "railing", "count": 1, "anchor": "on:upper_floor", "part": "structure", "size": [50.0, 0.1, 1.0]}
+    assert groups.made_size(railing, [railing], green, groups.plan_sizes_of(green, [railing])) == [8.837, 0.1, 1.0]
+    short = {**railing, "size": [8.0, 0.1, 1.0]}  # fits its floor: made as read
+    assert groups.made_size(short, [short], green, groups.plan_sizes_of(green, [short])) == [8.0, 0.1, 1.0]
     door = [1.2, 0.2, 2.1]  # four doors read, one 1.16 m item laid: the door a little wider than its footprint
     assert groups.row_size(door, [1.159, 0.706, 2.1], 4) == door
     assert groups.own_size(door, [1.159, 0.706, 2.1], 4) == door

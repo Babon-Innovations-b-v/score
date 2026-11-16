@@ -168,7 +168,8 @@ def sized_rows(store, place, record):
     reading and the plan give no size has none (a gap: its take waits on "no size"). A shell piece whose part the
     place's plan lays itself (plan_parts), that it names its own shell (plan_structure), or that is arched structure
     at its plan items (plan_arches), has route "plan". A row whose reading measured its room's footprint, a run round
-    its walls (walls_piece), is sized and drawn at one piece of that run."""
+    its walls (walls_piece), or a run or path that fits its floor no way round (path_piece), is sized and drawn at one
+    piece of that run."""
     from score.review import plans
     rows = record["inventory"]["rows"]
     laid = plan_sizes(store, place, rows)
@@ -177,7 +178,8 @@ def sized_rows(store, place, record):
     shell = plan_structure(shown and shown["plan"], own)
     beyond = beyond_of(shown and shown["plan"], rows, record.get("size"))
     found = [{**read, "size": made_size(row, rows, shown and shown["plan"], laid, read.get("box")),
-              "read_size": walled or own_size(reading_size(row), laid.get(row["id"]), pieces, read.get("box"))}
+              "read_size": walled or path_piece(reading_size(row), laid.get(row["id"]), pieces, shown and shown["plan"])
+              or own_size(reading_size(row), laid.get(row["id"]), pieces, read.get("box"))}
              for row in rows for read in [read_row(record, row)] for pieces in [run_pieces(shown and shown["plan"], row)]
              for walled in [walls_piece(row, rows, shown and shown["plan"], pieces or row.get("count") or 1)]]
     holding = holding_sizes(shown and shown["plan"], rows)
@@ -191,9 +193,20 @@ def made_size(row, rows, plan, laid, box=None):
     (walls_piece), else its row_size, its pieces the plan's (run_pieces), `laid` its plan items' (plan_sizes), `box`
     its picture box. The holders lay a wall thing at it (score/review/holders built_rows), so what they part on the
     walls is what is made (2026-11-07: the stairwell's 12 m conduit pipes, made 3 m pieces, were laid apart as 12 m)."""
-    pieces = run_pieces(plan, row)
-    return walls_piece(row, rows, plan, pieces or row.get("count") or 1) or row_size(
-        reading_size(row), laid.get(row["id"]), pieces, box)
+    pieces, own = run_pieces(plan, row), reading_size(row)
+    return walls_piece(row, rows, plan, pieces or row.get("count") or 1) or path_piece(
+        own, laid.get(row["id"]), pieces, plan) or row_size(own, laid.get(row["id"]), pieces, box)
+
+
+def path_piece(own, laid, pieces, plan):
+    """One piece (run_piece) of a row the plan lays as a run or path (`pieces`, run_pieces) whose reading (`own`) fits
+    the plan's floor no way round: it measured the whole run, however few pieces its item lays (overruns sees a run
+    only where the item lays more than one; 2026-11-16: the greenhouse's railing read 50 m round its upper floor and
+    stairs, laid on one octagon path, was made 50 m on its 14.52 by 15.50 m floor). None for any other row."""
+    if not (own and laid and pieces and (plan or {}).get("w") and plan.get("d")) or \
+            floor_fit.fits(own, plan["w"], plan["d"]):
+        return None
+    return run_piece(own, laid, pieces)
 
 
 def holding_sizes(plan, rows):
@@ -377,7 +390,9 @@ def round_walls(row, rows, plan):
     measured that wall (along_holder): the plan is written apart from the reading, so its room differs from the
     walls the reading measured (2026-11-15 re-reading: the cockpit's red pipes 9.414 by 9.8 m on its 9.414 by 9.8 m
     wall panels, its plan 8.85 by 10.43 m; the engine room's pipe 10.9 m on its 10.9 m panels, its plan 11.72 by
-    8.68 m; storage's two pipes 7.7 m along its 7.7 m left wall, its plan 5.33 m square)."""
+    8.68 m; storage's two pipes 7.7 m along its 7.7 m left wall, its plan 5.33 m square). One anchored on the walls
+    themselves (no wall row holds it) that fits the floor no way round runs along them too (2026-11-16: the
+    stairwell's conduit pipes read 12 by 0.1 m along its walls and ceilings, made 12 m on its 7.31 m wall face)."""
     own, anchor = reading_size(row), str(row.get("anchor") or "")
     holder = next((other for other in rows if other["id"] == anchor.partition("on:")[2]
                    and other.get("part") == "wall"), None)
@@ -387,7 +402,8 @@ def round_walls(row, rows, plan):
     thick, room = min(own), sorted((float(plan["w"]), float(plan["d"])))
     return thick < RUN_SLENDER * room[0] and (all(
         abs(side - wall) <= thick for side, wall in zip(sorted(own[:2]), room)) or (
-        not floor_fit.fits(own, plan["w"], plan["d"]) and along_holder(own, reading_size(holder or {}))))
+        not floor_fit.fits(own, plan["w"], plan["d"]) and (along_holder(own, reading_size(holder)) if holder else
+                                                            anchor == "wall")))
 
 
 def along_holder(own, wall):
