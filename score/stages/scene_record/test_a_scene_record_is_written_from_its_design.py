@@ -622,7 +622,9 @@ FLOWN = {"w": 10.0, "d": 10.0,
                      "to": 0.0, "angle": 90.0, "steps": 5},
                     {"kind": "ramp", "points": [[3.0, 8.0], [4.0, 8.0], [4.0, 9.0], [3.0, 9.0]], "from": 0.0,
                      "to": 0.1, "angle": 0.0, "steps": 0}]}
-FLOWN_ROWS = [{"id": "stairs", "route": "shell", "size": [1.0, 2.0, 1.0]},
+# The stairs row counts 2, so its take lays both stair flights; read once (the greenhouse's 2 stairs on 3 flights,
+# #128) its take lays flight 1 alone and stair 3 stays a flight of steps.
+FLOWN_ROWS = [{"id": "stairs", "route": "shell", "size": [1.0, 2.0, 1.0], "count": 2},
               {"id": "ramp", "route": "shell", "size": [2.0, 1.0, 0.2]},
               {"id": "step_ladder", "route": "prop", "size": [0.5, 0.5, 1.8]}]
 # A lander's ramp row with a take and no item of its own, and the plan's ramp flight east 4 m up to 2 m (plan x 2 to
@@ -909,6 +911,12 @@ PLACED = [
       "stair_1": ABSENT, "ramp_2": ABSENT, "stair_3": ABSENT, "ramp_4": {"builder": "slab"},
       "ramp_4_2": {"builder": "slab", "low": 0.0, "high": 0.1}},
      {"stairs": ["stairs_1", "stairs_2"], "ramp": ["ramp_1"], "step_ladder": ["step_ladder_1"]},
+     {"inventory": {"picture": [1000, 1000], "rows": []}, "unplaced": [],
+      "objects": {row["id"]: {"rows": [row["id"]]} for row in FLOWN_ROWS}}, None),
+    ("a take laid at no more flights than its row counts", FLOWN, [{**FLOWN_ROWS[0], "count": 1}, *FLOWN_ROWS[1:]],
+     None, None,
+     {"stairs_1": {"flight": "stair_1"}, "stairs_2": ABSENT, "stair_1": ABSENT, "stair_3": {"builder": "slab"}},
+     {"stairs": ["stairs_1"], "ramp": ["ramp_1"], "step_ladder": ["step_ladder_1"]},
      {"inventory": {"picture": [1000, 1000], "rows": []}, "unplaced": [],
       "objects": {row["id"]: {"rows": [row["id"]]} for row in FLOWN_ROWS}}, None),
     ("a ramp take laid at its flight pitched up it", RAMP_FLOWN, RAMP_FLOWN_ROWS, None, None,
@@ -1961,6 +1969,10 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     Break: score/stages/scene_record/writer.py structure: `if number not in taken]` -> `if True]` (box flights beside)
     Break: score/stages/scene_record/writer.py design_objects: `flights_named(design, handin, found)` -> `pass` (the
         ramp on its own item names no flight)
+    A take is laid at no more flights than its row counts, the rest staying flights of steps (2026-11-16: the
+    greenhouse's 2 stairs laid on all 3 of its flights).
+    Break: score/stages/scene_record/writer.py flight_takes: `list(found.values()).count(row_id) < wanted[row_id]` ->
+        `True`
     #128 (2026-11-15): a box flight is a slab a step on its waist, never solid columns down to its foot (the street's
     15 steps up to 3 m); a ramp take laid at its flight carries its high end for the assembly to pitch it up to (the
     camp grounds' lander ramp lay flat, short of its hatch).

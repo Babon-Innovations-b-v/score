@@ -382,11 +382,14 @@ def flight_takes(design, handin):
     baked stairs and the airlock's baked ramp stood unused while box flights were laid, and the engine room and the
     camp grounds laid a box ramp beside their ramp's take). Each kind's rows and flights are paired nearest first (a
     row's distance its nearest plan item's to the flight, row_distance; a row on no item last), one flight a row; a
-    flight left over takes its nearest row of its kind again (the greenhouse's one stairs row on its three flights).
-    A flight no row with a take of its kind names stays a flight of steps."""
+    flight left over takes its nearest row of its kind again while that row is laid at fewer flights than its reading
+    counts (counted; 2026-11-16, #128: the greenhouse's stairs row, counting 2, was laid at all three of its plan's
+    flights and plan-matched failed it 3 for 2). A flight no row with a take of its kind names stays a flight of
+    steps."""
     models = models_of(handin)
     rows = [row for row in handin.get("rows", []) if row["id"] in models and flight_kind(row)
             and row.get("route", "prop") in LAID_ROUTES and not row.get("far")]
+    wanted = {row["id"]: int(counted(row, design).get("count") or 1) for row in rows}
     found = {}
     for kind in FLIGHT_NOUNS:
         ranked = sorted((row_distance(design, row["id"], entry), index, number, row["id"])
@@ -398,8 +401,9 @@ def flight_takes(design, handin):
                 found[number] = row_id
                 paired.add(row_id)
         for _, _, number, row_id in ranked:
-            if not own_item(design, row_id):  # one laid at its own item stands for one flight alone
-                found.setdefault(number, row_id)
+            if number not in found and not own_item(design, row_id) and \
+                    list(found.values()).count(row_id) < wanted[row_id]:  # one at its own item stands for one alone
+                found[number] = row_id
     return found
 
 
