@@ -42,6 +42,18 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   (blender_views.py); a model's bake keeps its own texture coordinates.
 - **The preview's Blender script is blender_views.py**, usd_views.py with a laid ground as the ground and see-through
   looks as thin glass, patched in there so the films' and physics' renders (which key usd_views.py) never move.
+- **One palette a place** (owner, 2026-11-16: "if u take a bunch of random scans, everything will look very
+  inconsistent"): `palette` takes in the place's scene surface library (its surface-library output: ProcFunc recipe
+  variants in its palette tokens, the ones its props were baked from) with its wear and dirt; `surface ... palette/<v>`
+  lays a variant (its recipe's score_lib entry, the spec on the look) and the preview draws it as its recipe
+  (tools/props/library/recipes.py: edge wear, dirt, relief) on the mesh set upright, so shells, floors and repainted
+  parts share the props' finishes. The recipes need pandas beside Blender (`$PROPS_HOME/blender-mcp/pf-site`).
+- **Physics-ready structure**: `dome --opening around,radius,centre` cuts glass, ribs and plinth where a tube joins
+  (a collar rib round it); `tube --cap w,h` closes its far end with a wall holding a doorway (an airlock's door sits
+  in it), `trims` end its skin on the domes' glass, and its skin is solid to WALL_HIGH over its deck (part `wall`).
+- **A model's own layers** (`<file>_glow.usdc`, a monitor's screen) are laid with it as children, each a part a
+  surface can take (`surface --part glow palette/screen_glow`).
+- **`render --final`** renders at the films' samples; the views take AgX's medium high contrast look.
 - **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
 - Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;

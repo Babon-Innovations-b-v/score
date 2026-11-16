@@ -18,6 +18,12 @@ laid place needs, made here so the films' and the physics' renders (which key us
   `displacement` map, the ground's look reads that map over the same tile and moves the skin by it (Cycles' adaptive
   subdivision, finer where the eye is close), so the scanned ground's pebbles and ripples stand up in a low view
   instead of being painted flat.
+- **A palette variant is drawn as its recipe.** A look laid from the place's palette (`surface ... palette/<variant>`,
+  its spec in `score:recipe:spec`) is replaced by its ProcFunc recipe (tools/props/library/recipes.py, as the
+  surfaces bake and the swatches draw it): its edge wear through to the bare layer, dirt in its cavities and its
+  relief, at the place's wear and dirt, so shells, floors and repainted parts wear the same finishes the props were
+  baked from. A preview look stays for every other reader. The views take AgX's medium high contrast look, as a
+  camera's grade, rather than the films' flat base.
 
     blender -b --python blender_views.py -- <stage.usda> <views.json> <out folder>   (usd_views.py's arguments)
 """
@@ -30,9 +36,14 @@ import bpy
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/blender/inside"))
 import usd_views  # noqa: E402
 
+RECIPES_AT = pathlib.Path(__file__).resolve().parents[3] / "tools/props/library/inside"
+
 GLASS_IOR = 1.5  # a thin glass look's reflection share at each angle (window glass)
 SEE_THROUGH = ("Alpha", "Transmission Weight")  # the Principled inputs a look's opacity comes in on
 GROUND = "Ground"  # the name usd_views.stage_ground takes as the stage's own ground
+# AgX's look on the preview's views: a camera's contrast (AgX's base look is the films' flat grade, washing a pale
+# interior out to one beige).
+CONTRAST = "AgX - Medium High Contrast"
 
 
 def laid_grounds(objects):
@@ -190,6 +201,65 @@ def displaced(ground):
     return changed
 
 
+def recipe_specs(stage_path):
+    """{look name: its palette spec} of every look the stage marks with `score:recipe:spec`."""
+    from pxr import Usd
+    stage = Usd.Stage.Open(str(stage_path))
+    found = {}
+    for prim in stage.Traverse():
+        marked = prim.GetAttribute("score:recipe:spec")
+        if marked and marked.Get():
+            found[prim.GetName()] = json.loads(marked.Get())
+    return found
+
+
+def upright(item):
+    """The object's turn and scale moved into its own mesh, so its own coordinates are the scene's (z up, metres)
+    from its origin, as a recipe reads them: a y-up USD's mesh keeps y up under the importer's turn, so a recipe's
+    floor grid (face_plane: the world's normal against the object's coordinates) would read a floor's height across
+    it and stripe it."""
+    import mathutils
+    location, rotation, scale = item.matrix_world.decompose()
+    held = [(child, child.matrix_world.copy()) for child in item.children]
+    if item.data.users > 1:
+        item.data = item.data.copy()
+    item.data.transform(mathutils.Matrix.LocRotScale(None, rotation, scale))
+    item.matrix_world = mathutils.Matrix.Translation(location)
+    for child, where in held:  # a child stays where it stood
+        child.matrix_world = where
+
+
+def recipe_looks(objects, specs):
+    """Every look the stage marks as a palette variant replaced, in every slot it fills, by its recipe drawn
+    (the module's rule), each object wearing one set upright first; the looks it changed."""
+    if not specs:
+        return []
+    sys.path.insert(0, str(RECIPES_AT))
+    import runtime
+    runtime.ready()
+    import recipes
+    drawn, changed = {}, []
+    for item in objects:
+        if item.type != "MESH":
+            continue
+        if any(slot.material and slot.material.name.split(".")[0] in specs for slot in item.material_slots):
+            upright(item)
+        for slot in item.material_slots:
+            name = slot.material.name.split(".")[0] if slot.material else None
+            if name not in specs:
+                continue
+            if name not in drawn:
+                spec = specs[name]
+                material = recipes.shaded(recipes.channels(spec, spec["wear"], spec["dirt"], spec["seed"])).item()
+                material.displacement_method = "BUMP"
+                material.name = f"{name}-recipe"
+                drawn[name] = material
+                changed.append(name)
+            slot.material = drawn[name]
+    print("blender_views: recipes", sorted(changed))
+    return changed
+
+
 def with_laid_ground(importer):
     def imported(stage):
         return joined_ground(importer(stage))
@@ -199,7 +269,10 @@ def with_laid_ground(importer):
 def with_thin_glass(haze):
     def drawn(objects):
         thin_glass(objects)
-        tiled_maps(list(bpy.data.objects))  # the laid ground too, which usd_views keeps out of `objects`
+        every = list(bpy.data.objects)  # the laid ground too, which usd_views keeps out of `objects`
+        tiled_maps(every)
+        recipe_looks(every, recipe_specs(sys.argv[sys.argv.index("--") + 1]))
+        bpy.context.scene.view_settings.look = CONTRAST
         ground = bpy.data.objects.get(GROUND)
         if ground is not None and ground.type == "MESH":
             displaced(ground)

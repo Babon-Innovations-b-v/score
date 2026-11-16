@@ -24,7 +24,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     tube(folder, name, radius, length, at, turn, ...)  the dome shell algorithm's ribbed glass tunnel laid
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
-    surface(folder, name, address, colour, part)       a library surface on an object, or on one of its named parts
+    palette(folder, library, wear, dirt)               the place's one surface library (its scene palette's families
+                                                       and tokens, as its props were painted from) taken in
+    surface(folder, name, address, colour, part)       a library surface on an object, or on one of its named parts;
+                                                       `palette/<variant>` a variant of the place's palette
     light(folder, name, address, at, watts, radius, colour)
     sky(folder, address, elevation, heading, strength, colour)
                                                        a library sky laid as the place's own (its dome, its
@@ -50,7 +53,12 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/library"))
 import library_files  # noqa: E402
 
+sys.path.insert(0, str(REPO / "tools/props/library"))
+import library as surface_library  # noqa: E402  (the ProcFunc surface library's loader, standard library only)
+
 from score import library  # noqa: E402
+
+PALETTE = "palette.json"  # the place's own surface library in its folder (`palette`)
 
 # A new place's camera before the agent estimates the concept's: eye height standing at the origin, looking along -z
 # level, 60 degrees across the picture.
@@ -239,12 +247,34 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
     relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground)
     laid = {"name": name, "address": address, "usd": relative}
+    layers = layered(stage, path, folder, asset, record, copied)
+    if layers:
+        laid["layers"] = layers
     if record["kind"] == "character":
         laid.update(dressed(stage, path, asset, wear, clip, second))
     if rest:
         laid["at"] = rested(stage, path, at, turn, scale)
     saved(stage)
     return laid
+
+
+def layered(stage, path, folder, asset, record, copied):
+    """A model's own extra layers beside its USD (`<its file>_<layer>.usd*`: a monitor's lit screen, `_glow`) laid
+    with it as its children <path>/<layer>, so a screen the model was made with glows where it was made; the layers
+    laid, by name."""
+    stem = pathlib.Path(asset).stem
+    found = {}
+    for name, info in record["files"].items():
+        own = pathlib.Path(name)
+        if info.get("role") in USD_ROLES and own.stem.startswith(stem + "_") and copied[name] != asset:
+            layer = own.stem[len(stem) + 1:]
+            child = stage.DefinePrim(f"{path}/{layer}")
+            child.GetReferences().ClearReferences()
+            child.GetReferences().AddReference(
+                "./" + pathlib.Path(copied[name]).resolve().relative_to(pathlib.Path(folder).resolve()).as_posix())
+            child.CreateAttribute("score:layered_from", Sdf.ValueTypeNames.String).Set(name)
+            found[layer] = name
+    return found
 
 
 GROUND_POINTS = {}  # {(scene path, its grounds and their poses): their points in the scene} while a batch runs
@@ -313,9 +343,10 @@ def laid_reference(stage, path, folder, asset, address, kind, pose, ground):
 
 
 def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridians=None, rings=None, rib=None,
-         address=DOME):
+         address=DOME, openings=()):
     """The dome shell algorithm's dome (dome_shell.py) of `radius` metres laid as Objects/<name>: its file written once
-    under the place's assets for its sizes, its parts `shell` and `ribs` ready for their surfaces."""
+    under the place's assets for its sizes and `openings` ([around degrees, radius, centre height] in its own frame,
+    where a tunnel or airlock joins it), its parts `shell`, `ribs`, `deck` and `base` ready for their surfaces."""
     from score.stages.place_build import dome_shell
     sizes = {"meridians": meridians or dome_shell.MERIDIANS, "rings": dome_shell.RINGS if rings is None else rings,
              "rib": rib or dome_shell.RIB}
@@ -323,10 +354,11 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
         raise Refused(f"a dome needs a radius over 0, 3 or more meridians, 0 or more rings and a rib over 0 ({radius}, "
                       f"{sizes})")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
-        f"r{radius:g}_m{sizes['meridians']}_r{sizes['rings']}_w{sizes['rib']:g}.usda")
+        f"r{radius:g}_m{sizes['meridians']}_r{sizes['rings']}_w{sizes['rib']:g}"
+        + "".join(f"_o{around:g},{hole:g},{centre:g}" for around, hole, centre in openings) + ".usda")
     target.parent.mkdir(parents=True, exist_ok=True)
     if not target.exists():
-        dome_shell.shell(target, float(radius), **sizes)
+        dome_shell.shell(target, float(radius), openings=openings, **sizes)
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
@@ -334,9 +366,12 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
 
 
-def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), hoops=None, rib=None, address=DOME):
+def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), hoops=None, rib=None, address=DOME,
+         cap=None, trims=()):
     """The dome shell algorithm's ribbed glass tunnel (dome_shell.tube) of `radius` and `length` metres laid as
-    Objects/<name>, lying along its own +z from `at`; its parts `shell`, `ribs` and `deck` ready for their surfaces."""
+    Objects/<name>, lying along its own +z from `at`; its parts `shell`, `ribs` and `deck` ready for their surfaces,
+    and with `cap` ([door width, door height]) an end wall `cap` at its far end holding a doorway that size; `trims`
+    ([x, y, z, radius] in its own frame: the domes it joins) end its skin on their glass."""
     from score.stages.place_build import dome_shell
     hoops = dome_shell.HOOPS if hoops is None else hoops
     rib = rib or dome_shell.RIB
@@ -344,10 +379,11 @@ def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
         raise Refused(f"a tunnel needs a radius and length over 0, 0 or more hoops and a rib over 0 ({radius}, "
                       f"{length}, {hoops}, {rib})")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
-        f"tube_r{radius:g}_l{length:g}_h{hoops}_w{rib:g}.usda")
+        f"tube_r{radius:g}_l{length:g}_h{hoops}_w{rib:g}" + (f"_c{cap[0]:g},{cap[1]:g}" if cap else "")
+        + "".join("_t" + ",".join(f"{value:.3f}" for value in trim) for trim in trims) + ".usda")
     target.parent.mkdir(parents=True, exist_ok=True)
     if not target.exists():
-        dome_shell.tube(target, float(radius), float(length), hoops, rib)
+        dome_shell.tube(target, float(radius), float(length), hoops, rib, cap, trims)
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
@@ -479,6 +515,22 @@ def look_shader(stage, path, copied, colour):
     return look
 
 
+def recipe_marked(look, spec):
+    """A palette variant's look carries its spec (`score:recipe:spec`, JSON) for the render's recipe pass, and its
+    preview its roughness, metal and glow (a glowing recipe's colour given off); any other look carries none."""
+    marked = look.GetPrim().GetAttribute("score:recipe:spec")
+    if spec is None:
+        if marked:
+            look.GetPrim().RemoveProperty("score:recipe:spec")
+        return
+    look.GetPrim().CreateAttribute("score:recipe:spec", Sdf.ValueTypeNames.String).Set(json.dumps(spec))
+    shader = UsdShade.Shader(look.GetPrim().GetStage().GetPrimAtPath(f"{look.GetPath()}/surface"))
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(spec.get("roughness", 0.5)))
+    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(spec.get("metal", 0.0)))
+    glow = Gf.Vec3f(*spec["colour"]) if spec["recipe"] == "glowing" else Gf.Vec3f(0.0, 0.0, 0.0)
+    shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(glow)
+
+
 def tinted(stage, shader, colour):
     """The look's colour set to `colour`: its diffuse colour, or, when that comes from an image surface's map, the
     map multiplied by it (the texture's scale, which Blender's reader brings in as a multiply), so a scanned ground
@@ -493,11 +545,17 @@ def tinted(stage, shader, colour):
     shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*linear))
 
 
+def is_layer(prim):
+    """Whether the prim is a model's own extra layer laid with it (`layered`)."""
+    return bool(prim.GetAttribute("score:layered_from") and prim.GetAttribute("score:layered_from").Get())
+
+
 def parts_of(prim):
-    """{part name: [its GeomSubsets]} of the object's meshes (a model's named colour regions)."""
+    """{part name: [its GeomSubsets, or its laid layer]} of the object's meshes (a model's named colour regions, and
+    its extra layers such as a lit screen)."""
     found = {}
     for inside in Usd.PrimRange(prim):
-        if inside.IsA(UsdGeom.Subset):
+        if inside.IsA(UsdGeom.Subset) or is_layer(inside):
             found.setdefault(inside.GetName(), []).append(inside)
     return found
 
@@ -517,18 +575,58 @@ def rebind(stage, place, prim):
         return
     UsdShade.MaterialBindingAPI.Apply(prim).UnbindDirectBinding()
     for inside in Usd.PrimRange(prim):
-        part = inside.GetName() if inside.IsA(UsdGeom.Subset) else None
-        if part in named:
+        part = inside.GetName() if inside.IsA(UsdGeom.Subset) or is_layer(inside) else None
+        if part in named and is_layer(inside):  # a laid layer (a lit screen) wears its look over all it holds
+            UsdShade.MaterialBindingAPI.Apply(inside).Bind(named[part], UsdShade.Tokens.strongerThanDescendants)
+        elif part in named:
             UsdShade.MaterialBindingAPI.Apply(inside).Bind(named[part])
         elif whole and (part is not None or inside.IsA(UsdGeom.Gprim)):
             UsdShade.MaterialBindingAPI.Apply(inside).Bind(whole)
+
+
+def palette(folder, library, wear, dirt):
+    """The place's one surface library taken in as <folder>/palette.json: a scene's surface-library output (its
+    families of ProcFunc recipe variants and its palette tokens, the one its props were painted from), with the
+    place's `wear` (0 new .. 1 worn) and `dirt` (0 .. 1), so every surface laid from it shares one palette and wear."""
+    taken = json.loads(pathlib.Path(library).read_text())
+    if not surface_library.variants(taken) or not taken.get("tokens"):
+        raise Refused(f"{library}: no families or tokens (a scene's surface library, not the method's)")
+    taken["place_wear"] = {"wear": float(wear), "dirt": float(dirt)}
+    (pathlib.Path(folder) / PALETTE).write_text(json.dumps(taken, indent=1))
+    return {"palette": str(pathlib.Path(folder) / PALETTE), "variants": len(surface_library.variants(taken)),
+            "tokens": len(taken["tokens"]), "wear": float(wear), "dirt": float(dirt)}
+
+
+def palette_spec(folder, variant):
+    """A variant of the place's palette as its recipe wants it (library.spec: the recipe's defaults under the
+    variant's settings, its tokens as linear colours, dirt in the palette's dirt token) with the place's wear, dirt and
+    its token's colour as '#rrggbb'."""
+    path = pathlib.Path(folder) / PALETTE
+    if not path.exists():
+        raise Refused("no palette: lay the place's surface library first (palette <folder> <materials.json>)")
+    taken = json.loads(path.read_text())
+    every = surface_library.variants(taken)
+    if variant not in every:
+        raise Refused(f"palette/{variant}: the place's palette holds no such variant ({', '.join(sorted(every))})")
+    token = every[variant]["token"]
+    try:
+        found = surface_library.spec(taken, variant, token, surface_library.token_colours(taken))
+    except surface_library.LibraryEmpty as why:
+        raise Refused(str(why)) from why
+    return dict(found, hex=taken["tokens"][token], **taken["place_wear"])
 
 
 def surface(folder, name, address, colour=None, part=None):
     """The library surface `address` worn by the object, bound over everything inside it (so a model's own baked
     colour never shows), or, given `part`, by that named colour region alone (its GeomSubsets): a variant as the
     library makes it, or in the palette colour `colour` ('#rrggbb'; an image surface's map tinted by it); a recipe in
-    `colour`."""
+    `colour`. `palette/<variant>` lays a variant of the place's palette (palette_spec): its recipe's library entry in
+    its token's colour, the full spec on the look (`score:recipe:spec`) for the render to draw the recipe itself
+    (its edge wear, dirt and relief)."""
+    spec = None
+    if address.startswith("palette/"):
+        spec = palette_spec(folder, address.split("/", 1)[1])
+        address, colour = f"surface/{spec['recipe']}", spec["hex"]
     address = resolved_address(address, library_root())
     record = entry_of(address)
     if record["kind"] != "surface":
@@ -541,6 +639,7 @@ def surface(folder, name, address, colour=None, part=None):
     look_name = name if part is None else f"{name}__{part}"
     look = look_shader(stage, f"/{place}/Looks/{look_name}", copied, colour)
     look.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
+    recipe_marked(look, spec)
     rebind(stage, place, prim)
     if part is None:
         prim.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
@@ -660,7 +759,7 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
-STEPS = {"put": put, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "surface": surface, "light": light, "snap": snap, "remove": remove,
+STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "camera": camera, "sky": sky, "view": view}
 
 

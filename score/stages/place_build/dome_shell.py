@@ -8,13 +8,25 @@ A third part, `deck`, is the dome's floor: a flat disc of its radius DECK over y
 radius, is a laid ground (`disc_file`, place_build.ground), so a regolith or concrete surface has a ground to lie on
 with no kit piece's stylised terrain under it.
 
-    shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB)   the dome written as a USD file at `path`
+    shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB, openings=())
+                                                                     the dome written as a USD file at `path`
     disc_file(path, radius)                                          a flat ground disc written at `path`
-    tube(path, radius, length, hoops=HOOPS, rib=RIB)                 a ribbed glass tunnel written at `path`
+    tube(path, radius, length, hoops=HOOPS, rib=RIB, cap=None, trims=())
+                                                                     a ribbed glass tunnel written at `path`
+
+**Openings** (physics ready, owner 2026-11-16: "door is outside of the wall"): a dome's `openings` are level round
+holes, each (around degrees from +x towards +z, radius, centre height), the size of the tunnel or airlock tube that
+joins it there: the skin, ribs and base are cut away inside the hole (a walker passes, nothing stands in the way) and
+a collar rib rims the hole where the tube meets the glass. A dome stands on `base`, a plinth ring BASE_HIGH high and
+BASE_WIDE wide round its foot (the concept's base ring), cut at its openings. A tunnel's `cap` (door width, door
+height) closes its far end with a wall CAP_THICK thick holding a doorway of that size from its deck up, so a door is
+set in an opening of its wall. A tunnel's `trims` (the spheres of the domes it joins, in its own frame) take its skin
+away inside them and spread its hoops between them, so it ends on the glass round its opening.
 
 The tunnel between two domes (the concept's ribbed glass tube) is the same skin and ribs round a level axis: a
 cylinder of `radius` lying along +z from 0 to `length`, its bottom on y = 0, `hoops` ring ribs evenly along it and
-a flat deck (its floor) FLOOR of its radius up, parts `shell`, `ribs` and `deck`.
+a flat deck (its floor) FLOOR of its radius up, parts `shell` (its glass), `wall` (its solid skin to WALL_HIGH over the
+deck), `ribs` and `deck`.
 """
 import math
 
@@ -27,6 +39,13 @@ DECK = 0.02  # the deck's height over y = 0, so it never fights a ground laid un
 HOOPS = 5  # ring ribs along a tunnel
 FLOOR = 0.3  # a tunnel's deck height over its bottom, in its radius
 STEPS = 48  # points around the dome and along each rib (a quarter arc takes STEPS // 4)
+FINE = 4  # a dome with openings is skinned FINE times finer, so a hole's edge follows its tube closely
+BASE_HIGH = 0.22  # the plinth ring's height, metres
+BASE_WIDE = 0.24  # its width, mostly outside the skin
+CAP_THICK = 0.16  # a tunnel end wall's thickness
+CAP_CELL = 0.05  # the end wall's grid, metres
+TRIM_RING = 0.1  # a trimmed tube's rings apart, metres, so its end follows the dome's glass closely
+WALL_HIGH = 0.8  # a tube's solid lower wall over its deck, metres
 
 
 def unit(angle_around, angle_up):
@@ -34,22 +53,57 @@ def unit(angle_around, angle_up):
     return (math.cos(angle_up) * math.cos(angle_around), math.sin(angle_up), math.cos(angle_up) * math.sin(angle_around))
 
 
-def skin(radius):
-    """The hemisphere's points and quads (and the top's triangles), faces wound outward."""
-    up_steps = STEPS // 4
-    points = [tuple(radius * value for value in unit(2 * math.pi * around / STEPS, math.pi / 2 * up / up_steps))
-              for up in range(up_steps) for around in range(STEPS)]
+def in_opening(point, openings):
+    """Whether `point` lies inside one of the dome's round openings (each a level cylinder from the dome's axis out
+    along its `around`, of its radius, at its centre height), on the opening's own side."""
+    for around, radius, centre in openings:
+        towards = (math.cos(math.radians(around)), math.sin(math.radians(around)))
+        along = point[0] * towards[0] + point[2] * towards[1]
+        if along <= 0:
+            continue
+        off = (point[0] - along * towards[0], point[1] - centre, point[2] - along * towards[1])
+        if math.sqrt(sum(value * value for value in off)) < radius:
+            return True
+    return False
+
+
+def runs(points, openings):
+    """The stretches of a path left outside the openings, as index lists of two or more points."""
+    found, current = [], []
+    for index, point in enumerate(points):
+        if in_opening(point, openings):
+            if len(current) > 1:
+                found.append(current)
+            current = []
+        else:
+            current.append(index)
+    if len(current) > 1:
+        found.append(current)
+    return found
+
+
+def skin(radius, openings=()):
+    """The hemisphere's points and quads (and the top's triangles), faces wound outward; a face whose middle lies in
+    an opening left out (finer faces when there are openings)."""
+    around_steps = STEPS * (FINE if openings else 1)
+    up_steps = around_steps // 4
+    points = [tuple(radius * value for value in unit(2 * math.pi * around / around_steps,
+                                                       math.pi / 2 * up / up_steps))
+              for up in range(up_steps) for around in range(around_steps)]
     points.append((0.0, radius, 0.0))
     faces = []
     for up in range(up_steps - 1):
-        for around in range(STEPS):
-            following = (around + 1) % STEPS
-            faces.append([up * STEPS + around, (up + 1) * STEPS + around, (up + 1) * STEPS + following,
-                          up * STEPS + following])
+        for around in range(around_steps):
+            following = (around + 1) % around_steps
+            faces.append([up * around_steps + around, (up + 1) * around_steps + around,
+                          (up + 1) * around_steps + following, up * around_steps + following])
     top = len(points) - 1
-    faces += [[(up_steps - 1) * STEPS + around, top, (up_steps - 1) * STEPS + (around + 1) % STEPS]
-              for around in range(STEPS)]
-    return points, faces
+    faces += [[(up_steps - 1) * around_steps + around, top, (up_steps - 1) * around_steps + (around + 1) % around_steps]
+              for around in range(around_steps)]
+    kept = [face for face in faces
+            if not in_opening(tuple(sum(points[index][axis] for index in face) / len(face) for axis in range(3)),
+                              openings)]
+    return points, kept
 
 
 def disc(radius, height=0.0):
@@ -84,23 +138,83 @@ def swept(path, outward, side, rib, closed):
     return points, faces
 
 
-def ribs(radius, meridians, rings, rib):
-    """Every rib of the dome as (points, quads): the meridians ground to top, the rings level between."""
+def cut_swept(path, outward, side, rib, closed, openings):
+    """swept over the stretches of `path` outside the openings (the whole, closed if asked, when none cuts it)."""
+    stretches = runs(path, openings)
+    if len(stretches) == 1 and len(stretches[0]) == len(path):
+        return [swept(path, outward, side, rib, closed)]
+    return [swept([path[index] for index in stretch], [outward[index] for index in stretch],
+                  [side[index] for index in stretch], rib, False) for stretch in stretches]
+
+
+def ribs(radius, meridians, rings, rib, openings=()):
+    """Every rib of the dome as (points, quads): the meridians ground to top, the rings level between, each cut where
+    it crosses an opening."""
     made = []
-    up_steps = STEPS // 4
+    up_steps = STEPS // 4 * (FINE if openings else 1)
     for number in range(meridians):
         around = 2 * math.pi * number / meridians
         ups = [math.pi / 2 * step / up_steps for step in range(up_steps + 1)]
         outward = [unit(around, up) for up in ups]
-        made.append(swept([tuple(radius * value for value in out) for out in outward], outward,
-                          [(-math.sin(around), 0.0, math.cos(around))] * len(ups), rib, closed=False))
+        made += cut_swept([tuple(radius * value for value in out) for out in outward], outward,
+                          [(-math.sin(around), 0.0, math.cos(around))] * len(ups), rib, False, openings)
+    around_steps = STEPS * (FINE if openings else 1)
     for number in range(1, rings + 1):
         up = math.pi / 2 * number / (rings + 1)
-        arounds = [2 * math.pi * step / STEPS for step in range(STEPS)]
+        arounds = [2 * math.pi * step / around_steps for step in range(around_steps)]
         outward = [unit(around, up) for around in arounds]
-        made.append(swept([tuple(radius * value for value in out) for out in outward], outward,
+        made += cut_swept([tuple(radius * value for value in out) for out in outward], outward,
                           [(-math.sin(up) * math.cos(around), math.cos(up), -math.sin(up) * math.sin(around))
-                           for around in arounds], rib, closed=True))
+                           for around in arounds], rib, True, openings)
+    return made
+
+
+def collars(radius, rib, openings):
+    """A rib round each opening where its tube meets the glass: the tube's circle carried out along its axis onto the
+    sphere, its section across the axis."""
+    made = []
+    for around, hole, centre in openings:
+        towards = (math.cos(math.radians(around)), 0.0, math.sin(math.radians(around)))
+        side = (-towards[2], 0.0, towards[0])
+        path, outward = [], []
+        for step in range(STEPS):
+            turn = 2 * math.pi * step / STEPS
+            off = tuple(hole * (math.cos(turn) * side[axis] + math.sin(turn) * (axis == 1)) for axis in range(3))
+            off = (off[0], off[1] + centre, off[2])
+            along = math.sqrt(max(radius ** 2 - sum(value * value for value in off), 0.0))
+            point = tuple(off[axis] + along * towards[axis] for axis in range(3))
+            path.append(point)
+            outward.append(tuple(value / radius for value in point))
+        made.append(swept(path, outward, [towards] * STEPS, rib * 1.6, closed=True))
+    return made
+
+
+def plinth(radius, openings=()):
+    """The base ring round the dome's foot: a rectangular section BASE_WIDE wide (mostly outside the skin) and
+    BASE_HIGH high, cut at the openings; (points, quads) pieces."""
+    around_steps = STEPS * FINE
+    inner, outer = radius - 0.25 * BASE_WIDE, radius + 0.75 * BASE_WIDE
+    middles = [(radius * math.cos(2 * math.pi * step / around_steps), BASE_HIGH / 2,
+                radius * math.sin(2 * math.pi * step / around_steps)) for step in range(around_steps)]
+    stretches = runs(middles, openings)
+    whole = len(stretches) == 1 and len(stretches[0]) == around_steps
+    made = []
+    for stretch in stretches:
+        points = []
+        for index in stretch:
+            angle = 2 * math.pi * index / around_steps
+            for reach, high in ((inner, 0.0), (outer, 0.0), (outer, BASE_HIGH), (inner, BASE_HIGH)):
+                points.append((reach * math.cos(angle), high, reach * math.sin(angle)))
+        count = len(stretch)
+        faces = []
+        for step in range(count if whole else count - 1):
+            here, there = 4 * step, 4 * ((step + 1) % count)
+            for corner in range(4):
+                following = (corner + 1) % 4
+                faces.append([here + corner, there + corner, there + following, here + following])
+        if not whole:
+            faces += [[0, 1, 2, 3], [4 * (count - 1) + 3, 4 * (count - 1) + 2, 4 * (count - 1) + 1, 4 * (count - 1)]]
+        made.append((points, faces))
     return made
 
 
@@ -131,11 +245,15 @@ def written(path, root_name, pieces):
     return path
 
 
-def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB):
-    """The dome written at `path`: /dome with its mesh `geo` and its parts `shell`, `ribs` and `deck`."""
-    return written(path, "dome", [("shell", skin(radius)),
-                                  *[("ribs", made) for made in ribs(radius, meridians, rings, rib)],
-                                  ("deck", disc(radius, DECK))])
+def shell(path, radius, meridians=MERIDIANS, rings=RINGS, rib=RIB, openings=()):
+    """The dome written at `path`: /dome with its mesh `geo` and its parts `shell`, `ribs`, `deck` and `base`, cut at
+    its `openings` (the module's rule)."""
+    openings = [tuple(float(value) for value in opening) for opening in openings]
+    return written(path, "dome", [("shell", skin(radius, openings)),
+                                  *[("ribs", made) for made in ribs(radius, meridians, rings, rib, openings)],
+                                  *[("ribs", made) for made in collars(radius, rib, openings)],
+                                  ("deck", disc(radius, DECK)),
+                                  *[("base", made) for made in plinth(radius, openings)]])
 
 
 def disc_file(path, radius):
@@ -143,20 +261,45 @@ def disc_file(path, radius):
     return written(path, "ground", [("ground", disc(radius))])
 
 
-def tube_skin(radius, length):
-    """A level cylinder's skin along +z (its bottom on y = 0), rings about a metre apart, faces wound outward."""
-    count = max(1, math.ceil(length))
+def in_trims(point, trims):
+    """Whether `point` lies inside one of the spheres (x, y, z, radius) a tube is trimmed by (the domes it joins)."""
+    return any(math.dist(point, trim[:3]) < trim[3] for trim in trims)
+
+
+def tube_skin(radius, length, trims=()):
+    """A level cylinder's skin along +z (its bottom on y = 0), rings about a metre apart (TRIM_RING apart when
+    trimmed), faces wound outward; a face whose middle lies inside a trim sphere left out, so the tube ends on the
+    dome's glass instead of standing into the room."""
+    count = max(1, math.ceil(length / (TRIM_RING if trims else 1.0)))
     points = [(radius * math.cos(2 * math.pi * around / STEPS), radius + radius * math.sin(2 * math.pi * around / STEPS),
                length * along / count) for along in range(count + 1) for around in range(STEPS)]
     faces = [[along * STEPS + around, along * STEPS + (around + 1) % STEPS, (along + 1) * STEPS + (around + 1) % STEPS,
               (along + 1) * STEPS + around] for along in range(count) for around in range(STEPS)]
+    faces = [face for face in faces
+             if not in_trims(tuple(sum(points[index][axis] for index in face) / 4 for axis in range(3)), trims)]
     return points, faces
 
 
-def hoop_ribs(radius, length, hoops, rib):
-    """The tunnel's ring ribs, `hoops` of them evenly from end to end (both ends included when two or more)."""
+def tube_sides(radius, length, trims=()):
+    """The tube's skin split at WALL_HIGH over its deck: (glass above, solid wall below), the corridor's lower walls
+    solid as a habitat's are, so its glass starts above the knee."""
+    points, faces = tube_skin(radius, length, trims)
+    top = FLOOR * radius + WALL_HIGH
+    low = [face for face in faces if sum(points[index][1] for index in face) / 4 < top]
+    return (points, [face for face in faces if face not in low]), (points, low)
+
+
+def hoop_ribs(radius, length, hoops, rib, trims=()):
+    """The tunnel's ring ribs, `hoops` of them evenly from end to end (both ends included when two or more); trimmed,
+    evenly over the stretch whose top stands outside the trim spheres."""
     made = []
-    spots = [length / 2.0] if hoops == 1 else [length * number / (hoops - 1) for number in range(hoops)]
+    start, end = 0.0, length
+    if trims:
+        tops = [spot for spot in (length * step / 200 for step in range(201))
+                if not in_trims((0.0, 2 * radius, spot), trims)]
+        start, end = (min(tops), max(tops)) if tops else (0.0, length)
+    spots = [(start + end) / 2.0] if hoops == 1 else [start + (end - start) * number / (hoops - 1)
+                                                     for number in range(hoops)]
     arounds = [2 * math.pi * step / STEPS for step in range(STEPS)]
     outward = [(math.cos(around), math.sin(around), 0.0) for around in arounds]
     for spot in spots:
@@ -173,8 +316,46 @@ def tube_deck(radius, length):
     return [(-half, height, 0.0), (half, height, 0.0), (half, height, length), (-half, height, length)], [[0, 3, 2, 1]]
 
 
-def tube(path, radius, length, hoops=HOOPS, rib=RIB):
-    """The tunnel written at `path`: /tube with its mesh `geo` and its parts `shell`, `ribs` and `deck`."""
-    return written(path, "tube", [("shell", tube_skin(radius, length)),
-                                  *[("ribs", made) for made in hoop_ribs(radius, length, hoops, rib)],
-                                  ("deck", tube_deck(radius, length))])
+def end_wall(radius, length, width, height):
+    """The tunnel's far end closed by a wall CAP_THICK thick (its outer face at `length`) holding a doorway `width`
+    across and `height` up from the deck: its front and back faces in CAP_CELL cells inside the skin and outside the
+    doorway, and the doorway's four reveals; (points, quads)."""
+    floor = FLOOR * radius
+    def lines(low, high, edges):
+        count = max(1, round((high - low) / CAP_CELL))
+        return sorted(set([low + (high - low) * step / count for step in range(count + 1)] + list(edges)))
+    across = lines(-radius, radius, (-width / 2, width / 2))
+    up = lines(floor, 2 * radius, (floor + height,))
+    points, faces = [], []
+    for depth, wound in ((length, False), (length - CAP_THICK, True)):
+        for left, right in zip(across, across[1:]):
+            for low, high in zip(up, up[1:]):
+                middle = ((left + right) / 2, (low + high) / 2)
+                if math.hypot(middle[0], middle[1] - radius) > radius or (
+                        abs(middle[0]) < width / 2 and middle[1] < floor + height):
+                    continue
+                first = len(points)
+                points += [(left, low, depth), (right, low, depth), (right, high, depth), (left, high, depth)]
+                quad = [first, first + 1, first + 2, first + 3]
+                faces.append(quad[::-1] if wound else quad)
+    half, top = width / 2, floor + height
+    for corners in (((-half, floor), (-half, top)), ((-half, top), (half, top)), ((half, top), (half, floor))):
+        (x0, y0), (x1, y1) = corners
+        first = len(points)
+        points += [(x0, y0, length), (x1, y1, length), (x1, y1, length - CAP_THICK), (x0, y0, length - CAP_THICK)]
+        faces.append([first, first + 1, first + 2, first + 3])
+    return points, faces
+
+
+def tube(path, radius, length, hoops=HOOPS, rib=RIB, cap=None, trims=()):
+    """The tunnel written at `path`: /tube with its mesh `geo` and its parts `shell`, `ribs` and `deck`, and `cap`
+    (its end wall with a doorway, `cap` = (width, height)) when asked; its skin and hoops trimmed by `trims` (the
+    spheres, x, y, z, radius in its own frame, of the domes it joins)."""
+    trims = [tuple(float(value) for value in trim) for trim in trims]
+    glass, wall = tube_sides(radius, length, trims)
+    pieces = [("shell", glass), ("wall", wall),
+              *[("ribs", made) for made in hoop_ribs(radius, length, hoops, rib, trims)],
+              ("deck", tube_deck(radius, length))]
+    if cap:
+        pieces.append(("cap", end_wall(radius, length, float(cap[0]), float(cap[1]))))
+    return written(path, "tube", pieces)

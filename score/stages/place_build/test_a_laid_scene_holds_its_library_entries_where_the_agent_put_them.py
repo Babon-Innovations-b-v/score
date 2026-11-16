@@ -8,7 +8,10 @@ SkelRoot kept; a ground marked as the ground; the dome shell's glass skin, curve
 a batch of steps run in one call, a refused one named while the rest go on; a lamp where it is laid; an entry with no
 USD refused by name, a removed object gone; a real terrain's heightfield (fine posts near its centre, wider out, its gaps
 filled) laid as the ground with its building pads levelled to the laid height and the ground beyond untouched; a sky
-laid as the place's own Environment with a sun shining from where it is asked; a named view listed beside the
+laid as the place's own Environment with a sun shining from where it is asked; the place's palette (a scene's surface
+library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an opening (glass and plinth) and a tunnel
+with a doorway in its end wall, its skin trimmed by the dome it joins and solid below its glass; a model's glow layer
+laid with it as a part; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side.
 
@@ -38,6 +41,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.sun_frame: `towards` negated -> the sun shines up from under the ground
 - place_build.sky: the turn left off the dome -> the sky dome stays unturned
 - render.views: the named views left out -> the inside view is not rendered
+- render.views: `review` kept True when final -> the final render runs at the review's samples
+- dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
+- dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
+- dome_shell.tube_skin: the trim inverted -> the hall's skin stands inside the dome it joins
+- dome_shell.tube_sides: no lower wall split off -> the hall's glass reaches its deck
+- place_build.surface: the palette spec left off the look -> the panel's look carries no recipe spec
+- place_build.palette_spec: the place's wear and dirt replaced by 0 -> the spec's wear is not the palette's
+- place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
 """
 import json
@@ -110,6 +121,9 @@ def library(root, files):
     entry("surface", "sand", {"material.usda": ("usd", mapped), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
     entry("light", "lamp", {"lamps.json": ("record", "{}")})
+    screen_glow = piece.GetRootLayer().ExportToString().replace('"box"', '"glow"').replace("</box/", "</glow/")
+    entry("model", "monitor", {"model.usda": ("usd", piece.GetRootLayer().ExportToString()),
+                               "model_glow.usda": ("usd", screen_glow)})
     entry("model", "slope", {"terrain.usdc": ("usd", None)})
     heights = np.add.outer(np.arange(301) * 0.1, np.zeros(301))  # rising 0.1 m a metre down the rows, 300 m square
     heights[150, 40] = np.nan  # a no-data post
@@ -117,6 +131,16 @@ def library(root, files):
     sky = ('#usda 1.0\n(\n defaultPrim = "sky_dome"\n)\ndef Xform "sky_dome"\n{\n def DomeLight "Environment"\n {\n'
            '  float inputs:intensity = 0.2\n }\n}\n')
     entry("light", "sky", {"sky.usda": ("usd", sky)})
+
+
+def part_middles(mesh, part):
+    """The middles of a mesh's faces in one named part (its GeomSubset), in its own frame."""
+    points = np.array(mesh.GetPointsAttr().Get())
+    counts, indices = mesh.GetFaceVertexCountsAttr().Get(), np.array(mesh.GetFaceVertexIndicesAttr().Get())
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    subset = next(item for item in UsdGeom.Subset.GetAllGeomSubsets(mesh) if item.GetPrim().GetName() == part)
+    return np.array([points[indices[starts[face]:starts[face] + counts[face]]].mean(axis=0)
+                     for face in subset.GetIndicesAttr().Get()])
 
 
 def tmp_glb(folder):
@@ -196,12 +220,23 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.put(folder, "dune", "kit/box_piece", at=(6, 0, 0))
     place_build.surface(folder, "dune", "surface/sand", colour="#ff8000")
     place_build.light(folder, "bulb", at=(0, 2.5, 0), watts=100)
+    (tmp_path / "palette.json").write_text(json.dumps({
+        "recipes": {"boards": {"roughness": 0.7}}, "tokens": {"hull": "#ff0000", "dust": "#00ff00"}, "dirt": "dust",
+        "families": {"paint": {"variants": {"hull_paint": {"recipe": "boards", "token": "hull", "seed": 3}}}}}))
+    place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
+    place_build.put(folder, "screen", "model/monitor", at=(12, 0, 0))
+    place_build.surface(folder, "screen", "palette/hull_paint", part="glow")
+    place_build.put(folder, "panel", "kit/box_piece", at=(14, 0, 0))
+    place_build.surface(folder, "panel", "palette/hull_paint")
     batched = place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
         {"step": "put", "name": "missing", "address": "kit/plan_only"},
         {"step": "put", "name": "cabinet", "address": "model/cabinet"},
         {"step": "put", "name": "walker", "address": "character/walker", "at": [2, 0, 2]},
         {"step": "dome", "name": "dome", "radius": 5.0, "meridians": 8, "rings": 2, "rib": 0.1},
+        {"step": "dome", "name": "holed", "radius": 5.0, "at": [40, 0, 0], "openings": [[0, 1.2, 1.0]]},
+        {"step": "tube", "name": "hall", "radius": 1.5, "length": 3.0, "at": [60, 0, 0], "cap": [1.6, 2.0],
+         "trims": [[0, 0, -3.0, 4.0]]},
         {"step": "ground", "name": "regolith", "radius": 3.0},
         {"step": "put", "name": "cup", "address": "take/cup"},
         {"step": "tube", "name": "tunnel", "radius": 1.5, "length": 4.0, "at": [20, 0, 0], "hoops": 3},
@@ -235,12 +270,12 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(bound_colour(stage, "/yard/Objects/crate/lid/rim"), (1.0, 0.0, 0.0))
     tint = UsdShade.Shader(stage.GetPrimAtPath("/yard/Looks/dune/colour")).GetInput("scale").Get()
     assert np.allclose(tint, (1.0, 0.2158605, 0.0, 1.0), atol=1e-5)
-    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 7
+    assert ["no USD file" in answer.get("refused", "") for answer in batched] == [False, True] + [False] * 9
     door_look = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo/door")).ComputeBoundMaterial()[0]
     door_map = UsdShade.Shader(stage.GetPrimAtPath(f"{door_look.GetPath()}/base")).GetInput("file").Get()
     assert np.allclose(Image.open(door_map.resolvedPath).getpixel((0, 0)), (200, 0, 0))
     assert UsdGeom.PrimvarsAPI(stage.GetPrimAtPath("/yard/Objects/cabinet/geo")).GetPrimvar("st").HasValue()
-    assert batched[6]["usd"].endswith("cup-final.usdc") and shown_ground(stage, shown) == (True, {"ground": None})
+    assert batched[8]["usd"].endswith("cup-final.usdc") and shown_ground(stage, shown) == (True, {"ground": None})
     assert stage.GetPrimAtPath("/yard/Objects/floor").GetAttribute("score:ground").Get() is True
     cabinet_parts = sorted(next(item for item in shown["objects"] if item["name"] == "cabinet")["parts"])
     assert cabinet_parts[0] == "door" and cabinet_parts[1].startswith("part_") and len(cabinet_parts) == 2
@@ -252,14 +287,32 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     held = UsdSkel.Animation(stage.GetPrimAtPath("/yard/Objects/walker/Held"))
     assert (walker.GetTypeName(), shown_groups) == ("SkelRoot", {"far": "invisible", "made": "inherited"})
     assert list(held.GetTranslationsAttr().Get()) == [Gf.Vec3f(0, 1, 0)] and batched[3]["clip"] == "standing"
-    assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["deck", "ribs", "shell"]
-    assert sorted(next(item for item in shown["objects"] if item["name"] == "tunnel")["parts"]) == ["deck", "ribs", "shell"]
+    spec = json.loads(stage.GetPrimAtPath("/yard/Looks/panel").GetAttribute("score:recipe:spec").Get())
+    assert (spec["recipe"], spec["wear"], spec["dirt"], spec["dirt_colour"], spec["hex"]) == ("boards", 0.4, 0.3,
+                                                                                               [0.0, 1.0, 0.0], "#ff0000")
+    assert stage.GetPrimAtPath("/yard/Objects/panel").GetAttribute("score:surface").Get() == "surface/boards@1"
+    assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
+    assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
+    holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))
+    shell_middles = part_middles(holed, "shell")
+    in_hole = (shell_middles[:, 0] > 0) & (np.hypot(shell_middles[:, 1] - 1.0, shell_middles[:, 2]) < 1.2)
+    base_middles = part_middles(holed, "base")
+    assert not in_hole.any() and len(shell_middles) > 1000
+    assert not ((base_middles[:, 0] > 4.0) & (np.abs(base_middles[:, 2]) < 0.5)).any() and len(base_middles)
+    hall = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/hall/geo"))
+    cap_middles, hall_skin = part_middles(hall, "cap"), np.vstack([part_middles(hall, "shell"), part_middles(hall, "wall")])
+    doorway = (np.abs(cap_middles[:, 0]) < 0.75) & (cap_middles[:, 1] > 0.5) & (cap_middles[:, 1] < 2.4)
+    assert len(cap_middles) and not doorway.any() and np.allclose(cap_middles[:, 2].max(), 3.0, atol=0.01)
+    assert np.linalg.norm(hall_skin - [0.0, 0.0, -3.0], axis=1).min() >= 4.0 and hall_skin[:, 2].min() < 0.5
+    assert part_middles(hall, "wall")[:, 1].max() < 0.45 + 0.8 < part_middles(hall, "shell")[:, 1].min()
+    assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["base", "deck", "ribs", "shell"]
+    assert sorted(next(item for item in shown["objects"] if item["name"] == "tunnel")["parts"]) == ["deck", "ribs", "shell", "wall"]
     assert np.allclose(boxes["tunnel"], [[18.38, -0.12, 0.0], [21.62, 3.12, 4.0]], atol=0.01)
-    assert np.allclose(boxes["dome"], [[-5.1, 0.0, -5.1], [5.1, 5.1, 5.1]], atol=0.02)
+    assert np.allclose(boxes["dome"], [[-5.18, 0.0, -5.18], [5.18, 5.1, 5.18]], atol=0.02)  # its plinth
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
                               {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune", "screen", "holed", "hall", "panel"} and not stage.GetPrimAtPath("/yard/Objects/gone")
     laid_terrain = stage.GetPrimAtPath("/yard/Objects/plain")
     ground_points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/plain/geo")).GetPointsAttr().Get())
     in_pad = np.hypot(ground_points[:, 0], ground_points[:, 2] - 30.0) < 5.0  # the terrain's own frame
@@ -274,6 +327,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)
     assert np.allclose(shines, (-np.cos(np.radians(30)), -0.5, 0.0), atol=1e-6)
     assert place_build.pose_of(stage.GetPrimAtPath("/yard/Objects/sky"))[1] == [0.0, 30.0, 0.0]
+    assert render.views(place_build.record_of(folder), 80, [], final=True)["review"] is False
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)

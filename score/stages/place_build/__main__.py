@@ -6,9 +6,9 @@
                                        [--scale s|sx,sy,sz] [--ground] [--wear group,group] [--clip name]
                                        [--second s] [--rest] [--on-ground]
     python -m score.stages.place_build dome <folder> <name> --radius m [--at x,y,z] [--turn rx,ry,rz]
-                                       [--meridians n] [--rings n] [--rib m]
+                                       [--meridians n] [--rings n] [--rib m] [--opening around,radius,centre ...]
     python -m score.stages.place_build tube <folder> <name> --radius m --length m [--at x,y,z] [--turn rx,ry,rz]
-                                       [--hoops n] [--rib m]
+                                       [--hoops n] [--rib m] [--cap width,height]
     python -m score.stages.place_build ground <folder> <name> --radius m [--at x,y,z]
     python -m score.stages.place_build terrain <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--pad x,z,radius ...]
@@ -17,12 +17,13 @@
     python -m score.stages.place_build view <folder> <name> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build batch <folder> <steps.json>
     python -m score.stages.place_build snap <folder> <name> [--grid metres]
-    python -m score.stages.place_build surface <folder> <name> <surface/id[@version]> [--colour #rrggbb]
-                                       [--part name]
+    python -m score.stages.place_build palette <folder> <materials.json> --wear w --dirt d
+    python -m score.stages.place_build surface <folder> <name> <surface/id[@version]|palette/variant>
+                                       [--colour #rrggbb] [--part name]
     python -m score.stages.place_build light <folder> <name> --at x,y,z --watts W [--radius m] [--colour #rrggbb]
     python -m score.stages.place_build remove <folder> <name>
     python -m score.stages.place_build list <folder>
-    python -m score.stages.place_build render <folder> [--width pixels] [--views name,name]
+    python -m score.stages.place_build render <folder> [--width pixels] [--views name,name] [--final]
     python -m score.stages.place_build compare <folder>
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
@@ -37,6 +38,10 @@ site) levelled to its laid height. `sky` lays a light entry's sky dome as the pl
 `--elevation` and `--heading` (degrees round from +x towards +z). `view` names a camera besides the concept's;
 `render --views` draws those too, as <folder>/view-<name>.png.
 A glTF-only model or take (our picture-made props) is laid in its own bake and paint.
+`palette` takes in the place's one surface library (a scene's surface-library output: its ProcFunc recipe variants
+and palette tokens, the ones its props were painted from) with the place's wear and dirt; `surface ... palette/<variant>`
+then lays that variant, which the render draws as its recipe (edge wear, dirt, relief), so props, shells and floors
+share one palette. `render --final` renders at the films' samples (denoised) instead of the review's.
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
 """
@@ -113,10 +118,10 @@ def run(args):
                                args.clip, args.second, args.rest, args.on_ground)
     if args.step == "dome":
         return place_build.dome(args.folder, args.name, args.radius, numbers(args.at), numbers(args.turn),
-                                args.meridians, args.rings, args.rib)
+                                args.meridians, args.rings, args.rib, openings=[numbers(hole) for hole in args.opening])
     if args.step == "tube":
         return place_build.tube(args.folder, args.name, args.radius, args.length, numbers(args.at), numbers(args.turn),
-                                args.hoops, args.rib)
+                                args.hoops, args.rib, cap=numbers(args.cap) if args.cap else None)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "terrain":
@@ -132,6 +137,8 @@ def run(args):
             return place_build.batch(args.folder, json.load(given))
     if args.step == "snap":
         return place_build.snap(args.folder, args.name, args.grid)
+    if args.step == "palette":
+        return place_build.palette(args.folder, args.library, args.wear, args.dirt)
     if args.step == "surface":
         return place_build.surface(args.folder, args.name, args.address, args.colour, args.part)
     if args.step == "light":
@@ -142,7 +149,8 @@ def run(args):
         return place_build.listing(args.folder)
     if args.step == "render":
         from score.stages.place_build import render
-        return render.render(args.folder, args.width, [name for name in (args.views or "").split(",") if name])
+        return render.render(args.folder, args.width, [name for name in (args.views or "").split(",") if name],
+                             args.final)
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -183,6 +191,7 @@ def parser():
     step.add_argument("--meridians", type=int)
     step.add_argument("--rings", type=int)
     step.add_argument("--rib", type=float)
+    step.add_argument("--opening", action="append", default=[])
     step = steps.add_parser("tube")
     step.add_argument("folder")
     step.add_argument("name")
@@ -192,6 +201,7 @@ def parser():
     step.add_argument("--turn", default="0,0,0")
     step.add_argument("--hoops", type=int)
     step.add_argument("--rib", type=float)
+    step.add_argument("--cap")
     step = steps.add_parser("ground")
     step.add_argument("folder")
     step.add_argument("name")
@@ -224,6 +234,11 @@ def parser():
     step.add_argument("folder")
     step.add_argument("name")
     step.add_argument("--grid", type=float, default=0.5)
+    step = steps.add_parser("palette")
+    for name in ("folder", "library"):
+        step.add_argument(name)
+    step.add_argument("--wear", type=float, required=True)
+    step.add_argument("--dirt", type=float, required=True)
     step = steps.add_parser("surface")
     for name in ("folder", "name", "address"):
         step.add_argument(name)
@@ -246,6 +261,7 @@ def parser():
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)
     step.add_argument("--views")
+    step.add_argument("--final", action="store_true")
     return made
 
 
