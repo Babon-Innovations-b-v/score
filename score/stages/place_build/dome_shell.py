@@ -47,6 +47,7 @@ DECK = 0.02  # the deck's height over y = 0, so it never fights a ground laid un
 HOOPS = 5  # ring ribs along a tunnel
 FLOOR = 0.3  # a tunnel's deck height over its bottom, in its radius
 STEPS = 48  # points around the dome and along each rib (a quarter arc takes STEPS // 4)
+TUBE_STEPS = 96  # points around a tunnel's skin and hoops: seen from inside at arm's length, never a polygon
 FINE = 4  # a dome with openings is skinned FINE times finer, so a hole's edge follows its tube closely
 BASE_HIGH = 0.22  # the plinth ring's height, metres
 BASE_WIDE = 0.24  # its width, mostly outside the skin
@@ -331,12 +332,13 @@ def tube_skin(radius, length, trims=()):
     every corner inside left out, so the tube ends on the dome's glass along a smooth edge instead of standing into
     the room or ending in steps."""
     count = max(1, math.ceil(length / (TRIM_RING if trims else 1.0)))
-    ring = [(radius * math.cos(2 * math.pi * around / STEPS), radius + radius * math.sin(2 * math.pi * around / STEPS),
-             length * along / count) for along in range(count + 1) for around in range(STEPS)]
+    steps = TUBE_STEPS
+    ring = [(radius * math.cos(2 * math.pi * around / steps), radius + radius * math.sin(2 * math.pi * around / steps),
+             length * along / count) for along in range(count + 1) for around in range(steps)]
     slid = [onto_trims(point, trims, length) for point in ring]
     points = [point for point, _ in slid]
-    faces = [[along * STEPS + around, along * STEPS + (around + 1) % STEPS, (along + 1) * STEPS + (around + 1) % STEPS,
-              (along + 1) * STEPS + around] for along in range(count) for around in range(STEPS)]
+    faces = [[along * steps + around, along * steps + (around + 1) % steps, (along + 1) * steps + (around + 1) % steps,
+              (along + 1) * steps + around] for along in range(count) for around in range(steps)]
     faces = [face for face in faces if not all(slid[index][1] for index in face)]
     return points, faces
 
@@ -358,20 +360,20 @@ def hoop_ribs(radius, length, hoops, rib, trims=()):
     start, end = 0.0, length
     if trims:
         deck = FLOOR * radius
-        ring = [(radius * math.cos(2 * math.pi * step / STEPS), radius + radius * math.sin(2 * math.pi * step / STEPS))
-                for step in range(STEPS)]
+        ring = [(radius * math.cos(2 * math.pi * step / TUBE_STEPS),
+                 radius + radius * math.sin(2 * math.pi * step / TUBE_STEPS)) for step in range(TUBE_STEPS)]
         ring = [(x, y) for x, y in ring if y >= deck]
         clear = [spot for spot in (length * step / 200 for step in range(201))
                  if not any(in_trims((x, y, spot), trims) for x, y in ring)]
         start, end = (min(clear), max(clear)) if clear else (0.0, length)
     spots = [(start + end) / 2.0] if hoops == 1 else [start + (end - start) * number / (hoops - 1)
                                                      for number in range(hoops)]
-    arounds = [2 * math.pi * step / STEPS for step in range(STEPS)]
+    arounds = [2 * math.pi * step / TUBE_STEPS for step in range(TUBE_STEPS)]
     outward = [(math.cos(around), math.sin(around), 0.0) for around in arounds]
     for spot in spots:
         spot = min(max(spot, rib / 2.0), length - rib / 2.0)
         made.append(swept([(radius * out[0], radius + radius * out[1], spot) for out in outward], outward,
-                          [(0.0, 0.0, 1.0)] * STEPS, rib, closed=True))
+                          [(0.0, 0.0, 1.0)] * TUBE_STEPS, rib, closed=True))
     return made
 
 
