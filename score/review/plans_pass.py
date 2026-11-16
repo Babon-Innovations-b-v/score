@@ -552,12 +552,16 @@ def carried_all(store, places):
 
 def surplus_lowered(plan, inventory, rows=None):
     """(the plan with each row of `rows` (None: every row) `recountable` laid more often than its reading counts given
-    its copies off, its last laid first (`lowered`), the fixes said), free."""
+    its copies off, its last laid first (`lowered`), the fixes said), free; a row laid as often as its child scene's
+    instances the plan's doorways lead to (gates.led_instances) is left as laid."""
+    from score.stages.scene_record import gates
     plan, said = copy.deepcopy(plan), []
+    led = gates.led_instances(plan)  # a child scene's instances its doorways lead to (base's seven tubes for six)
     for gap in plan_checks.count_gaps(plan, inventory, set(plan.get("structure") or [])):
         row = next(row for row in inventory["rows"] if row["id"] == gap["row"])
         laid, want = counted_laid(plan, row["id"])[1], int(row.get("count") or 1)
-        if (rows is None or row["id"] in rows) and recountable(row, plan) and laid > want:
+        if (rows is None or row["id"] in rows) and recountable(row, plan) and laid > want \
+                and led.get(row["id"]) != laid:
             lowered(plan, row["id"], laid - want)
             said.append(f"{plan_checks.said_name(row['id'])}: {laid} laid, its reading counts {want}, so "
                         f"{laid - counted_laid(plan, row['id'])[1]} taken off")
