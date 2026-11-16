@@ -70,6 +70,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; `haze` a box of haze (tools/usd/scene.py's haze body) the renderer fills.
 - **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.
+- **`review`** (review.py, review_views.py; owner 2026-11-16: "were missing a tool that allow for quick ways to review
+  a scene"): a region (the scene, `--box x0,z0,x1,z1` or `--prefix`) as one contact sheet from one Blender call on the
+  card at 8 samples denoised, the ground's displacement as bump (a review never ships): a plan cut 2.4 m over the floor
+  with a 1 m grid and names, four corners, eye height from each door and the middle, a close-up per compartment
+  (place.json `compartments`, else each dome shell structure), the concept in the corner, review.json listing the
+  views; a physics check's faults (`check.json` {"faults": [{"object", "kind"}]}) boxed in red. A crowd of one entry
+  (the stones) never frames the region. `viewer` writes the scene as one Draco GLB (viewer_glb.py, no card), its
+  textures halved until it fits 15 MB, for the owner to orbit.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
 - Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;
   blender_views.py is checked by a render of the fixture scene, never in the test).

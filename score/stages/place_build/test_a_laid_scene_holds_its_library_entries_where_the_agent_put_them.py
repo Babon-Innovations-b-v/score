@@ -14,7 +14,9 @@ with a doorway in its end wall, its skin trimmed by the dome it joins and solid 
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
 than a knee, its flat's doorway cut through its back wall; a final render at 1920x1080; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
-colour difference of the two pictures, and draws them side by side.
+colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
+(never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
+straight down under its cut with +x right and +z down, and a physics fault boxed in red and named on the plan.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -58,6 +60,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
+- review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
+- review.compartments_of: the dome shell address test dropped -> the wall is a compartment
+- review.projected: the up axis negated -> the plan's +z lands up, the aim's point off the middle
+- review.views_of: the plan's near cut at the floor (CUT left off) -> the plan's cut is not CUT over the floor
+- review.boxed_faults: the fault's name test inverted -> no red box on the floating crate
 """
 import json
 import pathlib
@@ -69,7 +76,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import measure, relief, render, stair_core
+from score.stages.place_build import measure, relief, render, review, stair_core
 
 
 def library(root, files):
@@ -397,3 +404,36 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert marks == {"kerb": ["structure", None, False], "road": [None, None, True], "sill": ["mount", "wall:kerb", False]}
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("score:exposure").Get() == np.float32(2.5)
     assert np.allclose(moon.TransformDir(Gf.Vec3d(0, 0, -1)), (0.0, -0.5, -np.cos(np.radians(30))), atol=1e-6)
+    reviewed(folder)
+
+
+def reviewed(folder):
+    """The review's region, views, projection and fault marks on the laid scene (no Blender)."""
+    objects = review.scene_objects(folder)
+    region = review.region_of(objects, box=(-6.0, -6.0, 6.0, 6.0))
+    compartments = review.compartments_of({}, objects, region)
+    door = {"name": "airlock", "address": "model/airlock_door", "low": np.array([4.0, 0.0, -1.0]),
+            "high": np.array([5.0, 2.0, 1.0]), "ground": False}
+    region["names"].append("airlock")
+    views = review.views_of(region, compartments, review.doors_of(objects + [door], region),
+                            review.floor_of(objects, compartments, region))
+    left_out = {"plain", "sky", "floor", "regolith", "tunnel"}
+    assert {"wall", "crate", "dome"} <= set(region["names"]) and not left_out & set(region["names"])
+    assert [part["name"] for part in compartments] == ["dome"]
+    assert [view["name"] for view in views] == ["plan", "corner_wn", "corner_en", "corner_es", "corner_ws",
+                                                "door_airlock", "middle", "part_dome"]
+    plan, door_view = views[0], views[5]
+    assert np.isclose(plan["eye"][1] - plan["near"], review.CUT) and np.allclose(door_view["eye"][1], review.EYE)
+    size = (400, 300)
+    middle = (np.array(plan["aim"]))
+    seen, _ = review.projected(plan, size, [middle, middle + [1, 0, 0], middle + [0, 0, 1]])
+    scale = size[0] / plan["ortho"]
+    assert np.allclose(seen, [[200, 150], [200 + scale, 150], [200, 150 + scale]])
+    assert np.allclose(review.projected(door_view, size, [door_view["aim"]])[0], [[200, 150]])
+    (folder / review.CHECK).write_text(json.dumps({"faults": [{"object": "crate", "kind": "floating"}]}))
+    faults = review.faults_of(folder)
+    marked = np.asarray(review.annotated(Image.new("RGB", size), plan, objects, region, faults))
+    crate = review.projected(plan, size, [[3.0, 0.0, 0.0], [4.0, 0.0, 0.5]])[0].round().astype(int)
+    red = (marked[..., 0] > 200) & (marked[..., 1] < 50) & (marked[..., 2] < 50)
+    around = red[crate[0][1] - 2:crate[1][1] + 3, crate[0][0] - 2:crate[1][0] + 3].sum()
+    assert faults == {"crate": "floating"} and around > 10 and red.sum() == around

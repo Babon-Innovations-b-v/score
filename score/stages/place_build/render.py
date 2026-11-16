@@ -5,6 +5,7 @@ a time. Writes <folder>/render/concept-look.png and concept-mask.png (the object
 
     views(record, width, names)     usd_views' views.json for the concept's camera and the named views, `width` across
     command(folder, width, names, final)   the queued Blender command
+    queued(job, script, arguments, card)   any Blender script queued so (review.py's too)
     render(folder, width, names, final)    run it; {"render", "mask", "views", "seconds"} or RenderFailed with the log's tail
 
 A long render is started detached (tools/cloud/detached.py), never waited on in the foreground.
@@ -66,12 +67,20 @@ def command(folder, width=WIDTH, names=(), final=False):
     out.mkdir(exist_ok=True)
     listing = out / "views.json"
     listing.write_text(json.dumps(views(place_build.record_of(folder), width, names, final), indent=1))
-    blender = [str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(SCRIPT), "--",
-               str(place_build.scene_path(folder)), str(listing), str(out)]
+    return queued(f"place-build-{folder.name}", SCRIPT, [str(place_build.scene_path(folder)), str(listing), str(out)])
+
+
+def queued(job, script, arguments, card=True):
+    """The card queue's command running a Blender script with its arguments in a memory-capped scope (with no `card`,
+    the scoped command alone: an export that draws nothing waits for no card)."""
+    blender = [str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script), "--",
+               *arguments]
     libraries = ":".join(filter(None, [LIBRARIES, "/usr/lib/wsl/lib"]))
     scoped = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={MEMORY}", "-p", "MemorySwapMax=0",
               "--setenv=FARM_CYCLES_GPU=1", f"--setenv=LD_LIBRARY_PATH={libraries}", *blender]
-    return ["python3", str(QUEUE), "run", "--job", f"place-build-{folder.name}", "--card-gb", CARD_GB,
+    if not card:
+        return scoped
+    return ["python3", str(QUEUE), "run", "--job", job, "--card-gb", CARD_GB,
             "--priority", "other", "--", *scoped]
 
 

@@ -26,6 +26,8 @@
     python -m score.stages.place_build list <folder>
     python -m score.stages.place_build render <folder> [--width pixels] [--views name,name] [--final]
     python -m score.stages.place_build compare <folder>
+    python -m score.stages.place_build review <folder> [--box x0,z0,x1,z1 | --prefix name] [--width pixels] [--out dir]
+    python -m score.stages.place_build viewer <folder> [--glb path] [--box x0,z0,x1,z1 | --prefix name] [--megabytes m]
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
 `put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
@@ -46,6 +48,9 @@ share one palette. `render --final` renders at the films' samples (denoised) ins
 `stairs` lays the stair core algorithm (stair_core.py): a walkable switchback stairwell of real size, its flats'
 blocks and glazed front, parts `slab`, `steps`, `wall`, `dado`, `block`, `glass`, `frame`, `balusters`, `handrail`;
 it answers its doorways for the doors laid in them (`--mirror`: the other hand).
+`review` renders a region's plan (grid, names), corners, door and middle eye-height views and compartment close-ups in
+one fast Blender call onto one contact sheet, a physics check's faults boxed in red (review.py); `viewer` writes the
+scene as one compressed GLB for a browser viewer.
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
 """
@@ -56,7 +61,7 @@ import sys
 from score.stages import place_build
 
 
-POINTS = ("--at", "--turn", "--eye", "--aim", "--scale", "--pad")
+POINTS = ("--at", "--turn", "--eye", "--aim", "--scale", "--pad", "--box")
 
 
 def with_negatives(given):
@@ -158,6 +163,12 @@ def run(args):
         from score.stages.place_build import render
         return render.render(args.folder, args.width, [name for name in (args.views or "").split(",") if name],
                              args.final)
+    if args.step in ("review", "viewer"):
+        from score.stages.place_build import review
+        box = numbers(args.box) if args.box else None
+        if args.step == "review":
+            return review.review(args.folder, box, args.prefix, args.width, args.out)
+        return review.viewer(args.folder, args.glb, box, args.prefix, args.megabytes)
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -277,6 +288,15 @@ def parser():
     step.add_argument("--width", type=int, default=768)
     step.add_argument("--views")
     step.add_argument("--final", action="store_true")
+    for name in ("review", "viewer"):
+        step = steps.add_parser(name)
+        step.add_argument("folder")
+        step.add_argument("--box")
+        step.add_argument("--prefix")
+    steps.choices["review"].add_argument("--width", type=int, default=960)
+    steps.choices["review"].add_argument("--out")
+    steps.choices["viewer"].add_argument("--glb")
+    steps.choices["viewer"].add_argument("--megabytes", type=float, default=15.0)
     return made
 
 
