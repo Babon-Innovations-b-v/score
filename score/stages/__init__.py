@@ -39,7 +39,7 @@ from score.adapters.models import claude_code
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
-                          scene_clips, screens, shapes_first, shell_split, sim_body, sound,
+                          scene_clips, screens, shapes_first, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.cast import feet as cast_feet  # cast's make: its own module, so no other row's key moves with it
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
@@ -614,23 +614,10 @@ def plan_as_kit(function, position):
     return read
 
 
-def shell_of(place):
-    """[the outside shell whose split names the place], or []: what an inside place's plan reads beside it. Here in
-    the table, so the plan row's code version never hashes the split's code (a neighbours function's file is part of
-    its row's code version, and the table is the framework's)."""
-    return shell_split.shell_of(place)
-
-
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
-                   files=creator_plan(scene_record.plan.files), applies=plan_written,
-                   beside={"shell-split": ("shell-split", 1)}, upward=True, neighbours=shell_of)
-# Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
-# local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's
-# `beside`, upward: up to the shell, never back down), so the drive makes the shell's split before its inside places.
-SHELL_SPLIT = graph.Stage("shell-split", "place", shell_split.make, shell_split.CONTRACT, shell_split.CHECKS,
-                          files=shell_split.files, after={"plan": ("place-plan", 2)}, applies=shell_split.applies)
+                   files=creator_plan(scene_record.plan.files), applies=plan_written)
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
                            scene_record.gates.CHECKS, files=scene_record.writer.files,
                            after={"plan": ("place-plan", 2), scene_record.writer.LIBRARY_ROW: ("surface-library", 1),
@@ -1053,7 +1040,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(layout_fitted, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
               close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))))),
-          *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
+          *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,

@@ -107,8 +107,8 @@ stage as each stage is built; nothing moves before.
   free-only latch read by every `score` command); `python -m score.conductor dry` is its free end-to-end check.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its environment data says it has nothing to do for; `upward`: its beside reads go up to the
-  outside shell holding this place, an inside place's plan reading its outside shell's split, so the table's loop check leaves
-  them out), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
+  outside shell holding this place, so the table's loop check leaves them out; no row of the table sets it since the
+  shell split was wiped, #128), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket. A new output that fails its gates (fail, the owner's waivers counted; never

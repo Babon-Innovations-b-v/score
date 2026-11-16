@@ -559,7 +559,7 @@ what proves it.
 - **The images environment** (`score/stages/images`, `python -m score run images`): rebuilds and proves the job
   images; moss and characters-motion proven through it, the rest not yet.
 - **Shapes first's later steps**: `rough-model` runs after a plan, but no plan is drawn to its rough model yet;
-  `shell-split` applies only to a plan with a `split`, and today the plan's holds lay out the child scenes.
+  the plan's holds lay out the child scenes (the `shell-split` row was wiped, #128: no plan carried a `split`).
 
 **Rows left with no work** after the old records were retired were removed on 2026-10-22: `concept-people`
 (nothing read it), `demo-turntables` (its models were an old disk's takes), `demo-stills` (no definitions) and

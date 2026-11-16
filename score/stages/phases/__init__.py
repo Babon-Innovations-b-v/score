@@ -15,7 +15,7 @@ door's `buy <yes id> --phase <name>` buys only that phase's nodes of the basket 
 import fnmatch
 
 PHASES = (
-    ("models", ("terrain", "plan", "shell-split", "rough-model", "rough-align", "props-inputs", "closeup", "pixal",
+    ("models", ("terrain", "plan", "rough-model", "rough-align", "props-inputs", "closeup", "pixal",
                 "straight-masks", "likeness-calibration")),
     ("surfaces", ("finish-route-*", "surface-library", "surfaces-*", "surface-tiles", "earth-seed", "body-face-*",
                   "likeness", "scene-record", "screens")),

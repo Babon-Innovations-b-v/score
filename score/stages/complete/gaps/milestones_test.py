@@ -1,12 +1,12 @@
 """The remake's milestones, worked out from a toy table's reads and never written by hand: shapes first (the ground,
-the shell's concept, plan and rough model, its split, then the inside place's own), then what the place holds, its
+its concept, plan and rough model), then what the place holds, its
 completion, the film past it, the environment's film (no row: unpriced, with why) and the owner's approval last; each
 node after every node it reads; a paid node with no measured price unknown with its reason and its stage's set budget
 labelled set, never summed; the code work of the gaps at the step it waits at (a lost input at its reader's); the
 month's books on the first paid step. A toy table in a store of its own, per-unit numbers written in the test. No
 cloud, no Blender.
 
-    terrain (world, paid) -> plan -> rough-model (paid) -> shell-split -> scene-record -> pixal (paid) -> complete
+    terrain (world, paid) -> plan -> rough-model (paid) -> scene-record -> pixal (paid) -> complete
     complete -> demo-film (paid, not measured: set EUR 3.2) -> library (an end: nothing reads it)
 
 Run: .venv/bin/python score/stages/complete/gaps/milestones_test.py
@@ -48,8 +48,8 @@ TABLE = [row("pixal", ("scene-record",), paid=True, euros=20.0),
          row("complete", ("pixal",)), row("demo-film", ("complete",), paid=True, euros=3.2),
          row("terrain", grain="world", paid=True, euros=6.0, files={"old": "{data}/old-folder"}),
          row("plan", ("terrain",)),
-         row("rough-model", ("plan",), paid=True, euros=4.0), row("shell-split", ("rough-model",)),
-         row("scene-record", ("shell-split",)), row("library", ("demo-film", "complete"))]
+         row("rough-model", ("plan",), paid=True, euros=4.0),
+         row("scene-record", ("rough-model",)), row("library", ("demo-film", "complete"))]
 # Priced as their ledger says (sources: Google calls, no bill share), so the sums read straight off the euros.
 PER_UNIT = {"stages": {name: {"stage": name, "unit": "make", "count": {"one": True}, "also": [], "likely_euros": euros,
                               "high_euros": euros * 2, "runs": 3, "sources": {"google calls": "toy"},
@@ -93,12 +93,11 @@ def by_key(record):
 def test_the_milestones_go_shapes_first_and_end_with_the_owners_approval():
     record = planned()
     assert [entry["key"] for entry in record["milestones"]] == [
-        "ground", "shapes", "split", "inside", "made", "complete", "after", "environment-film", "approval"]
+        "ground", "shapes", "made", "complete", "after", "environment-film", "approval"]
     found = by_key(record)
-    assert [entry["stage"] for entry in found["shapes"]["stages"]] == ["plan", "rough-model"]
-    assert [entry["stage"] for entry in found["inside"]["stages"]] == ["scene-record"]
+    assert [entry["stage"] for entry in found["shapes"]["stages"]] == ["plan", "rough-model", "scene-record"]
     assert [entry["stage"] for entry in found["after"]["stages"]] == ["demo-film", "library"]
-    assert found["inside"]["reads"] == ["split"] and found["split"]["reads"] == ["shapes"]
+    assert found["shapes"]["reads"] == ["ground"] and found["made"]["reads"] == ["shapes"]
     assert "no row of the stage table" in found["environment-film"]["unpriced"]
     assert found["approval"]["owner"] == [milestones.APPROVAL]
 
@@ -136,22 +135,20 @@ def test_the_code_work_waits_at_its_step_and_the_books_at_the_first_paid_one():
 
 
 def test_a_route_step_no_row_does_yet_is_still_a_milestone_unpriced_with_why():
-    unsplit = [row("scene-record", ("rough-model",)) if stage.name == "scene-record" else stage
-               for stage in TABLE if stage.name != "shell-split"]
-    found = by_key(planned(table=unsplit))
-    assert found["split"]["missing"] == ["shell-split"] and found["inside"]["missing"] == ["shell-split"]
-    assert found["split"]["unpriced"] == "no row of the stage table does this yet: shell-split"
-    assert found["split"]["nodes"] == 0 and "unpriced" not in found["shapes"]
-    assert [entry["key"] for entry in planned()["milestones"]].count("split") == 1
-    assert by_key(planned())["split"]["missing"] == []
+    groundless = [row("plan") if stage.name == "plan" else stage for stage in TABLE if stage.name != "terrain"]
+    found = by_key(planned(findings=(ROUGH, PROPS), table=groundless))
+    assert found["ground"]["missing"] == ["terrain"] and found["shapes"]["missing"] == []
+    assert found["ground"]["unpriced"] == "no row of the stage table does this yet: terrain"
+    assert found["ground"]["nodes"] == 0 and "unpriced" not in found["shapes"]
+    assert [entry["key"] for entry in planned()["milestones"]].count("ground") == 1
+    assert by_key(planned())["ground"]["missing"] == []
 
 
 def test_every_route_stage_is_a_row_of_the_real_table():
     """A renamed row fails here, never falls silently into `made`."""
     from score import stages
     names = {stage.name for stage in stages.STAGES}
-    assert set(milestones.GROUND + milestones.SHAPES + milestones.SPLIT) <= names, (
-        set(milestones.GROUND + milestones.SHAPES + milestones.SPLIT) - names)
+    assert set(milestones.GROUND + milestones.SHAPES) <= names, set(milestones.GROUND + milestones.SHAPES) - names
     assert milestones.FILM_ROW in names  # the environment's film is a row (#28): priced in `after`, no unpriced step
 
 

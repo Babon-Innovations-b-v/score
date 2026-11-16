@@ -7,9 +7,7 @@ route each node is at. The cockpit only shows the list.
 
 A node's step, first match:
     ground    its stage is GROUND's (the environment's ground)
-    shapes    its stage is SHAPES' (concept, plan and its record, rough model) and no shell split comes before it
-    split     its stage is SPLIT's (a shell's plan split into inside places)
-    inside    its stage is SHAPES' and a shell split comes before it (an inside place's own concept, plan, rough model)
+    shapes    its stage is SHAPES' (concept, plan and its record, rough model)
     complete  its stage is the completion gate (fill.COMPLETE)
     after     it reads a completion gate, directly or through others, or no node of the remake reads it (a line's
               end): the films, the showcase renders, the hand-over
@@ -44,16 +42,13 @@ from score.stages.complete.gaps import fill, inputs
 
 GROUND = (stages.TERRAIN.name,)
 SHAPES = tuple(fill.FILLERS[kind][0] for kind in (fill.PLAN, fill.ROUGH_MODEL)) + (stages.OWN_RECORD,)
-SPLIT = (fill.FILLERS[fill.SHELL_SPLIT][0],)
 STEPS = (("ground", "The ground"),
          ("shapes", "Shapes first: concept, plan and rough model"),
-         ("split", "Shells split into inside places"),
-         ("inside", "Each inside place's concept, plan and rough model"),
          ("made", "What each place holds: props, finishes, light, sound, people, layers"),
          ("complete", "Each place's completion gate"),
          ("after", "Films, showcase renders and the hand-over"))
 RANK = {key: rank for rank, (key, _) in enumerate(STEPS)}
-STEP_STAGES = {"ground": GROUND, "shapes": SHAPES, "split": SPLIT, "inside": SPLIT}  # the rows a step waits on
+STEP_STAGES = {"ground": GROUND, "shapes": SHAPES}  # the rows a step waits on
 MEASURED = ("measured runs", "per unit × counted", "per unit × forecast")
 # The environment's film's row (score/stages/demo_film/final.py): where the table has it, its node is an end of the
 # environment's line and sits in `after` with its chain's paid films; a table without it gets the unpriced step.
@@ -95,16 +90,14 @@ def stage_of(name):
     return name.partition("@")[0]
 
 
-def step_of(name, after_split, after_complete):
+def step_of(name, after_complete):
     """A node's step of the route (the module docstring); `after_complete` whether it reads a completion gate or ends
     its line."""
     stage = stage_of(name)
     if stage in GROUND:
         return "ground"
-    if stage in SPLIT:
-        return "split"
     if stage in SHAPES:
-        return "inside" if after_split else "shapes"
+        return "shapes"
     if stage == fill.COMPLETE:
         return "complete"
     return "after" if after_complete else "made"
@@ -113,11 +106,10 @@ def step_of(name, after_split, after_complete):
 def steps_of(edges, table):
     """{node: its step} of every node of `edges`; `table` the stage table's stage names (a node of no table here
     reads none of them and none reads it, so it is never a line's end)."""
-    after_split = reaching(edges, lambda name: stage_of(name) in SPLIT)
     after_complete = reaching(edges, lambda name: stage_of(name) == fill.COMPLETE)
     read = {before for reads in edges.values() for before in reads}
     ends = {name for name in edges if name not in read and stage_of(name) in table}
-    return {name: step_of(name, after_split[name], after_complete[name] or name in ends) for name in edges}
+    return {name: step_of(name, after_complete[name] or name in ends) for name in edges}
 
 
 def ordered(runner, edges, steps):
@@ -197,7 +189,7 @@ def work_step(gap, readers, steps):
     if gap["rule"] == "place":
         kind = gap["id"].partition(":")[2]
         stage = (fill.FILLERS.get(kind) or (None,))[0] or kind
-        return step_of(stage, False, False)
+        return step_of(stage, False)
     return "made"
 
 

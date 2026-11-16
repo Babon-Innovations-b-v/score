@@ -12,14 +12,13 @@ from score import stages
 
 # A missing row's maker by how the inventory says it is made: (the stage, the work when it does not run here).
 ROUTE, CROP = "route", "crop"
-CONCEPT, PLAN, ROUGH_MODEL, SHELL_SPLIT = "concept", "plan", "rough-model", "shell-split"
+CONCEPT, PLAN, ROUGH_MODEL = "concept", "plan", "rough-model"
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: its design hand-in (prepare)"),
     CROP: ("crops-layer", None),
     CONCEPT: (None, "the creator's concept for {place}, drawn and locked on its concept page"),
     PLAN: ("plan", "a kept plan of {place} with its leads (the plan review)"),
     ROUGH_MODEL: (ROUGH_MODEL, None),
-    SHELL_SPLIT: (SHELL_SPLIT, "a `split` in the kept plan of {place}: the shell's outline and its room list"),
 }
 # complete's gates by the stage that can fix what they find; the rest of its gates by the work they need.
 COMPLETE = "complete"
