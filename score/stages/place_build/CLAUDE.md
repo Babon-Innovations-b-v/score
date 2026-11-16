@@ -81,6 +81,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   views; a physics check's faults (`check.json` {"faults": [{"object", "kind"}]}) boxed in red. A crowd of one entry
   (the stones) never frames the region. `viewer` writes the scene as one Draco GLB (viewer_glb.py, no card), its
   textures halved until it fits 15 MB, for the owner to orbit.
+- **`make`** (maker/, its own overlay): a prop's model made with TRELLIS.2 on this PC's card from its picture (a take's
+  close-up, a concept crop by its SAM 3 mask), set over the model it replaces, graded to the palette, CoACD hulls and
+  mass, taken into score_lib as a draft entry that `put` lays like any made model.
 - The camera `start` writes is a starting guess (`CAMERA`); the agent sets the concept's with `camera`.
 - **The film** (film.py, `film`, `film-render`; owner 2026-11-16: "get me my demo"): a camera path that holds on the
   concept's view, glides down clear of everything and moves through the place's stops (named views with their aims,

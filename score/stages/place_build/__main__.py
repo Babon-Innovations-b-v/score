@@ -32,6 +32,8 @@
     python -m score.stages.place_build check <folder> [--no-settle]
     python -m score.stages.place_build film <folder> [--through 'stop;stop'] [--seconds s] [--eye m] [--seed n]
     python -m score.stages.place_build film-render <folder> [--every n] [--final] [--out dir]
+    python -m score.stages.place_build make <folder> <name> <take/<take>|concept/<n>|like|picture.png> --material class
+                                       (--like model/<id> | --height m)
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free).
 `put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
@@ -66,6 +68,10 @@ one JSON line of counts, the full list in <folder>/ready.json.
 eye height (or in free air), clear of every solid the check reads, written to <folder>/film/path.json with its
 measures; `film-render` renders every `--every`th frame through the card queue (half size at the review's samples, or
 `--final` at the films' 1920x1080), with the seconds a frame.
+`make` makes a prop's model with TRELLIS.2 on this PC's card (maker/): from a take's close-up, the concept cut by a
+SAM 3 mask, or the picture the `--like` model was made from; set over the `--like` model it replaces (or `--height`
+metres tall), its paint graded to the place's palette, CoACD hulls and mass from its `--material` class, taken into
+score_lib as a draft model entry; `put` then lays its address.
 """
 import argparse
 import json
@@ -195,6 +201,9 @@ def run(args):
     if args.step == "check":
         from score.stages.place_build import ready
         return ready.check(args.folder, not args.no_settle)
+    if args.step == "make":
+        from score.stages.place_build import maker
+        return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height)
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -318,6 +327,12 @@ def parser():
     step = steps.add_parser("check")
     step.add_argument("folder")
     step.add_argument("--no-settle", action="store_true")
+    step = steps.add_parser("make")
+    for name in ("folder", "name", "source"):
+        step.add_argument(name)
+    step.add_argument("--material", required=True)
+    step.add_argument("--like")
+    step.add_argument("--height", type=float)
     step = steps.add_parser("render")
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)
