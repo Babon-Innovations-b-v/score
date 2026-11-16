@@ -27,8 +27,12 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **A real ground** (relief.py, `terrain`): a terrain entry is a heightfield model read from a public-domain HiRISE
   DTM (range requests, never the whole file), its own posts near the centre and wider out to the horizon, bent with
   the planet; `terrain --pad x,z,r` levels a building's site to the laid height and eases it into the ground.
+- **A tinted image surface**: `surface --colour` over an image surface multiplies its colour map (the texture's
+  scale; Blender's reader brings it in as a multiply), so a scanned ground takes Mars' tint and keeps its grain; the
+  preview displaces a laid ground by its surface's height map when surface.json names `displacement_metres`.
 - **The sky and its sun** (`sky`): a light entry's sky dome laid as the place's own `/<place>/Environment` (the
-  renderer's ambient light and exposure) and a distant sun from an elevation and heading; never a far sphere lamp.
+  renderer's ambient light and exposure) and a distant sun from an elevation and heading, the dome turned (`--turn`)
+  so its picture's glow stands where the sun is; never a far sphere lamp.
 - **The tunnel** (`tube`): the dome shell algorithm's ribbed glass tube between two domes (parts shell, ribs, deck).
 - **Standing on things**: `put --rest` lays a piece's lowest point at the given height (a floor, a table top);
   `--on-ground` reads that height over the laid ground there (a rock on a terrain's relief).
