@@ -56,11 +56,8 @@ The break that turns each test red (applied once each, seen red, reverted):
     `never_reached_main` returns False at once (a push the remote refused keeps its slot); `main`'s `uncounted` check
     dropped (a release-only repository's push takes a slot), or `uncounted` returns True at once (every push passes
     uncounted).
-  - its redo-guard rows (score.stages.moved and local/remake_freeze.py, in scratch repos): `remade_accepted` takes
-    `row["places"]` for a file-moved row too (a place the file does not move in counts); `remakes_line` sums every
-    row's euros, not the paid ones'; `main` returns 0 when `freeze` stands (an unnamed remade row pushes); `named`
-    drops its `why.strip()` (a bare list names rows); `standing_freeze` returns None on an unreadable file (a broken
-    freeze pushes).
+  - its redo-count row (score.stages.moved): `remade_accepted` takes `row["places"]` for a file-moved row too (a
+    place the file does not move in counts); `remakes_line` sums every row's euros, not the paid ones'.
   - its fail-open rows: accept_guard's `except Exception: return 0` made `return 2`.
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/hooks/tests/
@@ -774,10 +771,8 @@ GATE_ASKS = [  # a grown debt file and a failing touched test are refused; a cle
 ]
 
 
-# The redo guard (pre-push-moved, score.stages.moved, remake_freeze.py): the push counts every accepted node it makes
-# again, free ones too, in one line; while a freeze stands a push remaking accepted rows is refused unless a pushed
-# commit's Remakes trailer names them with a reason; no freeze, a freeze past its day or nothing remade passes, and a
-# freeze file that cannot be read refuses.
+# The redo count (pre-push-moved, score.stages.moved): the push counts every accepted node it makes again, free ones
+# too, in one line.
 
 REMADE_COUNT = """import json, sys
 from score.stages import moved
@@ -797,43 +792,10 @@ def remade_world(world):
     return [str(own if own.exists() else common), "-c", REMADE_COUNT], dict(GIT_ENV, PYTHONDONTWRITEBYTECODE="1"), REPO
 
 
-STANDING_FREEZE = '{"until": "2999-01-01", "reason": "the film"}'
-
-
-def freeze_world(message, remade=("light@hub", "pins"), freeze_text=STANDING_FREEZE):
-    """A world: remake_freeze.py on a push of one commit with this message, these accepted nodes remade (free ones)
-    and this freeze file (None: none)."""
-    def make(world):
-        repo = world / "repo"
-        repo.mkdir()
-        git(repo, "init", "-q")
-        git(repo, "commit", "-q", "--allow-empty", "-m", "base")
-        git(repo, "commit", "-q", "--allow-empty", "-m", message)
-        remakes, freeze = world / "remakes.json", world / "freeze.json"
-        remakes.write_text(json.dumps({"remade": [{"node": node, "paid": False, "euros": 0} for node in remade]}))
-        if freeze_text is not None:
-            freeze.write_text(freeze_text)
-        return ([sys.executable, str(HOOKS / "local/remake_freeze.py"), str(remakes)],
-                dict(GIT_ENV, SCORE_PUSH_FREEZE=str(freeze)), repo)
-    return make
-
-
-def pushed_head(world):
-    return main_push_line(world / "repo")
-
-
-FREEZE_ASKS = [
+REDO_ASKS = [
     # settle moved only by a file at hub, accepted only at camp: not remade
     ("remade", "", "allow", (),
      {"tail": ['["light@camp", "light@hub", "pins"]', "this push re-makes 3 accepted rows (2 paid, EUR 5.00)"]}),
-    ("freeze-unnamed", pushed_head, "refuse", ("light@hub pins", "Remakes: light pins: <why>")),
-    ("freeze-one-named", pushed_head, "refuse", ("pins",), {"lacks": ("light@hub",)}),  # a row left unnamed refuses
-    ("freeze-named", pushed_head, "allow", ()),
-    ("freeze-no-reason", pushed_head, "refuse", ()),  # a trailer with no reason names nothing
-    ("freeze-nothing", pushed_head, "allow", ()),
-    ("freeze-none", pushed_head, "allow", ()),
-    ("freeze-past", pushed_head, "allow", ()),
-    ("freeze-broken", pushed_head, "refuse", ("cannot be read",)),
 ]
 
 
@@ -1214,14 +1176,6 @@ WORLDS = {
                                             "score/stages/sim_body/inside/rra/note.txt": "x\n"}),
     "gate-away": gate_world(lambda clone: {"tools/zz_gate/notes.txt": "y\n"}, away=True),
     "remade": remade_world,
-    "freeze-unnamed": freeze_world("fix"),
-    "freeze-one-named": freeze_world("fix\n\nRemakes: light: the hub's lamp was wrong"),
-    "freeze-named": freeze_world("fix\n\nRemakes: light@hub, pins: both wrong"),
-    "freeze-no-reason": freeze_world("fix\n\nRemakes: light pins:"),
-    "freeze-nothing": freeze_world("fix", remade=()),
-    "freeze-none": freeze_world("fix", freeze_text=None),
-    "freeze-past": freeze_world("fix", freeze_text='{"until": "2000-01-01", "reason": "old"}'),
-    "freeze-broken": freeze_world("fix", freeze_text="{not json"),
     "push-cap": cap_world,
     "leftover": leftover_world,
     "soul": lambda world: (HOOKS / "soul_guard.py", None, None),
@@ -1244,7 +1198,7 @@ SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap"}  # worlds whose hook
 ROWS = [
     *(("completion-listed-" + event, stop("listed", f"The {PLACE} is complete now."), "block", (PLACE,),
        {"lacks": ("ModuleNotFoundError",)}) for event in ("Stop", "SubagentStop")),
-    *TORN_ASKS, *GATE_ASKS, *FREEZE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *CAP_ASKS,
+    *TORN_ASKS, *GATE_ASKS, *REDO_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *CAP_ASKS,
     *(("accept", payload, "block", ("only the owner accepts or rejects",))
       for payload in OWNER_ACTIONS + OWN_LOCKS_AND_STEPS),
     ("accept", ENV_PREFIXED_ACCEPT, "block", ()),
