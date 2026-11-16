@@ -693,7 +693,7 @@ def on_wall(item, row, plan, inventory, pieces=1):
         why = "its plan spot" if placed else "where its concept box projects onto the plan"
     need, bend = run_needed(row, pieces), CORNER_BEND if pieces > 1 else ROUND_BEND
     fitting = ([wall for wall in walls if wall_length(wall) >= need] if pieces == 1 else []) or [
-        wall for wall in walls if holds_flat(chain_of(wall, walls, bend), row, pieces)]
+        wall for wall in walls if holds_flat(chain_of(wall, walls, bend), row, pieces, walls)]
     wall = min(fitting, key=lambda wall: off_line(spot, wall)[0]) if fitting else max(walls, key=wall_length)
     side = off_line(spot, wall)[1]
     if off_line(spot, wall)[0] < 1e-6 or (placed and past_outline(spot, row, plan)):  # the side toward the plan's middle
@@ -1531,7 +1531,7 @@ def wall_pieces(entry, item, row, count, walls, bend=CORNER_BEND, spots=None):
         first, last = numpy.asarray(line, float)
         spots = [first + (last - first) * (number + 0.5) / count for number in range(count)]
     alongs = [chain_along(chain, spot) for spot in spots]
-    runs, clear = straight_runs(chain), built_deep(row) + PIECE_GAP
+    runs, clear = face_runs(chain, walls), built_deep(row) + PIECE_GAP
     found = []
     for along in flat_alongs(packed(alongs, length, long), runs, long, clear):
         (low, _), (high, _) = chain_point(chain, max(along - long / 2, 0.0)), chain_point(chain, along + long / 2)
@@ -1568,6 +1568,23 @@ def straight_runs(chain):
     return [tuple(run) for run in runs]
 
 
+def face_runs(chain, walls):
+    """straight_runs of a chain of plan walls (chain_of), each cut back at its ends to where its face ends (line_trims:
+    the half thickness of a wall meeting it at a corner there), so a piece laid flat on a run stands on the face the
+    scene record lays (writer.wall_face), never past its end. 2026-11-16: hub's first pipe bundle and tool board,
+    packed from their walls' line ends, stood 0.23 m past their faces' ends and 0.18 and 0.10 m in the next once
+    the assembly kept them on the face."""
+    reaches = numpy.concatenate([[0.0], numpy.cumsum(numpy.linalg.norm(numpy.diff(chain, axis=0), axis=1))])
+    trims = [line_trims(walls, numpy.asarray(start, float), numpy.asarray(end, float))
+             for start, end in zip(chain, chain[1:])]
+    found = []
+    for low, high in straight_runs(chain):
+        first = int(numpy.argmin(numpy.abs(reaches - low)))
+        last = int(numpy.argmin(numpy.abs(reaches - high))) - 1
+        found.append((low + trims[first][0], max(high - trims[last][1], low + trims[first][0])))
+    return found
+
+
 def onto_runs(middles, runs, long, clear, bounded=True):
     """Middles of pieces `long` long, from `middles` (in order) each moved on the least that lays it flat inside one
     run, PIECE_GAP past the one before, and `clear` past a corner the one before ends within `clear` of (the two
@@ -1589,10 +1606,10 @@ def onto_runs(middles, runs, long, clear, bounded=True):
     return placed
 
 
-def holds_flat(chain, row, count):
-    """Whether a chain of walls holds `count` of the row's pieces each flat along one of its straight runs."""
+def holds_flat(chain, row, count, walls):
+    """Whether a chain of walls holds `count` of the row's pieces each flat along one of its straight runs' faces."""
     long = max(built_long(row), PIECE_GAP)
-    return onto_runs([0.0] * count, straight_runs(chain), long, built_deep(row) + PIECE_GAP) is not None
+    return onto_runs([0.0] * count, face_runs(chain, walls), long, built_deep(row) + PIECE_GAP) is not None
 
 
 def flat_alongs(alongs, runs, long, clear):
@@ -1680,7 +1697,7 @@ def seen_pieces(entry, item, row, count, plan, inventory):
     for spot, tier in zip(seen, tiers):
         wall = min(walls, key=lambda wall: off_line(spot, wall)[0])
         groups.setdefault((wall_key(wall), tier), (wall, tier, []))[2].append(spot)
-    if not all(holds_flat(chain_of(wall, walls, ROUND_BEND), row, len(spots)) for wall, _, spots in groups.values()):
+    if not all(holds_flat(chain_of(wall, walls, ROUND_BEND), row, len(spots), walls) for wall, _, spots in groups.values()):
         return []  # a run of walls too short for its share: packed along the chain as before (galley's 3.5 m cabinets)
     found, pitch = [], tall_of(item[0], row, plan) + PIECE_GAP
     for wall, tier, spots in groups.values():
@@ -1811,10 +1828,15 @@ def corner_trims(plan, start, end):
     as long as its line ran into both walls at its ends: storage's 7.7 m pipes on its 7.52 m east line went 0.084 m
     into its north and south walls, engine room's 7.35 m pipes into its back wall (settle, 2026-11-10). The scene
     record's face (writer.wall_face) and the box a wall thing is parted in (relation_box) both end there."""
+    return line_trims(walls_of(plan), start, end)
+
+
+def line_trims(walls, start, end):
+    """corner_trims of a line [start, end] among plan `walls` (walls_of's)."""
     length = float(numpy.linalg.norm(end - start))
     run = (end - start) / max(length, 1e-9)
     trims = [0.0, 0.0]
-    for other in walls_of(plan):
+    for other in walls:
         other_start, other_end = numpy.asarray(other["from"], float), numpy.asarray(other["to"], float)
         span = float(numpy.linalg.norm(other_end - other_start))
         if span < 1e-9 or (numpy.allclose(other_start, start) and numpy.allclose(other_end, end)):
@@ -2125,19 +2147,27 @@ def beside_holder(item, row, rows, laid, items):
         if found else None
 
 
-def holder_sides(holder_item, holder_row):
+def holder_sides(holder_item, holder_row, shape=None):
     """{plan side: (its out way, metres from the holder's middle to it, metres along it)} of a holder laid at its
-    built size, its long side along its facing's way (a facing N lays its x east, as the scene record turns it)."""
-    front = numpy.asarray(FACES.get(holder_item[5]) or FACES["N"], float)
-    way = numpy.array([-front[1], front[0]])
+    built size, its long side along the way the scene record lays one piece at its item (writer.spots_of: its
+    facing's, a quarter onto a long box, along the band its polygon draws), each side's out turned with it off the
+    plan's four ways. 2026-11-16: camp's desk, drawn a band 20 degrees off its box, stood turned in the record while
+    its two chairs stood before its unturned S side, one 0.14 m inside it."""
+    from score.stages.scene_record import writer
+    way = numpy.asarray(writer.spots_of(holder_item, shape or {}, 1, holder_row)[0][1], float)
+    way = way / max(float(numpy.linalg.norm(way)), 1e-9)
+    angle = math.atan2(float(way[1]), float(way[0]))
+    turn = angle - round(angle / (math.pi / 2)) * math.pi / 2  # off the nearest of the plan's four ways
+    rotate = numpy.array([[math.cos(turn), -math.sin(turn)], [math.sin(turn), math.cos(turn)]])
     long = built_long(holder_row) or max(float(holder_item[3]), float(holder_item[4]))
     size = holder_row.get("size")
     short = min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else \
         min(float(holder_item[3]), float(holder_item[4]))
     found = {}
-    for side, out in FACES.items():
-        lengthwise = abs(float(numpy.asarray(out) @ way)) > 0.5  # an end of its long side
-        found[side] = (numpy.asarray(out, float), long / 2 if lengthwise else short / 2, short if lengthwise else long)
+    for side, face in FACES.items():
+        out = rotate @ numpy.asarray(face, float)
+        lengthwise = abs(float(out @ way)) > 0.5  # an end of its long side
+        found[side] = (out, long / 2 if lengthwise else short / 2, short if lengthwise else long)
     return found
 
 
@@ -2166,7 +2196,7 @@ def seats_beside(found, items, rows, plan, tied):
             groups.setdefault(entry["beside"], []).append(entry)
     for holder_name, entries in groups.items():
         holder_item = items[holder_name]
-        sides, centre = holder_sides(holder_item, rows[entries[0]["holder row"]]), middle(holder_item)
+        sides, centre = holder_sides(holder_item, rows[entries[0]["holder row"]], shape_of(holder_name, plan)), middle(holder_item)
         seats = [(entry, number) for entry in entries
                  for number in range(pieces_at(entry["item"], rows[entry["row"]], plan, tied))]
         seat = rows[entries[0]["row"]]
@@ -2244,15 +2274,15 @@ def around_holders(found, items, rows, plan, tied):
             free = [(other, name, side) for other, name in holding for side in FACES if (name, side) not in chosen] or \
                 [(other, name, side) for other, name in holding for side in FACES]
             other, name, side = min(free, key=lambda slot: (
-                round(side_crowding(holder_sides(items[slot[1]], slot[0])[slot[2]], middle(items[slot[1]]), depth,
+                round(side_crowding(holder_sides(items[slot[1]], slot[0], shape_of(slot[1], plan))[slot[2]], middle(items[slot[1]]), depth,
                                     long, slot[1], row_id, items, rows, plan, people, laid_boxes), 3),
                 sum(len(taken) for (held, _), taken in chosen.items() if held == slot[1]),
                 round(float(numpy.linalg.norm(middle(items[slot[1]]) - spot)), 3)))
             chosen.setdefault((name, side), []).append((entry, other))
-            laid_boxes.append(piece_box(holder_sides(items[name], other)[side], middle(items[name]), depth, long))
+            laid_boxes.append(piece_box(holder_sides(items[name], other, shape_of(name, plan))[side], middle(items[name]), depth, long))
         for (name, side), laid in chosen.items():
             centre, base = middle(items[name]), float(shape_of(name, plan).get("base") or 0.0)
-            out, reach, _ = holder_sides(items[name], laid[0][1])[side]
+            out, reach, _ = holder_sides(items[name], laid[0][1], shape_of(name, plan))[side]
             along = numpy.array([-out[1], out[0]])
             for slot, (entry, other) in enumerate(laid):
                 spot = centre + out * (reach + PIECE_GAP + depth / 2) + along * (slot - (len(laid) - 1) / 2) * \

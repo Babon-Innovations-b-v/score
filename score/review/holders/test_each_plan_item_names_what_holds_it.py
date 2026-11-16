@@ -418,6 +418,12 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
 [open-doorway] The street (2026-10-31): its plan draws no walls (an open ground has none) and its stairwell door stands in
     its facade row, a doorway into the building: no wall opening of its own, so it is not named loose.
     Break: score/review/holders/__init__.py: `if "wall" not in shell_parts.parts(plan):` -> `if False:`
+[seat-band-desk] Camp (2026-11-16, laid-as-designed@camp): a 2 x 0.8 m desk drawn as a band turned 36.87 degrees off
+    its box (a 3-4-5 slope), which the scene record lays along the band (writer.band_way), and a chair 'at the desk'
+    drawn on its S side: the chair stands before the turned desk's S side, SEAT_GAP clear, facing it (it stood
+    before the unturned box's side, 0.14 m into the desk as laid).
+    Break: score/review/holders/__init__.py: `out = rotate @ numpy.asarray(face, float)` ->
+        `out = numpy.asarray(face, float)`
 """
 import contextlib
 import json
@@ -1419,6 +1425,18 @@ CASES.append(case(
             openings=[{"kind": "door", "at": [1.4, 19.4], "wide": 1.0, "sill": 0.14, "head": 2.2, "to": "stairwell"}]),
     [], picture=None, want={"loose": ABSENT}))
 
+
+# seat-band-desk: a chair before a desk its polygon turns off its box
+CASES.append(case(
+    "seat-band-desk", relate,
+    plan_of([["DESK 1", 8.96, 5.08, 2.08, 1.84, "N", "item"], ["CHAIR 1", 9.5, 7.3, 0.6, 0.6, None, "item"]],
+            {"DESK 1": ["desk"], "CHAIR 1": ["chair"]},
+            shapes={"DESK 1": {"shape": "polygon", "points": [[0.76923, 1.0], [1.0, 0.65217], [0.23077, 0.0],
+                                                              [0.0, 0.34783]]}}),
+    [{"id": "desk", "noun": "desk", "anchor": "floor", "size": [2.0, 0.8, 0.8]},
+     {"id": "chair", "noun": "chair", "anchor": "floor", "where": "at the desk", "size": [0.6, 0.6, 1.0]}],
+    picture=None,
+    want={"item/CHAIR 1/pieces/0/spot": Near([9.52, 6.64]), "item/CHAIR 1/pieces/0/way": Near([0.8, 0.6])}))
 
 @pytest.mark.parametrize("judge, args, kwargs, want", CASES)
 def test_each_plan_item_names_what_holds_it(judge, args, kwargs, want):
