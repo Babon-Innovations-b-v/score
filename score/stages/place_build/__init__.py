@@ -297,43 +297,68 @@ def layered(stage, path, folder, asset, record, copied):
     return found
 
 
-GROUND_POINTS = {}  # {(scene path, its grounds and their poses): their points in the scene} while a batch runs
+GROUND_POINTS = {}  # {(scene path, its grounds and their poses): their points and triangles in the scene} in a batch
 
 
 def ground_points(stage, place):
-    """Every point of the laid ground (each object marked score:ground) in the scene's frame; read once a batch for the
-    same grounds where they lie."""
+    """Every point of the laid ground (each object marked score:ground) in the scene's frame and its triangles (rows
+    of three point numbers); read once a batch for the same grounds where they lie."""
     grounds = [prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()
                if prim.GetAttribute("score:ground").Get()]
     key = (stage.GetRootLayer().realPath, tuple((str(prim.GetPath()), str(prim.GetReferences()),
                                                  str(pose_of(prim))) for prim in grounds))
     if key in GROUND_POINTS:
         return GROUND_POINTS[key]
-    points = []
+    points, triangles, count = [], [], 0
     for prim in grounds:
         for inside in Usd.PrimRange(prim):
             if inside.IsA(UsdGeom.Mesh):
-                own = np.array(UsdGeom.Mesh(inside).GetPointsAttr().Get(), dtype=np.float64)
+                mesh = UsdGeom.Mesh(inside)
+                own = np.array(mesh.GetPointsAttr().Get(), dtype=np.float64)
                 matrix = np.array(UsdGeom.Xformable(inside).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
                 points.append(own @ matrix[:3, :3] + matrix[3, :3])
+                sizes = np.array(mesh.GetFaceVertexCountsAttr().Get() or [], dtype=np.int64)
+                indices = np.array(mesh.GetFaceVertexIndicesAttr().Get() or [], dtype=np.int64)
+                starts = np.concatenate([[0], np.cumsum(sizes)[:-1]]) if len(sizes) else sizes
+                for corner in range(1, int(sizes.max()) - 1 if len(sizes) else 0):  # each face fanned from its first
+                    has = sizes > corner + 1
+                    triangles.append(np.stack([indices[starts[has]], indices[starts[has] + corner],
+                                               indices[starts[has] + corner + 1]], axis=1) + count)
+                count += len(own)
     if not points:
         raise Refused("no ground is laid to stand on")
-    points = np.concatenate(points)
+    found = (np.concatenate(points), np.concatenate(triangles) if triangles else np.zeros((0, 3), dtype=np.int64))
     if stage.GetRootLayer().realPath in HELD:
-        GROUND_POINTS[key] = points
-    return points
+        GROUND_POINTS[key] = found
+    return found
+
+
+NEAREST = 12  # the ground's points nearest a spot whose triangles are searched for the one under it
 
 
 def ground_height(stage, place, x, z):
     """The height of the laid ground (every object marked score:ground) at (x, z): its highest face over that spot,
-    found among the points within reach and read off the nearest face's plane; Refused when nothing laid lies under."""
-    points = ground_points(stage, place)
+    found among the faces of the points within reach and read off that face's plane (the nearest points' weighted
+    height where no face lies over it); Refused when nothing laid lies under."""
+    points, triangles = ground_points(stage, place)
     distance = np.hypot(points[:, 0] - x, points[:, 2] - z)
-    nearest = np.argsort(distance)[:3]
+    nearest = np.argsort(distance)[:NEAREST]
     if distance[nearest[0]] > 50.0:
         raise Refused(f"no laid ground under {x}, {z}")
-    weights = 1.0 / np.maximum(distance[nearest], 1e-6)
-    return float(np.sum(points[nearest, 1] * weights) / np.sum(weights))
+    near = triangles[np.isin(triangles, nearest).any(axis=1)]
+    heights = []
+    for first, second, third in points[near][:, :, [0, 2, 1]]:
+        across = (second[1] - third[1]) * (first[0] - third[0]) + (third[0] - second[0]) * (first[1] - third[1])
+        if abs(across) < 1e-12:
+            continue
+        one = ((second[1] - third[1]) * (x - third[0]) + (third[0] - second[0]) * (z - third[1])) / across
+        two = ((third[1] - first[1]) * (x - third[0]) + (first[0] - third[0]) * (z - third[1])) / across
+        if min(one, two, 1.0 - one - two) >= -1e-9:
+            heights.append(one * first[2] + two * second[2] + (1.0 - one - two) * third[2])
+    if heights:
+        return float(max(heights))
+    weights = 1.0 / np.maximum(distance[nearest[:3]], 1e-6)
+    return float(np.sum(points[nearest[:3], 1] * weights) / np.sum(weights))
 
 
 def rested(stage, path, at, turn, scale):

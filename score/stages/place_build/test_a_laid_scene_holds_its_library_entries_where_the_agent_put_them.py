@@ -36,6 +36,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.rested: the lift's sign flipped -> the shelf on the table sinks a metre under it
 - dome_shell.hoop_ribs: the hoop lifted inward (`- out`) -> the tunnel's box stays inside its radius
 - place_build.ground_height: the nearest point's x read for its height -> the stone floats far off the slope
+- place_build.ground_height: no face searched (the nearest points' weighted height) -> the stone stands off the
+  slope's plane by more than a millimetre
 - place_build.batch: a refused step stops the batch -> the step after it is never laid
 - measure.coverage: `shape & silhouette` made `shape` -> the uncovered object reads covered
 - relief.graded_axis: FAR_GROWTH left off (every post 1 m) -> the far posts are not wider than the near ones
@@ -369,7 +371,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert laid_terrain.GetAttribute("score:ground").Get() and np.isfinite(ground_points).all()
     assert np.allclose(ground_points[in_pad, 1], 0.0) and np.ptp(ground_points[far, 1]) > 20.0
     assert posts.max() > 2.0 and np.isclose(posts.min(), 1.0)
-    assert np.isclose(stone["at"][1], 0.5 + 8.0 - 0.1, atol=0.1)  # 80 m along the turned slope: 8 m up, base on it
+    assert np.isclose(stone["at"][1], 0.5 + 8.0 - 0.1, atol=0.001)  # 80 m along the turned slope: 8 m up, on its face
     sun = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Lights/sun")).ComputeLocalToWorldTransform(0)
     shines = sun.TransformDir(Gf.Vec3d(0, 0, -1))
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)
