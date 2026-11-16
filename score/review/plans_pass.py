@@ -42,6 +42,7 @@ import collections
 import contextlib
 import copy
 import io
+import json
 import math
 import os
 import subprocess
@@ -371,6 +372,220 @@ def refit(store, place, by, written_at=None):
             "euros": 0.0, "calls": [], "plan": plan})
 
 
+# An agent's edit carried onto the reading in force (`carried`) is a design fix under the owner's word for the #128
+# rework, kept as a redrawing that quotes it, so who moved what stays traceable on the plan's own record.
+CARRIED_BY = "the plan pass, carrying an agent's edit onto the reading in force (#128)"
+CARRIED_WORDS = ("the owner, 2026-11-15: \"do the rework during the night, ill look through the discisions after\"; "
+                 "then \"u got it from here true the night\"; #128 D1, the owner's decision: \"Where ship plan v7 or "
+                 "the game's numbers disagree with the concept (walkway width, storage door, shiplock headroom, "
+                 "quarters and lab doors), the concept wins.\"")
+CARRIED_AT = "2026-11-15T20:00:00+00:00"
+
+
+def laid_rows(place):
+    """The rows the scene record lays as objects (its hand-in's prop and shell rows, none far: the plan-matched gate's
+    rows), None while the place has no hand-in (then every row counts)."""
+    path = plans.PROPS_HOME / "design" / "props" / f"{place}.json"
+    if not path.is_file():
+        return None
+    from score.stages.scene_record import writer
+    return {row["id"] for row in json.loads(path.read_text()).get("rows", [])
+            if row.get("route", "prop") in writer.LAID_ROUTES and not row.get("far")}
+
+
+# A row the shell lays as its openings or flights (the record counts their doorways and flights, not plan items: the
+# greenhouse's stairs, 3 flights laid for its 2), never recounted by its items.
+OPENING_WORDS = frozenset(("door", "doors", "doorway", "doorways", "window", "windows", "opening", "openings"))
+
+
+def recountable(row, plan):
+    """Whether `recounted` lays the row by its plan items: not a door, window or flight of the shell, nor one the
+    plan's notes or its shapes' notes give a reason for (the plan-matched gate leaves those: the stairwell's railings
+    laid along its flights)."""
+    from score.stages.scene_record import writer
+    said = str([plan.get("notes") or [], [(shape or {}).get("note") for shape in (plan.get("shapes") or {}).values()]])
+    return (str(row["id"]).lower().split("_")[-1] not in OPENING_WORDS and writer.flight_kind(row) is None
+            and row["id"] not in said)
+
+
+def counted_laid(plan, row_id):
+    """[(item, shape)] of `row_id`'s things on the plan, and how many they count (a run's shape `count`)."""
+    laid = [(item, shape) for item, row, shape in plan_checks.placed_items(plan) if row == row_id]
+    return laid, sum(int((shape or {}).get("count") or 1) for _, shape in laid)
+
+
+def lowered(plan, row_id, excess):
+    """`excess` copies of the row taken off the plan, its last laid first (a run's count lowered and its long side
+    shortened with it, a single thing dropped); how many it could not take off."""
+    for item, shape in reversed(counted_laid(plan, row_id)[0]):
+        if excess <= 0:
+            break
+        count = int((shape or {}).get("count") or 1)
+        if count > 1:
+            keep = max(1, count - excess)
+            long_side = 3 if item[3] >= item[4] else 4
+            item[long_side] = round(item[long_side] * keep / count, 3)
+            plan["shapes"][item[0]]["count"] = keep
+            excess -= count - keep
+        else:
+            plan_fixes.dropped_item(plan, item)
+            excess -= 1
+    return excess
+
+
+def unread_dropped(plan, inventory):
+    """The plan's things whose rows the reading no longer has taken off; the fixes said."""
+    ids = {row["id"] for row in inventory.get("rows", [])}
+    said = []
+    for item, _, _ in list(plan_checks.placed_items(plan)):
+        tied = plan.get("rows", {}).get(item[0]) or []
+        if tied and not ids & set(tied):
+            plan_fixes.dropped_item(plan, item)
+            said.append(f"{item[0].lower()}: its row {', '.join(tied)} is no longer read, so taken off")
+    return said
+
+
+def recounted(plan, inventory, rows=None):
+    """(the plan with each row laid as often as the reading counts, the fixes said), free: things of rows no longer
+    read taken off (`unread_dropped`), each row of `rows` (None: every row) laid more often than it counts given its
+    copies off (`lowered`), each laid fewer times given its missing ones where its boxes project (SAM 3's, else its
+    Gemini region's: plan_fixes.placed_missing; a wall row or one on a thing stands where its box projects, and
+    holders.relations holds it on its wall or holder there), as count_gaps counts them (a structure row, one beyond
+    and a row the plan's `dropped` names left as they are). Everything else is the plan's own."""
+    plan = copy.deepcopy(plan)
+    unread = unread_dropped(plan, inventory)
+    plan, said = surplus_lowered(plan, inventory, rows)
+    said = unread + said
+    # placed_missing places every short row by its items' first rows: a row the record lays no object of, and one
+    # tied to an item after another row (hangar's wall lamps on its pipes' item, counted none there), are left out
+    shared = {row for tied in plan.get("rows", {}).values() for row in tied[1:]}
+    laying = {**inventory, "rows": [row for row in inventory.get("rows", [])
+                                    if (rows is None or row["id"] in rows) and row["id"] not in shared
+                                    and recountable(row, plan)]}
+    project = plan_fixes.projector(plan, inventory)
+    said += plan_fixes.placed_missing(plan, laying, project)
+    return plan, said + spread_over_region(plan, laying, project)
+
+
+def region_spots(row, picture, project, count):
+    """`count` spots on the plan across the row's box on the concept (its one SAM box, else its Gemini region's), the
+    box cut into `count` slices side by side, each slice's foot projected: things read as more than the concept
+    boxes, across where the reading saw them."""
+    boxes = plan_checks.seen_boxes(row, picture)
+    if not boxes or project is None:
+        return []
+    left, top, right, foot = (min(box[0] for box in boxes), min(box[1] for box in boxes),
+                              max(box[2] for box in boxes), max(box[3] for box in boxes))
+    wide = (right - left) / count
+    return [project([left + wide * number, top, left + wide * (number + 1), foot]) for number in range(count)]
+
+
+def spread_over_region(plan, inventory, project):
+    """Each row of `inventory` still laid fewer times than it counts once its boxes are spent (placed_missing places
+    one a box: greenhouse's four wall panels read in one region, 2026-11-16) given its missing things at the slices of
+    its boxes' span nearest none of its laid things (`region_spots`), like its first laid thing; the fixes said."""
+    fixes = []
+    for gap in plan_checks.count_gaps(plan, inventory, set(plan.get("structure") or [])):
+        row = next(row for row in inventory["rows"] if row["id"] == gap["row"])
+        laid, placed = counted_laid(plan, row["id"])
+        want = int(row.get("count") or 1)
+        if placed >= want or not isinstance(row.get("size"), list):
+            continue
+        spots = region_spots(row, inventory.get("picture"), project, want)
+        middles = [[item[1] + item[3] / 2, item[2] + item[4] / 2] for item, _ in laid]
+        spots.sort(key=lambda spot: -min((math.dist(spot, middle) for middle in middles), default=0.0))
+        size = [float(row["size"][0]), float(row["size"][1])]
+        for spot in spots[:want - placed]:
+            plan_fixes.added_item(plan, row["id"], spot, size, laid[0][1] if laid else None)
+        if spots:
+            fixes.append(f"{plan_checks.said_name(row['id'])}: {min(len(spots), want - placed)} more placed across "
+                         f"where the concept shows it")
+    return fixes
+
+
+def agents_edit(store, place):
+    """The place's newest edit when an agent made it (it carries the words it stood on, `asked`), else None: his own
+    edit (none carries `asked`: habitat's of 2026-10-25) is never carried."""
+    edit = plans.newest_edit(store, place)
+    return edit if edit and (edit.get("asked") or {}).get("words") else None
+
+
+def carried(store, place):
+    """The place's plan, when it is an agent's edit (`agents_edit`) whose rows the reading in force counts otherwise,
+    carried onto that reading (`recounted` over the plan shown, the edit's shape, size, doors and holds its own),
+    kept as a redrawing quoting the owner's words and #128 D1 with the reading it was carried onto; the record, None
+    when nothing changed. An edit wins over every writing after it (plans.shown_plan), so an agent's edit laid on an
+    older reading kept its old counts and rows against tonight's reading (2026-11-16: scene-record's plan-matched
+    failed at hangar, lab, quarters, square, stairwell, tube, walkway and greenhouse, hand recounts missing rows on
+    walls and on things)."""
+    from score.review import reading
+    edit, read = agents_edit(store, place), reading.reading_of(store, place)
+    inventory = plans.inventory_of(store, place)
+    shown = plans.current(store, place) if edit and read and inventory else None
+    if not shown or shown.get("at") != edit["at"]:
+        return None
+    plan, said = recounted(shown["plan"], inventory, laid_rows(place))
+    if not said:
+        return None
+    return plans.redrawn(store, place, {key: plan[key] for key in ("items", "rows", "shapes")}, CARRIED_BY, {
+        "words": CARRIED_WORDS, "at": CARRIED_AT, "reading": read["at"],
+        "reason": f"{place}'s plan in force is an agent's edit of {edit['at'][:16]} laid on an older reading than its "
+                  f"reading of {read['at'][:16]}, and as the newest edit it wins over the writings of that reading, "
+                  "so its things kept the old counts and rows (scene-record plan-matched). Carried onto the reading "
+                  "in force, the edit's own decisions kept: " + "; ".join(said)})
+
+
+def carried_all(store, places):
+    """`carried` for each of `places`; {place: its record} of those carried, and the places whose own edit of his
+    stands over an older reading (never carried: his to replace)."""
+    found, his = {}, []
+    for place in places:
+        edit = plans.newest_edit(store, place)
+        if edit and not agents_edit(store, place):
+            his.append(place)
+            continue
+        record = carried(store, place) if edit else copies_dropped(store, place)
+        if record:
+            found[place] = record
+    return found, his
+
+
+def surplus_lowered(plan, inventory, rows=None):
+    """(the plan with each row of `rows` (None: every row) `recountable` laid more often than its reading counts given
+    its copies off, its last laid first (`lowered`), the fixes said), free."""
+    plan, said = copy.deepcopy(plan), []
+    for gap in plan_checks.count_gaps(plan, inventory, set(plan.get("structure") or [])):
+        row = next(row for row in inventory["rows"] if row["id"] == gap["row"])
+        laid, want = counted_laid(plan, row["id"])[1], int(row.get("count") or 1)
+        if (rows is None or row["id"] in rows) and recountable(row, plan) and laid > want:
+            lowered(plan, row["id"], laid - want)
+            said.append(f"{plan_checks.said_name(row['id'])}: {laid} laid, its reading counts {want}, so "
+                        f"{laid - counted_laid(plan, row['id'])[1]} taken off")
+    return plan, said
+
+
+def copies_dropped(store, place):
+    """The place's writing in force (no edit over it) with the copies of each row it lays more often than its reading
+    counts taken off (`surplus_lowered`), kept as a new writing of the same lock, reading and method under the place's
+    writing lock; the record, None when it lays none over. A Correct asked to join what the concept shows a tunnel
+    touching laid a tunnel at each (old_station's writing of 2026-11-15: connecting tunnel left 1 read, 5 laid), and
+    no free fix takes a copy off."""
+    with locked(store.cache / plan_writing.AREA / "locks" / f"{place}.lock"):
+        writing = plan_writing.written_of(store, place)
+        inventory = plans.inventory_of(store, place)
+        if not writing or writing.get("refused") or not inventory:
+            return None
+        plan, said = surplus_lowered(writing["plan"], inventory, laid_rows(place))
+        if not said:
+            return None
+        plan = {**plan, "fixes": plans.said_once([*plan.get("fixes", []), *said])}
+        plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
+        return plan_writing.kept(store, {
+            **{key: writing[key] for key in ("place", "concept", "reading", "method", "drawing", "measured")
+               if key in writing}, "by": "the free recount (plans_pass)", "at": concepts.now(), "drawing_euros": 0.0,
+            "fixed_from": writing["at"], "euros": 0.0, "calls": [], "plan": plan})
+
+
 def fix_main(places):
     """Fix `places` again under the plan-writing allowance (the store SCORE_SPEND_STORE names, plan_writing.started's);
     one line a place fixed; its exit code."""
@@ -388,7 +603,8 @@ def fix_main(places):
 
 
 def main():
-    """The plans a free re-fix settles fixed first (`parted_first`, outside the moment: it writes), then
+    """Each place's agent's edit carried onto its reading and each writing's surplus copies taken off
+    (`carried_all`), the plans a free re-fix settles fixed (`parted_first`), both outside the moment (they write), then
     plans.main(["keep"]) with narrow_keys inside one moment, after `restored`, then the other `unsettled` plans
     started being fixed, then each kept plan's relations derived again where they changed (holders.keep: what the
     scene record lays each object by); its exit code, keep's line with what was parted, fixed and derived."""
@@ -396,7 +612,9 @@ def main():
     from score.adapters.compute import STORE
     install()
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
-    parted = parted_first(store, stages.places(stages.world1(), store)) if plan_writing.AUTOMATIC else []
+    places = stages.places(stages.world1(), store)
+    carried_now, his = carried_all(store, places)  # before the keep, outside the moment: they write
+    parted = parted_first(store, places) if plan_writing.AUTOMATIC else []
     said = io.StringIO()
     with plans.one_moment():
         restored(store)
@@ -404,7 +622,10 @@ def main():
             code = plans.main(["keep"])
         refix = to_fix(store, stages.places(stages.world1(), store)) if plan_writing.AUTOMATIC else []
     related = holders.keep(sorted(path.stem for path in plans.KEPT.glob("*.json")))
-    line = said.getvalue().strip() + (f"; plans of {', '.join(parted)} parted" if parted else "") + (
+    line = said.getvalue().strip() + (f"; plans of {', '.join(carried_now)} recounted to their readings"
+                                      if carried_now else "") + (
+        f"; his own edits of {', '.join(his)} kept as he left them" if his else "") + (
+        f"; plans of {', '.join(parted)} parted" if parted else "") + (
         f"; relations of {len(related)} derived again" if related else "")
     print(line + (f"; plans of {', '.join(refix)} being fixed: {fixing(store, refix)}" if refix else ""))
     return code
