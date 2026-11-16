@@ -1262,10 +1262,13 @@ def item_rows(design):
     """{plan item: the rows it lays}: each item's rows in the plan, but the walls item (WALLS_ITEM: the rows the plan
     places nowhere) none the plan also places on an item of its own, which lays it there (2026-11-06: a plan's fixes
     gave a walls row its own item and left it on the walls item too, and the record laid camp's airlock door, its dome
-    windows and flat's balcony doors twice)."""
+    windows and flat's balcony doors twice). Only an item design_objects lays at (kind `item`, as holders.items_of
+    reads them) places a row so: a door-kind item is the shell's opening, its door row laid in it from the walls item
+    by its relation (#128, 2026-11-16: workshop's doorway, on its DOORWAY 1 of kind door, was taken off the walls
+    item and laid nowhere, and plan-matched counted it 0)."""
     tied = design.get("rows") or {}
     placed = {row for item in design.get("items") or [] if item[0] != WALLS_ITEM and
-              not (len(item) > 6 and item[6] == "zone") for row in tied.get(item[0]) or []}
+              (len(item) <= 6 or item[6] == "item") for row in tied.get(item[0]) or []}
     return {name: [row for row in rows if name != WALLS_ITEM or row not in placed] for name, rows in tied.items()}
 
 

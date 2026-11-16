@@ -195,6 +195,8 @@ NARROW = {**WRITTEN, "openings": [{**WRITTEN["openings"][0], "wide": 0.3}, WRITT
 # a row the plan also leaves on its walls item, once its fixes placed it on an item of its own (camp's door, 2026-11-06)
 WALLED = {**WRITTEN, "items": [*WRITTEN["items"], [writer.WALLS_ITEM, 0.0, 0.0, 8.0, 6.0, None, "item"]],
           "rows": {**WRITTEN["rows"], writer.WALLS_ITEM: ["bench", "ceiling_lamp"]}}
+# the bench's own item a door-kind item (workshop's DOORWAY 1, #128): the shell's opening, its row laid from the walls
+DOOR_ITEMED = {**WALLED, "items": [["BENCH", 1.0, 1.0, 2.0, 0.6, None, "door"], *WALLED["items"][1:]]}
 OFF_SITE = {**SITE, "holds": [SITE["holds"][0], {**SITE["holds"][1], "x": 2.0}]}  # the yard held 2 m off its gate
 RAISED_YARD = {**YARD, "openings": [{**YARD["openings"][0], "sill": 3.0}]}  # the yard's gate 3 m up: the shed 3 m up
 
@@ -1580,6 +1582,9 @@ RECORD_ROWS = [
     ("a row on its walls item and its own item laid once, at its own item", ("record", WALLED, YARD, SITE, HANDIN),
      None, {"record": {"lights": Count(1)}}, {"bench": ["bench_1"], "ceiling_lamp": ["ceiling_lamp_1"]},
      [("it is matched", {}, matched, checks.PASS, None)]),
+    ("a row on its walls item and a door-kind item laid once, from its walls item",
+     ("record", DOOR_ITEMED, YARD, SITE, HANDIN), None, {}, {"bench": ["bench_1"]},
+     [("it is matched", {}, matched, checks.PASS, None)]),
     # the yard stands on the shed's door back, at its height, whatever the hold: held 2 m off its gate it still stands
     # there and the site's `held` fails on the hold and the door; its gate 3 m up stands the shed 3 m over it
     ("the site's yard held 2 m off its gate", ("record", WRITTEN, YARD, OFF_SITE, HANDIN), None,
@@ -1721,6 +1726,10 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
     scene's instances (base's seven tubes, 2026-11-06) it passes. A row the plan also leaves on its walls item, once its
     fixes placed it on an item of its own, is laid once, at its own item (camp's airlock door, 2026-11-06).
     Break: score/stages/scene_record/writer.py item_rows: `if name != WALLS_ITEM or row not in placed]` -> `]`
+    One whose own item is a door-kind item (the shell's opening: workshop's DOORWAY 1, #128) is laid once, from its
+    walls item, and matched.
+    Break: score/stages/scene_record/writer.py item_rows: `(len(item) <= 6 or item[6] == "item")` ->
+        `not (len(item) > 6 and item[6] == "zone")`
     Break: score/stages/scene_record/writer.py design_objects: `if on and on["how"] == "wall" and
         plan_checks.connector(row):` -> `if False:` (the tunnel laid along its wall, across its doorway: workshop's
         glass tunnels, 2026-11-15)
