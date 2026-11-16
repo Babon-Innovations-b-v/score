@@ -46,6 +46,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - relief.turned_pads: the turn's sine signs swapped -> the pad lands off the dome's spot on the turned terrain
 - place_build.sun_frame: `towards` negated -> the sun shines up from under the ground
 - place_build.sky: the turn left off the dome -> the sky dome stays unturned
+- place_build.sky: the exposure left off -> the stopped-down day renders at the sky entry's own exposure
 - render.views: the named views left out -> the inside view is not rendered
 - render.views: `review` kept True when final -> the final render runs at the review's samples
 - dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
@@ -298,7 +299,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
         except place_build.Refused as why:
             refusals.append(str(why))
     place_build.terrain(folder, "plain", "model/slope", at=(0, 0, 0), turn=(0, 90, 0), pads=[(30.0, 0.0, 5.0)])
-    place_build.sky(folder, "light/sky", elevation=30, heading=0, turn=30)
+    place_build.sky(folder, "light/sky", elevation=30, heading=0, turn=30, exposure=0.7)
     place_build.view(folder, "inside", eye=(0, 1.6, 0), aim=(1, 1.6, 0), fov=70)
     stone = place_build.put(folder, "stone", "model/cabinet", at=(80, -0.1, 0), rest=True, on_ground=True)
     place_build.put(folder, "gone", "kit/box_piece")
@@ -379,6 +380,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     sun = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Lights/sun")).ComputeLocalToWorldTransform(0)
     shines = sun.TransformDir(Gf.Vec3d(0, 0, -1))
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("inputs:intensity").Get() == np.float32(0.2)
+    assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("score:exposure").Get() == np.float32(0.7)
     assert np.allclose(shines, (-np.cos(np.radians(30)), -0.5, 0.0), atol=1e-6)
     assert place_build.pose_of(stage.GetPrimAtPath("/yard/Objects/sky"))[1] == [0.0, 30.0, 0.0]
     final = render.views(place_build.record_of(folder), 80, [], final=True)

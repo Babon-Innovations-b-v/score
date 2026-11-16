@@ -836,13 +836,14 @@ def sun_frame(elevation, heading):
                        towards[0], towards[1], towards[2], 0.0, 0.0, 0.0, 0.0, 1.0)
 
 
-def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", turn=0.0, background=None):
+def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", turn=0.0, background=None, exposure=None):
     """A library sky (a light entry holding a sky dome and its DomeLight) laid as the place's own sky: its dome under
     Objects/sky, its DomeLight as /<place>/Environment (the ambient light and exposure the renderer takes as the
     stage's sky), and its sun a distant light Lights/sun from `elevation` and `heading` degrees, `strength` its
     intensity, in `colour` ('#rrggbb'); the dome turned `turn` degrees about up, so the glow its picture holds round
     its own sun stands where the sun is laid; `background` ('#rrggbb', a palette token's colour) the sky the camera
-    sees in place of the entry's own (a night sky's blue where the entry's is black)."""
+    sees in place of the entry's own (a night sky's blue where the entry's is black); `exposure` the camera's
+    multiplier in place of the entry's own (a bright day stopped down)."""
     address, record, copied = fetch(folder, address)
     if record["kind"] != "light":
         raise Refused(f"{address} is a {record['kind']}, not a light")
@@ -861,6 +862,8 @@ def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", tur
     if background is not None:
         environment.CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(
             Gf.Vec3f(*colour_of(background)))
+    if exposure is not None:
+        environment.CreateAttribute("score:exposure", Sdf.ValueTypeNames.Float).Set(float(exposure))
     sun = UsdLux.DistantLight.Define(stage, f"/{place}/Lights/sun")
     UsdGeom.Xformable(sun).ClearXformOpOrder()
     UsdGeom.Xformable(sun).AddTransformOp().Set(sun_frame(float(elevation), float(heading)))

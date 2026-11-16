@@ -164,7 +164,7 @@ def run(args):
                                    [numbers(pad) for pad in args.pad])
     if args.step == "sky":
         return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour,
-                               args.turn, args.background)
+                               args.turn, args.background, args.exposure)
     if args.step == "view":
         return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov)
     if args.step == "batch":
@@ -290,6 +290,7 @@ def parser():
     step.add_argument("--colour", default="#ffffff")
     step.add_argument("--turn", type=float, default=0.0)
     step.add_argument("--background")
+    step.add_argument("--exposure", type=float)
     step = steps.add_parser("view")
     step.add_argument("folder")
     step.add_argument("name")
