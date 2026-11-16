@@ -26,6 +26,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
 - dome_shell.inside_outline: the count's `% 2` dropped -> the round hatch's doorway is not cut and it does not fit
 - place_build.lowest_of: the posed skin left unread (the box's floor taken) -> the person at rest floats 40 cm
+- ready.near_ground: `kept` taken as every face -> the far terrain is held whole
 - ready.straightened: `in_sight` taken as always True -> the route runs straight through crate_ok
 - ready.nearest_to_surface: `+ longest` dropped -> a ring off a coarse box's face reads its corner's distance, not its own
 """
@@ -235,6 +236,10 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
         raise AssertionError("a spot with no floor under it was routed to")
     except place_build.Refused:
         pass
+    terrain = trimesh.creation.box([3000.0, 1.0, 3000.0])
+    terrain = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(terrain.vertices, terrain.faces, 50.0), process=False)
+    near = ready.near_ground(terrain, np.array([-5.0, 0.0, -5.0]), np.array([5.0, 2.0, 5.0]))
+    assert len(near.faces) < len(terrain.faces) / 100 and np.abs(near.bounds[:, [0, 2]]).max() < 5 + 20 + 50
     ground = ready.solids(folder)
     assert "wall" in ground and "door" not in ground and ground["wall"].shape[1:] == (3, 3), sorted(ground)
     summary = ready.check(folder)

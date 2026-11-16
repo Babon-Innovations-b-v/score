@@ -16,6 +16,8 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   scene (their input `place-build`, INPUT); `route` (`place_build route --through`) is a walker's way through spots on
   the check's own walkers' floor (WALKWAY wide): the shortest way over standing spans, its corners kept by line of
   sight and rounded over ROUND, so a walk path never leaves the floor the check judged.
+- **The ground is read near the place**: a ground's faces more than GROUND_REACH past the laid objects' box are left
+  out (`near_ground`), so a terrain to the horizon (800 000 faces) fits the 8 GB check; walkers' ground included.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
   no newton_env; link `$PROPS_HOME/envs/newton_env` to run it whole).

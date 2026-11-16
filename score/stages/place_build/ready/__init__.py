@@ -66,6 +66,7 @@ PIECE = 0.01  # a connected part with less of an object's surface is no piece of
 INSIDE_WAYS = ((0.0, 1.0, 0.0), (0.37, 0.81, 0.45), (-0.52, 0.29, -0.8))  # odd ways, off any axis
 MAX_SPLIT = 200_000  # an object with more faces is taken whole, not split into its pieces
 FRAME = 0.3  # how far past a door's edge its wall must be (metres)
+GROUND_REACH = 20.0  # metres of ground kept round the laid objects (a walker's stroll past the place's edge)
 WALKWAY = 0.9  # the narrowest way the walkers need (owner's brief, 2026-11-16: at least 0.9 m)
 ERODED = int((WALKWAY / reach.CELL - 1) // 2)  # cells taken off each side of a way, so one WALKWAY wide keeps one
 INPUT = "place-build"  # the input a sim body or scene clips run takes a place_build scene's folder by
@@ -162,6 +163,19 @@ def role_of(prim):
     return "prop"
 
 
+def near_ground(mesh, low, high, reach=None):
+    """The ground's faces with a corner within `reach` (GROUND_REACH) of the laid objects' box (`low`, `high`) on the
+    plan: a terrain reaching to the horizon (a HiRISE relief, 800 000 faces, 2.8 km across) held whole ran the check
+    out of 8 GB, though nothing judged lies past its few metres round the place."""
+    reach = GROUND_REACH if reach is None else reach
+    plan = mesh.vertices[:, [0, 2]]
+    near = ((plan >= low[[0, 2]] - reach) & (plan <= high[[0, 2]] + reach)).all(axis=1)
+    kept = near[mesh.faces].any(axis=1)
+    if kept.all():
+        return mesh
+    return trimesh.Trimesh(mesh.vertices, mesh.faces[kept], process=False)
+
+
 class Place:
     """A place's objects as solids for rays: each one's role and mesh, and every mesh joined with each face's owner."""
 
@@ -169,6 +183,12 @@ class Place:
         self.prims = {prim.GetName(): prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()}
         self.roles = {name: role_of(prim) for name, prim in self.prims.items()}
         self.meshes = {name: solid_of(prim) for name, prim in self.prims.items() if self.roles[name] != "character"}
+        laid = [mesh.bounds for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces)
+                and self.roles[name] != "ground"]
+        if laid:
+            low, high = np.min([bounds[0] for bounds in laid], axis=0), np.max([bounds[1] for bounds in laid], axis=0)
+            self.meshes.update({name: near_ground(mesh, low, high) for name, mesh in self.meshes.items()
+                                if mesh is not None and self.roles[name] == "ground"})
         self.people = {name: people.posed_body(prim) for name, prim in self.prims.items()
                        if self.roles[name] == "character"}
         self.names = sorted(name for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces))
