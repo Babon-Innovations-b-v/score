@@ -18,6 +18,10 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   sight and rounded over ROUND, so a walk path never leaves the floor the check judged.
 - **The ground is read near the place**: a ground's faces more than GROUND_REACH past the laid objects' box are left
   out (`near_ground`), so a terrain to the horizon (800 000 faces) fits the 8 GB check; walkers' ground included.
+- **A query reaches only what lies near it** (2026-11-16: camp's 660 rocks, 7 million faces, ran the check out of 14
+  GB): every ray query and the settle's statics gather the faces of the objects whose box meets the query's own box
+  (`Place.triangles_in`, `ray_box`), never one ray structure of the whole scene; only props are free bodies in the
+  settle, static against static is never computed. A sky dome laid as an object (`score:kind` light) is no solid.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
   no newton_env; link `$PROPS_HOME/envs/newton_env` to run it whole).

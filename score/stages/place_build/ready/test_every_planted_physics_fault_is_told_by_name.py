@@ -9,7 +9,10 @@ panel mounted `on` a wall, a crate on the ground, a round hatch in the doorway i
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support;
 and a walker's route goes round a crate in its way on that same floor, every point of it standing there, and is refused
-where no floor is (the walkers' ground, `solids`, holds the wall and not the open door).
+where no floor is (the walkers' ground, `solids`, holds the wall and not the open door). A field of 300 rocks bedded in
+a second ground passes, while a rock 30 cm over it floats and a crate laid into a rock penetrates it, and a rock's
+support is cast against only the faces under it (camp's 660 rocks on a terrain ran the check out of 14 GB); a sky dome
+laid as an object (`score:kind` light) is no solid: never told, never stood on.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -30,6 +33,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.near_ground: `kept` taken as every face -> the far terrain is held whole
 - ready.straightened: `in_sight` taken as always True -> the route runs straight through crate_ok
 - ready.nearest_to_surface: `+ longest` dropped -> a ring off a coarse box's face reads its corner's distance, not its own
+- ready.ray_box: the box left open on every axis -> a rock's support query reaches every rock's faces
+- ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
+- ready.support_faults on the field: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating rock passes
 """
 import json
 import pathlib
@@ -186,6 +192,41 @@ def hatch(stage, place, name, tunnel_at, radius, length):
     mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(disc.faces, np.int32).reshape(-1)))
 
 
+def rock(stage, place, name, middle, radius):
+    """A rock: an icosphere of `radius` round `middle`, one mesh under its object."""
+    shape = trimesh.creation.icosphere(subdivisions=1, radius=radius)
+    holder = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{name}")
+    holder.AddTranslateOp().Set(Gf.Vec3d(*map(float, middle)))
+    holder.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("model")
+    mesh = UsdGeom.Mesh.Define(stage, f"{holder.GetPath()}/geo")
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(shape.vertices, np.float32)))
+    mesh.CreateFaceVertexCountsAttr([3] * len(shape.faces))
+    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(shape.faces, np.int32).reshape(-1)))
+
+
+def rock_field(folder):
+    """A second ground at x 40 holding 300 rocks bedded a third of their size into it, a rock 30 cm over it, a crate
+    laid 10 cm into a rock (rock_big), and a sky dome (a sphere 300 m round the place, `score:kind` light)."""
+    place_build.ground(folder, "field", 6.0, (40.0, -0.02, 0.0))
+    stage, place = place_build.opened(folder)
+    floor = ready.levels_under(ready.Place(stage, place), "ground", (6.5, 0.0))[-1]  # the field is the same disc
+    for number in range(300):  # 20 x 15 spots 0.35 m apart, none touching the next
+        radius = 0.06 + 0.03 * (number % 4)
+        x, z = 36.6 + 0.35 * (number % 20), -2.45 + 0.35 * (number // 20)
+        rock(stage, place, f"rock{number}", (x, floor + radius / 3, z), radius)
+    rock(stage, place, "rock_float", (40.0, floor + 0.3 + 0.2, 4.5), 0.2)
+    rock(stage, place, "rock_big", (37.0, floor + 0.1, 4.6), 0.3)
+    box(stage, place, "crate_in_rock", (0.4, 0.4, 0.4), (37.2, floor, 4.4))
+    sky = UsdGeom.Xform.Define(stage, f"/{place}/Objects/sky")
+    sky.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("light")
+    dome = trimesh.creation.icosphere(subdivisions=2, radius=300.0)
+    mesh = UsdGeom.Mesh.Define(stage, f"{sky.GetPath()}/Dome")
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(dome.vertices, np.float32)))
+    mesh.CreateFaceVertexCountsAttr([3] * len(dome.faces))
+    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(dome.faces, np.int32).reshape(-1)))
+    stage.GetRootLayer().Save()
+
+
 def planted(folder):
     """The fixture place: a ground disc, a wall with a 1.2 m opening and its door, and every planted fault."""
     concept = folder / "concept.png"
@@ -228,6 +269,7 @@ def planted(folder):
     stage.GetRootLayer().Save()
     place_build.tube(folder, "lock_round", 1.0, 1.0, (-6.5, 0.0, -6.0), (0.0, 90.0, 0.0), cap_door="hatch_round")
     place_build.tube(folder, "lock_squared", 1.0, 1.0, (-6.5, 0.0, 6.0), (0.0, 90.0, 0.0), cap=[1.0, 1.0])
+    rock_field(folder)
     return folder
 
 
@@ -236,6 +278,14 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)
     assert abs(ready.nearest_to_surface(coarse, np.array([[0.0, 1.5, 0.0], corner])) - 0.5) < 1e-6
+    ground = ready.solids(folder)
+    assert "wall" in ground and "door" not in ground and "sky" not in ground and ground["wall"].shape[1:] == (3, 3), \
+        sorted(ground)
+    laid = ready.Place(*place_build.opened(folder))
+    foot = ready.lowest_points(laid.meshes["rock0"]) + [0.0, ready.RAY_START, 0.0]
+    reached, _ = laid.triangles_in(*ready.ray_box(foot, np.tile([0.0, -1.0, 0.0], (len(foot), 1))))
+    every = sum(len(laid.meshes[name].faces) for name in laid.names)
+    assert len(reached) < every / 20, (len(reached), every)
     monitor = ready.on(folder, "monitor", "desk")
     panel = ready.on(folder, "panel", "wall:wall", height=1.2)
     assert abs(monitor["at"][1] - (0.75 + 0.175)) < 0.01, monitor  # its bottom on the desk's top
@@ -256,15 +306,15 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     terrain = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(terrain.vertices, terrain.faces, 50.0), process=False)
     near = ready.near_ground(terrain, np.array([-5.0, 0.0, -5.0]), np.array([5.0, 2.0, 5.0]))
     assert len(near.faces) < len(terrain.faces) / 100 and np.abs(near.bounds[:, [0, 2]]).max() < 5 + 20 + 50
-    ground = ready.solids(folder)
-    assert "wall" in ground and "door" not in ground and ground["wall"].shape[1:] == (3, 3), sorted(ground)
     summary = ready.check(folder)
     found = json.loads(pathlib.Path(summary["file"]).read_text())["objects"]
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}
     print(json.dumps(summary))
     for name in ("wall", "desk", "monitor", "panel", "crate_ok", "bulkhead", "person_ok",
-                 "ground"):
+                 "ground", "field", "sky", *(f"rock{number}" for number in range(300))):
         assert name not in told, (name, found.get(name))
+    assert "floating" in told["rock_float"] and "penetration" in told["crate_in_rock"], \
+        (found.get("rock_float"), found.get("crate_in_rock"))
     assert told["door"] == {"walkway"}, found["door"]
     assert "floating" in told["crate_float"], found["crate_float"]
     assert "penetration" in told["crate_a"] and "penetration" in told["crate_b"], (found.get("crate_a"))

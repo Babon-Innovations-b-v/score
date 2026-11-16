@@ -10,7 +10,8 @@ named support.
 Each object of /<place>/Objects has a role, from its `score:role` when it has one, else from what it is: `ground` (a
 laid ground or terrain), `shell` and `connector` (the dome shell algorithm's domes and tubes), `door` (a door, hatch or
 airlock), `structure` (a wall, bulkhead, frame), `fixed` (a rock bedded in the ground, or `score:fixed`), `mount` (on a
-wall: `on ... wall:<object>`), `character` (a person, posed as the renderer poses it: people.py) or `prop`
+wall: `on ... wall:<object>`), `character` (a person, posed as the renderer poses it: people.py), `light` (a sky dome
+laid as an object, `score:kind` light: light the renderer draws, never a solid, so left out of every measure) or `prop`
 (everything else: it can be pushed). The faults, each with its measure:
 
 - `no collision geometry`: an object with no triangles to collide by.
@@ -83,7 +84,8 @@ CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, wh
 SETTLE_MOVE = 0.05  # metres
 SETTLE_TURN = 8.0  # degrees
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
-ROLES = ("ground", "shell", "connector", "door", "structure", "fixed", "mount", "character", "prop")
+ROLES = ("ground", "shell", "connector", "door", "structure", "fixed", "mount", "character", "light", "prop")
+UNSOLID = ("character", "light")  # roles that are no solid of their own (a person is posed apart: people.py)
 DOOR_WORDS = ("door", "hatch", "airlock")
 STRUCTURE_WORDS = ("wall", "bulkhead", "partition", "frame", "fence")
 CONNECTOR_WORDS = ("tube", "tunnel", "corridor", "connector")
@@ -150,8 +152,8 @@ def role_of(prim):
         return "ground"
     words = f"{prim.GetName()} {text_of(prim, 'score:library') or ''}".lower()
     kind = text_of(prim, "score:kind")
-    if kind == "character":
-        return "character"
+    if kind in ("character", "light"):
+        return kind
     if kind == "algorithm":
         tube = "tube_" in str(prim.GetMetadata("references")) or any(word in words for word in CONNECTOR_WORDS)
         return "connector" if tube else "shell"
@@ -177,13 +179,28 @@ def near_ground(mesh, low, high, reach=None):
     return trimesh.Trimesh(mesh.vertices, mesh.faces[kept], process=False)
 
 
+def ray_box(origins, directions, length=np.inf):
+    """The box every point of the rays lies in: their origins to `length` along them, open to infinity on an axis a
+    ray of unbounded length runs along."""
+    origins, directions = np.asarray(origins, float), np.asarray(directions, float)
+    if np.isfinite(length):
+        ends = origins + directions * length
+        return np.minimum(origins, ends).min(axis=0), np.maximum(origins, ends).max(axis=0)
+    low, high = origins.min(axis=0), origins.max(axis=0)
+    low = np.where((directions < 0).any(axis=0), -np.inf, low)
+    high = np.where((directions > 0).any(axis=0), np.inf, high)
+    return low, high
+
+
 class Place:
-    """A place's objects as solids for rays: each one's role and mesh, and every mesh joined with each face's owner."""
+    """A place's objects as solids for rays: each one's role and mesh, and the faces a query reaches, gathered per
+    query from the objects whose box meets it (never every face of the scene in one ray structure: 660 rocks on a
+    terrain are 7 million faces, which ran the check out of 14 GB)."""
 
     def __init__(self, stage, place):
         self.prims = {prim.GetName(): prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()}
         self.roles = {name: role_of(prim) for name, prim in self.prims.items()}
-        self.meshes = {name: solid_of(prim) for name, prim in self.prims.items() if self.roles[name] != "character"}
+        self.meshes = {name: solid_of(prim) for name, prim in self.prims.items() if self.roles[name] not in UNSOLID}
         laid = [mesh.bounds for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces)
                 and self.roles[name] != "ground"]
         if laid:
@@ -195,16 +212,51 @@ class Place:
         self.names = sorted(name for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces))
         if not self.names:
             raise place_build.Refused("the scene holds no object with triangles to check")
-        self.joined = trimesh.util.concatenate([self.meshes[name] for name in self.names])
-        self.owner = np.repeat(np.arange(len(self.names)), [len(self.meshes[name].faces) for name in self.names])
         self.number = {name: index for index, name in enumerate(self.names)}
+        self.boxes = np.array([self.meshes[name].bounds for name in self.names])
+        self.face_boxes = {}
 
-    def hits(self, origins, directions):
-        """Every surface the rays meet: (where, which ray, whose face, how far along)."""
+    def faces_meeting(self, number, low, high):
+        """The faces of one object whose box meets [low, high] (each object's face boxes worked out once)."""
+        if number not in self.face_boxes:
+            triangles = self.meshes[self.names[number]].triangles
+            self.face_boxes[number] = (triangles.min(axis=1), triangles.max(axis=1))
+        face_low, face_high = self.face_boxes[number]
+        return np.flatnonzero(np.all(face_high >= low, axis=1) & np.all(face_low <= high, axis=1))
+
+    def triangles_in(self, low, high, among=None, without=()):
+        """The triangles (n, 3, 3) of the objects `among` (their numbers; every object when None), `without` those,
+        whose box meets [low, high], and each one's owner's number."""
+        numbers = range(len(self.names)) if among is None else among
+        triangles, owners = [], []
+        for number in numbers:
+            box = self.boxes[number]
+            if number in without or np.any(box[0] > high) or np.any(box[1] < low):
+                continue
+            faces = self.faces_meeting(number, low, high)
+            if len(faces):
+                triangles.append(self.meshes[self.names[number]].triangles[faces])
+                owners.append(np.full(len(faces), number))
+        if not triangles:
+            return np.zeros((0, 3, 3)), np.zeros(0, int)
+        return np.concatenate(triangles), np.concatenate(owners)
+
+    def hits(self, origins, directions, among=None, length=np.inf):
+        """Every surface the rays meet (of the objects `among`, their names; every object when None), no further than
+        `length` along them: (where, which ray, whose face, how far along). Only the faces in the rays' box are cast
+        against, so a query costs what lies near it, not the scene."""
+        empty = np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int), np.zeros(0)
         if not len(origins):
-            return np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int), np.zeros(0)
-        where, rays, faces = self.joined.ray.intersects_location(origins, directions, multiple_hits=True)
-        return where, rays, self.owner[faces], np.linalg.norm(where - origins[rays], axis=1)
+            return empty
+        numbers = None if among is None else [self.number[name] for name in among]
+        triangles, owners = self.triangles_in(*ray_box(origins, directions, length), among=numbers)
+        if not len(triangles):
+            return empty
+        local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
+        where, rays, faces = local.ray.intersects_location(origins, directions, multiple_hits=True)
+        along = np.linalg.norm(where - origins[rays], axis=1)
+        kept = along <= length
+        return where[kept], rays[kept], owners[faces[kept]], along[kept]
 
     def with_role(self, *roles):
         return [name for name in self.names if self.roles[name] in roles]
@@ -234,7 +286,7 @@ def gaps_down(laid, name, points, only=None):
     """How far each point stands over the surface straight under it, not its own (inf where none is), and whose
     surface that is (-1 where none); `only`, a list of objects, limits what counts."""
     origins = points + [0.0, RAY_START, 0.0]
-    _, rays, owners, along = laid.hits(origins, np.tile([0.0, -1.0, 0.0], (len(origins), 1)))
+    _, rays, owners, along = laid.hits(origins, np.tile([0.0, -1.0, 0.0], (len(origins), 1)), among=only)
     allowed = owners != laid.number[name] if only is None else np.isin(owners, [laid.number[other] for other in only])
     gaps, under = np.full(len(points), np.inf), np.full(len(points), -1)
     order = np.argsort(along[allowed])[::-1]  # the nearest last, so it is the one kept
@@ -312,7 +364,8 @@ def crossing_depths(laid, name, others, mesh=None):
     lengths = np.linalg.norm(points - middles, axis=1)
     keep = lengths > 1e-6
     points, middles, lengths = points[keep], middles[keep], lengths[keep]
-    _, rays, owners, along = laid.hits(middles, (points - middles) / lengths[:, None])
+    _, rays, owners, along = laid.hits(middles, (points - middles) / lengths[:, None], among=others,
+                                       length=float(lengths.max(initial=0.0)))
     numbers = np.array([laid.number[other] for other in others])
     before = np.isin(owners, numbers) & (along < lengths[rays] - 1e-6)
     rays, owners = rays[before], owners[before]
@@ -332,8 +385,10 @@ def middle_inside(laid, name, others):
     a face twice or not at all)."""
     middles = np.array([piece.bounds.mean(axis=0) for piece in bodies(laid.meshes[name])])
     ways = np.asarray(INSIDE_WAYS) / np.linalg.norm(INSIDE_WAYS, axis=1)[:, None]
-    _, rays, owners, _ = laid.hits(np.repeat(middles, len(ways), axis=0), np.tile(ways, (len(middles), 1)))
-    closed = [laid.number[other] for other in others if laid.roles[other] in JUDGED_INSIDE]
+    closed_names = [other for other in others if laid.roles[other] in JUDGED_INSIDE]
+    _, rays, owners, _ = laid.hits(np.repeat(middles, len(ways), axis=0), np.tile(ways, (len(middles), 1)),
+                                   among=closed_names)
+    closed = [laid.number[other] for other in closed_names]
     inside = set()
     for number in closed:
         odd = np.array([np.count_nonzero((owners == number) & (rays == ray)) % 2
@@ -374,11 +429,13 @@ def frame_of(laid, name):
 
 def door_faults(laid, name):
     """A door set in no opening: no wall or shell round its sides and top, or one straight behind it."""
-    walls = [laid.number[other] for other in laid.with_role("structure", "shell", "connector")]
+    wall_names = laid.with_role("structure", "shell", "connector")
+    walls = [laid.number[other] for other in wall_names]
     middle, axes, half = frame_of(laid, name)
     ways = {"left": -axes[0], "right": axes[0], "top": axes[1], "front": axes[2], "back": -axes[2]}
     reach_of = {"left": half[0], "right": half[0], "top": half[1], "front": half[2], "back": half[2]}
-    _, rays, owners, along = laid.hits(np.tile(middle, (len(ways), 1)), np.array(list(ways.values())))
+    _, rays, owners, along = laid.hits(np.tile(middle, (len(ways), 1)), np.array(list(ways.values())),
+                                       among=wall_names)
     nearest = {}
     for ray, owner, distance in zip(rays, owners, along):
         if owner in walls:
@@ -409,17 +466,14 @@ def door_outline(laid, name):
     depth = half[2] + FIT_DEPTH
     origins = middle + grid_u.reshape(-1, 1) * axes[0] + grid_v.reshape(-1, 1) * axes[1] + depth * axes[2]
     ends = np.vstack([origins, origins - 2 * depth * axes[2]])
-    triangles = laid.joined.triangles
-    close = np.isin(laid.owner, walls + [laid.number[name]]) \
-        & np.all(triangles.max(axis=1) >= ends.min(axis=0), axis=1) \
-        & np.all(triangles.min(axis=1) <= ends.max(axis=0), axis=1)
-    if not close.any():
+    triangles, close_owners = laid.triangles_in(ends.min(axis=0), ends.max(axis=0), among=walls + [laid.number[name]])
+    if not len(triangles):
         shape = grid_u.shape
         return np.zeros(shape, dtype=bool), np.zeros(shape, dtype=bool)
-    local = trimesh.Trimesh(triangles[close].reshape(-1, 3), np.arange(3 * close.sum()).reshape(-1, 3), process=False)
+    local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
     where, rays, faces = local.ray.intersects_location(origins, np.tile(-axes[2], (len(origins), 1)),
                                                        multiple_hits=True)
-    owners, along = laid.owner[close][faces], np.linalg.norm(where - origins[rays], axis=1)
+    owners, along = close_owners[faces], np.linalg.norm(where - origins[rays], axis=1)
     near = along <= 2 * depth
     door = np.zeros(len(origins), dtype=bool)
     door[rays[near & (owners == laid.number[name])]] = True
@@ -794,11 +848,8 @@ def statics_near(laid, name):
     """The triangles of everything near a loose object (its box grown by NEAR), what it holds aside: (count, 3, 3)."""
     low, high = laid.meshes[name].bounds
     low, high = low - NEAR, high + NEAR
-    left_out = [laid.number[other] for other in [name, *held_by(laid, name)]]
-    triangles = laid.joined.triangles
-    near = ~np.isin(laid.owner, left_out) & np.all(triangles.max(axis=1) >= low, axis=1) \
-        & np.all(triangles.min(axis=1) <= high, axis=1)
-    return triangles[near]
+    left_out = {laid.number[other] for other in [name, *held_by(laid, name)]}
+    return laid.triangles_in(low, high, without=left_out)[0]
 
 
 def settle_faults(laid, folder):
@@ -864,7 +915,7 @@ def check(folder, settle=True):
     stage, place = place_build.opened(folder)
     laid = Place(stage, place)
     found = {name: [{"fault": "no collision geometry", "why": "it has no triangles to collide by"}]
-             for name in laid.prims if laid.roles[name] != "character" and name not in laid.names}
+             for name in laid.prims if laid.roles[name] not in UNSOLID and name not in laid.names}
     for name in laid.names:
         faults = object_faults(laid, name)
         if faults:
@@ -898,7 +949,7 @@ def levels_under(laid, support, spot):
     """The heights of the support's surfaces that look up, straight under a spot (x, z), lowest first, those within
     2 cm of each other one level."""
     origin = np.array([[spot[0], laid.meshes[support].bounds[1][1] + 1.0, spot[1]]])
-    where, _, owners, _ = laid.hits(origin, np.array([[0.0, -1.0, 0.0]]))
+    where, _, owners, _ = laid.hits(origin, np.array([[0.0, -1.0, 0.0]]), among=[support])
     heights = np.sort(where[owners == laid.number[support], 1])
     levels = []
     for height in heights:
@@ -957,7 +1008,7 @@ def mounted(laid, name, wall, height, pose):
     towards[1] = 0.0
     towards /= max(np.linalg.norm(towards), 1e-9)
     points = surface_samples(mesh, 300) + [0.0, lift, 0.0]
-    _, rays, owners, along = laid.hits(points, np.tile(towards, (len(points), 1)))
+    _, rays, owners, along = laid.hits(points, np.tile(towards, (len(points), 1)), among=[wall])
     hit = owners == laid.number[wall]
     if not hit.any():
         raise place_build.Refused(f"{wall} lies in no straight line from {name}")
