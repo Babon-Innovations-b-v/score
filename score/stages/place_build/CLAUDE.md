@@ -67,7 +67,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   side and a glazed front. Panes are one face each (a closed pane's two thin-glass skins ring with light). `--one-block` keeps only the
   flats' block the entrance opens into, so a cut-away's far wall stands free to the street and the sky beyond.
   `stairs --curtain` glazes the front as a storey-high curtain wall (only the slab edges and corner piers left), so
-  the concept's cut-away look into the shaft is a look through real glass.
+  the concept's cut-away look into the shaft is a look through real glass; `stairs --cut` leaves the front wall out
+  altogether (the section the concept draws), its open front guarded by the railings already on every open edge.
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
   straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of
