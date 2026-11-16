@@ -69,6 +69,15 @@ def take_picture(take):
     return picture
 
 
+def mask_path(folder, written):
+    """A SAM 3 mask's file: as objects.json names it from the place folder, else under the folder's own split/ (the
+    split writes its path through the folder's name, `../scene/split/...`, which a copied folder does not have)."""
+    named = (folder / written).resolve()
+    if named.is_file() or "split/" not in written:
+        return named
+    return folder / "split" / written.split("split/", 1)[1]
+
+
 def concept_picture(folder, number, out):
     """The place's concept cut by its `number`-th object's SAM 3 mask, cropped to its box with a margin, as RGBA."""
     from PIL import Image
@@ -76,7 +85,7 @@ def concept_picture(folder, number, out):
     objects = json.loads((folder / "objects.json").read_text())
     found = objects[int(number)]
     concept = Image.open(folder / "concept.png").convert("RGB")
-    mask = Image.open((folder / found["mask"]).resolve()).convert("L").resize(concept.size)
+    mask = Image.open(mask_path(folder, found["mask"])).convert("L").resize(concept.size)
     left, top, right, bottom = found["box"]
     margin = int(0.08 * max(right - left, bottom - top))
     box = (max(0, left - margin), max(0, top - margin), min(concept.width, right + margin),
