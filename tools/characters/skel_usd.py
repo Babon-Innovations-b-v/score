@@ -15,8 +15,7 @@ The asset `<out>/<character>.usdc`, its maps in `<out>/textures/`:
                                UsdSkel blend shapes, only the points each moves, named as the mesh's
                                `extras.targetNames` (`<clip>.<number>`)
       Animations/<clip>        one SkelAnimation per clip of the file, at the file's 30 frames a second, with the
-                               weights of the blend shapes it keys (its own, `<clip>.*`, else the shared
-                               correctives every clip keys), as the glTF plays them
+                               weights of the blend shapes it keys (its own, `<clip>.*`), as the glTF plays them
       Looks/<material>         UsdPreviewSurface per material of the file: its picture, or its flat colour
 
 A clip that runs round is repeated to fill `--seconds`, so a character the cast starts part-way into its clip (a
@@ -174,17 +173,15 @@ def target_names(document, mesh):
 
 
 def shape_keys(document, blob, animation):
-    """The blend shapes a clip keys (its own: `<clip>.*` of the mesh whose weights it keys, or every target when none
-    is named after the clip: the people route's shared correctives, `corrective.<n>`, which every clip keys, as
-    route_stretch.clip_targets reads them) and their weights frame by frame; ([], None) where it keys none."""
+    """The blend shapes a clip keys (its own: `<clip>.*` of the mesh whose weights it keys) and their weights frame
+    by frame; ([], None) where it keys none."""
     for channel in animation["channels"]:
         node = document["nodes"][channel["target"]["node"]]
         if channel["target"]["path"] != "weights" or not target_names(document, node["mesh"]):
             continue
         names = target_names(document, node["mesh"])
         values = accessor(document, blob, animation["samplers"][channel["sampler"]]["output"]).reshape(-1, len(names))
-        own = [number for number, name in enumerate(names) if name.split(".")[0] == animation["name"]]
-        own = own or list(range(len(names)))
+        own = [number for number, name in enumerate(names) if name.startswith(animation["name"] + ".")]
         return [prim_name(names[number]) for number in own], values[:, own].astype(np.float64)
     return [], None
 
