@@ -195,18 +195,39 @@ def piled(plan, row, box, tall):
                 if row_id == row["id"] and overlapping(box, item[1:5])], default=0.0) if piles(row) else 0.0
 
 
+def floor_footprint(row, inventory, project):
+    """[wide, deep] metres of a row on the floor its reading gave no metres (Gemini answers none for a hole in the
+    floor: hangar's "open floor hatch with stairs", 2026-11-16, #128, so nothing placed it and plan-matched counted it
+    0 of 1): its first seen box (SAM 3's, else its Gemini region's) projected onto the plan, its foot's ends apart
+    for its wide and its top edge's foot from its bottom's for its deep, a thing flat on the floor seen from above;
+    None for a row off the floor or with no box to project."""
+    boxes = plan_checks.seen_boxes(row, inventory.get("picture"))
+    if row.get("anchor") != "floor" or not boxes:
+        return None
+    left, top, right, bottom = boxes[0]
+    wide = math.dist(project([left, top, left, bottom]), project([right, top, right, bottom]))
+    middle = (left + right) / 2
+    deep = math.dist(project([middle, top, middle, top]), project([middle, top, middle, bottom]))
+    return [round(wide, 3), round(deep, 3), 0.0] if wide > 0 and deep > 0 else None
+
+
 def placed_missing(plan, inventory, project):
     """Each row on the floor placed fewer times than the concept counts given its missing things where its boxes
     project (SAM 3's, else its Gemini region's: plan_checks.seen_boxes; camp's small rocks rock_6 and rock_10, read
-    whole with no SAM box, stayed off its plan, 2026-11-15), those nearest a thing already laid taken as that one's; a
+    whole with no SAM box, stayed off its plan, 2026-11-15), those nearest a thing already laid taken as that one's, a
+    row on the floor read with no metres at the footprint its box projects to (floor_footprint), kept within the
+    plan's box; a
     thing of a row that piles whose footprint
     crosses one of its row's piled on it (piled), never standing in it; the fixes said."""
     if project is None:
         return []
     fixes, short = [], {gap["row"] for gap in plan_checks.count_gaps(plan, inventory, set(plan.get("structure", [])))}
     for row in inventory.get("rows", []):
-        if row["id"] not in short or not isinstance(row.get("size"), list):
+        measured = isinstance(row.get("size"), list)
+        read = row["size"] if measured else floor_footprint(row, inventory, project)
+        if row["id"] not in short or read is None:
             continue
+        row = {**row, "size": read}
         laid = [(item, shape) for item, row_id, shape in plan_checks.placed_items(plan) if row_id == row["id"]]
         placed = sum(int((shape or {}).get("count") or 1) for _, shape in laid)
         spots = [project(box) for box in plan_checks.seen_boxes(row, inventory.get("picture"))]
@@ -220,6 +241,9 @@ def placed_missing(plan, inventory, project):
         size = [float(row["size"][0]), float(row["size"][1])]
         added = []
         for spot in spots[:missing]:
+            if not measured:  # a footprint its box gave stands within the plan's box (its held check)
+                spot = [min(max(spot[0], size[0] / 2), max(size[0] / 2, plan["w"] - size[0] / 2)),
+                        min(max(spot[1], size[1] / 2), max(size[1] / 2, plan["d"] - size[1] / 2))]
             base = piled(plan, row, [spot[0] - size[0] / 2, spot[1] - size[1] / 2, *size],
                          float(row["size"][2]) if len(row["size"]) > 2 else 0.0)
             added.append(added_item(plan, row["id"], spot, size, like))

@@ -500,6 +500,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     A missing thing with no SAM box is placed where its Gemini region projects (camp's small rocks, 2026-11-15).
     Break: score/review/plan_fixes.py: placed_missing's `plan_checks.seen_boxes(row, inventory.get("picture"))` made
         `plan_checks.boxes_of(row)`
+    One on the floor its reading gave no metres takes the footprint its box projects to (hangar's floor hatch, #128).
+    Break: score/review/plan_fixes.py: placed_missing's `else floor_footprint(row, inventory, project)` made `else None`
     A redrawing of a writing is laid over it with its doorways so led, never over the raw writing.
     Break: score/review/plans.py: redrawn's `shown = doors_led(store, place, doors_known(store, place,
         shown_plan(store, place)))` made `shown = shown_plan(store, place)`
@@ -4019,6 +4021,17 @@ FIXED = [  # (row, the plan writer's fix, its arguments, the answer as `holds` r
      ["barrel: 1 more placed where the concept shows them", "rock: 1 more placed where the concept shows them"],
      {"items": [*stand_in_plan()["items"], ["BARREL 2", 1.5, 6.5, 1.0, 1.0, None, "item"],
                 ["ROCK 1", 6.4, 5.95, 0.2, 0.1, None, "item"]]}),
+    # 2026-11-16 (#128): hangar's floor hatch, read with no metres (Gemini gives a hole in the floor none), was placed
+    # by nothing; one on the floor takes the footprint its box projects to, one off the floor stays unplaced
+    ("a missing thing on the floor read with no metres is placed at the footprint its box projects to",
+     placed_where_shown,
+     (stand_in_plan(), {"picture": [1000, 1000], "rows": [
+         *ROWS, {"id": "floor_hatch", "count": 1, "size": None, "anchor": "floor", "region": [500, 600, 600, 700]},
+         {"id": "lamp", "count": 1, "size": None, "anchor": "ceiling", "region": [500, 600, 600, 700]}]}),
+     ["barrel: 1 more placed where the concept shows them",
+      "floor hatch: 1 more placed where the concept shows them"],
+     {"items": [*stand_in_plan()["items"], ["BARREL 2", 1.5, 6.5, 1.0, 1.0, None, "item"],
+                ["FLOOR HATCH 1", 6.0, 5.5, 1.0, 1.0, None, "item"]]}),
     ("a box of four things drawn apart as one is a run gap", plan_checks.run_gaps, (TREES, TREE_ROW),
      [{"kind": "arrangement", "item": "TREE 1"}], None),
     ("a box of things drawn apart is split round its spread, each its own size and shape", plan_fixes.split_runs,
