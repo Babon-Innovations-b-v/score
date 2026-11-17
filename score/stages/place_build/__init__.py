@@ -1025,9 +1025,9 @@ def view(folder, name, eye, aim, fov):
 
 
 def remove(folder, name):
-    """The object (and its look) or light called `name` taken out of the scene."""
+    """The object (and its look), effect or light called `name` taken out of the scene."""
     stage, place = opened(folder)
-    paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Looks", "Lights")]
+    paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Effects", "Looks", "Lights")]
     paths += [str(inside.GetPath()) for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
               if inside.GetName().startswith(f"{name}__")]
     found = [path for path in paths if stage.GetPrimAtPath(path)]

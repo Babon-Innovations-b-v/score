@@ -87,6 +87,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - review.boxed_faults: the fault's name test inverted -> no red box on the floating crate
 - rainfall.falling: the jump back left out -> the rain is not back at its top a period on
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
+- place_build.remove: Effects not looked in -> the removed ruts stay laid
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 """
 import json
@@ -499,6 +500,8 @@ def rained(folder):
     assert tracked["counts"]["prints"] == 6 and over.min() >= ground_tracks.LIFT - 1e-4
     assert over.max() >= ground_tracks.BERM_HIGH
     assert stage.GetPrimAtPath("/yard/Effects/ruts").GetAttribute("score:surface").Get() == "surface/sand@1"
+    place_build.remove(folder, "ruts")
+    assert not Usd.Stage.Open(str(folder / "scene.usda")).GetPrimAtPath("/yard/Effects/ruts")
 
 
 def reviewed(folder):
