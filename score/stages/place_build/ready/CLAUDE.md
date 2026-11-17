@@ -22,6 +22,10 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   GB): every ray query and the settle's statics gather the faces of the objects whose box meets the query's own box
   (`Place.triangles_in`, `ray_box`), never one ray structure of the whole scene; only props are free bodies in the
   settle, static against static is never computed. A sky dome laid as an object (`score:kind` light) is no solid.
+- **Far scenery is no physics prop** (#128, 2026-11-17): a ground or fixed piece wholly more than GROUND_REACH past
+  every walker's reach (the people and everything a walker meets) is `scenery` (`out_of_reach`), left out of every
+  measure, so a far shore with no faces near the place or the horizon's mesas laid into their talus are never told.
+  It is read from where the thing lies, never from a mark the agent sets.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
   no newton_env; link `$PROPS_HOME/envs/newton_env` to run it whole).

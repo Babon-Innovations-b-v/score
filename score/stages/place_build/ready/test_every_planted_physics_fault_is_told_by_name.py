@@ -12,7 +12,9 @@ and a walker's route goes round a crate in its way on that same floor and throug
 where no floor is (the walkers' ground, `solids`, holds the wall and not the open door). A field of 300 rocks bedded in
 a second ground passes, while a rock 30 cm over it floats and a crate laid into a rock penetrates it, and a rock's
 support is cast against only the faces under it (camp's 660 rocks on a terrain ran the check out of 14 GB); a sky dome
-laid as an object (`score:kind` light) is no solid: never told, never stood on.
+laid as an object (`score:kind` light) is no solid: never told, never stood on. Far scenery (two rocks laid into each
+other and a ground disc, over 200 m past every walker's reach) is scenery, never told, while the same two rocks 12 m
+past the reached objects still penetrate.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -39,6 +41,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.ray_box: the box left open on every axis -> a rock's support query reaches every rock's faces
 - ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
 - ready.support_faults on the field: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating rock passes
+- ready.out_of_reach: `far` left empty -> the far shore reads no collision geometry and the far rocks penetrate
+- ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
+  scenery and pass
 """
 import json
 import pathlib
@@ -214,18 +219,18 @@ def rock(stage, place, name, middle, radius):
 
 
 def rock_field(folder):
-    """A second ground at x 40 holding 300 rocks bedded a third of their size into it, a rock 30 cm over it, a crate
+    """A second ground at x 20 holding 300 rocks bedded a third of their size into it, a rock 30 cm over it, a crate
     laid 10 cm into a rock (rock_big), and a sky dome (a sphere 300 m round the place, `score:kind` light)."""
-    place_build.ground(folder, "field", 6.0, (40.0, -0.02, 0.0))
+    place_build.ground(folder, "field", 6.0, (20.0, -0.02, 0.0))
     stage, place = place_build.opened(folder)
     floor = ready.levels_under(ready.Place(stage, place), "ground", (6.5, 0.0))[-1]  # the field is the same disc
     for number in range(300):  # 20 x 15 spots 0.35 m apart, none touching the next
         radius = 0.06 + 0.03 * (number % 4)
-        x, z = 36.6 + 0.35 * (number % 20), -2.45 + 0.35 * (number // 20)
+        x, z = 16.6 + 0.35 * (number % 20), -2.45 + 0.35 * (number // 20)
         rock(stage, place, f"rock{number}", (x, floor + radius / 3, z), radius)
-    rock(stage, place, "rock_float", (40.0, floor + 0.3 + 0.2, 4.5), 0.2)
-    rock(stage, place, "rock_big", (37.0, floor + 0.1, 4.6), 0.3)
-    box(stage, place, "crate_in_rock", (0.4, 0.4, 0.4), (37.2, floor, 4.4))
+    rock(stage, place, "rock_float", (20.0, floor + 0.3 + 0.2, 4.5), 0.2)
+    rock(stage, place, "rock_big", (17.0, floor + 0.1, 4.6), 0.3)
+    box(stage, place, "crate_in_rock", (0.4, 0.4, 0.4), (17.2, floor, 4.4))
     sky = UsdGeom.Xform.Define(stage, f"/{place}/Objects/sky")
     sky.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("light")
     dome = trimesh.creation.icosphere(subdivisions=2, radius=300.0)
@@ -233,7 +238,11 @@ def rock_field(folder):
     mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(dome.vertices, np.float32)))
     mesh.CreateFaceVertexCountsAttr([3] * len(dome.faces))
     mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(dome.faces, np.int32).reshape(-1)))
+    for side, x in (("near", 18.0), ("far", 240.0)):  # 12 m and 234 m past the reached objects (wall2 at x 5.5)
+        rock(stage, place, f"rock_{side}_a", (x, 3.0, -8.0), 1.0)
+        rock(stage, place, f"rock_{side}_b", (x + 0.5, 3.0, -8.0), 1.0)
     stage.GetRootLayer().Save()
+    place_build.ground(folder, "far_shore", 10.0, (320.0, -0.02, 0.0))
 
 
 def planted(folder):
@@ -325,10 +334,13 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     told = {name: {fault["fault"] for fault in faults} for name, faults in found.items()}
     print(json.dumps(summary))
     for name in ("wall", "desk", "monitor", "panel", "crate_ok", "rock_sunk", "bulkhead", "person_ok", "walker",
-                 "ground", "field", "sky", *(f"rock{number}" for number in range(300))):
+                 "ground", "field", "sky", "rock_far_a", "rock_far_b", "far_shore",
+                 *(f"rock{number}" for number in range(300))):
         assert name not in told, (name, found.get(name))
     assert "floating" in told["rock_float"] and "penetration" in told["crate_in_rock"], \
         (found.get("rock_float"), found.get("crate_in_rock"))
+    assert "penetration" in told["rock_near_a"] and "penetration" in told["rock_near_b"], found.get("rock_near_a")
+    assert {name for name, role in laid.roles.items() if role == "scenery"} == {"rock_far_a", "rock_far_b", "far_shore"}
     assert told["door"] == {"walkway"}, found["door"]
     assert "floating" in told["crate_float"], found["crate_float"]
     assert "penetration" in told["crate_a"] and "penetration" in told["crate_b"], (found.get("crate_a"))

@@ -11,8 +11,10 @@ Each object of /<place>/Objects has a role, from its `score:role` when it has on
 laid ground or terrain), `shell` and `connector` (the dome shell algorithm's domes and tubes), `door` (a door, hatch or
 airlock), `structure` (a wall, bulkhead, frame), `fixed` (a rock bedded in the ground, or `score:fixed`), `mount` (on a
 wall: `on ... wall:<object>`), `character` (a person, posed as the renderer poses it: people.py), `light` (a sky dome
-laid as an object, `score:kind` light: light the renderer draws, never a solid, so left out of every measure) or `prop`
-(everything else: it can be pushed). The faults, each with its measure:
+laid as an object, `score:kind` light: light the renderer draws, never a solid, so left out of every measure), `prop`
+(everything else: it can be pushed) or `scenery` (a ground or fixed piece lying wholly more than GROUND_REACH past every
+walker's reach, the box of the people and of everything a walker meets: a far shore, the horizon's mesas; only seen, so
+left out of every measure, `out_of_reach`). The faults, each with its measure:
 
 - `no collision geometry`: an object with no triangles to collide by.
 - `floating`: a prop, fixed piece, structure or door whose lowest points clear what is under them by over TOLERANCE
@@ -85,8 +87,11 @@ CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, wh
 SETTLE_MOVE = 0.05  # metres
 SETTLE_TURN = 8.0  # degrees
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
-ROLES = ("ground", "shell", "connector", "door", "structure", "fixed", "mount", "character", "light", "prop")
+ROLES = ("ground", "shell", "connector", "door", "structure", "fixed", "mount", "character", "light", "prop",
+         "scenery")
 UNSOLID = ("character", "light")  # roles that are no solid of their own (a person is posed apart: people.py)
+REACHED = ("shell", "connector", "door", "structure", "mount", "prop")  # what a walker meets, besides the people
+SCENERY = ("ground", "fixed")  # what never moves, so beyond every walker's reach it is only seen (far scenery)
 DOOR_WORDS = ("door", "hatch", "airlock")
 STRUCTURE_WORDS = ("wall", "bulkhead", "partition", "frame", "fence")
 CONNECTOR_WORDS = ("tube", "tunnel", "corridor", "connector")
@@ -167,6 +172,26 @@ def role_of(prim):
     return "prop"
 
 
+def out_of_reach(roles, meshes, bodies):
+    """The ground and fixed pieces lying wholly more than GROUND_REACH past every walker's reach on the plan (the box
+    of every object a walker meets, REACHED, and of the people): far scenery (a far shore, the horizon's mesas), only
+    seen, so no physics measure reads it; none when nothing is reached."""
+    boxes = [mesh.bounds for name, mesh in meshes.items() if roles[name] in REACHED and mesh is not None
+             and len(mesh.faces)] + [body.mesh.bounds for body in bodies.values() if body is not None]
+    if not boxes:
+        return []
+    low = np.min([box[0] for box in boxes], axis=0)[[0, 2]] - GROUND_REACH
+    high = np.max([box[1] for box in boxes], axis=0)[[0, 2]] + GROUND_REACH
+    far = []
+    for name, mesh in meshes.items():
+        if roles[name] not in SCENERY or mesh is None or not len(mesh.faces):
+            continue
+        plan = mesh.bounds[:, [0, 2]]
+        if np.any(plan[0] > high) or np.any(plan[1] < low):
+            far.append(name)
+    return far
+
+
 def near_ground(mesh, low, high, reach=None):
     """The ground's faces with a corner within `reach` (GROUND_REACH) of the laid objects' box (`low`, `high`) on the
     plan: a terrain reaching to the horizon (a HiRISE relief, 800 000 faces, 2.8 km across) held whole ran the check
@@ -202,14 +227,17 @@ class Place:
         self.prims = {prim.GetName(): prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()}
         self.roles = {name: role_of(prim) for name, prim in self.prims.items()}
         self.meshes = {name: solid_of(prim) for name, prim in self.prims.items() if self.roles[name] not in UNSOLID}
+        self.people = {name: people.posed_body(prim) for name, prim in self.prims.items()
+                       if self.roles[name] == "character"}
+        for name in out_of_reach(self.roles, self.meshes, self.people):
+            self.roles[name] = "scenery"
+            del self.meshes[name]
         laid = [mesh.bounds for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces)
                 and self.roles[name] != "ground"]
         if laid:
             low, high = np.min([bounds[0] for bounds in laid], axis=0), np.max([bounds[1] for bounds in laid], axis=0)
             self.meshes.update({name: near_ground(mesh, low, high) for name, mesh in self.meshes.items()
                                 if mesh is not None and self.roles[name] == "ground"})
-        self.people = {name: people.posed_body(prim) for name, prim in self.prims.items()
-                       if self.roles[name] == "character"}
         self.names = sorted(name for name, mesh in self.meshes.items() if mesh is not None and len(mesh.faces))
         if not self.names:
             raise place_build.Refused("the scene holds no object with triangles to check")
@@ -927,7 +955,7 @@ def check(folder, settle=True):
     stage, place = place_build.opened(folder)
     laid = Place(stage, place)
     found = {name: [{"fault": "no collision geometry", "why": "it has no triangles to collide by"}]
-             for name in laid.prims if laid.roles[name] not in UNSOLID and name not in laid.names}
+             for name in laid.prims if laid.roles[name] not in UNSOLID + ("scenery",) and name not in laid.names}
     for name in laid.names:
         faults = object_faults(laid, name)
         if faults:
