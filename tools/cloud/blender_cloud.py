@@ -514,12 +514,15 @@ def job_of(script, arguments, inputs, outputs, minutes, env=None, code=()):
     return found
 
 
+QUEUE_NUMBERS = itertools.count()  # each held machine of this process its own queue, however many start in one second
+
+
 class Machine:
     """One rented machine held for a chain of jobs from one tool run (this file's --serve on a queue folder)."""
 
     def __init__(self, classes, who, minutes=SERVE_MINUTES, kind=KIND):
         self.classes, self.who, self.minutes, self.kind = classes, who, minutes, kind
-        self.queue = batch.BATCHES / "queues" / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}"
+        self.queue = batch.BATCHES / "queues" / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}-{next(QUEUE_NUMBERS)}"
         self.process, self.count = None, 0
 
     def __enter__(self):

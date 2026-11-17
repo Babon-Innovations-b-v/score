@@ -21,6 +21,8 @@ while it runs and a held machine's chain (`Machine` on a `serve` of its queue) a
   image, which has no Newton); or in `run_on_cluster`, `numbers[index]` -> `index` (a failed drop reported as another
   job); or in `cluster_kind`, `return kind` for every call (settling's drops not their own kind for
   SCORE_CLOUD_KINDS); or in `cloud_python`, `provider.on_cluster()` (the kind dropped).
+- in `Machine.__init__`, drop `-{next(QUEUE_NUMBERS)}` from the queue's name (machines held side by side from one
+  run's threads in the same second share one queue: sim_body's cards, 2026-11-17).
 - `CLOUD_PYTHON = HOME / "env/bin/python"` -> `CLOUD_PYTHON = pathlib.Path.home() /
   ".farm-factory-props/env/bin/python"` (the runner Python no longer follows PROPS_HOME).
 - in `Machine.run`, the `.failed` branch's `raise RuntimeError(...)` -> `return`; or in `Machine.__exit__`,
@@ -404,6 +406,15 @@ def test_blender_cloud_runs_a_job_as_written(tmp_path, monkeypatch):
     # A held machine runs its chain in order; a failed job raises with the end of its job log and the set-up log
     # (settle@airlock, 2026-10-29: the fault named only the job log, whose folder was gone by then), and a job ended
     # by anything else (an error past its script, a stop signal) still leaves its .failed with its logs.
+    # machines held side by side from one run's threads in the same second each get their own queue
+    queues = []
+    sides = [threading.Thread(target=lambda: queues.append(blender_cloud.Machine(["gpu-24gb"], "test").queue))
+             for _ in range(3)]
+    for side in sides:
+        side.start()
+    for side in sides:
+        side.join()
+    assert len(set(queues)) == 3, queues
     held = blender_cloud.Machine(["cpu-32c-128gb"], "test")
     held.queue = tmp_path / "queue"
     held.queue.mkdir()
