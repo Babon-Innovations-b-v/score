@@ -3,7 +3,8 @@ path into kimodo makable clips, and fills it then"): the route found on the plac
 Kimodo can make, each piece made from the pose the last one ended in, and the pieces joined into one motion whose
 travel is the clips' own (never a clip slid along a line).
 
-    route     the shortest way through the walker's spots on the physics check's own walkers' floor
+    route     the shortest way through the walker's spots on the physics check's own walkers' floor (a walker given
+              `seconds`, its film's length, walks on round its spots until it lasts that long: `filled`)
               (place_build/ready `route`: its Recast-style spans, every solid's footprint taken off and the floor
               eroded by half a WALKWAY, doors open as passages, a stair flight a run of spans a riser apart), its
               corners kept by line of sight and rounded
@@ -74,6 +75,30 @@ def route(folder, through):
     points and metres."""
     from score.stages.place_build import ready
     return ready.route(folder, through)
+
+
+def round_again(through, count):
+    """The walker's spots walked on round their loop, the last back to the first, to `count` spots in all: a walker
+    filled to its film's length (`filled`) keeps walking rather than standing at its last spot. Refused for fewer than
+    three spots: two would walk back on themselves, a turn on the spot no clip makes."""
+    if len(through) < 3:
+        raise ValueError(f"{len(through)} spots make no loop to walk round again: give at least three")
+    return [list(through[index % len(through)]) for index in range(count)]
+
+
+def filled(folder, through, seconds=None, tread=None):
+    """The walker's route (`route`) and its timing (`timed`), walked on round its spots (`round_again`, a spot more at a
+    time) until it lasts `seconds` (the clip's own, its film's length at the clip's rate): the spots walked, the route's
+    points, its metres, the frames' roots and headings. Without `seconds`, the spots once."""
+    walked, before = [list(spot) for spot in through], 0.0
+    while True:
+        points, metres = route(folder, walked)
+        roots, headings = timed(points, tread=tread)
+        if not seconds or seconds_of(len(roots)) >= seconds:
+            return walked, points, metres, roots, headings
+        if metres <= before:
+            raise ValueError(f"walking on round {len(through)} spots does not lengthen the route past {metres} m")
+        walked, before = round_again(through, len(walked) + 1), metres
 
 
 def heading_of(step):

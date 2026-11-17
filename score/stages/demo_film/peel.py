@@ -41,9 +41,10 @@ pass the clip rig's own points and skin weights, the sim pass the sim body's own
 record's frames) and its measures' push on each body the ground touches. A shot longer than the record is refused,
 never stretched or looped. Each push is the record's own (its `touches`: the ground's push on a body, summed over its
 skin points touching a floor, a seat, a bed or a ledge, and its centre of pressure there), an arrow from that centre
-along the push `METRES_PER_NEWTON` long a newton, so a body's arrows on the Moon are a sixth of its arrows on Earth;
-one of PUSHED or less is not drawn. The arrows are the film's `--film-push` colour (design/tokens/colours.css),
-slim at a fixed width on screen, a little see-through, and fade in with the sim body (`arrow_fade`).
+along the push, `METRES_PER_BODY_WEIGHT` long for a push of the body's own weight (%BW, the record's `weight N`), so a
+walker's arrows read alike on the Moon, Mars and Earth; one of PUSHED or less is not drawn. The arrows are the film's
+`--film-push` colour (design/tokens/colours.css), at a fixed width on screen that reads at film distance, their centre
+of pressure marked by a dot, and fade in with the sim body (`arrow_fade`).
 """
 import argparse
 import json
@@ -73,7 +74,7 @@ PASSES = ("dressed", "mesh", "sim")
 PLACE_PASSES = ("finished", "bare", "physics")
 NOT_SOLID = ("Sky",)  # the physics layer's own: the sky is drawn, never collided with (tools/usd/physics.py)
 RATE = 24
-METRES_PER_NEWTON = 1.0 / 1000.0  # an arrow 1 m long is the push of 1,000 N
+METRES_PER_BODY_WEIGHT = 1.0  # an arrow 1 m long is a push of the body's own weight (100 %BW)
 PUSHED = 1.0  # newtons: a body the ground pushes less than this carries nothing worth an arrow
 WIPE_SECONDS = 0.6
 FADE_SECONDS = 1.0  # the push arrows' fade in, from the start of the sim body's wipe
@@ -89,6 +90,13 @@ CLOSE_LEAST = 1.6
 TALL_METRES = 2.4
 CLOSING_SHARE = 1.0 / 6.0
 HEADINGS = 12  # the ways round the walker tried for the camera, straight ahead of it first
+# A close-up looks at the place behind its walker (owner's fault, 2026-11-17: the street peel faced the plaza's flat
+# backdrop): a way whose look past the walker, level at BACKED_HEIGHT over its hips, straight on and BACKED_SPREAD
+# degrees to either side (the picture's middle and its sides), meets the place within BACKED_METRES on every measured
+# frame is taken before one that looks out past the place's edge into the empty sky.
+BACKED_HEIGHT = 0.8
+BACKED_SPREAD = 30.0
+BACKED_METRES = 40.0
 FACING = 60.0  # degrees off the way a walker walks the camera looks from first, room alike: its gait and its face
 RISES = (0.12, 0.3)  # radians: the camera's rise over the hips, the lower first
 FOV_MOST = 85.0  # degrees across: the widest lens a close-up in a narrow place takes
@@ -139,10 +147,20 @@ def touching(frames):
     return list(found)
 
 
-def pushes(frames, bodies):
+def body_weight(body):
+    """A sim body's weight in newtons (its record's measures, `weight N`: its mass at its place's gravity); refused for
+    a record written without it."""
+    weight = body.get("measures", {}).get("weight N")
+    if not weight:
+        raise ValueError("the sim body record holds no `weight N`: its arrows have no body weight to be scaled by")
+    return float(weight)
+
+
+def pushes(frames, bodies, weight):
     """Each touching body's push from the ground each record frame as an arrow (frames x bodies x 6: start, vector;
     NaN where the ground pushes it PUSHED or less): from its centre of pressure on the ground along the push,
-    METRES_PER_NEWTON a newton (the record's `touches`, the person's frame)."""
+    METRES_PER_BODY_WEIGHT for a push of `weight` newtons, the body's own (%BW; the record's `touches`, the person's
+    frame)."""
     arrows = np.full((len(frames), len(bodies), 6), np.nan)
     for index, frame in enumerate(frames):
         for number, body in enumerate(bodies):
@@ -150,7 +168,7 @@ def pushes(frames, bodies):
                 continue
             force, centre = np.asarray(frame["touches"][body][:3]), np.asarray(frame["touches"][body][3:])
             if np.linalg.norm(force) > PUSHED:
-                arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]
+                arrows[index, number] = [*centre, *(force / weight * METRES_PER_BODY_WEIGHT)]
     return arrows
 
 
@@ -193,7 +211,7 @@ def person_arrays(record, rig, frames, shown):
     itself is the layer's, drawn by Blender at the same frames (its time codes)."""
     where = sim_body.own_frame(record["at"], record.get("turn", 0.0))
     mesh = skinned(rig, record["clip"]) @ where[:3, :3].T + where[:3, 3]
-    arrows = pushes(frames, touching(frames))
+    arrows = pushes(frames, touching(frames), body_weight(record))
     starts = arrows[..., :3] @ where[:3, :3].T + where[:3, 3]
     vectors = arrows[..., 3:] @ where[:3, :3].T
     moves = clip_worlds(rig, record["clip"]) @ np.linalg.inv(np.asarray(rig["bind"], dtype=float))
@@ -343,7 +361,8 @@ def closing(points, scenes, count, size):
     """A walker peel's start and camera, a view a film frame in the place's frame (Y up), from the walker's mesh over
     its whole record at the film's rate (`points`): of the starts each second into the record that leave the shot's
     `count` frames, and the ways round it (ways_round), the one with most room for the close-up, then for the pull
-    back, then nearest its three-quarter front, then earliest, whose camera sees the walker throughout (sighted). On
+    back, then nearest its three-quarter front, then earliest, whose camera sees the walker throughout (sighted), a way
+    with the place behind the walker (`backed`) before any that looks past it into the empty sky. On
     its ray from the walker's hips (hips_path) the camera closes in, holds and pulls back (closeness), never past the
     place's meshes on that ray less CLEARANCE (camera_paths' `blocking`), so nothing of the place stands between it
     and the walker. Its angle frames TALL_METRES at the close-up. Refused where no start and way leave CLOSE_LEAST."""
@@ -355,10 +374,10 @@ def closing(points, scenes, count, size):
         for way, turned in ways_round(aims):
             free = camera_paths.first_hits(scenes["blocking"], measured, np.tile(way, (len(measured), 1)))
             room = min(float(free.min()) - camera_paths.CLEARANCE, WIDE_METRES)
-            tried.append((min(room, CLOSE_METRES), room, turned, start, way))
-    for close, room, _, start, way in sorted(tried, key=lambda kept: (-kept[0], -kept[1], kept[2], kept[3])):
-        if close < CLOSE_LEAST:
-            break
+            tried.append((min(room, CLOSE_METRES), room, turned, start, way, backed(scenes, measured, way)))
+    tried = [kept for kept in tried if kept[0] >= CLOSE_LEAST]
+    for close, room, _, start, way, _ in sorted(tried, key=lambda kept: (not kept[5], -kept[0], -kept[1], kept[2],
+                                                                          kept[3])):
         aims = path[start:start + count]
         eyes = aims + (room + (close - room) * closeness(count))[:, None] * way
         if sighted(scenes, aims, eyes, way):
@@ -367,6 +386,22 @@ def closing(points, scenes, count, size):
             return start, [{"eye": eye.round(4).tolist(), "aim": aim.round(4).tolist(), "up": [0.0, 1.0, 0.0],
                             "fov": round(fov, 3)} for eye, aim in zip(eyes, aims)]
     raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up")
+
+
+def backed(scenes, aims, way):
+    """Whether the place stands behind a walker seen from `way` (Y up): the look past its hips (`aims`), level at
+    BACKED_HEIGHT over them, straight on and BACKED_SPREAD degrees to either side, meets the place's meshes within
+    BACKED_METRES on every one."""
+    level = -np.array([way[0], 0.0, way[2]])
+    level = level / max(np.linalg.norm(level), 1e-9)
+    origins = np.asarray(aims) + [0.0, BACKED_HEIGHT, 0.0]
+    for turn in np.radians([0.0, -BACKED_SPREAD, BACKED_SPREAD]):
+        look = np.array([np.cos(turn) * level[0] + np.sin(turn) * level[2], 0.0,
+                         -np.sin(turn) * level[0] + np.cos(turn) * level[2]])
+        behind = camera_paths.first_hits(scenes["still"], origins, np.tile(look, (len(origins), 1)))
+        if not np.all(behind <= BACKED_METRES):
+            return False
+    return True
 
 
 def needed(frame, count, passes=PASSES):
@@ -438,7 +473,7 @@ def walker_job(folder, scene, cast, sim, person_of, walker, seconds, size, revie
     mesh = lerped(skinned(rig, clip) @ where[:3, :3].T + where[:3, 3], times)
     start, path = closing(mesh, place_film.place_scenes(scene), count, size)
     mesh, times = mesh[start:start + count], times[start:start + count]
-    arrows = pushes(frames, touching(frames))[np.rint(times).astype(int)]
+    arrows = pushes(frames, touching(frames), body_weight(body))[np.rint(times).astype(int)]
     scene_rate = place_build.opened(scene)[0].GetTimeCodesPerSecond()
     layer, root = timed_layer(folder, sim, record["place"], walker, scene_rate, record["rate"])
     np.savez(folder / f"{walker}.npz", faces=np.asarray(rig["faces"]), points=points_to_z(mesh),

@@ -26,14 +26,16 @@ CLAY = (0.72, 0.70, 0.67)
 EDGES = (0.05, 0.05, 0.06)
 SIM = (0.95, 0.42, 0.12)  # the sim body geometry with no colours of its own
 STATIC = (0.36, 0.52, 0.70)  # a place's still colliders (its moving bodies are SIM)
-# The push arrows (owner, 2026-11-04: "visible but not obnoxious or ugly"): a slim shaft and a small head at a fixed
-# width on screen whatever the camera's distance, a little see-through and lit a little from within so they read in
-# shadow, in the job's colour (the film's --film-push token).
-SHAFT_PIXELS = 1.6  # the shaft's radius on screen
-HEAD_PIXELS = 4.5  # the head's radius on screen
-HEAD_LONG_PIXELS = 13.0  # the head's length on screen, never more than half the arrow
-ARROW_ALPHA = 0.72
-ARROW_GLOW = 0.6
+# The push arrows (owner, 2026-11-04: "visible but not obnoxious or ugly"; 2026-11-17, his fault: small and faint at
+# film distance): a shaft and a head at a fixed width on screen whatever the camera's distance, sized for a 1920x1080
+# film, a dot on the centre of pressure, nearly opaque and lit from within so they read in shadow and at night, in the
+# job's colour (the film's --film-push token).
+SHAFT_PIXELS = 4.0  # the shaft's radius on screen
+HEAD_PIXELS = 11.0  # the head's radius on screen
+HEAD_LONG_PIXELS = 30.0  # the head's length on screen, never more than half the arrow
+DOT_PIXELS = 9.0  # the centre of pressure's dot, its radius on screen (flattened onto the ground)
+ARROW_ALPHA = 0.95
+ARROW_GLOW = 2.0
 LIFT = 0.002  # metres: the arrow's foot off its ground beyond its own radius, so it never pokes through
 # The crowd's cheap body every dressed file carries beside the person's own (tools/characters/cast.py): never one
 # person's.
@@ -206,8 +208,8 @@ def bare(person, arrays, into):
 
 def sim(person, arrays, into, look):
     """The person's sim body as its layer holds it (whatever geometry sits under its SimBody prim, guides included,
-    each transform keyed at its time samples), placed, and a push arrow a touching body: [(arrow shaft, arrow head)
-    a body]."""
+    each transform keyed at its time samples), placed, and a push arrow a touching body:
+    [(arrow shaft, arrow head, centre of pressure dot) a body]."""
     before = set(bpy.data.objects)
     bpy.ops.wm.usd_import(filepath=person["sim_layer"], prim_path_mask=person["sim_root"], import_guide=True,
                           import_render=True, import_proxy=False, set_frame_range=False, create_collection=False,
@@ -231,11 +233,13 @@ def sim(person, arrays, into, look):
         shaft = linked(bpy.context.object, into)
         bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=1.0, depth=1.0)
         head = linked(bpy.context.object, into)
-        for part in (shaft, head):
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1.0)
+        dot = linked(bpy.context.object, into)
+        for part in (shaft, head, dot):
             part.data.materials.append(look["arrow"])
             part.data.polygons.foreach_set("use_smooth", [True] * len(part.data.polygons))
             part.visible_shadow = False  # an overlay: it casts nothing on the body or its ground
-        arrows.append((shaft, head))
+        arrows.append((shaft, head, dot))
     return arrows
 
 
@@ -259,9 +263,10 @@ def pixel_metres(camera, at):
 
 def arrow_at(parts, start, vector, camera, fade):
     """The arrow from `start` along `vector`, its tip at the push's length, its widths SHAFT_PIXELS and HEAD_PIXELS on
-    the camera's picture, its foot lifted its own radius and LIFT off the ground; hidden where the job has none (the
-    ground does not push that body) or before it fades in."""
-    shaft, head = parts
+    the camera's picture, its foot lifted its own radius and LIFT off the ground, and a dot DOT_PIXELS round on the
+    ground at `start` (the centre of pressure); hidden where the job has none (the ground does not push that body) or
+    before it fades in."""
+    shaft, head, dot = parts
     shown = fade > 0 and not np.isnan(start).any() and np.linalg.norm(vector) > 1e-4
     for part in parts:
         part.hide_render = not shown
@@ -279,6 +284,9 @@ def arrow_at(parts, start, vector, camera, fade):
     shaft.rotation_euler, shaft.scale = turn, (radius, radius, length - head_long)
     head.location = foot + along * (length - head_long / 2)
     head.rotation_euler, head.scale = turn, (HEAD_PIXELS * pixel, HEAD_PIXELS * pixel, head_long)
+    spot = pixel_metres(camera, start) * DOT_PIXELS
+    dot.location = Vector(start.tolist()) + Vector((0.0, 0.0, LIFT + spot * 0.3))
+    dot.scale = (spot, spot, spot * 0.3)
 
 
 def faded(made, fade):

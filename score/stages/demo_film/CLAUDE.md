@@ -74,10 +74,12 @@ own sound; paid and cleared by the runner like any paid row.
   its sim body (whatever geometry the sim body layer holds under the person's SimBody, bones, boxes or muscles with
   their own colours, imported by Blender with its time samples and shown at the record's frames, placed as the sim runs;
   `--build` its person's own build; each touching body's recorded push, the record's `touches` (feet, a seat under the
-  thighs, a bed under the back), an arrow from its centre of pressure along the push, `METRES_PER_NEWTON` long a
-  newton, none at `PUSHED` or less; the owner's look, 2026-11-04, "visible but not obnoxious or ugly": a slim shaft
-  and small head at a fixed width on screen, its foot lifted off its ground, a little see-through, in the film's
-  `--film-push` token, fading in with the sim body), over the scene's ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone,
+  thighs, a bed under the back), an arrow from its centre of pressure along the push, `METRES_PER_BODY_WEIGHT` long
+  for a push of the body's own weight (%BW, the record's `weight N`, so the Moon's and Mars's walkers read as Earth's),
+  none at `PUSHED` or less; the owner's look, 2026-11-04, "visible but not obnoxious or ugly", and his fault of
+  2026-11-17 (arrows small or faint at film distance): a shaft and head at a fixed width on screen that reads in a
+  1920x1080 film, its foot lifted off its ground, a dot on its centre of pressure, nearly opaque and lit from within,
+  in the film's `--film-push` token, fading in with the sim body), over the scene's ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone,
   `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the sim body record. The
   command line draws one free on this machine's card for a look; the film's are the body-peel row's (below).
 - **A place peel** (the script's `place-peel` cut, CONTEXT.md "place peel"; owner, 2026-11-05: "every scene needs the

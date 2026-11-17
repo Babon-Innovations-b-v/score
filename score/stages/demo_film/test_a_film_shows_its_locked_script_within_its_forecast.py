@@ -385,8 +385,9 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     makes. A shot is the record's own frames, refused when longer (SOURCE_FRAMES); it shows clothed, mesh and sim body
     in thirds, each next rising from the bottom over the wipe, the push arrows fading in with the sim body's (WIPES).
     The bare mesh is the rig's points carried by its clip and skin weights (SKINS); every body the ground pushes gets an
-    arrow from its centre of pressure along its push, METRES_PER_NEWTON a newton (a seated pelvis as its feet, a sixth
-    on the Moon), none for one barely touching, and a record written before its touches is refused; the arrows stand
+    arrow from its centre of pressure along its push, METRES_PER_BODY_WEIGHT for its own weight (%BW: a seated pelvis
+    as its feet, the Moon's as long as Earth's), none for one barely touching, and a record written before its touches
+    or without its weight is refused; the arrows stand
     where the person stands, in the film's push colour; the ground is what is underfoot (level, below their heads). A
     person with no dressed body is left out where an accepted bodies gap names them (CAST's gaps; cockpit 2026-11-11,
     its officer and pilot), refused by name where none does. Its forecast prices each pass's frame as a measured film
@@ -412,8 +413,12 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/peel.py: `@ np.linalg.inv(np.asarray(rig["bind"], dtype=float))` -> `` (in skinned)
     Break: score/stages/demo_film/peel.py: `arrows = pushes(frames, touching(frames))` ->
         `arrows = pushes(frames, [body for body in touching(frames) if body.startswith("calcn")])`
-    Break: score/stages/demo_film/peel.py: `arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]` ->
-        `arrows[index, number] = [*centre, 0.0, np.linalg.norm(force) * METRES_PER_NEWTON, 0.0]`
+    Break: score/stages/demo_film/peel.py: closing's sort key `(not kept[5], -kept[0], ...)` -> `(-kept[0], ...)` ->
+        the close-up beside a building at the place's edge looks along it past the place, into the empty sky
+    Break: score/stages/demo_film/peel.py: `[*centre, *(force / weight * METRES_PER_BODY_WEIGHT)]` ->
+        `[*centre, 0.0, np.linalg.norm(force) / weight * METRES_PER_BODY_WEIGHT, 0.0]`
+    Break: score/stages/demo_film/peel.py: `force / weight * METRES_PER_BODY_WEIGHT` -> `force / 1000.0` (newtons, not
+        %BW) -> the seat's arrow is 0.52 m, not its weight's 1 m, and the Moon's a sixth of Earth's
     Break: score/stages/demo_film/peel.py: `begins = (len(PASSES) - 1) * third - wipe / 2` -> `begins = 0`
     Break: score/stages/demo_film/peel_rows.py: `if single["name"] in gapped: return None` -> `if False: return None`
     Break: score/stages/demo_film/peel.py: `if found[-1] >= record_frames:` -> `if False:`
@@ -821,24 +826,28 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     assert frame.getpixel((5, SMALL[1] - 2)) == (0, 255, 0) and frame.getpixel((5, SMALL[1] // 2)) == (255, 0, 0)
 
     # what a body peel draws: the clip rig's own surface, an arrow at every body the ground pushes from its centre of
-    # pressure along its push (a seated body's pelvis on its seat, as its feet; METRES_PER_NEWTON a newton, so a
-    # sixth on the Moon), none for a body barely touching, standing where the person stands in the film's push colour
+    # pressure along its push (a seated body's pelvis on its seat, as its feet; METRES_PER_BODY_WEIGHT for its own
+    # weight, so the Moon's as long as Earth's), none for a body barely touching, standing where the person stands in
+    # the film's push colour
     rig = toy_rig()
     for clip, moved in SKINS:
         assert np.allclose(peel.skinned(rig, clip)[0], rig["points"] + moved), clip
     seated = {"touches": {"pelvis": [0.0, 520.0, 30.0, 0.0, 0.45, 0.1], "calcn_r": [5.0, 140.0, 0.0, 0.1, 0.0, 0.5],
                           "calcn_l": [0.0, 0.5, 0.0, -0.1, 0.0, 0.5]}}
     rig["clip_sitting"] = np.concatenate([rig["clip_still"], rig["clip_still"]])
-    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "sitting"}
+    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "sitting", "measures": {"weight N": 520.0}}
     drawn = peel.person_arrays(record, rig, [seated, seated], [0, 1])
     where = sim_body.own_frame(record["at"], record["turn"])
     assert drawn["arrow_start"].shape == (2, 2, 3)  # the seat's push and the planted foot's; a foot barely touching none
     seat = where[:3, :3] @ np.array([0.0, 0.45, 0.1]) + where[:3, 3]
     assert np.allclose(drawn["arrow_start"][1, 0], peel.points_to_z(seat))
-    assert np.allclose(drawn["arrow_vector"][1, 0], peel.points_to_z(where[:3, :3] @ np.array([0.0, 0.52, 0.03])))
+    pushed = where[:3, :3] @ np.array([0.0, 1.0, 30.0 / 520.0])  # its push over its 520 N weight
+    assert np.allclose(drawn["arrow_vector"][1, 0], peel.points_to_z(pushed))
     bodies = peel.touching([seated])
-    moon = peel.pushes([{"touches": {"pelvis": [0.0, 520.0 / 6, 5.0, 0.0, 0.45, 0.1]}}], bodies)
-    assert np.isclose(moon[0, 0, 4] * 6, peel.pushes([seated], bodies)[0, 0, 4]) and np.isnan(moon[0, 1]).all()
+    moon = peel.pushes([{"touches": {"pelvis": [0.0, 520.0 / 6, 5.0, 0.0, 0.45, 0.1]}}], bodies, 520.0 / 6)
+    assert np.allclose(moon[0, 0], peel.pushes([seated], bodies, 520.0)[0, 0]) and np.isnan(moon[0, 1]).all()
+    with pytest.raises(ValueError, match="no `weight N`"):
+        peel.person_arrays(dict(record, measures={}), rig, [seated], [0])
     with pytest.raises(ValueError, match="no `touches`"):
         peel.touching([{"feet": {"calcn_r": [0.0, 700.0]}}])
     linear = np.array(peel.push_colour())
@@ -880,6 +889,16 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         assert (eyes[:, 2] < high - peel.camera_paths.CLEARANCE + 1e-6).all(), name
         hits = peel.camera_paths.first_hits(scenes["blocking"], aims, (eyes - aims) / apart[:, None])
         assert (hits > apart).all(), name
+    # beside one building at a place's open edge, the close-up looks at the building behind its walker, never out
+    # past the place into the empty sky
+    walked = np.stack([np.array([[0.02 * frame, 0.0, 0.0], [0.02 * frame, 1.8, 0.0]]) for frame in range(72)])
+    building = trimesh.creation.box(bounds=[[-30.0, 0.0, 2.0], [30.0, 12.0, 6.0]])
+    floor = trimesh.creation.box(bounds=[[-30.0, -0.1, -30.0], [30.0, 0.0, 30.0]])
+    scenes = peel.camera_paths.scenes_of({"0": building}, floor, lambda flat: np.zeros(len(np.atleast_2d(flat))),
+                                         np.zeros((0, 8, 3)))
+    _, path = peel.closing(walked, scenes, 48, (1280, 720))
+    looks = np.array([np.subtract(view["aim"], view["eye"]) for view in path])
+    assert (looks[:, 2] / np.linalg.norm(looks, axis=1) > 0.4).all(), looks[0]
     sim = tmp_path / "sim"
     (sim / "layers").mkdir(parents=True)
     timed = Usd.Stage.CreateNew(str(sim / "layers" / "sim_bodies.usda"))

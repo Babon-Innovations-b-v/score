@@ -3,7 +3,8 @@ a solid than a body's radius; it is cut into pieces Kimodo can make (a climb its
 PIECE_FRAMES, together every frame once); a later piece is asked to start in the pose the one before it stood in
 (its fullbody keyframes, back in the scene's frame, are that pose), its join keeps that pose and the foot
 standing across it on its spot, and a stance slipping over 2 cm is held on its spot; and the measures
-tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall.
+tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall. A walker given `seconds` walks on
+round its spots (the last back to the first) until its clip lasts that long; two spots make no loop and are refused.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.route: ready.route swapped for the straight line through the spots -> the route crosses the wall
@@ -16,10 +17,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.held_feet: `> SKATE_MOST` made `> 1.0` -> the sliding stance is left sliding
 - walker_route.skates: the travel measured from the stance's last frame -> the sliding foot reads still
 - walker_route.clearance: the band's KNEE taken off -> the floor under the walker reads a clash
+- walker_route.filled: `>= seconds` made `>= 0` -> the filled walk ends at its last spot, short of its seconds
+- walker_route.round_again: `index % len(through)` made `min(index, len(through) - 1)` -> the walk stands at its last
+  spot rather than going round (refused: the route no longer lengthens)
 """
 import math
 
 import numpy as np
+import pytest
 from PIL import Image
 from pxr import Gf, Sdf, UsdGeom
 
@@ -125,3 +130,11 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert walker_route.measures(off, roots, triangles)["route off max"] > walker_route.ROUTE_MOST
     brushing = np.array([[-0.25, 0.0, -1.0]])
     assert walker_route.clearance(brushing, [0.0], triangles)[0] < walker_route.BODY_RADIUS
+
+    loop = [(-2.5, 0.0, -1.0), (-1.0, 0.0, -2.5), (-2.5, 0.0, -3.0)]  # three spots before the wall
+    walked, points, _, roots, _ = walker_route.filled(folder, loop, seconds=12.0)
+    assert walker_route.seconds_of(len(roots)) >= 12.0 and walked[3] == list(loop[0]) and len(walked) > 4, walked
+    assert np.all(walker_route.clearance(roots, roots[:, 1], triangles) >= walker_route.BODY_RADIUS)
+    assert walker_route.filled(folder, loop)[0] == [list(spot) for spot in loop]
+    with pytest.raises(ValueError, match="no loop"):
+        walker_route.filled(folder, loop[:2], seconds=12.0)

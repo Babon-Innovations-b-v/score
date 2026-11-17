@@ -4,7 +4,8 @@
     (Kimodo: tools/characters/clips/walker_route.py <tree> <run folder>/make)
     python -m score.stages.walker_route assemble <scene folder> <run folder>
 
-walkers.json: {place: {"walkers": [{name, character, look, variant?, through: [[x, y, z], ...]}]}}. `plan` writes
+walkers.json: {place: {"walkers": [{name, character, look, variant?, tread?, seconds?, through: [[x, y, z], ...]}]}}
+(`seconds`: the clip lasts at least that long, the walker going on round its spots; walker_route.filled). `plan` writes
 <run>/make/walkers.json (each walker's route, frames, feet ground and pieces); `assemble` writes <run>/cast/cast.json
 (each walker a cast single at its route's start, turned to its first heading), <run>/scene-clips/scene_clips.json
 (its placement, per-frame route and footfalls; rig.npz and motions/ come from the Kimodo program's rig step) and
@@ -38,11 +39,12 @@ def plan(scene, spec_path, place, run):
     found = ready.solids(scene)
     walkers = []
     for walker in spec["walkers"]:
-        points, metres = walker_route.route(scene, walker["through"])
-        roots, headings = walker_route.timed(points, tread=walker.get("tread"))
+        through, points, metres, roots, headings = walker_route.filled(scene, walker["through"], walker.get("seconds"),
+                                                                       walker.get("tread"))
         feet = walker_route.feet_ground(roots, headings, ground_reader(found))
         found_pieces = walker_route.pieces(roots)
-        walkers.append({**walker, "clip": f"scene_{walker['name']}", "route": points, "metres": metres,
+        walkers.append({**walker, "through": through, "clip": f"scene_{walker['name']}", "route": points,
+                        "metres": metres,
                         "roots": np.round(roots, 5).tolist(), "headings": np.round(headings, 6).tolist(),
                         "feet": np.round(feet, 4).tolist(), "pieces": found_pieces})
         print(walker["name"], f"{metres} m", f"{len(roots)} frames", [(piece["kind"], piece["end"] - piece["start"])
