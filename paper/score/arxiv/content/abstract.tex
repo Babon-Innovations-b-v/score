@@ -1,15 +1,23 @@
 \begin{abstract}
 Games, film, robotics and embodied AI need 3D environments in which
-every object is a physical body of its own, that stay editable, and that
-belong to whoever made them. World models produce video that no
-simulator can open; one-shot 3D generators produce a single fused scene.
-SCORE is an open framework that synthesises such environments the way
-studios build them in OpenUSD, scene within scene and layer by layer,
-every output passing measured tests before the next is made. Every
-person in an environment also receives a musculoskeletal body that
-follows its motion in simulation. This opens a route to training data
-that recorded measurement cannot supply at scale: movement in complete
-scenes, with physics-derived ground truth down to the forces of
-individual muscles. Code: https://github.com/Babon-Innovations-b-v/score
-(MIT).
+every object is a physical body of its own, that remain editable, and
+that belong to whoever made them. SCORE is an open framework that builds
+such environments as OpenUSD scenes from a creator's locked concept
+picture. Its first method derived each scene from that picture through a
+chain of model readings, plans and generated shells; on 26 places it
+reached a mean of 2.2 out of 10 against its concepts and no place read
+as its concept. We replace that chain with kit placement: a coding agent
+lays pieces from an owned asset library in Blender, renders the
+concept's own view, compares the render with the concept and corrects,
+while a physics-readiness check in MuJoCo refuses anything that floats,
+interpenetrates, tips, blocks a walkway or leaves a door outside its
+opening. Missing props are made with the open TRELLIS.2 model and graded
+to one palette per place, real terrain is read from public-domain HiRISE
+elevation data, and walkers follow routes found on the checked floor,
+generated as joined Kimodo segments and given a musculoskeletal sim
+body. On four places the method reaches 4 to 7 out of 10 against the
+concepts by its own critic, with no physics fault in any place, foot
+skate under 3 cm and route error under 7 cm for 12 of 13 walkers; every
+walker's sim body still fails the residual check at its peaks. Code:
+https://github.com/Babon-Innovations-b-v/score (MIT).
 \end{abstract}

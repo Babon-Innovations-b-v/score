@@ -39,6 +39,21 @@
 }{% if KOMA class
   \KOMAoptions{parskip=half}}
 \makeatother
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
 % definitions for citeproc citations
 \NewDocumentCommand\citeproctext{}{}
 \NewDocumentCommand\citeproc{mm}{%
@@ -95,464 +110,550 @@
 \title{SCORE: Synthesising Complete, Owned, Responsive Environments for
 Simulation}
 \author{J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands}
-\date{Working draft, 6 November 2026}
+\date{Working draft, 17 November 2026}
 
 \begin{document}
 \maketitle
 \begin{abstract}
 Games, film, robotics and embodied AI need 3D environments in which
-every object is a physical body of its own, that stay editable, and that
-belong to whoever made them. World models produce video that no
-simulator can open; one-shot 3D generators produce a single fused scene.
-SCORE is an open framework that synthesises such environments the way
-studios build them in OpenUSD, scene within scene and layer by layer,
-every output passing measured tests before the next is made. Every
-person in an environment also receives a musculoskeletal body that
-follows its motion in simulation. This opens a route to training data
-that recorded measurement cannot supply at scale: movement in complete
-scenes, with physics-derived ground truth down to the forces of
-individual muscles. Code: https://github.com/Babon-Innovations-b-v/score
-(MIT).
+every object is a physical body of its own, that remain editable, and
+that belong to whoever made them. SCORE is an open framework that builds
+such environments as OpenUSD scenes from a creator's locked concept
+picture. Its first method derived each scene from that picture through a
+chain of model readings, plans and generated shells; on 26 places it
+reached a mean of 2.2 out of 10 against its concepts and no place read
+as its concept. We replace that chain with kit placement: a coding agent
+lays pieces from an owned asset library in Blender, renders the
+concept's own view, compares the render with the concept and corrects,
+while a physics-readiness check in MuJoCo refuses anything that floats,
+interpenetrates, tips, blocks a walkway or leaves a door outside its
+opening. Missing props are made with the open TRELLIS.2 model and graded
+to one palette per place, real terrain is read from public-domain HiRISE
+elevation data, and walkers follow routes found on the checked floor,
+generated as joined Kimodo segments and given a musculoskeletal sim
+body. On four places the method reaches 4 to 7 out of 10 against the
+concepts by its own critic, with no physics fault in any place, foot
+skate under 3 cm and route error under 7 cm for 12 of 13 walkers; every
+walker's sim body still fails the residual check at its peaks. Code:
+https://github.com/Babon-Innovations-b-v/score (MIT).
 \end{abstract}
 
 \makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
-
-\textbf{Gap: Figure 1, one environment, every layer.} Environment 1 from
-the top down: its physics (the bodies it stands on and their gravity), a
-top scene on its site, a parent scene with its child scenes, and one
-scene opened into its layers side by side (base, settle, physics, light,
-motion, effects, sound, people). It waits on environment 1's batch.
-
-\end{minipage}}\end{center}
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={Each
+place's locked concept (left) beside the final render of its scene from
+the concept's own view (right): camp, campgrounds, stairwell and street,
+top to bottom. Every object in the renders is a library entry laid by
+the placing agent, and every scene passes the physics-readiness check
+with no fault.}]{figures/places.jpg}
+\caption{Each place's locked concept (left) beside the final render of
+its scene from the concept's own view (right): camp, campgrounds,
+stairwell and street, top to bottom. Every object in the renders is a
+library entry laid by the placing agent, and every scene passes the
+physics-readiness check with no fault.}
+\end{figure}
 
 \section{Introduction}\label{introduction}
 
 Simulated 3D environments serve games, film, robot learning and embodied
 AI {[}1{]}. Across these uses they share a common structure of separate
-objects with collision geometry, mass and joints, a ground surface with
-its gravity, light and sound emitted by identifiable sources, and scenes
-that can be reopened, modified and simulated again. Authoring such an
-environment by hand is expensive, and a generative system that takes
-over this work must leave the result in the hands of its author, since
-in the Game Developers Conference's 2026 survey 52 percent of game
-workers considered generative AI to be harming the industry {[}2{]}.
+objects with collision geometry and mass, a ground with its gravity,
+light from identifiable sources, and scenes that can be reopened,
+modified and simulated again. Authoring such an environment by hand is
+expensive, and a generative system that takes over this work must leave
+the result in the hands of its author, since in the Game Developers
+Conference's 2026 survey 52 percent of game workers considered
+generative AI to be harming the industry {[}2{]}.
 
 World models generate an environment as a sequence of video frames
 {[}3{]}, {[}4{]} that no physics simulator can step forward in time. 3D
 environment generators {[}5{]}, {[}6{]} produce geometry, mostly as a
 single fused asset from which separate objects have to be recovered
-afterwards {[}7{]}, {[}8{]}. Both operate in a single pass, so a fault
-in the output cannot be traced to the step that caused it. Procedural
-content generation systems {[}9{]}, {[}10{]} and coding agents, language
-models that write scenes as executable programs {[}11{]}, {[}12{]},
-{[}13{]}, {[}14{]}, {[}15{]}, {[}16{]}, keep the environment explicit
-and inspectable, but they either reconstruct a scene that already exists
-or assemble it from a fixed asset library. The models they produce often
-float above their supports or come apart {[}17{]}, such agents assess
-their own geometry unreliably {[}18{]}, and on scenes reconstructed from
-video the strongest model scores 0.91 on static scenes but only 0.67 on
-dynamic ones {[}19{]}. Open vision foundation models {[}20{]}, large
-models pretrained on broad image data and reused across tasks, now
-recover 3D shape {[}21{]}, segmentation masks {[}22{]} and depth
-{[}23{]} from images, and a coding agent can call them as tools, yet
-none of them gives a consistent visual style across objects that
-different models produced {[}24{]}, {[}25{]}, and none gives physical
-properties.
+afterwards {[}7{]}, {[}8{]}. Procedural systems {[}9{]}, {[}10{]} and
+coding agents that write scenes as executable programs {[}11{]},
+{[}12{]}, {[}13{]}, {[}14{]}, {[}15{]}, {[}16{]} keep the environment
+explicit and inspectable, but the models they produce often float above
+their supports or come apart {[}17{]}, and such agents assess their own
+geometry unreliably {[}18{]}. Open vision foundation models now recover
+segmentation masks {[}19{]} and 3D shape {[}20{]}, {[}21{]}, {[}22{]}
+from single images, and a coding agent can call them as tools, yet none
+of them provides physical properties, and objects made by different
+models rarely share one visual style {[}23{]}, {[}24{]}.
 
-The components needed for the physics already exist. OpenUSD {[}26{]},
-the scene description that Pixar developed for its film production,
-stores each department's work in its own layer file and composes scenes
-from smaller ones by reference, and its physics schema describes rigid
-bodies, colliders, mass and joints within the same stage, the composed
-scene. MuJoCo {[}27{]} is a widely used physics engine for articulated
-bodies in contact, and Newton {[}28{]}, built on the Warp GPU
-programming framework {[}29{]}, runs MuJoCo's solver on the GPU {[}30{]}
-and loads OpenUSD scenes directly. What is missing is a route from what
-a creator intends to a complete environment in this form.
+The components needed for the physics already exist. OpenUSD {[}25{]},
+the scene description that Pixar developed for film production, composes
+scenes from smaller ones by reference and describes rigid bodies,
+colliders and mass in the same stage, and MuJoCo {[}26{]} is a widely
+used engine for bodies in contact. What is missing is a route from what
+a creator intends, typically a single concept picture, to a complete
+environment in this form that still reads as that picture.
 
-SCORE is that framework. Its environments are complete, since every
-object, surface, light and sound a scene shows exists wherever the
-viewer looks. They are owned, because every model in the framework
-permits commercial use of its output, so the creator holds the full
-rights. They are responsive, because every object carries its collider,
-mass and material and every moving part its joints, so a simulator steps
-the environment as written. They are editable, since each scene is a
-stack of layers produced by steps that are each identified by a key
-derived from their inputs, and a change reruns only the steps it
-affects. An environment can range from a house on a plot of ground to a
-system of worlds that move one another by gravitation.
+SCORE is a framework for that route. Its environments are complete,
+since every object, surface and light a scene shows exists wherever the
+viewer looks; owned, because every model in the framework permits
+commercial use of its output and every object comes from the creator's
+own asset library, score\_lib; and responsive, because every object
+carries its collider, mass and material, so a simulator steps the
+environment as written. This paper reports a change of method. SCORE's
+first method derived every scene from its concept through a chain of
+model readings, written plans and generated shells. Measured on 26
+places of a first environment, that derivation produced scenes far from
+their concepts (Section 2). We replaced it with kit placement (Section
+3): an agent lays library pieces, renders the concept's own view,
+compares and corrects, under a physics-readiness check that refuses any
+scene a simulator could not step. People are then routed through the
+checked floor and given musculoskeletal sim bodies (Section 4). Section
+5 reports four places built this way, with their scores against the
+concepts, their checks, their walkers and their costs, and Section 6
+states what still fails.
 
-We contribute the SCORE framework, which turns a creator's locked design
-into a single OpenUSD environment that is physically simulable and opens
-unchanged in a game engine, a robot simulator or a film renderer. Its
-method (Section 2) builds a scene from the top down and layer by layer,
-with each stage passing measured acceptance tests before the next
-begins. The evidence plan (Section 3) comprises four demonstrations on a
-first environment, left as gaps until its batch has run. Section 4 sets
-out where the framework goes next, towards simulated people whose bodies
-are true to the individual person.
+\section{Why the per-picture derivation
+failed}\label{why-the-per-picture-derivation-failed}
 
-\section{Method: building an
-environment}\label{method-building-an-environment}
+The first method turned each locked concept into a scene in stages, each
+one a model call or a rule. Gemini 3.1 Pro {[}27{]} listed every object
+of the concept as a row of a scene inventory, and SAM 3 {[}19{]}
+localised each row with a box. A plan in metres was then written from a
+drawing of the scene from above, a scene record built shells, stairs and
+ground from that plan, every inventory row became a model made from a
+close-up of its crop, and an assembly placed the models by rules on what
+holds what. Every stage passed measured checks before the next began,
+and paid stages were bought in phases.
 
-\subsection{From concept to plan}\label{from-concept-to-plan}
+The method was carried to stills of all 26 places of the first
+environment. Reviewing agents then scored each still against its concept
+and traced every shortfall to its cause. The mean was 2.2 out of 10, the
+best place reached 4, and no place read as its concept. The individual
+models were often fair; what failed was the scaffolding between them.
+Room outlines, heights and shapes came from the written plan rather than
+from the concept and were wrong in 18 places, partly because the shell
+builders could not make several shapes the concepts draw, such as a dome
+with a rise, a round tube or a sunken pit. Walls, frames, panels and
+terrain named in the inventory produced no geometry, so most walls were
+a single flat finish. Fitting a model into its box scaled it by its
+tightest side, which shrank doors and furniture in 17 places. The
+reading dropped key objects and doubled others, and each duplicate door
+cut another opening into a wall. Placement followed generic rules rather
+than the relations the concept shows, so tunnels were pushed apart from
+the domes they join and copies were lined up along one wall. Several of
+these faults cannot be repaired by rules, because a layout read from one
+isometric picture is ambiguous and a written plan and a concept that
+disagree need someone to decide which one wins.
 
-\textbf{The environment concept.} The creator first locks the EC, which
-fixes the environment's visual style and physical setting together with
-his reference images and the scenes it contains, in a short structured
-interview conducted with the vision-language model Gemini 3.1 Pro
-{[}31{]}. An environment plan then places the site of each top scene on
-that ground and computes the sky visible from it.
+Eight rounds of fixes over the following night, about 40 commits, did
+not change the picture: the creator judged the reworked previews no
+better and stopped the run. Each fix also re-keyed paid outputs, so that
+re-buying the 77 paid rows the first rework round touched alone would
+have cost EUR 85.65. The creator decided to change the method rather
+than patch its rules, to build fewer places properly, and to remove the
+per-picture chain (the inventory reading, the plan writing and its
+fixes, the scene record, the shells and the assembly) once its usable
+content had been moved into score\_lib.
 
-\textbf{A concept for each scene, top down.} A concept image is then
-locked for each scene, parents before their child scenes. Each candidate
-image is one call to the image generation model Nano Banana Pro
-{[}32{]}, made on a concept review page where the creator marks regions
-and requests a new image. A child scene is drawn only once its parent
-has been locked and planned, from a crop of the parent's concept, so
-that it fits the parent it stands in.
+\section{Method: placing a scene from its
+concept}\label{method-placing-a-scene-from-its-concept}
 
-\textbf{Inventory and plan.} Gemini 3.1 Pro lists each object of the
-locked concept as a row of the scene inventory, giving its kind, count,
-anchor and size in metres, and the segmentation model SAM 3 {[}22{]}
-localises each row with a bounding box. Nothing outside the inventory is
-generated or placed. Nano Banana Pro then draws the scene from directly
-above, and Gemini 3.1 Pro writes the plan in metres from that drawing,
-the concept and the inventory. The plan gives the outline, walls,
-openings, levels, stairs, roofs and terrain, each item with its
-orientation, people as the spots on which they stand, and the rooms of
-the child scenes. Free checks, which make no paid model call, test that
-every row is placed as many times as its count, inside the outline and
-clear of other floor items, that every door and standing spot can be
-reached on foot, and that the child scenes tile their parent. Any
-remaining violations are returned to the model as notes at most twice,
-and only what still fails is recorded as a gap. The creator's edits on
-the plan review page always take precedence and cause everything that
-follows to be recomputed.
+\subsection{The concept and its
+objects}\label{the-concept-and-its-objects}
 
-\textbf{Shapes first.} The route follows one coarse-to-fine loop at
-every scale. A parent scene receives its concept, plan and a rough block
-model, and its plan is divided into the shapes of its child scenes. Once
-those shapes are fixed, all child scenes are produced in parallel, each
-repeating the loop. The stages \texttt{rough-model} and
-\texttt{shell-split} are implemented but have not yet run.
+A place begins, as before, with a concept picture the creator has
+locked. It is no longer read into rows, counts and a plan. SAM 3, run on
+a local graphics card, segments the whole picture into objects, each
+with its pixel box, mask and the word that found it, and an instance
+that duplicates a surer one under another word is dropped. These objects
+are the placing agent's list of what the scene must contain; how many
+there are and where they stand is the agent's to read from the picture,
+checked against the render.
 
-\subsection{Layers from row kinds}\label{layers-from-row-kinds}
+\subsection{Kit placement and the concept-view compare
+loop}\label{kit-placement-and-the-concept-view-compare-loop}
 
-A scene's layers are derived from its design alone. Each inventory row's
-kind, determined from the noun in the inventory reading by a single
-table of rules, states what its objects do, whether they emit, move, lie
-loose, glow, grow, act or sound. A scene receives an effects, motion,
-physics, crops or people layer only for rows that do so, and always a
-light and a sound layer. Each layer is generated from its rows by the
-rule of their kind, so a new environment needs no hand-written list of
-layers. The scene record holds what no generated object covers (building
-shells, stairs, ground and water, the distant backdrop, lamps and the
-neighbouring scenes its doorways lead to), and its gate requires the
-shell to lie within 5 cm of the plan and every doorway to open onto a
-floor.
+The scene is built by a coding agent, Claude Code {[}28{]}, through one
+command-line tool, \texttt{place\_build}, whose steps lay and adjust a
+plain OpenUSD stage in metres. Every object it lays is a score\_lib
+entry copied whole into the place: modular kit pieces, models, the dome
+shells and tunnels, a switchback stair core of real size (0.167 m risers
+and 0.28 m treads), chamfered building blocks with window openings,
+lamps and sky domes. A surface step binds a library material over an
+object or one of its parts, so a model's baked colour never shows where
+the library has a better finish. Many steps run in one process on one
+open stage, so a complete relayout takes seconds.
 
-\textbf{Models.} Objects follow the prop route first, which turns a
-single image of an object into a 3D model. Nano Banana Pro draws a
-close-up of the object from its crop of the concept and redraws it at
-most three times when the shape check rejects it. The image-to-3D model
-Pixal3D {[}21{]} then reconstructs the mesh, and a likeness gate
-compares its silhouettes from eight viewpoints with the close-up. Only
-an object whose checks fail is built instead by a procedural builder, a
-program that a coding agent writes, and a thin straight object (a pipe,
-post or beam) whose every close-up failed is generated in code by
-sweeping its cross-section along its length.
+The agent then renders the concept's own view, a camera it sets to match
+the concept's composition, through Blender's Cycles renderer {[}29{]},
+and reads the render beside the concept. A review step renders a contact
+sheet of the same scene in one call: a plan section 2.4 m above the
+floor with a metre grid and object names, four corner views, eye-height
+views from each door, close-ups of each compartment, the concept in a
+corner and any physics fault boxed in red. From these the agent decides
+the next correction, such as moving a cluster of props to the side of
+the room where the concept shows them, changing a dome's height, or
+swapping a model that reads wrongly. Nothing in the tool judges the
+scene; it only lays, measures and renders, and the loop ends when the
+render reads as the concept, with the same room, layout, main objects
+and mood, while details may differ.
 
-\textbf{Surfaces.} Everything a scene shows comes from the creator's
-asset library, score\_lib, or is recorded as a written exception. A
-generated model contributes geometry only, and each of its parts takes
-one material from a library of procedural materials, written as ProcFunc
-functions {[}33{]} on Infinigen's shaders {[}9{]} and coloured from the
-scene's palette. The finish route labels each face of the model from
-free renders, matches each finish to a library material, bakes it into
-textures and checks the bake against the close-up, requiring each finish
-to lie within a colour difference of ΔE 32 of its colour there. A free
-library check traces every material, model, light, sound and character
-of an accepted assembly back to the library or to an exception.
+\subsection{One library, one palette a
+place}\label{one-library-one-palette-a-place}
 
-\textbf{Settle and physics.} Loose objects are dropped onto the
-generated ground in a rigid-body simulation, the settle, and an object
-that would rotate by more than 15 degrees or drift by more than 30 cm is
-recorded as a resting fault and keeps its laid-out pose. The settle
-writes the pose in which each object comes to rest as a layer. The
-physics trial then steps the composed scene in Newton, using MuJoCo's
-solver with Newton's contact handling under the gravity of the body the
-scene stands on, and evaluates it with the gates \texttt{reacted},
-\texttt{at\ rest}, \texttt{energy} (no increase in the energy of
-undriven bodies) and \texttt{hinge} (a hinged door leaf swings to its
-joint limit). The trial moved from Blender's Bullet engine {[}34{]} to
-Newton on 27 October 2026. On a test scene at lunar gravity (two dropped
-crates, a driven door with a wheel fixed to it and a pushed stool), both
-engines gave the same result on every gate, and Newton brought the
-crates to rest on their targets where Bullet left them standing off by
-its contact margin of 8 mm. Newton's deterministic mode, which
-reproduced bitwise-identical results over six runs of that test scene,
-cannot handle scenes with many loose bodies, because its buffers exceed
-the 32-bit limit, so the trial and the settle run without it. Two runs
-of a 25-body test scene then agree within 5e-7 m for every body except
-one that falls off the edge of the floor. The settle has run in Newton
-in the same way since 27 October, so one engine steps both what comes to
-rest and what is tested; one effect is to be simulated in Newton as a
-first case for the effects layer.
+Everything a place shows comes from score\_lib, and the usable content
+of the earlier method, the models that had passed their checks, its
+procedural materials and its code-made kits, was moved there before the
+old stages were removed. Because scans and models from many sources look
+inconsistent side by side, each place takes in one scene surface
+library, a set of procedural material variants written as ProcFunc
+recipes {[}30{]} on Infinigen's shaders {[}9{]} in the place's palette
+tokens, with their wear and dirt. Shells, floors and repainted parts
+take their finishes from it, so that they share the look of the props.
 
-\textbf{Light, motion, effects and sound.} The sky is computed from the
-physical setting in the EC, never drawn, with each celestial body at its
-true direction, apparent size and phase as seen from the scene's site.
-The lamps are the inventory's glowing rows. One render per scene places
-each lamp in its own light group, and a free sweep mixes their
-intensities to bring the scene's brightness within a factor of 1.5 of
-its concept's. Every object of a moving row moves by the rule of its
-kind at a speed taken from cited real machines, and is gated on nothing
-coming within 3 cm of anything else. Emitters are measured against real
-footage. Each sound source receives a library file or one take generated
-by the text-to-audio model MOSS-SoundEffect {[}35{]}, gated on an
-audio-text similarity score from CLAP {[}36{]} of at least 0.30.
+\subsection{Props made with TRELLIS.2}\label{props-made-with-trellis.2}
 
-\textbf{People.} People are models like any other, each made from a
-close-up per person row, reconstructed by Pixal3D and given its
-materials by the finish route. The SOMA parametric body model {[}37{]},
-estimated from the close-up by SAM 3D Body {[}38{]}, is fitted beneath
-the model as its skeletal rig and animated with motion clips from Kimodo
-{[}39{]}. A shell gate accepts a clothed appearance when 99 percent of
-the points of its non-rigid parts lie within 5 cm of the body. Each
-person stands on a person spot of its scene's plan.
+A prop that the library lacks, or whose model reads worse than the
+picture, is made with TRELLIS.2 {[}22{]}, an open image-to-3D model
+released under the MIT licence, from a crop of the concept cut out by
+its SAM 3 mask or from the close-up of an earlier model. The model is
+generated on the creator's own 16 GB graphics card, built from source
+with its dependencies at pinned commits, in about three minutes per prop
+under load. The new mesh is fitted over the model it replaces by quarter
+turns and one uniform scale, minimising the two-way distance between
+their point sets. Its own paint is then graded 60 percent of the way
+toward the nearest palette token, and a colour group that stays far from
+every token is reported so that the agent can repaint it from the
+library. Finally the model is made simulation-ready. CoACD {[}31{]}
+decomposes it into convex hulls for collision, its mass is the hulls'
+outer surface times the material class's sheet thickness and density,
+and friction and restitution follow the class. On six camp props the
+masses lie beside those of the earlier models (a crate of 4.0 against
+2.6 kg, a desk of 44 against 42 kg, a chair of 5.1 against 4.7 kg), but
+steel frames come out heavy, because a hull closes over a frame's gaps.
+Figure 2 compares the two routes on the same pictures.
 
-\textbf{Sim bodies.} Each character also receives a sim body, a
-musculoskeletal twin that follows its movement exactly while Newton and
-MuJoCo supply the physics. The body is MyoFullBody {[}40{]}, whose arm
-and hand derive from the MoBL-ARMS model {[}41{]}, {[}42{]}, with 416
-muscles, 86 bones and 131 joints, of which 36 are tied by equalities (34
-coupled to other joints, two held fixed), leaving 95 free. Its bone
-groups are sized to the person's SOMA body, and its masses are spread by
-SOMA's segment volumes. One solver then fits it to the clip: the
-person's constants once, and every frame's joint angles against each
-SOMA segment's rotation, 84 of SCORE's 102 anatomical landmarks on the
-SOMA skin and SOMA's joints at the ends of each bone group, with
-MyoFullBody's joint couplings held exactly and a cost that keeps the
-bones inside the skin. SOMA is never moved or reshaped, except that each
-clip's standing feet are put on the floor by raising or lowering the
-whole clip. For every frame, inverse dynamics on the scene's own ground
-then gives the forces the movement needs, split in the two stages of
-OpenSim's static optimisation {[}43{]}: the ground reaction force first,
-from the pelvis' balance alone and shared over the points of skin
-touching the ground, then the muscle activations with that force fixed.
-A residual reduction in the manner of OpenSim's RRA adjusts the pelvis,
-trunk and masses within a per-frame cap, and whatever force remains at
-the pelvis is recorded as the residual and never applied. Solving
-contact and muscles together was ill-posed, with a nudge of 1e-6 to the
-contact columns moving an activation by up to 1.0; in two stages the
-same nudge moves one by at most 5e-3.
+\begin{figure}
+\centering
+\includegraphics[width=0.88\linewidth,height=\textheight,keepaspectratio,alt={The
+same six camp pictures (left) made by SCORE's earlier picture-made route
+(centre three columns) and by TRELLIS.2 (right three columns), each from
+the front, three-quarter and back. The building agent judged the
+TRELLIS.2 model the better match on five of the
+six.}]{figures/trellis2.jpg}
+\caption{The same six camp pictures (left) made by SCORE's earlier
+picture-made route (centre three columns) and by TRELLIS.2 (right three
+columns), each from the front, three-quarter and back. The building
+agent judged the TRELLIS.2 model the better match on five of the six.}
+\end{figure}
 
-On main, a sim body follows SOMA closely: on a 6 s jump 1.37 percent of
-the bone lies outside the skin, the median joint-centre error is 7.0 mm
-and the median segment rotation error 4.4 degrees, and on a standing
-clip 1.14 percent and 7.4 mm. All of it runs on one GPU. Physics, the
-residual reduction and its foot holds run every frame at once on the
-card with MuJoCo Warp, as do the per-frame pose fit and the posing of
-the SOMA skin, and the card's pose fit equals the CPU reference (mink)
-within 0.01 degrees and 0.01 mm on every frame. A 6 s jump (180 frames
-at 30 fps) now takes 120 s on one NVIDIA L4 and a 5 s standing clip 89
-s, against 830 s and 412 s a day earlier, plus about 3 min for a fresh
-card's first kernel compile. The card's stages run in Warp's
-deterministic mode, so two runs give the same result bit for bit.
+\subsection{Real terrain}\label{real-terrain}
 
-A walk's or a lunge's two standing feet stood at different heights,
-because a person's legs differ from those of the skeleton the motion
-generator moved. Kimodo's own foot-contact correction therefore runs
-after this on the person's own legs, with the generator's own contact
-labels, and bends a toe back toward flat where its pin left the foot
-under the floor. On the contact frames of a walk and a lunge the median
-sole then stands within 0.2 mm of the floor, the frames on which the
-ground carries nothing go from 5 to 0, and the largest residual force
-falls from 782 N to 57 N on the walk and from 531 N to 227 N on the
-lunge.
+Outdoor places stand on real ground. A terrain entry is a heightfield
+read from a public-domain digital terrain model of the HiRISE camera on
+the Mars Reconnaissance Orbiter {[}32{]} (NASA/JPL/University of
+Arizona), fetched by range requests rather than as a whole file, dense
+near the place and sparser toward a horizon that bends with the planet.
+A building's site is levelled to its laid height and eased into the
+surrounding relief, and loose rocks are set onto the relief at their own
+footprints.
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\subsection{The physics-readiness
+check}\label{the-physics-readiness-check}
 
-\textbf{Gap: Newton for the scenes, one effect and the sim body
-validated.} The resting and physics gates per scene of environment 1
-with the settle and the trial on Newton; the one effect stepped on
-Newton; and a sim body's joint angles, ground reaction forces and joint
-moments against OpenCap's LabValidation motion capture and force plates
-{[}44{]}. It waits on environment 1's batch, the effect's stage and a
-validation run.
+A scene that reads as its concept may still be one a simulator cannot
+use, and every round of the compare loop therefore ends with a
+physics-readiness check. It assigns each object a role from the scene
+(ground, shell, structure, connector, door, prop, mount, person or far
+scenery) and reports every fault by object and kind. Each object must
+rest on a support within 3 cm and stand in balance, and sampled points
+of its surface must not lie inside another object. A door must lie in an
+opening, with its outline within 5 cm of the opening's edge, and a
+connector such as a tunnel must meet the structures it joins within 30
+cm with a floor along its length. Every person's feet must touch a floor
+within 1 cm, and no body may be torn. The walkers' floor is computed as
+Recast-style walkable spans {[}33{]} with every solid's footprint
+removed and eroded to a way at least 0.9 m wide, and it must link every
+spot a walker is sent to. Ground and fixed pieces more than 20 m beyond
+anything a walker can reach count as scenery and are left out of every
+measure. Finally, the props are released as free bodies in MuJoCo 3.15
+for one simulated second at Earth gravity, one small model per object
+with its static neighbours, and any prop that falls, tips or drifts is a
+fault. Every fault kind has a planted counterpart in the check's test,
+which must be reported by name. The check never moves anything; the
+agent corrects and runs it again.
 
-\end{minipage}}\end{center}
+\subsection{A builder tournament}\label{a-builder-tournament}
 
-\textbf{Completion.} A scene is complete when its completion gate passes
-on its final assembly, with every inventory row made or dropped with a
-reason, nothing left unmade, no resting fault, and every layer and every
-visible scene present. A fault the creator chooses to ship with is an
-accepted gap, recorded with who decided, when and why. The gate lists
-every gap by name and is never relaxed. A hook prevents a coding agent
-from claiming that a scene is done while its gate fails, because agents
-judging their own scenes agree with a measured geometry score only 45.8
-percent of the time {[}18{]}. The films of a complete scene are rendered
-from scripts the creator has locked.
+A single agent's layout depends on its early choices, so each place was
+built by three independent builders that used the same tools, library
+and check, each trying its own layout. Judging agents compared their
+concept-view renders with the concept, the best one was kept, and a
+final builder refined it with the strongest elements of the others. The
+tournament's per-builder scores were not kept as a record; only the
+winning scenes and their checks were.
 
-\textbf{Buying in phases.} A paid run, a Buy, runs as phases (models,
-surfaces, people, light and sound, assembly, film) rather than in one
-pass. Before a phase is queued, a free preflight plans it, imports its
-code in a fresh process and runs one node of each paid stage up to the
-point where it would rent a machine; once queued, its code and inputs
-are fixed. Each output that passes its checks is locked, so a later code
-change never makes it again, and a failing one gets one retry before it
-becomes a gap. Paid jobs rent cloud machines or run on a shared
-Kubernetes cluster, chosen per kind of job; the image-to-3D, Blender,
-Newton settle and motion-clip jobs have run there.
+\section{People in the place}\label{people-in-the-place}
 
-\section{Evidence: environment 1}\label{evidence-environment-1}
+\subsection{Routes and joined motion}\label{routes-and-joined-motion}
 
-Environment 1 serves as the evidence. The creator did not accept its
-first run, and its store of outputs was lost on 19 October 2026, so this
-draft shows none of its outputs, and each demonstration below will be
-produced by its new batch. Figure 1 is the first.
+Each walker is given spots to pass through and the length of its film.
+Its route is the shortest way through those spots over the check's own
+walkers' floor, with doors open as passages and a stair flight as a run
+of spans one riser apart, its corners kept by line of sight and rounded
+over 0.6 m, so a route never leaves floor the check has judged. A walker
+that must fill its film walks on around its spots until it does. The
+route is then timed at 1.0 m/s on the flat and one tread per step on a
+flight, eased from standing at the start and back to standing at the
+end, and cut into pieces of at most 7 s at every start and end of a
+flight. Each piece is generated by Kimodo {[}34{]} in its own canonical
+frame from the dense path and heading of its stretch, as a flat walk or
+as a climb with each foot asked onto its tread. Every piece after the
+first is constrained by full-body keyframes on its first four frames to
+the pose in which the previous piece stood there, so that position and
+velocity match across the join. The pieces are joined back in the
+scene's frame by blending over those shared frames, with the standing
+foot held on its spot. The travel therefore comes from the clips
+themselves; a clip is never slid, stretched or looped along a line. Each
+walker is measured against fixed limits: foot skate per stance of at
+most 2 cm, the hips within 10 cm of the route, and the body clear of
+every upright solid between knee and head.
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\subsection{Sim bodies and the peel}\label{sim-bodies-and-the-peel}
 
-\textbf{Gap: Demonstration 2, physics that holds.} Environment 1's
-scenes stepped on Newton under their own body's gravity: loose objects
-come to rest, doors swing on their hinges, with the physics trial's
-gates per scene and Bullet run on the same scenes as the baseline. It
-waits on environment 1's batch and on Newton taking over the settle.
+Every walker also receives a sim body, a musculoskeletal twin built on
+MyoFullBody {[}35{]} that follows its motion on the scene's own ground
+while MuJoCo supplies the physics. The solver, MOTOR, has its own paper
+and repository {[}36{]}. It fits the body to the walker's SOMA body
+{[}37{]} over the whole clip, reduces the residual in the manner of
+OpenSim's RRA {[}38{]}, and records whatever force and moment remain at
+the pelvis as the residual, which is never applied. The residual check
+limits that force to 2 percent of the body's weight, after the residual
+forces AddBiomechanics reports {[}39{]}, and the moment to 1 percent of
+the weight times the height of the centre of mass. A walker that fails
+it is reported as failing; it is never stood still or slowed to pass.
 
-\end{minipage}}\end{center}
+Each place's film follows a camera path that holds on the concept's
+view, glides down clear of every solid of the check and moves through
+the place's named stops. It ends with the peel, in which the camera
+closes on one walker and shows in turn its player model, its SOMA body
+and its sim body with ground reaction force arrows (Figure 3).
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The
+peel at the end of the camp film: the player model (left), its SOMA body
+(centre) and its MyoFullBody sim body with its muscles and a ground
+reaction force arrow under the standing foot (right), walking through
+the tunnel between the two domes.}]{figures/peel.jpg}
+\caption{The peel at the end of the camp film: the player model (left),
+its SOMA body (centre) and its MyoFullBody sim body with its muscles and
+a ground reaction force arrow under the standing foot (right), walking
+through the tunnel between the two domes.}
+\end{figure}
 
-\textbf{Gap: Demonstration 3, one environment, many uses.} The same
-OpenUSD environment opened unchanged in a game engine, in a robot
-simulator and in a film render, with what each reads of its layers and
-what it drops. It waits on environment 1's batch and on the engine
-adapter.
+\section{Results: four places}\label{results-four-places}
 
-\end{minipage}}\end{center}
+The creator chose four places from the first environment to rebuild:
+camp, two glass domes on Mars joined by a tunnel; campgrounds, the open
+site around them with a lander, a drilling rig and a mast; stairwell, a
+cut-away switchback stair in a residential block; and street, a rainy
+night street leading to a launch plaza. They are the three places that
+carried walkers in the first environment and the outdoor place that had
+read best under the old method. Figure 1 shows each concept beside its
+final render, and Table 1 summarises the scenes.
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\begin{table}[tbp]
+\centering\small
+\caption{The four places. Objects checked and faults are from the final physics-readiness check of each scene, including its MuJoCo settle. Critic scores are the building agent's own judgement of its round-5 renders against the concept, out of 10; the old method's reviewing agents gave the same places 2, 4, 1 and 1. Films are 1920 by 1080 at 24 frames per second.}
+\begin{tabular}{@{}lrrrlrr@{}}
+\hline
+Place & Objects & Faults & Concept view & Other views & Walkers & Film \\
+\hline
+camp & 711 & 0 & 7/10 & 6/10 insides & 2 & 29 s \\
+campgrounds & 369 & 0 & 7/10 & 6/10 eye height & 3 & 34 s \\
+stairwell & 61 & 0 & 4/10 & 6/10 insides & 2 & 24.5 s \\
+street & 888 & 0 & 6/10 & 6/10 eye, 5/10 wide & 6 & 19 s \\
+\hline
+\end{tabular}
+\end{table}
 
-\textbf{Gap: Demonstration 4, an edit that stays cheap.} The creator
-changes one thing in a locked scene, and only the stages that the change
-affects run again; the stages rerun, time and euros against a full
-rebuild. It waits on environment 1's batch and on the edit layer being
-carried from one assembly to the next.
+\textbf{Against the concepts.} By the critic's own scores, camp and
+campgrounds reach 7 out of 10 in the concept's view, street 6 and
+stairwell 4, against 2, 4, 1 and 1 for the same places under the
+per-picture method. The scores come from vision models on both sides,
+the old ones from reviewing agents and the new ones from the building
+agent's critic, and neither is a human rating; the comparison shows a
+change of scale rather than a calibrated measure. The renders in Figure
+1 support it: the camp's two domes, their tunnel and their furnishing,
+the campgrounds' layout around the lander, the stairwell's cut-away
+flights and the street's lanterns, barriers and rain stand where the
+concepts place them. The critic's remaining notes are concrete. In camp
+everything is a pale beige and the lockers do not read as suit lockers,
+in campgrounds the sand ripples are too even and the sky is flat, the
+stairwell's view shows the building from outside rather than as the
+concept's cut-away and has no surroundings, and the street has boxy
+fronts with repeated windows and a garbled cafe sign. The street's late
+rain and its blotchy walls were traced to the renderer rather than to
+the scene, since the review's 16 samples denoised a lamp-lit haze into
+blotches, and reviews of places with haze now render at the films' 64
+samples.
 
-\end{minipage}}\end{center}
+\textbf{Physics.} All four final scenes pass the physics-readiness check
+with no fault, including the MuJoCo settle of every prop: 711 objects in
+camp with its scattered rocks, 369 in campgrounds, 61 in the stairwell
+and 888 in the street. The check found real faults on the way, which
+were corrected at their source rather than tolerated. A laptop on a desk
+with a raised back fell 4.9 m through the desk because the settle had
+left out what held it, a walker's route through a loop collapsed to zero
+length when its legs were straightened as one path, rocks bedded deeper
+than 10 cm were read as unsupported, and the tunnel's skin had to be
+rounded to 96 points before it stopped reading as a polygon from inside.
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\textbf{Walkers.} Thirteen walkers were routed and generated in the four
+places (Table 2, Figure 4). Twelve stay within 6.8 cm of their routes
+and keep at least 0.48 m from every upright solid. Eleven keep their
+planted feet within the 2 cm skate limit as Kimodo made them, and one
+street walker skates 2.9 cm; as played in the scene, foot skate reaches
+up to 2.9 cm for these twelve. The stairwell woman, who climbs the
+stair, is the exception on every measure. She strays 18 cm from her
+route, skates 3.6 cm in Kimodo's output and 4.7 cm as played, and passes
+within 0.31 m of a solid.
 
-\textbf{Gap: Table 1.} Per scene of environment 1: inventory rows,
-models generated and code-built, layers, gaps before and after the
-batch, time, euros and the creator's verdict. It waits on environment
-1's batch and the creator's review.
+\begin{table}[tbp]
+\centering\small
+\caption{Walker measures per place, as ranges over its walkers: foot skate as Kimodo made the clip and as played in the scene, the hips' distance off the route, the least clearance from an upright solid, the peak residual force against its limit (2 percent of the body's weight under the place's gravity, Mars for camp and campgrounds, Earth for the others) and the share of frames within both residual limits.}
+\begin{tabular}{@{}lrrrrrrr@{}}
+\hline
+ & & \multicolumn{2}{c}{Skate (cm)} & Off route & Clearance & Peak residual & Frames \\
+Place & Walkers & Kimodo & played & (cm) & (m) & N (limit) & within \\
+\hline
+camp & 2 & 1.0--1.9 & 2.5--2.9 & 4.0--5.7 & 0.48 & 81--95 (5.7) & 74--87\,\% \\
+campgrounds & 3 & 1.5--1.7 & 2.3--2.9 & 4.0--4.7 & 0.76 & 92--263 (5.6--5.7) & 56--82\,\% \\
+stairwell, man & 1 & 1.7 & 1.6 & 4.0 & 0.73 & 597 (15.0) & 60\,\% \\
+stairwell, woman & 1 & 3.6 & 4.7 & 18.0 & 0.31 & 1368 (15.0) & 39\,\% \\
+street & 6 & 1.3--2.9 & 1.3--2.9 & 4.2--6.8 & 0.53 & 13--632 (14.9--15.2) & 79--98\,\% \\
+\hline
+\end{tabular}
+\end{table}
 
-\end{minipage}}\end{center}
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={Walkers
+from above in camp (left) and the stairwell (right): grey footprints of
+the solids between knee and head, each walker's route dashed and its
+hips solid, planted feet as dots, with each walker's foot heights over
+time beneath. The stairwell woman's route climbs the switchback flights,
+and her feet follow the rising route ground.}]{figures/routes.jpg}
+\caption{Walkers from above in camp (left) and the stairwell (right):
+grey footprints of the solids between knee and head, each walker's route
+dashed and its hips solid, planted feet as dots, with each walker's foot
+heights over time beneath. The stairwell woman's route climbs the
+switchback flights, and her feet follow the rising route ground.}
+\end{figure}
 
-\textbf{Disclosure.} The creator's locks, picks, accepts and waivers are
-his own actions in the cockpit, and everything between them is
-automatic. Coding agents wrote most of the framework's code under the
-author's direction, and 3,281 of its 3,306 commits list a coding agent
-as co-author. Manual fixes to a scene are recorded as the creator's
-edits.
+\textbf{The residual check fails.} No walker's sim body passes the
+residual check over the whole clip. The best, a street walker, holds its
+force within the limit (13 N against 15.2 N) but not its moment (13.4
+against 7.4 N m). In camp the peak residual force is 95 N against a
+limit of 5.7 N, while 74 to 87 percent of frames lie within both limits
+and the mean force is 2 to 3 N, so the failure lies in short peaks
+rather than throughout. The stairwell is far worse. The woman's peak
+reaches 1,368 N against a 15 N limit with only 39 percent of frames
+within, and in her film her sim body sinks about 17 cm. Section 6
+discusses what this means.
 
-\section{Future work: people true to the
-person}\label{future-work-people-true-to-the-person}
+\textbf{Films.} Each place's film is rendered at 1920 by 1080 and ends
+with its peel (Figure 5). The camp film had a final polishing round, in
+which its walkers walk for the whole film and the peel shows the sim
+body's muscles and a readable ground reaction force arrow. The other
+three show open faults. In campgrounds the force arrows are faint, four
+astronaut figures stand still and one walker starts 4.5 s late, the
+stairwell's man stops after 7.5 s, and in the street the peel faces the
+plaza's flat backdrop and most sim bodies have no centre of pressure
+from which to draw an arrow.
 
-This section describes goals, not results.
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={Frames
+from the four films: camp (top left), campgrounds (top right), stairwell
+(bottom left) and street (bottom right), each at about a third of its
+length.}]{figures/films.jpg}
+\caption{Frames from the four films: camp (top left), campgrounds (top
+right), stairwell (bottom left) and street (bottom right), each at about
+a third of its length.}
+\end{figure}
 
-\textbf{Bodies true to the person.} The sim body is sized to the person
-but still built on one generic model, and it is to become a
-musculoskeletal model of the individual person, including older people
-and people with a curved spine. Its joint ranges and couplings are to
-become the person's own, read from that person's movement and starting
-from the published healthy ranges, with any widening flagged for review.
-Every input that SOMA does not provide, such as muscle strength and bone
-shape, is marked as assumed and given a plausible range. The joint
-angles, and then the net joint moments and ground reaction forces, are
-to be validated against OpenCap's LabValidation data.
+\textbf{Costs.} The four films were rendered on rented cloud graphics
+cards for about EUR 17. Everything else in this section was free. The
+building, the checks, the SAM 3 split, the TRELLIS.2 props, the walkers'
+Kimodo pieces and their sim bodies all ran on the creator's own computer
+with one 16 GB card. A TRELLIS.2 prop takes about three minutes of that
+card, against about EUR 0.22 (EUR 0.39 at the high estimate) for a model
+from the earlier paid picture-made route.
 
-\textbf{Scenes from motion.} Motion comes from the SOMA ecosystem:
-estimated from video with GEM-X {[}45{]}, or generated from text and
-constraints with Kimodo {[}39{]}, in practically unlimited quantity. The
-terrain a movement implies becomes a SCORE scene, so the movement keeps
-its setting without the source video or anything that identifies a
-person. The sim body follows each movement on the scene's own ground.
-For every frame, the simulation solves for the ground reaction forces
-from contact, the net joint moments, and the activations and forces of
-the muscles that reproduce the movement. Whatever force and moment
-neither the ground nor the muscles can supply remains at the pelvis as
-the residual. The residual is recorded and never applied to the body, so
-it measures how dynamically consistent the movement is, and only
-movements with a small residual are kept. Biomechanics uses the same
-residual to assess recorded motion {[}43{]}, {[}46{]}, and PhysibleMDM
-{[}47{]} minimises an inverse-dynamics residual to make generated motion
-feasible for a torque-driven robot. We apply the criterion to generated
-motion in a muscle-driven body.
+\section{Limitations and future work}\label{limitations-and-future-work}
 
-\textbf{Layered training sets.} The same simulations yield training sets
-in layers. Each sample pairs a rendered image of a clothed person in a
-complete scene with ground truth for every layer beneath it: the SOMA
-body and its joint angles, the ground reaction force under each foot,
-the muscle activations and forces, the residual, and the depth,
-segmentation and layout of the scene. Their main use is to train
-estimators that infer muscle activations, joint moments and ground
-reaction forces directly from ordinary video, fast enough for routine
-clinical use. Recorded data cannot supply this at scale: muscle forces
-cannot be measured without invasive methods, and force plates and
-electromyography confine measurement to a laboratory. Simulation can
-generate the bodies, movements and settings an estimator must cover,
-including those of a specific patient group. BioHuman10M {[}48{]}
-already pairs video, part of it rendered, with the activations of a
-112-muscle model and with ground reaction forces predicted by a learned
-model. Our sets would add scenes generated for the purpose under varied
-lighting, terrain and clothing, ground reaction forces from contact with
-each scene's own ground, a 416-muscle model, and a residual for every
-sample. Their value depends on whether estimators trained on them
-transfer to real force-plate and electromyography recordings.
+\textbf{The residual.} A residual far above its limit means that the
+motion, as generated, needs a force that neither the ground nor the body
+supplies. The clips are kinematically clean, with little skate and close
+route following, and yet they are not dynamically consistent on their
+peaks, and on the stair the generated climb does not fit the body that
+follows it. The residual is recorded and never applied, so the failure
+is visible rather than hidden, but the walkers cannot yet be offered as
+physically valid motion. The stairwell woman also fails on route, skate
+and clearance, which points to the climb pieces and their joins rather
+than to the solver alone.
 
-\textbf{Brains.} A brain is a trained controller that drives a sim
-body's muscles. Trained on the retained movements and the muscle forces
-that produce them, it is placed in SCORE's synthesised worlds under
-their own gravity and terrain, where it must adapt to situations no
-recording contains. Every run it drives adds movement to the training
-sets, so it extends the data beyond what a motion generator produces.
-Muscle-driven controllers such as KINESIS {[}49{]} and MuscleMimic
-{[}50{]} are trained on motion capture, as are torque-driven ones such
-as PHC {[}51{]}. To our knowledge, no muscle-driven controller has yet
-been trained on generated motion selected by its residual. That claim
-holds only once such a controller is compared with one trained on motion
-capture and with one trained on the same generated motion unfiltered.
+\textbf{Judgement.} Every score against a concept in this paper comes
+from a vision model, and a single creator decides what passes. Agents
+judge their own scenes unreliably {[}18{]}, and the building agent's
+critic is not independent of the agent that built the scene. A human
+study of concept fidelity, and independent judges in the tournament with
+their scores kept as a record, are needed before the scores can carry
+weight beyond the change of scale shown here.
 
-\textbf{The data loop.} The amount of data scales with the compute put
-behind it, since every scene, movement and run adds samples. This is why
-SCORE is open: others can apply their own compute to the same framework
-and share the resulting datasets.
+\textbf{Look and scope.} The scenes are not photoreal. Surfaces are
+clean and often pale, repeated windows and kit pieces show, the
+stairwell lacks its surroundings and signs are illegible. Four places
+were built, with walkers on Earth and Mars only. The concepts and the
+earlier close-ups were drawn by closed models that may change or be
+withdrawn. The placement itself is an agent's work under the creator's
+direction, so a place costs agent time rather than money, which this
+paper has not measured.
 
-\section{Limitations and conclusion}\label{limitations-and-conclusion}
+\textbf{Future work.} Next come the walkers' residuals, through climb
+pieces that fit the stair, contact in the clip generation and the solver
+work reported in MOTOR {[}36{]}; independent judges and a human rating
+of concept fidelity; the remaining places of the first environment; and
+the uses that SCORE was built for. A sim body that is true to the
+individual person, validated against measured forces, would let the same
+scenes yield layered training data. Each sample would pair a rendered
+image of a person in a complete scene with the body, its joint moments,
+its ground reaction forces and muscle forces, and a residual that
+selects only the dynamically consistent movements {[}38{]}, {[}39{]},
+{[}40{]}.
 
-A single creator judges the results, and he has not yet accepted a run.
-Closed models (Nano Banana Pro, Gemini 3.1 Pro) draw the concepts and
-close-ups and read and plan every scene, and may change or be withdrawn.
-The design step, the layers derived from row kinds, the finish route,
-the shapes-first loop and the scene tree have not yet carried a scene
-through a batch. The edit layer is so far only a reserved slot. The
-effects do not yet run in Newton, the sim body has not been validated
-against measured forces, and no game engine or robot simulator has yet
-opened the result. Next come environment 1's batch with its four
-demonstrations, an engine adapter, the edit layer carried across
-assemblies, further environments, open models replacing the closed ones,
-and the data loop, in which residual-filtered generated movement trains
-muscle-driven controllers whose value a comparison with motion capture
-has yet to show. SCORE synthesises an environment as studios build one,
-scene by scene and layer by layer, in a form a simulator steps as
-written, and an accepted environment will show whether the approach
-holds.
+\textbf{Disclosure.} The creator's locks, picks and decisions are his
+own, made in chat. Everything between them was done by coding agents,
+which placed every object of the four scenes, judged their renders and
+ran the tournament, and which wrote most of the framework's code under
+the author's direction: 4,211 of its 4,238 commits list a coding agent
+as co-author. No scene was edited by hand.
+
+\section{Conclusion}\label{conclusion}
+
+SCORE builds environments that a simulator can step and that their
+creator owns. Deriving a scene from its concept through a chain of
+readings and written plans failed, scoring 2.2 out of 10 across 26
+places, because the scaffolding between good models went wrong in ways
+that rules could not repair. Placing library pieces under a
+render-and-compare loop, with a physics-readiness check that refuses
+anything a simulator could not use, produced four places that read far
+closer to their concepts, with no physics fault, at a cost of about EUR
+17 in rendering. Walkers route through these scenes on checked floor
+with clips joined into one motion, and each carries a musculoskeletal
+sim body whose residual shows honestly where generated motion is not yet
+physical. That residual is now the open problem. Once generated movement
+in complete, simulable scenes passes it, such scenes can supply training
+data that recorded measurement cannot provide at scale.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -672,115 +773,114 @@ arXiv:2606.01057}, 2026.}
 for {3D} scene reconstruction,''} \emph{arXiv preprint
 arXiv:2609.36380}, 2026.}
 
-\bibitem[\citeproctext]{ref-shen2026codebench4d}
-\CSLLeftMargin{{[}19{]} }%
-\CSLRightInline{R. Shen \emph{et al.}, {``{4DCodeBench}: Benchmarking
-agents on inverse graphics of dynamic scenes,''} \emph{arXiv preprint
-arXiv:2610.03715}, 2026.}
-
-\bibitem[\citeproctext]{ref-oquab2023dinov2}
-\CSLLeftMargin{{[}20{]} }%
-\CSLRightInline{{M. Oquab, T. Darcet, T. Moutakanni, \emph{et al.}},
-{``{DINOv2}: Learning robust visual features without supervision,''}
-\emph{arXiv preprint arXiv:2304.07193}, 2023.}
-
-\bibitem[\citeproctext]{ref-li2026pixal3d}
-\CSLLeftMargin{{[}21{]} }%
-\CSLRightInline{D.-Y. Li \emph{et al.}, {``{Pixal3D}: Pixel-aligned {3D}
-generation from images,''} \emph{arXiv preprint arXiv:2605.10922},
-2026.}
-
 \bibitem[\citeproctext]{ref-carion2025sam3}
-\CSLLeftMargin{{[}22{]} }%
+\CSLLeftMargin{{[}19{]} }%
 \CSLRightInline{{N. Carion \emph{et al.}}, {``{SAM 3}: {Segment
 Anything} with concepts,''} \emph{arXiv preprint arXiv:2511.16719},
 2025.}
 
-\bibitem[\citeproctext]{ref-wang2025moge2}
-\CSLLeftMargin{{[}23{]} }%
-\CSLRightInline{{R. Wang \emph{et al.}}, {``{MoGe-2}: Accurate monocular
-geometry with metric scale and sharp details,''} \emph{arXiv preprint
-arXiv:2507.02546}, 2025.}
+\bibitem[\citeproctext]{ref-li2026pixal3d}
+\CSLLeftMargin{{[}20{]} }%
+\CSLRightInline{D.-Y. Li \emph{et al.}, {``{Pixal3D}: Pixel-aligned {3D}
+generation from images,''} \emph{arXiv preprint arXiv:2605.10922},
+2026.}
+
+\bibitem[\citeproctext]{ref-xiang2024trellis}
+\CSLLeftMargin{{[}21{]} }%
+\CSLRightInline{{J. Xiang \emph{et al.}}, {``Structured {3D} latents for
+scalable and versatile {3D} generation,''} \emph{arXiv preprint
+arXiv:2412.01506}, 2024.}
+
+\bibitem[\citeproctext]{ref-trellis2}
+\CSLLeftMargin{{[}22{]} }%
+\CSLRightInline{Microsoft, {``{TRELLIS.2}: Image-to-{3D} generation.''}
+\url{https://github.com/microsoft/TRELLIS.2}, 2025.}
 
 \bibitem[\citeproctext]{ref-wu2026production}
-\CSLLeftMargin{{[}24{]} }%
+\CSLLeftMargin{{[}23{]} }%
 \CSLRightInline{J. Wu, Z. Lou, J. Liu, D. Du, C. Guo, and S. Guo,
 {``From visual synthesis to interactive worlds: Toward production-ready
 {3D} asset generation,''} \emph{arXiv preprint arXiv:2604.23629}, 2026.}
 
 \bibitem[\citeproctext]{ref-yang2026flowscene}
-\CSLLeftMargin{{[}25{]} }%
+\CSLLeftMargin{{[}24{]} }%
 \CSLRightInline{Z. Yang \emph{et al.}, {``{FlowScene}: Style-consistent
 indoor scene generation with multimodal graph rectified flow,''}
 \emph{arXiv preprint arXiv:2603.19598}, 2026.}
 
 \bibitem[\citeproctext]{ref-openusd}
-\CSLLeftMargin{{[}26{]} }%
+\CSLLeftMargin{{[}25{]} }%
 \CSLRightInline{Pixar Animation Studios and Alliance for OpenUSD,
 {``{OpenUSD}: Universal scene description.''} 2026. Available:
 \url{https://openusd.org/}}
 
 \bibitem[\citeproctext]{ref-todorov2012mujoco}
-\CSLLeftMargin{{[}27{]} }%
+\CSLLeftMargin{{[}26{]} }%
 \CSLRightInline{E. Todorov, T. Erez, and Y. Tassa, {``{MuJoCo}: A
 physics engine for model-based control,''} in \emph{IEEE/RSJ
 international conference on intelligent robots and systems (IROS)},
 2012, pp. 5026--5033.}
 
-\bibitem[\citeproctext]{ref-newton}
-\CSLLeftMargin{{[}28{]} }%
-\CSLRightInline{The Newton Developers, {``{Newton}: A {GPU}-accelerated
-physics simulation engine.''} 2026. Available:
-\url{https://github.com/newton-physics/newton}}
-
-\bibitem[\citeproctext]{ref-warp}
-\CSLLeftMargin{{[}29{]} }%
-\CSLRightInline{M. Macklin, {``{Warp}: A high-performance {Python}
-framework for {GPU} simulation and graphics.''} NVIDIA, 2022. Available:
-\url{https://github.com/NVIDIA/warp}}
-
-\bibitem[\citeproctext]{ref-mujocowarp}
-\CSLLeftMargin{{[}30{]} }%
-\CSLRightInline{Google DeepMind and NVIDIA, {``{MuJoCo Warp}: A
-{GPU}-optimized version of the {MuJoCo} physics simulator.''} 2026.
-Available: \url{https://github.com/google-deepmind/mujoco_warp}}
-
 \bibitem[\citeproctext]{ref-gemini31pro}
-\CSLLeftMargin{{[}31{]} }%
+\CSLLeftMargin{{[}27{]} }%
 \CSLRightInline{Google, {``{Gemini 3.1 Pro} (gemini-3.1-pro-preview)
 through the gemini {API}.''} 2026. Available:
 \url{https://ai.google.dev/}}
 
-\bibitem[\citeproctext]{ref-nanobananapro}
-\CSLLeftMargin{{[}32{]} }%
-\CSLRightInline{Google, {``{Gemini 3 Pro Image ({`Nano Banana Pro'})
-through the Gemini {API}}.''} 2026. Available:
-\url{https://ai.google.dev/}}
+\bibitem[\citeproctext]{ref-claudecode}
+\CSLLeftMargin{{[}28{]} }%
+\CSLRightInline{Anthropic, {``{Claude Code}.''} 2026. Available:
+\url{https://www.anthropic.com/claude-code}}
+
+\bibitem[\citeproctext]{ref-blender}
+\CSLLeftMargin{{[}29{]} }%
+\CSLRightInline{Blender Foundation, {``{Blender}.''} 2026. Available:
+\url{https://www.blender.org/}}
 
 \bibitem[\citeproctext]{ref-raistrick2026procfunc}
-\CSLLeftMargin{{[}33{]} }%
+\CSLLeftMargin{{[}30{]} }%
 \CSLRightInline{A. Raistrick \emph{et al.}, {``{ProcFunc}:
 Function-oriented abstractions for procedural {3D} generation in
 {Python},''} \emph{arXiv preprint arXiv:2604.26943}, 2026.}
 
-\bibitem[\citeproctext]{ref-bullet}
+\bibitem[\citeproctext]{ref-wei2022coacd}
+\CSLLeftMargin{{[}31{]} }%
+\CSLRightInline{X. Wei, M. Liu, Z. Ling, and H. Su, {``Approximate
+convex decomposition for {3D} meshes with collision-aware concavity and
+tree search,''} \emph{ACM Transactions on Graphics}, vol. 41, no. 4,
+2022.}
+
+\bibitem[\citeproctext]{ref-mcewen2007hirise}
+\CSLLeftMargin{{[}32{]} }%
+\CSLRightInline{{A. S. McEwen \emph{et al.}}, {``{Mars Reconnaissance
+Orbiter's} high resolution imaging science experiment ({HiRISE}),''}
+\emph{Journal of Geophysical Research: Planets}, vol. 112, no. E5, p.
+E05S02, 2007, doi:
+\href{https://doi.org/10.1029/2005JE002605}{10.1029/2005JE002605}.}
+
+\bibitem[\citeproctext]{ref-recast}
+\CSLLeftMargin{{[}33{]} }%
+\CSLRightInline{{``Recast navigation.''}
+\url{https://github.com/recastnavigation/recastnavigation}, 2026.}
+
+\bibitem[\citeproctext]{ref-rempe2026kimodo}
 \CSLLeftMargin{{[}34{]} }%
-\CSLRightInline{E. Coumans and Y. Bai, {``{Bullet} physics {SDK} and
-{PyBullet}.''} 2021. Available:
-\url{https://github.com/bulletphysics/bullet3}}
+\CSLRightInline{{D. Rempe, M. Petrovich, Y. Yuan, H. Zhang, X. B. Peng,
+\emph{et al.}}, {``{Kimodo}: Scaling controllable human motion
+generation,''} \emph{arXiv preprint arXiv:2603.15546}, 2026.}
 
-\bibitem[\citeproctext]{ref-moss2026}
+\bibitem[\citeproctext]{ref-caggiano2022myosuite}
 \CSLLeftMargin{{[}35{]} }%
-\CSLRightInline{OpenMOSS-Team, {``{MOSS-SoundEffect} v2.0.''} Hugging
-Face, 2026. Available:
-\url{https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0}}
+\CSLRightInline{V. Caggiano, H. Wang, G. Durandau, M. Sartori, and V.
+Kumar, {``{MyoSuite}: A contact-rich simulation suite for
+musculoskeletal motor control,''} \emph{arXiv preprint
+arXiv:2205.13600}, 2022.}
 
-\bibitem[\citeproctext]{ref-wu2022clap}
+\bibitem[\citeproctext]{ref-motor}
 \CSLLeftMargin{{[}36{]} }%
-\CSLRightInline{{Y. Wu, K. Chen, T. Zhang, \emph{et al.}},
-{``Large-scale contrastive language-audio pretraining with feature
-fusion and keyword-to-caption augmentation,''} \emph{arXiv preprint
-arXiv:2211.06687}, 2022.}
+\CSLRightInline{J. P. Kardolus, {``{MOTOR}: Musculoskeletal optimisation
+through open robotics simulation.''}
+\url{https://github.com/Babon-Innovations-b-v/motor}, 2026.}
 
 \bibitem[\citeproctext]{ref-saito2026soma}
 \CSLLeftMargin{{[}37{]} }%
@@ -788,97 +888,25 @@ arXiv:2211.06687}, 2022.}
 al.}}, {``{SOMA}: Unifying parametric human body models,''} \emph{arXiv
 preprint arXiv:2603.16858}, 2026.}
 
-\bibitem[\citeproctext]{ref-yang2026sam3dbody}
-\CSLLeftMargin{{[}38{]} }%
-\CSLRightInline{{X. Yang, D. Kukreja, D. Pinkus, others, and K. Kitani},
-{``{SAM 3D Body}: Robust full-body human mesh recovery,''} \emph{arXiv
-preprint arXiv:2602.15989}, 2026.}
-
-\bibitem[\citeproctext]{ref-rempe2026kimodo}
-\CSLLeftMargin{{[}39{]} }%
-\CSLRightInline{{D. Rempe, M. Petrovich, Y. Yuan, H. Zhang, X. B. Peng,
-\emph{et al.}}, {``{Kimodo}: Scaling controllable human motion
-generation,''} \emph{arXiv preprint arXiv:2603.15546}, 2026.}
-
-\bibitem[\citeproctext]{ref-caggiano2022myosuite}
-\CSLLeftMargin{{[}40{]} }%
-\CSLRightInline{V. Caggiano, H. Wang, G. Durandau, M. Sartori, and V.
-Kumar, {``{MyoSuite}: A contact-rich simulation suite for
-musculoskeletal motor control,''} \emph{arXiv preprint
-arXiv:2205.13600}, 2022.}
-
-\bibitem[\citeproctext]{ref-holzbaur2005upper}
-\CSLLeftMargin{{[}41{]} }%
-\CSLRightInline{K. R. S. Holzbaur, W. M. Murray, and S. L. Delp, {``A
-model of the upper extremity for simulating musculoskeletal surgery and
-analyzing neuromuscular control,''} \emph{Annals of Biomedical
-Engineering}, vol. 33, no. 6, pp. 829--840, 2005, doi:
-\href{https://doi.org/10.1007/s10439-005-3320-7}{10.1007/s10439-005-3320-7}.}
-
-\bibitem[\citeproctext]{ref-saul2015benchmarking}
-\CSLLeftMargin{{[}42{]} }%
-\CSLRightInline{K. R. Saul \emph{et al.}, {``Benchmarking of dynamic
-simulation predictions in two software platforms using an upper limb
-musculoskeletal model,''} \emph{Computer Methods in Biomechanics and
-Biomedical Engineering}, vol. 18, no. 13, pp. 1445--1458, 2015, doi:
-\href{https://doi.org/10.1080/10255842.2014.916698}{10.1080/10255842.2014.916698}.}
-
 \bibitem[\citeproctext]{ref-delp2007opensim}
-\CSLLeftMargin{{[}43{]} }%
+\CSLLeftMargin{{[}38{]} }%
 \CSLRightInline{S. L. Delp \emph{et al.}, {``{OpenSim}: Open-source
 software to create and analyze dynamic simulations of movement,''}
 \emph{IEEE Transactions on Biomedical Engineering}, vol. 54, no. 11, pp.
 1940--1950, 2007.}
 
-\bibitem[\citeproctext]{ref-uhlrich2023opencap}
-\CSLLeftMargin{{[}44{]} }%
-\CSLRightInline{S. D. Uhlrich \emph{et al.}, {``{OpenCap}: Human
-movement dynamics from smartphone videos,''} \emph{PLOS Computational
-Biology}, vol. 19, no. 10, p. e1011462, 2023.}
-
-\bibitem[\citeproctext]{ref-gemx}
-\CSLLeftMargin{{[}45{]} }%
-\CSLRightInline{NVIDIA, {``{GEM-X}: Monocular whole-body {3D} human pose
-estimation using the {SOMA} body model.''} 2026. Available:
-\url{https://github.com/NVlabs/GEM-X}}
-
 \bibitem[\citeproctext]{ref-werling2023addbiomechanics}
-\CSLLeftMargin{{[}46{]} }%
+\CSLLeftMargin{{[}39{]} }%
 \CSLRightInline{K. Werling \emph{et al.}, {``{AddBiomechanics}:
 Automating model scaling, inverse kinematics, and inverse dynamics from
 human motion data through sequential optimization,''} \emph{PLOS ONE},
 vol. 18, no. 11, p. e0295152, 2023.}
 
-\bibitem[\citeproctext]{ref-stolzle2026physiblemdm}
-\CSLLeftMargin{{[}47{]} }%
-\CSLRightInline{M. Stölzle, D. Müller, A. Serifi, R. Grandia, E. Knoop,
-and M. Bächer, {``{PhysibleMDM}: Enforcing inference-time physical
-feasibility constraints on motion diffusion models via noise
-optimization,''} \emph{arXiv preprint arXiv:2610.30500}, 2026.}
-
 \bibitem[\citeproctext]{ref-huo2026biohuman}
-\CSLLeftMargin{{[}48{]} }%
+\CSLLeftMargin{{[}40{]} }%
 \CSLRightInline{Y. Huo, H. Zhang, C. Song, H. Song, Z. Zuo, and T. Yu,
 {``{BioHuman}: Learning biomechanical human representations from
 video,''} \emph{arXiv preprint arXiv:2605.14772}, 2026.}
-
-\bibitem[\citeproctext]{ref-simos2025kinesis}
-\CSLLeftMargin{{[}49{]} }%
-\CSLRightInline{M. Simos, A. S. Chiappa, and A. Mathis, {``{KINESIS}:
-Motion imitation for human musculoskeletal locomotion,''} \emph{arXiv
-preprint arXiv:2503.14637}, 2025.}
-
-\bibitem[\citeproctext]{ref-li2026musclemimic}
-\CSLLeftMargin{{[}50{]} }%
-\CSLRightInline{C. Li \emph{et al.}, {``Towards embodied {AI} with
-{MuscleMimic}: Unlocking full-body musculoskeletal motor learning at
-scale,''} \emph{arXiv preprint arXiv:2603.25544}, 2026.}
-
-\bibitem[\citeproctext]{ref-luo2023phc}
-\CSLLeftMargin{{[}51{]} }%
-\CSLRightInline{Z. Luo, J. Cao, A. Winkler, K. Kitani, and W. Xu,
-{``Perpetual humanoid control for real-time simulated avatars,''}
-\emph{arXiv preprint arXiv:2305.06456}, 2023.}
 
 \end{CSLReferences}
 

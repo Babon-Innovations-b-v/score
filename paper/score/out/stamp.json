@@ -1,24 +1,36 @@
 {
   "inputs": {
     "paper/score/build/build.py": "17398a2ddfda4b2dd2836f5f188b9168c81dde5485773aa4ff117c8d645a0367",
+    "paper/score/figures/films.jpg": "12b085d9f4a602927295804474aba0bf3cfc02389f9074edfb632fcad9b841fe",
+    "paper/score/figures/peel.jpg": "683877565ec012d5df3651fcc00c6d859f9407b781427d2cfa32bf6103d8acd9",
+    "paper/score/figures/places.jpg": "4d0d7c5b59de953e57dd32c42876121794349fc9fb18bb1c7dc1a13f037ea117",
+    "paper/score/figures/routes.jpg": "fc766df91bf3c90850a151be91554ded2f44e1227e3393ace763614e7471abbd",
+    "paper/score/figures/trellis2.jpg": "e7e4f42e7712433794f8d8f8c9f9c2b0947cb07aad4d01339a285a7fad775d21",
     "paper/score/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/score/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
-    "paper/score/source/refs.bib": "6a684b769f1bf91045d87988102d5dd8cf2cf6906c1b2dc2867155be455b531d",
-    "paper/score/source/score.md": "3ff0ae58b98824b2e945d18d21f030bbbc196307f4f0bcafed121258d85e8864"
+    "paper/score/source/refs.bib": "d93e5fdb504ec390d23689071dc9031fff94d69f975ada3f8477741feab6b45b",
+    "paper/score/source/score.md": "ff5bcae5df6239417e8799899cb40a5f68eb85f469728dd3d31568d8818d8280"
   },
   "outputs": {
-    "paper/score/arxiv/content/abstract.tex": "bb0b602f5e2d08259184afc43f14c8a27e03a04870ece5d0105f7466fba571b7",
-    "paper/score/arxiv/content/evidence_environment_1.tex": "3e68277065722b84298581b3f1e9bbd8443cec1037a5d05966c87321380e7ae3",
-    "paper/score/arxiv/content/future_work_people_true_to_the_person.tex": "500228527c1561bfa9eeb403ac283824d99722915b7e418708ee336a40ac721f",
-    "paper/score/arxiv/content/introduction.tex": "4ec4a0535df21f510aed7908793fce8f10c89b554902ab17c7ab7c017c3deda8",
-    "paper/score/arxiv/content/limitations_and_conclusion.tex": "0a68e0eca5b9e92df4ada74b40a63594c9059f0273adc0b2ab92c0a62246ce2b",
-    "paper/score/arxiv/content/method_building_an_environment.tex": "b5fd551bbdfe013f34e98294919a9960b7e3470966ae760f779f7be0858e9d1f",
-    "paper/score/arxiv/content/teaser.tex": "52c442ed1d2222c32238b49c8483edf106aee8081b287ab0abe9d363f8c9bf4b",
-    "paper/score/arxiv/main.bbl": "a0e5b4a89be5a29b6333b812e1c9f36b462cfc4b61f0259e9b2fef6f25e43125",
-    "paper/score/arxiv/main.pdf": "17ed90d2a85d7d916aa6d192b4da3bdd35541a2de3b98e3c34cb7881a2e356dd",
-    "paper/score/arxiv/main.tex": "21c184d5dbc4cb81901336b973ec767c262b64e62463940213f0069be29c6650",
-    "paper/score/arxiv/refs.bib": "6a684b769f1bf91045d87988102d5dd8cf2cf6906c1b2dc2867155be455b531d",
-    "paper/score/out/score.pdf": "4b50a2c607312bb98f1ebd8ffd24baaa05c84d40f31507d05d6bd8817c7f687c",
-    "paper/score/out/score.tex": "c16423f5988fdee8c2bc4c04540ad2b8444c2c4cfc035c46d110fd286dd19e4b"
+    "paper/score/arxiv/content/abstract.tex": "931581836788c51c7b77d533ae2335c3b6f5cff71d1257b8e26c7908fdb1b051",
+    "paper/score/arxiv/content/conclusion.tex": "814c35687581df1c150357b9cc0391e99993f80e926209b8381ca4fcc1ec4e9c",
+    "paper/score/arxiv/content/introduction.tex": "a01b6a3eef0805629b13d37ade794f4d4cc347059cd9916b87477ee77870489b",
+    "paper/score/arxiv/content/limitations_and_future_work.tex": "50f7f05a0f74b2d6edddf55db2a07248486ac0178b91b186b2c15eb606e80200",
+    "paper/score/arxiv/content/method_placing_a_scene_from_its_concept.tex": "0c5169bd0a73341cf80452fca9e43e8e2913aa5ed37aba0fd07396841ca5a406",
+    "paper/score/arxiv/content/people_in_the_place.tex": "8588eab40528be3029f33d71e7db74a72e65025663f7cfd9564b41fc9156a5ef",
+    "paper/score/arxiv/content/results_four_places.tex": "7066a4e1f4b4b288e949ad3dd2a6540b9931e4bdc4637c357fb4922221c0815d",
+    "paper/score/arxiv/content/teaser.tex": "e705a48c935fb3821002f4d62c92d27dc42577c876e6efd9805dac2fe2ed8ee3",
+    "paper/score/arxiv/content/why_the_per_picture_derivation_failed.tex": "c97891bad0c1862ad0a3013ee3271e1286564418bb1f7abe47f5d2ab5470df14",
+    "paper/score/arxiv/figures/films.jpg": "12b085d9f4a602927295804474aba0bf3cfc02389f9074edfb632fcad9b841fe",
+    "paper/score/arxiv/figures/peel.jpg": "683877565ec012d5df3651fcc00c6d859f9407b781427d2cfa32bf6103d8acd9",
+    "paper/score/arxiv/figures/places.jpg": "4d0d7c5b59de953e57dd32c42876121794349fc9fb18bb1c7dc1a13f037ea117",
+    "paper/score/arxiv/figures/routes.jpg": "fc766df91bf3c90850a151be91554ded2f44e1227e3393ace763614e7471abbd",
+    "paper/score/arxiv/figures/trellis2.jpg": "e7e4f42e7712433794f8d8f8c9f9c2b0947cb07aad4d01339a285a7fad775d21",
+    "paper/score/arxiv/main.bbl": "8fdfdffa8a56355cdaedf6a79ae3526e0ebc93c5d49581713edfd86ecbe1446a",
+    "paper/score/arxiv/main.pdf": "bb953a82e86e626822d8e574712b7a4c5ad192f1c16832e4a781e0a6bb5fb056",
+    "paper/score/arxiv/main.tex": "dca2baed2b9d8ff466380fc01fec8e80d7531ced5f5d99a8b0a744f895c4ce34",
+    "paper/score/arxiv/refs.bib": "d93e5fdb504ec390d23689071dc9031fff94d69f975ada3f8477741feab6b45b",
+    "paper/score/out/score.pdf": "6b86071aaeef01ce3db03fd35d23ff968245841b468204a872a15b17ff6a8f03",
+    "paper/score/out/score.tex": "adfffbe24984f2eeb5a1b42df1411de7057b0ae295c4d3fba041e1fb03671016"
   }
 }

@@ -1,0 +1,37 @@
+Four places built with place_build (issue #128). Transcribed from the run's own review pages (private working
+pages of the session, not published); the scenes, checks and walker records they summarise are the files beside
+this one.
+
+Round 5 (2026-11-16 evening), the building agent's own score of its concept-view render against the locked
+concept, out of 10 (a vision model's judgement, not a human rating), with the physics check's result:
+
+camp         physics check 0 faults. Concept view 7/10, insides 6/10. Still off: everything pale beige, no horizon
+             haze, lockers do not read as suit lockers, a jagged edge where the airlock meets the dome.
+campgrounds  physics check 0 faults on 369 objects. Concept view 7/10, eye height 6/10. Still off: sand ripples too
+             even, flat pale sky, a plain pole for the lattice tower, cable joints show, props mostly cream.
+stairwell    physics check 0 faults on 31 objects; walkable stairs with landings. Concept view 4/10, insides 6/10.
+             Still off: the concept view looks at the building from outside instead of the concept's cut-away, no
+             surroundings, no bevelled edges, bare flats.
+street       physics check 0 faults on 693 objects. Concept view and eye height 6/10, wide 5/10. Still off: no rain,
+             people, moon or stars; boxy fronts with repeated windows; blotchy puddles; garbled cafe sign; lanterns
+             look as if they float.
+
+The builder tournament that followed (three builders a place, judged, the winner refined; issue #128 comment of
+2026-11-16 evening) left no per-builder score record; only the winners' scenes and their checks are kept
+(checks-2026-11-17.json).
+
+Films (2026-11-17), 1920x1080 at 24 fps, rendered on rented cloud cards for about EUR 17 (the run's own record):
+camp 29 s (polished round: walkers walk the whole film; the peel in the tunnel shows the sim body's muscles and a
+readable ground reaction force arrow); campgrounds 34 s (residual check fails, 232 N; force arrows faint; four
+astronaut props stand still; a walker starts 4.5 s late); stairwell 24.5 s (the woman climbs the stairs; her sim
+body sinks 17 cm and fails the residual check badly, 1368 N; the man stops at 7.5 s); street 19 s (the peel faces
+the plaza's flat backdrop; residual check fails; most walkers' sim bodies lack a centre of pressure for arrows).
+
+TRELLIS.2 (issue #128 comment "TRELLIS.2 model maker landed"): about 80 s to load and 170 to 220 s a model on this
+PC's 16 GB card under load, 8.6 GB of card; masses beside our own models' (crate 4.0 against 2.6 kg, desk 44
+against 42, chair 5.1 against 4.7), steel frames high (bunk bed, plant rack about 180 to 230 kg) because a hull
+closes over a frame's gaps. The building agent judged TRELLIS.2's model better than our picture-made one on 5 of
+6 camp props (issue #128 comment "Night run to the demo started").
+
+Picture-made model price, earlier route: about EUR 0.22 likely, 0.39 high a model (issue #128 comment "Prices for
+O1-O3"). Re-buying the 77 paid rows the rework re-keyed: EUR 85.65 (issue #128, wave 1 comment).

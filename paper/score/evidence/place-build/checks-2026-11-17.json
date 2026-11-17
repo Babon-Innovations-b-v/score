@@ -1,0 +1,54 @@
+{
+ "camp": {
+  "objects read": 711,
+  "by role": {
+   "ground": 1,
+   "light": 1,
+   "shell": 2,
+   "connector": 2,
+   "door": 1,
+   "prop": 44,
+   "fixed": 660
+  },
+  "faults": 0,
+  "settle": "mujoco 3.15.0"
+ },
+ "campgrounds": {
+  "objects read": 369,
+  "by role": {
+   "ground": 1,
+   "shell": 2,
+   "connector": 2,
+   "door": 1,
+   "prop": 53,
+   "fixed": 303,
+   "character": 7
+  },
+  "faults": 0,
+  "settle": "mujoco 3.15.0"
+ },
+ "street": {
+  "objects read": 888,
+  "by role": {
+   "ground": 7,
+   "structure": 7,
+   "mount": 644,
+   "fixed": 214,
+   "prop": 16
+  },
+  "faults": 0,
+  "settle": "mujoco 3.15.0"
+ },
+ "stairwell": {
+  "objects read": 61,
+  "by role": {
+   "shell": 1,
+   "door": 3,
+   "prop": 5,
+   "mount": 50,
+   "character": 2
+  },
+  "faults": 0,
+  "settle": "mujoco 3.15.0"
+ }
+}

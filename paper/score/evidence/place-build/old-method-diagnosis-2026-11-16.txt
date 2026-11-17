@@ -1,0 +1,265 @@
+# env1: concept against scene, the shared causes
+
+Input: 7 groups of per-place findings for all 26 env1 places (read-only). Scores: airlock 2, base 3, camp 2, campgrounds 4, cockpit 2, docking_airlock 1, engineroom 4, flat 3, galley 2, garage 1, greenhouse 1, habitat 1, hangar 2, hub 2, lab 3, old_station 3, quarters 2, shiplock 2, square 1, stairwell 1, storage 3, street 1, tube 3, walkway 3, workshop 3, wreck 2. **Mean 2.2/10, best 4 (campgrounds, engineroom).**
+
+Most stills are the lit stage, with no settle and no people (base: OOM at 8 GB with 638 materials; square: OptiX/HIP 247). So people, crowds and settle positions are not judged here. That accounts for part of the gap in hangar, lab, old_station, tube, workshop, wreck and square, and for most of square.
+
+Ranked by places hit times how badly. "Breaks" means the finding breaks the read in that place.
+
+---
+
+## 1. Shells: the wrong size, the wrong shape, or a ship plan that overrides the concept (18 places, breaks in 14)
+
+**Cause.** The room's outline, height and shape come from a plan writing or a ship plan, not from the concept. On top of that, the shell builders cannot make several shapes the concepts draw.
+
+There are three sub-causes:
+
+- **1a. The plan's metres are wrong.**
+  - airlock: re-fix at 0.00577 m a unit "by its rows' metres", giving 4.7 x 5.2 m against the locked 13.1 x 13.1 m.
+  - hub: the floor box is 18 m while the walls say 9 m, and the record builds on the box.
+  - workshop: 16 x 14 x 8 m asked, 11 x 11 x 4.2 m built.
+  - square: 29 m against the game's 74 x 120 m.
+  - docking_airlock: 3.1 x 3.0 m from Gemini metres.
+  - cockpit: wall height taken from the inventory's hull_shell row; the plan's 2.43 m and its slope go unused.
+  - Most of this is the plan writing's scale choice.
+- **1b. The builders lack shapes.**
+  - Dome with no rise (camp: eave = top = 8 m).
+  - Round tube (tube: an arch whose rise equals its span, not a semicircle).
+  - Wedge or sloped nose (cockpit).
+  - Sunken pit (greenhouse, and hub's pit_radius 2.33 is never built).
+  - Glass shells and roofs (camp, greenhouse, hub skylight: glass null/false).
+  - Rectangle with truss beams (garage got "domed").
+- **1c. Ship plan v7 overrides the concept.**
+  - walkway: 1.5 m wide.
+  - storage: door 0.9 x 2.0 m against the concept's tall hex double door.
+  - shiplock: 1.95 m clear height.
+  - quarters: its door and walkway opening.
+  - lab: template doors.
+  - **This is a decision, not a bug:** the game plan and the concept disagree, and code cannot pick which one wins.
+
+**Places.** airlock, base, camp, cockpit, docking_airlock, engineroom (minor), garage, greenhouse, hub, lab, quarters, shiplock, square, storage, street (sawtooth outline across the road, 3.5 m facades), tube, walkway, workshop.
+
+**Fix.**
+- 1a: days. Check the plan's metres against the locked design plan and the inventory's room row, and refuse a re-fix that shrinks the room by more than about 30 %.
+- 1b: days per shape (dome rise, round tube, sloped walls, pit, glass), several weeks in all.
+- 1c: owner's decision first, then small.
+
+**Moves closer?** Yes, the most of any cause. The shell is the frame of every interior still. With the wrong size and shape, no object fix makes it read.
+
+## 2. Code rows bring no geometry: walls, frames, panels and terrain are blank (≈20 places, breaks in 8)
+
+**Cause.** Inventory rows of kind "code" never become geometry: wall_panels, ceiling_panels, frames, ribs, padded walls, hazard frames, beams, facades, stairs, craters and terrain. The earth seed's kit reports "the design lays no kit piece". So every wall is one flat library finish.
+
+**Places.** airlock, cockpit, docking_airlock, engineroom, flat (green dado), galley, garage (beams), greenhouse (stairs: 0 plan items), habitat (partitions as full-height slabs), hub, lab, quarters, shiplock, stairwell, storage, street (facades), walkway (padded sections), workshop, old_station and wreck (craters), campgrounds (cliffs and mesas: terrain {}).
+
+**Fix.** Big. A wall-kit capability is needed: panel, frame, rib, dado and padded-section pieces drawn from score_lib and laid along the shell from the code rows, plus a crater and terrain layer. Every piece has to come from the library (hard rule), so library content has to be added as well as code.
+
+**Moves closer?** Yes, a lot for interiors. The walls fill half of every frame, and "flat grey box" is the most common one-line verdict.
+
+## 3. Model fitting makes things too small (17 places, breaks in 10)
+
+**Cause.**
+- `bake_job.fit_within` scales a model as one block to its tightest side, which for doors, lockers and panels is usually the thin depth.
+- `fitting.in_opening` uses `scale=min(1.0, tall/size)` (fitting.py:801), so a model is never grown to fill its opening.
+- Openings are cut at the reading's size, so the leaf ends up much smaller than its hole.
+
+Some models were also made at the wrong size or proportions to begin with: the workshop monitors (0.16 m), the wreck's rear half, the cockpit windows (0.18 m).
+
+**Places.**
+- **Doors:** airlock, cockpit, docking_airlock (hatch 1.02 m), engineroom (1.55 m), hangar, lab (1.46 m in 2.66 m), quarters (1.55 m), shiplock (vault 0.65 m), stairwell (gate 1.25 m), storage.
+- **Furniture:** quarters desk and lockers, lab desk (0.92 m against a 4.3 m plan box), hangar desks and stair, hub consoles, workshop benches and monitors, airlock suit and pipes, cockpit screens and console.
+- **Other:** square (palms, lamps, buildings), wreck (rear half), base (module sizes).
+
+**Fix.** Days, and mostly small code. Fit by the row's governing dimension (height for doors, lockers and people-scale things; footprint for desks) and allow non-uniform scaling within a limit. Let `in_opening` grow a leaf to its opening. Models that were made wrong need remakes, which may be paid.
+
+**Moves closer?** Yes, clearly. Doors and hatches are focal points in about half the concepts.
+
+## 4. The inventory reading drops key objects and makes duplicates (22 places, breaks in 7)
+
+**Cause.** Two halves:
+
+- **4a. Drops.**
+  - The agreement rule (`reading.py` METHOD 5, ONLY_GEMINI near line 136) drops every row "only Gemini named it", and some rows "only the outline finder found it".
+  - The match is by **noun**, not by box. In storage, SAM's "box" lies inside Gemini's crate_large_flat box and the row is still dropped.
+- **4b. Duplicates.**
+  - SAM returns several overlapping boxes on one object, which becomes count > 1: cockpit 4 doors, docking_airlock 2 airlock doors, flat 3 balcony doors and 2 stoves, shiplock 3 sliding doors, square 3 stage screens, walkway 2 ducts, wreck 5 solar panels (a hull panel merged in).
+  - Each extra door copy then gets "an opening cut for it … the plan has no free door opening". That is where many of the extra **holes in the walls** come from: cockpit, docking_airlock, flat, shiplock, quarters, and probably stairwell.
+
+**Places.**
+- **Drops:** airlock (console, suit locker), camp (wardrobe, spacesuits), campgrounds (power station), cockpit, docking_airlock, engineroom, flat, hangar, hub, lab, quarters, shiplock, stairwell, storage (13 of about 15 crates), walkway, workshop, wreck.
+- **Missing with no skip recorded:** habitat (ring light, bed, shower), tube (tool board).
+- **Duplicates:** cockpit, docking_airlock, flat, shiplock, square, walkway, wreck, engineroom (count 4, 3 boxes), galley (cabinets 3 x 3.5 m).
+
+**Fix.**
+- 4a: small to days. Agree by box overlap, not by noun. Keep Gemini-only rows that fall on a SAM box under any noun.
+- 4b: small. Merge overlapping SAM boxes before counting. Never cut a new door opening for a surplus door copy; drop the copy instead.
+- New rows need new models, which is paid bake time.
+
+**Moves closer?** Moderately. It brings back hero objects (airlock console, storage crates, the base's power station) and removes the extra doors and holes, which today break the read.
+
+## 5. Placement rules ignore what things belong to (≈24 places, breaks in 15)
+
+**Cause.** Layout is decided by generic rules, not by the relations the concept shows. There are four sub-causes:
+
+- **5a. Nothing says what connects to what. The overlap fixer then pushes connected pieces apart** ("moved/parted X m out of").
+  - base: tubes all north–south, none from the hub; greenhouse and hangar parted 6 and 14 m.
+  - campgrounds: tunnel moved 7.9 m off the domes.
+  - old_station: tunnels miss the hub.
+  - workshop: tunnels stand across the doorways.
+  - square: lantern strings end 24–29 m short.
+  - street: lantern string at 24 m, lanterns at 6 m.
+  - wreck: cables as 3.7 m slabs.
+  - **Breaks the read in every one of these exteriors.**
+- **5b. Copies of a row are lined up or spread.** The rule is "against the wall nearest its plan spot; packed along its walls", with one anchor per row, so everything that sits "on" something piles onto one holder.
+  - galley: cabinets on 3 walls, 5 utensil racks.
+  - garage: 10 monitors in a row, 14 boxes in one line.
+  - quarters: all clutter on one desk.
+  - workshop: monitor grid at knee height.
+  - hangar: crates in rows.
+  - habitat: lamps and curtains on the floor.
+  - airlock: pipes.
+- **5c. Fixed heights and facings.**
+  - "Small wall thing centred 1.5 m up": docking_airlock jump seats.
+  - Desk items at 0.8 m whatever the desk is: lab.
+  - Code-row lamps at the record's spot y 0: quarters.
+  - A null facing defaults to N, so a table ignores its box shape: galley (`holders/__init__.py` ~1980).
+  - A turn to the facing swings the long axis across the plan: wreck halves side by side.
+  - Pipes run flat at 10 m: hangar.
+- **5d. The plan writing reads positions off an isometric picture.**
+  - habitat: diagonal staircases of bunks and sofas.
+  - camp: dome 2's lab furniture in dome 1.
+  - cockpit: consoles and windows on the door wall.
+  - tube: windows inside the room, pipes and cables on the floor centre.
+  - street: AC units and a stair in the road.
+  - walkway: doors moved off their keypads.
+
+**Fix.**
+- 5a: days to big. A "joins A to B" relation in the plan, and an assembly that builds connectors between their ends and exempts them from the overlap fixer.
+- 5b and 5c: days. Per-copy anchors and holders, heights taken from the holder's top, facing taken from the plan box's long side.
+- 5d: big. The plan writing has to un-project the cutaway picture (floor-plane homography from the SAM boxes) or check its positions against the concept. Some of this may never be exact from one picture.
+
+**Moves closer?**
+- 5a: yes, a lot, for the 7 exteriors and connected bases. It is their whole composition.
+- 5b to 5d: noticeable everywhere, though each is a smaller step.
+
+## 6. The film's first camera is not the concept's view (21 places, breaks in 12)
+
+**Cause.** The film opens at a door or a standing spot, with a 1.6 m eye, fov 80, aimed across the room. There is no check that it frames the concept's composition, and some eyes stand inside or right against objects:
+- habitat: inside bunk bed 1.
+- wreck: inside the front rocket's box.
+- shiplock: 0.25 m outside the south wall.
+- garage, docking_airlock: shelves and a locker 0.7 m from the lens.
+
+The concepts are mostly high cutaways or overviews: quarters, stairwell, workshop, old_station, wreck, square ("seen from the balcony"), walkway, camp. The latest commit (ae0f57ed6 camera_paths) touches the inside-a-solid test, which may already cover part of this.
+
+**Places.**
+- **Breaks:** airlock, docking_airlock, garage, habitat, hangar, old_station, quarters, shiplock, square, stairwell, storage, wreck.
+- **Noticeable:** camp, flat, greenhouse, street, workshop.
+- **Minor:** cockpit, galley, lab, walkway.
+
+**Fix.** Small to days. Add a "concept view" camera fitted to the concept (a high cutaway: eye placed from the concept's vanishing lines or simply raised above the open wall). Add a near-clearance check of at least about 1.5 m and an aim at the room's densest side.
+
+**Moves closer?** It changes the still's score a lot for little work. It **does not fix the scene**: on its own it shows the same problems more clearly. Do it so that reviews judge the scene and not a blocked lens.
+
+## 7. Light: one brightness match, lamps in the wrong place, no mood (20 places, breaks in 4)
+
+**Cause.** There are four parts:
+
+- **Brightness only.** The light layer matches the concept's mean brightness by scaling lamps. In engineroom that is x45; storage ends 35 % over the concept. On pale walls this washes the room out, and contrast and colour are never matched.
+- **Lamps in the wrong place.** Lamps sit at the record's spot, not on their laid model: quarters (on the floor), shiplock (inside the roof slab, so the room is lit red and blue), storage (door glow at the plan spot).
+- **Emissives too faint.** Screens 0.03–0.05, cores and grow lights weak or missing.
+- **Outside light where it should not be.** Daylight floods in through open roofs and openings (hangar: 127 klux sun through a 27 x 55 m roof hole; workshop), and the street is marked inside: true with no sky.
+
+**Places.** Breaks: hangar, habitat, hub, quarters, shiplock. Noticeable to minor: airlock, camp, campgrounds, cockpit, docking_airlock, engineroom, flat, galley, greenhouse, old_station, stairwell, storage, street, workshop, wreck.
+
+**Fix.** Days.
+- Put lamps on their laid model.
+- Match contrast and dominant colour as well as brightness.
+- Set a floor for emissive energy.
+- Take inside/outside from the plan.
+
+**Moves closer?** Noticeably for mood. It is secondary to causes 1 to 5.
+
+## 8. Finishes are off the concept (≈16 places, breaks in 3)
+
+**Cause.** Two parts:
+- Bakes come out far from their close-ups: dE 30–57, "bakes N % of its area over 20 a*b* off", orange rust or camouflage patterns where the concept has plain steel.
+- "No library surface fits" is accepted as a gap.
+
+**Places.** garage (white crates, breaks), greenhouse, habitat, galley, hangar, hub, lab, old_station, shiplock, tube, wreck, campgrounds, walkway (gunmetal token renders light, breaks), workshop (black desk), stairwell (one plaster over 11.8 m, breaks), flat.
+
+**Fix.** Days for the bake's colour fault (rust patterns in particular look like one systematic cause). The "no surface fits" gaps need new score_lib surfaces, which is library content, not code.
+
+**Moves closer?** Moderately.
+
+## 9. Openings and the outside are empty (≈13 places, noticeable)
+
+**Cause.** Two parts:
+- "Sealed" doorways are cut and left open (hangar, lab), and doorways to tubes and neighbours show a void (greenhouse, habitat, hub, walkway, workshop, flat).
+- Far ground, terrain and neighbours are not built or not composed into the still: campgrounds (cliffs), street (vista), old_station and wreck (craters), hub (tubes), flat (the square).
+
+**Fix.** Small for sealed openings: do not cut them, or fill them with a leaf. Days for composing neighbours and far ground into a place's stage.
+
+**Moves closer?** Noticeably for exteriors, less for interiors.
+
+## 10. Ceiling height does not match the plan (5 places)
+
+**Cause.** The scene record's ceiling and wall height differ from the plan's height:
+- quarters: an 8 cm slit under the roof.
+- shiplock: lights above the roof.
+- docking_airlock: a 0.5 m gap.
+- storage: 3.51 against 3.2 m.
+- flat: a black strip.
+
+**Fix.** Small: one source for the height.
+
+**Moves closer?** Small, except in shiplock, where it is the light fault.
+
+## 11. The likeness check passes bad code-made models (≈6 places)
+
+**Cause.** The likeness check accepts code-made models it should reject:
+- greenhouse: railing outline **0.0765** passes.
+- galley: door slab at 0.80.
+- campgrounds: comm mast as a lumpy column.
+- stairwell: railing as a 3 m sausage, reused 12 times, running through the wall.
+- quarters: string lights as rods.
+- walkway: handrails tilted.
+
+**Fix.** Small: a real outline floor for code-made models. Check fixes are mine, tested both ways.
+
+**Moves closer?** Indirectly: it forces remakes.
+
+---
+
+## Place-specific problems with no shared cause
+
+- **base:** the still OOMs (638 materials, 8 GB). No room is a place, so the hub, habitat and greenhouse are single picture-made shells.
+- **square:** render failure (OptiX/HIP 247). assembly is blocked by likeness@people. The crowd is most of the concept.
+- **habitat:** the still shows record positions while the accepted settle holds others ("drifts 1 cm" against metres apart). settle is accepted but no assembly takes it.
+- **campgrounds:** habitat_dome_2 is in the record but absent from the still (unexplained). The lander ramp is a 40-step stair.
+- **flat:** the balcony door model was made from the red-lit crop, so it is opaque pink.
+- **stairwell:** settle failed twice (door_mat_1 tips 0.0799). Six south-wall openings exist with no plan door behind them (source not found).
+- **wreck:** the engine nozzle is laid inside the rear hull, so there are two nozzles. The scorch decal and craters don't show (untraced).
+- **hangar:** the ship stands about 1 m above the floor (from a pixel estimate). Its 8.45 m height is against the inventory's 4 m.
+- **workshop:** the desk renders black though its texture is brown (untraced).
+- **old_station:** a grey patch in the sky (untraced).
+- **airlock:** the newer assembly (11-15) is not accepted.
+
+## What code cannot fix
+
+- **The game plan or the concept: one has to win.** Ship plan v7 sizes (walkway, storage, shiplock, quarters) and the square's 29 m against 74 x 120 m are a design choice for the owner.
+- **Cutaway concepts and in-room film eyes cannot match.** A concept drawn as an isometric cutaway cannot be matched by an eye inside a closed room. Either the review compares from a cutaway camera with one wall hidden, or the score is capped.
+- **Layout from one isometric picture is ambiguous.** Un-projecting helps (5d), but depth order and hidden objects will stay partly wrong. The camp dome mix-up and the habitat staircases are of this kind.
+- **Library content.** Wall kits, new finishes and crater terrain must be added to score_lib before code can lay them.
+- **Remakes.** Wrongly made models (wreck rear, workshop monitors, flat door, comm mast, railings) are remakes, which may be paid.
+- **People and crowds** depend on the people layer and accepted assemblies (square, hangar, lab, tube, wreck, workshop, old_station).
+
+## Verdict
+
+The scenes are not close. The mean is 2.2/10, and no place reads as its concept. The individual models are often fair. What fails is the scaffolding:
+- the shell is the wrong size and shape and its walls are bare (1, 2);
+- things are shrunk to fit (3);
+- key rows are dropped or doubled at reading (4);
+- placement ignores what joins and holds what (5).
+
+Fixing 3, 4, 6, 10 and 11 is days of mostly small code and would raise the still scores clearly, to a guess of about 3.5–4. Getting near the concepts also needs 1, 2 and 5a. Those are the big items: shell shapes, a wall kit from the library, and connectors. Two choices are the owner's first: whether the ship plan or the concept wins, and how a cutaway concept is reviewed against a film eye.
