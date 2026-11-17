@@ -5,6 +5,11 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
     ~/.farm-factory-props/env/bin/python route_build.py <made body.glb> <made rig.npz> <base.npz> <out.glb>
         [--face made|drawn] [--old <old body.glb>] [--correctives <correctives.npz>] [--base under|shell]
         [--labels under|shell] [--no-cut] [--no-under] [--shapes 24]
+    ~/.farm-factory-props/env/bin/python route_build.py <routed body.glb> <rig.npz> <base.npz> <out.glb> --rebind
+
+`--rebind` weights a body this route already built again with this code's bind (`rebind`: the bare arms, the
+garments by limb with no new cut, the bands), its points, triangles, shapes and clips as they are: a fix of the bind
+reaches a made body with no paid re-make (the body row's output holds its rig.npz and checks/base.npz).
 
 - the garments bound by limb on the base, the arm and leg webs cut and closed (route_bind.py), then eased onto the
   hard and skin parts next to them, which take no correctives there (`garment_bind`, `clip_offsets`);
@@ -20,7 +25,8 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
   side shows cloth, not the inside of the suit, only where it lies under the cloth (`--no-under` leaves it out).
 
 Hard parts, hands and hair keep their made weights (one joint each), but a boot's shaft, graded from its foot onto its
-shin round the ankle (`shafted`), with the cloth eased onto it. The far body is copied as it is.
+shin round the ankle (`shafted`), with the cloth eased onto it, and a bare arm, weighted by limb from the base up to
+its wrist (`armed_skin`). The far body is copied as it is.
 """
 import argparse
 import json
@@ -55,6 +61,13 @@ NODE = "work"
 # The body drawn under the cut webs (under_layer): base points this close to a web point's bind place, set this far in.
 UNDER_REACH = 0.09
 UNDER_INSET = 0.003
+# A bare arm rides its hand only past the wrist (#129, 2026-11-17): prop_parts names every skin part below the head
+# skin_hands and prop_build rides it rigidly on its hand, so a short sleeve's bare arm swung from the shoulder with
+# the hand, and skin_share eased the sleeve and the shoulder within EASE_REACH of it onto that hand: the stairwell
+# woman's tee held upper-arm points 1.0 on RightHand and tore 2.3 % at the shoulders walking. A skin_hands point takes
+# its arm's weights from the base by limb as a sleeve does (`armed_skin`), graded onto its rigid hand over the
+# WRIST_BLEND metres before its wrist joint, wholly the hand past it (a hand alone stays as it was).
+WRIST_BLEND = 0.04
 _BYTES = {glb.FLOAT: 4, glb.UNSIGNED_BYTE: 1, glb.UNSIGNED_SHORT: 2, glb.UNSIGNED_INT: 4}
 _WIDTH = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
 
@@ -131,6 +144,30 @@ def name_of(document, surface):
 
 
 # --- the garments bound by limb -------------------------------------------------------------------------------------
+
+def armed_skin(points, faces, base_points, base_faces, base_weights, names, bind):
+    """A skin_hands part's weights: its side's arm's from the base by limb (route_bind, smoothed along its own edges,
+    kept to the arm's chain and shoulder), graded onto its rigid hand from WRIST_BLEND before the wrist joint."""
+    side = "Left" if points[:, 0].mean() > 0 else "Right"
+    hand, forearm = names.index(f"{side}Hand"), names.index(f"{side}ForeArm")
+    regions = np.full(len(points), route_bind.REGIONS.index(f"{side}Arm"))
+    bound = route_bind.bound_by_region(points, regions, base_points, base_faces, base_weights, names)
+    weights = route_bind.kept_to_limb(route_bind.smoothed(bound.carried(base_weights), route_bind.edges_of(faces)),
+                                      regions, names)
+    wrist, along = bind[hand, :3, 3], bind[hand, :3, 3] - bind[forearm, :3, 3]
+    share = np.clip((points - wrist) @ (along / np.linalg.norm(along)) / WRIST_BLEND + 1.0, 0.0, 1.0)[:, None]
+    rigid = np.zeros_like(weights)
+    rigid[:, hand] = 1.0
+    return weights * (1 - share) + rigid * share
+
+
+def armed_hands(document, surfaces, base_points, base_faces, base_weights, names, bind):
+    """Every skin_hands surface weighted again by armed_skin (in place)."""
+    for surface in surfaces:
+        if name_of(document, surface) == "skin_hands":
+            surface.weights = armed_skin(surface.points, surface.faces, base_points, base_faces, base_weights, names,
+                                         bind)
+
 
 def welding(garments):
     """The garments' points welded where their borders meet: each point's welded number, the welded places and
@@ -570,6 +607,45 @@ def written(path, document, blob, old_document, old_blob, old_head, surfaces, sh
     return glb.write(path, out, contents)
 
 
+def rebind(options):
+    """A routed body's weights made again (module docstring, `--rebind`), written over its own JOINTS_0 and
+    WEIGHTS_0 into `options.out`: the record of what moved."""
+    document, blob = joins.read_glb(options.made)
+    rig, base = np.load(options.rig), np.load(options.base)
+    names, bind = skin_names(document), bind_of(document, blob)
+    parents = np.asarray(rig["parents"])
+    surfaces = surfaces_of(document, blob, body_node(document))
+    before = [surface.weights.copy() for surface in surfaces]
+    base_points = base[f"{options.base_body}_points"]
+    garments = [surface for surface in surfaces if role_of(document, surface) == pokes.GARMENT]
+    armed_hands(document, surfaces, base_points, base["faces"], base["weights"], names, bind)
+    welded = garment_bind(garments, base[f"{options.labels}_points"], base_points, base["faces"], base["weights"],
+                          names, bind, False, hard_points(document, surfaces, names), skin_points(document, surfaces),
+                          parents, shaft_tops(document, surfaces, names, bind))
+    for surface, start in zip(garments, welded["starts"]):
+        surface.weights = welded["weights"][welded["numbers"][start:start + len(surface.points)]]
+    bands_rebound(document, [surface for surface in surfaces if surface not in garments], garments, parents)
+    data = bytearray(pathlib.Path(options.made).read_bytes())
+    chunk = 20 + int.from_bytes(data[12:16], "little") + 8
+    node = next(found for found in document["nodes"] if found.get("name") == body_node(document))
+    for primitive, surface in zip(document["meshes"][node["mesh"]]["primitives"], surfaces):
+        joints, weights = strongest(surface.weights)
+        for name, values in (("JOINTS_0", joints), ("WEIGHTS_0", weights)):
+            found = document["accessors"][primitive["attributes"][name]]
+            view = document["bufferViews"][found["bufferView"]]
+            kind = np.dtype(joins._COMPONENTS[found["componentType"]])
+            if view.get("byteStride", kind.itemsize * 4) != kind.itemsize * 4:
+                raise SystemExit(f"{options.made}: {name} is interleaved; rebind writes packed weights only")
+            start = chunk + view.get("byteOffset", 0) + found.get("byteOffset", 0)
+            packed = np.ascontiguousarray(values, kind).tobytes()
+            data[start:start + len(packed)] = packed
+    pathlib.Path(options.out).write_bytes(bytes(data))
+    moved = [float(np.abs(surface.weights - old).max()) for surface, old in zip(surfaces, before)]
+    return {"out": str(options.out), "rebind": True,
+            "most_weight_moved": [[name_of(document, surface), round(change, 3)] for surface, change in
+                                  zip(surfaces, moved)]}
+
+
 # --- the build ------------------------------------------------------------------------------------------------------
 
 def stacked_offsets(surfaces, clips):
@@ -643,6 +719,7 @@ def build(options):
     base_points = base[f"{options.base_body}_points"]
     garments = [surface for surface in surfaces if role_of(document, surface) == pokes.GARMENT]
     tops = shaft_tops(document, surfaces, names, bind)
+    armed_hands(document, surfaces, base_points, base["faces"], base["weights"], names, bind)
     welded = garment_bind(garments, base[f"{options.labels}_points"], base_points, base["faces"], base["weights"],
                           names, bind, not options.no_cut, hard_points(document, surfaces, names),
                           skin_points(document, surfaces), np.asarray(rig["parents"]), tops)
@@ -751,7 +828,13 @@ def main():
     parser.add_argument("--no-cut", action="store_true")
     parser.add_argument("--no-under", action="store_true", help="leave the body under the cut webs undrawn")
     parser.add_argument("--shapes", type=int, default=SHAPES)
+    parser.add_argument("--rebind", action="store_true", help="weight a routed body again, its shapes as they are")
     options = parser.parse_args()
+    if options.rebind:
+        record = rebind(options)
+        options.out.with_suffix(".json").write_text(json.dumps(record, indent=1))
+        print(f"route rebind: {options.out} (most weight moved {record['most_weight_moved']})")
+        return
     record = build(options)
     options.out.with_suffix(".json").write_text(json.dumps(record, indent=1))
     print(f"route build: {options.out} (web edges {record['web_edges']}, cut {record['cut_triangles']}, "

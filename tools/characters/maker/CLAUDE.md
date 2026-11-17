@@ -47,7 +47,9 @@ Hi3DGen hair, the depth-LoRA face, `rebuild.py`) and the prop route's own close-
   come from the row `people-clips-made` (`prop_person.clips_rig`: `prop_chain.py`'s clips step, Kimodo with
   `clips.CLIP_SEED`, then rig). The built body rebuilt on the SOMA-X base laid under its look (`route_base.py`,
   with SOMA-X's pose correctives per clip), each garment region weighted from its own limb only and the arm and leg
-  webs cut and closed (`route_bind.py`), the base drawn in the suit's cloth under the cut webs so the gap where an
+  webs cut and closed (`route_bind.py`), a bare arm (a `skin_hands` part above its wrist) weighted by limb from the
+  base, rigid on its hand only past the wrist (`route_build.armed_skin`, #129; `--rebind` re-weights a made body with
+  no paid re-make), the base drawn in the suit's cloth under the cut webs so the gap where an
   arm lifts off the side shows cloth (`route_build.py under_layer`), the head by one setting, `route_head.FACE`
   (the owner's choice, #26; until he decides `made`: the face Pixal3D made with its print from the close-up, no old
   body read; `drawn`: the made hair on the old SOMA-X head with its drawn face, `--old`), no settle shapes, the

@@ -97,7 +97,9 @@ unless named):
 - test_the_underarm_and_the_crotch_are_cut_but_the_shoulder_top_is_not: underarm_edges' `height - UNDERARM_BELOW` made
   `height + 1`.
 - test_a_cut_is_closed_on_each_side_by_its_own_fan: closed's `kept = faces[~cut]` made `faces[cut]`.
-- test_a_limb_point_keeps_only_its_chain_and_its_shoulder: kept_to_limb's zeroing of the other joints dropped.
+- test_a_limb_point_keeps_only_its_chain_and_its_shoulder: kept_to_limb's zeroing of the other joints dropped; and,
+  apart (#129, 2026-11-17, seen red), route_build.armed_skin's `share` made `np.ones` (a bare arm rigid on its hand
+  from the shoulder down, the stairwell woman's tee torn 2.3 % at the shoulders).
 - test_the_face_is_one_setting_and_keeps_the_made_face_by_default: route_build.kept_surfaces' drawn face's
   `("skin_head",)` made `()`; or samplers_of made `return document["samplers"]` (a made body with no pictures and
   the old head's pictures added stops the route: the officer, 2026-11-03).
@@ -553,6 +555,12 @@ def tube(start, end, radius, sections=24):
     return trimesh.creation.cylinder(radius=radius, segment=[start, end], sections=sections)
 
 
+def fine_tube(start, end, radius):
+    """A closed cylinder with no edge over 2 cm, so weights can be smoothed along it."""
+    found = tube(start, end, radius)
+    return trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(found.vertices, found.faces, 0.02))
+
+
 def body(arm_reach=1.0, hand_at=(0.55, 1.05), hem=None):
     """The tube body, its arms reaching from the shoulders towards `hand_at` (x, height), `arm_reach` times as far; with
     `hem`, its legs shown only under a skirt hanging from the hips to that height."""
@@ -928,6 +936,20 @@ def test_a_limb_point_keeps_only_its_chain_and_its_shoulder():
     assert np.allclose(kept[0].sum(), 1.0)
     assert np.allclose(np.delete(kept[0], allowed), 0.0)
     assert np.allclose(kept[1], weights[1])
+    joints = {"LeftArm": (0.2, 1.4), "LeftForeArm": (0.35, 1.2), "LeftHand": (0.5, 1.0)}
+    bind = np.tile(np.eye(4), (len(ROUTE_JOINTS), 1, 1))
+    for name, (across, up) in joints.items():
+        bind[ROUTE_JOINTS.index(name), :2, 3] = across, up
+    base = fine_tube((0.2, 1.4, 0.0), (0.6, 0.87, 0.0), 0.04)
+    nearest = np.linalg.norm(base.vertices[:, None, :2] - np.array(list(joints.values()))[None], axis=2).argmin(1)
+    base_weights = np.eye(len(ROUTE_JOINTS))[[ROUTE_JOINTS.index(list(joints)[number]) for number in nearest]]
+    arm = fine_tube((0.2, 1.4, 0.0), (0.6, 0.87, 0.0), 0.05)
+    armed = route_build.armed_skin(np.asarray(arm.vertices), np.asarray(arm.faces), np.asarray(base.vertices),
+                                   np.asarray(base.faces), base_weights, ROUTE_JOINTS, bind)
+    hand = armed[:, ROUTE_JOINTS.index("LeftHand")]
+    assert np.allclose(armed.sum(1), 1.0)
+    assert hand[arm.vertices[:, 1] > 1.3].max() < 0.05  # the upper arm rides its arm, not the hand
+    assert np.allclose(hand[arm.vertices[:, 1] < 0.95], 1.0)  # past the wrist, the rigid hand
 
 
 def test_the_face_is_one_setting_and_keeps_the_made_face_by_default():
