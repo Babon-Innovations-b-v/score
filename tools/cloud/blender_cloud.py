@@ -23,6 +23,7 @@ deletes the machine when the tool closes the queue or after IDLE_MINUTES with no
      "minutes": 5,   about how long it runs on the machine
      "env": "score/stages/physics/inside/newton_env.sh",   optional: the script is no Blender script but runs in the
                                     Python this script beside it builds (once) at the folder it is given
+     "code": ["tools/props/library"],   optional: repo folders sent up beside the script's own
      "bring_every": 20}             optional: its outputs also brought back every this many minutes while it runs (a
                                     long run's checkpoints kept here before its end: tools/cloud/level1)
 
@@ -130,9 +131,11 @@ def run_line(job, card):
 
 
 def shipped(jobs):
-    """The repo folders the jobs' scripts need: tools/blender/inside, each script's own folder and its env script's."""
+    """The repo folders the jobs' scripts need: tools/blender/inside, each script's own folder and its env script's,
+    and any a job names under `code` (a script that imports beyond its folder: a place film's recipes)."""
     return sorted({*ALWAYS_SHIPPED, *(str(pathlib.PurePosixPath(job[field]).parent)
-                                      for job in jobs for field in ("script", "env") if job.get(field))})
+                                      for job in jobs for field in ("script", "env") if job.get(field)),
+                   *(folder for job in jobs for folder in job.get("code", ()))})
 
 
 def plan(jobs):
@@ -499,13 +502,15 @@ def cluster_kind(jobs, kind=KIND):
     return "settle" if scripts == {SETTLE_SCRIPT} else kind
 
 
-def job_of(script, arguments, inputs, outputs, minutes, env=None):
+def job_of(script, arguments, inputs, outputs, minutes, env=None, code=()):
     """A job as this file takes it."""
     found = {"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
              "args": [str(argument) for argument in arguments],
              "inputs": [str(path) for path in inputs], "outputs": [str(path) for path in outputs], "minutes": minutes}
     if env:
         found["env"] = str(pathlib.Path(env).resolve().relative_to(REPO))
+    if code:
+        found["code"] = [str(folder) for folder in code]
     return found
 
 

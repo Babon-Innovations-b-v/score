@@ -15,7 +15,8 @@ while it runs and a held machine's chain (`Machine` on a `serve` of its queue) a
 - in `run_line`, `"FARM_CYCLES_GPU=1" if card else "FARM_CYCLES_CPU=1"` -> `"FARM_CYCLES_GPU=1"`; or in
   `script_line`, `str(pathlib.PurePosixPath(repo) / job["script"])` -> `job["script"]`; or in `shipped`,
   `{*ALWAYS_SHIPPED, *(` -> `{*(`; or in `script_line`, `if not job.get("env"):` -> `if True:`; or in `shipped`,
-  `("script", "env")` -> `("script",)`; or in `cluster_job`, `card = any(provider.cards(name) for name in classes)`
+  `("script", "env")` -> `("script",)`; or in `shipped`, drop `*(folder for job in jobs for folder in
+  job.get("code", ()))` (a place film's recipes left behind); or in `cluster_job`, `card = any(provider.cards(name) for name in classes)`
   -> `card = True`; or in `cluster_line`, `if not job.get("env"):` -> `if True:` (a Newton drop run in the blender
   image, which has no Newton); or in `run_on_cluster`, `numbers[index]` -> `index` (a failed drop reported as another
   job); or in `cluster_kind`, `return kind` for every call (settling's drops not their own kind for
@@ -266,6 +267,10 @@ def test_blender_cloud_runs_a_job_as_written(tmp_path, monkeypatch):
         assert blender_cloud.cluster_kind([job]) == kind, name
         assert blender_cloud.cloud_python(kind) == (VENV_PYTHON if kind == "settle" else blender_cloud.CLOUD_PYTHON)
     assert blender_cloud.cluster_kind(jobs) == "blender"  # with other Blender jobs, settling's are blender's
+    named = blender_cloud.job_of(blender_cloud.REPO / "score/stages/place_build/blender_views.py", ["/w/s.usda"],
+                                 ["/w/s.usda"], ["/w/out"], 4, code=["tools/props/library", "vendor/procfunc/src"])
+    assert blender_cloud.cluster_job(named, ["gpu-24gb"])["code"] == [
+        "score/stages/place_build", "tools/blender/inside", "tools/props/library", "vendor/procfunc/src"]
     images = [row[9] for row in WRITTEN]
     sent, failing = [], {"newton": [0], "blender": []}
     monkeypatch.setattr(blender_cloud, "cluster_jobs_module", lambda: type("Jobs", (), {"run": staticmethod(
