@@ -85,6 +85,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - review.projected: the up axis negated -> the plan's +z lands up, the aim's point off the middle
 - review.views_of: the plan's near cut at the floor (CUT left off) -> the plan's cut is not CUT over the floor
 - review.boxed_faults: the fault's name test inverted -> no red box on the floating crate
+- rainfall.falling: the jump back left out -> the rain is not back at its top a period on
+- ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
+- place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 """
 import json
 import pathlib
@@ -466,8 +469,36 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert marks == {"kerb": ["structure", None, False], "road": [None, None, True], "sill": ["mount", "wall:kerb", False]}
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("score:exposure").Get() == np.float32(2.5)
     assert np.allclose(moon.TransformDir(Gf.Vec3d(0, 0, -1)), (0.0, -0.5, -np.cos(np.radians(30))), atol=1e-6)
+    rained(folder)
     reviewed(folder)
     filmed(tmp_path)
+
+
+def rained(folder):
+    """The rain falls through its box from its top to the ground and back, laid as an effect; the tracks' ruts and
+    prints stand over the laid ground, the ruts between their berms."""
+    from score.stages.place_build import ground_tracks, rainfall
+    laid = place_build.rain(folder, "rain", [60.0, 60.0], [64.0, 64.0], 3.0, 2.0, seed=1)
+    tracked = place_build.tracks(folder, "ruts", rover=[[[60.5, 62.0], [63.5, 62.0]]],
+                                 boots=[[[61.0, 61.0], [63.0, 61.0]]])
+    place_build.surface(folder, "ruts", "surface/sand", colour="#8e4a2e")
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    effect = stage.GetPrimAtPath("/yard/Effects/rain")
+    fall = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Effects/rain/Fall"))
+    period = 3.0 / rainfall.FALL * rainfall.FPS
+    drops = [fall.ComputeLocalToWorldTransform(code).ExtractTranslation()[1] for code in (0.0, period - 0.02, period)]
+    streaks = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/rain/Fall/streaks")).GetPointsAttr().Get())
+    splashes = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/rain/splashes")).GetPointsAttr().Get())
+    under = place_build.ground_surface(stage, "yard", [[[60.0, 60.0], [64.0, 64.0]]])
+    ruts = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/ruts/ruts")).GetPointsAttr().Get())
+    assert laid["counts"]["streaks"] == 96 and effect.GetAttribute("score:role").Get() == "effect"
+    assert drops[0] == 0.0 and drops[1] < -2.9 and drops[2] == 0.0
+    assert streaks[:, 1].max() > 5.5 and splashes[:, 1].max() < 0.05 and streaks[:, 0].min() > 59.9
+    over = ruts[:, 1] - under(ruts[:, 0], ruts[:, 2])
+    assert np.isclose(under([62.0], [62.0])[0], place_build.ground_height(stage, "yard", 62.0, 62.0), atol=1e-4)
+    assert tracked["counts"]["prints"] == 6 and over.min() >= ground_tracks.LIFT - 1e-4
+    assert over.max() >= ground_tracks.BERM_HIGH
+    assert stage.GetPrimAtPath("/yard/Effects/ruts").GetAttribute("score:surface").Get() == "surface/sand@1"
 
 
 def reviewed(folder):

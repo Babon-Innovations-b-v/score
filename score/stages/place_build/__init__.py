@@ -80,6 +80,8 @@ GLTF_ROLES = ("gltf", "web3d")
 WORN = ("made", "suit")
 FAR = "far"
 CLIP = "standing"  # the clip a laid character is held in by default, at its start
+TRACKS = "algorithm/ground_tracks"  # the ground tracks algorithm's library address (its code: ground_tracks.py)
+RAIN = "algorithm/rain"  # the rain algorithm's library address (its code: rainfall.py)
 DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its code: dome_shell.py)
 STAIRS = "algorithm/stair_core"  # the stair core algorithm's (stair_core.py)
 
@@ -429,6 +431,84 @@ def dome(folder, name, radius, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), meridia
     return {"name": name, "address": address, "usd": relative, "radius": radius, **sizes}
 
 
+def rain(folder, name, low, high, height, density, seed=0, address=RAIN):
+    """The rain algorithm's rain (rainfall.py) over the box from `low` to `high` ([x, z] metres on the ground) up to
+    `height`, `density` streaks a cubic metre, laid as Effects/<name> (an effect: no solid, so neither the check's
+    settle nor a walker's route reads it); its file written once under the place's assets for its sizes. A `surface`
+    gives it its look like any object's."""
+    from score.stages.place_build import rainfall
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
+        f"x{low[0]:g},{high[0]:g}_z{low[1]:g},{high[1]:g}_h{height:g}_d{density:g}_s{seed}.usdc")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    counts = None
+    if not target.exists():
+        try:
+            counts = rainfall.rain_file(target, low, high, float(height), float(density), seed=int(seed))
+        except ValueError as why:
+            raise Refused(str(why)) from why
+    stage, place = opened(folder)
+    UsdGeom.Scope.Define(stage, f"/{place}/Effects")
+    relative = laid_reference(stage, f"/{place}/Effects/{name}", folder, target, address, "effect",
+                              ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), False)
+    stage.GetPrimAtPath(f"/{place}/Effects/{name}").CreateAttribute(
+        "score:role", Sdf.ValueTypeNames.String).Set("effect")
+    saved(stage)
+    return {"name": name, "address": address, "usd": relative, "counts": counts}
+
+
+def ground_surface(stage, place, lines, margin=3.0):
+    """The laid ground's height as a function of arrays of x and z over the box round `lines` (polylines of [x, z]):
+    the highest of its faces over each spot, as ground_height reads one, found for a whole route at once by rays cast
+    down onto the ground's faces in the box."""
+    import trimesh
+    points, triangles = ground_points(stage, place)
+    spots = np.concatenate([np.asarray(line, float) for line in lines])
+    low, high = spots.min(axis=0) - margin, spots.max(axis=0) + margin
+    inside = ((points[:, 0] >= low[0]) & (points[:, 0] <= high[0]) & (points[:, 2] >= low[1])
+              & (points[:, 2] <= high[1]))
+    kept = triangles[inside[triangles].any(axis=1)]
+    if not len(kept):
+        raise Refused(f"no laid ground under the tracks' box {low.tolist()} to {high.tolist()}")
+    ground = trimesh.Trimesh(points, kept, process=False)
+    top = float(points[:, 1].max()) + 10.0
+
+    def height_at(xs, zs):
+        xs, zs = np.asarray(xs, float), np.asarray(zs, float)
+        starts = np.column_stack([xs, np.full(len(xs), top), zs])
+        hits, rays, _ = ground.ray.intersects_location(starts, np.tile([0.0, -1.0, 0.0], (len(xs), 1)))
+        heights = np.full(len(xs), np.nan)
+        np.fmax.at(heights, rays, hits[:, 1])
+        if np.isnan(heights).any():
+            missing = np.flatnonzero(np.isnan(heights))
+            raise Refused(f"no laid ground under {xs[missing[0]]:.2f}, {zs[missing[0]]:.2f}")
+        return heights
+    return height_at
+
+
+def tracks(folder, name, rover=(), boots=(), seed=0, address=TRACKS):
+    """The ground tracks algorithm's ruts and prints (ground_tracks.py) along `rover` and `boots` polylines ([[x, z],
+    ...] each) over the laid ground, laid as Effects/<name> (a decal of relief: no solid, so neither the check's settle
+    nor a walker's route reads it); its file written under the place's assets, named by its lines' hash."""
+    import hashlib
+    from score.stages.place_build import ground_tracks
+    stage, place = opened(folder)
+    key = hashlib.sha256(json.dumps([rover, boots, seed]).encode()).hexdigest()[:12]
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / f"tracks_{key}.usdc"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        counts = ground_tracks.tracks_file(target, rover, boots, ground_surface(stage, place, list(rover) + list(boots)),
+                                           seed=int(seed))
+    except ValueError as why:
+        raise Refused(str(why)) from why
+    UsdGeom.Scope.Define(stage, f"/{place}/Effects")
+    relative = laid_reference(stage, f"/{place}/Effects/{name}", folder, target, address, "effect",
+                              ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), False)
+    stage.GetPrimAtPath(f"/{place}/Effects/{name}").CreateAttribute(
+        "score:role", Sdf.ValueTypeNames.String).Set("effect")
+    saved(stage)
+    return {"name": name, "address": address, "usd": relative, "counts": counts}
+
+
 def cap_key(cap):
     """A tunnel cap's part of its file's name: `_c<width>,<height>`, or `_o<hash>` of a door's outline points."""
     import hashlib
@@ -625,7 +705,8 @@ def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
 
 
 def object_prim(stage, place, name):
-    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    """The laid object `name`: under Objects, else an effect under Effects (the rain)."""
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}") or stage.GetPrimAtPath(f"/{place}/Effects/{name}")
     if not prim:
         raise Refused(f"the scene holds no object {name}")
     return prim

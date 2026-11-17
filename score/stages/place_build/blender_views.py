@@ -299,8 +299,18 @@ def with_thin_glass(haze):
         ground = bpy.data.objects.get(GROUND)
         if ground is not None and ground.type == "MESH":
             displaced(ground)
+        hazy(objects)
         return haze(objects)
     return drawn
+
+
+def hazy(objects):
+    """A review picture of a place holding a haze body drawn at the films' samples (usd_views.CARD_SAMPLES), not the
+    review's: a night street's haze lit by its many lamps came out as dark blotches over every wall and slab behind it
+    once denoised at the review's 16 (#128, 2026-11-17, the street's cafe view: flat walls kept the blotches, the haze
+    taken out lost them, the light tree off left them grainy, 64 samples drew them clean)."""
+    if any(item.type == "MESH" and usd_views.score_value(item, "haze_density") is not None for item in objects):
+        bpy.context.scene.cycles.samples = max(bpy.context.scene.cycles.samples, usd_views.CARD_SAMPLES)
 
 
 usd_views.import_stage = with_laid_ground(usd_views.import_stage)

@@ -105,6 +105,11 @@ def numbers(text):
     return [float(value) for value in text.split(",")]
 
 
+def lines_of(given):
+    """Polylines from 'x,z;x,z;...' texts."""
+    return [[numbers(spot) for spot in line.split(";")] for line in given]
+
+
 def scale_of(text):
     values = numbers(text)
     return values * 3 if len(values) == 1 else values
@@ -161,6 +166,11 @@ def run(args):
         return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
                                   args.mirror, curtain=args.curtain, cut=args.cut,
                                   one_block=args.one_block)
+    if args.step == "tracks":
+        return place_build.tracks(args.folder, args.name, lines_of(args.rover), lines_of(args.boots), args.seed)
+    if args.step == "rain":
+        return place_build.rain(args.folder, args.name, numbers(args.low), numbers(args.high), args.height,
+                                args.density, args.seed)
     if args.step == "ground":
         return place_build.ground(args.folder, args.name, args.radius, numbers(args.at))
     if args.step == "terrain":
@@ -277,6 +287,20 @@ def parser():
     step.add_argument("--curtain", action="store_true")
     step.add_argument("--cut", action="store_true")
     step.add_argument("--one-block", action="store_true")
+    step = steps.add_parser("rain")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--low", required=True, help="x,z of the box's near corner")
+    step.add_argument("--high", required=True, help="x,z of the box's far corner")
+    step.add_argument("--height", type=float, required=True)
+    step.add_argument("--density", type=float, required=True, help="streaks a cubic metre")
+    step.add_argument("--seed", type=int, default=0)
+    step = steps.add_parser("tracks")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--rover", action="append", default=[], help="a rover's line: x,z;x,z;...")
+    step.add_argument("--boots", action="append", default=[], help="a walker's line: x,z;x,z;...")
+    step.add_argument("--seed", type=int, default=0)
     step = steps.add_parser("ground")
     step.add_argument("folder")
     step.add_argument("name")
