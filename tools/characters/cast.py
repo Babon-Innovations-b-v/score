@@ -249,6 +249,10 @@ def held_still(stage, path, asset, clip, start_seconds):
     pose.CreateRotationsAttr(source.GetRotationsAttr().Get(time))
     pose.CreateTranslationsAttr(source.GetTranslationsAttr().Get(time))
     pose.CreateScalesAttr(source.GetScalesAttr().Get(time))
+    shapes = source.GetBlendShapesAttr().Get()
+    if shapes:  # the clip's correctives at that time, or the garments tear where a joint bends (the shoulders)
+        pose.CreateBlendShapesAttr(shapes)
+        pose.CreateBlendShapeWeightsAttr(source.GetBlendShapeWeightsAttr().Get(time))
     skeleton = stage.OverridePrim(f"{path}/Turned/Skeleton")
     skeleton.CreateRelationship("skel:animationSource").SetTargets([pose.GetPath()])
 
