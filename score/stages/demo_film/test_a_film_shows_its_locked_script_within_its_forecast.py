@@ -859,12 +859,20 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     person = {"points": np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]])}
     assert peel.underfoot(np.array([floor, roof, wall], dtype=float), [person]).tolist() == [floor], "level, below heads"
 
-    # a walker peel in its place: the camera closes in over the first sixth and pulls back over the last, the wipes in
-    # the close-up; down a corridor it looks along it from a start with room, never through a wall, its sight line
+    # a walker peel in its place: the camera zooms in over ZOOM_SECONDS and holds close to the end, each pass shown for
+    # its WALKER_HOLDS (the player model's after the zoom), the arrows fading in with the sim body; down a corridor it looks along it from a start with room, never through a wall, its sight line
     # clear, and a walker boxed in tight is refused; only the passes a frame shows are drawn; the sim body layer is
     # retimed onto the place's time codes
     near = peel.closeness(120)
-    assert near[0] == near[-1] == 0.0 and (near[20:100] == 1.0).all() and 0.0 < near[10] < 1.0
+    zoom = round(peel.ZOOM_SECONDS * peel.RATE)
+    assert near[0] == 0.0 and (near[zoom:] == 1.0).all() and 0.0 < near[zoom // 2] < 1.0
+    ends, count = peel.walker_ends(), round(peel.WALKER_SECONDS * peel.RATE)
+    holds = [peel.ZOOM_SECONDS + peel.WALKER_HOLDS["dressed"], peel.WALKER_HOLDS["mesh"], peel.WALKER_HOLDS["sim"]]
+    assert np.diff([0, *ends, count]).tolist() == [hold * peel.RATE for hold in holds], ends
+    settled = round(ends[-1] + peel.WIPE_SECONDS * peel.RATE)
+    assert all(peel.stage_of(frame, count, ends)[:2] == (2, 2) for frame in range(settled, count))
+    fade = peel.arrow_fade(count, ends)
+    assert fade[round(ends[0])] == 0.0 and fade[-1] == 1.0
     assert peel.needed(60, 120) == ["mesh"] and peel.needed(40, 120) == ["dressed", "mesh"]
     assert np.allclose(peel.lerped(np.array([[0.0], [2.0]]), np.array([0.25, 1.0])), [[0.5], [2.0]])
     for name, (low, high), ends, speed, refused in WALKER_ROOMS:
