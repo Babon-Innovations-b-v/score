@@ -99,6 +99,10 @@ stands and judges, the laid hub the hub's rows among them, every cast then laid 
 - `driven.size_over_sim`: `/ float(body["size"]["of the rig"])` dropped  -> the laid hub (the 1.1 body's sim
   hips raised 10% again: feet off).
 - `driven.write_driven`: Hips' simulated translation not written  -> the laid hub (the clip's path kept).
+- `driven.write_driven`: the clip's frames after the sim's last written again  -> the laid hub (bram's hips back at
+  the clip's start after his walk).
+- `driven.drive`: its `placed` call dropped  -> the laid hub (bram walked along his path under his sim body's own
+  travel).
 - `driven.lay_sim_body`: the Turned transform not set  -> the laid hub (the sim body mirrored off the skin).
 - `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the laid hub (the skeleton turned back to its
   clip's hips).
@@ -994,8 +998,11 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
             assert case["made"] is None, name
         assert (cast.overlaps(singles, crowded), cast.checked_cast(record, singles)) == (
             case["overlapping"], case["faults"]), name
-        # the cast as cast.make writes it, read back by the counted gate's short_of and laid from
-        (folder / "cast/cast.json").write_text(json.dumps({"place": "hub", "characters": singles, "left_out": left_out,
+        # the cast as cast.make writes it, read back by the counted gate's short_of and laid from; a driven person
+        # given a path too (a scene-made walk's route), which its sim body's Hips already carry
+        walking = [dict(single, path=[single["at"], [single["at"][0] + 3.0, *single["at"][1:]]])
+                   if single["name"] in case.get("driven", {}) else single for single in singles]
+        (folder / "cast/cast.json").write_text(json.dumps({"place": "hub", "characters": walking, "left_out": left_out,
                                                             "refused": case["refused"], "crowd": crowded}))
         short = cast.short_of(json.loads((folder / "cast/cast.json").read_text()))
         assert (short == case["findings"]) if case["part"] is None else (
@@ -1054,7 +1061,9 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
             assert played.GetTranslationsAttr().Get((TOY_FRAMES - 1 - motion["start"]) * slowed)[1][0] == \
                 pytest.approx(hips_x, abs=1e-4), name
             assert played.GetTranslationsAttr().Get((TOY_FRAMES + 1 - motion["start"]) * slowed)[1][0] == \
-                pytest.approx(0.0)
+                pytest.approx(hips_x, abs=1e-4), name  # its last simulated frame held, never the clip's start
+            spot = UsdGeom.Xformable(stage.GetPrimAtPath(f"/hub/Characters/{person}")).GetOrderedXformOps()[0]
+            assert (spot.GetAttr().GetTimeSamples(), list(spot.Get())) == ([], by_name[person]["at"]), (name, person)
         for person in laid:
             assert (stage.GetPrimAtPath(f"/hub/Characters/{person}").GetCustomDataByKey("score:motion").startswith(
                 "its clip")) == (person not in case["driven"]), (name, person)

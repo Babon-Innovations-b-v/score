@@ -8,8 +8,13 @@ unmoved by it.
               against its parent's (Hips against the clip's Root), and Hips stands where the sim's stood, times the
               body's size over the size the sim body was built at (sim_bodies.json `size`: the person's own build,
               so 1, but for a sim body built at the rig's size with no built body taken); the joints
-              with no segment (SIM_LESS), every translation but Hips', the clip's blend shapes, and every frame after
-              the sim's last keep the clip's values. Started where the person's clip starts.
+              with no segment (SIM_LESS), every translation but Hips' and the clip's blend shapes keep the clip's
+              values; its last simulated frame is its last (held after it: the clip's own frames after it would
+              take the Hips back to the clip's start). Started where the person's clip starts.
+    placed    a driven person stands at its spot and turn (cast.py `placed`), never walked along its `path`: its sim
+              body ran in that frame (sim_body own_frame) and its Hips carry the walk's whole travel, so a path walked
+              under it too carried it twice (2026-11-17, camp's tunnel astronaut: its feet slid 70 cm a stance and its
+              body walked through the tunnel's wall).
     sim body  the sim-body row's layer, copied into the characters layer's assets and referenced under the person
               (<person>/SimBody, a guide) at the same start, in the skeleton's frame (the asset's Turned: the sim runs
               in the rig's own frame, which the asset turns)
@@ -169,21 +174,22 @@ def write_driven(stage, path, source, sim, single, start_frames, slowed):
     weights = animation.CreateBlendShapeWeightsAttr() if shapes else None
     if shapes:
         animation.CreateBlendShapesAttr(shapes)
-    for time in source.GetRotationsAttr().GetTimeSamples():
+    times = list(source.GetRotationsAttr().GetTimeSamples())
+    for frame in range(len(frames)):
+        time = float(frame) if frame < len(times) else times[-1]  # a clip shorter than its sim keeps its last pose
         rotations = list(source.GetRotationsAttr().Get(time))
         translations = list(source.GetTranslationsAttr().Get(time))
-        if int(round(time)) < len(frames):
-            root = np.eye(4)
-            if parents[hips] >= 0:
-                turn = rotations[parents[hips]]
-                root[:3, :3] = Rotation.from_quat([*turn.GetImaginary(), turn.GetReal()]).as_matrix()
-                root[:3, 3] = translations[parents[hips]]
-            for joint, local in driven_locals(frames[int(round(time))]["poses"], segments, parents, names, root,
-                                              size).items():
-                quat = Rotation.from_matrix(local[:3, :3]).as_quat()
-                rotations[joint] = Gf.Quatf(float(quat[3]), *map(float, quat[:3]))
-                if joint == hips:
-                    translations[joint] = Gf.Vec3f(*map(float, local[:3, 3]))
+        root = np.eye(4)
+        if parents[hips] >= 0:
+            turn = rotations[parents[hips]]
+            root[:3, :3] = Rotation.from_quat([*turn.GetImaginary(), turn.GetReal()]).as_matrix()
+            root[:3, 3] = translations[parents[hips]]
+        for joint, local in driven_locals(frames[frame]["poses"], segments, parents, names, root, size).items():
+            quat = Rotation.from_matrix(local[:3, :3]).as_quat()
+            rotations[joint] = Gf.Quatf(float(quat[3]), *map(float, quat[:3]))
+            if joint == hips:
+                translations[joint] = Gf.Vec3f(*map(float, local[:3, 3]))
+        time = float(frame)
         turns.Set(Vt.QuatfArray(rotations), (time - start_frames) * slowed)
         places.Set(Vt.Vec3fArray(translations), (time - start_frames) * slowed)
         if shapes:
@@ -203,6 +209,15 @@ def lay_sim_body(stage, path, place, name, turned, start_frames, slowed):
     UsdGeom.Xformable(prim).AddTransformOp().Set(turned)
 
 
+def stood_still(prim, single):
+    """The person's transform its spot and turn alone (cast.py `placed`), any walk's time samples cleared first: the
+    frame its sim body ran in."""
+    from pxr import UsdGeom
+    for op in UsdGeom.Xformable(prim).GetOrderedXformOps():
+        op.GetAttr().Clear()
+    layer.loaded("cast").placed(prim, single["at"], single["turn"])
+
+
 def drive(stage, path, place, single, asset, sim, start_frames, slowed):
     """The person's skeleton played from its sim body and the sim body laid beside it (when it has one); what moves
     it, for characters.json and the prim's score:motion."""
@@ -215,6 +230,7 @@ def drive(stage, path, place, single, asset, sim, start_frames, slowed):
     else:
         body = Usd.Stage.Open(str(asset))
         source = UsdSkel.Animation(body.GetPrimAtPath(f"/Character/Animations/{single['doing']}"))
+        stood_still(stage.GetPrimAtPath(path), single)
         kept = write_driven(stage, path, source, sim, single, start_frames, slowed)
         turned = UsdGeom.Xformable(body.GetPrimAtPath("/Character/Turned")).GetLocalTransformation()
         lay_sim_body(stage, path, place, single["name"], turned, start_frames, slowed)
