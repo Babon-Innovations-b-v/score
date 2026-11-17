@@ -23,7 +23,8 @@ travel is the clips' own (never a clip slid along a line).
               OVERLAP frames both hold
     measured  per stance (a foot's contact run in Kimodo's own foot_contacts) its joint's travel across the floor
               (`skate`, at most SKATE_MOST), the hips' distance from the route's line (at most ROUTE_MOST) and the body's
-              clearance from every solid between KNEE and HEAD over its ground (at least BODY_RADIUS)
+              clearance from every upright solid face between KNEE and HEAD over its ground (the route's highest within
+              GROUND_AHEAD frames, so a flight's next treads are stood on, not walked into; at least BODY_RADIUS)
 
 Kimodo runs in its own environment (tools/characters/clips/walker_route.py, free on this PC's card): this file holds
 numpy, json and math at its top so that program loads it by path; the planning reads the scene through
@@ -44,6 +45,7 @@ PIECE_FRAMES = 210  # the longest piece, 7 s (Kimodo makes at most 10 s a prompt
 LEAST_FRAMES = 45  # a shorter piece joins the one before it
 OVERLAP = 4  # frames a piece shares with the one before it, held to its pose
 TAIL = 24  # frames a piece is made past its end
+HELD_KEYS = 6  # at most this many keyframes (every other frame) hold a foot planted across a join
 HOLD = 12  # frames the walker stands at its route's start before it sets off and at its end once it has stopped
 FLAT_RELIEF = 0.02  # metres of ground change under which frames are flat (scene_clips.FLAT_RELIEF)
 FLIGHT_SLOPE = 0.15  # rise over run along the route above which a frame is on a flight
@@ -58,6 +60,8 @@ CONTACT_JOINTS = (69, 70, 71, 74, 75, 76)
 SKATE_MOST = 0.02  # metres a planted foot may travel over its stance
 ROUTE_MOST = 0.10  # metres the root may stand off its route
 BODY_RADIUS, KNEE, HEAD = 0.25, 0.3, 1.7  # cast/measure.py's body
+LEVEL = 0.7  # a face whose normal's upward share is over this is a floor or a top, not a side
+GROUND_AHEAD = 12  # frames either way over which a walker's ground is its route's highest (the next treads up)
 STANCE_LEAST = 3  # frames: a shorter contact run is no stance
 KEYS = ("local_rot_mats", "global_rot_mats", "posed_joints", "root_positions", "smooth_root_pos", "foot_contacts",
         "global_root_heading")
@@ -138,6 +142,12 @@ def pieces(roots):
             start = frame
     merged = []
     for run in runs:  # a short run joins the one before it, a climb its kind kept
+        short = LEAST_FRAMES - (run["end"] - run["start"])
+        if merged and short > 0 and run["kind"] == "walk" and merged[-1]["kind"] != "walk" and \
+                merged[-1]["end"] - merged[-1]["start"] - short >= LEAST_FRAMES and run is runs[-1]:
+            merged[-1]["end"] -= short  # the walk off a flight at the route's end is a walk: Kimodo's climb asked
+            merged.append({"start": merged[-1]["end"], "end": run["end"], "kind": "walk"})  # on to its end climbed on
+            continue  # over its floor (the stairwell's woman, 2026-11-17)
         if merged and (run["end"] - run["start"] < LEAST_FRAMES or merged[-1]["end"] - merged[-1]["start"] < LEAST_FRAMES):
             kind = merged[-1]["kind"] if merged[-1]["kind"] != "walk" else run["kind"]
             merged[-1] = {"start": merged[-1]["start"], "end": run["end"], "kind": kind}
@@ -287,23 +297,35 @@ def asked(piece, roots, headings, feet, before=None):
                       "root_positions": np.round(held["root_positions"], 5).tolist(),
                       "local_joints_rot": np.round(axis_angle(held["local_rot_mats"]), 6).tolist(),
                       "smooth_root_2d": np.round(held["smooth_root_pos"][:, [0, 2]], 5).tolist()})
+    keys = {"left": [], "right": []}  # per foot: (frame, hips in the piece's frame, SOMA77 local turns)
+    if before is not None:  # a foot planted across the join stays where it stood (the piece before's own tail)
+        tail = moved({key: before[key][start:start + TAIL] for key in KEYS}, origin, heading, inverse=True)
+        turns = axis_angle(tail["local_rot_mats"])
+        for which, channels in (("left", [0, 1, 2]), ("right", [3, 4, 5])):
+            down = np.asarray(tail["foot_contacts"])[:, channels].any(axis=1)
+            frame = OVERLAP
+            while frame < min(len(down), OVERLAP + 2 * HELD_KEYS) and down[frame] and down[OVERLAP - 1]:
+                keys[which].append((frame, tail["root_positions"][frame], turns[frame]))
+                frame += 2
     if piece["kind"] != "walk":
         first, side = (FIRST_STANCE, "right") if before is None else next_stance(before["foot_contacts"][:start + OVERLAP],
                                                                                    start + OVERLAP - 1)
         first = first - start if before is not None else first
-        falls = [(frame, which) for frame, which in stance_frames(len(span) - 8, max(first, OVERLAP + 2), side)]
-        for which in ("left", "right"):
-            mine = [frame for frame, foot in falls if foot == which][:MOST_KEYFRAMES]
-            if not mine:
+        taken = {frame for side_keys in keys.values() for frame, _, _ in side_keys}
+        for frame, which in stance_frames(len(span) - 8, max(first, OVERLAP + 2), side):
+            if frame in taken:
                 continue
             column = 0 if which == "left" else 1
-            hips = np.array([[span[frame, 0], feet[start + frame, column] + HIP_OVER_SOLE, span[frame, 2]]
-                             for frame in mine])
-            poses = np.zeros((len(mine), 77, 3))
-            poses[:, 0, 1] = [turned[frame] for frame in mine]
-            found.append({"type": f"{which}-foot", "frame_indices": mine,
-                          "root_positions": np.round(to_frame(hips, origin, heading), 5).tolist(),
-                          "local_joints_rot": np.round(poses, 6).tolist()})
+            hips = [span[frame, 0], feet[start + frame, column] + HIP_OVER_SOLE, span[frame, 2]]
+            pose = np.zeros((77, 3))
+            pose[0, 1] = turned[frame]
+            keys[which].append((frame, to_frame([hips], origin, heading)[0], pose))
+    for which in ("left", "right"):
+        mine = sorted(keys[which], key=lambda key: key[0])[:MOST_KEYFRAMES]
+        if mine:
+            found.append({"type": f"{which}-foot", "frame_indices": [int(key[0]) for key in mine],
+                          "root_positions": np.round([key[1] for key in mine], 5).tolist(),
+                          "local_joints_rot": np.round([key[2] for key in mine], 6).tolist()})
     sentence = WALKING if piece["kind"] == "walk" else STAIRS[piece["kind"]]
     return {"constraints": found, "origin": origin.tolist(), "heading": heading, "frames": len(span),
             "sentence": sentence, "postprocess": piece["kind"] == "walk"}
@@ -395,10 +417,15 @@ def segment_distance(points, starts, ends):
 
 
 def clearance(points, grounds, triangles):
-    """Each point's (x, z of the body's middle) distance across the floor to the nearest solid face that reaches
-    between KNEE and HEAD over its ground (`grounds`, one a point); `triangles` n x 3 x 3; inf where none is near."""
+    """Each point's (x, z of the body's middle) distance across the floor to the nearest solid face standing upright
+    (its normal within LEVEL of level) that reaches between KNEE and HEAD over its ground (`grounds`, one a point);
+    `triangles` n x 3 x 3; inf where none is near."""
     triangles = np.asarray(triangles, dtype=float)
     found = np.full(len(points), np.inf)
+    normals = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0]) if len(triangles) else []
+    if len(triangles):  # a floor, tread or table top is stood on or reached over, never walked into: its sides are
+        upright = np.abs(normals[:, 1]) <= LEVEL * np.maximum(np.linalg.norm(normals, axis=1), 1e-12)
+        triangles = triangles[upright]
     if not len(triangles):
         return found
     low, high = triangles[:, :, 1].min(axis=1), triangles[:, :, 1].max(axis=1)
@@ -433,7 +460,8 @@ def measures(motion, roots, triangles):
     off = route_off(motion, roots)
     root = np.asarray(motion["root_positions"])
     count = min(len(root), len(roots))
-    clear = clearance(root[:count], roots[:count, 1], triangles)
+    ground = np.array([roots[max(0, frame - GROUND_AHEAD):frame + GROUND_AHEAD + 1, 1].max() for frame in range(count)])
+    clear = clearance(root[:count], ground, triangles)
     least = float(clear.min()) if len(clear) else float("inf")
     return {"stances": len(skate), "skate max": round(max(skate), 4) if skate else None,
             "skate median": round(float(np.median(skate)), 4) if skate else None,
