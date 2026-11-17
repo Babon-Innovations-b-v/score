@@ -4,7 +4,7 @@ laid place needs, made here so the films' and the physics' renders (which key us
 - **A laid ground is the ground.** Every mesh of an object the agent laid with `put --ground` (score:ground on it or
   a parent) is joined into one `Ground`, which usd_views takes as the stage's own ground: no grey plane of its own
   under it (the camp pilot's plane fought the laid regolith), and the ground left out of the objects' mask.
-- **See-through looks are thin glass.** A look with opacity under 1 (which Blender 5's reader brings in as the
+- **See-through looks are thin glass** (a rough one frosted, FROST_FROM). A look with opacity under 1 (which Blender 5's reader brings in as the
   Principled BSDF's transmission, 1 - opacity, at IOR 1.5: solid refracting glass, whose skin bends what is behind
   it and darkens the shadow it casts like a block of glass; or as its alpha) is drawn as a thin glass skin: light passes it tinted by its colour as much as it is opaque, and it gives back a Fresnel share of what
   is around it at its roughness, so a dome's glass shows what stands inside and throws only a faint shadow, never a
@@ -39,6 +39,9 @@ import usd_views  # noqa: E402
 RECIPES_AT = pathlib.Path(__file__).resolve().parents[3] / "tools/props/library/inside"
 
 GLASS_IOR = 1.5  # a thin glass look's reflection share at each angle (window glass)
+# A rough see-through look is frosted: its passing light scatters (a translucent share) as far as its roughness
+# goes from FROST_FROM to FROST_FULL, so a frosted dome reads milky and a clear one (0.05) passes straight as before.
+FROST_FROM, FROST_FULL = 0.15, 0.5
 SEE_THROUGH = ("Alpha", "Transmission Weight")  # the Principled inputs a look's opacity comes in on
 GROUND = "Ground"  # the name usd_views.stage_ground takes as the stage's own ground
 # AgX's look on the preview's views: a camera's contrast (AgX's base look is the films' flat grade, washing a pale
@@ -75,6 +78,23 @@ def joined_ground(objects):
     return [item for item in objects if item not in gone]
 
 
+def frosted(tree, tint, roughness):
+    """The light a thin glass look passes: straight through (transparent) tinted `tint`, scattered (translucent) in the
+    share its roughness frosts it (FROST_FROM to FROST_FULL)."""
+    straight = tree.nodes.new("ShaderNodeBsdfTransparent")
+    straight.inputs["Color"].default_value = tint
+    frost = min(1.0, max(0.0, (roughness - FROST_FROM) / (FROST_FULL - FROST_FROM)))
+    if frost <= 0.0:
+        return straight
+    scattered = tree.nodes.new("ShaderNodeBsdfTranslucent")
+    scattered.inputs["Color"].default_value = tint
+    mix = tree.nodes.new("ShaderNodeMixShader")
+    mix.inputs["Fac"].default_value = frost
+    tree.links.new(straight.outputs["BSDF"], mix.inputs[1])
+    tree.links.new(scattered.outputs["BSDF"], mix.inputs[2])
+    return mix
+
+
 def thin_glass(objects):
     """Every see-through look drawn as thin glass (the module's rule); the looks it changed."""
     changed = []
@@ -89,15 +109,15 @@ def thin_glass(objects):
             continue
         colour = shader.inputs["Base Color"].default_value
         output = next(node for node in tree.nodes if node.type == "OUTPUT_MATERIAL")
-        passing = tree.nodes.new("ShaderNodeBsdfTransparent")
-        passing.inputs["Color"].default_value = [1.0 - opacity * (1.0 - value) for value in colour[:3]] + [1.0]
+        tint = [1.0 - opacity * (1.0 - value) for value in colour[:3]] + [1.0]
+        passing = frosted(tree, tint, shader.inputs["Roughness"].default_value)
         mirror = tree.nodes.new("ShaderNodeBsdfGlossy")
         mirror.inputs["Roughness"].default_value = shader.inputs["Roughness"].default_value
         share = tree.nodes.new("ShaderNodeFresnel")
         share.inputs["IOR"].default_value = GLASS_IOR
         mix = tree.nodes.new("ShaderNodeMixShader")
         tree.links.new(share.outputs["Fac"], mix.inputs["Fac"])
-        tree.links.new(passing.outputs["BSDF"], mix.inputs[1])
+        tree.links.new(passing.outputs[0], mix.inputs[1])
         tree.links.new(mirror.outputs["BSDF"], mix.inputs[2])
         tree.links.new(mix.outputs["Shader"], output.inputs["Surface"])
         changed.append(material.name)
