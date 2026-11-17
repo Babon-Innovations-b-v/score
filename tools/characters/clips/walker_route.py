@@ -3,8 +3,8 @@
 
     <motion env>/bin/python walker_route.py <tree> <folder>
 
-<folder>/walkers.json is the plan (walker_route.write_plan). Kimodo's model is loaded once (people/clips.py's model,
-its fixed seed), the text encoder answered from saved embeddings when SCORE_KIMODO_EMBEDDINGS names their folder.
+<folder>/walkers.json is the plan (walker_route.write_plan). Kimodo's model is loaded once (people/clips.py's model;
+its fixed seed for the first walker, the next seed for each walker after), the text encoder answered from saved embeddings when SCORE_KIMODO_EMBEDDINGS names their folder.
 Writes per walker <folder>/motions/<clip>.npz (Kimodo's NPZ keys, in the walker's placement frame: its route's start
 at the origin, its first heading +Z, its start's ground y = 0), <folder>/joined/<clip>.npz (the scene's frame) and
 <folder>/made.json (each piece's frames, sentence and seconds taken).
@@ -42,14 +42,14 @@ plan = json.loads(walker_route.plan_file(folder).read_text())
 for name in ("motions", "joined"):
     (folder / name).mkdir(exist_ok=True)
 record = {"place": plan["place"], "model": sentences.MODEL, "seed": sentences.CLIP_SEED, "walkers": {}}
-for walker in plan["walkers"]:
+for number, walker in enumerate(plan["walkers"]):  # each walker its own seed: walkers on like routes never step as one
     roots, headings = np.asarray(walker["roots"]), np.asarray(walker["headings"])
     feet = np.asarray(walker["feet"])
     motion, made = None, []
     for piece in walker["pieces"]:
         began = time.time()
         ask = walker_route.asked(piece, roots, headings, feet, motion)
-        seed_everything(sentences.CLIP_SEED)
+        seed_everything(sentences.CLIP_SEED + number)
         output = model([ask["sentence"]], [ask["frames"]], num_denoising_steps=100, multi_prompt=True,
                        constraint_lst=load_constraints_lst(ask["constraints"], model.skeleton),
                        num_samples=1, post_processing=ask["postprocess"], return_numpy=True, progress_bar=lambda x: x)
