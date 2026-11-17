@@ -61,7 +61,7 @@ for walker in plan["walkers"]:
         made.append({**piece, "frames": ask["frames"], "sentence": ask["sentence"], "postprocess": ask["postprocess"],
                      "seconds": round(time.time() - began, 1)})
         print(walker["name"], piece, round(time.time() - began, 1), "s", flush=True)
-    motion = {key: value[:len(roots)] for key, value in motion.items()}
+    motion = walker_route.held_feet({key: value[:len(roots)] for key, value in motion.items()})
     np.savez(folder / "joined" / f"{walker['clip']}.npz", **motion)
     origin = np.array([roots[0, 0], roots[0, 1], roots[0, 2]])
     own = walker_route.moved(motion, origin, float(headings[0]), inverse=True)

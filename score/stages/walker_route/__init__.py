@@ -374,8 +374,14 @@ def anchored(motion, start):
     end = start
     while end < len(contacts) and contacts[end, channel]:
         end += 1
+    return unslipped(motion, channel, start, end)
+
+
+def unslipped(motion, channel, start, end):
+    """The motion with the whole body moved across the floor, from `start` on, by contact `channel`'s joint's slip
+    off where it stood at `start`, through `end`, the last slip held after it."""
     joint = np.asarray(motion["posed_joints"])[:, CONTACT_JOINTS[channel]]
-    slip = np.zeros((len(contacts), 3))
+    slip = np.zeros((len(joint), 3))
     slip[start:end, [0, 2]] = joint[start:end, [0, 2]] - joint[start, [0, 2]]
     slip[end:] = slip[end - 1]
     out = dict(motion)
@@ -383,6 +389,22 @@ def anchored(motion, start):
         value = np.asarray(motion[key])
         out[key] = (value - (slip[:, None] if value.ndim == 3 else slip)).astype(value.dtype)
     return out
+
+
+def held_feet(motion):
+    """The joined motion with every stance that slips over SKATE_MOST held on its spot (`unslipped` by its slipping
+    channel, the stances in order): Kimodo's post-processing leaves a stopping walker's last stance 3 to 4 cm adrift
+    (the street's walkers, 2026-11-17), and a climb has none."""
+    for _ in range(len(stances(np.asarray(motion["foot_contacts"]) > 0.5))):
+        joints = np.asarray(motion["posed_joints"])
+        over = [(start, channel, end) for channel, start, end in stances(np.asarray(motion["foot_contacts"]) > 0.5)
+                if np.linalg.norm(joints[start:end, CONTACT_JOINTS[channel]][:, [0, 2]]
+                                  - joints[start, CONTACT_JOINTS[channel]][[0, 2]], axis=1).max() > SKATE_MOST]
+        if not over:
+            break
+        start, channel, end = min(over)
+        motion = unslipped(motion, channel, start, end)
+    return motion
 
 
 # --- the measures ---------------------------------------------------------------------------------------------------

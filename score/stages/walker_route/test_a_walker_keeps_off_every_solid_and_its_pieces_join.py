@@ -2,7 +2,7 @@
 a solid than a body's radius; it is cut into pieces Kimodo can make (a climb its own piece, none longer than
 PIECE_FRAMES, together every frame once); a later piece is asked to start in the pose the one before it stood in
 (its fullbody keyframes, back in the scene's frame, are that pose), its join keeps that pose and the foot
-standing across it on its spot; and the measures
+standing across it on its spot, and a stance slipping over 2 cm is held on its spot; and the measures
 tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -13,6 +13,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.axis_angle: `angle / (2 * sin)` made `angle / sin` -> the keyframe's turns are doubled
 - walker_route.joined: the blend's weights reversed -> the join jumps
 - walker_route.anchored: the slip left unsubtracted -> the foot sliding through the join's stance still slides
+- walker_route.held_feet: `> SKATE_MOST` made `> 1.0` -> the sliding stance is left sliding
 - walker_route.skates: the travel measured from the stance's last frame -> the sliding foot reads still
 - walker_route.clearance: the band's KNEE taken off -> the floor under the walker reads a clash
 """
@@ -119,6 +120,7 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert still["within"] and still["skate max"] < 1e-6 and not slid["within"] and slid["skate over"] == 1, (still,
                                                                                                          slid)
     assert max(walker_route.skates(walker_route.anchored(synthetic(roots, headings, 0.05), 20))) < 1e-6
+    assert max(walker_route.skates(walker_route.held_feet(synthetic(roots, headings, 0.05)))) < 1e-6
     off = synthetic(roots + [0.0, 0.0, 0.2], headings)
     assert walker_route.measures(off, roots, triangles)["route off max"] > walker_route.ROUTE_MOST
     brushing = np.array([[-0.25, 0.0, -1.0]])
