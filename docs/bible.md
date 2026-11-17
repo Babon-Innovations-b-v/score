@@ -444,6 +444,13 @@ branch names a scene or a world.
   Kimodo has no ground of its own and its post-processing pulls a toe in contact back to one flat floor, so a clip
   over ground that is not flat is made without it, its skate left to the sim body's contacts. Gated on `made`, `path
   held` (hips 10 cm off the route on the mean) and `feet held` (soles 5 cm off their ground). Nothing reads it yet.
+  **A long or climbing walk is made in pieces** (`score/stages/walker_route`, #128, owner 2026-11-17: "a path finding
+  algorithm, that can splice the path into kimodo makable clips, and fills it then"): the route is the physics
+  check's (place_build/ready `route` on its walkers' floor), cut into pieces Kimodo can make (walks of at most 7 s,
+  one climb a flight, an eased start and stop), each piece made free on this PC's card from the pose the one before
+  ended in and joined over the frames both hold, so the travel is the clips' own and never a clip slid along a line.
+  Its measures: foot skate per stance at most 2 cm, the hips within 10 cm of the route, the body a body's radius
+  clear of every upright solid face. It writes the scene-clips output (cast, `scene_clips.json`, rig) sim body reads.
 - **Plants** (CONTEXT.md "plant"): every plant, on a bed or not, is a model like any other and no layer of its own;
   the crops layer, the animal rows and the video clip rows were dropped (owner, 2026-11-16, #128).
 - **The assembly** (`score/stages/assembly`): one stage per scene from every layer's accepted output (`assembly.READS`),
