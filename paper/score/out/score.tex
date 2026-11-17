@@ -132,10 +132,11 @@ to one palette per place, real terrain is read from public-domain HiRISE
 elevation data, and walkers follow routes found on the checked floor,
 generated as joined Kimodo segments and given a musculoskeletal sim
 body. On four places the method reaches 4 to 7 out of 10 against the
-concepts by its own critic, with no physics fault in any place, foot
-skate under 3 cm and route error under 7 cm for 12 of 13 walkers; every
-walker's sim body still fails the residual check at its peaks. Code:
-https://github.com/Babon-Innovations-b-v/score (MIT).
+concepts by its own critic, with no physics fault in any place, route
+error under 7 cm and foot skate under 3 cm for 12 of 13 walkers,
+although the skate of 7 of them as played exceeds the method's own 2 cm
+limit; every walker's sim body still fails the residual check at its
+peaks. Code: https://github.com/Babon-Innovations-b-v/score (MIT).
 \end{abstract}
 
 \makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
@@ -315,20 +316,21 @@ picture, is made with TRELLIS.2 {[}22{]}, an open image-to-3D model
 released under the MIT licence, from a crop of the concept cut out by
 its SAM 3 mask or from the close-up of an earlier model. The model is
 generated on the creator's own 16 GB graphics card, built from source
-with its dependencies at pinned commits, in about three minutes per prop
-under load. The new mesh is fitted over the model it replaces by quarter
-turns and one uniform scale, minimising the two-way distance between
-their point sets. Its own paint is then graded 60 percent of the way
-toward the nearest palette token, and a colour group that stays far from
-every token is reported so that the agent can repaint it from the
-library. Finally the model is made simulation-ready. CoACD {[}31{]}
-decomposes it into convex hulls for collision, its mass is the hulls'
-outer surface times the material class's sheet thickness and density,
-and friction and restitution follow the class. On six camp props the
-masses lie beside those of the earlier models (a crate of 4.0 against
-2.6 kg, a desk of 44 against 42 kg, a chair of 5.1 against 4.7 kg), but
-steel frames come out heavy, because a hull closes over a frame's gaps.
-Figure 2 compares the two routes on the same pictures.
+with its dependencies at pinned commits, in 170 to 220 s per prop under
+load, after about 80 s to load the model. The new mesh is fitted over
+the model it replaces by quarter turns and one uniform scale, minimising
+the two-way distance between their point sets. Its own paint is then
+graded 60 percent of the way toward the nearest palette token, and a
+colour group that stays far from every token is reported so that the
+agent can repaint it from the library. Finally the model is made
+simulation-ready. CoACD {[}31{]} decomposes it into convex hulls for
+collision, its mass is the hulls' outer surface times the material
+class's sheet thickness and density, and friction and restitution follow
+the class. On six camp props the masses lie beside those of the earlier
+models (a crate of 4.0 against 2.6 kg, a desk of 44 against 42 kg, a
+chair of 5.1 against 4.7 kg), but steel frames come out heavy, because a
+hull closes over a frame's gaps. Figure 2 compares the two routes on the
+same pictures.
 
 \begin{figure}
 \centering
@@ -490,32 +492,34 @@ everything is a pale beige and the lockers do not read as suit lockers,
 in campgrounds the sand ripples are too even and the sky is flat, the
 stairwell's view shows the building from outside rather than as the
 concept's cut-away and has no surroundings, and the street has boxy
-fronts with repeated windows and a garbled cafe sign. The street's late
-rain and its blotchy walls were traced to the renderer rather than to
-the scene, since the review's 16 samples denoised a lamp-lit haze into
-blotches, and reviews of places with haze now render at the films' 64
-samples.
+fronts with repeated windows and a garbled cafe sign. The street's
+missing rain was added afterwards as a code-made library effect, and its
+blotchy walls were traced to the renderer rather than to the scene,
+since the review's 16 samples denoised a lamp-lit haze into blotches;
+reviews of places with haze now render at the films' 64 samples.
 
 \textbf{Physics.} All four final scenes pass the physics-readiness check
 with no fault, including the MuJoCo settle of every prop: 711 objects in
 camp with its scattered rocks, 369 in campgrounds, 61 in the stairwell
-and 888 in the street. The check found real faults on the way, which
-were corrected at their source rather than tolerated. A laptop on a desk
-with a raised back fell 4.9 m through the desk because the settle had
-left out what held it, a walker's route through a loop collapsed to zero
-length when its legs were straightened as one path, rocks bedded deeper
-than 10 cm were read as unsupported, and the tunnel's skin had to be
-rounded to 96 points before it stopped reading as a polygon from inside.
+and 888 in the street. Building the camp also exposed faults in the
+check and the routing, which were corrected in the code rather than
+tolerated in the scene. A laptop on a desk with a raised back fell 4.9 m
+through the desk because the settle had left out what held it, a
+walker's route through a loop collapsed to zero length when its legs
+were straightened as one path, and 30 rocks bedded deeper than 10 cm
+were read as unsupported. One fault was resolved by omission rather than
+repair: a laptop model whose file leans by about 15 degrees tips in the
+settle however it is laid, and the camp leaves it out.
 
 \textbf{Walkers.} Thirteen walkers were routed and generated in the four
 places (Table 2, Figure 4). Twelve stay within 6.8 cm of their routes
 and keep at least 0.48 m from every upright solid. Eleven keep their
 planted feet within the 2 cm skate limit as Kimodo made them, and one
 street walker skates 2.9 cm; as played in the scene, foot skate reaches
-up to 2.9 cm for these twelve. The stairwell woman, who climbs the
-stair, is the exception on every measure. She strays 18 cm from her
-route, skates 3.6 cm in Kimodo's output and 4.7 cm as played, and passes
-within 0.31 m of a solid.
+up to 2.9 cm for these twelve, and 7 of them exceed the 2 cm limit. The
+stairwell woman, who climbs the stair, is the exception on every
+measure. She strays 18 cm from her route, skates 3.6 cm in Kimodo's
+output and 4.7 cm as played, and passes within 0.31 m of a solid.
 
 \begin{table}[tbp]
 \centering\small
@@ -554,7 +558,7 @@ residual check over the whole clip. The best, a street walker, holds its
 force within the limit (13 N against 15.2 N) but not its moment (13.4
 against 7.4 N m). In camp the peak residual force is 95 N against a
 limit of 5.7 N, while 74 to 87 percent of frames lie within both limits
-and the mean force is 2 to 3 N, so the failure lies in short peaks
+and the mean force is 2.4 to 3.2 N, so the failure lies in short peaks
 rather than throughout. The stairwell is far worse. The woman's peak
 reaches 1,368 N against a 15 N limit with only 39 percent of frames
 within, and in her film her sim body sinks about 17 cm. Section 6
@@ -582,12 +586,16 @@ a third of its length.}
 \end{figure}
 
 \textbf{Costs.} The four films were rendered on rented cloud graphics
-cards for about EUR 17. Everything else in this section was free. The
-building, the checks, the SAM 3 split, the TRELLIS.2 props, the walkers'
-Kimodo pieces and their sim bodies all ran on the creator's own computer
-with one 16 GB card. A TRELLIS.2 prop takes about three minutes of that
-card, against about EUR 0.22 (EUR 0.39 at the high estimate) for a model
-from the earlier paid picture-made route.
+cards for about EUR 17, by the run's own record, written while the other
+three films were being rendered again with the camp film's fixes; those
+second renders are not counted. No other step of this section rented a
+machine or bought a model call. The building, the checks, the SAM 3
+split, the TRELLIS.2 props, the walkers' Kimodo pieces and their sim
+bodies all ran on the creator's own computer with one 16 GB card, and
+the coding agents' own use is not costed here (Section 6). A TRELLIS.2
+prop takes 170 to 220 s of that card, against about EUR 0.22 (EUR 0.39
+at the high estimate) for a model from the earlier paid picture-made
+route.
 
 \section{Limitations and future work}\label{limitations-and-future-work}
 
@@ -632,11 +640,12 @@ selects only the dynamically consistent movements {[}38{]}, {[}39{]},
 {[}40{]}.
 
 \textbf{Disclosure.} The creator's locks, picks and decisions are his
-own, made in chat. Everything between them was done by coding agents,
-which placed every object of the four scenes, judged their renders and
-ran the tournament, and which wrote most of the framework's code under
-the author's direction: 4,211 of its 4,238 commits list a coding agent
-as co-author. No scene was edited by hand.
+own, given in conversation with the coding agents. Everything between
+them was done by coding agents, which placed every object of the four
+scenes, judged their renders and ran the tournament, and which wrote
+most of the framework's code under the author's direction: 4,211 of its
+4,238 commits list a coding agent as co-author. No scene was edited by
+hand.
 
 \section{Conclusion}\label{conclusion}
 
@@ -647,13 +656,14 @@ places, because the scaffolding between good models went wrong in ways
 that rules could not repair. Placing library pieces under a
 render-and-compare loop, with a physics-readiness check that refuses
 anything a simulator could not use, produced four places that read far
-closer to their concepts, with no physics fault, at a cost of about EUR
-17 in rendering. Walkers route through these scenes on checked floor
-with clips joined into one motion, and each carries a musculoskeletal
-sim body whose residual shows honestly where generated motion is not yet
-physical. That residual is now the open problem. Once generated movement
-in complete, simulable scenes passes it, such scenes can supply training
-data that recorded measurement cannot provide at scale.
+closer to their concepts, with no physics fault, at a recorded cost of
+about EUR 17 in rented rendering. Walkers route through these scenes on
+checked floor with clips joined into one motion, and each carries a
+musculoskeletal sim body whose residual shows honestly where generated
+motion is not yet physical. That residual is now the open problem. Once
+generated movement in complete, simulable scenes passes it, such scenes
+can supply training data that recorded measurement cannot provide at
+scale.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
