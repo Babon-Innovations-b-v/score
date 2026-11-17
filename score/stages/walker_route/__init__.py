@@ -20,7 +20,7 @@ travel is the clips' own (never a clip slid along a line).
               there (so positions and velocities match across the join); a piece is made TAIL frames past its end so
               its own ending never shows
     joined    the pieces back in the scene's frame, each kept up to the next one's start and blended into it over the
-              OVERLAP frames both hold
+              OVERLAP frames both hold, the foot standing across the join kept on its spot (`anchored`)
     measured  per stance (a foot's contact run in Kimodo's own foot_contacts) its joint's travel across the floor
               (`skate`, at most SKATE_MOST), the hips' distance from the route's line (at most ROUTE_MOST) and the body's
               clearance from every upright solid face between KNEE and HEAD over its ground (the route's highest within
@@ -358,6 +358,30 @@ def joined(before, made, start):
                 blend /= np.linalg.norm(blend, axis=-1, keepdims=True)
         out[key] = np.concatenate([np.asarray(before[key][:start]), blend.astype(old.dtype),
                                    np.asarray(made[key][OVERLAP:])])
+    return anchored(out, start)
+
+
+def anchored(motion, start):
+    """The joined motion with the stance standing across the join at `start` kept where it stood: from the join on,
+    the whole body moved across the floor (positions only, so its pose is untouched) by the planted foot's slip off
+    the spot it stood on at the join, through that stance, the last slip held after it. Kimodo holds the join's
+    keyframes only loosely without its post-processing (a climb's): the stairwell's woman slid 5 cm through her first
+    tread's join (2026-11-17)."""
+    contacts = np.asarray(motion["foot_contacts"]) > 0.5
+    if start >= len(contacts) or not contacts[start].any():
+        return motion
+    channel = int(np.flatnonzero(contacts[start])[-1])
+    end = start
+    while end < len(contacts) and contacts[end, channel]:
+        end += 1
+    joint = np.asarray(motion["posed_joints"])[:, CONTACT_JOINTS[channel]]
+    slip = np.zeros((len(contacts), 3))
+    slip[start:end, [0, 2]] = joint[start:end, [0, 2]] - joint[start, [0, 2]]
+    slip[end:] = slip[end - 1]
+    out = dict(motion)
+    for key in ("posed_joints", "root_positions", "smooth_root_pos"):
+        value = np.asarray(motion[key])
+        out[key] = (value - (slip[:, None] if value.ndim == 3 else slip)).astype(value.dtype)
     return out
 
 
