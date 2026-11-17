@@ -22,7 +22,7 @@ travel is the clips' own (never a clip slid along a line).
     joined    the pieces back in the scene's frame, each kept up to the next one's start and blended into it over the
               OVERLAP frames both hold
     measured  per stance (a foot's contact run in Kimodo's own foot_contacts) its joint's travel across the floor
-              (`skate`, at most SKATE_MOST), the root's distance from the route (at most ROUTE_MOST) and the body's
+              (`skate`, at most SKATE_MOST), the hips' distance from the route's line (at most ROUTE_MOST) and the body's
               clearance from every solid between KNEE and HEAD over its ground (at least BODY_RADIUS)
 
 Kimodo runs in its own environment (tools/characters/clips/walker_route.py, free on this PC's card): this file holds
@@ -369,9 +369,20 @@ def skates(motion):
 
 
 def route_off(motion, roots):
-    """The root's distance on the floor from the route walked frame by frame (m, each frame)."""
-    count = min(len(motion["smooth_root_pos"]), len(roots))
-    return np.linalg.norm(np.asarray(motion["smooth_root_pos"])[:count, [0, 2]] - roots[:count, [0, 2]], axis=1)
+    """The hips' distance on the floor from the route (m, each frame): to the nearest point of the route's line,
+    looked for along the stretch walked within a second of that frame (so a stretch passing near another is never
+    taken for it). The hips, not Kimodo's smoothed root, whose filter drifts up to 10 cm in a clip's last frames
+    while the hips stand still (camp's walkers, 2026-11-17)."""
+    root = np.asarray(motion["root_positions"])[:, [0, 2]]
+    line = np.asarray(roots)[:, [0, 2]]
+    found = np.zeros(len(root))
+    for frame, point in enumerate(root):
+        low, high = max(0, frame - RATE), min(len(line) - 1, frame + RATE)
+        if high <= low:
+            found[frame] = float(np.linalg.norm(point - line[low]))
+            continue
+        found[frame] = float(segment_distance(point[None], line[low:high], line[low + 1:high + 1]).min())
+    return found
 
 
 def segment_distance(points, starts, ends):
@@ -420,7 +431,7 @@ def measures(motion, roots, triangles):
     clearance from every solid, with whether each is within its limit."""
     skate = skates(motion)
     off = route_off(motion, roots)
-    root = np.asarray(motion["smooth_root_pos"])
+    root = np.asarray(motion["root_positions"])
     count = min(len(root), len(roots))
     clear = clearance(root[:count], roots[:count, 1], triangles)
     least = float(clear.min()) if len(clear) else float("inf")
