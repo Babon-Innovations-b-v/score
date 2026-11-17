@@ -270,8 +270,9 @@ def glazed(holes, middle_z, pane=PANE):
 
 def block(storeys, inner, way):
     """A flats' block beside the shaft, its inner side at x `inner` (the shaft's side wall's outer face) and BLOCK
-    wide `way` from it: its facade with windows, outer side and back walls, a floor each storey and its roof:
-    [(part, (points, faces))]."""
+    wide `way` from it: its facade with windows, outer side and back walls, a floor each storey, its roof and the
+    corner pier closing the facade onto the shaft's side wall (without it a slot WALL wide and FACADE deep stood
+    open the building's full height; owner, 2026-11-17: "big ass gap in the corner"): [(part, (points, faces))]."""
     high = top(storeys) + SLAB
     near, far = sorted((inner, inner + way * BLOCK))
     outer = (far, far + WALL) if way > 0 else (near - WALL, near)
@@ -282,6 +283,8 @@ def block(storeys, inner, way):
                ("block", box((min(near, outer[0]), high - SLAB, -FACADE), (max(far, outer[1]), high, DEEP + WALL)))]
     pieces += [("block", box((near, storey * STOREY - SLAB, -FACADE + WALL), (far, storey * STOREY, DEEP)))
                for storey in range(1, storeys + 1)]
+    pier = sorted((inner, inner - way * WALL))  # the shaft's side wall carried out to the facade's front
+    pieces.append(("block", box((pier[0], 0.0, -FACADE), (pier[1], high, 0.0))))
     return pieces + glazed(holes, -FACADE + WALL / 2)
 
 
@@ -419,5 +422,5 @@ def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_bloc
         + ([] if one_block else block(storeys, LONG + WALL, 1)) \
         + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces
-    dome_shell.written(path, "stair_core", [outward(piece) for piece in pieces])
+    dome_shell.written(path, "stair_core", [outward(piece) for piece in pieces], flat=True)
     return doorways(storeys)

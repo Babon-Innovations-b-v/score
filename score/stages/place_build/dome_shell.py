@@ -263,9 +263,24 @@ def plinth(radius, openings=(), high=BASE_HIGH, wide=BASE_WIDE):
     return made
 
 
-def written(path, root_name, pieces):
+def face_normals(points, faces):
+    """Each face's unit normal (Newell's, so an ear-clipped outline's triangles and a quad read alike) at each of its
+    corners: the faceVarying normals of a flat-shaded mesh."""
+    corners = np.asarray(points, dtype=float)
+    found = []
+    for face in faces:
+        ring = corners[face]
+        normal = np.cross(ring, np.roll(ring, -1, axis=0)).sum(axis=0)
+        length = np.linalg.norm(normal)
+        found += [tuple(map(float, normal / length if length > 1e-12 else (0.0, 1.0, 0.0)))] * len(face)
+    return found
+
+
+def written(path, root_name, pieces, flat=False):
     """`pieces` [(part name, (points, faces))] written at `path` as /<root_name> (y up, metres) with one mesh `geo`,
-    each piece a named part; the path."""
+    each piece a named part; the path. `flat` writes each face's own normal at its corners (a box-built structure:
+    with no normals a renderer shades it smooth, each box's faces bending to its corners, so a floor of slabs reads
+    as pillowed tiles and a wall of columns as bright seams; owner, 2026-11-17)."""
     stage = Usd.Stage.CreateNew(str(path))
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -283,6 +298,9 @@ def written(path, root_name, pieces):
     mesh.CreateFaceVertexIndicesAttr([index for face in faces for index in face])
     mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
     mesh.CreateDoubleSidedAttr(True)
+    if flat:
+        mesh.CreateNormalsAttr(Vt.Vec3fArray([Gf.Vec3f(*normal) for normal in face_normals(points, faces)]))
+        mesh.SetNormalsInterpolation(UsdGeom.Tokens.faceVarying)
     for part, part_faces in parts.items():
         UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face, part_faces, "materialBind",
                                         UsdGeom.Tokens.nonOverlapping)

@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -75,6 +75,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.holed: the holes left out -> the back wall stands in the flat's doorway
 - stair_core.core: the front kept when `cut` -> the cut-away still stands behind its front wall
 - stair_core.core: the second block kept with `one_block` -> a flats' block stands past the shaft's far wall
+- stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
+- dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
 - render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
@@ -434,6 +436,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert not in_front.any(), cut[in_front][:3]  # the cut-away holds no front wall over its open front
     standing = cut[cut[:, 1] > 0.5]  # one block: nothing stands past the shaft's far wall, the entrance's block kept
     assert standing[:, 0].max() <= stair_core.LONG + stair_core.WALL + 1e-6 and standing[:, 0].min() < -stair_core.BLOCK
+    corner = np.isclose(cut, (0.0, 0.0, -stair_core.FACADE), atol=1e-6).all(axis=1)  # the pier's foot at the facade
+    cut_mesh = UsdGeom.Mesh(cut_stage.GetPrimAtPath("/stair_core/geo"))
+    flat = np.asarray(cut_mesh.GetNormalsAttr().Get())
+    assert corner.any() and cut_mesh.GetNormalsInterpolation() == UsdGeom.Tokens.faceVarying \
+        and len(flat) == sum(cut_mesh.GetFaceVertexCountsAttr().Get()) and np.allclose(np.linalg.norm(flat, axis=1), 1.0)
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
