@@ -244,6 +244,12 @@ SOURCE_FRAMES = [(5.0, 30.0, 150, 149), (5.5, 30.0, 150, "refused: outlasts")]
 # (its clip, where its points go from the bind): the bare mesh is the rig's points carried by its clip and weights.
 SKINS = [("still", [0.0, 0.0, 0.0]), ("step", [0.0, 0.0, 1.0])]
 
+# A walker peel's room (WALKER_ROOMS: its name, the walls either side across z, its ends along x where it is closed
+# (and roofed at 2 m), the walker's metres a frame along x, refused): down a corridor the camera finds room along it;
+# in a tight closed box none, nor in a slot whose walls stand nearer an eye than its clearance.
+WALKER_ROOMS = [("a corridor", (-1.2, 1.2), None, 0.1, False), ("a tight box", (-0.6, 0.6), (-0.8, 1.5), 0.01, True),
+                ("a slot", (-0.2, 0.2), None, 0.1, True)]
+
 
 def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatch, still_film, small_cut):
     """One world (a cockpit home holding TOUR locked, a fogged hall's stage, a yard's, a plain, a fogged and a glassed
@@ -386,7 +392,10 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     its officer and pilot), refused by name where none does. Its forecast prices each pass's frame as a measured film
     frame, a fogged stage's passes high, its high never under its cards' own time; the fogged hall's place peel is made
     from its finished stage, its frames dealt over the forecast's cards, each slice its own frames into its own folder,
-    all joined, and judged on its film.
+    all joined, and judged on its film. A walker peel in its place (WALKER_ROOMS) closes in and pulls back with its
+    wipes in the close-up, looks down a corridor from a start with room for it, never through a wall, refuses a walker
+    boxed in or in a slot narrower than an eye's clearance, draws only the passes a frame shows, and shows the sim
+    body layer on the place's time codes.
 
     Break: score/stages/demo_film/final.py: `for kind in ("black", "frozen"))` -> `for kind in ("black", "black"))`
         -> a still card fails the gate as frozen; or `            if not any(start - 1e-3` -> `            if True or not
@@ -420,7 +429,14 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/final.py: `MADE = (*WORDS, WALK, STILL, *RECORDED, *PEELS)` -> `MADE = (*WORDS,
         WALK, STILL, *RECORDED)`
     Break: score/stages/demo_film/peel.py: `return triangles[level & (lengths > 0) & (triangles[:, :, 2].max(axis=1)
-        < top)]` -> `return triangles[level & (lengths > 0)]`"""
+        < top)]` -> `return triangles[level & (lengths > 0)]`
+    Break: score/stages/demo_film/peel.py: `if sighted(scenes, aims, eyes, way):` -> `if True:` (an eye in the slot)
+    Break: score/stages/demo_film/peel.py: `share = np.clip(np.minimum(frames, count - 1 - frames) / ramp, 0.0, 1.0)`
+        -> `share = np.ones(count)`
+    Break: score/stages/demo_film/peel.py: `return [passes[shown]] if coming == shown or share <= 0 else` -> `return
+        list(passes) if True else`
+    Break: score/stages/demo_film/peel.py: `"sim_timed.usda", scene_rate / record_rate` -> `"sim_timed.usda",
+        record_rate / scene_rate`"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -656,6 +672,7 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     # (and whom its peel leaves out: a person with no dressed body is left out where a bodies gap names them, refused
     # by name where none does)
     import numpy as np
+    import trimesh
     from score.stages import sim_body
     from score.stages.demo_film import peel, peel_rows
     people = tmp_path / "people"
@@ -832,6 +849,49 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     wall = [[0, 0, 0], [1, 0, 0], [0, 0, 2]]
     person = {"points": np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]])}
     assert peel.underfoot(np.array([floor, roof, wall], dtype=float), [person]).tolist() == [floor], "level, below heads"
+
+    # a walker peel in its place: the camera closes in over the first sixth and pulls back over the last, the wipes in
+    # the close-up; down a corridor it looks along it from a start with room, never through a wall, its sight line
+    # clear, and a walker boxed in tight is refused; only the passes a frame shows are drawn; the sim body layer is
+    # retimed onto the place's time codes
+    near = peel.closeness(120)
+    assert near[0] == near[-1] == 0.0 and (near[20:100] == 1.0).all() and 0.0 < near[10] < 1.0
+    assert peel.needed(60, 120) == ["mesh"] and peel.needed(40, 120) == ["dressed", "mesh"]
+    assert np.allclose(peel.lerped(np.array([[0.0], [2.0]]), np.array([0.25, 1.0])), [[0.5], [2.0]])
+    for name, (low, high), ends, speed, refused in WALKER_ROOMS:
+        walked = np.stack([np.array([[speed * frame, 0.0, 0.0], [speed * frame, 1.8, 0.0]]) for frame in range(72)])
+        walls = [trimesh.creation.box(bounds=[[-20.0, 0.0, side], [20.0, 3.0, side + 0.3 * sign]])
+                 for side, sign in ((low, -1.0), (high, 1.0))]
+        walls += [trimesh.creation.box(bounds=[[ends[0], 2.0, -5.0], [ends[1], 2.3, 5.0]])] + [
+            trimesh.creation.box(bounds=[[end, 0.0, -5.0], [end + 0.3 * sign, 3.0, 5.0]])
+            for end, sign in zip(ends, (-1.0, 1.0))] if ends else []
+        floor = trimesh.creation.box(bounds=[[-30.0, -0.1, -30.0], [30.0, 0.0, 30.0]])
+        scenes = peel.camera_paths.scenes_of({str(number): wall for number, wall in enumerate(walls)}, floor,
+                                             lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+        if refused:
+            with pytest.raises(ValueError, match="no start and way"):
+                peel.closing(walked, scenes, 48, (1280, 720))
+            continue
+        start, path = peel.closing(walked, scenes, 48, (1280, 720))
+        eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
+        apart = np.linalg.norm(eyes - aims, axis=1)
+        assert start % peel.RATE == 0 and apart[0] > apart[24] >= peel.CLOSE_LEAST, name
+        assert (eyes[:, 2] > low + peel.camera_paths.CLEARANCE - 1e-6).all(), name
+        assert (eyes[:, 2] < high - peel.camera_paths.CLEARANCE + 1e-6).all(), name
+        hits = peel.camera_paths.first_hits(scenes["blocking"], aims, (eyes - aims) / apart[:, None])
+        assert (hits > apart).all(), name
+    sim = tmp_path / "sim"
+    (sim / "layers").mkdir(parents=True)
+    timed = Usd.Stage.CreateNew(str(sim / "layers" / "sim_bodies.usda"))
+    timed.SetTimeCodesPerSecond(30.0)
+    hips = UsdGeom.Xform.Define(timed, "/p/Characters/w/SimBody/Hips").AddTranslateOp()
+    for frame in range(11):
+        hips.Set(Gf.Vec3d(frame, 0.0, 0.0), frame)
+    timed.Save()
+    layer, root = peel.timed_layer(tmp_path, sim, "p", "w", 24.0, 12.0)
+    retimed = Usd.Stage.Open(str(layer))
+    shown = UsdGeom.Xformable(retimed.GetPrimAtPath(f"{root}/Hips"))
+    assert np.isclose(shown.GetLocalTransformation(10.0)[3][0], 5.0)
 
     # a peel's forecast prices each pass's frame as a measured film frame, a fogged stage's passes high, its high
     # never under its cards' own time

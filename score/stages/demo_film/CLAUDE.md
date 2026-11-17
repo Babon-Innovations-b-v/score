@@ -91,6 +91,15 @@ own sound; paid and cleared by the runner like any paid row.
   script that walks through a place with a kept design and no people (designed, peopled) and shows no place peel of it
   is Blocked naming it (`plan_faults`), so every walked scene has one peel; so is one that layer peels a place whose
   cast is a crowd alone (`crowded`, `crowd_only`: no sim body, the sim body row's rule) or shows it no place peel.
+- **A walker peel** (`peel.walker_job`, `--scene <place_build scene folder> --rows <rows.json>`; owner, 2026-11-17:
+  "where is the peel? player model- soma body - sim body with grf arrow") is a film segment in a place_build scene:
+  the place drawn and its walkers played as its film draws and plays them (`blender/walker_peel.py` runs
+  place_build's blender_views.py look with the peel laid in), the camera closing in on one walker (`closing`: a start
+  in its sim body record and a way round it with room, on a ray from its hips so nothing of the place stands between,
+  every eye and sight line swept clear; refused where none leaves CLOSE_LEAST), its player model, bare SOMA body and
+  sim body with its GRF arrows wiped in turn, then pulling back. The sim body layer is retimed onto the place's time
+  codes (`timed_layer`); only the passes a frame shows are drawn (`needed`). Free on this PC's card through the card
+  queue (place_build.render.queued); no row runs it yet.
 - **The peel rows** (`peel_rows.py`, body-peel@place and place-peel@place, paid; owner 2026-11-05: every scene peeled
   in the film): a place a locked script peels has the row, keyed on those scripts (`script <name>`), never one peeled
   by none. body-peel reads the cast, sim-body, the clips rig (people-clips-made), scene-clips (optional: a climber's

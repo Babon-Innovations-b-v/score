@@ -16,3 +16,7 @@ same pictures, quicker). The shutter and the next camera are worked out free, be
 - `body_peel.py`: a layer or place peel's three passes, the frames its job's `frames` names (a slice of the shot,
   `../peel.py` sliced). Run on rented cards by the body-peel and place-peel rows (`../peel_rows.py`, which declare it),
   or free on this machine by `../peel.py`'s command line (`blender -b`); no demo-film row declares it.
+- `walker_peel.py`: a walker peel's passes in its place (`../peel.py` walker_job, `--scene`), on this PC's card through
+  the card queue: it patches usd_views.py's import (the peel laid in) and render (a frame's passes) and then imports
+  place_build's `blender_views.py`, which runs usd_views.main() with the laid place's look; the peel's drawing is
+  body_peel.py's.

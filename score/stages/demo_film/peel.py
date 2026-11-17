@@ -20,6 +20,15 @@ has one, its moving bodies apart), joined by the same wipes.
         [--ground <triangles.npy>] [--build <people-body rig.npz>]
     python -m score.stages.demo_film.peel <job folder> --stage <finished stage folder>
         [--physics <physics-layer output>] [--seconds 5] [--size 1280 720] [--samples 64]
+    python -m score.stages.demo_film.peel <job folder> --scene <place_build scene folder> --rows <rows.json>
+        [--walker <name>] [--seconds 9] [--size 1280 720] [--review]
+
+A walker peel (walker_job; owner, 2026-11-17: "where is the peel? player model- soma body - sim body with grf arrow")
+is a film segment in a place_build scene: the camera closes in on one walker (`--walker`, else close_walker's rule),
+the place drawn and its walkers played as its film draws and plays them, the walker peels from the player model to
+its SOMA body to its sim body with its GRF arrows, and the camera pulls back (closing). `--rows` names the rows' output
+folders the sim body ran from ({"cast", "sim-body", "people-clips-made", "scene-clips", "people-body-<look>"}); it is
+drawn on this machine's card through the card queue (place_build.render.queued) by `blender/walker_peel.py`.
 
 The film's peels are the body-peel and place-peel rows' (`peel_rows.py`): the same jobs (job_of, place_job),
 their frames dealt over rented cards (`sliced`) and drawn there by `blender/body_peel.py`, joined here. This command
@@ -46,15 +55,17 @@ import sys
 import numpy as np
 import trimesh
 from PIL import Image, ImageDraw
-from pxr import Usd, UsdGeom, UsdPhysics
+from pxr import Sdf, Usd, UsdGeom, UsdPhysics
 
 from score.stages import demo_film, sim_body
 from score.stages.demo_film import lettering
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
+import camera_paths  # noqa: E402
 import colliders  # noqa: E402
 BLENDER_SCRIPT = REPO / "score/stages/demo_film/blender/body_peel.py"
+WALKER_SCRIPT = REPO / "score/stages/demo_film/blender/walker_peel.py"
 # The Blender tools/blender/session.py sets up on this machine (its newest version).
 BLENDER = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / \
     "blender-mcp/blender-5.2.2/blender"
@@ -69,6 +80,21 @@ FADE_SECONDS = 1.0  # the push arrows' fade in, from the start of the sim body's
 WIDE_LENS, CLOSE_LENS = 40.0, 35.0  # mm
 CLOSE_METRES = 4.0  # the close-up's camera off its person's path: the whole body in view at CLOSE_LENS
 FOLLOW_SECONDS = 0.5  # the close-up's aim smoothed over this either side
+HIPS = 0.9  # metres over a person's lowest point a camera aims at: its whole body and the push under its feet in view
+# A walker peel in its place (walker_job): the camera closes in from WIDE_METRES at most over the first CLOSING_SHARE
+# of the shot, holds CLOSE_METRES off at most (CLOSE_LEAST at least, else no room for one) while the layers peel,
+# and pulls back over the last; TALL_METRES of the walker fill the picture's height at the close-up.
+WIDE_METRES = 9.0
+CLOSE_LEAST = 1.6
+TALL_METRES = 2.4
+CLOSING_SHARE = 1.0 / 6.0
+HEADINGS = 12  # the ways round the walker tried for the camera, straight ahead of it first
+FACING = 60.0  # degrees off the way a walker walks the camera looks from first, room alike: its gait and its face
+RISES = (0.12, 0.3)  # radians: the camera's rise over the hips, the lower first
+FOV_MOST = 85.0  # degrees across: the widest lens a close-up in a narrow place takes
+EVERY = 4  # the frames between those the camera's room is measured on (rays and sweeps)
+OWN_ROOM = 0.5  # metres out of the hips a sight line is swept from: the walker's own body and what it walks by
+SIGHT = 0.05  # metres: a sight line's own radius, kept clear of the place
 EDGE = (255, 196, 64)  # the wipe's edge line
 LEVEL = 0.7  # a ground triangle's normal against up (cosine): floors, treads, seats and beds, never a wall
 # The person's own frame is Y up (OpenUSD); Blender's is Z up: x stays, y becomes z, z becomes -y.
@@ -192,16 +218,22 @@ def framing(people, count):
     return [{"eye": eye.tolist(), "aim": aim.tolist()}] * count
 
 
-def following(person):
-    """The close-up: a camera a film frame (Z up) CLOSE_METRES off one person's path to its side and a little ahead,
-    aimed at its hips (its whole body, its feet and the push under them in view), the aim smoothed over
-    FOLLOW_SECONDS either side so it glides rather than bobs."""
-    middles = person["points"].mean(axis=1)
-    middles[:, 2] = person["points"][:, :, 2].min(axis=1) + 0.9
+def hips_path(points, up=2):
+    """A person's hips over a shot (frames x 3) from its mesh's points (frames x points x 3, `up` the up axis): its
+    middle at HIPS over its lowest point, smoothed over FOLLOW_SECONDS either side so a camera on it glides rather than
+    bobs."""
+    middles = points.mean(axis=1)
+    middles[:, up] = points[:, :, up].min(axis=1) + HIPS
     width = max(1, round(FOLLOW_SECONDS * RATE))
     padded = np.concatenate([np.repeat(middles[:1], width, axis=0), middles, np.repeat(middles[-1:], width, axis=0)])
     kernel = np.ones(2 * width + 1) / (2 * width + 1)
-    smooth = np.column_stack([np.convolve(padded[:, axis], kernel, mode="same")[width:-width] for axis in range(3)])
+    return np.column_stack([np.convolve(padded[:, axis], kernel, mode="same")[width:-width] for axis in range(3)])
+
+
+def following(person):
+    """The close-up: a camera a film frame (Z up) CLOSE_METRES off one person's path to its side and a little ahead,
+    aimed at its hips (its whole body, its feet and the push under them in view), the aim smoothed (hips_path)."""
+    smooth = hips_path(person["points"])
     travel = smooth[-1] - smooth[0]
     travel[2] = 0.0
     if np.linalg.norm(travel) < 0.5:  # not walking anywhere: its front is the way to look from
@@ -269,6 +301,161 @@ def job_of(folder, cast, sim, person_of, seconds, size, samples, close=None, gro
         job["ground"] = str(folder / "ground.npy")
     (folder / "job.json").write_text(json.dumps(job, indent=1))
     return folder / "job.json"
+
+
+def closeness(count):
+    """How close the camera has come at each frame of `count` (0 at its widest, 1 at the close-up): eased in over the
+    first CLOSING_SHARE of the shot, held, eased out over the last, so the wipes (each third) fall in the close-up."""
+    ramp = max(1, round(CLOSING_SHARE * count))
+    frames = np.arange(count)
+    share = np.clip(np.minimum(frames, count - 1 - frames) / ramp, 0.0, 1.0)
+    return share * share * (3.0 - 2.0 * share)
+
+
+def ways_round(aims):
+    """The ways a camera may look at a walker from (unit vectors, Y up), each with how many HEADINGS steps it turns
+    from the three-quarter front (FACING degrees off the way it walks): every heading from straight ahead round, at
+    every rise of RISES, so along a corridor and square to the walker are among them."""
+    travel = aims[-1] - aims[0]
+    travel[1] = 0.0
+    travel = travel / np.linalg.norm(travel) if np.linalg.norm(travel) > 0.5 else np.array([0.0, 0.0, 1.0])
+    side = np.cross(travel, [0.0, 1.0, 0.0])
+    found = []
+    for step in range(HEADINGS):
+        turn = 2.0 * np.pi * step / HEADINGS
+        flat = np.cos(turn) * travel + np.sin(turn) * side
+        off = abs((np.degrees(turn) - FACING + 180.0) % 360.0 - 180.0) / (360.0 / HEADINGS)
+        found += [(np.cos(rise) * flat + np.array([0.0, np.sin(rise), 0.0]), round(off)) for rise in RISES]
+    return found
+
+
+def sighted(scenes, aims, eyes, way):
+    """Whether the camera sees the walker on every measured frame (each EVERYth and the last): its eye CLEARANCE off
+    the place's solids and its sight line from OWN_ROOM out of the hips SIGHT clear (camera_paths.swept_clear; never
+    clearances, whose inside_solid counts a closed dome's inside as solid)."""
+    measured = sorted({*range(0, len(aims), EVERY), len(aims) - 1})
+    return all(camera_paths.swept_clear(scenes["solid"], eyes[frame], eyes[frame], camera_paths.CLEARANCE) and
+               camera_paths.swept_clear(scenes["solid"], aims[frame] + way * OWN_ROOM, eyes[frame], SIGHT)
+               for frame in measured)
+
+
+def closing(points, scenes, count, size):
+    """A walker peel's start and camera, a view a film frame in the place's frame (Y up), from the walker's mesh over
+    its whole record at the film's rate (`points`): of the starts each second into the record that leave the shot's
+    `count` frames, and the ways round it (ways_round), the one with most room for the close-up, then for the pull
+    back, then nearest its three-quarter front, then earliest, whose camera sees the walker throughout (sighted). On
+    its ray from the walker's hips (hips_path) the camera closes in, holds and pulls back (closeness), never past the
+    place's meshes on that ray less CLEARANCE (camera_paths' `blocking`), so nothing of the place stands between it
+    and the walker. Its angle frames TALL_METRES at the close-up. Refused where no start and way leave CLOSE_LEAST."""
+    path = hips_path(points, up=1)
+    tried = []
+    for start in range(0, len(points) - count + 1, RATE):
+        aims = path[start:start + count]
+        measured = aims[sorted({*range(0, count, EVERY), count - 1})]
+        for way, turned in ways_round(aims):
+            free = camera_paths.first_hits(scenes["blocking"], measured, np.tile(way, (len(measured), 1)))
+            room = min(float(free.min()) - camera_paths.CLEARANCE, WIDE_METRES)
+            tried.append((min(room, CLOSE_METRES), room, turned, start, way))
+    for close, room, _, start, way in sorted(tried, key=lambda kept: (-kept[0], -kept[1], kept[2], kept[3])):
+        if close < CLOSE_LEAST:
+            break
+        aims = path[start:start + count]
+        eyes = aims + (room + (close - room) * closeness(count))[:, None] * way
+        if sighted(scenes, aims, eyes, way):
+            tall = 2.0 * np.arctan(TALL_METRES / 2.0 / close)
+            fov = min(float(np.degrees(2.0 * np.arctan(np.tan(tall / 2.0) * size[0] / size[1]))), FOV_MOST)
+            return start, [{"eye": eye.round(4).tolist(), "aim": aim.round(4).tolist(), "up": [0.0, 1.0, 0.0],
+                            "fov": round(fov, 3)} for eye, aim in zip(eyes, aims)]
+    raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up")
+
+
+def needed(frame, count, passes=PASSES):
+    """The passes film frame `frame` of `count` shows: the one shown, and the one wiping over it during a wipe."""
+    shown, coming, share = stage_of(frame, count)
+    return [passes[shown]] if coming == shown or share <= 0 else [passes[shown], passes[coming]]
+
+
+def lerped(values, times):
+    """`values` (frames x ...) at fractional frames `times`, each between its two frames by its share."""
+    first = np.floor(times).astype(int)
+    after = np.minimum(first + 1, len(values) - 1)
+    share = (times - first).reshape(-1, *([1] * (values.ndim - 1)))
+    return values[first] * (1.0 - share) + values[after] * share
+
+
+def timed_layer(folder, sim, place, name, scene_rate, record_rate):
+    """A layer holding the sim body layer's person (its SimBody) on the place's time codes: referenced with a scale,
+    so the place's time code t shows the record's frame t * record_rate / scene_rate (the layer keeps the record's
+    frames as its time codes; this one declares the layer's own time codes a second, so OpenUSD scales nothing else);
+    its path and the prim to import."""
+    layer = sim / sim_body.LAYER
+    rate = Sdf.Layer.FindOrOpen(str(layer)).timeCodesPerSecond
+    path, scale = folder / "sim_timed.usda", scene_rate / record_rate
+    path.write_text(f"""#usda 1.0
+(
+    defaultPrim = "peel"
+    metersPerUnit = 1
+    timeCodesPerSecond = {rate}
+    upAxis = "Y"
+)
+
+def Xform "peel"
+{{
+    def Xform "SimBody" (
+        prepend references = @{layer.resolve()}@<{sim_root(place, name)}> (offset = 0; scale = {scale!r})
+    )
+    {{
+    }}
+}}
+""")
+    return path, "/peel/SimBody"
+
+
+def walker_job(folder, scene, cast, sim, person_of, walker, seconds, size, review=False):
+    """Write a walker peel's Blender job into `folder` and return its views.json (usd_views' listing, its `peel` the
+    job): the place_build scene (`scene`, its folder) drawn as its film draws it, the walker played in it as the film
+    plays it, and on a camera closing on it (closing, which picks the shot's start in the record) three passes,
+    `dressed` (the place as it is), `mesh` (the walker's bare SOMA surface, the clip rig skinned by the clip its sim
+    body played, between the record's frames) and `sim` (its sim body layer, each touching body's push an arrow,
+    fading in), the walker's own dressed body hidden in the last two; only the passes a frame shows are drawn
+    (needed). Film frame k shows the record's time start + k / RATE, the place's time code at its own rate (its walkers
+    start their records at its 0); a shot longer than the record is refused."""
+    from score.stages import place_build
+    from score.stages.place_build import film as place_film
+    record = json.loads((sim / "sim_bodies.json").read_text())
+    if walker not in record["bodies"]:
+        raise ValueError(f"{sim}: no sim body of {walker}")
+    single = next(single for single in cast["characters"] if single["name"] == walker)
+    body = record["bodies"][walker]
+    rig, _, clip = person_of(single, body)
+    frames = json.loads((sim / "measures" / f"{walker}.json").read_text())
+    count = round(seconds * RATE)
+    times = np.arange(int((len(frames) - 1) / record["rate"] * RATE) + 1) * record["rate"] / RATE
+    if len(times) < count:
+        raise ValueError(f"a {seconds:g} s shot outlasts {walker}'s sim body record of "
+                         f"{(len(frames) - 1) / record['rate']:g} s")
+    where = sim_body.own_frame(body["at"], body.get("turn", 0.0))
+    mesh = lerped(skinned(rig, clip) @ where[:3, :3].T + where[:3, 3], times)
+    start, path = closing(mesh, place_film.place_scenes(scene), count, size)
+    mesh, times = mesh[start:start + count], times[start:start + count]
+    arrows = pushes(frames, touching(frames))[np.rint(times).astype(int)]
+    scene_rate = place_build.opened(scene)[0].GetTimeCodesPerSecond()
+    layer, root = timed_layer(folder, sim, record["place"], walker, scene_rate, record["rate"])
+    np.savez(folder / f"{walker}.npz", faces=np.asarray(rig["faces"]), points=points_to_z(mesh),
+             arrow_start=points_to_z(arrows[..., :3] @ where[:3, :3].T + where[:3, 3]),
+             arrow_vector=points_to_z(arrows[..., 3:] @ where[:3, :3].T))
+    job = {"kind": "walker", "out": str(folder), "walker": walker, "passes": list(PASSES),
+           "start_seconds": start / RATE, "draws": [needed(frame, count) for frame in range(count)],
+           "arrows": {"colour": push_colour(), "fade": arrow_fade(count)},
+           "people": [{"name": walker, "sim_layer": str(layer), "sim_root": root,
+                       "arrays": str(folder / f"{walker}.npz"), "placed": to_z(where).tolist()}]}
+    (folder / "job.json").write_text(json.dumps(job, indent=1))
+    views = [dict(spot, name=f"f{frame:04d}", frame=round((start + frame) * scene_rate / RATE), look_only=True)
+             for frame, spot in enumerate(path)]
+    listed = folder / "views.json"
+    listed.write_text(json.dumps({"size": list(size), "review": review, "views": views,
+                                  "peel": str(folder / "job.json")}, indent=1))
+    return listed
 
 
 def underfoot(triangles, people):
@@ -422,14 +609,15 @@ def place_job(folder, stage, physics, seconds, size, samples):
 
 
 def joined(folder, count, passes=PASSES, drawn_in=None):
-    """The shot's frames, the passes joined by their wipes, into folder/peel/<frame>.png; each pass's frame from
-    whichever of `drawn_in` (the slices' folders, else `folder`) drew it."""
+    """The shot's frames, the passes joined by their wipes, into folder/peel/<frame>.png; each pass's frame a film
+    frame shows (needed) from whichever of `drawn_in` (the slices' folders, else `folder`) drew it."""
     out = folder / "peel"
     out.mkdir(exist_ok=True)
     places = list(drawn_in or [folder])
     for frame in range(count):
-        pictures = [Image.open(next(found for found in (place / name / f"{frame:04d}.png" for place in places)
-                                    if found.exists())).convert("RGB") for name in passes]
+        pictures = {passes.index(name): Image.open(next(
+            found for found in (place / name / f"{frame:04d}.png" for place in places) if found.exists()))
+            .convert("RGB") for name in needed(frame, count, passes)}
         wiped(pictures, frame, count).save(out / f"{frame:04d}.png")
     return out
 
@@ -438,6 +626,34 @@ def drawn(job):
     """The job's passes drawn in this machine's Blender, without a window (`-b`: no display needed)."""
     subprocess.run([str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
                     str(BLENDER_SCRIPT), "--", str(job)], check=True, stdin=subprocess.DEVNULL)
+
+
+def walker_peel(arguments):
+    """A walker peel drawn on this machine's card (the command line's --scene): its job, its passes through the card
+    queue, joined and encoded silent to <folder>/peel.mp4."""
+    from score.stages import place_build
+    from score.stages.demo_film import peel_rows
+    from score.stages.place_build import render as place_render
+    inputs = json.loads(arguments.rows.read_text())
+    cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
+    walker = arguments.walker or peel_rows.walker(inputs, cast)
+    listed = walker_job(arguments.folder, arguments.scene, cast, pathlib.Path(inputs["sim-body"]),
+                        peel_rows.people_of(inputs, clothed=False), walker, arguments.seconds, arguments.size,
+                        arguments.review)
+    free = place_render.available_gb()
+    if free <= place_render.FREE_GB:
+        raise place_render.RenderFailed(f"{free:.1f} GB memory available, a Blender needs over {place_render.FREE_GB}")
+    with (arguments.folder / "blender.log").open("w") as log:
+        subprocess.run(place_render.queued(f"walker-peel-{walker}", WALKER_SCRIPT,
+                                           [str(place_build.scene_path(arguments.scene).resolve()), str(listed),
+                                            str(arguments.folder / "views")]),
+                       check=True, stdout=log, stderr=subprocess.STDOUT, cwd=REPO)
+    count = round(arguments.seconds * RATE)
+    frames = joined(arguments.folder, count)
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-framerate", str(RATE), "-i", str(frames / "%04d.png"),
+                    "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                    str(arguments.folder / "peel.mp4")], check=True)
+    return arguments.folder / "peel.mp4"
 
 
 def main():
@@ -456,9 +672,16 @@ def main():
     parser.add_argument("--clips", type=pathlib.Path, help="scene-clips' scene_clips.json, for close_walker")
     parser.add_argument("--ground", type=pathlib.Path, help="the scene's ground triangles (.npy, n x 3 x 3, Y up)")
     parser.add_argument("--build", type=pathlib.Path, help="the person's built body rig (people-body's rig.npz)")
+    parser.add_argument("--scene", type=pathlib.Path, help="a walker peel: the place_build scene folder")
+    parser.add_argument("--rows", type=pathlib.Path, help="a walker peel: {row: output folder} the sim body ran from")
+    parser.add_argument("--walker", help="a walker peel: the walker peeled (else close_walker's)")
+    parser.add_argument("--review", action="store_true", help="a walker peel at the review's samples (a look only)")
     arguments = parser.parse_args()
     arguments.folder.mkdir(parents=True, exist_ok=True)
     count = round(arguments.seconds * RATE)
+    if arguments.scene:
+        print(f"walker peel: {count} frames in {walker_peel(arguments)}")
+        return
     if arguments.stage:
         drawn(place_job(arguments.folder, arguments.stage, arguments.physics, arguments.seconds, arguments.size,
                         arguments.samples))
