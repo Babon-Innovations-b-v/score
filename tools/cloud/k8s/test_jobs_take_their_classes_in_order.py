@@ -42,7 +42,9 @@ invariant with the break that turns it red (each applied once and seen red):
   run sends again). Break: `fetched` then upload in place of `offload.copy_blob` in `send_input`. A path named
   through a link (a frozen run's `<copy>.home/store`) lands up there and comes back at the path as named, the path
   the command's arguments give, since the pod holds no link, each output's folder made there first. Break:
-  `.resolve()` the path up there in `placed`. Break: return `command` unchanged in `with_output_folders`.
+  `.resolve()` the path up there in `placed`. A folder linked inside an input folder goes up at the link's path,
+  a link back up the folder once (2026-11-18: a staged scene's `assets` link went up as nothing). Break:
+  `followlinks=False` in `hashed_files`. Break: drop the `seen` check in `hashed_files`. Break: return `command` unchanged in `with_output_folders`.
   A named run resumed with fewer jobs brings each job its own outputs (2026-11-06: 148 of 720 GEM-X videos came
   back as another video's). Break: `ids = [str(number) for number in range(len(jobs))]` in `keyed_jobs.run`.
   A job that reads a take's faces (a `<take>/parts.npy` input) gets FACE_MINUTES more a million of them; one that
@@ -372,6 +374,10 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
     single.write_text("{}")
     linked = tmp_path / "in" / "linked"  # a home whose folder links to another, as a frozen home's models do
     linked.symlink_to(stage / "textures")
+    (tmp_path / "in" / "shelf").mkdir()  # a staged scene's `assets`, a link inside the folder sent
+    (tmp_path / "in" / "shelf" / "tile.png").write_text("png")
+    (stage / "assets").symlink_to(tmp_path / "in" / "shelf")
+    (tmp_path / "in" / "shelf" / "again").symlink_to(tmp_path / "in" / "shelf")  # a link back: its files sent once
     out_file, out_folder = tmp_path / "out" / "result.json", tmp_path / "out" / "folder"
     making = tmp_path / "frozen.home" / "making"  # a frozen run's home: its store a link to the store
     making.parent.mkdir()
@@ -389,7 +395,8 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
     assert spec["image"].startswith("registry.example/score/score-blender") and spec["classes"] == ["gpu-24gb"]
     assert spec["kernel_cache"] == "blender-5.0.1" and spec["minutes"] == 3
     assert sorted(entry["path"] for entry in spec["inputs"]) == sorted(
-        [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single), str(linked / "wall.png"),
+        [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(stage / "assets/tile.png"), str(single),
+         str(linked / "wall.png"),
          "/work/in/lamp/lamp.usda", str(making / "views.json")])
     assert spec["outputs"][2]["path"] == str(making / "folder")  # its folder made as named before the command:
     made_first = spec["command"][2].split(" && ")[0].split()

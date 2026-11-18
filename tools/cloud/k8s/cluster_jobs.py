@@ -117,12 +117,25 @@ def checkout_files(kept, local):
 
 
 def hashed_files(local):
-    """{relative path: sha256} of an input outside the store, each file hashed ("" for a plain file)."""
+    """{relative path: sha256} of an input outside the store, each file hashed ("" for a plain file); a folder linked
+    inside it is followed, its files sent at the link's path (rf3-stairwell, 2026-11-18: a staged scene's `assets` link
+    went up as nothing, and its film frames rendered with every model missing), each real folder once."""
     from score.store import file_hash
 
     if local.is_file():
         return {"": file_hash(local)}
-    return {str(found.relative_to(local)): file_hash(found) for found in sorted(local.rglob("*")) if found.is_file()}
+    found, seen = {}, set()
+    for folder, names, files in os.walk(local, followlinks=True):
+        real = os.path.realpath(folder)
+        if real in seen:
+            names[:] = []
+            continue
+        seen.add(real)
+        for name in files:
+            path = pathlib.Path(folder, name)
+            if path.is_file():
+                found[str(path.relative_to(local))] = file_hash(path)
+    return dict(sorted(found.items()))
 
 
 def send_input(store, kept, sha, file):
