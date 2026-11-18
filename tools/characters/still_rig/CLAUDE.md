@@ -11,7 +11,9 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
 - **Its finish is library surfaces** (root rule): each part a palette variant (`FINISHES`), its recipe entry's address
   on the look; the still's baked texture only finds the visor and is dropped.
 - **Hard parts ride one joint**: helmet and visor the head, backpack the chest, the cloth round them eased by distance
-  and the helmet and backpack shared at their seam. Measure (`rig.json` stretch) and look at the frames: a number
-  says something changed, only a picture says it is right.
+  over the surface (never across a gap: an arm beside the backpack keeps its own joint) and the helmet and backpack
+  shared at their seam. The outer cut's holes are closed (`closed`, after the fit) and the cloth round any weight cliff
+  (the crotch, the shoulders) smoothed (`eased_cliffs`). Measure (`rig.json` stretch, open edges) and look at the
+  frames: a number says something changed, only a picture says it is right.
 - Plain CPU here; any GPU render goes to the cloud, never this PC's card.
 - Test: `test_a_rigged_still_rides_its_joints_without_a_crack.py`.

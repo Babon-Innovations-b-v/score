@@ -2,7 +2,9 @@
 three-quarter), on Cycles on the processor at `--samples` (a check, never shipped), one PNG a view and frame in `--out`.
 
     blender -b --python tools/characters/still_rig/blender_walk.py -- <body.glb> --out <folder>
-        [--clip walking] [--frames 24] [--samples 16] [--size 480]
+        [--clip walking] [--frames 24] [--step 1] [--samples 16] [--size 480]
+
+--step takes every that many frames of the clip, so 12 frames at step 3 cover the whole 36-frame stride.
 """
 import argparse
 import math
@@ -22,6 +24,7 @@ def options():
     parser.add_argument("--out", required=True)
     parser.add_argument("--clip", default="walking")
     parser.add_argument("--frames", type=int, default=24)
+    parser.add_argument("--step", type=int, default=1)
     parser.add_argument("--samples", type=int, default=16)
     parser.add_argument("--size", type=int, default=480)
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
@@ -85,7 +88,7 @@ def main():
     for name, degrees in VIEWS.items():
         aimed(camera, degrees)
         for frame in range(found.frames):
-            scene.frame_set(start + frame)
+            scene.frame_set(start + frame * found.step)
             scene.render.filepath = str(out / f"{name}_{frame:02d}.png")
             bpy.ops.render.render(write_still=True)
     print("blender_walk:", found.frames * len(VIEWS), "frames of", action.name, "in", out, flush=True)

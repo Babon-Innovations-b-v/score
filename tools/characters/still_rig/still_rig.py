@@ -19,11 +19,18 @@ The steps:
    triangles first (prop_rig.decimated, its borders kept).
 4. Its parts (`parts_of`): the helmet (every face within HELMET_REACH of the head's middle above the neck), the visor
    (the helmet's dark faces in front, its own baked colour read only to find it), the backpack (behind the chest, more
-   than PACK_OFF off the body) and the suit (the rest), each face's part settled to its neighbours'.
+   than PACK_OFF off the body) and the suit (the rest), each face's part settled to its neighbours'. Every open loop
+   the outer cut left (the armpits behind the shoulders, the boots' tops and soles, where no sight line reached:
+   black tears in the film) is closed by a fan from its middle (`closed`) after the fit (whose inside test the fans,
+   reaching across the hollow, would mislead: 21% of the skin outside against 4%).
 5. The weights: Robust Skin Weights Transfer from the SOMA surface (prop_rig.transferred: closest-surface matches
    within its distance and angle, each limb only from its own limb, the rest inpainted and smoothed), then the helmet
    and visor rigid on the head and the backpack rigid on the chest (`rigid`), the suit next to them eased onto their
-   joint by its distance (`rigid`), so nothing tears where a hard part meets the cloth.
+   joint by its distance over the surface (`rigid`), so nothing tears where a hard part meets the cloth. Last, every
+   cloth point within CLIFF_REACH of an edge across which the weights change faster than CLIFF (the crotch, where each
+   leg's points may hang only from their own leg, and the shoulders' rims) is smoothed towards its neighbours
+   (`eased_cliffs`), so a stride bends the cloth over a few centimetres instead of one edge (walking's worst edge 11.9
+   times its length before, 9.1 after; its 99.9th percentile 3.7 and 2.5).
 6. Every part's finish is a library surface (the root rule): the palette variant it names (`FINISHES`), a recipe
    entry's address and its spec's colour, roughness and metal on a flat material named for the variant; the still's
    baked texture is dropped.
@@ -40,6 +47,7 @@ import sys
 
 import numpy as np
 import trimesh
+from scipy.sparse.csgraph import connected_components, dijkstra
 from scipy.spatial import cKDTree
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -75,6 +83,11 @@ EASE_HOLD, EASE_REACH = 0.01, 0.08  # metres from a hard part over which the sui
 # Each part's palette variant (the place's surface library, scene_library.py) and the recipe entry it is drawn from.
 FINISHES = {"suit": "suit_fabric", "helmet": "white_hard_case", "visor": "helmet_visor",
             "backpack": "suit_backpack_shell"}
+CLIFF = 20.0  # per metre: the weights' summed difference across an edge (0 to 2) over its length above which the
+# cloth round it is eased (a whole change of joint over 10 cm; the shoulder's 0.36 across 2.4 mm tore 11.8 times)
+CLIFF_REACH = 0.05  # metres over the surface from such an edge the easing reaches
+CLIFF_ROUNDS, CLIFF_ALPHA = 200, 0.5  # its rounds (about 3 cm of spread on 3 mm edges), and how far towards its
+# neighbours' mean a point moves each round
 OUTFIT = "work"  # the dressed body's own outfit node, which skel_usd shows (DEFAULT_WORN)
 
 
@@ -173,6 +186,37 @@ def thinned(mesh, faces):
     points, triangles = fast_simplification.simplify(mesh.vertices, mesh.faces,
                                                      target_reduction=max(0.0, 1.0 - faces / len(mesh.faces)))
     return prop_rig.welded(trimesh.Trimesh(points, triangles, process=False))
+
+
+def closed(mesh):
+    """The still with every open loop closed by a fan of triangles from the loop's middle, each turned as the face it
+    borders (a border edge a to b gets the face b, a, middle): the outer cut's holes where no sight line reached."""
+    edges = np.concatenate([mesh.faces[:, [0, 1]], mesh.faces[:, [1, 2]], mesh.faces[:, [2, 0]]])
+    keys = edges[:, 0].astype(np.int64) * len(mesh.vertices) + edges[:, 1]
+    back = edges[:, 1].astype(np.int64) * len(mesh.vertices) + edges[:, 0]
+    border = edges[~np.isin(keys, back)]
+    if not len(border):
+        return mesh
+    count = len(mesh.vertices)
+    graph = sparse_graph(border, count)
+    _, loop_of = connected_components(graph, directed=False)
+    loops, numbered = np.unique(loop_of[border[:, 0]], return_inverse=True)
+    middles = np.array([mesh.vertices[np.unique(border[numbered == number])].mean(0) for number in range(len(loops))])
+    fan = np.c_[border[:, 1], border[:, 0], count + numbered]
+    return trimesh.Trimesh(np.r_[mesh.vertices, middles], np.r_[mesh.faces, fan], process=False)
+
+
+def open_edges(mesh):
+    """How many of the mesh's edges border one face only."""
+    edges = np.sort(np.concatenate([mesh.faces[:, [0, 1]], mesh.faces[:, [1, 2]], mesh.faces[:, [2, 0]]]), 1)
+    return int((np.unique(edges, axis=0, return_counts=True)[1] == 1).sum())
+
+
+def sparse_graph(edges, count):
+    """`edges` as a symmetric unweighted sparse graph over `count` points."""
+    from scipy import sparse
+    graph = sparse.csr_matrix((np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(count, count))
+    return graph.maximum(graph.T)
 
 
 def outside_share(mesh, points):
@@ -281,11 +325,14 @@ def kept_pieces(mesh, found, rounds=3):
 
 def rigid(points, faces, part_of, weights, names):
     """The hard parts' points on their one joint (RIGID) and the suit's points round them eased onto it by their
-    distance from the nearest hard point: wholly within EASE_HOLD, less and less out to EASE_REACH. The still is one
-    surface, so the ease reaches every suit point near a hard part, whatever joint it hangs from (prop_build's
-    eased_to_hard eases only a garment on the hard joint's own limb, which on one surface left a cliff between the
-    eased cloth and the arms and hips beside it: edges 8 times their length at the backpack's rim)."""
+    distance over the surface from the nearest hard point: wholly within EASE_HOLD, less and less out to EASE_REACH.
+    The still is one surface, so the ease reaches every suit point near a hard part, whatever joint it hangs from
+    (prop_build's eased_to_hard eases only a garment on the hard joint's own limb, which on one surface left a cliff
+    between the eased cloth and the arms and hips beside it: edges 8 times their length at the backpack's rim); over
+    the surface, never straight across a gap, so an upper arm a few centimetres beside the backpack keeps its own
+    joint (eased by straight distance it hung on the chest and tore 8 times its length at every swing)."""
     out = weights.copy()
+    graph = prop_rig.edge_graph(points, faces)
     hard = np.zeros(len(points), bool)
     for part, joint in RIGID.items():
         used = np.unique(faces[part_of == PARTS.index(part)])
@@ -294,7 +341,7 @@ def rigid(points, faces, part_of, weights, names):
         hard[used] = True
     for joint in set(RIGID.values()):
         used = np.unique(faces[np.isin(part_of, [PARTS.index(part) for part, held in RIGID.items() if held == joint])])
-        distance = cKDTree(points[used]).query(points[~hard])[0]
+        distance = dijkstra(graph, indices=used, limit=EASE_REACH, min_only=True)[~hard]
         share = np.clip(1.0 - (distance - EASE_HOLD) / (EASE_REACH - EASE_HOLD), 0.0, 1.0)[:, None]
         target = np.zeros((int((~hard).sum()), len(names)))
         target[:, names.index(joint)] = 1.0
@@ -323,6 +370,34 @@ def seamed(points, faces, part_of, weights, names):
             near = distance < SEAM
             out[mine[near]] = target[near]
     return out / out.sum(1, keepdims=True)
+
+
+def eased_cliffs(points, faces, weights, fixed):
+    """The weights smoothed on every point not `fixed` within CLIFF_REACH over the surface of an edge across which
+    they change faster than CLIFF over its length: CLIFF_ROUNDS rounds of moving CLIFF_ALPHA towards the neighbours'
+    mean, the fixed points (the hard parts) held. Rows sum to one."""
+    graph = prop_rig.edge_graph(points, faces)
+    first, second = graph.nonzero()
+    jump = np.abs(weights[first] - weights[second]).sum(1) > CLIFF * np.asarray(graph[first, second]).ravel()
+    if not jump.any():
+        return weights
+    reach = dijkstra(graph, indices=np.unique(np.r_[first[jump], second[jump]]), limit=CLIFF_REACH, min_only=True)
+    smooth = np.isfinite(reach) & ~fixed
+    neighbours = (graph > 0).astype(float)
+    from scipy import sparse
+    neighbours = sparse.diags(1 / np.maximum(np.asarray(neighbours.sum(1)).ravel(), 1)) @ neighbours
+    out = weights.copy()
+    for _ in range(CLIFF_ROUNDS):
+        mean = neighbours @ out
+        out[smooth] = (1 - CLIFF_ALPHA) * out[smooth] + CLIFF_ALPHA * mean[smooth]
+    return out / out.sum(1, keepdims=True)
+
+
+def hard_points(faces, part_of, count):
+    """Whether each point belongs to a hard part (RIGID)."""
+    hard = np.zeros(count, bool)
+    hard[np.unique(faces[np.isin(part_of, [PARTS.index(part) for part in RIGID])])] = True
+    return hard
 
 
 def strongest(weights, how_many=JOINTS_A_VERTEX):
@@ -509,16 +584,18 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES):
     body, body_weights = soma_on(rig, names, dressed_bind)
     raw, colours = still_of(still)
     thin = thinned(raw, faces)
-    colours = colours[cKDTree(raw.vertices).query(thin.vertices)[1]]
     skin = trunk_skin(body, body_weights, names)
     height, tried = fitted_height(thin, body, skin, names, dressed_bind)
-    mesh = stood_at(thin, height, body, names, dressed_bind)
-    bind, arm_turns = arms_turned(dressed_bind, names, parents, body, mesh)
+    fitted = stood_at(thin, height, body, names, dressed_bind)
+    bind, arm_turns = arms_turned(dressed_bind, names, parents, body, fitted)
     body, body_weights = soma_on(rig, names, bind)
+    mesh = closed(fitted)
+    colours = colours[cKDTree(raw.vertices).query(thin.vertices)[1]][cKDTree(fitted.vertices).query(mesh.vertices)[1]]
     part_of = parts_of(mesh, colours, body, names, bind)
     fit = prop_rig.landmarks(prop_rig.sampled(mesh))
     weights, matched, smoothed = prop_rig.transferred(body, body_weights, mesh, np.array(names), fit)
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)
+    weights = eased_cliffs(mesh.vertices, mesh.faces, weights, hard_points(mesh.faces, part_of, len(mesh.vertices)))
     out.mkdir(parents=True, exist_ok=True)
     palette = json.loads(pathlib.Path(palette_path).read_text())
     sizes = written(out / "body.glb", document, blob, bind, mesh.vertices, mesh.faces, part_of, weights, palette)
@@ -531,12 +608,13 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES):
                                     "frames": len(most), "where": np.round(where, 3).tolist()}
     record = {"still": str(still), "dressed": str(dressed), "rig": str(rig_path), "palette": str(palette_path),
               "height_m": round(height, 3), "heights_tried": tried, "arm_turns_degrees": arm_turns,
-              "outside_share": round(outside_share(mesh, trunk_skin(body, body_weights, names)), 4),
-              "outside_share_with_arms": round(outside_share(mesh, body.vertices[~np.isin(
+              "outside_share": round(outside_share(fitted, trunk_skin(body, body_weights, names)), 4),
+              "outside_share_with_arms": round(outside_share(fitted, body.vertices[~np.isin(
                   np.array(names)[body_weights.argmax(1)], ["LeftHand", "RightHand", "LeftFoot", "RightFoot",
                                                             "LeftToeBase", "RightToeBase", "LeftToeEnd", "RightToeEnd",
                                                             "Head", "HeadEnd"])]), 4), "matched_share": round(matched, 4),
               "smoothed_share": round(smoothed, 4), **sizes,
+              "open_edges": open_edges(mesh),
               "parts": {part: int((part_of == number).sum()) for number, part in enumerate(PARTS)},
               "finishes": {part: finish_of(palette, part)[1] + f" {FINISHES[part]}" for part in PARTS},
               "clips": clips}

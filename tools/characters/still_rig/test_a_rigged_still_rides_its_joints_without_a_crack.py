@@ -9,6 +9,12 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   than a third of their weight (the cliff prop_build's eased_to_hard left on one surface: edges 8 times their length);
 - the helmet and the backpack meet as two rigid parts on different joints (no `seamed` sharing), so a 10 degree nod
   stretches an edge at their seam more than 1.5 times its length;
+- a loose strip of cloth 2 cm beside the backpack, joined to it by no face, is eased onto the chest (the ease measured
+  straight across the gap, not over the surface: the upper arm beside the backpack torn at every swing);
+- the cloth's weights jump from the hips to the chest between two points and `eased_cliffs` leaves a step of more than
+  a fifth between neighbours, moves a fixed point, or lets a row stop summing to one;
+- a cube with one side cut away is not closed by `closed` (an open edge left, or a fan face turned against the face
+  it borders, so the patch shows its back: the black tears at the shoulders and boots);
 - a lone face of another part inside a part is kept as that other part (`kept_pieces`);
 - the sphere's sight lines are not spread over both halves of every axis (`directions`).
 """
@@ -68,6 +74,30 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     cracked[(height >= 1.3) & (height <= 1.6)] = np.eye(len(NAMES))[NAMES.index("Chest")]
     order, kept = still_rig.strongest(cracked)
     assert max(still_rig.stretch(points, faces, order, kept, nod)[0]) > 1.5
+
+    beside = points[(height > 1.35) & (height < 1.55)] + [0.0, 0.0, 0.02]
+    loose = np.r_[points, beside]
+    start = len(points)
+    loose_faces = [faces] + [[[start + 2 * row, start + 2 * row + 1, start + 2 * row + 3],
+                              [start + 2 * row, start + 2 * row + 3, start + 2 * row + 2]]
+                             for row in range(len(beside) // 2 - 1)]
+    loose_faces = np.concatenate([np.asarray(rows).reshape(-1, 3) for rows in loose_faces])
+    loose_weights = np.r_[weights, weights[:len(beside)]]
+    eased = still_rig.rigid(loose, loose_faces, np.r_[part_of, np.zeros(len(loose_faces) - len(faces), int)],
+                            loose_weights, NAMES)
+    assert np.allclose(eased[start:, NAMES.index("Hips")], 1.0)
+
+    stepped = weights.copy()
+    stepped[height >= 1.0] = np.eye(len(NAMES))[NAMES.index("Chest")]
+    fixed = height > 1.5
+    smooth = still_rig.eased_cliffs(points, faces, stepped, fixed)
+    assert np.allclose(smooth.sum(1), 1.0) and np.allclose(smooth[fixed], stepped[fixed])
+    assert np.abs(np.diff(smooth[0::2], axis=0)).max() < 0.2
+
+    box = trimesh.creation.box()
+    cut = trimesh.Trimesh(box.vertices, box.faces[2:], process=False)
+    shut = still_rig.closed(cut)
+    assert still_rig.open_edges(cut) > 0 and still_rig.open_edges(shut) == 0 and shut.is_winding_consistent
 
     mesh = trimesh.Trimesh(points, faces, process=False)
     stray = part_of.copy()
