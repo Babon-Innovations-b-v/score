@@ -3,13 +3,16 @@
     python -m score.stages.walker_route plan <scene folder> <walkers.json> <place> <run folder>
     (Kimodo: tools/characters/clips/walker_route.py <tree> <run folder>/make)
     python -m score.stages.walker_route assemble <scene folder> <run folder>
+    python -m score.stages.walker_route doors <scene folder> <run folder>
 
 walkers.json: {place: {"walkers": [{name, character, look, variant?, tread?, seconds?, through: [[x, y, z], ...]}]}}
 (`seconds`: the clip lasts at least that long, the walker going on round its spots; walker_route.filled). `plan` writes
 <run>/make/walkers.json (each walker's route, frames, feet ground and pieces); `assemble` writes <run>/cast/cast.json
 (each walker a cast single at its route's start, turned to its first heading), <run>/scene-clips/scene_clips.json
 (its placement, per-frame route and footfalls; rig.npz and motions/ come from the Kimodo program's rig step) and
-prints each walker's measures (walker_route.measures) on one line.
+prints each walker's measures (walker_route.measures) on one line. `doors` swings each door marked `score:opens` open
+for the planned walkers crossing it (walker_route.door_swings, written into the scene's scene.usda: swung_in) and
+writes <run>/doors.json.
 """
 import json
 import math
@@ -118,10 +121,33 @@ def assemble(scene, run):
     (run / "measures.json").write_text(json.dumps(measured, indent=1))
 
 
+def doors(scene, run):
+    """The opening doors' swings for the planned walkers, written on their prims in the scene and to <run>/doors.json;
+    one line a door."""
+    from score.stages import place_build
+    from score.stages.place_build import ready
+    plan = json.loads(walker_route.plan_file(pathlib.Path(run) / "make").read_text())
+    stage, place = place_build.opened(scene)
+    laid = ready.Place(stage, place)
+    found = {}
+    for name in laid.with_role("door"):
+        if ready.opens(laid, name):
+            middle, axes, half = ready.frame_of(laid, name)
+            found[name] = {"middle": middle, "axes": axes, "half": half, **ready.swing_of(laid, name)}
+    del laid, stage
+    swings = walker_route.door_swings(found, {walker["name"]: walker["roots"] for walker in plan["walkers"]})
+    walker_route.swung_in(pathlib.Path(scene) / "scene.usda", place, swings)
+    (pathlib.Path(run) / "doors.json").write_text(json.dumps(swings, indent=1))
+    for name, swing in swings.items():
+        print("DOOR", name, json.dumps(swing), flush=True)
+
+
 if __name__ == "__main__":
     if sys.argv[1] == "plan":
         plan(*sys.argv[2:6])
     elif sys.argv[1] == "assemble":
         assemble(*sys.argv[2:4])
+    elif sys.argv[1] == "doors":
+        doors(*sys.argv[2:4])
     else:
         raise SystemExit(__doc__)

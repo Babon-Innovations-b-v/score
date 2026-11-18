@@ -4,7 +4,10 @@ PIECE_FRAMES, together every frame once); a later piece is asked to start in the
 (its fullbody keyframes, back in the scene's frame, are that pose), its join keeps that pose and the foot
 standing across it on its spot, and a stance slipping over 2 cm is held on its spot; and the measures
 tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall. A walker given `seconds` walks on
-round its spots (the last back to the first) until its clip lasts that long; two spots make no loop and are refused.
+round its spots (the last back to the first) until its clip lasts that long; two spots make no loop and are refused. A shut
+door in the wall's gap is a solid (no route through it); marked `score:opens`, the walker goes through it, the door
+stands open from OPEN_AHEAD before she crosses to SHUT_AFTER past it, and the swing written on its prim lays its leaf
+where the walkers' floor took it open (shut at the start).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.route: ready.route swapped for the straight line through the spots -> the route crosses the wall
@@ -18,6 +21,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.skates: the travel measured from the stance's last frame -> the sliding foot reads still
 - walker_route.clearance: the band's KNEE taken off -> the floor under the walker reads a clash
 - walker_route.filled: `>= seconds` made `>= 0` -> the filled walk ends at its last spot, short of its seconds
+- ready.doors_standing: an opening door taken as shut -> no route through the marked door
+- ready.walkers_floor: the doors given left out -> the shut door is routed through
+- walker_route.crossings: the plane's side taken as the across distance -> no crossing, no swing
+- walker_route.swung_in: the inverse hinge left out of the op order -> the open leaf stands off its hinge
 - walker_route.round_again: `index % len(through)` made `min(index, len(through) - 1)` -> the walk stands at its last
   spot rather than going round (refused: the route no longer lengthens)
 """
@@ -138,3 +145,34 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert walker_route.filled(folder, loop)[0] == [list(spot) for spot in loop]
     with pytest.raises(ValueError, match="no loop"):
         walker_route.filled(folder, loop[:2], seconds=12.0)
+
+    stage, place = place_build.opened(folder)
+    box(stage, place, "door", (0.05, 2.1, 1.38), (-0.025, 0.0, 1.61))  # in the wall's gap, z 1.6 .. 3.0
+    door = stage.GetPrimAtPath(f"/{place}/Objects/door")
+    door.GetAttribute("score:role").Set("door")
+    stage.GetRootLayer().Save()
+    through = [(-2.0, 0.0, -1.0), (2.0, 0.0, 2.3)]
+    with pytest.raises(place_build.Refused):
+        walker_route.route(folder, through)
+    door.CreateAttribute(ready.OPENS, Sdf.ValueTypeNames.Bool).Set(True)
+    stage.GetRootLayer().Save()
+    roots, _ = walker_route.timed(np.asarray(walker_route.route(folder, through)[0]))
+    laid = ready.Place(stage, place)
+    middle, axes, half = ready.frame_of(laid, "door")
+    swing = ready.swing_of(laid, "door")
+    swings = walker_route.door_swings({"door": {"middle": middle, "axes": axes, "half": half, **swing}},
+                                      {"walker": roots})
+    crossed = swings["door"]["crossed"]["walker"]
+    assert len(crossed) == 1 and abs(roots[crossed[0], 0]) < 0.1, swings
+    window = swings["door"]["open"][0]
+    assert np.allclose(window, [crossed[0] / walker_route.RATE - walker_route.OPEN_AHEAD,
+                                crossed[0] / walker_route.RATE + walker_route.SHUT_AFTER], atol=1e-3), swings
+    opened = ready.turned(laid.meshes["door"], swing["hinge"], swing["degrees"]).bounds
+    walker_route.swung_in(place_build.scene_path(folder), place, swings)
+    stage, _ = place_build.opened(folder)
+    cache = UsdGeom.BBoxCache(0.0, ["default", "render"])
+    for seconds, bounds in ((window[0] - walker_route.SWING_SECONDS - 0.1, laid.meshes["door"].bounds),
+                            (sum(window) / 2, opened)):
+        cache.SetTime(seconds * stage.GetTimeCodesPerSecond())
+        box_now = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/door")).ComputeAlignedRange()
+        assert np.allclose([box_now.GetMin(), box_now.GetMax()], bounds, atol=0.01), (seconds, box_now, bounds)

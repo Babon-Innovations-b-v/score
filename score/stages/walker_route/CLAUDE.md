@@ -6,12 +6,15 @@ piece is asked, the join and the measures; `__main__.py` plans a place_build sce
 scene-clips output (cast, scene_clips.json) that sim body and cast/driven read; `tools/characters/clips/walker_route.py`
 makes the pieces with Kimodo, free on this PC's card.
 
-- **The route is the physics check's.** Routes come from place_build/ready `route` on its walkers' floor (doors open,
-  every solid's footprint off, a WALKWAY wide), never a line drawn between spots. A route that cannot be found is
+- **The route is the physics check's.** Routes come from place_build/ready `route` on its walkers' floor (a shut door
+  a solid, one marked `score:opens` swung open, every solid's footprint off, a WALKWAY wide), never a line drawn between spots. A route that cannot be found is
   refused there, never straightened through a wall.
 - **Travel is the clips' own.** Each piece is made by Kimodo along its own stretch of route; a clip is never slid,
   stretched or looped along a line. A later piece starts from the pose the piece before stood in (fullbody keyframes
   on its first OVERLAP frames), so the join matches pose and velocity.
+- **A door a walker goes through opens** (owner 2026-11-18: she "does just walk through the door"): only a door
+  marked `score:opens` is a way; `doors` times its swing from the plan (open OPEN_AHEAD before each crossing, shut
+  SHUT_AFTER past it) and writes it on the door's prim in scene.usda's root layer, the film's own timeline.
 - **The measures are the limits**: foot skate per stance at most SKATE_MOST (2 cm), the root within ROUTE_MOST
   (10 cm) of its route, the body at least BODY_RADIUS from every solid between knee and head. Never widen one to pass.
 - **The top of `__init__.py` holds numpy, json and math alone**: Kimodo's program loads the file by path in Kimodo's

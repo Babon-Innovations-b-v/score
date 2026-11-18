@@ -6,6 +6,7 @@ named support.
     on(folder, name, support, level=None, height=None)
     solids(folder) -> {object: triangles}       what a walker stands on and runs into (sim body's, scene clips' ground)
     route(folder, through) -> (points, length)  a walker's way through spots on the walkers' floor WALKWAY wide
+    swing_of(laid, door) -> {hinge, degrees}    how a door marked `score:opens` swings open for the walkers
 
 Each object of /<place>/Objects has a role, from its `score:role` when it has one, else from what it is: `ground` (a
 laid ground or terrain), `shell` and `connector` (the dome shell algorithm's domes and tubes), `door` (a door, hatch or
@@ -83,6 +84,9 @@ FIT = 0.05  # metres a door's outline may stand off its opening's edge, or lie o
 FIT_CELL = 0.02  # metres between the rays read through a door's plane
 FIT_DEPTH = 0.5  # metres before and behind a door's plane where a wall closes its opening
 HINGE = 0.25  # metres: what juts from a door's edge on a shorter stretch (a hinge, a latch) may lie on its jamb
+OPENS = "score:opens"  # a door's mark: it swings open for the walkers; a door without it stays shut, a solid
+SWING = 90.0  # degrees an opening door's leaf turns about its hinge
+ROOM = 1.0  # metres of room round an open leaf past which more room is no better a swing
 CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, what is under it
 SETTLE_MOVE = 0.05  # metres
 SETTLE_TURN = 8.0  # degrees
@@ -635,12 +639,13 @@ def room_for_walkway(span_count, steps, clear):
     return clear & ~near
 
 
-def walkers_floor(laid):
-    """Where a walker WALKWAY wide stands, every door open: the grid, each span's cell and height, which spans it
-    stands on, and each span's piece (spans joined by steps no higher than a knee)."""
+def walkers_floor(laid, doors=None):
+    """Where a walker WALKWAY wide stands: the grid, each span's cell and height, which spans it stands on, and each
+    span's piece (spans joined by steps no higher than a knee). `doors`: each door's mesh as it stands for the walkers
+    (doors_standing); None, every door open (the walkway check's: is every doorway a way)."""
     bounds = grid_rectangle(laid)
     grid = reach.Grid(bounds)
-    solid = [laid.meshes[name] for name in laid.names if laid.roles[name] != "door"]
+    solid = [laid.meshes[name] for name in laid.names if laid.roles[name] != "door"] + list((doors or {}).values())
     meshes = [mesh for mesh in (reach.over_grid(mesh, bounds) for mesh in solid) if mesh is not None]
     no_ground = lambda middles: np.full(len(middles), np.nan)  # noqa: E731 (every floor is a laid surface)
     span_cells, span_heights = reach.spans(*reach.floor_points(grid, meshes, no_ground))
@@ -693,12 +698,76 @@ def walkway_faults(laid):
 
 # --- the walkers' ground and routes (sim body, scene clips) -------------------------------------------------------
 
+def opens(laid, name):
+    """Whether a door swings open for the walkers: its OPENS mark (owner 2026-11-18: the stairwell's woman "does just
+    walk through the door"); a door without it stays shut."""
+    return bool(text_of(laid.prims[name], OPENS))
+
+
+def turned(mesh, hinge, degrees):
+    """A mesh turned about the scene's up axis through `hinge` (x, y, z) by `degrees` (right-handed, as USD's
+    rotateY)."""
+    return mesh.copy().apply_transform(trimesh.transformations.rotation_matrix(np.radians(degrees), (0, 1, 0), hinge))
+
+
+def inward(laid, middle, through):
+    """The side of a door's plane (+1, -1 along `through`) the shell or connector it is set in lies on (the one whose
+    box holds the door's middle); None when it is set in none."""
+    for name in laid.with_role("shell", "connector"):
+        low, high = laid.meshes[name].bounds
+        if np.all(middle >= low) and np.all(middle <= high):
+            return 1.0 if ((low + high) / 2 - middle) @ through >= 0 else -1.0
+    return None
+
+
+def swing_of(laid, name):
+    """An opening door's swing: its hinge (an edge of its leaf, on its middle's plane) and its turn (SWING), the leaf
+    swinging into the shell it is set in (an entrance opens inward; either way when in none), on the hinge whose open
+    leaf keeps the most walkers' floor joined in one piece (an open leaf never cuts a way off), then whose free half,
+    above a knee, stands farthest (up to ROOM) from every other solid but the ground: {"hinge": [x, y, z], "degrees": d}."""
+    middle, axes, half = frame_of(laid, name)
+    leaf, others = laid.meshes[name], [laid.number[other] for other in laid.names
+                                       if other != name and laid.roles[other] != "ground"]
+    side = inward(laid, middle, axes[2])
+    best = None
+    for edge in (1.0, -1.0):
+        hinge = middle + axes[0] * half[0] * edge
+        for degrees in (SWING, -SWING):
+            opened = turned(leaf, hinge, degrees)
+            if side is not None and (opened.centroid - middle) @ axes[2] * side < 0:
+                continue
+            *_, standing, pieces = walkers_floor(laid, {name: opened})
+            joined = int(np.bincount(pieces[standing]).max()) if standing.any() else 0
+            points = np.asarray(opened.vertices)
+            free = points[(np.hypot(*(points - hinge)[:, [0, 2]].T) > half[0])
+                          & (points[:, 1] > leaf.bounds[0][1] + reach.KNEE)]
+            low, high = opened.bounds
+            near, _ = laid.triangles_in(low - ROOM, high + ROOM, among=others)
+            room = ROOM if not len(near) or not len(free) else min(ROOM, nearest_to_surface(
+                trimesh.Trimesh(near.reshape(-1, 3), np.arange(3 * len(near)).reshape(-1, 3), process=False), free))
+            if best is None or (joined, round(room, 3)) > best[0]:
+                best = ((joined, round(room, 3)), {"hinge": np.round(hinge, 4).tolist(), "degrees": degrees})
+    return best[1]
+
+
+def doors_standing(laid):
+    """{door: its mesh as it stands for the walkers}: a shut door its own leaf (a solid in its doorway), one marked
+    OPENS its leaf swung open (swing_of), so its doorway is a way and the open leaf is walked round."""
+    standing = {}
+    for name in laid.with_role("door"):
+        swing = swing_of(laid, name) if opens(laid, name) else None
+        standing[name] = turned(laid.meshes[name], swing["hinge"], swing["degrees"]) if swing else laid.meshes[name]
+    return standing
+
+
 def solids(folder):
     """{object: its triangles in the scene's frame (n x 3 x 3)} of every object a walker may stand on or run into:
-    each one the check reads, doors left out as the walkers' floor leaves them (open), characters never."""
+    each one the check reads, every door as it stands for the walkers (doors_standing: shut, or swung open), characters
+    never."""
     stage, place = place_build.opened(folder)
     laid = Place(stage, place)
-    return {name: np.asarray(laid.meshes[name].triangles) for name in laid.names if laid.roles[name] != "door"}
+    found = {name: np.asarray(laid.meshes[name].triangles) for name in laid.names if laid.roles[name] != "door"}
+    return {**found, **{name: np.asarray(mesh.triangles) for name, mesh in doors_standing(laid).items()}}
 
 
 def span_at(grid, span_cells, span_heights, standing, spot):
@@ -751,14 +820,14 @@ def rounded(corners, radius=ROUND):
 
 
 def route(folder, through):
-    """A walker's route through the given spots (x, y, z) on the walkers' floor WALKWAY wide (the check's own, doors
-    open): the shortest way over standing spans between each spot and the next, its corners kept and rounded.
+    """A walker's route through the given spots (x, y, z) on the walkers' floor WALKWAY wide (the check's own, every
+    door as it stands for the walkers: a shut one a solid, one marked OPENS swung open): the shortest way over standing spans between each spot and the next, its corners kept and rounded.
     [[x, y, z], ...] and its length along the ground; Refused when a spot has no floor or no way joins two."""
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import dijkstra
     stage, place = place_build.opened(folder)
     laid = Place(stage, place)
-    grid, span_cells, span_heights, standing, pieces = walkers_floor(laid)
+    grid, span_cells, span_heights, standing, pieces = walkers_floor(laid, doors_standing(laid))
     starts, ends, _ = reach.steps_between(grid, span_cells, span_heights)
     both = standing[starts] & standing[ends]
     graph = coo_matrix((np.full(both.sum(), reach.CELL), (starts[both], ends[both])), shape=(len(span_cells),) * 2)

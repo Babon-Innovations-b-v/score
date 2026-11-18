@@ -22,6 +22,9 @@ travel is the clips' own (never a clip slid along a line).
               its own ending never shows
     joined    the pieces back in the scene's frame, each kept up to the next one's start and blended into it over the
               OVERLAP frames both hold, the foot standing across the join kept on its spot (`anchored`)
+    doors     a door marked `score:opens` (place_build/ready's swing_of: its hinge and turn) swings open SWING_SECONDS
+              before it stands open OPEN_AHEAD before each walker crosses its plane and shut SHUT_AFTER past it
+              (`door_swings`), written as time samples on its own prim (`swung_in`)
     measured  per stance (a foot's contact run in Kimodo's own foot_contacts) its joint's travel across the floor
               (`skate`, at most SKATE_MOST), the hips' distance from the route's line (at most ROUTE_MOST) and the body's
               clearance from every upright solid face between KNEE and HEAD over its ground (the route's highest within
@@ -64,6 +67,11 @@ BODY_RADIUS, KNEE, HEAD = 0.25, 0.3, 1.7  # cast/measure.py's body
 LEVEL = 0.7  # a face whose normal's upward share is over this is a floor or a top, not a side
 GROUND_AHEAD = 12  # frames either way over which a walker's ground is its route's highest (the next treads up)
 STANCE_LEAST = 3  # frames: a shorter contact run is no stance
+OPEN_AHEAD = 1.5  # seconds before a walker crosses an opening door's plane its leaf stands open
+SHUT_AFTER = 1.5  # seconds after it crosses that the leaf starts swinging shut
+SWING_SECONDS = 1.0  # seconds a leaf takes to swing open, or shut
+SWING_POINTS = 9  # samples along a swing, eased in and out
+DOOR_REACH = 0.6  # metres past a door's edge, and a knee over or under its foot, a root crossing its plane goes through
 KEYS = ("local_rot_mats", "global_rot_mats", "posed_joints", "root_positions", "smooth_root_pos", "foot_contacts",
         "global_root_heading")
 
@@ -551,3 +559,85 @@ def plan_file(folder):
 def write_plan(folder, place, walkers):
     """The walkers' plan (per walker its route frames, headings, feet ground and pieces) as JSON."""
     plan_file(folder).write_text(json.dumps({"place": place, "walkers": walkers}))
+
+
+# --- the doors they open ------------------------------------------------------------------------------------------
+
+def crossings(roots, door):
+    """The frames a walker's root crosses a door's plane through its doorway: `door` its middle, axes (across, up,
+    through) and half sizes (ready.frame_of)."""
+    roots = np.asarray(roots, float)
+    middle, axes, half = (np.asarray(door[key], float) for key in ("middle", "axes", "half"))
+    side = (roots - middle) @ axes[2]
+    across = np.abs((roots - middle) @ axes[0])
+    level = np.abs(roots[:, 1] - (middle[1] - half[1])) <= KNEE + DOOR_REACH
+    passed = np.flatnonzero((np.sign(side[1:]) != np.sign(side[:-1])) & (across[1:] <= half[0] + DOOR_REACH)
+                            & level[1:])
+    return (passed + 1).tolist()
+
+
+def open_windows(frames, rate=RATE):
+    """The seconds a door stands open for walkers crossing it at `frames`: from OPEN_AHEAD before each crossing to
+    SHUT_AFTER past it, windows that would swing shut and open again within two swings merged: [[from, to], ...]."""
+    windows = []
+    for frame in sorted(frames):
+        start, end = frame / rate - OPEN_AHEAD, frame / rate + SHUT_AFTER
+        if windows and start - windows[-1][1] <= 2 * SWING_SECONDS:
+            windows[-1][1] = max(windows[-1][1], end)
+        else:
+            windows.append([start, end])
+    return [[round(start, 4), round(end, 4)] for start, end in windows]
+
+
+def swing_samples(windows, degrees):
+    """The leaf's turn (degrees) over time for its open windows: shut, eased open over SWING_SECONDS up to each
+    window's start, open through it, eased shut over SWING_SECONDS after: [(seconds, degrees), ...]."""
+    ease = [(1 - math.cos(math.pi * share)) / 2 for share in np.linspace(0.0, 1.0, SWING_POINTS)]
+    samples = []
+    for start, end in windows:
+        samples += [(start - SWING_SECONDS * (1 - share), degrees * eased)
+                    for share, eased in zip(np.linspace(0.0, 1.0, SWING_POINTS), ease)]
+        samples += [(end + SWING_SECONDS * share, degrees * (1 - eased))
+                    for share, eased in zip(np.linspace(0.0, 1.0, SWING_POINTS), ease)]
+    return [(round(float(seconds), 4), round(float(turn), 4)) for seconds, turn in samples]
+
+
+def door_swings(doors, walkers):
+    """Each opening door's swing for the walkers crossing it: `doors` {name: {middle, axes, half, hinge, degrees}},
+    `walkers` {name: roots}; {door: {hinge, degrees, crossed: {walker: frames}, open: windows}} for every door a
+    walker crosses."""
+    swings = {}
+    for name, door in sorted(doors.items()):
+        crossed = {walker: crossings(roots, door) for walker, roots in sorted(walkers.items())}
+        crossed = {walker: frames for walker, frames in crossed.items() if frames}
+        if crossed:
+            swings[name] = {"hinge": list(door["hinge"]), "degrees": float(door["degrees"]), "crossed": crossed,
+                            "open": open_windows([frame for frames in crossed.values() for frame in frames])}
+    return swings
+
+
+def swung_in(scene_file, place, swings):
+    """Each door's swing written on its own prim in the scene's root layer (so it is the strongest opinion): a hinge
+    pivot (xformOp:translate:hinge and its inverse) round a rotateY:swing op, shut (0) by default and time-sampled
+    over its windows at the stage's time codes. Run again, it replaces its own ops."""
+    from pxr import Gf, Usd, UsdGeom
+    stage = Usd.Stage.Open(str(scene_file))
+    rate = stage.GetTimeCodesPerSecond()
+    for name, swing in swings.items():
+        prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+        xformable = UsdGeom.Xformable(prim)
+        kept = [op for op in xformable.GetOrderedXformOps() if not op.GetOpName().endswith((":hinge", ":swing"))]
+        parent = np.asarray(UsdGeom.Xformable(prim.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        hinge = np.append(swing["hinge"], 1.0) @ np.linalg.inv(parent)
+        for attribute in ("xformOp:translate:hinge", "xformOp:rotateY:swing"):
+            if prim.HasAttribute(attribute):
+                prim.RemoveProperty(attribute)
+        pivot = xformable.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble, "hinge")
+        pivot.Set(Gf.Vec3d(*map(float, hinge[:3])))
+        turn = xformable.AddRotateYOp(UsdGeom.XformOp.PrecisionFloat, "swing")
+        turn.Set(0.0)
+        for seconds, degrees in swing_samples(swing["open"], swing["degrees"]):
+            turn.Set(degrees, Usd.TimeCode(seconds * rate))
+        back = xformable.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble, "hinge", isInverseOp=True)
+        xformable.SetXformOpOrder([pivot, turn, back, *kept])
+    stage.GetRootLayer().Save()

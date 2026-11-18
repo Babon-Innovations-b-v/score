@@ -9,7 +9,7 @@ panel mounted `on` a wall, a crate on the ground, a rock sunk 30 cm into it, a r
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support;
 and a walker's route goes round a crate in its way on that same floor and through every spot it is sent through, every point of it standing there, and is refused
-where no floor is (the walkers' ground, `solids`, holds the wall and not the open door). A field of 300 rocks bedded in
+where no floor is (the walkers' ground, `solids`, holds the wall and the shut door, a solid in its doorway). A field of 300 rocks bedded in
 a second ground passes, while a rock 30 cm over it floats and a crate laid into a rock penetrates it, and a rock's
 support is cast against only the faces under it (camp's 660 rocks on a terrain ran the check out of 14 GB); a sky dome
 laid as an object (`score:kind` light) is no solid: never told, never stood on. Far scenery (two rocks laid into each
@@ -37,6 +37,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.near_ground: `kept` taken as every face -> the far terrain is held whole
 - ready.straightened: `in_sight` taken as always True -> the route runs straight through crate_ok
 - ready.route: the legs straightened as one path -> the walk skips the spot it is sent through
+- ready.solids: the doors left out (doors_standing unread) -> the shut door is no solid
 - ready.nearest_to_surface: `+ longest` dropped -> a ring off a coarse box's face reads its corner's distance, not its own
 - ready.ray_box: the box left open on every axis -> a rock's support query reaches every rock's faces
 - ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
@@ -300,7 +301,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)
     assert abs(ready.nearest_to_surface(coarse, np.array([[0.0, 1.5, 0.0], corner])) - 0.5) < 1e-6
     ground = ready.solids(folder)
-    assert "wall" in ground and "door" not in ground and "sky" not in ground and ground["wall"].shape[1:] == (3, 3), \
+    assert "wall" in ground and "door" in ground and "sky" not in ground and ground["wall"].shape[1:] == (3, 3), \
         sorted(ground)
     laid = ready.Place(*place_build.opened(folder))
     foot = ready.lowest_points(laid.meshes["rock0"]) + [0.0, ready.RAY_START, 0.0]
