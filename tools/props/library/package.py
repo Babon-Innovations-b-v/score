@@ -1,7 +1,8 @@
 """A place's scene package: what any engine loads, written from a finished route run (JoeyKardolus/2099#129). Every
 object is its own glTF model as baked (objects/<name>.gltf, its .bin and its pictures), and scene.json says where
-each copy of an object stands in the place's frame. No engine's format is in it: the game 2099 loads it through its
-Godot adapter, Blender or a benchmark through theirs. OpenUSD as the canonical scene format is the next step.
+each copy of an object stands in the place's frame. No engine's format is in it: the game 2099 reads it through its
+Unity reader (Farm.Places), Blender or a benchmark through theirs. This docstring is the format for both writers, this
+file's and score/stages/place_build/scene_package.py's (`package`, from a laid place's USD).
 
     .venv/bin/python tools/props/library/package.py <place> <work> <out>        # write the package, then check it
     .venv/bin/python tools/props/library/package.py --check <out>               # check a package that is there
@@ -11,17 +12,28 @@ kit room's package (route.py's run, `--kit`) went with the old kits on 2026-10-2
 model as the game's HubKit stood it (its box fitted to the laid size on the middle of its foot, in the piece's own
 frame), which the export and the settle read.
 
-scene.json:
+scene.json (a field marked [place_build] is written only by scene_package.py):
     format, version      "score.scene", 1
     place, frame         the place and its frame in words (from its inventory): metres, y up
+    units, up            "metre", "+y"
     ground               how a copy's height is meant: a lift off the ground under its spot, so an engine with terrain
                          stands each copy on its own ground (a flat place frame has its ground at y = 0)
     on_seat              where the place's middle sits on its seat, (across, along)
-    objects              {name: {file, kind, route, size (x, y, z as laid, metres), triangles, check}}
+    objects              {name: {file, kind, route, size (x, y, z as laid, metres), triangles, check {pass, ...}}}
     instances            [{object, row, at, facing, tilt, scale, matrix}]: `facing` a bearing in degrees (0 looks
                          along -z, 90 along +x), `tilt` degrees about the copy's own across, `matrix` the whole
-                         transform as 16 numbers, column by column, as glTF writes a node's matrix
-    children, lamps      objects standing on another object; the place's lamps
+                         transform as 16 numbers, column by column, as glTF writes a node's matrix; a kit piece also
+                         `stretch` [x, y, z]; [place_build] instead of `row`, `name` and `kind`, and when the physics
+                         check ran `role` and `collider` {shape ("convex hull" or "mesh"), dynamic, mass_kg (a dynamic
+                         one's, or null)}
+    children             [{object, on}]: an object standing on another object, laid by its parent
+    lamps                [{name, kind, intensity, colour [r, g, b]}]: kind "point" with `at` [x, y, z], `watts` and
+                         `radius` (metres), or "sun" with `shines`, a unit way [x, y, z]
+    counts               {kind: copies}: a kit room's layout or [place_build] the laid place's own, checked against
+                         its instances
+    physics              [place_build] the physics check's file ("ready.json"), or null when it has not run
+    left_out             [place_build] [{name, why}]: each prim not converted (a skinned character, an animated effect,
+                         a prim that draws no face)
 
 The check refuses a package with a missing or unreadable model file, buffer or picture, a model that failed its model
 check, an object no copy uses, a transform that is not a turn and an even scale (a kit room's: a turn and its
