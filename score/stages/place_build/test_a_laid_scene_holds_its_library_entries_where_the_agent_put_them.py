@@ -86,6 +86,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - review.views_of: the plan's near cut at the floor (CUT left off) -> the plan's cut is not CUT over the floor
 - review.boxed_faults: the fault's name test inverted -> no red box on the floating crate
 - rainfall.falling: the jump back left out -> the rain is not back at its top a period on
+- rainfall.falling: the lean left out of the slide -> the streaks fall straight down across their own lean
+- rainfall.landings: ceil taken as floor -> a splash shows a frame before its drop reaches the ground
+- rainfall.shown: the frame's mesh left at the ground -> splashes stand where no drop has landed
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
 - place_build.remove: Effects not looked in -> the removed ruts stay laid
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
@@ -476,8 +479,9 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
 
 
 def rained(folder):
-    """The rain falls through its box from its top to the ground and back, laid as an effect; the tracks' ruts and
-    prints stand over the laid ground, the ruts between their berms."""
+    """The rain falls through its box from its top to the ground and back along its streaks' lean, laid as an effect,
+    and a frame shows a splash where, and only where, a drop has reached the ground on it or the frames before; the
+    tracks' ruts and prints stand over the laid ground, the ruts between their berms."""
     from score.stages.place_build import ground_tracks, rainfall
     laid = place_build.rain(folder, "rain", [60.0, 60.0], [64.0, 64.0], 3.0, 2.0, seed=1)
     tracked = place_build.tracks(folder, "ruts", rover=[[[60.5, 62.0], [63.5, 62.0]]],
@@ -486,15 +490,43 @@ def rained(folder):
     stage = Usd.Stage.Open(str(folder / "scene.usda"))
     effect = stage.GetPrimAtPath("/yard/Effects/rain")
     fall = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Effects/rain/Fall"))
-    period = 3.0 / rainfall.FALL * rainfall.FPS
-    drops = [fall.ComputeLocalToWorldTransform(code).ExtractTranslation()[1] for code in (0.0, period - 0.02, period)]
+    period = rainfall.period_frames(3.0)
+    slid = [np.array(fall.ComputeLocalToWorldTransform(code).ExtractTranslation()) for code in (0.0, period - 0.02,
+                                                                                                period)]
     streaks = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/rain/Fall/streaks")).GetPointsAttr().Get())
-    splashes = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/rain/splashes")).GetPointsAttr().Get())
+    cards = streaks.reshape(-1, 4, 3)[:len(streaks) // 8]
+    feet, along = (cards[:, 0] + cards[:, 1]) / 2.0, cards[0, 2] - cards[0, 1]
+    assert np.allclose(np.cross(along, slid[1]), 0.0, atol=1e-3 * np.linalg.norm(slid[1]))
+    holders = [UsdGeom.Xformable(prim) for prim in stage.GetPrimAtPath("/yard/Effects/rain/Splashes").GetChildren()]
+    def fallen(frame):
+        """The streaks' feet at the frame before `frame` and where they are at `frame` itself had they not jumped."""
+        start, late = (np.array(fall.ComputeLocalToWorldTransform(code).ExtractTranslation()) for code in
+                       (frame - 1.0, frame - 0.01))
+        return feet + start, feet + start + (late - start) / 0.99
+
+    for frame in range(len(rainfall.SPLASH_GROWTH), 2 * period + 1):
+        before, now = fallen(frame)
+        landed = []
+        for back in range(len(rainfall.SPLASH_GROWTH)):
+            high, low = fallen(frame - back)
+            crossed = (high[:, 1] > 0.0) & (low[:, 1] <= 0.0)
+            share = (high[crossed, 1] / (high[crossed, 1] - low[crossed, 1]))[:, None]
+            landed.append(high[crossed] + (low[crossed] - high[crossed]) * share)
+        landed = np.concatenate(landed)[:, [0, 2]]
+        heights = [holder.GetLocalTransformation(frame).ExtractTranslation()[1] for holder in holders]
+        seen = [holder for holder, height in zip(holders, heights) if height == 0.0]
+        assert len(seen) == 1 and np.allclose(sorted(heights)[:-1], rainfall.HIDDEN)
+        crowns = np.asarray(UsdGeom.Mesh(seen[0].GetPrim().GetChild("crowns")).GetPointsAttr().Get()).reshape(-1, 4, 3)
+        blades = ((crowns[:, 0] + crowns[:, 1]) / 2.0)[:, [0, 2]]
+        apart = np.linalg.norm(blades[:, None] - landed[None], axis=2)
+        reach = rainfall.SPLASH_WIDE[1] * max(wide for wide, _ in rainfall.SPLASH_GROWTH)
+        assert len(landed) and apart.min(axis=1).max() < reach and apart.min(axis=0).max() < reach
+        assert crowns[:, :, 1].max() < 0.05 and np.all(now[:, 1] <= before[:, 1] + 1e-6)
     under = place_build.ground_surface(stage, "yard", [[[60.0, 60.0], [64.0, 64.0]]])
     ruts = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/ruts/ruts")).GetPointsAttr().Get())
     assert laid["counts"]["streaks"] == 96 and effect.GetAttribute("score:role").Get() == "effect"
-    assert drops[0] == 0.0 and drops[1] < -2.9 and drops[2] == 0.0
-    assert streaks[:, 1].max() > 5.5 and splashes[:, 1].max() < 0.05 and streaks[:, 0].min() > 59.9
+    assert slid[0][1] == 0.0 and slid[1][1] < -2.9 and slid[1][0] < -0.2 and slid[2][1] == 0.0
+    assert streaks[:, 1].max() > 5.5 and streaks[:, 0].min() > 59.9
     over = ruts[:, 1] - under(ruts[:, 0], ruts[:, 2])
     assert np.isclose(under([62.0], [62.0])[0], place_build.ground_height(stage, "yard", 62.0, 62.0), atol=1e-4)
     assert tracked["counts"]["prints"] == 6 and over.min() >= ground_tracks.LIFT - 1e-4

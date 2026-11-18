@@ -438,7 +438,7 @@ def rain(folder, name, low, high, height, density, seed=0, address=RAIN):
     gives it its look like any object's."""
     from score.stages.place_build import rainfall
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
-        f"x{low[0]:g},{high[0]:g}_z{low[1]:g},{high[1]:g}_h{height:g}_d{density:g}_s{seed}.usdc")
+        f"x{low[0]:g},{high[0]:g}_z{low[1]:g},{high[1]:g}_h{height:g}_d{density:g}_s{seed}_m{rainfall.MADE}.usdc")
     target.parent.mkdir(parents=True, exist_ok=True)
     counts = None
     if not target.exists():
