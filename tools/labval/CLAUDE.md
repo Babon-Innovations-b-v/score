@@ -37,6 +37,20 @@ SOMA body npz, and MoGe-2's point maps of each video.
   turning the foot alone broke the ankle's shape (left cMAE 3.2 to 4.9), and by the whole leg both feet pushed (squats'
   carries 0.14 to 0.79) but the angles lost (matched MAE 5.25 to 5.89, the left knee 6.0 to 7.9). The lab's calibration
   is the check only, never an input.
+- **The cameras fused** (`_views`, MOTOR #1, 2026-11-18): one camera's GEM-X body leans along its line of sight, so
+  where it puts the pelvis between the feet, and with it MOTOR's split of the weight between them, follows that
+  camera (subject2_squats1's hips 0.60 to 0.36 of the way from the right foot to the left over Cam0 to Cam4, the
+  plates' share 0.48; the sign flips with the side the camera stands on). `prepare --fuse` (validate's `--fuse-on
+  Cam1`) fuses each trial's other cameras into its body: each camera's body levelled on its own MoGe-2 floor
+  (`_soma.viewed`), put on the trial camera's timeline by the shift that best matches its pose (the cameras' clips
+  start 1 to 8 frames apart; on subject2_squats1 the shifts agree with each camera's own lag against the lab's IK to
+  0.5 frame), one rigid move about the up onto the views' mean, then every joint's turn averaged (equal weights),
+  the bind and rest mesh averaged, a view whose clip ends early faded over `RAMP` frames. The lab's calibration is
+  not used. The single camera stays the default: the paper reports it. Measured on 13 trials of subjects 2 to 4 (MOTOR
+  ad7e8c6 on this PC, Cam1 alone against fused; per foot, %BW): squats RMSE 21.2 to 10.4, peak error 28 to 8, left
+  share error 0.095 to 0.009; sit-to-stand 22.5 to 15.2; drop jumps RMSE 36.7 to 29.3 but the landing peaks fall
+  short (peak error 40 to 54); walking 20.5 to 25.8, worse: the fused swing foot reads as touching (MOTOR's own
+  contact on the averaged foot height), so the fused input is not yet the demos' or the measures'.
 - **Forces as OpenCap scored them** (`_grf`; Uhlrich et al. 2023, Methods): the plates and the run's pushes
   low-passed alike at the activity's cutoff (walking 6 Hz, squats and sit-to-stand 4, drop jump 30, held under 0.8 of
   the 30 Hz run's Nyquist: 12), the MAE in % body weight on each of the three axes and as % of the measured range,

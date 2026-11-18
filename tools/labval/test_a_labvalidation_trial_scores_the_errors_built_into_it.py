@@ -8,7 +8,8 @@ moment equal, the residual passing, the vasti on when the EMG says; the hand cas
 from four markers, the bootstrap's bounds, an EMG channel's muscle, an envelope's r against a scaled and a mirrored copy, the † flag) give their worked answers; the shift is found as well
 on an IK covering only a window of the run and 0.4 s off on one gait cycle, an empty third plate is left out and a loaded one refused; a GEM-X
 SOMA body becomes the sim body's rig with its skin unmoved but for its height, the fingers' weight on the hand, the
-bind on the template's frames and the float of 0.3 m taken off; the measure folder's go.sh runs only the trials not
+bind on the template's frames and the float of 0.3 m taken off; two cameras' bodies of it, the hips 40 mm off the legs
+to opposite sides, one turned, moved and late, fuse into its own; the measure folder's go.sh runs only the trials not
 yet done; a floor MoGe-2 sees 5 degrees off GEM-X's level is found so and levelled onto the world's up; a run's
 generalized forces 1 %BW*ht over a reference ID score MAE 1 on all 19 coordinates, and the moments' peaks give their
 worked answers; a drop jump's box and a sit-to-stand's seat lie under what rests on them and clear of the feet on the
@@ -108,6 +109,10 @@ Breaks, each applied once, seen red, reverted (2026-11-09, the back's own moment
 - _moments.predicted's `own if coordinate in OWN else rows` made `rows`: the lumbar's three score MAE 6, the leader's
   moment with its followers'.
 - _moments.predicted's "own torques" check dropped: a run without them raises KeyError, not its reason.
+Breaks, each applied once, seen red, reverted (2026-11-18, the cameras fused, MOTOR #1):
+- _views.heading_fit's `-angle` made `angle`: the second view is turned the wrong way, 248 mm off.
+- _views.resampled's `+ shift` made `+ 0.0`: the late view's turns are 2 frames off the first's.
+- _views.fused's places' weighted mean made the first view's: the hips' 40 mm offset stays.
 """
 import ast
 import json
@@ -120,7 +125,8 @@ from scipy.spatial.transform import Rotation
 
 from tools import labval
 from score.stages import sim_body
-from tools.labval import _files, _grf, _job, _moments, _run, _score, _soma, cluster, validate
+from tools.characters import played
+from tools.labval import _files, _grf, _job, _moments, _run, _score, _soma, _views, cluster, validate
 
 TAU, START, RATE, YAW = 0.0123, 0.5, 30.0, 40.0
 WINDOW = (1.0, 1.8)  # s: an IK covering 40 % of the run, as LabValidation's covers its drop jumps' videos
@@ -576,6 +582,38 @@ def soma_faults():
     return faults + drift_faults(rig, local[:1]) + supports_faults(rig, local[:1])
 
 
+def views_faults():
+    """Two cameras' bodies of the toy, each with its hips 40 mm off its legs to its own side, the second turned 70
+    degrees about the up, moved and starting 2 frames later, fused (`_views.fused`): the shift and the turn found, the
+    legs' offsets cancelled and every turn the toy's, the fused body the toy's own but for one rigid move."""
+    soma, template = toy_soma()
+    rig, world, _ = _soma.viewed(soma, template)
+    truth = _soma.against_parents(world, rig["parents"])
+    legs = [NAMES.index(name) for name in ("LeftLeg", "RightLeg")]
+    first, second = truth.copy(), truth.copy()
+    first[:, legs, 0, 3] += 0.04
+    second[:, legs, 0, 3] -= 0.04
+    move = np.eye(4)
+    move[:3, :3], move[:3, 3] = Rotation.from_rotvec([0.0, np.radians(70.0), 0.0]).as_matrix(), [1.0, 0.05, -2.0]
+    second[:, 0] = move @ second[:, 0]
+    second = np.concatenate([second[2:], second[-2:]])
+    _, fused, _, record = _views.fused([(rig, first, None), (rig, second, None)])
+    faults = []
+    view = record["views"][1]
+    if abs(view["shift frames"] + 2.0) > 0.1 or abs(abs(view["turned deg"]) - 70.0) > 1.0:
+        faults.append(f"the second view's shift or turn is not found: {view}")
+    full = slice(2 + _views.RAMP, None)  # both views held in full
+    if np.abs(fused[full, legs, :3, 3] - truth[full, legs, :3, 3]).max() > 1e-6:
+        faults.append("the views' opposite hips offsets do not cancel")
+    if np.abs(fused[2:-1, 1:, :3, :3] - truth[2:-1, 1:, :3, :3]).max() > 0.01:  # the shift found to 0.1 frame
+        faults.append("a fused joint's turn is not the views' own")
+    places = [played.chained(local, rig["parents"])[full, :, :3, 3] for local in (truth, fused)]
+    miss = _views.heading_fit(places[0], places[1], np.ones(len(places[0]), dtype=bool))[1]
+    if miss > 1e-3:
+        faults.append(f"the fused body is not the toy's moved rigidly: {1000 * miss:.2f} mm off")
+    return faults
+
+
 def drift_faults(rig, still):
     """`_soma.undrifted` on the toy standing still (`still`, one frame of it): drifting 60 mm up over 3 s, its sole
     held on the floor throughout (within 1 mm); standing 0.2 m up for 1 s, falling over 9 frames and standing on the
@@ -939,7 +977,7 @@ def motor_tune_faults(tmp):
 
 def test_a_labvalidation_trial_scores_the_errors_built_into_it(tmp_path):
     faults = [*scoring_faults(tmp_path / "scoring"), *hand_faults(), *loader_faults(tmp_path / "loaders"),
-              *grf_faults(), *soma_faults(), *go_faults(tmp_path / "go"), *unseen_faults(),
+              *grf_faults(), *soma_faults(), *views_faults(), *go_faults(tmp_path / "go"), *unseen_faults(),
               *cluster_faults(tmp_path / "cluster"), *path_name_faults(), *floor_faults(),
               *moment_faults(tmp_path / "moments"), *validate_faults(tmp_path / "validate"),
               *neutral_faults(tmp_path / "neutral"), *motor_tune_faults(tmp_path / "motor_tune")]

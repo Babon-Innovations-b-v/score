@@ -2,19 +2,21 @@
 rented cards).
 
     .venv/bin/python -m tools.labval prepare <folder> --labval <LabValidation root> --template <clips rig.npz> \
-        [--gemx <GEM-X out> [--moge <MoGe-2 out>]] <soma.npz> [<soma.npz> ...]
+        [--gemx <GEM-X out> [--moge <MoGe-2 out>]] [--fuse] <soma.npz> [<soma.npz> ...]
     .venv/bin/python -m tools.labval score <folder> [<folder> ...] --labval <LabValidation root> --out <report.json> \
         [--processes N] [--static <folder>]
     .venv/bin/python -m tools.labval grf-tables <report.json> --out <folder>
     .venv/bin/python -m tools.labval moments <folder> [<folder> ...] --labval <root> --reference <made> --out <json>
 
 prepare: each on_gemx.py npz, named subject<N>_<trial>_<Cam>.npz, as a trial of measure folder <folder> (its job
-names the fetched MyoFullBody, sim_body.fetched: a free download once). score: every trial of <folder> whose run came
-back (its out.json) scored against LabValidation and pooled (a trial in a later folder replaces its namesake in an
-earlier one), with --static each trial's angles read from its subject's standing pose (`labval.neutral`, the static
-trial's run on the same camera); one line said, the report written. grf-tables: the report's ground reaction forces as OpenCap scored
-them (`_grf`), grf.csv and grf.txt per group (all, activity, camera, activity and camera) under <folder>. moments: the
-same runs' joint moments against the reference ID opensim_reference.py made (`_moments`), pooled the same way."""
+names the fetched MyoFullBody, sim_body.fetched: a free download once), with --fuse the same trial's other cameras'
+npz beside it fused into its body (`_views`: its place between its feet no one camera's depth error). score: every
+trial of <folder> whose run came back (its out.json) scored against LabValidation and pooled (a trial in a later
+folder replaces its namesake in an earlier one), with --static each trial's angles read from its subject's standing
+pose (`labval.neutral`, the static trial's run on the same camera); one line said, the report written. grf-tables:
+the report's ground reaction forces as OpenCap scored them (`_grf`), grf.csv and grf.txt per group (all, activity,
+camera, activity and camera) under <folder>. moments: the same runs' joint moments against the reference ID
+opensim_reference.py made (`_moments`), pooled the same way."""
 import argparse
 import concurrent.futures
 import functools
@@ -28,23 +30,46 @@ from tools import labval
 from tools.labval import _grf
 
 
+def seen_of(options, name):
+    """A trial camera's GEM-X Contact/IK result and MoGe-2 floor (`prepare`'s --gemx and --moge), those given."""
+    seen = {}
+    if options.gemx:
+        subject, trial, camera = labval.subject_of(name)
+        with np.load(options.gemx / subject / trial / camera / "contact_ik.npz") as saved:
+            seen["gemx"] = dict(saved)
+    if options.moge:
+        with np.load(options.moge / name / "moge.npz") as saved:
+            seen["moge"] = dict(saved)
+    return seen
+
+
+def views_of(options, path):
+    """With --fuse, the same trial's other cameras beside `path` (subject<N>_<trial>_<Cam>.npz), each (soma, gemx,
+    moge); none without it."""
+    if not options.fuse:
+        return []
+    subject, trial, camera = labval.subject_of(pathlib.Path(path).stem)
+    found = []
+    for other in sorted(pathlib.Path(path).parent.glob(f"{subject}_{trial}_Cam*.npz")):
+        if other.stem != pathlib.Path(path).stem and labval.subject_of(other.stem)[1] == trial:
+            seen = seen_of(options, other.stem)
+            with np.load(other) as saved:
+                found.append((dict(saved), seen.get("gemx"), seen.get("moge")))
+    if not found:
+        raise ValueError(f"{path}: --fuse found no other camera of {subject} {trial} beside it")
+    return found
+
+
 def prepare(options):
-    """Every given SOMA body a trial of the measure folder."""
+    """Every given SOMA body a trial of the measure folder (with --fuse, its trial's cameras fused into it)."""
     with np.load(options.template) as saved:
         template = {key: saved[key] for key in ("names", "parents", "bind", "faces")}
     model = sim_body.fetched()
     for path in options.soma:
         name = pathlib.Path(path).stem
-        seen = {}
-        if options.gemx:
-            subject, trial, camera = labval.subject_of(name)
-            with np.load(options.gemx / subject / trial / camera / "contact_ik.npz") as saved:
-                seen["gemx"] = dict(saved)
-        if options.moge:
-            with np.load(options.moge / name / "moge.npz") as saved:
-                seen["moge"] = dict(saved)
         with np.load(path) as saved:
-            labval.prepared(dict(saved), template, options.labval, name, model, options.folder, **seen)
+            labval.prepared(dict(saved), template, options.labval, name, model, options.folder,
+                            **seen_of(options, name), views=views_of(options, path))
     print(f"{options.folder}: {len(options.soma)} trials prepared, scripts/go.sh written")
 
 
@@ -100,6 +125,8 @@ def main():
     making.add_argument("--template", required=True, type=pathlib.Path)
     making.add_argument("--gemx", type=pathlib.Path, help="GEM-X's out folder: each trial's Contact/IK result")
     making.add_argument("--moge", type=pathlib.Path, help="MoGe-2's out folder (moge_cluster.py): the floor seen")
+    making.add_argument("--fuse", action="store_true", help="fuse each trial's other cameras' SOMA bodies (the npz "
+                        "beside it) into its body (`_views`); without it the one camera's body, as the paper reports")
     scoring = commands.add_parser("score")
     scoring.add_argument("folder", nargs="+", type=pathlib.Path)
     scoring.add_argument("--labval", required=True, type=pathlib.Path)

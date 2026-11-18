@@ -12,7 +12,7 @@ import numpy as np
 from score.stages import sim_body
 from score.stages.sim_body import _body
 from tools.characters import played
-from tools.labval import _floor, _supports
+from tools.labval import _floor, _supports, _views
 
 # The joints the people route drops (tools/characters/people/body.py UNSEEN, which imports SOMA itself and so is not
 # imported here; the test reads that file's tuple and fails when the two differ).
@@ -171,16 +171,14 @@ def bridged(stance):
     return found
 
 
-def person(soma, template, gemx=None, moge=None, activity=None):
-    """(the rig {names, parents, bind, points, faces, weights, stance: each foot's seen stance, `seen_stance`}, its
-    segments' frames frames x segments x 4 x 4, the segments' names, the record) of a GEM-X SOMA body `soma` on the
-    clips rig `template` (people-clips-made's rig.npz: its joints, its mesh's faces and its bind's frames). A body of
-    other joints or another mesh topology than the template's raises: the landmark set is the template's faces. With
-    `gemx` (its result's contact_ik.npz: GEM-X's own Contact/IK post-processing, which holds a foot it sees static
-    where it stood; its camera; its contacts) its world transforms are taken for `soma`'s, and the floor `moge` sees
-    (on_moge.py's npz; `_floor.seen`) levels them (`_floor.levelled`) before they are undrifted onto the floor
-    (`undrifted`) and stood. With `activity` (the trial's, `labval.activity_of`) the chair or box it rests on beside
-    the floor is the rig's `supports` (`_supports.under`: triangles, the person's frame)."""
+def viewed(soma, template, gemx=None, moge=None):
+    """(the rig {names, parents, bind, points, faces, weights}, its world transforms frames x joints x 4 x 4, the
+    record) of one camera's GEM-X SOMA body `soma` on the clips rig `template` (people-clips-made's rig.npz: its
+    joints, its mesh's faces and its bind's frames), before it is put on the floor. A body of other joints or another
+    mesh topology than the template's raises: the landmark set is the template's faces. With `gemx` (its result's
+    contact_ik.npz: GEM-X's own Contact/IK post-processing, which holds a foot it sees static where it stood; its
+    camera; its contacts) its world transforms are taken for `soma`'s, and the floor `moge` sees (on_moge.py's npz;
+    `_floor.seen`) levels them (`_floor.levelled`)."""
     if gemx is not None:
         soma = dict(soma, world=np.asarray(gemx["world_transforms"], dtype=float))
     if float(soma["fps"]) != RATE:
@@ -200,7 +198,8 @@ def person(soma, template, gemx=None, moge=None, activity=None):
            "weights": merged(np.asarray(soma["weights"], dtype=float), carriers, len(joints))}
     if rig_names[played.TRAVELLING_JOINT] != "Hips":
         raise ValueError(f"the travelling joint is {rig_names[played.TRAVELLING_JOINT]}, not Hips")
-    record = {}
+    record = {"joints dropped": len(names) - len(joints),
+              "frames turned onto the template's, deg most": round(turned, 3)}
     if moge is not None:
         floor_seen = _floor.seen(moge, gemx)
         if floor_seen is None:
@@ -208,7 +207,28 @@ def person(soma, template, gemx=None, moge=None, activity=None):
         world, tilt, spread = _floor.levelled(world, gemx, floor_seen["normal"])
         record["floor seen"] = {**{key: floor_seen[key] for key in ("inliers", "rms mm", "tilt deg")},
                                 "levelled deg": round(tilt, 3), "GEM-X's up spread deg": round(spread, 3)}
-    local, floor = undrifted(rig, against_parents(world, parents))
+    return rig, world, record
+
+
+def person(soma, template, gemx=None, moge=None, activity=None, views=()):
+    """(the rig {names, parents, bind, points, faces, weights, stance: each foot's seen stance, `seen_stance`}, its
+    segments' frames frames x segments x 4 x 4, the segments' names, the record) of a GEM-X SOMA body `soma` on the
+    clips rig `template` (`viewed`, with its `gemx` and `moge`), undrifted onto the floor (`undrifted`) and stood.
+    With `views` (the same trial's other cameras, each a (soma, gemx, moge) as `soma`'s three) the cameras' bodies
+    are fused into one on `soma`'s timeline (`_views.fused`), so the body's place between its feet is no one camera's
+    depth error. With `activity` (the trial's, `labval.activity_of`) the chair or box it rests on beside the floor is
+    the rig's `supports` (`_supports.under`: triangles, the person's frame)."""
+    rig, world, record = viewed(soma, template, gemx, moge)
+    local = against_parents(world, rig["parents"])
+    if views:
+        seen = [(*viewed(other_soma, template, other_gemx, other_moge), other_gemx)
+                for other_soma, other_gemx, other_moge in views]
+        rig, local, gemx, record["views"] = _views.fused(
+            [(rig, local, gemx)] + [(other_rig, against_parents(other_world, other_rig["parents"]), other_gemx)
+                                    for other_rig, other_world, _, other_gemx in seen])
+        record["views"]["floor seen"] = [other_record.get("floor seen") for _, _, other_record, _ in seen]
+    parents = rig["parents"]
+    local, floor = undrifted(rig, local)
     stood = sim_body.stood(rig, local)
     rig["stance"] = seen_stance(gemx, rig, stood)
     rig["supports"], supported = _supports.under(rig, stood, activity)
@@ -216,9 +236,9 @@ def person(soma, template, gemx=None, moge=None, activity=None):
         record["supports"] = supported
     segments = sim_body.segments_of(rig)[0]
     lift = local[:, played.TRAVELLING_JOINT, 1, 3] - stood[:, played.TRAVELLING_JOINT, 1, 3]
-    record = {**record, "frames": len(world), "joints dropped": len(names) - len(joints),
-              "frames turned onto the template's, deg most": round(turned, 3),
+    record = {**record, "frames": len(world),
               "put on the floor mm": round(1000 * floor, 2),
               "stood move mm": [round(1000 * float(value), 2) for value in (lift.min(), np.median(lift), lift.max())],
               "stance share": [round(float(share), 3) for share in rig["stance"].mean(axis=0)]}
-    return rig, played.chained(stood, parents)[:, segments], [rig_names[joint] for joint in segments], record
+    names = [str(name) for name in rig["names"]]
+    return rig, played.chained(stood, parents)[:, segments], [names[joint] for joint in segments], record

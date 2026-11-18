@@ -7,7 +7,8 @@ group (all, each activity, each camera, each activity and camera), and the sim b
 
     SCORE_CLOUD=k8s SCORE_SPEND_TICKET=... .venv/bin/python -m tools.labval.validate <folder> \
         --labval <LabValidation root> --out <folder> --who "<session>" [--name <run>] [--per-job 15] [--gpus 24] \
-        [--soma <folder of SOMA npz> --template <clips rig.npz> [--gemx <GEM-X out> [--moge <MoGe-2 out>]]] \
+        [--soma <folder of SOMA npz> --template <clips rig.npz> [--gemx <GEM-X out> [--moge <MoGe-2 out>]]
+        [--fuse-on Cam1]] \
         [--reference <opensim_reference.py's folder>] [--static <static runs' folder>] [--processes 2] [--no-run]
 
 Out: report.json (`score`'s, all trials), groups.json (`labval.pooled`'s measures per group), angles, forces, emg,
@@ -99,13 +100,14 @@ def written(rows, folder, stem):
 
 def prepared(options):
     """Every SOMA body of --soma a trial of the measure folder (`prepare`), in --processes parts side by side."""
-    bodies = sorted(str(path) for path in options.soma.glob("*.npz"))
+    bodies = sorted(str(path) for path in options.soma.glob(f"*_{options.fuse_on}.npz" if options.fuse_on else "*.npz"))
     if not bodies:
         raise SystemExit(f"{options.soma}: no SOMA npz to prepare")
     base = [sys.executable, "-m", "tools.labval", "prepare", str(options.folder), "--labval", str(options.labval),
             "--template", str(options.template)]
     base += (["--gemx", str(options.gemx)] if options.gemx else []) + (["--moge", str(options.moge)] if options.moge
                                                                        else [])
+    base += ["--fuse"] if options.fuse_on else []
     parts = [subprocess.Popen(base + bodies[start::options.processes], cwd=REPO) for start in range(options.processes)]
     if any(part.wait() for part in parts):
         raise SystemExit(f"{options.folder}: a prepare part failed")
@@ -167,6 +169,8 @@ def main():
     parser.add_argument("--template", type=pathlib.Path, help="the clips rig.npz `prepare` reads")
     parser.add_argument("--gemx", type=pathlib.Path, help="GEM-X's out folder (`prepare --gemx`)")
     parser.add_argument("--moge", type=pathlib.Path, help="MoGe-2's out folder (`prepare --moge`)")
+    parser.add_argument("--fuse-on", help="a camera (Cam1): only its bodies prepared, each with its trial's other "
+                        "cameras fused into it (`prepare --fuse`); without it every camera's own body")
     parser.add_argument("--reference", type=pathlib.Path, help="opensim_reference.py's folder: the moments' reference")
     parser.add_argument("--processes", type=int, default=2)
     parser.add_argument("--static", type=pathlib.Path, help="the static runs' measure folder (`score --static`)")
