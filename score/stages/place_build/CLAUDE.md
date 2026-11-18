@@ -100,3 +100,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   place is filmed from free air outside its glass, never through a closed door.
 - Test: `test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them.py` (no Blender, no library fetch;
   blender_views.py is checked by a render of the fixture scene, never in the test).
+- **The scene package** (scene_package.py, `package <folder> <out>`): the laid place for a game engine (2099's Unity,
+  glTFast) in tools/props/library/package.py's one format (score.scene v1, checked by its own check, never forked):
+  every object converted from the laid USD with usd-core and trimesh's writer (no Blender), its bound looks as glTF
+  PBR (exact factors, maps, an image surface box-projected over its tile), an unchanged glTF model its entry's own
+  glTF; colliders from ready.json's roles. A recipe's wear and dirt are the preview's only: the package has its factors.

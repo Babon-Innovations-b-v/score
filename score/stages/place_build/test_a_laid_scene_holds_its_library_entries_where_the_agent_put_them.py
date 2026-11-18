@@ -17,7 +17,10 @@ than a knee, its flat's doorway cut through its back wall, its facade closed ont
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
-straight down under its cut with +x right and +z down, and a physics fault boxed in red and named on the plan.
+straight down under its cut with +x right and +z down, and a physics fault boxed in red and named on the plan; and
+the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
+copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR and its colliders
+from the physics check's roles.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -93,6 +96,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
 - place_build.remove: Effects not looked in -> the removed ruts stay laid
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
+- scene_package.copy_frame: every copy kept whole (no evenness test) -> a stretched copy fails the package check
+- scene_package.gprim_pieces: the cube's own transform left out (identity) -> the crate's model misses its laid box
+- scene_package.look_name: the look's own prim name -> the two steel walls are two objects
+- scene_package.entry_glb: never reused (None) -> the cabinet is converted, not its library glTF
+- scene_package.face_looks: the parts' subsets ignored -> the crate's lid top has no steel look
+- scene_package.pbr: the map's tint left off -> the sand's base colour is white
+- scene_package.gprim_pieces: the tile ignored (the mesh's own st) -> the dune has no tiled coordinates
+- scene_package.mass_of: the scale's cube left off -> the doubled box weighs 12.5 kg, not 100
 """
 import json
 import pathlib
@@ -476,6 +487,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(moon.TransformDir(Gf.Vec3d(0, 0, -1)), (0.0, -0.5, -np.cos(np.radians(30))), atol=1e-6)
     rained(folder)
     reviewed(folder)
+    packaged(folder, tmp_path / "package")
     filmed(tmp_path)
 
 
@@ -567,6 +579,58 @@ def reviewed(folder):
     red = (marked[..., 0] > 200) & (marked[..., 1] < 50) & (marked[..., 2] < 50)
     around = red[crate[0][1] - 2:crate[1][1] + 3, crate[0][0] - 2:crate[1][0] + 3].sum()
     assert faults == {"crate": "floating"} and around > 10 and red.sum() == around
+
+
+def gltf_of(out, scene, name):
+    """A packaged object's glTF document and its materials by name."""
+    document = json.loads((out / scene["objects"][name]["file"]).read_text())
+    return document, {material["name"]: material for material in document.get("materials", [])}
+
+
+def packaged(folder, out):
+    """The laid scene as a scene package (score.scene v1, package.py's check sound): every copy's model, stood by its
+    matrix, fills the laid object's box; two copies in one surface one object, a copy stretched unevenly its own; a
+    glTF model laid unchanged its library glTF as it was; a look's colour, a part's look, a tinted image surface's
+    map box-projected over its tile; each copy's collider from the physics check's roles, a prop's mass from its
+    entry's record times its scale cubed; the lamps; the character, the rain and the sky named as left out."""
+    from score.stages.place_build import scene_package
+    place_build.put(folder, "wall2", "kit/box_piece", at=(30, 0, 30), turn=(0, 45, 0))
+    place_build.surface(folder, "wall2", "surface/steel")
+    place_build.put(folder, "plank", "kit/box_piece", at=(90, 0, 0), scale=(2, 1, 1))
+    place_build.put(folder, "big", "kit/box_piece", at=(95, 0, 0), scale=(2, 2, 2))
+    place_build.surface(folder, "big", "surface/boards", colour="#ff0000")
+    sand = folder / "assets/surface/sand/1"
+    Image.new("RGB", (8, 8), (90, 90, 90)).save(sand / "colour.jpg")
+    (sand / "surface.json").write_text(json.dumps({"tile_metres": 0.5}))
+    (folder / "assets/kit/box_piece/1/box_piece.json").write_text(json.dumps({"physics": {"mass_kg": 12.5}}))
+    (folder / "ready.json").write_text(json.dumps({"roles": {"big": "prop", "wall": "structure", "sky": "light"}}))
+    made = scene_package.packaged(folder, out)
+    scene = json.loads((out / "scene.json").read_text())
+    copies = {copy["name"]: copy for copy in scene["instances"]}
+    boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
+    for name, copy in copies.items():
+        model = trimesh.load(out / scene["objects"][copy["object"]]["file"], force="mesh")
+        model.apply_transform(np.array(copy["matrix"]).reshape(4, 4).T)
+        assert np.abs(model.bounds - boxes[name]).max() < 2e-3, (name, model.bounds, boxes[name])
+    _, crate = gltf_of(out, scene, copies["crate"]["object"])
+    dune, dune_looks = gltf_of(out, scene, copies["dune"]["object"])
+    dune_uv = dune["accessors"][dune["meshes"][0]["primitives"][0]["attributes"]["TEXCOORD_0"]]
+    assert made["check"] == "sound" and scene_package.package.problems(out) == []
+    assert copies["wall2"]["object"] == copies["wall"]["object"] != copies["floor"]["object"]
+    assert copies["big"]["scale"] == 2.0 and copies["big"]["object"] == copies["panel"]["object"] != "big"
+    assert copies["plank"]["scale"] == 1.0 and scene["objects"][copies["plank"]["object"]]["size"] == [2.0, 2.0, 0.5]
+    assert {copies[name]["object"] for name in ("cabinet", "shelf", "stone")} == {"cabinet"}
+    assert scene["objects"]["cabinet"]["route"] == "library glTF" and scene["objects"]["dune"]["route"] != "library glTF"
+    assert np.allclose(crate["surface/boards@1"]["pbrMetallicRoughness"]["baseColorFactor"], (1, 0, 0, 1))
+    assert np.allclose(crate["surface/steel@1 top"]["pbrMetallicRoughness"]["baseColorFactor"], (0.3, 0.3, 0.4, 1))
+    sand_look = dune_looks["surface/sand@1"]["pbrMetallicRoughness"]
+    assert np.allclose(sand_look["baseColorFactor"], (1.0, 0.2158605, 0.0, 1.0)) and "baseColorTexture" in sand_look
+    assert np.allclose(np.array(dune_uv["max"]) - dune_uv["min"], 2.0 / 0.5)  # the 2 m box over a 0.5 m tile
+    assert copies["big"]["collider"] == {"shape": "convex hull", "dynamic": True, "mass_kg": 100.0}
+    assert copies["wall"]["collider"] == {"shape": "mesh", "dynamic": False} and copies["crate"]["collider"] is None
+    assert [(lamp["name"], lamp["kind"]) for lamp in scene["lamps"]] == [("bulb", "point"), ("sun", "sun"),
+                                                                         ("moon", "sun")]
+    assert {"walker", "rain", "sky"} <= {item["name"] for item in scene["left_out"]}
 
 
 def filmed(tmp_path):
