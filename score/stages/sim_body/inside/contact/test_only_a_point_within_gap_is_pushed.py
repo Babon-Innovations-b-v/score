@@ -40,6 +40,7 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - feet_shares' `found[frames] = over` made `found[frames] = 0.5`: a step's hand-over holds half each.
 - feet_shares' `(frames - start + 0.5) / ramp` made `1.0`: a foot coming down takes its half at once.
 - registered's `found.shares = self.shares` dropped: the registered skin has no shares.
+- parts_lowests' `heights[every] = heights_over(...)` given `placed[every][:, 1]`: a part's lowest is its height.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -345,6 +346,10 @@ def shares_problems():
     again = skin.registered(carried, carried)
     if again.share_of(len(touching) + 3) != found[3] or again.share_of(0) is not None:
         problems.append("the registered skin's shares are not the skin's, read by state")
+    parts = {0: np.arange(0, len(skin.points), 2), 1: np.arange(1, len(skin.points), 2)}
+    raised = flat() + np.array([0.0, 0.01, 0.0])  # a floor 1 cm up: a height over it is not a point's own height
+    if contact.parts_lowests(model, data, skin, raised, parts) != contact.lowests(model, data, skin, raised, parts)[1]:
+        problems.append("parts_lowests' parts differ from lowests'")
     return problems
 
 

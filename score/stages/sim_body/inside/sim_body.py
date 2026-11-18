@@ -116,7 +116,7 @@ import fit  # noqa: E402
 import motor  # noqa: E402
 import myo  # noqa: E402
 from bone_groups import FEET, groups  # noqa: E402
-from contact import GAP, STANCE_HIGH, Skin, lowests  # noqa: E402
+from contact import GAP, STANCE_HIGH, Skin, lowests, parts_lowests  # noqa: E402
 from landmarks import at_starts  # noqa: E402
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates  # noqa: E402
 from muscles import Physics, parts_of  # noqa: E402
@@ -238,7 +238,7 @@ def credited(physics, skin, path, stance, bodies, rate):
     for qpos in path:
         data.qpos[:] = qpos
         mujoco.mj_kinematics(physics.model, data)
-        found = lowests(physics.model, data, skin, physics.ground, parts)[1]
+        found = parts_lowests(physics.model, data, skin, physics.ground, parts)
         lowest.append([np.nan if found[side] is None else found[side] for side in range(len(sides))])
     lowest = np.array(lowest)
     reached = np.nan_to_num(lowest, nan=np.inf)

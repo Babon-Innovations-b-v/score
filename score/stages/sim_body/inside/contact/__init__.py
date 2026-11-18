@@ -375,6 +375,18 @@ def lowests(model, data, skin, ground, parts):
                               for part, points in parts.items()}
 
 
+def parts_lowests(model, data, skin, ground, parts):
+    """`lowests`' each part's lowest ({part: metres, None where none of its points is over any ground}), the heights
+    found for the parts' points alone (the reach, floor and top still the whole skin's): a clip's every frame of the
+    feet in seconds, where the whole skin's took 2.3 s a frame (2026-11-18, street's walkers)."""
+    placed = skin.placed(model, data)
+    every = np.unique(np.concatenate([np.asarray(points, int) for points in parts.values()] or [np.zeros(0, int)]))
+    heights = np.full(len(placed), np.nan)
+    if len(every):
+        heights[every] = heights_over(placed[every], ground, body_reach(placed), body_floor(placed), body_top(placed))
+    return {part: lowest_of(heights[points]) if len(points) else None for part, points in parts.items()}
+
+
 def closeness(over):
     """How near each skin point `over` metres above its ground is (one height or an array of them; 0 at GAP, 1 on or
     into it): the length of its push directions, so the solve's cost of its push grows as it nears GAP (a push of x
