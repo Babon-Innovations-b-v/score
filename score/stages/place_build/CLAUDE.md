@@ -106,4 +106,6 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
   entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
   relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, a laid
-  ground's as one seamless 8 m tile; scene.json's `environment` carries the sky picture, sun, exposure and AgX grade.
+  ground's as one seamless 8 m tile; a mesh with no normals goes smooth, as Blender imports it; scene.json's
+  `environment` carries the sky picture, sun, exposure, the ground's baked albedo (an engine's bounce from below) and
+  the AgX grade drawn by Blender's own OpenColorIO as a lattice picture (grade_lut.py), so the engine grades exactly.
