@@ -115,22 +115,20 @@ Simulation}
 \begin{document}
 \maketitle
 \begin{abstract}
-A single locked concept picture becomes an owned, editable OpenUSD
-environment that a physics engine can step, populated with people solved
-down to the muscle. World generation models now render convincing
-pictures, videos and Gaussian splats of places, yet none delivers
-separate, editable objects with authored mass, colliders and a
-consistent finish that have been checked in simulation. SCORE is an open
-framework that composes current commercial and open-source models around
-the open OpenUSD standard and the open-source MuJoCo engine. From a
-creator's concept it segments the picture into objects, generates each
-missing one, finishes every object from a shared library, checks the
-assembled scene for physical faults and populates it with people whose
-MyoFullBody musculoskeletal bodies are solved by MOTOR. Four places
-built this way pass every check without a fault and are written as
-stages their creator owns and can hand to a simulator as written; the
-people remain the open layer, since their sim bodies do not yet meet the
-residual limits over whole clips. Code:
+Simulation needs worlds that a physics engine can step: separate objects
+with mass, colliders and joints, a consistent look, and people whose
+bodies obey the same physics. World generation models now produce
+convincing pictures, videos and splats of places, yet none of them
+delivers such a scene, and none hands its creator a file to own and
+edit. SCORE is an open framework that closes this gap by composing the
+best current commercial and open-source models around two open
+foundations, OpenUSD for the scene and MuJoCo for its physics. A
+creator's concept picture is segmented into objects, the missing objects
+are generated, every object is finished from one shared library, the
+assembled scene is checked in simulation, and people are added as
+musculoskeletal bodies solved by MOTOR. Four places built this way pass
+every physical check and are written as OpenUSD stages that their
+creator owns and can edit. Code:
 https://github.com/Babon-Innovations-b-v/score (MIT).
 \end{abstract}
 
@@ -138,40 +136,40 @@ https://github.com/Babon-Innovations-b-v/score (MIT).
 
 \section{Related work}\label{related-work}
 
-OpenUSD began at Pixar in 2012 as the scene description for assembling
-its films {[}1{]} and was released as open source in 2016 {[}2{]}. A USD
-stage is composed from layers, references and variants, so that each
-tool edits its own layer. In 2023 Pixar, Adobe, Apple, Autodesk and
-NVIDIA founded the Alliance for OpenUSD to standardise it {[}3{]}; its
-Core Specification 1.0, ratified in December 2025, covers composition
-and data representation and leaves physics to later domain
-specifications {[}4{]}. The UsdPhysics schema already describes rigid
-bodies, colliders, mass and joints {[}5{]}, and Isaac Lab simulates such
-stages for robot learning {[}6{]}, but every object's mass, collider and
-joints must still be authored.
+Film met the problem of assembling large scenes from many hands before
+simulation did. Pixar developed Universal Scene Description for its
+films and released it as open source in 2016 {[}1{]}, {[}2{]}. A USD
+stage is composed from layers, so that each department edits its own
+layer without overwriting the others. In 2023 Pixar, Adobe, Apple,
+Autodesk and NVIDIA founded the Alliance for OpenUSD to standardise the
+format {[}3{]}, and its Core Specification 1.0 was ratified in December
+2025 {[}4{]}. The UsdPhysics schema adds rigid bodies, colliders, mass
+and joints {[}5{]}, and Isaac Lab already trains robots on such stages
+{[}6{]}. The format can therefore hold a world that is ready for
+simulation, but every object's physics must still be authored by
+someone.
 
-MuJoCo {[}7{]}, built on generalised coordinates and soft contact, has
-been open source since 2022 {[}8{]} and is widely used in robotics and
-musculoskeletal simulation {[}9{]}. MuJoCo Warp ports it to the GPU
-{[}10{]}, {[}11{]}, and Newton, an open engine under the Linux
-Foundation since September 2025, runs it as its main solver and reads
-OpenUSD directly {[}12{]}. MuscleMimic assembles MyoFullBody, a
-head-to-toe body with 416 muscles, from MyoSuite's models {[}13{]}. Each
-still needs a scene whose physics has been authored.
+Physics engines have followed a similar path towards openness. MuJoCo
+{[}7{]}, built on generalised coordinates and soft contact, became open
+source in 2022 {[}8{]} and is now a standard tool in robotics and
+musculoskeletal research {[}9{]}. MuJoCo Warp brings it to the GPU
+{[}10{]}, {[}11{]}, and Newton, an open engine hosted by the Linux
+Foundation, uses it as its main solver and reads OpenUSD directly
+{[}12{]}. With MyoFullBody, a whole-body model with 416 muscles
+{[}13{]}, the same engine can carry people as well as objects. What
+these engines lack is not capability but scenes to run.
 
-World generation models do not supply such scenes. Genie 3 generates
-interactive worlds as pixels from a closed model {[}14{]} and Cosmos
-predicts video {[}15{]}; neither holds exportable geometry or physical
-state. HunyuanWorld 1.0 lifts panoramas into layered meshes with baked
-colour and no physical properties {[}16{]}, and its successor
-reconstructs splats and meshes with coarse collision but no per-object
-mass or joints {[}17{]}. Object generators such as TRELLIS.2 {[}18{]}
-produce single assets with no scale, mass or relation to a scene, and
-procedural and language-driven systems keep scenes explicit but draw on
-a fixed grammar or asset set {[}19{]}, {[}20{]}, {[}21{]}. What is
-missing is a framework that composes current commercial and open-source
-components into one route from a concept to a scene a simulator can
-step.
+World generation models promise such scenes but deliver pictures of
+them. Genie 3 {[}14{]} generates interactive worlds as pixels from a
+closed model, and Cosmos {[}15{]} predicts video; neither yields
+geometry that a simulator can load. HunyuanWorld {[}16{]}, {[}17{]}
+lifts panoramas into meshes and splats, but with baked colour and
+without per-object mass or joints. Object generators such as TRELLIS.2
+{[}18{]} make convincing single assets with no scale and no place in a
+scene, while procedural systems {[}19{]}, {[}20{]}, {[}21{]} keep their
+scenes explicit but are bound to a fixed grammar or asset set. What is
+missing is a framework that combines the strongest of them, commercial
+and open, into one route from a concept to a scene a simulator can step.
 
 \section{Method}\label{method}
 
@@ -198,45 +196,46 @@ class. (f) A walker's MyoFullBody sim body, solved by MOTOR, in the
 finished place.}
 \end{figure}
 
-SCORE writes every scene as an OpenUSD stage in metres, its physics in
-UsdPhysics and its child scenes by reference, so that each layer is
-edited without disturbing the others. The creator first decides physics,
-setting and style in an environment concept: its bodies and orbits, each
-plot's ground and gravity, site coordinates, a style line and reference
-pictures. A set interview with Gemini 3.1 Pro fills it {[}22{]} and the
-creator locks it; each site's sky is computed from these bodies.
+SCORE records every scene as an OpenUSD stage, with its physics in
+UsdPhysics and each child scene held by reference, so that each of the
+layers below can be edited without disturbing the others. Before
+anything is drawn, the creator decides the physics, the setting and the
+style of the environment: its gravity and ground, where it lies, and a
+style line with reference pictures. An interview with Gemini 3.1 Pro
+{[}22{]} drafts this environment concept, and the creator locks it.
 
-Figure 1 follows one place, camp, through the layers. Nano Banana Pro
-draws its concept through the Google Gemini API {[}23{]} from the
-place's contents, view and style, for the creator to lock. SAM 3
-{[}24{]} segments the locked concept into its inventory from ten generic
-nouns, keeping up to 40 instances each and merging overlaps above 0.6. A
-coding agent {[}25{]} lays library entries over it, renders the view in
-Blender {[}26{]} and corrects until it reads as the concept. TRELLIS.2
-{[}18{]} makes objects the library lacks from a close-up or the masked
-concept crop, fitting each over its placeholder. The library finish
-moves each of six colour groups 60\% of the way to the nearest token of
-the place's one palette, so that generated and library objects share a
-look, and flags a group far from every token, which the agent repaints
-with a library surface {[}27{]}. CoACD {[}28{]} writes convex hulls with
-each model for downstream simulators.
+Each place then passes through the layers shown in Figure 1. Its concept
+picture is drawn by Nano Banana Pro through the Google Gemini API
+{[}23{]} from the place's contents, view and style, and the creator
+locks it in turn. SAM 3 {[}24{]} segments the locked picture into an
+inventory of its objects. A coding agent {[}25{]} lays library pieces
+over that inventory in Blender {[}26{]}, renders the concept view and
+corrects the layout until it reads as the concept. Objects that the
+library does not hold are made by TRELLIS.2 {[}18{]} from the concept's
+own crop of them and fitted in their place.
 
-The assembled scene is checked for twelve kinds of fault, most of them
-geometric, among them resting more than 3 cm off a support,
-interpenetration, tipping and a walkway narrower than 0.9 m. In MuJoCo,
-every loose object is released for 1 s at a 2 ms step, and one that
-moves more than 5 cm or turns more than 8° is unstable. Only a
-fault-free scene is ready.
+Generated objects arrive with colours of their own, which would make a
+scene look assembled from unrelated sources. The library finish
+therefore moves each generated colour towards the nearest colour of the
+place's single palette, and replaces any colour that stays far from it
+with a library surface {[}27{]}, so that made and library objects share
+one look. CoACD {[}28{]} then gives every model convex colliders, with
+its mass and friction taken from its material.
 
-People are routed over the checked floor, animated by Kimodo {[}29{]}
-and solved by MOTOR {[}30{]} as MyoFullBody sim bodies sized to their
-SOMA bodies {[}31{]}. MOTOR fits the 95 free degrees of freedom of
-SCORE's variant (131 joints, 36 tied), runs inverse dynamics in Newton
-under the place's gravity with ground reaction forces from skin contact,
-and shares the joint moments over 416 muscles by static optimisation. A
-body passes the residual check when its residual force stays within 2\%
-of body weight and its moment within 1\% of weight times centre-of-mass
-height {[}32{]}.
+The assembled scene is checked before it counts as ready. Twelve kinds
+of fault are tested, among them objects floating above their support,
+objects passing through one another and walkways too narrow to use, and
+in MuJoCo every loose object is released for one second; any object that
+slides or tips fails the scene.
+
+Finally the place is populated. People are routed over the checked
+floor, animated by Kimodo {[}29{]} and solved by MOTOR {[}30{]} as
+MyoFullBody sim bodies sized to their SOMA bodies {[}31{]}. MOTOR
+recovers the joint motion, computes the ground reaction forces from the
+contact of the skin with the floor and the joint moments under the
+place's gravity, and shares those moments over the 416 muscles. A body
+is accepted when its residual forces and moments stay within the limits
+of the residual check {[}32{]}.
 
 \section{Discussion}\label{discussion}
 
@@ -257,43 +256,43 @@ MyoFullBody sim body solved by MOTOR, with the vertical ground reaction
 force drawn at the stance foot.}
 \end{figure}
 
-SCORE first derived each scene from its concept through model readings,
-written plans and generated shells. Over all 26 places of a first
-environment, reviewing vision-model agents scored it a mean of 2.2 out
-of 10 against the concepts, with wrong shells in 18 places and objects
-dropped or doubled in 22, and eight rounds of fixes did not improve it.
-The layered method replaced it for four places: camp, campgrounds,
-stairwell and street (Figure 2).
+SCORE did not begin with layers. Its first method derived each scene
+from the concept through model readings, written plans and generated
+shells. Over the 26 places of a first environment, vision-model
+reviewers scored the results at a mean of 2.2 out of 10 against their
+concepts, with wrong shells in 18 places, and eight rounds of fixes did
+not raise the score. That failure shaped the present design. Current
+models are strong at single steps, such as segmenting a picture or
+making one object, and weak at holding a whole scene together; the
+framework therefore holds the scene itself and calls each model only for
+the step it does well.
 
-All four pass the place check without a fault, on 711, 1046, 61 and 890
-objects. The builder's own critic scored their concept views 7, 7, 4 and
-6 out of 10, the old method's reviewers 2, 4, 1 and 1; with different
-judges and no human rating, the two sets are not directly comparable.
-TRELLIS.2 was judged better than the earlier route on five of six camp
-props and runs in 170 to 220 s per model on a local 16 GB card at no
-rental cost, against about EUR 0.22 before. First film renders cost
-about EUR 17 on rented cards, the published re-renders EUR 45 to 50.
+With the layered method we built four places: camp, campgrounds,
+stairwell and street (Figure 2). All four pass the scene check without a
+fault, on 61 to 1,046 objects each. The building agent's critic scored
+their concept views between 4 and 7 out of 10, against 1 to 4 for the
+same places under the old method, although the two sets of judges differ
+and no human rated either. TRELLIS.2 was judged the better model on five
+of six camp objects and makes one model in about three minutes on a
+local 16 GB card.
 
-The people are the weakest layer. In the first films of 17 November,
-twelve of thirteen walkers stayed within 6.8 cm of their routes, but no
-sim body passed the residual check over a whole clip: the best street
-walker met the force limit (13.2 N against 15.2 N) but not the moment
-limit (13.4 N m against 7.4 N m), and the stairwell woman peaked at
-1,368 N against 15 N while sinking about 17 cm. The published re-films
-still fail it at every walker's peaks. The scenes are not
-photorealistic: surfaces are clean and pale, kits repeat and signs are
-illegible. The settle runs under Earth's gravity even on Mars, and the
-check judges rest, not function.
+The people remain the weakest layer. The walkers keep to their routes,
+but no sim body yet passes the residual check over a whole clip, and the
+stairwell woman reaches peaks far above the limits while her feet sink
+into the floor. A revised foot contact in MOTOR reduced the error of
+each foot's ground reaction force over 13 laboratory trials but raised
+the residual moment at the pelvis {[}33{]}. The scenes are not yet
+photorealistic either: surfaces are clean and pale, kit pieces repeat
+and signs cannot be read, and the check confirms that objects rest, not
+that they work.
 
-A revised foot contact in MOTOR lowered per-foot vertical ground
-reaction force error in all four motions of 13 trials but raised the
-pelvis residual moment by 1.5 to 6 N m {[}33{]}, so the residual limits
-remain open work. Articulated UsdPhysics joints would make doors and
-machines operable, and the settle should take each plot's own gravity.
-The larger step is a whole environment judged by human raters. Coding
-agents placed every object through the framework's commands, judged the
-renders and wrote most of the code; the creator's locks and decisions
-were his own.
+The next steps follow from these limits: residual limits met over whole
+clips, articulated joints so that doors and machines can be operated,
+each place's own gravity in the settle, and an environment rated by
+people rather than by models. Because each layer is a separate step on
+an open scene, a better segmenter or generator will replace one step
+without rebuilding the rest, so the framework improves as the models it
+composes improve.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
