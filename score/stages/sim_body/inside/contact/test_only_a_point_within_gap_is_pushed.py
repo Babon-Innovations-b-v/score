@@ -36,6 +36,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - registered's `if segment in soles and ground is not None:` made `if False:`: the foot is laid over its lifted
   frames too, off the standing riding.
 - sole_of's `(lowest[:, None] <= GAP) &` dropped: the lifted frames' lowest corners count as sole, off it.
+2026-11-18 (MOTOR 4799331 brought in):
+- feet_shares' `found[frames] = over` made `found[frames] = 0.5`: a step's hand-over holds half each.
+- feet_shares' `(frames - start + 0.5) / ramp` made `1.0`: a foot coming down takes its half at once.
+- registered's `found.shares = self.shares` dropped: the registered skin has no shares.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -313,7 +317,35 @@ def registered_skin_problems():
     carried = np.array(carried)
     found = skin.registered(carried, carried @ offset)
     problems = [] if np.allclose(found.riding[0], offset, atol=1e-9) else [f"riding {np.round(found.riding[0], 4)}"]
-    return problems + sole_registered_problems()
+    return problems + sole_registered_problems() + shares_problems()
+
+
+def shares_problems():
+    """The feet's split from their contacts' timeline (`feet_shares`, 30 frames a second, RAMP 0.1 s): a step's
+    hand-over (the left coming down on frame 2, the right lifting off after frame 5) takes the left's share linearly
+    1/8, 3/8, 5/8, 7/8 over its four shared frames; both feet coming down together ramp to an equal share, and a foot
+    coming down beside a standing one ramps its share in over RAMP (the left's 6/7, 2/3, 6/11, then half); nan where
+    one foot alone touches; and the share carries through `Skin.registered` and reads by state (`share_of`)."""
+    import numpy as np
+    import contact
+    touching = np.array([[0, 1], [0, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 0], [1, 0]], bool)
+    found = contact.feet_shares(touching, 30.0)
+    problems = [] if np.allclose(found[2:6], [0.125, 0.375, 0.625, 0.875]) and np.isnan(found[[0, 1, 6, 7]]).all() \
+        else [f"a step's shares {np.round(found, 3).tolist()}, not 1/8 to 7/8 over the shared frames"]
+    together = contact.feet_shares(np.array([[0, 0]] + [[1, 1]] * 8 + [[0, 0]], bool), 30.0)
+    if not np.allclose(together[1:9], 0.5):
+        problems.append(f"both feet together: shares {np.round(together, 3).tolist()}, not half each")
+    joining = contact.feet_shares(np.array([[1, 0]] * 2 + [[1, 1]] * 6, bool), 30.0)  # the right ramps in over 3
+    if not np.allclose(joining[2:], [6 / 7, 2 / 3, 6 / 11, 0.5, 0.5, 0.5]):
+        problems.append(f"the right foot coming down: left shares {np.round(joining, 3).tolist()}, not ramped")
+    model, data = ball_at(0.03)
+    skin = skin_of(model, data)
+    skin.timed(touching, 30.0)
+    carried = np.tile(np.eye(4), (2, len(skin.bodies), 1, 1))
+    again = skin.registered(carried, carried)
+    if again.share_of(len(touching) + 3) != found[3] or again.share_of(0) is not None:
+        problems.append("the registered skin's shares are not the skin's, read by state")
+    return problems
 
 
 def sole_registered_problems():

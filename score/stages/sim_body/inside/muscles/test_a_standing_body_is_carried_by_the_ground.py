@@ -6,7 +6,7 @@ rounding there (1e-3, MuJoCo's C 1e-11) moves no activation, and a 1e-6 nudge of
 and on the ground too, the ground reaction force solved first (`staged`): two feet on a flat floor asked for a
 moment past their toes (the body cannot be balanced, so the balance sits on the edge of the contacts' cone, its toe
 points' friction pyramids dependent), a 1e-6 nudge of the contact columns moves the activations under 1e-5 and each
-foot carries half the weight; and a knee's free turn is carried by its ligaments, not the muscles crossing it; and a
+foot carries half the weight, and with both feet down each carries its contacts' timeline's share (`split_row`); and a knee's free turn is carried by its ligaments, not the muscles crossing it; and a
 leader's own moment is its joint's alone, its net moment its followers' with it.
 It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
@@ -30,6 +30,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - staged's steps made the one least squares of before (contacts, stops and muscles together, the pelvis' rows
   BALANCE): a 1e-6 nudge of the contacts moves an ankle muscle by 0.145.
 - share_asked's SHARE_COST made CONTACT_COST: the nudge moves it by 0.0028 (the balance crowded on a few points).
+2026-11-18 (MOTOR 4799331 brought in):
+- share_asked's `SPLIT * ...split[None]` made `0.0 * ...split[None]`: the right foot carries 0.85 of the weight.
+- split_row's `ups * (1.0 - left)` made `ups * left`: the left foot's push weighed by its own share.
 2026-11-07:
 - problem's `np.concatenate([self.stops(), self.ligaments()], axis=1)` made `self.stops()`: the turn's 5 N m moves
   the activations (the muscles reach it 1 cm off its axis) and leaves a reserve on it.
@@ -279,7 +282,44 @@ def ground_frames_are_well_posed():
         nudged["system"][:, :count] *= 1 + 1e-6 * np.random.default_rng(seed).standard_normal((len(plain["system"]),
                                                                                                count))
         moved = max(moved, float(np.abs(solved(nudged)[count:] - before[count:]).max()))
-    return problems + ([] if moved < 1e-5 else [f"a 1e-6 nudge of the contacts moves an activation by {moved:.3g}"])
+    return problems + ([] if moved < 1e-5 else [f"a 1e-6 nudge of the contacts moves an activation by {moved:.3g}"]) + \
+        split_problems()
+
+
+def split_problems():
+    """The feet's split off their contacts' timeline (`split_row`): a left foot of four touching points and a right of
+    one, the left's share 1/4 (`contact.feet_shares`), weigh the left's vertical push by 3/4 and the right's by -1/4,
+    whatever each foot's points' count, and without a share nothing; and `feet` asked to stand its weight 8 cm toward
+    its right foot (past the middle of its sole), which the balance alone gives the right foot 0.8 of, a split of half
+    each brings within 0.15 of half the weight while the ground still carries it within 2 % (MOTOR #1, 2026-11-18: the
+    split followed the body's frontal moment, the left share 0.28 to 0.82 frame to frame through a squat the plates
+    held at 0.48)."""
+    import muscles
+    import numpy as np
+    from solvers import least
+    pyramid = [np.array([0.0, 0.0, 1.0])] * 4
+    contacts = [(1, None, pyramid, None)] * 4 + [(2, None, pyramid, None)]
+    row = muscles.split_row(contacts, {1: "LeftFoot", 2: "RightFoot"}, 0.25)
+    wanted = np.concatenate([np.full(16, 0.75), np.full(4, -0.25)])
+    problems = [] if np.allclose(row, wanted) else [f"split row {np.round(row, 3).tolist()}, not {wanted.tolist()}"]
+    if muscles.split_row(contacts, {1: "LeftFoot", 2: "RightFoot"}, None).any():
+        problems.append("without a share the split row asks a split")
+    plain = feet(0.0)
+    count = plain["count"]
+    plain["wanted"][3] = 700.0 * 0.08  # about x: the weight 8 cm toward the right foot (y = +0.1)
+    ups = plain["system"][2, :count]
+    plain["split"] = np.where(np.arange(count) < count // 2, 0.5 * ups, -0.5 * ups)  # equal contact, left first
+    for split, low, high in ((0.0, 0.75, 1.0), (muscles.SPLIT, 0.35, 0.65)):
+        kept, muscles.SPLIT = muscles.SPLIT, split
+        try:
+            found = muscles.staged([plain], lambda asked: [least(*each) for each in asked])[0]
+        finally:
+            muscles.SPLIT = kept
+        right, total = float(ups[count // 2:] @ found[count // 2:count]), float(ups @ found[:count])
+        if not low <= right / total <= high or abs(total - 700.0) > 14.0:
+            problems.append(f"SPLIT {split}: the right foot carries {right / total:.2f} of {total:.0f} N, not "
+                            f"{low} to {high} of 700")
+    return problems
 
 
 SPINE = """<mujoco model="spine">

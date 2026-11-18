@@ -20,3 +20,7 @@ parent overlay).
   its ligaments and condyles, two-sided columns at CONTACT_COST beside the stops (`ligaments`; #98, 2026-11-07):
   MyoFullBody's vasti reach it 0.3 to 0.5 cm off its axis, and its few newton metres, left to the muscles, set the
   vasti's split (subject2_squats1's deepest frame: vastus intermedius 1.0, lateralis 0).
+- **With both feet down each foot carries its contacts' timeline's share** (MOTOR 4799331 brought in, 2026-11-18):
+  the ground reaction step (`share_asked`) adds `split_row` at SPLIT (100) beside the balance's rows, the share the
+  skin's (`contact.feet_shares`); without it the split followed the body's frontal moment frame to frame and walking's
+  trailing foot kept its load to its lift-off, a cliff. What the split leaves of the balance is the pelvis' residual.

@@ -34,6 +34,15 @@ BALANCE = 100.0
 # 0.1 in one round the residual grew by 7.9 N.
 SHARE_COST = 0.03
 SHARE_ROUNDS = 2
+# The weight of a newton of the feet's vertical split off their contacts' timeline's (`split_row`,
+# `contact.feet_shares`), beside the balance's rows at BALANCE (MOTOR 4799331, #1, 2026-11-18, the owner: "its foot
+# conctact"): with both feet down the balance alone left the split to the body's frontal moment, and it swung with it
+# frame to frame (a squat's left share 0.28 to 0.82 against the plates' steady 0.48; a drop jump's 0.32 to 0.95), and
+# walking's trailing foot kept its load to its lift-off, a cliff. What the split leaves of the balance is the pelvis'
+# residual. Swept over 30, 100 and 300 on MOTOR's three demo trials: at 100 walking's per-foot RMSE fell 13.2 to 7.1
+# %BW, the squat's 14.1 to 6.6, the drop jump's 16.9 to 11.7; 300 was no better and moved the residual moment up.
+SPLIT = 100.0
+FEET_PARTS = ("LeftFoot", "RightFoot")  # the feet's parts (`parts_of`), left first: `split_row`'s
 # the static optimisation's two stages, as their wall seconds are named (`staged`'s `seconds`)
 STAGES = ("static optimisation 1, ground reaction", "static optimisation 2, stops and muscles")
 AT_STOP = 1e-4  # radians or metres: a joint this near an end of its range stands against it
@@ -112,9 +121,10 @@ class Physics:
         try:
             for row in range(len(found["needed"])):
                 self.laid, self.laid_over = (touching[row], over[row]) if contacts else (None, None)
+                self.row = row
                 yield self.card.load(found, row, self.data)
         finally:
-            self.laid, self.laid_over = None, None
+            self.laid, self.laid_over, self.row = None, None, 0
 
     def lowests(self, parts):
         """The lowest of the skin's points over its ground now, and of each part's ({part: its points' indices}),
@@ -227,7 +237,9 @@ class Physics:
         costs = np.concatenate([np.full(count + held, CONTACT_COST), np.ones(len(self.muscles))])
         highest = np.concatenate([np.full(count + held, np.inf), np.ones(len(self.muscles))])
         return {"costs": costs, "highest": highest, "system": system, "wanted": wanted,
-                "count": count, "held": held, "contacts": contacts, "gains": gains, "biases": biases,
+                "count": count, "held": held, "contacts": contacts, "gains": gains,
+                "biases": biases, "split": split_row(contacts, self.parts,
+                                                     None if self.skin is None else self.skin.share_of(self.row)),
                 "pushes": pushes, "mapped": mapped, "needed": needed,
                 "root": data.xmat[model.jnt_bodyid[0]].reshape(3, 3).copy()}
 
@@ -258,11 +270,30 @@ def balance_asked(problem):
     return BALANCE * pelvis, BALANCE * problem["wanted"][:6], np.full(count, CONTACT_COST), np.full(count, np.inf)
 
 
+def split_row(contacts, parts, left):
+    """The feet's vertical split off their contacts' timeline's (count: a row over the contacts' columns, edge by
+    edge): each foot's vertical push times the other's share less the other's push times its own, the left's less the
+    right's (`left` the left foot's share, `contact.feet_shares`), so the row is 0 where each foot carries its share of
+    the feet's load; all 0 without a share or unless both feet touch (`parts`: each body's part, FEET_PARTS the
+    feet's)."""
+    sides, ups = [], []
+    for body, _, edges, _ in contacts:
+        sides += [FEET_PARTS.index(parts[body]) if parts.get(body) in FEET_PARTS else -1] * len(edges)
+        ups += [edge[2] for edge in edges]
+    sides, ups = np.array(sides, int), np.array(ups, float)
+    if left is None or not ((sides == 0).any() and (sides == 1).any()):
+        return np.zeros(len(sides))
+    return np.where(sides == 0, ups * (1.0 - left), np.where(sides == 1, -ups * left, 0.0))
+
+
 def share_asked(problem, wanted):
     """`staged`'s second step: the wrench `wanted` on the pelvis' six rows (BALANCE times theirs) shared over the
-    touching points at SHARE_COST a newton: the frame's ground reaction force."""
+    touching points at SHARE_COST a newton, the feet's vertical split asked to be their contacts' timeline's
+    (`split_row`, SPLIT; a problem without one none): the frame's ground reaction force."""
     count = problem["count"]
-    return BALANCE * problem["system"][:6, :count], wanted, np.full(count, SHARE_COST), np.full(count, np.inf)
+    split = problem.get("split", np.zeros(count))
+    system = np.vstack([BALANCE * problem["system"][:6, :count], SPLIT * np.asarray(split, float)[None]])
+    return system, np.append(wanted, 0.0), np.full(count, SHARE_COST), np.full(count, np.inf)
 
 
 def joints_asked(problem, ground):

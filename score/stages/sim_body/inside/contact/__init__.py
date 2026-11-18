@@ -22,6 +22,14 @@ GAP = 0.005  # metres
 # against their plates; never on the reference's angles): 30 mm per-foot vertical force RMSE 28.5/28.1% of the weight,
 # 50 mm 28.1/26.7, 80 mm no better (24 trials); GAP 10 mm and the balance's SHARE_COST 0.1 no better.
 STANCE_HIGH = 0.05  # metres
+# With both feet down, the feet's load is shared by their contacts' timeline, not by the body's lean or the contacts'
+# closeness (MOTOR 4799331, #1, 2026-11-18, the owner: "assymetry in how the feet land on the ground and the actual
+# ground contact"): a foot coming down while the other lifts off takes the load over from it linearly over the frames
+# both touch (its share half a frame's worth at the first, the other's at the last), and otherwise a foot coming down
+# or lifting off ramps its share in or out over RAMP, the feet sharing equally between (`feet_shares`). On subject 3's
+# walking2 the lean (the left share 0.34 falling to 0.17 as the plates' rose 0.14 to 0.79) and the contacts' closeness
+# held the trailing foot loaded to its lift-off, which then dropped as a cliff.
+RAMP = 0.1  # seconds
 REGISTERED_FRAMES = 60  # frames spread over a clip that lay each segment's skin on SOMA's (`Skin.registered`)
 SLIDE_MOST = 1.2  # m/s
 FRICTION = 0.5
@@ -43,6 +51,7 @@ class Skin:
         self.bodies, self.riding = list(bodies), np.asarray(riding, float)
         self.owners = np.asarray(self.bodies)[self.weights.argmax(axis=1)]  # the body a point's force is booked on
         self.credit = None  # frames x points: how far over its ground each point is pushed from (`credited`)
+        self.shares = None  # frames: the left foot's share of the feet's load, nan unless both touch (`timed`)
 
     def registered(self, carried, soma, ground=None, soles=()):
         """This skin with each segment's riding moved by the one rigid turn and shift that best lays the segment's
@@ -69,7 +78,7 @@ class Skin:
                 kept = self.sole_of(soma, mine, ground, kept)
             riding[segment] = riding[segment] @ kabsch(np.broadcast_to(local, wanted.shape)[kept], wanted[kept])
         found = Skin(self.points, self.weights, np.linalg.inv(self.unbound), self.bodies, riding)
-        found.credit = self.credit
+        found.credit, found.shares = self.credit, self.shares
         return found
 
     def sole_of(self, soma, mine, ground, spread):
@@ -102,6 +111,19 @@ class Skin:
             credit[:, mine] = lifted[:, None]
         self.credit = credit
 
+    def timed(self, touching, rate):
+        """This skin's `shares` set: the feet's split while both touch (`feet_shares` of `touching`, frames x two feet,
+        left first; `rate` frames a second)."""
+        self.shares = feet_shares(touching, rate)
+
+    def share_of(self, state):
+        """The left foot's share of the feet's load on `state` (a frame of the clip, or of a whole copy of it
+        stacked; `feet_shares`), None when the skin has none or not both feet touch."""
+        if self.shares is None or not len(self.shares):
+            return None
+        found = self.shares[state % len(self.shares)]
+        return None if np.isnan(found) else float(found)
+
     def credit_of(self, count):
         """Each of `count` states' credit (states x points): a state is a frame of the clip, or of a whole copy of it
         stacked; none when the skin has no credit."""
@@ -128,6 +150,40 @@ class Skin:
             mujoco.mj_jac(model, data, along, None, TO_OWN.T @ carried[point, segment], self.bodies[segment])
             found += self.weights[point, segment] * along
         return found
+
+
+def feet_shares(touching, rate):
+    """The left foot's share of the feet's load each frame (frames, nan unless both feet touch; `touching` frames x
+    two feet, left first), from the contacts' timeline over each span of frames both touch: a foot coming down at its
+    start while the other lifts off at its end takes the load over linearly, (frame - start + 1/2) over the span's
+    frames; otherwise each foot's weight ramps from 0 over RAMP (`rate` frames a second) after it comes down and to 0
+    before it lifts off, 1 between, its share its weight over both's (equal on a long stance)."""
+    touching = np.asarray(touching, bool)
+    found = np.full(len(touching), np.nan)
+    if touching.ndim != 2 or touching.shape[1] != 2:
+        return found
+    both = touching[:, 0] & touching[:, 1]
+    ramp = max(RAMP * rate, 1.0)
+    edges = np.flatnonzero(np.diff(np.concatenate([[0], both.astype(int), [0]])))
+    for start, end in zip(edges[::2], edges[1::2]):
+        frames = np.arange(start, end)
+        came = [start > 0 and not touching[start - 1, foot] for foot in range(2)]
+        leaves = [end < len(touching) and not touching[end, foot] for foot in range(2)]
+        over = (frames - start + 0.5) / (end - start)
+        if came[0] and leaves[1] and not came[1] and not leaves[0]:
+            found[frames] = over
+        elif came[1] and leaves[0] and not came[0] and not leaves[1]:
+            found[frames] = 1.0 - over
+        else:
+            weights = np.ones((len(frames), 2))
+            for foot in range(2):
+                if came[foot]:
+                    weights[:, foot] = np.minimum(weights[:, foot], (frames - start + 0.5) / ramp)
+                if leaves[foot]:
+                    weights[:, foot] = np.minimum(weights[:, foot], (end - frames - 0.5) / ramp)
+            weights = np.clip(weights, 0.0, 1.0)
+            found[frames] = weights[:, 0] / weights.sum(axis=1)
+    return found
 
 
 def kabsch(given, wanted):

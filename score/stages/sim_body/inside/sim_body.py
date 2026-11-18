@@ -116,7 +116,7 @@ import fit  # noqa: E402
 import motor  # noqa: E402
 import myo  # noqa: E402
 from bone_groups import FEET, groups  # noqa: E402
-from contact import Skin, lowests  # noqa: E402
+from contact import GAP, STANCE_HIGH, Skin, lowests  # noqa: E402
 from landmarks import at_starts  # noqa: E402
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates  # noqa: E402
 from muscles import Physics, parts_of  # noqa: E402
@@ -225,12 +225,12 @@ def skin_of(rig, segments, bodies, riding, fitted, worlds, ground):
                            [index for index, segment in enumerate(segments) if segment.endswith(FEET)])
 
 
-def credited(physics, skin, path, stance, bodies):
+def credited(physics, skin, path, stance, bodies, rate):
     """`skin` with each foot seen standing (`stance`, frames x 2: left, right; the targets') pushed from its own
-    lowest point on `path` (`Skin.credited`); as it came where the targets carry no stance."""
-    if stance is None:
-        return skin
-    if len(stance) != len(path):
+    lowest point on `path` (`Skin.credited`), and the feet's split while both touch from their contacts' timeline
+    (`Skin.timed`, `rate` frames a second): a foot touches where it is pushed, its lowest point within GAP of its
+    ground, or seen standing within STANCE_HIGH of it."""
+    if stance is not None and len(stance) != len(path):
         raise ValueError(f"{len(stance)} frames of seen stance for a path of {len(path)}")
     sides = [[bodies[segment] for segment in side] for side in FEET_SIDES]
     parts = {side: np.flatnonzero(np.isin(skin.owners, mine)) for side, mine in enumerate(sides)}
@@ -240,7 +240,13 @@ def credited(physics, skin, path, stance, bodies):
         mujoco.mj_kinematics(physics.model, data)
         found = lowests(physics.model, data, skin, physics.ground, parts)[1]
         lowest.append([np.nan if found[side] is None else found[side] for side in range(len(sides))])
-    skin.credited(np.array(lowest), np.asarray(stance, dtype=bool), sides)
+    lowest = np.array(lowest)
+    reached = np.nan_to_num(lowest, nan=np.inf)
+    touching = reached <= GAP
+    if stance is not None:
+        skin.credited(lowest, np.asarray(stance, dtype=bool), sides)
+        touching |= np.asarray(stance, dtype=bool) & (reached <= STANCE_HIGH)
+    skin.timed(touching, rate)
     return skin
 
 
@@ -282,7 +288,8 @@ def run_person(job, person, out_path):
                           job["clip rate"])
     fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     skin = skin_of(rig, segments, bodies, riding, fitted_poses, worlds, ground)
-    physics.skin = credited(physics, skin, qpath, targets["stance"] if "stance" in targets.files else None, bodies)
+    physics.skin = credited(physics, skin, qpath, targets["stance"] if "stance" in targets.files else None, bodies,
+                            job["rate"])
     feet = {segment: np.flatnonzero(skin.owners == bodies[segment]) for segment in segments if segment.endswith(FEET)}
     weight = sum(model.body_mass) * job["gravity"]
     standing = com_height(model, qpath[0], ground)

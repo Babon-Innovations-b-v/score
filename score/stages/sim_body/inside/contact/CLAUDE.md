@@ -32,3 +32,9 @@ to 27 mm inside his skin, which sat 10 mm into his floor, so the floor carried 0
   `touching_all` alike (a state's credit is its frame's, states being whole copies of the clip). A clip without a
   stance (env1's) is pushed as before. LabValidation, 12 trials: stance carried 0.28 to 0.87 of the plates' frames,
   per-foot vertical force RMSE 50 to 28% of the weight, the pelvis' residual force 74 to 6% (medians).
+- **The feet's split comes from their contacts' timeline** (MOTOR 4799331 brought in, 2026-11-18): `feet_shares` sets
+  the left foot's share of the feet's load on every frame both touch (a step hands the load over linearly across its
+  double support; otherwise a foot ramps in or out over RAMP, 0.1 s, and the feet share equally between), held on the
+  skin by `Skin.timed` and read by state (`share_of`). A foot touches where it is pushed: its lowest skin point within
+  GAP of its ground, or seen standing within STANCE_HIGH (`sim_body.credited`), so a scene's clip without a stance
+  has its split too. `muscles.split_row` asks it.
