@@ -3,7 +3,8 @@ a solid than a body's radius; it is cut into pieces Kimodo can make (a climb its
 PIECE_FRAMES, together every frame once); a later piece is asked to start in the pose the one before it stood in
 (its fullbody keyframes, back in the scene's frame, are that pose), its join keeps that pose and the foot
 standing across it on its spot, and a stance slipping over 2 cm is held on its spot; and the measures
-tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall. A walker given `seconds` walks on
+tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall; a walk whose knees never
+straighten past 14 degrees, or whose hands hang still, is told slouched, an upright one with swinging arms is not. A walker given `seconds` walks on
 round its spots (the last back to the first) until its clip lasts that long; two spots make no loop and are refused. A shut
 door in the wall's gap is a solid (no route through it); marked `score:opens`, the walker goes through it, the door
 stands open from OPEN_AHEAD before she crosses to SHUT_AFTER past it, and the swing written on its prim lays its leaf
@@ -27,6 +28,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.swung_in: the inverse hinge left out of the op order -> the open leaf stands off its hinge
 - walker_route.round_again: `index % len(through)` made `min(index, len(through) - 1)` -> the walk stands at its last
   spot rather than going round (refused: the route no longer lengthens)
+- walker_route.posture: the knee's flex taken as the angle itself (180 - angle dropped) -> the upright walk is
+  told crouched
+- walker_route.slouched: `max(measured["knee least"])` made `min(...)` of a walk with one bent leg -> passes
+- walker_route.slouched: the swing check dropped -> the walk with its hands hanging passes
 """
 import math
 
@@ -85,6 +90,24 @@ def synthetic(roots, headings, slide=0.0):
     for index, angle in enumerate(headings):  # the root's turn its heading's
         motion["local_rot_mats"][index, 0] = motion["global_rot_mats"][index, 0] = walker_route.turn_y(angle)
     return motion
+
+
+def gait(knee_least, swing, frames=90, bent=None):
+    """SOMA77 posed joints of a walk at 1 m/s along +Z: each knee flexing between `knee_least` (the right one's
+    `bent`, when given) and 40 degrees each stride, each hand swinging `swing` m fore and aft about the hips."""
+    joints = np.zeros((frames, 77, 3))
+    time = np.arange(frames) / walker_route.RATE
+    for side, ((hip, knee, ankle), hand) in enumerate(zip(walker_route.LEGS, walker_route.HANDS)):
+        phase = 2 * math.pi * time + side * math.pi
+        least = knee_least if bent is None or side == 0 else bent
+        flex = np.radians(least + (40.0 - least) * (1 - np.cos(phase)) / 2)
+        joints[:, hip] = [0.1 - 0.2 * side, 0.95, 0.0]
+        joints[:, knee] = joints[:, hip] - [0.0, 0.45, 0.0]
+        joints[:, ankle] = joints[:, knee] + 0.45 * np.column_stack([np.zeros(frames), -np.cos(flex), -np.sin(flex)])
+        joints[:, hand] = [0.2 - 0.4 * side, 0.8, 0.0]
+        joints[:, hand, 2] = swing / 2 * np.sin(phase)
+    joints[:, :, 2] += time[:, None]
+    return joints
 
 
 def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
@@ -176,3 +199,8 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
         cache.SetTime(seconds * stage.GetTimeCodesPerSecond())
         box_now = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/door")).ComputeAlignedRange()
         assert np.allclose([box_now.GetMin(), box_now.GetMax()], bounds, atol=0.01), (seconds, box_now, bounds)
+    upright = walker_route.posture(gait(2.0, 0.3))
+    assert walker_route.slouched(upright) is None and max(upright["knee least"]) < 2.5, upright
+    assert "knees" in walker_route.slouched(walker_route.posture(gait(14.0, 0.3)))
+    assert "knees" in walker_route.slouched(walker_route.posture(gait(2.0, 0.3, bent=14.0)))
+    assert "hand" in walker_route.slouched(walker_route.posture(gait(2.0, 0.05)))

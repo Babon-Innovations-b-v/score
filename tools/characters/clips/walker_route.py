@@ -4,7 +4,8 @@
     <motion env>/bin/python walker_route.py <tree> <folder>
 
 <folder>/walkers.json is the plan (walker_route.write_plan). Kimodo's model is loaded once (people/clips.py's model;
-its fixed seed for the first walker, the next seed for each walker after), the text encoder answered from saved embeddings when SCORE_KIMODO_EMBEDDINGS names their folder.
+its fixed seed for the first walker, the next seed for each walker after; a flat piece walking crouched or with its
+hands hanging made again from a seed SEED_STRIDE on, walker_route.slouched), the text encoder answered from saved embeddings when SCORE_KIMODO_EMBEDDINGS names their folder.
 Writes per walker <folder>/motions/<clip>.npz (Kimodo's NPZ keys, in the walker's placement frame: its route's start
 at the origin, its first heading +Z, its start's ground y = 0), <folder>/joined/<clip>.npz (the scene's frame) and
 <folder>/made.json (each piece's frames, sentence and seconds taken).
@@ -49,17 +50,26 @@ for number, walker in enumerate(plan["walkers"]):  # each walker its own seed: w
     for piece in walker["pieces"]:
         began = time.time()
         ask = walker_route.asked(piece, roots, headings, feet, motion)
-        seed_everything(sentences.CLIP_SEED + number)
-        output = model([ask["sentence"]], [ask["frames"]], num_denoising_steps=100, multi_prompt=True,
-                       constraint_lst=load_constraints_lst(ask["constraints"], model.skeleton),
-                       num_samples=1, post_processing=ask["postprocess"], return_numpy=True, progress_bar=lambda x: x)
-        single = {key: np.asarray(output[key])[0] for key in walker_route.KEYS}
+        for attempt in range(walker_route.SEED_TRIES):  # a flat piece walking crouched or arms hanging: the next seed
+            seed = sentences.CLIP_SEED + number + attempt * walker_route.SEED_STRIDE
+            seed_everything(seed)
+            output = model([ask["sentence"]], [ask["frames"]], num_denoising_steps=100, multi_prompt=True,
+                           constraint_lst=load_constraints_lst(ask["constraints"], model.skeleton),
+                           num_samples=1, post_processing=ask["postprocess"], return_numpy=True, progress_bar=lambda x: x)
+            single = {key: np.asarray(output[key])[0] for key in walker_route.KEYS}
+            measured = walker_route.posture(single["posed_joints"]) if piece["kind"] == "walk" else None
+            why = walker_route.slouched(measured)
+            if why is None:
+                break
+            print(walker["name"], piece, "seed", seed, why, flush=True)
+        else:
+            raise RuntimeError(f"{walker['name']}: piece {piece}: no upright walk in {walker_route.SEED_TRIES} seeds")
         if len(single["posed_joints"]) != ask["frames"]:
             raise RuntimeError(f"{walker['name']}: Kimodo gave {len(single['posed_joints'])} frames for {ask['frames']}")
         placed = walker_route.moved(single, np.asarray(ask["origin"]), ask["heading"])
         motion = walker_route.joined(motion, placed, piece["start"])
         made.append({**piece, "frames": ask["frames"], "sentence": ask["sentence"], "postprocess": ask["postprocess"],
-                     "seconds": round(time.time() - began, 1)})
+                     "seed": seed, "posture": measured, "seconds": round(time.time() - began, 1)})
         print(walker["name"], piece, round(time.time() - began, 1), "s", flush=True)
     motion = walker_route.held_feet({key: value[:len(roots)] for key, value in motion.items()})
     np.savez(folder / "joined" / f"{walker['clip']}.npz", **motion)

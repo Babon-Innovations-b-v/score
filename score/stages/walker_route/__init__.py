@@ -20,6 +20,9 @@ travel is the clips' own (never a clip slid along a line).
               a fullbody keyframe on each of its first OVERLAP frames holding the pose the piece before stood in
               there (so positions and velocities match across the join); a piece is made TAIL frames past its end so
               its own ending never shows
+    upright   a flat piece made again from the next seed while it walks crouched or with its hands hanging
+              (`posture`, `slouched`: its knees never straightening within KNEE_STRAIGHT, a hand swinging under
+              SWING_LEAST), at most SEED_TRIES seeds, else refused
     joined    the pieces back in the scene's frame, each kept up to the next one's start and blended into it over the
               OVERLAP frames both hold, the foot standing across the join kept on its spot (`anchored`)
     doors     a door marked `score:opens` (place_build/ready's swing_of: its hinge and turn) swings open SWING_SECONDS
@@ -53,7 +56,10 @@ HELD_KEYS = 6  # at most this many keyframes (every other frame) hold a foot pla
 HOLD = 12  # frames the walker stands at its route's start before it sets off and at its end once it has stopped
 FLAT_RELIEF = 0.02  # metres of ground change under which frames are flat (scene_clips.FLAT_RELIEF)
 FLIGHT_SLOPE = 0.15  # rise over run along the route above which a frame is on a flight
-WALKING = "a person walking forward slowly and calmly"  # scene_clips.WALKING
+# A flat walk's sentence (owner, 2026-11-18, the street walker: "rlly walks like a monkey"): scene_clips.WALKING's "a
+# person walking forward slowly and calmly" let its hands hang or clasp (of six seeds on street's walker_r1's route, each
+# hand's swing 0.01 to 0.13 m); this one swung them 0.11 to 0.36 m on the same seeds, its knees and lean alike.
+WALKING = "a person walks forward at a relaxed, steady pace with an upright posture, swinging both arms naturally"
 STAIRS = {"up": "a person walking up a flight of stairs at a steady, easy pace",
           "down": "a person walking down a flight of stairs at a steady, easy pace"}  # scene_clips.STAIRS
 HIP_OVER_SOLE = 1.0052  # scene_clips.HIP_OVER_SOLE: SOMA77's rest hips over its sole
@@ -72,6 +78,16 @@ SHUT_AFTER = 1.5  # seconds after it crosses that the leaf starts swinging shut
 SWING_SECONDS = 1.0  # seconds a leaf takes to swing open, or shut
 SWING_POINTS = 9  # samples along a swing, eased in and out
 DOOR_REACH = 0.6  # metres past a door's edge, and a knee over or under its foot, a root crossing its plane goes through
+# A flat walk's posture (`posture`, `slouched`; the same evidence): whatever its sentence, a third of Kimodo's samples
+# walked crouched, knees never straighter than 12 to 14 degrees and the hips 3 cm low (seeds 3 and 6 of six), where
+# the rest straightened them to 0 to 6 at each stride; a piece over KNEE_STRAIGHT, or a hand swinging under
+# SWING_LEAST, is made again from the next of SEED_TRIES seeds (SEED_STRIDE apart), else refused.
+KNEE_STRAIGHT = 8.0  # degrees: a walking piece's knees straighten at least this far, each leg, at some stride
+SWING_LEAST = 0.15  # metres: each hand's fore-and-aft swing about the hips (5th to 95th percentile) while walking
+WALKING_SPEED = 0.6  # metres a second of the hips over which a frame is walking, not easing from or to standing
+SEED_TRIES, SEED_STRIDE = 12, 100  # six were too few: street's walker_plaza2 slouched in all six (2026-11-18)
+LEGS = ((67, 68, 69), (72, 73, 74))  # SOMA77's hip, knee and ankle joints (LeftLeg, LeftShin, LeftFoot; Right...)
+HANDS = (14, 42)  # SOMA77's LeftHand and RightHand
 KEYS = ("local_rot_mats", "global_rot_mats", "posed_joints", "root_positions", "smooth_root_pos", "foot_contacts",
         "global_root_heading")
 
@@ -549,6 +565,41 @@ def measures(motion, roots, triangles):
             "clearance least": round(least, 4) if np.isfinite(least) else None,
             "within": bool((not skate or max(skate) <= SKATE_MOST) and off.max() <= ROUTE_MOST
                            and least >= BODY_RADIUS)}
+
+
+def posture(joints):
+    """A made walk's posture over its walking frames (the hips over WALKING_SPEED; `joints` Kimodo's posed_joints, Y
+    up): each knee's least flex (degrees, 0 straight) and each hand's fore-and-aft swing about the hips (m); None for
+    a motion that never walks."""
+    joints = np.asarray(joints, dtype=float)
+    velocity = np.gradient(joints[:, 0, [0, 2]], axis=0) * RATE
+    speed = np.linalg.norm(velocity, axis=1)
+    walking = speed > WALKING_SPEED
+    if not walking.any():
+        return None
+    ahead = velocity[walking] / speed[walking, None]
+    knees = []
+    for hip, knee, ankle in LEGS:
+        thigh, shin = joints[walking, hip] - joints[walking, knee], joints[walking, ankle] - joints[walking, knee]
+        cosine = (thigh * shin).sum(axis=1) / np.linalg.norm(thigh, axis=1) / np.linalg.norm(shin, axis=1)
+        knees.append(float((180.0 - np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))).min()))
+    swings = []
+    for hand in HANDS:
+        along = ((joints[walking, hand] - joints[walking, 0])[:, [0, 2]] * ahead).sum(axis=1)
+        swings.append(float(np.percentile(along, 95) - np.percentile(along, 5)))
+    return {"knee least": [round(value, 1) for value in knees], "swing": [round(value, 3) for value in swings]}
+
+
+def slouched(measured):
+    """Why a walk's posture (`posture`) is no upright walk with its arms swinging, or None when it is: a knee that
+    never straightens within KNEE_STRAIGHT, a hand swinging under SWING_LEAST."""
+    if measured is None:
+        return None
+    if max(measured["knee least"]) > KNEE_STRAIGHT:
+        return f"its knees never straighter than {max(measured['knee least'])} degrees, over {KNEE_STRAIGHT}"
+    if min(measured["swing"]) < SWING_LEAST:
+        return f"a hand swings {min(measured['swing'])} m, under {SWING_LEAST}"
+    return None
 
 
 def plan_file(folder):

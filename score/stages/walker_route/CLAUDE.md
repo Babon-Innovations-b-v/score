@@ -17,6 +17,10 @@ makes the pieces with Kimodo, free on this PC's card.
   SHUT_AFTER past it) and writes it on the door's prim in scene.usda's root layer, the film's own timeline.
 - **The measures are the limits**: foot skate per stance at most SKATE_MOST (2 cm), the root within ROUTE_MOST
   (10 cm) of its route, the body at least BODY_RADIUS from every solid between knee and head. Never widen one to pass.
+- **A flat piece walks upright** (owner, 2026-11-18: the street walker "rlly walks like a monkey"): its knees straighten
+  within KNEE_STRAIGHT and each hand swings at least SWING_LEAST (`posture`, `slouched`), else it is made again from the
+  next of SEED_TRIES seeds and refused after the last; the sentence alone did not hold it (a third of seeds crouched
+  under every sentence tried).
 - **The top of `__init__.py` holds numpy, json and math alone**: Kimodo's program loads the file by path in Kimodo's
   environment. Import place_build, cast or anything heavier inside the function that needs it.
 - Test: `test_a_walker_keeps_off_every_solid_and_its_pieces_join.py` (a room with a wall in the way and one stair
