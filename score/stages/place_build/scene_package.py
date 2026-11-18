@@ -16,7 +16,7 @@ glass tint, its alpha the opacity for a reader without transmission). A palette 
 dirt and relief) is baked as the preview draws it, in headless Blender on this PC's card through the card queue
 (bake_looks.py): the part unwrapped (xatlas, in blocks no wider than a map) at DENSITY texels a metre on maps of at
 most LARGEST, each map its own primitive and material, or on a laid ground one seamless GROUND_TILE box-projected;
-its base colour, metal-roughness and normal pictures under objects/textures/. A glTF-only model or take laid in its
+its base colour, metal-roughness and normal pictures carried in the object's own buffer. A glTF-only model or take laid in its
 own bake (no look of the place's on it) goes as its library entry's own glTF, unchanged.
 Two objects that convert to the same file are one object. A copy turned and scaled evenly keeps its object in its
 own frame (`matrix` the whole transform); a copy stretched unevenly has its stretch baked into its own object.
@@ -873,23 +873,40 @@ def blender_baked(out, jobs):
                                   f"log {log}: {tail}")
 
 
+def embedded(document, binary, picture):
+    """A picture's PNG bytes appended to the object's buffer (4-byte aligned) as its own buffer view: its image
+    {bufferView, mimeType}. glTFast hands a linear picture named by a uri (a metal-roughness or normal map) to its
+    material as white (seen on the camp, 2026-11-18: every baked part drawn as bare metal), and loads one from the
+    buffer as a library GLB's."""
+    binary.extend(b"\0" * (-len(binary) % 4))
+    document.setdefault("bufferViews", []).append({"buffer": 0, "byteOffset": len(binary),
+                                                   "byteLength": len(picture)})
+    binary.extend(picture)
+    return {"bufferView": len(document["bufferViews"]) - 1, "mimeType": "image/png"}
+
+
 def attached(out, jobs):
     """Each baked map's pictures put on its material in its .gltf (base colour, metal-roughness, normal, each read by
-    the part's first texture coordinates, repeated: a ground's tile repeats), its factors made the pictures' own
-    (white base colour under its opacity, metal and roughness 1) and its bake request taken off."""
+    the part's first texture coordinates, repeated: a ground's tile repeats), carried in the object's own buffer
+    (embedded) and their files under objects/textures/ removed, its factors made the pictures' own (white base colour
+    under its opacity, metal and roughness 1) and its bake request taken off."""
     by_file = {}
     for job in jobs:
         by_file.setdefault(job["gltf"], []).append(job)
     for name, held in by_file.items():
         path = out / name
         document = json.loads(path.read_text())
+        buffer_path = path.parent / document["buffers"][0]["uri"]
+        binary = bytearray(buffer_path.read_bytes())
         document.setdefault("samplers", []).append({"magFilter": 9729, "minFilter": 9987, "wrapS": 10497,
                                                      "wrapT": 10497})
         sampler = len(document["samplers"]) - 1
         for job in held:
             numbers = {}
             for kind in PICTURES:
-                document.setdefault("images", []).append({"uri": job["pictures"][kind]})
+                picture = out / "objects" / job["pictures"][kind]
+                document.setdefault("images", []).append(embedded(document, binary, picture.read_bytes()))
+                picture.unlink()
                 document.setdefault("textures", []).append({"source": len(document["images"]) - 1,
                                                             "sampler": sampler})
                 numbers[kind] = len(document["textures"]) - 1
@@ -903,7 +920,11 @@ def attached(out, jobs):
             material.get("extras", {}).pop("score_bake", None)
             if "extras" in material and not material["extras"]:
                 del material["extras"]
+        document["buffers"][0]["byteLength"] = len(binary)
+        buffer_path.write_bytes(bytes(binary))
         path.write_text(json.dumps(document))
+    if (out / "objects" / TEXTURES).is_dir() and not any((out / "objects" / TEXTURES).iterdir()):
+        (out / "objects" / TEXTURES).rmdir()
     return len(jobs)
 
 
@@ -942,11 +963,12 @@ def packaged(folder, out, baker=blender_baked, grader=blender_graded):
     out = pathlib.Path(out)
     scene = write(folder, out)
     jobs = bake_jobs(out)
+    scene["environment"]["ground_albedo"] = None
     if jobs:
         (out / "objects" / TEXTURES).mkdir(exist_ok=True)
         baker(out, jobs)
+        scene["environment"]["ground_albedo"] = ground_albedo(out, jobs)
         attached(out, jobs)
-    scene["environment"]["ground_albedo"] = ground_albedo(out, jobs)
     grader(out, scene["environment"])
     scene["environment"]["grade"] = dict(GRADE, file=GRADE_FILE, display="sRGB", layout=(
         "size tiles of size x size side by side: red along a tile, blue tile by tile, green up from the bottom row"))

@@ -113,6 +113,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   normals each, not Blender's one smooth normal
 - scene_package.ground_albedo: the picture's sRGB mean taken as linear -> the regolith's albedo reads 0.5, not 0.216
 - scene_package.packaged: the grade left undrawn -> the environment names no grade picture
+- scene_package.attached: a picture named by its uri -> the panel's images are files, not its buffer's (glTFast drew
+  every baked part as bare metal)
 - scene_package.distant: the USD intensity as the strength -> the moon is 0.01, not the render's 0.04
 - scene_package.unwrapped: a sliver xatlas charts on no map left out -> the sliver beside the square is lost (2 of 3)
 """
@@ -615,7 +617,7 @@ def packaged(folder, out):
     matrix, fills the laid object's box; two copies in one surface one object, a copy stretched unevenly its own; a
     glTF model laid unchanged its library glTF as it was; a look's colour, a part's look, a tinted image surface's
     map box-projected over its tile; a palette recipe baked into its own unwrapped maps (on a laid ground one tile
-    box-projected), its pictures on its look; a see-through look as glTF transmission tinted as the preview's thin
+    box-projected), its pictures on its look in its object's buffer; a see-through look as glTF transmission tinted as the preview's thin
     glass; each copy's collider from the physics check's roles, a prop's mass from its entry's record times its scale
     cubed; the lamps; the place's night, sun, grade (its view drawn as a lattice picture) and ground albedo; a mesh
     with no normals of its own smooth, as Blender shades it; a sliver xatlas charts nowhere kept; the character, the
@@ -691,6 +693,8 @@ def packaged(folder, out):
     tiles = [job["tile"] for job in asked]
     assert len(maps) > 1 and all("baseColorTexture" in look["pbrMetallicRoughness"] and "normalTexture" in look
                                  and "extras" not in look for look in maps)
+    assert panel["images"] and all(set(image) == {"bufferView", "mimeType"} for image in panel["images"])
+    assert not (out / "objects" / scene_package.TEXTURES).exists()  # every picture rides in its object's buffer
     assert made["baked_maps"] == len(asked) and tiles.count(scene_package.GROUND_TILE) == 1
     assert all(max(job["size"]) <= 64 and job["spec"]["seed"] == 3 and job["texels_a_metre"] >= 24
                for job in asked if not job["tile"])

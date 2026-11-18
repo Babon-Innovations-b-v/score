@@ -46,7 +46,7 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -
                          low)) for c from 0 to 1 in its lattice
 An object's .gltf may use KHR_materials_transmission, _ior and _emissive_strength (listed in its extensionsUsed) and
-carry its baked pictures under objects/textures/; a version 1 reader that skips them still loads every object.
+carry its baked pictures in its own buffer; a version 1 reader that skips them still loads every object.
 
 The check refuses a package with a missing or unreadable model file, buffer or picture, a model that failed its model
 check, an object no copy uses, a transform that is not a turn and an even scale (a kit room's: a turn and its
