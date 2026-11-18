@@ -2,17 +2,21 @@
 
     python -m score.stages.walker_route plan <scene folder> <walkers.json> <place> <run folder>
     (Kimodo: tools/characters/clips/walker_route.py <tree> <run folder>/make)
+    python -m score.stages.walker_route ground <scene folder> <run folder>
+    (the rig: tools/characters/maker/prop_skeleton.py from <run folder>/make/motions)
     python -m score.stages.walker_route assemble <scene folder> <run folder>
     python -m score.stages.walker_route doors <scene folder> <run folder>
 
 walkers.json: {place: {"walkers": [{name, character, look, variant?, tread?, seconds?, through: [[x, y, z], ...]}]}}
 (`seconds`: the clip lasts at least that long, the walker going on round its spots; walker_route.filled). `plan` writes
-<run>/make/walkers.json (each walker's route, frames, feet ground and pieces); `assemble` writes <run>/cast/cast.json
+<run>/make/walkers.json (each walker's route, frames, feet ground, whether each foot lies whole on one tread, and
+pieces); `assemble` writes <run>/cast/cast.json
 (each walker a cast single at its route's start, turned to its first heading), <run>/scene-clips/scene_clips.json
 (its placement, per-frame route and footfalls; rig.npz and motions/ come from the Kimodo program's rig step) and
 prints each walker's measures (walker_route.measures) on one line. `doors` swings each door marked `score:opens` open
 for the planned walkers crossing it (walker_route.door_swings, written into the scene's scene.usda: swung_in) and
-writes <run>/doors.json.
+writes <run>/doors.json. `ground` stands each made walker's standing foot on the ground under it on every frame
+(walker_route.grounded), rewriting <run>/make/joined and <run>/make/motions before the rig is made from them.
 """
 import json
 import math
@@ -44,12 +48,14 @@ def plan(scene, spec_path, place, run):
     for walker in spec["walkers"]:
         through, points, metres, roots, headings = walker_route.filled(scene, walker["through"], walker.get("seconds"),
                                                                        walker.get("tread"))
-        feet = walker_route.feet_ground(roots, headings, ground_reader(found))
+        grounds = walker_route.foot_grounds(roots, headings, ground_reader(found))
+        feet = walker_route.feet_ground(grounds)
         found_pieces = walker_route.pieces(roots)
         walkers.append({**walker, "through": through, "clip": f"scene_{walker['name']}", "route": points,
                         "metres": metres,
                         "roots": np.round(roots, 5).tolist(), "headings": np.round(headings, 6).tolist(),
-                        "feet": np.round(feet, 4).tolist(), "pieces": found_pieces})
+                        "feet": np.round(feet, 4).tolist(),
+                        "footed": walker_route.footed(grounds).astype(int).tolist(), "pieces": found_pieces})
         print(walker["name"], f"{metres} m", f"{len(roots)} frames", [(piece["kind"], piece["end"] - piece["start"])
                                                                       for piece in found_pieces], flush=True)
     make = pathlib.Path(run) / "make"
@@ -87,13 +93,32 @@ def footfalls_of(motion, roots, headings, feet):
     return sorted(falls, key=lambda fall: fall["frame"])
 
 
+def ground(scene, run):
+    """Each made walker's motion with its standing foot on the scene's ground under it (walker_route.grounded): its
+    joined motion and its placement-frame motion rewritten; one line a walker, its largest lift."""
+    from score.stages.place_build import ready
+    made = pathlib.Path(run) / "make"
+    plan = json.loads(walker_route.plan_file(made).read_text())
+    ground_at = ground_reader(ready.solids(scene))
+    for walker in plan["walkers"]:
+        motion = dict(np.load(made / "joined" / f"{walker['clip']}.npz"))
+        stood = walker_route.grounded(motion, ground_at)
+        np.savez(made / "joined" / f"{walker['clip']}.npz", **stood)
+        np.savez(made / "motions" / f"{walker['clip']}.npz",
+                 **walker_route.own_frame(stood, walker["roots"], walker["headings"]))
+        lift = np.asarray(stood["root_positions"])[:, 1] - np.asarray(motion["root_positions"])[:, 1]
+        print("GROUNDED", walker["name"], f"lift {lift.min():.3f} .. {lift.max():.3f} m", flush=True)
+
+
 def assemble(scene, run):
     """The cast and the scene-clips record from the plan and the made motions; each walker's measures printed."""
     from score.stages.place_build import ready
     run = pathlib.Path(run)
     made = run / "make"
     plan = json.loads(walker_route.plan_file(made).read_text())
-    triangles = np.concatenate(list(ready.solids(scene).values()))
+    found = ready.solids(scene)
+    triangles = np.concatenate(list(found.values()))
+    ground_at = ground_reader(found)
     characters, clips, measured = [], [], {}
     for walker in plan["walkers"]:
         roots, headings = np.asarray(walker["roots"]), np.asarray(walker["headings"])
@@ -111,7 +136,8 @@ def assemble(scene, run):
                       "footfalls": footfalls_of(motion, roots, headings, feet) if climbs else [],
                       "relief": round(float(roots[:, 1].max() - roots[:, 1].min()), 4), "postprocess": not climbs,
                       "lift": 0.0, "pieces": walker["pieces"]})
-        measured[walker["name"]] = walker_route.measures(motion, roots, triangles)
+        standing = walker_route.standing_gap(motion, walker_route.foot_gaps(motion, ground_at))
+        measured[walker["name"]] = walker_route.measures(motion, roots, triangles, standing)
         print("MEASURES", walker["name"], json.dumps(measured[walker["name"]]), flush=True)
     (run / "cast").mkdir(exist_ok=True)
     (run / "cast" / "cast.json").write_text(json.dumps({"place": plan["place"], "characters": characters}, indent=1))
@@ -145,6 +171,8 @@ def doors(scene, run):
 if __name__ == "__main__":
     if sys.argv[1] == "plan":
         plan(*sys.argv[2:6])
+    elif sys.argv[1] == "ground":
+        ground(*sys.argv[2:4])
     elif sys.argv[1] == "assemble":
         assemble(*sys.argv[2:4])
     elif sys.argv[1] == "doors":

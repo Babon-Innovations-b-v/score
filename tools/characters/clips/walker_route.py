@@ -49,7 +49,7 @@ for number, walker in enumerate(plan["walkers"]):  # each walker its own seed: w
     motion, made = None, []
     for piece in walker["pieces"]:
         began = time.time()
-        ask = walker_route.asked(piece, roots, headings, feet, motion)
+        ask = walker_route.asked(piece, roots, headings, feet, motion, walker.get("footed"))
         for attempt in range(walker_route.SEED_TRIES):  # a flat piece walking crouched or arms hanging: the next seed
             seed = sentences.CLIP_SEED + number + attempt * walker_route.SEED_STRIDE
             seed_everything(seed)
@@ -73,10 +73,7 @@ for number, walker in enumerate(plan["walkers"]):  # each walker its own seed: w
         print(walker["name"], piece, round(time.time() - began, 1), "s", flush=True)
     motion = walker_route.held_feet({key: value[:len(roots)] for key, value in motion.items()})
     np.savez(folder / "joined" / f"{walker['clip']}.npz", **motion)
-    origin = np.array([roots[0, 0], roots[0, 1], roots[0, 2]])
-    own = walker_route.moved(motion, origin, float(headings[0]), inverse=True)
-    np.savez(folder / "motions" / f"{walker['clip']}.npz", **{key: own[key].astype(np.float32) if own[key].dtype.kind == "f"
-                                                                else own[key] for key in own})
+    np.savez(folder / "motions" / f"{walker['clip']}.npz", **walker_route.own_frame(motion, roots, headings))
     record["walkers"][walker["name"]] = made
 (folder / "made.json").write_text(json.dumps(record, indent=1))
 print("made", len(plan["walkers"]), "walkers", flush=True)

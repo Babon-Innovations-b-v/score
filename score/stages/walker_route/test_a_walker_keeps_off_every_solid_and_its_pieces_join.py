@@ -4,11 +4,13 @@ PIECE_FRAMES, together every frame once); a later piece is asked to start in the
 (its fullbody keyframes, back in the scene's frame, are that pose), its join keeps that pose and the foot
 standing across it on its spot, and a stance slipping over 2 cm is held on its spot; and the measures
 tell a planted foot that slides 5 cm, a root off its route and a body brushing a wall; a walk whose knees never
-straighten past 14 degrees, or whose hands hang still, is told slouched, an upright one with swinging arms is not. A walker given `seconds` walks on
+straighten past 14 degrees, or whose hands hang still, is told slouched, an upright one with swinging arms is not, one walking under a stride is not judged. A walker given `seconds` walks on
 round its spots (the last back to the first) until its clip lasts that long; two spots make no loop and are refused. A shut
 door in the wall's gap is a solid (no route through it); marked `score:opens`, the walker goes through it, the door
 stands open from OPEN_AHEAD before she crosses to SHUT_AFTER past it, and the swing written on its prim lays its leaf
-where the walkers' floor took it open (shut at the start).
+where the walkers' floor took it open (shut at the start). A climb's stance falling across a riser is moved onto its
+tread's middle, the whole foot on one tread; a made walk floating over its ground is stood back on it (its standing
+foot's gap within GROUND_MOST), and the measures tell the floating one.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.route: ready.route swapped for the straight line through the spots -> the route crosses the wall
@@ -32,6 +34,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   told crouched
 - walker_route.slouched: `max(measured["knee least"])` made `min(...)` of a walk with one bent leg -> passes
 - walker_route.slouched: the swing check dropped -> the walk with its hands hanging passes
+- walker_route.posture: the stride's least dropped (`walking.sum() < 2 * STEP_FRAMES` made `not walking.any()`) ->
+  a 30-frame walk is judged
+- walker_route.footed: `<= FLAT_RELIEF` made `<= 1.0` -> a foot across a riser reads whole on its tread
+- walker_route.on_tread: the run's middle taken as its first frame -> the moved stance's heel is at the riser
+- walker_route.grounded: the lift added with its sign turned -> the floating walk floats twice as high
+- walker_route.measures: the standing gap left out of `within` -> the floating walk reads within
 """
 import math
 
@@ -42,6 +50,7 @@ from pxr import Gf, Sdf, UsdGeom
 
 from score.stages import place_build, walker_route
 from score.stages.place_build import ready
+from score.stages.walker_route.__main__ import ground_reader
 
 RISER, TREAD, STEPS = 0.167, 0.28, 6
 
@@ -128,6 +137,21 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert "up" in {piece["kind"] for piece in pieces} and \
         all(piece["end"] - piece["start"] <= walker_route.PIECE_FRAMES for piece in pieces), pieces
 
+    ground_at = ground_reader(found)
+    whole = walker_route.footed(walker_route.foot_grounds(roots, headings, ground_at))
+    across = [frame for frame in range(len(roots)) if not whole[frame, 0]]
+    assert across, "no frame's left foot reads across a riser"
+    moved_to = walker_route.on_tread(across[len(across) // 2], 0, whole)
+    assert whole[moved_to - 1:moved_to + 2, 0].all(), (across[len(across) // 2], moved_to)
+    flat = slice(0, walker_route.HOLD + 10)
+    floating = synthetic(roots, headings)
+    floating["posed_joints"] = floating["posed_joints"] + [0.0, 0.15, 0.0]
+    stood = walker_route.grounded(floating, ground_at)
+    standing = walker_route.standing_gap(stood, walker_route.foot_gaps(stood, ground_at))
+    assert np.abs(standing[flat]).max() <= walker_route.GROUND_MOST, standing[flat]
+    high = walker_route.standing_gap(floating, walker_route.foot_gaps(floating, ground_at))
+    assert not walker_route.measures(floating, roots, triangles, high)["within"]
+
     feet = np.column_stack([roots[:, 1], roots[:, 1]])
     walk = synthetic(roots, headings)
     later = next(piece for piece in pieces if piece["start"] > 0)
@@ -204,3 +228,4 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert "knees" in walker_route.slouched(walker_route.posture(gait(14.0, 0.3)))
     assert "knees" in walker_route.slouched(walker_route.posture(gait(2.0, 0.3, bent=14.0)))
     assert "hand" in walker_route.slouched(walker_route.posture(gait(2.0, 0.05)))
+    assert walker_route.posture(gait(14.0, 0.3, frames=30)) is None  # under a stride: no posture to judge

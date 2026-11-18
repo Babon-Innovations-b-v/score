@@ -16,7 +16,11 @@ makes the pieces with Kimodo, free on this PC's card.
   marked `score:opens` is a way; `doors` times its swing from the plan (open OPEN_AHEAD before each crossing, shut
   SHUT_AFTER past it) and writes it on the door's prim in scene.usda's root layer, the film's own timeline.
 - **The measures are the limits**: foot skate per stance at most SKATE_MOST (2 cm), the root within ROUTE_MOST
-  (10 cm) of its route, the body at least BODY_RADIUS from every solid between knee and head. Never widen one to pass.
+  (10 cm) of its route, the body at least BODY_RADIUS from every solid between knee and head, the standing foot within
+  GROUND_MOST (3 cm) of the ground under it. Never widen one to pass.
+- **Feet on the treads** (owner, 2026-11-18: she "goes to high and, then kinda jumps down a small bit"): a climb's
+  stance keys sit on their tread's middle (`on_tread`), and `ground` stands the made motion's standing foot on the
+  scene's ground on every frame before the rig is made, since Kimodo's climb walks on up past a flight's last tread.
 - **A flat piece walks upright** (owner, 2026-11-18: the street walker "rlly walks like a monkey"): its knees straighten
   within KNEE_STRAIGHT and each hand swings at least SWING_LEAST (`posture`, `slouched`), else it is made again from the
   next of SEED_TRIES seeds and refused after the last; the sentence alone did not hold it (a third of seeds crouched

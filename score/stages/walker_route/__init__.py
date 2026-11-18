@@ -13,8 +13,9 @@ travel is the clips' own (never a clip slid along a line).
               standing at its end (its start and its stop)
     pieces    the frames cut where a flight starts or ends, and a stretch longer than PIECE_FRAMES into even pieces:
               each piece is a flat walk (WALKING, Kimodo's post-processing holding its feet on its floor) or a climb
-              (STAIRS up or down, each foot asked on its tread at its stance middles, no post-processing: scene_clips'
-              Not held); a piece shorter than LEAST_FRAMES joins the one before it
+              (STAIRS up or down, each foot asked on its tread at its stance middles, moved onto the tread's middle
+              where the cadence put it across a riser (`footed`, `on_tread`), no post-processing: scene_clips' Not
+              held); a piece shorter than LEAST_FRAMES joins the one before it
     asked     each piece in its own Kimodo canonical frame (its first root at the origin, its first heading +Z, its
               lowest ground Kimodo's floor): the dense root2d path and heading, and, for every piece after the first,
               a fullbody keyframe on each of its first OVERLAP frames holding the pose the piece before stood in
@@ -25,6 +26,9 @@ travel is the clips' own (never a clip slid along a line).
               SWING_LEAST), at most SEED_TRIES seeds, else refused
     joined    the pieces back in the scene's frame, each kept up to the next one's start and blended into it over the
               OVERLAP frames both hold, the foot standing across the join kept on its spot (`anchored`)
+    grounded  the joined motion raised or lowered, frame by frame, so its standing foot stands on the scene's ground
+              under it (`foot_gaps`, `standing_gap`, eased over GROUND_EASE frames; walker_route `ground`, before the
+              rig): Kimodo's climb walks on up past a flight's last tread
     doors     a door marked `score:opens` (place_build/ready's swing_of: its hinge and turn) swings open SWING_SECONDS
               before it stands open OPEN_AHEAD before each walker crosses its plane and shut SHUT_AFTER past it
               (`door_swings`), written as time samples on its own prim (`swung_in`)
@@ -68,6 +72,9 @@ MOST_KEYFRAMES = 19  # Kimodo holds fewer than 20 a constraint type
 # SOMA77 joints in Kimodo's NPZ: foot_contacts' six channels (left heel, toe, toe end, right heel, toe, toe end)
 CONTACT_JOINTS = (69, 70, 71, 74, 75, 76)
 SKATE_MOST = 0.02  # metres a planted foot may travel over its stance
+PLANTED_SPEED = 0.25  # m/s: a foot's ball moving slower across the floor stands
+GROUND_EASE = 9  # frames over which the body's lift onto its standing foot's ground is eased (`grounded`)
+GROUND_MOST = 0.03  # metres a standing foot may stand over or in the ground under it
 ROUTE_MOST = 0.10  # metres the root may stand off its route
 BODY_RADIUS, KNEE, HEAD = 0.25, 0.3, 1.7  # cast/measure.py's body
 LEVEL = 0.7  # a face whose normal's upward share is over this is a floor or a top, not a side
@@ -301,25 +308,60 @@ def next_stance(contacts, frame):
     return middle + STEP_FRAMES, "left" if side == "right" else "right"
 
 
-def feet_ground(roots, headings, ground_at):
-    """The ground under each frame's left and right foot (frames x 2): the higher of its heel's and its toe's,
-    `ground_at` reading the ground under scene points (x, y, z), looked for from the route's height."""
-    found = np.zeros((len(roots), 2))
+def foot_grounds(roots, headings, ground_at):
+    """The ground under each frame's left and right foot's heel and toe (frames x 2 sides x 2), the foot laid at rest
+    beside the hips on the route, `ground_at` reading the ground under scene points (x, y, z), looked for from the
+    route's height."""
+    found = np.zeros((len(roots), 2, 2))
     for column, across in enumerate((FOOT_SIDE, -FOOT_SIDE)):
         spots = []
         for root, heading in zip(roots, headings):
             sin, cos = math.sin(heading), math.cos(heading)
             spots += [[root[0] + across * cos + along * sin, root[1], root[2] - across * sin + along * cos]
                       for along in (HEEL, TOE)]
-        heights = np.asarray(ground_at(np.asarray(spots)), dtype=float).reshape(len(roots), 2)
-        found[:, column] = heights.max(axis=1)
+        found[:, column] = np.asarray(ground_at(np.asarray(spots)), dtype=float).reshape(len(roots), 2)
     return found
 
 
-def asked(piece, roots, headings, feet, before=None):
+def feet_ground(grounds):
+    """The ground under each frame's left and right foot (frames x 2) from `foot_grounds`: the higher of its heel's
+    and its toe's."""
+    return np.asarray(grounds).max(axis=2)
+
+
+def footed(grounds):
+    """Whether each frame's left and right foot (frames x 2) lies whole on one tread or floor (`foot_grounds`: its
+    heel's and its toe's ground within FLAT_RELIEF), not across a riser."""
+    grounds = np.asarray(grounds)
+    return np.abs(grounds[:, :, 0] - grounds[:, :, 1]) <= FLAT_RELIEF
+
+
+def on_tread(frame, column, whole):
+    """A climb's stance moved onto its tread: the middle of the run of frames on which foot `column` lies whole on
+    one tread (`whole`: `footed`), the run nearest `frame` within half a step; on a floor longer than a step the
+    nearest frame within half a step on which it lies whole, `frame` itself where none is near. The cadence alone
+    put the stairwell's woman's feet across her risers, heel on one tread and toe in the next (2026-11-18)."""
+    whole = np.asarray(whole, dtype=bool)
+    reach = int(STEP_FRAMES / 2)
+    near = [index for index in range(max(0, frame - reach), min(len(whole), frame + reach + 1)) if whole[index, column]]
+    if not near:
+        return frame
+    nearest = min(near, key=lambda index: abs(index - frame))
+    first, end = nearest, nearest + 1
+    while first > 0 and whole[first - 1, column]:
+        first -= 1
+    while end < len(whole) and whole[end, column]:
+        end += 1
+    if end - first > STEP_FRAMES:  # a floor longer than a step: the cadence's own frame, or its nearest whole one
+        return nearest
+    return (first + end - 1) // 2
+
+
+def asked(piece, roots, headings, feet, before=None, whole=None):
     """Kimodo's constraints for one piece (its frames start .. end + TAIL of the route, clipped to the route), in its
     canonical frame, with that frame (origin, heading, floor) and its frame count: root2d dense with its heading; for
-    a climb each foot on its ground at its stance middles; for a piece after the first (`before`: the joined
+    a climb each foot on its ground at its stance middles, each moved onto its tread's middle (`on_tread`, `whole`:
+    the plan's `footed`, when given); for a piece after the first (`before`: the joined
     motion so far in the scene's frame), a fullbody keyframe on each of its first OVERLAP frames holding that pose."""
     start, end = piece["start"], min(piece["end"] + TAIL, len(roots))
     span = roots[start:end]
@@ -362,9 +404,12 @@ def asked(piece, roots, headings, feet, before=None):
         first = first - start if before is not None else first
         taken = {frame for side_keys in keys.values() for frame, _, _ in side_keys}
         for frame, which in stance_frames(len(span) - 8, max(first, OVERLAP + 2), side):
+            column = 0 if which == "left" else 1
+            if whole is not None:
+                frame = min(max(on_tread(start + frame, column, whole) - start, OVERLAP + 2), len(span) - 9)
             if frame in taken:
                 continue
-            column = 0 if which == "left" else 1
+            taken.add(frame)
             hips = [span[frame, 0], feet[start + frame, column] + HIP_OVER_SOLE, span[frame, 2]]
             pose = np.zeros((77, 3))
             pose[0, 1] = turned[frame]
@@ -454,6 +499,52 @@ def held_feet(motion):
         start, channel, end = min(over)
         motion = unslipped(motion, channel, start, end)
     return motion
+
+
+def foot_gaps(motion, ground_at):
+    """Each frame's left and right foot's height over the ground under it (frames x 2, m; negative inside it): the
+    least over its CONTACT_JOINTS of the joint's height over the ground under that joint (`ground_at`, looked for from
+    the joint's own height), so a heel on its tread with its toe over the nosing stands at 0."""
+    joints = np.asarray(motion["posed_joints"], dtype=float)
+    spots = joints[:, list(CONTACT_JOINTS)].reshape(-1, 3)
+    heights = np.asarray(ground_at(spots), dtype=float).reshape(len(joints), len(CONTACT_JOINTS))
+    gaps = joints[:, list(CONTACT_JOINTS), 1] - heights
+    return np.column_stack([gaps[:, :3].min(axis=1), gaps[:, 3:].min(axis=1)])
+
+
+def standing_gap(motion, gaps):
+    """Each frame's standing foot's gap (`foot_gaps`): the gap of the foot whose ball moves slower across the floor
+    (the planted one), the lower of the two where both stand within PLANTED_SPEED."""
+    joints = np.asarray(motion["posed_joints"], dtype=float)
+    speeds = np.column_stack([np.linalg.norm(np.gradient(joints[:, joint, :][:, [0, 2]], axis=0), axis=1) * RATE
+                              for joint in (CONTACT_JOINTS[1], CONTACT_JOINTS[4])])
+    slower = np.where(speeds[:, 0] <= speeds[:, 1], gaps[:, 0], gaps[:, 1])
+    return np.where((speeds < PLANTED_SPEED).all(axis=1), gaps.min(axis=1), slower)
+
+
+def grounded(motion, ground_at):
+    """The joined motion with its standing foot on the ground under it on every frame: the whole body raised or
+    lowered (positions only, its pose untouched) by its standing foot's gap (`standing_gap`), eased over GROUND_EASE
+    frames. Kimodo's climb holds its stance keys on a flight's treads to 2 cm but walks on up past the flight's last
+    tread: the stairwell's woman stood 16 cm over her landing, dropped back onto the next flight and ended 39 cm over
+    the top floor (2026-11-18, the owner: she "goes to high and, then kinda jumps down a small bit")."""
+    lift = -standing_gap(motion, foot_gaps(motion, ground_at))
+    half = GROUND_EASE // 2
+    lift = np.convolve(np.pad(lift, half, mode="edge"), np.ones(2 * half + 1) / (2 * half + 1), mode="valid")
+    out = dict(motion)
+    for key in ("posed_joints", "root_positions", "smooth_root_pos"):
+        value = np.array(motion[key])
+        value[..., 1] += (lift[:, None] if value.ndim == 3 else lift).astype(value.dtype)
+        out[key] = value
+    return out
+
+
+def own_frame(motion, roots, headings):
+    """A scene-frame motion in its walker's placement frame (its route's start at the origin, its first heading +Z,
+    its start's ground y = 0), floats as float32: the scene-clips motions/ file sim body and the rig read."""
+    origin = np.array([roots[0][0], roots[0][1], roots[0][2]], dtype=float)
+    own = moved(motion, origin, float(headings[0]), inverse=True)
+    return {key: own[key].astype(np.float32) if own[key].dtype.kind == "f" else own[key] for key in own}
 
 
 # --- the measures ---------------------------------------------------------------------------------------------------
@@ -548,10 +639,12 @@ def clearance(points, grounds, triangles):
     return found
 
 
-def measures(motion, roots, triangles):
-    """A walker's measures: its stances' foot skate (m), its root's distance from its route and its body's least
-    clearance from every solid, with whether each is within its limit."""
+def measures(motion, roots, triangles, standing=None):
+    """A walker's measures: its stances' foot skate (m), its root's distance from its route, its body's least
+    clearance from every solid and (`standing`, each frame's standing foot's gap: `standing_gap`) how far its standing
+    foot stood over or in the ground under it, with whether each is within its limit."""
     skate = skates(motion)
+    ground_off = None if standing is None else float(np.abs(standing).max())
     off = route_off(motion, roots)
     root = np.asarray(motion["root_positions"])
     count = min(len(root), len(roots))
@@ -563,19 +656,22 @@ def measures(motion, roots, triangles):
             "skate over": int(sum(value > SKATE_MOST for value in skate)),
             "route off max": round(float(off.max()), 4), "route off mean": round(float(off.mean()), 4),
             "clearance least": round(least, 4) if np.isfinite(least) else None,
+            "standing off ground max": None if ground_off is None else round(ground_off, 4),
             "within": bool((not skate or max(skate) <= SKATE_MOST) and off.max() <= ROUTE_MOST
-                           and least >= BODY_RADIUS)}
+                           and least >= BODY_RADIUS and (ground_off is None or ground_off <= GROUND_MOST))}
 
 
 def posture(joints):
     """A made walk's posture over its walking frames (the hips over WALKING_SPEED; `joints` Kimodo's posed_joints, Y
     up): each knee's least flex (degrees, 0 straight) and each hand's fore-and-aft swing about the hips (m); None for
-    a motion that never walks."""
+    a motion walking under a stride (2 STEP_FRAMES): the stairwell woman's 45 frames off her top tread, easing to a
+    stop from a climbing pose, read crouched under every seed (2026-11-18), and a stride is the least a knee
+    straightens in."""
     joints = np.asarray(joints, dtype=float)
     velocity = np.gradient(joints[:, 0, [0, 2]], axis=0) * RATE
     speed = np.linalg.norm(velocity, axis=1)
     walking = speed > WALKING_SPEED
-    if not walking.any():
+    if walking.sum() < 2 * STEP_FRAMES:
         return None
     ahead = velocity[walking] / speed[walking, None]
     knees = []
