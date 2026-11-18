@@ -653,7 +653,8 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
             continue
         eyes = along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived])
         if sighted(scenes, aims, eyes, arrived):  # seen once arrived: a walker may come in through a doorway
-            return start, came_in(eyes, aims, np.array([close_fov(close, size) for close in closes])), True
+            fovs = np.array([close_fov(close, size) for close in closes])
+            return start, came_in(eyes, lowered(aims, closes, fovs, size), fovs), True
     raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up "
                      "with a clear way in from the concept's view")
 
@@ -662,6 +663,15 @@ def close_fov(close, size):
     """The angle across (degrees) framing TALL_METRES at `close` metres in a picture of `size`, at most FOV_MOST."""
     tall = 2.0 * np.arctan(TALL_METRES / 2.0 / close)
     return min(float(np.degrees(2.0 * np.arctan(np.tan(tall / 2.0) * size[0] / size[1]))), FOV_MOST)
+
+
+def lowered(aims, closes, fovs, size):
+    """The aims (Y up) lowered by half what a close-up held at FOV_MOST frames short of TALL_METRES at its `closes`,
+    so the picture gives up headroom before the walker's feet and the push under them (rf3-stairwell, 2026-11-18:
+    the woman's sim body on the top landing, 1.6 m off, showed from the knees up)."""
+    tall = 2.0 * np.arctan(np.tan(np.radians(fovs) / 2.0) * size[1] / size[0])
+    short = np.maximum(TALL_METRES - 2.0 * closes * np.tan(tall / 2.0), 0.0) / 2.0
+    return aims - short[:, None] * np.array([0.0, 1.0, 0.0])
 
 
 def viewed(eyes, aims, fovs):

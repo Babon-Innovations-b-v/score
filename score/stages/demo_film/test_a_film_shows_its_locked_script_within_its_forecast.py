@@ -456,7 +456,9 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/peel.py: `offsets = turning(scenes, aims, ...)` -> `offsets = None` -> the S-bend's
         walker is refused
     Break: score/stages/demo_film/peel.py: turning's `return (room[frame, way] >= metres and camera_paths.swept_clear(`
-        -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall"""
+        -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall
+    Break: score/stages/demo_film/peel.py: lowered's `short = np.maximum(` ... `/ 2.0` -> `short = 0.0 * np.maximum(`
+        ... -> the nearest close-up's feet out of the picture"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -993,6 +995,13 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         np.degrees(np.arccos(off[0, [0, 2]] @ off[-1, [0, 2]] / np.linalg.norm(off[0, [0, 2]]) /
                              np.linalg.norm(off[-1, [0, 2]]))) > peel.HEADINGS, "it came round"
     assert peel.sighted(scenes, aims, eyes, arrived) and np.abs(aims - hips)[arrived:].max() < 0.4, "clear, in sight"
+    # a close-up held at FOV_MOST gives up headroom before the feet: at TURN_METRES' nearest its picture reaches 0.25 m
+    # under them (a sim body sunk into a tread still shows its feet and push), at CLOSE_METRES its aim stays the hips
+    nearest = np.array([peel.TURN_METRES[-1], peel.CLOSE_METRES])
+    fovs = np.array([peel.close_fov(metres, (1280, 720)) for metres in nearest])
+    low = peel.lowered(np.array([[0.0, 0.9, 0.0]] * 2), nearest, fovs, (1280, 720))
+    half = np.arctan(np.tan(np.radians(fovs) / 2.0) * 720 / 1280)
+    assert low[0, 1] - nearest[0] * np.tan(half[0]) < -0.25 and low[1, 1] == 0.9, "the feet in view"
     # a walker behind a wall from the concept's eye is reached along the place film's own path round its end
     wall = trimesh.creation.box(bounds=[[-10.0, 0.0, -0.2], [10.0, 30.0, 0.2]])
     scenes = peel.camera_paths.scenes_of({"0": wall}, floor, lambda flat: np.zeros(len(np.atleast_2d(flat))),
