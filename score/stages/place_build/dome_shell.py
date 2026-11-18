@@ -133,7 +133,8 @@ def disc(radius, height=0.0):
 
 def swept(path, outward, side, rib, closed, stand=None):
     """A square-section rib along `path`: at each point its section stands outward from the skin by `rib` (`stand`
-    when given, a flat band) and spans `rib` along `side`; (points, quads), open at its ends unless `closed`."""
+    when given, a flat band) and spans `rib` along `side`; (points, quads), open at its ends unless `closed`, wound to
+    face out whichever way `side` turns."""
     stand = rib if stand is None else stand
     points = []
     for at, out, across in zip(path, outward, side):
@@ -141,11 +142,15 @@ def swept(path, outward, side, rib, closed, stand=None):
             points.append(tuple(at[axis] + across[axis] * along * rib + out[axis] * lift * stand for axis in range(3)))
     faces = []
     count = len(path)
+    # The section's corners run round it one way; they face out when the path runs along side x outward.
+    ahead = np.subtract(path[1], path[0])
+    turned = np.dot(ahead, np.cross(side[0], outward[0])) < 0
     for step in range(count if closed else count - 1):
         here, there = 4 * step, 4 * ((step + 1) % count)
         for corner in range(4):
             following = (corner + 1) % 4
-            faces.append([here + corner, here + following, there + following, there + corner])
+            face = [here + corner, here + following, there + following, there + corner]
+            faces.append(face[::-1] if turned else face)
     return points, faces
 
 
@@ -236,7 +241,8 @@ def strips(radius, heights, openings=()):
 
 def plinth(radius, openings=(), high=BASE_HIGH, wide=BASE_WIDE):
     """The base ring round the dome's foot: a rectangular section `wide` (mostly outside the skin) and `high`, cut at
-    the openings; (points, quads) pieces."""
+    the openings; (points, quads) pieces, each a closed solid wound to face out (an engine draws a face from its front
+    only, where Blender draws both)."""
     around_steps = STEPS * FINE
     inner, outer = radius - 0.25 * wide, radius + 0.75 * wide
     middles = [(radius * math.cos(2 * math.pi * step / around_steps), high / 2,
@@ -256,9 +262,9 @@ def plinth(radius, openings=(), high=BASE_HIGH, wide=BASE_WIDE):
             here, there = 4 * step, 4 * ((step + 1) % count)
             for corner in range(4):
                 following = (corner + 1) % 4
-                faces.append([here + corner, there + corner, there + following, here + following])
+                faces.append([here + following, there + following, there + corner, here + corner])
         if not whole:
-            faces += [[0, 1, 2, 3], [4 * (count - 1) + 3, 4 * (count - 1) + 2, 4 * (count - 1) + 1, 4 * (count - 1)]]
+            faces += [[3, 2, 1, 0], [4 * (count - 1), 4 * (count - 1) + 1, 4 * (count - 1) + 2, 4 * (count - 1) + 3]]
         made.append((points, faces))
     return made
 

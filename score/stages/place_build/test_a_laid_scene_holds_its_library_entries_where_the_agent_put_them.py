@@ -37,6 +37,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.finished_first: `-final` not ranked first -> the take's raw model is laid
 - place_build.ground: the ground mark left False -> the laid disc is no ground
 - dome_shell.ribs: the rib lifted inward (`- out`) -> the dome's box stays inside its radius
+- dome_shell.plinth: its faces wound as before (inward) -> the holed dome's base ring has negative volume (an engine
+  drew its inside, the ring gone in 2099's Unity)
+- dome_shell.swept: `turned` ignored -> the oculus ring and collars have negative volume
 - place_build.rested: the lift's sign flipped -> the shelf on the table sinks a metre under it
 - dome_shell.hoop_ribs: the hoop lifted inward (`- out`) -> the tunnel's box stays inside its radius
 - place_build.ground_points: the key made of the References handle's repr -> the ground is read again for a stone
@@ -210,6 +213,17 @@ def part_middles(mesh, part):
     subset = next(item for item in UsdGeom.Subset.GetAllGeomSubsets(mesh) if item.GetPrim().GetName() == part)
     return np.array([points[indices[starts[face]:starts[face] + counts[face]]].mean(axis=0)
                      for face in subset.GetIndicesAttr().Get()])
+
+
+def part_solids(mesh, part):
+    """The closed solids of one named part (its quads split in two), each a trimesh."""
+    points = np.array(mesh.GetPointsAttr().Get(), dtype=float)
+    counts, indices = mesh.GetFaceVertexCountsAttr().Get(), np.array(mesh.GetFaceVertexIndicesAttr().Get())
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    subset = next(item for item in UsdGeom.Subset.GetAllGeomSubsets(mesh) if item.GetPrim().GetName() == part)
+    triangles = [[indices[starts[face]], indices[starts[face] + corner], indices[starts[face] + corner + 1]]
+                 for face in subset.GetIndicesAttr().Get() for corner in range(1, counts[face] - 1)]
+    return trimesh.Trimesh(points, np.array(triangles)).split(only_watertight=True)
 
 
 def part_facings(mesh, part):
@@ -411,6 +425,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(base_middles[:, 1].max(), 0.4, atol=0.01) and len(strip_middles)
     assert np.abs(strip_middles[:, 1] - 2.0).max() < 0.1 and np.linalg.norm(strip_middles, axis=1).max() < 5.0 - 0.05
     assert np.hypot(rib_middles[:, 0], rib_middles[:, 2]).min() > 0.6  # the meridians end at the oculus ring
+    solids = part_solids(holed, "base") + part_solids(holed, "ribs")
+    assert len(solids) >= 4 and all(solid.volume > 0 for solid in solids)  # faces out: an engine draws fronts only
     hall = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/hall/geo"))
     cap_middles, hall_skin = part_middles(hall, "cap"), np.vstack([part_middles(hall, "shell"), part_middles(hall, "wall")])
     doorway = (np.abs(cap_middles[:, 0]) < 0.75) & (cap_middles[:, 1] > 0.5) & (cap_middles[:, 1] < 2.4)
