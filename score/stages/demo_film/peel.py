@@ -141,7 +141,10 @@ BACKED_SPREAD = 30.0
 BACKED_METRES = 40.0
 FACING = 60.0  # degrees off the way a walker walks the camera looks from first, room alike: its gait and its face
 RISES = (0.12, 0.3)  # radians: the camera's rise over the hips, the lower first
-FOV_MOST = 85.0  # degrees across: the widest lens a close-up in a narrow place takes
+# degrees across: the widest lens a close-up in a narrow place takes; at TURN_METRES' nearest it frames over 2.1 m, the
+# walker's feet and the push under them in view (rf3-stairwell, 2026-11-18: at 85 the woman's sim body on the top
+# landing showed from the knees up, her GRF arrows out of the picture)
+FOV_MOST = 100.0
 EVERY = 4  # the frames between those the camera's room is measured on (rays and sweeps)
 OWN_ROOM = 0.5  # metres out of the hips a sight line is swept from: the walker's own body and what it walks by
 SIGHT = 0.05  # metres: a sight line's own radius, kept clear of the place
