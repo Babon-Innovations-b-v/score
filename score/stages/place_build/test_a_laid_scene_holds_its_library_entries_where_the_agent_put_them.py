@@ -617,11 +617,11 @@ def packaged(folder, out):
     matrix, fills the laid object's box; two copies in one surface one object, a copy stretched unevenly its own; a
     glTF model laid unchanged its library glTF as it was; a look's colour, a part's look, a tinted image surface's
     map box-projected over its tile; a palette recipe baked into its own unwrapped maps (on a laid ground one tile
-    box-projected), its pictures on its look in its object's buffer; a see-through look as glTF transmission tinted as the preview's thin
-    glass; each copy's collider from the physics check's roles, a prop's mass from its entry's record times its scale
-    cubed; the lamps; the place's night, sun, grade (its view drawn as a lattice picture) and ground albedo; a mesh
-    with no normals of its own smooth, as Blender shades it; a sliver xatlas charts nowhere kept; the character, the
-    rain and the sky named as left out."""
+    box-projected), its pictures on its look in its object's buffer; a see-through look as glTF transmission tinted
+    as the preview's thin glass; each copy's collider from the physics check's roles, a prop's mass from its entry's
+    record times its scale cubed; the lamps; the place's night, sun, grade (its view drawn as a lattice picture) and
+    ground albedo; a mesh with no normals of its own smooth, as Blender shades it; a sliver xatlas charts nowhere
+    kept; the character, the rain and the sky named as left out."""
     from score.stages.place_build import scene_package
     place_build.put(folder, "wall2", "kit/box_piece", at=(30, 0, 30), turn=(0, 45, 0))
     place_build.surface(folder, "wall2", "surface/steel")

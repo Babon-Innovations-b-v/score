@@ -16,8 +16,8 @@ glass tint, its alpha the opacity for a reader without transmission). A palette 
 dirt and relief) is baked as the preview draws it, in headless Blender on this PC's card through the card queue
 (bake_looks.py): the part unwrapped (xatlas, in blocks no wider than a map) at DENSITY texels a metre on maps of at
 most LARGEST, each map its own primitive and material, or on a laid ground one seamless GROUND_TILE box-projected;
-its base colour, metal-roughness and normal pictures carried in the object's own buffer. A glTF-only model or take laid in its
-own bake (no look of the place's on it) goes as its library entry's own glTF, unchanged.
+its base colour, metal-roughness and normal pictures carried in the object's own buffer. A glTF-only model or take
+laid in its own bake (no look of the place's on it) goes as its library entry's own glTF, unchanged.
 Two objects that convert to the same file are one object. A copy turned and scaled evenly keeps its object in its
 own frame (`matrix` the whole transform); a copy stretched unevenly has its stretch baked into its own object.
 
