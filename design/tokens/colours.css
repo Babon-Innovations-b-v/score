@@ -79,6 +79,10 @@
   --film-step-done: #b0b0ac;
   --film-track: #3a3c42;
   --film-push: #a8ff3e;         /* the ground's push arrows in a layer peel: vivid against any place */
+  --film-activation-0: #5a6884; /* a sim body's muscle at rest: a dim slate that still draws the body */
+  --film-activation-1: #c8327e; /* a third active */
+  --film-activation-2: #ff7a1c; /* two thirds */
+  --film-activation-3: #fff25a; /* fully active: bright against night and day alike */
   --film-progress: #e8aa5a;
   --film-title-from: #1d2128;
   --film-title-to: #0b0c0f;

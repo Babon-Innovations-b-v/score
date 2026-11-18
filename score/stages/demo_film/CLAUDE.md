@@ -94,14 +94,23 @@ own sound; paid and cleared by the runner like any paid row.
   is Blocked naming it (`plan_faults`), so every walked scene has one peel; so is one that layer peels a place whose
   cast is a crowd alone (`crowded`, `crowd_only`: no sim body, the sim body row's rule) or shows it no place peel.
 - **A walker peel** (`peel.walker_job`, `--scene <place_build scene folder> --rows <rows.json>`; owner, 2026-11-17:
-  "where is the peel? player model- soma body - sim body with grf arrow") is a film segment in a place_build scene:
-  the place drawn and its walkers played as its film draws and plays them (`blender/walker_peel.py` runs
-  place_build's blender_views.py look with the peel laid in), the camera closing in on one walker (`closing`: a start
-  in its sim body record and a way round it with room, on a ray from its hips so nothing of the place stands between,
-  every eye and sight line swept clear; refused where none leaves CLOSE_LEAST), its player model, bare SOMA body and
-  sim body with its GRF arrows wiped in turn, then pulling back. The sim body layer is retimed onto the place's time
-  codes (`timed_layer`); only the passes a frame shows are drawn (`needed`). Free on this PC's card through the card
-  queue (place_build.render.queued); no row runs it yet.
+  "where is the peel? player model- soma body - sim body with grf arrow"; 2026-11-18: "the cutting and transfers in
+  the films are very weird") is a place's whole film in its place_build scene, one continuous shot: the place drawn
+  and its walkers played as its film draws and plays them (`blender/walker_peel.py` runs place_build's
+  blender_views.py look with the peel laid in), from `LEAD_SECONDS` into the records so everyone is already walking;
+  the camera still on the concept's view for `OPENING_SECONDS`, then eased on to one walker (`approach`, over
+  `approach_seconds` of its distance) along a clear way in (`approach_route`: straight, the place film's own path, or
+  walked from it), and following it close (`closing`: a start in its sim body record and a way round it with room, on
+  a ray from its hips so nothing of the place stands between, every eye and sight line swept clear; refused where none
+  leaves CLOSE_LEAST). A walker under glass the concept sees from outside is followed from inside, the film dissolving
+  in from the concept's view (`cut_in`, the `opening` pass). Its player model, bare SOMA body and sim body follow each
+  other by a `DISSOLVE_SECONDS` dissolve, each held its `WALKER_HOLDS` (shortened alike where the record is short,
+  `walker_holds`). The sim body pass draws one GRF arrow a foot (`foot_pushes`: heel and toes summed, despiked and
+  low-passed for drawing only, 0.5 m a body weight, shrinking to nothing as the foot lifts) and its muscles thick and
+  lit in the film's activation colours (`--film-activation-0` to `-3`) with a colour bar (`activation_bar`). The sim
+  body layer is retimed onto the place's time codes (`timed_layer`); only the passes a frame shows are drawn
+  (`needed`); `walker_joined` joins them. Free on this PC's card through the card queue (place_build.render.queued),
+  or on rented cards for a scene too big for its memory cap; no row runs it yet.
 - **The peel rows** (`peel_rows.py`, body-peel@place and place-peel@place, paid; owner 2026-11-05: every scene peeled
   in the film): a place a locked script peels has the row, keyed on those scripts (`script <name>`), never one peeled
   by none. body-peel reads the cast, sim-body, the clips rig (people-clips-made), scene-clips (optional: a climber's

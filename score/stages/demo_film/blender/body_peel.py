@@ -36,6 +36,7 @@ HEAD_LONG_PIXELS = 30.0  # the head's length on screen, never more than half the
 DOT_PIXELS = 9.0  # the centre of pressure's dot, its radius on screen (flattened onto the ground)
 ARROW_ALPHA = 0.95
 ARROW_GLOW = 2.0
+MUSCLE_REST_GLOW = 0.1  # a resting muscle's glow, of an active one's
 LIFT = 0.002  # metres: the arrow's foot off its ground beyond its own radius, so it never pokes through
 # The crowd's cheap body every dressed file carries beside the person's own (tools/characters/cast.py): never one
 # person's.
@@ -224,7 +225,11 @@ def sim(person, arrays, into, look):
         linked(obj, into)
         if obj.parent is None:
             obj.parent = holder
-        if obj.type in ("MESH", "CURVES", "CURVE") and not obj.data.materials:
+        if obj.type == "CURVES" and "displayColor" in obj.data.attributes and look.get("muscles"):
+            obj.data.materials.clear()
+            obj.data.materials.append(look["muscles"]["material"])  # the muscles, in the film's activation colours
+            thickened(obj, look["muscles"]["radius"])
+        elif obj.type in ("MESH", "CURVES", "CURVE") and not obj.data.materials:
             obj.data.materials.append(look["coloured"] if "displayColor" in getattr(obj.data, "attributes", {})
                                       else look["sim"])
     arrows = []
@@ -253,6 +258,56 @@ def coloured():
     return made
 
 
+def activation(muscles):
+    """The muscles' material (the job's `muscles`, peel.muscle_look): each muscle's activation read back from its
+    layer colour's red (RESTING's at 0 to ACTIVE's at 1), its colour the film's activation colours evenly from 0 to
+    1, lit from within by its glow (MUSCLE_REST_GLOW of it at rest, all of it fully active) so the active ones read
+    at film distance and in a night place."""
+    made = bpy.data.materials.new("activation")
+    made.use_nodes = True
+    nodes, links = made.node_tree.nodes, made.node_tree.links
+    shader = nodes["Principled BSDF"]
+    colour = nodes.new("ShaderNodeAttribute")
+    colour.attribute_name = "displayColor"
+    red = nodes.new("ShaderNodeSeparateColor")
+    share = nodes.new("ShaderNodeMapRange")
+    share.inputs["From Min"].default_value = muscles["resting"][0]
+    share.inputs["From Max"].default_value = muscles["active"][0]
+    share.clamp = True
+    ramp = nodes.new("ShaderNodeValToRGB")
+    stops = muscles["colours"]
+    while len(ramp.color_ramp.elements) < len(stops):
+        ramp.color_ramp.elements.new(0.5)
+    for number, (element, stop) in enumerate(zip(ramp.color_ramp.elements, stops)):
+        element.position = number / (len(stops) - 1)
+        element.color = (*stop, 1.0)
+    links.new(colour.outputs["Color"], red.inputs["Color"])
+    links.new(red.outputs["Red"], share.inputs["Value"])
+    links.new(share.outputs["Result"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], shader.inputs["Base Color"])
+    links.new(ramp.outputs["Color"], shader.inputs["Emission Color"])
+    glow = nodes.new("ShaderNodeMapRange")  # a resting muscle barely lit, so the active ones stand out of the body
+    glow.inputs["To Min"].default_value = muscles["glow"] * MUSCLE_REST_GLOW
+    glow.inputs["To Max"].default_value = muscles["glow"]
+    links.new(share.outputs["Result"], glow.inputs["Value"])
+    links.new(glow.outputs["Result"], shader.inputs["Emission Strength"])
+    shader.inputs["Roughness"].default_value = 0.5
+    return made
+
+
+def thickened(obj, radius):
+    """Every curve of `obj` drawn `radius` thick (a geometry nodes modifier after its time samples' cache)."""
+    tree = bpy.data.node_groups.new("thickened", "GeometryNodeTree")
+    tree.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+    tree.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    given, out = tree.nodes.new("NodeGroupInput"), tree.nodes.new("NodeGroupOutput")
+    set_radius = tree.nodes.new("GeometryNodeSetCurveRadius")
+    set_radius.inputs["Radius"].default_value = radius
+    tree.links.new(given.outputs[0], set_radius.inputs["Curve"])
+    tree.links.new(set_radius.outputs["Curve"], out.inputs[0])
+    obj.modifiers.new("thickened", "NODES").node_group = tree
+
+
 def pixel_metres(camera, at):
     """How many metres one pixel spans at `at` on the camera's picture (its depth along the camera's aim)."""
     scene = bpy.context.scene
@@ -261,11 +316,12 @@ def pixel_metres(camera, at):
     return depth * camera.data.sensor_width / (camera.data.lens * scene.render.resolution_x)
 
 
-def arrow_at(parts, start, vector, camera, fade):
+def arrow_at(parts, start, vector, camera, fade, full=0.0):
     """The arrow from `start` along `vector`, its tip at the push's length, its widths SHAFT_PIXELS and HEAD_PIXELS on
     the camera's picture, its foot lifted its own radius and LIFT off the ground, and a dot DOT_PIXELS round on the
-    ground at `start` (the centre of pressure); hidden where the job has none (the ground does not push that body) or
-    before it fades in."""
+    ground at `start` (the centre of pressure); an arrow shorter than `full` metres its widths and dot shrunk with
+    it, so it grows from and shrinks to nothing; hidden where the job has none (the ground does not push that body)
+    or before it fades in."""
     shaft, head, dot = parts
     shown = fade > 0 and not np.isnan(start).any() and np.linalg.norm(vector) > 1e-4
     for part in parts:
@@ -273,7 +329,7 @@ def arrow_at(parts, start, vector, camera, fade):
     if not shown:
         return
     direction = Vector(vector.tolist())
-    pixel = pixel_metres(camera, start + vector / 2)
+    pixel = pixel_metres(camera, start + vector / 2) * (min(1.0, direction.length / full) if full > 0 else 1.0)
     radius = SHAFT_PIXELS * pixel
     foot = Vector(start.tolist()) + direction.normalized() * (radius + LIFT)
     length = max(direction.length - radius - LIFT, 1e-4)
@@ -284,7 +340,7 @@ def arrow_at(parts, start, vector, camera, fade):
     shaft.rotation_euler, shaft.scale = turn, (radius, radius, length - head_long)
     head.location = foot + along * (length - head_long / 2)
     head.rotation_euler, head.scale = turn, (HEAD_PIXELS * pixel, HEAD_PIXELS * pixel, head_long)
-    spot = pixel_metres(camera, start) * DOT_PIXELS
+    spot = pixel_metres(camera, start) * DOT_PIXELS * (min(1.0, direction.length / full) if full > 0 else 1.0)
     dot.location = Vector(start.tolist()) + Vector((0.0, 0.0, LIFT + spot * 0.3))
     dot.scale = (spot, spot, spot * 0.3)
 
@@ -312,6 +368,8 @@ def draw(job):
     look = {"sim": material("sim", SIM, alpha=0.55),
             "arrow": material("arrow", tuple(job["arrows"]["colour"]), glow=ARROW_GLOW, alpha=ARROW_ALPHA),
             "coloured": coloured()}
+    if job.get("muscles"):
+        look["muscles"] = dict(job["muscles"], material=activation(job["muscles"]))
     people = []
     for person in job["people"]:
         arrays = dict(np.load(person["arrays"]))
@@ -330,7 +388,7 @@ def draw(job):
             mesh.vertices.foreach_set("co", arrays["points"][frame].astype(np.float32).ravel())
             mesh.update()
             for parts, start, vector in zip(arrows, arrays["arrow_start"][frame], arrays["arrow_vector"][frame]):
-                arrow_at(parts, start, vector, camera, fade)
+                arrow_at(parts, start, vector, camera, fade, job["arrows"].get("full", 0.0))
         for name in job["passes"]:
             for other, group in groups.items():
                 group.hide_render = other != name

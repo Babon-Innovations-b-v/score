@@ -393,10 +393,14 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     its officer and pilot), refused by name where none does. Its forecast prices each pass's frame as a measured film
     frame, a fogged stage's passes high, its high never under its cards' own time; the fogged hall's place peel is made
     from its finished stage, its frames dealt over the forecast's cards, each slice its own frames into its own folder,
-    all joined, and judged on its film. A walker peel in its place (WALKER_ROOMS) closes in and pulls back with its
-    wipes in the close-up, looks down a corridor from a start with room for it, never through a wall, refuses a walker
-    boxed in or in a slot narrower than an eye's clearance, draws only the passes a frame shows, and shows the sim
-    body layer on the place's time codes.
+    all joined, and judged on its film. A walker peel in its place (WALKER_ROOMS) is the place's whole film in one
+    shot: it opens still on the concept's view and eases on to its walker (no jump), coming in from above down a
+    corridor from a start LEAD_SECONDS or more into the record, never through a wall, along the place film's own path
+    round a wall, from inside a closed hall (its film to dissolve in) where no way in is clear; it refuses a walker
+    boxed in or in a slot narrower than an eye's clearance, holds each pass for its holds (shortened alike for a short
+    record), dissolves between them with the activation colour bar over the sim body, draws one GRF arrow a foot from
+    its despiked and low-passed push at half a metre a body weight, draws only the passes a frame shows, and shows the
+    sim body layer on the place's time codes.
 
     Break: score/stages/demo_film/final.py: `for kind in ("black", "frozen"))` -> `for kind in ("black", "black"))`
         -> a still card fails the gate as frozen; or `            if not any(start - 1e-3` -> `            if True or not
@@ -435,9 +439,15 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         WALK, STILL, *RECORDED)`
     Break: score/stages/demo_film/peel.py: `return triangles[level & (lengths > 0) & (triangles[:, :, 2].max(axis=1)
         < top)]` -> `return triangles[level & (lengths > 0)]`
-    Break: score/stages/demo_film/peel.py: `if sighted(scenes, aims, eyes, way):` -> `if True:` (an eye in the slot)
-    Break: score/stages/demo_film/peel.py: `share = np.clip(np.minimum(frames, count - 1 - frames) / ramp, 0.0, 1.0)`
-        -> `share = np.ones(count)`
+    Break: score/stages/demo_film/peel.py: `if sighted(scenes, aims, eyes):` -> `if True:` (an eye in the slot)
+    Break: score/stages/demo_film/peel.py: `width = max(3, 2 * round(MEDIAN_SECONDS * rate / 2) + 1)` -> `width = 1`
+        -> the one-frame spike stays
+    Break: score/stages/demo_film/peel.py: `if body not in feet or side is None:` -> `if side is None:` -> the hand
+        on the rail adds to the left foot's push
+    Break: score/stages/demo_film/peel.py: `return float(np.clip(metres / APPROACH_SPEED, APPROACH_SECONDS,
+        APPROACH_MOST))` -> `return APPROACH_SECONDS` -> a far walker is swooped in on at the shortest approach
+    Break: score/stages/demo_film/peel.py: `picture = pictures[shown] if coming == shown or share <= 0 else
+        Image.blend(` -> `picture = pictures[shown] if True else Image.blend(` -> no dissolve at the pass's end
     Break: score/stages/demo_film/peel.py: `return [passes[shown]] if coming == shown or share <= 0 else` -> `return
         list(passes) if True else`
     Break: score/stages/demo_film/peel.py: `"sim_timed.usda", scene_rate / record_rate` -> `"sim_timed.usda",
@@ -841,7 +851,7 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     assert drawn["arrow_start"].shape == (2, 2, 3)  # the seat's push and the planted foot's; a foot barely touching none
     seat = where[:3, :3] @ np.array([0.0, 0.45, 0.1]) + where[:3, 3]
     assert np.allclose(drawn["arrow_start"][1, 0], peel.points_to_z(seat))
-    pushed = where[:3, :3] @ np.array([0.0, 1.0, 30.0 / 520.0])  # its push over its 520 N weight
+    pushed = where[:3, :3] @ np.array([0.0, 1.0, 30.0 / 520.0]) * peel.METRES_PER_BODY_WEIGHT  # over its weight
     assert np.allclose(drawn["arrow_vector"][1, 0], peel.points_to_z(pushed))
     bodies = peel.touching([seated])
     moon = peel.pushes([{"touches": {"pelvis": [0.0, 520.0 / 6, 5.0, 0.0, 0.45, 0.1]}}], bodies, 520.0 / 6)
@@ -859,54 +869,117 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     person = {"points": np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]])}
     assert peel.underfoot(np.array([floor, roof, wall], dtype=float), [person]).tolist() == [floor], "level, below heads"
 
-    # a walker peel in its place: the camera zooms in over ZOOM_SECONDS and holds close to the end, each pass shown for
-    # its WALKER_HOLDS (the player model's after the zoom), the arrows fading in with the sim body; down a corridor it looks along it from a start with room, never through a wall, its sight line
-    # clear, and a walker boxed in tight is refused; only the passes a frame shows are drawn; the sim body layer is
+    # a walker peel is the place's whole film, one shot: the camera still on the concept's view for OPENING_SECONDS,
+    # eased on to the walker over its approach (a longer way in slower, APPROACH_SPEED, up to APPROACH_MOST; no jump
+    # at either end) and following it close to the end, each pass
+    # shown for its holds (the player model's after the approach; a short record shortens them alike, a far too short
+    # one is refused), the passes dissolving into each other, the arrows fading in with the sim body and its colour
+    # bar over it; down a corridor it comes in from above and looks along it from a start LEAD_SECONDS or more into
+    # the record, never through a wall, its sight line clear, and a walker boxed in tight is refused; a walker behind
+    # a wall is reached along the place film's own path; only the passes a frame shows are drawn; the sim body layer is
     # retimed onto the place's time codes
-    near = peel.closeness(120)
-    zoom = round(peel.ZOOM_SECONDS * peel.RATE)
-    assert near[0] == 0.0 and (near[zoom:] == 1.0).all() and 0.0 < near[zoom // 2] < 1.0
-    ends, count = peel.walker_ends(), round(peel.WALKER_SECONDS * peel.RATE)
-    holds = [peel.ZOOM_SECONDS + peel.WALKER_HOLDS["dressed"], peel.WALKER_HOLDS["mesh"], peel.WALKER_HOLDS["sim"]]
-    assert np.diff([0, *ends, count]).tolist() == [hold * peel.RATE for hold in holds], ends
-    settled = round(ends[-1] + peel.WIPE_SECONDS * peel.RATE)
-    assert all(peel.stage_of(frame, count, ends)[:2] == (2, 2) for frame in range(settled, count))
-    fade = peel.arrow_fade(count, ends)
+    assert peel.approach_seconds(9.0) == peel.APPROACH_SECONDS and peel.approach_seconds(500.0) == peel.APPROACH_MOST
+    assert peel.approach_seconds(4.0 * peel.APPROACH_SPEED) == 4.0
+    eye_share, look_share = peel.approach(120)
+    opening, arrived = round(peel.OPENING_SECONDS * peel.RATE), round((peel.OPENING_SECONDS +
+                                                                         peel.APPROACH_SECONDS) * peel.RATE)
+    assert (eye_share[:opening + 1] == 0.0).all() and (eye_share[arrived:] == 1.0).all(), eye_share
+    assert (np.diff(eye_share) >= 0).all() and np.diff(eye_share)[[opening, arrived - 1]].max() < 1e-3
+    assert (look_share >= eye_share).all() and look_share[opening + 43] == 1.0
+    assert peel.walker_holds(30.0) == peel.WALKER_HOLDS
+    short = peel.walker_holds(14.0)
+    assert short["sim"] == 2 * short["mesh"] < peel.WALKER_HOLDS["sim"] and short["mesh"] == short["dressed"]
+    with pytest.raises(ValueError, match="leaves"):
+        peel.walker_holds(8.0)
+    ends, count = peel.walker_ends(short), round(peel.walker_seconds(short) * peel.RATE)
+    holds = [peel.OPENING_SECONDS + peel.APPROACH_SECONDS + short["dressed"], short["mesh"], short["sim"]]
+    assert np.allclose(np.diff([0, *ends, count]), [hold * peel.RATE for hold in holds], atol=0.51), ends
+    blend = peel.DISSOLVE_SECONDS * peel.RATE
+    assert peel.stage_of(round(ends[0]), count, ends, peel.DISSOLVE_SECONDS)[:2] == (0, 1)
+    assert peel.stage_of(round(ends[0] + blend), count, ends, peel.DISSOLVE_SECONDS)[:2] == (1, 1)
+    fade = peel.arrow_fade(count, ends, peel.DISSOLVE_SECONDS)
     assert fade[round(ends[0])] == 0.0 and fade[-1] == 1.0
     assert peel.needed(60, 120) == ["mesh"] and peel.needed(40, 120) == ["dressed", "mesh"]
+    halfway = peel.dissolved(pictures, round(ends[0]), count, ends)  # red into green, half each, no wipe's edge
+    assert halfway.getpixel((5, 5)) == halfway.getpixel((5, SMALL[1] - 2)) and 100 < halfway.getpixel((5, 5))[0] < 155
+    big = [Image.new("RGB", (640, 360), colour) for colour in ((255, 0, 0), (0, 255, 0), (0, 0, 255))]
+    corner = (640 - 30, 360 - 18)  # inside the colour bar's strip
+    assert peel.dissolved(big, round(ends[0]) - 30, count, ends).getpixel(corner) == (255, 0, 0)
+    assert peel.dissolved(big, count - 1, count, ends).getpixel(corner) != (0, 0, 255), "the bar over the sim body"
     assert np.allclose(peel.lerped(np.array([[0.0], [2.0]]), np.array([0.25, 1.0])), [[0.5], [2.0]])
+    # the GRF drawn: one arrow a foot (heel and toes summed, a hand on a rail none), whenever it touches, half a metre
+    # for the body's weight, a one-frame spike gone, and grown from nothing as the foot lands
+    steps = [{"feet": {"LeftFoot": [0, 0], "LeftToeBase": [0, 0], "RightFoot": [0, 0]}, "touches": {
+        **({"LeftFoot": [0.0, 400.0, 0.0, 0.1, 0.0, 0.0], "LeftToeBase": [0.0, 300.0, 0.0, 0.1, 0.0, 0.2]}
+           if frame < 30 else {}),
+        **({"RightFoot": [0.0, 700.0 if frame != 40 else 7000.0, 0.0, -0.1, 0.0, 0.0]} if frame >= 20 else {}),
+        "LeftHand": [0.0, 300.0, 0.0, 0.5, 1.0, 0.0]}} for frame in range(60)]
+    drawn = peel.foot_pushes(steps, 700.0, 30.0)
+    assert drawn.shape == (60, 2, 6) and np.allclose(drawn[10, 0], [0.1, 0.0, 300.0 * 0.2 / 700.0, 0.0,
+                                                                    peel.METRES_PER_BODY_WEIGHT, 0.0], atol=1e-6)
+    assert abs(drawn[40, 1, 4] - peel.METRES_PER_BODY_WEIGHT) < 0.02, "the spike gone"
+    assert np.allclose(drawn[55, 0, 3:], 0.0, atol=1e-3) and np.allclose(drawn[55, 0, :3], drawn[25, 0, :3], atol=0.02)
+    rising = drawn[15:26, 1, 4]
+    assert (np.diff(rising) >= -1e-9).all() and rising[0] < 0.01 and 0.1 < rising[5] < 0.45, rising.round(3)
+    view = {"eye": [0.0, 12.0, -6.0], "aim": [0.0, 0.0, 0.0], "fov": 40.0}
     for name, (low, high), ends, speed, refused in WALKER_ROOMS:
-        walked = np.stack([np.array([[speed * frame, 0.0, 0.0], [speed * frame, 1.8, 0.0]]) for frame in range(72)])
-        walls = [trimesh.creation.box(bounds=[[-20.0, 0.0, side], [20.0, 3.0, side + 0.3 * sign]])
+        walked = np.stack([np.array([[speed * frame, 0.0, 0.0], [speed * frame, 1.8, 0.0]]) for frame in range(200)])
+        walls = [trimesh.creation.box(bounds=[[-40.0, 0.0, side], [40.0, 3.0, side + 0.3 * sign]])
                  for side, sign in ((low, -1.0), (high, 1.0))]
         walls += [trimesh.creation.box(bounds=[[ends[0], 2.0, -5.0], [ends[1], 2.3, 5.0]])] + [
             trimesh.creation.box(bounds=[[end, 0.0, -5.0], [end + 0.3 * sign, 3.0, 5.0]])
             for end, sign in zip(ends, (-1.0, 1.0))] if ends else []
-        floor = trimesh.creation.box(bounds=[[-30.0, -0.1, -30.0], [30.0, 0.0, 30.0]])
+        floor = trimesh.creation.box(bounds=[[-40.0, -0.1, -40.0], [40.0, 0.0, 40.0]])
         scenes = peel.camera_paths.scenes_of({str(number): wall for number, wall in enumerate(walls)}, floor,
                                              lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
         if refused:
             with pytest.raises(ValueError, match="no start and way"):
-                peel.closing(walked, scenes, 48, (1280, 720))
+                peel.closing(walked, scenes, 120, (1280, 720), view, lead=48)
             continue
-        start, path = peel.closing(walked, scenes, 48, (1280, 720))
+        start, path, entered = peel.closing(walked, scenes, 120, (1280, 720), view, lead=48)
         eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
-        apart = np.linalg.norm(eyes - aims, axis=1)
-        assert start % peel.RATE == 0 and apart[0] > apart[24] >= peel.CLOSE_LEAST, name
-        assert (eyes[:, 2] > low + peel.camera_paths.CLEARANCE - 1e-6).all(), name
-        assert (eyes[:, 2] < high - peel.camera_paths.CLEARANCE + 1e-6).all(), name
-        hits = peel.camera_paths.first_hits(scenes["blocking"], aims, (eyes - aims) / apart[:, None])
-        assert (hits > apart).all(), name
+        followed = np.array([[speed * (start + frame), 0.9, 0.0] for frame in range(120)])
+        apart = np.linalg.norm(eyes - followed, axis=1)
+        assert entered and start >= 48 and start % peel.RATE == 0 and np.allclose(eyes[:opening + 1], view["eye"]), name
+        assert path[0]["fov"] == view["fov"] and apart[0] > apart[arrived] >= peel.CLOSE_LEAST, name
+        assert np.abs(np.diff(np.linalg.norm(np.diff(eyes, axis=0), axis=1))).max() < 0.05, "no jump, eased"
+        assert (eyes[arrived:, 2] > low + peel.camera_paths.CLEARANCE - 1e-6).all(), name
+        assert (eyes[arrived:, 2] < high - peel.camera_paths.CLEARANCE + 1e-6).all(), name
+        towards = (eyes - followed)[arrived:] / apart[arrived:, None]
+        assert (peel.camera_paths.first_hits(scenes["blocking"], followed[arrived:], towards) > apart[arrived:]).all()
+        assert np.allclose(aims[arrived:], followed[arrived:], atol=1e-3), "it looks at the walker"
     # beside one building at a place's open edge, the close-up looks at the building behind its walker, never out
     # past the place into the empty sky
-    walked = np.stack([np.array([[0.02 * frame, 0.0, 0.0], [0.02 * frame, 1.8, 0.0]]) for frame in range(72)])
+    walked = np.stack([np.array([[0.02 * frame, 0.0, 0.0], [0.02 * frame, 1.8, 0.0]]) for frame in range(200)])
     building = trimesh.creation.box(bounds=[[-30.0, 0.0, 2.0], [30.0, 12.0, 6.0]])
     floor = trimesh.creation.box(bounds=[[-30.0, -0.1, -30.0], [30.0, 0.0, 30.0]])
     scenes = peel.camera_paths.scenes_of({"0": building}, floor, lambda flat: np.zeros(len(np.atleast_2d(flat))),
                                          np.zeros((0, 8, 3)))
-    _, path = peel.closing(walked, scenes, 48, (1280, 720))
-    looks = np.array([np.subtract(view["aim"], view["eye"]) for view in path])
+    _, path, _ = peel.closing(walked, scenes, 120, (1280, 720), dict(view, eye=[0.0, 10.0, -12.0]), lead=48)
+    looks = np.array([np.subtract(view["aim"], view["eye"]) for view in path])[arrived:]
     assert (looks[:, 2] / np.linalg.norm(looks, axis=1) > 0.4).all(), looks[0]
+    # a walker in a closed hall the concept sees from outside: the camera comes in from its most room inside, the
+    # film to dissolve to it from the concept's view
+    hall = [trimesh.creation.box(bounds=bounds) for bounds in (
+        [[-12.0, 0.0, -6.3], [12.0, 4.0, -6.0]], [[-12.0, 0.0, 6.0], [12.0, 4.0, 6.3]],
+        [[-12.3, 0.0, -6.3], [-12.0, 4.0, 6.3]], [[12.0, 0.0, -6.3], [12.3, 4.0, 6.3]], [[-12.3, 4.0, -6.3], [12.3, 4.3, 6.3]])]
+    scenes = peel.camera_paths.scenes_of({str(number): wall for number, wall in enumerate(hall)}, floor,
+                                         lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    walked = np.stack([np.array([[0.02 * frame - 2.0, 0.0, 0.0], [0.02 * frame - 2.0, 1.8, 0.0]]) for frame in range(200)])
+    start, path, entered = peel.closing(walked, scenes, 120, (1280, 720), dict(view, eye=[0.0, 10.0, -20.0]), lead=48)
+    eyes = np.array([view["eye"] for view in path])
+    assert not entered and (np.abs(eyes[:, 2]) < 6.0).all() and (eyes[:, 1] < 4.0).all()
+    # a walker behind a wall from the concept's eye is reached along the place film's own path round its end
+    wall = trimesh.creation.box(bounds=[[-10.0, 0.0, -0.2], [10.0, 30.0, 0.2]])
+    scenes = peel.camera_paths.scenes_of({"0": wall}, floor, lambda flat: np.zeros(len(np.atleast_2d(flat))),
+                                         np.zeros((0, 8, 3)))
+    opened, goal = np.array([0.0, 2.0, -5.0]), np.array([0.0, 1.5, 5.0])
+    round_it = np.array([[0.0, 2.0, -5.0], [6.0, 2.0, -5.0], [12.0, 2.0, -3.0], [12.0, 2.0, 3.0], [6.0, 2.0, 5.0]])
+    assert peel.approach_route(scenes, opened, goal) is None
+    route = peel.approach_route(scenes, opened, goal, np.repeat(round_it, 12, axis=0))
+    assert np.allclose(route[0], opened) and np.allclose(route[-1], goal) and (route[:, 0] > -1e-6).all()
+    assert all(peel.camera_paths.swept_clear(scenes["solid"], one, other, peel.camera_paths.CLEARANCE)
+               for one, other in zip(route, route[1:]))
     sim = tmp_path / "sim"
     (sim / "layers").mkdir(parents=True)
     timed = Usd.Stage.CreateNew(str(sim / "layers" / "sim_bodies.usda"))

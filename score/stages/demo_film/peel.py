@@ -24,10 +24,12 @@ has one, its moving bodies apart), joined by the same wipes.
         [--walker <name>] [--size 1280 720] [--review]
 
 A walker peel (walker_job; owner, 2026-11-17: "where is the peel? player model- soma body - sim body with grf arrow")
-is a film segment in a place_build scene: the camera zooms in on one walker (`--walker`, else close_walker's rule),
-the place drawn and its walkers played as its film draws and plays them, and follows it close while it peels from the
-player model to its SOMA body to its sim body with its GRF arrows (closing), each shown for its WALKER_HOLDS (owner,
-2026-11-17: "zoom in, 4 sec normal, 4 sec soma, 8 sec skeli"); the shot lasts WALKER_SECONDS. `--rows` names the rows' output
+is a place's whole film in its place_build scene, one continuous shot (owner, 2026-11-18: no hard cuts): the place
+drawn and its walkers played as its film draws and plays them, every one already walking, the camera opening on the
+concept's view, moving on to one walker (`--walker`, else close_walker's rule) and following it close while it peels
+from the player model to its SOMA body to its sim body with its GRF arrows and muscle activation (closing), each
+shown for its WALKER_HOLDS (owner, 2026-11-17: "zoom in, 4 sec normal, 4 sec soma, 8 sec skeli"), changing by a short
+dissolve; the shot lasts walker_seconds. `--rows` names the rows' output
 folders the sim body ran from ({"cast", "sim-body", "people-clips-made", "scene-clips", "people-body-<look>"}); it is
 drawn on this machine's card through the card queue (place_build.render.queued) by `blender/walker_peel.py`.
 
@@ -75,7 +77,7 @@ PASSES = ("dressed", "mesh", "sim")
 PLACE_PASSES = ("finished", "bare", "physics")
 NOT_SOLID = ("Sky",)  # the physics layer's own: the sky is drawn, never collided with (tools/usd/physics.py)
 RATE = 24
-METRES_PER_BODY_WEIGHT = 1.0  # an arrow 1 m long is a push of the body's own weight (100 %BW)
+METRES_PER_BODY_WEIGHT = 0.5  # an arrow 0.5 m long is a push of the body's own weight (100 %BW), every walker alike
 PUSHED = 1.0  # newtons: a body the ground pushes less than this carries nothing worth an arrow
 WIPE_SECONDS = 0.6
 FADE_SECONDS = 1.0  # the push arrows' fade in, from the start of the sim body's wipe
@@ -83,16 +85,44 @@ WIDE_LENS, CLOSE_LENS = 40.0, 35.0  # mm
 CLOSE_METRES = 4.0  # the close-up's camera off its person's path: the whole body in view at CLOSE_LENS
 FOLLOW_SECONDS = 0.5  # the close-up's aim smoothed over this either side
 HIPS = 0.9  # metres over a person's lowest point a camera aims at: its whole body and the push under its feet in view
-# A walker peel in its place (walker_job): the camera zooms in from WIDE_METRES at most over ZOOM_SECONDS, then holds
-# CLOSE_METRES off at most (CLOSE_LEAST at least, else no room for one) to the end of the shot while each pass shows
-# for its WALKER_HOLDS seconds (the player model's after the zoom); TALL_METRES of the walker fill the picture's
-# height at the close-up.
+# A walker peel in its place (walker_job) is the place's whole film, one continuous shot (owner, 2026-11-18: "the
+# cutting and transfers in the films are very weird"): OPENING_SECONDS on the concept's view, then over its approach
+# (approach_seconds) the camera moves on from it to CLOSE_METRES off the walker at most (CLOSE_LEAST at least, else no
+# room for one; WIDE_METRES the most room it measures) and follows it to the end while each pass shows for its
+# WALKER_HOLDS seconds (the player model's after the approach), the passes changing by a DISSOLVE_SECONDS dissolve on
+# the same moving shot; TALL_METRES of the walker fill the picture's height at the close-up. The shot starts
+# LEAD_SECONDS at least into the records (owner, 2026-11-18: "everyone is standing still while ur starting each
+# shot"), so every walker is walking from its first frame; a record too short for the holds shortens them alike
+# (walker_holds), to HOLDS_LEAST of them at most.
 WIDE_METRES = 9.0
 CLOSE_LEAST = 1.6
 TALL_METRES = 2.4
-ZOOM_SECONDS = 1.5
+OPENING_SECONDS = 1.0
+APPROACH_SECONDS = 2.5  # the least: a longer way in takes up to APPROACH_MOST, at APPROACH_SPEED on the whole
+APPROACH_MOST = 5.0
+APPROACH_SPEED = 9.0  # metres a second from the concept's eye to the walker, straight
+THROUGH_EVERY = 12  # the place film's path frames tried as a way in for the camera (approach_route)
+THROUGH_WALKED = 3  # of them, the nearest walked from (camera_paths.leg) when the walker is straight from none
+AIM_LEADS = 0.7  # the share of the approach the look takes to come round to the walker, ahead of the eye
+LEAD_SECONDS = 2.0
+DISSOLVE_SECONDS = 0.5
 WALKER_HOLDS = {"dressed": 4.0, "mesh": 4.0, "sim": 8.0}  # owner, 2026-11-17: "4 sec normal, 4 sec soma, 8 sec skeli"
-WALKER_SECONDS = ZOOM_SECONDS + sum(WALKER_HOLDS.values())
+HOLDS_LEAST = 0.4
+# The GRF arrows a walker peel draws (owner, 2026-11-18: "the grf arrows are way to aggresive and inconsistent", "he
+# only has grf arrows going for his right leg"): one a foot, its every body the record's `feet` names on that side
+# (heel and toes), whenever it touches; the drawn force (never the solve's) rid of single-frame spikes by a median
+# over MEDIAN_SECONDS and low-passed by a gaussian whose half-power cut is LOW_PASS_HZ, its centre of pressure the
+# force-weighted mean, so an arrow grows from and shrinks to nothing as the foot lands and lifts.
+MEDIAN_SECONDS = 0.1
+LOW_PASS_HZ = 4.0
+SIDES = ("Left", "Right")
+SHOWN_FROM = 0.1  # of the body's weight: an arrow under it shrinks its head and dot with it (body_peel.arrow_at)
+# The muscles' activation in the sim body pass (owner, 2026-11-18: "its really hard to see the muscle activation"):
+# each muscle a MUSCLE_RADIUS thick line in the film's activation colours (--film-activation-0 to -3, 0 to 1), lit
+# from within MUSCLE_GLOW, a colour bar beside it (`activation_bar`).
+MUSCLE_RADIUS = 0.005
+MUSCLE_GLOW = 2.0
+ACTIVATION_TOKENS = ("film-activation-0", "film-activation-1", "film-activation-2", "film-activation-3")
 HEADINGS = 12  # the ways round the walker tried for the camera, straight ahead of it first
 # A close-up looks at the place behind its walker (owner's fault, 2026-11-17: the street peel faced the plaza's flat
 # backdrop): a way whose look past the walker, level at BACKED_HEIGHT over its hips, straight on and BACKED_SPREAD
@@ -176,17 +206,77 @@ def pushes(frames, bodies, weight):
     return arrows
 
 
-def arrow_fade(count, ends=None):
-    """How far the push arrows have faded in at each film frame of `count` (0 to 1): from the start of the wipe that
-    brings the sim body in (at the last of `ends`, pass_ends'), over FADE_SECONDS, so they come in with its layer."""
-    begins = pass_ends(count, ends)[-1] - WIPE_SECONDS * RATE / 2
+def arrow_fade(count, ends=None, seconds=WIPE_SECONDS):
+    """How far the push arrows have faded in at each film frame of `count` (0 to 1): from the start of the wipe (or
+    dissolve, `seconds` long) that brings the sim body in (at the last of `ends`, pass_ends'), over FADE_SECONDS, so
+    they come in with its layer."""
+    begins = pass_ends(count, ends)[-1] - seconds * RATE / 2
     return np.clip((np.arange(count) - begins) / (FADE_SECONDS * RATE), 0.0, 1.0).tolist()
 
 
-def push_colour():
-    """The push arrows' colour, the film's own `--film-push` token (lettering.token), as Blender's linear RGB."""
-    srgb = np.array(lettering.token("film-push")[:3]) / 255.0
+def linear(name):
+    """A colour token of the film's (lettering.token) as Blender's linear RGB."""
+    srgb = np.array(lettering.token(name)[:3]) / 255.0
     return np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4).tolist()
+
+
+def push_colour():
+    """The push arrows' colour, the film's own `--film-push` token, as Blender's linear RGB."""
+    return linear("film-push")
+
+
+def muscle_look():
+    """How the sim body pass draws its muscles: the sim body layer's own colour ends (a muscle's colour runs from
+    RESTING at activation 0 to ACTIVE at 1, sim_body/_layer.py, so Blender reads its activation back from the red),
+    the film's activation colours (linear RGB, 0 to 1 evenly), the line's radius and its glow."""
+    from score.stages.sim_body import _layer
+    return {"resting": list(_layer.RESTING), "active": list(_layer.ACTIVE),
+            "colours": [linear(name) for name in ACTIVATION_TOKENS], "radius": MUSCLE_RADIUS, "glow": MUSCLE_GLOW}
+
+
+def despiked(values, width):
+    """`values` (frames x ...) each the median of the `width` frames round it (an odd count; the ends held)."""
+    reach = width // 2
+    padded = np.concatenate([np.repeat(values[:1], reach, axis=0), values, np.repeat(values[-1:], reach, axis=0)])
+    return np.median(np.lib.stride_tricks.sliding_window_view(padded, width, axis=0), axis=-1)
+
+
+def foot_pushes(frames, weight, rate):
+    """Each foot's push from the ground each record frame as an arrow (frames x SIDES x 6: start, vector; the person's
+    frame, Y up), for drawing: the force on every body the record's `feet` names on that side summed (its `touches`),
+    despiked (a median over MEDIAN_SECONDS) and low-passed (a gaussian of LOW_PASS_HZ half power) at the record's
+    `rate`, METRES_PER_BODY_WEIGHT for a push of `weight` newtons; from its centre of pressure, the push-weighted mean
+    of its bodies' own, smoothed alike (a foot in the air keeps its last one, its push nought)."""
+    from score.stages.place_build.film import smoothed
+    feet = {body for frame in frames for body in frame.get("feet", {})}
+    force, moment, load = (np.zeros((len(frames), len(SIDES), 3)), np.zeros((len(frames), len(SIDES), 3)),
+                           np.zeros((len(frames), len(SIDES))))
+    for index, frame in enumerate(frames):
+        for body, push in frame["touches"].items():
+            side = next((number for number, name in enumerate(SIDES) if body.startswith(name)), None)
+            if body not in feet or side is None:
+                continue  # a hand on a rail, a hip on a wall: not the ground's push on a foot
+            pressed = max(float(push[1]), 0.0)
+            force[index, side] += push[:3]
+            moment[index, side] += np.asarray(push[3:]) * pressed
+            load[index, side] += pressed
+    width = max(3, 2 * round(MEDIAN_SECONDS * rate / 2) + 1)
+    spread = np.sqrt(np.log(2.0)) / (2.0 * np.pi * LOW_PASS_HZ) * rate
+    force = smoothed(despiked(force, width).reshape(len(frames), -1), spread).reshape(force.shape)
+    load = smoothed(despiked(load, width), spread)
+    moment = smoothed(despiked(moment, width).reshape(len(frames), -1), spread).reshape(moment.shape)
+    arrows = np.zeros((len(frames), len(SIDES), 6))
+    for side in range(len(SIDES)):
+        pressed = load[:, side] > 1e-6
+        if not pressed.any():
+            continue
+        kept = np.flatnonzero(pressed)
+        nearest = kept[np.clip(np.searchsorted(kept, np.arange(len(frames))), 0, len(kept) - 1)]
+        held = np.maximum.accumulate(np.where(pressed, np.arange(len(frames)), -1))
+        nearest = np.where(held >= 0, held, nearest)
+        arrows[:, side, :3] = (moment[nearest, side] / load[nearest, side, None])
+        arrows[:, side, 3:] = force[:, side] / weight * METRES_PER_BODY_WEIGHT
+    return arrows
 
 
 def to_z(matrices):
@@ -316,7 +406,8 @@ def job_of(folder, cast, sim, person_of, seconds, size, samples, close=None, gro
     job = {"out": str(folder), "size": list(size), "samples": samples, "record_rate": record["rate"],
            "source": shown, "passes": list(PASSES), "camera": {"lens": CLOSE_LENS if close else WIDE_LENS,
                                                                 "path": path},
-           "arrows": {"colour": push_colour(), "fade": arrow_fade(len(shown))}, "people": people, "ground": None}
+           "arrows": {"colour": push_colour(), "fade": arrow_fade(len(shown))}, "muscles": muscle_look(),
+           "people": people, "ground": None}
     if ground is not None:
         np.save(folder / "ground.npy", underfoot(points_to_z(np.asarray(ground, dtype=float)), list(shapes.values())))
         job["ground"] = str(folder / "ground.npy")
@@ -324,12 +415,20 @@ def job_of(folder, cast, sim, person_of, seconds, size, samples, close=None, gro
     return folder / "job.json"
 
 
-def closeness(count):
-    """How close the camera has come at each frame of `count` (0 at its widest, 1 at the close-up): eased in over
-    ZOOM_SECONDS, then held to the end, so every wipe and the whole sim body fall in the close-up."""
-    ramp = max(1, round(ZOOM_SECONDS * RATE))
-    share = np.clip(np.arange(count) / ramp, 0.0, 1.0)
-    return share * share * (3.0 - 2.0 * share)
+def approach_seconds(metres):
+    """How long the camera takes from the concept's eye to a walker `metres` from it: APPROACH_SPEED on the whole,
+    between APPROACH_SECONDS and APPROACH_MOST."""
+    return float(np.clip(metres / APPROACH_SPEED, APPROACH_SECONDS, APPROACH_MOST))
+
+
+def approach(count, seconds=APPROACH_SECONDS):
+    """How far the camera has come from the concept's view to its close-up at each frame of `count` (0 to 1): still
+    for OPENING_SECONDS, then over its approach `seconds` eased in and out (smootherstep, its speed and its change
+    nought at both ends), then on the close-up to the end; (its eye's share, its look's share, the look coming round
+    to the walker over AIM_LEADS of the approach, ahead of the eye)."""
+    into = np.clip((np.arange(count) / RATE - OPENING_SECONDS) / seconds, 0.0, 1.0)
+    looked = np.clip(into / AIM_LEADS, 0.0, 1.0)
+    return tuple(share ** 3 * (share * (share * 6.0 - 15.0) + 10.0) for share in (into, looked))
 
 
 def ways_round(aims):
@@ -349,45 +448,133 @@ def ways_round(aims):
     return found
 
 
-def sighted(scenes, aims, eyes, way):
-    """Whether the camera sees the walker on every measured frame (each EVERYth and the last): its eye CLEARANCE off
-    the place's solids and its sight line from OWN_ROOM out of the hips SIGHT clear (camera_paths.swept_clear; never
-    clearances, whose inside_solid counts a closed dome's inside as solid)."""
+def sighted(scenes, aims, eyes, seen_from=0):
+    """Whether the camera moves clear and sees the walker: its eye's way between measured frames (each EVERYth and
+    the last) CLEARANCE off the place's solids, and from frame `seen_from` on its sight line from OWN_ROOM out of the
+    hips towards it SIGHT clear (camera_paths.swept_clear; never clearances, whose inside_solid counts a closed dome's
+    inside as solid)."""
     measured = sorted({*range(0, len(aims), EVERY), len(aims) - 1})
-    return all(camera_paths.swept_clear(scenes["solid"], eyes[frame], eyes[frame], camera_paths.CLEARANCE) and
-               camera_paths.swept_clear(scenes["solid"], aims[frame] + way * OWN_ROOM, eyes[frame], SIGHT)
-               for frame in measured)
+    if not all(camera_paths.swept_clear(scenes["solid"], eyes[frame], eyes[after], camera_paths.CLEARANCE)
+               for frame, after in zip(measured, measured[1:] or measured)):
+        return False
+    for frame in measured:
+        if frame < seen_from:
+            continue
+        towards = (eyes[frame] - aims[frame]) / max(np.linalg.norm(eyes[frame] - aims[frame]), 1e-9)
+        if not camera_paths.swept_clear(scenes["solid"], aims[frame] + towards * OWN_ROOM, eyes[frame], SIGHT):
+            return False
+    return True
 
 
-def closing(points, scenes, count, size):
+def approach_route(scenes, opened, goal, through=None):
+    """A clear way for the camera from the concept's eye `opened` to `goal` (Y up), its corners rounded where they
+    stay clear (place_build.film.rounded): straight, or over the goal and down (place_build.film.straight); else
+    along `through` (the place film's own clear path from the concept's eye, its eyes in order) to the nearest of its
+    eyes (each THROUGH_EVERY) the goal is straight from, or from the nearest THROUGH_WALKED of them down to the goal's
+    height over the floor and walked from there (camera_paths.leg); None where none is."""
+    from score.stages.place_build import film as place_film
+    found = place_film.straight(scenes, opened, goal)
+    if found is None and through is not None and len(through):
+        through = np.asarray(through, dtype=float)
+        tried = [index for index in np.argsort(np.linalg.norm(through - goal, axis=1)) if index % THROUGH_EVERY == 0]
+        for index in tried:
+            if camera_paths.swept_clear(scenes["solid"], through[index], goal, camera_paths.CLEARANCE):
+                found = [opened, *through[:index + 1], goal]
+                break
+        over = goal[1] - camera_paths.eyes_over(scenes, [[goal[0], goal[2]]], 0.0, [goal[1]])[0][1]
+        bounds = np.asarray(scenes["extent"]) + [-place_film.MARGIN, -place_film.MARGIN, place_film.MARGIN,
+                                                 place_film.MARGIN]
+        for index in tried[:THROUGH_WALKED] if found is None and np.isfinite(over) else ():
+            low = camera_paths.eyes_over(scenes, [[through[index][0], through[index][2]]], over,
+                                         [through[index][1]])[0]
+            if not (np.isfinite(low[1]) and camera_paths.swept_clear(scenes["solid"], through[index], low,
+                                                                      camera_paths.CLEARANCE)):
+                continue
+            walked = camera_paths.leg(scenes, low, goal, bounds, 0, over, camera_paths.CLEARANCE)
+            if walked is not None:
+                found = [opened, *through[:index + 1], low, *walked[1:]]
+                break
+    if found is None:
+        return None
+    found = [found[0], *(point for previous, point in zip(found, found[1:])
+                         if np.linalg.norm(np.subtract(point, previous)) > 1e-6)]
+    return place_film.rounded(scenes, found)[0]
+
+
+def along(route, shares):
+    """The points `shares` (0 to 1) of the way along a polyline."""
+    lengths = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(route, axis=0), axis=1))])
+    return np.column_stack([np.interp(shares * lengths[-1], lengths, route[:, axis]) for axis in range(3)])
+
+
+def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APPROACH_SECONDS):
     """A walker peel's start and camera, a view a film frame in the place's frame (Y up), from the walker's mesh over
-    its whole record at the film's rate (`points`): of the starts each second into the record that leave the shot's
-    `count` frames, and the ways round it (ways_round), the one with most room for the close-up, then for the zoom,
-    then nearest its three-quarter front, then earliest, whose camera sees the walker throughout (sighted), a way
-    with the place behind the walker (`backed`) before any that looks past it into the empty sky. On
-    its ray from the walker's hips (hips_path) the camera zooms in and holds (closeness), never past the
-    place's meshes on that ray less CLEARANCE (camera_paths' `blocking`), so nothing of the place stands between it
-    and the walker. Its angle frames TALL_METRES at the close-up. Refused where no start and way leave CLOSE_LEAST."""
+    its whole record at the film's rate (`points`): of the starts each second into the record from `lead` frames on
+    that leave the shot's `count` frames, and the ways round it (ways_round), the one with most room for the close-up,
+    then for the zoom, then nearest its three-quarter front, then earliest, that has a clear way in (approach_route,
+    `through` the place film's own path) and whose camera moves clear and sees the walker from halfway through its
+    approach on (sighted), a way with the place behind the walker (`backed`) before any that looks past it into the
+    empty sky. The camera opens on `view` (the concept's: eye, aim, fov) and comes on from it along that way
+    (approach, over `seconds`) to its follow, on its ray from the walker's hips (hips_path), never past the place's meshes on that ray
+    less CLEARANCE (camera_paths' `blocking`), so nothing of the place stands between it and the walker, looking round
+    from the view's look to the walker; its angle from the view's to the one framing TALL_METRES at the close-up.
+    Where no camera has a clear way in (a walker under glass the concept sees from outside), the best one with room
+    comes in from the most room it has to its close-up over the approach instead, the film dissolving to it from the
+    concept's view (walker_job's `cut_in`). (the start, the views, whether the camera came in from the concept's view);
+    refused where no start and way leave CLOSE_LEAST."""
     path = hips_path(points, up=1)
+    eye_share, look_share = approach(count, seconds)
+    seen_from = int(np.searchsorted(eye_share, 0.5))
+    arrived = min(int(np.searchsorted(eye_share, 1.0)), count - 1)
+    opened = np.asarray(view["eye"], dtype=float)
+    opening_look = np.asarray(view["aim"], dtype=float) - opened
+    reach = float(np.linalg.norm(opening_look))
+    opening_look = opening_look / max(reach, 1e-9)
     tried = []
-    for start in range(0, len(points) - count + 1, RATE):
+    for start in range(lead, len(points) - count + 1, RATE):
         aims = path[start:start + count]
         measured = aims[sorted({*range(0, count, EVERY), count - 1})]
         for way, turned in ways_round(aims):
             free = camera_paths.first_hits(scenes["blocking"], measured, np.tile(way, (len(measured), 1)))
             room = min(float(free.min()) - camera_paths.CLEARANCE, WIDE_METRES)
             tried.append((min(room, CLOSE_METRES), room, turned, start, way, backed(scenes, measured, way)))
-    tried = [kept for kept in tried if kept[0] >= CLOSE_LEAST]
-    for close, room, _, start, way, _ in sorted(tried, key=lambda kept: (not kept[5], -kept[0], -kept[1], kept[2],
-                                                                          kept[3])):
+    tried = sorted((kept for kept in tried if kept[0] >= CLOSE_LEAST),
+                   key=lambda kept: (not kept[5], -kept[0], -kept[1], kept[2], kept[3]))
+    for close, room, _, start, way, _ in tried:
         aims = path[start:start + count]
-        eyes = aims + (room + (close - room) * closeness(count))[:, None] * way
-        if sighted(scenes, aims, eyes, way):
-            tall = 2.0 * np.arctan(TALL_METRES / 2.0 / close)
-            fov = min(float(np.degrees(2.0 * np.arctan(np.tan(tall / 2.0) * size[0] / size[1]))), FOV_MOST)
-            return start, [{"eye": eye.round(4).tolist(), "aim": aim.round(4).tolist(), "up": [0.0, 1.0, 0.0],
-                            "fov": round(fov, 3)} for eye, aim in zip(eyes, aims)]
-    raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up")
+        followed = aims + close * way
+        route = approach_route(scenes, opened, followed[arrived], through)
+        if route is None:
+            continue
+        eyes = along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived])
+        if sighted(scenes, aims, eyes, seen_from):
+            fov = close_fov(close, size)
+            fovs = float(view["fov"]) + (fov - float(view["fov"])) * eye_share
+            apart = np.linalg.norm(aims - eyes, axis=1)
+            towards = (aims - eyes) / np.maximum(apart, 1e-9)[:, None]
+            looks = opening_look + (towards - opening_look) * look_share[:, None]
+            looks = looks / np.maximum(np.linalg.norm(looks, axis=1), 1e-9)[:, None]
+            looked = (reach + (apart - reach) * eye_share)[:, None] * looks + eyes
+            return start, viewed(eyes, looked, fovs), True
+    for close, room, _, start, way, _ in tried:
+        aims = path[start:start + count]
+        eyes = aims + (room + (close - room) * eye_share)[:, None] * way
+        if sighted(scenes, aims, eyes):
+            return start, viewed(eyes, aims, np.full(count, close_fov(close, size))), False
+    raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up "
+                     "with a clear way in from the concept's view")
+
+
+def close_fov(close, size):
+    """The angle across (degrees) framing TALL_METRES at `close` metres in a picture of `size`, at most FOV_MOST."""
+    tall = 2.0 * np.arctan(TALL_METRES / 2.0 / close)
+    return min(float(np.degrees(2.0 * np.arctan(np.tan(tall / 2.0) * size[0] / size[1]))), FOV_MOST)
+
+
+def viewed(eyes, aims, fovs):
+    """usd_views' views (Y up) a film frame from eyes, aims and angles."""
+    return [{"eye": eye.round(4).tolist(), "aim": aim.round(4).tolist(), "up": [0.0, 1.0, 0.0],
+             "fov": round(float(angle), 3)} for eye, aim, angle in zip(eyes, aims, fovs)]
 
 
 def backed(scenes, aims, way):
@@ -406,9 +593,10 @@ def backed(scenes, aims, way):
     return True
 
 
-def needed(frame, count, passes=PASSES, ends=None):
-    """The passes film frame `frame` of `count` shows: the one shown, and the one wiping over it during a wipe."""
-    shown, coming, share = stage_of(frame, count, ends)
+def needed(frame, count, passes=PASSES, ends=None, seconds=WIPE_SECONDS):
+    """The passes film frame `frame` of `count` shows: the one shown, and the one coming over it during a wipe (or
+    dissolve) `seconds` long."""
+    shown, coming, share = stage_of(frame, count, ends, seconds)
     return [passes[shown]] if coming == shown or share <= 0 else [passes[shown], passes[coming]]
 
 
@@ -450,14 +638,19 @@ def Xform "peel"
 
 def walker_job(folder, scene, cast, sim, person_of, walker, size, review=False):
     """Write a walker peel's Blender job into `folder` and return its views.json (usd_views' listing, its `peel` the
-    job): the place_build scene (`scene`, its folder) drawn as its film draws it, the walker played in it as the film
-    plays it, and on a camera closing on it (closing, which picks the shot's start in the record) for WALKER_SECONDS
-    three passes, each its WALKER_HOLDS (walker_ends),
-    `dressed` (the place as it is), `mesh` (the walker's bare SOMA surface, the clip rig skinned by the clip its sim
-    body played, between the record's frames) and `sim` (its sim body layer, each touching body's push an arrow,
-    fading in), the walker's own dressed body hidden in the last two; only the passes a frame shows are drawn
-    (needed). Film frame k shows the record's time start + k / RATE, the place's time code at its own rate (its walkers
-    start their records at its 0); a shot longer than the record is refused."""
+    job): the place's whole film, one shot. The place_build scene (`scene`, its folder) drawn as its film draws it,
+    its walkers played in it as the film plays them, from LEAD_SECONDS at least into their records, so every one is
+    walking from the first frame; the camera opening on the concept's view (the scene record's `camera`) and coming
+    on to follow the walker close (closing, which picks the shot's start in the record), for its passes, each its
+    holds (walker_holds, walker_ends), `dressed` (the place as it is), `mesh` (the walker's bare SOMA surface, the clip
+    rig skinned by the clip its sim body played, between the record's frames) and `sim` (its sim body layer, its
+    muscles in the film's activation colours, each foot's push an arrow, fading in: foot_pushes), the walker's own
+    dressed body hidden in the last two; only the passes a frame shows are drawn (needed, at DISSOLVE_SECONDS). Where
+    the camera has no clear way in from the concept's view (closing), the place is also drawn on that view (`opening`,
+    views o<frame>) until the film has dissolved from it to the close-up, over twice DISSOLVE_SECONDS halfway through
+    the approach (`cut_in`, its first and end frames). Film
+    frame k shows the record's time start + k / RATE, the place's time code at its own rate (its walkers start their
+    records at its 0); a record too short for the shot is refused."""
     from score.stages import place_build
     from score.stages.place_build import film as place_film
     record = json.loads((sim / "sim_bodies.json").read_text())
@@ -467,29 +660,41 @@ def walker_job(folder, scene, cast, sim, person_of, walker, size, review=False):
     body = record["bodies"][walker]
     rig, _, clip = person_of(single, body)
     frames = json.loads((sim / "measures" / f"{walker}.json").read_text())
-    count, ends = round(WALKER_SECONDS * RATE), walker_ends()
     times = np.arange(int((len(frames) - 1) / record["rate"] * RATE) + 1) * record["rate"] / RATE
-    if len(times) < count:
-        raise ValueError(f"a {WALKER_SECONDS:g} s shot outlasts {walker}'s sim body record of "
-                         f"{(len(frames) - 1) / record['rate']:g} s")
     where = sim_body.own_frame(body["at"], body.get("turn", 0.0))
     mesh = lerped(skinned(rig, clip) @ where[:3, :3].T + where[:3, 3], times)
-    start, path = closing(mesh, place_film.place_scenes(scene), count, size)
+    concept, lead = place_build.record_of(scene)["camera"], round(LEAD_SECONDS * RATE)
+    seconds = approach_seconds(float(np.linalg.norm(hips_path(mesh, up=1)[min(lead, len(mesh) - 1)] -
+                                                    np.asarray(concept["eye"], dtype=float))))
+    holds = walker_holds((len(frames) - 1) / record["rate"], seconds)
+    count, ends = round(walker_seconds(holds, seconds) * RATE), walker_ends(holds, seconds)
+    filmed = pathlib.Path(scene) / "film" / "path.json"  # the place film's own clear path, a way in for the camera
+    through = [view["eye"] for view in json.loads(filmed.read_text())["views"]] if filmed.exists() else None
+    start, path, entered = closing(mesh, place_film.place_scenes(scene), count, size, concept, lead, through, seconds)
+    middle = (OPENING_SECONDS + seconds / 2) * RATE
+    cut_in = None if entered else [round(middle - DISSOLVE_SECONDS * RATE), round(middle + DISSOLVE_SECONDS * RATE)]
     mesh, times = mesh[start:start + count], times[start:start + count]
-    arrows = pushes(frames, touching(frames), body_weight(body))[np.rint(times).astype(int)]
+    arrows = lerped(foot_pushes(frames, body_weight(body), record["rate"]), times)
     scene_rate = place_build.opened(scene)[0].GetTimeCodesPerSecond()
     layer, root = timed_layer(folder, sim, record["place"], walker, scene_rate, record["rate"])
     np.savez(folder / f"{walker}.npz", faces=np.asarray(rig["faces"]), points=points_to_z(mesh),
              arrow_start=points_to_z(arrows[..., :3] @ where[:3, :3].T + where[:3, 3]),
              arrow_vector=points_to_z(arrows[..., 3:] @ where[:3, :3].T))
     job = {"kind": "walker", "out": str(folder), "walker": walker, "passes": list(PASSES),
-           "start_seconds": start / RATE, "draws": [needed(frame, count, ends=ends) for frame in range(count)],
-           "arrows": {"colour": push_colour(), "fade": arrow_fade(count, ends)},
+           "start_seconds": start / RATE, "approach_seconds": seconds, "holds": holds, "ends": ends,
+           "draws": [needed(frame, count, ends=ends, seconds=DISSOLVE_SECONDS) if cut_in is None or frame >= cut_in[0]
+                     else [] for frame in range(count)], "cut_in": cut_in,
+           "arrows": {"colour": push_colour(), "fade": arrow_fade(count, ends, DISSOLVE_SECONDS),
+                      "full": SHOWN_FROM * METRES_PER_BODY_WEIGHT},
+           "muscles": muscle_look(),
            "people": [{"name": walker, "sim_layer": str(layer), "sim_root": root,
                        "arrays": str(folder / f"{walker}.npz"), "placed": to_z(where).tolist()}]}
     (folder / "job.json").write_text(json.dumps(job, indent=1))
     views = [dict(spot, name=f"f{frame:04d}", frame=round((start + frame) * scene_rate / RATE), look_only=True)
-             for frame, spot in enumerate(path)]
+             for frame, spot in enumerate(path) if job["draws"][frame]]
+    views += [dict(eye=concept["eye"], aim=concept["aim"], up=[0.0, 1.0, 0.0], fov=concept["fov"], name=f"o{frame:04d}",
+                   frame=round((start + frame) * scene_rate / RATE), look_only=True)
+              for frame in range(cut_in[1] if cut_in else 0)]  # the concept's view the film dissolves in from
     listed = folder / "views.json"
     listed.write_text(json.dumps({"size": list(size), "review": review, "views": views,
                                   "peel": str(folder / "job.json")}, indent=1))
@@ -542,16 +747,35 @@ def pass_ends(count, ends=None):
     return list(ends) if ends is not None else [coming * count / len(PASSES) for coming in range(1, len(PASSES))]
 
 
-def walker_ends():
-    """A walker peel's pass ends (film frames): the player model through the zoom and its hold, then each hold."""
-    held = np.cumsum([WALKER_HOLDS[name] for name in PASSES[:-1]]) + ZOOM_SECONDS
+def walker_holds(record_seconds, approach=APPROACH_SECONDS):
+    """The seconds each pass of a walker peel shows for in a shot from LEAD_SECONDS into a record `record_seconds`
+    long, after its opening and its `approach`: WALKER_HOLDS, else all shortened alike to fit it (whole film frames),
+    refused below HOLDS_LEAST of them."""
+    room = record_seconds - LEAD_SECONDS - OPENING_SECONDS - approach
+    share = min(1.0, room / sum(WALKER_HOLDS.values()))
+    if share < HOLDS_LEAST:
+        raise ValueError(f"a {record_seconds:g} s sim body record leaves {max(room, 0.0):.1f} s for the peel's "
+                         f"{sum(WALKER_HOLDS.values()):g} s of holds after its lead, opening and approach")
+    return {name: round(seconds * share * RATE) / RATE for name, seconds in WALKER_HOLDS.items()}
+
+
+def walker_seconds(holds=None, approach=APPROACH_SECONDS):
+    """A walker peel's length: its opening, its `approach` and its holds (WALKER_HOLDS unless given)."""
+    return OPENING_SECONDS + approach + sum((holds or WALKER_HOLDS).values())
+
+
+def walker_ends(holds=None, approach=APPROACH_SECONDS):
+    """A walker peel's pass ends (film frames): the player model through the opening, the `approach` and its hold,
+    then each hold (WALKER_HOLDS unless given)."""
+    holds = holds or WALKER_HOLDS
+    held = np.cumsum([holds[name] for name in PASSES[:-1]]) + OPENING_SECONDS + approach
     return (held * RATE).round().tolist()
 
 
-def stage_of(frame, count, ends=None):
-    """(the pass shown, the next pass, how far the wipe to it has risen 0 to 1) at film frame `frame` of `count`: a
-    wipe of WIPE_SECONDS centred on each pass's end (pass_ends: each third unless `ends` names them)."""
-    ends, wipe = pass_ends(count, ends), WIPE_SECONDS * RATE
+def stage_of(frame, count, ends=None, seconds=WIPE_SECONDS):
+    """(the pass shown, the next pass, how far the wipe to it has come 0 to 1) at film frame `frame` of `count`: a
+    wipe (or dissolve) `seconds` long centred on each pass's end (pass_ends: each third unless `ends` names them)."""
+    ends, wipe = pass_ends(count, ends), seconds * RATE
     for coming, end in enumerate(ends, start=1):
         into = frame - (end - wipe / 2)
         if 0 <= into < wipe:
@@ -570,6 +794,51 @@ def wiped(pictures, frame, count, ends=None):
         picture.paste(pictures[coming].crop((0, edge, wide, tall)), (0, edge))
         ImageDraw.Draw(picture).rectangle((0, edge - 1, wide, edge + 1), fill=EDGE)
     return picture
+
+
+def dissolved(pictures, frame, count, ends):
+    """Film frame `frame` of a walker peel: the pass it shows, the next one dissolving in over it (DISSOLVE_SECONDS,
+    eased), and the activation colour bar over the sim body pass, as much as it shows."""
+    shown, coming, share = stage_of(frame, count, ends, DISSOLVE_SECONDS)
+    eased = lettering.eased(share)
+    picture = pictures[shown] if coming == shown or share <= 0 else Image.blend(pictures[shown], pictures[coming],
+                                                                                 eased)
+    sim = PASSES.index("sim")
+    showing = (1.0 if shown == sim else 0.0) * (1.0 - eased if coming != shown else 1.0) + \
+        (eased if coming == sim and coming != shown else 0.0)
+    return activation_bar(picture, showing) if showing > 0 else picture
+
+
+def activation_bar(picture, showing):
+    """The muscles' colour bar laid over a frame's lower right, `showing` of it (0 to 1): the film's activation
+    colours from 0 to 1 as Blender's ramp blends them (evenly in linear light), its ends and its name in the film's
+    caption type."""
+    wide, tall = picture.size
+    unit = tall / 1080.0
+    bar_wide, bar_tall, margin = round(300 * unit), max(2, round(14 * unit)), round(48 * unit)
+    colours = np.array([linear(name) for name in ACTIVATION_TOKENS])
+    shares = np.linspace(0.0, 1.0, bar_wide) * (len(colours) - 1)
+    low = np.minimum(shares.astype(int), len(colours) - 2)
+    mixed = colours[low] * (1 - (shares - low))[:, None] + colours[low + 1] * (shares - low)[:, None]
+    srgb = np.where(mixed <= 0.0031308, mixed * 12.92, 1.055 * mixed ** (1 / 2.4) - 0.055)
+    strip = np.repeat((srgb * 255).round().astype(np.uint8)[None], bar_tall, axis=0)
+    small, ink = lettering.face(400, 20 * unit), lettering.token("film-caption")[:3]
+    layer = Image.new("RGBA", picture.size, (0, 0, 0, 0))
+    left, top = wide - margin - bar_wide, tall - margin - bar_tall
+    shade = round(140 * showing)
+    draw = ImageDraw.Draw(layer)
+    draw.rectangle((left - round(14 * unit), top - round(42 * unit), left + bar_wide + round(14 * unit),
+                    top + bar_tall + round(34 * unit)), fill=(0, 0, 0, shade))
+    layer.paste(Image.fromarray(strip, "RGB"), (left, top))
+    alpha = layer.getchannel("A")
+    alpha.paste(round(255 * showing), (left, top, left + bar_wide, top + bar_tall))
+    layer.putalpha(alpha)
+    draw = ImageDraw.Draw(layer)
+    written = (*ink, round(255 * showing))
+    draw.text((left, top - round(8 * unit)), "muscle activation", font=small, fill=written, anchor="ls")
+    draw.text((left, top + bar_tall + round(6 * unit)), "0", font=small, fill=written, anchor="lt")
+    draw.text((left + bar_wide, top + bar_tall + round(6 * unit)), "1", font=small, fill=written, anchor="rt")
+    return Image.alpha_composite(picture.convert("RGBA"), layer).convert("RGB")
 
 
 def triangles_of(mesh, time):
@@ -657,19 +926,39 @@ def place_job(folder, stage, physics, seconds, size, samples):
     return folder / "job.json"
 
 
-def joined(folder, count, passes=PASSES, drawn_in=None, ends=None):
-    """The shot's frames, the passes joined by their wipes (at `ends`, pass_ends'; walker_ends for a walker peel),
-    into folder/peel/<frame>.png; each pass's frame a film frame shows (needed) from whichever of `drawn_in` (the
-    slices' folders, else `folder`) drew it."""
+def joined(folder, count, passes=PASSES, drawn_in=None, ends=None, dissolve=False, cut_in=None):
+    """The shot's frames, the passes joined by their wipes (at `ends`, pass_ends'), or a walker peel's by its
+    dissolves (`dissolve`, walker_joined; from its `opening` pass over `cut_in`'s frames where it has one), into
+    folder/peel/<frame>.png; each pass's frame a film frame shows (needed) from whichever of `drawn_in` (the slices'
+    folders, else `folder`) drew it."""
     out = folder / "peel"
     out.mkdir(exist_ok=True)
     places = list(drawn_in or [folder])
+    seconds = DISSOLVE_SECONDS if dissolve else WIPE_SECONDS
+
+    def picture(name, frame):
+        return Image.open(next(found for found in (place / name / f"{frame:04d}.png" for place in places)
+                               if found.exists())).convert("RGB")
+
     for frame in range(count):
-        pictures = {passes.index(name): Image.open(next(
-            found for found in (place / name / f"{frame:04d}.png" for place in places) if found.exists()))
-            .convert("RGB") for name in needed(frame, count, passes, ends)}
-        wiped(pictures, frame, count, ends).save(out / f"{frame:04d}.png")
+        if cut_in and frame < cut_in[0]:
+            picture("opening", frame).save(out / f"{frame:04d}.png")
+            continue
+        pictures = {passes.index(name): picture(name, frame) for name in needed(frame, count, passes, ends, seconds)}
+        made = dissolved(pictures, frame, count, ends) if dissolve else wiped(pictures, frame, count, ends)
+        if cut_in and frame < cut_in[1]:
+            made = Image.blend(picture("opening", frame), made,
+                               lettering.eased((frame - cut_in[0]) / (cut_in[1] - cut_in[0])))
+        made.save(out / f"{frame:04d}.png")
     return out
+
+
+def walker_joined(folder, drawn_in=None):
+    """A walker peel's film frames from its job (folder/job.json: its frames and pass ends), joined by its
+    dissolves (joined)."""
+    job = json.loads((pathlib.Path(folder) / "job.json").read_text())
+    return joined(pathlib.Path(folder), len(job["draws"]), drawn_in=drawn_in, ends=job["ends"], dissolve=True,
+                  cut_in=job.get("cut_in"))
 
 
 def drawn(job):
@@ -697,7 +986,7 @@ def walker_peel(arguments):
                                            [str(place_build.scene_path(arguments.scene).resolve()), str(listed),
                                             str(arguments.folder / "views")]),
                        check=True, stdout=log, stderr=subprocess.STDOUT, cwd=REPO)
-    frames = joined(arguments.folder, round(WALKER_SECONDS * RATE), ends=walker_ends())
+    frames = walker_joined(arguments.folder)
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-framerate", str(RATE), "-i", str(frames / "%04d.png"),
                     "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
                     str(arguments.folder / "peel.mp4")], check=True)
@@ -714,7 +1003,7 @@ def main():
     parser.add_argument("--stage", type=pathlib.Path, help="a place peel: the place's finished stage output folder")
     parser.add_argument("--physics", type=pathlib.Path, help="a place peel: the place's physics-layer output folder")
     parser.add_argument("--seconds", type=float, default=5.0, help="a body or place peel's (a walker peel's is "
-                        "WALKER_SECONDS)")
+                        "walker_seconds)")
     parser.add_argument("--size", type=int, nargs=2, default=(1280, 720))
     parser.add_argument("--samples", type=int, default=64)
     parser.add_argument("--close", action="store_true", help="follow one walker (close_walker) instead of all")
@@ -729,7 +1018,7 @@ def main():
     arguments.folder.mkdir(parents=True, exist_ok=True)
     count = round(arguments.seconds * RATE)
     if arguments.scene:
-        print(f"walker peel: {round(WALKER_SECONDS * RATE)} frames in {walker_peel(arguments)}")
+        print(f"walker peel: {walker_peel(arguments)}")
         return
     if arguments.stage:
         drawn(place_job(arguments.folder, arguments.stage, arguments.physics, arguments.seconds, arguments.size,
