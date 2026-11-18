@@ -435,15 +435,18 @@ def rain(folder, name, low, high, height, density, seed=0, address=RAIN):
     """The rain algorithm's rain (rainfall.py) over the box from `low` to `high` ([x, z] metres on the ground) up to
     `height`, `density` streaks a cubic metre, laid as Effects/<name> (an effect: no solid, so neither the check's
     settle nor a walker's route reads it); its file written once under the place's assets for its sizes. A `surface`
-    gives it its look like any object's."""
+    gives it its look like any object's. Each drop lands on the place's highest solid under the rain's top at its spot
+    (`surface_under` of ready.solids: a pavement, a step, an awning), its splash there."""
     from score.stages.place_build import rainfall
+    from score.stages.place_build import ready
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / (
         f"x{low[0]:g},{high[0]:g}_z{low[1]:g},{high[1]:g}_h{height:g}_d{density:g}_s{seed}_m{rainfall.MADE}.usdc")
     target.parent.mkdir(parents=True, exist_ok=True)
     counts = None
     if not target.exists():
         try:
-            counts = rainfall.rain_file(target, low, high, float(height), float(density), seed=int(seed))
+            counts = rainfall.rain_file(target, low, high, float(height), float(density), seed=int(seed),
+                                        ground=surface_under(ready.solids(folder), float(height)))
         except ValueError as why:
             raise Refused(str(why)) from why
     stage, place = opened(folder)
@@ -454,6 +457,27 @@ def rain(folder, name, low, high, height, density, seed=0, address=RAIN):
         "score:role", Sdf.ValueTypeNames.String).Set("effect")
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "counts": counts}
+
+
+def surface_under(solids, top):
+    """The highest face of `solids` ({name: triangles n x 3 x 3}, the scene's frame) under each spot, as a function of
+    arrays of x and z: rays cast down from `top`, nan where none is."""
+    import trimesh
+    found = [tris for tris in solids.values() if len(tris)]
+    if not found:
+        return lambda xs, zs: np.full(len(np.asarray(xs)), np.nan)
+    corners = np.concatenate(found).reshape(-1, 3)
+    mesh = trimesh.Trimesh(corners, np.arange(len(corners)).reshape(-1, 3), process=False)
+
+    def height_at(xs, zs):
+        xs, zs = np.asarray(xs, float), np.asarray(zs, float)
+        starts = np.column_stack([xs, np.full(len(xs), top), zs])
+        hits, rays, _ = mesh.ray.intersects_location(starts, np.tile([0.0, -1.0, 0.0], (len(xs), 1)),
+                                                     multiple_hits=False)
+        heights = np.full(len(xs), np.nan)
+        heights[rays] = hits[:, 1]
+        return heights
+    return height_at
 
 
 def ground_surface(stage, place, lines, margin=3.0):

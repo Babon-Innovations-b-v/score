@@ -493,10 +493,12 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
 
 def rained(folder):
     """The rain falls through its box from its top to the ground and back along its streaks' lean, laid as an effect,
-    and a frame shows a splash where, and only where, a drop has reached the ground on it or the frames before; the
+    and a frame shows a splash where, and only where, a drop has reached the ground on it or the frames before, on the
+    surface under it (the place's highest solid there, `surface_under`, not y 0: the yard's terrain stands over it); the
     tracks' ruts and prints stand over the laid ground, the ruts between their berms."""
-    from score.stages.place_build import ground_tracks, rainfall
+    from score.stages.place_build import ground_tracks, rainfall, ready
     laid = place_build.rain(folder, "rain", [60.0, 60.0], [64.0, 64.0], 3.0, 2.0, seed=1)
+    floor = place_build.surface_under(ready.solids(folder), 3.0)  # the ground the rain was laid on, before the ruts
     tracked = place_build.tracks(folder, "ruts", rover=[[[60.5, 62.0], [63.5, 62.0]]],
                                  boots=[[[61.0, 61.0], [63.0, 61.0]]])
     place_build.surface(folder, "ruts", "surface/sand", colour="#8e4a2e")
@@ -511,6 +513,11 @@ def rained(folder):
     feet, along = (cards[:, 0] + cards[:, 1]) / 2.0, cards[0, 2] - cards[0, 1]
     assert np.allclose(np.cross(along, slid[1]), 0.0, atol=1e-3 * np.linalg.norm(slid[1]))
     holders = [UsdGeom.Xformable(prim) for prim in stage.GetPrimAtPath("/yard/Effects/rain/Splashes").GetChildren()]
+    under_feet = np.zeros(len(feet))
+    for _ in range(3):  # each drop's own ground, at the spot its foot reaches it along its lean
+        down = feet[:, 1] - under_feet
+        under_feet = np.nan_to_num(floor(feet[:, 0] - rainfall.LEAN * down, feet[:, 2] - rainfall.LEAN * 0.3 * down),
+                                   nan=0.0)
     def fallen(frame):
         """The streaks' feet at the frame before `frame` and where they are at `frame` itself had they not jumped."""
         start, late = (np.array(fall.ComputeLocalToWorldTransform(code).ExtractTranslation()) for code in
@@ -522,10 +529,12 @@ def rained(folder):
         landed = []
         for back in range(len(rainfall.SPLASH_GROWTH)):
             high, low = fallen(frame - back)
-            crossed = (high[:, 1] > 0.0) & (low[:, 1] <= 0.0)
-            share = (high[crossed, 1] / (high[crossed, 1] - low[crossed, 1]))[:, None]
+            over_high, over_low = high[:, 1] - under_feet, low[:, 1] - under_feet
+            crossed = (over_high > 0.0) & (over_low <= 0.0)
+            share = (over_high[crossed] / (over_high[crossed] - over_low[crossed]))[:, None]
             landed.append(high[crossed] + (low[crossed] - high[crossed]) * share)
-        landed = np.concatenate(landed)[:, [0, 2]]
+        landed = np.concatenate(landed)
+        landed, landed_at = landed[:, [0, 2]], landed[:, 1]
         heights = [holder.GetLocalTransformation(frame).ExtractTranslation()[1] for holder in holders]
         seen = [holder for holder, height in zip(holders, heights) if height == 0.0]
         assert len(seen) == 1 and np.allclose(sorted(heights)[:-1], rainfall.HIDDEN)
@@ -534,7 +543,8 @@ def rained(folder):
         apart = np.linalg.norm(blades[:, None] - landed[None], axis=2)
         reach = rainfall.SPLASH_WIDE[1] * max(wide for wide, _ in rainfall.SPLASH_GROWTH)
         assert len(landed) and apart.min(axis=1).max() < reach and apart.min(axis=0).max() < reach
-        assert crowns[:, :, 1].max() < 0.05 and np.all(now[:, 1] <= before[:, 1] + 1e-6)
+        stood = crowns[:, :, 1] - landed_at[apart.argmin(axis=1)][:, None]  # over its drop's own ground
+        assert np.abs(stood[:, :2] - 0.002).max() < 5e-3 and stood.max() < 0.05 and np.all(now[:, 1] <= before[:, 1] + 1e-6)
     under = place_build.ground_surface(stage, "yard", [[[60.0, 60.0], [64.0, 64.0]]])
     ruts = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Effects/ruts/ruts")).GetPointsAttr().Get())
     assert laid["counts"]["streaks"] == 96 and effect.GetAttribute("score:role").Get() == "effect"

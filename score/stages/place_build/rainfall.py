@@ -12,15 +12,17 @@ so a film sees rain falling without a seam. `Splashes`: one mesh a frame of the 
 its own frames (moved far under the ground between them, while a shutter is shut) and holding each drop's crown on
 the frames after its streak's foot reaches the ground, at the spot it reaches it: a crown rises, opens and sinks
 over SPLASH_FRAMES frames, so a drop ends in its splash where and when it lands, never in mid-air and never at a
-spot no drop falls on. Every drop lands once a period, its landing spot drawn evenly over the box.
+spot no drop falls on. Every drop lands once a period, its landing spot drawn evenly over the box, on the surface
+under it (`ground`: the place's highest solid under the rain's top there, a pavement's 15 cm over the road; before
+make 3 every drop fell to y 0, so on a street's pavements its splash stood buried under the slabs, 2026-11-18).
 
-y up, metres, the box from `low` [x, z] to `high` [x, z] on the ground (y 0); time codes are film frames (FPS)."""
+y up, metres, the box from `low` [x, z] to `high` [x, z] over the ground; time codes are film frames (FPS)."""
 import math
 
 import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, Vt
 
-MADE = 2  # the algorithm's make, in its file's name: a rain laid after a change is written anew
+MADE = 3  # the algorithm's make, in its file's name: a rain laid after a change is written anew
 FALL = 7.0  # metres a second a raindrop falls near its end speed (a 2 mm drop: about 6.5 m/s)
 FPS = 24.0  # time codes a second, the films' (stage timeCodesPerSecond)
 SHUTTER = 0.5  # the share of a frame a film's shutter is open (180 degrees)
@@ -95,8 +97,8 @@ def falling(fall, height, lean, seconds):
 
 
 def landings(feet, height):
-    """The frame of the period on which each drop's streak foot (`feet`, metres over the ground at the period's
-    start, in [0, height)) first stands at or under the ground."""
+    """The frame of the period on which each drop's streak foot (`feet`, metres over its own ground at the period's
+    start, in [0, height)) first stands at or under that ground."""
     period = period_frames(height)
     return np.ceil(feet / height * period - 1e-9).astype(int) % period
 
@@ -136,9 +138,10 @@ def splash_frames(stage, spots, radii, landed, period, seconds):
     return crowns
 
 
-def rain_file(target, low, high, height, density, seed=0, seconds=40.0):
+def rain_file(target, low, high, height, density, seed=0, seconds=40.0, ground=None):
     """The rain of the box from `low` to `high` ([x, z], metres) up to `height`, `density` drops a cubic metre,
-    written to `target`; its counts."""
+    written to `target`; its counts. Each drop falls to `ground` under its spot (a function of arrays of x and z, the
+    surface's heights, nan where none: there y 0), its streak's foot `height` at most over it."""
     rng = np.random.default_rng(seed)
     low, high = np.asarray(low, float), np.asarray(high, float)
     if np.any(high <= low) or height <= STREAK_LONG or density <= 0:
@@ -147,8 +150,10 @@ def rain_file(target, low, high, height, density, seed=0, seconds=40.0):
     floor = float(np.prod(high - low))
     count = max(1, int(round(density * floor * height)))
     lean = np.array([LEAN, LEAN * 0.3])
-    spots = np.column_stack([rng.uniform(low[0], high[0], count), np.full(count, 0.002),
-                             rng.uniform(low[1], high[1], count)])
+    spots = np.column_stack([rng.uniform(low[0], high[0], count), np.zeros(count), rng.uniform(low[1], high[1], count)])
+    if ground is not None:
+        spots[:, 1] = np.nan_to_num(np.asarray(ground(spots[:, 0], spots[:, 2]), float), nan=0.0)
+    spots[:, 1] += 0.002
     feet = rng.uniform(0.0, height, count)
     centres = spots + np.column_stack([lean[0] * feet, feet, lean[1] * feet])
     centres = centres + np.array([lean[0], 1.0, lean[1]]) * STREAK_LONG / 2.0 - np.array([0.0, 0.002, 0.0])
