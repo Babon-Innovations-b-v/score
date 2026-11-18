@@ -109,6 +109,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.attached: the normal map left off -> the panel's baked maps carry no normal texture
 - scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
 - scene_package.pbr: the ground's tile left None -> the regolith's recipe is unwrapped, no tile baked
+- scene_package.gprim_pieces: a mesh with no normals of its own shaded flat -> the holed panel's points carry many
+  normals each, not Blender's one smooth normal
+- scene_package.ground_albedo: the picture's sRGB mean taken as linear -> the regolith's albedo reads 0.5, not 0.216
 """
 import json
 import pathlib
@@ -611,7 +614,8 @@ def packaged(folder, out):
     map box-projected over its tile; a palette recipe baked into its own unwrapped maps (on a laid ground one tile
     box-projected), its pictures on its look; a see-through look as glTF transmission tinted as the preview's thin
     glass; each copy's collider from the physics check's roles, a prop's mass from its entry's record times its scale
-    cubed; the lamps; the place's night, sun and grade; the character, the rain and the sky named as left out."""
+    cubed; the lamps; the place's night, sun, grade and ground albedo; a mesh with no normals of its own smooth, as
+    Blender shades it; the character, the rain and the sky named as left out."""
     from score.stages.place_build import scene_package
     place_build.put(folder, "wall2", "kit/box_piece", at=(30, 0, 30), turn=(0, 45, 0))
     place_build.surface(folder, "wall2", "surface/steel")
@@ -647,6 +651,9 @@ def packaged(folder, out):
     dune, dune_looks = gltf_of(out, scene, copies["dune"]["object"])
     dune_uv = dune["accessors"][dune["meshes"][0]["primitives"][0]["attributes"]["TEXCOORD_0"]]
     assert made["check"] == "sound" and scene_package.package.problems(out) == []
+    holed = trimesh.load(out / scene["objects"][copies["holed"]["object"]]["file"], force="mesh", process=False)
+    _, first, per_point = np.unique(holed.vertices.round(5), axis=0, return_index=True, return_inverse=True)
+    assert np.allclose(holed.vertex_normals, holed.vertex_normals[first][per_point.ravel()], atol=1e-3)
     assert copies["wall2"]["object"] == copies["wall"]["object"] != copies["floor"]["object"]
     assert copies["big"]["scale"] == 2.0 and copies["big"]["object"] == copies["panel"]["object"] != "big"
     assert copies["plank"]["scale"] == 1.0 and scene["objects"][copies["plank"]["object"]]["size"] == [2.0, 2.0, 0.5]
@@ -683,6 +690,7 @@ def packaged(folder, out):
     assert world["exposure"] == np.float32(2.5) and world["sky"] is None and world["night"]["moon"]["elevation"] == 30
     assert world["sun"]["elevation"] == 30 and world["sun"]["heading"] == 0 and world["view_transform"] == "AgX"
     assert world["look"] == "AgX - Medium High Contrast" and np.allclose(world["background"], (0.01, 0.04, 0.08))
+    assert np.allclose(world["ground_albedo"], (0.2158605, 0.2158605, 1.0), atol=1e-5)  # the tile's (128, 128, 255)
 
 
 def filmed(tmp_path):

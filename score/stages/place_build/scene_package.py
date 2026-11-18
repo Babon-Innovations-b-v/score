@@ -5,8 +5,9 @@ the one format tools/props/library/package.py writes and checks (score.scene ver
     python -m score.stages.place_build package <folder> <out>
 
 Every object under /<place>/Objects (and every still effect under /<place>/Effects) is converted from the laid USD
-with usd-core and trimesh's glTF writer: each drawn mesh and cube in the object's own frame, each face in the look
-bound to it (its part's, or the object's whole look laid over its own colour), that look as glTF PBR: its colour,
+with usd-core and trimesh's glTF writer: each drawn mesh and cube in the object's own frame (a mesh that authors no
+normals shaded smooth, as Blender imports it), each face in the look bound to it (its part's, or the object's whole
+look laid over its own colour), that look as glTF PBR: its colour,
 metal, roughness, opacity and glow factors (a glow past 1 with KHR_materials_emissive_strength), its colour,
 metal-roughness, normal and glow maps as textures (an image surface's maps read box-projected in the mesh's own frame
 over the surface's `tile_metres`, as the preview reads them: each face by its own axis, without the preview's blend
@@ -26,7 +27,8 @@ scale cubed) or null when the entry has none; everything else that stands a soli
 Skinned characters, the sky's dome and animated effects are not converted: scene.json's `left_out` names each.
 scene.json's `environment` is the place's sky and light as the final render draws them (environment_of): the sky's
 picture written into <out>/environment, its turn and glow, the ambient light, background, exposure, the sun, the AgX
-view transform and look, and a night's moon and glow.
+view transform and look, a night's moon and glow, and the ground's albedo (ground_albedo: what an engine without
+path-traced bounce lights from below with).
 """
 import hashlib
 import json
@@ -292,6 +294,22 @@ def flat_normals(points, triangles):
     return normal / np.maximum(np.linalg.norm(normal, axis=1, keepdims=True), 1e-12)
 
 
+def smooth_normals(points, indices, triangles):
+    """Each corner's normal as Blender shades a USD mesh that authors none (smooth): its point's normal, the normals
+    of the triangles round it weighted by their angle at it."""
+    corners = points[indices][triangles]
+    normal = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    normal /= np.maximum(np.linalg.norm(normal, axis=1, keepdims=True), 1e-12)
+    summed = np.zeros_like(points)
+    for at in range(3):
+        towards = [corners[:, (at + step) % 3] - corners[:, at] for step in (1, 2)]
+        lengths = [np.maximum(np.linalg.norm(side, axis=1), 1e-12) for side in towards]
+        angle = np.arccos(np.clip(np.einsum("ij,ij->i", *towards) / (lengths[0] * lengths[1]), -1.0, 1.0))
+        np.add.at(summed, indices[triangles[:, at]], normal * angle[:, None])
+    summed /= np.maximum(np.linalg.norm(summed, axis=1, keepdims=True), 1e-12)
+    return summed[indices]
+
+
 def gprim_pieces(prim, holder, baked, looks):
     """One gprim's triangles in its object's frame (`holder` the object's prim; `baked` the row-major 3 x 3 of the
     copy's turn and stretch drawn into it, or None), grouped by look: {look key: (positions (k x 3), normals, uv or
@@ -302,11 +320,13 @@ def gprim_pieces(prim, holder, baked, looks):
         return {}
     points, indices, triangles, faces, normals, uv = found
     own = points[indices]  # by corner, the mesh's own frame
-    if normals is None:
+    if normals is not None:
+        normals_at = triangles
+    elif prim.IsA(UsdGeom.Mesh):
+        normals, normals_at = smooth_normals(points, indices, triangles), triangles
+    else:
         normals = np.repeat(flat_normals(own, triangles), 3, axis=0)
         normals_at = np.arange(len(triangles) * 3).reshape(-1, 3)
-    else:
-        normals_at = triangles
     matrix = np.asarray(UsdGeom.XformCache().ComputeRelativeTransform(prim, holder)[0])
     if baked is not None:
         turned_in = np.eye(4)
@@ -872,6 +892,18 @@ def attached(out, jobs):
     return len(jobs)
 
 
+def ground_albedo(out, jobs):
+    """The laid ground's mean base colour, linear [r, g, b], from its baked tile's picture (the one job with a tile);
+    None when no ground tile was baked."""
+    tiled = [job for job in jobs if job["tile"]]
+    if not tiled:
+        return None
+    picture = np.asarray(Image.open(out / "objects" / tiled[0]["pictures"]["base_color"]).convert("RGB"),
+                         dtype=np.float64) / 255.0
+    linear = np.where(picture <= 0.04045, picture / 12.92, ((picture + 0.055) / 1.055) ** 2.4)
+    return [round(float(value), 6) for value in linear.reshape(-1, 3).mean(axis=0)]
+
+
 def packaged(folder, out, baker=blender_baked):
     """The package written, its palette recipes baked (`baker(out, jobs)` writes each job's pictures) and put on
     their looks, and checked by package.py's own check: its summary, or Refused naming its problems."""
@@ -882,6 +914,8 @@ def packaged(folder, out, baker=blender_baked):
         (out / "objects" / TEXTURES).mkdir(exist_ok=True)
         baker(out, jobs)
         attached(out, jobs)
+    scene["environment"]["ground_albedo"] = ground_albedo(out, jobs)
+    (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     found = package.problems(pathlib.Path(out))
     if found:
         raise place_build.Refused(f"the package fails its check: {'; '.join(found[:12])}")
