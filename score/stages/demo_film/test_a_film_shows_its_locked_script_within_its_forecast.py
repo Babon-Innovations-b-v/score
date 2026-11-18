@@ -458,7 +458,10 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/peel.py: turning's `return (room[frame, way] >= metres and camera_paths.swept_clear(`
         -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall
     Break: score/stages/demo_film/peel.py: lowered's `short = np.maximum(` ... `/ 2.0` -> `short = 0.0 * np.maximum(`
-        ... -> the nearest close-up's feet out of the picture"""
+        ... -> the nearest close-up's feet out of the picture
+    Break: score/stages/demo_film/peel.py: `looks = turned_looks(opening_look, towards, look_share)` -> `looks =
+        opening_look + (towards - opening_look) * look_share[:, None]` -> a view looking away from its walker tips
+        down at the ground halfway round"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -965,6 +968,14 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     _, path, _ = peel.closing(walked, scenes, 120, (1280, 720), dict(view, eye=[0.0, 10.0, -12.0]), lead=48)
     looks = np.array([np.subtract(view["aim"], view["eye"]) for view in path])[arrived:]
     assert (looks[:, 2] / np.linalg.norm(looks, axis=1) > 0.4).all(), looks[0]
+    # a concept's view looking away from the walker: the look pans round to it, each frame's pitch no steeper than the
+    # opening's or the walker's from there, never tipped down at the ground under the camera halfway round
+    start, path, _ = peel.closing(walked, scenes, 120, (1280, 720), {"eye": [0.0, 6.0, -12.0], "aim": [0.0, 0.0, -30.0],
+                                                                     "fov": 40.0}, lead=48)
+    eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
+    hips = np.array([[0.02 * (start + frame), 0.9, 0.0] for frame in range(120)])
+    looked, towards = (np.arcsin(way[:, 1] / np.linalg.norm(way, axis=1)) for way in (aims - eyes, hips - eyes))
+    assert (looked >= np.minimum(looked[0], towards) - 1e-6).all(), np.degrees(looked).round(1)
     # a walker in a closed hall the concept sees from outside: the camera comes in from its most room inside, the
     # film to dissolve to it from the concept's view
     hall = [trimesh.creation.box(bounds=bounds) for bounds in (

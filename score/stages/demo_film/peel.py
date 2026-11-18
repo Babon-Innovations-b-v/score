@@ -442,6 +442,22 @@ def approach(count, seconds=APPROACH_SECONDS):
     return tuple(share ** 3 * (share * (share * 6.0 - 15.0) + 10.0) for share in (into, looked))
 
 
+def turned_looks(start, ends, shares):
+    """Unit looks (Y up) from the look `start` round to each of `ends` by its share: its heading turned the shorter way
+    round the vertical and its pitch eased alone, so a look coming round to a walker behind it pans across the place,
+    never tips through the ground under the camera (rf5 street, 2026-11-18: the straight blend of two near-opposite
+    looks pointed the camera at its own feet halfway round)."""
+    start, ends = np.asarray(start, dtype=float), np.asarray(ends, dtype=float)
+    heading = np.arctan2(start[0], start[2])
+    headings = np.arctan2(ends[:, 0], ends[:, 2])
+    pitch = np.arcsin(np.clip(start[1], -1.0, 1.0))
+    pitches = np.arcsin(np.clip(ends[:, 1], -1.0, 1.0))
+    turns = (headings - heading + np.pi) % (2.0 * np.pi) - np.pi
+    shares = np.asarray(shares, dtype=float)
+    now, lean = heading + turns * shares, pitch + (pitches - pitch) * shares
+    return np.stack([np.cos(lean) * np.sin(now), np.sin(lean), np.cos(lean) * np.cos(now)], axis=1)
+
+
 def ways_round(aims, headings=HEADINGS):
     """The ways a camera may look at a walker from (unit vectors, Y up), each with how many `headings` steps it turns
     from the three-quarter front (FACING degrees off the way it walks): every heading from straight ahead round, at
@@ -613,8 +629,7 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
     def came_in(eyes, aims, fovs):  # the views coming in from the concept's: its angle and look on to the close-up's
         apart = np.linalg.norm(aims - eyes, axis=1)
         towards = (aims - eyes) / np.maximum(apart, 1e-9)[:, None]
-        looks = opening_look + (towards - opening_look) * look_share[:, None]
-        looks = looks / np.maximum(np.linalg.norm(looks, axis=1), 1e-9)[:, None]
+        looks = turned_looks(opening_look, towards, look_share)
         looked = (reach + (apart - reach) * eye_share)[:, None] * looks + eyes
         return viewed(eyes, looked, float(view["fov"]) + (fovs - float(view["fov"])) * eye_share)
 
