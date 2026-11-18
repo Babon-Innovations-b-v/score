@@ -51,6 +51,16 @@ SOMA body npz, and MoGe-2's point maps of each video.
   share error 0.095 to 0.009; sit-to-stand 22.5 to 15.2; drop jumps RMSE 36.7 to 29.3 but the landing peaks fall
   short (peak error 40 to 54); walking 20.5 to 25.8, worse: the fused swing foot reads as touching (MOTOR's own
   contact on the averaged foot height), so the fused input is not yet the demos' or the measures'.
+  `prepare --fuse-hips` (`_views.hips_placed`) is the narrower fusion: the trial camera's body, every joint's turn,
+  its timing and its feet kept, only its Hips over the floor against the feet's midpoint the views' mean (low-passed
+  at 2 Hz), each leg's hip and knee turned in its own knee's plane so the foot stays (a straight leg reaches as far
+  as it goes, 7 mm short at most on the 13 trials). A pure move of the root moves the feet with it and so cannot
+  change the split. Same 13 trials (single, full fuse, hips only; per foot %BW, |left-share error|, leg activation
+  L/R off by): squats peak 28.1, 8.4, 10.6, RMSE 21.2, 10.4, 12.0, share 0.095, 0.009, 0.038; sit-to-stand peak
+  20.1, 3.5, 14.3, RMSE 22.5, 15.2, 16.6, share 0.105, 0.029, 0.030; drop jumps peak 40.0, 53.8, 39.7, RMSE 36.7,
+  29.3, 33.3, share 0.111, 0.118, 0.055, activation x1.12, x1.17, x1.22; walking peak 5.1, 4.3, 5.5, RMSE 20.5, 25.8,
+  20.3, share 0.222, 0.080, 0.221 (no swing-foot false contact, but the walking split is not helped either). Neither
+  beats the single camera on every move, so the demos and the measures stay single-camera.
 - **Forces as OpenCap scored them** (`_grf`; Uhlrich et al. 2023, Methods): the plates and the run's pushes
   low-passed alike at the activity's cutoff (walking 6 Hz, squats and sit-to-stand 4, drop jump 30, held under 0.8 of
   the 30 Hz run's Nyquist: 12), the MAE in % body weight on each of the three axes and as % of the measured range,

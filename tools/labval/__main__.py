@@ -2,7 +2,7 @@
 rented cards).
 
     .venv/bin/python -m tools.labval prepare <folder> --labval <LabValidation root> --template <clips rig.npz> \
-        [--gemx <GEM-X out> [--moge <MoGe-2 out>]] [--fuse] <soma.npz> [<soma.npz> ...]
+        [--gemx <GEM-X out> [--moge <MoGe-2 out>]] [--fuse | --fuse-hips] <soma.npz> [<soma.npz> ...]
     .venv/bin/python -m tools.labval score <folder> [<folder> ...] --labval <LabValidation root> --out <report.json> \
         [--processes N] [--static <folder>]
     .venv/bin/python -m tools.labval grf-tables <report.json> --out <folder>
@@ -10,7 +10,8 @@ rented cards).
 
 prepare: each on_gemx.py npz, named subject<N>_<trial>_<Cam>.npz, as a trial of measure folder <folder> (its job
 names the fetched MyoFullBody, sim_body.fetched: a free download once), with --fuse the same trial's other cameras'
-npz beside it fused into its body (`_views`: its place between its feet no one camera's depth error). score: every
+npz beside it fused into its body (`_views`: its place between its feet no one camera's depth error; --fuse-hips
+only its Hips' place against its feet). score: every
 trial of <folder> whose run came back (its out.json) scored against LabValidation and pooled (a trial in a later
 folder replaces its namesake in an earlier one), with --static each trial's angles read from its subject's standing
 pose (`labval.neutral`, the static trial's run on the same camera); one line said, the report written. grf-tables:
@@ -46,7 +47,7 @@ def seen_of(options, name):
 def views_of(options, path):
     """With --fuse, the same trial's other cameras beside `path` (subject<N>_<trial>_<Cam>.npz), each (soma, gemx,
     moge); none without it."""
-    if not options.fuse:
+    if not (options.fuse or options.fuse_hips):
         return []
     subject, trial, camera = labval.subject_of(pathlib.Path(path).stem)
     found = []
@@ -69,7 +70,8 @@ def prepare(options):
         name = pathlib.Path(path).stem
         with np.load(path) as saved:
             labval.prepared(dict(saved), template, options.labval, name, model, options.folder,
-                            **seen_of(options, name), views=views_of(options, path))
+                            **seen_of(options, name), views=views_of(options, path),
+                            fuse="hips" if options.fuse_hips else "body")
     print(f"{options.folder}: {len(options.soma)} trials prepared, scripts/go.sh written")
 
 
@@ -125,8 +127,11 @@ def main():
     making.add_argument("--template", required=True, type=pathlib.Path)
     making.add_argument("--gemx", type=pathlib.Path, help="GEM-X's out folder: each trial's Contact/IK result")
     making.add_argument("--moge", type=pathlib.Path, help="MoGe-2's out folder (moge_cluster.py): the floor seen")
-    making.add_argument("--fuse", action="store_true", help="fuse each trial's other cameras' SOMA bodies (the npz "
+    fusing = making.add_mutually_exclusive_group()
+    fusing.add_argument("--fuse", action="store_true", help="fuse each trial's other cameras' SOMA bodies (the npz "
                         "beside it) into its body (`_views`); without it the one camera's body, as the paper reports")
+    fusing.add_argument("--fuse-hips", action="store_true", help="only the Hips' place against the feet from the "
+                        "trial's cameras' mean, this camera's joints, timing and feet kept (`_views.hips_placed`)")
     scoring = commands.add_parser("score")
     scoring.add_argument("folder", nargs="+", type=pathlib.Path)
     scoring.add_argument("--labval", required=True, type=pathlib.Path)

@@ -44,16 +44,16 @@ def activity_of(trial):
     raise ValueError(f"{trial}: no LabValidation activity starts its name")
 
 
-def prepared(soma, template, root, name, model, folder, gemx=None, moge=None, views=()):
+def prepared(soma, template, root, name, model, folder, gemx=None, moge=None, views=(), fuse="body"):
     """Run `name`'s (subject<N>_<trial>_<Cam>) sim body job in measure folder `folder` (trials/<name>/: job.json,
     targets.npz, record.json; and scripts/go.sh): `soma` on_gemx.py's npz (a mapping), `template` the clips rig
     (people-clips-made's rig.npz), the subject's mass from its sessionMetadata.yaml under LabValidation's `root`,
     `model` the fetched MyoFullBody folder; `gemx` (GEM-X's contact_ik.npz) and `moge` (on_moge.py's npz) as
     `_soma.person` takes them, and `views` the trial's other cameras fused with it (each (soma, gemx, moge), as
-    `_soma.person` takes them)."""
+    `_soma.person` takes them, `fuse` how)."""
     subject_name, trial, camera = subject_of(name)
     subject = _files.metadata(_files.found(pathlib.Path(root) / subject_name, "metadata", trial))
-    rig, worlds, segments, record = _soma.person(soma, template, gemx, moge, activity_of(trial), views)
+    rig, worlds, segments, record = _soma.person(soma, template, gemx, moge, activity_of(trial), views, fuse)
     mine = pathlib.Path(folder) / "trials" / name
     mine.mkdir(parents=True, exist_ok=True)
     person = _job.written_person(name, rig, worlds, segments, subject["kg"], mine)

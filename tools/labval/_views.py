@@ -13,8 +13,12 @@ the heading and the place are free). The fused body is then every joint's turn a
 views that hold the frame (unit quaternions, each view's weight equal), the travelling joint's place averaged, and the
 rig's bind and rest mesh averaged over the views: one SOMA body, its joints and skin GEM-X's, the mean of what the
 cameras saw. A view whose pose matches the first's worse than JOIN is left out (its record says so). The lab's
-calibration is not used: the views are put together by their own bodies."""
+calibration is not used: the views are put together by their own bodies.
+
+`hips_placed` is the narrower fusion: the first camera's body as it is, joints, timing and feet, but its Hips over
+the floor against its feet where the views' mean puts them, its legs turned to keep its feet."""
 import numpy as np
+from scipy.signal import butter, filtfilt
 from scipy.spatial.transform import Rotation
 
 from tools.characters import played
@@ -26,6 +30,9 @@ JOIN = 0.9  # a view joins when its pose's correlation with the first view's, at
 # there, so the fused body does not jump by the views' spread (40 to 75 mm, `heading_fit`'s miss) where it leaves.
 RAMP = 6  # frames
 FEET = ("RightFoot", "LeftFoot")
+HIPS_CUTOFF = 2.0  # Hz: `hips_placed`'s hips offset low-passed, so no step's misalignment between views enters it
+HIPS_ORDER = 2
+RATE = 30.0  # Hz, GEM-X Motion's timeline (`_soma.RATE`)
 
 
 def pose_signal(world, hips):
@@ -143,10 +150,11 @@ def aligned(worlds, weights):
     return fits
 
 
-def fused(views):
-    """(the rig, its transforms against the parents frames x joints x 4 x 4 on the first view's timeline, GEM-X's
-    static contact for it or None, the record) of one body from `views`, each (rig, transforms against the parents,
-    GEM-X's contact_ik npz or None) of one camera, the first the trial's own (module docstring)."""
+def joined(views):
+    """(the first view's rig, its joints' names, parents, frames, the views that join it, the record) of `views`,
+    each (rig, transforms against the parents, GEM-X's contact_ik npz or None) of one camera, the first the trial's
+    own: each view's shift onto the first's timeline and its pose match (`delay`), and for a view that joins, its turns,
+    places and weights read on that timeline (`resampled`)."""
     rig, local, _ = views[0]
     names, parents = [str(name) for name in rig["names"]], np.asarray(rig["parents"])
     if list(np.flatnonzero(parents < 0)) != [0]:
@@ -165,6 +173,14 @@ def fused(views):
         if entry["joined"]:
             taken.append({"index": index, "shift": shift, "rig": view_rig, "gemx": view_gemx,
                           **dict(zip(("turns", "places", "weight"), resampled(view_local, shift, frames)))})
+    return rig, names, parents, frames, taken, record
+
+
+def fused(views):
+    """(the rig, its transforms against the parents frames x joints x 4 x 4 on the first view's timeline, GEM-X's
+    static contact for it or None, the record) of one body from `views`, each (rig, transforms against the parents,
+    GEM-X's contact_ik npz or None) of one camera, the first the trial's own (module docstring)."""
+    rig, names, parents, frames, taken, record = joined(views)
     weights = np.stack([view["weight"] for view in taken])
     worlds = [played.chained(composed(view["turns"], view["places"]), parents)[..., :3, 3] for view in taken]
     for view, (move, miss) in zip(taken, aligned(worlds, weights)):
@@ -198,3 +214,100 @@ def fused_contact(taken, weights, frames):
         count = count + weight[:, None]
     chance = np.clip(total / np.maximum(count, 1e-9), 1e-6, 1 - 1e-6)
     return {"static_conf_logits": np.log(chance / (1 - chance))}
+
+
+def hips_placed(views):
+    """(the first view's rig, its transforms against the parents with only its Hips moved and its legs turned, its
+    GEM-X contact, the record) of `views` as `fused` takes them: the first camera's body, its every joint's turn and
+    its timing kept but the Hips' place over the floor against its feet the views' mean (`hips_offset`, low-passed at
+    HIPS_CUTOFF), its feet held where that camera put them (`legs_held`). The depth error that leans one camera's
+    body between its feet is slow; averaging every joint of slightly misaligned views blurs fast feet (MOTOR #1:
+    `fused`'s swing foot read as touching), so here no foot is averaged."""
+    rig, local, gemx = views[0]
+    _, names, parents, frames, taken, record = joined(views)
+    if taken[0]["index"] != 0:
+        raise ValueError("the first view must join its own fusion")
+    offset = hips_offset(taken, parents, names)
+    offset = filtfilt(*butter(HIPS_ORDER, HIPS_CUTOFF / (RATE / 2.0)), offset, axis=0,
+                      padlen=min(3 * (HIPS_ORDER + 1), frames - 1))
+    placed = legs_held(local, parents, names, offset)
+    world = played.chained(placed, parents)
+    moved = np.linalg.norm(offset, axis=1)
+    record.update({"hips moved mm": [round(1000 * float(value), 1) for value in (moved.min(), np.median(moved),
+                                                                               moved.max())],
+                   "feet held mm most": round(1000 * float(np.abs(
+                       world[:, [names.index(name) for name in FEET], :3, 3]
+                       - played.chained(local, parents)[:, [names.index(name) for name in FEET], :3, 3]).max()), 2),
+                   "hips between the feet": round(feet_share(world, names), 3)})
+    return rig, placed, gemx, record
+
+
+
+def hips_offset(taken, parents, names):
+    """Each frame's horizontal move (frames x 3, its up 0) of the first view's Hips, in the first view's own frame,
+    that puts the Hips against the midpoint of its feet where the views' mean puts them (each view turned and moved
+    onto the views' mean, `aligned`; weighted as `resampled` weighs it)."""
+    weights = np.stack([view["weight"] for view in taken])
+    worlds = [played.chained(composed(view["turns"], view["places"]), parents)[..., :3, 3] for view in taken]
+    hips, feet = names.index("Hips"), [names.index(name) for name in FEET]
+    against, fits = [], aligned(worlds, weights)
+    for world, (move, _) in zip(worlds, fits):
+        moved = world @ move[:3, :3].T
+        against.append(moved[:, hips] - moved[:, feet].mean(axis=1))
+    against = np.stack(against)
+    mean = (against * weights[:, :, None]).sum(axis=0) / weights.sum(axis=0)[:, None]
+    first_turn = fits[0][0][:3, :3]
+    offset = (mean - against[0]) @ first_turn  # back into the first view's frame (row vectors: R^T applied)
+    offset[:, 1] = 0.0
+    return offset
+
+
+def turned_onto(source, target):
+    """The shortest turns (frames x 3 x 3) taking each frame's vector `source` onto the direction of `target`."""
+    source = source / np.linalg.norm(source, axis=-1, keepdims=True)
+    target = target / np.linalg.norm(target, axis=-1, keepdims=True)
+    axis = np.cross(source, target)
+    sine, cosine = np.linalg.norm(axis, axis=-1), (source * target).sum(axis=-1)
+    angle = np.arctan2(sine, cosine)
+    axis = np.where(sine[:, None] > 1e-12, axis / np.maximum(sine, 1e-12)[:, None], 0.0)
+    return Rotation.from_rotvec(axis * angle[:, None]).as_matrix()
+
+
+LEGS = (("RightLeg", "RightShin", "RightFoot"), ("LeftLeg", "LeftShin", "LeftFoot"))
+
+
+def legs_held(local, parents, names, offset):
+    """`local` (transforms against the parents) with its Hips moved by `offset` (frames x 3, world) and each leg's
+    hip and knee turned, in the plane of its own knee, so its foot keeps its place and its turn in the world (two-bone
+    IK; a foot past the leg's reach is reached as far as the leg goes): every other joint's turn is `local`'s."""
+    hips = names.index("Hips")
+    world = played.chained(local, parents)
+    placed = local.copy()
+    lift = np.tile(np.eye(4), (len(local), 1, 1))
+    lift[:, :3, 3] = offset
+    placed[:, hips] = np.linalg.inv(world[:, parents[hips]]) @ lift @ world[:, hips]
+    moved = played.chained(placed, parents)
+    for hip_name, knee_name, foot_name in LEGS:
+        hip, knee, foot = (names.index(name) for name in (hip_name, knee_name, foot_name))
+        old_hip, old_knee, ankle = (world[:, joint, :3, 3] for joint in (hip, knee, foot))
+        new_hip = moved[:, hip, :3, 3]
+        thigh, shin = np.linalg.norm(old_knee - old_hip, axis=1), np.linalg.norm(ankle - old_knee, axis=1)
+        reach = ankle - new_hip
+        span = np.clip(np.linalg.norm(reach, axis=1), np.abs(thigh - shin) + 1e-6, thigh + shin - 1e-6)
+        along = reach / np.linalg.norm(reach, axis=1, keepdims=True)
+        pole = old_knee - new_hip
+        pole -= (pole * along).sum(axis=1, keepdims=True) * along
+        pole /= np.maximum(np.linalg.norm(pole, axis=1, keepdims=True), 1e-12)
+        down = (thigh ** 2 - shin ** 2 + span ** 2) / (2 * span)
+        new_knee = new_hip + down[:, None] * along + np.sqrt(np.maximum(thigh ** 2 - down ** 2, 0.0))[:, None] * pole
+        thigh_turn = turned_onto(old_knee - old_hip, new_knee - new_hip)
+        thigh_world = moved[:, hip].copy()
+        thigh_world[:, :3, :3] = thigh_turn @ world[:, hip, :3, :3]
+        shin_world = np.tile(np.eye(4), (len(local), 1, 1))
+        swung = np.einsum("fij,fj->fi", thigh_turn, ankle - old_knee)
+        shin_world[:, :3, :3] = turned_onto(swung, ankle - new_knee) @ thigh_turn @ world[:, knee, :3, :3]
+        shin_world[:, :3, 3] = new_knee
+        placed[:, hip] = np.linalg.inv(moved[:, parents[hip]]) @ thigh_world
+        placed[:, knee] = np.linalg.inv(thigh_world) @ shin_world
+        placed[:, foot, :3, :3] = (np.linalg.inv(shin_world) @ world[:, foot])[:, :3, :3]
+    return placed

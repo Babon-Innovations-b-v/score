@@ -9,7 +9,8 @@ from four markers, the bootstrap's bounds, an EMG channel's muscle, an envelope'
 on an IK covering only a window of the run and 0.4 s off on one gait cycle, an empty third plate is left out and a loaded one refused; a GEM-X
 SOMA body becomes the sim body's rig with its skin unmoved but for its height, the fingers' weight on the hand, the
 bind on the template's frames and the float of 0.3 m taken off; two cameras' bodies of it, the hips 40 mm off the legs
-to opposite sides, one turned, moved and late, fuse into its own; the measure folder's go.sh runs only the trials not
+to opposite sides, one turned, moved and late, fuse into its own, and placing only the hips keeps the first's
+feet and puts its hips over them where the mean does; the measure folder's go.sh runs only the trials not
 yet done; a floor MoGe-2 sees 5 degrees off GEM-X's level is found so and levelled onto the world's up; a run's
 generalized forces 1 %BW*ht over a reference ID score MAE 1 on all 19 coordinates, and the moments' peaks give their
 worked answers; a drop jump's box and a sit-to-stand's seat lie under what rests on them and clear of the feet on the
@@ -113,6 +114,8 @@ Breaks, each applied once, seen red, reverted (2026-11-18, the cameras fused, MO
 - _views.heading_fit's `-angle` made `angle`: the second view is turned the wrong way, 248 mm off.
 - _views.resampled's `+ shift` made `+ 0.0`: the late view's turns are 2 frames off the first's.
 - _views.fused's places' weighted mean made the first view's: the hips' 40 mm offset stays.
+- _views.hips_offset's `mean - against[0]` made `0 * mean`: the hips-placed Hips stay 40 mm off.
+- _views.legs_held's thigh turn made the identity: the hips-placed knee's bone stretches to reach the foot.
 """
 import ast
 import json
@@ -611,6 +614,27 @@ def views_faults():
     miss = _views.heading_fit(places[0], places[1], np.ones(len(places[0]), dtype=bool))[1]
     if miss > 1e-3:
         faults.append(f"the fused body is not the toy's moved rigidly: {1000 * miss:.2f} mm off")
+    _, placed, _, _ = _views.hips_placed([(rig, first, None), (rig, second, None)])
+    worlds = [played.chained(local, rig["parents"]) for local in (truth, first, placed)]
+    hips, held = NAMES.index("Hips"), slice(2 + _views.RAMP, -_views.RAMP)  # both views in full
+    moved = worlds[2][:, hips, :3, 3] - worlds[1][:, hips, :3, 3]
+    feet = [world[:, [NAMES.index(name) for name in _views.FEET]][..., :3, 3].mean(axis=1) for world in worlds]
+    wanted = (worlds[0][:, hips, :3, 3] - feet[0]) - (worlds[1][:, hips, :3, 3] - feet[1])
+    if np.abs(moved[held][:, [0, 2]] - wanted[held][:, [0, 2]]).max() > 2e-3 or np.abs(moved[:, 1]).max() > 1e-9:
+        faults.append("the hips-placed Hips are not over the feet where the views' mean puts them, at their height")
+    for hip_name, knee_name, foot_name in _views.LEGS:
+        hip, knee, foot = (NAMES.index(name) for name in (hip_name, knee_name, foot_name))
+        places = [worlds[1][:, joint, :3, 3] for joint in (hip, knee, foot)]
+        short = np.linalg.norm(places[2] - places[0] - moved, axis=1) - np.linalg.norm(places[1] - places[0], axis=1) \
+            - np.linalg.norm(places[2] - places[1], axis=1)  # past the leg's reach: the toy's legs are straight
+        if np.any(np.linalg.norm(worlds[2][:, foot, :3, 3] - places[2], axis=1) > np.maximum(short, 0.0) + 1e-6) or \
+                np.abs(worlds[2][:, foot, :3, :3] - worlds[1][:, foot, :3, :3]).max() > 1e-6:
+            faults.append(f"the hips-placed {foot_name} is not the first camera's own where its leg reaches it")
+    arms = [NAMES.index(name) for name in ("Spine1", "LeftArm", "LeftToeBase")]
+    bones = [joint for joint in range(len(NAMES)) if joint != hips]
+    if np.abs(placed[:, arms] - first[:, arms]).max() > 1e-9 or \
+            np.abs(placed[:, bones, :3, 3] - first[:, bones, :3, 3]).max() > 1e-6:
+        faults.append("a hips-placed joint off the legs is turned, or a bone's length changed")
     return faults
 
 

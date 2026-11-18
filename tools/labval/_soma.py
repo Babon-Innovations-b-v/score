@@ -210,20 +210,24 @@ def viewed(soma, template, gemx=None, moge=None):
     return rig, world, record
 
 
-def person(soma, template, gemx=None, moge=None, activity=None, views=()):
+FUSIONS = {"body": _views.fused, "hips": _views.hips_placed}
+
+
+def person(soma, template, gemx=None, moge=None, activity=None, views=(), fuse="body"):
     """(the rig {names, parents, bind, points, faces, weights, stance: each foot's seen stance, `seen_stance`}, its
     segments' frames frames x segments x 4 x 4, the segments' names, the record) of a GEM-X SOMA body `soma` on the
     clips rig `template` (`viewed`, with its `gemx` and `moge`), undrifted onto the floor (`undrifted`) and stood.
     With `views` (the same trial's other cameras, each a (soma, gemx, moge) as `soma`'s three) the cameras' bodies
     are fused into one on `soma`'s timeline (`_views.fused`), so the body's place between its feet is no one camera's
-    depth error. With `activity` (the trial's, `labval.activity_of`) the chair or box it rests on beside the floor is
+    depth error; with `fuse` "hips" only its Hips' place against its feet is the views' (`_views.hips_placed`).
+    With `activity` (the trial's, `labval.activity_of`) the chair or box it rests on beside the floor is
     the rig's `supports` (`_supports.under`: triangles, the person's frame)."""
     rig, world, record = viewed(soma, template, gemx, moge)
     local = against_parents(world, rig["parents"])
     if views:
         seen = [(*viewed(other_soma, template, other_gemx, other_moge), other_gemx)
                 for other_soma, other_gemx, other_moge in views]
-        rig, local, gemx, record["views"] = _views.fused(
+        rig, local, gemx, record["views"] = FUSIONS[fuse](
             [(rig, local, gemx)] + [(other_rig, against_parents(other_world, other_rig["parents"]), other_gemx)
                                     for other_rig, other_world, _, other_gemx in seen])
         record["views"]["floor seen"] = [other_record.get("floor seen") for _, _, other_record, _ in seen]
