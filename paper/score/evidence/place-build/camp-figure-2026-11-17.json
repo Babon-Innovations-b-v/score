@@ -1,0 +1,88 @@
+{
+ "what": "Records behind Figure 1 (camp), copied from the run folders of issue #128 (night-trellis/camp, night-camp-final/scene, 2026-11-16/17); local paths removed.",
+ "sam3_split": {
+  "instances": 80,
+  "by_word": {
+   "furniture": 29,
+   "object": 21,
+   "person": 7,
+   "window": 7,
+   "plant": 6,
+   "machine": 5,
+   "door": 3,
+   "container": 2
+  }
+ },
+ "palette": {
+  "tokens": 31,
+  "recipes": 30
+ },
+ "trellis2_takes_physics": {
+  "airlock_door_outer_1_trellis.camp": {
+   "material": "steel",
+   "density": 7850.0,
+   "sheet": 0.0015,
+   "mass_kg": 100.73,
+   "solid_m3": 0.01283,
+   "hull_m3": 0.4492,
+   "measure": "the hulls' outside skin times the sheet (solid when thinner)",
+   "hulls": 48,
+   "static": 0.74,
+   "dynamic": 0.57,
+   "restitution": 0.2
+  },
+  "computer_desk_1_1_trellis.camp": {
+   "material": "wood",
+   "density": 550.0,
+   "sheet": 0.018,
+   "mass_kg": 79.8,
+   "solid_m3": 0.1451,
+   "hull_m3": 0.67768,
+   "measure": "the hulls' outside skin times the sheet (solid when thinner)",
+   "hulls": 24,
+   "static": 0.45,
+   "dynamic": 0.35,
+   "restitution": 0.3
+  },
+  "computer_desk_2_1_trellis.camp": {
+   "material": "wood",
+   "density": 550.0,
+   "sheet": 0.018,
+   "mass_kg": 27.33,
+   "solid_m3": 0.04969,
+   "hull_m3": 0.13874,
+   "measure": "the hulls' outside skin times the sheet (solid when thinner)",
+   "hulls": 43,
+   "static": 0.45,
+   "dynamic": 0.35,
+   "restitution": 0.3
+  }
+ },
+ "trellis2_take_computer_desk_1": {
+  "seed": 42,
+  "texture": 2048,
+  "faces_target": 500000,
+  "faces": 484996,
+  "vertices": 314090,
+  "load_s": 56.4,
+  "make_s": 166.6,
+  "card_peak_mib": 10126,
+  "made_with": {
+   "trellis2": "75fbf0183001ed9876c8dbb35de6b68552ee08bd",
+   "flexgemm": "de6411284d20a6d41362db27a59a6923aeceebfe",
+   "cumesh": "12289e1062f0603f2f0d0771b02e1395d247f26f",
+   "weights": "af44b45f2e35a493886929c6d786e563ec68364d",
+   "image_large": "25e0d31ffbebe4b5a97464dd851910efc3002d96",
+   "dinov3": "dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179",
+   "cuda": "nvidia-cuda-nvcc 13.0.88 (PyPI)",
+   "arch": "12.0"
+  }
+ },
+ "mujoco_settle": {
+  "engine": "mujoco 3.15.0",
+  "objects": 44,
+  "moved_m_median": 0.0097,
+  "moved_m_max": 0.0358,
+  "turned_deg_max": 6.5
+ }
+}

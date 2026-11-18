@@ -144,11 +144,12 @@
 
 % ---- Procedural generation and surfaces ---------------------------------------
 
-@article{raistrick2023infinigen,
+@inproceedings{raistrick2023infinigen,
   author  = {Raistrick, Alexander and Lipson, Lahav and Ma, Zeyu and Mei, Lingjie and Wang, Mingzhe and Zuo, Yiming and Kayan, Karhan and Wen, Hongyu and Han, Beining and Wang, Yihan and Newell, Alejandro and Law, Hei and Goyal, Ankit and Yang, Kaiyu and Deng, Jia},
-  title   = {Infinite Photorealistic Worlds using Procedural Generation},
-  journal = {arXiv preprint arXiv:2306.09310},
-  year    = {2023}
+  title     = {Infinite Photorealistic Worlds using Procedural Generation},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  note      = {arXiv:2306.09310},
+  year      = {2023}
 }
 
 @inproceedings{raistrick2024indoors,
@@ -475,7 +476,17 @@
   author       = {{Pixar Animation Studios} and {Alliance for OpenUSD}},
   title        = {{OpenUSD}: Universal Scene Description},
   year         = {2026},
-  url          = {https://openusd.org/}
+  url          = {https://openusd.org/release/intro.html}
+}
+
+@misc{pixar2016usd,
+  author       = {{Pixar Animation Studios}},
+  title        = {Pixar Releases Universal Scene Description as Open Source},
+  howpublished = {Press release, Emeryville, California},
+  month        = jul,
+  year         = {2016},
+  note         = {26 July 2016},
+  url          = {https://openusd.org/dev/press_opensource_release.html}
 }
 
 @misc{gltf2,
@@ -498,7 +509,7 @@
   title        = {{Blender}},
   year         = {2026},
   url          = {https://www.blender.org/},
-  note         = {Version 5.0.1 used here. GPL}
+  note         = {Version 5.2.2 used here. GPL}
 }
 
 @article{rein2012rebound,
@@ -614,7 +625,7 @@
   title        = {{Newton}: a {GPU}-accelerated physics simulation engine},
   year         = {2026},
   url          = {https://github.com/newton-physics/newton},
-  note         = {Version 1.6.1 used here (SolverMuJoCo). Apache-2.0}
+  note         = {Linux Foundation project since 2025-09-29. Version 1.7.0 used here (SolverMuJoCo). Apache-2.0}
 }
 
 @misc{warp,
@@ -863,5 +874,77 @@
   title        = {{MOTOR}: Musculoskeletal Optimisation Through Open Robotics Simulation},
   howpublished = {\url{https://github.com/Babon-Innovations-b-v/motor}},
   note         = {Working draft, paper/motor},
+  year         = {2026}
+}
+
+@misc{aousd2023,
+  author       = {{Pixar} and {Adobe} and {Apple} and {Autodesk} and {NVIDIA}},
+  title        = {{Pixar, Adobe, Apple, Autodesk, and NVIDIA form Alliance for OpenUSD to drive open standards for 3D content}},
+  howpublished = {Press release},
+  year         = {2023},
+  month        = aug,
+  url          = {https://nvidianews.nvidia.com/news/aousd-to-drive-open-standards-for-3d-content}
+}
+@misc{aousd2025corespec,
+  author       = {{Alliance for OpenUSD}},
+  title        = {{Alliance for OpenUSD Announces Core Specification 1.0}},
+  year         = {2025},
+  month        = dec,
+  url          = {https://aousd.org/news/core-spec-announcement/}
+}
+@misc{usdphysics,
+  author       = {{Pixar Animation Studios} and {NVIDIA}},
+  title        = {{UsdPhysics}: {USD} Physics Schema},
+  year         = {2026},
+  url          = {https://openusd.org/dev/api/usd_physics_page_front.html}
+}
+@article{mittal2025isaaclab,
+  author  = {{NVIDIA} and Mittal, Mayank and Roth, Pascal and Tigue, James and Richard, Antoine and Zhang, Octi and Du, Peter and Serrano-Mu{\~n}oz, Antonio and Yao, Xinjie and Zurbr{\"u}gg, Ren{\'e} and Rudin, Nikita and others},
+  title   = {{Isaac Lab}: A {GPU}-Accelerated Simulation Framework for Multi-Modal Robot Learning},
+  journal = {arXiv preprint arXiv:2511.04831},
+  year    = {2025}
+}
+@article{agarwal2025cosmos,
+  author  = {{NVIDIA} and Agarwal, Niket and Ali, Arslan and Bala, Maciej and Balaji, Yogesh and Barker, Erik and Cai, Tiffany and Chattopadhyay, Prithvijit and Chen, Yongxin and Cui, Yin and Ding, Yifan and others},
+  title   = {{Cosmos} World Foundation Model Platform for Physical {AI}},
+  journal = {arXiv preprint arXiv:2501.03575},
+  year    = {2025}
+}
+@article{hunyuanworld2025,
+  author  = {{HunyuanWorld Team}},
+  title   = {{HunyuanWorld 1.0}: Generating Immersive, Explorable, and Interactive {3D} Worlds from Words or Pixels},
+  journal = {arXiv preprint arXiv:2507.21809},
+  year    = {2025}
+}
+@article{xiang2025trellis2,
+  author  = {Xiang, Jianfeng and Chen, Xiaoxue and Xu, Sicheng and Wang, Ruicheng and Lv, Zelong and Deng, Yu and Zhu, Hongyuan and Dong, Yue and Zhao, Hao and Yuan, Nicholas Jing and Yang, Jiaolong},
+  title   = {Native and Compact Structured Latents for {3D} Generation},
+  journal = {arXiv preprint arXiv:2512.14692},
+  year    = {2025}
+}
+
+@misc{mujocorepo,
+  author       = {{Google DeepMind}},
+  title        = {{MuJoCo}: Multi-Joint dynamics with Contact},
+  howpublished = {\url{https://github.com/google-deepmind/mujoco}},
+  note         = {Open source under the Apache 2.0 licence since 2022},
+  year         = {2022}
+}
+
+@article{hicks2015verification,
+  author  = {Hicks, Jennifer L. and Uchida, Thomas K. and Seth, Ajay and Rajagopal, Apoorva and Delp, Scott L.},
+  title   = {Is my model good enough? Best practices for verification and validation of musculoskeletal models and simulations of movement},
+  journal = {Journal of Biomechanical Engineering},
+  volume  = {137},
+  number  = {2},
+  pages   = {020905},
+  year    = {2015}
+}
+
+@misc{motorcontact,
+  author       = {Kardolus, J. P.},
+  title        = {{MOTOR} issue 1: foot contact shares the load in double support (commit 6d72d73)},
+  howpublished = {\url{https://github.com/Babon-Innovations-b-v/motor/issues/1#issuecomment-6980387981}},
+  note         = {Issue comment, 18 November 2026},
   year         = {2026}
 }

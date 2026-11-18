@@ -1,36 +1,26 @@
 {
   "inputs": {
     "paper/score/build/build.py": "17398a2ddfda4b2dd2836f5f188b9168c81dde5485773aa4ff117c8d645a0367",
-    "paper/score/figures/films.jpg": "12b085d9f4a602927295804474aba0bf3cfc02389f9074edfb632fcad9b841fe",
-    "paper/score/figures/peel.jpg": "683877565ec012d5df3651fcc00c6d859f9407b781427d2cfa32bf6103d8acd9",
-    "paper/score/figures/places.jpg": "4d0d7c5b59de953e57dd32c42876121794349fc9fb18bb1c7dc1a13f037ea117",
-    "paper/score/figures/routes.jpg": "fc766df91bf3c90850a151be91554ded2f44e1227e3393ace763614e7471abbd",
-    "paper/score/figures/trellis2.jpg": "e7e4f42e7712433794f8d8f8c9f9c2b0947cb07aad4d01339a285a7fad775d21",
+    "paper/score/figures/layers.jpg": "b318918a0556105a5586e9a52529e18d6c62a66e0e286dd67ecf258c1638689b",
+    "paper/score/figures/results.jpg": "5023701f330c729e9548e6cef276cb3aa1156e532f4918f5e52fd7843681b119",
     "paper/score/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/score/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
-    "paper/score/source/refs.bib": "d93e5fdb504ec390d23689071dc9031fff94d69f975ada3f8477741feab6b45b",
-    "paper/score/source/score.md": "a1fd5fa05537de65e33d9851ed8e13fc2b0e35d589bd2c3c5b04cddbdd6f3793"
+    "paper/score/source/refs.bib": "319bb6bce6c2607a3f711b9152029f61f4d6f3e09e69242f552bfd778557eb9c",
+    "paper/score/source/score.md": "7d2cc2abd2ddd548b138093ca247850a0c379b4e62a9d9322fc4cf086a91467e"
   },
   "outputs": {
-    "paper/score/arxiv/content/abstract.tex": "c05fcf2860bc8b186ba5ea7a04364b04cb613a6af9f95fec7d3bb908ec031c76",
-    "paper/score/arxiv/content/conclusion.tex": "db66fd703a59ed72fa69a583b47bd7f7c406b3d40112288f1511ca3b07d09bae",
-    "paper/score/arxiv/content/introduction.tex": "a01b6a3eef0805629b13d37ade794f4d4cc347059cd9916b87477ee77870489b",
-    "paper/score/arxiv/content/limitations_and_future_work.tex": "eb3e73dc4ece3705f421eef24ea6d57a014a6da1da576acedf6e8ef6084e941d",
-    "paper/score/arxiv/content/method_placing_a_scene_from_its_concept.tex": "9a12fd293f0af2f3a2bd82c43390f3cf5817c4a55a1573b134e76a1cc878d790",
-    "paper/score/arxiv/content/people_in_the_place.tex": "8588eab40528be3029f33d71e7db74a72e65025663f7cfd9564b41fc9156a5ef",
-    "paper/score/arxiv/content/results_four_places.tex": "868b12db13674f6e0f8e87112b3b7fb814b1d9ef03cf8ce280867d0cbdbd5845",
-    "paper/score/arxiv/content/teaser.tex": "e705a48c935fb3821002f4d62c92d27dc42577c876e6efd9805dac2fe2ed8ee3",
-    "paper/score/arxiv/content/why_the_per_picture_derivation_failed.tex": "c97891bad0c1862ad0a3013ee3271e1286564418bb1f7abe47f5d2ab5470df14",
-    "paper/score/arxiv/figures/films.jpg": "12b085d9f4a602927295804474aba0bf3cfc02389f9074edfb632fcad9b841fe",
-    "paper/score/arxiv/figures/peel.jpg": "683877565ec012d5df3651fcc00c6d859f9407b781427d2cfa32bf6103d8acd9",
-    "paper/score/arxiv/figures/places.jpg": "4d0d7c5b59de953e57dd32c42876121794349fc9fb18bb1c7dc1a13f037ea117",
-    "paper/score/arxiv/figures/routes.jpg": "fc766df91bf3c90850a151be91554ded2f44e1227e3393ace763614e7471abbd",
-    "paper/score/arxiv/figures/trellis2.jpg": "e7e4f42e7712433794f8d8f8c9f9c2b0947cb07aad4d01339a285a7fad775d21",
-    "paper/score/arxiv/main.bbl": "8fdfdffa8a56355cdaedf6a79ae3526e0ebc93c5d49581713edfd86ecbe1446a",
-    "paper/score/arxiv/main.pdf": "15a6799c71b0be2caf40675b0499d119e610055e437a941cf1d764c8c7bfa132",
-    "paper/score/arxiv/main.tex": "dca2baed2b9d8ff466380fc01fec8e80d7531ced5f5d99a8b0a744f895c4ce34",
-    "paper/score/arxiv/refs.bib": "d93e5fdb504ec390d23689071dc9031fff94d69f975ada3f8477741feab6b45b",
-    "paper/score/out/score.pdf": "42bec1a95a55538673dc050c26003514c6efc88d8d457372f608b2ea220564f4",
-    "paper/score/out/score.tex": "560da2a160d84378446969d7c23dd556dc2045b4a4926d8f5a7774d48c7bdc32"
+    "paper/score/arxiv/content/abstract.tex": "7b7c4d10144202b2288f1f0759c4124f2f8b18b4a729f092fffdc01e325e5d19",
+    "paper/score/arxiv/content/discussion.tex": "82c67cea7c4f5f205eb742d932c5926bcc8d9f310640a5bf5df7eac64f6017e5",
+    "paper/score/arxiv/content/method.tex": "4ff34eda66afc1bcb6bccba6ea75a412dd9f25ab1ca7a93fdab8dea5b783e8b9",
+    "paper/score/arxiv/content/related_work.tex": "1ade0613a4519eced63a292ce2d991a8c7acfeb5531ae273e5bfffaf6aed80a9",
+    "paper/score/arxiv/content/teaser.tex": "a6748a731b929b90bd3c4579ccd3b9fd5e5ea122a28d903271bc9a090cc447ac",
+    "paper/score/arxiv/figures/layers.jpg": "b318918a0556105a5586e9a52529e18d6c62a66e0e286dd67ecf258c1638689b",
+    "paper/score/arxiv/figures/results.jpg": "5023701f330c729e9548e6cef276cb3aa1156e532f4918f5e52fd7843681b119",
+    "paper/score/arxiv/main.bbl": "02864e878ad0c8d18f11ae8442d84ca1fdb00f40f6fb4fa82709e77271225448",
+    "paper/score/arxiv/main.pdf": "a668bb93c46a2a70e185e8f95da287bd4fd584431ad20ea050a5abc3aff74934",
+    "paper/score/arxiv/main.tex": "bf743b991fc5ea36de655f5ab9253ab8a37feeb3dc143327b63e8a4d1cd436fc",
+    "paper/score/arxiv/refs.bib": "319bb6bce6c2607a3f711b9152029f61f4d6f3e09e69242f552bfd778557eb9c",
+    "paper/score/out/score.pdf": "5bda1ab96de6d798666e1f96af18c56419152fd25ce0e73e74220ef8159b4c97",
+    "paper/score/out/score.tex": "b9c8e5afcdff9512ebfcfc25add5eb5036b5715478edda5b49cfab9224972f0c"
   }
 }
