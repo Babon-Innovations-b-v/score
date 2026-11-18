@@ -461,7 +461,9 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         ... -> the nearest close-up's feet out of the picture
     Break: score/stages/demo_film/peel.py: `looks = turned_looks(opening_look, towards, look_share)` -> `looks =
         opening_look + (towards - opening_look) * look_share[:, None]` -> a view looking away from its walker tips
-        down at the ground halfway round"""
+        down at the ground halfway round
+    Break: score/stages/demo_film/peel.py: `return hips + off * (np.maximum(apart, least) / apart)[:, None]` -> `return
+        eyes` -> the way in from behind the walker passes 3.1 m from its head, nearer than its 4 m close-up"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -976,6 +978,13 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     hips = np.array([[0.02 * (start + frame), 0.9, 0.0] for frame in range(120)])
     looked, towards = (np.arcsin(way[:, 1] / np.linalg.norm(way, axis=1)) for way in (aims - eyes, hips - eyes))
     assert (looked >= np.minimum(looked[0], towards) - 1e-6).all(), np.degrees(looked).round(1)
+    # a concept's view behind the walker, its close-up ahead of it: the way in arcs round the walker at the close-up's
+    # distance, never nearer its head on the way past
+    start, path, _ = peel.closing(walked, scenes, 120, (1280, 720), {"eye": [-12.0, 5.0, 0.0], "aim": [0.0, 0.0, 0.0],
+                                                                     "fov": 40.0}, lead=48)
+    hips = np.array([[0.02 * (start + frame), 0.9, 0.0] for frame in range(120)])
+    apart = np.linalg.norm(np.array([view["eye"] for view in path]) - hips, axis=1)
+    assert apart.min() >= apart[arrived] - 1e-3, (apart.min(), apart[arrived])
     # a walker in a closed hall the concept sees from outside: the camera comes in from its most room inside, the
     # film to dissolve to it from the concept's view
     hall = [trimesh.creation.box(bounds=bounds) for bounds in (

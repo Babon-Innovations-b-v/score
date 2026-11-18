@@ -528,6 +528,16 @@ def approach_route(scenes, opened, goal, through=None):
     return place_film.rounded(scenes, found)[0]
 
 
+def kept_off(eyes, hips, least):
+    """The eyes (Y up) on their way in, each pushed out along its line from the walker's hips to at least `least`
+    metres (its close-up's distance, one or a frame each) from them, so a way in past the walker arcs round it at the
+    close-up's distance and never brushes its head (rf5 street, 2026-11-18: the straight way in from the concept's eye
+    to the close-up in front of the walker crossed 1.4 m over his head)."""
+    off = eyes - hips
+    apart = np.maximum(np.linalg.norm(off, axis=1), 1e-9)
+    return hips + off * (np.maximum(apart, least) / apart)[:, None]
+
+
 def along(route, shares):
     """The points `shares` (0 to 1) of the way along a polyline."""
     lengths = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(route, axis=0), axis=1))])
@@ -649,7 +659,7 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
         route = approach_route(scenes, opened, followed[arrived], through)
         if route is None:
             continue
-        eyes = along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived])
+        eyes = kept_off(along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived]), aims, close)
         if sighted(scenes, aims, eyes, seen_from):
             return start, came_in(eyes, aims, np.full(count, close_fov(close, size))), True
     for close, room, _, start, way, _ in tried:
@@ -666,7 +676,8 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
         route = approach_route(scenes, opened, followed[arrived], through)
         if route is None:
             continue
-        eyes = along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived])
+        eyes = kept_off(along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived]), aims,
+                        closes)
         if sighted(scenes, aims, eyes, arrived):  # seen once arrived: a walker may come in through a doorway
             fovs = np.array([close_fov(close, size) for close in closes])
             return start, came_in(eyes, lowered(aims, closes, fovs, size), fovs), True
