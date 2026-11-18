@@ -33,7 +33,15 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          its instances
     physics              [place_build] the physics check's file ("ready.json"), or null when it has not run
     left_out             [place_build] [{name, why}]: each prim not converted (a skinned character, an animated effect,
-                         a prim that draws no face)
+                         a prim that draws no face, the sky's dome)
+    environment          [place_build] the sky and light as the final render draws them: `sky` {file (under the
+                         package), projection, turn (degrees about up), strength, library} or null, `ambient` [r, g, b]
+                         (linear), `background` [r, g, b] or null, `exposure` (a multiplier), `view_transform` and
+                         `look` (the grade the engine's tone mapping takes), `sun` {name, elevation, heading (degrees
+                         round from +x towards +z), strength, colour, angle} or null, `night` {moon (as the sun), glow
+                         {threshold, intensity} or null} or null
+An object's .gltf may use KHR_materials_transmission, _ior and _emissive_strength (listed in its extensionsUsed) and
+carry its baked pictures under objects/textures/; a version 1 reader that skips them still loads every object.
 
 The check refuses a package with a missing or unreadable model file, buffer or picture, a model that failed its model
 check, an object no copy uses, a transform that is not a turn and an even scale (a kit room's: a turn and its

@@ -19,8 +19,9 @@ colour difference of the two pictures, and draws them side by side; and a review
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
 straight down under its cut with +x right and +z down, and a physics fault boxed in red and named on the plan; and
 the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
-copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR and its colliders
-from the physics check's roles.
+copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
+recipe baked into its own maps, on a ground one seamless tile; glass as transmission), its colliders from the
+physics check's roles and the place's environment (its night, sun and grade).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -104,6 +105,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.pbr: the map's tint left off -> the sand's base colour is white
 - scene_package.gprim_pieces: the tile ignored (the mesh's own st) -> the dune has no tiled coordinates
 - scene_package.mass_of: the scale's cube left off -> the doubled box weighs 12.5 kg, not 100
+- scene_package.glass_of: the tint left the look's colour -> the tunnel's glass passes (0.5, 0.5, 1), not (0.9, 0.9, 1)
+- scene_package.attached: the normal map left off -> the panel's baked maps carry no normal texture
+- scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
+- scene_package.pbr: the ground's tile left None -> the regolith's recipe is unwrapped, no tile baked
 """
 import json
 import pathlib
@@ -174,6 +179,8 @@ def library(root, files):
               '</sand/colour.outputs:rgb>\n  token outputs:surface\n }\n}\n')
     entry("surface", "sand", {"material.usda": ("usd", mapped), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
+    glass = variant.replace("steel", "glass").replace("(0.3, 0.3, 0.4)", "(0.5, 0.5, 1)\n  float inputs:opacity = 0.2")
+    entry("surface", "glass", {"material.usda": ("usd", glass), "surface.json": ("record", "{}")})
     entry("light", "lamp", {"lamps.json": ("record", "{}")})
     screen_glow = piece.GetRootLayer().ExportToString().replace('"box"', '"glow"').replace("</box/", "</glow/")
     entry("model", "monitor", {"model.usda": ("usd", piece.GetRootLayer().ExportToString()),
@@ -601,20 +608,34 @@ def packaged(folder, out):
     """The laid scene as a scene package (score.scene v1, package.py's check sound): every copy's model, stood by its
     matrix, fills the laid object's box; two copies in one surface one object, a copy stretched unevenly its own; a
     glTF model laid unchanged its library glTF as it was; a look's colour, a part's look, a tinted image surface's
-    map box-projected over its tile; each copy's collider from the physics check's roles, a prop's mass from its
-    entry's record times its scale cubed; the lamps; the character, the rain and the sky named as left out."""
+    map box-projected over its tile; a palette recipe baked into its own unwrapped maps (on a laid ground one tile
+    box-projected), its pictures on its look; a see-through look as glTF transmission tinted as the preview's thin
+    glass; each copy's collider from the physics check's roles, a prop's mass from its entry's record times its scale
+    cubed; the lamps; the place's night, sun and grade; the character, the rain and the sky named as left out."""
     from score.stages.place_build import scene_package
     place_build.put(folder, "wall2", "kit/box_piece", at=(30, 0, 30), turn=(0, 45, 0))
     place_build.surface(folder, "wall2", "surface/steel")
     place_build.put(folder, "plank", "kit/box_piece", at=(90, 0, 0), scale=(2, 1, 1))
     place_build.put(folder, "big", "kit/box_piece", at=(95, 0, 0), scale=(2, 2, 2))
-    place_build.surface(folder, "big", "surface/boards", colour="#ff0000")
+    place_build.surface(folder, "big", "palette/hull_paint")
+    place_build.surface(folder, "regolith", "palette/hull_paint")
+    place_build.surface(folder, "tunnel", "surface/glass")
     sand = folder / "assets/surface/sand/1"
     Image.new("RGB", (8, 8), (90, 90, 90)).save(sand / "colour.jpg")
     (sand / "surface.json").write_text(json.dumps({"tile_metres": 0.5}))
     (folder / "assets/kit/box_piece/1/box_piece.json").write_text(json.dumps({"physics": {"mass_kg": 12.5}}))
     (folder / "ready.json").write_text(json.dumps({"roles": {"big": "prop", "wall": "structure", "sky": "light"}}))
-    made = scene_package.packaged(folder, out)
+    asked = []
+
+    def baker(out, jobs):  # bake_looks.py's pictures, as Blender writes them, at each map's size
+        for job in jobs:
+            asked.append(job)
+            for picture in job["pictures"].values():
+                Image.new("RGB", tuple(job["size"]), (128, 128, 255)).save(out / "objects" / picture)
+
+    scene_package.DENSITY, scene_package.LARGEST = 24, 64  # maps held small, so the panel needs more than one
+    made = scene_package.packaged(folder, out, baker)
+    scene_package.DENSITY, scene_package.LARGEST = 512, 4096
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
     boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
@@ -641,6 +662,27 @@ def packaged(folder, out):
     assert [(lamp["name"], lamp["kind"]) for lamp in scene["lamps"]] == [("bulb", "point"), ("sun", "sun"),
                                                                          ("moon", "sun")]
     assert {"walker", "rain", "sky"} <= {item["name"] for item in scene["left_out"]}
+    panel, panel_looks = gltf_of(out, scene, copies["panel"]["object"])
+    ground, ground_looks = gltf_of(out, scene, copies["regolith"]["object"])
+    _, tunnel_looks = gltf_of(out, scene, copies["tunnel"]["object"])
+    maps = [look for name, look in panel_looks.items() if name.startswith("surface/boards@1")]
+    ground_uv = ground["accessors"][ground["meshes"][0]["primitives"][0]["attributes"]["TEXCOORD_0"]]
+    tiles = [job["tile"] for job in asked]
+    assert len(maps) > 1 and all("baseColorTexture" in look["pbrMetallicRoughness"] and "normalTexture" in look
+                                 and "extras" not in look for look in maps)
+    assert made["baked_maps"] == len(asked) and tiles.count(scene_package.GROUND_TILE) == 1
+    assert all(max(job["size"]) <= 64 and job["spec"]["seed"] == 3 and job["texels_a_metre"] >= 24
+               for job in asked if not job["tile"])
+    assert np.allclose(np.array(ground_uv["max"]) - ground_uv["min"], 6.0 / scene_package.GROUND_TILE, atol=0.01)
+    assert "baseColorTexture" in ground_looks["surface/boards@1"]["pbrMetallicRoughness"]
+    glass = tunnel_looks["surface/glass@1"]
+    assert np.allclose(glass["pbrMetallicRoughness"]["baseColorFactor"], (0.9, 0.9, 1.0, 0.2))
+    assert glass["extensions"] == {"KHR_materials_transmission": {"transmissionFactor": 0.8},
+                                   "KHR_materials_ior": {"ior": 1.5}} and glass["alphaMode"] == "BLEND"
+    world = scene["environment"]
+    assert world["exposure"] == np.float32(2.5) and world["sky"] is None and world["night"]["moon"]["elevation"] == 30
+    assert world["sun"]["elevation"] == 30 and world["sun"]["heading"] == 0 and world["view_transform"] == "AgX"
+    assert world["look"] == "AgX - Medium High Contrast" and np.allclose(world["background"], (0.01, 0.04, 0.08))
 
 
 def filmed(tmp_path):

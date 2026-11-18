@@ -5,20 +5,28 @@ the one format tools/props/library/package.py writes and checks (score.scene ver
     python -m score.stages.place_build package <folder> <out>
 
 Every object under /<place>/Objects (and every still effect under /<place>/Effects) is converted from the laid USD
-with usd-core and trimesh's glTF writer, no Blender: each drawn mesh and cube in the object's own frame, each face in
-the look bound to it (its part's, or the object's whole look laid over its own colour), that look as glTF PBR: its
-colour, metal, roughness, opacity and glow factors, its colour, metal-roughness and normal maps as textures (an image
-surface's maps read box-projected in the mesh's own frame over the surface's `tile_metres`, as the preview reads
-them: each face by its own axis, without the preview's blend across a corner). A palette recipe's edge wear, dirt and
-relief are drawn only by the preview's Blender pass, so a recipe look goes as its preview's factors. A glTF-only
-model or take laid in its own bake (no look of the place's on it) goes as its library entry's own glTF, unchanged.
+with usd-core and trimesh's glTF writer: each drawn mesh and cube in the object's own frame, each face in the look
+bound to it (its part's, or the object's whole look laid over its own colour), that look as glTF PBR: its colour,
+metal, roughness, opacity and glow factors (a glow past 1 with KHR_materials_emissive_strength), its colour,
+metal-roughness, normal and glow maps as textures (an image surface's maps read box-projected in the mesh's own frame
+over the surface's `tile_metres`, as the preview reads them: each face by its own axis, without the preview's blend
+across a corner); a see-through look as glass (KHR_materials_transmission and _ior, its colour the preview's thin
+glass tint, its alpha the opacity for a reader without transmission). A palette recipe with a pattern (its edge wear,
+dirt and relief) is baked as the preview draws it, in headless Blender on this PC's card through the card queue
+(bake_looks.py): the part unwrapped (xatlas, in blocks no wider than a map) at DENSITY texels a metre on maps of at
+most LARGEST, each map its own primitive and material, or on a laid ground one seamless GROUND_TILE box-projected;
+its base colour, metal-roughness and normal pictures under objects/textures/. A glTF-only model or take laid in its
+own bake (no look of the place's on it) goes as its library entry's own glTF, unchanged.
 Two objects that convert to the same file are one object. A copy turned and scaled evenly keeps its object in its
 own frame (`matrix` the whole transform); a copy stretched unevenly has its stretch baked into its own object.
 
 When the place's physics check has run (<folder>/ready.json, ready/), each copy carries its collider by its role
 (COLLIDERS): a prop a convex hull, free, its mass the entry's own record (the maker's `physics.mass_kg`, times its
 scale cubed) or null when the entry has none; everything else that stands a solid its mesh, fixed.
-Skinned characters, the sky's dome light and animated effects are not converted: scene.json's `left_out` names each.
+Skinned characters, the sky's dome and animated effects are not converted: scene.json's `left_out` names each.
+scene.json's `environment` is the place's sky and light as the final render draws them (environment_of): the sky's
+picture written into <out>/environment, its turn and glow, the ambient light, background, exposure, the sun, the AgX
+view transform and look, and a night's moon and glow.
 """
 import hashlib
 import json
@@ -39,6 +47,21 @@ GROUND = "y = 0 is the place frame's own zero; each copy stands where it was lai
 COLLIDERS = {"prop": "convex hull", "ground": "mesh", "shell": "mesh", "connector": "mesh", "door": "mesh",
              "structure": "mesh", "fixed": "mesh", "mount": "mesh"}
 EVEN = 1e-6  # how far a copy's scale may differ across its axes and still be even
+# A palette recipe's bake (bake_looks.py). DENSITY texels a metre on every map: at 1920x1080 under Unity's 60 degree
+# field of view a pixel spans 0.97 mm a metre away, so 512 texels a metre is a texel a pixel from 2 m (the floor two
+# steps ahead and a wall walked beside, at eye height) and two pixels a texel at 1 m; the room kit's density
+# (tools/props/library/inside/bake.py SPLIT_DENSITY). A part needing more than LARGEST a side is split into more maps
+# at the same density, never capped. PADDING texels round each chart (its mips' bleed).
+DENSITY = 512
+LARGEST = 4096
+PADDING = 4
+SPAN_SHARE = 0.9  # how much of a map's side one block of a part may span (blocks_of): its charts' slack
+GROUND_TILE = 8.0  # metres one seamless tile of a laid ground's recipe covers: LARGEST texels at DENSITY
+FLAT_RECIPES = ("glass", "glowing")  # recipes of one colour, roughness and glow: their factors are exact, no bake
+GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
+TEXTURES = "textures"  # the baked pictures' folder beside the objects' .gltf files
+# The final render's grade, which the engine's tone mapping takes (blender_views.CONTRAST, usd_views' AgX).
+VIEW = {"view_transform": "AgX", "look": "AgX - Medium High Contrast"}
 
 
 # --- a gprim's faces ------------------------------------------------------------------------------------------------
@@ -171,8 +194,36 @@ def look_name(look):
     return surface + (f" {part}" if part else "")
 
 
-def pbr(look):
-    """A bound look as glTF PBR: {"material": trimesh PBRMaterial, "tile": metres or None, "key": what tells it}."""
+def recipe_spec(look):
+    """A palette variant's spec on a look (`score:recipe:spec`), or None."""
+    marked = text_of(look.GetPrim(), "score:recipe:spec") if look else None
+    return json.loads(marked) if marked else None
+
+
+def glass_of(colour, opacity):
+    """A see-through look's glTF transmission, as the preview's thin glass draws it (blender_views.thin_glass): light
+    passing tinted 1 - opacity x (1 - colour) as far as it is not opaque, at window glass's IOR; (the colour the
+    passing light takes, the extensions)."""
+    tint = [1.0 - opacity * (1.0 - float(value)) for value in colour]
+    return tint, {"KHR_materials_transmission": {"transmissionFactor": round(1.0 - opacity, 6)},
+                  "KHR_materials_ior": {"ior": GLASS_IOR}}
+
+
+def glowing(glow):
+    """A glow colour as glTF holds it: a factor of at most 1 and, past 1, the strength it is given off at
+    (KHR_materials_emissive_strength); (the factor, the extensions)."""
+    strength = max([float(value) for value in glow] + [0.0])
+    if strength <= 1.0:
+        return [float(value) for value in glow], {}
+    return [float(value) / strength for value in glow], {"KHR_materials_emissive_strength":
+                                                        {"emissiveStrength": strength}}
+
+
+def pbr(look, ground=False):
+    """A bound look as glTF PBR: {"material": trimesh PBRMaterial, "tile": metres or None, "key": what tells it,
+    "bake": a palette recipe's bake or None}. A recipe with a pattern (not FLAT_RECIPES) is baked as Blender draws it
+    (bake_looks.py): on a laid ground (`ground`) as one seamless GROUND_TILE box-projected like an image surface, on
+    anything else into its own unwrapped maps at DENSITY."""
     import trimesh
     if look is None:
         return {"material": trimesh.visual.material.PBRMaterial(name="no_look"), "tile": None, "key": "none"}
@@ -180,27 +231,37 @@ def pbr(look):
     if not shader:
         return {"material": trimesh.visual.material.PBRMaterial(name=look_name(look)), "tile": None,
                 "key": str(look.GetPath())}
-    colour_map, rough_map, metal_map, normal_map = (texture_of(shader, name) for name in
-                                                    ("diffuseColor", "roughness", "metallic", "normal"))
+    colour_map, rough_map, metal_map, normal_map, glow_map = (texture_of(shader, name) for name in (
+        "diffuseColor", "roughness", "metallic", "normal", "emissiveColor"))
     colour = list(colour_map[2])[:3] if colour_map and colour_map[2] is not None else (
         [1.0, 1.0, 1.0] if colour_map else list(value_of(shader, "diffuseColor", (0.18, 0.18, 0.18))))
     opacity = float(value_of(shader, "opacity", 1.0))
     roughness, metallic = float(value_of(shader, "roughness", 0.5)), float(value_of(shader, "metallic", 0.0))
     combined = metal_rough(rough_map, metal_map, roughness, metallic)
-    glow = [min(1.0, float(value)) for value in value_of(shader, "emissiveColor", (0.0, 0.0, 0.0))]
+    glow, extensions = glowing([1.0, 1.0, 1.0] if glow_map else value_of(shader, "emissiveColor", (0.0, 0.0, 0.0)))
+    if opacity < 1.0:
+        colour, see_through = glass_of(colour, opacity)
+        extensions.update(see_through)
+    spec = recipe_spec(look)
+    bake = {"spec": spec, "tile": GROUND_TILE if ground else None} if spec and \
+        spec.get("recipe") not in FLAT_RECIPES else None
     material = trimesh.visual.material.PBRMaterial(
         name=look_name(look), baseColorFactor=[float(value) for value in colour] + [opacity],
         metallicFactor=1.0 if combined else metallic, roughnessFactor=1.0 if combined else roughness,
         emissiveFactor=glow, alphaMode="BLEND" if opacity < 1.0 else "OPAQUE", doubleSided=opacity < 1.0,
         baseColorTexture=Image.open(colour_map[0]).convert("RGBA" if opacity < 1.0 else "RGB") if colour_map else None,
         metallicRoughnessTexture=combined,
-        normalTexture=Image.open(normal_map[0]).convert("RGB") if normal_map else None)
-    maps = [found[0] for found in (colour_map, rough_map, metal_map, normal_map) if found]
+        normalTexture=Image.open(normal_map[0]).convert("RGB") if normal_map else None,
+        emissiveTexture=Image.open(glow_map[0]).convert("RGB") if glow_map else None)
+    maps = [found[0] for found in (colour_map, rough_map, metal_map, normal_map, glow_map) if found]
     exact = {"baseColorFactor": [float(value) for value in colour] + [opacity], "emissiveFactor": glow}
     if not combined:
         exact.update(metallicFactor=metallic, roughnessFactor=roughness)
-    return {"material": material, "tile": tile_of(maps), "key": str(look.GetPath()), "factors": exact,
-            "tells": json.dumps([look_name(look), exact, [str(path) for path in maps]])}
+    if extensions:
+        exact["extensions"] = extensions
+    return {"material": material, "tile": bake["tile"] if bake else tile_of(maps), "key": str(look.GetPath()),
+            "factors": exact, "bake": bake,
+            "tells": json.dumps([look_name(look), exact, [str(path) for path in maps], bake], sort_keys=True)}
 
 
 def boxed_uv(points, normals, tile):
@@ -282,15 +343,15 @@ def pbr_key(look):
 
 
 def looks_of(prim):
-    """Every look bound inside the object as glTF PBR, by key."""
-    looks = {}
+    """Every look bound inside the object as glTF PBR, by key (a laid ground's recipes tiled: pbr)."""
+    looks, ground = {}, bool(text_of(prim, "score:ground"))
     for inside in gprims(prim):
         found = drawn(inside)
         if found is None or not len(found[2]):
             continue
         for look in face_looks(inside, int(found[3].max()) + 1)[0]:
             if pbr_key(look) not in looks:
-                looks[pbr_key(look)] = pbr(look)
+                looks[pbr_key(look)] = pbr(look, ground)
     return looks
 
 
@@ -330,34 +391,123 @@ def object_glb(prim, baked, made):
     return made[tells]
 
 
+def areas_of(points, faces):
+    corners = points[faces]
+    return 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=-1)
+
+
+def blocks_of(vertices, faces, chosen):
+    """The faces `chosen` cut into blocks no wider than a map holds at DENSITY (SPAN): each block's box halved across
+    its longest side, by the faces' middles, until it fits; so no chart xatlas makes is wider than its map and none is
+    shrunk to fit (a dome's 10 m deck as one chart came out at 390 texels a metre)."""
+    corners = vertices[faces[chosen]]
+    box = np.ptp(corners.reshape(-1, 3), axis=0)
+    if box.max() <= (LARGEST - 2 * PADDING) / DENSITY * SPAN_SHARE or len(chosen) == 1:
+        return [chosen]
+    axis = int(box.argmax())
+    middles = corners.mean(axis=1)[:, axis]
+    low = middles < (corners[..., axis].min() + corners[..., axis].max()) / 2
+    if low.all() or not low.any():
+        low = np.arange(len(chosen)) < len(chosen) // 2
+    return blocks_of(vertices, faces, chosen[low]) + blocks_of(vertices, faces, chosen[~low])
+
+
+def unwrapped(vertices, normals, faces):
+    """A mesh laid flat for its bake (xatlas, a block a mesh: blocks_of) at DENSITY texels a metre, PADDING round each
+    chart, on maps of at most LARGEST a side: [(vertices, normals, uv, faces, [width, height], texels a metre as
+    laid)] a map."""
+    import xatlas
+    blocks = [np.unique(faces[chosen], return_inverse=True) for chosen in blocks_of(vertices, faces,
+                                                                                    np.arange(len(faces)))]
+
+    def generated(resolution):
+        atlas = xatlas.Atlas()
+        for kept, inverse in blocks:
+            atlas.add_mesh(vertices[kept].astype(np.float32), inverse.reshape(-1, 3).astype(np.uint32),
+                           normals[kept].astype(np.float32))
+        packing = xatlas.PackOptions()
+        packing.texels_per_unit, packing.padding, packing.bilinear, packing.blockAlign = DENSITY, PADDING, True, True
+        packing.resolution = resolution
+        atlas.generate(pack_options=packing)
+        return atlas
+    atlas = generated(0)
+    if max(atlas.width, atlas.height) > LARGEST:
+        atlas = generated(LARGEST)
+    size = [int(atlas.width), int(atlas.height)]
+    pages = [([], [], [], []) for _ in range(atlas.atlas_count)]
+    for number, (kept, _) in enumerate(blocks):
+        mapping, corners, uv = atlas[number]
+        page = atlas.get_mesh_vertex_assignment(number)[0].astype(np.int64)[corners[:, 0]]
+        for held, (points, ways, coordinates, triangles) in enumerate(pages):
+            chosen = corners[page == held]
+            if not len(chosen):
+                continue
+            used, inverse = np.unique(chosen, return_inverse=True)
+            triangles.append(inverse.reshape(-1, 3) + sum(len(block) for block in points))
+            points.append(vertices[kept[mapping[used]]])
+            ways.append(normals[kept[mapping[used]]])
+            coordinates.append(uv[used].astype(np.float64))
+    found = []
+    for points, ways, coordinates, triangles in pages:
+        points, coordinates, triangles = np.vstack(points), np.vstack(coordinates), np.vstack(triangles)
+        texels = np.sqrt(areas_of(np.hstack([coordinates * size, np.zeros((len(coordinates), 1))]),
+                                  triangles).sum() / max(areas_of(points, triangles).sum(), 1e-12))
+        found.append((points, np.vstack(ways), coordinates, triangles, size, round(float(texels), 1)))
+    return found
+
+
 def gltf_written(gathered, looks):
-    """The GLB of an object's corners grouped by look, and its triangle count."""
+    """The GLB of an object's corners grouped by look (a recipe to bake on its own unwrapped maps, a part a map), and
+    its triangle count."""
     import trimesh
-    scene, triangles = trimesh.Scene(), 0
-    for number, key in enumerate(sorted(gathered)):
+    scene, triangles, parts = trimesh.Scene(), 0, []
+    for key in sorted(gathered):
         pieces = gathered[key]
         with_uv = all(piece[2] is not None for piece in pieces)
         vertices, normals, uv, faces = welded(np.vstack([piece[0] for piece in pieces]),
                                               np.vstack([piece[1] for piece in pieces]),
                                               np.vstack([piece[2] for piece in pieces]) if with_uv else None)
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=normals, process=False)
-        mesh.visual = trimesh.visual.TextureVisuals(uv=uv, material=looks[key]["material"])
-        scene.add_geometry(mesh, node_name=f"part_{number}", geom_name=f"part_{number}")
-        triangles += len(faces)
-    return exactly(scene.export(file_type="glb"), [looks[key].get("factors", {}) for key in sorted(gathered)]), \
-        triangles
+        bake = looks[key].get("bake")
+        maps = unwrapped(vertices, normals, faces) if bake and not bake["tile"] else \
+            [(vertices, normals, uv, faces, [LARGEST, LARGEST], LARGEST / bake["tile"]) if bake else
+             (vertices, normals, uv, faces, None, None)]
+        for page, (vertices, normals, uv, faces, size, texels) in enumerate(maps):
+            number = len(parts)
+            mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=normals, process=False)
+            mesh.visual = trimesh.visual.TextureVisuals(uv=uv, material=looks[key]["material"])
+            scene.add_geometry(mesh, node_name=f"part_{number}", geom_name=f"part_{number}")
+            triangles += len(faces)
+            asked = dict(bake, size=size, texels_a_metre=texels) if bake else None
+            parts.append({"factors": looks[key].get("factors", {}), "bake": asked,
+                          "name": looks[key]["material"].name + (f" map{page + 1}" if len(maps) > 1 else "")})
+    return exactly(scene.export(file_type="glb"), parts), triangles
 
 
-def exactly(glb, factors):
-    """The GLB with each part's material factors as the look has them (`factors` by part number): trimesh's writer
-    keeps a colour in 8 bits, so 0.3 would come out 0.302."""
+def exactly(glb, parts):
+    """The GLB with each part's own material (`parts` by part number: its name, its factors as the look has them,
+    its bake asked or None): trimesh's writer keeps a colour in 8 bits, so 0.3 would come out 0.302, and gives parts
+    in one look one material, where each baked map needs its own pictures. A part's bake rides in its material's
+    extras (`score_bake`) until bake_looks.py's pictures replace it (attached); its extensions are listed used."""
     document, binary = unpacked(glb, None)
+    materials, used = [], set()
     for mesh in document["meshes"]:
-        number = int(mesh["name"].rsplit("_", 1)[1])
-        material = document["materials"][mesh["primitives"][0]["material"]]
-        for key, value in factors[number].items():
-            held = material["pbrMetallicRoughness"] if key != "emissiveFactor" else material
-            held[key] = value
+        part = parts[int(mesh["name"].rsplit("_", 1)[1])]
+        material = json.loads(json.dumps(document["materials"][mesh["primitives"][0]["material"]]))
+        material["name"] = part["name"]
+        for key, value in part["factors"].items():
+            if key == "extensions":
+                material.setdefault("extensions", {}).update(value)
+                used |= set(value)
+            else:
+                (material["pbrMetallicRoughness"] if key != "emissiveFactor" else material)[key] = value
+        if part["bake"]:
+            material.setdefault("extras", {})["score_bake"] = part["bake"]
+        for primitive in mesh["primitives"]:
+            primitive["material"] = len(materials)
+        materials.append(material)
+    document["materials"] = materials
+    if used:
+        document["extensionsUsed"] = sorted(set(document.get("extensionsUsed", [])) | used)
     return packed(document, binary)
 
 
@@ -474,7 +624,9 @@ def laid_objects(stage, place):
         holder = stage.GetPrimAtPath(f"/{place}/{scope}")
         for prim in holder.GetChildren() if holder else []:
             kind = text_of(prim, "score:kind") or default
-            if prim.GetTypeName() == "SkelRoot":
+            if kind == "light":
+                left_out.append({"name": prim.GetName(), "why": "the place's sky dome: scene.json's environment"})
+            elif prim.GetTypeName() == "SkelRoot":
                 left_out.append({"name": prim.GetName(), "why": "a skinned character: not converted"})
             elif animated(prim):
                 left_out.append({"name": prim.GetName(), "why": "it moves over time: not converted"})
@@ -500,6 +652,74 @@ def lamps_of(stage, place):
             lamps.append(dict(about, kind="sun", shines=[round(float(value), 6)
                                                          for value in shines / np.linalg.norm(shines)]))
     return lamps
+
+
+def sky_way(prim):
+    """A distant light's way toward its light as the sky step lays it (place_build.sun_frame): (elevation, heading)
+    degrees, the heading round from +x towards +z."""
+    world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    towards = world[2, :3] / np.linalg.norm(world[2, :3])
+    return (round(math.degrees(math.asin(max(-1.0, min(1.0, float(towards[1]))))), 4),
+            round(math.degrees(math.atan2(float(towards[2]), float(towards[0]))) % 360.0, 4))
+
+
+def distant(prim):
+    """A sun's or moon's record: where it stands (sky_way), its strength, colour and width."""
+    light = UsdLux.DistantLight(prim)
+    elevation, heading = sky_way(prim)
+    return {"name": prim.GetName(), "elevation": elevation, "heading": heading,
+            "strength": float(light.GetIntensityAttr().Get() or 0.0),
+            "colour": [round(float(value), 6) for value in light.GetColorAttr().Get() or (1.0, 1.0, 1.0)],
+            "angle": float(light.GetAngleAttr().Get() or 0.0)}
+
+
+def sky_picture(stage, place, out):
+    """The sky dome's picture (the glow its dome under Objects/sky gives off, a longitude-latitude picture) copied
+    into <out>/environment: {file, projection, turn (degrees about up, as laid), strength (its glow's), library};
+    None when the place lays no sky picture."""
+    holder = stage.GetPrimAtPath(f"/{place}/Objects/sky")
+    for inside in gprims(holder) if holder else []:
+        look = UsdShade.MaterialBindingAPI(inside).ComputeBoundMaterial()[0]
+        shader = look.ComputeSurfaceSource()[0] if look else None
+        found = texture_of(shader, "emissiveColor") if shader else None
+        if found is None:
+            continue
+        (out / "environment").mkdir(exist_ok=True)
+        shutil.copyfile(found[0], out / "environment" / found[0].name)
+        turn = holder.GetAttribute("xformOp:rotateXYZ")
+        return {"file": f"environment/{found[0].name}",
+                "projection": "longitude-latitude: u round up from +x (tools/usd/mars_sky.ways), v from the "
+                              "bottom pole up, on a ball round the place",
+                "turn": float(turn.Get()[1]) if turn and turn.HasValue() else 0.0,
+                "strength": float(text_of(inside, "score:sky_strength") or 1.0),
+                "library": text_of(holder, "score:library")}
+    return None
+
+
+def environment_of(stage, place, out):
+    """The place's sky and light as the final render draws it (usd_views.stage_sky, blender_views): the sky picture
+    (sky_picture), the dome's ambient light, the background the camera sees, the exposure (a multiplier), the sun,
+    the view transform and look; `night` its moon and glow where the place has a night (place_build.night)."""
+    sky = stage.GetPrimAtPath(f"/{place}/Environment")
+    lights = {prim.GetName(): prim for prim in (stage.GetPrimAtPath(f"/{place}/Lights").GetChildren()
+                                                if stage.GetPrimAtPath(f"/{place}/Lights") else [])
+              if prim.IsA(UsdLux.DistantLight)}
+    found = {"sky": None, "ambient": None, "background": None, "exposure": 1.0, **VIEW,
+             "sun": distant(lights["sun"]) if "sun" in lights else None, "night": None}
+    if sky and sky.IsA(UsdLux.DomeLight):
+        dome = UsdLux.DomeLight(sky)
+        background = text_of(sky, "score:background")
+        found.update(ambient=[round(float(value) * float(dome.GetIntensityAttr().Get() or 1.0), 6)
+                              for value in dome.GetColorAttr().Get() or (1.0, 1.0, 1.0)],
+                     background=None if background is None else [round(float(value), 6) for value in background],
+                     exposure=float(text_of(sky, "score:exposure") or 1.0))
+        if "moon" not in lights:
+            found["sky"] = sky_picture(stage, place, out)
+        else:
+            found["night"] = {"moon": distant(lights["moon"]), "glow": {
+                key: float(text_of(sky, f"score:glow_{key}")) for key in ("threshold", "intensity")}
+                if text_of(sky, "score:glow_threshold") is not None else None}
+    return found
 
 
 def converted(prim, baked, made):
@@ -569,16 +789,102 @@ def write(folder, out):
              "frame": "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
              "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
              "lamps": lamps_of(stage, place), "counts": counts, "physics": "ready.json" if roles is not None else None,
-             "left_out": left_out}
+             "left_out": left_out, "environment": environment_of(stage, place, out)}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     return scene
 
 
-def packaged(folder, out):
-    """The package written and checked by package.py's own check: its summary, or Refused naming its problems."""
+# --- the bake -------------------------------------------------------------------------------------------------------
+
+PICTURES = ("base_color", "metal_roughness", "normal")  # a baked map's pictures, as glTF reads them
+
+
+def bake_jobs(out):
+    """Every baked map the package's objects ask for (a material's `score_bake`): [{gltf, material (its number),
+    mesh (its part's node), spec, size, tile, pictures {kind: path under objects/}}]."""
+    jobs = []
+    for path in sorted((out / "objects").glob("*.gltf")):
+        document = json.loads(path.read_text())
+        for mesh in document.get("meshes", []):
+            number = mesh["primitives"][0].get("material")
+            asked = None if number is None else document["materials"][number].get("extras", {}).get("score_bake")
+            if asked:
+                stem = f"{path.stem}_{mesh['name']}"
+                jobs.append({"gltf": f"objects/{path.name}", "material": number, "mesh": mesh["name"],
+                             "spec": asked["spec"], "size": asked["size"], "tile": asked["tile"],
+                             "texels_a_metre": asked["texels_a_metre"],
+                             "pictures": {kind: f"{TEXTURES}/{stem}_{kind}.png" for kind in PICTURES}})
+    return jobs
+
+
+def blender_baked(out, jobs):
+    """The jobs baked by bake_looks.py in headless Blender on this PC's card, through the card queue (render.queued),
+    its log in <out>/bake/blender.log; Refused with the log's tail when a picture is missing."""
+    import subprocess
+    from score.stages.place_build import render
+    listing = out / "bake" / "jobs.json"
+    listing.parent.mkdir(exist_ok=True)
+    listing.write_text(json.dumps({"out": str(out.resolve()), "jobs": jobs}, indent=1))
+    log = out / "bake" / "blender.log"
+    script = pathlib.Path(__file__).resolve().parent / "bake_looks.py"
+    with log.open("w") as written_log:
+        done = subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())]),
+                              stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO)
+    missing = [picture for job in jobs for picture in job["pictures"].values()
+               if not (out / "objects" / picture).is_file()]
+    if done.returncode or missing:
+        tail = " | ".join(log.read_text(errors="replace").splitlines()[-6:])
+        raise place_build.Refused(f"the bake failed (exit {done.returncode}, {len(missing)} pictures missing), "
+                                  f"log {log}: {tail}")
+
+
+def attached(out, jobs):
+    """Each baked map's pictures put on its material in its .gltf (base colour, metal-roughness, normal, each read by
+    the part's first texture coordinates, repeated: a ground's tile repeats), its factors made the pictures' own
+    (white base colour under its opacity, metal and roughness 1) and its bake request taken off."""
+    by_file = {}
+    for job in jobs:
+        by_file.setdefault(job["gltf"], []).append(job)
+    for name, held in by_file.items():
+        path = out / name
+        document = json.loads(path.read_text())
+        document.setdefault("samplers", []).append({"magFilter": 9729, "minFilter": 9987, "wrapS": 10497,
+                                                     "wrapT": 10497})
+        sampler = len(document["samplers"]) - 1
+        for job in held:
+            numbers = {}
+            for kind in PICTURES:
+                document.setdefault("images", []).append({"uri": job["pictures"][kind]})
+                document.setdefault("textures", []).append({"source": len(document["images"]) - 1,
+                                                            "sampler": sampler})
+                numbers[kind] = len(document["textures"]) - 1
+            material = document["materials"][job["material"]]
+            metal = material.setdefault("pbrMetallicRoughness", {})
+            opacity = metal.get("baseColorFactor", [1.0, 1.0, 1.0, 1.0])[3]
+            metal.update(baseColorFactor=[1.0, 1.0, 1.0, opacity], metallicFactor=1.0, roughnessFactor=1.0,
+                         baseColorTexture={"index": numbers["base_color"]},
+                         metallicRoughnessTexture={"index": numbers["metal_roughness"]})
+            material["normalTexture"] = {"index": numbers["normal"]}
+            material.get("extras", {}).pop("score_bake", None)
+            if "extras" in material and not material["extras"]:
+                del material["extras"]
+        path.write_text(json.dumps(document))
+    return len(jobs)
+
+
+def packaged(folder, out, baker=blender_baked):
+    """The package written, its palette recipes baked (`baker(out, jobs)` writes each job's pictures) and put on
+    their looks, and checked by package.py's own check: its summary, or Refused naming its problems."""
+    out = pathlib.Path(out)
     scene = write(folder, out)
+    jobs = bake_jobs(out)
+    if jobs:
+        (out / "objects" / TEXTURES).mkdir(exist_ok=True)
+        baker(out, jobs)
+        attached(out, jobs)
     found = package.problems(pathlib.Path(out))
     if found:
         raise place_build.Refused(f"the package fails its check: {'; '.join(found[:12])}")
     return {"package": str(out), "summary": package.summary(pathlib.Path(out)), "objects": len(scene["objects"]),
-            "copies": len(scene["instances"]), "left_out": scene["left_out"], "check": "sound"}
+            "copies": len(scene["instances"]), "left_out": scene["left_out"], "baked_maps": len(jobs),
+            "sky": (scene["environment"]["sky"] or {}).get("file"), "check": "sound"}

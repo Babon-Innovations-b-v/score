@@ -102,6 +102,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   blender_views.py is checked by a render of the fixture scene, never in the test).
 - **The scene package** (scene_package.py, `package <folder> <out>`): the laid place for a game engine (2099's Unity,
   glTFast) in tools/props/library/package.py's one format (score.scene v1, checked by its own check, never forked):
-  every object converted from the laid USD with usd-core and trimesh's writer (no Blender), its bound looks as glTF
-  PBR (exact factors, maps, an image surface box-projected over its tile), an unchanged glTF model its entry's own
-  glTF; colliders from ready.json's roles. A recipe's wear and dirt are the preview's only: the package has its factors.
+  every object converted from the laid USD with usd-core and trimesh's writer, its bound looks as glTF PBR (exact
+  factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
+  entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
+  relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, a laid
+  ground's as one seamless 8 m tile; scene.json's `environment` carries the sky picture, sun, exposure and AgX grade.

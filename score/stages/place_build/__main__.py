@@ -81,8 +81,9 @@ score_lib as a draft model entry; `put` then lays its address.
 0.9 m wide): the shortest one, its corners rounded, for a walker's cast `path` (scene clips, sim body).
 `package` writes the place as a scene package any engine loads (scene_package.py; the game 2099's Unity through
 glTFast): <out>/scene.json in score.scene version 1 (tools/props/library/package.py's format, checked by its check)
-and an <out>/objects/<name>.gltf a distinct object, converted from the laid USD in its bound looks (no Blender), each
-copy's collider from the physics check's roles when ready.json is there.
+and an <out>/objects/<name>.gltf a distinct object, converted from the laid USD in its bound looks (a palette recipe
+baked into its own pictures by headless Blender on this PC's card), each copy's collider from the physics check's
+roles when ready.json is there, and the place's sky, sun, exposure and grade.
 """
 import argparse
 import json
