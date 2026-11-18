@@ -116,7 +116,7 @@ import fit  # noqa: E402
 import motor  # noqa: E402
 import myo  # noqa: E402
 from bone_groups import FEET, groups  # noqa: E402
-from contact import GAP, STANCE_HIGH, Skin, lowests, parts_lowests  # noqa: E402
+from contact import GAP, STANCE_HIGH, Skin, parts_lowests  # noqa: E402
 from landmarks import at_starts  # noqa: E402
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates  # noqa: E402
 from muscles import Physics, parts_of  # noqa: E402
@@ -234,13 +234,7 @@ def credited(physics, skin, path, stance, bodies, rate):
         raise ValueError(f"{len(stance)} frames of seen stance for a path of {len(path)}")
     sides = [[bodies[segment] for segment in side] for side in FEET_SIDES]
     parts = {side: np.flatnonzero(np.isin(skin.owners, mine)) for side, mine in enumerate(sides)}
-    data, lowest = mujoco.MjData(physics.model), []
-    for qpos in path:
-        data.qpos[:] = qpos
-        mujoco.mj_kinematics(physics.model, data)
-        found = parts_lowests(physics.model, data, skin, physics.ground, parts)
-        lowest.append([np.nan if found[side] is None else found[side] for side in range(len(sides))])
-    lowest = np.array(lowest)
+    lowest = parts_lowests(physics.model, path, skin, physics.ground, parts)
     reached = np.nan_to_num(lowest, nan=np.inf)
     touching = reached <= GAP
     if stance is not None:

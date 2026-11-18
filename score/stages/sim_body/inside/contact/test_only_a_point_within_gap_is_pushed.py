@@ -40,7 +40,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - feet_shares' `found[frames] = over` made `found[frames] = 0.5`: a step's hand-over holds half each.
 - feet_shares' `(frames - start + 0.5) / ramp` made `1.0`: a foot coming down takes its half at once.
 - registered's `found.shares = self.shares` dropped: the registered skin has no shares.
-- parts_lowests' `heights[every] = heights_over(...)` given `placed[every][:, 1]`: a part's lowest is its height.
+- parts_lowests' `heights_over(np.concatenate(points), ...)` made `np.concatenate(points)[:, 1]`: a part's lowest is its
+  height, not its height over the floor.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -326,7 +327,9 @@ def shares_problems():
     hand-over (the left coming down on frame 2, the right lifting off after frame 5) takes the left's share linearly
     1/8, 3/8, 5/8, 7/8 over its four shared frames; both feet coming down together ramp to an equal share, and a foot
     coming down beside a standing one ramps its share in over RAMP (the left's 6/7, 2/3, 6/11, then half); nan where
-    one foot alone touches; and the share carries through `Skin.registered` and reads by state (`share_of`)."""
+    one foot alone touches; and the share carries through `Skin.registered` and reads by state (`share_of`); and
+    `parts_lowests` of a path is `lowests`' parts frame by frame."""
+    import mujoco
     import numpy as np
     import contact
     touching = np.array([[0, 1], [0, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 0], [1, 0]], bool)
@@ -348,8 +351,15 @@ def shares_problems():
         problems.append("the registered skin's shares are not the skin's, read by state")
     parts = {0: np.arange(0, len(skin.points), 2), 1: np.arange(1, len(skin.points), 2)}
     raised = flat() + np.array([0.0, 0.01, 0.0])  # a floor 1 cm up: a height over it is not a point's own height
-    if contact.parts_lowests(model, data, skin, raised, parts) != contact.lowests(model, data, skin, raised, parts)[1]:
-        problems.append("parts_lowests' parts differ from lowests'")
+    path = np.array([data.qpos.copy(), data.qpos.copy() + np.r_[0.0, 0.0, 0.004, np.zeros(len(data.qpos) - 3)]])
+    each = []
+    for qpos in path:
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(model, data)
+        each.append([np.nan if low is None else low for low in contact.lowests(model, data, skin, raised, parts)[1].values()])
+    if not np.allclose(contact.parts_lowests(model, path, skin, raised, parts), each, equal_nan=True):
+        problems.append(f"parts_lowests {contact.parts_lowests(model, path, skin, raised, parts).tolist()}, not lowests' "
+                        f"{each}")
     return problems
 
 

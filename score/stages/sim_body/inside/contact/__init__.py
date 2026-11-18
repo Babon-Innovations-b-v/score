@@ -375,16 +375,32 @@ def lowests(model, data, skin, ground, parts):
                               for part, points in parts.items()}
 
 
-def parts_lowests(model, data, skin, ground, parts):
-    """`lowests`' each part's lowest ({part: metres, None where none of its points is over any ground}), the heights
-    found for the parts' points alone (the reach, floor and top still the whole skin's): a clip's every frame of the
-    feet in seconds, where the whole skin's took 2.3 s a frame (2026-11-18, street's walkers)."""
-    placed = skin.placed(model, data)
+def parts_lowests(model, path, skin, ground, parts):
+    """`lowests`' each part's lowest on every state of `path` (states x parts, metres, nan where none of its points is
+    over any ground; `parts` {part: its points' indices}, in order), the heights found once for every state's parts'
+    points together (each point's reach, floor and top its state's whole skin's): a clip's every frame of the feet in
+    one pass over the ground's triangles, where a pass a frame took 2.3 s a frame of a street walker and more than an
+    hour of a 712-frame one's card (2026-11-18)."""
     every = np.unique(np.concatenate([np.asarray(points, int) for points in parts.values()] or [np.zeros(0, int)]))
-    heights = np.full(len(placed), np.nan)
-    if len(every):
-        heights[every] = heights_over(placed[every], ground, body_reach(placed), body_floor(placed), body_top(placed))
-    return {part: lowest_of(heights[points]) if len(points) else None for part, points in parts.items()}
+    data, points, reach, floor, top = mujoco.MjData(model), [], [], [], []
+    for qpos in path:
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(model, data)
+        placed = skin.placed(model, data)
+        points.append(placed[every])
+        reach.append(np.full(len(every), body_reach(placed)))
+        floor.append(np.full(len(every), body_floor(placed)))
+        top.append(np.full(len(every), body_top(placed)))
+    found = np.full((len(path), len(parts)), np.nan)
+    if not len(every) or not len(path):
+        return found
+    heights = heights_over(np.concatenate(points), ground, np.concatenate(reach), np.concatenate(floor),
+                           np.concatenate(top)).reshape(len(path), len(every))
+    for column, points_of in enumerate(parts.values()):
+        mine = heights[:, np.searchsorted(every, np.asarray(points_of, int))]
+        known = np.isfinite(mine).any(axis=1)
+        found[known, column] = np.nanmin(mine[known], axis=1)
+    return found
 
 
 def closeness(over):
