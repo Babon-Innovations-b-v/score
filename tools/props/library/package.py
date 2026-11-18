@@ -40,7 +40,10 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          `look` (the grade the engine's tone mapping takes), `sun` {name, elevation, heading (degrees
                          round from +x towards +z), strength, colour, angle} or null, `night` {moon (as the sun), glow
                          {threshold, intensity} or null} or null, `ground_albedo` [r, g, b] (linear: the laid ground's
-                         baked tile's mean base colour, the light it throws back up) or null
+                         baked tile's mean base colour, the light it throws back up) or null, `grade` {file (a
+                         16-bit PNG under the package), size, low, high, middle, display, layout}: the view transform
+                         and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -
+                         low)) for c from 0 to 1 in its lattice
 An object's .gltf may use KHR_materials_transmission, _ior and _emissive_strength (listed in its extensionsUsed) and
 carry its baked pictures under objects/textures/; a version 1 reader that skips them still loads every object.
 

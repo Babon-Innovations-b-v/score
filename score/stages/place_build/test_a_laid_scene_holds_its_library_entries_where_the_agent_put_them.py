@@ -112,6 +112,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.gprim_pieces: a mesh with no normals of its own shaded flat -> the holed panel's points carry many
   normals each, not Blender's one smooth normal
 - scene_package.ground_albedo: the picture's sRGB mean taken as linear -> the regolith's albedo reads 0.5, not 0.216
+- scene_package.packaged: the grade left undrawn -> the environment names no grade picture
+- scene_package.unwrapped: a sliver xatlas charts on no map left out -> the sliver beside the square is lost (2 of 3)
 """
 import json
 import pathlib
@@ -614,8 +616,9 @@ def packaged(folder, out):
     map box-projected over its tile; a palette recipe baked into its own unwrapped maps (on a laid ground one tile
     box-projected), its pictures on its look; a see-through look as glTF transmission tinted as the preview's thin
     glass; each copy's collider from the physics check's roles, a prop's mass from its entry's record times its scale
-    cubed; the lamps; the place's night, sun, grade and ground albedo; a mesh with no normals of its own smooth, as
-    Blender shades it; the character, the rain and the sky named as left out."""
+    cubed; the lamps; the place's night, sun, grade (its view drawn as a lattice picture) and ground albedo; a mesh
+    with no normals of its own smooth, as Blender shades it; a sliver xatlas charts nowhere kept; the character, the
+    rain and the sky named as left out."""
     from score.stages.place_build import scene_package
     place_build.put(folder, "wall2", "kit/box_piece", at=(30, 0, 30), turn=(0, 45, 0))
     place_build.surface(folder, "wall2", "surface/steel")
@@ -638,7 +641,14 @@ def packaged(folder, out):
                 Image.new("RGB", tuple(job["size"]), (128, 128, 255)).save(out / "objects" / picture)
 
     scene_package.DENSITY, scene_package.LARGEST = 24, 64  # maps held small, so the panel needs more than one
-    made = scene_package.packaged(folder, out, baker)
+    graded = []
+
+    def grader(out, environment):  # grade_lut.py's lattice picture, for the view the render grades through
+        graded.append((environment["view_transform"], environment["look"]))
+        (out / scene_package.GRADE_FILE).parent.mkdir(exist_ok=True)
+        Image.new("RGB", (8 * 8, 8)).save(out / scene_package.GRADE_FILE)
+
+    made = scene_package.packaged(folder, out, baker, grader)
     scene_package.DENSITY, scene_package.LARGEST = 512, 4096
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
@@ -691,6 +701,12 @@ def packaged(folder, out):
     assert world["sun"]["elevation"] == 30 and world["sun"]["heading"] == 0 and world["view_transform"] == "AgX"
     assert world["look"] == "AgX - Medium High Contrast" and np.allclose(world["background"], (0.01, 0.04, 0.08))
     assert np.allclose(world["ground_albedo"], (0.2158605, 0.2158605, 1.0), atol=1e-5)  # the tile's (128, 128, 255)
+    square = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [2, 0, 0], [2, 1e-5, 0], [2.00001, 0, 0]], float)
+    sliver = scene_package.unwrapped(square, np.tile([0.0, 0.0, 1.0], (7, 1)),
+                                     np.array([[0, 1, 2], [0, 2, 3], [4, 6, 5]]))
+    assert sum(len(laid[3]) for laid in sliver) == 3  # every triangle kept, so the model check counts them all
+    assert graded == [("AgX", "AgX - Medium High Contrast")] and (out / world["grade"]["file"]).is_file()
+    assert world["grade"]["size"] == 64 and world["grade"]["middle"] == 0.18 and world["grade"]["display"] == "sRGB"
 
 
 def filmed(tmp_path):

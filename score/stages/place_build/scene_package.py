@@ -27,8 +27,9 @@ scale cubed) or null when the entry has none; everything else that stands a soli
 Skinned characters, the sky's dome and animated effects are not converted: scene.json's `left_out` names each.
 scene.json's `environment` is the place's sky and light as the final render draws them (environment_of): the sky's
 picture written into <out>/environment, its turn and glow, the ambient light, background, exposure, the sun, the AgX
-view transform and look, a night's moon and glow, and the ground's albedo (ground_albedo: what an engine without
-path-traced bounce lights from below with).
+view transform and look, a night's moon and glow, the ground's albedo (ground_albedo: what an engine without
+path-traced bounce lights from below with), and `grade`: that view transform and look drawn by Blender's own
+OpenColorIO into a lattice picture (grade_lut.py), the engine's tone mapping sampling it as SCORE's render grades.
 """
 import hashlib
 import json
@@ -57,6 +58,7 @@ EVEN = 1e-6  # how far a copy's scale may differ across its axes and still be ev
 DENSITY = 512
 LARGEST = 4096
 PADDING = 4
+UNCHARTED = 0xFFFFFFFF  # xatlas's map number for a vertex of a face it charted on none
 SPAN_SHARE = 0.9  # how much of a map's side one block of a part may span (blocks_of): its charts' slack
 GROUND_TILE = 8.0  # metres one seamless tile of a laid ground's recipe covers: LARGEST texels at DENSITY
 FLAT_RECIPES = ("glass", "glowing")  # recipes of one colour, roughness and glow: their factors are exact, no bake
@@ -64,6 +66,10 @@ GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
 TEXTURES = "textures"  # the baked pictures' folder beside the objects' .gltf files
 # The final render's grade, which the engine's tone mapping takes (blender_views.CONTRAST, usd_views' AgX).
 VIEW = {"view_transform": "AgX", "look": "AgX - Medium High Contrast"}
+# The grade's picture (grade_lut.py): a lattice `size` a side, each channel `middle` * 2 ** (low + c * (high - low)),
+# AgX's own log range about middle grey, so every colour the render can grade has its place in it.
+GRADE = {"size": 64, "low": -12.47393, "high": 4.026069, "middle": 0.18}
+GRADE_FILE = "environment/grade.png"
 
 
 # --- a gprim's faces ------------------------------------------------------------------------------------------------
@@ -458,6 +464,7 @@ def unwrapped(vertices, normals, faces):
     for number, (kept, _) in enumerate(blocks):
         mapping, corners, uv = atlas[number]
         page = atlas.get_mesh_vertex_assignment(number)[0].astype(np.int64)[corners[:, 0]]
+        page[page == UNCHARTED] = 0  # a sliver xatlas charts on no map stays, on the first
         for held, (points, ways, coordinates, triangles) in enumerate(pages):
             chosen = corners[page == held]
             if not len(chosen):
@@ -892,6 +899,22 @@ def attached(out, jobs):
     return len(jobs)
 
 
+def blender_graded(out, environment):
+    """The final render's grade (its view transform and look) as Blender's own OpenColorIO draws it, written by
+    grade_lut.py to <out>/GRADE_FILE (no card: it draws nothing); Refused with the log's tail when it is missing."""
+    import subprocess
+    from score.stages.place_build import render
+    (out / GRADE_FILE).parent.mkdir(exist_ok=True)
+    script = pathlib.Path(__file__).resolve().parent / "grade_lut.py"
+    done = subprocess.run(render.queued(f"place-build-grade-{out.name}", script, [
+        str((out / GRADE_FILE).resolve()), environment["view_transform"], environment["look"],
+        *(str(GRADE[key]) for key in ("size", "low", "high", "middle"))], card=False),
+        capture_output=True, text=True, cwd=place_build.REPO)
+    if done.returncode or not (out / GRADE_FILE).is_file():
+        tail = " | ".join((done.stdout + done.stderr).splitlines()[-6:])
+        raise place_build.Refused(f"the grade failed (exit {done.returncode}): {tail}")
+
+
 def ground_albedo(out, jobs):
     """The laid ground's mean base colour, linear [r, g, b], from its baked tile's picture (the one job with a tile);
     None when no ground tile was baked."""
@@ -904,9 +927,10 @@ def ground_albedo(out, jobs):
     return [round(float(value), 6) for value in linear.reshape(-1, 3).mean(axis=0)]
 
 
-def packaged(folder, out, baker=blender_baked):
+def packaged(folder, out, baker=blender_baked, grader=blender_graded):
     """The package written, its palette recipes baked (`baker(out, jobs)` writes each job's pictures) and put on
-    their looks, and checked by package.py's own check: its summary, or Refused naming its problems."""
+    their looks, its grade drawn (`grader(out, environment)` writes GRADE_FILE: environment `grade`), and checked
+    by package.py's own check: its summary, or Refused naming its problems."""
     out = pathlib.Path(out)
     scene = write(folder, out)
     jobs = bake_jobs(out)
@@ -915,6 +939,9 @@ def packaged(folder, out, baker=blender_baked):
         baker(out, jobs)
         attached(out, jobs)
     scene["environment"]["ground_albedo"] = ground_albedo(out, jobs)
+    grader(out, scene["environment"])
+    scene["environment"]["grade"] = dict(GRADE, file=GRADE_FILE, display="sRGB", layout=(
+        "size tiles of size x size side by side: red along a tile, blue tile by tile, green up from the bottom row"))
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     found = package.problems(pathlib.Path(out))
     if found:
