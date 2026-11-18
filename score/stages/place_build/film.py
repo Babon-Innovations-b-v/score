@@ -51,11 +51,14 @@ MARGIN = 5.0  # metres past the place's objects a walk may go round them
 
 def place_scenes(folder):
     """The place as camera_paths' scenes, from the physics check's own solids (ready.Place): every object but its
-    characters and its lights (a sky dome laid as an object holds the whole place), its laid grounds as the ground."""
+    characters and its lights (a sky dome laid as an object holds the whole place), each door as it stands for the
+    walkers (ready.doors_standing: one marked score:opens swung open, so a camera sees and follows a walker through
+    its doorway), its laid grounds as the ground."""
     stage, place = place_build.opened(folder)
     laid = ready.Place(stage, place)
     grounds = laid.with_role("ground")
-    shown = {name: laid.meshes[name] for name in laid.names
+    standing = ready.doors_standing(laid)
+    shown = {name: standing.get(name, laid.meshes[name]) for name in laid.names
              if name not in grounds and ready.text_of(laid.prims[name], "score:kind") != "light"}
     ground = trimesh.util.concatenate([laid.meshes[name] for name in grounds]) if grounds else \
         trimesh.creation.box([2000.0, 0.01, 2000.0], trimesh.transformations.translation_matrix([0, -0.005, 0]))

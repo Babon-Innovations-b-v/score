@@ -101,8 +101,10 @@ own sound; paid and cleared by the runner like any paid row.
   the camera still on the concept's view for `OPENING_SECONDS`, then eased on to one walker (`approach`, over
   `approach_seconds` of its distance) along a clear way in (`approach_route`: straight, the place film's own path, or
   walked from it), and following it close (`closing`: a start in its sim body record and a way round it with room, on
-  a ray from its hips so nothing of the place stands between, every eye and sight line swept clear; refused where none
-  leaves CLOSE_LEAST). A walker under glass the concept sees from outside is followed from inside, the film dissolving
+  a ray from its hips so nothing of the place stands between, every eye and sight line swept clear, its room measured
+  from the camera's arrival; where no one way keeps room for the whole close-up, a walker through a doorway and up a
+  turning stair, the eye comes round with the walker, `turning`, the walker seen from the arrival on; refused where
+  none leaves CLOSE_LEAST). A door marked `score:opens` stands open to the camera (place_build film.place_scenes). A walker under glass the concept sees from outside is followed from inside, the film dissolving
   in from the concept's view (`cut_in`, the `opening` pass). Its player model, bare SOMA body and sim body follow each
   other by a `DISSOLVE_SECONDS` dissolve, each held its `WALKER_HOLDS` (shortened alike where the record is short,
   `walker_holds`). The sim body pass draws one GRF arrow a foot (`foot_pushes`: heel and toes summed, despiked and

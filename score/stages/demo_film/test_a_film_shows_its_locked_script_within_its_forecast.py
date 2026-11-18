@@ -396,7 +396,8 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     all joined, and judged on its film. A walker peel in its place (WALKER_ROOMS) is the place's whole film in one
     shot: it opens still on the concept's view and eases on to its walker (no jump), coming in from above down a
     corridor from a start LEAD_SECONDS or more into the record, never through a wall, along the place film's own path
-    round a wall, from inside a closed hall (its film to dissolve in) where no way in is clear; it refuses a walker
+    round a wall, from inside a closed hall (its film to dissolve in) where no way in is clear, coming round with a
+    walker through an S-bend no one way keeps room along; it refuses a walker
     boxed in or in a slot narrower than an eye's clearance, holds each pass for its holds (shortened alike for a short
     record), dissolves between them with the activation colour bar over the sim body, draws one GRF arrow a foot from
     its despiked and low-passed push at half a metre a body weight, draws only the passes a frame shows, and shows the
@@ -451,7 +452,11 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/peel.py: `return [passes[shown]] if coming == shown or share <= 0 else` -> `return
         list(passes) if True else`
     Break: score/stages/demo_film/peel.py: `"sim_timed.usda", scene_rate / record_rate` -> `"sim_timed.usda",
-        record_rate / scene_rate`"""
+        record_rate / scene_rate`
+    Break: score/stages/demo_film/peel.py: `offsets = turning(scenes, aims, ...)` -> `offsets = None` -> the S-bend's
+        walker is refused
+    Break: score/stages/demo_film/peel.py: turning's `return (room[frame, way] >= metres and camera_paths.swept_clear(`
+        -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -969,6 +974,25 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     start, path, entered = peel.closing(walked, scenes, 120, (1280, 720), dict(view, eye=[0.0, 10.0, -20.0]), lead=48)
     eyes = np.array([view["eye"] for view in path])
     assert not entered and (np.abs(eyes[:, 2]) < 6.0).all() and (eyes[:, 1] < 4.0).all()
+    # a walker round an S-bend (along a walled lane, up a side one, along a third): no one way round it keeps room for
+    # the whole close-up, so its eye comes round with it, clear of the walls and seeing the walker all the way
+    def bend(frame):
+        return [0.1 * (frame - 135), 0.0] if frame <= 135 else [0.0, 0.1 * (frame - 135)] if frame <= 165 else \
+            [0.1 * (frame - 165), 3.0]
+    walked = np.stack([np.array([[x, 0.0, z], [x, 1.8, z]]) for x, z in map(bend, range(190))])
+    scenes = peel.camera_paths.scenes_of({str(number): trimesh.creation.box(bounds=bounds) for number, bounds in enumerate(
+        [[[-20.0, 0.0, 1.2], [-1.2, 10.0, 4.5]], [[1.2, 0.0, -1.2], [20.0, 10.0, 1.8]],
+         [[-20.0, 0.0, -1.5], [20.0, 10.0, -1.2]], [[-20.0, 0.0, 4.2], [20.0, 10.0, 4.5]]])}, floor,
+        lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    start, path, entered = peel.closing(walked, scenes, 120, (1280, 720), view, lead=48)
+    eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
+    hips = np.array([[bend(start + frame)[0], 0.9, bend(start + frame)[1]] for frame in range(120)])
+    off = (eyes - hips)[arrived:]
+    assert entered and start == 48 and np.allclose(eyes[:opening + 1], view["eye"]), "in from the concept's view"
+    assert (np.linalg.norm(off, axis=1) >= peel.CLOSE_LEAST - 0.05).all() and \
+        np.degrees(np.arccos(off[0, [0, 2]] @ off[-1, [0, 2]] / np.linalg.norm(off[0, [0, 2]]) /
+                             np.linalg.norm(off[-1, [0, 2]]))) > peel.HEADINGS, "it came round"
+    assert peel.sighted(scenes, aims, eyes, arrived) and np.abs(aims - hips)[arrived:].max() < 0.4, "clear, in sight"
     # a walker behind a wall from the concept's eye is reached along the place film's own path round its end
     wall = trimesh.creation.box(bounds=[[-10.0, 0.0, -0.2], [10.0, 30.0, 0.2]])
     scenes = peel.camera_paths.scenes_of({"0": wall}, floor, lambda flat: np.zeros(len(np.atleast_2d(flat))),

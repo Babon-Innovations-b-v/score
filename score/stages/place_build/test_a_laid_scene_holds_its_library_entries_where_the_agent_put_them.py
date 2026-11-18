@@ -70,6 +70,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - film.distances: the hold drifting at 0.1 m a frame -> the film does not open still on the concept's view
 - film.rounded: the cut corners kept unchecked -> a frame stands nearer the wall than the clearance
 - film.distances: the walk's speed kept to the end -> the camera does not slow to a stop
+- film.place_scenes: `standing.get(name, laid.meshes[name])` -> `laid.meshes[name]` -> the open door blocks the camera
 - place_build.palette_spec: the place's wear and dirt replaced by 0 -> the spec's wear is not the palette's
 - stair_core.outward: `volume > 0` made `volume < 0` -> the treads look down
 - stair_core.holed: the holes left out -> the back wall stands in the flat's doorway
@@ -570,7 +571,8 @@ def reviewed(folder):
 
 def filmed(tmp_path):
     """A film's path on a lane walled across but for a gap: still on the concept's view first, round the wall
-    (never through it) at eye height, every frame clear of every solid, and slowing to a stop at its end."""
+    (never through it) at eye height, every frame clear of every solid, and slowing to a stop at its end. A door in
+    the gap is a solid to the camera while shut, and stands open when marked score:opens (a walker comes through)."""
     folder = tmp_path / "lane"
     place_build.start(folder, "lane", tmp_path / "concept.png")
     place_build.blocks(folder, "road", [[-12, -0.3, -12, 12, 0, 30, "road"]], ground=True)
@@ -586,4 +588,15 @@ def filmed(tmp_path):
     assert np.allclose(frames[0]["aim"], np.array([0, 8, -12]) + 10 * np.array([0, -8, 22]) / np.hypot(8, 22), atol=0.01)
     assert len(crossing) and (crossing[:, 0] > 1.0 + film.CLEAR).all() and np.isclose(eyes[-1, 1], film.EYE, atol=0.01)
     assert made["least_clearance"] >= film.CLEAR and steps[-3:].max() < steps.max() / 4
+    place_build.blocks(folder, "door", [[1, 0, 9.9, 3, 2.5, 10.1, "door"]])
+    seen = []
+    for mark in ("", "swings"):
+        stage, place = place_build.opened(folder)
+        door = stage.GetPrimAtPath(f"/{place}/Objects/door")
+        door.CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("door")
+        door.CreateAttribute("score:opens", Sdf.ValueTypeNames.String).Set(mark)
+        stage.GetRootLayer().Save()
+        seen.append(film.camera_paths.first_hits(film.place_scenes(folder)["blocking"], np.array([[2.0, 1.2, 8.0]]),
+                                                 np.array([[0.0, 0.0, 1.0]]))[0])
+    assert np.isclose(seen[0], 1.9, atol=0.01) and np.isinf(seen[1]), seen
 

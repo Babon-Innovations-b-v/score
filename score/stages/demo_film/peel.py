@@ -124,6 +124,14 @@ MUSCLE_RADIUS = 0.005
 MUSCLE_GLOW = 2.0
 ACTIVATION_TOKENS = ("film-activation-0", "film-activation-1", "film-activation-2", "film-activation-3")
 HEADINGS = 12  # the ways round the walker tried for the camera, straight ahead of it first
+# Where no one way round a walker keeps CLOSE_LEAST clear over the whole close-up (a walker through a doorway and up a
+# turning stair), the close-up's eye comes round with it (`turning`): of TURN_HEADINGS ways round at RISES and
+# TURN_METRES off, at most TURN_STEPS headings and rises between measured frames, each step costing TURN_COST metres.
+TURN_HEADINGS = 24
+TURN_METRES = (4.0, 3.2, 2.4, 1.6)
+TURN_STEPS = 1
+TURN_COST = 0.5
+TURN_SMOOTH = 0.5  # seconds either side its eye's corners are rounded over
 # A close-up looks at the place behind its walker (owner's fault, 2026-11-17: the street peel faced the plaza's flat
 # backdrop): a way whose look past the walker, level at BACKED_HEIGHT over its hips, straight on and BACKED_SPREAD
 # degrees to either side (the picture's middle and its sides), meets the place within BACKED_METRES on every measured
@@ -431,8 +439,8 @@ def approach(count, seconds=APPROACH_SECONDS):
     return tuple(share ** 3 * (share * (share * 6.0 - 15.0) + 10.0) for share in (into, looked))
 
 
-def ways_round(aims):
-    """The ways a camera may look at a walker from (unit vectors, Y up), each with how many HEADINGS steps it turns
+def ways_round(aims, headings=HEADINGS):
+    """The ways a camera may look at a walker from (unit vectors, Y up), each with how many `headings` steps it turns
     from the three-quarter front (FACING degrees off the way it walks): every heading from straight ahead round, at
     every rise of RISES, so along a corridor and square to the walker are among them."""
     travel = aims[-1] - aims[0]
@@ -440,10 +448,10 @@ def ways_round(aims):
     travel = travel / np.linalg.norm(travel) if np.linalg.norm(travel) > 0.5 else np.array([0.0, 0.0, 1.0])
     side = np.cross(travel, [0.0, 1.0, 0.0])
     found = []
-    for step in range(HEADINGS):
-        turn = 2.0 * np.pi * step / HEADINGS
+    for step in range(headings):
+        turn = 2.0 * np.pi * step / headings
         flat = np.cos(turn) * travel + np.sin(turn) * side
-        off = abs((np.degrees(turn) - FACING + 180.0) % 360.0 - 180.0) / (360.0 / HEADINGS)
+        off = abs((np.degrees(turn) - FACING + 180.0) % 360.0 - 180.0) / (360.0 / headings)
         found += [(np.cos(rise) * flat + np.array([0.0, np.sin(rise), 0.0]), round(off)) for rise in RISES]
     return found
 
@@ -507,10 +515,76 @@ def along(route, shares):
     return np.column_stack([np.interp(shares * lengths[-1], lengths, route[:, axis]) for axis in range(3)])
 
 
+def turning(scenes, aims, measured):
+    """A close-up whose eye comes round its walker with it, where no one way keeps CLOSE_LEAST clear over the whole
+    shot: at each measured frame (`measured`, indexes into `aims`, the hips a frame) an eye on one of ways_round
+    (TURN_HEADINGS of them) at one of TURN_METRES, within the room on its ray from the hips (as closing's), CLEARANCE
+    clear of the place with its sight line to the walker SIGHT clear (as `sighted` asks), each the next one's way at most TURN_STEPS headings and rises round and the move
+    between them clear; of those runs, the one nearest CLOSE_METRES on the whole, less TURN_COST metres a step turned and
+    the metres it closes in or backs off, then nearest the three-quarter front. Each frame's offset of its eye from its
+    hips (frames x 3), between measured frames along the move; None where no run is."""
+    found = ways_round(aims, TURN_HEADINGS)
+    ways = np.array([way for way, _ in found])
+    turned = np.array([off for _, off in found], dtype=float)
+    states = [(way, metres) for way in range(len(ways)) for metres in TURN_METRES]
+    index = np.arange(len(found))
+    heading, rise = index // len(RISES), index % len(RISES)
+    offsets = np.array([ways[way] * metres for way, metres in states])
+    spots = [aims[frame] + offsets for frame in measured]
+    room = (camera_paths.first_hits(scenes["blocking"], np.repeat(aims[measured], len(ways), axis=0),
+                                    np.tile(ways, (len(measured), 1))).reshape(len(measured), len(ways))
+            - camera_paths.CLEARANCE)  # on the ray from the hips, as closing's room: nothing of the place between
+
+    def seen(frame, state):
+        way, metres = states[state]
+        eye = spots[frame][state]
+        return (room[frame, way] >= metres and camera_paths.swept_clear(scenes["solid"], eye, eye, camera_paths.CLEARANCE) and
+                camera_paths.swept_clear(scenes["solid"], aims[measured[frame]] + ways[way] * OWN_ROOM, eye, SIGHT))
+
+    apart = np.abs(heading[:, None] - heading[None, :])
+    apart = np.minimum(apart, TURN_HEADINGS - apart) + np.abs(rise[:, None] - rise[None, :])
+    near = np.array([[apart[one, other] <= TURN_STEPS and abs(TURN_METRES.index(here) - TURN_METRES.index(there)) <= 1
+                      for other, there in states] for one, here in states])
+    cost = np.array([[TURN_COST * apart[one, other] + abs(here - there) for other, there in states]
+                     for one, here in states])
+    gain = np.array([CLOSE_METRES - abs(CLOSE_METRES - metres) - 1e-3 * turned[way] for way, metres in states])
+    best = np.where([seen(0, state) for state in range(len(states))], gain, -np.inf)
+    came = []
+    for frame in range(1, len(measured)):
+        open_now = np.array([seen(frame, state) for state in range(len(states))])
+        scores = np.full((len(states), len(states)), -np.inf)
+        for one in np.flatnonzero(np.isfinite(best)):
+            for other in np.flatnonzero(near[one] & open_now):
+                if camera_paths.swept_clear(scenes["solid"], spots[frame - 1][one], spots[frame][other],
+                                            camera_paths.CLEARANCE):
+                    scores[one, other] = best[one] - cost[one, other]
+        came.append(np.argmax(scores, axis=0))
+        best = scores.max(axis=0) + gain
+        if not np.isfinite(best).any():
+            return None
+    chosen = [int(np.argmax(best))]
+    for back in reversed(came):
+        chosen.append(int(back[chosen[-1]]))
+    picked = offsets[chosen[::-1]]
+    frames = np.arange(len(aims))
+    moved = np.column_stack([np.interp(frames, measured, picked[:, axis]) for axis in range(3)])
+    width = max(1, round(TURN_SMOOTH * RATE))
+    padded = np.concatenate([np.repeat(moved[:1], width, axis=0), moved, np.repeat(moved[-1:], width, axis=0)])
+    kernel = np.ones(2 * width + 1) / (2 * width + 1)
+    eased = np.column_stack([np.convolve(padded[:, axis], kernel, mode="same")[width:-width] for axis in range(3)])
+    eyes = aims[measured] + eased[measured]
+    kept = all(camera_paths.swept_clear(scenes["solid"], eye, after, camera_paths.CLEARANCE) and
+               camera_paths.swept_clear(scenes["solid"], hips + (eye - hips) / np.linalg.norm(eye - hips) * OWN_ROOM,
+                                        eye, SIGHT)
+               for hips, eye, after in zip(aims[measured], eyes, [*eyes[1:], eyes[-1]]))
+    return eased if kept else moved  # its corners rounded over TURN_SMOOTH where that stays clear
+
+
 def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APPROACH_SECONDS):
     """A walker peel's start and camera, a view a film frame in the place's frame (Y up), from the walker's mesh over
     its whole record at the film's rate (`points`): of the starts each second into the record from `lead` frames on
-    that leave the shot's `count` frames, and the ways round it (ways_round), the one with most room for the close-up,
+    that leave the shot's `count` frames, and the ways round it (ways_round), the one with most room for the close-up
+    (measured from the camera's arrival on; before it the camera is on its way in, its moves checked by sighted),
     then for the zoom, then nearest its three-quarter front, then earliest, that has a clear way in (approach_route,
     `through` the place film's own path) and whose camera moves clear and sees the walker from halfway through its
     approach on (sighted), a way with the place behind the walker (`backed`) before any that looks past it into the
@@ -520,8 +594,10 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
     from the view's look to the walker; its angle from the view's to the one framing TALL_METRES at the close-up.
     Where no camera has a clear way in (a walker under glass the concept sees from outside), the best one with room
     comes in from the most room it has to its close-up over the approach instead, the film dissolving to it from the
-    concept's view (walker_job's `cut_in`). (the start, the views, whether the camera came in from the concept's view);
-    refused where no start and way leave CLOSE_LEAST."""
+    concept's view (walker_job's `cut_in`). Where no one way leaves CLOSE_LEAST (a walker in through a doorway and up a
+    turning stair), the close-up's eye comes round with the walker (`turning`), in from the concept's view as above,
+    the walker seen from the camera's arrival on (one may walk in through a doorway as it arrives). (the start, the
+    views, whether the camera came in from the concept's view); refused where no start and way leave CLOSE_LEAST."""
     path = hips_path(points, up=1)
     eye_share, look_share = approach(count, seconds)
     seen_from = int(np.searchsorted(eye_share, 0.5))
@@ -530,10 +606,19 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
     opening_look = np.asarray(view["aim"], dtype=float) - opened
     reach = float(np.linalg.norm(opening_look))
     opening_look = opening_look / max(reach, 1e-9)
+
+    def came_in(eyes, aims, fovs):  # the views coming in from the concept's: its angle and look on to the close-up's
+        apart = np.linalg.norm(aims - eyes, axis=1)
+        towards = (aims - eyes) / np.maximum(apart, 1e-9)[:, None]
+        looks = opening_look + (towards - opening_look) * look_share[:, None]
+        looks = looks / np.maximum(np.linalg.norm(looks, axis=1), 1e-9)[:, None]
+        looked = (reach + (apart - reach) * eye_share)[:, None] * looks + eyes
+        return viewed(eyes, looked, float(view["fov"]) + (fovs - float(view["fov"])) * eye_share)
+
     tried = []
     for start in range(lead, len(points) - count + 1, RATE):
         aims = path[start:start + count]
-        measured = aims[sorted({*range(0, count, EVERY), count - 1})]
+        measured = aims[sorted({*range(arrived, count, EVERY), count - 1})]  # the close-up's frames
         for way, turned in ways_round(aims):
             free = camera_paths.first_hits(scenes["blocking"], measured, np.tile(way, (len(measured), 1)))
             room = min(float(free.min()) - camera_paths.CLEARANCE, WIDE_METRES)
@@ -548,19 +633,24 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
             continue
         eyes = along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived])
         if sighted(scenes, aims, eyes, seen_from):
-            fov = close_fov(close, size)
-            fovs = float(view["fov"]) + (fov - float(view["fov"])) * eye_share
-            apart = np.linalg.norm(aims - eyes, axis=1)
-            towards = (aims - eyes) / np.maximum(apart, 1e-9)[:, None]
-            looks = opening_look + (towards - opening_look) * look_share[:, None]
-            looks = looks / np.maximum(np.linalg.norm(looks, axis=1), 1e-9)[:, None]
-            looked = (reach + (apart - reach) * eye_share)[:, None] * looks + eyes
-            return start, viewed(eyes, looked, fovs), True
+            return start, came_in(eyes, aims, np.full(count, close_fov(close, size))), True
     for close, room, _, start, way, _ in tried:
         aims = path[start:start + count]
         eyes = aims + (room + (close - room) * eye_share)[:, None] * way
         if sighted(scenes, aims, eyes):
             return start, viewed(eyes, aims, np.full(count, close_fov(close, size))), False
+    for start in range(lead, len(points) - count + 1, RATE):
+        aims = path[start:start + count]
+        offsets = turning(scenes, aims, sorted({*range(arrived, count, EVERY), count - 1}))
+        if offsets is None:
+            continue
+        closes, followed = np.linalg.norm(offsets, axis=1), aims + offsets
+        route = approach_route(scenes, opened, followed[arrived], through)
+        if route is None:
+            continue
+        eyes = along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived])
+        if sighted(scenes, aims, eyes, arrived):  # seen once arrived: a walker may come in through a doorway
+            return start, came_in(eyes, aims, np.array([close_fov(close, size) for close in closes])), True
     raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up "
                      "with a clear way in from the concept's view")
 
