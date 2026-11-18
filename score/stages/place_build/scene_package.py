@@ -8,7 +8,9 @@ Every object under /<place>/Objects (and every still effect under /<place>/Effec
 with usd-core and trimesh's glTF writer: each drawn mesh and cube in the object's own frame (a mesh that authors no
 normals shaded smooth, as Blender imports it), each face in the look bound to it (its part's, or the object's whole
 look laid over its own colour), that look as glTF PBR: its colour,
-metal, roughness, opacity and glow factors (a glow past 1 with KHR_materials_emissive_strength), its colour,
+metal, roughness, opacity and glow factors (a glow past 1 with KHR_materials_emissive_strength; every look double
+sided, as Cycles draws a face from both sides: a tunnel's one-skin wall and a dome's lamp strips are seen from inside
+and from out), its colour,
 metal-roughness, normal and glow maps as textures (an image surface's maps read box-projected in the mesh's own frame
 over the surface's `tile_metres`, as the preview reads them: each face by its own axis, without the preview's blend
 across a corner); a see-through look as glass (KHR_materials_transmission and _ior, its colour the preview's thin
@@ -24,7 +26,8 @@ own frame (`matrix` the whole transform); a copy stretched unevenly has its stre
 When the place's physics check has run (<folder>/ready.json, ready/), each copy carries its collider by its role
 (COLLIDERS): a prop a convex hull, free, its mass the entry's own record (the maker's `physics.mass_kg`, times its
 scale cubed) or null when the entry has none; everything else that stands a solid its mesh, fixed.
-Skinned characters, the sky's dome and animated effects are not converted: scene.json's `left_out` names each.
+Skinned characters (under /<place>/Characters too), the sky's dome and animated effects are not converted:
+scene.json's `left_out` names each.
 scene.json's `environment` is the place's sky and light as the final render draws them (environment_of): the sky's
 picture written into <out>/environment, its turn and glow, the ambient light, background, exposure, the sun, the AgX
 view transform and look, a night's moon and glow, the ground's albedo (ground_albedo: what an engine without
@@ -260,7 +263,7 @@ def pbr(look, ground=False):
     material = trimesh.visual.material.PBRMaterial(
         name=look_name(look), baseColorFactor=[float(value) for value in colour] + [opacity],
         metallicFactor=1.0 if combined else metallic, roughnessFactor=1.0 if combined else roughness,
-        emissiveFactor=glow, alphaMode="BLEND" if opacity < 1.0 else "OPAQUE", doubleSided=opacity < 1.0,
+        emissiveFactor=glow, alphaMode="BLEND" if opacity < 1.0 else "OPAQUE", doubleSided=True,
         baseColorTexture=Image.open(colour_map[0]).convert("RGBA" if opacity < 1.0 else "RGB") if colour_map else None,
         metallicRoughnessTexture=combined,
         normalTexture=Image.open(normal_map[0]).convert("RGB") if normal_map else None,
@@ -651,7 +654,7 @@ def animated(prim):
 def laid_objects(stage, place):
     """[(prim, kind)] of every object and effect laid, and [{name, why}] of those not converted."""
     found, left_out = [], []
-    for scope, default in (("Objects", "object"), ("Effects", "effect")):
+    for scope, default in (("Objects", "object"), ("Effects", "effect"), ("Characters", "character")):
         holder = stage.GetPrimAtPath(f"/{place}/{scope}")
         for prim in holder.GetChildren() if holder else []:
             kind = text_of(prim, "score:kind") or default

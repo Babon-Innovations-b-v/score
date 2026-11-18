@@ -637,7 +637,7 @@ def packaged(folder, out):
     as the preview's thin glass; each copy's collider from the physics check's roles, a prop's mass from its entry's
     record times its scale cubed; the lamps; the place's night, sun, grade (its view drawn as a lattice picture) and
     ground albedo; a mesh with no normals of its own smooth, as Blender shades it; a sliver xatlas charts nowhere
-    kept; the character, the rain and the sky named as left out."""
+    kept; every look double sided; the characters (one under Characters), the rain and the sky named as left out."""
     from score.stages.place_build import scene_package
     place_build.put(folder, "wall2", "kit/box_piece", at=(30, 0, 30), turn=(0, 45, 0))
     place_build.surface(folder, "wall2", "surface/steel")
@@ -667,6 +667,9 @@ def packaged(folder, out):
         (out / scene_package.GRADE_FILE).parent.mkdir(exist_ok=True)
         Image.new("RGB", (8 * 8, 8)).save(out / scene_package.GRADE_FILE)
 
+    laid = Usd.Stage.Open(str(folder / "scene.usda"))
+    UsdSkel.Root.Define(laid, "/yard/Characters/crew")  # a character laid beside the objects, as the walkers' layer
+    laid.Save()
     made = scene_package.packaged(folder, out, baker, grader)
     scene_package.DENSITY, scene_package.LARGEST = 512, 4096
     scene = json.loads((out / "scene.json").read_text())
@@ -689,6 +692,7 @@ def packaged(folder, out):
     assert {copies[name]["object"] for name in ("cabinet", "shelf", "stone")} == {"cabinet"}
     assert scene["objects"]["cabinet"]["route"] == "library glTF" and scene["objects"]["dune"]["route"] != "library glTF"
     assert np.allclose(crate["surface/boards@1"]["pbrMetallicRoughness"]["baseColorFactor"], (1, 0, 0, 1))
+    assert crate["surface/boards@1"]["doubleSided"] is True  # an opaque look drawn from both sides, as Cycles draws it
     assert np.allclose(crate["surface/steel@1 top"]["pbrMetallicRoughness"]["baseColorFactor"], (0.3, 0.3, 0.4, 1))
     sand_look = dune_looks["surface/sand@1"]["pbrMetallicRoughness"]
     assert np.allclose(sand_look["baseColorFactor"], (1.0, 0.2158605, 0.0, 1.0)) and "baseColorTexture" in sand_look
@@ -700,7 +704,7 @@ def packaged(folder, out):
     bulb = scene["lamps"][0]
     assert np.isclose(bulb["strength"], bulb["intensity"] * np.pi) and bulb["watts"] == bulb["strength"]
     assert np.isclose(scene["lamps"][2]["strength"], scene["lamps"][2]["intensity"] * 4.0)  # the render's sun units
-    assert {"walker", "rain", "sky"} <= {item["name"] for item in scene["left_out"]}
+    assert {"walker", "rain", "sky", "crew"} <= {item["name"] for item in scene["left_out"]}
     panel, panel_looks = gltf_of(out, scene, copies["panel"]["object"])
     ground, ground_looks = gltf_of(out, scene, copies["regolith"]["object"])
     _, tunnel_looks = gltf_of(out, scene, copies["tunnel"]["object"])
