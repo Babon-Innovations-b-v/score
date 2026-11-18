@@ -1,6 +1,20 @@
 # SCORE
 
-> **Demo film: coming.** It waits on environment 1's batch; the film replaces this box once it exists.
+## Demo
+
+Four places built by SCORE, each ending on the peel: a walker's player model, its SOMA body, then its
+musculoskeletal sim body with ground reaction force arrows. Full 1920x1080 films:
+[release demo-2026-11-18](https://github.com/Babon-Innovations-b-v/score/releases/tag/demo-2026-11-18).
+
+| Camp (Mars) | Campgrounds (Mars) |
+|---|---|
+| ![Camp](paper/score/demo/camp.gif) | ![Campgrounds](paper/score/demo/campgrounds.gif) |
+| **Stairwell (Earth, night)** | **Street (Earth, night, rain)** |
+| ![Stairwell](paper/score/demo/stairwell.gif) | ![Street](paper/score/demo/street.gif) |
+
+Every place passes SCORE's physics-readiness check (support, contact, doors in their openings, walkable routes,
+a settle run). Known limits are stated in the paper: the walkers' residual check still fails at its peaks, and
+the scenes are not yet photoreal throughout.
 
 **SCORE: Synthesising Complete, Owned, Responsive Environments for Simulation.**
 
@@ -16,16 +30,14 @@ The creator writes the score; coding agents and open tools play it.
 
 ## How it builds an environment
 
-The creator locks the design from the top down: an environment concept (its style and its physics), then a
-concept for each scene, from which the framework reads a scene inventory and writes a plan in metres. Everything
-below runs offline in cloud batches: models from close-ups through the prop route, surfaces from one shared
-library, then the settle, physics, light, motion, effects, sound and people layers, each behind measured gates
-and accepted before the next step reads it. Cheap checks run before every paid step, and the creator decides
-only at fixed points: locks, accepts, waivers and the batch's budget.
-
-Environment 1 is the evidence. Its first run was not accepted and its store was lost, so the paper shows none of it yet; its new
-batch makes the demonstrations: every layer of one environment, physics that holds, the same environment in a
-game engine, a robot simulator and a film render, and an edit that stays cheap.
+The creator locks a concept picture for each place. An agent then builds the place in Blender from library
+pieces (score_lib): it splits the concept into objects with SAM 3, lays walls, floors, terrain and props (picture-made
+or TRELLIS.2 models, painted from one shared material library with one palette per place), renders the
+concept's view, compares it with the concept and corrects, round after round. A physics-readiness check on
+MuJoCo (support, penetration, doors that fill their openings, people's feet, walkways, a settle run) must pass
+before a place counts as done. Walkers follow routes a pathfinder plans on the walkable floor; each route is
+split into pieces Kimodo can make, joined into one motion, and checked as a sim body. The method and its
+results are in the paper.
 
 **Sim bodies (experimental).** Every character gets a musculoskeletal sim body (MyoFullBody, 416 muscles) fitted to
 its SOMA body and standing on the scene's own floor: Newton and MuJoCo Warp work out each frame's joint moments,
@@ -40,7 +52,7 @@ done and what is a goal.
 - **The paper**, a working draft: [`paper/score/out/score.pdf`](paper/score/out/score.pdf). Its one source is
   [`paper/score/source/score.md`](paper/score/source/score.md); an arXiv-ready LaTeX tree is generated from it in
   [`paper/score/arxiv/`](paper/score/arxiv/).
-- **The framework**: `score/` (the runner, stages, gates, store, review pages and the creator cockpit),
+- **The framework**: `score/` (the runner, stages, gates, store, review pages and the place builder, `score/stages/place_build`),
   `tools/` (the prop pipeline, Blender and OpenUSD tools, sound, cloud runners), `data/` (environment 1's
   designs and the library's records) and `vendor/` (vendored tools, as released). The bible's
   [`architecture/components`](docs/bible.md#architecturecomponents) chapter says what is where.
