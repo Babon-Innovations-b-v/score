@@ -70,6 +70,10 @@ VIEW = {"view_transform": "AgX", "look": "AgX - Medium High Contrast"}
 # AgX's own log range about middle grey, so every colour the render can grade has its place in it.
 GRADE = {"size": 64, "low": -12.47393, "high": 4.026069, "middle": 0.18}
 GRADE_FILE = "environment/grade.png"
+# How the final render turns a UsdLux intensity into Blender's units (tools/blender/inside/usd_views.place_light, as
+# Blender's own USD reader does): a distant light's strength (W/m²) its intensity times SUN_STRENGTH, a sphere light's
+# watts its intensity times pi. A lamp's and the sun's `strength` is that, what the engine lights with.
+SUN_STRENGTH = 4.0
 
 
 # --- a gprim's faces ------------------------------------------------------------------------------------------------
@@ -663,7 +667,8 @@ def laid_objects(stage, place):
 
 
 def lamps_of(stage, place):
-    """The place's lamps: a sphere light's spot, watts, radius and colour; a distant light's way it shines."""
+    """The place's lamps: a sphere light's spot, watts, radius and colour; a distant light's way it shines; each its
+    USD intensity and its `strength` in Blender's units as the final render lights with it (SUN_STRENGTH)."""
     holder = stage.GetPrimAtPath(f"/{place}/Lights")
     lamps = []
     for prim in holder.GetChildren() if holder else []:
@@ -672,12 +677,14 @@ def lamps_of(stage, place):
         about = {"name": prim.GetName(), "intensity": float(light.GetIntensityAttr().Get() or 0.0),
                  "colour": [round(float(value), 6) for value in light.GetColorAttr().Get() or (1.0, 1.0, 1.0)]}
         if prim.IsA(UsdLux.SphereLight):
+            watts = round(about["intensity"] * math.pi, 6)
             lamps.append(dict(about, kind="point", at=[round(float(value), 4) for value in world[3, :3]],
-                              watts=about["intensity"], radius=float(UsdLux.SphereLight(prim).GetRadiusAttr().Get())))
+                              watts=watts, strength=watts,
+                              radius=float(UsdLux.SphereLight(prim).GetRadiusAttr().Get())))
         elif prim.IsA(UsdLux.DistantLight):
             shines = np.array([0.0, 0.0, -1.0]) @ world[:3, :3]
-            lamps.append(dict(about, kind="sun", shines=[round(float(value), 6)
-                                                         for value in shines / np.linalg.norm(shines)]))
+            lamps.append(dict(about, kind="sun", strength=about["intensity"] * SUN_STRENGTH,
+                              shines=[round(float(value), 6) for value in shines / np.linalg.norm(shines)]))
     return lamps
 
 
@@ -691,11 +698,12 @@ def sky_way(prim):
 
 
 def distant(prim):
-    """A sun's or moon's record: where it stands (sky_way), its strength, colour and width."""
+    """A sun's or moon's record: where it stands (sky_way), its strength (Blender's W/m², as the final render lights
+    with it: its intensity times SUN_STRENGTH), colour and width."""
     light = UsdLux.DistantLight(prim)
     elevation, heading = sky_way(prim)
     return {"name": prim.GetName(), "elevation": elevation, "heading": heading,
-            "strength": float(light.GetIntensityAttr().Get() or 0.0),
+            "strength": float(light.GetIntensityAttr().Get() or 0.0) * SUN_STRENGTH,
             "colour": [round(float(value), 6) for value in light.GetColorAttr().Get() or (1.0, 1.0, 1.0)],
             "angle": float(light.GetAngleAttr().Get() or 0.0)}
 

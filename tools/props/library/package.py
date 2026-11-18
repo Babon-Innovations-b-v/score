@@ -28,7 +28,8 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          one's, or null)}
     children             [{object, on}]: an object standing on another object, laid by its parent
     lamps                [{name, kind, intensity, colour [r, g, b]}]: kind "point" with `at` [x, y, z], `watts` and
-                         `radius` (metres), or "sun" with `shines`, a unit way [x, y, z]
+                         `radius` (metres), or "sun" with `shines`, a unit way [x, y, z]; [place_build] each with its
+                         `strength` in Blender's units as the final render lights with it (watts, a sun's W/m²)
     counts               {kind: copies}: a kit room's layout or [place_build] the laid place's own, checked against
                          its instances
     physics              [place_build] the physics check's file ("ready.json"), or null when it has not run
@@ -38,8 +39,8 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          package), projection, turn (degrees about up), strength, library} or null, `ambient` [r, g, b]
                          (linear), `background` [r, g, b] or null, `exposure` (a multiplier), `view_transform` and
                          `look` (the grade the engine's tone mapping takes), `sun` {name, elevation, heading (degrees
-                         round from +x towards +z), strength, colour, angle} or null, `night` {moon (as the sun), glow
-                         {threshold, intensity} or null} or null, `ground_albedo` [r, g, b] (linear: the laid ground's
+                         round from +x towards +z), strength (Blender's W/m²), colour, angle} or null, `night` {moon
+                         (as the sun), glow {threshold, intensity} or null} or null, `ground_albedo` [r, g, b] (linear: the laid ground's
                          baked tile's mean base colour, the light it throws back up) or null, `grade` {file (a
                          16-bit PNG under the package), size, low, high, middle, display, layout}: the view transform
                          and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -

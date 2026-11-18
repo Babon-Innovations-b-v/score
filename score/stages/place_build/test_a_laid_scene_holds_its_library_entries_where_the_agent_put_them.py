@@ -113,6 +113,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   normals each, not Blender's one smooth normal
 - scene_package.ground_albedo: the picture's sRGB mean taken as linear -> the regolith's albedo reads 0.5, not 0.216
 - scene_package.packaged: the grade left undrawn -> the environment names no grade picture
+- scene_package.distant: the USD intensity as the strength -> the moon is 0.01, not the render's 0.04
 - scene_package.unwrapped: a sliver xatlas charts on no map left out -> the sliver beside the square is lost (2 of 3)
 """
 import json
@@ -678,6 +679,9 @@ def packaged(folder, out):
     assert copies["wall"]["collider"] == {"shape": "mesh", "dynamic": False} and copies["crate"]["collider"] is None
     assert [(lamp["name"], lamp["kind"]) for lamp in scene["lamps"]] == [("bulb", "point"), ("sun", "sun"),
                                                                          ("moon", "sun")]
+    bulb = scene["lamps"][0]
+    assert np.isclose(bulb["strength"], bulb["intensity"] * np.pi) and bulb["watts"] == bulb["strength"]
+    assert np.isclose(scene["lamps"][2]["strength"], scene["lamps"][2]["intensity"] * 4.0)  # the render's sun units
     assert {"walker", "rain", "sky"} <= {item["name"] for item in scene["left_out"]}
     panel, panel_looks = gltf_of(out, scene, copies["panel"]["object"])
     ground, ground_looks = gltf_of(out, scene, copies["regolith"]["object"])
@@ -698,6 +702,7 @@ def packaged(folder, out):
                                    "KHR_materials_ior": {"ior": 1.5}} and glass["alphaMode"] == "BLEND"
     world = scene["environment"]
     assert world["exposure"] == np.float32(2.5) and world["sky"] is None and world["night"]["moon"]["elevation"] == 30
+    assert np.isclose(world["night"]["moon"]["strength"], 0.04)  # 0.01 laid, times 4 as Blender's reader reads it
     assert world["sun"]["elevation"] == 30 and world["sun"]["heading"] == 0 and world["view_transform"] == "AgX"
     assert world["look"] == "AgX - Medium High Contrast" and np.allclose(world["background"], (0.01, 0.04, 0.08))
     assert np.allclose(world["ground_albedo"], (0.2158605, 0.2158605, 1.0), atol=1e-5)  # the tile's (128, 128, 255)
