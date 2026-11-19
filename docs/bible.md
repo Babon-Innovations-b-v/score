@@ -849,8 +849,9 @@ PC's disk hit 99% full: this PC's store copy 331 GB, ended jobs' scratch 147 and
 images). On his PC, the conductor, pods and rented machines alike, datasets, inputs, results and models live in the
 store bucket and are read and written there; a disk holds the tools, the OS, caches with a size cap that evict on
 their own, and tmp files deleted when their job ends. `tools/cloud/this_pc.py` keeps its home's store a 50 GB cache
-(`SCORE_THIS_PC_CACHE_GB`): after each push `store-evict` sends every blob to the bucket and evicts each one no next
-run stands on, and a pull never brings an evicted blob back (the runner fetches it on its first read). The shared
+(`SCORE_THIS_PC_CACHE_GB`): after each push `store-evict --cap-gb` sends every blob to the bucket and evicts the ones
+no next run stands on, least recently read first, until the rest fits, and a pull never brings an evicted blob back
+(the runner fetches it on its first read from the store bucket, which the local backend names as Scaleway's). The shared
 `disk_keep.py` hook, at every session start and in the background, empties each ended agent job's scratch
 (`~/.claude/jobs/<job>/tmp`, untouched an hour, no process in it) but the paths its `tmp/KEEP` names, and says one
 line when the disk is over 80% full: its largest folders and what Docker could reclaim. It informs, never blocks.

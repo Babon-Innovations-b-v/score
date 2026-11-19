@@ -47,10 +47,11 @@ ask, since 2026-11-08), or over ssh to `--host`.
   add-only push left the conductor the old close-ups of every take remade here, and 22 places' palette rows went due).
 - **The store here is a capped cache** (owner, 2026-11-19, the PC's disk 99% full, this home's store 331 GB: "everything
   lives in the bucket instead of my local"): after every push, while the blobs held here pass CACHE_GB (50 GB;
-  SCORE_THIS_PC_CACHE_GB names another), `python -m score.conductor store-evict` runs against HOME: every blob goes
-  to the store bucket and each one no next run stands on is evicted once the bucket answers with its size and sha256
-  (score/conductor/disk.py store_evict, score/store/offload; the runner fetches an evicted blob back on its first
-  read). Refused with a run live in HOME, it evicts nothing and says why. A pull names each blob evicted here (its
+  SCORE_THIS_PC_CACHE_GB names another), `python -m score.conductor store-evict --cap-gb CACHE_GB` runs against
+  HOME: every blob goes to the store bucket and the ones no next run stands on, least recently read first, are evicted
+  until the rest fits, each once the bucket answers with its size and sha256 (score/conductor/disk.py store_evict,
+  score/store/offload; the runner fetches an evicted blob back on its first read, from the local backend's store
+  bucket, the Scaleway backend's). Refused with a run live in HOME, it evicts nothing and says why. A pull names each blob evicted here (its
   mark under store/evicted) in its manifest, so the door never sends it back down. `status` gives the GB held.
 - **The owner's decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat
   aswell"): `decide-yes ...` and `decide <yes id>` are the door's verbs of the same name (score/dashboard/sync/
@@ -234,12 +235,13 @@ def held_gb(home):
 
 
 def capped(home, environment):
-    """The store here kept a cache: while its blobs pass CACHE_GB, store-evict run against `home` under `environment`
-    (every blob into the store bucket, each evictable one evicted once the bucket proves it); one line said."""
+    """The store here kept a cache: while its blobs pass CACHE_GB, store-evict --cap-gb CACHE_GB run against `home`
+    under `environment` (every blob into the store bucket, the evictable ones least recently read first evicted until
+    the rest fits, each once the bucket proves it); one line said."""
     held = held_gb(home)
     if held <= CACHE_GB:
         return f"store cache {held:.1f} GB here, within its {CACHE_GB:g} GB cap"
-    done = asked([str(REPO / ".venv/bin/python"), *STORE_EVICT], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
+    done = asked([str(REPO / ".venv/bin/python"), *STORE_EVICT, "--cap-gb", f"{CACHE_GB:g}"], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
     said = (done.stdout.strip().splitlines() or done.stderr.strip().splitlines()
             or [f"store-evict exit {done.returncode}, nothing said"])[-1]
     return f"store cache {held:.1f} GB here, over its {CACHE_GB:g} GB cap: {said}"

@@ -58,6 +58,8 @@ Breaks (each applied once, seen red, reverted):
   store here is never a cache (2026-11-19: 331 GB on the PC).
 - this_pc.py `capped`: `held <= CACHE_GB` -> `True` -> a push over the cap evicts nothing; or `False` -> a store under
   its cap runs store-evict after every push.
+- this_pc.py `capped`: drop `"--cap-gb"` -> store-evict evicts every evictable blob, not the least recently read down to
+  the cap, so a blob the next run reads is fetched again.
 - this_pc.py `disk`: `free < FREE_WARN_GB` -> `False` -> status says 76 GB free with no warning; or drop the MACHINE
   name filter -> postgres is listed as a SCORE container.
 """
@@ -290,7 +292,7 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
         assert this_pc.capped(home, {"PROPS_HOME": str(home)}).endswith("over its 1e-09 GB cap: store-evict: done")
         cap.setattr(this_pc, "CACHE_GB", 1.0)
         assert "within its 1 GB cap" in this_pc.capped(home, {"PROPS_HOME": str(home)})
-    assert evicts == [(list(this_pc.STORE_EVICT), str(home))]
+    assert evicts == [([*this_pc.STORE_EVICT, "--cap-gb", "1e-09"], str(home))]  # to the cap, least read first
 
     # a run's own arguments, and whether it pushes
     for parser, arguments, gives, refusal in PARSED:
