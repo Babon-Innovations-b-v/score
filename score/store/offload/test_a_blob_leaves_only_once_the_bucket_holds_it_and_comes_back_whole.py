@@ -18,9 +18,14 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.fetched: catch the bucket's error and return (a network error read as absent).
 - offload.push: `for tried in range(PUSH_TRIES):` -> `for tried in range(1):` (a put whose connection the bucket drops
   is never sent again: a pod's large output failed to reach the bucket, surfaces-paint@tube 2026-11-07).
+- disk.least_used_over: drop the sort by st_atime (a capped store-evict evicts by name, a blob read since kept by none),
+  or `if over <= 0: break` dropped (a cache under its cap evicted whole; this PC's 50 GB cache, 2026-11-19).
+- disk.unread: a plain `open(path, "rb")` (store-evict's own scan of each blob moves its last-read time, so the cache's
+  least-recently-used order is the scan's, not the runs').
 """
 import json
 import os
+import time
 
 import botocore.exceptions
 import pytest
@@ -153,3 +158,20 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
         store.objects.read_bytes(offload.blob_key(standing))
     new, sha = stored(store, tmp_path, "new", b"new-" * 4096)  # a write never asks the bucket
     assert (blobs / sha).is_file() and store.listing(new) == {"new.bin": sha}
+
+    # a capped cache (this_pc.py's CACHE_GB, 2026-11-19): store-evict evicts the least recently read first, only until
+    # what stays fits under the cap; its own scan of the blobs leaves their read times as the runs left them
+    cached = tmp_path / "cached"
+    made = sorted(stored(Store.in_folder(cached / "store"), tmp_path, name, f"{name}-".encode() * 4096)[1]
+                  for name in ("c1", "c2", "c3"))
+    held_here = cached / "store" / "objects" / "blobs"
+    now = time.time()
+    for sha, days in zip(made, (2, 5, 9)):  # the first by name read last; each read over a day ago
+        os.utime(held_here / sha, (now - days * 86400, (held_here / sha).stat().st_mtime))
+    cap_gb = 1.5 * (held_here / made[0]).stat().st_size / 1e9  # one and a half blobs: two go
+    dry = disk.store_evict(cached, dry=True, repo=tmp_path / "repo", cap_gb=cap_gb, say=lambda line: None)
+    assert dry["evicted"] == 2, dry
+    done = disk.store_evict(cached, repo=tmp_path / "repo", bucket=offload.FolderBucket(tmp_path / "cache-bucket"),
+                            cap_gb=cap_gb, say=lambda line: None)
+    assert done["sent"] == 3 and done["evicted"] == 2 and not done["failed"], done
+    assert {path.name for path in held_here.iterdir()} == {made[0]}  # the most recently read stays

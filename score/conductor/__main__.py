@@ -13,7 +13,8 @@
     python -m score.conductor score-lib status|pull  # library_checkout: score_lib's checkout against origin, one line
     python -m score.conductor offload-pixal      # disk.offload_pixal: takes into the library, freed once read back
     python -m score.conductor store-gc [--dry]   # disk.store_gc: with no run live, the blobs nothing names removed
-    python -m score.conductor store-evict [--dry]  # disk.store_evict: blobs into the store bucket, proven ones evicted
+    python -m score.conductor store-evict [--dry] [--cap-gb N]  # disk.store_evict: blobs into the store bucket, proven
+                                                 # ones evicted (with --cap-gb, the least recently read until N GB stay)
     python -m score.conductor sweep [--force]    # disk.sweep: the routine steps, every step under the warning line
     python -m score.conductor cap-stop <reason>  # kill.cap_stop: the env1 cap's stop, every box's Jobs and machines
 """
@@ -42,7 +43,9 @@ def main(argv=None):
     commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
     commands.add_parser("offload-pixal")
     commands.add_parser("store-gc").add_argument("--dry", action="store_true", help="count only, remove nothing")
-    commands.add_parser("store-evict").add_argument("--dry", action="store_true", help="count only, send nothing")
+    evicting = commands.add_parser("store-evict")
+    evicting.add_argument("--dry", action="store_true", help="count only, send nothing")
+    evicting.add_argument("--cap-gb", type=float, help="evict the least recently read only until this many GB stay")
     commands.add_parser("sweep").add_argument("--force", action="store_true",
                                               help="every step, even above the warning line")
     commands.add_parser("cap-stop").add_argument("reason", help="why the cap stops paid work")
@@ -80,7 +83,7 @@ def main(argv=None):
     elif options.command == "store-gc":
         store_gc(options.dry)
     elif options.command == "store-evict":
-        store_evict(options.dry)
+        store_evict(options.dry, options.cap_gb)
     elif options.command == "sweep":
         sweep(options.force)
     elif options.command == "size":
@@ -228,13 +231,14 @@ def store_gc(dry):
           f"{done['freed_gb']} GB; kept: {kept}; {disk.free_gb():.1f} GB free", flush=True)
 
 
-def store_evict(dry):
-    """disk.store_evict in one summary line: blobs sent, already there and evicted (or counted with `dry`), GB, kept
-    and why, failures, why it stopped; exit 1 when refused (the bucket unreachable too), stopped or a blob failed."""
+def store_evict(dry, cap_gb=None):
+    """disk.store_evict (to `cap_gb` when given) in one summary line: blobs sent, already there and evicted (or counted
+    with `dry`), GB, kept and why, failures, why it stopped; exit 1 when refused (the bucket unreachable too), stopped
+    or a blob failed."""
     from score.conductor import disk
     from score.store import offload
     try:
-        done = disk.store_evict(dry=dry, say=lambda line: None)
+        done = disk.store_evict(dry=dry, cap_gb=cap_gb, say=lambda line: None)
     except (disk.Unprovable, offload.BucketUnreachable) as why:
         done = {"refused": str(why)}
     if done["refused"]:

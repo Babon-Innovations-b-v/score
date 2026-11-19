@@ -847,7 +847,7 @@ GC_YOUNG_SECONDS = 24 * 3600  # a blob this new may be one a write in progress (
 def shas_in(path):
     """Every 64-hex word in the file at `path` (read in chunks, a word across two chunks too)."""
     found, tail = set(), b""
-    with open(path, "rb") as source:
+    with unread(path) as source:
         while chunk := source.read(CHUNK):
             found |= {word.decode() for word in SHA.findall(tail + chunk)}
             tail = chunk[-63:]
@@ -856,8 +856,18 @@ def shas_in(path):
 
 def text_like(path):
     """Whether the file's first 8 KB hold no NUL byte: a listing, a record, a page, never a model or a picture."""
-    with open(path, "rb") as source:
+    with unread(path) as source:
         return b"\0" not in source.read(8192)
+
+
+def unread(path):
+    """The file at `path` opened to read without moving its last-read time (O_NOATIME), so the scans of store-gc and
+    store-evict leave a capped store's least-recently-used order (least_used_over) as the runs' reads left it; a plain
+    open where the kernel refuses the flag (a file another user owns: EPERM)."""
+    try:
+        return os.fdopen(os.open(path, os.O_RDONLY | os.O_NOATIME), "rb")
+    except PermissionError:
+        return open(path, "rb")
 
 
 def named_outside(home, repo, blobs, also=()):
@@ -1024,6 +1034,20 @@ def evictable_gb(home):
     return sum(size for _, size in evict_candidates(home)[0]) / 1024 ** 3
 
 
+def least_used_over(candidates, blobs, cap_gb):
+    """The candidates evicted to bring the blobs held under `blobs` within `cap_gb` (GB of 1e9 bytes, as this_pc.py's
+    CACHE_GB): the least recently read first (st_atime, which the kernel's relatime moves at least once a day and a
+    blob fetched back from the bucket starts new), until what stays fits; every candidate when even that is over."""
+    over = sum(path.stat().st_size for path in blobs.iterdir() if path.is_file()) - cap_gb * 1e9
+    chosen = []
+    for sha, size in sorted(candidates, key=lambda candidate: (blobs / candidate[0]).stat().st_atime):
+        if over <= 0:
+            break
+        chosen.append((sha, size))
+        over -= size
+    return chosen
+
+
 def pushed_and_evicted(objects, bucket, listed, sha, size, evictable):
     """One blob: sent unless the bucket lists it, then, when `evictable`, evicted once the bucket proves it holds it;
     (how it went: sent, there, listed or unproven; whether it was evicted)."""
@@ -1036,20 +1060,21 @@ def pushed_and_evicted(objects, bucket, listed, sha, size, evictable):
     return went, True
 
 
-def store_evict(home=None, runs_folder=None, dry=False, repo=None, bucket=None, say=print):
+def store_evict(home=None, runs_folder=None, dry=False, repo=None, bucket=None, cap_gb=None, say=print):
     """One at a time (alone), store_evicted below; refused while another store-evict holds the lock."""
     home = pathlib.Path(home or PROPS_HOME)
     with alone(home, EVICT_LOCK) as first:
         if not first:
             return {"sent": 0, "there": 0, "evicted": 0, "freed_gb": 0.0, "kept": {}, "failed": {},
                     "refused": "another store-evict is running", "stopped": None, "dry": dry}
-        return store_evicted(home, pathlib.Path(runs_folder or home / "runs"), dry, repo, bucket, say)
+        return store_evicted(home, pathlib.Path(runs_folder or home / "runs"), dry, repo, bucket, cap_gb, say)
 
 
-def store_evicted(home, runs_folder, dry, repo, bucket, say):
+def store_evicted(home, runs_folder, dry, repo, bucket, cap_gb, say):
     """With no run live (cache_refusal, asked again before each BATCH: a run that became live stops it, `stopped`
     saying why), every local blob sent to the store bucket (the evictable first) and each evictable one
-    (evict_candidates) evicted once the bucket proves it holds it; with `dry` the evictable counted only, nothing sent.
+    (evict_candidates; with `cap_gb`, only the least recently read until the rest fits, least_used_over) evicted once
+    the bucket proves it holds it; with `dry` the evictable counted only, nothing sent.
     {sent, there, evicted, freed_gb, kept, failed: {kind: count}, refused, stopped, dry}, and first_failure when a blob
     failed; Unprovable when a file cannot be read."""
     refused = cache_refusal(home, runs_folder, home / "store" / "cache", [])
@@ -1058,6 +1083,8 @@ def store_evicted(home, runs_folder, dry, repo, bucket, say):
     if refused:
         return done
     candidates, done["kept"] = evict_candidates(home, repo)
+    if cap_gb is not None:
+        candidates = least_used_over(candidates, home / "store" / "objects" / "blobs", cap_gb)
     if dry:
         gb = sum(size for _, size in candidates) / 1024 ** 3
         say(f"store-evict: would evict {len(candidates)} blobs once the bucket holds them, {gb:.2f} GB")
