@@ -18,7 +18,8 @@ The steps:
    hollow): scale and align only, its geometry otherwise its own. It is thinned to about `--faces`
    triangles first (prop_rig.decimated, its borders kept).
 4. Its parts (`parts_of`): the helmet (every face within HELMET_REACH of the head's middle above the neck), the visor
-   (the helmet's dark faces in front, its own baked colour read only to find it), the backpack (behind the chest, more
+   (the helmet's dark faces in front, its own baked colour read only to find it, their largest connected piece alone:
+   a dark seam at the helmet's rim is helmet), the backpack (behind the chest, more
    than PACK_OFF off the body) and the suit (the rest), each face's part settled to its neighbours'. Every open loop
    the outer cut left (the armpits behind the shoulders, the boots' tops and soles, where no sight line reached:
    black tears in the film) is closed by a fan from its middle (`closed`) after the fit (whose inside test the fans,
@@ -31,8 +32,8 @@ The steps:
    leg's points may hang only from their own leg, and the shoulders' rims) is smoothed towards its neighbours
    (`eased_cliffs`), so a stride bends the cloth over a few centimetres instead of one edge (walking's worst edge 11.9
    times its length before, 9.1 after; its 99.9th percentile 3.7 and 2.5).
-6. Every part's finish is a library surface (the root rule): the palette variant it names (`FINISHES`), a recipe
-   entry's address and its spec's colour, roughness and metal on a flat material named for the variant; the still's
+6. Every part's finish is a library surface (the root rule): the palette variant it names (`FINISHES`) in its own
+   token or the one `TOKENS` names, a recipe entry's address and its spec's colour, roughness and metal on a flat material named for the variant; the still's
    baked texture is dropped.
 7. The glTF (`written`): the dressed body's skeleton and clips (its corrective morph keys left out: the still has no
    targets), the still as its `work` node and a far body of FAR_TRIANGLES; `stretch` measures the longest edge's
@@ -71,7 +72,8 @@ CLOSE_ROUNDS = 3  # rounds an unseen face between seen ones joins them
 FIT_IN = ("Hips", "Spine1", "Spine2", "Head", "LeftLeg", "RightLeg", "LeftShoulder", "RightShoulder", "LeftArm",
           "RightArm")
 HEIGHTS = np.arange(1.70, 1.951, 0.01)  # the heights the fit tries, metres
-HELMET_REACH = 0.21  # metres from the head's middle (between Head and HeadEnd) a helmet face lies within
+HELMET_REACH = 0.25  # metres from the head's middle (between Head and HeadEnd) a helmet face lies within (the
+# suit's visor reaches 0.24 at its chin, the collar 0.26: at 0.21 the visor's lower half was cut off as suit cloth)
 VISOR_DARK = 0.5  # a helmet face darker than this (its baked colour's mean; the suit's visor 0.43 to 0.47, its shell
 # 0.6 and over) and VISOR_FRONT in front of the head's middle is the visor
 VISOR_FRONT = 0.04
@@ -83,6 +85,10 @@ EASE_HOLD, EASE_REACH = 0.01, 0.08  # metres from a hard part over which the sui
 # Each part's palette variant (the place's surface library, scene_library.py) and the recipe entry it is drawn from.
 FINISHES = {"suit": "suit_fabric", "helmet": "white_hard_case", "visor": "helmet_visor",
             "backpack": "suit_backpack_shell"}
+# The palette token a part's variant is laid in where it is not the variant's own: the suit and helmet the palette's
+# neutral white (case-white's warm cream read as skin under a Mars sun, as the paper's suit is a plain white), the
+# visor its darkest (steel-dark's mid grey read as a grey band, the paper's visor dark glass).
+TOKENS = {"suit": "label-white", "helmet": "label-white", "visor": "cable-black"}
 CLIFF = 20.0  # per metre: the weights' summed difference across an edge (0 to 2) over its length above which the
 # cloth round it is eased (a whole change of joint over 10 cm; the shoulder's 0.36 across 2.4 mm tore 11.8 times)
 CLIFF_REACH = 0.05  # metres over the surface from such an edge the easing reaches
@@ -305,7 +311,22 @@ def parts_of(mesh, colours, body, names, bind):
     pack = (~helmet & (middles[:, 2] < chest[2]) & (off > PACK_OFF) & (middles[:, 1] > hips)
             & (np.abs(middles[:, 0] - chest[0]) < 0.25))
     found[pack] = PARTS.index("backpack")
-    return kept_pieces(mesh, found)
+    return one_visor(mesh, kept_pieces(mesh, found))
+
+
+def one_visor(mesh, found):
+    """`found` with only the visor's largest connected piece kept as visor, every other visor piece (a dark seam
+    round the helmet's rim) helmet."""
+    visor = np.flatnonzero(found == PARTS.index("visor"))
+    if not len(visor):
+        return found
+    pairs = mesh.face_adjacency
+    pairs = pairs[np.isin(pairs[:, 0], visor) & np.isin(pairs[:, 1], visor)]
+    _, piece = connected_components(sparse_graph(pairs, len(found)), directed=False)
+    largest = np.bincount(piece[visor]).argmax()
+    found = found.copy()
+    found[visor[piece[visor] != largest]] = PARTS.index("helmet")
+    return found
 
 
 def kept_pieces(mesh, found, rounds=3):
@@ -469,13 +490,14 @@ def stretch(points, faces, order, kept, moves):
 
 def finish_of(palette, part):
     """A part's library finish from the palette: its variant's spec (tools/props/library: recipe, colour, roughness,
-    metal) and the recipe's entry address."""
+    metal) in its TOKENS token, else the variant's own, and the recipe's entry address."""
     import library as surface_library
     variant = FINISHES[part]
     every = surface_library.variants(palette)
     if variant not in every:
         raise StillError(f"the palette holds no {variant} ({', '.join(sorted(every))})")
-    spec = surface_library.spec(palette, variant, every[variant]["token"], surface_library.token_colours(palette))
+    token = TOKENS.get(part, every[variant]["token"])
+    spec = surface_library.spec(palette, variant, token, surface_library.token_colours(palette))
     return spec, f"surface/{spec['recipe']}@1"
 
 

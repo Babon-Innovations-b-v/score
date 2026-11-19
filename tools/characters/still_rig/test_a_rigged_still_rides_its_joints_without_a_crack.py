@@ -16,6 +16,8 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
 - a cube with one side cut away is not closed by `closed` (an open edge left, or a fan face turned against the face
   it borders, so the patch shows its back: the black tears at the shoulders and boots);
 - a lone face of another part inside a part is kept as that other part (`kept_pieces`);
+- a second, smaller visor piece apart from the visor (a dark seam round the helmet's rim) stays visor, or the largest
+  piece is not kept whole (`one_visor`);
 - the sphere's sight lines are not spread over both halves of every axis (`directions`).
 """
 import pathlib
@@ -103,6 +105,11 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     stray = part_of.copy()
     stray[10] = still_rig.PARTS.index("backpack")
     assert still_rig.kept_pieces(mesh, stray)[10] == part_of[10]
+    visor, helmet = still_rig.PARTS.index("visor"), still_rig.PARTS.index("helmet")
+    two = np.where(part_of == still_rig.PARTS.index("suit"), part_of, helmet)
+    two[-40:-10], two[-60:-56] = visor, visor
+    one = still_rig.one_visor(mesh, two)
+    assert (one[-40:-10] == visor).all() and (one[-60:-56] == helmet).all()
 
     sights = still_rig.directions(still_rig.SIGHTS)
     assert np.allclose(np.linalg.norm(sights, axis=1), 1.0)
