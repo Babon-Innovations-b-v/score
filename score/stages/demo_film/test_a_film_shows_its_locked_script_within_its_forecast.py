@@ -459,6 +459,8 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         walker is refused
     Break: score/stages/demo_film/peel.py: turning's `return (room[frame, way] >= metres and camera_paths.swept_clear(`
         -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall
+    Break: score/stages/demo_film/peel.py: in_sight's `np.asarray(hips, dtype=float) - [0.0, HIPS - FEET_OVER, 0.0]`
+        dropped from its sight lines -> the bench walker's feet hidden behind its bench
     Break: score/stages/demo_film/peel.py: closing's `for start in shut:` loop dropped -> the roofed S-bend's walker
         is refused (camp's tunnel astronaut at Earth's pace, 2026-11-19); its `turning(scenes, aims, sorted({*range(
         shown, ...` -> `range(arrived, ...` -> the same (its eye held in the lane's wall until the camera arrives)
@@ -1030,6 +1032,19 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     start, path, entered = peel.closing(walked, scenes, 120, (1280, 720), dict(view, eye=[0.0, 10.0, -20.0]), lead=48)
     eyes = np.array([view["eye"] for view in path])
     assert not entered and (np.abs(eyes[:, 2]) < 6.0).all() and (eyes[:, 1] < 4.0).all()
+    # a walker along a lab bench 0.8 m tall, the room for a camera only over it: the close-up sees its feet and the
+    # push under them as well as its hips (camp's astronaut behind its lab desk, 2026-11-19), never from just over it
+    walked = np.stack([np.array([[0.02 * frame, 0.0, 0.0], [0.02 * frame, 1.8, 0.0]]) for frame in range(200)])
+    benched = peel.camera_paths.scenes_of({str(number): trimesh.creation.box(bounds=bounds) for number, bounds in enumerate(
+        [[[-1.5, 0.0, 1.0], [5.5, 0.8, 2.0]], [[-1.5, 0.0, -1.3], [5.5, 3.0, -1.0]],
+         [[-1.8, 0.0, -1.3], [-1.5, 3.0, 10.0]], [[5.5, 0.0, -1.3], [5.8, 3.0, 10.0]]])}, floor,
+        lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    start, path, _ = peel.closing(walked, benched, 120, (1280, 720), view, lead=48)
+    eyes = np.array([view["eye"] for view in path])
+    feet = peel.hips_path(walked, up=1)[start:start + 120] - [0.0, peel.HIPS - peel.FEET_OVER, 0.0]
+    assert all(peel.camera_paths.swept_clear(benched["solid"], feet[frame] + (eyes[frame] - feet[frame]) / np.linalg.norm(
+        eyes[frame] - feet[frame]) * peel.OWN_ROOM, eyes[frame], peel.SIGHT) for frame in range(arrived, 120, peel.EVERY)), \
+        "its feet in sight over the bench"
     # a walker round an S-bend (along a walled lane, up a side one, along a third): no one way round it keeps room for
     # the whole close-up, so its eye comes round with it, clear of the walls and seeing the walker all the way
     def bend(frame):

@@ -148,6 +148,8 @@ FOV_MOST = 100.0
 EVERY = 4  # the frames between those the camera's room is measured on (rays and sweeps)
 OWN_ROOM = 0.5  # metres out of the hips a sight line is swept from: the walker's own body and what it walks by
 SIGHT = 0.05  # metres: a sight line's own radius, kept clear of the place
+FEET_OVER = 0.15  # metres over the walker's lowest point its feet are sighted at: its feet and push in view (camp's
+# astronaut behind a lab desk, 2026-11-19: its hips seen, its feet and GRF arrows hidden for 3 s)
 EDGE = (255, 196, 64)  # the wipe's edge line
 LEVEL = 0.7  # a ground triangle's normal against up (cosine): floors, treads, seats and beds, never a wall
 # The person's own frame is Y up (OpenUSD); Blender's is Z up: x stays, y becomes z, z becomes -y.
@@ -489,11 +491,21 @@ def ways_round(aims, headings=HEADINGS):
     return found
 
 
+def in_sight(scenes, hips, eye):
+    """Whether `eye` sees the walker whose hips are at `hips` (Y up): its sight lines from OWN_ROOM out of the hips and
+    out of its feet (FEET_OVER its lowest point, HIPS under the hips) to the eye SIGHT clear of the place's solids."""
+    for seen in (np.asarray(hips, dtype=float), np.asarray(hips, dtype=float) - [0.0, HIPS - FEET_OVER, 0.0]):
+        towards = (eye - seen) / max(np.linalg.norm(eye - seen), 1e-9)
+        if not camera_paths.swept_clear(scenes["solid"], seen + towards * OWN_ROOM, eye, SIGHT):
+            return False
+    return True
+
+
 def sighted(scenes, aims, eyes, seen_from=0):
     """Whether the camera moves clear and sees the walker: its eye's way between measured frames (each EVERYth and
-    the last) CLEARANCE off the place's solids, and from frame `seen_from` on its sight line from OWN_ROOM out of the
-    hips towards it SIGHT clear (camera_paths.swept_clear; never clearances, whose inside_solid counts a closed dome's
-    inside as solid)."""
+    the last) CLEARANCE off the place's solids, and from frame `seen_from` on the walker's hips and feet in its sight
+    (in_sight: camera_paths.swept_clear; never clearances, whose inside_solid counts a closed dome's inside as
+    solid)."""
     measured = sorted({*range(0, len(aims), EVERY), len(aims) - 1})
     if not all(camera_paths.swept_clear(scenes["solid"], eyes[frame], eyes[after], camera_paths.CLEARANCE)
                for frame, after in zip(measured, measured[1:] or measured)):
@@ -501,8 +513,7 @@ def sighted(scenes, aims, eyes, seen_from=0):
     for frame in measured:
         if frame < seen_from:
             continue
-        towards = (eyes[frame] - aims[frame]) / max(np.linalg.norm(eyes[frame] - aims[frame]), 1e-9)
-        if not camera_paths.swept_clear(scenes["solid"], aims[frame] + towards * OWN_ROOM, eyes[frame], SIGHT):
+        if not in_sight(scenes, aims[frame], eyes[frame]):
             return False
     return True
 
@@ -562,7 +573,7 @@ def turning(scenes, aims, measured):
     """A close-up whose eye comes round its walker with it, where no one way keeps CLOSE_LEAST clear over the whole
     shot: at each measured frame (`measured`, indexes into `aims`, the hips a frame) an eye on one of ways_round
     (TURN_HEADINGS of them) at one of TURN_METRES, within the room on its ray from the hips (as closing's), CLEARANCE
-    clear of the place with its sight line to the walker SIGHT clear (as `sighted` asks), each the next one's way at most TURN_STEPS headings and rises round and the move
+    clear of the place with the walker's hips and feet in its sight (in_sight, as `sighted` asks), each the next one's way at most TURN_STEPS headings and rises round and the move
     between them clear; of those runs, the one nearest CLOSE_METRES on the whole, less TURN_COST metres a step turned and
     the metres it closes in or backs off, then nearest the three-quarter front. Each frame's offset of its eye from its
     hips (frames x 3), between measured frames along the move; None where no run is."""
@@ -582,7 +593,7 @@ def turning(scenes, aims, measured):
         way, metres = states[state]
         eye = spots[frame][state]
         return (room[frame, way] >= metres and camera_paths.swept_clear(scenes["solid"], eye, eye, camera_paths.CLEARANCE) and
-                camera_paths.swept_clear(scenes["solid"], aims[measured[frame]] + ways[way] * OWN_ROOM, eye, SIGHT))
+                in_sight(scenes, aims[measured[frame]], eye))
 
     apart = np.abs(heading[:, None] - heading[None, :])
     apart = np.minimum(apart, TURN_HEADINGS - apart) + np.abs(rise[:, None] - rise[None, :])
@@ -617,8 +628,7 @@ def turning(scenes, aims, measured):
     eased = np.column_stack([np.convolve(padded[:, axis], kernel, mode="same")[width:-width] for axis in range(3)])
     eyes = aims[measured] + eased[measured]
     kept = all(camera_paths.swept_clear(scenes["solid"], eye, after, camera_paths.CLEARANCE) and
-               camera_paths.swept_clear(scenes["solid"], hips + (eye - hips) / np.linalg.norm(eye - hips) * OWN_ROOM,
-                                        eye, SIGHT)
+               in_sight(scenes, hips, eye)
                for hips, eye, after in zip(aims[measured], eyes, [*eyes[1:], eyes[-1]]))
     return eased if kept else moved  # its corners rounded over TURN_SMOOTH where that stays clear
 
