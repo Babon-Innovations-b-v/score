@@ -470,7 +470,15 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         opening_look + (towards - opening_look) * look_share[:, None]` -> a view looking away from its walker tips
         down at the ground halfway round
     Break: score/stages/demo_film/peel.py: `return hips + off * (np.maximum(apart, least) / apart)[:, None]` -> `return
-        eyes` -> the way in from behind the walker passes 3.1 m from its head, nearer than its 4 m close-up"""
+        eyes` -> the way in from behind the walker passes 3.1 m from its head, nearer than its 4 m close-up
+    Break: score/stages/demo_film/blender/compose.py: layer_of's `shadow[outside] = 1.0` dropped -> a pixel outside a
+        layer's box is blacked out
+    Break: score/stages/demo_film/blender/compose.py: composite's `np.argsort(-np.stack(` -> `np.argsort(np.stack(` ->
+        the farther walker is laid over the nearer
+    Break: score/stages/demo_film/layered.py: scene_keys' `text_hash(walker_block(text, name))` -> `text_hash(text)`
+        -> a changed walker changes every walker's key, so fixing one draws them all again
+    Break: score/stages/demo_film/layered.py: gathered's `found = None if at[2] in redraw else kept.find(key)` ->
+        `found = None` -> a frame the store holds is drawn again"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -1147,6 +1155,50 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     assert made["shots"]["wide"]["frames"] == 24 and peel_rows.output_faults(peeled) == []
     assert peel_rows.judge(peeled, {}, {}).answer == checks.PASS
     assert not (peeled / ".work").exists()
+
+    # a film drawn in layers (layered.py): each pixel the background under every layer's shadow, the nearer layer
+    # over the farther, a pixel outside a layer's box the background's own; a changed walker changes only its own
+    # layers' keys; a frame the store holds is placed, never drawn again, unless its layer is asked drawn again
+    import importlib.util
+    from score.stages.demo_film import layered
+    spec = importlib.util.spec_from_file_location("compose", layered.COMPOSE_SCRIPT)
+    compose = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(compose)
+
+    def rendered(colour, alpha, shadow, depth):  # a layer's EXR channels, a row of three pixels
+        found = {f"Combined.{axis}": np.array([[value * share for value, share in zip(colour, alpha)]])
+                 for axis in "RGB"}
+        found["Combined.A"] = np.array([alpha], dtype=float)
+        found.update({f"Shadow Catcher.{axis}": np.array([shadow], dtype=float) for axis in "RGB"})
+        found["Depth.Z"] = np.array([depth], dtype=float)
+        return compose.layer_of(found)
+    near = rendered([0.9, 0.9, 0.9], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0])
+    far = rendered([0.2, 0.2, 0.2], [1.0, 1.0, 0.0], [1.0, 1.0, 0.5], [5.0, 5.0, 5.0])
+    picture = compose.composite(np.full((1, 3, 3), 0.5), [far, near])
+    assert np.allclose(picture[0, :, 0], [0.9, 0.2, 0.25])
+    scene = tmp_path / "layered-scene"
+    (scene / layered.WALKERS / "layers").mkdir(parents=True)
+    (scene / "scene.usda").write_text(PLAIN)
+    (scene / layered.WALKERS / "characters.json").write_text(json.dumps(
+        {"looks": {"ann": {"look": "person/made"}, "bo": {"look": "person/made"}}}))
+    characters = scene / layered.WALKERS / "layers" / "characters.usda"
+    characters.write_text('def SkelRoot "ann"\n{\n}\ndef SkelRoot "bo"\n{\n}\n')
+    before = layered.scene_keys(scene, layered.walkers_of(scene), "code")
+    characters.write_text('def SkelRoot "ann"\n{\n}\ndef SkelRoot "bo"\n{\n  float fixed = 1\n}\n')
+    after = layered.scene_keys(scene, layered.walkers_of(scene), "code")
+    assert [name for name in before if before[name] != after[name]] == ["walker:bo"]
+    kept = layered.Kept(Store.in_folder(tmp_path / "layer-store"))
+    at = (layered.WALK, "f0000", layered.BACKGROUND)
+    drawn_once = tmp_path / "drawn-once"
+    exr = layered.frame_path(drawn_once, *at, ".exr")
+    exr.parent.mkdir(parents=True)
+    exr.write_bytes(b"the place's frame")
+    layered.frame_path(drawn_once, *at, ".json").write_text(json.dumps({"key": "k"}))
+    assert layered.gathered(drawn_once, {at: "k"}, kept) == {}
+    elsewhere = tmp_path / "elsewhere"
+    assert layered.gathered(elsewhere, {at: "k"}, kept) == {}
+    assert layered.frame_path(elsewhere, *at, ".exr").read_bytes() == b"the place's frame"
+    assert layered.gathered(elsewhere, {at: "k"}, kept, redraw=(layered.BACKGROUND,)) == {at: "k"}
 
 
 # --- the film gate --------------------------------------------------------------------------------------------------

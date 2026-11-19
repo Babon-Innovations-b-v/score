@@ -1093,11 +1093,11 @@ def place_job(folder, stage, physics, seconds, size, samples):
     return folder / "job.json"
 
 
-def joined(folder, count, passes=PASSES, drawn_in=None, ends=None, dissolve=False, cut_in=None):
-    """The shot's frames, the passes joined by their wipes (at `ends`, pass_ends'), or a walker peel's by its
-    dissolves (`dissolve`, walker_joined; from its `opening` pass over `cut_in`'s frames where it has one), into
-    folder/peel/<frame>.png; each pass's frame a film frame shows (needed) from whichever of `drawn_in` (the slices'
-    folders, else `folder`) drew it."""
+def joined(folder, count, passes=PASSES, drawn_in=None, ends=None, dissolve=False, cut_in=None, frames=None):
+    """The shot's frames (`frames` of its `count`, else all), the passes joined by their wipes (at `ends`,
+    pass_ends'), or a walker peel's by its dissolves (`dissolve`, walker_joined; from its `opening` pass over
+    `cut_in`'s frames where it has one), into folder/peel/<frame>.png; each pass's frame a film frame shows (needed)
+    from whichever of `drawn_in` (the slices' folders, else `folder`) drew it."""
     out = folder / "peel"
     out.mkdir(exist_ok=True)
     places = list(drawn_in or [folder])
@@ -1107,7 +1107,7 @@ def joined(folder, count, passes=PASSES, drawn_in=None, ends=None, dissolve=Fals
         return Image.open(next(found for found in (place / name / f"{frame:04d}.png" for place in places)
                                if found.exists())).convert("RGB")
 
-    for frame in range(count):
+    for frame in range(count) if frames is None else frames:
         if cut_in and frame < cut_in[0]:
             picture("opening", frame).save(out / f"{frame:04d}.png")
             continue

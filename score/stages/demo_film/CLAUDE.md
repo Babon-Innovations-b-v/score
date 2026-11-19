@@ -135,6 +135,14 @@ own sound; paid and cleared by the runner like any paid row.
 - **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).
+- **A film drawn in layers** (`layered.py`, owner 2026-11-19: "render a place's background once and the people on
+  top"): the place's walk-through and walker peel drawn as a background (the place without its people) and each walker,
+  SOMA and sim body layer alone over it with its shadows on the place (Cycles' shadow catcher), composited after. Each
+  layer frame is kept in the SCORE store and its bucket under a key of what it shows, so a fixed walker draws only its
+  own layers again (`draw ... --redraw walker:<name>` forces it). `preview` is the standard look every film passes
+  before its final (480x270, 4 frames a second, contact sheets, black/unmoved/walker-in-view faults); `draw` without
+  `--review` is refused without a passed preview of the same film key. `match` proves a composite against a whole
+  render of the same frames (`TOLERANCE`, its record `match/match.json`). Free on this PC's processor; no row runs it yet.
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
   itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `test_a_film_shows_its_locked_script_within_its_forecast.py` (no Blender, no spend; small local ffmpeg cuts,
   a place peel made with its cards' part drawn here).

@@ -10,6 +10,9 @@ dissolves in from it): `dressed` (the place as it is), `mesh` (the walker's bare
 job's points, solid with its edges drawn) and `sim` (its sim body layer, timed to the place, each touching body's
 push an arrow, its muscles in the film's activation colours), the walker's own dressed body hidden in the last two. The peel's drawing is body_peel.py's (bare,
 sim, arrow_at, faded); nothing here works out a pose, a push or a camera.
+A job naming `layered` ({"out": folder}; ../layered.py) draws each view's layers instead (layered.py: the place once,
+the walkers, the SOMA surface `soma:<walker>` and the sim body `sim:<walker>` each alone over it), the view's own
+`layers` naming which.
 """
 import json
 import pathlib
@@ -22,10 +25,12 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 sys.path[:0] = [str(HERE), str(REPO / "tools/blender/inside"), str(REPO / "score/stages/place_build")]
 import body_peel  # noqa: E402
+import layered  # noqa: E402
 import usd_views  # noqa: E402
 
 LISTING = json.loads(pathlib.Path(sys.argv[sys.argv.index("--") + 2]).read_text())
 JOB = json.loads(pathlib.Path(LISTING["peel"]).read_text())
+VIEWS = {view["name"]: view for view in LISTING["views"]}
 PEELED = {}
 
 
@@ -49,6 +54,10 @@ def peeled():
     arrays = dict(np.load(person["arrays"]))
     mesh = body_peel.bare(person, arrays, groups["mesh"])
     arrows = body_peel.sim(person, arrays, groups["sim"], look)
+    if "layered" in JOB:  # each pass a layer of its own: the collections drawn, their objects shown one layer at a time
+        for name, layer in (("mesh", "soma"), ("sim", "sim")):
+            groups[name].hide_render = False
+            layered.register(f"{layer}:{JOB['walker']}", lambda group=groups[name]: list(group.all_objects))
     return {"groups": groups, "look": look, "arrays": arrays, "mesh": mesh, "arrows": arrows,
             "own": own_body(JOB["walker"])}
 
@@ -84,6 +93,10 @@ def with_passes(render):
     def drawn(scene, path, transparent):
         view = pathlib.Path(path).name  # usd_views' <view name>-look.png, the view f<frame> (o<frame> the opening's)
         frame = int(view[1:5])
+        if "layered" in JOB:
+            posed(scene, frame)
+            layered.drawn(scene, VIEWS[view.removesuffix("-look.png")], JOB["layered"]["out"])
+            return
         if view.startswith("o"):  # the concept's view the film dissolves in from: the place as it is
             shown("dressed")
             render(scene, pathlib.Path(JOB["out"]) / "opening" / f"{frame:04d}.png", transparent)
