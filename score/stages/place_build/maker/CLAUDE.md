@@ -16,6 +16,8 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   point distance; `--height` stands a new prop on the floor.
 - **The grade** (grade.py) moves each colour group GRADE of the way to its nearest palette token; a large group far from
   every token is a `mismatch` in the answer: repaint it from the library (`surface`), never grade harder.
+- **A graded paint is not a finish**: grade.py's `parts` names its paints, and `put` lays each as the palette
+  variant nearest its colour (finished/), so a made model never shows TRELLIS.2's paint as its finish.
 - **Mass** (sim.py): the hulls' outside skin (faces inside another hull left out) times the class's sheet and density;
   a sheetless class (stone) is solid. Steel is data/physics/materials.json's row, read; the maker's other classes stay
   here, since that table keys the physics rows. Hulls close over a frame's gaps, so a steel frame's mass is high.

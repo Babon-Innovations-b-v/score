@@ -31,7 +31,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     palette(folder, library, wear, dirt)               the place's one surface library (its scene palette's families
                                                        and tokens, as its props were painted from) taken in
     surface(folder, name, address, colour, part)       a library surface on an object, or on one of its named parts;
-                                                       `palette/<variant>` a variant of the place's palette
+                                                       `palette/<variant>` a variant of the place's palette; refused
+                                                       over the whole of a model whose own paint has parts
+    refinish(folder, name)                             the object re-finished per part from the palette (finished/);
+                                                       `put` does it to a model laid in a paint no library surface made
     light(folder, name, address, at, watts, radius, colour)
     sky(folder, address, elevation, heading, strength, colour)
                                                        a library sky laid as the place's own (its dome, its
@@ -270,7 +273,27 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         laid["at"] = rested(stage, path, at, turn, scale)
     marked(stage.GetPrimAtPath(path), role, support)
     saved(stage)
+    finish = own_paint_finished(folder, stage, place, name)
+    if finish:
+        laid["finish"] = finish
     return laid
+
+
+def own_paint_finished(folder, stage, place, name):
+    """A laid model made from a picture (a take, a Pixal3D or TRELLIS.2 model) whose own paint no library surface
+    painted, re-finished per part from the place's palette (finished.refinish) while it wears no look and the place
+    has its palette: never laid wearing a picture's paint. The re-finish's answer, or None."""
+    from score.stages.place_build import finished
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    record = finished.record_of(prim)
+    if (not (pathlib.Path(folder) / PALETTE).exists() or prim.GetAttribute("score:surface").HasAuthoredValue()
+            or finished.part_looks(stage, place, prim) or not finished.picture_made(record)
+            or finished.library_painted(prim, record)):
+        return None
+    asset = finished.model_file(prim)
+    if asset is None or not asset.exists() or not finished.paint(asset).parts:
+        return None
+    return finished.refinish(folder, name)
 
 
 def marked(prim, role=None, support=None):
@@ -911,6 +934,10 @@ def surface(folder, name, address, colour=None, part=None):
     _, _, copied = fetch(folder, address)
     stage, place = opened(folder)
     prim = object_prim(stage, place, name)
+    if part is None:
+        whole_over_parts(prim)
+        from score.stages.place_build import finished
+        finished.refinish_undone(stage, place, prim)
     if part is not None and part not in parts_of(prim):
         raise Refused(f"{name} has no part {part} (its parts are {', '.join(sorted(parts_of(prim))) or 'none'})")
     look_name = name if part is None else f"{name}__{part}"
@@ -924,6 +951,19 @@ def surface(folder, name, address, colour=None, part=None):
             prim.CreateAttribute("score:surface:colour", Sdf.ValueTypeNames.String).Set(colour)
     saved(stage)
     return {"name": name, "surface": address, "colour": colour, "part": part}
+
+
+def whole_over_parts(prim):
+    """Refused: one surface over the whole of a model whose own paint has several parts (finished.PARTS), which
+    would paint every part one flat paint (owner, 2026-11-19: a generator shown as plain clay)."""
+    from score.stages.place_build import finished
+    asset = finished.model_file(prim)
+    if asset is None or not asset.exists() or finished.is_scan(finished.record_of(prim)):
+        return
+    parts = finished.paint(asset).parts
+    if len(parts) >= finished.PARTS:
+        raise Refused(f"{prim.GetName()}'s own paint has {len(parts)} parts: one surface over all of it paints them "
+                      "one flat paint; `refinish` it (per part from the palette), or lay a surface on one part (--part)")
 
 
 def light(folder, name, at, watts, radius=0.05, colour="#ffffff", address="light/lamp"):
@@ -1086,8 +1126,16 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
+def refinish(folder, name):
+    """The object re-finished per part from the place's palette (finished.refinish)."""
+    from score.stages.place_build import finished
+    return finished.refinish(folder, name)
+
+
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze}
+         "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze,
+         "refinish": refinish}
+
 
 
 def batch(folder, steps):

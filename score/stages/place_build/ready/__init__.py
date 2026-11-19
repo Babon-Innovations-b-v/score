@@ -42,6 +42,10 @@ left out of every measure, `out_of_reach`). The faults, each with its measure:
   along its length.
 - `unstable`: let go in MuJoCo (settle_mujoco.py, in the physics trial's Python), it moves over SETTLE_MOVE or turns
   over SETTLE_TURN.
+
+Beside the physics, ready.json's `finishes` holds every object whose shown finish is not the library's (finished/:
+no material, its model's own paint no library surface made, a look naming no library surface, one surface over a
+model's painted parts); the place is ready only with none.
 """
 import json
 import os
@@ -56,6 +60,7 @@ from pxr import Sdf, Usd, UsdGeom
 
 from score.stages import place_build
 
+from score.stages.place_build import finished
 from score.stages.place_build.ready import people
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -1046,10 +1051,12 @@ def check(folder, settle=True):
     for faults in found.values():
         for fault in faults:
             counts[fault["fault"]] = counts.get(fault["fault"], 0) + 1
+    unfinished = finished.faults(stage, place)
     path = pathlib.Path(folder) / "ready.json"
-    path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "settle": engine}, indent=1))
-    return {"ready": not found, "objects": len(laid.prims), "with_faults": len(found), "counts": counts,
-            "settle": engine, "file": str(path)}
+    path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "finishes": unfinished,
+                                "settle": engine}, indent=1))
+    return {"ready": not found and not unfinished, "objects": len(laid.prims), "with_faults": len(found),
+            "counts": counts, "unfinished": len(unfinished), "settle": engine, "file": str(path)}
 
 
 # --- the `on` helper ----------------------------------------------------------------------------------------------

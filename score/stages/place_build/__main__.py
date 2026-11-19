@@ -24,6 +24,7 @@
                                        [--colour #rrggbb] [--part name]
     python -m score.stages.place_build light <folder> <name> --at x,y,z --watts W [--radius m] [--colour #rrggbb]
     python -m score.stages.place_build remove <folder> <name>
+    python -m score.stages.place_build refinish <folder> <name>
     python -m score.stages.place_build list <folder>
     python -m score.stages.place_build render <folder> [--width pixels] [--views name,name] [--final]
     python -m score.stages.place_build compare <folder>
@@ -200,6 +201,8 @@ def run(args):
         return place_build.light(args.folder, args.name, numbers(args.at), args.watts, args.radius, args.colour)
     if args.step == "remove":
         return place_build.remove(args.folder, args.name)
+    if args.step == "refinish":
+        return place_build.refinish(args.folder, args.name)
     if args.step == "list":
         return place_build.listing(args.folder)
     if args.step == "render":
@@ -361,7 +364,7 @@ def parser():
     step.add_argument("--watts", type=float, required=True)
     step.add_argument("--radius", type=float, default=0.05)
     step.add_argument("--colour", default="#ffffff")
-    for name in ("remove",):
+    for name in ("remove", "refinish"):
         step = steps.add_parser(name)
         step.add_argument("folder")
         step.add_argument("name")

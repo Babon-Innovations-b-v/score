@@ -137,12 +137,13 @@ from score.stages.place_build import film, measure, relief, render, review, stai
 def library(root, files):
     """A small library: a kit piece (a 1 x 2 x 0.5 m box in its own baked green), a variant surface and a recipe,
     a lamp, and a record-only kit entry; its files under `files` by their references."""
-    def entry(kind, entry_id, named):
+    def entry(kind, entry_id, named, provenance=None):
         folder = root / "entries" / kind / entry_id / "1"
         folder.mkdir(parents=True)
         folder.joinpath("entry.json").write_text(json.dumps({
             "schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "kind": kind, "id": entry_id,
-            "version": 1, "files": {name: {"role": role} for name, (role, _) in named.items()}}))
+            "version": 1, "files": {name: {"role": role} for name, (role, _) in named.items()},
+            "provenance": provenance or {}}))
         for name, (_, text) in named.items():
             target = files / f"{kind}/{entry_id}@1/{name}"
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -173,7 +174,8 @@ def library(root, files):
                                "piece.json": ("record", "{}")})
     entry("kit", "plan_only", {"plan.json": ("record", "{}")})
     glb = tmp_glb(root.parent)
-    entry("model", "cabinet", {"cabinet.glb": ("gltf", None)})
+    entry("model", "cabinet", {"cabinet.glb": ("gltf", None)},  # its parts painted from the library (finished/)
+          {"made_with": [{"by": "score", "what": "split, painted from the library surfaces and baked"}]})
     (files / "model/cabinet@1/cabinet.glb").write_bytes(glb)
     entry("take", "cup", {"cup.glb": ("gltf", None), "cup-final.glb": ("gltf", None)})
     for name in ("cup.glb", "cup-final.glb"):

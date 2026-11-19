@@ -15,6 +15,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `SCORE_BLENDER_LIBS` to the X/GL libraries this PC's Blender needs.
 - **`start --split` runs SAM 3 free on this PC's card** (score/review/concept_objects.py under SCORE_CLOUD=local and
   SCORE_FREE_ONLY=1, tools/cloud/backends/local.py's segment claim); never a rented card.
+- **Every shown part wears a library finish** (finished/, its own overlay): `surface` is refused over the whole of a
+  model whose own paint has parts, `refinish` lays it per part from the palette, `put` does so for a model in a paint
+  no library surface made, and the check (`check`, ready.json's `finishes`) tells every object that does not.
 - **Parts.** A kit piece's or model's colour regions are GeomSubsets; `surface --part` binds a surface on one, and the
   object's whole look then goes on every shape and every other part, so no baked colour shows anywhere.
 - **glTF-only entries** (our picture-made models and takes) are converted once at `put` (gltf.py): a part a material,

@@ -11,7 +11,8 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
 3. Set in the place's frame (fit.py): over the library model it replaces (`like`, its turn, scale and spot found by
    covering it best), or `height` metres tall on the floor.
 4. Its own paint graded toward the place's palette (grade.py, palette.json's tokens); a group still far from every
-   token is named a mismatch, for `surface` to repaint from the library.
+   token is named a mismatch. A graded paint is still not a library surface: `put` lays the made model's paint parts
+   (grade.parts) each as the palette variant nearest its colour (place_build/finished).
 5. Sim-ready (sim.py): CoACD hulls (`<id>-hulls.glb`), mass from the hulls and the material class, friction and
    restitution from the class, in its record (`<id>.json`).
 6. Taken into score_lib as a draft `model/<name>_trellis.<place>` entry (score-lib take-in --save), its picture and
