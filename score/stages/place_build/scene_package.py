@@ -28,6 +28,10 @@ When the place's physics check has run (<folder>/ready.json, ready/), each copy 
 scale cubed) or null when the entry has none; everything else that stands a solid its mesh, fixed.
 Skinned characters (under /<place>/Characters too), the sky's dome and animated effects are not converted:
 scene.json's `left_out` names each.
+Each door (an object the physics check takes for one, ready.role_of) carries its `door` block (doors_of): it moves as
+its one whole piece on the hinge the walkers swing it on (ready.swing_of), its opening, its score:opens mark and the
+enclosures either side of it; a shell or connector a door from another enclosure and a door from outside open into is
+an airlock chamber in scene.json's `chambers`, with its air's volume.
 scene.json's `environment` is the place's sky and light as the final render draws them (environment_of): the sky's
 picture written into <out>/environment, its turn and glow, the ambient light, background, exposure, the sun, the AgX
 view transform and look, a night's moon and glow, the ground's albedo (ground_albedo: what an engine without
@@ -77,6 +81,7 @@ GRADE_FILE = "environment/grade.png"
 # Blender's own USD reader does): a distant light's strength (W/m²) its intensity times SUN_STRENGTH, a sphere light's
 # watts its intensity times pi. A lamp's and the sun's `strength` is that, what the engine lights with.
 SUN_STRENGTH = 4.0
+PROBE = 0.3  # metres past a door's face (its depth's half and this) where the place on that side is read
 
 
 # --- a gprim's faces ------------------------------------------------------------------------------------------------
@@ -643,6 +648,109 @@ def collider_of(folder, prim, role, scale):
     return {"shape": shape, "dynamic": False}
 
 
+# --- doors and airlocks ---------------------------------------------------------------------------------------------
+
+def part_points(prim, part):
+    """The scene-frame points of the faces in the GeomSubset `part` of every mesh under an object (empty: none)."""
+    found = []
+    for inside in gprims(prim):
+        if not inside.IsA(UsdGeom.Mesh):
+            continue
+        subsets = [subset for subset in UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Imageable(inside))
+                   if subset.GetPrim().GetName() == part]
+        if not subsets:
+            continue
+        mesh = UsdGeom.Mesh(inside)
+        counts = np.asarray(mesh.GetFaceVertexCountsAttr().Get(), dtype=np.int64)
+        indices = np.asarray(mesh.GetFaceVertexIndicesAttr().Get(), dtype=np.int64)
+        starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+        faces = np.concatenate([np.asarray(subset.GetIndicesAttr().Get(), dtype=np.int64) for subset in subsets])
+        corners = np.concatenate([indices[starts[face]:starts[face] + counts[face]] for face in faces])
+        world = np.asarray(UsdGeom.Xformable(inside).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        points = np.asarray(mesh.GetPointsAttr().Get(), dtype=np.float64)[corners]
+        found.append(points @ world[:3, :3] + world[3, :3])
+    return np.vstack(found) if found else np.zeros((0, 3))
+
+
+def hull_of(points):
+    """A convex hull's planes (n x 4: outward normal, offset) and volume, or None for points that span no volume."""
+    from scipy.spatial import ConvexHull, QhullError
+    try:
+        hull = ConvexHull(points)
+    except QhullError:
+        return None
+    return hull.equations, float(hull.volume)
+
+
+def air_of(laid, name):
+    """An enclosure's air: the convex hull of its solid over its deck's top (each point below it raised onto it), a
+    tunnel's or dome's `deck` part, or the solid's own foot when it has none; (planes, volume) or None."""
+    points = np.asarray(laid.meshes[name].vertices, dtype=np.float64)
+    deck = part_points(laid.prims[name], "deck")
+    floor = float(deck[:, 1].max()) if len(deck) else float(points[:, 1].min())
+    return hull_of(np.column_stack([points[:, 0], np.maximum(points[:, 1], floor), points[:, 2]]))
+
+
+def enclosure_at(airs, point):
+    """The enclosure whose air holds a point (the smallest, when one lies in another), or None: outside."""
+    holding = [(volume, name) for name, (planes, volume) in airs.items()
+               if (planes[:, :3] @ point + planes[:, 3] <= 1e-6).all()]
+    return min(holding)[1] if holding else None
+
+
+def opening_of(laid, name, middle, axes, half, airs):
+    """The opening a door fills: the enclosure (shell or connector) whose box holds the door's middle, `end_wall` true
+    when that is a tunnel's end wall holding its doorway (the `cap` part within the door's depth and FRAME of its
+    plane), the door's own middle, size (across, up) and the way through it."""
+    holder = next((other for other in sorted(airs) if np.all(middle >= laid.meshes[other].bounds[0])
+                   and np.all(middle <= laid.meshes[other].bounds[1])), None)
+    cap = part_points(laid.prims[holder], "cap") if holder else np.zeros((0, 3))
+    from score.stages.place_build import ready
+    end_wall = bool(len(cap)) and bool(abs(float((cap.mean(axis=0) - middle) @ axes[2])) <= half[2] + ready.FRAME)
+    return {"in": holder, "end_wall": end_wall, "middle": np.round(middle, 4).tolist(),
+            "size": [round(float(2 * half[0]), 4), round(float(2 * half[1]), 4)],
+            "through": np.round(axes[2], 6).tolist()}
+
+
+def doors_of(stage, place, names):
+    """{door: its `door` block} for every laid object of `names` the physics check takes for a door (ready.role_of),
+    and scene.json's `chambers`. A door moves as its one whole piece (`leaf` the copy itself; place_build lays no slide)
+    on the hinge the walkers swing it on (ready.swing_of: up through an edge of its leaf, `limits` [0 and its open
+    turn] in degrees right-handed about +y); `opens` its score:opens mark; `between` the enclosures (or null, outside)
+    PROBE past its face along `through` and against it. An enclosure two doors open into, one from another enclosure
+    (inner) and one from outside (outer), is an airlock chamber, its air volume its hull's (air_of)."""
+    from score.stages.place_build import ready
+    prims = {name: stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in names}
+    if not any(prim and ready.role_of(prim) == "door" for prim in prims.values()):
+        return {}, []
+    laid = ready.Place(stage, place)
+    airs = {name: air for name in laid.with_role("shell", "connector") if (air := air_of(laid, name)) is not None}
+    doors = {}
+    for name in laid.with_role("door"):
+        if name not in prims:
+            continue
+        middle, axes, half = ready.frame_of(laid, name)
+        swing = ready.swing_of(laid, name)
+        reach_out = axes[2] * (half[2] + PROBE)
+        doors[name] = {"leaf": name, "frame": None, "move": "hinge", "axis": [0.0, 1.0, 0.0], "pivot": swing["hinge"],
+                       "limits": sorted([0.0, float(swing["degrees"])]), "open": float(swing["degrees"]),
+                       "opens": ready.opens(laid, name), "opening": opening_of(laid, name, middle, axes, half, airs),
+                       "between": [enclosure_at(airs, middle + reach_out), enclosure_at(airs, middle - reach_out)]}
+    chambers = []
+    for enclosure in sorted(airs):
+        inner = sorted(name for name, door in doors.items() if enclosure in door["between"]
+                       and any(side not in (None, enclosure) for side in door["between"]))
+        outer = sorted(name for name, door in doors.items() if enclosure in door["between"] and None in door["between"])
+        if inner and outer:
+            chambers.append({"name": enclosure, "inner": inner, "outer": outer,
+                             "air_volume": round(airs[enclosure][1], 3)})
+            for side, named in (("inner", inner), ("outer", outer)):
+                for door in named:
+                    doors[door].update({"lock": enclosure, "side": side, "leads": next(
+                        (other for other in doors[door]["between"] if other != enclosure), None)})
+    return doors, chambers
+
+
 # --- the package ----------------------------------------------------------------------------------------------------
 
 def animated(prim):
@@ -823,11 +931,15 @@ def write(folder, out):
             copy["collider"] = collider_of(folder, prim, copy["role"], scale)
         instances.append(copy)
         counts[kind] = counts.get(kind, 0) + 1
+    doors, chambers = doors_of(stage, place, [copy["name"] for copy in instances])
+    for copy in instances:
+        if copy["name"] in doors:
+            copy["door"] = doors[copy["name"]]
     scene = {"format": package.FORMAT, "version": package.VERSION, "place": place,
              "frame": "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
              "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
              "lamps": lamps_of(stage, place), "counts": counts, "physics": "ready.json" if roles is not None else None,
-             "left_out": left_out, "environment": environment_of(stage, place, out)}
+             "left_out": left_out, "chambers": chambers, "environment": environment_of(stage, place, out)}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     return scene
 

@@ -25,7 +25,16 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          transform as 16 numbers, column by column, as glTF writes a node's matrix; a kit piece also
                          `stretch` [x, y, z]; [place_build] instead of `row`, `name` and `kind`, and when the physics
                          check ran `role` and `collider` {shape ("convex hull" or "mesh"), dynamic, mass_kg (a dynamic
-                         one's, or null)}
+                         one's, or null)}; a door's copy `door` {leaf (the node that moves: the copy itself, the whole
+                         piece), frame (the still part, or null), move ("hinge"), axis and pivot (the hinge line, place
+                         frame), limits [low, high] and open (degrees, right-handed about the axis), opens (its
+                         score:opens mark: the walkers swing it open), opening {in (the shell or connector it is set
+                         in, or null), end_wall (a tunnel's end wall's doorway), middle, size [across, up], through (a
+                         unit way)}, between [the enclosure past its face along `through`, the one against it] (null:
+                         outside), and in a chamber lock, side ("inner" or "outer") and leads (where it opens to)}
+    chambers             [place_build] [{name, inner [doors], outer [doors], air_volume (m³: the convex hull of the
+                         enclosure over its deck's top)}]: an airlock, a shell or connector that a door from another
+                         enclosure and a door from outside open into
     children             [{object, on}]: an object standing on another object, laid by its parent
     lamps                [{name, kind, intensity, colour [r, g, b]}]: kind "point" with `at` [x, y, z], `watts` and
                          `radius` (metres), or "sun" with `shines`, a unit way [x, y, z]; [place_build] each with its

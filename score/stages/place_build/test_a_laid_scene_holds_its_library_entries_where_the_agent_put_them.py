@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -90,6 +90,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   Blender that cannot find libSM (exit 127), and the failure names no fix
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
+- scene_package.enclosure_at: the hull's planes read inward (`>= -1e-6`) -> the lock's doors open between nothing and
+  it is no chamber
+- scene_package.doors_of: `None in door["between"]` read for inner doors too -> the porch door reads as an outer door
+- scene_package.air_of: the deck's top left off (the hull from the skin's foot) -> the lock's air is past its segment
+- scene_package.opening_of: the cap part not read -> the hatch in the lock's end wall reads as in no end wall
 - review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
 - review.compartments_of: the dome shell address test dropped -> the wall is a compartment
 - review.projected: the up axis negated -> the plan's +z lands up, the aim's point off the middle
@@ -528,6 +533,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     reviewed(folder)
     packaged(folder, tmp_path / "package")
     filmed(tmp_path)
+    doored(tmp_path)
 
 
 def rained(folder):
@@ -777,3 +783,40 @@ def filmed(tmp_path):
                                                  np.array([[0.0, 0.0, 1.0]]))[0])
     assert np.isclose(seen[0], 1.9, atol=0.01) and np.isinf(seen[1]), seen
 
+
+
+def doored(tmp_path):
+    """An airlock laid with place_build: a capped tunnel (the chamber) joined to a second one (the base side), a door
+    at the join and a hatch in the end wall. The package gives each door its leaf, hinge, limits, opening and opens
+    mark, its sides read through it, and the chamber its inner and outer door and its air over the deck."""
+    from score.stages.place_build import scene_package
+    folder = tmp_path / "lock"
+    place_build.start(folder, "lock", tmp_path / "concept.png")
+    place_build.tube(folder, "chamber", 1.5, 3.0, hoops=3, cap=[1.6, 2.0])
+    place_build.tube(folder, "porch", 1.5, 4.0, at=(0, 0, -4), hoops=3)
+    place_build.blocks(folder, "inner_door", [[-0.5, 0, 0.0, 0.5, 2.0, 0.2, "door"]])
+    place_build.blocks(folder, "outer_hatch", [[-0.6, 0, 2.84, 0.6, 2.0, 3.0, "door"]])
+    stage, place = place_build.opened(folder)
+    for name in ("inner_door", "outer_hatch"):
+        stage.GetPrimAtPath(f"/{place}/Objects/{name}").CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set(
+            "door")
+    stage.GetPrimAtPath(f"/{place}/Objects/inner_door").CreateAttribute("score:opens", Sdf.ValueTypeNames.String).Set(
+        "walkers")
+    stage.GetRootLayer().Save()
+    scene = scene_package.write(folder, tmp_path / "lock_package")
+    doors = {copy["name"]: copy["door"] for copy in scene["instances"] if "door" in copy}
+    inner, outer = doors["inner_door"], doors["outer_hatch"]
+    deck = scene_package.part_points(stage.GetPrimAtPath(f"/{place}/Objects/chamber"), "deck")[:, 1].max()
+    low = 1.5 - deck  # the deck's top under the tube's axis
+    segment = 1.5 ** 2 * (np.pi - np.arccos(low / 1.5)) + low * np.sqrt(1.5 ** 2 - low ** 2)  # the circle over it
+    assert set(doors) == {"inner_door", "outer_hatch"} and inner["opens"] is True and outer["opens"] is False
+    assert inner["between"] == ["chamber", "porch"] and outer["between"] == [None, "chamber"]
+    assert (inner["side"], inner["leads"], outer["side"], outer["leads"]) == ("inner", "porch", "outer", None)
+    assert inner["opening"]["in"] == outer["opening"]["in"] == "chamber" and outer["opening"]["end_wall"] is True
+    assert inner["opening"]["end_wall"] is False and np.allclose(outer["opening"]["size"], [1.2, 2.0])
+    assert all(door["move"] == "hinge" and door["axis"] == [0.0, 1.0, 0.0] and door["leaf"] == name
+               and sorted([0.0, door["open"]]) == door["limits"] and abs(door["open"]) == 90.0
+               and np.isclose(abs(door["pivot"][0]), door["opening"]["size"][0] / 2) for name, door in doors.items())
+    [chamber] = scene["chambers"]
+    assert (chamber["name"], chamber["inner"], chamber["outer"]) == ("chamber", ["inner_door"], ["outer_hatch"])
+    assert segment * 3.0 < chamber["air_volume"] < 1.25 * segment * 3.0, (chamber, segment)
