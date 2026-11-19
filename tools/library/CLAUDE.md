@@ -17,3 +17,7 @@ score_lib (#22). `library_files.py` is the way in (its docstring has the names a
   is one `take` entry, every file under its work/pixal name (models, record, `.svviews` close-up and camera);
   `taken_in` commits and pushes takes through `score-lib take-in --save`, `read_back` fetches them again and compares
   size and sha256, `take_back` puts a missing take back. It is in `_code.FRAMEWORK`: it never changes a take's bytes.
+- **The public copy is a Hugging Face dataset repository** (#141): `SCORE_LIB_HUB_REPO=<owner/name>` makes the
+  library's command read it with no key, and the cloud's object store is then not read. `hub_mirror.py <owner/name>`
+  runs `score-lib hub-mirror` with the object store's variables in its environment only, after the owner's `hf auth
+  login`; it copies through memory, resumes, and checks the copy.

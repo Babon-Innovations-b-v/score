@@ -15,7 +15,7 @@ by the library's own command (`<SCORE_LIB_COMMAND> --root <SCORE_LIB_ROOT> fetch
 <cache>`; score never imports the library's code) and checked against the sha256 the entry records, every time it is
 resolved. The library's settings are the SCORE_LIB_* environment variables; when they are not set, `defaults()` gives
 the score_lib checkout beside score's own and its command, and when no blob store is set (SCORE_LIB_BLOBS_DIR,
-SCORE_LIB_S3_*), `blob_store()` gives the library's bucket (STORE_BACKEND's object_store(), whatever SCORE_CLOUD is: its endpoint,
+SCORE_LIB_S3_*, or SCORE_LIB_HUB_REPO, the library's public Hugging Face copy, read with no key), `blob_store()` gives the library's bucket (STORE_BACKEND's object_store(), whatever SCORE_CLOUD is: its endpoint,
 region and bucket, the prefix score_lib, and the runtime key from the backend's secret store), read once a run and
 handed to the command through its environment only, never written or printed. No settings file holds any of it
 (owner, 2026-10-20).
@@ -47,7 +47,7 @@ STORE_PREFIX = "score_lib"
 # the cluster's): the library's store is not the compute's.
 STORE_BACKEND = "scaleway"
 # Either of these set means the blob store is chosen already, and the cloud's is not read.
-BLOB_STORE = ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_ENDPOINT")
+BLOB_STORE = ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_ENDPOINT", "SCORE_LIB_HUB_REPO")
 # One file's fetch may take this long (a large model over a slow link).
 TIMEOUT = 600
 # The gaps already named on this run.
