@@ -257,7 +257,8 @@ def foot_pushes(frames, weight, rate):
     frame, Y up), for drawing: the force on every body the record's `feet` names on that side summed (its `touches`),
     despiked (a median over MEDIAN_SECONDS) and low-passed (a gaussian of LOW_PASS_HZ half power) at the record's
     `rate`, METRES_PER_BODY_WEIGHT for a push of `weight` newtons; from its centre of pressure, the push-weighted mean
-    of its bodies' own, smoothed alike (a foot in the air keeps its last one, its push nought)."""
+    of its bodies' own, smoothed alike (a foot in the air keeps its last one, its push nought; a touch whose centre
+    the record holds as NaN places nothing, so one such frame never blanks the foot's arrows for the whole film)."""
     from score.stages.place_build.film import smoothed
     feet = {body for frame in frames for body in frame.get("feet", {})}
     force, moment, load = (np.zeros((len(frames), len(SIDES), 3)), np.zeros((len(frames), len(SIDES), 3)),
@@ -267,9 +268,12 @@ def foot_pushes(frames, weight, rate):
             side = next((number for number, name in enumerate(SIDES) if body.startswith(name)), None)
             if body not in feet or side is None:
                 continue  # a hand on a rail, a hip on a wall: not the ground's push on a foot
-            pressed = max(float(push[1]), 0.0)
             force[index, side] += push[:3]
-            moment[index, side] += np.asarray(push[3:]) * pressed
+            centre = np.asarray(push[3:], dtype=float)
+            if not np.isfinite(centre).all():
+                continue  # a push with no centre of pressure (the record's NaN): its force counts, it places nothing
+            pressed = max(float(push[1]), 0.0)
+            moment[index, side] += centre * pressed
             load[index, side] += pressed
     width = max(3, 2 * round(MEDIAN_SECONDS * rate / 2) + 1)
     spread = np.sqrt(np.log(2.0)) / (2.0 * np.pi * LOW_PASS_HZ) * rate

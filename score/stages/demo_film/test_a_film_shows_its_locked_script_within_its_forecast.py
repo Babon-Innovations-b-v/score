@@ -952,6 +952,12 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     assert np.allclose(drawn[55, 0, 3:], 0.0, atol=1e-3) and np.allclose(drawn[55, 0, :3], drawn[25, 0, :3], atol=0.02)
     rising = drawn[15:26, 1, 4]
     assert (np.diff(rising) >= -1e-9).all() and rising[0] < 0.01 and 0.1 < rising[5] < 0.45, rising.round(3)
+    # a touch the record holds with a NaN centre (a foot in the air at nought, street's walker_r1) places nothing:
+    # every arrow stays finite and the same as without it
+    for frame in (5, 45):
+        steps[frame]["touches"]["RightFoot" if frame < 20 else "LeftFoot"] = [0.0, 0.0, -0.0, *[float("nan")] * 3]
+    unset = peel.foot_pushes(steps, 700.0, 30.0)
+    assert np.isfinite(unset).all() and np.allclose(unset, drawn, atol=1e-6), "a NaN centre blanks no foot"
     view = {"eye": [0.0, 12.0, -6.0], "aim": [0.0, 0.0, 0.0], "fov": 40.0}
     for name, (low, high), ends, speed, refused in WALKER_ROOMS:
         walked = np.stack([np.array([[speed * frame, 0.0, 0.0], [speed * frame, 1.8, 0.0]]) for frame in range(200)])
