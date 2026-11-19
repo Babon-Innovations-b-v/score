@@ -4,7 +4,7 @@ body's own skeleton, so it plays every clip and sim-body motion that body plays.
 trimesh); no model runs.
 
     .venv/bin/python tools/characters/still_rig/still_rig.py <still.glb> <dressed body.glb> <clips rig.npz>
-        <palette.json> <out folder> [--faces 60000]
+        <palette.json> <out folder> [--faces 60000] [--person]
 
 The steps:
 
@@ -14,13 +14,14 @@ The steps:
    weights (prop_rig.skinned_source): the body the still is fitted to and its weights' source, never drawn.
 3. The still is stood (prop_rig.stood: up +y, facing +z, soles on the floor), centred over the body's hips, and sized
    to the height at which the least of the body's trunk, head, thighs and shoulders stands outside it
-   (`fitted_height`); the still is its outer surface alone (`outer_kept`: TRELLIS.2's shell has an inner layer facing the
-   hollow): scale and align only, its geometry otherwise its own. It is thinned to about `--faces`
-   triangles first (prop_rig.decimated, its borders kept).
+   (`fitted_height`; a person, `--person`, at the body's own height); the still is its outer surface alone
+   (`outer_kept`: TRELLIS.2's shell has an inner layer facing the hollow): scale and align only, its geometry
+   otherwise its own. It is thinned to about `--faces` triangles first (prop_rig.decimated, its borders kept).
 4. Its parts (`parts_of`): the helmet (every face within HELMET_REACH of the head's middle above the neck), the visor
    (the helmet's dark faces in front, its own baked colour read only to find it, their largest connected piece alone:
    a dark seam at the helmet's rim is helmet), the backpack (behind the chest, more
-   than PACK_OFF off the body) and the suit (the rest), each face's part settled to its neighbours'. Every open loop
+   than PACK_OFF off the body) and the suit (the rest), each face's part settled to its neighbours'; a person's
+   (`--person`) only its head (the helmet's faces: face and hair) and its clothes (the rest). Every open loop
    the outer cut left (the armpits behind the shoulders, the boots' tops and soles, where no sight line reached:
    black tears in the film) is closed by a fan from its middle (`closed`) after the fit (whose inside test the fans,
    reaching across the hollow, would mislead: 21% of the skin outside against 4%).
@@ -84,8 +85,11 @@ VISOR_DARK = 0.5  # a helmet face darker than this (its baked colour's mean; the
 # 0.6 and over) and VISOR_FRONT in front of the head's middle is the visor
 VISOR_FRONT = 0.04
 PACK_OFF = 0.05  # metres off the body behind the chest a backpack face stands at least
-PARTS = ("suit", "helmet", "visor", "backpack")
+PARTS = ("suit", "helmet", "visor", "backpack", "head")
 RIGID = {"helmet": "Head", "visor": "Head", "backpack": "Chest"}
+# A person (`--person`) has no helmet, visor or backpack: the faces the helmet would take are its head (face and
+# hair), the rest its clothes; neither is rigid (hair resting on the shoulders is one surface with the shirt, and a
+# rigid head eased over it hung the stairwell woman's sleeves from her head).
 SEAM = 0.06  # metres either side of where two hard parts on different joints meet over which they share both
 EASE_HOLD, EASE_REACH = 0.01, 0.08  # metres from a hard part over which the suit is eased onto its joint (`rigid`)
 # Where on each of the still's faces its own paint is read (`Source`): the corners, the edges' middles, the middle and
@@ -337,14 +341,17 @@ def fitted_height(mesh, body, skin, names, bind):
 
 # --- the parts ------------------------------------------------------------------------------------------------------
 
-def parts_of(mesh, colours, body, names, bind):
-    """Each face's part number (PARTS): helmet, visor, backpack, else suit."""
+def parts_of(mesh, colours, body, names, bind, person=False):
+    """Each face's part number (PARTS): helmet, visor, backpack, else suit; a `person`'s head, else suit."""
     middles = mesh.triangles_center
     head = (bind[names.index("Head"), :3, 3] + bind[names.index("HeadEnd"), :3, 3]) / 2
     neck = bind[names.index("Neck1"), 1, 3]
     chest = bind[names.index("Chest"), :3, 3]
     found = np.zeros(len(middles), int)
     helmet = (np.linalg.norm(middles - head, axis=1) < HELMET_REACH) & (middles[:, 1] > neck)
+    if person:
+        found[helmet] = PARTS.index("head")
+        return kept_pieces(mesh, found)
     dark = colours[mesh.faces].mean((1, 2)) < VISOR_DARK
     found[helmet] = PARTS.index("helmet")
     found[helmet & dark & (middles[:, 2] > head[2] + VISOR_FRONT)] = PARTS.index("visor")
@@ -737,21 +744,26 @@ def taken_back(still_points, rig_points):
     return lambda points: np.c_[points, np.ones(len(points))] @ solved
 
 
-def rigged(still, dressed, rig_path, palette_path, out, faces=FACES):
-    """The still rigged on the dressed body's skeleton into `out` (body.glb, rig.json); the record."""
+def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=False):
+    """The still rigged on the dressed body's skeleton into `out` (body.glb, rig.json); the record. A `person` has a
+    head and clothes for parts (parts_of)."""
     document, blob, names, dressed_bind, parents = skeleton_of(dressed)
     rig = np.load(rig_path)
     body, body_weights = soma_on(rig, names, dressed_bind)
     raw, colours, source = still_of(still)
     thin = thinned(raw, faces)
     skin = trunk_skin(body, body_weights, names)
-    height, tried = fitted_height(thin, body, skin, names, dressed_bind)
+    # A person is a body, not a suit round one: stood at the body's own height, since a slimmer person than the SOMA
+    # mean leaves most of its skin outside at every height and the fit stretches her (the stairwell woman: 58%
+    # outside at 1.88 m, 66% at 1.78, her weights matched for 30% of her points)
+    height, tried = ((round(float(np.ptp(body.vertices[:, 1])), 2), {}) if person else
+                     fitted_height(thin, body, skin, names, dressed_bind))
     fitted = stood_at(thin, height, body, names, dressed_bind)
     bind, arm_turns = arms_turned(dressed_bind, names, parents, body, fitted)
     body, body_weights = soma_on(rig, names, bind)
     mesh = closed(fitted)
     colours = colours[cKDTree(raw.vertices).query(thin.vertices)[1]][cKDTree(fitted.vertices).query(mesh.vertices)[1]]
-    part_of = parts_of(mesh, colours, body, names, bind)
+    part_of = parts_of(mesh, colours, body, names, bind, person)
     fit = prop_rig.landmarks(prop_rig.sampled(mesh))
     weights, matched, smoothed = prop_rig.transferred(body, body_weights, mesh, np.array(names), fit)
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)
@@ -797,8 +809,11 @@ def main():
     parser.add_argument("palette", type=pathlib.Path)
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--faces", type=int, default=FACES)
+    parser.add_argument("--person", action="store_true",
+                        help="a person: a head and clothes, no helmet, visor or backpack")
     options = parser.parse_args()
-    record = rigged(options.still, options.dressed, options.rig, options.palette, options.out, options.faces)
+    record = rigged(options.still, options.dressed, options.rig, options.palette, options.out, options.faces,
+                    options.person)
     print(f"still rig: {record['height_m']} m, {record['triangles']} triangles, parts {record['parts']}, matched "
           f"{record['matched_share']:.0%}, stretch {({name: clip['stretch_most'] for name, clip in record['clips'].items()})}; "
           f"{options.out / 'rig.json'}", flush=True)

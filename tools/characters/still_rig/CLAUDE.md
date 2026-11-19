@@ -20,5 +20,11 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   shared at their seam. The outer cut's holes are closed (`closed`, after the fit) and the cloth round any weight cliff
   (the crotch, the shoulders) smoothed (`eased_cliffs`). Measure (`rig.json` stretch, open edges) and look at the
   frames: a number says something changed, only a picture says it is right.
+- **A person** (`--person`, the stairwell woman, the street man and the crowd; 2026-11-19): its still is made on a
+  cloud card (`score/stages/place_build/maker/cloud.py`) from its people-line close-up; it is stood at the body's own
+  height (a slimmer person than the SOMA mean leaves most of the mean's skin outside her at every height, and the fit
+  stretched the woman to 1.88 m), and its parts are its head and its clothes, neither rigid (a rigid head eased over
+  hair resting on the shoulders hung her sleeves from her head). Short sleeves still bulge at the shoulder when the
+  A-pose arms come down (the woman's right shoulder): the weights' limit, not the paint.
 - Plain CPU here; any GPU render goes to the cloud, never this PC's card.
 - Test: `test_a_rigged_still_rides_its_joints_without_a_crack.py`.

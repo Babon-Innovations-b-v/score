@@ -23,6 +23,9 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   back at each face's middle a colour other than its own (`own_maps` not taking the point back into the still's frame
   with `taken_back`, or reading the wrong texture place: the seams and panels of the still's own paint lost), the
   unwrap changes a face, or a texel outside every chart stays black (`bled`).
+- a person's still (`parts_of(..., person=True)`) has a helmet, visor or backpack face (a dark face read as a visor
+  and held rigid), or its head's faces are not all its head, or its head is held rigid (eased over hair resting on the
+  shoulders, it hung the stairwell woman's sleeves from her head).
 """
 import pathlib
 import sys
@@ -143,3 +146,17 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
         read = still_rig.bilinear(texture / 255.0, middle) * 255.0
         assert np.abs(read - colour).max() < 20
     assert (maps["base_color"].reshape(-1, 3).sum(1) > 0).all() and len(report) == 2
+
+    person = trimesh.creation.icosphere(subdivisions=3, radius=0.1)
+    person.vertices += [0.0, 1.65, 0.0]
+    person = trimesh.util.concatenate([person, trimesh.creation.box((0.4, 0.6, 0.2), trimesh.transformations
+                                                                    .translation_matrix([0.0, 1.1, 0.0]))])
+    joints = ["Hips", "Chest", "Neck1", "Head", "HeadEnd"]
+    bind = np.repeat(np.eye(4)[None], len(joints), axis=0)
+    bind[:, 1, 3] = [1.0, 1.3, 1.5, 1.6, 1.75]
+    dark = np.full((len(person.vertices), 3), 0.8)
+    dark[person.vertices[:, 2] > 0.05] = 0.1  # the face's front as dark as a visor
+    found = still_rig.parts_of(person, dark, None, joints, bind, person=True)
+    on_head = person.triangles_center[:, 1] > 1.52
+    assert (found[on_head] == still_rig.PARTS.index("head")).all()
+    assert set(found[~on_head]) == {still_rig.PARTS.index("suit")} and "head" not in still_rig.RIGID
