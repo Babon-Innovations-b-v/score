@@ -238,80 +238,35 @@ moments over the 416 muscles. A body is accepted when its residual
 forces and moments stay within the limits of the residual check
 {[}32{]}.
 
-Each walker is routed over the same floor that the scene check reads, so
-that a route the check accepts is one a person can walk. The floor is
-found in the manner of Recast {[}33{]}: every solid of the scene, a shut
-door included, is sampled over a grid of 12.5 cm cells, half the radius
-of the walker's body, and the upward-facing surfaces in each cell become
-spans, level slabs at their own heights. A span is floor when nothing
-stands within 1.7 m above it, neighbouring spans are joined when the
-step between them is no higher than 30 cm, and the floor is eroded by
-three cells from every wall, drop and obstacle, so that the spans that
-remain can carry the middle of a walkway 0.9 m wide. A stair flight then
-needs no special treatment, since its treads form a run of spans one
-riser apart.
+Each walker is routed over the same floor that the scene check reads. In
+the manner of Recast {[}33{]}, the scene's solids, shut doors included,
+are sampled on a 12.5 cm grid into walkable spans with 1.7 m of
+headroom, joined where the step between them is at most 30 cm and eroded
+from the walls so that a walkway 0.9 m wide remains; a stair flight is
+then simply a run of spans one riser apart. Dijkstra's algorithm
+{[}34{]} finds the shortest route between the walker's spots, which is
+straightened, rounded at its corners and timed. Because Kimodo makes at
+most ten seconds of motion per request, the route is cut into walking
+and climbing pieces, each keyed to the pose that ends the previous one,
+and a door on the route swings open shortly before the walker reaches it
+(Figure 2).
 
-The route through the walker's given spots is the shortest path over the
-joined spans, found with Dijkstra's algorithm {[}34{]}. It is reduced to
-its corners by keeping, from each retained point, the farthest later
-point still in sight of it over the floor, and each corner is rounded
-over 0.6 m so that the heading turns over several steps rather than in
-one frame. Where no walkway joins two spots, the route is refused rather
-than drawn through a wall. It is then timed at Kimodo's 30 frames per
-second, at 1.0 m/s on the flat, eased from and back to standing, and at
-one tread per step on a flight.
-
-Kimodo makes at most ten seconds of motion per request, and one sentence
-cannot describe both level walking and a climb, so the timed route is
-cut wherever a flight begins or ends and into equal pieces of at most
-seven seconds. Each piece is posed in its own canonical frame as a dense
-root path and heading with a sentence for a walk or a climb, and on a
-climb each foot is held to the middle of its tread. Every later piece is
-keyed on its first frames to the pose in which the previous one stood
-there, so that position and velocity are continuous across the join.
-Because Kimodo's climb tends to carry on upwards past the last tread,
-the joined motion is finally raised or lowered frame by frame until its
-standing foot rests on the ground, and a level piece that walks
-crouched, as about a third of Kimodo's samples did whatever the
-sentence, is made again from the next seed.
-
-A door marked as opening is turned 90 degrees about the hinge, and in
-the direction, that keeps the most floor joined in one piece, so that
-its doorway becomes a passage and the open leaf is walked around. Its
-swing is written into the scene's own timeline: the door stands open 1.5
-s before a walker crosses it and begins to close 1.5 s after.
-
-\makeatletter\def\fps@figure{!htb}\makeatother
+\makeatletter\def\fps@figure{!t}\makeatother
 
 \begin{figure}
 \centering
 \includegraphics[width=1\linewidth,height=\textheight,keepaspectratio,alt={The
-walkers of the stairwell, seen from above. (a) The walkers' floor, each
-cell coloured by the height of the storey that the route uses there and
-pale where it lies within half a walkway of a wall or edge, with both
-routes cut into pieces for Kimodo. (b) The stair core: the woman walks
-through the entrance door, swung open from its shut position (dotted),
-and climbs two flights by way of the landing to the upper
-floor.}]{figures/route.jpg}
-\caption{The walkers of the stairwell, seen from above. (a) The walkers'
-floor, each cell coloured by the height of the storey that the route
-uses there and pale where it lies within half a walkway of a wall or
-edge, with both routes cut into pieces for Kimodo. (b) The stair core:
-the woman walks through the entrance door, swung open from its shut
-position (dotted), and climbs two flights by way of the landing to the
-upper floor.}
+woman's route through the stairwell, drawn in 3D over its stairs,
+landings and walls. The route is cut into walking and climbing pieces
+for Kimodo, each joined to the next at a circle, and passes through the
+given spots (stars). The entrance door is swung open from its shut
+position (dotted) shortly before she reaches it.}]{figures/route.jpg}
+\caption{The woman's route through the stairwell, drawn in 3D over its
+stairs, landings and walls. The route is cut into walking and climbing
+pieces for Kimodo, each joined to the next at a circle, and passes
+through the given spots (stars). The entrance door is swung open from
+its shut position (dotted) shortly before she reaches it.}
 \end{figure}
-
-Each made walker is measured against fixed limits on foot slide (2 cm
-over a stance), distance from the route (10 cm), clearance from every
-solid (25 cm) and the standing foot's height over the ground (3 cm). In
-the stairwell (Figure 2), the woman's route of 13.5 m through the
-entrance door and up two flights became a level walk, two climbs and a
-short final walk, and the man's route of 19.3 m past the building three
-level pieces. Both kept every planted foot within the slide limit, but
-on the stairs the woman strayed up to 17 cm from her route and her
-standing foot stood up to 15 cm off the treads even after grounding, so
-the climb still fails its own limits.
 
 \section{Discussion}\label{discussion}
 
