@@ -67,7 +67,11 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   store (score_lib is not built; never say it is); `test_each_layer_counts_the_prims_it_specifies.py` checks the layer and prim counts. `layers3d` is
   the layer stack in real geometry: `layers_lift.py` renders it in Blender on a rented card (each layer a copy of the
   prims it specifies on its own plate, lifting apart under a slow orbit; the roof and haze left out), and `ending.py
-  layers3d` draws the labels on and appends the diagram's last 2 s. `test_a_films_shots_keep_clear_and_move_smoothly.py`, `test_a_film_is_shown_only_when_its_measures_pass.py` and `test_the_showcase_cuts_every_film_in_order_within_its_cap.py` check them without Blender.
+  layers3d` draws the labels on and appends the diagram's last 2 s. `opening.py` makes the demo film's opening (#128):
+  the title is its one text card (owner, 2026-11-19); style and physics are shown from the records, never told: each
+  concept with its palette's tokens, the laid library surfaces through the library's swatch renderer, the settle check
+  at the one gravity its script sets beside each sim body at its record's gravity (the settle is not per place).
+  `test_a_films_shots_keep_clear_and_move_smoothly.py`, `test_a_film_is_shown_only_when_its_measures_pass.py` and `test_the_showcase_cuts_every_film_in_order_within_its_cap.py` check them without Blender.
 - **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
   accepted assembled stage (`neighbours@<place>` where the place shows others, so the shown places resolve, else
   `assembly@<place>`: what the runner's complete row judges) out of the framework's store, runs `../usd/complete.py check` and `done` on the

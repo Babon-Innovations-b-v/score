@@ -15,10 +15,14 @@ Breaks (each applied once, seen red, reverted), in tools/review/showcase.py:
 - many clips in groups: joined_in_groups counts each group as long as its clips without their cross-fades.
 - picture outlasting sound: joined_apart lays the picture down without its sound (no `-map 1:a`). (Joining them all
   in one graph, the 2026-10-18 stall, does not stall on clips this small, so this test cannot show that one.)
+In tools/review/opening.py (the demo film's opening, its style and physics read from the records):
+- the surfaces: shown_surfaces lets a glowing surface or a second take of one recipe through.
+- the palette: palette_tokens keeps the palette's own order, the laid surfaces' tokens not first.
+- the gravity: settle_gravity reads a number other than the settle script's GRAVITY (a record's, or a fixed 9.82).
 
-One test: the pure judges (the legend, the chain's cards, the credit, the timeline) are rows of their tables, the
-joins rows of clip kinds fed through joined_in_groups, and one films world (every film's views and frames, the store's
-films, the assets) is cut once by figure() and by world(); both sheets go through one sheet judge, and the cut world's
+One test: the opening's facts read from one small stage; the pure judges (the legend, the chain's cards, the credit,
+the timeline) are rows of their tables, the joins rows of clip kinds fed through joined_in_groups, and one films
+world (every film's views and frames, the store's films, the assets) is cut once by figure() and by world(); both sheets go through one sheet judge, and the cut world's
 video is the draft row of the timeline table.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_the_showcase_cuts_every_film_in_order_within_its_cap.py
@@ -35,7 +39,27 @@ from PIL import Image
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import opening as the_opening  # noqa: E402
 import showcase  # noqa: E402
+
+# A stage's Looks as the assembly writes them: a look's resolved library recipe, and the prims bound to it.
+LOOK = """        def Material "{look}"
+        {{
+            token outputs:surface.connect = </yard/Looks/{look}/surface.outputs:surface>
+            custom string score:recipe:spec = '{spec}'
+        }}
+"""
+OPENING_LOOKS = [  # (look, library, recipe, token, prims bound)
+    ("wall_a", "yard_render", "weathered_render", "wall-grey", 3), ("wall_b", "yard_render", "weathered_render",
+                                                                    "wall-grey", 2),
+    ("lamp", "lamp_glow", "glowing", "lamp-cream", 9), ("rail", "rail_paint", "painted_metal", "rail-dark", 4),
+    ("crate", "crate_paint", "painted_metal", "crate-olive", 1), ("deck", "deck_boards", "boards", "deck-brown", 2),
+    ("unused", "spare_wood", "wood", "spare-tan", 0)]
+OPENING_TOKENS = {"spare-tan": "#aa8866", "deck-brown": "#664422", "wall-grey": "#888888", "rail-dark": "#222222",
+                  "lamp-cream": "#eeddcc", "crate-olive": "#556633"}
+# Shown: most bound first, glow and a second painted_metal left out, an unbound surface never.
+OPENING_SURFACES = [("yard_render", 5), ("rail_paint", 4), ("deck_boards", 2)]
+OPENING_PALETTE = ["lamp-cream", "wall-grey", "rail-dark", "deck-brown", "crate-olive", "spare-tan"]
 
 RED, BLACK, WHITE = (1.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)
 # A model's parts, (name, box extents, area, linear colour) -> the legend: its sRGB colour and its share of the area.
@@ -154,8 +178,20 @@ def joined_clips(folder, case, count, picture, sound):
 
 
 def test_the_showcase_cuts_every_film_in_order_within_its_cap():
-    """The showcase's numbers, its figure and its world video, all on pieces made here."""
+    """The showcase's numbers, its figure and its world video, and the opening's facts, on pieces made here."""
     folder = pathlib.Path(tempfile.mkdtemp())
+
+    # The opening: the surfaces and palette a stage's Looks lay, and the settle's gravity as its script sets it.
+    stage = "".join(LOOK.format(look=look, spec=json.dumps({"library": library, "recipe": recipe, "token": token}))
+                    for look, library, recipe, token, _ in OPENING_LOOKS)
+    stage += "".join(f"    rel material:binding = </yard/Looks/{look}>\n" * count for look, *_, count in OPENING_LOOKS)
+    laid = the_opening.laid_surfaces(stage, "yard")
+    shown = [(entry["spec"]["library"], entry["prims"]) for entry in the_opening.shown_surfaces(laid)]
+    assert shown == OPENING_SURFACES, shown
+    assert [token for token, _ in the_opening.palette_tokens(OPENING_TOKENS, laid)] == OPENING_PALETTE
+    script = folder / "settle.py"
+    script.write_text("import mujoco\nSECONDS = 1.0\nGRAVITY = 3.5\n")
+    assert the_opening.settle_gravity(script) == 3.5 and the_opening.settle_gravity() == 9.81
 
     for number, (case, parts, legend) in enumerate(LEGEND_ROWS):
         (folder / f"legend-{number}").mkdir()
