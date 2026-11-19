@@ -59,7 +59,7 @@ into its one test, every break below seen red on it again):
 - a climber's feet on the ground under them, 2026-11-14 (her sole 4.2 cm into the stairwell's tread between Kimodo's
   keyframes): treads_stood's `sunk = depth > 0.0` made `depth > 1.0` (the swinging foot 2 cm in left there);
   `gap < STANCE_HIGH` made `gap < 1.0` (the foot 4 cm over pulled down); `speeds[:, index] < STANCE_SPEED` dropped (the
-  swinging foot pulled down); surface_under's `>= UPWARD` made `>= 0.0` (the steep face read as ground); its
+  swinging foot pulled down); facing_up's `>= UPWARD` made `>= 0.0` (the steep face read as ground); surface_under's
   `heights <= ceilings` dropped (the shelf 0.5 m over the foot read as its ground).
 - a climber's swinging toes clear of the next step, 2026-11-19 (her toes 8 to 14 cm into the stairwell's next step,
   its tread over her ankle, her sim body 0.145 m into its ground): foot_over's ceiling `... + TREAD_REACH` made the

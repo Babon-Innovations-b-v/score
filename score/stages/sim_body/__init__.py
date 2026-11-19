@@ -243,7 +243,8 @@ def slowing(gravity):
 
 
 def make(inputs, out, seed, params):
-    """Every character's sim body run on its clip: sim_bodies.json, measures/, layers/sim_bodies.usda, played/ (PLAYED)."""
+    """Every character's sim body run on its clip: sim_bodies.json, measures/, layers/sim_bodies.usda and the clip
+    each played, played/ (PLAYED)."""
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
     place = cast["place"]
     clips_rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))

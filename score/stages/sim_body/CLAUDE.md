@@ -59,7 +59,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   `inside/myo` writes each person's file: #60's import fixes (names without '-', full muscle parameters, explicit
   inertials, multi-joint bodies split into 1 g wrappers, Euler), the floor gone.
 - **Each body is the person's own build**: the rig moved onto its look's built body (`people-body-<look>`'s rig.npz,
-  an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it by bone group (#70, `inside/sizing`;
+  an optional read, `person_rig`), recorded as `size`; its skin under each ankle squeezed onto the drawn body's sole
+  (`soles_drawn`, 2026-11-19: SOMA's mean foot sat 1.2 to 1.9 cm under every made body's, so the dressed feet stood
+  that far over the ground the skin stood on). MyoFullBody is sized to it by bone group (#70, `inside/sizing`;
   the stage hands the run the person's mesh and skin weights in its targets): every group, trunk and pelvis included,
   so its stretch is SOMA's (before 2026-10-28 the limbs only, the rest by standing height: 15 of 22 groups within
   1 cm, then all within 0.1 mm), measured between landmarks or the joint centres they define, the same rule on both

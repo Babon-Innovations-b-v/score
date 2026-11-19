@@ -118,14 +118,20 @@ def route_clip(rig, built, scene_rig, plan):
     return local
 
 
+def facing_up(ground):
+    """The triangles of `ground` (n x 3 x 3) a foot may stand on: facing up at least UPWARD."""
+    ground = np.asarray(ground, dtype=float).reshape(-1, 3, 3)
+    normals = np.cross(ground[:, 1] - ground[:, 0], ground[:, 2] - ground[:, 0])
+    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
+    return ground[np.abs(normals[:, 1]) >= UPWARD]
+
+
 def surface_under(ground, points, ceilings):
     """The highest ground surface (m) at each point's place across the floor (`points` n x 3) under its ceiling
     (`ceilings`, m, one a point): of the triangles (`ground` n x 3 x 3) facing up (UPWARD) whose span across the floor
     holds it; -inf where none does."""
-    ground, points = np.asarray(ground, dtype=float), np.asarray(points, dtype=float)
-    normals = np.cross(ground[:, 1] - ground[:, 0], ground[:, 2] - ground[:, 0])
-    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
-    flat = ground[np.abs(normals[:, 1]) >= UPWARD]
+    points = np.asarray(points, dtype=float)
+    flat = facing_up(ground)
     found = np.full(len(points), -np.inf)
     if not len(flat) or not len(points):
         return found
@@ -159,11 +165,14 @@ def foot_over(rig, local, ground, foot):
     world = played.chained(local, rig["parents"])
     skinning = world @ np.linalg.inv(np.asarray(rig["bind"]))
     placed = np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], np.c_[points[mine], np.ones(len(mine))])
-    low, high = placed[..., [0, 2]].reshape(-1, 2).min(axis=0), placed[..., [0, 2]].reshape(-1, 2).max(axis=0)
-    near = ground[((ground[:, :, [0, 2]].max(axis=1) >= low) & (ground[:, :, [0, 2]].min(axis=1) <= high)).all(axis=1)]
     ceiling = placed[..., 1].min(axis=1) + TREAD_REACH
-    under = np.array([surface_under(near, placed[frame], np.full(len(mine), ceiling[frame])) - placed[frame, :, 1]
-                      for frame in range(len(local))])
+    flat = facing_up(ground)
+    tops, bottoms = flat[:, :, [0, 2]].max(axis=1), flat[:, :, [0, 2]].min(axis=1)
+    under = np.empty((len(local), len(mine)))
+    for frame in range(len(local)):  # each frame against the triangles across its own foot only: the same heights
+        low, high = placed[frame, :, [0, 2]].min(axis=1), placed[frame, :, [0, 2]].max(axis=1)
+        near = flat[((tops >= low) & (bottoms <= high)).all(axis=1)]
+        under[frame] = surface_under(near, placed[frame], np.full(len(mine), ceiling[frame])) - placed[frame, :, 1]
     held = np.isfinite(under)
     return np.where(held, under, -np.inf).max(axis=1), np.where(held, -under, np.inf).min(axis=1)
 
