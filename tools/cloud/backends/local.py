@@ -46,7 +46,7 @@ another's beside it). Each kind's set-up (/root/venv, /root/kinds) and its model
 container whose own layer is past LAYER_LIMIT_GB loses its installer caches (`bounded`), said with the GB.
 
 The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry) says so or gives
-nothing; the secrets and the object store are the Scaleway backend's.
+nothing; the secrets, the object store and the store bucket are the Scaleway backend's.
 """
 import contextlib
 import fcntl
@@ -823,3 +823,10 @@ def object_store():
     never go there: this PC's runs send them straight to the container (SCORE_INPUTS_DIRECT), and the cluster's paths
     stop at `registry`."""
     return sibling("scaleway").object_store()
+
+
+# The store bucket score/store/offload.open_bucket reads: the Scaleway backend's, its region and its runtime key's
+# secret, so a run here reads a blob evicted from this PC's store (its 50 GB cache, this_pc.py CACHE_GB) back from the
+# bucket on its first read (owner, 2026-11-19: "everything lives in the bucket instead of my local").
+REGION, RUN_STORE_BUCKET, RUNTIME_KEY_SECRET = (getattr(sibling("scaleway"), name)
+                                                for name in ("REGION", "RUN_STORE_BUCKET", "RUNTIME_KEY_SECRET"))

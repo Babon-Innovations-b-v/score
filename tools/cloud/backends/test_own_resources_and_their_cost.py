@@ -50,6 +50,9 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: in `delete`, drop the `except BlockingIOError: ... return False` -> another claim's container is restarted.
   Its object store is the Scaleway backend's (the library's blobs a handover from here puts in, env1 2026-11-04).
   Break: `object_store` raises SystemExit again -> the handover from this PC exits before it runs.
+  Its store bucket is the Scaleway backend's too (REGION, RUN_STORE_BUCKET, RUNTIME_KEY_SECRET; score/store/offload's
+  open_bucket), so a run here reads a blob evicted from this PC's store back from the bucket (2026-11-19).
+  Break: drop local's RUN_STORE_BUCKET -> offload.open_bucket raises BucketUnreachable on the first evicted blob.
 - Blender claims (SHARED) share the machine's RUNS_AT_ONCE turns across places: a claim takes the free turns, lets
   each go as its slot runs out of work, and a second place's claim takes them while the first still runs; an
   exclusive claim is kept out meanwhile and, once it asks, keeps new Blender claims out; the container is restarted
@@ -550,8 +553,8 @@ ROUTE = {"card_gb": 1, "memory_gb": 3}
 # operator names called at once through card_turn, the most card calls on the card together) or ("beside", the card
 # slots held, an operator that must still run within 5 s).
 # This PC's own steps: ("pc size", GiB of memory, memory_cap, Blender jobs at once as local loads), ("offers", the
-# classes a run asks, the classes offered or the words of the refusal), ("library store",: local's object store is the
-# Scaleway backend's), ("pc",: the PC's world, its container 27g (35g with a job alone, 20 GiB of room free for one at
+# classes a run asks, the classes offered or the words of the refusal), ("library store",: local's object store and store
+# bucket are the Scaleway backend's), ("pc",: the PC's world, its container 27g (35g with a job alone, 20 GiB of room free for one at
 # first) and every docker call it makes kept), ("runner paths",), ("claim", name, kind, need, None when it waits, the
 # words of its refusal, or what the claim holds: turns, slots, id prefix, here, price, host, "not" another claim's
 # id), ("delete", name or machine id, what delete answers or None), ("mark", label: the docker calls so far, or with
@@ -917,6 +920,8 @@ def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_
         elif kind == "library store":
             monkeypatch.setattr(scaleway, "object_store", lambda: {"bucket": "the-library-bucket"})
             assert local.object_store() == {"bucket": "the-library-bucket"}, where
+            named = ("REGION", "RUN_STORE_BUCKET", "RUNTIME_KEY_SECRET")  # what offload.open_bucket reads
+            assert [getattr(local, name, None) for name in named] == [getattr(scaleway, name) for name in named], where
         elif kind == "pc":
             pc = this_pc(monkeypatch, tmp_path)
         elif kind == "account":
