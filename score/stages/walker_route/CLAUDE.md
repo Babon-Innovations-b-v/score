@@ -20,12 +20,16 @@ makes the pieces with Kimodo, free on this PC's card.
   GROUND_MOST (3 cm) of the ground under it. Never widen one to pass.
 - **A step a tread, left and right** (owner, 2026-11-19: "the step planning is just no where, like it would need an
   actual left or right step per step"; then "it needs to be through kimodo, otherwise it will just be warped
-  motion"): `footholds` plans one foot on every tread from the solids under the route (`levels`), alternating, each
-  sole whole on its tread NOSING_BACK back from its nosing, landings walked at Kimodo's cadence, and the route's
+  motion"): `footholds` plans one foot on every tread from the solids under the route (`levels`), alternating, a
+  climbing sole's toe tip halfway between the riser above and the furthest its heel may hang over the nosing, a
+  descending sole whole on its tread (`placed_on`), landings walked at Kimodo's cadence, and the route's
   height is the footholds' (`stood_roots`), never the floor cells' (a cell over a riser takes the upper tread's).
-  The footholds drive Kimodo itself: each is a left- or right-foot keyframe whose rest pose sets that sole on it
-  (`hips_over`, `sided`), Kimodo's post-processing on for climbs too (it pins their height; without it the soles
-  missed by 7 cm along, 6 across and 2 up). Never move a made motion's legs onto them. `foothold_faults` is the check
+  The footholds drive Kimodo itself: each is a left- or right-foot keyframe whose rest pose sets that sole where
+  Kimodo lands it on the foothold (`hips_over`: LANDED_AHEAD and LANDED_OUT, Kimodo's measured landing, written into
+  the key), the feet alternating on from the foot the piece before set down last (`sided`), Kimodo's
+  post-processing on for climbs too (it pins their height; without it the soles missed by 7 cm along, 6 across and
+  2 up), and a climb piece still faulting made from the next of CLIMB_TRIES seeds, the fewest faults kept
+  (`climb_faults`). Never move a made motion's legs onto them. `foothold_faults` is the check
   (a stair rule: the ball and toes on one tread within ON_TREAD_MOST, the ball back from the nosing, nothing through
   the riser above or into the tread, a climbing heel hanging over the nosing at most HEEL_OVERHANG_MOST, a
   descending sole whole; one stance a tread, alternating); its stances come from the joints, since a climb's

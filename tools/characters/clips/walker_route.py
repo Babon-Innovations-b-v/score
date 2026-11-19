@@ -5,7 +5,8 @@
 
 <folder>/walkers.json is the plan (walker_route.write_plan). Kimodo's model is loaded once (people/clips.py's model;
 its fixed seed for the first walker, the next seed for each walker after; a flat piece walking crouched or with its
-hands hanging made again from a seed SEED_STRIDE on, walker_route.slouched), the text encoder answered from saved embeddings when SCORE_KIMODO_EMBEDDINGS names their folder.
+hands hanging made again from a seed SEED_STRIDE on, walker_route.slouched; a climb whose footholds still fault
+made again from the next seeds, at most CLIMB_TRIES, the one with the fewest faults kept, walker_route.climb_faults), the text encoder answered from saved embeddings when SCORE_KIMODO_EMBEDDINGS names their folder.
 Writes per walker <folder>/motions/<clip>.npz (Kimodo's NPZ keys, in the walker's placement frame: its route's start
 at the origin, its first heading +Z, its start's ground y = 0), <folder>/joined/<clip>.npz (the scene's frame) and
 <folder>/made.json (each piece's frames, sentence and seconds taken).
@@ -50,26 +51,41 @@ for number, walker in enumerate(plan["walkers"]):  # each walker its own seed: w
     for piece in walker["pieces"]:
         began = time.time()
         ask = walker_route.asked(piece, roots, headings, feet, motion, walker.get("holds"))
-        for attempt in range(walker_route.SEED_TRIES):  # a flat piece walking crouched or arms hanging: the next seed
+        climbing = piece["kind"] != "walk" and walker.get("holds")
+        best, measured = None, None  # (footholds faults, seed, joined motion): a climb's fewest faults of its seeds
+        for attempt in range(walker_route.CLIMB_TRIES if climbing else walker_route.SEED_TRIES):
             seed = sentences.CLIP_SEED + number + attempt * walker_route.SEED_STRIDE
             seed_everything(seed)
             output = model([ask["sentence"]], [ask["frames"]], num_denoising_steps=100, multi_prompt=True,
                            constraint_lst=load_constraints_lst(ask["constraints"], model.skeleton),
                            num_samples=1, post_processing=ask["postprocess"], return_numpy=True, progress_bar=lambda x: x)
             single = {key: np.asarray(output[key])[0] for key in walker_route.KEYS}
+            if len(single["posed_joints"]) != ask["frames"]:
+                raise RuntimeError(f"{walker['name']}: Kimodo gave {len(single['posed_joints'])} frames for {ask['frames']}")
+            tried = walker_route.joined(motion, walker_route.moved(single, np.asarray(ask["origin"]), ask["heading"]),
+                                        piece["start"])
+            if climbing:  # its footholds still faulting: the next seed, the fewest faults kept
+                faults = walker_route.climb_faults(tried, walker["levels"], walker["route"], walker["holds"],
+                                                   piece["end"])
+                print(walker["name"], piece, "seed", seed, len(faults), "footholds faults", flush=True)
+                if best is None or len(faults) < best[0]:
+                    best = (len(faults), seed, tried)
+                if not faults:
+                    break
+                continue
             measured = walker_route.posture(single["posed_joints"]) if piece["kind"] == "walk" else None
             why = walker_route.slouched(measured)
             if why is None:
+                best = (None, seed, tried)
                 break
             print(walker["name"], piece, "seed", seed, why, flush=True)
         else:
-            raise RuntimeError(f"{walker['name']}: piece {piece}: no upright walk in {walker_route.SEED_TRIES} seeds")
-        if len(single["posed_joints"]) != ask["frames"]:
-            raise RuntimeError(f"{walker['name']}: Kimodo gave {len(single['posed_joints'])} frames for {ask['frames']}")
-        placed = walker_route.moved(single, np.asarray(ask["origin"]), ask["heading"])
-        motion = walker_route.joined(motion, placed, piece["start"])
+            if not climbing:
+                raise RuntimeError(f"{walker['name']}: piece {piece}: no upright walk in {walker_route.SEED_TRIES} seeds")
+        faulted, seed, motion = best
         made.append({**piece, "frames": ask["frames"], "sentence": ask["sentence"], "postprocess": ask["postprocess"],
-                     "seed": seed, "posture": measured, "seconds": round(time.time() - began, 1)})
+                     "seed": seed, "posture": measured, "footholds_faults": faulted,
+                     "seconds": round(time.time() - began, 1)})
         print(walker["name"], piece, round(time.time() - began, 1), "s", flush=True)
     motion = walker_route.held_feet({key: value[:len(roots)] for key, value in motion.items()})
     np.savez(folder / "joined" / f"{walker['clip']}.npz", **motion)

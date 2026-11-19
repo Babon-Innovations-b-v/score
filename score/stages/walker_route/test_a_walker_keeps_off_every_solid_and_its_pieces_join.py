@@ -9,11 +9,14 @@ round its spots (the last back to the first) until its clip lasts that long; two
 door in the wall's gap is a solid (no route through it); marked `score:opens`, the walker goes through it, the door
 stands open from OPEN_AHEAD before she crosses to SHUT_AFTER past it, and the swing written on its prim lays its leaf
 where the walkers' floor took it open (shut at the start). The flight is planned foot by foot: one foothold on each
-tread, the feet alternating, each sole whole on its tread back from its nosing, the route's height the treads' stood
-on, a climb's foot keyframes setting each sole on its foothold, a short landing between two flights climbed
-through; the footholds check passes feet planted on them and a climbing heel hanging 5 cm over its nosing (a
-climber sets the ball and toes on the tread: a whole-sole rule fails real climbs), and tells a heel hanging 14 cm
-over, toes through the riser above, a sole sunk 3 cm into its tread and the same foot on two treads running. A made
+tread, the feet alternating, each climbing sole in the middle of what the check passes, the route's height the
+treads' stood on, a climb's foot keyframes setting each sole where Kimodo lands it on its foothold (LANDED_AHEAD
+short, LANDED_OUT inside), its first keyed foot the other of the one the piece before set down last and a foothold
+0.11 m ahead of that one not keyed, a short landing between two flights climbed through; the footholds check passes
+feet planted on them and slid 3 cm back or 4 cm on (a climber sets the ball and toes on the tread, its heel hanging:
+a whole-sole rule fails real climbs), and tells a heel slid 10 cm back to hang over, toes slid 7 cm on through the
+riser above, a sole sunk 3 cm into its tread and the same foot on two treads running; a climb piece's seed score
+(`climb_faults`, read on the levels alone) judges only the treads stood by its end and tells toes through a riser. A made
 walk floating over its ground is stood back on it (its standing foot's gap within GROUND_MOST), a stance whose toes
 reach into the next riser is stood on the tread its foothold names, never lifted a riser, and the measures tell the
 floating one.
@@ -44,12 +47,21 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.posture: the stride's least dropped (`walking.sum() < 2 * STEP_FRAMES` made `not walking.any()`) ->
   a 30-frame walk is judged
 - walker_route.levels: `> RISER_LEAST` made `> 1.0` -> the flight reads one floor, no tread
-- walker_route.placed_on: `+ SOLE / 2` dropped -> the planted heel hangs over its nosing, the check fails them
+- walker_route.placed_on: a climbing sole placed whole on its tread (`from + NOSING_BACK + SOLE / 2`) -> its toes
+  slid 4 cm on go through the riser above
 - walker_route.footholds: the side taken as "right" every step -> the feet do not alternate
 - walker_route.stood_roots: the roots returned unchanged -> the route's height is not its treads'
 - walker_route.hips_over: `- SOLE_MIDDLE * sin` made `+` -> the rest pose's sole lands off its foothold
+- walker_route.hips_over: LANDED_AHEAD left out of the key (`back = SOLE_MIDDLE`) -> Kimodo's landed sole stands
+  1.2 cm past its foothold
 - walker_route.sided: the piece before left unread (`if before is not None` made `if False`) -> the climb keys the
   plan's foot, not the one the piece before left free to step
+- walker_route.sided: `< STEP_LEAST` made `< 0` -> the foothold 0.11 m ahead of the foot set down last is keyed
+- walker_route.sided: `side = other[stood]` made `side = stood` -> the foot just set down is keyed to step again
+- walker_route.climb_faults: every tread judged (`index in reached` made `True`) -> the treads still to come read
+  stood on by no stance
+- walker_route.levels_ground: the farthest run taken (`argmin` made `argmax`) -> feet planted on their treads read
+  through their risers
 - walker_route.sole_faults: a whole sole asked climbing too (`if overhang and not climbing` made `if overhang`) ->
   the heel hanging 5 cm over its nosing fails
 - walker_route.sole_faults: `overhang > HEEL_OVERHANG_MOST` made `> 1.0` -> the heel hanging 14 cm over passes
@@ -194,13 +206,23 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     for hold in on:
         sin, cos = math.sin(hold["heading"]), math.cos(hold["heading"])
         hips = walker_route.hips_over(hold, hold["side"])
-        across = walker_route.FOOT_SIDE * (1 if hold["side"] == "left" else -1)
-        rest = [hips[0] + across * cos + walker_route.SOLE_MIDDLE * sin, hips[1] - walker_route.HIP_OVER_SOLE,
-                hips[2] - across * sin + walker_route.SOLE_MIDDLE * cos]
-        assert np.allclose(rest, walker_route.sole_at(hold, hold["side"]), atol=1e-9), (rest, hold)
+        out = 1 if hold["side"] == "left" else -1
+        across = walker_route.FOOT_SIDE * out
+        rest = np.array([hips[0] + across * cos + walker_route.SOLE_MIDDLE * sin, hips[1] - walker_route.HIP_OVER_SOLE,
+                         hips[2] - across * sin + walker_route.SOLE_MIDDLE * cos])  # the key's own sole
+        landed = rest + walker_route.LANDED_AHEAD * np.array([sin, 0.0, cos]) + \
+            walker_route.LANDED_OUT * out * np.array([cos, 0.0, -sin])  # where Kimodo lands it
+        assert np.allclose(landed, walker_route.sole_at(hold, hold["side"]), atol=1e-9), (landed, hold)
     faults, stances = walker_route.foothold_faults(planted(holds, len(roots)), runs, points, ground_at)
     assert not faults and [stance[2] for stance in stances] == treads, (faults, stances)
-    for back, down, told in ((0.06, 0.0, ()), (0.15, 0.0, ("heel hangs",)), (-0.04, 0.0, ("through the riser",)),
+    assert not walker_route.climb_faults(planted(holds, len(roots)), runs, points, holds, len(roots))
+    half = on[2]["frame"] + 1  # the flight's first treads stood by then, the rest still to come: not judged yet
+    assert not walker_route.climb_faults(planted(holds, len(roots)), runs, points, holds, half)
+    poked = walker_route.climb_faults(planted(holds, len(roots), {on[1]["frame"]: (-0.07, 0.0)}), runs, points, holds,
+                                      half)
+    assert poked and all("through the riser" in fault for fault in poked), poked
+    for back, down, told in ((0.03, 0.0, ()), (-0.04, 0.0, ()), (0.10, 0.0, ("heel hangs",)),
+                             (-0.07, 0.0, ("through the riser",)),
                              (0.0, 0.03, ("off its tread", "into its tread"))):  # a climbing heel may overhang
         moved, _ = walker_route.foothold_faults(planted(holds, len(roots), {on[2]["frame"]: (back, down)}), runs,
                                                 points, ground_at)
@@ -218,7 +240,7 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert np.abs(standing[flat]).max() <= walker_route.GROUND_MOST, standing[flat]
     count = len(roots)
     poking = planted([dict(on[2], frame=frame) for frame in range(3, count - 4, 7)], count,
-                     {frame: (-0.04, 0.0) for frame in range(3, count - 4, 7)})  # its toes in the next riser
+                     {frame: (-0.07, 0.0) for frame in range(3, count - 4, 7)})  # its toes in the next riser
     poking.update(root_positions=poking["posed_joints"][:, 0], smooth_root_pos=poking["posed_joints"][:, 0])
     lifts = [walker_route.grounded(poking, ground_at, plan)["posed_joints"][20:count - 20, 0, 1]
              - poking["posed_joints"][20:count - 20, 0, 1] for plan in (holds, None)]
@@ -232,14 +254,24 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     first = walker_route.asked(pieces[0], roots, headings, feet)
     assert np.allclose(first["constraints"][0]["smooth_root_2d"][0], 0.0, atol=1e-4)
     ask = walker_route.asked(later, roots, headings, feet, walk)
-    other = dict(walk, foot_contacts=walk["foot_contacts"][:, [3, 4, 5, 0, 1, 2]])  # the right foot standing instead
+    span = climb["end"] - climb["start"] + walker_route.TAIL
+    plain = walker_route.sided(holds, climb["start"], span)  # no piece before: the plan's own feet
+    prior = [hold for hold in holds if hold["frame"] < climb["start"] + walker_route.OVERLAP - 3]
+    swap = {"left": "right", "right": "left"}
+    short = dict(plain[0][0], frame=prior[-1]["frame"], side=prior[-1]["side"])  # set down 0.11 m short of the first
     firsts = []
-    for before in (walk, other):
-        keyed = walker_route.sided(holds, climb["start"], climb["end"] - climb["start"] + walker_route.TAIL, before)
-        frame, side = walker_route.next_stance(before["foot_contacts"][:climb["start"] + walker_route.OVERLAP],
-                                               climb["start"] + walker_route.OVERLAP - 1)
-        steps = round((keyed[0][0]["frame"] - frame) / walker_route.STEP_FRAMES)
-        assert keyed[0][1] == (side if steps % 2 == 0 else {"left": "right", "right": "left"}[side]), (keyed[0], frame)
+    for stood, slid, skipped in ((prior, None, 0), (prior[:-1] + [dict(prior[-1], side=swap[prior[-1]["side"]])], None, 0),
+                                 (prior[:-1] + [short], {short["frame"]: (0.11, 0.0)}, 1), ([], None, 0)):
+        before = dict(walk, posed_joints=planted(stood, len(roots), slid)["posed_joints"])
+        keyed = walker_route.sided(holds, climb["start"], span, before)
+        if stood:  # the first keyed: the foothold after the one too near, by the foot the piece before left free
+            assert keyed[0][0]["frame"] == plain[skipped][0]["frame"] and keyed[0][1] == swap[stood[-1]["side"]], \
+                (keyed[0], stood[-1])
+        else:  # no stance read from the joints: by the foot_contacts' timing
+            frame, side = walker_route.next_stance(before["foot_contacts"][:climb["start"] + walker_route.OVERLAP],
+                                                   climb["start"] + walker_route.OVERLAP - 1)
+            steps = round((keyed[0][0]["frame"] - frame) / walker_route.STEP_FRAMES)
+            assert keyed[0][1] == (side if steps % 2 == 0 else swap[side]), (keyed[0], frame)
         assert all(one[1] != two[1] for one, two in zip(keyed, keyed[1:])), keyed
         firsts.append(keyed[0][1])
         climbed = walker_route.asked(climb, risen, headings, feet, before, holds)

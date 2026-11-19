@@ -11,17 +11,19 @@ travel is the clips' own (never a clip slid along a line).
     timed     the route walked one frame of Kimodo's RATE at a time: PACE on the flat, one tread a step on a flight
               (scene_clips' STEP_FRAMES cadence), eased from standing over EASE seconds at its start and back to
               standing at its end (its start and its stop)
-    footholds one foot on every tread, alternating left and right, each sole whole on its tread NOSING_BACK back from
-              its nosing, floor and landing steps at Kimodo's cadence between (`footholds`, on the level runs the
+    footholds one foot on every tread, alternating left and right, a climbing sole's toe tip halfway between the
+              riser above and the furthest back the check lets its heel hang, a descending one whole on its tread
+              NOSING_BACK back from its nosing (`placed_on`), floor and landing steps at Kimodo's cadence between (`footholds`, on the level runs the
               solids make under the route's line: `levels`), the route's height the footholds' (`stood_roots`)
     pieces    the frames cut where a flight starts or ends (a landing under LANDING_FRAMES between two flights the
               same way climbed through), and a stretch longer than PIECE_FRAMES into even pieces:
               each piece is a flat walk (WALKING, Kimodo's post-processing holding its feet on its floor) or a climb
-              (STAIRS up or down, each foothold within it a foot keyframe setting that sole on it, `hips_over`, the
-              feet alternating on from the piece before, `sided`; Kimodo's post-processing on as well, since without
-              it a climb's soles missed their keys by 7 cm along the flight, 6 across and 2 in height, and with it
-              by 0 in height and 3 to 4 along and across, the stairwell's woman, 2026-11-19); a piece shorter than
-              LEAST_FRAMES joins the one before it
+              (STAIRS up or down, each foothold within it a foot keyframe setting that sole where Kimodo lands it on
+              the foothold, LANDED_AHEAD short and LANDED_OUT inside, `hips_over`; the feet alternating on from the
+              foot the piece before set down last, a foothold too near ahead of it left unkeyed, `sided`; Kimodo's
+              post-processing on as well, since without it a climb's soles missed their keys by 7 cm along the flight,
+              6 across and 2 in height, the stairwell's woman, 2026-11-19); a piece shorter than LEAST_FRAMES joins
+              the one before it
     asked     each piece in its own Kimodo canonical frame (its first root at the origin, its first heading +Z, its
               lowest ground Kimodo's floor): the dense root2d path and heading, and, for every piece after the first,
               a fullbody keyframe on each of its first OVERLAP frames holding the pose the piece before stood in
@@ -29,7 +31,8 @@ travel is the clips' own (never a clip slid along a line).
               its own ending never shows
     upright   a flat piece made again from the next seed while it walks crouched or with its hands hanging
               (`posture`, `slouched`: its knees never straightening within KNEE_STRAIGHT, a hand swinging under
-              SWING_LEAST), at most SEED_TRIES seeds, else refused
+              SWING_LEAST), at most SEED_TRIES seeds, else refused; a climb whose footholds still fault
+              (`climb_faults`) made again from the next seeds, at most CLIMB_TRIES, the fewest faults kept
     joined    the pieces back in the scene's frame, each kept up to the next one's start and blended into it over the
               OVERLAP frames both hold, the foot standing across the join kept on its spot (`anchored`)
     grounded  the joined motion raised or lowered, frame by frame, so its standing foot stands on the scene's ground
@@ -105,6 +108,9 @@ KNEE_STRAIGHT = 8.0  # degrees: a walking piece's knees straighten at least this
 SWING_LEAST = 0.15  # metres: each hand's fore-and-aft swing about the hips (5th to 95th percentile) while walking
 WALKING_SPEED = 0.6  # metres a second of the hips over which a frame is walking, not easing from or to standing
 SEED_TRIES, SEED_STRIDE = 12, 100  # six were too few: street's walker_plaza2 slouched in all six (2026-11-18)
+# A climb piece whose footholds still fault (`climb_faults`) is made again from the next seed, at most CLIMB_TRIES, and
+# the one with the fewest faults kept: Kimodo's own output, chosen, never moved (the stairwell's woman, 2026-11-19).
+CLIMB_TRIES = 3
 # The footholds (owner, 2026-11-19, the stairwell's woman: "the step planning is just no where, like it would need an
 # actual left or right step per step"): one foot a tread, alternating, each sole whole on its tread.
 PROFILE_STEP = 0.01  # metres between the ground's readings along the route's line
@@ -114,7 +120,7 @@ TREAD_MOST = 0.45  # metres: a level run between two risers shorter than this is
 HEEL_BACK, TOE_PAST = 0.056, 0.008  # SOMA77's skin behind its ankle joint and past its toe end (skin_standard.npz)
 SOLE = TOE - HEEL + HEEL_BACK + TOE_PAST  # 0.2615 m heel to toe tip
 SOLE_MIDDLE = (HEEL - HEEL_BACK + TOE + TOE_PAST) / 2  # the rest sole's middle ahead of the hips
-NOSING_BACK = 0.01  # metres a planned sole's end stands back from its tread's nosing (a 0.28 m tread leaves 0.0185)
+NOSING_BACK = 0.01  # metres a descending planned sole's toe end stands back from its tread's nosing
 STEP_WIDTH = 0.12  # metres between the left and the right sole's middles across the walk (a person's 0.10 to 0.15)
 STRIDE = PACE * STEP_FRAMES / RATE  # metres a step on the flat, 0.575
 SOLE_JOINTS = {"left": (69, 70, 71), "right": (74, 75, 76)}  # SOMA77's ankle, ball and toe end
@@ -127,6 +133,12 @@ NOSING_CLEAR = 0.005  # metres a stance's sole must stand back from its tread's 
 # the ball still 10 cm on the tread; a descending sole stands whole on its tread.
 HEEL_OVERHANG_MOST = 0.09
 SOLE_SAMPLE = 0.01  # metres between the readings of the ground along a stance's sole (the check)
+# Where Kimodo lands a keyed foot (post-processed climbs, the stairwell's woman, 2026-11-19: 24 keyed tread footholds of
+# three climb pieces, two runs): its sole stands 0.012 m (sd 0.005) further along the foothold's heading than the rest
+# pose keyed there, heel, ankle, ball and toe alike, 0.040 m (sd 0.003) further out to its own side, and at its height
+# (0.006 m, sd 0.011). Each key sets the sole that far short, so the landed sole stands on the planned foothold.
+LANDED_AHEAD, LANDED_OUT = 0.012, 0.040
+STEP_LEAST = 0.14  # metres: a foothold nearer ahead of the foot set down last is no step (half a 0.28 m tread)
 LEGS = ((67, 68, 69), (72, 73, 74))  # SOMA77's hip, knee and ankle joints (LeftLeg, LeftShin, LeftFoot; Right...)
 HANDS = (14, 42)  # SOMA77's LeftHand and RightHand
 KEYS = ("local_rot_mats", "global_rot_mats", "posed_joints", "root_positions", "smooth_root_pos", "foot_contacts",
@@ -262,12 +274,16 @@ def levels(points, ground_at):
 
 
 def placed_on(run):
-    """Where along the route the sole's middle stands on a level run: on a tread its nosing end NOSING_BACK back from
-    the nosing (the rest of the tread before its riser), on a floor its middle."""
+    """Where along the route the sole's middle stands on a level run: on a floor its middle; descending a tread (its
+    nosing at its `to` end) whole on it, its toe end NOSING_BACK back from the nosing; climbing one (its nosing at
+    `from`) with its toe tip halfway between the riser above and the furthest back the check lets a climber's heel
+    hang over the nosing (HEEL_OVERHANG_MOST), the middle of what the footholds check passes. A sole whole on the
+    tread there left its toe tip under a centimetre short of the riser above, and Kimodo's landed soles scatter 1 to
+    2 cm along (the stairwell's woman, 2026-11-19: 15 of her 21 tread stances failed on their toes)."""
     if run["kind"] != "tread":
         return (run["from"] + run["to"]) / 2
     if run["nosing"] == "from":
-        return run["from"] + NOSING_BACK + SOLE / 2
+        return (run["from"] + SOLE - HEEL_OVERHANG_MOST + run["to"]) / 2 - SOLE / 2
     return run["to"] - NOSING_BACK - SOLE / 2
 
 
@@ -280,13 +296,15 @@ def sole_at(hold, side):
 
 
 def hips_over(hold, side):
-    """The hips (scene x, y, z) whose SOMA77 rest pose, turned to the foothold's heading, sets foot `side`'s sole on
-    the foothold (`sole_at`): Kimodo's foot keyframe is that pose's foot, its hips HIP_OVER_SOLE over the ground."""
+    """The hips (scene x, y, z) whose SOMA77 rest pose, turned to the foothold's heading, sets foot `side`'s sole
+    LANDED_AHEAD short of the foothold (`sole_at`) and LANDED_OUT inside it, where Kimodo lands that key's sole on the
+    foothold itself: Kimodo's foot keyframe is that pose's foot, its hips HIP_OVER_SOLE over the ground."""
     sole = sole_at(hold, side)
-    across = FOOT_SIDE * (1 if side == "left" else -1)
+    across = (FOOT_SIDE + LANDED_OUT) * (1 if side == "left" else -1)
     sin, cos = math.sin(hold["heading"]), math.cos(hold["heading"])
-    return np.array([sole[0] - across * cos - SOLE_MIDDLE * sin, hold["ground"] + HIP_OVER_SOLE,
-                     sole[2] + across * sin - SOLE_MIDDLE * cos])
+    back = SOLE_MIDDLE + LANDED_AHEAD
+    return np.array([sole[0] - across * cos - back * sin, hold["ground"] + HIP_OVER_SOLE,
+                     sole[2] + across * sin - back * cos])
 
 
 def held_frames(anchors, count):
@@ -369,19 +387,50 @@ def stood_roots(roots, holds):
 
 def sided(holds, start, count, before=None):
     """The footholds a piece of `count` frames from route frame `start` keys (OVERLAP + 2 frames in, 9 short of its
-    end) and each one's foot: the plan's alternation, turned over where the piece before (`before`) left the other
-    foot to step next (`next_stance`), so the feet keep alternating across the join."""
+    end) and each one's foot: the plan's alternation, turned over so its first is the foot the piece before (`before`)
+    left free to step, the other of the foot it set down last by the join (`last_set`); a foothold standing under
+    STEP_LEAST ahead of that set-down sole is no step and is not keyed (the stairwell's woman, 2026-11-19: the walk
+    before her flight set her left foot down 14 frames late, 0.11 m short of the planned right floor step, and keyed
+    there her right foot went on past it onto the first tread, which her left then stood on too). A piece before with
+    no stance read from its joints turns the alternation over by its foot_contacts' timing (`next_stance`)."""
     mine = [hold for hold in holds if start + OVERLAP + 2 <= hold["frame"] <= start + count - 9]
     if not mine:
         return []
     side = mine[0]["side"]
-    if before is not None:
-        frame, side = next_stance(before["foot_contacts"][:start + OVERLAP], start + OVERLAP - 1)
-        if round((mine[0]["frame"] - frame) / STEP_FRAMES) % 2:
-            side = "left" if side == "right" else "right"
     other = {"left": "right", "right": "left"}
+    if before is not None:
+        found = last_set(before, start + OVERLAP)
+        if found is None:
+            frame, side = next_stance(before["foot_contacts"][:start + OVERLAP], start + OVERLAP - 1)
+            if round((mine[0]["frame"] - frame) / STEP_FRAMES) % 2:
+                side = other[side]
+        else:
+            stood, sole = found
+            while mine and step_from(sole, mine[0]) < STEP_LEAST:
+                mine = mine[1:]
+            if not mine:
+                return []
+            side = other[stood]
     flip = side != mine[0]["side"]
     return [(hold, other[hold["side"]] if flip else hold["side"]) for hold in mine]
+
+
+def last_set(motion, frame):
+    """The foot a made motion set down last before `frame` (the stance read from its joints, `foot_stances`, that
+    began latest) and that stance's sole middle (x, z) on its last frame before `frame`; None without a stance."""
+    found = foot_stances({"posed_joints": np.asarray(motion["posed_joints"])[:frame]})
+    if not found:
+        return None
+    side, _, end = max(found, key=lambda stance: (stance[1], stance[2]))
+    flat, _ = soles({"posed_joints": np.asarray(motion["posed_joints"])[end - 1:end]}, side)
+    return side, (flat[0, 0] + flat[0, 4]) / 2
+
+
+def step_from(sole, hold):
+    """How far a foothold's sole middle (`sole_at`) stands ahead of a sole middle (x, z), along the foothold's
+    heading (m)."""
+    planned = sole_at(hold, hold["side"])
+    return float((planned[0] - sole[0]) * math.sin(hold["heading"]) + (planned[2] - sole[1]) * math.cos(hold["heading"]))
 
 
 def soles(motion, side):
@@ -494,6 +543,33 @@ def nearest_along(line, along, point):
     share = np.clip(((point - starts) * direction).sum(axis=1) / np.maximum((direction ** 2).sum(axis=1), 1e-12), 0, 1)
     index = int(np.argmin(np.linalg.norm(starts + share[:, None] * direction - point, axis=1)))
     return along[index] + share[index] * (along[index + 1] - along[index])
+
+
+def levels_ground(runs, points):
+    """A ground reader (`ground_at`: scene points n x 3 to the ground's height under each) from the level runs alone
+    (`levels`): each point's level the run its distance along the route's line falls in, or the nearest. For the
+    footholds check where the scene's solids cannot be read (Kimodo's environment, `climb_faults`)."""
+    line, along = along_line(points)
+    starts, ends = np.array([run["from"] for run in runs]), np.array([run["to"] for run in runs])
+    heights = np.array([run["y"] for run in runs])
+
+    def ground_at(spots):
+        spots = np.asarray(spots, dtype=float).reshape(-1, 3)
+        found = [nearest_along(line, along, spot[[0, 2]]) for spot in spots]
+        return np.array([heights[np.argmin(np.maximum(np.maximum(starts - at, at - ends), 0.0))] for at in found])
+    return ground_at
+
+
+def climb_faults(motion, runs, points, holds, end):
+    """The footholds check (`foothold_faults`, the ground read from the levels: `levels_ground`) on a joined motion
+    up to route frame `end`, its treads those whose footholds are stood by then (half a step before `end`): the
+    score a climb piece's seed is kept by (`CLIMB_TRIES`)."""
+    reached = {hold["tread"] for hold in holds if hold["tread"] is not None and hold["frame"] + STEP_FRAMES / 2 <= end}
+    mine = [run if run["kind"] != "tread" or index in reached else dict(run, kind="floor", flight=None, nosing=None)
+            for index, run in enumerate(runs)]
+    faults, _ = foothold_faults({"posed_joints": np.asarray(motion["posed_joints"])[:end]}, mine, points,
+                                levels_ground(runs, points))
+    return faults
 
 
 # --- the pieces ------------------------------------------------------------------------------------------------------
