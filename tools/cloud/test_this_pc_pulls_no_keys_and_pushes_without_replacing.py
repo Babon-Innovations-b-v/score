@@ -54,6 +54,10 @@ Breaks (each applied once, seen red, reverted):
 - agent_door.py `replaceable_target`: drop the REPLACEABLE test -> a push replaces a store object.
 - this_pc.py `no_push_taken`: drop the empty-reason refusal -> a run keeps its outputs here with no reason given.
 - this_pc.py `push_stated`: drop the `unlink` -> status still says a run kept its outputs after a later one pushed.
+- this_pc.py `pull`: drop `+ evicted_named(home)` -> a blob evicted here into the bucket is sent down again, and the
+  store here is never a cache (2026-11-19: 331 GB on the PC).
+- this_pc.py `capped`: `held <= CACHE_GB` -> `True` -> a push over the cap evicts nothing; or `False` -> a store under
+  its cap runs store-evict after every push.
 - this_pc.py `disk`: `free < FREE_WARN_GB` -> `False` -> status says 76 GB free with no warning; or drop the MACHINE
   name filter -> postgres is listed as a SCORE container.
 """
@@ -226,6 +230,10 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
     assert not (home / blob).exists()
     assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len(body))
     assert (home / blob).read_bytes() == body
+    # a blob evicted here into the bucket (its mark, no file) is named in the manifest: the door never sends it back
+    (home / blob).unlink()
+    write(home / this_pc.EVICTED / pathlib.Path(blob).name, '{"size": 1}')
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0) and not (home / blob).exists()
     assert hand_in.read_text() == this_pc.json.dumps(STALE)  # every pull left the hand-in written here
     assert not (home / "design/surfaces/hangar.json").exists()
 
@@ -272,6 +280,17 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
     refused = subprocess.run(door(conductor, "store-push --differs"), input="1\tx\tstore/objects/records/hub/k1.json\n",
                              capture_output=True, text=True)
     assert refused.returncode != 0 and "work/pixal/ only" in refused.stderr
+    # after the push the store here is a capped cache: over CACHE_GB store-evict runs against this home, under it not
+    evicts = []
+    with monkeypatch.context() as cap:
+        cap.setattr(this_pc, "asked", lambda command, **given: evicts.append(
+            (command[1:], given["env"]["PROPS_HOME"])) or subprocess.CompletedProcess(command, 0, "store-evict: done\n",
+                                                                                      ""))
+        cap.setattr(this_pc, "CACHE_GB", 1e-9)
+        assert this_pc.capped(home, {"PROPS_HOME": str(home)}).endswith("over its 1e-09 GB cap: store-evict: done")
+        cap.setattr(this_pc, "CACHE_GB", 1.0)
+        assert "within its 1 GB cap" in this_pc.capped(home, {"PROPS_HOME": str(home)})
+    assert evicts == [(list(this_pc.STORE_EVICT), str(home))]
 
     # a run's own arguments, and whether it pushes
     for parser, arguments, gives, refusal in PARSED:
@@ -411,8 +430,8 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
             assert record["log"] == str(tmp_path / "run.log") and line.startswith(f"paused run {entry['id']}")
             status = this_pc.status_line(home)
             assert status.startswith(f"paused {entry['id']} since ") and "rows done 4, running 5, waiting 6" in status
-            assert status.endswith("containers score-this-pc 379GB, score-this-pc-segment 24GB; "
-                                   "disk 76 GB free WARNING: under 100 GB free")  # 2026-11-03's disk
+            assert status.endswith("containers score-this-pc 379GB, score-this-pc-segment 24GB; "  # 2026-11-03's disk
+                                   "disk 76 GB free WARNING: under 100 GB free; store cache 0.0 GB of its 50 GB cap")
             resuming = len(calls)
             assert this_pc.resume(home) == (f"resumed run world1 --jobs 8 --free at {'a' * 12}: "
                                             "detached: started pid=9 log=/home/logs/score-run.log")

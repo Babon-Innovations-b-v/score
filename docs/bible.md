@@ -832,6 +832,17 @@ logs and locks beside it), `work/` (`PROPS_WORK`: pictures and takes), `frozen/`
 kept under `{home}/design/` (locked concepts, scene inventories, plans, hand-ins, surface data). The cloud backend's
 tools: for Scaleway, the `scw` CLI logged in to the project named by `SCORE_SCALEWAY_PROJECT` (by name, never an id).
 
+**A local disk holds tools, not data** (owner's hard rule, 2026-11-06, widened to every machine 2026-11-19 after his
+PC's disk hit 99% full: this PC's store copy 331 GB, ended jobs' scratch 147 and 175 GB, 114 GB of unused Docker
+images). On his PC, the conductor, pods and rented machines alike, datasets, inputs, results and models live in the
+store bucket and are read and written there; a disk holds the tools, the OS, caches with a size cap that evict on
+their own, and tmp files deleted when their job ends. `tools/cloud/this_pc.py` keeps its home's store a 50 GB cache
+(`SCORE_THIS_PC_CACHE_GB`): after each push `store-evict` sends every blob to the bucket and evicts each one no next
+run stands on, and a pull never brings an evicted blob back (the runner fetches it on its first read). The shared
+`disk_keep.py` hook, at every session start and in the background, empties each ended agent job's scratch
+(`~/.claude/jobs/<job>/tmp`, untouched an hour, no process in it) but the paths its `tmp/KEEP` names, and says one
+line when the disk is over 80% full: its largest folders and what Docker could reclaim. It informs, never blocks.
+
 The people line needs nothing installed here: every environment it runs is set up on the rented card
 (`tools/cloud/characters_setup.sh`); it reads the secret `hf-read-token` (an account that accepted Meta's terms
 for `meta-llama/Meta-Llama-3-8B-Instruct`, Kimodo's text encoder's base).

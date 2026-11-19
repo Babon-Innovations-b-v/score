@@ -28,6 +28,9 @@ The break that turns each test red (applied once each, seen red, reverted):
   - its soul_guard rows: `broken_rules` returns [] at once.
   - its call_efficiency rows: `is_single_fast` returns False at once.
   - its checkout_current rows: `catch_up` returns "" at once.
+  - its disk_keep rows: `ended_scratch` returns [] at once (an ended job's scratch stays); or drop the `scratch not in
+    busy` filter (a scratch a process works in is emptied under it); or `kept_paths` returns set() (a KEEP path goes);
+    or `note`'s `percent <= FULL_PERCENT` made `True` (a full disk says nothing).
   - its output_cap rows: `text_excerpt`'s `if matches:` made `if False:`; or `leave_alone` returns False at once; or
     `capped_output`'s saving check made `if False:`.
   - its issue_guard rows: `_is_destructive_git` returns False at once. `_is_gh_issue_create` returns `"create" in`
@@ -961,6 +964,37 @@ CHECKOUT_ASKS = [  # where the clone then stands, its tracked files as committed
 ]
 
 
+# disk_keep: at session start an ended job's scratch goes (but what it marked to keep, and one a process works in),
+# and a disk over its threshold is said in one line.
+
+def disk_world(world):
+    """A world: disk_keep.py with the world as home, jobs ended, still working and ended but worked in, each scratch
+    an hour and more untouched; the process working in the third lives a minute."""
+    jobs = world / "jobs"
+    for job, state in (("ended", "done"), ("working", "working"), ("busy", "done")):
+        (jobs / job / "tmp" / "run").mkdir(parents=True)
+        (jobs / job / "state.json").write_text(json.dumps({"state": state}))
+        (jobs / job / "tmp" / "run" / "scratch.bin").write_text("x" * 4096)
+        (jobs / job / "tmp" / "result.json").write_text("{}")
+    (jobs / "ended" / "tmp" / "KEEP").write_text("result.json\n")
+    subprocess.Popen(["sleep", "60"], cwd=jobs / "busy" / "tmp", start_new_session=True)
+    old = time.time() - 7200
+    for path in jobs.rglob("*"):
+        os.utime(path, (old, old))
+    env = dict(os.environ, HOME=str(world), DISK_KEEP_JOBS=str(jobs), DISK_KEEP_STATE=str(world / "state"))
+    return HOOKS / "disk_keep.py", env, None
+
+
+DISK_ASKS = [  # asked in this order: the sweep, then a session start on a full disk, then on one under its threshold
+    ("disk", {"session_id": "s1"}, "quiet", (), {"env": lambda world: {"DISK_KEEP_SWEEP": "1"}, "holds": {
+        "jobs/ended/tmp/run": None, "jobs/ended/tmp/result.json": "{}", "jobs/working/tmp/run/scratch.bin": "x" * 4096,
+        "jobs/busy/tmp/run/scratch.bin": "x" * 4096}}),
+    ("disk", {"session_id": "s2"}, "said", ("% full", "none over 5 GB", "emptied 1 ended jobs' scratch",
+                                            "object storage"), {"env": lambda world: {"DISK_KEEP_FULL_PERCENT": "0"}}),
+    ("disk", {"session_id": "s3"}, "quiet", (), {"env": lambda world: {"DISK_KEEP_FULL_PERCENT": "100"}}),
+]
+
+
 # output_cap: a long output goes whole to a file and the agent sees a short summary with its path.
 
 def long_log():
@@ -1070,7 +1104,7 @@ SHORT_OR_BACKGROUND = [
 
 SHARED_HOOKS = ["issue_guard.py", "md_guard.py", "output_cap.py", "wait_guard.py", "commit_guard.py",
                 "torn_commit_guard.py", "leftover_guard.py", "checkout_current.py", "soul_guard.py",
-                "call_efficiency.py"]
+                "call_efficiency.py", "disk_keep.py"]
 
 
 GARBAGE = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},
@@ -1080,11 +1114,12 @@ GARBAGE = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "
 
 def open_world(name):
     """A world for a hook fed garbage: a shared hook as a copy in world/scratch (no repository, so it reads and moves
-    no real checkout) run there, a local one in place; output_cap spills into the world."""
+    no real checkout) run there, a local one in place, the world its home; output_cap spills into the world."""
     def make(world):
         scratch = world / "scratch"
         shared = name in SHARED_HOOKS
-        env = dict(GIT_ENV, OUTPUT_CAP_DIR=str(world), CLAUDE_PROJECT_DIR=str(scratch))
+        env = dict(GIT_ENV, OUTPUT_CAP_DIR=str(world), CLAUDE_PROJECT_DIR=str(scratch), HOME=str(world),
+                   DISK_KEEP_JOBS=str(world / "jobs"), DISK_KEEP_STATE=str(world / "state"))
         return (hook_copy(scratch, name) if shared else hook(name)), env, scratch if shared else None
     return make
 
@@ -1146,10 +1181,11 @@ WORLDS = {
                                  None),
     "checkout-behind": checkout_world(diverged=False),
     "checkout-diverged": checkout_world(diverged=True),
+    "disk": disk_world,
     **{name: lambda world: (HOOKS / "output_cap.py", dict(os.environ, OUTPUT_CAP_DIR=str(world)), None)
        for name in ("cap", "cap-alone")},
 }
-SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap"}  # worlds whose hook keeps state between calls: asked in row order
+SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap", "disk"}  # worlds whose hook keeps state between calls: asked in row order
 
 # One row a call: (world, payload or payload(world), verdict, words its reason holds (`{world}` the world's folder),
 # optional more: env(world) on top, the hook and its folder(world) in place of the world's, seconds it may take, words
@@ -1161,7 +1197,7 @@ SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap"}  # worlds whose hook
 ROWS = [
     *(("completion-listed-" + event, stop("listed", f"The {PLACE} is complete now."), "block", (PLACE,),
        {"lacks": ("ModuleNotFoundError",)}) for event in ("Stop", "SubagentStop")),
-    *TORN_ASKS, *GATE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *CAP_ASKS,
+    *TORN_ASKS, *GATE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *DISK_ASKS, *CAP_ASKS,
     *(("accept", payload, "block", ("only the owner accepts or rejects",))
       for payload in OWNER_ACTIONS + OWN_LOCKS_AND_STEPS),
     ("accept", ENV_PREFIXED_ACCEPT, "block", ()),

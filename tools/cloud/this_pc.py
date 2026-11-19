@@ -45,6 +45,13 @@ ask, since 2026-11-08), or over ssh to `--host`.
   half a file. Then each work/pixal file the conductor holds with other bytes (a take remade here in place) is put in
   place there (`store-push --differs`, then `--replace`, the old one kept under work/pixal/replaced/; 2026-11-03: the
   add-only push left the conductor the old close-ups of every take remade here, and 22 places' palette rows went due).
+- **The store here is a capped cache** (owner, 2026-11-19, the PC's disk 99% full, this home's store 331 GB: "everything
+  lives in the bucket instead of my local"): after every push, while the blobs held here pass CACHE_GB (50 GB;
+  SCORE_THIS_PC_CACHE_GB names another), `python -m score.conductor store-evict` runs against HOME: every blob goes
+  to the store bucket and each one no next run stands on is evicted once the bucket answers with its size and sha256
+  (score/conductor/disk.py store_evict, score/store/offload; the runner fetches an evicted blob back on its first
+  read). Refused with a run live in HOME, it evicts nothing and says why. A pull names each blob evicted here (its
+  mark under store/evicted) in its manifest, so the door never sends it back down. `status` gives the GB held.
 - **The owner's decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat
   aswell"): `decide-yes ...` and `decide <yes id>` are the door's verbs of the same name (score/dashboard/sync/
   chat_decisions.py) against HOME's store, so a decision on this run's outputs, or his spend override
@@ -136,6 +143,9 @@ NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing,
 CONTENT_BLOB = re.compile(r"store/objects/blobs/([0-9a-f]{64})")  # a blob named by its bytes' sha256
 BLOBS_CHECKED = "blobs-checked"  # under HOME: when the held blobs were last hashed; one changed since is hashed again
 PULLING = "tmp/this-pc-pull"  # under HOME: each pulled file written here whole, then renamed into place
+CACHE_GB = float(os.environ.get("SCORE_THIS_PC_CACHE_GB") or 50)  # the store's blobs held here past this are evicted
+STORE_EVICT = ("-m", "score.conductor", "store-evict")  # score/conductor/disk.py store_evict: into the bucket, evicted
+EVICTED = "store/evicted"  # under HOME: one mark a blob evicted into the store bucket (score.store.offload.EVICTED)
 
 
 def door_command(host, key, verb):
@@ -179,13 +189,14 @@ def pull(home, command):
     by its content or key, so the same name is the same bytes, and it is read-only here (2026-11-04: a blob sent again for
     its other mtime stopped the pull on PermissionError). A held blob whose bytes do not hash to its name is not kept
     (cut_blobs_cleared, held_whole), and each file lands under PULLING first, renamed into place only once whole: a
-    pull killed midway leaves no cut file under its name; (files, bytes)."""
+    pull killed midway leaves no cut file under its name. A blob evicted here is named too (evicted_named), so it stays
+    in the bucket and is never sent down again; (files, bytes)."""
     cut_blobs_cleared(home)
     parts = home / PULLING
     shutil.rmtree(parts, ignore_errors=True)  # a killed pull's part
     parts.mkdir(parents=True)
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    process.stdin.write(gzip.compress(manifest(home, PULLED).encode()))
+    process.stdin.write(gzip.compress((manifest(home, PULLED) + evicted_named(home)).encode()))
     process.stdin.close()
     files, size = 0, 0
     with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
@@ -204,6 +215,34 @@ def pull(home, command):
     if process.wait():
         raise SystemExit(f"store-pull failed (exit {process.returncode}) after {files} files")
     return files, size
+
+
+def evicted_named(home):
+    """Manifest lines naming each blob evicted from `home` and not fetched back (its mark under EVICTED, no file under
+    its name): the door sends no store object a manifest names, so an evicted blob stays in the bucket."""
+    marks = home / EVICTED
+    names = [f"{BLOBS}blobs/{mark.name}" for mark in sorted(marks.iterdir())] if marks.is_dir() else []
+    return "".join(f"0\t0\t{name}\n" for name in names
+                   if CONTENT_BLOB.fullmatch(name) and not os.path.lexists(home / name))
+
+
+def held_gb(home):
+    """GB of the store blobs `home` holds as files of their own (links to them counted once, in the blobs folder)."""
+    blobs = home / BLOBS / "blobs"
+    return sum(path.lstat().st_size for path in blobs.iterdir() if path.is_file() and not path.is_symlink()) / 1e9 \
+        if blobs.is_dir() else 0.0
+
+
+def capped(home, environment):
+    """The store here kept a cache: while its blobs pass CACHE_GB, store-evict run against `home` under `environment`
+    (every blob into the store bucket, each evictable one evicted once the bucket proves it); one line said."""
+    held = held_gb(home)
+    if held <= CACHE_GB:
+        return f"store cache {held:.1f} GB here, within its {CACHE_GB:g} GB cap"
+    done = asked([str(REPO / ".venv/bin/python"), *STORE_EVICT], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
+    said = (done.stdout.strip().splitlines() or done.stderr.strip().splitlines()
+            or [f"store-evict exit {done.returncode}, nothing said"])[-1]
+    return f"store cache {held:.1f} GB here, over its {CACHE_GB:g} GB cap: {said}"
 
 
 def landed_whole(archive, member, home, part):
@@ -626,8 +665,8 @@ def disk(home):
 
 
 def status_line(home):
-    """One line: running, paused or neither, the newest heartbeat's rows, what is on the card, the containers' sizes
-    and the free disk."""
+    """One line: running, paused or neither, the newest heartbeat's rows, what is on the card, the containers' sizes,
+    the free disk and the store cache's GB against its cap."""
     entry = live_run(home)
     logs = sorted((home / "logs").glob("*.log"), key=lambda path: path.stat().st_mtime)
     if entry is not None:
@@ -639,7 +678,8 @@ def status_line(home):
         state, log = "neither running nor paused", None
     beat = newest_beat(log or (str(logs[-1]) if logs else None)) or "no heartbeat yet"
     kept_here = unpushed(home)
-    return f"{state}; {beat}; {card()}; {disk(home)}" + (f"; {kept_here}" if kept_here else "")
+    cache = f"store cache {held_gb(home):.1f} GB of its {CACHE_GB:g} GB cap"
+    return f"{state}; {beat}; {card()}; {disk(home)}; {cache}" + (f"; {kept_here}" if kept_here else "")
 
 
 def main(argv=None):
@@ -689,6 +729,7 @@ def main(argv=None):
         files, size = replace_changed(home, door_command(host, options.key, "store-push --differs"),
                                       door_command(host, options.key, "store-push --replace"))
         print(f"replaced {files} remade takes' files ({size / 1e9:.2f} GB)")
+        print(capped(home, run_environment(home)), flush=True)
     return status
 
 
