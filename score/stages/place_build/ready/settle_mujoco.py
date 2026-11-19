@@ -1,16 +1,17 @@
 """Runs in the physics trial's own Python (score/stages/physics/inside/newton_env.sh: MuJoCo as pinned there, the one
 sim body's walkers run in): each loose object of a place let go where it is laid, in MuJoCo, against what is near it.
 
-    <env>/bin/python score/stages/place_build/ready/settle_mujoco.py <job.npz> <out.json>
+    <env>/bin/python score/stages/place_build/ready/settle_mujoco.py <job.npz> <out.json> [<models side by side>]
 
 job.npz: for each loose object `<n>`, `hull_<n>` (its points, metres, y up: MuJoCo collides it by their convex hull),
 `statics_<n>` (the triangles, (count, 3, 3), of everything else near it: the ground, shells, walls and the other
 objects) and `names` (the objects in order). Each object is its own small model built as an mjSpec (a free body of its
 hull; each static triangle a thin plate of STATIC_SKIN, so an open shell or a terrain is a real surface, not its
-hull), the models side by side in a process pool: one model an object, so a hollow cabinet's hull never meets the
-suit stored inside it (what an object holds is left out of its statics by the caller). Each is stepped SECONDS under
-gravity; out.json: {name: {"moved": metres its middle moved, "turned": degrees it turned, "depth": the deepest contact
-at the start (metres, MuJoCo's contact dist: negative is inside), "contacts": contacts at the end}, "engine": ...}.
+hull), the models side by side in a process pool (POOL, or as many as the caller's memory budget fits): one model
+an object, so a hollow cabinet's hull never meets the suit stored inside it (what an object holds is left out of its
+statics by the caller). Each is stepped SECONDS under gravity; out.json: {name: {"moved": metres its middle moved,
+"turned": degrees it turned, "depth": the deepest contact at the start (metres, MuJoCo's contact dist: negative is
+inside), "contacts": contacts at the end}, "engine": ...}.
 """
 import json
 import multiprocessing
@@ -33,7 +34,8 @@ SMALLEST = 1e-8  # a static triangle with less area (square metres) is no surfac
 # Each model's arena (bytes) for its contacts and constraints: MuJoCo's default sizes it from the model alone, and a
 # hull resting on a dense made model's plates (a TRELLIS.2 desk, 2026-11-16: 10,935 contacts) ran past it with
 # "mj_stackAlloc: out of memory"; 64 MB holds over 150,000 contacts, eight pool processes 0.5 GB.
-ARENA = 64 * 1024 * 1024
+ARENA = 67_108_864  # 64 MB
+POOL = 8  # models side by side when the caller names no number
 
 
 def plates(triangles):
@@ -87,11 +89,12 @@ def settled(item):
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         raise SystemExit(__doc__)
     job = np.load(sys.argv[1])
     items = [(str(name), job[f"hull_{name}"], job[f"statics_{name}"]) for name in job["names"]]
-    with multiprocessing.Pool(min(8, max(1, len(items)))) as pool:
+    side_by_side = int(sys.argv[3]) if len(sys.argv) == 4 else POOL
+    with multiprocessing.Pool(min(side_by_side, max(1, len(items)))) as pool:
         found = dict(pool.map(settled, items))
     pathlib.Path(sys.argv[2]).write_text(json.dumps({"objects": found, "engine": f"mujoco {mujoco.__version__}"}))
 

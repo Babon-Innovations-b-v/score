@@ -43,10 +43,16 @@ left out of every measure, `out_of_reach`). The faults, each with its measure:
 - `unstable`: let go in MuJoCo (settle_mujoco.py, in the physics trial's Python), it moves over SETTLE_MOVE or turns
   over SETTLE_TURN.
 
+The check holds no more than MEMORY: before the walkers' floor and the settle it works out what they need (the walkers'
+grid a cell at a time, its spans, the settle's models side by side) and, when that and what it holds already would pass
+MEMORY, refuses with what needs it, never freezing the machine (the Hong Kong square, 2026-11-19: a walkers' grid
+1.6 km across ran the check to 33 GB). The settle runs as many models side by side as fit.
+
 Beside the physics, ready.json's `finishes` holds every object whose shown finish is not the library's (finished/:
 no material, its model's own paint no library surface made, a look naming no library surface, one surface over a
 model's painted parts); the place is ready only with none.
 """
+import ast
 import json
 import os
 import pathlib
@@ -117,6 +123,28 @@ SUPPORTED = ("prop", "fixed", "structure", "door")
 JUDGED_INSIDE = ("prop", "fixed", "structure", "door", "mount")
 SETTLE_ENV = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "envs/newton_env"
 SETTLE_SCRIPT = pathlib.Path(__file__).resolve().parent / "settle_mujoco.py"
+MEMORY = 8 * 2 ** 30  # bytes the check may hold, the settle's models included
+SPAN_BYTES = 200  # bytes the walkers' floor holds a span (or a cell of its grid): 160 measured on a flat 120 m floor
+FLOOR_BYTES = 24  # bytes a floor height kept while the walkers' floor is read (sorted with what it joins)
+CHUNK_BYTES = 150 * reach.CHUNK  # what one chunk of a surface's points holds while it is read
+PLATE_BYTES = 16 * 1024  # bytes a static triangle's plate holds in a settle model (15 KB measured at 2,000 and 20,000)
+SETTLE_POOL = 8  # settle models side by side at most
+
+
+# --- the memory budget ------------------------------------------------------------------------------------------
+
+def in_use():
+    """Bytes this process holds now (its resident set)."""
+    return int(pathlib.Path("/proc/self/statm").read_text().split()[1]) * os.sysconf("SC_PAGE_SIZE")
+
+
+def within_memory(needed, what):
+    """Refuses (place_build.Refused) when `needed` more bytes for `what` would take the check past MEMORY."""
+    held = in_use()
+    if held + needed > MEMORY:
+        raise place_build.Refused(f"the physics check would pass its memory budget of {MEMORY / 2 ** 30:.1f} GB: "
+                                  f"{what} needs about {needed / 2 ** 30:.1f} GB more, and it holds "
+                                  f"{held / 2 ** 30:.1f} GB")
 
 
 # --- the scene as solids ----------------------------------------------------------------------------------------
@@ -633,6 +661,25 @@ def grid_rectangle(laid):
     return low[0], low[2], high[0], high[2]
 
 
+def walkers_grid(laid):
+    """The walkers' grid's rectangle and grid, refused (within_memory) when its floor would not fit in MEMORY."""
+    bounds = grid_rectangle(laid)
+    grid = reach.Grid(bounds)
+    cells = grid.shape[0] * grid.shape[1]
+    within_memory(cells * SPAN_BYTES + CHUNK_BYTES, f"the walkers' grid ({bounds[2] - bounds[0]:.0f} x "
+                  f"{bounds[3] - bounds[1]:.0f} m, {cells:,} cells of {reach.CELL} m, its edges set by "
+                  f"{', '.join(widest(laid))})")
+    return bounds, grid
+
+
+def widest(laid):
+    """The objects whose boxes set the walkers' grid's edges (grid_rectangle's): west, south, east and north."""
+    names = laid.with_role("shell", "connector", "door", "structure", "prop", "mount") or laid.names
+    boxes = np.array([laid.meshes[name].bounds for name in names])
+    return list(dict.fromkeys(names[index] for index in (np.argmin(boxes[:, 0, 0]), np.argmin(boxes[:, 0, 2]),
+                                                          np.argmax(boxes[:, 1, 0]), np.argmax(boxes[:, 1, 2]))))
+
+
 def room_for_walkway(span_count, steps, clear):
     """reach.room_for_body for a way WALKWAY wide: the clear spans left once ERODED cells are taken off every border
     (a span missing a climbable step to a clear span on one of its four sides is a border), so a way of
@@ -656,12 +703,14 @@ def walkers_floor(laid, doors=None):
     """Where a walker WALKWAY wide stands: the grid, each span's cell and height, which spans it stands on, and each
     span's piece (spans joined by steps no higher than a knee). `doors`: each door's mesh as it stands for the walkers
     (doors_standing); None, every door open (the walkway check's: is every doorway a way)."""
-    bounds = grid_rectangle(laid)
-    grid = reach.Grid(bounds)
+    bounds, grid = walkers_grid(laid)
     solid = [laid.meshes[name] for name in laid.names if laid.roles[name] != "door"] + list((doors or {}).values())
     meshes = [mesh for mesh in (reach.over_grid(mesh, bounds) for mesh in solid) if mesh is not None]
     no_ground = lambda middles: np.full(len(middles), np.nan)  # noqa: E731 (every floor is a laid surface)
-    span_cells, span_heights = reach.spans(*reach.floor_points(grid, meshes, no_ground))
+    room = lambda count: within_memory(count * FLOOR_BYTES + CHUNK_BYTES,  # noqa: E731
+                                       f"{count:,} floor heights on the walkers' grid")
+    span_cells, span_heights = reach.spans(*reach.floor_points(grid, meshes, no_ground, room))
+    within_memory(len(span_cells) * SPAN_BYTES, f"the walkers' floor's {len(span_cells):,} spans")
     clear = reach.clear_overhead(grid, meshes, span_cells, span_heights)
     steps = reach.steps_between(grid, span_cells, span_heights)
     standing = room_for_walkway(len(span_cells), steps, clear)
@@ -1046,8 +1095,11 @@ def settle_faults(laid, folder):
     for name in loose:
         vertices = np.asarray(laid.meshes[name].convex_hull.vertices)
         arrays[f"hull_{name}"], arrays[f"statics_{name}"] = vertices, statics_near(laid, name)
+    workers = settle_workers({name: len(arrays[f"statics_{name}"]) for name in loose},
+                             sum(array.nbytes for array in arrays.values()))
     np.savez(job, **arrays)
-    done = subprocess.run([str(python), str(SETTLE_SCRIPT), str(job), str(out)], capture_output=True, text=True)
+    done = subprocess.run([str(python), str(SETTLE_SCRIPT), str(job), str(out), str(workers)], capture_output=True,
+                          text=True)
     if done.returncode:
         raise RuntimeError(f"the MuJoCo settle failed: {done.stderr.strip()[-600:]}")
     found = json.loads(out.read_text())
@@ -1059,6 +1111,27 @@ def settle_faults(laid, folder):
                              "why": f"let go, it moves {measure['moved'] * 100:.0f} cm and turns "
                                     f"{measure['turned']:.0f} degrees"}]
     return faults, found["engine"]
+
+
+def settle_workers(plates, job_bytes):
+    """How many settle models run side by side (SETTLE_POOL at most): as many of the largest (`plates`, each loose
+    object's static triangles) as fit in MEMORY beside the job (`job_bytes`, held here and read whole by the settle);
+    refused (within_memory) when not even one fits."""
+    largest = max(plates.values()) * PLATE_BYTES + settle_arena()
+    biggest = max(plates, key=plates.get)
+    within_memory(2 * job_bytes + largest, f"the settle's job and its largest model ({biggest}, "
+                                           f"{plates[biggest]:,} static triangles)")
+    room = (MEMORY - in_use() - 2 * job_bytes) // largest
+    return int(max(1, min(SETTLE_POOL, len(plates), room)))
+
+
+def settle_arena():
+    """Each settle model's arena (settle_mujoco.ARENA), read from its source: it imports MuJoCo, which only the
+    physics trial's Python has."""
+    for node in ast.parse(SETTLE_SCRIPT.read_text()).body:
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", None) == "ARENA":
+            return int(ast.literal_eval(node.value))
+    raise RuntimeError(f"no ARENA in {SETTLE_SCRIPT}")
 
 
 # --- the check ----------------------------------------------------------------------------------------------------
@@ -1095,6 +1168,7 @@ def check(folder, settle=True):
     """Every reason the place is not physics ready, per object, written to <folder>/ready.json; the counts."""
     stage, place = place_build.opened(folder)
     laid = Place(stage, place)
+    walkers_grid(laid)  # refused here, before the per-object measures, when the walkers' floor would not fit
     found = {name: [{"fault": "no collision geometry", "why": "it has no triangles to collide by"}]
              for name in laid.prims if laid.roles[name] not in UNSOLID + ("scenery",) and name not in laid.names}
     for name in laid.names:

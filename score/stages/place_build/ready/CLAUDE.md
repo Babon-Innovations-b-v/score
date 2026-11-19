@@ -32,6 +32,11 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   a solid is inside, and a look of it that meets nothing within SEES is `open to the outside` (ready.json `open`),
   a gap no door (as laid, shut), window or glass closes. The fix is a wall built and, for the concept's cut-away, a
   camera cut (place.json `cut`, place_build `cut`), never a wider tolerance.
+- **Memory is bounded** (2026-11-19: the Hong Kong square, its walkers' grid 1.6 km across, took 33 GB and froze the
+  owner's PC): a surface's points are read CHUNK at a time (reach.surface_chunks, the very points sample_surface
+  draws), and before the walkers' floor and the settle the check works out what they need and refuses past MEMORY
+  (`within_memory`), naming what stretches it; the settle runs as many models side by side as fit. A new phase that
+  grows with the scene gets its estimate there; never loosen a measure to fit.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
   no newton_env; link `$PROPS_HOME/envs/newton_env` to run it whole).

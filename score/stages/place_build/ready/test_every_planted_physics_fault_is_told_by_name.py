@@ -16,7 +16,10 @@ laid as an object (`score:kind` light) is no solid: never told, never stood on. 
 other and a ground disc, over 200 m past every walker's reach) is scenery, never told, while the same two rocks 12 m
 past the reached objects still penetrate. A closed room (walls, roof, its door shut in its doorway) sees nothing
 outside from its walkers' floor, while the same room with its front wall left out (a cut-away built into the
-building) is told open to the outside.
+building) is told open to the outside. The check's memory stays bounded: a surface's points are read a chunk at a
+time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
+300 m off, stretching the walkers' grid past the memory budget, is refused by name before the grid is read; and the
+settle runs as many models side by side as fit the budget, refusing when not even its largest fits.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -49,9 +52,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.open_faults: SEES made 1.0 -> the closed room's far looks read open and it is told
 - ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
   scenery and pass
+- reach.surface_chunks: `lengths.bit_generator.advance(count)` left out -> the chunked points are not sample_surface's
+- reach.surface_chunks: `chunk` taken as 10 ** 12 (the whole surface at once) -> the floor holds 419 MB
+- ready.walkers_grid: its `within_memory` left uncalled -> the post's grid is read, not refused
+- ready.settle_workers: `room` left out of the count -> three models run where two fit
 """
 import json
 import pathlib
+import tracemalloc
 
 import numpy as np
 import trimesh
@@ -325,7 +333,7 @@ def planted(folder):
     return folder
 
 
-def test_every_planted_physics_fault_is_told_by_name(tmp_path):
+def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     for cut in (False, True):
         stage, place = place_build.opened(room(tmp_path / f"room_{cut}", cut))
         shell = ready.Place(stage, place)
@@ -399,6 +407,40 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path):
     assert any(fault.get("torn", 0) > 0.5 for fault in found["person_torn"]), found["person_torn"]
     assert "door does not fit" not in told.get("hatch_round", ()), found["hatch_round"]
     assert "door does not fit" in told["hatch_squared"], found.get("hatch_squared")
+    reach = ready.reach  # the check's memory stays bounded: a surface read a chunk at a time, its points the same
+    small = trimesh.creation.icosphere(2)
+    count = int(np.ceil(small.area * reach.SAMPLES_PER_M2))
+    chunked = np.vstack([points for points, _ in reach.surface_chunks(small, chunk=999)])[:count]
+    assert np.array_equal(chunked, trimesh.sample.sample_surface(small, count, seed=0)[0])
+    monkeypatch.setattr(reach, "CHUNK", 200_000)
+    plate = trimesh.Trimesh([[-40.0, 0.0, -40.0], [40.0, 0.0, -40.0], [40.0, 0.0, 40.0], [-40.0, 0.0, 40.0]],
+                            [[0, 2, 1], [0, 3, 2]])  # 6,400 m², 6.6 million points: 160 MB held whole
+    grid = reach.Grid((-2.0, -2.0, 2.0, 2.0))
+    tracemalloc.start()
+    spans = reach.spans(*reach.floor_points(grid, [plate], lambda middles: np.full(len(middles), np.nan)))
+    clear = reach.clear_overhead(grid, [plate], *spans)
+    held = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert held < 64 * 2 ** 20 and len(spans[0]) == grid.shape[0] * grid.shape[1] and clear.all(), \
+        (held, len(spans[0]), grid.shape)
+    far = ready.Place(*place_build.opened(folder))  # a post 300 m off stretches the walkers' grid past the budget
+    far.meshes["far_post"] = trimesh.creation.box([0.3, 2.0, 0.3]).apply_translation([300.0, 1.0, 300.0])
+    far.roles["far_post"], far.names = "structure", [*far.names, "far_post"]
+    monkeypatch.setattr(ready, "MEMORY", ready.in_use() + 2 ** 29)
+    try:
+        ready.walkers_floor(far)
+        raise AssertionError("a walkers' grid past the memory budget was read")
+    except place_build.Refused as why:
+        assert "walkers' grid" in str(why) and "far_post" in str(why), str(why)
+    largest = 1000 * ready.PLATE_BYTES + ready.settle_arena()  # the settle runs as many models as fit, or refuses
+    monkeypatch.setattr(ready, "MEMORY", ready.in_use() + int(2.5 * largest))
+    assert ready.settle_workers({"big": 1000, "small": 10, "tiny": 5}, 0) == 2
+    monkeypatch.setattr(ready, "MEMORY", ready.in_use() + largest // 2)
+    try:
+        ready.settle_workers({"big": 1000, "small": 10}, 0)
+        raise AssertionError("a settle model past the memory budget was run")
+    except place_build.Refused as why:
+        assert "big" in str(why), str(why)
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")
         return
