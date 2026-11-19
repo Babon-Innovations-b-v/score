@@ -285,15 +285,40 @@ def recipe_looks(objects, specs):
     return changed
 
 
+PRIM_PATH = "usd_prim_path"  # the custom property each imported object keeps its prim's path in
+
+
+class PrimPaths(bpy.types.USDHook):
+    """Each imported object stamped with the path of the prim it was read from: Blender 5's reader merges a
+    single-mesh Xform into its mesh and names the object for the mesh ('geo', 'geo.001'), so an object's name does not
+    say which laid object it is, its prim's path does (the reader's own prim map)."""
+    bl_idname = "score_prim_paths"
+    bl_label = "SCORE prim paths"
+
+    @staticmethod
+    def on_import(context):
+        for path, ids in context.get_prim_map().items():
+            for item in ids:
+                if isinstance(item, bpy.types.Object):
+                    item[PRIM_PATH] = str(path)
+        return True
+
+
 def camera_cut(objects):
     """The objects the listing's `cut` names (place.json `cut`: the concept's cut-away), with everything under them,
     left out of the camera's rays alone: the building stays closed, its cut wall still shades and bounces light,
-    and the camera sees through it (owner 2026-11-19: a concept's cut is the camera's, never the building's)."""
+    and the camera sees through it (owner 2026-11-19: a concept's cut is the camera's, never the building's). A cut
+    object is found by its prim's path (/<place>/Objects/<name>), never by its Blender name."""
     arguments = sys.argv[sys.argv.index("--") + 1:]
     names = json.loads(pathlib.Path(arguments[1]).read_text()).get("cut") or []
+    laid = {}
+    for item in bpy.data.objects:
+        segments = str(item.get(PRIM_PATH, "")).split("/")
+        if len(segments) == 4 and segments[2] == "Objects":
+            laid[segments[3]] = item
     hidden = []
     for name in names:
-        found = bpy.data.objects.get(name)
+        found = laid.get(name)
         if found is None:
             raise RuntimeError(f"blender_views: the cut names {name}, which the scene does not hold")
         for item in [found, *found.children_recursive]:
@@ -333,6 +358,7 @@ def hazy(objects):
         bpy.context.scene.cycles.samples = max(bpy.context.scene.cycles.samples, usd_views.CARD_SAMPLES)
 
 
+bpy.utils.register_class(PrimPaths)
 usd_views.import_stage = with_laid_ground(usd_views.import_stage)
 usd_views.haze_volumes = with_thin_glass(usd_views.haze_volumes)  # the looks' pass, never in a plain view
 usd_views.main()

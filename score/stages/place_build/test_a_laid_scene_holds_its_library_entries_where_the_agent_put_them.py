@@ -111,6 +111,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - rainfall.shown: the frame's mesh left at the ground -> splashes stand where no drop has landed
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
 - place_build.remove: Effects not looked in -> the removed ruts stay laid
+- place_build.remove: place.json's cut left as it was -> a removed awning stays listed in the cut
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 - scene_package.copy_frame: every copy kept whole (no evenness test) -> a stretched copy fails the package check
 - scene_package.gprim_pieces: the cube's own transform left out (identity) -> the crate's model misses its laid box
@@ -801,6 +802,10 @@ def filmed(tmp_path):
         raise AssertionError("a cut of an object the scene does not hold was listed")
     except place_build.Refused:
         pass
+    place_build.put(folder, "awning", "kit/box_piece", at=(-8, 0, 0))
+    place_build.camera_cut(folder, "awning")
+    place_build.remove(folder, "awning")  # a removed object leaves the cut too, which would name what is gone
+    assert place_build.record_of(folder)["cut"] == ["wall"], place_build.record_of(folder)["cut"]
 
 
 

@@ -1116,7 +1116,7 @@ def view(folder, name, eye, aim, fov):
 
 
 def remove(folder, name):
-    """The object (and its look), effect or light called `name` taken out of the scene."""
+    """The object (and its look), effect or light called `name` taken out of the scene, and out of place.json `cut`."""
     stage, place = opened(folder)
     paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Effects", "Looks", "Lights")]
     paths += [str(inside.GetPath()) for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
@@ -1127,6 +1127,10 @@ def remove(folder, name):
     for path in found:
         stage.RemovePrim(path)
     saved(stage)
+    record = record_of(folder)
+    if name in (record.get("cut") or []):  # a removed object is no longer the camera's to see through
+        record["cut"] = [listed for listed in record["cut"] if listed != name]
+        write_record(folder, record)
     return {"removed": name}
 
 
