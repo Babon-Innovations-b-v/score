@@ -94,6 +94,14 @@ SWING = 90.0  # degrees an opening door's leaf turns about its hinge
 ROOM = 1.0  # metres of room round an open leaf past which more room is no better a swing
 CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, what is under it
 SETTLE_MOVE = 0.05  # metres
+SEES = 40.0  # metres a ray from the walkers' floor goes meeting nothing before it is taken to see the outside
+COVER = 12.0  # metres over a floor point a roof, slab or flight must stand for the point to be inside
+INSIDE_SHARE = 0.6  # a covered point whose rays meet something at least this often is inside (under an awning, less)
+LOOK_HEIGHTS = (0.5, 1.6)  # metres over the walkers' floor the looks start (a child's, a grown walker's eyes)
+LOOK_STRIDE = 0.5  # metres between the floor points looked from
+LOOK_AZIMUTHS = 16  # ways round a point
+LOOK_ELEVATIONS = (0.0, 20.0, 45.0, 70.0)  # degrees up of each ring of ways
+SHOWN_OPEN = 12  # at most this many of a place's open looks are listed (the rest counted)
 SETTLE_TURN = 8.0  # degrees
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
 ROLES = ("ground", "shell", "connector", "door", "structure", "fixed", "mount", "character", "light", "prop",
@@ -701,6 +709,65 @@ def walkway_faults(laid):
             for name, found in sorted(reached.items()) if main not in found], (grid, span_cells, span_heights, standing)
 
 
+# --- a closed inside (owner 2026-11-19: a concept's cut is the camera's, never the building's) --------------------
+
+def look_ways():
+    """The ways a floor point looks: LOOK_AZIMUTHS round each ring of LOOK_ELEVATIONS, and straight up (n, 3)."""
+    turns = np.radians(np.arange(LOOK_AZIMUTHS) * 360.0 / LOOK_AZIMUTHS)
+    ways = [(np.cos(np.radians(up)) * np.cos(turn), np.sin(np.radians(up)), np.cos(np.radians(up)) * np.sin(turn))
+            for up in LOOK_ELEVATIONS for turn in turns]
+    return np.array(ways + [(0.0, 1.0, 0.0)])
+
+
+def met(laid, origins, directions, length):
+    """Whether each ray meets any solid of the place (a door as laid, shut in its opening; glass; a window) within
+    `length`."""
+    triangles, _ = laid.triangles_in(*ray_box(origins, directions, length))
+    if not len(triangles) or not len(origins):
+        return np.zeros(len(origins), bool)
+    local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
+    where, rays, _ = local.ray.intersects_location(origins, directions, multiple_hits=False)
+    reached = np.zeros(len(origins), bool)
+    reached[rays[np.linalg.norm(where - origins[rays], axis=1) <= length]] = True
+    return reached
+
+
+def look_points(floor):
+    """Points LOOK_HEIGHTS over the walkers' floor (its standing spans, every LOOK_STRIDE on the plan): (n, 3)."""
+    grid, span_cells, span_heights, standing = floor
+    every = max(1, int(round(LOOK_STRIDE / reach.CELL)))
+    columns, rows = np.unravel_index(span_cells, grid.shape)
+    kept = standing & (columns % every == 0) & (rows % every == 0)
+    middles = grid.middles()[span_cells[kept]]
+    return np.concatenate([np.column_stack([middles[:, 0], span_heights[kept] + height, middles[:, 1]])
+                           for height in LOOK_HEIGHTS]) if kept.any() else np.zeros((0, 3))
+
+
+def open_faults(laid, floor):
+    """Every look from the walkers' floor inside the place (a point under a roof, slab or flight within COVER whose
+    looks meet a solid INSIDE_SHARE of the time or more) that meets nothing within SEES: the inside sees the sky or the
+    outside through a gap no door, window or glass closes (a cut-away built into the walls). [{fault, at, towards,
+    why}] (at most SHOWN_OPEN, each from another point) and how many inside points see out."""
+    points, ways = look_points(floor), look_ways()
+    if not len(points):
+        return [], 0
+    covered = met(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
+    points = points[covered]
+    origins, directions = np.repeat(points, len(ways), axis=0), np.tile(ways, (len(points), 1))
+    reached = met(laid, origins, directions, SEES).reshape(len(points), len(ways))
+    inside = reached.mean(axis=1) >= INSIDE_SHARE
+    seeing = np.flatnonzero(inside & ~reached.all(axis=1))
+    faults = []
+    for number in seeing[:SHOWN_OPEN]:
+        towards = ways[np.flatnonzero(~reached[number])[0]]
+        at = np.round(points[number], 2).tolist()
+        faults.append({"fault": "open to the outside", "at": at, "towards": np.round(towards, 2).tolist(),
+                       "why": f"from the walkers' floor at {at} the look towards {np.round(towards, 2).tolist()} "
+                              f"meets nothing within {SEES:g} m: a gap no door, window or glass closes (build the "
+                              f"inside closed; a cut-away is the camera's, place.json `cut`)"})
+    return faults, len(seeing)
+
+
 # --- the walkers' ground and routes (sim body, scene clips) -------------------------------------------------------
 
 def opens(laid, name):
@@ -1044,6 +1111,7 @@ def check(folder, settle=True):
     for name in laid.with_role("connector"):
         for fault in connector_faults(laid, name, floor):
             found.setdefault(name, []).append(fault)
+    gaps, seeing = open_faults(laid, floor)
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():
         found.setdefault(name, []).extend(faults)
@@ -1051,12 +1119,15 @@ def check(folder, settle=True):
     for faults in found.values():
         for fault in faults:
             counts[fault["fault"]] = counts.get(fault["fault"], 0) + 1
+    if seeing:
+        counts["open to the outside"] = seeing
     unfinished = finished.faults(stage, place)
     path = pathlib.Path(folder) / "ready.json"
-    path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "finishes": unfinished,
-                                "settle": engine}, indent=1))
-    return {"ready": not found and not unfinished, "objects": len(laid.prims), "with_faults": len(found),
-            "counts": counts, "unfinished": len(unfinished), "settle": engine, "file": str(path)}
+    path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "open": gaps,
+                                "finishes": unfinished, "settle": engine}, indent=1))
+    return {"ready": not found and not unfinished and not seeing, "objects": len(laid.prims),
+            "with_faults": len(found), "counts": counts, "open": seeing, "unfinished": len(unfinished),
+            "settle": engine, "file": str(path)}
 
 
 # --- the `on` helper ----------------------------------------------------------------------------------------------

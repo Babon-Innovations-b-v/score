@@ -14,7 +14,9 @@ a second ground passes, while a rock 30 cm over it floats and a crate laid into 
 support is cast against only the faces under it (camp's 660 rocks on a terrain ran the check out of 14 GB); a sky dome
 laid as an object (`score:kind` light) is no solid: never told, never stood on. Far scenery (two rocks laid into each
 other and a ground disc, over 200 m past every walker's reach) is scenery, never told, while the same two rocks 12 m
-past the reached objects still penetrate.
+past the reached objects still penetrate. A closed room (walls, roof, its door shut in its doorway) sees nothing
+outside from its walkers' floor, while the same room with its front wall left out (a cut-away built into the
+building) is told open to the outside.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -43,6 +45,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
 - ready.support_faults on the field: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating rock passes
 - ready.out_of_reach: `far` left empty -> the far shore reads no collision geometry and the far rocks penetrate
+- ready.open_faults: INSIDE_SHARE made 1.01 -> no point of the cut room reads inside and it passes
+- ready.open_faults: SEES made 1.0 -> the closed room's far looks read open and it is told
 - ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
   scenery and pass
 """
@@ -246,6 +250,32 @@ def rock_field(folder):
     place_build.ground(folder, "far_shore", 10.0, (320.0, -0.02, 0.0))
 
 
+def room(folder, cut):
+    """A room 4 x 4 m inside, 2.5 m high, on a ground disc: four walls 0.2 m thick, a roof slab, a doorway 1.0 x 2.1 m
+    in its back wall filled by its shut door; `cut` leaves its front wall out (the concept's section, built)."""
+    folder.mkdir()
+    concept = folder / "concept.png"
+    Image.new("RGB", (8, 8)).save(concept)
+    place_build.start(folder / "place", "room", concept)
+    folder = folder / "place"
+    place_build.ground(folder, "ground", 6.0, (0.0, -0.02, 0.0))
+    stage, place = place_build.opened(folder)
+    box(stage, place, "wall_left", (0.2, 2.5, 4.4), (-2.2, 0.0, -2.2))
+    box(stage, place, "wall_right", (0.2, 2.5, 4.4), (2.0, 0.0, -2.2))
+    back = box(stage, place, "wall_back", (1.5, 2.5, 0.2), (-2.0, 0.0, -2.2))
+    for name, size, middle in (("right", (1.5, 2.5, 0.2), (2.5, 0.0, 0.0)), ("lintel", (1.0, 0.4, 0.2), (1.25, 1.05, 0.0))):
+        block = UsdGeom.Cube.Define(stage, f"{back.GetPath()}/{name}")
+        block.CreateSizeAttr(1.0)
+        block.AddTranslateOp().Set(Gf.Vec3d(*middle))
+        block.AddScaleOp().Set(Gf.Vec3f(*size))
+    box(stage, place, "door", (0.98, 2.09, 0.05), (-0.49, 0.0, -2.125))
+    if not cut:
+        box(stage, place, "wall_front", (4.4, 2.5, 0.2), (-2.2, 0.0, 2.0))
+    box(stage, place, "roof", (4.4, 0.2, 4.4), (-2.2, 2.5, -2.2))
+    stage.GetRootLayer().Save()
+    return folder
+
+
 def planted(folder):
     """The fixture place: a ground disc, a wall with a 1.2 m opening and its door, and every planted fault."""
     concept = folder / "concept.png"
@@ -296,6 +326,11 @@ def planted(folder):
 
 
 def test_every_planted_physics_fault_is_told_by_name(tmp_path):
+    for cut in (False, True):
+        stage, place = place_build.opened(room(tmp_path / f"room_{cut}", cut))
+        shell = ready.Place(stage, place)
+        gaps, seeing = ready.open_faults(shell, ready.walkway_faults(shell)[1])
+        assert (seeing > 0) == cut and all(fault["fault"] == "open to the outside" for fault in gaps), (cut, gaps)
     folder = planted(tmp_path)
     coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)

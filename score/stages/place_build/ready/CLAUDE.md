@@ -27,6 +27,11 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   every walker's reach (the people and everything a walker meets) is `scenery` (`out_of_reach`), left out of every
   measure, so a far shore with no faces near the place or the horizon's mesas laid into their talus are never told.
   It is read from where the thing lies, never from a mark the agent sets.
+- **A closed inside** (owner 2026-11-19: a concept's cut is the camera's, never the building's): `open_faults` casts
+  rays from points LOOK_HEIGHTS over the walkers' floor; a point under a roof, slab or flight whose looks mostly meet
+  a solid is inside, and a look of it that meets nothing within SEES is `open to the outside` (ready.json `open`),
+  a gap no door (as laid, shut), window or glass closes. The fix is a wall built and, for the concept's cut-away, a
+  camera cut (place.json `cut`, place_build `cut`), never a wider tolerance.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
   no newton_env; link `$PROPS_HOME/envs/newton_env` to run it whole).
