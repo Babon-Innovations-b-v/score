@@ -4,6 +4,13 @@ The placing agent's tool (#128, owner 2026-11-16): a place laid by hand from sco
 its render reads as its locked concept (same room, layout, main objects, mood). The agent (a vision model) drives it
 one command at a time and reads `compare.png` and the measures to choose the next correction; nothing here judges.
 
+- **A concept's cut is the camera's, never the building's** (owner and the 2099 session, 2026-11-19). Every inside
+  place is built closed: walls, roof, floor, and a door shut in each doorway (glass and windows in their openings).
+  A concept drawn as a cut-away or section (a front wall missing, a roof lifted off) is a camera's look: build the
+  wall, then list it with `cut <folder> <object>` (place.json `cut`), and the preview and the film leave it out of
+  the camera's rays alone (blender_views.camera_cut; it still shades), the film's camera path passes it. The walkers,
+  the physics check and every game engine (the scene package) get the building whole. The check (ready/) fails an
+  inside that sees the sky or the outside through a gap no door, window or glass closes.
 - **Everything laid comes from the library.** `put` lays only an entry with a USD file (kit pieces, models, the
   sky domes), copied whole under the place's `assets/`; `surface` binds a library surface over everything inside the
   object (a variant's own material, or a recipe in a palette colour), so a model's baked colour never shows; `light`
@@ -71,8 +78,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   side and a glazed front. Panes are one face each (a closed pane's two thin-glass skins ring with light). `--one-block` keeps only the
   flats' block the entrance opens into, so a cut-away's far wall stands free to the street and the sky beyond.
   `stairs --curtain` glazes the front as a storey-high curtain wall (only the slab edges and corner piers left), so
-  the concept's cut-away look into the shaft is a look through real glass; `stairs --cut` leaves the front wall out
-  altogether (the section the concept draws), its open front guarded by the railings already on every open edge.
+  the concept's cut-away look into the shaft is a look through real glass; `stairs --cut` lays the front wall as its
+  own object `<name>_front` (stair_core.front_alone) and lists it in place.json `cut`: the shaft stays closed and
+  the camera alone sees through its front (the section the concept draws).
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
   straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of

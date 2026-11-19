@@ -24,6 +24,8 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     tube(folder, name, radius, length, at, turn, ...)  the dome shell algorithm's ribbed glass tunnel laid
     stairs(folder, name, storeys, at, turn)            the stair core algorithm (stair_core.py) laid: a walkable
                                                        switchback stairwell, its doorways answered
+    camera_cut(folder, name)                           an object the camera sees through (place.json `cut`), at
+                                                       render only: the building stays closed
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     blocks(folder, name, boxes, at, turn, ground)      solid chamfered boxes (dome_shell.blocks_file) as one object: a
                                                        road and kerbed pavements (ground) or a building (structure)
@@ -648,7 +650,8 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     `balusters` and `handrail` ready for their surfaces (`mirror`: the other hand, x taken as its length less x;
     `curtain`: its front a storey-high curtain wall),
     and its doorways (wall, along from, along to, sill, head in
-    its own frame) answered for the doors laid in them (`cut`: its front wall left out, a section's cut-away;
+    its own frame) answered for the doors laid in them (`cut`: its front wall laid as its own object <name>_front
+    and listed in place.json `cut`, so the building stays closed and the camera alone cuts it, at render;
     `one_block`: only the flats' block its entrance opens into)."""
     from score.stages.place_build import stair_core
     storeys = stair_core.STOREYS if storeys is None else int(storeys)
@@ -659,13 +662,37 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     target.parent.mkdir(parents=True, exist_ok=True)
     target.unlink(missing_ok=True)
     doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block))
+    front = target.with_name(f"front_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}.usda")
+    if cut:  # written before the scene is opened, which holds the files it references
+        front.unlink(missing_ok=True)
+        stair_core.front_alone(front, storeys, bool(mirror), bool(curtain))
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
+    if cut:
+        laid_reference(stage, f"/{place}/Objects/{name}_front", folder, front, address, "algorithm",
+                       (at, turn, (1.0, 1.0, 1.0)), False)
+        stage.GetPrimAtPath(f"/{place}/Objects/{name}_front").CreateAttribute(
+            "score:role", Sdf.ValueTypeNames.String).Set("structure")  # a wall of the shell, no floor of its own
     saved(stage)
+    if cut:
+        camera_cut(folder, f"{name}_front")
     return {"name": name, "address": address, "usd": relative, "storeys": storeys, "mirror": bool(mirror),
             "curtain": bool(curtain), "cut": bool(cut),
             "one_block": bool(one_block), "doorways": doors}
+
+
+def camera_cut(folder, name):
+    """The object `name` listed in place.json `cut`: the camera sees through it (the concept's cut-away, at render
+    only; owner 2026-11-19: a concept's cut is the camera's, never the building's), while it stands for the walkers,
+    the physics check and every game engine as built."""
+    stage, place = opened(folder)
+    if not stage.GetPrimAtPath(f"/{place}/Objects/{name}"):
+        raise Refused(f"the scene holds no object {name} to cut")
+    record = record_of(folder)
+    record["cut"] = sorted(set(record.get("cut") or []) | {name})
+    write_record(folder, record)
+    return {"cut": record["cut"]}
 
 
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
@@ -1133,6 +1160,7 @@ def refinish(folder, name):
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
+         "cut": camera_cut,
          "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze,
          "refinish": refinish}
 

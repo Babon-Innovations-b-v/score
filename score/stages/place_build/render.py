@@ -39,7 +39,8 @@ class RenderFailed(RuntimeError):
 
 def views(record, width=WIDTH, names=(), final=False):
     """usd_views' listing of the concept view and the named views `names` (place_build.view; their look only), the
-    concept's aspect kept; at the review's samples, or the films' at FINAL_SIZE when `final`."""
+    concept's aspect kept; at the review's samples, or the films' at FINAL_SIZE when `final`; `cut` the objects the
+    camera sees through (place.json `cut`, blender_views.camera_cut)."""
     wide, tall = record["size"]
     camera = record["camera"]
     unknown = sorted(set(names) - set(record.get("views", {})))
@@ -50,7 +51,7 @@ def views(record, width=WIDTH, names=(), final=False):
     listed += [{"name": name, "eye": record["views"][name]["eye"], "aim": record["views"][name]["aim"],
                 "up": [0.0, 1.0, 0.0], "fov": record["views"][name]["fov"], "look_only": True} for name in names]
     size = list(FINAL_SIZE) if final else [width, max(1, round(width * tall / wide))]
-    return {"size": size, "review": not final, "views": listed}
+    return {"size": size, "review": not final, "views": listed, "cut": record.get("cut") or []}
 
 
 def libraries():

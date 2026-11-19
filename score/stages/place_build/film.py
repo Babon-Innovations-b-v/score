@@ -53,13 +53,15 @@ def place_scenes(folder):
     """The place as camera_paths' scenes, from the physics check's own solids (ready.Place): every object but its
     characters and its lights (a sky dome laid as an object holds the whole place), each door as it stands for the
     walkers (ready.doors_standing: one marked score:opens swung open, so a camera sees and follows a walker through
-    its doorway), its laid grounds as the ground."""
+    its doorway), its laid grounds as the ground; an object the camera cuts (place.json `cut`) is no solid to it, so
+    the camera passes the closed front it sees through."""
     stage, place = place_build.opened(folder)
     laid = ready.Place(stage, place)
     grounds = laid.with_role("ground")
     standing = ready.doors_standing(laid)
+    cut = set(place_build.record_of(folder).get("cut") or [])
     shown = {name: standing.get(name, laid.meshes[name]) for name in laid.names
-             if name not in grounds and ready.text_of(laid.prims[name], "score:kind") != "light"}
+             if name not in grounds and name not in cut and ready.text_of(laid.prims[name], "score:kind") != "light"}
     ground = trimesh.util.concatenate([laid.meshes[name] for name in grounds]) if grounds else \
         trimesh.creation.box([2000.0, 0.01, 2000.0], trimesh.transformations.translation_matrix([0, -0.005, 0]))
 
@@ -277,10 +279,11 @@ def path(folder, through=None, seconds=SECONDS, eye=EYE, seed=0):
 
 def listing(folder, every, final, out):
     """usd_views' listing of every `every`th frame of the film's path: the films' samples at 1920x1080 when `final`,
-    else the review's at half that."""
+    else the review's at half that; `cut` the objects the camera sees through (place.json `cut`)."""
     made = json.loads((pathlib.Path(folder) / "film" / "path.json").read_text())
     size = list(preview.FINAL_SIZE) if final else [size // 2 for size in preview.FINAL_SIZE]
-    listed = {"size": size, "review": not final, "views": made["views"][::every]}
+    listed = {"size": size, "review": not final, "views": made["views"][::every],
+              "cut": place_build.record_of(folder).get("cut") or []}
     path_out = out / "views.json"
     path_out.write_text(json.dumps(listed, indent=1))
     return path_out, len(listed["views"])

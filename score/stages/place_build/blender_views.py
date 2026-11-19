@@ -1,6 +1,8 @@
 """Runs inside Blender: the placing agent's preview (render.py), tools/blender/inside/usd_views.py with two changes a
 laid place needs, made here so the films' and the physics' renders (which key usd_views.py) stay as they are:
 
+- **A cut is the camera's.** The objects the listing's `cut` names (place.json `cut`) are left out of the camera's
+  rays alone, so a concept's cut-away is drawn at render while the building stays closed.
 - **A laid ground is the ground.** Every mesh of an object the agent laid with `put --ground` (score:ground on it or
   a parent) is joined into one `Ground`, which usd_views takes as the stage's own ground: no grey plane of its own
   under it (the camp pilot's plane fought the laid regolith), and the ground left out of the objects' mask.
@@ -283,9 +285,27 @@ def recipe_looks(objects, specs):
     return changed
 
 
+def camera_cut(objects):
+    """The objects the listing's `cut` names (place.json `cut`: the concept's cut-away), with everything under them,
+    left out of the camera's rays alone: the building stays closed, its cut wall still shades and bounces light,
+    and the camera sees through it (owner 2026-11-19: a concept's cut is the camera's, never the building's)."""
+    arguments = sys.argv[sys.argv.index("--") + 1:]
+    names = json.loads(pathlib.Path(arguments[1]).read_text()).get("cut") or []
+    hidden = []
+    for name in names:
+        found = bpy.data.objects.get(name)
+        if found is None:
+            raise RuntimeError(f"blender_views: the cut names {name}, which the scene does not hold")
+        for item in [found, *found.children_recursive]:
+            item.visible_camera = False
+            hidden.append(item.name)
+    print("blender_views: cut", names, len(hidden), "objects out of the camera's rays")
+    return objects
+
+
 def with_laid_ground(importer):
     def imported(stage):
-        return joined_ground(importer(stage))
+        return camera_cut(joined_ground(importer(stage)))
     return imported
 
 

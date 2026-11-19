@@ -24,6 +24,7 @@
                                        [--colour #rrggbb] [--part name]
     python -m score.stages.place_build light <folder> <name> --at x,y,z --watts W [--radius m] [--colour #rrggbb]
     python -m score.stages.place_build remove <folder> <name>
+    python -m score.stages.place_build cut <folder> <name>
     python -m score.stages.place_build refinish <folder> <name>
     python -m score.stages.place_build list <folder>
     python -m score.stages.place_build render <folder> [--width pixels] [--views name,name] [--final]
@@ -58,8 +59,12 @@ share one palette. `render --final` renders at the films' samples (denoised) ins
 `stairs` lays the stair core algorithm (stair_core.py): a walkable switchback stairwell of real size, its flats'
 blocks and glazed front, parts `slab`, `steps`, `wall`, `dado`, `block`, `glass`, `frame`, `balusters`, `handrail`;
 it answers its doorways for the doors laid in them (`--mirror`: the other hand; `--curtain`: its front a storey-high
-curtain wall, the slab edges and corner piers left, so the look in reads as a cut-away's; `--one-block`: only the flats' block the
+curtain wall, the slab edges and corner piers left, so the look in reads as a cut-away's; `--cut`: its front wall laid
+as its own object <name>_front, which the camera alone cuts, at render; `--one-block`: only the flats' block the
 entrance opens into, the shaft's far wall standing free).
+`cut` lists an object the camera sees through (place.json `cut`; the concept's cut-away, at render only): every
+inside place is built closed, the cut is the camera's, never the building's; the walkers, the physics check and a game
+engine get the building whole.
 `review` renders a region's plan (grid, names), corners, door and middle eye-height views and compartment close-ups in
 one fast Blender call onto one contact sheet, a physics check's faults boxed in red (review.py); `viewer` writes the
 scene as one compressed GLB for a browser viewer.
@@ -201,6 +206,8 @@ def run(args):
         return place_build.light(args.folder, args.name, numbers(args.at), args.watts, args.radius, args.colour)
     if args.step == "remove":
         return place_build.remove(args.folder, args.name)
+    if args.step == "cut":
+        return place_build.camera_cut(args.folder, args.name)
     if args.step == "refinish":
         return place_build.refinish(args.folder, args.name)
     if args.step == "list":
@@ -364,7 +371,7 @@ def parser():
     step.add_argument("--watts", type=float, required=True)
     step.add_argument("--radius", type=float, default=0.05)
     step.add_argument("--colour", default="#ffffff")
-    for name in ("remove", "refinish"):
+    for name in ("remove", "refinish", "cut"):
         step = steps.add_parser(name)
         step.add_argument("folder")
         step.add_argument("name")

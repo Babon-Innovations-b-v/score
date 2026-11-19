@@ -21,7 +21,9 @@ straight down under its cut with +x right and +z down, and a physics fault boxed
 the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
 copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
 recipe baked into its own maps, on a ground one seamless tile; glass as transmission), its colliders from the
-physics check's roles and the place's environment (its night, sun and grade).
+physics check's roles and the place's environment (its night, sun and grade). A wall the camera cuts (place.json `cut`) is
+no solid to the film's camera and still one to the walkers, and a cut stair core's front wall is written to its own
+file.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -82,6 +84,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.outward: `volume > 0` made `volume < 0` -> the treads look down
 - stair_core.holed: the holes left out -> the back wall stands in the flat's doorway
 - stair_core.core: the front kept when `cut` -> the cut-away still stands behind its front wall
+- stair_core.front_alone: `front(...)` left out -> the cut core's front wall is written nowhere
+- film.place_scenes: the `cut` left unread -> the camera runs into the wall it sees through
+- place_build.camera_cut: the scene's prim left unasked -> a cut of an object the scene does not hold is listed
 - stair_core.core: the second block kept with `one_block` -> a flats' block stands past the shaft's far wall
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
@@ -138,7 +143,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import film, measure, relief, render, review, stair_core
+from score.stages.place_build import film, measure, ready, relief, render, review, stair_core
 
 
 def library(root, files):
@@ -504,6 +509,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     flat = np.asarray(cut_mesh.GetNormalsAttr().Get())
     assert corner.any() and cut_mesh.GetNormalsInterpolation() == UsdGeom.Tokens.faceVarying \
         and len(flat) == sum(cut_mesh.GetFaceVertexCountsAttr().Get()) and np.allclose(np.linalg.norm(flat, axis=1), 1.0)
+    stair_core.front_alone(tmp_path / "front.usda", 1)  # the wall a cut core leaves to its own object
+    front_stage = Usd.Stage.Open(str(tmp_path / "front.usda"))
+    front = np.asarray(UsdGeom.Mesh(front_stage.GetPrimAtPath("/stair_front/geo")).GetPointsAttr().Get())
+    assert ((front[:, 0] > 0) & (front[:, 0] < stair_core.LONG) & (front[:, 2] < 0) & (front[:, 1] > 0.5)).any()
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
@@ -782,6 +791,16 @@ def filmed(tmp_path):
         seen.append(film.camera_paths.first_hits(film.place_scenes(folder)["blocking"], np.array([[2.0, 1.2, 8.0]]),
                                                  np.array([[0.0, 0.0, 1.0]]))[0])
     assert np.isclose(seen[0], 1.9, atol=0.01) and np.isinf(seen[1]), seen
+    place_build.camera_cut(folder, "wall")  # the camera sees through the wall; it still stands for the walkers
+    through = film.camera_paths.first_hits(film.place_scenes(folder)["blocking"], np.array([[-4.0, 1.2, 8.0]]),
+                                           np.array([[0.0, 0.0, 1.0]]))[0]
+    assert np.isinf(through) and render.views(place_build.record_of(folder), 80)["cut"] == ["wall"] \
+        and "wall" in ready.solids(folder), through
+    try:
+        place_build.camera_cut(folder, "nothing")
+        raise AssertionError("a cut of an object the scene does not hold was listed")
+    except place_build.Refused:
+        pass
 
 
 
