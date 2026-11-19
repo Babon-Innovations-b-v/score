@@ -38,6 +38,7 @@ UPWARD = 0.5
 # stairwell woman's swinging toes went 8 to 14 cm into the next step's block, its tread over her ankle and so no ground
 # here, and her sim body was measured 0.145 m into its ground on frames 199 to 278.
 TREAD_REACH = 0.3
+PIN_PASSES = 3  # times a foot the pins' easing left in its ground is lifted out again (`unsunk`)
 # The joints whose skin a seated body sits on: the pelvis and the thighs (`seated`).
 SITS = ("Hips", "LeftLeg", "RightLeg")
 SEAT_BAND = 0.1  # metres round a seat's top its surface under the sitting skin is looked for in (`seated`)
@@ -227,7 +228,25 @@ def treads_stood(rig, local, ground, asked=()):
     for foot, (frames, rise) in zip(FEET, tread_pins(rig, moved, ground)):
         if frames is not None and frames.any():
             moved = played.pinned(moved, names, rig["parents"], rig["bind"], foot[0], frames, rise)
-    return moved
+    return unsunk(rig, moved, ground)
+
+
+def unsunk(rig, local, ground, passes=PIN_PASSES):
+    """`local` with each foot lifted by its pin (`played.pinned`) out of its ground on every frame it is in it more
+    than TOE_FLOOR (`foot_over`), again while any is, at most `passes` times: a pin eases the leg's turns into and out
+    of its frames, and the stairwell woman's swinging left foot, eased out of a 4.9 cm lift onto her tread at frame
+    565, swung 6.2 cm down into the next step's block on frames 571 to 573 (2026-11-19)."""
+    names = [str(name) for name in rig["names"]]
+    for _ in range(passes):
+        overs = [foot_over(rig, local, ground, foot) for foot in FEET]
+        sunk = [None if over is None else over[0] > TOE_FLOOR for over in overs]
+        if not any(frames is not None and frames.any() for frames in sunk):
+            break
+        for foot, over, frames in zip(FEET, overs, sunk):
+            if frames is not None and frames.any():
+                local = played.pinned(local, names, rig["parents"], rig["bind"], foot[0], frames,
+                                      np.where(frames, over[0], 0.0))
+    return local
 
 
 def tread_pins(rig, local, ground):

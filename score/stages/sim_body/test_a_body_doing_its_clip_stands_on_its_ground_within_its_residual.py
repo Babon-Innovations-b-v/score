@@ -64,6 +64,9 @@ into its one test, every break below seen red on it again):
 - a climber's swinging toes clear of the next step, 2026-11-19 (her toes 8 to 14 cm into the stairwell's next step,
   its tread over her ankle, her sim body 0.145 m into its ground): foot_over's ceiling `... + TREAD_REACH` made the
   ankle's height (the foot swinging into a tread 12 cm up never lifted).
+- a foot the pins' easing sank lifted out again, 2026-11-19 (her swinging left foot 6.2 cm into the next step on
+  frames 571 to 573, eased out of her frame 565 pin): unsunk's `over[0] > TOE_FLOOR` made `over[0] > 1.0` (the
+  dipped frame left 3 cm in); its `range(passes)` made `range(1)` (the halving pin tried once).
 - the clip each body played kept for the peel, 2026-11-19 (the stairwell woman's peel played her route_clip, never
   stood on her treads, its SOMA over them): make's `np.save(out / PLAYED / ...)` dropped, or its record's `"played
   clip"` dropped.
@@ -607,6 +610,21 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     sim_body._body.treads_stood(foot, landing, square(-0.001))
     assert [pin[0] for pin in pins] == ["LeftFoot"] and pins[0][1].all()
     assert pins[0][2] == pytest.approx([-0.028, -0.019, -0.010, -0.001], abs=1e-6)
+    # a foot the pins' easing swung into its ground is lifted out again (unsunk, 2026-11-19: her left foot 6.2 cm into
+    # the next step after the ease out of her frame 565 pin): the still foot 3 cm in on frame 2 alone is pinned there
+    # once; a pin that lifts only half is tried again, PIN_PASSES times in all
+    dipped = np.array(still)
+    dipped[2, 2, 1, 3] -= 0.03
+    pins.clear()
+    sim_body._body.unsunk(foot, dipped, square(0.0))
+    assert len(pins) == 1 and pins[0][1].tolist() == [False, False, True, False, False, False]
+    assert pins[0][2][2] == pytest.approx(0.03, abs=1e-9)
+    halved = []
+    monkeypatch.setattr(sim_body._body.played, "pinned", lambda local, names, parents, bind, foot, frames, rise: (
+        halved.append(frames), pinned(local, names, parents, bind, foot, frames, np.asarray(rise) / 2))[1])
+    sim_body._body.unsunk(foot, dipped, square(0.0))
+    assert len(halved) == sim_body._body.PIN_PASSES
+    monkeypatch.setattr(sim_body._body.played, "pinned", pinned)
     # before Kimodo's first foot keyframe and after its last its Hips stood her over the landing out of the pin's reach
     # (ends_stood, 2026-11-14): the still foot 8 cm over its tread on 30 frames, keyframes at 10 and 20, is lowered
     # onto it on the frames outside them by its Hips alone, the keyframes' span left as Kimodo made it; a swinging foot
