@@ -96,15 +96,16 @@ def footfalls_of(motion, roots, headings, feet):
 
 
 def ground(scene, run):
-    """Each made walker's motion with its standing foot on the scene's ground under it (walker_route.grounded): its
-    joined motion and its placement-frame motion rewritten; one line a walker, its largest lift."""
+    """Each made walker's motion with its standing foot on the scene's ground under it, a stance on a planned foothold
+    on the tread it names (walker_route.grounded): its joined motion and its placement-frame motion rewritten; one
+    line a walker, its largest lift."""
     from score.stages.place_build import ready
     made = pathlib.Path(run) / "make"
     plan = json.loads(walker_route.plan_file(made).read_text())
     ground_at = ground_reader(ready.solids(scene))
     for walker in plan["walkers"]:
         motion = dict(np.load(made / "joined" / f"{walker['clip']}.npz"))
-        stood = walker_route.grounded(motion, ground_at)
+        stood = walker_route.grounded(motion, ground_at, walker["holds"])
         np.savez(made / "joined" / f"{walker['clip']}.npz", **stood)
         np.savez(made / "motions" / f"{walker['clip']}.npz",
                  **walker_route.own_frame(stood, walker["roots"], walker["headings"]))
@@ -136,7 +137,7 @@ def assemble(scene, run):
                                     "turn": round(math.degrees(float(headings[0])), 4)},
                       "route": np.round(roots, 4).tolist(),
                       "footfalls": footfalls_of(motion, roots, headings, feet) if climbs else [],
-                      "relief": round(float(roots[:, 1].max() - roots[:, 1].min()), 4), "postprocess": not climbs,
+                      "relief": round(float(roots[:, 1].max() - roots[:, 1].min()), 4), "postprocess": True,
                       "lift": 0.0, "pieces": walker["pieces"]})
         standing = walker_route.standing_gap(motion, walker_route.foot_gaps(motion, ground_at))
         faults, _ = walker_route.foothold_faults(motion, walker["levels"], walker["route"], ground_at)

@@ -24,10 +24,14 @@ makes the pieces with Kimodo, free on this PC's card.
   sole whole on its tread NOSING_BACK back from its nosing, landings walked at Kimodo's cadence, and the route's
   height is the footholds' (`stood_roots`), never the floor cells' (a cell over a riser takes the upper tread's).
   The footholds drive Kimodo itself: each is a left- or right-foot keyframe whose rest pose sets that sole on it
-  (`hips_over`, `sided`). Never move a made motion's legs onto them. `foothold_faults` is the check (whole on one
-  tread, within ON_TREAD_MOST, back from the nosing, one stance a tread, alternating); its stances come from the
-  joints, since a climb's foot_contacts mark none. `ground` stands the made motion's standing foot on the scene's
-  ground on every frame before the rig is made, since Kimodo's climb walks on up past a flight's last tread.
+  (`hips_over`, `sided`), Kimodo's post-processing on for climbs too (it pins their height; without it the soles
+  missed by 7 cm along, 6 across and 2 up). Never move a made motion's legs onto them. `foothold_faults` is the check
+  (a stair rule: the ball and toes on one tread within ON_TREAD_MOST, the ball back from the nosing, nothing through
+  the riser above or into the tread, a climbing heel hanging over the nosing at most HEEL_OVERHANG_MOST, a
+  descending sole whole; one stance a tread, alternating); its stances come from the joints, since a climb's
+  foot_contacts mark none. `ground` stands the made motion's standing foot on the scene's ground on every frame
+  before the rig is made, since Kimodo's climb walks on up past a flight's last tread, a stance on a planned
+  foothold on the tread that foothold names (`held_gaps`: a toe over the next riser once lifted her a riser).
 - **A flat piece walks upright** (owner, 2026-11-18: the street walker "rlly walks like a monkey"): its knees straighten
   within KNEE_STRAIGHT and each hand swings at least SWING_LEAST (`posture`, `slouched`), else it is made again from the
   next of SEED_TRIES seeds and refused after the last; the sentence alone did not hold it (a third of seeds crouched
