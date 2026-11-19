@@ -38,7 +38,7 @@ UPWARD = 0.5
 # stairwell woman's swinging toes went 8 to 14 cm into the next step's block, its tread over her ankle and so no ground
 # here, and her sim body was measured 0.145 m into its ground on frames 199 to 278.
 TREAD_REACH = 0.3
-SWING_EASE = 2  # frames each side a swinging foot's lift out of its ground is spread over (`swung_over`)
+SWING_EASE = 1  # frames each side a swinging foot's lift out of its ground is spread over (`swung_over`)
 PIN_PASSES = 3  # times a foot the pins' easing left in its ground is lifted out again (`unsunk`)
 # The joints whose skin a seated body sits on: the pelvis and the thighs (`seated`).
 SITS = ("Hips", "LeftLeg", "RightLeg")
