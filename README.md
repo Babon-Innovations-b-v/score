@@ -1,5 +1,7 @@
 # SCORE
 
+**Paper (PDF):** [`paper/score/arxiv/main.pdf`](paper/score/arxiv/main.pdf). **Full demo film:** [`score-demo.mp4`](https://github.com/Babon-Innovations-b-v/score/releases/download/demo-2026-11-18/score-demo.mp4).
+
 ## Demo
 
 Four places built by SCORE, each ending on the peel: a walker's player model, its SOMA body, then its
