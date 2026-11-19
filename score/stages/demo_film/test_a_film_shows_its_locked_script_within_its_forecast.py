@@ -459,6 +459,9 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         walker is refused
     Break: score/stages/demo_film/peel.py: turning's `return (room[frame, way] >= metres and camera_paths.swept_clear(`
         -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall
+    Break: score/stages/demo_film/peel.py: closing's `for start in shut:` loop dropped -> the roofed S-bend's walker
+        is refused (camp's tunnel astronaut at Earth's pace, 2026-11-19); its `turning(scenes, aims, sorted({*range(
+        shown, ...` -> `range(arrived, ...` -> the same (its eye held in the lane's wall until the camera arrives)
     Break: score/stages/demo_film/peel.py: lowered's `short = np.maximum(` ... `/ 2.0` -> `short = 0.0 * np.maximum(`
         ... -> the nearest close-up's feet out of the picture
     Break: score/stages/demo_film/peel.py: `looks = turned_looks(opening_look, towards, look_share)` -> `looks =
@@ -1031,6 +1034,23 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         np.degrees(np.arccos(off[0, [0, 2]] @ off[-1, [0, 2]] / np.linalg.norm(off[0, [0, 2]]) /
                              np.linalg.norm(off[-1, [0, 2]]))) > peel.HEADINGS, "it came round"
     assert peel.sighted(scenes, aims, eyes, arrived) and np.abs(aims - hips)[arrived:].max() < 0.4, "clear, in sight"
+    # the same S-bend under a roof the concept sees from over it (camp's glass tunnel into its dome, 2026-11-19): no
+    # way in for the camera, so the film dissolves from the concept's view to the eye coming round with the walker
+    roofed = peel.camera_paths.scenes_of({str(number): trimesh.creation.box(bounds=bounds) for number, bounds in enumerate(
+        [[[-20.0, 0.0, 1.2], [-1.2, 10.0, 4.5]], [[1.2, 0.0, -1.2], [20.0, 10.0, 1.8]],
+         [[-20.0, 0.0, -1.5], [20.0, 10.0, -1.2]], [[-20.0, 0.0, 4.2], [20.0, 10.0, 4.5]],
+         [[-20.0, 4.0, -1.5], [20.0, 4.3, 4.5]], [[-20.3, 0.0, -1.5], [-20.0, 4.3, 4.5]],
+         [[20.0, 0.0, -1.5], [20.3, 4.3, 4.5]]])}, floor,
+        lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    start, path, entered = peel.closing(walked, roofed, 120, (1280, 720), view, lead=48)
+    eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
+    hips = np.array([[bend(start + frame)[0], 0.9, bend(start + frame)[1]] for frame in range(120)])
+    off = (eyes - hips)[arrived:]
+    assert not entered and (eyes[:, 1] < 4.0).all(), "dissolved to, inside the roof"
+    shown = round((peel.OPENING_SECONDS + peel.APPROACH_SECONDS / 2 - peel.DISSOLVE_SECONDS) * peel.RATE) - 1  # the
+    # dissolve's start (walker_job's cut_in): before it the concept's view alone shows
+    assert (np.linalg.norm(off, axis=1) >= peel.CLOSE_LEAST - 0.05).all() and \
+        peel.sighted(roofed, aims[shown:], eyes[shown:]), "it came round, clear and in sight from the dissolve on"
     # a close-up held at FOV_MOST gives up headroom before the feet: at TURN_METRES' nearest its picture reaches 0.25 m
     # under them (a sim body sunk into a tread still shows its feet and push), at CLOSE_METRES its aim stays the hips
     nearest = np.array([peel.TURN_METRES[-1], peel.CLOSE_METRES])

@@ -625,8 +625,11 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
     comes in from the most room it has to its close-up over the approach instead, the film dissolving to it from the
     concept's view (walker_job's `cut_in`). Where no one way leaves CLOSE_LEAST (a walker in through a doorway and up a
     turning stair), the close-up's eye comes round with the walker (`turning`), in from the concept's view as above,
-    the walker seen from the camera's arrival on (one may walk in through a doorway as it arrives). (the start, the
-    views, whether the camera came in from the concept's view); refused where no start and way leave CLOSE_LEAST."""
+    the walker seen from the camera's arrival on (one may walk in through a doorway as it arrives); where that turning
+    close-up has no clear way in either (camp's tunnel astronaut at Earth's pace, 2026-11-19: through a glass tunnel
+    and round into a dome the concept sees from outside), the film dissolves to it from the concept's view, the walker
+    seen and its eye coming round with it from the dissolve's start on. (the start, the views, whether the camera came
+    in from the concept's view); refused where no start and way leave CLOSE_LEAST."""
     path = hips_path(points, up=1)
     eye_share, look_share = approach(count, seconds)
     seen_from = int(np.searchsorted(eye_share, 0.5))
@@ -667,6 +670,7 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
         eyes = aims + (room + (close - room) * eye_share)[:, None] * way
         if sighted(scenes, aims, eyes):
             return start, viewed(eyes, aims, np.full(count, close_fov(close, size))), False
+    shut = []  # turning close-ups with no clear way in: dissolved to from the concept's view, after every other
     for start in range(lead, len(points) - count + 1, RATE):
         aims = path[start:start + count]
         offsets = turning(scenes, aims, sorted({*range(arrived, count, EVERY), count - 1}))
@@ -675,12 +679,22 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
         closes, followed = np.linalg.norm(offsets, axis=1), aims + offsets
         route = approach_route(scenes, opened, followed[arrived], through)
         if route is None:
+            shut.append(start)
             continue
         eyes = kept_off(along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived]), aims,
                         closes)
         if sighted(scenes, aims, eyes, arrived):  # seen once arrived: a walker may come in through a doorway
             fovs = np.array([close_fov(close, size) for close in closes])
             return start, came_in(eyes, lowered(aims, closes, fovs, size), fovs), True
+    shown = max(0, seen_from - round(DISSOLVE_SECONDS * RATE) - 1)  # the dissolve's start (walker_job's cut_in)
+    for start in shut:  # its eye round the walker from the dissolve's start on, the frames before never drawn
+        aims = path[start:start + count]
+        offsets = turning(scenes, aims, sorted({*range(shown, count, EVERY), count - 1}))
+        if offsets is None or not sighted(scenes, aims[shown:], (aims + offsets)[shown:]):
+            continue
+        closes = np.linalg.norm(offsets, axis=1)
+        fovs = np.array([close_fov(close, size) for close in closes])
+        return start, viewed(aims + offsets, lowered(aims, closes, fovs, size), fovs), False
     raise ValueError(f"no start and way round the walker leave {CLOSE_LEAST} m clear of the place for a close-up "
                      "with a clear way in from the concept's view")
 
