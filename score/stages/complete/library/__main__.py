@@ -7,8 +7,9 @@ For each place, <out>/<place>/: rows.json (every thing's source and every bound 
 exception or neither, with the entry or exception it traced to or what it is instead), findings.json ({"place",
 "answer", "reason", "outputs": {node: the assembly judged}, "counts", "findings": [{"rule", "prim", "name",
 "sentence", "picture", "count", "aspect", "kind", "prims"}]}) and marks/<place>-<n>.png, a picture a finding; then
-<out>/summary.json. The default out is WORK/checks/library, where the cockpit reads it. Reads the store and the
-library only; never writes to either. Prints one line a place and one summary line.
+<out>/summary.json, and <out>/concepts.json: each locked concept the library lacks or holds with another picture
+(score/stages/library/concepts, run alone too). The default out is WORK/checks/library, where the cockpit reads it.
+Reads the store and the library only; never writes to either. Prints one line a place, one summary line and the concepts' line.
 """
 import argparse
 import json
@@ -18,6 +19,7 @@ import tempfile
 from pxr import Usd, UsdGeom
 
 from score.stages.complete.library import entries, exceptions, findings, pictures, seen, stored, trace
+from score.stages.library import concepts
 from score.store import PROPS_HOME
 
 OUT = PROPS_HOME / "work/checks/library"
@@ -135,6 +137,9 @@ def main(argv=None):
     (options.out / "summary.json").write_text(json.dumps(summary, indent=1))
     failed = sorted(place for place, entry in summary.items() if entry["answer"] == "fail")
     print(f"{len(summary)} places, {len(failed)} with things not from the library; {options.out / 'summary.json'}")
+    unheld = concepts.findings(store, shelf)
+    (options.out / "concepts.json").write_text(json.dumps(unheld, indent=1))
+    print(f"{concepts.line(store, unheld)}; {options.out / 'concepts.json'}")
 
 
 if __name__ == "__main__":

@@ -23,5 +23,7 @@ no Blender, no cloud. `trace.py`'s docstring has the tracing rules. Bible: `arch
 - Run: `SCORE_LIB_ROOT=<library> .venv/bin/python -m score.stages.complete.library [--place P] [--out FOLDER]
   [--no-pictures]`, in the background (about 20 s a place; the pxr warnings about neighbours it does not lay out go
   to stderr). It writes `WORK/checks/library/<place>/` (rows.json, findings.json, marks/) and summary.json.
+- Locked concepts: `score/stages/library/concepts/` checks each locked concept in the store is its library entry with
+  the same picture (own overlay and test); the run writes `<out>/concepts.json`.
 - Fixtures: `data/checks/library/bad.usda` (a picture's texture, a default grey, a model no entry holds: fails) and
   `good.usda` (passes). Test: `test_everything_a_place_shows_traces_to_the_library_or_an_exception.py`.
