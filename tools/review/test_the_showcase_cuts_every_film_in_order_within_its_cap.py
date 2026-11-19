@@ -18,7 +18,8 @@ Breaks (each applied once, seen red, reverted), in tools/review/showcase.py:
 In tools/review/opening.py (the demo film's opening, its style and physics read from the records):
 - the surfaces: shown_surfaces lets a glowing surface or a second take of one recipe through.
 - the palette: palette_tokens keeps the palette's own order, the laid surfaces' tokens not first.
-- the gravity: settle_gravity reads a number other than the settle script's GRAVITY (a record's, or a fixed 9.82).
+- the gravity: settle_gravity reads a number other than the settle script's GRAVITY (a record's, or a fixed 9.82);
+  people_gravity states one gravity for places whose sim bodies were solved under two, or under none named.
 
 One test: the opening's facts read from one small stage; the pure judges (the legend, the chain's cards, the credit,
 the timeline) are rows of their tables, the joins rows of clip kinds fed through joined_in_groups, and one films
@@ -192,6 +193,14 @@ def test_the_showcase_cuts_every_film_in_order_within_its_cap():
     script = folder / "settle.py"
     script.write_text("import mujoco\nSECONDS = 1.0\nGRAVITY = 3.5\n")
     assert the_opening.settle_gravity(script) == 3.5 and the_opening.settle_gravity() == 9.81
+    earth = {"camp": {"sim_body": ["earth", 9.82]}, "street": {"sim_body": ["earth", 9.82]}}
+    assert the_opening.people_gravity(earth) == ("earth", 9.82)
+    for other in (["mars", 3.728], None):
+        try:
+            the_opening.people_gravity({**earth, "camp": {"sim_body": other}})
+        except SystemExit:
+            continue
+        raise AssertionError(f"one gravity stated over {other}")
 
     for number, (case, parts, legend) in enumerate(LEGEND_ROWS):
         (folder / f"legend-{number}").mkdir()

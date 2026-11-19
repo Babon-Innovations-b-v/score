@@ -20,7 +20,8 @@ and the difference in grafity, is not true"):
   by the library's own swatch renderer (tools/props/library/inside/swatch.py) in the place's resolved recipe.
 - **physics**: what was applied, nothing more: the settle check as MuJoCo saw it (one place's objects' hulls at rest
   on what is near them, ../blender/inside/settle_view.py) under the settle's one gravity (settle_mujoco.GRAVITY, the
-  same in every place, read from its source), beside each place's sim body under the gravity its record names.
+  same in every place, read from its source), beside each place's sim body; every place's people are solved under the
+  one gravity their records name (Earth: their motion is an Earth gait), stated once, never per place.
 
 Blender runs on the cluster's cards (the swatches through tools/cloud/library_bake.py, the settle view through
 tools/cloud/blender_cloud.py; set SCORE_CLOUD=k8s and the cluster's SCORE_K8S_*, and the run's SCORE_SPEND_TICKET
@@ -108,6 +109,15 @@ def sim_body_gravity(record):
     if "gravity" not in found:
         return None
     return found.get("on"), float(found["gravity"])
+
+
+def people_gravity(places):
+    """(body, gravity m/s²) the people of every place were solved under, the one the card states; a place whose record
+    names none, or names another, ends the run: the card makes no per-place gravity claim."""
+    named = {place: tuple(held["sim_body"]) if held["sim_body"] else None for place, held in places.items()}
+    if None in named.values() or len(set(named.values())) != 1:
+        raise SystemExit(f"the places' sim bodies are not solved under one gravity: {named}")
+    return next(iter(named.values()))
 
 
 def settle_gravity(script=SETTLE_SCRIPT):
@@ -293,7 +303,7 @@ def gravity_words(gravity):
 
 
 def physics_card(found, films, out, at=None):
-    """The settle check at its one gravity, beside each place's sim body at the gravity it was solved under."""
+    """The settle check at its one gravity, beside each place's sim body, all solved under the one gravity stated."""
     image = blank()
     draw = ImageDraw.Draw(image)
     left, top = 90, 260
@@ -306,17 +316,15 @@ def physics_card(found, films, out, at=None):
     draw.text((left, top - 50), "Objects settled · MuJoCo", font=font(34, True), fill=INK)
     draw.text((left, below), f"{gravity_words(found['settle_gravity'])} in every place", font=font(34), fill=INK)
     draw.text((right, top - 50), "Sim bodies", font=font(34, True), fill=INK)
+    body, gravity = people_gravity(found["places"])
+    draw.text((right, below), f"{(body or '').title()} gravity {gravity_words(gravity)} in every place",
+              font=font(34), fill=INK)
+    draw.text((right, below + 48), "the people's motion is an Earth gait", font=font(28), fill=INK)
     for index, (place, held) in enumerate(found["places"].items()):
         x = right + (index % 2) * (tile_w + gap)
         y = top + (index // 2) * (tile_h + gap)
         picture = filled(film_frame(films / f"{place}.mp4", out, place, (at or {}).get(place)), tile_w, tile_h)
-        if held["sim_body"] is None:
-            raise SystemExit(f"{place}: its sim body record names no gravity")
-        body, gravity = held["sim_body"]
-        picture = shaded_label(picture, held["name"], 28, 16)
-        ImageDraw.Draw(picture).text((16, tile_h - 52), f"{(body or '').title()} {gravity_words(gravity)}",
-                                     font=font(26), fill=INK, anchor="ls")
-        image.paste(picture, (x, y))
+        image.paste(shaded_label(picture, held["name"], 28, 16), (x, y))
     return image
 
 
