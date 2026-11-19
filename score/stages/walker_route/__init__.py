@@ -138,6 +138,11 @@ SOLE_SAMPLE = 0.01  # metres between the readings of the ground along a stance's
 # pose keyed there, heel, ankle, ball and toe alike, 0.040 m (sd 0.003) further out to its own side, and at its height
 # (0.006 m, sd 0.011). Each key sets the sole that far short, so the landed sole stands on the planned foothold.
 LANDED_AHEAD, LANDED_OUT = 0.012, 0.040
+# Kimodo's post-processing pins a keyed foot on its keyed frames alone: keyed on one frame, the stairwell's woman's
+# planted foot jumped 1 to 2 cm onto its key and back (2026-11-20, 9 of 16 treads), which split a stance in two in the
+# check's reading and measured its height mid-jump. Each tread foothold is keyed on the frames this far either side of
+# its stance middle as well, the same sole on each, so the foot is held still there.
+FOOT_KEY_SPAN = 1
 STEP_LEAST = 0.14  # metres: a foothold nearer ahead of the foot set down last is no step (half a 0.28 m tread)
 LEGS = ((67, 68, 69), (72, 73, 74))  # SOMA77's hip, knee and ankle joints (LeftLeg, LeftShin, LeftFoot; Right...)
 HANDS = (14, 42)  # SOMA77's LeftHand and RightHand
@@ -467,7 +472,8 @@ def foothold_faults(motion, runs, points, ground_at):
     behind its ball the tread or, climbing (the tread's nosing behind it on the route), at most HEEL_OVERHANG_MOST of
     heel hanging over the nosing, while a descending sole stands whole on its tread NOSING_CLEAR back from its nosing.
     A climber's heel overhangs: a whole-sole rule leaves a 0.26 m sole under 2 cm on a 0.28 m tread. Each tread of a
-    flight is stood on by exactly one stance, the feet alternating tread by tread. A list of faults, empty when it
+    flight is stood on by exactly one stance, the feet alternating from each tread to the next (two treads either side
+    of one stood by none or by two are not running: that tread's own fault tells it). A list of faults, empty when it
     holds, and the stances on treads [(side, frame, tread)]."""
     line, along = along_line(points)
     treads = [index for index, run in enumerate(runs) if run["kind"] == "tread"]
@@ -489,9 +495,8 @@ def foothold_faults(motion, runs, points, ground_at):
         for index in mine:
             if len(on[index]) != 1:
                 faults.append(f"tread at {runs[index]['y']:.2f} m: stood on by {len(on[index])} stances, not one")
-        order = [on[index][0][0] for index in mine if len(on[index]) == 1]
-        faults += [f"flight {flight}: the {first} foot on two treads running" for first, second in zip(order, order[1:])
-                   if first == second]
+        faults += [f"flight {flight}: the {on[one][0][0]} foot on two treads running" for one, two in zip(mine, mine[1:])
+                   if len(on[one]) == len(on[two]) == 1 and on[one][0][0] == on[two][0][0]]
     return faults, stood
 
 
@@ -769,14 +774,17 @@ def asked(piece, roots, headings, feet, before=None, holds=None):
     if piece["kind"] != "walk" and holds:
         taken = {frame for side_keys in keys.values() for frame, *_ in side_keys}
         for hold, which in sided(holds, start, len(span), before):
-            frame = hold["frame"] - start
-            if frame in taken:
+            middle = hold["frame"] - start
+            if middle in taken:
                 continue
-            taken.add(frame)
             hips = to_frame([hips_over(hold, which)], origin, heading)[0]
             pose = np.zeros((77, 3))
             pose[0, 1] = (hold["heading"] - heading + math.pi) % (2 * math.pi) - math.pi
-            keys[which].append((frame, hips, pose, path[frame, [0, 2]]))
+            span_frames = range(-FOOT_KEY_SPAN, FOOT_KEY_SPAN + 1) if hold["tread"] is not None else (0,)
+            for frame in (middle + step for step in span_frames):
+                if frame not in taken and 0 <= frame < len(span):
+                    taken.add(frame)
+                    keys[which].append((frame, hips, pose, path[frame, [0, 2]]))
     for which in ("left", "right"):
         mine = sorted(keys[which], key=lambda key: key[0])[:MOST_KEYFRAMES]
         if mine:

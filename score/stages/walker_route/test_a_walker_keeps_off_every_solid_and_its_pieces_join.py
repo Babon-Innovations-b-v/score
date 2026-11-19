@@ -15,7 +15,8 @@ short, LANDED_OUT inside), its first keyed foot the other of the one the piece b
 0.11 m ahead of that one not keyed, a short landing between two flights climbed through; the footholds check passes
 feet planted on them and slid 3 cm back or 4 cm on (a climber sets the ball and toes on the tread, its heel hanging:
 a whole-sole rule fails real climbs), and tells a heel slid 10 cm back to hang over, toes slid 7 cm on through the
-riser above, a sole sunk 3 cm into its tread and the same foot on two treads running; a climb piece's seed score
+riser above, a sole sunk 3 cm into its tread and the same foot on two treads running (never the two either side of a
+tread stood by none); a climb's tread foothold keyed on FOOT_KEY_SPAN frames either side of its middle too; a climb piece's seed score
 (`climb_faults`, read on the levels alone) judges only the treads stood by its end and tells toes through a riser. A made
 walk floating over its ground is stood back on it (its standing foot's gap within GROUND_MOST), a stance whose toes
 reach into the next riser is stood on the tread its foothold names, never lifted a riser, and the measures tell the
@@ -74,6 +75,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.held_gaps: the planned tread left unread (`reach[nearest] <= SOLE` made `False`) -> the toe in the
   next riser lifts the stance a riser
 - walker_route.foothold_faults: the alternation left out -> the same foot on two treads running passes
+- walker_route.foothold_faults: the alternation read over the treads stood once (`zip(mine, mine[1:])` over only
+  those) -> a tread stood by none also reads its neighbours as the same foot on two treads running
+- walker_route.asked: a tread foothold keyed on its stance middle alone (`span_frames = (0,)`) -> the frames either
+  side of it carry no key
 - walker_route.grounded: the lift added with its sign turned -> the floating walk floats twice as high
 - walker_route.measures: the standing gap left out of `within` -> the floating walk reads within
 """
@@ -231,6 +236,9 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     same = [dict(hold, side=on[1]["side"]) if hold is on[2] else hold for hold in holds]
     twice, _ = walker_route.foothold_faults(planted(same, len(roots)), runs, points, ground_at)
     assert twice and all("two treads running" in fault for fault in twice), twice
+    skipped, _ = walker_route.foothold_faults(planted([hold for hold in holds if hold is not on[2]], len(roots)), runs,
+                                              points, ground_at)  # its neighbours, the same foot, are no running treads
+    assert len(skipped) == 1 and "stood on by 0 stances" in skipped[0], skipped
     climb = next(piece for piece in walker_route.pieces(risen) if piece["kind"] == "up")
     flat = slice(0, walker_route.HOLD + 10)
     floating = synthetic(roots, headings)
@@ -277,7 +285,10 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
         climbed = walker_route.asked(climb, risen, headings, feet, before, holds)
         for hold, which in keyed:
             key = next(item for item in climbed["constraints"] if item["type"] == f"{which}-foot")
-            assert hold["frame"] - climb["start"] in key["frame_indices"], (hold, key["frame_indices"])
+            middle = hold["frame"] - climb["start"]
+            wanted = {middle + step for step in range(-walker_route.FOOT_KEY_SPAN, walker_route.FOOT_KEY_SPAN + 1)} \
+                if hold["tread"] is not None else {middle}  # a tread's foot held still round its stance middle
+            assert wanted <= set(key["frame_indices"]) and walker_route.FOOT_KEY_SPAN >= 1, (hold, key["frame_indices"])
     assert firsts[0] != firsts[1], firsts
     held = next(item for item in ask["constraints"] if item["type"] == "fullbody")
     turns = np.asarray(held["local_joints_rot"])[:, 0]
