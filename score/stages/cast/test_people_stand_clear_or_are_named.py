@@ -144,7 +144,7 @@ import trimesh
 from pxr import Usd, UsdGeom
 
 from score import checks, stages
-from score.stages import cast, gaps
+from score.stages import cast, gaps, sim_body
 from score.stages.cast import driven, feet, layer, measure, seated, spread, walks
 from score.stages.scene_record import writer
 
@@ -1009,6 +1009,9 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
             case["part"] in short[0] and len(short) == 1), (name, short)
         setting = json.loads((pathlib.Path(stages.__file__).parents[2] / "data/physics/setting.json").read_text())
         setting["sites"].append({"place": "hub", "on": case["on"], "latitude": 0.0, "longitude": 0.0, "height_m": 0.0})
+        # its sim bodies solved under the hub's own pull (its people's motion taken as made there), so the slowed
+        # pace is laid wherever a sim body runs under a pull other than Earth's (sim_body.solved_under)
+        monkeypatch.setattr(sim_body, "MOTION_ON", case["on"])
         (folder / "setting.json").write_text(json.dumps(setting))
         (folder / "within.json").write_text(json.dumps({"within": {}}))
         laid_inputs = {"cast": folder / "cast", "design": tmp_path / "rows.json", "people-dress-bram-work": folder,

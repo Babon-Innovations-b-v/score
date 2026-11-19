@@ -21,7 +21,8 @@ shaking a degree each frame round its clip's swing fails `smooth` and one moving
 the toy, over a toy seed whose ground is one raised square, its run the real one on rented cards of kind sim-body (the
 machine path stood in, writing a written run; two clips a card), hands each body
 the ground's triangles in its own frame (its spot and turn, then the dressed body's Turned), leaves out by name a body
-no solid is near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the
+no solid is near, names the clip the rig lacks and the crowd, weighs each body by the gravity its motion was made under (Earth's
+on the Moon, the place's kept with why), and writes the
 layer: each SOMA segment an Xform at its pose every frame holding the bone it rides, another bone under Bones, and the
 muscles as lines coloured by activation; the record names the model's attribution (MyoSuite, MoBL-ARMS); each body is
 calibrated on the static table (no clip of the rig handed to the run), with the person's mesh for the sizing; and SOMA's
@@ -119,9 +120,12 @@ into its one test, every break below seen red on it again):
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - its model unpacked only as pinned: fetched's sha256 check dropped.
-- its clip played at the Earth walk's Froude number under its place's pull, 2026-11-14 (camp's astronaut on Mars at
-  Earth's pace, Froude 0.53 against 0.20, needing a friction ratio of 0.82): make's `RATE / slowing(gravity)` made
-  `RATE`, or slowing's root dropped (g over Earth's, not its root), or its ratio turned over.
+- its Earth gait solved under the gravity it was made under, 2026-11-19 (camp's walkers on Mars: Kimodo's Earth walk
+  solved under Mars' 3.728 m/s² and played 1.62 times slower, which the owner doubted: "yeah idk if u can just do that
+  like this"): solved_under's MOTION_ON gravity made the place's (`gravity_of(place, inputs)`)  -> the Moon's walk
+  2.46 times slower, its record on the Moon; its place's body and gravity or why dropped from the record.
+- the pace an Earth clip plays at under another pull (slowing, the Earth walk's Froude number): slowing's root dropped
+  (g over Earth's, not its root), or its ratio turned over.
 - its path low-passed on its clip's own time, 2026-11-14 (camp's walker on Mars at 6 Hz of the played 18.48 frames a
   second shook 4.23 degrees a frame cubed against its clip's 2.13): make's job `"clip rate": RATE` made
   `RATE / slowing(gravity)`.
@@ -340,7 +344,7 @@ def written_run(job):
         name = person["name"]
         written = []
         for _ in range(20):
-            frame = frames(1, weight=person["kg"] * 1.62)[0]
+            frame = frames(1, weight=person["kg"] * job["gravity"])[0]
             frame.update(poses=[[0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0]],
                          activations=[1.0], forces=[100.0])
             written.append(frame)
@@ -819,7 +823,7 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             [out / f"run-{number}.json", out / f"run-{number}.npz"], sim_body.REPO / sim_body.ENV_SCRIPT)
         assert job["model"] == str(model) and job["adjust"]["follows deg"] == sim_body.FOLLOWED
         assert job["residual"]["force"] == 0.02
-        assert job["rate"] == pytest.approx(30.0 * (1.62 / 9.82) ** 0.5)  # the Moon's walk 2.46 times slower
+        assert job["rate"] == 30.0  # an Earth gait on the Moon solved under Earth's pull, at its clip's own pace
         assert job["clip rate"] == 30.0  # its low-passes on the clip's own time, the same frames as on Earth
         for person in job["people"]:
             assert person["segments"] == ["Hips", "LeftFoot"] and "standing" not in person  # the static table (#70)
@@ -836,7 +840,9 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     # the record: each body weighed (stated, else its height squared times its sex's BMI, else the mean of both at
     # the SOMA body's height) under the scene's gravity, on its ground, calibrated, adjusted; the model attributed
     assert record["engine"] == "rented" and ran[0][5]["people"][0]["kg"] == 50.0
-    assert record["rate"] == pytest.approx(30.0 * (1.62 / 9.82) ** 0.5)  # the frames a second the drawn person plays
+    assert record["rate"] == 30.0  # the frames a second the drawn person plays
+    assert (record["on"], record["gravity"], record["place on"], record["place gravity"], record["gravity why"]) == (
+        "earth", pytest.approx(9.82, abs=0.005), "moon", 1.62, sim_body.MOTION_WHY)  # the Moon's kept, with why
     assert sim_body.slowing(9.82) == 1.0 and sim_body.slowing(3.728) == pytest.approx(1.6230, abs=1e-4)
     assert pytest.raises(ValueError, sim_body.slowing, 0.0)
     assert {name: body["mass"] for name, body in record["bodies"].items()} == {
@@ -846,12 +852,12 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
         "fay": {"kg": pytest.approx(24.65), "source": "estimated", "height": 1.0,
                 "height from": "the SOMA body's own standing height", "sex": "not stated", "bmi": 24.65}}
     for name, body in record["bodies"].items():
-        assert body["measures"]["weight N"] == round(body["mass"]["kg"] * 1.62, 2), name
+        assert body["measures"]["weight N"] == round(body["mass"]["kg"] * record["gravity"], 2), name  # Earth's
         assert body["segments"] == {"Hips": "pelvis", "LeftFoot": "tibia_l"}, name
         assert body["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}, name
         assert body["calibrated on"] == sim_body.CALIBRATED_ON, name
         assert body["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}, name
-    assert record["bodies"]["ann"]["measures"]["weight N"] == pytest.approx(81.0)
+    assert record["bodies"]["ann"]["measures"]["weight N"] == pytest.approx(491.0)  # 50 kg under Earth's 9.82
     assert "no scene-made clip up its stairs (stair_1)" in record["left out"][2]  # a climber never walks flat
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
 

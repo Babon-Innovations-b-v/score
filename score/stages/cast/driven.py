@@ -19,7 +19,8 @@ unmoved by it.
               (<person>/SimBody, a guide) at the same start, in the skeleton's frame (the asset's Turned: the sim runs
               in the rig's own frame, which the asset turns)
     slowed    under a pull other than Earth's every laid person plays its clip `slowing` times slower than it was
-              made (sim_body.slowing, the gravity of the body its place stands on: the Earth walk's Froude number),
+              made (sim_body.slowing, the gravity its sim body is solved under, sim_body.solved_under: the gravity
+              its motion was made under, Earth's for every clip today, so 1: the Earth walk's Froude number),
               as its sim body ran it: its body's reference scaled, a walk's path timed that much later, its
               SimDriven and SimBody laid at the slowed times, so the drawn person and its sim body keep one pace
     keeps     a person the sim body did not run (no sim-body output taken, its clip not in the rig, left out by the
@@ -58,10 +59,10 @@ def files(place):
 
 
 def slowing_of(place, inputs):
-    """How many times slower than made the place's people play their clips: sim_body.slowing under the gravity of
-    the body the place stands on (sim_body.gravity_of, the sim body's own reading)."""
+    """How many times slower than made the place's people play their clips: sim_body.slowing under the gravity
+    their sim bodies are solved under (sim_body.solved_under: the gravity their motion was made under)."""
     from score.stages import sim_body
-    return sim_body.slowing(sim_body.gravity_of(place, inputs)[1])
+    return sim_body.slowing(sim_body.solved_under(place, inputs)[0][1])
 
 
 def slowed_down(layer_of, slowed):

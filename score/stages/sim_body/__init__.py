@@ -23,9 +23,12 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              score/stages/physics/inside/newton_env.sh, on a rented card (a paid row, under its run's clearance: the
              machine path, kind KIND, newton_env.sh built there, a warm pool card first; its clips batched onto one
              card where they fit, `batched`; never on this PC but under SCORE_SIM_BODY_LOCAL=1 for tests), under
-             the gravity of the body the scene
-             stands on, physics/design.py ground, its clip played that pull's `slowing` slower than it was made, at
-             the Earth walk's Froude number, as the drawn person plays it; sim_bodies.json `rate` the frames a second
+             the gravity its motion was made under (`solved_under`: MOTION_ON, Earth, for every clip is Kimodo's
+             Earth motion; an Earth gait solved under another world's pull is not physically consistent, owner
+             2026-11-19, so a place on Mars or the Moon is solved under Earth's until motion made for its pull
+             exists; the place's own body and gravity, physics/design.py ground, recorded beside it with why), its
+             clip played that pull's `slowing` slower than it was made (1 under Earth's), as the drawn person plays
+             it; sim_bodies.json `rate` the frames a second
              it is played at, the job's `clip rate` RATE, the one its path is low-passed on): the model's joint angles
              fitted to the clip's segment turns and its
              skin's bony landmarks (one solver: mink per frame, scipy's least_squares over the constants), the
@@ -157,6 +160,10 @@ MODEL = ("https://files.pythonhosted.org/packages/c2/bf/deaa309a8af26e759c6ff493
 ATTRIBUTION = ("MyoFullBody: MyoSuite and myo_sim (MyoHub, Apache-2.0), as MuscleMimic Models 1.0.6 publishes it; "
                "its arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005, "
                "doi:10.1007/s10439-005-3320-7, and Saul et al. 2015, doi:10.1080/10255842.2014.916698")
+MOTION_ON = "earth"  # the world every clip's motion was made on: Kimodo's, from Earth's motion capture (solved_under)
+MOTION_WHY = ("its motion is an Earth gait (Kimodo's, from Earth's motion capture), and an Earth gait solved under "
+              "another world's pull is not physically consistent (owner, 2026-11-19), so it is solved and played under "
+              "the gravity the motion was made under until motion made for the place's own pull exists")
 CLIPS_ROW = "people-clips-made"
 # The scene-made clips (score/stages/scene_clips), an optional read: a climber (the cast's `stairs`) and a walker on
 # flat ground play their own.
@@ -227,6 +234,16 @@ def gravity_of(place, inputs):
     return design.ground(place, within, json.loads(pathlib.Path(inputs["physics"]).read_text()))
 
 
+def solved_under(place, inputs):
+    """The body and gravity a place's people are solved and played under, and the place's own: MOTION_ON's gravity
+    (the reference table's) for the motion they play was made there (MOTION_WHY), the place's body and gravity
+    (gravity_of) kept for the record: ((body, gravity), (place's body, place's gravity))."""
+    from score.review import setting
+    table = setting.reference()
+    return ((MOTION_ON, setting.gravity_of(table["bodies"][MOTION_ON], table["gravity_constant"])),
+            gravity_of(place, inputs))
+
+
 def slowing(gravity):
     """How many times slower than its clip a person moves under `gravity` (m/s²): every clip is an Earth walk
     (Kimodo's, from motion capture), and a walk under another pull is dynamically similar to it at the same Froude
@@ -252,7 +269,7 @@ def make(inputs, out, seed, params):
     scene = scene_clips_of(inputs)
     walks, walk_contacts = flat_walks(inputs, scene, clips_rig)
     clips_rig, contacts = {**clips_rig, **walks}, {**contacts, **walk_contacts}
-    body, gravity = gravity_of(place, inputs)
+    (body, gravity), (stands_on, its_gravity) = solved_under(place, inputs)
     solids = solids_of(inputs, place)
     job, records, left_out = {"rate": RATE / slowing(gravity), "clip rate": RATE, "gravity": gravity,
                                "people": []}, {}, []
@@ -328,7 +345,10 @@ def make(inputs, out, seed, params):
     write_layer(out / LAYER, place, run["people"], arrays, records)
     shutil.rmtree(out / "clips")
     (out / "job.json").unlink(missing_ok=True)
-    (out / RECORD).write_text(json.dumps({"place": place, "on": body, "gravity": gravity, "engine": run["engine"],
+    (out / RECORD).write_text(json.dumps({"place": place, "on": body, "gravity": gravity,
+                                          "place on": stands_on, "place gravity": its_gravity,
+                                          "gravity why": MOTION_WHY if stands_on != body else None,
+                                          "engine": run["engine"],
                                           "rate": job["rate"], "model": {"wheel": MODEL[0].rpartition("/")[2],
                                                                   "attribution": ATTRIBUTION}, "bodies": records,
                                           "left out": left_out, **no_singles(cast)}, indent=1))
