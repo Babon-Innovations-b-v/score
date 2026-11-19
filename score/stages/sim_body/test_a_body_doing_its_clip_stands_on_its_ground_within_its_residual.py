@@ -66,7 +66,12 @@ into its one test, every break below seen red on it again):
   ankle's height (the foot swinging into a tread 12 cm up never lifted).
 - a foot the pins' easing sank lifted out again, 2026-11-19 (her swinging left foot 6.2 cm into the next step on
   frames 571 to 573, eased out of her frame 565 pin): unsunk's `over[0] > TOE_FLOOR` made `over[0] > 1.0` (the
-  dipped frame left 3 cm in); its `range(passes)` made `range(1)` (the halving pin tried once).
+  dipped frame left 1.5 cm in); its `rise + over[0]` made `rise` (the same); its `range(passes)` made `range(1)` (the
+  halving pin tried twice); its `pinned_feet(rig, local, pins)` in the loop made `pinned_feet(rig, stood, pins)` (the
+  pin pinned over the pinned clip, 4.5 cm up).
+- a sunk foot's lift spread round it, 2026-11-19 (her left knee 45 degrees in a frame lifting her toes out of the next
+  step): swung_over's spread dropped (`return lift`: frame 4's neighbours left at 0); tread_pins' resting
+  `resting & (lifted <= 0.0)` made `resting` (the resting frame beside the sunk one lowered onto its tread).
 - the clip each body played kept for the peel, 2026-11-19 (the stairwell woman's peel played her route_clip, never
   stood on her treads, its SOMA over them): make's `np.save(out / PLAYED / ...)` dropped, or its record's `"played
   clip"` dropped.
@@ -610,20 +615,41 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     sim_body._body.treads_stood(foot, landing, square(-0.001))
     assert [pin[0] for pin in pins] == ["LeftFoot"] and pins[0][1].all()
     assert pins[0][2] == pytest.approx([-0.028, -0.019, -0.010, -0.001], abs=1e-6)
-    # a foot the pins' easing swung into its ground is lifted out again (unsunk, 2026-11-19: her left foot 6.2 cm into
-    # the next step after the ease out of her frame 565 pin): the still foot 3 cm in on frame 2 alone is pinned there
-    # once; a pin that lifts only half is tried again, PIN_PASSES times in all
+    # a sunk foot's lift spread over the frames round it (swung_over, 2026-11-19: her left toes lifted 11 cm, lowered
+    # onto her tread and lifted 14 cm in three frames, her knee 45 degrees in one): 10 cm on frame 8 of 17 held over
+    # SWING_EASE frames each side and eased out over as many more, never under a sunk frame's own depth; nothing sunk,
+    # nothing
+    reach = sim_body._body.SWING_EASE
+    sunk_at = np.arange(17) == 8
+    spread = sim_body._body.swung_over(np.where(sunk_at, 0.1, -0.05), sunk_at)
+    assert spread[8] == pytest.approx(0.1) and np.all(spread[8 - 2 * reach:8 + 2 * reach + 1] > 0.0)
+    assert np.all(spread[:8 - 2 * reach] == 0.0) and np.all(spread[8 + 2 * reach + 1:] == 0.0)
+    assert np.all(np.diff(spread[:9]) >= 0.0) and np.all(np.diff(spread[8:]) <= 0.0)
+    assert sim_body._body.swung_over(np.full(9, -0.05), np.zeros(9, bool)) == pytest.approx(np.zeros(9))
+    # and a foot resting beside it takes the lift, never lowered onto its tread between two lifted frames: the still
+    # foot 2 mm over its tread on 12 frames, 5 cm into it on frame 6, lowered onto it only beyond the lift's reach
+    toed = np.repeat(still[:1], 12, axis=0)
+    toed[6, 2, 1, 3] -= 0.052
+    (toed_frames, rise), _ = sim_body._body.tread_pins(foot, toed, square(-0.002))
+    assert toed_frames.all() and rise[6] == pytest.approx(0.05, abs=1e-9) and np.all(rise[5:8] > 0.0)
+    assert rise[[0, 1, 11]] == pytest.approx([-0.002] * 3, abs=1e-9)
+    # a foot its pin left in its ground is pinned again from the clip as it was, raised by as much more (unsunk,
+    # 2026-11-19: her left foot 6.2 cm into the next step after the ease out of her frame 565 pin, and pins pinned
+    # over pins turned her right knee 31 degrees in a frame): the still foot 3 cm in on frame 2, pinned 1.5 cm up,
+    # is pinned again 3 cm up from the dipped clip; a pin that lifts only half is tried again, PIN_PASSES times more
     dipped = np.array(still)
     dipped[2, 2, 1, 3] -= 0.03
+    half = [(np.arange(6) == 2, np.where(np.arange(6) == 2, 0.015, 0.0)), (None, None)]
     pins.clear()
-    sim_body._body.unsunk(foot, dipped, square(0.0))
-    assert len(pins) == 1 and pins[0][1].tolist() == [False, False, True, False, False, False]
-    assert pins[0][2][2] == pytest.approx(0.03, abs=1e-9)
+    unsunk = sim_body._body.unsunk(foot, dipped, square(0.0), half)
+    assert len(pins) == 2 and pins[1][1].tolist() == [False, False, True, False, False, False]
+    assert pins[1][2][2] == pytest.approx(0.03, abs=1e-9)
+    assert sim_body._body.foot_lowest(foot, unsunk, sim_body._body.FEET[0])[2] == pytest.approx(0.0, abs=1e-9)
     halved = []
     monkeypatch.setattr(sim_body._body.played, "pinned", lambda local, names, parents, bind, foot, frames, rise: (
         halved.append(frames), pinned(local, names, parents, bind, foot, frames, np.asarray(rise) / 2))[1])
-    sim_body._body.unsunk(foot, dipped, square(0.0))
-    assert len(halved) == sim_body._body.PIN_PASSES
+    sim_body._body.unsunk(foot, dipped, square(0.0), half)
+    assert len(halved) == 1 + sim_body._body.PIN_PASSES
     monkeypatch.setattr(sim_body._body.played, "pinned", pinned)
     # before Kimodo's first foot keyframe and after its last its Hips stood her over the landing out of the pin's reach
     # (ends_stood, 2026-11-14): the still foot 8 cm over its tread on 30 frames, keyframes at 10 and 20, is lowered

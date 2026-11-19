@@ -38,6 +38,7 @@ UPWARD = 0.5
 # stairwell woman's swinging toes went 8 to 14 cm into the next step's block, its tread over her ankle and so no ground
 # here, and her sim body was measured 0.145 m into its ground on frames 199 to 278.
 TREAD_REACH = 0.3
+SWING_EASE = 2  # frames each side a swinging foot's lift out of its ground is spread over (`swung_over`)
 PIN_PASSES = 3  # times a foot the pins' easing left in its ground is lifted out again (`unsunk`)
 # The joints whose skin a seated body sits on: the pelvis and the thighs (`seated`).
 SITS = ("Hips", "LeftLeg", "RightLeg")
@@ -220,33 +221,40 @@ def treads_stood(rig, local, ground, asked=()):
     and after the last (`asked`, its keyframes' frames) her Hips stood her over it, which `ends_stood` puts right
     first. Where a foot stands (`tread_pins`) further down than its leg reaches, the Hips come down first
     (`within_reach`). Each standing foot is then moved by Kimodo's own end-effector pin (`played.pinned`: the leg's
-    IK, the foot turned as before, eased in and out)."""
-    names = [str(name) for name in rig["names"]]
+    IK, the foot turned as before, eased in and out), again where its easing left a foot in its ground (`unsunk`)."""
     ground = np.asarray(ground, dtype=float)
     moved = ends_stood(rig, local, ground, asked)
     moved = within_reach(rig, moved, tread_pins(rig, moved, ground))
-    for foot, (frames, rise) in zip(FEET, tread_pins(rig, moved, ground)):
-        if frames is not None and frames.any():
-            moved = played.pinned(moved, names, rig["parents"], rig["bind"], foot[0], frames, rise)
-    return unsunk(rig, moved, ground)
+    return unsunk(rig, moved, ground, tread_pins(rig, moved, ground))
 
 
-def unsunk(rig, local, ground, passes=PIN_PASSES):
-    """`local` with each foot lifted by its pin (`played.pinned`) out of its ground on every frame it is in it more
-    than TOE_FLOOR (`foot_over`), again while any is, at most `passes` times: a pin eases the leg's turns into and out
-    of its frames, and the stairwell woman's swinging left foot, eased out of a 4.9 cm lift onto her tread at frame
-    565, swung 6.2 cm down into the next step's block on frames 571 to 573 (2026-11-19)."""
+def pinned_feet(rig, local, pins):
+    """`local` with each foot moved by its pin (`pins`: each FEET foot's frames and rise, `tread_pins`')."""
     names = [str(name) for name in rig["names"]]
+    for foot, (frames, rise) in zip(FEET, pins):
+        if frames is not None and frames.any():
+            local = played.pinned(local, names, rig["parents"], rig["bind"], foot[0], frames, rise)
+    return local
+
+
+def unsunk(rig, local, ground, pins, passes=PIN_PASSES):
+    """`local` pinned (`pinned_feet`), then pinned again from `local` while a foot is in its ground more than
+    TOE_FLOOR on any frame (`foot_over`), at most `passes` times: a pinned frame it is in raised by as much more, an
+    unpinned one held where `local` has it (rise 0): a pin eases the leg's turns into and out of its frames, and the
+    stairwell woman's swinging left foot, eased out of a 4.9 cm lift onto her tread at frame 565, swung 6.2 cm into
+    the next step on frames 571 to 573 (2026-11-19). Every pass pins `local` once, never a pinned clip again: pins
+    pinned over pins turned her right knee 31 degrees in one frame (65.7 to 92.0, frame 466)."""
+    stood = pinned_feet(rig, local, pins)
     for _ in range(passes):
-        overs = [foot_over(rig, local, ground, foot) for foot in FEET]
+        overs = [foot_over(rig, stood, ground, foot) for foot in FEET]
         sunk = [None if over is None else over[0] > TOE_FLOOR for over in overs]
         if not any(frames is not None and frames.any() for frames in sunk):
             break
-        for foot, over, frames in zip(FEET, overs, sunk):
-            if frames is not None and frames.any():
-                local = played.pinned(local, names, rig["parents"], rig["bind"], foot[0], frames,
-                                      np.where(frames, over[0], 0.0))
-    return local
+        pins = [(frames, rise) if over is None or frames is None else
+                (frames | deeper, np.where(frames & deeper, rise + over[0], rise))
+                for (frames, rise), over, deeper in zip(pins, overs, sunk)]
+        stood = pinned_feet(rig, local, pins)
+    return stood
 
 
 def tread_pins(rig, local, ground):
@@ -267,8 +275,26 @@ def tread_pins(rig, local, ground):
         depth, gap = over
         sunk, resting = stands[index]
         resting = resting | carrying(overs, stands, index)
-        found.append((sunk | resting, np.where(sunk, depth, np.where(resting, -gap, 0.0))))
+        lifted = swung_over(depth, sunk)
+        found.append((resting | (lifted > 0.0), np.where(resting & (lifted <= 0.0), -gap, lifted)))
     return found
+
+
+def swung_over(depth, sunk, reach=SWING_EASE):
+    """A foot's rise out of its ground (m, a frame each): its depth where it is sunk (`stands_of`) held `reach` frames
+    each side (their running largest) and eased out over as many more (a Hann average), never under the depth; a foot
+    resting next to it (a toe off, a landing) is raised by it too, not lowered onto its tread (`tread_pins`). Lifted
+    on its sunk frames alone, the stairwell woman's left toes, rolling off her tread into the next step's riser,
+    were lifted 11 cm on frame 236, lowered onto the tread on 237 and lifted 14 cm on 238: her knee turned 45
+    degrees in a frame, her clip's largest 14, past what her sim body's low-passed path follows (2026-11-19)."""
+    lift = np.where(sunk, np.asarray(depth, dtype=float), 0.0)
+    if not lift.any() or reach < 1:
+        return lift
+    from numpy.lib.stride_tricks import sliding_window_view
+    widest = sliding_window_view(np.pad(lift, reach), 2 * reach + 1).max(axis=1)
+    weights = np.hanning(2 * reach + 3)[1:-1]
+    spread = np.convolve(np.pad(widest, reach), weights / weights.sum(), mode="valid")
+    return np.maximum(spread, lift)
 
 
 def rising(gap):
