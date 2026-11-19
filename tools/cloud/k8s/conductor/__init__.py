@@ -14,7 +14,7 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   record changes), the checkout's folder `/home/score/projects` (a run's frozen copy is a git worktree of it, so a
   drive pod reads it at the same path), the env file's folder `/home/score/.config/score`, `~/.local` (uv's tools,
   score-lib's link, Claude Code's CLI), the people routes' motion home `/home/score/.farm-factory-motion`.
-- **One node** (`NODE_ROLE`: babon's pool `conductor-pool`, `NODE_TYPE`, min 1 max 1, tainted
+- **One node** (`NODE_ROLE`: the tenant cluster's conductor pool, `NODE_TYPE`, min 1 max 1, tainted
   `tenant=score`): every pod that writes the store is placed beside the conductor's pod by pod affinity on the
   hostname, so one kernel and one file system hold the store's locks, links and fsync as on the VM. No network file
   system. Each such pod shares the node's process ids (`hostPID`): a run's registry entry, a hold's or a frozen
@@ -119,7 +119,7 @@ PYTHON = f"{REPO}/.venv/bin/python"
 # its token through the secret reader, which names its project from there.
 ENV_LOADED = 'set -a; [ -r "$SCORE_ENV_FILE" ] && . "$SCORE_ENV_FILE"; set +a;'
 # Requests place a pod; limits keep it from taking the drive's room (the quota: 15 CPU / 120 Gi requests, 128 Gi
-# limits in `score`, babon's tenants/score/quota.yaml).
+# limits in `score`, the cluster owner's quota for the namespace).
 CONDUCTOR = {"requests": {"cpu": "1", "memory": "4Gi"}, "limits": {"cpu": "4", "memory": "24Gi"}}
 # The door runs the agents' commands (moved, tests, a store pull): 8 CPU / 48 Gi, set live 2026-11-08.
 DOOR = {"requests": {"cpu": "500m", "memory": "2Gi"}, "limits": {"cpu": "8", "memory": "48Gi"}}

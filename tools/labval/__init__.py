@@ -10,7 +10,7 @@ tools/cloud/sim_measure), and its record is scored against the lab's own IK, for
     neutral(run_folder)                                    a static run's standing pose (`_run.NEUTRAL`)
     pooled(trials)                                         the measures over runs, per activity, per-subject CIs
 
-Never the owner's patented joint-angle method (arXiv:2607.17639, (patent application number): no swing-twist split, no calibration
+Never the owner's patented joint-angle method (arXiv:2607.17639: no swing-twist split, no calibration
 table of axes and offsets, no regression against the reference): the angles are MyoFullBody's own coordinates after
 the sim body's fit (`_run`), scored by that paper's protocol only (`_score`)."""
 import json

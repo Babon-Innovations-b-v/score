@@ -13,7 +13,7 @@ The invariants, each with the break that turns its test red (each applied once a
 - The env1 cap's whole bill reads every project: SCORE's whole, the shared one but babon's own services, a machine
   of the shared project SCORE's only in a score or gate pool; an empty bill or a lower one raises.
   Break: `counted` returns True for every line -> the database line counts. Break: drop the `whole < last_whole`
-  raise in `bill_all`. Break: `owner_of` returns "score" for any shared machine -> batch-l4 is SCORE's.
+  raise in `bill_all`. Break: `owner_of` returns "score" for any shared machine -> other-l4 is SCORE's.
   Break: drop `server.get("project") == project and` in `delete_left_by_refusal` -> srv-other is deleted.
   Break: drop `and QUARANTINED not in ...` in `leftover_addresses` -> the quarantined address is a leftover.
 - A machine whose state cannot be read is a refusal its waiter waits out and deletes, never a crash. Break: in
@@ -379,7 +379,7 @@ def scaleway_account(monkeypatch, tmp_path, request):
 
 # The bill of 2026-11: our project's line and another's (project_id only), and the organisation's whole bill as the
 # env1 cap reads it (the plan of 2026-11-09): SCORE's projects whole, the shared one but babon's own services.
-SHARED = "shared-project"
+SHARED = scaleway.SHARED_PROJECT
 BILL = [
     {"project_id": OURS, "product_name": "L4", "sku": "s", "unit": "minute", "billed_quantity": "10",
      "value": {"units": 1, "nanos": 500000000}},
@@ -394,12 +394,12 @@ BILL = [
      "sku": "/storage/rdb", "value": {"units": 30}},
     {"project_id": "bp", "project_name": SHARED, "category_name": "Network", "product_name": "Loadbalancer IP",
      "sku": "/network/loadbalancer/ip/par1", "value": {"units": 1}},
-    {"project_id": "bw", "project_name": "worker-project", "category_name": "Security and Identity",
+    {"project_id": "bw", "project_name": "other-worker", "category_name": "Security and Identity",
      "product_name": "Secret Manager", "sku": "/paas/secret", "value": {"units": 3}}]
 
 # Whose a machine is, by its project and pool tag: (project id, tags, owner).
 OWNERS = [("ff", [], "score"), ("bp", ["pool-name=score-l4-1-z2"], "score"), ("bp", ["pool-name=gate-cpu"], "score"),
-          ("bp", ["pool-name=batch-l4"], "babon"), ("bp", [], "babon"), ("xx", ["pool-name=score-x"], None)]
+          ("bp", ["pool-name=other-l4"], "babon"), ("bp", [], "babon"), ("xx", ["pool-name=score-x"], None)]
 
 # The registry namespaces the account lists, the endpoint registry() gives (or the refusal) and the namespaces it
 # makes: (row, namespaces, endpoint, made).
@@ -462,7 +462,7 @@ CLOUD = [
                                                    "score-conductor|/storage/b": 2.5,
                                                    f"{SHARED}|/instance/server/l4_1_24g/fr-par-2": 40.0},
                         "projects": {OURS: OURS, OTHER: OTHER, "farm-factory": "ff", "score-conductor": "sc",
-                                     SHARED: "bp", "worker-project": "bw"}}),
+                                     SHARED: "bp", "other-worker": "bw"}}),
     ("bill all", 190.0, "below"),
     ("owners", OWNERS),
     ("listed", "bill", []),
@@ -961,7 +961,7 @@ def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_
                 read = scaleway.bill_all()
                 assert {key: read[key] for key in step[2]} == step[2], (where, read)
         elif kind == "owners":
-            names = {"ff": "farm-factory", "bp": SHARED, "xx": "worker-project"}
+            names = {"ff": "farm-factory", "bp": SHARED, "xx": "other-worker"}
             assert [scaleway.owner_of({"project": project, "tags": tags}, names) for project, tags, _ in step[1]] == [
                 owner for _, _, owner in step[1]], where
         elif kind == "quotas":

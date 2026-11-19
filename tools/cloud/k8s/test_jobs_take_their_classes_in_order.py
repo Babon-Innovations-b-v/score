@@ -432,13 +432,13 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
                                      "type": "L40S-1-48G", "zone": "fr-par-2", "max": 0, "euros_a_minute": 0.01,
                                      "unit_minutes": 1}]
     taint = {"key": "tenant", "value": "score", "effect": "NoSchedule"}
-    joined = "scw-babon-score-l4-0a1b"
+    joined = "scw-tenant-score-l4-0a1b"
     listed = {"items": [
         {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:00:00Z",
                       "labels": {tenant.CLASS_LABEL: "cpu-32c-128gb", tenant.POOL_LABEL: "score-pop2",
                                  tenant.INSTANCE_LABEL: "pop2-32c-128g", tenant.ZONE_LABEL: "pl-waw-2"}},
          "spec": {"taints": [taint]}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}},
-        {"metadata": {"name": "babons", "creationTimestamp": "2026-11-06T10:00:00Z",
+        {"metadata": {"name": "theirs", "creationTimestamp": "2026-11-06T10:00:00Z",
                       "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {}, "status": {}},
         {"metadata": {"name": joined, "creationTimestamp": "2026-11-06T10:00:00Z",
                       "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {"taints": [taint]}, "status": {}}]}

@@ -31,9 +31,9 @@ import watch  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
 
 START = datetime.datetime(2026, 11, 9, 18, 40, tzinfo=datetime.timezone.utc).timestamp()
-L4 = "shared-project|/instance/server/l4_1_24g/fr-par-2"
+L4 = f"{scaleway.SHARED_PROJECT}|/instance/server/l4_1_24g/fr-par-2"
 CPU = "farm-factory|/instance/server/pop2_hc_64c_128g/nl-ams-2"
-NAMES = {"farm-factory": "ff-id", "shared-project": "bp-id"}
+NAMES = {"farm-factory": "ff-id", scaleway.SHARED_PROJECT: "bp-id"}
 
 
 def bill(lines, whole=2000.0):
@@ -98,7 +98,7 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     # scw lists no machine while the cluster shows 3 L4 nodes: the meter refuses to read, and a blind first pass stops
     monkeypatch.setattr(scaleway, "scw", lambda *words: [])
     try:
-        scaleway.live_rate(START, START + 60, {"bp-id": "shared-project"}, nodes={"n1", "n2", "n3"})
+        scaleway.live_rate(START, START + 60, {"bp-id": scaleway.SHARED_PROJECT}, nodes={"n1", "n2", "n3"})
         raise AssertionError("a meter blind to three running nodes read")
     except scaleway.Unread as unread:
         assert "3 cluster node" in str(unread)
@@ -120,10 +120,11 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
                  {"id": "lost", "type": "routed_ipv4", "project": "bp-id", "server": None}]}
     monkeypatch.setattr(scaleway, "scw", lambda *words: cloud.get(words, []))
     monkeypatch.setattr(scaleway, "price", lambda kind, zone: (0.001, 1))
-    metered = scaleway.live_rate(START, START + 20 * 3600 + 20 * 60, {"bp-id": "shared-project"}, nodes={"n1"})
+    metered = scaleway.live_rate(START, START + 20 * 3600 + 20 * 60, {"bp-id": scaleway.SHARED_PROJECT}, nodes={"n1"})
     addresses = {key: item["euros"] for key, item in metered.items() if item["kind"] == "address"}
     assert addresses == {"v4": 0.005, "lost": 21 * 0.005}
-    assert metered["v4"]["line"] == "shared-project|/network/ipam/ipv4/fr-par-1" and metered["v4"]["owner"] == "score"
+    v4_line = f"{scaleway.SHARED_PROJECT}|/network/ipam/ipv4/fr-par-1"
+    assert metered["v4"]["line"] == v4_line and metered["v4"]["owner"] == "score"
     # the stop itself: every box's Jobs and every runner machine, a failed machine stop named, never swallowed
     class Done:
         returncode, stdout, stderr = 0, 'job.batch "score-r-a-g0" deleted', ""

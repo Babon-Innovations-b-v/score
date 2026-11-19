@@ -6,7 +6,7 @@ floor, scored against the lab's own IK, force plates and EMG. `__init__.py` is t
 elsewhere: on the rented card, in GEM-X's own environment, turning `gem-infer motion-video`'s `motion.pt` into the
 SOMA body npz, and MoGe-2's point maps of each video.
 
-- **Never the owner's patented method** (arXiv:2607.17639, (patent application number); SCORE is public MIT): no swing-twist split, no
+- **Never the owner's patented method** (arXiv:2607.17639; SCORE is public MIT): no swing-twist split, no
   calibration table of axes and offsets, no regression of angles against the reference. The angles are MyoFullBody's
   own coordinates after the sim body's fit (`_run`; the run saves them, `<name>/coordinates`), the pelvis and lumbar
   OpenSim's intrinsic Z, X, Y of the model's own body frames, the shoulders the same of each humerus on the torso

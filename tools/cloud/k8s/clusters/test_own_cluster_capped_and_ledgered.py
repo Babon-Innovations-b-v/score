@@ -45,7 +45,7 @@ tenant = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tenant)
 backend = cluster.backend
 
-OURS, OTHER = "ff", "bp"  # farm-factory (the batch project) and shared-project (another company's cluster, tenant)
+OURS, OTHER = "ff", "bp"  # farm-factory (the batch project) and the shared project (another company's cluster, tenant)
 NOW = 1_800_000_000.0
 OLD = "2026-11-01T00:00:00Z"
 NEW = tenant.datetime.datetime.fromtimestamp(NOW - 60, tenant.datetime.timezone.utc).isoformat()
@@ -81,7 +81,7 @@ class Cloud:
             {"id": "s-node", "name": "live", "project": "bp", "tags": ["pool-name=score-l4-1-z2"], "creation_date": OLD},
             {"id": "s-gone", "name": "orphan", "project": "bp", "tags": ["pool-name=score-l4-1-z2"], "creation_date": OLD},
             {"id": "s-new", "name": "joining", "project": "bp", "tags": ["pool-name=score-l4-1-z2"], "creation_date": NEW},
-            {"id": "s-babon", "name": "theirs", "project": "bp", "tags": ["pool-name=batch-l4"], "creation_date": OLD},
+            {"id": "s-theirs", "name": "theirs", "project": "bp", "tags": ["pool-name=other-l4"], "creation_date": OLD},
             {"id": "s-late", "name": "late", "project": "ff", "creation_date": OLD,
              "tags": [backend.TAG, f"deadline={NOW - 10}"]},
             {"id": "s-due", "name": "due", "project": "ff", "creation_date": OLD,
@@ -99,7 +99,7 @@ class Cloud:
         zone = given.get("zone")
         match words[:3]:
             case ("account", "project", "list"):
-                return [{"id": "bp", "name": "shared-project"}, {"id": "ff", "name": "farm-factory"}]
+                return [{"id": "bp", "name": backend.SHARED_PROJECT}, {"id": "ff", "name": "farm-factory"}]
             case ("k8s", "cluster", "list"):  # scw's own filter is not trusted: every record comes back
                 return list(self.clusters)
             case ("k8s", "cluster", "create"):
@@ -229,7 +229,7 @@ def test_own_cluster_capped_and_ledgered(monkeypatch, tmp_path):
 
     # The tenant cluster is its owner's: never deleted, its pools' maxes unchanged, only score's tainted and labelled
     # pool and its node score's.
-    monkeypatch.setenv("SCORE_K8S_PROJECT", "shared-project")
+    monkeypatch.setenv("SCORE_K8S_PROJECT", backend.SHARED_PROJECT)
     monkeypatch.setenv("SCORE_K8S_CLUSTER", "tenant-jobs")
     monkeypatch.delenv(tenant.POOLS, raising=False)
     monkeypatch.setattr(tenant, "kubectl", lambda *words: tenant_nodes_listed())

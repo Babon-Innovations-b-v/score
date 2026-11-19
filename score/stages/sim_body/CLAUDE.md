@@ -100,7 +100,7 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   trust, the plantar pads held at SOMA's sole and the skull's at its scalp; SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
   exactly: mink per frame and scipy's bounded `least_squares` over the
   constants with the angles of frames spread over the clip. **Never use the owner's own
-  method** (arXiv:2607.17639, under Babon's patent application (patent application number); SCORE is public MIT): no swing-twist split
+  method** (arXiv:2607.17639; SCORE is public MIT): no swing-twist split
   into calibrated axes, no per-joint calibration table of axes, weights and offsets, no regression of joint angles
   against a reference. What MyoFullBody lacks (`LACKS`: the thorax one joint at T12/L1, the lower neck lumped at C7/T1, two lumbar joints spread over five
   levels (`inside/myo/_movable.LUMBAR`, 2026-11-04), a hinge knee (the shin's turn on it free of the flexion since 2026-11-04), a foot on three hinges, its twist on the shin added 2026-11-01) is recorded in each body's model record; how closely it

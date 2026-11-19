@@ -71,7 +71,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         by_kind.setdefault(item["kind"], []).append(item)
     claim, = by_kind["PersistentVolumeClaim"]
     assert claim["spec"]["accessModes"] == ["ReadWriteOnce"] and claim["spec"]["storageClassName"] == "sbs-5k-retain"
-    assert claim["metadata"]["annotations"] == {"owner.example/backup": "false"}
+    assert claim["metadata"]["annotations"] == {conductor.BACKUP_OPT_OUT[0]: "false"}
     watcher, = [cron for cron in by_kind["CronJob"] if cron["metadata"]["name"] == conductor.CAP_WATCH]
     pods = [by_kind["StatefulSet"][0]["spec"]["template"]["spec"]] + [
         cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"] if cron is not watcher]
@@ -81,7 +81,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
     assert (watcher["spec"]["schedule"], watcher["spec"]["concurrencyPolicy"], job["activeDeadlineSeconds"]) == (
         "*/5 * * * *", "Replace", 240)
     spec = job["template"]["spec"]
-    assert spec["nodeSelector"] == {"k8s.scaleway.com/pool-name": "system-z1"} and "affinity" not in spec
+    assert spec["nodeSelector"] == {conductor.SYSTEM_POOL[0]: conductor.SYSTEM_POOL[1]} and "affinity" not in spec
     assert not any("persistentVolumeClaim" in volume for volume in spec["volumes"]) and not spec.get("hostPID")
     assert all(mount["name"] != "scw-secret" for box in spec["containers"] for mount in box["volumeMounts"])
     assert "tools/cloud/cap_watch/watch.py pass" in spec["containers"][0]["command"][-1]

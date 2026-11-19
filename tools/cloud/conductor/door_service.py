@@ -94,7 +94,7 @@ def read_token(reader=None):
 def asker_reader(environment):
     """(command, environment) that reads the door's token on an agent's side: this folder's secret_reader.sh, the one
     the conductor installs, by the secrets project's name (SCORE_SECRETS_PROJECT, else SECRETS_PROJECT) with the scw on
-    PATH, never the box's own SCORE_SECRET_READER (2026-11-10: this PC's reader looked only in ops-project, while the
+    PATH, never the box's own SCORE_SECRET_READER (2026-11-10: this PC's reader looked only in another project, while the
     token is in the conductor's secrets project, so `ask` stayed shut)."""
     found = {**environment, "SCORE_SECRETS_PROJECT": environment.get("SCORE_SECRETS_PROJECT") or SECRETS_PROJECT}
     found.setdefault("SCORE_SCW", shutil.which("scw", path=environment.get("PATH")) or "scw")

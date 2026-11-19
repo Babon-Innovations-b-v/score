@@ -1028,7 +1028,7 @@ def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(doo
     refused = read("x", project="missing")
     assert refused.returncode != 0 and "found 0" in refused.stderr
     # An agent's `ask` reads the door's token through this reader by the secrets project's name, never the box's own
-    # SCORE_SECRET_READER (2026-11-10: this PC's looked only in ops-project); the door service opens with that token.
+    # SCORE_SECRET_READER (2026-11-10: this PC's looked only in another project); the door service opens with that token.
     # Break: `asker_reader` hands back `[environment["SCORE_SECRET_READER"], TOKEN_SECRET]`.
     elsewhere = {**env, "SCORE_SECRET_READER": str(vault_folder / "another-projects")}
     command, found = door_service.asker_reader(elsewhere)

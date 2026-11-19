@@ -207,7 +207,7 @@ def kubectl(*arguments):
 
 # The env1 cap's stop and its leftover cleanup (the plan of 2026-11-09 B4, K4, K13): what a stop or a watch pass
 # deletes across the organisation's projects, with the delete rights the owner gave the conductor's key (Instances and
-# Block Storage in shared-project, 2026-11-09). Never a babon machine, never a disk that holds data.
+# Block Storage in the shared project, 2026-11-09). Never a babon machine, never a disk that holds data.
 NODE_GRACE_SECONDS = 3600  # a pool's new machine joins as a node in minutes; one not a node an hour on is left over
 LOOSE_DISK_SECONDS = 86400  # a disk attached to nothing this long is left over
 NODE_ROOT_DISK = "k8s_base_node_instance_sbs_volume_0"  # Kapsule's name for a node's root disk: never data
