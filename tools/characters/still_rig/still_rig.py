@@ -16,7 +16,8 @@ The steps:
    to the height at which the least of the body's trunk, head, thighs and shoulders stands outside it
    (`fitted_height`; a person, `--person`, at the body's own height); the still is its outer surface alone
    (`outer_kept`: TRELLIS.2's shell has an inner layer facing the hollow): scale and align only, its geometry
-   otherwise its own. It is thinned to about `--faces` triangles first (prop_rig.decimated, its borders kept).
+   otherwise its own. It is thinned to about `--faces` triangles first (prop_rig.decimated, its borders kept). A
+   person's shoes are laid heel to toe on the dressed body's own feet (`feet_fitted`), whose soles the sim body stands.
 4. Its parts (`parts_of`): the helmet (every face within HELMET_REACH of the head's middle above the neck), the visor
    (the helmet's dark faces in front, its own baked colour read only to find it, their largest connected piece alone:
    a dark seam at the helmet's rim is helmet), the backpack (behind the chest, more
@@ -79,6 +80,9 @@ CLOSE_ROUNDS = 3  # rounds an unseen face between seen ones joins them
 FIT_IN = ("Hips", "Spine1", "Spine2", "Head", "LeftLeg", "RightLeg", "LeftShoulder", "RightShoulder", "LeftArm",
           "RightArm")
 HEIGHTS = np.arange(1.70, 1.951, 0.01)  # the heights the fit tries, metres
+FOOT_JOINTS = ("Foot", "ToeBase", "ToeEnd")  # a side's foot skin (feet_fitted), after Left or Right
+SOLE_BIN, SOLE_OFF = 0.02, 0.01  # metres: a sole's bins along the foot, and how far over its line a bin is dropped
+ANKLE_BLEND = 0.08  # metres over the body's ankle across which a person's shoe fit gives way to the leg
 HELMET_REACH = 0.25  # metres from the head's middle (between Head and HeadEnd) a helmet face lies within (the
 # suit's visor reaches 0.24 at its chin, the collar 0.26: at 0.21 the visor's lower half was cut off as suit cloth)
 VISOR_DARK = 0.5  # a helmet face darker than this (its baked colour's mean; the suit's visor 0.43 to 0.47, its shell
@@ -291,6 +295,69 @@ def stood_at(mesh, height, body, names, bind):
     return trimesh.Trimesh(points, mesh.faces, process=False)
 
 
+def feet_fitted(mesh, feet):
+    """A person's shoes laid on the dressed body's feet (`--person`; `feet`, dressed_feet's): each foot of the stood
+    still (its points below that foot's ankle plus ANKLE_BLEND, on its side) moved and stretched along its length (z)
+    to the foot's heel and toe, moved across (x) to its middle and pitched onto its sole (`sole_line`), fully up to the
+    ankle and less over ANKLE_BLEND above it, so the leg is left as it is. The sim body stands, lifts and clears its
+    next step by the built body's soles, which the dressed body wears: a shoe past them sinks where they do not (the
+    stairwell woman's TRELLIS.2 shoes reached 3.4 cm past her toes and stood 2 cm in every tread she stood on, 18 cm
+    at a toe caught under the next step; laid on the SOMA mean's feet instead, 2.5 cm forward of her own, 1.2 cm)."""
+    points = mesh.vertices.copy()
+    middle = sum(float(skin[:, 0].mean()) for skin, _ in feet.values()) / 2
+    for side, (skin, ankle) in feet.items():
+        on_side = np.sign(points[:, 0] - middle) == np.sign(skin[:, 0].mean() - middle)
+        foot = on_side & (points[:, 1] < ankle + ANKLE_BLEND)
+        shoe = points[foot & (points[:, 1] < ankle)]
+        if not len(shoe):
+            raise StillError(f"the still has no {side.lower()} foot below the body's ankle ({ankle:.3f} m)")
+        stretch = np.ptp(skin[:, 2]) / max(float(np.ptp(shoe[:, 2])), 1e-6)
+        laid = points[foot].copy()
+        laid[:, 2] = skin[:, 2].min() + (laid[:, 2] - shoe[:, 2].min()) * stretch
+        laid[:, 0] += (skin[:, 0].min() + skin[:, 0].max()) / 2 - (shoe[:, 0].min() + shoe[:, 0].max()) / 2
+        sole_of_shoe = sole_line(laid[points[foot, 1] < ankle])
+        laid[:, 1] += np.polyval(sole_line(skin), laid[:, 2]) - np.polyval(sole_of_shoe, laid[:, 2])
+        share = np.clip((ankle + ANKLE_BLEND - points[foot, 1]) / ANKLE_BLEND, 0.0, 1.0)[:, None]
+        points[foot] += share * (laid - points[foot])
+    return trimesh.Trimesh(points, mesh.faces, process=False)
+
+
+def dressed_feet(document, blob, names):
+    """The dressed body's own feet at its bind, {side: (points, ankle height)}: every point of its meshes whose
+    strongest joint is one of the side's FOOT_JOINTS, and the highest of them on its Foot joint."""
+    found = {side: [] for side in ("Left", "Right")}
+    for mesh in document["meshes"]:
+        for primitive in mesh["primitives"]:
+            attributes = primitive["attributes"]
+            if "JOINTS_0" not in attributes:
+                continue
+            points = skel_usd.accessor(document, blob, attributes["POSITION"]).reshape(-1, 3).astype(float)
+            joints = skel_usd.accessor(document, blob, attributes["JOINTS_0"]).reshape(-1, 4)
+            weights = skel_usd.accessor(document, blob, attributes["WEIGHTS_0"]).reshape(-1, 4)
+            strongest = np.array(names)[joints[np.arange(len(joints)), weights.argmax(1)]]
+            for side in found:
+                mine = np.isin(strongest, [f"{side}{joint}" for joint in FOOT_JOINTS])
+                found[side].append((points[mine], points[strongest == f"{side}Foot"]))
+    feet = {}
+    for side, pieces in found.items():
+        skin, on_foot = (np.concatenate([piece[index] for piece in pieces]) for index in (0, 1))
+        if not len(on_foot):
+            raise StillError(f"the dressed body has no {side.lower()} foot")
+        feet[side] = (skin, float(on_foot[:, 1].max()))
+    return feet
+
+
+def sole_line(points):
+    """The line (height over length, np.polyfit's) under a foot's points: the lowest point of each SOLE_BIN along
+    its length, fitted, and fitted again without the bins more than SOLE_OFF over the first line (a sparse bin's lowest
+    point lies up the instep)."""
+    bins = np.floor((points[:, 2] - points[:, 2].min()) / SOLE_BIN).astype(int)
+    lowest = np.array([points[bins == number][points[bins == number, 1].argmin()] for number in np.unique(bins)])
+    line = np.polyfit(lowest[:, 2], lowest[:, 1], 1)
+    kept = lowest[lowest[:, 1] - np.polyval(line, lowest[:, 2]) <= SOLE_OFF]
+    return np.polyfit(kept[:, 2], kept[:, 1], 1) if len(kept) >= 2 else line
+
+
 def trunk_skin(body, weights, names):
     """The body's skin the fit holds inside the still: the points whose strongest joint is one of FIT_IN (the
     gloves, boots, the backpack over the chest and the neck ring are shaped their own way: 23% of the shins' skin
@@ -300,25 +367,34 @@ def trunk_skin(body, weights, names):
 
 def arms_turned(bind, names, parents, body, mesh):
     """The bind with each arm turned about its shoulder (its Arm joint) from the body's arm onto the still's, as the
-    two bodies' slices find them (prop_rig.landmarks): TRELLIS.2's suit hangs its arms 10 to 12 degrees steeper than
-    the dressed body's bind. Every joint down the arm turns with it; the bones keep their lengths. The bind and each
-    arm's turn in degrees."""
+    two bodies' slices find them (prop_rig.landmarks): the shoulder's line through the middle of the body's arm turned
+    onto its line through the middle of the still's (`arm_middle`), so the arm hangs in the sleeve, not beside it.
+    TRELLIS.2's suit hangs its arms 10 to 12 degrees steeper than the dressed body's bind, and the stairwell woman's
+    sleeves hang 10 cm before its arms: turned only parallel to them, the arms stayed behind the sleeves, whose
+    upper half took her chest's weights and bulged at the shoulder when her arms came down. Every joint down the arm
+    turns with it; the bones keep their lengths. The bind and each arm's turn in degrees."""
     from scipy.spatial.transform import Rotation
     still_fit, body_fit = (prop_rig.landmarks(prop_rig.sampled(shape)) for shape in (mesh, body))
     out, turns = bind.copy(), {}
     for side in prop_rig.SIDES:
         chain = side + "Arm"
-        start, end = still_fit[chain]["direction"], body_fit[chain]["direction"]
+        pivot = bind[names.index(chain), :3, 3]
+        start, end = (arm_middle(fit[chain]) - pivot for fit in (still_fit, body_fit))
+        start, end = start / np.linalg.norm(start), end / np.linalg.norm(end)
         axis = np.cross(end, start)
         angle = float(np.arccos(np.clip(start @ end, -1.0, 1.0)))
         turn = Rotation.from_rotvec(axis / max(np.linalg.norm(axis), 1e-12) * angle).as_matrix()
-        pivot = bind[names.index(chain), :3, 3]
         moved = np.eye(4)
         moved[:3, :3], moved[:3, 3] = turn, pivot - turn @ pivot
         for joint in below(names.index(chain), parents):
             out[joint] = moved @ bind[joint]
         turns[side] = round(float(np.degrees(angle)), 2)
     return out, turns
+
+
+def arm_middle(arm):
+    """The middle of a limb's axis (prop_rig.limb: its start, direction down and length)."""
+    return np.asarray(arm["start"]) + np.asarray(arm["direction"]) * arm["length"] / 2
 
 
 def below(joint, parents):
@@ -759,6 +835,8 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     height, tried = ((round(float(np.ptp(body.vertices[:, 1])), 2), {}) if person else
                      fitted_height(thin, body, skin, names, dressed_bind))
     fitted = stood_at(thin, height, body, names, dressed_bind)
+    if person:
+        fitted = feet_fitted(fitted, dressed_feet(document, blob, names))
     bind, arm_turns = arms_turned(dressed_bind, names, parents, body, fitted)
     body, body_weights = soma_on(rig, names, bind)
     mesh = closed(fitted)

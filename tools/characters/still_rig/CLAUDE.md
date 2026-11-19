@@ -24,7 +24,10 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   cloud card (`score/stages/place_build/maker/cloud.py`) from its people-line close-up; it is stood at the body's own
   height (a slimmer person than the SOMA mean leaves most of the mean's skin outside her at every height, and the fit
   stretched the woman to 1.88 m), and its parts are its head and its clothes, neither rigid (a rigid head eased over
-  hair resting on the shoulders hung her sleeves from her head). Short sleeves still bulge at the shoulder when the
-  A-pose arms come down (the woman's right shoulder): the weights' limit, not the paint.
+  hair resting on the shoulders hung her sleeves from her head). Its shoes are laid heel to toe on the body's foot skin
+  (`feet_fitted`): the sim body stands, lifts and clears each step by the body's soles, and the woman's TRELLIS.2 shoes,
+  3.4 cm past her toes, stood 2 cm in every tread. Each arm of the bind is turned onto the line from its
+  shoulder through the middle of the still's sleeve (`arms_turned`): turned only parallel to it, the woman's arms
+  hung 10 cm behind her sleeves, whose upper half took her chest's weights and bulged at the shoulder.
 - Plain CPU here; any GPU render goes to the cloud, never this PC's card.
 - Test: `test_a_rigged_still_rides_its_joints_without_a_crack.py`.

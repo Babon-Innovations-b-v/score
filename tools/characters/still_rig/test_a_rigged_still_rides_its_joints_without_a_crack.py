@@ -26,6 +26,9 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
 - a person's still (`parts_of(..., person=True)`) has a helmet, visor or backpack face (a dark face read as a visor
   and held rigid), or its head's faces are not all its head, or its head is held rigid (eased over hair resting on the
   shoulders, it hung the stairwell woman's sleeves from her head).
+- a person's flat shoes 3 cm longer than the body's feet and 1 cm aside (`feet_fitted`) are not laid heel to toe on
+  the body's foot skin, centred on it and pitched onto its rising sole, or a point above the ankle's blend moves (the stairwell woman's shoes stood
+  2 cm in every tread and 18 cm under the next step).
 """
 import pathlib
 import sys
@@ -160,3 +163,19 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     on_head = person.triangles_center[:, 1] > 1.52
     assert (found[on_head] == still_rig.PARTS.index("head")).all()
     assert set(found[~on_head]) == {still_rig.PARTS.index("suit")} and "head" not in still_rig.RIGID
+
+    feet = {}
+    for side, x in (("Left", 0.1), ("Right", -0.1)):
+        skin = np.array([[x, y + 0.1 * (z + 0.08), z] for z in np.linspace(-0.08, 0.18, 14)
+                         for y in (0.0, 0.04, 0.08)])  # the sole rises 2.6 cm heel to toe, as SOMA's
+        feet[side] = (skin, float(skin[skin[:, 2] < 0.08, 1].max()))
+    shoe = np.array([[side * 0.1 + 0.012, y, z] for side in (1, -1) for z in np.linspace(-0.065, 0.213, 15)
+                     for y in (0.0, 0.05)] + [[side * 0.1, y, 0.0] for side in (1, -1) for y in (0.3, 0.45)])
+    laid = still_rig.feet_fitted(trimesh.Trimesh(shoe, np.zeros((0, 3), int), process=False), feet).vertices
+    for side in (1, -1):
+        sole = laid[(np.sign(laid[:, 0]) == side) & (shoe[:, 1] == 0.0)]
+        assert np.allclose([sole[:, 2].min(), sole[:, 2].max()], [-0.08, 0.18], atol=1e-6)
+        assert np.allclose(sole[:, 0].mean(), side * 0.1, atol=1e-6)
+        assert np.allclose(sole[:, 1], 0.1 * (sole[:, 2] + 0.08), atol=1e-3)
+    above = shoe[:, 1] > feet["Left"][1] + still_rig.ANKLE_BLEND
+    assert np.allclose(laid[above], shoe[above])
