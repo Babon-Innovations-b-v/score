@@ -252,17 +252,22 @@ def despiked(values, width):
     return np.median(np.lib.stride_tricks.sliding_window_view(padded, width, axis=0), axis=-1)
 
 
-def foot_pushes(frames, weight, rate):
+def foot_pushes(frames, weight, rate, segments=()):
     """Each foot's push from the ground each record frame as an arrow (frames x SIDES x 6: start, vector; the person's
     frame, Y up), for drawing: the force on every body the record's `feet` names on that side summed (its `touches`),
     despiked (a median over MEDIAN_SECONDS) and low-passed (a gaussian of LOW_PASS_HZ half power) at the record's
     `rate`, METRES_PER_BODY_WEIGHT for a push of `weight` newtons; from its centre of pressure, the push-weighted mean
-    of its bodies' own, smoothed alike (a foot in the air keeps its last one, its push nought; a touch whose centre
-    the record holds as NaN places nothing, so one such frame never blanks the foot's arrows for the whole film)."""
+    of its bodies' own, smoothed alike (a foot in the air keeps its last one, its push nought). A touch whose centre
+    the record holds as NaN (a skin point the solve pushed with no ground found under it: street's walkers on the
+    pavement, 2026-11-18 records) stands under its own segment's pose (`segments`, the record body's segment names
+    in its frames' `poses` order) at the ground's height of the last centre known, and with no pose places nothing:
+    a NaN never blanks a foot's arrows for the whole film."""
     from score.stages.place_build.film import smoothed
     feet = {body for frame in frames for body in frame.get("feet", {})}
     force, moment, load = (np.zeros((len(frames), len(SIDES), 3)), np.zeros((len(frames), len(SIDES), 3)),
                            np.zeros((len(frames), len(SIDES))))
+    named, level = list(segments), next((float(push[4]) for frame in frames for push in frame["touches"].values()
+                                         if np.isfinite(push[3:]).all()), 0.0)
     for index, frame in enumerate(frames):
         for body, push in frame["touches"].items():
             side = next((number for number, name in enumerate(SIDES) if body.startswith(name)), None)
@@ -270,8 +275,13 @@ def foot_pushes(frames, weight, rate):
                 continue  # a hand on a rail, a hip on a wall: not the ground's push on a foot
             force[index, side] += push[:3]
             centre = np.asarray(push[3:], dtype=float)
-            if not np.isfinite(centre).all():
-                continue  # a push with no centre of pressure (the record's NaN): its force counts, it places nothing
+            if np.isfinite(centre).all():
+                level = float(centre[1])
+            elif body in named and "poses" in frame:
+                centre = np.asarray(frame["poses"][named.index(body)][:3], dtype=float)
+                centre[1] = level  # under its segment, on the ground the last centre stood on
+            else:
+                continue  # no centre and no pose: its force counts, it places nothing
             pressed = max(float(push[1]), 0.0)
             moment[index, side] += centre * pressed
             load[index, side] += pressed
@@ -821,7 +831,7 @@ def walker_job(folder, scene, cast, sim, person_of, walker, size, review=False):
     middle = (OPENING_SECONDS + seconds / 2) * RATE
     cut_in = None if entered else [round(middle - DISSOLVE_SECONDS * RATE), round(middle + DISSOLVE_SECONDS * RATE)]
     mesh, times = mesh[start:start + count], times[start:start + count]
-    arrows = lerped(foot_pushes(frames, body_weight(body), record["rate"]), times)
+    arrows = lerped(foot_pushes(frames, body_weight(body), record["rate"], body.get("segments", ())), times)
     scene_rate = place_build.opened(scene)[0].GetTimeCodesPerSecond()
     layer, root = timed_layer(folder, sim, record["place"], walker, scene_rate, record["rate"])
     np.savez(folder / f"{walker}.npz", faces=np.asarray(rig["faces"]), points=points_to_z(mesh),

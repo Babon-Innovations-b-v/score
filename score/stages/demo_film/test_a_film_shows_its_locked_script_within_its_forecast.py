@@ -958,6 +958,15 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         steps[frame]["touches"]["RightFoot" if frame < 20 else "LeftFoot"] = [0.0, 0.0, -0.0, *[float("nan")] * 3]
     unset = peel.foot_pushes(steps, 700.0, 30.0)
     assert np.isfinite(unset).all() and np.allclose(unset, drawn, atol=1e-6), "a NaN centre blanks no foot"
+    # a loaded foot the record gives no centre (street's left foot, 2026-11-18) stands under its own segment's pose,
+    # on the ground of the last centre known; with no pose it places nothing and still blanks nothing
+    for frame in range(20, 60):
+        steps[frame]["touches"]["RightFoot"][3:] = [float("nan")] * 3
+        steps[frame]["poses"] = [[0.0] * 7, [-0.2, 0.09, 0.4, 1.0, 0.0, 0.0, 0.0]]
+    posed = peel.foot_pushes(steps, 700.0, 30.0, {"Hips": 0, "RightFoot": 1})
+    assert np.isfinite(posed).all() and np.allclose(posed[45, 1, :3], [-0.2, 0.0, 0.4], atol=1e-6), posed[45, 1]
+    assert abs(posed[45, 1, 4] - peel.METRES_PER_BODY_WEIGHT) < 0.02 and np.isfinite(peel.foot_pushes(
+        steps, 700.0, 30.0)).all(), "the push kept, and no pose places nothing"
     view = {"eye": [0.0, 12.0, -6.0], "aim": [0.0, 0.0, 0.0], "fov": 40.0}
     for name, (low, high), ends, speed, refused in WALKER_ROOMS:
         walked = np.stack([np.array([[speed * frame, 0.0, 0.0], [speed * frame, 1.8, 0.0]]) for frame in range(200)])
