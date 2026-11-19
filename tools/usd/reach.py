@@ -61,6 +61,8 @@ MAX_SLOPE = 45.0
 SPAN_GAP = 0.1
 TOUCH = 0.01
 EDGE_STEP = CELL / 4
+CHUNK = 2_000_000  # points of a surface sampled at a time (each about 150 bytes while a chunk is read)
+MERGE = 20_000_000  # floor heights made distinct at a time (16 bytes each while sorted)
 SCENES = REPO / "data/scene"
 ASSEMBLED_SCENE = "scene.json"  # the record the assembly stage built the stage from, beside its root (contents.py's)
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
@@ -150,6 +152,13 @@ class Grid:
                 cells.append(np.ravel_multi_index((column[inside], row[inside]), self.shape))
         return np.concatenate(which), np.concatenate(cells)
 
+    def reach(self):
+        """The rectangle (x low, z low, x high, z high) past which no point touches a cell (twice TOUCH round the
+        cells: a point beyond it is in none)."""
+        return (self.xs[0] - CELL / 2 - 2 * TOUCH, self.zs[0] - CELL / 2 - 2 * TOUCH,
+                self.xs[0] - CELL / 2 + self.shape[0] * CELL + 2 * TOUCH,
+                self.zs[0] - CELL / 2 + self.shape[1] * CELL + 2 * TOUCH)
+
     def middles(self):
         """Every cell's middle (x, z), in the grid's flat order."""
         return np.array(np.meshgrid(self.xs, self.zs, indexing="ij")).reshape(2, -1).T
@@ -162,6 +171,8 @@ def over_grid(mesh, bounds):
     corners = mesh.vertices[mesh.faces]
     over = ((corners[:, :, 0].max(axis=1) >= bounds[0]) & (corners[:, :, 0].min(axis=1) <= bounds[2])
             & (corners[:, :, 2].max(axis=1) >= bounds[1]) & (corners[:, :, 2].min(axis=1) <= bounds[3]))
+    if over.all():
+        return mesh
     return mesh.submesh([np.flatnonzero(over)], append=True) if over.any() else None
 
 
@@ -172,21 +183,69 @@ def cropped(laid, bounds):
     return [mesh for mesh in found if mesh is not None]
 
 
-def surface_samples(mesh):
-    """A mesh as points: SAMPLES_PER_M2 seeded points a square metre of its faces and points every EDGE_STEP along
-    each face's edges (a face's edge on a cell's border then touches both cells), (points (count, 3), whether each lies
-    on a face that looks up, leaning less than MAX_SLOPE: a floor, not a wall or a slab's underside)."""
-    import trimesh
+def surface_chunks(mesh, chunk=None, within=None, floors=False):
+    """A mesh as points, CHUNK at most at a time: SAMPLES_PER_M2 seeded points a square metre of its faces (the points
+    trimesh.sample.sample_surface(mesh, count, seed=0) draws, drawn a chunk at a time from the same two streams) and
+    points every EDGE_STEP along each face's edges (a face's edge on a cell's border then touches both cells); each
+    chunk (points (count, 3), whether each lies on a face that looks up, leaning less than MAX_SLOPE: a floor, not a
+    wall or a slab's underside). `within` (x low, z low, x high, z high) keeps only the points over that rectangle and
+    `floors` only those on a floor, the rest never worked out. A ground a kilometre across is a billion points, which
+    held at once ran the check out of 33 GB (the Hong Kong square, 2026-11-19); a chunk at a time it holds what one
+    chunk needs."""
+    chunk = CHUNK if chunk is None else chunk
     level = mesh.face_normals[:, 1] >= np.cos(np.radians(MAX_SLOPE))
     count = int(np.ceil(mesh.area * SAMPLES_PER_M2))
-    sampled, faces = trimesh.sample.sample_surface(mesh, count, seed=0) if count else (np.zeros((0, 3)), [])
-    along, edge_faces = edge_points(mesh)
-    return np.vstack([np.asarray(sampled), along]), np.concatenate([level[faces], level[edge_faces]])
+    if count:
+        weight_cum = np.cumsum(mesh.area_faces)
+        origins = mesh.vertices[mesh.faces[:, 0]]
+        vectors = mesh.vertices[mesh.faces[:, 1:]] - origins[:, None, :]
+        picks, lengths = np.random.default_rng(0), np.random.default_rng(0)
+        lengths.bit_generator.advance(count)  # sample_surface draws the faces first, then two lengths a point
+        for start in range(0, count, chunk):
+            size = min(chunk, count - start)
+            faces = np.searchsorted(weight_cum, picks.random(size) * weight_cum[-1])
+            shares = lengths.random((size, 2, 1))
+            shares[shares.sum(axis=1).reshape(-1) > 1.0] -= 1.0
+            shares = np.abs(shares)[:, :, 0]
+            kept = level[faces] if floors else np.ones(size, bool)
+            coordinate = lambda axis: (vectors[faces, 0, axis] * shares[:, 0] + vectors[faces, 1, axis]  # noqa: E731
+                                       * shares[:, 1]) + origins[faces, axis]
+            if within is not None:
+                kept = np.flatnonzero(kept)
+                faces, shares = faces[kept], shares[kept]
+                kept = over(coordinate(0), coordinate(2), within)
+            faces, shares = faces[kept], shares[kept]
+            yield np.column_stack([coordinate(0), coordinate(1), coordinate(2)]), level[faces]
+    for points, faces in edge_chunks(mesh, chunk):
+        kept = (level[faces] if floors else np.ones(len(faces), bool)) \
+            & (over(points[:, 0], points[:, 2], within) if within is not None else True)
+        yield points[kept], level[faces[kept]]
 
 
-def edge_points(mesh):
-    """Points along every face's edges, corners included, no more than EDGE_STEP apart, and each one's face."""
+def over(xs, zs, within):
+    """Whether each point (x, z) lies over the rectangle (x low, z low, x high, z high)."""
+    return (xs >= within[0]) & (xs <= within[2]) & (zs >= within[1]) & (zs <= within[3])
+
+
+def edge_chunks(mesh, chunk=None):
+    """Points along every face's edges, corners included, no more than EDGE_STEP apart, and each one's face: a run of
+    faces at a time, each run CHUNK points or one face's."""
+    chunk = CHUNK if chunk is None else chunk
     corners = mesh.vertices[mesh.faces]
+    lengths = np.linalg.norm(corners[:, [1, 2, 0]] - corners, axis=2)
+    per_face = (np.ceil(lengths / EDGE_STEP).astype(int) + 1).sum(axis=1)
+    ends = np.cumsum(per_face)
+    first = 0
+    while first < len(corners):
+        last = max(first + 1, int(np.searchsorted(ends, (ends[first - 1] if first else 0) + chunk, side="right")))
+        points, faces = edge_points(corners[first:last])
+        yield points, faces + first
+        first = last
+
+
+def edge_points(corners):
+    """Points along each face's edges (`corners`, (faces, 3, 3)), corners included, no more than EDGE_STEP apart,
+    and each one's face."""
     starts = corners.reshape(-1, 3)
     ends = corners[:, [1, 2, 0]].reshape(-1, 3)
     counts = np.ceil(np.linalg.norm(ends - starts, axis=1) / EDGE_STEP).astype(int) + 1
@@ -196,21 +255,52 @@ def edge_points(mesh):
     return starts[edge] + (ends[edge] - starts[edge]) * shares[:, None], edge // 3
 
 
-def floor_points(grid, meshes, ground):
-    """Every height a floor lies at in each cell: the meshes' points on faces that look up, a mesh at a time and kept
-    once a centimetre, and the ground under each cell's middle; (cells, heights), sorted by cell then height."""
-    cells, heights = [], []
-    for mesh in meshes:
-        points, flat = surface_samples(mesh)
-        which, touched = grid.cells_touched(points[flat])
-        keys = np.unique(np.column_stack([touched, np.round(points[flat][which, 1] * 100).astype(np.int64)]), axis=0)
-        cells.append(keys[:, 0])
-        heights.append(keys[:, 1] / 100.0)
+def floor_points(grid, meshes, ground, room=None):
+    """Every height a floor lies at in each cell: the meshes' points on faces that look up, a chunk at a time and
+    kept once a centimetre (a height two meshes share once: a span is the same either way), and the ground under each
+    cell's middle; (cells, heights), sorted by cell then height. `room(count)`, when given, is told how many heights
+    are about to be held before each merge (a memory budget's check, raising to stop)."""
+    low = min((int(np.floor(mesh.bounds[0][1] * 100)) for mesh in meshes), default=0) - 1
+    rows = max((int(np.ceil(mesh.bounds[1][1] * 100)) for mesh in meshes), default=0) + 2 - low
+    kept = distinct((packed for mesh in meshes for packed in floor_keys(grid, mesh, low, rows)), room=room)
+    cells, heights = kept // rows, (kept % rows + low) / 100.0
     under = np.asarray(ground(grid.middles()), dtype=float)
     known = np.flatnonzero(np.isfinite(under))
-    cells, heights = np.concatenate(cells + [known]), np.concatenate(heights + [under[known]])
+    cells, heights = np.concatenate([cells, known]), np.concatenate([heights, under[known]])
     order = np.lexsort((heights, cells))
     return cells[order], heights[order]
+
+
+def floor_keys(grid, mesh, low, rows):
+    """A mesh's floor points a chunk at a time, each as its cell and height (whole centimetres from `low`, `rows` of
+    them a cell) in one number: cell * rows + height."""
+    for points, _ in surface_chunks(mesh, within=grid.reach(), floors=True):
+        which, touched = grid.cells_touched(points)
+        yield touched * rows + (np.round(points[which, 1] * 100).astype(np.int64) - low)
+
+
+def distinct(chunks, batch=None, room=None):
+    """The distinct numbers of all the chunks, sorted: each `batch` of numbers made distinct and only those not yet
+    kept merged in, so what is held is what is kept and one batch, never every chunk at once; `room(count)` told the
+    count about to be held before each merge."""
+    batch = MERGE if batch is None else batch
+    kept, waiting, count = np.zeros(0, np.int64), [], 0
+    for numbers in [*chunks, None]:
+        if numbers is not None:
+            waiting.append(numbers)
+            count += len(numbers)
+            if count < batch:
+                continue
+        if not waiting:
+            break
+        if room is not None:
+            room(len(kept) + count)
+        fresh = np.unique(np.concatenate(waiting))
+        waiting, count = [], 0
+        at = np.minimum(np.searchsorted(kept, fresh), max(len(kept) - 1, 0))
+        fresh = fresh[kept[at] != fresh] if len(kept) else fresh
+        kept = np.sort(np.concatenate([kept, fresh]), kind="stable") if len(fresh) else kept
+    return kept
 
 
 def spans(cells, heights):
@@ -230,14 +320,14 @@ def clear_overhead(grid, meshes, span_cells, span_heights):
     keys = span_cells * stride + (span_heights - bottom)
     marks = np.zeros(len(span_cells) + 1, dtype=np.int64)
     for mesh in meshes:
-        points, _ = surface_samples(mesh)
-        which, cells = grid.cells_touched(points)
-        heights = np.clip(points[which, 1], bottom, bottom + stride - 2 * HEAD) - bottom
-        first = np.searchsorted(keys, cells * stride + heights - HEAD, side="right")
-        last = np.searchsorted(keys, cells * stride + heights - SPAN_GAP, side="left")
-        over = last > first
-        np.add.at(marks, first[over], 1)
-        np.add.at(marks, last[over], -1)
+        for points, _ in surface_chunks(mesh, within=grid.reach()):
+            which, cells = grid.cells_touched(points)
+            heights = np.clip(points[which, 1], bottom, bottom + stride - 2 * HEAD) - bottom
+            first = np.searchsorted(keys, cells * stride + heights - HEAD, side="right")
+            last = np.searchsorted(keys, cells * stride + heights - SPAN_GAP, side="left")
+            over = last > first
+            np.add.at(marks, first[over], 1)
+            np.add.at(marks, last[over], -1)
     return np.cumsum(marks)[:-1] == 0
 
 
