@@ -16,7 +16,9 @@ laid as an object (`score:kind` light) is no solid: never told, never stood on. 
 other and a ground disc, over 200 m past every walker's reach) is scenery, never told, while the same two rocks 12 m
 past the reached objects still penetrate. A closed room (walls, roof, its door shut in its doorway) sees nothing
 outside from its walkers' floor, while the same room with its front wall left out (a cut-away built into the
-building) is told open to the outside. The check's memory stays bounded: a surface's points are read a chunk at a
+building) is told open to the outside; in an outside place (place.json `kind`) that open-fronted room is a covered
+stretch of the outside (an arcade) and passes, while a shop's room, one structure with a glassless window gap, is told
+open. The check's memory stays bounded: a surface's points are read a chunk at a
 time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
 300 m off, stretching the walkers' grid past the memory budget, is refused by name before the grid is read; and the
 settle runs as many models side by side as fit the budget, refusing when not even its largest fits.
@@ -50,6 +52,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.out_of_reach: `far` left empty -> the far shore reads no collision geometry and the far rocks penetrate
 - ready.open_faults: INSIDE_SHARE made 1.01 -> no point of the cut room reads inside and it passes
 - ready.open_faults: SEES made 1.0 -> the closed room's far looks read open and it is told
+- ready.open_faults: `rooms` left out of an outside place -> the open-fronted arcade (the cut room under the sky) is told
+- ready.rooms: the cover's own object not asked (only doors close) -> the shop's room is no room and its open window
+  passes
 - ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
   scenery and pass
 - reach.surface_chunks: `lengths.bit_generator.advance(count)` left out -> the chunked points are not sample_surface's
@@ -284,6 +289,30 @@ def room(folder, cut):
     return folder
 
 
+def shop(folder):
+    """A shop's room 4 x 4 m inside as one structure (walls, roof) on a ground disc, a window 1.2 m wide from 0.3 to
+    2.0 m left open in its front wall, a glassless gap; in an outside place it is a room of a structure."""
+    folder.mkdir()
+    concept = folder / "concept.png"
+    Image.new("RGB", (8, 8)).save(concept)
+    place_build.start(folder / "place", "shop", concept)
+    folder = folder / "place"
+    place_build.ground(folder, "ground", 6.0, (0.0, -0.02, 0.0))
+    stage, place = place_build.opened(folder)
+    holder = UsdGeom.Xform.Define(stage, f"/{place}/Objects/shop").GetPrim()
+    holder.CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("structure")
+    for name, size, low in (("left", (0.2, 2.5, 4.4), (-2.2, 0.0, -2.2)), ("right", (0.2, 2.5, 4.4), (2.0, 0.0, -2.2)),
+                            ("back", (4.4, 2.5, 0.2), (-2.2, 0.0, -2.2)), ("roof", (4.4, 0.2, 4.4), (-2.2, 2.5, -2.2)),
+                            ("front_left", (2.2, 2.5, 0.2), (-2.2, 0.0, 2.0)), ("front_right", (1.0, 2.5, 0.2), (1.2, 0.0, 2.0)),
+                            ("sill", (1.2, 0.3, 0.2), (0.0, 0.0, 2.0)), ("lintel", (1.2, 0.5, 0.2), (0.0, 2.0, 2.0))):
+        block = UsdGeom.Cube.Define(stage, f"{holder.GetPath()}/{name}")
+        block.CreateSizeAttr(1.0)
+        block.AddTranslateOp().Set(Gf.Vec3d(*(np.asarray(low) + np.asarray(size) / 2)))
+        block.AddScaleOp().Set(Gf.Vec3f(*size))
+    stage.GetRootLayer().Save()
+    return folder
+
+
 def planted(folder):
     """The fixture place: a ground disc, a wall with a 1.2 m opening and its door, and every planted fault."""
     concept = folder / "concept.png"
@@ -334,11 +363,17 @@ def planted(folder):
 
 
 def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
-    for cut in (False, True):
-        stage, place = place_build.opened(room(tmp_path / f"room_{cut}", cut))
+    for name, made, kind, told in (("closed", lambda folder: room(folder, False), "inside", False),
+                                   ("cut", lambda folder: room(folder, True), "inside", True),
+                                   ("arcade", lambda folder: room(folder, True), "outside", False),
+                                   ("shop", shop, "outside", True)):
+        folder = made(tmp_path / name)
+        place_build.kind(folder, kind)
+        stage, place = place_build.opened(folder)
         shell = ready.Place(stage, place)
-        gaps, seeing = ready.open_faults(shell, ready.walkway_faults(shell)[1])
-        assert (seeing > 0) == cut and all(fault["fault"] == "open to the outside" for fault in gaps), (cut, gaps)
+        gaps, seeing = ready.open_faults(shell, ready.walkway_faults(shell)[1],
+                                         place_build.record_of(folder)["kind"] == "outside")
+        assert (seeing > 0) == told and all(fault["fault"] == "open to the outside" for fault in gaps), (name, gaps)
     folder = planted(tmp_path)
     coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)

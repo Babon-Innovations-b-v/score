@@ -26,6 +26,8 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        switchback stairwell, its doorways answered
     camera_cut(folder, name)                           an object the camera sees through (place.json `cut`), at
                                                        render only: the building stays closed
+    kind(folder, kind)                                 inside (built closed) or outside (under the sky: only its
+                                                       structures' rooms are judged closed), place.json `kind`
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     blocks(folder, name, boxes, at, turn, ground)      solid chamfered boxes (dome_shell.blocks_file) as one object: a
                                                        road and kerbed pavements (ground) or a building (structure)
@@ -695,6 +697,20 @@ def camera_cut(folder, name):
     return {"cut": record["cut"]}
 
 
+KINDS = ("inside", "outside")  # place.json `kind`; a place without one is inside
+
+
+def kind(folder, kind):
+    """Whether the place is an inside, built closed all round, or an outside under the sky, of which only the rooms of
+    its structures are closed (ready.open_faults: a street's awnings, arcades and overhangs are no rooms)."""
+    if kind not in KINDS:
+        raise Refused(f"a place is {' or '.join(KINDS)}, not {kind}")
+    record = record_of(folder)
+    record["kind"] = kind
+    write_record(folder, record)
+    return {"kind": kind}
+
+
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     """A flat ground disc of `radius` metres (dome_shell.disc_file) laid as Objects/<name> and marked as the place's
     ground (so the renderer lays no plane of its own); its one part `ground` ready for a surface."""
@@ -1164,7 +1180,7 @@ def refinish(folder, name):
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "cut": camera_cut,
+         "cut": camera_cut, "kind": kind,
          "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze,
          "refinish": refinish}
 

@@ -31,7 +31,10 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   rays from points LOOK_HEIGHTS over the walkers' floor; a point under a roof, slab or flight whose looks mostly meet
   a solid is inside, and a look of it that meets nothing within SEES is `open to the outside` (ready.json `open`),
   a gap no door (as laid, shut), window or glass closes. The fix is a wall built and, for the concept's cut-away, a
-  camera cut (place.json `cut`, place_build `cut`), never a wider tolerance.
+  camera cut (place.json `cut`, place_build `cut`), never a wider tolerance. An outside place (place.json `kind`
+  outside, place_build `kind`; a place without one is inside) is judged only in its structures' rooms (`rooms`: the
+  object over the point closes it round on the level, itself, a door or what is mounted on it), so a street's awnings,
+  arcades and overhangs are no inside (#128, 2026-11-20: the street read 711 points open, 15 after, at its shop fronts).
 - **Memory is bounded** (2026-11-19: the Hong Kong square, its walkers' grid 1.6 km across, took 33 GB and froze the
   owner's PC): a surface's points are read CHUNK at a time (reach.surface_chunks, the very points sample_surface
   draws), and before the walkers' floor and the settle the check works out what they need and refuses past MEMORY

@@ -208,6 +208,8 @@ def run(args):
         return place_build.remove(args.folder, args.name)
     if args.step == "cut":
         return place_build.camera_cut(args.folder, args.name)
+    if args.step == "kind":
+        return place_build.kind(args.folder, args.kind)
     if args.step == "refinish":
         return place_build.refinish(args.folder, args.name)
     if args.step == "list":
@@ -377,6 +379,9 @@ def parser():
         step.add_argument("name")
     for name in ("list", "compare"):
         steps.add_parser(name).add_argument("folder")
+    step = steps.add_parser("kind")
+    step.add_argument("folder")
+    step.add_argument("kind", choices=place_build.KINDS)
     step = steps.add_parser("on")
     for name in ("folder", "name", "support"):
         step.add_argument(name)

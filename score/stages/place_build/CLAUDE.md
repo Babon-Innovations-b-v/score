@@ -10,7 +10,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   wall, then list it with `cut <folder> <object>` (place.json `cut`), and the preview and the film leave it out of
   the camera's rays alone (blender_views.camera_cut; it still shades), the film's camera path passes it. The walkers,
   the physics check and every game engine (the scene package) get the building whole. The check (ready/) fails an
-  inside that sees the sky or the outside through a gap no door, window or glass closes.
+  inside that sees the sky or the outside through a gap no door, window or glass closes. A cut object is found at render by its prim's path (Blender 5's
+  reader names a single-mesh Xform for its mesh), and `remove` drops it from the cut. An outside place is marked
+  `kind <folder> outside` (place.json `kind`): the check then judges only its structures' rooms.
 - **Everything laid comes from the library.** `put` lays only an entry with a USD file (kit pieces, models, the
   sky domes), copied whole under the place's `assets/`; `surface` binds a library surface over everything inside the
   object (a variant's own material, or a recipe in a palette colour), so a model's baked colour never shows; `light`

@@ -792,16 +792,50 @@ def look_points(floor):
                            for height in LOOK_HEIGHTS]) if kept.any() else np.zeros((0, 3))
 
 
-def open_faults(laid, floor):
+def nearest_owners(laid, origins, directions, length):
+    """The name of the first solid each ray meets within `length`, or None."""
+    _, rays, owners, along = laid.hits(origins, directions, length=length)
+    order = np.lexsort((along, rays))
+    met_rays, first = np.unique(rays[order], return_index=True)
+    named = np.full(len(origins), -1)
+    named[met_rays] = owners[order][first]
+    return [laid.names[owner] if owner >= 0 else None for owner in named]
+
+
+def rooms(laid, points):
+    """Which covered points of an outside place stand in a room of a structure: the object over the point (its first
+    solid straight up) closes it round on the level, its looks along the floor meeting that object, a door, or
+    something mounted on it (`score:support` wall:<it>, a window or its glass) at least INSIDE_SHARE of the time. Under
+    an awning, an arcade or a building's overhang the looks run out along the street or meet the building across it,
+    so a covered stretch of the outside is no room (#128, 2026-11-20: the street's pavement under its buildings read
+    711 points open)."""
+    covers = nearest_owners(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
+    level = look_ways()[:LOOK_AZIMUTHS]
+    seen = np.array(nearest_owners(laid, np.repeat(points, len(level), axis=0), np.tile(level, (len(points), 1)),
+                                   SEES), dtype=object).reshape(len(points), len(level))
+    mounted_on = {name: (text_of(laid.prims[name], "score:support") or "").removeprefix("wall:")
+                  for name in laid.names}
+    closing = np.array([[owner is not None and (owner == cover or laid.roles[owner] == "door"
+                                                or mounted_on[owner] == cover) for owner in row]
+                        for cover, row in zip(covers, seen)], dtype=bool).reshape(len(points), len(level))
+    return closing.mean(axis=1) >= INSIDE_SHARE
+
+
+def open_faults(laid, floor, outside=False):
     """Every look from the walkers' floor inside the place (a point under a roof, slab or flight within COVER whose
-    looks meet a solid INSIDE_SHARE of the time or more) that meets nothing within SEES: the inside sees the sky or the
-    outside through a gap no door, window or glass closes (a cut-away built into the walls). [{fault, at, towards,
-    why}] (at most SHOWN_OPEN, each from another point) and how many inside points see out."""
+    looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a point in a
+    structure's room, `rooms`) that meets nothing within SEES: the inside sees the sky or the outside through a gap no
+    door, window or glass closes (a cut-away built into the walls). [{fault, at, towards, why}] (at most SHOWN_OPEN,
+    each from another point) and how many inside points see out."""
     points, ways = look_points(floor), look_ways()
     if not len(points):
         return [], 0
     covered = met(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     points = points[covered]
+    if outside and len(points):
+        points = points[rooms(laid, points)]
+    if not len(points):
+        return [], 0
     origins, directions = np.repeat(points, len(ways), axis=0), np.tile(ways, (len(points), 1))
     reached = met(laid, origins, directions, SEES).reshape(len(points), len(ways))
     inside = reached.mean(axis=1) >= INSIDE_SHARE
@@ -1185,7 +1219,7 @@ def check(folder, settle=True):
     for name in laid.with_role("connector"):
         for fault in connector_faults(laid, name, floor):
             found.setdefault(name, []).append(fault)
-    gaps, seeing = open_faults(laid, floor)
+    gaps, seeing = open_faults(laid, floor, place_build.record_of(folder).get("kind") == "outside")
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():
         found.setdefault(name, []).extend(faults)
