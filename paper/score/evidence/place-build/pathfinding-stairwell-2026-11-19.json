@@ -1,0 +1,351 @@
+{
+ "what": "The stairwell's walkers in the demo-2026-11-18 films (Figure 3): its walkers' floor (score/stages/place_build/ready walkers_floor, every door as it stands for the walkers), the two walkers' plans (score/stages/walker_route plan), the Kimodo pieces made (tools/characters/clips/walker_route.py, made.json), the grounding lift and the measures (walker_route assemble). The film's scene_clips.json is the same as this run's.",
+ "floor": {
+  "cell_m": 0.125,
+  "eroded_cells": 3,
+  "walkway_m": 0.9,
+  "knee_m": 0.3,
+  "spans": 17119,
+  "standing_spans": 7176
+ },
+ "opening_doors": [
+  {
+   "door": "entrance_door",
+   "hinge": [
+    5.644,
+    0.9795,
+    1.8209
+   ],
+   "degrees": 90.0
+  }
+ ],
+ "walkers": {
+  "woman": {
+   "metres": 13.451,
+   "frames": 627,
+   "pieces": [
+    [
+     "walk",
+     193
+    ],
+    [
+     "up",
+     208
+    ],
+    [
+     "up",
+     181
+    ],
+    [
+     "walk",
+     45
+    ]
+   ],
+   "spots": [
+    [
+     9.5,
+     0.0,
+     0.4
+    ],
+    [
+     6.2,
+     0.0,
+     0.7
+    ],
+    [
+     1.1,
+     1.5,
+     1.35
+    ],
+    [
+     4.3,
+     3.0,
+     2.2
+    ]
+   ]
+  },
+  "man": {
+   "metres": 19.256,
+   "frames": 629,
+   "pieces": [
+    [
+     "walk",
+     210
+    ],
+    [
+     "walk",
+     209
+    ],
+    [
+     "walk",
+     210
+    ]
+   ],
+   "spots": [
+    [
+     12.2,
+     0.0,
+     -1.6
+    ],
+    [
+     -7.0,
+     0.0,
+     -1.2
+    ]
+   ]
+  }
+ },
+ "made": {
+  "woman": [
+   {
+    "kind": "walk",
+    "start": 0,
+    "end": 193,
+    "frames": 217,
+    "seed": 1,
+    "postprocess": true,
+    "posture": {
+     "knee least": [
+      5.5,
+      4.8
+     ],
+     "swing": [
+      0.458,
+      0.292
+     ]
+    }
+   },
+   {
+    "kind": "up",
+    "start": 193,
+    "end": 401,
+    "frames": 232,
+    "seed": 1,
+    "postprocess": false,
+    "posture": null
+   },
+   {
+    "kind": "up",
+    "start": 401,
+    "end": 582,
+    "frames": 205,
+    "seed": 1,
+    "postprocess": false,
+    "posture": null
+   },
+   {
+    "kind": "walk",
+    "start": 582,
+    "end": 627,
+    "frames": 45,
+    "seed": 1,
+    "postprocess": true,
+    "posture": null
+   }
+  ],
+  "man": [
+   {
+    "kind": "walk",
+    "start": 0,
+    "end": 210,
+    "frames": 234,
+    "seed": 2,
+    "postprocess": true,
+    "posture": {
+     "knee least": [
+      1.7,
+      0.4
+     ],
+     "swing": [
+      0.206,
+      0.168
+     ]
+    }
+   },
+   {
+    "kind": "walk",
+    "start": 210,
+    "end": 419,
+    "frames": 233,
+    "seed": 302,
+    "postprocess": true,
+    "posture": {
+     "knee least": [
+      0.2,
+      2.0
+     ],
+     "swing": [
+      0.19,
+      0.217
+     ]
+    }
+   },
+   {
+    "kind": "walk",
+    "start": 419,
+    "end": 629,
+    "frames": 210,
+    "seed": 102,
+    "postprocess": true,
+    "posture": {
+     "knee least": [
+      0.3,
+      2.1
+     ],
+     "swing": [
+      0.151,
+      0.161
+     ]
+    }
+   }
+  ]
+ },
+ "model": "Kimodo-SOMA-RP-v1.1",
+ "grounded_lift_m": {
+  "woman": [
+   -0.045,
+   0.258
+  ],
+  "man": [
+   -0.011,
+   -0.0
+  ]
+ },
+ "measures": {
+  "woman": {
+   "stances": 55,
+   "skate max": 0.0198,
+   "skate median": 0.0046,
+   "skate over": 0,
+   "route off max": 0.1724,
+   "route off mean": 0.04,
+   "clearance least": 0.3703,
+   "standing off ground max": 0.1484,
+   "within": false
+  },
+  "man": {
+   "stances": 104,
+   "skate max": 0.0175,
+   "skate median": 0.0069,
+   "skate over": 0,
+   "route off max": 0.0603,
+   "route off mean": 0.02,
+   "clearance least": 0.538,
+   "standing off ground max": 0.0361,
+   "within": false
+  }
+ },
+ "limits": {
+  "skate_most_m": 0.02,
+  "route_most_m": 0.1,
+  "body_radius_m": 0.25,
+  "ground_most_m": 0.03
+ },
+ "final_film_sim_bodies": {
+  "what": "The stairwell's MOTOR sim bodies of the final film (2026-11-19) on these walkers' clips: MOTOR's per-body summary and checks, and the sim body's feet against the treads (SIM_BONES: the bones' soles; dressed: the player model).",
+  "checks": [
+   "on floor fail woman went 0.039 m into its ground; man went 0.006 m into its ground",
+   "lands fail woman: a landed foot 0.039 m off its ground; man: a landed foot 0.006 m off its ground",
+   "carries fail woman: the ground pushes 0.843 of its weight",
+   "follows pass 2 bodies, each within 5.0 degrees of its clip on the mean and RRA's move within 5.0 degrees and 2 cm on every frame",
+   "residual fail woman: a residual of 1268 N, over its 15 N; woman: a residual moment of 323 N m, over its 7 N m; man: a residual of 740 N, over its 15 N",
+   "smooth fail woman: its turns shake 2.023 degrees a frame cubed, its clip's 1.567; man: its turns shake 2.461 degrees a frame cubed, its clip's 1.435"
+  ],
+  "woman": {
+   "deepest": 0.039,
+   "landings": 796,
+   "carried frames": 509,
+   "mean foot off ground m": 0.002,
+   "worst foot off ground m": 0.039,
+   "weight N": 732.45,
+   "mean push N": 617.43,
+   "push over weight": 0.843,
+   "mean off clip deg": 4.222,
+   "worst off clip deg": 28.102,
+   "jerk deg": 2.0234,
+   "clip jerk deg": 1.567,
+   "largest adjusted turn deg": 4.86,
+   "largest pelvis move cm": 1.65,
+   "largest torque Nm": 301.99,
+   "largest reserve Nm": 73.38,
+   "largest residual N": 1268.09,
+   "mean residual N": 144.49,
+   "median residual N": 25.09,
+   "residual force limit N": 14.65,
+   "largest residual Nm": 322.55,
+   "mean residual Nm": 32.86,
+   "median residual Nm": 20.82,
+   "residual moment limit Nm": 6.98,
+   "frames within residual limits": 0.22,
+   "largest muscle force N": 5970.8,
+   "muscle force N, mean of each frame's largest": 1864.7,
+   "largest activation": 1.0,
+   "mean activation": 0.1375
+  },
+  "man": {
+   "deepest": 0.0065,
+   "landings": 945,
+   "carried frames": 610,
+   "mean foot off ground m": 0.0016,
+   "worst foot off ground m": 0.0065,
+   "weight N": 732.45,
+   "mean push N": 706.09,
+   "push over weight": 0.964,
+   "mean off clip deg": 4.145,
+   "worst off clip deg": 16.615,
+   "jerk deg": 2.4609,
+   "clip jerk deg": 1.4345,
+   "largest adjusted turn deg": 4.89,
+   "largest pelvis move cm": 1.89,
+   "largest torque Nm": 268.22,
+   "largest reserve Nm": 97.04,
+   "largest residual N": 740.07,
+   "mean residual N": 42.62,
+   "median residual N": 8.7,
+   "residual force limit N": 14.65,
+   "largest residual Nm": 180.61,
+   "mean residual Nm": 20.6,
+   "median residual Nm": 9.0,
+   "residual moment limit Nm": 7.03,
+   "frames within residual limits": 0.442,
+   "largest muscle force N": 4447.2,
+   "muscle force N, mean of each frame's largest": 1832.5,
+   "largest activation": 1.0,
+   "mean activation": 0.051
+  },
+  "feet_on_treads": {
+   "SIM_BONES": {
+    "frames": 627,
+    "into tread worst m": 0.0075,
+    "frames a foot >1cm into a tread": 0,
+    "lower foot gap median m": 0.005,
+    "lower foot gap p95 abs m": 0.0371,
+    "frames lower foot >1cm over": 177,
+    "frames lower foot within 1cm": 450,
+    "planted foot-frames": 798,
+    "planted gap median m": 0.0065,
+    "planted |gap|>1cm share": 0.38,
+    "planted gap worst over m": 0.2764,
+    "planted gap worst into m": 0.0047
+   },
+   "dressed": {
+    "frames": 627,
+    "into tread worst m": 0.0135,
+    "frames a foot >1cm into a tread": 1,
+    "lower foot gap median m": 0.0008,
+    "lower foot gap p95 abs m": 0.1455,
+    "frames lower foot >1cm over": 193,
+    "frames lower foot within 1cm": 433,
+    "planted foot-frames": 775,
+    "planted gap median m": 0.005,
+    "planted |gap|>1cm share": 0.386,
+    "planted gap worst over m": 0.2425,
+    "planted gap worst into m": 0.009,
+    "time codes": [
+     0.0,
+     500.8
+    ]
+   }
+  }
+ }
+}

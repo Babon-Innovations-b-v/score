@@ -1,4 +1,4 @@
-\begin{thebibliography}{33}
+\begin{thebibliography}{35}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -238,6 +238,17 @@ Jennifer~L. Hicks, Thomas~K. Uchida, Ajay Seth, Apoorva Rajagopal, and Scott~L.
   validation of musculoskeletal models and simulations of movement.
 \newblock \emph{Journal of Biomechanical Engineering}, 137\penalty0
   (2):\penalty0 020905, 2015.
+
+\bibitem[rec(2026)]{recast}
+Recast navigation.
+\newblock \url{https://github.com/recastnavigation/recastnavigation}, 2026.
+\newblock Navigation-mesh construction toolset.
+
+\bibitem[Dijkstra(1959)]{dijkstra1959}
+E.~W. Dijkstra.
+\newblock A note on two problems in connexion with graphs.
+\newblock \emph{Numerische Mathematik}, 1:\penalty0 269--271, 1959.
+\newblock \doi{10.1007/BF01386390}.
 
 \bibitem[Kardolus(2026{\natexlab{b}})]{motorcontact}
 J.~P. Kardolus.
