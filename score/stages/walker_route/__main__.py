@@ -9,8 +9,8 @@
 
 walkers.json: {place: {"walkers": [{name, character, look, variant?, tread?, seconds?, through: [[x, y, z], ...]}]}}
 (`seconds`: the clip lasts at least that long, the walker going on round its spots; walker_route.filled). `plan` writes
-<run>/make/walkers.json (each walker's route, frames, feet ground, whether each foot lies whole on one tread, and
-pieces); `assemble` writes <run>/cast/cast.json
+<run>/make/walkers.json (each walker's route, frames, feet ground, footholds and the level runs under its route
+(walker_route.footholds), and pieces); `assemble` writes <run>/cast/cast.json
 (each walker a cast single at its route's start, turned to its first heading), <run>/scene-clips/scene_clips.json
 (its placement, per-frame route and footfalls; rig.npz and motions/ come from the Kimodo program's rig step) and
 prints each walker's measures (walker_route.measures) on one line. `doors` swings each door marked `score:opens` open
@@ -48,16 +48,18 @@ def plan(scene, spec_path, place, run):
     for walker in spec["walkers"]:
         through, points, metres, roots, headings = walker_route.filled(scene, walker["through"], walker.get("seconds"),
                                                                        walker.get("tread"))
-        grounds = walker_route.foot_grounds(roots, headings, ground_reader(found))
-        feet = walker_route.feet_ground(grounds)
+        ground_at = ground_reader(found)
+        holds, runs = walker_route.footholds(points, roots, ground_at)
+        roots = walker_route.stood_roots(roots, holds)
+        feet = walker_route.feet_ground(walker_route.foot_grounds(roots, headings, ground_at))
         found_pieces = walker_route.pieces(roots)
         walkers.append({**walker, "through": through, "clip": f"scene_{walker['name']}", "route": points,
                         "metres": metres,
                         "roots": np.round(roots, 5).tolist(), "headings": np.round(headings, 6).tolist(),
-                        "feet": np.round(feet, 4).tolist(),
-                        "footed": walker_route.footed(grounds).astype(int).tolist(), "pieces": found_pieces})
+                        "feet": np.round(feet, 4).tolist(), "holds": holds, "levels": runs, "pieces": found_pieces})
         print(walker["name"], f"{metres} m", f"{len(roots)} frames", [(piece["kind"], piece["end"] - piece["start"])
-                                                                      for piece in found_pieces], flush=True)
+                                                                      for piece in found_pieces],
+              f"{len(holds)} footholds", f"{sum(run['kind'] == 'tread' for run in runs)} treads", flush=True)
     make = pathlib.Path(run) / "make"
     shutil.rmtree(make, ignore_errors=True)
     make.mkdir(parents=True)
@@ -137,7 +139,10 @@ def assemble(scene, run):
                       "relief": round(float(roots[:, 1].max() - roots[:, 1].min()), 4), "postprocess": not climbs,
                       "lift": 0.0, "pieces": walker["pieces"]})
         standing = walker_route.standing_gap(motion, walker_route.foot_gaps(motion, ground_at))
-        measured[walker["name"]] = walker_route.measures(motion, roots, triangles, standing)
+        faults, _ = walker_route.foothold_faults(motion, walker["levels"], walker["route"], ground_at)
+        measured[walker["name"]] = walker_route.measures(motion, roots, triangles, standing, faults)
+        for fault in faults:
+            print("FOOTHOLD", walker["name"], fault, flush=True)
         print("MEASURES", walker["name"], json.dumps(measured[walker["name"]]), flush=True)
     (run / "cast").mkdir(exist_ok=True)
     (run / "cast" / "cast.json").write_text(json.dumps({"place": plan["place"], "characters": characters}, indent=1))

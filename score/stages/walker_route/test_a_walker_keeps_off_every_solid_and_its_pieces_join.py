@@ -8,14 +8,18 @@ straighten past 14 degrees, or whose hands hang still, is told slouched, an upri
 round its spots (the last back to the first) until its clip lasts that long; two spots make no loop and are refused. A shut
 door in the wall's gap is a solid (no route through it); marked `score:opens`, the walker goes through it, the door
 stands open from OPEN_AHEAD before she crosses to SHUT_AFTER past it, and the swing written on its prim lays its leaf
-where the walkers' floor took it open (shut at the start). A climb's stance falling across a riser is moved onto its
-tread's middle, the whole foot on one tread; a made walk floating over its ground is stood back on it (its standing
-foot's gap within GROUND_MOST), and the measures tell the floating one.
+where the walkers' floor took it open (shut at the start). The flight is planned foot by foot: one foothold on each
+tread, the feet alternating, each sole whole on its tread back from its nosing, the route's height the treads' stood
+on, a climb's foot keyframes setting each sole on its foothold, a short landing between two flights climbed
+through; the footholds check passes feet planted on them and tells a sole on its nosing and the same foot on two
+treads running. A made walk floating over its ground is stood back
+on it (its standing foot's gap within GROUND_MOST), and the measures tell the floating one.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.route: ready.route swapped for the straight line through the spots -> the route crosses the wall
 - walker_route.pieces: the flight's runs merged into the walk -> no `up` piece
 - walker_route.pieces: `count` fixed at 1 -> a piece longer than PIECE_FRAMES
+- walker_route.pieces: `< LANDING_FRAMES` made `< 0` -> the landing between two flights is a walk of its own
 - walker_route.moved: the root's local turn left unturned -> the held pose's root turn is off by the piece's heading
 - walker_route.axis_angle: `angle / (2 * sin)` made `angle / sin` -> the keyframe's turns are doubled
 - walker_route.joined: the blend's weights reversed -> the join jumps
@@ -36,8 +40,16 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - walker_route.slouched: the swing check dropped -> the walk with its hands hanging passes
 - walker_route.posture: the stride's least dropped (`walking.sum() < 2 * STEP_FRAMES` made `not walking.any()`) ->
   a 30-frame walk is judged
-- walker_route.footed: `<= FLAT_RELIEF` made `<= 1.0` -> a foot across a riser reads whole on its tread
-- walker_route.on_tread: the run's middle taken as its first frame -> the moved stance's heel is at the riser
+- walker_route.levels: `> RISER_LEAST` made `> 1.0` -> the flight reads one floor, no tread
+- walker_route.placed_on: `+ SOLE / 2` dropped -> the planted heel hangs over its nosing, the check fails them
+- walker_route.footholds: the side taken as "right" every step -> the feet do not alternate
+- walker_route.stood_roots: the roots returned unchanged -> the route's height is not its treads'
+- walker_route.hips_over: `- SOLE_MIDDLE * sin` made `+` -> the rest pose's sole lands off its foothold
+- walker_route.sided: the piece before left unread (`if before is not None` made `if False`) -> the climb keys the
+  plan's foot, not the one the piece before left free to step
+- walker_route.foothold_faults: the sole's points left unread (`> ON_TREAD_MOST` made `> 1.0`) and the nosing
+  test dropped -> the sole on its nosing passes
+- walker_route.foothold_faults: the alternation left out -> the same foot on two treads running passes
 - walker_route.grounded: the lift added with its sign turned -> the floating walk floats twice as high
 - walker_route.measures: the standing gap left out of `within` -> the floating walk reads within
 """
@@ -119,6 +131,21 @@ def gait(knee_least, swing, frames=90, bent=None):
     return joints
 
 
+def planted(holds, count, moved=None):
+    """A motion standing SOMA77's rest feet on the footholds over 7 frames round each one's frame (`moved`: {frame:
+    metres} the sole slid back along its heading there), the feet elsewhere 5 m under the floor and swinging fast."""
+    joints = np.zeros((count, 77, 3)) + [0.0, -5.0, 0.0]
+    joints[:, :, 0] += np.arange(count)[:, None]  # 30 m/s: no stance but the planted ones
+    for hold in holds:
+        ahead = np.array([math.sin(hold["heading"]), 0.0, math.cos(hold["heading"])])
+        sole = walker_route.sole_at(hold, hold["side"]) - ahead * (moved or {}).get(hold["frame"], 0.0)
+        rest = (walker_route.HEEL, 0.1154, walker_route.TOE)  # SOMA77's rest ankle, ball and toe end
+        for joint, along, up in zip(walker_route.SOLE_JOINTS[hold["side"]], rest, walker_route.REST_HEIGHTS):
+            joints[hold["frame"] - 3:hold["frame"] + 4, joint] = sole + ahead * (along - walker_route.SOLE_MIDDLE) + \
+                [0.0, up, 0.0]
+    return {"posed_joints": joints, "foot_contacts": np.zeros((count, 6), bool)}
+
+
 def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     folder = room(tmp_path)
     found = ready.solids(folder)
@@ -137,12 +164,34 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     assert "up" in {piece["kind"] for piece in pieces} and \
         all(piece["end"] - piece["start"] <= walker_route.PIECE_FRAMES for piece in pieces), pieces
 
+    landing = np.column_stack([np.arange(330) * 0.02, np.interp(np.arange(330), [0, 60, 120, 200, 260, 329],
+                                                                [0.0, 0.0, 1.0, 1.0, 2.0, 2.0]), np.zeros(330)])
+    kinds = [piece["kind"] for piece in walker_route.pieces(landing)]
+    runs = [kind for index, kind in enumerate(kinds) if not index or kind != kinds[index - 1]]
+    assert runs == ["walk", "up", "walk"], walker_route.pieces(landing)  # the 2.7 s landing between two flights climbed through
     ground_at = ground_reader(found)
-    whole = walker_route.footed(walker_route.foot_grounds(roots, headings, ground_at))
-    across = [frame for frame in range(len(roots)) if not whole[frame, 0]]
-    assert across, "no frame's left foot reads across a riser"
-    moved_to = walker_route.on_tread(across[len(across) // 2], 0, whole)
-    assert whole[moved_to - 1:moved_to + 2, 0].all(), (across[len(across) // 2], moved_to)
+    holds, runs = walker_route.footholds(points, roots, ground_at)
+    treads = [index for index, run in enumerate(runs) if run["kind"] == "tread"]
+    on = [hold for hold in holds if hold["tread"] is not None]
+    assert len(treads) == STEPS - 1 and [hold["tread"] for hold in on] == treads, (runs, holds)  # the last: the landing
+    assert all(one["side"] != two["side"] for one, two in zip(holds, holds[1:])), holds
+    risen = walker_route.stood_roots(roots, holds)
+    assert all(abs(risen[hold["frame"], 1] - runs[hold["tread"]]["y"]) < 1e-6 for hold in on), risen[:, 1]
+    for hold in on:
+        sin, cos = math.sin(hold["heading"]), math.cos(hold["heading"])
+        hips = walker_route.hips_over(hold, hold["side"])
+        across = walker_route.FOOT_SIDE * (1 if hold["side"] == "left" else -1)
+        rest = [hips[0] + across * cos + walker_route.SOLE_MIDDLE * sin, hips[1] - walker_route.HIP_OVER_SOLE,
+                hips[2] - across * sin + walker_route.SOLE_MIDDLE * cos]
+        assert np.allclose(rest, walker_route.sole_at(hold, hold["side"]), atol=1e-9), (rest, hold)
+    faults, stances = walker_route.foothold_faults(planted(holds, len(roots)), runs, points, ground_at)
+    assert not faults and [stance[2] for stance in stances] == treads, (faults, stances)
+    nosed, _ = walker_route.foothold_faults(planted(holds, len(roots), {on[2]["frame"]: 0.03}), runs, points, ground_at)
+    assert nosed and all("nosing" in fault or "not whole" in fault for fault in nosed), nosed
+    same = [dict(hold, side=on[1]["side"]) if hold is on[2] else hold for hold in holds]
+    twice, _ = walker_route.foothold_faults(planted(same, len(roots)), runs, points, ground_at)
+    assert twice and all("two treads running" in fault for fault in twice), twice
+    climb = next(piece for piece in walker_route.pieces(risen) if piece["kind"] == "up")
     flat = slice(0, walker_route.HOLD + 10)
     floating = synthetic(roots, headings)
     floating["posed_joints"] = floating["posed_joints"] + [0.0, 0.15, 0.0]
@@ -158,6 +207,21 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
     first = walker_route.asked(pieces[0], roots, headings, feet)
     assert np.allclose(first["constraints"][0]["smooth_root_2d"][0], 0.0, atol=1e-4)
     ask = walker_route.asked(later, roots, headings, feet, walk)
+    other = dict(walk, foot_contacts=walk["foot_contacts"][:, [3, 4, 5, 0, 1, 2]])  # the right foot standing instead
+    firsts = []
+    for before in (walk, other):
+        keyed = walker_route.sided(holds, climb["start"], climb["end"] - climb["start"] + walker_route.TAIL, before)
+        frame, side = walker_route.next_stance(before["foot_contacts"][:climb["start"] + walker_route.OVERLAP],
+                                               climb["start"] + walker_route.OVERLAP - 1)
+        steps = round((keyed[0][0]["frame"] - frame) / walker_route.STEP_FRAMES)
+        assert keyed[0][1] == (side if steps % 2 == 0 else {"left": "right", "right": "left"}[side]), (keyed[0], frame)
+        assert all(one[1] != two[1] for one, two in zip(keyed, keyed[1:])), keyed
+        firsts.append(keyed[0][1])
+        climbed = walker_route.asked(climb, risen, headings, feet, before, holds)
+        for hold, which in keyed:
+            key = next(item for item in climbed["constraints"] if item["type"] == f"{which}-foot")
+            assert hold["frame"] - climb["start"] in key["frame_indices"], (hold, key["frame_indices"])
+    assert firsts[0] != firsts[1], firsts
     held = next(item for item in ask["constraints"] if item["type"] == "fullbody")
     turns = np.asarray(held["local_joints_rot"])[:, 0]
     back = walker_route.moved({key: np.asarray(walk[key])[later["start"]:later["start"] + walker_route.OVERLAP]

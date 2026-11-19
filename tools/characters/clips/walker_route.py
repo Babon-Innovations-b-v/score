@@ -49,7 +49,7 @@ for number, walker in enumerate(plan["walkers"]):  # each walker its own seed: w
     motion, made = None, []
     for piece in walker["pieces"]:
         began = time.time()
-        ask = walker_route.asked(piece, roots, headings, feet, motion, walker.get("footed"))
+        ask = walker_route.asked(piece, roots, headings, feet, motion, walker.get("holds"))
         for attempt in range(walker_route.SEED_TRIES):  # a flat piece walking crouched or arms hanging: the next seed
             seed = sentences.CLIP_SEED + number + attempt * walker_route.SEED_STRIDE
             seed_everything(seed)

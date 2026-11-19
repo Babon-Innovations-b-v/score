@@ -18,9 +18,16 @@ makes the pieces with Kimodo, free on this PC's card.
 - **The measures are the limits**: foot skate per stance at most SKATE_MOST (2 cm), the root within ROUTE_MOST
   (10 cm) of its route, the body at least BODY_RADIUS from every solid between knee and head, the standing foot within
   GROUND_MOST (3 cm) of the ground under it. Never widen one to pass.
-- **Feet on the treads** (owner, 2026-11-18: she "goes to high and, then kinda jumps down a small bit"): a climb's
-  stance keys sit on their tread's middle (`on_tread`), and `ground` stands the made motion's standing foot on the
-  scene's ground on every frame before the rig is made, since Kimodo's climb walks on up past a flight's last tread.
+- **A step a tread, left and right** (owner, 2026-11-19: "the step planning is just no where, like it would need an
+  actual left or right step per step"; then "it needs to be through kimodo, otherwise it will just be warped
+  motion"): `footholds` plans one foot on every tread from the solids under the route (`levels`), alternating, each
+  sole whole on its tread NOSING_BACK back from its nosing, landings walked at Kimodo's cadence, and the route's
+  height is the footholds' (`stood_roots`), never the floor cells' (a cell over a riser takes the upper tread's).
+  The footholds drive Kimodo itself: each is a left- or right-foot keyframe whose rest pose sets that sole on it
+  (`hips_over`, `sided`). Never move a made motion's legs onto them. `foothold_faults` is the check (whole on one
+  tread, within ON_TREAD_MOST, back from the nosing, one stance a tread, alternating); its stances come from the
+  joints, since a climb's foot_contacts mark none. `ground` stands the made motion's standing foot on the scene's
+  ground on every frame before the rig is made, since Kimodo's climb walks on up past a flight's last tread.
 - **A flat piece walks upright** (owner, 2026-11-18: the street walker "rlly walks like a monkey"): its knees straighten
   within KNEE_STRAIGHT and each hand swings at least SWING_LEAST (`posture`, `slouched`), else it is made again from the
   next of SEED_TRIES seeds and refused after the last; the sentence alone did not hold it (a third of seeds crouched
@@ -28,4 +35,4 @@ makes the pieces with Kimodo, free on this PC's card.
 - **The top of `__init__.py` holds numpy, json and math alone**: Kimodo's program loads the file by path in Kimodo's
   environment. Import place_build, cast or anything heavier inside the function that needs it.
 - Test: `test_a_walker_keeps_off_every_solid_and_its_pieces_join.py` (a room with a wall in the way and one stair
-  flight; Kimodo itself is not run there).
+  flight, its footholds planted and checked both ways; Kimodo itself is not run there).
