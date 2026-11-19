@@ -6,6 +6,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
 - sim: INSIDE made -1e-4 -> the face where the two cubes meet counts as skin (mass 20% high)
+- cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
+  (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
   the maker's own Python)
 """
@@ -15,7 +17,7 @@ import pathlib
 
 import numpy as np
 
-from score.stages.place_build.maker import fit, glb, grade, sim
+from score.stages.place_build.maker import cloud, fit, glb, grade, sim
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -81,6 +83,12 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     weighed = sim.physical(pair, "steel")
     assert abs(weighed["mass_kg"] / (10 * steel["sheet"] * steel["density"]) - 1) < 0.03
     assert sim.physical(pair, "stone")["mass_kg"] == round(2 * sim.material("stone")["density"], 2)
+
+    models = cloud.REPO / "tools/cloud/images/meshparts/models.json"
+    listed = {model["name"] for model in json.loads(models.read_text())}
+    job = cloud.job_of([("/pictures/a.png", "/made/a/a.glb"), ("/pictures/b.png", "/made/b/b.glb")])
+    assert set(job["models"]) <= listed and job["command"][-1].count("generate.py") == 2
+    assert [entry["local"] for entry in job["outputs"]] == ["/made/a/.cloud-0", "/made/b/.cloud-1"]
 
     if importlib.util.find_spec("torch") is None:  # the maker's own Python has it (setup.sh); score's need not
         print("flash-attn stand-in: skipped (no torch in this Python)")

@@ -9,8 +9,12 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   glibc 2.41+'s noexcept rsqrt); no prebuilt wheel from a third-party account. No flash-attn (`shim/flash_attn`, torch's
   own attention) and no NVIDIA nvdiffrast (`shim/nvdiffrast`, a UV rasterizer). Weights at pinned revisions and hashes.
   Never edit setup.sh while it runs (bash reads it as it goes).
-- **The card queue only** (generate.py through tools/cloud/backends/card_queue.py, a 20 GB scope): one model a
-  process, about two minutes and 14 GB of card. A made model is kept under `<folder>/made/<entry>/` and not made again.
+- **On a cloud card** (`cloud.made`, 2026-11-19: GPU work goes to the cloud; the player models' stills): generate.py in
+  the meshparts image's TRELLIS.2 (SegviGen's checkout of its code, its author's wheels), weights from the node cache
+  (images/meshparts/models.json `trellis2-4b-make`, `trellis-image-large-ssdec`), any pictures in one job, each in its
+  own process; kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
+  itself still uses the card queue (tools/cloud/backends/card_queue.py, a 20 GB scope): one model a process, about two
+  minutes and 14 GB of card. A made model is kept under `<folder>/made/<entry>/` and not made again.
 - **Lossless edits** (glb.py): the fit is a root node's matrix, the grade replaces the base colour picture only.
 - **The fit** (fit.py) covers the model it replaces (`--like`): quarter turns and uniform scales, the smallest two-way
   point distance; `--height` stands a new prop on the floor.

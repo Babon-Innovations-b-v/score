@@ -54,7 +54,7 @@ def loaded(env):
 
 def made(pipeline, picture, out):
     """The model of `picture` written as `out` (GLB); its counts."""
-    import o_voxel
+    import o_voxel.postprocess  # imported by name: the meshparts image's o_voxel leaves it out of its __init__
     from PIL import Image
     image = Image.open(picture)
     if image.mode != "RGBA" or image.getchannel("A").getextrema()[0] == 255:
