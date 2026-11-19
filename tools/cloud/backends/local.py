@@ -64,9 +64,10 @@ import uuid
 
 import math
 
-import card_queue
-import provider
-from paths import HOME, REPO
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[2] / "props"))  # tools/props, for paths (as scaleway.py)
+import card_queue  # noqa: E402
+import provider  # noqa: E402
+from paths import HOME, REPO  # noqa: E402
 
 NAME = "local"
 MACHINE = "score-this-pc"  # the container's name, and the machine type the offers name

@@ -27,6 +27,9 @@ The break that turns the test red (applied once each, seen red, reverted):
 - resolve's `data/` branch removed (the repository rows resolve to None).
 - from_library's cache check `sha256(target) == expected` made `True` (a changed cache is served).
 - blob_store returns `values` at once (the command is handed no cloud store).
+- cloud_store reads `provider.cloud` (SCORE_CLOUD's backend) instead of the library's store backend (take-in
+  under SCORE_CLOUD=local finds no object store), or backends/local.py loses its tools/props path (the
+  real provider cannot be imported under SCORE_CLOUD=local: no module named paths).
 - a record value `"model": "assets/rover.glb"` added to data/library/lamps.json (a data guard: the data names no model
   or sound file today).
 - a line `GODOT = "res://scenes/x.tscn"` added to library_files.py.
@@ -41,6 +44,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest tools/library/test_every
 import ast
 import hashlib
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -140,10 +144,13 @@ def library(tmp_path, monkeypatch):
     monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} {tmp_path / 'score-lib.py'}")
     for variable in ("SCORE_LIB_FILES", *library_files.BLOB_STORE):
         monkeypatch.delenv(variable, raising=False)
-    provider = type(sys)("provider")
-    provider.cloud = type("Cloud", (), {"object_store": staticmethod(lambda: {
+    monkeypatch.setenv("SCORE_CLOUD", "local")  # compute on this PC: the library's blobs still in its own bucket
+    store = type("Store", (), {"object_store": staticmethod(lambda: {
         "endpoint": "https://store.example", "region": "region-1", "bucket": "a-bucket", "access_key": "AK",
         "secret_key": "SK"})})
+    provider = type(sys)("provider")
+    provider.cloud = type("Local", (), {})  # SCORE_CLOUD's backend: no object store of its own
+    provider.load = lambda name=None: store if name == library_files.STORE_BACKEND else provider.cloud
     monkeypatch.setitem(sys.modules, "provider", provider)
     pixal = tmp_path / "home" / "work" / "pixal"
     for name, data in TAKE.items():
@@ -254,6 +261,12 @@ def test_every_record_name_resolves_or_is_a_gap(library, tmp_path, monkeypatch):
     assert library_files.resolve(HUM) == found
     assert fetches.read_text().split() == ["sound/hum.recordings@1"]
     assert store.read_text() == "a-bucket/score_lib SK"
+    # The real provider imports under SCORE_CLOUD=local (its backend's own imports found) and gives the store's backend.
+    loaded = subprocess.run([sys.executable, "-c", "import sys; sys.path[:0] = sys.argv[1:]; import provider; "
+                             f"print(provider.cloud.NAME, provider.load({library_files.STORE_BACKEND!r}).object_store)",
+                             str(library_files.CLOUD / "backends"), str(library_files.CLOUD)],
+                            env={**os.environ, "SCORE_CLOUD": "local"}, capture_output=True, text=True)
+    assert loaded.returncode == 0 and loaded.stdout.startswith("local <function"), loaded.stderr[-400:]
     assert not any("SK" == value for value in library_files.settings().values())
     found.write_bytes(b"changed")  # the cache's bytes moved: fetched again, then checked, now with a store set
     monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(tmp_path / "lib/blobs"))

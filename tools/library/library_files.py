@@ -15,7 +15,7 @@ by the library's own command (`<SCORE_LIB_COMMAND> --root <SCORE_LIB_ROOT> fetch
 <cache>`; score never imports the library's code) and checked against the sha256 the entry records, every time it is
 resolved. The library's settings are the SCORE_LIB_* environment variables; when they are not set, `defaults()` gives
 the score_lib checkout beside score's own and its command, and when no blob store is set (SCORE_LIB_BLOBS_DIR,
-SCORE_LIB_S3_*), `blob_store()` gives the cloud backend's object store (provider.py object_store(): its endpoint,
+SCORE_LIB_S3_*), `blob_store()` gives the library's bucket (STORE_BACKEND's object_store(), whatever SCORE_CLOUD is: its endpoint,
 region and bucket, the prefix score_lib, and the runtime key from the backend's secret store), read once a run and
 handed to the command through its environment only, never written or printed. No settings file holds any of it
 (owner, 2026-10-20).
@@ -43,6 +43,9 @@ DEFAULT_COMMAND = "score-lib"
 CLOUD = REPO / "tools/cloud"
 # The library's blobs sit under this prefix of the cloud backend's bucket (blobs/<sha[:2]>/<sha>).
 STORE_PREFIX = "score_lib"
+# The backend whose bucket holds the library's blobs, whichever backend SCORE_CLOUD sends the compute to (this PC's,
+# the cluster's): the library's store is not the compute's.
+STORE_BACKEND = "scaleway"
 # Either of these set means the blob store is chosen already, and the cloud's is not read.
 BLOB_STORE = ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_ENDPOINT")
 # One file's fetch may take this long (a large model over a slow link).
@@ -93,14 +96,14 @@ def settings():
 
 @functools.lru_cache(maxsize=1)
 def cloud_store():
-    """The blob store's variables of the library's command for the cloud backend's object store, its key from the
-    backend's secret store; read once a run, held in memory only."""
+    """The blob store's variables of the library's command for STORE_BACKEND's object store (never SCORE_CLOUD's
+    choice), its key from that backend's secret store; read once a run, held in memory only."""
     for folder in (CLOUD / "backends", CLOUD):
         if str(folder) not in sys.path:
             sys.path.insert(0, str(folder))
-    from provider import cloud
+    import provider
 
-    store = cloud.object_store()
+    store = provider.load(STORE_BACKEND).object_store()
     return {"SCORE_LIB_S3_ENDPOINT": store["endpoint"], "SCORE_LIB_S3_REGION": store["region"],
             "SCORE_LIB_S3_BUCKET": store["bucket"], "SCORE_LIB_S3_PREFIX": STORE_PREFIX,
             "AWS_ACCESS_KEY_ID": store["access_key"], "AWS_SECRET_ACCESS_KEY": store["secret_key"]}
