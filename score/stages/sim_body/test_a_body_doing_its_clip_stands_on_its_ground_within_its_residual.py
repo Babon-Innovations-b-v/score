@@ -60,7 +60,17 @@ into its one test, every break below seen red on it again):
   keyframes): treads_stood's `sunk = depth > 0.0` made `depth > 1.0` (the swinging foot 2 cm in left there);
   `gap < STANCE_HIGH` made `gap < 1.0` (the foot 4 cm over pulled down); `speeds[:, index] < STANCE_SPEED` dropped (the
   swinging foot pulled down); surface_under's `>= UPWARD` made `>= 0.0` (the steep face read as ground); its
-  `heights <= ceilings` dropped (the shelf over the ankle read as its ground).
+  `heights <= ceilings` dropped (the shelf 0.5 m over the foot read as its ground).
+- a climber's swinging toes clear of the next step, 2026-11-19 (her toes 8 to 14 cm into the stairwell's next step,
+  its tread over her ankle, her sim body 0.145 m into its ground): foot_over's ceiling `... + TREAD_REACH` made the
+  ankle's height (the foot swinging into a tread 12 cm up never lifted).
+- the clip each body played kept for the peel, 2026-11-19 (the stairwell woman's peel played her route_clip, never
+  stood on her treads, its SOMA over them): make's `np.save(out / PLAYED / ...)` dropped, or its record's `"played
+  clip"` dropped.
+- a person's skin on its drawn soles, 2026-11-19 (SOMA's mean foot 1.7 to 1.9 cm under the stairwell woman's drawn
+  soles, her dressed feet 1.5 cm over her treads): soles_drawn's squeeze dropped (the toe rig's skin left 2 cm under its
+  drawn foot); person_rig's `points=soles_drawn(...)` made `built["source_points"]` (the sim's skin not the pressed
+  one).
 - a climber's foot leaving its tread, 2026-11-15 (her left foot rising off it at frame 83 pulled 13.5 mm back down, a
   19 mm drop in one frame, her sim body's sole 8.5 mm into the tread's edge at frame 82): tread_pins'
   `np.maximum(speeds[:, index], rising(over[1]))` made `speeds[:, index]` (the foot lifting 1 cm a frame pulled
@@ -581,6 +591,7 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             ("4 cm over its tread: not standing", still, square(-0.04), None),
             ("swinging 2 cm over: not standing", swinging, square(-0.02), None),
             ("swinging 2 cm into it", swinging, square(0.02), [0.02] * 6),
+            ("swinging into the next step, its tread 12 cm up, over the ankle", swinging, square(0.12), [0.12] * 6),
             ("lifting off its tread, 5 to 25 mm over it on three frames: not standing", lifting, square(-0.005), None)):
         pins.clear()
         stood_on = sim_body._body.treads_stood(foot, clip, ground)
@@ -652,6 +663,23 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     pins.clear()
     sim_body._body.treads_stood(foot, swinging, square(-0.02))
     assert [pin[0] for pin in pins] == ["LeftFoot"] and pins[0][2] == pytest.approx([-0.01] * 6)
+    # a person's skin stands on its drawn feet (soles_drawn, 2026-11-19: SOMA's mean foot 1.7 to 1.9 cm under the
+    # stairwell woman's drawn soles, her dressed feet 1.5 cm over her treads): the toe rig's skin 2 cm under its drawn
+    # foot is squeezed under its ankle onto the drawn sole, the skin over the ankle kept; a build with no drawn body,
+    # or one drawn as its skin, left as it is
+    drawn = toe_rig()
+    drawn["clip_standing"] = drawn["clip_tipped"][1:]  # its bind's pose, the clip person_rig lifts every clip by
+    sunk_skin = drawn["points"] - [0.0, 0.02, 0.0]
+    drawn_build = {"bind": drawn["bind"], "source_points": sunk_skin, "points": drawn["points"],
+                   "weights": drawn["weights"], "offsets": sim_body._body.bind_offsets(drawn)}
+    pressed = sim_body._body.soles_drawn(drawn, drawn_build)
+    assert pressed[:, 1] == pytest.approx(0.08 - (0.08 - sunk_skin[:, 1]) * 0.08 / 0.10)
+    assert pressed[:, 1].min() == pytest.approx(0.0, abs=1e-12) and pressed[:, [0, 2]] == pytest.approx(
+        sunk_skin[:, [0, 2]])
+    assert sim_body.person_rig(drawn, drawn_build)[0]["points"] == pytest.approx(pressed)  # the sim's skin
+    assert sim_body._body.soles_drawn(drawn, {"source_points": sunk_skin}) == pytest.approx(sunk_skin)
+    assert sim_body._body.soles_drawn(drawn, {**drawn_build, "source_points": drawn["points"]}) == pytest.approx(
+        drawn["points"])
     assert sim_body.surface_under(square(0.02, 0.1), [[0.5, 0.0, 0.0], [0.0, 0.0, 0.0]], [0.08, 0.01]).tolist() == [
         -np.inf, -np.inf]  # beyond the tread, or the tread over its ceiling: no ground under it
     for world, clip, what, axis, (low, high) in PLAYED:
@@ -811,6 +839,10 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     frames_gil = json.loads((walkers / "out/measures/gil.json").read_text())
     assert [frame["poses"][0][0] for frame in frames_gil] == pytest.approx(
         sim_body.clip_frames(played_walk, "scene_gil", [1, 2])[:, 0, 0, 3])  # along its own walk, corrected
+    # each body's clip as it played saved beside its record (sim_body.PLAYED), the peel's SOMA plays it
+    assert walked["gil"]["played clip"] == "played/gil.npy"
+    assert np.load(walkers / "out" / walked["gil"]["played clip"]) == pytest.approx(
+        played_walk["clip_scene_gil"][..., :3, :], abs=1e-6)
 
     # the layer: each segment an Xform holding the bone it rides, another bone under Bones, the muscles coloured by
     # activation; SOMA's joints leave the stage unchanged: every frame's poses the clip's own segment frames as the

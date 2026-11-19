@@ -194,7 +194,8 @@ def within_clearance(node, planned):
 
 def people_of(inputs, clothed=True):
     """person_of(single, body) for peel.job_of: a cast person's rig at its own build as the sim body ran it
-    (sim_body.person_rig; a climber's scene-made clip along its route, sim_body.route_clip), its look's dressed
+    (sim_body.person_rig; the clip as its sim body played it, sim_body.PLAYED: a climber's stood on its treads; a record
+    from before it keeps, a climber's scene-made clip along its route, sim_body.route_clip), its look's dressed
     body (people-dress, refused by name when not taken) and the clip its sim body played; None for a person with no
     dressed body whom an accepted bodies gap names (demo_film.gapped_people: cockpit's officer and pilot, 2026-11-11), whom the
     peel leaves out. Not `clothed` (a walker peel, whose place plays the dressed body itself): no dressed body, None
@@ -217,7 +218,11 @@ def people_of(inputs, clothed=True):
             builds[row] = (sim_body.person_rig(clips_rig, built)[0], built)
         rig, built = builds[row]
         clip = body.get("played", body["clip"])
-        if clip != body["clip"]:
+        if "played clip" in body:  # the clip as the sim ran it, stood on its treads or its seat (sim_body.PLAYED)
+            played = np.load(pathlib.Path(inputs["sim-body"]) / body["played clip"]).astype(float)
+            corner = np.broadcast_to([0.0, 0.0, 0.0, 1.0], (*played.shape[:-2], 1, 4))
+            rig = dict(rig, **{f"clip_{clip}": np.concatenate([played, corner], axis=-2)})
+        elif clip != body["clip"]:
             if single["name"] not in scene:
                 raise ValueError(f"{single['name']}: its sim body played {clip}, a scene-made clip not taken here")
             plan, scene_rig = scene[single["name"]]

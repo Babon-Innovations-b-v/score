@@ -33,6 +33,11 @@ STOOD_HZ = 3.0  # the stood move's smoothness, half the path's 6 Hz low pass (in
 # A triangle a foot may stand on faces up at least this much (its normal's up part; a tread, a deck, a ramp up to 60
 # degrees), so a riser or a wall beside the sole is no ground under it (treads_stood).
 UPWARD = 0.5
+# How far over a foot's lowest point its ground may lie (metres): the sim's own REACH_UP (inside/ground), so the
+# stage stands and lifts a foot on the ground the sim measures it on. Under its ankle only (before 2026-11-19), the
+# stairwell woman's swinging toes went 8 to 14 cm into the next step's block, its tread over her ankle and so no ground
+# here, and her sim body was measured 0.145 m into its ground on frames 199 to 278.
+TREAD_REACH = 0.3
 # The joints whose skin a seated body sits on: the pelvis and the thighs (`seated`).
 SITS = ("Hips", "LeftLeg", "RightLeg")
 SEAT_BAND = 0.1  # metres round a seat's top its surface under the sitting skin is looked for in (`seated`)
@@ -143,9 +148,9 @@ def surface_under(ground, points, ceilings):
 
 def foot_over(rig, local, ground, foot):
     """A foot's skin (`foot`, FEET's joints) against the ground under it (`ground`, the triangles it may touch, its
-    highest surface under each point below its ankle, `surface_under`), a frame each: (its deepest point into its
-    ground, m, under 0 where it is over it; its lowest point over its ground, m), -inf and inf where none is under it;
-    None for a foot the rig has no skin or pin for."""
+    highest surface under each point at most TREAD_REACH over the foot's lowest, `surface_under`), a frame each: (its
+    deepest point into its ground, m, under 0 where it is over it; its lowest point over its ground, m), -inf and inf
+    where none is under it; None for a foot the rig has no skin or pin for."""
     names = [str(name) for name in rig["names"]]
     weights, points = np.asarray(rig["weights"], dtype=float), np.asarray(rig["points"], dtype=float)
     mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in foot if name in names]))
@@ -156,8 +161,8 @@ def foot_over(rig, local, ground, foot):
     placed = np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], np.c_[points[mine], np.ones(len(mine))])
     low, high = placed[..., [0, 2]].reshape(-1, 2).min(axis=0), placed[..., [0, 2]].reshape(-1, 2).max(axis=0)
     near = ground[((ground[:, :, [0, 2]].max(axis=1) >= low) & (ground[:, :, [0, 2]].min(axis=1) <= high)).all(axis=1)]
-    ankle = world[:, names.index(foot[0]), 1, 3]
-    under = np.array([surface_under(near, placed[frame], np.full(len(mine), ankle[frame])) - placed[frame, :, 1]
+    ceiling = placed[..., 1].min(axis=1) + TREAD_REACH
+    under = np.array([surface_under(near, placed[frame], np.full(len(mine), ceiling[frame])) - placed[frame, :, 1]
                       for frame in range(len(local))])
     held = np.isfinite(under)
     return np.where(held, under, -np.inf).max(axis=1), np.where(held, -under, np.inf).min(axis=1)
@@ -619,7 +624,7 @@ def person_rig(rig, built, contacts=None):
     (2026-11-14: people-body-astronaut-made's heel 12 mm and toes 2.7 mm under it), so the bind's toe height the
     correction puts each toe at sank the standing skin 2.5 to 4.6 mm, the sim body 4 to 5.4 mm, past SUNK_MOST."""
     built, size, lift = played_build(rig, built)
-    found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
+    found = dict(rig, bind=np.asarray(built["bind"]), points=soles_drawn(rig, built))
     for key in [key for key in rig if key.startswith("clip_")]:
         clip = key[len("clip_"):]
         found[key] = stood(found, played.clip_local(rig, clip, built["offsets"], rig["parents"], size, lift))
@@ -627,6 +632,36 @@ def person_rig(rig, built, contacts=None):
             found[key] = stood(found, toes_lifted(found, feet_kept(found, found[key], played.contacted(
                 found[key], rig["names"], rig["parents"], found["bind"], contacts[clip]))))
     return found, size
+
+
+def soles_drawn(rig, built):
+    """The build's surface (rig.npz `source_points`: SOMA's mean skinned onto the bones placed in the drawn body) with
+    each foot's skin under its ankle squeezed or stretched up and down so its lowest point stands where the drawn
+    body's foot (rig.npz `points`, more than half its weight on that foot's joints) stands at the bind; skin at and
+    over the ankle as it was. SOMA's mean foot is deeper under its ankle than a made one: the stairwell's woman_stair's
+    heels 1.7 and 1.9 cm under her drawn soles, so her skin stood on her treads and her dressed feet over them, 1.5 cm
+    on her planted frames' median (2026-11-19). A build with no drawn body (none taken) is left as it is."""
+    points = np.array(built["source_points"], dtype=float)
+    if "points" not in built or "weights" not in built:
+        return points
+    names = [str(name) for name in rig["names"]]
+    weights, bind = np.asarray(rig["weights"], dtype=float), np.asarray(built["bind"], dtype=float)
+    drawn, drawn_weights = np.asarray(built["points"], dtype=float), np.asarray(built["weights"], dtype=float)
+    for foot, leg in zip(FEET, LEGS):
+        if foot[0] not in names:
+            continue
+        chain = [names.index(name) for name in foot if name in names]
+        ankle = bind[names.index(foot[0]), 1, 3]
+        mine, theirs = weights[:, chain].sum(axis=1) > 0.5, drawn_weights[:, chain].sum(axis=1) > 0.5
+        if not mine.any() or not theirs.any():
+            continue
+        lowest, drawn_lowest = points[mine, 1].min(), drawn[theirs, 1].min()
+        if max(lowest, drawn_lowest) >= ankle:
+            continue
+        around = [names.index(name) for name in (*foot, leg[1]) if name in names]  # the foot and its shin
+        under = (weights[:, around].sum(axis=1) > 0.5) & (points[:, 1] < ankle)
+        points[under, 1] = ankle - (ankle - points[under, 1]) * (ankle - drawn_lowest) / (ankle - lowest)
+    return points
 
 
 def contacts_of(folder, rig):

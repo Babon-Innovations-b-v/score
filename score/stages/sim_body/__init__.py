@@ -162,6 +162,11 @@ CLIPS_ROW = "people-clips-made"
 # flat ground play their own.
 SCENE_CLIPS_ROW = "scene-clips"
 SCENE_CLIPS = "scene_clips.json"  # its record (scene_clips.RECORD)
+# Each body's clip as its sim body played it (the person's joints against their parents, frames x joints x 3 x 4):
+# a climber's stood on its treads (treads_stood), a sitter's on its seat (seated), so the peel's SOMA plays what the
+# sim ran. Before 2026-11-19 the peel played the climber's route_clip again, never stood: the stairwell woman's SOMA
+# hovered over her treads where her sim body and dressed body stood on them.
+PLAYED = "played"
 # What a body's bone groups are calibrated on (#70: the static table, inside/calibration), the same for every person.
 CALIBRATED_ON = ("the static calibration table: SOMA's template bind against MyoFullBody's default pose (its couplings "
                  "applied), never fitted")
@@ -238,7 +243,7 @@ def slowing(gravity):
 
 
 def make(inputs, out, seed, params):
-    """Every character's sim body run on its clip: sim_bodies.json, measures/, layers/sim_bodies.usda."""
+    """Every character's sim body run on its clip: sim_bodies.json, measures/, layers/sim_bodies.usda, played/ (PLAYED)."""
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
     place = cast["place"]
     clips_rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))
@@ -251,6 +256,7 @@ def make(inputs, out, seed, params):
     job, records, left_out = {"rate": RATE / slowing(gravity), "clip rate": RATE, "gravity": gravity,
                                "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
+    (out / PLAYED).mkdir()
     builds, clips = {}, {}
     for single in cast["characters"]:
         why = left_out_why(single, clips_rig, scene)
@@ -289,12 +295,14 @@ def make(inputs, out, seed, params):
         np.savez_compressed(targets, world=worlds, ground=ground, points=rig["points"], faces=rig["faces"],
                             weights=rig["weights"])
         clips[single["name"]] = worlds
+        np.save(out / PLAYED / f"{single['name']}.npy", np.asarray(rig[f"clip_{clip}"], dtype=np.float32)[..., :3, :])
         job["people"].append({"name": single["name"], "kg": mass["kg"], "height": standing_height(rig),
                               "rig": {"names": [str(name) for name in rig["names"]],
                                       "parents": np.asarray(rig["parents"]).tolist(),
                                       "bind": np.asarray(rig["bind"]).tolist()},
                               "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets)})
-        records[single["name"]] = {"clip": single["doing"], "played": clip, "at": single["at"],
+        records[single["name"]] = {"clip": single["doing"], "played": clip,
+                                   "played clip": f"{PLAYED}/{single['name']}.npy", "at": single["at"],
                                    "turn": single.get("turn", 0.0),
                                    "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
                                    "calibrated on": CALIBRATED_ON,

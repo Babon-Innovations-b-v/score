@@ -281,6 +281,8 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     last frame, never across a cut.
 
     Break: score/stages/demo_film/__init__.py: `return films().get(place, {}).get("place") == place` -> `return True`
+    Break: score/stages/demo_film/peel_rows.py: `if "played clip" in body:` -> `if False:` (the peel's SOMA plays the
+        climber's scene-made clip again, not as its sim body stood it on its treads)
     Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json",
         people_rows.place_part(place))` -> `pass`
     Break: score/stages/demo_film/__init__.py: `if film["place"] == place and name != place]` -> `if film["place"] ==
@@ -719,6 +721,20 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
             else:
                 with pytest.raises(ValueError, match=f"{person}: no accepted dressed body"):
                     person_of({"name": person, "look": person}, {"clip": "idle"})
+    # a body's clip as its sim body played it (sim_body.PLAYED: a climber's stood on its treads) is the clip its peel
+    # plays, not its scene-made clip played again (2026-11-19, the stairwell woman's SOMA over her treads)
+    sim = tmp_path / "sim"
+    (sim / "played").mkdir(parents=True)
+    saved = np.arange(24, dtype=np.float32).reshape(2, 1, 3, 4)
+    np.save(sim / "played/leader.npy", saved)
+    with monkeypatch.context() as patched:
+        patched.setattr(sim_body, "person_rig", lambda rig, built: ({"names": rig["names"]}, 1.0))
+        person_of = peel_rows.people_of({sim_body.CLIPS_ROW: str(people / "clips"), "sim-body": str(sim)}, False)
+        rig, dressed, clip = person_of({"name": "leader", "look": "leader"}, {
+            "clip": "idle", "played": "scene_leader", "played clip": "played/leader.npy"})
+    assert clip == "scene_leader" and dressed is None
+    assert rig["clip_scene_leader"][..., :3, :] == pytest.approx(saved)
+    assert rig["clip_scene_leader"][..., 3, :] == pytest.approx(np.tile([0.0, 0.0, 0.0, 1.0], (2, 1, 1)))
 
     # the environment's film cut from a locked script: its recorded take from the free preview of that very lock (a
     # preview recorded from another script wants making again and Blocks the cut), its peels the peel rows', two place
