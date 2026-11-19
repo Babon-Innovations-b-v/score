@@ -25,6 +25,9 @@ The break that turns each test red (applied once each, seen red, reverted):
     crashed on every stop and blocked nothing): the local hooks list runs it with `python3`.
   - its torn_commit_guard rows: `sourced_shell_dirs` returns [] at once; or `blocks` returns False at once.
   - its leftover_guard rows: `session_worktree` returns None at once.
+  - its agent_close rows: `write_down` returns at once (a finished agent is never said); or `held_work` drops
+    `ended | stopped` (a test that ended is said as held); or `cross_off` skips the `.closed` marker (a stopped agent
+    is said again); or `answer` drops `and not in_agent` (a sub-agent is told to close agents).
   - its soul_guard rows: `broken_rules` returns [] at once.
   - its call_efficiency rows: `is_single_fast` returns False at once.
   - its checkout_current rows: `catch_up` returns "" at once.
@@ -46,7 +49,8 @@ The break that turns each test red (applied once each, seen red, reverted):
     `is_git_commit` returns `"commit" in tokens` (any word).
   - its wait_guard rows: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once; or `tail_follow`
     returns None at once; or `long_timeout` returns None at once. Drop the `_MESSAGE.sub` in `blocked`; or drop
-    `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked).
+    `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked). Its
+    sub-agent row: `main` drops the `_HAND_BACK` choice (a sub-agent is told to end its turn on its own work).
   - its push-gate rows (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block
     dropped (a grown debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a
     failing touched test pushes); `touched_tests`'s `gpu` made [] (a GPU module is run, not left to a run by hand);
@@ -881,6 +885,71 @@ LEFTOVER_ASKS = [  # asked in this order
 ]
 
 
+# agent_close: no sub-agent waits on its own background work, and a finished one is said to the session that started
+# it until it is closed; said, never blocked.
+
+def close_world(world):
+    """agent_close.py beside a project that names its detached runner, its ledger in the world."""
+    guard = hook_copy(world / "hooks_home", "agent_close.py",
+                      {"agent_close": {"detached": "python3 tools/run_detached.py -- <command>"}})
+    return guard, dict(os.environ, AGENT_CLOSE_DIR=str(world / "ledger")), None
+
+
+def tool_result(text):
+    return {"type": "user", "message": {"content": [{"type": "tool_result", "content": text}]}}
+
+
+FINISHED = [{"type": "assistant", "message": {"content": [{"type": "text", "text": "All done."}]}}]
+HELD = [  # a copy still running; a test that ended and a Monitor it stopped are not held
+    tool_result("Command running in background with ID: bcopy1. Output is being written to: x"),
+    tool_result("Command running in background with ID: btest2. Output is being written to: y"),
+    tool_result("Monitor started (task bmon3, expires in 5m unless the source ends first)"),
+    {"type": "user", "message": {"content": "<task-notification>\n<task-id>btest2</task-id>\n"
+                                            "<status>completed</status>\n</task-notification>"}},
+    {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "TaskStop",
+                                                    "input": {"task_id": "bmon3"}}]}},
+    {"type": "assistant", "message": {"content": [{"type": "text", "text": "Waiting for the copy."}]}},
+]
+
+
+def agent_stop(agent, entries, shape="background", session="x"):
+    """A SubagentStop payload whose transcript sits in the world's s1/subagents/ with its meta file."""
+    def payload(world):
+        path = world / "s1" / "subagents" / f"agent-{agent}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(json.dumps(entry) + "\n" for entry in entries))
+        path.with_suffix(".meta.json").write_text(json.dumps({"requestShape": shape}))
+        return {"hook_event_name": "SubagentStop", "session_id": session, "agent_id": agent,
+                "agent_transcript_path": str(path)}
+    return payload
+
+
+IN_SESSION = {"hook_event_name": "PostToolUse", "session_id": "s1", "tool_name": "Read", "tool_input": {}}
+CLOSE_ASKS = [  # asked in this order
+    ("close", {"hook_event_name": "SubagentStart", "session_id": "s1", "agent_id": "a1"}, "said",
+     ("Never end your turn to wait on your own background work", "run_detached.py")),
+    ("close", dict(bash("cp -r big bucket", True), hook_event_name="PreToolUse", agent_id="a1", session_id="s1"),
+     "said", ("detached",)),
+    ("close", dict(bash("cp -r big bucket", True), hook_event_name="PreToolUse", session_id="s1"), "quiet", ()),
+    ("close", dict(bash("ls"), hook_event_name="PreToolUse", agent_id="a1", session_id="s1"), "quiet", ()),
+    # finished: said to the session its transcript sits in, twice at most, never inside an agent
+    ("close", agent_stop("a1", FINISHED), "quiet", ()),
+    ("close", dict(IN_SESSION, agent_id="a9"), "quiet", ()),
+    ("close", IN_SESSION, "said", ("close it now with TaskStop (task_id a1)",)),
+    ("close", {"hook_event_name": "UserPromptSubmit", "session_id": "s1", "prompt": "hi"}, "said", ("a1",)),
+    ("close", IN_SESSION, "quiet", ()),
+    # held: its running copy named, not the test that ended or the Monitor it stopped
+    ("close", agent_stop("a2", HELD), "quiet", ()),
+    ("close", IN_SESSION, "said", ("holding its own background work (bcopy1)",), {"lacks": ("btest2", "bmon3")}),
+    # TaskStop crosses it off, and its late SubagentStop does not write it down again; a foreground agent never is
+    ("close", {"hook_event_name": "PreToolUse", "session_id": "s1", "tool_name": "TaskStop",
+               "tool_input": {"task_id": "a2"}}, "quiet", ()),
+    ("close", agent_stop("a2", HELD), "quiet", ()),
+    ("close", agent_stop("a3", FINISHED, shape="foreground"), "quiet", ()),
+    ("close", IN_SESSION, "quiet", ()),
+]
+
+
 # soul_guard: no em dash, and no long reply to a short question that did not ask for detail; sent back at most twice.
 
 def soul_turn(folder, question, reply):
@@ -1104,7 +1173,7 @@ SHORT_OR_BACKGROUND = [
 
 SHARED_HOOKS = ["issue_guard.py", "md_guard.py", "output_cap.py", "wait_guard.py", "commit_guard.py",
                 "torn_commit_guard.py", "leftover_guard.py", "checkout_current.py", "soul_guard.py",
-                "call_efficiency.py", "disk_keep.py"]
+                "call_efficiency.py", "disk_keep.py", "agent_close.py"]
 
 
 GARBAGE = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},
@@ -1176,6 +1245,7 @@ WORLDS = {
     "gate-away": gate_world(lambda clone: {"tools/zz_gate/notes.txt": "y\n"}, away=True),
     "push-cap": cap_world,
     "leftover": leftover_world,
+    "close": close_world,
     "soul": lambda world: (HOOKS / "soul_guard.py", None, None),
     "efficiency": lambda world: (hook_copy(world, "call_efficiency.py"), dict(os.environ, CLAUDE_HOOK="PostToolUse"),
                                  None),
@@ -1185,7 +1255,7 @@ WORLDS = {
     **{name: lambda world: (HOOKS / "output_cap.py", dict(os.environ, OUTPUT_CAP_DIR=str(world)), None)
        for name in ("cap", "cap-alone")},
 }
-SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap", "disk"}  # worlds whose hook keeps state between calls: asked in row order
+SEQUENTIAL = {"leftover", "close", "soul", "efficiency", "push-cap", "disk"}  # worlds whose hook keeps state between calls: asked in row order
 
 # One row a call: (world, payload or payload(world), verdict, words its reason holds (`{world}` the world's folder),
 # optional more: env(world) on top, the hook and its folder(world) in place of the world's, seconds it may take, words
@@ -1197,7 +1267,8 @@ SEQUENTIAL = {"leftover", "soul", "efficiency", "push-cap", "disk"}  # worlds wh
 ROWS = [
     *(("completion-listed-" + event, stop("listed", f"The {PLACE} is complete now."), "block", (PLACE,),
        {"lacks": ("ModuleNotFoundError",)}) for event in ("Stop", "SubagentStop")),
-    *TORN_ASKS, *GATE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *DISK_ASKS, *CAP_ASKS,
+    *TORN_ASKS, *GATE_ASKS, *CAP_PUSH_ASKS, *LEFTOVER_ASKS, *CLOSE_ASKS, *SOUL_ASKS, *EFFICIENCY_ASKS, *CHECKOUT_ASKS, *DISK_ASKS,
+    *CAP_ASKS,
     *(("accept", payload, "block", ("only the owner accepts or rejects",))
       for payload in OWNER_ACTIONS + OWN_LOCKS_AND_STEPS),
     ("accept", ENV_PREFIXED_ACCEPT, "block", ()),
@@ -1216,6 +1287,9 @@ ROWS = [
        (reason, "run_in_background") + (("Add --detach.",) if "cloud" in reason else ()))
       for command, reason in FOREGROUND_WAITS),
     *(("wait", payload, "allow", ()) for payload in SHORT_OR_BACKGROUND),
+    # a sub-agent's way out is a detached run handed back, never "end your turn" on its own background work
+    ("wait", dict(bash("sleep 400; tail -n 5 copy.log"), agent_id="a1"), "block", ("sleep of 400 s", "detached"),
+     {"lacks": ("the completion notice wakes you",)}),
     # never exit 2 and say nothing on what a hook cannot read; md_guard exits 1 on a tool_input that is no object
     *((f"open-{name}", payload, "open", ())
       for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"] for payload in GARBAGE),

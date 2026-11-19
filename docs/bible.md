@@ -740,13 +740,25 @@ returns data to its parent.
   removed, "you have a very diff test system by now"). It never re-runs whole suites on its own, never waits on the hosted rebuild or a sync, and never releases.
 - Work that repeats per scene (readings, plan writings, fixes, checks) runs one process per scene side by side.
 - Never wait in the foreground: anything that takes minutes runs in the background (root `CLAUDE.md`).
-- An agent ends its turn to wait only on work the harness tracks: a command it started with `run_in_background`, or
-  a Monitor it armed. Never on an outside event (a GitHub rescan, a file another process writes, a remote job): nothing
-  wakes it and it stalls silently (owner, 2026-10-28: "this is something that happens a lot with these long running
-  sessions"). The session that started an agent stops it the moment its final report arrives, and checks an agent that
-  says "waiting" has a live process behind it. Each time an agent ends its turn its session is notified, so an agent waits inside its turn
-  (a Monitor that blocks until its runs finish) and ends it only with its final report (owner, 2026-10-28: "thats just
-  wasting tokens").
+- The coordinating session ends its turn to wait only on work the harness tracks: a command it started with
+  `run_in_background`, or a Monitor it armed. Never on an outside event (a GitHub rescan, a file another process writes,
+  a remote job): nothing wakes it and it stalls silently (owner, 2026-10-28: "this is something that happens a lot with
+  these long running sessions").
+- A sub-agent never waits (owner, 2026-11-19: "sub agents getting stuck or just not being shut down when done"). One
+  that ends its turn on its own background work, or holds a Monitor open over it, stays open and idle in the task list
+  until that work ends, and its session is notified at every turn it ends (owner, 2026-10-28: "thats just wasting
+  tokens"). It runs what ends within a few minutes in the foreground; anything longer it starts detached, so the run
+  outlives it (`setsid nohup python3 tools/cloud/detached.py --log <log> -- <command> > <log>.result 2>&1 < /dev/null
+  &`), and returns its final report with the pid, the log, the command that checks it and the line that means it ended.
+  Before that report it stops every background command and Monitor it started. The coordinating session watches the
+  run with Monitor and gives the next step to a fresh agent.
+- The session that started an agent stops it (TaskStop) the moment its final report arrives. An agent that ended
+  holding its own background work is asked once to hand back that way, or stopped when nothing it runs must survive.
+- `.claude/hooks/agent_close.py` (shared, never blocking) backs this: every sub-agent gets the hand-back rule when it
+  starts (`SubagentStart` context, the project's detached runner from `agent_close.detached` in
+  `.claude/project.json`) and again beside each `run_in_background` command it starts; each background sub-agent that
+  stops is written down as finished or holding, and the session that started it is told on its next tool call or
+  prompt to close it, at most twice, until a TaskStop crosses it off.
 
 **Design edits by an agent** (owner, 2026-10-21). When the owner asks for one in chat, an agent may rename, merge, add
 or remove child scenes, move and resize things on a plan, or edit an inventory row. Each is recorded as his edit with

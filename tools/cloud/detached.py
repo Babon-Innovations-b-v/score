@@ -1,8 +1,11 @@
 """Run a long command detached, so an agent never waits on it in the foreground (owner, 2026-10-09, WAITING): every
 line the command prints goes to a log file, and at the end exactly one result line is printed, its status, minutes,
-log and output paths. An agent starts it with the Bash tool's run_in_background and goes on with other work or ends
-its turn; the completion notice wakes it and the one line says what happened, with no poll loop and no log in the
-conversation. A turn more than 5 minutes after the previous one re-writes the agent's whole context to the cache.
+log and output paths. The coordinating session starts it with the Bash tool's run_in_background and goes on with
+other work or ends its turn; the completion notice wakes it and the one line says what happened, with no poll loop and
+no log in the conversation. A turn more than 5 minutes after the previous one re-writes the agent's whole context to
+the cache. A sub-agent never ends its turn on it (it would stay open until the run ends): it starts it detached,
+`setsid nohup python3 tools/cloud/detached.py --log <log> -- <command> > <log>.result 2>&1 < /dev/null &`, and hands
+back the pid, the log and `cat <log>.result` (the one line, once the run has ended).
 
     python3 tools/cloud/detached.py --log /tmp/score-detached/gate.log [--outputs a,b] -- make tests
     <tool> ... --detach        # blender_cloud.py, tools/usd/settle.py, tools/review/page.py: the same, a default log

@@ -46,5 +46,8 @@
     "extra_checks": [
       "python3 docs/adr/tools/check_index.py"
     ]
+  },
+  "agent_close": {
+    "detached": "setsid nohup python3 tools/cloud/detached.py --log <log> -- <command> > <log>.result 2>&1 < /dev/null & (the one result line lands in <log>.result)"
   }
 }
