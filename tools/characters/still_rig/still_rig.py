@@ -14,7 +14,7 @@ The steps:
    weights (prop_rig.skinned_source): the body the still is fitted to and its weights' source, never drawn.
 3. The still is stood (prop_rig.stood: up +y, facing +z, soles on the floor), centred over the body's hips, and sized
    to the height at which the least of the body's trunk, head, thighs and shoulders stands outside it
-   (`fitted_height`); the still is its outer surface alone (`outer`: TRELLIS.2's shell has an inner layer facing the
+   (`fitted_height`); the still is its outer surface alone (`outer_kept`: TRELLIS.2's shell has an inner layer facing the
    hollow): scale and align only, its geometry otherwise its own. It is thinned to about `--faces`
    triangles first (prop_rig.decimated, its borders kept).
 4. Its parts (`parts_of`): the helmet (every face within HELMET_REACH of the head's middle above the neck), the visor
@@ -32,14 +32,19 @@ The steps:
    leg's points may hang only from their own leg, and the shoulders' rims) is smoothed towards its neighbours
    (`eased_cliffs`), so a stride bends the cloth over a few centimetres instead of one edge (walking's worst edge 11.9
    times its length before, 9.1 after; its 99.9th percentile 3.7 and 2.5).
-6. Every part's finish is a library surface (the root rule): the palette variant it names (`FINISHES`) in its own
-   token or the one `TOKENS` names, a recipe entry's address and its spec's colour, roughness and metal on a flat material named for the variant; the still's
-   baked texture is dropped.
+6. The finish is the still's own paint (owner 2026-11-19, of the TRELLIS.2 astronaut beside the one laid in library
+   surfaces a part: "this pure trellis is just so much better ... the segmentation of the visor isnt perf and the
+   seams, all player models have this problem"; the library rule's written exception for player models): the rigged
+   still is laid flat on one MAP map (`unwrapped`, xatlas), each texel reads the still's own base colour and metal and
+   roughness nearest its point on the still's outer faces (`Source`, `own_maps`), so its seams, folds, panels and
+   prints stay, and the base colour is graded toward the place's palette tokens as a made prop's paint is
+   (score/stages/place_build/maker/grade.py). The parts keep only their joints and their `role`.
 7. The glTF (`written`): the dressed body's skeleton and clips (its corrective morph keys left out: the still has no
    targets), the still as its `work` node and a far body of FAR_TRIANGLES; `stretch` measures the longest edge's
    growth on every frame of every clip.
 
-Writes <out>/body.glb, <out>/rig.json (the fit, the parts' triangles, the matched share, each clip's stretch).
+Writes <out>/body.glb, <out>/rig.json (the fit, the parts' triangles, the matched share, the grade's colour groups,
+each clip's stretch).
 """
 import argparse
 import json
@@ -55,11 +60,12 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "maker"))
 sys.path.insert(0, str(HERE.parent / "people"))
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / "props" / "library"))
 
 import glb  # noqa: E402  (people/glb.py, the glTF writer)
 import prop_rig  # noqa: E402
 import skel_usd  # noqa: E402
+
+GRADE = HERE.parents[2] / "score/stages/place_build/maker/grade.py"  # the made props' grade, loaded by its file
 
 FACES = 60000
 FAR_TRIANGLES = 1220  # prop_far.FAR_TRIANGLES
@@ -82,13 +88,16 @@ PARTS = ("suit", "helmet", "visor", "backpack")
 RIGID = {"helmet": "Head", "visor": "Head", "backpack": "Chest"}
 SEAM = 0.06  # metres either side of where two hard parts on different joints meet over which they share both
 EASE_HOLD, EASE_REACH = 0.01, 0.08  # metres from a hard part over which the suit is eased onto its joint (`rigid`)
-# Each part's palette variant (the place's surface library, scene_library.py) and the recipe entry it is drawn from.
-FINISHES = {"suit": "suit_fabric", "helmet": "white_hard_case", "visor": "helmet_visor",
-            "backpack": "suit_backpack_shell"}
-# The palette token a part's variant is laid in where it is not the variant's own: the suit and helmet the palette's
-# neutral white (case-white's warm cream read as skin under a Mars sun, as the paper's suit is a plain white), the
-# visor its darkest (steel-dark's mid grey read as a grey band, the paper's visor dark glass).
-TOKENS = {"suit": "label-white", "helmet": "label-white", "visor": "cable-black"}
+# Where on each of the still's faces its own paint is read (`Source`): the corners, the edges' middles, the middle and
+# a point towards each corner (barycentric weights), about 1 mm apart on TRELLIS.2's 3 mm faces.
+SPREAD = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [.5, .5, 0], [0, .5, .5], [.5, 0, .5], [1 / 3, 1 / 3, 1 / 3],
+                   [2 / 3, 1 / 6, 1 / 6], [1 / 6, 2 / 3, 1 / 6], [1 / 6, 1 / 6, 2 / 3]])
+MAP = 2048  # the rigged still's own maps' side (TRELLIS.2's own texture is 2048)
+MAP_PADDING = 4  # texels round each chart, filled from the chart's rim (`bled`) so no seam shows
+GRADE_SAMPLES = 20000  # the painted texels the grade reads its colour groups from (the maker's SAMPLES)
+MAP_ROLES = ("base_color", "metal_roughness")  # the maps in the file's texture order (material_of reads 0 and 1)
+# The library rule's written exception a player model's own paint is (data/checks/library-exceptions.json).
+OWN_TEXTURE = "the still's own paint, graded toward its place's palette (library exception: player models, 2026-11-19)"
 CLIFF = 20.0  # per metre: the weights' summed difference across an edge (0 to 2) over its length above which the
 # cloth round it is eased (a whole change of joint over 10 cm; the shoulder's 0.36 across 2.4 mm tore 11.8 times)
 CLIFF_REACH = 0.05  # metres over the surface from such an edge the easing reaches
@@ -129,19 +138,53 @@ def soma_on(rig, names, bind):
 
 # --- the still, stood and fitted ------------------------------------------------------------------------------------
 
-def still_of(path):
-    """The still's outer surface welded (`outer`), and each vertex's baked colour (its base colour map at its texture
-    place), used only to find the visor."""
-    mesh = trimesh.load(path, force="mesh", process=False)
-    uv, picture = mesh.visual.uv, np.asarray(mesh.visual.material.baseColorTexture.convert("RGB"), float) / 255.0
+class Source:
+    """The still's own paint where it lies: points spread over its outer faces (in the still's own frame), each with
+    its base colour and, where the still has one, its metal and roughness (glTF's packing), read from its own maps at
+    the point's texture place; `paint(points)` gives each of `points` the nearest sample's."""
+
+    def __init__(self, mesh, faces):
+        material = mesh.visual.material
+        pictures = {"base_color": material.baseColorTexture, "metal_roughness": getattr(
+            material, "metallicRoughnessTexture", None)}
+        triangles = mesh.vertices[faces]
+        coordinates = mesh.visual.uv[faces]
+        self.points = np.einsum("sc,fcd->fsd", SPREAD, triangles).reshape(-1, 3)
+        places = np.einsum("sc,fcd->fsd", SPREAD, coordinates).reshape(-1, 2)
+        self.values = {role: bilinear(np.asarray(picture.convert("RGB"), float) / 255.0, places)
+                       for role, picture in pictures.items() if picture is not None}
+        self.tree = cKDTree(self.points)
+
+    def paint(self, points):
+        """{role: (n, 3) values} of the nearest sample to each point."""
+        nearest = self.tree.query(points)[1]
+        return {role: values[nearest] for role, values in self.values.items()}
+
+
+def bilinear(picture, places):
+    """`picture` (rows, columns, 3) read at glTF texture places (u right, v up), bilinearly, wrapping."""
     rows, columns = picture.shape[:2]
-    across = np.clip(np.rint(uv[:, 0] * (columns - 1)).astype(int), 0, columns - 1)
-    down = np.clip(np.rint((1 - uv[:, 1]) * (rows - 1)).astype(int), 0, rows - 1)
-    colours = picture[down, across]
+    across = (places[:, 0] % 1.0) * columns - 0.5
+    down = (1.0 - places[:, 1] % 1.0) * rows - 0.5
+    left, top = np.floor(across).astype(int), np.floor(down).astype(int)
+    right_share, low_share = (across - left)[:, None], (down - top)[:, None]
+    left, right = left % columns, (left + 1) % columns
+    top, bottom = top % rows, (top + 1) % rows
+    return ((picture[top, left] * (1 - right_share) + picture[top, right] * right_share) * (1 - low_share)
+            + (picture[bottom, left] * (1 - right_share) + picture[bottom, right] * right_share) * low_share)
+
+
+def still_of(path):
+    """The still's outer surface welded (`outer_kept`), each vertex's baked colour (its base colour map at its texture
+    place: finds the visor) and its own paint on those outer faces (`Source`, which the rigged still's maps are read
+    from)."""
+    mesh = trimesh.load(path, force="mesh", process=False)
     welded = prop_rig.welded(trimesh.Trimesh(mesh.vertices, mesh.faces, process=False))
-    welded = outer(welded)
-    _, nearest = cKDTree(mesh.vertices).query(welded.vertices)
-    return welded, colours[nearest]
+    kept = outer_kept(welded)
+    source = Source(mesh, mesh.faces[kept])
+    used, renumbered = np.unique(welded.faces[kept], return_inverse=True)
+    welded = trimesh.Trimesh(welded.vertices[used], renumbered.reshape(-1, 3), process=False)
+    return welded, source.paint(welded.vertices)["base_color"], source
 
 
 def directions(count):
@@ -167,12 +210,12 @@ def seen_faces(mesh, count=SIGHTS, spacing=SIGHT_SPACING):
     return seen
 
 
-def outer(mesh, rounds=CLOSE_ROUNDS):
-    """The still's outer surface: TRELLIS.2 makes a thin-walled shell, an outer layer facing out and an inner one
-    facing the hollow 1 to 2 cm in (the suit's: 34% of its faces seen from outside, every one facing its ray), and
-    the inner layer's normals face the body, so neither the fit's inside test nor the weights' normal match can read
-    it. The faces seen from outside (seen_faces) are kept, and a face unseen between kept ones (two of its three
-    neighbours kept, `rounds` times) joins them, so a crevice the rays missed is no hole."""
+def outer_kept(mesh, rounds=CLOSE_ROUNDS):
+    """Which faces are the still's outer surface: TRELLIS.2 makes a thin-walled shell, an outer layer facing out and an
+    inner one facing the hollow 1 to 2 cm in (the suit's: 34% of its faces seen from outside, every one facing its
+    ray), and the inner layer's normals face the body, so neither the fit's inside test nor the weights' normal match
+    can read it. The faces seen from outside (seen_faces) are kept, and a face unseen between kept ones (two of its
+    three neighbours kept, `rounds` times) joins them, so a crevice the rays missed is no hole."""
     kept = seen_faces(mesh)
     pairs = mesh.face_adjacency
     for _ in range(rounds):
@@ -180,8 +223,7 @@ def outer(mesh, rounds=CLOSE_ROUNDS):
         np.add.at(around, pairs[:, 0], kept[pairs[:, 1]])
         np.add.at(around, pairs[:, 1], kept[pairs[:, 0]])
         kept = kept | (around >= 2)
-    used, renumbered = np.unique(mesh.faces[kept], return_inverse=True)
-    return trimesh.Trimesh(mesh.vertices[used], renumbered.reshape(-1, 3), process=False)
+    return kept
 
 
 def thinned(mesh, faces):
@@ -488,38 +530,114 @@ def stretch(points, faces, order, kept, moves):
 
 # --- the glTF -------------------------------------------------------------------------------------------------------
 
-def finish_of(palette, part):
-    """A part's library finish from the palette: its variant's spec (tools/props/library: recipe, colour, roughness,
-    metal) in its TOKENS token, else the variant's own, and the recipe's entry address."""
-    import library as surface_library
-    variant = FINISHES[part]
-    every = surface_library.variants(palette)
-    if variant not in every:
-        raise StillError(f"the palette holds no {variant} ({', '.join(sorted(every))})")
-    token = TOKENS.get(part, every[variant]["token"])
-    spec = surface_library.spec(palette, variant, token, surface_library.token_colours(palette))
-    return spec, f"surface/{spec['recipe']}@1"
+def grade_module():
+    """The made props' grade (score/stages/place_build/maker/grade.py: numpy and scipy only), loaded by its file."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("maker_grade", GRADE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def material_of(palette, part):
-    """A part's glTF material: named for its palette variant, its spec's flat colour, roughness and metal, the
-    library address and spec in `extras`."""
-    spec, address = finish_of(palette, part)
-    return {"name": FINISHES[part], "extras": {"role": "hard" if part in RIGID else "garment", "part": part,
-                                               "library": address, "variant": FINISHES[part], "token": spec["token"]},
-            "pbrMetallicRoughness": {"baseColorFactor": [float(value) for value in spec["colour"]] + [1.0],
-                                     "metallicFactor": float(spec.get("metal", 0.0)),
-                                     "roughnessFactor": float(spec.get("roughness", 0.5))}}
+def unwrapped(points, faces, normals, size=MAP):
+    """The rigged still laid flat on one map of `size` (xatlas, MAP_PADDING round each chart): each new point's old
+    point, the faces on the new points (in the old faces' order) and each new point's texture place (u right, v up,
+    as trimesh reads a glTF's; `primitive` writes glTF's v down)."""
+    import xatlas
+    atlas = xatlas.Atlas()
+    atlas.add_mesh(points.astype(np.float32), faces.astype(np.uint32), normals.astype(np.float32))
+    packing = xatlas.PackOptions()
+    packing.resolution, packing.padding, packing.bilinear = size, MAP_PADDING, True
+    atlas.generate(pack_options=packing)
+    if atlas.atlas_count != 1:
+        raise StillError(f"the still's charts took {atlas.atlas_count} maps of {size}, not one")
+    mapping, new_faces, places = atlas[0]
+    widest = max(atlas.width, atlas.height)  # xatlas may pack a little past `size`: the whole laid into the square
+    across, down = places[:, 0] * atlas.width / widest, places[:, 1] * atlas.height / widest
+    return mapping.astype(np.int64), new_faces.astype(np.int64), np.c_[across, 1.0 - down]
 
 
-def primitive(contents, points, faces, weights, material):
-    """One surface as a skinned glTF primitive (four joints a point)."""
+def texels_of(points, faces, places, size=MAP):
+    """Every texel whose middle lies in a face as laid on the map: its row, column and the point of the face there."""
+    corners = np.stack([places[faces][..., 0] * size - 0.5, (1.0 - places[faces][..., 1]) * size - 0.5], -1)
+    low = np.clip(np.floor(corners.min(1)).astype(int), 0, size - 1)
+    high = np.clip(np.ceil(corners.max(1)).astype(int), 0, size - 1)
+    spans = high - low + 1
+    counts = spans[:, 0] * spans[:, 1]
+    face = np.repeat(np.arange(len(faces)), counts)
+    within = np.arange(counts.sum()) - np.repeat(np.cumsum(counts) - counts, counts)
+    column = low[face, 0] + within % spans[face, 0]
+    row = low[face, 1] + within // spans[face, 0]
+    first, second, third = corners[face, 0], corners[face, 1], corners[face, 2]
+    at = np.c_[column, row].astype(float)
+    one, two, there = second - first, third - first, at - first
+    area = one[:, 0] * two[:, 1] - one[:, 1] * two[:, 0]
+    kept = np.abs(area) > 1e-12
+    safe = np.where(kept, area, 1.0)
+    towards_second = (there[:, 0] * two[:, 1] - there[:, 1] * two[:, 0]) / safe
+    towards_third = (one[:, 0] * there[:, 1] - one[:, 1] * there[:, 0]) / safe
+    shares = np.c_[1.0 - towards_second - towards_third, towards_second, towards_third]
+    inside = kept & (shares >= -1e-6).all(1)
+    found = np.einsum("nc,ncd->nd", shares[inside], points[faces[face[inside]]])
+    return row[inside], column[inside], found
+
+
+def bled(picture, filled):
+    """`picture` with every texel no face covers given its nearest covered texel's value, so a chart's rim, read
+    bilinearly or from a smaller mip, never takes the empty map's black."""
+    from scipy.ndimage import distance_transform_edt
+    nearest = distance_transform_edt(~filled, return_distances=False, return_indices=True)
+    return picture[nearest[0], nearest[1]]
+
+
+def own_maps(points, faces, places, back, source, tokens, size=MAP):
+    """The rigged still's own maps ({role: (size, size, 3) uint8}: base colour and, where the still has them, metal and
+    roughness), each texel the still's own paint nearest its point taken back into the still's frame (`back`), the
+    base colour graded toward the palette's `tokens` as the made props' paint is (grade.py); and the grade's groups."""
+    rows, columns, found = texels_of(points, faces, places, size)
+    paint = source.paint(back(found))
+    filled = np.zeros((size, size), bool)
+    filled[rows, columns] = True
+    maps, report = {}, []
+    for role, values in paint.items():
+        picture = np.zeros((size, size, 3))
+        picture[rows, columns] = values
+        if role == "base_color" and tokens:
+            chosen = np.random.default_rng(7).choice(len(values), min(GRADE_SAMPLES, len(values)), replace=False)
+            picture, report = grade_module().graded(picture, values[chosen], tokens)
+        maps[role] = np.round(np.clip(bled(picture, filled), 0.0, 1.0) * 255).astype(np.uint8)
+    return maps, report
+
+
+def png(picture):
+    """A (rows, columns, 3) uint8 picture encoded as PNG."""
+    import io
+    from PIL import Image
+    encoded = io.BytesIO()
+    Image.fromarray(picture, "RGB").save(encoded, "PNG")
+    return encoded.getvalue()
+
+
+def material_of(part, maps):
+    """A part's glTF material: the still's own maps (texture 0 its base colour, 1 its metal and roughness when it has
+    them), its part and role in `extras` and `own_texture` naming the library rule's written exception for it."""
+    pbr = {"baseColorTexture": {"index": 0}, "metallicFactor": 0.0, "roughnessFactor": 1.0}
+    if "metal_roughness" in maps:
+        pbr.update(metallicRoughnessTexture={"index": 1}, metallicFactor=1.0)
+    return {"name": f"own_{part}", "pbrMetallicRoughness": pbr,
+            "extras": {"role": "hard" if part in RIGID else "garment", "part": part, "own_texture": OWN_TEXTURE}}
+
+
+def primitive(contents, points, faces, weights, normals, places, material):
+    """One surface as a skinned glTF primitive (four joints a point) with its texture places (`places` v up, written
+    as glTF's v down)."""
     order, kept = strongest(weights)
-    normals = trimesh.Trimesh(points, faces, process=False).vertex_normals
     return {"attributes": {
         "POSITION": contents.reading(points.astype(np.float32).ravel().tolist(), "VEC3", glb.FLOAT, glb.ARRAY_BUFFER,
                                      with_bounds=True),
         "NORMAL": contents.reading(normals.astype(np.float32).ravel().tolist(), "VEC3", glb.FLOAT, glb.ARRAY_BUFFER),
+        "TEXCOORD_0": contents.reading(np.c_[places[:, 0], 1.0 - places[:, 1]].astype(np.float32).ravel().tolist(),
+                                       "VEC2", glb.FLOAT, glb.ARRAY_BUFFER),
         "JOINTS_0": contents.reading(order.astype(np.uint16).ravel().tolist(), "VEC4", glb.UNSIGNED_SHORT,
                                      glb.ARRAY_BUFFER),
         "WEIGHTS_0": contents.reading(kept.astype(np.float32).ravel().tolist(), "VEC4", glb.FLOAT, glb.ARRAY_BUFFER)},
@@ -539,18 +657,20 @@ def copied(contents, document, blob, index):
     return number
 
 
-def pieces_of(points, faces, part_of, weights):
-    """Each part's own points, faces and weights (renumbered)."""
+def pieces_of(faces, part_of, *per_point):
+    """Each part's own faces (renumbered) and its points' rows of every `per_point` array."""
     found = {}
     for part in np.unique(part_of):
         used, renumbered = np.unique(faces[part_of == part], return_inverse=True)
-        found[int(part)] = (points[used], renumbered.reshape(-1, 3), weights[used])
+        found[int(part)] = (renumbered.reshape(-1, 3), *(values[used] for values in per_point))
     return found
 
 
-def written(out, document, blob, bind, points, faces, part_of, weights, palette):
+def written(out, document, blob, bind, laid, maps):
     """The glTF: the dressed body's Person node, joints, skin and clips (joint keys only), the still's parts as the
-    OUTFIT node and its far body bound at `bind`; each part a library finish."""
+    OUTFIT node and its far body bound at `bind`, every part in the still's own maps. `laid`: the still's welded
+    `points`, `faces`, `part_of`, `weights` and `normals`, and its points split along the map's charts (`mapping`,
+    each split point's welded one; `split_faces`; `places`)."""
     contents = glb.Contents()
     skin = document["skins"][0]
     joints = list(skin["joints"])
@@ -580,15 +700,25 @@ def written(out, document, blob, bind, points, faces, part_of, weights, palette)
             channels.append({"sampler": len(samplers) - 1,
                              "target": {"node": renumber[channel["target"]["node"]], "path": channel["target"]["path"]}})
         new["animations"].append({"name": animation["name"], "samplers": samplers, "channels": channels})
+    new["textures"] = [{"source": contents.picture(png(maps[role]))} for role in MAP_ROLES if role in maps]
     for part in PARTS:
-        new["materials"].append(material_of(palette, part))
-    near = [primitive(contents, *piece, part) for part, piece in pieces_of(points, faces, part_of, weights).items()]
+        new["materials"].append(material_of(part, maps))
+    points, faces, part_of, weights, normals = (laid[key] for key in ("points", "faces", "part_of", "weights",
+                                                                       "normals"))
+    mapping = laid["mapping"]
+    near = [primitive(contents, piece_points, piece_faces, piece_weights, piece_normals, piece_places, part)
+            for part, (piece_faces, piece_points, piece_weights, piece_normals, piece_places) in
+            pieces_of(laid["split_faces"], part_of, points[mapping], weights[mapping], normals[mapping],
+                      laid["places"]).items()]
     whole = trimesh.Trimesh(points, faces, process=False)
     thin = whole.simplify_quadric_decimation(face_count=FAR_TRIANGLES)
     nearest_face = cKDTree(whole.triangles_center).query(thin.triangles_center)[1]
-    far_weights = weights[cKDTree(points).query(thin.vertices)[1]]
-    far = [primitive(contents, *piece, part) for part, piece in
-           pieces_of(thin.vertices, thin.faces, part_of[nearest_face], far_weights).items()]
+    nearest_point = cKDTree(points).query(thin.vertices)[1]
+    nearest_split = cKDTree(points[mapping]).query(thin.vertices)[1]
+    far = [primitive(contents, piece_points, piece_faces, piece_weights, piece_normals, piece_places, part)
+           for part, (piece_faces, piece_points, piece_weights, piece_normals, piece_places) in
+           pieces_of(thin.faces, part_of[nearest_face], thin.vertices, weights[nearest_point], thin.vertex_normals,
+                     laid["places"][nearest_split]).items()]
     for name, primitives in (("far", far), (OUTFIT, near)):
         new["meshes"].append({"name": name, "primitives": primitives})
         new["nodes"].append({"name": name, "mesh": len(new["meshes"]) - 1, "skin": 0})
@@ -599,12 +729,20 @@ def written(out, document, blob, bind, points, faces, part_of, weights, palette)
 
 # --- the whole rig --------------------------------------------------------------------------------------------------
 
+def taken_back(still_points, rig_points):
+    """The map from the rig's frame back into the still's own (`stood_at` is a turn, a scale and a shift: solved from
+    the still's points and the same points stood), where its own paint is read."""
+    ones = np.c_[rig_points, np.ones(len(rig_points))]
+    solved = np.linalg.lstsq(ones, still_points, rcond=None)[0]
+    return lambda points: np.c_[points, np.ones(len(points))] @ solved
+
+
 def rigged(still, dressed, rig_path, palette_path, out, faces=FACES):
     """The still rigged on the dressed body's skeleton into `out` (body.glb, rig.json); the record."""
     document, blob, names, dressed_bind, parents = skeleton_of(dressed)
     rig = np.load(rig_path)
     body, body_weights = soma_on(rig, names, dressed_bind)
-    raw, colours = still_of(still)
+    raw, colours, source = still_of(still)
     thin = thinned(raw, faces)
     skin = trunk_skin(body, body_weights, names)
     height, tried = fitted_height(thin, body, skin, names, dressed_bind)
@@ -619,8 +757,14 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES):
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)
     weights = eased_cliffs(mesh.vertices, mesh.faces, weights, hard_points(mesh.faces, part_of, len(mesh.vertices)))
     out.mkdir(parents=True, exist_ok=True)
-    palette = json.loads(pathlib.Path(palette_path).read_text())
-    sizes = written(out / "body.glb", document, blob, bind, mesh.vertices, mesh.faces, part_of, weights, palette)
+    tokens = json.loads(pathlib.Path(palette_path).read_text()).get("tokens", {})
+    normals = mesh.vertex_normals
+    mapping, split_faces, places = unwrapped(mesh.vertices, mesh.faces, normals)
+    maps, grade = own_maps(mesh.vertices[mapping], split_faces, places, taken_back(thin.vertices, fitted.vertices),
+                           source, tokens)
+    laid = {"points": mesh.vertices, "faces": mesh.faces, "part_of": part_of, "weights": weights, "normals": normals,
+            "mapping": mapping, "split_faces": split_faces, "places": places}
+    sizes = written(out / "body.glb", document, blob, bind, laid, maps)
     order, kept = strongest(weights)
     clips = {}
     for animation in document["animations"]:
@@ -638,7 +782,8 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES):
               "smoothed_share": round(smoothed, 4), **sizes,
               "open_edges": open_edges(mesh),
               "parts": {part: int((part_of == number).sum()) for number, part in enumerate(PARTS)},
-              "finishes": {part: finish_of(palette, part)[1] + f" {FINISHES[part]}" for part in PARTS},
+              "finish": OWN_TEXTURE, "maps": {role: list(picture.shape[:2]) for role, picture in maps.items()},
+              "grade": grade,
               "clips": clips}
     (out / "rig.json").write_text(json.dumps(record, indent=1))
     return record

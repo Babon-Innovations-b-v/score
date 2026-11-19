@@ -85,7 +85,9 @@ line's own records. A scene's design lives outside git, under `{home}/design/`.
 character, ground and algorithm a scene shows comes from score_lib, or is a written exception in
 `data/checks/library-exceptions.json` (the scene, the prim or pattern, what, why, who allowed it and when; one without
 a reason or an owner is refused). Every finish is a library surface (a ProcFunc recipe coloured from the scene
-palette's tokens); a picture-made model keeps its geometry and gets its finish replaced. The library check
+palette's tokens); a picture-made model keeps its geometry and gets its finish replaced, except a player model
+(a person the films show, made by the dress or TRELLIS.2 route), which keeps its generated model's own texture graded
+toward the scene palette (owner, 2026-11-19; the written exception for `/*/Characters/*` finishes). The library check
 (`score/stages/complete/library`) traces every bound material, model, emitter, light, sound and character of an
 accepted assembly to an entry and lists what does not trace.
 

@@ -18,7 +18,11 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
 - a lone face of another part inside a part is kept as that other part (`kept_pieces`);
 - a second, smaller visor piece apart from the visor (a dark seam round the helmet's rim) stays visor, or the largest
   piece is not kept whole (`one_visor`);
-- the sphere's sight lines are not spread over both halves of every axis (`directions`).
+- the sphere's sight lines are not spread over both halves of every axis (`directions`);
+- a box painted red on its left side and blue elsewhere, stood (halved and lifted) and laid on a new map, reads
+  back at each face's middle a colour other than its own (`own_maps` not taking the point back into the still's frame
+  with `taken_back`, or reading the wrong texture place: the seams and panels of the still's own paint lost), the
+  unwrap changes a face, or a texel outside every chart stays black (`bled`).
 """
 import pathlib
 import sys
@@ -114,3 +118,28 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     sights = still_rig.directions(still_rig.SIGHTS)
     assert np.allclose(np.linalg.norm(sights, axis=1), 1.0)
     assert (sights.max(0) > 0.9).all() and (sights.min(0) < -0.9).all()
+
+    painted = trimesh.creation.box()
+    painted.vertices[:, 1] *= 2.0
+    left = painted.face_normals[:, 0] < -0.5
+    picture = np.zeros((8, 8, 3), np.uint8)
+    picture[:, :4] = [200, 40, 40]
+    picture[:, 4:] = [40, 40, 200]
+    from PIL import Image
+    places = np.where(left[:, None, None], [0.25, 0.5], [0.75, 0.5]) * np.ones((1, 3, 1))
+    split = trimesh.Trimesh(painted.vertices[painted.faces].reshape(-1, 3), np.arange(36).reshape(-1, 3),
+                            process=False)
+    split.visual = trimesh.visual.TextureVisuals(uv=places.reshape(-1, 2), image=Image.fromarray(picture))
+    split.visual.material = trimesh.visual.material.PBRMaterial(baseColorTexture=Image.fromarray(picture))
+    source = still_rig.Source(split, split.faces)
+    stood = painted.vertices * 0.5 + [0.0, 1.0, 0.0]
+    mapping, faces_on, laid = still_rig.unwrapped(stood, painted.faces, painted.vertex_normals, size=64)
+    assert np.allclose(stood[mapping][faces_on], stood[painted.faces])
+    maps, report = still_rig.own_maps(stood[mapping], faces_on, laid, still_rig.taken_back(painted.vertices, stood),
+                                      source, {"red": "#c83030", "blue": "#3030c8"}, size=64)
+    texture = maps["base_color"].astype(float)
+    for side, colour in ((left, (200, 40, 40)), (~left, (40, 40, 200))):
+        middle = laid[faces_on[side]].mean(1)
+        read = still_rig.bilinear(texture / 255.0, middle) * 255.0
+        assert np.abs(read - colour).max() < 20
+    assert (maps["base_color"].reshape(-1, 3).sum(1) > 0).all() and len(report) == 2

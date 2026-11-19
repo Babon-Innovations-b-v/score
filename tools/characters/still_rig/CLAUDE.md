@@ -8,10 +8,13 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   still's at the bind, so cast/driven, the walker peel and lay_walkers play it like the body it stands in for.
 - **The still keeps its geometry**: stood, sized and thinned only; its outer surface alone (TRELLIS.2's thin shell
   has an inner layer facing the hollow, which no inside test or normal match can read).
-- **Its finish is library surfaces** (root rule): each part a palette variant (`FINISHES`) in its own token or the one
-  `TOKENS` names (a neutral white suit, a dark visor), its recipe entry's address on the look; the still's baked texture
-  only finds the visor (its largest dark piece in a helmet reaching 0.25 m) and is dropped. The paper figure's seams
-  and panel lines are that baked texture, not relief: the rig keeps the relief the geometry has.
+- **Its finish is its own paint, graded** (owner 2026-11-19: "this pure trellis is just so much better ... the
+  segmentation of the visor isnt perf and the seams"; the library rule's written exception for player models,
+  `data/checks/library-exceptions.json`): the rigged still is laid flat on one map (`unwrapped`) and every texel reads
+  the still's own base colour and metal and roughness nearest it on the outer faces (`Source`, `own_maps`), the base
+  colour graded toward the place palette's tokens by the made props' grade (`place_build/maker/grade.py`, loaded by
+  file). The parts only choose joints; the visor's dark is the still's own. A large colour group far from every token
+  is named in `rig.json`'s `grade` (`mismatch`).
 - **Hard parts ride one joint**: helmet and visor the head, backpack the chest, the cloth round them eased by distance
   over the surface (never across a gap: an arm beside the backpack keeps its own joint) and the helmet and backpack
   shared at their seam. The outer cut's holes are closed (`closed`, after the fit) and the cloth round any weight cliff

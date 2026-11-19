@@ -1,4 +1,15 @@
 {
  "_comment": "The written exceptions to the owner's hard rule (2026-10-18): everything in a place comes from the library (score_lib) or is an exception here. Read by score/stages/complete/library/exceptions.py; its docstring has the fields. Each needs the place, the prim or pattern, what it is, why it is not from the library, who allowed it (a handle) and when; an optional expiry. One without a reason or an owner refuses the whole file. Only the owner allows one.",
- "exceptions": []
+ "exceptions": [
+  {
+   "place": "*",
+   "prim": "/*/Characters/*",
+   "aspect": "finish",
+   "what": "player models made by the dress or TRELLIS.2 route (tools/characters/still_rig): the generated model's own texture (its seams, folds, panels and prints), its base colour graded toward the place's palette as a made prop's paint is (score/stages/place_build/maker/grade.py)",
+   "why": "cutting a player model into parts and repainting each with a flat library surface loses its seams and panels and mis-segments parts (the astronaut's visor); the model's own texture, palette-graded, keeps them",
+   "allowed_by": "@JoeyKardolus",
+   "allowed_on": "2026-11-19",
+   "said": "yeah this pure trellis is just so much better; like the segmentation of the visor isnt perf and the seams, all player models have this problem in the framework still"
+  }
+ ]
 }

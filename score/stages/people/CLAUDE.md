@@ -9,7 +9,8 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
   library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
-  picture-made model keeps its geometry and gets its finish replaced. The library check
+  picture-made model keeps its geometry and gets its finish replaced, except a player model, which keeps its
+  generated model's own texture graded toward the place's palette (owner, 2026-11-19; `tools/characters/still_rig`). The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Run rows by name only**: `.venv/bin/python -m score run world1 --place people --stage people-look-<look> --object <look>-s1 --detach` (one look: the loop narrowed to its take, then its body, dress and page; name every look's page and leave out `--object` for all, and add `--stage people-clips`; it drives the
   line, every full body the designs name and their dress). Check `ps` first that no other run is on the same rows.
