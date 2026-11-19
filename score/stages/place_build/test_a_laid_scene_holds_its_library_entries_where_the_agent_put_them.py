@@ -86,6 +86,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
 - render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
+- render.libraries: the libs/ default dropped (SCORE_BLENDER_LIBS alone) -> a box without the variable starts a
+  Blender that cannot find libSM (exit 127), and the failure names no fix
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
 - review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
@@ -468,6 +470,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert place_build.pose_of(stage.GetPrimAtPath("/yard/Objects/sky"))[1] == [0.0, 30.0, 0.0]
     final = render.views(place_build.record_of(folder), 80, [], final=True)
     assert final["review"] is False and final["size"] == [1920, 1080]
+    monkeypatch.delenv("SCORE_BLENDER_LIBS", raising=False)
+    linked = render.BLENDER.parent.parent / "libs"
+    assert f"--setenv=LD_LIBRARY_PATH={linked}:/usr/lib/wsl/lib" in render.queued("job", "script.py", [], card=False) \
+        and "tools/blender/setup.sh" in render.unlinked_hint(127) and render.unlinked_hint(1) == ""
     core = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/stairwell/geo"))
     treads, walls = part_facings(core, "steps"), part_bounds(core, "wall")
     up = treads[np.abs(treads[:, 4]) > 0.99]

@@ -11,8 +11,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **The scene is a plain USD** (y up, metres, `/<place>/Objects|Looks|Lights`) that tools/usd (snap.py, resting.py)
   and sim body read as they read a place: keep that layout, never a Blender file.
 - **Render through the card queue only** (`render.py`: usd_views.py, Cycles review samples, a memory-capped scope,
-  more than 12 GB free); a long one is started with tools/cloud/detached.py, never waited on in the foreground. Set
-  `SCORE_BLENDER_LIBS` to the X/GL libraries this PC's Blender needs.
+  more than 12 GB free); a long one is started with tools/cloud/detached.py, never waited on in the foreground. The
+  X/GL libraries a box's Blender lacks come from `bash tools/blender/setup.sh` (into `blender-mcp/libs`, the default;
+  `SCORE_BLENDER_LIBS` overrides it), and an exit 127 names that fix.
 - **`start --split` runs SAM 3 free on this PC's card** (score/review/concept_objects.py under SCORE_CLOUD=local and
   SCORE_FREE_ONLY=1, tools/cloud/backends/local.py's segment claim); never a rented card.
 - **Every shown part wears a library finish** (finished/, its own overlay): `surface` is refused over the whole of a

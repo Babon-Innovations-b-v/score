@@ -24,8 +24,8 @@ SCRIPT = pathlib.Path(__file__).resolve().parent / "blender_views.py"
 QUEUE = REPO / "tools/cloud/backends/card_queue.py"
 BLENDER = pathlib.Path(os.environ.get(
     "SCORE_BLENDER", pathlib.Path.home() / ".farm-factory-props/blender-mcp/blender-5.2.2/blender"))
-# The X and GL libraries this PC's Blender needs (colon separated), put before WSL's own on LD_LIBRARY_PATH.
-LIBRARIES = os.environ.get("SCORE_BLENDER_LIBS", "")
+# Exit 127: the Blender could not start, a library it links missing.
+UNLINKED = 127
 WIDTH = 768  # the preview's pixels across
 FINAL_SIZE = (1920, 1080)  # a final render's pixels (owner, 2026-11-16: final views at 1920x1080), whatever the concept's aspect
 FREE_GB = 12  # a Blender starts only with more memory than this available
@@ -53,6 +53,13 @@ def views(record, width=WIDTH, names=(), final=False):
     return {"size": size, "review": not final, "views": listed}
 
 
+def libraries():
+    """The X and GL libraries this box's Blender needs (colon separated), put before WSL's own on LD_LIBRARY_PATH:
+    SCORE_BLENDER_LIBS, else the libs/ folder beside the Blender's own that tools/blender/setup.sh fills with the ones
+    this box lacks."""
+    return os.environ.get("SCORE_BLENDER_LIBS") or str(BLENDER.parent.parent / "libs")
+
+
 def available_gb():
     for line in pathlib.Path("/proc/meminfo").read_text().splitlines():
         if line.startswith("MemAvailable:"):
@@ -75,13 +82,21 @@ def queued(job, script, arguments, card=True):
     the scoped command alone: an export that draws nothing waits for no card)."""
     blender = [str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script), "--",
                *arguments]
-    libraries = ":".join(filter(None, [LIBRARIES, "/usr/lib/wsl/lib"]))
+    linked = ":".join(filter(None, [libraries(), "/usr/lib/wsl/lib"]))
     scoped = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={MEMORY}", "-p", "MemorySwapMax=0",
-              "--setenv=FARM_CYCLES_GPU=1", f"--setenv=LD_LIBRARY_PATH={libraries}", *blender]
+              "--setenv=FARM_CYCLES_GPU=1", f"--setenv=LD_LIBRARY_PATH={linked}", *blender]
     if not card:
         return scoped
     return ["python3", str(QUEUE), "run", "--job", job, "--card-gb", CARD_GB,
             "--priority", "other", "--", *scoped]
+
+
+def unlinked_hint(code):
+    """The fix named for a Blender that could not start for a missing library (exit UNLINKED), else nothing."""
+    if code != UNLINKED:
+        return ""
+    return (f" (a library Blender links is missing: run bash tools/blender/setup.sh, which fetches it into "
+            f"{libraries()}, or set SCORE_BLENDER_LIBS)")
 
 
 def render(folder, width=WIDTH, names=(), final=False):
@@ -101,7 +116,7 @@ def render(folder, width=WIDTH, names=(), final=False):
     look, mask = folder / "render" / "concept-look.png", folder / "render" / "concept-mask.png"
     if done.returncode or not look.exists():
         tail = " | ".join(log.read_text(errors="replace").splitlines()[-6:])
-        raise RenderFailed(f"exit {done.returncode}, log {log}: {tail}")
+        raise RenderFailed(f"exit {done.returncode}, log {log}: {tail}{unlinked_hint(done.returncode)}")
     shutil.copyfile(look, folder / "render.png")
     shutil.copyfile(mask, folder / "render-mask.png")
     shown = {}
