@@ -1,17 +1,18 @@
 """Objects with moving parts built in code, its parts apart and each pivot where it turns (#19, decided 2026-11-05: one
 Pixal3D model cannot open or turn; organic one-piece objects stay on Pixal3D): a double door's two leaves on their
-outer edges in a still frame, a hatch's lid on the hinge along one edge of its still frame, a wheeled vehicle's body
+outer edges in a still frame, a sliding door's leaf on its slide along its frame, a hatch's lid on the hinge along one edge of its still frame, a wheeled vehicle's body
 and its wheels on their axles. Every part names the library recipe it is finished with (data/library/materials.json
 `recipes`, the scene library's variant of it chosen by the finish route), never a colour of its own.
 
-    parted(row, kinds)     the parted rule a scene inventory row takes ("double door", "hatch", "wheeled"), else None
+    parted(row, kinds)     the parted rule a scene inventory row takes ("double door", "sliding door", "hatch",
+                           "wheeled"), else None
     build(row, kinds)      (trimesh.Scene, record): its parts at the row's size, in a final take's frame (y up, the
                            longer ground side along z, centred on the origin over its floor), each part a node of its
                            own whose origin is its pivot
     write(row, kinds, folder)   its model (`model.glb`) and its record (`parts.json`) in the folder
 
-A part's node is named `<part>__<joint>_<axis>[n]` (joint `hinge` or `spin`, axis x, y or z in the object's own frame,
-`n` for the negative way round), a still part by its name alone: the motion layer reads joints off those names
+A part's node is named `<part>__<joint>_<axis>[n]` (joint `hinge`, `spin` or `slide`, axis x, y or z in the object's
+own frame, `n` for the negative way round or along), a still part by its name alone: the motion layer reads joints off those names
 (score/stages/motion/from_design.parts_of), so the name is the pivot's whole interface.
 """
 import json
@@ -33,20 +34,24 @@ WHEEL_FACES = 32
 # Words of a vehicle that runs on tracks, not on wheels that turn alone (a tracked rover is one piece).
 TRACKED = ("tracked", "track", "tracks", "crawler")
 VEHICLES = ("vehicle",)
+SLIDING = ("sliding", "slide", "slider", "pocket")  # words of a door whose leaf slides aside along its frame
 RECIPES = "data/library/materials.json"
 
 
 def parted(row, kinds):
-    """The parted rule a row takes: "double door" (a door kind whose words say double), "hatch" (a door kind whose
-    noun is a hatch, or which lies lower than it is wide both ways), "wheeled" (a vehicle not on tracks, its noun
-    not a drone), else None (a single hinged, sliding or rising door moves whole; an organic thing is one piece)."""
+    """The parted rule a row takes: "double door" (a door kind whose words say double), "sliding door" (a door kind
+    whose words say it slides: a balcony's glass door, a lock's plug door), "hatch" (a door kind whose noun is a
+    hatch, or which lies lower than it is wide both ways), "wheeled" (a vehicle not on tracks, its noun not a drone),
+    else None (a single hinged or rising door moves whole; an organic thing is one piece)."""
     kind = row_kinds.kind_of(row, kinds)
     said = set(row_kinds.words(row.get("name") or row.get("id")).split())
     if kind == "door":
         wide, deep, tall = (float(value) for value in row.get("size") or (1.0, 1.0, 1.0))
         if said & {"hatch", "hatches"} or tall < min(wide, deep):
             return "hatch"
-        return "double door" if "double" in said else None
+        if "double" in said:
+            return "double door"
+        return "sliding door" if said & set(SLIDING) else None
     if kind in VEHICLES and not said & set(TRACKED) and "drone" not in said:
         return "wheeled"
     return None
@@ -94,6 +99,22 @@ def door_parts(size):
                  (0.0, 0.0, inner), "hinge", "y", -1)]
 
 
+def sliding_parts(size):
+    """A sliding door standing in the y-z plane: a still frame (two jambs, a head and its track along the head) and one
+    leaf filling the opening between the jambs, sliding along +z (its width) by its own width, past the jamb, its
+    node's origin its shut middle (the slide's start)."""
+    thick, tall, wide = size
+    jamb, head = wide * JAMB_SHARE, tall * HEAD_SHARE
+    leaf = thick * LEAF_SHARE / 2
+    frame = [slab((-thick / 2, 0, -wide / 2), (thick / 2, tall, -wide / 2 + jamb)),
+             slab((-thick / 2, 0, wide / 2 - jamb), (thick / 2, tall, wide / 2)),
+             slab((-thick / 2, tall - head, -wide / 2 + jamb), (thick / 2, tall, wide / 2 - jamb))]
+    inner = wide / 2 - jamb
+    return [part("frame", frame, "painted_metal"),
+            part("leaf", [slab((-leaf, 0, -inner), (leaf, tall - head, inner))], "painted_metal",
+                 (0.0, (tall - head) / 2, 0.0), "slide", "z", 1)]
+
+
 def hatch_parts(size):
     """A hatch lying level: a still rim round its opening and a lid filling it, hinged about the level line along
     its edge at -z (axis x), turning up and over away from its hinge."""
@@ -131,7 +152,7 @@ def vehicle_parts(size):
     return [part("body", [body], "painted_metal"), *wheels]
 
 
-BUILDERS = {"double door": door_parts, "hatch": hatch_parts, "wheeled": vehicle_parts}
+BUILDERS = {"double door": door_parts, "sliding door": sliding_parts, "hatch": hatch_parts, "wheeled": vehicle_parts}
 
 
 def scene_of(parts, centre):

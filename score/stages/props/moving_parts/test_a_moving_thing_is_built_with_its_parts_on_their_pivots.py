@@ -1,7 +1,8 @@
 """A thing with moving parts is built in code with its parts apart, each on its pivot (#19, 2026-11-05): env1's kinds of
-rows (a garage's "square double door", a docking airlock's "floor hatch", a "lunar rover", a "black police car") take
-their parted rule, and a single hinged door, a "tracked rover", a drone and a cabinet take none; the double door's two
-leaves hinge on its outer edges about the upright, the left the positive way and the right the negative, the hatch's
+rows (a garage's "square double door", a docking airlock's "floor hatch", a "lunar rover", a "black police car") and a
+flat's "sliding glass balcony door" take their parted rule, and a single hinged door, a "tracked rover", a drone and a cabinet take none; the double door's two
+leaves hinge on its outer edges about the upright, the left the positive way and the right the negative, the sliding
+door's leaf slides along its frame by its width (`__slide_z`, its node's origin its shut middle), the hatch's
 lid on its level edge, the rover's four wheels spin about their axles at their own middles, each part a node of its
 own whose name the motion layer reads its joint from (from_design.PART) and whose origin is its pivot, every part
 finished with a recipe of the library (data/library/materials.json), the object at its row's size centred over its
@@ -10,6 +11,8 @@ floor; its model and record are written, the model's nodes by their part names.
 Breaks (each applied once, seen red, reverted), in score/stages/props/moving_parts/__init__.py:
     `return "double door" if "double" in said else None` -> `return "double door"` (a single door is parted)
     `(0.0, 0.0, inner), "hinge", "y", -1)` -> `(0.0, 0.0, inner), "hinge", "y", 1)` (both leaves open apart)
+    `return "sliding door" if said & set(SLIDING) else None` -> `return None` (the sliding door is one hinged piece)
+    sliding_parts' `"slide", "z", 1)` -> `"hinge", "y", 1)` (the balcony door's leaf swings on a hinge)
     `if kind in VEHICLES and not said & set(TRACKED) and "drone" not in said:` -> `if kind in VEHICLES:`
     `transform=trimesh.transformations.translation_matrix(pivot))` -> `transform=np.eye(4))` (no pivot at the origin)
     a wheel's `"rubber"` -> `"tyre"` (a finish no library recipe names)
@@ -35,6 +38,8 @@ ROWS = {"square_door": ({"id": "square_door", "name": "square double door", "nou
         "police_car": ({"id": "police_car", "name": "black police car", "noun": "police car",
                         "size": [1.9, 4.8, 1.5]}, "wheeled"),
         "door": ({"id": "door", "name": "door", "noun": "door", "size": [1.0, 0.1, 2.1]}, None),
+        "balcony_door": ({"id": "balcony_door", "name": "sliding glass balcony door", "noun": "door",
+                          "size": [1.4, 0.12, 2.2]}, "sliding door"),
         "tracked_rover": ({"id": "tracked_rover", "name": "tracked rover", "noun": "rover",
                            "size": [2.5, 1.8, 1.5]}, None),
         "drone": ({"id": "drone", "name": "drone", "noun": "drone", "size": [0.5, 0.5, 0.2]}, None),
@@ -57,6 +62,11 @@ def test_a_moving_thing_is_built_with_its_parts_on_their_pivots(tmp_path):
     pivots = {entry["name"]: entry["pivot"] for entry in door["parts"]}
     assert pivots["leaf_left__hinge_y"][2] == -pivots["leaf_right__hinge_yn"][2] == -1.1  # the jambs' inner faces
     assert joints(hatch) == {"frame": (None, None, 1), "lid__hinge_xn": ("hinge", "x", -1)}
+    sliding = built["balcony_door"][1]
+    assert joints(sliding) == {"frame": (None, None, 1), "leaf__slide_z": ("slide", "z", 1)}, sliding
+    leaf = built["balcony_door"][0].geometry["leaf__slide_z"].bounds
+    assert np.isclose(leaf[1][2] - leaf[0][2], 1.4 * (1 - 2 * moving_parts.JAMB_SHARE)) and np.allclose(
+        [leaf[0][2] + leaf[1][2]], 0.0, atol=1e-6), leaf  # the leaf fills its opening, its node at its middle
     wheels = {name: joint for name, joint in joints(rover).items() if name.startswith("wheel")}
     assert len(wheels) == 4 and set(wheels.values()) == {("spin", "x", 1)}
     for name, (scene, record) in built.items():

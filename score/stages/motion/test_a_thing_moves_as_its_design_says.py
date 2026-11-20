@@ -377,6 +377,7 @@ FLAT_OPEN = ("open_flat_1", (1.0, 0.0, -4.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3)
 DOUBLE = {"id": "double_door", "name": "double door", "noun": "door", "size": [1.6, 0.1, 2.1]}
 LID = {"id": "open_hatch", "name": "open floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
 WALKED = {"id": "floor_hatch", "name": "floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
+GLASS = {"id": "glass_door", "name": "sliding glass door", "noun": "door", "size": [1.4, 0.1, 2.1]}
 WAITING_DOOR = {"name": "door_1", "row": "door", "bake": "door_1", "kind": "object", "at": [3.0, 0.0, 1.0],
                 "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model door_1 comes from the surface line's bake",
                 "on": {"how": "in", "middle": [3.0, 0.0, 1.0], "along": [1.0, 0.0], "wide": 0.9, "tall": 2.0,
@@ -608,12 +609,12 @@ CASES = [
         "gates": {"rests": gate(checks.PASS)},
         "steps": [({"add": [LIFTED]}, {"gates": {"rests": gate(checks.FAIL, whole(
             f"/{PLACE}/Objects/open_flat_1: its row says open (\"open hatch\"), yet it stands shut or moves"))}})]}),
-    ("a parted build moves its parts: a double door's leaves, a walked hatch's lid", {
-        "toy": {"rows": ROWS + [DOUBLE, LID, WALKED]},
+    ("a parted build moves its parts: a double door's leaves, a walked hatch's lid, a sliding door's leaf", {
+        "toy": {"rows": ROWS + [DOUBLE, LID, WALKED, GLASS]},
         "parted": [("double_door_1", (3.0, 0.0, -2.0), DOUBLE, 90.0), ("open_hatch_1", (-1.0, 0.0, -1.0), LID, 0.0),
-                   ("floor_hatch_1", (3.0, 0.0, 3.5), WALKED, 0.0)],
+                   ("floor_hatch_1", (3.0, 0.0, 3.5), WALKED, 0.0), ("glass_door_1", (3.0, 0.0, 4.6), GLASS, 90.0)],
         "record": [(("moves",), ["door_1", "double_door_1.leaf_left", "double_door_1.leaf_right", "fan_1",
-                                 "floor_hatch_1.lid"]),
+                                 "floor_hatch_1.lid", "glass_door_1.leaf"]),
                    (("moves", "floor_hatch_1.lid", "swing", "axis"), "x"),
                    (("moves", "floor_hatch_1.lid", "swing", "angle"), -90.0),
                    (("moves", "double_door_1.leaf_left", "swing", "angle"), 90.0),
@@ -627,7 +628,11 @@ CASES = [
                     (f"/{PLACE}/Objects/double_door_1/leaf_right__hinge_yn", 5.0, 2, "<", (LEAF, 0.0, -0.3)),
                     (f"/{PLACE}/Objects/open_hatch_1/lid__hinge_xn", 5.0, 1, ">", 0.2),
                     (f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 2.0, 1, ">", 0.2),
-                    (f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 15.0, 1, "<", 0.1)],
+                    (f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 15.0, 1, "<", 0.1),
+                    # turned 90, its leaf slides along +x at the sliding door kind's 0.29 m/s, 0.435 m out of its
+                    # 3.0 shut middle by 1.5 s, and back once passed
+                    (f"/{PLACE}/Objects/glass_door_1/leaf__slide_z", 1.5, 0, ">", 3.3),
+                    (f"/{PLACE}/Objects/glass_door_1/leaf__slide_z", 15.0, 0, "<", 3.1)],
         "gates": {EVERY: gate(checks.PASS)}}),
     ("a moving row whose take the bake left out carries its gap", {
         "toy": {"rows": ROWS + [dict(CRANE, thing="prop:toy_crane_b26f85f9")]},
@@ -1046,8 +1051,12 @@ def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
     Break: score/stages/motion/__init__.py: `under(path, posed) or (opened and built)` -> `under(path, posed)`
     Break: score/stages/motion/__init__.py: `if opened and (not off or under(path, moving)):` -> `if opened and not
         off:` (the open hatch written moving passes)
-    Break: score/stages/motion/from_design.py: `if rule["move"] in ("swing", "split") and hinged(stage, path):` ->
-        `if False:` (the double door is unmade, covered fails)
+    Break: score/stages/motion/from_design.py: `if rule["move"] in ("swing", "split") and hinged(stage, path) or
+        rule["move"] == "slide" and slid(stage, path):` -> `if False:` (the double door is unmade, covered fails)
+    Break: score/stages/motion/from_design.py: PART's `hinge|spin|slide` -> `hinge|spin` (the sliding door slides
+        whole, its frame with it, and its leaf is no move of its own)
+    Break: score/stages/motion/from_design.py: part_by's `size[index] * sign` -> `size[index] * -sign` (the glass
+        door's leaf slides the other way, its middle at 1.5 s short of x 3.3)
     Break: tools/usd/motion_layer.py: `return own_pivot(stage, move)` -> `return own_side(stage, move, [0.0, 0.0,
         0.0])` (a leaf turns about its middle)
     Break: score/stages/motion/check.py: `tilt = max(tilt_of(turn, axis) for turn in turns)` -> `tilt =
