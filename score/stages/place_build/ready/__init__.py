@@ -698,11 +698,14 @@ def grid_rectangle(laid):
 
 
 def door_window(laid, name):
-    """The walkers' grid round a door (x, z low, high): its leaf's box, its width and DOOR_REACH round it, within the
+    """The walkers' grid round a door, or round several (`name` a list: an airlock chamber's, scene_package.air_of)
+    (x, z low, high): its leaf's box, its width and DOOR_REACH round it, within the
     whole grid (grid_rectangle). A swing or a slide changes the floor only where its leaf moves, so the floor a way
     keeps joined is judged there (the Moon base's 19 doors took 76 floors of the whole place, 47 s each)."""
-    low, high = laid.meshes[name].bounds
-    reach_out = float(np.max(high - low)) + DOOR_REACH
+    names = [name] if isinstance(name, str) else list(name)
+    low = np.min([laid.meshes[one].bounds[0] for one in names], axis=0)
+    high = np.max([laid.meshes[one].bounds[1] for one in names], axis=0)
+    reach_out = max(float(np.max(laid.meshes[one].bounds[1] - laid.meshes[one].bounds[0])) for one in names) + DOOR_REACH
     whole = grid_rectangle(laid)
     return (max(whole[0], low[0] - reach_out), max(whole[1], low[2] - reach_out),
             min(whole[2], high[0] + reach_out), min(whole[3], high[2] + reach_out))

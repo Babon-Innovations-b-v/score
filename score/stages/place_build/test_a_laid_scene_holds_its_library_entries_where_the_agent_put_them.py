@@ -110,6 +110,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.door_block: every door written a hinge -> the cell's plug door has no slide
 - place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
   folder lacks
+- scene_package.chamber_air: a chamber's air only its named object's hull -> the cell whose doors name its back
+  wall holds no air, so no chamber
 - place_build.door: a held mark of another type kept -> the plug's old bool score:opens refuses the string mark
 - place_build.door: the score:move mark left off -> the cell's plug door swings, the walkers' leaf is not slid aside
 - review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
@@ -1213,3 +1215,16 @@ def blocks_lock(tmp_path):
     assert np.allclose(slid, [np.asarray(plug["axis"]) * plug["open"]] * 2, atol=1e-6), slid
     into = ready.opened_leaf(laid, "hatch", {"hinge": hatch["pivot"], "degrees": hatch["open"]}).centroid
     assert hatch["move"] == "hinge" and into[0] < 2.05, (hatch, into)  # into the cell, never out into the vacuum
+    walled = tmp_path / "wall_lock"  # the same cell, its doors naming one wall of it (the shiplock's hull_wall)
+    place_build.start(walled, "wall_lock", tmp_path / "concept.png")
+    place_build.blocks(walled, "back_wall", [[-2.0, 0, 1.5, 2.0, 2.5, 1.7, "wall"]])
+    place_build.blocks(walled, "cell", [[-2.2, -0.1, -1.7, 2.2, 0.0, 1.7, "deck"], *walls[:-1],
+                                        [-2.2, 2.5, -1.7, 2.2, 2.7, 1.7, "roof"]])
+    place_build.blocks(walled, "plug", [[-2.15, 0.0, -0.5, -2.05, 2.1, 0.5, "door"]])
+    place_build.blocks(walled, "hatch", [[2.05, 0.0, -0.5, 2.15, 2.1, 0.5, "door"]])
+    place_build.door(walled, "plug", lock="back_wall", side="inner")
+    place_build.door(walled, "hatch", lock="back_wall", side="outer")
+    stage, place = place_build.opened(walled)
+    _, chambers = scene_package.locks_of(ready.Place(stage, place))
+    assert [(chamber["name"], chamber["inner"], chamber["outer"]) for chamber in chambers] == \
+        [("back_wall", ["plug"], ["hatch"])] and 3.0 * 2.0 * 2.0 < chambers[0]["air_volume"] < 4.4 * 3.4 * 2.7, chambers

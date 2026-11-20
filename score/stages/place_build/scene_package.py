@@ -902,10 +902,60 @@ def marked_locks(laid):
 
 
 def airs_of(laid):
-    """{enclosure: its air (air_of)} of every shell, connector and marked airlock chamber (marked_locks)."""
-    locks = {lock for lock, _ in marked_locks(laid).values()}
-    return {name: air for name in sorted(set(laid.with_role("shell", "connector")) | locks)
-            if (air := air_of(laid, name)) is not None}
+    """{enclosure: its air (air_of)} of every shell, connector and marked airlock chamber (marked_locks: the air between
+    its doors, chamber_air, when its own solid's hull holds no door's inside)."""
+    marked = marked_locks(laid)
+    locks = {lock for lock, _ in marked.values()}
+    found = {}
+    for name in sorted(set(laid.with_role("shell", "connector")) | locks):
+        air = air_of(laid, name)
+        doors = sorted(door for door, (lock, _) in marked.items() if lock == name)
+        if name in locks and (air is None or not any(inside_of(laid, door, air) for door in doors)):
+            air = chamber_air(laid, name, doors)
+        if air is not None:
+            found[name] = air
+    return found
+
+
+def inside_of(laid, door, air):
+    """Whether an air (planes, volume) holds a point PROBE past either face of the door."""
+    from score.stages.place_build import ready
+    middle, axes, half = ready.frame_of(laid, door)
+    return any((air[0][:, :3] @ (middle + axes[2] * (half[2] + PROBE) * way) + air[0][:, 3] <= 1e-6).all()
+               for way in (1.0, -1.0))
+
+
+def chamber_air(laid, lock, doors):
+    """A marked chamber's air read from the walkers' floor round its doors (every door shut): the one floor piece that
+    meets a side of each of its doors, raised to the top of the object its doors name; (planes, volume) or None. A
+    chamber whose named object is one wall of several (the shiplock's hull_wall) holds no air of its own hull (#154:
+    shiplock's doors led nowhere and its chambers were [])."""
+    from score.stages.place_build import ready
+    if len(doors) < 2:
+        return None
+    grid, span_cells, span_heights, standing, pieces = ready.walkers_floor(
+        laid, {name: laid.meshes[name] for name in laid.with_role("door")}, near=doors)
+    sides = []  # each door's {piece: the spot PROBE past its face on that piece's side}
+    for door in doors:
+        middle, axes, half = ready.frame_of(laid, door)
+        sill = float(laid.meshes[door].bounds[0][1])
+        found = {}
+        for way in (1.0, -1.0):
+            spot = middle + axes[2] * (half[2] + PROBE) * way
+            spot = np.array([spot[0], sill, spot[2]])
+            for span in ready.spans_near(grid, span_cells, span_heights, standing, spot):
+                found.setdefault(int(pieces[span]), spot)
+        sides.append(found)
+    shared = set.intersection(*(set(found) for found in sides))
+    if len(shared) != 1:
+        return None
+    piece = shared.pop()
+    kept = standing & (pieces == piece)
+    middles = grid.middles()[span_cells[kept]]
+    top = float(laid.meshes[lock].bounds[1][1])
+    floor = np.vstack([np.column_stack([middles[:, 0], span_heights[kept], middles[:, 1]]),
+                       [found[piece] for found in sides]])  # the doors' inside spots, where a walker stands short
+    return hull_of(np.vstack([floor, np.column_stack([floor[:, 0], np.full(len(floor), top), floor[:, 2]])]))
 
 
 def locks_of(laid, airs=None):
