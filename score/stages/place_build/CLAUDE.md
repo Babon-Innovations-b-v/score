@@ -54,6 +54,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `assets/algorithm/` by its sizes: delete it there after changing dome_shell.py, or the old one is laid.
 - **Standing on things**: `put --rest` lays a piece's lowest point at the given height (a floor, a table top);
   `--on-ground` reads that height over the laid ground there (a rock on a terrain's relief).
+- **Doors are marked, never guessed** (`door`, #148): `--opens` the walkers open it, `--slide` it slides aside along
+  its face (score:move; a sliding balcony door, a lock's plug door) instead of swinging, `--lock <chamber> --side
+  inner|outer` it is a pressure door of an airlock chamber, any laid object closing the chamber's air (a blocks-built
+  airlock's shell too: its walls are no dome shell, so no chamber is found without the marks). A pressure door opens
+  to its high-pressure side (scene_package.locks_of: the outer one into the chamber, the inner one out of it to the
+  base); ready.opening is the one answer to how a door opens, read alike by the walkers' floor, walker_route's door
+  times, the film and the scene package's `door` block.
 - **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only. A
   named view sees the building closed; `view --cut` makes it see through place.json `cut` as the concept's does
   (render.views gives each view its own `cut`, blender_views.view_cut applies it per view).

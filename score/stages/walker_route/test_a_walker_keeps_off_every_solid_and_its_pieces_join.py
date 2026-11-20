@@ -39,6 +39,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.walkers_floor: the doors given left out -> the shut door is routed through
 - walker_route.crossings: the plane's side taken as the across distance -> no crossing, no swing
 - walker_route.swung_in: the inverse hinge left out of the op order -> the open leaf stands off its hinge
+- walker_route.slid_in: `by * share` made `by * 0` -> the slid leaf stands shut in its open window
+- ready.opening: a door marked slide swung on its hinge -> the sliding door has no slide
 - walker_route.round_again: `index % len(through)` made `min(index, len(through) - 1)` -> the walk stands at its last
   spot rather than going round (refused: the route no longer lengthens)
 - walker_route.posture: the knee's flex taken as the angle itself (180 - angle dropped) -> the upright walk is
@@ -350,6 +352,18 @@ def test_a_walker_keeps_off_every_solid_and_its_pieces_join(tmp_path):
         cache.SetTime(seconds * stage.GetTimeCodesPerSecond())
         box_now = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/door")).ComputeAlignedRange()
         assert np.allclose([box_now.GetMin(), box_now.GetMax()], bounds, atol=0.01), (seconds, box_now, bounds)
+    stage.GetPrimAtPath(f"/{place}/Objects/door").CreateAttribute(ready.MOVE, Sdf.ValueTypeNames.String).Set("slide")
+    stage.GetRootLayer().Save()
+    laid = ready.Place(stage, place)
+    how = ready.opening(laid, "door")
+    slid = walker_route.door_swings({"door": {"middle": middle, "axes": axes, "half": half, **how}}, {"walker": roots})
+    walker_route.swung_in(place_build.scene_path(folder), place, slid)
+    stage, _ = place_build.opened(folder)
+    cache.SetTime(sum(slid["door"]["open"][0]) / 2 * stage.GetTimeCodesPerSecond())
+    box_now = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/door")).ComputeAlignedRange()
+    shut = laid.meshes["door"].bounds
+    assert "by" in how and np.isclose(np.linalg.norm(how["by"]), 2 * half[0], atol=1e-3), how
+    assert np.allclose([box_now.GetMin(), box_now.GetMax()], shut + np.asarray(how["by"]), atol=0.01), (box_now, how)
     upright = walker_route.posture(gait(2.0, 0.3))
     assert walker_route.slouched(upright) is None and max(upright["knee least"]) < 2.5, upright
     assert "knees" in walker_route.slouched(walker_route.posture(gait(14.0, 0.3)))

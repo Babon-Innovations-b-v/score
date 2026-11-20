@@ -154,18 +154,20 @@ def assemble(scene, run):
 
 
 def doors(scene, run):
-    """The opening doors' swings for the planned walkers, written on their prims in the scene and to <run>/doors.json;
+    """The opening doors' swings (a sliding door's slide, a pressure door's to its high-pressure side: ready.opening)
+    for the planned walkers, written on their prims in the scene and to <run>/doors.json;
     one line a door."""
     from score.stages import place_build
     from score.stages.place_build import ready
     plan = json.loads(walker_route.plan_file(pathlib.Path(run) / "make").read_text())
     stage, place = place_build.opened(scene)
     laid = ready.Place(stage, place)
-    found = {}
+    found, toward = {}, ready.pressure_sides(laid)
     for name in laid.with_role("door"):
         if ready.opens(laid, name):
             middle, axes, half = ready.frame_of(laid, name)
-            found[name] = {"middle": middle, "axes": axes, "half": half, **ready.swing_of(laid, name)}
+            found[name] = {"middle": middle, "axes": axes, "half": half,
+                           **ready.opening(laid, name, toward.get(name))}
     del laid, stage
     swings = walker_route.door_swings(found, {walker["name"]: walker["roots"] for walker in plan["walkers"]})
     walker_route.swung_in(pathlib.Path(scene) / "scene.usda", place, swings)

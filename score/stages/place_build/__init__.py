@@ -711,6 +711,40 @@ def kind(folder, kind):
     return {"kind": kind}
 
 
+MOVES = ("hinge", "slide")  # how a door opens (score:move): on a hinge at one edge, or slid aside along its face
+SIDES = ("inner", "outer")  # an airlock chamber's pressure door (score:side): to the base, or to the outside
+
+
+def door(folder, name, opens=False, move="hinge", lock=None, side=None):
+    """The laid object `name` marked a door (score:role door): the walkers open it (`opens`, score:opens) or it stays
+    shut, a solid; it opens by `move` (score:move: on a hinge at one of its edges, or slid aside along its face, a
+    sliding balcony door's or a lock's plug door); `lock` names the airlock chamber it is a pressure door of
+    (score:lock: any laid object whose solid closes the chamber's air, a blocks-built shell as well as a dome shell's
+    tube) and `side` whether it is that chamber's inner door, to the base, or its outer one, to the outside
+    (score:side). The scene package lists the chamber with its inner and outer doors and its air, and the door opens to
+    its high-pressure side (scene_package.locks_of). Marked again, its marks are replaced."""
+    if move not in MOVES:
+        raise Refused(f"a door opens by {' or '.join(MOVES)}, not {move}")
+    if (lock is None) != (side is None) or (side is not None and side not in SIDES):
+        raise Refused(f"an airlock's door names its chamber and its side ({' or '.join(SIDES)}) together, "
+                      f"not lock {lock!r} and side {side!r}")
+    stage, place = opened(folder)
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    if not prim:
+        raise Refused(f"the scene holds no object {name} to make a door")
+    if lock is not None and not stage.GetPrimAtPath(f"/{place}/Objects/{lock}"):
+        raise Refused(f"the scene holds no chamber {lock} for the door {name}")
+    marks = {"role": "door", "opens": "walkers" if opens else None, "move": move if move != "hinge" else None,
+             "lock": lock, "side": side}
+    for key, value in marks.items():
+        if value is None:
+            prim.RemoveProperty(f"score:{key}")
+        else:
+            prim.CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(value)
+    saved(stage)
+    return {"door": name, **{key: value for key, value in marks.items() if key != "role"}}
+
+
 def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     """A flat ground disc of `radius` metres (dome_shell.disc_file) laid as Objects/<name> and marked as the place's
     ground (so the renderer lays no plane of its own); its one part `ground` ready for a surface."""
@@ -1183,7 +1217,7 @@ def refinish(folder, name):
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "cut": camera_cut, "kind": kind,
+         "cut": camera_cut, "kind": kind, "door": door,
          "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze,
          "refinish": refinish}
 

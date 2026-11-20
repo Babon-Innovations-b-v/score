@@ -29,9 +29,11 @@ scale cubed) or null when the entry has none; everything else that stands a soli
 Skinned characters (under /<place>/Characters too), the sky's dome and animated effects are not converted:
 scene.json's `left_out` names each.
 Each door (an object the physics check takes for one, ready.role_of) carries its `door` block (doors_of): it moves as
-its one whole piece on the hinge the walkers swing it on (ready.swing_of), its opening, its score:opens mark and the
-enclosures either side of it; a shell or connector a door from another enclosure and a door from outside open into is
-an airlock chamber in scene.json's `chambers`, with its air's volume.
+its one whole piece the way the walkers open it (ready.opening: slid aside along its face when marked score:move
+slide, else on a hinge, a pressure door swung to its high-pressure side), its opening, its score:opens mark and the
+enclosures either side of it; an airlock chamber (locks_of: the object a door's score:lock names, its inner and outer
+doors by their score:side, or a shell or connector a door from another enclosure and a door from outside open into)
+is in scene.json's `chambers`, with its air's volume.
 scene.json's `environment` is the place's sky and light as the final render draws them (environment_of): the sky's
 picture written into <out>/environment, its turn and glow, the ambient light, background, exposure, the sun, the AgX
 view transform and look, a night's moon and glow, the ground's albedo (ground_albedo: what an engine without
@@ -712,43 +714,111 @@ def opening_of(laid, name, middle, axes, half, airs):
             "through": np.round(axes[2], 6).tolist()}
 
 
+def marked_locks(laid):
+    """{door: (its chamber, inner or outer)} of every door marked a chamber's pressure door (score:lock, score:side:
+    place_build.door) whose chamber the scene holds."""
+    found = {}
+    for name in laid.with_role("door"):
+        lock, side = (text_of(laid.prims[name], key) for key in ("score:lock", "score:side"))
+        if lock in laid.meshes and side in ("inner", "outer"):
+            found[name] = (lock, side)
+    return found
+
+
+def airs_of(laid):
+    """{enclosure: its air (air_of)} of every shell, connector and marked airlock chamber (marked_locks)."""
+    locks = {lock for lock, _ in marked_locks(laid).values()}
+    return {name: air for name in sorted(set(laid.with_role("shell", "connector")) | locks)
+            if (air := air_of(laid, name)) is not None}
+
+
+def locks_of(laid, airs=None):
+    """Every door's sides and the place's airlock chambers: ({door: {between, and for a chamber's door lock, side,
+    leads, toward}}, [{name, inner, outer, air_volume}]). `between` is the enclosures (a shell's or connector's air, or
+    a marked chamber's, air_of; null outside) PROBE past the door's face along its through axis and against it. A
+    chamber is the object a door's score:lock names, its doors inner or outer by their score:side (a blocks-built
+    airlock, whose walls are no shell: 2099 #164), else an enclosure two unmarked doors open into, one from another
+    enclosure (inner) and one from outside (outer). A pressure door opens toward its high-pressure side, so the air
+    holds it shut (`toward`, +1 or -1 along its through axis): the outer door into the chamber, the inner one out of it
+    to the base, never into the chamber like a closet door (2099 stock-take C5). `airs`: airs_of's, when read."""
+    from score.stages.place_build import ready
+    marked = marked_locks(laid)
+    airs = airs_of(laid) if airs is None else airs
+    doors = {}
+    for name in laid.with_role("door"):
+        middle, axes, half = ready.frame_of(laid, name)
+        reach_out = axes[2] * (half[2] + PROBE)
+        doors[name] = {"between": [enclosure_at(airs, middle + reach_out), enclosure_at(airs, middle - reach_out)],
+                       "middle": middle, "through": axes[2]}
+    chambers = []
+    for enclosure in sorted(airs):
+        found = {side: sorted(name for name, (lock, marked_side) in marked.items()
+                              if lock == enclosure and marked_side == side) for side in ("inner", "outer")}
+        unmarked = {name: door for name, door in doors.items() if name not in marked and enclosure in door["between"]}
+        found["inner"] += sorted(name for name, door in unmarked.items()
+                                 if any(side not in (None, enclosure) for side in door["between"]))
+        found["outer"] += sorted(name for name, door in unmarked.items() if None in door["between"])
+        if not (found["inner"] and found["outer"]):
+            continue
+        chambers.append({"name": enclosure, "inner": found["inner"], "outer": found["outer"],
+                         "air_volume": round(airs[enclosure][1], 3)})
+        for side in ("inner", "outer"):
+            for name in found[side]:
+                door = doors[name]
+                into = chamber_way(laid, enclosure, door)
+                door.update({"lock": enclosure, "side": side, "toward": into if side == "outer" else -into,
+                             "leads": next((other for other in door["between"] if other != enclosure), None)})
+    for door in doors.values():
+        del door["middle"], door["through"]
+    return doors, chambers
+
+
+def chamber_way(laid, enclosure, door):
+    """Which way along a door's through axis its chamber lies (+1 or -1): the side whose probe reads the chamber, else
+    the side its chamber's box middle lies on."""
+    if door["between"][0] == enclosure:
+        return 1.0
+    if door["between"][1] == enclosure:
+        return -1.0
+    low, high = laid.meshes[enclosure].bounds
+    return 1.0 if float(((low + high) / 2 - door["middle"]) @ door["through"]) >= 0 else -1.0
+
+
+def door_block(laid, name, how, sides, airs):
+    """A door's `door` block: moved whole (`leaf` the copy itself, no frame) as the walkers open it (`how`,
+    ready.opening): a slide (`move` slide, `axis` the unit way it slides open, `pivot` its shut middle, `limits` [0
+    and its open travel] in metres, `open` that travel) or a hinge (`move` hinge, up through an edge of its leaf,
+    `limits` [0 and its open turn] in degrees right-handed about +y); its score:opens mark, opening, sides and, a
+    chamber's door, its lock, side and where it leads."""
+    from score.stages.place_build import ready
+    middle, axes, half = ready.frame_of(laid, name)
+    if "by" in how:
+        by = np.asarray(how["by"], dtype=float)
+        travel = float(np.linalg.norm(by))
+        moved = {"move": "slide", "axis": np.round(by / travel, 6).tolist(), "pivot": np.round(middle, 4).tolist(),
+                 "limits": [0.0, round(travel, 4)], "open": round(travel, 4)}
+    else:
+        moved = {"move": "hinge", "axis": [0.0, 1.0, 0.0], "pivot": how["hinge"],
+                 "limits": sorted([0.0, float(how["degrees"])]), "open": float(how["degrees"])}
+    block = {"leaf": name, "frame": None, **moved, "opens": ready.opens(laid, name),
+             "opening": opening_of(laid, name, middle, axes, half, airs), "between": sides["between"]}
+    block.update({key: sides[key] for key in ("lock", "side", "leads") if key in sides})
+    return block
+
+
 def doors_of(stage, place, names):
-    """{door: its `door` block} for every laid object of `names` the physics check takes for a door (ready.role_of),
-    and scene.json's `chambers`. A door moves as its one whole piece (`leaf` the copy itself; place_build lays no slide)
-    on the hinge the walkers swing it on (ready.swing_of: up through an edge of its leaf, `limits` [0 and its open
-    turn] in degrees right-handed about +y); `opens` its score:opens mark; `between` the enclosures (or null, outside)
-    PROBE past its face along `through` and against it. An enclosure two doors open into, one from another enclosure
-    (inner) and one from outside (outer), is an airlock chamber, its air volume its hull's (air_of)."""
+    """{door: its `door` block (door_block)} for every laid object of `names` the physics check takes for a door
+    (ready.role_of), and scene.json's `chambers` (locks_of), each with its inner and outer doors and its air's volume
+    (its hull's, air_of)."""
     from score.stages.place_build import ready
     prims = {name: stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in names}
     if not any(prim and ready.role_of(prim) == "door" for prim in prims.values()):
         return {}, []
     laid = ready.Place(stage, place)
-    airs = {name: air for name in laid.with_role("shell", "connector") if (air := air_of(laid, name)) is not None}
-    doors = {}
-    for name in laid.with_role("door"):
-        if name not in prims:
-            continue
-        middle, axes, half = ready.frame_of(laid, name)
-        swing = ready.swing_of(laid, name)
-        reach_out = axes[2] * (half[2] + PROBE)
-        doors[name] = {"leaf": name, "frame": None, "move": "hinge", "axis": [0.0, 1.0, 0.0], "pivot": swing["hinge"],
-                       "limits": sorted([0.0, float(swing["degrees"])]), "open": float(swing["degrees"]),
-                       "opens": ready.opens(laid, name), "opening": opening_of(laid, name, middle, axes, half, airs),
-                       "between": [enclosure_at(airs, middle + reach_out), enclosure_at(airs, middle - reach_out)]}
-    chambers = []
-    for enclosure in sorted(airs):
-        inner = sorted(name for name, door in doors.items() if enclosure in door["between"]
-                       and any(side not in (None, enclosure) for side in door["between"]))
-        outer = sorted(name for name, door in doors.items() if enclosure in door["between"] and None in door["between"])
-        if inner and outer:
-            chambers.append({"name": enclosure, "inner": inner, "outer": outer,
-                             "air_volume": round(airs[enclosure][1], 3)})
-            for side, named in (("inner", inner), ("outer", outer)):
-                for door in named:
-                    doors[door].update({"lock": enclosure, "side": side, "leads": next(
-                        (other for other in doors[door]["between"] if other != enclosure), None)})
-    return doors, chambers
+    airs = airs_of(laid)
+    sides, chambers = locks_of(laid, airs)
+    return {name: door_block(laid, name, ready.opening(laid, name, sides[name].get("toward")), sides[name], airs)
+            for name in laid.with_role("door") if name in prims}, chambers
 
 
 # --- the package ----------------------------------------------------------------------------------------------------

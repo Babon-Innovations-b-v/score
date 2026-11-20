@@ -25,6 +25,7 @@
     python -m score.stages.place_build light <folder> <name> --at x,y,z --watts W [--radius m] [--colour #rrggbb]
     python -m score.stages.place_build remove <folder> <name>
     python -m score.stages.place_build cut <folder> <name>
+    python -m score.stages.place_build door <folder> <name> [--opens] [--slide] [--lock chamber --side inner|outer]
     python -m score.stages.place_build refinish <folder> <name>
     python -m score.stages.place_build list <folder>
     python -m score.stages.place_build render <folder> [--width pixels] [--views name,name] [--final]
@@ -65,6 +66,11 @@ entrance opens into, the shaft's far wall standing free).
 `cut` lists an object the camera sees through (place.json `cut`; the concept's cut-away, at render only): every
 inside place is built closed, the cut is the camera's, never the building's; the walkers, the physics check and a game
 engine get the building whole.
+`door` marks a laid object a door: `--opens` the walkers open it (else it stays shut), `--slide` it slides aside
+along its face (a sliding balcony door, a lock's plug door) instead of swinging on a hinge, `--lock` and `--side` it is
+the inner (to the base) or outer (to the outside) pressure door of an airlock chamber, any laid object closing the
+chamber's air (a blocks-built shell too): the package lists the chamber, and a pressure door opens to its high-pressure
+side (the outer one into the chamber, the inner one out of it).
 `review` renders a region's plan (grid, names), corners, door and middle eye-height views and compartment close-ups in
 one fast Blender call onto one contact sheet, a physics check's faults boxed in red (review.py); `viewer` writes the
 scene as one compressed GLB for a browser viewer.
@@ -210,6 +216,9 @@ def run(args):
         return place_build.camera_cut(args.folder, args.name)
     if args.step == "kind":
         return place_build.kind(args.folder, args.kind)
+    if args.step == "door":
+        return place_build.door(args.folder, args.name, args.opens, "slide" if args.slide else "hinge", args.lock,
+                                args.side)
     if args.step == "refinish":
         return place_build.refinish(args.folder, args.name)
     if args.step == "list":
@@ -380,6 +389,13 @@ def parser():
         step.add_argument("name")
     for name in ("list", "compare"):
         steps.add_parser(name).add_argument("folder")
+    step = steps.add_parser("door")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--opens", action="store_true")
+    step.add_argument("--slide", action="store_true")
+    step.add_argument("--lock")
+    step.add_argument("--side", choices=place_build.SIDES)
     step = steps.add_parser("kind")
     step.add_argument("folder")
     step.add_argument("kind", choices=place_build.KINDS)

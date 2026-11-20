@@ -39,7 +39,8 @@ travel is the clips' own (never a clip slid along a line).
               under it (`foot_gaps`, `standing_gap`, eased over GROUND_EASE frames; walker_route `ground`, before the
               rig), a stance on a planned foothold on the tread that foothold names (`held_gaps`): Kimodo's climb walks
               on up past a flight's last tread
-    doors     a door marked `score:opens` (place_build/ready's swing_of: its hinge and turn) swings open SWING_SECONDS
+    doors     a door marked `score:opens` (place_build/ready's opening: its hinge and turn, or a sliding door's slide)
+              swings open SWING_SECONDS
               before it stands open OPEN_AHEAD before each walker crosses its plane and shut SHUT_AFTER past it
               (`door_swings`), written as time samples on its own prim (`swung_in`)
     checked   every stance on a tread with its ball and toes on it, within ON_TREAD_MOST of its height, its ball
@@ -1148,35 +1149,55 @@ def swing_samples(windows, degrees):
 
 
 def door_swings(doors, walkers):
-    """Each opening door's swing for the walkers crossing it: `doors` {name: {middle, axes, half, hinge, degrees}},
-    `walkers` {name: roots}; {door: {hinge, degrees, crossed: {walker: frames}, open: windows}} for every door a
-    walker crosses."""
+    """Each opening door's swing for the walkers crossing it: `doors` {name: {middle, axes, half, and hinge and degrees,
+    or a sliding door's by}} (ready.opening), `walkers` {name: roots}; {door: {hinge, degrees (or by), crossed: {walker:
+    frames}, open: windows}} for every door a walker crosses."""
     swings = {}
     for name, door in sorted(doors.items()):
         crossed = {walker: crossings(roots, door) for walker, roots in sorted(walkers.items())}
         crossed = {walker: frames for walker, frames in crossed.items() if frames}
         if crossed:
-            swings[name] = {"hinge": list(door["hinge"]), "degrees": float(door["degrees"]), "crossed": crossed,
+            moved = {"by": [float(value) for value in door["by"]]} if "by" in door else {
+                "hinge": list(door["hinge"]), "degrees": float(door["degrees"])}
+            swings[name] = {**moved, "crossed": crossed,
                             "open": open_windows([frame for frames in crossed.values() for frame in frames])}
     return swings
+
+
+def slid_in(xformable, prim, slide, rate, kept):
+    """A sliding door's slide on its own prim: a translate:slide op before its own ops, shut (0) by default and
+    time-sampled along its `by` (in its parent's frame) over its windows."""
+    from pxr import Gf, Usd, UsdGeom
+    parent = np.asarray(UsdGeom.Xformable(prim.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    by = np.asarray(slide["by"], dtype=float) @ np.linalg.inv(parent[:3, :3])
+    moved = xformable.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble, "slide")
+    moved.Set(Gf.Vec3d(0.0, 0.0, 0.0))
+    for seconds, share in swing_samples(slide["open"], 1.0):
+        moved.Set(Gf.Vec3d(*map(float, by * share)), Usd.TimeCode(seconds * rate))
+    xformable.SetXformOpOrder([moved, *kept])
 
 
 def swung_in(scene_file, place, swings):
     """Each door's swing written on its own prim in the scene's root layer (so it is the strongest opinion): a hinge
     pivot (xformOp:translate:hinge and its inverse) round a rotateY:swing op, shut (0) by default and time-sampled
-    over its windows at the stage's time codes. Run again, it replaces its own ops."""
+    over its windows at the stage's time codes, or a sliding door's slide (slid_in). Run again, it replaces its own
+    ops."""
     from pxr import Gf, Usd, UsdGeom
     stage = Usd.Stage.Open(str(scene_file))
     rate = stage.GetTimeCodesPerSecond()
     for name, swing in swings.items():
         prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
         xformable = UsdGeom.Xformable(prim)
-        kept = [op for op in xformable.GetOrderedXformOps() if not op.GetOpName().endswith((":hinge", ":swing"))]
-        parent = np.asarray(UsdGeom.Xformable(prim.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
-        hinge = np.append(swing["hinge"], 1.0) @ np.linalg.inv(parent)
-        for attribute in ("xformOp:translate:hinge", "xformOp:rotateY:swing"):
+        kept = [op for op in xformable.GetOrderedXformOps()
+                if not op.GetOpName().endswith((":hinge", ":swing", ":slide"))]
+        for attribute in ("xformOp:translate:hinge", "xformOp:rotateY:swing", "xformOp:translate:slide"):
             if prim.HasAttribute(attribute):
                 prim.RemoveProperty(attribute)
+        if "by" in swing:
+            slid_in(xformable, prim, swing, rate, kept)
+            continue
+        parent = np.asarray(UsdGeom.Xformable(prim.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        hinge = np.append(swing["hinge"], 1.0) @ np.linalg.inv(parent)
         pivot = xformable.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble, "hinge")
         pivot.Set(Gf.Vec3d(*map(float, hinge[:3])))
         turn = xformable.AddRotateYOp(UsdGeom.XformOp.PrecisionFloat, "swing")

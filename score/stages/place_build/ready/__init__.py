@@ -7,6 +7,7 @@ named support.
     solids(folder) -> {object: triangles}       what a walker stands on and runs into (sim body's, scene clips' ground)
     route(folder, through) -> (points, length)  a walker's way through spots on the walkers' floor WALKWAY wide
     swing_of(laid, door) -> {hinge, degrees}    how a door marked `score:opens` swings open for the walkers
+    slide_of(laid, door) -> {by}                how a door marked `score:move` slide slides open for them
 
 Each object of /<place>/Objects has a role, from its `score:role` when it has one, else from what it is: `ground` (a
 laid ground or terrain), `shell` and `connector` (the dome shell algorithm's domes and tubes), `door` (a door, hatch or
@@ -96,6 +97,7 @@ FIT_CELL = 0.02  # metres between the rays read through a door's plane
 FIT_DEPTH = 0.5  # metres before and behind a door's plane where a wall closes its opening
 HINGE = 0.25  # metres: what juts from a door's edge on a shorter stretch (a hinge, a latch) may lie on its jamb
 OPENS = "score:opens"  # a door's mark: it swings open for the walkers; a door without it stays shut, a solid
+MOVE = "score:move"  # how a door opens (place_build.MOVES): on a hinge at an edge (none given), or slid aside
 SWING = 90.0  # degrees an opening door's leaf turns about its hinge
 ROOM = 1.0  # metres of room round an open leaf past which more room is no better a swing
 CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, what is under it
@@ -938,15 +940,22 @@ def inward(laid, middle, through):
     return None
 
 
-def swing_of(laid, name):
+def moves_by(laid, name):
+    """How a door opens (MOVE): "slide" when marked so, else "hinge"."""
+    return "slide" if text_of(laid.prims[name], MOVE) == "slide" else "hinge"
+
+
+def swing_of(laid, name, toward=None):
     """An opening door's swing: its hinge (an edge of its leaf, on its middle's plane) and its turn (SWING), the leaf
-    swinging into the shell it is set in (an entrance opens inward; either way when in none), on the hinge whose open
-    leaf keeps the most walkers' floor joined in one piece (an open leaf never cuts a way off), then whose free half,
-    above a knee, stands farthest (up to ROOM) from every other solid but the ground: {"hinge": [x, y, z], "degrees": d}."""
+    swinging to the side `toward` (+1 or -1 along its through axis: a pressure door's high-pressure side,
+    scene_package.locks_of), else into the shell it is set in (an entrance opens inward; either way when in none), on
+    the hinge whose open leaf keeps the most walkers' floor joined in one piece (an open leaf never cuts a way off),
+    then whose free half, above a knee, stands farthest (up to ROOM) from every other solid but the ground:
+    {"hinge": [x, y, z], "degrees": d}."""
     middle, axes, half = frame_of(laid, name)
     leaf, others = laid.meshes[name], [laid.number[other] for other in laid.names
                                        if other != name and laid.roles[other] != "ground"]
-    side = inward(laid, middle, axes[2])
+    side = toward if toward is not None else inward(laid, middle, axes[2])
     best = None
     for edge in (1.0, -1.0):
         hinge = middle + axes[0] * half[0] * edge
@@ -968,13 +977,62 @@ def swing_of(laid, name):
     return best[1]
 
 
+def overlap(low, high, boxes):
+    """The volume a box (low, high) shares with each of the boxes (n x 2 x 3), summed."""
+    sides = np.clip(np.minimum(high, boxes[:, 1]) - np.maximum(low, boxes[:, 0]), 0.0, None)
+    return float(sides.prod(axis=1).sum())
+
+
+def slide_of(laid, name):
+    """An opening sliding door's slide: its leaf moved its own width along its face (frame_of's across axis), the way
+    whose open leaf keeps the most walkers' floor joined in one piece, then whose box crosses the least of every other
+    solid's but the ground's (it slides alongside its fixed pane or into its wall's pocket, not across a wall
+    standing out of the face): {"by": [x, y, z]}."""
+    middle, axes, half = frame_of(laid, name)
+    leaf = laid.meshes[name]
+    boxes = np.array([laid.meshes[other].bounds for other in laid.names
+                      if other != name and laid.roles[other] != "ground"]).reshape(-1, 2, 3)
+    best = None
+    for way in (1.0, -1.0):
+        by = axes[0] * 2 * half[0] * way
+        opened = leaf.copy().apply_translation(by)
+        *_, standing, pieces = walkers_floor(laid, {name: opened})
+        joined = int(np.bincount(pieces[standing]).max()) if standing.any() else 0
+        crossed = overlap(*opened.bounds, boxes)
+        if best is None or (joined, -round(crossed, 6)) > best[0]:
+            best = ((joined, -round(crossed, 6)), {"by": np.round(by, 4).tolist()})
+    return best[1]
+
+
+def pressure_sides(laid):
+    """{door: +1 or -1 along its through axis} for every pressure door of an airlock chamber: the side it opens to
+    (scene_package.locks_of: the chamber for its outer door, away from it for its inner)."""
+    from score.stages.place_build import scene_package
+    return {name: door["toward"] for name, door in scene_package.locks_of(laid)[0].items() if "toward" in door}
+
+
+def opening(laid, name, toward=None):
+    """How an opening door opens for the walkers: slid aside, {"by"} (slide_of), when it slides (MOVE), else swung,
+    {"hinge", "degrees"} (swing_of, to the side `toward` when given: a pressure door's, pressure_sides)."""
+    return slide_of(laid, name) if moves_by(laid, name) == "slide" else swing_of(laid, name, toward)
+
+
+def opened_leaf(laid, name, how):
+    """A door's leaf as it stands opened `how` (opening): moved by its slide, or turned about its hinge."""
+    if "by" in how:
+        return laid.meshes[name].copy().apply_translation(how["by"])
+    return turned(laid.meshes[name], how["hinge"], how["degrees"])
+
+
 def doors_standing(laid):
     """{door: its mesh as it stands for the walkers}: a shut door its own leaf (a solid in its doorway), one marked
-    OPENS its leaf swung open (swing_of), so its doorway is a way and the open leaf is walked round."""
-    standing = {}
-    for name in laid.with_role("door"):
-        swing = swing_of(laid, name) if opens(laid, name) else None
-        standing[name] = turned(laid.meshes[name], swing["hinge"], swing["degrees"]) if swing else laid.meshes[name]
+    OPENS its leaf opened (opening: slid aside, or swung, a pressure door to its high-pressure side), so its doorway
+    is a way and the open leaf is walked round."""
+    standing = {name: laid.meshes[name] for name in laid.with_role("door")}
+    opened = [name for name in standing if opens(laid, name)]
+    toward = pressure_sides(laid) if opened else {}
+    for name in opened:
+        standing[name] = opened_leaf(laid, name, opening(laid, name, toward.get(name)))
     return standing
 
 

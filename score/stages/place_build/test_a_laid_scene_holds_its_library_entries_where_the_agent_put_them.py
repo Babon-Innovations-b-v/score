@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -104,6 +104,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.doors_of: `None in door["between"]` read for inner doors too -> the porch door reads as an outer door
 - scene_package.air_of: the deck's top left off (the hull from the skin's foot) -> the lock's air is past its segment
 - scene_package.opening_of: the cap part not read -> the hatch in the lock's end wall reads as in no end wall
+- scene_package.locks_of: `toward` left the chamber's way for inner doors too (no `-into`) -> the lock's inner door
+  swings into the chamber like a closet door, not out to the porch
+- scene_package.locks_of: the marked doors left unread (marked_locks empty) -> the blocks-built cell is no chamber
+- scene_package.door_block: every door written a hinge -> the cell's plug door has no slide
+- place_build.door: the score:move mark left off -> the cell's plug door swings, the walkers' leaf is not slid aside
 - review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
 - review.compartments_of: the dome shell address test dropped -> the wall is a compartment
 - review.projected: the up axis negated -> the plan's +z lands up, the aim's point off the middle
@@ -929,3 +934,47 @@ def doored(tmp_path):
     [chamber] = scene["chambers"]
     assert (chamber["name"], chamber["inner"], chamber["outer"]) == ("chamber", ["inner_door"], ["outer_hatch"])
     assert segment * 3.0 < chamber["air_volume"] < 1.25 * segment * 3.0, (chamber, segment)
+    laid = ready.Place(stage, place)
+    swung = {name: ready.opened_leaf(laid, name, {"hinge": door["pivot"], "degrees": door["open"]}).centroid
+             for name, door in doors.items()}
+    assert swung["inner_door"][2] < 0.0 and swung["outer_hatch"][2] < 2.84, swung  # to the porch; into the chamber
+    blocks_lock(tmp_path)
+
+
+def blocks_lock(tmp_path):
+    """An airlock built from blocks (a cell of walls, deck and roof, no dome shell: 2099 #164) is a chamber by its
+    doors' marks (place_build.door): its inner plug door slides aside along its face, for the walkers and in the
+    package, its outer door swings into the cell, and the cell's air is its hull's over the deck."""
+    from score.stages.place_build import scene_package
+    folder = tmp_path / "cell_lock"
+    place_build.start(folder, "cell_lock", tmp_path / "concept.png")
+    walls = [[x0, 0, -1.7, x1, 2.5, -0.5, "wall"] for x0, x1 in ((-2.2, -2.0), (2.0, 2.2))]
+    walls += [[x0, 0, 0.5, x1, 2.5, 1.7, "wall"] for x0, x1 in ((-2.2, -2.0), (2.0, 2.2))]
+    walls += [[x0, 2.1, -0.5, x1, 2.5, 0.5, "wall"] for x0, x1 in ((-2.2, -2.0), (2.0, 2.2))]
+    walls += [[-2.0, 0, z0, 2.0, 2.5, z1, "wall"] for z0, z1 in ((-1.7, -1.5), (1.5, 1.7))]
+    place_build.blocks(folder, "cell", [[-2.2, -0.1, -1.7, 2.2, 0.0, 1.7, "deck"], *walls,
+                                        [-2.2, 2.5, -1.7, 2.2, 2.7, 1.7, "roof"]])
+    place_build.blocks(folder, "plug", [[-2.15, 0.0, -0.5, -2.05, 2.1, 0.5, "door"]])
+    place_build.blocks(folder, "hatch", [[2.05, 0.0, -0.5, 2.15, 2.1, 0.5, "door"]])
+    place_build.door(folder, "plug", opens=True, move="slide", lock="cell", side="inner")
+    place_build.door(folder, "hatch", lock="cell", side="outer")
+    try:
+        place_build.door(folder, "hatch", side="outer")
+        raise AssertionError("a door's side was taken with no chamber named")
+    except place_build.Refused:
+        pass
+    scene = scene_package.write(folder, tmp_path / "cell_package")
+    doors = {copy["name"]: copy["door"] for copy in scene["instances"] if "door" in copy}
+    plug, hatch = doors["plug"], doors["hatch"]
+    stage, place = place_build.opened(folder)
+    laid = ready.Place(stage, place)
+    [chamber] = scene["chambers"]
+    assert (chamber["name"], chamber["inner"], chamber["outer"]) == ("cell", ["plug"], ["hatch"]), scene["chambers"]
+    assert 4.0 * 3.0 * 2.5 < chamber["air_volume"] <= 4.4 * 3.4 * 2.7 + 1e-6, chamber
+    assert (plug["lock"], plug["side"], hatch["lock"], hatch["side"]) == ("cell", "inner", "cell", "outer")
+    assert plug["move"] == "slide" and plug["limits"] == [0.0, 1.0] and plug["opens"] is True, plug
+    assert np.allclose(np.abs(plug["axis"]), [0.0, 0.0, 1.0]), plug
+    slid = ready.doors_standing(laid)["plug"].bounds - laid.meshes["plug"].bounds
+    assert np.allclose(slid, [np.asarray(plug["axis"]) * plug["open"]] * 2, atol=1e-6), slid
+    into = ready.opened_leaf(laid, "hatch", {"hinge": hatch["pivot"], "degrees": hatch["open"]}).centroid
+    assert hatch["move"] == "hinge" and into[0] < 2.05, (hatch, into)  # into the cell, never out into the vacuum
