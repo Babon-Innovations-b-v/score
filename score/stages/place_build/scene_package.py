@@ -511,9 +511,11 @@ def areas_of(points, faces):
 
 
 def span(density=None):
-    """Metres one block of a part may span on its map at `density` (SPAN_SHARE of a LARGEST map inside its padding)."""
+    """Metres one block of a part may span on its map at `density` (SPAN_SHARE of a LARGEST map inside its padding;
+    one a face when `density` is each face's)."""
     density = DENSITY if density is None else density
-    return (LARGEST - 2 * PADDING) / density * SPAN_SHARE
+    metres = (LARGEST - 2 * PADDING) / np.asarray(density, float) * SPAN_SHARE  # each face's, given each's density
+    return float(metres) if np.ndim(metres) == 0 else metres
 
 
 def held(density=None):
@@ -540,19 +542,21 @@ def densities(middles, reach_out, eyes):
     return np.minimum(2 ** need.astype(int), DENSITY)
 
 
-def subdivided(vertices, normals, faces):
-    """The mesh with every triangle whose longest edge is over half a span (span) cut at that edge's middle until
-    none is, the new corners' normals the edge's ends' mean: the same surface, so no one face is a chart wider than
-    its map (the base's hangar: 44 faces over 4153 m², each its own block, packed as one map 33,000 texels wide by
-    xatlas for 11.5 h)."""
-    longest = span() / 2
+def subdivided(vertices, normals, faces, eyes=None):
+    """The mesh with every triangle whose longest edge is over half a span at its density (span, densities: `eyes` in
+    its frame) cut at that edge's middle until none is, the new corners' normals the edge's ends' mean: the same
+    surface, so no one face is a chart wider than its map (the base's hangar: 44 faces over 4153 m², each its own
+    block, packed as one map 33,000 texels wide by xatlas for 11.5 h), a face seen from far cut no finer than its
+    own density's span (the square's far shore at DENSITY's: 19,184 triangles cut into 278,388); with each face's
+    density: (vertices, normals, faces, densities)."""
     vertices, normals, faces = np.asarray(vertices, float), np.asarray(normals, float), np.asarray(faces)
     while True:
         corners = vertices[faces]
         lengths = np.linalg.norm(corners[:, [1, 2, 0]] - corners, axis=-1)  # edge k from corner k to corner k + 1
-        over = lengths.max(axis=1) > longest
+        banded = densities(corners.mean(axis=1), lengths.max(axis=1) / 2, eyes)
+        over = lengths.max(axis=1) > span(banded) / 2
         if not over.any():
-            return vertices, normals, faces
+            return vertices, normals, faces, banded
         cut = faces[over]
         edge = lengths[over].argmax(axis=1)
         ring = np.arange(len(cut))
@@ -642,10 +646,7 @@ def unwrapped(vertices, normals, faces, eyes=None):
     charts under its density (#146: xatlas packing at a fixed resolution scaled charts down to 147 texels a metre).
     Each face's density is set by how near the walkers' eyes come (`eyes`, in the mesh's frame: densities), its
     faces of one density on maps of their own."""
-    vertices, normals, faces = subdivided(vertices, normals, faces)
-    corners = vertices[faces]
-    reach_out = np.linalg.norm(corners[:, [1, 2, 0]] - corners, axis=-1).max(axis=1) / 2
-    banded = densities(corners.mean(axis=1), reach_out, eyes)
+    vertices, normals, faces, banded = subdivided(vertices, normals, faces, eyes)
     found = []
     for density, group in ((density, group) for density in sorted(set(banded.tolist()), reverse=True)
                            for group in map_groups(vertices, faces, blocks_of(
