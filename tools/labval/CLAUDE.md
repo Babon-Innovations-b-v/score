@@ -80,7 +80,9 @@ SOMA body npz, and MoGe-2's point maps of each video.
   scores MOTOR's GRF against the plates; `weights` learns the landmarks' weights from the training solves' misses.
 - **The cluster path** (`cluster.py`, SCORE_CLOUD=k8s): a measure folder's trials in jobs of `--per-job` each, in the
   newton image, the model sent once for the run, every trial run on its own (a failure in its run.log, the next trial
-  still run) and its folder brought back whole.
+  still run) and its folder brought back whole. A job.json lacking a key `_job.job_of` now writes is refused before
+  anything is rented (2026-11-19: a folder copied from measure-final lacked "clip rate"; 702 of the 705 trials that came
+  back were KeyErrors, EUR 9.17); every trial that did not come back is named with its run.log's last line (`missing.json`).
 - **The moments' reference is OpenSim's, remade** (`opensim_reference.py`, `on_opensim.py` in the venv
   `opensim_env.sh` builds: pyopensim 4.5.2, never SCORE's environment): the lab's scaled LaiArnoldModified2017 model,
   IK, plates and ID setup read from the store, OpenSim's ID tool on the lab's settings (it reproduces the dataset's own

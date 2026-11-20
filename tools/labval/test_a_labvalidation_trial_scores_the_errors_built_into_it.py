@@ -38,6 +38,8 @@ Breaks, each applied once, seen red, reverted (2026-11-06):
 - _files.WHERE's "metadata.yaml" dropped: the store copy's subject has no mass.
 - _score.timing_measures' r `np.sqrt(...)` dropped (2026-11-07): the scaled copy's r is 0.0054, not 1, and the synthetic vasti's 0.17.
 - cluster.line's `|| echo` dropped: one failed trial ends its job's later trials.
+- cluster.stale's `if lack` dropped (2026-11-20): every trial is stale, and a current job.json is refused.
+- cluster.missing's `out.json` skip dropped: a trial that ran is named as missing.
 - cluster.job's `sum(clips(trial) ...)` made `len(trials)`: a 540-frame trial gets one clip's minutes (2026-11-07).
 - cluster.job's outputs made each trial's out.json: a failed trial's missing file fails its whole job.
 - cluster.main's `parallel=options.gpus` dropped: the run takes every card it can, not --gpus (2026-11-07).
@@ -780,7 +782,7 @@ def cluster_faults(folder):
     for name in ("subject2_walking1_Cam1", "subject2_walking2_Cam1", "subject2_squats1_Cam1"):
         trial = folder / "measure" / "trials" / name
         trial.mkdir(parents=True)
-        (trial / "job.json").write_text(json.dumps({"model": "/m", "people": [{"targets": str(trial / "t.npz")}]}))
+        (trial / "job.json").write_text(json.dumps(_job.job_of([{"targets": str(trial / "t.npz")}], "/m")))
         np.savez(trial / "t.npz", world=np.zeros((540 if name.endswith("walking1_Cam1") else 90, 1, 4, 4)))
         trials.append(trial)
     (trials[2] / "out.json").write_text("{}")
@@ -796,7 +798,28 @@ def cluster_faults(folder):
         faults.append(f"a failed trial ends its job: {job['command'][-1]}")
     if job["minutes"] != cluster.START_MINUTES + cluster.CLIP_MINUTES * 4:
         faults.append(f"a job of a 540-frame trial and a 90-frame one has {job['minutes']} minutes, not 3 clips and 1")
-    return faults + gpu_cap_faults(folder / "measure")
+    return faults + stale_faults(trials) + gpu_cap_faults(folder / "measure")
+
+
+def stale_faults(trials):
+    """A job.json without "clip rate" (written before the stage's job carried it) is named stale, a current one not;
+    the trials that did not come back are named by their run.log's last line or as not brought back, a run one not."""
+    faults = []
+    old = trials[1] / "job.json"
+    kept = old.read_text()
+    old.write_text(json.dumps({key: value for key, value in json.loads(kept).items() if key != "clip rate"}))
+    try:
+        found = cluster.stale(trials[:2])
+    finally:
+        old.write_text(kept)
+    if found != {trials[1]: ["clip rate"]}:
+        faults.append(f"stale job.json: {found}")
+    (trials[0] / "run.log").write_text("fitted\nKeyError: 'clip rate'\n")
+    whys = cluster.missing(trials)
+    (trials[0] / "run.log").unlink()
+    if whys != {"KeyError: 'clip rate'": [trials[0].name], "its job did not bring it back": [trials[1].name]}:
+        faults.append(f"the missing trials: {whys}")
+    return faults
 
 
 def gpu_cap_faults(folder):
