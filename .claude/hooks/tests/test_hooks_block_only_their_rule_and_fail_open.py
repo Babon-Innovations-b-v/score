@@ -25,7 +25,9 @@ The break that turns each test red (applied once each, seen red, reverted):
     crashed on every stop and blocked nothing): the local hooks list runs it with `python3`.
   - its torn_commit_guard rows: `sourced_shell_dirs` returns [] at once; or `blocks` returns False at once.
   - its leftover_guard rows: `session_worktree` returns None at once.
-  - its agent_close rows: `write_down` returns at once (a finished agent is never said); or `held_work` drops
+  - its agent_close rows: `write_down` returns at once (a held agent is never said); or its `if not held` return
+    dropped (a finished agent, closed already, is said); or its workflow check dropped (a workflow's agent is said);
+    or `held_work` drops
     `ended | stopped` (a test that ended is said as held); or `cross_off` skips the `.closed` marker (a stopped agent
     is said again); or `answer` drops `and not in_agent` (a sub-agent is told to close agents).
   - its soul_guard rows: `broken_rules` returns [] at once.
@@ -885,8 +887,8 @@ LEFTOVER_ASKS = [  # asked in this order
 ]
 
 
-# agent_close: no sub-agent waits on its own background work, and a finished one is said to the session that started
-# it until it is closed; said, never blocked.
+# agent_close: no sub-agent waits on its own background work, and one that ended holding some is said to the session
+# that started it until it is closed; said, never blocked.
 
 def close_world(world):
     """agent_close.py beside a project that names its detached runner, its ledger in the world."""
@@ -932,15 +934,17 @@ CLOSE_ASKS = [  # asked in this order
      "said", ("detached",)),
     ("close", dict(bash("cp -r big bucket", True), hook_event_name="PreToolUse", session_id="s1"), "quiet", ()),
     ("close", dict(bash("ls"), hook_event_name="PreToolUse", agent_id="a1", session_id="s1"), "quiet", ()),
-    # finished: said to the session its transcript sits in, twice at most, never inside an agent
+    # finished with nothing held: closed already, never said; a workflow's agent holding work is never said either
     ("close", agent_stop("a1", FINISHED), "quiet", ()),
-    ("close", dict(IN_SESSION, agent_id="a9"), "quiet", ()),
-    ("close", IN_SESSION, "said", ("close it now with TaskStop (task_id a1)",)),
-    ("close", {"hook_event_name": "UserPromptSubmit", "session_id": "s1", "prompt": "hi"}, "said", ("a1",)),
     ("close", IN_SESSION, "quiet", ()),
-    # held: its running copy named, not the test that ended or the Monitor it stopped
+    ("close", lambda world: dict(agent_stop("a4", HELD)(world), agent_type="workflow-step"), "quiet", ()),
+    ("close", IN_SESSION, "quiet", ()),
+    # held: its running copy named to the session its transcript sits in, twice at most, never inside an agent
     ("close", agent_stop("a2", HELD), "quiet", ()),
+    ("close", dict(IN_SESSION, agent_id="a9"), "quiet", ()),
     ("close", IN_SESSION, "said", ("holding its own background work (bcopy1)",), {"lacks": ("btest2", "bmon3")}),
+    ("close", {"hook_event_name": "UserPromptSubmit", "session_id": "s1", "prompt": "hi"}, "said", ("a2",)),
+    ("close", IN_SESSION, "quiet", ()),
     # TaskStop crosses it off, and its late SubagentStop does not write it down again; a foreground agent never is
     ("close", {"hook_event_name": "PreToolUse", "session_id": "s1", "tool_name": "TaskStop",
                "tool_input": {"task_id": "a2"}}, "quiet", ()),
