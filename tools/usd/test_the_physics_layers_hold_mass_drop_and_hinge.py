@@ -21,6 +21,9 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
 - a_hull_collides_about_its_middle (what Newton needs said): make_body's `centred(hull)` line dropped (the crate laid
   with its origin at its foot keeps it there: Newton leaves out the floor's triangles once that origin dips under
   them, and chair_1 fell through the engine room's deck, 2026-11-13).
+- the_hinge_stands_at_its_pins (and the slide beside it, #148): write_slide's `CreateAxisAttr(... [slide["along"]])`
+  made `CreateAxisAttr(UsdPhysics.Tokens.x)` (the glass door's leaf slides across its doorway's depth, not its width),
+  or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
 
 Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the
 toy place, for a Blender run)
@@ -48,13 +51,18 @@ BOXES = {"floor_plate_1": [((-3, -0.04, -3), (3, 0, 3))], "table_1": [((-1.5, 0,
                      ((-1.2, 2.67, -2.65), (1.2, 2.75, -2.35))],
          "leaf_1": [((-1.12, 0, -2.56), (1.12, 2.66, -2.44))],
          "pin_1": [((1.13, 0.5, -2.44), (1.25, 0.9, -2.3))], "pin_2": [((1.13, 2.0, -2.44), (1.25, 2.4, -2.3))],
-         "wheel_1": [((-0.2, 1.0, -2.44), (0.2, 1.4, -2.38))], "stool_1": [((1.5, 0.01, 0.8), (1.9, 0.48, 1.2))]}
+         "wheel_1": [((-0.2, 1.0, -2.44), (0.2, 1.4, -2.38))], "stool_1": [((1.5, 0.01, 0.8), (1.9, 0.48, 1.2))],
+         "glass_frame_1": [((-2.7, 0, -2.85), (-2.65, 2.15, -1.6)), ((-2.75, 0, -2.85), (-2.6, 2.15, -2.8)),
+                           ((-2.75, 0, -1.65), (-2.6, 2.15, -1.6))],
+         "glass_leaf_1": [((-2.64, 0, -2.79), (-2.6, 2.09, -1.66))]}
 RECORD = {"place": PLACE, "body": "moon", "gravity": 1.62, "material": "steel", "seconds": 4.0,
           "drops": [{"object": "crate_1", "onto": "table_1", "at": [-1.0, 0.0], "over": 0.5},
                     {"object": "crate_2", "onto": "floor", "at": [2.2, 0.5], "over": 0.8}],
           "hinges": [{"leaf": "leaf_1", "frame": "frame_1", "pins": ["pin_1", "pin_2"], "carries": ["wheel_1"],
                       "opens": [0.0, 100.0], "clear": 0.01,
                       "drive": {"speed": 60.0, "torque": 2000.0, "start": 0.5, "end": 2.5}}],
+          "slides": [{"leaf": "glass_leaf_1", "frame": "glass_frame_1", "along": "z", "opens": [0.0, 1.13],
+                      "clear": 0.01}],
           "pushes": [{"name": "push_stool", "size": [0.15, 0.2, 0.3], "from": [1.2, 0.3, 1.0], "to": [2.2, 0.3, 1.0],
                       "start": 0.5, "end": 1.5}],
           "moved": ["stool_1"]}
@@ -161,6 +169,13 @@ def the_hinge_stands_at_its_pins(folder):
     pin = stage.GetPrimAtPath(f"/{PLACE}/Objects/pin_1/geo")
     assert UsdPhysics.CollisionAPI(pin).GetCollisionEnabledAttr().Get() is False
     assert math.isclose(physics.world_box(stage.GetPrimAtPath(f"/{PLACE}/Objects/leaf_1"))[0][1], 0.01, abs_tol=1e-6)
+    slide = UsdPhysics.PrismaticJoint(stage.GetPrimAtPath(f"/{PLACE}/Physics/Joints/glass_leaf_1_slide"))
+    leaf = stage.GetPrimAtPath(f"/{PLACE}/Objects/glass_leaf_1")
+    assert slide.GetAxisAttr().Get() == "Z" and (slide.GetLowerLimitAttr().Get(), slide.GetUpperLimitAttr().Get()) == \
+        (0.0, np.float32(1.13)) and slide.GetPrim().HasAPI(UsdPhysics.ArticulationRootAPI)
+    assert leaf.HasAPI(UsdPhysics.RigidBodyAPI) and slide.GetBody1Rel().GetTargets() == [leaf.GetPath()]
+    assert np.allclose(physics.world(leaf).Transform(Gf.Vec3d(slide.GetLocalPos1Attr().Get())),
+                       (-2.62, 1.055, -2.225), atol=1e-5)
     drive = UsdPhysics.DriveAPI(joint.GetPrim(), "angular")
     assert [drive.GetMaxForceAttr().Get(code) for code in (0, 12, 36, 60, 61)] == [0.0, 2000.0, 2000.0, 2000.0, 0.0]
     hand = UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Physics/Hands/push_stool"))

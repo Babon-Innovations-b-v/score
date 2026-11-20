@@ -16,15 +16,16 @@ writes, beside the place's other layers and held by its root just under the edit
                           RevoluteJoint about the vertical through its pins' middle (limits `opens`, degrees; the pins
                           are the joint, so they do not collide; the leaf hangs `clear` metres over the floor; a
                           `drive` {speed, torque, start, end} is its motor, a DriveAPI), what a leaf carries held to
-                          it by a FixedJoint, and each push a kinematic box (an unseen hand, a guide) moved in a line
-                          between its seconds
+                          it by a FixedJoint, each slide a PrismaticJoint along a level axis of the scene through its
+                          leaf's middle (limits `opens`, metres; a sliding door's leaf on its frame, #148), and each
+                          push a kinematic box (an unseen hand, a guide) moved in a line between its seconds
 
 and, after the run, `write_motion` writes layers/physics_motion.usda: each body's transform at every frame of the run
 as time samples, strongest of the root's layers, so any USD reader plays the trial back.
 
 The trial record (score/stages/physics/design.py makes it from the scene's design) names the trial: `body`, `gravity`
 (m/s², its body's in the environment concept's physics; a record without it is refused), `material`, `seconds`, `drops` ({object, onto (an object, or "floor":
-y = 0; none: back onto where it stands), at [x, z] (none: its own spot), over}), `hinges` ({leaf, frame, pins, carries, opens, clear, drive}),
+y = 0; none: back onto where it stands), at [x, z] (none: its own spot), over}), `hinges` ({leaf, frame, pins, carries, opens, clear, drive}), `slides` (optional: {leaf, frame, along "x" or "z", opens, clear}),
 `pushes` ({name, size, from, to, start, end}) and `moved` (objects only a push moves). Its free check, `faults`,
 refuses a trial whose bodies have no drawn mesh or whose drop falls onto anything but its target.
 """
@@ -54,6 +55,7 @@ def bodies_of(record):
     found = [drop["object"] for drop in record["drops"]]
     for hinge in record["hinges"]:
         found += [hinge["leaf"], *hinge["carries"]]
+    found += [slide["leaf"] for slide in record.get("slides", [])]
     return found + list(record.get("moved", []))
 
 
@@ -292,6 +294,26 @@ def write_hinge(stage, hinge, rate):
             UsdPhysics.CollisionAPI(mesh.GetPrim()).CreateCollisionEnabledAttr(False)
 
 
+def write_slide(stage, slide):
+    """The leaf's PrismaticJoint to its frame along the scene's `along` axis through the leaf's middle, its limits
+    `opens` (metres), hard as the hinge's are; the leaf lifted `clear` over the floor and filtered against its frame's
+    colliders."""
+    frame, leaf = object_prim(stage, slide["frame"]), object_prim(stage, slide["leaf"])
+    moved(leaf, Gf.Vec3d(0.0, slide["clear"], 0.0))
+    low, high = world_box(leaf)
+    joints = place_path(stage).AppendPath("Physics/Joints")
+    joint = UsdPhysics.PrismaticJoint.Define(stage, joints.AppendChild(f"{slide['leaf']}_slide"))
+    UsdPhysics.ArticulationRootAPI.Apply(joint.GetPrim())
+    joint.CreateAxisAttr({"x": UsdPhysics.Tokens.x, "z": UsdPhysics.Tokens.z}[slide["along"]])
+    joint.CreateLowerLimitAttr(slide["opens"][0])
+    joint.CreateUpperLimitAttr(slide["opens"][1])
+    joint.GetPrim().CreateAttribute("newton:limitStiffness", Sdf.ValueTypeNames.Float).Set(float("inf"))
+    joint_frames(joint, frame, leaf, Gf.Vec3d(*((low + high) / 2)))
+    pairs = UsdPhysics.FilteredPairsAPI.Apply(leaf).CreateFilteredPairsRel()
+    for mesh in own_meshes(frame):
+        pairs.AddTarget(mesh.GetPath())
+
+
 def write_push(stage, push, rate):
     """A kinematic box moved in a line from `from` to `to` between its seconds, held before and after."""
     hand = UsdGeom.Cube.Define(stage, place_path(stage).AppendPath(f"Physics/Hands/{push['name']}"))
@@ -383,6 +405,8 @@ def write(folder, record, materials):
         make_body(object_prim(working, name))
     for hinge in record["hinges"]:
         write_hinge(working, hinge, rate)
+    for slide in record.get("slides", []):
+        write_slide(working, slide)
     for push in record["pushes"]:
         write_push(working, push, rate)
     whole_layer.stamped(trial, record["place"]).Save()
