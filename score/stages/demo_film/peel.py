@@ -145,6 +145,7 @@ RISES = (0.12, 0.3)  # radians: the camera's rise over the hips, the lower first
 # walker's feet and the push under them in view (rf3-stairwell, 2026-11-18: at 85 the woman's sim body on the top
 # landing showed from the knees up, her GRF arrows out of the picture)
 FOV_MOST = 100.0
+LEAF_NEAR = 0.5  # metres: past this from a door leaf's bounding ball its faces are not measured (leaf_distance)
 EVERY = 4  # the frames between those the camera's room is measured on (rays and sweeps)
 OWN_ROOM = 0.5  # metres out of the hips a sight line is swept from: the walker's own body and what it walks by
 SIGHT = 0.05  # metres: a sight line's own radius, kept clear of the place
@@ -518,6 +519,67 @@ def sighted(scenes, aims, eyes, seen_from=0):
     return True
 
 
+def door_leaves(scene, count):
+    """Every swinging door's leaf (a door walker_route's swung_in turns on its `rotateY:swing`, time-sampled) as it
+    stands at each of `count` frames at RATE from the scene's 0, from the scene's own samples, the very swing the film
+    draws: {"meshes": each leaf's own mesh as it stands shut (the place's frame, Y up), "moves": (count x doors x 4 x 4)
+    each leaf's move from there at each frame}. The camera's scenes stand each such door swung open for the whole shot
+    (place_film.place_scenes); its leaf swings shut behind its walker."""
+    from score.stages import place_build
+    from score.stages.place_build import ready
+    stage, _ = place_build.opened(scene)
+    rate = stage.GetTimeCodesPerSecond()
+    doors = [prim for prim in stage.Traverse() if prim.HasAttribute("xformOp:rotateY:swing")
+             and prim.GetAttribute("xformOp:rotateY:swing").GetNumTimeSamples()]
+    meshes = [ready.solid_of(prim) for prim in doors]
+    shut = [np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())) for prim in doors]
+    moves = np.tile(np.eye(4), (count, len(doors), 1, 1))
+    for frame in range(count):
+        for number, prim in enumerate(doors):
+            now = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode(frame * rate / RATE)))
+            moves[frame, number] = (np.linalg.inv(shut[number]) @ now).T  # USD's rows to a column transform
+    return {"meshes": meshes, "moves": moves}
+
+
+def leaf_distance(leaves, frame, points):
+    """How far the nearest of `points` lies from any swinging door's leaf as it stands on `frame` (door_leaves); past
+    LEAF_NEAR from a leaf's bounding ball, at least that far (the leaf's own faces measured only within it)."""
+    points = np.asarray(points, dtype=float)
+    nearest = np.inf
+    for mesh, move in zip(leaves["meshes"], leaves["moves"][frame]):
+        middle, reach = mesh.bounds.mean(axis=0), float(np.linalg.norm(mesh.bounds[1] - mesh.bounds[0])) / 2.0
+        least = float(np.linalg.norm(points - (move[:3, :3] @ middle + move[:3, 3]), axis=1).min()) - reach
+        if least > LEAF_NEAR:
+            nearest = min(nearest, least)
+            continue
+        back = np.linalg.inv(move)
+        _, apart, _ = trimesh.proximity.closest_point(mesh, points @ back[:3, :3].T + back[:3, 3])
+        nearest = min(nearest, float(apart.min()))
+    return nearest
+
+
+def doors_clear(leaves, aims, eyes, seen_from=0):
+    """Whether the camera keeps clear of every swinging door's leaf as it stands on each frame of the shot (`leaves`,
+    door_leaves over the shot's frames, None for a place without one): its eye CLEARANCE off every leaf, and from
+    frame `seen_from` on its sight lines to the walker's hips and feet (in_sight's) SIGHT off every leaf, so a leaf
+    swinging shut behind its walker never stands in the camera's way or fills its picture (rf6 stairwell,
+    2026-11-20: the entrance door's leaf swung shut into the camera following the woman through its doorway)."""
+    if leaves is None or not leaves["meshes"]:
+        return True
+    for frame, (hips, eye) in enumerate(zip(np.asarray(aims, dtype=float), np.asarray(eyes, dtype=float))):
+        if leaf_distance(leaves, frame, eye[None]) < camera_paths.CLEARANCE:
+            return False
+        if frame < seen_from:
+            continue
+        for seen in (hips, hips - [0.0, HIPS - FEET_OVER, 0.0]):
+            apart = max(float(np.linalg.norm(eye - seen)), 1e-9)
+            begin = seen + (eye - seen) / apart * OWN_ROOM
+            shares = np.linspace(0.0, 1.0, max(2, int(np.ceil(apart / SIGHT)) + 1))[:, None]
+            if leaf_distance(leaves, frame, begin + shares * (eye - begin)) < SIGHT:
+                return False
+    return True
+
+
 def approach_route(scenes, opened, goal, through=None):
     """A clear way for the camera from the concept's eye `opened` to `goal` (Y up), its corners rounded where they
     stay clear (place_build.film.rounded): straight, or over the goal and down (place_build.film.straight); else
@@ -569,14 +631,15 @@ def along(route, shares):
     return np.column_stack([np.interp(shares * lengths[-1], lengths, route[:, axis]) for axis in range(3)])
 
 
-def turning(scenes, aims, measured):
+def turning(scenes, aims, measured, leaves=None):
     """A close-up whose eye comes round its walker with it, where no one way keeps CLOSE_LEAST clear over the whole
     shot: at each measured frame (`measured`, indexes into `aims`, the hips a frame) an eye on one of ways_round
     (TURN_HEADINGS of them) at one of TURN_METRES, within the room on its ray from the hips (as closing's), CLEARANCE
     clear of the place with the walker's hips and feet in its sight (in_sight, as `sighted` asks), each the next one's way at most TURN_STEPS headings and rises round and the move
     between them clear; of those runs, the one nearest CLOSE_METRES on the whole, less TURN_COST metres a step turned and
     the metres it closes in or backs off, then nearest the three-quarter front. Each frame's offset of its eye from its
-    hips (frames x 3), between measured frames along the move; None where no run is."""
+    hips (frames x 3), between measured frames along the move; None where no run is. An eye is also kept clear of the
+    swinging doors' leaves as they stand on its frame (`leaves`, door_leaves over the frames of `aims`: doors_clear)."""
     found = ways_round(aims, TURN_HEADINGS)
     ways = np.array([way for way, _ in found])
     turned = np.array([off for _, off in found], dtype=float)
@@ -592,8 +655,11 @@ def turning(scenes, aims, measured):
     def seen(frame, state):
         way, metres = states[state]
         eye = spots[frame][state]
+        at = measured[frame]
         return (room[frame, way] >= metres and camera_paths.swept_clear(scenes["solid"], eye, eye, camera_paths.CLEARANCE) and
-                in_sight(scenes, aims[measured[frame]], eye))
+                in_sight(scenes, aims[at], eye) and
+                doors_clear(None if leaves is None else dict(leaves, moves=leaves["moves"][at:at + 1]), aims[at:at + 1],
+                            eye[None]))
 
     apart = np.abs(heading[:, None] - heading[None, :])
     apart = np.minimum(apart, TURN_HEADINGS - apart) + np.abs(rise[:, None] - rise[None, :])
@@ -633,7 +699,7 @@ def turning(scenes, aims, measured):
     return eased if kept else moved  # its corners rounded over TURN_SMOOTH where that stays clear
 
 
-def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APPROACH_SECONDS):
+def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APPROACH_SECONDS, leaves=None):
     """A walker peel's start and camera, a view a film frame in the place's frame (Y up), from the walker's mesh over
     its whole record at the film's rate (`points`): of the starts each second into the record from `lead` frames on
     that leave the shot's `count` frames, and the ways round it (ways_round), the one with most room for the close-up
@@ -653,7 +719,8 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
     close-up has no clear way in either (camp's tunnel astronaut at Earth's pace, 2026-11-19: through a glass tunnel
     and round into a dome the concept sees from outside), the film dissolves to it from the concept's view, the walker
     seen and its eye coming round with it from the dissolve's start on. (the start, the views, whether the camera came
-    in from the concept's view); refused where no start and way leave CLOSE_LEAST."""
+    in from the concept's view); refused where no start and way leave CLOSE_LEAST. Every camera kept also keeps clear
+    of the swinging doors' leaves as they stand frame by frame (`leaves`, door_leaves over the record: doors_clear)."""
     path = hips_path(points, up=1)
     eye_share, look_share = approach(count, seconds)
     seen_from = int(np.searchsorted(eye_share, 0.5))
@@ -669,6 +736,9 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
         looks = turned_looks(opening_look, towards, look_share)
         looked = (reach + (apart - reach) * eye_share)[:, None] * looks + eyes
         return viewed(eyes, looked, float(view["fov"]) + (fovs - float(view["fov"])) * eye_share)
+
+    def swung(start, first=0):  # the doors' leaves over the shot from `start`, from its frame `first` on
+        return None if leaves is None else dict(leaves, moves=leaves["moves"][start + first:start + count])
 
     tried = []
     for start in range(lead, len(points) - count + 1, RATE):
@@ -687,17 +757,17 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
         if route is None:
             continue
         eyes = kept_off(along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived]), aims, close)
-        if sighted(scenes, aims, eyes, seen_from):
+        if sighted(scenes, aims, eyes, seen_from) and doors_clear(swung(start), aims, eyes, seen_from):
             return start, came_in(eyes, aims, np.full(count, close_fov(close, size))), True
     for close, room, _, start, way, _ in tried:
         aims = path[start:start + count]
         eyes = aims + (room + (close - room) * eye_share)[:, None] * way
-        if sighted(scenes, aims, eyes):
+        if sighted(scenes, aims, eyes) and doors_clear(swung(start), aims, eyes):
             return start, viewed(eyes, aims, np.full(count, close_fov(close, size))), False
     shut = []  # turning close-ups with no clear way in: dissolved to from the concept's view, after every other
     for start in range(lead, len(points) - count + 1, RATE):
         aims = path[start:start + count]
-        offsets = turning(scenes, aims, sorted({*range(arrived, count, EVERY), count - 1}))
+        offsets = turning(scenes, aims, sorted({*range(arrived, count, EVERY), count - 1}), swung(start))
         if offsets is None:
             continue
         closes, followed = np.linalg.norm(offsets, axis=1), aims + offsets
@@ -707,14 +777,16 @@ def closing(points, scenes, count, size, view, lead=0, through=None, seconds=APP
             continue
         eyes = kept_off(along(route, eye_share) + eye_share[:, None] * (followed - followed[arrived]), aims,
                         closes)
-        if sighted(scenes, aims, eyes, arrived):  # seen once arrived: a walker may come in through a doorway
+        # seen once arrived: a walker may come in through a doorway
+        if sighted(scenes, aims, eyes, arrived) and doors_clear(swung(start), aims, eyes, arrived):
             fovs = np.array([close_fov(close, size) for close in closes])
             return start, came_in(eyes, lowered(aims, closes, fovs, size), fovs), True
     shown = max(0, seen_from - round(DISSOLVE_SECONDS * RATE) - 1)  # the dissolve's start (walker_job's cut_in)
     for start in shut:  # its eye round the walker from the dissolve's start on, the frames before never drawn
         aims = path[start:start + count]
-        offsets = turning(scenes, aims, sorted({*range(shown, count, EVERY), count - 1}))
-        if offsets is None or not sighted(scenes, aims[shown:], (aims + offsets)[shown:]):
+        offsets = turning(scenes, aims, sorted({*range(shown, count, EVERY), count - 1}), swung(start))
+        if offsets is None or not sighted(scenes, aims[shown:], (aims + offsets)[shown:]) or \
+                not doors_clear(swung(start, shown), aims[shown:], (aims + offsets)[shown:]):
             continue
         closes = np.linalg.norm(offsets, axis=1)
         fovs = np.array([close_fov(close, size) for close in closes])
@@ -838,7 +910,8 @@ def walker_job(folder, scene, cast, sim, person_of, walker, size, review=False):
     count, ends = round(walker_seconds(holds, seconds) * RATE), walker_ends(holds, seconds)
     filmed = pathlib.Path(scene) / "film" / "path.json"  # the place film's own clear path, a way in for the camera
     through = [view["eye"] for view in json.loads(filmed.read_text())["views"]] if filmed.exists() else None
-    start, path, entered = closing(mesh, place_film.place_scenes(scene), count, size, concept, lead, through, seconds)
+    start, path, entered = closing(mesh, place_film.place_scenes(scene), count, size, concept, lead, through, seconds,
+                                   door_leaves(scene, len(mesh)))
     middle = (OPENING_SECONDS + seconds / 2) * RATE
     cut_in = None if entered else [round(middle - DISSOLVE_SECONDS * RATE), round(middle + DISSOLVE_SECONDS * RATE)]
     mesh, times = mesh[start:start + count], times[start:start + count]

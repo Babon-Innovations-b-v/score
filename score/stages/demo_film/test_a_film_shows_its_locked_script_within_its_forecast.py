@@ -461,6 +461,9 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         -> `return (camera_paths.swept_clear(` -> the slot's walker is filmed through its wall
     Break: score/stages/demo_film/peel.py: in_sight's `np.asarray(hips, dtype=float) - [0.0, HIPS - FEET_OVER, 0.0]`
         dropped from its sight lines -> the bench walker's feet hidden behind its bench
+    Break: score/stages/demo_film/peel.py: closing's `and doors_clear(swung(start), aims, eyes, seen_from)` dropped ->
+        the corridor's close-up keeps its eye where the leaf swings shut (rf6 stairwell's entrance door, 2026-11-20);
+        door_leaves' `(np.linalg.inv(shut[number]) @ now).T` -> `np.eye(4)` -> the leaf read as never swinging
     Break: score/stages/demo_film/peel.py: closing's `for start in shut:` loop dropped -> the roofed S-bend's walker
         is refused (camp's tunnel astronaut at Earth's pace, 2026-11-19); its `turning(scenes, aims, sorted({*range(
         shown, ...` -> `range(arrived, ...` -> the same (its eye held in the lane's wall until the camera arrives)
@@ -1089,6 +1092,42 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     # dissolve's start (walker_job's cut_in): before it the concept's view alone shows
     assert (np.linalg.norm(off, axis=1) >= peel.CLOSE_LEAST - 0.05).all() and \
         peel.sighted(roofed, aims[shown:], eyes[shown:]), "it came round, clear and in sight from the dissolve on"
+    # a door's leaf swinging shut behind its walker (rf6 stairwell, 2026-11-20: the entrance door's leaf filled the
+    # picture of the camera following the woman through its doorway): the camera keeps clear of every leaf as it
+    # stands frame by frame, read from the very swing the scene holds (walker_route.swung_in's time samples)
+    from score.stages import place_build, walker_route
+    doored = tmp_path / "doored"
+    doored.mkdir()
+    place_build.new_stage(place_build.scene_path(doored), "hall")
+    hung = Usd.Stage.Open(str(place_build.scene_path(doored)))
+    hung.SetTimeCodesPerSecond(peel.RATE)
+    UsdGeom.Xform.Define(hung, "/hall/Objects/door").AddTranslateOp().Set(Gf.Vec3d(0.5, 1.0, 0.0))
+    UsdGeom.Cube.Define(hung, "/hall/Objects/door/leaf").AddScaleOp().Set(Gf.Vec3f(0.5, 1.0, 0.02))
+    hung.GetRootLayer().Save()
+    walker_route.swung_in(place_build.scene_path(doored), "hall",
+                          {"door": {"hinge": [0.0, 0.0, 0.0], "degrees": 90.0, "open": [[2.0, 3.0]]}})
+    swung = peel.door_leaves(doored, 5 * peel.RATE)
+    leaf = swung["meshes"][0].bounds
+    assert np.allclose(leaf, [[0.0, 0.0, -0.02], [1.0, 2.0, 0.02]], atol=1e-6), leaf
+    assert np.allclose(swung["moves"][0, 0], np.eye(4)) and np.allclose(swung["moves"][-1, 0], np.eye(4)), "shut"
+    held = swung["moves"][round(2.5 * peel.RATE), 0]
+    assert np.allclose(held[:3, :3] @ [1.0, 0.0, 0.0], [0.0, 0.0, -1.0], atol=1e-6), "open, turned about its hinge"
+    walked = np.stack([np.array([[0.02 * frame, 0.0, 0.0], [0.02 * frame, 1.8, 0.0]]) for frame in range(200)])
+    walls = [trimesh.creation.box(bounds=[[-40.0, 0.0, side], [40.0, 3.0, side + 0.3 * sign]])
+             for side, sign in ((-1.2, -1.0), (1.2, 1.0))]
+    corridor = peel.camera_paths.scenes_of({str(number): wall for number, wall in enumerate(walls)}, floor,
+                                           lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    start, path, _ = peel.closing(walked, corridor, 120, (1280, 720), view, lead=48)
+    eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
+    shut_on = arrived + 20  # a leaf swung shut onto the eye's own spot from here on, swung far off before
+    moves = np.tile(np.eye(4), (200, 1, 1, 1))
+    moves[:, 0, :3, 3] = [0.0, 50.0, 0.0]
+    moves[start + shut_on:start + 120, 0, :3, 3] = eyes[shut_on:] - [0.5, 1.0, 0.0]
+    leaves = {"meshes": [trimesh.creation.box(bounds=[[0.0, 0.0, -0.02], [1.0, 2.0, 0.02]])], "moves": moves}
+    assert not peel.doors_clear(dict(leaves, moves=moves[start:start + 120]), aims, eyes), "the leaf in its way"
+    start, path, _ = peel.closing(walked, corridor, 120, (1280, 720), view, lead=48, leaves=leaves)
+    eyes, aims = (np.array([view[key] for view in path]) for key in ("eye", "aim"))
+    assert peel.doors_clear(dict(leaves, moves=moves[start:start + 120]), aims, eyes, arrived), "clear of the leaf"
     # a close-up held at FOV_MOST gives up headroom before the feet: at TURN_METRES' nearest its picture reaches 0.25 m
     # under them (a sim body sunk into a tread still shows its feet and push), at CLOSE_METRES its aim stays the hips
     nearest = np.array([peel.TURN_METRES[-1], peel.CLOSE_METRES])
