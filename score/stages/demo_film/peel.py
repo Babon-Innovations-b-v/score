@@ -815,7 +815,8 @@ def walker_job(folder, scene, cast, sim, person_of, walker, size, review=False):
     dressed body hidden in the last two; only the passes a frame shows are drawn (needed, at DISSOLVE_SECONDS). Where
     the camera has no clear way in from the concept's view (closing), the place is also drawn on that view (`opening`,
     views o<frame>) until the film has dissolved from it to the close-up, over twice DISSOLVE_SECONDS halfway through
-    the approach (`cut_in`, its first and end frames). Film
+    the approach (`cut_in`, its first and end frames). The listing's `cut` is the place's (place.json `cut`): the
+    objects the camera sees through, as the place film's listing names them. Film
     frame k shows the record's time start + k / RATE, the place's time code at its own rate (its walkers start their
     records at its 0); a record too short for the shot is refused."""
     from score.stages import place_build
@@ -864,7 +865,8 @@ def walker_job(folder, scene, cast, sim, person_of, walker, size, review=False):
               for frame in range(cut_in[1] if cut_in else 0)]  # the concept's view the film dissolves in from
     listed = folder / "views.json"
     listed.write_text(json.dumps({"size": list(size), "review": review, "views": views,
-                                  "peel": str(folder / "job.json")}, indent=1))
+                                  "peel": str(folder / "job.json"),
+                                  "cut": place_build.record_of(scene).get("cut") or []}, indent=1))
     return listed
 
 
