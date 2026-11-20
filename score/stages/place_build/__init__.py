@@ -43,6 +43,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     sky(folder, address, elevation, heading, strength, colour)
                                                        a library sky laid as the place's own (its dome, its
                                                        ambient light as /<place>/Environment) and its sun
+    sky_at(folder, scene | on, latitude, longitude, height, time, turn, exposure)
+                                                       an airless body's physical sky from where and when the place
+                                                       is (score/stages/light/sky.py on overhead.py): its sun, discs,
+                                                       bodies at true size and phase in their library faces, black
     night(folder, ambient, background, exposure, moon, glow)
                                                        a night sky with no picture: the night's physics as the
                                                        Environment's light and exposure, the moon a distant light
@@ -1173,6 +1177,130 @@ def sky(folder, address, elevation, heading, strength=1.0, colour="#ffffff", tur
     return {"sky": address, "usd": relative, "sun": {"elevation": elevation, "heading": heading, "strength": strength}}
 
 
+FACE = "surface/{body}_face"  # a body's face in the library: its face.json as its body-face-<body> row made it
+FACE_FILE = "face.json"
+# An airless body's sky (the Moon's 3e-13 kPa): no air scatters its sun's light, so the sky the camera sees is black
+# and only the backdrops light it. Set between an exosphere's 1e-13 kPa and Pluto's hazy 1e-3 kPa (natural_grounds'
+# reference table), far under Mars's 0.636 kPa, whose dust scatters a day dome this step does not lay.
+AIRLESS_KPA = 1e-6
+SKY_PATHS = ("Sky", "Environment", "Objects/sky", "Lights/sun", "Lights/moon")  # a sky laid before, cleared first
+
+
+def library_face(body):
+    """(the body's face as the library holds it: `surface/<body>_face`'s face.json, its address beside it, or None;
+    why none)."""
+    try:
+        address = resolved_address(FACE.format(body=body), library_root())
+    except Refused as why:
+        return None, str(why)
+    record = entry_of(address)
+    if record.get("state") == "withdrawn":
+        return None, f"{address}: withdrawn from the library"
+    if FACE_FILE not in record["files"]:
+        return None, f"{address}: holds no {FACE_FILE}"
+    found = library_files.resolve(library_files.reference(address, FACE_FILE))
+    if found is None:
+        return None, f"{library_files.reference(address, FACE_FILE)}: the library does not hold this file"
+    return {**json.loads(pathlib.Path(found).read_text()), "address": address}, None
+
+
+def sky_site(scene, on, latitude, longitude, height, time):
+    """(setting, site, time) of a sky: the scene's kept sky (score/review/scene_sky.py: its top scene's site and scene
+    time, the setting it was kept under) when `scene` is named, else the site given on environment 1's setting
+    (data/physics/setting.json); a given time over the kept one."""
+    from score.review import scene_sky, setting as settings
+    if scene is not None:
+        path = scene_sky.KEPT / f"{scene}.json"
+        if not path.is_file():
+            raise Refused(f"{path}: no kept sky for {scene} (python -m score.review.plans keep writes it)")
+        kept = json.loads(path.read_text())
+        return kept["setting"], kept["site"], time or kept["time"]
+    if None in (on, latitude, longitude, time):
+        raise Refused("give --scene <kept sky>, or --on <body> --latitude --longitude --time")
+    return settings.now(), {"on": on, "latitude": float(latitude), "longitude": float(longitude),
+                            "height_m": float(height)}, time
+
+
+def airless(setting, on):
+    """Whether the body a site stands on has no air to scatter its sky (AIRLESS_KPA), by the setting's pressure,
+    else the reference table's (data/physics/bodies.json)."""
+    from score.review import setting as settings
+    from score.stages import natural_grounds
+    body, kind = settings.ground_of(setting, on)
+    if kind != "body":
+        raise Refused(f"{on}: not a body of the setting; sky-at lays a body's sky")
+    kpa = natural_grounds.pressure_kpa(body, settings.reference())
+    if kpa is None:
+        raise Refused(f"{on}: the setting gives no surface pressure, so its air is not known")
+    return kpa < AIRLESS_KPA
+
+
+def turned(seen, turn):
+    """What is overhead with every azimuth turned `turn` degrees (the place's frame turned from x east, z south)."""
+    def moved(item):
+        return {**item, "azimuth": (item["azimuth"] + float(turn)) % 360.0}
+    return {**seen, "lights": [moved(light) for light in seen["lights"]],
+            "bodies": [moved(body) for body in seen["bodies"]]}
+
+
+def sky_at(folder, scene=None, on=None, latitude=None, longitude=None, height=0.0, time=None, turn=0.0,
+           exposure=None):
+    """The place's physical sky from where and when it is (score/stages/light/sky.py's write, the light stage's sky,
+    on score/review/overhead.py's answer): each risen light a distant light at its true direction, kelvin and lux,
+    a shining body's disc at its true size, every other body a ball at its true direction, size and phase painted
+    with its library face (`surface/<body>_face`'s face.json; one the library lacks is laid named missing, never
+    grey-painted), the backdrops' domes as /<place>/Environment's ambient light under a black sky (an airless body
+    only: one with air is refused), `exposure` the camera's (default: a white face square to the brightest light
+    reads 1). The site and time a kept scene's sky (`scene`) or given (`on`, `latitude`, `longitude`, `height`
+    metres, `time` ISO); `turn` degrees turns the sky's azimuths onto the place's frame. A sky laid before (SKY_PATHS,
+    the sky's own lights) is cleared first."""
+    import math
+    from score.stages.light import sky as physics_sky
+    from score.review import overhead
+    setting, site, when = sky_site(scene, on, latitude, longitude, height, time)
+    if not airless(setting, site["on"]):
+        raise Refused(f"{site['on']} has air: its day sky is a scattered dome, not laid by sky-at")
+    seen = overhead.seen(setting, site, when)
+    if seen is None:
+        raise Refused(f"{site}: its position on {site['on']} is not known")
+    seen = turned(seen, turn)
+    stage, place = opened(folder)
+    lights = stage.GetPrimAtPath(f"/{place}/Lights")
+    for path in [f"/{place}/{part}" for part in SKY_PATHS] + [
+            str(prim.GetPath()) for prim in (lights.GetChildren() if lights else [])
+            if prim.GetName().startswith("sky_")]:
+        stage.RemovePrim(path)
+    faces, missing = {}, {}
+    for body in seen["bodies"]:
+        faces[body["body"]], why = library_face(body["body"])
+        if why:
+            missing[body["body"]] = why
+    faces = {body: face for body, face in faces.items() if face}
+    library_method = json.loads((REPO / "data/library/materials.json").read_text())
+    written = physics_sky.write(stage, place, seen, faces, library_method, None)
+    for found in written["bodies"]:
+        ball = stage.GetPrimAtPath(found["path"])
+        if found["body"] in faces:
+            ball.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(faces[found["body"]]["address"])
+        else:
+            ball.GetAttribute("score:surface:missing").Set(missing[found["body"]])
+    risen = overhead.risen(seen)["lights"]
+    if exposure is None:
+        exposure = math.pi * physics_sky.LUMENS_PER_WATT / risen[0]["lux"] if risen else 1.0
+    ambient = sum(backdrop["lux"] for backdrop in seen["backdrops"] if backdrop["shape"] == "dome")
+    environment = UsdLux.DomeLight.Define(stage, f"/{place}/Environment")
+    environment.CreateIntensityAttr(float(ambient / math.pi / physics_sky.LUMENS_PER_WATT))
+    prim = environment.GetPrim()
+    prim.CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.0, 0.0, 0.0))
+    prim.CreateAttribute("score:exposure", Sdf.ValueTypeNames.Float).Set(float(exposure))
+    prim.CreateAttribute("score:sky", Sdf.ValueTypeNames.String).Set(
+        f"{site['on']} at {site.get('latitude')}, {site.get('longitude')} at {when}: {physics_sky.FROM}")
+    saved(stage)
+    return {"site": site, "time": when, "lights": [light["name"] for light in risen],
+            "bodies": [found["body"] for found in written["bodies"]], "faces missing": missing,
+            "exposure": float(exposure)}
+
+
 def night(folder, ambient, background, exposure, moon, glow=None):
     """A night sky with no picture (the night's physics, score/stages/light/night.py, worked out for the place and
     passed in): /<place>/Environment a DomeLight of the moonlit and city-lit air's `ambient` light ([r, g, b], linear),
@@ -1281,7 +1409,7 @@ def refinish(folder, name):
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "cut": camera_cut, "kind": kind, "door": door,
-         "camera": camera, "sky": sky, "view": view, "blocks": blocks, "night": night, "haze": haze,
+         "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "night": night, "haze": haze,
          "refinish": refinish}
 
 

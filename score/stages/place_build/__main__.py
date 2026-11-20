@@ -16,6 +16,8 @@
                                        [--pad x,z,radius ...]
     python -m score.stages.place_build sky <folder> <light/id> --elevation deg --heading deg [--strength s]
                                        [--colour #rrggbb] [--turn degrees] [--background #rrggbb]
+    python -m score.stages.place_build sky-at <folder> (--scene <kept sky> | --on body --latitude deg --longitude deg
+                                       --time iso) [--height m] [--turn degrees] [--exposure x]
     python -m score.stages.place_build view <folder> <name> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build batch <folder> <steps.json>
     python -m score.stages.place_build snap <folder> <name> [--grid metres]
@@ -199,6 +201,9 @@ def run(args):
     if args.step == "sky":
         return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour,
                                args.turn, args.background, args.exposure)
+    if args.step == "sky-at":
+        return place_build.sky_at(args.folder, args.scene, args.on, args.latitude, args.longitude, args.height,
+                                  args.time, args.turn, args.exposure)
     if args.step == "view":
         return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov, args.cut)
     if args.step == "batch":
@@ -368,6 +373,16 @@ def parser():
     step.add_argument("--colour", default="#ffffff")
     step.add_argument("--turn", type=float, default=0.0)
     step.add_argument("--background")
+    step.add_argument("--exposure", type=float)
+    step = steps.add_parser("sky-at")
+    step.add_argument("folder")
+    step.add_argument("--scene")
+    step.add_argument("--on")
+    step.add_argument("--latitude", type=float)
+    step.add_argument("--longitude", type=float)
+    step.add_argument("--height", type=float, default=0.0)
+    step.add_argument("--time")
+    step.add_argument("--turn", type=float, default=0.0)
     step.add_argument("--exposure", type=float)
     step = steps.add_parser("view")
     step.add_argument("folder")

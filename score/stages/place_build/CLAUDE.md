@@ -101,6 +101,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   flat door, for a place of its own joined there (the flat).
 - **Places of one area** (area/, its own overlay): `join` marks the doorway leading to a neighbour place, `area` seats
   the places at the plans' storey heights with their joined doors meeting and checks every join (seats.json).
+- **A physical sky from where and when** (`sky-at`, #154; every library sky dome is withdrawn): an airless body's
+  sky (the Moon's) from a kept scene's sky (`--scene`, `{home}/design/sky/<scene>.json`) or a given site and time,
+  written by the light stage's own `light/sky.py write` on overhead.py's answer, never a second sky model: the risen
+  lights at true direction, kelvin and lux, the Sun's disc, every other body a ball at its true size and phase, black
+  behind them, the backdrops' domes as the Environment's light, the exposure a white face square to the Sun at 1;
+  `--turn` turns the azimuths onto the place's frame. Each body wears its library face (`surface/<body>_face`'s
+  face.json, as its body-face row made it); one the library lacks or withdrew is laid named missing. A body with air
+  is refused (its day dome is not laid here). The light stage's gate (`sky.faults`) holds it in the test.
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
   straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of

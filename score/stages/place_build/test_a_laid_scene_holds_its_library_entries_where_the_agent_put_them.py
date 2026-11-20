@@ -25,7 +25,10 @@ physics check's roles and the place's environment (its night, sun and grade), it
 a time and a stopped bake resumed from the maps it finished, a changed object's maps baked again. A wall the camera cuts (place.json `cut`) is
 no solid to the film's camera and still one to the walkers, cut in the concept's view and a view made a cut view while
 an outside view sees it standing, and a cut stair core's front wall is written to its own file. A still draws the place
-without the walkers' layer.
+without the walkers' layer. A Moon place's physical sky (sky-at) holds what overhead.py says is overhead at its
+site and time (the light stage's own gate finds no fault), a sky laid before cleared, each body in its library face
+or named missing when the library holds none, black under the airless sky at the brightest light's exposure; a body
+with air is refused.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -65,6 +68,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
+- place_build.sky_at: the sky laid before left (SKY_PATHS not cleared) -> the old Lights/sun stands beside the Sun
+- place_build.library_face: the withdrawn state not read -> Mars's ball is painted from its withdrawn face
+- place_build.turned: the turn left off -> the light stage's gate finds the Sun and Earth off overhead.py's ways
+- place_build.sky_at: exposure left at 1 -> the Moon's noon renders 1 where a white face square to the Sun reads 1
+- place_build.airless: every body taken as airless -> a Mars site is laid under a black sky
 - dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
 - dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
 - dome_shell.on_circle: a corner kept where it lies -> the end wall's rim steps out past the tube's circle
@@ -686,6 +694,50 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     doored(tmp_path)
     stilled(folder)
     from_library(tmp_path, root, files)
+    skied(tmp_path, root, files)
+
+
+def skied(tmp_path, root, files):
+    """A Moon place's physical sky from its site and time: what overhead.py says is overhead (the light stage's
+    gate, sky.faults, on the turned answer), Earth in its library face, Mars's withdrawn face named missing, the sky
+    laid before cleared, black at the Sun's exposure; a Mars site refused for its air."""
+    from score.review import overhead, setting as settings
+    from score.stages.light import sky
+    face = {"body": "earth", "surface": "earth_face", "family": "ocean", "recipe": "ocean", "token": "sea",
+            "colour": [0.1, 0.2, 0.5], "roughness": 0.4, "metal": 0.0}
+    for body, state in (("earth", "active"), ("mars", "withdrawn")):
+        folder = root / "entries/surface" / f"{body}_face" / "1"
+        folder.mkdir(parents=True)
+        folder.joinpath("entry.json").write_text(json.dumps({
+            "schema": "score-lib-entry/1", "address": f"surface/{body}_face@1", "kind": "surface",
+            "id": f"{body}_face", "version": 1, "state": state, "files": {"face.json": {"role": "record"}}}))
+        target = files / f"surface/{body}_face@1/face.json"
+        target.parent.mkdir(parents=True)
+        target.write_text(json.dumps({**face, "body": body, "surface": f"{body}_face"}))
+    Image.new("RGB", (8, 8)).save(tmp_path / "moon.png")
+    folder = tmp_path / "moon_place"
+    place_build.start(folder, "lock", tmp_path / "moon.png")
+    place_build.sky(folder, "light/sky", elevation=30, heading=0)
+    site = {"on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0}
+    when = "2099-10-01T14:00:00Z"
+    laid = place_build.sky_at(folder, on="moon", latitude=55.0, longitude=0.0, time=when, turn=40.0)
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    seen = place_build.turned(overhead.seen(settings.now(), site, when), 40.0)
+    environment = stage.GetPrimAtPath("/lock/Environment")
+    sun = overhead.risen(seen)["lights"][0]
+    assert sky.faults(seen, sky.held(stage, "lock")) == [] and laid["lights"] == ["Sun"], laid
+    assert not stage.GetPrimAtPath("/lock/Lights/sun") and not stage.GetPrimAtPath("/lock/Objects/sky")
+    assert np.allclose(bound_colour(stage, "/lock/Sky/Bodies/earth"), (0.1, 0.2, 0.5))
+    assert stage.GetPrimAtPath("/lock/Sky/Bodies/earth").GetAttribute("score:library").Get() == "surface/earth_face@1"
+    assert "withdrawn" in laid["faces missing"]["mars"] and \
+        "withdrawn" in stage.GetPrimAtPath("/lock/Sky/Bodies/mars").GetAttribute("score:surface:missing").Get()
+    assert tuple(environment.GetAttribute("score:background").Get()) == (0.0, 0.0, 0.0)
+    assert np.isclose(environment.GetAttribute("score:exposure").Get(), np.pi * sky.LUMENS_PER_WATT / sun["lux"])
+    try:
+        place_build.sky_at(folder, on="mars", latitude=30.0, longitude=130.0, time=when)
+        raise AssertionError("a Mars site was laid under an airless sky")
+    except place_build.Refused as why:
+        assert "has air" in str(why)
 
 
 def from_library(tmp_path, root, files):
