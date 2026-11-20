@@ -205,6 +205,38 @@ def fetch(folder, address):
     return address, record, copied
 
 
+def from_library(address, folder):
+    """A place entry of the library (`place/<id>@<version>`) laid out as a place_build folder: each of its files at its
+    own name in `folder` (scene.usda, place.json, assets/..., package/...), so every step opens it as a placed folder
+    (#154: fetched places held score_lib's search paths and were rebuilt by hand). A sublayer of its scene the entry
+    does not hold (the films' walkers layer) is dropped and named. Refused for another kind, a withdrawn entry, a file
+    the library does not hold, or a folder that is not empty. {address, files, dropped}."""
+    address = resolved_address(address, library_root())
+    if not address.startswith("place/"):
+        raise Refused(f"{address}: not a place entry")
+    record = entry_of(address)
+    if record.get("state") == "withdrawn":
+        raise Refused(f"{address}: withdrawn from the library")
+    folder = pathlib.Path(folder)
+    if folder.exists() and any(folder.iterdir()):
+        raise Refused(f"{folder}: not empty; lay the place out in a new folder")
+    for name in record["files"]:
+        reference = library_files.reference(address, name)
+        found = library_files.resolve(reference)
+        if found is None:
+            raise Refused(f"{reference}: the library does not hold this file")
+        target = folder / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(found, target)
+    stage, _ = opened(folder)
+    layer = stage.GetRootLayer()
+    dropped = [path for path in layer.subLayerPaths if not (folder / path).is_file()]
+    if dropped:
+        layer.subLayerPaths[:] = [path for path in layer.subLayerPaths if path not in dropped]
+        saved(stage)
+    return {"address": address, "files": len(record["files"]), "dropped": dropped}
+
+
 def finished_first(name):
     """A glTF's rank among an entry's models: a take's finished model (`-final`, its bake and paint) first, then a
     made model's full one, then the rest by name (a take's raw model and its reduced ones last)."""
@@ -767,9 +799,10 @@ def door(folder, name, opens=False, move="hinge", lock=None, side=None):
     marks = {"role": "door", "opens": "walkers" if opens else None, "move": move if move != "hinge" else None,
              "lock": lock, "side": side}
     for key, value in marks.items():
-        if value is None:
-            prim.RemoveProperty(f"score:{key}")
-        else:
+        held = prim.GetAttribute(f"score:{key}")
+        if value is None or (held and held.GetTypeName() != Sdf.ValueTypeNames.String):
+            prim.RemoveProperty(f"score:{key}")  # a mark of another type, from a place laid before #148, replaced
+        if value is not None:
             prim.CreateAttribute(f"score:{key}", Sdf.ValueTypeNames.String).Set(value)
     saved(stage)
     return {"door": name, **{key: value for key, value in marks.items() if key != "role"}}

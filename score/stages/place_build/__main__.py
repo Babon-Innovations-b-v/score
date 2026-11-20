@@ -167,6 +167,8 @@ def run(args):
         if args.split:
             record = place_build.start_objects(args.folder, split(args))
         return record
+    if args.step == "from":
+        return place_build.from_library(args.address, args.folder)
     if args.step == "camera":
         return place_build.camera(args.folder, numbers(args.eye), numbers(args.aim), args.fov)
     if args.step == "put":
@@ -279,6 +281,9 @@ def parser():
     step.add_argument("concept")
     step.add_argument("--objects")
     step.add_argument("--split", action="store_true")
+    step = steps.add_parser("from", help="a place entry of the library laid out as a place_build folder")
+    step.add_argument("address")
+    step.add_argument("folder")
     step = steps.add_parser("camera")
     step.add_argument("folder")
     step.add_argument("--eye", required=True)

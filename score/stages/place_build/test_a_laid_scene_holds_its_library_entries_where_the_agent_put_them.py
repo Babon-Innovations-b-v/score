@@ -108,6 +108,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   swings into the chamber like a closet door, not out to the porch
 - scene_package.locks_of: the marked doors left unread (marked_locks empty) -> the blocks-built cell is no chamber
 - scene_package.door_block: every door written a hinge -> the cell's plug door has no slide
+- place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
+  folder lacks
+- place_build.door: a held mark of another type kept -> the plug's old bool score:opens refuses the string mark
 - place_build.door: the score:move mark left off -> the cell's plug door swings, the walkers' leaf is not slid aside
 - review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
 - review.compartments_of: the dome shell address test dropped -> the wall is a compartment
@@ -678,6 +681,35 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     filmed(tmp_path)
     doored(tmp_path)
     stilled(folder)
+    from_library(tmp_path, root, files)
+
+
+def from_library(tmp_path, root, files):
+    """A place entry laid out as a place_build folder (`place_build from`): each file at its own name, the scene
+    opening as a placed folder, its sublayer the entry does not hold (the films' walkers layer) dropped and named; a
+    folder not empty refused."""
+    entry_folder = root / "entries/place/lane/1"
+    entry_folder.mkdir(parents=True)
+    names = {"scene.usda": "usd", "place.json": "record", "assets/model/kerb.usda": "usd"}
+    entry_folder.joinpath("entry.json").write_text(json.dumps({
+        "schema": "score-lib-entry/1", "address": "place/lane@1", "kind": "place", "id": "lane", "version": 1,
+        "files": {name: {"role": role} for name, role in names.items()}, "provenance": {}}))
+    held = files / "place/lane@1"
+    (held / "assets/model").mkdir(parents=True)
+    (held / "scene.usda").write_text('#usda 1.0\n(\n    defaultPrim = "lane"\n    subLayers = [@layers/walkers/'
+                                     'people.usda@]\n)\ndef Xform "lane" {}\n')
+    (held / "place.json").write_text(json.dumps({"place": "lane"}))
+    (held / "assets/model/kerb.usda").write_text('#usda 1.0\n')
+    laid = place_build.from_library("place/lane", tmp_path / "fetched")
+    stage, place = place_build.opened(tmp_path / "fetched")
+    assert laid == {"address": "place/lane@1", "files": 3, "dropped": ["layers/walkers/people.usda"]}, laid
+    assert place == "lane" and list(stage.GetRootLayer().subLayerPaths) == [] and \
+        (tmp_path / "fetched/assets/model/kerb.usda").is_file()
+    try:
+        place_build.from_library("place/lane", tmp_path / "fetched")
+        raise AssertionError("a place was laid out over a folder that is not empty")
+    except place_build.Refused:
+        pass
 
 
 def rained(folder):
@@ -1156,6 +1188,9 @@ def blocks_lock(tmp_path):
                                         [-2.2, 2.5, -1.7, 2.2, 2.7, 1.7, "roof"]])
     place_build.blocks(folder, "plug", [[-2.15, 0.0, -0.5, -2.05, 2.1, 0.5, "door"]])
     place_build.blocks(folder, "hatch", [[2.05, 0.0, -0.5, 2.15, 2.1, 0.5, "door"]])
+    stage, place = place_build.opened(folder)  # a mark of another type, as places laid before #148 carry
+    stage.GetPrimAtPath(f"/{place}/Objects/plug").CreateAttribute("score:opens", Sdf.ValueTypeNames.Bool).Set(True)
+    stage.GetRootLayer().Save()
     place_build.door(folder, "plug", opens=True, move="slide", lock="cell", side="inner")
     place_build.door(folder, "hatch", lock="cell", side="outer")
     try:
