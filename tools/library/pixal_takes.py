@@ -147,7 +147,7 @@ def library_command(values, *words):
     process."""
     command = shlex.split(values.get("SCORE_LIB_COMMAND") or library_files.DEFAULT_COMMAND)
     return subprocess.run([*command, "--root", values["SCORE_LIB_ROOT"], *words],
-                          env=library_files.blob_store(values), cwd=values["SCORE_LIB_ROOT"], capture_output=True,
+                          env=library_files.blob_store(values, write=True), cwd=values["SCORE_LIB_ROOT"], capture_output=True,
                           text=True, timeout=library_files.TIMEOUT * 6)
 
 

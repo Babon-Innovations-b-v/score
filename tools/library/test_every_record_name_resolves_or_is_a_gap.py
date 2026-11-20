@@ -26,10 +26,11 @@ The break that turns the test red (applied once each, seen red, reverted):
 - REFERENCE's id part loses its `(?:\\.[a-z0-9_]+)?` (the habitat.recordings row reads as no reference).
 - resolve's `data/` branch removed (the repository rows resolve to None).
 - from_library's cache check `sha256(target) == expected` made `True` (a changed cache is served).
-- blob_store returns `values` at once (the command is handed no cloud store).
-- cloud_store reads `provider.cloud` (SCORE_CLOUD's backend) instead of the library's store backend (take-in
-  under SCORE_CLOUD=local finds no object store), or backends/local.py loses its tools/props path (the
-  real provider cannot be imported under SCORE_CLOUD=local: no module named paths).
+- blob_store returns `values` at once (the command is handed no store: not the public copy).
+- blob_store adds the write token for a read too (a fetch carries HF_TOKEN), or hub_token reads `provider.cloud`
+  (SCORE_CLOUD's backend) instead of the library's store backend (a take-in under SCORE_CLOUD=local finds no
+  secret), or backends/local.py loses its tools/props path (the real provider cannot be imported under
+  SCORE_CLOUD=local: no module named paths).
 - a record value `"model": "assets/rover.glb"` added to data/library/lamps.json (a data guard: the data names no model
   or sound file today).
 - a line `GODOT = "res://scenes/x.tscn"` added to library_files.py.
@@ -110,9 +111,8 @@ else:
             (into / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(blobs / record["files"][name]["sha256"], into / name)
     (root.parent / "fetches.txt").open("a").write(address + "\n")
-    (root.parent / "store.txt").write_text(os.environ.get("SCORE_LIB_S3_BUCKET", "") + "/"
-                                           + os.environ.get("SCORE_LIB_S3_PREFIX", "") + " "
-                                           + os.environ.get("AWS_SECRET_ACCESS_KEY", ""))
+    (root.parent / "store.txt").write_text(os.environ.get("SCORE_LIB_HUB_REPO", "") + " "
+                                           + os.environ.get("HF_TOKEN", ""))
 '''
 HUM = "sound/hum.recordings@1/audio/recordings/hum.ogg"
 TAKE = {"cup-s1.glb": b"glTF raw", "cup-s1-12000.glb": b"glTF thin", "cup-s1-final.glb": b"glTF up",
@@ -147,7 +147,7 @@ def library(tmp_path, monkeypatch):
     monkeypatch.setenv("SCORE_CLOUD", "local")  # compute on this PC: the library's blobs still in its own bucket
     store = type("Store", (), {"object_store": staticmethod(lambda: {
         "endpoint": "https://store.example", "region": "region-1", "bucket": "a-bucket", "access_key": "AK",
-        "secret_key": "SK"})})
+        "secret_key": "SK"}), "secret": staticmethod(lambda name: {library_files.HUB_TOKEN_SECRET: "TOKEN"}[name])})
     provider = type(sys)("provider")
     provider.cloud = type("Local", (), {})  # SCORE_CLOUD's backend: no object store of its own
     provider.load = lambda name=None: store if name == library_files.STORE_BACKEND else provider.cloud
@@ -160,8 +160,10 @@ def library(tmp_path, monkeypatch):
     (tmp_path / "own/models/box").mkdir(parents=True)
     (tmp_path / "own/models/box/box.glb").write_bytes(b"box")
     library_files.cloud_store.cache_clear()
+    library_files.hub_token.cache_clear()
     yield root
     library_files.cloud_store.cache_clear()
+    library_files.hub_token.cache_clear()
 
 
 def tracked():
@@ -255,24 +257,27 @@ def test_every_record_name_resolves_or_is_a_gap(library, tmp_path, monkeypatch):
         "address": "sound/habitat.recordings@1", "kind": "sound", "id": "habitat.recordings", "version": "1",
         "file": "audio/recordings/places/habitat.ogg"}
 
-    # Only the hum was fetched, once, with the cloud's store in the command's environment and never in this process.
+    # Only the hum was fetched, once, from the public copy with no key; a take-in's write token in its command's
+    # environment only, never in this process.
     found = cache / "sound/hum.recordings/1/audio/recordings/hum.ogg"
     assert found.read_bytes() == b"a hum"
     assert library_files.resolve(HUM) == found
     assert fetches.read_text().split() == ["sound/hum.recordings@1"]
-    assert store.read_text() == "a-bucket/score_lib SK"
+    assert store.read_text() == f"{library_files.HUB_REPO} "
+    assert library_files.blob_store({}, write=True) == {"SCORE_LIB_HUB_REPO": library_files.HUB_REPO, "HF_TOKEN": "TOKEN"}
+    assert "HF_TOKEN" not in library_files.blob_store({"SCORE_LIB_BLOBS_DIR": "blobs"}, write=True)
     # The real provider imports under SCORE_CLOUD=local (its backend's own imports found) and gives the store's backend.
     loaded = subprocess.run([sys.executable, "-c", "import sys; sys.path[:0] = sys.argv[1:]; import provider; "
                              f"print(provider.cloud.NAME, provider.load({library_files.STORE_BACKEND!r}).object_store)",
                              str(library_files.CLOUD / "backends"), str(library_files.CLOUD)],
                             env={**os.environ, "SCORE_CLOUD": "local"}, capture_output=True, text=True)
     assert loaded.returncode == 0 and loaded.stdout.startswith("local <function"), loaded.stderr[-400:]
-    assert not any("SK" == value for value in library_files.settings().values())
+    assert not any(value in ("SK", "TOKEN") for value in library_files.settings().values())
     found.write_bytes(b"changed")  # the cache's bytes moved: fetched again, then checked, now with a store set
     monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(tmp_path / "lib/blobs"))
     assert library_files.resolve(HUM).read_bytes() == b"a hum"
     assert len(fetches.read_text().split()) == 2
-    assert store.read_text() == "/ "  # a store of its own: the cloud's is not read
+    assert store.read_text() == " "  # a store of its own: the public copy is not added
     (tmp_path / "lib/blobs" / hashlib.sha256(b"a hum").hexdigest()).write_bytes(b"other bytes")
     found.unlink()
     with pytest.raises(library_files.LibraryUnreachable, match="does not hash"):

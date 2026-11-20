@@ -115,8 +115,9 @@ def arguments(values, run):
 
 def command_environment(values, store, repo):
     """This process's environment with the store, the repository and the library settings named for the command, and
-    the cloud's blob store when none is set."""
-    return library_files.blob_store({**os.environ, **values, "SCORE_STORE": str(store), "SCORE_REPO": str(repo)})
+    the library's public copy when no blob store is set, with its write token (library_files.blob_store)."""
+    return library_files.blob_store({**os.environ, **values, "SCORE_STORE": str(store), "SCORE_REPO": str(repo)},
+                                    write=True)
 
 
 def main_checkout():
