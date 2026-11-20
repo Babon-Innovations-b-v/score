@@ -937,8 +937,8 @@ def look_shader(stage, path, copied, colour):
     when one is given), else a UsdPreviewSurface of `colour` and the recipe's roughness (a recipe has no colour of
     its own, so it needs one)."""
     look = UsdShade.Material.Define(stage, path)
+    look.GetPrim().GetReferences().ClearReferences()  # a surface laid before (a ground's) composes no more (#154)
     if "material.usda" in copied:
-        look.GetPrim().GetReferences().ClearReferences()
         look.GetPrim().GetReferences().AddReference("./" + copied["material.usda"].resolve().relative_to(
             pathlib.Path(stage.GetRootLayer().realPath).parent).as_posix())
         shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}/surface"))

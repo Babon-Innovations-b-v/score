@@ -61,6 +61,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.rooms: the level looks stopped by props (unmoved left out) -> the cluttered shop reads no room, so passes
 - ready.through_joins: no look passes a joined doorway -> the cut room whose open front is joined reads open
 - ready.walled: every covered point kept -> the porch outside the closed room's door reads open
+- ready.mounted: the floor under a mount read from the ground, shells and connectors alone -> the plaque on the wall
+  over the dais stands 1.0 m over the ground, not over the dais
 - ready.look_floor: walkers_floor(laid) with every door open -> the hooded door's frame holds look points that see
   out past it, and the closed room is told
 - ready.cast: the rays embree gave up on left uncast -> the look past a face lying along it meets nothing, and the
@@ -444,6 +446,13 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     assert len(reached) < every / 20, (len(reached), every)
     monitor = ready.on(folder, "monitor", "desk")
     panel = ready.on(folder, "panel", "wall:wall", height=1.2)
+    stage, place = place_build.opened(folder)  # a deck of blocks (a structure) 0.4 m high before the wall
+    box(stage, place, "dais", (1.0, 0.4, 0.6), (-3.0, 0.0, 0.15)).CreateAttribute(
+        "score:role", Sdf.ValueTypeNames.String).Set("structure")
+    box(stage, place, "plaque", (0.3, 0.2, 0.05), (-2.65, 0.6, 0.5))
+    stage.GetRootLayer().Save()
+    plaque = ready.on(folder, "plaque", "wall:wall", height=1.0)
+    assert abs(plaque["at"][1] - (0.4 + 1.0 + 0.1)) < 0.03, plaque  # over the deck, not the ground under it
     assert abs(monitor["at"][1] - (0.75 + 0.175)) < 0.01, monitor  # its bottom on the desk's top
     assert abs(panel["at"][2] - (0.1 + 0.025)) < 0.01 and abs(panel["at"][1] - 1.4) < 0.03, panel
     walk, metres = ready.route(folder, [(4.25, 0.0, 0.7), (4.25, 0.0, 2.6)])

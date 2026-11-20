@@ -1478,14 +1478,16 @@ def placed_on(stage, place, name, support, level=None, height=None):
 
 
 def mounted(laid, name, wall, height, pose):
-    """The object at `height` over the floor under it, moved straight to the wall's nearest face until it touches."""
+    """The object at `height` over the floor under it (the ground, a shell's, a connector's or a structure's deck, the
+    wall itself left out), moved straight to the wall's nearest face until it touches."""
     if wall not in laid.meshes or laid.meshes[wall] is None:
         raise place_build.Refused(f"no wall {wall} in the scene")
     at, turn, scale = pose
     mesh = laid.meshes[name]
     middle = mesh.bounds.mean(axis=0)
     floor_gap, _ = gaps_down(laid, name, mesh.bounds[0][None] * [0, 1, 0] + [middle[0], 0, middle[2]],
-                             only=laid.with_role("ground", "shell", "connector"))
+                             only=[other for other in laid.with_role("ground", "shell", "connector", "structure")
+                                   if other != wall])  # a blocks-built deck is a structure (#154: airlock@2's 0.42 m)
     floor_y = mesh.bounds[0][1] - float(floor_gap[0]) if np.isfinite(floor_gap[0]) else 0.0
     lift = (floor_y + float(height or 0.0)) - mesh.bounds[0][1]
     nearest, _, _ = trimesh.proximity.closest_point(laid.meshes[wall], middle[None])

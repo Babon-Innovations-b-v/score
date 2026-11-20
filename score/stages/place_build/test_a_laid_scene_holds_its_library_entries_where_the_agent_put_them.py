@@ -112,6 +112,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   folder lacks
 - scene_package.chamber_air: a chamber's air only its named object's hull -> the cell whose doors name its back
   wall holds no air, so no chamber
+- place_build.look_shader: a recipe look keeps the references laid before it -> the regolith's ground surface still
+  composes under its palette paint
 - place_build.door: a held mark of another type kept -> the plug's old bool score:opens refuses the string mark
 - place_build.door: the score:move mark left off -> the cell's plug door swings, the walkers' leaf is not slid aside
 - review.region_of: the ground mark not read (`not item["ground"]` dropped) -> the terrain and sky join the region
@@ -836,7 +838,10 @@ def packaged(folder, out):
     place_build.put(folder, "plank", "kit/box_piece", at=(90, 0, 0), scale=(2, 1, 1))
     place_build.put(folder, "big", "kit/box_piece", at=(95, 0, 0), scale=(2, 2, 2))
     place_build.surface(folder, "big", "palette/hull_paint")
+    place_build.surface(folder, "regolith", "surface/steel")  # a variant: its material referenced
     place_build.surface(folder, "regolith", "palette/hull_paint")
+    held, _ = place_build.opened(folder)
+    assert not held.GetPrimAtPath(f"/{held.GetDefaultPrim().GetName()}/Looks/regolith").HasAuthoredReferences()
     place_build.surface(folder, "tunnel", "surface/glass")
     sand = folder / "assets/surface/sand/1"
     Image.new("RGB", (8, 8), (90, 90, 90)).save(sand / "colour.jpg")
