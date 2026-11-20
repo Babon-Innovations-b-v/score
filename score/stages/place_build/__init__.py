@@ -1295,10 +1295,38 @@ def sky_at(folder, scene=None, on=None, latitude=None, longitude=None, height=0.
     prim.CreateAttribute("score:exposure", Sdf.ValueTypeNames.Float).Set(float(exposure))
     prim.CreateAttribute("score:sky", Sdf.ValueTypeNames.String).Set(
         f"{site['on']} at {site.get('latitude')}, {site.get('longitude')} at {when}: {physics_sky.FROM}")
+    made_by_library(stage, place, SKY_ALGORITHM)
     saved(stage)
     return {"site": site, "time": when, "lights": [light["name"] for light in risen],
             "bodies": [found["body"] for found in written["bodies"]], "faces missing": missing,
             "exposure": float(exposure)}
+
+
+SKY_ALGORITHM = "(sky_orbits.write)"  # the library algorithm holding overhead.py and the light stage's sky
+NIGHT_ALGORITHM = "(night_sky.night)"  # the library algorithm holding the night's physics (light/night.py)
+GLOWING = "surface/glowing"  # the library's glowing recipe a shining body's disc wears
+
+
+def made_by_library(stage, place, algorithm):
+    """The sky's lights, backdrops, discs and Environment named as built by the library `algorithm` (their score:from
+    ending "(<id>.<function>)", as a code-built structure's: complete/library traces them to that entry), and a
+    shining body's disc look naming the library's glowing recipe it wears (#154: every Moon and night place failed
+    the library check on its sky)."""
+    lights = stage.GetPrimAtPath(f"/{place}/Lights")
+    prims = [stage.GetPrimAtPath(f"/{place}/Environment")]
+    prims += [prim for prim in (lights.GetChildren() if lights else []) if prim.GetName().startswith(("sky_", "moon"))]
+    sky_scope = stage.GetPrimAtPath(f"/{place}/Sky")
+    prims += list(Usd.PrimRange(sky_scope)) if sky_scope else []
+    for prim in prims:
+        if not prim or prim.HasAttribute("score:library"):
+            continue
+        said = str(prim.GetAttribute("score:from").Get() or "") if prim.HasAttribute("score:from") else ""
+        prim.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(
+            said if said.endswith(algorithm) else f"{said} {algorithm}".strip())
+    looks = stage.GetPrimAtPath(f"/{place}/Looks")
+    for look in looks.GetChildren() if looks else []:
+        if look.GetAttribute("score:recipe").Get() == "glowing" if look.HasAttribute("score:recipe") else False:
+            look.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(GLOWING)
 
 
 def night(folder, ambient, background, exposure, moon, glow=None):
@@ -1324,6 +1352,7 @@ def night(folder, ambient, background, exposure, moon, glow=None):
     lamp.CreateIntensityAttr(float(moon["strength"]))
     lamp.CreateAngleAttr(float(moon.get("angle", 0.5)))
     lamp.CreateColorAttr(Gf.Vec3f(*[float(value) for value in moon["colour"]]))
+    made_by_library(stage, place, NIGHT_ALGORITHM)
     saved(stage)
     return {"night": {"ambient": list(ambient), "exposure": exposure}, "moon": moon}
 

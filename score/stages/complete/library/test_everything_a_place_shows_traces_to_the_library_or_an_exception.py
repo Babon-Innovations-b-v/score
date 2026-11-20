@@ -6,6 +6,7 @@ from SCORE_LIB_ROOT; exceptions refuse without a reason or an owner and end at t
 of piece into one problem. The library is a temp folder written here (no entry data is kept in this repository).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- trace.BUILT_KINDS: the structure alone -> the night's moon light, built by night_sky, traces to nothing
 - trace.thing_kind: a look (a Material) with a reference taken for a model -> the place_build scene's chair look,
   referencing its surface's material.usda, reads as a model no entry holds
 - trace.judged: an untraced row answers LIBRARY -> test_the_known_bad_fixture_fails_on_its_texture_its_grey_and_its_model
@@ -198,6 +199,15 @@ def test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant(tmp_path
     sources = [(row["kind"], row["by"]) for row in trace.rows(stage_with(kit_folder, kit), trace.Context(
         place="fixture", shelf=entries.read(root))) if row["aspect"] == "source"]
     assert sources == [("structure", "algorithm/wall_kit@1")], sources
+    # a night's moon light the night algorithm built traces to it as a structure piece does
+    night_folder = tmp_path / "night"
+    night_folder.mkdir()
+    entry(root, "algorithm", "night_sky")
+    night = ('def Xform "fixture"\n{\n    def Scope "Lights"\n    {\n        def DistantLight "moon"\n        {\n'
+             '            custom string score:from = "the night\'s physics (night_sky.night)"\n        }\n    }\n}\n')
+    sources = [(row["kind"], row["by"]) for row in trace.rows(stage_with(night_folder, night), trace.Context(
+        place="fixture", shelf=entries.read(root))) if row["aspect"] == "source"]
+    assert sources == [("light", "algorithm/night_sky@1")], sources
 
 
 def test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements(tmp_path):

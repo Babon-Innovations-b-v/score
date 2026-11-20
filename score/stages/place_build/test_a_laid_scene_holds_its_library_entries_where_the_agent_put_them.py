@@ -68,6 +68,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
+- place_build.made_by_library: unread -> the sky's sun, Environment and disc name no library algorithm, the disc's
+  look no library recipe
 - scene_package.environment_of: the sun read from Lights/sun alone -> the sky-at place's package has no sun
 - place_build.sky_at: the sky laid before left (SKY_PATHS not cleared) -> the old Lights/sun stands beside the Sun
 - place_build.library_face: the withdrawn state not read -> Mars's ball is painted from its withdrawn face
@@ -736,6 +738,10 @@ def skied(tmp_path, root, files):
     assert np.isclose(environment.GetAttribute("score:exposure").Get(), np.pi * sky.LUMENS_PER_WATT / sun["lux"])
     from score.stages.place_build import scene_package
     assert scene_package.environment_of(stage, "lock", tmp_path / "moon_package")["sun"] is not None  # the game's sun
+    built = [prim for prim in (stage.GetPrimAtPath("/lock/Lights/sky_sun"), stage.GetPrimAtPath("/lock/Environment"),
+                               stage.GetPrimAtPath("/lock/Sky/Discs/sun"))]
+    assert all(str(prim.GetAttribute("score:from").Get()).endswith(place_build.SKY_ALGORITHM) for prim in built), built
+    assert stage.GetPrimAtPath("/lock/Looks/sun_disc").GetAttribute("score:surface").Get() == place_build.GLOWING
     try:
         place_build.sky_at(folder, on="mars", latitude=30.0, longitude=130.0, time=when)
         raise AssertionError("a Mars site was laid under an airless sky")

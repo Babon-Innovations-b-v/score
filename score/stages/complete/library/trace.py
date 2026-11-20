@@ -34,6 +34,9 @@ LIBRARY_ATTR = "score:library"
 # A code-built structure piece's score:from ends naming the code that built it, "(<algorithm id>.<function>)": the
 # wall kit's "(wall_kit.clad)" traces to the algorithm entry wall_kit.
 MADE_BY = re.compile(r"\(([a-z_]+)\.[a-z_]+\)\s*$")
+# The kinds a library algorithm builds: a structure piece, and a sky's lights, backdrops and discs (place_build's
+# sky-at and night name theirs "(sky_orbits.write)", "(night_sky.night)").
+BUILT_KINDS = ("structure", "light", "sky", "geometry")
 KIND_ATTR = "score:kind"
 # ground: a terrain piece is a model (the ground kind is retired, #47)
 LIBRARY_KINDS = {"model": ("model",), "place": ("place",), "ground": ("model",), "structure": ("model", "kit"),
@@ -158,7 +161,7 @@ def traced_source(prim, kind, context):
     named = shelf.newest(authored(prim, LIBRARY_ATTR))
     if named:
         return named, "its score:library attribute"
-    built_by = MADE_BY.search(str(authored(prim, "score:from") or "")) if kind == "structure" else None
+    built_by = MADE_BY.search(str(authored(prim, "score:from") or "")) if kind in BUILT_KINDS else None
     if built_by and shelf.of_id("algorithm", built_by.group(1)):
         return shelf.of_id("algorithm", built_by.group(1)), "the library algorithm its score:from says built it"
     if kind == "place":
