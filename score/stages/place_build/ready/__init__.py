@@ -103,6 +103,9 @@ SETTLE_MOVE = 0.05  # metres
 SEES = 40.0  # metres a ray from the walkers' floor goes meeting nothing before it is taken to see the outside (at
 # least; across a bigger building, its box's diagonal: `sight`)
 COVER = 12.0  # metres over a floor point a roof, slab or flight must stand for the point to be inside
+ROOFED = 0.05  # an inside place with less of its walkers' floor under a roof, slab or flight has none (#128,
+# 2026-11-20: roofless engineroom@1 0.01; built closed: hangar 0.15, shiplock 0.17, stairwell 0.29, engineroom 0.33,
+# their plazas and roof tops counted)
 INSIDE_SHARE = 0.6  # a covered point whose rays meet something at least this often is inside (under an awning, less)
 LOOK_HEIGHTS = (0.5, 1.6)  # metres over the walkers' floor the looks start (a child's, a grown walker's eyes)
 LOOK_STRIDE = 0.5  # metres between the floor points looked from
@@ -866,16 +869,30 @@ def look_floor(laid):
     return walkers_floor(laid, doors_standing(laid))[:4]
 
 
+def roofless(looked, covered):
+    """An inside place whose walkers' floor is less than ROOFED under a roof, slab or flight within COVER (or has no
+    floor to look from): no roof or ceiling, so its looks would judge nothing and pass empty (#128, 2026-11-20: the
+    stored engineroom@1, its roof left out, read open 0). [{fault, why}] and how many floor points stand uncovered."""
+    if not looked:
+        return [{"fault": "no roof", "why": "no walkers' floor to look from: the closed-inside check judges nothing"}], 1
+    share = 1.0 - covered / looked
+    return [{"fault": "no roof", "why": f"{share:.0%} of the walkers' floor ({looked - covered} of {looked} look points) "
+                                        f"has no roof, slab or flight within {COVER:.0f} m over it: an inside place "
+                                        f"without its roof or ceiling (build it; an outside place is place.json `kind` "
+                                        f"outside)"}], looked - covered
+
+
 def open_faults(laid, outside=False):
-    """Every look from the walkers' floor (look_floor) inside the place (a point under a roof, slab or flight within
+    """An inside place with less than ROOFED of its walkers' floor covered is told `roofless`, never passed empty.
+    Every look from the walkers' floor (look_floor) inside the place (a point under a roof, slab or flight within
     COVER whose looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a
     point in a structure's room, `rooms`) that meets nothing within its `sight`: the inside sees the sky or the outside
     through a gap no door, window or glass closes (a cut-away built into the walls). [{fault, at, towards, why}] (at
     most SHOWN_OPEN, each from another point) and how many inside points see out."""
     points, ways = look_points(look_floor(laid)), look_ways()
-    if not len(points):
-        return [], 0
     covered = met(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
+    if not outside and (not len(points) or covered.mean() < ROOFED):
+        return roofless(len(points), int(covered.sum()))
     points = points[covered]
     if outside and len(points):
         points = points[rooms(laid, points)]
@@ -1275,7 +1292,7 @@ def check(folder, settle=True):
         for fault in faults:
             counts[fault["fault"]] = counts.get(fault["fault"], 0) + 1
     if seeing:
-        counts["open to the outside"] = seeing
+        counts[gaps[0]["fault"]] = seeing
     unfinished = finished.faults(stage, place)
     path = pathlib.Path(folder) / "ready.json"
     path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "open": gaps,

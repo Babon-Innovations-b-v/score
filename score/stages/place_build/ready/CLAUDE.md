@@ -41,7 +41,9 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   place, its box's diagonal (`sight`: the hangar's 40 m looks fell short of its far walls). An outside place (place.json `kind`
   outside, place_build `kind`; a place without one is inside) is judged only in its structures' rooms (`rooms`: the
   object over the point closes it round on the level, itself, a door or what is mounted on it), so a street's awnings,
-  arcades and overhangs are no inside (#128, 2026-11-20: the street read 711 points open, 15 after, at its shop fronts).
+  arcades and overhangs are no inside (#128, 2026-11-20: the street read 711 points open, 15 after, at its shop fronts). An
+  inside place with less than ROOFED of its walkers' floor under a roof, slab or flight is told `no roof`, never passed
+  with nothing judged (#128, 2026-11-20: the stored engineroom@1, roofless, read open 0).
 - **Memory is bounded** (2026-11-19: the Hong Kong square, its walkers' grid 1.6 km across, took 33 GB and froze the
   owner's PC): a surface's points are read CHUNK at a time (reach.surface_chunks, the very points sample_surface
   draws), and before the walkers' floor and the settle the check works out what they need and refuses past MEMORY

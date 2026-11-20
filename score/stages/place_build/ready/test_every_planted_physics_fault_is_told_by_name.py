@@ -19,7 +19,8 @@ outside from its walkers' floor (nor does one whose door's own frame stands 0.6 
 from the floor with that door shut, nor a closed hall 48 m long, its looks reaching its far wall), and a look past a
 face lying along it (which trimesh's embree drops) still meets the wall behind, while the same room with its front
 wall left out (a cut-away built into the
-building) is told open to the outside; in an outside place (place.json `kind`) that open-fronted room is a covered
+building) is told open to the outside, and the room built without its roof, its floor under nothing so its looks judge
+nothing, is told no roof (passed in an outside place, a walled yard); in an outside place (place.json `kind`) that open-fronted room is a covered
 stretch of the outside (an arcade) and passes, while a shop's room, one structure with a glassless window gap, is told
 open. The check's memory stays bounded: a surface's points are read a chunk at a
 time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
@@ -53,6 +54,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
 - ready.support_faults on the field: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating rock passes
 - ready.out_of_reach: `far` left empty -> the far shore reads no collision geometry and the far rocks penetrate
+- ready.open_faults: ROOFED made 0.0 -> the roofless room's looks judge nothing and it passes
 - ready.open_faults: INSIDE_SHARE made 1.01 -> no point of the cut room reads inside and it passes
 - ready.open_faults: SEES made 1.0 -> the closed room's far looks read open and it is told
 - ready.sight: SEES alone (the place's diagonal left out) -> the closed hall 48 m long reads open along its length
@@ -271,10 +273,11 @@ def rock_field(folder):
     place_build.ground(folder, "far_shore", 10.0, (320.0, -0.02, 0.0))
 
 
-def room(folder, cut, hood=0.0, length=4.0):
-    """A room 4 m wide and `length` deep inside, 2.5 m high, on a ground disc: four walls 0.2 m thick, a roof slab, a
-    doorway 1.0 x 2.1 m in its back wall filled by its shut door; `cut` leaves its front wall out (the concept's
-    section, built); `hood` metres of the door's own frame (two cheeks and a head) standing out of the wall."""
+def room(folder, cut, hood=0.0, length=4.0, roof=True):
+    """A room 4 m wide and `length` deep inside, 2.5 m high, on a ground disc: four walls 0.2 m thick, a roof slab
+    (unless not `roof`), a doorway 1.0 x 2.1 m in its back wall filled by its shut door; `cut` leaves its front wall out
+    (the concept's section, built); `hood` metres of the door's own frame (two cheeks and a head) standing out of the
+    wall."""
     folder.mkdir()
     concept = folder / "concept.png"
     Image.new("RGB", (8, 8)).save(concept)
@@ -300,7 +303,8 @@ def room(folder, cut, hood=0.0, length=4.0):
         block.AddScaleOp().Set(Gf.Vec3f(*size))
     if not cut:
         box(stage, place, "wall_front", (4.4, 2.5, 0.2), (-2.2, 0.0, length - 2.0))
-    box(stage, place, "roof", (4.4, 0.2, length + 0.4), (-2.2, 2.5, -2.2))
+    if roof:
+        box(stage, place, "roof", (4.4, 0.2, length + 0.4), (-2.2, 2.5, -2.2))
     stage.GetRootLayer().Save()
     return folder
 
@@ -379,19 +383,22 @@ def planted(folder):
 
 
 def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
-    for name, made, kind, told in (("closed", lambda folder: room(folder, False), "inside", False),
-                                   ("cut", lambda folder: room(folder, True), "inside", True),
-                                   ("arcade", lambda folder: room(folder, True), "outside", False),
-                                   ("shop", shop, "outside", True),
-                                   ("hooded", lambda folder: room(folder, False, hood=0.6), "inside", False),
-                                   ("hall", lambda folder: room(folder, False, length=48.0), "inside", False),
-                                   ("hall_cut", lambda folder: room(folder, True, length=48.0), "inside", True)):
+    seen, roofless = "open to the outside", "no roof"
+    for name, made, kind, told in (("closed", lambda folder: room(folder, False), "inside", None),
+                                   ("cut", lambda folder: room(folder, True), "inside", seen),
+                                   ("arcade", lambda folder: room(folder, True), "outside", None),
+                                   ("shop", shop, "outside", seen),
+                                   ("hooded", lambda folder: room(folder, False, hood=0.6), "inside", None),
+                                   ("hall", lambda folder: room(folder, False, length=48.0), "inside", None),
+                                   ("hall_cut", lambda folder: room(folder, True, length=48.0), "inside", seen),
+                                   ("roofless", lambda folder: room(folder, False, roof=False), "inside", roofless),
+                                   ("yard", lambda folder: room(folder, False, roof=False), "outside", None)):
         folder = made(tmp_path / name)
         place_build.kind(folder, kind)
         stage, place = place_build.opened(folder)
         shell = ready.Place(stage, place)
         gaps, seeing = ready.open_faults(shell, place_build.record_of(folder)["kind"] == "outside")
-        assert (seeing > 0) == told and all(fault["fault"] == "open to the outside" for fault in gaps), (name, gaps)
+        assert (seeing > 0) == bool(told) and all(fault["fault"] == told for fault in gaps), (name, gaps)
     tilt = 4e-6  # a face lying along the look (embree meets it, its plane and the look meet nowhere), a wall past it
     lying = np.array([[[0.0, 0.5 - tilt, -1.0], [2.0, 0.5 + tilt, -1.0], [1.0, 0.5, 1.0]]])
     walled = np.concatenate([lying, trimesh.creation.box((0.2, 3.0, 4.0)).apply_translation((3.0, 1.5, 0.0)).triangles])
