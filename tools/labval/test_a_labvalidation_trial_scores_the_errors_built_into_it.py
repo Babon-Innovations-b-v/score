@@ -70,6 +70,7 @@ Breaks, each applied once, seen red, reverted (2026-11-08, MOTOR step 3's tuning
 - _grf.stance_measures' centring dropped: the run's centre of pressure 0.3 m off the plate's reads 300 mm.
 - _grf.pooled_group's "r trials" made `len(trials)`: a foot the run never pushes counts as scored.
 - _grf.by_subject's finite filter dropped: a subject without a stance is drawn (squats' impulse CI came out nan).
+- _grf.left_share's `carried` mask dropped (2026-11-20): the unloaded frame's run push counts, the share 0.35 not 0.3.
 
 Breaks, each applied once, seen red, reverted (2026-11-07, the joint moments, #98):
 - _moments.early_peaks' first half made the whole stance: the early peak is the later 3.0, not 2.0.
@@ -419,6 +420,11 @@ def grf_faults():
                                  lambda trial: trial["n"])
     if set(stanceless) != {"subject2"}:
         faults.append(f"a subject without a stance is drawn: {stanceless}")
+    carried = np.array([0.0, 600.0, 600.0])
+    share = _grf.left_share({"left": np.array([100.0, 180.0, 180.0]), "right": np.array([0.0, 420.0, 420.0])},
+                            {"left": carried / 2, "right": carried / 2}, 686.7)
+    if not np.allclose([share["run"], share["plate"], share["error"]], [0.3, 0.5, -0.2]):
+        faults.append(f"the left share over the carried frames: {share}")
     return faults
 
 

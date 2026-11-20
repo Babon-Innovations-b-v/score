@@ -14,7 +14,11 @@ Methods, "Experimental data" and "Error analysis"), per foot and both feet summe
   medial-lateral, mm, each side centred on its own stance mean over the frames both carry the foot: the run's world
   is not registered to the lab's, so where on the floor the foot stands is not comparable, only how the pressure moves
   under it. The plate's centre of pressure is read unfiltered (its value under a foot it barely carries is noise the
-  filter would smear into the stance)."""
+  filter would smear into the stance).
+- The split between the feet (MOTOR #1, beyond OpenCap): the left foot's share of the vertical impulse over the frames
+  the plates carry the body (both feet's vertical over LOADED of the weight), the run's and the plates', and the run's
+  error; a camera's lean moves the pelvis between the feet and with it this share (tools/labval/CLAUDE.md, the cameras
+  fused)."""
 import numpy as np
 from scipy import signal
 
@@ -93,14 +97,27 @@ def stance_measures(step, mine, theirs, my_cop, their_cop, frames, weight):
     return {"frames": [int(first), int(last)], "impulse": impulse, "cop mae mm": cop, "cop frames": int(both.sum())}
 
 
+def left_share(mine, theirs, weight):
+    """{"run", "plate", "error"} of the left foot's share of the vertical impulse over the frames the plates carry the
+    body (`mine`, `theirs`: {side: vertical force series}); nan where the plates never do or the run pushes nothing."""
+    carried = np.nan_to_num(theirs["left"] + theirs["right"], nan=-1.0) > _score.LOADED * weight
+    carried &= np.isfinite(mine["left"] + mine["right"])
+    run_total = float(np.sum(mine["left"][carried] + mine["right"][carried]))
+    if not carried.any() or run_total <= 0:
+        return {"run": float("nan"), "plate": float("nan"), "error": float("nan")}
+    run = float(np.sum(mine["left"][carried])) / run_total
+    plate = float(np.sum(theirs["left"][carried]) / np.sum(theirs["left"][carried] + theirs["right"][carried]))
+    return {"run": run, "plate": plate, "error": run - plate}
+
+
 def scores(times, pushes, turn, plate_times, plates, forward, activity, weight):
-    """{"cutoff hz", "feet": {right, left, both: {axis: `axis_measures`}}, "stances": {side: [`stance_measures`]}} of
-    the run's pushes ({side: (force, cop)} in its own frame, sampled at `times`, the reference's clock) turned by `turn`
+    """{"cutoff hz", "feet": {right, left, both: {axis: `axis_measures`}}, "stances": {side: [`stance_measures`]},
+    "left share": `left_share`} of the run's pushes ({side: (force, cop)} in its own frame, sampled at `times`, the reference's clock) turned by `turn`
     onto the lab, against the plates ({side: {"force", "cop"}} at `plate_times`, the lab's frame)."""
     rate = 1.0 / float(np.median(np.diff(times)))
     cutoff = cutoff_of(activity, rate)
     onto = directions(forward)
-    feet, stance_rows, sums = {}, {}, []
+    feet, stance_rows, sums, verticals = {}, {}, [], {}
     for side, (force, cop) in pushes.items():
         mine = filtered(times, np.asarray(force, dtype=float) @ np.asarray(turn).T, cutoff) @ onto.T
         theirs = _score.resampled(plate_times, filtered(plate_times, plates[side]["force"], cutoff), times) @ onto.T
@@ -110,9 +127,13 @@ def scores(times, pushes, turn, plate_times, plates, forward, activity, weight):
         stance_rows[side] = [stance_measures(1.0 / rate, mine, theirs, my_cop, their_cop, frames, weight)
                              for frames in stances(theirs[:, 0], weight)]
         sums.append((mine, theirs))
+        verticals[side] = (mine[:, 0], theirs[:, 0])
+    share = (left_share({side: pair[0] for side, pair in verticals.items()},
+                        {side: pair[1] for side, pair in verticals.items()}, weight)
+             if set(verticals) == {"left", "right"} else None)
     mine, theirs = sum(pair[0] for pair in sums), sum(pair[1] for pair in sums)
     feet["both"] = {axis: axis_measures(mine[:, index], theirs[:, index], weight) for index, axis in enumerate(AXES)}
-    return {"cutoff hz": cutoff, "feet": feet, "stances": stance_rows}
+    return {"cutoff hz": cutoff, "feet": feet, "stances": stance_rows, "left share": share}
 
 
 def stance_values(trial, metric):
@@ -172,6 +193,10 @@ def pooled_group(trials):
         found[f"cop {axis} centred mae mm"] = spread([value for trial in trials for value in stance_values(
             trial, lambda row, axis=axis: row["cop mae mm"][axis])])
     found["stances"] = sum(len(stance_values(trial, lambda row: 0)) for trial in trials)
+    shared = [trial for trial in trials if trial["grf"].get("left share")]
+    error = lambda trial: [abs(trial["grf"]["left share"]["error"])]
+    found["left share abs error"] = {**spread([error(trial)[0] for trial in shared]),
+                                     "ci": _score.bootstrapped(by_subject(shared, error)) if shared else None}
     return found
 
 

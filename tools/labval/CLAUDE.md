@@ -65,7 +65,9 @@ SOMA body npz, and MoGe-2's point maps of each video.
   low-passed alike at the activity's cutoff (walking 6 Hz, squats and sit-to-stand 4, drop jump 30, held under 0.8 of
   the 30 Hz run's Nyquist: 12), the MAE in % body weight on each of the three axes and as % of the measured range,
   over the frames both give, per foot and both feet summed; each whole stance's impulse and the centre of pressure's
-  travel inside it (centred: the run's world is not registered to the lab's) are beyond OpenCap. `grf-tables` writes
+  travel inside it (centred: the run's world is not registered to the lab's) are beyond OpenCap, as is the split
+  between the feet (`left_share`: the left foot's share of the vertical impulse over the frames the plates carry the
+  body, the run's against the plates', 2026-11-20). `grf-tables` writes
   them per activity, per camera and per both.
 - **The run is the stage's**: one job.json a trial, the stage's own limits and caps (`_job.job_of`), the subject's
   measured mass, a flat floor at y = 0; the measure folder's `scripts/go.sh` runs through tools/cloud/sim_measure on
