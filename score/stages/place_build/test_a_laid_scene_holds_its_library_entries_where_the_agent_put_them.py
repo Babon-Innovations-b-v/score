@@ -138,6 +138,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - rainfall.shown: the frame's mesh left at the ground -> splashes stand where no drop has landed
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
 - place_build.remove: Effects not looked in -> the removed ruts stay laid
+- place_build.usd_file: an effect's `usd` root unread -> the wisp lays its clip.usdc, not its emitter
+- place_build.put: an effect laid under Objects -> the wisp is a solid object with no role
+- place_build.hold: the pose's rotations not written -> the walker's hips keep their clip's turn
+- place_build.held_prop: the hold frame left out (the joint's transform alone) -> the stub sits on the hips, not
+  0.1 m along their turned x
 - place_build.remove: place.json's cut left as it was -> a removed awning stays listed in the cut
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 - scene_package.copy_frame: every copy kept whole (no evenness test) -> a stretched copy fails the package check
@@ -243,6 +248,14 @@ def library(root, files):
     for name in ("cup.glb", "cup-final.glb"):
         (files / f"take/cup@1/{name}").write_bytes(glb)
     entry("character", "walker", {"character.usda": ("usd", character())})
+    emitter = ('#usda 1.0\n(\n defaultPrim = "smoke"\n)\ndef Xform "smoke"\n{\n string score:effect:kind = '
+               '"smoke_wisp"\n}\n')
+    entry("effect", "wisp", {"clip.usdc": ("usd", "a baked clip"), "effect.usda": ("usd", emitter)})
+    written = root / "entries/effect/wisp/1/entry.json"
+    written.write_text(json.dumps(dict(json.loads(written.read_text()), usd={"root": "effect.usda"})))
+    turned = {"hips": {"rotation": [0.7071068, 0.0, 0.7071068, 0.0]}}  # a quarter turn about up
+    entry("character", "hold", {"pose.json": ("record", json.dumps({"joints": turned, "hold": {
+        "joint": "hips", "translate": [0.1, 0.0, 0.0], "rotation": [1.0, 0.0, 0.0, 0.0]}}))})
     variant = ('#usda 1.0\n(\n defaultPrim = "steel"\n)\ndef Material "steel"\n{\n token outputs:surface.connect = '
                '</steel/surface.outputs:surface>\n def Shader "surface"\n {\n  uniform token info:id = '
                '"UsdPreviewSurface"\n  color3f inputs:diffuseColor = (0.3, 0.3, 0.4)\n  token outputs:surface\n }\n}\n')
@@ -337,7 +350,10 @@ def character():
     body.SetDefaultPrim(root.GetPrim())
     root.GetPrim().SetCustomDataByKey("score:clip_seconds", {"standing": 1.0})
     UsdGeom.Xform.Define(body, "/Character/Turned")
-    UsdSkel.Skeleton.Define(body, "/Character/Turned/Skeleton").CreateJointsAttr(["hips"])
+    skeleton = UsdSkel.Skeleton.Define(body, "/Character/Turned/Skeleton")
+    skeleton.CreateJointsAttr(["hips"])
+    skeleton.CreateRestTransformsAttr([Gf.Matrix4d(1)])
+    skeleton.CreateBindTransformsAttr([Gf.Matrix4d(1)])
     for group in ("far", "made"):
         UsdGeom.Xform.Define(body, f"/Character/Turned/Body/{group}").MakeInvisible()
         UsdGeom.Cube.Define(body, f"/Character/Turned/Body/{group}/shape")
@@ -522,6 +538,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
             step()
         except place_build.Refused as why:
             refusals.append(str(why))
+    smoked = place_build.batch(folder, [
+        {"step": "put", "name": "wisp", "address": "effect/wisp", "at": [2, 1.2, 2]},
+        {"step": "put", "name": "stub", "address": "kit/box_piece", "at": [30, 0, 30]},
+        {"step": "hold", "name": "walker", "address": "character/hold", "prop": "stub"}])
     place_build.terrain(folder, "plain", "model/slope", at=(0, 0, 0), turn=(0, 90, 0), pads=[(30.0, 0.0, 5.0)])
     place_build.sky(folder, "light/sky", elevation=30, heading=0, turn=30, exposure=0.7)
     place_build.view(folder, "inside", eye=(0, 1.6, 0), aim=(1, 1.6, 0), fov=70)
@@ -571,6 +591,15 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     shown_groups = {group: UsdGeom.Imageable(stage.GetPrimAtPath(f"/yard/Objects/walker/Turned/Body/{group}"))
                     .ComputeVisibility() for group in ("far", "made")}
     held = UsdSkel.Animation(stage.GetPrimAtPath("/yard/Objects/walker/Held"))
+    wisp = stage.GetPrimAtPath("/yard/Effects/wisp")
+    assert (smoked[0]["usd"], wisp.GetAttribute("score:role").Get()) == ("./assets/effect/wisp/1/effect.usda", "effect")
+    assert wisp.GetAttribute("score:effect:kind").Get() == "smoke_wisp" and "refused" not in smoked[2], smoked
+    assert held.GetPrim().GetAttribute("score:pose").Get() == "character/hold@1"
+    turn = held.GetRotationsAttr().Get()[0]
+    assert np.allclose([turn.GetReal(), *turn.GetImaginary()], [0.7071068, 0.0, 0.7071068, 0.0], atol=1e-6)
+    stub = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Objects/stub")).ComputeLocalToWorldTransform(0)
+    assert np.allclose(stub.ExtractTranslation(), (2.0, 1.0, 1.9), atol=1e-5)  # the hips' +x turned onto -z
+    assert np.allclose(stub.TransformDir(Gf.Vec3d(1, 0, 0)), (0.0, 0.0, -1.0), atol=1e-5)
     assert (walker.GetTypeName(), shown_groups) == ("SkelRoot", {"far": "invisible", "made": "inherited"})
     assert list(held.GetTranslationsAttr().Get()) == [Gf.Vec3f(0, 1, 0)] and batched[3]["clip"] == "standing"
     spec = json.loads(stage.GetPrimAtPath("/yard/Looks/panel").GetAttribute("score:recipe:spec").Get())
@@ -612,7 +641,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
                               {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
-    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune", "screen", "holed", "hall", "panel", "stairwell"} and not stage.GetPrimAtPath("/yard/Objects/gone")
+    assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune", "screen", "holed", "hall", "panel", "stairwell", "stub"} and not stage.GetPrimAtPath("/yard/Objects/gone")
     laid_terrain = stage.GetPrimAtPath("/yard/Objects/plain")
     ground_points = np.array(UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/plain/geo")).GetPointsAttr().Get())
     in_pad = np.hypot(ground_points[:, 0], ground_points[:, 2] - 30.0) < 5.0  # the terrain's own frame

@@ -76,6 +76,9 @@ side (the outer one into the chamber, the inner one out of it).
 `review` renders a region's plan (grid, names), corners, door and middle eye-height views and compartment close-ups in
 one fast Blender call onto one contact sheet, a physics check's faults boxed in red (review.py); `viewer` writes the
 scene as one compressed GLB for a browser viewer.
+`hold` sets a laid character's joints to a library pose (a character entry's pose.json: the smoker's right arm) and,
+with `--prop`, lays that object (the cigarette) at the pose's hold frame of the posed hand. A `put` effect entry (the
+cigarette's wisp) is laid under Effects, no solid.
 `batch` runs a JSON list of steps ([{"step": "put", "name", "address", "at", ...}], each its function's arguments by
 name) in one process, the scene composed once; it prints each step's answer.
 `on` lays an object at rest in contact on its support: `floor`, an object's top (or its `--level` n-th surface that
@@ -177,6 +180,8 @@ def run(args):
         return place_build.put(args.folder, args.name, args.address, numbers(args.at), numbers(args.turn),
                                scale_of(args.scale), args.ground, args.wear.split(",") if args.wear else None,
                                args.clip, args.second, args.rest, args.on_ground)
+    if args.step == "hold":
+        return place_build.hold(args.folder, args.name, args.address, args.prop)
     if args.step == "dome":
         return place_build.dome(args.folder, args.name, args.radius, numbers(args.at), numbers(args.turn),
                                 args.meridians, args.rings, args.rib, openings=[numbers(hole) for hole in args.opening])
@@ -306,6 +311,10 @@ def parser():
     step.add_argument("--second", type=float, default=0.0)
     step.add_argument("--rest", action="store_true")
     step.add_argument("--on-ground", action="store_true")
+    step = steps.add_parser("hold")
+    for name in ("folder", "name", "address"):
+        step.add_argument(name)
+    step.add_argument("--prop")
     step = steps.add_parser("dome")
     step.add_argument("folder")
     step.add_argument("name")

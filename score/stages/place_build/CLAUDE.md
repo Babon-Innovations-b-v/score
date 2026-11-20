@@ -40,6 +40,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `surface` puts a library surface over a part or the whole when a bake is wrong.
 - **Characters** are laid as their own SkelRoot (never an Xform over it), dressed in one body group (WORN) and held
   still in a clip with tools/characters/cast.py's own steps.
+- **A held prop** (`hold`, #152): a character entry's `pose.json` (tools/props/smoke_beat/hold/) sets a laid,
+  held-still character's joints and marks its Held pose `score:pose`; `--prop` lays that object at the pose's hold
+  frame of the posed joint (the cigarette in the hand). An `effect` entry (the cigarette's wisp) is `put` under
+  Effects, role effect, its record's `usd` root laid, never the clip it plays.
 - **The dome shell** (dome_shell.py, `dome`) is code-made: its shell, ribs and deck are parts for their surfaces;
   `ground` lays the same flat disc alone as the place's ground.
   In a batch, a dome's `base` [high, wide] deepens its plinth ring, `oculus` crowns it with a ring where the meridians end, `strips`

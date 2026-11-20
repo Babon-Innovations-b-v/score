@@ -7,3 +7,4 @@ lit end for library surfaces at the place; no colour of its own. Plain CPU, no c
 - Measures come from a cited source in the docstring; a measure no source gives is named there as the builder's own.
 - Taken into score_lib with `score-lib take-in` (a model entry, its `.usdc` and its `.json` record).
 - Test: `test_a_cigarette_stands_at_its_measures_in_its_parts.py`.
+- Its smoke (`wisp/`) and the hand holding it (`hold/`) are modules of their own, each with its overlay.

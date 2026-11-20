@@ -67,7 +67,7 @@ import sys
 
 import numpy as np
 
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, UsdSkel, Vt
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/library"))
@@ -249,8 +249,11 @@ def finished_first(name):
 
 
 def usd_file(record, copied):
-    """The entry's USD file to lay (a glTF-only entry's converted once beside it, gltf.py), or Refused naming what it
-    holds instead."""
+    """The entry's USD file to lay (an effect's the emitter file its record's `usd` names, not the clip it plays; a
+    glTF-only entry's converted once beside it, gltf.py), or Refused naming what it holds instead."""
+    root = (record.get("usd") or {}).get("root")
+    if record["kind"] == "effect" and root in copied:
+        return copied[root]
     for role in USD_ROLES:
         for name, info in record["files"].items():
             if info.get("role") == role:
@@ -298,11 +301,15 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
     height (a model whose origin is not at its foot stands on the floor or table it is put on); `on_ground` takes
     `at`'s height as above the laid ground under it (a rock on a real terrain's relief, sunk in by a negative one);
     `role` and `support` are written as its `score:role` and `score:support` (a window laid flush on its building's
-    wall: role "mount", support "wall:<building>"), which the physics check (ready/) reads."""
+    wall: role "mount", support "wall:<building>"), which the physics check (ready/) reads. An effect entry (a smoke's
+    emitter) is laid as Effects/<name>, role "effect": no solid, as the rain is."""
     address, record, copied = fetch(folder, address)
     asset = usd_file(record, copied)
     stage, place = opened(folder)
     path = f"/{place}/Objects/{name}"
+    if record["kind"] == "effect":
+        UsdGeom.Scope.Define(stage, f"/{place}/Effects")
+        path, role = f"/{place}/Effects/{name}", "effect"
     if on_ground:
         at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
     relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground)
@@ -316,7 +323,7 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         laid["at"] = rested(stage, path, at, turn, scale)
     marked(stage.GetPrimAtPath(path), role, support)
     saved(stage)
-    finish = own_paint_finished(folder, stage, place, name)
+    finish = own_paint_finished(folder, stage, place, name) if record["kind"] != "effect" else None
     if finish:
         laid["finish"] = finish
     return laid
@@ -895,6 +902,77 @@ def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
     return {"wear": worn, "clip": clip, "second": second}
 
 
+POSE = "pose.json"  # a pose entry's record (tools/props/smoke_beat/hold/hold.py writes one)
+
+
+def hold(folder, name, address, prop=None):
+    """The laid character `name`'s joints set to a library pose (a character entry holding POSE: local rotations
+    over the clip the character is held still in, solved on its `clip` at its `second`), its Skeleton's held pose
+    marked `score:pose` with the pose's address; with `prop`, that laid object (the cigarette) set at the pose's
+    `hold` frame of its joint as posed. The scene saved; {name, pose, joints, prop}."""
+    address, record, copied = fetch(folder, address)
+    if POSE not in copied:
+        raise Refused(f"{address}: no {POSE} (a pose entry holds its joints' rotations there)")
+    pose = json.loads(pathlib.Path(copied[POSE]).read_text())
+    stage, place = opened(folder)
+    path = f"/{place}/Objects/{name}"
+    held = UsdSkel.Animation(stage.GetPrimAtPath(f"{path}/Held"))
+    if not held:
+        raise Refused(f"{name}: no character held still to pose (put a character entry first)")
+    joints = [str(joint) for joint in held.GetJointsAttr().Get()]
+    rotations = list(held.GetRotationsAttr().Get())
+    for joint, about in sorted(pose["joints"].items()):
+        if joint not in joints:
+            raise Refused(f"{name}: its skeleton has no joint {joint}")
+        rotations[joints.index(joint)] = Gf.Quatf(*about["rotation"])
+    held.GetRotationsAttr().Set(Vt.QuatfArray(rotations))
+    held.GetPrim().CreateAttribute("score:pose", Sdf.ValueTypeNames.String).Set(address)
+    laid = {"name": name, "pose": address, "joints": sorted(pose["joints"])}
+    if prop:
+        laid["prop"] = held_prop(stage, place, path, pose["hold"], prop)
+    saved(stage)
+    return laid
+
+
+def held_joint(skeleton, held, name):
+    """The joint `name`'s transform in its skeleton's space as the held pose `held` (a SkelAnimation without time
+    samples) sets it: each joint's local from the pose (its rest where the pose names it not) times its parent's."""
+    order = [str(joint) for joint in skeleton.GetJointsAttr().Get()]
+    if name not in order:
+        raise Refused(f"{skeleton.GetPath()}: no joint {name}")
+    rest = dict(zip(order, skeleton.GetRestTransformsAttr().Get() or [Gf.Matrix4d(1)] * len(order)))
+    posed = dict(zip([str(joint) for joint in held.GetJointsAttr().Get()],
+                     zip(held.GetTranslationsAttr().Get(), held.GetRotationsAttr().Get(),
+                         held.GetScalesAttr().Get())))
+    found = Gf.Matrix4d(1)
+    for depth in range(name.count("/") + 1):
+        joint = "/".join(name.split("/")[:depth + 1])
+        if joint in posed:
+            place, turn, size = posed[joint]
+            local = (Gf.Matrix4d().SetScale(Gf.Vec3d(size)) * Gf.Matrix4d(Gf.Rotation(Gf.Quatd(turn)), Gf.Vec3d(0))
+                     * Gf.Matrix4d().SetTranslate(Gf.Vec3d(place)))
+        else:
+            local = rest[joint]
+        found = local * found
+    return found
+
+
+def held_prop(stage, place, path, frame, prop):
+    """The laid object `prop` posed at `frame` ({joint, translate, rotation [w, x, y, z]}, in that joint's own frame)
+    of the character at `path` as its skeleton is posed; its (at, turn)."""
+    skeleton = UsdSkel.Skeleton(stage.GetPrimAtPath(f"{path}/Turned/Skeleton"))
+    joint = held_joint(skeleton, UsdSkel.Animation(stage.GetPrimAtPath(f"{path}/Held")), frame["joint"])
+    held = Gf.Matrix4d(Gf.Rotation(Gf.Quatd(*frame["rotation"])), Gf.Vec3d(*frame["translate"]))
+    target = object_prim(stage, place, prop)
+    parent = UsdGeom.Xformable(target.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    skeleton_world = UsdGeom.Xformable(skeleton.GetPrim()).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    local = held * Gf.Matrix4d(joint) * skeleton_world * parent.GetInverse()
+    turn = local.ExtractRotation().Decompose(Gf.Vec3d.XAxis(), Gf.Vec3d.YAxis(), Gf.Vec3d.ZAxis())
+    at, turn = list(local.ExtractTranslation()), list(turn)
+    posed(target, at, turn, pose_of(target)[2])
+    return {"name": prop, "at": at, "turn": turn}
+
+
 def object_prim(stage, place, name):
     """The laid object `name`: under Objects, else an effect under Effects (the rain)."""
     prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}") or stage.GetPrimAtPath(f"/{place}/Effects/{name}")
@@ -1439,7 +1517,7 @@ def refinish(folder, name):
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "cut": camera_cut, "kind": kind, "door": door,
          "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "night": night, "haze": haze,
-         "refinish": refinish}
+         "refinish": refinish, "hold": hold}
 
 
 
