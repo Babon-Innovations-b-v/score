@@ -19,7 +19,11 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
     ground               how a copy's height is meant: a lift off the ground under its spot, so an engine with terrain
                          stands each copy on its own ground (a flat place frame has its ground at y = 0)
     on_seat              where the place's middle sits on its seat, (across, along)
-    objects              {name: {file, kind, route, size (x, y, z as laid, metres), triangles, check {pass, ...}}}
+    objects              {name: {file, kind, route, size (x, y, z as laid, metres), triangles, check {pass, ...}}};
+                         [place_build] a character's (kind "character", route "skinned from the laid USD") glTF is
+                         skinned (score/stages/place_build/skinned.py: skin 0, its joints under node 1, morph targets
+                         named in each mesh's extras.targetNames), its `clips` {animation: seconds} each a glTF
+                         animation, and its check's `skinned_error` (metres from UsdSkel's own skin)
     instances            [{object, row, at, facing, tilt, scale, matrix}]: `facing` a bearing in degrees (0 looks
                          along -z, 90 along +x), `tilt` degrees about the copy's own across, `matrix` the whole
                          transform as 16 numbers, column by column, as glTF writes a node's matrix; a kit piece also
@@ -31,7 +35,9 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          score:opens mark: the walkers swing it open), opening {in (the shell or connector it is set
                          in, or null), end_wall (a tunnel's end wall's doorway), middle, size [across, up], through (a
                          unit way)}, between [the enclosure past its face along `through`, the one against it] (null:
-                         outside), and in a chamber lock, side ("inner" or "outer") and leads (where it opens to)}
+                         outside), and in a chamber lock, side ("inner" or "outer") and leads (where it opens to)};
+                         a character's copy `plays` {animation, starts (the place's second its first key falls at: a
+                         crowd copy's phase starts before 0), loops (a clip that runs round)} or null (its rest pose)
     chambers             [place_build] [{name, inner [doors], outer [doors], air_volume (m³: the convex hull of the
                          enclosure over its deck's top)}]: an airlock, a shell or connector that a door from another
                          enclosure and a door from outside open into
@@ -42,8 +48,8 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
     counts               {kind: copies}: a kit room's layout or [place_build] the laid place's own, checked against
                          its instances
     physics              [place_build] the physics check's file ("ready.json"), or null when it has not run
-    left_out             [place_build] [{name, why}]: each prim not converted (a skinned character, an animated effect,
-                         a prim that draws no face, the sky's dome)
+    left_out             [place_build] [{name, why}]: each prim not converted (an animated effect, a prim that draws
+                         no face, the sky's dome, a character that cannot be carried as drawn, saying why)
     environment          [place_build] the sky and light as the final render draws them: `sky` {file (under the
                          package), projection, turn (degrees about up), strength, library} or null, `ambient` [r, g, b]
                          (linear), `background` [r, g, b] or null, `exposure` (a multiplier), `view_transform` and

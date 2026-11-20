@@ -64,7 +64,7 @@ def skeleton_root(prim):
 
 def deformed(target, anim_query, time, points):
     """A mesh's points with the clip's blend shapes (its correctives) added, as the renderer adds them first."""
-    if anim_query is None or not target.HasBlendShapes() or target.GetBlendShapeMapper() is None:
+    if not anim_query or not target.HasBlendShapes() or target.GetBlendShapeMapper() is None:
         return points
     weights = anim_query.ComputeBlendShapeWeights(time)
     if not weights:

@@ -149,6 +149,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   every baked part as bare metal)
 - scene_package.distant: the USD intensity as the strength -> the moon is 0.01, not the render's 0.04
 - scene_package.unwrapped: a sliver xatlas charts on no map left out -> the sliver beside the square is lost (2 of 3)
+- skinned.character_glb: the Skeleton's frame (`Turned`) left out of the inverse binds -> the leader's skin lies off
+  UsdSkel's and its check fails
+- skinned.animation_of: the blend shape weights left out -> the leader's mesh node keys no weights
+- skinned.moves_of: the walk left out -> node 0 keys no translation
+- skinned.sample_times: the clip kept whole (no round) -> the leader's clip lasts two rounds
+- skinned.copies_of: the prototype's transform taken for the instance's -> the crowd copies stand at one spot
 """
 import json
 import pathlib
@@ -314,6 +320,106 @@ def character():
     clip.CreateRotationsAttr().Set(Vt.QuatfArray([Gf.Quatf(1)]), 0)
     clip.CreateScalesAttr().Set(Vt.Vec3hArray([Gf.Vec3h(1)]), 0)
     return body.GetRootLayer().ExportToString()
+
+
+def skinned_asset(path):
+    """A skinned character asset as tools/characters/skel_usd.py lays one out, written to `path`: a two-joint
+    skeleton (hips 1 m up, chest 0.5 m over it) turned about up in `Turned`, its made body a box skinned from hips to
+    chest under a 5 cm geomBindTransform with a blend shape `lean`, its far body hidden, and its clip `standing` of
+    a round of two frames (repeated twice, as skel_usd fills its seconds) bending the chest 20 degrees and keying
+    `lean` to 0.7 between."""
+    body = Usd.Stage.CreateNew(str(path))
+    UsdGeom.SetStageUpAxis(body, UsdGeom.Tokens.y)
+    body.SetTimeCodesPerSecond(30)  # skel_usd.RATE, its clips' frames
+    root = UsdSkel.Root.Define(body, "/Character")
+    body.SetDefaultPrim(root.GetPrim())
+    root.GetPrim().SetCustomDataByKey("score:clip_seconds", {"standing": 2.0 / 30.0})
+    UsdGeom.Xform.Define(body, "/Character/Turned").AddRotateYOp().Set(180.0)
+    skeleton = UsdSkel.Skeleton.Define(body, "/Character/Turned/Skeleton")
+    skeleton.CreateJointsAttr(["hips", "hips/chest"])
+    skeleton.CreateBindTransformsAttr([Gf.Matrix4d().SetTranslate((0, 1, 0)), Gf.Matrix4d().SetTranslate((0, 1.5, 0))])
+    skeleton.CreateRestTransformsAttr([Gf.Matrix4d().SetTranslate((0, 1, 0)), Gf.Matrix4d().SetTranslate((0, 0.5, 0))])
+    UsdSkel.BindingAPI.Apply(skeleton.GetPrim())
+    look = UsdShade.Material.Define(body, "/Character/Looks/coat")
+    shader = UsdShade.Shader.Define(body, "/Character/Looks/coat/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.5, 0.2, 0.1))
+    look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    box = trimesh.creation.box((0.4, 0.8, 0.3))
+    box.apply_translation((0, 1.2, 0))
+    UsdGeom.Scope.Define(body, "/Character/Turned/Body")
+    for group in ("made", "far"):
+        UsdGeom.Xform.Define(body, f"/Character/Turned/Body/{group}")
+        mesh = UsdGeom.Mesh.Define(body, f"/Character/Turned/Body/{group}/box")
+        mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy((box.vertices - (0, 0.05, 0)).astype(np.float32)))
+        mesh.CreateFaceVertexCountsAttr([3] * len(box.faces))
+        mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(box.faces.ravel().astype(np.int32)))
+        binding = UsdSkel.BindingAPI.Apply(mesh.GetPrim())
+        binding.CreateSkeletonRel().SetTargets([skeleton.GetPath()])
+        upper = np.clip((box.vertices[:, 1] - 0.8) / 0.8, 0.0, 1.0)
+        binding.CreateJointIndicesPrimvar(False, 2).Set(Vt.IntArray([0, 1] * len(box.vertices)))
+        binding.CreateJointWeightsPrimvar(False, 2).Set(Vt.FloatArray.FromNumpy(
+            np.column_stack([1.0 - upper, upper]).ravel().astype(np.float32)))
+        binding.CreateGeomBindTransformAttr(Gf.Matrix4d().SetTranslate((0, 0.05, 0)))
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(look)
+        if group == "made":
+            shape = UsdSkel.BlendShape.Define(body, f"/Character/Turned/Body/{group}/box/lean")
+            top = np.flatnonzero(box.vertices[:, 1] > 1.2)
+            shape.CreateOffsetsAttr(Vt.Vec3fArray([Gf.Vec3f(0.1, 0, 0)] * len(top)))
+            shape.CreatePointIndicesAttr(Vt.IntArray.FromNumpy(top.astype(np.int32)))
+            binding.CreateBlendShapesAttr(["lean"])
+            binding.CreateBlendShapeTargetsRel().SetTargets([shape.GetPath()])
+        else:
+            mesh.MakeInvisible()
+    clip = UsdSkel.Animation.Define(body, "/Character/Animations/standing")
+    clip.CreateJointsAttr(["hips", "hips/chest"])
+    clip.CreateBlendShapesAttr(["lean"])
+    for frame, (bend, lean) in enumerate(((0.0, 0.0), (20.0, 0.7), (0.0, 0.0), (20.0, 0.7), (0.0, 0.0))):
+        turn = Gf.Quatf(Gf.Rotation(Gf.Vec3d(0, 0, 1), bend).GetQuat())
+        clip.CreateTranslationsAttr().Set(Vt.Vec3fArray([(0, 1, 0), (0, 0.5, 0)]), frame)
+        clip.CreateRotationsAttr().Set(Vt.QuatfArray([Gf.Quatf(1), turn]), frame)
+        clip.CreateScalesAttr().Set(Vt.Vec3hArray([Gf.Vec3h(1), Gf.Vec3h(1)]), frame)
+        clip.CreateBlendShapeWeightsAttr().Set(Vt.FloatArray([lean]), frame)
+    body.Save()
+
+
+def cast_skinned(laid, folder):
+    """The skinned asset laid as the cast lays characters: `leader` playing its clip while it walks 2 m along x over
+    two seconds, and a crowd PointInstancer of two prototypes (the clip from its start and a frame in) at three
+    spots."""
+    asset = folder / "assets/characters/skinny.usda"
+    asset.parent.mkdir(parents=True, exist_ok=True)
+    skinned_asset(asset)
+    leader = laid.DefinePrim("/yard/Characters/leader", "SkelRoot")
+    leader.GetReferences().AddReference("./assets/characters/skinny.usda")
+    moves = UsdGeom.Xformable(leader).AddTranslateOp()
+    moves.Set(Gf.Vec3d(5, 0, 5), 0)
+    moves.Set(Gf.Vec3d(7, 0, 5), 60)
+    laid.OverridePrim("/yard/Characters/leader/Turned/Skeleton").CreateRelationship("skel:animationSource").SetTargets(
+        [Sdf.Path("/yard/Characters/leader/Animations/standing")])
+    crowd = UsdGeom.PointInstancer.Define(laid, "/yard/Characters/crowd")
+    prototypes = []
+    for phase in (0, 1):
+        path = f"/yard/Characters/crowd/Prototypes/standing_{phase}"
+        laid.DefinePrim(path, "SkelRoot").GetReferences().AddReference(
+            Sdf.Reference("./assets/characters/skinny.usda", layerOffset=Sdf.LayerOffset(-phase)))
+        laid.OverridePrim(f"{path}/Turned/Skeleton").CreateRelationship("skel:animationSource").SetTargets(
+            [Sdf.Path(f"{path}/Animations/standing")])
+        prototypes.append(Sdf.Path(path))
+    crowd.CreatePrototypesRel().SetTargets(prototypes)
+    crowd.CreatePositionsAttr(Vt.Vec3fArray([(20, 0, 0), (21, 0, 0), (22, 0, 1)]))
+    crowd.CreateProtoIndicesAttr(Vt.IntArray([0, 1, 0]))
+
+
+def tampered(glb, accessor_number):
+    """The GLB with one accessor's numbers set to identity matrices (a skin whose inverse binds were never written)."""
+    from score.stages.place_build import scene_package
+    document, binary = scene_package.unpacked(glb, None)
+    found = document["accessors"][accessor_number]
+    start = document["bufferViews"][found["bufferView"]]["byteOffset"]
+    binary = bytearray(binary)
+    binary[start:start + 64 * found["count"]] = np.tile(np.eye(4, dtype=np.float32).ravel(), found["count"]).tobytes()
+    return scene_package.packed(document, bytes(binary))
 
 
 def shown_ground(stage, shown):
@@ -711,6 +817,7 @@ def packaged(folder, out):
 
     laid = Usd.Stage.Open(str(folder / "scene.usda"))
     UsdSkel.Root.Define(laid, "/yard/Characters/crew")  # a character laid beside the objects, as the walkers' layer
+    cast_skinned(laid, folder)
     laid.Save()
     (out / scene_package.BAKE).mkdir(parents=True)
     (out / scene_package.BAKE / "kept.done").touch()  # a stopped bake's map, for the next bake to keep or drop
@@ -721,7 +828,7 @@ def packaged(folder, out):
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
     boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
-    for name, copy in copies.items():
+    for name, copy in ((name, copy) for name, copy in copies.items() if copy["kind"] != "character"):
         model = trimesh.load(out / scene["objects"][copy["object"]]["file"], force="mesh")
         model.apply_transform(np.array(copy["matrix"]).reshape(4, 4).T)
         assert np.abs(model.bounds - boxes[name]).max() < 2e-3, (name, model.bounds, boxes[name])
@@ -751,6 +858,7 @@ def packaged(folder, out):
     assert np.isclose(bulb["strength"], bulb["intensity"] * np.pi) and bulb["watts"] == bulb["strength"]
     assert np.isclose(scene["lamps"][2]["strength"], scene["lamps"][2]["intensity"] * 4.0)  # the render's sun units
     assert {"walker", "rain", "sky", "crew"} <= {item["name"] for item in scene["left_out"]}
+    skinned_characters(folder, out, scene, copies)
     panel, panel_looks = gltf_of(out, scene, copies["panel"]["object"])
     ground, ground_looks = gltf_of(out, scene, copies["regolith"]["object"])
     _, tunnel_looks = gltf_of(out, scene, copies["tunnel"]["object"])
@@ -782,6 +890,33 @@ def packaged(folder, out):
     assert sum(len(laid[3]) for laid in sliver) == 3  # every triangle kept, so the model check counts them all
     assert graded == [("AgX", "AgX - Medium High Contrast")] and (out / world["grade"]["file"]).is_file()
     assert world["grade"]["size"] == 64 and world["grade"]["middle"] == 0.18 and world["grade"]["display"] == "sRGB"
+
+
+def skinned_characters(folder, out, scene, copies):
+    """The cast's skinned characters as skinned glTFs: the leader's skeleton, shown box, blend shape and clip (one
+    round), its walk as node 0's moves in the animation it plays, its skin at the clip's first, middle and last keys
+    within CLOSE of UsdSkel's (an inverse bind left unwritten fails it); the crowd's three copies, its two phases one
+    object, each copy playing from its own start."""
+    from score.stages.place_build import scene_package, skinned
+    assert "leader" in copies, scene["left_out"]
+    leader = scene["objects"][copies["leader"]["object"]]
+    assert leader["route"] == "skinned from the laid USD" and leader["check"]["pass"], leader["check"]
+    assert leader["check"]["skinned_error"] < 1e-5 and leader["clips"] == {"standing": round(2.0 / 30.0, 6)}
+    document, _ = gltf_of(out, scene, copies["leader"]["object"])
+    assert [document["nodes"][joint]["name"] for joint in document["skins"][0]["joints"]] == ["hips", "chest"]
+    assert len(document["meshes"]) == 1 and document["meshes"][0]["extras"]["targetNames"] == ["lean"]
+    paths = {(channel["target"]["node"], channel["target"]["path"]) for channel in document["animations"][0]["channels"]}
+    assert {(0, "translation"), (3, "rotation"), (4, "weights")} <= paths, sorted(paths)
+    assert copies["leader"]["plays"] == {"animation": "standing", "starts": 0.0, "loops": True}
+    assert copies["leader"]["at"] == [5.0, 0.0, 5.0]
+    crowd = [copies[f"crowd_{number}"] for number in range(3)]
+    assert len({copy["object"] for copy in crowd}) == 1 and [copy["at"][0] for copy in crowd] == [20.0, 21.0, 22.0]
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    assert [copy["plays"]["starts"] for copy in crowd] == [0.0, -1.0 / stage.GetTimeCodesPerSecond(), 0.0]
+    root = stage.GetPrimAtPath("/yard/Characters/leader")
+    glb, facts = skinned.character_glb(root)
+    unbound = tampered(glb, scene_package.unpacked(glb, None)[0]["skins"][0]["inverseBindMatrices"])
+    assert skinned.check_of(root, glb, facts)["pass"] and not skinned.check_of(root, unbound, facts)["pass"]
 
 
 def resumed(out):

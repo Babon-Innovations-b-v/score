@@ -26,8 +26,11 @@ own frame (`matrix` the whole transform); a copy stretched unevenly has its stre
 When the place's physics check has run (<folder>/ready.json, ready/), each copy carries its collider by its role
 (COLLIDERS): a prop a convex hull, free, its mass the entry's own record (the maker's `physics.mass_kg`, times its
 scale cubed) or null when the entry has none; everything else that stands a solid its mesh, fixed.
-Skinned characters (under /<place>/Characters too), the sky's dome and animated effects are not converted:
-scene.json's `left_out` names each.
+Every character laid (a SkelRoot under /<place>/Objects or /<place>/Characters, or a crowd's PointInstancer of them,
+a copy each) is its own skinned glTF (skinned.py: its skeleton, shown skinned meshes and morph targets, every clip and
+the animation it plays, checked against UsdSkel's own skin), its copy's `plays` the animation it plays from when; the
+sky's dome, animated effects and a character skinned.py cannot carry as drawn are not converted: scene.json's
+`left_out` names each.
 Each door (an object the physics check takes for one, ready.role_of) carries its `door` block (doors_of): it moves as
 its one whole piece the way the walkers open it (ready.opening: slid aside along its face when marked score:move
 slide, else on a hinge, a pressure door swung to its high-pressure side), its opening, its score:opens mark and the
@@ -52,6 +55,7 @@ from PIL import Image
 from pxr import Usd, UsdGeom, UsdLux, UsdShade
 
 from score.stages import place_build
+from score.stages.place_build import skinned
 import library_files  # tools/library, on the path by place_build
 import package  # tools/props/library/package.py, on the path by place_build: the format and its check
 
@@ -830,21 +834,43 @@ def animated(prim):
 
 
 def laid_objects(stage, place):
-    """[(prim, kind)] of every object and effect laid, and [{name, why}] of those not converted."""
-    found, left_out = [], []
+    """[(prim, kind)] of every object and effect laid, [(prim, kind)] of every character (skinned.is_character: a
+    SkelRoot or a crowd's PointInstancer, under Objects or Characters), and [{name, why}] of those not converted."""
+    found, characters, left_out = [], [], []
     for scope, default in (("Objects", "object"), ("Effects", "effect"), ("Characters", "character")):
         holder = stage.GetPrimAtPath(f"/{place}/{scope}")
         for prim in holder.GetChildren() if holder else []:
             kind = text_of(prim, "score:kind") or default
             if kind == "light":
                 left_out.append({"name": prim.GetName(), "why": "the place's sky dome: scene.json's environment"})
-            elif prim.GetTypeName() == "SkelRoot":
-                left_out.append({"name": prim.GetName(), "why": "a skinned character: not converted"})
+            elif skinned.is_character(prim):
+                characters.append((prim, "character" if kind in ("object", "model") else kind))
             elif animated(prim):
                 left_out.append({"name": prim.GetName(), "why": "it moves over time: not converted"})
             else:
                 found.append((prim, kind))
-    return found, left_out
+    return found, characters, left_out
+
+
+def character_objects(characters):
+    """Every laid character's copies as skinned glTFs (skinned.py), each SkelRoot converted once and checked:
+    [(name, kind, world, glb, facts, check)] and [{name, why}] of those not converted."""
+    made, copies, left_out = {}, [], []
+    for prim, kind in characters:
+        for root, name, world in skinned.copies_of(prim):
+            frame, scale, baked = copy_frame(world)
+            key = (str(root.GetPath()), None if baked is None else baked.round(9).tobytes())
+            if key not in made:
+                try:
+                    glb, facts = skinned.character_glb(root, baked)
+                    made[key] = (glb, facts, skinned.check_of(root, glb, facts))
+                except skinned.Unconvertible as refused:
+                    made[key] = refused
+            if isinstance(made[key], skinned.Unconvertible):
+                left_out.append({"name": name, "why": str(made[key])})
+                continue
+            copies.append((name, kind, frame, scale, *made[key]))
+    return copies, left_out
 
 
 def lamps_of(stage, place):
@@ -981,7 +1007,7 @@ def write(folder, out):
         if held.name != "bake":
             shutil.rmtree(held) if held.is_dir() else held.unlink()
     (out / "objects").mkdir(parents=True)
-    found, left_out = laid_objects(stage, place)
+    found, characters, left_out = laid_objects(stage, place)
     objects, instances, by_content, counts, made = {}, [], {}, {}, {}
     for prim, kind in found:
         world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
@@ -1000,6 +1026,20 @@ def write(folder, out):
         if roles is not None:
             copy["role"] = roles.get(prim.GetName())
             copy["collider"] = collider_of(folder, prim, copy["role"], scale)
+        instances.append(copy)
+        counts[kind] = counts.get(kind, 0) + 1
+    laid_characters, refused = character_objects(characters)
+    left_out += refused
+    for name, kind, frame, scale, glb, facts, check in laid_characters:
+        digest = hashlib.sha256(glb).hexdigest()
+        if digest not in by_content:
+            by_content[digest] = name
+            written(out, name, glb)
+            objects[name] = {"file": f"objects/{name}.gltf", "kind": kind, "route": "skinned from the laid USD",
+                             "size": box_size(glb), "triangles": check["triangles"], "check": check,
+                             "clips": facts["clips"]}
+        copy = instance_of(name, by_content[digest], kind, frame, scale)
+        copy["plays"] = facts["plays"]
         instances.append(copy)
         counts[kind] = counts.get(kind, 0) + 1
     doors, chambers = doors_of(stage, place, [copy["name"] for copy in instances])

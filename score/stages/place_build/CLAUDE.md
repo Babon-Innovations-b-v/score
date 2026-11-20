@@ -143,3 +143,11 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   again resumes a stopped bake and rebakes only a changed object's maps; a mesh with no normals goes smooth, as Blender imports it; scene.json's
   `environment` carries the sky picture, sun, exposure, the ground's baked albedo (an engine's bounce from below) and
   the AgX grade drawn by Blender's own OpenColorIO as a lattice picture (grade_lut.py), so the engine grades exactly.
+  **Characters go in it skinned** (skinned.py, 2099's prologue, 2026-11-20): every SkelRoot laid (a `put` player
+  model, the cast's characters layer, a sim body's own SkelAnimation) and every crowd PointInstancer copy is a skinned
+  glTF converted from the laid USD (its skeleton, shown meshes with their weights and morph targets, every clip cut to
+  one round and the animation it plays, a walker's route as node 0's moves), its copy's `plays` saying from when; its
+  check skins the glTF at the played animation's first, middle and last keys against UsdSkel's own skin (within
+  1e-4 m) and fails the package otherwise. The people's correctives key negative weights: an engine must not clamp
+  them (Blender's importer does until a key's slider_min is lowered). Prims under a SkelRoot must be typed (a Scope,
+  an Xform): UsdSkel skips a skinned mesh under a typeless prim, as tools/characters/skel_usd.py's assets never have.
