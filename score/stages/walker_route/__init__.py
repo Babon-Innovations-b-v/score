@@ -110,7 +110,8 @@ WALKING_SPEED = 0.6  # metres a second of the hips over which a frame is walking
 SEED_TRIES, SEED_STRIDE = 12, 100  # six were too few: street's walker_plaza2 slouched in all six (2026-11-18)
 # A climb piece whose footholds still fault (`climb_faults`) is made again from the next seed, at most CLIMB_TRIES, and
 # the one with the fewest faults kept: Kimodo's own output, chosen, never moved (the stairwell's woman, 2026-11-19).
-CLIMB_TRIES = 3
+# Three were too few: her two climbs' faults ran 10 to 29 over the seeds tried (2026-11-20).
+CLIMB_TRIES = 8
 # The footholds (owner, 2026-11-19, the stairwell's woman: "the step planning is just no where, like it would need an
 # actual left or right step per step"): one foot a tread, alternating, each sole whole on its tread.
 PROFILE_STEP = 0.01  # metres between the ground's readings along the route's line
@@ -138,11 +139,9 @@ SOLE_SAMPLE = 0.01  # metres between the readings of the ground along a stance's
 # pose keyed there, heel, ankle, ball and toe alike, 0.040 m (sd 0.003) further out to its own side, and at its height
 # (0.006 m, sd 0.011). Each key sets the sole that far short, so the landed sole stands on the planned foothold.
 LANDED_AHEAD, LANDED_OUT = 0.012, 0.040
-# Kimodo's post-processing pins a keyed foot on its keyed frames alone: keyed on one frame, the stairwell's woman's
-# planted foot jumped 1 to 2 cm onto its key and back (2026-11-20, 9 of 16 treads), which split a stance in two in the
-# check's reading and measured its height mid-jump. Each tread foothold is keyed on the frames this far either side of
-# its stance middle as well, the same sole on each, so the foot is held still there.
-FOOT_KEY_SPAN = 1
+# A tread's foothold is keyed on its stance middle alone. Keyed on that frame and one either side (2026-11-20), the
+# stairwell's woman's foot landed short of its key and slid 5.5 to 11 cm along 13 of her treads onto it, never lifting
+# (on one frame, it settles 1 to 2.6 cm): her footholds faults went from 12 to 17.
 STEP_LEAST = 0.14  # metres: a foothold nearer ahead of the foot set down last is no step (half a 0.28 m tread)
 LEGS = ((67, 68, 69), (72, 73, 74))  # SOMA77's hip, knee and ankle joints (LeftLeg, LeftShin, LeftFoot; Right...)
 HANDS = (14, 42)  # SOMA77's LeftHand and RightHand
@@ -774,17 +773,14 @@ def asked(piece, roots, headings, feet, before=None, holds=None):
     if piece["kind"] != "walk" and holds:
         taken = {frame for side_keys in keys.values() for frame, *_ in side_keys}
         for hold, which in sided(holds, start, len(span), before):
-            middle = hold["frame"] - start
-            if middle in taken:
+            frame = hold["frame"] - start
+            if frame in taken:
                 continue
+            taken.add(frame)
             hips = to_frame([hips_over(hold, which)], origin, heading)[0]
             pose = np.zeros((77, 3))
             pose[0, 1] = (hold["heading"] - heading + math.pi) % (2 * math.pi) - math.pi
-            span_frames = range(-FOOT_KEY_SPAN, FOOT_KEY_SPAN + 1) if hold["tread"] is not None else (0,)
-            for frame in (middle + step for step in span_frames):
-                if frame not in taken and 0 <= frame < len(span):
-                    taken.add(frame)
-                    keys[which].append((frame, hips, pose, path[frame, [0, 2]]))
+            keys[which].append((frame, hips, pose, path[frame, [0, 2]]))
     for which in ("left", "right"):
         mine = sorted(keys[which], key=lambda key: key[0])[:MOST_KEYFRAMES]
         if mine:
