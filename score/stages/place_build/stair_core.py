@@ -23,15 +23,19 @@ Parts, for their library surfaces (place_build.surface --part):
 - `balusters` and `handrail`: the railings along the open front and the well, BALUSTER bars every BALUSTER_STEP and a
   rail RAIL high over the pitch line (LANDING_RAIL over a landing).
 
-    core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False)
+    core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=())
                                   the core written as a USD file at `path` (`mirror`: the other hand,
                                   `curtain`: a storey-high glazed front, `cut`: the front wall left to its own
                                   file (front_alone), so the camera can cut it at render, `one_block`: the
-                                  entrance's flats' block alone); its doorways [(wall, along from, along to, sill,
-                                  head)] in the unmirrored frame
+                                  entrance's flats' block alone, `joined`: the storeys whose flat door opens
+                                  onto a place of its own, with no hall stub behind it); its doorways [(wall,
+                                  along from, along to, sill, head)] in the unmirrored frame
     front_alone(path, storeys=STOREYS, mirror=False, curtain=False)
                                   the shaft's front wall alone (parts `wall`, `glass`, `frame`) at `path`
     doorways(storeys=STOREYS)     the doorways alone, for the doors laid in them
+    doorway_spots(storeys=STOREYS, mirror=False)
+                                  each doorway's sill middle, inward way (into the shaft) and width in the
+                                  core's own frame and hand, by name (`door0` the entrance, `door<k>` storey k's)
 """
 import math
 import pathlib
@@ -188,8 +192,26 @@ def doorways(storeys=STOREYS):
     return found
 
 
-def structure(storeys):
-    """The slabs, flights, walls and hall stubs: [(part, (points, faces))]."""
+def doorway_spots(storeys=STOREYS, mirror=False):
+    """{name: {"middle", "inward", "wide", "sill", "head"}}: each doorway's sill middle (in the middle of its wall),
+    the level way into the shaft and its width, in the core's own frame and hand (`mirror`: x taken as LONG - x, as
+    `mirrored`); `door0` the entrance, `door<k>` storey k's flat door. place_build's `stairs` records them in the
+    scene's frame, so a place joined at one (area/) meets it there."""
+    found = {}
+    for wall, start, end, sill, head in doorways(storeys):
+        along = (start + end) / 2
+        middle, inward = ([-WALL / 2, sill, along], [1.0, 0.0, 0.0]) if wall == "left" else \
+            ([along, sill, DEEP + WALL / 2], [0.0, 0.0, -1.0])
+        if mirror:
+            middle, inward = [LONG - middle[0], middle[1], middle[2]], [-inward[0], 0.0, inward[2]]
+        found[f"door{round(sill / STOREY)}"] = {"middle": middle, "inward": inward, "wide": end - start,
+                                               "sill": sill, "head": head}
+    return found
+
+
+def structure(storeys, joined=()):
+    """The slabs, flights, walls and hall stubs: [(part, (points, faces))]; a `joined` storey's flat door opens onto
+    a place of its own (area/: the flat seated at it), so no hall stub stands behind it to wall the walker off."""
     high = top(storeys)
     pieces = [("slab", made) for made in tiled((-2 * WALL - BLOCK - PAVEMENT, -0.3, -PAVEMENT),
                                                 (LONG + 2 * WALL + BLOCK + PAVEMENT, 0.0, DEEP + WALL))]
@@ -209,6 +231,8 @@ def structure(storeys):
     pieces += [("wall", made) for made in holed((-WALL, 0.0, DEEP), (LONG + WALL, high, DEEP + WALL), 0, back)]
     pieces.append(("wall", box((LONG, 0.0, 0.0), (LONG + WALL, high, DEEP))))
     for start, end, sill, _ in back:
+        if round(sill / STOREY) in joined:
+            continue
         middle = (start + end) / 2
         x0, x1 = middle - HALL / 2, middle + HALL / 2
         z0, z1 = DEEP + WALL, DEEP + WALL + HALL
@@ -415,14 +439,15 @@ def outward(piece):
     return part, (points, faces if volume > 0 else [list(reversed(face)) for face in faces])
 
 
-def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False):
+def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=()):
     """The stair core written at `path`: /stair_core with its mesh `geo` and its parts (the module's list); with
     `mirror` the other hand (floor landings at x LONG - LANDING to LONG, the flights rising towards -x), with
     `curtain` its front a storey-high curtain wall instead of a window over each landing and flight, with `cut` the
     front wall left to its own file (front_alone: laid as its own object, the building stays closed and the camera
     cuts it at render), with `one_block` only the
-    flats' block the entrance opens into, the shaft's far side wall standing free to the street."""
-    pieces = structure(storeys) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1) \
+    flats' block the entrance opens into, the shaft's far side wall standing free to the street, with `joined` no
+    hall stub behind those storeys' flat doors."""
+    pieces = structure(storeys, joined) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1) \
         + ([] if one_block else block(storeys, LONG + WALL, 1)) \
         + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces

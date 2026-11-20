@@ -646,7 +646,7 @@ def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
 
 
 def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), mirror=False, address=STAIRS,
-           curtain=False, cut=False, one_block=False):
+           curtain=False, cut=False, one_block=False, joined=()):
     """The stair core algorithm (stair_core.py) laid as Objects/<name>: a switchback stairwell `storeys` storeys tall
     of real size, its file written once under the place's assets; its parts `slab`, `steps`, `wall`, `dado`,
     `balusters` and `handrail` ready for their surfaces (`mirror`: the other hand, x taken as its length less x;
@@ -654,16 +654,22 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     and its doorways (wall, along from, along to, sill, head in
     its own frame) answered for the doors laid in them (`cut`: its front wall laid as its own object <name>_front
     and listed in place.json `cut`, so the building stays closed and the camera alone cuts it, at render;
-    `one_block`: only the flats' block its entrance opens into)."""
+    `one_block`: only the flats' block its entrance opens into; `joined`: the storeys whose flat door opens onto a
+    place of its own, no hall stub behind it). Its doorways are recorded in place.json `doorways` in the scene's
+    frame (`<name>_door<k>`: sill middle, inward way, width), so a neighbour place joins it at one (area/)."""
     from score.stages.place_build import stair_core
     storeys = stair_core.STOREYS if storeys is None else int(storeys)
     if storeys < 1:
         raise Refused(f"a stair core needs one storey or more ({storeys})")
-    named = f"core_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}{'_o' if cut else ''}{'_1' if one_block else ''}.usda"
+    joined = sorted({int(storey) for storey in joined})
+    if any(not 1 <= storey <= storeys for storey in joined):
+        raise Refused(f"a joined storey is one of the core's 1 to {storeys} ({joined})")
+    named = (f"core_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}{'_o' if cut else ''}"
+             f"{'_1' if one_block else ''}{''.join(f'_j{storey}' for storey in joined)}.usda")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / named
     target.parent.mkdir(parents=True, exist_ok=True)
     target.unlink(missing_ok=True)
-    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block))
+    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block), joined)
     front = target.with_name(f"front_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}.usda")
     if cut:  # written before the scene is opened, which holds the files it references
         front.unlink(missing_ok=True)
@@ -679,9 +685,30 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     saved(stage)
     if cut:
         camera_cut(folder, f"{name}_front")
+    laid = laid_doorways(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), stair_core.doorway_spots(storeys, mirror))
+    record = record_of(folder)
+    record["doorways"] = {**{key: spot for key, spot in (record.get("doorways") or {}).items()
+                             if not key.startswith(f"{name}_door")},
+                          **{f"{name}_{key}": spot for key, spot in laid.items()}}
+    write_record(folder, record)
     return {"name": name, "address": address, "usd": relative, "storeys": storeys, "mirror": bool(mirror),
-            "curtain": bool(curtain), "cut": bool(cut),
-            "one_block": bool(one_block), "doorways": doors}
+            "curtain": bool(curtain), "cut": bool(cut), "one_block": bool(one_block), "joined": joined,
+            "doorways": doors}
+
+
+def laid_doorways(prim, spots):
+    """Doorway spots in an object's own frame (`middle`, `inward`) put in the scene's frame by the object's laid
+    transform, their sill and head with them; their width as it is."""
+    matrix = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    found = {}
+    for key, spot in spots.items():
+        middle = np.asarray(spot["middle"], float) @ matrix[:3, :3] + matrix[3, :3]
+        inward = np.asarray(spot["inward"], float) @ matrix[:3, :3]
+        inward = inward / np.linalg.norm(inward)
+        found[key] = {**spot, "middle": np.round(middle, 4).tolist(), "inward": np.round(inward, 6).tolist(),
+                      "sill": round(float(middle[1]), 4),
+                      "head": round(float(middle[1]) + spot["head"] - spot["sill"], 4)}
+    return found
 
 
 def camera_cut(folder, name):

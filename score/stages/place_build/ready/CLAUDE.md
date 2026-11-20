@@ -16,7 +16,8 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   (`swing_of`: into the shell it is set in, on the hinge that keeps the most floor joined), no characters), the ground sim body and scene clips read for a place_build
   scene (their input `place-build`, INPUT); `route` (`place_build route --through`) is a walker's way through spots on
   the check's own walkers' floor (WALKWAY wide): the shortest way over standing spans, its corners kept by line of
-  sight and rounded over ROUND, so a walk path never leaves the floor the check judged.
+  sight and rounded over ROUND, so a walk path never leaves the floor the check judged. `route_on` walks a Place already read (area/:
+  two joined places round their doorway, seated, every doorway open).
 - **The ground is read near the place**: a ground's faces more than GROUND_REACH past the laid objects' box are left
   out (`near_ground`), so a terrain to the horizon (800 000 faces) fits the 8 GB check; walkers' ground included.
 - **A query reaches only what lies near it** (2026-11-16: camp's 660 rocks, 7 million faces, ran the check out of 14

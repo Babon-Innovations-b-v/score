@@ -92,7 +92,11 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `stairs --curtain` glazes the front as a storey-high curtain wall (only the slab edges and corner piers left), so
   the concept's cut-away look into the shaft is a look through real glass; `stairs --cut` lays the front wall as its
   own object `<name>_front` (stair_core.front_alone) and lists it in place.json `cut`: the shaft stays closed and
-  the camera alone sees through its front (the section the concept draws).
+  the camera alone sees through its front (the section the concept draws). Every doorway is recorded in place.json
+  `doorways` (`<name>_door<k>`, the scene's frame); `stairs --joined <k>` leaves out the hall stub behind storey k's
+  flat door, for a place of its own joined there (the flat).
+- **Places of one area** (area/, its own overlay): `join` marks the doorway leading to a neighbour place, `area` seats
+  the places at the plans' storey heights with their joined doors meeting and checks every join (seats.json).
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
   straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of

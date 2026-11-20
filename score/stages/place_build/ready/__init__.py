@@ -1099,11 +1099,18 @@ def route(folder, through):
     """A walker's route through the given spots (x, y, z) on the walkers' floor WALKWAY wide (the check's own, every
     door as it stands for the walkers: a shut one a solid, one marked OPENS swung open): the shortest way over standing spans between each spot and the next, its corners kept and rounded.
     [[x, y, z], ...] and its length along the ground; Refused when a spot has no floor or no way joins two."""
+    stage, place = place_build.opened(folder)
+    return route_on(Place(stage, place), through)
+
+
+def route_on(laid, through, doors=None):
+    """`route` over a Place already read (area/: the objects of two joined places round their doorway, seated), each
+    door as `doors` stands it ({}: every doorway open, the walkway check's); every door as it stands for the walkers
+    when None."""
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import dijkstra
-    stage, place = place_build.opened(folder)
-    laid = Place(stage, place)
-    grid, span_cells, span_heights, standing, pieces = walkers_floor(laid, doors_standing(laid))
+    grid, span_cells, span_heights, standing, pieces = walkers_floor(laid, doors_standing(laid) if doors is None
+                                                                     else doors)
     starts, ends, _ = reach.steps_between(grid, span_cells, span_heights)
     both = standing[starts] & standing[ends]
     graph = coo_matrix((np.full(both.sum(), reach.CELL), (starts[both], ends[both])), shape=(len(span_cells),) * 2)

@@ -183,7 +183,7 @@ def run(args):
     if args.step == "stairs":
         return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
                                   args.mirror, curtain=args.curtain, cut=args.cut,
-                                  one_block=args.one_block)
+                                  one_block=args.one_block, joined=args.joined or ())
     if args.step == "tracks":
         return place_build.tracks(args.folder, args.name, lines_of(args.rover), lines_of(args.boots), args.seed)
     if args.step == "rain":
@@ -252,6 +252,16 @@ def run(args):
         from score.stages.place_build import ready
         points, length = ready.route(args.folder, [numbers(spot) for spot in args.through])
         return {"route": points, "metres": length}
+    if args.step == "join":
+        from score.stages.place_build import area
+        return area.join(args.folder, args.doorway, args.to, numbers(args.inward) if args.inward else None)
+    if args.step == "area":
+        from score.stages.place_build import area
+        folders = dict(given.split("=", 1) for given in args.place)
+        record = area.area(args.plans, args.outside, folders, args.out)
+        return {"seats": {name: seat["from"] for name, seat in record["seats"].items()},
+                "joins": len(record["joins"]), "failed": len(record["faults"]), "faults": record["faults"][:6],
+                "out": args.out}
     if args.step == "package":
         from score.stages.place_build import scene_package
         return scene_package.packaged(args.folder, args.out)
@@ -317,6 +327,8 @@ def parser():
     step.add_argument("--curtain", action="store_true")
     step.add_argument("--cut", action="store_true")
     step.add_argument("--one-block", action="store_true")
+    step.add_argument("--joined", type=int, action="append", help="a storey whose flat door opens onto a place of "
+                      "its own (no hall stub behind it); again for more")
     step = steps.add_parser("rain")
     step.add_argument("folder")
     step.add_argument("name")
@@ -416,6 +428,15 @@ def parser():
     step = steps.add_parser("route")
     step.add_argument("folder")
     step.add_argument("--through", action="append", required=True)
+    step = steps.add_parser("join")
+    for name in ("folder", "doorway", "to"):
+        step.add_argument(name)
+    step.add_argument("--inward", help="x,z: the way into this place through the doorway (a leaf set in no shell)")
+    step = steps.add_parser("area")
+    step.add_argument("plans", help="the kept plans' folder ({home}/design/plans)")
+    step.add_argument("outside", help="the area's outside place, whose plan holds the rest")
+    step.add_argument("--place", action="append", required=True, help="place=folder; again for each place")
+    step.add_argument("--out", help="seats.json: the seats and the joins check")
     step = steps.add_parser("package")
     step.add_argument("folder")
     step.add_argument("out")
