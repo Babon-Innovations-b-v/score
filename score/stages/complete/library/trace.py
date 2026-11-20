@@ -12,10 +12,13 @@ kit), a place
 by its name, a model by the gltf it was built from (`score:model_sha256`, an entry's `model_sha256`), by the prim
 its entry's provenance names, or by the content hash of a file it is made of (its layers, references, payloads and
 asset paths) held by an entry of its kind. Its finishes trace, each bound material once, by `score:library`, by the
-library surface it names (`score:surface` on the material or the bound part, else a material of the place's
-`Library` scope by its name), or by its model's finish record (a bake of the surface stage, the crops or a ship kit,
-which paints every part from the library: `context.baked`). A thing that traces neither way is under a written
-exception or is a finding; a part with no material is a default grey, and a finding.
+library surface it names (`score:surface` on the material or the bound part, by name or by an address the library
+holds, else a material of the place's `Library` scope by its name), or by its model's finish record (a bake of the
+surface stage, the crops or a ship kit, which paints every part from the library: `context.baked`, or the thing's
+entry whose provenance says the surface line painted it, as place_build lays one). A thing that traces neither way is
+under a written exception or is a finding; a part with no material is a default grey, and a finding. A place_build
+scene's character, laid in its Objects, is judged against the exceptions at `/<place>/Characters/<name>`, the path an
+assembly gives it.
 """
 import dataclasses
 import datetime
@@ -84,7 +87,7 @@ def thing_kind(prim):
         return "sound"
     if prim.HasAttribute("score:effect:kind"):
         return "effect"
-    if kind in ("ground", "structure"):
+    if kind in ("ground", "structure", "character"):
         return kind
     if kind in ("sky", "stars"):
         return "sky"
@@ -148,8 +151,8 @@ def made_of(prim, context):
 def traced_source(prim, kind, context):
     """(address, how) of the library entry the thing comes from, or (None, None)."""
     shelf, kinds, path = context.shelf, LIBRARY_KINDS[kind], str(prim.GetPath())
-    named = authored(prim, LIBRARY_ATTR)
-    if named and shelf.has(named):
+    named = shelf.newest(authored(prim, LIBRARY_ATTR))
+    if named:
         return named, "its score:library attribute"
     built_by = MADE_BY.search(str(authored(prim, "score:from") or "")) if kind == "structure" else None
     if built_by and shelf.of_id("algorithm", built_by.group(1)):
@@ -249,11 +252,16 @@ def traced_finish(material, pieces, thing, context):
         (authored(piece, "score:surface") for piece in pieces if authored(piece, "score:surface")), None)
     if surface and context.shelf.surface(surface, context.place):
         return context.shelf.surface(surface, context.place), "the library surface it names"
+    if surface and context.shelf.newest(surface):
+        return context.shelf.newest(surface), "the library surface it names"
     if material.GetParent().GetName() == "Library" and context.shelf.surface(material.GetName(), context.place):
         return context.shelf.surface(material.GetName(), context.place), "the place's library material by name"
     node = context.baked.get(authored(thing, "score:model_sha256"))
     if node:
         return node, "its model's finish record (every part painted from the library)"
+    entry = context.shelf.newest(authored(thing, LIBRARY_ATTR))
+    if entry and context.shelf.painted(entry):
+        return entry, "its entry's finish record (every part painted from the library by the surface line)"
     return None, None
 
 
@@ -303,8 +311,17 @@ def finish_rows(prim, kind, context):
         row = {"aspect": "finish", "kind": kind, "prim": thing_path, "material": key or None,
                "group": f"{group}: {name}", "parts": len(pieces), "by": address, "how": how,
                "instead": None if address else finish_instead(material, pieces, context)}
-        rows.append(judged(row, [thing_path] + ([key] if key else []), context))
+        rows.append(judged(row, [thing_path] + ([key] if key else []) + laid_character(prim, kind), context))
     return rows
+
+
+def laid_character(prim, kind):
+    """[the path an assembly gives a character] for a character laid outside a Characters scope (place_build lays
+    it in Objects), else []."""
+    path = prim.GetPath()
+    if kind != "character" or "/Characters/" in str(path):
+        return []
+    return [f"/{path.GetPrefixes()[0].name}/Characters/{prim.GetName()}"]
 
 
 def rows(stage, context):

@@ -23,6 +23,11 @@ no Blender, no cloud. `trace.py`'s docstring has the tracing rules. Bible: `arch
 - Run: `SCORE_LIB_ROOT=<library> .venv/bin/python -m score.stages.complete.library [--place P] [--out FOLDER]
   [--no-pictures]`, in the background (about 20 s a place; the pxr warnings about neighbours it does not lay out go
   to stderr). It writes `WORK/checks/library/<place>/` (rows.json, findings.json, marks/) and summary.json.
+- **A place_build scene** (a work folder or a kept place entry's files): `--scene FOLDER` judges its scene.usda, with
+  no store and no film. Its looks name surfaces by address (`score:surface`), its code-built pieces their algorithm
+  with no version (the newest traces), its made models' finish record is their entry's provenance (the surface line
+  painted them: `entries.LIBRARY_PAINT`, the words place_build's finished/ reads too), and a character laid in its
+  Objects is judged against the exceptions at `/<place>/Characters/<name>`.
 - Locked concepts: `score/stages/library/concepts/` checks each locked concept in the store is its library entry with
   the same picture (own overlay and test); the run writes `<out>/concepts.json`.
 - Fixtures: `data/checks/library/bad.usda` (a picture's texture, a default grey, a model no entry holds: fails) and

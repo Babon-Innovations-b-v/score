@@ -2,6 +2,11 @@
 
     SCORE_LIB_ROOT=<the library folder> .venv/bin/python -m score.stages.complete.library [--place P ...]
         [--out FOLDER] [--no-pictures]
+    SCORE_LIB_ROOT=<the library folder> .venv/bin/python -m score.stages.complete.library --scene FOLDER [...]
+        [--out FOLDER]
+
+`--scene` judges place_build scenes instead (a work folder or a kept place entry's files, each its scene.usda, the
+place its default prim), with no film to picture them and no store read.
 
 For each place, <out>/<place>/: rows.json (every thing's source and every bound material, each answered library,
 exception or neither, with the entry or exception it traced to or what it is instead), findings.json ({"place",
@@ -74,6 +79,24 @@ def listed(item):
             "prims": item["prims"]}
 
 
+def scene_judged(scene, shelf, written_exceptions, out):
+    """Judge one place_build scene (its folder's scene.usda) and write rows.json and findings.json under <out>/<its
+    place>; findings.json as written."""
+    stage = Usd.Stage.Open(str(pathlib.Path(scene) / "scene.usda"))
+    place = stage.GetDefaultPrim().GetName()
+    context = trace.Context(place=place, shelf=shelf, exceptions=written_exceptions)
+    rows = trace.rows(stage, context)
+    found = [dict(item, picture=None) for item in findings.grouped(rows)]
+    tallied = findings.counts(rows)
+    folder = out / place
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / ROWS).write_text(json.dumps(rows, indent=1))
+    written = {"place": place, "answer": findings.answer(tallied), "reason": findings.reason(tallied, found),
+               "outputs": {"scene": str(scene)}, "counts": tallied, "findings": [listed(item) for item in found]}
+    (folder / FINDINGS).write_text(json.dumps(written, indent=1))
+    return written
+
+
 def judged(store, context, folder, with_pictures):
     """Judge one place's accepted assembly and write rows.json and findings.json; findings.json as written."""
     folder.mkdir(parents=True, exist_ok=True)
@@ -118,11 +141,23 @@ def main(argv=None):
     parser.add_argument("--place", action="append", default=[])
     parser.add_argument("--out", type=pathlib.Path, default=OUT)
     parser.add_argument("--no-pictures", action="store_true", help="leave the film crops out")
+    parser.add_argument("--scene", action="append", default=[], type=pathlib.Path,
+                        help="a place_build scene's folder to judge instead of the store's assemblies")
     options = parser.parse_args(argv)
     shelf = entries.from_environment()
     if shelf is None:
         raise SystemExit("SCORE_LIB_ROOT is not set: the check needs the library folder to trace to")
     written_exceptions = exceptions.read()
+    if options.scene:
+        summary = {}
+        for scene in options.scene:
+            written = scene_judged(scene, shelf, written_exceptions, options.out)
+            summary[written["place"]] = {"answer": written["answer"], **written["counts"],
+                                         "findings": len(written["findings"])}
+            print(summary_line(written), flush=True)
+        options.out.mkdir(parents=True, exist_ok=True)
+        (options.out / "summary.json").write_text(json.dumps(summary, indent=1))
+        return
     store = stored.reading()
     places = places_of(options.place)
     baked = stored.baked(store, places_of([]))

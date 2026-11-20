@@ -5,6 +5,8 @@
     shelf.of_model(model_sha)              # the model entry made from that gltf (score:model_sha256)
     shelf.of_prim(place, path, kinds)      # the entry whose provenance names that prim of that place
     shelf.surface(name, place)             # the surface entry of that name (the place's own one first)
+    shelf.newest(address)                  # the address held, `kind/id` (no version) read as its newest version
+    shelf.painted(address)                 # whether the surface line painted the entry from the library surfaces
 
 An entry is `<kind>/<id>@<version>` with `entries/<kind>/<id>/<version>/entry.json` (files with their sha256,
 provenance), read through `score.library` (ADR-0007), as the cockpit reads it. Nothing of the library's own code is
@@ -18,6 +20,10 @@ import re
 from score import library
 
 WITHDRAWN = "withdrawn"
+# The words of an entry's provenance that say the surface line painted every part of it from the library surfaces
+# (its finish record): a surfaces-bake model taken in, and the first world's accepted assemblies' models. place_build's
+# finish check (finished/) reads the same words.
+LIBRARY_PAINT = ("painted from the library surfaces", "baked with the surface library")
 VARIANT = re.compile(r"\{[^}]*\}")
 
 
@@ -29,6 +35,7 @@ class Shelf:
     prims: dict = dataclasses.field(default_factory=dict)  # (place, prim path): {address: kind}
     ids: dict = dataclasses.field(default_factory=dict)  # (kind, id): address
     addresses: set = dataclasses.field(default_factory=set)
+    painted_by_line: set = dataclasses.field(default_factory=set)  # addresses whose provenance says LIBRARY_PAINT
 
     def of_sha(self, sha, kinds):
         return next((address for address, kind in sorted(self.shas.get(sha, {}).items()) if kind in kinds), None)
@@ -49,6 +56,16 @@ class Shelf:
 
     def has(self, address):
         return address in self.addresses
+
+    def newest(self, address):
+        """The address held: itself, or `kind/id` with no version (place_build's code-built pieces) as its newest."""
+        if self.has(address):
+            return address
+        kind, _, entry_id = str(address or "").partition("/")
+        return self.ids.get((kind, entry_id)) if entry_id and "@" not in entry_id else None
+
+    def painted(self, address):
+        return address in self.painted_by_line
 
 
 def unvarianted(path):
@@ -90,6 +107,9 @@ def shelve(shelf, record):
         shelf.models.setdefault(model_sha, address)
     for key in prim_paths(record):
         shelf.prims.setdefault(key, {})[address] = kind
+    told = " ".join(str(step.get("what", "")) for step in (record.get("provenance") or {}).get("made_with") or [])
+    if any(words in told for words in LIBRARY_PAINT):
+        shelf.painted_by_line.add(address)
 
 
 def read(root):

@@ -9,6 +9,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - trace.judged: an untraced row answers LIBRARY -> test_the_known_bad_fixture_fails_on_its_texture_its_grey_and_its_model
 - trace.traced_finish: the surface-by-name branch dropped -> test_the_known_good_fixture_passes_and_a_guide_mesh_is_not_a_finish
 - trace.traced_finish: the finish record not read (`node = None`) -> test_a_finish_record_traces_a_baked_models_finish
+- trace.traced_finish: an entry's finish record not read (`entry = None`), or a surface by address not read ->
+  test_a_finish_record_traces_a_baked_models_finish (a place_build scene's painted console, or its chair's look)
+- entries.Shelf.newest: an address with no version not read -> test_a_finish_record_traces_a_baked_models_finish
+  (its hull's kit)
+- trace.laid_character: `[]` always -> test_a_finish_record_traces_a_baked_models_finish (the player model's paint
+  a finding under its exception)
 - trace.traced_source: the content-hash loop dropped -> test_a_model_traces_by_the_content_hash_of_its_file
 - entries.unvarianted: the variant selection kept -> test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant
 - trace.traced_source: the score:from algorithm branch dropped -> test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant
@@ -83,10 +89,69 @@ def test_the_known_good_fixture_passes_and_a_guide_mesh_is_not_a_finish(tmp_path
     assert [row["parts"] for row in rows if row["aspect"] == "finish" and row["kind"] == "model"] == [1]
 
 
+PLACED = """def Xform "fixture"
+{
+    def Scope "Objects"
+    {
+        def Mesh "console" (prepend apiSchemas = ["MaterialBindingAPI"])
+        {
+            custom string score:library = "model/console@1"
+            rel material:binding = </fixture/Objects/console/paint>
+            def Material "paint" {}
+        }
+        def Mesh "chair" (prepend apiSchemas = ["MaterialBindingAPI"])
+        {
+            custom string score:library = "model/chair@1"
+            rel material:binding = </fixture/Looks/chair>
+        }
+        def Mesh "pilot" (prepend apiSchemas = ["MaterialBindingAPI"])
+        {
+            custom string score:kind = "character"
+            custom string score:library = "character/pilot@1"
+            rel material:binding = </fixture/Objects/pilot/dress>
+            def Material "dress" {}
+        }
+        def Mesh "hull" (prepend apiSchemas = ["MaterialBindingAPI"])
+        {
+            custom string score:library = "kit/fixture"
+            rel material:binding = </fixture/Looks/chair>
+        }
+    }
+    def Scope "Looks"
+    {
+        def Material "chair"
+        {
+            custom string score:surface = "surface/deck@1"
+        }
+    }
+}
+"""
+PLAYER = {"place": "*", "prim": "/*/Characters/*", "aspect": "finish", "what": "a player model's own texture",
+          "why": "repainting loses its seams", "allowed_by": "@owner", "allowed_on": "2026-10-18"}
+
+
 def test_a_finish_record_traces_a_baked_models_finish(tmp_path):
     rows = judged_fixture("bad.usda", library(tmp_path), baked={"0" * 64: "surfaces-bake@fixture"})
     textured = [row for row in rows if row.get("material", "") and row["material"].endswith("/picture")]
     assert textured[0]["answer"] == trace.LIBRARY and textured[0]["by"] == "surfaces-bake@fixture"
+    # A place_build scene: a model the surface line painted traces by its entry's record, one it did not is a
+    # finding; a look names its surface by address; a code-built piece names its kit with no version; a character
+    # laid in Objects keeps its own paint only under the player models' exception.
+    painted = {"made_with": [{"by": "score", "what": "console: painted from the library surfaces and baked"}]}
+    for kind, entry_id, provenance in (("model", "console", painted), ("model", "chair", None),
+                                       ("character", "pilot", None)):
+        entry(tmp_path / "lib", kind, entry_id, provenance=provenance)
+    shelf = library(tmp_path / "lib")
+    stage = stage_with(tmp_path, PLACED)
+    for excepted, pilot in (([PLAYER], trace.EXCEPTION), ([], trace.NEITHER)):
+        rows = trace.rows(stage, trace.Context(place="fixture", shelf=shelf, exceptions=excepted, today=TODAY))
+        answers = {(row["prim"].rsplit("/", 1)[1], row["aspect"]): row["answer"] for row in rows}
+        assert answers == {**{(name, aspect): trace.LIBRARY for name in ("console", "chair", "pilot", "hull")
+                              for aspect in ("source", "finish")}, ("pilot", "finish"): pilot}, rows
+    entry(tmp_path / "lib2", "model", "console")
+    rows = trace.rows(stage, trace.Context(place="fixture", shelf=library(tmp_path / "lib2"), today=TODAY))
+    assert [row["answer"] for row in rows if row["prim"].endswith("console") and row["aspect"] == "finish"] \
+        == [trace.NEITHER], rows
 
 
 def stage_with(folder, text):
