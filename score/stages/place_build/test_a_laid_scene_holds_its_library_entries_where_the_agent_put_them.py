@@ -155,6 +155,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - skinned.moves_of: the walk left out -> node 0 keys no translation
 - skinned.sample_times: the clip kept whole (no round) -> the leader's clip lasts two rounds
 - skinned.copies_of: the prototype's transform taken for the instance's -> the crowd copies stand at one spot
+- scene_package.subdivided: the mesh returned uncut -> the 12 m panel's faces each need more than a map (refused)
+- scene_package.atlas_of: packed at a fixed resolution (`packing.resolution = LARGEST`) -> the 1 m tile's map is
+  LARGEST wide, not its charts' size
+- scene_package.deadline: `exit=True` left off -> the stuck step runs on past its time and the package goes on
+- render.queued: `seconds` dropped -> a bake run's Blender has no timeout
 """
 import json
 import pathlib
@@ -665,6 +670,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     reviewed(folder)
     packaged(folder, tmp_path / "package")
     resumed(tmp_path / "resumed")
+    sized_and_timed(tmp_path / "sized")
     filmed(tmp_path)
     doored(tmp_path)
     stilled(folder)
@@ -963,6 +969,53 @@ def resumed(out):
                     [[("panel", "0"), ("panel", "1")]],
                     [[("panel", "1"), ("panel", "2")], [("door", "0")]]], runs
     assert placed and not any((out / scene_package.BAKE).iterdir())
+
+
+def sized_and_timed(out):
+    """A baked part's maps each as big as its charts at DENSITY and at most LARGEST, never under DENSITY: a 12 m panel
+    of two faces (each wider than a map; the base's hangar hung 11.5 h packing such faces) cut and spread on many
+    maps, a 1 m tile on one map its own size; a package step past its time stops the process loudly, named in its
+    log, one in time goes on; a bake run's Blender runs under its timeout, one stopped there refused saying so."""
+    import subprocess
+    import sys
+    from score.stages.place_build import scene_package
+    scene_package.DENSITY, scene_package.LARGEST = 24, 64
+    try:
+        laid = {}
+        for name, side in (("panel", 12.0), ("tile", 1.0)):
+            square = np.array([[0, 0, 0], [side, 0, 0], [side, side / 2, 0], [0, side / 2, 0]], float)
+            laid[name] = scene_package.unwrapped(square, np.tile([0.0, 0.0, 1.0], (4, 1)), np.array([[0, 1, 2],
+                                                                                                    [0, 2, 3]]))
+    finally:
+        scene_package.DENSITY, scene_package.LARGEST = 512, 4096
+    panel_area = sum(scene_package.areas_of(points, faces).sum() for points, _, _, faces, _, _ in laid["panel"])
+    assert len(laid["panel"]) > 10 and np.isclose(panel_area, 72.0), (len(laid["panel"]), panel_area)
+    assert all(max(size) <= 64 and texels >= 24 * scene_package.HELD_SHARE
+               for maps in laid.values() for *_, size, texels in maps), laid
+    assert len(laid["tile"]) == 1 and max(laid["tile"][0][4]) < 64, laid["tile"][0][4:]
+    out.mkdir(parents=True)
+    step = ("import pathlib, sys, time; from score.stages.place_build import scene_package as package; "
+            "package.STEP_SECONDS['object'] = 1; out = pathlib.Path(sys.argv[1]); seconds = float(sys.argv[2])\n"
+            "with package.deadline(out, 'stuck', 'object'):\n    time.sleep(seconds)\ntime.sleep(2); print('went on')")
+    runs = {name: subprocess.Popen([sys.executable, "-c", step, str(out / name), seconds], stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True, cwd=place_build.REPO)
+            for name, seconds in (("late", "30"), ("timely", "0"))}
+    ended = {name: (run.wait(timeout=40), *run.communicate()) for name, run in runs.items()}
+    assert ended["late"][0] != 0 and "Timeout" in ended["late"][2] and "went on" not in ended["late"][1], ended
+    assert ended["timely"][:2] == (0, "went on\n"), ended
+    assert (out / "late" / scene_package.STEPS).read_text() == "object stuck: stopped past 1 s\n"
+    command = render.queued("job", "script.py", [], card=False, seconds=scene_package.STEP_SECONDS["bake run"])
+    assert command[command.index("timeout"):command.index(str(render.BLENDER))] == ["timeout", "-k", "30", "1800"]
+    (out / "objects").mkdir()
+    (out / "objects/door.gltf").write_text(json.dumps({"buffers": []}))
+    job = {"gltf": "objects/door.gltf", "mesh": "part_0", "size": [8, 8],
+           "pictures": {kind: f"textures/door_{kind}.png" for kind in scene_package.PICTURES}}
+    try:
+        scene_package.blender_baked(out, [job], lambda out, listing, log: render.TIMED_OUT)
+        refused = None
+    except place_build.Refused as why:
+        refused = str(why)
+    assert refused and refused.startswith("the bake failed (exit 124, its run stopped past 1800 s, 1 of 1"), refused
 
 
 def stilled(folder):

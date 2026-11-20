@@ -137,10 +137,15 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   every object converted from the laid USD with usd-core and trimesh's writer, its bound looks as glTF PBR (exact
   factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
   entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
-  relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, a laid
+  relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, each map as
+  big as its charts and at most 4096 (a face wider than half a map cut first, blocks of a map's worth packed alone, a
+  map under 512 refused: #146, #151; the base's hangar sat 11.5 h packing 44 big faces as one 33,000 px map), a laid
   ground's as one seamless 8 m tile, in Blender runs of a few maps of one object each (scene_package.BATCH; one run
   over the street's 225 maps grew past the 8 GB cap), each finished map marked under <out>/bake/maps so `package`
-  again resumes a stopped bake and rebakes only a changed object's maps; a mesh with no normals goes smooth, as Blender imports it; scene.json's
+  again resumes a stopped bake and rebakes only a changed object's maps; every step runs under its time
+  (scene_package.STEP_SECONDS: an object's conversion and the scene's rest stop the process with its stack, a Blender
+  run is stopped by `timeout`, its card wait not counted), each named in <out>/bake/steps.log first; a mesh with no
+  normals goes smooth, as Blender imports it; scene.json's
   `environment` carries the sky picture, sun, exposure, the ground's baked albedo (an engine's bounce from below) and
   the AgX grade drawn by Blender's own OpenColorIO as a lattice picture (grade_lut.py), so the engine grades exactly.
   **Characters go in it skinned** (skinned.py, 2099's prologue, 2026-11-20): every SkelRoot laid (a `put` player

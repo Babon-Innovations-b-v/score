@@ -30,6 +30,7 @@ WIDTH = 768  # the preview's pixels across
 FINAL_SIZE = (1920, 1080)  # a final render's pixels (owner, 2026-11-16: final views at 1920x1080), whatever the concept's aspect
 FREE_GB = 12  # a Blender starts only with more memory than this available
 MEMORY = "8G"  # its scope's cap
+TIMED_OUT = 124  # coreutils timeout's exit when it stopped the run (queued's `seconds`)
 CARD_GB = "8"  # its share of the card
 
 
@@ -105,11 +106,13 @@ def command(folder, width=WIDTH, names=(), final=False):
     return queued(f"place-build-{folder.name}", SCRIPT, [str(still_stage(folder)), str(listing), str(out)])
 
 
-def queued(job, script, arguments, card=True):
+def queued(job, script, arguments, card=True, seconds=None):
     """The card queue's command running a Blender script with its arguments in a memory-capped scope (with no `card`,
-    the scoped command alone: an export that draws nothing waits for no card)."""
-    blender = [str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script), "--",
-               *arguments]
+    the scoped command alone: an export that draws nothing waits for no card); with `seconds`, the Blender stopped
+    past them (coreutils timeout: exit TIMED_OUT), its wait for the card not counted."""
+    limit = ["timeout", "-k", "30", str(seconds)] if seconds else []
+    blender = [*limit, str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script),
+               "--", *arguments]
     linked = ":".join(filter(None, [libraries(), "/usr/lib/wsl/lib"]))
     scoped = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={MEMORY}", "-p", "MemorySwapMax=0",
               "--setenv=FARM_CYCLES_GPU=1", f"--setenv=LD_LIBRARY_PATH={linked}", *blender]

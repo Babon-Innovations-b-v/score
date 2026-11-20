@@ -16,10 +16,11 @@ over the surface's `tile_metres`, as the preview reads them: each face by its ow
 across a corner); a see-through look as glass (KHR_materials_transmission and _ior, its colour the preview's thin
 glass tint, its alpha the opacity for a reader without transmission). A palette recipe with a pattern (its edge wear,
 dirt and relief) is baked as the preview draws it, in headless Blender on this PC's card through the card queue
-(bake_looks.py): the part unwrapped (xatlas, in blocks no wider than a map) at DENSITY texels a metre on maps of at
-most LARGEST, each map its own primitive and material, or on a laid ground one seamless GROUND_TILE box-projected;
-its base colour, metal-roughness and normal pictures carried in the object's own buffer. A glTF-only model or take
-laid in its own bake (no look of the place's on it) goes as its library entry's own glTF, unchanged.
+(bake_looks.py): the part unwrapped (xatlas; its big faces cut, in blocks no wider than a map) at DENSITY texels a
+metre on maps each as big as its charts and at most LARGEST, each map its own primitive and material, or on a laid
+ground one seamless GROUND_TILE box-projected; its base colour, metal-roughness and normal pictures carried in the
+object's own buffer. A glTF-only model or take laid in its own bake (no look of the place's on it) goes as its library
+entry's own glTF, unchanged.
 Two objects that convert to the same file are one object. A copy turned and scaled evenly keeps its object in its
 own frame (`matrix` the whole transform); a copy stretched unevenly has its stretch baked into its own object.
 
@@ -43,6 +44,8 @@ view transform and look, a night's moon and glow, the ground's albedo (ground_al
 path-traced bounce lights from below with), and `grade`: that view transform and look drawn by Blender's own
 OpenColorIO into a lattice picture (grade_lut.py), the engine's tone mapping sampling it as SCORE's render grades.
 """
+import contextlib
+import faulthandler
 import hashlib
 import json
 import math
@@ -71,8 +74,9 @@ EVEN = 1e-6  # how far a copy's scale may differ across its axes and still be ev
 DENSITY = 512
 LARGEST = 4096
 PADDING = 4
-UNCHARTED = 0xFFFFFFFF  # xatlas's map number for a vertex of a face it charted on none
 SPAN_SHARE = 0.9  # how much of a map's side one block of a part may span (blocks_of): its charts' slack
+FILL = 0.5  # how much of a LARGEST map one group of blocks may hold at DENSITY (map_groups): xatlas's packing slack
+HELD_SHARE = 0.97  # a map holding its charts under this share of DENSITY is refused (unwrapped)
 GROUND_TILE = 8.0  # metres one seamless tile of a laid ground's recipe covers: LARGEST texels at DENSITY
 FLAT_RECIPES = ("glass", "glowing")  # recipes of one colour, roughness and glow: their factors are exact, no bake
 GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
@@ -87,6 +91,12 @@ GRADE_FILE = "environment/grade.png"
 # Blender's own USD reader does): a distant light's strength (W/m²) its intensity times SUN_STRENGTH, a sphere light's
 # watts its intensity times pi. A lamp's and the sun's `strength` is that, what the engine lights with.
 SUN_STRENGTH = 4.0
+# Every step of a package runs under its time (deadline, blender_run, blender_graded), never for hours unseen (the
+# base, 2026-11-20: a part's unwrap ran 11.5 h at 100% CPU): an object's conversion, the characters, the scene's
+# doors, chambers and sky, a Blender run of BATCH maps (its wait for the card not counted), the grade. Each step is
+# named in STEPS first.
+STEP_SECONDS = {"object": 900, "scene": 900, "bake run": 1800, "grade": 600}
+STEPS = "bake/steps.log"
 PROBE = 0.3  # metres past a door's face (its depth's half and this) where the place on that side is read
 
 
@@ -419,16 +429,16 @@ def told(gathered, looks):
 
 
 def object_glb(prim, baked, made):
-    """The object's GLB (a primitive a look) in its own frame, `baked` (a row-major 3 x 3, or None) drawn into it, and
-    its triangle count; None when it draws no face. `made` holds the GLBs written so far by what tells them (`told`),
-    so a copy of one already made is not written again."""
+    """The object's GLB (a primitive a look) in its own frame, `baked` (a row-major 3 x 3, or None) drawn into it, its
+    triangle count and the triangles its unwrap cut them into besides (subdivided); None when it draws no face. `made`
+    holds the GLBs written so far by what tells them (`told`), so a copy of one already made is not written again."""
     looks = looks_of(prim)
     gathered = {}
     for inside in gprims(prim):
         for key, (positions, normals, uv) in gprim_pieces(inside, prim, baked, looks).items():
             gathered.setdefault(key, []).append((positions, normals, uv))
     if not gathered:
-        return None, 0
+        return None, 0, 0
     tells = told(gathered, looks)
     if tells not in made:
         made[tells] = gltf_written(gathered, looks)
@@ -440,72 +450,144 @@ def areas_of(points, faces):
     return 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=-1)
 
 
-def blocks_of(vertices, faces, chosen):
-    """The faces `chosen` cut into blocks no wider than a map holds at DENSITY (SPAN): each block's box halved across
-    its longest side, by the faces' middles, until it fits; so no chart xatlas makes is wider than its map and none is
-    shrunk to fit (a dome's 10 m deck as one chart came out at 390 texels a metre)."""
+def span():
+    """Metres one block of a part may span on its map at DENSITY (SPAN_SHARE of a LARGEST map inside its padding)."""
+    return (LARGEST - 2 * PADDING) / DENSITY * SPAN_SHARE
+
+
+def held():
+    """Square metres of surface one map's charts may hold at DENSITY: FILL of a LARGEST map."""
+    return LARGEST ** 2 * FILL / DENSITY ** 2
+
+
+def subdivided(vertices, normals, faces):
+    """The mesh with every triangle whose longest edge is over half a span (span) cut at that edge's middle until
+    none is, the new corners' normals the edge's ends' mean: the same surface, so no one face is a chart wider than
+    its map (the base's hangar: 44 faces over 4153 m², each its own block, packed as one map 33,000 texels wide by
+    xatlas for 11.5 h)."""
+    longest = span() / 2
+    vertices, normals, faces = np.asarray(vertices, float), np.asarray(normals, float), np.asarray(faces)
+    while True:
+        corners = vertices[faces]
+        lengths = np.linalg.norm(corners[:, [1, 2, 0]] - corners, axis=-1)  # edge k from corner k to corner k + 1
+        over = lengths.max(axis=1) > longest
+        if not over.any():
+            return vertices, normals, faces
+        cut = faces[over]
+        edge = lengths[over].argmax(axis=1)
+        ring = np.arange(len(cut))
+        first, second, third = (cut[ring, (edge + step) % 3] for step in range(3))
+        middles = len(vertices) + ring
+        way = normals[first] + normals[second]
+        way /= np.maximum(np.linalg.norm(way, axis=1, keepdims=True), 1e-12)
+        vertices = np.vstack([vertices, (vertices[first] + vertices[second]) / 2])
+        normals = np.vstack([normals, way])
+        faces = np.vstack([faces[~over], np.stack([first, middles, third], 1), np.stack([middles, second, third], 1)])
+
+
+def halves(vertices, faces, chosen):
+    """The faces `chosen` cut in two across their box's longest side, by the faces' middles (in index order when all
+    middles fall on one side)."""
     corners = vertices[faces[chosen]]
-    box = np.ptp(corners.reshape(-1, 3), axis=0)
-    if box.max() <= (LARGEST - 2 * PADDING) / DENSITY * SPAN_SHARE or len(chosen) == 1:
-        return [chosen]
-    axis = int(box.argmax())
+    axis = int(np.ptp(corners.reshape(-1, 3), axis=0).argmax())
     middles = corners.mean(axis=1)[:, axis]
     low = middles < (corners[..., axis].min() + corners[..., axis].max()) / 2
     if low.all() or not low.any():
         low = np.arange(len(chosen)) < len(chosen) // 2
-    return blocks_of(vertices, faces, chosen[low]) + blocks_of(vertices, faces, chosen[~low])
+    return chosen[low], chosen[~low]
+
+
+def blocks_of(vertices, faces, chosen):
+    """The faces `chosen` cut into blocks no wider than a map holds at DENSITY (span) and holding no more surface than
+    a map's worth (held): each block halved (halves) until it fits; so no chart xatlas makes is wider than its map, no
+    block needs more than one, and none is shrunk to fit (a dome's 10 m deck as one chart came out at 390 texels a
+    metre)."""
+    box = np.ptp(vertices[faces[chosen]].reshape(-1, 3), axis=0)
+    if (box.max() <= span() and areas_of(vertices, faces[chosen]).sum() <= held()) or len(chosen) == 1:
+        return [chosen]
+    return [block for half in halves(vertices, faces, chosen) for block in blocks_of(vertices, faces, half)]
+
+
+def map_groups(vertices, faces, blocks):
+    """The blocks (in blocks_of's order, side by side in space) gathered into maps' worth: each group's surface at
+    DENSITY at most FILL of a LARGEST map, so each is packed alone into one map of its own size."""
+    groups, area = [[]], 0.0
+    for chosen in blocks:
+        surface = float(areas_of(vertices, faces[chosen]).sum())
+        if groups[-1] and area + surface > held():
+            groups.append([])
+            area = 0.0
+        groups[-1].append(chosen)
+        area += surface
+    return groups
+
+
+def atlas_of(vertices, normals, faces, group):
+    """One map of blocks packed by xatlas at DENSITY, PADDING round each chart, its size as its charts need (no fixed
+    resolution, so no chart is scaled to fit), each chart's boundary at most twice a span so none is wider than a map;
+    None when that map is over LARGEST a side."""
+    import xatlas
+    atlas = xatlas.Atlas()
+    for chosen in group:
+        kept, inverse = np.unique(faces[chosen], return_inverse=True)
+        atlas.add_mesh(vertices[kept].astype(np.float32), inverse.reshape(-1, 3).astype(np.uint32),
+                       normals[kept].astype(np.float32))
+    charting = xatlas.ChartOptions()
+    charting.max_boundary_length = 2 * span()
+    packing = xatlas.PackOptions()
+    packing.texels_per_unit, packing.padding, packing.bilinear, packing.blockAlign = DENSITY, PADDING, True, True
+    atlas.generate(chart_options=charting, pack_options=packing)
+    return atlas if max(atlas.width, atlas.height) <= LARGEST and atlas.atlas_count <= 1 else None
+
+
+def mapped(vertices, normals, faces, group):
+    """The group's blocks on maps of at most LARGEST: one map when it packs into one (atlas_of), else the group halved
+    (a lone block cut in its own halves) and each half mapped; [(atlas, the blocks on it)]. Refused when one face
+    alone needs more than a map."""
+    atlas = atlas_of(vertices, normals, faces, group)
+    if atlas is not None:
+        return [(atlas, group)]
+    if len(group) == 1 and len(group[0]) == 1:
+        raise place_build.Refused(f"a face needs more than a {LARGEST} map at {DENSITY} texels a metre")
+    parts = [[half] for half in halves(vertices, faces, group[0])] if len(group) == 1 else \
+        [group[:len(group) // 2], group[len(group) // 2:]]
+    return [laid for part in parts for laid in mapped(vertices, normals, faces, part)]
 
 
 def unwrapped(vertices, normals, faces):
-    """A mesh laid flat for its bake (xatlas, a block a mesh: blocks_of) at DENSITY texels a metre, PADDING round each
-    chart, on maps of at most LARGEST a side: [(vertices, normals, uv, faces, [width, height], texels a metre as
-    laid)] a map."""
-    import xatlas
-    blocks = [np.unique(faces[chosen], return_inverse=True) for chosen in blocks_of(vertices, faces,
-                                                                                    np.arange(len(faces)))]
-
-    def generated(resolution):
-        atlas = xatlas.Atlas()
-        for kept, inverse in blocks:
-            atlas.add_mesh(vertices[kept].astype(np.float32), inverse.reshape(-1, 3).astype(np.uint32),
-                           normals[kept].astype(np.float32))
-        packing = xatlas.PackOptions()
-        packing.texels_per_unit, packing.padding, packing.bilinear, packing.blockAlign = DENSITY, PADDING, True, True
-        packing.resolution = resolution
-        atlas.generate(pack_options=packing)
-        return atlas
-    atlas = generated(0)
-    if max(atlas.width, atlas.height) > LARGEST:
-        atlas = generated(LARGEST)
-    size = [int(atlas.width), int(atlas.height)]
-    pages = [([], [], [], []) for _ in range(atlas.atlas_count)]
-    for number, (kept, _) in enumerate(blocks):
-        mapping, corners, uv = atlas[number]
-        page = atlas.get_mesh_vertex_assignment(number)[0].astype(np.int64)[corners[:, 0]]
-        page[page == UNCHARTED] = 0  # a sliver xatlas charts on no map stays, on the first
-        for held, (points, ways, coordinates, triangles) in enumerate(pages):
-            chosen = corners[page == held]
-            if not len(chosen):
-                continue
-            used, inverse = np.unique(chosen, return_inverse=True)
-            triangles.append(inverse.reshape(-1, 3) + sum(len(block) for block in points))
-            points.append(vertices[kept[mapping[used]]])
-            ways.append(normals[kept[mapping[used]]])
-            coordinates.append(uv[used].astype(np.float64))
+    """A mesh laid flat for its bake (subdivided, cut into blocks: blocks_of, gathered a map's worth a group:
+    map_groups) at DENSITY texels a metre on maps each as big as its charts need and at most LARGEST a side:
+    [(vertices, normals, uv, faces, [width, height], texels a metre as laid)] a map. Refused when a map holds its
+    charts under DENSITY (#146: xatlas packing at a fixed resolution scaled charts down to 147 texels a metre)."""
+    vertices, normals, faces = subdivided(vertices, normals, faces)
+    blocks = blocks_of(vertices, faces, np.arange(len(faces)))
     found = []
-    for points, ways, coordinates, triangles in pages:
-        points, coordinates, triangles = np.vstack(points), np.vstack(coordinates), np.vstack(triangles)
-        texels = np.sqrt(areas_of(np.hstack([coordinates * size, np.zeros((len(coordinates), 1))]),
-                                  triangles).sum() / max(areas_of(points, triangles).sum(), 1e-12))
-        found.append((points, np.vstack(ways), coordinates, triangles, size, round(float(texels), 1)))
+    for group in map_groups(vertices, faces, blocks):
+        for atlas, held in mapped(vertices, normals, faces, group):
+            size = [int(atlas.width), int(atlas.height)]
+            points, ways, coordinates, triangles = [], [], [], []
+            for number, chosen in enumerate(held):
+                kept = np.unique(faces[chosen])
+                mapping, corners, uv = atlas[number]
+                triangles.append(corners + sum(len(block) for block in points))
+                points.append(vertices[kept[mapping]])
+                ways.append(normals[kept[mapping]])
+                coordinates.append(uv.astype(np.float64))
+            points, coordinates, triangles = np.vstack(points), np.vstack(coordinates), np.vstack(triangles)
+            texels = np.sqrt(areas_of(np.hstack([coordinates * size, np.zeros((len(coordinates), 1))]),
+                                      triangles).sum() / max(areas_of(points, triangles).sum(), 1e-12))
+            if texels < DENSITY * HELD_SHARE:
+                raise place_build.Refused(f"a map of {size[0]}x{size[1]} holds its charts at {texels:.1f} texels a "
+                                          f"metre, under {DENSITY}")
+            found.append((points, np.vstack(ways), coordinates, triangles, size, round(float(texels), 1)))
     return found
 
 
 def gltf_written(gathered, looks):
-    """The GLB of an object's corners grouped by look (a recipe to bake on its own unwrapped maps, a part a map), and
-    its triangle count."""
+    """The GLB of an object's corners grouped by look (a recipe to bake on its own unwrapped maps, a part a map), its
+    triangle count and the triangles its unwrap cut them into besides (subdivided)."""
     import trimesh
-    scene, triangles, parts = trimesh.Scene(), 0, []
+    scene, triangles, written_triangles, parts = trimesh.Scene(), 0, 0, []
     for key in sorted(gathered):
         pieces = gathered[key]
         with_uv = all(piece[2] is not None for piece in pieces)
@@ -516,16 +598,17 @@ def gltf_written(gathered, looks):
         maps = unwrapped(vertices, normals, faces) if bake and not bake["tile"] else \
             [(vertices, normals, uv, faces, [LARGEST, LARGEST], LARGEST / bake["tile"]) if bake else
              (vertices, normals, uv, faces, None, None)]
+        triangles += len(faces)
         for page, (vertices, normals, uv, faces, size, texels) in enumerate(maps):
             number = len(parts)
             mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=normals, process=False)
             mesh.visual = trimesh.visual.TextureVisuals(uv=uv, material=looks[key]["material"])
             scene.add_geometry(mesh, node_name=f"part_{number}", geom_name=f"part_{number}")
-            triangles += len(faces)
+            written_triangles += len(faces)
             asked = dict(bake, size=size, texels_a_metre=texels) if bake else None
             parts.append({"factors": looks[key].get("factors", {}), "bake": asked,
                           "name": looks[key]["material"].name + (f" map{page + 1}" if len(maps) > 1 else "")})
-    return exactly(scene.export(file_type="glb"), parts), triangles
+    return exactly(scene.export(file_type="glb"), parts), triangles, written_triangles - triangles
 
 
 def exactly(glb, parts):
@@ -967,7 +1050,7 @@ def environment_of(stage, place, out):
 def converted(prim, baked, made):
     """An object's glTF (GLB bytes), where it came from, and its check: the library entry's own when laid unchanged
     in an even copy, else converted from the laid USD (`made` the conversions so far, object_glb), its triangles
-    counted against the USD's."""
+    counted against the USD's (the triangles an unwrap cut a face into counted besides)."""
     import trimesh
     usd_triangles = sum(len(found[2]) for found in (drawn(inside) for inside in gprims(prim)) if found is not None)
     own = entry_glb(prim) if baked is None else None
@@ -975,12 +1058,13 @@ def converted(prim, baked, made):
         loaded = trimesh.load(trimesh.util.wrap_as_stream(own), file_type="glb", force="mesh", skip_materials=True)
         return own, "library glTF", {"pass": len(loaded.faces) == usd_triangles > 0, "triangles": len(loaded.faces),
                                      "usd_triangles": usd_triangles}
-    glb, triangles = object_glb(prim, baked, made)
+    glb, triangles, cut = object_glb(prim, baked, made)
     if glb is None:
         return None, None, None
     loaded = trimesh.load(trimesh.util.wrap_as_stream(glb), file_type="glb", force="mesh", skip_materials=True)
-    return glb, "converted from the laid USD", {"pass": len(loaded.faces) == triangles == usd_triangles > 0,
-                                                "triangles": len(loaded.faces), "usd_triangles": usd_triangles}
+    return glb, "converted from the laid USD", {"pass": len(loaded.faces) - cut == triangles == usd_triangles > 0,
+                                                "triangles": len(loaded.faces), "usd_triangles": usd_triangles,
+                                                "cut": cut}
 
 
 def written(out, name, glb):
@@ -997,6 +1081,22 @@ def box_size(glb):
     return [round(float(side), 4) for side in np.ptp(loaded.vertices, axis=0)]
 
 
+@contextlib.contextmanager
+def deadline(out, step, kind):
+    """The step named in <out>/STEPS and run under STEP_SECONDS[kind]: past it the process stops with every thread's
+    stack on stderr (faulthandler's watchdog, which fires inside a C call such as xatlas's packing too)."""
+    seconds = STEP_SECONDS[kind]
+    log = out / STEPS
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a") as written_log:
+        written_log.write(f"{kind} {step}: stopped past {seconds} s\n")
+    faulthandler.dump_traceback_later(seconds, exit=True)
+    try:
+        yield
+    finally:
+        faulthandler.cancel_dump_traceback_later()
+
+
 def write(folder, out):
     """The laid place in <folder> as a scene package in <out>; scene.json's content."""
     folder, out = pathlib.Path(folder), pathlib.Path(out)
@@ -1007,28 +1107,31 @@ def write(folder, out):
         if held.name != "bake":
             shutil.rmtree(held) if held.is_dir() else held.unlink()
     (out / "objects").mkdir(parents=True)
+    (out / STEPS).unlink(missing_ok=True)
     found, characters, left_out = laid_objects(stage, place)
     objects, instances, by_content, counts, made = {}, [], {}, {}, {}
     for prim, kind in found:
-        world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
-        frame, scale, baked = copy_frame(world)
-        glb, route, check = converted(prim, baked, made)
-        if glb is None:
-            left_out.append({"name": prim.GetName(), "why": "it draws no face"})
-            continue
-        digest = hashlib.sha256(glb).hexdigest()
-        if digest not in by_content:
-            by_content[digest] = prim.GetName()
-            written(out, prim.GetName(), glb)
-            objects[prim.GetName()] = {"file": f"objects/{prim.GetName()}.gltf", "kind": kind, "route": route,
-                                       "size": box_size(glb), "triangles": check["triangles"], "check": check}
-        copy = instance_of(prim.GetName(), by_content[digest], kind, frame, scale)
-        if roles is not None:
-            copy["role"] = roles.get(prim.GetName())
-            copy["collider"] = collider_of(folder, prim, copy["role"], scale)
-        instances.append(copy)
-        counts[kind] = counts.get(kind, 0) + 1
-    laid_characters, refused = character_objects(characters)
+        with deadline(out, prim.GetName(), "object"):
+            world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+            frame, scale, baked = copy_frame(world)
+            glb, route, check = converted(prim, baked, made)
+            if glb is None:
+                left_out.append({"name": prim.GetName(), "why": "it draws no face"})
+                continue
+            digest = hashlib.sha256(glb).hexdigest()
+            if digest not in by_content:
+                by_content[digest] = prim.GetName()
+                written(out, prim.GetName(), glb)
+                objects[prim.GetName()] = {"file": f"objects/{prim.GetName()}.gltf", "kind": kind, "route": route,
+                                           "size": box_size(glb), "triangles": check["triangles"], "check": check}
+            copy = instance_of(prim.GetName(), by_content[digest], kind, frame, scale)
+            if roles is not None:
+                copy["role"] = roles.get(prim.GetName())
+                copy["collider"] = collider_of(folder, prim, copy["role"], scale)
+            instances.append(copy)
+            counts[kind] = counts.get(kind, 0) + 1
+    with deadline(out, "the characters", "scene"):
+        laid_characters, refused = character_objects(characters)
     left_out += refused
     for name, kind, frame, scale, glb, facts, check in laid_characters:
         digest = hashlib.sha256(glb).hexdigest()
@@ -1042,15 +1145,17 @@ def write(folder, out):
         copy["plays"] = facts["plays"]
         instances.append(copy)
         counts[kind] = counts.get(kind, 0) + 1
-    doors, chambers = doors_of(stage, place, [copy["name"] for copy in instances])
-    for copy in instances:
-        if copy["name"] in doors:
-            copy["door"] = doors[copy["name"]]
-    scene = {"format": package.FORMAT, "version": package.VERSION, "place": place,
-             "frame": "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
-             "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
-             "lamps": lamps_of(stage, place), "counts": counts, "physics": "ready.json" if roles is not None else None,
-             "left_out": left_out, "chambers": chambers, "environment": environment_of(stage, place, out)}
+    with deadline(out, "doors, chambers, lamps and sky", "scene"):
+        doors, chambers = doors_of(stage, place, [copy["name"] for copy in instances])
+        for copy in instances:
+            if copy["name"] in doors:
+                copy["door"] = doors[copy["name"]]
+        scene = {"format": package.FORMAT, "version": package.VERSION, "place": place,
+                 "frame": "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
+                 "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
+                 "lamps": lamps_of(stage, place), "counts": counts,
+                 "physics": "ready.json" if roles is not None else None, "left_out": left_out, "chambers": chambers,
+                 "environment": environment_of(stage, place, out)}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     return scene
 
@@ -1115,12 +1220,13 @@ def batches(jobs):
 
 def blender_run(out, listing, log):
     """One run of bake_looks.py over `listing` in headless Blender on this PC's card, through the card queue
-    (render.queued), its output added to `log`; its exit code."""
+    (render.queued), stopped past STEP_SECONDS' bake run, its output added to `log`; its exit code."""
     import subprocess
     from score.stages.place_build import render
     script = pathlib.Path(__file__).resolve().parent / "bake_looks.py"
     with log.open("a") as written_log:
-        return subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())]),
+        return subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())],
+                                            seconds=STEP_SECONDS["bake run"]),
                               stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO).returncode
 
 
@@ -1129,6 +1235,7 @@ def blender_baked(out, jobs, run=blender_run):
     map already marked done under <out>/BAKE kept and every other mark there removed, the log in
     <out>/bake/blender.log; each map's pictures then moved to its place under objects/. Refused with the log's tail
     when a run fails or a map is not baked, its finished maps kept for the next `package` to resume from."""
+    from score.stages.place_build import render
     into = out / BAKE
     into.mkdir(parents=True, exist_ok=True)
     keys = map_keys(out, jobs)
@@ -1150,7 +1257,8 @@ def blender_baked(out, jobs, run=blender_run):
     missing = [job for job, key in zip(jobs, keys) if not (into / f"{key}.done").is_file()]
     if code or missing:
         tail = " | ".join(log.read_text(errors="replace").splitlines()[-6:])
-        raise place_build.Refused(f"the bake failed (exit {code}, {len(missing)} of {len(jobs)} maps not baked; "
+        late = f", its run stopped past {STEP_SECONDS['bake run']} s" if code == render.TIMED_OUT else ""
+        raise place_build.Refused(f"the bake failed (exit {code}{late}, {len(missing)} of {len(jobs)} maps not baked; "
                                   f"package again bakes only those), log {log}: {tail}")
     for job, key in zip(jobs, keys):
         for kind in PICTURES:
@@ -1223,11 +1331,13 @@ def blender_graded(out, environment):
     script = pathlib.Path(__file__).resolve().parent / "grade_lut.py"
     done = subprocess.run(render.queued(f"place-build-grade-{out.name}", script, [
         str((out / GRADE_FILE).resolve()), environment["view_transform"], environment["look"],
-        *(str(GRADE[key]) for key in ("size", "low", "high", "middle"))], card=False),
+        *(str(GRADE[key]) for key in ("size", "low", "high", "middle"))], card=False,
+        seconds=STEP_SECONDS["grade"]),
         capture_output=True, text=True, cwd=place_build.REPO)
     if done.returncode or not (out / GRADE_FILE).is_file():
         tail = " | ".join((done.stdout + done.stderr).splitlines()[-6:])
-        raise place_build.Refused(f"the grade failed (exit {done.returncode}): {tail}")
+        late = f", stopped past {STEP_SECONDS['grade']} s" if done.returncode == render.TIMED_OUT else ""
+        raise place_build.Refused(f"the grade failed (exit {done.returncode}{late}): {tail}")
 
 
 def ground_albedo(out, jobs):
