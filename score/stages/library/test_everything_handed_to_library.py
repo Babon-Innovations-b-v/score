@@ -29,7 +29,8 @@ render that never passes) and a store of its own; the machine's score_lib checko
     a run's stop              a row of the runner's seams: a SIGTERM while the place's handover runs reaches the
                               command in its own session, then is handled as before
     the defaults              the environment wins over the defaults, a library the defaults alone name is found; the
-                              cloud's store only when no blob folder is set (rows of the runner's seams)
+                              public copy with its write token only when no blob folder is set (rows of the
+                              runner's seams)
     the gate                  on the runner's toy table and the real one the two library rows read every row of their
                               grain (on the real table, but straight-masks), the showcase renders optional, both free,
                               and no row reads them (owner, 2026-10-22: no paid preview); on the toy table (a list baked
@@ -101,8 +102,7 @@ TOY = contracts.Contract("toy-text", 1, lambda folder: [] if any(folder.glob("*.
 FAKE = '''import json, os, pathlib, signal, subprocess, sys, time
 words = sys.argv[1:]
 here = pathlib.Path(__file__).parent
-seen = {name: os.environ.get(name) for name in ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_BUCKET", "SCORE_LIB_S3_PREFIX",
-                                               "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")}
+seen = {name: os.environ.get(name) for name in ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_HUB_REPO", "HF_TOKEN")}
 child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])  # left running for its row to end
 with (here / "calls.txt").open("a") as calls:
     said = {"words": words, "environment": seen, "all": dict(os.environ), "child": child.pid}
@@ -154,6 +154,9 @@ def no_real_library(monkeypatch):
     monkeypatch.setattr(backend.library_files, "defaults", lambda: {})
     provider = type(sys)("provider")
     provider.cloud = type("Cloud", (), {"object_store": staticmethod(lambda: FAKE_STORE)})
+    provider.load = lambda name=None: type("Store", (), {"secret": staticmethod(lambda secret: {
+        backend.library_files.HUB_TOKEN_SECRET: "TOKEN"}[secret])})
+    backend.library_files.hub_token.cache_clear()
     monkeypatch.setitem(sys.modules, "provider", provider)
 
 
@@ -615,11 +618,10 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     assert len(words) == calls, words
     place_words = next(said for said in words if "--place" in said)
     world_words = next(said for said in words if "--place" not in said)
-    # the cloud's blob store only when no blob folder is set, and the environment's folder over the defaults'
-    store = {"SCORE_LIB_BLOBS_DIR": str(tmp_path / "blobs"), "SCORE_LIB_S3_BUCKET": None, "SCORE_LIB_S3_PREFIX": None,
-             "AWS_ACCESS_KEY_ID": None, "AWS_SECRET_ACCESS_KEY": None} if blobs else {
-        "SCORE_LIB_BLOBS_DIR": None, "SCORE_LIB_S3_BUCKET": "a-bucket", "SCORE_LIB_S3_PREFIX": "score_lib",
-        "AWS_ACCESS_KEY_ID": "AK", "AWS_SECRET_ACCESS_KEY": "SK"}
+    # the library's public copy with its write token only when no blob folder is set, and the environment's folder
+    # over the defaults'
+    store = {"SCORE_LIB_BLOBS_DIR": str(tmp_path / "blobs"), "SCORE_LIB_HUB_REPO": None, "HF_TOKEN": None} if blobs \
+        else {"SCORE_LIB_BLOBS_DIR": None, "SCORE_LIB_HUB_REPO": backend.library_files.HUB_REPO, "HF_TOKEN": "TOKEN"}
     assert all(call["environment"] == store for call in said), said
 
     def after(option):
