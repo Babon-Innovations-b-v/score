@@ -185,9 +185,12 @@ def entry_of(address):
 
 def fetch(folder, address):
     """Every file of the library entry copied under the place's assets (so a model's maps lie beside its USD);
-    {file name: path in the folder}."""
+    {file name: path in the folder}. A withdrawn entry is refused: the library retired it (the owner, 2026-10-21,
+    every old model, kit, character and surface), so nothing laid now comes from it."""
     address = resolved_address(address, library_root())
     record = entry_of(address)
+    if record.get("state") == "withdrawn":
+        raise Refused(f"{address}: withdrawn from the library; lay an entry it holds")
     copied = {}
     for name in record["files"]:
         reference = library_files.reference(address, name)

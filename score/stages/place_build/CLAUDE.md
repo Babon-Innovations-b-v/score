@@ -13,7 +13,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   inside that sees the sky or the outside through a gap no door, window or glass closes. A cut object is found at render by its prim's path (Blender 5's
   reader names a single-mesh Xform for its mesh), and `remove` drops it from the cut. An outside place is marked
   `kind <folder> outside` (place.json `kind`): the check then judges only its structures' rooms.
-- **Everything laid comes from the library.** `put` lays only an entry with a USD file (kit pieces, models, the
+- **Everything laid comes from the library.** A withdrawn entry is refused (the owner retired every old model,
+  kit, character and surface on 2026-10-21), and the finish check fails one already laid. `put` lays only an entry
+  with a USD file (kit pieces, models, the
   sky domes), copied whole under the place's `assets/`; `surface` binds a library surface over everything inside the
   object (a variant's own material, or a recipe in a palette colour), so a model's baked colour never shows; `light`
   lays the library's lamp. No geometry, colour or light is made here outside a library entry.
@@ -29,6 +31,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **Every shown part wears a library finish** (finished/, its own overlay): `surface` is refused over the whole of a
   model whose own paint has parts, `refinish` lays it per part from the palette, `put` does so for a model in a paint
   no library surface made, and the check (`check`, ready.json's `finishes`) tells every object that does not.
+- **A made shape that reads wrong is remade** (shapes/, its own overlay): a pipe whose section swells along its run
+  (a sausage) or a hard made thing with too few flat faces (a lump) is told in ready.json's `shapes`, never kept.
 - **Parts.** A kit piece's or model's colour regions are GeomSubsets; `surface --part` binds a surface on one, and the
   object's whole look then goes on every shape and every other part, so no baked colour shows anywhere.
 - **glTF-only entries** (our picture-made models and takes) are converted once at `put` (gltf.py): a part a material,

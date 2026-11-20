@@ -2,7 +2,8 @@
 generator painted part by part from the library (its own paint red and grey) under one grey look over its whole is
 `one surface over its parts`, and a new whole surface on it is refused; a picture-made take in its own paint is
 `own paint`; a piece with no material is `no material`; a look naming a surface the library does not hold is
-`unknown surface`; while a one-paint box under one look passes. `refinish` mends each: the generator shows its own
+`unknown surface`; a character's own paint passes only under a written exception (the player models'); an entry the
+library withdrew is never its paint and is refused at `put`; while a one-paint box under one look passes. `refinish` mends each: the generator shows its own
 library paint whole again; a lantern of the same paint under a whole glowing look keeps the glow on its red part
 alone, its grey part in its own library paint; the take's parts laid as the palette variants nearest their colours
 (its brown part a paint, never the sand ground of the same colour); and a take `put` after the palette is laid
@@ -19,9 +20,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.earlier_look: the glow kept whatever the recipe (`recipe not in GLOWS` made `False`) -> the generator
   keeps its grey look on one part
 - finished.variant_colours: every family kept -> the take's brown part wears the sand ground
+- finished.library_painted: the withdrawn rule left out -> a withdrawn entry's paint passes
+- place_build.fetch: the withdrawn refusal left out -> a withdrawn model is laid
+- finished.library_painted: a character always passed (`bool(excepted(...))` made `True`) -> a character no written
+  exception covers keeps its own paint
 """
 import json
 
+import pytest
 from PIL import Image
 from pxr import Sdf, Usd, UsdGeom, UsdShade, Vt
 
@@ -152,3 +158,17 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     assert list(subset.GetIndicesAttr().Get()) == [0], looks  # the red half alone keeps the glow
     assert {str(material.GetPath()) for _, material in finished.bound_parts(
         stage.GetPrimAtPath("/camp/Objects/gen/geo"))} == {"/camp/Objects/gen/paint"}
+    held = Usd.Stage.CreateInMemory()
+    pilot = held.DefinePrim("/camp/Objects/pilot")
+    pilot.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("character")
+    player = {"place": "*", "prim": "/*/Characters/*", "aspect": "finish", "what": "a player model's own texture",
+              "why": "repainting loses its seams", "allowed_by": "@owner", "allowed_on": "2026-11-19"}
+    assert not finished.library_painted(pilot, None, []) and finished.library_painted(pilot, None, [player])
+    assert not finished.library_painted(pilot, {"state": "withdrawn"}, [player])
+    retired = root / "entries/model/retired/1"
+    retired.mkdir(parents=True)
+    retired.joinpath("entry.json").write_text(json.dumps({
+        "schema": "score-lib-entry/1", "address": "model/retired@1", "kind": "model", "id": "retired", "version": 1,
+        "state": "withdrawn", "files": {}, "provenance": {}}))
+    with pytest.raises(place_build.Refused, match="withdrawn"):
+        place_build.put(folder, "old", "model/retired")

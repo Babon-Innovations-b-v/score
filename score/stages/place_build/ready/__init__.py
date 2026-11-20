@@ -51,7 +51,8 @@ MEMORY, refuses with what needs it, never freezing the machine (the Hong Kong sq
 
 Beside the physics, ready.json's `finishes` holds every object whose shown finish is not the library's (finished/:
 no material, its model's own paint no library surface made, a look naming no library surface, one surface over a
-model's painted parts); the place is ready only with none.
+model's painted parts); and `shapes` every made object whose shape reads wrong (shapes/: a pipe that swells along
+its run, a hard thing with too few flat faces), each for a remake. The place is ready only with neither.
 """
 import ast
 import json
@@ -67,7 +68,7 @@ from pxr import Sdf, Usd, UsdGeom
 
 from score.stages import place_build
 
-from score.stages.place_build import finished
+from score.stages.place_build import finished, shapes
 from score.stages.place_build.ready import people
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -1359,12 +1360,13 @@ def check(folder, settle=True):
     if seeing:
         counts[gaps[0]["fault"]] = seeing
     unfinished = finished.faults(stage, place)
+    misread = shapes.faults(stage, place)
     path = pathlib.Path(folder) / "ready.json"
     path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "open": gaps,
-                                "finishes": unfinished, "settle": engine}, indent=1))
-    return {"ready": not found and not unfinished and not seeing, "objects": len(laid.prims),
+                                "finishes": unfinished, "shapes": misread, "settle": engine}, indent=1))
+    return {"ready": not found and not unfinished and not misread and not seeing, "objects": len(laid.prims),
             "with_faults": len(found), "counts": counts, "open": seeing, "unfinished": len(unfinished),
-            "settle": engine, "file": str(path)}
+            "misread": len(misread), "settle": engine, "file": str(path)}
 
 
 # --- the `on` helper ----------------------------------------------------------------------------------------------

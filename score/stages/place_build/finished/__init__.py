@@ -9,16 +9,19 @@ against the library, and a model's own paint re-finished per part from the place
 
 A shown part wears the library's finish when it is bound to a look of the place (`/<place>/Looks`) naming a surface
 the library holds (`score:surface`), or to its model's own paint when that paint is the library's: a model the surface
-line painted from the library surfaces (LIBRARY_PAINT in its entry's provenance) or a character's dress. Its faults:
+line painted from the library surfaces (LIBRARY_PAINT in its entry's provenance), or a character's dress under a
+written exception (data/checks/library-exceptions.json, the player models' own texture: the library check's
+exceptions, read at /<place>/Characters/<name>, the path that check gives a place's characters). Its faults:
 
 - `no material`: a shown part bound to nothing (a default grey);
 - `own paint`: a shown part wearing its model's own paint that no library surface painted (a picture-made take, a
-  TRELLIS.2 model's graded paint);
-- `unknown surface`: a look naming no surface, or one the library does not hold;
+  TRELLIS.2 model's graded paint, a character no written exception covers, any entry the library has withdrawn);
+- `unknown surface`: a look naming no surface, or one the library does not hold or has withdrawn;
 - `one surface over its parts`: one look over the whole of a model whose own paint has PARTS or more parts
   (grade.parts: colour groups of at least grade.PART_SHARE, further than grade.PART_DELTA apart), every part then one
   flat paint, the clay the owner saw. A scan's own maps are not judged so (its colours are its stone's, not parts).
 """
+import datetime
 import json
 import pathlib
 
@@ -27,13 +30,15 @@ from PIL import Image
 from pxr import Sdf, Usd, UsdGeom, UsdShade
 
 from score.stages import place_build
+from score.stages.complete.library import entries as library_entries
+from score.stages.complete.library import exceptions as written
 from score.stages.place_build.maker import grade
 
 FAULT = "no library finish"
-# The words of an entry's provenance that say the surface line painted every part of it from the library surfaces:
-# a surfaces-bake model taken in, and the first world's accepted assemblies' models.
-LIBRARY_PAINT = ("painted from the library surfaces", "baked with the surface library")
-LIBRARY_KINDS = ("character",)  # a character's dress is its entry's own library paint
+# The words of an entry's provenance that say the surface line painted every part of it from the library surfaces,
+# the library check's own (complete/library/entries.py).
+LIBRARY_PAINT = library_entries.LIBRARY_PAINT
+EXCEPTED_KINDS = ("character",)  # a character's dress shows its own paint only under a written exception
 PICTURE_MAKERS = ("pixal3d", "trellis2")  # the makers whose paint is a picture's, re-finished when laid
 UNJUDGED_KINDS = ("light",)  # a sky dome laid as an object is light the renderer draws
 PARTS = 2  # a model's own paint with this many parts or more is never one surface over its whole
@@ -63,10 +68,25 @@ def record_of(prim):
         return None
 
 
-def library_painted(prim, record):
-    """Whether the object's own paint is the library's (LIBRARY_PAINT, or a character's dress)."""
-    if text(prim, "score:kind") in LIBRARY_KINDS:
-        return True
+def excepted(prim, exceptions=None):
+    """The written exception in force covering the character's finish (`exceptions`, else the file's), or None."""
+    place = prim.GetPath().GetPrefixes()[0].name
+    listed = written.read() if exceptions is None else exceptions
+    return written.matching(listed, place, f"/{place}/Characters/{prim.GetName()}", "finish", datetime.date.today())
+
+
+def withdrawn(record):
+    """Whether the library withdrew the entry (a withdrawn entry is no library's: the library check's rule too)."""
+    return (record or {}).get("state") == library_entries.WITHDRAWN
+
+
+def library_painted(prim, record, exceptions=None):
+    """Whether the object's own paint may show: LIBRARY_PAINT on an entry the library holds, or a character's dress
+    under a written exception."""
+    if withdrawn(record):
+        return False
+    if text(prim, "score:kind") in EXCEPTED_KINDS:
+        return bool(excepted(prim, exceptions))
     told = json.dumps((record or {}).get("provenance", {}))
     return any(words in told for words in LIBRARY_PAINT)
 
@@ -249,11 +269,11 @@ def look_fault(look, surfaces):
         return f"look {look.GetName()} names no library surface"
     if address not in surfaces:
         try:
-            place_build.entry_of(address)
-            surfaces[address] = True
+            surfaces[address] = not withdrawn(place_build.entry_of(address))
         except place_build.Refused:
             surfaces[address] = False
-    return None if surfaces[address] else f"look {look.GetName()} names {address}, which the library does not hold"
+    return None if surfaces[address] else (f"look {look.GetName()} names {address}, which the library does not hold "
+                                           "(or has withdrawn)")
 
 
 def provenance_words(record):
@@ -261,7 +281,18 @@ def provenance_words(record):
     return ", ".join(sorted({step.get("by", "?") for step in made})) or "no provenance"
 
 
-def object_faults(prim, place, surfaces):
+def own_paint_why(prim, record):
+    """Why the object's own paint is a fault, and its mend."""
+    if withdrawn(record):
+        return f"lays {text(prim, 'score:library')}, which the library has withdrawn: lay an entry it holds"
+    if text(prim, "score:kind") in EXCEPTED_KINDS:
+        return ("a character wearing its own paint, which no written exception covers "
+                "(data/checks/library-exceptions.json)")
+    return (f"wears its model's own paint ({provenance_words(record)}), which no library surface painted: "
+            "`refinish` it per part from the palette")
+
+
+def object_faults(prim, place, surfaces, exceptions):
     """The object's finish faults: one a kind, with the parts it covers."""
     record = record_of(prim)
     looks = f"/{place}/Looks"
@@ -275,12 +306,10 @@ def object_faults(prim, place, surfaces):
             elif str(material.GetPath()).startswith(looks + "/"):
                 why = look_fault(material, surfaces)
                 kind = "unknown surface" if why else None
-            elif library_painted(prim, record):
+            elif library_painted(prim, record, exceptions):
                 kind = None
             else:
-                kind = "own paint"
-                why = (f"wears its model's own paint ({provenance_words(record)}), which no library surface painted: "
-                       "`refinish` it per part from the palette")
+                kind, why = "own paint", own_paint_why(prim, record)
             if kind:
                 told.setdefault(kind, {"fault": FAULT, "kind": kind, "why": why, "parts": []})["parts"].append(
                     str(part.GetPath()))
@@ -302,14 +331,16 @@ def object_faults(prim, place, surfaces):
     return list(told.values())
 
 
-def faults(stage, place):
-    """{object: [fault]} of every object of /<place>/Objects whose shown finish is not the library's."""
+def faults(stage, place, exceptions=None):
+    """{object: [fault]} of every object of /<place>/Objects whose shown finish is not the library's; the written
+    exceptions are `exceptions`, else the file's."""
     found, surfaces = {}, {}
+    exceptions = written.read() if exceptions is None else exceptions
     objects = stage.GetPrimAtPath(f"/{place}/Objects")
     for prim in objects.GetChildren() if objects else ():
         if text(prim, "score:kind") in UNJUDGED_KINDS:
             continue
-        told = object_faults(prim, place, surfaces)
+        told = object_faults(prim, place, surfaces, exceptions)
         if told:
             found[prim.GetName()] = told
     return found

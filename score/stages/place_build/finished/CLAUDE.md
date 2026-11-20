@@ -8,6 +8,8 @@ the rules; ready/ reports its faults in ready.json's `finishes`, and the place i
   naming a surface the library holds, or its model's own paint when the entry's provenance says the surface line
   painted it from the library) and its model's own paint read from the model file (faces' colours by their texture
   coordinates, parts by maker/grade.py's `parts`).
+- **A character's own paint passes only under a written exception** (data/checks/library-exceptions.json, the player
+  models' texture), read at `/<place>/Characters/<name>`, the path the library check gives a place's characters.
 - **One surface over a model's painted parts is a fault**, not a choice: it paints every part one flat paint (the
   clay the owner saw). `surface` refuses it. `refinish` takes the looks off: a paint the library made shows whole
   again (a glowing look kept on the part nearest its colour, a lantern's paper); a paint no library surface made (a
