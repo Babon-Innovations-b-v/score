@@ -100,7 +100,8 @@ SWING = 90.0  # degrees an opening door's leaf turns about its hinge
 ROOM = 1.0  # metres of room round an open leaf past which more room is no better a swing
 CONTACT = 0.01  # metres a person's foot or seat may stand off, or sink into, what is under it
 SETTLE_MOVE = 0.05  # metres
-SEES = 40.0  # metres a ray from the walkers' floor goes meeting nothing before it is taken to see the outside
+SEES = 40.0  # metres a ray from the walkers' floor goes meeting nothing before it is taken to see the outside (at
+# least; across a bigger building, its box's diagonal: `sight`)
 COVER = 12.0  # metres over a floor point a roof, slab or flight must stand for the point to be inside
 INSIDE_SHARE = 0.6  # a covered point whose rays meet something at least this often is inside (under an awning, less)
 LOOK_HEIGHTS = (0.5, 1.6)  # metres over the walkers' floor the looks start (a child's, a grown walker's eyes)
@@ -109,6 +110,8 @@ LOOK_AZIMUTHS = 16  # ways round a point
 LOOK_ELEVATIONS = (0.0, 20.0, 45.0, 70.0)  # degrees up of each ring of ways
 SHOWN_OPEN = 12  # at most this many of a place's open looks are listed (the rest counted)
 SETTLE_TURN = 8.0  # degrees
+RAYS = 32  # rays the exact intersector casts at once (each holds every face its box meets: 30 000 in the hangar)
+PAST = 1e-3  # metres past a ray's last kept hit embree is asked again whether it meets anything more
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
 ROLES = ("ground", "shell", "connector", "door", "structure", "fixed", "mount", "character", "light", "prop",
          "scenery")
@@ -263,6 +266,35 @@ def ray_box(origins, directions, length=np.inf):
     return low, high
 
 
+def cast(triangles, origins, directions, multiple_hits=True):
+    """Where rays meet triangles (n, 3, 3): (where, which ray, which triangle). Embree (trimesh's mesh.ray) casts them,
+    and every ray it gave up on is cast again by trimesh's exact ray_triangle, RAYS at a time: trimesh drops a ray whose
+    hit face lies along it (its plane and the ray meet nowhere), and every later hit with it, so a look grazing a bevel
+    read open (#128, 2026-11-20: engineroom's look from (-1.988, 0.76, -1.388) towards (0.707, 0, 0.707) first meets
+    core_frame's 45-degree face edge on and kept none of the 13 faces it crosses). A ray was given up on when embree
+    still meets a face past the last hit kept of it (from its origin when none was kept)."""
+    origins, directions = np.asarray(origins, float), np.asarray(directions, float)
+    local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
+    where, rays, faces = local.ray.intersects_location(origins, directions, multiple_hits=multiple_hits)
+    ways = trimesh.util.unitize(directions)
+    farthest = np.full(len(origins), -np.inf)
+    np.maximum.at(farthest, rays, np.einsum("ij,ij->i", where - origins[rays], ways[rays]))
+    kept = np.isfinite(farthest)
+    past = origins + ways * np.where(kept, farthest + PAST, 0.0)[:, None]
+    doubtful = local.ray.intersects_first(past, ways) >= 0
+    doubtful = np.flatnonzero(doubtful & ~kept if not multiple_hits else doubtful)
+    if not len(doubtful):
+        return where, rays, faces
+    exact = trimesh.ray.ray_triangle.RayMeshIntersector(local)
+    unsure = np.isin(rays, doubtful)
+    found = [(where[~unsure], rays[~unsure], faces[~unsure])]
+    for start in range(0, len(doubtful), RAYS):
+        batch = doubtful[start:start + RAYS]
+        at, which, face = exact.intersects_location(origins[batch], directions[batch], multiple_hits=multiple_hits)
+        found.append((at.reshape(-1, 3), batch[which], face))
+    return tuple(np.concatenate(parts) for parts in zip(*found))
+
+
 class Place:
     """A place's objects as solids for rays: each one's role and mesh, and the faces a query reaches, gathered per
     query from the objects whose box meets it (never every face of the scene in one ray structure: 660 rocks on a
@@ -326,8 +358,7 @@ class Place:
         triangles, owners = self.triangles_in(*ray_box(origins, directions, length), among=numbers)
         if not len(triangles):
             return empty
-        local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
-        where, rays, faces = local.ray.intersects_location(origins, directions, multiple_hits=True)
+        where, rays, faces = cast(triangles, origins, directions, multiple_hits=True)
         along = np.linalg.norm(where - origins[rays], axis=1)
         kept = along <= length
         return where[kept], rays[kept], owners[faces[kept]], along[kept]
@@ -546,9 +577,7 @@ def door_outline(laid, name):
     if not len(triangles):
         shape = grid_u.shape
         return np.zeros(shape, dtype=bool), np.zeros(shape, dtype=bool)
-    local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
-    where, rays, faces = local.ray.intersects_location(origins, np.tile(-axes[2], (len(origins), 1)),
-                                                       multiple_hits=True)
+    where, rays, faces = cast(triangles, origins, np.tile(-axes[2], (len(origins), 1)), multiple_hits=True)
     owners, along = close_owners[faces], np.linalg.norm(where - origins[rays], axis=1)
     near = along <= 2 * depth
     door = np.zeros(len(origins), dtype=bool)
@@ -774,8 +803,7 @@ def met(laid, origins, directions, length):
     triangles, _ = laid.triangles_in(*ray_box(origins, directions, length))
     if not len(triangles) or not len(origins):
         return np.zeros(len(origins), bool)
-    local = trimesh.Trimesh(triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False)
-    where, rays, _ = local.ray.intersects_location(origins, directions, multiple_hits=False)
+    where, rays, _ = cast(triangles, origins, directions, multiple_hits=False)
     reached = np.zeros(len(origins), bool)
     reached[rays[np.linalg.norm(where - origins[rays], axis=1) <= length]] = True
     return reached
@@ -790,6 +818,16 @@ def look_points(floor):
     middles = grid.middles()[span_cells[kept]]
     return np.concatenate([np.column_stack([middles[:, 0], span_heights[kept] + height, middles[:, 1]])
                            for height in LOOK_HEIGHTS]) if kept.any() else np.zeros((0, 3))
+
+
+def sight(laid):
+    """How far a look from the walkers' floor goes meeting nothing before it sees the outside: SEES, or across a
+    bigger place the diagonal of its walkers' objects' box (grid_rectangle's), so a look from one wall always reaches the
+    far one (#128, 2026-11-20: the hangar, 40 x 48 m and built closed, read 1156 points open, its looks running out 40 m
+    along, short of its far walls)."""
+    names = laid.with_role("shell", "connector", "door", "structure", "prop", "mount") or laid.names
+    boxes = np.array([laid.meshes[name].bounds for name in names])
+    return max(SEES, float(np.linalg.norm(boxes[:, 1].max(axis=0) - boxes[:, 0].min(axis=0))))
 
 
 def nearest_owners(laid, origins, directions, length):
@@ -812,7 +850,7 @@ def rooms(laid, points):
     covers = nearest_owners(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     level = look_ways()[:LOOK_AZIMUTHS]
     seen = np.array(nearest_owners(laid, np.repeat(points, len(level), axis=0), np.tile(level, (len(points), 1)),
-                                   SEES), dtype=object).reshape(len(points), len(level))
+                                   sight(laid)), dtype=object).reshape(len(points), len(level))
     mounted_on = {name: (text_of(laid.prims[name], "score:support") or "").removeprefix("wall:")
                   for name in laid.names}
     closing = np.array([[owner is not None and (owner == cover or laid.roles[owner] == "door"
@@ -821,13 +859,20 @@ def rooms(laid, points):
     return closing.mean(axis=1) >= INSIDE_SHARE
 
 
-def open_faults(laid, floor, outside=False):
-    """Every look from the walkers' floor inside the place (a point under a roof, slab or flight within COVER whose
-    looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a point in a
-    structure's room, `rooms`) that meets nothing within SEES: the inside sees the sky or the outside through a gap no
-    door, window or glass closes (a cut-away built into the walls). [{fault, at, towards, why}] (at most SHOWN_OPEN,
-    each from another point) and how many inside points see out."""
-    points, ways = look_points(floor), look_ways()
+def look_floor(laid):
+    """The walkers' floor the looks start from: each door as laid for the walkers (doors_standing: shut in its doorway,
+    or swung open), never the walkway check's every door open, whose doorways hold floor points inside a shut door's
+    own frame looking out past it (#128, 2026-11-20: storage's two open points stood in door_1.storage's frame)."""
+    return walkers_floor(laid, doors_standing(laid))[:4]
+
+
+def open_faults(laid, outside=False):
+    """Every look from the walkers' floor (look_floor) inside the place (a point under a roof, slab or flight within
+    COVER whose looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a
+    point in a structure's room, `rooms`) that meets nothing within its `sight`: the inside sees the sky or the outside
+    through a gap no door, window or glass closes (a cut-away built into the walls). [{fault, at, towards, why}] (at
+    most SHOWN_OPEN, each from another point) and how many inside points see out."""
+    points, ways = look_points(look_floor(laid)), look_ways()
     if not len(points):
         return [], 0
     covered = met(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
@@ -837,7 +882,8 @@ def open_faults(laid, floor, outside=False):
     if not len(points):
         return [], 0
     origins, directions = np.repeat(points, len(ways), axis=0), np.tile(ways, (len(points), 1))
-    reached = met(laid, origins, directions, SEES).reshape(len(points), len(ways))
+    seeing_far = sight(laid)
+    reached = met(laid, origins, directions, seeing_far).reshape(len(points), len(ways))
     inside = reached.mean(axis=1) >= INSIDE_SHARE
     seeing = np.flatnonzero(inside & ~reached.all(axis=1))
     faults = []
@@ -846,7 +892,7 @@ def open_faults(laid, floor, outside=False):
         at = np.round(points[number], 2).tolist()
         faults.append({"fault": "open to the outside", "at": at, "towards": np.round(towards, 2).tolist(),
                        "why": f"from the walkers' floor at {at} the look towards {np.round(towards, 2).tolist()} "
-                              f"meets nothing within {SEES:g} m: a gap no door, window or glass closes (build the "
+                              f"meets nothing within {seeing_far:.0f} m: a gap no door, window or glass closes (build the "
                               f"inside closed; a cut-away is the camera's, place.json `cut`)"})
     return faults, len(seeing)
 
@@ -1219,7 +1265,8 @@ def check(folder, settle=True):
     for name in laid.with_role("connector"):
         for fault in connector_faults(laid, name, floor):
             found.setdefault(name, []).append(fault)
-    gaps, seeing = open_faults(laid, floor, place_build.record_of(folder).get("kind") == "outside")
+    del floor  # the looks start from a floor of their own, the doors shut (look_floor): one floor held at a time
+    gaps, seeing = open_faults(laid, place_build.record_of(folder).get("kind") == "outside")
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():
         found.setdefault(name, []).extend(faults)

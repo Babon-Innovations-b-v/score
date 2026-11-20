@@ -15,7 +15,10 @@ support is cast against only the faces under it (camp's 660 rocks on a terrain r
 laid as an object (`score:kind` light) is no solid: never told, never stood on. Far scenery (two rocks laid into each
 other and a ground disc, over 200 m past every walker's reach) is scenery, never told, while the same two rocks 12 m
 past the reached objects still penetrate. A closed room (walls, roof, its door shut in its doorway) sees nothing
-outside from its walkers' floor, while the same room with its front wall left out (a cut-away built into the
+outside from its walkers' floor (nor does one whose door's own frame stands 0.6 m out of its wall, its looks starting
+from the floor with that door shut, nor a closed hall 48 m long, its looks reaching its far wall), and a look past a
+face lying along it (which trimesh's embree drops) still meets the wall behind, while the same room with its front
+wall left out (a cut-away built into the
 building) is told open to the outside; in an outside place (place.json `kind`) that open-fronted room is a covered
 stretch of the outside (an arcade) and passes, while a shop's room, one structure with a glassless window gap, is told
 open. The check's memory stays bounded: a surface's points are read a chunk at a
@@ -52,6 +55,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.out_of_reach: `far` left empty -> the far shore reads no collision geometry and the far rocks penetrate
 - ready.open_faults: INSIDE_SHARE made 1.01 -> no point of the cut room reads inside and it passes
 - ready.open_faults: SEES made 1.0 -> the closed room's far looks read open and it is told
+- ready.sight: SEES alone (the place's diagonal left out) -> the closed hall 48 m long reads open along its length
+- ready.look_floor: walkers_floor(laid) with every door open -> the hooded door's frame holds look points that see
+  out past it, and the closed room is told
+- ready.cast: the rays embree gave up on left uncast -> the look past a face lying along it meets nothing, and the
+  wall behind is never met
 - ready.open_faults: `rooms` left out of an outside place -> the open-fronted arcade (the cut room under the sky) is told
 - ready.rooms: the cover's own object not asked (only doors close) -> the shop's room is no room and its open window
   passes
@@ -263,9 +271,10 @@ def rock_field(folder):
     place_build.ground(folder, "far_shore", 10.0, (320.0, -0.02, 0.0))
 
 
-def room(folder, cut):
-    """A room 4 x 4 m inside, 2.5 m high, on a ground disc: four walls 0.2 m thick, a roof slab, a doorway 1.0 x 2.1 m
-    in its back wall filled by its shut door; `cut` leaves its front wall out (the concept's section, built)."""
+def room(folder, cut, hood=0.0, length=4.0):
+    """A room 4 m wide and `length` deep inside, 2.5 m high, on a ground disc: four walls 0.2 m thick, a roof slab, a
+    doorway 1.0 x 2.1 m in its back wall filled by its shut door; `cut` leaves its front wall out (the concept's
+    section, built); `hood` metres of the door's own frame (two cheeks and a head) standing out of the wall."""
     folder.mkdir()
     concept = folder / "concept.png"
     Image.new("RGB", (8, 8)).save(concept)
@@ -273,18 +282,25 @@ def room(folder, cut):
     folder = folder / "place"
     place_build.ground(folder, "ground", 6.0, (0.0, -0.02, 0.0))
     stage, place = place_build.opened(folder)
-    box(stage, place, "wall_left", (0.2, 2.5, 4.4), (-2.2, 0.0, -2.2))
-    box(stage, place, "wall_right", (0.2, 2.5, 4.4), (2.0, 0.0, -2.2))
+    box(stage, place, "wall_left", (0.2, 2.5, length + 0.4), (-2.2, 0.0, -2.2))
+    box(stage, place, "wall_right", (0.2, 2.5, length + 0.4), (2.0, 0.0, -2.2))
     back = box(stage, place, "wall_back", (1.5, 2.5, 0.2), (-2.0, 0.0, -2.2))
     for name, size, middle in (("right", (1.5, 2.5, 0.2), (2.5, 0.0, 0.0)), ("lintel", (1.0, 0.4, 0.2), (1.25, 1.05, 0.0))):
         block = UsdGeom.Cube.Define(stage, f"{back.GetPath()}/{name}")
         block.CreateSizeAttr(1.0)
         block.AddTranslateOp().Set(Gf.Vec3d(*middle))
         block.AddScaleOp().Set(Gf.Vec3f(*size))
-    box(stage, place, "door", (0.98, 2.09, 0.05), (-0.49, 0.0, -2.125))
+    door = box(stage, place, "door", (0.98, 2.09, 0.05), (-0.49, 0.0, -2.125))
+    for name, size, middle in (("cheek_left", (0.1, 2.2, hood), (-0.55, 0.0, -hood / 2 - 0.075)),
+                               ("cheek_right", (0.1, 2.2, hood), (0.55, 0.0, -hood / 2 - 0.075)),
+                               ("head", (1.2, 0.1, hood), (0.0, 1.1, -hood / 2 - 0.075))) if hood else ():
+        block = UsdGeom.Cube.Define(stage, f"{door.GetPath()}/{name}")
+        block.CreateSizeAttr(1.0)
+        block.AddTranslateOp().Set(Gf.Vec3d(*middle))
+        block.AddScaleOp().Set(Gf.Vec3f(*size))
     if not cut:
-        box(stage, place, "wall_front", (4.4, 2.5, 0.2), (-2.2, 0.0, 2.0))
-    box(stage, place, "roof", (4.4, 0.2, 4.4), (-2.2, 2.5, -2.2))
+        box(stage, place, "wall_front", (4.4, 2.5, 0.2), (-2.2, 0.0, length - 2.0))
+    box(stage, place, "roof", (4.4, 0.2, length + 0.4), (-2.2, 2.5, -2.2))
     stage.GetRootLayer().Save()
     return folder
 
@@ -366,14 +382,23 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     for name, made, kind, told in (("closed", lambda folder: room(folder, False), "inside", False),
                                    ("cut", lambda folder: room(folder, True), "inside", True),
                                    ("arcade", lambda folder: room(folder, True), "outside", False),
-                                   ("shop", shop, "outside", True)):
+                                   ("shop", shop, "outside", True),
+                                   ("hooded", lambda folder: room(folder, False, hood=0.6), "inside", False),
+                                   ("hall", lambda folder: room(folder, False, length=48.0), "inside", False),
+                                   ("hall_cut", lambda folder: room(folder, True, length=48.0), "inside", True)):
         folder = made(tmp_path / name)
         place_build.kind(folder, kind)
         stage, place = place_build.opened(folder)
         shell = ready.Place(stage, place)
-        gaps, seeing = ready.open_faults(shell, ready.walkway_faults(shell)[1],
-                                         place_build.record_of(folder)["kind"] == "outside")
+        gaps, seeing = ready.open_faults(shell, place_build.record_of(folder)["kind"] == "outside")
         assert (seeing > 0) == told and all(fault["fault"] == "open to the outside" for fault in gaps), (name, gaps)
+    tilt = 4e-6  # a face lying along the look (embree meets it, its plane and the look meet nowhere), a wall past it
+    lying = np.array([[[0.0, 0.5 - tilt, -1.0], [2.0, 0.5 + tilt, -1.0], [1.0, 0.5, 1.0]]])
+    walled = np.concatenate([lying, trimesh.creation.box((0.2, 3.0, 4.0)).apply_translation((3.0, 1.5, 0.0)).triangles])
+    looks = np.array([[0.0, 0.5, 0.0], [0.0, 0.5, 0.0]]), np.array([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]])
+    first, every = ready.cast(walled, *looks, multiple_hits=False), ready.cast(walled, *looks)
+    assert first[1].tolist() == [0] and np.allclose(first[0], [[2.9, 0.5, 0.0]]) and sorted(every[1].tolist()) == [0, 0], \
+        (first, every)
     folder = planted(tmp_path)
     coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)

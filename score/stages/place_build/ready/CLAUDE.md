@@ -23,6 +23,10 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   GB): every ray query and the settle's statics gather the faces of the objects whose box meets the query's own box
   (`Place.triangles_in`, `ray_box`), never one ray structure of the whole scene; only props are free bodies in the
   settle, static against static is never computed. A sky dome laid as an object (`score:kind` light) is no solid.
+- **Every ray goes through `cast`** (#128, 2026-11-20): embree (trimesh's mesh.ray) drops a ray whose first face
+  lies along it, and every later hit with it (engineroom's looks read open past a 45-degree bevel), so `cast` casts
+  again, with trimesh's exact ray_triangle RAYS at a time, every ray embree still meets something past its last kept
+  hit. ray_triangle alone takes ~30 ms a ray in the hangar (hours for its looks), so it is the fallback, never the pass.
 - **Far scenery is no physics prop** (#128, 2026-11-17): a ground or fixed piece wholly more than GROUND_REACH past
   every walker's reach (the people and everything a walker meets) is `scenery` (`out_of_reach`), left out of every
   measure, so a far shore with no faces near the place or the horizon's mesas laid into their talus are never told.
@@ -31,7 +35,10 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   rays from points LOOK_HEIGHTS over the walkers' floor; a point under a roof, slab or flight whose looks mostly meet
   a solid is inside, and a look of it that meets nothing within SEES is `open to the outside` (ready.json `open`),
   a gap no door (as laid, shut), window or glass closes. The fix is a wall built and, for the concept's cut-away, a
-  camera cut (place.json `cut`, place_build `cut`), never a wider tolerance. An outside place (place.json `kind`
+  camera cut (place.json `cut`, place_build `cut`), never a wider tolerance. The looks start from the walkers' floor
+  with every door as laid for them (`look_floor`: shut, or swung open), never the walkway check's doors-open floor,
+  whose doorways put points inside a shut door's own frame (storage, 2026-11-20), and reach SEES or, across a bigger
+  place, its box's diagonal (`sight`: the hangar's 40 m looks fell short of its far walls). An outside place (place.json `kind`
   outside, place_build `kind`; a place without one is inside) is judged only in its structures' rooms (`rooms`: the
   object over the point closes it round on the level, itself, a door or what is mounted on it), so a street's awnings,
   arcades and overhangs are no inside (#128, 2026-11-20: the street read 711 points open, 15 after, at its shop fronts).
