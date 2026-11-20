@@ -53,7 +53,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `assets/algorithm/` by its sizes: delete it there after changing dome_shell.py, or the old one is laid.
 - **Standing on things**: `put --rest` lays a piece's lowest point at the given height (a floor, a table top);
   `--on-ground` reads that height over the laid ground there (a rock on a terrain's relief).
-- **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only.
+- **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only. A
+  named view sees the building closed; `view --cut` makes it see through place.json `cut` as the concept's does
+  (render.views gives each view its own `cut`, blender_views.view_cut applies it per view).
 - **Image surfaces** (`surface/ambientcg_*`, CC0 PBR sets taken in with their source in each entry's provenance and
   surface.json) tile at their own `tile_metres` in the preview, box-projected in the object's own frame
   (blender_views.py); a model's bake keeps its own texture coordinates.

@@ -39,19 +39,22 @@ class RenderFailed(RuntimeError):
 
 def views(record, width=WIDTH, names=(), final=False):
     """usd_views' listing of the concept view and the named views `names` (place_build.view; their look only), the
-    concept's aspect kept; at the review's samples, or the films' at FINAL_SIZE when `final`; `cut` the objects the
-    camera sees through (place.json `cut`, blender_views.camera_cut)."""
+    concept's aspect kept; at the review's samples, or the films' at FINAL_SIZE when `final`; each view's `cut` the
+    objects its camera sees through (place.json `cut`, blender_views.camera_cut): the concept's view's, and a named
+    view's only when it was made a cut view (`view --cut`), so an outside view shows the building closed."""
     wide, tall = record["size"]
     camera = record["camera"]
     unknown = sorted(set(names) - set(record.get("views", {})))
     if unknown:
         raise place_build.Refused(f"no view {', '.join(unknown)} (views: {', '.join(record.get('views', {}))})")
+    cut = record.get("cut") or []
     listed = [{"name": "concept", "eye": camera["eye"], "aim": camera["aim"], "up": [0.0, 1.0, 0.0],
-               "fov": camera["fov"]}]
+               "fov": camera["fov"], "cut": cut}]
     listed += [{"name": name, "eye": record["views"][name]["eye"], "aim": record["views"][name]["aim"],
-                "up": [0.0, 1.0, 0.0], "fov": record["views"][name]["fov"], "look_only": True} for name in names]
+                "up": [0.0, 1.0, 0.0], "fov": record["views"][name]["fov"], "look_only": True,
+                "cut": cut if record["views"][name].get("cut") else []} for name in names]
     size = list(FINAL_SIZE) if final else [width, max(1, round(width * tall / wide))]
-    return {"size": size, "review": not final, "views": listed, "cut": record.get("cut") or []}
+    return {"size": size, "review": not final, "views": listed, "cut": cut}
 
 
 def libraries():

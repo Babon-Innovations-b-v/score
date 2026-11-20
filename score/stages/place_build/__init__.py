@@ -1119,14 +1119,17 @@ def haze(folder, name, centre, size, colour, density, forward=0.0, reach=None):
     return {"haze": name, "density": density}
 
 
-def view(folder, name, eye, aim, fov):
+def view(folder, name, eye, aim, fov, cut=False):
     """A named view besides the concept's (an inside view at eye height, a low view across the ground), rendered
-    with the concept's by `render --views`."""
+    with the concept's by `render --views`; `cut`: it sees through place.json `cut` as the concept's view does (a
+    named view otherwise sees the building closed)."""
     if name == "concept":
         raise Refused("the concept's own view is set with `camera`")
     record = record_of(folder)
     record.setdefault("views", {})[name] = {"eye": [float(value) for value in eye],
                                             "aim": [float(value) for value in aim], "fov": float(fov)}
+    if cut:
+        record["views"][name]["cut"] = True
     write_record(folder, record)
     return {name: record["views"][name]}
 

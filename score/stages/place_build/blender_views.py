@@ -1,8 +1,9 @@
 """Runs inside Blender: the placing agent's preview (render.py), tools/blender/inside/usd_views.py with two changes a
 laid place needs, made here so the films' and the physics' renders (which key usd_views.py) stay as they are:
 
-- **A cut is the camera's.** The objects the listing's `cut` names (place.json `cut`) are left out of the camera's
-  rays alone, so a concept's cut-away is drawn at render while the building stays closed.
+- **A cut is the camera's.** The objects a view's `cut` names (place.json `cut`; the listing's own `cut` for a view
+  that names none, as the films' frames) are left out of that view's camera rays alone, so a concept's cut-away is
+  drawn at render while the building stays closed, and an outside view sees it closed.
 - **A laid ground is the ground.** Every mesh of an object the agent laid with `put --ground` (score:ground on it or
   a parent) is joined into one `Ground`, which usd_views takes as the stage's own ground: no grey plane of its own
   under it (the camp pilot's plane fought the laid regolith), and the ground left out of the objects' mask.
@@ -304,28 +305,45 @@ class PrimPaths(bpy.types.USDHook):
         return True
 
 
+CUT = {}  # each object a view cuts: the Blender objects it is made of (camera_cut)
+LISTED_CUT = []  # the listing's own cut: a view naming none is cut so (the films' frames)
+
+
 def camera_cut(objects):
-    """The objects the listing's `cut` names (place.json `cut`: the concept's cut-away), with everything under them,
-    left out of the camera's rays alone: the building stays closed, its cut wall still shades and bounces light,
-    and the camera sees through it (owner 2026-11-19: a concept's cut is the camera's, never the building's). A cut
-    object is found by its prim's path (/<place>/Objects/<name>), never by its Blender name."""
+    """The objects any view's `cut` names (place.json `cut`: the concept's cut-away), with everything under them,
+    found for view_cut, which leaves them out of each such view's camera rays alone: the building stays closed, its cut
+    wall still shades and bounces light, and that camera sees through it (owner 2026-11-19: a concept's cut is the
+    camera's, never the building's). A cut object is found by its prim's path (/<place>/Objects/<name>), never by
+    its Blender name."""
     arguments = sys.argv[sys.argv.index("--") + 1:]
-    names = json.loads(pathlib.Path(arguments[1]).read_text()).get("cut") or []
+    listing = json.loads(pathlib.Path(arguments[1]).read_text())
+    LISTED_CUT[:] = listing.get("cut") or []
+    names = set(LISTED_CUT) | {name for view in listing["views"] for name in view.get("cut") or []}
     laid = {}
     for item in bpy.data.objects:
         segments = str(item.get(PRIM_PATH, "")).split("/")
         if len(segments) == 4 and segments[2] == "Objects":
             laid[segments[3]] = item
-    hidden = []
-    for name in names:
+    for name in sorted(names):
         found = laid.get(name)
         if found is None:
             raise RuntimeError(f"blender_views: the cut names {name}, which the scene does not hold")
-        for item in [found, *found.children_recursive]:
-            item.visible_camera = False
-            hidden.append(item.name)
-    print("blender_views: cut", names, len(hidden), "objects out of the camera's rays")
+        CUT[name] = [found, *found.children_recursive]
+    print("blender_views: cut", sorted(names), sum(len(items) for items in CUT.values()), "objects")
     return objects
+
+
+def view_cut(place_camera):
+    """usd_views' camera, the view's cut (its own `cut`, else the listing's) left out of its rays and every other
+    object put back in them."""
+    def placed(scene, view):
+        cut = set(view.get("cut", LISTED_CUT))
+        for name, items in CUT.items():
+            for item in items:
+                item.visible_camera = name not in cut
+        print("blender_views: view", view["name"], "cut", sorted(cut))
+        return place_camera(scene, view)
+    return placed
 
 
 def with_laid_ground(importer):
@@ -360,5 +378,6 @@ def hazy(objects):
 
 bpy.utils.register_class(PrimPaths)
 usd_views.import_stage = with_laid_ground(usd_views.import_stage)
+usd_views.camera = view_cut(usd_views.camera)
 usd_views.haze_volumes = with_thin_glass(usd_views.haze_volumes)  # the looks' pass, never in a plain view
 usd_views.main()

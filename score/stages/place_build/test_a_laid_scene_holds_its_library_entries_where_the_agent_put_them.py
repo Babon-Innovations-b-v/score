@@ -22,8 +22,8 @@ the laid scene packaged for an engine (score.scene v1, package.py's check sound)
 copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
 recipe baked into its own maps, on a ground one seamless tile; glass as transmission), its colliders from the
 physics check's roles and the place's environment (its night, sun and grade). A wall the camera cuts (place.json `cut`) is
-no solid to the film's camera and still one to the walkers, and a cut stair core's front wall is written to its own
-file.
+no solid to the film's camera and still one to the walkers, cut in the concept's view and a view made a cut view while
+an outside view sees it standing, and a cut stair core's front wall is written to its own file.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -87,6 +87,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.front_alone: `front(...)` left out -> the cut core's front wall is written nowhere
 - film.place_scenes: the `cut` left unread -> the camera runs into the wall it sees through
 - place_build.camera_cut: the scene's prim left unasked -> a cut of an object the scene does not hold is listed
+- render.views: every view given place.json's cut -> the outside view sees through the cut wall
+- render.views: a named view's `cut` left unread -> the view made a cut view sees the wall standing
 - stair_core.core: the second block kept with `one_block` -> a flats' block stands past the shaft's far wall
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
@@ -795,8 +797,12 @@ def filmed(tmp_path):
     place_build.camera_cut(folder, "wall")  # the camera sees through the wall; it still stands for the walkers
     through = film.camera_paths.first_hits(film.place_scenes(folder)["blocking"], np.array([[-4.0, 1.2, 8.0]]),
                                            np.array([[0.0, 0.0, 1.0]]))[0]
-    assert np.isinf(through) and render.views(place_build.record_of(folder), 80)["cut"] == ["wall"] \
-        and "wall" in ready.solids(folder), through
+    place_build.view(folder, "outside", eye=(0, 20, 30), aim=(0, 0, 0), fov=60)
+    place_build.view(folder, "section", eye=(-4, 1.6, 8), aim=(-4, 1.6, 0), fov=60, cut=True)
+    cuts = {view["name"]: view["cut"] for view in render.views(place_build.record_of(folder), 80,
+                                                                ["outside", "section"])["views"]}
+    assert np.isinf(through) and cuts == {"concept": ["wall"], "outside": [], "section": ["wall"]} \
+        and "wall" in ready.solids(folder), (through, cuts)
     try:
         place_build.camera_cut(folder, "nothing")
         raise AssertionError("a cut of an object the scene does not hold was listed")

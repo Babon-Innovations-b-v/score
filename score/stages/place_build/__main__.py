@@ -192,7 +192,7 @@ def run(args):
         return place_build.sky(args.folder, args.address, args.elevation, args.heading, args.strength, args.colour,
                                args.turn, args.background, args.exposure)
     if args.step == "view":
-        return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov)
+        return place_build.view(args.folder, args.name, numbers(args.eye), numbers(args.aim), args.fov, args.cut)
     if args.step == "batch":
         with open(args.steps) as given:
             return place_build.batch(args.folder, json.load(given))
@@ -349,6 +349,7 @@ def parser():
     step.add_argument("--eye", required=True)
     step.add_argument("--aim", required=True)
     step.add_argument("--fov", type=float, required=True)
+    step.add_argument("--cut", action="store_true", help="it sees through place.json `cut` as the concept's view does")
     step = steps.add_parser("batch")
     step.add_argument("folder")
     step.add_argument("steps")
