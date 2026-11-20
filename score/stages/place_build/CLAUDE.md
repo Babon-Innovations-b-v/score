@@ -20,7 +20,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **The scene is a plain USD** (y up, metres, `/<place>/Objects|Looks|Lights`) that tools/usd (snap.py, resting.py)
   and sim body read as they read a place: keep that layout, never a Blender file.
 - **Render through the card queue only** (`render.py`: usd_views.py, Cycles review samples, a memory-capped scope,
-  more than 12 GB free); a long one is started with tools/cloud/detached.py, never waited on in the foreground. The
+  more than 12 GB free), from render/still.usda: the scene without its walkers' layer (render.still_stage; the films
+  draw the people); a long one is started with tools/cloud/detached.py, never waited on in the foreground. The
   X/GL libraries a box's Blender lacks come from `bash tools/blender/setup.sh` (into `blender-mcp/libs`, the default;
   `SCORE_BLENDER_LIBS` overrides it), and an exit 127 names that fix.
 - **`start --split` runs SAM 3 free on this PC's card** (score/review/concept_objects.py under SCORE_CLOUD=local and
@@ -122,6 +123,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
   entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
   relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, a laid
-  ground's as one seamless 8 m tile; a mesh with no normals goes smooth, as Blender imports it; scene.json's
+  ground's as one seamless 8 m tile, in Blender runs of a few maps of one object each (scene_package.BATCH; one run
+  over the street's 225 maps grew past the 8 GB cap), each finished map marked under <out>/bake/maps so `package`
+  again resumes a stopped bake and rebakes only a changed object's maps; a mesh with no normals goes smooth, as Blender imports it; scene.json's
   `environment` carries the sky picture, sun, exposure, the ground's baked albedo (an engine's bounce from below) and
   the AgX grade drawn by Blender's own OpenColorIO as a lattice picture (grade_lut.py), so the engine grades exactly.

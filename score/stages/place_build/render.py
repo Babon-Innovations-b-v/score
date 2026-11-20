@@ -33,6 +33,10 @@ MEMORY = "8G"  # its scope's cap
 CARD_GB = "8"  # its share of the card
 
 
+WALKERS = "layers/walkers/"  # the scene's walkers layer (demo_film/layered.WALKERS): the films' people, not the place's
+STILL = "still.usda"  # under <folder>/render: the scene the stills draw, the walkers' layer left out (still_stage)
+
+
 class RenderFailed(RuntimeError):
     """The preview render did not write its pictures."""
 
@@ -71,6 +75,26 @@ def available_gb():
     raise RuntimeError("no MemAvailable in /proc/meminfo")
 
 
+def still_stage(folder):
+    """<folder>/render/STILL: the scene as a still draws it, its walkers' layer left out (a still shows the place,
+    which the compare measures against the concept's objects; the films draw the walkers; on the street, 2026-11-20,
+    its walkers held 0.7 GB of Blender's import), every relative path in it anchored on the folder so it reads its
+    assets from where it lies. The scene itself is untouched."""
+    from pxr import Sdf, UsdUtils
+    folder = pathlib.Path(folder).resolve()
+    still = folder / "render" / STILL
+    layer = Sdf.Layer.FindOrOpen(str(place_build.scene_path(folder)))
+    copied = Sdf.Layer.CreateNew(str(still)) if not still.exists() else Sdf.Layer.FindOrOpen(str(still))
+    copied.TransferContent(layer)
+    copied.subLayerPaths[:] = [path for path in layer.subLayerPaths if WALKERS not in path]
+
+    def anchored(path):
+        return str(folder / path) if path and ":" not in path and not pathlib.PurePath(path).is_absolute() else path
+    UsdUtils.ModifyAssetPaths(copied, anchored)
+    copied.Save()
+    return still
+
+
 def command(folder, width=WIDTH, names=(), final=False):
     """The card queue's command rendering the scene: its views.json written into <folder>/render."""
     folder = pathlib.Path(folder).resolve()
@@ -78,7 +102,7 @@ def command(folder, width=WIDTH, names=(), final=False):
     out.mkdir(exist_ok=True)
     listing = out / "views.json"
     listing.write_text(json.dumps(views(place_build.record_of(folder), width, names, final), indent=1))
-    return queued(f"place-build-{folder.name}", SCRIPT, [str(place_build.scene_path(folder)), str(listing), str(out)])
+    return queued(f"place-build-{folder.name}", SCRIPT, [str(still_stage(folder)), str(listing), str(out)])
 
 
 def queued(job, script, arguments, card=True):

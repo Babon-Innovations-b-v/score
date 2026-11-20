@@ -21,9 +21,11 @@ straight down under its cut with +x right and +z down, and a physics fault boxed
 the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
 copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
 recipe baked into its own maps, on a ground one seamless tile; glass as transmission), its colliders from the
-physics check's roles and the place's environment (its night, sun and grade). A wall the camera cuts (place.json `cut`) is
+physics check's roles and the place's environment (its night, sun and grade), its bake run a few maps of one object at
+a time and a stopped bake resumed from the maps it finished, a changed object's maps baked again. A wall the camera cuts (place.json `cut`) is
 no solid to the film's camera and still one to the walkers, cut in the concept's view and a view made a cut view while
-an outside view sees it standing, and a cut stair core's front wall is written to its own file.
+an outside view sees it standing, and a cut stair core's front wall is written to its own file. A still draws the place
+without the walkers' layer.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -127,6 +129,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.attached: the normal map left off -> the panel's baked maps carry no normal texture
 - scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
 - scene_package.pbr: the ground's tile left None -> the regolith's recipe is unwrapped, no tile baked
+- scene_package.blender_baked: every map baked again (marks ignored) -> the resumed bake asks the stopped one's
+  finished panel map 0 again
+- scene_package.map_keys: the object's buffer left out of the key -> the changed panel's maps 0 and 1 are kept
+- scene_package.batches: one run for all the maps -> a run holds the maps of both objects, past BATCH
+- render.still_stage: the walkers' layer kept -> the still's scene holds walker_one
+- render.still_stage: its paths left unanchored -> the still under render/ misses every laid object's model
+- scene_package.write: the whole package folder removed -> the stopped bake's maps are gone before the bake
 - scene_package.gprim_pieces: a mesh with no normals of its own shaded flat -> the holed panel's points carry many
   normals each, not Blender's one smooth normal
 - scene_package.ground_albedo: the picture's sRGB mean taken as linear -> the regolith's albedo reads 0.5, not 0.216
@@ -544,8 +553,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     rained(folder)
     reviewed(folder)
     packaged(folder, tmp_path / "package")
+    resumed(tmp_path / "resumed")
     filmed(tmp_path)
     doored(tmp_path)
+    stilled(folder)
 
 
 def rained(folder):
@@ -696,8 +707,12 @@ def packaged(folder, out):
     laid = Usd.Stage.Open(str(folder / "scene.usda"))
     UsdSkel.Root.Define(laid, "/yard/Characters/crew")  # a character laid beside the objects, as the walkers' layer
     laid.Save()
+    (out / scene_package.BAKE).mkdir(parents=True)
+    (out / scene_package.BAKE / "kept.done").touch()  # a stopped bake's map, for the next bake to keep or drop
+    (out / "old.json").touch()
     made = scene_package.packaged(folder, out, baker, grader)
     scene_package.DENSITY, scene_package.LARGEST = 512, 4096
+    assert (out / scene_package.BAKE / "kept.done").is_file() and not (out / "old.json").exists()
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
     boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
@@ -762,6 +777,70 @@ def packaged(folder, out):
     assert sum(len(laid[3]) for laid in sliver) == 3  # every triangle kept, so the model check counts them all
     assert graded == [("AgX", "AgX - Medium High Contrast")] and (out / world["grade"]["file"]).is_file()
     assert world["grade"]["size"] == 64 and world["grade"]["middle"] == 0.18 and world["grade"]["display"] == "sRGB"
+
+
+def resumed(out):
+    """A bake in runs of at most BATCH maps of one object: a run killed partway (the memory cap's exit 247) is refused
+    naming the maps not baked; a changed object's finished maps are baked again; the next bake runs only the maps
+    not finished, each map's pictures then in place and its mark gone."""
+    from score.stages.place_build import scene_package
+    (out / "objects").mkdir(parents=True)
+    jobs = []
+    for name, maps in (("panel", 3), ("door", 1)):
+        (out / f"objects/{name}.bin").write_bytes(name.encode())
+        (out / f"objects/{name}.gltf").write_text(json.dumps({"buffers": [{"uri": f"{name}.bin"}]}))
+        jobs += [{"gltf": f"objects/{name}.gltf", "mesh": f"part_{number}", "size": [8, 8],
+                  "pictures": {kind: f"textures/{name}_{number}_{kind}.png" for kind in scene_package.PICTURES}}
+                 for number in range(maps)]
+    runs, stop, refused = [], [2], []
+
+    def run(out, listing, log):  # bake_looks.py: each map's pictures and mark, killed after `stop` maps
+        handed = json.loads(listing.read_text())
+        runs[-1].append([(job["gltf"][8:-5], job["mesh"][5:]) for job in handed["jobs"]])
+        for job in handed["jobs"]:
+            if stop[0] == 0:
+                return 247
+            stop[0] -= 1
+            for kind in scene_package.PICTURES:
+                Image.new("RGB", (8, 8)).save(pathlib.Path(handed["into"]) / f"{job['key']}_{kind}.png")
+            (pathlib.Path(handed["into"]) / f"{job['key']}.done").touch()
+        return 0
+    scene_package.BATCH = 2
+    for left, change in ((2, None), (1, "panel"), (99, None)):
+        if change:
+            (out / f"objects/{change}.bin").write_bytes(b"moved")
+        stop[0] = left
+        runs.append([])
+        try:
+            scene_package.blender_baked(out, jobs, run)
+        except place_build.Refused as why:
+            refused.append(str(why).split(";")[0])
+    scene_package.BATCH = 6
+    placed = all((out / "objects" / picture).is_file() for job in jobs for picture in job["pictures"].values())
+    assert refused == ["the bake failed (exit 247, 2 of 4 maps not baked",
+                       "the bake failed (exit 247, 3 of 4 maps not baked"], refused
+    assert runs == [[[("panel", "0"), ("panel", "1")], [("panel", "2")]],
+                    [[("panel", "0"), ("panel", "1")]],
+                    [[("panel", "1"), ("panel", "2")], [("door", "0")]]], runs
+    assert placed and not any((out / scene_package.BAKE).iterdir())
+
+
+def stilled(folder):
+    """A still's scene (render.still_stage) holds every laid object as the scene does, its assets read from the
+    place's folder, and none of the walkers' layer's people; the scene keeps its walkers."""
+    walkers = folder / "layers/walkers/layers/characters.usda"
+    walkers.parent.mkdir(parents=True)
+    people = Usd.Stage.CreateNew(str(walkers))
+    UsdSkel.Root.Define(people, "/yard/Characters/walker_one")
+    people.Save()
+    laid = Sdf.Layer.FindOrOpen(str(place_build.scene_path(folder)))
+    laid.subLayerPaths.append("layers/walkers/layers/characters.usda")
+    laid.Save()
+    still = Usd.Stage.Open(str(render.still_stage(folder)))
+    scene = Usd.Stage.Open(str(place_build.scene_path(folder)))
+    shown = {str(prim.GetPath()) for prim in still.Traverse()}
+    whole = {str(prim.GetPath()) for prim in scene.Traverse()}
+    assert whole - shown == {"/yard/Characters/walker_one"} and len(shown) > 100, sorted(whole - shown)[:5]
 
 
 def filmed(tmp_path):

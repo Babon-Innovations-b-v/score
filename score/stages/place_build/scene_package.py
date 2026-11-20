@@ -907,8 +907,9 @@ def write(folder, out):
     stage, place = place_build.opened(folder)
     ready_file = folder / "ready.json"
     roles = json.loads(ready_file.read_text())["roles"] if ready_file.is_file() else None
-    if out.exists():
-        shutil.rmtree(out)
+    for held in (out.iterdir() if out.exists() else ()):  # all but the bake's maps a stopped bake left (BAKE)
+        if held.name != "bake":
+            shutil.rmtree(held) if held.is_dir() else held.unlink()
     (out / "objects").mkdir(parents=True)
     found, left_out = laid_objects(stage, place)
     objects, instances, by_content, counts, made = {}, [], {}, {}, {}
@@ -947,6 +948,14 @@ def write(folder, out):
 # --- the bake -------------------------------------------------------------------------------------------------------
 
 PICTURES = ("base_color", "metal_roughness", "normal")  # a baked map's pictures, as glTF reads them
+# A Blender run bakes at most BATCH maps of one object, then ends and gives its memory back (the street, 2026-11-20:
+# one run over 225 maps of 4096 grew past render.MEMORY and was killed at its 173rd after 106 min). Its maps land in
+# <out>/BAKE as <key>_<picture>.png with a <key>.done mark (bake_looks.written); `package` again keeps them (write
+# leaves bake/ standing) and bakes only the maps not yet marked, a map's key its request, its object's file and the
+# bake's code, so a changed object or recipe is baked again.
+BATCH = 6
+BAKE = "bake/maps"
+BAKE_CODE = ("bake_looks.py", "../../../tools/props/library/recipes.py")  # under this folder: the code a map's key holds
 
 
 def bake_jobs(out):
@@ -967,25 +976,77 @@ def bake_jobs(out):
     return jobs
 
 
-def blender_baked(out, jobs):
-    """The jobs baked by bake_looks.py in headless Blender on this PC's card, through the card queue (render.queued),
-    its log in <out>/bake/blender.log; Refused with the log's tail when a picture is missing."""
+def map_keys(out, jobs):
+    """Each job's key: its request (all but its pictures' names), its object's .gltf and buffers and the bake's code,
+    hashed; equal only when the map would be baked the same."""
+    here = pathlib.Path(__file__).resolve().parent
+    code = hashlib.sha256(b"".join((here / name).read_bytes() for name in BAKE_CODE)).hexdigest()
+    objects = {}
+    for gltf in {job["gltf"] for job in jobs}:
+        path = out / gltf
+        digest = hashlib.sha256(path.read_bytes())
+        for buffer in json.loads(path.read_text()).get("buffers", []):
+            digest.update((path.parent / buffer["uri"]).read_bytes())
+        objects[gltf] = digest.hexdigest()
+    keys = []
+    for job in jobs:
+        asked = json.dumps({name: value for name, value in job.items() if name != "pictures"}, sort_keys=True)
+        keys.append(hashlib.sha256(f"{asked} {objects[job['gltf']]} {code}".encode()).hexdigest()[:32])
+    return keys
+
+
+def batches(jobs):
+    """The jobs in runs of at most BATCH maps, each run one object's."""
+    by_file = {}
+    for job in jobs:
+        by_file.setdefault(job["gltf"], []).append(job)
+    return [held[start:start + BATCH] for held in by_file.values() for start in range(0, len(held), BATCH)]
+
+
+def blender_run(out, listing, log):
+    """One run of bake_looks.py over `listing` in headless Blender on this PC's card, through the card queue
+    (render.queued), its output added to `log`; its exit code."""
     import subprocess
     from score.stages.place_build import render
-    listing = out / "bake" / "jobs.json"
-    listing.parent.mkdir(exist_ok=True)
-    listing.write_text(json.dumps({"out": str(out.resolve()), "jobs": jobs}, indent=1))
-    log = out / "bake" / "blender.log"
     script = pathlib.Path(__file__).resolve().parent / "bake_looks.py"
-    with log.open("w") as written_log:
-        done = subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())]),
-                              stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO)
-    missing = [picture for job in jobs for picture in job["pictures"].values()
-               if not (out / "objects" / picture).is_file()]
-    if done.returncode or missing:
+    with log.open("a") as written_log:
+        return subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())]),
+                              stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO).returncode
+
+
+def blender_baked(out, jobs, run=blender_run):
+    """The jobs baked by bake_looks.py in runs of BATCH maps (`run(out, listing, log)` one run, its exit code), every
+    map already marked done under <out>/BAKE kept and every other mark there removed, the log in
+    <out>/bake/blender.log; each map's pictures then moved to its place under objects/. Refused with the log's tail
+    when a run fails or a map is not baked, its finished maps kept for the next `package` to resume from."""
+    into = out / BAKE
+    into.mkdir(parents=True, exist_ok=True)
+    keys = map_keys(out, jobs)
+    for held in into.iterdir():
+        if held.name.split("_")[0].split(".")[0] not in keys:
+            held.unlink()
+    left = [dict(job, key=key) for job, key in zip(jobs, keys) if not (into / f"{key}.done").is_file()]
+    log = out / "bake" / "blender.log"
+    log.write_text(f"{len(jobs) - len(left)} of {len(jobs)} maps kept from an earlier bake\n")
+    listing, code, runs = out / "bake" / "jobs.json", 0, batches(left)
+    for number, batch in enumerate(runs):
+        listing.write_text(json.dumps({"out": str(out.resolve()), "into": str(into.resolve()), "jobs": batch},
+                                      indent=1))
+        with log.open("a") as written_log:
+            written_log.write(f"RUN {number + 1} of {len(runs)}: {len(batch)} maps of {batch[0]['gltf']}\n")
+        code = run(out, listing, log)
+        if code:
+            break
+    missing = [job for job, key in zip(jobs, keys) if not (into / f"{key}.done").is_file()]
+    if code or missing:
         tail = " | ".join(log.read_text(errors="replace").splitlines()[-6:])
-        raise place_build.Refused(f"the bake failed (exit {done.returncode}, {len(missing)} pictures missing), "
-                                  f"log {log}: {tail}")
+        raise place_build.Refused(f"the bake failed (exit {code}, {len(missing)} of {len(jobs)} maps not baked; "
+                                  f"package again bakes only those), log {log}: {tail}")
+    for job, key in zip(jobs, keys):
+        for kind in PICTURES:
+            (out / "objects" / job["pictures"][kind]).parent.mkdir(parents=True, exist_ok=True)
+            (into / f"{key}_{kind}.png").replace(out / "objects" / job["pictures"][kind])
+        (into / f"{key}.done").unlink()
 
 
 def embedded(document, binary, picture):
