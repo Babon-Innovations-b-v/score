@@ -100,6 +100,7 @@ SUN_STRENGTH = 4.0
 # named in STEPS first.
 STEP_SECONDS = {"object": 900, "scene": 900, "bake run": 1800, "grade": 600}
 STEPS = "bake/steps.log"
+SUN_NAMES = ("sun", "sky_sun")  # the sky step's sun, else sky-at's (light/sky.py: Lights/sky_<the Sun's key>)
 PROBE = 0.3  # metres past a door's face (its depth's half and this) where the place on that side is read
 
 
@@ -1169,7 +1170,8 @@ def environment_of(stage, place, out):
                                                 if stage.GetPrimAtPath(f"/{place}/Lights") else [])
               if prim.IsA(UsdLux.DistantLight)}
     found = {"sky": None, "ambient": None, "background": None, "exposure": 1.0, **VIEW,
-             "sun": distant(lights["sun"]) if "sun" in lights else None, "night": None}
+             "sun": distant(lights[SUN_NAMES[0] if SUN_NAMES[0] in lights else SUN_NAMES[1]])
+             if any(name in lights for name in SUN_NAMES) else None, "night": None}
     if sky and sky.IsA(UsdLux.DomeLight):
         dome = UsdLux.DomeLight(sky)
         background = text_of(sky, "score:background")

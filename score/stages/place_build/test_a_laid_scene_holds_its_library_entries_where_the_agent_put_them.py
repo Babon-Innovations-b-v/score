@@ -68,6 +68,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
+- scene_package.environment_of: the sun read from Lights/sun alone -> the sky-at place's package has no sun
 - place_build.sky_at: the sky laid before left (SKY_PATHS not cleared) -> the old Lights/sun stands beside the Sun
 - place_build.library_face: the withdrawn state not read -> Mars's ball is painted from its withdrawn face
 - place_build.turned: the turn left off -> the light stage's gate finds the Sun and Earth off overhead.py's ways
@@ -733,6 +734,8 @@ def skied(tmp_path, root, files):
         "withdrawn" in stage.GetPrimAtPath("/lock/Sky/Bodies/mars").GetAttribute("score:surface:missing").Get()
     assert tuple(environment.GetAttribute("score:background").Get()) == (0.0, 0.0, 0.0)
     assert np.isclose(environment.GetAttribute("score:exposure").Get(), np.pi * sky.LUMENS_PER_WATT / sun["lux"])
+    from score.stages.place_build import scene_package
+    assert scene_package.environment_of(stage, "lock", tmp_path / "moon_package")["sun"] is not None  # the game's sun
     try:
         place_build.sky_at(folder, on="mars", latitude=30.0, longitude=130.0, time=when)
         raise AssertionError("a Mars site was laid under an airless sky")
