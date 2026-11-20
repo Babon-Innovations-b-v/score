@@ -311,7 +311,7 @@ def month_spend(project):
 # and its machine, disk and address lines are split by the pool tag of what the watcher saw running there
 # (tools/cloud/cap_watch): only what is proven babon's is taken off, so a line that cannot be split counts whole.
 SCORE_PROJECTS = ("farm-factory", "score-conductor")
-SHARED_PROJECT = "shared-project"
+SHARED_SETTING = "SCORE_K8S_PROJECT"  # the shared project's name: the box's setting, never the repository's (#142)
 # babon's own services in the shared project, by the bill's category (and Network's load balancers by product).
 SHARED_OWN_CATEGORIES = ("Managed Databases", "Serverless", "BareMetal", "Observability", "Security and Identity",
                          "Containers")
@@ -352,10 +352,18 @@ def counted(line):
     services; no other project's."""
     if line["project"] in SCORE_PROJECTS:
         return True
-    if line["project"] != SHARED_PROJECT:
+    if line["project"] != shared_project():
         return False
     return (line["category"] not in SHARED_OWN_CATEGORIES
             and not any(str(line["product"] or "").startswith(own) for own in SHARED_OWN_PRODUCTS))
+
+
+def shared_project():
+    """The shared project's name (SHARED_SETTING); Unread when unset, so the cap's watcher fails closed."""
+    name = os.environ.get(SHARED_SETTING)
+    if not name:
+        raise Unread(f"{SHARED_SETTING} is not set: the shared project's name is the box's setting")
+    return name
 
 
 def line_key(line):
@@ -399,7 +407,7 @@ def owner_of(server, names):
     project = names.get(server.get("project"))
     if project in SCORE_PROJECTS:
         return "score"
-    if project != SHARED_PROJECT:
+    if project != shared_project():
         return None
     pool = next((tag[len(POOL_TAG):] for tag in server.get("tags") or [] if tag.startswith(POOL_TAG)), "")
     return "score" if pool.startswith(SCORE_POOLS) else "babon"

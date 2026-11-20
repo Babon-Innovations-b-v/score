@@ -266,7 +266,7 @@ def loose_disks(names, now):
     for zone in backend.ALL_ZONES:
         for disk in backend.scw("block", "volume", "list", f"zone={zone}") or []:
             project = names.get(disk.get("project_id"))
-            ours = project in backend.SCORE_PROJECTS or (project == backend.SHARED_PROJECT
+            ours = project in backend.SCORE_PROJECTS or (project == backend.shared_project()
                                                          and disk.get("name") == NODE_ROOT_DISK)
             if ours and not disk.get("references") and now - backend.created_at(disk) > LOOSE_DISK_SECONDS:
                 found.append((disk["id"], zone, disk.get("name")))

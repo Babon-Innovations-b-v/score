@@ -100,7 +100,8 @@ The health record (health_push.py) errs on busy:
 
 The checkout moves (update.py):
 - It follows origin/main forward only (the cockpit whose pin it followed went, owner 2026-11-16), and refuses a checkout
-  not behind it. Break: `target` drops the ancestor check.
+  not behind it, unless main's history was rewritten under the checkout's own tree (it then follows main). Break:
+  `target` drops the ancestor check; or its tree search is left out -> history-rewritten-under-its-tree-followed.
 - `.venv` (and after the move the prop environment) syncs only when uv.lock moved; a missing prop environment is built.
   Break: `lock_changed` always True.
 - It waits while score starts from the checkout, while a run works in its frozen copy, while the checkout has changes;
@@ -1612,6 +1613,9 @@ def origin_commits(origin, boot_log):
     git(origin, "checkout", "-q", "-b", "side")
     commits["side"] = commit(origin, "c.txt", "off main")
     git(origin, "checkout", "-q", "main")
+    tree = git(origin, "rev-parse", f"{commits['a']}^{{tree}}")  # main rewritten: a's tree, new hash
+    commits["rewritten"] = git(origin, "commit-tree", tree, "-m", "a, its history rewritten")
+    git(origin, "branch", "rewritten", commits["rewritten"])
     return commits
 
 
@@ -1655,6 +1659,7 @@ CASES = [
     # reached in one move.
     case("ahead-of-main-refused", "a", "lock1", has=("refused", "not behind origin/main")),
     case("off-main-refused", "side", "claude", has=("refused",)),
+    case("history-rewritten-under-its-tree-followed", "a", "rewritten", head="rewritten", has=("history rewritten",)),
     case("main-followed-to-its-tip", "lock1", "claude", head="claude", has=("origin/main",),
          uv=(DASHBOARD_SYNC,), boot=("units", "claude")),
     # A live run in its frozen copy holds every move; one whose fresh registry entry runs and buys nothing (2026-11-02)

@@ -14,7 +14,7 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   record changes), the checkout's folder `/home/score/projects` (a run's frozen copy is a git worktree of it, so a
   drive pod reads it at the same path), the env file's folder `/home/score/.config/score`, `~/.local` (uv's tools,
   score-lib's link, Claude Code's CLI), the people routes' motion home `/home/score/.farm-factory-motion`.
-- **One node** (`NODE_ROLE`: the tenant cluster's conductor pool, `NODE_TYPE`, min 1 max 1, tainted
+- **One node** (`node_role()`: the tenant cluster's conductor pool, `NODE_TYPE`, min 1 max 1, tainted
   `tenant=score`): every pod that writes the store is placed beside the conductor's pod by pod affinity on the
   hostname, so one kernel and one file system hold the store's locks, links and fsync as on the VM. No network file
   system. Each such pod shares the node's process ids (`hostPID`): a run's registry entry, a hold's or a frozen
@@ -54,8 +54,12 @@ POD = f"{NAME}-0"  # the StatefulSet's one pod
 CLAIM = "score-store"
 VOLUME_CLASS = "sbs-5k-retain"
 VOLUME_SIZE = "400Gi"
-BACKUP_OPT_OUT = ("owner.example/backup", "false")  # babon's volume-backup skips a claim so annotated
-NODE_ROLE = ("owner.example/role", "score-conductor")
+# The cluster owner's labels, the box's settings (KEY=VALUE), never the repository's (#142): the annotation its
+# volume backup skips a claim by, the label of the conductor's node pool, and the label marking SCORE's objects.
+BACKUP_SETTING = "SCORE_K8S_BACKUP_OPT_OUT"
+ROLE_SETTING = "SCORE_K8S_NODE_ROLE"
+TENANT_SETTING = "SCORE_K8S_TENANT_LABEL"
+SETTINGS_FILE = "/run/user/{uid}/score/k8s.env"  # secrets.sh's copy of score-k8s-settings in the user's tmpfs
 # The conductor's node: POP2-HM-8C-64G since 2026-11-10 (it was a POP2-HM-16C-128G at the cutover), its allocatable as
 # the cluster reported it that day, and the requests of the node's own DaemonSets (node feature discovery 5m / 64Mi,
 # node-exporter 10m / 32Mi). A drive pod asking for more than `drive_room` leaves never schedules (2026-11-10: the
@@ -162,9 +166,40 @@ def drive_room():
             memory_bytes(NODE_ALLOCATABLE["memory"]) - sum(memory_bytes(taken["memory"]) for taken in beside))
 
 
+def cluster_setting(name):
+    """A label setting (KEY=VALUE) as (key, value): this process's environment, else SETTINGS_FILE (the conductor's
+    pod, where secrets.sh writes it); refused when neither holds it."""
+    import os
+    value = os.environ.get(name)
+    if not value:
+        found = pathlib.Path(SETTINGS_FILE.format(uid=os.getuid()))
+        lines = found.read_text().splitlines() if found.is_file() else []
+        value = next((line.split("=", 1)[1].strip().strip('"') for line in lines if line.startswith(f"{name}=")), "")
+    if "=" not in value:
+        raise SystemExit(f"{name} is not set (KEY=VALUE): the cluster owner's label is the box's setting, never the "
+                         "repository's")
+    key, _, label = value.partition("=")
+    return key, label
+
+
+def node_role():
+    """The label of the conductor's node pool (ROLE_SETTING)."""
+    return cluster_setting(ROLE_SETTING)
+
+
+def backup_opt_out():
+    """The annotation the cluster owner's volume backup skips a claim by (BACKUP_SETTING)."""
+    return cluster_setting(BACKUP_SETTING)
+
+
+def tenant_label():
+    """The label marking SCORE's objects in the owner's cluster (TENANT_SETTING)."""
+    return cluster_setting(TENANT_SETTING)
+
+
 def labels(component):
     return {APP_LABEL: NAME, "app.kubernetes.io/component": component, "app.kubernetes.io/managed-by": "score",
-            "owner.example/tenant": "score", COST_LABEL[0]: COST_LABEL[1]}
+            tenant_label()[0]: tenant_label()[1], COST_LABEL[0]: COST_LABEL[1]}
 
 
 def meta(name, component, namespace=NAMESPACE):
@@ -220,7 +255,7 @@ def security():
 def beside_conductor():
     """Required: on the conductor's node (its role) and on the same host as its pod (the volume is ReadWriteOnce)."""
     return {"nodeAffinity": {"requiredDuringSchedulingIgnoredDuringExecution": {"nodeSelectorTerms": [
-                {"matchExpressions": [{"key": NODE_ROLE[0], "operator": "In", "values": [NODE_ROLE[1]]}]}]}},
+                {"matchExpressions": [{"key": node_role()[0], "operator": "In", "values": [node_role()[1]]}]}]}},
             "podAffinity": {"requiredDuringSchedulingIgnoredDuringExecution": [
                 {"labelSelector": {"matchLabels": {APP_LABEL: NAME, "app.kubernetes.io/component": "conductor"}},
                  "topologyKey": "kubernetes.io/hostname"}]}}
@@ -328,6 +363,18 @@ CAP_WATCH_CODE = "https://github.com/Babon-Innovations-b-v/score.git"
 RUNNER_PYTHON = "/opt/score/env/bin/python"  # the runner image's environment (uv.lock), under the conductor image
 
 
+SHARED_SETTING = "SCORE_K8S_PROJECT"  # the shared project's name, given the cap's watcher (scaleway.shared_project)
+
+
+def shared_project_name():
+    """The shared project's name from the applying box's environment; refused when unset."""
+    import os
+    name = os.environ.get(SHARED_SETTING)
+    if not name:
+        raise SystemExit(f"{SHARED_SETTING} is not set: the shared project's name is the box's setting")
+    return name
+
+
 def cap_watch(image):
     """The cap watcher's CronJob: every 5 minutes, at most 240 s a pass, a newer pass replacing a late one."""
     code = "/tmp/score"
@@ -342,7 +389,8 @@ def cap_watch(image):
               f"exec {RUNNER_PYTHON} -I tools/cloud/cap_watch/watch.py pass")
     watcher = {"name": "cap-watch", "image": image, "command": ["/bin/sh", "-c", script],
                "env": [{"name": "HOME", "value": HOME}, {"name": "PYTHONUNBUFFERED", "value": "1"},
-                       {"name": "SCORE_CLOUD", "value": "scaleway"}],
+                       {"name": "SCORE_CLOUD", "value": "scaleway"},
+                       {"name": SHARED_SETTING, "value": shared_project_name()}],
                "resources": CAP_WATCH_RESOURCES, "workingDir": HOME,
                "volumeMounts": [{"name": "scw", "mountPath": SCW_PATH}, {"name": "tmp", "mountPath": "/tmp"}],
                "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
@@ -368,7 +416,7 @@ def limit_range():
 def claim():
     """The store's volume, opted out of babon's nightly volume-backup snapshots (owner, 2026-11-15: 7 x 429 GB, EUR
     3.5 a day): score's own restic backup copies the home to object storage every 30 minutes."""
-    metadata = {**meta(CLAIM, "store"), "annotations": {BACKUP_OPT_OUT[0]: BACKUP_OPT_OUT[1]}}
+    metadata = {**meta(CLAIM, "store"), "annotations": dict([backup_opt_out()])}
     return {"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": metadata,
             "spec": {"accessModes": ["ReadWriteOnce"], "storageClassName": VOLUME_CLASS,
                      "resources": {"requests": {"storage": VOLUME_SIZE}}}}

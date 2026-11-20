@@ -62,6 +62,9 @@ SYNC_UNIT = (pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home
              / "score-sync.service")  # score/dashboard/sync/timer.py install, --no-pull: UPDATE before each pass
 
 
+REWRITE_SPAN = 400  # main's commits searched for the checkout's own tree after a rewrite of its history
+
+
 def git(repo, *args, check=True):
     done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
     if check and done.returncode != 0:
@@ -174,10 +177,15 @@ def named(proc, pid):
 
 
 def target(repo):
-    """(origin/main's commit, how it was chosen); RuntimeError when the checkout is not behind it (forward only)."""
+    """(origin/main's commit, how it was chosen); RuntimeError when the checkout is not behind it (forward only),
+    unless main's history was rewritten under it: its own tree is the tree of one of main's last REWRITE_SPAN commits
+    (the owner's rewrite of 2026-11-21, #142: every commit's hash changed, no file the checkout holds did)."""
     main = git(repo, "rev-parse", "origin/main").stdout.strip()
     if git(repo, "merge-base", "--is-ancestor", "HEAD", main, check=False).returncode != 0:
-        raise RuntimeError("HEAD is not behind origin/main")
+        tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+        if tree not in git(repo, "log", "--format=%T", "-n", str(REWRITE_SPAN), main).stdout.split():
+            raise RuntimeError("HEAD is not behind origin/main")
+        return main, "origin/main, its history rewritten under this checkout's own tree"
     return main, "origin/main"
 
 

@@ -64,14 +64,19 @@ class FakeProcess:
         return -15
 
 
-def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
+def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door(monkeypatch):
+    for name, value in ((conductor.BACKUP_SETTING, "owner.example/backup=false"),
+                        (conductor.ROLE_SETTING, "owner.example/role=score-conductor"),
+                        (conductor.TENANT_SETTING, "owner.example/tenant=score"),
+                        (conductor.SHARED_SETTING, "shared-project")):  # the box's settings, stand-ins (#142)
+        monkeypatch.setenv(name, value)
     found = conductor.objects("registry.example/score-conductor:1@sha256:" + "0" * 64)
     by_kind = {}
     for item in found:
         by_kind.setdefault(item["kind"], []).append(item)
     claim, = by_kind["PersistentVolumeClaim"]
     assert claim["spec"]["accessModes"] == ["ReadWriteOnce"] and claim["spec"]["storageClassName"] == "sbs-5k-retain"
-    assert claim["metadata"]["annotations"] == {conductor.BACKUP_OPT_OUT[0]: "false"}
+    assert claim["metadata"]["annotations"] == {"owner.example/backup": "false"}
     watcher, = [cron for cron in by_kind["CronJob"] if cron["metadata"]["name"] == conductor.CAP_WATCH]
     pods = [by_kind["StatefulSet"][0]["spec"]["template"]["spec"]] + [
         cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"] if cron is not watcher]

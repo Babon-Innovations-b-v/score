@@ -99,7 +99,7 @@ class Cloud:
         zone = given.get("zone")
         match words[:3]:
             case ("account", "project", "list"):
-                return [{"id": "bp", "name": backend.SHARED_PROJECT}, {"id": "ff", "name": "farm-factory"}]
+                return [{"id": "bp", "name": "shared-project"}, {"id": "ff", "name": "farm-factory"}]
             case ("k8s", "cluster", "list"):  # scw's own filter is not trusted: every record comes back
                 return list(self.clusters)
             case ("k8s", "cluster", "create"):
@@ -229,7 +229,7 @@ def test_own_cluster_capped_and_ledgered(monkeypatch, tmp_path):
 
     # The tenant cluster is its owner's: never deleted, its pools' maxes unchanged, only score's tainted and labelled
     # pool and its node score's.
-    monkeypatch.setenv("SCORE_K8S_PROJECT", backend.SHARED_PROJECT)
+    monkeypatch.setenv("SCORE_K8S_PROJECT", "shared-project")
     monkeypatch.setenv("SCORE_K8S_CLUSTER", "tenant-jobs")
     monkeypatch.delenv(tenant.POOLS, raising=False)
     monkeypatch.setattr(tenant, "kubectl", lambda *words: tenant_nodes_listed())

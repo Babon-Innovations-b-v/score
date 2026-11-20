@@ -379,7 +379,7 @@ def scaleway_account(monkeypatch, tmp_path, request):
 
 # The bill of 2026-11: our project's line and another's (project_id only), and the organisation's whole bill as the
 # env1 cap reads it (the plan of 2026-11-09): SCORE's projects whole, the shared one but babon's own services.
-SHARED = scaleway.SHARED_PROJECT
+SHARED = "shared-project"  # a stand-in for the shared project the box names (SCORE_K8S_PROJECT)
 BILL = [
     {"project_id": OURS, "product_name": "L4", "sku": "s", "unit": "minute", "billed_quantity": "10",
      "value": {"units": 1, "nanos": 500000000}},
@@ -832,6 +832,7 @@ def updates(calls):
 @pytest.mark.parametrize("row, steps", ASKS, ids=[row for row, _ in ASKS])
 def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_counted(
         row, steps, monkeypatch, card_queue_folder, tmp_path, request):
+    monkeypatch.setenv(scaleway.SHARED_SETTING, SHARED)
     import importlib
     import capacity
     import card_turn

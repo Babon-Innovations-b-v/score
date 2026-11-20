@@ -31,9 +31,10 @@ import watch  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
 
 START = datetime.datetime(2026, 11, 9, 18, 40, tzinfo=datetime.timezone.utc).timestamp()
-L4 = f"{scaleway.SHARED_PROJECT}|/instance/server/l4_1_24g/fr-par-2"
+SHARED = "shared-project"  # a stand-in for the shared project the box names (SCORE_K8S_PROJECT)
+L4 = f"{SHARED}|/instance/server/l4_1_24g/fr-par-2"
 CPU = "farm-factory|/instance/server/pop2_hc_64c_128g/nl-ams-2"
-NAMES = {"farm-factory": "ff-id", scaleway.SHARED_PROJECT: "bp-id"}
+NAMES = {"farm-factory": "ff-id", SHARED: "bp-id"}
 
 
 def bill(lines, whole=2000.0):
@@ -47,6 +48,7 @@ def l4s(count, hours, owner="score"):
 
 def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_it(tmp_path, monkeypatch):
     book = guard.FolderBook(tmp_path / "book")
+    monkeypatch.setenv(scaleway.SHARED_SETTING, SHARED)
     monkeypatch.setattr(guard, "running_under_agent", lambda: False)
     guard.set_cap(book, {"euros": 300.0, "line": 255.0, "start": watch.iso(START), "by": "joey",
                          "at": watch.iso(START), "baseline": {"whole": 2000.0, "lines": {L4: 400.0, CPU: 100.0}}})
@@ -98,7 +100,7 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     # scw lists no machine while the cluster shows 3 L4 nodes: the meter refuses to read, and a blind first pass stops
     monkeypatch.setattr(scaleway, "scw", lambda *words: [])
     try:
-        scaleway.live_rate(START, START + 60, {"bp-id": scaleway.SHARED_PROJECT}, nodes={"n1", "n2", "n3"})
+        scaleway.live_rate(START, START + 60, {"bp-id": SHARED}, nodes={"n1", "n2", "n3"})
         raise AssertionError("a meter blind to three running nodes read")
     except scaleway.Unread as unread:
         assert "3 cluster node" in str(unread)
@@ -120,10 +122,10 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
                  {"id": "lost", "type": "routed_ipv4", "project": "bp-id", "server": None}]}
     monkeypatch.setattr(scaleway, "scw", lambda *words: cloud.get(words, []))
     monkeypatch.setattr(scaleway, "price", lambda kind, zone: (0.001, 1))
-    metered = scaleway.live_rate(START, START + 20 * 3600 + 20 * 60, {"bp-id": scaleway.SHARED_PROJECT}, nodes={"n1"})
+    metered = scaleway.live_rate(START, START + 20 * 3600 + 20 * 60, {"bp-id": SHARED}, nodes={"n1"})
     addresses = {key: item["euros"] for key, item in metered.items() if item["kind"] == "address"}
     assert addresses == {"v4": 0.005, "lost": 21 * 0.005}
-    v4_line = f"{scaleway.SHARED_PROJECT}|/network/ipam/ipv4/fr-par-1"
+    v4_line = f"{SHARED}|/network/ipam/ipv4/fr-par-1"
     assert metered["v4"]["line"] == v4_line and metered["v4"]["owner"] == "score"
     # the stop itself: every box's Jobs and every runner machine, a failed machine stop named, never swallowed
     class Done:
