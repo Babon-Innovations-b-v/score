@@ -15,11 +15,9 @@ Breaks (each applied once, seen red, reverted), in tools/review/showcase.py:
 - many clips in groups: joined_in_groups counts each group as long as its clips without their cross-fades.
 - picture outlasting sound: joined_apart lays the picture down without its sound (no `-map 1:a`). (Joining them all
   in one graph, the 2026-10-18 stall, does not stall on clips this small, so this test cannot show that one.)
-In tools/review/opening.py (the demo film's opening, its style and physics read from the records):
+In tools/review/opening.py (the demo film's opening, its style read from the records):
 - the surfaces: shown_surfaces lets a glowing surface or a second take of one recipe through.
 - the palette: palette_tokens keeps the palette's own order, the laid surfaces' tokens not first.
-- the gravity: settle_gravity reads a number other than the settle script's GRAVITY (a record's, or a fixed 9.82);
-  people_gravity states one gravity for places whose sim bodies were solved under two, or under none named.
 
 One test: the opening's facts read from one small stage; the pure judges (the legend, the chain's cards, the credit,
 the timeline) are rows of their tables, the joins rows of clip kinds fed through joined_in_groups, and one films
@@ -182,7 +180,7 @@ def test_the_showcase_cuts_every_film_in_order_within_its_cap():
     """The showcase's numbers, its figure and its world video, and the opening's facts, on pieces made here."""
     folder = pathlib.Path(tempfile.mkdtemp())
 
-    # The opening: the surfaces and palette a stage's Looks lay, and the settle's gravity as its script sets it.
+    # The opening: the surfaces and palette a stage's Looks lay.
     stage = "".join(LOOK.format(look=look, spec=json.dumps({"library": library, "recipe": recipe, "token": token}))
                     for look, library, recipe, token, _ in OPENING_LOOKS)
     stage += "".join(f"    rel material:binding = </yard/Looks/{look}>\n" * count for look, *_, count in OPENING_LOOKS)
@@ -190,17 +188,6 @@ def test_the_showcase_cuts_every_film_in_order_within_its_cap():
     shown = [(entry["spec"]["library"], entry["prims"]) for entry in the_opening.shown_surfaces(laid)]
     assert shown == OPENING_SURFACES, shown
     assert [token for token, _ in the_opening.palette_tokens(OPENING_TOKENS, laid)] == OPENING_PALETTE
-    script = folder / "settle.py"
-    script.write_text("import mujoco\nSECONDS = 1.0\nGRAVITY = 3.5\n")
-    assert the_opening.settle_gravity(script) == 3.5 and the_opening.settle_gravity() == 9.81
-    earth = {"camp": {"sim_body": ["earth", 9.82]}, "street": {"sim_body": ["earth", 9.82]}}
-    assert the_opening.people_gravity(earth) == ("earth", 9.82)
-    for other in (["mars", 3.728], None):
-        try:
-            the_opening.people_gravity({**earth, "camp": {"sim_body": other}})
-        except SystemExit:
-            continue
-        raise AssertionError(f"one gravity stated over {other}")
 
     for number, (case, parts, legend) in enumerate(LEGEND_ROWS):
         (folder / f"legend-{number}").mkdir()
