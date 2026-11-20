@@ -155,6 +155,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - skinned.moves_of: the walk left out -> node 0 keys no translation
 - skinned.sample_times: the clip kept whole (no round) -> the leader's clip lasts two rounds
 - skinned.copies_of: the prototype's transform taken for the instance's -> the crowd copies stand at one spot
+- scene_package.densities: the eyes ignored (DENSITY on every face) -> the panel seen from 100 m is baked at 24
+  texels a metre, not 16
+- scene_package.densities: no eye within reach taken for no eyes given -> the panel no eye comes near (the square's
+  far shore) is baked at 24 texels a metre, not 16
 - scene_package.subdivided: the mesh returned uncut -> the 12 m panel's faces each need more than a map (refused)
 - scene_package.atlas_of: packed at a fixed resolution (`packing.resolution = LARGEST`) -> the 1 m tile's map is
   LARGEST wide, not its charts' size
@@ -974,7 +978,7 @@ def resumed(out):
 def sized_and_timed(out):
     """A baked part's maps each as big as its charts at DENSITY and at most LARGEST, never under DENSITY: a 12 m panel
     of two faces (each wider than a map; the base's hangar hung 11.5 h packing such faces) cut and spread on many
-    maps, a 1 m tile on one map its own size; a package step past its time stops the process loudly, named in its
+    maps, a 1 m tile on one map its own size, the panel seen only from 100 m on maps at LEAST_DENSITY; a package step past its time stops the process loudly, named in its
     log, one in time goes on; a bake run's Blender runs under its timeout, one stopped there refused saying so."""
     import subprocess
     import sys
@@ -986,12 +990,20 @@ def sized_and_timed(out):
             square = np.array([[0, 0, 0], [side, 0, 0], [side, side / 2, 0], [0, side / 2, 0]], float)
             laid[name] = scene_package.unwrapped(square, np.tile([0.0, 0.0, 1.0], (4, 1)), np.array([[0, 1, 2],
                                                                                                     [0, 2, 3]]))
+        panel = np.array([[0, 0, 0], [12.0, 0, 0], [12.0, 6.0, 0], [0, 6.0, 0]], float)
+        laid["far"] = scene_package.unwrapped(panel, np.tile([0.0, 0.0, 1.0], (4, 1)), np.array([[0, 1, 2], [0, 2, 3]]),
+                                              np.array([[6.0, 3.0, 100.0]]))
+        laid["unseen"] = scene_package.unwrapped(panel, np.tile([0.0, 0.0, 1.0], (4, 1)), np.array([[0, 1, 2], [0, 2, 3]]),
+                                                 np.zeros((0, 3)))
     finally:
         scene_package.DENSITY, scene_package.LARGEST = 512, 4096
     panel_area = sum(scene_package.areas_of(points, faces).sum() for points, _, _, faces, _, _ in laid["panel"])
     assert len(laid["panel"]) > 10 and np.isclose(panel_area, 72.0), (len(laid["panel"]), panel_area)
     assert all(max(size) <= 64 and texels >= 24 * scene_package.HELD_SHARE
-               for maps in laid.values() for *_, size, texels in maps), laid
+               for name, maps in laid.items() if name not in ("far", "unseen") for *_, size, texels in maps), laid
+    assert all(16 * scene_package.HELD_SHARE <= texels < 24 * scene_package.HELD_SHARE
+               for name in ("far", "unseen") for *_, texels in laid[name]), \
+        {name: [texels for *_, texels in laid[name]] for name in ("far", "unseen")}
     assert len(laid["tile"]) == 1 and max(laid["tile"][0][4]) < 64, laid["tile"][0][4:]
     out.mkdir(parents=True)
     step = ("import pathlib, sys, time; from score.stages.place_build import scene_package as package; "

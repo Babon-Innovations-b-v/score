@@ -18,4 +18,7 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
   doorway it is seated in (ready.FIT), and a walker's way WALKWAY wide from INSIDE in from one doorway to INSIDE in
   from the other over both places' objects round the join, seated, every doorway open (ready.route_on, as the walkway
   check judges a doorway a way). A failed join is fixed in the place (rebuilt) or the plan, never by a looser measure.
+- **One leaf a join**: the place whose plan names the door lays its leaf; its neighbour's joined doorway stays a bare
+  opening. The closed-inside check counts a look through a joined doorway as closed (ready.through_joins, #154), so
+  neither place lays a second leaf to pass it.
 - Test: `test_places_of_an_area_meet_at_their_doors.py` (a one-storey stair core and a room, no library fetch).

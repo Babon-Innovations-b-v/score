@@ -110,6 +110,7 @@ ROOFED = 0.05  # an inside place with less of its walkers' floor under a roof, s
 # 2026-11-20: roofless engineroom@1 0.01; built closed: hangar 0.15, shiplock 0.17, stairwell 0.29, engineroom 0.33,
 # their plazas and roof tops counted)
 INSIDE_SHARE = 0.6  # a covered point whose rays meet something at least this often is inside (under an awning, less)
+DOOR_REACH = 4.0  # metres round a door's leaf and its width where its swing or slide is judged (door_window)
 LOOK_HEIGHTS = (0.5, 1.6)  # metres over the walkers' floor the looks start (a child's, a grown walker's eyes)
 LOOK_STRIDE = 0.5  # metres between the floor points looked from
 LOOK_AZIMUTHS = 16  # ways round a point
@@ -696,9 +697,21 @@ def grid_rectangle(laid):
     return low[0], low[2], high[0], high[2]
 
 
-def walkers_grid(laid):
-    """The walkers' grid's rectangle and grid, refused (within_memory) when its floor would not fit in MEMORY."""
-    bounds = grid_rectangle(laid)
+def door_window(laid, name):
+    """The walkers' grid round a door (x, z low, high): its leaf's box, its width and DOOR_REACH round it, within the
+    whole grid (grid_rectangle). A swing or a slide changes the floor only where its leaf moves, so the floor a way
+    keeps joined is judged there (the Moon base's 19 doors took 76 floors of the whole place, 47 s each)."""
+    low, high = laid.meshes[name].bounds
+    reach_out = float(np.max(high - low)) + DOOR_REACH
+    whole = grid_rectangle(laid)
+    return (max(whole[0], low[0] - reach_out), max(whole[1], low[2] - reach_out),
+            min(whole[2], high[0] + reach_out), min(whole[3], high[2] + reach_out))
+
+
+def walkers_grid(laid, near=None):
+    """The walkers' grid's rectangle and grid, refused (within_memory) when its floor would not fit in MEMORY; `near`
+    (a door's name) keeps only DOOR_REACH round that door's leaf (door_window)."""
+    bounds = grid_rectangle(laid) if near is None else door_window(laid, near)
     grid = reach.Grid(bounds)
     cells = grid.shape[0] * grid.shape[1]
     within_memory(cells * SPAN_BYTES + CHUNK_BYTES, f"the walkers' grid ({bounds[2] - bounds[0]:.0f} x "
@@ -734,11 +747,12 @@ def room_for_walkway(span_count, steps, clear):
     return clear & ~near
 
 
-def walkers_floor(laid, doors=None):
+def walkers_floor(laid, doors=None, near=None):
     """Where a walker WALKWAY wide stands: the grid, each span's cell and height, which spans it stands on, and each
     span's piece (spans joined by steps no higher than a knee). `doors`: each door's mesh as it stands for the walkers
-    (doors_standing); None, every door open (the walkway check's: is every doorway a way)."""
-    bounds, grid = walkers_grid(laid)
+    (doors_standing); None, every door open (the walkway check's: is every doorway a way). `near`: a door's name,
+    the floor only round it (door_window)."""
+    bounds, grid = walkers_grid(laid, near)
     solid = [laid.meshes[name] for name in laid.names if laid.roles[name] != "door"] + list((doors or {}).values())
     meshes = [mesh for mesh in (reach.over_grid(mesh, bounds) for mesh in solid) if mesh is not None]
     no_ground = lambda middles: np.full(len(middles), np.nan)  # noqa: E731 (every floor is a laid surface)
@@ -836,9 +850,10 @@ def sight(laid):
     return max(SEES, float(np.linalg.norm(boxes[:, 1].max(axis=0) - boxes[:, 0].min(axis=0))))
 
 
-def nearest_owners(laid, origins, directions, length):
-    """The name of the first solid each ray meets within `length`, or None."""
-    _, rays, owners, along = laid.hits(origins, directions, length=length)
+def nearest_owners(laid, origins, directions, length, among=None):
+    """The name of the first solid (of `among`, names; every one when None) each ray meets within `length`, or
+    None."""
+    _, rays, owners, along = laid.hits(origins, directions, among=among, length=length)
     order = np.lexsort((along, rays))
     met_rays, first = np.unique(rays[order], return_index=True)
     named = np.full(len(origins), -1)
@@ -852,11 +867,12 @@ def rooms(laid, points):
     something mounted on it (`score:support` wall:<it>, a window or its glass) at least INSIDE_SHARE of the time. Under
     an awning, an arcade or a building's overhang the looks run out along the street or meet the building across it,
     so a covered stretch of the outside is no room (#128, 2026-11-20: the street's pavement under its buildings read
-    711 points open)."""
+    711 points open). The looks pass through props (unmoved): a small room's furniture is not its walls (#154: a
+    cluttered room read 0 of 76 covered points a room, so it passed empty)."""
     covers = nearest_owners(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     level = look_ways()[:LOOK_AZIMUTHS]
     seen = np.array(nearest_owners(laid, np.repeat(points, len(level), axis=0), np.tile(level, (len(points), 1)),
-                                   sight(laid)), dtype=object).reshape(len(points), len(level))
+                                   sight(laid), unmoved(laid)), dtype=object).reshape(len(points), len(level))
     mounted_on = {name: (text_of(laid.prims[name], "score:support") or "").removeprefix("wall:")
                   for name in laid.names}
     closing = np.array([[owner is not None and (owner == cover or laid.roles[owner] == "door"
@@ -865,11 +881,30 @@ def rooms(laid, points):
     return closing.mean(axis=1) >= INSIDE_SHARE
 
 
+def unmoved(laid):
+    """Every object a level look may be stopped by: all but props (a room's furniture, a stall's goods)."""
+    return [name for name in laid.names if laid.roles[name] != "prop"]
+
+
+def walled(laid, points):
+    """Which covered points of an inside place stand among walls: their level looks (props passed through, unmoved)
+    meet a solid within `sight` at least INSIDE_SHARE of the time. A porch, stoop or landing under a roof outside the
+    walls looks out along its open sides, so it is no inside (#154: the airlock's landing under its porch roof read 6
+    points open)."""
+    level = look_ways()[:LOOK_AZIMUTHS]
+    _, rays, _, _ = laid.hits(np.repeat(points, len(level), axis=0), np.tile(level, (len(points), 1)),
+                              among=unmoved(laid), length=sight(laid))
+    reached = np.zeros(len(points) * len(level), bool)
+    reached[rays] = True
+    return reached.reshape(len(points), len(level)).mean(axis=1) >= INSIDE_SHARE
+
+
 def look_floor(laid):
-    """The walkers' floor the looks start from: each door as laid for the walkers (doors_standing: shut in its doorway,
-    or swung open), never the walkway check's every door open, whose doorways hold floor points inside a shut door's
-    own frame looking out past it (#128, 2026-11-20: storage's two open points stood in door_1.storage's frame)."""
-    return walkers_floor(laid, doors_standing(laid))[:4]
+    """The walkers' floor the looks start from: every door shut in its doorway as laid, never swung open, since the
+    looks meet each door shut (a gap no door, as laid, shut, closes); an open leaf lets the floor run through its
+    doorway and its frame's points look out past it (#128, 2026-11-20: storage's two open points stood in
+    door_1.storage's frame; #154: an airlock's outer door marked to open always read open)."""
+    return walkers_floor(laid, {name: laid.meshes[name] for name in laid.with_role("door")})[:4]
 
 
 def roofless(looked, covered):
@@ -885,25 +920,43 @@ def roofless(looked, covered):
                                         f"outside)"}], looked - covered
 
 
-def open_faults(laid, outside=False):
+def through_joins(origins, directions, joins):
+    """Whether each ray passes through a joined doorway (place.json `joins`: its sill middle, inward way, width, sill
+    and head in the scene's frame): the place joined there closes it, whichever of the two lays its leaf (#154: the
+    stairwell's joined storey read open to the void until a leaf was laid)."""
+    passed = np.zeros(len(origins), bool)
+    for spot in (joins or {}).values():
+        middle, inward = np.asarray(spot["middle"], float), np.asarray(spot["inward"], float)
+        across = np.cross([0.0, 1.0, 0.0], inward)
+        facing = directions @ inward
+        along = np.where(np.abs(facing) > 1e-9, (middle - origins) @ inward / np.where(facing == 0, 1, facing), -1.0)
+        where = origins + directions * along[:, None]
+        passed |= (along > 0) & (np.abs((where - middle) @ across) <= spot["wide"] / 2) \
+            & (where[:, 1] >= spot["sill"]) & (where[:, 1] <= spot["head"])
+    return passed
+
+
+def open_faults(laid, outside=False, joins=None):
     """An inside place with less than ROOFED of its walkers' floor covered is told `roofless`, never passed empty.
     Every look from the walkers' floor (look_floor) inside the place (a point under a roof, slab or flight within
-    COVER whose looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a
+    COVER among walls, `walled`, whose looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a
     point in a structure's room, `rooms`) that meets nothing within its `sight`: the inside sees the sky or the outside
-    through a gap no door, window or glass closes (a cut-away built into the walls). [{fault, at, towards, why}] (at
+    through a gap no door, window or glass closes (a cut-away built into the walls); a joined doorway (`joins`,
+    place.json) is closed by its neighbour (through_joins). [{fault, at, towards, why}] (at
     most SHOWN_OPEN, each from another point) and how many inside points see out."""
     points, ways = look_points(look_floor(laid)), look_ways()
     covered = met(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     if not outside and (not len(points) or covered.mean() < ROOFED):
         return roofless(len(points), int(covered.sum()))
     points = points[covered]
-    if outside and len(points):
-        points = points[rooms(laid, points)]
+    if len(points):
+        points = points[rooms(laid, points) if outside else walled(laid, points)]
     if not len(points):
         return [], 0
     origins, directions = np.repeat(points, len(ways), axis=0), np.tile(ways, (len(points), 1))
     seeing_far = sight(laid)
-    reached = met(laid, origins, directions, seeing_far).reshape(len(points), len(ways))
+    reached = (met(laid, origins, directions, seeing_far)
+               | through_joins(origins, directions, joins)).reshape(len(points), len(ways))
     inside = reached.mean(axis=1) >= INSIDE_SHARE
     seeing = np.flatnonzero(inside & ~reached.all(axis=1))
     faults = []
@@ -964,7 +1017,7 @@ def swing_of(laid, name, toward=None):
             opened = turned(leaf, hinge, degrees)
             if side is not None and (opened.centroid - middle) @ axes[2] * side < 0:
                 continue
-            *_, standing, pieces = walkers_floor(laid, {name: opened})
+            *_, standing, pieces = walkers_floor(laid, {name: opened}, near=name)
             joined = int(np.bincount(pieces[standing]).max()) if standing.any() else 0
             points = np.asarray(opened.vertices)
             free = points[(np.hypot(*(points - hinge)[:, [0, 2]].T) > half[0])
@@ -972,7 +1025,9 @@ def swing_of(laid, name, toward=None):
             low, high = opened.bounds
             near, _ = laid.triangles_in(low - ROOM, high + ROOM, among=others)
             room = ROOM if not len(near) or not len(free) else min(ROOM, nearest_to_surface(
-                trimesh.Trimesh(near.reshape(-1, 3), np.arange(3 * len(near)).reshape(-1, 3), process=False), free))
+                trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(near.reshape(-1, 3), np.arange(3 * len(near)).reshape(
+                    -1, 3), ROOM / 2), process=False), np.unique(free, axis=0)))  # edges cut to half ROOM, so the
+            # nearest search keeps only the points near the least (the garage door beside a 17 m wall face: 434 s)
             if best is None or (joined, round(room, 3)) > best[0]:
                 best = ((joined, round(room, 3)), {"hinge": np.round(hinge, 4).tolist(), "degrees": degrees})
     return best[1]
@@ -997,7 +1052,7 @@ def slide_of(laid, name):
     for way in (1.0, -1.0):
         by = axes[0] * 2 * half[0] * way
         opened = leaf.copy().apply_translation(by)
-        *_, standing, pieces = walkers_floor(laid, {name: opened})
+        *_, standing, pieces = walkers_floor(laid, {name: opened}, near=name)
         joined = int(np.bincount(pieces[standing]).max()) if standing.any() else 0
         crossed = overlap(*opened.bounds, boxes)
         if best is None or (joined, -round(crossed, 6)) > best[0]:
@@ -1349,7 +1404,8 @@ def check(folder, settle=True):
         for fault in connector_faults(laid, name, floor):
             found.setdefault(name, []).append(fault)
     del floor  # the looks start from a floor of their own, the doors shut (look_floor): one floor held at a time
-    gaps, seeing = open_faults(laid, place_build.record_of(folder).get("kind") == "outside")
+    record = place_build.record_of(folder)
+    gaps, seeing = open_faults(laid, record.get("kind") == "outside", record.get("joins"))
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():
         found.setdefault(name, []).extend(faults)

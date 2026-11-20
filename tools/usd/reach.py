@@ -167,7 +167,11 @@ class Grid:
 # --- the surfaces -------------------------------------------------------------------------------------------------
 
 def over_grid(mesh, bounds):
-    """The part of a mesh whose faces reach over the grid's rectangle (None when none does)."""
+    """The part of a mesh whose faces reach over the grid's rectangle (None when none does; read off its box first,
+    so a mesh far from a small grid costs nothing: a door's swing is judged on a grid round it, ready.door_window)."""
+    low, high = mesh.bounds
+    if high[0] < bounds[0] or low[0] > bounds[2] or high[2] < bounds[1] or low[2] > bounds[3]:
+        return None
     corners = mesh.vertices[mesh.faces]
     over = ((corners[:, :, 0].max(axis=1) >= bounds[0]) & (corners[:, :, 0].min(axis=1) <= bounds[2])
             & (corners[:, :, 2].max(axis=1) >= bounds[1]) & (corners[:, :, 2].min(axis=1) <= bounds[3]))

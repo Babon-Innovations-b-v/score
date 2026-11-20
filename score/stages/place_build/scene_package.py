@@ -72,6 +72,9 @@ EVEN = 1e-6  # how far a copy's scale may differ across its axes and still be ev
 # (tools/props/library/inside/bake.py SPLIT_DENSITY). A part needing more than LARGEST a side is split into more maps
 # at the same density, never capped. PADDING texels round each chart (its mips' bleed).
 DENSITY = 512
+NEAR = 2.0  # metres from an eye within which a face gets DENSITY (a texel a pixel at 2 m, above); farther, less (#153)
+EYE_CELL = 1.0  # metres: the walkers' eyes kept one a cube this wide (thinned), each face's distance less its diagonal
+LEAST_DENSITY = 16  # texels a metre no baked face goes under however far (6 cm a texel: a far wall's courses still read)
 LARGEST = 4096
 PADDING = 4
 SPAN_SHARE = 0.9  # how much of a map's side one block of a part may span (blocks_of): its charts' slack
@@ -428,21 +431,78 @@ def told(gathered, looks):
     return digest.hexdigest()
 
 
-def object_glb(prim, baked, made):
-    """The object's GLB (a primitive a look) in its own frame, `baked` (a row-major 3 x 3, or None) drawn into it, its
-    triangle count and the triangles its unwrap cut them into besides (subdivided); None when it draws no face. `made`
-    holds the GLBs written so far by what tells them (`told`), so a copy of one already made is not written again."""
+def gathered_of(prim, baked):
+    """The object's corners by look ({look: [(positions, normals, uv)]}, `baked` drawn in) and its looks."""
     looks = looks_of(prim)
     gathered = {}
     for inside in gprims(prim):
         for key, (positions, normals, uv) in gprim_pieces(inside, prim, baked, looks).items():
             gathered.setdefault(key, []).append((positions, normals, uv))
+    return gathered, looks
+
+
+def object_glb(prim, baked, made, sights=None):
+    """The object's GLB (a primitive a look) in its own frame, `baked` (a row-major 3 x 3, or None) drawn into it, its
+    triangle count and the triangles its unwrap cut them into besides (subdivided); None when it draws no face. `made`
+    holds the GLBs written so far by what tells them (`told`) and what they copy (copied_from), so a copy of one already
+    made is not written again; `sights` the walkers' eyes in each content's frame by what it copies (eyes_by_content),
+    every copy's together."""
+    gathered, looks = gathered_of(prim, baked)
     if not gathered:
         return None, 0, 0
-    tells = told(gathered, looks)
+    tells = (told(gathered, looks), copied_from(prim, baked))
     if tells not in made:
-        made[tells] = gltf_written(gathered, looks)
+        made[tells] = gltf_written(gathered, looks, (sights or {}).get(tells[1]))
     return made[tells]
+
+
+def eyes_by_content(stage, place, found):
+    """The walkers' eyes (ready.look_points over the walkers' floor with every door open, thinned) in each object's own
+    frame, by what it copies (copied_from), every copy's eyes together, so one content is baked once at the density its
+    nearest copy needs (#153); only eyes within reach of a density over LEAST_DENSITY of its box are kept. {} when the
+    place has no physics roles (no walkers' floor)."""
+    from score.stages.place_build import ready
+    laid = ready.Place(stage, place)
+    if not laid.names:
+        return {}
+    eyes = thinned(ready.look_points(ready.walkers_floor(laid)[:4]))
+    if not len(eyes):
+        return {}
+    farthest = DENSITY * NEAR / LEAST_DENSITY
+    boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    sights = {}
+    for prim, _ in found:
+        world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        frame, _, baked = copy_frame(world)
+        box = boxes.ComputeUntransformedBound(prim).ComputeAlignedRange()
+        if box.IsEmpty():
+            continue
+        corners = np.array([[box.GetMin()[0], box.GetMin()[1], box.GetMin()[2]],
+                            [box.GetMax()[0], box.GetMax()[1], box.GetMax()[2]]])
+        corners = np.array([[corners[x, 0], corners[y, 1], corners[z, 2]] for x in (0, 1) for y in (0, 1)
+                            for z in (0, 1)]) @ (baked if baked is not None else np.eye(3))
+        low, high = corners.min(axis=0), corners.max(axis=0)
+        local = (eyes - frame[3, :3]) @ np.linalg.inv(frame[:3, :3])
+        outside = np.linalg.norm(np.maximum(np.maximum(low - local, local - high), 0.0), axis=1)
+        key = copied_from(prim, baked)
+        sights[key] = thinned(np.vstack([sights.get(key, np.zeros((0, 3))), local[outside <= farthest]]))
+    return sights
+
+
+def copied_from(prim, baked):
+    """What a copy copies, read without its corners: its references and the turn and stretch drawn into it (copy_frame),
+    else its own path. Two copies of one content always share it; two that share it and differ only pool their eyes,
+    which only raises a density (eyes_by_content)."""
+    references = prim.GetMetadata("references").GetAddedOrExplicitItems() if prim.HasMetadata("references") else []
+    drawn = None if baked is None else tuple(np.round(baked, 6).ravel().tolist())
+    return (tuple(str(reference.assetPath) for reference in references) or str(prim.GetPath()), drawn)
+
+
+def thinned(points):
+    """The points kept one an EYE_CELL cube (its middle): a face's density reads its distance to the nearest less the
+    cube's diagonal (densities), so thinning never lowers a face's density below what an eye in the cube needs."""
+    return (np.unique(np.floor(np.asarray(points) / EYE_CELL), axis=0) + 0.5) * EYE_CELL if len(points) else \
+        np.zeros((0, 3))
 
 
 def areas_of(points, faces):
@@ -450,14 +510,34 @@ def areas_of(points, faces):
     return 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=-1)
 
 
-def span():
-    """Metres one block of a part may span on its map at DENSITY (SPAN_SHARE of a LARGEST map inside its padding)."""
-    return (LARGEST - 2 * PADDING) / DENSITY * SPAN_SHARE
+def span(density=None):
+    """Metres one block of a part may span on its map at `density` (SPAN_SHARE of a LARGEST map inside its padding)."""
+    density = DENSITY if density is None else density
+    return (LARGEST - 2 * PADDING) / density * SPAN_SHARE
 
 
-def held():
-    """Square metres of surface one map's charts may hold at DENSITY: FILL of a LARGEST map."""
-    return LARGEST ** 2 * FILL / DENSITY ** 2
+def held(density=None):
+    """Square metres of surface one map's charts may hold at `density`: FILL of a LARGEST map."""
+    density = DENSITY if density is None else density
+    return LARGEST ** 2 * FILL / density ** 2
+
+
+def densities(middles, reach_out, eyes):
+    """Each face's texels a metre (#153): DENSITY where an eye (ready.look_points, in the object's frame) comes within
+    NEAR of it, else DENSITY * NEAR over its distance (a texel a pixel at 1920x1080 under 60 degrees) raised to a
+    power of two so faces at like distances share maps, never under LEAST_DENSITY; a face's distance is its middle's
+    less `reach_out` (half its longest edge), so no part of it is seen nearer than its density serves. DENSITY on
+    every face when no eyes are given (None: a place without a walkers' floor), LEAST_DENSITY when none is near enough
+    to need more (an empty set: eyes_by_content keeps only those within reach)."""
+    if eyes is None:
+        return np.full(len(middles), DENSITY)
+    if not len(eyes):
+        return np.full(len(middles), LEAST_DENSITY)
+    import scipy.spatial
+    slack = EYE_CELL * np.sqrt(3.0)  # an eye stands anywhere in its thinned cube
+    distance = np.maximum(scipy.spatial.cKDTree(eyes).query(middles)[0] - reach_out - slack, NEAR)
+    need = np.ceil(np.log2(np.maximum(DENSITY * NEAR / distance, LEAST_DENSITY)))
+    return np.minimum(2 ** need.astype(int), DENSITY)
 
 
 def subdivided(vertices, normals, faces):
@@ -497,24 +577,24 @@ def halves(vertices, faces, chosen):
     return chosen[low], chosen[~low]
 
 
-def blocks_of(vertices, faces, chosen):
+def blocks_of(vertices, faces, chosen, density=None):
     """The faces `chosen` cut into blocks no wider than a map holds at DENSITY (span) and holding no more surface than
     a map's worth (held): each block halved (halves) until it fits; so no chart xatlas makes is wider than its map, no
     block needs more than one, and none is shrunk to fit (a dome's 10 m deck as one chart came out at 390 texels a
     metre)."""
     box = np.ptp(vertices[faces[chosen]].reshape(-1, 3), axis=0)
-    if (box.max() <= span() and areas_of(vertices, faces[chosen]).sum() <= held()) or len(chosen) == 1:
+    if (box.max() <= span(density) and areas_of(vertices, faces[chosen]).sum() <= held(density)) or len(chosen) == 1:
         return [chosen]
-    return [block for half in halves(vertices, faces, chosen) for block in blocks_of(vertices, faces, half)]
+    return [block for half in halves(vertices, faces, chosen) for block in blocks_of(vertices, faces, half, density)]
 
 
-def map_groups(vertices, faces, blocks):
+def map_groups(vertices, faces, blocks, density=None):
     """The blocks (in blocks_of's order, side by side in space) gathered into maps' worth: each group's surface at
     DENSITY at most FILL of a LARGEST map, so each is packed alone into one map of its own size."""
     groups, area = [[]], 0.0
     for chosen in blocks:
         surface = float(areas_of(vertices, faces[chosen]).sum())
-        if groups[-1] and area + surface > held():
+        if groups[-1] and area + surface > held(density):
             groups.append([])
             area = 0.0
         groups[-1].append(chosen)
@@ -522,48 +602,55 @@ def map_groups(vertices, faces, blocks):
     return groups
 
 
-def atlas_of(vertices, normals, faces, group):
+def atlas_of(vertices, normals, faces, group, density=None):
     """One map of blocks packed by xatlas at DENSITY, PADDING round each chart, its size as its charts need (no fixed
     resolution, so no chart is scaled to fit), each chart's boundary at most twice a span so none is wider than a map;
     None when that map is over LARGEST a side."""
     import xatlas
+    density = DENSITY if density is None else density
     atlas = xatlas.Atlas()
     for chosen in group:
         kept, inverse = np.unique(faces[chosen], return_inverse=True)
         atlas.add_mesh(vertices[kept].astype(np.float32), inverse.reshape(-1, 3).astype(np.uint32),
                        normals[kept].astype(np.float32))
     charting = xatlas.ChartOptions()
-    charting.max_boundary_length = 2 * span()
+    charting.max_boundary_length = 2 * span(density)
     packing = xatlas.PackOptions()
-    packing.texels_per_unit, packing.padding, packing.bilinear, packing.blockAlign = DENSITY, PADDING, True, True
+    packing.texels_per_unit, packing.padding, packing.bilinear, packing.blockAlign = density, PADDING, True, True
     atlas.generate(chart_options=charting, pack_options=packing)
     return atlas if max(atlas.width, atlas.height) <= LARGEST and atlas.atlas_count <= 1 else None
 
 
-def mapped(vertices, normals, faces, group):
+def mapped(vertices, normals, faces, group, density=None):
     """The group's blocks on maps of at most LARGEST: one map when it packs into one (atlas_of), else the group halved
     (a lone block cut in its own halves) and each half mapped; [(atlas, the blocks on it)]. Refused when one face
     alone needs more than a map."""
-    atlas = atlas_of(vertices, normals, faces, group)
+    atlas = atlas_of(vertices, normals, faces, group, density)
     if atlas is not None:
         return [(atlas, group)]
     if len(group) == 1 and len(group[0]) == 1:
-        raise place_build.Refused(f"a face needs more than a {LARGEST} map at {DENSITY} texels a metre")
+        raise place_build.Refused(f"a face needs more than a {LARGEST} map at {density or DENSITY} texels a metre")
     parts = [[half] for half in halves(vertices, faces, group[0])] if len(group) == 1 else \
         [group[:len(group) // 2], group[len(group) // 2:]]
-    return [laid for part in parts for laid in mapped(vertices, normals, faces, part)]
+    return [laid for part in parts for laid in mapped(vertices, normals, faces, part, density)]
 
 
-def unwrapped(vertices, normals, faces):
+def unwrapped(vertices, normals, faces, eyes=None):
     """A mesh laid flat for its bake (subdivided, cut into blocks: blocks_of, gathered a map's worth a group:
     map_groups) at DENSITY texels a metre on maps each as big as its charts need and at most LARGEST a side:
     [(vertices, normals, uv, faces, [width, height], texels a metre as laid)] a map. Refused when a map holds its
-    charts under DENSITY (#146: xatlas packing at a fixed resolution scaled charts down to 147 texels a metre)."""
+    charts under its density (#146: xatlas packing at a fixed resolution scaled charts down to 147 texels a metre).
+    Each face's density is set by how near the walkers' eyes come (`eyes`, in the mesh's frame: densities), its
+    faces of one density on maps of their own."""
     vertices, normals, faces = subdivided(vertices, normals, faces)
-    blocks = blocks_of(vertices, faces, np.arange(len(faces)))
+    corners = vertices[faces]
+    reach_out = np.linalg.norm(corners[:, [1, 2, 0]] - corners, axis=-1).max(axis=1) / 2
+    banded = densities(corners.mean(axis=1), reach_out, eyes)
     found = []
-    for group in map_groups(vertices, faces, blocks):
-        for atlas, held in mapped(vertices, normals, faces, group):
+    for density, group in ((density, group) for density in sorted(set(banded.tolist()), reverse=True)
+                           for group in map_groups(vertices, faces, blocks_of(
+                               vertices, faces, np.flatnonzero(banded == density), density), density)):
+        for atlas, held in mapped(vertices, normals, faces, group, density):
             size = [int(atlas.width), int(atlas.height)]
             points, ways, coordinates, triangles = [], [], [], []
             for number, chosen in enumerate(held):
@@ -576,16 +663,17 @@ def unwrapped(vertices, normals, faces):
             points, coordinates, triangles = np.vstack(points), np.vstack(coordinates), np.vstack(triangles)
             texels = np.sqrt(areas_of(np.hstack([coordinates * size, np.zeros((len(coordinates), 1))]),
                                       triangles).sum() / max(areas_of(points, triangles).sum(), 1e-12))
-            if texels < DENSITY * HELD_SHARE:
+            if texels < density * HELD_SHARE:
                 raise place_build.Refused(f"a map of {size[0]}x{size[1]} holds its charts at {texels:.1f} texels a "
-                                          f"metre, under {DENSITY}")
+                                          f"metre, under {density}")
             found.append((points, np.vstack(ways), coordinates, triangles, size, round(float(texels), 1)))
     return found
 
 
-def gltf_written(gathered, looks):
+def gltf_written(gathered, looks, eyes=None):
     """The GLB of an object's corners grouped by look (a recipe to bake on its own unwrapped maps, a part a map), its
-    triangle count and the triangles its unwrap cut them into besides (subdivided)."""
+    triangle count and the triangles its unwrap cut them into besides (subdivided); `eyes` the walkers' eyes in its
+    frame (eyes_by_content), each baked face's density set by them (unwrapped)."""
     import trimesh
     scene, triangles, written_triangles, parts = trimesh.Scene(), 0, 0, []
     for key in sorted(gathered):
@@ -595,7 +683,7 @@ def gltf_written(gathered, looks):
                                               np.vstack([piece[1] for piece in pieces]),
                                               np.vstack([piece[2] for piece in pieces]) if with_uv else None)
         bake = looks[key].get("bake")
-        maps = unwrapped(vertices, normals, faces) if bake and not bake["tile"] else \
+        maps = unwrapped(vertices, normals, faces, eyes) if bake and not bake["tile"] else \
             [(vertices, normals, uv, faces, [LARGEST, LARGEST], LARGEST / bake["tile"]) if bake else
              (vertices, normals, uv, faces, None, None)]
         triangles += len(faces)
@@ -1047,7 +1135,7 @@ def environment_of(stage, place, out):
     return found
 
 
-def converted(prim, baked, made):
+def converted(prim, baked, made, sights=None):
     """An object's glTF (GLB bytes), where it came from, and its check: the library entry's own when laid unchanged
     in an even copy, else converted from the laid USD (`made` the conversions so far, object_glb), its triangles
     counted against the USD's (the triangles an unwrap cut a face into counted besides)."""
@@ -1058,7 +1146,7 @@ def converted(prim, baked, made):
         loaded = trimesh.load(trimesh.util.wrap_as_stream(own), file_type="glb", force="mesh", skip_materials=True)
         return own, "library glTF", {"pass": len(loaded.faces) == usd_triangles > 0, "triangles": len(loaded.faces),
                                      "usd_triangles": usd_triangles}
-    glb, triangles, cut = object_glb(prim, baked, made)
+    glb, triangles, cut = object_glb(prim, baked, made, sights)
     if glb is None:
         return None, None, None
     loaded = trimesh.load(trimesh.util.wrap_as_stream(glb), file_type="glb", force="mesh", skip_materials=True)
@@ -1110,11 +1198,13 @@ def write(folder, out):
     (out / STEPS).unlink(missing_ok=True)
     found, characters, left_out = laid_objects(stage, place)
     objects, instances, by_content, counts, made = {}, [], {}, {}, {}
+    with deadline(out, "the walkers' eyes", "scene"):
+        sights = eyes_by_content(stage, place, found)
     for prim, kind in found:
         with deadline(out, prim.GetName(), "object"):
             world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
             frame, scale, baked = copy_frame(world)
-            glb, route, check = converted(prim, baked, made)
+            glb, route, check = converted(prim, baked, made, sights)
             if glb is None:
                 left_out.append({"name": prim.GetName(), "why": "it draws no face"})
                 continue

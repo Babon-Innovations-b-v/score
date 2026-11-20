@@ -58,6 +58,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.open_faults: INSIDE_SHARE made 1.01 -> no point of the cut room reads inside and it passes
 - ready.open_faults: SEES made 1.0 -> the closed room's far looks read open and it is told
 - ready.sight: SEES alone (the place's diagonal left out) -> the closed hall 48 m long reads open along its length
+- ready.rooms: the level looks stopped by props (unmoved left out) -> the cluttered shop reads no room, so passes
+- ready.through_joins: no look passes a joined doorway -> the cut room whose open front is joined reads open
+- ready.walled: every covered point kept -> the porch outside the closed room's door reads open
 - ready.look_floor: walkers_floor(laid) with every door open -> the hooded door's frame holds look points that see
   out past it, and the closed room is told
 - ready.cast: the rays embree gave up on left uncast -> the look past a face lying along it meets nothing, and the
@@ -273,11 +276,11 @@ def rock_field(folder):
     place_build.ground(folder, "far_shore", 10.0, (320.0, -0.02, 0.0))
 
 
-def room(folder, cut, hood=0.0, length=4.0, roof=True):
+def room(folder, cut, hood=0.0, length=4.0, roof=True, porch=0.0):
     """A room 4 m wide and `length` deep inside, 2.5 m high, on a ground disc: four walls 0.2 m thick, a roof slab
     (unless not `roof`), a doorway 1.0 x 2.1 m in its back wall filled by its shut door; `cut` leaves its front wall out
     (the concept's section, built); `hood` metres of the door's own frame (two cheeks and a head) standing out of the
-    wall."""
+    wall; `porch` metres of roof standing out past the back wall over the ground (a porch outside the door)."""
     folder.mkdir()
     concept = folder / "concept.png"
     Image.new("RGB", (8, 8)).save(concept)
@@ -304,14 +307,26 @@ def room(folder, cut, hood=0.0, length=4.0, roof=True):
     if not cut:
         box(stage, place, "wall_front", (4.4, 2.5, 0.2), (-2.2, 0.0, length - 2.0))
     if roof:
-        box(stage, place, "roof", (4.4, 0.2, length + 0.4), (-2.2, 2.5, -2.2))
+        box(stage, place, "roof", (4.4, 0.2, length + 0.4 + porch), (-2.2, 2.5, -2.2 - porch))
     stage.GetRootLayer().Save()
     return folder
 
 
-def shop(folder):
+def joined_room(folder):
+    """The cut room (its front wall left out) with that open front a joined doorway (place.json `joins`): the place
+    joined there closes it."""
+    folder = room(folder, True)
+    record = place_build.record_of(folder)
+    record["joins"] = {"front": {"middle": [0.0, 0.0, 2.1], "inward": [0.0, 0.0, -1.0], "wide": 4.4, "sill": 0.0,
+                                 "head": 2.5, "to": "street"}}
+    place_build.write_record(folder, record)
+    return folder
+
+
+def shop(folder, crates=False):
     """A shop's room 4 x 4 m inside as one structure (walls, roof) on a ground disc, a window 1.2 m wide from 0.3 to
-    2.0 m left open in its front wall, a glassless gap; in an outside place it is a room of a structure."""
+    2.0 m left open in its front wall, a glassless gap; in an outside place it is a room of a structure. `crates`:
+    nine crates 2 m high standing through the room (its furniture, props)."""
     folder.mkdir()
     concept = folder / "concept.png"
     Image.new("RGB", (8, 8)).save(concept)
@@ -330,6 +345,11 @@ def shop(folder):
         block.AddTranslateOp().Set(Gf.Vec3d(*(np.asarray(low) + np.asarray(size) / 2)))
         block.AddScaleOp().Set(Gf.Vec3f(*size))
     stage.GetRootLayer().Save()
+    if crates:
+        stage, place = place_build.opened(folder)
+        for number, (x, z) in enumerate((x, z) for x in (-1.6, -0.4, 0.8) for z in (-1.6, -0.4, 0.8)):
+            box(stage, place, f"crate{number}", (0.5, 2.0, 0.5), (x, 0.0, z))
+        stage.GetRootLayer().Save()
     return folder
 
 
@@ -388,6 +408,9 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
                                    ("cut", lambda folder: room(folder, True), "inside", seen),
                                    ("arcade", lambda folder: room(folder, True), "outside", None),
                                    ("shop", shop, "outside", seen),
+                                   ("cluttered", lambda folder: shop(folder, crates=True), "outside", seen),
+                                   ("porch", lambda folder: room(folder, False, porch=2.0), "inside", None),
+                                   ("joined", joined_room, "inside", None),
                                    ("hooded", lambda folder: room(folder, False, hood=0.6), "inside", None),
                                    ("hall", lambda folder: room(folder, False, length=48.0), "inside", None),
                                    ("hall_cut", lambda folder: room(folder, True, length=48.0), "inside", seen),
@@ -397,7 +420,8 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
         place_build.kind(folder, kind)
         stage, place = place_build.opened(folder)
         shell = ready.Place(stage, place)
-        gaps, seeing = ready.open_faults(shell, place_build.record_of(folder)["kind"] == "outside")
+        record = place_build.record_of(folder)
+        gaps, seeing = ready.open_faults(shell, record["kind"] == "outside", record.get("joins"))
         assert (seeing > 0) == bool(told) and all(fault["fault"] == told for fault in gaps), (name, gaps)
     tilt = 4e-6  # a face lying along the look (embree meets it, its plane and the look meet nowhere), a wall past it
     lying = np.array([[[0.0, 0.5 - tilt, -1.0], [2.0, 0.5 + tilt, -1.0], [1.0, 0.5, 1.0]]])
