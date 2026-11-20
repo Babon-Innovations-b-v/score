@@ -77,7 +77,11 @@ def is_light(prim):
 
 
 def thing_kind(prim):
-    """What a prim is as a thing of the place, or None when it is not one."""
+    """What a prim is as a thing of the place, or None when it is not one. A look (a Material) is none: it is traced as
+    a finish of what it is bound to (finish_rows), so a look referencing a surface entry's material.usda is no model
+    (#154: greenhouse@1's 168 lettuce leaves read as models from material.usda)."""
+    if prim.IsA(UsdShade.Material):
+        return None
     kind = authored(prim, KIND_ATTR)
     if kind == "place" or authored(prim, "score:place"):
         return "place"

@@ -6,6 +6,8 @@ from SCORE_LIB_ROOT; exceptions refuse without a reason or an owner and end at t
 of piece into one problem. The library is a temp folder written here (no entry data is kept in this repository).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- trace.thing_kind: a look (a Material) with a reference taken for a model -> the place_build scene's chair look,
+  referencing its surface's material.usda, reads as a model no entry holds
 - trace.judged: an untraced row answers LIBRARY -> test_the_known_bad_fixture_fails_on_its_texture_its_grey_and_its_model
 - trace.traced_finish: the surface-by-name branch dropped -> test_the_known_good_fixture_passes_and_a_guide_mesh_is_not_a_finish
 - trace.traced_finish: the finish record not read (`node = None`) -> test_a_finish_record_traces_a_baked_models_finish
@@ -119,7 +121,7 @@ PLACED = """def Xform "fixture"
     }
     def Scope "Looks"
     {
-        def Material "chair"
+        def Material "chair" (prepend references = @./surface/deck/1/material.usda@)
         {
             custom string score:surface = "surface/deck@1"
         }
