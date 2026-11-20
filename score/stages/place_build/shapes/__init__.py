@@ -41,6 +41,7 @@ WIDTH_PERCENTILE = 90  # a slice's width: this percentile of its points' distanc
 FLAT = 0.25  # a hard thing's least share of area facing one of its fullest directions
 DIRECTIONS, FULLEST = 4000, 20  # Fibonacci directions a face's normal falls in; the fullest that count
 SAMPLES, SEED = 4000, 7  # surface points drawn by area to measure a section
+CHUNK = 20000  # faces matched to the directions at a time (20000 by 4000 floats, 640 MB)
 
 
 @dataclasses.dataclass
@@ -85,8 +86,12 @@ def fibonacci(count):
 
 
 def flat_share(normals, areas):
-    """The share of area whose faces face one of the FULLEST fullest of DIRECTIONS directions."""
-    held = np.bincount((normals @ fibonacci(DIRECTIONS).T).argmax(1), weights=areas, minlength=DIRECTIONS)
+    """The share of area whose faces face one of the FULLEST fullest of DIRECTIONS directions (the faces taken CHUNK
+    at a time: a model of a million faces against every direction at once would hold 32 GB)."""
+    directions = fibonacci(DIRECTIONS).T
+    nearest = np.concatenate([(normals[start:start + CHUNK] @ directions).argmax(1)
+                              for start in range(0, len(normals), CHUNK)])
+    held = np.bincount(nearest, weights=areas, minlength=DIRECTIONS)
     return float(np.sort(held)[::-1][:FULLEST].sum() / areas.sum())
 
 
