@@ -99,7 +99,7 @@ GRADE_FILE = "environment/grade.png"
 # watts its intensity times pi. A lamp's and the sun's `strength` is that, what the engine lights with.
 SUN_STRENGTH = 4.0
 # Every step of a package runs under its time (deadline, blender_run, blender_graded), never for hours unseen (the
-# base, 2026-11-20: a part's unwrap ran 11.5 h at 100% CPU): an object's conversion, the characters, the scene's
+# base, 2026-11-20: a part's unwrap ran 11.5 h at 100% CPU): an object's or a character's conversion, the scene's
 # doors, chambers and sky, a Blender run of BATCH maps (its wait for the card not counted), the grade. Each step is
 # named in STEPS first.
 STEP_SECONDS = {"object": 900, "scene": 900, "bake run": 1800, "grade": 600}
@@ -225,7 +225,7 @@ def metal_rough(roughness, metal, rough_value, metal_value):
     grey = [channel(found[0], found[1]).resize(size) if found else None for found in (roughness, metal)]
     rough = grey[0] or Image.new("L", size, int(round(float(rough_value) * 255)))
     metallic = grey[1] or Image.new("L", size, int(round(float(metal_value) * 255)))
-    return Image.merge("RGB", (Image.new("L", size, 255), rough, metallic))
+    return held_image(Image.merge("RGB", (Image.new("L", size, 255), rough, metallic)))
 
 
 def look_name(look):
@@ -293,10 +293,11 @@ def pbr(look, ground=False):
         name=look_name(look), baseColorFactor=[float(value) for value in colour] + [opacity],
         metallicFactor=1.0 if combined else metallic, roughnessFactor=1.0 if combined else roughness,
         emissiveFactor=glow, alphaMode="BLEND" if opacity < 1.0 else "OPAQUE", doubleSided=True,
-        baseColorTexture=Image.open(colour_map[0]).convert("RGBA" if opacity < 1.0 else "RGB") if colour_map else None,
+        baseColorTexture=held_image(Image.open(colour_map[0]).convert("RGBA" if opacity < 1.0 else "RGB"))
+        if colour_map else None,
         metallicRoughnessTexture=combined,
-        normalTexture=Image.open(normal_map[0]).convert("RGB") if normal_map else None,
-        emissiveTexture=Image.open(glow_map[0]).convert("RGB") if glow_map else None)
+        normalTexture=held_image(Image.open(normal_map[0]).convert("RGB")) if normal_map else None,
+        emissiveTexture=held_image(Image.open(glow_map[0]).convert("RGB")) if glow_map else None)
     maps = [found[0] for found in (colour_map, rough_map, metal_map, normal_map, glow_map) if found]
     exact = {"baseColorFactor": [float(value) for value in colour] + [opacity], "emissiveFactor": glow}
     if not combined:
@@ -1079,24 +1080,24 @@ def laid_objects(stage, place):
     return found, characters, left_out
 
 
-def character_objects(characters):
-    """Every laid character's copies as skinned glTFs (skinned.py), each SkelRoot converted once and checked:
-    [(name, kind, world, glb, facts, check)] and [{name, why}] of those not converted."""
+def character_copies(prim):
+    """One laid character's copies as skinned glTFs (skinned.py), each SkelRoot it copies converted once and checked:
+    [(name, world, glb, facts, check)] and [{name, why}] of those not converted. Read a character at a time, so only
+    its own copies' glTFs are held (the square's 1,260 people, every one's held until all were made, passed 14 GB)."""
     made, copies, left_out = {}, [], []
-    for prim, kind in characters:
-        for root, name, world in skinned.copies_of(prim):
-            frame, scale, baked = copy_frame(world)
-            key = (str(root.GetPath()), None if baked is None else baked.round(9).tobytes())
-            if key not in made:
-                try:
-                    glb, facts = skinned.character_glb(root, baked)
-                    made[key] = (glb, facts, skinned.check_of(root, glb, facts))
-                except skinned.Unconvertible as refused:
-                    made[key] = refused
-            if isinstance(made[key], skinned.Unconvertible):
-                left_out.append({"name": name, "why": str(made[key])})
-                continue
-            copies.append((name, kind, frame, scale, *made[key]))
+    for root, name, world in skinned.copies_of(prim):
+        frame, scale, baked = copy_frame(world)
+        key = (str(root.GetPath()), None if baked is None else baked.round(9).tobytes())
+        if key not in made:
+            try:
+                glb, facts = skinned.character_glb(root, baked)
+                made[key] = (glb, facts, skinned.check_of(root, glb, facts))
+            except skinned.Unconvertible as refused:
+                made[key] = refused
+        if isinstance(made[key], skinned.Unconvertible):
+            left_out.append({"name": name, "why": str(made[key])})
+            continue
+        copies.append((name, frame, scale, *made[key]))
     return copies, left_out
 
 
@@ -1220,12 +1221,18 @@ def taken_down(data):
     picture = Image.open(io.BytesIO(data))
     if max(picture.size) <= HELD_TEXELS:
         return data, None
-    picture = picture.convert("RGBA" if "A" in picture.getbands() or picture.mode == "P" else "RGB")
-    while max(picture.size) > HELD_TEXELS:
-        picture = picture.reduce(2)
+    picture = held_image(picture.convert("RGBA" if "A" in picture.getbands() or picture.mode == "P" else "RGB"))
     held_bytes = io.BytesIO()
     picture.save(held_bytes, format="PNG")
     return held_bytes.getvalue(), "image/png"
+
+
+def held_image(picture):
+    """A decoded picture at the size the game holds it (taken_down's halving), so a look holds no more than the package
+    writes (the square's rocket: 32 maps, each a 4096 normal map, 2.9 GB decoded at once)."""
+    while max(picture.size) > HELD_TEXELS:
+        picture = picture.reduce(2)
+    return picture
 
 
 def pictures_held(document, binary):
@@ -1366,21 +1373,23 @@ def write(folder, out):
                 copy["collider"] = collider_of(folder, prim, copy["role"], scale)
             instances.append(copy)
             counts[kind] = counts.get(kind, 0) + 1
-    with deadline(out, "the characters", "scene"):
-        laid_characters, refused = character_objects(characters)
-    left_out += refused
-    for name, kind, frame, scale, glb, facts, check in laid_characters:
-        digest = hashlib.sha256(glb).hexdigest()
-        if digest not in by_content:
-            by_content[digest] = name
-            written(out, name, glb)
-            objects[name] = {"file": f"objects/{name}.gltf", "kind": kind, "route": "skinned from the laid USD",
-                             "size": box_size(glb), "triangles": check["triangles"], "check": check,
-                             "clips": facts["clips"]}
-        copy = instance_of(name, by_content[digest], kind, frame, scale)
-        copy["plays"] = facts["plays"]
-        instances.append(copy)
-        counts[kind] = counts.get(kind, 0) + 1
+    for prim, kind in characters:
+        with deadline(out, prim.GetName(), "object"):
+            laid_characters, refused = character_copies(prim)
+            left_out += refused
+            for name, frame, scale, glb, facts, check in laid_characters:
+                digest = hashlib.sha256(glb).hexdigest()
+                if digest not in by_content:
+                    by_content[digest] = name
+                    written(out, name, glb)
+                    objects[name] = {"file": f"objects/{name}.gltf", "kind": kind, "route": "skinned from the laid USD",
+                                     "size": box_size(glb), "triangles": check["triangles"], "check": check,
+                                     "clips": facts["clips"]}
+                copy = instance_of(name, by_content[digest], kind, frame, scale)
+                copy["plays"] = facts["plays"]
+                instances.append(copy)
+                counts[kind] = counts.get(kind, 0) + 1
+            del laid_characters
     with deadline(out, "doors, chambers, lamps and sky", "scene"):
         doors, chambers = doors_of(stage, place, [copy["name"] for copy in instances])
         for copy in instances:

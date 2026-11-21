@@ -153,6 +153,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.taken_down: every picture kept at its own size -> a 64 texel map is packaged over HELD_TEXELS
 - scene_package.pictures_held: no picture held once (`by_bytes` unread) -> two of an object's images hold one picture
 - scene_package.pictures_read_as: every map read as linear -> the base colour shares its picture with linear maps
+- scene_package.held_image: unread in pbr (every map held whole) -> the dune's look holds its sand map at 64
+- scene_package.write: every character made before any is written (character_objects, as before) -> the leader is
+  written after the crowd's people are made (the square's 1,260 people held at once, past 14 GB)
 - scene_package.gprim_pieces: the cube's own transform left out (identity) -> the crate's model misses its laid box
 - scene_package.look_name: the look's own prim name -> the two steel walls are two objects
 - scene_package.entry_glb: never reused (None) -> the cabinet is converted, not its library glTF
@@ -946,7 +949,7 @@ def packaged(folder, out):
     assert not held.GetPrimAtPath(f"/{held.GetDefaultPrim().GetName()}/Looks/regolith").HasAuthoredReferences()
     place_build.surface(folder, "tunnel", "surface/glass")
     sand = folder / "assets/surface/sand/1"
-    Image.new("RGB", (8, 8), (90, 90, 90)).save(sand / "colour.jpg")
+    Image.new("RGB", (64, 64), (90, 90, 90)).save(sand / "colour.jpg")  # over HELD_TEXELS: held at its 32
     (sand / "surface.json").write_text(json.dumps({"tile_metres": 0.5}))
     (folder / "assets/kit/box_piece/1/box_piece.json").write_text(json.dumps({"physics": {"mass_kg": 12.5}}))
     (folder / "ready.json").write_text(json.dumps({"roles": {"big": "prop", "wall": "structure", "sky": "light"}}))
@@ -974,8 +977,21 @@ def packaged(folder, out):
     (out / scene_package.BAKE).mkdir(parents=True)
     (out / scene_package.BAKE / "kept.done").touch()  # a stopped bake's map, for the next bake to keep or drop
     (out / "old.json").touch()
-    made = scene_package.packaged(folder, out, baker, grader)
+    events, held_written, held_glb = [], scene_package.written, scene_package.skinned.character_glb
+    scene_package.written = lambda out, name, glb: events.append(("written", name)) or held_written(out, name, glb)
+    scene_package.skinned.character_glb = lambda root, baked=None: events.append(
+        ("made", str(root.GetPath()))) or held_glb(root, baked)
+    try:
+        made = scene_package.packaged(folder, out, baker, grader)
+    finally:
+        scene_package.written, scene_package.skinned.character_glb = held_written, held_glb
+    dune_prim = held.GetPrimAtPath(f"/{held.GetDefaultPrim().GetName()}/Objects/dune")
+    assert {look["material"].baseColorTexture.size for look in scene_package.looks_of(dune_prim).values()
+            if look["material"].baseColorTexture is not None} == {(32, 32)}  # a look holds what the package writes
     scene_package.DENSITY, scene_package.LARGEST, scene_package.HELD_TEXELS = 512, 4096, 2048
+    # a character at a time: the leader written before the crowd's first person is made, so no two are held at once
+    assert events.index(("written", "leader")) < next(at for at, (what, path) in enumerate(events)
+                                                      if what == "made" and "crowd" in path), events
     assert (out / scene_package.BAKE / "kept.done").is_file() and not (out / "old.json").exists()
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
