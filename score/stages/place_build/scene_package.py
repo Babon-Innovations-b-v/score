@@ -19,7 +19,9 @@ dirt and relief) is baked as the preview draws it, in headless Blender on this P
 (bake_looks.py): the part unwrapped (xatlas; its big faces cut, in blocks no wider than a map) at DENSITY texels a
 metre on maps each as big as its charts and at most LARGEST, each map its own primitive and material, or on a laid
 ground one seamless GROUND_TILE box-projected; its base colour, metal-roughness and normal pictures carried in the
-object's own buffer. A glTF-only model or take laid in its own bake (no look of the place's on it) goes as its library
+object's own buffer. Every picture an object carries (baked, an image surface's, a library glTF's, a character's) is
+written at most HELD_TEXELS a side, as the game holds it (a bigger one halved as its mips are made), and pictures of
+one object alike in bytes and in how they are read are one picture (pictures_held). A glTF-only model or take laid in its own bake (no look of the place's on it) goes as its library
 entry's own glTF, unchanged.
 Two objects that convert to the same file are one object. A copy turned and scaled evenly keeps its object in its
 own frame (`matrix` the whole transform); a copy stretched unevenly has its stretch baked into its own object.
@@ -84,6 +86,8 @@ GROUND_TILE = 8.0  # metres one seamless tile of a laid ground's recipe covers: 
 FLAT_RECIPES = ("glass", "glowing")  # recipes of one colour, roughness and glow: their factors are exact, no bake
 GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
 TEXTURES = "textures"  # the baked pictures' folder beside the objects' .gltf files
+HELD_TEXELS = 2048  # the longest side a package's picture is written at: the side the game holds it at (2099 #161,
+# PlaceTextures.MostTexels), so a picture over it is written as the game's own taken-down mip, never decoded at 4096
 # The final render's grade, which the engine's tone mapping takes (blender_views.CONTRAST, usd_views' AgX).
 VIEW = {"view_transform": "AgX", "look": "AgX - Medium High Contrast"}
 # The grade's picture (grade_lut.py): a lattice `size` a side, each channel `middle` * 2 ** (low + c * (high - low)),
@@ -1208,9 +1212,98 @@ def converted(prim, baked, made, sights=None):
                                                 "cut": cut}
 
 
+def taken_down(data):
+    """A picture's bytes (PNG or JPEG) at the size the game holds it (2099's PlaceTextures.HeldSize): halved, each texel
+    the mean of the two by two it covers as a mip level is made, until its longer side is at most HELD_TEXELS; (its
+    bytes, mime type), unchanged when it fits."""
+    import io
+    picture = Image.open(io.BytesIO(data))
+    if max(picture.size) <= HELD_TEXELS:
+        return data, None
+    picture = picture.convert("RGBA" if "A" in picture.getbands() or picture.mode == "P" else "RGB")
+    while max(picture.size) > HELD_TEXELS:
+        picture = picture.reduce(2)
+    held_bytes = io.BytesIO()
+    picture.save(held_bytes, format="PNG")
+    return held_bytes.getvalue(), "image/png"
+
+
+def pictures_held(document, binary):
+    """A glTF document's buffer (its one buffer, a bytes-like) with every picture in it written at most HELD_TEXELS a
+    side (taken_down) and pictures of the same bytes read alike (pictures_read_as) held once, every texture of them
+    reading the one: the document's images, textures and buffer views made to match; the new buffer."""
+    views = document.get("bufferViews", [])
+    content = [bytes(binary[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]])
+               for view in views]
+    kept, images, by_bytes, read_as = {}, [], {}, pictures_read_as(document)
+    for number, image in enumerate(document.get("images", [])):
+        if "bufferView" in image:
+            data, mime = taken_down(content[image["bufferView"]])
+            content[image["bufferView"]] = data
+            image = dict(image, mimeType=mime or image.get("mimeType"))
+            key = (hashlib.sha256(data).hexdigest(), read_as.get(number))
+            if key in by_bytes:
+                kept[number] = by_bytes[key]
+                continue
+            by_bytes[key] = len(images)
+        kept[number] = len(images)
+        images.append(image)
+    if "images" in document:
+        document["images"] = images
+    for texture in document.get("textures", []):
+        if "source" in texture:
+            texture["source"] = kept[texture["source"]]
+    used = sorted(set(view_numbers(document)))
+    renumbered = {old: new for new, old in enumerate(used)}
+    held_binary = bytearray()
+    for old in used:
+        held_binary.extend(b"\0" * (-len(held_binary) % 4))
+        views[old] = dict(views[old], byteOffset=len(held_binary), byteLength=len(content[old]))
+        held_binary.extend(content[old])
+    if views:
+        document["bufferViews"] = [views[old] for old in used]
+        view_numbers(document, renumbered)
+        document["buffers"][0]["byteLength"] = len(held_binary)
+    return held_binary
+
+
+def pictures_read_as(document):
+    """{image: "colour" or "linear"}: how the document's materials read each picture (a base colour or glow map as
+    colour, every other map as linear data), so a picture is shared only between textures an engine decodes alike."""
+    found = {}
+    for material in document.get("materials", []):
+        maps = [(name, given) for name, given in material.items() if name.endswith("Texture")]
+        maps += [(name, given) for name, given in material.get("pbrMetallicRoughness", {}).items()
+                 if name.endswith("Texture")]
+        for name, given in maps:
+            source = document["textures"][given["index"]].get("source")
+            if source is not None:
+                found[source] = "colour" if name in ("baseColorTexture", "emissiveTexture") else "linear"
+    return found
+
+
+def view_numbers(item, renumbered=None):
+    """Every buffer view number the document reads (any `bufferView` key, an extension's too), renumbered in place
+    by `renumbered` when given."""
+    found = []
+    if isinstance(item, dict):
+        for key, value in item.items():
+            if key == "bufferView" and isinstance(value, int):
+                found.append(value)
+                if renumbered is not None:
+                    item[key] = renumbered[value]
+            else:
+                found += view_numbers(value, renumbered)
+    elif isinstance(item, list):
+        for value in item:
+            found += view_numbers(value, renumbered)
+    return found
+
+
 def written(out, name, glb):
-    """An object's GLB written as objects/<name>.gltf and its .bin."""
+    """An object's GLB written as objects/<name>.gltf and its .bin, its pictures held (pictures_held)."""
     document, binary = unpacked(glb, name)
+    binary = pictures_held(document, binary) if binary else binary
     (out / "objects" / f"{name}.gltf").write_text(json.dumps(document))
     if binary:
         (out / "objects" / f"{name}.bin").write_bytes(binary)
@@ -1426,7 +1519,8 @@ def attached(out, jobs):
     """Each baked map's pictures put on its material in its .gltf (base colour, metal-roughness, normal, each read by
     the part's first texture coordinates, repeated: a ground's tile repeats), carried in the object's own buffer
     (embedded) and their files under objects/textures/ removed, its factors made the pictures' own (white base colour
-    under its opacity, metal and roughness 1) and its bake request taken off."""
+    under its opacity, metal and roughness 1) and its bake request taken off; its pictures then held (pictures_held:
+    at most HELD_TEXELS a side, the same bytes once)."""
     by_file = {}
     for job in jobs:
         by_file.setdefault(job["gltf"], []).append(job)
@@ -1457,7 +1551,7 @@ def attached(out, jobs):
             material.get("extras", {}).pop("score_bake", None)
             if "extras" in material and not material["extras"]:
                 del material["extras"]
-        document["buffers"][0]["byteLength"] = len(binary)
+        binary = pictures_held(document, binary)
         buffer_path.write_bytes(bytes(binary))
         path.write_text(json.dumps(document))
     if (out / "objects" / TEXTURES).is_dir() and not any((out / "objects" / TEXTURES).iterdir()):

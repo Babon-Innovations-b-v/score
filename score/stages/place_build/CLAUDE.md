@@ -150,7 +150,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
   entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
   relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, each map as
-  big as its charts and at most 4096 (a face wider than half a map cut first, blocks of a map's worth packed alone, a
+  big as its charts and at most 4096 (written at most 2048, HELD_TEXELS: the game's PlaceTextures.MostTexels, a
+  bigger picture halved as its mip is made, so the game decodes what it shows; 2099 #161) (a face wider than half a map cut first, blocks of a map's worth packed alone, a
   map under 512 refused: #146, #151; the base's hangar sat 11.5 h packing 44 big faces as one 33,000 px map), a laid
   ground's as one seamless 8 m tile, in Blender runs of a few maps of one object each (scene_package.BATCH; one run
   over the street's 225 maps grew past the 8 GB cap), each finished map marked under <out>/bake/maps so `package`

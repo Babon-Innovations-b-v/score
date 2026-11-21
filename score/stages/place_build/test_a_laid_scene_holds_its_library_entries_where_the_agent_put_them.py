@@ -150,6 +150,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.remove: place.json's cut left as it was -> a removed awning stays listed in the cut
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 - scene_package.copy_frame: every copy kept whole (no evenness test) -> a stretched copy fails the package check
+- scene_package.taken_down: every picture kept at its own size -> a 64 texel map is packaged over HELD_TEXELS
+- scene_package.pictures_held: no picture held once (`by_bytes` unread) -> two of an object's images hold one picture
+- scene_package.pictures_read_as: every map read as linear -> the base colour shares its picture with linear maps
 - scene_package.gprim_pieces: the cube's own transform left out (identity) -> the crate's model misses its laid box
 - scene_package.look_name: the look's own prim name -> the two steel walls are two objects
 - scene_package.entry_glb: never reused (None) -> the cabinet is converted, not its library glTF
@@ -956,6 +959,7 @@ def packaged(folder, out):
                 Image.new("RGB", tuple(job["size"]), (128, 128, 255)).save(out / "objects" / picture)
 
     scene_package.DENSITY, scene_package.LARGEST = 24, 64  # maps held small, so the panel needs more than one
+    scene_package.HELD_TEXELS = 32  # the game's side, under a map's: its pictures taken down
     graded = []
 
     def grader(out, environment):  # grade_lut.py's lattice picture, for the view the render grades through
@@ -971,7 +975,7 @@ def packaged(folder, out):
     (out / scene_package.BAKE / "kept.done").touch()  # a stopped bake's map, for the next bake to keep or drop
     (out / "old.json").touch()
     made = scene_package.packaged(folder, out, baker, grader)
-    scene_package.DENSITY, scene_package.LARGEST = 512, 4096
+    scene_package.DENSITY, scene_package.LARGEST, scene_package.HELD_TEXELS = 512, 4096, 2048
     assert (out / scene_package.BAKE / "kept.done").is_file() and not (out / "old.json").exists()
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
@@ -1016,6 +1020,9 @@ def packaged(folder, out):
     assert len(maps) > 1 and all("baseColorTexture" in look["pbrMetallicRoughness"] and "normalTexture" in look
                                  and "extras" not in look for look in maps)
     assert panel["images"] and all(set(image) == {"bufferView", "mimeType"} for image in panel["images"])
+    held = held_pictures(out, scene)
+    assert held and max(max(size) for size, _, _ in held) == 32 and all(count == 1 for _, count, _ in held), held
+    assert any(reading == 2 for _, _, reading in held)  # the baker's like metal-roughness and normal: one picture
     assert not (out / "objects" / scene_package.TEXTURES).exists()  # every picture rides in its object's buffer
     assert made["baked_maps"] == len(asked) and tiles.count(scene_package.GROUND_TILE) == 1
     assert all(max(job["size"]) <= 64 and job["spec"]["seed"] == 3 and job["texels_a_metre"] >= 24
@@ -1038,6 +1045,25 @@ def packaged(folder, out):
     assert sum(len(laid[3]) for laid in sliver) == 3  # every triangle kept, so the model check counts them all
     assert graded == [("AgX", "AgX - Medium High Contrast")] and (out / world["grade"]["file"]).is_file()
     assert world["grade"]["size"] == 64 and world["grade"]["middle"] == 0.18 and world["grade"]["display"] == "sRGB"
+
+
+def held_pictures(out, scene):
+    """Every packaged object's pictures as [(their size, how many of its images hold those bytes read alike, how many
+    of its textures read it)]."""
+    import io
+    from score.stages.place_build import scene_package
+    found = []
+    for item in scene["objects"].values():
+        document = json.loads((out / item["file"]).read_text())
+        binary = (out / item["file"]).with_suffix(".bin").read_bytes() if document.get("buffers") else b""
+        held = [binary[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]] for view in (
+            document["bufferViews"][image["bufferView"]] for image in document.get("images", []))]
+        read_as = scene_package.pictures_read_as(document)
+        alike = [(data, read_as.get(number)) for number, data in enumerate(held)]
+        found += [(Image.open(io.BytesIO(data)).size, alike.count(alike[number]),
+                   sum(1 for texture in document["textures"] if texture["source"] == number))
+                  for number, data in enumerate(held)]
+    return found
 
 
 def skinned_characters(folder, out, scene, copies):
