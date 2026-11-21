@@ -15,7 +15,8 @@ no Blender, no cloud. `trace.py`'s docstring has the tracing rules. Bible: `arch
   of its one effect, `placements`), or the content hash of a file it is
   made of. Its finishes (each bound material once) trace by `score:library`, a library surface it names, or its
   model's finish record (an accepted bake that paints every part from the library: `stored.BAKES`). A baked texture
-  nothing names, a picture's texture, a constant colour or no material is a finding.
+  nothing names, a picture's texture, a constant colour or no material is a finding. A character's held pose from a
+  library pose (`score:pose`, place_build's `hold`) is a source row of its own.
 - **Exceptions are data, never code**: `data/checks/library-exceptions.json` (`exceptions.py` has the fields). One
   without a reason or an owner refuses the whole file. Only the owner allows one; an agent never writes one for him.
 - **No library code and no entry data here**: score is public, the library private. `entries.py` reads entry.json

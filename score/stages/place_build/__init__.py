@@ -967,8 +967,8 @@ def held_prop(stage, place, path, frame, prop):
     parent = UsdGeom.Xformable(target.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
     skeleton_world = UsdGeom.Xformable(skeleton.GetPrim()).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
     local = held * Gf.Matrix4d(joint) * skeleton_world * parent.GetInverse()
-    turn = local.ExtractRotation().Decompose(Gf.Vec3d.XAxis(), Gf.Vec3d.YAxis(), Gf.Vec3d.ZAxis())
-    at, turn = list(local.ExtractTranslation()), list(turn)
+    turn = local.ExtractRotation().Decompose(Gf.Vec3d.ZAxis(), Gf.Vec3d.YAxis(), Gf.Vec3d.XAxis())
+    at, turn = list(local.ExtractTranslation()), list(turn)[::-1]  # rotateXYZ's angles, X first
     posed(target, at, turn, pose_of(target)[2])
     return {"name": prop, "at": at, "turn": turn}
 

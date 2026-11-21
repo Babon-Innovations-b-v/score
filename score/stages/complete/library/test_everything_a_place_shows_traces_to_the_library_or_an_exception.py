@@ -24,6 +24,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   (a wall kit piece no longer traces to its algorithm entry)
 - entries.prim_paths: the placements not read -> test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements
 - entries.read: withdrawn entries shelved too -> test_a_withdrawn_entry_traces_nothing
+- trace.rows: a character's poses not read (no pose_rows) -> test_a_withdrawn_entry_traces_nothing (the smoker's held
+  pose has no row)
 - entries.from_environment: the repository's default library when unset -> test_the_library_comes_only_from_score_lib_root
 - exceptions.checked: `missing = []` -> test_an_exception_without_its_reason_or_owner_is_refused
 - exceptions.in_force: always True -> test_an_exception_covers_its_prims_until_it_expires
@@ -224,6 +226,19 @@ def test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements(tmp_p
 def test_a_withdrawn_entry_traces_nothing(tmp_path):
     entry(tmp_path, "surface", "bare_steel", state="withdrawn")
     assert entries.read(tmp_path).surface("bare_steel", "fixture") is None
+    entry(tmp_path, "character", "body")
+    entry(tmp_path, "character", "hold")
+    entry(tmp_path, "character", "old_hold", state="withdrawn")
+    smokers = "".join(f'        def SkelRoot "{name}"\n        {{\n            custom string score:kind = "character"\n'
+                      f'            custom string score:library = "character/body@1"\n'
+                      f'            def SkelAnimation "Held"\n            {{\n'
+                      f'                custom string score:pose = "character/{pose}@1"\n            }}\n        }}\n'
+                      for name, pose in (("smoker", "hold"), ("stale", "old_hold")))
+    stage = stage_with(tmp_path, f'def Xform "fixture"\n{{\n    def Scope "Objects"\n    {{\n{smokers}    }}\n}}\n')
+    rows = trace.rows(stage, trace.Context(place="fixture", shelf=entries.read(tmp_path)))
+    assert [(row["prim"], row["by"]) for row in rows] == [
+        ("/fixture/Objects/smoker", "character/body@1"), ("/fixture/Objects/smoker/Held", "character/hold@1"),
+        ("/fixture/Objects/stale", "character/body@1"), ("/fixture/Objects/stale/Held", None)]
 
 
 def test_the_library_comes_only_from_score_lib_root(tmp_path, monkeypatch):

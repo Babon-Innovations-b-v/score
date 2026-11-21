@@ -16,7 +16,8 @@ library surface it names (`score:surface` on the material or the bound part, by 
 holds, else a material of the place's `Library` scope by its name), or by its model's finish record (a bake of the
 surface stage, the crops or a ship kit, which paints every part from the library: `context.baked`, or the thing's
 entry whose provenance says the surface line painted it, as place_build lays one). A thing that traces neither way is
-under a written exception or is a finding; a part with no material is a default grey, and a finding. A place_build
+under a written exception or is a finding; a part with no material is a default grey, and a finding. A character's
+held pose naming a library pose (`score:pose`) is a source row of its own, traced when the library holds it. A place_build
 scene's character, laid in its Objects, is judged against the exceptions at `/<place>/Characters/<name>`, the path an
 assembly gives it.
 """
@@ -31,6 +32,7 @@ from pxr import Sdf, Usd, UsdGeom, UsdLux, UsdShade
 from score.stages.complete.library import exceptions as written
 
 LIBRARY_ATTR = "score:library"
+POSE_ATTR = "score:pose"  # a character's held pose taken from a library pose entry (place_build's hold)
 # A code-built structure piece's score:from ends naming the code that built it, "(<algorithm id>.<function>)": the
 # wall kit's "(wall_kit.clad)" traces to the algorithm entry wall_kit.
 MADE_BY = re.compile(r"\(([a-z_]+)\.[a-z_]+\)\s*$")
@@ -331,11 +333,30 @@ def laid_character(prim, kind):
     return [f"/{path.GetPrefixes()[0].name}/Characters/{prim.GetName()}"]
 
 
+def pose_rows(prim, context):
+    """A source row for each library pose a character holds (place_build's `hold` marks its held SkelAnimation
+    `score:pose` with the pose entry's address: the smoker's arm), traced when the library holds it."""
+    found = []
+    for part in Usd.PrimRange(prim):
+        address = authored(part, POSE_ATTR)
+        if not address:
+            continue
+        held, path = context.shelf.newest(address), str(part.GetPath())
+        row = {"aspect": "source", "kind": "character", "prim": path, "group": "pose", "by": held,
+               "how": "its score:pose attribute" if held else None,
+               "instead": None if held else f"a pose named {address}, which the library does not hold"}
+        found.append(judged(row, [path], context))
+    return found
+
+
 def rows(stage, context):
-    """Every row of the stage: one for each thing's source, one for each of its finishes."""
+    """Every row of the stage: one for each thing's source, one for each of its finishes, one for each pose a
+    character holds."""
     found = []
     for prim, kind in things(stage):
         found.append(source_row(prim, kind, context))
         if kind in FINISHED:
             found += finish_rows(prim, kind, context)
+        if kind == "character":
+            found += pose_rows(prim, context)
     return found

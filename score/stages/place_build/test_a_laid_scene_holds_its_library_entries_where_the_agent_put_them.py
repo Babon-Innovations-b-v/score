@@ -143,6 +143,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.hold: the pose's rotations not written -> the walker's hips keep their clip's turn
 - place_build.held_prop: the hold frame left out (the joint's transform alone) -> the stub sits on the hips, not
   0.1 m along their turned x
+- place_build.held_prop: the turn decomposed X, Y, Z (not rotateXYZ's Z, Y, X reversed) -> the stub's up is off
 - place_build.remove: place.json's cut left as it was -> a removed awning stays listed in the cut
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 - scene_package.copy_frame: every copy kept whole (no evenness test) -> a stretched copy fails the package check
@@ -255,7 +256,7 @@ def library(root, files):
     written.write_text(json.dumps(dict(json.loads(written.read_text()), usd={"root": "effect.usda"})))
     turned = {"hips": {"rotation": [0.7071068, 0.0, 0.7071068, 0.0]}}  # a quarter turn about up
     entry("character", "hold", {"pose.json": ("record", json.dumps({"joints": turned, "hold": {
-        "joint": "hips", "translate": [0.1, 0.0, 0.0], "rotation": [1.0, 0.0, 0.0, 0.0]}}))})
+        "joint": "hips", "translate": [0.1, 0.0, 0.0], "rotation": [0.7071068, 0.7071068, 0.0, 0.0]}}))})
     variant = ('#usda 1.0\n(\n defaultPrim = "steel"\n)\ndef Material "steel"\n{\n token outputs:surface.connect = '
                '</steel/surface.outputs:surface>\n def Shader "surface"\n {\n  uniform token info:id = '
                '"UsdPreviewSurface"\n  color3f inputs:diffuseColor = (0.3, 0.3, 0.4)\n  token outputs:surface\n }\n}\n')
@@ -600,6 +601,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     stub = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Objects/stub")).ComputeLocalToWorldTransform(0)
     assert np.allclose(stub.ExtractTranslation(), (2.0, 1.0, 1.9), atol=1e-5)  # the hips' +x turned onto -z
     assert np.allclose(stub.TransformDir(Gf.Vec3d(1, 0, 0)), (0.0, 0.0, -1.0), atol=1e-5)
+    assert np.allclose(stub.TransformDir(Gf.Vec3d(0, 1, 0)), (1.0, 0.0, 0.0), atol=1e-5)  # held about x, then the hips
     assert (walker.GetTypeName(), shown_groups) == ("SkelRoot", {"far": "invisible", "made": "inherited"})
     assert list(held.GetTranslationsAttr().Get()) == [Gf.Vec3f(0, 1, 0)] and batched[3]["clip"] == "standing"
     spec = json.loads(stage.GetPrimAtPath("/yard/Looks/panel").GetAttribute("score:recipe:spec").Get())
