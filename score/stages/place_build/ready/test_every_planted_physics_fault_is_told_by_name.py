@@ -50,6 +50,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.route: the legs straightened as one path -> the walk skips the spot it is sent through
 - ready.solids: the doors left out (doors_standing unread) -> the shut door is no solid
 - ready.nearest_to_surface: `+ longest` dropped -> a ring off a coarse box's face reads its corner's distance, not its own
+- ready.nearest_to_surface: every pair of a chunk's points and the faces near them weighed at once (trimesh's
+  closest_point, as before) -> the dense ball's search holds more pairs than `pairs` (the capsule's package past 12 GB)
 - ready.ray_box: the box left open on every axis -> a rock's support query reaches every rock's faces
 - ready.role_of: `light` read as a prop -> the sky dome is stood on in `solids` (and its box spans the walkers' grid)
 - ready.support_faults on the field: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating rock passes
@@ -472,6 +474,15 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     coarse = trimesh.creation.box(extents=(2.0, 2.0, 2.0))  # a face's middle half a metre off, a corner 0.6 off its own
     corner = np.array([1.0, 1.0, 1.0]) + 0.6 / np.sqrt(3.0)
     assert abs(ready.nearest_to_surface(coarse, np.array([[0.0, 1.5, 0.0], corner])) - 0.5) < 1e-6
+    dense, weighed = trimesh.creation.icosphere(subdivisions=5), []  # 20,480 faces, every point 0.5 m off it
+    off = trimesh.creation.icosphere(subdivisions=2).vertices * 1.5
+    held_pairs = trimesh.triangles.closest_point
+    for module, name in ((trimesh.triangles, "closest_point"), (trimesh.proximity, "_corresponding")):
+        monkeypatch.setattr(module, name,
+                            lambda triangles, points: weighed.append(len(points)) or held_pairs(triangles, points))
+    assert abs(ready.nearest_to_surface(dense, off, pairs=2000) - 0.5) < 2e-3 and 0 < max(weighed) <= 2000, weighed
+    for module, name in ((trimesh.triangles, "closest_point"), (trimesh.proximity, "_corresponding")):
+        monkeypatch.setattr(module, name, held_pairs)
     ground = ready.solids(folder)
     assert "wall" in ground and "door" in ground and "sky" not in ground and ground["wall"].shape[1:] == (3, 3), \
         sorted(ground)

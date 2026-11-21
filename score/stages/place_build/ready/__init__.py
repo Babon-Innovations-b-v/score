@@ -143,6 +143,7 @@ MEMORY = 8 * 2 ** 30  # bytes the check may hold, the settle's models included
 SPAN_BYTES = 200  # bytes the walkers' floor holds a span (or a cell of its grid): 160 measured on a flat 120 m floor
 FLOOR_BYTES = 24  # bytes a floor height kept while the walkers' floor is read (sorted with what it joins)
 CHUNK_BYTES = 150 * reach.CHUNK  # what one chunk of a surface's points holds while it is read
+PAIRS = 2 ** 20  # point and face pairs nearest_to_surface weighs at once (about 400 MB with its arrays)
 PLATE_BYTES = 16 * 1024  # bytes a static triangle's plate holds in a settle model (15 KB measured at 2,000 and 20,000)
 SETTLE_POOL = 8  # settle models side by side at most
 
@@ -1289,17 +1290,32 @@ def ring_distance(mesh, ring):
     return nearest_to_surface(mesh, ring)
 
 
-def nearest_to_surface(mesh, points, chunk=64):
+def nearest_to_surface(mesh, points, chunk=8, pairs=PAIRS):
     """The least distance from any of `points` to the mesh's surface, exact: only the points whose nearest vertex lies
     within the mesh's longest edge of the least such vertex distance can be nearest (any point of a face lies within
-    its longest edge of one of its corners), searched a chunk at a time, so a dense made model (half a million faces,
-    TRELLIS.2's) and a ring standing a hand off it cost no more memory than a small one (they took 8 GB at once)."""
+    its longest edge of one of its corners), searched nearest first, `chunk` points at a time, each against only the
+    faces whose box comes within the least distance found so far (or its own nearest vertex's, when that is less), at
+    most `pairs` point and face pairs held at once; so a dense made model (half a million faces, TRELLIS.2's) and a
+    ring standing a hand off it cost no more memory than a small one (they took 8 GB at once; the capsule's hatch,
+    beside 1.2 million faces of its frame and portholes, took a package past 12 GB through trimesh's closest_point,
+    which holds every pair of a chunk's points and the faces in their boxes at once)."""
     from scipy.spatial import cKDTree
+    points = np.asarray(points, dtype=np.float64)
     vertex_gaps = cKDTree(np.asarray(mesh.vertices)).query(points)[0]
     longest = float(mesh.edges_unique_length.max()) if len(mesh.edges_unique) else 0.0
-    near = np.asarray(points)[vertex_gaps <= vertex_gaps.min() + longest]
-    return min(float(trimesh.proximity.closest_point(mesh, near[start:start + chunk])[1].min())
-               for start in range(0, len(near), chunk))
+    order = np.argsort(vertex_gaps)
+    order = order[vertex_gaps[order] <= vertex_gaps.min() + longest]
+    tree, triangles, least = mesh.triangles_tree, mesh.triangles, float(vertex_gaps.min())
+    for start in range(0, len(order), chunk):
+        chosen = points[order[start:start + chunk]]
+        reach_out = np.minimum(vertex_gaps[order[start:start + chunk]], least)[:, None] + trimesh.tol.merge
+        faces, counts = tree.intersection_v(chosen - reach_out, chosen + reach_out)
+        faces = np.asarray(faces, dtype=np.int64)
+        owners = np.repeat(np.arange(len(chosen)), np.asarray(counts, dtype=np.int64))
+        for at in range(0, len(faces), pairs):
+            gaps = trimesh.triangles.closest_point(triangles[faces[at:at + pairs]], chosen[owners[at:at + pairs]])
+            least = min(least, float(np.linalg.norm(gaps - chosen[owners[at:at + pairs]], axis=1).min()))
+    return least
 
 
 def connector_faults(laid, name, floor):

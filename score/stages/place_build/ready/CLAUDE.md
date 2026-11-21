@@ -48,7 +48,9 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
 - **Memory is bounded** (2026-11-19: the Hong Kong square, its walkers' grid 1.6 km across, took 33 GB and froze the
   owner's PC): a surface's points are read CHUNK at a time (reach.surface_chunks, the very points sample_surface
   draws), and before the walkers' floor and the settle the check works out what they need and refuses past MEMORY
-  (`within_memory`), naming what stretches it; the settle runs as many models side by side as fit. A new phase that
+  (`within_memory`), naming what stretches it; the settle runs as many models side by side as fit. The nearest surface
+  to a set of points (`nearest_to_surface`: a door's swing room, a connector's end ring) weighs at most PAIRS point and
+  face pairs at once (2026-11-22: the capsule's hatch beside 1.2 million faces of dense models took a package past 12 GB). A new phase that
   grows with the scene gets its estimate there; never loosen a measure to fit.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
