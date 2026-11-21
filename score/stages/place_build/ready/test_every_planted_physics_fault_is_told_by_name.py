@@ -61,6 +61,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.rooms: the level looks stopped by props (unmoved left out) -> the cluttered shop reads no room, so passes
 - ready.through_joins: no look passes a joined doorway -> the cut room whose open front is joined reads open
 - ready.walled: every covered point kept -> the porch outside the closed room's door reads open
+- ready.frame_of: its own y taken for up -> the hatch modelled lying down reads 2.5 cm tall
 - ready.levels_under: one ray at the middle -> the stick whose middle stands past the desk reads no level
 - ready.library_name: the whole address read -> the airlock's console reads as a door by its place's name
 - ready.mounted: the floor under a mount read from the ground, shells and connectors alone -> the plaque on the wall
@@ -462,6 +463,13 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     stick = ready.on(folder, "stick", "desk")
     assert abs(stick["at"][1] - (0.75 + 0.1)) < 0.02, stick
     assert ready.role_of(place_build.opened(folder)[0].GetPrimAtPath(f"/{place}/Objects/console")) == "prop"
+    stage, place = place_build.opened(folder)  # a hatch modelled lying down, stood up by its turn
+    lying = box(stage, place, "hatch_lying", (1.0, 0.05, 2.0), (8.0, 0.0, 8.0))
+    UsdGeom.Xformable(lying).GetOrderedXformOps()[1].Set(Gf.Vec3f(-90.0, 0.0, 0.0))
+    stage.GetRootLayer().Save()
+    stage, place = place_build.opened(folder)
+    _, axes, half = ready.frame_of(ready.Place(stage, place), "hatch_lying")
+    assert abs(half[1] - 1.0) < 1e-3 and axes[1][1] > 0.99, (axes, half)  # 2 m tall, standing
     assert abs(plaque["at"][1] - (0.4 + 1.0 + 0.1)) < 0.03, plaque  # over the deck, not the ground under it
     assert abs(monitor["at"][1] - (0.75 + 0.175)) < 0.01, monitor  # its bottom on the desk's top
     assert abs(panel["at"][2] - (0.1 + 0.025)) < 0.01 and abs(panel["at"][1] - 1.4) < 0.03, panel

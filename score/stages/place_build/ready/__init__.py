@@ -536,8 +536,9 @@ def penetration_faults(laid, name):
 # --- doors --------------------------------------------------------------------------------------------------------
 
 def frame_of(laid, name):
-    """A door's middle, its axes in the scene (across, up, through: through is the thinner of its own x and z) and its
-    half sizes along them."""
+    """A door's middle, its axes in the scene (across, up, through: up is whichever of its own axes stands most
+    upright in the scene, a model laid lying down included (#154: the capsule's hatch); through is the thinner of the
+    other two) and its half sizes along them."""
     matrix = np.asarray(UsdGeom.Xformable(laid.prims[name]).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
     axes = matrix[:3, :3] / np.linalg.norm(matrix[:3, :3], axis=1)[:, None]
     points = np.asarray(laid.meshes[name].vertices)
@@ -545,8 +546,11 @@ def frame_of(laid, name):
     low, high = own.min(axis=0), own.max(axis=0)
     middle = ((low + high) / 2) @ axes
     half = (high - low) / 2
-    across, through = (0, 2) if half[0] >= half[2] else (2, 0)
-    return middle, axes[[across, 1, through]], half[[across, 1, through]]
+    up = int(np.argmax(np.abs(axes[:, 1])))
+    first, second = [axis for axis in range(3) if axis != up]
+    across, through = (first, second) if half[first] >= half[second] else (second, first)
+    upright = axes[up] * (1.0 if axes[up][1] >= 0 else -1.0)
+    return middle, np.array([axes[across], upright, axes[through]]), half[[across, up, through]]
 
 
 def door_faults(laid, name):
