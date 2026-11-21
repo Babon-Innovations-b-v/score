@@ -68,6 +68,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
+- place_build.made_by_haze: unread -> the mist's body and look name no library algorithm
 - place_build.made_by_library: unread -> the sky's sun, Environment and disc name no library algorithm, the disc's
   look no library recipe
 - scene_package.environment_of: the sun read from Lights/sun alone -> the sky-at place's package has no sun
@@ -819,7 +820,11 @@ def rained(folder):
     tracked = place_build.tracks(folder, "ruts", rover=[[[60.5, 62.0], [63.5, 62.0]]],
                                  boots=[[[61.0, 61.0], [63.0, 61.0]]])
     place_build.surface(folder, "ruts", "surface/sand", colour="#8e4a2e")
+    place_build.haze(folder, "mist", [62.0, 1.0, 62.0], [4.0, 2.0, 4.0], "#c8c8d0", 0.05)
     stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    hazed = [prim for prim in Usd.PrimRange(stage.GetPrimAtPath("/yard/Haze/mist")) if prim.HasAttribute("score:from")]
+    assert hazed and all(prim.GetAttribute("score:from").Get().endswith(place_build.HAZE_ALGORITHM) for prim in hazed) \
+        and any(prim.IsA(UsdShade.Material) for prim in hazed), [str(prim.GetPath()) for prim in hazed]
     effect = stage.GetPrimAtPath("/yard/Effects/rain")
     fall = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Effects/rain/Fall"))
     period = rainfall.period_frames(3.0)

@@ -271,6 +271,9 @@ def traced_finish(material, pieces, thing, context):
     entry = context.shelf.newest(authored(thing, LIBRARY_ATTR))
     if entry and context.shelf.painted(entry):
         return entry, "its entry's finish record (every part painted from the library by the surface line)"
+    built_by = MADE_BY.search(str(authored(material, "score:from") or ""))
+    if built_by and context.shelf.of_id("algorithm", built_by.group(1)):
+        return context.shelf.of_id("algorithm", built_by.group(1)), "the library algorithm its score:from says made it"
     return None, None
 
 

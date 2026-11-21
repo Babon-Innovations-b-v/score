@@ -1447,8 +1447,27 @@ def haze(folder, name, centre, size, colour, density, forward=0.0, reach=None):
     if reach:
         entry["reach"] = float(reach)
     usd_scene.write_haze_volume(stage, f"{place}/Haze/{name}", entry, None)
+    made_by_haze(stage, stage.GetPrimAtPath(f"/{place}/Haze/{name}"))
     saved(stage)
     return {"haze": name, "density": density}
+
+
+HAZE_ALGORITHM = "(sky_dust_stars_haze.haze)"  # the library algorithm holding tools/usd/scene.py's haze body
+
+
+def made_by_haze(stage, holder):
+    """A haze body's prims and the looks bound to them named as made by the library's haze algorithm (score:from
+    ending HAZE_ALGORITHM): complete/library traces them to it, as it does a sky (#154: every haze box was found
+    twice, its body and its look, with no library entry)."""
+    for prim in Usd.PrimRange(holder):
+        targets = [prim]
+        if prim.IsA(UsdGeom.Gprim):
+            bound, _ = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()
+            targets += [bound.GetPrim()] if bound else []
+        for target in targets:
+            said = str(target.GetAttribute("score:from").Get() or "") if target.HasAttribute("score:from") else ""
+            if not said.endswith(HAZE_ALGORITHM):
+                target.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(f"{said} {HAZE_ALGORITHM}".strip())
 
 
 def view(folder, name, eye, aim, fov, cut=False):

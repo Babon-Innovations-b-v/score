@@ -6,6 +6,7 @@ from SCORE_LIB_ROOT; exceptions refuse without a reason or an owner and end at t
 of piece into one problem. The library is a temp folder written here (no entry data is kept in this repository).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- trace.traced_finish: a look's score:from algorithm not read -> the haze's look traces to nothing
 - trace.BUILT_KINDS: the structure alone -> the night's moon light, built by night_sky, traces to nothing
 - trace.thing_kind: a look (a Material) with a reference taken for a model -> the place_build scene's chair look,
   referencing its surface's material.usda, reads as a model no entry holds
@@ -210,6 +211,19 @@ def test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant(tmp_path
     sources = [(row["kind"], row["by"]) for row in trace.rows(stage_with(night_folder, night), trace.Context(
         place="fixture", shelf=entries.read(root))) if row["aspect"] == "source"]
     assert sources == [("light", "algorithm/night_sky@1")], sources
+    # a haze body and its look the haze algorithm made trace to it, body and finish
+    haze_folder = tmp_path / "haze"
+    haze_folder.mkdir()
+    entry(root, "algorithm", "sky_dust_stars_haze")
+    made = ' (sky_dust_stars_haze.haze)"\n'
+    haze = ('def Xform "fixture"\n{\n    def Scope "Haze"\n    {\n        def Cube "mist" (prepend apiSchemas = '
+            '["MaterialBindingAPI"])\n        {\n            custom string score:from = "a haze box' + made +
+            '            rel material:binding = </fixture/Haze/look>\n        }\n        def Material "look"\n'
+            '        {\n            custom string score:from = "the fog' + made + '        }\n    }\n}\n')
+    traced = [(row["aspect"], row["by"]) for row in trace.rows(stage_with(haze_folder, haze), trace.Context(
+        place="fixture", shelf=entries.read(root)))]
+    assert traced == [("source", "algorithm/sky_dust_stars_haze@1"), ("finish", "algorithm/sky_dust_stars_haze@1")], \
+        traced
 
 
 def test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements(tmp_path):
