@@ -61,6 +61,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.rooms: the level looks stopped by props (unmoved left out) -> the cluttered shop reads no room, so passes
 - ready.through_joins: no look passes a joined doorway -> the cut room whose open front is joined reads open
 - ready.walled: every covered point kept -> the porch outside the closed room's door reads open
+- ready.levels_under: one ray at the middle -> the stick whose middle stands past the desk reads no level
+- ready.library_name: the whole address read -> the airlock's console reads as a door by its place's name
 - ready.mounted: the floor under a mount read from the ground, shells and connectors alone -> the plaque on the wall
   over the dais stands 1.0 m over the ground, not over the dais
 - ready.look_floor: walkers_floor(laid) with every door open -> the hooded door's frame holds look points that see
@@ -452,6 +454,14 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     box(stage, place, "plaque", (0.3, 0.2, 0.05), (-2.65, 0.6, 0.5))
     stage.GetRootLayer().Save()
     plaque = ready.on(folder, "plaque", "wall:wall", height=1.0)
+    stage, place = place_build.opened(folder)  # a stick whose middle stands past the desk's edge, a quarter over it
+    box(stage, place, "stick", (0.4, 0.2, 0.1), (-1.95, 1.5, -2.8))
+    console = box(stage, place, "console", (0.3, 0.3, 0.3), (6.0, 0.0, 6.0))
+    console.GetAttribute("score:library").Set("model/pilot_console_1.airlock@1")  # an airlock's console, no door
+    stage.GetRootLayer().Save()
+    stick = ready.on(folder, "stick", "desk")
+    assert abs(stick["at"][1] - (0.75 + 0.1)) < 0.02, stick
+    assert ready.role_of(place_build.opened(folder)[0].GetPrimAtPath(f"/{place}/Objects/console")) == "prop"
     assert abs(plaque["at"][1] - (0.4 + 1.0 + 0.1)) < 0.03, plaque  # over the deck, not the ground under it
     assert abs(monitor["at"][1] - (0.75 + 0.175)) < 0.01, monitor  # its bottom on the desk's top
     assert abs(panel["at"][2] - (0.1 + 0.025)) < 0.01 and abs(panel["at"][1] - 1.4) < 0.03, panel

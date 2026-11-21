@@ -126,6 +126,7 @@ UNSOLID = ("character", "light")  # roles that are no solid of their own (a pers
 REACHED = ("shell", "connector", "door", "structure", "mount", "prop")  # what a walker meets, besides the people
 SCENERY = ("ground", "fixed")  # what never moves, so beyond every walker's reach it is only seen (far scenery)
 DOOR_WORDS = ("door", "hatch", "airlock")
+LEVEL_RAYS = 5  # rays a side over an object's footprint that find the levels of the support under it
 STRUCTURE_WORDS = ("wall", "bulkhead", "partition", "frame", "fence")
 CONNECTOR_WORDS = ("tube", "tunnel", "corridor", "connector")
 BEDDED_WORDS = ("rock", "boulder", "stone")
@@ -204,6 +205,13 @@ def text_of(prim, name):
     return attribute.Get() if attribute and attribute.HasValue() else None
 
 
+def library_name(address):
+    """A library address's own name, without its kind, its place (`<name>.<place>`) and its version: the words a
+    role is read from (#154: model/pilot_console_1.airlock@1 read as a door by its place's name)."""
+    entry = str(address or "").split("/", 1)[-1].split("@", 1)[0]
+    return entry.split(".", 1)[0]
+
+
 def role_of(prim):
     """An object's role (ROLES): its `score:role`, else read from its marks, kind, name and library address."""
     given = text_of(prim, "score:role")
@@ -211,7 +219,7 @@ def role_of(prim):
         return given
     if text_of(prim, "score:ground"):
         return "ground"
-    words = f"{prim.GetName()} {text_of(prim, 'score:library') or ''}".lower()
+    words = f"{prim.GetName()} {library_name(text_of(prim, 'score:library'))}".lower()
     kind = text_of(prim, "score:kind")
     if kind in ("character", "light"):
         return kind
@@ -1430,11 +1438,15 @@ def check(folder, settle=True):
 
 # --- the `on` helper ----------------------------------------------------------------------------------------------
 
-def levels_under(laid, support, spot):
-    """The heights of the support's surfaces that look up, straight under a spot (x, z), lowest first, those within
-    2 cm of each other one level."""
-    origin = np.array([[spot[0], laid.meshes[support].bounds[1][1] + 1.0, spot[1]]])
-    where, _, owners, _ = laid.hits(origin, np.array([[0.0, -1.0, 0.0]]), among=[support])
+def levels_under(laid, support, spot, across=(0.0, 0.0)):
+    """The heights of the support's surfaces that look up, straight under a spot (x, z) and a LEVEL_RAYS grid over the
+    footprint `across` (x, z metres) round it, lowest first, those within 2 cm of each other one level (#154: a stick
+    whose middle stood over the console's slot read no level on the console's top)."""
+    xs = spot[0] + np.linspace(-0.5, 0.5, LEVEL_RAYS) * across[0]
+    zs = spot[1] + np.linspace(-0.5, 0.5, LEVEL_RAYS) * across[1]
+    top = laid.meshes[support].bounds[1][1] + 1.0
+    origin = np.array([[x, top, z] for x in xs for z in zs])
+    where, _, owners, _ = laid.hits(origin, np.tile([0.0, -1.0, 0.0], (len(origin), 1)), among=[support])
     heights = np.sort(where[owners == laid.number[support], 1])
     levels = []
     for height in heights:
@@ -1463,7 +1475,7 @@ def placed_on(stage, place, name, support, level=None, height=None):
         raise place_build.Refused(f"no support {support} (floor, wall:<object> or an object of the scene)")
     shift = 0.0
     if support != "floor":
-        levels = levels_under(laid, support, mesh.bounds.mean(axis=0)[[0, 2]])
+        levels = levels_under(laid, support, mesh.bounds.mean(axis=0)[[0, 2]], np.ptp(mesh.bounds, axis=0)[[0, 2]])
         level = -1 if level is None else level
         if not -len(levels) <= level < len(levels):
             raise place_build.Refused(f"{support} has {len(levels)} levels under {name}, no level {level}")
