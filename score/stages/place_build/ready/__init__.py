@@ -127,7 +127,11 @@ REACHED = ("shell", "connector", "door", "structure", "mount", "prop")  # what a
 SCENERY = ("ground", "fixed")  # what never moves, so beyond every walker's reach it is only seen (far scenery)
 DOOR_WORDS = ("door", "hatch", "airlock")
 INWARD_LEAST = 0.5  # metres a structure's middle stands off a door's plane for the door to be set in it
-LEVEL_RAYS = 5  # rays a side over an object's footprint that find the levels of the support under it
+LEVEL_RAYS = 5
+CROUCH = "score:crouch"  # a door's mark: a hatch the walkers cross crouching (place_build.door --crouch)
+CROUCH_HEAD = 1.0  # metres of room over a crouching walker's floor
+CROUCH_KNEE = 0.45  # metres a crouching walker steps up over a hatch's sill
+HATCH_REACH = 0.6  # metres either side of a hatch's plane the crouch lasts  # rays a side over an object's footprint that find the levels of the support under it
 STRUCTURE_WORDS = ("wall", "bulkhead", "partition", "frame", "fence")
 CONNECTOR_WORDS = ("tube", "tunnel", "corridor", "connector")
 BEDDED_WORDS = ("rock", "boulder", "stone")
@@ -778,8 +782,43 @@ def walkers_floor(laid, doors=None, near=None):
     within_memory(len(span_cells) * SPAN_BYTES, f"the walkers' floor's {len(span_cells):,} spans")
     clear = reach.clear_overhead(grid, meshes, span_cells, span_heights)
     steps = reach.steps_between(grid, span_cells, span_heights)
+    crouched = in_hatches(laid, grid, span_cells, span_heights)
+    if crouched.any():  # through a hatch the walker crouches and steps over its sill (crouched_through)
+        clear, steps = crouched_through(grid, meshes, span_cells, span_heights, crouched, clear, steps)
     standing = room_for_walkway(len(span_cells), steps, clear)
     return grid, span_cells, span_heights, standing, reach.components(len(span_cells), steps, standing)
+
+
+def in_hatches(laid, grid, span_cells, span_heights):
+    """Which spans stand in a hatch's way (a door marked CROUCH, place_build.door --crouch): within its leaf's width,
+    HATCH_REACH either side of its plane, from a knee under its sill to its top."""
+    inside = np.zeros(len(span_cells), dtype=bool)
+    hatches = [name for name in laid.with_role("door") if text_of(laid.prims[name], CROUCH)]
+    if not hatches or not len(span_cells):
+        return inside
+    middles = grid.middles()[span_cells]
+    spots = np.column_stack([middles[:, 0], span_heights, middles[:, 1]])
+    for name in hatches:
+        middle, axes, half = frame_of(laid, name)
+        sill = float(laid.meshes[name].bounds[0][1])
+        off = spots - middle
+        inside |= ((np.abs(off @ axes[0]) <= half[0]) & (np.abs(off @ axes[2]) <= half[2] + HATCH_REACH)
+                   & (spots[:, 1] >= sill - CROUCH_KNEE) & (spots[:, 1] <= middle[1] + half[1]))
+    return inside
+
+
+def crouched_through(grid, meshes, span_cells, span_heights, crouched, clear, steps):
+    """The clear spans and steps once a hatch's `crouched` spans are judged for a crouching walker: clear under
+    CROUCH_HEAD, and steps up to CROUCH_KNEE between two of them (2099's capsule: a side hatch 1.1 m across, its sill
+    0.26 m up, crossed crouching as crew do; #154)."""
+    picked = np.flatnonzero(crouched)
+    clear = clear.copy()
+    clear[picked] |= reach.clear_overhead(grid, meshes, span_cells[picked], span_heights[picked], CROUCH_HEAD)
+    low = reach.steps_between(grid, span_cells, span_heights, CROUCH_KNEE)
+    both = crouched[low[0]] & crouched[low[1]]
+    joined = np.concatenate([np.column_stack(steps), np.column_stack([part[both] for part in low])])
+    joined = np.unique(joined, axis=0)
+    return clear, (joined[:, 0], joined[:, 1], joined[:, 2])
 
 
 def spans_near(grid, span_cells, span_heights, standing, spot, across=0.4):

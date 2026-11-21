@@ -315,19 +315,19 @@ def spans(cells, heights):
     return cells[top], heights[top]
 
 
-def clear_overhead(grid, meshes, span_cells, span_heights):
-    """Whether no point of the meshes lies between SPAN_GAP and HEAD over each span in its cell (no deck or table top
-    over the walker; under SPAN_GAP lies the span's own surface), a mesh at a time: each point marks the run of spans
-    of its cell it stands over."""
-    bottom = span_heights.min(initial=0.0) - 2 * HEAD
-    stride = span_heights.max(initial=0.0) - bottom + 4 * HEAD
+def clear_overhead(grid, meshes, span_cells, span_heights, head=HEAD):
+    """Whether no point of the meshes lies between SPAN_GAP and `head` (HEAD: a standing walker's) over each span in its
+    cell (no deck or table top over the walker; under SPAN_GAP lies the span's own surface), a mesh at a time: each
+    point marks the run of spans of its cell it stands over."""
+    bottom = span_heights.min(initial=0.0) - 2 * head
+    stride = span_heights.max(initial=0.0) - bottom + 4 * head
     keys = span_cells * stride + (span_heights - bottom)
     marks = np.zeros(len(span_cells) + 1, dtype=np.int64)
     for mesh in meshes:
         for points, _ in surface_chunks(mesh, within=grid.reach()):
             which, cells = grid.cells_touched(points)
-            heights = np.clip(points[which, 1], bottom, bottom + stride - 2 * HEAD) - bottom
-            first = np.searchsorted(keys, cells * stride + heights - HEAD, side="right")
+            heights = np.clip(points[which, 1], bottom, bottom + stride - 2 * head) - bottom
+            first = np.searchsorted(keys, cells * stride + heights - head, side="right")
             last = np.searchsorted(keys, cells * stride + heights - SPAN_GAP, side="left")
             over = last > first
             np.add.at(marks, first[over], 1)
@@ -337,9 +337,9 @@ def clear_overhead(grid, meshes, span_cells, span_heights):
 
 # --- the walker's floor -------------------------------------------------------------------------------------------
 
-def steps_between(grid, span_cells, span_heights):
-    """Every pair of spans (index, index) in four-way neighbouring cells with a step no higher than KNEE between, the
-    second one cell further along x (axis 0) or z (axis 1): (starts, ends, axes)."""
+def steps_between(grid, span_cells, span_heights, knee=KNEE):
+    """Every pair of spans (index, index) in four-way neighbouring cells with a step no higher than `knee` (KNEE: a
+    walker's) between, the second one cell further along x (axis 0) or z (axis 1): (starts, ends, axes)."""
     total = grid.shape[0] * grid.shape[1]
     first = np.searchsorted(span_cells, np.arange(total), side="left")
     count = np.searchsorted(span_cells, np.arange(total), side="right") - first
@@ -352,7 +352,7 @@ def steps_between(grid, span_cells, span_heights):
         for nth in range(int(count.max(initial=0))):
             has = count[there_cells] > nth
             there = first[there_cells[has]] + nth
-            climbable = np.abs(span_heights[there] - span_heights[here[has]]) <= KNEE
+            climbable = np.abs(span_heights[there] - span_heights[here[has]]) <= knee
             starts.append(here[has][climbable])
             ends.append(there[climbable])
             axes.append(np.full(int(climbable.sum()), axis))

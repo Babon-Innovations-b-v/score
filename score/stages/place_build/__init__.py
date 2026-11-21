@@ -788,14 +788,16 @@ MOVES = ("hinge", "slide")  # how a door opens (score:move): on a hinge at one e
 SIDES = ("inner", "outer")  # an airlock chamber's pressure door (score:side): to the base, or to the outside
 
 
-def door(folder, name, opens=False, move="hinge", lock=None, side=None):
+def door(folder, name, opens=False, move="hinge", lock=None, side=None, crouch=False):
     """The laid object `name` marked a door (score:role door): the walkers open it (`opens`, score:opens) or it stays
     shut, a solid; it opens by `move` (score:move: on a hinge at one of its edges, or slid aside along its face, a
     sliding balcony door's or a lock's plug door); `lock` names the airlock chamber it is a pressure door of
     (score:lock: any laid object whose solid closes the chamber's air, a blocks-built shell as well as a dome shell's
     tube) and `side` whether it is that chamber's inner door, to the base, or its outer one, to the outside
     (score:side). The scene package lists the chamber with its inner and outer doors and its air, and the door opens to
-    its high-pressure side (scene_package.locks_of). Marked again, its marks are replaced."""
+    its high-pressure side (scene_package.locks_of); `crouch` (score:crouch) a hatch the walkers cross crouching, under
+    ready.CROUCH_HEAD and over a sill to ready.CROUCH_KNEE (a crew capsule's side hatch). Marked again, its marks are
+    replaced."""
     if move not in MOVES:
         raise Refused(f"a door opens by {' or '.join(MOVES)}, not {move}")
     if (lock is None) != (side is None) or (side is not None and side not in SIDES):
@@ -808,7 +810,7 @@ def door(folder, name, opens=False, move="hinge", lock=None, side=None):
     if lock is not None and not stage.GetPrimAtPath(f"/{place}/Objects/{lock}"):
         raise Refused(f"the scene holds no chamber {lock} for the door {name}")
     marks = {"role": "door", "opens": "walkers" if opens else None, "move": move if move != "hinge" else None,
-             "lock": lock, "side": side}
+             "lock": lock, "side": side, "crouch": "hatch" if crouch else None}
     for key, value in marks.items():
         held = prim.GetAttribute(f"score:{key}")
         if value is None or (held and held.GetTypeName() != Sdf.ValueTypeNames.String):

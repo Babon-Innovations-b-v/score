@@ -61,6 +61,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.rooms: the level looks stopped by props (unmoved left out) -> the cluttered shop reads no room, so passes
 - ready.through_joins: no look passes a joined doorway -> the cut room whose open front is joined reads open
 - ready.walled: every covered point kept -> the porch outside the closed room's door reads open
+- ready.crouched_through: never called -> the hatch marked crouch joins nothing, its sides two pieces
 - ready.frame_of: its own y taken for up -> the hatch modelled lying down reads 2.5 cm tall
 - ready.levels_under: one ray at the middle -> the stick whose middle stands past the desk reads no level
 - ready.library_name: the whole address read -> the airlock's console reads as a door by its place's name
@@ -407,7 +408,39 @@ def planted(folder):
     return folder
 
 
+def hatched(folder):
+    """A wall 14 m wide (past the ground's edge) with a hatch 1.1 m across in it (its sill 0.26 m up, its top 1.35 m), its leaf a door, on a
+    ground disc: the walkers' floor either side joined through it (one piece) or not; (piece one side, the other)."""
+    folder.mkdir()
+    concept = folder / "concept.png"
+    Image.new("RGB", (8, 8)).save(concept)
+    place_build.start(folder / "place", "hull", concept)
+    folder = folder / "place"
+    place_build.ground(folder, "ground", 6.0, (0.0, -0.02, 0.0))
+    stage, place = place_build.opened(folder)
+    for name, size, low in (("hull_left", (6.45, 2.5, 0.2), (-7.0, 0.0, -0.1)), ("hull_right", (6.45, 2.5, 0.2),
+                            (0.55, 0.0, -0.1)), ("hull_sill", (1.1, 0.26, 0.2), (-0.55, 0.0, -0.1)),
+                            ("hull_head", (1.1, 1.15, 0.2), (-0.55, 1.35, -0.1))):
+        box(stage, place, name, size, low).CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("structure")
+    box(stage, place, "hatch", (1.1, 1.09, 0.05), (-0.55, 0.26, -0.025))
+    stage.GetRootLayer().Save()
+    return folder
+
+
+def joined_through(folder):
+    """Whether the walkers' floor 1 m either side of the hatch is one piece, every door open (the walkway check's)."""
+    stage, place = place_build.opened(folder)
+    grid, cells, heights, standing, pieces = ready.walkers_floor(ready.Place(stage, place))
+    sides = [ready.spans_near(grid, cells, heights, standing, np.array([0.0, 0.0, way])) for way in (-1.0, 1.0)]
+    return all(len(side) for side in sides) and pieces[sides[0][0]] == pieces[sides[1][0]]
+
+
 def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
+    hull = hatched(tmp_path / "hatched")
+    place_build.door(hull, "hatch")
+    assert not joined_through(hull)  # a standing walker's head meets the hatch's top
+    place_build.door(hull, "hatch", crouch=True)
+    assert joined_through(hull)  # crouched through, over its sill
     seen, roofless = "open to the outside", "no roof"
     for name, made, kind, told in (("closed", lambda folder: room(folder, False), "inside", None),
                                    ("cut", lambda folder: room(folder, True), "inside", seen),
