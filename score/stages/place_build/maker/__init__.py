@@ -123,8 +123,17 @@ def picture_of(folder, source, like, work):
     raise place_build.Refused(f"{source}: not take/<take>, concept/<n>, like or a picture's path")
 
 
+FLAT_SIDE = 0.005  # metres: a made model whose thinnest side is under this and FLAT_SHARE of its longest is a card
+FLAT_SHARE = 0.02
 FULL_SIZE = 2.0  # metres: a model this big or bigger (its longest side) is made at generate.FACES
 LEAST_FACES = 20000  # faces no made model goes under, however small
+
+
+def flat_card(size):
+    """Whether a made model's sides (m) are a flat card's, not a solid's (#154: the capsule's stick came out 1 mm
+    thick and was taken in)."""
+    sides = sorted(float(side) for side in size)
+    return sides[0] < FLAT_SIDE and sides[0] < FLAT_SHARE * sides[-1]
 
 
 def faces_for(size):
@@ -303,6 +312,9 @@ def make(folder, name, source, material, like=None, height=None):
     binary, groups = painted(document, binary, final, tokens)
     glb.write(final, document, binary)
     hulls, size = hulls_written(final, work / f"{entry}-hulls.glb")
+    if flat_card(size):
+        raise place_build.Refused(f"{name}: TRELLIS.2 made a flat card {', '.join(f'{side:.3f}' for side in size)} m, "
+                                  "not a solid; nothing taken in (a sharper cut-out or another picture)")
     physics = sim.physical(hulls, material)
     record = {"maker": SOURCE, "picture": {"source": said, "sha256": sha256(picture)}, "trellis2": stats,
               "fit": how, "size_m": [round(float(side), 3) for side in size], "grade": groups,

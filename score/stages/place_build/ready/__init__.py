@@ -126,6 +126,7 @@ UNSOLID = ("character", "light")  # roles that are no solid of their own (a pers
 REACHED = ("shell", "connector", "door", "structure", "mount", "prop")  # what a walker meets, besides the people
 SCENERY = ("ground", "fixed")  # what never moves, so beyond every walker's reach it is only seen (far scenery)
 DOOR_WORDS = ("door", "hatch", "airlock")
+INWARD_LEAST = 0.5  # metres a structure's middle stands off a door's plane for the door to be set in it
 LEVEL_RAYS = 5  # rays a side over an object's footprint that find the levels of the support under it
 STRUCTURE_WORDS = ("wall", "bulkhead", "partition", "frame", "fence")
 CONNECTOR_WORDS = ("tube", "tunnel", "corridor", "connector")
@@ -1001,11 +1002,14 @@ def turned(mesh, hinge, degrees):
 
 def inward(laid, middle, through):
     """The side of a door's plane (+1, -1 along `through`) the shell or connector it is set in lies on (the one whose
-    box holds the door's middle); None when it is set in none."""
-    for name in laid.with_role("shell", "connector"):
-        low, high = laid.meshes[name].bounds
-        if np.all(middle >= low) and np.all(middle <= high):
-            return 1.0 if ((low + high) / 2 - middle) @ through >= 0 else -1.0
+    box holds the door's middle), else a structure's (blocks-built walls, #154: the capsule's hatch) whose box's
+    middle stands INWARD_LEAST or more off the door's plane; None when it is set in none."""
+    for roles, least in ((("shell", "connector"), 0.0), (("structure",), INWARD_LEAST)):
+        for name in laid.with_role(*roles):
+            low, high = laid.meshes[name].bounds
+            off = ((low + high) / 2 - middle) @ through
+            if np.all(middle >= low) and np.all(middle <= high) and abs(off) >= least:
+                return 1.0 if off >= 0 else -1.0
     return None
 
 

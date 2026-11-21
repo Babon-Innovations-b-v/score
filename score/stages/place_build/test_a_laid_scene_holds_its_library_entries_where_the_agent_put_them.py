@@ -122,6 +122,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.door_block: every door written a hinge -> the cell's plug door has no slide
 - place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
   folder lacks
+- place_build.blocks: the role always structure -> the knob reads a structure
+- ready.inward: shells and connectors alone -> the plug set in the cell's walls of blocks is set in none
 - scene_package.chamber_air: a chamber's air only its named object's hull -> the cell whose doors name its back
   wall holds no air, so no chamber
 - place_build.look_shader: a recipe look keeps the references laid before it -> the regolith's ground surface still
@@ -1326,7 +1328,16 @@ def blocks_lock(tmp_path):
     place_build.blocks(walled, "hatch", [[2.05, 0.0, -0.5, 2.15, 2.1, 0.5, "door"]])
     place_build.door(walled, "plug", lock="back_wall", side="inner")
     place_build.door(walled, "hatch", lock="back_wall", side="outer")
+    place_build.blocks(walled, "knob", [[1.0, 1.0, 1.0, 1.1, 1.1, 1.1, "knob"]], role="prop")
+    try:
+        place_build.blocks(walled, "slab", [[0, 0, 0, 1, 1, 1, "slab"]], role="door")
+        raise AssertionError("blocks laid as a door")
+    except place_build.Refused:
+        pass
     stage, place = place_build.opened(walled)
-    _, chambers = scene_package.locks_of(ready.Place(stage, place))
+    laid_walled = ready.Place(stage, place)
+    middle, axes, _ = ready.frame_of(laid_walled, "plug")
+    assert laid_walled.roles["knob"] == "prop" and ready.inward(laid_walled, middle, axes[2]) is not None
+    _, chambers = scene_package.locks_of(laid_walled)
     assert [(chamber["name"], chamber["inner"], chamber["outer"]) for chamber in chambers] == \
         [("back_wall", ["plug"], ["hatch"])] and 3.0 * 2.0 * 2.0 < chambers[0]["air_volume"] < 4.4 * 3.4 * 2.7, chambers

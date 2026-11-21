@@ -836,10 +836,17 @@ def ground(folder, name, radius, at=(0.0, 0.0, 0.0), address=DOME):
     return {"name": name, "address": address, "usd": relative, "radius": radius, "ground": True}
 
 
-def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground=False, address=DOME):
+BLOCK_ROLES = ("structure", "prop", "fixed", "mount")  # what a blocks object may be besides the walked ground
+
+
+def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground=False, address=DOME,
+           role="structure"):
     """Solid chamfered boxes (dome_shell.blocks_file: each [x0, y0, z0, x1, y1, z1, part] in its own frame) laid as
-    one object Objects/<name>: a road and its kerbed pavements with `ground` (the place's walked ground), else a
-    structure (`score:role` structure: a building's walls, a step); each part ready for its surface."""
+    one object Objects/<name>: a road and its kerbed pavements with `ground` (the place's walked ground), else of
+    `role` (`score:role`, BLOCK_ROLES: a structure, a building's walls or a step, by default; a small fitting built from
+    blocks a prop, #154: the capsule's stick); each part ready for its surface."""
+    if role not in BLOCK_ROLES:
+        raise Refused(f"blocks are a {', '.join(BLOCK_ROLES)} or the ground, not {role}")
     import hashlib
     from score.stages.place_build import dome_shell
     boxes = [[float(value) for value in box[:6]] + [str(box[6])] for box in boxes]
@@ -853,7 +860,7 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), ground)
-    marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else "structure")
+    marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else role)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "boxes": len(boxes), "ground": bool(ground)}
 

@@ -2,6 +2,7 @@
 named a mismatch, never forced), its GLB is edited losslessly, and its mass is its hulls' outside skin, not every face.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- maker.flat_card: always False -> the 1 mm card passes as a model
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
@@ -57,6 +58,8 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
                                                                        generate.FACES]  # a sprout, a chair, a wall
+    assert maker.flat_card([0.3, 0.001, 0.05]) and not maker.flat_card([0.3, 0.02, 0.02]) \
+        and not maker.flat_card([1.2, 0.006, 0.1])  # a 1 mm card; a stick; a 6 mm sign
 
     document = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "world"}],
                 "buffers": [{"byteLength": 0}], "images": [{"bufferView": 0, "mimeType": "image/png"}],
