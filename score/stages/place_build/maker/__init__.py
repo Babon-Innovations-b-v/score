@@ -123,8 +123,30 @@ def picture_of(folder, source, like, work):
     raise place_build.Refused(f"{source}: not take/<take>, concept/<n>, like or a picture's path")
 
 
-def generated(picture, out):
-    """TRELLIS.2's model of `picture` at `out` (kept when made before); its stats."""
+FULL_SIZE = 2.0  # metres: a model this big or bigger (its longest side) is made at generate.FACES
+LEAST_FACES = 20000  # faces no made model goes under, however small
+
+
+def faces_for(size):
+    """The faces a model `size` metres across (its longest side) is made at: generate.FACES at FULL_SIZE and over,
+    else the same faces a square metre of its surface (FACES times its size over FULL_SIZE, squared), never under
+    LEAST_FACES; a model of unknown size at FACES."""
+    from score.stages.place_build.maker import generate
+    if not size:
+        return generate.FACES
+    return int(max(LEAST_FACES, min(generate.FACES, generate.FACES * (float(size) / FULL_SIZE) ** 2)))
+
+
+def size_of(folder, like, height):
+    """The longest side (m) the model will stand at in the place: `like`'s box, else `height`; None when neither."""
+    if like:
+        points = np.asarray(like_points(folder, like))
+        return float(np.ptp(points, axis=0).max()) if len(points) else None
+    return float(height) if height else None
+
+
+def generated(picture, out, faces=None):
+    """TRELLIS.2's model of `picture` at `out` (kept when made before) at `faces` (faces_for); its stats."""
     stats = out.with_suffix(".json")
     if out.is_file() and stats.is_file():
         return json.loads(stats.read_text())
@@ -132,7 +154,8 @@ def generated(picture, out):
     command = ["systemd-run", "--user", "--scope", "-q", "-p", f"MemoryMax={MEMORY}", "-p", "MemorySwapMax=0",
                sys.executable, str(REPO / "tools/cloud/backends/card_queue.py"), "run", "--job", f"make-{out.parent.name}",
                "--card-gb", str(CARD_GB), "--memory-gb", MEMORY.rstrip("G"), "--priority", "other", "--",
-               str(env / "venv/bin/python"), "-I", str(HERE / "generate.py"), str(env), str(picture), str(out)]
+               str(env / "venv/bin/python"), "-I", str(HERE / "generate.py"), str(env), str(picture), str(out),
+               str(faces or faces_for(None))]
     done = subprocess.run(command, capture_output=True, text=True, env={**os.environ, "MALLOC_ARENA_MAX": "2"})
     (out.parent / "generate.log").write_text(done.stdout + done.stderr)
     if done.returncode != 0 or not stats.is_file():
@@ -271,7 +294,7 @@ def make(folder, name, source, material, like=None, height=None):
     work.mkdir(parents=True, exist_ok=True)
     picture, said = picture_of(folder, source, like, work)
     raw = work / "trellis.glb"
-    stats = generated(picture, raw)
+    stats = generated(picture, raw, faces_for(size_of(folder, like, height)))
     document, binary, how = placed(raw, folder, like, height)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)

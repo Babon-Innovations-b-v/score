@@ -2,6 +2,7 @@
 named a mismatch, never forced), its GLB is edited losslessly, and its mass is its hulls' outside skin, not every face.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
@@ -52,6 +53,10 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert how["yaw"] == 270.0 and abs(how["scale"] - 2.5) < 0.01 and how["distance_m"] < 0.02
     tall = fit.applied(fit.height_matrix(made, 1.8), made)
     assert abs(np.ptp(tall[:, 1]) - 1.8) < 1e-9 and abs(tall[:, 1].min()) < 1e-9
+    from score.stages.place_build import maker
+    from score.stages.place_build.maker import generate
+    assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
+                                                                       generate.FACES]  # a sprout, a chair, a wall
 
     document = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "world"}],
                 "buffers": [{"byteLength": 0}], "images": [{"bufferView": 0, "mimeType": "image/png"}],

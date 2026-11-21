@@ -1,8 +1,10 @@
 """Runs in the model maker's own Python (setup.sh): one TRELLIS.2 model from one cut-out picture, its paint baked.
 
-    <env>/venv/bin/python -I generate.py <env folder> <picture.png (RGBA, its alpha the cut-out)> <out.glb>
+    <env>/venv/bin/python -I generate.py <env folder> <picture.png (RGBA, its alpha the cut-out)> <out.glb> [faces]
 
-TRELLIS.2's 1024 cascade at seed 42, its texture 2048 and 500k faces (the maker's defaults; quality is never cut).
+TRELLIS.2's 1024 cascade at seed 42, its texture 2048 and at most 500k faces (the maker's defaults; quality is never
+cut): `faces` is the count its size in the place needs (maker.faces_for), the same faces a square metre for every
+model, so a 0.3 m sprout is not made at a building's 500k (2026-11-21: 168 crops at 462,710 faces each).
 No RMBG-2.0 (the picture's own alpha is the cut-out: an all-opaque picture is refused), no flash-attn and no NVIDIA
 nvdiffrast (shim/). One model a process: each flow model is dropped from the card and RAM after its stage (moved to
 torch's meta device), which keeps the process under 20 GB. Writes <out.glb> and <out>.json (seconds, card peak).
@@ -52,7 +54,7 @@ def loaded(env):
     return pipeline
 
 
-def made(pipeline, picture, out):
+def made(pipeline, picture, out, faces=FACES):
     """The model of `picture` written as `out` (GLB); its counts."""
     import o_voxel.postprocess  # imported by name: the meshparts image's o_voxel leaves it out of its __init__
     from PIL import Image
@@ -64,13 +66,14 @@ def made(pipeline, picture, out):
     glb = o_voxel.postprocess.to_glb(
         vertices=mesh.vertices, faces=mesh.faces, attr_volume=mesh.attrs, coords=mesh.coords,
         attr_layout=mesh.layout, voxel_size=mesh.voxel_size, aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
-        decimation_target=FACES, texture_size=TEXTURE, remesh=True, remesh_band=1, remesh_project=0, verbose=False)
+        decimation_target=faces, texture_size=TEXTURE, remesh=True, remesh_band=1, remesh_project=0, verbose=False)
     glb.export(str(out), extension_webp=False)
     return {"faces": int(len(glb.faces)), "vertices": int(len(glb.vertices))}
 
 
 def main():
     env, picture, out = pathlib.Path(sys.argv[1]), sys.argv[2], pathlib.Path(sys.argv[3])
+    faces = int(sys.argv[4]) if len(sys.argv) > 4 else FACES
     sys.path[:0] = [str(HERE / "shim"), str(env / "src/TRELLIS.2")]
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     os.environ.setdefault("ATTN_BACKEND", "sdpa")  # the dense attention on torch's own; the sparse one on shim/
@@ -79,8 +82,8 @@ def main():
     began = time.time()
     pipeline = loaded(env)
     loaded_at = time.time()
-    counts = made(pipeline, picture, out)
-    stats = {"picture": str(picture), "seed": SEED, "texture": TEXTURE, "faces_target": FACES, **counts,
+    counts = made(pipeline, picture, out, faces)
+    stats = {"picture": str(picture), "seed": SEED, "texture": TEXTURE, "faces_target": faces, **counts,
              "load_s": round(loaded_at - began, 1), "make_s": round(time.time() - loaded_at, 1),
              "card_peak_mib": round(torch.cuda.max_memory_reserved() / 2**20),
              "made_with": json.loads((env / "ready.json").read_text())}
