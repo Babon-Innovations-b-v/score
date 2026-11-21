@@ -19,6 +19,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.parts_laid: the own material left unbound -> the lantern's grey part has no material
 - finished.earlier_look: the glow kept whatever the recipe (`recipe not in GLOWS` made `False`) -> the generator
   keeps its grey look on one part
+- finished.PROP_FAMILIES: the growing families left out -> the palette's crop leaf is no prop's paint
 - finished.variant_colours: every family kept -> the take's brown part wears the sand ground
 - finished.library_painted: the withdrawn rule left out -> a withdrawn entry's paint passes
 - place_build.fetch: the withdrawn refusal left out -> a withdrawn model is laid
@@ -111,17 +112,20 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     hexed = "#" + "".join(f"{value:02x}" for value in BROWN)
     (tmp_path / "palette.json").write_text(json.dumps({
         "recipes": {"painted_metal": {"roughness": 0.5}, "glowing": {"roughness": 0.3}},
-        "tokens": {"glow": "#d03828", "grey": "#aaa8a4", "brown": "#9a7a58", "ground": hexed, "dark": "#303034", "dust": "#a05030"},
+        "tokens": {"glow": "#d03828", "grey": "#aaa8a4", "brown": "#9a7a58", "ground": hexed, "dark": "#303034",
+                   "dust": "#a05030", "green": "#4a7a30"},
         "dirt": "dust",
         "families": {"paint": {"variants": {"grey_paint": {"recipe": "painted_metal", "token": "grey", "seed": 1},
                                             "wood_paint": {"recipe": "painted_metal", "token": "brown", "seed": 2},
                                             "dark_paint": {"recipe": "painted_metal", "token": "dark", "seed": 3}}},
                      "lamp": {"variants": {"lamp_glow": {"recipe": "glowing", "token": "glow", "seed": 5}}},
-                     "sand": {"variants": {"sand_ground": {"recipe": "painted_metal", "token": "ground", "seed": 4}}}}}))
+                     "sand": {"variants": {"sand_ground": {"recipe": "painted_metal", "token": "ground", "seed": 4}}},
+                     "leaf": {"variants": {"crop_leaf": {"recipe": "cloth", "token": "green", "seed": 6}}}}}))
     for name, address, at in (("gen", "model/generator", 0), ("box", "model/box", 4), ("stool", "take/stool", 8),
                               ("bare", "model/bare", 12), ("lantern", "model/generator", 20)):
         place_build.put(folder, name, address, at=(at, 0, 0))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
+    assert "crop_leaf" in finished.variant_colours(folder) and "sand_ground" not in finished.variant_colours(folder)
     with monkeypatch.context() as patched:  # the generator as a scene laid before the refusal held it
         patched.setattr(place_build, "whole_over_parts", lambda prim: None)
         place_build.surface(folder, "gen", "palette/grey_paint")

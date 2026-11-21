@@ -44,9 +44,11 @@ UNJUDGED_KINDS = ("light",)  # a sky dome laid as an object is light the rendere
 PARTS = 2  # a model's own paint with this many parts or more is never one surface over its whole
 SAMPLES = 4000  # faces drawn by area to find a paint's parts
 SEED = 7
-# The palette families a made prop's part may wear (a desk's top is never a cairn's stone, nor a ground's sand) and the
-# recipes it never takes from its colour alone (a glow, glass or print is laid by name).
-PROP_FAMILIES = ("steel", "paint", "plastic", "fabric", "wood", "rubber", "copper")
+# The palette families a made prop's part may wear (a desk's top is never a cairn's stone, nor a ground's sand), a
+# growing thing's among them where a place grows things (a sprout's leaf, stem and the soil in its pot: 2026-11-21, the
+# greenhouse's crops wore hull paint for want of one), and the recipes it never takes from its colour alone (a glow,
+# glass or print is laid by name).
+PROP_FAMILIES = ("steel", "paint", "plastic", "fabric", "wood", "rubber", "copper", "leaf", "stem", "soil")
 NOT_A_PAINT = ("glass", "glowing", "screen", "printed", "written")
 PART = "paint"
 GLOWS = ("glowing",)  # a look that gives off light, kept on its part when a library paint shows again  # the subsets a re-finish lays are paint0, paint1, ...
