@@ -158,7 +158,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   bigger picture halved as its mip is made, so the game decodes what it shows; 2099 #161) (a face wider than half a map cut first, blocks of a map's worth packed alone, a
   map under 512 refused: #146, #151; the base's hangar sat 11.5 h packing 44 big faces as one 33,000 px map), a laid
   ground's as one seamless 8 m tile, in Blender runs of a few maps of one object each (scene_package.BATCH; one run
-  over the street's 225 maps grew past the 8 GB cap), each finished map marked under <out>/bake/maps so `package`
+  over the street's 225 maps grew past the 8 GB cap), SIDE_BY_SIDE runs at once on measured card shares (a run's
+  card mostly waits on its Blender's processor work: 29% busy one run at a time, 2026-11-22), each finished map marked under <out>/bake/maps so `package`
   again resumes a stopped bake and rebakes only a changed object's maps; every step runs under its time
   (scene_package.STEP_SECONDS: an object's conversion and the scene's rest stop the process with its stack, a Blender
   run is stopped by `timeout`, its card wait not counted), each named in <out>/bake/steps.log first; a mesh with no

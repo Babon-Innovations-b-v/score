@@ -106,9 +106,10 @@ def command(folder, width=WIDTH, names=(), final=False):
     return queued(f"place-build-{folder.name}", SCRIPT, [str(still_stage(folder)), str(listing), str(out)])
 
 
-def queued(job, script, arguments, card=True, seconds=None):
+def queued(job, script, arguments, card=True, seconds=None, card_gb=CARD_GB, memory_gb=0):
     """The card queue's command running a Blender script with its arguments in a memory-capped scope (with no `card`,
-    the scoped command alone: an export that draws nothing waits for no card); with `seconds`, the Blender stopped
+    the scoped command alone: an export that draws nothing waits for no card), holding `card_gb` of the card and
+    `memory_gb` of the PC's memory (card_queue's room; 0: the scope's cap alone); with `seconds`, the Blender stopped
     past them (coreutils timeout: exit TIMED_OUT), its wait for the card not counted."""
     limit = ["timeout", "-k", "30", str(seconds)] if seconds else []
     blender = [*limit, str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script),
@@ -118,7 +119,7 @@ def queued(job, script, arguments, card=True, seconds=None):
               "--setenv=FARM_CYCLES_GPU=1", f"--setenv=LD_LIBRARY_PATH={linked}", *blender]
     if not card:
         return scoped
-    return ["python3", str(QUEUE), "run", "--job", job, "--card-gb", CARD_GB,
+    return ["python3", str(QUEUE), "run", "--job", job, "--card-gb", str(card_gb), "--memory-gb", str(memory_gb),
             "--priority", "other", "--", *scoped]
 
 

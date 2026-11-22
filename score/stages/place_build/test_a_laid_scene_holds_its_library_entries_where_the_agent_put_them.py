@@ -184,6 +184,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   finished panel map 0 again
 - scene_package.map_keys: the object's buffer left out of the key -> the changed panel's maps 0 and 1 are kept
 - scene_package.batches: one run for all the maps -> a run holds the maps of both objects, past BATCH
+- scene_package.blender_baked: its runs one after another (SIDE_BY_SIDE ignored) -> the three objects' runs never
+  hold the card two at once
+- render.queued: `card_gb` and `memory_gb` ignored -> a bake run asks the queue for render.CARD_GB and no memory
 - render.still_stage: the walkers' layer kept -> the still's scene holds walker_one
 - render.still_stage: its paths left unanchored -> the still under render/ misses every laid object's model
 - scene_package.write: the whole package folder removed -> the stopped bake's maps are gone before the bake
@@ -767,6 +770,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     reviewed(folder)
     packaged(folder, tmp_path / "package")
     resumed(tmp_path / "resumed")
+    side_by_side(tmp_path / "side")
     sized_and_timed(tmp_path / "sized")
     filmed(tmp_path)
     doored(tmp_path)
@@ -1184,7 +1188,7 @@ def resumed(out):
                 Image.new("RGB", (8, 8)).save(pathlib.Path(handed["into"]) / f"{job['key']}_{kind}.png")
             (pathlib.Path(handed["into"]) / f"{job['key']}.done").touch()
         return 0
-    scene_package.BATCH = 2
+    scene_package.BATCH, scene_package.SIDE_BY_SIDE = 2, 1
     for left, change in ((2, None), (1, "panel"), (99, None)):
         if change:
             (out / f"objects/{change}.bin").write_bytes(b"moved")
@@ -1194,7 +1198,7 @@ def resumed(out):
             scene_package.blender_baked(out, jobs, run)
         except place_build.Refused as why:
             refused.append(str(why).split(";")[0])
-    scene_package.BATCH = 6
+    scene_package.BATCH, scene_package.SIDE_BY_SIDE = 6, 2
     placed = all((out / "objects" / picture).is_file() for job in jobs for picture in job["pictures"].values())
     assert refused == ["the bake failed (exit 247, 2 of 4 maps not baked",
                        "the bake failed (exit 247, 3 of 4 maps not baked"], refused
@@ -1202,6 +1206,46 @@ def resumed(out):
                     [[("panel", "0"), ("panel", "1")]],
                     [[("panel", "1"), ("panel", "2")], [("door", "0")]]], runs
     assert placed and not any((out / scene_package.BAKE).iterdir())
+
+
+def side_by_side(out):
+    """A bake's runs held SIDE_BY_SIDE at once (one object's maps a run, two of them on the card together), every map
+    then in place, the runs' logs all in blender.log and their listings gone; a run asks the card queue for the bake's
+    own measured share of the card and of the memory."""
+    import threading
+    from score.stages.place_build import scene_package
+    (out / "objects").mkdir(parents=True)
+    jobs = []
+    for name in ("panel", "door", "hatch"):
+        (out / f"objects/{name}.gltf").write_text(json.dumps({"buffers": []}))
+        jobs.append({"gltf": f"objects/{name}.gltf", "mesh": "part_0", "size": [8, 8],
+                     "pictures": {kind: f"textures/{name}_{kind}.png" for kind in scene_package.PICTURES}})
+    together, most, turn = [0], [0], threading.Condition()
+
+    def run(out, listing, log):  # bake_looks.py: its map's pictures and mark, waiting a while for another run beside it
+        with turn:
+            together[0] += 1
+            most[0] = max(most[0], together[0])
+            turn.notify_all()
+            turn.wait_for(lambda: together[0] > 1 or most[0] > 1, timeout=2)
+        handed = json.loads(listing.read_text())
+        for job in handed["jobs"]:
+            for kind in scene_package.PICTURES:
+                Image.new("RGB", (8, 8)).save(pathlib.Path(handed["into"]) / f"{job['key']}_{kind}.png")
+            (pathlib.Path(handed["into"]) / f"{job['key']}.done").touch()
+        log.open("a").write(f"BAKE DONE {len(handed['jobs'])} maps\n")
+        with turn:
+            together[0] -= 1
+        return 0
+    scene_package.blender_baked(out, jobs, run)
+    placed = all((out / "objects" / picture).is_file() for job in jobs for picture in job["pictures"].values())
+    told = (out / "bake/blender.log").read_text()
+    assert most[0] == 2 and placed and told.count("BAKE DONE") == 3, (most, placed, told)
+    assert not list((out / "bake").glob("jobs-*.json")) and not list((out / "bake").glob("run-*.log"))
+    command = render.queued("job", "script.py", [], card_gb=scene_package.BAKE_CARD_GB,
+                            memory_gb=scene_package.BAKE_MEMORY_GB)
+    asked = command[:command.index("--priority")]
+    assert asked[-4:] == ["--card-gb", "4", "--memory-gb", "6"], asked
 
 
 def sized_and_timed(out):

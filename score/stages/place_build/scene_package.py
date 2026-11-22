@@ -46,6 +46,7 @@ view transform and look, a night's moon and glow, the ground's albedo (ground_al
 path-traced bounce lights from below with), and `grade`: that view transform and look drawn by Blender's own
 OpenColorIO into a lattice picture (grade_lut.py), the engine's tone mapping sampling it as SCORE's render grades.
 """
+import concurrent.futures
 import contextlib
 import faulthandler
 import hashlib
@@ -54,6 +55,7 @@ import math
 import pathlib
 import shutil
 import struct
+import threading
 
 import numpy as np
 from PIL import Image
@@ -1459,6 +1461,14 @@ PICTURES = ("base_color", "metal_roughness", "normal")  # a baked map's pictures
 # leaves bake/ standing) and bakes only the maps not yet marked, a map's key its request, its object's file and the
 # bake's code, so a changed object or recipe is baked again.
 BATCH = 6
+# A bake's card use is mostly its Blender's own work on the processor (each map's four bakes find their pixels, sync
+# the object and build its rays there; nvidia-smi read 29% busy over 150 s with one run on the card, 2026-11-22), so
+# SIDE_BY_SIDE runs of one package hold the card at once, each of BAKE_CARD_GB and BAKE_MEMORY_GB: the card queue's
+# measures of place-build-bake-package read 0.6 to 2.2 GB in the hours nothing else was on the card (its 12.97 GB
+# highest was read beside a Windows game holding 10 GB, 2026-11-22), its memory 5.2 GB at most under the 8 GB scope.
+SIDE_BY_SIDE = 2
+BAKE_CARD_GB = 4
+BAKE_MEMORY_GB = 6
 BAKE = "bake/maps"
 BAKE_CODE = ("bake_looks.py", "../../../tools/props/library/recipes.py")  # under this folder: the code a map's key holds
 
@@ -1516,15 +1526,17 @@ def blender_run(out, listing, log):
     script = pathlib.Path(__file__).resolve().parent / "bake_looks.py"
     with log.open("a") as written_log:
         return subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())],
-                                            seconds=STEP_SECONDS["bake run"]),
+                                            seconds=STEP_SECONDS["bake run"], card_gb=BAKE_CARD_GB,
+                                            memory_gb=BAKE_MEMORY_GB),
                               stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO).returncode
 
 
 def blender_baked(out, jobs, run=blender_run):
-    """The jobs baked by bake_looks.py in runs of BATCH maps (`run(out, listing, log)` one run, its exit code), every
-    map already marked done under <out>/BAKE kept and every other mark there removed, the log in
-    <out>/bake/blender.log; each map's pictures then moved to its place under objects/. Refused with the log's tail
-    when a run fails or a map is not baked, its finished maps kept for the next `package` to resume from."""
+    """The jobs baked by bake_looks.py in runs of BATCH maps, SIDE_BY_SIDE at once (`run(out, listing, log)` one run,
+    its exit code), every map already marked done under <out>/BAKE kept and every other mark there removed, each run's
+    log added to <out>/bake/blender.log as it ends; each map's pictures then moved to its place under objects/. No run
+    starts after one fails. Refused with the failed run's tail when a run fails or a map is not baked, its finished
+    maps kept for the next `package` to resume from."""
     from score.stages.place_build import render
     into = out / BAKE
     into.mkdir(parents=True, exist_ok=True)
@@ -1535,18 +1547,34 @@ def blender_baked(out, jobs, run=blender_run):
     left = [dict(job, key=key) for job, key in zip(jobs, keys) if not (into / f"{key}.done").is_file()]
     log = out / "bake" / "blender.log"
     log.write_text(f"{len(jobs) - len(left)} of {len(jobs)} maps kept from an earlier bake\n")
-    listing, code, runs = out / "bake" / "jobs.json", 0, batches(left)
-    for number, batch in enumerate(runs):
+    runs, failed = batches(left), []
+    ending = threading.Lock()
+
+    def one(number):
+        """Run `number` baked unless one has failed: its listing and log its own, its log added to the whole."""
+        if failed:
+            return
+        batch = runs[number]
+        listing, own = out / "bake" / f"jobs-{number + 1}.json", out / "bake" / f"run-{number + 1}.log"
         listing.write_text(json.dumps({"out": str(out.resolve()), "into": str(into.resolve()), "jobs": batch},
                                       indent=1))
-        with log.open("a") as written_log:
-            written_log.write(f"RUN {number + 1} of {len(runs)}: {len(batch)} maps of {batch[0]['gltf']}\n")
-        code = run(out, listing, log)
-        if code:
-            break
+        own.write_text(f"RUN {number + 1} of {len(runs)}: {len(batch)} maps of {batch[0]['gltf']}\n")
+        code = run(out, listing, own)
+        with ending:
+            told = own.read_text(errors="replace")
+            with log.open("a") as written_log:
+                written_log.write(told)
+            if code:
+                failed.append((code, told.splitlines()[-6:]))
+        own.unlink()
+        listing.unlink()
+
+    with concurrent.futures.ThreadPoolExecutor(SIDE_BY_SIDE) as pool:
+        list(pool.map(one, range(len(runs))))
+    code, tail = failed[0] if failed else (0, log.read_text(errors="replace").splitlines()[-6:])
     missing = [job for job, key in zip(jobs, keys) if not (into / f"{key}.done").is_file()]
     if code or missing:
-        tail = " | ".join(log.read_text(errors="replace").splitlines()[-6:])
+        tail = " | ".join(tail)
         late = f", its run stopped past {STEP_SECONDS['bake run']} s" if code == render.TIMED_OUT else ""
         raise place_build.Refused(f"the bake failed (exit {code}{late}, {len(missing)} of {len(jobs)} maps not baked; "
                                   f"package again bakes only those), log {log}: {tail}")
