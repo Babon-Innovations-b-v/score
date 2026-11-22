@@ -183,11 +183,25 @@ def steam_points(clip_path, model_path, out, time=STEAM_TIME):
     turn = numpy.array([[numpy.cos(heading), 0, numpy.sin(heading)], [0, 1, 0],
                         [-numpy.sin(heading), 0, numpy.cos(heading)]])
     placed = z_up(jet @ turn.T + source, y_up)
-    numpy.savez(out, points=placed.astype(numpy.float32),
-                widths=numpy.asarray(cloud.GetWidthsAttr().Get(time), dtype=numpy.float32),
+    widths = numpy.asarray(cloud.GetWidthsAttr().Get(time), dtype=numpy.float32)
+    numpy.savez(out, points=placed.astype(numpy.float32), widths=widths,
                 opacity=numpy.asarray(UsdGeom.PrimvarsAPI(cloud).GetPrimvar("displayOpacity").Get(time),
                                       dtype=numpy.float32))
+    points_file(pathlib.Path(out).with_suffix(".usda"), placed, widths)
     return out
+
+
+def points_file(path, points, widths):
+    """The particles as a Z-up USD Points file in metres, which library_demo.py imports to get its point cloud."""
+    from pxr import Gf, Usd, UsdGeom, Vt
+    stage = Usd.Stage.CreateNew(str(path))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    cloud = UsdGeom.Points.Define(stage, "/effect")
+    cloud.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(*map(float, point)) for point in points]))
+    cloud.CreateWidthsAttr(Vt.FloatArray([float(width) for width in widths]))
+    stage.Save()
+    return path
 
 
 def finish(name):
@@ -266,7 +280,8 @@ def staged_items(work):
         {"name": "kit", "files": corner, "heading": 35, "elevation": 16, "margin": 0.85},
         {"name": "character", "files": [str(person / "body.glb")], "hide": ["far", "Icosphere"],
          "action": "walking", "frame": 6, "heading": 200, "elevation": 6, "lens": 85, "margin": 0.95},
-        {"name": "effect", "files": [str(kettle / "kettle_1.gltf")], "points": [{"npz": str(steam), "look": "puff"}],
+        {"name": "effect", "files": [str(kettle / "kettle_1.gltf")],
+         "points": [{"npz": str(steam), "usd": str(steam.with_suffix(".usda")), "look": "puff"}],
          "ground": "dark", "heading": -30, "elevation": 10, "margin": 1.2},
         {"name": "light", "ground": "dark", "studio": 0.06, "heading": 35, "elevation": 16, "margin": 0.85,
          "files": corner + [{"path": str(lamp / "model.usdc"), "at": [0.9, 1.6, 2.75],

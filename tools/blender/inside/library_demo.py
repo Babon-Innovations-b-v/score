@@ -15,8 +15,9 @@ job.json: {"size": [wide, tall], "samples": n, "items": [item, ...]}. An item:
      "lens": 50, "margin": 1.15,           focal length (mm) and how much room is left round the item
      "ground": "light" | "dark",           the studio's backdrop
      "frame": n, "action": "walking",      a rigged character's clip and the frame of it to show
-     "points": [{"npz", "look": "puff", "colour"}],  an effect's particles at one clip time (npz: points in the
-                                           picture's metres, widths, opacity), drawn as score's game draws them
+     "points": [{"npz", "usd", "look": "puff", "colour"}],  an effect's particles at one clip time (npz: points in
+                                           the picture's metres, widths, opacity; usd: the same points as a Points
+                                           file), drawn as score's game draws them
      "hide": ["far", ...],                 objects of the files left out of the picture (another level of detail)
      (a file's "turn" (degrees about the up axis) then "at": [x, y, z] moves it, in metres, before the item is stood on the ground; lamps move with it)
      "lamps": [{"type": "POINT"|"SPOT"|"AREA", "at": [x,y,z], "aim": [x,y,z], "watts", "colour", "cone", "size"}],
@@ -219,18 +220,24 @@ def apply_parts(objects, parts):
 
 
 def effect_points(spec):
-    """One effect's particles as a point cloud, each a sphere of its width, thick by its opacity (usd_views.py)."""
+    """One effect's particles as a point cloud, each a sphere of its width, thick by its opacity (usd_views.py's way:
+    the cloud comes from the reader's import of a Points file, which every Blender since 4.2 reads, and its attributes
+    are then set in place)."""
     import numpy
     loaded = numpy.load(spec["npz"])
-    cloud = bpy.data.pointclouds.new("effect")
-    cloud.resize(len(loaded["points"]))
+    obj = next(item for item in import_file(spec["usd"]) if item.type == "POINTCLOUD")
+    cloud = obj.data
+    if len(cloud.points) != len(loaded["points"]):
+        raise RuntimeError(f"{spec['usd']} holds {len(cloud.points)} points, its npz {len(loaded['points'])}")
+    obj.matrix_world = Matrix.Identity(4)
     cloud.attributes["position"].data.foreach_set("vector", loaded["points"].ravel())
     radius = cloud.attributes.get("radius") or cloud.attributes.new("radius", "FLOAT", "POINT")
     radius.data.foreach_set("value", loaded["widths"] / 2.0)
-    cloud.attributes.new("opacity", "FLOAT", "POINT").data.foreach_set("value", loaded["opacity"])
+    thickness = cloud.attributes.get("opacity") or cloud.attributes.new("opacity", "FLOAT", "POINT")
+    thickness.data.foreach_set("value", loaded["opacity"])
+    cloud.update_tag()
+    cloud.materials.clear()
     cloud.materials.append(effect_material(spec.get("look", "puff"), spec.get("colour", (0.9, 0.9, 0.89))))
-    obj = bpy.data.objects.new("effect", cloud)
-    bpy.context.scene.collection.objects.link(obj)
     return obj
 
 
