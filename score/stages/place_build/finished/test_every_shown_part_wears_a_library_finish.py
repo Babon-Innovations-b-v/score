@@ -1,7 +1,8 @@
 """Invariant: every part a place_build scene shows wears a library finish, and what does not is told by object: a
 generator painted part by part from the library (its own paint red and grey) under one grey look over its whole is
 `one surface over its parts`, and a new whole surface on it is refused; a picture-made take in its own paint is
-`own paint`; a piece with no material is `no material`; a look naming a surface the library does not hold is
+`own paint`; a piece with no material, or only a placeholder (a material with no shader, a kit piece's part, #156),
+is `no material`; a look naming a surface the library does not hold is
 `unknown surface`; a character's own paint passes only under a written exception (the player models'); an entry the
 library withdrew is never its paint and is refused at `put`; while a one-paint box under one look passes. `refinish` mends each: the generator shows its own
 library paint whole again; a lantern of the same paint under a whole glowing look keeps the glow on its red part
@@ -29,6 +30,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.own_surface: always True -> the stall's material naming no held surface passes
 - finished.held_surface: the replacement chain unread (`entry_of(address)` for `entry_of(end)`) -> the box's look
   naming the retired metal is `unknown surface`
+- finished.object_faults: `placeholder` unread -> the plain kit piece's shaderless part is `own paint`
 - finished.library_painted: a character always passed (`bool(excepted(...))` made `True`) -> a character no written
   exception covers keeps its own paint
 """
@@ -70,6 +72,17 @@ def model_text(name, texture):
     return stage.GetRootLayer().ExportToString()
 
 
+def placeholder_text(name):
+    """model_text's model with its own material a placeholder: no shader (a kit piece's part, score_lib kit-parts)."""
+    layer = Sdf.Layer.CreateAnonymous(".usda")
+    layer.ImportFromString(model_text(name, "none.png"))
+    stage = Usd.Stage.Open(layer)
+    for shader in ("surface", "base"):
+        stage.RemovePrim(f"/{name}/paint/{shader}")
+    stage.GetPrimAtPath(f"/{name}/paint").RemoveProperty("outputs:surface")
+    return layer.ExportToString()
+
+
 def own_surface_text(name, address):
     """model_text's model with its own material naming the library surface `address` (an adopted set's model)."""
     layer = Sdf.Layer.CreateAnonymous(".usda")
@@ -109,6 +122,7 @@ def library(root, files):
                             "paint.png": ("texture", halves(BROWN, DARK))}, [("pixal3d", "its shape and paint")])
     bare = model_text("bare", "none.png").replace('rel material:binding = </bare/paint>', "")
     entry("model", "bare", {"model.usda": ("usd", bare)}, [("score", "painted from the library surfaces")])
+    entry("kit", "plain", {"piece.usda": ("usd", placeholder_text("plain"))}, [("kenney", "its geometry")])
     for recipe in ("painted_metal", "glowing"):
         entry("surface", recipe, {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.5}}))})
     entry("surface", "old_metal", {"surface.json": ("record", "{}")}, (),
@@ -143,7 +157,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
                      "leaf": {"variants": {"crop_leaf": {"recipe": "cloth", "token": "green", "seed": 6}}}}}))
     for name, address, at in (("gen", "model/generator", 0), ("box", "model/box", 4), ("stool", "take/stool", 8),
                               ("bare", "model/bare", 12), ("lantern", "model/generator", 20),
-                              ("kiosk", "model/kiosk", 24), ("stall", "model/stall", 28)):
+                              ("kiosk", "model/kiosk", 24), ("stall", "model/stall", 28), ("plain", "kit/plain", 32)):
         place_build.put(folder, name, address, at=(at, 0, 0))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
     assert "crop_leaf" in finished.variant_colours(folder) and "sand_ground" not in finished.variant_colours(folder)
@@ -160,6 +174,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     assert "refused" in refused[0] and "2 parts" in refused[0]["refused"], refused
     assert kinds(found, "gen") == {"one surface over its parts"}, found.get("gen")
     assert kinds(found, "stool") == {"own paint"} and kinds(found, "bare") == {"no material"}, found
+    assert kinds(found, "plain") == {"no material"}, found.get("plain")
     assert kinds(found, "box") == {"unknown surface"}, found.get("box")
     assert "kiosk" not in found and kinds(found, "stall") == {"own paint"}, found
     stage, _ = place_build.opened(folder)
@@ -170,7 +185,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     put_after = place_build.put(folder, "stool2", "take/stool", at=(16, 0, 0))
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     found = finished.faults(stage, "camp")
-    assert set(found) == {"bare"}, found
+    assert set(found) == {"bare", "plain"}, found
     assert mended["gen"]["finish"] == "its model's own library paint" and not finished.part_looks(stage, "camp", \
         stage.GetPrimAtPath("/camp/Objects/gen")), mended
     assert set(mended["lantern"]["parts"].values()) == {"palette/lamp_glow", "its model's own library paint"}, mended

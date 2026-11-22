@@ -16,7 +16,8 @@ to its model's own material when that names a surface the library holds (`score:
 materials taken in as library surfaces). A surface the library withdrew naming its replacement (`replaced_by`) is
 judged by the end of that chain. Its faults:
 
-- `no material`: a shown part bound to nothing (a default grey);
+- `no material`: a shown part bound to nothing, or to a placeholder (a material with no shader: a kit piece's part
+  named for a reader, score #156), so a default grey;
 - `own paint`: a shown part wearing its model's own paint that no library surface painted (a picture-made take, a
   TRELLIS.2 model's graded paint, a character no written exception covers, any entry the library has withdrawn);
 - `unknown surface`: a look naming no surface, or one the library does not hold or has withdrawn;
@@ -113,6 +114,12 @@ def shown(prim):
     imageable = UsdGeom.Imageable(prim)
     return (imageable.ComputeVisibility() != UsdGeom.Tokens.invisible
             and imageable.ComputePurpose() in (UsdGeom.Tokens.default_, UsdGeom.Tokens.render))
+
+
+def placeholder(material):
+    """Whether a bound material is a placeholder: no shader in it, so it draws nothing of its own (a kit piece's part
+    bound for a plain reader to split, score_lib kit-parts)."""
+    return not any(inside.IsA(UsdShade.Shader) for inside in Usd.PrimRange(material))
 
 
 def bound_parts(gprim):
@@ -322,7 +329,7 @@ def object_faults(prim, place, surfaces, exceptions):
         if not (inside.IsA(UsdGeom.Gprim) and shown(inside)):
             continue
         for part, material in bound_parts(inside):
-            if material is None:
+            if material is None or placeholder(material):
                 kind, why = "no material", "no material: a default grey"
             elif str(material.GetPath()).startswith(looks + "/"):
                 why = look_fault(material, surfaces)
