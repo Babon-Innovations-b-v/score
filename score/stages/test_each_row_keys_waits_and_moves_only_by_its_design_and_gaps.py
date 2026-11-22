@@ -391,8 +391,12 @@ KEYED = [
     # record's helpers from stage_inputs.py (each re-made by a gate edit before 2026-10-12); snap.py is the settle's
     # too (settling/held.py) and the light rows' (camera_paths.place_scenes reads each place's meshes with read_place)
     *[(edited, ["*"], {"complete"}) for edited in ("tools/usd/complete.py", "tools/usd/contents.py",
-                                                   "tools/usd/reach.py", "score/stages/complete/__init__.py")],
-    ("tools/usd/snap.py", ["*"], {"complete", "settle", "light", "light-layer", "light-passes"}),
+                                                   "score/stages/complete/__init__.py")],
+    # reach.py's spans are the walkers' floor too (place_build/ready, 2026-11-16), so they move the rows that walk it;
+    # its own command line went to complete.py's (`check --only reach`), so it no longer ties every row to the gate
+    ("tools/usd/reach.py", ["complete", "scene-clips", "sim-body"], EVERY),
+    ("tools/usd/snap.py", ["complete", "settle", "light", "light-layer", "light-passes", "scene-clips", "sim-body"],
+     EVERY),  # and, through reach.py, the walkers' floor's rows
     # another line's edits to the runner, the stage table or another stage's module leave terrain's key alone (they
     # re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it
     *[(edited, ["terrain"], set()) for edited in (

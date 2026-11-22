@@ -2,7 +2,7 @@
 fails (the owner's automatic playtest, 2026-10-05: walk to each object; the interact press waits for interactable
 assets).
 
-    .venv/bin/python tools/usd/reach.py <place> [--stage <stage.usda>] [--out reach.json]
+    .venv/bin/python tools/usd/complete.py check <place> [--stage <stage.usda>] --only reach
 
 The walker is the cast check's (tools/characters/cast_check.py): a body BODY_RADIUS round its middle, HEAD tall,
 stepping up or down no more than KNEE. Where it can stand is found Recast's way (Mononen's navigation mesh: a
@@ -36,7 +36,6 @@ about 0.75 m). A row with no object on the stage and no written drop reason is u
 dropped or held-back row is not walked to. The check fails when a row is not reached, and is unknown when the walker has
 no floor or a row is unknown.
 """
-import argparse
 import json
 import pathlib
 import sys
@@ -499,26 +498,3 @@ def check(stage_path, place, inventory):
     verdicts = row_verdicts(rows, targets, grid, span_cells[floor], spots)
     results = {verdict["result"] for verdict in verdicts}
     return FAIL if FAIL in results else UNKNOWN if UNKNOWN in results else PASS, verdicts, note
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("place")
-    parser.add_argument("--stage", type=pathlib.Path)
-    parser.add_argument("--out", type=pathlib.Path)
-    options = parser.parse_args()
-    import complete
-    stage = complete.stage_path(options.place, options.stage)
-    inventory = json.loads(complete.recorded_inventory(options.place, stage).read_text())
-    overall, verdicts, note = check(stage, options.place, inventory)
-    failing = [verdict for verdict in verdicts if verdict["result"] != PASS]
-    if options.out:
-        options.out.write_text(json.dumps({"place": options.place, "result": overall, "note": note,
-                                           "rows": verdicts}, indent=1) + "\n")
-    for verdict in failing:
-        print(f"  {verdict['row']}: {verdict['result']}: {verdict['why']}")
-    print(f"{options.place}: {overall}: {len(verdicts) - len(failing)} of {len(verdicts)} rows reached ({note})")
-
-
-if __name__ == "__main__":
-    main()
