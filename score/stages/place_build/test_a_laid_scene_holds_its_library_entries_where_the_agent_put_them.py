@@ -18,6 +18,9 @@ concept's for the render; and the compare measures the render's silhouette again
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
 straight down under its cut with +x right and +z down, and a physics fault boxed in red and named on the plan; and
+the laid scene as a piece list (score.scene v2, no Blender: each library piece once by its address and digest, the
+made geometry as untextured GLBs a mesh a part, each copy's parts' looks, its check sound and refusing a stale digest,
+a withdrawn entry, a changed made file and a part with no look) and
 the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
 copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
 recipe baked into its own maps, on a ground one seamless tile; glass as transmission), its colliders from the
@@ -220,6 +223,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   LARGEST wide, not its charts' size
 - scene_package.deadline: `exit=True` left off -> the stuck step runs on past its time and the package goes on
 - render.queued: `seconds` dropped -> a bake run's Blender has no timeout
+- pieces.library_address: every copy taken for made (no library piece) -> kerb2 is a made piece of its own, not
+  box_piece
+- package.piece_problems: the digest left unchecked -> the box piece's stale digest passes the check
 """
 import json
 import pathlib
@@ -784,6 +790,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     reviewed(folder)
     packaged(folder, tmp_path / "package")
     drafted(folder, tmp_path / "draft")
+    pieced(folder, root, tmp_path / "pieces")
     resumed(tmp_path / "resumed")
     side_by_side(tmp_path / "side")
     sized_and_timed(tmp_path / "sized")
@@ -1154,6 +1161,85 @@ def drafted(folder, out):
     assert len(boards) == 1 and "baseColorTexture" not in boards[0]["pbrMetallicRoughness"] and "extras" not in boards[0]
     assert "baseColorTexture" in dune_looks["surface/sand@1"]["pbrMetallicRoughness"]
     assert scene_package.package.problems(out) == []
+
+
+def pieced(folder, root, out):
+    """The laid scene as a piece list (score.scene v2, `package --pieces`), with no Blender: each library piece once by
+    its address and its index's digest, no file of it written; a made piece (the kerb's blocks) as a GLB of one mesh a
+    part, no material and no texture coordinates, two laid copies of one content one piece; every copy, its piece
+    stood by its whole matrix (a stretch kept in it), filling its laid box; a palette look's spec word for word, a
+    part's own look, an image surface's map as its library reference, a glTF model's own texture; the characters
+    skinned; the check sound, and refusing a stale digest, a withdrawn entry, a made file changed and a part with no
+    look."""
+    from score.stages.place_build import pieces, scene_package
+    import package
+    (root / "index").mkdir(exist_ok=True)
+    rows = {}
+    for record in (json.loads(path.read_text()) for path in sorted(root.glob("entries/*/*/*/entry.json"))):
+        rows.setdefault(record["kind"], []).append({"address": record["address"], "digest": f"d-{record['address']}",
+                                                    "state": "draft"})
+    for kind, entries in rows.items():
+        (root / "index" / f"{kind}.json").write_text(json.dumps({"schema": "score-lib-index/1", "kind": kind,
+                                                                  "entries": entries}))
+    held_baked, held_graded = scene_package.blender_baked, scene_package.blender_graded
+    scene_package.blender_baked = scene_package.blender_graded = None  # never called: a call fails the test
+    place_build.put(folder, "kerb2", "kit/box_piece", at=(50, 0, 52))
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    kerb = stage.GetPrimAtPath("/yard/Objects/kerb")
+    copied = stage.DefinePrim("/yard/Objects/kerb_copy", "Xform")
+    copied.GetReferences().AddInternalReference(kerb.GetPath())
+    UsdGeom.Xformable(copied).ClearXformOpOrder()
+    UsdGeom.Xformable(copied).AddTranslateOp().Set(Gf.Vec3d(50, 0, 60))
+    stage.Save()
+    try:
+        made = pieces.packaged(folder, out)
+    finally:
+        scene_package.blender_baked, scene_package.blender_graded = held_baked, held_graded
+    scene = json.loads((out / "scene.json").read_text())
+    copies = {copy["name"]: copy for copy in scene["copies"]}
+    boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
+    place_build.remove(folder, "kerb2")
+    place_build.remove(folder, "kerb_copy")
+    for name, copy in ((name, copy) for name, copy in copies.items() if copy["kind"] != "character"):
+        piece = scene["pieces"][copy["piece"]]
+        if "made" in piece:
+            model = trimesh.load(out / piece["made"], force="mesh")
+            model.apply_transform(np.array(copy["matrix"]).reshape(4, 4).T)
+            assert np.abs(model.bounds - boxes[name]).max() < 2e-3, (name, model.bounds, boxes[name])
+    glb = (out / "made/kerb.glb").read_bytes()
+    document = json.loads(glb[20:20 + int.from_bytes(glb[12:16], "little")])
+    spec = json.loads(stage.GetPrimAtPath("/yard/Looks/panel").GetAttribute("score:recipe:spec").Get())
+    assert made["check"] == "sound" and scene["version"] == 2 and not list(out.glob("objects")), made
+    assert copies["kerb_copy"]["piece"] == copies["kerb"]["piece"] == "kerb" and copies["kerb2"]["piece"] == "box_piece"
+    assert sorted(path.name for path in (out / "made").iterdir()) == sorted(
+        f"{name}.glb" for name, piece in scene["pieces"].items() if "made" in piece)
+    assert scene["pieces"]["box_piece"] == {"library": "kit/box_piece@1", "digest": "d-kit/box_piece@1",
+                                            "parts": ["geo", "rim", "top"], "size": [1.0, 2.0, 0.5], "triangles": 14}
+    assert scene["pieces"]["cup"]["library"] == "take/cup@1" and copies["cabinet"]["looks"] == {
+        "door": "own-cabinet", "part_0": "own-cabinet"}  # a glTF model in its own bake
+    assert sorted(mesh["name"] for mesh in document["meshes"]) == ["kerb", "line"] and "materials" not in document
+    assert all(set(primitive["attributes"]) == {"POSITION", "NORMAL"} and "material" not in primitive
+               for mesh in document["meshes"] for primitive in mesh["primitives"])
+    assert copies["plank"]["piece"] == copies["crate"]["piece"] and copies["plank"]["matrix"][:3] == [2.0, 0.0, 0.0]
+    assert scene["looks"][copies["panel"]["looks"]["geo"]] == {"library": "surface/boards@1", "spec": spec}
+    assert scene["looks"][copies["crate"]["looks"]["top"]]["library"] == "surface/steel@1" != scene["looks"][
+        copies["crate"]["looks"]["geo"]]["library"]
+    assert scene["looks"][copies["dune"]["looks"]["top"]]["maps"]["diffuseColor"]["file"] == "surface/sand@1/colour.jpg"
+    assert copies["leader"]["looks"] == {"*": "own-leader"} and scene["pieces"]["leader"]["skinned"] is True
+    assert copies["leader"]["plays"] and copies["big"]["collider"]["mass_kg"] == 100.0
+    assert scene["environment"]["grade"] is None and scene["lamps"][0]["name"] == "bulb"
+    index = json.loads((root / "index/kit.json").read_text())
+    index["entries"][0]["digest"] = "changed"
+    (root / "index/kit.json").write_text(json.dumps(index))
+    (out / "made/kerb.glb").write_bytes(glb + b"    ")
+    del copies["crate"]["looks"]["top"]
+    (out / "scene.json").write_text(json.dumps(scene))
+    found = package.problems(out)
+    withdrawn = package.problems(out, held={"kit/box_piece@1": {"digest": "d-kit/box_piece@1", "state": "withdrawn"}})
+    assert any("piece box_piece: its digest" in line for line in found), found
+    assert any("kerb.glb does not hash" in line for line in found) and any(
+        "(crate): its part top has no look" in line for line in found), found
+    assert any("kit/box_piece@1 is withdrawn" in line for line in withdrawn), withdrawn
 
 
 def held_pictures(out, scene):

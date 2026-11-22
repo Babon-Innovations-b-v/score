@@ -66,6 +66,33 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
 An object's .gltf may use KHR_materials_transmission, _ior and _emissive_strength (listed in its extensionsUsed) and
 carry its baked pictures in its own buffer; a version 1 reader that skips them still loads every object.
 
+Version 2, the piece list (score/stages/place_build/pieces.py, `package --pieces`; 2099 #245), written beside a
+version 1 package from the laid USD with no Blender and no bake. Every block above that is not geometry is as in
+version 1 (place, frame, units, up, ground, on_seat, lamps, counts, physics, left_out, chambers, environment, and
+per copy role, collider, door, plays), except `environment.sky.file`, the sky's picture as its library reference
+(`kind/id@version/file`), and `environment.grade` and `ground_albedo`, null (Blender draws them). Instead of objects
+and instances:
+    pieces               {name: a library piece {library (its entry's address), digest (the entry's content digest,
+                         as the library's index has it), parts, size, triangles}, or a made piece {made (made/<name>.glb
+                         under the package), sha256 (its bytes'), from (the algorithm or entry it was made by, or null),
+                         parts, size, triangles; a character's also skinned true, clips and check}}: `parts` the
+                         piece's part names (a GeomSubset's name, a laid layer's, else its mesh's), `size` its box
+                         sides in its own frame. A made piece's GLB holds one mesh a part, named by it: positions and
+                         normals, no material and no texture coordinates (an engine tiles its look in the piece's own
+                         frame); a character's is version 1's skinned glTF in its own texture
+    looks                {id: a palette recipe's {library (its surface's address), spec (its score:recipe:spec word
+                         for word: recipe, token, colour, second, bare, dirt_colour, wear, dirt, seed, roughness...)},
+                         or another library surface's {library, colour, roughness, metal, opacity, glow, maps {input:
+                         {file (a library reference), read, scale}}, tile_metres}, or {own: piece} (the piece's own
+                         texture)}
+    copies               [{piece, name, kind, matrix (the whole transform, glTF's column order: a stretch kept in it),
+                         looks {part: look id; EVERY_PART for every part}}], with version 1's per-copy blocks
+
+The version 2 check refuses a piece list with a library piece the library does not hold, has withdrawn or holds at
+another digest, a made piece whose file is missing, hashes otherwise or does not hold its parts as named meshes, a
+piece no copy uses, a copy of no piece, a matrix that is no transform, a part of a copy's piece with no look, a look
+id the list does not hold, an own look of no piece, or a count of copies that differs from `counts`.
+
 The check refuses a package with a missing or unreadable model file, buffer or picture, a model that failed its model
 check, an object no copy uses, a transform that is not a turn and an even scale (a kit room's: a turn and its
 `stretch`, no part of it past STRETCH_LIMIT), or a count of copies that differs from the record's: an inventory row's
@@ -84,6 +111,8 @@ REPO = HERE.parents[2]
 INVENTORIES = REPO / "data/inventory"
 FORMAT = "score.scene"
 VERSION = 1
+PIECES = 2  # the piece list's version (above)
+EVERY_PART = "*"  # a copy's look on every part of its piece
 # How far a kit room's copy may stretch its model on any side before the package is refused: a model is made at the
 # size it is laid at, so a stretch past this is a layout that no longer matches its bake.
 STRETCH_LIMIT = 0.05
@@ -273,9 +302,94 @@ def count_problems(scene, inventory):
             for row in inventory["rows"] if row["id"] not in standing_on and copies.get(row["id"], 0) != row["count"]]
 
 
-def problems(out, inventory=None):
-    """Everything wrong with the package at <out>, against its place's inventory; [] when it is sound."""
+def held_entries(addresses):
+    """{address: {digest, state}} of each entry address as the library's own index holds it (score/library, the one
+    reader of the library's files; SCORE_LIB_ROOT or the checkout beside score's)."""
+    import sys
+    for path in (REPO, REPO / "tools/library"):
+        if str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+    import library_files
+    from score import library
+    root = library.root_from_environment() or library_files.default_root()
+    indexed = {}
+    for kind in sorted({address.split("/", 1)[0] for address in addresses}):
+        indexed.update({row["address"]: {"digest": row["digest"], "state": row["state"]}
+                        for row in library.index(root, kind)["entries"]})
+    return {address: indexed[address] for address in addresses if address in indexed}
+
+
+def piece_problems(out, name, piece, held):
+    """What is wrong with one piece of a piece list: a library piece the library (`held`) lacks, withdrew or holds at
+    another digest; a made piece missing, hashing otherwise or without its parts as named meshes."""
+    import hashlib
+    if "library" in piece:
+        entry = held.get(piece["library"])
+        if entry is None:
+            return [f"piece {name}: the library holds no {piece['library']}"]
+        if entry["state"] == "withdrawn":
+            return [f"piece {name}: {piece['library']} is withdrawn"]
+        return [] if entry["digest"] == piece.get("digest") else [
+            f"piece {name}: its digest is not {piece['library']}'s ({entry['digest'][:12]})"]
+    path = out / piece["made"]
+    if not path.is_file():
+        return [f"piece {name}: no made file at {piece['made']}"]
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != piece["sha256"]:
+        return [f"piece {name}: {piece['made']} does not hash to its sha256"]
+    if piece.get("skinned"):
+        return []
+    length = int.from_bytes(data[12:16], "little")
+    meshes = {mesh.get("name") for mesh in json.loads(data[20:20 + length])["meshes"]}
+    return [f"piece {name}: its part {part} is no mesh of {piece['made']}" for part in piece["parts"]
+            if part not in meshes]
+
+
+def copy_problems(index, copy, scene):
+    """What is wrong with one copy of a piece list: no piece, a matrix that is no transform, a part with no look, a
+    look the list lacks."""
+    piece = scene["pieces"].get(copy["piece"])
+    if piece is None:
+        return [f"copy {index} ({copy['name']}): no piece {copy['piece']}"]
+    matrix = np.array(copy["matrix"], dtype=float).reshape(4, 4).T
+    found = []
+    if not np.all(np.isfinite(matrix)) or not np.allclose(matrix[3], [0.0, 0.0, 0.0, 1.0]) \
+            or abs(np.linalg.det(matrix[:3, :3])) < 1e-12:
+        found.append(f"copy {index} ({copy['name']}): its matrix is not a transform")
+    if EVERY_PART not in copy["looks"]:
+        found += [f"copy {index} ({copy['name']}): its part {part} has no look" for part in piece["parts"]
+                  if part not in copy["looks"]]
+    return found + [f"copy {index} ({copy['name']}): no look {look}" for look in copy["looks"].values()
+                    if look not in scene["looks"]]
+
+
+def pieces_problems(out, scene, held=None):
+    """Everything wrong with a piece list (version 2) at <out>, its library pieces against the library's index
+    (`held`, held_entries by default); [] when it is sound."""
+    addresses = sorted({piece["library"] for piece in scene["pieces"].values() if "library" in piece})
+    held = held_entries(addresses) if held is None else held
+    found = []
+    for name, piece in scene["pieces"].items():
+        found += piece_problems(out, name, piece, held)
+    used = {copy["piece"] for copy in scene["copies"]}
+    found += [f"piece {name}: no copy uses it" for name in sorted(set(scene["pieces"]) - used)]
+    for index, copy in enumerate(scene["copies"]):
+        found += copy_problems(index, copy, scene)
+    found += [f"look {key}: own look of no piece {look['own']}" for key, look in scene["looks"].items()
+              if "own" in look and look["own"] not in scene["pieces"]]
+    laid = {}
+    for copy in scene["copies"]:
+        laid[copy["kind"]] = laid.get(copy["kind"], 0) + 1
+    return found + [f"kind {kind}: counts has {count} copies, the list {laid.get(kind, 0)}"
+                    for kind, count in sorted(scene["counts"].items()) if laid.get(kind, 0) != count]
+
+
+def problems(out, inventory=None, held=None):
+    """Everything wrong with the package at <out>, against its place's inventory (a piece list's library pieces
+    against the library, `held`: pieces_problems); [] when it is sound."""
     scene = json.loads((out / "scene.json").read_text())
+    if scene.get("format") == FORMAT and scene.get("version") == PIECES:
+        return pieces_problems(out, scene, held)
     if scene.get("format") != FORMAT or scene.get("version") != VERSION:
         return [f"scene.json is not {FORMAT} version {VERSION}"]
     if inventory is None and "counts" not in scene:
@@ -293,8 +407,14 @@ def problems(out, inventory=None):
 
 
 def summary(out):
-    """One line: objects, copies, triangles placed, size on disk."""
+    """One line: objects (a piece list's pieces), copies, triangles placed, size on disk."""
     scene = json.loads((out / "scene.json").read_text())
+    if scene.get("version") == PIECES:
+        placed = sum(scene["pieces"][copy["piece"]]["triangles"] for copy in scene["copies"]
+                     if copy["piece"] in scene["pieces"])
+        size = sum(path.stat().st_size for path in out.rglob("*") if path.is_file())
+        return (f"{scene['place']}: {len(scene['pieces'])} pieces, {len(scene['copies'])} copies, "
+                f"{placed:,} triangles placed, {size / 1e6:.2f} MB")
     placed = sum(scene["objects"][copy["object"]].get("triangles") or 0 for copy in scene["instances"]
                  if copy["object"] in scene["objects"])
     size = sum(path.stat().st_size for path in out.rglob("*") if path.is_file())

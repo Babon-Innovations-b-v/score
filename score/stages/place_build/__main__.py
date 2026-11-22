@@ -104,7 +104,9 @@ and an <out>/objects/<name>.gltf a distinct object, converted from the laid USD 
 baked into its own pictures by headless Blender on this PC's card), each copy's collider from the physics check's
 roles when ready.json is there, and the place's sky, sun, exposure and grade. `package --draft` is a preview that
 never ships, in minutes: nothing baked (each palette recipe its plain colour, metal and roughness), scene.json marked
-`draft`, which score-lib take-in refuses.
+`draft`, which score-lib take-in refuses. `package --pieces` writes the piece list instead (pieces.py, score.scene
+version 2, 2099 #245) in seconds with no Blender: library pieces by address and digest, the place's made geometry as
+small untextured GLBs, each copy's parts' looks.
 """
 import argparse
 import json
@@ -284,6 +286,9 @@ def run(args):
                 "out": args.out}
     if args.step == "package":
         from score.stages.place_build import scene_package
+        if args.pieces:
+            from score.stages.place_build import pieces
+            return pieces.packaged(args.folder, args.out)
         return scene_package.packaged(args.folder, args.out, draft=args.draft)
     from score.stages.place_build import measure
     return measure.compare(args.folder)
@@ -491,6 +496,9 @@ def parser():
     step.add_argument("out")
     step.add_argument("--draft", action="store_true", help="a preview that never ships: no bake, each palette "
                       "recipe its plain colour, metal and roughness, scene.json marked draft (take-in refuses it)")
+    step.add_argument("--pieces", action="store_true", help="the piece list (score.scene version 2, pieces.py): "
+                      "library pieces by address and digest, made pieces as small untextured GLBs, each part's look; "
+                      "no Blender, no bake")
     step = steps.add_parser("render")
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)

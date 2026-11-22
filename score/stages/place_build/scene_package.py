@@ -1170,10 +1170,22 @@ def distant(prim):
             "angle": float(light.GetAngleAttr().Get() or 0.0)}
 
 
+def library_reference(folder, path):
+    """A file copied under the place's assets (library_files.stage_name: kind/id/version/file) as the library
+    reference it was copied from (`kind/id@version/file`); None for a file from anywhere else."""
+    try:
+        kind, entry_id, version, *rest = pathlib.Path(path).resolve().relative_to(
+            (pathlib.Path(folder) / "assets").resolve()).parts
+    except ValueError:
+        return None
+    return f"{kind}/{entry_id}@{version}/{'/'.join(rest)}" if version.isdigit() and rest else None
+
+
 def sky_picture(stage, place, out):
     """The sky dome's picture (the glow its dome under Objects/sky gives off, a longitude-latitude picture) copied
-    into <out>/environment: {file, projection, turn (degrees about up, as laid), strength (its glow's), library};
-    None when the place lays no sky picture."""
+    into <out>/environment, or with no `out` (a piece list, pieces.py) named by its library reference and not copied:
+    {file, projection, turn (degrees about up, as laid), strength (its glow's), library}; None when the place lays no
+    sky picture."""
     holder = stage.GetPrimAtPath(f"/{place}/Objects/sky")
     for inside in gprims(holder) if holder else []:
         look = UsdShade.MaterialBindingAPI(inside).ComputeBoundMaterial()[0]
@@ -1181,10 +1193,14 @@ def sky_picture(stage, place, out):
         found = texture_of(shader, "emissiveColor") if shader else None
         if found is None:
             continue
-        (out / "environment").mkdir(exist_ok=True)
-        shutil.copyfile(found[0], out / "environment" / found[0].name)
+        if out is None:
+            file = library_reference(pathlib.Path(stage.GetRootLayer().realPath).parent, found[0])
+        else:
+            (out / "environment").mkdir(exist_ok=True)
+            shutil.copyfile(found[0], out / "environment" / found[0].name)
+            file = f"environment/{found[0].name}"
         turn = holder.GetAttribute("xformOp:rotateXYZ")
-        return {"file": f"environment/{found[0].name}",
+        return {"file": file,
                 "projection": "longitude-latitude: u round up from +x (tools/usd/mars_sky.ways), v from the "
                               "bottom pole up, on a ball round the place",
                 "turn": float(turn.Get()[1]) if turn and turn.HasValue() else 0.0,
@@ -1195,7 +1211,8 @@ def sky_picture(stage, place, out):
 
 def environment_of(stage, place, out):
     """The place's sky and light as the final render draws it (usd_views.stage_sky, blender_views): the sky picture
-    (sky_picture), the dome's ambient light, the background the camera sees, the exposure (a multiplier), the sun,
+    (sky_picture: copied into `out`, or by its library reference with none), the dome's ambient light, the background
+    the camera sees, the exposure (a multiplier), the sun,
     the view transform and look; `night` its moon and glow where the place has a night (place_build.night)."""
     sky = stage.GetPrimAtPath(f"/{place}/Environment")
     lights = {prim.GetName(): prim for prim in (stage.GetPrimAtPath(f"/{place}/Lights").GetChildren()

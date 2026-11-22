@@ -178,6 +178,11 @@ HELD_TEXELS: the game's PlaceTextures.MostTexels, a
   **`package --draft`** (2099 #161) is a preview that never ships: the same scene.json and glTF objects with no bake
   and no walkers' eyes read, each palette recipe its plain colour, metal and roughness (an image surface keeps its
   own pictures), scene.json `draft` (scene_package.DRAFT); score-lib take-in --place refuses a folder carrying it.
+  **`package --pieces`** (pieces.py, 2099 #245) writes the piece list beside it, score.scene version 2 in package.py's
+  format and check: no Blender and no bake, in seconds. A laid library entry (model, take, kit, effect, ground) is a
+  piece by its address and its index's digest, never written; everything made for the place (an algorithm's blocks,
+  stair core, dome, terrain) a made/<name>.glb of one mesh a part, positions and normals only; each copy its whole
+  matrix and a look id a part (a recipe's spec word for word, a surface's factors and library maps, or `own`).
   **Characters go in it skinned** (skinned.py, 2099's prologue, 2026-11-20): every SkelRoot laid (a `put` player
   model, the cast's characters layer, a sim body's own SkelAnimation) and every crowd PointInstancer copy is a skinned
   glTF converted from the laid USD (its skeleton, shown meshes with their weights and morph targets, every clip cut to
