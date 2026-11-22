@@ -81,6 +81,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.sky_at: exposure left at 1 -> the Moon's noon renders 1 where a white face square to the Sun reads 1
 - place_build.airless: every body taken as airless -> a Mars site is laid under a black sky
 - dome_shell.written: no placeholder bound to a part -> the written parts' bindings are empty
+- dome_shell.placeholder: its shader left out -> the glass placeholder has no surface to draw (Cycles' black)
 - dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
 - dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
 - dome_shell.on_circle: a corner kept where it lies -> the end wall's rim steps out past the tube's circle
@@ -736,6 +737,9 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert {subset.GetPrim().GetName(): UsdShade.MaterialBindingAPI(subset.GetPrim()).GetDirectBinding().GetMaterialPath().name
             for subset in UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Mesh(written.GetPrimAtPath("/parts/geo")))} == \
         {"glass": "glass", "rib": "rib"}
+    grey = UsdShade.Material(written.GetPrimAtPath("/parts/Looks/glass"))  # drawn grey by any reader, marked as no finish
+    assert grey.GetPrim().GetAttribute(dome_shell.PLACEHOLDER).Get() and tuple(
+        grey.ComputeSurfaceSource()[0].GetInput("diffuseColor").Get()) == pytest.approx(dome_shell.PLACEHOLDER_GREY)
     assert sorted(next(item for item in shown["objects"] if item["name"] == "tunnel")["parts"]) == ["deck", "ribs", "shell", "wall"]
     assert np.allclose(boxes["tunnel"], [[18.38, -0.12, 0.0], [21.62, 3.12, 4.0]], atol=0.01)
     assert np.allclose(boxes["dome"], [[-5.18, 0.0, -5.18], [5.18, 5.1, 5.18]], atol=0.02)  # its plinth

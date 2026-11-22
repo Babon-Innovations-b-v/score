@@ -8,6 +8,7 @@ Breaks that turn it red:
 - cigarette.rings: the filter ring at FILTER / 2 -> the filter part ends at 11.75 mm
 - cigarette.written: the ember subset left out -> the parts are filter and paper only
 - cigarette.written: the placeholder binding left out -> a part is bound to no material
+- cigarette.written: a bare Material for dome_shell.placeholder -> the part's placeholder has no grey surface
 """
 import sys
 import pathlib
@@ -35,6 +36,7 @@ def test_a_cigarette_stands_at_its_measures_in_its_parts(tmp_path, part, low, hi
                for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh)}
     assert sorted(subsets) == ["ember", "filter", "paper"] and sum(map(len, subsets.values())) == len(faces)
     bound = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath(f"/cigarette/cigarette/{part}")).ComputeBoundMaterial()[0]
-    assert bound and bound.GetPrim().GetName() == part
+    assert bound and bound.GetPrim().GetName() == part and bound.GetPrim().GetAttribute("score:placeholder").Get()
+    assert bound.ComputeSurfaceSource()[0].GetInput("diffuseColor").Get()[0] == pytest.approx(0.8)  # grey, not black
     heights = points[faces[subsets[part]]][:, :, 2]
     assert np.isclose(heights.min(), low, atol=1e-7) and np.isclose(heights.max(), high, atol=1e-7)

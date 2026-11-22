@@ -38,7 +38,7 @@ deck), `ribs` and `deck`.
 import math
 
 import numpy as np
-from pxr import Gf, Usd, UsdGeom, UsdShade, Vt
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, Vt
 
 MERIDIANS = 12  # ribs from the ground to the top
 RINGS = 3  # level ribs between the ground and the top, evenly by angle
@@ -282,10 +282,30 @@ def face_normals(points, faces):
     return found
 
 
+PLACEHOLDER = "score:placeholder"  # the mark of a part's placeholder material (the finish check reads it)
+PLACEHOLDER_GREY = (0.8, 0.8, 0.8)  # a plain reader's neutral grey, never a finish
+PLACEHOLDER_ROUGHNESS = 0.6
+
+
+def placeholder(stage, path):
+    """The placeholder material at `path`: a plain UsdPreviewSurface in a neutral grey, so any USD reader draws the
+    part grey (a material with no shader renders black in Blender's Cycles, #156), marked PLACEHOLDER so score knows
+    it is no finish."""
+    material = UsdShade.Material.Define(stage, path)
+    material.GetPrim().CreateAttribute(PLACEHOLDER, Sdf.ValueTypeNames.Bool).Set(True)
+    shader = UsdShade.Shader.Define(stage, f"{path}/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*PLACEHOLDER_GREY))
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(PLACEHOLDER_ROUGHNESS)
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    return material
+
+
 def written(path, root_name, pieces, flat=False):
     """`pieces` [(part name, (points, faces))] written at `path` as /<root_name> (y up, metres) with one mesh `geo`,
-    each piece a named part bound to a placeholder material of its name (no shader: any USD reader splits the parts, as
-    score-lib kit-parts binds a kit piece's, #156, and the library's surface goes over it); the path. `flat` writes each face's own normal at its corners (a box-built structure:
+    each piece a named part bound to a placeholder material of its name (`placeholder`: any USD reader splits the parts
+    and draws them grey, as score-lib kit-parts binds a kit piece's, #156, and the library's surface goes over it); the
+    path. `flat` writes each face's own normal at its corners (a box-built structure:
     with no normals a renderer shades it smooth, each box's faces bending to its corners, so a floor of slabs reads
     as pillowed tiles and a wall of columns as bright seams; owner, 2026-11-17)."""
     stage = Usd.Stage.CreateNew(str(path))
@@ -312,8 +332,7 @@ def written(path, root_name, pieces, flat=False):
     for part, part_faces in parts.items():
         subset = UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face, part_faces, "materialBind",
                                                  UsdGeom.Tokens.nonOverlapping)
-        placeholder = UsdShade.Material.Define(stage, f"/{root_name}/Looks/{part}")  # no shader: a part any reader
-        UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(placeholder)       # splits; the library finishes it
+        UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(placeholder(stage, f"/{root_name}/Looks/{part}"))
     stage.GetRootLayer().Save()
     return path
 

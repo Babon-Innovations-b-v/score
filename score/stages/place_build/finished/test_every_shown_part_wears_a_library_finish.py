@@ -1,8 +1,8 @@
 """Invariant: every part a place_build scene shows wears a library finish, and what does not is told by object: a
 generator painted part by part from the library (its own paint red and grey) under one grey look over its whole is
 `one surface over its parts`, and a new whole surface on it is refused; a picture-made take in its own paint is
-`own paint`; a piece with no material, or only a placeholder (a material with no shader, a kit piece's part, #156),
-is `no material`; a look naming a surface the library does not hold is
+`own paint`; a piece with no material, or only the library's placeholder (a plain grey marked as no finish, a kit
+piece's part, #156), is `no material`; a look naming a surface the library does not hold is
 `unknown surface`; a character's own paint passes only under a written exception (the player models'); an entry the
 library withdrew is never its paint and is refused at `put`; while a one-paint box under one look passes. `refinish` mends each: the generator shows its own
 library paint whole again; a lantern of the same paint under a whole glowing look keeps the glow on its red part
@@ -30,7 +30,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.own_surface: always True -> the stall's material naming no held surface passes
 - finished.held_surface: the replacement chain unread (`entry_of(address)` for `entry_of(end)`) -> the box's look
   naming the retired metal is `unknown surface`
-- finished.object_faults: `placeholder` unread -> the plain kit piece's shaderless part is `own paint`
+- finished.placeholder: the mark unread (only a shaderless material a placeholder) -> the plain kit piece's grey
+  part is `own paint`
 - finished.library_painted: a character always passed (`bool(excepted(...))` made `True`) -> a character no written
   exception covers keeps its own paint
 """
@@ -41,7 +42,7 @@ from PIL import Image
 from pxr import Sdf, Usd, UsdGeom, UsdShade, Vt
 
 from score.stages import place_build
-from score.stages.place_build import finished
+from score.stages.place_build import dome_shell, finished
 
 BROWN, DARK, RED, GREY = (138, 106, 72), (40, 40, 44), (200, 30, 30), (170, 168, 164)
 
@@ -73,13 +74,13 @@ def model_text(name, texture):
 
 
 def placeholder_text(name):
-    """model_text's model with its own material a placeholder: no shader (a kit piece's part, score_lib kit-parts)."""
+    """model_text's model with its own material the library's placeholder (dome_shell.placeholder: plain grey, marked
+    as no finish; a kit piece's part, score_lib kit-parts)."""
     layer = Sdf.Layer.CreateAnonymous(".usda")
     layer.ImportFromString(model_text(name, "none.png"))
     stage = Usd.Stage.Open(layer)
-    for shader in ("surface", "base"):
-        stage.RemovePrim(f"/{name}/paint/{shader}")
-    stage.GetPrimAtPath(f"/{name}/paint").RemoveProperty("outputs:surface")
+    stage.RemovePrim(f"/{name}/paint")
+    dome_shell.placeholder(stage, f"/{name}/paint")
     return layer.ExportToString()
 
 

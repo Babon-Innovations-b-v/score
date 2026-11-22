@@ -1,7 +1,8 @@
 """The cigarette the 2099 prologue's player smokes on the balcony (#152), built in code as a score_lib model: one closed
 round solid at a king size cigarette's measures, its parts (GeomSubsets) the filter, the paper and the lit end, each
 for a library surface laid on it at the place (`surface --part`, the lit end a glowing palette variant), each bound to
-a placeholder material named after it so any USD reader splits them; no colour of its own.
+a placeholder material named after it (dome_shell.placeholder: plain grey, marked as no finish) so any USD reader
+splits them and draws them grey; no colour of its own.
 
     .venv/bin/python tools/props/smoke_beat/cigarette.py <out folder>
 
@@ -17,9 +18,13 @@ import argparse
 import json
 import math
 import pathlib
+import sys
 
 import numpy as np
 from pxr import Gf, Usd, UsdGeom, UsdShade, Vt
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+from score.stages.place_build import dome_shell  # noqa: E402  (a part's placeholder material, as every piece's)
 
 LENGTH = 0.084
 DIAMETER = 0.0079
@@ -82,9 +87,7 @@ def written(out):
         subset = UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face,
                                                  Vt.IntArray([int(face) for face in np.flatnonzero(names == part)]),
                                                  "materialBind", UsdGeom.Tokens.nonOverlapping)
-        # A placeholder material named after the part (no shader, no colour), so any USD reader splits the parts
-        # (score #156); the place lays its library surface over it.
-        placeholder = UsdShade.Material.Define(stage, f"/cigarette/Looks/{part}")
+        placeholder = dome_shell.placeholder(stage, f"/cigarette/Looks/{part}")
         UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(placeholder)
     stage.Save()
     record = {"length_m": LENGTH, "diameter_m": DIAMETER, "filter_m": FILTER, "ember_m": EMBER, "source": SOURCE,

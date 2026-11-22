@@ -16,8 +16,8 @@ to its model's own material when that names a surface the library holds (`score:
 materials taken in as library surfaces). A surface the library withdrew naming its replacement (`replaced_by`) is
 judged by the end of that chain. Its faults:
 
-- `no material`: a shown part bound to nothing, or to a placeholder (a material with no shader: a kit piece's part
-  named for a reader, score #156), so a default grey;
+- `no material`: a shown part bound to nothing, or to a placeholder (marked `score:placeholder`, or with no shader:
+  a kit piece's part bound for a plain reader, score #156), so a plain grey and no finish;
 - `own paint`: a shown part wearing its model's own paint that no library surface painted (a picture-made take, a
   TRELLIS.2 model's graded paint, a character no written exception covers, any entry the library has withdrawn);
 - `unknown surface`: a look naming no surface, or one the library does not hold or has withdrawn;
@@ -117,9 +117,10 @@ def shown(prim):
 
 
 def placeholder(material):
-    """Whether a bound material is a placeholder: no shader in it, so it draws nothing of its own (a kit piece's part
-    bound for a plain reader to split, score_lib kit-parts)."""
-    return not any(inside.IsA(UsdShade.Shader) for inside in Usd.PrimRange(material))
+    """Whether a bound material is a placeholder, no finish: marked `score:placeholder` (dome_shell.placeholder and
+    score_lib kit-parts: a part's plain grey, bound so a plain reader splits and draws it, #156), or with no shader."""
+    return bool(text(material, "score:placeholder")) or not any(inside.IsA(UsdShade.Shader)
+                                                                 for inside in Usd.PrimRange(material))
 
 
 def bound_parts(gprim):
@@ -229,7 +230,7 @@ def mesh_paint(mesh_prim):
     for part, material in bound_parts(mesh_prim):
         faces = (np.asarray(UsdGeom.Subset(part).GetIndicesAttr().Get(), dtype=np.int64)
                  if part.IsA(UsdGeom.Subset) else np.arange(len(counts)))
-        if material is None or not len(faces):
+        if material is None or not len(faces) or placeholder(material):
             continue
         path, constant = colour_source(material)
         if path:
