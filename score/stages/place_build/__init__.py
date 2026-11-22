@@ -26,6 +26,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        switchback stairwell, its doorways answered
     camera_cut(folder, name)                           an object the camera sees through (place.json `cut`), at
                                                        render only: the building stays closed
+    backdrop(folder, name)                             a concept's surroundings a neighbour place of the area stands
+                                                       for (place.json `backdrop`): left out of the seated package
+    hollow(folder, name, regions)                      a blocks object re-laid without what stands in the regions,
+                                                       where the area seats a neighbour place (its fittings there too)
     kind(folder, kind)                                 inside (built closed) or outside (under the sky: only its
                                                        structures' rooms are judged closed), place.json `kind`
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
@@ -839,6 +843,20 @@ def camera_cut(folder, name):
     return {"cut": record["cut"]}
 
 
+def backdrop(folder, name):
+    """The object or light `name` listed in place.json `backdrop`: a part of the concept's surroundings that a
+    neighbour place of the area stands for (the flat's square, crowd, stage and far blocks: place/square is them in
+    the game, 2099's prologue 2026-11-22). The place's own renders draw it; the package of a place the area seats
+    leaves it out (its neighbour packages it), and the area's shells check reads it as no shell of the place."""
+    stage, place = opened(folder)
+    if not any(stage.GetPrimAtPath(f"/{place}/{scope}/{name}") for scope in ("Objects", "Effects", "Lights")):
+        raise Refused(f"the scene holds no object or light {name} to leave to a neighbour")
+    record = record_of(folder)
+    record["backdrop"] = sorted(set(record.get("backdrop") or []) | {name})
+    write_record(folder, record)
+    return {"backdrop": record["backdrop"]}
+
+
 KINDS = ("inside", "outside")  # place.json `kind`; a place without one is inside
 
 
@@ -935,6 +953,134 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
     marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else role, None if ground else support)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "boxes": len(boxes), "ground": bool(ground)}
+
+
+HOLLOW_LEAST = 0.02  # metres: a box's piece left thinner than this by a hollow is dropped (a sliver, no wall)
+FITTING_REACH = 0.5  # metres round a fitting the wall it is mounted on must still stand after a hollow (a rack's wash)
+
+
+def laid_boxes(stage, prim):
+    """A blocks object's boxes as laid ([x0, y0, z0, x1, y1, z1, part], its own frame), read back from its mesh: each
+    closed piece's box (a chamfer stays inside it) and the part its faces are in."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    geo = UsdGeom.Mesh(stage.GetPrimAtPath(prim.GetPath().AppendChild("geo")))
+    if not geo or not geo.GetPointsAttr().Get():
+        raise Refused(f"{prim.GetName()} is no blocks object (no mesh geo of solid boxes)")
+    points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
+    counts = np.asarray(geo.GetFaceVertexCountsAttr().Get())
+    indices = np.asarray(geo.GetFaceVertexIndicesAttr().Get())
+    face_of = np.repeat(np.arange(len(counts)), counts)
+    first = indices[np.r_[0, np.cumsum(counts)[:-1]]][face_of]  # each corner joined to its face's first corner
+    pieces = connected_components(coo_matrix((np.ones(len(indices)), (indices, first)),
+                                             shape=(len(points),) * 2), directed=False)[1]
+    part_of = {}
+    for subset in UsdGeom.Subset.GetAllGeomSubsets(geo):
+        for face in subset.GetIndicesAttr().Get():
+            part_of[int(face)] = subset.GetPrim().GetName()
+    boxes = {}
+    for face, corner in zip(face_of, indices):
+        piece = int(pieces[corner])
+        if piece not in boxes:
+            boxes[piece] = [points[corner].copy(), points[corner].copy(), part_of.get(int(face), "block")]
+        boxes[piece][0] = np.minimum(boxes[piece][0], points[corner])
+        boxes[piece][1] = np.maximum(boxes[piece][1], points[corner])
+    return [[round(float(value), 4) for value in (*low, *high)] + [part] for low, high, part in boxes.values()]
+
+
+def box_less(box, region):
+    """The pieces of `box` ([x0, y0, z0, x1, y1, z1, part]) outside `region` (x0, y0, z0, x1, y1, z1), each no
+    thinner than HOLLOW_LEAST: the box itself when they do not meet."""
+    low, high, part = list(box[:3]), list(box[3:6]), box[6]
+    if any(region[axis + 3] <= low[axis] or region[axis] >= high[axis] for axis in range(3)):
+        return [box]
+    pieces = []
+    for axis in range(3):
+        if region[axis] > low[axis]:
+            pieces.append([*low, *high[:axis], region[axis], *high[axis + 1:], part])
+            low[axis] = region[axis]
+        if region[axis + 3] < high[axis]:
+            pieces.append([*low[:axis], region[axis + 3], *low[axis + 1:], *high, part])
+            high[axis] = region[axis + 3]
+    return [piece for piece in pieces if min(piece[3 + axis] - piece[axis] for axis in range(3)) >= HOLLOW_LEAST]
+
+
+def boxes_meet(low, high, other_low, other_high):
+    return bool(np.all(np.asarray(low) < other_high) and np.all(np.asarray(other_low) < high))
+
+
+def hollow(folder, name, regions):
+    """The blocks object `name` re-laid without what stands in `regions` (each x0, y0, z0, x1, y1, z1 in the scene's
+    frame): where the area seats a neighbour place in it (the street's block wall_l1 round the stairwell and the
+    flat, 2099's prologue 2026-11-22: the walker stood inside the block). Each of its boxes is cut to its pieces
+    outside every region, in its parts and at its pose and role; every other object or light whose middle stands in a
+    region (a shop's tables, its lamps) and every fitting mounted on it (`support` wall:<name>, or on a fitting taken
+    out) that no box left stands within FITTING_REACH of is taken out, a door leaf never (a join's leaf stays), nor
+    the place's backdrop (place.json `backdrop`: its own renders draw it)."""
+    regions = [[float(value) for value in region] for region in regions]
+    if not regions or any(len(region) != 6 or any(region[axis + 3] <= region[axis] for axis in range(3))
+                          for region in regions):
+        raise Refused("a hollow needs one region or more, each x0, y0, z0, x1, y1, z1 with x1 > x0, y1 > y0, z1 > z0")
+    stage, place = opened(folder)
+    prim = object_prim(stage, place, name)
+    world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    if not np.allclose(np.abs(world[:3, :3]), np.round(np.abs(world[:3, :3]))):
+        raise Refused(f"{name} is not laid at quarter turns: its boxes cannot be cut along the scene's axes")
+    own = np.linalg.inv(world)
+    kept = laid_boxes(stage, prim)
+    for region in regions:
+        corners = np.array([[x, y, z, 1.0] for x in region[0::3] for y in region[1::3] for z in region[2::3]]) @ own
+        local = [*corners[:, :3].min(axis=0), *corners[:, :3].max(axis=0)]
+        kept = [piece for box in kept for piece in box_less(box, local)]
+    at, turn, _ = pose_of(prim)
+    role, support = (prim.GetAttribute(f"score:{key}").Get() if prim.GetAttribute(f"score:{key}") else None
+                     for key in ("role", "support"))
+    left = [(np.c_[[[x, y, z] for x in box[0::3][:2] for y in box[1::3][:2] for z in box[2::3][:2]], np.ones(8)]
+             @ world)[:, :3] for box in kept]
+    gone = taken_with(stage, place, name, regions, [(corners.min(axis=0), corners.max(axis=0)) for corners in left],
+                      set(record_of(folder).get("backdrop") or []))
+    held = prim.GetMetadata("references")
+    before = [str(item.assetPath) for item in held.GetAddedOrExplicitItems()] if held else []
+    laid = blocks(folder, name, kept, at=at, turn=turn, ground=False, role=role or "structure", support=support)
+    for taken in gone:
+        remove(folder, taken)
+    text = scene_path(folder).read_text()
+    for asset in before:  # the old blocks file, unless another object still lays it
+        if asset != laid["usd"] and asset not in text:
+            (pathlib.Path(folder) / asset).unlink(missing_ok=True)
+    return {**laid, "regions": regions, "taken_out": gone}
+
+
+def taken_with(stage, place, name, regions, left, kept=()):
+    """The objects and lights a hollow of `name` takes out (hollow): every one but a door leaf whose middle stands in
+    a region, and every fitting mounted on `name` (or on one taken out) that no box `left` (low, high in the scene)
+    stands within FITTING_REACH of; never one `kept` (the place's backdrop: its own renders draw it); by name."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    spans = {}
+    for scope in ("Objects", "Lights"):
+        for prim in stage.GetPrimAtPath(f"/{place}/{scope}").GetChildren():
+            box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+            if prim.GetName() != name and prim.GetName() not in kept and not box.IsEmpty():
+                spans[prim.GetName()] = (prim, np.asarray(box.GetMin()), np.asarray(box.GetMax()))
+    gone = []
+    for other, (prim, low, high) in spans.items():
+        middle = (low + high) / 2
+        role = prim.GetAttribute("score:role").Get() if prim.GetAttribute("score:role") else None
+        if role != "door" and any(np.all(middle > region[:3]) and np.all(middle < region[3:]) for region in regions):
+            gone.append(other)
+    more = True
+    while more:
+        more = False
+        for other, (prim, low, high) in spans.items():
+            mounted = prim.GetAttribute("score:support").Get() if prim.GetAttribute("score:support") else None
+            on = str(mounted or "").split(":", 1)[-1]
+            if other in gone or not str(mounted or "").startswith("wall:") or (on != name and on not in gone):
+                continue
+            if on in gone or not any(boxes_meet(low - FITTING_REACH, high + FITTING_REACH, box_low, box_high)
+                                     for box_low, box_high in left):
+                gone.append(other)
+                more = True
+    return gone
 
 
 def terrain(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), pads=()):
@@ -1095,8 +1241,9 @@ def colour_of(text):
 
 def look_shader(stage, path, copied, colour):
     """The look's shader at `path`: the variant's own (its material.usda referenced, its colour replaced by `colour`
-    when one is given), else a UsdPreviewSurface of `colour` and the recipe's roughness (a recipe has no colour of
-    its own, so it needs one)."""
+    when one is given), else a UsdPreviewSurface of `colour` and the recipe's roughness and opacity (glass seen
+    through), a setting its entry lacks taken from the method's (data/library/materials.json), as palette_spec does
+    (a recipe has no colour of its own, so it needs one)."""
     look = UsdShade.Material.Define(stage, path)
     look.GetPrim().GetReferences().ClearReferences()  # a surface laid before (a ground's) composes no more (#154)
     if "material.usda" in copied:
@@ -1108,8 +1255,12 @@ def look_shader(stage, path, copied, colour):
             raise Refused("a recipe surface has no colour of its own: give --colour #rrggbb")
         shader = UsdShade.Shader.Define(stage, f"{path}/surface")
         shader.CreateIdAttr("UsdPreviewSurface")
-        settings = json.loads(copied["surface.json"].read_text()).get("settings", {})
+        own = json.loads(copied["surface.json"].read_text())
+        method = json.loads((REPO / "data/library/materials.json").read_text())["recipes"].get(own.get("recipe"), {})
+        settings = {**method, **own.get("settings", {})}  # a recipe entry made before glass carried its opacity
         shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(settings.get("roughness", 0.6)))
+        if float(settings.get("opacity", 1.0)) < 1.0:
+            shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(float(settings["opacity"]))
         look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     if colour is not None:
         tinted(stage, shader, colour)
@@ -1570,7 +1721,8 @@ def view(folder, name, eye, aim, fov, cut=False):
 
 
 def remove(folder, name):
-    """The object (and its look), effect or light called `name` taken out of the scene, and out of place.json `cut`."""
+    """The object (and its look), effect or light called `name` taken out of the scene, and out of place.json `cut`
+    and `backdrop`."""
     stage, place = opened(folder)
     paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Effects", "Looks", "Lights")]
     paths += [str(inside.GetPath()) for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
@@ -1582,8 +1734,10 @@ def remove(folder, name):
         stage.RemovePrim(path)
     saved(stage)
     record = record_of(folder)
-    if name in (record.get("cut") or []):  # a removed object is no longer the camera's to see through
-        record["cut"] = [listed for listed in record["cut"] if listed != name]
+    listed_in = [key for key in ("cut", "backdrop") if name in (record.get(key) or [])]
+    for key in listed_in:  # a removed object is no longer the camera's to see through, nor a neighbour's
+        record[key] = [listed for listed in record[key] if listed != name]
+    if listed_in:
         write_record(folder, record)
     return {"removed": name}
 
@@ -1618,7 +1772,7 @@ def refinish(folder, name):
 
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
-         "cut": camera_cut, "kind": kind, "door": door,
+         "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door,
          "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "night": night, "haze": haze,
          "refinish": refinish, "hold": hold}
 

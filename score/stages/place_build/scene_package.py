@@ -90,6 +90,8 @@ GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
 TEXTURES = "textures"  # the baked pictures' folder beside the objects' .gltf files
 HELD_TEXELS = 2048  # the longest side a package's picture is written at: the side the game holds it at (2099 #161,
 # PlaceTextures.MostTexels), so a picture over it is written as the game's own taken-down mip, never decoded at 4096
+BLOCK_TEXELS = 4  # every picture written has sides a multiple of this: an engine compresses it in 4 x 4 blocks
+# (DXT/BC), and 2099 held one of another side raw (flat@4: 4.4 GB of its 5.5 GB uncompressed, 1182 x 1792 maps)
 # The final render's grade, which the engine's tone mapping takes (blender_views.CONTRAST, usd_views' AgX).
 VIEW = {"view_transform": "AgX", "look": "AgX - Medium High Contrast"}
 # The grade's picture (grade_lut.py): a lattice `size` a side, each channel `middle` * 2 ** (low + c * (high - low)),
@@ -1231,11 +1233,11 @@ def converted(prim, baked, made, sights=None):
 
 def taken_down(data):
     """A picture's bytes (PNG or JPEG) at the size the game holds it (2099's PlaceTextures.HeldSize): halved, each texel
-    the mean of the two by two it covers as a mip level is made, until its longer side is at most HELD_TEXELS; (its
-    bytes, mime type), unchanged when it fits."""
+    the mean of the two by two it covers as a mip level is made, until its longer side is at most HELD_TEXELS, its
+    sides then multiples of BLOCK_TEXELS (held_image); (its bytes, mime type), unchanged when it fits."""
     import io
     picture = Image.open(io.BytesIO(data))
-    if max(picture.size) <= HELD_TEXELS:
+    if max(picture.size) <= HELD_TEXELS and all(side % BLOCK_TEXELS == 0 for side in picture.size):
         return data, None
     picture = held_image(picture.convert("RGBA" if "A" in picture.getbands() or picture.mode == "P" else "RGB"))
     held_bytes = io.BytesIO()
@@ -1245,10 +1247,12 @@ def taken_down(data):
 
 def held_image(picture):
     """A decoded picture at the size the game holds it (taken_down's halving), so a look holds no more than the package
-    writes (the square's rocket: 32 maps, each a 4096 normal map, 2.9 GB decoded at once)."""
+    writes (the square's rocket: 32 maps, each a 4096 normal map, 2.9 GB decoded at once), each side then resampled
+    to its nearest multiple of BLOCK_TEXELS (the texture coordinates span the picture, so none moves)."""
     while max(picture.size) > HELD_TEXELS:
         picture = picture.reduce(2)
-    return picture
+    blocked = tuple(max(BLOCK_TEXELS, round(side / BLOCK_TEXELS) * BLOCK_TEXELS) for side in picture.size)
+    return picture if blocked == picture.size else picture.resize(blocked, Image.Resampling.LANCZOS)
 
 
 def pictures_held(document, binary):
@@ -1387,7 +1391,8 @@ def write(folder, out):
 
 
 def written_scene(folder, out, stage, place, seat):
-    """write's body: the package written from the open stage, its frame the area's when `seat` is given."""
+    """write's body: the package written from the open stage, its frame the area's when `seat` is given (then its
+    place.json `backdrop`, the objects and lamps a neighbour place stands for, left out)."""
     ready_file = folder / "ready.json"
     roles = json.loads(ready_file.read_text())["roles"] if ready_file.is_file() else None
     for held in (out.iterdir() if out.exists() else ()):  # all but the bake's maps a stopped bake left (BAKE)
@@ -1396,6 +1401,11 @@ def written_scene(folder, out, stage, place, seat):
     (out / "objects").mkdir(parents=True)
     (out / STEPS).unlink(missing_ok=True)
     found, characters, left_out = laid_objects(stage, place)
+    neighbours = set(place_build.record_of(folder).get("backdrop") or []) if seat else set()
+    found, characters = ([(prim, kind) for prim, kind in listed if prim.GetName() not in neighbours]
+                         for listed in (found, characters))
+    left_out += [{"name": name, "why": f"the concept's backdrop: a neighbour place of the area {seat['area']} "
+                                       "stands for it (place.json backdrop)"} for name in sorted(neighbours)]
     objects, instances, by_content, counts, made = {}, [], {}, {}, {}
     with deadline(out, "the walkers' eyes", "scene"):
         sights = eyes_by_content(stage, place, found)
@@ -1445,7 +1455,8 @@ def written_scene(folder, out, stage, place, seat):
                  "frame": f"the area {seat['area']}'s frame (the place's seat, {seat['from']}): metres, y up"
                  if seat else "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
                  "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
-                 "lamps": lamps_of(stage, place), "counts": counts,
+                 "lamps": [lamp for lamp in lamps_of(stage, place) if lamp["name"] not in neighbours],
+                 "counts": counts,
                  "physics": "ready.json" if roles is not None else None, "left_out": left_out, "chambers": chambers,
                  "environment": environment_of(stage, place, out)}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")

@@ -12,6 +12,7 @@ sill middle, its inward way (into its own place) and its width, and the place it
     join(folder, doorway, to, inward=None)  a recorded doorway or a door leaf marked as the one leading to `to`
     seated(plans, outside, folders)         {place: its seat}, each joined place at its plan's storey height with its
                                             door on its neighbour's, the rest as laid; the joins and their faults
+    shells_crossed(folders, seats)          a fault for each two seated places' shells standing inside each other
     area(plans, outside, folders, out)      the seats and the joins check written as one record (seats.json)
 
 A seat is the place's frame in the area's: a turn about up and a shift, a 4 x 4 matrix in USD's row-vector order
@@ -44,6 +45,10 @@ INSIDE = 2.0  # metres in from a doorway a join's route starts and ends: past it
 REACH = 5.0  # metres round a join's doorway the objects its route is walked over are gathered
 AREA = "area"  # the default prim of the stage a join's route is walked on
 SEPARATOR = "__"  # an object's name there: its place, this, its own name
+SHELLS = ("shell", "connector", "structure")  # the roles a place's built shell is of (ready's walls)
+CROSSED = 1.0  # cubic metres two seated places' shells may stand inside each other (a sill on a reveal, a seam)
+STEP = 0.1  # metres between the points the crossed volume is counted at
+POINTS = 200_000  # points counted at most in one pair of solids' common box (STEP grown to keep within it)
 
 
 def leaf_doorway(stage, place, name):
@@ -324,12 +329,76 @@ def judged(folders, seats, ends):
             "along": round(along, 4), "facing": round(facing, 2), "walked": metres, "faults": faults}
 
 
+# --- the shells check ---------------------------------------------------------------------------------------------
+
+def seated_shells(folder, seat):
+    """{object: [its closed solids, seated in the area]} of the place's shell (SHELLS, ready.role_of), its place.json
+    `backdrop` (a neighbour place stands for it) left out."""
+    stage, place = place_build.opened(folder)
+    neighbours = set(place_build.record_of(folder).get("backdrop") or [])
+    found = {}
+    for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
+        if prim.GetName() in neighbours or ready.role_of(prim) not in SHELLS:
+            continue
+        mesh = ready.solid_of(prim)
+        if mesh is None or not len(mesh.faces):
+            continue
+        mesh.apply_transform(seat)
+        found[prim.GetName()] = [piece for piece in mesh.split(only_watertight=False) if abs(piece.volume) > 1e-6]
+    return found
+
+
+def crossed(pieces, others):
+    """Cubic metres where solids of `pieces` and of `others` stand inside each other: points STEP apart (wider when
+    a common box would hold more than POINTS) counted inside both."""
+    total = 0.0
+    for piece in pieces:
+        for other in others:
+            low = np.maximum(piece.bounds[0], other.bounds[0])
+            high = np.minimum(piece.bounds[1], other.bounds[1])
+            if np.any(high <= low):
+                continue
+            step = max(STEP, float(np.prod(high - low) / POINTS) ** (1 / 3))
+            axes = [np.arange(start + step / 2, end, step) for start, end in zip(low, high)]
+            if any(not len(axis) for axis in axes):
+                continue
+            points = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1).reshape(-1, 3)
+            inside = piece.contains(points)
+            if inside.any():
+                total += int(np.count_nonzero(other.contains(points[inside]))) * step ** 3
+    return total
+
+
+def shells_crossed(folders, seats):
+    """A fault for each two seated places' shell objects standing more than CROSSED cubic metres inside each other
+    (the 2099 prologue, 2026-11-22: the walker began inside the street's block wall_l1, the flat and the stairwell
+    seated within it): one of them is hollowed or left to its neighbour (place.json `backdrop`), never this loosened."""
+    shells = {name: seated_shells(folder, seats[name]["matrix"]) for name, folder in sorted(folders.items())}
+    faults = []
+    names = sorted(shells)
+    for number, name in enumerate(names):
+        for other in names[number + 1:]:
+            for own, pieces in shells[name].items():
+                for theirs, others in shells[other].items():
+                    if not any(np.all(piece.bounds[0] < other_piece.bounds[1]) and
+                               np.all(other_piece.bounds[0] < piece.bounds[1])
+                               for piece in pieces for other_piece in others):
+                        continue
+                    volume = crossed(pieces, others)
+                    if volume > CROSSED:
+                        faults.append(f"{name}'s {own} and {other}'s {theirs} stand {volume:.1f} m3 inside each "
+                                      f"other, seated (shells may cross by {CROSSED:g} m3)")
+    return faults
+
+
 def area(plans, outside, folders, out=None, seat=False, stands=None):
-    """The area's seats and its joins check as one record (written to `out` when given): every place's seat (`stands`
-    laid as it is, seated), every planned join judged, and every fault; with `seat`, each place's seat also written
+    """The area's seats and its joins and shells checks as one record (written to `out` when given): every place's
+    seat (`stands` laid as it is, seated), every planned join judged, every two places' shells crossed, and every
+    fault; with `seat`, each place's seat also written
     into its folder's place.json `seat` (the package then lays the place in the area's frame: scene_package.seated)."""
     seats, joins, faults = seated(plans, outside, folders, stands)
     judged_joins = [judged(folders, seats, ends) for ends in joins]
+    faults += shells_crossed(folders, seats)
     record = {"area": outside, "plans": str(plans),
               "seats": {name: {"matrix": np.round(seat["matrix"].T, 6).flatten().tolist(), "from": seat["from"]}
                         for name, seat in sorted(seats.items())},

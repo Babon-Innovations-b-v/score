@@ -105,6 +105,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   flat door, for a place of its own joined there (the flat). `stairs --street-door` cuts a street door in the
   entrance block's facade (`<name>_street`, in place of its ground window nearest the shaft): that ground floor is
   the lobby the entrance opens off, so the stairwell meets the street (#154).
+- **A neighbour's part of the concept** (`backdrop <folder> <name>`, place.json `backdrop`; 2099's prologue,
+  2026-11-22: the flat carried its own square, crowd, stage and far blocks through the street's walls): an object or
+  lamp of the concept's surroundings that another place of the area is (place/square). The place's own renders draw
+  it; its package leaves it out once the area seats it, and the area's shells check reads it as none of the place's.
+- **A block giving way** (`hollow <folder> <name> --region x0,y0,z0,x1,y1,z1`): a blocks object re-laid without what
+  stands in each region (the scene's frame), its boxes read back from its laid mesh and cut, its parts, pose and role
+  kept; what stands in a region (a shop's tables, its lamps) and fittings left with no wall within FITTING_REACH go
+  with it, a door leaf never. The street's wall_l1 round the seated stairwell and flat: the walker began inside it.
 - **Places of one area** (area/, its own overlay): `join` marks the doorway leading to a neighbour place, `area` seats
   the places at the plans' storey heights with their joined doors meeting and checks every join (seats.json).
 - **A physical sky from where and when** (`sky-at`, #154; every library sky dome is withdrawn): an airless body's
@@ -154,7 +162,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
   entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
   relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, each map as
-  big as its charts and at most 4096 (written at most 2048, HELD_TEXELS: the game's PlaceTextures.MostTexels, a
+  big as its charts and at most 4096 (written at most 2048 and every side a multiple of BLOCK_TEXELS, 4, so an engine compresses it in its 4 x 4 blocks;
+HELD_TEXELS: the game's PlaceTextures.MostTexels, a
   bigger picture halved as its mip is made, so the game decodes what it shows; 2099 #161) (a face wider than half a map cut first, blocks of a map's worth packed alone, a
   map under 512 refused: #146, #151; the base's hangar sat 11.5 h packing 44 big faces as one 33,000 px map), a laid
   ground's as one seamless 8 m tile, in Blender runs of a few maps of one object each (scene_package.BATCH; one run

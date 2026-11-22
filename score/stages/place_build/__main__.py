@@ -27,6 +27,8 @@
     python -m score.stages.place_build light <folder> <name> --at x,y,z --watts W [--radius m] [--colour #rrggbb]
     python -m score.stages.place_build remove <folder> <name>
     python -m score.stages.place_build cut <folder> <name>
+    python -m score.stages.place_build backdrop <folder> <name>
+    python -m score.stages.place_build hollow <folder> <name> --region x0,y0,z0,x1,y1,z1 [--region ...]
     python -m score.stages.place_build door <folder> <name> [--opens] [--slide] [--lock chamber --side inner|outer]
     python -m score.stages.place_build refinish <folder> <name>
     python -m score.stages.place_build list <folder>
@@ -226,6 +228,10 @@ def run(args):
         return place_build.remove(args.folder, args.name)
     if args.step == "cut":
         return place_build.camera_cut(args.folder, args.name)
+    if args.step == "backdrop":
+        return place_build.backdrop(args.folder, args.name)
+    if args.step == "hollow":
+        return place_build.hollow(args.folder, args.name, [numbers(region) for region in args.region])
     if args.step == "kind":
         return place_build.kind(args.folder, args.kind)
     if args.step == "door":
@@ -426,10 +432,14 @@ def parser():
     step.add_argument("--watts", type=float, required=True)
     step.add_argument("--radius", type=float, default=0.05)
     step.add_argument("--colour", default="#ffffff")
-    for name in ("remove", "refinish", "cut"):
+    for name in ("remove", "refinish", "cut", "backdrop"):
         step = steps.add_parser(name)
         step.add_argument("folder")
         step.add_argument("name")
+    step = steps.add_parser("hollow")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("--region", action="append", required=True, help="x0,y0,z0,x1,y1,z1 in the scene's frame")
     for name in ("list", "compare"):
         steps.add_parser(name).add_argument("folder")
     step = steps.add_parser("door")

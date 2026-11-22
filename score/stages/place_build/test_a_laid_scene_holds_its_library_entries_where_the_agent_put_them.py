@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; a street's block turned a quarter hollowed where a neighbour place is seated in it (its boxes cut, its parts, pose and role kept, the shop's table and lamp and the fittings left with no wall taken out, a door leaf and a sign on what is left kept); a recipe's glass laid from the library see-through at the method's opacity; every packaged picture's sides a multiple of four; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -178,6 +178,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   opacity (a palette taken before glass carried it lays opaque glass)
 - scene_package.glass_of: the tint left the look's colour -> the tunnel's glass passes (0.5, 0.5, 1), not (0.9, 0.9, 1)
 - scene_package.attached: the normal map left off -> the panel's baked maps carry no normal texture
+- place_build.look_shader: a recipe entry's settings alone (the method's defaults unread) -> the panel's recipe glass
+  laid from the library carries no opacity (opaque in the package: the stairwell's glass, 2099 2026-11-22)
+- scene_package.held_image: its sides left as halved (no BLOCK_TEXELS) -> the dune's 62 texel sand is held at 31
+- place_build.taken_with: a fitting kept whatever wall is left (FITTING_REACH unread) -> the hollowed block's rack and
+  the wash on it stay
 - scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
 - scene_package.pbr: the ground's tile left None -> the regolith's recipe is unwrapped, no tile baked
 - scene_package.blender_baked: every map baked again (marks ignored) -> the resumed bake asks the stopped one's
@@ -293,6 +298,8 @@ def library(root, files):
               '</sand/colour.outputs:rgb>\n  token outputs:surface\n }\n}\n')
     entry("surface", "sand", {"material.usda": ("usd", mapped), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
+    entry("surface", "pane", {"surface.json": ("record", json.dumps({"recipe": "glass",
+                                                                     "settings": {"roughness": 0.05}}))})
     glass = variant.replace("steel", "glass").replace("(0.3, 0.3, 0.4)", "(0.5, 0.5, 1)\n  float inputs:opacity = 0.2")
     entry("surface", "glass", {"material.usda": ("usd", glass), "surface.json": ("record", "{}")})
     entry("light", "lamp", {"lamps.json": ("record", "{}")})
@@ -544,6 +551,10 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.put(folder, "screen", "model/monitor", at=(12, 0, 0))
     place_build.surface(folder, "screen", "palette/hull_paint", part="glow")
     place_build.put(folder, "panel", "kit/box_piece", at=(14, 0, 0))
+    place_build.surface(folder, "panel", "surface/pane", colour="#ffffff")  # a recipe's glass, before its opacity
+    paned = Sdf.Layer.FindOrOpen(str(folder / "scene.usda"))
+    pane_opacity = paned.GetAttributeAtPath("/yard/Looks/panel/surface.inputs:opacity").default
+    del paned  # a layer held open is read again stale by the steps after
     place_build.surface(folder, "panel", "palette/hull_paint")
     batched = place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
@@ -638,6 +649,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert stage.GetPrimAtPath("/yard/Objects/panel").GetAttribute("score:surface").Get() == "surface/boards@1"
     method = json.loads((place_build.REPO / "data/library/materials.json").read_text())["recipes"]["glass"]
     assert place_build.palette_spec(folder, "porthole")["opacity"] == method["opacity"] < 1.0  # see-through
+    assert np.isclose(pane_opacity, method["opacity"]), pane_opacity  # the method's, as palette_spec takes it
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
     holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))
@@ -996,7 +1008,7 @@ def packaged(folder, out):
     assert not held.GetPrimAtPath(f"/{held.GetDefaultPrim().GetName()}/Looks/regolith").HasAuthoredReferences()
     place_build.surface(folder, "tunnel", "surface/glass")
     sand = folder / "assets/surface/sand/1"
-    Image.new("RGB", (64, 64), (90, 90, 90)).save(sand / "colour.jpg")  # over HELD_TEXELS: held at its 32
+    Image.new("RGB", (62, 62), (90, 90, 90)).save(sand / "colour.jpg")  # over HELD_TEXELS: held at its 31, as 32
     (sand / "surface.json").write_text(json.dumps({"tile_metres": 0.5}))
     (folder / "assets/kit/box_piece/1/box_piece.json").write_text(json.dumps({"physics": {"mass_kg": 12.5}}))
     (folder / "ready.json").write_text(json.dumps({"roles": {"big": "prop", "wall": "structure", "sky": "light"}}))
@@ -1085,6 +1097,7 @@ def packaged(folder, out):
     assert panel["images"] and all(set(image) == {"bufferView", "mimeType"} for image in panel["images"])
     held = held_pictures(out, scene)
     assert held and max(max(size) for size, _, _ in held) == 32 and all(count == 1 for _, count, _ in held), held
+    assert all(side % scene_package.BLOCK_TEXELS == 0 for size, _, _ in held for side in size), held  # DXT blocks
     assert any(reading == 2 for _, _, reading in held)  # the baker's like metal-roughness and normal: one picture
     assert not (out / "objects" / scene_package.TEXTURES).exists()  # every picture rides in its object's buffer
     assert made["baked_maps"] == len(asked) and tiles.count(scene_package.GROUND_TILE) == 1
@@ -1489,3 +1502,39 @@ def blocks_lock(tmp_path):
     _, chambers = scene_package.locks_of(laid_walled)
     assert [(chamber["name"], chamber["inner"], chamber["outer"]) for chamber in chambers] == \
         [("back_wall", ["plug"], ["hatch"])] and 3.0 * 2.0 * 2.0 < chambers[0]["air_volume"] < 4.4 * 3.4 * 2.7, chambers
+    hollowed(walled)
+
+
+def hollowed(folder):
+    """A street's block turned a quarter (its shop's face on -z) hollowed where the area seats a neighbour place in it
+    (2099's prologue: the walker began inside the street's block wall_l1): its boxes cut to what stands outside the
+    region, in their parts, pose and role; the shop's table and lamp, the rack on the gone face and the wash on that
+    rack taken out with it, the door leaf and the sign on the face left kept."""
+    place_build.blocks(folder, "block", [[0, 0, 0, 4, 3, 6, "wall"], [-0.3, 0, 0, 0, 3, 6, "base"]], at=(40, 0, 0),
+                       turn=(0, -90, 0))
+    place_build.blocks(folder, "table", [[36.8, 0, 0.8, 37.2, 0.8, 1.2, "top"]], role="prop")
+    place_build.blocks(folder, "rack", [[36.7, 1.0, -0.9, 37.3, 1.2, -0.3, "rack"]], role="mount",
+                       support="wall:block")
+    place_build.blocks(folder, "wash", [[36.8, 0.4, -1.3, 37.2, 1.0, -1.05, "cloth"]], role="mount",
+                       support="wall:rack")
+    place_build.blocks(folder, "sign", [[34.5, 1.0, -0.4, 35.5, 1.4, -0.3, "sign"]], role="mount",
+                       support="wall:block")
+    place_build.blocks(folder, "gate", [[36.9, 0.0, -0.2, 37.6, 1.9, -0.15, "leaf"]], role="prop")
+    place_build.door(folder, "gate", opens=True)
+    place_build.light(folder, "shop_lamp", at=(37.0, 1.5, 1.0), watts=10)
+    region = [36.0, -1.0, -1.0, 38.0, 2.0, 2.0]
+    made = place_build.hollow(folder, "block", [region])
+    stage, place = place_build.opened(folder)
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/block")
+    boxes = place_build.laid_boxes(stage, prim)
+    world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    corners = [np.array([[x, y, z, 1.0] for x in box[0::3][:2] for y in box[1::3][:2] for z in box[2::3][:2]]) @ world
+               for box in boxes]
+    inside = [corner for corner in corners if np.all(corner[:, :3].min(axis=0) < np.array(region[3:]) - 1e-4)
+              and np.all(corner[:, :3].max(axis=0) > np.array(region[:3]) + 1e-4)]
+    volume = sum(np.prod(np.array(box[3:6]) - box[:3]) for box in boxes)
+    assert not inside and np.isclose(volume, 4 * 3 * 6 + 0.3 * 3 * 6 - 2 * 2 * 2 - 2 * 2 * 0.3, atol=1e-3), boxes
+    assert {box[6] for box in boxes} == {"wall", "base"} and sorted(made["taken_out"]) == ["rack", "shop_lamp", "table",
+                                                                                           "wash"], made
+    assert place_build.pose_of(prim)[1] == [0.0, -90.0, 0.0] and prim.GetAttribute("score:role").Get() == "structure"
+    assert all(stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in ("sign", "gate")), made
