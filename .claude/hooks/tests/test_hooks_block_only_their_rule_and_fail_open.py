@@ -954,7 +954,7 @@ CLOSE_ASKS = [  # asked in this order
 ]
 
 
-# soul_guard: no em dash, and no long reply to a short question that did not ask for detail; sent back at most twice.
+# soul_guard: no em dash, and no long reply to a short question that did not ask for detail; sent back at most once.
 
 def soul_turn(folder, question, reply):
     lines = [{"type": "user", "message": {"role": "user", "content": question}},
@@ -986,7 +986,6 @@ SOUL_ASKS = [  # asked in this order
     ("soul", soul("f", "can u list me all modules and their groups", LONG_REPLY), "quiet", ()),
     # the rewrite is checked again: a still-long rewrite goes back once more, then the turn may end
     ("soul", soul("e", "is it done?", LONG_REPLY, rewrite=False), "said", (), SENT_BACK),
-    ("soul", soul("e", "is it done?", LONG_REPLY, rewrite=True), "said", (), SENT_BACK),
     ("soul", soul("e", "is it done?", LONG_REPLY, rewrite=True), "quiet", ()),
 ]
 
