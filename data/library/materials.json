@@ -98,7 +98,8 @@
    "bump": 0.0002
   },
   "glass": {
-   "roughness": 0.05
+   "roughness": 0.05,
+   "opacity": 0.2
   },
   "glowing": {
    "roughness": 0.3

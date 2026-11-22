@@ -173,6 +173,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.pbr: the map's tint left off -> the sand's base colour is white
 - scene_package.gprim_pieces: the tile ignored (the mesh's own st) -> the dune has no tiled coordinates
 - scene_package.mass_of: the scale's cube left off -> the doubled box weighs 12.5 kg, not 100
+- place_build.recipe_marked: the spec's opacity left off the look -> the plank's palette glass is packaged OPAQUE
+- place_build.palette_spec: the method's recipe defaults not under the place's copy -> the porthole's spec carries no
+  opacity (a palette taken before glass carried it lays opaque glass)
 - scene_package.glass_of: the tint left the look's colour -> the tunnel's glass passes (0.5, 0.5, 1), not (0.9, 0.9, 1)
 - scene_package.attached: the normal map left off -> the panel's baked maps carry no normal texture
 - scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
@@ -529,8 +532,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.surface(folder, "dune", "surface/sand", colour="#ff8000")
     place_build.light(folder, "bulb", at=(0, 2.5, 0), watts=100)
     (tmp_path / "palette.json").write_text(json.dumps({
-        "recipes": {"boards": {"roughness": 0.7}}, "tokens": {"hull": "#ff0000", "dust": "#00ff00"}, "dirt": "dust",
-        "families": {"paint": {"variants": {"hull_paint": {"recipe": "boards", "token": "hull", "seed": 3}}}}}))
+        "recipes": {"boards": {"roughness": 0.7}, "glass": {"roughness": 0.05}},  # glass before its opacity (#154)
+        "tokens": {"hull": "#ff0000", "dust": "#00ff00"}, "dirt": "dust",
+        "families": {"paint": {"variants": {"hull_paint": {"recipe": "boards", "token": "hull", "seed": 3}}},
+                     "glass": {"variants": {"porthole": {"recipe": "glass", "token": "hull"},
+                                            "smoked": {"recipe": "glass", "token": "dust", "opacity": 0.5}}}}}))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
     place_build.put(folder, "screen", "model/monitor", at=(12, 0, 0))
     place_build.surface(folder, "screen", "palette/hull_paint", part="glow")
@@ -627,6 +633,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert (spec["recipe"], spec["wear"], spec["dirt"], spec["dirt_colour"], spec["hex"]) == ("boards", 0.4, 0.3,
                                                                                                [0.0, 1.0, 0.0], "#ff0000")
     assert stage.GetPrimAtPath("/yard/Objects/panel").GetAttribute("score:surface").Get() == "surface/boards@1"
+    method = json.loads((place_build.REPO / "data/library/materials.json").read_text())["recipes"]["glass"]
+    assert place_build.palette_spec(folder, "porthole")["opacity"] == method["opacity"] < 1.0  # see-through
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
     holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))
@@ -977,6 +985,7 @@ def packaged(folder, out):
     place_build.put(folder, "plank", "kit/box_piece", at=(90, 0, 0), scale=(2, 1, 1))
     place_build.put(folder, "big", "kit/box_piece", at=(95, 0, 0), scale=(2, 2, 2))
     place_build.surface(folder, "big", "palette/hull_paint")
+    place_build.surface(folder, "plank", "palette/smoked")
     place_build.surface(folder, "regolith", "surface/steel")  # a variant: its material referenced
     place_build.surface(folder, "regolith", "palette/hull_paint")
     held, _ = place_build.opened(folder)
@@ -1083,6 +1092,12 @@ def packaged(folder, out):
     assert np.allclose(glass["pbrMetallicRoughness"]["baseColorFactor"], (0.9, 0.9, 1.0, 0.2))
     assert glass["extensions"] == {"KHR_materials_transmission": {"transmissionFactor": 0.8},
                                    "KHR_materials_ior": {"ior": 1.5}} and glass["alphaMode"] == "BLEND"
+    _, plank_looks = gltf_of(out, scene, copies["plank"]["object"])
+    _, big_looks = gltf_of(out, scene, copies["big"]["object"])
+    smoked = next(look for name, look in plank_looks.items() if name.startswith("surface/glass@1"))
+    assert smoked["alphaMode"] == "BLEND" and smoked["extensions"]["KHR_materials_transmission"] == {
+        "transmissionFactor": 0.5}  # a palette glass seen through, as its variant's opacity says
+    assert all(look.get("alphaMode", "OPAQUE") == "OPAQUE" for look in big_looks.values())  # a paint stays opaque
     world = scene["environment"]
     assert world["exposure"] == np.float32(2.5) and world["sky"] is None and world["night"]["moon"]["elevation"] == 30
     assert np.isclose(world["night"]["moon"]["strength"], 0.04)  # 0.01 laid, times 4 as Blender's reader reads it

@@ -1118,7 +1118,8 @@ def look_shader(stage, path, copied, colour):
 
 def recipe_marked(look, spec):
     """A palette variant's look carries its spec (`score:recipe:spec`, JSON) for the render's recipe pass, and its
-    preview its roughness, metal and glow (a glowing recipe's colour given off); any other look carries none."""
+    preview its roughness, metal, glow (a glowing recipe's colour given off) and opacity (glass seen through, as the
+    preview's thin glass and the scene package's transmission read it); any other look carries none."""
     marked = look.GetPrim().GetAttribute("score:recipe:spec")
     if spec is None:
         if marked:
@@ -1130,6 +1131,7 @@ def recipe_marked(look, spec):
     shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(spec.get("metal", 0.0)))
     glow = Gf.Vec3f(*spec["colour"]) if spec["recipe"] == "glowing" else Gf.Vec3f(0.0, 0.0, 0.0)
     shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(glow)
+    shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(float(spec.get("opacity", 1.0)))
 
 
 def tinted(stage, shader, colour):
@@ -1200,12 +1202,15 @@ def palette(folder, library, wear, dirt):
 
 def palette_spec(folder, variant):
     """A variant of the place's palette as its recipe wants it (library.spec: the recipe's defaults under the
-    variant's settings, its tokens as linear colours, dirt in the palette's dirt token) with the place's wear, dirt and
+    variant's settings, a default the place's copy lacks taken from the method's (data/library/materials.json: a
+    palette taken before glass carried its opacity still lays see-through glass), its tokens as linear colours, dirt in the palette's dirt token) with the place's wear, dirt and
     its token's colour as '#rrggbb'."""
     path = pathlib.Path(folder) / PALETTE
     if not path.exists():
         raise Refused("no palette: lay the place's surface library first (palette <folder> <materials.json>)")
     taken = json.loads(path.read_text())
+    method = json.loads((REPO / "data/library/materials.json").read_text())["recipes"]
+    taken["recipes"] = {name: {**method.get(name, {}), **own} for name, own in taken.get("recipes", {}).items()}
     every = surface_library.variants(taken)
     if variant not in every:
         raise Refused(f"palette/{variant}: the place's palette holds no such variant ({', '.join(sorted(every))})")

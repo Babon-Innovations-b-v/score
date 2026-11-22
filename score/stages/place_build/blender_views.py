@@ -25,7 +25,8 @@ laid place needs, made here so the films' and the physics' renders (which key us
   its spec in `score:recipe:spec`) is replaced by its ProcFunc recipe (tools/props/library/recipes.py, as the
   surfaces bake and the swatches draw it): its edge wear through to the bare layer, dirt in its cavities and its
   relief, at the place's wear and dirt, so shells, floors and repainted parts wear the same finishes the props were
-  baked from. A preview look stays for every other reader. The views take AgX's medium high contrast look, as a
+  baked from; a see-through variant (glass, its opacity under 1) stays thin glass. A preview look stays for every
+  other reader. The views take AgX's medium high contrast look, as a
   camera's grade, rather than the films' flat base.
 
     blender -b --python blender_views.py -- <stage.usda> <views.json> <out folder>   (usd_views.py's arguments)
@@ -273,6 +274,8 @@ def recipe_looks(objects, specs):
             if name not in specs:
                 continue
             spec = specs[name]
+            if float(spec.get("opacity", 1.0)) < 1.0:  # see-through: thin_glass drew it, the module's rule
+                continue
             key = json.dumps(spec, sort_keys=True)  # one material a variant, however many objects wear it
             if key not in drawn:
                 material = recipes.shaded(recipes.channels(spec, spec["wear"], spec["dirt"], spec["seed"])).item()
