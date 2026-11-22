@@ -254,8 +254,8 @@ def traced_finish(material, pieces, thing, context):
     """(address or bake node, how) the finish traces to, or (None, None)."""
     if material is None:
         return None, None
-    named = authored(material, LIBRARY_ATTR)
-    if named and context.shelf.has(named):
+    named = context.shelf.newest(authored(material, LIBRARY_ATTR))
+    if named:
         return named, "its score:library attribute"
     surface = authored(material, "score:surface") or next(
         (authored(piece, "score:surface") for piece in pieces if authored(piece, "score:surface")), None)

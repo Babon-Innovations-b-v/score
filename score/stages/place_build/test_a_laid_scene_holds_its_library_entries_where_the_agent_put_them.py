@@ -155,6 +155,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
 - place_build.remove: Effects not looked in -> the removed ruts stay laid
 - place_build.usd_file: an effect's `usd` root unread -> the wisp lays its clip.usdc, not its emitter
+- place_build.usd_file: a model's `usd` root unread (ROOTED_KINDS the effect alone) -> the adopted crate lays its
+  base payload, not its root
+- place_build.layered: a layer taken from any folder (the same-folder test dropped) -> the crate's payload
+  sm_crate_01_geo is laid as its layer `geo`
+- library.replaced_end: the chain left unfollowed (`return address` at once) -> the retired crate is refused
+  withdrawn, not laid as the adopted crate
 - place_build.put: an effect laid under Objects -> the wisp is a solid object with no role
 - place_build.hold: the pose's rotations not written -> the walker's hips keep their clip's turn
 - place_build.held_prop: the hold frame left out (the joint's transform alone) -> the stub sits on the hips, not
@@ -237,6 +243,7 @@ import pathlib
 import trimesh
 
 import numpy as np
+import pytest
 from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, UsdSkel, Vt
 
@@ -325,6 +332,22 @@ def library(root, files):
     sky = ('#usda 1.0\n(\n defaultPrim = "sky_dome"\n)\ndef Xform "sky_dome"\n{\n def DomeLight "Environment"\n {\n'
            '  float inputs:intensity = 0.2\n }\n}\n')
     entry("light", "sky", {"sky.usda": ("usd", sky)})
+    base = piece.GetRootLayer().ExportToString().replace('"box"', '"base"').replace("</box/", "</base/")
+    rooted = ('#usda 1.0\n(\n defaultPrim = "crate"\n)\ndef Xform "crate" (\n'
+              ' prepend references = @./payloads/base.usda@\n)\n{\n}\n')
+    entry("model", "sm_crate", {"simready_usd/payloads/base.usda": ("usd", base),
+                                "simready_usd/payloads/sm_crate_01_geo.usda": ("usd", base),
+                                "simready_usd/sm_crate_01.usda": ("usd", rooted)})
+    for kind, entry_id, written in (("model", "sm_crate", {"usd": {"root": "simready_usd/sm_crate_01.usda"}}),
+                                    ("model", "old_crate", {"state": "withdrawn", "replaced_by": "model/old_box@1"}),
+                                    ("model", "old_box", {"state": "withdrawn", "replaced_by": "model/sm_crate@1"}),
+                                    ("model", "gone", {"state": "withdrawn", "replaced_by": "model/gone_too@1"}),
+                                    ("model", "gone_too", {"state": "withdrawn"}),
+                                    ("surface", "old_steel", {"state": "withdrawn", "replaced_by": "surface/steel@1"})):
+        if kind != "model" or entry_id != "sm_crate":
+            entry(kind, entry_id, {})
+        path = root / "entries" / kind / entry_id / "1" / "entry.json"
+        path.write_text(json.dumps(dict(json.loads(path.read_text()), **written)))
 
 
 def part_middles(mesh, part):
@@ -804,6 +827,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     from_library(tmp_path, root, files)
     skied(tmp_path, root, files)
     adopted(tmp_path / "adopted")
+    replaced(tmp_path)
 
 
 def adopted(folder):
@@ -846,6 +870,24 @@ def adopted(folder):
     assert material.metallicFactor == material.roughnessFactor == 1.0
     assert material.normalTexture.getpixel((0, 0)) == maps["nor"]
     assert material.baseColorTexture.getpixel((0, 0)) == maps["alb"]
+
+
+def replaced(tmp_path):
+    """A withdrawn model and surface that name their replacements laid as the end of the chain (#155): the retired
+    crate, through a retired box, as the adopted crate laid by its record's usd root (its payloads beside it, one named
+    like the root's layers, never laid as a layer), the retired steel as the steel; a chain ending withdrawn refused."""
+    folder = tmp_path / "replaced"
+    Image.new("RGB", (8, 8)).save(tmp_path / "replaced.png")
+    place_build.start(folder, "depot", tmp_path / "replaced.png")
+    laid = place_build.put(folder, "crate", "model/old_crate")
+    worn = place_build.surface(folder, "crate", "surface/old_steel@1")
+    assert (laid["address"], laid["usd"], laid.get("layers")) == (
+        "model/sm_crate@1", "./assets/model/sm_crate/1/simready_usd/sm_crate_01.usda", None), laid
+    assert worn["surface"] == "surface/steel@1", worn
+    stage, _ = place_build.opened(folder)
+    assert stage.GetPrimAtPath("/depot/Objects/crate/geo"), "the adopted crate's root references its base payload"
+    with pytest.raises(place_build.Refused, match="gone_too@1: withdrawn"):
+        place_build.put(folder, "lost", "model/gone")
 
 
 def skied(tmp_path, root, files):

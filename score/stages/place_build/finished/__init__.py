@@ -11,7 +11,10 @@ A shown part wears the library's finish when it is bound to a look of the place 
 the library holds (`score:surface`), or to its model's own paint when that paint is the library's: a model the surface
 line painted from the library surfaces (LIBRARY_PAINT in its entry's provenance), or a character's dress under a
 written exception (data/checks/library-exceptions.json, the player models' own texture: the library check's
-exceptions, read at /<place>/Characters/<name>, the path that check gives a place's characters). Its faults:
+exceptions, read at /<place>/Characters/<name>, the path that check gives a place's characters), or
+to its model's own material when that names a surface the library holds (`score:surface`: an adopted set's model, its
+materials taken in as library surfaces). A surface the library withdrew naming its replacement (`replaced_by`) is
+judged by the end of that chain. Its faults:
 
 - `no material`: a shown part bound to nothing (a default grey);
 - `own paint`: a shown part wearing its model's own paint that no library surface painted (a picture-made take, a
@@ -264,23 +267,39 @@ def model_file(prim):
 
 # --- the judgement ------------------------------------------------------------------------------------------------
 
+def held_surface(address, surfaces):
+    """Whether the library holds the surface `address` names in force: it, or the end of the replacements a withdrawn
+    one names (#155: a place laid before a surface was replaced still wears the library's); `surfaces` caches each
+    answer."""
+    if address not in surfaces:
+        try:
+            end = place_build.resolved_address(address, place_build.library_root())
+            record = place_build.entry_of(end)
+            surfaces[address] = record["kind"] == "surface" and not withdrawn(record)
+        except (place_build.Refused, ValueError):
+            surfaces[address] = False
+    return surfaces[address]
+
+
 def look_fault(look, surfaces):
     """Why a look of the place is no library surface, or None."""
     address = text(look, "score:surface")
     if not address:
         return f"look {look.GetName()} names no library surface"
-    if address not in surfaces:
-        try:
-            surfaces[address] = not withdrawn(place_build.entry_of(address))
-        except place_build.Refused:
-            surfaces[address] = False
-    return None if surfaces[address] else (f"look {look.GetName()} names {address}, which the library does not hold "
-                                           "(or has withdrawn)")
+    return None if held_surface(address, surfaces) else (f"look {look.GetName()} names {address}, which the library "
+                                                         "does not hold (or has withdrawn)")
 
 
 def provenance_words(record):
     made = (record or {}).get("provenance", {}).get("made_with", [])
     return ", ".join(sorted({step.get("by", "?") for step in made})) or "no provenance"
+
+
+def own_surface(material, surfaces):
+    """Whether a model's own material names a surface the library holds in force (`score:surface`: an adopted set's
+    model, its materials taken in as library surfaces, #155)."""
+    address = text(material, "score:surface")
+    return bool(address) and held_surface(address, surfaces)
 
 
 def own_paint_why(prim, record):
@@ -308,7 +327,8 @@ def object_faults(prim, place, surfaces, exceptions):
             elif str(material.GetPath()).startswith(looks + "/"):
                 why = look_fault(material, surfaces)
                 kind = "unknown surface" if why else None
-            elif library_painted(prim, record, exceptions):
+            elif library_painted(prim, record, exceptions) or (not withdrawn(record)
+                                                                and own_surface(material, surfaces)):
                 kind = None
             else:
                 kind, why = "own paint", own_paint_why(prim, record)

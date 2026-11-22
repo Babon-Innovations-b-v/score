@@ -6,6 +6,13 @@ fetches its files).
     library.entries(root)                 # every entry.json record, every version, in path order
     library.entry(root, kind, id, version)
     library.index(root, kind)             # index/<kind>.json
+    library.licence(record)               # the licence block of a part not under MIT, or None (MIT)
+    library.replacement(record)           # the address a withdrawn entry names as its replacement, or None
+    library.replaced_end(root, address)   # the address at the end of an entry's replacement chain
+
+An entry is MIT unless it carries a `licence` block ({id, source, credit, url}: an adopted set's CC-BY-4.0 part, its
+credit kept with it), and a withdrawn entry may name the entry that replaces it (`replaced_by`,
+`<kind>/<id>@<version>`), so a place laid again takes the replacement (#155).
 
 Every file is checked against the schema version this reader was written for (`ENTRY_SCHEMA`, `INDEX_SCHEMA`); a
 file of another version is refused (`Unread`), never half read. A new score_lib schema is a change here first.
@@ -55,3 +62,32 @@ def entry(root, kind, entry_id, version):
 def index(root, kind):
     """The library's index of one kind: {schema, kind, entries: [{address, digest, state, tags, ...}]}."""
     return read_json(pathlib.Path(root).expanduser() / "index" / f"{kind}.json", INDEX_SCHEMA)
+
+
+def licence(record):
+    """The entry's licence block ({id, source, credit, url}) when it is a part not under MIT, else None (MIT)."""
+    return record.get("licence") or None
+
+
+def replacement(record):
+    """The address a withdrawn entry names as its replacement (`replaced_by`), or None: an entry in force, or one
+    withdrawn with nothing in its place."""
+    return record.get("replaced_by") or None if record.get("state") == "withdrawn" else None
+
+
+def replaced_end(root, address):
+    """The address at the end of `address`'s replacement chain: itself when its entry is in force, names no
+    replacement or is not held, else each replacement followed in turn (the end may still be withdrawn, with nothing
+    in its place). ValueError on a chain that comes back on itself."""
+    seen = [address]
+    while True:
+        kind, _, rest = address.partition("/")
+        entry_id, _, version = rest.partition("@")
+        path = pathlib.Path(root).expanduser() / "entries" / kind / entry_id / version / "entry.json"
+        following = replacement(read_json(path, ENTRY_SCHEMA)) if version and path.is_file() else None
+        if not following:
+            return address
+        if following in seen:
+            raise ValueError(f"{seen[0]}: its replacements come back on themselves ({' -> '.join(seen + [following])})")
+        seen.append(following)
+        address = following

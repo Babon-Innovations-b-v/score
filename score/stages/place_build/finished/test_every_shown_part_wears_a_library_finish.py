@@ -7,7 +7,9 @@ library withdrew is never its paint and is refused at `put`; while a one-paint b
 library paint whole again; a lantern of the same paint under a whole glowing look keeps the glow on its red part
 alone, its grey part in its own library paint; the take's parts laid as the palette variants nearest their colours
 (its brown part a paint, never the sand ground of the same colour); and a take `put` after the palette is laid
-re-finished at once. Afterwards the scene's finishes are told no fault.
+re-finished at once. An adopted model's own material naming a surface the library holds (`score:surface`) passes
+and one naming a surface it does not hold is `own paint`; a look naming a surface the library withdrew for another
+passes as its replacement (#155). Afterwards the scene's finishes are told no fault.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.object_faults: the whole-look rule left out (`len(parts) >= PARTS` made `False`) -> the grey generator
@@ -23,6 +25,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.variant_colours: every family kept -> the take's brown part wears the sand ground
 - finished.library_painted: the withdrawn rule left out -> a withdrawn entry's paint passes
 - place_build.fetch: the withdrawn refusal left out -> a withdrawn model is laid
+- finished.object_faults: `own_surface` unread -> the adopted kiosk's own material is `own paint`
+- finished.own_surface: always True -> the stall's material naming no held surface passes
+- finished.held_surface: the replacement chain unread (`entry_of(address)` for `entry_of(end)`) -> the box's look
+  naming the retired metal is `unknown surface`
 - finished.library_painted: a character always passed (`bool(excepted(...))` made `True`) -> a character no written
   exception covers keeps its own paint
 """
@@ -64,14 +70,23 @@ def model_text(name, texture):
     return stage.GetRootLayer().ExportToString()
 
 
+def own_surface_text(name, address):
+    """model_text's model with its own material naming the library surface `address` (an adopted set's model)."""
+    layer = Sdf.Layer.CreateAnonymous(".usda")
+    layer.ImportFromString(model_text(name, "paint.png"))
+    stage = Usd.Stage.Open(layer)
+    stage.GetPrimAtPath(f"/{name}/paint").CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(address)
+    return layer.ExportToString()
+
+
 def library(root, files):
-    def entry(kind, entry_id, named, made_with=()):
+    def entry(kind, entry_id, named, made_with=(), written=None):
         folder = root / "entries" / kind / entry_id / "1"
         folder.mkdir(parents=True)
         folder.joinpath("entry.json").write_text(json.dumps({
             "schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "kind": kind, "id": entry_id,
             "version": 1, "files": {name: {"role": role} for name, (role, _) in named.items()},
-            "provenance": {"made_with": [{"by": by, "what": what} for by, what in made_with]}}))
+            "provenance": {"made_with": [{"by": by, "what": what} for by, what in made_with]}, **(written or {})}))
         for name, (_, content) in named.items():
             target = files / f"{kind}/{entry_id}@1/{name}"
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +111,11 @@ def library(root, files):
     entry("model", "bare", {"model.usda": ("usd", bare)}, [("score", "painted from the library surfaces")])
     for recipe in ("painted_metal", "glowing"):
         entry("surface", recipe, {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.5}}))})
+    entry("surface", "old_metal", {"surface.json": ("record", "{}")}, (),
+          {"state": "withdrawn", "replaced_by": "surface/painted_metal@1"})
+    for model, named in (("kiosk", "surface/painted_metal@1"), ("stall", "surface/nowhere@1")):
+        entry("model", model, {"model.usda": ("usd", own_surface_text(model, named)),
+                               "paint.png": ("texture", halves(RED, GREY))}, [("a_set", "taken in whole")])
 
 
 def kinds(found, name):
@@ -122,7 +142,8 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
                      "sand": {"variants": {"sand_ground": {"recipe": "painted_metal", "token": "ground", "seed": 4}}},
                      "leaf": {"variants": {"crop_leaf": {"recipe": "cloth", "token": "green", "seed": 6}}}}}))
     for name, address, at in (("gen", "model/generator", 0), ("box", "model/box", 4), ("stool", "take/stool", 8),
-                              ("bare", "model/bare", 12), ("lantern", "model/generator", 20)):
+                              ("bare", "model/bare", 12), ("lantern", "model/generator", 20),
+                              ("kiosk", "model/kiosk", 24), ("stall", "model/stall", 28)):
         place_build.put(folder, name, address, at=(at, 0, 0))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
     assert "crop_leaf" in finished.variant_colours(folder) and "sand_ground" not in finished.variant_colours(folder)
@@ -140,9 +161,11 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     assert kinds(found, "gen") == {"one surface over its parts"}, found.get("gen")
     assert kinds(found, "stool") == {"own paint"} and kinds(found, "bare") == {"no material"}, found
     assert kinds(found, "box") == {"unknown surface"}, found.get("box")
+    assert "kiosk" not in found and kinds(found, "stall") == {"own paint"}, found
     stage, _ = place_build.opened(folder)
-    stage.GetPrimAtPath("/camp/Looks/box").GetAttribute("score:surface").Set("surface/painted_metal@1")
+    stage.GetPrimAtPath("/camp/Looks/box").GetAttribute("score:surface").Set("surface/old_metal@1")
     place_build.saved(stage)
+    place_build.remove(folder, "stall")
     mended = {name: place_build.refinish(folder, name) for name in ("gen", "stool", "lantern")}
     put_after = place_build.put(folder, "stool2", "take/stool", at=(16, 0, 0))
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))

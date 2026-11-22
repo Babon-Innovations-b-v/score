@@ -14,7 +14,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   reader names a single-mesh Xform for its mesh), and `remove` drops it from the cut. An outside place is marked
   `kind <folder> outside` (place.json `kind`): the check then judges only its structures' rooms.
 - **Everything laid comes from the library.** A withdrawn entry is refused (the owner retired every old model,
-  kit, character and surface on 2026-10-21), and the finish check fails one already laid. `put` lays only an entry
+  kit, character and surface on 2026-10-21), and the finish check fails one already laid. A withdrawn entry that
+  names its replacement (`replaced_by`, #155) is laid as the end of that chain (`resolved_address`), refused only when
+  that end is withdrawn too. A model's record's `usd` root is the file laid (an adopted set's root, never a payload
+  beside it), and its layers are only `<root>_<layer>` files in the root's own folder. `put` lays only an entry
   with a USD file (kit pieces, models, the
   sky domes), copied whole under the place's `assets/`; `surface` binds a library surface over everything inside the
   object (a variant's own material, or a recipe in a palette colour), so a model's baked colour never shows; `light`

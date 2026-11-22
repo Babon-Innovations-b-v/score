@@ -9,6 +9,9 @@ The one reader of the creator's library (score_lib's `entries/` and `index/`) on
   fetch side (blobs), and `score/stages/library/backend.py` runs the command.
 - **Versioned.** Each file is checked against `ENTRY_SCHEMA` / `INDEX_SCHEMA`; another version is refused
   (`Unread`). A new score_lib schema is a change here first, then in the callers.
+- **An entry's terms** (#155): `licence(record)` is its licence block (an adopted set's CC-BY-4.0 part, with its
+  credit) or None for MIT; `replacement(record)` the entry a withdrawn one names (`replaced_by`); `replaced_end`
+  follows that chain to its end, refusing a loop. place_build lays the end, the library check traces to it.
 - **Pure.** json, os and pathlib only: the hosted cockpit imports it (`score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py`, its hosted-light case).
   Never import score_lib's own code.
 - `test_read_only_at_known_schema.py`: pytest, a temp library.

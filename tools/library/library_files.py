@@ -9,6 +9,7 @@ thing out (the remake fills it, #19), never a crash.
 
     files.resolve(name)               # the file on disk, or None for a gap
     files.reference(address, file)    # the name a record gives a library entry's file
+    files.terms(name)                 # its entry's licence block (None: MIT) and replacement, or None
 
 A referenced file is fetched once into the cache (`$PROPS_HOME/cache/library/score_lib/<kind>/<id>/<version>/<file>`)
 by the library's own command (`<SCORE_LIB_COMMAND> --root <SCORE_LIB_ROOT> fetch <address> --file <file> --into
@@ -147,13 +148,29 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def entry_record(root, parts):
+    """The library's entry record the reference's parts name, or None when the library holds no such entry."""
+    path = pathlib.Path(root) / "entries" / parts["kind"] / parts["id"] / parts["version"] / "entry.json"
+    return json.loads(path.read_text()) if path.is_file() else None
+
+
 def recorded_sha(root, parts):
     """The sha256 the library's entry records for the file, or None when the library holds no such entry or file."""
-    path = pathlib.Path(root) / "entries" / parts["kind"] / parts["id"] / parts["version"] / "entry.json"
-    if not path.is_file():
-        return None
-    described = json.loads(path.read_text())["files"].get(parts["file"])
+    described = (entry_record(root, parts) or {"files": {}})["files"].get(parts["file"])
     return described["sha256"] if described else None
+
+
+def terms(name):
+    """The terms a referenced file is held under: {licence: the entry's licence block ({id, source, credit, url}) or
+    None for MIT, replaced_by: the address that replaces a withdrawn entry or None}; None for a name that is no
+    library reference or an entry the library does not hold (#155: an adopted set's part keeps its credit)."""
+    parts, root = parsed(name), settings().get("SCORE_LIB_ROOT")
+    record = entry_record(root, parts) if parts and root else None
+    if record is None:
+        return None
+    withdrawn = record.get("state") == "withdrawn"
+    return {"licence": record.get("licence") or None,
+            "replaced_by": (record.get("replaced_by") or None) if withdrawn else None}
 
 
 def fetched(values, parts, target):

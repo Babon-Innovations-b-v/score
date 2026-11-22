@@ -91,6 +91,7 @@ PALETTE = "palette.json"  # the place's own surface library in its folder (`pale
 CAMERA = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -1.0], "fov": 60.0}
 # The roles of an entry's file that can be laid in a scene, first found wins; a glTF one is converted (gltf.py).
 USD_ROLES = ("usd",)
+ROOTED_KINDS = ("effect", "model")  # the kinds whose record's `usd.root` names the file to lay
 GLTF_ROLES = ("gltf", "web3d")
 # A character's body group shown by default (its others made invisible), the first it has: the made body, the suit;
 # its far group (a low-detail stand-in) never by default.
@@ -165,15 +166,20 @@ def camera(folder, eye, aim, fov):
 
 
 def resolved_address(address, root):
-    """`kind/id@version`, the newest version when `address` gives none."""
-    if "@" in address:
-        return address
-    kind, entry_id = address.split("/", 1)
-    versions = sorted(int(path.name) for path in (pathlib.Path(root) / "entries" / kind / entry_id).glob("*")
-                      if path.name.isdigit())
-    if not versions:
-        raise Refused(f"{address}: the library holds no such entry")
-    return f"{address}@{versions[-1]}"
+    """`kind/id@version`, the newest version when `address` gives none, a withdrawn entry's replacement (`replaced_by`)
+    followed to the end of its chain, so a place laid again takes the replacement (#155). The end may be withdrawn
+    with nothing in its place: what lays it (fetch) refuses it then."""
+    if "@" not in address:
+        kind, entry_id = address.split("/", 1)
+        versions = sorted(int(path.name) for path in (pathlib.Path(root) / "entries" / kind / entry_id).glob("*")
+                          if path.name.isdigit())
+        if not versions:
+            raise Refused(f"{address}: the library holds no such entry")
+        address = f"{address}@{versions[-1]}"
+    try:
+        return library.replaced_end(root, address)
+    except ValueError as why:
+        raise Refused(str(why)) from why
 
 
 def library_root():
@@ -304,9 +310,10 @@ def finished_first(name):
 
 def usd_file(record, copied):
     """The entry's USD file to lay (an effect's the emitter file its record's `usd` names, not the clip it plays; a
-    glTF-only entry's converted once beside it, gltf.py), or Refused naming what it holds instead."""
+    model's its root too, an adopted model's base file and not a payload beside it; a glTF-only entry's converted once
+    beside it, gltf.py), or Refused naming what it holds instead."""
     root = (record.get("usd") or {}).get("root")
-    if record["kind"] == "effect" and root in copied:
+    if record["kind"] in ROOTED_KINDS and root in copied:
         return copied[root]
     for role in USD_ROLES:
         for name, info in record["files"].items():
@@ -408,14 +415,16 @@ def marked(prim, role=None, support=None):
 
 
 def layered(stage, path, folder, asset, record, copied):
-    """A model's own extra layers beside its USD (`<its file>_<layer>.usd*`: a monitor's lit screen, `_glow`) laid
-    with it as its children <path>/<layer>, so a screen the model was made with glows where it was made; the layers
+    """A model's own extra layers beside its USD (`<its file>_<layer>.usd*` in its folder: a monitor's lit screen,
+    `_glow`) laid with it as its children <path>/<layer>, so a screen the model was made with glows where it was made
+    (an adopted model's payloads, in a folder below its root, are its root's to compose, never a layer); the layers
     laid, by name."""
-    stem = pathlib.Path(asset).stem
+    stem, beside = pathlib.Path(asset).stem, pathlib.Path(asset).parent
     found = {}
     for name, info in record["files"].items():
         own = pathlib.Path(name)
-        if info.get("role") in USD_ROLES and own.stem.startswith(stem + "_") and copied[name] != asset:
+        if (info.get("role") in USD_ROLES and own.stem.startswith(stem + "_") and copied[name] != asset
+                and pathlib.Path(copied[name]).parent == beside):
             layer = own.stem[len(stem) + 1:]
             child = stage.DefinePrim(f"{path}/{layer}")
             child.GetReferences().ClearReferences()

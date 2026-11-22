@@ -1,7 +1,9 @@
 """Invariant: everything a place shows traces to the library or to a written exception. The known-bad fixture (a
 picture's own texture, a default grey, a model no entry holds) fails on exactly those three, the known-good one passes;
 each way of tracing holds (score:library, a surface by name, the gltf, the prim an entry names through a variant, an
-effect's placements, the content hash, the finish record); a withdrawn entry traces nothing; the library comes only
+effect's placements, the content hash, the finish record); a withdrawn entry traces nothing, one naming its
+replacement traces to the end of that chain while the library holds it (an adopted model's own material naming a
+retired surface too); the library comes only
 from SCORE_LIB_ROOT; exceptions refuse without a reason or an owner and end at their expiry; findings group one kind
 of piece into one problem. The library is a temp folder written here (no entry data is kept in this repository).
 
@@ -25,6 +27,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   (a wall kit piece no longer traces to its algorithm entry)
 - entries.prim_paths: the placements not read -> test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements
 - entries.read: withdrawn entries shelved too -> test_a_withdrawn_entry_traces_nothing
+- entries.Shelf.replacement_end: the chain left unfollowed (`address if self.has(address)` at once), or its loop
+  guard dropped (the loop never ends) -> test_a_withdrawn_entry_traces_nothing (the retired deck, the renamed
+  smoker's first body and the kiosk's own material trace to nothing)
 - trace.rows: a character's poses not read (no pose_rows) -> test_a_withdrawn_entry_traces_nothing (the smoker's held
   pose has no row)
 - entries.from_environment: the repository's default library when unset -> test_the_library_comes_only_from_score_lib_root
@@ -50,12 +55,13 @@ FIXTURES = REPO / "data/checks/library"
 TODAY = datetime.date(2026, 10, 18)
 
 
-def entry(root, kind, entry_id, files=None, provenance=None, state="draft"):
-    """Write one entry.json of the temp library."""
+def entry(root, kind, entry_id, files=None, provenance=None, state="draft", replaced_by=None):
+    """Write one entry.json of the temp library (`replaced_by`: the address a withdrawn one names in its place)."""
     folder = root / "entries" / kind / entry_id / "1"
     folder.mkdir(parents=True, exist_ok=True)
     record = {"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "kind": kind, "id": entry_id, "version": 1, "state": state,
-              "files": files or {}, "provenance": provenance or {}}
+              "files": files or {}, "provenance": provenance or {},
+              **({"replaced_by": replaced_by} if replaced_by else {})}
     (folder / "entry.json").write_text(json.dumps(record))
 
 
@@ -243,16 +249,39 @@ def test_a_withdrawn_entry_traces_nothing(tmp_path):
     entry(tmp_path, "character", "body")
     entry(tmp_path, "character", "hold")
     entry(tmp_path, "character", "old_hold", state="withdrawn")
+    # Withdrawn entries that name their replacements (#155): traced to the end of the chain while it is held.
+    entry(tmp_path, "character", "first_body", state="withdrawn", replaced_by="character/older_body@1")
+    entry(tmp_path, "character", "older_body", state="withdrawn", replaced_by="character/body@1")
+    entry(tmp_path, "surface", "deck")
+    entry(tmp_path, "surface", "old_deck", state="withdrawn", replaced_by="surface/deck@1")
+    entry(tmp_path, "surface", "lost", state="withdrawn", replaced_by="surface/bare_steel@1")
+    entry(tmp_path, "surface", "loop", state="withdrawn", replaced_by="surface/loop@1")
+    entry(tmp_path, "model", "kiosk")
+    shelf = entries.read(tmp_path)
+    assert [shelf.newest(address) for address in ("surface/old_deck@1", "surface/old_deck", "surface/lost@1",
+                                                  "surface/loop@1")] == ["surface/deck@1", "surface/deck@1", None, None]
+    assert shelf.surface("old_deck", "fixture") == "surface/deck@1"
     smokers = "".join(f'        def SkelRoot "{name}"\n        {{\n            custom string score:kind = "character"\n'
-                      f'            custom string score:library = "character/body@1"\n'
+                      f'            custom string score:library = "character/{body}@1"\n'
                       f'            def SkelAnimation "Held"\n            {{\n'
                       f'                custom string score:pose = "character/{pose}@1"\n            }}\n        }}\n'
-                      for name, pose in (("smoker", "hold"), ("stale", "old_hold")))
-    stage = stage_with(tmp_path, f'def Xform "fixture"\n{{\n    def Scope "Objects"\n    {{\n{smokers}    }}\n}}\n')
-    rows = trace.rows(stage, trace.Context(place="fixture", shelf=entries.read(tmp_path)))
+                      for name, body, pose in (("smoker", "body", "hold"), ("stale", "body", "old_hold"),
+                                               ("renamed", "first_body", "hold")))
+    kiosk = ('        def Xform "kiosk"\n        {\n            custom string score:model = "kiosk"\n'
+             '            custom string score:library = "model/kiosk@1"\n'
+             '            def Mesh "geo" (\n'
+             '                prepend apiSchemas = ["MaterialBindingAPI"]\n            )\n'
+             '            {\n                rel material:binding = </fixture/Objects/kiosk/paint>\n            }\n'
+             '            def Material "paint"\n            {\n'
+             '                custom string score:surface = "surface/old_deck@1"\n            }\n        }\n')
+    stage = stage_with(tmp_path,
+                       f'def Xform "fixture"\n{{\n    def Scope "Objects"\n    {{\n{smokers}{kiosk}    }}\n}}\n')
+    rows = trace.rows(stage, trace.Context(place="fixture", shelf=shelf))
     assert [(row["prim"], row["by"]) for row in rows] == [
         ("/fixture/Objects/smoker", "character/body@1"), ("/fixture/Objects/smoker/Held", "character/hold@1"),
-        ("/fixture/Objects/stale", "character/body@1"), ("/fixture/Objects/stale/Held", None)]
+        ("/fixture/Objects/stale", "character/body@1"), ("/fixture/Objects/stale/Held", None),
+        ("/fixture/Objects/renamed", "character/body@1"), ("/fixture/Objects/renamed/Held", "character/hold@1"),
+        ("/fixture/Objects/kiosk", "model/kiosk@1"), ("/fixture/Objects/kiosk", "surface/deck@1")]
 
 
 def test_the_library_comes_only_from_score_lib_root(tmp_path, monkeypatch):

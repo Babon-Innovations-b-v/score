@@ -5,13 +5,15 @@
     shelf.of_model(model_sha)              # the model entry made from that gltf (score:model_sha256)
     shelf.of_prim(place, path, kinds)      # the entry whose provenance names that prim of that place
     shelf.surface(name, place)             # the surface entry of that name (the place's own one first)
-    shelf.newest(address)                  # the address held, `kind/id` (no version) read as its newest version
+    shelf.newest(address)                  # the address held, `kind/id` (no version) read as its newest version, a
+                                           # withdrawn one as the end of the replacements it names
     shelf.painted(address)                 # whether the surface line painted the entry from the library surfaces
 
 An entry is `<kind>/<id>@<version>` with `entries/<kind>/<id>/<version>/entry.json` (files with their sha256,
 provenance), read through `score.library` (ADR-0007), as the cockpit reads it. Nothing of the library's own code is
 imported and no entry data is kept in this repository: score is public, the library is the creator's. A withdrawn
-entry traces nothing.
+entry traces nothing itself; one that names its replacement (`replaced_by`) traces to the end of that chain while the
+library holds it (#155: a place laid before an entry was replaced).
 """
 import dataclasses
 import pathlib
@@ -36,6 +38,8 @@ class Shelf:
     ids: dict = dataclasses.field(default_factory=dict)  # (kind, id): address
     addresses: set = dataclasses.field(default_factory=set)
     painted_by_line: set = dataclasses.field(default_factory=set)  # addresses whose provenance says LIBRARY_PAINT
+    retired: dict = dataclasses.field(default_factory=dict)  # withdrawn address: the address that replaces it
+    retired_ids: dict = dataclasses.field(default_factory=dict)  # (kind, id) of no held version: its newest retired
 
     def of_sha(self, sha, kinds):
         return next((address for address, kind in sorted(self.shas.get(sha, {}).items()) if kind in kinds), None)
@@ -48,8 +52,9 @@ class Shelf:
         return next((address for address, kind in sorted(found.items()) if kind in kinds), None)
 
     def surface(self, name, place):
-        """The surface entry of that name: the place's own (`<name>.<place>`) first, else the shared one."""
-        return self.ids.get(("surface", f"{name}.{place}")) or self.ids.get(("surface", name))
+        """The surface entry of that name: the place's own (`<name>.<place>`) first, else the shared one; a retired
+        one as its replacement."""
+        return self.newest(f"surface/{name}.{place}") or self.newest(f"surface/{name}")
 
     def of_id(self, kind, entry_id):
         return self.ids.get((kind, entry_id))
@@ -58,11 +63,23 @@ class Shelf:
         return address in self.addresses
 
     def newest(self, address):
-        """The address held: itself, or `kind/id` with no version (place_build's code-built pieces) as its newest."""
+        """The address held: itself, or `kind/id` with no version (place_build's code-built pieces) as its newest; a
+        withdrawn one (or an id whose versions are all withdrawn) as the end of the replacements it names."""
         if self.has(address):
             return address
         kind, _, entry_id = str(address or "").partition("/")
-        return self.ids.get((kind, entry_id)) if entry_id and "@" not in entry_id else None
+        if entry_id and "@" not in entry_id:
+            address = self.ids.get((kind, entry_id)) or self.retired_ids.get((kind, entry_id))
+        return self.replacement_end(address)
+
+    def replacement_end(self, address):
+        """The held address at the end of the replacements `address` names, itself when held; None when the chain
+        ends at an entry the library does not hold in force, or comes back on itself."""
+        seen = set()
+        while address in self.retired and address not in seen:
+            seen.add(address)
+            address = self.retired[address]
+        return address if self.has(address) else None
 
     def painted(self, address):
         return address in self.painted_by_line
@@ -119,6 +136,9 @@ def read(root):
     for record in records:
         if record.get("state") != WITHDRAWN:
             shelve(shelf, record)
+        elif library.replacement(record):
+            shelf.retired[record["address"]] = library.replacement(record)
+            shelf.retired_ids.setdefault((record["kind"], record["id"]), record["address"])
     return shelf
 
 

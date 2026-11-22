@@ -8,6 +8,9 @@ the rules; ready/ reports its faults in ready.json's `finishes`, and the place i
   naming a surface the library holds, or its model's own paint when the entry's provenance says the surface line
   painted it from the library) and its model's own paint read from the model file (faces' colours by their texture
   coordinates, parts by maker/grade.py's `parts`).
+- **An adopted model's own materials** pass when each names a surface the library holds (`score:surface`, written by
+  the take-in, never by `put`); a surface withdrawn for a replacement (`replaced_by`) is judged by the end of the
+  chain (#155).
 - **A character's own paint passes only under a written exception** (data/checks/library-exceptions.json, the player
   models' texture), read at `/<place>/Characters/<name>`, the path the library check gives a place's characters.
 - **One surface over a model's painted parts is a fault**, not a choice: it paints every part one flat paint (the
