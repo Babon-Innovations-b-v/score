@@ -97,6 +97,9 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (STANCES)
 - place_line.py: `if gaps.max() > most:` -> `if False:`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (BASES, HALLS)
+- base_level.py: `if report["feet"] < ON_FEET:` -> `if True:` (a take on its feet has its overhang brought down), or
+  bake_check.py: `or record.get("on_feet", 0) >= STANCE_FEET and down >= 3` dropped (on_stance)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (the stool, the rover's stance; 2026-11-22)
 - base_level.py: `min(rest[-2], cap)` -> `rest[-2]` (capped), or `return (found, record) if record["rise"] is not None
   else capped(step, cap)(points, *rest)` -> `return capped(step, cap)(points, *rest)` (capped_plane), or
   `place_line.levelled_feet = levelled_feet` -> `pass` (held), or `setattr(place_line, name, step)` -> `pass`
@@ -1521,9 +1524,16 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         (folder / "checks.json").write_text(json.dumps({
             "parts_rack_1": {"stands": True, "stance_lows": [0.0, 0.221, 0.0, 0.24]},
             "leg_strut": {"stands": False, "stance_lows": [0.0, 0.3, 0.2, 0.0]},
-            "crate": {"stands": True, "stance_lows": [0.0, 0.01, 0.0, 0.02]}}))
+            "crate": {"stands": True, "stance_lows": [0.0, 0.01, 0.0, 0.02]},
+            "rover_1": {"stands": True, "on_feet": 5, "stance_lows": [0.0, 0.56, 0.0, 0.0]},
+            "table_1": {"stands": True, "on_feet": 4, "stance_lows": [0.0, 0.1, 0.1, 0.0]}}))
         verdict = bake_check.judge_stance(folder, {}, None)
-    assert verdict.answer == "fail" and len(verdict.findings) == 1 and "parts_rack_1: a foot 24.0 cm" in verdict.findings[0]
+        (folder / "labels.json").write_text(json.dumps({"feet": {"feet": 5}}))
+        assert bake_check.feet_of(folder) == 5 and bake_check.STANCE_FEET == base_level.ON_FEET
+    # on five feet the rover stands on three quadrants, its tube hanging over the fourth; a table on four with two
+    # quadrants off the floor does not
+    assert verdict.answer == "fail" and len(verdict.findings) == 2 and "parts_rack_1: a foot 24.0 cm" in \
+        verdict.findings[0] and "table_1" in verdict.findings[1]
     assert set(json.loads((REPO / "data/checks/stance.json").read_text())) == {"about", "lies"}
     steps = {"flattened": place_line.flattened_base, "sloped": place_line.sloped_base}
     based = {}
@@ -1559,6 +1569,14 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         if moves:  # in metres through its standing height: 8 cm up as the paint left it, level now
             assert max(bake_check.stance_lows(was * 10.0)) > 0.03 >= max(bake_check.stance_lows(now * 10.0))
             assert report["flattened"], report
+    # a body on three legs, its fourth quadrant's underside hanging over (old_station's rover, score #156): the paint
+    # brings that underside down to the floor, the bake's paint (base_level) leaves it as the feet stand
+    stool = on_three_legs()
+    was, _ = place_line.levelled_feet(stool.vertices, stool.faces, 1.5)
+    now, report = base_level.levelled_feet(stool.vertices, stool.faces, 1.5)
+    over = (stool.vertices[:, 0] < 0) & (stool.vertices[:, 2] > 0) & (stool.vertices[:, 1] < 0.31)
+    assert report["feet"] == 3 and report["base_left"] and not report["flattened"], report
+    assert was[over, 1].min() < 0.1 and np.array_equal(now, stool.vertices), "the overhang brought down"
     slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
     bottom = np.asarray(slab.vertices)[:, 1] < 1e-9
     for rise, rough, acts in CAPPED_PLANES:
@@ -2719,6 +2737,17 @@ BASES = [
 # tall stood 20 m (a hundredth 1.4 m): its corner 8 cm up comes down, 2 cm up stays; stood 0.2 m (a hundredth 1.4 cm,
 # under 3 cm) it levels exactly as before.
 HALLS = [(0.008, 20.0, True), (0.002, 20.0, False), (0.3, 0.2, False), (0.1, 0.2, False)]
+
+
+def on_three_legs():
+    """A body 2 by 4 from 0.3 to 1.5 up on three 0.2 wide legs from the floor at x, z (-0.8, -1.5), (0.8, -1.5) and
+    (0.8, 1.5): the quadrant at x < 0, z > 0 holds no leg, its underside 0.3 up."""
+    body = trimesh.creation.box(bounds=((-1.0, 0.3, -2.0), (1.0, 1.5, 2.0))).subdivide().subdivide()
+    legs = [trimesh.creation.box(bounds=((x - 0.1, 0.0, z - 0.1), (x + 0.1, 0.3, z + 0.1))).subdivide()
+            for x, z in ((-0.8, -1.5), (0.8, -1.5), (0.8, 1.5))]
+    return trimesh.util.concatenate([body, *legs])
+
+
 # A sloping plane the paint brought down before is brought down as before (capped alone, its cells' 2 cm of unevenness
 # lie off a 5 mm plane and it found none); one rising 2 cm, under the hundredth, now comes down too: (its rise, its
 # cells' roughness, whether base_level's capped plane finds a rise).

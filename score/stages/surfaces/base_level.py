@@ -8,6 +8,12 @@ and spacecraft (0.25 m) kept base corners 34 to 60 cm up, which make_chunky's ow
 (env1, 2026-11-12). Here each base step's tolerance is capped as the feet's is; a take whose hundredth is under 3 cm,
 or whose base has no corner or plane past 3 cm, levels exactly as before.
 
+A take its feet step stands on ON_FEET feet or more is on its feet, and its base steps leave it as its feet stand: they
+are for a base that is one piece (a rack on a middle part, a hut's sloping floor, a cabinet's plinth rim), and on a
+take on its feet the quadrant with no foot under it is an overhang. old_station's rover stood on its wheels and its
+docking leg (five feet) and flattened_base brought its front quadrant, the tube's underside 11.7% of its size up beside
+the leg, down to the floor: a sheet hanging off its front to the ground (score #156, 2026-11-22).
+
 Run, never imported, by inside/paint_fit.py (the bake's card job, ../bake_fitted.py): its `paint-take` is place_line's
 with levelled_feet held as this module's, so place_line.py and paint_take.py, in the code of every row reaching
 route_bake.py, do not move.
@@ -24,6 +30,8 @@ import place_line  # noqa: E402
 import prop_env  # noqa: E402
 
 BASE_STEPS = ("flattened_base", "sloped_base", "resting_base")
+# The feet a take stands on with its base left as they stand (a stool's three).
+ON_FEET = 3
 PAINTS_LEVEL = place_line.levelled_feet
 
 
@@ -40,6 +48,24 @@ def capped_plane(step, cap):
         found, record = step(points, *rest)
         return (found, record) if record["rise"] is not None else capped(step, cap)(points, *rest)
     return sloped
+
+
+def left(step):
+    """A base step (its tolerance its next to last argument) that moves nothing: no gap passes its tolerance."""
+    return lambda points, *rest: step(points, *rest[:-2], float("inf"), rest[-1])
+
+
+@contextlib.contextmanager
+def base_left():
+    """place_line's base steps leaving every base as it stands while held (left)."""
+    kept = {name: getattr(place_line, name) for name in BASE_STEPS}
+    for name, step in kept.items():
+        setattr(place_line, name, left(step))
+    try:
+        yield
+    finally:
+        for name, step in kept.items():
+            setattr(place_line, name, step)
 
 
 @contextlib.contextmanager
@@ -59,12 +85,19 @@ def capped_base(cap):
 
 def levelled_feet(vertices, faces, tall=None):
     """place_line.levelled_feet with each base step's tolerance at most FOOT_TOLERANCE_METRES through the standing
-    height `tall` (metres), as its feet's is; as there when `tall` is unknown. The report as there."""
+    height `tall` (metres), as its feet's is; as there when `tall` is unknown. A take on ON_FEET feet or more has its
+    feet levelled and its base left as they stand (base_left), its report saying so in `base_left`. The report as
+    there."""
     import feet
     height, _ = feet.model_scale(vertices)
     cap = place_line.FOOT_TOLERANCE_METRES / tall * height if tall else None
     with capped_base(cap):
-        return PAINTS_LEVEL(vertices, faces, tall)
+        points, report = PAINTS_LEVEL(vertices, faces, tall)
+    if report["feet"] < ON_FEET:
+        return points, report
+    with base_left():
+        points, report = PAINTS_LEVEL(vertices, faces, tall)
+    return points, dict(report, base_left=f"on {report['feet']} feet: an overhang is no base")
 
 
 @contextlib.contextmanager

@@ -350,6 +350,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   the feet's is (`base_level.py`, run by `inside/paint_fit.py` in place_line's stead so place_line.py moves no row,
   2026-11-12: base's large hangar's 1% was 0.84 m, corners 34 to 60 cm up stayed and "stands level" failed it); the
   plane step capped only where the uncapped one found no plane (its 1% is also how near the plane its cells lie).
+  A take the feet step stood on three feet or more (`base_level.ON_FEET`) has its base left as its feet stand: the
+  base steps are for a base that is one piece, and beside feet a quadrant with none is an overhang (old_station's
+  rover, on its wheels and docking leg, had its tube's underside brought 11.7% of its size down to the floor, a sheet
+  hanging off its front, score #156, 2026-11-22). The bake's copy then comes down only by how far the remesh moved a
+  quadrant over the full model's own (`make_chunky.copy_drops`), and "stands level" holds such a model to three
+  quadrants on the floor (`bake_check.on_stance`).
   Wear and dirt are
   the room's setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
   picture-derived look (tried 2026-10-13, reverted). The one exception is the finish route's own wear: a library

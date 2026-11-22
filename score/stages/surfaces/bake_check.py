@@ -38,8 +38,10 @@ import route_settings  # noqa: E402
 # Parts under PART_LEAST of the model are not judged.
 BAKE_DELTA_E = 20.0
 # A standing model's footprint quadrants (of its lowest STANCE_BAND of height) end within STANCE_GAP of its lowest
-# point (the resting check's 3 cm).
-STANCE_BAND, STANCE_GAP = 0.25, 0.03
+# point (the resting check's 3 cm). A model its paint stood on STANCE_FEET feet or more (base_level.ON_FEET: its base
+# left as its feet stand) stands on three of them: the fourth may hang over, as old_station's rover's tube hangs past
+# its docking leg (score #156, 2026-11-22).
+STANCE_BAND, STANCE_GAP, STANCE_FEET = 0.25, 0.03, 3
 # Not paint (owner, #8): judged by their own colour, never against the close-up's lit colour.
 OWN_COLOUR = ("glass", "screen", "light", "print")
 DARK_SURFACE, BLOTCH_L, BLOTCH_SHARE, BLOTCH_DELTA_E = 35.0, 12.0, 0.05, 6.0
@@ -354,6 +356,11 @@ def stands(name, labelled, inventory_rows, lying_words):
     return not any(word in words for word in lying_words)
 
 
+def feet_of(labelled):
+    """How many feet the paint stood the take on (labels.json `feet`), 0 where it levelled none."""
+    return json.loads((labelled / "labels.json").read_text()).get("feet", {}).get("feet", 0)
+
+
 def close_up_colours(labelled):
     """Each surface's colour in the close-up (L*a*b*, the mean of its finishes' measured colours) from the paint's
     report of the take (labels.json `finishes`), under the name the surface bakes as (a finish with the list's settings
@@ -428,6 +435,7 @@ def check_step(inputs, out):
         labelled = inputs["paint"] / "labelled" / entry["parts"]
         found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt, wear)
         found[model]["stands"] = stands(model, labelled, rows, lying)
+        found[model]["on_feet"] = feet_of(labelled)
         found[model]["keeps_pose"] = keeps_pose_of(model, entry, rows, inputs)
         found[model]["seen_degrees"] = degrees.get(model)
     (out / "checks.json").write_text(json.dumps(found, indent=1))
@@ -467,13 +475,21 @@ def judge_square(output, inputs, evidence):
 def judge_stance(output, inputs, evidence):
     """Every baked model that stands on its feet stands level: each footprint quadrant's lowest point within
     STANCE_GAP of its lowest (the hangar's parts rack stood on a middle part, its legs 22 cm up; the paint's feet
-    check, in shares of the model's size, let 7% pass). Lying wreckage and wall or held models are left out (stands)."""
+    check, in shares of the model's size, let 7% pass), or, stood by its paint on STANCE_FEET feet or more, three of
+    them (on_stance). Lying wreckage and wall or held models are left out (stands)."""
     found = json.loads((output / "checks.json").read_text())
     standing = {model: record for model, record in found.items() if record.get("stands")}
     failing = [f"{model}: a foot {max(record['stance_lows']) * 100:.1f} cm off the floor while another touches "
                f"(quadrant lows {[round(low * 100, 1) for low in record['stance_lows']]} cm)"
-               for model, record in standing.items() if max(record["stance_lows"]) > STANCE_GAP]
+               for model, record in standing.items() if not on_stance(record)]
     return gates.verdict("stands level", failing, len(standing), "standing models with a foot off the floor")
+
+
+def on_stance(record):
+    """Whether a standing model's quadrant lows stand it: all within STANCE_GAP, or three of them for a model its
+    paint stood on STANCE_FEET feet or more."""
+    down = sum(low <= STANCE_GAP for low in record["stance_lows"])
+    return down == len(record["stance_lows"]) or record.get("on_feet", 0) >= STANCE_FEET and down >= 3
 
 
 def check_faults(folder):

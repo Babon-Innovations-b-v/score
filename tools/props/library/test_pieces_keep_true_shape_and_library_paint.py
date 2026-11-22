@@ -31,6 +31,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   never_stands_proud_of_it (2026-10-29).
 - make_chunky `kit_points`: `-points[:, 1]` -> `points[:, 1]` -> test_a_shape_s_points_are_read_as_its_gltf_holds_them
   (2026-10-29).
+- make_chunky `copy_drops`: `(0.0 if own is None else own[2] - model_low)` -> `0.0` (the copy levelled from its own
+  lowest, the full model's overhang brought down) -> test_a_shape_s_points_are_read_as_its_gltf_holds_them
+  (2026-11-22).
 - stored `pointed_at_webp`: drop `texture.pop("source", None)` -> test_stored_pictures_are_webp_and_a_room_has_a_budget.
 - bodies `kept`: drop the detail boxes' `found |= ...` -> test_a_body_keeps_only_the_take_faces_it_names.
 - bodies `console_outline`: `top = CONSOLE_TOP * tall + 0.1` -> test_every_body_stands_in_its_laid_box.
@@ -254,12 +257,18 @@ def test_the_command_line_prints_one_summary_line(tmp_path):
 def chunky_functions(functions, constants=()):
     """make_chunky's named functions with the constants they read, taken from its text (make_chunky needs Blender)."""
     tree = ast.parse((HERE / "inside/make_chunky.py").read_text())
-    kept = [node for node in tree.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id in constants
+    kept = [node for node in tree.body if isinstance(node, ast.Assign) and set(assigned(node)) & set(constants)
             or isinstance(node, ast.FunctionDef) and node.name in functions]
     space = {}
     exec(compile(ast.Module(body=kept, type_ignores=[]), "make_chunky", "exec"), space)
     return space
+
+
+def assigned(node):
+    """The names one assignment of make_chunky's sets (one, or a row of them: `LEVEL_BAND, LEVEL_GAP, ... = ...`)."""
+    target = node.targets[0]
+    return [name.id for name in (target.elts if isinstance(target, ast.Tuple) else [target])
+            if isinstance(name, ast.Name)]
 
 
 def chunky_default_wall():
@@ -319,6 +328,27 @@ def test_a_shape_s_points_are_read_as_its_gltf_holds_them():
     # and -y, the kit frame (y up)
     kit_points = chunky_functions(("kit_points",))["kit_points"]
     assert kit_points([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).tolist() == [[1.0, 3.0, -2.0], [4.0, 6.0, -5.0]]
+    # and levels the copy's feet only by how far the remesh moved them over the full model's own (copy_drops): a body
+    # on three feet whose fourth quadrant hangs over 0.4 up as made stays so (old_station's rover, its tube's underside
+    # brought down to the floor beside its docking leg, score #156); a foot the remesh left 0.1 up comes down 0.1
+    copy_drops = chunky_functions(("copy_drops", "quadrant_lows"), {"LEVEL_BAND", "LEVEL_GAP", "LEVEL_MOST"})[
+        "copy_drops"]
+    for raised, expected in ((0.0, []), (0.1, [0.1])):
+        whole, copy = (on_three_feet(0.0), on_three_feet(raised))
+        drop, drops = copy_drops(copy, whole, (2.0, 2.0, 4.0))
+        assert drops == expected, (raised, drops)
+        foot = (copy[:, 0] > 0) & (copy[:, 1] > 0) & (copy[:, 2] < 0.4)
+        assert abs(drop[foot][copy[foot, 2].argmin()] - raised) < 1e-9 and (raised or not drop.any()), raised
+
+
+def on_three_feet(raised):
+    """Points (Blender's frame, z up) of a body 4 long from 0.4 to 2 up on three feet from the floor, the quadrant at
+    x < 0, y > 0 holding none (its underside hangs over 0.4 up), the foot at x > 0, y > 0 `raised` off the floor."""
+    across, along = np.meshgrid(np.linspace(-1.0, 1.0, 9), np.linspace(-2.0, 2.0, 17))
+    body = [np.column_stack([across.ravel(), along.ravel(), np.full(across.size, height)]) for height in (0.4, 2.0)]
+    feet = [np.column_stack([np.full(5, x), np.full(5, y), np.linspace(low, 0.4, 5)])
+            for x, y, low in ((-0.8, -1.5, 0.0), (0.8, -1.5, 0.0), (0.8, 1.5, raised))]
+    return np.vstack(body + feet)
 
 
 def test_a_part_reads_the_same_every_run():

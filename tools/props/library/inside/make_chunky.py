@@ -94,6 +94,10 @@ DRIFT_SHARE = 0.03
 # and 3 cm: bake_check.STANCE_BAND, STANCE_GAP). The paint levels the full model, but the remesh's voxels (a 31 m ship
 # at 10 cm) and the cut move its feet: the hangar's ship, level in its paint, baked one front foot 22.2 cm up and
 # the other 5.8 (2026-10-15); a quadrant over LEVEL_MOST of the piece's size up is the model's fault, left as it is.
+# Each quadrant comes down only by how far it lies over where the full model's own lies (the paint left it so): the
+# remesh's move, never the full model's own overhang. Counted from the copy's lowest, old_station's rover, its paint
+# leaving the tube's underside over its docking leg as it stands (on five feet), would have had that quadrant brought
+# 0.56 m down to the floor, a sheet hanging off its front (score #156, 2026-11-22).
 LEVEL_BAND, LEVEL_GAP, LEVEL_MOST = 0.25, 0.03, 0.15
 # glTF (y up, -z forward), which labels.py wrote in, onto Blender's frame (z up).
 GLTF_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
@@ -391,7 +395,7 @@ def laid_copy(entry, job, whole):
     wall = entry.get("wall", default_wall(entry["size"]))
     low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"], wall)
     opened(low, entry.get("cuts", []), entry["size"], wall)
-    return low, levelled_feet(low, entry["size"]) if entry.get("stands") else None
+    return low, levelled_feet(low, entry["size"], whole) if entry.get("stands") else None
 
 
 def kit_points(flat):
@@ -639,35 +643,63 @@ def with_decals(whole, decals):
     bpy.ops.object.join()
 
 
-def levelled_feet(copy, size):
-    """The cut-down copy's feet brought down level (LEVEL_BAND, LEVEL_GAP, LEVEL_MOST): each quadrant's gap brought
-    down, as a list (empty when none was over LEVEL_GAP or one was over LEVEL_MOST)."""
+def levelled_feet(copy, size, whole):
+    """The cut-down copy's feet brought down level where the remesh and the cut moved them (copy_drops over the full
+    model `whole`), as a list of each quadrant's gap brought down (empty when none was)."""
     import numpy as np
-    flat = np.empty(len(copy.data.vertices) * 3)
-    copy.data.vertices.foreach_get("co", flat)
-    points = flat.reshape(-1, 3)  # Blender's frame: z up
+    points, model = (np.empty(len(item.data.vertices) * 3) for item in (copy, whole))
+    copy.data.vertices.foreach_get("co", points)
+    whole.data.vertices.foreach_get("co", model)
+    points = points.reshape(-1, 3)  # Blender's frame: z up
+    drop, drops = copy_drops(points, model.reshape(-1, 3), size)
+    if not drops:
+        return []
+    points[:, 2] -= drop
+    copy.data.vertices.foreach_set("co", points.ravel())
+    copy.data.update()
+    return drops
+
+
+def quadrant_lows(points, low, band, middle):
+    """Each footprint quadrant's lowest point of `points` (z up) within `band` over `low`, split at `middle` (x, y),
+    or None for a quadrant holding none."""
+    import numpy as np
+    base = points[points[:, 2] <= low + band]
+    found = []
+    for x_side in (base[:, 0] < middle[0], base[:, 0] >= middle[0]):
+        for y_side in (base[:, 1] < middle[1], base[:, 1] >= middle[1]):
+            chosen = base[x_side & y_side]
+            found.append(chosen[chosen[:, 2].argmin()] if len(chosen) else None)
+    return found
+
+
+def copy_drops(points, model, size):
+    """(each copy point's drop, each quadrant's gap brought down) for the copy's `points` over its full `model` (both
+    Blender's frame, z up; LEVEL_BAND, LEVEL_GAP, LEVEL_MOST): each footprint quadrant of the copy's lowest LEVEL_BAND
+    of height whose lowest point lies over LEVEL_GAP higher over the copy's lowest than the full model's same
+    quadrant lies over its own comes down by that difference, spread by inverse squared distance and faded over the
+    band; nothing when none does or one is over LEVEL_MOST of the piece's size."""
+    import numpy as np
     low = points[:, 2].min()
     band = LEVEL_BAND * (points[:, 2].max() - low)
     base = points[points[:, 2] <= low + band]
     middle = (base.min(axis=0) + base.max(axis=0)) / 2
+    model_low = model[:, 2].min()
+    model_band = LEVEL_BAND * (model[:, 2].max() - model_low)
     gaps, places = [], []
-    for x_side in (base[:, 0] < middle[0], base[:, 0] >= middle[0]):
-        for y_side in (base[:, 1] < middle[1], base[:, 1] >= middle[1]):
-            chosen = base[x_side & y_side]
-            if len(chosen):
-                lowest = chosen[chosen[:, 2].argmin()]
-                gaps.append(lowest[2] - low)
-                places.append(lowest[:2])
-    gaps, places = np.array(gaps), np.array(places)
+    for found, own in zip(quadrant_lows(points, low, band, middle),
+                          quadrant_lows(model, model_low, model_band, middle)):
+        if found is not None:
+            gaps.append(found[2] - low - (0.0 if own is None else own[2] - model_low))
+            places.append(found[:2])
+    gaps, places = np.maximum(np.array(gaps), 0.0), np.array(places)
     if gaps.max() <= LEVEL_GAP or gaps.max() > LEVEL_MOST * max(size):
-        return []
+        return np.zeros(len(points)), []
     drops = np.where(gaps > LEVEL_GAP, gaps, 0.0)
     weights = 1.0 / np.maximum(((points[:, None, :2] - places[None]) ** 2).sum(axis=2), 1e-12)
     drop = (weights * drops).sum(axis=1) / weights.sum(axis=1)
-    points[:, 2] -= drop * np.clip((low + band - points[:, 2]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)
-    copy.data.vertices.foreach_set("co", points.ravel())
-    copy.data.update()
-    return [round(float(gap), 4) for gap in drops if gap > 0]
+    return drop * np.clip((low + band - points[:, 2]) / np.maximum(band - drop, 1e-9), 0.0, 1.0), \
+        [round(float(gap), 4) for gap in drops if gap > 0]
 
 
 def held_to_box(copy, whole, size):
