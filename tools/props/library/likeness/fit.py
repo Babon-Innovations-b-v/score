@@ -2,16 +2,20 @@
 it, and that recipe's settings, as the start the look-alike check (check.py) renders and refines.
 
     roles(names)                     {role: map file}: albedo, normal, orm, roughness, metal
+    described(surface, names)        a surface.json's maps {role: file}, tile size and normal convention
     statistics(maps, tile_metres)    the maps' measures
     family_of(name, measured)        the recipe family that draws the material
     spec_of(family, measured)        the recipe's spec (recipes.channels' form), colours linear
-    fitted(name, maps, tile_metres)  {"recipe": spec, "statistics": ..., "family_from": "name" | "measures"}
+    fitted(name, maps, tile_metres)  {"recipe": spec, "statistics", "family_from": "name" | "measures",
+                                      "tile_metres", "tile_metres_from"}
 
 The measures: the albedo's mean colour in CIE Lab, the mean of its darkest fifth (a pattern's second shade) and the
 spread of its lightness; the roughness and metal means (an ORM map's green and blue, or their own maps); the normal
 map's relief, its slopes integrated to a height field and high-passed, as its height spread and the size of its
 features in metres (from the map's width and `tile_metres`, the
-metres one repeat of the maps covers). Colours come from the maps, as a surface of an adopted set holds them; a
+metres one repeat of the maps covers). A DirectX normal map (its green pointing down the picture) has its green
+turned over first. A tile size the surface does not know (None) is fitted as a free setting: the size at which the
+relief's features are its family's default pattern size, else TILE_METRES, said as assumed. Colours come from the maps, as a surface of an adopted set holds them; a
 recipe's palette colours are a scene's, which this fit does not touch. Standard library and numpy (Pillow to read).
 """
 import json
@@ -76,6 +80,10 @@ FEATURE_PER_HALF_WIDTH = 4.0
 FLAT_FLOOR = 0.05
 # Where the autocorrelation falls to half: a feature's half width.
 HALF = 0.5
+# The tile size said as assumed when the surface names none and the maps cannot fit one (no relief or no pattern size).
+TILE_METRES = 1.0
+NORMAL_CONVENTIONS = ("opengl", "directx")
+ROLE_ALIASES = {"metallic": "metal"}  # a surface.json's role names (the USD input's) as this fit's
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
 PATTERN_SPREAD = 0.3
@@ -98,6 +106,25 @@ def roles(names):
         if role and role not in found:
             found[role] = name
     return found
+
+
+def described(surface, names):
+    """A surface.json's (`surface`, {} for none) maps {role: file name} (its `maps` dict as written, else the entry's
+    texture files `names` by their roles), its tile metres ("surface.json"; None when it says it does not know, so
+    `fitted` fits it, from None; TILE_METRES "assumed" when it says nothing) and its normal convention ("opengl" unless it says
+    "directx"): {"maps", "tile_metres", "tile_metres_from", "normal_convention"}."""
+    maps = surface.get("maps") or {}
+    if not isinstance(maps, dict):
+        raise ValueError(f"surface.json maps is {type(maps).__name__}, not {{role: file}}")
+    convention = surface.get("normal_convention") or "opengl"
+    if convention not in NORMAL_CONVENTIONS:
+        raise ValueError(f"surface.json normal_convention {convention!r}, not one of {NORMAL_CONVENTIONS}")
+    if "tile_metres" not in surface:
+        tile = (TILE_METRES, "assumed")
+    else:
+        tile = (surface["tile_metres"], "surface.json" if surface["tile_metres"] is not None else None)
+    return {"maps": {ROLE_ALIASES.get(role, role): name for role, name in maps.items()} or roles(names),
+            "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention}
 
 
 def pixels(path):
@@ -165,10 +192,12 @@ def albedo_statistics(path):
             "lightness_spread": float(values[:, 0].std())}
 
 
-def relief_statistics(path, tile_metres):
+def relief_statistics(path, tile_metres, normal_convention="opengl"):
     """The normal map's relief: its height field's high-passed spread (rms, metres) and its features' size in metres
-    (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation)."""
+    (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation); a DirectX map's green turned over to OpenGL's."""
     normal = shrunk(pixels(path), READ_SIDE) * 2.0 - 1.0
+    if normal_convention == "directx":
+        normal[..., 1] = -normal[..., 1]
     metres_a_texel = tile_metres / normal.shape[1]
     relief = high_passed(height_of(normal), HIGH_PASS_SHARE)
     return {"height": float(relief.std() * metres_a_texel),
@@ -180,12 +209,12 @@ def channel_mean(path, channel):
     return float(shrunk(pixels(path), READ_SIDE)[..., channel].mean())
 
 
-def statistics(maps, tile_metres):
+def statistics(maps, tile_metres, normal_convention="opengl"):
     """The maps' measures from {role: path}: albedo always, normal, orm or roughness and metal when given (a missing
     roughness reads as the recipe's default, None; a missing metal as 0)."""
     measured = albedo_statistics(maps["albedo"])
     measured["tile_metres"] = float(tile_metres)
-    measured.update(relief_statistics(maps["normal"], tile_metres) if "normal" in maps else
+    measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
                     {"height": 0.0, "feature_metres": None})
     if "orm" in maps:
         measured["roughness"], measured["metal"] = channel_mean(maps["orm"], 1), channel_mean(maps["orm"], 2)
@@ -238,9 +267,25 @@ def spec_of(family, measured, method=METHOD):
     return spec
 
 
-def fitted(name, maps, tile_metres, method=METHOD):
-    """A material's fitted recipe from its maps ({role: path}) and its tile size: {"recipe", "statistics",
-    "family_from"}."""
-    measured = statistics(maps, tile_metres)
+def fitted_tile(family, measured, method=METHOD):
+    """The tile metres at which the relief's features (`measured` at a 1 m tile) are the family's default pattern
+    size; None when the maps show no relief or the family has no pattern size."""
+    size_setting, feature = SIZE_SETTING.get(family), measured["feature_metres"]
+    if not size_setting or not feature:
+        return None
+    return json.loads(pathlib.Path(method).read_text())["recipes"][family][size_setting] / feature
+
+
+def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl"):
+    """A material's fitted recipe from its maps ({role: path}), its tile size (None: fitted, `fitted_tile`, else
+    TILE_METRES assumed) and its normal map's convention: {"recipe", "statistics", "family_from", "tile_metres",
+    "tile_metres_from" (None when given)}."""
+    tile_from = None
+    if tile_metres is None:
+        at_one = statistics(maps, 1.0, normal_convention)
+        tile_metres = fitted_tile(family_of(name, at_one)[0], at_one, method)
+        tile_metres, tile_from = (tile_metres, "fitted") if tile_metres else (TILE_METRES, "assumed")
+    measured = statistics(maps, tile_metres, normal_convention)
     family, said_by = family_of(name, measured)
-    return {"recipe": spec_of(family, measured, method), "statistics": measured, "family_from": said_by}
+    return {"recipe": spec_of(family, measured, method), "statistics": measured, "family_from": said_by,
+            "tile_metres": tile_metres, "tile_metres_from": tile_from}

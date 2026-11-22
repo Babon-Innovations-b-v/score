@@ -4,10 +4,10 @@ swatch's light, from each of its cameras, at wear and dirt 0 (a surface's maps a
 
     blender -b --python tools/props/library/inside/likeness.py -- <job.json>
 
-The job: {"out", "size", "samples", "seed", "pairs": [{"name", "maps": {role: path}, "tile_metres", "recipe": spec,
-"map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
+The job: {"out", "size", "samples", "seed", "pairs": [{"name", "maps": {role: path}, "tile_metres",
+"normal_convention": "opengl" | "directx", "recipe": spec, "map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
 map material is the maps as a principled surface: the albedo as sRGB colour, roughness and metal from an ORM map's
-green and blue (or their own maps), the normal map in tangent space, all on texture coordinates cube-projected at the
+green and blue (or their own maps), the normal map in tangent space (a DirectX map's green turned over), all on texture coordinates cube-projected at the
 maps' tile size, so a repeat covers `tile_metres` as the recipe's metres do. Writes <out>/<name>/map-<view>.png and
 recipe-<view>.png, and prints "LIKENESS <name>" per pair.
 """
@@ -51,7 +51,24 @@ def image_node(tree, path, data):
     return node
 
 
-def map_material(name, maps):
+def normal_colour(tree, maps, convention):
+    """The normal map's colour as Blender's (OpenGL's) tangent space reads it: a DirectX map's green turned over."""
+    colour = image_node(tree, maps["normal"], True).outputs["Color"]
+    if convention != "directx":
+        return colour
+    split, joined = tree.nodes.new("ShaderNodeSeparateColor"), tree.nodes.new("ShaderNodeCombineColor")
+    turned = tree.nodes.new("ShaderNodeMath")
+    turned.operation = "SUBTRACT"
+    turned.inputs[0].default_value = 1.0
+    tree.links.new(colour, split.inputs["Color"])
+    tree.links.new(split.outputs["Green"], turned.inputs[1])
+    for channel, socket in (("Red", split.outputs["Red"]), ("Green", turned.outputs["Value"]),
+                            ("Blue", split.outputs["Blue"])):
+        tree.links.new(socket, joined.inputs[channel])
+    return joined.outputs["Color"]
+
+
+def map_material(name, maps, convention="opengl"):
     """The maps as a principled surface material."""
     material = bpy.data.materials.new(f"map-{name}")
     material.use_nodes = True
@@ -72,7 +89,7 @@ def map_material(name, maps):
     if "normal" in maps:
         bent = tree.nodes.new("ShaderNodeNormalMap")
         bent.uv_map = UV_MAP
-        tree.links.new(image_node(tree, maps["normal"], True).outputs["Color"], bent.inputs["Color"])
+        tree.links.new(normal_colour(tree, maps, convention), bent.inputs["Color"])
         tree.links.new(bent.outputs["Normal"], surface.inputs["Normal"])
     return material
 
@@ -116,7 +133,7 @@ def main():
         projected(piece, pair["tile_metres"])
         shown = {"recipe": recipe_material(pair["recipe"], job["seed"])}
         if pair["map"]:
-            shown["map"] = map_material(pair["name"], pair["maps"])
+            shown["map"] = map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"))
         for view, camera in cameras.items():
             bpy.context.scene.camera = camera
             for side, material in shown.items():

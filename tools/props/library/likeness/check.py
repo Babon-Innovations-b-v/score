@@ -6,9 +6,10 @@ renders a surface. Each surface's result is its fitted recipe and its likeness b
     python3 tools/props/library/likeness/check.py <surface address> ... --out <folder>
         [--algorithm algorithm/surface_recipes@N] [--size 256] [--samples 64] [--rounds 6]
 
-A surface's maps are the files its surface.json `maps` lists (else every texture file of its entry), each by its
-role (fit.roles), fetched through the library (tools/library/library_files.py); its tile size is surface.json's
-`tile_metres`, else TILE_METRES (said in its result as assumed). The recipe algorithm a likeness names is --algorithm,
+A surface's maps are the files its surface.json `maps` names by role ({role: file}, else every texture file of its
+entry by fit.roles), fetched through the library (tools/library/library_files.py), its normal map read by its
+`normal_convention`; its tile size is surface.json's `tile_metres`, fitted when that is null, else fit.TILE_METRES
+(fit.described; said in its result as surface.json, fitted or assumed). The recipe algorithm a likeness names is --algorithm,
 else the library index's newest algorithm/surface_recipes. Writes <out>/<surface id>@<version>/likeness.json
 ({"address", "recipe": {"recipe", "settings", "wear_levels"}, "likeness": {"measures", "pass", "algorithm"},
 "rounds", "family_from", "tile_metres_from"}) and <out>/summary.json, and prints one summary line. The pictures stay
@@ -34,7 +35,6 @@ from score import library  # noqa: E402
 
 SCRIPT = HERE.parent / "inside/likeness.py"
 RECIPE_ALGORITHM = "algorithm/surface_recipes"
-TILE_METRES = 1.0
 ROUNDS = 6
 SIZE = 256
 SAMPLES = 64
@@ -64,17 +64,20 @@ def fetched(address, name):
 
 
 def surface_maps(root, address):
-    """The surface's maps {role: path} and (tile metres, where they came from)."""
+    """The surface's maps {role: path}, tile metres (None: to be fitted), where they came from and its normal map's
+    convention (fit.described)."""
     record = library.entry(root, *address_parts(address))
-    described = {}
+    surface = {}
     if "surface.json" in record["files"]:
-        described = json.loads(pathlib.Path(fetched(address, "surface.json")).read_text())
-    names = described.get("maps") or [name for name, about in record["files"].items() if about.get("role") == "texture"]
-    found = fit.roles(names)
-    if "albedo" not in found:
-        raise CheckFailed(f"{address}: no albedo map among {names}")
-    tile = (described["tile_metres"], "surface.json") if "tile_metres" in described else (TILE_METRES, "assumed")
-    return {role: fetched(address, name) for role, name in found.items()}, tile
+        surface = json.loads(pathlib.Path(fetched(address, "surface.json")).read_text())
+    try:
+        found = fit.described(surface, [name for name, about in record["files"].items()
+                                        if about.get("role") == "texture"])
+    except ValueError as unread:
+        raise CheckFailed(f"{address}: {unread}") from unread
+    if "albedo" not in found["maps"]:
+        raise CheckFailed(f"{address}: no albedo map among {sorted(found['maps'].values())}")
+    return {**found, "maps": {role: fetched(address, name) for role, name in found["maps"].items()}}
 
 
 def newest_recipe_algorithm(root):
@@ -121,14 +124,16 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
     open_pairs, results = {}, {}
     for address in addresses:
         try:
-            maps, (tile, tile_from) = surface_maps(root, address)
+            found = surface_maps(root, address)
         except CheckFailed as missing:
             results[address] = {"address": address, "error": str(missing), "rounds": 0}
             continue
-        made = fit.fitted(address_parts(address)[1], maps, tile, method)
-        open_pairs[address] = {"name": folder_name(address), "maps": maps, "tile_metres": tile,
-                               "recipe": made["recipe"], "map": True}
-        results[address] = {"address": address, "family_from": made["family_from"], "tile_metres_from": tile_from,
+        made = fit.fitted(address_parts(address)[1], found["maps"], found["tile_metres"], method,
+                          found["normal_convention"])
+        open_pairs[address] = {"name": folder_name(address), "maps": found["maps"], "tile_metres": made["tile_metres"],
+                               "normal_convention": found["normal_convention"], "recipe": made["recipe"], "map": True}
+        results[address] = {"address": address, "family_from": made["family_from"],
+                            "tile_metres_from": made["tile_metres_from"] or found["tile_metres_from"],
                             "statistics": made["statistics"], "rounds": 0}
     for _ in range(rounds):
         if not open_pairs:

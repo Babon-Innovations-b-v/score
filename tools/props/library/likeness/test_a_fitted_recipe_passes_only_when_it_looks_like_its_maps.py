@@ -3,7 +3,7 @@ its colour, roughness, metal, pattern size and bump from the maps), and the look
 pictures only when they look like the maps' (its colour, and its detail where the maps show detail).
 
 Each row is 64-texel maps written under the file names an adopted set or an image set gives them, the material's
-name, its tile size, and a pair of 64-pixel pictures standing in for the two renders (inside/likeness.py, which needs
+name, its surface.json (its tile size; an adopted set's maps by role, its normal convention), and a pair of 64-pixel pictures standing in for the two renders (inside/likeness.py, which needs
 Blender and the card: it is proven by a run on this PC's card, see the overlay). Every answer is worked out by hand:
 - sRGB 119 is L* 50.0 (linear 0.1845), so the fitted colour is 0.1845 in each channel; an ORM green of 102 is
   roughness 0.4, a blue of 255 metal 1.0 (of 230 metal 0.902, green 25 roughness 0.098: a metal under 0.25 rough is
@@ -11,6 +11,9 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
 - the relief row's height is 2 sin(2 pi x / 16) sin(2 pi y / 16) texels at 1 mm a texel: its spread is half its
   amplitude, 1 texel, 0.001 m, so the bump is 4 x 0.001 = 0.004; its autocorrelation, cos(2 pi lag / 16), first falls
   under half at lag 3 (cos 67.5 deg = 0.38; lag 2 gives 0.71), so its features are 3 x 4 texels = 0.012 m;
+- the adopted relief row is the same relief as a DirectX map (its green turned over) whose surface.json knows no tile
+  size: its features are 12 / 64 = 0.1875 of a tile, so the tile is fitted to 0.01 / 0.1875 = 0.0533 m, where they
+  are concrete's default pore size 0.01, and its bump 4 x 0.0533 / 64 = 0.0033;
 - sRGB (150, 104, 112) is Lab (48.95, 19.66, 2.96), 19.9 from sRGB 119's (50.0, 0, 0): over the check's 10, while its
   lightness stays within 1.1 (the lightness and highlight bounds hold); stripes of sRGB 109 and 129 (L* 46.0 and
   54.0) two pixels wide beside a flat sRGB 119 differ under 0.1 in cell colour and 4 in lightness, but the flat one
@@ -22,6 +25,9 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.height_of: `normal[..., 1] / tilt` -> `-normal[..., 1] / tilt` (the relief row's slopes no longer integrate:
   its height spread falls by half).
 - fit.role_of: no trailing number dropped (`T_..._Albedo_1.png` reads no role: the second row has no albedo).
+- fit.described: `maps.items()` read as the dict's keys (the adopted row's maps are files named `albedo`, never
+  written), or relief_statistics' DirectX `normal[..., 1] = -normal[..., 1]` dropped (the adopted row's slopes no
+  longer integrate: its bump halves), or fitted's `fitted_tile` made None (the adopted row's tile assumed 1 m).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -66,11 +72,20 @@ def stripes(dark, light):
     return picture
 
 
-def written(folder, pictures):
-    """Each {file name: RGB array} written as a picture in `folder`; {role: path} by the names' roles."""
+def written(folder, pictures, surface):
+    """Each {file name: RGB array} written as a picture in `folder`; the surface.json's reading (fit.described), its
+    maps {role: path}."""
     for name, pixels in pictures.items():
         Image.fromarray(pixels).save(folder / name)
-    return {role: str(folder / name) for role, name in fit.roles(list(pictures)).items()}
+    found = fit.described(surface, list(pictures))
+    return {**found, "maps": {role: str(folder / name) for role, name in found["maps"].items()}}
+
+
+def directx(normal):
+    """A GL normal map as DirectX keeps it: its green turned over."""
+    turned = normal.copy()
+    turned[..., 1] = 255 - turned[..., 1]
+    return turned
 
 
 def opaque(pixels):
@@ -82,31 +97,38 @@ ROWS = [
     ("plastic, the same look", "t_plastic_glossy_gray_a01",
      {"t_plastic_glossy_gray_a01_tile_alb.png": solid((119,) * 3),
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0)),
-      "t_plastic_glossy_gray_a01_tile_nor.png": solid(FLAT_NORMAL)}, 1.0,
+      "t_plastic_glossy_gray_a01_tile_nor.png": solid(FLAT_NORMAL)}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)),
      ("plastic", "name", 0.1845, 0.4, None, None, True)),
     ("chrome by its name, older file names", "T_Metal_Chrome_A",
      {"T_Metal_Chrome_A_Albedo_1.png": solid((119,) * 3), "T_Metal_Chrome_A_ORM_1.png": solid((255, 102, 255)),
-      "T_Metal_Chrome_A_Normal_1.png": solid(FLAT_NORMAL)}, 1.0,
+      "T_Metal_Chrome_A_Normal_1.png": solid(FLAT_NORMAL)}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)),
      ("polished_metal", "name", 0.1845, 0.4, 1.0, None, True)),
     ("metal by its measures, a colour shifted", "t_unnamed_a01",
-     {"t_unnamed_a01_tile_alb.png": solid((119,) * 3), "t_unnamed_a01_tile_orm.png": solid((255, 25, 230))}, 1.0,
+     {"t_unnamed_a01_tile_alb.png": solid((119,) * 3), "t_unnamed_a01_tile_orm.png": solid((255, 25, 230))}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((150, 104, 112))),
      ("polished_metal", "measures", 0.1845, 0.098, 0.902, None, False)),
     ("concrete relief, a flat recipe beside detail", "t_concrete_bare_a01",
-     {"colour.jpg": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": bumps(2.0, 16)}, 0.064,
-     (stripes(109, 129), solid((119,) * 3)),
-     ("concrete", "name", 0.1845, 0.4, None, (0.012, 0.004), False)),
+     {"colour.jpg": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": bumps(2.0, 16)},
+     {"tile_metres": 0.064}, (stripes(109, 129), solid((119,) * 3)),
+     ("concrete", "name", 0.1845, 0.4, None, (0.012, 0.004, 0.064), False)),
+    ("an adopted set's relief, maps by role, DirectX, tile fitted", "t_concrete_bare_a01",
+     {"albedo.png": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": directx(bumps(2.0, 16))},
+     {"maps": {"albedo": "albedo.png", "roughness": "roughness.png", "normal": "normal.png"}, "tile_metres": None,
+      "normal_convention": "directx"}, (stripes(109, 129), solid((119,) * 3)),
+     ("concrete", "name", 0.1845, 0.4, None, (0.01, 0.003, 0.0533), False)),
 ]
 
 
-@pytest.mark.parametrize("name, material, maps, tile_metres, pictures, expected", ROWS, ids=[row[0] for row in ROWS])
-def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name, material, maps, tile_metres,
-                                                                  pictures, expected):
-    made = fit.fitted(material, written(tmp_path, maps), tile_metres)
+@pytest.mark.parametrize("name, material, maps, surface, pictures, expected", ROWS, ids=[row[0] for row in ROWS])
+def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name, material, maps, surface, pictures,
+                                                                  expected):
+    found = written(tmp_path, maps, surface)
+    made = fit.fitted(material, found["maps"], found["tile_metres"], normal_convention=found["normal_convention"])
     spec = made["recipe"]
-    relief = (round(spec["pore_size"], 4), round(spec["bump"], 3)) if spec["recipe"] == "concrete" else None
+    relief = (round(spec["pore_size"], 4), round(spec["bump"], 3), round(made["tile_metres"], 4)) \
+        if spec["recipe"] == "concrete" else None
     Image.fromarray(opaque(pictures[0])).save(tmp_path / "map.png")
     Image.fromarray(opaque(pictures[1])).save(tmp_path / "recipe.png")
     verdict = measure.likeness({"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")},

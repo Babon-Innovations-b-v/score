@@ -8,6 +8,10 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   and roughness means; the colours from the albedo's Lab mean and darkest fifth; roughness and metal from an ORM map's
   green and blue (or their own maps); the pattern size and bump from the normal map integrated to a height field
   (Frankot-Chellappa) and high-passed. A pattern size stays within `SIZE_RANGE` of its family's default.
+  `fit.described` reads a surface.json: `maps` a dict {role: file} (an adopted set's), `normal_convention`
+  (a DirectX map's green turned over, here and in `../inside/likeness.py`) and `tile_metres`; a null tile size
+  is fitted as a free setting (the size at which the relief's features are the family's default pattern size),
+  never assumed 1 m.
 - `measure.py` compares the two renders view by view (cell colour difference, lightness histogram, highlight, detail
   ratio), passes or fails at its own bounds, writes the likeness block `{measures, pass, algorithm}` and refines a
   failing recipe (colour by the Lab gap, roughness by the highlight gap, bump and contrast by the detail ratio). The
