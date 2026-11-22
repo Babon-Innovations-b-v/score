@@ -63,6 +63,14 @@ too (the curving pipe squashed to 0.1 m across). straightened taking networks (`
 test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_across_never_a_flat_sheet red (its wavy run
 0.193 m across, straight).
 
+one_section taking no row (`return False`) turns
+test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep red (the bent tapering duct's
+swell 0.25 by the shape check), and so do pressed never pressing (`if hold >= 1.0:` -> `if True:`: the stadium duct
+0.87 m across on 0.3 m), reaching carrying no end (`return runs` first: the duct 11.2 m of 12), CLAMP_SHARE at
+FITTING_SHARE (the wall pipe's curve pressed under its 1 m), bridged joining nothing (`if True: return runs`: the split
+pipe 3 bodies), lined_up by its angle alone (`reach = -1.0`: the post over its offset foot 2 bodies) and parallel
+making one run (`if True: return runs`: the wall pipes one body) (#156, 2026-11-22).
+
 likeness_row.still_coded taking every mark (`and (row in thin or flat_sheet.built(...))` -> `and True`) turns
 test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it red (a stale mark of a row grown out of the
 rule listed as a code take).
@@ -392,6 +400,13 @@ def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_
     assert not likeness_row.free_passed({"pipe": {**found["pipe"], "outline": 0.1}}, "pipe")
 
 
+def level_bar(wide, tall, across):
+    """A level bar's mask `across` pixels thick through the middle of a `wide` by `tall` picture, 30 in from each end."""
+    mask = np.zeros((tall, wide), dtype=bool)
+    mask[(tall - across) // 2:(tall + across) // 2, 30:wide - 30] = True
+    return mask
+
+
 def held(tmp_path, row, lines, width=9, parts=None):
     """(the likeness row's record, prepare's predicted faults) of the code build from a concept whose SAM 3 mask is
     `lines` (each a list of (x, y) points) drawn `width` pixels wide on a 600 by 200 picture; `parts` the
@@ -572,6 +587,45 @@ def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thin
                              joint="curve")
     curved = thin_straight.build(pipe, np.asarray(arc) > 127)
     assert curved.extents[1] > 1.0, curved.extents
+    # a rigid run keeps one section along its whole run, read as the shape check reads a pipe (#156, 2026-11-22): a
+    # 12 m duct going away from the camera, drawn 80 pixels across near and 20 far with a slight bend, is no teardrop
+    # (the walkway's ceiling duct, swell 0.14), its ends cut square at its mask's ends (a stadium drawn 840 pixels
+    # long is 12 m, not its skeleton's 11.2), and a wall pipe's clamps are straps, no links of sausage (the
+    # storage's, 0.08)
+    from score.stages.place_build import shapes
+    duct = {"name": "ceiling duct", "noun": "duct", "size": [0.5, 12.0, 0.3]}
+    taper = Image.new("L", (900, 250), 0)
+    ImageDraw.Draw(taper).polygon([(30, 60), (520, 95), (870, 80), (870, 100), (520, 125), (30, 140)], fill=255)
+    stadium = Image.new("L", (900, 250), 0)
+    ImageDraw.Draw(stadium).line([(70, 100), (500, 120), (830, 100)], fill=255, width=60, joint="curve")
+    for x in (70, 830):
+        ImageDraw.Draw(stadium).ellipse([x - 30, 70, x + 30, 130], fill=255)
+    assert thin_straight.build(duct, np.asarray(stadium) > 127).extents.max() >= 0.97 * 12.0, "duct's ends"
+
+    def swell(mesh):
+        return shapes.section(shapes.surface_points(mesh.vertices[mesh.faces], mesh.area_faces))[1]
+
+    assert swell(thin_straight.build(duct, np.asarray(taper) > 127)) <= shapes.SWELL, "duct"
+    assert swell(thin_straight.build({**pipe, "size": [5.0, 0.15, 0.15]}, level_bar(600, 100, 12))) <= shapes.SWELL
+    # pieces of one thing split by what stands in front are joined along their line (the lab's and the storage's
+    # pipes in three pieces, the porch post over its foot, 12 pixels off its shaft's line), never stubs
+    split = level_bar(600, 100, 10)
+    split[:, 180:215] = split[:, 400:430] = False
+    post = np.zeros((400, 200), dtype=bool)
+    post[0:300, 92:108] = True
+    post[330:400, 70:150] = True  # its foot, 30 pixels below, its middle 12 off the shaft's
+    post[330:400, :] = np.roll(post[330:400, :], 12, axis=1)
+    for name, row, mask in (("pipe", {**pipe, "size": [5.0, 0.15, 0.15]}, split),
+                            ("post", {"name": "wooden post", "noun": "post", "size": [0.1, 0.1, 2.5]}, post)):
+        assert len(thin_straight.build(row, mask).split(only_watertight=False)) == 1, name
+    # a bundle named for many is its parallel runs side by side, as many as its crop's lit ridges across it (the
+    # shiplock's two wall pipes, swept as one swelling band)
+    pair = np.zeros((100, 600))
+    for top in (30, 50):  # two pipes 20 pixels across, each lit from its top
+        pair[top:top + 20, 30:570] = np.linspace(220, 40, 20)[:, None]
+    bundle = thin_straight.build({"name": "wall pipes", "noun": "pipes", "size": [5.0, 0.3, 0.3]}, pair > 0, pair)
+    assert thin_straight.strands(pair, pair > 0, [(np.array([[30.0, 50.0], [570.0, 50.0]]), 20.0)]) == 2
+    assert len(bundle.split(only_watertight=False)) == 2, "bundle"  # two runs, a gap between them
     # a post's flared foot keeps its own width: the build is as wide as its mask at each point of its centreline (a
     # tube of one width lost the airlock porch post's foot, 0.75 to 0.46, #36 2026-10-30)
     post = {"name": "wooden post", "noun": "post", "size": [0.5, 0.5, 2.5]}

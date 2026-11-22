@@ -39,6 +39,12 @@ so a builder's fix reaches it (a lamp kept from before its section was the pictu
 rigid run (FITTED) carries its fittings made here on its one surface (`fittings`: an elbow at each bend, a tee at
 each fork, a clamp every BRACKET_GAP on a wall), finished by the finish route like the rest; score_lib's own pipe
 pieces, made by today's library methods, are to replace them (#55: every older piece is withdrawn since 2026-10-21).
+A rigid run (RIGID: `one_section`) is one section along its whole run, its length's median width, pressed across to
+its row's section before it is swept (`pressed`), so a run drawn tapering away from the camera or slanting off its
+line is no teardrop or wedge, its ends reaching its mask's (`reaching`), a wall clamp a strap (CLAMP_SHARE); a row
+named for many is its crop's parallel runs (`many`, `strands`, `parallel`); and pieces of one straight thing split by
+what stands in front of it are joined where they line up (`bridged`): the shape check read five of these builds as
+sausages (#156, 2026-11-22).
 """
 import json
 import pathlib
@@ -92,6 +98,31 @@ PATH_FACES = 20000
 # and a tee at a fork, and held by a clamp on a wall, as a handrail by its brackets; a cable, wire, hose or string bends
 # on its own and hangs free.
 FITTED = frozenset(("pipe", "conduit", "duct", "tube", "handrail"))
+# The rigid run kinds whose section is one along their whole run (`one_section`): a pipe, conduit, duct, tube or rail
+# is made at one width, so a run going away from the camera, drawn tapering, is no teardrop (the walkway's 12 m
+# ceiling duct and the engineroom's pipe, swell 0.14 and 0.19 by the shape check, #156 2026-11-22). A post keeps its
+# foot's own width, a mast its antenna's (`stretches`).
+RIGID = FITTED | {"rail"}
+# Pieces of one thing split by what stands in front of it are joined (`bridged`) where a free end of one points at a
+# free end of another within this many degrees, each end's way and the gap between them (the lab's arc of pipe in
+# three pieces, the storage's wall pipe in three, the porch post over its foot, #156 2026-11-22) ...
+JOIN_TURN = 25.0
+# ... and the gap is at most this share of the mask's reach: a run hidden that much is no run seen.
+JOIN_SHARE = 0.25
+# A run of a row named for many (`many`: "wall pipes", a bundle) is so many parallel runs as its crop shows lit
+# ridges across it (`strands`): a ridge stands this share of its across profile's range over the dark between (the
+# shiplock's two wall pipes, swept as one band, 0.40 and 0.71 of its range; a lone pipe's rim 0.18, #156 2026-11-22) ...
+RIDGE_SHARE = 0.25
+# ... and at most this many: a band drawn with more is no bundle of pipes the picture can count.
+STRANDS = 4
+# A bundle's run's share of its place across the band: side by side with a gap, never fused into a slab.
+STRAND_SHARE = 0.85
+# Pixels at most a pressed run's picture is drawn finer to (`path_build`): held across to a twentieth, the engineroom's
+# pipe was a tube 3 grid cells round, ragged.
+PRESS_PIXELS = 1e7
+# Pixels a tube swept round a line drawn one pixel wide stands out over its radius (the distance is to the line's
+# pixels, not its axis): a pressed run's radius is less this, or the garage's 0.1 m wall pipe stood 0.116 m across.
+LINE_PIXEL = 0.5
 # A bend over this many degrees takes an elbow; a slighter one is the run's own curve (a sag's polygon turns by less).
 ELBOW_TURN = 30.0
 # A straight kind's single run whose centreline strays across its chord by at most this share of its length is drawn
@@ -102,6 +133,10 @@ STRAIGHT_SHARE = 0.125
 # A fitting's thickness over its tube's: a socket elbow, tee or clamp stands proud of its pipe by about a wall's
 # thickness each side (a DN25 steel pipe 33.7 mm across, its fittings about 42).
 FITTING_SHARE = 1.25
+# A wall clamp's thickness over its tube's: a strap about a pipe's wall proud of it. At FITTING_SHARE, a bead every
+# BRACKET_GAP, the storage's and the shiplock's wall pipes read as links of sausage (shape check swell 0.08 and 0.07,
+# a library pipe 0.01 to 0.02; #156 2026-11-22).
+CLAMP_SHARE = 1.06
 # Metres between a wall run's clamps: a usual support spacing for a small pipe or a handrail's brackets (no library
 # row gives one), the first half a gap in.
 BRACKET_GAP = 1.5
@@ -186,7 +221,7 @@ def profile(row):
     return "railing" if words & RAILING else "round" if words & ROUND else "rect"
 
 
-def build(row, alpha=None):
+def build(row, alpha=None, shade=None):
     """The row's model at its size, in a final take's frame (y up, the longer ground side along
     z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: along its mask's (`alpha`,
     its cut's) centreline (`path_build`), then turned in the picture's plane so its long axis follows its row
@@ -194,7 +229,7 @@ def build(row, alpha=None):
     straight along its longest side."""
     import trimesh
     if alpha is not None and alpha.any():
-        made = path_build(row, alpha, axis_turn(row, alpha))
+        made = path_build(row, alpha, axis_turn(row, alpha), shade)
         return made.apply_transform(as_built(row, alpha, made) @ np.linalg.inv(slanted(row, alpha)))
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
@@ -339,6 +374,14 @@ def held_across(row, alpha, made=None):
     scale, reach = picture_scale(row, kept, turn)
     across = 2 if turn != slant(kept) else 1  # stood upright by axis_turn's quarter turn: across is z
     made = path_build(row, alpha, turn) if made is None else made
+    thinnest = min(float(value) for value in row["size"])
+    if "hold" in made.metadata:  # a one-section run, swept held (pressed); a straight one whole within its section
+        held = made.metadata["hold"]
+        if made.metadata.get("straight"):  # its clamps and the sweep's grid a few hundredths over it
+            laid = made.vertices @ np.linalg.inv(slanted(row, alpha))[:3, :3].T
+            held *= min(1.0, thinnest / max(float(np.ptp(laid[:, across])) * held, 1e-9))
+        hold[across, across] = held
+        return hold
     if made.metadata.get("straight"):
         laid = made.vertices @ np.linalg.inv(slanted(row, alpha))[:3, :3].T
         drawn = float(np.ptp(laid[:, across]))
@@ -431,7 +474,7 @@ def fittings(laid, row, thick):
     return found
 
 
-def path_build(row, alpha, turn=0.0):
+def path_build(row, alpha, turn=0.0, shade=None):
     """The row's model swept along its mask's centreline (owner's ask, 2026-10-26: bent pipe networks, a sagging
     lantern string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and
     failed their outline): each run of the mask's skeleton, its spurs dropped, a straight polyline at one width of its
@@ -459,8 +502,9 @@ def path_build(row, alpha, turn=0.0):
     _, ball = balls(kept, skeleton, scale, reach)
     if network(row):
         _, ball = balls(kept, skeleton, scale, reach, run_holds(row, skeleton, ball, scale))
-    runs = spine(skeleton, ball, part=None if slender_light(row) else 1.0)  # a light's lamp is the light layer's:
-    # stepped, the workshop's wall lights and the street's lamp post failed `swept clean` (2026-11-07)
+    runs = spine(skeleton, ball, part=None if slender_light(row) or one_section(row) else 1.0)  # a light's lamp is
+    # the light layer's: stepped, the workshop's wall lights and the street's lamp post failed `swept clean` (2026-11-07)
+    runs = bridged(row, kept, runs, reach)
     if profile(row) == "railing":
         rail = max(sides[0], least_tube()) / 2 / scale
         runs = [part for points, radius in runs for part in
@@ -468,12 +512,23 @@ def path_build(row, alpha, turn=0.0):
                  else [(points, radius)])]
     straight = straightened(row, skeleton, runs, slant(pieces(alpha)))
     runs = straight or runs
-    lengths = np.array([max(float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()), 1.0) for points, _ in runs])
+    hold, way = 1.0, None
+    if one_section(row):  # one width for the whole run, its length's median, its ends at its mask's, held round
+        runs = [(points, length_median(runs)) for points, _ in runs]
+        drawn_band = 2 * length_median(runs)  # held across whole: a bundle's box is the bundle's
+        if many(row) and shade is not None:  # a bundle: its parallel runs side by side across its band
+            runs = parallel(runs, strands(shade, kept, runs))
+        hold, way = section_hold(row, drawn_band * scale), across_way(turn, slant(pieces(alpha)))
+        runs = pressed(reaching(kept, runs, hold), hold, way)
+    # a pressed tube is drawn on a picture as much finer, so its section is as many pixels across as it was drawn
+    finer = max(1.0, min(1.0 / hold, np.sqrt(PRESS_PIXELS / kept.size)))
+    runs = [(np.asarray(points, dtype=float) * finer, radius * finer - (LINE_PIXEL if way is not None else 0.0))
+            for points, radius in runs]  # a pressed run is held by its radius alone, so the drawn line's own pixel off
+    scale, canvas = scale / finer, np.ceil(np.array(kept.shape) * finer).astype(int)
     radii = np.array([radius for _, radius in runs])
-    width = 2 * float(radii[np.argsort(radii)][np.searchsorted(np.cumsum(lengths[np.argsort(radii)]),
-                                                                lengths.sum() / 2)])  # its length's median width
+    width = 2 * length_median(runs)
     margin = int(np.ceil(radii.max() * FITTING_SHARE)) + 2  # room round the picture for the tubes and fittings
-    drawn = Image.new("I", (kept.shape[1] + 2 * margin, kept.shape[0] + 2 * margin), 0)
+    drawn = Image.new("I", (int(canvas[1]) + 2 * margin, int(canvas[0]) + 2 * margin), 0)
     draw = ImageDraw.Draw(drawn)
     for number, (points, _) in enumerate(runs, 1):
         draw.line([(float(x) + margin, float(y) + margin) for x, y in points], fill=number, width=1)
@@ -482,13 +537,232 @@ def path_build(row, alpha, turn=0.0):
     ball = np.concatenate([[0.0], radii])[lines[near_down, near_across]]
     laid = [np.c_[np.zeros(len(points)), -(points[:, 1] + margin) * scale, (points[:, 0] + margin) * scale]
             for points, _ in runs]
-    fitted = [pair for pairs in fittings(laid, row, width * scale).values() for pair in pairs]
-    mesh = swelled(off, ball, [[(point[2] / scale, -point[1] / scale) for point in pair] for pair in fitted], width,
-                   scale)
     deep = max(sides[0], least_tube())
+    # a fitting is as long as its tube is thick as built, held to its row's section (held_across): an elbow's legs a
+    # drawn width long on a duct drawn 1.7 m across and held to 0.3 m swelled 3.3 m of its 9.9 (#156, 2026-11-22)
+    found = fittings(laid, row, min(width * scale, deep))
+    drawn_back = (lambda pairs: [[(point[2] / scale, -point[1] / scale) for point in pair] for pair in pairs])
+    mesh = swelled(off, ball, drawn_back(found["elbows"] + found["tees"]), width, scale,
+                   drawn_back(found["clamps"]))
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
     mesh.metadata["straight"] = straight is not None  # held_across measures a straight build whole
+    if way is not None:  # drawn as the picture draws it again: held_across holds it round to its row's section
+        spread = np.eye(4)
+        spread[1:3, 1:3] += (1.0 / hold - 1.0) * np.outer(way, way)
+        mesh.apply_transform(spread)
+        mesh.metadata["hold"] = hold
     return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def many(row):
+    """Whether a row is named for many runs side by side: a straight kind's word in its name or noun as a plural, or a
+    bundle (the shiplock's "wall pipes")."""
+    words = re.findall(r"[a-z]+", f"{row['name']} {row.get('noun') or ''}".lower())
+    return "bundle" in words or any(word.endswith("s") and word[:-1] in STRAIGHT for word in words)
+
+
+def strands(shade, kept, runs):
+    """How many parallel runs the crop's grey `shade` shows across the band of `runs` ([(points, radius)], pixels,
+    one radius): the lit ridges of its mean profile across the run (each RIDGE_SHARE of the profile's range over the
+    dark either side; a ridge at the band's edge counts), at most STRANDS. A round pipe is lit on one side, so a bundle
+    of two is two falls from light to dark (the shiplock's wall pipes)."""
+    from scipy import ndimage
+    from scipy.signal import find_peaks
+    radius = runs[0][1]
+    offsets = np.linspace(-0.95 * radius, 0.95 * radius, 41)  # within its band's edge
+    profiles = []
+    for points, _ in runs:
+        points = np.asarray(points, dtype=float)
+        for start, end in zip(points, points[1:]):
+            length = float(np.linalg.norm(end - start))
+            if length < 2 * radius:
+                continue
+            way = (end - start) / length
+            normal = np.array([-way[1], way[0]])
+            for share in np.linspace(0.2, 0.8, 9):  # off the bends' ends
+                centre = start + share * length * way
+                across, down = centre[0] + offsets * normal[0], centre[1] + offsets * normal[1]
+                inside = ndimage.map_coordinates(kept.astype(float), [down, across], order=0) > 0.5
+                if inside.mean() >= 0.9:  # a ragged edge's notch is no gap in it
+                    profiles.append(np.where(inside, ndimage.map_coordinates(shade, [down, across], order=1), np.nan))
+    if not profiles:
+        return 1
+    profile = np.nanmean(profiles, axis=0)
+    if np.isnan(profile).any():
+        return 1
+    span = float(np.ptp(profile))
+    if span <= 0:
+        return 1
+    low = float(profile.min())
+    padded = np.concatenate([[low], profile, [low]])  # a ridge at the band's edge is a ridge
+    found, _ = find_peaks(padded, prominence=RIDGE_SHARE * span)
+    return int(np.clip(len(found), 1, STRANDS))
+
+
+def parallel(runs, count):
+    """`runs` ([(points, radius)], pixels, one radius: a bundle's band) as `count` runs side by side across it, each
+    the band's width over `count`, each offset along its points' mitred normals."""
+    if count <= 1:
+        return runs
+    made = []
+    for points, radius in runs:
+        points = np.asarray(points, dtype=float)
+        ways = np.diff(points, axis=0)
+        ways = ways / np.maximum(np.linalg.norm(ways, axis=1, keepdims=True), 1e-12)
+        normals = np.c_[-ways[:, 1], ways[:, 0]]
+        at = np.vstack([normals[:1], normals[:-1] + normals[1:], normals[-1:]])
+        at = at / np.maximum(np.linalg.norm(at, axis=1, keepdims=True), 1e-12)
+        mitre = 1.0 / np.maximum(np.abs(np.sum(at * np.vstack([normals[:1], normals]), axis=1)), 0.5)
+        for number in range(count):
+            offset = (number - (count - 1) / 2) * 2 * radius / count
+            made.append((points + at * (offset * mitre)[:, None], STRAND_SHARE * radius / count))
+    return made
+
+
+def section_hold(row, drawn):
+    """The share a one-section run (`one_section`) drawn `drawn` metres across at its length's scale is held to across
+    its run: its row's thinnest side over that, at most one (held_across's rule); one for a row that is not slender."""
+    if not slender(row["size"]):
+        return 1.0
+    strapped = CLAMP_SHARE if on_wall(row) and kind_words(row) & FITTED else 1.0  # its clamps within its section
+    return min(1.0, min(float(value) for value in row["size"]) / strapped / max(drawn, 1e-9))
+
+
+def across_way(turn, rise):
+    """The unit way (y up, z across the picture: path_build's frame) across a run laid `turn` degrees along its row,
+    its mask rising `rise` (`slant`): the build's y after `slanted`, or its z where axis_turn stood it (held_across's
+    `across`)."""
+    angle = np.radians(turn)
+    return np.array([-np.sin(angle), np.cos(angle)]) if turn != rise else np.array([np.cos(angle), np.sin(angle)])
+
+
+def pressed(runs, hold, way):
+    """`runs` ([(points, radius)], pixels across and down) pressed across their run (`way`, y up and z across) to
+    `hold` about their middle, each radius times `hold`: the run held to its row's section before it is swept, so its
+    tube is round as built. Swept as drawn and pressed after, a run slanting off its line kept its drawn width across
+    in the slant and its round ends a drawn width long (the walkway's ceiling duct, 1.7 m drawn on 0.3 m, read a
+    lens, #156)."""
+    if hold >= 1.0:
+        return runs
+    flat = np.array([way[1], -way[0]])  # the way in the picture's pixels: across is z, down is -y
+    middle = np.vstack([points for points, _ in runs]).mean(0)
+    press = np.eye(2) + (hold - 1.0) * np.outer(flat, flat)
+    return [(middle + (np.asarray(points, dtype=float) - middle) @ press.T, radius * hold) for points, radius in runs]
+
+
+def length_median(runs):
+    """The radius of `runs` ([(points, radius)]) at the middle of their length."""
+    lengths = np.array([max(run_length(np.asarray(points, dtype=float)), 1.0) for points, _ in runs])
+    radii = np.array([radius for _, radius in runs])
+    order = np.argsort(radii)
+    return float(radii[order][min(int(np.searchsorted(np.cumsum(lengths[order]), lengths.sum() / 2)), len(runs) - 1)])
+
+
+def reaching(kept, runs, hold=1.0):
+    """`runs` ([(points, radius)], pixels) with each free end carried on to the mask `kept`'s end, at most its radius,
+    less its radius pressed to `hold` (`pressed`), so its round end ends there: a skeleton stops a radius short of a
+    band's ends, and a pressed run no longer makes that up with a round end a drawn width long (the walkway's ceiling
+    duct 8.2 m of its 9.5 m drawn, #156)."""
+    touching = [tuple(np.round(points[index], 6)) for points, _ in runs for index in (0, -1)]
+    carried = []
+    for points, radius in runs:
+        points = np.asarray(points, dtype=float).copy()
+        for end, inward in ((0, 1), (-1, -2)):
+            if len(points) < 2 or touching.count(tuple(np.round(points[end], 6))) > 1:
+                continue
+            way = points[end] - points[inward]
+            if not np.linalg.norm(way):
+                continue
+            way = way / np.linalg.norm(way)
+            for _ in range(int(radius)):
+                ahead = points[end] + way
+                down, across = int(round(ahead[1])), int(round(ahead[0]))
+                if not (0 <= down < kept.shape[0] and 0 <= across < kept.shape[1] and kept[down, across]):
+                    break
+                points[end] = ahead
+            points[end] = points[end] - way * min(radius * hold, 0.5 * run_length(points))
+        carried.append((points, radius))
+    return carried
+
+
+def one_section(row):
+    """Whether a row's build keeps one section along its whole run (RIGID): a rigid straight run, never a railing (its
+    posts and rails) or a network (each of its runs held to its own, `run_holds`)."""
+    return bool(kind_words(row) & RIGID) and profile(row) != "railing" and not network(row)
+
+
+def bridged(row, kept, runs, reach):
+    """`runs` ([(points, radius)], spine's, pixels) and a run across each gap where the mask `kept` was split by what
+    stands in front of one straight thing: a free end of one piece pointing at a free end of another (each end's way
+    and the gap within JOIN_TURN degrees of each other) at most JOIN_SHARE of the mask's `reach` away, nearest gaps
+    first, each piece joined to another once by the chain; the gap's run at the radius of the longer run of the two
+    ends, what is hidden being the run going on (the porch post's shaft, not its foot's narrow top), and a post's foot
+    keeps its own. Only a straight kind's (STRAIGHT, never a railing, a network or a light: a row of light bars is
+    lamps apart); built as pieces, the lab's pipe, the storage's and the porch post read as broken stubs (#156)."""
+    from scipy import ndimage
+    if not kind_words(row) & STRAIGHT or profile(row) == "railing" or network(row) or slender_light(row):
+        return runs
+    labels = ndimage.label(kept, structure=np.ones((3, 3)))[0]
+    piece = []
+    for points, _ in runs:
+        middle = np.round(points[len(points) // 2]).astype(int)
+        piece.append(int(labels[np.clip(middle[1], 0, kept.shape[0] - 1), np.clip(middle[0], 0, kept.shape[1] - 1)]))
+    if len(set(piece) - {0}) < 2:
+        return runs
+    touching = [tuple(np.round(points[index], 6)) for points, _ in runs for index in (0, -1)]
+    ends = []  # (point, outward way, piece, radius) of each free end
+    for number, (points, radius) in enumerate(runs):
+        points = np.asarray(points, dtype=float)
+        for end, inward in ((0, 1), (-1, -2)):
+            if len(points) < 2 or touching.count(tuple(np.round(points[end], 6))) > 1:
+                continue
+            way = points[end] - points[inward]
+            if np.linalg.norm(way) > 0:
+                ends.append((points[end], way / np.linalg.norm(way), piece[number], radius, run_length(points)))
+    pairs = []
+    for first in range(len(ends)):
+        for second in range(first + 1, len(ends)):
+            (here, out, own, radius, _), (there, back, other, far_radius, _) = ends[first], ends[second]
+            gap = there - here
+            span = float(np.linalg.norm(gap))
+            if own == other or own == 0 or other == 0 or span > JOIN_SHARE * reach or span == 0:
+                continue
+            if lined_up(here, out, radius, there, back, far_radius):
+                pairs.append((span, first, second))
+    group = {label: label for label in set(piece)}
+
+    def root(label):
+        while group[label] != label:
+            label = group[label]
+        return label
+
+    used, joins = set(), []
+    for _, first, second in sorted(pairs):
+        if first in used or second in used or root(ends[first][2]) == root(ends[second][2]):
+            continue
+        used |= {first, second}
+        group[root(ends[first][2])] = root(ends[second][2])
+        longer = max(ends[first], ends[second], key=lambda end: end[4])
+        joins.append((np.vstack([ends[first][0], ends[second][0]]), longer[3]))
+    return runs + joins
+
+
+def lined_up(here, out, radius, there, back, far_radius):
+    """Whether two free ends (each its point, its outward unit way and its run's radius, pixels) line up across a gap:
+    each pointing at the other within JOIN_TURN degrees, or one end's run carried on reaching the other within the
+    wider radius while the other does not point away. A wide foot's short top run points anywhere: the porch post's
+    shaft ends 12 pixels off its foot's top, its foot's top run 46 degrees off the gap (#156, 2026-11-22)."""
+    gap = there - here
+    span = float(np.linalg.norm(gap))
+    limit = np.cos(np.radians(JOIN_TURN))
+    if gap @ out / span >= limit and -gap @ back / span >= limit:
+        return True
+    reach = max(radius, far_radius)
+    for way, toward, facing in ((out, gap, back), (back, -gap, out)):
+        ahead = float(toward @ way)
+        if ahead > 0 and float(np.linalg.norm(toward - ahead * way)) <= reach and float(facing @ -toward) > 0:
+            return True
+    return False
 
 
 def straightened(row, skeleton, runs, rise):
@@ -765,13 +1039,13 @@ def balls(kept, skeleton, scale, reach, hold=None):
     return off, radius[near_down, near_across]
 
 
-def swelled(off, ball, fitted, width, scale):
+def swelled(off, ball, fitted, width, scale, strapped=()):
     """One closed surface round the skeleton's balls (`balls`' `off` and `ball`, pixels) and round the `fitted`
     segments (pairs of picture points), FITTING_SHARE of the band's `width` across: on a grid TUBE_CELLS cells across
     the band, each cell's distance through the third axis to its nearest ball's centre less its radius, cut at nought
     (marching cubes), so joints, forks, a flared foot and the fittings are one surface with no shell inside another
     (the model gate's wall rays read overlapping tubes 0.3 mm thick); in the build's frame (x the picture's normal),
-    `scale` metres a pixel, slimmed to PATH_FACES."""
+    `scale` metres a pixel, slimmed to PATH_FACES; `strapped` segments (a wall clamp's) are CLAMP_SHARE across."""
     import trimesh
     from PIL import ImageDraw
     from scipy import ndimage
@@ -786,14 +1060,16 @@ def swelled(off, ball, fitted, width, scale):
     picks = np.clip(downs.astype(int), 0, tall - 1)[:, None], np.clip(acrosses.astype(int), 0, wide - 1)[None, :]
     near = np.where(inside, off[picks], np.inf)
     field = np.sqrt(near[:, :, None] ** 2 + depth[None, None, :] ** 2) - np.where(inside, ball[picks], 0.0)[:, :, None]
-    if fitted:
+    for segments, share, line in ((fitted, FITTING_SHARE, 0.0), (strapped, CLAMP_SHARE, cell / 2)):
+        if not segments:  # a strap's line drawn a cell wide stands out half a cell more than its share
+            continue
         centre = Image.new("1", (len(acrosses), len(downs)), 1)
         draw = ImageDraw.Draw(centre)
-        for pair in fitted:
+        for pair in segments:
             draw.line([(point[0] / cell + pad, point[1] / cell + pad) for point in pair], fill=0)
         reach = ndimage.distance_transform_edt(np.asarray(centre)) * cell
         field = np.minimum(field, np.sqrt(reach[:, :, None] ** 2 + depth[None, None, :] ** 2)
-                           - width * FITTING_SHARE / 2)
+                           - (width * share / 2 - line))
     vertices, faces = marching_cubes(field, 0.0, spacing=(cell, cell, cell), allow_degenerate=False)[:2]
     points = np.c_[vertices[:, 2] + depth[0], -(vertices[:, 0] + downs[0]), vertices[:, 1] + acrosses[0]] * scale
     mesh = trimesh.Trimesh(points, faces, process=True)
@@ -1017,7 +1293,7 @@ def write_take(take, row, picture, faces, pixal, mask, box=None):
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
-    mesh = build(row, alpha)
+    mesh = build(row, alpha, np.asarray(picture.convert("L"), dtype=float))
     seen = mesh.copy().apply_transform(np.linalg.inv(as_built(row, alpha)))  # the crop lies on it as drawn
     mesh.visual = textured(seen, picture).visual
     for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood

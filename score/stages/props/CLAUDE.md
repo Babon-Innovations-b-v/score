@@ -46,6 +46,11 @@ gate passes it), else
   gap (the finish route skips a gapped take); `likeness` carries it again only while a free check fails the build. A
   build of a row the rule no longer takes is removed and Pixal3D makes the take. Keep `likeness_row` out of its imports:
   the paid rows' code must not hash the checks (`props_test.py`), so the shared cut-out (`cut_out`) lives there.
+- **A rigid run keeps one section** (`thin_straight.one_section`, RIGID: pipe, conduit, duct, tube, rail; #156,
+  2026-11-22): its length's median width, pressed across to its row's section before the sweep (`pressed`), its ends
+  at its mask's (`reaching`), wall clamps as straps (CLAMP_SHARE); a row named for many ("wall pipes", a bundle) is
+  its crop's lit ridges as parallel runs (`strands`); pieces of one straight thing split by an occluder are joined
+  where they line up (`bridged`). Held to the shape check's sausage measure (place_build/shapes), never loosened.
 - **A thin straight row's mask can be made before its close-ups fail** (`masks_row.py`, row `straight-masks`, paid,
   one SAM 3 card a place, `--object` narrows it): thin_straight's own masks and cuts of every thin straight object, read
   only by prepare's prediction (`predict.straight_outcome`), which builds each in code and holds it free to the
