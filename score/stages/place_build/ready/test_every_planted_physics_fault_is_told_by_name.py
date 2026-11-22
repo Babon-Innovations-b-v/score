@@ -30,7 +30,7 @@ in its area beside a neighbour holding its back wall (the doorway its door fills
 alone, its door in no wall and open; seated among that neighbour (check's `neighbours`) it is told just what the
 room built whole is (nothing; the alcove on the neighbour's floor left to the neighbour's own check), the
 neighbour's post 150 m off, past the room's sight, never lent into it, and the same room cut open in front still open; its looks are cast a batch at a time (CAST_AT_ONCE), each batch meeting what
-all of them at once meet.
+all of them at once meet, and a large cast's ray structure is freed when it is done.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -88,6 +88,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.seated_among: every neighbour object left out -> the seated room's door is in no wall and it reads open
 - ready.Place.hits: CAST_AT_ONCE unread (every look cast at once) -> the closed room's 50 looks reach `cast` in one
   batch past the 7 at once (the square's looks, cast all at once against the plaza, held past 12 GB)
+- ready.cast: its `gc.collect()` left out -> the ball's cast leaves its Trimesh (and its ray structure) alive until
+  the collector runs (the square's looks held every batch's, past 12 GB)
 - ready.box_meets: taken as always True -> the hall's post 150 m off, past the room's sight, is lent (the flat
   among the square's 848 objects ran its check past 12 GB)
 - ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
@@ -99,6 +101,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.settle_mass: its `engine_chosen(prim, "MuJoCo")` left out -> the adopted prop authoring its mass in its
   MuJoCo physics variant alone settles as a hull of DENSITY (NaN), not its 1.5496 kg times its scale cubed (#155)
 """
+import gc
 import json
 import pathlib
 import tracemalloc
@@ -546,6 +549,18 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     assert max(widest) <= 7 and np.array_equal(batched_met, whole_met) and whole_met.all(), (widest, batched_met)
     assert all(np.allclose(np.sort(one, axis=0), np.sort(two, axis=0)) for one, two in zip(whole_hits, batched_hits)), \
         (whole_hits[1], batched_hits[1])
+    ball = trimesh.creation.icosphere(subdivisions=4)  # 5,120 faces: a large cast's ray structure freed at once
+    monkeypatch.setattr(ready, "COLLECTED", 5_000)
+    gc.collect()
+    gc.disable()
+    try:
+        ready.cast(ball.triangles, np.zeros((4, 3)), np.eye(3)[[0, 1, 2, 0]])
+        left = [kept for kept in gc.get_objects() if isinstance(kept, trimesh.Trimesh) and kept is not ball
+                and len(kept.faces) == 5_120]
+    finally:
+        gc.enable()
+        monkeypatch.undo()
+    assert not left, left
     tilt = 4e-6  # a face lying along the look (embree meets it, its plane and the look meet nowhere), a wall past it
     lying = np.array([[[0.0, 0.5 - tilt, -1.0], [2.0, 0.5 + tilt, -1.0], [1.0, 0.5, 1.0]]])
     walled = np.concatenate([lying, trimesh.creation.box((0.2, 3.0, 4.0)).apply_translation((3.0, 1.5, 0.0)).triangles])

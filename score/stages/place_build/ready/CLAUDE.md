@@ -62,7 +62,8 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   to a set of points (`nearest_to_surface`: a door's swing room, a connector's end ring) weighs at most PAIRS point and
   face pairs at once (2026-11-22: the capsule's hatch beside 1.2 million faces of dense models took a package past 12 GB). A
   ray query casts CAST_AT_ONCE rays at a time (`Place.hits`, `met`), each batch against the faces its own box meets
-  (2026-11-22: the square's looks, cast all at once against the whole plaza, held past 12 GB). A new phase that
+  (2026-11-22: the square's looks, cast all at once against the whole plaza, held past 12 GB), and a cast over
+  COLLECTED faces frees its ray structure at once (`gc.collect`: a Trimesh holds itself round, so each batch's stayed). A new phase that
   grows with the scene gets its estimate there; never loosen a measure to fit.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with

@@ -55,6 +55,7 @@ model's painted parts); and `shapes` every made object whose shape reads wrong (
 its run, a hard thing with too few flat faces), each for a remake. The place is ready only with neither.
 """
 import ast
+import gc
 import json
 import os
 import pathlib
@@ -120,6 +121,7 @@ SHOWN_OPEN = 12  # at most this many of a place's open looks are listed (the res
 SETTLE_TURN = 8.0  # degrees
 CAST_AT_ONCE = 2 ** 15  # rays a query casts at once, each batch against the faces its own box meets (2099's square,
 # 2026-11-22: its looks, cast all at once against the whole plaza's faces, held past 12 GB)
+COLLECTED = 200_000  # faces of a cast past which its ray structure is collected at once (`cast`)
 RAYS = 32  # rays the exact intersector casts at once (each holds every face its box meets: 30 000 in the hangar)
 PAST = 1e-3  # metres past a ray's last kept hit embree is asked again whether it meets anything more
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
@@ -307,9 +309,14 @@ def cast(triangles, origins, directions, multiple_hits=True):
     past = origins + ways * np.where(kept, farthest + PAST, 0.0)[:, None]
     doubtful = local.ray.intersects_first(past, ways) >= 0
     doubtful = np.flatnonzero(doubtful & ~kept if not multiple_hits else doubtful)
+    if len(triangles) >= COLLECTED:
+        del local
+        gc.collect()  # a Trimesh holds itself round (its cache, its ray caster), so only the collector frees its ray
+        # structure: the square's looks kept every batch's, past 12 GB (2099 #161, 2026-11-22)
     if not len(doubtful):
         return where, rays, faces
-    exact = trimesh.ray.ray_triangle.RayMeshIntersector(local)
+    exact = trimesh.ray.ray_triangle.RayMeshIntersector(trimesh.Trimesh(
+        triangles.reshape(-1, 3), np.arange(3 * len(triangles)).reshape(-1, 3), process=False))
     unsure = np.isin(rays, doubtful)
     found = [(where[~unsure], rays[~unsure], faces[~unsure])]
     for start in range(0, len(doubtful), RAYS):
