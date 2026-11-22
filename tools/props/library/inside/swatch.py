@@ -25,42 +25,6 @@ import scene_setup  # noqa: E402
 import shapes  # noqa: E402
 
 
-def test_piece():
-    """The swatch's piece, its parts joined, smooth where curved, true edges kept."""
-    parts = []
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0.015))
-    plate = bpy.context.object
-    plate.scale = (0.4, 0.4, 0.03)
-    parts.append(plate)
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(-0.06, 0.05, 0.045))
-    boss = bpy.context.object
-    boss.scale = (0.16, 0.12, 0.03)
-    parts.append(boss)
-    for across in (-0.15, 0.15):
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.014, depth=0.012, vertices=12, location=(across, 0.15, 0.036))
-        parts.append(bpy.context.object)
-    bpy.ops.mesh.primitive_cylinder_add(radius=0.035, depth=0.42, vertices=32, location=(0.0, -0.11, 0.065),
-                                        rotation=(0.0, math.pi / 2, 0.0))
-    parts.append(bpy.context.object)
-    for part in parts:
-        bpy.ops.object.select_all(action="DESELECT")
-        part.select_set(True)
-        bpy.context.view_layer.objects.active = part
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        bevel = part.modifiers.new("bevel", "BEVEL")
-        bevel.width = 0.003
-        bevel.segments = 2
-        bevel.limit_method = "ANGLE"
-        bpy.ops.object.modifier_apply(modifier=bevel.name)
-    bpy.ops.object.select_all(action="DESELECT")
-    for part in parts:
-        part.select_set(True)
-    bpy.context.view_layer.objects.active = plate
-    bpy.ops.object.join()
-    bpy.ops.object.shade_auto_smooth(angle=math.radians(35))
-    return plate
-
-
 PICTURE_RECIPES = ("screen", "printed")
 
 
@@ -106,7 +70,7 @@ def main():
     out = pathlib.Path(job["out"])
     out.mkdir(parents=True, exist_ok=True)
     scene_setup.empty_scene(job["size"], job["samples"])
-    swatch_pieces = {"test": test_piece(), "picture": picture_piece()}
+    swatch_pieces = {"test": scene_setup.test_piece(), "picture": picture_piece()}
     cameras = {"": scene_setup.camera_on(swatch_pieces["test"], (0.55, -0.75, 0.62), 2.6),
                "-close": scene_setup.camera_aimed((0.12, -0.12, 0.33), (0.12, 0.08, 0.03), 50)}
     scene_setup.studio_light()

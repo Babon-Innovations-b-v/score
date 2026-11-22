@@ -65,6 +65,11 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   strata and cracks, wind ripples, waves and foam, pressure cracks and frost), `second` their one colour setting.
   Which one a body's face or a ground row takes is a rule, never asked and never a name
   (`score/stages/natural_grounds.py`: the row's words, else the body's physics against water's phases).
+- **The adopted set's families** (#155, 2026-11-22): `plastic`, `polished_metal`, `concrete`, `cardboard`, `leather`,
+  `ceramic`, `fiberglass` and `grained_wood`, the shared tiling materials of an adopted set the recipes above did not
+  cover; brushed steel, tread plate, painted metal, rubber, cloth, carbon and glass take the recipes already here. A
+  set's material is fitted to one of them and checked to look the same by `likeness/` (its overlay). The swatch's
+  test piece lives in `inside/scene_setup.py` (`test_piece`), shared by `inside/swatch.py` and `inside/likeness.py`.
 - **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`; their printed
   pictures in `data/library/pictures` were retired, 2026-10-21, and a scene library gives none yet), laid by
   `route.py` on a generated piece's front.
