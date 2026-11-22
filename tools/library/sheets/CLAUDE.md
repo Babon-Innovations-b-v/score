@@ -17,5 +17,9 @@ clean?", then "yes" to a full visual pass). Its docstring gives the three steps.
   (`tiling` false: its maps cover that model's UVs once, so a sphere shows only scraps; it is seen on its model's tile).
 - **A glass draws see-through**: a surface's `transmission` block (colour, IOR, roughness) sets the principled
   surface's transmission, since the source's own UsdPreviewSurface constants may call a glass opaque.
+- **An effect is read from its clip here** at its fullest clip time: its particles in the clip's own numbers, as the
+  README's picture reads them (the clips say metersPerUnit 0.01 over values in metres), or a baked clip's mesh (the
+  drill's pour) as a PLY, since Blender opens an animated mesh at a first frame where the pour has not begun. Both go
+  up with the job.
 - Its test, `test_every_current_entry_is_one_tile_or_one_reason.py`, covers the planning and the index, which need no
   Blender.

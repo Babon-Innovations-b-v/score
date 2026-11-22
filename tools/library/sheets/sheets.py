@@ -8,7 +8,8 @@
 `prepare` reads every entry of score_lib (withdrawn ones left out) and writes the cloud jobs: a model, kit piece,
 character, take or effect as library_demo.py stages it, a surface on a sphere (tools/blender/inside/library_sheet.py),
 each machine fetching its entries' files itself from the library's public copy by sha256, so only the job lists go up.
-An effect's particles are read here (one clip time, Z-up) and go up with its job. `render` runs the jobs on rented
+An effect's clip is read here at its fullest time, Z-up (its particles as the README's picture reads them, or a baked
+clip's mesh as a PLY), and goes up with its job. `render` runs the jobs on rented
 cards (tools/cloud/blender_cloud.py, spread over machines; a spend ticket in SCORE_SPEND_TICKET). `compose` lays the
 pictures six across and five down, each tile labelled with its address, a concept or place from the picture its entry
 holds, and writes <out>/<kind>/NN.jpg and <out>/index.json (sheet tile -> address; every entry that failed to fetch
@@ -172,36 +173,51 @@ def linear(hex_colour):
     return [value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4 for value in channels]
 
 
-def fullest_time(cloud):
-    """The clip time that holds the most particles (a pour's settled heap, a jet in full flow)."""
-    times = cloud.GetPointsAttr().GetTimeSamples() or [0.0]
-    return max(times, key=lambda time: len(cloud.GetPointsAttr().Get(time) or ()))
+def fullest_time(attribute):
+    """The clip time whose points attribute holds the most points (a pour's settled heap, a jet in full flow)."""
+    times = attribute.GetTimeSamples() or [0.0]
+    return max(times, key=lambda time: len(attribute.Get(time) or ()))
 
 
-def effect_item(record, work):
-    """An effect as its particles at its fullest clip time, Z-up, drawn in its own look and colour; written here as the
-    npz and Points file library_demo.py reads (they go up with the job)."""
+def effect_stem(record, work):
+    """Where an effect's files for its job are written here (they go up with the job)."""
+    folder = work / "effects"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / record["address"].replace("/", "__").replace("@", "_")
+
+
+def clip_mesh(stage, prim, stem):
+    """A baked clip's mesh (the drill's settled pour) at its fullest clip time as a Z-up PLY: Blender's USD reader
+    opens an animated mesh at the scene's first frame, where a pour has not begun, so the machine would see no mesh."""
     import numpy
-    from pxr import Usd, UsdGeom
+    from pxr import UsdGeom
     import pictures
 
-    clip_path, settings_path = local_file(record, "clip.usdc"), local_file(record, "settings.json")
-    if clip_path is None or settings_path is None:
-        return None, "holds no clip.usdc and settings.json"
-    settings = json.loads(settings_path.read_text())
-    stage = Usd.Stage.Open(str(clip_path))
-    cloud = next((UsdGeom.Points(prim) for prim in stage.Traverse() if prim.IsA(UsdGeom.Points)), None)
-    if cloud is None:
-        has_mesh = any(prim.IsA(UsdGeom.Mesh) for prim in stage.Traverse())
-        del stage
-        clip_path.unlink()
-        if not has_mesh:
-            return None, "its clip holds neither particles (a Points prim) nor a mesh"
-        # a baked clip (the drill's settled pour) is a mesh: drawn as one, fetched on the machine
-        return {"fetch": fetch_list(record, ["clip.usdc"]),
-                "show": {"files": ["clip.usdc"], **STAGING["effect"]}}, None
-    time = fullest_time(cloud)
-    points = numpy.array(cloud.GetPointsAttr().Get(time), dtype=float) * (UsdGeom.GetStageMetersPerUnit(stage) or 1.0)
+    mesh = UsdGeom.Mesh(prim)
+    time = fullest_time(mesh.GetPointsAttr())
+    points = numpy.array(mesh.GetPointsAttr().Get(time), dtype=float)
+    world = numpy.array(UsdGeom.XformCache(time).GetLocalToWorldTransform(prim))
+    points = pictures.z_up((numpy.c_[points, numpy.ones(len(points))] @ world)[:, :3],
+                           UsdGeom.GetStageUpAxis(stage) == "Y")
+    counts = numpy.array(mesh.GetFaceVertexCountsAttr().Get(time))
+    indices = numpy.array(mesh.GetFaceVertexIndicesAttr().Get(time))
+    faces = numpy.split(indices, numpy.cumsum(counts)[:-1])
+    path = stem.with_suffix(".ply")
+    pictures.write_ply(path, points, [face.tolist() for face in faces])
+    return path
+
+
+def clip_points(stage, cloud, settings, stem):
+    """A clip's particles at its fullest clip time, Z-up, as the npz and Points file library_demo.py reads; read in the
+    clip's own numbers as the README's picture reads them (pictures.steam_points). The library's effect clips seen
+    (2026-11-22: the kettle's jet, wisp@2, the drill's pour) say metersPerUnit 0.01 over values in metres (the kettle's jet half a unit long, its puffs 0.05 wide): scaling the
+    points by it and not the widths left a 5 mm cloud inside 5 cm puffs, a blank tile."""
+    import numpy
+    from pxr import UsdGeom
+    import pictures
+
+    time = fullest_time(cloud.GetPointsAttr())
+    points = numpy.array(cloud.GetPointsAttr().Get(time), dtype=float)
     points = pictures.z_up(points, UsdGeom.GetStageUpAxis(stage) == "Y")
     widths = numpy.asarray(cloud.GetWidthsAttr().Get(time) or [settings.get("size", 0.02)] * len(points),
                            dtype=numpy.float32)
@@ -210,15 +226,38 @@ def effect_item(record, work):
     opacity = UsdGeom.PrimvarsAPI(cloud).GetPrimvar("displayOpacity")
     opacity = numpy.asarray(opacity.Get(time) if opacity and opacity.Get(time) is not None else
                             numpy.ones(len(points)), dtype=numpy.float32)
-    folder = work / "effects"
-    folder.mkdir(parents=True, exist_ok=True)
-    stem = folder / record["address"].replace("/", "__").replace("@", "_")
     numpy.savez(stem.with_suffix(".npz"), points=points.astype(numpy.float32), widths=widths, opacity=opacity)
     pictures.points_file(stem.with_suffix(".usda"), points, widths)
-    clip_path.unlink()  # 165 MB for the drill's pour: this PC keeps no library bytes it has done with
-    spec = {"npz": str(stem.with_suffix(".npz")), "usd": str(stem.with_suffix(".usda")),
+    return {"npz": str(stem.with_suffix(".npz")), "usd": str(stem.with_suffix(".usda")),
             "look": settings.get("look", "puff"), "colour": settings.get("colour", [0.9, 0.9, 0.89])}
-    return {"fetch": {}, "show": {"files": [], "points": [spec], **STAGING["effect"]}}, None
+
+
+def effect_item(record, work):
+    """An effect drawn from its clip at its fullest clip time, Z-up: its particles in their own look and colour, or a
+    baked clip's mesh; the files written here go up with the job (`upload`), so the machine fetches nothing."""
+    from pxr import Usd, UsdGeom
+
+    clip_path, settings_path = local_file(record, "clip.usdc"), local_file(record, "settings.json")
+    if clip_path is None or settings_path is None:
+        return None, "holds no clip.usdc and settings.json"
+    settings = json.loads(settings_path.read_text())
+    stage = Usd.Stage.Open(str(clip_path))
+    stem = effect_stem(record, work)
+    cloud = next((UsdGeom.Points(prim) for prim in stage.Traverse() if prim.IsA(UsdGeom.Points)), None)
+    mesh = next((prim for prim in stage.Traverse() if prim.IsA(UsdGeom.Mesh)), None)
+    if cloud is not None:
+        spec = clip_points(stage, cloud, settings, stem)
+        show, upload = {"files": [], "points": [spec]}, [spec["npz"], spec["usd"]]
+    elif mesh is not None:
+        path = clip_mesh(stage, mesh, stem)
+        show, upload = {"files": [str(path)]}, [str(path)]
+    else:
+        show = None
+    del stage
+    clip_path.unlink()  # 165 MB for the drill's pour: this PC keeps no library bytes it has done with
+    if show is None:
+        return None, "its clip holds neither particles (a Points prim) nor a mesh"
+    return {"fetch": {}, "show": {**show, **STAGING["effect"]}, "upload": upload}, None
 
 
 def planned(record, work, defaults):
@@ -280,8 +319,7 @@ def prepare(work, count):
         listing, out = jobs_folder / f"{index:02d}.list.json", renders / f"{index:02d}"
         listing.write_text(json.dumps({"size": list(REVIEW_SIZE), "samples": REVIEW_SAMPLES, "blobs": BLOBS,
                                        "cache": f"{MACHINE_CACHE}/{index:02d}", "items": job["items"]}, indent=1))
-        effects = sorted({path for item in job["items"] for spec in item.get("show", {}).get("points", [])
-                          for path in (spec["npz"], spec["usd"])})
+        effects = sorted({path for item in job["items"] for path in item.get("upload", [])})
         cloud_job = {"script": str(INSIDE.relative_to(REPO)), "args": [str(listing), str(out)],
                      "inputs": [str(listing), *effects], "outputs": [str(out)],
                      "minutes": round(job["seconds"] / 60 * 1.5 + 5), "code": RECIPE_CODE}
