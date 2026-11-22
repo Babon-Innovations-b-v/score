@@ -209,9 +209,9 @@ def clip_mesh(stage, prim, stem):
 
 def clip_points(stage, cloud, settings, stem):
     """A clip's particles at its fullest clip time, Z-up, as the npz and Points file library_demo.py reads; read in the
-    clip's own numbers as the README's picture reads them (pictures.steam_points). The library's effect clips seen
-    (2026-11-22: the kettle's jet, wisp@2, the drill's pour) say metersPerUnit 0.01 over values in metres (the kettle's jet half a unit long, its puffs 0.05 wide): scaling the
-    points by it and not the widths left a 5 mm cloud inside 5 cm puffs, a blank tile."""
+    clip's own numbers as the README's picture reads them (pictures.steam_points): a SCORE clip's values are metres
+    (it says so since score #156; the versions before said metersPerUnit 0.01 over the same metres), and scaling the
+    points by a stated unit and not the widths left a 5 mm cloud inside 5 cm puffs, a blank tile."""
     import numpy
     from pxr import UsdGeom
     import pictures

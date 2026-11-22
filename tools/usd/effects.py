@@ -643,12 +643,16 @@ def kept_out(emitter, points, widths, interiors):
 
 
 def clip_layer(emitter, out):
-    """The emitter's clip file (`assets/effects/<emitter>.usdc`), emptied, at the stage's time codes a second."""
+    """The emitter's clip file (`assets/effects/<emitter>.usdc`), emptied, at the stage's time codes a second, saying
+    its values are the stage's metres, Y up (a clip saying none reads as centimetres, so a reader of the clip alone,
+    score_lib's effect entry, shrank it a hundred times; score #156)."""
     path = pathlib.Path(out) / ASSETS / f"{emitter['name']}.usdc"
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path)) if not path.exists() else Sdf.Layer.FindOrOpen(str(path))
     layer.Clear()
     layer.timeCodesPerSecond = RATE
+    layer.pseudoRoot.SetInfo(UsdGeom.Tokens.metersPerUnit, 1.0)
+    layer.pseudoRoot.SetInfo(UsdGeom.Tokens.upAxis, UsdGeom.Tokens.y)
     return path, layer
 
 

@@ -21,7 +21,8 @@ import sheets  # noqa: E402
 
 
 def clip(path, shape):
-    """A small baked clip in the library's way (Y-up, metersPerUnit 0.01 over values in metres): a puff's particles
+    """A small baked clip as the library's held them before score #156 (Y-up, metersPerUnit 0.01 over values in
+    metres), read in its own numbers all the same: a puff's particles
     spread 0.5 across with 0.05-wide puffs, or a pour's mesh that is empty at its first time."""
     from pxr import Usd, UsdGeom, Vt
     stage = Usd.Stage.CreateNew(str(path))

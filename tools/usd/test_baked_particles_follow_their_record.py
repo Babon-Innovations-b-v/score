@@ -14,6 +14,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27), all
   `force = np.zeros(points.shape)`.
 - test_layer_composes_and_loops: looped_times' `for turn in range(int(math.ceil(HORIZON / loop))):` made
   `for turn in range(1):`.
+- test_layer_composes_and_loops (its clip's units): clip_layer's `SetInfo(UsdGeom.Tokens.metersPerUnit, 1.0)`
+  dropped (seen red 2026-11-22, score #156).
 - test_an_event_lets_out_once_where_its_prim_climbs: bake_once's `points[..., 1] += climbed(...)` made `pass`.
 - test_a_rider_moves_with_its_prim_and_lights_when_it_starts: clip_times' `if emitter.get("starts") is None:` made
   `if True:`.
@@ -149,7 +151,8 @@ def test_layer_composes_and_loops():
         assert smoke.GetAttribute("score:effect:look").Get() == "puff"
         assert smoke.GetAttribute("score:effect:count").Get() == 300
         assert smoke.GetAttribute("score:effect:from").Get() == "made in test_baked_particles_follow_their_record.py"
-        assert (out / effects.ASSETS / "smoke.usdc").exists()
+        clip = Usd.Stage.Open(str(out / effects.ASSETS / "smoke.usdc"))  # its values are metres, and it says so
+        assert (UsdGeom.GetStageMetersPerUnit(clip), UsdGeom.GetStageUpAxis(clip)) == (1.0, "Y")
         stage.GetPrimAtPath("/spot/Effects").GetVariantSets().GetVariantSet("weather").SetVariantSelection("storm")
         assert stage.GetPrimAtPath("/spot/Effects/storm_drift/storm_drift_points")
 
