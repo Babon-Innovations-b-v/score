@@ -18,6 +18,8 @@ The break that turns the test red (applied once each, seen red, reverted):
 - refuse_low_memory's `<` made `>`: the low-memory row starts and the ready rows are refused.
 - send stops at a partial answer (its `continue` made `break`): the ready row's ping finds the connection closed.
 - glb_ok drops its `length == path.stat().st_size`: the cut-short glb row passes.
+- batch_command accepts a Blender without `-b`, or batch_environment keeps the caller's DISPLAY: the batch rows pass
+  a windowed Blender or the owner's screen.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest tools/blender/test_blender_stays_off_the_owners_screen.py
 """
@@ -177,6 +179,15 @@ def test_blender_stays_off_the_owners_screen(tmp_path, monkeypatch):
             done = subprocess.run(["bash", str(HERE / "launch.sh"), shell_display, "true"], capture_output=True,
                                   text=True)
             assert done.returncode == 2 and "refusing display" in done.stderr, display
+
+    # a batch Blender: -b only, no screen of any kind, under the lock and the watchdog
+    batch = session.batch_command("/opt/blender/5.0.1", ["-b", "--python", "job.py"])
+    assert batch[:2] == ["flock", "-w"] and "timeout" in batch and "launch.sh" not in " ".join(batch)
+    assert batch[-4:] == ["/opt/blender/5.0.1", "-b", "--python", "job.py"]
+    with pytest.raises(SystemExit):
+        session.batch_command("/opt/blender/5.0.1", ["--python", "job.py"])
+    environment = session.batch_environment(dict(os.environ), "5.0.1")
+    assert "DISPLAY" not in environment and "WAYLAND_DISPLAY" not in environment
 
     for name, files, problems in ARTIFACT_ROWS:
         folder = tmp_path / "artifacts" / name.replace(" ", "-")

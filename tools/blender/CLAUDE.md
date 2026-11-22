@@ -12,7 +12,9 @@ command.
   empty runtime folder, and the Xvfb stopped when Blender ends. A display under `:99` is refused by
   both (`test_blender_stays_off_the_owners_screen.py` checks it), and a started Blender found connected to WSLg's X0 or
   Wayland is stopped at once. Never run `blender` by hand, with `xvfb-run`, or from another
-  script; a job that needs no window is `session.py batch` (`blender -b`).
+  script; a job that needs no window is `session.py batch` (`blender -b`), which starts with no display at all (a
+  `-b` Blender opens no window; this PC has no Xvfb and no root to install one, 2026-11-22) under the same lock,
+  watchdog and memory floor.
 - **Drawing is on the processor.** System Mesa's llvmpipe on the Xvfb screen and Cycles on the CPU.
   The graphics card is for game tests only. (Blender's own `blender-softwaregl` Mesa crashes in LLVM
   on this processor; do not switch to it.)

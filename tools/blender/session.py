@@ -11,7 +11,9 @@ No Blender window ever reaches the owner's screen (one did on 2026-10-05: WSLg s
 window on the Windows desktop). Every Blender starts through launch.sh on a private Xvfb display
 (:99 up), drawing in software on the processor; the owner's :0 is refused, and a started Blender
 found connected to WSLg's screen anyway is stopped at once. A job that needs no window runs with
-`-b` (`batch`). The MCP add-on needs one: it serves agents from Blender's interface timers, which a
+`-b` (`batch`), with no display at all: a `-b` Blender opens no window, so it needs no Xvfb (2026-11-22: this PC has
+none and no root to install one, and every batch failed at the launch); it starts with the same lock, watchdog,
+memory floor and environment, and the libraries setup.sh copied into libs/ on its LD_LIBRARY_PATH. The MCP add-on needs one: it serves agents from Blender's interface timers, which a
 `-b` Blender never runs, so `start` gives it the Xvfb screen. The add-on listens on
 127.0.0.1:PORT; the `blender` MCP server in .mcp.json and `run` here both talk to it.
 
@@ -126,6 +128,25 @@ def launch_command(blender, display, blender_arguments, wait_seconds=0):
         "bash", str(HERE / "launch.sh"), str(refuse_owner_screen(display)),
         str(blender), *blender_arguments,
     ]
+
+
+def batch_command(blender, blender_arguments, wait_seconds=0):
+    """A `-b` Blender (no window, so no screen of any kind) under the gate lock and the watchdog."""
+    if "-b" not in blender_arguments:
+        raise SystemExit("batch_command: only a -b Blender runs without a private screen")
+    return [
+        "flock", "-w", str(wait_seconds), str(LOCK), "sh", "-c", HOLDER_LINE, str(LOCK),
+        "timeout", "--kill-after=30", f"{int(MAX_HOURS * 3600)}", str(blender), *blender_arguments,
+    ]
+
+
+def batch_environment(base, version):
+    """launch_environment's, with setup.sh's libs/ (the X libraries this box lacks) first on LD_LIBRARY_PATH."""
+    environment = launch_environment(base, version)
+    libs = RUNTIME / "libs"
+    if libs.is_dir():
+        environment["LD_LIBRARY_PATH"] = ":".join(filter(None, [str(libs), base.get("LD_LIBRARY_PATH")]))
+    return environment
 
 
 def socket_peers(member_pids, listing):
@@ -256,8 +277,8 @@ def batch(version, script, script_arguments, wait_seconds):
     """A `blender -b` job (no window, no add-on) under the same lock; its exit code back."""
     refuse_low_memory(free_gb())
     blender_arguments = ["-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script), "--", *script_arguments]
-    command = launch_command(blender_path(version), private_display(), blender_arguments, wait_seconds)
-    return subprocess.run(command, env=launch_environment(os.environ, version),
+    command = batch_command(blender_path(version), blender_arguments, wait_seconds)
+    return subprocess.run(command, env=batch_environment(os.environ, version),
                           stdin=subprocess.DEVNULL, cwd="/tmp").returncode
 
 
