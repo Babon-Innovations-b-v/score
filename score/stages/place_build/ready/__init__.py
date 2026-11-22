@@ -1380,7 +1380,8 @@ def statics_near(laid, name):
 
 def settle_mass(laid, name):
     """The mass an adopted prop authors for itself (#155) as MuJoCo reads it, its MuJoCo physics variant chosen in
-    the stage's session layer and put back after, times its laid scale cubed (kg); NaN when it authors none."""
+    the stage's session layer and put back after, times its laid scale cubed less its asset's unit scale
+    (place_build.units_of: only the scale the agent chose weighs it) (kg); NaN when it authors none."""
     prim = laid.prims[name]
     stage, path = prim.GetStage(), prim.GetPath()
     with Usd.EditContext(stage, stage.GetSessionLayer()):
@@ -1392,7 +1393,7 @@ def settle_mass(laid, name):
     if mass is None:
         return float("nan")
     linear = np.asarray(UsdGeom.Xformable(laid.prims[name]).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
-    return mass * abs(float(np.linalg.det(linear[:3, :3])))
+    return mass * abs(float(np.linalg.det(linear[:3, :3]))) / place_build.units_of(laid.prims[name]) ** 3
 
 
 def settle_faults(laid, folder):

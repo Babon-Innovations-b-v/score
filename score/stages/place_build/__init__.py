@@ -91,6 +91,7 @@ PALETTE = "palette.json"  # the place's own surface library in its folder (`pale
 CAMERA = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -1.0], "fov": 60.0}
 # The roles of an entry's file that can be laid in a scene, first found wins; a glTF one is converted (gltf.py).
 USD_ROLES = ("usd",)
+UNITS = "xformOp:scale:units"  # a laid asset's unit scale op (unit_scaled), after the scale the agent chose
 ROOTED_KINDS = ("effect", "model")  # the kinds whose record's `usd.root` names the file to lay
 GLTF_ROLES = ("gltf", "web3d")
 # A character's body group shown by default (its others made invisible), the first it has: the made body, the suit;
@@ -345,12 +346,32 @@ def opened(folder):
 
 
 def posed(prim, at, turn, scale):
-    """The prim's transform set to translate `at`, rotateXYZ `turn` (degrees) and `scale`, in that order of ops."""
+    """The prim's transform set to translate `at`, rotateXYZ `turn` (degrees) and `scale`, in that order of ops, and
+    after them its asset's unit scale (`UNITS`) when it has one."""
     xform = UsdGeom.Xformable(prim)
     xform.ClearXformOpOrder()
     xform.AddTranslateOp().Set(Gf.Vec3d(*at))
     xform.AddRotateXYZOp().Set(Gf.Vec3f(*turn))
     xform.AddScaleOp().Set(Gf.Vec3f(*scale))
+    if prim.HasAttribute(UNITS):
+        xform.AddScaleOp(opSuffix="units")
+
+
+def unit_scaled(prim, metres_a_unit):
+    """The prim's unit scale (`UNITS`) set to its asset's metres a unit (its record's usd.meters_per_unit), removed
+    when that is 1 (an asset in metres): its own op, so a scale the agent chose (`xformOp:scale`) stays apart from it
+    and only that one weighs a mass (units_of)."""
+    if metres_a_unit == 1.0:
+        prim.RemoveProperty(UNITS)
+    else:
+        prim.CreateAttribute(UNITS, Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(metres_a_unit, metres_a_unit,
+                                                                           metres_a_unit))
+
+
+def units_of(prim):
+    """The metres a unit of the asset laid at `prim` (its unit scale op, `unit_scaled`), 1.0 when it has none."""
+    attribute = prim.GetAttribute(UNITS)
+    return float(attribute.Get()[0]) if attribute and attribute.HasAuthoredValue() else 1.0
 
 
 def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0), ground=False,
@@ -373,7 +394,8 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         path, role = f"/{place}/Effects/{name}", "effect"
     if on_ground:
         at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
-    relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground)
+    relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground,
+                              float((record.get("usd") or {}).get("meters_per_unit") or 1.0))
     laid = {"name": name, "address": address, "usd": relative}
     layers = layered(stage, path, folder, asset, record, copied)
     if layers:
@@ -522,14 +544,16 @@ def rested(stage, path, at, turn, scale):
     return spot
 
 
-def laid_reference(stage, path, folder, asset, address, kind, pose, ground):
-    """The prim at `path` referencing `asset` (a file in the place folder), posed (at, turn, scale) and carrying its
-    library address, kind and ground mark; the reference as written."""
+def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metres_a_unit=1.0):
+    """The prim at `path` referencing `asset` (a file in the place folder), posed (at, turn, scale), its asset's
+    units brought to metres (`unit_scaled`: an adopted model authored in centimetres) and carrying its library
+    address, kind and ground mark; the reference as written."""
     prim = stage.DefinePrim(path)
     prim.SetTypeName("")  # the entry's own type (a character's SkelRoot) composes through, never an Xform over it
     prim.GetReferences().ClearReferences()
     relative = "./" + pathlib.Path(asset).resolve().relative_to(pathlib.Path(folder).resolve()).as_posix()
     prim.GetReferences().AddReference(relative)
+    unit_scaled(prim, metres_a_unit)
     posed(prim, *pose)
     prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)

@@ -826,11 +826,13 @@ def instance_of(name, object_name, kind, frame, scale):
 
 def mass_of(folder, prim, scale):
     """A copy's mass: the one its asset authors (UsdPhysics' MassAPI, an adopted asset's, #155), else its entry's own
-    record's (the maker's `physics.mass_kg`, beside its files in the place's assets), times its scale cubed; None when
-    neither has one."""
+    record's (the maker's `physics.mass_kg`, beside its files in the place's assets), times the scale the agent chose
+    cubed (its laid `scale` less its asset's unit scale, place_build.units_of: a kg is a kg in any length unit); None
+    when neither has one."""
     address = text_of(prim, "score:library")
     if not address or "@" not in address:
         return None
+    scale = scale / place_build.units_of(prim)
     authored = usd_physics.authored_mass(prim)
     if authored is not None:
         return round(authored * scale ** 3, 4)

@@ -17,7 +17,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   kit, character and surface on 2026-10-21), and the finish check fails one already laid. A withdrawn entry that
   names its replacement (`replaced_by`, #155) is laid as the end of that chain (`resolved_address`), refused only when
   that end is withdrawn too. A model's record's `usd` root is the file laid (an adopted set's root, never a payload
-  beside it), and its layers are only `<root>_<layer>` files in the root's own folder. `put` lays only an entry
+  beside it), and its layers are only `<root>_<layer>` files in the root's own folder; its `usd.meters_per_unit`
+  is laid as its own unit scale op (`xformOp:scale:units`, after the agent's scale), and a mass is weighed only
+  by the agent's scale (`units_of`), never the unit conversion. `put` lays only an entry
   with a USD file (kit pieces, models, the
   sky domes), copied whole under the place's `assets/`; `surface` binds a library surface over everything inside the
   object (a variant's own material, or a recipe in a palette colour), so a model's baked colour never shows; `light`
