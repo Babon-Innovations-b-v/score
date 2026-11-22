@@ -31,7 +31,8 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
 - **The mesh is the thinned one** where prop_rig.py thinned it part by part (`part_of` in the fit rig), so the outfit
   stays within the shipped player's triangles.
 - **The far body** is prop_far.py's (the whole mesh thinned to 1,220 triangles, thinned on the processor where it is
-  made), in three surfaces (skin, clothes, boots) of the parts' colours, as body.py's far body is named.
+  made), in three surfaces (skin, clothes, boots) of the parts' colours, as body.py's far body is named, out of the
+  file's default scene (people/glb.py levels_apart, #156): a reader that opens the file sees the near body alone.
 """
 import argparse
 import json
@@ -593,7 +594,7 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit, prints_path=No
         notes["seconds"] = round(body.add_clip(contents, document, clips.in_game(name), local, joint_node), 2)
         notes["frames"] = int(local.shape[0])
         report["clips"][name] = notes
-    glb.write(out, document, contents)
+    glb.write(out, glb.levels_apart(document, outfit, "far"), contents)
     report["bytes"] = pathlib.Path(out).stat().st_size
     report["height"] = round(float(np.ptp(fit_rig["points"][:, 1])), 3)
     return report

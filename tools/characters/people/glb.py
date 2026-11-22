@@ -35,6 +35,11 @@ _VERSION = 2
 _JSON_CHUNK = 0x4E4F534A
 _BINARY_CHUNK = 0x004E4942
 
+# The scenes of a file whose body has a far level (levels_apart): the default one, the near body alone; and every
+# level of detail on the one skeleton.
+NEAR_SCENE = "near"
+LEVELS_SCENE = "levels"
+
 
 class Contents:
     """The numbers a glTF file carries, and the slices and readings that point into them."""
@@ -127,6 +132,24 @@ def refuse_a_tangled_graph(document):
                 raise ValueError(f"node {start} is inside a loop of nodes")
             seen.add(walk)
             walk = parent_of[walk]
+
+
+def levels_apart(document, near, far):
+    """The document with node `far`, a coarser level of detail of node `near`, out of the default scene (score #156):
+    a reader that opens the file sees one body. The default scene NEAR_SCENE holds the roots without it; LEVELS_SCENE
+    holds them and `far` as a root of its own (a skinned mesh's node is placed by its joints, so it needs no parent),
+    for a reader that switches the levels by distance; `near` names it as its lower level (MSFT_lod). The same
+    document comes back from a document already apart."""
+    names = {node.get("name"): number for number, node in enumerate(document["nodes"])}
+    near_node, far_node = names[near], names[far]
+    nodes = [dict(node, children=[child for child in node["children"] if child != far_node])
+             if far_node in node.get("children", []) else node for node in document["nodes"]]
+    roots = [root for root in document["scenes"][document.get("scene", 0)]["nodes"] if root != far_node]
+    extensions = dict(nodes[near_node].get("extensions", {}), MSFT_lod={"ids": [far_node]})
+    nodes[near_node] = dict(nodes[near_node], extensions=extensions)
+    return dict(document, nodes=nodes, scene=0,
+                scenes=[{"name": NEAR_SCENE, "nodes": roots}, {"name": LEVELS_SCENE, "nodes": [*roots, far_node]}],
+                extensionsUsed=sorted({*document.get("extensionsUsed", []), "MSFT_lod"}))
 
 
 def write(path, document, contents):

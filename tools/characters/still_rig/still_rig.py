@@ -42,7 +42,8 @@ The steps:
    prints stay, and the base colour is graded toward the place's palette tokens as a made prop's paint is
    (score/stages/place_build/maker/grade.py). The parts keep only their joints and their `role`.
 7. The glTF (`written`): the dressed body's skeleton and clips (its corrective morph keys left out: the still has no
-   targets), the still as its `work` node and a far body of FAR_TRIANGLES; `stretch` measures the longest edge's
+   targets), the still as its `work` node and a far body of FAR_TRIANGLES out of the file's default scene
+   (people/glb.py levels_apart, #156); `stretch` measures the longest edge's
    growth on every frame of every clip.
 
 Writes <out>/body.glb, <out>/rig.json (the fit, the parts' triangles, the matched share, the grade's colour groups,
@@ -806,7 +807,7 @@ def written(out, document, blob, bind, laid, maps):
         new["meshes"].append({"name": name, "primitives": primitives})
         new["nodes"].append({"name": name, "mesh": len(new["meshes"]) - 1, "skin": 0})
         new["nodes"][0].setdefault("children", []).append(len(new["nodes"]) - 1)
-    glb.write(out, new, contents)
+    glb.write(out, glb.levels_apart(new, OUTFIT, "far"), contents)
     return {"far_triangles": int(len(thin.faces)), "triangles": int(len(faces))}
 
 

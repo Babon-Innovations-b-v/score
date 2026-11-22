@@ -26,7 +26,7 @@ reaches a made body with no paid re-make (the body row's output holds its rig.np
 
 Hard parts, hands and hair keep their made weights (one joint each), but a boot's shaft, graded from its foot onto its
 shin round the ankle (`shafted`), with the cloth eased onto it, and a bare arm, weighted by limb from the base up to
-its wrist (`armed_skin`). The far body is copied as it is.
+its wrist (`armed_skin`). The far body is copied as it is, out of the default scene (people/glb.py levels_apart).
 """
 import argparse
 import json
@@ -604,7 +604,7 @@ def written(path, document, blob, old_document, old_blob, old_head, surfaces, sh
            "skins": [skin], "materials": materials, "textures": textures,
            "samplers": samplers_of(document, old_document, textures),
            "animations": copied_animations(contents, document, blob, clip_weights, work_node)}
-    return glb.write(path, out, contents)
+    return glb.write(path, glb.levels_apart(out, NODE, "far"), contents)
 
 
 def rebind(options):

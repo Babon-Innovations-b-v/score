@@ -12,7 +12,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-26):
   never ends: red by the time limit). The own-child check alone dropped stays green: the loop walk refuses that graph
   too.
 - test_the_numbers_come_back_out_as_they_went_in: Contents.reading's `"count": len(values) // each` made
-  `len(values)`.
+  `len(values)`; and, apart, levels_apart's `if child != far_node` dropped (the far body stays in the default scene,
+  #156), its `if root != far_node` dropped (a far body laid as a root of the default scene stays in it) or its
+  MSFT_lod mark dropped.
 - test_a_picture_is_kept_byte_for_byte_on_a_four_byte_boundary: Contents.picture's `self._pad()` dropped.
 - test_a_run_of_numbers_that_does_not_divide_is_refused: reading's `if len(values) % each: raise` dropped.
 - test_every_joint_hangs_its_points_on_one_surface: regions' `(SKIN, ("Hand",))` rule dropped; and, apart,
@@ -68,6 +70,14 @@ def test_a_tangled_node_graph_is_refused_and_a_tree_let_through():
     assert refusal({"nodes": [{"children": [1, 2]}, {"children": [3]}, {}, {}]}) == ""
 
 
+def tree(document, roots):
+    """The names of the nodes a scene with these roots holds, depth first."""
+    found = []
+    for root in roots:
+        found += [document["nodes"][root]["name"], *tree(document, document["nodes"][root].get("children", []))]
+    return found
+
+
 def test_the_numbers_come_back_out_as_they_went_in(tmp_path):
     contents = glb.Contents()
     where = contents.reading([0.0, 0.0, 0.0, 1.0, 2.0, 3.0], "VEC3", glb.FLOAT, glb.ARRAY_BUFFER, with_bounds=True)
@@ -77,6 +87,17 @@ def test_the_numbers_come_back_out_as_they_went_in(tmp_path):
     assert len(read["accessors"]) == 2 and read["accessors"][where]["count"] == 2
     assert read["accessors"][where]["min"] == [0.0, 0.0, 0.0] and read["accessors"][where]["max"] == [1.0, 2.0, 3.0]
     assert read["nodes"][0]["name"] == "one"
+    person = {"nodes": [{"name": "Person", "children": [1, 2, 3]}, {"name": "Root"},
+                        {"name": "far", "mesh": 0, "skin": 0},
+                        {"name": "work", "mesh": 1, "skin": 0}]}
+    apart = glb.levels_apart(dict(BARE, **person), "work", "far")
+    glb.write(tmp_path / "levels.glb", apart, glb.Contents())
+    read = glb.read_document(tmp_path / "levels.glb")
+    shown = {name: tree(read, scene["nodes"]) for name, scene in zip(("default", "levels"), read["scenes"])}
+    assert shown == {"default": ["Person", "Root", "work"], "levels": ["Person", "Root", "work", "far"]}, shown
+    assert read["nodes"][3]["extensions"]["MSFT_lod"] == {"ids": [2]} and "MSFT_lod" in read["extensionsUsed"]
+    assert glb.levels_apart(apart, "work", "far") == apart  # made apart again, or from a far body laid as a root
+    assert glb.levels_apart(dict(apart, scenes=[{"nodes": [0, 2]}]), "work", "far") == apart
 
 
 def test_a_picture_is_kept_byte_for_byte_on_a_four_byte_boundary(tmp_path):
