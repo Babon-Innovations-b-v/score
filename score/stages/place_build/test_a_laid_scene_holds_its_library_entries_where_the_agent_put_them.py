@@ -226,6 +226,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.library_address: every copy taken for made (no library piece) -> kerb2 is a made piece of its own, not
   box_piece
 - package.piece_problems: the digest left unchecked -> the box piece's stale digest passes the check
+- scene_package.mass_of: the asset's authored mass left unread (usd_physics.authored_mass skipped) -> the adopted
+  prop weighs its record's 3 kg, not its asset's 1.5496 kg times its scale cubed (#155)
+- scene_package.metal_rough: the texture output read left off (`channel(found[0], "r")`) -> the adopted look's
+  roughness and metal are its ORM map's occlusion (red), not its green and blue (#155)
 """
 import json
 import pathlib
@@ -234,7 +238,7 @@ import trimesh
 
 import numpy as np
 from PIL import Image
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdSkel, Vt
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
 from score.stages.place_build import film, measure, ready, relief, render, review, stair_core
@@ -799,6 +803,49 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     stilled(folder)
     from_library(tmp_path, root, files)
     skied(tmp_path, root, files)
+    adopted(tmp_path / "adopted")
+
+
+def adopted(folder):
+    """An adopted asset (#155) as the package reads it: its prop's mass the one its asset authors (UsdPhysics' MassAPI
+    on its mesh) times its scale cubed, over its entry's record; its look's UsdPreviewSurface as Blender's importer
+    reads it, the ORM map's green its roughness and blue its metal (red, occlusion, unread, as Blender reads none),
+    the normal map (scale 2, bias -1) as glTF holds one, unchanged."""
+    from score.stages.place_build import scene_package
+    record = folder / "assets/model/adopted/1/adopted.json"
+    record.parent.mkdir(parents=True)
+    record.write_text(json.dumps({"physics": {"mass_kg": 3.0}}))
+    stage = Usd.Stage.CreateInMemory()
+    prop = stage.DefinePrim("/p/Objects/prop_1", "Xform")
+    prop.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set("model/adopted@1")
+    geo = UsdGeom.Mesh.Define(stage, "/p/Objects/prop_1/geo").GetPrim()
+    UsdPhysics.MassAPI.Apply(geo).CreateMassAttr(1.5496)
+    assert scene_package.mass_of(folder, prop, 2.0) == round(1.5496 * 8, 4)
+    assert scene_package.collider_of(folder, prop, "prop", 2.0)["mass_kg"] == round(1.5496 * 8, 4)
+    maps = {"alb": (200, 100, 50), "orm": (30, 140, 220), "nor": (128, 120, 250)}
+    for name, colour in maps.items():
+        Image.new("RGB", (8, 8), colour).save(folder / f"{name}.png")
+    look = UsdShade.Material.Define(stage, "/p/Looks/painted")
+    shader = UsdShade.Shader.Define(stage, "/p/Looks/painted/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    for name, wiring in (("alb", [("rgb", "diffuseColor", Sdf.ValueTypeNames.Color3f)]),
+                         ("orm", [("g", "roughness", Sdf.ValueTypeNames.Float),
+                                  ("b", "metallic", Sdf.ValueTypeNames.Float)]),
+                         ("nor", [("rgb", "normal", Sdf.ValueTypeNames.Normal3f)])):
+        texture = UsdShade.Shader.Define(stage, f"/p/Looks/painted/{name}")
+        texture.CreateIdAttr("UsdUVTexture")
+        texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(str(folder / f"{name}.png"))
+        if name == "nor":
+            texture.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(2, 2, 2, 1))
+            texture.CreateInput("bias", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(-1, -1, -1, 0))
+        for output, wired, kind in wiring:
+            shader.CreateInput(wired, kind).ConnectToSource(texture.ConnectableAPI(), output)
+    material = scene_package.pbr(look)["material"]
+    assert material.metallicRoughnessTexture.getpixel((0, 0))[1:] == (140, 220)
+    assert material.metallicFactor == material.roughnessFactor == 1.0
+    assert material.normalTexture.getpixel((0, 0)) == maps["nor"]
+    assert material.baseColorTexture.getpixel((0, 0)) == maps["alb"]
 
 
 def skied(tmp_path, root, files):

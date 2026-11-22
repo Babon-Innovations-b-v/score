@@ -10,7 +10,9 @@ writes, beside the place's other layers and held by its root just under the edit
                           guide is switched off for a static object); every object carries its mass (MassAPI: the
                           drawn surface's area times its material's sheet and density, props being hollow shells)
                           and its physics material (static and dynamic friction, restitution, density), bound for
-                          the physics purpose; the scene's pull is the record's `gravity`
+                          the physics purpose; the scene's pull is the record's `gravity`. An adopted object (a
+                          library object whose asset authors its own mass, #155) keeps its asset's mass, colliders,
+                          approximation and physics materials, its Newton physics variant chosen
     layers/trial.usda     the trial: its bodies (RigidBodyAPI; colliding by the export's convex hull, their
                           triangles off), each drop lifted `over` metres above its target at its spot, each hinge a
                           RevoluteJoint about the vertical through its pins' middle (limits `opens`, degrees; the pins
@@ -48,6 +50,10 @@ COLUMN_INSET = 0.02
 # A hinge's motor follows its speed as closely as its torque allows: a velocity drive this stiff (newton metres a
 # second a degree).
 STIFF_DRIVE = 1e6
+# An adopted asset's physics comes in one variant set an engine, each `Enabled` or `Disabled` (#155): the trial runs
+# Newton's, the ready check's settle MuJoCo's.
+ENGINES = ("MuJoCo", "Newton", "PhysX")
+ENABLED, DISABLED = "Enabled", "Disabled"
 
 
 def bodies_of(record):
@@ -122,6 +128,46 @@ def laid_objects(stage):
     return [prim for prim in Usd.PrimRange(stage.GetDefaultPrim().GetChild("Objects")) if own_meshes(prim)]
 
 
+def authored_mass(prim):
+    """The mass an asset authors for itself at and under a laid object (UsdPhysics' MassAPI with a mass, inside its
+    instances too, the objects laid on it left out), kg in the asset's own units; None when it authors none."""
+    masses = []
+    walk = iter(Usd.PrimRange(prim, Usd.TraverseInstanceProxies()))
+    for part in walk:
+        if part != prim and part.HasAttribute("score:library"):
+            walk.PruneChildren()
+            continue
+        mass = UsdPhysics.MassAPI(part).GetMassAttr() if part.HasAPI(UsdPhysics.MassAPI) else None
+        if mass and mass.HasAuthoredValue() and mass.Get() > 0:
+            masses.append(float(mass.Get()))
+    return sum(masses) if masses else None
+
+
+def adopted_objects(stage):
+    """Every laid library object (one carrying `score:library`) whose asset authors its own physics, a mass of its own:
+    its mass, colliders, their approximation and physics materials are the asset's, never written over."""
+    return [prim for prim in Usd.PrimRange(stage.GetDefaultPrim().GetChild("Objects"))
+            if prim.HasAttribute("score:library") and authored_mass(prim) is not None]
+
+
+def is_adopted(prim, adopted):
+    """True when the prim is, or stands under, one of the `adopted` objects."""
+    return any(prim.GetPath().HasPrefix(object_prim.GetPath()) for object_prim in adopted)
+
+
+def engine_chosen(prim, engine):
+    """An asset's physics read for `engine`: its variant set of that name made `Enabled` and every other engine's
+    `Disabled`, where it has them, at the stage's edit target; the sets it chose."""
+    stage, path, chosen = prim.GetStage(), prim.GetPath(), {}
+    for name in ENGINES:
+        sets = stage.GetPrimAtPath(path).GetVariantSets()  # each choice recomposes the prim: read it afresh
+        if not sets.HasVariantSet(name) or not {ENABLED, DISABLED} <= set(sets.GetVariantSet(name).GetVariantNames()):
+            continue
+        chosen[name] = ENABLED if name == engine else DISABLED
+        sets.GetVariantSet(name).SetVariantSelection(chosen[name])
+    return chosen
+
+
 def write_materials(stage, materials):
     """One physics material prim a material, under /<place>/Physics."""
     for name, spec in materials.items():
@@ -143,14 +189,15 @@ def write_scene(stage, record):
 
 
 def collide_by_triangles(stage, material):
-    """Every drawn mesh of the place but its sky collides by its own triangles, its physics material bound; how
-    many."""
+    """Every drawn mesh of the place but its sky and its adopted objects' (adopted_objects: theirs collide as their
+    asset says) collides by its own triangles, its physics material bound; how many."""
     binding = UsdShade.Material(stage.GetPrimAtPath(place_path(stage).AppendPath(f"Physics/{material}")))
+    adopted = adopted_objects(stage)
     count = 0
     for prim in stage.Traverse():
         if not prim.IsA(UsdGeom.Mesh) or any(part in NOT_SOLID for part in prim.GetPath().pathString.split("/")):
             continue
-        if UsdGeom.Imageable(prim).ComputePurpose() == UsdGeom.Tokens.guide:
+        if UsdGeom.Imageable(prim).ComputePurpose() == UsdGeom.Tokens.guide or is_adopted(prim, adopted):
             continue
         UsdPhysics.CollisionAPI.Apply(prim)
         UsdPhysics.MeshCollisionAPI.Apply(prim).CreateApproximationAttr(UsdPhysics.Tokens.none)
@@ -160,9 +207,13 @@ def collide_by_triangles(stage, material):
 
 
 def write_masses(stage, spec):
-    """Each laid object's mass, its export hull switched off; {object: kg}."""
-    found = {}
+    """Each laid object's mass, its export hull switched off, an adopted object's (adopted_objects) its asset's own,
+    left as authored; {object: kg}."""
+    adopted = adopted_objects(stage)
+    found = {prim.GetName(): round(authored_mass(prim), 3) for prim in adopted}
     for prim in laid_objects(stage):
+        if is_adopted(prim, adopted):
+            continue
         area = sum(mesh_area(mesh, mesh.ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
                    for mesh in own_meshes(prim))
         mass = area * spec["sheet"] * spec["density"]
@@ -224,7 +275,13 @@ def centred(hull):
 
 def make_body(prim):
     """A trial body: a rigid body colliding by the export's hull, its own triangles off, the hull bound to the
-    physics material of what it draws and its origin at its middle (`centred`)."""
+    physics material of what it draws and its origin at its middle (`centred`); an adopted object (one authoring its
+    own mass) keeps its asset's colliders and rigid bodies, made one only when its asset names none."""
+    if prim.HasAttribute("score:library") and authored_mass(prim) is not None:
+        if not any(part.HasAPI(UsdPhysics.RigidBodyAPI)
+                   for part in Usd.PrimRange(prim, Usd.TraverseInstanceProxies())):
+            UsdPhysics.RigidBodyAPI.Apply(prim)
+        return
     UsdPhysics.RigidBodyAPI.Apply(prim)
     drawn = own_meshes(prim)
     for mesh in drawn:
@@ -330,7 +387,8 @@ def write_push(stage, push, rate):
 def faults(stage, record):
     """What stops the trial before it runs: a body with no drawn mesh, a drop whose column holds anything but its
     target (each object's bounds against the column from its target's top up to where it starts)."""
-    found = [f"{name} draws no mesh" for name in bodies_of(record) if not own_meshes(object_prim(stage, name))]
+    found = [f"{name} draws no mesh" for name in bodies_of(record)
+             if not own_meshes(object_prim(stage, name)) and object_prim(stage, name) not in adopted_objects(stage)]
     for drop in record["drops"]:
         low, high = world_box(object_prim(stage, drop["object"]))
         half, at = (high - low) / 2 - COLUMN_INSET, spot_of(stage, drop)
@@ -393,6 +451,9 @@ def write(folder, record, materials):
     working = layer_stage(root_path, layer, layer_ids(root_path, LAYERS))
     write_materials(working, materials["materials"])
     write_scene(working, record)
+    for path in [prim.GetPath() for prim in Usd.PrimRange(working.GetDefaultPrim().GetChild("Objects"))
+                 if prim.HasAttribute("score:library")]:
+        engine_chosen(working.GetPrimAtPath(path), "Newton")
     meshes = collide_by_triangles(working, record["material"])
     masses = write_masses(working, materials["materials"][record["material"]])
     whole_layer.stamped(layer, record["place"]).Save()

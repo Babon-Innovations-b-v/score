@@ -5,7 +5,8 @@ sim body's walkers run in): each loose object of a place let go where it is laid
 
 job.npz: for each loose object `<n>`, `hull_<n>` (its points, metres, y up: MuJoCo collides it by their convex hull),
 `statics_<n>` (the triangles, (count, 3, 3), of everything else near it: the ground, shells, walls and the other
-objects) and `names` (the objects in order). Each object is its own small model built as an mjSpec (a free body of its
+objects), `mass_<n>` (kg: the mass an adopted asset authors for itself, #155; NaN for none, its hull then of DENSITY)
+and `names` (the objects in order). Each object is its own small model built as an mjSpec (a free body of its
 hull; each static triangle a thin plate of STATIC_SKIN, so an open shell or a terrain is a real surface, not its
 hull), the models side by side in a process pool (POOL, or as many as the caller's memory budget fits): one model
 an object, so a hollow cabinet's hull never meets the suit stored inside it (what an object holds is left out of its
@@ -48,9 +49,9 @@ def plates(triangles):
     return np.concatenate([triangles[kept] + offset, triangles[kept] - offset], axis=1)
 
 
-def model_of(hull, statics):
-    """The mjSpec of one loose object (a free body, its hull's middle its origin) among its static plates, compiled;
-    the hull's middle."""
+def model_of(hull, statics, mass=float("nan")):
+    """The mjSpec of one loose object (a free body, its hull's middle its origin, its `mass` when one is given, else
+    its hull of DENSITY) among its static plates, compiled."""
     spec = mujoco.MjSpec()
     spec.option.gravity = [0.0, -GRAVITY, 0.0]
     spec.option.timestep = STEP
@@ -59,8 +60,9 @@ def model_of(hull, statics):
     spec.add_mesh(name="loose", uservert=(hull - middle).ravel().tolist())
     body = spec.worldbody.add_body(name="loose", pos=middle.tolist())
     body.add_freejoint()
-    body.add_geom(type=mujoco.mjtGeom.mjGEOM_MESH, meshname="loose", density=DENSITY, contype=1, conaffinity=0,
-                  friction=[FRICTION, 0.005, 0.0001])
+    weighed = {"mass": float(mass)} if np.isfinite(mass) else {"density": DENSITY}
+    body.add_geom(type=mujoco.mjtGeom.mjGEOM_MESH, meshname="loose", contype=1, conaffinity=0,
+                  friction=[FRICTION, 0.005, 0.0001], **weighed)
     for number, corners in enumerate(plates(statics)):
         spec.add_mesh(name=f"plate{number}", uservert=corners.ravel().tolist(),
                       inertia=mujoco.mjtMeshInertia.mjMESH_INERTIA_SHELL)
@@ -76,8 +78,8 @@ def turned_degrees(start, end):
 
 def settled(item):
     """One object let go: how far it moved and turned, its deepest contact at the start, its contacts at the end."""
-    name, hull, statics = item
-    model = model_of(hull, statics)
+    name, hull, statics, mass = item
+    model = model_of(hull, statics, mass)
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
     depth = float(min((data.contact[index].dist for index in range(data.ncon)), default=0.0))
@@ -92,7 +94,8 @@ def main():
     if len(sys.argv) not in (3, 4):
         raise SystemExit(__doc__)
     job = np.load(sys.argv[1])
-    items = [(str(name), job[f"hull_{name}"], job[f"statics_{name}"]) for name in job["names"]]
+    items = [(str(name), job[f"hull_{name}"], job[f"statics_{name}"],
+              float(job[f"mass_{name}"])) for name in job["names"]]
     side_by_side = int(sys.argv[3]) if len(sys.argv) == 4 else POOL
     with multiprocessing.Pool(min(side_by_side, max(1, len(items)))) as pool:
         found = dict(pool.map(settled, items))

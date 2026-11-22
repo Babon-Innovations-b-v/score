@@ -55,6 +55,7 @@ import math
 import pathlib
 import shutil
 import struct
+import sys
 import threading
 
 import numpy as np
@@ -65,6 +66,9 @@ from score.stages import place_build
 from score.stages.place_build import skinned
 import library_files  # tools/library, on the path by place_build
 import package  # tools/props/library/package.py, on the path by place_build: the format and its check
+
+sys.path.insert(0, str(place_build.REPO / "tools/usd"))
+import physics as usd_physics  # noqa: E402  (tools/usd/physics.py: an adopted asset's own physics, #155)
 
 GROUND = "y = 0 is the place frame's own zero; each copy stands where it was laid"
 COLLIDERS = {"prop": "convex hull", "ground": "mesh", "shell": "mesh", "connector": "mesh", "door": "mesh",
@@ -821,11 +825,15 @@ def instance_of(name, object_name, kind, frame, scale):
 
 
 def mass_of(folder, prim, scale):
-    """A copy's mass from its entry's own record (the maker's `physics.mass_kg`, beside its files in the place's
-    assets), times its scale cubed; None when the entry records none."""
+    """A copy's mass: the one its asset authors (UsdPhysics' MassAPI, an adopted asset's, #155), else its entry's own
+    record's (the maker's `physics.mass_kg`, beside its files in the place's assets), times its scale cubed; None when
+    neither has one."""
     address = text_of(prim, "score:library")
     if not address or "@" not in address:
         return None
+    authored = usd_physics.authored_mass(prim)
+    if authored is not None:
+        return round(authored * scale ** 3, 4)
     entry_id = address.split("/", 1)[1].split("@")[0]
     record = pathlib.Path(folder) / "assets" / library_files.stage_name(
         library_files.reference(address, f"{entry_id}.json"))

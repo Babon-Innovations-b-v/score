@@ -73,6 +73,7 @@ from score.stages.place_build.ready import people
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "tools/usd"))
+import physics as usd_physics  # noqa: E402  (tools/usd/physics.py: an adopted asset's own physics, #155)
 import reach  # noqa: E402
 import resting  # noqa: E402
 
@@ -1377,6 +1378,23 @@ def statics_near(laid, name):
     return laid.triangles_in(low, high, without=left_out)[0]
 
 
+def settle_mass(laid, name):
+    """The mass an adopted prop authors for itself (#155) as MuJoCo reads it, its MuJoCo physics variant chosen in
+    the stage's session layer and put back after, times its laid scale cubed (kg); NaN when it authors none."""
+    prim = laid.prims[name]
+    stage, path = prim.GetStage(), prim.GetPath()
+    with Usd.EditContext(stage, stage.GetSessionLayer()):
+        chosen = usd_physics.engine_chosen(prim, "MuJoCo")
+        mass = usd_physics.authored_mass(stage.GetPrimAtPath(path))
+        for engine in chosen:
+            stage.GetPrimAtPath(path).GetVariantSet(engine).ClearVariantSelection()
+    laid.prims[name] = stage.GetPrimAtPath(path)  # a new variant recomposes the prim: its old handle is gone
+    if mass is None:
+        return float("nan")
+    linear = np.asarray(UsdGeom.Xformable(laid.prims[name]).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    return mass * abs(float(np.linalg.det(linear[:3, :3])))
+
+
 def settle_faults(laid, folder):
     """Each prop let go in MuJoCo (settle_mujoco.py in the physics trial's Python): {name: [fault]}, and how it ran."""
     loose = laid.with_role("prop")
@@ -1390,6 +1408,7 @@ def settle_faults(laid, folder):
     for name in loose:
         vertices = np.asarray(laid.meshes[name].convex_hull.vertices)
         arrays[f"hull_{name}"], arrays[f"statics_{name}"] = vertices, statics_near(laid, name)
+        arrays[f"mass_{name}"] = np.array(settle_mass(laid, name))
     workers = settle_workers({name: len(arrays[f"statics_{name}"]) for name in loose},
                              sum(array.nbytes for array in arrays.values()))
     np.savez(job, **arrays)

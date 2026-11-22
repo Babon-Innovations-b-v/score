@@ -21,6 +21,10 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
 - a_hull_collides_about_its_middle (what Newton needs said): make_body's `centred(hull)` line dropped (the crate laid
   with its origin at its foot keeps it there: Newton leaves out the floor's triangles once that origin dips under
   them, and chair_1 fell through the engine room's deck, 2026-11-13).
+- an_adopted_asset_keeps_its_physics (#155): collide_by_triangles' `or is_adopted(prim, adopted)` dropped (the
+  asset's convex hull made triangles, steel bound over its own physics material), or write_masses' adopted masses
+  left out (the 1.5496 kg asset weighed by its area as steel sheet), or write's `engine_chosen(..., "Newton")` line
+  dropped (the trial reads the asset's default engine, not Newton's).
 - the_hinge_stands_at_its_pins (and the slide beside it, #148): write_slide's `CreateAxisAttr(... [slide["along"]])`
   made `CreateAxisAttr(UsdPhysics.Tokens.x)` (the glass door's leaf slides across its doorway's depth, not its width),
   or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
@@ -215,6 +219,63 @@ def a_hull_collides_about_its_middle():
         assert np.allclose(placed.ExtractTranslation(), (low + high) / 2, atol=1e-5), placed.ExtractTranslation()
 
 
+ADOPTED_KG = 1.5496  # the adopted asset's own mass, as its asset authors it
+
+
+def adopted_asset(folder):
+    """An adopted asset laid at a free spot of the toy place: its mesh authoring its own mass, a convex hull collider
+    and its own physics material, its Newton and MuJoCo physics in variant sets (Newton's adds a contact gap)."""
+    asset = Usd.Stage.CreateNew(str(pathlib.Path(folder) / "layers/adopted.usda"))
+    root = UsdGeom.Xform.Define(asset, "/adopted")
+    asset.SetDefaultPrim(root.GetPrim())
+    geo = mesh(asset, "/adopted/geo", [((-0.1, 0, -0.1), (0.1, 0.2, 0.1))], (0, 0, 0)).GetPrim()
+    UsdPhysics.MassAPI.Apply(geo).CreateMassAttr(ADOPTED_KG)
+    UsdPhysics.CollisionAPI.Apply(geo)
+    UsdPhysics.MeshCollisionAPI.Apply(geo).CreateApproximationAttr(UsdPhysics.Tokens.convexHull)
+    rubber = UsdShade.Material.Define(asset, "/adopted/rubber")
+    UsdPhysics.MaterialAPI.Apply(rubber.GetPrim()).CreateDynamicFrictionAttr(0.8)
+    UsdShade.MaterialBindingAPI.Apply(geo).Bind(rubber, UsdShade.Tokens.weakerThanDescendants, "physics")
+    for engine in ("Newton", "MuJoCo"):
+        variants = root.GetPrim().GetVariantSets().AddVariantSet(engine)
+        for name in ("Disabled", "Enabled"):
+            variants.AddVariant(name)
+        variants.SetVariantSelection("Enabled")
+        if engine == "Newton":
+            with variants.GetVariantEditContext():
+                asset.OverridePrim("/adopted/geo").CreateAttribute("newton:contactGap", Sdf.ValueTypeNames.Float).Set(
+                    0.01)
+        variants.SetVariantSelection("Disabled")
+    asset.Save()
+    base = Usd.Stage.Open(str(pathlib.Path(folder) / "layers/base.usda"))
+    laid = base.DefinePrim(f"/{PLACE}/Objects/adopted_1")
+    laid.GetReferences().AddReference("./adopted.usda")
+    UsdGeom.Xformable(laid).AddTranslateOp().Set(Gf.Vec3d(-2.0, 0.0, 2.0))
+    laid.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set("model/adopted@1")
+    base.Save()
+
+
+def an_adopted_asset_keeps_its_physics():
+    """An adopted asset (#155) keeps the mass, collider and physics material its asset authors, its Newton physics
+    chosen, and is a trial body as its asset says: the physics layer fills in only what nothing authors."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = toy_place(pathlib.Path(temporary) / PLACE)
+        adopted_asset(folder)
+        found = physics.write(folder, dict(RECORD, moved=[*RECORD["moved"], "adopted_1"]), MATERIALS)
+        assert not found["faults"], found["faults"]
+        assert found["masses"]["adopted_1"] == round(ADOPTED_KG, 3) == found["bodies"]["adopted_1"], found["masses"]
+        stage = composed(folder)
+        laid, geo = stage.GetPrimAtPath(f"/{PLACE}/Objects/adopted_1"), stage.GetPrimAtPath(
+            f"/{PLACE}/Objects/adopted_1/geo")
+        assert math.isclose(UsdPhysics.MassAPI(geo).GetMassAttr().Get(), ADOPTED_KG, rel_tol=1e-6)
+        assert UsdPhysics.MeshCollisionAPI(geo).GetApproximationAttr().Get() == "convexHull"
+        assert UsdShade.MaterialBindingAPI(geo).ComputeBoundMaterial("physics")[0].GetPath().name == "rubber"
+        assert laid.GetVariantSets().GetVariantSelection("Newton") == "Enabled" and \
+            laid.GetVariantSets().GetVariantSelection("MuJoCo") == "Disabled"
+        assert geo.GetAttribute("newton:contactGap").Get() is not None
+        assert laid.HasAPI(UsdPhysics.RigidBodyAPI) and not geo.HasAPI(UsdPhysics.RigidBodyAPI)
+        assert UsdPhysics.CollisionAPI(geo).GetCollisionEnabledAttr().Get() is not False
+
+
 def a_blocked_fall_is_refused():
     with tempfile.TemporaryDirectory() as temporary:
         folder = toy_place(pathlib.Path(temporary) / PLACE)
@@ -246,6 +307,7 @@ def main():
         if not kept:
             the_motion_plays_back(folder)
     a_hull_collides_about_its_middle()
+    an_adopted_asset_keeps_its_physics()
     a_blocked_fall_is_refused()
     a_record_without_gravity_is_refused()
     print("test_the_physics_layers_hold_mass_drop_and_hinge: ok")

@@ -91,6 +91,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - reach.surface_chunks: `chunk` taken as 10 ** 12 (the whole surface at once) -> the floor holds 419 MB
 - ready.walkers_grid: its `within_memory` left uncalled -> the post's grid is read, not refused
 - ready.settle_workers: `room` left out of the count -> three models run where two fit
+- ready.settle_mass: its `engine_chosen(prim, "MuJoCo")` left out -> the adopted prop authoring its mass in its
+  MuJoCo physics variant alone settles as a hull of DENSITY (NaN), not its 1.5496 kg times its scale cubed (#155)
 """
 import json
 import pathlib
@@ -99,7 +101,7 @@ import tracemalloc
 import numpy as np
 import trimesh
 from PIL import Image
-from pxr import Gf, Sdf, UsdGeom, UsdSkel, Vt
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdSkel, Vt
 
 from score.stages import place_build
 from score.stages.place_build import ready
@@ -472,6 +474,25 @@ def joined_through(folder):
     return all(len(side) for side in sides) and pieces[sides[0][0]] == pieces[sides[1][0]]
 
 
+def adopted_settle_mass():
+    """An adopted prop (#155) settles with the mass its asset authors in its MuJoCo physics variant, times its laid
+    scale cubed, the stage's own choice of variant put back after."""
+    stage = Usd.Stage.CreateInMemory()
+    prop = UsdGeom.Xform.Define(stage, "/p/Objects/prop_1")
+    prop.AddScaleOp().Set(Gf.Vec3f(2.0, 2.0, 2.0))
+    UsdGeom.Mesh.Define(stage, "/p/Objects/prop_1/geo")
+    variants = prop.GetPrim().GetVariantSets().AddVariantSet("MuJoCo")
+    for name in ("Disabled", "Enabled"):
+        variants.AddVariant(name)
+    variants.SetVariantSelection("Enabled")
+    with variants.GetVariantEditContext():
+        UsdPhysics.MassAPI.Apply(stage.OverridePrim("/p/Objects/prop_1/geo")).CreateMassAttr(1.5496)
+    variants.SetVariantSelection("Disabled")
+    laid = type("Laid", (), {"prims": {"prop_1": prop.GetPrim()}})()
+    assert np.isclose(ready.settle_mass(laid, "prop_1"), 1.5496 * 8)
+    assert laid.prims["prop_1"].GetVariantSets().GetVariantSelection("MuJoCo") == "Disabled"
+
+
 def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     hull = hatched(tmp_path / "hatched")
     place_build.door(hull, "hatch")
@@ -644,6 +665,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
         raise AssertionError("a settle model past the memory budget was run")
     except place_build.Refused as why:
         assert "big" in str(why), str(why)
+    adopted_settle_mass()
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")
         return
