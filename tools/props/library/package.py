@@ -60,6 +60,9 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          16-bit PNG under the package), size, low, high, middle, display, layout}: the view transform
                          and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -
                          low)) for c from 0 to 1 in its lattice
+    draft                [place_build] present only on a preview that never ships (`package --draft`): {baked: false,
+                         why}; its palette recipes are their plain colour, metal and roughness, never baked, and
+                         score-lib take-in refuses a place whose package carries it
 An object's .gltf may use KHR_materials_transmission, _ior and _emissive_strength (listed in its extensionsUsed) and
 carry its baked pictures in its own buffer; a version 1 reader that skips them still loads every object.
 

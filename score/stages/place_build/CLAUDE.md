@@ -175,6 +175,9 @@ HELD_TEXELS: the game's PlaceTextures.MostTexels, a
   normals goes smooth, as Blender imports it; scene.json's
   `environment` carries the sky picture, sun, exposure, the ground's baked albedo (an engine's bounce from below) and
   the AgX grade drawn by Blender's own OpenColorIO as a lattice picture (grade_lut.py), so the engine grades exactly.
+  **`package --draft`** (2099 #161) is a preview that never ships: the same scene.json and glTF objects with no bake
+  and no walkers' eyes read, each palette recipe its plain colour, metal and roughness (an image surface keeps its
+  own pictures), scene.json `draft` (scene_package.DRAFT); score-lib take-in --place refuses a folder carrying it.
   **Characters go in it skinned** (skinned.py, 2099's prologue, 2026-11-20): every SkelRoot laid (a `put` player
   model, the cast's characters layer, a sim body's own SkelAnimation) and every crowd PointInstancer copy is a skinned
   glTF converted from the laid USD (its skeleton, shown meshes with their weights and morph targets, every clip cut to

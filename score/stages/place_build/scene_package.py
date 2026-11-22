@@ -110,6 +110,13 @@ STEP_SECONDS = {"object": 900, "scene": 900, "bake run": 1800, "grade": 600}
 STEPS = "bake/steps.log"
 SUN_NAMES = ("sun", "sky_sun")  # the sky step's sun, else sky-at's (light/sky.py: Lights/sky_<the Sun's key>)
 PROBE = 0.3  # metres past a door's face (its depth's half and this) where the place on that side is read
+# A draft package (`package --draft`, 2099 #161: a look at the place in the game in minutes, never kept): written as
+# a real one, every palette recipe its look's plain colour, metal and roughness instead of its baked maps (an image
+# surface keeps its own pictures, a glTF model its own), scene.json `draft` this mark; score-lib take-in --place
+# refuses a folder whose package carries it, so a draft never reaches score_lib and the game takes it only as a
+# local preview.
+DRAFT = {"baked": False, "why": "a preview: palette recipes as their plain colour, metal and roughness, never baked; "
+                                "never kept (score-lib take-in refuses it)"}
 
 
 # --- a gprim's faces ------------------------------------------------------------------------------------------------
@@ -267,11 +274,12 @@ def glowing(glow):
                                                         {"emissiveStrength": strength}}
 
 
-def pbr(look, ground=False):
+def pbr(look, ground=False, draft=False):
     """A bound look as glTF PBR: {"material": trimesh PBRMaterial, "tile": metres or None, "key": what tells it,
     "bake": a palette recipe's bake or None}. A recipe with a pattern (not FLAT_RECIPES) is baked as Blender draws it
     (bake_looks.py): on a laid ground (`ground`) as one seamless GROUND_TILE box-projected like an image surface, on
-    anything else into its own unwrapped maps at DENSITY."""
+    anything else into its own unwrapped maps at DENSITY; in a `draft` it is never baked, its look's plain colour,
+    metal and roughness alone (DRAFT)."""
     import trimesh
     if look is None:
         return {"material": trimesh.visual.material.PBRMaterial(name="no_look"), "tile": None, "key": "none"}
@@ -291,7 +299,7 @@ def pbr(look, ground=False):
         colour, see_through = glass_of(colour, opacity)
         extensions.update(see_through)
     spec = recipe_spec(look)
-    bake = {"spec": spec, "tile": GROUND_TILE if ground else None} if spec and \
+    bake = {"spec": spec, "tile": GROUND_TILE if ground else None} if spec and not draft and \
         spec.get("recipe") not in FLAT_RECIPES else None
     material = trimesh.visual.material.PBRMaterial(
         name=look_name(look), baseColorFactor=[float(value) for value in colour] + [opacity],
@@ -409,8 +417,9 @@ def pbr_key(look):
     return str(look.GetPath()) if look else "none"
 
 
-def looks_of(prim):
-    """Every look bound inside the object as glTF PBR, by key (a laid ground's recipes tiled: pbr)."""
+def looks_of(prim, draft=False):
+    """Every look bound inside the object as glTF PBR, by key (a laid ground's recipes tiled, a `draft`'s never baked:
+    pbr)."""
     looks, ground = {}, bool(text_of(prim, "score:ground"))
     for inside in gprims(prim):
         found = drawn(inside)
@@ -418,7 +427,7 @@ def looks_of(prim):
             continue
         for look in face_looks(inside, int(found[3].max()) + 1)[0]:
             if pbr_key(look) not in looks:
-                looks[pbr_key(look)] = pbr(look, ground)
+                looks[pbr_key(look)] = pbr(look, ground, draft)
     return looks
 
 
@@ -441,9 +450,9 @@ def told(gathered, looks):
     return digest.hexdigest()
 
 
-def gathered_of(prim, baked):
-    """The object's corners by look ({look: [(positions, normals, uv)]}, `baked` drawn in) and its looks."""
-    looks = looks_of(prim)
+def gathered_of(prim, baked, draft=False):
+    """The object's corners by look ({look: [(positions, normals, uv)]}, `baked` drawn in) and its looks (looks_of)."""
+    looks = looks_of(prim, draft)
     gathered = {}
     for inside in gprims(prim):
         for key, (positions, normals, uv) in gprim_pieces(inside, prim, baked, looks).items():
@@ -451,13 +460,13 @@ def gathered_of(prim, baked):
     return gathered, looks
 
 
-def object_glb(prim, baked, made, sights=None):
+def object_glb(prim, baked, made, sights=None, draft=False):
     """The object's GLB (a primitive a look) in its own frame, `baked` (a row-major 3 x 3, or None) drawn into it, its
     triangle count and the triangles its unwrap cut them into besides (subdivided); None when it draws no face. `made`
     holds the GLBs written so far by what tells them (`told`) and what they copy (copied_from), so a copy of one already
     made is not written again; `sights` the walkers' eyes in each content's frame by what it copies (eyes_by_content),
-    every copy's together."""
-    gathered, looks = gathered_of(prim, baked)
+    every copy's together; a `draft`'s recipes never baked (pbr)."""
+    gathered, looks = gathered_of(prim, baked, draft)
     if not gathered:
         return None, 0, 0
     tells = (told(gathered, looks), copied_from(prim, baked))
@@ -1211,10 +1220,11 @@ def environment_of(stage, place, out):
     return found
 
 
-def converted(prim, baked, made, sights=None):
+def converted(prim, baked, made, sights=None, draft=False):
     """An object's glTF (GLB bytes), where it came from, and its check: the library entry's own when laid unchanged
     in an even copy, else converted from the laid USD (`made` the conversions so far, object_glb), its triangles
-    counted against the USD's (the triangles an unwrap cut a face into counted besides)."""
+    counted against the USD's (the triangles an unwrap cut a face into counted besides); a `draft`'s recipes never
+    baked (pbr)."""
     import trimesh
     usd_triangles = sum(len(found[2]) for found in (drawn(inside) for inside in gprims(prim)) if found is not None)
     own = entry_glb(prim) if baked is None else None
@@ -1222,7 +1232,7 @@ def converted(prim, baked, made, sights=None):
         loaded = trimesh.load(trimesh.util.wrap_as_stream(own), file_type="glb", force="mesh", skip_materials=True)
         return own, "library glTF", {"pass": len(loaded.faces) == usd_triangles > 0, "triangles": len(loaded.faces),
                                      "usd_triangles": usd_triangles}
-    glb, triangles, cut = object_glb(prim, baked, made, sights)
+    glb, triangles, cut = object_glb(prim, baked, made, sights, draft)
     if glb is None:
         return None, None, None
     loaded = trimesh.load(trimesh.util.wrap_as_stream(glb), file_type="glb", force="mesh", skip_materials=True)
@@ -1381,18 +1391,20 @@ def seated(stage, place, seat):
             stage.RemovePrim(f"/{place}")  # the session layer's spec alone: the seat
 
 
-def write(folder, out):
-    """The laid place in <folder> as a scene package in <out>, laid at its area seat (seated); scene.json's content."""
+def write(folder, out, draft=False):
+    """The laid place in <folder> as a scene package in <out>, laid at its area seat (seated), a `draft` with no bake
+    asked (DRAFT); scene.json's content."""
     folder, out = pathlib.Path(folder), pathlib.Path(out)
     stage, place = place_build.opened(folder)
     seat = place_build.record_of(folder).get("seat")
     with seated(stage, place, seat):
-        return written_scene(folder, out, stage, place, seat)
+        return written_scene(folder, out, stage, place, seat, draft)
 
 
-def written_scene(folder, out, stage, place, seat):
+def written_scene(folder, out, stage, place, seat, draft=False):
     """write's body: the package written from the open stage, its frame the area's when `seat` is given (then its
-    place.json `backdrop`, the objects and lamps a neighbour place stands for, left out)."""
+    place.json `backdrop`, the objects and lamps a neighbour place stands for, left out); a `draft` asks no bake and
+    reads no walkers' eyes (they only set a bake's densities), its scene.json marked `draft`."""
     ready_file = folder / "ready.json"
     roles = json.loads(ready_file.read_text())["roles"] if ready_file.is_file() else None
     for held in (out.iterdir() if out.exists() else ()):  # all but the bake's maps a stopped bake left (BAKE)
@@ -1408,12 +1420,12 @@ def written_scene(folder, out, stage, place, seat):
                                        "stands for it (place.json backdrop)"} for name in sorted(neighbours)]
     objects, instances, by_content, counts, made = {}, [], {}, {}, {}
     with deadline(out, "the walkers' eyes", "scene"):
-        sights = eyes_by_content(stage, place, found)
+        sights = {} if draft else eyes_by_content(stage, place, found)
     for prim, kind in found:
         with deadline(out, prim.GetName(), "object"):
             world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
             frame, scale, baked = copy_frame(world)
-            glb, route, check = converted(prim, baked, made, sights)
+            glb, route, check = converted(prim, baked, made, sights, draft)
             if glb is None:
                 left_out.append({"name": prim.GetName(), "why": "it draws no face"})
                 continue
@@ -1459,6 +1471,8 @@ def written_scene(folder, out, stage, place, seat):
                  "counts": counts,
                  "physics": "ready.json" if roles is not None else None, "left_out": left_out, "chambers": chambers,
                  "environment": environment_of(stage, place, out)}
+        if draft:
+            scene["draft"] = DRAFT
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     return scene
 
@@ -1682,12 +1696,12 @@ def ground_albedo(out, jobs):
     return [round(float(value), 6) for value in linear.reshape(-1, 3).mean(axis=0)]
 
 
-def packaged(folder, out, baker=blender_baked, grader=blender_graded):
+def packaged(folder, out, baker=blender_baked, grader=blender_graded, draft=False):
     """The package written, its palette recipes baked (`baker(out, jobs)` writes each job's pictures) and put on
-    their looks, its grade drawn (`grader(out, environment)` writes GRADE_FILE: environment `grade`), and checked
-    by package.py's own check: its summary, or Refused naming its problems."""
+    their looks (a `draft`'s never: DRAFT), its grade drawn (`grader(out, environment)` writes GRADE_FILE:
+    environment `grade`), and checked by package.py's own check: its summary, or Refused naming its problems."""
     out = pathlib.Path(out)
-    scene = write(folder, out)
+    scene = write(folder, out, draft)
     jobs = bake_jobs(out)
     scene["environment"]["ground_albedo"] = None
     if jobs:
@@ -1704,4 +1718,4 @@ def packaged(folder, out, baker=blender_baked, grader=blender_graded):
         raise place_build.Refused(f"the package fails its check: {'; '.join(found[:12])}")
     return {"package": str(out), "summary": package.summary(pathlib.Path(out)), "objects": len(scene["objects"]),
             "copies": len(scene["instances"]), "left_out": scene["left_out"], "baked_maps": len(jobs),
-            "sky": (scene["environment"]["sky"] or {}).get("file"), "check": "sound"}
+            "sky": (scene["environment"]["sky"] or {}).get("file"), "check": "sound", "draft": draft}

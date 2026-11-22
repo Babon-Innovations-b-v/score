@@ -184,6 +184,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.taken_with: a fitting kept whatever wall is left (FITTING_REACH unread) -> the hollowed block's rack and
   the wash on it stay
 - scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
+- scene_package.pbr: `not draft` left off -> the draft package asks the baker for the panel's maps
+- scene_package.written_scene: the DRAFT mark left off -> the draft package's scene.json carries no draft
 - scene_package.pbr: the ground's tile left None -> the regolith's recipe is unwrapped, no tile baked
 - scene_package.blender_baked: every map baked again (marks ignored) -> the resumed bake asks the stopped one's
   finished panel map 0 again
@@ -781,6 +783,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     rained(folder)
     reviewed(folder)
     packaged(folder, tmp_path / "package")
+    drafted(folder, tmp_path / "draft")
     resumed(tmp_path / "resumed")
     side_by_side(tmp_path / "side")
     sized_and_timed(tmp_path / "sized")
@@ -1127,6 +1130,30 @@ def packaged(folder, out):
     assert sum(len(laid[3]) for laid in sliver) == 3  # every triangle kept, so the model check counts them all
     assert graded == [("AgX", "AgX - Medium High Contrast")] and (out / world["grade"]["file"]).is_file()
     assert world["grade"]["size"] == 64 and world["grade"]["middle"] == 0.18 and world["grade"]["display"] == "sRGB"
+
+
+def drafted(folder, out):
+    """The laid scene as a draft package (`package --draft`): nothing baked, the palette recipe on the panel its look's
+    plain colour in one map, the sand's image surface keeping its picture, scene.json marked draft, the check sound."""
+    from score.stages.place_build import scene_package
+
+    def baker(out, jobs):
+        raise AssertionError(f"a draft asked for {len(jobs)} bakes")
+
+    def grader(out, environment):
+        (out / scene_package.GRADE_FILE).parent.mkdir(exist_ok=True)
+        Image.new("RGB", (8 * 8, 8)).save(out / scene_package.GRADE_FILE)
+
+    made = scene_package.packaged(folder, out, baker, grader, draft=True)
+    scene = json.loads((out / "scene.json").read_text())
+    copies = {copy["name"]: copy for copy in scene["instances"]}
+    _, panel_looks = gltf_of(out, scene, copies["panel"]["object"])
+    _, dune_looks = gltf_of(out, scene, copies["dune"]["object"])
+    boards = [look for name, look in panel_looks.items() if name.startswith("surface/boards@1")]
+    assert made["draft"] is True and made["baked_maps"] == 0 and scene["draft"] == scene_package.DRAFT, scene.get("draft")
+    assert len(boards) == 1 and "baseColorTexture" not in boards[0]["pbrMetallicRoughness"] and "extras" not in boards[0]
+    assert "baseColorTexture" in dune_looks["surface/sand@1"]["pbrMetallicRoughness"]
+    assert scene_package.package.problems(out) == []
 
 
 def held_pictures(out, scene):

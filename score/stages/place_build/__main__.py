@@ -102,7 +102,9 @@ score_lib as a draft model entry; `put` then lays its address.
 glTFast): <out>/scene.json in score.scene version 1 (tools/props/library/package.py's format, checked by its check)
 and an <out>/objects/<name>.gltf a distinct object, converted from the laid USD in its bound looks (a palette recipe
 baked into its own pictures by headless Blender on this PC's card), each copy's collider from the physics check's
-roles when ready.json is there, and the place's sky, sun, exposure and grade.
+roles when ready.json is there, and the place's sky, sun, exposure and grade. `package --draft` is a preview that
+never ships, in minutes: nothing baked (each palette recipe its plain colour, metal and roughness), scene.json marked
+`draft`, which score-lib take-in refuses.
 """
 import argparse
 import json
@@ -282,7 +284,7 @@ def run(args):
                 "out": args.out}
     if args.step == "package":
         from score.stages.place_build import scene_package
-        return scene_package.packaged(args.folder, args.out)
+        return scene_package.packaged(args.folder, args.out, draft=args.draft)
     from score.stages.place_build import measure
     return measure.compare(args.folder)
 
@@ -487,6 +489,8 @@ def parser():
     step = steps.add_parser("package")
     step.add_argument("folder")
     step.add_argument("out")
+    step.add_argument("--draft", action="store_true", help="a preview that never ships: no bake, each palette "
+                      "recipe its plain colour, metal and roughness, scene.json marked draft (take-in refuses it)")
     step = steps.add_parser("render")
     step.add_argument("folder")
     step.add_argument("--width", type=int, default=768)
