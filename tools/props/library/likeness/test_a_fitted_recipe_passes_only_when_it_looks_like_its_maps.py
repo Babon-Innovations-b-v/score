@@ -14,6 +14,10 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
 - the adopted relief row is the same relief as a DirectX map (its green turned over) whose surface.json knows no tile
   size: its features are 12 / 64 = 0.1875 of a tile, so the tile is fitted to 0.01 / 0.1875 = 0.0533 m, where they
   are concrete's default pore size 0.01, and its bump 4 x 0.0533 / 64 = 0.0033;
+- the plastic relief row is the relief row's maps under a plastic's name: its 0.012 m features are over plastic's
+  largest grain (4 x 0.002 = 0.008 m), so the grain is 0.008 and the bump keeps the relief's slope, 0.004 x 0.008 /
+  0.012 = 0.0027 (at its full 0.004 a field of steep bumps that scatters the highlight away);
+- the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - sRGB (150, 104, 112) is Lab (48.95, 19.66, 2.96), 19.9 from sRGB 119's (50.0, 0, 0): over the check's 10, while its
   lightness stays within 1.1 (the lightness and highlight bounds hold); stripes of sRGB 109 and 129 (L* 46.0 and
   54.0) two pixels wide beside a flat sRGB 119 differ under 0.1 in cell colour and 4 in lightness, but the flat one
@@ -28,6 +32,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.described: `maps.items()` read as the dict's keys (the adopted row's maps are files named `albedo`, never
   written), or relief_statistics' DirectX `normal[..., 1] = -normal[..., 1]` dropped (the adopted row's slopes no
   longer integrate: its bump halves), or fitted's `fitted_tile` made None (the adopted row's tile assumed 1 m).
+- fit.spec_of: the bump's `* drawn / feature` dropped (the plastic relief row's bump is the full 0.004).
+- fit.described: `albedo_colour` always None (the constant colour row has no albedo: KeyError).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -118,6 +124,17 @@ ROWS = [
      {"maps": {"albedo": "albedo.png", "roughness": "roughness.png", "normal": "normal.png"}, "tile_metres": None,
       "normal_convention": "directx"}, (stripes(109, 129), solid((119,) * 3)),
      ("concrete", "name", 0.1845, 0.4, None, (0.01, 0.003, 0.0533), False)),
+    ("plastic relief over its largest grain, the bump at its slope", "t_plastic_rough_black_a01",
+     {"t_plastic_rough_black_a01_tile_alb.png": solid((119,) * 3),
+      "t_plastic_rough_black_a01_tile_orm.png": solid((255, 102, 0)),
+      "t_plastic_rough_black_a01_tile_nor.png": bumps(2.0, 16)}, {"tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)),
+     ("plastic", "name", 0.1845, 0.4, None, (0.008, 0.003, 0.064), True)),
+    ("a constant colour, no albedo map", "m_opaque_metal_chrome_a01",
+     {"normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 255))},
+     {"maps": {"normal": "normal.png", "orm": "orm.png"}, "tile_metres": 1.0,
+      "constants": {"diffuseColor": [0.1845, 0.1845, 0.1845]}}, (solid((119,) * 3), solid((119,) * 3)),
+     ("polished_metal", "name", 0.1845, 0.4, 1.0, None, True)),
 ]
 
 
@@ -125,10 +142,11 @@ ROWS = [
 def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name, material, maps, surface, pictures,
                                                                   expected):
     found = written(tmp_path, maps, surface)
-    made = fit.fitted(material, found["maps"], found["tile_metres"], normal_convention=found["normal_convention"])
+    made = fit.fitted(material, found["maps"], found["tile_metres"], normal_convention=found["normal_convention"],
+                      albedo_colour=found["albedo_colour"])
     spec = made["recipe"]
-    relief = (round(spec["pore_size"], 4), round(spec["bump"], 3), round(made["tile_metres"], 4)) \
-        if spec["recipe"] == "concrete" else None
+    relief = (round(spec[fit.SIZE_SETTING[spec["recipe"]]], 4), round(spec["bump"], 3), round(made["tile_metres"], 4)) \
+        if spec.get("bump") else None
     Image.fromarray(opaque(pictures[0])).save(tmp_path / "map.png")
     Image.fromarray(opaque(pictures[1])).save(tmp_path / "recipe.png")
     verdict = measure.likeness({"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")},

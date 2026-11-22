@@ -5,8 +5,9 @@ swatch's light, from each of its cameras, at wear and dirt 0 (a surface's maps a
     blender -b --python tools/props/library/inside/likeness.py -- <job.json>
 
 The job: {"out", "size", "samples", "seed", "pairs": [{"name", "maps": {role: path}, "tile_metres",
-"normal_convention": "opengl" | "directx", "recipe": spec, "map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
-map material is the maps as a principled surface: the albedo as sRGB colour, roughness and metal from an ORM map's
+"normal_convention": "opengl" | "directx", "albedo_colour": linear RGB | null, "recipe": spec, "map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
+map material is the maps as a principled surface: the albedo as sRGB colour (with no albedo map, the surface's constant
+linear `albedo_colour`), roughness and metal from an ORM map's
 green and blue (or their own maps), the normal map in tangent space (a DirectX map's green turned over), all on texture coordinates cube-projected at the
 maps' tile size, so a repeat covers `tile_metres` as the recipe's metres do. Writes <out>/<name>/map-<view>.png and
 recipe-<view>.png, and prints "LIKENESS <name>" per pair.
@@ -68,13 +69,17 @@ def normal_colour(tree, maps, convention):
     return joined.outputs["Color"]
 
 
-def map_material(name, maps, convention="opengl"):
-    """The maps as a principled surface material."""
+def map_material(name, maps, convention="opengl", albedo_colour=None):
+    """The maps as a principled surface material, its base colour the albedo map's, else the constant
+    `albedo_colour` (linear)."""
     material = bpy.data.materials.new(f"map-{name}")
     material.use_nodes = True
     tree = material.node_tree
     surface = next(node for node in tree.nodes if node.type == "BSDF_PRINCIPLED")
-    tree.links.new(image_node(tree, maps["albedo"], False).outputs["Color"], surface.inputs["Base Color"])
+    if "albedo" in maps:
+        tree.links.new(image_node(tree, maps["albedo"], False).outputs["Color"], surface.inputs["Base Color"])
+    else:
+        surface.inputs["Base Color"].default_value = (*albedo_colour, 1.0)
     if "orm" in maps:
         split = tree.nodes.new("ShaderNodeSeparateColor")
         tree.links.new(image_node(tree, maps["orm"], True).outputs["Color"], split.inputs["Color"])
@@ -133,7 +138,8 @@ def main():
         projected(piece, pair["tile_metres"])
         shown = {"recipe": recipe_material(pair["recipe"], job["seed"])}
         if pair["map"]:
-            shown["map"] = map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"))
+            shown["map"] = map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"),
+                                        pair.get("albedo_colour"))
         for view, camera in cameras.items():
             bpy.context.scene.camera = camera
             for side, material in shown.items():

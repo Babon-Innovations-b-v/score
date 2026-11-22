@@ -2,8 +2,9 @@
 it, and that recipe's settings, as the start the look-alike check (check.py) renders and refines.
 
     roles(names)                     {role: map file}: albedo, normal, orm, roughness, metal
-    described(surface, names)        a surface.json's maps {role: file}, tile size and normal convention
-    statistics(maps, tile_metres)    the maps' measures
+    described(surface, names)        a surface.json's maps {role: file}, tile size, normal convention and constant
+                                     colour
+    statistics(maps, tile_metres)    the maps' measures (a constant colour in place of an albedo map)
     family_of(name, measured)        the recipe family that draws the material
     spec_of(family, measured)        the recipe's spec (recipes.channels' form), colours linear
     fitted(name, maps, tile_metres)  {"recipe": spec, "statistics", "family_from": "name" | "measures",
@@ -111,8 +112,9 @@ def roles(names):
 def described(surface, names):
     """A surface.json's (`surface`, {} for none) maps {role: file name} (its `maps` dict as written, else the entry's
     texture files `names` by their roles), its tile metres ("surface.json"; None when it says it does not know, so
-    `fitted` fits it, from None; TILE_METRES "assumed" when it says nothing) and its normal convention ("opengl" unless it says
-    "directx"): {"maps", "tile_metres", "tile_metres_from", "normal_convention"}."""
+    `fitted` fits it, from None; TILE_METRES "assumed" when it says nothing), its normal convention ("opengl" unless it says
+    "directx") and, with no albedo map, its constant colour (its `constants` diffuseColor, linear as USD holds it; else
+    None): {"maps", "tile_metres", "tile_metres_from", "normal_convention", "albedo_colour"}."""
     maps = surface.get("maps") or {}
     if not isinstance(maps, dict):
         raise ValueError(f"surface.json maps is {type(maps).__name__}, not {{role: file}}")
@@ -123,8 +125,10 @@ def described(surface, names):
         tile = (TILE_METRES, "assumed")
     else:
         tile = (surface["tile_metres"], "surface.json" if surface["tile_metres"] is not None else None)
-    return {"maps": {ROLE_ALIASES.get(role, role): name for role, name in maps.items()} or roles(names),
-            "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention}
+    found = {ROLE_ALIASES.get(role, role): name for role, name in maps.items()} or roles(names)
+    constant = None if "albedo" in found else (surface.get("constants") or {}).get("diffuseColor")
+    return {"maps": found, "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention,
+            "albedo_colour": None if constant is None else [float(value) for value in constant]}
 
 
 def pixels(path):
@@ -192,6 +196,12 @@ def albedo_statistics(path):
             "lightness_spread": float(values[:, 0].std())}
 
 
+def constant_statistics(linear_colour):
+    """A constant colour's albedo_statistics: its Lab as the mean and the dark shade, no spread."""
+    lab = colour.lab(np.asarray(linear_colour, dtype=float)).tolist()
+    return {"lab": lab, "dark_lab": lab, "lightness_spread": 0.0}
+
+
 def relief_statistics(path, tile_metres, normal_convention="opengl"):
     """The normal map's relief: its height field's high-passed spread (rms, metres) and its features' size in metres
     (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation); a DirectX map's green turned over to OpenGL's."""
@@ -209,10 +219,11 @@ def channel_mean(path, channel):
     return float(shrunk(pixels(path), READ_SIDE)[..., channel].mean())
 
 
-def statistics(maps, tile_metres, normal_convention="opengl"):
-    """The maps' measures from {role: path}: albedo always, normal, orm or roughness and metal when given (a missing
-    roughness reads as the recipe's default, None; a missing metal as 0)."""
-    measured = albedo_statistics(maps["albedo"])
+def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None):
+    """The maps' measures from {role: path}: the albedo map, else the constant `albedo_colour` (linear); normal, orm
+    or roughness and metal when given (a missing roughness reads as the recipe's default, None; a missing metal as
+    0)."""
+    measured = albedo_statistics(maps["albedo"]) if "albedo" in maps else constant_statistics(albedo_colour)
     measured["tile_metres"] = float(tile_metres)
     measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
                     {"height": 0.0, "feature_metres": None})
@@ -244,8 +255,10 @@ def linear_colour(values):
 def spec_of(family, measured, method=METHOD):
     """The family's recipe spec from the measures: its default settings (the method's), the albedo's colours (colour,
     and second, bare and dirt_colour as the dark shade), roughness and metal from their maps, the pattern size from
-    the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread and the
-    contrast from the lightness spread."""
+    the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
+    clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
+    full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
+    spread."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
     spec = {"recipe": family, **defaults, "colour": linear_colour(measured["lab"])}
     dark = linear_colour(measured["dark_lab"])
@@ -256,11 +269,13 @@ def spec_of(family, measured, method=METHOD):
         spec["metal"] = round(measured["metal"], 4)
     size_setting = SIZE_SETTING.get(family)
     feature = measured["feature_metres"]
+    drawn = feature
     if size_setting and feature:
         default = defaults[size_setting]
-        spec[size_setting] = round(float(np.clip(feature, default / SIZE_RANGE, default * SIZE_RANGE)), 5)
+        drawn = float(np.clip(feature, default / SIZE_RANGE, default * SIZE_RANGE))
+        spec[size_setting] = round(drawn, 5)
     if "bump" in defaults and feature:
-        spec["bump"] = round(measured["height"] * BUMP_PER_HEIGHT, 6)
+        spec["bump"] = round(measured["height"] * BUMP_PER_HEIGHT * drawn / feature, 6)
     apart = abs(measured["lab"][0] - measured["dark_lab"][0])
     if "contrast" in defaults and apart > 1.0:
         spec["contrast"] = round(min(1.0, measured["lightness_spread"] / (PATTERN_SPREAD * apart)), 4)
@@ -276,16 +291,16 @@ def fitted_tile(family, measured, method=METHOD):
     return json.loads(pathlib.Path(method).read_text())["recipes"][family][size_setting] / feature
 
 
-def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl"):
-    """A material's fitted recipe from its maps ({role: path}), its tile size (None: fitted, `fitted_tile`, else
-    TILE_METRES assumed) and its normal map's convention: {"recipe", "statistics", "family_from", "tile_metres",
+def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl", albedo_colour=None):
+    """A material's fitted recipe from its maps ({role: path}, with no albedo map its constant `albedo_colour`), its
+    tile size (None: fitted, `fitted_tile`, else TILE_METRES assumed) and its normal map's convention: {"recipe", "statistics", "family_from", "tile_metres",
     "tile_metres_from" (None when given)}."""
     tile_from = None
     if tile_metres is None:
-        at_one = statistics(maps, 1.0, normal_convention)
+        at_one = statistics(maps, 1.0, normal_convention, albedo_colour)
         tile_metres = fitted_tile(family_of(name, at_one)[0], at_one, method)
         tile_metres, tile_from = (tile_metres, "fitted") if tile_metres else (TILE_METRES, "assumed")
-    measured = statistics(maps, tile_metres, normal_convention)
+    measured = statistics(maps, tile_metres, normal_convention, albedo_colour)
     family, said_by = family_of(name, measured)
     return {"recipe": spec_of(family, measured, method), "statistics": measured, "family_from": said_by,
             "tile_metres": tile_metres, "tile_metres_from": tile_from}

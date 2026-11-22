@@ -7,7 +7,7 @@ renders a surface. Each surface's result is its fitted recipe and its likeness b
         [--algorithm algorithm/surface_recipes@N] [--size 256] [--samples 64] [--rounds 6]
 
 A surface's maps are the files its surface.json `maps` names by role ({role: file}, else every texture file of its
-entry by fit.roles), fetched through the library (tools/library/library_files.py), its normal map read by its
+entry by fit.roles), its colour the albedo map's, else its constant diffuseColor (surface.json `constants`), fetched through the library (tools/library/library_files.py), its normal map read by its
 `normal_convention`; its tile size is surface.json's `tile_metres`, fitted when that is null, else fit.TILE_METRES
 (fit.described; said in its result as surface.json, fitted or assumed). The recipe algorithm a likeness names is --algorithm,
 else the library index's newest algorithm/surface_recipes. Writes <out>/<surface id>@<version>/likeness.json
@@ -75,8 +75,9 @@ def surface_maps(root, address):
                                         if about.get("role") == "texture"])
     except ValueError as unread:
         raise CheckFailed(f"{address}: {unread}") from unread
-    if "albedo" not in found["maps"]:
-        raise CheckFailed(f"{address}: no albedo map among {sorted(found['maps'].values())}")
+    if "albedo" not in found["maps"] and found["albedo_colour"] is None:
+        raise CheckFailed(f"{address}: no albedo map among {sorted(found['maps'].values())} and no constant "
+                          "diffuseColor")
     return {**found, "maps": {role: fetched(address, name) for role, name in found["maps"].items()}}
 
 
@@ -129,9 +130,10 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
             results[address] = {"address": address, "error": str(missing), "rounds": 0}
             continue
         made = fit.fitted(address_parts(address)[1], found["maps"], found["tile_metres"], method,
-                          found["normal_convention"])
+                          found["normal_convention"], found["albedo_colour"])
         open_pairs[address] = {"name": folder_name(address), "maps": found["maps"], "tile_metres": made["tile_metres"],
-                               "normal_convention": found["normal_convention"], "recipe": made["recipe"], "map": True}
+                               "normal_convention": found["normal_convention"], "albedo_colour": found["albedo_colour"],
+                               "recipe": made["recipe"], "map": True}
         results[address] = {"address": address, "family_from": made["family_from"],
                             "tile_metres_from": made["tile_metres_from"] or found["tile_metres_from"],
                             "statistics": made["statistics"], "rounds": 0}
