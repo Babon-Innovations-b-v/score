@@ -100,6 +100,12 @@ tests it turned red:
 - base_level.py: `if report["feet"] < ON_FEET:` -> `if True:` (a take on its feet has its overhang brought down), or
   bake_check.py: `or record.get("on_feet", 0) >= STANCE_FEET and down >= 3` dropped (on_stance)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (the stool, the rover's stance; 2026-11-22)
+- base_level.py: `feet.level = lambda *arguments: on_floor(*arguments) or level(*arguments)` -> `pass` (floored: the
+  wheels stretched down to the lone leg), or `turned[np.isfinite(near) & under, 1] = level` -> `pass` (the lone leg
+  left under the floor), or `or cut <= tolerance` dropped (feet on one leaning plane with none
+  lone turned), or `if up_tilt(turned, faces) > up_tilt(points, faces):` -> `if False:` (a level body tipped onto its
+  wheels), or `if TURNS:` -> `if False:` (boxed: a turned take's corners cut off)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (FLOORS; the rover's wheels, score #156, 2026-11-22)
 - base_level.py: `min(rest[-2], cap)` -> `rest[-2]` (capped), or `return (found, record) if record["rise"] is not None
   else capped(step, cap)(points, *rest)` -> `return capped(step, cap)(points, *rest)` (capped_plane), or
   `place_line.levelled_feet = levelled_feet` -> `pass` (held), or `setattr(place_line, name, step)` -> `pass`
@@ -1577,6 +1583,28 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     over = (stool.vertices[:, 0] < 0) & (stool.vertices[:, 2] > 0) & (stool.vertices[:, 1] < 0.31)
     assert report["feet"] == 3 and report["base_left"] and not report["flattened"], report
     assert was[over, 1].min() < 0.1 and np.array_equal(now, stool.vertices), "the overhang brought down"
+    # four wheels on one plane leaning off level and a lone leg reaching under it (old_station's rover, score #156):
+    # the paint stretches the wheels down to the leg; the bake's paint turns the take onto its wheels' plane, every
+    # wheel kept as it was made, and cuts the leg at it, the finished box turned with it. Feet on one leaning plane
+    # with none lone, or under a body standing level, are levelled as before.
+    for case, leg, leaning, turned in FLOORS:
+        rover, wheels, legged = on_its_floor(leg, leaning)
+        was, _ = place_line.levelled_feet(rover.vertices, rover.faces)
+        now, report = base_level.levelled_feet(rover.vertices, rover.faces)
+        spread = lambda points, wheel: np.linalg.norm(points[wheel] - points[wheel].mean(axis=0), axis=1)  # noqa: E731
+        kept = [np.abs(spread(points, wheel) - spread(rover.vertices, wheel)).max() for points in (was, now)
+                for wheel in wheels]
+        if not turned:
+            assert "turned" not in report and np.array_equal(was, now), (case, report)
+            continue
+        assert report["turned"] == [pytest.approx(math.degrees(math.atan(FLOOR_RISE)), abs=0.1)], (case, report)
+        assert max(kept[:4]) > 0.05 and max(kept[4:]) < 1e-9, (case, "every wheel as it was made", kept)
+        bottoms = [now[wheel, 1].min() for wheel in wheels]
+        assert np.ptp(bottoms) < 0.01 and abs(now[legged, 1].min() - min(bottoms)) < 0.01, (case, bottoms)
+        bounds = np.array([rover.vertices.min(axis=0), rover.vertices.max(axis=0)])
+        boxed = base_level.boxed(lambda *written: written[5])(None, None, None, None, None, bounds, None)
+        assert ((now >= boxed[0] - 1e-9) & (now <= boxed[1] + 1e-9)).all(), (case, "the box turned with it")
+        assert not ((now >= bounds[0] - 0.02) & (now <= bounds[1] + 0.02)).all(), (case, "the box unturned cuts")
     slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
     bottom = np.asarray(slab.vertices)[:, 1] < 1e-9
     for rise, rough, acts in CAPPED_PLANES:
@@ -2746,6 +2774,39 @@ def on_three_legs():
     legs = [trimesh.creation.box(bounds=((x - 0.1, 0.0, z - 0.1), (x + 0.1, 0.3, z + 0.1))).subdivide()
             for x, z in ((-0.8, -1.5), (0.8, -1.5), (0.8, 1.5))]
     return trimesh.util.concatenate([body, *legs])
+
+
+# The rise along z of on_its_floor's wheels' plane (1.7 degrees off level).
+FLOOR_RISE = 0.03
+# (case, on_its_floor's leg bottom and whether its body leans with its wheels, whether the bake's paint turns it onto
+# its wheels' plane): a lone leg 0.11 under the plane's lowest wheel (0.21 under the plane where it stands) is cut; one
+# ending on the plane makes five feet on one leaning plane, none lone; a level body over wheels on a leaning plane
+# keeps its own up (hangar's control desk front).
+FLOORS = [("a lone leg under the plane its body and four wheels lean on", -0.1, True, True),
+          ("five feet on one leaning plane", 0.05 + FLOOR_RISE * 1.9, True, False),
+          ("a level body over four wheels on a leaning plane", -0.1, False, False)]
+
+
+def on_its_floor(leg, leaning):
+    """A body 2 by 4 from 0.5 to 1.3 up on four wheels (radius 0.3, across x) whose bottoms lie on the plane
+    y = 0.05 + FLOOR_RISE z, the body leaning with them when `leaning` (else level), and a 0.1 wide leg at z 1.9 from
+    `leg` up into the body; the mesh, each wheel's vertex indices and the leg's."""
+    tilt = trimesh.transformations.rotation_matrix(-math.atan(FLOOR_RISE), [1, 0, 0])
+    body = trimesh.creation.box(bounds=((-1.0, 0.5, -2.0), (1.0, 1.3, 2.0))).subdivide()
+    if leaning:
+        body.apply_transform(tilt)
+    parts, wheels, start = [body], [], len(body.vertices)
+    for x, z in ((-1.1, -1.2), (1.1, -1.2), (-1.1, 1.2), (1.1, 1.2)):
+        wheel = trimesh.creation.cylinder(radius=0.3, height=0.2, sections=48)
+        wheel.apply_transform(trimesh.transformations.rotation_matrix(math.pi / 2, [0, 0, 1]))
+        wheel.apply_translation([x, 0.35, z])
+        wheel.apply_transform(tilt)
+        parts.append(wheel)
+        wheels.append(np.arange(start, start + len(wheel.vertices)))
+        start += len(wheel.vertices)
+    strut = trimesh.creation.box(bounds=((-0.05, leg, 1.85), (0.05, 0.7, 1.95))).subdivide().subdivide()
+    parts.append(strut)
+    return trimesh.util.concatenate(parts), wheels, np.arange(start, start + len(strut.vertices))
 
 
 # A sloping plane the paint brought down before is brought down as before (capped alone, its cells' 2 cm of unevenness

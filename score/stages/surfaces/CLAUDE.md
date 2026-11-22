@@ -355,7 +355,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   rover, on its wheels and docking leg, had its tube's underside brought 11.7% of its size down to the floor, a sheet
   hanging off its front, score #156, 2026-11-22). The bake's copy then comes down only by how far the remesh moved a
   quadrant over the full model's own (`make_chunky.copy_drops`), and "stands level" holds such a model to three
-  quadrants on the floor (`bake_check.on_stance`).
+  quadrants on the floor (`bake_check.on_stance`). A take whose feet but its lowest, four or more (`base_level.FLOOR_FEET`), lie in one
+  plane within the feet's tolerance stands on that plane: it is turned level onto it (at most `FLOOR_TURN`, 10
+  degrees) and its lone lower foot cut at it (`base_level.on_floor`), never the others stretched down to it; its faces
+  are kept within its finished box turned with it (`boxed`). Three feet always share a plane, so the rule below
+  (never level by tipping) holds for them. The rover's four wheels lay within 0.17% of its size of a plane 7.5
+  degrees off level, its docking leg 9.6% under it; stretched down to the leg they baked as teardrops (score #156,
+  2026-11-22).
   Wear and dirt are
   the room's setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
   picture-derived look (tried 2026-10-13, reverted). The one exception is the finish route's own wear: a library
@@ -368,7 +374,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   floor, the ground or another floor), else the old inventory; never mounted on another object, part of the room's shell, fixed, hung, laid tilted on purpose (`leans`) or a pile of ground
   debris; a word of a description, such as a cabinet's "cables", is no class) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot
   over a tenth of its size up is a missing leg and fails the gate "feet in one plane" by name. Never level by
-  tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees). The bake
+  tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees), but for
+  a take on its floor in the bake's paint (above, `base_level.on_floor`). The bake
   levels such a take's cut-down copy again (`make_chunky.levelled_feet`, the take's `stands` from its labels through
   `library_bake.stands`): the remesh's voxels and the cut move feet apart (the hangar's 31 m ship, level in its
   paint, baked a front foot 22.2 cm up at 10 cm voxels), and the paint's 1% of size lets a 4 m piece keep 3.4 cm
