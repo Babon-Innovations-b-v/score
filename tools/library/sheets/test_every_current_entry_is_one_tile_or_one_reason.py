@@ -4,7 +4,8 @@ or is listed with the reason it has no look; a withdrawn entry is nowhere.
 Breaks (each applied once, seen red, reverted), in sheets.py: model_file ignoring the entry's USD root (a payload
 layer is drawn: red); current_entries keeping withdrawn entries (red); prepare sending a kit with no piece to the
 sheets as a failure instead of skipping it (red); result_of taking a render with no result as drawn (red); compose
-leaving a failed render out of index.json's failures (red).
+leaving a failed render out of index.json's failures (red); surface_item drawing a surface painted for one model on a
+sphere, or leaving a glass's transmission out of its job (red).
 """
 import json
 import pathlib
@@ -34,6 +35,11 @@ CASES = [
     (entry("character", "clips", ["motions/bench.npz"]), None, None, "skipped"),
     (entry("model", "empty", ["model.json"]), None, None, "failed"),
     (entry("model", "old", ["old.gltf"], state="withdrawn"), None, None, "absent"),
+    (entry("surface", "decal", ["albedo.png", "surface.json"], record={"tiling": False, "maps": {"albedo": "albedo.png"}}),
+     None, None, "skipped"),
+    (entry("surface", "glass", ["surface.json"], record={"tiling": True, "maps": {}, "constants": {"opacity": 1.0},
+                                                         "transmission": {"shader": "OmniGlass", "weight": 1.0}}),
+     "OmniGlass", "ok", "drawn"),
     (entry("concept", "cockpit", ["concept.png", "concept.json"]), None, None, "drawn"),
     (entry("place", "square", ["scene.usda"]), None, None, "failed"),
 ]
@@ -50,14 +56,16 @@ def test_every_current_entry_is_one_tile_or_one_reason(tmp_path, monkeypatch, re
     picture = tmp_path / "picture.png"
     Image.new("RGB", (8, 8), (120, 120, 120)).save(picture)
     monkeypatch.setattr(sheets.library_files, "settings", lambda: {"SCORE_LIB_ROOT": str(root)})
-    monkeypatch.setattr(sheets, "local_file", lambda record, file: picture if file in record.get("files", {file: 1})
-                        else None)
+    (tmp_path / "surface.json").write_text(json.dumps(record.get("record", {})))
+    monkeypatch.setattr(sheets, "local_file", lambda record, file: None if file not in record.get("files", {file: 1})
+                        else tmp_path / file if file == "surface.json" else picture)
     work.mkdir()
     sheets.prepare(work, 2)
     plan = json.loads((work / "items.json").read_text())
     listings = [json.loads(path.read_text()) for path in sorted((work / "jobs").glob("*.list.json"))]
     items = [item for listing in listings for item in listing["items"]]
-    assert [item["show"]["files"][0] for item in items] == ([drawn_from] if drawn_from else [])
+    assert [item["show"]["files"][0] if "show" in item else (item["surface"]["transmission"] or {}).get("shader")
+            for item in items] == ([drawn_from] if drawn_from else [])
     for item in items:
         renders = work / "renders" / next(row["job"] for row in plan if row["name"] == item["name"])
         renders.mkdir(parents=True, exist_ok=True)

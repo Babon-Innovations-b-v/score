@@ -141,7 +141,20 @@ def image_material(surface, folder):
         shader.inputs["Emission Strength"].default_value = 1.0
     if constants.get("opacity", 1.0) < 1.0:
         shader.inputs["Transmission Weight"].default_value = 1.0 - constants["opacity"]
+    see_through(shader, surface.get("transmission"))
     return material
+
+
+def see_through(shader, transmission):
+    """A glass surface's transmission (its record's colour, IOR and roughness) on the principled surface; maps wired
+    to its colour or roughness kept."""
+    if not transmission:
+        return
+    shader.inputs["Transmission Weight"].default_value = transmission["weight"]
+    shader.inputs["IOR"].default_value = transmission["ior"]
+    for socket, value in (("Base Color", (*transmission["colour"], 1.0)), ("Roughness", transmission["roughness"])):
+        if not shader.inputs[socket].is_linked:
+            shader.inputs[socket].default_value = value
 
 
 def recipe_material(spec):

@@ -13,6 +13,9 @@ clean?", then "yes" to a full visual pass). Its docstring gives the three steps.
   in plain greys (`REVIEW_GREYS`), since a palette token belongs to a place.
 - **A failure is a tile, never a stop**: an entry that fails to fetch or render, or holds no picture, is a red tile
   with its error and a row in `index.json`'s `failures`; a character or kit entry with no look by design (motion
-  clips, a hand pose, a floor plan) is left off and listed under `skipped`.
+  clips, a hand pose, a floor plan) is left off and listed under `skipped`, and so is a surface painted for one model
+  (`tiling` false: its maps cover that model's UVs once, so a sphere shows only scraps; it is seen on its model's tile).
+- **A glass draws see-through**: a surface's `transmission` block (colour, IOR, roughness) sets the principled
+  surface's transmission, since the source's own UsdPreviewSurface constants may call a glass opaque.
 - Its test, `test_every_current_entry_is_one_tile_or_one_reason.py`, covers the planning and the index, which need no
   Blender.

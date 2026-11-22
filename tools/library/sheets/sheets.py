@@ -46,6 +46,9 @@ HELD = {"concept": "concept.png", "place": "render.png"}
 # Kinds whose entries may hold no look by design (a character's motion clips or hand pose, a kit's floor plan): one
 # with no file to draw is left off the sheets, listed as skipped; a model, take or place without one is a failure.
 LOOKLESS = ("kit", "character")
+# A surface painted for one model (surface.json's `tiling` false: its maps cover that model's own UVs once) has no look
+# on a sphere: it is left off the surface sheets, listed as skipped, and seen on its model's tile.
+ON_ITS_MODEL = "painted for one model: its maps are seen on its model's tile, not on a sphere"
 # A recipe surface's palette slots have no token outside a place: the review draws them in plain greys (linear RGB).
 REVIEW_GREYS = {"colour": [0.32, 0.32, 0.32], "second": [0.12, 0.12, 0.12], "bare": [0.6, 0.6, 0.6],
                 "dirt_colour": [0.2, 0.17, 0.14]}
@@ -150,6 +153,8 @@ def surface_item(record, defaults):
     if "surface.json" not in files:
         return None, f"holds no surface.json ({', '.join(sorted(files))})"
     surface = json.loads(local_file(record, "surface.json").read_text())
+    if surface.get("tiling") is False:
+        return None, ON_ITS_MODEL
     if surface.get("recipe"):
         return {"fetch": {}, "surface": {"recipe": recipe_spec(surface["recipe"], surface.get("settings", {}), {},
                                                                defaults)}}, None
@@ -159,7 +164,7 @@ def surface_item(record, defaults):
         return None, f"its surface.json names maps it does not hold: {missing}"
     return {"fetch": fetch_list(record, maps.values()),
             "surface": {"maps": maps, "constants": surface.get("constants") or {},
-                        "metre": surface.get("tile_metres") or 1.0}}, None
+                        "transmission": surface.get("transmission"), "metre": surface.get("tile_metres") or 1.0}}, None
 
 
 def linear(hex_colour):
@@ -261,7 +266,7 @@ def prepare(work, count):
             item.update(name=name, address=record["address"],
                         estimate=SECONDS_EACH + item_bytes(record, item) / BYTES_PER_SECOND)
             rendered.append(item)
-        elif reason and record["kind"] in LOOKLESS:
+        elif reason and (record["kind"] in LOOKLESS or reason == ON_ITS_MODEL):
             row["skipped"] = reason
         elif reason:
             row["error"] = reason
