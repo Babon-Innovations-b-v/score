@@ -217,6 +217,61 @@
    "frost_share": 0.3,
    "bump": 0.003,
    "bump_size": 0.3
+  },
+  "plastic": {
+   "roughness": 0.4,
+   "grain_size": 0.002,
+   "bump": 0.0001,
+   "dirt_reach": 0.05
+  },
+  "polished_metal": {
+   "roughness": 0.08,
+   "metal": 1.0,
+   "scratch_scale": 30.0,
+   "scratches": 0.3
+  },
+  "concrete": {
+   "roughness": 0.85,
+   "mottle_size": 0.15,
+   "contrast": 0.3,
+   "pore_size": 0.01,
+   "pore_share": 0.12,
+   "bump": 0.0008,
+   "dirt_reach": 0.08
+  },
+  "cardboard": {
+   "roughness": 0.9,
+   "flute_pitch": 0.008,
+   "flute_height": 0.0003,
+   "fibre_size": 0.004,
+   "contrast": 0.25
+  },
+  "leather": {
+   "roughness": 0.55,
+   "grain_size": 0.002,
+   "contrast": 0.3,
+   "bump": 0.0002,
+   "dirt_reach": 0.03
+  },
+  "ceramic": {
+   "roughness": 0.08,
+   "speckle_size": 0.004,
+   "speckle_share": 0.06,
+   "bump": 0.0002,
+   "bump_size": 0.05
+  },
+  "fiberglass": {
+   "roughness": 0.2,
+   "fibre_size": 0.02,
+   "contrast": 0.15,
+   "bump": 0.0001
+  },
+  "grained_wood": {
+   "roughness": 0.6,
+   "ring_pitch": 0.008,
+   "contrast": 0.4,
+   "bump": 0.0002,
+   "dirt_reach": 0.05
   }
  },
  "colour_settings": {
@@ -276,6 +331,24 @@
    "second"
   ],
   "ice": [
+   "second"
+  ],
+  "concrete": [
+   "second"
+  ],
+  "cardboard": [
+   "second"
+  ],
+  "leather": [
+   "second"
+  ],
+  "ceramic": [
+   "second"
+  ],
+  "fiberglass": [
+   "second"
+  ],
+  "grained_wood": [
    "second"
   ]
  },

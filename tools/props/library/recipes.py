@@ -586,6 +586,109 @@ def ice(colour, second, roughness, crack_scale, crack_width, frost_share, bump, 
     return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=height, midlevel=0.0))
 
 
+# The adopted set's finish families (#155, 2026-11-22): the shared tiling materials of the adopted set the 30 recipes
+# above did not cover (moulded plastic, polished metal, concrete, corrugated board, leather, glazed ceramic, gel-coated
+# fibreglass, grained timber). Each is our own; a material of the set is fitted to one of these from its maps
+# (likeness/fit.py) and checked to look the same (likeness/check.py).
+
+
+def plastic(colour, dirt_colour, roughness, grain_size, bump, dirt_reach, dirt, seed):
+    """Moulded plastic, glossy to matt by its roughness: a flat colour, the mould's fine grain as relief, dirt in the
+    cavities."""
+    vector = coordinates()
+    grain = pf.nodes.texture.noise(vector=vector, scale=1.0 / grain_size, detail=2.0, noise_dimensions="4D", w=seed)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=(grain.fac - 0.5) * bump,
+                                                                           midlevel=0.0))
+
+
+def polished_metal(colour, roughness, metal, scratch_scale, scratches, seed):
+    """Polished metal (chrome, polished bronze or gold): a mirror finish, rougher along its fine scratches, clean."""
+    scratched = ridges(coordinates(), scratch_scale, 0.02, seed)
+    rough = pf.nodes.math.mix(a=roughness, b=pf.nodes.math.minimum(roughness + 0.25, 1.0), factor=scratched * scratches)
+    return Channels(colour, rough, metal, BLACK, None)
+
+
+def concrete(colour, second, dirt_colour, roughness, mottle_size, contrast, pore_size, pore_share, bump, dirt_reach,
+             dirt, seed):
+    """Cast concrete: its cement mottled toward a second shade in soft patches, small air pores sunk and darker,
+    dirt in the cavities."""
+    vector = coordinates()
+    mottle = pf.nodes.texture.noise(vector=vector, scale=1.0 / mottle_size, detail=4.0, noise_dimensions="4D", w=seed)
+    pores = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / pore_size, voronoi_dimensions="4D", w=seed + 7.0)
+    pore = pf.nodes.math.less_than(pores.distance, pore_share)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=pf.nodes.math.clamp((mottle.fac - 0.5) * 2.0 * contrast + pore * 0.6),
+                                  a=base, b=second)
+    height = (mottle.fac - 0.5) * bump - pore * bump
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=height, midlevel=0.0))
+
+
+def cardboard(colour, second, roughness, flute_pitch, flute_height, fibre_size, contrast, seed):
+    """Corrugated board: the flutes under the liner as faint ridges across the face (face_plane), its fibres mottled
+    toward a second shade; matt and clean."""
+    vector = coordinates()
+    across, _ = face_plane(vector)
+    flute = 1.0 - pf.nodes.math.absolute(pf.nodes.math.fraction(across / flute_pitch) - 0.5) * 2.0
+    fibres = pf.nodes.texture.noise(vector=vector, scale=1.0 / fibre_size, detail=3.0, noise_dimensions="4D", w=seed)
+    base = pf.nodes.color.mix_rgb(factor=pf.nodes.math.clamp((fibres.fac - 0.5) * 2.0 * contrast + 0.5 * contrast),
+                                  a=colour, b=second)
+    return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=flute * flute_height,
+                                                                               midlevel=0.0))
+
+
+def leather(colour, second, dirt_colour, roughness, grain_size, contrast, bump, dirt_reach, dirt, seed):
+    """Grained leather: pebbles of grain parted by creases a shade darker (`second`), dirt in the creases."""
+    vector = coordinates()
+    pebbles = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / grain_size, feature="F2", voronoi_dimensions="4D",
+                                       w=seed)
+    nearest = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / grain_size, voronoi_dimensions="4D", w=seed)
+    crease = pf.nodes.math.map_range(value=pebbles.distance - nearest.distance, from_min=0.15, from_max=0.0,
+                                     interpolation_type="SMOOTHSTEP")
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=crease * contrast, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=-crease * bump, midlevel=0.0))
+
+
+def ceramic(colour, second, roughness, speckle_size, speckle_share, bump, bump_size, seed):
+    """Glazed ceramic or porcelain: a glossy glaze with a soft swell, fine speckles of a second shade in the body;
+    clean."""
+    vector = coordinates()
+    specks = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / speckle_size, voronoi_dimensions="4D", w=seed)
+    speck = pf.nodes.math.less_than(specks.distance, speckle_share)
+    base = pf.nodes.color.mix_rgb(factor=speck, a=colour, b=second)
+    return Channels(base, roughness, 0.0, BLACK, lumpy_relief(vector, bump, bump_size, seed))
+
+
+def fiberglass(colour, second, roughness, fibre_size, contrast, bump, seed):
+    """Gel-coated glass fibre: a glossy coat over a mat of chopped strands, the strands showing through as a faint
+    streaky mottle toward a second shade and a slight print-through relief."""
+    vector = coordinates()
+    point = pf.nodes.math.separate_xyz(vector)
+    one_way = pf.nodes.texture.noise(vector=pf.nodes.math.combine_xyz(x=point.x * 0.15, y=point.y, z=point.z),
+                                     scale=1.0 / fibre_size, detail=2.0, noise_dimensions="4D", w=seed)
+    other_way = pf.nodes.texture.noise(vector=pf.nodes.math.combine_xyz(x=point.x, y=point.y * 0.15, z=point.z),
+                                       scale=1.0 / fibre_size, detail=2.0, noise_dimensions="4D", w=seed + 3.0)
+    strands = pf.nodes.math.maximum(one_way.fac, other_way.fac)
+    base = pf.nodes.color.mix_rgb(factor=pf.nodes.math.clamp((strands - 0.5) * 2.0) * contrast, a=colour, b=second)
+    return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=(strands - 0.5) * bump,
+                                                                               midlevel=0.0))
+
+
+def grained_wood(colour, second, dirt_colour, roughness, ring_pitch, contrast, bump, dirt_reach, dirt, seed):
+    """Timber with its grain (planks, plywood, oak): growth rings as bands along the board, bent by a noise, the late
+    wood a second shade and a little sunk, dirt in the cavities."""
+    vector = coordinates()
+    point = pf.nodes.math.separate_xyz(vector)
+    bend = pf.nodes.texture.noise(vector=pf.nodes.math.combine_xyz(x=point.x * 0.1, y=point.y, z=point.z),
+                                  scale=0.5 / ring_pitch, detail=2.0, noise_dimensions="4D", w=seed)
+    late = pf.nodes.math.power(1.0 - pf.nodes.math.absolute(
+        pf.nodes.math.fraction(point.y / ring_pitch + bend.fac * 3.0) - 0.5) * 2.0, 3.0)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=late * contrast, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=-late * bump, midlevel=0.0))
+
+
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
            "anodized": anodized, "rubber": rubber, "cloth": cloth, "quilted": quilted, "pile": pile,
@@ -593,7 +696,9 @@ RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal
            "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
            "painted_plaster": painted_plaster, "weathered_render": weathered_render, "tiles": tiles,
            "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt,
-           "regolith": regolith, "rock": rock, "sand": sand, "ocean": ocean, "ice": ice}
+           "regolith": regolith, "rock": rock, "sand": sand, "ocean": ocean, "ice": ice, "plastic": plastic,
+           "polished_metal": polished_metal, "concrete": concrete, "cardboard": cardboard, "leather": leather,
+           "ceramic": ceramic, "fiberglass": fiberglass, "grained_wood": grained_wood}
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
@@ -628,6 +733,14 @@ SOURCES = {
     "sand": "written new (eddy-bent wind ripples on the surface's plane, fine grain noise)",
     "ocean": "written new (wave noise relief, foam on the crests as wet_asphalt's puddles)",
     "ice": "written new (ridged-noise pressure cracks, rough frost patches)",
+    "plastic": "written new (fine noise mould grain) + the library's dirt",
+    "polished_metal": "written new (ridged-noise scratches rougher on a mirror finish)",
+    "concrete": "written new (noise mottle, voronoi air pores) + the library's dirt",
+    "cardboard": "written new (flute ridges on the surface's plane, noise fibre mottle)",
+    "leather": "written new (voronoi F2 minus F1 creases between grain pebbles) + the library's dirt",
+    "ceramic": "written new (voronoi speckles) + plaster's lumpy relief as the glaze's swell",
+    "fiberglass": "written new (two stretched noises as chopped strands under a gel coat)",
+    "grained_wood": "written new (noise-bent growth-ring bands along the board) + the library's dirt",
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
@@ -662,6 +775,14 @@ PARTS = {
     "sand": (sand, coordinates, face_plane),
     "ocean": (ocean, coordinates),
     "ice": (ice, coordinates, ridges),
+    "plastic": (plastic, coordinates, dirty_flat, dirt_mask),
+    "polished_metal": (polished_metal, coordinates, ridges),
+    "concrete": (concrete, coordinates, dirty_flat, dirt_mask),
+    "cardboard": (cardboard, coordinates, face_plane),
+    "leather": (leather, coordinates, dirty_flat, dirt_mask),
+    "ceramic": (ceramic, coordinates, lumpy_relief),
+    "fiberglass": (fiberglass, coordinates),
+    "grained_wood": (grained_wood, coordinates, dirty_flat, dirt_mask),
 }
 COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
