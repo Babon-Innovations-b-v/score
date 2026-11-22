@@ -687,7 +687,9 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     it was kept).
     Break: score/graph/__init__.py: '        if not records or any(record["key"] == key for record in records):' ->
     '        if True:' -> the older checkout's note is accepted;
-    or score/graph/_code.py holds: drop `if known.returncode != 0: return True` (a rebased-away commit blocks for good).
+    or score/graph/_code.py holds: drop `if known.returncode != 0: return True` (a rebased-away commit blocks for good);
+    or drop its `landed` check (a commit whose change landed rebased, its original on an old worktree's branch, blocks
+    for good).
     Break: score/graph/__init__.py: '        if changed:\n            raise RuntimeError(f"{node}: its make wrote' ->
     '        if False:\n            raise RuntimeError(f"{node}: its make wrote' -> writer is accepted.
     Break: score/graph/__init__.py: 'against = self.rejudged_accepted(stage, place) if judged' -> 'against = None if
@@ -1103,6 +1105,7 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     finally:
         STRICT.update({"on": False, "old schema": False})
     assert graph._code.holds("f" * 40)
+    assert landed_holds(pathlib.Path(tempfile.mkdtemp()) / "landed", monkeypatch) == (True, False)
     upstream = subprocess.run(["git", "-C", str(REPO), "rev-parse", "origin/main"], capture_output=True, text=True)
     behind = subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", upstream.stdout.strip(), "HEAD"])
     if upstream.returncode == 0 and behind.returncode != 0:
@@ -2458,6 +2461,38 @@ def make_seen(inputs, out, seed, params):
 SEEN = (checks.Check("seen", judge_seen),)
 SOURCES = graph.Stage("seen", "place", make_seen, TEXT, SEEN, files={"code": "{repo}/score/checks"})
 NOTED = graph.Stage("noted", "place", make_seen, TEXT, SEEN, files={"notes": "{repo}/CLAUDE.md"})
+
+
+def landed_holds(repo, monkeypatch):
+    """(holds a side branch's commit whose change main carries under another commit, holds one main does not carry)
+    in a small repository: a worktree's branch keeps the original of a commit rebased onto main, and another commit."""
+    repo.mkdir()
+
+    def git(*command):
+        done = subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t",
+                               "-c", "commit.gpgsign=false", *command], check=True, capture_output=True, text=True)
+        return done.stdout.strip()
+    git("init", "-q", "-b", "main")
+    (repo / "a.txt").write_text("a\n")
+    git("add", "a.txt")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "side")
+    (repo / "b.txt").write_text("b\n")
+    git("add", "b.txt")
+    git("commit", "-q", "-m", "landed change")
+    original = git("rev-parse", "HEAD")
+    (repo / "c.txt").write_text("c\n")
+    git("add", "c.txt")
+    git("commit", "-q", "-m", "never landed")
+    unlanded = git("rev-parse", "HEAD")
+    git("checkout", "-q", "main")
+    (repo / "z.txt").write_text("z\n")  # main moved on, then the change landed on it rebased (another hash)
+    git("add", "z.txt")
+    git("commit", "-q", "-m", "other")
+    git("cherry-pick", original)
+    with monkeypatch.context() as patch:  # this repository again for the rest of the test
+        patch.setattr(_code, "REPO", repo)
+        return _code.holds(original), _code.holds(unlanded)
 
 
 def git_out(*command):

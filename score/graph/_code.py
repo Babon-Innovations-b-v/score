@@ -382,12 +382,19 @@ def holds(commit):
     hold it; terrain's hangar seat, 2026-10-13), or when this repository knows no such commit at all (a local commit
     never pushed and rebased away: the conductor fetches main to follow its pin, so a commit it still lacks is one no
     one can pull; plan@quarters and @flat, made at a fixer's 8258bf71 before its rebase landed as 9d1b15aa, stopped
-    their lines with "pull main" for good, 2026-11-05); False for one only a newer branch holds."""
+    their lines with "pull main" for good, 2026-11-05), or when its change is in HEAD under another commit (a local
+    commit rebased onto main while an old worktree's branch still holds the original: props-inputs@old_station, made at
+    2e6fdaa5 and landed as 462287a69, stopped its line with "pull main" for good, #156, 2026-11-22); False for one only
+    a newer branch holds."""
     if subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", commit, "HEAD"],
                       capture_output=True).returncode == 0:
         return True
     known = subprocess.run(["git", "-C", str(REPO), "cat-file", "-e", f"{commit}^{{commit}}"], capture_output=True)
     if known.returncode != 0:
+        return True
+    landed = subprocess.run(["git", "-C", str(REPO), "cherry", "HEAD", commit, f"{commit}^"], capture_output=True,
+                            text=True)
+    if landed.returncode == 0 and landed.stdout.startswith("-"):
         return True
     branches = subprocess.run(["git", "-C", str(REPO), "for-each-ref", "--contains", commit, "refs/heads",
                                "refs/remotes"], capture_output=True, text=True)
