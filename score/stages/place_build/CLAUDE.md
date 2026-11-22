@@ -102,7 +102,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   own object `<name>_front` (stair_core.front_alone) and lists it in place.json `cut`: the shaft stays closed and
   the camera alone sees through its front (the section the concept draws). Every doorway is recorded in place.json
   `doorways` (`<name>_door<k>`, the scene's frame); `stairs --joined <k>` leaves out the hall stub behind storey k's
-  flat door, for a place of its own joined there (the flat).
+  flat door, for a place of its own joined there (the flat). `stairs --street-door` cuts a street door in the
+  entrance block's facade (`<name>_street`, in place of its ground window nearest the shaft): that ground floor is
+  the lobby the entrance opens off, so the stairwell meets the street (#154).
 - **Places of one area** (area/, its own overlay): `join` marks the doorway leading to a neighbour place, `area` seats
   the places at the plans' storey heights with their joined doors meeting and checks every join (seats.json).
 - **A physical sky from where and when** (`sky-at`, #154; every library sky dome is withdrawn): an airless body's

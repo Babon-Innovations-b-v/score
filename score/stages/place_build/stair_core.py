@@ -19,23 +19,28 @@ Parts, for their library surfaces (place_build.surface --part):
 - `dado`: the painted band DADO high along the walls over every floor line and flight (DADO_SKIN proud of the wall);
 - `block`, `glass` and `frame`: the flats' blocks either side of the shaft (BLOCK wide, a floor each storey, the
   facade FACADE out with WINDOWS cut, each a pane in a frame with mullions; the entrance opens into the left one's
-  ground floor), and the shaft's own front wall with a window over each landing and flight;
+  ground floor, and with `street` that ground floor is the lobby a street door in its facade opens onto the street
+  through, in place of its window nearest the shaft), and the shaft's own front wall with a window over each landing
+  and flight;
 - `balusters` and `handrail`: the railings along the open front and the well, BALUSTER bars every BALUSTER_STEP and a
   rail RAIL high over the pitch line (LANDING_RAIL over a landing).
 
-    core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=())
+    core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=(), street=False)
                                   the core written as a USD file at `path` (`mirror`: the other hand,
                                   `curtain`: a storey-high glazed front, `cut`: the front wall left to its own
                                   file (front_alone), so the camera can cut it at render, `one_block`: the
                                   entrance's flats' block alone, `joined`: the storeys whose flat door opens
-                                  onto a place of its own, with no hall stub behind it); its doorways [(wall,
-                                  along from, along to, sill, head)] in the unmirrored frame
+                                  onto a place of its own, with no hall stub behind it, `street`: a street
+                                  door in the entrance block's facade); its doorways [(wall, along from,
+                                  along to, sill, head)] in the unmirrored frame
     front_alone(path, storeys=STOREYS, mirror=False, curtain=False)
                                   the shaft's front wall alone (parts `wall`, `glass`, `frame`) at `path`
-    doorways(storeys=STOREYS)     the doorways alone, for the doors laid in them
-    doorway_spots(storeys=STOREYS, mirror=False)
-                                  each doorway's sill middle, inward way (into the shaft) and width in the
-                                  core's own frame and hand, by name (`door0` the entrance, `door<k>` storey k's)
+    doorways(storeys=STOREYS, street=False)
+                                  the doorways alone, for the doors laid in them
+    doorway_spots(storeys=STOREYS, mirror=False, street=False)
+                                  each doorway's sill middle, inward way (into the place) and width in the
+                                  core's own frame and hand, by name (`door0` the entrance, `door<k>` storey k's,
+                                  `street` the street door)
 """
 import math
 import pathlib
@@ -83,6 +88,7 @@ BLOCK = 5.0  # the flats' block beside the shaft, past its left wall: its width 
 FACADE = 0.4  # the block's facade front, out in front of the cut (z = -FACADE)
 WINDOWS = (1.3, 3.7)  # a storey's windows' middles in from the shaft's left wall
 WINDOW = (1.2, 0.9, 2.4)  # a window's width, sill and head over its floor
+STREET = WINDOWS[0]  # the street door's middle in from the shaft's side wall: in place of the ground floor's window
 FRAME_BAR = (0.05, 0.06)  # a window frame bar's face and depth
 PANE = 0.7  # a window's panes no wider than this between mullions
 CURTAIN_PIER = 0.15  # a curtain front's corner piers, in from the shaft's side walls
@@ -182,30 +188,36 @@ def flights(storeys):
     return found
 
 
-def doorways(storeys=STOREYS):
+def doorways(storeys=STOREYS, street=False):
     """The doorways: the entrance in the left wall at the ground, each flat's door in the back wall on each floor
-    landing above it; [(wall, along from, along to, sill, head)]."""
+    landing above it, and with `street` the street door in the left block's facade (along x) at the ground; [(wall,
+    along from, along to, sill, head)]."""
     found = [("left", ENTRY_AT, ENTRY_AT + DOOR[0], 0.0, DOOR[1])]
     for storey in range(1, storeys + 1):
         floor = storey * STOREY
         found.append(("back", DOOR_AT, DOOR_AT + DOOR[0], floor, floor + DOOR[1]))
+    if street:
+        middle = -WALL - STREET
+        found.append(("facade", middle - DOOR[0] / 2, middle + DOOR[0] / 2, 0.0, DOOR[1]))
     return found
 
 
-def doorway_spots(storeys=STOREYS, mirror=False):
+def doorway_spots(storeys=STOREYS, mirror=False, street=False):
     """{name: {"middle", "inward", "wide", "sill", "head"}}: each doorway's sill middle (in the middle of its wall),
-    the level way into the shaft and its width, in the core's own frame and hand (`mirror`: x taken as LONG - x, as
-    `mirrored`); `door0` the entrance, `door<k>` storey k's flat door. place_build's `stairs` records them in the
-    scene's frame, so a place joined at one (area/) meets it there."""
+    the level way into the place (the shaft, the street door's into the lobby) and its width, in the core's own frame
+    and hand (`mirror`: x taken as LONG - x, as `mirrored`); `door0` the entrance, `door<k>` storey k's flat door,
+    `street` the street door. place_build's `stairs` records them in the scene's frame, so a place joined at one
+    (area/) meets it there."""
     found = {}
-    for wall, start, end, sill, head in doorways(storeys):
+    for wall, start, end, sill, head in doorways(storeys, street):
         along = (start + end) / 2
-        middle, inward = ([-WALL / 2, sill, along], [1.0, 0.0, 0.0]) if wall == "left" else \
-            ([along, sill, DEEP + WALL / 2], [0.0, 0.0, -1.0])
+        middle, inward = {"left": ([-WALL / 2, sill, along], [1.0, 0.0, 0.0]),
+                          "back": ([along, sill, DEEP + WALL / 2], [0.0, 0.0, -1.0]),
+                          "facade": ([along, sill, -FACADE + WALL / 2], [0.0, 0.0, 1.0])}[wall]
         if mirror:
             middle, inward = [LONG - middle[0], middle[1], middle[2]], [-inward[0], 0.0, inward[2]]
-        found[f"door{round(sill / STOREY)}"] = {"middle": middle, "inward": inward, "wide": end - start,
-                                               "sill": sill, "head": head}
+        name = "street" if wall == "facade" else f"door{round(sill / STOREY)}"
+        found[name] = {"middle": middle, "inward": inward, "wide": end - start, "sill": sill, "head": head}
     return found
 
 
@@ -295,16 +307,23 @@ def glazed(holes, middle_z, pane=PANE):
     return pieces
 
 
-def block(storeys, inner, way):
+def block(storeys, inner, way, street=False):
     """A flats' block beside the shaft, its inner side at x `inner` (the shaft's side wall's outer face) and BLOCK
     wide `way` from it: its facade with windows, outer side and back walls, a floor each storey, its roof and the
     corner pier closing the facade onto the shaft's side wall (without it a slot WALL wide and FACADE deep stood
-    open the building's full height; owner, 2026-11-17: "big ass gap in the corner"): [(part, (points, faces))]."""
+    open the building's full height; owner, 2026-11-17: "big ass gap in the corner"); with `street` its ground floor
+    a lobby, a street door's doorway (DOOR) cut in its facade STREET in from the shaft in place of that floor's window
+    there (#154: the entrance opened into the block and the stairwell met no street): [(part, (points, faces))]."""
     high = top(storeys) + SLAB
     near, far = sorted((inner, inner + way * BLOCK))
     outer = (far, far + WALL) if way > 0 else (near - WALL, near)
     holes = windows(storeys, inner, way)
-    pieces = [("block", made) for made in holed((near, 0.0, -FACADE), (far, high, -FACADE + WALL), 0, holes)]
+    door = []
+    if street:
+        middle = inner + way * STREET
+        holes = [hole for hole in holes if not (hole[2] < STOREY and hole[0] < middle < hole[1])]
+        door = [(middle - DOOR[0] / 2, middle + DOOR[0] / 2, 0.0, DOOR[1])]
+    pieces = [("block", made) for made in holed((near, 0.0, -FACADE), (far, high, -FACADE + WALL), 0, holes + door)]
     pieces += [("block", box((outer[0], 0.0, -FACADE), (outer[1], high, DEEP + WALL))),
                ("block", box((near, 0.0, DEEP), (far, high - SLAB, DEEP + WALL))),
                ("block", box((min(near, outer[0]), high - SLAB, -FACADE), (max(far, outer[1]), high, DEEP + WALL)))]
@@ -439,20 +458,20 @@ def outward(piece):
     return part, (points, faces if volume > 0 else [list(reversed(face)) for face in faces])
 
 
-def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=()):
+def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=(), street=False):
     """The stair core written at `path`: /stair_core with its mesh `geo` and its parts (the module's list); with
     `mirror` the other hand (floor landings at x LONG - LANDING to LONG, the flights rising towards -x), with
     `curtain` its front a storey-high curtain wall instead of a window over each landing and flight, with `cut` the
     front wall left to its own file (front_alone: laid as its own object, the building stays closed and the camera
     cuts it at render), with `one_block` only the
     flats' block the entrance opens into, the shaft's far side wall standing free to the street, with `joined` no
-    hall stub behind those storeys' flat doors."""
-    pieces = structure(storeys, joined) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1) \
+    hall stub behind those storeys' flat doors, with `street` a street door in that block's facade onto its lobby."""
+    pieces = structure(storeys, joined) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1, street) \
         + ([] if one_block else block(storeys, LONG + WALL, 1)) \
         + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces
     dome_shell.written(path, "stair_core", [outward(piece) for piece in pieces], flat=True)
-    return doorways(storeys)
+    return doorways(storeys, street)
 
 
 def front_alone(path, storeys=STOREYS, mirror=False, curtain=False):

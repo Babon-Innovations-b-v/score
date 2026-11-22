@@ -61,7 +61,9 @@ stronger than anything inside it, so a model's own baked colour never shows; its
 Rendering is render.py, the compare measure.py, the command line __main__.py.
 """
 import json
+import os
 import pathlib
+import re
 import shutil
 import sys
 
@@ -195,6 +197,12 @@ def fetch(folder, address):
     record = entry_of(address)
     if record.get("state") == "withdrawn":
         raise Refused(f"{address}: withdrawn from the library; lay an entry it holds")
+    return address, record, copied_entry(folder, address, record)
+
+
+def copied_entry(folder, address, record):
+    """Every file of the entry `record` (at `address`) copied under the folder's assets at its library_files.stage_name
+    (a file already there kept); {file name: path in the folder}, Refused for a file the library does not hold."""
     copied = {}
     for name in record["files"]:
         reference = library_files.reference(address, name)
@@ -206,15 +214,57 @@ def fetch(folder, address):
         if not target.exists():
             shutil.copyfile(found, target)
         copied[name] = target
-    return address, record, copied
+    return copied
+
+
+SEARCHED = re.compile(r"^score_lib/(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(?:\.[a-z0-9_]+)?)/(?P<version>[1-9][0-9]*)/"
+                      r"(?P<file>.+)$")  # a library file as USD's search path found it in the library cache
+
+
+def localised(folder):
+    """Every `score_lib/<kind>/<id>/<version>/<file>` asset path the folder's USD layers name (a place laid while USD
+    found the library on its search path, PXR_AR_DEFAULT_SEARCH_PATH) pointed at that file in the folder's assets,
+    its entry copied there whole as `fetch` lays one (a withdrawn one too: the place opens as it was kept, and the
+    finish check tells it), until no layer names one; the entries copied, sorted (#154: a fetched stairwell's cables
+    and doors opened as nothing)."""
+    from pxr import UsdUtils
+    folder = pathlib.Path(folder)
+    entries, done = set(), set()
+    while True:
+        layers = [path for path in sorted(folder.rglob("*.usd*")) if path.suffix in (".usd", ".usda", ".usdc")
+                  and path not in done]
+        if not layers:
+            return sorted(entries)
+        for path in layers:
+            done.add(path)
+            layer = Sdf.Layer.FindOrOpen(str(path))
+            named = {asset for asset in layer.GetCompositionAssetDependencies() if SEARCHED.match(asset)}
+            if not named:
+                continue
+            for asset in sorted(named):
+                parts = SEARCHED.match(asset).groupdict()
+                address = f"{parts['kind']}/{parts['id']}@{parts['version']}"
+                if address not in entries:
+                    copied_entry(folder, address, entry_of(address))
+                    entries.add(address)
+            def local(asset, here=path.parent):
+                parts = SEARCHED.match(asset)
+                if not parts:
+                    return asset
+                target = folder / "assets" / asset.split("/", 1)[1]
+                relative = os.path.relpath(target, here).replace(os.sep, "/")
+                return relative if relative.startswith("../") else f"./{relative}"
+            UsdUtils.ModifyAssetPaths(layer, local)
+            layer.Save()
 
 
 def from_library(address, folder):
     """A place entry of the library (`place/<id>@<version>`) laid out as a place_build folder: each of its files at its
     own name in `folder` (scene.usda, place.json, assets/..., package/...), so every step opens it as a placed folder
     (#154: fetched places held score_lib's search paths and were rebuilt by hand). A sublayer of its scene the entry
-    does not hold (the films' walkers layer) is dropped and named. Refused for another kind, a withdrawn entry, a file
-    the library does not hold, or a folder that is not empty. {address, files, dropped}."""
+    does not hold (the films' walkers layer) is dropped and named, and every library file its layers name on USD's
+    search path is copied in and pointed at (`localised`). Refused for another kind, a withdrawn entry, a file
+    the library does not hold, or a folder that is not empty. {address, files, dropped, entries}."""
     address = resolved_address(address, library_root())
     if not address.startswith("place/"):
         raise Refused(f"{address}: not a place entry")
@@ -232,13 +282,13 @@ def from_library(address, folder):
         target = folder / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(found, target)
-    stage, _ = opened(folder)
-    layer = stage.GetRootLayer()
+    layer = Sdf.Layer.FindOrOpen(str(scene_path(folder)))
     dropped = [path for path in layer.subLayerPaths if not (folder / path).is_file()]
     if dropped:
         layer.subLayerPaths[:] = [path for path in layer.subLayerPaths if path not in dropped]
-        saved(stage)
-    return {"address": address, "files": len(record["files"]), "dropped": dropped}
+        layer.Save()
+    entries = localised(folder)
+    return {"address": address, "files": len(record["files"]), "dropped": dropped, "entries": entries}
 
 
 def finished_first(name):
@@ -692,7 +742,7 @@ def tube(folder, name, radius, length, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
 
 
 def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), mirror=False, address=STAIRS,
-           curtain=False, cut=False, one_block=False, joined=()):
+           curtain=False, cut=False, one_block=False, joined=(), street=False):
     """The stair core algorithm (stair_core.py) laid as Objects/<name>: a switchback stairwell `storeys` storeys tall
     of real size, its file written once under the place's assets; its parts `slab`, `steps`, `wall`, `dado`,
     `balusters` and `handrail` ready for their surfaces (`mirror`: the other hand, x taken as its length less x;
@@ -701,8 +751,9 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     its own frame) answered for the doors laid in them (`cut`: its front wall laid as its own object <name>_front
     and listed in place.json `cut`, so the building stays closed and the camera alone cuts it, at render;
     `one_block`: only the flats' block its entrance opens into; `joined`: the storeys whose flat door opens onto a
-    place of its own, no hall stub behind it). Its doorways are recorded in place.json `doorways` in the scene's
-    frame (`<name>_door<k>`: sill middle, inward way, width), so a neighbour place joins it at one (area/)."""
+    place of its own, no hall stub behind it; `street`: a street door in its entrance block's facade, its ground
+    floor the lobby). Its doorways are recorded in place.json `doorways` in the scene's frame (`<name>_door<k>`,
+    `<name>_street`: sill middle, inward way, width), so a neighbour place joins it at one (area/)."""
     from score.stages.place_build import stair_core
     storeys = stair_core.STOREYS if storeys is None else int(storeys)
     if storeys < 1:
@@ -711,11 +762,12 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     if any(not 1 <= storey <= storeys for storey in joined):
         raise Refused(f"a joined storey is one of the core's 1 to {storeys} ({joined})")
     named = (f"core_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}{'_o' if cut else ''}"
-             f"{'_1' if one_block else ''}{''.join(f'_j{storey}' for storey in joined)}.usda")
+             f"{'_1' if one_block else ''}{''.join(f'_j{storey}' for storey in joined)}{'_st' if street else ''}.usda")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / named
     target.parent.mkdir(parents=True, exist_ok=True)
     target.unlink(missing_ok=True)
-    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block), joined)
+    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block), joined,
+                            bool(street))
     front = target.with_name(f"front_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}.usda")
     if cut:  # written before the scene is opened, which holds the files it references
         front.unlink(missing_ok=True)
@@ -731,15 +783,16 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     saved(stage)
     if cut:
         camera_cut(folder, f"{name}_front")
-    laid = laid_doorways(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), stair_core.doorway_spots(storeys, mirror))
+    laid = laid_doorways(stage.GetPrimAtPath(f"/{place}/Objects/{name}"),
+                         stair_core.doorway_spots(storeys, mirror, bool(street)))
     record = record_of(folder)
     record["doorways"] = {**{key: spot for key, spot in (record.get("doorways") or {}).items()
-                             if not key.startswith(f"{name}_door")},
+                             if not key.startswith(f"{name}_door") and key != f"{name}_street"},
                           **{f"{name}_{key}": spot for key, spot in laid.items()}}
     write_record(folder, record)
     return {"name": name, "address": address, "usd": relative, "storeys": storeys, "mirror": bool(mirror),
             "curtain": bool(curtain), "cut": bool(cut), "one_block": bool(one_block), "joined": joined,
-            "doorways": doors}
+            "street": bool(street), "doorways": doors}
 
 
 def laid_doorways(prim, spots):

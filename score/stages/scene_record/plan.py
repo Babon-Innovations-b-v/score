@@ -608,14 +608,21 @@ def levels_of(held):
     """{held place: its floor's height over its holder's floor} ({place: (its hold, its plan)}): on the holder's floor,
     sunk under it when every door stands on a raised floor over a lower one (`sunk_by`: the greenhouse's garden), raised
     where a held sibling's door leading to it stands higher than its own door leading back (the stairwell's flat door
-    9 m up: the flat 9 m up), by the pair that meets nearest along the floor."""
+    9 m up: the flat 9 m up), by the pair that meets nearest along the floor; a raise carried through a chain of
+    places (the street's door 0.2 m up raising the stairwell, and the flat with it), round after round until none
+    changes (at most one round a place, so doors whose sills disagree round a loop never raise without end)."""
     sunk = {name: -sunk_by(plan) for name, (_, plan) in held.items()}
-    found = {}
-    for name, (hold, plan) in held.items():
-        raised = [sunk[other] + sill(pair["door"]) - sill(pair["back"])
-                  for other, (other_hold, other_plan) in sorted(held.items()) if other != name
-                  for pair in paired(other_plan, other_hold, other, plan, hold, name)[:1] if pair["back"]]
-        found[name] = round(max([sunk[name], *raised]), 4) + 0.0
+    pairs = {name: [(other, sill(pair["door"]) - sill(pair["back"]))
+                    for other, (other_hold, other_plan) in sorted(held.items()) if other != name
+                    for pair in paired(other_plan, other_hold, other, plan, hold, name)[:1] if pair["back"]]
+             for name, (hold, plan) in held.items()}
+    found = {name: round(sunk[name], 4) + 0.0 for name in held}
+    for _ in held:
+        raised = {name: round(max([sunk[name], *[found[other] + rise for other, rise in pairs[name]]]), 4) + 0.0
+                  for name in held}
+        if raised == found:
+            break
+        found = raised
     return found
 
 

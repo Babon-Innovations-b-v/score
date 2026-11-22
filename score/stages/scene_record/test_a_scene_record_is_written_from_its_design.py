@@ -101,6 +101,18 @@ CORNER = 10.0 + 4.0 / math.sqrt(2.0)
 TURNED_BASE = {"w": 20.0, "d": 20.0, "holds": [
     {"place": "hub", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0, "leads": {"tube@10,10": "tube#1", "tube@0,5": "outside"}},
     TURNED_TUBE, {"place": "lab", "x": CORNER, "y": CORNER, "w": 4.0, "d": 4.0, "leads": {"tube": "tube#1"}}]}
+# A chain of three held side by side, 4 m each: the street's door to the stairwell on its raised floor 0.5 m up (its
+# other door on its floor, so it sinks none), the stairwell's door to the flat 3 m up: the stairwell 0.5 m up and the
+# flat 3.5 m, carried through the stairwell (2099 #161: the flat's raise read off the stairwell as unraised).
+CHAIN = {"street": ({"place": "street", "x": 0.0, "y": 0.0, "w": 4.0, "d": 4.0},
+                    {"w": 4.0, "d": 4.0, "levels": [{"height": 0.0}, {"height": 0.5}],
+                     "openings": [{"kind": "door", "at": [0.0, 2.0], "to": "outside"},
+                                  {"kind": "door", "at": [4.0, 2.0], "sill": 0.5, "to": "stairwell"}]}),
+         "stairwell": ({"place": "stairwell", "x": 4.0, "y": 0.0, "w": 4.0, "d": 4.0},
+                       {"w": 4.0, "d": 4.0, "openings": [{"kind": "door", "at": [0.0, 2.0], "to": "street"},
+                                                         {"kind": "door", "at": [4.0, 2.0], "sill": 3.0, "to": "flat"}]}),
+         "flat": ({"place": "flat", "x": 8.0, "y": 0.0, "w": 4.0, "d": 4.0},
+                  {"w": 4.0, "d": 4.0, "openings": [{"kind": "door", "at": [0.0, 2.0], "to": "stairwell"}]})}
 # Two holds overlapping 0.97 m, and a place held once that more doors lead to than lead back (the base's one tube).
 OVERLAPPING = [{"place": "hub", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0},
                {"place": "tube", "x": 9.0, "y": 2.0, "w": 4.0, "d": 4.0}]
@@ -370,7 +382,8 @@ def turned_base_read(output, inputs):
     place's record standing its neighbours (`<place>'s record`, its pair and lead faults beside)."""
     found = [("tube's greenhouse end", {"at": plan.on_holder(TURNED_TUBE, TUBE, [1.0, 4.0]).tolist()}),
              ("box overlaps", {"found": plan.overlap_faults(TURNED_BASE)}),
-             ("levels", {"by place": plan.levels_of(plan.held_plans(TURNED_BASE, inputs["plans"]))})]
+             ("levels", {"by place": plan.levels_of(plan.held_plans(TURNED_BASE, inputs["plans"]))}),
+             ("chained levels", {"by place": plan.levels_of(CHAIN)})]
     for name, own in (("tube", TUBE), ("lab", TURNED_LAB), ("hub", TURNED_HUB)):
         record = {"place": name, "places": gates.writer.places_of(name, {"doors": []}, own, inputs["plans"])}
         found.append((f"{name}'s record", {"stands": sorted(entry.get("instance", entry["name"])
@@ -1485,6 +1498,7 @@ RECORD_ROWS = [
       "box overlaps": {"found": ["the outlines of hub and tube#1 overlap, 0.50 m thick",
                                  "the outlines of tube#1 and lab overlap, 0.50 m thick"]},
       "levels": {"by place": {"hub": 0.0, "tube#1": 0.0, "lab": -1.0}},
+      "chained levels": {"by place": {"street": 0.0, "stairwell": 0.5, "flat": 3.5}},
       "tube's record": {"stands": ["hub", "lab"], "pairs": [], "leads": []},
       "lab's record": {"stands": ["tube#1"], "pairs": [], "leads": []},
       "hub's record": {"stands": ["tube#1"], "pairs": [], "leads": []}}, {},
@@ -1682,6 +1696,8 @@ def test_a_scene_record_is_written_from_its_design(tmp_path, world, reading, lai
         `return None`
     Break: score/stages/scene_record/plan.py: `sunk = {name: -sunk_by(plan) for name, (_, plan) in held.items()}` ->
         `sunk = {name: 0.0 for name in held}`
+    Break: score/stages/scene_record/plan.py: `*[found[other] + rise for other, rise in pairs[name]]` ->
+        `*[sunk[other] + rise for other, rise in pairs[name]]` (the flat raised 3 m, its stairwell's raise dropped)
     Break: score/stages/scene_record/plan.py: `return middle + np.array([cos * across - sin * along, sin * across + cos * along])` ->
         `return middle + np.array([across, along])`
     Break: score/stages/scene_record/plan.py: `found[name_of(hold)] = (hold, as_held(hold, read(path)))` ->

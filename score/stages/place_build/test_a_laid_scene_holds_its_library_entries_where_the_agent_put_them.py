@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -105,6 +105,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: a named view's `cut` left unread -> the view made a cut view sees the wall standing
 - stair_core.core: the second block kept with `one_block` -> a flats' block stands past the shaft's far wall
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
+- stair_core.block: `holes + door` -> `holes` -> the street door's doorway stands walled in the lobby's facade
+- stair_core.block: the ground window kept with `street` -> a pane stands across the street door's doorway
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
 - render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
 - render.libraries: the libs/ default dropped (SCORE_BLENDER_LIBS alone) -> a box without the variable starts a
@@ -125,6 +127,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.moving_door: the role read off (every keyed object a door) -> the keyed fan is packaged
 - place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
   folder lacks
+- place_build.from_library: `entries = localised(folder)` -> `entries = []` (and its key) -> the lane's box names the
+  library on USD's search path and opens as nothing
 - place_build.blocks: the role always structure -> the knob reads a structure
 - ready.inward: shells and connectors alone -> the plug set in the cell's walls of blocks is set in none
 - scene_package.chamber_air: a chamber's air only its named object's hull -> the cell whose doors name its back
@@ -702,6 +706,18 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     flat = np.asarray(cut_mesh.GetNormalsAttr().Get())
     assert corner.any() and cut_mesh.GetNormalsInterpolation() == UsdGeom.Tokens.faceVarying \
         and len(flat) == sum(cut_mesh.GetFaceVertexCountsAttr().Get()) and np.allclose(np.linalg.norm(flat, axis=1), 1.0)
+    stair_core.core(tmp_path / "street.usda", 1, mirror=True, one_block=True, street=True)  # a lobby's street door
+    street_stage = Usd.Stage.Open(str(tmp_path / "street.usda"))
+    lobby = UsdGeom.Mesh(street_stage.GetPrimAtPath("/stair_core/geo"))
+    spots = stair_core.doorway_spots(1, mirror=True, street=True)
+    street_door = np.array(spots["street"]["middle"]) + [0.0, 1.0, 0.0]
+    across = part_bounds(lobby, "block")
+    walled = np.all((across[:, 0, :2] <= street_door[:2]) & (across[:, 1, :2] >= street_door[:2]), axis=1) \
+        & (np.abs(across[:, 0, 2] - street_door[2]) <= stair_core.WALL / 2 + 1e-3)  # a facade face across it
+    pane = np.abs(part_middles(lobby, "glass")[:, 0] - street_door[0]) < stair_core.DOOR[0] / 2
+    assert not walled.any() and not (pane & (part_middles(lobby, "glass")[:, 1] < stair_core.STOREY)).any() \
+        and spots["street"]["inward"] == [-0.0, 0.0, 1.0] and np.isclose(spots["street"]["wide"], stair_core.DOOR[0]) \
+        and street_door[0] > stair_core.LONG + stair_core.WALL and "street" not in stair_core.doorway_spots(1)
     stair_core.front_alone(tmp_path / "front.usda", 1)  # the wall a cut core leaves to its own object
     front_stage = Usd.Stage.Open(str(tmp_path / "front.usda"))
     front = np.asarray(UsdGeom.Mesh(front_stage.GetPrimAtPath("/stair_front/geo")).GetPointsAttr().Get())
@@ -805,14 +821,21 @@ def from_library(tmp_path, root, files):
     held = files / "place/lane@1"
     (held / "assets/model").mkdir(parents=True)
     (held / "scene.usda").write_text('#usda 1.0\n(\n    defaultPrim = "lane"\n    subLayers = [@layers/walkers/'
-                                     'people.usda@]\n)\ndef Xform "lane" {}\n')
+                                     'people.usda@]\n)\ndef Xform "lane" {\n    def "box" (\n        prepend '
+                                     'references = @score_lib/kit/box_piece/1/piece.usda@\n    ) {}\n}\n')
     (held / "place.json").write_text(json.dumps({"place": "lane"}))
-    (held / "assets/model/kerb.usda").write_text('#usda 1.0\n')
+    (held / "assets/model/kerb.usda").write_text('#usda 1.0\ndef "kerb" (\n    prepend references = '
+                                                 '@score_lib/kit/box_piece/1/piece.usda@\n) {}\n')
     laid = place_build.from_library("place/lane", tmp_path / "fetched")
     stage, place = place_build.opened(tmp_path / "fetched")
-    assert laid == {"address": "place/lane@1", "files": 3, "dropped": ["layers/walkers/people.usda"]}, laid
+    assert laid == {"address": "place/lane@1", "files": 3, "dropped": ["layers/walkers/people.usda"],
+                    "entries": ["kit/box_piece@1"]}, laid
     assert place == "lane" and list(stage.GetRootLayer().subLayerPaths) == [] and \
         (tmp_path / "fetched/assets/model/kerb.usda").is_file()
+    kerb = Sdf.Layer.FindOrOpen(str(tmp_path / "fetched/assets/model/kerb.usda"))
+    assert stage.GetPrimAtPath("/lane/box").IsValid() and stage.GetPrimAtPath("/lane/box").GetChildren() and \
+        (tmp_path / "fetched/assets/kit/box_piece/1/piece.json").is_file() and \
+        kerb.GetCompositionAssetDependencies() == ["../kit/box_piece/1/piece.usda"]  # on no search path
     try:
         place_build.from_library("place/lane", tmp_path / "fetched")
         raise AssertionError("a place was laid out over a folder that is not empty")

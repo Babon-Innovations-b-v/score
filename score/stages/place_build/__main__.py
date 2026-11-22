@@ -192,7 +192,7 @@ def run(args):
     if args.step == "stairs":
         return place_build.stairs(args.folder, args.name, args.storeys, numbers(args.at), numbers(args.turn),
                                   args.mirror, curtain=args.curtain, cut=args.cut,
-                                  one_block=args.one_block, joined=args.joined or ())
+                                  one_block=args.one_block, joined=args.joined or (), street=args.street_door)
     if args.step == "tracks":
         return place_build.tracks(args.folder, args.name, lines_of(args.rover), lines_of(args.boots), args.seed)
     if args.step == "rain":
@@ -348,6 +348,8 @@ def parser():
     step.add_argument("--one-block", action="store_true")
     step.add_argument("--joined", type=int, action="append", help="a storey whose flat door opens onto a place of "
                       "its own (no hall stub behind it); again for more")
+    step.add_argument("--street-door", action="store_true", help="a street door in the entrance block's facade, its "
+                      "ground floor the lobby the entrance opens off")
     step = steps.add_parser("rain")
     step.add_argument("folder")
     step.add_argument("name")
