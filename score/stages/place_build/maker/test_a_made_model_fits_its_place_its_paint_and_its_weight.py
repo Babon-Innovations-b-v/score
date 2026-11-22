@@ -3,6 +3,8 @@ named a mismatch, never forced), its GLB is edited losslessly, and its mass is i
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.flat_card: always False -> the 1 mm card passes as a model
+- maker.cut_out: its rectangle refusal dropped -> a box-cut crop (the capsule's uncut lever, #156) goes to TRELLIS.2;
+  maker.concept_picture: its missing-mask refusal dropped -> concept/<n> with no SAM 3 mask is made from no cut
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
@@ -60,6 +62,29 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
                                                                        generate.FACES]  # a sprout, a chair, a wall
     assert maker.flat_card([0.3, 0.001, 0.05]) and not maker.flat_card([0.3, 0.02, 0.02]) \
         and not maker.flat_card([1.2, 0.006, 0.1])  # a 1 mm card; a stick; a 6 mm sign
+
+    from PIL import Image
+    from score.stages.place_build import Refused
+    shape = np.zeros((40, 60, 4), np.uint8)
+    shape[5:35, 10:50] = 200
+    shape[5:20, 30:50, 3] = 0  # an L, cut out of its background
+    pictures = {"cut": shape, "box": np.pad(np.full((30, 40, 4), 200, np.uint8), ((5, 5), (10, 10), (0, 0))),
+                "opaque": np.full((40, 60, 4), 200, np.uint8)}
+    refused = {}
+    for name, pixels in pictures.items():
+        Image.fromarray(pixels, "RGBA").save(tmp_path / f"{name}.png")
+        try:
+            maker.cut_out(tmp_path / f"{name}.png")
+        except Refused:
+            refused[name] = True
+    Image.fromarray(shape[..., :3], "RGB").save(tmp_path / "rgb.png")
+    (tmp_path / "objects.json").write_text(json.dumps([{"word": "lever", "box": [0, 0, 10, 10], "mask": None}]))
+    for source in ("rgb.png", "concept/0"):
+        try:
+            maker.picture_of(tmp_path, str(tmp_path / source) if source.endswith("png") else source, None, tmp_path)
+        except Refused:
+            refused[source] = True
+    assert refused == {"box": True, "opaque": True, "rgb.png": True, "concept/0": True}
 
     document = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "world"}],
                 "buffers": [{"byteLength": 0}], "images": [{"bufferView": 0, "mimeType": "image/png"}],

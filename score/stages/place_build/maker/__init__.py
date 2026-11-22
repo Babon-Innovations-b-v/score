@@ -85,6 +85,9 @@ def concept_picture(folder, number, out):
     folder = pathlib.Path(folder)
     objects = json.loads((folder / "objects.json").read_text())
     found = objects[int(number)]
+    if not found.get("mask") or not mask_path(folder, found["mask"]).is_file():
+        raise place_build.Refused(f"concept/{number}: no SAM 3 mask on this PC ({found.get('mask')}); a crop not cut "
+                                  "out of the concept is made as its background too (`split --nouns`)")
     concept = Image.open(folder / "concept.png").convert("RGB")
     mask = Image.open(mask_path(folder, found["mask"])).convert("L").resize(concept.size)
     left, top, right, bottom = found["box"]
@@ -95,6 +98,29 @@ def concept_picture(folder, number, out):
     cut.putalpha(mask.crop(box))
     cut.save(out)
     return out
+
+
+BOX_FILL = 0.995  # a picture whose opaque pixels fill this share of their own box is a crop, not a cut-out
+
+
+def cut_out(picture):
+    """The picture's path when it is cut out of its background (transparent round a shape that is not its own box);
+    refused otherwise: TRELLIS.2 makes an uncut crop's background as part of the model (#156: the capsule's throttle,
+    levers on a console top, came out a cube)."""
+    from PIL import Image
+    image = Image.open(picture)
+    if "A" not in image.getbands():
+        raise place_build.Refused(f"{picture}: no transparency, a crop never cut out; cut it by a SAM 3 mask "
+                                  "(`split --nouns`, then concept/<n>)")
+    opaque = np.asarray(image.getchannel("A")) > 127
+    rows, columns = np.nonzero(opaque)
+    if not len(rows):
+        raise place_build.Refused(f"{picture}: wholly transparent")
+    box = (np.ptp(rows) + 1) * (np.ptp(columns) + 1)
+    if opaque.all() or len(rows) >= BOX_FILL * box:
+        raise place_build.Refused(f"{picture}: its opaque part is a rectangle, a crop never cut out; cut it by a SAM 3 "
+                                  "mask (`split --nouns`, then concept/<n>)")
+    return picture
 
 
 def like_take(like):
@@ -117,9 +143,9 @@ def picture_of(folder, source, like, work):
     if source.startswith("take/"):
         return take_picture(source[5:]), source
     if source.startswith("concept/"):
-        return concept_picture(folder, source[8:], work / "picture.png"), source
+        return cut_out(concept_picture(folder, source[8:], work / "picture.png")), source
     if pathlib.Path(source).is_file():
-        return pathlib.Path(source), source
+        return cut_out(pathlib.Path(source)), source
     raise place_build.Refused(f"{source}: not take/<take>, concept/<n>, like or a picture's path")
 
 

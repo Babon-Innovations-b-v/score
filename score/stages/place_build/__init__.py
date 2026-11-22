@@ -158,6 +158,20 @@ def start_objects(folder, objects):
     return record
 
 
+def more_objects(folder, objects):
+    """A further split's objects (a JSON file of concept_objects.objects' answer) added after the ones the place
+    folder's objects.json holds, so every earlier object keeps its number; the added ones with their numbers."""
+    folder = pathlib.Path(folder)
+    record = record_of(folder)
+    held = json.loads((folder / "objects.json").read_text()) if record.get("objects") else []
+    added = json.loads(pathlib.Path(objects).read_text())
+    (folder / "objects.json").write_text(json.dumps(held + added, indent=1))
+    record["objects"] = "objects.json"
+    write_record(folder, record)
+    return {"added": [{"number": len(held) + number, "word": found["word"], "box": found["box"],
+                       "mask": found["mask"]} for number, found in enumerate(added)]}
+
+
 def camera(folder, eye, aim, fov):
     record = record_of(folder)
     record["camera"] = {"eye": [float(value) for value in eye], "aim": [float(value) for value in aim],
