@@ -41,6 +41,9 @@ from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
 import whole_layer
 
 
+# Set where the physics layer wrote a mass of its own (write_masses): an asset's own mass is the one without it, so
+# our own library objects weighed by their area are never read as adopted (authored_mass).
+WEIGHED = "score:physics:weighed"
 LAYERS = ("./layers/physics_motion.usda", "./layers/trial.usda", "./layers/physics.usda")
 EDIT = "./layers/edit.usda"
 NOT_SOLID = ("Sky",)
@@ -130,12 +133,15 @@ def laid_objects(stage):
 
 def authored_mass(prim):
     """The mass an asset authors for itself at and under a laid object (UsdPhysics' MassAPI with a mass, inside its
-    instances too, the objects laid on it left out), kg in the asset's own units; None when it authors none."""
+    instances too, the objects laid on it left out, and a mass the physics layer weighed itself, `WEIGHED`, never
+    counted), kg in the asset's own units; None when it authors none."""
     masses = []
     walk = iter(Usd.PrimRange(prim, Usd.TraverseInstanceProxies()))
     for part in walk:
         if part != prim and part.HasAttribute("score:library"):
             walk.PruneChildren()
+            continue
+        if part.GetAttribute(WEIGHED).Get():
             continue
         mass = UsdPhysics.MassAPI(part).GetMassAttr() if part.HasAPI(UsdPhysics.MassAPI) else None
         if mass and mass.HasAuthoredValue() and mass.Get() > 0:
@@ -218,6 +224,7 @@ def write_masses(stage, spec):
                    for mesh in own_meshes(prim))
         mass = area * spec["sheet"] * spec["density"]
         UsdPhysics.MassAPI.Apply(prim).CreateMassAttr(mass)
+        prim.CreateAttribute(WEIGHED, Sdf.ValueTypeNames.Bool).Set(True)
         for hull in hulls(prim):
             UsdPhysics.CollisionAPI(hull).CreateCollisionEnabledAttr(False)
         found[prim.GetName()] = round(mass, 3)

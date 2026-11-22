@@ -24,7 +24,9 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
 - an_adopted_asset_keeps_its_physics (#155): collide_by_triangles' `or is_adopted(prim, adopted)` dropped (the
   asset's convex hull made triangles, steel bound over its own physics material), or write_masses' adopted masses
   left out (the 1.5496 kg asset weighed by its area as steel sheet), or write's `engine_chosen(..., "Newton")` line
-  dropped (the trial reads the asset's default engine, not Newton's).
+  dropped (the trial reads the asset's default engine, not Newton's), or authored_mass's `WEIGHED` skip dropped (our
+  own library crate_2, weighed by the physics layer, read as adopted: its hull never switched on, and a re-run's
+  stage, holding the physics layer, reads every weighed object as adopted).
 - the_hinge_stands_at_its_pins (and the slide beside it, #148): write_slide's `CreateAxisAttr(... [slide["along"]])`
   made `CreateAxisAttr(UsdPhysics.Tokens.x)` (the glass door's leaf slides across its doorway's depth, not its width),
   or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
@@ -251,6 +253,8 @@ def adopted_asset(folder):
     laid.GetReferences().AddReference("./adopted.usda")
     UsdGeom.Xformable(laid).AddTranslateOp().Set(Gf.Vec3d(-2.0, 0.0, 2.0))
     laid.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set("model/adopted@1")
+    base.GetPrimAtPath(f"/{PLACE}/Objects/crate_2").CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(
+        "model/crate@1")  # one of our own library objects beside it, weighed by the physics layer
     base.Save()
 
 
@@ -274,6 +278,14 @@ def an_adopted_asset_keeps_its_physics():
         assert geo.GetAttribute("newton:contactGap").Get() is not None
         assert laid.HasAPI(UsdPhysics.RigidBodyAPI) and not geo.HasAPI(UsdPhysics.RigidBodyAPI)
         assert UsdPhysics.CollisionAPI(geo).GetCollisionEnabledAttr().Get() is not False
+        assert [prim.GetName() for prim in physics.adopted_objects(stage)] == ["adopted_1"]  # as a re-run reads it
+        steel = MATERIALS["materials"]["steel"]
+        assert math.isclose(found["masses"]["crate_2"], 6 * 0.3 ** 2 * steel["sheet"] * steel["density"], rel_tol=1e-3)
+        ours = stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_2/collision")
+        assert UsdPhysics.CollisionAPI(ours).GetCollisionEnabledAttr().Get() is True
+        assert UsdPhysics.CollisionAPI(stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_2/geo")
+                                       ).GetCollisionEnabledAttr().Get() is False
+        assert UsdShade.MaterialBindingAPI(ours).ComputeBoundMaterial("physics")[0].GetPath().name == "steel"
 
 
 def a_blocked_fall_is_refused():
