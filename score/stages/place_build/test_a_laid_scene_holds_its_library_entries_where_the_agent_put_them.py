@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -120,6 +120,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   swings into the chamber like a closet door, not out to the porch
 - scene_package.locks_of: the marked doors left unread (marked_locks empty) -> the blocks-built cell is no chamber
 - scene_package.door_block: every door written a hinge -> the cell's plug door has no slide
+- scene_package.moving_door: every keyed object taken for still (False) -> the lock's swinging inner door is
+  left out as moving, so it lays no door
+- scene_package.moving_door: the role read off (every keyed object a door) -> the keyed fan is packaged
 - place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
   folder lacks
 - place_build.blocks: the role always structure -> the knob reads a structure
@@ -1296,8 +1299,17 @@ def doored(tmp_path):
             "door")
     stage.GetPrimAtPath(f"/{place}/Objects/inner_door").CreateAttribute("score:opens", Sdf.ValueTypeNames.String).Set(
         "walkers")
+    place_build.blocks(folder, "fan", [[0.5, 2.2, 1.0, 0.7, 2.4, 1.2, "fan"]], role="prop")
+    for name, role in (("inner_door", "door"), ("fan", "prop")):  # keyed as walker_route keys a door's swing
+        xform = UsdGeom.Xformable(stage.GetPrimAtPath(f"/{place}/Objects/{name}"))
+        swing = xform.AddRotateYOp(opSuffix="swing")
+        swing.GetAttr().Set(0.0, 5.0)
+        swing.GetAttr().Set(90.0, 20.0)
+        xform.SetXformOpOrder([swing, *[op for op in xform.GetOrderedXformOps() if op != swing]])
     stage.GetRootLayer().Save()
     scene = scene_package.write(folder, tmp_path / "lock_package")
+    assert {"name": "fan", "why": "it moves over time: not converted"} in scene["left_out"], scene["left_out"]
+    assert "inner_door" in {copy["name"] for copy in scene["instances"]}, scene["left_out"]  # a moving door at rest
     doors = {copy["name"]: copy["door"] for copy in scene["instances"] if "door" in copy}
     inner, outer = doors["inner_door"], doors["outer_hatch"]
     deck = scene_package.part_points(stage.GetPrimAtPath(f"/{place}/Objects/chamber"), "deck")[:, 1].max()

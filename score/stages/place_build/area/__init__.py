@@ -142,18 +142,25 @@ def seat_onto(seat, doorway, other, rise):
 
 
 def planned_joins(holder, plans):
-    """Each pair of held places a door of one joins to a door of the other leading back on the holder's plan, nearest
-    first: (place, other, its door, the door back), each pair of doors once."""
+    """Each pair of held places a door of one joins to a door of the other leading back, nearest first: (place,
+    other, its door, the door back), each pair of doors once; and the faults of each pair the holder's plan holds
+    more than plan.DOORS_MET apart (2099 #161: the square's plan held the street 45 m from the stairwell whose door
+    leads to it). Such a pair is still a join: both plans lead it, the built doorways seat it, and the holder's plan
+    is told to be fixed. A place's second door to the same neighbour pairs only when it meets on the plan."""
     held = plan.held_plans(holder, plans)
-    found = []
+    found, faults = [], []
     for name, (hold, own) in sorted(held.items()):
         for other, (other_hold, other_plan) in sorted(held.items()):
             if other <= name:
                 continue
-            found += [(name, other, pair["door"], pair["back"])
-                      for pair in plan.paired(own, hold, name, other_plan, other_hold, other)
-                      if pair["back"] is not None and pair["gap"] <= plan.DOORS_MET]
-    return held, found
+            pairs = [pair for pair in plan.paired(own, hold, name, other_plan, other_hold, other)
+                     if pair["back"] is not None]
+            met = [pair for pair in pairs if pair["gap"] <= plan.DOORS_MET] or pairs[:1]
+            found += [(name, other, pair["door"], pair["back"]) for pair in met]
+            faults += [f"{name}'s plan door to {other} (sill {plan.sill(pair['door']):g} m) stands {pair['gap']:.2f} m "
+                       f"from {other}'s door back on the holder's plan (its holds; within {plan.DOORS_MET:g} m)"
+                       for pair in met if pair["gap"] > plan.DOORS_MET]
+    return held, found, faults
 
 
 def built_joins(folders, planned):
@@ -195,16 +202,23 @@ def grown(seats, joins, levels):
                     more = True
 
 
-def seated(plans, outside, folders):
+def seated(plans, outside, folders, stands=None):
     """{place: {"matrix", "from"}} of the outside place and every place its plan holds that has a folder, the joins
-    between them and the faults that keep a planned join from being seated. A place joined to a seated one is seated
-    onto it: its floor where the plans' storey heights put it, its doorway on the other's, facing it; when none is
-    left joined to a seated one, the lowest left on the plans (the stairwell, under the flat) stands as laid."""
+    between them and the faults that keep a planned join from being seated. `stands`, when given, is laid in the
+    area's frame first, raised only to its plan's storey (the flat, laid in the frame the plans name, 9 m up: 2099
+    #161); a place joined to a seated one is
+    seated onto it: its floor where the plans' storey heights put it, its doorway on the other's, facing it; when none
+    is left joined to a seated one, the lowest left on the plans (the stairwell, under the flat) stands as laid."""
     holder = plan.read(pathlib.Path(plans) / f"{outside}.json")
-    held, planned = planned_joins(holder, plans)
+    held, planned, faults = planned_joins(holder, plans)
     levels = plan.levels_of(held)
-    joins, faults = built_joins(folders, planned)
+    joins, unbuilt = built_joins(folders, planned)
+    faults += unbuilt
     seats = {outside: {"matrix": np.identity(4), "from": f"the area's frame: {outside}'s own"}}
+    if stands in folders:
+        rise = levels.get(stands, 0.0)
+        seats[stands] = {"matrix": seat_matrix(0.0, (0.0, rise, 0.0)),
+                         "from": f"given to stand: as laid, its floor {rise:g} m up (its plan's storey)"}
     grown(seats, joins, levels)
     while set(folders) - set(seats):
         lowest = min(set(folders) - set(seats), key=lambda name: (levels.get(name, 0.0), name))
@@ -310,10 +324,11 @@ def judged(folders, seats, ends):
             "along": round(along, 4), "facing": round(facing, 2), "walked": metres, "faults": faults}
 
 
-def area(plans, outside, folders, out=None):
-    """The area's seats and its joins check as one record (written to `out` when given): every place's seat, every
-    planned join judged, and every fault."""
-    seats, joins, faults = seated(plans, outside, folders)
+def area(plans, outside, folders, out=None, seat=False, stands=None):
+    """The area's seats and its joins check as one record (written to `out` when given): every place's seat (`stands`
+    laid as it is, seated), every planned join judged, and every fault; with `seat`, each place's seat also written
+    into its folder's place.json `seat` (the package then lays the place in the area's frame: scene_package.seated)."""
+    seats, joins, faults = seated(plans, outside, folders, stands)
     judged_joins = [judged(folders, seats, ends) for ends in joins]
     record = {"area": outside, "plans": str(plans),
               "seats": {name: {"matrix": np.round(seat["matrix"].T, 6).flatten().tolist(), "from": seat["from"]}
@@ -323,4 +338,8 @@ def area(plans, outside, folders, out=None):
               "frame": "each seat the place's frame in the area's, USD's row-vector order (glTF's column-major)"}
     if out:
         pathlib.Path(out).write_text(json.dumps(record, indent=1))
+    for name, folder in folders.items() if seat else ():
+        laid = place_build.record_of(folder)
+        laid["seat"] = {"area": outside, **record["seats"][name]}
+        place_build.write_record(folder, laid)
     return record

@@ -146,7 +146,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   blender_views.py is checked by a render of the fixture scene, never in the test).
 - **The scene package** (scene_package.py, `package <folder> <out>`): the laid place for a game engine (2099's Unity,
   glTFast) in tools/props/library/package.py's one format (score.scene v1, checked by its own check, never forked):
-  every object converted from the laid USD with usd-core and trimesh's writer, its bound looks as glTF PBR (exact
+  every object converted from the laid USD with usd-core and trimesh's writer (a door a walker swings over time laid
+  as it rests, with its `door` block; any other moving object left out), laid at place.json `seat` when the area
+  gave one (area/), its bound looks as glTF PBR (exact
   factors, maps, an image surface box-projected over its tile, glass as transmission), an unchanged glTF model its
   entry's own glTF; colliders from ready.json's roles. A palette recipe is baked as the preview draws it (wear, dirt,
   relief; bake_looks.py, headless Blender through the card queue) at 512 texels a metre on xatlas maps, each map as

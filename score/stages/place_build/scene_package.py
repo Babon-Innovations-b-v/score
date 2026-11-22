@@ -57,7 +57,7 @@ import struct
 
 import numpy as np
 from PIL import Image
-from pxr import Usd, UsdGeom, UsdLux, UsdShade
+from pxr import Gf, Usd, UsdGeom, UsdLux, UsdShade
 
 from score.stages import place_build
 from score.stages.place_build import skinned
@@ -1061,9 +1061,23 @@ def animated(prim):
                for attribute in inside.GetAttributes())
 
 
+def moving_door(prim):
+    """Whether the prim is a door (ready.role_of) that moves only by its own transform (a walker's swing or slide
+    keyed over time, walker_route's door times), its leaf's shape still: the package lays it as every read at the
+    default time sees it (its keyed ops' own values, the swing at 0, else laid as put: shut), its `door` block the
+    way it moves (2099 #161: stairwell@2's entrance door was left out, so the street met no door)."""
+    from score.stages.place_build import ready
+    if ready.role_of(prim) != "door":
+        return False
+    own = {op.GetAttr().GetName() for op in UsdGeom.Xformable(prim).GetOrderedXformOps()}
+    return not any(attribute.GetNumTimeSamples() > 1 for inside in Usd.PrimRange(prim)
+                   for attribute in inside.GetAttributes() if inside != prim or attribute.GetName() not in own)
+
+
 def laid_objects(stage, place):
-    """[(prim, kind)] of every object and effect laid, [(prim, kind)] of every character (skinned.is_character: a
-    SkelRoot or a crowd's PointInstancer, under Objects or Characters), and [{name, why}] of those not converted."""
+    """[(prim, kind)] of every object and effect laid (a moving door at rest, moving_door), [(prim, kind)] of every
+    character (skinned.is_character: a SkelRoot or a crowd's PointInstancer, under Objects or Characters), and
+    [{name, why}] of those not converted."""
     found, characters, left_out = [], [], []
     for scope, default in (("Objects", "object"), ("Effects", "effect"), ("Characters", "character")):
         holder = stage.GetPrimAtPath(f"/{place}/{scope}")
@@ -1073,7 +1087,7 @@ def laid_objects(stage, place):
                 left_out.append({"name": prim.GetName(), "why": "the place's sky dome: scene.json's environment"})
             elif skinned.is_character(prim):
                 characters.append((prim, "character" if kind in ("object", "model") else kind))
-            elif animated(prim):
+            elif animated(prim) and not moving_door(prim):
                 left_out.append({"name": prim.GetName(), "why": "it moves over time: not converted"})
             else:
                 found.append((prim, kind))
@@ -1338,10 +1352,40 @@ def deadline(out, step, kind):
         faulthandler.cancel_dump_traceback_later()
 
 
+@contextlib.contextmanager
+def seated(stage, place, seat):
+    """The place's root set at its area seat (place.json `seat`, area.area: a turn about up and a shift, USD's
+    row-vector order) on the stage's session layer while the package is written, so every object, door, lamp, sky and
+    character reads in the area's frame (2099 lays an area's places where their packages put them); the scene's own
+    file is never changed, and the seat is cleared after."""
+    if not seat:
+        yield
+        return
+    layer = stage.GetSessionLayer()
+    with Usd.EditContext(stage, layer):
+        root = UsdGeom.Xformable(stage.GetPrimAtPath(f"/{place}"))
+        own = root.GetOrderedXformOps()
+        op = root.AddTransformOp(opSuffix="seat")
+        op.Set(Gf.Matrix4d(np.asarray(seat["matrix"], float).reshape(4, 4).tolist()))
+        root.SetXformOpOrder([op, *own], root.GetResetXformStack())
+    try:
+        yield
+    finally:
+        with Usd.EditContext(stage, layer):
+            stage.RemovePrim(f"/{place}")  # the session layer's spec alone: the seat
+
+
 def write(folder, out):
-    """The laid place in <folder> as a scene package in <out>; scene.json's content."""
+    """The laid place in <folder> as a scene package in <out>, laid at its area seat (seated); scene.json's content."""
     folder, out = pathlib.Path(folder), pathlib.Path(out)
     stage, place = place_build.opened(folder)
+    seat = place_build.record_of(folder).get("seat")
+    with seated(stage, place, seat):
+        return written_scene(folder, out, stage, place, seat)
+
+
+def written_scene(folder, out, stage, place, seat):
+    """write's body: the package written from the open stage, its frame the area's when `seat` is given."""
     ready_file = folder / "ready.json"
     roles = json.loads(ready_file.read_text())["roles"] if ready_file.is_file() else None
     for held in (out.iterdir() if out.exists() else ()):  # all but the bake's maps a stopped bake left (BAKE)
@@ -1396,7 +1440,8 @@ def write(folder, out):
             if copy["name"] in doors:
                 copy["door"] = doors[copy["name"]]
         scene = {"format": package.FORMAT, "version": package.VERSION, "place": place,
-                 "frame": "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
+                 "frame": f"the area {seat['area']}'s frame (the place's seat, {seat['from']}): metres, y up"
+                 if seat else "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
                  "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
                  "lamps": lamps_of(stage, place), "counts": counts,
                  "physics": "ready.json" if roles is not None else None, "left_out": left_out, "chambers": chambers,

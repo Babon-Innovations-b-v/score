@@ -270,7 +270,7 @@ def run(args):
     if args.step == "area":
         from score.stages.place_build import area
         folders = dict(given.split("=", 1) for given in args.place)
-        record = area.area(args.plans, args.outside, folders, args.out)
+        record = area.area(args.plans, args.outside, folders, args.out, args.seat, args.stands)
         return {"seats": {name: seat["from"] for name, seat in record["seats"].items()},
                 "joins": len(record["joins"]), "failed": len(record["faults"]), "faults": record["faults"][:6],
                 "out": args.out}
@@ -467,6 +467,9 @@ def parser():
     step.add_argument("outside", help="the area's outside place, whose plan holds the rest")
     step.add_argument("--place", action="append", required=True, help="place=folder; again for each place")
     step.add_argument("--out", help="seats.json: the seats and the joins check")
+    step.add_argument("--seat", action="store_true", help="write each place's seat into its place.json, so its "
+                      "package is laid in the area's frame")
+    step.add_argument("--stands", help="the place laid in the area's frame, standing as laid; the rest seated onto it")
     step = steps.add_parser("package")
     step.add_argument("folder")
     step.add_argument("out")

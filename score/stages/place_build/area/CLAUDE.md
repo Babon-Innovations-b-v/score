@@ -6,14 +6,19 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
 
 - **Where places meet is the plans'**: the outside place's kept plan `holds` the area's places, a join is a door of one
   leading to the other with a door back (scene_record/plan.py `paired`), and the storey heights are `plan.levels_of`
-  (the stairwell's flat door 9 m up: the flat's floor 9 m up). Never a height typed in here or in the game.
+  (the stairwell's flat door 9 m up: the flat's floor 9 m up). Never a height typed in here or in the game. A pair
+  both plans lead to each other but the holder's plan holds apart (the square held the street 45 m from the
+  stairwell, 2099 #161) is still joined by its built doorways, and the plan's holds are told.
 - **Where they meet in the built scenes is place.json `joins`** (`place_build join <folder> <doorway> <to>`): a doorway
   the stair core recorded when laid (place.json `doorways`, `<core>_door<k>`) or a door leaf of the scene (its inward
   read from the shell it is set in, else `--inward x,z`). A plan join a folder joins no doorway for is told by name.
-- **Seats**: the outside is the area's frame; a place joined to a seated one is seated onto it (its doorway on the
-  other's, facing it, its floor where the plans put it); when none left is joined, the lowest on the plans stands as
-  laid and says so. `seats.json` holds each seat (USD row-vector order, glTF's column-major) and its words, for the
-  game to lay each place by, so no game-side offset remains.
+- **Seats**: the outside is the area's frame; `--stands <place>` lays one place as laid (raised to its plan's
+  storey: the flat, laid in the frame the plans name) before the rest; a place joined to a seated one is seated onto
+  it (its doorway on the other's, facing it, its floor where the plans put it); when none left is joined, the lowest
+  on the plans stands as laid and says so. `seats.json` holds each seat (USD row-vector order, glTF's column-major)
+  and its words; `--seat` also writes each into its folder's place.json `seat`, and `package` then lays the place in
+  the area's frame (scene_package.seated, on the session layer: the scene file never moves), because the game lays
+  an area's places where their packages put them, so no game-side offset remains.
 - **The joins check**: sills within LEVEL, middles within ALIGN, facing within FACING, a leaf no wider than the
   doorway it is seated in (ready.FIT), and a walker's way WALKWAY wide from INSIDE in from one doorway to INSIDE in
   from the other over both places' objects round the join, seated, every doorway open (ready.route_on, as the walkway
