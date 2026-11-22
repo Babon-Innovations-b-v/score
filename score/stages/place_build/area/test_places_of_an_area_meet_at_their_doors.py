@@ -1,6 +1,7 @@
 """Invariant: places of one area meet at their doors. A flat held beside a one-storey stair core (`stairs --joined 1`,
 its flat door's doorway recorded as it is laid) is seated by its door leaf onto that doorway, its floor at the plans'
-storey height (3 m), and a walker goes from the landing through the doorway into the flat; while the same flat is
+storey height (3 m), the stairwell (no door joins it to a seated place) standing where the town's plan holds it,
+and a walker goes from the landing through the doorway into the flat; while the same flat is
 told by name when the core keeps the hall stub behind that door (no walker's way), when the plans put the flat's floor
 a storey higher than the doorway it is joined at (3 m apart), when the flat's leaf in its frame is 1.2 m wide in the
 core's 1.02 m doorway, and when the flat joins no doorway back (no doorway joined). A flat the town's plan holds far
@@ -18,6 +19,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - area.built_joins: a plan door with no joined doorway skipped silently -> the flat with no join back passes
 - area.wider: ready.FIT taken as 0.5 m -> the 1.2 m leaf passes in the 1.02 m doorway
 - area.planned_joins: a pair the holder's plan holds apart left out (`met` alone) -> the far flat is never joined
+- area.held_seat: the identity seat (as laid) for a place the outside's plan holds -> the stairwell stands on the
+  town's middle, not at its hold 8 m west and 8.5 m north
 - area.seated: `stands` unread (lowest first) -> the stairwell stands as laid and the flat given to stand is seated
 - scene_package.seated: the seat left off the package -> the packaged front door stands at the flat's own spot
 - area.area: shells_crossed unread -> the flat's block standing in the stairwell's core passes
@@ -132,6 +135,9 @@ def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joi
         assert record["faults"] == [], record["faults"]
         seat = np.asarray(record["seats"]["flat"]["matrix"]).reshape(4, 4)
         door = place_build.record_of(folders["stairwell"])["doorways"]["core_door1"]
+        stair = np.asarray(record["seats"]["stairwell"]["matrix"]).reshape(4, 4)
+        assert np.allclose(stair[:3, :3], np.eye(3)) and np.allclose(stair[3, :3], [-8.0, 0.0, -8.5]), stair
+        door = {**door, "middle": np.asarray(door["middle"]) @ stair[:3, :3] + stair[3, :3]}  # where the town holds it
         assert abs(seat[3, 1] - 3.0) < 1e-6, seat
         assert np.allclose(seat[:3, :3].T @ [0.0, 0.0, -1.0], [0.0, 0.0, 1.0], atol=1e-6), seat
         assert record["joins"][0]["walked"] > 1.5, record["joins"]

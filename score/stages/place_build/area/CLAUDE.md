@@ -15,7 +15,8 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
 - **Seats**: the outside is the area's frame; `--stands <place>` lays one place as laid (raised to its plan's
   storey: the flat, laid in the frame the plans name) before the rest; a place joined to a seated one is seated onto
   it (its doorway on the other's, facing it, its floor where the plans put it); when none left is joined, the lowest
-  on the plans stands as laid and says so. `seats.json` holds each seat (USD row-vector order, glTF's column-major)
+  on the plans stands where the outside's plan holds it (`held_seat`, by both plans' `frame`: the street's plan names
+  the half turn its built scene lies at), as laid only when the outside holds none of it, and says so. `seats.json` holds each seat (USD row-vector order, glTF's column-major)
   and its words; `--seat` also writes each into its folder's place.json `seat`, and `package` then lays the place in
   the area's frame (scene_package.seated, on the session layer: the scene file never moves), because the game lays
   an area's places where their packages put them, so no game-side offset remains.

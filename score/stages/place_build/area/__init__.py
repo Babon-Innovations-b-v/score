@@ -207,13 +207,35 @@ def grown(seats, joins, levels):
                     more = True
 
 
+def held_seat(holder, held, levels, name):
+    """The seat of a place no door joins to a seated one: where the outside's plan holds it (its plan laid in its hold,
+    plan.on_holder, each plan point put in its place by plan.placed), its floor at its plan's storey; as laid in the
+    area's one frame when the outside's plan holds none of it (2099 #161: the street stood as laid on the square's
+    middle, 45 m off where the square's plan holds it)."""
+    if name not in held:
+        return {"matrix": np.identity(4), "from": "no door joins it to a seated place, the outside's plan holds none "
+                                                  "of it, and it stands lowest of those left: as laid, in the area's "
+                                                  "one frame"}
+    hold, own = held[name]
+    ends = [(0.0, 0.0), (float(own["w"]), 0.0)]
+    there = [plan.placed(holder, *plan.on_holder(hold, own, end)) for end in ends]
+    here = [plan.placed(own, *end) for end in ends]
+    turn = heading(there[1] - there[0]) - heading(here[1] - here[0])
+    turned = seat_matrix(turn, (0.0, 0.0, 0.0))[:3, :3] @ here[0]
+    rise = levels.get(name, 0.0)
+    return {"matrix": seat_matrix(turn, (there[0][0] - turned[0], rise, there[0][2] - turned[2])),
+            "from": f"no door joins it to a seated place, and it stands lowest of those left: where the outside's "
+                    f"plan holds it, its floor {rise:g} m up (its plan's storey)"}
+
+
 def seated(plans, outside, folders, stands=None):
     """{place: {"matrix", "from"}} of the outside place and every place its plan holds that has a folder, the joins
     between them and the faults that keep a planned join from being seated. `stands`, when given, is laid in the
     area's frame first, raised only to its plan's storey (the flat, laid in the frame the plans name, 9 m up: 2099
     #161); a place joined to a seated one is
     seated onto it: its floor where the plans' storey heights put it, its doorway on the other's, facing it; when none
-    is left joined to a seated one, the lowest left on the plans (the stairwell, under the flat) stands as laid."""
+    is left joined to a seated one, the lowest left on the plans (the street, under the stairwell) stands where the
+    outside's plan holds it (held_seat)."""
     holder = plan.read(pathlib.Path(plans) / f"{outside}.json")
     held, planned, faults = planned_joins(holder, plans)
     levels = plan.levels_of(held)
@@ -227,8 +249,7 @@ def seated(plans, outside, folders, stands=None):
     grown(seats, joins, levels)
     while set(folders) - set(seats):
         lowest = min(set(folders) - set(seats), key=lambda name: (levels.get(name, 0.0), name))
-        seats[lowest] = {"matrix": np.identity(4), "from": "no door joins it to a seated place, and it stands lowest "
-                                                          "of those left: as laid, in the area's one frame"}
+        seats[lowest] = held_seat(holder, held, levels, lowest)
         grown(seats, joins, levels)
     faults += [f"{name}: {outside}'s plan holds it, but no folder is given" for name in sorted(set(held) - set(folders))]
     return seats, joins, faults
