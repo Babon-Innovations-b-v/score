@@ -32,7 +32,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   X/GL libraries a box's Blender lacks come from `bash tools/blender/setup.sh` (into `blender-mcp/libs`, the default;
   `SCORE_BLENDER_LIBS` overrides it), and an exit 127 names that fix.
 - **`start --split` runs SAM 3 free on this PC's card** (score/review/concept_objects.py under SCORE_CLOUD=local and
-  SCORE_FREE_ONLY=1, tools/cloud/backends/local.py's segment claim); never a rented card.
+  SCORE_FREE_ONLY=1, tools/cloud/backends/local.py's segment claim); never a rented card. `--nouns` names what SAM 3 is
+  asked; `split <folder> --nouns` asks a laid place's concept for more, appended to objects.json (earlier numbers kept).
 - **Every shown part wears a library finish** (finished/, its own overlay): `surface` is refused over the whole of a
   model whose own paint has parts, `refinish` lays it per part from the palette, `put` does so for a model in a paint
   no library surface made, and the check (`check`, ready.json's `finishes`) tells every object that does not.

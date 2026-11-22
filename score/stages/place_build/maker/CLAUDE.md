@@ -15,6 +15,9 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   own process; kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
   itself still uses the card queue (tools/cloud/backends/card_queue.py, a 20 GB scope): one model a process, about two
   minutes and 14 GB of card. A made model is kept under `<folder>/made/<entry>/` and not made again.
+- **Only a cut-out goes in** (#156: the capsule's throttle, levers on a console top, came out a cube): `concept/<n>`
+  is refused without its SAM 3 mask, and any picture whose opaque part is its own rectangle (no transparency, or a
+  box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.
 - **Lossless edits** (glb.py): the fit is a root node's matrix, the grade replaces the base colour picture only.
 - **The fit** (fit.py) covers the model it replaces (`--like`): quarter turns and uniform scales, the smallest two-way
   point distance; `--height` stands a new prop on the floor.
