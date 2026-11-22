@@ -434,4 +434,5 @@ def main():
             print(f"library_demo: FAILED {item['name']}: {error!r}", flush=True)
 
 
-main()
+if __name__ == "__main__":  # library_sheet.py imports the studio
+    main()
