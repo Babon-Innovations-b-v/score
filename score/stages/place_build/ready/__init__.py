@@ -118,6 +118,8 @@ LOOK_AZIMUTHS = 16  # ways round a point
 LOOK_ELEVATIONS = (0.0, 20.0, 45.0, 70.0)  # degrees up of each ring of ways
 SHOWN_OPEN = 12  # at most this many of a place's open looks are listed (the rest counted)
 SETTLE_TURN = 8.0  # degrees
+CAST_AT_ONCE = 2 ** 15  # rays a query casts at once, each batch against the faces its own box meets (2099's square,
+# 2026-11-22: its looks, cast all at once against the whole plaza's faces, held past 12 GB)
 RAYS = 32  # rays the exact intersector casts at once (each holds every face its box meets: 30 000 in the hangar)
 PAST = 1e-3  # metres past a ray's last kept hit embree is asked again whether it meets anything more
 NEAR = 0.15  # how far past a loose object's box its statics reach in the settle (metres)
@@ -376,6 +378,12 @@ class Place:
         empty = np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int), np.zeros(0)
         if not len(origins):
             return empty
+        origins, directions = np.asarray(origins, float), np.asarray(directions, float)
+        if len(origins) > CAST_AT_ONCE:
+            parts = [self.hits(origins[start:start + CAST_AT_ONCE], directions[start:start + CAST_AT_ONCE], among,
+                               length) for start in range(0, len(origins), CAST_AT_ONCE)]
+            return tuple(np.concatenate([part[index] + (start if index == 1 else 0) for part, start in
+                                         zip(parts, range(0, len(origins), CAST_AT_ONCE))]) for index in range(4))
         numbers = None if among is None else [self.number[name] for name in among]
         triangles, owners = self.triangles_in(*ray_box(origins, directions, length), among=numbers)
         if not len(triangles):
@@ -877,6 +885,10 @@ def look_ways():
 def met(laid, origins, directions, length):
     """Whether each ray meets any solid of the place (a door as laid, shut in its opening; glass; a window) within
     `length`."""
+    origins, directions = np.asarray(origins, float), np.asarray(directions, float)
+    if len(origins) > CAST_AT_ONCE:
+        return np.concatenate([met(laid, origins[start:start + CAST_AT_ONCE], directions[start:start + CAST_AT_ONCE],
+                                   length) for start in range(0, len(origins), CAST_AT_ONCE)])
     triangles, _ = laid.triangles_in(*ray_box(origins, directions, length))
     if not len(triangles) or not len(origins):
         return np.zeros(len(origins), bool)
@@ -1492,11 +1504,44 @@ def seat_of(folder):
     return np.asarray(seat["matrix"], float).reshape(4, 4).T, seat["area"]
 
 
+def within_sight(stage, place):
+    """The level box (x, z low, high) a seated place's checks reach: its walkers' objects' box (REACHED, as `sight`
+    reads it) grown by its sight (SEES, or that box's diagonal), so no look, walkway or support of its own meets
+    anything past it."""
+    boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"])
+    found = []
+    for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
+        if prim.IsActive() and role_of(prim) in REACHED:
+            box = boxes.ComputeWorldBound(prim).ComputeAlignedRange()
+            if not box.IsEmpty():
+                found.append((np.asarray(box.GetMin())[[0, 2]], np.asarray(box.GetMax())[[0, 2]]))
+    if not found:
+        return np.full(2, -np.inf), np.full(2, np.inf)
+    low, high = np.min([box[0] for box in found], axis=0), np.max([box[1] for box in found], axis=0)
+    reach = max(SEES, float(np.linalg.norm(high - low)))
+    return low - reach, high + reach
+
+
+def box_meets(boxes, prim, into, low, high):
+    """Whether a neighbour's object, its box put by `into` (its seat in this place's frame), meets the level box
+    [low, high] (within_sight's); an object with no box never does."""
+    box = boxes.ComputeWorldBound(prim).ComputeAlignedRange()
+    if box.IsEmpty():
+        return False
+    least, most = np.asarray(box.GetMin()), np.asarray(box.GetMax())
+    corners = np.array([[x, y, z] for x in (least[0], most[0]) for y in (least[1], most[1])
+                        for z in (least[2], most[2])])
+    level = (corners @ into[:3, :3].T + into[:3, 3])[:, [0, 2]]
+    return bool(np.all(level.max(axis=0) >= low) and np.all(level.min(axis=0) <= high))
+
+
 def seated_among(folder, neighbours):
     """The place's stage as its area seats it among `neighbours` ({place: folder}, all seated in its area by `area
     --seat`), on a session layer of its own (the scene file never moves): its backdrop (place.json `backdrop`, what a
     neighbour stands for) left out, as its seated package leaves it, and every object of each neighbour but its props,
-    people and backdrop laid in, seated into this place's frame, named <neighbour>__<object> and keeping its role, so
+    people and backdrop laid in when it stands within the place's sight (within_sight: 2099's prologue, 2026-11-22,
+    the flat checked among the square's 848 objects ran past 12 GB casting its looks at all of them), seated into this
+    place's frame, named <neighbour>__<object> and keeping its role, so
     a door set in the neighbour's wall and a room the neighbour closes are read as they stand in the game (2099's
     prologue, 2026-11-22: the street's block hollowed round the stairwell left the street's stair_door in no wall).
     The stage, its place and the neighbours' object names."""
@@ -1510,6 +1555,7 @@ def seated_among(folder, neighbours):
         if prim:
             prim.SetActive(False)
     lent = set()
+    low, high = within_sight(stage, place)
     for neighbour, other in sorted(neighbours.items()):
         seat, seated_in = seat_of(other)
         if seated_in != area:
@@ -1518,9 +1564,10 @@ def seated_among(folder, neighbours):
         source, source_place = place_build.opened(other)
         path = str(place_build.scene_path(other).resolve())
         left_out = set(place_build.record_of(other).get("backdrop") or [])
+        boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"])
         for prim in source.GetPrimAtPath(f"/{source_place}/Objects").GetChildren():
             role = role_of(prim)
-            if prim.GetName() in left_out or role in LENT:
+            if prim.GetName() in left_out or role in LENT or not box_meets(boxes, prim, into, low, high):
                 continue
             name = f"{neighbour}{SEPARATOR}{prim.GetName()}"
             laid = stage.DefinePrim(f"/{place}/Objects/{name}")

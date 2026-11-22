@@ -49,7 +49,9 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   2099's prologue, 2026-11-22: the street's block hollowed round the seated stairwell and flat left the street's
   stair_door in no wall and the flat's room open where the stairwell stands): the place's backdrop left out, as its
   seated package leaves it, and every neighbour's objects but its props, people and backdrop laid in, seated into
-  its frame (both place.json `seat`s, one area), named `<place>__<object>`, never judged here. Only the place's own
+  its frame (both place.json `seat`s, one area), named `<place>__<object>`, never judged here; only a neighbour's object
+  within the place's sight is laid in (`within_sight`: its walkers' objects' box grown by `sight`; the flat among the
+  square's 848 objects cast its looks at all of them and ran past 12 GB). Only the place's own
   objects are told, and its looks start only on its own floor under its own roof (`own_spots`, the two cast apart so
   a floor flush with a neighbour's reads as the neighbour's): a stretch on a neighbour's floor or under its roof is
   the neighbour's own check's. A door set in a neighbour's wall is judged in that wall, so its leaf fits that opening.
@@ -58,7 +60,9 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   draws), and before the walkers' floor and the settle the check works out what they need and refuses past MEMORY
   (`within_memory`), naming what stretches it; the settle runs as many models side by side as fit. The nearest surface
   to a set of points (`nearest_to_surface`: a door's swing room, a connector's end ring) weighs at most PAIRS point and
-  face pairs at once (2026-11-22: the capsule's hatch beside 1.2 million faces of dense models took a package past 12 GB). A new phase that
+  face pairs at once (2026-11-22: the capsule's hatch beside 1.2 million faces of dense models took a package past 12 GB). A
+  ray query casts CAST_AT_ONCE rays at a time (`Place.hits`, `met`), each batch against the faces its own box meets
+  (2026-11-22: the square's looks, cast all at once against the whole plaza, held past 12 GB). A new phase that
   grows with the scene gets its estimate there; never loosen a measure to fit.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with

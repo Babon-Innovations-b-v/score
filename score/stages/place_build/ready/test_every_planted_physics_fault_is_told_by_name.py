@@ -28,8 +28,9 @@ time (the very points trimesh's sample_surface draws), so a floor of 6.6 million
 settle runs as many models side by side as fit the budget, refusing when not even its largest fits. A room seated
 in its area beside a neighbour holding its back wall (the doorway its door fills) and an alcove behind it is told,
 alone, its door in no wall and open; seated among that neighbour (check's `neighbours`) it is told just what the
-room built whole is (nothing; the alcove on the neighbour's floor left to the neighbour's own check), and the same
-room cut open in front still open.
+room built whole is (nothing; the alcove on the neighbour's floor left to the neighbour's own check), the
+neighbour's post 150 m off, past the room's sight, never lent into it, and the same room cut open in front still open; its looks are cast a batch at a time (CAST_AT_ONCE), each batch meeting what
+all of them at once meet.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -85,6 +86,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.own_spots: every point kept -> the alcove on the hall's floor, walled and roofed by the hall, reads open from
   the seated room
 - ready.seated_among: every neighbour object left out -> the seated room's door is in no wall and it reads open
+- ready.Place.hits: CAST_AT_ONCE unread (every look cast at once) -> the closed room's 50 looks reach `cast` in one
+  batch past the 7 at once (the square's looks, cast all at once against the plaza, held past 12 GB)
+- ready.box_meets: taken as always True -> the hall's post 150 m off, past the room's sight, is lent (the flat
+  among the square's 848 objects ran its check past 12 GB)
 - ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
   scenery and pass
 - reach.surface_chunks: `lengths.bit_generator.advance(count)` left out -> the chunked points are not sample_surface's
@@ -375,7 +380,7 @@ def shop(folder, crates=False):
 def seated_rooms(folder, cut):
     """The room (its front wall left out when `cut`) without its back wall, and a neighbour place, `hall`, holding
     that wall with the doorway the room's door fills and, behind it, an alcove (a slab 0.1 m high, two side walls and a
-    roof) standing on the room's ground; both seated in one area, turned a quarter and shifted alike. (room, hall)."""
+    roof) standing on the room's ground, and a post 150 m off; both seated in one area, turned a quarter and shifted alike. (room, hall)."""
     folder.mkdir()
     own = room(folder / "room", cut)
     place_build.remove(own, "wall_back")
@@ -386,7 +391,8 @@ def seated_rooms(folder, cut):
     for name, size, low in (("alcove_floor", (2.4, 0.1, 2.0), (-1.2, 0.0, -4.7)),  # past the door's FIT_DEPTH
                             ("alcove_left", (0.2, 2.5, 2.5), (-1.4, 0.0, -4.7)),
                             ("alcove_right", (0.2, 2.5, 2.5), (1.2, 0.0, -4.7)),
-                            ("alcove_roof", (2.8, 0.2, 2.5), (-1.4, 2.5, -4.7))):
+                            ("alcove_roof", (2.8, 0.2, 2.5), (-1.4, 2.5, -4.7)),
+                            ("far_post", (0.5, 3.0, 0.5), (150.0, 0.0, 0.0))):  # past the room's sight
         box(stage, place, name, size, low).CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("structure")
     stage.GetRootLayer().Save()
     seat = np.identity(4)
@@ -525,6 +531,21 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
         whole = ready.check(room(tmp_path / f"whole_{cut}", cut), settle=False)
         assert "door not in an opening" in alone["counts"] and alone["open"], alone
         assert among["counts"] == whole["counts"] and bool(among["open"]) == cut, (cut, among, whole)
+        lent = ready.seated_among(own, {"hall": hall})[2]
+        assert "hall__wall_back" in lent and "hall__far_post" not in lent, lent
+    closed = ready.Place(*place_build.opened(tmp_path / "closed" / "place"))  # 50 looks cast 7 at a time
+    origins = np.tile([0.3, 1.2, 0.4], (50, 1)) + np.linspace(0.0, 1.0, 50)[:, None] * [0.5, 0.0, 0.5]
+    ways = np.array([[np.cos(turn), 0.3, np.sin(turn)] for turn in np.linspace(0.0, 6.0, 50)])
+    whole_hits, whole_met = closed.hits(origins, ways), ready.met(closed, origins, ways, 40.0)
+    widest, casting = [], ready.cast
+    monkeypatch.setattr(ready, "CAST_AT_ONCE", 7)
+    monkeypatch.setattr(ready, "cast", lambda triangles, origins, *rest, **given: (
+        widest.append(len(origins)), casting(triangles, origins, *rest, **given))[1])
+    batched_hits, batched_met = closed.hits(origins, ways), ready.met(closed, origins, ways, 40.0)
+    monkeypatch.undo()
+    assert max(widest) <= 7 and np.array_equal(batched_met, whole_met) and whole_met.all(), (widest, batched_met)
+    assert all(np.allclose(np.sort(one, axis=0), np.sort(two, axis=0)) for one, two in zip(whole_hits, batched_hits)), \
+        (whole_hits[1], batched_hits[1])
     tilt = 4e-6  # a face lying along the look (embree meets it, its plane and the look meet nowhere), a wall past it
     lying = np.array([[[0.0, 0.5 - tilt, -1.0], [2.0, 0.5 + tilt, -1.0], [1.0, 0.5, 1.0]]])
     walled = np.concatenate([lying, trimesh.creation.box((0.2, 3.0, 4.0)).apply_translation((3.0, 1.5, 0.0)).triangles])
