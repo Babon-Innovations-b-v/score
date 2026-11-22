@@ -818,8 +818,7 @@ def registry():
 
 
 def object_store():
-    """The Scaleway backend's object store, as `secret`: what outlives this PC's runs (the library's blobs, which a
-    handover from here puts in and a fetch takes out; tools/library/library_files.cloud_store). The runners' own inputs
+    """The Scaleway backend's object store, as `secret`: what outlives this PC's runs. The runners' own inputs
     never go there: this PC's runs send them straight to the container (SCORE_INPUTS_DIRECT), and the cluster's paths
     stop at `registry`."""
     return sibling("scaleway").object_store()

@@ -159,10 +159,8 @@ def library(tmp_path, monkeypatch):
     (pixal / "cup-s10.glb").write_bytes(b"another take")  # its name starts like cup-s1's: not one of its files
     (tmp_path / "own/models/box").mkdir(parents=True)
     (tmp_path / "own/models/box/box.glb").write_bytes(b"box")
-    library_files.cloud_store.cache_clear()
     library_files.hub_token.cache_clear()
     yield root
-    library_files.cloud_store.cache_clear()
     library_files.hub_token.cache_clear()
 
 

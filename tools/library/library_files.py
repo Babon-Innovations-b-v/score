@@ -17,8 +17,8 @@ resolved. The library's settings are the SCORE_LIB_* environment variables; when
 the score_lib checkout beside score's own and its command, and when no blob store is set (SCORE_LIB_BLOBS_DIR,
 SCORE_LIB_S3_*, or SCORE_LIB_HUB_REPO), `blob_store()` gives the library's public Hugging Face copy (HUB_REPO), read
 with no key; a take-in's write token comes from STORE_BACKEND's secret store, read once a run and handed to the
-command through its environment only, never written or printed. `cloud_store()` is the retired bucket's, read only
-by hub_mirror.py. No settings file holds any of it
+command through its environment only, never written or printed. The library's bucket was retired on 2026-11-22, its
+blobs all on the public copy. No settings file holds any of it
 (owner, 2026-10-20).
 
 A test or a check with its own files gives `folder` (or SCORE_LIB_FILES): a folder holding each file under the name
@@ -42,10 +42,8 @@ REFERENCE = re.compile(r"^(?P<address>(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(?:\.[a-
                        r"/(?P<file>[^@]+)$")
 DEFAULT_COMMAND = "score-lib"
 CLOUD = REPO / "tools/cloud"
-# The library's blobs sit under this prefix of the cloud backend's bucket (blobs/<sha[:2]>/<sha>).
-STORE_PREFIX = "score_lib"
-# The backend whose bucket holds the library's blobs, whichever backend SCORE_CLOUD sends the compute to (this PC's,
-# the cluster's): the library's store is not the compute's.
+# The backend whose secret store holds the public copy's write token, whichever backend SCORE_CLOUD sends the compute
+# to (this PC's, the cluster's).
 STORE_BACKEND = "scaleway"
 # The library's public copy, read with no key (score #141), and the secret holding its write token.
 HUB_REPO = "Babon-Innovations-b-v/score-lib"
@@ -96,21 +94,6 @@ def defaults():
 def settings():
     """The library's settings: the defaults with this process's environment over them."""
     return {**defaults(), **os.environ}
-
-
-@functools.lru_cache(maxsize=1)
-def cloud_store():
-    """The blob store's variables of the library's command for STORE_BACKEND's object store (never SCORE_CLOUD's
-    choice), its key from that backend's secret store; read once a run, held in memory only."""
-    for folder in (CLOUD / "backends", CLOUD):
-        if str(folder) not in sys.path:
-            sys.path.insert(0, str(folder))
-    import provider
-
-    store = provider.load(STORE_BACKEND).object_store()
-    return {"SCORE_LIB_S3_ENDPOINT": store["endpoint"], "SCORE_LIB_S3_REGION": store["region"],
-            "SCORE_LIB_S3_BUCKET": store["bucket"], "SCORE_LIB_S3_PREFIX": STORE_PREFIX,
-            "AWS_ACCESS_KEY_ID": store["access_key"], "AWS_SECRET_ACCESS_KEY": store["secret_key"]}
 
 
 def blob_store(values, write=False):

@@ -19,6 +19,4 @@ score_lib (#22). `library_files.py` is the way in (its docstring has the names a
   size and sha256, `take_back` puts a missing take back. It is in `_code.FRAMEWORK`: it never changes a take's bytes.
 - **The library's store is its public Hugging Face copy** (#141; owner 2026-11-19: "agree and retire, we use the same
   lib as everyone else"): `blob_store` names it (HUB_REPO) when no store is set, read with no key; a take-in
-  (`write=True`) gets its write token from the scaleway secret `hf-write-token`, in the command's environment only. `hub_mirror.py <owner/name>`
-  runs `score-lib hub-mirror` with the object store's variables in its environment only, after the owner's `hf auth
-  login`; it copies through memory, resumes, and checks the copy.
+  (`write=True`) gets its write token from the scaleway secret `hf-write-token`, in the command's environment only. The bucket the library was copied from was retired on 2026-11-22.
