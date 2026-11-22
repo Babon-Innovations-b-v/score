@@ -80,6 +80,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.turned: the turn left off -> the light stage's gate finds the Sun and Earth off overhead.py's ways
 - place_build.sky_at: exposure left at 1 -> the Moon's noon renders 1 where a white face square to the Sun reads 1
 - place_build.airless: every body taken as airless -> a Mars site is laid under a black sky
+- dome_shell.written: no placeholder bound to a part -> the written parts' bindings are empty
 - dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
 - dome_shell.end_wall: the doorway a third narrower -> the end wall stands in the doorway
 - dome_shell.on_circle: a corner kept where it lies -> the end wall's rim steps out past the tube's circle
@@ -132,6 +133,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.moving_door: the role read off (every keyed object a door) -> the keyed fan is packaged
 - place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
   folder lacks
+- place_build.copied_entry: a file already there always kept -> the rewritten draft's piece never reaches the place;
+  every file copied again -> the place's edited piece.json is lost
 - place_build.from_library: `entries = localised(folder)` -> `entries = []` (and its key) -> the lane's box names the
   library on USD's search path and opens as nothing
 - place_build.blocks: the role always structure -> the knob reads a structure
@@ -579,7 +582,14 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.surface(folder, "wall", "surface/steel")
     place_build.surface(folder, "crate", "surface/boards", colour="#ff0000")
     place_build.surface(folder, "crate", "surface/steel", part="top")
+    # a draft rewritten in place reaches a place laying it again; a copy the place changed is kept (#156)
+    library_piece = files / "kit/box_piece@1/piece.usda"
+    library_piece.write_text(library_piece.read_text() + "\n# rewritten in place\n")
+    (files / "kit/box_piece@1/piece.json").write_text('{"rewritten": true}')
+    (folder / "assets/kit/box_piece/1/piece.json").write_text('{"edited": true}')
     place_build.put(folder, "dune", "kit/box_piece", at=(6, 0, 0))
+    assert (folder / "assets/kit/box_piece/1/piece.usda").read_text().endswith("# rewritten in place\n")
+    assert json.loads((folder / "assets/kit/box_piece/1/piece.json").read_text()) == {"edited": True}
     place_build.surface(folder, "dune", "surface/sand", colour="#ff8000")
     place_build.light(folder, "bulb", at=(0, 2.5, 0), watts=100)
     (tmp_path / "palette.json").write_text(json.dumps({
@@ -720,6 +730,12 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.count_nonzero(on_glass) >= 40  # its end runs along the dome's glass, never in steps
     assert part_middles(hall, "wall")[:, 1].max() < 0.45 + 0.8 < part_middles(hall, "shell")[:, 1].min()
     assert sorted(next(item for item in shown["objects"] if item["name"] == "dome")["parts"]) == ["base", "deck", "ribs", "shell"]
+    from score.stages.place_build import dome_shell  # each part bound to its own placeholder: any reader splits them
+    written = Usd.Stage.Open(str(dome_shell.written(tmp_path / "parts.usda", "parts", [
+        ("glass", ([(0, 0, 0), (1, 0, 0), (0, 1, 0)], [[0, 1, 2]])), ("rib", ([(0, 0, 1), (1, 0, 1), (0, 1, 1)], [[0, 1, 2]]))])))
+    assert {subset.GetPrim().GetName(): UsdShade.MaterialBindingAPI(subset.GetPrim()).GetDirectBinding().GetMaterialPath().name
+            for subset in UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Mesh(written.GetPrimAtPath("/parts/geo")))} == \
+        {"glass": "glass", "rib": "rib"}
     assert sorted(next(item for item in shown["objects"] if item["name"] == "tunnel")["parts"]) == ["deck", "ribs", "shell", "wall"]
     assert np.allclose(boxes["tunnel"], [[18.38, -0.12, 0.0], [21.62, 3.12, 4.0]], atol=0.01)
     assert np.allclose(boxes["dome"], [[-5.18, 0.0, -5.18], [5.18, 5.1, 5.18]], atol=0.02)  # its plinth

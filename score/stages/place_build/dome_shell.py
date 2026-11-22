@@ -38,7 +38,7 @@ deck), `ribs` and `deck`.
 import math
 
 import numpy as np
-from pxr import Gf, Usd, UsdGeom, Vt
+from pxr import Gf, Usd, UsdGeom, UsdShade, Vt
 
 MERIDIANS = 12  # ribs from the ground to the top
 RINGS = 3  # level ribs between the ground and the top, evenly by angle
@@ -284,7 +284,8 @@ def face_normals(points, faces):
 
 def written(path, root_name, pieces, flat=False):
     """`pieces` [(part name, (points, faces))] written at `path` as /<root_name> (y up, metres) with one mesh `geo`,
-    each piece a named part; the path. `flat` writes each face's own normal at its corners (a box-built structure:
+    each piece a named part bound to a placeholder material of its name (no shader: any USD reader splits the parts, as
+    score-lib kit-parts binds a kit piece's, #156, and the library's surface goes over it); the path. `flat` writes each face's own normal at its corners (a box-built structure:
     with no normals a renderer shades it smooth, each box's faces bending to its corners, so a floor of slabs reads
     as pillowed tiles and a wall of columns as bright seams; owner, 2026-11-17)."""
     stage = Usd.Stage.CreateNew(str(path))
@@ -307,9 +308,12 @@ def written(path, root_name, pieces, flat=False):
     if flat:
         mesh.CreateNormalsAttr(Vt.Vec3fArray([Gf.Vec3f(*normal) for normal in face_normals(points, faces)]))
         mesh.SetNormalsInterpolation(UsdGeom.Tokens.faceVarying)
+    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim())
     for part, part_faces in parts.items():
-        UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face, part_faces, "materialBind",
-                                        UsdGeom.Tokens.nonOverlapping)
+        subset = UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face, part_faces, "materialBind",
+                                                 UsdGeom.Tokens.nonOverlapping)
+        placeholder = UsdShade.Material.Define(stage, f"/{root_name}/Looks/{part}")  # no shader: a part any reader
+        UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(placeholder)       # splits; the library finishes it
     stage.GetRootLayer().Save()
     return path
 

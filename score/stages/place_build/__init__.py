@@ -211,20 +211,37 @@ def fetch(folder, address):
     return address, record, copied_entry(folder, address, record)
 
 
+COPIES = "copies.json"  # {stage name under assets/: the sha256 of the library file as it was copied in}
+
+
 def copied_entry(folder, address, record):
-    """Every file of the entry `record` (at `address`) copied under the folder's assets at its library_files.stage_name
-    (a file already there kept); {file name: path in the folder}, Refused for a file the library does not hold."""
+    """Every file of the entry `record` (at `address`) copied under the folder's assets at its library_files.stage_name;
+    {file name: path in the folder}, Refused for a file the library does not hold. A file already there is kept when
+    the place changed it since it was copied (a piece's physics), and copied again when the library's file changed
+    and the place's copy did not (a draft rewritten in place, #156: kit parts bound and decals cut); COPIES holds each
+    file's sha256 as copied, and a copy from before it is kept as it stands
+    (followed from then on when it still matches)."""
+    folder = pathlib.Path(folder)
+    copies_path = folder / COPIES
+    copies = json.loads(copies_path.read_text()) if copies_path.is_file() else {}
     copied = {}
     for name in record["files"]:
         reference = library_files.reference(address, name)
         found = library_files.resolve(reference)
         if found is None:
             raise Refused(f"{reference}: the library does not hold this file")
-        target = pathlib.Path(folder) / "assets" / library_files.stage_name(reference)
+        stage_name = library_files.stage_name(reference)
+        target = folder / "assets" / stage_name
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.exists():
+        wanted = library_files.sha256(found)
+        held = library_files.sha256(target) if target.exists() else None
+        if held is None or copies.get(stage_name) == held != wanted:
             shutil.copyfile(found, target)
+            copies[stage_name] = wanted
+        elif held == wanted:  # a copy from before COPIES, still the library's: followed from now on
+            copies[stage_name] = wanted
         copied[name] = target
+    copies_path.write_text(json.dumps(copies, indent=1, sort_keys=True) + "\n")
     return copied
 
 
