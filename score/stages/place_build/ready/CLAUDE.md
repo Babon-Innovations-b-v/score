@@ -45,6 +45,14 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   arcades and overhangs are no inside (#128, 2026-11-20: the street read 711 points open, 15 after, at its shop fronts). An
   inside place with less than ROOFED of its walkers' floor under a roof, slab or flight is told `no roof`, never passed
   with nothing judged (#128, 2026-11-20: the stored engineroom@1, roofless, read open 0).
+- **A seated place is checked among its neighbours** (`check <folder> --among <place>=<folder>`, `seated_among`;
+  2099's prologue, 2026-11-22: the street's block hollowed round the seated stairwell and flat left the street's
+  stair_door in no wall and the flat's room open where the stairwell stands): the place's backdrop left out, as its
+  seated package leaves it, and every neighbour's objects but its props, people and backdrop laid in, seated into
+  its frame (both place.json `seat`s, one area), named `<place>__<object>`, never judged here. Only the place's own
+  objects are told, and its looks start only on its own floor under its own roof (`own_spots`, the two cast apart so
+  a floor flush with a neighbour's reads as the neighbour's): a stretch on a neighbour's floor or under its roof is
+  the neighbour's own check's. A door set in a neighbour's wall is judged in that wall, so its leaf fits that opening.
 - **Memory is bounded** (2026-11-19: the Hong Kong square, its walkers' grid 1.6 km across, took 33 GB and froze the
   owner's PC): a surface's points are read CHUNK at a time (reach.surface_chunks, the very points sample_surface
   draws), and before the walkers' floor and the settle the check works out what they need and refuses past MEMORY

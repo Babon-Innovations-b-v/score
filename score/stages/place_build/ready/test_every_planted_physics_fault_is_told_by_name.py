@@ -25,7 +25,11 @@ stretch of the outside (an arcade) and passes, while a shop's room, one structur
 open. The check's memory stays bounded: a surface's points are read a chunk at a
 time (the very points trimesh's sample_surface draws), so a floor of 6.6 million points holds under 64 MB; a post
 300 m off, stretching the walkers' grid past the memory budget, is refused by name before the grid is read; and the
-settle runs as many models side by side as fit the budget, refusing when not even its largest fits.
+settle runs as many models side by side as fit the budget, refusing when not even its largest fits. A room seated
+in its area beside a neighbour holding its back wall (the doorway its door fills) and an alcove behind it is told,
+alone, its door in no wall and open; seated among that neighbour (check's `neighbours`) it is told just what the
+room built whole is (nothing; the alcove on the neighbour's floor left to the neighbour's own check), and the same
+room cut open in front still open.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
@@ -76,6 +80,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.open_faults: `rooms` left out of an outside place -> the open-fronted arcade (the cut room under the sky) is told
 - ready.rooms: the cover's own object not asked (only doors close) -> the shop's room is no room and its open window
   passes
+- ready.seated_among: the neighbour's seat taken alone (this place's own seat not undone) -> the hall's wall stands
+  turned off the room, so the seated room's door is in no wall and it reads open
+- ready.own_spots: every point kept -> the alcove on the hall's floor, walled and roofed by the hall, reads open from
+  the seated room
+- ready.seated_among: every neighbour object left out -> the seated room's door is in no wall and it reads open
 - ready.out_of_reach: the reached box taken without GROUND_REACH round it -> the field's rocks and the near rocks read
   scenery and pass
 - reach.surface_chunks: `lengths.bit_generator.advance(count)` left out -> the chunked points are not sample_surface's
@@ -361,6 +370,32 @@ def shop(folder, crates=False):
     return folder
 
 
+def seated_rooms(folder, cut):
+    """The room (its front wall left out when `cut`) without its back wall, and a neighbour place, `hall`, holding
+    that wall with the doorway the room's door fills and, behind it, an alcove (a slab 0.1 m high, two side walls and a
+    roof) standing on the room's ground; both seated in one area, turned a quarter and shifted alike. (room, hall)."""
+    folder.mkdir()
+    own = room(folder / "room", cut)
+    place_build.remove(own, "wall_back")
+    hall = room(folder / "hall", False)
+    for name in ("wall_left", "wall_right", "wall_front", "roof", "door", "ground"):
+        place_build.remove(hall, name)
+    stage, place = place_build.opened(hall)
+    for name, size, low in (("alcove_floor", (2.4, 0.1, 2.0), (-1.2, 0.0, -4.7)),  # past the door's FIT_DEPTH
+                            ("alcove_left", (0.2, 2.5, 2.5), (-1.4, 0.0, -4.7)),
+                            ("alcove_right", (0.2, 2.5, 2.5), (1.2, 0.0, -4.7)),
+                            ("alcove_roof", (2.8, 0.2, 2.5), (-1.4, 2.5, -4.7))):
+        box(stage, place, name, size, low).CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("structure")
+    stage.GetRootLayer().Save()
+    seat = np.identity(4)
+    seat[:3, :3], seat[:3, 3] = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]], [3.0, 0.0, 1.0]
+    for folder in (own, hall):
+        record = place_build.record_of(folder)
+        record["seat"] = {"area": "block", "matrix": seat.T.reshape(-1).tolist(), "from": "the test's"}
+        place_build.write_record(folder, record)
+    return own, hall
+
+
 def planted(folder):
     """The fixture place: a ground disc, a wall with a 1.2 m opening and its door, and every planted fault."""
     concept = folder / "concept.png"
@@ -463,6 +498,12 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
         record = place_build.record_of(folder)
         gaps, seeing = ready.open_faults(shell, record["kind"] == "outside", record.get("joins"))
         assert (seeing > 0) == bool(told) and all(fault["fault"] == told for fault in gaps), (name, gaps)
+    for cut in (False, True):
+        own, hall = seated_rooms(tmp_path / f"seated_{cut}", cut)
+        alone, among = ready.check(own, settle=False), ready.check(own, settle=False, neighbours={"hall": hall})
+        whole = ready.check(room(tmp_path / f"whole_{cut}", cut), settle=False)
+        assert "door not in an opening" in alone["counts"] and alone["open"], alone
+        assert among["counts"] == whole["counts"] and bool(among["open"]) == cut, (cut, among, whole)
     tilt = 4e-6  # a face lying along the look (embree meets it, its plane and the look meet nowhere), a wall past it
     lying = np.array([[[0.0, 0.5 - tilt, -1.0], [2.0, 0.5 + tilt, -1.0], [1.0, 0.5, 1.0]]])
     walled = np.concatenate([lying, trimesh.creation.box((0.2, 3.0, 4.0)).apply_translation((3.0, 1.5, 0.0)).triangles])

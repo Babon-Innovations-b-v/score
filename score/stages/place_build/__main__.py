@@ -37,7 +37,7 @@
     python -m score.stages.place_build review <folder> [--box x0,z0,x1,z1 | --prefix name] [--width pixels] [--out dir]
     python -m score.stages.place_build viewer <folder> [--glb path] [--box x0,z0,x1,z1 | --prefix name] [--megabytes m]
     python -m score.stages.place_build on <folder> <name> <floor|object|wall:object> [--level n] [--height m]
-    python -m score.stages.place_build check <folder> [--no-settle]
+    python -m score.stages.place_build check <folder> [--no-settle] [--among <place>=<folder> ...]
     python -m score.stages.place_build film <folder> [--through 'stop;stop'] [--seconds s] [--eye m] [--seed n]
     python -m score.stages.place_build film-render <folder> [--every n] [--final] [--out dir]
     python -m score.stages.place_build make <folder> <name> <take/<take>|concept/<n>|like|picture.png> --material class
@@ -262,7 +262,7 @@ def run(args):
         return ready.on(args.folder, args.name, args.support, args.level, args.height)
     if args.step == "check":
         from score.stages.place_build import ready
-        return ready.check(args.folder, not args.no_settle)
+        return ready.check(args.folder, not args.no_settle, dict(given.split("=", 1) for given in args.among or []))
     if args.step == "make":
         from score.stages.place_build import maker
         return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height)
@@ -461,6 +461,8 @@ def parser():
     step = steps.add_parser("check")
     step.add_argument("folder")
     step.add_argument("--no-settle", action="store_true")
+    step.add_argument("--among", action="append", help="place=folder: a neighbour the area seats it beside (both "
+                      "`area --seat`ed), read in as the game lays it; again for each")
     step = steps.add_parser("make")
     for name in ("folder", "name", "source"):
         step.add_argument(name)

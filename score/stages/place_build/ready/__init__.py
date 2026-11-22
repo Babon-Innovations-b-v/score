@@ -2,7 +2,7 @@
 pushing its objects, told per object for the placing agent, and the `on` helper that lays an object at rest on a
 named support.
 
-    check(folder, settle=True) -> {counts..., "file": <folder>/ready.json}
+    check(folder, settle=True, neighbours=None) -> {counts..., "file": <folder>/ready.json}
     on(folder, name, support, level=None, height=None)
     solids(folder) -> {object: triangles}       what a walker stands on and runs into (sim body's, scene clips' ground)
     route(folder, through) -> (points, length)  a walker's way through spots on the walkers' floor WALKWAY wide
@@ -64,7 +64,7 @@ import sys
 import numpy as np
 import trimesh
 from scipy import ndimage
-from pxr import Sdf, Usd, UsdGeom
+from pxr import Gf, Sdf, Usd, UsdGeom
 
 from score.stages import place_build
 
@@ -992,15 +992,18 @@ def through_joins(origins, directions, joins):
     return passed
 
 
-def open_faults(laid, outside=False, joins=None):
+def open_faults(laid, outside=False, joins=None, lent=()):
     """An inside place with less than ROOFED of its walkers' floor covered is told `roofless`, never passed empty.
     Every look from the walkers' floor (look_floor) inside the place (a point under a roof, slab or flight within
     COVER among walls, `walled`, whose looks meet a solid INSIDE_SHARE of the time or more; in an `outside` place, place.json `kind`, only a
     point in a structure's room, `rooms`) that meets nothing within its `sight`: the inside sees the sky or the outside
     through a gap no door, window or glass closes (a cut-away built into the walls); a joined doorway (`joins`,
     place.json) is closed by its neighbour (through_joins). [{fault, at, towards, why}] (at
-    most SHOWN_OPEN, each from another point) and how many inside points see out."""
+    most SHOWN_OPEN, each from another point) and how many inside points see out. Seated among neighbours (`lent`,
+    their objects' names: check), only a point of the place's own floor and roof is looked from (own_spots)."""
     points, ways = look_points(look_floor(laid)), look_ways()
+    if lent:
+        points = points[own_spots(laid, points, lent)]
     covered = met(laid, points, np.tile([0.0, 1.0, 0.0], (len(points), 1)), COVER)
     if not outside and (not len(points) or covered.mean() < ROOFED):
         return roofless(len(points), int(covered.sum()))
@@ -1456,15 +1459,105 @@ def mount_faults(laid, name):
     return []
 
 
-def check(folder, settle=True):
-    """Every reason the place is not physics ready, per object, written to <folder>/ready.json; the counts."""
+SEPARATOR = "__"  # a seated neighbour's object in the check: <neighbour>__<its name> (area.SEPARATOR's form)
+LENT = ("prop", "character")  # a neighbour's objects its own check judges that close no inside: left out of this one
+
+
+def seat_of(folder):
+    """The place's seat in its area (place.json `seat`, written by `area --seat`) as a 4 x 4 column matrix, and its
+    area; Refused for a place the area has not seated."""
+    seat = place_build.record_of(folder).get("seat")
+    if not seat:
+        raise place_build.Refused(f"{folder} holds no seat (place.json `seat`): seat it with `area --seat` first")
+    return np.asarray(seat["matrix"], float).reshape(4, 4).T, seat["area"]
+
+
+def seated_among(folder, neighbours):
+    """The place's stage as its area seats it among `neighbours` ({place: folder}, all seated in its area by `area
+    --seat`), on a session layer of its own (the scene file never moves): its backdrop (place.json `backdrop`, what a
+    neighbour stands for) left out, as its seated package leaves it, and every object of each neighbour but its props,
+    people and backdrop laid in, seated into this place's frame, named <neighbour>__<object> and keeping its role, so
+    a door set in the neighbour's wall and a room the neighbour closes are read as they stand in the game (2099's
+    prologue, 2026-11-22: the street's block hollowed round the stairwell left the street's stair_door in no wall).
+    The stage, its place and the neighbours' object names."""
+    own, area = seat_of(folder)
+    stage = Usd.Stage.Open(Sdf.Layer.FindOrOpen(str(place_build.scene_path(folder).resolve())),
+                           Sdf.Layer.CreateAnonymous())
+    place = stage.GetDefaultPrim().GetName()
+    stage.SetEditTarget(stage.GetSessionLayer())
+    for name in place_build.record_of(folder).get("backdrop") or []:
+        prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+        if prim:
+            prim.SetActive(False)
+    lent = set()
+    for neighbour, other in sorted(neighbours.items()):
+        seat, seated_in = seat_of(other)
+        if seated_in != area:
+            raise place_build.Refused(f"{neighbour} is seated in the area {seated_in}, {folder} in {area}")
+        into = np.linalg.inv(own) @ seat
+        source, source_place = place_build.opened(other)
+        path = str(place_build.scene_path(other).resolve())
+        left_out = set(place_build.record_of(other).get("backdrop") or [])
+        for prim in source.GetPrimAtPath(f"/{source_place}/Objects").GetChildren():
+            role = role_of(prim)
+            if prim.GetName() in left_out or role in LENT:
+                continue
+            name = f"{neighbour}{SEPARATOR}{prim.GetName()}"
+            laid = stage.DefinePrim(f"/{place}/Objects/{name}")
+            laid.GetReferences().AddReference(Sdf.Reference(path, prim.GetPath()))
+            laid.CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set(role)
+            xform = UsdGeom.Xformable(laid)
+            ops = xform.GetOrderedXformOps()
+            outer = xform.AddTransformOp(opSuffix="seat")
+            outer.Set(Gf.Matrix4d(into.T.tolist()))
+            xform.SetXformOpOrder([outer, *ops], xform.GetResetXformStack())
+            lent.add(name)
+    return stage, place, lent
+
+
+def lent_first(laid, points, way, length, lent):
+    """Whether the first surface each point meets along `way` within `length` is a neighbour's (`lent`, their names),
+    or one of the place's own no nearer than CONTACT before it (a floor laid flush on a neighbour's, the street's lot
+    under the stairwell's slab, is the neighbour's). The two are cast apart, so a face flush with another is met."""
+    ways = np.tile(way, (len(points), 1))
+    nearest = []
+    for among in ([name for name in laid.names if name not in lent], [name for name in laid.names if name in lent]):
+        _, rays, _, along = laid.hits(points, ways, among=among, length=length)
+        first = np.full(len(points), np.inf)
+        np.minimum.at(first, rays, along)
+        nearest.append(first)
+    own, theirs = nearest
+    return np.isfinite(theirs) & (theirs <= own + CONTACT)
+
+
+def own_spots(laid, points, lent):
+    """Which look points are the place's own to judge, seated among neighbours: the first surface straight under each
+    (within the highest of LOOK_HEIGHTS and CONTACT) and straight over it (within COVER) are none of a neighbour's
+    `lent` objects. A point on a neighbour's floor or under its roof is the neighbour's, judged in its own check
+    (2099's prologue, 2026-11-22: the street read the seated stairwell's hall as its own open room, the stairwell its
+    forecourt slab under the street's arcade as its own inside)."""
+    under = lent_first(laid, points, [0.0, -1.0, 0.0], max(LOOK_HEIGHTS) + CONTACT, lent)
+    over = lent_first(laid, points, [0.0, 1.0, 0.0], COVER, lent)
+    return ~under & ~over
+
+
+def check(folder, settle=True, neighbours=None):
+    """Every reason the place is not physics ready, per object, written to <folder>/ready.json; the counts. With
+    `neighbours` ({place: folder}) the place is read as its area seats it among them (seated_among): only its own
+    objects are judged, and its looks start only on its own floor under its own roof (own_spots)."""
     stage, place = place_build.opened(folder)
+    unfinished = finished.faults(stage, place)
+    misread = shapes.faults(stage, place)
+    lent = set()
+    if neighbours:
+        stage, place, lent = seated_among(folder, neighbours)
     laid = Place(stage, place)
     walkers_grid(laid)  # refused here, before the per-object measures, when the walkers' floor would not fit
     found = {name: [{"fault": "no collision geometry", "why": "it has no triangles to collide by"}]
-             for name in laid.prims if laid.roles[name] not in UNSOLID + ("scenery",) and name not in laid.names}
+             for name in laid.prims if laid.roles[name] not in UNSOLID + ("scenery",) and name not in laid.names
+             and name not in lent}
     for name in laid.names:
-        faults = object_faults(laid, name)
+        faults = object_faults(laid, name) if name not in lent else []
         if faults:
             found.setdefault(name, []).extend(faults)
     for name in laid.people:
@@ -1473,13 +1566,14 @@ def check(folder, settle=True):
             found.setdefault(name, []).extend(faults)
     walkways, floor = walkway_faults(laid)
     for fault in walkways:
-        found.setdefault(fault["target"].split(" (")[0], []).append(fault)
+        if fault["target"].split(" (")[0] not in lent:
+            found.setdefault(fault["target"].split(" (")[0], []).append(fault)
     for name in laid.with_role("connector"):
-        for fault in connector_faults(laid, name, floor):
+        for fault in (connector_faults(laid, name, floor) if name not in lent else []):
             found.setdefault(name, []).append(fault)
     del floor  # the looks start from a floor of their own, the doors shut (look_floor): one floor held at a time
     record = place_build.record_of(folder)
-    gaps, seeing = open_faults(laid, record.get("kind") == "outside", record.get("joins"))
+    gaps, seeing = open_faults(laid, record.get("kind") == "outside", record.get("joins"), lent)
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():
         found.setdefault(name, []).extend(faults)
@@ -1489,14 +1583,15 @@ def check(folder, settle=True):
             counts[fault["fault"]] = counts.get(fault["fault"], 0) + 1
     if seeing:
         counts[gaps[0]["fault"]] = seeing
-    unfinished = finished.faults(stage, place)
-    misread = shapes.faults(stage, place)
     path = pathlib.Path(folder) / "ready.json"
-    path.write_text(json.dumps({"place": place, "roles": laid.roles, "objects": found, "open": gaps,
-                                "finishes": unfinished, "shapes": misread, "settle": engine}, indent=1))
-    return {"ready": not found and not unfinished and not misread and not seeing, "objects": len(laid.prims),
-            "with_faults": len(found), "counts": counts, "open": seeing, "unfinished": len(unfinished),
-            "misread": len(misread), "settle": engine, "file": str(path)}
+    path.write_text(json.dumps({"place": place, "roles": {name: role for name, role in laid.roles.items()
+                                                          if name not in lent},
+                                "objects": found, "open": gaps, "finishes": unfinished, "shapes": misread,
+                                "settle": engine, "among": sorted(neighbours or {})}, indent=1))
+    return {"ready": not found and not unfinished and not misread and not seeing,
+            "objects": len(laid.prims) - len(lent), "with_faults": len(found), "counts": counts, "open": seeing,
+            "unfinished": len(unfinished), "misread": len(misread), "settle": engine,
+            "among": sorted(neighbours or {}), "file": str(path)}
 
 
 # --- the `on` helper ----------------------------------------------------------------------------------------------
