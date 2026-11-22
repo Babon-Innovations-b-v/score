@@ -41,6 +41,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/blen
 import usd_views  # noqa: E402
 
 RECIPES_AT = pathlib.Path(__file__).resolve().parents[3] / "tools/props/library/inside"
+# The method's recipe defaults (place_build.palette_spec's): a spec laid before its recipe carried a default (a glass
+# laid before it carried its opacity) is drawn with it, as a look laid now would be.
+METHOD = pathlib.Path(__file__).resolve().parents[3] / "data/library/materials.json"
 
 GLASS_IOR = 1.5  # a thin glass look's reflection share at each angle (window glass)
 # A rough see-through look is frosted: its passing light scatters (a translucent share) as far as its roughness
@@ -226,15 +229,39 @@ def displaced(ground):
 
 
 def recipe_specs(stage_path):
-    """{look name: its palette spec} of every look the stage marks with `score:recipe:spec`."""
+    """{look name: its palette spec} of every look the stage marks with `score:recipe:spec`, an opacity the spec lacks
+    taken from its recipe's method default (METHOD), as a look laid now carries it."""
     from pxr import Usd
+    method = json.loads(METHOD.read_text())["recipes"]
     stage = Usd.Stage.Open(str(stage_path))
     found = {}
     for prim in stage.Traverse():
         marked = prim.GetAttribute("score:recipe:spec")
         if marked and marked.Get():
-            found[prim.GetName()] = json.loads(marked.Get())
+            spec = json.loads(marked.Get())
+            if "opacity" not in spec and "opacity" in method.get(spec.get("recipe"), {}):
+                spec["opacity"] = method[spec["recipe"]]["opacity"]
+            found[prim.GetName()] = spec
     return found
+
+
+def see_through(objects, specs):
+    """Every palette look whose spec is see-through (opacity under 1) given that opacity on its shader, so thin_glass
+    draws it: a look laid before its recipe carried its opacity came in opaque (place_build.recipe_marked writes it on
+    a look laid now); the looks it changed."""
+    changed = []
+    for material in {slot.material for item in objects if item.type == "MESH" for slot in item.material_slots
+                     if slot.material and slot.material.use_nodes}:
+        spec = specs.get(material.name.split(".")[0])
+        opacity = float(spec.get("opacity", 1.0)) if spec else 1.0
+        shader = next((node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"), None)
+        if opacity >= 1.0 or shader is None or any(shader.inputs[name].is_linked for name in SEE_THROUGH):
+            continue
+        if shader.inputs["Alpha"].default_value * (1.0 - shader.inputs["Transmission Weight"].default_value) >= 1.0:
+            shader.inputs["Alpha"].default_value = opacity
+            changed.append(material.name)
+    print("blender_views: see-through from their specs", sorted(changed))
+    return changed
 
 
 def upright(item):
@@ -357,10 +384,12 @@ def with_laid_ground(importer):
 
 def with_thin_glass(haze):
     def drawn(objects):
+        specs = recipe_specs(sys.argv[sys.argv.index("--") + 1])
+        see_through(objects, specs)
         thin_glass(objects)
         every = list(bpy.data.objects)  # the laid ground too, which usd_views keeps out of `objects`
         tiled_maps(every)
-        recipe_looks(every, recipe_specs(sys.argv[sys.argv.index("--") + 1]))
+        recipe_looks(every, specs)
         bpy.context.scene.view_settings.look = CONTRAST
         ground = bpy.data.objects.get(GROUND)
         if ground is not None and ground.type == "MESH":

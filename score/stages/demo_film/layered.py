@@ -409,7 +409,7 @@ def cloud_jobs(folder, scene, jobs, inputs, slices, minutes):
             job = {"script": str(script.relative_to(REPO)),
                    "args": [arguments[0], str(piece / "views.json"), str(piece / "look")],
                    "inputs": [str(pathlib.Path(scene).resolve()), str(piece / "views.json"), *inputs],
-                   "code": ["score/stages/place_build", "tools/props/library", "vendor/procfunc/src",
+                   "code": ["score/stages/place_build", "tools/props/library", "data/library", "vendor/procfunc/src",
                             "vendor/infinigen2"],
                    "outputs": [out, str(piece / "look")], "minutes": minutes}
             (piece / "job.json").write_text(json.dumps(job, indent=1))
