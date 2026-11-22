@@ -6,7 +6,6 @@ fetches its files).
     library.entries(root)                 # every entry.json record, every version, in path order
     library.entry(root, kind, id, version)
     library.index(root, kind)             # index/<kind>.json
-    library.licence(record)               # the licence block of a part not under MIT, or None (MIT)
     library.replacement(record)           # the address a withdrawn entry names as its replacement, or None
     library.replaced_end(root, address)   # the address at the end of an entry's replacement chain
 
@@ -62,11 +61,6 @@ def entry(root, kind, entry_id, version):
 def index(root, kind):
     """The library's index of one kind: {schema, kind, entries: [{address, digest, state, tags, ...}]}."""
     return read_json(pathlib.Path(root).expanduser() / "index" / f"{kind}.json", INDEX_SCHEMA)
-
-
-def licence(record):
-    """The entry's licence block ({id, source, credit, url}) when it is a part not under MIT, else None (MIT)."""
-    return record.get("licence") or None
 
 
 def replacement(record):

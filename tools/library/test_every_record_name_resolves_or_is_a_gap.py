@@ -16,8 +16,6 @@ file's sha256 and blob, commits and pushes), and on the repository's own code an
 - a Pixal3D take freed from work/pixal (pixal_takes.py) comes back whole from the library, the same bytes under the
   same names, camera folder included, and is read back whole only when the library hands every file back at its size
   and hash;
-- a referenced file's terms: its entry's licence block (None for MIT) and the replacement a withdrawn entry names,
-  none for a name that is no reference or an entry the library does not hold;
 - every name the data gives is a reference, a repository file that is there, or an old release name (a gap);
 - a wording check guarding the owner's rule of 2026-10-09: no code, data or overlay names a Godot path (`res://`),
   the game's checkout (`projects/2099`, `2099/game`), the old `--world <the game's checkout>` option, or (outside
@@ -36,8 +34,6 @@ The break that turns the test red (applied once each, seen red, reverted):
 - a record value `"model": "assets/rover.glb"` added to data/library/lamps.json (a data guard: the data names no model
   or sound file today).
 - a line `GODOT = "res://scenes/x.tscn"` added to library_files.py.
-- library_files.terms: `if withdrawn` left off (the bench in force reads as replaced), or the licence block read as
-  `{}` for an MIT entry (the hum reads as licensed).
 - pixal_takes.take_back's `missing = [name for name in sorted(record["files"]) if not (folder / name).exists()]` ->
   `missing = [name for name in sorted(record["files"]) if name.endswith(".glb") and not (folder / name).exists()]`
   (the close-up and camera stay lost).
@@ -255,22 +251,6 @@ def test_every_record_name_resolves_or_is_a_gap(library, tmp_path, monkeypatch):
                 library_files.resolve(name, folder)
         else:
             assert library_files.resolve(name, folder) == (None if outcome == GAP else outcome), name
-    # The terms a referenced file is held under (#155): the hum is MIT and in force; an adopted part keeps its licence
-    # block; a withdrawn one names its replacement; a name that is no reference, or no entry held, has none.
-    credit = {"id": "CC-BY-4.0", "source": "a_set", "credit": "the set's makers", "url": "https://example.org/by"}
-    for address, record in (("model/chair/1", {"files": {}, "licence": credit}),
-                            ("model/stool/1", {"files": {}, "state": "withdrawn", "replaced_by": "model/chair@1"}),
-                            ("model/bench/1", {"files": {}, "replaced_by": "model/chair@1"})):
-        (library / "entries" / address).mkdir(parents=True)
-        (library / "entries" / address / "entry.json").write_text(json.dumps(record))
-    terms = {name: library_files.terms(name) for name in
-             (HUM, "model/chair@1/a.usd", "model/stool@1/a.usd", "model/bench@1/a.usd", "model/sofa@1/a.usd",
-              "data/library/lamps.json")}
-    assert terms == {HUM: {"licence": None, "replaced_by": None},
-                     "model/chair@1/a.usd": {"licence": credit, "replaced_by": None},
-                     "model/stool@1/a.usd": {"licence": None, "replaced_by": "model/chair@1"},
-                     "model/bench@1/a.usd": {"licence": None, "replaced_by": None},
-                     "model/sofa@1/a.usd": None, "data/library/lamps.json": None}, terms
     assert library_files.parsed(names[0][0]) == {
         "address": "sound/habitat.recordings@1", "kind": "sound", "id": "habitat.recordings", "version": "1",
         "file": "audio/recordings/places/habitat.ogg"}

@@ -1,7 +1,7 @@
 """The library reader reads score_lib's files only at the schema version it was written for: every entry, every
 version, in path order, one entry and one kind's index read whole; a file of another version is refused (Unread,
 naming the version), never half read; the library it reads is the folder SCORE_LIB_ROOT names, or none; an entry's
-licence block and its replacement read from it, a withdrawn entry's replacements followed to the end of their chain
+replacement read from it, a withdrawn entry's replacements followed to the end of their chain
 (one in force, or withdrawn with nothing in its place) and a chain that comes back on itself refused.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/library/test_read_only_at_known_schema.py
@@ -12,8 +12,7 @@ The test turns red under each break written here (each applied once and seen red
 - refusing: make library.checked return the record without comparing its schema.
 - environment: make root_from_environment skip `.strip()`.
 - replacing (#155): make library.replacement read `replaced_by` whatever the entry's state (the ring in force reads as
-  replaced), or drop replaced_end's `if following in seen` (the ring's loop never ends: the run times out), or make
-  library.licence return {} for an MIT entry (a crate with no licence block reads as licensed).
+  replaced), or drop replaced_end's `if following in seen` (the ring's loop never ends: the run times out).
 """
 import json
 import pathlib
@@ -23,10 +22,9 @@ import pytest
 from score import library
 
 ALL_ENTRIES = ["model/crate@1", "model/crate@2", "model/lamp@1", "model/ring@1", "model/ring@2", "model/ring@3"]
-CREDIT = {"id": "CC-BY-4.0", "source": "a_set", "credit": "the set's makers", "url": "https://example.org/by"}
-# Each entry's state and fields beyond the address: crate@1 withdrawn for crate@2 (a part under its own licence),
+# Each entry's state and fields beyond the address: crate@1 withdrawn for crate@2,
 # ring@1 and ring@2 withdrawn for each other, ring@3 in force though it names a replacement.
-WRITTEN = {("crate", 1): {"state": "withdrawn", "replaced_by": "model/crate@2"}, ("crate", 2): {"licence": CREDIT},
+WRITTEN = {("crate", 1): {"state": "withdrawn", "replaced_by": "model/crate@2"},
            ("ring", 1): {"state": "withdrawn", "replaced_by": "model/ring@2"},
            ("ring", 2): {"state": "withdrawn", "replaced_by": "model/ring@1"},
            ("ring", 3): {"replaced_by": "model/ring@1"}}
@@ -67,7 +65,7 @@ def refused(version):
 @pytest.mark.parametrize("environment, lamp_schema, index_schema, expected", [
     pytest.param(" {root} ", "score-lib-entry/1", "score-lib-index/1",
                  {"entries": ALL_ENTRIES, "crate@2": "model/crate@2", "lamp@1": "model/lamp@1",
-                  "index": INDEX_ENTRIES, "licences": [None, CREDIT, None, None, None, None],
+                  "index": INDEX_ENTRIES,
                   "replacements": ["model/crate@2", None, None, "model/ring@2", "model/ring@1", None], **CHAINS},
                  id="known-schemas-padded-root"),
     pytest.param("{root}", "score-lib-entry/2", "score-lib-index/1",
@@ -100,7 +98,6 @@ def test_read_only_at_known_schema(tmp_path, monkeypatch, environment, lamp_sche
         "crate@2": answer(lambda: library.entry(found, "model", "crate", 2)["address"]),
         "lamp@1": answer(lambda: library.entry(found, "model", "lamp", 1)["address"]),
         "index": answer(lambda: library.index(found, "model")["entries"]),
-        "licences": answer(lambda: [library.licence(record) for record in library.entries(found)]),
         "replacements": answer(lambda: [library.replacement(record) for record in library.entries(found)]),
         **{read: answer(lambda read=read: library.replaced_end(found, "model/" + read.split()[0]))
            for read in ("crate@1 end", "crate@2 end", "ring@3 end", "ring@1 end")},
