@@ -18,6 +18,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   largest grain (4 x 0.002 = 0.008 m), so the grain is 0.008 and the bump keeps the relief's slope, 0.004 x 0.008 /
   0.012 = 0.0027 (at its full 0.004 a field of steep bumps that scatters the highlight away);
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
+- the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
+  an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
 - sRGB (150, 104, 112) is Lab (48.95, 19.66, 2.96), 19.9 from sRGB 119's (50.0, 0, 0): over the check's 10, while its
   lightness stays within 1.1 (the lightness and highlight bounds hold); stripes of sRGB 109 and 129 (L* 46.0 and
   54.0) two pixels wide beside a flat sRGB 119 differ under 0.1 in cell colour and 4 in lightness, but the flat one
@@ -34,6 +36,9 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   longer integrate: its bump halves), or fitted's `fitted_tile` made None (the adopted row's tile assumed 1 m).
 - fit.spec_of: the bump's `* drawn / feature` dropped (the plastic relief row's bump is the full 0.004).
 - fit.described: `albedo_colour` always None (the constant colour row has no albedo: KeyError).
+- fit.described: `emission_colour` always None (the constant glow row loses its five-times white), or the constant
+  read even beside an emission map (the emission map row glows twice); fit.ROLE_WORDS without "emission" (the
+  emission map row's emission.png reads no role).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -105,36 +110,47 @@ ROWS = [
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0)),
       "t_plastic_glossy_gray_a01_tile_nor.png": solid(FLAT_NORMAL)}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)),
-     ("plastic", "name", 0.1845, 0.4, None, None, True)),
+     ("plastic", "name", 0.1845, 0.4, None, None, True, (None, False))),
     ("chrome by its name, older file names", "T_Metal_Chrome_A",
      {"T_Metal_Chrome_A_Albedo_1.png": solid((119,) * 3), "T_Metal_Chrome_A_ORM_1.png": solid((255, 102, 255)),
       "T_Metal_Chrome_A_Normal_1.png": solid(FLAT_NORMAL)}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)),
-     ("polished_metal", "name", 0.1845, 0.4, 1.0, None, True)),
+     ("polished_metal", "name", 0.1845, 0.4, 1.0, None, True, (None, False))),
     ("metal by its measures, a colour shifted", "t_unnamed_a01",
      {"t_unnamed_a01_tile_alb.png": solid((119,) * 3), "t_unnamed_a01_tile_orm.png": solid((255, 25, 230))}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((150, 104, 112))),
-     ("polished_metal", "measures", 0.1845, 0.098, 0.902, None, False)),
+     ("polished_metal", "measures", 0.1845, 0.098, 0.902, None, False, (None, False))),
     ("concrete relief, a flat recipe beside detail", "t_concrete_bare_a01",
      {"colour.jpg": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": bumps(2.0, 16)},
      {"tile_metres": 0.064}, (stripes(109, 129), solid((119,) * 3)),
-     ("concrete", "name", 0.1845, 0.4, None, (0.012, 0.004, 0.064), False)),
+     ("concrete", "name", 0.1845, 0.4, None, (0.012, 0.004, 0.064), False, (None, False))),
     ("an adopted set's relief, maps by role, DirectX, tile fitted", "t_concrete_bare_a01",
      {"albedo.png": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": directx(bumps(2.0, 16))},
      {"maps": {"albedo": "albedo.png", "roughness": "roughness.png", "normal": "normal.png"}, "tile_metres": None,
       "normal_convention": "directx"}, (stripes(109, 129), solid((119,) * 3)),
-     ("concrete", "name", 0.1845, 0.4, None, (0.01, 0.003, 0.0533), False)),
+     ("concrete", "name", 0.1845, 0.4, None, (0.01, 0.003, 0.0533), False, (None, False))),
     ("plastic relief over its largest grain, the bump at its slope", "t_plastic_rough_black_a01",
      {"t_plastic_rough_black_a01_tile_alb.png": solid((119,) * 3),
       "t_plastic_rough_black_a01_tile_orm.png": solid((255, 102, 0)),
       "t_plastic_rough_black_a01_tile_nor.png": bumps(2.0, 16)}, {"tile_metres": 0.064},
      (solid((119,) * 3), solid((119,) * 3)),
-     ("plastic", "name", 0.1845, 0.4, None, (0.008, 0.003, 0.064), True)),
+     ("plastic", "name", 0.1845, 0.4, None, (0.008, 0.003, 0.064), True, (None, False))),
     ("a constant colour, no albedo map", "m_opaque_metal_chrome_a01",
      {"normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 255))},
      {"maps": {"normal": "normal.png", "orm": "orm.png"}, "tile_metres": 1.0,
       "constants": {"diffuseColor": [0.1845, 0.1845, 0.1845]}}, (solid((119,) * 3), solid((119,) * 3)),
-     ("polished_metal", "name", 0.1845, 0.4, 1.0, None, True)),
+     ("polished_metal", "name", 0.1845, 0.4, 1.0, None, True, (None, False))),
+    ("a constant glow, its intensity in its size", "m_opaque_plastic_emissive_white_a01",
+     {"normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 0))},
+     {"maps": {"normal": "normal.png", "orm": "orm.png"}, "tile_metres": 1.0,
+      "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5.0, 5.0, 5.0]}},
+     (solid((255,) * 3), solid((255,) * 3)),
+     ("glowing", "name", 1.0, 0.4, None, None, True, ([5.0, 5.0, 5.0], False))),
+    ("an emission map by its file name, over a constant glow", "m_opaque_plastic_emissive_white_a01",
+     {"emission.png": solid((255,) * 3), "normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 0))},
+     {"tile_metres": 1.0, "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5.0, 5.0, 5.0]}},
+     (solid((255,) * 3), solid((255,) * 3)),
+     ("glowing", "name", 1.0, 0.4, None, None, True, (None, True))),
 ]
 
 
@@ -152,5 +168,6 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
     verdict = measure.likeness({"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")},
                                "algorithm/surface_recipes@1")
     answer = (spec["recipe"], made["family_from"], round(np.mean(spec["colour"]), 4), round(spec["roughness"], 3),
-              round(spec["metal"], 3) if "metal" in spec else None, relief, verdict["pass"])
+              round(spec["metal"], 3) if "metal" in spec else None, relief, verdict["pass"],
+              (found["emission_colour"], "emission" in found["maps"]))
     assert answer == expected, name

@@ -35,7 +35,8 @@ ROLE_WORDS = {"albedo": ("alb", "albedo", "basecolor", "basecolour", "color", "c
               "normal": ("nor", "normal", "normalgl", "nrm"),
               "orm": ("orm",),
               "roughness": ("rou", "rough", "roughness"),
-              "metal": ("met", "metal", "metallic", "metalness")}
+              "metal": ("met", "metal", "metallic", "metalness"),
+              "emission": ("emission", "emissive", "emit")}
 # The recipe family a material's name says, first match wins (so fibreglass before glass and plastic, painted metal
 # before metal, stainless before polished): words of a finish, never of a maker.
 FAMILY_WORDS = (("fiberglass", "fiberglass"), ("fibreglass", "fiberglass"), ("emissive", "glowing"),
@@ -113,8 +114,10 @@ def described(surface, names):
     """A surface.json's (`surface`, {} for none) maps {role: file name} (its `maps` dict as written, else the entry's
     texture files `names` by their roles), its tile metres ("surface.json"; None when it says it does not know, so
     `fitted` fits it, from None; TILE_METRES "assumed" when it says nothing), its normal convention ("opengl" unless it says
-    "directx") and, with no albedo map, its constant colour (its `constants` diffuseColor, linear as USD holds it; else
-    None): {"maps", "tile_metres", "tile_metres_from", "normal_convention", "albedo_colour"}."""
+    "directx"), with no albedo map its constant colour (its `constants` diffuseColor, linear as USD holds it; else
+    None) and, with no emission map, its constant glow (its `constants` emissiveColor, linear, its intensity in its
+    size as USD holds it: (5, 5, 5) is white given off five times over; else None):
+    {"maps", "tile_metres", "tile_metres_from", "normal_convention", "albedo_colour", "emission_colour"}."""
     maps = surface.get("maps") or {}
     if not isinstance(maps, dict):
         raise ValueError(f"surface.json maps is {type(maps).__name__}, not {{role: file}}")
@@ -126,9 +129,12 @@ def described(surface, names):
     else:
         tile = (surface["tile_metres"], "surface.json" if surface["tile_metres"] is not None else None)
     found = {ROLE_ALIASES.get(role, role): name for role, name in maps.items()} or roles(names)
-    constant = None if "albedo" in found else (surface.get("constants") or {}).get("diffuseColor")
+    constants = surface.get("constants") or {}
+    constant = None if "albedo" in found else constants.get("diffuseColor")
+    glow = None if "emission" in found else constants.get("emissiveColor")
     return {"maps": found, "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention,
-            "albedo_colour": None if constant is None else [float(value) for value in constant]}
+            "albedo_colour": None if constant is None else [float(value) for value in constant],
+            "emission_colour": None if glow is None else [float(value) for value in glow]}
 
 
 def pixels(path):

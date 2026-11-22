@@ -5,10 +5,12 @@ swatch's light, from each of its cameras, at wear and dirt 0 (a surface's maps a
     blender -b --python tools/props/library/inside/likeness.py -- <job.json>
 
 The job: {"out", "size", "samples", "seed", "pairs": [{"name", "maps": {role: path}, "tile_metres",
-"normal_convention": "opengl" | "directx", "albedo_colour": linear RGB | null, "recipe": spec, "map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
+"normal_convention": "opengl" | "directx", "albedo_colour": linear RGB | null, "emission_colour": linear RGB | null,
+"recipe": spec, "map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
 map material is the maps as a principled surface: the albedo as sRGB colour (with no albedo map, the surface's constant
 linear `albedo_colour`), roughness and metal from an ORM map's
-green and blue (or their own maps), the normal map in tangent space (a DirectX map's green turned over), all on texture coordinates cube-projected at the
+green and blue (or their own maps), its glow the emission map (sRGB, given off at strength 1, as USD draws it) or the
+constant linear `emission_colour` (its size the strength: (5, 5, 5) is white at 5), the normal map in tangent space (a DirectX map's green turned over), all on texture coordinates cube-projected at the
 maps' tile size, so a repeat covers `tile_metres` as the recipe's metres do. Writes <out>/<name>/map-<view>.png and
 recipe-<view>.png, and prints "LIKENESS <name>" per pair.
 """
@@ -69,9 +71,24 @@ def normal_colour(tree, maps, convention):
     return joined.outputs["Color"]
 
 
-def map_material(name, maps, convention="opengl", albedo_colour=None):
+def glow(tree, surface, maps, emission_colour):
+    """The surface's light given off: the emission map's colour at strength 1, else the constant `emission_colour`
+    (linear) as its hue at the strength of its strongest channel, else none."""
+    if "emission" in maps:
+        tree.links.new(image_node(tree, maps["emission"], False).outputs["Color"], surface.inputs["Emission Color"])
+        surface.inputs["Emission Strength"].default_value = 1.0
+        return
+    strongest = max(emission_colour or [0.0])
+    if strongest <= 0:
+        surface.inputs["Emission Strength"].default_value = 0.0
+        return
+    surface.inputs["Emission Color"].default_value = (*[value / strongest for value in emission_colour], 1.0)
+    surface.inputs["Emission Strength"].default_value = strongest
+
+
+def map_material(name, maps, convention="opengl", albedo_colour=None, emission_colour=None):
     """The maps as a principled surface material, its base colour the albedo map's, else the constant
-    `albedo_colour` (linear)."""
+    `albedo_colour` (linear), its glow the emission map's, else the constant `emission_colour` (glow)."""
     material = bpy.data.materials.new(f"map-{name}")
     material.use_nodes = True
     tree = material.node_tree
@@ -96,6 +113,7 @@ def map_material(name, maps, convention="opengl", albedo_colour=None):
         bent.uv_map = UV_MAP
         tree.links.new(normal_colour(tree, maps, convention), bent.inputs["Color"])
         tree.links.new(bent.outputs["Normal"], surface.inputs["Normal"])
+    glow(tree, surface, maps, emission_colour)
     return material
 
 
@@ -139,7 +157,7 @@ def main():
         shown = {"recipe": recipe_material(pair["recipe"], job["seed"])}
         if pair["map"]:
             shown["map"] = map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"),
-                                        pair.get("albedo_colour"))
+                                        pair.get("albedo_colour"), pair.get("emission_colour"))
         for view, camera in cameras.items():
             bpy.context.scene.camera = camera
             for side, material in shown.items():

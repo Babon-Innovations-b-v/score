@@ -31,4 +31,8 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   2026-11-22 two of the library's image surfaces (plastic010: pass in one render, cell colour 0.2; diamond plate
   008a: fail on detail, 0.71 and 0.42, after two) — the chequer plate recipe's lugs are a hard step in height, which
   a bump render shows only as their outline. Later that day, NVIDIA SimReady's 10 tiling surfaces with maps: 9 pass in
-  one render each; the emissive white fails on detail (0.36), its map material drawing no emissiveColor.
+  one render each; the emissive white failed on detail (0.36), its map material drawing no emissiveColor. Now
+  `fit.described` carries a surface's glow (`emission_colour`, its constant emissiveColor, linear, its intensity in
+  its size; none beside an emission map, which the map side draws itself, as USD draws a connected input) and the map
+  side draws it: rerun the same day, the emissive white (55f5469a, emissiveColor 5) passes in one render, both sides
+  a flat glowing white (cell colour 0, detail 1.0 in both views).
