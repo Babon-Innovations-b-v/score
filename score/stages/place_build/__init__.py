@@ -1022,8 +1022,8 @@ def hollow(folder, name, regions):
     """The blocks object `name` re-laid without what stands in `regions` (each x0, y0, z0, x1, y1, z1 in the scene's
     frame): where the area seats a neighbour place in it (the street's block wall_l1 round the stairwell and the
     flat, 2099's prologue 2026-11-22: the walker stood inside the block). Each of its boxes is cut to its pieces
-    outside every region, in its parts and at its pose and role; every other object or light whose middle stands in a
-    region (a shop's tables, its lamps) and every fitting mounted on it (`support` wall:<name>, or on a fitting taken
+    outside every region, in its parts and at its pose and role; every other object or light standing wholly in a
+    region (a shop's tables, its lamps; a neighbouring block reaching into it stays) and every fitting mounted on it (`support` wall:<name>, or on a fitting taken
     out) that no box left stands within FITTING_REACH of is taken out, a door leaf never (a join's leaf stays), nor
     the place's backdrop (place.json `backdrop`: its own renders draw it)."""
     regions = [[float(value) for value in region] for region in regions]
@@ -1061,8 +1061,9 @@ def hollow(folder, name, regions):
 
 
 def taken_with(stage, place, name, regions, left, kept=()):
-    """The objects and lights a hollow of `name` takes out (hollow): every one but a door leaf whose middle stands in
-    a region, and every fitting mounted on `name` (or on one taken out) that no box `left` (low, high in the scene)
+    """The objects and lights a hollow of `name` takes out (hollow): every one but a door leaf standing wholly in a
+    region (a neighbouring block reaching into it stays, to be hollowed in its turn: the street's wall_l2 and wall_l3
+    went whole with wall_l1's hollow, 2099 #161 2026-11-22), and every fitting mounted on `name` (or on one taken out) that no box `left` (low, high in the scene)
     stands within FITTING_REACH of; never one `kept` (the place's backdrop: its own renders draw it); by name."""
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     spans = {}
@@ -1073,9 +1074,8 @@ def taken_with(stage, place, name, regions, left, kept=()):
                 spans[prim.GetName()] = (prim, np.asarray(box.GetMin()), np.asarray(box.GetMax()))
     gone = []
     for other, (prim, low, high) in spans.items():
-        middle = (low + high) / 2
         role = prim.GetAttribute("score:role").Get() if prim.GetAttribute("score:role") else None
-        if role != "door" and any(np.all(middle > region[:3]) and np.all(middle < region[3:]) for region in regions):
+        if role != "door" and any(np.all(low >= region[:3]) and np.all(high <= region[3:]) for region in regions):
             gone.append(other)
     more = True
     while more:

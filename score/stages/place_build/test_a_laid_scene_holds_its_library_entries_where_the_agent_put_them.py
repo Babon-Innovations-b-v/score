@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; a street's block turned a quarter hollowed where a neighbour place is seated in it (its boxes cut, its parts, pose and role kept, the shop's table and lamp and the fittings left with no wall taken out, a door leaf and a sign on what is left kept); a recipe's glass laid from the library see-through at the method's opacity; every packaged picture's sides a multiple of four; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; a street's block turned a quarter hollowed where a neighbour place is seated in it (its boxes cut, its parts, pose and role kept, the shop's table and lamp and the fittings left with no wall taken out, a door leaf, a sign on what is left and a neighbouring block reaching in kept); a recipe's glass laid from the library see-through at the method's opacity; every packaged picture's sides a multiple of four; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -192,6 +192,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.held_image: its sides left as halved (no BLOCK_TEXELS) -> the dune's 62 texel sand is held at 31
 - place_build.taken_with: a fitting kept whatever wall is left (FITTING_REACH unread) -> the hollowed block's rack and
   the wash on it stay
+- place_build.taken_with: an object taken out by its middle alone -> the neighbouring block reaching out of the region
+  (its middle in it) goes whole
 - scene_package.environment_of: the exposure left off -> the night's 2.5 reads 1.0
 - scene_package.pbr: `not draft` left off -> the draft package asks the baker for the panel's maps
 - scene_package.written_scene: the DRAFT mark left off -> the draft package's scene.json carries no draft
@@ -1711,7 +1713,8 @@ def hollowed(folder):
     """A street's block turned a quarter (its shop's face on -z) hollowed where the area seats a neighbour place in it
     (2099's prologue: the walker began inside the street's block wall_l1): its boxes cut to what stands outside the
     region, in their parts, pose and role; the shop's table and lamp, the rack on the gone face and the wash on that
-    rack taken out with it, the door leaf and the sign on the face left kept."""
+    rack taken out with it, the door leaf, the sign on the face and a neighbouring block reaching into the region
+    left kept."""
     place_build.blocks(folder, "block", [[0, 0, 0, 4, 3, 6, "wall"], [-0.3, 0, 0, 0, 3, 6, "base"]], at=(40, 0, 0),
                        turn=(0, -90, 0))
     place_build.blocks(folder, "table", [[36.8, 0, 0.8, 37.2, 0.8, 1.2, "top"]], role="prop")
@@ -1724,6 +1727,7 @@ def hollowed(folder):
     place_build.blocks(folder, "gate", [[36.9, 0.0, -0.2, 37.6, 1.9, -0.15, "leaf"]], role="prop")
     place_build.door(folder, "gate", opens=True)
     place_build.light(folder, "shop_lamp", at=(37.0, 1.5, 1.0), watts=10)
+    place_build.blocks(folder, "next_block", [[37.5, 0, -0.9, 37.9, 2.6, -0.5, "wall"]])
     region = [36.0, -1.0, -1.0, 38.0, 2.0, 2.0]
     made = place_build.hollow(folder, "block", [region])
     stage, place = place_build.opened(folder)
@@ -1739,4 +1743,4 @@ def hollowed(folder):
     assert {box[6] for box in boxes} == {"wall", "base"} and sorted(made["taken_out"]) == ["rack", "shop_lamp", "table",
                                                                                            "wash"], made
     assert place_build.pose_of(prim)[1] == [0.0, -90.0, 0.0] and prim.GetAttribute("score:role").Get() == "structure"
-    assert all(stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in ("sign", "gate")), made
+    assert all(stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in ("sign", "gate", "next_block")), made
