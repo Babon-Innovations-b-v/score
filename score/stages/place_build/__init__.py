@@ -765,13 +765,11 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
              f"{'_1' if one_block else ''}{''.join(f'_j{storey}' for storey in joined)}{'_st' if street else ''}.usda")
     target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / named
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.unlink(missing_ok=True)
-    doors = stair_core.core(target, storeys, bool(mirror), bool(curtain), bool(cut), bool(one_block), joined,
-                            bool(street))
+    doors = rewritten(target, lambda path: stair_core.core(path, storeys, bool(mirror), bool(curtain), bool(cut),
+                                                           bool(one_block), joined, bool(street)))
     front = target.with_name(f"front_s{storeys}{'_m' if mirror else ''}{'_c' if curtain else ''}.usda")
     if cut:  # written before the scene is opened, which holds the files it references
-        front.unlink(missing_ok=True)
-        stair_core.front_alone(front, storeys, bool(mirror), bool(curtain))
+        rewritten(front, lambda path: stair_core.front_alone(path, storeys, bool(mirror), bool(curtain)))
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), False)
@@ -793,6 +791,24 @@ def stairs(folder, name, storeys=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0),
     return {"name": name, "address": address, "usd": relative, "storeys": storeys, "mirror": bool(mirror),
             "curtain": bool(curtain), "cut": bool(cut), "one_block": bool(one_block), "joined": joined,
             "street": bool(street), "doorways": doors}
+
+
+def rewritten(path, write):
+    """`write(path)`'s answer, the file written anew; a layer already open at `path` (a batch's scene laying it, the
+    stairwell re-laid with its street door) takes the new file's content, since USD makes no new layer where one is
+    open (#154)."""
+    path = pathlib.Path(path)
+    held = Sdf.Layer.Find(str(path.resolve()))
+    if held is None:
+        path.unlink(missing_ok=True)
+        return write(path)
+    fresh = path.with_name(f"new_{path.name}")
+    fresh.unlink(missing_ok=True)
+    answer = write(fresh)
+    held.TransferContent(Sdf.Layer.FindOrOpen(str(fresh.resolve())))
+    held.Save()
+    fresh.unlink()
+    return answer
 
 
 def laid_doorways(prim, spots):
@@ -895,11 +911,12 @@ BLOCK_ROLES = ("structure", "prop", "fixed", "mount")  # what a blocks object ma
 
 
 def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground=False, address=DOME,
-           role="structure"):
+           role="structure", support=None):
     """Solid chamfered boxes (dome_shell.blocks_file: each [x0, y0, z0, x1, y1, z1, part] in its own frame) laid as
     one object Objects/<name>: a road and its kerbed pavements with `ground` (the place's walked ground), else of
     `role` (`score:role`, BLOCK_ROLES: a structure, a building's walls or a step, by default; a small fitting built from
-    blocks a prop, #154: the capsule's stick); each part ready for its surface."""
+    blocks a prop, #154: the capsule's stick; a fitting on a wall a mount with its `support`, wall:<object>, as `put`
+    marks one: the stairwell's couplets); each part ready for its surface."""
     if role not in BLOCK_ROLES:
         raise Refused(f"blocks are a {', '.join(BLOCK_ROLES)} or the ground, not {role}")
     import hashlib
@@ -915,7 +932,7 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), ground)
-    marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else role)
+    marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else role, None if ground else support)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "boxes": len(boxes), "ground": bool(ground)}
 

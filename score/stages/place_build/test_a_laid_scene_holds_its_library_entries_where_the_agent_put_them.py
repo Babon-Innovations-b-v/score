@@ -107,6 +107,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - stair_core.block: `holes + door` -> `holes` -> the street door's doorway stands walled in the lobby's facade
 - stair_core.block: the ground window kept with `street` -> a pane stands across the street door's doorway
+- place_build.rewritten: the open layer's content not taken (`write(path)` over it) -> a cut core laid again in one
+  batch fails: USD makes no new layer where its front's is open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
 - render.views: FINAL_SIZE left off -> the final render keeps the concept's aspect
 - render.libraries: the libs/ default dropped (SCORE_BLENDER_LIBS alone) -> a box without the variable starts a
@@ -130,6 +132,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.from_library: `entries = localised(folder)` -> `entries = []` (and its key) -> the lane's box names the
   library on USD's search path and opens as nothing
 - place_build.blocks: the role always structure -> the knob reads a structure
+- place_build.blocks: `None if ground else support` -> `None` -> the couplet is a mount on no wall
 - ready.inward: shells and connectors alone -> the plug set in the cell's walls of blocks is set in none
 - scene_package.chamber_air: a chamber's air only its named object's hull -> the cell whose doors name its back
   wall holds no air, so no chamber
@@ -718,6 +721,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert not walled.any() and not (pane & (part_middles(lobby, "glass")[:, 1] < stair_core.STOREY)).any() \
         and spots["street"]["inward"] == [-0.0, 0.0, 1.0] and np.isclose(spots["street"]["wide"], stair_core.DOOR[0]) \
         and street_door[0] > stair_core.LONG + stair_core.WALL and "street" not in stair_core.doorway_spots(1)
+    place_build.start(tmp_path / "well", "well", tmp_path / "concept.png")  # a cut core laid again in one batch
+    relaid = place_build.batch(tmp_path / "well", [{"step": "stairs", "name": "core", "storeys": 1, "cut": True},
+                                                   {"step": "stairs", "name": "core", "storeys": 1, "cut": True,
+                                                    "street": True}])
+    assert relaid[1]["street"] and "core_street" in place_build.record_of(tmp_path / "well")["doorways"], relaid
     stair_core.front_alone(tmp_path / "front.usda", 1)  # the wall a cut core leaves to its own object
     front_stage = Usd.Stage.Open(str(tmp_path / "front.usda"))
     front = np.asarray(UsdGeom.Mesh(front_stage.GetPrimAtPath("/stair_front/geo")).GetPointsAttr().Get())
@@ -1406,6 +1414,8 @@ def blocks_lock(tmp_path):
     place_build.door(walled, "plug", lock="back_wall", side="inner")
     place_build.door(walled, "hatch", lock="back_wall", side="outer")
     place_build.blocks(walled, "knob", [[1.0, 1.0, 1.0, 1.1, 1.1, 1.1, "knob"]], role="prop")
+    place_build.blocks(walled, "couplet", [[30.0, 1.0, 1.0, 30.2, 2.5, 1.01, "paper"]], role="mount",
+                       support="wall:cell")
     try:
         place_build.blocks(walled, "slab", [[0, 0, 0, 1, 1, 1, "slab"]], role="door")
         raise AssertionError("blocks laid as a door")
@@ -1415,6 +1425,8 @@ def blocks_lock(tmp_path):
     laid_walled = ready.Place(stage, place)
     middle, axes, _ = ready.frame_of(laid_walled, "plug")
     assert laid_walled.roles["knob"] == "prop" and ready.inward(laid_walled, middle, axes[2]) is not None
+    assert laid_walled.roles["couplet"] == "mount" and \
+        laid_walled.prims["couplet"].GetAttribute("score:support").Get() == "wall:cell"
     _, chambers = scene_package.locks_of(laid_walled)
     assert [(chamber["name"], chamber["inner"], chamber["outer"]) for chamber in chambers] == \
         [("back_wall", ["plug"], ["hatch"])] and 3.0 * 2.0 * 2.0 < chambers[0]["air_volume"] < 4.4 * 3.4 * 2.7, chambers
