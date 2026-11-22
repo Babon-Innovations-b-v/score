@@ -8,9 +8,10 @@ writes <kind>.jpg into the folder (score_lib's docs/demo/ when its README takes 
 names each picture's entries and how it is staged; the reasons for each pick are on score #156.
 
 How the entries are read so a plain USD reader shows them as score's places do:
-- A kit piece's parts are GeomSubsets of one mesh with no material bound (each part takes its own library surface
-  when a place lays it), which Blender's reader does not split: `split_parts` writes each part as its own Z-up PLY,
-  and the picture gives each a surface. A decal part is left out: its logo is a picture the library does not keep.
+- A kit piece's parts are GeomSubsets of one mesh, each bound to a placeholder material named after it (score #156;
+  each part takes its own library surface when a place lays it): `split_parts` writes each part as its own Z-up PLY,
+  and the picture gives each a surface. A decal part is left out (the library's pieces no longer hold one: its logo
+  was a picture the library does not keep).
 - A rigged character's body.glb holds two levels of detail and a helper sphere; only the near body (`work`) is drawn,
   posed at a frame of its own walking clip.
 - An effect is the clip's particles at one clip time, placed at its model's spout by the effect's own rule (the

@@ -1,7 +1,7 @@
 """The cigarette the 2099 prologue's player smokes on the balcony (#152), built in code as a score_lib model: one closed
 round solid at a king size cigarette's measures, its parts (GeomSubsets) the filter, the paper and the lit end, each
-for a library surface laid on it at the place (`surface --part`, the lit end a glowing palette variant); no colour of
-its own.
+for a library surface laid on it at the place (`surface --part`, the lit end a glowing palette variant), each bound to
+a placeholder material named after it so any USD reader splits them; no colour of its own.
 
     .venv/bin/python tools/props/smoke_beat/cigarette.py <out folder>
 
@@ -19,7 +19,7 @@ import math
 import pathlib
 
 import numpy as np
-from pxr import Gf, Usd, UsdGeom, Vt
+from pxr import Gf, Usd, UsdGeom, UsdShade, Vt
 
 LENGTH = 0.084
 DIAMETER = 0.0079
@@ -77,10 +77,15 @@ def written(out):
     mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
     mesh.CreateExtentAttr(UsdGeom.Boundable.ComputeExtentFromPlugins(mesh, Usd.TimeCode.Default()))
     names = np.array(parts)
+    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim())
     for part in ("filter", "paper", "ember"):
-        UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face,
-                                        Vt.IntArray([int(face) for face in np.flatnonzero(names == part)]),
-                                        "materialBind", UsdGeom.Tokens.nonOverlapping)
+        subset = UsdGeom.Subset.CreateGeomSubset(mesh, part, UsdGeom.Tokens.face,
+                                                 Vt.IntArray([int(face) for face in np.flatnonzero(names == part)]),
+                                                 "materialBind", UsdGeom.Tokens.nonOverlapping)
+        # A placeholder material named after the part (no shader, no colour), so any USD reader splits the parts
+        # (score #156); the place lays its library surface over it.
+        placeholder = UsdShade.Material.Define(stage, f"/cigarette/Looks/{part}")
+        UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(placeholder)
     stage.Save()
     record = {"length_m": LENGTH, "diameter_m": DIAMETER, "filter_m": FILTER, "ember_m": EMBER, "source": SOURCE,
               "frame": "y up, metres: the mouth end at the origin, the lit end along +z",
