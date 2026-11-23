@@ -21,7 +21,7 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
    the address is None.
 
 The size it is set at: `like`'s, `height` metres tall, or `size` (wide, deep, tall metres: its longest side the
-model's, fit.size_matrix).
+model's, fit.size_matrix), first turned to the heading its picture, the row's close-up, shows (fit.headed, #166).
 """
 import fcntl
 import hashlib
@@ -232,8 +232,33 @@ def like_points(folder, like):
     return surface_points(copied[min(models, key=place_build.finished_first)])[0]
 
 
-def placed(raw, folder, like, height, size=None):
-    """The raw model's GLB document and binary set in the place's frame; how it was set."""
+def close_up_view(size):
+    """The camera turn and look-down (degrees) the prop route's close-up of a row of `size` is drawn from
+    (tools/props/closeup/check.py: turned TURN_DEGREES, looking down look_down; a row that lies flat from straight
+    above, unturned)."""
+    from score.stages.props import prop_data
+    with prop_data.tools("props/closeup"):
+        import check
+    return (0.0 if check.lies_flat(size) else check.TURN_DEGREES), check.look_down(size)
+
+
+def sized_matrix(points, picture, size):
+    """`points` turned to the heading `picture` (the row's close-up, cut out) shows, then scaled to `size`
+    (fit.headed, fit.size_matrix); how it was set."""
+    from PIL import Image
+    image = Image.open(picture)
+    if "A" not in image.getbands():
+        raise place_build.Refused(f"{picture}: no transparency, so no outline to turn the model by (a close-up cut "
+                                  "out of its background)")
+    cut = np.asarray(image.getchannel("A")) > 127
+    turn, down = close_up_view(size)
+    heading, how = fit.headed(points, cut, turn, down)
+    return fit.size_matrix(fit.applied(heading, points), size) @ heading, how
+
+
+def placed(raw, folder, like, height, size=None, picture=None):
+    """The raw model's GLB document and binary set in the place's frame (at a `size`, turned as its close-up
+    `picture` shows it); how it was set."""
     document, binary = glb.read(raw)
     points = surface_points(raw)[0]
     if like:
@@ -242,7 +267,8 @@ def placed(raw, folder, like, height, size=None):
     elif height:
         matrix, how = fit.height_matrix(points, float(height)), {"height_m": float(height)}
     elif size:
-        matrix, how = fit.size_matrix(points, size), {"size_m": [float(side) for side in size]}
+        matrix, how = sized_matrix(points, picture, size)
+        how["size_m"] = [float(side) for side in size]
     else:
         raise place_build.Refused("give --like (the library model it replaces), --height (metres) or --size "
                                   "(wide,deep,tall metres)")
@@ -343,7 +369,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     picture, said = picture_of(folder, source, like, work)
     raw = work / "trellis.glb"
     stats = generated(picture, raw, faces_for(size_of(folder, like, height, size)))
-    document, binary, how = placed(raw, folder, like, height, size)
+    document, binary, how = placed(raw, folder, like, height, size, picture)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
     palette = folder / place_build.PALETTE

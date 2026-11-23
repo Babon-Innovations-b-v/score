@@ -10,6 +10,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - fit.size_matrix: scaled by the size's tallest side, not its longest -> the L laid at (2.0, 0.5, 0.3) is 0.6 m long;
   maker.size_of: `size` ignored -> a model made at a size is made at FACES, not its size's faces
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
+- fit.headed: its quarter turns not tried (TRELLIS.2's own heading kept), or fit.view_axes turned the other way, or
+  straight down taken with the front up -> a desk L made long along x, its close-up long along depth, is laid
+  wide and shallow (#166: desk, rack and sign); MIRROR_GAIN made -1 -> the L is laid mirrored
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
 - sim: INSIDE made -1e-4 -> the face where the two cubes meet counts as skin (mass 20% high)
@@ -48,6 +51,32 @@ def cube(low):
     return corners, triangles
 
 
+def drawn(boxes, turn, down):
+    """A close-up's cut-out (opaque pixels, rows down) of Z-up boxes (low, high) worked out here apart from fit: an
+    orthographic camera turned `turn` degrees from the front (-y) about z, looking down `down`; from straight above
+    the back (+y) is up. Each box's outline is its corners' convex hull."""
+    from PIL import Image, ImageDraw
+    from scipy.spatial import ConvexHull
+    turn, down = np.radians(turn), np.radians(down)
+    back = np.array([np.sin(turn) * np.cos(down), -np.cos(turn) * np.cos(down), np.sin(down)])
+    up = np.array([0.0, 1.0, 0.0]) if down > 1.5 else np.array([0.0, 0.0, 1.0])
+    right = np.cross(up, back) / np.linalg.norm(np.cross(up, back))
+    true_up = np.cross(back, right)
+    picture = Image.new("L", (300, 300))
+    for low, high in boxes:
+        corners = np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+        flat = np.stack([corners @ right, -(corners @ true_up)], 1) * 100 + 150
+        ImageDraw.Draw(picture).polygon([tuple(point) for point in flat[ConvexHull(flat).vertices]], fill=255)
+    return np.asarray(picture) > 127
+
+
+def z_up_to_model(boxes, yaw, count=4000):
+    """Points in the boxes (Z up) as TRELLIS.2 would lay them: glTF's Y up (x, z, -y), then turned `yaw` about y."""
+    random = np.random.default_rng(5)
+    points = np.concatenate([random.random((count, 3)) * (np.array(high) - low) + low for low, high in boxes])
+    return fit.applied(fit.yawed(yaw), points[:, [0, 2, 1]] * [1, 1, -1])
+
+
 def shim():
     spec = importlib.util.spec_from_file_location("flash_attn_shim", HERE / "shim/flash_attn/__init__.py")
     module = importlib.util.module_from_spec(spec)
@@ -64,6 +93,15 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert abs(np.ptp(tall[:, 1]) - 1.8) < 1e-9 and abs(tall[:, 1].min()) < 1e-9
     sized = fit.applied(fit.size_matrix(made, (2.0, 0.5, 0.3)), made)  # wide, deep, tall: its longest side 2 m
     assert abs(np.ptp(sized, 0).max() - 2.0) < 1e-9 and abs(sized[:, 1].min()) < 1e-9
+    desk = [([-0.4, -0.9, 0.7], [0.4, 0.9, 0.76]), ([0.2, -0.9, 0.0], [0.4, -0.3, 0.7])]  # a top, drawers right front
+    sign = [([-0.5, -0.2, 0.0], [0.5, 0.2, 0.02]), ([-0.5, 0.2, 0.0], [-0.3, 0.3, 0.02])]  # flat, a tab back left
+    for boxes, turn, down in ((desk, 35.0, 15.0), (sign, 0.0, 90.0)):
+        truth = z_up_to_model(boxes, 0.0)
+        for yaw in (90.0, 180.0):  # TRELLIS.2's own headings
+            heading, how = fit.headed(z_up_to_model(boxes, yaw), drawn(boxes, turn, down), turn, down)
+            laid = fit.applied(heading, z_up_to_model(boxes, yaw))
+            assert not how["mirrored"] and (how["yaw"] + yaw) % 360 == 0 and np.allclose(np.sort(laid, 0),
+                                                                                          np.sort(truth, 0)), how
     from score.stages.place_build import maker
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
