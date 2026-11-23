@@ -158,9 +158,11 @@ def rendered(piece, material, path):
 def freed(materials):
     """A pair's materials and the pictures they loaded removed, so a long batch does not hold every set's maps."""
     for material in materials:
-        pictures = [node.image for node in material.node_tree.nodes if node.type == "TEX_IMAGE" and node.image]
+        # One picture can feed two nodes (a packed albedo's colour and its alpha): each removed once.
+        pictures = {node.image.name: node.image for node in material.node_tree.nodes
+                    if node.type == "TEX_IMAGE" and node.image}
         bpy.data.materials.remove(material)
-        for loaded in pictures:
+        for loaded in pictures.values():
             if not loaded.users:
                 bpy.data.images.remove(loaded)
 
