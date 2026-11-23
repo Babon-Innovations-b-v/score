@@ -1,0 +1,667 @@
+"""The prop benchmark's render and route runner (#163, design on #162): each NVIDIA SimReady asset of the set drawn
+as the prop route's close-up, then made again by today's two routes from that picture and its row alone, every
+step's output kept as a run-store object whose blobs go to the SCORE store bucket.
+
+    PROPS_HOME=~/.score-this-pc SCORE_CLOUD=local SCORE_FREE_ONLY=1 .venv/bin/python tools/props/bench/run/bench.py \
+        render <set.json> --library <scratch score_lib checkout> [--run <id>] [--only <id> ...]
+    ... bench.py route <set.json> --library <...> --run <id> --branch A|B [--only <id> ...]
+    ... bench.py index --run <id>        # the run's index stored as an object; its hash
+
+**The set** (data/checks/prop-bench-set.json, the truth step's): {"objects": [{"address", "kind", "split"}]} (or a
+list, or {"assets": [...]}; an "id" and "version" in place of the address, `simready_` added when missing).
+
+**The material class** both routes are given (sim.py's classes; `make --material`, the physics layer's sheet and
+density) is what a placing agent reads off the words: the first class a word of the entry's id names (CLASS_WORDS),
+else its kind's (KIND_CLASS); never the truth's own physics material.
+
+**The render** (free, this PC's card through the card queue: place_build/render.queued). The entry is fetched by
+score_lib's own command into job scratch (never the library's cache), its true box read by pxr (metres, Z up), and
+closeup.py draws it in the close-up style (tools/props/closeup: turned TURN_DEGREES, looking down LOOK_DOWN_DEGREES,
+straight above with its edges square to the frame for a row that lies flat, check.lies_flat), the whole box inside
+MARGIN of a SIZE px square frame at a vertical FOV, its materials by their own maps, under soft studio light. Kept:
+`closeup.png` (on the light grey BACKDROP with its caught shadow: Pixal3D's input, it cuts it out itself), `rgba.png`
+(the true alpha: the cut-out's truth and TRELLIS.2's input), `row.json` (what the route is given: the entry's words
+and its true size, wide deep tall) and Blender's `report.json`. A box Blender drew off the pxr box by more than
+BOX_TOLERANCE of its diagonal fails the render (a unit or up-axis slip).
+
+**The routes**, each step a kept output in order; a step that fails is the asset's gap on that branch, its reason
+kept, and the branch's later steps are not run for it (one try each: no step is run again inside a run).
+- A, the Pixal3D take route: `raw` (tools/cloud/batch.py through score/stages/props/pixal_row.run_batch, the take on
+  this PC's card under SCORE_CLOUD=local; its list line as pixal_row writes one, its faces place_route.faces_for),
+  `finished` (pixal.py --finish-only through pixal_row.finish_all, flat rows laid on their face), then the checks
+  on the finished model: `straight` (straight.py), `gate` (the model gate at the row's size) and `physics` (the
+  physics layer's rule for a made object: drawn area times its class's sheet and density, its collider the convex
+  hull). The finish route (views, list, split, parts, bake) and the solid copy cut to size are not run yet (NOT_RUN):
+  they are a place's surface line, and the list is a paid Gemini call.
+- B, place_build `make` (TRELLIS.2 on this PC's card), given the RGBA render, the row's size and `--no-take-in`, in a
+  scratch place folder: `raw` (trellis.glb), `final` (set at the size, its paint graded), `sim` (CoACD hulls and
+  mass), then `straight` and `gate` on the final model.
+Nothing is taken into score_lib, and the library read is a scratch checkout (--library), never the shared one.
+
+The run's index (<PROPS_HOME>/bench/<run>/index.json, rewritten whole after every step) names each output's hash; a
+step already in it is not run again, so a run stopped part way goes on where it stopped.
+"""
+import argparse
+import concurrent.futures
+import datetime
+import json
+import math
+import os
+import pathlib
+import shlex
+import shutil
+import subprocess
+import sys
+import threading
+import time
+
+import numpy as np
+
+HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[3]
+for _folder in ("tools/library", "tools/props", "tools/props/closeup", "tools/props/library", "tools/props/gates"):
+    sys.path.insert(0, str(REPO / _folder))
+sys.path.insert(0, str(REPO))
+
+import check  # noqa: E402  (tools/props/closeup: the close-up style)
+
+SCRIPT = HERE / "closeup.py"
+PLACE = "bench163"  # the benchmark's place name: its takes, its inventory's scene, its scratch place folder
+SIZE = 2048  # the close-up's pixels square (#162: Pro draws at 2K)
+FOV = 30.0  # vertical degrees, as tools/usd/compare.py draws
+MARGIN = 0.08  # the share of the half frame kept clear round the box
+SAMPLES = 128
+BACKDROP = (214, 214, 214)  # the light grey even backdrop
+BOX_TOLERANCE = 0.01
+CARD_GB = 6
+MEMORY_GB = 8
+RENDER_SECONDS = 1800
+RENDERS_AT_ONCE = 2  # close-ups drawn side by side (the card queue gives each its share; card_turn's two slots)
+NOT_RUN = {"finish-route": "a place's surface line (views, list, split, parts, bake); its list is a paid Gemini call",
+           "solid": "the bake's solid copy cut to size runs inside the finish route's bake"}
+
+
+# A word of an entry's id that names its material class (at a word start), first match wins.
+CLASS_WORDS = (("wood", "wood"), ("plywood", "wood"), ("cardboard", "paper"), ("paper", "paper"), ("fabric", "fabric"),
+               ("textile", "fabric"), ("rug", "fabric"), ("rubber", "rubber"), ("hose", "rubber"),
+               ("glass", "glass"), ("mirror", "glass"), ("plastic", "plastic"), ("fiberglass", "plastic"),
+               ("steel", "steel"), ("aluminium", "steel"), ("metal", "steel"))
+# Each kind's class when no word names one: what most of its things are made of.
+KIND_CLASS = {"box": "paper", "crate": "plastic", "shelf / rack": "steel", "cabinet / locker": "steel",
+              "desk / table / bench": "wood", "chair / stool": "plastic", "monitor / keyboard": "plastic",
+              "lamp body": "steel", "bin": "plastic", "ladder": "steel", "sign (flat)": "plastic",
+              "toolbox / tool cart": "steel", "fridge / stove / sink": "steel", "hose / pipe (slender)": "rubber",
+              "tray (flat)": "plastic", "overlap": "plastic"}
+
+
+class StepFailed(RuntimeError):
+    """A step that made nothing it could keep: the asset's gap on its branch."""
+
+
+# --- the set and the row ---------------------------------------------------------------------------------------------
+
+def read_set(path):
+    """The set's rows, each with its address."""
+    found = json.loads(pathlib.Path(path).read_text())
+    rows = (found.get("objects") or found.get("assets")) if isinstance(found, dict) else found
+    listed = []
+    for row in rows:
+        if "address" not in row:
+            entry = row["id"] if row["id"].startswith("simready_") else f"simready_{row['id']}"
+            row = {**row, "address": f"model/{entry}@{row['version']}"}
+        listed.append({**row, "id": row["address"].split("/", 1)[1].split("@")[0]})
+    return listed
+
+
+def size_of(low, high, up_axis):
+    """(wide, deep, tall) metres of a box in its stage's axes."""
+    sides = [float(high[axis] - low[axis]) for axis in range(3)]
+    return [sides[0], sides[2], sides[1]] if up_axis.upper() == "Y" else sides
+
+
+def material_for(row):
+    """The material class the routes are given for a set row (module docstring): the set's own `material` when it
+    names one, else the first CLASS_WORDS word at a word start of its id, else its kind's KIND_CLASS."""
+    if row.get("material"):
+        return row["material"]
+    words = row["id"].removeprefix("simready_").split("_")
+    for word, material in CLASS_WORDS:
+        if any(part.startswith(word) for part in words):
+            return material
+    return KIND_CLASS.get(row.get("kind"), "plastic")
+
+
+def words_of(record):
+    """What the route is told the object is: the entry's title and its description."""
+    return " ".join([record.get("title", ""), *record.get("tags", {}).get("description", [])]).strip()
+
+
+# --- the framing -----------------------------------------------------------------------------------------------------
+
+def view_of(low, high, size):
+    """The close-up's camera on a Z-up box: turned TURN_DEGREES from its front (-y) about z and looking down
+    LOOK_DOWN_DEGREES, or straight down with +y up for a row that lies flat; at the least distance that holds every
+    corner inside MARGIN of the square frame. {"eye", "aim", "up", "fov"}."""
+    low, high = np.asarray(low, float), np.asarray(high, float)
+    centre = (low + high) / 2
+    down = math.radians(check.look_down(size))
+    turn = 0.0 if check.lies_flat(size) else math.radians(check.TURN_DEGREES)
+    back = np.array([math.sin(turn) * math.cos(down), -math.cos(turn) * math.cos(down), math.sin(down)])
+    up = np.array([0.0, 1.0, 0.0]) if check.lies_flat(size) else np.array([0.0, 0.0, 1.0])
+    right = np.cross(up, back)
+    right /= np.linalg.norm(right)
+    true_up = np.cross(back, right)
+    reach = math.tan(math.radians(FOV) / 2) * (1 - MARGIN)
+    corners = np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    offsets = corners - centre
+    distance = max(max(abs(offset @ right), abs(offset @ true_up)) / reach + offset @ back for offset in offsets)
+    return {"eye": (centre + back * distance).tolist(), "aim": centre.tolist(), "up": up.tolist(), "fov": FOV}
+
+
+# --- the render ------------------------------------------------------------------------------------------------------
+
+def library_values(library):
+    """The library's settings for its own command, its root the scratch checkout; refused for the shared checkout."""
+    import library_files
+    library = pathlib.Path(library).resolve()
+    shared = library_files.default_root()
+    if shared is not None and library == pathlib.Path(shared).resolve():
+        raise SystemExit(f"{library} is the shared score_lib checkout: give a scratch one (git worktree add --detach)")
+    if not (library / "entries").is_dir():
+        raise SystemExit(f"{library}: no score_lib checkout")
+    values = {**library_files.defaults(), **os.environ, "SCORE_LIB_ROOT": str(library)}
+    return library_files.blob_store(values)
+
+
+def fetched(address, values, into):
+    """The entry fetched by the library's own command into `into` (job scratch); its record and its root USD."""
+    import library_files
+    words = shlex.split(values.get("SCORE_LIB_COMMAND") or library_files.DEFAULT_COMMAND) + [
+        "--root", values["SCORE_LIB_ROOT"], "fetch", address, "--into", str(into)]
+    done = subprocess.run(words, env=values, cwd=values["SCORE_LIB_ROOT"], capture_output=True, text=True,
+                          timeout=library_files.TIMEOUT)
+    if done.returncode:
+        raise StepFailed(f"score-lib fetch {address} exited {done.returncode}: {done.stderr.strip()[-300:]}")
+    kind, rest = address.split("/", 1)
+    entry, version = rest.split("@")
+    record = json.loads((pathlib.Path(values["SCORE_LIB_ROOT"]) / "entries" / kind / entry / version /
+                         "entry.json").read_text())
+    return record, pathlib.Path(into) / "score_lib" / kind / entry / version / record["usd"]["root"]
+
+
+def true_box(root):
+    """The asset's drawn box (render and default purposes) in metres, in its stage's axes; and its up axis."""
+    from pxr import Usd, UsdGeom
+    stage = Usd.Stage.Open(str(root))
+    metres = UsdGeom.GetStageMetersPerUnit(stage)
+    found = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
+        stage.GetPseudoRoot()).ComputeAlignedRange()
+    return ([value * metres for value in found.GetMin()], [value * metres for value in found.GetMax()],
+            str(UsdGeom.GetStageUpAxis(stage)))
+
+
+def blender_box(low, high, up_axis):
+    """The box as Blender's importer lays it: a Y-up stage turned onto Z up, (x, y, z) -> (x, -z, y)."""
+    if up_axis.upper() != "Y":
+        return list(low), list(high)
+    return [low[0], -high[2], low[1]], [high[0], -low[2], high[1]]
+
+
+def queued_blender(job_name, arguments, log):
+    """closeup.py run on this PC's card through the card queue (place_build/render.queued); its exit."""
+    from score.stages.place_build import render
+    command = render.queued(job_name, SCRIPT, arguments, seconds=RENDER_SECONDS, card_gb=str(CARD_GB),
+                            memory_gb=MEMORY_GB)
+    with open(log, "w") as out:
+        return subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, cwd=REPO).returncode
+
+
+def on_backdrop(shadow, out):
+    """The render with its caught shadow laid on the light grey BACKDROP (its alpha over it), opaque RGB."""
+    from PIL import Image
+    pixels = np.asarray(Image.open(shadow).convert("RGBA"), dtype=np.float64) / 255
+    alpha = pixels[..., 3:]
+    laid = pixels[..., :3] * alpha + np.array(BACKDROP) / 255 * (1 - alpha)
+    Image.fromarray(np.round(laid * 255).astype(np.uint8), "RGB").save(out)
+
+
+def render_asset(row, values, scratch, out, draw=queued_blender):
+    """One asset drawn as its close-up into `out` (module docstring); its row."""
+    scratch.mkdir(parents=True, exist_ok=True)
+    record, root = fetched(row["address"], values, scratch / "entry")
+    low, high, up_axis = true_box(root)
+    low, high = blender_box(low, high, up_axis)
+    size = size_of(low, high, "Z")
+    job = {"size": SIZE, "samples": SAMPLES, "camera": view_of(low, high, size), "floor": low[2]}
+    (scratch / "job.json").write_text(json.dumps(job, indent=1))
+    code = draw(f"bench-{row['id']}", [str(root), str(scratch / "job.json"), str(scratch / "drawn")],
+                scratch / "blender.log")
+    drawn = scratch / "drawn"
+    if code or not (drawn / "rgba.png").is_file() or not (drawn / "shadow.png").is_file():
+        lines = (scratch / "blender.log").read_text(errors="replace").splitlines() \
+            if (scratch / "blender.log").is_file() else []
+        said = [line for line in lines if "Error" in line or "error:" in line] or lines[-6:]
+        raise StepFailed(f"the close-up render exited {code}: {' | '.join(said[-6:])}")
+    report = json.loads((drawn / "report.json").read_text())
+    diagonal = float(np.linalg.norm(np.subtract(high, low)))
+    slip = float(np.abs(np.subtract(report["box"], [low, high])).max())
+    if slip > BOX_TOLERANCE * diagonal:
+        raise StepFailed(f"Blender drew the box {report['box']}, the true box is {[low, high]}: off {slip:.4f} m")
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(drawn / "rgba.png", out / "rgba.png")
+    on_backdrop(drawn / "shadow.png", out / "closeup.png")
+    shutil.copyfile(drawn / "report.json", out / "report.json")
+    given = {"id": row["id"], "address": row["address"], "words": words_of(record),
+             "size": [round(side, 4) for side in size], "lies_flat": check.lies_flat(size), "camera": job["camera"]}
+    (out / "row.json").write_text(json.dumps(given, indent=1))
+    return given
+
+
+# --- keeping outputs -------------------------------------------------------------------------------------------------
+
+class Kept:
+    """The run's outputs: each step's folder put in the run store, its blobs sent to the store bucket at once, and the
+    run's index (its path) naming each by hash."""
+
+    def __init__(self, store, bucket, index):
+        self.store, self.bucket, self.index_path = store, bucket, pathlib.Path(index)
+        self.index = json.loads(self.index_path.read_text()) if self.index_path.is_file() else {"assets": {}}
+        self.lock = threading.Lock()
+
+    def entry(self, asset, branch, step):
+        return self.index["assets"].get(asset, {}).get(branch, {}).get(step)
+
+    def write(self, asset, branch, step, entry):
+        with self.lock:  # steps of several assets side by side
+            self.index["assets"].setdefault(asset, {}).setdefault(branch, {})[step] = entry
+            partial = self.index_path.with_name(self.index_path.name + ".partial")
+            partial.write_text(json.dumps(self.index, indent=1, sort_keys=True))
+            partial.replace(self.index_path)
+
+    def keep(self, asset, branch, step, folder, seconds):
+        """The step's folder stored, its blobs in the bucket; its output's hash."""
+        from score.store import offload
+        output = self.store.put_tree(folder)
+        for sha in sorted(set(self.store.listing(output).values())):
+            offload.push(self.store.objects.path(f"blobs/{sha}"), sha, self.bucket)
+        self.write(asset, branch, step, {"output": output, "seconds": round(seconds, 1)})
+        return output
+
+    def gap(self, asset, branch, step, why):
+        self.write(asset, branch, step, {"gap": str(why)[-1500:]})
+
+
+def run_steps(kept, asset, branch, steps, scratch):
+    """Each (step, make) in order for one asset on one branch, `make(folder)` writing the step's files into a fresh
+    folder of job scratch; the first that fails is the branch's gap, the ones after it not run. A step the index
+    already holds is not run again."""
+    for step, make in steps:
+        found = kept.entry(asset, branch, step)
+        if found and "gap" in found:
+            return
+        if found:
+            continue
+        folder = scratch / branch / step
+        shutil.rmtree(folder, ignore_errors=True)
+        folder.mkdir(parents=True)
+        began = time.time()
+        try:
+            make(folder)
+            if not any(path.is_file() for path in folder.rglob("*")):
+                raise StepFailed("the step wrote nothing")
+        except (Exception, SystemExit) as why:  # the step's gap, its reason kept: never run again in the run
+            kept.gap(asset, branch, step, f"{type(why).__name__}: {why}")
+            return
+        kept.keep(asset, branch, step, folder, time.time() - began)
+
+
+def checked_out(kept, asset, branch, step, into):
+    """A kept step's folder read back from the store into `into`."""
+    found = kept.entry(asset, branch, step)
+    if not found or "output" not in found:
+        raise StepFailed(f"{asset}: no {branch} {step} kept")
+    source = kept.store.checkout(found["output"])
+    shutil.copytree(source, into, dirs_exist_ok=True)
+    return into
+
+
+# --- the checks every branch's model takes ---------------------------------------------------------------------------
+
+def mesh_of(path):
+    """A model's mesh as the model gate reads one (gates/model.raw_model): one mesh, its vertices welded across UV
+    seams. Unwelded, a made model's seams split it into thousands of pieces and the gate's piece count took 40 GB on
+    TRELLIS.2's crate (2026-11-23)."""
+    import trimesh
+    mesh = trimesh.load(str(path), force="mesh", skip_materials=True)
+    mesh.merge_vertices(merge_tex=True, merge_norm=True)
+    return mesh
+
+
+def straight_step(model):
+    def make(folder):
+        import straight
+        (folder / "straight.json").write_text(json.dumps(straight.straightness(mesh_of(model)), indent=1))
+    return make
+
+
+def gate_step(model, row):
+    """The model gate at the row's size (its frame y up: wide, tall, deep)."""
+    def make(folder):
+        import model as model_gate
+        wide, deep, tall = row["size"]
+        found = model_gate.check(row["id"], mesh_of(model), [wide, tall, deep])
+        (folder / "gate.json").write_text(json.dumps(found, indent=1))
+    return make
+
+
+def physics_step(model, row, material):
+    """The physics layer's rule for a made object (tools/usd/physics.py write_masses): the drawn area times its class's
+    sheet and density; its collider the convex hull (the export's hull guide)."""
+    def make(folder):
+        from score.stages.place_build.maker import sim
+        spec = sim.material(material)
+        mesh = mesh_of(model)
+        hull = mesh.convex_hull
+        hull.export(str(folder / "hull.glb"))
+        found = {"material": material, "area_m2": round(float(mesh.area), 5),
+                 "mass_kg": round(float(mesh.area * spec["sheet"] * spec["density"]), 4) if spec["sheet"] else None,
+                 "hull_m3": round(float(hull.volume), 6), "static": spec["static"], "dynamic": spec["dynamic"],
+                 "restitution": spec["restitution"]}
+        (folder / "physics.json").write_text(json.dumps(found, indent=1))
+    return make
+
+
+# --- branch A: the Pixal3D take route --------------------------------------------------------------------------------
+
+def take_of(asset):
+    return f"{PLACE}-{asset}"
+
+
+def faces_of(row):
+    """The triangles the route cuts this row's model to (place_route.faces_for at its kit size)."""
+    import place_route
+    return place_route.faces_for(row["id"], place_route.kit_size(row["size"]))
+
+
+def inventory_for(rows, run_folder):
+    """The benchmark's inventory batch.py builds from: one generate row a set asset, its true size; approved as the
+    owner's benchmark set (#163, the design he resolved on #162)."""
+    path = run_folder / f"{PLACE}.json"
+    found = {"scene": PLACE, "place": PLACE, "plan": {"views": [{"id": "render", "picture": "the set's close-ups"}]},
+             "approved": "2026-11-23, the prop benchmark's set: #163 (design #162)", "migrated": "",
+             "room": {"shell": "", "light": "", "backdrop": "", "wall_fill": []},
+             "rows": [{"id": row["id"], "view": "render", "box": None, "unseen": "a benchmark asset, drawn alone",
+                       "name": row["words"][:80] or row["id"], "kind": "generate", "anchor": "floor",
+                       "size": row["size"], "count": 1, "thing": f"prop:{row['id']}"} for row in rows]}
+    path.write_text(json.dumps(found, indent=1))
+    return path
+
+
+def batch_made(rows, closeups, inventory, logs):
+    """Every take with no raw model made in one tools/cloud/batch.py call (pixal_row.run_batch: the card filled as its
+    capacity says, never one take after another); the reason when the call failed as a whole, else None."""
+    from score.stages.props import pixal_row
+    lines = [f"{take_of(row['id'])} {closeups[row['id']]} --faces {faces_of(row)} "
+             f"--seed {pixal_row.seed_of(take_of(row['id']))}"
+             for row in rows if not pixal_row.raw_made(take_of(row["id"]))]
+    if not lines:
+        return None
+    (logs / "list.txt").write_text("\n".join(lines) + "\n")
+    try:
+        pixal_row.run_batch(logs / "list.txt", PLACE, inventory, logs)
+    except RuntimeError as why:
+        return str(why)
+    return None
+
+
+def finishes_made(rows, closeups, logs):
+    """Every raw take with no finish finished in one call (pixal_row.finish_all: pixal.py --finish-only, its jobs side
+    by side); the reason when the call failed as a whole, else None."""
+    from score.stages.props import pixal_row
+    jobs = [pixal_row.finish_job(take_of(row["id"]), closeups[row["id"]], faces_of(row), row["lies_flat"])
+            for row in rows if pixal_row.raw_made(take_of(row["id"]))
+            and not pixal_row.finished(take_of(row["id"]), faces_of(row))]
+    if not jobs:
+        return None
+    try:
+        pixal_row.finish_all(jobs, PLACE, logs)
+    except RuntimeError as why:
+        return str(why)
+    return None
+
+
+def raw_take(row, failed):
+    def make(folder):
+        from score.stages.props import pixal_row
+        take = take_of(row["id"])
+        if not pixal_row.raw_made(take):
+            raise StepFailed(failed or f"Pixal3D brought no raw model back for {take} (the run's batch.log)")
+        raw, _, views = pixal_row.take_files(take)
+        shutil.copyfile(raw, folder / "raw.glb")
+        shutil.copytree(views, folder / "raw.svviews")
+    return make
+
+
+def finished_take(row, failed):
+    def make(folder):
+        from score.stages.props import pixal_row
+        take, faces = take_of(row["id"]), faces_of(row)
+        if not pixal_row.finished(take, faces):
+            raise StepFailed(failed or f"the finish brought no model back for {take} (the run's finish.log)")
+        shutil.copyfile(pixal_row.take_files(take)[1], folder / "final.glb")
+        shutil.copyfile(pixal_row.slimmed(take, faces), folder / f"finished-{faces}.glb")
+    return make
+
+
+def kept_output(kept, asset, branch, step):
+    return "output" in (kept.entry(asset, branch, step) or {})
+
+
+def branch_a(kept, rows, closeups, material, inventory, scratch, logs):
+    """The Pixal3D take route for every asset (module docstring): the takes in one batch, the finishes in one call,
+    each asset's steps kept in order, its take's files then cleared from WORK."""
+    waiting = [row for row in rows if not kept.entry(row["id"], "A", "raw")]
+    failed = batch_made(waiting, closeups, inventory, logs) if waiting else None
+    for row in waiting:
+        run_steps(kept, row["id"], "A", [("raw", raw_take(row, failed))], scratch[row["id"]])
+    unfinished = [row for row in rows if kept_output(kept, row["id"], "A", "raw")
+                  and not kept.entry(row["id"], "A", "finished")]
+    for row in unfinished:  # a raw take kept by an earlier invocation is put back where the finish reads it
+        restored_take(kept, row, scratch[row["id"]])
+    failed = finishes_made(unfinished, closeups, logs) if unfinished else None
+    for row in rows:
+        asset = row["id"]
+        run_steps(kept, asset, "A", [("finished", finished_take(row, failed))], scratch[asset])
+        if kept_output(kept, asset, "A", "finished"):
+            model = checked_out(kept, asset, "A", "finished", scratch[asset] / "A" / "kept-final") / "final.glb"
+            run_steps(kept, asset, "A", [("straight", straight_step(model)), ("gate", gate_step(model, row)),
+                                         ("physics", physics_step(model, row, material[asset]))], scratch[asset])
+        for step, why in NOT_RUN.items():
+            if not kept.entry(asset, "A", step):
+                kept.gap(asset, "A", step, f"not run yet: {why}")
+        cleared_take(take_of(asset), faces_of(row))
+
+
+def restored_take(kept, row, scratch):
+    """A kept raw take's model and camera folder put back into WORK/pixal when they are not there."""
+    from score.stages.props import pixal_row
+    take = take_of(row["id"])
+    if pixal_row.raw_made(take):
+        return
+    folder = checked_out(kept, row["id"], "A", "raw", scratch / "A" / "kept-raw")
+    raw, _, views = pixal_row.take_files(take)
+    shutil.copyfile(folder / "raw.glb", raw)
+    shutil.copytree(folder / "raw.svviews", views, dirs_exist_ok=True)
+
+
+def cleared_take(take, faces):
+    """A benchmark take's files removed from WORK/pixal once kept (job scratch: the store holds them)."""
+    from score.stages.props import pixal_row
+    raw, final, views = pixal_row.take_files(take)
+    for path in (raw, final, pixal_row.slimmed(take, faces)):
+        path.unlink(missing_ok=True)
+    shutil.rmtree(views, ignore_errors=True)
+    shutil.rmtree(raw.with_name(f"{take}-{faces}"), ignore_errors=True)
+
+
+# --- branch B: place_build make --------------------------------------------------------------------------------------
+
+def scratch_place(scratch):
+    """A place folder of the benchmark's own in job scratch: its record and no palette (nothing graded toward one)."""
+    folder = scratch / "place"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "place.json").write_text(json.dumps({"place": PLACE}, indent=1))
+    return folder
+
+
+def made_steps(row, rgba, material, place):
+    """`make` (TRELLIS.2, set at the row's size, sim-ready, nothing taken in) with its files split into the raw, final
+    and sim steps; a raw model kept by an earlier invocation is put back where make reads it, so TRELLIS.2 runs once."""
+    from score.stages.place_build import maker
+    work = place / "made" / maker.entry_id(row["id"], PLACE)
+
+    def made():
+        if not (work / f"{work.name}.json").is_file():
+            maker.make(place, row["id"], str(rgba), material, size=row["size"], take_in=False)
+        return work
+
+    def raw(folder):
+        shutil.copyfile(made() / "trellis.glb", folder / "raw.glb")
+        shutil.copyfile(work / "trellis.json", folder / "trellis.json")
+
+    def final(folder):
+        shutil.copyfile(made() / f"{work.name}-final.glb", folder / "final.glb")
+
+    def sim(folder):
+        shutil.copyfile(made() / f"{work.name}-hulls.glb", folder / "hulls.glb")
+        shutil.copyfile(work / f"{work.name}.json", folder / "made.json")
+    return work, [("raw", raw), ("final", final), ("sim", sim)]
+
+
+def branch_b(kept, row, material, rgba, scratch):
+    """place_build make's steps for one asset, then the checks on its final model."""
+    work, steps = made_steps(row, rgba, material, scratch_place(scratch))
+    if kept_output(kept, row["id"], "B", "raw"):
+        folder = checked_out(kept, row["id"], "B", "raw", scratch / "B" / "kept-raw")
+        work.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(folder / "raw.glb", work / "trellis.glb")
+        shutil.copyfile(folder / "trellis.json", work / "trellis.json")
+    run_steps(kept, row["id"], "B", steps, scratch)
+    if kept_output(kept, row["id"], "B", "final"):
+        model = checked_out(kept, row["id"], "B", "final", scratch / "B" / "kept-final") / "final.glb"
+        run_steps(kept, row["id"], "B", [("straight", straight_step(model)), ("gate", gate_step(model, row))],
+                  scratch)
+
+
+# --- the commands ----------------------------------------------------------------------------------------------------
+
+def props_home():
+    return pathlib.Path(os.environ.get("PROPS_HOME") or pathlib.Path.home() / ".score-this-pc")
+
+
+def run_folder(run):
+    folder = props_home() / "bench" / run
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def job_scratch(run, asset):
+    """This asset's job scratch, emptied when its job ends."""
+    folder = props_home() / "tmp" / f"{PLACE}-{run}" / asset
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    return folder
+
+
+def opened_kept(run):
+    from score.store import Store, offload
+    offload.install()
+    return Kept(Store.default(), offload.open_bucket(), run_folder(run) / "index.json")
+
+
+def chosen(rows, only):
+    return [row for row in rows if not only or row["id"] in only or row["id"].removeprefix("simready_") in only]
+
+
+def render_one(row, values, kept, run, draw=queued_blender):
+    """One asset's close-up kept as its `render` step (branch "input"), its scratch emptied after."""
+    scratch = job_scratch(run, row["id"])
+    try:
+        run_steps(kept, row["id"], "input", [("render", lambda folder: render_asset(row, values, scratch / "work",
+                                                                                     folder, draw))], scratch)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def render_all(rows, values, kept, run, draw=queued_blender):
+    """Every asset's close-up, RENDERS_AT_ONCE side by side."""
+    with concurrent.futures.ThreadPoolExecutor(RENDERS_AT_ONCE) as pool:
+        for done in [pool.submit(render_one, row, values, kept, run, draw) for row in rows]:
+            done.result()
+
+
+def given_row(kept, asset, scratch):
+    """The asset's kept close-up folder (closeup.png, rgba.png, row.json) read back into scratch; its row."""
+    folder = checked_out(kept, asset, "input", "render", scratch / "input")
+    return json.loads((folder / "row.json").read_text()), folder
+
+
+def route_all(rows, kept, run, branch):
+    """Each asset made again by one branch from its kept close-up and row alone."""
+    if os.environ.get("SCORE_CLOUD") != "local":
+        raise SystemExit("the benchmark's routes run on this PC's card only: set SCORE_CLOUD=local and "
+                         "SCORE_FREE_ONLY=1")
+    rendered = [row for row in rows if kept_output(kept, row["id"], "input", "render")]
+    scratch = {row["id"]: job_scratch(run, f"{row['id']}-{branch}") for row in rendered}
+    try:
+        given = {row["id"]: given_row(kept, row["id"], scratch[row["id"]]) for row in rendered}
+        found = [given[row["id"]][0] for row in rendered]
+        material = {row["id"]: material_for(row) for row in rendered}
+        if branch == "A":
+            closeups = {asset: folder / "closeup.png" for asset, (_, folder) in given.items()}
+            branch_a(kept, found, closeups, material, inventory_for(found, run_folder(run)), scratch, run_folder(run))
+        else:
+            for row in found:
+                branch_b(kept, row, material[row["id"]], given[row["id"]][1] / "rgba.png", scratch[row["id"]])
+    finally:
+        shutil.rmtree(props_home() / "tmp" / f"{PLACE}-{run}", ignore_errors=True)
+
+
+def stored_index(kept):
+    """The run's folder (its index, its inventory, the batch's list and logs) stored as an object, its blobs in the
+    bucket; its hash."""
+    output = kept.store.put_tree(kept.index_path.parent)
+    from score.store import offload
+    for sha in set(kept.store.listing(output).values()):
+        offload.push(kept.store.objects.path(f"blobs/{sha}"), sha, kept.bucket)
+    return output
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("command", choices=("render", "route", "index"))
+    parser.add_argument("set", nargs="?")
+    parser.add_argument("--library", help="a scratch score_lib checkout (git worktree add --detach)")
+    parser.add_argument("--run", default=datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S"))
+    parser.add_argument("--branch", choices=("A", "B"))
+    parser.add_argument("--only", action="append", help="this asset's id alone (repeat)")
+    options = parser.parse_args()
+    kept = opened_kept(options.run)
+    if options.command != "index":
+        if not options.set or not options.library:
+            raise SystemExit("render and route need the set file and --library")
+        values = library_values(options.library)
+        os.environ["SCORE_LIB_ROOT"] = values["SCORE_LIB_ROOT"]  # every library read of the steps: the scratch one
+        rows = chosen(read_set(options.set), options.only)
+        kept.index.setdefault("set", str(options.set))
+        if options.command == "render":
+            render_all(rows, values, kept, options.run)
+        elif not options.branch:
+            raise SystemExit("route needs --branch A or B")
+        else:
+            route_all(rows, kept, options.run, options.branch)
+    print(json.dumps({"run": options.run, "index": str(kept.index_path), "stored": stored_index(kept)}))
+
+
+if __name__ == "__main__":
+    main()
