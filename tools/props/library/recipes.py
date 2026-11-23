@@ -108,9 +108,19 @@ def paint_relief(vector, bump, bump_size):
                  globule_height=0.0).displacement
 
 
+# infinigen2's metal_brushed draws its streaks' noise at 1000 a unit of its brush_size and displaces by
+# brush_size * height_scale * 0.0001: the units brushed_relief turns its metres into.
+BRUSH_NOISE_SCALE = 1000.0
+BRUSH_HEIGHT_UNIT = 0.0001
+
+
 def brushed_relief(vector, bump, bump_size):
-    """Bare steel's brushing streaks, from infinigen2's metal_brushed."""
-    return metal_brushed(vector=vector, brush_size=bump_size, height_scale=bump).displacement
+    """Bare steel's brushing streaks, from infinigen2's metal_brushed: streaks `bump_size` metres across, `bump`
+    metres high (passed as its own brush_size and height_scale, a fitted 5 cm, 0.3 mm relief was drawn 50 micrometres
+    across and 1e-8 m high, flat at any render, #155)."""
+    brush_size = bump_size * BRUSH_NOISE_SCALE
+    return metal_brushed(vector=vector, brush_size=brush_size,
+                         height_scale=bump / (brush_size * BRUSH_HEIGHT_UNIT)).displacement
 
 
 def cloth_relief(vector, thread, bump):
