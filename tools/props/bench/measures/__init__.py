@@ -3,6 +3,8 @@ asset it was made from, every measure a plain number, each judged at its bar.
 
     measured(truth, made, others=(), input_view=None) -> {"alignment", "size", "shape", "clean", "truth_clean",
                                                           "finish", "physics"}
+                                                          ("finish" also how cleanly the finishes meet, _edges:
+                                                          edge_density, edge_wander, specks, speck_share)
     laid_like(other, truth)                           -> another asset scaled to the truth's longest side
     by_finish(truth)                                  -> its face_material by finish (surface), not material prim
     twin(other, truth)                                -> whether another asset is the truth's geometry recoloured
@@ -28,7 +30,7 @@ import numpy as np
 
 import score.stages.props.prop_data as prop_data
 
-from . import _align, _clean, _finish, _mesh, _physics, _shape
+from . import _align, _clean, _edges, _finish, _mesh, _physics, _shape
 
 finish_likeness = _finish.finish_likeness
 rested = _physics.rested
@@ -61,6 +63,17 @@ BARS = (
     ("finish", "held_least", "least", 0.50),
     ("finish", "purity", "least", 0.85),
     ("finish", "parts_per_material", "most", 2.0),
+    # How cleanly the finishes meet (_edges, #179; owner 2026-11-23: tc3s's "table and toaster mesh became messy
+    # compared to run 1"). The tune split's 54 truths (read by finish): 9 share a finish edge at all, their wander
+    # 0.00063 at most (rack_composition_l08), 0 specks on every one. tc3s's six made models: wander 0.00072 (printer
+    # box) to 0.0093 (desk, rack), toaster 0.0014; specks 0 to 870 (desk), toaster 21 (share 0.00052). The same six
+    # cut cleanly along a plane instead (run 1's smooth line): wander 0.00087 at most (the rack: a plane grazing its
+    # wires), 0 to 4 specks, share 0.00008 at most. Density: the six made 0.08 to 1.1 times their truths', the test box
+    # given a finish per triangle at random 50 times.
+    ("finish", "edge_density", "times_truth_most", 2.0),
+    ("finish", "edge_wander", "most", 0.001),
+    ("finish", "specks", "most", 8),
+    ("finish", "speck_share", "most", 0.0002),
     ("finish", "colour", "least", 0.90),
     ("finish", "metal", "least", 0.90),
     ("finish", "roughness", "least", 0.90),
@@ -154,6 +167,18 @@ def twin(other, truth):
     return len(other["faces"]) == len(truth["faces"]) and bool(np.allclose(sides[0], sides[1], atol=TWIN_REACH))
 
 
+def seen_finishes(made):
+    """Each made face's finish as it is seen: its part, parts given one library surface in one look (`surfaces` and
+    `looks`, the route's, where the side has them) one finish, since nothing shows where they meet."""
+    parts = np.asarray(made["face_material"])
+    if made.get("surfaces") is None:
+        return parts
+    seen = {}
+    named = {part: seen.setdefault((made["surfaces"].get(part), repr((made.get("looks") or {}).get(part))), len(seen))
+             for part in np.unique(parts).tolist()}
+    return np.array([named[part] for part in parts.tolist()])
+
+
 def measured(truth, made, others=(), input_view=None):
     """Every measure of one made model against its truth (the module docstring); the kind's `others` are laid like
     the truth (laid_like) before the rank, its twins (twin) left out."""
@@ -176,6 +201,8 @@ def measured(truth, made, others=(), input_view=None):
     if made.get("face_material") is not None:
         nearest = _finish.carried(truth, placed, made["faces"])
         found["finish"] = _finish.finish_split(truth, placed, made["faces"], made["face_material"], nearest)
+        found["finish"].update(_edges.finish_edges(placed, made["faces"], seen_finishes(made)))
+        found["truth_clean"].update(_edges.finish_edges(truth["vertices"], truth["faces"], truth["face_material"]))
         if made.get("looks") is not None and truth.get("face_look") is not None:
             found["finish"].update(_finish.finish_look(truth, placed, made["faces"], made["face_material"], nearest,
                                                        made["looks"]))

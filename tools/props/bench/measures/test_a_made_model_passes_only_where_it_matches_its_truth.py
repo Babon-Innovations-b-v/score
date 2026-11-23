@@ -23,6 +23,18 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - __init__.by_finish reading a surface painted for one model as one finish: one part for its two names passes.
 - _finish.finish_split counting every part, however small: the three slivers make five parts for two finishes.
 - _finish.finish_split holding a finish whatever its parts' purity: one part for two materials passes.
+- _edges.wander returning 0: the slant given triangle by triangle passes its wander.
+- __init__.seen_finishes keeping the parts: the slant between two parts in one surface and look fails its wander
+  (nothing shows where they meet).
+- _edges.fitted keeping only the fit about each point: the square label cut cleanly fails its wander (its corners, as
+  NVIDIA's labels and carton flaps have).
+- _edges.wander measuring the whole distance, not across the edge within its faces: the slant cut cleanly fails (the
+  bumps of the surface under it are no wander).
+- _edges.islands counting an island that meets no other finish: the 6 cm sticker's model fails its speck share (its
+  1 cm block modelled apart reads as a speck).
+- _edges.finish_edges dropping SPECK_TRIANGLES: the 6 cm sticker on a model 6 m across (NVIDIA's rack composition:
+  0.5 to 33 cm2 stickers on 4.3 m) fails its speck share.
+- _edges.density counting every point as at an edge: a finish per triangle at random passes its density.
 - _physics.overhang reading the distance from inside the hull: the hull grown 3 cm passes its overhang.
 - _physics.overhang measuring off the drawn mesh instead of its outline (its convex hull): the open box under its
   own hull, as NVIDIA's crates are, fails its overhang.
@@ -113,6 +125,81 @@ def with_slivers():
 def made(mesh, **given):
     """The made side's measures against TRUTH, the kind's others ranked."""
     return measures.measured(TRUTH, side(mesh, given.pop("material", top_material(mesh)), **given), others=OTHERS)
+
+
+@functools.cache
+def uneven():
+    """The box cut into 12288 uneven triangles on a bumpy surface as TRELLIS.2 cuts a model (each corner inside a face
+    moved up to a fifth of a step within it and a tenth of one out of it), standing as the truth."""
+    mesh = trimesh.creation.box(SIDES)
+    for _ in range(5):
+        mesh = mesh.subdivide()
+    mesh.merge_vertices()
+    half = np.array(SIDES) / 2
+    free = ~np.isclose(np.abs(mesh.vertices), half)
+    inside = free.sum(1, keepdims=True) == 2
+    shift = np.random.default_rng(5).uniform(-0.2, 0.2, mesh.vertices.shape) * np.array(SIDES) / 2 ** 5
+    shift = np.where(free, shift, shift / 2)
+    return standing(trimesh.Trimesh(mesh.vertices + np.where(inside, shift, 0), mesh.faces, process=False))
+
+
+def cut_along(mesh, planes):
+    """The mesh with its triangles cut along each plane (normal, point), so no face crosses one."""
+    for normal, point in planes:
+        halves = [trimesh.intersections.slice_faces_plane(mesh.vertices, mesh.faces, sign * np.asarray(normal, float),
+                                                         point)[:2] for sign in (1, -1)]
+        mesh = trimesh.util.concatenate([trimesh.Trimesh(*half, process=False) for half in halves])
+        mesh.merge_vertices()
+    return mesh
+
+
+def slant(mesh):
+    """Whether each face's middle is above the slanted plane z = 0.3 + 0.3 x."""
+    middle = mesh.triangles_center
+    return (middle[:, 2] > 0.3 + 0.3 * middle[:, 0]).astype(int)
+
+
+@functools.cache
+def cut_cleanly():
+    """The uneven box cut along the slanted plane through its triangles (run 1's smooth line), each side its finish."""
+    mesh = cut_along(uneven(), [((-0.3, 0, 1), (0, 0, 0.3))])
+    return mesh, slant(mesh)
+
+
+@functools.cache
+def labelled():
+    """The uneven box with an 8 x 8 cm label cut cleanly into its front, a finish of its own (square corners)."""
+    mesh = cut_along(uneven(), [((1, 0, 0), (-0.04, 0, 0)), ((1, 0, 0), (0.04, 0, 0)), ((0, 0, 1), (0, 0, 0.36)),
+                                ((0, 0, 1), (0, 0, 0.44))])
+    middle = mesh.triangles_center
+    label = (np.abs(middle[:, 0]) < 0.04) & (np.abs(middle[:, 2] - 0.4) < 0.04) & (middle[:, 1] < -0.15)
+    return mesh, label.astype(int)
+
+
+def specked():
+    """The uneven box's top and sides, twelve lone side triangles given the top's finish."""
+    mesh = uneven()
+    parts = top_material(mesh)
+    parts[np.random.default_rng(3).choice(np.flatnonzero(parts == 0), 12, replace=False)] = 1
+    return mesh, parts
+
+
+def with_sticker():
+    """The uneven box with a 6 cm round sticker in a finish of its own on its front (its triangles), and a 1 cm block
+    modelled apart in its sides' finish 6 m off: one model 6 m across."""
+    mesh = uneven()
+    parts = top_material(mesh)
+    middle = mesh.triangles_center
+    parts[(np.linalg.norm(middle[:, [0, 2]] - (0, 0.4), axis=1) < 0.03) & (middle[:, 1] < -0.15)] = 2
+    block = trimesh.creation.box((0.01, 0.01, 0.01)).apply_translation((6, 0, 0.005))
+    return trimesh.util.concatenate([mesh, block]), np.r_[parts, np.zeros(len(block.faces), int)]
+
+
+def edged(mesh, material):
+    """How cleanly a made model's finishes meet (its parts its finishes), against TRUTH's own: the finish-edge
+    measures alone, as measured adds them."""
+    own = measures._edges.finish_edges(TRUTH["vertices"], TRUTH["faces"], TRUTH["face_material"])
+    return {"finish": measures._edges.finish_edges(mesh.vertices, mesh.faces, material), "truth_clean": own}
 
 
 def with_floater():
@@ -238,6 +325,18 @@ CASES = [
     ("three sliver parts beside its two", lambda: made(with_slivers()[0], material=with_slivers()[1]),
      "finish.parts_per_material", True),
     ("one part for two materials", lambda: made(box(), material=np.zeros(12, int)), "finish.held_least", False),
+    ("the top cut along the box's rim", lambda: edged(uneven(), top_material(uneven())), "finish.edge_wander", True),
+    ("a slant cut cleanly through its triangles", lambda: edged(*cut_cleanly()), "finish.edge_wander", True),
+    ("a square label cut cleanly into its front", lambda: edged(*labelled()), "finish.edge_wander", True),
+    ("the slant given triangle by triangle", lambda: edged(uneven(), slant(uneven())), "finish.edge_wander", False),
+    ("the slant between two parts in one surface and look", lambda: measures.measured(TRUTH, {
+        **side(uneven(), slant(uneven())), "surfaces": {0: "surface/paint", 1: "surface/paint"},
+        "looks": {0: BODY, 1: BODY}}), "finish.edge_wander", True),
+    ("twelve lone triangles of the top's finish", lambda: edged(*specked()), "finish.specks", False),
+    ("a 6 cm sticker on a model 6 m across", lambda: edged(*with_sticker()), "finish.speck_share", True),
+    ("the box's own finishes cut finely", lambda: edged(uneven(), top_material(uneven())), "finish.edge_density", True),
+    ("a finish per triangle at random", lambda: edged(uneven(), np.random.default_rng(3).integers(
+        0, 2, len(uneven().faces))), "finish.edge_density", False),
     ("half its mass", lambda: made(box(), mass=5.0), "physics.mass_ratio", False),
     ("1.4 times its mass", lambda: made(box(), mass=14.0), "physics.mass_ratio", True),
     ("its hull grown 3 cm", lambda: made(box(), colliders=grown(box(), 0.03)), "physics.overhang", False),

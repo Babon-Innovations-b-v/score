@@ -36,6 +36,15 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   `COLOUR_REACH`), metal or not (`METAL_REACH`), roughness (`ROUGHNESS_REACH`), class (sim.py's); `finish.colour`,
   `metal`, `roughness` and `class` are the area shares held. The made side's `looks` are its parts' settings as the
   route set them (bench/run finish.part_looks); a calibration copy wears its finishes' own library surfaces.
+- **How cleanly the finishes meet** (`_edges`, #179; owner 2026-11-23: tc3s's "table and toaster mesh became messy
+  compared to run 1"): a finish given triangle by triangle on TRELLIS.2's uneven triangles meets in a sawtooth and
+  leaves specks. `edge_density` (finish edge length per area, read off surface points so NVIDIA's finishes, mostly
+  pieces of their own, count) against the truth's; `edge_wander` (each run of shared finish edges against parabola
+  fits behind, about and ahead of each point, across the edge within its faces, so corners, curves and the surface's
+  bumps are no wander); `specks` and `speck_share` (islands of one finish inside another under a size and a few of the
+  model's triangles: NVIDIA's modelled stickers are tens of triangles). The made side is read by its seen finishes
+  (parts in one surface and look are one). NVIDIA's tune truths share few finish edges, so the wander and speck bars
+  rest on them and on the tc3s models cut cleanly along a plane (run 1-like edges); the numbers are beside BARS.
 - Not measured yet: self-intersecting faces (no free exact test at a million faces); the route's own checks
   (straight.py, the model gate's pass, sausage and lump) run in the calibration pass, not here.
 - Check: `test_a_made_model_passes_only_where_it_matches_its_truth.py`, one table of made models against one small
