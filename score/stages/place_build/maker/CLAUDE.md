@@ -33,9 +33,11 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.
 - **Lossless edits** (glb.py): the fit is a root node's matrix, the grade replaces the base colour picture only.
 - **The fit** (fit.py) covers the model it replaces (`--like`): quarter turns and uniform scales, the smallest two-way
-  point distance; `--height` stands a new prop on the floor; `--size wide,deep,tall` scales it uniformly so its longest
-  side is the size's (the prop benchmark's row, #163), its other sides what the picture gave. Set at a size, it is
-  first turned to its close-up's heading (`fit.headed`, #166: TRELLIS.2 keeps its own heading, so the desk, rack and
+  point distance; `--height` stands a new prop on the floor; `--size wide,deep,tall` (the prop benchmark's row, #163)
+  brings it to each side, each axis at most STRETCH (a quarter) off the uniform scale that sets its longest side (#170:
+  uniform, tc2's sign came out 13% too thick and its desk 9% too wide; past a quarter the row and the model disagree,
+  so a leg or panel is not thinned further, and the record's `off` says how far the box stayed off). Set at a size, it
+  is first turned to its close-up's heading (`fit.headed`, #166: TRELLIS.2 keeps its own heading, so the desk, rack and
   sign lay wide for deep): the quarter turn whose outline from the close-up's camera (tools/props/closeup/check.py's
   turn and look-down) best overlaps the picture's, its mirror only when it beats them all by MIRROR_GAIN.
 - **`--no-take-in`** (the prop benchmark, #163) makes, fits, grades and makes sim-ready as usual and takes nothing into

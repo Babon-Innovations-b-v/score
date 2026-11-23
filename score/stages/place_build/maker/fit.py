@@ -1,15 +1,18 @@
 """A made model set in a library model's frame (y up, metres): TRELLIS.2 gives a model in a unit box facing roughly
 its picture's camera, so it is turned a quarter turn at a time, scaled uniformly and moved until it best covers the
 model it replaces (the smallest two-way mean distance between points on both surfaces), standing where that one
-stands; or, with no model to replace, scaled to a given height, or to a given size's longest side, and stood on y=0
-at its centre. A model set at a size is first turned to its close-up's heading (`headed`): TRELLIS.2 lays a model with
-its own heading (a desk's long side along x, #166), so the quarter turn, or its mirror, whose outline from the
-close-up's camera best overlaps the picture's is the one laid.
+stands; or, with no model to replace, scaled to a given height, or to a given size, and stood on y=0 at its centre.
+A model set at a size is first turned to its close-up's heading (`headed`): TRELLIS.2 lays a model with its own heading
+(a desk's long side along x, #166), so the quarter turn, or its mirror, whose outline from the close-up's camera best
+overlaps the picture's is the one laid. It is then brought to each of the size's sides (`size_matrix`, #170: a
+uniform scale kept TRELLIS.2's proportions, tc2's sign 13% too thick and its desk 9% too wide), each axis at most
+STRETCH off the uniform scale that sets its longest side, so a part thin along an axis is never thinned or thickened
+past it.
 
     fitted_matrix(points, like_points) -> (matrix 4x4, {"yaw", "scale", "distance_m"})
     headed(points, cut, turn, down)    -> (matrix 4x4, {"yaw", "mirrored", "overlap"})
     height_matrix(points, height)      -> matrix 4x4
-    size_matrix(points, size)          -> matrix 4x4
+    size_matrix(points, size)          -> (matrix 4x4, {"stretch", "off"})
 """
 import numpy as np
 from scipy import ndimage
@@ -18,6 +21,9 @@ from scipy.spatial import cKDTree
 YAWS = (0.0, 90.0, 180.0, 270.0)
 OUTLINE = 64  # pixels across the square an outline is compared in, its longer side filling it
 MIRROR_GAIN = 0.05  # a mirror is laid only when its overlap beats every quarter turn's by this (the picture says so)
+STRETCH = 0.25  # the most one axis is scaled off the uniform scale, either way: tc2's furthest was 13.4% (the sign's
+# depth); past a quarter the row and the model disagree on what the thing is (a wrong heading or a wrong row), and a
+# leg or a panel along that axis would come out a quarter thinner or thicker than TRELLIS.2 drew it
 TIE = 0.01  # an overlap within this of the best keeps the earlier turn (TRELLIS.2's own heading first): a box's
 # half turns differ by under it (tc1's toaster: 0.897 and 0.894)
 
@@ -78,11 +84,19 @@ def height_matrix(points, height):
 
 
 def size_matrix(points, size):
-    """The uniform scale that makes `points`' longest side the longest of `size` (wide, deep, tall metres: the
-    route's own laying, its other sides what the picture gave), stood on y=0 centred on x and z."""
-    scale = max(float(side) for side in size) / np.ptp(points, 0).max()
-    scaled = np.diag([scale, scale, scale, 1.0])
-    return standing(applied(scaled, points), np.zeros(3), np.zeros(3)) @ scaled
+    """The scale of each axis that brings `points` (Y up, front +z, already headed) to `size` (wide, deep, tall
+    metres), each at most STRETCH off the uniform scale that makes its longest side the size's longest, stood on y=0
+    centred on x and z; {"stretch": each axis' scale over that uniform one, "off": the laid box's furthest side from
+    the size's, less one (0 when the bound held none)}, wide, deep, tall."""
+    wide, deep, tall = (float(side) for side in size)
+    wanted, sides = np.array([wide, tall, deep]), np.maximum(np.ptp(points, 0), 1e-12)
+    uniform = wanted.max() / sides.max()
+    scales = np.clip(wanted / sides, uniform / (1 + STRETCH), uniform * (1 + STRETCH))
+    scaled = np.diag([*scales, 1.0])
+    laid = sides * scales / wanted
+    how = {"stretch": [round(float(scales[axis] / uniform), 4) for axis in (0, 2, 1)],
+           "off": round(float(np.maximum(laid, 1 / laid).max() - 1), 4)}
+    return standing(applied(scaled, points), np.zeros(3), np.zeros(3)) @ scaled, how
 
 
 def view_axes(turn, down):

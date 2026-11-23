@@ -21,8 +21,9 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
    `take_in=False` (the prop benchmark, #163) nothing goes into score_lib: the made files stay in the work folder and
    the address is None.
 
-The size it is set at: `like`'s, `height` metres tall, or `size` (wide, deep, tall metres: its longest side the
-model's, fit.size_matrix), first turned to the heading its picture, the row's close-up, shows (fit.headed, #166).
+The size it is set at: `like`'s, `height` metres tall, or `size` (wide, deep, tall metres: each side the model's,
+each axis at most fit.STRETCH off the uniform scale, fit.size_matrix, #170), first turned to the heading its picture,
+the row's close-up, shows (fit.headed, #166).
 """
 import fcntl
 import hashlib
@@ -254,7 +255,8 @@ def sized_matrix(points, picture, size):
     cut = np.asarray(image.getchannel("A")) > 127
     turn, down = close_up_view(size)
     heading, how = fit.headed(points, cut, turn, down)
-    return fit.size_matrix(fit.applied(heading, points), size) @ heading, how
+    matrix, stretched = fit.size_matrix(fit.applied(heading, points), size)
+    return matrix @ heading, {**how, **stretched}
 
 
 def placed(raw, folder, like, height, size=None, picture=None):

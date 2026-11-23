@@ -1,4 +1,4 @@
-"""The made model set on the truth: kept at the size its route laid it (the route's own uniform laying), turned by the
+"""The made model set on the truth: kept at the size its route laid it (the route's own laying), turned by the
 best of the cube's 24 axis turns about its box's middle, then moved by ICP (turn and move, never scale), so a size
 error stays a size error and a lean shows as the turn it takes to stand it."""
 import itertools

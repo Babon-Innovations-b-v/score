@@ -7,7 +7,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.cut_out: its rectangle refusal dropped -> a box-cut crop (the capsule's uncut lever, #156) goes to TRELLIS.2;
   maker.concept_picture: its missing-mask refusal dropped -> concept/<n> with no SAM 3 mask is made from no cut
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
-- fit.size_matrix: scaled by the size's tallest side, not its longest -> the L laid at (2.0, 0.5, 0.3) is 0.6 m long;
+- fit.size_matrix: one uniform scale (TRELLIS.2's proportions kept), or its sides read as wide, deep, tall in the
+  model's Y-up order -> the L drawn 10% tall and 12% shallow is not laid at the size, the L's at twice (#170);
+  STRETCH made unbounded -> the L drawn twice as deep is squashed to the size's depth, not held a quarter off;
   maker.size_of: `size` ignored -> a model made at a size is made at FACES, not its size's faces
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - fit.headed: its quarter turns not tried (TRELLIS.2's own heading kept), or fit.view_axes turned the other way, or
@@ -140,8 +142,14 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert how["yaw"] == 270.0 and abs(how["scale"] - 2.5) < 0.01 and how["distance_m"] < 0.02
     tall = fit.applied(fit.height_matrix(made, 1.8), made)
     assert abs(np.ptp(tall[:, 1]) - 1.8) < 1e-9 and abs(tall[:, 1].min()) < 1e-9
-    sized = fit.applied(fit.size_matrix(made, (2.0, 0.5, 0.3)), made)  # wide, deep, tall: its longest side 2 m
-    assert abs(np.ptp(sized, 0).max() - 2.0) < 1e-9 and abs(sized[:, 1].min()) < 1e-9
+    true = np.ptp(like, 0) * 2  # the size is the L's at twice (Y up: wide x, tall y, deep z); TRELLIS.2 drew it off
+    for drawn_as, laid_as, stretch, off in (([1.0, 1.1, 0.88], [1.0, 1.0, 1.0], [1.0, 1 / 0.88, 1 / 1.1], 0.0),
+                                            ([1.0, 1.0, 2.0], [1.0, 1.0, 1.6], [1.0, 1 / 1.25, 1.0], 0.6)):
+        drawn_model = like * 0.4 * drawn_as
+        matrix, how = fit.size_matrix(drawn_model, (true[0], true[2], true[1]))  # wide, deep, tall
+        sized = fit.applied(matrix, drawn_model)
+        assert np.allclose(np.ptp(sized, 0), true * laid_as) and abs(sized[:, 1].min()) < 1e-9, (np.ptp(sized, 0), how)
+        assert np.allclose(how["stretch"], stretch, atol=1e-4) and abs(how["off"] - off) < 1e-4, how
     desk = [([-0.4, -0.9, 0.7], [0.4, 0.9, 0.76]), ([0.2, -0.9, 0.0], [0.4, -0.3, 0.7])]  # a top, drawers right front
     sign = [([-0.5, -0.2, 0.0], [0.5, 0.2, 0.02]), ([-0.5, 0.2, 0.0], [-0.3, 0.3, 0.02])]  # flat, a tab back left
     for boxes, turn, down in ((desk, 35.0, 15.0), (sign, 0.0, 90.0)):
