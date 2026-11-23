@@ -70,6 +70,9 @@ SIZE_SETTING = {"plastic": "grain_size", "leather": "grain_size", "concrete": "p
                 "painted_metal": "bump_size", "wood": "bump_size", "cloth": "thread", "composite": "weave",
                 "chequer_plate": "pitch", "perforated_metal": "pitch", "galvanized": "cell_size", "rock": "bump_size",
                 "tiles": "pitch"}
+# Families drawn as a regular grid: their pattern size is the relief's period (its spectrum's strongest frequency
+# along each axis), not FEATURE_PER_HALF_WIDTH half widths, which for a tread plate's long thin lugs is a lug's width.
+PERIODIC = ("chequer_plate", "perforated_metal", "tiles")
 # A pattern size the fit sets stays within this factor of its family's default either way: a tile's slow swell
 # read as its feature (concrete's 30 cm) is not its pores.
 SIZE_RANGE = 4.0
@@ -222,6 +225,17 @@ def half_width(field):
     return float(np.mean(lags))
 
 
+def period_of(field):
+    """The field's period in texels: along each axis, the strongest frequency of its spectrum (summed over the other
+    axis, the zero frequency left out), averaged."""
+    power = np.abs(np.fft.fft2(field - field.mean())) ** 2
+    periods = []
+    for axis in (0, 1):
+        line = power.sum(axis=axis)[1: field.shape[1 - axis] // 2 + 1]
+        periods.append(field.shape[1 - axis] / float(np.argmax(line) + 1))
+    return float(np.mean(periods))
+
+
 def albedo_statistics(path):
     """The albedo's mean Lab, the mean Lab of its darkest DARK_SHARE and its lightness spread."""
     values = colour.lab(colour.linear(shrunk(pixels(path), READ_SIDE))).reshape(-1, 3)
@@ -259,6 +273,7 @@ def relief_statistics(path, tile_metres, normal_convention="opengl"):
     relief = high_passed(height_of(normal), HIGH_PASS_SHARE)
     return {"height": float(relief.std() * metres_a_texel),
             "feature_metres": float(half_width(relief) * FEATURE_PER_HALF_WIDTH * metres_a_texel),
+            "period_metres": float(period_of(relief) * metres_a_texel),
             "slope_variance": spread,
             "slope_rms": float(np.sqrt(np.mean((normal[..., 0] ** 2 + normal[..., 1] ** 2) /
                                                np.maximum(normal[..., 2], FLAT_FLOOR) ** 2)))}
@@ -375,7 +390,7 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread; no relief (RELIEF_SETTINGS 0) with no normal map; scratches by the roughness map's spread (a flat one has
+    spread (a PERIODIC family's pattern size its relief's period); no relief (RELIEF_SETTINGS 0) with no normal map; scratches by the roughness map's spread (a flat one has
     none: chrome drew scratch glints its maps lack); a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
     slopes (toksvig_roughness)."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
@@ -392,7 +407,8 @@ def spec_of(family, measured, method=METHOD):
         if measured.get("glow_hue"):
             spec["colour"] = [round(value, 5) for value in measured["glow_hue"]]
     size_setting = SIZE_SETTING.get(family)
-    feature = measured["feature_metres"]
+    feature = measured["period_metres"] if family in PERIODIC and measured.get("period_metres") else \
+        measured["feature_metres"]
     drawn = feature
     if size_setting and feature:
         default = defaults[size_setting]

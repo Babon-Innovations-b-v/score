@@ -260,8 +260,10 @@ def chequer_plate(colour, dirt_colour, roughness, metal, pitch, bump, dirt_reach
     turned = pf.nodes.texture.checker(vector=vector, scale=1.0 / pitch).fac
     along = pf.nodes.math.mix(a=across + up, b=across - up, factor=turned)
     side = pf.nodes.math.mix(a=across - up, b=across + up, factor=turned)
-    lug = pf.nodes.math.less_than(pf.nodes.math.absolute(along), 0.4) * pf.nodes.math.less_than(
-        pf.nodes.math.absolute(side), 0.1)
+    # A lug's sides slope (a smoothstep down to its edge), so a bump render shows its relief, not its outline alone.
+    lug = pf.nodes.math.map_range(value=pf.nodes.math.absolute(along), from_min=0.4, from_max=0.3,
+                                  interpolation_type="SMOOTHSTEP") * pf.nodes.math.map_range(
+        value=pf.nodes.math.absolute(side), from_min=0.1, from_max=0.0, interpolation_type="SMOOTHSTEP")
     base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
     return Channels(base, rough, metal, BLACK, pf.nodes.shader.displacement(height=lug * bump, midlevel=0.0))
 

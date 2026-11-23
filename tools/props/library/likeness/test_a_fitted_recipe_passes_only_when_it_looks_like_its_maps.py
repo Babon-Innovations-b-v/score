@@ -21,6 +21,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   (Toksvig), so its roughness 0.4 widens to (0.4^4 + 0.0206)^(1/4) = 0.464;
 - the scratched chrome's ORM green stripes of 70 and 80 (0.2745 and 0.3137) spread 0.0196, so its scratches are
   0.0196 / 0.075 = 0.2614; its flat recipe beside striped maps has no detail, so the refinement doubles them;
+- the tread plate row is the relief row's maps: its period along each axis is 16 texels, 0.016 m, its bump 0.004;
+  beside a flat recipe the refinement would double it, but a quarter of its 0.016 pitch is 0.004;
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
@@ -66,6 +68,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   generic_metal's relief test dropped (the ribbed one, polished by its roughness 0.098).
 - fit.FAMILY_WORDS: gold ahead of fabric again (the oxford gold row polished_metal), without stone's words (the
   marble row plastic by its measures), or "floor_tile" after "marble" (the floor row rock).
+- fit.spec_of: PERIODIC's period dropped (the tread plate's pitch the half-width feature, 0.012), or
+  measure.refined's RELIEF_ASPECT cap dropped (its bump doubles to 0.008).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -282,6 +286,12 @@ ROWS = [
     ("a marble floor's tiles", "simready_opaque_stone_marble_floor_tile_a", {"albedo.png": solid((119,) * 3)},
      {"maps": {"albedo": "albedo.png"}, "tile_metres": 1.0}, (solid((119,) * 3), solid((119,) * 3)),
      {"recipe": "tiles", "family_from": "name"}),
+    ("a tread plate's pitch is its relief's period, its bump grown no higher than a quarter of it",
+     "m_opaque_metal_treadplate_rough_a01",
+     {"albedo.png": solid((119,) * 3), "orm.png": solid((255, 102, 255)), "normal.png": bumps(2.0, 16)},
+     {"maps": {"albedo": "albedo.png", "orm": "orm.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (stripes(109, 129), solid((119,) * 3)),
+     {"recipe": "chequer_plate", "relief": (0.016, 0.004, 0.064), "refined_bump": 0.004}),
 ]
 
 
@@ -305,6 +315,6 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
               "ranking": measure.ranking(views), "glow_strength": spec.get("glow"),
-              "scratches": spec.get("scratches"), "refined_scratches": measure.refined(spec, views).get("scratches"),
+              "scratches": spec.get("scratches"), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
               "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

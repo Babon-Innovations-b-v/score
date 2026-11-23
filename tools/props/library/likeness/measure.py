@@ -25,6 +25,7 @@ recipe, never these pictures. Standard library and numpy (Pillow to read).
 import numpy as np
 
 import colour
+import fit
 
 CELL = 16  # texels a side of a colour cell
 CELL_COVER = 0.75  # the share of a cell the swatch must cover for it to count
@@ -45,6 +46,9 @@ HIGHLIGHT_PER_ROUGHNESS = 100.0
 ROUGHNESS_STEP = 0.2
 DETAIL_STEP = 2.0
 COLOUR_SETTINGS = ("colour", "second", "bare", "dirt_colour")
+# The refinement grows a bump no higher than this share of its pattern's size (its fit's own bump stands): a tread
+# plate's bump doubled each round to 0.275 m on 1 cm lugs, 2026-11-23.
+RELIEF_ASPECT = 0.25
 
 
 def picture(path):
@@ -181,7 +185,8 @@ def shifted(linear_colour, shift):
 def refined(spec, views, earlier=None):
     """The spec moved toward the maps' look from every view's measures: its colours by the mean Lab gap, its
     roughness by the highlight gap (roughness_step, from the `earlier` round's {"roughness", "highlight"} when there
-    is one), its bump, contrast and scratches by the detail ratio."""
+    is one), its bump (grown no higher than RELIEF_ASPECT of its pattern size), contrast and scratches by the detail
+    ratio."""
     measures = list(views.values())
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
@@ -193,7 +198,11 @@ def refined(spec, views, earlier=None):
     detail = float(np.mean([each["detail"] for each in measures]))
     scale = float(np.clip(1.0 / max(detail, 1e-6), 1.0 / DETAIL_STEP, DETAIL_STEP))
     if "bump" in moved:
-        moved["bump"] = round(float(moved["bump"] * scale), 6)
+        grown = moved["bump"] * scale
+        size = moved.get(fit.SIZE_SETTING.get(moved["recipe"], ""))
+        if size:
+            grown = min(grown, max(moved["bump"], size * RELIEF_ASPECT))
+        moved["bump"] = round(float(grown), 6)
     for name in ("contrast", "scratches"):
         if name in moved:
             moved[name] = round(float(min(moved[name] * scale, 1.0)), 4)
