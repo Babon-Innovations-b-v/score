@@ -1,5 +1,6 @@
 """Invariant: a made shape that reads wrong is told for a remake, by object: a crop-built pipe whose section swells
-along its run is `a sausage` while a straight one passes; a picture-made console of bumps with no flat face is
+along its run is `a sausage` while a straight one, or one whose section swells as much as NVIDIA's socketed grey
+pipe, passes; a picture-made console of bumps with no flat face is
 `a lump` while a box console passes; the same bumps as a library kit, or as a made seat, are not judged.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -7,6 +8,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - shapes.section: the run's widths read at the run's ends too (SWELL_SPAN made 1.0) -> the straight pipe swells at
   its flanges
 - shapes.shape_faults: the swell rule left out -> the sausage passes
+- shapes.SWELL back at 0.05 -> the socketed pipe (its swell 0.069, NVIDIA's grey pipe's 0.066) is a sausage
 - shapes.flat_share: every direction counted (FULLEST made DIRECTIONS) -> the lumpy console passes
 - shapes.faults: `made` unread -> the library kit's lump is told
 """
@@ -76,6 +78,7 @@ def model_text(name, shape):
 CASES = [
     ("sausage", "red_pipes_1.cockpit", pipe(0.25), CROP, {"a sausage"}),
     ("straight", "large_pipes_1.hangar", pipe(0.0), CROP, set()),
+    ("socketed", "grey_pipes_1.hangar", pipe(0.12), CROP, set()),
     ("lumpy", "pilot_console_1.cockpit", lump(), PIXAL, {"a lump"}),
     ("boxed", "comms_console_1.cockpit", box(), PIXAL, set()),
     ("kit", "console_kit", lump(), KIT, set()),

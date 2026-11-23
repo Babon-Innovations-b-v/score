@@ -5,6 +5,7 @@ frame, never from a mark the agent sets.
 
     faults(stage, place) -> {object: [fault]}       every made object whose shape reads wrong
     measured(asset) -> Shape                         a model file's flat share and its section's swell
+    shape_of(points, faces) -> Shape                 the same of triangles in hand
 
 Only a made shape is judged: an entry whose shape a picture made (a take, Pixal3D, TRELLIS.2: finished.picture_made)
 or that code built from its concept crop (CROP_WORDS in its provenance). A library kit or a scan is what it is. What a
@@ -13,7 +14,9 @@ thing is comes from its entry's id (the words below), so a desk is held to a des
 - `a sausage`: a pipe (PIPE_WORDS) long enough to have a run (LONG times its width or more) whose section swells
   along it: the spread of its section's width over the middle of its run (SWELL_SPAN) is over SWELL as a share of
   its mean. A library pipe (Poly Haven's modular pipes, Kenney's station pipe) and the hangar's code-built pipes
-  measure 0.01 to 0.02; the cockpit's crop-built red pipes, which the play-runs saw as sausages, 0.11.
+  measure 0.01 to 0.02, NVIDIA's adopted SimReady pipes 0.035 (pipe_plastic_black_b06) and 0.066
+  (pipe_plastic_gray_b08, its sockets: the 0.05 bar called it a sausage, #163 calibration); the cockpit's
+  crop-built red pipes, which the play-runs saw as sausages, 0.11.
 - `a lump`: a hard made thing (HARD_WORDS: a console, a desk, a cabinet) whose surface holds too few flat faces: the
   share of its area facing one of its FULLEST fullest of DIRECTIONS directions is under FLAT. A made desk or
   console that reads as one measures 0.33 to 0.77; the cockpit's pilot console, its seats grown into lumps, 0.21.
@@ -34,7 +37,7 @@ HARD_WORDS = ("console", "desk", "table", "cabinet", "locker", "rack", "shelf", 
               "workstation", "door")
 CROP_WORDS = ("from its concept crop",)  # a shape built in code from the concept's crop (shapes_first)
 LONG = 6.0  # a pipe's run over its width (twice its section's mean radius) before its swell is judged
-SWELL = 0.05  # a pipe's section's width spread over its run, as a share of its mean
+SWELL = 0.08  # a pipe's section's width spread over its run, as a share of its mean
 SWELL_SPAN = 0.8  # the middle of the run judged: a pipe's ends (a flange, a bend, a cap) are not its run
 SLICES = 12  # the run cut in this many slices, each one width measured
 WIDTH_PERCENTILE = 90  # a slice's width: this percentile of its points' distance from the run's axis
@@ -138,18 +141,21 @@ def measured(asset):
     """The model file's Shape (cached by its path), or None when it shows no triangle."""
     asset = str(pathlib.Path(asset).resolve())
     if asset not in MEASURED:
-        points, faces = triangles(asset)
-        corners = points[faces]
-        crossed = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
-        doubled = np.linalg.norm(crossed, axis=1)
-        kept = doubled > 0
-        if not kept.any():
-            MEASURED[asset] = None
-            return None
-        areas = doubled[kept] / 2
-        run, swell = section(surface_points(corners[kept], areas))
-        MEASURED[asset] = Shape(flat=flat_share(crossed[kept] / doubled[kept, None], areas), run=run, swell=swell)
+        MEASURED[asset] = shape_of(*triangles(asset))
     return MEASURED[asset]
+
+
+def shape_of(points, faces):
+    """The Shape of triangles (points (N, 3), faces (T, 3)), or None when none has an area."""
+    corners = points[faces]
+    crossed = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    doubled = np.linalg.norm(crossed, axis=1)
+    kept = doubled > 0
+    if not kept.any():
+        return None
+    areas = doubled[kept] / 2
+    run, swell = section(surface_points(corners[kept], areas))
+    return Shape(flat=flat_share(crossed[kept] / doubled[kept, None], areas), run=run, swell=swell)
 
 
 def made(record):
