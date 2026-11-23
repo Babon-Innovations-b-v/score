@@ -17,6 +17,15 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   (a DirectX map's green turned over, here and in `../inside/likeness.py`) and `tile_metres`; a null tile size
   is fitted as a free setting (the size at which the relief's features are the family's default pattern size),
   never assumed 1 m.
+- The fit's sources of a wrong family or setting, fixed at their source on 2026-11-23 after the first run over 783
+  adopted surfaces (621 pass): a surface that gives off light is glowing at its own strength; a measured metal
+  overrules a glass name, "mirror" is polished metal, a name saying only "metal" takes its finish from its maps,
+  material words come before colour metals, stone is rock and a tiled floor tiles; a packed `albedo_roughness` map
+  is read as its two roles; a normal map's z is rebuilt from its x and y (a map whose blue is not its z) on both
+  sides; slopes finer than the read widen the roughness (Toksvig), and a large tile's relief is read down to the
+  close view's pixel; no normal map draws no relief; a grid family's pitch is its relief's period; polished metal's
+  scratches come from its roughness map's spread; rusted metal's own wear from its albedo's worn share; plastic,
+  rubber, cloth and paint mottle by contrast and roughness spread, a darker second shade past contrast 1.
 - `measure.py` compares the two renders view by view (cell colour difference, lightness histogram, highlight, detail
   ratio), passes or fails at its own bounds, writes the likeness block `{measures, pass, algorithm}` and refines a
   failing recipe (colour by the Lab gap, roughness by the highlight gap, a secant step once an earlier round shows
