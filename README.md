@@ -43,8 +43,8 @@ results are in the paper.
 
 **Sim bodies (experimental).** Every character gets a musculoskeletal sim body (MyoFullBody, 416 muscles) fitted to
 its SOMA body and standing on the scene's own floor: Newton and MuJoCo Warp work out each frame's joint moments,
-ground reaction force per foot and muscle activations on a rented card, 89 to 120 s for a 6 s clip on one L4, the same result
-bit for bit every run. **Next.** Beyond that: bodies true to the person, motion from the SOMA ecosystem turned
+ground reaction force per foot and muscle activations on a rented card, 89 to 120 s for a 6 s clip on one L4.
+**Next.** Beyond that: bodies true to the person, motion from the SOMA ecosystem turned
 into scenes without video or identifying information, trained models (brains) that drive a sim body in invented
 worlds, and a data loop in which simulation data trains better models. The paper's last sections say what is
 done and what is a goal.
