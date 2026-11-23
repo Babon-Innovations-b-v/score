@@ -46,8 +46,13 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   every token is a `mismatch` in the answer: repaint it from the library (`surface`), never grade harder.
 - **A graded paint is not a finish**: grade.py's `parts` names its paints, and `put` lays each as the palette
   variant nearest its colour (finished/), so a made model never shows TRELLIS.2's paint as its finish.
-- **Mass** (sim.py): the hulls' outside skin (faces inside another hull left out) times the class's sheet and density;
-  a sheetless class (stone) is solid. Steel is data/physics/materials.json's row, read; the maker's other classes stay
-  here, since that table keys the physics rows. Hulls close over a frame's gaps, so a steel frame's mass is high.
+- **Physics** (sim.py, #159 by #161's rules): the classes are NVIDIA's per-class table
+  (data/physics/surface_classes.json, its odd rows out; aluminium its own row); a part's class its finish's library
+  surface's (an NVIDIA surface's name, else its recipe's), a hull's the class of most face area inside it, friction
+  and restitution the hulls' rows by volume. The mass is a real-world figure a part, never area x sheet x density
+  nor volume x density: Claude answers it from the picture, words, size and parts (`weighed`, EUR 0, kept by the
+  ask's hash), held to NVIDIA's bulk density band for the size class and named, not refused, outside it (NVIDIA's own
+  empty box is). `make` weighs the whole as one part of its `--material`; the benchmark's `physics` step weighs the
+  finished parts.
 - Test: `test_a_made_model_fits_its_place_its_paint_and_its_weight.py` (no TRELLIS.2, no CoACD; its flash-attn part
   runs where torch is).

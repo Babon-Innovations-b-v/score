@@ -26,6 +26,10 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   it are not run; a step the index holds is never run again, so a stopped run is taken up with the same `--run`.
 - **The material class is the route's, never the truth's** (`material_for`: a word of the id, else the kind's
   class), the same for both branches; the truth's physics material is what the measures compare it with.
+- **B's `physics` step is make's physics on its finished model** (#159, #161's rules through maker/sim.py): each
+  finish part's class its library surface's (the given class only where a surface names none), each of make's hulls
+  the class of the faces inside it, and a real-world mass a part from Claude (EUR 0, the close-up shown), its bulk
+  density held to NVIDIA's band. The measures read it, not `sim`.
 - **The measures read every side in the truth's frame** (`measure`: glTF's Y up and a Y-up stage turned to Z up by
   `Y_UP`, metres), the made model's physics from its own physics step, the withdrawn models of an overlap target at
   the size they were laid at; `measures.json` keeps `found` whole so a recalibrated bar re-judges a kept run.

@@ -1,5 +1,6 @@
 """A made model is set over the library model it replaces, its paint is moved toward its place's palette (a far colour
-named a mismatch, never forced), its GLB is edited losslessly, and its mass is its hulls' outside skin, not every face.
+named a mismatch, never forced), its GLB is edited losslessly, and it is weighed and classed by #161's rules: each
+hull its faces' surface class's NVIDIA row, a real-world mass a part, its friction its hulls' rows by volume.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.picture_of returning a loose picture's path as said -> the public record names a path on this PC
@@ -17,7 +18,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   wide and shallow (#166: desk, rack and sign); MIRROR_GAIN made -1 -> the L is laid mirrored
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
-- sim: INSIDE made -1e-4 -> the face where the two cubes meet counts as skin (mass 20% high)
+- sim.surface_class: the NVIDIA name's class not read (the recipe's taken first), or the aluminium base ignored ->
+  the painted steel surface reads as its recipe's or the brushed aluminium one as steel's row (0.3, not 0.61);
+  sim.hull_classes: the first face inside a hull taken, not most of its area -> the wooden cube's hull reads metal;
+  sim.physical: friction an unweighted mean of the hulls -> 0.4, not the volume-weighted 0.3667 (cube 1 m3 metal,
+  cube 2 m3 wood); its mass not the parts' sum, or bulk's band read off the shortest side -> 2 m^3 box is "small";
+  sim.weighed: an answer missing a part kept -> the one-part answer to two parts passes
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
   (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
@@ -217,11 +223,33 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert [group["mismatch"] for group in groups] == [False, True] or \
         [group["mismatch"] for group in sorted(groups, key=lambda group: group["delta_e"])] == [False, True]
 
-    pair = [cube(np.zeros(3)), cube(np.array([1.0, 0.0, 0.0]))]
-    steel = sim.material("steel")
-    weighed = sim.physical(pair, "steel")
-    assert abs(weighed["mass_kg"] / (10 * steel["sheet"] * steel["density"]) - 1) < 0.03
-    assert sim.physical(pair, "stone")["mass_kg"] == round(2 * sim.material("stone")["density"], 2)
+    painted = {"material": "m_opaque__metal__painted_gray_a01", "nonvisual": {"base": "steel"},
+               "recipe": {"recipe": "grained_wood"}}
+    brushed = {"material": "m_opaque__metal__aluminium_brushed_e01", "nonvisual": {"base": "aluminum"}}
+    assert [sim.surface_class(record) for record in (painted, brushed, {"recipe": "boards"}, {"recipe": "sand"})] \
+        == ["metal", "aluminium", "wood", None]
+    assert sim.material("aluminium")["static"] == 0.61 and sim.material("metal")["static"] == 0.3
+    small, wide = cube(np.zeros(3)), cube(np.array([1.0, 0.0, 0.0]))
+    wide = (wide[0] * np.array([2.0, 1.0, 1.0]) - np.array([1.0, 0.0, 0.0]), wide[1])  # x 1 to 3: 2 m^3
+    faces = np.concatenate([small[1], wide[1] + 8])
+    classes = sim.hull_classes(np.concatenate([small[0], wide[0]]), faces, ["metal"] * 12 + ["wood"] * 12,
+                               [small, wide])
+    assert classes == ["metal", "wood"]
+    parts = [{"words": "frame", "class": "metal", "share": 0.5, "kg": 30.0},
+             {"words": "top", "class": "wood", "share": 0.5, "kg": 12.0}]
+    weighed = sim.physical([small, wide], classes, parts, [3.0, 1.0, 1.0])
+    assert weighed["static"] == round((0.3 * 1 + 0.5 * 2) / 3, 4) and weighed["mass_kg"] == 42.0
+    assert weighed["bulk"] == {"density": 14.0, "size_class": "large", "band": [6.5, 390.0], "in_band": True}
+    asked = []
+    answer = sim.weighed("a desk", [3.0, 1.0, 1.0], parts[:1], ask=lambda body: asked.append(body) or json.dumps(
+        {"whole_kg": 30, "reason": "steel", "parts": [{"part": 0, "kg": 30}]}))
+    assert answer == [30.0] and "a desk" in asked[0]["contents"][0]["parts"][-1]["text"]
+    try:
+        sim.weighed("a desk", [3.0, 1.0, 1.0], parts, ask=lambda body: json.dumps(
+            {"whole_kg": 30, "reason": "steel", "parts": [{"part": 0, "kg": 30}]}))
+        raise AssertionError("an answer that weighs one of two parts was kept")
+    except ValueError:
+        pass
 
     models = cloud.REPO / "tools/cloud/images/meshparts/models.json"
     listed = {model["name"] for model in json.loads(models.read_text())}

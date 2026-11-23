@@ -101,7 +101,8 @@ measures; `film-render` renders every `--every`th frame through the card queue (
 `make` makes a prop's model with TRELLIS.2 on this PC's card (maker/): from a take's close-up, the concept cut by a
 SAM 3 mask, or the picture the `--like` model was made from; set over the `--like` model it replaces (or `--height`
 metres tall, or `--size` its longest side the size's, turned as its close-up shows it), its paint graded to the
-place's palette, CoACD hulls and mass from its `--material` class, taken into score_lib as a draft model entry
+place's palette, CoACD hulls, its `--material` class's friction (data/physics/surface_classes.json) and a real-world
+mass Claude gives (EUR 0), taken into score_lib as a draft model entry
 (`--no-take-in`: kept in the place's made/ folder only, the prop benchmark's mode, #163); `put` then lays its address.
 `route` answers a walker's way through the `--through` spots, in order, on the check's walkers' floor (doors open,
 0.9 m wide): the shortest one, its corners rounded, for a walker's cast `path` (scene clips, sim body).

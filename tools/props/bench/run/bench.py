@@ -11,8 +11,8 @@ step's output kept as a run-store object whose blobs go to the SCORE store bucke
 **The set** (data/checks/prop-bench-set.json, the truth step's): {"objects": [{"address", "kind", "split"}]} (or a
 list, or {"assets": [...]}; an "id" and "version" in place of the address, `simready_` added when missing).
 
-**The material class** both routes are given (sim.py's classes; `make --material`, the physics layer's sheet and
-density) is what a placing agent reads off the words: the first class a word of the entry's id names (CLASS_WORDS),
+**The material class** both routes are given (sim.py's classes, NVIDIA's table in data/physics/surface_classes.json;
+`make --material`, the class of whatever no finish names) is what a placing agent reads off the words: the first class a word of the entry's id names (CLASS_WORDS),
 else its kind's (KIND_CLASS); never the truth's own physics material.
 
 **The render** (free, this PC's card through the card queue: place_build/render.queued). The entry is fetched by
@@ -31,19 +31,21 @@ kept, and the branch's later steps are not run for it (one try each: no step is 
   this PC's card under SCORE_CLOUD=local; its list line as pixal_row writes one, its faces place_route.faces_for),
   `finished` (pixal.py --finish-only through pixal_row.finish_all, flat rows laid on their face), then the checks
   on the finished model: `straight` (straight.py), `gate` (the model gate at the row's size) and `physics` (the
-  physics layer's rule for a made object: drawn area times its class's sheet and density, its collider the convex
-  hull). The finish route (views, list, split, parts, bake) and the solid copy cut to size are not run yet (NOT_RUN):
+  physics layer's rule for a made object: drawn area times its one material's sheet and density, its friction its
+  class's row, its collider the convex hull). The finish route (views, list, split, parts, bake) and the solid copy cut to size are not run yet (NOT_RUN):
   they are a place's surface line, and the list is a paid Gemini call.
 - B, place_build `make` (TRELLIS.2 on this PC's card), given the RGBA render, the row's size and `--no-take-in`, in a
   scratch place folder: `raw` (trellis.glb), `final` (set at the size, its paint graded), `sim` (CoACD hulls and
   mass), then `straight` and `gate` on the final model, and `finish` (finish.py, #168): the final model through the
   library finish method (views, list, split, parts) on the benchmark place's surface library, read once a run; its
-  list is Claude's (EUR 0), as on a place's line. A `finish` gap leaves the checks standing.
+  list is Claude's (EUR 0), as on a place's line. A `finish` gap leaves the checks standing. Then `physics`
+  (weighed_step, #161's rules through sim.py): each finish part's class its surface's, each of make's hulls the class
+  of the faces inside it, a real-world mass a part (Claude's answer, EUR 0) held to NVIDIA's bulk density band.
 Nothing is taken into score_lib, and the library read is a scratch checkout (--library), never the shared one.
 
 **The measures** (`measure`, free, this PC's processor): each branch's made model (A's finished final.glb, B's final
 model) read in the truth's frame (glTF's Y up turned to Z up), its mass, colliders and friction from its physics step
-(A's physics, B's sim), held to its truth (tools/props/bench/truth) by tools/props/bench/measures (B's faces in their
+(each branch's `physics`), held to its truth (tools/props/bench/truth) by tools/props/bench/measures (B's faces in their
 finish parts and each part's family against its truth finish's, `family`, where its finish step is kept), the kind's
 other set assets laid like it for the rank: kept as the branch's `measures` step, measures.json {truth, made, found,
 judged}, `found` whole so a later bar re-judges it. An overlap target's withdrawn models (the old models of score_lib it
@@ -95,15 +97,15 @@ NOT_RUN = {"finish-route": "a place's surface line (views, list, split, parts, b
 
 
 # A word of an entry's id that names its material class (at a word start), first match wins.
-CLASS_WORDS = (("wood", "wood"), ("plywood", "wood"), ("cardboard", "paper"), ("paper", "paper"), ("fabric", "fabric"),
-               ("textile", "fabric"), ("rug", "fabric"), ("rubber", "rubber"), ("hose", "rubber"),
-               ("glass", "glass"), ("mirror", "glass"), ("plastic", "plastic"), ("fiberglass", "plastic"),
-               ("steel", "steel"), ("aluminium", "steel"), ("metal", "steel"))
+CLASS_WORDS = (("wood", "wood"), ("plywood", "wood"), ("cardboard", "cardboard"), ("paper", "paper"),
+               ("fabric", "fabric"), ("textile", "fabric"), ("rug", "fabric"), ("rubber", "rubber"),
+               ("hose", "rubber"), ("glass", "glass"), ("mirror", "glass"), ("plastic", "plastic"),
+               ("fiberglass", "plastic"), ("steel", "metal"), ("aluminium", "metal"), ("metal", "metal"))
 # Each kind's class when no word names one: what most of its things are made of.
-KIND_CLASS = {"box": "paper", "crate": "plastic", "shelf / rack": "steel", "cabinet / locker": "steel",
+KIND_CLASS = {"box": "cardboard", "crate": "plastic", "shelf / rack": "metal", "cabinet / locker": "metal",
               "desk / table / bench": "wood", "chair / stool": "plastic", "monitor / keyboard": "plastic",
-              "lamp body": "steel", "bin": "plastic", "ladder": "steel", "sign (flat)": "plastic",
-              "toolbox / tool cart": "steel", "fridge / stove / sink": "steel", "hose / pipe (slender)": "rubber",
+              "lamp body": "metal", "bin": "plastic", "ladder": "metal", "sign (flat)": "plastic",
+              "toolbox / tool cart": "metal", "fridge / stove / sink": "metal", "hose / pipe (slender)": "rubber",
               "tray (flat)": "plastic", "overlap": "plastic"}
 
 
@@ -368,16 +370,19 @@ def gate_step(model, row):
 
 
 def physics_step(model, row, material):
-    """The physics layer's rule for a made object (tools/usd/physics.py write_masses): the drawn area times its class's
-    sheet and density; its collider the convex hull (the export's hull guide)."""
+    """The physics layer's rule for a made object (tools/usd/physics.py write_masses): the drawn area times the
+    layer's material's sheet and density (data/physics/materials.json's one row, steel, as every place's physics
+    design gives every model: score/stages/physics/design.py); its friction and restitution its class's row; its
+    collider the convex hull (the export's hull guide)."""
     def make(folder):
         from score.stages.place_build.maker import sim
         spec = sim.material(material)
+        layer = json.loads((REPO / "data/physics/materials.json").read_text())["materials"]["steel"]
         mesh = mesh_of(model)
         hull = mesh.convex_hull
         hull.export(str(folder / "hull.glb"))
         found = {"material": material, "area_m2": round(float(mesh.area), 5),
-                 "mass_kg": round(float(mesh.area * spec["sheet"] * spec["density"]), 4) if spec["sheet"] else None,
+                 "mass_kg": round(float(mesh.area * layer["sheet"] * layer["density"]), 4),
                  "hull_m3": round(float(hull.volume), 6), "static": spec["static"], "dynamic": spec["dynamic"],
                  "restitution": spec["restitution"]}
         (folder / "physics.json").write_text(json.dumps(found, indent=1))
@@ -567,6 +572,44 @@ def branch_b(kept, row, material, rgba, scratch, library):
                   scratch)
         run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba.parent / "closeup.png", row, library))],
                   scratch)
+    if not kept.entry(row["id"], "B", "physics") and all(kept_output(kept, row["id"], "B", step)
+                                                         for step in ("final", "sim", "finish")):
+        folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"weighed-{step}")
+                   for step in ("final", "sim", "finish")}
+        run_steps(kept, row["id"], "B", [("physics", weighed_step(folders, row, material, rgba))], scratch)
+
+
+def weighed_step(folders, row, material, picture):
+    """make's physics on its finished model (sim.py, #161's rules): each finish part's class its library surface's
+    (`material` where the surface names none), each of make's hulls the class of the faces inside it, and a
+    real-world mass a part seen in the route's picture (`picture`, the RGBA close-up), the parts of one words and class
+    asked as one; physics.json and the hulls as hull.glb."""
+    def make(folder):
+        from score.stages.place_build.maker import sim
+        side = gltf_side(folders["final"] / "final.glb")
+        part_of, surfaces = finish.face_finishes(folders["finish"], row["id"])
+        if len(part_of) != len(side["faces"]):
+            raise StepFailed(f"the finish's parts name {len(part_of)} faces, the model has {len(side['faces'])}")
+        records = finish.records(sorted({address for address in surfaces.values() if address.startswith("surface/")}))
+        listed = json.loads((folders["finish"] / "surfaces-parts" / "parts.json").read_text())["takes"][row["id"]]
+        groups, group_of = [], {}
+        for part in listed["parts"]:
+            name = sim.surface_class(records.get(surfaces[part["part"]], {})) or material
+            key = (part["words"], name)
+            if key not in group_of:
+                group_of[key] = len(groups)
+                groups.append({"words": part["words"], "class": name, "share": 0.0, "finish_parts": []})
+            groups[group_of[key]]["share"] += part["share"]
+            groups[group_of[key]]["finish_parts"].append(part["part"])
+        class_of = {number: group["class"] for group in groups for number in group["finish_parts"]}
+        hulls = [(piece["vertices"], piece["faces"]) for piece in colliders_of(folders["sim"] / "hulls.glb")]
+        classes = sim.hull_classes(side["vertices"], side["faces"], [class_of[part] for part in part_of], hulls)
+        masses = sim.weighed(row["words"], row["size"], groups, picture)
+        parts = [{**group, "kg": round(kg, 4)} for group, kg in zip(groups, masses)]
+        found = sim.physical(hulls, classes, parts, row["size"])
+        (folder / "physics.json").write_text(json.dumps(found, indent=1))
+        shutil.copyfile(folders["sim"] / "hulls.glb", folder / "hull.glb")
+    return make
 
 
 def finish_step(model, close_up, row, library):
@@ -582,7 +625,7 @@ def finish_step(model, close_up, row, library):
 # Row vectors from a Y-up frame (glTF's, a Y-up stage's: x across, y up, z toward the viewer) to the measures' Z up.
 Y_UP = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
 # Each branch's model and physics: (the step and file of its model, the step of its physics).
-MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.glb"), "sim")}
+MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.glb"), "physics")}
 # Each branch's finish step, whose parts give its model's faces their finish groups (finish.face_finishes).
 FINISHED = {"B": "finish"}
 
@@ -646,8 +689,8 @@ def colliders_of(path):
 
 
 def made_side(model, physics, finished=None, take=None):
-    """A branch's made model as a side, its mass, colliders and friction from its physics step's folder (A: the
-    physics layer's physics.json and hull.glb; B: make's made.json and hulls.glb); each face's material its finish
+    """A branch's made model as a side, its mass, colliders and friction from its physics step's folder (physics.json
+    and hull.glb: A's the physics layer's, B's make's physics on its finished model); each face's material its finish
     part, with `surfaces` {part: library address}, from its finish step's folder (finish.face_finishes) when it has
     one, else left out. A part list whose faces are not the model's (another face count) fails."""
     side = {**gltf_side(model), "face_material": None}
@@ -656,10 +699,7 @@ def made_side(model, physics, finished=None, take=None):
         if len(part_of) != len(side["faces"]):
             raise StepFailed(f"the finish's parts name {len(part_of)} faces, the model has {len(side['faces'])}")
         side.update(face_material=np.asarray(part_of, dtype=np.int32), surfaces=surfaces)
-    if (physics / "physics.json").is_file():
-        found, hulls = json.loads((physics / "physics.json").read_text()), physics / "hull.glb"
-    else:
-        found, hulls = json.loads((physics / "made.json").read_text())["physics"], physics / "hulls.glb"
+    found, hulls = json.loads((physics / "physics.json").read_text()), physics / "hull.glb"
     return {**side, "mass": found.get("mass_kg"), "colliders": colliders_of(hulls), "friction": found.get("static")}
 
 

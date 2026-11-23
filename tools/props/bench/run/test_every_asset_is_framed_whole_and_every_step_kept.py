@@ -20,6 +20,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finish.offered_addresses: the `painted_for` tag not read -> the one-model surface is fetched, left out only for its
   missing recipe
 - bench.made_side: the finish's parts not read -> the made model's faces carry no finish group
+- bench.weighed_step: a part's surface class not read (the given class for every part) -> the plastic box touches
+  with metal's 0.3; its parts' words not asked -> the ask does not name the grey plastic
 - finish.same_family: a truth surface with no family counted as a mismatch -> its share is 0.0, not unjudged
 """
 import json
@@ -40,9 +42,9 @@ ROWS = [
     ("simready_crate_blue_a01", "crate", "plastic", ([-0.3, -0.2, 0.0], [0.3, 0.2, 0.25]), False, 1.0, None),
     ("simready_utensil_serving_tray_wooden_b01", "tray (flat)", "wood", ([-0.14, -0.22, 0.0], [0.14, 0.22, 0.06]),
      True, 1.0, "finished"),
-    ("simready_storage_locker_double_bench_b01", "cabinet / locker", "steel", ([0.0, 0.0, 0.0], [0.5, 0.5, 1.9]),
+    ("simready_storage_locker_double_bench_b01", "cabinet / locker", "metal", ([0.0, 0.0, 0.0], [0.5, 0.5, 1.9]),
      False, 1.0, "raw"),
-    ("simready_box_cardboard_a02", "box", "paper", ([-0.3, -0.2, 0.0], [0.3, 0.2, 0.25]), False, 100.0, None),
+    ("simready_box_cardboard_a02", "box", "cardboard", ([-0.3, -0.2, 0.0], [0.3, 0.2, 0.25]), False, 100.0, None),
 ]
 PIXELS = 64
 
@@ -129,12 +131,22 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
     folder.mkdir()
     row = {"id": name, "words": f"{name} a thing"}
     finish.finished(model, close_up, row, library, folder, ask=listing)
-    physics = tmp_path / "sim"
-    physics.mkdir()
-    (physics / "made.json").write_text(json.dumps({"physics": {"mass_kg": 1.0, "static": 0.5}}))
+    import shutil
     import trimesh
-    trimesh.load(str(model), force="mesh").export(str(physics / "hulls.glb"))
-    side = bench.made_side(model, physics, folder, name)
+    from score.stages.place_build.maker import sim
+    folders = {"final": tmp_path / "final", "sim": tmp_path / "sim", "finish": folder}
+    for step in ("final", "sim", "physics"):
+        (tmp_path / step).mkdir()
+    shutil.copyfile(model, folders["final"] / "final.glb")
+    trimesh.load(str(model), force="mesh").export(str(folders["sim"] / "hulls.glb"))
+    asked = []
+    monkeypatch.setattr(sim, "claude_ask", lambda body: asked.append(body) or json.dumps(
+        {"whole_kg": 2.0, "reason": "a box", "parts": [{"part": 0, "kg": 2.0}]}))
+    bench.weighed_step(folders, {**row, "size": [0.6, 0.4, 0.25]}, "metal", close_up)(tmp_path / "physics")
+    side = bench.made_side(model, tmp_path / "physics", folder, name)
+    taken = sim.surface_class(held[side["surfaces"][0]])
+    assert (side["mass"], side["friction"]) == (2.0, sim.material(taken)["static"]) and taken != "metal"
+    assert "grey plastic" in asked[0]["contents"][0]["parts"][-1]["text"]
     from tools.props.bench import measures
     split = measures.measured({**side, "face_material": np.zeros(len(side["faces"]), int),
                                "materials": [{"name": "body", "surface": "surface/simready_m_atlas_a01@1"}]},

@@ -14,8 +14,9 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
 4. Its own paint graded toward the place's palette (grade.py, palette.json's tokens); a group still far from every
    token is named a mismatch. A graded paint is still not a library surface: `put` lays the made model's paint parts
    (grade.parts) each as the palette variant nearest its colour (place_build/finished).
-5. Sim-ready (sim.py): CoACD hulls (`<id>-hulls.glb`), mass from the hulls and the material class, friction and
-   restitution from the class, in its record (`<id>.json`).
+5. Sim-ready (sim.py, #161's rules): CoACD hulls (`<id>-hulls.glb`), friction and restitution its material class's
+   row (NVIDIA's table), and a real-world mass Claude gives from its picture, words and size, held to NVIDIA's bulk
+   density band, in its record (`<id>.json`). A finished model's parts are weighed and classed each (sim.py).
 6. Taken into score_lib as a draft `model/<name>_trellis.<place>` entry (score-lib take-in --save), its picture and
    TRELLIS.2's commit and weights in its record and provenance; `put` then lays it as any made model. With
    `take_in=False` (the prop benchmark, #163) nothing goes into score_lib: the made files stay in the work folder and
@@ -384,7 +385,10 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     if flat_card(size):
         raise place_build.Refused(f"{name}: TRELLIS.2 made a flat card {', '.join(f'{side:.3f}' for side in size)} m, "
                                   "not a solid; nothing taken in (a sharper cut-out or another picture)")
-    physics = sim.physical(hulls, material)
+    words = name.replace("_", " ")
+    mass = sim.weighed(words, size, [{"words": words, "class": material, "share": 1.0}], picture)
+    physics = sim.physical(hulls, [material] * len(hulls),
+                           [{"words": words, "class": material, "share": 1.0, "kg": round(mass[0], 4)}], size)
     record = {"maker": SOURCE, "picture": {"source": said, "sha256": sha256(picture)}, "trellis2": stats,
               "fit": how, "repair": mended, "size_m": [round(float(side), 3) for side in size], "grade": groups,
               "mismatch": [group for group in groups if group["mismatch"]], "physics": physics,

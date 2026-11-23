@@ -1,0 +1,146 @@
+{
+ "about": "Each material class a library surface is of, and the class's physics material: NVIDIA SimReady's per-class table (#161, 332 assets measured: density kg/m^3, static and dynamic friction, restitution), its odd rows left out (a 200 kg/m^3 glossy metal, paper and plastic at 7,800), a range taken at its middle (stone); metal's aluminium row (NVIDIA's aluminium surfaces' own: 2,700, 0.61, 0.47, 0.1) is its own row, a surface whose NVIDIA record's base is aluminium, or the anodized recipe, being of it. The physics material is the class's row, never a surface's own. `recipes` names the class of each ProcFunc recipe (data/library/materials.json): a surface adopted from NVIDIA names its class in its material's name (m_<opacity>__<class>__...), any other surface by its recipe; a terrain recipe no prop wears names none. Read by score/stages/place_build/maker/sim.py.",
+ "classes": {
+  "plastic": {
+   "density": 950.0,
+   "static": 0.4,
+   "dynamic": 0.4,
+   "restitution": 0.4
+  },
+  "metal": {
+   "density": 7850.0,
+   "static": 0.3,
+   "dynamic": 0.3,
+   "restitution": 0.1
+  },
+  "aluminium": {
+   "density": 2700.0,
+   "static": 0.61,
+   "dynamic": 0.47,
+   "restitution": 0.1
+  },
+  "rubber": {
+   "density": 1200.0,
+   "static": 0.8,
+   "dynamic": 0.8,
+   "restitution": 0.8
+  },
+  "glass": {
+   "density": 2500.0,
+   "static": 0.4,
+   "dynamic": 0.4,
+   "restitution": 0.05
+  },
+  "cardboard": {
+   "density": 689.0,
+   "static": 0.7,
+   "dynamic": 0.7,
+   "restitution": 0.4
+  },
+  "paper": {
+   "density": 900.0,
+   "static": 0.5,
+   "dynamic": 0.45,
+   "restitution": 0.12
+  },
+  "organic": {
+   "density": 500.0,
+   "static": 0.45,
+   "dynamic": 0.4,
+   "restitution": 0.4
+  },
+  "wood": {
+   "density": 700.0,
+   "static": 0.5,
+   "dynamic": 0.5,
+   "restitution": 0.4
+  },
+  "fabric": {
+   "density": 1000.0,
+   "static": 0.5,
+   "dynamic": 0.5,
+   "restitution": 0.3
+  },
+  "ceramic": {
+   "density": 2600.0,
+   "static": 0.35,
+   "dynamic": 0.3,
+   "restitution": 0.05
+  },
+  "leather": {
+   "density": 860.0,
+   "static": 0.55,
+   "dynamic": 0.5,
+   "restitution": 0.25
+  },
+  "stone": {
+   "density": 2550.0,
+   "static": 0.55,
+   "dynamic": 0.55,
+   "restitution": 0.035
+  },
+  "concrete": {
+   "density": 2400.0,
+   "static": 0.7,
+   "dynamic": 0.6,
+   "restitution": 0.05
+  }
+ },
+ "recipes": {
+  "anodized": "aluminium",
+  "bare_metal": "metal",
+  "boards": "wood",
+  "cardboard": "cardboard",
+  "cast_metal": "metal",
+  "ceramic": "ceramic",
+  "chequer_plate": "metal",
+  "cloth": "fabric",
+  "composite": "plastic",
+  "concrete": "concrete",
+  "fiberglass": "plastic",
+  "galvanized": "metal",
+  "glass": "glass",
+  "glowing": "plastic",
+  "grained_wood": "wood",
+  "hammered": "metal",
+  "knit": "fabric",
+  "leather": "leather",
+  "mat": "rubber",
+  "painted_metal": "metal",
+  "painted_plaster": "concrete",
+  "perforated_metal": "metal",
+  "pile": "fabric",
+  "plastic": "plastic",
+  "polished_metal": "metal",
+  "printed": "paper",
+  "quilted": "fabric",
+  "rock": "stone",
+  "rubber": "rubber",
+  "rusted_metal": "metal",
+  "screen": "glass",
+  "strand_board": "wood",
+  "terrazzo": "stone",
+  "tiles": "ceramic",
+  "weathered_render": "concrete",
+  "wood": "wood",
+  "written": "paper"
+ },
+ "bulk_density": {
+  "about": "NVIDIA's mass over bounding-box volume (kg/m^3) by size class, its P10 to P90 (#161 section 7): small under 0.3 m on the longest side, medium 0.3 to 1.5 m, large 1.5 m or more.",
+  "small": {
+   "under_m": 0.3,
+   "low": 90.0,
+   "high": 3600.0
+  },
+  "medium": {
+   "under_m": 1.5,
+   "low": 22.0,
+   "high": 1050.0
+  },
+  "large": {
+   "under_m": null,
+   "low": 6.5,
+   "high": 390.0
+  }
+ }
+}
