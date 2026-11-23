@@ -13,7 +13,16 @@ twentieth of the texel density, so 1,137 models drew a median 37% of their surfa
 - **The part-to-surface map is data** (`map/parts.json`), recovered from every builder at 4547b8c54 by `recover`; a
   remake refuses a part the map does not list. Rerun `recover` only if OLD_COMMIT changes.
 - **Every finish is a library surface**: each part's look names the library's recipe entry (`score:surface`) and
-  carries the old variant's spec in its place (`score:recipe:spec`), as place_build's palette looks do. A variant that
-  prints an old picture the library does not hold refuses the entry.
+  carries the old variant's spec in its place (`score:recipe:spec`), as place_build's palette looks do.
+- **Built as its room laid it**: model.json keeps no `laid`, so a remake reads what the model's room showed at
+  4547b8c54 (`laid_of`: the kit room's piece of that model, route.shows' keys: a street face's weather, a dome gore's
+  arc, a sign's openings), and the rebuild is moved onto the model's box (a model laid off its builder's origin).
+- **A printed picture is a library decal**: a variant that printed an old picture prints the library decal of it
+  (surface/<picture>, family decal) through the builder's own `content` map, composited as the old recipe printed it;
+  a picture the library holds no decal of refuses the entry (NoDecal) until `decals` lists it for the take-in.
+- **The fallback, from the atlas regions**: an entry whose old build cannot be recovered (Unrecovered: no code build,
+  a builder that fails, parts the map lacks, triangles that do not match) wears, per UV island of its old atlas, its
+  room's library surface nearest the island's painted colour (an island on the unpainted black: the nearest painted
+  face's); its record's step says so. Its previews are looked at before the take-in like any other.
 - `make` only writes files; the take-in (`score-lib take-in <listing.json> --save`) and the withdrawals
   (`score-lib withdraw <old> --replaced-by <new>`, from `replaced.json`) are the library's own commands.

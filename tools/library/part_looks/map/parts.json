@@ -1,7 +1,7 @@
 {
  "commit": "4547b8c549eccfad6c9df83965fb452bead83560",
  "made_by": "tools/library/part_looks/part_looks.py recover",
- "how": "each builder built at the size and layout its room first laid it (data/kit), else [0.5, 0.5, 0.5]; its parts as [part, library surface]",
+ "how": "each builder built with every laid its rooms made it with (data/kit, route.shows), else [0.5, 0.5, 0.5] and none; its parts as [part, library surface]",
  "builders": {
   "ac_unit": [
    [
@@ -336,6 +336,10 @@
    ]
   ],
   "block_roof": [
+   [
+    "deck",
+    "roof_render"
+   ],
    [
     "deck",
     "whitewash"
@@ -953,6 +957,10 @@
    [
     "label",
     "banner_crowd"
+   ],
+   [
+    "label",
+    "banner_first"
    ]
   ],
   "crown_strip_lamp": [
@@ -1063,6 +1071,30 @@
    [
     "bolt",
     "bare_steel"
+   ]
+  ],
+  "dome_ceiling_gore": [
+   [
+    "quilt",
+    "quilted_white"
+   ],
+   [
+    "rib",
+    "anodized_natural"
+   ]
+  ],
+  "dome_deck_wedge": [
+   [
+    "plate",
+    "deck"
+   ],
+   [
+    "tread",
+    "rubber"
+   ],
+   [
+    "bolt",
+    "anodized_natural"
    ]
   ],
   "dome_opening_frame": [
@@ -1711,6 +1743,14 @@
    [
     "drip",
     "facade_paint"
+   ],
+   [
+    "band",
+    "facade_render"
+   ],
+   [
+    "drip",
+    "facade_render"
    ]
   ],
   "facade_pipe": [
@@ -1843,6 +1883,14 @@
    [
     "label",
     "banner_first"
+   ],
+   [
+    "wing_curtain",
+    "flag_red"
+   ],
+   [
+    "wing_frame",
+    "galvanized_dull"
    ]
   ],
   "far_banner": [
@@ -1861,6 +1909,10 @@
    [
     "label",
     "banner_second"
+   ],
+   [
+    "label",
+    "banner_third"
    ]
   ],
   "far_cable": [
@@ -1992,11 +2044,15 @@
    ],
    [
     "label",
-    "sign_column_store"
+    "sign_column_restaurant"
    ],
    [
     "arm",
     "galvanized_dull"
+   ],
+   [
+    "label",
+    "sign_column_store"
    ]
   ],
   "far_pad": [
@@ -2124,7 +2180,7 @@
    ],
    [
     "label",
-    "sign_store"
+    "sign_watches"
    ],
    [
     "arm",
@@ -2137,6 +2193,38 @@
    [
     "lamp_shade",
     "lamp_lens"
+   ],
+   [
+    "label",
+    "sign_barber"
+   ],
+   [
+    "label",
+    "sign_store"
+   ],
+   [
+    "label",
+    "sign_grain_oil"
+   ],
+   [
+    "label",
+    "sign_laundry"
+   ],
+   [
+    "label",
+    "sign_electric"
+   ],
+   [
+    "label",
+    "sign_pharmacy"
+   ],
+   [
+    "label",
+    "sign_books"
+   ],
+   [
+    "label",
+    "sign_hardware"
    ]
   ],
   "far_square_lamp": [
@@ -2483,6 +2571,16 @@
    [
     "label",
     "label_food_storage"
+   ]
+  ],
+  "foot_ring": [
+   [
+    "pad",
+    "quilted_grey"
+   ],
+   [
+    "strap",
+    "quilted_grey"
    ]
   ],
   "frame_rib": [
@@ -2836,7 +2934,23 @@
    ],
    [
     "label",
+    "label_south_hatch"
+   ],
+   [
+    "label",
     "label_west_hatch"
+   ],
+   [
+    "label",
+    "label_north_hatch"
+   ],
+   [
+    "label",
+    "label_east_hatch"
+   ],
+   [
+    "label",
+    "label_airlock"
    ]
   ],
   "hatch_wheel": [
@@ -2873,6 +2987,24 @@
    [
     "bolt",
     "bare_steel"
+   ]
+  ],
+  "hoop": [
+   [
+    "web",
+    "dark_panel"
+   ],
+   [
+    "flange",
+    "dark_panel"
+   ],
+   [
+    "web",
+    "painted_panel"
+   ],
+   [
+    "flange",
+    "painted_panel"
    ]
   ],
   "hose_coil": [
@@ -2939,6 +3071,16 @@
    [
     "tape",
     "plastic_grey"
+   ]
+  ],
+  "hull_plate": [
+   [
+    "plate",
+    "painted_panel"
+   ],
+   [
+    "plate",
+    "dark_panel"
    ]
   ],
   "humidifier": [
@@ -3913,6 +4055,14 @@
    [
     "conduit",
     "galvanized_dull"
+   ],
+   [
+    "case",
+    "meter_grey"
+   ],
+   [
+    "door",
+    "meter_grey"
    ]
   ],
   "meter_cabinet": [
@@ -4156,7 +4306,7 @@
   "parapet": [
    [
     "wall",
-    "facade_paint"
+    "facade_render"
    ],
    [
     "coping",
@@ -4165,6 +4315,28 @@
    [
     "drip",
     "concrete"
+   ],
+   [
+    "wall",
+    "facade_paint"
+   ]
+  ],
+  "partition": [
+   [
+    "panel",
+    "composite_grey"
+   ],
+   [
+    "frame",
+    "anodized_natural"
+   ],
+   [
+    "cap",
+    "anodized_natural"
+   ],
+   [
+    "skirting",
+    "rubber"
    ]
   ],
   "parts_drawers": [
@@ -4239,6 +4411,30 @@
    [
     "label",
     "label_washers"
+   ]
+  ],
+  "passage_hull": [
+   [
+    "fabric",
+    "beta_cloth"
+   ],
+   [
+    "strap",
+    "quilted_grey"
+   ]
+  ],
+  "passage_lining": [
+   [
+    "quilt",
+    "quilted_white"
+   ],
+   [
+    "skirting",
+    "rubber"
+   ],
+   [
+    "deck",
+    "deck"
    ]
   ],
   "pedestal_table": [
@@ -4652,6 +4848,10 @@
   "render_lower": [
    [
     "render",
+    "facade_render"
+   ],
+   [
+    "render",
     "facade_paint"
    ]
   ],
@@ -4663,12 +4863,20 @@
    [
     "plinth",
     "concrete"
+   ],
+   [
+    "render",
+    "facade_render"
    ]
   ],
   "render_upper": [
    [
     "render",
     "facade_paint"
+   ],
+   [
+    "render",
+    "facade_render"
    ]
   ],
   "render_wall": [
@@ -4764,6 +4972,10 @@
    ],
    [
     "bolt",
+    "bare_steel"
+   ],
+   [
+    "plate",
     "bare_steel"
    ]
   ],
@@ -4921,6 +5133,10 @@
    [
     "face",
     "painted_panel"
+   ],
+   [
+    "stiffener",
+    "painted_panel"
    ]
   ],
   "roof_light_fixture": [
@@ -5053,6 +5269,44 @@
     "cable_black"
    ]
   ],
+  "shell_gore": [
+   [
+    "fabric",
+    "beta_cloth"
+   ],
+   [
+    "strap",
+    "quilted_grey"
+   ]
+  ],
+  "shell_gore_open": [
+   [
+    "fabric",
+    "beta_cloth"
+   ],
+   [
+    "strap",
+    "quilted_grey"
+   ]
+  ],
+  "shell_gore_window": [
+   [
+    "fabric",
+    "beta_cloth"
+   ],
+   [
+    "glass",
+    "glass_tinted"
+   ],
+   [
+    "frame",
+    "anodized_natural"
+   ],
+   [
+    "strap",
+    "quilted_grey"
+   ]
+  ],
   "shop_open": [
    [
     "frame",
@@ -5103,6 +5357,14 @@
    [
     "padlock",
     "bare_steel"
+   ],
+   [
+    "roll_box",
+    "shutter_paint"
+   ],
+   [
+    "curtain",
+    "shutter_paint"
    ]
   ],
   "shop_sign": [
@@ -5129,6 +5391,42 @@
    [
     "lamp_shade",
     "lamp_lens"
+   ],
+   [
+    "label",
+    "sign_grain_oil"
+   ],
+   [
+    "label",
+    "sign_laundry"
+   ],
+   [
+    "label",
+    "sign_electric"
+   ],
+   [
+    "label",
+    "sign_pharmacy"
+   ],
+   [
+    "label",
+    "sign_books"
+   ],
+   [
+    "label",
+    "sign_hardware"
+   ],
+   [
+    "label",
+    "sign_watches"
+   ],
+   [
+    "label",
+    "sign_barber"
+   ],
+   [
+    "label",
+    "sign_block_name"
    ]
   ],
   "sign_plate": [
@@ -5138,11 +5436,15 @@
    ],
    [
     "label",
-    "sign_pressure_hatch"
+    "label_cable_run"
    ],
    [
     "bolt",
     "cast_iron_dark"
+   ],
+   [
+    "label",
+    "sign_pressure_hatch"
    ]
   ],
   "sleep_pod": [
@@ -6118,7 +6420,7 @@
    ],
    [
     "outlines",
-    "label_sign_out"
+    "toolboard_outlines"
    ],
    [
     "edge",
@@ -6139,6 +6441,10 @@
    [
     "rack_bracket",
     "wood_board"
+   ],
+   [
+    "outlines",
+    "label_sign_out"
    ]
   ],
   "tread_mat": [
@@ -6443,12 +6749,76 @@
   ],
   "wall_print": [
    [
+    "frame",
+    "varnished_wood"
+   ],
+   [
+    "backing",
+    "varnished_wood"
+   ],
+   [
+    "sheet",
+    "flat_family_photo"
+   ],
+   [
     "backing",
     "cotton_white"
    ],
    [
     "sheet",
+    "flat_calendar"
+   ],
+   [
+    "hanger",
+    "bare_steel"
+   ],
+   [
+    "nail",
+    "bare_steel"
+   ],
+   [
+    "sheet",
     "flat_poster_red"
+   ],
+   [
+    "sheet",
+    "flat_astronaut_poster"
+   ],
+   [
+    "sheet",
+    "couplet_left"
+   ],
+   [
+    "sheet",
+    "couplet_right"
+   ],
+   [
+    "sheet",
+    "couplet_top"
+   ],
+   [
+    "sheet",
+    "floor_3"
+   ],
+   [
+    "sheet",
+    "floor_2"
+   ],
+   [
+    "sheet",
+    "floor_1"
+   ],
+   [
+    "sheet",
+    "floor_g"
+   ],
+   [
+    "sheet",
+    "poster_moon_flight"
+   ],
+   [
+    "sheet",
+    "notice_residents"
    ]
   ],
   "wall_screen_cluster": [
@@ -7017,17 +7387,6 @@
   ]
  },
  "not_built": {
-  "dome_ceiling_gore": "KeyError: 'half'",
-  "dome_deck_wedge": "KeyError: 'half'",
-  "foot_ring": "KeyError: 'half'",
-  "hoop": "KeyError: 'arc'",
-  "hull_plate": "KeyError: 'arc'",
-  "partition": "KeyError: 'length'",
-  "passage_hull": "KeyError: 'length'",
-  "passage_lining": "KeyError: 'length'",
-  "pendant_lamp": "TypeError: 'NoneType' object is not iterable",
-  "shell_gore": "KeyError: 'half'",
-  "shell_gore_open": "KeyError: 'half'",
-  "shell_gore_window": "KeyError: 'half'"
+  "pendant_lamp": "TypeError: 'NoneType' object is not iterable"
  }
 }
