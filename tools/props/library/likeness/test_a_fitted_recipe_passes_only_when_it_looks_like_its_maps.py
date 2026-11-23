@@ -56,6 +56,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   dropped (its roughness USD's 0.5).
 - fit.rebuilt: the map's own blue kept (the turned-under row's slopes over FLAT_FLOOR: its relief far too high).
 - fit.spec_of: toksvig_roughness dropped (the fine slopes row's roughness stays 0.4).
+- fit.spec_of: the no-normal-map flattening dropped (the cotton row keeps cloth's 0.0002 bump, the boxes row
+  cardboard's 0.0003 flutes).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -207,7 +209,10 @@ ROWS = [
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "polished_metal", "roughness": 0.0, "metal": 1.0}),
     ("no roughness said anywhere: USD's default, as the map side draws", "m_opaque_fabric_cotton_black_a01",
      {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 1.0},
-     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "cloth", "roughness": 0.5}),
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "cloth", "roughness": 0.5, "heights": (0.0, None)}),
+    ("no normal map: no flutes", "paper_unique_brown_boxes_a", {},
+     {"maps": {}, "tile_metres": None, "constants": {"diffuseColor": [0.1845] * 3}},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "cardboard", "heights": (None, 0.0)}),
     ("a dim highlight that lowering made dimmer: rougher, ranked by its one breach", "t_plastic_glossy_gray_a01",
      {"t_plastic_glossy_gray_a01_tile_alb.png": solid((119,) * 3),
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0))}, {"tile_metres": 1.0},
@@ -267,5 +272,6 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
-              "ranking": measure.ranking(views), "glow_strength": spec.get("glow"), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
+              "ranking": measure.ranking(views), "glow_strength": spec.get("glow"),
+              "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

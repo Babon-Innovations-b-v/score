@@ -93,6 +93,8 @@ CONSTANT_MEASURES = {"roughness": "roughness", "metallic": "metal", "opacity": "
 ROLE_ALIASES = {"metallic": "metal"}  # a surface.json's role names (the USD input's) as this fit's
 # A surface.json's packed roles, one file holding two: {role: (the colour role, the role its alpha holds)}.
 PACKED_ROLES = {"albedo_roughness": ("albedo", "roughness_alpha")}
+# A recipe's relief settings, its heights: drawn flat (0) for a surface with no normal map, whose maps say smooth.
+RELIEF_SETTINGS = ("bump", "flute_height")
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
 PATTERN_SPREAD = 0.3
@@ -346,7 +348,7 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread; a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
+    spread; no relief (RELIEF_SETTINGS 0) with no normal map; a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
     slopes (toksvig_roughness)."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
     spec = {"recipe": family, **defaults, "colour": linear_colour(measured["lab"])}
@@ -370,6 +372,8 @@ def spec_of(family, measured, method=METHOD):
         spec[size_setting] = round(drawn, 5)
     if "bump" in defaults and feature:
         spec["bump"] = round(measured["height"] * BUMP_PER_HEIGHT * drawn / feature, 6)
+    if feature is None:
+        spec.update({setting: 0.0 for setting in RELIEF_SETTINGS if setting in defaults})
     apart = abs(measured["lab"][0] - measured["dark_lab"][0])
     if "contrast" in defaults and apart > 1.0:
         spec["contrast"] = round(min(1.0, measured["lightness_spread"] / (PATTERN_SPREAD * apart)), 4)
