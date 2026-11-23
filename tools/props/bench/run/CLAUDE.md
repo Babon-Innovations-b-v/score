@@ -7,8 +7,14 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
 - **Free, on this PC's card only.** The render goes through the card queue (place_build/render.queued); route A's
   takes through `tools/cloud/batch.py` and its finish through `blender_cloud.py`, both under `SCORE_CLOUD=local`
   (score/stages/props/pixal_row's own calls); route B's TRELLIS.2 through `make`'s card queue. `route` is refused
-  without `SCORE_CLOUD=local`. Nothing paid runs here: the close-up redraw (Nano Banana Pro, tier 2) and the finish
-  route's Gemini list are not called; the finish route and the solid copy are recorded as not run (`NOT_RUN`).
+  without `SCORE_CLOUD=local`. Nothing paid runs here: the close-up redraw (Nano Banana Pro, tier 2) is not called;
+  on branch A the finish route and the solid copy are recorded as not run (`NOT_RUN`).
+- **Branch B's finish** (`finish.py`, #168): the final model through the surface stage's finish route (views, list,
+  split, parts; the list asked of Claude as a place's line asks it, EUR 0), on the benchmark place's surface library:
+  score_lib's surfaces in force with a recipe (the adopted tiling set at its fitted settings, the recipes), each colour
+  a palette token; a surface painted for one model, or with no recipe, is left out by name. TRELLIS.2 gives no
+  close-up camera, so nothing is laid through it and marks are decal gaps; the bake is a place's and not run. The
+  measures read its parts as B's finish groups and each part's surface family (`family`) against the truth's.
 - **Nothing goes into score_lib, and the library read is a scratch checkout** (`--library`, a detached worktree; the
   shared checkout is refused). `make` runs with `take_in=False` in a scratch place folder; entries are fetched by
   score_lib's own command into job scratch, never the library's file cache.
@@ -29,4 +35,5 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   `look_down`, `lies_flat`); change it there, never here. Front is the asset's -y side; a flat row is seen from
   straight above with +y up.
 - Test: `test_every_asset_is_framed_whole_and_every_step_kept.py` (a stand-in for Blender, a small USD box, a store and
-  a bucket in folders, the box again as a Y-up glb and a Y-up stage).
+  a bucket in folders, the box again as a Y-up glb and a Y-up stage, and through the finish on a three-surface library
+  with a stand-in list).

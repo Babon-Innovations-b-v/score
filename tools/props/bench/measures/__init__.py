@@ -129,10 +129,14 @@ def by_finish(truth):
     """The truth with each face's material its finish: a truth that names its `materials` (the truth reader's) has
     one finish a library surface (else a material name), however many material prims bind it (the pantry cabinet
     binds its dark wood as four prims, so a made part holding all that wood read as holding a quarter of it). Its
-    `materials` become the finishes, so a truth read by finish reads the same again."""
+    `materials` become the finishes, so a truth read by finish reads the same again. A surface painted for one model
+    (`one_model`: its maps cover the whole model's UVs once, the toaster's plastic and its metal one picture) names no
+    finish: its material prims are NVIDIA's finish groups, one finish a material name (#168: read by surface the
+    toaster was one finish, and four made parts failed parts_per_material against it)."""
     if not truth.get("materials") or truth.get("face_material") is None:
         return truth
-    names = [item.get("surface") or item.get("name") for item in truth["materials"]]
+    names = [item.get("name") if item.get("one_model") else item.get("surface") or item.get("name")
+             for item in truth["materials"]]
     finish = {name: index for index, name in enumerate(dict.fromkeys(names))}
     lookup = np.array([finish[name] for name in names] + [-1])
     return {**truth, "face_material": lookup[np.asarray(truth["face_material"])],

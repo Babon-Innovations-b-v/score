@@ -26,7 +26,7 @@ volume, colliders), `TraverseInstanceProxies` dropped (box, volume, materials: t
 never turned for a left-handed mesh (volume, colliders), material subsets ignored (materials), a body's own mass not
 preferred (mass), the friction not weighted by collider volume (friction), the payload variants not set (colliders),
 MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton (colliders), the salt changed (box
-picks), the stem skip dropped (box picks), the newest version not taken (box picks), the overlap targets' stems
+picks), the stem skip dropped (box picks), a surface's `painted_for` tag not read (one model), the newest version not taken (box picks), the overlap targets' stems
 not taken first (desk picks).
 """
 import json
@@ -193,6 +193,10 @@ def made(tmp_path_factory):
         folder = root / "entries/model" / item["id"] / str(item["version"])
         folder.mkdir(parents=True)
         (folder / "entry.json").write_text(json.dumps(item))
+    (root / "index").mkdir()
+    (root / "index/surface.json").write_text(json.dumps({"schema": "score-lib-index/1", "kind": "surface", "entries": [
+        {"address": "surface/paint@1", "tags": {}},
+        {"address": "surface/metal@1", "tags": {"painted_for": ["shell_a01"]}}]}))
     model = files / "model/simready_shell_a01@1"
     model.mkdir(parents=True)
     (model / "root.usda").write_text(ROOT)
@@ -227,6 +231,8 @@ ROWS = [
      [[0.0, 0.0, 0.0], [5.0, 2.0, 0.5]]),
     ("volume", lambda found, picks: round(float(trimesh.Trimesh(found["vertices"], found["faces"]).volume), 4), 1.501),
     ("materials", lambda found, picks: materials(found), {"surface/paint@1": 12, "surface/metal@1": 12, None: 12}),
+    ("one model", lambda found, picks: {item["surface"]: item["one_model"] for item in found["materials"]},
+     {"surface/paint@1": False, "surface/metal@1": True, None: False}),
     ("mass", lambda found, picks: (found["mass"], [body["mass"] for body in found["bodies"]]), (7.0, [2.0, 5.0])),
     ("colliders", lambda found, picks: colliders(found),
      {"newton": [("convexHull", True, 2.0), ("convexDecomposition", False, 0.001)],

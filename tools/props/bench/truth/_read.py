@@ -149,11 +149,22 @@ def visual(stage):
             np.concatenate(face_prim), prims)
 
 
-def described(stage, path):
-    """A material prim's {prim, name, surface}: the library surface its `score:surface` names, None when none."""
+def described(stage, path, painted=()):
+    """A material prim's {prim, name, surface, one_model}: the library surface its `score:surface` names, None when
+    none; `one_model` whether that surface is painted for one model (`painted`: one_model_surfaces)."""
     prim = stage.GetPrimAtPath(path)
     named = prim.GetAttribute(SURFACE)
-    return {"prim": path, "name": prim.GetName(), "surface": named.Get() if named and named.HasAuthoredValue() else None}
+    surface = named.Get() if named and named.HasAuthoredValue() else None
+    return {"prim": path, "name": prim.GetName(), "surface": surface, "one_model": surface in painted}
+
+
+def one_model_surfaces(root):
+    """The addresses of the library's surfaces painted for one model (their index rows' `painted_for` tag: maps that
+    cover one model's UVs once); none when the library has no surface index."""
+    if not (pathlib.Path(root) / "index" / "surface.json").is_file():
+        return set()
+    return {row["address"] for row in library.index(root, "surface")["entries"]
+            if row.get("tags", {}).get("painted_for")}
 
 
 def authored(prim, name):
@@ -280,10 +291,11 @@ def read(address):
         shapes[key], physics[key] = colliders(path, key, bodies)
     low, high = vertices[np.unique(faces)].min(axis=0), vertices[np.unique(faces)].max(axis=0)
     tags = record.get("tags") or {}
+    painted = one_model_surfaces(library.root_from_environment() or library_files.default_root())
     return {"address": record["address"], "id": record["id"], "title": record.get("title") or record["id"],
             "words": list(tags.get("description") or []), "wikidata_class": list(tags.get("wikidata_class") or []),
             "vertices": vertices, "faces": faces, "face_material": face_material, "face_prim": face_prim,
-            "prims": prims, "materials": [described(stage, name) for name in materials],
+            "prims": prims, "materials": [described(stage, name, painted) for name in materials],
             "box": [low.tolist(), high.tolist()], "size": (high - low).tolist(),
             "mass": mass, "bodies": bodies, "joints": joints(bodied, bodies),
             "colliders": shapes["mujoco"], "friction": friction(shapes["mujoco"], physics["mujoco"]),

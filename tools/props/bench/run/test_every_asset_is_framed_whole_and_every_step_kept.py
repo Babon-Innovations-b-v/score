@@ -2,7 +2,9 @@
 when it lies flat), lays it on the grey backdrop while its RGBA keeps the true alpha, refuses a render whose box
 slipped, gives both routes the material class its words or its kind name, and keeps every route step as a store object with its blobs in the bucket: a failing step is its branch's
 gap, the steps after it are not run, and a run taken up again runs no kept step twice; a made model (glTF, Y up) and a
-withdrawn one (a Y-up stage) are measured in the truth's frame, metres Z up.
+withdrawn one (a Y-up stage) are measured in the truth's frame, metres Z up. Branch B's finish (finish.py) offers
+score_lib's surfaces with a recipe, never one painted for one model or with none, and gives every face of the made
+model a part bound to a library surface, which the measures read as its finish groups and families.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.view_of: MARGIN left out of `reach` -> the box's outermost corner lands on the frame's edge, not inside it
@@ -15,6 +17,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.run_steps: a kept step not skipped -> taking the run up again makes the raw model twice
 - bench.Y_UP the identity (glTF's Y up read as Z up) -> the made box comes back lying on its side
 - bench.usd_side: a Y-up stage not turned -> the withdrawn model's box comes back lying on its side
+- finish.offered_addresses: the `painted_for` tag not read -> the one-model surface is fetched, left out only for its
+  missing recipe
+- bench.made_side: the finish's parts not read -> the made model's faces carry no finish group
+- finish.same_family: a truth surface with no family counted as a mismatch -> its share is 0.0, not unjudged
 """
 import json
 import math
@@ -24,6 +30,7 @@ import pytest
 from PIL import Image
 
 import bench
+import finish
 from score.store import Store
 from score.store.offload import FolderBucket
 
@@ -73,6 +80,67 @@ def usd_box(path, low, high, up="z"):
     mesh.CreateFaceVertexCountsAttr([4] * 6)
     mesh.CreateFaceVertexIndicesAttr([0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3])
     stage.Save()
+
+
+def surface_library(root):
+    """A small score_lib with three surfaces in its index: one adopted and tiling (a fitted plastic), one painted for
+    one model, one a recipe's own entry; {address: its surface.json}."""
+    (root / "index").mkdir(parents=True)
+    rows = [("surface/simready_m_plastic_grey_a01@1", {}), ("surface/simready_m_atlas_a01@1", {"painted_for": ["x"]}),
+            ("surface/rubber@1", {})]
+    (root / "index/surface.json").write_text(json.dumps({"schema": "score-lib-index/1", "kind": "surface", "entries": [
+        {"address": address, "state": "draft", "tags": tags} for address, tags in rows]}))
+    for address, _ in rows:
+        kind, rest = address.split("/")
+        folder = root / "entries" / kind / rest.replace("@", "/")
+        folder.mkdir(parents=True)
+        (folder / "entry.json").write_text(json.dumps({"files": {"surface.json": {"role": "record"}}}))
+    return {"surface/simready_m_plastic_grey_a01@1": {"recipe": {"recipe": "plastic", "settings": {
+                "colour": [0.2, 0.2, 0.2], "roughness": 0.4, "metal": 0.0, "dirt_colour": [0.1, 0.1, 0.1]}}},
+            "surface/rubber@1": {"recipe": "rubber"},
+            "surface/simready_m_atlas_a01@1": {"recipe": None, "recipe_gap": "maps only"}}
+
+
+def listing(bodies):
+    """A stand-in for the list's ask: one finish, the first surface and token offered, every region of every view."""
+    found = {}
+    for take, body in bodies.items():
+        schema = body["generationConfig"]["responseSchema"]["properties"]
+        finish = schema["finishes"]["items"]["properties"]
+        views = schema["labels"]["items"]["properties"]["view"]["enum"]
+        found[take] = json.dumps({"finishes": [{"parts": "all of it", "finish": "grey plastic",
+                                                "surface": finish["surface"]["enum"][0],
+                                                "token": finish["token"]["enum"][0], "roughness": 0.4, "metal": 0.0,
+                                                "fits": True}],
+                                  "labels": [{"view": view, "region": region, "finish": 1}
+                                             for view in views for region in range(1, 9)]})
+    return found
+
+
+def finished_box(tmp_path, monkeypatch, name, model, close_up):
+    """The made box through branch B's finish on a small library; its family share against a truth of the surface
+    it took and against one painted for one model (no family): (the library, the side the measures read, both)."""
+    root = tmp_path / "score_lib"
+    held = surface_library(root)
+    monkeypatch.setenv("SCORE_LIB_ROOT", str(root))
+    monkeypatch.setattr(finish, "records", lambda addresses: {address: held[address] for address in addresses})
+    library = finish.bench_library(root)
+    folder = tmp_path / "finish"
+    folder.mkdir()
+    row = {"id": name, "words": f"{name} a thing"}
+    finish.finished(model, close_up, row, library, folder, ask=listing)
+    physics = tmp_path / "sim"
+    physics.mkdir()
+    (physics / "made.json").write_text(json.dumps({"physics": {"mass_kg": 1.0, "static": 0.5}}))
+    import trimesh
+    trimesh.load(str(model), force="mesh").export(str(physics / "hulls.glb"))
+    side = bench.made_side(model, physics, folder, name)
+    from tools.props.bench import measures
+    split = measures.measured({**side, "face_material": np.zeros(len(side["faces"]), int),
+                               "materials": [{"name": "body", "surface": "surface/simready_m_atlas_a01@1"}]},
+                              side)["finish"]
+    return library, side, [finish.same_family(split["pairs"], side["surfaces"], [truth]) for truth in
+                           (side["surfaces"][0], "surface/simready_m_atlas_a01@1")]
 
 
 def drawer(scale):
@@ -145,6 +213,17 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     assert laid[44, 30].sum() < sum(bench.BACKDROP)  # its shadow darker than the backdrop
     alpha = np.asarray(Image.open(folder / "rgba.png"))[..., 3]
     assert alpha[20, 20] == 255 and alpha[44, 30] == 0  # the true alpha holds no shadow
+
+    if failing is None:  # one asset through branch B's finish (the others' rows test the render and the steps)
+        (variants, palette, addresses, left), side, family = finished_box(tmp_path, monkeypatch, name,
+                                                                          tmp_path / "made.glb", folder / "closeup.png")
+        assert set(addresses.values()) == {"surface/simready_m_plastic_grey_a01@1", "surface/rubber@1"}
+        assert list(left) == ["surface/simready_m_atlas_a01@1"] and "one model" in left[list(left)[0]], left
+        assert variants["families"]["plastic"]["variants"]["simready_m_plastic_grey_a01"]["token"] == \
+            finish.token_of([0.2, 0.2, 0.2]) and finish.NEUTRAL in palette["tokens"]
+        assert len(side["face_material"]) == len(side["faces"]) and (side["face_material"] >= 0).all()
+        assert set(side["surfaces"].values()) <= set(addresses.values()), side["surfaces"]
+        assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
 
     made = []
 

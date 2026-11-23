@@ -21,7 +21,8 @@ metres, Z up as NVIDIA authors it, the stage's units brought to metres, every US
 - `address`, `id`, `title`, `words` (its description tags), `wikidata_class`: the entry's own words.
 - `vertices` float64 (V, 3); `faces` int64 (F, 3), the drawn meshes' polygons fanned into triangles, outward wound.
 - `face_material` int32 (F,): each triangle's bound material, an index into `materials` (-1: none bound);
-  `materials` [{prim, name, surface}], `surface` the library address its `score:surface` names (None: names none).
+  `materials` [{prim, name, surface, one_model}], `surface` the library address its `score:surface` names (None:
+  names none), `one_model` whether that surface is painted for one model (its index row's `painted_for`).
 - `face_prim` int32 (F,): each triangle's mesh, an index into `prims` (its USD prim paths).
 - `box`: [low, high], each [x, y, z], over the drawn triangles; `size`: high - low.
 - `mass`: NVIDIA's authored MassAPI mass in kg summed over its rigid bodies (USD physics' rule: a body's own mass,

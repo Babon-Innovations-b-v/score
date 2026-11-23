@@ -36,14 +36,17 @@ kept, and the branch's later steps are not run for it (one try each: no step is 
   they are a place's surface line, and the list is a paid Gemini call.
 - B, place_build `make` (TRELLIS.2 on this PC's card), given the RGBA render, the row's size and `--no-take-in`, in a
   scratch place folder: `raw` (trellis.glb), `final` (set at the size, its paint graded), `sim` (CoACD hulls and
-  mass), then `straight` and `gate` on the final model.
+  mass), then `straight` and `gate` on the final model, and `finish` (finish.py, #168): the final model through the
+  library finish method (views, list, split, parts) on the benchmark place's surface library, read once a run; its
+  list is Claude's (EUR 0), as on a place's line. A `finish` gap leaves the checks standing.
 Nothing is taken into score_lib, and the library read is a scratch checkout (--library), never the shared one.
 
 **The measures** (`measure`, free, this PC's processor): each branch's made model (A's finished final.glb, B's final
 model) read in the truth's frame (glTF's Y up turned to Z up), its mass, colliders and friction from its physics step
-(A's physics, B's sim), held to its truth (tools/props/bench/truth) by tools/props/bench/measures, the kind's other set
-assets laid like it for the rank: kept as the branch's `measures` step, measures.json {truth, made, found, judged},
-`found` whole so a later bar re-judges it. An overlap target's withdrawn models (the old models of score_lib it
+(A's physics, B's sim), held to its truth (tools/props/bench/truth) by tools/props/bench/measures (B's faces in their
+finish parts and each part's family against its truth finish's, `family`, where its finish step is kept), the kind's
+other set assets laid like it for the rank: kept as the branch's `measures` step, measures.json {truth, made, found,
+judged}, `found` whole so a later bar re-judges it. An overlap target's withdrawn models (the old models of score_lib it
 replaced) are measured the same way at the size they were laid at, branch `old`, one step each (its address).
 
 The run's index (<PROPS_HOME>/bench/<run>/index.json, rewritten whole after every step) names each output's hash; a
@@ -52,6 +55,7 @@ step already in it is not run again, so a run stopped part way goes on where it 
 import argparse
 import concurrent.futures
 import datetime
+import functools
 import json
 import math
 import os
@@ -72,6 +76,7 @@ for _folder in ("tools/library", "tools/props", "tools/props/closeup", "tools/pr
 sys.path.insert(0, str(REPO))
 
 import check  # noqa: E402  (tools/props/closeup: the close-up style)
+import finish  # noqa: E402  (branch B's finish: the library finish method)
 
 SCRIPT = HERE / "closeup.py"
 PLACE = "bench163"  # the benchmark's place name: its takes, its inventory's scene, its scratch place folder
@@ -546,8 +551,9 @@ def made_steps(row, rgba, material, place):
     return work, [("raw", raw), ("final", final), ("sim", sim)]
 
 
-def branch_b(kept, row, material, rgba, scratch):
-    """place_build make's steps for one asset, then the checks on its final model."""
+def branch_b(kept, row, material, rgba, scratch, library):
+    """place_build make's steps for one asset, then the checks on its final model and its finish; `library()` gives
+    the benchmark place's surface library (finish.bench_library), read once a run."""
     work, steps = made_steps(row, rgba, material, scratch_place(scratch))
     if kept_output(kept, row["id"], "B", "raw"):
         folder = checked_out(kept, row["id"], "B", "raw", scratch / "B" / "kept-raw")
@@ -559,6 +565,16 @@ def branch_b(kept, row, material, rgba, scratch):
         model = checked_out(kept, row["id"], "B", "final", scratch / "B" / "kept-final") / "final.glb"
         run_steps(kept, row["id"], "B", [("straight", straight_step(model)), ("gate", gate_step(model, row))],
                   scratch)
+        run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba.parent / "closeup.png", row, library))],
+                  scratch)
+
+
+def finish_step(model, close_up, row, library):
+    """The made model through the library finish method (finish.py: views, list, split, parts) on the benchmark
+    place's surface library; its rows' outputs kept whole."""
+    def make(folder):
+        finish.finished(model, close_up, row, library(), folder)
+    return make
 
 
 # --- the measures: each made model held to its truth (tools/props/bench/measures) ------------------------------------
@@ -567,6 +583,8 @@ def branch_b(kept, row, material, rgba, scratch):
 Y_UP = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
 # Each branch's model and physics: (the step and file of its model, the step of its physics).
 MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.glb"), "sim")}
+# Each branch's finish step, whose parts give its model's faces their finish groups (finish.face_finishes).
+FINISHED = {"B": "finish"}
 
 
 def side_of(vertices, faces, face_material=None):
@@ -627,11 +645,17 @@ def colliders_of(path):
     return [{"vertices": points, "faces": triangles} for points, triangles, _ in gltf_meshes(path)]
 
 
-def made_side(model, physics):
+def made_side(model, physics, finished=None, take=None):
     """A branch's made model as a side, its mass, colliders and friction from its physics step's folder (A: the
-    physics layer's physics.json and hull.glb; B: make's made.json and hulls.glb). Its finish is not split yet (the
-    finish route is not run), so its face materials are left out."""
+    physics layer's physics.json and hull.glb; B: make's made.json and hulls.glb); each face's material its finish
+    part, with `surfaces` {part: library address}, from its finish step's folder (finish.face_finishes) when it has
+    one, else left out. A part list whose faces are not the model's (another face count) fails."""
     side = {**gltf_side(model), "face_material": None}
+    if finished is not None:
+        part_of, surfaces = finish.face_finishes(finished, take)
+        if len(part_of) != len(side["faces"]):
+            raise StepFailed(f"the finish's parts name {len(part_of)} faces, the model has {len(side['faces'])}")
+        side.update(face_material=np.asarray(part_of, dtype=np.int32), surfaces=surfaces)
     if (physics / "physics.json").is_file():
         found, hulls = json.loads((physics / "physics.json").read_text()), physics / "hull.glb"
     else:
@@ -663,6 +687,9 @@ def written_measures(folder, truth, side, others, made):
     """measures.json: what was measured, every measure (measures.measured) and its judgement at today's bars."""
     from tools.props.bench import calibrate, measures
     found = measures.measured(truth, side, others=others)
+    if side.get("surfaces") is not None and "finish" in found:
+        named = [entry["surface"] for entry in measures.by_finish(truth)["materials"]]
+        found["family"] = finish.same_family(found["finish"]["pairs"], side["surfaces"], named)
     record = {"truth": truth["address"], "made": made, "found": found, "judged": measures.judged(found)}
     (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
 
@@ -673,7 +700,10 @@ def measure_step(kept, asset, branch, truth, others, scratch):
         (step, name), physics = MEASURED[branch]
         model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
         held = checked_out(kept, asset, branch, physics, scratch / branch / f"kept-{physics}")
-        written_measures(folder, truth, made_side(model, held), others, f"{branch} {step}")
+        finish = FINISHED.get(branch)
+        parted = checked_out(kept, asset, branch, finish, scratch / branch / f"kept-{finish}") \
+            if finish and kept_output(kept, asset, branch, finish) else None
+        written_measures(folder, truth, made_side(model, held, parted, asset), others, f"{branch} {step}")
     return make
 
 
@@ -778,8 +808,10 @@ def route_all(rows, kept, run, branch):
             closeups = {asset: folder / "closeup.png" for asset, (_, folder) in given.items()}
             branch_a(kept, found, closeups, material, inventory_for(found, run_folder(run)), scratch, run_folder(run))
         else:
+            library = functools.cache(lambda: finish.bench_library(os.environ["SCORE_LIB_ROOT"]))
             for row in found:
-                branch_b(kept, row, material[row["id"]], given[row["id"]][1] / "rgba.png", scratch[row["id"]])
+                branch_b(kept, row, material[row["id"]], given[row["id"]][1] / "rgba.png", scratch[row["id"]],
+                         library)
     finally:
         shutil.rmtree(props_home() / "tmp" / f"{PLACE}-{run}", ignore_errors=True)
 

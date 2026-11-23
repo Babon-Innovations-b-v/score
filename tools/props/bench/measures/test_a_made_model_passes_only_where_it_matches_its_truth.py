@@ -18,6 +18,7 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - __init__.held holding the wall to the gate's 3 mm alone: the 1.5 mm shell made for NVIDIA's 2 mm one fails (NVIDIA's
   own walls run thinner than the gate's floor: crates 2.3 mm, cartons 0.1 mm; #163 calibration).
 - __init__.by_finish keeping the material prims: the one side part reads as half of each of two finishes.
+- __init__.by_finish reading a surface painted for one model as one finish: one part for its two names passes.
 - _finish.finish_split counting every part, however small: the three slivers make five parts for two finishes.
 - _finish.finish_split holding a finish whatever its parts' purity: one part for two materials passes.
 - _physics.overhang reading the distance from inside the hull: the hull grown 3 cm passes its overhang.
@@ -83,6 +84,13 @@ def two_prims_one_finish():
     return {**TRUTH, "face_material": split,
             "materials": [{"name": "side_a", "surface": "wood"}, {"name": "top", "surface": "paint"},
                           {"name": "side_b", "surface": "wood"}]}
+
+
+def one_model_finishes():
+    """TRUTH with its top and sides two material names bound to one surface painted for one model (the toaster's
+    plastic and metal, one picture)."""
+    return {**TRUTH, "materials": [{"name": "plastic", "surface": "atlas", "one_model": True},
+                                   {"name": "metal", "surface": "atlas", "one_model": True}]}
 
 
 def with_slivers():
@@ -178,6 +186,8 @@ CASES = [
     ("cut 16 times finer", lambda: made(box().subdivide().subdivide()), "clean.triangles_per_m2", False),
     ("its sides bound as two prims of one finish", lambda: measures.measured(
         two_prims_one_finish(), side(box(), top_material(box()))), "finish.held_least", True),
+    ("one part for two names of one picture", lambda: measures.measured(
+        one_model_finishes(), side(box(), np.zeros(12, int))), "finish.held_least", False),
     ("three sliver parts beside its two", lambda: made(with_slivers()[0], material=with_slivers()[1]),
      "finish.parts_per_material", True),
     ("one part for two materials", lambda: made(box(), material=np.zeros(12, int)), "finish.held_least", False),

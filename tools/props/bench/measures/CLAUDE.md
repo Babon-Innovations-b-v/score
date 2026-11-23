@@ -20,7 +20,7 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   cleanliness bars are against the truth's own value, never absolute.
 - **What the calibration fixed here**: silhouettes drawn by pixel centres for every triangle size (dots left holes in
   a finely cut copy), materials carried by the exact nearest truth triangle and read by finish (surface), not by
-  material prim, the turn tie at 5% (sampling noise stood a copy on its head), overhang read off the drawn shape's
+  material prim (but a surface painted for one model by its material names: its prims are NVIDIA's finish groups, #168), the turn tie at 5% (sampling noise stood a copy on its head), overhang read off the drawn shape's
   convex hull (a hull over an open crate is NVIDIA's own collider), the rank and the floors against others laid at the
   truth's size with its twins (recoloured same geometry) left out, a single hull's own volume. A measure whose input a step lacks (a raw model's parts, mass, colliders) is left
   out, never failed.
