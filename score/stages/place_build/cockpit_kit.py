@@ -1369,6 +1369,12 @@ def write(path, kind, sizes):
     pieces = KINDS[kind](**sizes)
     if kind not in FLAT_KINDS:
         pieces = moved(pieces, about("y", 180))
+    return written(path, pieces)
+
+
+def written(path, pieces):
+    """`pieces` written at `path` as one piece file (write): /piece with one mesh `geo`, each part a GeomSubset bound
+    to a placeholder, its normals at every corner. Its parts, sorted."""
     points, triangles, normals, parts = [], [], [], {}
     count = 0
     for part, piece_points, piece_triangles, smooth in pieces:

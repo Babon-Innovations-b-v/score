@@ -1315,23 +1315,25 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
 
 def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="mount", support=None,
         looks=None, ground=False):
-    """A cockpit piece built in code at its real size (cockpit_kit.py: the capsule's hull and quilted lining, an
-    instrument panel, a toggle, a seat) laid as Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`,
-    wall:<object>) or, with `ground`, as the place's walked ground (the cabin's floor, the gantry), its file written
-    once under the place's assets for its kind and `sizes`; each of its parts then wears its look from `looks`
-    ({part: surface address, `palette/<variant>` too}), refused when a part has none, so no part is left in its
-    placeholder grey."""
+    """A piece built in code at its real size (cockpit_kit.py: the capsule's hull and quilted lining, an instrument
+    panel, a toggle, a seat; launch_kit.py: a ship, a launch ring, a tower's bracing, a far city's tower) laid as
+    Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>) or, with `ground`, as the
+    place's walked ground (the cabin's floor, the gantry), its file written once under the place's assets for its
+    kind and `sizes`; each of its parts then wears its look from `looks` ({part: surface address,
+    `palette/<variant>` too}), refused when a part has none, so no part is left in its placeholder grey."""
     if role not in BLOCK_ROLES and not ground:
         raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
     import hashlib
-    from score.stages.place_build import cockpit_kit
-    if piece not in cockpit_kit.KINDS:
-        raise Refused(f"no kit piece {piece!r} (pieces are {', '.join(sorted(cockpit_kit.KINDS))})")
+    from score.stages.place_build import cockpit_kit, launch_kit
+    kinds = {**cockpit_kit.KINDS, **launch_kit.KINDS}
+    if piece not in kinds:
+        raise Refused(f"no kit piece {piece!r} (pieces are {', '.join(sorted(kinds))})")
     sizes = dict(sizes or {})
     key = hashlib.sha256(json.dumps([piece, sizes], sort_keys=True).encode()).hexdigest()[:16]
     target = pathlib.Path(folder) / "assets" / "algorithm" / KIT.split("/", 1)[1] / f"{piece}_{key}.usda"
     target.parent.mkdir(parents=True, exist_ok=True)
-    parts = cockpit_kit.write(target, piece, sizes) if not target.exists() else None
+    writer = launch_kit.write if piece in launch_kit.KINDS else cockpit_kit.write
+    parts = writer(target, piece, sizes) if not target.exists() else None
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, KIT, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), bool(ground))

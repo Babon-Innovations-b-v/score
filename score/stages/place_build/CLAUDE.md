@@ -171,6 +171,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   slip: the floor drew black); a hole is cut only within THROUGH of its wall (its axis runs on to the far wall). A
   piece's file is cached by its sizes under `assets/algorithm/place_build/`: delete it there after changing
   cockpit_kit.py. `kit --ground` lays a piece as the walked ground.
+- **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
+  messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
+  real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its
+  black-tiled nose, flaps and engine bells inside the aft skirt it stands on; the round launch ring on legs with
+  clamps, hoses and orange-lit boxes; a tower's straight X-bracing (a `blocks` tower keeps its posts, cabin and roof,
+  its stepped boxes dropped) on flat-topped girders a lamp stands on; a platform railing; a floodlight's 3 x 3 head;
+  a far city's glass towers, its big wheel and smooth hills (marked `fixed`: far scenery, never in the walkers' grid).
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; `haze` a box of haze (tools/usd/scene.py's haze body) the renderer fills.

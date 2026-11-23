@@ -76,6 +76,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   wall too
 - place_build.kit: a part with no look left in its placeholder -> the toggle laid with no look for its lever is not
   refused
+- launch_kit.ship: the barrel and the nose turned as two solids (the barrel's top left open) -> the ship's welded
+  mesh has an edge used three times (no closed solid)
+- launch_kit.ship: the aft skirt left off -> the ship's lowest points are its engine bells', not the skirt it stands on
+- launch_kit.lattice: a brace drawn as a stair of boxes -> a brace's points stray from the straight line between its ends
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
 - place_build.made_by_haze: unread -> the mist's body and look name no library algorithm
@@ -982,6 +986,36 @@ def kitted(tmp_path):
     assert all(stage.GetPrimAtPath(f"/pod/Looks/near__{part}").GetAttribute("score:surface").Get()
                for part in ("cushion", "back"))
     assert stage.GetPrimAtPath("/pod/Objects/plate").GetAttribute("score:support").Get() is None
+    launched(folder)
+
+
+def launched(folder):
+    """A launch site's code-built pieces (launch_kit, `kit`): the ship one closed solid of welded parts standing on its
+    skirt's foot (its engine bells clear above it), and a tower's braces each a straight bar between its ends."""
+    from score.stages.place_build import launch_kit
+    ship = place_build.kit(folder, "ship", "ship", {"radius": 1.0, "high": 12.0, "nose": 3.0, "ring": 2.0,
+                                                    "segments": 24}, role="fixed",
+                           looks={part: "palette/hull_paint" for part in ("hull", "seam", "tiles", "flap", "engine")})
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    geo = UsdGeom.Mesh(stage.GetPrimAtPath("/pod/Objects/ship/geo"))
+    points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
+    faces = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+    welded, inverse = np.unique(np.round(points, 5), axis=0, return_inverse=True)
+    edges = np.sort(inverse.reshape(-1)[faces][:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2), axis=1)
+    _, uses = np.unique(edges, axis=0, return_counts=True)
+    parts = {subset.GetPrim().GetName(): np.asarray(subset.GetIndicesAttr().Get())
+             for subset in UsdGeom.Subset.GetAllGeomSubsets(geo)}
+    lowest = {part: points[faces[found]].reshape(-1, 3)[:, 1].min() for part, found in parts.items()}
+    assert ship["parts"] == ["engine", "flap", "hull", "seam", "tiles"], ship
+    assert not (uses % 2).any(), "an edge of the ship is used an odd number of times"
+    assert lowest["hull"] < 1e-6 < lowest["engine"], lowest
+    braces = [piece for piece in launch_kit.lattice(wide=4.0, deep=4.0, high=6.0, bay=3.0, panels=1)
+              if piece[0] == "brace" and len(piece[1]) > 12]  # the bars' sides, not their end caps
+    for _, bar, _, _ in braces:
+        ends = np.array([bar[:8].mean(axis=0), bar[-8:].mean(axis=0)])  # the middles of its end rings (8 a ring)
+        along = (ends[1] - ends[0]) / np.linalg.norm(ends[1] - ends[0])
+        off = bar - ends[0] - np.outer((bar - ends[0]) @ along, along)
+        assert np.linalg.norm(off, axis=1).max() <= 0.12 + 1e-6, "a brace strays from its straight line"
 
 
 def adopted(folder):
