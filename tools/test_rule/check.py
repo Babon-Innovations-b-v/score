@@ -57,7 +57,7 @@ ALLOWLIST = {
     "score/stages/complete/*": (8, 94),
     "score/stages/props/*": (4, 55),
     "score/stages/settling/*": (1, 17),
-    "score/stages/physics/*": (1, 12),
+    "score/stages/physics/*": (1, 9),
     "*prepare*": (1, 32),
 }
 

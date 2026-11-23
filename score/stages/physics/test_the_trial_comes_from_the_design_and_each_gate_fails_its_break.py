@@ -21,24 +21,23 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_body_no_row_has_fails_designed: judge_designed's `strangers = row_kinds.strangers(...)` made `strangers = []`.
 - a_trial_with_no_hinge_passes_only_when_it_says_why: judge_hinge's `checks.PASS if said else checks.UNKNOWN` made
   `checks.PASS`.
-- a_good_run_passes: measured's `if frozenset((name, path.removesuffix("/geo"))) not in joined` dropped (a leaf
-  against its own frame counted inside a static).
-- a_drop_under_its_target_fails_reacted: judge_reacted's `if not LANDED[0] <= drop["over top at end"] <= LANDED[1]`
-  made `if False`.
-- a_door_past_its_limit_fails_hinge: judge_hinge's `or hinge["most"] > hinge["upper"] + LIMIT_SLACK` dropped.
-- an_undriven_rise_fails_energy: judge_energy's `if rise > max(ENERGY_SLACK[0] * abs(start), ENERGY_SLACK[1])` made
-  `if rise > 1e9`.
-- a_body_moving_inside_or_under_its_floor_fails_at_rest: measured's `"floor": min(body["lowest"][0], ...)` made
-  `"floor": 0.0` (made ground is not at 0: the stool at -1.5 m read as under its floor).
+- each_gate_answers_its_run (one row a gate's fault, the good run's passing every gate): measured's `if
+  frozenset((name, path.removesuffix("/geo"))) not in joined` dropped (a leaf against its own frame counted inside a
+  static: the good run); judge_reacted's `if not LANDED[0] <= drop["over top at end"] <= LANDED[1]` made `if False`;
+  judge_hinge's `or hinge["most"] > hinge["upper"] + LIMIT_SLACK` dropped; judge_energy's `if rise >
+  max(ENERGY_SLACK[0] * abs(start), ENERGY_SLACK[1])` made `if rise > 1e9`; measured's `"floor":
+  min(body["lowest"][0], ...)` made `"floor": 0.0` (made ground is not at 0: the stool at -1.5 m read as under its
+  floor).
 - the_rises_are_per_undriven_stretch: energy_rises without its `begun = None` on a driven frame.
 - the_trial_runs_in_its_own_python_on_the_held_card: make_trial's `TRIAL_MINUTES, env=REPO / TRIAL_ENV)` made
   `TRIAL_MINUTES)` (the trial sent to the card's Blender).
-- the_trial_runs_in_its_own_python_on_the_held_card (the trial reading adopted models, #155; each seen red
-  2026-11-23), all in inside/physics_trial.py: read_physics' `own_body(prim) if prim.GetAttribute(WEIGHED).Get() else
-  adopted_body(prim)` made `own_body(prim)` (it raised: a moving body here collides by its convex hull only), or its
-  statics walked by `stage.Traverse()` (the mesh inside the bodiless model's instance no static), or adopted_body's
-  `laid_name(prim)` made `prim.GetName()` (the body named `obj`, its asset's prim), or its mass made
-  `authored_mass(prim)` (None: the asset authors its mass on its collider).
+- the_trial_reads_an_adopted_model (#155; each seen red 2026-11-23), all in inside/physics_trial.py: read_physics'
+  `own_body(prim) if prim.GetAttribute(WEIGHED).Get() else adopted_body(prim)` made `own_body(prim)` (it raised: a
+  moving body here collides by its convex hull only), or its statics walked by `stage.Traverse()` (the mesh inside
+  the bodiless model's instance no static), or adopted_body's name `holder.GetName()` made `prim.GetName()` (the body
+  named `obj`, its asset's prim), or its mass made `authored_mass(prim)` (None: the asset authors its mass on its
+  collider), or read_physics' `keyed_apart(bodies)` made `bodies` (the articulated model's two bodies both named
+  `simready_3`: their tracks merged).
 - the_trial_stands_the_shown_places_from_the_neighbours_output: trial_folder's copytree without
   `ignore=shutil.ignore_patterns("contract.json")`.
 
@@ -173,30 +172,28 @@ def answers(run):
         return {check.name: check.judge(folder, {}, None).answer for check in physics.TRIAL_CHECKS}
 
 
-def a_good_run_passes():
-    found = answers(a_run())
-    assert all(answer == checks.PASS for answer in found.values()), found
-
-
-def a_drop_under_its_target_fails_reacted():
-    assert answers(a_run(**{"bodies.crate.lowest": [1.2, 1.0, 0.5, 0.3, 0.3, 0.3]}))["reacted"] == checks.FAIL
-
-
-def a_door_past_its_limit_fails_hinge():
-    assert answers(a_run(**{"hinges.leaf.angles": [0.0, 0.0, 30.0, 60.0, 104.0, 99.0]}))["hinge"] == checks.FAIL
-
-
-def an_undriven_rise_fails_energy():
-    assert answers(a_run(energy=[100.0, 99.0, 120.0, 140.0, 139.0, 145.0]))["energy"] == checks.FAIL
-
-
-def a_body_moving_inside_or_under_its_floor_fails_at_rest():
-    assert answers(a_run(**{"bodies.leaf.speed": [0, 1, 1, 1, 0.5, 0.4]}))["at rest"] == checks.FAIL
-    inside = {"leaf": ["/p/Objects/frame/geo"], "crate": ["/p/Objects/table/geo"]}
-    assert answers(a_run(**{"inside at end": inside}))["at rest"] == checks.FAIL
+# Each run (a good one changed where it says) and what the gates it names answer it (None: every gate passes).
+GATE_RUNS = (
+    ("a good run", {}, None),
+    ("a drop under its target", {"bodies.crate.lowest": [1.2, 1.0, 0.5, 0.3, 0.3, 0.3]}, {"reacted": checks.FAIL}),
+    ("a door past its limit", {"hinges.leaf.angles": [0.0, 0.0, 30.0, 60.0, 104.0, 99.0]}, {"hinge": checks.FAIL}),
+    ("an undriven rise", {"energy": [100.0, 99.0, 120.0, 140.0, 139.0, 145.0]}, {"energy": checks.FAIL}),
+    ("a body still moving", {"bodies.leaf.speed": [0, 1, 1, 1, 0.5, 0.4]}, {"at rest": checks.FAIL}),
+    ("a body inside a static", {"inside at end": {"leaf": ["/p/Objects/frame/geo"],
+                                                  "crate": ["/p/Objects/table/geo"]}}, {"at rest": checks.FAIL}),
     # the floor is each body's own (a drop's target top, else where it stood), not y = 0: made ground is not at 0
-    assert answers(a_run(**{"bodies.stool.lowest": [2.0, 1.9, 2.0, 2.0, 2.0, 2.0]}))["at rest"] == checks.FAIL
-    assert answers(a_run(**{"bodies.stool.lowest": [-1.5] * FRAMES}))["at rest"] == checks.PASS
+    ("a body under its own floor", {"bodies.stool.lowest": [2.0, 1.9, 2.0, 2.0, 2.0, 2.0]}, {"at rest": checks.FAIL}),
+    ("a body standing on made ground under 0", {"bodies.stool.lowest": [-1.5] * FRAMES}, {"at rest": checks.PASS}),
+)
+
+
+def each_gate_answers_its_run():
+    wrong = {}
+    for label, changes, expected in GATE_RUNS:
+        found = answers(a_run(**changes))
+        if {gate: found[gate] for gate in expected or found} != (expected or dict.fromkeys(found, checks.PASS)):
+            wrong[label] = found
+    assert not wrong, wrong
 
 
 def the_rises_are_per_undriven_stretch():
@@ -255,10 +252,10 @@ class Held:
             Image.new("RGB", (4, 4)).save(pathlib.Path(arguments[2]) / f"{view['name']}-look.png")
 
 
-def instanced_model(stage, name, at, body):
-    """An adopted model laid at `at` as a SimReady model lays itself (#155): its mesh inside a USD instance, colliding
-    by its own triangles with its own mass and physics material there, its rigid body (when `body`) on the instance
-    prim, never on the laid object."""
+def instanced_model(stage, name, at, body, parts=("obj",)):
+    """An adopted model laid at `at` as a SimReady model lays itself (#155): its mesh inside a USD instance (one per
+    part: several make an articulated model, a cabinet and its door), colliding by its own triangles with its own mass
+    and physics material there, its rigid body (when `body`) on each instance prim, never on the laid object."""
     asset = stage.DefinePrim(f"/{name}_asset", "Xform")
     asset.SetSpecifier(Sdf.SpecifierClass)
     shape = toy.mesh(stage, f"/{name}_asset/mesh", [((-0.2, 0, -0.2), (0.2, 0.4, 0.2))], (0, 0, 0)).GetPrim()
@@ -273,11 +270,12 @@ def instanced_model(stage, name, at, body):
     laid = UsdGeom.Xform.Define(stage, f"/{toy.PLACE}/Objects/{name}")
     laid.AddTranslateOp().Set(Gf.Vec3d(*at))
     laid.GetPrim().CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(f"model/{name}@1")
-    instance = stage.DefinePrim(f"/{toy.PLACE}/Objects/{name}/Geometry/obj", "Xform")
-    instance.GetReferences().AddInternalReference(f"/{name}_asset")
-    instance.SetInstanceable(True)
-    if body:
-        UsdPhysics.RigidBodyAPI.Apply(instance)
+    for part in parts:
+        instance = stage.DefinePrim(f"/{toy.PLACE}/Objects/{name}/Geometry/{part}", "Xform")
+        instance.GetReferences().AddInternalReference(f"/{name}_asset")
+        instance.SetInstanceable(True)
+        if body:
+            UsdPhysics.RigidBodyAPI.Apply(instance)
 
 
 ADOPTED_KG, ADOPTED_FRICTION = 2.5, (0.5, 0.25)
@@ -292,21 +290,28 @@ print(json.dumps({"bodies": {path: [body["name"], body["mass"], body["friction"]
 """
 
 
-def the_trial_reads_an_adopted_model(root):
+def the_trial_reads_an_adopted_model():
     """The trial's own Python reads a place holding adopted models (#155): one whose rigid body sits on its instance
-    prim, read with its own collider, mass and material and named by its laid object, and one with no body, whose
-    mesh inside its instance is a static. Read where this box has the trial's Python built."""
+    prim, read with its own collider, mass and material and named by its laid object; one with no body, whose mesh
+    inside its instance is a static; and an articulated one, two bodies in one laid object, each its own body named by
+    the object and its path inside it. Read where this box has the trial's Python built."""
     from drop import LOCAL_ENV
     if not list(LOCAL_ENV.glob(".built-*")):
         print(f"skipped: the trial reading adopted models: no trial Python built at {LOCAL_ENV} ({physics.TRIAL_ENV})")
         return
+    with tempfile.TemporaryDirectory() as temporary:
+        read_adopted(pathlib.Path(temporary), LOCAL_ENV)
+
+
+def read_adopted(root, env):
     layer = toy.toy_place(root / "adopted")
     base = Usd.Stage.Open(str(layer / "layers/base.usda"))
     instanced_model(base, "simready_1", (-2.0, 0.0, 0.0), body=True)
     instanced_model(base, "simready_2", (2.5, 0.0, -1.0), body=False)
+    instanced_model(base, "simready_3", (0.0, 0.0, 2.0), body=True, parts=("obj", "door"))
     base.Save()
     assert not toy.physics.write(layer, toy.RECORD, toy.MATERIALS)["faults"]
-    read = subprocess.run([str(LOCAL_ENV / "bin/python"), "-c", READ, str((REPO / physics.TRIAL_SCRIPT).parent),
+    read = subprocess.run([str(env / "bin/python"), "-c", READ, str((REPO / physics.TRIAL_SCRIPT).parent),
                            str(layer / f"{toy.PLACE}.usda")], capture_output=True, text=True, timeout=50)
     assert read.returncode == 0, read.stderr[-2000:]
     found = json.loads(read.stdout.splitlines()[-1])
@@ -315,6 +320,8 @@ def the_trial_reads_an_adopted_model(root):
         found["bodies"]
     assert f"{place}/simready_2/Geometry/obj/mesh" in found["statics"], found["statics"]
     assert not any(path.startswith(f"{place}/simready_1/") for path in found["statics"]), found["statics"]
+    assert {found["bodies"][f"{place}/simready_3/Geometry/{part}"][0] for part in ("obj", "door")} == {
+        "simready_3/Geometry/obj", "simready_3/Geometry/door"}, found["bodies"]
 
 
 def the_trial_runs_in_its_own_python_on_the_held_card():
@@ -332,18 +339,16 @@ def the_trial_runs_in_its_own_python_on_the_held_card():
         assert Held.jobs == [(physics.TRIAL_SCRIPT, physics.TRIAL_ENV), (physics.RENDER_SCRIPT, None)], Held.jobs
         assert physics.trial_faults(root / "out") == [], physics.trial_faults(root / "out")
         assert physics.TRIAL_FILES["trial env"].endswith(physics.TRIAL_ENV)
-        the_trial_reads_an_adopted_model(root)
     finally:
         physics.engines.machine_runner = kept
         shutil.rmtree(root)
 
 
 CHECKS = (the_loose_rows_drop_where_they_stand, the_gravity_is_the_body_s_under_the_top_site,
-          a_body_no_row_has_fails_designed, a_trial_with_no_hinge_passes_only_when_it_says_why, a_good_run_passes,
-          a_drop_under_its_target_fails_reacted, a_door_past_its_limit_fails_hinge, an_undriven_rise_fails_energy,
-          a_body_moving_inside_or_under_its_floor_fails_at_rest, the_rises_are_per_undriven_stretch,
+          a_body_no_row_has_fails_designed, a_trial_with_no_hinge_passes_only_when_it_says_why,
+          each_gate_answers_its_run, the_rises_are_per_undriven_stretch,
           the_trial_stands_the_shown_places_from_the_neighbours_output,
-          the_trial_runs_in_its_own_python_on_the_held_card)
+          the_trial_runs_in_its_own_python_on_the_held_card, the_trial_reads_an_adopted_model)
 
 
 if __name__ == "__main__":

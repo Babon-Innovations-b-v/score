@@ -81,11 +81,19 @@ def place_path(stage):
 
 
 def object_prim(stage, name):
-    """A laid object's prim by its name, anywhere under the place's Objects (a child stands under its parent)."""
+    """A laid object's prim by its name, anywhere under the place's Objects (a child stands under its parent); a name
+    `<object>/<path inside it>` (one of an articulated adopted model's bodies, the physics trial's keyed_apart) is
+    that prim inside the object."""
+    name, _, inside = name.partition("/")
     found = [prim for prim in Usd.PrimRange(stage.GetDefaultPrim().GetChild("Objects")) if prim.GetName() == name]
     if len(found) != 1:
         raise ValueError(f"{len(found)} objects named {name}, expected one")
-    return found[0]
+    if not inside:
+        return found[0]
+    held = stage.GetPrimAtPath(found[0].GetPath().AppendPath(inside))
+    if not held:
+        raise ValueError(f"{name} holds no {inside}")
+    return held
 
 
 def world(prim, time=Usd.TimeCode.Default()):

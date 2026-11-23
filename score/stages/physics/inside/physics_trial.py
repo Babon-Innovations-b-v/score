@@ -93,15 +93,28 @@ def joined_triangles(meshes):
         [faces + start for (_, faces), start in zip(found, starts)])
 
 
-def laid_name(prim):
-    """The name of the laid object a body stands for: the nearest prim at or over it carrying `score:library` (an
-    adopted model's rigid body sits on its asset's own prim inside it), else its own."""
+def laid_holder(prim):
+    """The laid object a body stands for: the nearest prim at or over it carrying `score:library` (an adopted model's
+    rigid body sits on its asset's own prim inside it), else the body's own prim."""
     holder = prim
     while holder and not holder.IsPseudoRoot():
         if holder.HasAttribute("score:library"):
-            return holder.GetName()
+            return holder
         holder = holder.GetParent()
-    return prim.GetName()
+    return prim
+
+
+def keyed_apart(bodies):
+    """The bodies with each name one body's: where several bodies stand for one laid object (an articulated adopted
+    model: a cabinet and its drawers), each is named by the object and its path inside it (`cabinet/Geometry/drawer`),
+    a lone one keeps the object's name."""
+    counts = {}
+    for body in bodies.values():
+        counts[body["name"]] = counts.get(body["name"], 0) + 1
+    for body in bodies.values():
+        if counts[body["name"]] > 1 and body["inside"]:
+            body["name"] = f"{body['name']}/{body['inside']}"
+    return bodies
 
 
 def own_body(prim):
@@ -110,7 +123,8 @@ def own_body(prim):
     hulls_of(prim)
     drawn = next(child for child in prim.GetChildren() if child.IsA(UsdGeom.Mesh) and child.GetName() == "geo")
     friction, restitution = material_of(drawn)
-    return {"name": prim.GetName(), "mass": UsdPhysics.MassAPI(prim).GetMassAttr().Get(), "friction": friction,
+    return {"name": prim.GetName(), "inside": "", "mass": UsdPhysics.MassAPI(prim).GetMassAttr().Get(),
+            "friction": friction,
             "restitution": restitution, "drawn": triangles(drawn)}
 
 
@@ -136,7 +150,9 @@ def adopted_body(prim):
     materials = sorted({material_of(collider) for collider in colliders})
     friction, restitution = materials[0] if len(materials) == 1 else ([pair[0] for pair in materials],
                                                                        [pair[1] for pair in materials])
-    return {"name": laid_name(prim), "mass": mass, "friction": friction, "restitution": restitution,
+    holder = laid_holder(prim)
+    inside = str(prim.GetPath().MakeRelativePath(holder.GetPath())) if holder != prim else ""
+    return {"name": holder.GetName(), "inside": inside, "mass": mass, "friction": friction, "restitution": restitution,
             "drawn": joined_triangles(drawn)}
 
 
@@ -189,7 +205,7 @@ def read_physics(stage):
                if prim.IsA(UsdGeom.Mesh) and colliding(prim) and UsdGeom.Imageable(prim).ComputePurpose() != "guide"
                and not str(prim.GetPath()).startswith(owned)
                and not any(part in NOT_SOLID for part in prim.GetPath().pathString.split("/"))}
-    return {"rate": rate, "pull": pull, "frames": frames, "bodies": bodies, "hands": hands, "joints": joints,
+    return {"rate": rate, "pull": pull, "frames": frames, "bodies": keyed_apart(bodies), "hands": hands, "joints": joints,
             "statics": statics}
 
 
