@@ -36,6 +36,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     blocks(folder, name, boxes, at, turn, ground)      solid chamfered boxes (dome_shell.blocks_file) as one object: a
                                                        road and kerbed pavements (ground) or a building (structure)
+    kit(folder, name, piece, sizes, at, turn, role, support, looks)
+                                                       a cockpit piece built in code (cockpit_kit.py: a quilted
+                                                       lining, a panel and its hardware, a seat) as one object, each
+                                                       part in its look
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
     palette(folder, library, wear, dirt)               the place's one surface library (its scene palette's families
                                                        and tokens, as its props were painted from) taken in
@@ -66,7 +70,7 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     remove(folder, name)                               an object or light taken out
     listing(folder)                                    what the scene holds, as the agent reads it
     batch(folder, steps)                               many steps (every one above but start and listing; blocks,
-                                                       night and haze only here) in one process: a relayout in seconds
+                                                       kit, night and haze only here) in one process: a relayout in seconds
 
 Rendering is render.py, the compare measure.py, the command line __main__.py.
 """
@@ -110,6 +114,7 @@ TRACKS = "algorithm/ground_tracks"  # the ground tracks algorithm's library addr
 RAIN = "algorithm/rain"  # the rain algorithm's library address (its code: rainfall.py)
 DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its code: dome_shell.py)
 STAIRS = "algorithm/stair_core"  # the stair core algorithm's (stair_core.py)
+KIT = "algorithm/place_build"  # the cockpit kit's (cockpit_kit.py, part of the placing tool's own algorithm entry)
 
 
 class Refused(ValueError):
@@ -1306,6 +1311,39 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
     return {"name": name, "address": address, "usd": relative, "boxes": len(boxes), "ground": bool(ground)}
 
 
+def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="mount", support=None,
+        looks=None):
+    """A cockpit piece built in code at its real size (cockpit_kit.py: a wall's quilted lining, an instrument panel,
+    a toggle, a seat) laid as Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>), its
+    file written once under the place's assets for its kind and `sizes`; each of its parts then wears its look from
+    `looks` ({part: surface address, `palette/<variant>` too}), refused when a part has none, so no part is left
+    in its placeholder grey."""
+    if role not in BLOCK_ROLES:
+        raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
+    import hashlib
+    from score.stages.place_build import cockpit_kit
+    if piece not in cockpit_kit.KINDS:
+        raise Refused(f"no kit piece {piece!r} (pieces are {', '.join(sorted(cockpit_kit.KINDS))})")
+    sizes = dict(sizes or {})
+    key = hashlib.sha256(json.dumps([piece, sizes], sort_keys=True).encode()).hexdigest()[:16]
+    target = pathlib.Path(folder) / "assets" / "algorithm" / KIT.split("/", 1)[1] / f"{piece}_{key}.usda"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    parts = cockpit_kit.write(target, piece, sizes) if not target.exists() else None
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, KIT, "algorithm",
+                              (at, turn, (1.0, 1.0, 1.0)), False)
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    marked(prim, role, support)
+    parts = parts or sorted(parts_of(prim))
+    missing = [part for part in parts if part not in (looks or {})]
+    if missing:
+        raise Refused(f"{name}: no look for its part(s) {', '.join(missing)} (its parts are {', '.join(parts)})")
+    saved(stage)
+    for part in parts:
+        surface(folder, name, looks[part], part=part)
+    return {"name": name, "address": KIT, "usd": relative, "piece": piece, "parts": parts}
+
+
 HOLLOW_LEAST = 0.02  # metres: a box's piece left thinner than this by a hollow is dropped (a sliver, no wall)
 FITTING_REACH = 0.5  # metres round a fitting the wall it is mounted on must still stand after a hollow (a rack's wash)
 
@@ -2197,8 +2235,8 @@ def refinish(folder, name):
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door,
-         "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "night": night, "haze": haze,
-         "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
+         "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "kit": kit, "night": night,
+         "haze": haze, "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
 
 
 

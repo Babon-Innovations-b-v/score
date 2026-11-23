@@ -155,6 +155,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   parts: a road and kerbed pavements of slabs laid as ground, a building's walls with its window openings, reveals and
   a shop's room as a structure (`score:role`). A window, sign or air conditioner flush on a wall is `put` with
   `role` "mount" and `support` "wall:<building>", so the check (ready/) judges it against that wall.
+- **The cockpit kit** (`kit`, batch only; cockpit_kit.py, the capsule lock, owner 2026-11-23: "messy meshes, no
+  panels, ugly walls"): a small craft's inside built in code at real size, laid as `algorithm/place_build`: a wall's
+  quilted lining (rounded pillows over a seam backing, cut round portholes by bending each pillow away from the hole,
+  never by tearing it), the bench ring, the ceiling's cushions, instrument panels (plate, bezel, label strip in
+  modelled letters, hardware in rows), and each switch, lamp, gauge, screen, seat and console as its own piece. Every
+  part takes its look from `looks`; a part with none is refused. Every piece is closed and nothing in it shares a
+  face with another (the check's ray parity reads a shared or open face wrongly); a piece's file is cached by its
+  sizes under `assets/algorithm/place_build/`: delete it there after changing cockpit_kit.py.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; `haze` a box of haze (tools/usd/scene.py's haze body) the renderer fills.

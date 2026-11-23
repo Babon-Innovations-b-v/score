@@ -70,6 +70,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: `review` kept True when final -> the final render runs at the review's samples
 - dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
+- cockpit_kit.warped_out: a pillow's points pushed onto the porthole's edge, not drawn along their way out -> the
+  pillows by the porthole are torn open (not closed solids)
+- place_build.kit: a part with no look left in its placeholder -> the toggle laid with no look for its lever is not
+  refused
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
 - place_build.made_by_haze: unread -> the mist's body and look name no library algorithm
@@ -901,6 +905,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert marks == {"kerb": ["structure", None, False], "road": [None, None, True], "sill": ["mount", "wall:kerb", False]}
     assert stage.GetPrimAtPath("/yard/Environment").GetAttribute("score:exposure").Get() == np.float32(2.5)
     assert np.allclose(moon.TransformDir(Gf.Vec3d(0, 0, -1)), (0.0, -0.5, -np.cos(np.radians(30))), atol=1e-6)
+    kitted(tmp_path)
     rained(folder)
     reviewed(folder)
     packaged(folder, tmp_path / "package")
@@ -917,6 +922,36 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     adopted(tmp_path / "adopted")
     replaced(tmp_path)
     footprinted(tmp_path)
+
+
+def kitted(tmp_path):
+    """A cockpit's code-built pieces (cockpit_kit, `kit`): a wall's quilted lining round a porthole, every pillow a
+    closed solid, none reaching into the hole, each part in its look; a panel's label in modelled letters; a piece
+    with a part given no look refused by that part."""
+    folder = tmp_path / "pod"
+    place_build.start(folder, "pod", tmp_path / "concept.png")
+    place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
+    looks = {"cushion": "palette/hull_paint", "seam": "palette/hull_paint"}
+    laid = place_build.kit(folder, "lining", "lining", {"wide": 1.2, "high": 1.6, "rows": 4, "columns": 3,
+                                                        "holes": [[0.3, 1.0, 0.2]]}, role="structure", looks=looks)
+    panel = place_build.kit(folder, "plate", "panel", {"wide": 0.3, "high": 0.2, "label": "AB"}, at=(0, 1, -0.2),
+                            looks={part: "palette/hull_paint" for part in ("plate", "bezel", "label", "ink")})
+    with pytest.raises(place_build.Refused, match="lever"):
+        place_build.kit(folder, "bare", "toggle", looks={"metal": "palette/hull_paint"})
+    stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    geo = UsdGeom.Mesh(stage.GetPrimAtPath("/pod/Objects/lining/geo"))
+    points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
+    faces = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+    cushion = next(subset for subset in UsdGeom.Subset.GetAllGeomSubsets(geo) if subset.GetPrim().GetName() == "cushion")
+    pillows = trimesh.Trimesh(points, faces[np.asarray(cushion.GetIndicesAttr().Get())], process=False).split(
+        only_watertight=False)
+    in_hole = np.hypot(points[:, 0] + 0.3, points[:, 1] - 1.0) < 0.2  # the room sees x mirrored: u 0.3 is x -0.3
+    assert laid["parts"] == ["cushion", "seam"] and panel["parts"] == ["bezel", "ink", "label", "plate"], (laid, panel)
+    assert len(pillows) > 8 and all(pillow.is_watertight and pillow.volume > 0 for pillow in pillows)
+    assert not (in_hole & (points[:, 2] < -0.0035)).any()  # no pillow (the seam backing at 3 mm aside) in the hole
+    assert all(stage.GetPrimAtPath(f"/pod/Looks/lining__{part}").GetAttribute("score:surface").Get()
+               for part in ("cushion", "seam"))
+    assert stage.GetPrimAtPath("/pod/Objects/plate").GetAttribute("score:support").Get() is None
 
 
 def adopted(folder):
