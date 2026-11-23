@@ -24,6 +24,9 @@ COMPOSITES = REPO / "data/library/composites.json"
 # generated piece is near when its middle stands under REACH_HIGH above the walkway.
 NEAR = 1024
 FAR = 512
+# Colour texels a metre on a part carrying decals (score #164): NVIDIA's median for small and medium models (#161
+# rule 7), so a print reads up close; bake.sharp_slots draws a decal's part at it on a near set.
+PRINT = 3000
 # Scenery seen only from afar (the prologue build, 2026-10-07: the square, the launch pad and the city round them are
 # 10 to 300 m from the balcony): a kind whose own name starts with DISTANT_PREFIX takes DISTANT texels a metre.
 DISTANT = 128

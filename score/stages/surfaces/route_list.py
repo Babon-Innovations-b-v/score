@@ -18,8 +18,10 @@ its answer and that finish told (followed_up), in one more batch of those takes 
 answer stay as they were.
 
 Output: <take>.json per take (its finishes, each with surface, settings, fits, new_surface, wear_level, wear_cause,
-colour, family; its labels, {view: {region: finish}}, 0-based), questions.json (the finishes with their own wear and
-why, the takes with no usable answer).
+colour, family; its labels, {view: {region: finish}}, 0-based; its marks, finish_ask.marks_of: each printed mark's
+box in the close-up, what, ink, finish and library decal or gap, score #164), questions.json (the finishes with their
+own wear and why, the takes with no usable answer). The library's decals (decal_library.catalogue) are offered in the
+same question; the list names one per mark, and a mark no decal fits is a gap, never cut from the close-up.
 Gate "library first": every cast take is listed, every finish names a library surface with settings inside the
 library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a gap, named. Each
 such take is a batch gap (batch-gaps.json, score/stages/batch_gaps.py, with the ones carried from the views): the gate
@@ -37,6 +39,7 @@ if str(HERE) not in sys.path:
 
 import numpy as np  # noqa: E402
 
+import decal_library  # noqa: E402
 import finish_ask  # noqa: E402
 import palette_library  # noqa: E402
 import route_ask  # noqa: E402
@@ -110,9 +113,10 @@ def shown_lines(shown):
                      for view, regions in shown.items())
 
 
-def list_schema(surfaces, tokens, views, levels):
+def list_schema(surfaces, tokens, views, levels, decals=()):
     """The answer's schema: the finishes, each surface one of the surfaces' codes, token one of the tokens and wear one
-    of the library's wear levels, and the labels, each a view, a region and a finish."""
+    of the library's wear levels, the labels, each a view, a region and a finish, and, when the library offers
+    decals, the marks (finish_ask.mark_schema)."""
     proposal = {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "description": {"type": "STRING"},
                                                  "why": {"type": "STRING"}}, "required": ["name", "description", "why"]}
     finish = {"type": "OBJECT",
@@ -128,15 +132,20 @@ def list_schema(surfaces, tokens, views, levels):
     label = {"type": "OBJECT", "properties": {"view": {"type": "STRING", "enum": list(views)},
                                               "region": {"type": "INTEGER"}, "finish": {"type": "INTEGER"}},
              "required": ["view", "region", "finish"]}
-    return {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish},
-                                             "labels": {"type": "ARRAY", "items": label}},
-            "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels"]}
+    schema = {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish},
+                                               "labels": {"type": "ARRAY", "items": label}},
+              "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels"]}
+    if decals:
+        schema["properties"]["marks"] = finish_ask.mark_schema(decals, tokens)
+        schema["propertyOrdering"].append("marks")
+    return schema
 
 
-def list_body(pictures, entry, record, library, wear):
+def list_body(pictures, entry, record, library, wear, decals=()):
     """The request: the close-up, the views, the region views (the laid close-up's last, where the views row laid it),
     the question and its schema. `record` is the take's views record; `library` its surfaces, the tokens and the wear
-    levels; `wear` the scene's level (its scene palette's)."""
+    levels; `wear` the scene's level (its scene palette's); `decals` the library's decals the marks are picked from
+    (decal_library.catalogue; none: no marks asked)."""
     surfaces, tokens, levels = library
     stand_in = record.get("close_up") == route_data.STAND_IN
     views = list(record["views"])
@@ -147,13 +156,23 @@ def list_body(pictures, entry, record, library, wear):
                            laid=LAID.format(view=route_views.CLOSE_UP) if laid is not None else "",
                            shown=shown_lines(pictures["shown"]), surfaces=surface_lines(surfaces),
                            tokens=token_lines(tokens), wear=wear, levels=", ".join(levels))
+    text += finish_ask.marks_text(decals)
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["regions"]]
     parts += [finish_ask.picture_part(laid, 1024)] if laid is not None else []
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                 "responseSchema": list_schema(surfaces, tokens, list(pictures["shown"]), levels)}}
+                                 "responseSchema": list_schema(surfaces, tokens, list(pictures["shown"]), levels,
+                                                               decals)}}
+
+
+def library_root():
+    """The library the decals are offered from: SCORE_LIB_ROOT, else the score_lib checkout beside score's
+    (library_files.settings); None when there is none."""
+    import library_files
+    root = library_files.settings().get("SCORE_LIB_ROOT")
+    return pathlib.Path(root) if root else None
 
 
 def take_seed(seed, take):
@@ -292,7 +311,8 @@ def make_list(inputs, out, seed, params):
     wear = palette["wear"]["level"]
     surfaces = {take: palette_library.take_surfaces(takes[take], palette) for take in cast_takes}
     pictures = {take: pictures_of(views / take, record["views"]) for take, record in cast_takes.items()}
-    bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear)
+    decals = decal_library.catalogue(library_root())
+    bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear, decals)
               for take, record in cast_takes.items()}
     answers = ask(bodies) if bodies else {}
     answers.update(followed_up(answers, bodies, lambda take, answer: listed(
@@ -308,8 +328,9 @@ def make_list(inputs, out, seed, params):
         except route_ask.UNANSWERED as error:
             unanswered[take] = f"no usable answer: {error!r}"[:300]
             continue
+        marks = finish_ask.marks_of(json.loads(answer), decals, len(finishes), pictures[take]["close_up"].size)
         (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes,
-                                                      "labels": labels}, indent=1))
+                                                      "labels": labels, "marks": marks}, indent=1))
         own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the scene's wear is {wear})"
                 for entry in finishes if entry["wear_level"]]
     (out / "questions.json").write_text(json.dumps({"own_wear": own, "unanswered": unanswered}, indent=1))

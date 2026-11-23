@@ -30,6 +30,7 @@ import numpy as np
 from mathutils import Vector
 
 import recipes
+import route
 
 LARGEST = 4096
 # A generated piece past one LARGEST picture set at its density is split into maps (`split`), each a LARGEST set at most,
@@ -54,6 +55,10 @@ SHARP_SCALE = 3.0
 SHARP_FROM = 1024
 # The library families whose parts are drawn sharp.
 SHARP_FAMILIES = ("print", "screen")
+# A part carrying decals (score #164) is drawn at route.PRINT colour texels a metre, NVIDIA's median for small and
+# medium models (#161 rule 7): colour is baked at half the normal map's side, so its faces take 2 * PRINT over the
+# set's density (about 5.9 times a near set's), never less than SHARP_SCALE; a 6 mm key legend is then 18 px across.
+COLOUR_SHARE = 2.0
 MARGIN_PIXELS = 3
 # A per-face packed piece's gap round each face, in normal-map pixels (packed_per_face). Measured on the greenhouse
 # crops' cut-down copies (2026-10-16): smart_project split the herb's into 2,913 islands of one or two triangles, and
@@ -125,9 +130,8 @@ def face_weights(item, sharp=(), backs_hidden=True):
     """Each face's share of the picture set as area: its area, a sharp part's at its larger share, a hidden face's 0
     (the hidden set found once: per face it made a 40k-face generated piece take 12 minutes, 2026-10-06)."""
     hidden = hidden_faces(item) if backs_hidden else set()
-    sharp_slots = sharp_slots_of(item, sharp)
-    return np.array([0.0 if face.index in hidden else
-                     face.area * (SHARP_SCALE ** 2 if face.material_index in sharp_slots else 1.0)
+    scales = sharp_slots_of(item, sharp)
+    return np.array([0.0 if face.index in hidden else face.area * scales.get(face.material_index, 1.0) ** 2
                      for face in item.data.polygons])
 
 
@@ -164,19 +168,25 @@ def maps_needed(wanted):
 
 
 def sharp_slots(specs, density):
-    """The library names whose parts a set at `density` draws sharp: those of SHARP_FAMILIES, from SHARP_FROM up."""
+    """{library name: how many times the set's density its parts are drawn at} of the parts a set at `density` draws
+    sharp, from SHARP_FROM up: SHARP_SCALE for those of SHARP_FAMILIES, enough for route.PRINT colour texels a metre
+    (never less) for those carrying decals."""
     if density < SHARP_FROM:
-        return set()
-    return {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
+        return {}
+    found = {slot: SHARP_SCALE for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
+    found.update({slot: max(SHARP_SCALE, COLOUR_SHARE * route.PRINT / density)
+                  for slot, spec in (specs or {}).items() if spec.get("decals")})
+    return found
 
 
 def sharp_slots_of(item, sharp):
-    """The material slots of `item` that are drawn sharp (their library names in `sharp`)."""
-    return {index for index, name in enumerate(slot_names(item)) if name in sharp}
+    """{material slot of `item`: its scale} of the slots drawn sharp (their library names in `sharp`)."""
+    return {index: sharp[name] for index, name in enumerate(slot_names(item)) if name in sharp}
 
 
 def sharpen(item, sharp):
-    """A sharp part's faces' UV islands scaled up SHARP_SCALE about their own middle, after the islands were evened."""
+    """A sharp part's faces' UV islands scaled up by its slot's scale about their own middle, after the islands were
+    evened."""
     slots = sharp_slots_of(item, sharp)
     if not slots:
         return
@@ -187,7 +197,7 @@ def sharpen(item, sharp):
         if face.material_index in slots:
             middle = sum((loop[layer].uv for loop in face.loops), Vector((0.0, 0.0))) / len(face.loops)
             for loop in face.loops:
-                loop[layer].uv = middle + (loop[layer].uv - middle) * SHARP_SCALE
+                loop[layer].uv = middle + (loop[layer].uv - middle) * slots[face.material_index]
     mesh.to_mesh(item.data)
     mesh.free()
 

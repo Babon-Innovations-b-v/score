@@ -14,6 +14,11 @@ rents). Up there (inside/paint_bake.py): the take painted as the rented paint pa
 its models' make_chunky entries written over its labelled take (`bake_job_step`, bake_job.entry_of), then
 make_chunky on the card.
 
+A part's decals (parts.json `decals`, score #164) go into its models' entries as `decals_on` (decals_on: each with its
+part's baked surface, its library picture fetched here and shipped with the job, and a one-ink decal's palette ink);
+make_chunky prints them in that surface's recipe under its wear (recipes.decal_layer). A decal the library does not
+hold stops the row before it rents, as a surface in no library does.
+
 Output: made/ (the baked models), labelled/<take>/ and painted.json (the paint's, which surfaces-paint takes over),
 baked.json (each model's entry), specs.json (every spec the bake baked, by name: the check reads the settings'
 surfaces from it), elsewhere.json (place_line.claims). Gate "baked": every take of the parts baked, every claim baked
@@ -84,6 +89,27 @@ def job_head(data, short, records):
     head = bake_job.job_head(palette_library.wear(palette), palette_library.specs(palette))
     head["specs"] = place_line.unwalked(baked_specs(palette, head["specs"], records), data)
     return head
+
+
+def decals_on(placements, records, colours, picture):
+    """A take's decal placements (parts.json `decals`, route_parts.decal_placements) as its models' make_chunky
+    `decals_on` (score #164): each with its part's baked surface (`finish`, the slot its part bakes as:
+    named_records), its picture on disk (`picture(address)`, decal_library.picture) and a one-ink decal's ink colour
+    from its palette token (`colours`, palette_library.library_tokens). A decal the library does not hold, or a one-ink
+    decal whose token the palette has not, stops the bake here, as a surface in no library does."""
+    surfaces = {record["part"]: record.get("surface") for record in records}
+    found, missing = [], []
+    for decal in placements:
+        image = picture(decal["decal"])
+        ink = colours.get(decal["ink_token"]) if decal.get("ink_token") else None
+        if image is None or (decal.get("ink_token") and ink is None) or not surfaces.get(decal["part"]):
+            missing.append(decal["decal"])
+            continue
+        found.append(dict(decal, finish=surfaces[decal["part"]], image=str(image),
+                          ink=None if ink is None else [float(value) for value in ink]))
+    if missing:
+        raise RuntimeError(f"decals not in the library, or their ink or part not there: {sorted(set(missing))}")
+    return found
 
 
 def own_parts(short, out, take, method):
@@ -160,7 +186,8 @@ def card_job(short, out, take, files):
                                    **{CLOSEUP: str(path) for path in closeup}}))
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     mark = [path for path in [pixal / f"{take}.svviews" / "code.json"] if path.exists()]  # a code build's (bake_job)
-    read = [listing, records, claimed, head, parts, *world.values(), *models, *mark, *closeup,
+    decals = sorted({pathlib.Path(decal["image"]) for decal in json.loads(head.read_text()).get("decals_on", [])})
+    read = [listing, records, claimed, head, parts, *world.values(), *models, *mark, *closeup, *decals,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
     job = out / f".bake-{take}-job.json"
     job.write_text(json.dumps({"script": SCRIPT, "args": [str(listing)], "inputs": [str(path) for path in read],
@@ -185,8 +212,12 @@ def make_bake(inputs, out, seed, params):
                for take, record in method["takes"].items()}
     head = job_head(data, short, records)  # every take's specs: specs.json's
     models = {model: take for model, take in data["bake"]["models"].items() if take in method["takes"]}
+    import decal_library
+    colours = palette_library.library_tokens(palette_library.read(short))
     heads = {take: dict(job_head(data, short, {take: records[take]}),  # a job's head: its own take's specs alone
-                        models=sorted(model for model, its in models.items() if its == take))
+                        models=sorted(model for model, its in models.items() if its == take),
+                        decals_on=decals_on(method["takes"][take].get("decals", []), records[take], colours,
+                                            decal_library.picture))
              for take in sorted(set(models.values()))}
     files = job_files(short, out, records, heads, method)
     jobs = [card_job(short, out, take, files[take]) for take in heads]
@@ -443,8 +474,9 @@ def bake_job_step(inputs, out):
     person = bake_job.drawn_person(take, [path for name, path in inputs.items() if name.startswith("inventory ")],
                                    inputs)
     written = data["bake"].get("entries", {})
+    decals = head.pop("decals_on", [])
     entries = {model: dict(bake_job.entry_of(model, written.get(model), labelled, built, person), name=model,
-                           parts=str(labelled), regions=[])
+                           parts=str(labelled), regions=[], **({"decals_on": decals} if decals else {}))
                for model in head.pop("models")}
     recesses = json.loads(inputs["recesses"].read_text())["recesses"] if "recesses" in inputs else []
     entries = recessed(bake_job.refitted(stood_square(entries, labelled, take, inputs, built, person), written,

@@ -73,6 +73,82 @@ glass, lamp light, screens and print are judged by what they are, not by this co
 {lines}"""
 
 
+# Added to the route's list question (route_list.py, score #164): the printed marks a part carries, each placed later
+# by free code (route_parts.decal_placements) and printed from a library decal, never cut from the close-up.
+MARKS = """
+Last, list the printed marks you see on the object in the first picture: labels, logos, warning signs, numbers,
+button and key legends, stickers. For each give its box in that picture as [ymin, xmin, ymax, xmax] from 0 to 1000,
+what it is in a few words, whether it is printed in one ink or many (a one-ink mark: the palette token nearest its ink),
+the finish (its number in your list, from 1) it is printed on, and FIRST which of these library decals it is (its
+code), with "fits" false when none of them is that mark (then give the closest code). Leave out marks you cannot see
+clearly. The library's decals:
+{decals}"""
+BOX_SCALE = 1000.0  # a mark's box in thousandths of the close-up's height and width
+
+
+def decal_codes(decals):
+    """The codes the question lists the library's decals by (D1, D2, ...)."""
+    return [f"D{index + 1}" for index in range(len(decals))]
+
+
+def decal_lines(decals):
+    """One line a decal: its code, words, material class, ink and size."""
+    lines = []
+    for code, decal in zip(decal_codes(decals), decals):
+        size = "x".join(f"{side:.3f}" for side in decal["size_m"]) + " m" if decal.get("size_m") else "size unknown"
+        lines.append(f"- {code}: {decal['title'] or ' '.join(decal['words'])} ({decal['class']}, {decal['ink']} ink, "
+                     f"{size})")
+    return "\n".join(lines) or "- (the library holds no decal)"
+
+
+def marks_text(decals):
+    """The MARKS paragraph of a question offering `decals`; empty when the library holds none (nothing to pick)."""
+    return MARKS.format(decals=decal_lines(decals)) if decals else ""
+
+
+def mark_schema(decals, tokens):
+    """The schema of the answer's `marks`: a box, what, ink (a one-ink mark's palette token), the finish it is on, a
+    decal code and fits."""
+    return {"type": "ARRAY", "items": {
+        "type": "OBJECT",
+        "properties": {"box_2d": {"type": "ARRAY", "items": {"type": "INTEGER"}}, "what": {"type": "STRING"},
+                       "ink": {"type": "STRING", "enum": ["one", "many"]},
+                       "ink_token": {"type": "STRING", "enum": list(tokens)}, "on_finish": {"type": "INTEGER"},
+                       "decal": {"type": "STRING", "enum": decal_codes(decals)}, "fits": {"type": "BOOLEAN"}},
+        "required": ["box_2d", "what", "ink", "on_finish", "decal", "fits"],
+        "propertyOrdering": ["box_2d", "what", "ink", "ink_token", "on_finish", "decal", "fits"]}}
+
+
+def marks_of(answer, decals, finishes, close_up_size):
+    """The answer's marks: each box in the close-up's pixels ([x, y, width, height]), what, ink (a one-ink mark's
+    palette token), the finish it is on (0-based) and its decal's address, or None with `gap` naming why (no decal
+    fits, its ink is not the mark's, a one-ink mark names no token). A mark on no finish of the list, or with no area,
+    is left out."""
+    names, codes = [decal["address"] for decal in decals], decal_codes(decals)
+    wide, tall = close_up_size
+    found = []
+    for mark in answer.get("marks") or []:
+        box, finish = mark.get("box_2d") or [], int(mark.get("on_finish", 0)) - 1
+        if len(box) != 4 or not 0 <= finish < finishes:
+            continue
+        top, left, bottom, right = (min(max(float(value), 0.0), BOX_SCALE) / BOX_SCALE for value in box)
+        if bottom <= top or right <= left:
+            continue
+        decal = decals[codes.index(mark["decal"])] if mark.get("decal") in codes else None
+        gap = None
+        if decal is None or not mark.get("fits"):
+            gap = "no library decal is this mark"
+        elif decal["ink"] != mark.get("ink"):
+            gap = f"its decal {decal['address']} is {decal['ink']} ink, the mark {mark.get('ink')}"
+        elif decal["ink"] == "one" and not mark.get("ink_token"):
+            gap = "a one-ink mark names no palette token for its ink"
+        found.append({"box": [round(left * wide), round(top * tall), round((right - left) * wide),
+                              round((bottom - top) * tall)], "what": mark.get("what", ""), "ink": mark.get("ink"),
+                      "ink_token": mark.get("ink_token") if mark.get("ink") == "one" else None,
+                      "on_finish": finish, "decal": None if gap else names[codes.index(mark["decal"])], "gap": gap})
+    return found
+
+
 class NoAnswer(Exception):
     """An ask that got no answer: refused REFUSED_ASKS times, or its connection lost before an HTTP status."""
 

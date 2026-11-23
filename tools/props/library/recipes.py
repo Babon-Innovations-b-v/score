@@ -21,6 +21,7 @@ as ProcFunc nodes, so the same recipe is rendered (`shaded`) and baked channel b
 only from the palette tokens the caller resolves (library.py); no recipe holds a colour of its own.
 """
 import inspect
+import math
 from typing import NamedTuple
 
 import procfunc as pf
@@ -150,9 +151,95 @@ def mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_
     return base, pf.nodes.math.clamp(roughness + (patches.fac - 0.5) * 2.0 * roughness_spread)
 
 
-def layered(top, under, wear_mask, dirt_colour, dirt_amount):
-    """Paint `top` over `under` through the wear mask, then dirt over both: (colour, roughness, metal) triples in,
-    the same triple out."""
+# Scuffs (score #164): handling and contact scratches on flat faces, which edges never give. Thin scratches SCUFF_SCALE
+# a metre across, stretched SCUFF_STRETCH times along one way, on faces turned up or out (SCUFF_UP: the object's up
+# share of a face's normal from which it is fully scuffed), as far as the place's wear times the recipe's `scuffs`.
+SCUFF_SCALE = 60.0
+SCUFF_STRETCH = 25.0
+SCUFF_UP = 0.6
+
+
+def scuff_mask(vector, wear, scuffs, seed):
+    """Where handling has scratched paint on flat faces: thin directional scratch noise, strongest on faces turned up,
+    scaled by `wear` and `scuffs` (0, the default, draws none)."""
+    point = pf.nodes.math.separate_xyz(vector)
+    stretched = pf.nodes.math.combine_xyz(x=point.x * SCUFF_SCALE, y=point.y * (SCUFF_SCALE / SCUFF_STRETCH),
+                                          z=point.z * SCUFF_SCALE)
+    lines = pf.nodes.texture.noise(vector=stretched, scale=1.0, detail=2.0, noise_dimensions="4D", w=seed + 41.0)
+    thin = pf.nodes.math.map_range(value=lines.fac, from_min=0.66, from_max=0.7, interpolation_type="SMOOTHSTEP")
+    facing = pf.nodes.math.separate_xyz(pf.nodes.shader.coord().normal)
+    upward = pf.nodes.math.map_range(value=facing.z, from_min=-0.2, from_max=SCUFF_UP)
+    return pf.nodes.math.clamp(thin * upward * wear * scuffs)
+
+
+# A decal (score #164): a library print laid on a part of a piece by a box projector in the piece's own frame. It is
+# part of its part's finish's material, so it prints only on that finish's faces, and only within DECAL_FACING (60
+# degrees) of its facing and within DECAL_DEPTH of its plane (a quarter of its short side when that is less), so it
+# never wraps round a corner or prints through a thin part.
+DECAL_DEPTH = 0.02
+DECAL_FACING = math.cos(math.radians(60.0))
+
+
+def unit(vector):
+    """A vector of three floats scaled to length 1."""
+    length = math.sqrt(sum(value * value for value in vector))
+    return [value / length for value in vector]
+
+
+def decal_axes(decal):
+    """(right, up, normal) unit axes of a decal placement: its `up` made square to its `normal`, both turned by its
+    `turn` degrees about its normal."""
+    normal = unit(decal["normal"])
+    along = sum(mine * theirs for mine, theirs in zip(decal["up"], normal))
+    up = unit([value - along * axis for value, axis in zip(decal["up"], normal)])
+    right = [up[1] * normal[2] - up[2] * normal[1], up[2] * normal[0] - up[0] * normal[2],
+             up[0] * normal[1] - up[1] * normal[0]]
+    turn = math.radians(decal.get("turn", 0.0))
+    turned_right = [math.cos(turn) * mine + math.sin(turn) * theirs for mine, theirs in zip(right, up)]
+    turned_up = [math.cos(turn) * mine - math.sin(turn) * theirs for mine, theirs in zip(up, right)]
+    return turned_right, turned_up, normal
+
+
+def decal_layer(vector, decal, image):
+    """One decal as (mask, colour, roughness): its picture read through a box projector at its placement (`at`,
+    `normal`, `up`, `size_m`, `turn`), masked to the faces facing it within its depth; a single-ink decal (`ink` a
+    colour) drawn in that colour through its transparency."""
+    right, up, normal = decal_axes(decal)
+    point = pf.nodes.math.separate_xyz(vector)
+    offset = [point.x - decal["at"][0], point.y - decal["at"][1], point.z - decal["at"][2]]
+
+    def along(axis):
+        return offset[0] * axis[0] + offset[1] * axis[1] + offset[2] * axis[2]
+
+    width, height = decal["size_m"]
+    across = pf.nodes.math.combine_xyz(x=along(right) * (1.0 / width) + 0.5, y=along(up) * (1.0 / height) + 0.5,
+                                       z=0.0)
+    picture = pf.nodes.texture.image(vector=across, image=image, extension="CLIP")
+    facing = pf.nodes.math.separate_xyz(pf.nodes.shader.coord().normal)
+    turned = facing.x * normal[0] + facing.y * normal[1] + facing.z * normal[2]
+    depth = min(DECAL_DEPTH, 0.25 * min(width, height))
+    near = pf.nodes.math.less_than(pf.nodes.math.absolute(along(normal)), depth)
+    mask = picture.fac * near * pf.nodes.math.greater_than(turned, DECAL_FACING)
+    colour = pf.Color(tuple(decal["ink"])) if decal.get("ink") else picture.color
+    return mask, colour, float(decal.get("roughness", 0.45))
+
+
+def with_decals(top, decals):
+    """A (colour, roughness, metal) layer with each decal (mask, colour, roughness) printed over it in order: print
+    is not metal."""
+    colour, roughness, metal = top
+    for mask, ink, ink_roughness in decals or ():
+        colour = pf.nodes.color.mix_rgb(factor=mask, a=colour, b=ink)
+        roughness = pf.nodes.math.mix(a=roughness, b=ink_roughness, factor=mask)
+        metal = pf.nodes.math.mix(a=metal, b=0.0, factor=mask)
+    return colour, roughness, metal
+
+
+def layered(top, under, wear_mask, dirt_colour, dirt_amount, decals=None):
+    """Paint `top` with its decals printed on it (with_decals, in layer order) over `under` through the wear mask,
+    so wear chips the print with the paint, then dirt over all: (colour, roughness, metal) triples in, the same triple
+    out."""
+    top = with_decals(top, decals)
     colour = pf.nodes.color.mix_rgb(factor=wear_mask, a=top[0], b=under[0])
     roughness = pf.nodes.math.mix(a=top[1], b=under[1], factor=wear_mask)
     metal = pf.nodes.math.mix(a=top[2], b=under[2], factor=wear_mask)
@@ -163,15 +250,17 @@ def layered(top, under, wear_mask, dirt_colour, dirt_amount):
 
 def painted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
                   breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks, second=None, mottle_size=0.15,
-                  contrast=0.0, roughness_spread=0.0):
-    """Paint on steel, mottled (mottled): worn through to bare steel on the edges and where feet kick it, dirty in
-    the cavities."""
+                  contrast=0.0, roughness_spread=0.0, scuffs=0.0, decals=None):
+    """Paint on steel, mottled (mottled), its decals printed on the paint: worn through to bare steel on the edges,
+    where feet kick it and where handling scuffs its flat faces, dirty in the cavities."""
     vector = coordinates()
     kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
-    wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
+    wear_mask = pf.nodes.math.maximum(pf.nodes.math.maximum(
+        edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked), scuff_mask(vector, wear, scuffs, seed))
     dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
     colour, roughness = mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed)
-    base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 1.0), wear_mask, dirt_colour, dirty)
+    base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 1.0), wear_mask, dirt_colour, dirty,
+                                 decals)
     chipped = pf.nodes.shader.displacement(height=wear_mask * -0.0004, midlevel=0.0)
     return Channels(base, rough, shine, BLACK, paint_relief(vector, bump, bump_size) + chipped)
 
@@ -396,14 +485,17 @@ def lumpy_relief(vector, bump, bump_size, seed):
 
 
 def painted_plaster(colour, bare, dirt_colour, roughness, bare_roughness, bump, bump_size, edge_width, breakup_scale,
-                    dirt_reach, wear, dirt, seed, foot, kicks):
-    """Whitewash or gloss paint on rendered plaster: chipped to the bare render on edges and corners and scuffed where
-    feet kick the foot of the wall, dirty in the cavities."""
+                    dirt_reach, wear, dirt, seed, foot, kicks, scuffs=0.0, decals=None):
+    """Whitewash or gloss paint on rendered plaster, its decals printed on the paint: chipped to the bare render on
+    edges and corners and scuffed where feet kick the foot of the wall and where handling scratches it, dirty in the
+    cavities."""
     vector = coordinates()
     kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
-    wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
+    wear_mask = pf.nodes.math.maximum(pf.nodes.math.maximum(
+        edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked), scuff_mask(vector, wear, scuffs, seed))
     dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
-    base, rough, shine = layered((colour, roughness, 0.0), (bare, bare_roughness, 0.0), wear_mask, dirt_colour, dirty)
+    base, rough, shine = layered((colour, roughness, 0.0), (bare, bare_roughness, 0.0), wear_mask, dirt_colour, dirty,
+                                 decals)
     chipped = pf.nodes.shader.displacement(height=wear_mask * -0.0008, midlevel=0.0)
     return Channels(base, rough, shine, BLACK, lumpy_relief(vector, bump, bump_size, seed) + chipped)
 
@@ -505,19 +597,22 @@ def boards(colour, bare, second, dirt_colour, roughness, bare_roughness, board_w
 
 
 def rusted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
-                 breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks):
-    """Paint on mild steel outdoors: rust on the edges, in blooms where the paint let the rain in and where feet kick
-    it, as far as the place's wear; rust is matt and dark, pitted, never shiny."""
+                 breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks, scuffs=0.0, decals=None):
+    """Paint on mild steel outdoors, its decals printed on the paint: rust on the edges, in blooms where the paint let
+    the rain in, where feet kick it and where handling scuffs it, as far as the place's wear; rust is matt and dark,
+    pitted, never shiny."""
     vector = coordinates()
     blooms = pf.nodes.texture.noise(vector=vector, scale=breakup_scale * 2.0, detail=4.0, noise_dimensions="4D",
                                     w=seed + 7.0)
     bloomed = pf.nodes.math.map_range(value=blooms.fac, from_min=0.72 - 0.3 * wear, from_max=0.78 - 0.3 * wear,
                                       interpolation_type="SMOOTHSTEP") * pf.nodes.math.greater_than(wear, 0.001)
     kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
-    rusted = pf.nodes.math.maximum(pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed),
-                                                         bloomed), kicked)
+    rusted = pf.nodes.math.maximum(pf.nodes.math.maximum(pf.nodes.math.maximum(
+        edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), bloomed), kicked),
+        scuff_mask(vector, wear, scuffs, seed))
     dirty = dirt_mask(vector, dirt, dirt_reach, seed)
-    base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 0.0), rusted, dirt_colour, dirty)
+    base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 0.0), rusted, dirt_colour, dirty,
+                                 decals)
     pits = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=3.0, noise_dimensions="4D", w=seed)
     relief = pf.nodes.shader.displacement(height=(pits.fac - 0.5) * bump * rusted - rusted * 0.0003, midlevel=0.0)
     return Channels(base, rough, shine, BLACK, relief)
@@ -855,8 +950,8 @@ SOURCES = {
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
-    "painted_metal": (painted_metal, coordinates, mottled, edge_wear_mask, kick_mask, dirt_mask, paint_relief,
-                      layered),
+    "painted_metal": (painted_metal, coordinates, mottled, edge_wear_mask, kick_mask, scuff_mask, dirt_mask,
+                      paint_relief, layered),
     "bare_metal": (bare_metal, coordinates, dirt_mask, brushed_relief),
     "cast_metal": (cast_metal, coordinates, dirty_flat, dirt_mask),
     "perforated_metal": (perforated_metal, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
@@ -874,13 +969,14 @@ PARTS = {
     "screen": (screen, picture_on),
     "printed": (printed, picture_on),
     "wood": (wood, coordinates, dirty_flat, dirt_mask),
-    "painted_plaster": (painted_plaster, coordinates, edge_wear_mask, kick_mask, dirt_mask, lumpy_relief, layered),
+    "painted_plaster": (painted_plaster, coordinates, edge_wear_mask, kick_mask, scuff_mask, dirt_mask, lumpy_relief,
+                        layered),
     "weathered_render": (weathered_render, coordinates, edge_wear_mask, kick_mask, dirt_mask, rain_streaks, face_plane,
                          lumpy_relief, layered),
     "tiles": (tiles, coordinates, face_plane, face_joints, dirty_flat, dirt_mask),
     "terrazzo": (terrazzo, coordinates, dirty_flat, dirt_mask),
     "boards": (boards, coordinates, face_plane, dirt_mask, layered),
-    "rusted_metal": (rusted_metal, coordinates, edge_wear_mask, kick_mask, dirt_mask, layered),
+    "rusted_metal": (rusted_metal, coordinates, edge_wear_mask, kick_mask, scuff_mask, dirt_mask, layered),
     "wet_asphalt": (wet_asphalt, coordinates, dirty_flat, dirt_mask),
     "regolith": (regolith, coordinates),
     "rock": (rock, coordinates, face_plane, ridges),
@@ -925,6 +1021,8 @@ def arguments(spec, wear, dirt, seed, foot=None):
 
         given["image"] = pf.Image(bpy.data.images.load(spec["image"], check_existing=True))
     wanted = inspect.signature(RECIPES[spec["recipe"]]).parameters
+    if spec.get("decals") and "decals" in wanted:
+        given["decals"] = decal_layers(spec["decals"])
     for name in ("second", "print_colour"):
         if name in wanted and wanted[name].default is None and name not in given:
             given[name] = given["colour"]  # a mottled or printed finish whose spec names no second shade: its own
@@ -932,10 +1030,29 @@ def arguments(spec, wear, dirt, seed, foot=None):
             if name in given or about.default is inspect.Parameter.empty}
 
 
+def decal_layers(decals):
+    """Each decal placement of a spec (score #164: {image, at, normal, up, size_m, turn, layer, ink}) as a
+    decal_layer, lowest `layer` first, its picture loaded into Blender."""
+    import bpy
+
+    found = []
+    for decal in sorted(decals, key=lambda each: each.get("layer", 0)):
+        image = pf.Image(bpy.data.images.load(decal["image"], check_existing=True))
+        found.append(decal_layer(coordinates(), decal, image))
+    return found
+
+
 def channels(spec, wear, dirt, seed, foot=None):
     """One library material at one wear and dirt setting, on a piece whose foot stands `foot` over its floor, as
-    Channels."""
-    return RECIPES[spec["recipe"]](**arguments(spec, wear, dirt, seed, foot))
+    Channels. A recipe that layers paint (it takes `decals`) prints its decals under its wear and dirt; any other gets
+    them printed over its finish."""
+    given = arguments(spec, wear, dirt, seed, foot)
+    found = RECIPES[spec["recipe"]](**given)
+    if not spec.get("decals") or "decals" in given:
+        return found
+    colour, roughness, metal = with_decals((found.base_color, found.roughness, found.metallic),
+                                           decal_layers(spec["decals"]))
+    return found._replace(base_color=colour, roughness=roughness, metallic=metal)
 
 
 def settings_of(recipe):

@@ -20,8 +20,10 @@ lit finish (`lit_finishes`) takes the scene library's glowing surface (the libra
 colour its concept crop shows (`lit_finishes`; owner, 2026-10-25: "the engines themself should be a source of light and there are lights in
 the concept"); with none in the scene library it is marked off its colour, and the paint's gate names it.
 
-Output: parts.json (per take its method, parts (each with its finish's `settings` or None), finishes with the list's
-settings and the check's measure; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
+Output: parts.json (per take its method, parts (each with its finish's `settings` or None and its own `wear`
+{level, cause} or None), finishes with the list's settings and the check's measure, `decals` (each listed mark
+placed: its library decal, part, point, facing, up and size in the take's own frame, cast through the close-up's
+camera, score #164) and `decal_gaps`; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
 the paint's face order), <take>/colours.npy (NaN: the paint joins parts on their surface alone). Gate "parts": every
 take the split split has its parts.
 """
@@ -48,6 +50,13 @@ import score.stages.props.thin_straight as thin_straight  # noqa: E402
 
 METHOD = "finish-route"
 EDGE = 2  # a pixel counts when those EDGE away on every side show its finish too, so no border mixes two finishes
+# A printed mark is placed by casting its box through the close-up's camera (score #164): its middle gives its part,
+# point and facing, and a probe EDGE_IN of the box inside each edge its size and up, so a probe sits on the mark, not
+# beside it; a probe on another part (or off the model) is not used, and a mark both of whose sizes miss its part is a
+# gap, so a decal never reaches past its part.
+EDGE_IN = 0.1
+PROBES = {"middle": (0.5, 0.5), "left": (EDGE_IN, 0.5), "right": (1 - EDGE_IN, 0.5), "top": (0.5, EDGE_IN),
+          "bottom": (0.5, 1 - EDGE_IN)}
 
 
 def seen_colours(views, finish_of, count):
@@ -105,6 +114,102 @@ def part_finish(mesh, part_of, finish_of, part):
     return int(np.bincount(finish_of[members], weights=mesh.area_faces[members]).argmax())
 
 
+def mark_probes(box):
+    """The close-up pixels a mark's box is cast at ([column, row] for each of PROBES, in its order)."""
+    left, top, wide, tall = box
+    return [[left + across * wide, top + down * tall] for across, down in PROBES.values()]
+
+
+def spanned(points, on_part, first, second, inner):
+    """The distance between two probes on the mark's part, grown from the probes to the box's edges, or None."""
+    if not (on_part[first] and on_part[second]):
+        return None
+    return float(np.linalg.norm(points[second] - points[first])) / inner
+
+
+def square_up(up, normal):
+    """`up` made square to `normal` and of length 1, or None when it lies along it."""
+    up = np.asarray(up, dtype=float) - float(np.dot(up, normal)) * normal
+    length = float(np.linalg.norm(up))
+    return None if length < 1e-6 else up / length
+
+
+def placement(mark, number, faces, points, part_of, normals, seen):
+    """One mark's placement ({decal, part, at, normal, up, size, turn, layer, ink_token, what, from}) in the take's own
+    frame, or the reason it cannot be placed: its middle off the model, or both its sizes off its part."""
+    names = list(PROBES)
+    middle = faces[names.index("middle")]
+    if middle < 0:
+        return None, "its box's middle is off the model"
+    part = int(part_of[middle])
+    on_part = {name: faces[at] >= 0 and part_of[faces[at]] == part for at, name in enumerate(names)}
+    points = dict(zip(names, np.asarray(points, dtype=float)))
+    inner = 1 - 2 * EDGE_IN
+    wide = spanned(points, on_part, "left", "right", inner)
+    tall = spanned(points, on_part, "top", "bottom", inner)
+    if wide is None and tall is None:
+        return None, f"it spans more than its part {part}"
+    ratio = mark["box"][2] / max(mark["box"][3], 1)
+    wide, tall = (wide if wide is not None else tall * ratio), (tall if tall is not None else wide / ratio)
+    normal = np.asarray(normals[middle], dtype=float)
+    seen_up = points["top"] - points["bottom"] if on_part["top"] and on_part["bottom"] else np.array([0.0, 1.0, 0.0])
+    up = square_up(seen_up, normal)
+    for fallback in ([0.0, 1.0, 0.0], [0.0, 0.0, 1.0]):  # seen edge-on: the take's up, else its front
+        up = square_up(fallback, normal) if up is None else up
+    rounded = lambda vector: [round(float(value), 5) for value in vector]  # noqa: E731
+    return {"decal": mark["decal"], "part": part, "at": rounded(points["middle"]), "normal": rounded(normal),
+            "up": rounded(up), "size": [round(wide, 5), round(tall, 5)], "turn": 0.0, "layer": number,
+            "ink_token": mark.get("ink_token"), "what": mark.get("what", ""),
+            "from": {"close_up_box": mark["box"], "seen": seen}}, None
+
+
+def decal_placements(marks, part_of, normals, cast, seen):
+    """(placements, gaps) of a take's listed marks (route_list's, finish_ask.marks_of): each mark naming a library
+    decal cast through the close-up (`cast(pixels)` -> (faces, points in the take's own frame), route_cast.cast_points)
+    and placed on the part under its middle (placement); a mark with no decal, or that cannot be placed, a gap naming
+    why. `seen` says which close-up the boxes are in."""
+    placements, gaps = [], []
+    for number, mark in enumerate(marks):
+        if mark.get("decal") is None:
+            gaps.append({"what": mark.get("what", ""), "why": mark.get("gap") or "no library decal named"})
+            continue
+        faces, points = cast(mark_probes(mark["box"]))
+        found, why = placement(mark, number, faces, points, part_of, normals, seen)
+        if found is None:
+            gaps.append({"what": mark.get("what", ""), "decal": mark["decal"], "why": why})
+        else:
+            placements.append(found)
+    return placements, gaps
+
+
+def take_decals(folders, marks, part_of):
+    """(placements, gaps) of a take's marks: cast through its own close-up's camera; a take with a stand-in close-up
+    or no camera places none, each mark a gap naming why (its box is in a picture no camera of the model took)."""
+    if not marks:
+        return [], []
+    if not (folders.get("close_up") and folders.get("camera") and folders.get("model")):
+        return [], [{"what": mark.get("what", ""), "decal": mark.get("decal"),
+                     "why": f"no own close-up and camera ({route_data.STAND_IN}): its box cannot be cast"}
+                    for mark in marks]
+    from PIL import Image
+    model = cast.loaded(folders["model"])
+    camera = cast.close_up_camera(folders["camera"])
+    with Image.open(folders["close_up"]) as picture:
+        size = picture.size
+    normals = model.mesh.face_normals
+    return decal_placements(marks, part_of, normals, lambda pixels: cast.cast_points(model, camera, size, pixels),
+                            "close-up")
+
+
+def part_wear(rows, finishes, mesh, part_of, finish_of):
+    """Each part row's own wear ({level, cause}: the list's for its finish, score #164) or None, the finish's
+    falling back to the scene's."""
+    for row in rows:
+        finish = finishes[part_finish(mesh, part_of, finish_of, row["part"])]
+        row["wear"] = ({"level": finish["wear_level"], "cause": finish.get("wear_cause")}
+                       if finish.get("wear_level") else None)
+
+
 def files(place):
     """route_data.parts_files and each code-built take's mark (thin_straight.MARK beside its close-up), named
     `code <take>`."""
@@ -155,9 +260,10 @@ def lit_finishes(checked, every):
     return found
 
 
-def parts_take(folders, entry, finishes, surfaces):
-    """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record. `surfaces`: the take's
-    library surfaces (palette_library.take_surfaces) and the scene's shell surfaces (palette_library.shell_surfaces)."""
+def parts_take(folders, entry, finishes, surfaces, marks=()):
+    """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record, with each part's own
+    wear (part_wear) and its listed marks placed as decals (take_decals). `surfaces`: the take's library surfaces
+    (palette_library.take_surfaces) and the scene's shell surfaces (palette_library.shell_surfaces)."""
     finish_of = np.load(folders["split"] / "finish.npy").astype(int)
     part_of = np.load(folders["split"] / "parts.npy").astype(int)
     mesh = route_split.model_of(folders["views"])
@@ -173,9 +279,12 @@ def parts_take(folders, entry, finishes, surfaces):
     rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
+    part_wear(rows, checked, mesh, part_of, finish_of)
+    decals, decal_gaps = take_decals(folders, marks, part_of)
     return {"method": METHOD, "object": entry.get("object"), "parts": rows, "judge_unknown": [], "finishes": checked,
-            "colour_from": colour_from,
-            "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked)}}
+            "colour_from": colour_from, "decals": decals, "decal_gaps": decal_gaps,
+            "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked),
+                         "decals": len(decals), "decal gaps": len(decal_gaps)}}
 
 
 def make_parts(inputs, out, seed, params):
@@ -194,11 +303,13 @@ def make_parts(inputs, out, seed, params):
         if record is None or record["fault"]:
             left[take] = record["fault"] if record else named.get(take, "not split: no finish list")
             continue
-        finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
+        answer = json.loads((listed / f"{take}.json").read_text())
+        finishes = answer["finishes"]
         folders = {"views": views / take, "split": split / take, "out": out / take, "model": inputs.get(f"model {take}"),
                    "close_up": inputs.get(f"close-up {take}"), "camera": inputs.get(f"camera {take}"),
                    "code": inputs.get(f"code {take}")}
-        found[take] = parts_take(folders, takes[take], finishes, (palette_library.take_surfaces(takes[take], palette), kit))
+        found[take] = parts_take(folders, takes[take], finishes, (palette_library.take_surfaces(takes[take], palette), kit),
+                                 answer.get("marks", []))
     (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))
 
 

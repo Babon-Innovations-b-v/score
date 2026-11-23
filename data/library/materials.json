@@ -17,7 +17,8 @@
    "dirt_reach": 0.08,
    "mottle_size": 0.15,
    "contrast": 0.0,
-   "roughness_spread": 0.0
+   "roughness_spread": 0.0,
+   "scuffs": 0.0
   },
   "bare_metal": {
    "roughness": 0.38,
@@ -136,7 +137,8 @@
    "bump_size": 0.03,
    "edge_width": 0.008,
    "breakup_scale": 6.0,
-   "dirt_reach": 0.1
+   "dirt_reach": 0.1,
+   "scuffs": 0.0
   },
   "weathered_render": {
    "roughness": 0.85,
@@ -182,7 +184,8 @@
    "bump_size": 0.012,
    "edge_width": 0.006,
    "breakup_scale": 5.0,
-   "dirt_reach": 0.06
+   "dirt_reach": 0.06,
+   "scuffs": 0.0
   },
   "wet_asphalt": {
    "roughness": 0.8,

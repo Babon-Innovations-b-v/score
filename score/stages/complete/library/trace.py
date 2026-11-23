@@ -15,7 +15,9 @@ asset paths) held by an entry of its kind. Its finishes trace, each bound materi
 library surface it names (`score:surface` on the material or the bound part, by name or by an address the library
 holds, else a material of the place's `Library` scope by its name), or by its model's finish record (a bake of the
 surface stage, the crops or a ship kit, which paints every part from the library: `context.baked`, or the thing's
-entry whose provenance says the surface line painted it, as place_build lays one). A thing that traces neither way is
+entry whose provenance says the surface line painted it, as place_build lays one); each library decal its bake printed
+on it (its model's `decals_on`, `context.decals`, score #164) is a finish row of its own, traced while the library
+holds it. A thing that traces neither way is
 under a written exception or is a finding; a part with no material is a default grey, and a finding. A character's
 held pose naming a library pose (`score:pose`) is a source row of its own, traced when the library holds it. A place_build
 scene's character, laid in its Objects, is judged against the exceptions at `/<place>/Characters/<name>`, the path an
@@ -57,6 +59,7 @@ class Context:
     shelf: object  # entries.Shelf
     blobs: str = ""  # the folder whose files are named by their sha256 (the store's blobs)
     baked: dict = dataclasses.field(default_factory=dict)  # model gltf sha256: the bake node that painted it
+    decals: dict = dataclasses.field(default_factory=dict)  # model gltf sha256: the decal addresses its bake printed
     exceptions: list = dataclasses.field(default_factory=list)
     today: datetime.date = dataclasses.field(default_factory=datetime.date.today)
 
@@ -328,6 +331,20 @@ def finish_rows(prim, kind, context):
     return rows
 
 
+def decal_rows(prim, kind, context):
+    """One row a library decal the thing's bake printed on it (score #164: its model's `decals_on`, by its gltf),
+    traced when the library holds that decal."""
+    rows = []
+    thing_path, group = str(prim.GetPath()), group_of(prim, kind)
+    for address in sorted(set(context.decals.get(authored(prim, "score:model_sha256"), []))):
+        held = context.shelf.newest(address)
+        row = {"aspect": "finish", "kind": kind, "prim": thing_path, "material": None, "group": f"{group}: decal",
+               "parts": 0, "by": held, "how": "the library decal its bake printed (decals_on)" if held else None,
+               "instead": None if held else f"its bake printed decal {address}, which the library does not hold"}
+        rows.append(judged(row, [thing_path], context))
+    return rows
+
+
 def laid_character(prim, kind):
     """[the path an assembly gives a character] for a character laid outside a Characters scope (place_build lays
     it in Objects), else []."""
@@ -360,7 +377,7 @@ def rows(stage, context):
     for prim, kind in things(stage):
         found.append(source_row(prim, kind, context))
         if kind in FINISHED:
-            found += finish_rows(prim, kind, context)
+            found += finish_rows(prim, kind, context) + decal_rows(prim, kind, context)
         if kind == "character":
             found += pose_rows(prim, context)
     return found

@@ -19,6 +19,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `finish` null when nothing is measured; `<take>/parts.npy` one part per welded face; `<take>/colours.npy` each
   face's seen colour, NaN when none is measured). Another method replaces the method's rows and writes it; the
   framework's rows (`place_line.py`: paint, bake, check) do not change.
+- **Decals and scuffs** (#164): a printed mark is a library decal (score_lib surface, family `decal`), never a
+  picture of the model. `finish-route-list` lists the marks with their decal (`finish_ask.marks_of`, offered by
+  `decal_library.catalogue`); `surfaces-parts` places each on its part through the close-up's camera
+  (`route_parts.decal_placements`, parts.json `decals` and `decal_gaps`; a stand-in close-up places none, each a gap)
+  and writes each part's own `wear`; `surfaces-bake` ships each decal's picture and prints it in its part's finish
+  (`route_bake.decals_on`, make_chunky `decals_on`, `recipes.decal_layer`); a decal the library does not hold stops
+  the bake. Scuffs are the recipe's `scuffs` setting (0 by default), never a picture. parts.json stays contract
+  v1: its new fields are additive, so no accepted parts or paid bake is invalidated.
 - **The finish-map method is gone** (2026-10-20, #26): the crops are the places' own takes and the people's line
   runs the route's rows (`../people/line.py`), so its turntable, maps, names and SegviGen rows and modules were
   deleted. `finish_parts.py` keeps the route's shared steps on a take's faces and the finish check; `finish_ask.py`

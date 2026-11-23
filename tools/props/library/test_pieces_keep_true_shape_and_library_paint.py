@@ -17,6 +17,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - library `linear`: `value / 12.92 if True` -> test_a_token_colour_is_linear.
 - recipes.py `cloth`: drop its `thread` argument -> test_every_recipe_s_settings_are_in_the_method.
 - recipes.py: `"pile": pile, "written": written,` dropped from RECIPES -> test_every_recipe_s_settings_are_in_the_method.
+- recipes.py `rusted_metal`: drop its `decals` argument; and, apart, materials.json `rusted_metal`'s `"scuffs": 0.0`
+  -> test_every_recipe_s_settings_are_in_the_method (2026-11-23, #164).
 - library `main`: `if True:` print the whole list -> test_the_command_line_prints_one_summary_line.
 - make_chunky `default_wall`: `return WALL_VOXELS * voxel_of(size)` ->
   test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm.
@@ -214,7 +216,7 @@ def test_every_recipe_s_settings_are_in_the_method():
                  and getattr(node.targets[0], "id", None) == "RECIPES")
     recipes = {key.value: value.id for key, value in zip(table.keys, table.values)}
     given = {"colour", "bare", "second", "dirt_colour", "print_colour", "wear", "dirt", "seed", "foot", "kicks",
-             "image"}
+             "image", "decals"}
     method = library.theme_library()["recipes"]
     assert set(recipes) == set(method)
     assert {name: arguments[function] - given - set(method[name]) for name, function in recipes.items()
@@ -234,6 +236,11 @@ def test_every_recipe_s_settings_are_in_the_method():
     assert arguments[recipes["pile"]] - given == {"roughness", "tuft_size", "mottle_size", "contrast", "bump",
                                                   "dirt_reach"}
     assert arguments[recipes["written"]] - given == {"roughness", "line_pitch", "stroke", "word_size", "ink_share"}
+    # decals and scuffs (#164, 2026-11-23): the paint-layering recipes print a part's decals under their wear, and
+    # scuff flat faces as far as their `scuffs` (0 in the method: no recipe looks different until a finish sets it)
+    layering = {name for name, function in recipes.items() if "decals" in arguments[function]}
+    assert layering == {"painted_metal", "painted_plaster", "rusted_metal"}
+    assert {name: method[name].get("scuffs") for name in layering} == dict.fromkeys(layering, 0.0)
 
 
 def command_output(arguments, folder):

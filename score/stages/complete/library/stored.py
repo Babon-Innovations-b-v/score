@@ -4,8 +4,10 @@ part from the library.
 
     folder = stored.laid_out(store, output, folder)   # the output's files as links into the store's blobs
     baked = stored.baked(store, places)               # {model gltf sha256: the bake node that painted it}
+    decals = stored.decals(store, places)             # {model gltf sha256: the decal addresses its bake printed}
     store = stored.reading()                          # the framework's store, its keys read a node's folder only
 """
+import json
 import os
 import pathlib
 
@@ -68,4 +70,28 @@ def baked(store, places):
         for place in places:
             for sha, node in made_models(store, f"{stage}@{place}").items():
                 found.setdefault(sha, node)
+    return found
+
+
+def printed_decals(store, node):
+    """{gltf sha256: [decal address]} of the models one accepted bake printed library decals on (its baked.json's
+    entries' `decals_on`, score #164)."""
+    output = store.accepted(node)
+    if not output:
+        return {}
+    listing = store.listing(output)
+    if "baked.json" not in listing:
+        return {}
+    entries = json.loads(pathlib.Path(store.objects.path(f"blobs/{listing['baked.json']}")).read_text())
+    return {listing[f"made/{model}.gltf"]: [decal["decal"] for decal in entry["decals_on"]]
+            for model, entry in entries.items() if entry.get("decals_on") and f"made/{model}.gltf" in listing}
+
+
+def decals(store, places):
+    """{model gltf sha256: [decal address]} over every bake of the places."""
+    found = {}
+    for stage in BAKES:
+        for place in places:
+            for sha, addresses in printed_decals(store, f"{stage}@{place}").items():
+                found.setdefault(sha, addresses)
     return found

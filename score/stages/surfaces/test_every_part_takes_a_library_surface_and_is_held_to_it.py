@@ -448,6 +448,16 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (FEET_JUDGED)
 - feet_stand.py: `worst = max(worst, outside if outside > BALANCE else 0.0)` -> `worst = max(worst, 0.0)` (off_balance)
   -> every_part_takes_a_library_surface_and_is_held_to_it (a tipped seat)
+- route_parts.py: `on_part = {name: faces[at] >= 0 and ...` -> `on_part = {name: faces[at] >= 0 ...` (any part)
+  (placement) -> every_part_takes_a_library_surface_and_is_held_to_it (DECAL_MARKS: a mark printed past its part)
+- route_parts.py: `/ inner` dropped (spanned) -> every_part_takes_a_library_surface_and_is_held_to_it (DECAL_MARKS:
+  a label sized at its probes, not its box)
+- finish_ask.py: `elif decal["ink"] != mark.get("ink"):` -> `elif False:` (marks_of) ->
+  every_part_takes_a_library_surface_and_is_held_to_it (a many-ink logo printed from a one-ink decal)
+- decal_library.py: `or row.get("state") == "withdrawn"` dropped (catalogue) ->
+  every_part_takes_a_library_surface_and_is_held_to_it (a withdrawn decal offered)
+- route_bake.py: `if image is None or ...` -> `if False:` (decals_on) ->
+  every_part_takes_a_library_surface_and_is_held_to_it (a decal the library does not hold baked)
 """
 import contextlib
 import copy
@@ -477,7 +487,8 @@ from score.adapters import compute  # noqa: E402
 from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
-from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, finish_ask, finish_parts,  # noqa: E402
+from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, decal_library,  # noqa: E402
+                                   finish_ask, finish_parts,
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
                                    recheck_picks, route_check, route_data, route_list, route_paint, route_parts,
@@ -2501,6 +2512,73 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                 matrix, _, bounds = place_line.finished_frame(raw, take)
                 on = trimesh.transform_points(raw.vertices, matrix)
                 assert np.allclose([on.min(0), on.max(0)], bounds, atol=0.01), (case, on.min(0), on.max(0), bounds)
+    for case, marks, hit, placed, gaps in DECAL_MARKS:  # a listed mark placed on its part as a library decal (#164)
+        found, missed = route_parts.decal_placements(marks, np.array([0, 1]), np.array([[0.0, 0.0, 1.0]] * 2),
+                                                     hit, "close-up")
+        assert [(row["decal"], row["part"], row["size"]) for row in found] == placed, (case, found)
+        assert [row["why"] for row in missed] == gaps, (case, missed)
+    marked = finish_ask.marks_of({"marks": [
+        {"box_2d": [100, 200, 300, 600], "what": "label", "ink": "many", "on_finish": 1, "decal": "D1", "fits": True},
+        {"box_2d": [0, 0, 10, 10], "what": "logo", "ink": "many", "on_finish": 1, "decal": "D2", "fits": True},
+        {"box_2d": [0, 0, 10, 10], "what": "arrow", "ink": "one", "on_finish": 1, "decal": "D2", "fits": True},
+        {"box_2d": [0, 0, 10, 10], "what": "badge", "ink": "one", "on_finish": 2, "decal": "D2", "fits": True}]},
+        DECALS, 1, (1000, 500))
+    assert [(mark["box"], mark["decal"], mark["gap"]) for mark in marked] == [
+        ([200, 50, 400, 100], "surface/decal_label@1", None),
+        ([0, 0, 10, 5], None, "its decal surface/decal_arrow@1 is one ink, the mark many"),
+        ([0, 0, 10, 5], None, "a one-ink mark names no palette token for its ink")], marked
+    with tempfile.TemporaryDirectory() as folder:  # the decals offered: the library's decals in force alone
+        (pathlib.Path(folder) / "index").mkdir()
+        (pathlib.Path(folder) / "index" / "surface.json").write_text(json.dumps({
+            "schema": "score-lib-index/1", "kind": "surface", "entries": [
+                {"address": "surface/decal_label@1", "state": "draft", "title": "label", "tags": {
+                    "family": ["decal"], "class": ["paper"], "ink": ["many"], "size_m": ["0.200x0.100"],
+                    "words": ["label"]}},
+                {"address": "surface/decal_old@1", "state": "withdrawn", "title": "old", "tags": {"family": ["decal"]}},
+                {"address": "surface/steel@1", "state": "draft", "title": "steel", "tags": {"family": ["image"]}}]}))
+        assert decal_library.catalogue(folder) == DECALS[:1]
+        assert decal_library.offered(DECALS, "plastic", "one") == DECALS[1:] and decal_library.catalogue(None) == []
+    with pytest.raises(RuntimeError, match="decal_gone"):  # a decal the library does not hold stops the bake
+        route_bake.decals_on([{"decal": "surface/decal_gone@1", "part": 0}], [{"part": 0, "surface": "paint"}], {},
+                             lambda address: None)
+    assert route_bake.decals_on([{"decal": "surface/decal_arrow@1", "part": 1, "ink_token": "sign-black"}],
+                                [{"part": 1, "surface": "yellow_plastic"}], {"sign-black": (0.01, 0.01, 0.01)},
+                                lambda address: pathlib.Path("/lib/decal.png")) == [
+        {"decal": "surface/decal_arrow@1", "part": 1, "ink_token": "sign-black", "finish": "yellow_plastic",
+         "image": "/lib/decal.png", "ink": [0.01, 0.01, 0.01]}]
+
+
+def plane_cast(parts, scale=0.001):
+    """A close-up cast onto the flat face z = 0 of the model's frame, a pixel `scale` metres: each probe's face by its
+    place among the five probes (route_parts.PROBES' order: middle, left, right, top, bottom) from `parts`."""
+    def cast(pixels):
+        pixels = np.asarray(pixels, dtype=float)
+        return np.array(parts), np.c_[pixels[:, 0] * scale, -pixels[:, 1] * scale, np.zeros(len(pixels))]
+    return cast
+
+
+# A printed mark on a take (#164): (case, its listed marks, the cast, the placements (decal, part, size in the take's
+# frame) and the gaps' reasons). A 200 x 100 px label on part 0 at a millimetre a pixel is 0.2 x 0.1 m (its probes
+# EDGE_IN inside its edges, grown back to them); a probe on another part is never used, so its size comes from the
+# other side by the box's shape, and a mark both of whose sides reach another part is a gap: a decal never prints on
+# another part's faces.
+LABEL_MARK = {"box": [100, 100, 200, 100], "what": "label", "decal": "surface/decal_label@1", "ink": "many"}
+DECAL_MARKS = [
+    ("a mark the list names becomes a placement on its part at its cast size", [LABEL_MARK], plane_cast([0] * 5),
+     [("surface/decal_label@1", 0, [0.2, 0.1])], []),
+    ("a mark no library decal is, is a gap", [dict(LABEL_MARK, decal=None, gap="no library decal is this mark")],
+     plane_cast([0] * 5), [], ["no library decal is this mark"]),
+    ("its width reaching another part is sized by its height alone", [LABEL_MARK], plane_cast([0, 1, 1, 0, 0]),
+     [("surface/decal_label@1", 0, [0.2, 0.1])], []),
+    ("a mark reaching another part both ways is a gap, never printed there", [LABEL_MARK],
+     plane_cast([0, 1, 1, 1, 1]), [], ["it spans more than its part 0"]),
+    ("a mark whose middle misses the model is a gap", [LABEL_MARK], plane_cast([-1, 0, 0, 0, 0]), [],
+     ["its box's middle is off the model"]),
+]
+DECALS = [{"address": "surface/decal_label@1", "class": "paper", "ink": "many", "size_m": [0.2, 0.1], "words": ["label"],
+           "title": "label"},
+          {"address": "surface/decal_arrow@1", "class": "plastic", "ink": "one", "size_m": [0.05, 0.05],
+           "words": ["arrow"], "title": "arrow"}]
 
 
 def baked_model(folder, name, mesh):

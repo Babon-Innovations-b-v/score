@@ -339,6 +339,17 @@ branch names a scene or a world.
   `spots` and `curve`); each scene standing on it takes its layer, and `ground-fit@<scene>` judges objects on level
   ground, none floating, no hole, doorways onto a floor, no view onto nothing.
 - **Models**: every inventory row's objects from the shared loop, laid by the assembly.
+- **Printed marks and wear on a model** (#164): labels, logos, signs and key legends are library decals, never a
+  model's own picture. A decal is a score_lib `surface` of family `decal` (`decal.png` with transparency, its size in
+  metres, its material class and ink; a one-ink decal takes its ink from a palette token), cut out of NVIDIA's
+  one-model pictures by `score-lib decals cut` with their licence and credit carried. The finish route's list names
+  each mark it sees in the close-up and the decal it is (`finish_ask.marks_of`; one no decal fits is a gap); the parts
+  row casts the mark's box through the close-up's camera onto its part (`route_parts.decal_placements`: part, point,
+  facing, up and size in the take's own frame; a mark past its part is a gap), and the bake prints it with a box
+  projector in that part's finish (`recipes.decal_layer`), under the finish's edge, kick and scuff wear and its dirt,
+  on a part drawn at `route.PRINT` colour texels a metre. Wear stays the recipe's settings, never a picture: a part's
+  own wear level and cause (`parts[i].wear`, its finish's), and `scuffs` (0 by default) scratches flat faces turned
+  up. The library check traces each printed decal (`decals_on`) to its entry.
 - **Effects** (`score/stages/effects`): each object of an emitting row carries its kind's measured effects
   (`data/checks/effects.json`); a kind Newton makes (a drilling rig's cuttings: implicit MPM in the physics trial's
   own Python, under the body's gravity) is simulated and baked into the same layer. **Motion** (`score/stages/motion/from_design.py`): each moving row by its kind's rule

@@ -6,7 +6,10 @@ The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's
 "size": its laid size, "screens": [{"at", "size", "variant"}], "cuts": [{"box": [x0, y0, x1, y1]} or
 {"circle": [x, y, radius]} through its depth, or {"recess": [low, high]}: a box in the kit frame, a moving door's room
 in its holder with a back], "density": optional,
-"foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}],
+"foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}] (the
+kit route's printed plates), "decals_on": [{"decal", "finish", "image", "at", "normal", "up", "size", "turn", "layer",
+"ink"}] (score #164: library decals placed on the take's parts in its own frame, printed by the finish's recipe under
+its wear: piece_specs),
 "per_face": optional, every face packed as its own island (bake.packed_per_face: foliage),
 "stands": whether its paint levelled its feet (library_bake.py reads it from the labels; then levelled_feet),
 A take bodies.BODIES names is a big object seen up close: its code-built body under the take's details it keeps
@@ -187,7 +190,8 @@ def laid_flat(part):
 
 def into_kit_frame(whole, base, size):
     """The model turned by its kind's `base` (glTF frame to the kit's) and fitted to its laid size, standing on the
-    middle of its foot, in Blender's frame (the kit frame's x, -z, y)."""
+    middle of its foot, in Blender's frame (the kit frame's x, -z, y); the whole move as one matrix (decals_laid lays
+    the take's decals by it)."""
     turn = Matrix([base[0:3], base[3:6], base[6:9]]).to_4x4()
     whole.data.transform(GLTF_TO_BLENDER @ turn)  # the .ply holds glTF numbers as they are
     corners = [vertex.co for vertex in whole.data.vertices]
@@ -196,8 +200,33 @@ def into_kit_frame(whole, base, size):
     wide, tall, deep = size
     scale = Vector((wide / (high.x - low.x), deep / (high.y - low.y), tall / (high.z - low.z)))
     middle = Vector(((low.x + high.x) / 2, (low.y + high.y) / 2, low.z))
-    whole.data.transform(Matrix.Diagonal(scale.to_4d()) @ Matrix.Translation(-middle))
+    fitted = Matrix.Diagonal(scale.to_4d()) @ Matrix.Translation(-middle)
+    whole.data.transform(fitted)
     whole.data.update()
+    return fitted @ GLTF_TO_BLENDER @ turn
+
+
+def decal_laid(decal, move):
+    """One placement of the take's decals (route_parts.decal_placements: at, normal, up and size in the take's own
+    frame, the frame its labelled parts hold) moved as its model was (`move`, into_kit_frame's), its size stretched as
+    the model was along its own right and up: a spec's decal (recipes.decal_layer reads at, normal, up, size_m)."""
+    turn = move.to_3x3()
+    normal, up = Vector(decal["normal"]).normalized(), Vector(decal["up"]).normalized()
+    right = up.cross(normal)
+    return dict(decal, at=list(move @ Vector(decal["at"])),
+                normal=list((turn.inverted().transposed() @ normal).normalized()),
+                up=list((turn @ up).normalized()),
+                size_m=[decal["size"][0] * (turn @ right).length, decal["size"][1] * (turn @ up).length])
+
+
+def piece_specs(specs, decals, move):
+    """The job's specs with each slot's decals (`decals_on`, the slot named by each placement's `finish`) laid by
+    decal_laid into its spec's `decals`; a slot with none is its spec as it is."""
+    found = dict(specs)
+    for decal in decals:
+        spec = found[decal["finish"]]
+        found[decal["finish"]] = dict(spec, decals=[*spec.get("decals", []), decal_laid(decal, move)])
+    return found
 
 
 def regioned(whole, regions):
@@ -427,10 +456,11 @@ def make_piece(entry, job, out):
     began = time.time()
     whole = full_model(entry["parts"], entry["name"])
     take = take_of(entry["parts"])
-    into_kit_frame(whole, bodies.laid_turn(take, entry["base"]), entry["size"])
+    move = into_kit_frame(whole, bodies.laid_turn(take, entry["base"]), entry["size"])
     regioned(whole, entry.get("regions", []))
     if bodies.body_of(take):
         return make_bodied(entry, job, out, whole, bodies.body_of(take), began)
+    specs = piece_specs(job["specs"], entry.get("decals_on", []), move)
     low, levelled = laid_copy(entry, job, whole)
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
@@ -443,14 +473,15 @@ def make_piece(entry, job, out):
     decals_off = [decal["variant"] for decal in decals if decal["surface"] is None]
     decals = [decal for decal in decals if decal["surface"] is not None]
     with_decals(whole, decals)
-    atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True,
+    atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), specs, one_piece=True,
                         backs_hidden=False, per_face=entry.get("per_face", False), split=True)
-    atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
+    atlas.bake_from(whole, low, specs, job["wear"], job["dirt"], job["seed"],
                     bake_reach(entry["size"]), entry.get("foot"))
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,
                   decals=[decal["variant"] for decal in decals], decals_off=decals_off,
+                  decals_on=[decal["decal"] for decal in entry.get("decals_on", [])],
                   cuts=len(entry.get("cuts", [])), capped_density=atlas.capped, levelled=levelled,
                   seconds=round(time.time() - began, 1))
     return report

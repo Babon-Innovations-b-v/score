@@ -161,9 +161,10 @@ def main(argv=None):
     store = stored.reading()
     places = places_of(options.place)
     baked = stored.baked(store, places_of([]))
+    printed = stored.decals(store, places_of([]))
     summary = {}
     for place in places:
-        context = trace.Context(place=place, shelf=shelf, blobs=stored.blobs(store), baked=baked,
+        context = trace.Context(place=place, shelf=shelf, blobs=stored.blobs(store), baked=baked, decals=printed,
                                 exceptions=written_exceptions)
         written = judged(store, context, options.out / place, not options.no_pictures)
         summary[place] = {"answer": written["answer"], **written["counts"], "findings": len(written["findings"])}

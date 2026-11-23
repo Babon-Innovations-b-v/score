@@ -201,6 +201,28 @@ def close_up_cast(model, camera, size):
     return faces.reshape(columns.shape), rows, columns
 
 
+def cast_points(model, camera, size, pixels):
+    """(the face under each of `pixels` ([[column, row], ...] of a close-up `size` (width, height)), -1 off the
+    model; where its ray met the model, in the model file's own frame, NaN off it) seen by `camera`
+    (close_up_camera), as close_up_cast casts its grid (score #164: a printed mark's box placed on the model)."""
+    distance, field = camera
+    width, height = size
+    pixels = np.asarray(pixels, dtype=float).reshape(-1, 2)
+    focal = width / 2 / np.tan(field / 2)
+    ways = np.stack([(pixels[:, 0] - width / 2) / focal, -(pixels[:, 1] - height / 2) / focal,
+                     -np.ones(len(pixels))], axis=-1)
+    ways /= np.linalg.norm(ways, axis=1, keepdims=True)
+    middle, side = model.frame
+    eye = (np.array([0.0, 0.0, distance]) - middle) / side
+    hit_faces, hit_rays, met = model.mesh.ray.intersects_id(np.repeat(eye[None], len(ways), axis=0), ways,
+                                                            multiple_hits=False, return_locations=True)
+    faces = np.full(len(ways), -1, dtype=np.int64)
+    points = np.full((len(ways), 3), np.nan)
+    faces[hit_rays] = hit_faces
+    points[hit_rays] = np.asarray(met) * side + middle
+    return faces, points
+
+
 def close_up_pixels(model, camera_file, close_up):
     """(the face under each sampled pixel of the close-up, -1 off the model; the sampled pixels, RGBA 0-255; which of
     them the cast and the close-up's alpha both put on the model; the cast's fit, its outline's IoU with the
