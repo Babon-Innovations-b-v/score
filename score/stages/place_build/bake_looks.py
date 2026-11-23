@@ -173,7 +173,7 @@ def baked_file(out, into, gltf, jobs):
     for job in jobs:
         began = time.time()
         spec = job["spec"]
-        channels = recipes.channels(spec, spec["wear"], spec["dirt"], spec["seed"])
+        channels = recipes.channels(spec, spec["wear"], spec["dirt"], recipes.SEED)
         item = tile_square(job["tile"]) if job["tile"] else bpy.data.objects[job["mesh"]]
         found = bake(item, channels, job["size"])
         written(found, job["size"], bool(job["tile"]), into, job["key"])

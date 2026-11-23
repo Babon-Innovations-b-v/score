@@ -31,7 +31,8 @@ left out of every measure, `out_of_reach`). The faults, each with its measure:
   shell or connector closes within FIT_DEPTH of it, from its threshold up) shows a gap wider than FIT between the
   door's outline and the wall, or the door lies over the wall further than FIT past the opening's edge (a hinge or a
   latch, shorter than HINGE, lies on its jamb): a leaf that is not the opening's shape and size (a rectangular
-  door in a round opening, a hatch too small for it).
+  door in a round opening, a hatch too small for it). The outline is the door's whole shape, its holes filled: a
+  lattice gate's gaps between its bars are the gate's, never the opening's.
 - `person floating` / `person sinks`: a person's feet (each foot's lowest skin; a walker's planted, lower foot alone,
   `walks`), or, seated, the seat, more than
   CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above.
@@ -638,6 +639,7 @@ def fit_faults(laid, name):
     door, wall = door_outline(laid, name)
     if not door.any():
         return []
+    door = ndimage.binary_fill_holes(door)  # its outline: a lattice gate's gaps between its bars are its own
     labels, _ = ndimage.label(door | ~wall)
     opening = np.isin(labels, np.unique(labels[door])) & ~door
     gap = float(ndimage.distance_transform_edt(~door)[opening].max()) * FIT_CELL if opening.any() else 0.0

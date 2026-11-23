@@ -309,7 +309,7 @@ def recipe_looks(objects, specs):
                 continue
             key = json.dumps(spec, sort_keys=True)  # one material a variant, however many objects wear it
             if key not in drawn:
-                material = recipes.shaded(recipes.channels(spec, spec["wear"], spec["dirt"], spec["seed"])).item()
+                material = recipes.shaded(recipes.channels(spec, spec["wear"], spec["dirt"], recipes.SEED)).item()
                 material.displacement_method = "BUMP"
                 material.name = f"{name}-recipe"
                 drawn[key] = material

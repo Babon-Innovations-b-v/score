@@ -1003,6 +1003,9 @@ COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour", "print_colour")
 # whether its place is walked (place_line.unwalked, from the surface data's foot_traffic) is taken to be walked.
 NO_FOOT = 100.0
 WALKED = 1.0
+# The job's seed a spec naming none of its own is drawn at (a library model remade part by part, tools/library/part_looks,
+# carries its old variants' settings, some with no seed): a place's preview and its package's bake draw it alike.
+SEED = 0.0
 
 
 def arguments(spec, wear, dirt, seed, foot=None):

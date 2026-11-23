@@ -50,6 +50,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - settle_mujoco.settled: the steps left out -> the tipping box reads stable
 - ready.held_by: the desk whose box holds the pad left out of the pad's statics -> the pad falls through it, unstable
 - ready.fit_faults: `gap > FIT` made `gap > 1.0` -> the small door passes; `past > FIT` the same -> the big one passes
+- ready.fit_faults: the outline's holes left unfilled -> the lattice gate filling its opening reads as not fitting
 - ready.person_faults: `abs(gap) > CONTACT` made `> 1.0` -> the floating person passes (and the floating walker)
 - ready.walks: taken as always False -> the walker with its left foot stepping 10 cm up reads floating
 - people.shape_faults: `missing` left empty -> the headless person passes; TORN made 1.0 -> the torn sleeve passes
@@ -185,6 +186,22 @@ def wall_along_z(stage, place, name, x, blocks):
         block.CreateSizeAttr(1.0)
         block.AddTranslateOp().Set(Gf.Vec3d(x, (y_low + y_high) / 2, (z_low + z_high) / 2))
         block.AddScaleOp().Set(Gf.Vec3f(0.2, y_high - y_low, z_high - z_low))
+
+
+def lattice_gate(stage, place, name, x, z_low, z_high, high):
+    """A folding gate across x at `x` from z_low to z_high and `high` tall, one object: its frame 6 cm wide and four
+    bars 3 cm wide between, the gaps between them 17 cm (a stairwell's security gate)."""
+    holder = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{name}")
+    holder.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("model")
+    bars = [(z_low, z_low + 0.06, 0.0, high), (z_high - 0.06, z_high, 0.0, high), (z_low, z_high, 0.0, 0.06),
+            (z_low, z_high, high - 0.06, high)]
+    bars += [(middle - 0.015, middle + 0.015, 0.06, high - 0.06)
+             for middle in np.linspace(z_low + 0.06, z_high - 0.06, 6)[1:-1]]
+    for number, (bar_low, bar_high, y_low, y_high) in enumerate(bars):
+        bar = UsdGeom.Cube.Define(stage, f"{holder.GetPath()}/bar{number}")
+        bar.CreateSizeAttr(1.0)
+        bar.AddTranslateOp().Set(Gf.Vec3d(x, (y_low + y_high) / 2, (bar_low + bar_high) / 2))
+        bar.AddScaleOp().Set(Gf.Vec3f(0.05, y_high - y_low, bar_high - bar_low))
 
 
 JOINTS = {"Root": (0, 0, 0), "Root/Hips": (0, 0.9, 0), "Root/Hips/Spine": (0, 1.3, 0),
@@ -431,7 +448,9 @@ def planted(folder):
     wall(stage, place)
     box(stage, place, "door", (1.18, 2.08, 0.05), (-0.59, 0.0, -0.025))  # 1 to 2 cm inside its opening
     wall_along_z(stage, place, "wall2", 5.5, [(-2.5, -1.6, 0, 2.5), (-0.4, 0.4, 0, 2.5), (1.6, 2.5, 0, 2.5),
-                                              (-1.6, -0.4, 2.1, 2.5), (0.4, 1.6, 2.1, 2.5)])
+                                              (-1.6, -0.4, 2.1, 2.5), (0.4, 1.6, 2.1, 2.5), (3.5, 4.0, 0, 2.5),
+                                              (2.5, 3.5, 2.1, 2.5)])
+    lattice_gate(stage, place, "door_lattice", 5.5, 2.5, 3.5, 2.1)  # fills its 1.0 x 2.1 m opening, bars and gaps
     box(stage, place, "door_small", (0.05, 2.1, 0.8), (5.475, 0.0, -1.4))
     box(stage, place, "door_big", (0.05, 2.4, 1.6), (5.375, 0.0, 0.2))
     box(stage, place, "blocker", (2.4, 1.0, 1.1), (-1.2, 0.0, -1.4))
@@ -724,6 +743,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     assert "tips" in told["tipper"], found["tipper"]
     assert any(fault.get("gap", 0) > 0.15 for fault in found["door_small"] if fault["fault"] == "door does not fit"), \
         found["door_small"]
+    assert "door does not fit" not in told.get("door_lattice", ()), found.get("door_lattice")
     assert any(fault.get("over", 0) > 0.15 for fault in found["door_big"] if fault["fault"] == "door does not fit"), \
         found["door_big"]
     assert {fault.get("foot") for fault in found["person_float"] if fault["fault"] == "person floating"} \
