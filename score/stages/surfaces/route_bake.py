@@ -91,19 +91,25 @@ def job_head(data, short, records):
     return head
 
 
-def decals_on(placements, records, colours, picture):
+def decals_on(placements, records, colours, picture, drawn=None):
     """A take's decal placements (parts.json `decals`, route_parts.decal_placements) as its models' make_chunky
     `decals_on` (score #164): each with its part's baked surface (`finish`, the slot its part bakes as:
-    named_records), its picture on disk (`picture(address)`, decal_library.picture) and a one-ink decal's ink colour
-    from its palette token (`colours`, palette_library.library_tokens). A decal the library does not hold, or a one-ink
-    decal whose token the palette has not, stops the bake here, as a surface in no library does."""
+    named_records), its picture on disk (`picture(address)`, decal_library.picture; a text or line mark's the parts
+    row drew in its library face, its `picture` in the take's parts folder `drawn`, #171) and a one-ink decal's ink
+    colour from its palette token (`colours`, palette_library.library_tokens). A decal the library does not hold, a
+    drawn picture not there, or a one-ink decal whose token the palette has not, stops the bake here, as a surface in
+    no library does."""
     surfaces = {record["part"]: record.get("surface") for record in records}
     found, missing = [], []
     for decal in placements:
-        image = picture(decal["decal"])
+        if decal.get("picture"):
+            image = pathlib.Path(drawn) / decal["picture"] if drawn else None
+            image = image if image is not None and image.is_file() else None
+        else:
+            image = picture(decal["decal"])
         ink = colours.get(decal["ink_token"]) if decal.get("ink_token") else None
         if image is None or (decal.get("ink_token") and ink is None) or not surfaces.get(decal["part"]):
-            missing.append(decal["decal"])
+            missing.append(decal["decal"] or f"text {decal.get('text') or decal.get('shape')!r}")
             continue
         found.append(dict(decal, finish=surfaces[decal["part"]], image=str(image),
                           ink=None if ink is None else [float(value) for value in ink]))
@@ -217,7 +223,7 @@ def make_bake(inputs, out, seed, params):
     heads = {take: dict(job_head(data, short, {take: records[take]}),  # a job's head: its own take's specs alone
                         models=sorted(model for model, its in models.items() if its == take),
                         decals_on=decals_on(method["takes"][take].get("decals", []), records[take], colours,
-                                            decal_library.picture))
+                                            decal_library.picture, short["parts"] / take))
              for take in sorted(set(models.values()))}
     files = job_files(short, out, records, heads, method)
     jobs = [card_job(short, out, take, files[take]) for take in heads]

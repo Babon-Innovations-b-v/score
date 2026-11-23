@@ -44,6 +44,7 @@ import route_data  # noqa: E402
 import route_settings  # noqa: E402
 import route_split  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import text_decals  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 import score.stages.props.thin_straight as thin_straight  # noqa: E402
@@ -55,6 +56,14 @@ EDGE = 2  # a pixel counts when those EDGE away on every side show its finish to
 # beside it; a probe on another part (or off the model) is not used, and a mark both of whose sizes miss its part is a
 # gap, so a decal never reaches past its part.
 EDGE_IN = 0.1
+# A route's own print under a text or line mark is looked for in the mark's box grown by this share of its shorter side
+# each way: TRELLIS.2's garbled "03" on the tc2 sign lay round the close-up's digits, not on them (#171).
+COVER_GROW = 0.25
+# A drawn mark is sized by its own ink cast on its part (ink_extent): at most INK_MOST pixels, at least INK_FEWEST, a
+# word's span between quantiles INK_TRIM from each end, a line's band in RULE_BIN metre bins.
+INK_MOST, INK_FEWEST, INK_TRIM, RULE_BIN = 6000, 20, 0.01, 0.002
+LETTER_SHARE = 0.3  # a piece of a text mark's ink is a letter when at least this share of its tallest's height
+LETTER_WIDEST = 3.0  # and at most this many times as wide as it is tall (a line's end in the box is not a letter)
 PROBES = {"middle": (0.5, 0.5), "left": (EDGE_IN, 0.5), "right": (1 - EDGE_IN, 0.5), "top": (0.5, EDGE_IN),
           "bottom": (0.5, 1 - EDGE_IN)}
 
@@ -157,20 +166,23 @@ def placement(mark, number, faces, points, part_of, normals, seen):
     for fallback in ([0.0, 1.0, 0.0], [0.0, 0.0, 1.0]):  # seen edge-on: the take's up, else its front
         up = square_up(fallback, normal) if up is None else up
     rounded = lambda vector: [round(float(value), 5) for value in vector]  # noqa: E731
+    drawn = {"shape": mark["shape"], "text": mark.get("text"), "look": mark.get("look"),
+             "font": text_decals.FONTS.get(mark.get("look"))} if mark.get("shape") in text_decals.DRAWN else {}
     return {"decal": mark["decal"], "part": part, "at": rounded(points["middle"]), "normal": rounded(normal),
             "up": rounded(up), "size": [round(wide, 5), round(tall, 5)], "turn": 0.0, "layer": number,
-            "ink_token": mark.get("ink_token"), "what": mark.get("what", ""),
+            "ink_token": mark.get("ink_token"), "what": mark.get("what", ""), **drawn,
             "from": {"close_up_box": mark["box"], "seen": seen}}, None
 
 
 def decal_placements(marks, part_of, normals, cast, seen):
     """(placements, gaps) of a take's listed marks (route_list's, finish_ask.marks_of): each mark naming a library
-    decal cast through the close-up (`cast(pixels)` -> (faces, points in the take's own frame), route_cast.cast_points)
-    and placed on the part under its middle (placement); a mark with no decal, or that cannot be placed, a gap naming
+    decal, and each text or line mark (text_decals.DRAWN, drawn in a library face), cast through the close-up
+    (`cast(pixels)` -> (faces, points in the take's own frame), route_cast.cast_points) and placed on the part under
+    its middle (placement); a mark with a gap, or with no decal and not drawn, or that cannot be placed, a gap naming
     why. `seen` says which close-up the boxes are in."""
     placements, gaps = [], []
     for number, mark in enumerate(marks):
-        if mark.get("decal") is None:
+        if mark.get("gap") or (mark.get("decal") is None and mark.get("shape") not in text_decals.DRAWN):
             gaps.append({"what": mark.get("what", ""), "why": mark.get("gap") or "no library decal named"})
             continue
         faces, points = cast(mark_probes(mark["box"]))
@@ -182,23 +194,155 @@ def decal_placements(marks, part_of, normals, cast, seen):
     return placements, gaps
 
 
-def take_decals(folders, marks, part_of):
-    """(placements, gaps) of a take's marks: cast through its own close-up's camera; a take with a stand-in close-up
-    or no camera places none, each mark a gap naming why (its box is in a picture no camera of the model took)."""
-    if not marks:
-        return [], []
+def close_up_seen(folders):
+    """(the model, its close-up's camera, the close-up's size, None) when the take has its own close-up and camera and
+    the camera's cast fits the close-up's outline (route_cast.CLOSE_UP_FIT), else (None, None, None, why not)."""
     if not (folders.get("close_up") and folders.get("camera") and folders.get("model")):
-        return [], [{"what": mark.get("what", ""), "decal": mark.get("decal"),
-                     "why": f"no own close-up and camera ({route_data.STAND_IN}): its box cannot be cast"}
-                    for mark in marks]
+        return None, None, None, f"no own close-up and camera ({route_data.STAND_IN}): its box cannot be cast"
     from PIL import Image
     model = cast.loaded(folders["model"])
-    camera = cast.close_up_camera(folders["camera"])
+    fit = cast.close_up_pixels(model, folders["camera"], folders["close_up"])[3]
+    if fit < cast.CLOSE_UP_FIT:
+        return None, None, None, f"the close-up's cast fits its outline at IoU {fit}, under {cast.CLOSE_UP_FIT}"
     with Image.open(folders["close_up"]) as picture:
         size = picture.size
-    normals = model.mesh.face_normals
-    return decal_placements(marks, part_of, normals, lambda pixels: cast.cast_points(model, camera, size, pixels),
-                            "close-up")
+    return model, cast.close_up_camera(folders["camera"]), size, None
+
+
+def ink_pixels(box, picture, ink, text=True):
+    """[[column, row], ...] of a drawn mark's ink in the close-up (`picture` RGBA): the opaque pixels of its box
+    nearer the ink's colour (`ink`, sRGB 0-255) than the box's median colour, at most INK_MOST of them, evenly. A text
+    mark's are its letters: the pieces of ink at least LETTER_SHARE as tall as its tallest and at most LETTER_WIDEST
+    times as wide as tall (the tc2 sign's "03" and "Patient room" boxes held ends of the line between them); all of
+    its ink when no piece is."""
+    left, top, wide, tall = (int(value) for value in box)
+    crop = picture[top:top + tall, left:left + wide]
+    shown = crop[..., 3] > 127
+    if not shown.any():
+        return np.zeros((0, 2))
+    colours = crop[..., :3].astype(float)
+    base = np.median(colours[shown], axis=0)
+    inked = shown & (np.linalg.norm(colours - ink, axis=-1) < np.linalg.norm(colours - base, axis=-1))
+    if text and inked.any():
+        from scipy import ndimage
+        pieces, _ = ndimage.label(inked)
+        spans = np.array([[found[0].stop - found[0].start, found[1].stop - found[1].start]
+                          for found in ndimage.find_objects(pieces)])
+        letters = (spans[:, 0] >= LETTER_SHARE * spans[:, 0].max()) & (spans[:, 1] <= LETTER_WIDEST * spans[:, 0])
+        inked = np.isin(pieces, 1 + np.flatnonzero(letters)) if letters.any() else inked
+    rows, columns = np.nonzero(inked)
+    every = max(1, len(rows) // INK_MOST)
+    return np.c_[columns[::every] + left + 0.5, rows[::every] + top + 0.5]
+
+
+def ink_extent(placement, points, normals):
+    """The placement moved and sized to its ink (#171: the list's boxes run loose and, seen at an angle, an upright
+    box holds a slanted line's height, the tc2 sign's printed line 285 px tall): `points` its ink cast on its part (the
+    take's own frame), each across and up its face from its point; a text mark spans its ink between the INK_TRIM and
+    1 - INK_TRIM quantiles each way, a line the band across its up where its ink is densest (RULE_BIN bins at least
+    half the densest's count) and its ink's span along it. Its facing is its ink's faces' mean (`normals`, one a
+    point): one face's under its middle tilts on a route's bumpy mesh, so a thin line's slab cut the face aslant. As it
+    was with fewer than INK_FEWEST points."""
+    if len(points) < INK_FEWEST:
+        return placement
+    normal = normals.mean(0) / np.linalg.norm(normals.mean(0))
+    up = square_up(placement["up"], normal)
+    up = square_up([0.0, 1.0, 0.0], normal) if up is None else up
+    right = np.cross(up, normal)
+    offset = points - placement["at"]
+    across, upward = offset @ right, offset @ up
+    if placement["shape"] == "rule":
+        bins = np.floor(upward / RULE_BIN).astype(int)
+        counts = np.bincount(bins - bins.min())
+        dense = np.flatnonzero(counts >= counts.max() / 2) + bins.min()
+        band = np.isin(bins, dense[np.abs(dense - (counts.argmax() + bins.min())) <= len(dense)])
+        across, upward = across[band], upward[band]
+        low, high = [across.min(), upward.min()], [across.max(), upward.max() + RULE_BIN]
+    else:
+        low, high = np.quantile(np.c_[across, upward], [INK_TRIM, 1 - INK_TRIM], axis=0)
+    middle = (np.asarray(low) + np.asarray(high)) / 2
+    at = np.asarray(placement["at"]) + middle[0] * right + middle[1] * up
+    rounded = lambda vector: [round(float(value), 5) for value in vector]  # noqa: E731
+    return dict(placement, at=rounded(at), normal=rounded(normal), up=rounded(up),
+                size=[round(float(high[0] - low[0]), 5), round(float(high[1] - low[1]), 5)])
+
+
+def covered_prints(seen, marks, finish_of, part_of):
+    """The faces a route's own print shows under the text and line marks (#171: TRELLIS.2 garbles words into blots of
+    the print's colour) given the finish and part the mark is printed on, in place: a face of the mark's print finish
+    (finish_ask.marks_of's `print_finish`) seen in its box grown by COVER_GROW takes its `on_finish` and the part of
+    that finish seen most there, the parts then numbered again with none left empty. `seen` is close_up_seen's; the
+    faces moved."""
+    model, camera, size, _ = seen
+    faces, rows, columns = cast.close_up_cast(model, camera, size)
+    moved = 0
+    for mark in marks:
+        if mark.get("gap") or mark.get("shape") not in text_decals.DRAWN or mark.get("print_finish") is None:
+            continue
+        left, top, wide, tall = mark["box"]
+        grow = COVER_GROW * min(wide, tall)
+        inside = ((columns >= left - grow) & (columns <= left + wide + grow) & (rows >= top - grow)
+                  & (rows <= top + tall + grow) & (faces >= 0))
+        under = np.unique(faces[inside])
+        base = under[finish_of[under] == mark["on_finish"]]
+        printed = under[finish_of[under] == mark["print_finish"]]
+        if not len(base) or not len(printed):
+            continue
+        finish_of[printed] = mark["on_finish"]
+        part_of[printed] = np.bincount(part_of[faces[inside][np.isin(faces[inside], base)]]).argmax()
+        moved += len(printed)
+    part_of[:] = np.unique(part_of, return_inverse=True)[1]  # parts numbered from 0 with none emptied (part_rows)
+    return moved
+
+
+def inked(marks, close_up, inks):
+    """(the marks, each text mark's box tightened to its letters' ink (ink_pixels), the listed one kept as
+    `listed_box`; each drawn mark's ink pixels, None where its token is not the palette's ({token: "#rrggbb"}))."""
+    from PIL import Image
+    with Image.open(close_up) as opened:
+        picture = np.asarray(opened.convert("RGBA"))
+    found, pixels = [], []
+    for mark in marks:
+        token = (inks or {}).get(mark.get("ink_token"))
+        if mark.get("gap") or mark.get("shape") not in text_decals.DRAWN or token is None:
+            found.append(mark)
+            pixels.append(None)
+            continue
+        ink = np.array([int(token.lstrip("#")[at:at + 2], 16) for at in (0, 2, 4)], dtype=float)
+        seen = ink_pixels(mark["box"], picture, ink, mark["shape"] == "text")
+        pixels.append(seen)
+        if mark["shape"] == "text" and len(seen):
+            low, high = np.floor(seen.min(0)), np.ceil(seen.max(0))
+            mark = dict(mark, box=[int(low[0]), int(low[1]), int(high[0] - low[0]), int(high[1] - low[1])],
+                        listed_box=mark["box"])
+        found.append(mark)
+    return found, pixels
+
+
+def take_decals(seen, marks, part_of, out, inks=None, close_up=None):
+    """(placements, gaps) of a take's marks: cast through its own close-up's camera (`seen`, close_up_seen), each text
+    or line mark placed and sized by its ink in the `close_up` (inked, ink_extent; `inks` the palette's
+    {token: "#rrggbb"}) and its picture drawn into `out` (text_decals.drawn, its placement's `picture` that file's name
+    there); a take whose close-up cannot be cast places none, each mark a gap naming why."""
+    if not marks:
+        return [], []
+    model, camera, size, why = seen
+    if model is None:
+        return [], [{"what": mark.get("what", ""), "decal": mark.get("decal"), "why": why} for mark in marks]
+    marks, pixels = inked(marks, close_up, inks)
+    placements, gaps = decal_placements(marks, part_of, model.mesh.face_normals,
+                                        lambda pixels: cast.cast_points(model, camera, size, pixels), "close-up")
+    for number, placement in enumerate(placements):
+        if placement.get("shape") not in text_decals.DRAWN:
+            continue
+        ink = pixels[placement["layer"]]
+        if ink is not None and len(ink):
+            faces, points = cast.cast_points(model, camera, size, ink)
+            kept = (faces >= 0) & (part_of[np.maximum(faces, 0)] == placement["part"])
+            placement = ink_extent(placement, points[kept], model.mesh.face_normals[faces[kept]])
+        placements[number] = dict(placement, picture=f"text-{number:02d}.png")
+        text_decals.drawn(placements[number]).save(out / placements[number]["picture"])
+    return placements, gaps
 
 
 def part_wear(rows, finishes, mesh, part_of, finish_of):
@@ -260,10 +404,11 @@ def lit_finishes(checked, every):
     return found
 
 
-def parts_take(folders, entry, finishes, surfaces, marks=()):
+def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record, with each part's own
     wear (part_wear) and its listed marks placed as decals (take_decals). `surfaces`: the take's library surfaces
-    (palette_library.take_surfaces) and the scene's shell surfaces (palette_library.shell_surfaces)."""
+    (palette_library.take_surfaces) and the scene's shell surfaces (palette_library.shell_surfaces); `inks` the
+    palette's tokens, a drawn mark sized by its ink (take_decals)."""
     finish_of = np.load(folders["split"] / "finish.npy").astype(int)
     part_of = np.load(folders["split"] / "parts.npy").astype(int)
     mesh = route_split.model_of(folders["views"])
@@ -273,6 +418,8 @@ def parts_take(folders, entry, finishes, surfaces, marks=()):
     if folders.get("code") and lit_take(entry, folders["code"]):
         checked = lit_finishes(checked, every)
     checked = finish_parts.looked(checked, every)
+    seen = close_up_seen(folders) if marks else (None, None, None, None)
+    covered = covered_prints(seen, marks, finish_of, part_of) if seen[0] is not None else 0
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
@@ -280,11 +427,11 @@ def parts_take(folders, entry, finishes, surfaces, marks=()):
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
     part_wear(rows, checked, mesh, part_of, finish_of)
-    decals, decal_gaps = take_decals(folders, marks, part_of)
+    decals, decal_gaps = take_decals(seen, marks, part_of, folders["out"], inks, folders.get("close_up"))
     return {"method": METHOD, "object": entry.get("object"), "parts": rows, "judge_unknown": [], "finishes": checked,
             "colour_from": colour_from, "decals": decals, "decal_gaps": decal_gaps,
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked),
-                         "decals": len(decals), "decal gaps": len(decal_gaps)}}
+                         "decals": len(decals), "decal gaps": len(decal_gaps), "print faces covered": covered}}
 
 
 def make_parts(inputs, out, seed, params):
@@ -309,7 +456,7 @@ def make_parts(inputs, out, seed, params):
                    "close_up": inputs.get(f"close-up {take}"), "camera": inputs.get(f"camera {take}"),
                    "code": inputs.get(f"code {take}")}
         found[take] = parts_take(folders, takes[take], finishes, (palette_library.take_surfaces(takes[take], palette), kit),
-                                 answer.get("marks", []))
+                                 answer.get("marks", []), palette["tokens"])
     (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))
 
 

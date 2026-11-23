@@ -26,12 +26,16 @@ assembly gives it.
 import dataclasses
 import datetime
 import os
+import pathlib
 import posixpath
 import re
 
 from pxr import Sdf, Usd, UsdGeom, UsdLux, UsdShade
 
 from score.stages.complete.library import exceptions as written
+
+REPO = pathlib.Path(__file__).resolve().parents[4]
+FONTS = "data/fonts/"  # the library's own faces a text decal is drawn in (score/stages/surfaces/text_decals.py)
 
 LIBRARY_ATTR = "score:library"
 POSE_ATTR = "score:pose"  # a character's held pose taken from a library pose entry (place_build's hold)
@@ -332,12 +336,15 @@ def finish_rows(prim, kind, context):
 
 
 def decal_rows(prim, kind, context):
-    """One row a library decal the thing's bake printed on it (score #164: its model's `decals_on`, by its gltf),
-    traced when the library holds that decal."""
+    """One row a library decal (or a text decal's library face) the thing's bake printed on it (score #164, #171: its
+    model's `decals_on`, by its gltf), traced when the library holds it."""
     rows = []
     thing_path, group = str(prim.GetPath()), group_of(prim, kind)
     for address in sorted(set(context.decals.get(authored(prim, "score:model_sha256"), []))):
-        held = context.shelf.newest(address)
+        if address.startswith(FONTS):  # a text decal's face: the repository's library file
+            held = address if (REPO / address).is_file() else None
+        else:
+            held = context.shelf.newest(address)
         row = {"aspect": "finish", "kind": kind, "prim": thing_path, "material": None, "group": f"{group}: decal",
                "parts": 0, "by": held, "how": "the library decal its bake printed (decals_on)" if held else None,
                "instead": None if held else f"its bake printed decal {address}, which the library does not hold"}

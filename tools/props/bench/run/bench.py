@@ -570,7 +570,7 @@ def branch_b(kept, row, material, rgba, scratch, library):
         model = checked_out(kept, row["id"], "B", "final", scratch / "B" / "kept-final") / "final.glb"
         run_steps(kept, row["id"], "B", [("straight", straight_step(model)), ("gate", gate_step(model, row))],
                   scratch)
-        run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba.parent / "closeup.png", row, library))],
+        run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba, row, library))],
                   scratch)
     if not kept.entry(row["id"], "B", "physics") and all(kept_output(kept, row["id"], "B", step)
                                                          for step in ("final", "sim", "finish")):

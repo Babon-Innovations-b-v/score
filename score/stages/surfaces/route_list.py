@@ -19,9 +19,11 @@ answer stay as they were.
 
 Output: <take>.json per take (its finishes, each with surface, settings, fits, new_surface, wear_level, wear_cause,
 colour, family; its labels, {view: {region: finish}}, 0-based; its marks, finish_ask.marks_of: each printed mark's
-box in the close-up, what, ink, finish and library decal or gap, score #164), questions.json (the finishes with their
-own wear and why, the takes with no usable answer). The library's decals (decal_library.catalogue) are offered in the
-same question; the list names one per mark, and a mark no decal fits is a gap, never cut from the close-up.
+box in the close-up, what, shape, ink, finish, and a text mark's words and look or a picture mark's library decal or
+gap, score #164, #171), questions.json (the finishes with their own wear and why, the takes with no usable answer).
+The library's decals (decal_library.catalogue) are offered in the same question; the list names one per picture mark,
+and a mark no decal fits is a gap, never cut from the close-up. Words, numbers and plain lines are read as text marks
+(text_decals.py), drawn in a library face: a route's texture garbles them.
 Gate "library first": every cast take is listed, every finish names a library surface with settings inside the
 library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a gap, named. Each
 such take is a batch gap (batch-gaps.json, score/stages/batch_gaps.py, with the ones carried from the views): the gate
@@ -46,6 +48,7 @@ import route_ask  # noqa: E402
 import route_data  # noqa: E402
 import route_views  # noqa: E402
 import surface_gates as gates  # noqa: E402
+import text_decals  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 LIST_EUROS = 0.5  # a guess for the row's run (a place's takes at half of google_spend.ESTIMATES); never a price
@@ -115,8 +118,8 @@ def shown_lines(shown):
 
 def list_schema(surfaces, tokens, views, levels, decals=()):
     """The answer's schema: the finishes, each surface one of the surfaces' codes, token one of the tokens and wear one
-    of the library's wear levels, the labels, each a view, a region and a finish, and, when the library offers
-    decals, the marks (finish_ask.mark_schema)."""
+    of the library's wear levels, the labels, each a view, a region and a finish, and the marks
+    (finish_ask.mark_schema: a text mark's look one of text_decals.FONTS, a picture mark's one of `decals`)."""
     proposal = {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "description": {"type": "STRING"},
                                                  "why": {"type": "STRING"}}, "required": ["name", "description", "why"]}
     finish = {"type": "OBJECT",
@@ -132,20 +135,17 @@ def list_schema(surfaces, tokens, views, levels, decals=()):
     label = {"type": "OBJECT", "properties": {"view": {"type": "STRING", "enum": list(views)},
                                               "region": {"type": "INTEGER"}, "finish": {"type": "INTEGER"}},
              "required": ["view", "region", "finish"]}
-    schema = {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish},
-                                               "labels": {"type": "ARRAY", "items": label}},
-              "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels"]}
-    if decals:
-        schema["properties"]["marks"] = finish_ask.mark_schema(decals, tokens)
-        schema["propertyOrdering"].append("marks")
-    return schema
+    return {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish},
+                                             "labels": {"type": "ARRAY", "items": label},
+                                             "marks": finish_ask.mark_schema(decals, tokens, text_decals.FONTS)},
+            "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels", "marks"]}
 
 
 def list_body(pictures, entry, record, library, wear, decals=()):
     """The request: the close-up, the views, the region views (the laid close-up's last, where the views row laid it),
     the question and its schema. `record` is the take's views record; `library` its surfaces, the tokens and the wear
     levels; `wear` the scene's level (its scene palette's); `decals` the library's decals the marks are picked from
-    (decal_library.catalogue; none: no marks asked)."""
+    for a picture mark (decal_library.catalogue; none: a picture mark is a gap); text marks are always asked."""
     surfaces, tokens, levels = library
     stand_in = record.get("close_up") == route_data.STAND_IN
     views = list(record["views"])
@@ -156,7 +156,7 @@ def list_body(pictures, entry, record, library, wear, decals=()):
                            laid=LAID.format(view=route_views.CLOSE_UP) if laid is not None else "",
                            shown=shown_lines(pictures["shown"]), surfaces=surface_lines(surfaces),
                            tokens=token_lines(tokens), wear=wear, levels=", ".join(levels))
-    text += finish_ask.marks_text(decals)
+    text += finish_ask.marks_text(decals, text_decals.FONTS)
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["regions"]]
@@ -328,7 +328,8 @@ def make_list(inputs, out, seed, params):
         except route_ask.UNANSWERED as error:
             unanswered[take] = f"no usable answer: {error!r}"[:300]
             continue
-        marks = finish_ask.marks_of(json.loads(answer), decals, len(finishes), pictures[take]["close_up"].size)
+        marks = finish_ask.marks_of(json.loads(answer), decals, len(finishes), pictures[take]["close_up"].size,
+                                     text_decals.FONTS)
         (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes,
                                                       "labels": labels, "marks": marks}, indent=1))
         own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the scene's wear is {wear})"

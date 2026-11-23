@@ -74,8 +74,8 @@ def baked(store, places):
 
 
 def printed_decals(store, node):
-    """{gltf sha256: [decal address]} of the models one accepted bake printed library decals on (its baked.json's
-    entries' `decals_on`, score #164)."""
+    """{gltf sha256: [decal address, or a text decal's library face]} of the models one accepted bake printed decals
+    on (its baked.json's entries' `decals_on`, score #164, #171)."""
     output = store.accepted(node)
     if not output:
         return {}
@@ -83,7 +83,8 @@ def printed_decals(store, node):
     if "baked.json" not in listing:
         return {}
     entries = json.loads(pathlib.Path(store.objects.path(f"blobs/{listing['baked.json']}")).read_text())
-    return {listing[f"made/{model}.gltf"]: [decal["decal"] for decal in entry["decals_on"]]
+    return {listing[f"made/{model}.gltf"]: [decal["decal"] or decal["font"] for decal in entry["decals_on"]
+                                            if decal["decal"] or decal.get("font")]
             for model, entry in entries.items() if entry.get("decals_on") and f"made/{model}.gltf" in listing}
 
 

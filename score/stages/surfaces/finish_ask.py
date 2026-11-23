@@ -73,17 +73,26 @@ glass, lamp light, screens and print are judged by what they are, not by this co
 {lines}"""
 
 
-# Added to the route's list question (route_list.py, score #164): the printed marks a part carries, each placed later
-# by free code (route_parts.decal_placements) and printed from a library decal, never cut from the close-up.
+# Added to the route's list question (route_list.py, score #164, #171): the printed marks a part carries, each placed
+# later by free code (route_parts.decal_placements): words, numbers and plain lines drawn as text decals in a library
+# face (text_decals.py: a route's texture garbles them), any other mark printed from a library decal, never cut from the
+# close-up.
 MARKS = """
-Last, list the printed marks you see on the object in the first picture: labels, logos, warning signs, numbers,
-button and key legends, stickers. For each give its box in that picture as [ymin, xmin, ymax, xmax] from 0 to 1000,
-what it is in a few words, whether it is printed in one ink or many (a one-ink mark: the palette token nearest its ink),
-the finish (its number in your list, from 1) it is printed on, and FIRST which of these library decals it is (its
-code), with "fits" false when none of them is that mark (then give the closest code). Leave out marks you cannot see
-clearly. The library's decals:
+Last, list the printed marks you see on the object in the first picture: words, numbers, plain printed lines or bars,
+labels, logos, warning signs, button and key legends, stickers. For each give its box in that picture as
+[ymin, xmin, ymax, xmax] from 0 to 1000, tight round its ink, what it is in a few words, and its shape: "text" for words
+or numbers (each line of text its own mark, its exact words in "text" as printed, and the look of its typeface, the
+nearest of: {looks}), "rule" for a plain straight printed line or bar, "picture" for anything else (a logo, an icon, a
+label with a picture of its own). Say whether it is printed in one ink or many (a one-ink mark: the palette token
+nearest its ink), the finish (its number in your list, from 1) it is printed on, and "print_finish": the number of the
+finish in your list that is this print itself, when you listed the print as a finish of its own, else 0. Leave out marks
+you cannot see clearly.{decals}"""
+DECALS_TEXT = """
+For a picture mark, FIRST say which of these library decals it is (its code), with "fits" false when none of them is
+that mark (then give the closest code). The library's decals:
 {decals}"""
 BOX_SCALE = 1000.0  # a mark's box in thousandths of the close-up's height and width
+SHAPES = ("text", "rule", "picture")
 
 
 def decal_codes(decals):
@@ -101,29 +110,59 @@ def decal_lines(decals):
     return "\n".join(lines) or "- (the library holds no decal)"
 
 
-def marks_text(decals):
-    """The MARKS paragraph of a question offering `decals`; empty when the library holds none (nothing to pick)."""
-    return MARKS.format(decals=decal_lines(decals)) if decals else ""
+def marks_text(decals, looks):
+    """The MARKS paragraph: text marks read in one of `looks` (text_decals.FONTS), and the library's `decals` offered
+    for a picture mark when it holds any."""
+    return MARKS.format(looks=", ".join(looks), decals=DECALS_TEXT.format(decals=decal_lines(decals)) if decals else "")
 
 
-def mark_schema(decals, tokens):
-    """The schema of the answer's `marks`: a box, what, ink (a one-ink mark's palette token), the finish it is on, a
-    decal code and fits."""
-    return {"type": "ARRAY", "items": {
-        "type": "OBJECT",
-        "properties": {"box_2d": {"type": "ARRAY", "items": {"type": "INTEGER"}}, "what": {"type": "STRING"},
-                       "ink": {"type": "STRING", "enum": ["one", "many"]},
-                       "ink_token": {"type": "STRING", "enum": list(tokens)}, "on_finish": {"type": "INTEGER"},
-                       "decal": {"type": "STRING", "enum": decal_codes(decals)}, "fits": {"type": "BOOLEAN"}},
-        "required": ["box_2d", "what", "ink", "on_finish", "decal", "fits"],
-        "propertyOrdering": ["box_2d", "what", "ink", "ink_token", "on_finish", "decal", "fits"]}}
+def mark_schema(decals, tokens, looks):
+    """The schema of the answer's `marks`: a box, what, its shape, its words and typeface look, ink (a one-ink mark's
+    palette token), the finish it is on and the finish it is itself, and, with decals offered, a decal code and fits."""
+    properties = {"box_2d": {"type": "ARRAY", "items": {"type": "INTEGER"}}, "what": {"type": "STRING"},
+                  "shape": {"type": "STRING", "enum": list(SHAPES)}, "text": {"type": "STRING"},
+                  "look": {"type": "STRING", "enum": list(looks)},
+                  "ink": {"type": "STRING", "enum": ["one", "many"]},
+                  "ink_token": {"type": "STRING", "enum": list(tokens)}, "on_finish": {"type": "INTEGER"},
+                  "print_finish": {"type": "INTEGER"}}
+    if decals:
+        properties.update(decal={"type": "STRING", "enum": decal_codes(decals)}, fits={"type": "BOOLEAN"})
+    return {"type": "ARRAY", "items": {"type": "OBJECT", "properties": properties,
+                                       "required": ["box_2d", "what", "shape", "ink", "on_finish"],
+                                       "propertyOrdering": list(properties)}}
 
 
-def marks_of(answer, decals, finishes, close_up_size):
-    """The answer's marks: each box in the close-up's pixels ([x, y, width, height]), what, ink (a one-ink mark's
-    palette token), the finish it is on (0-based) and its decal's address, or None with `gap` naming why (no decal
-    fits, its ink is not the mark's, a one-ink mark names no token). A mark on no finish of the list, or with no area,
-    is left out."""
+def drawn_gap(mark, looks):
+    """Why a text or rule mark cannot be drawn (no words, a look the library has no face for, more than one ink, no
+    palette token for its ink), or None."""
+    if mark.get("shape") == "text" and not str(mark.get("text") or "").strip():
+        return "a text mark names no words"
+    if mark.get("shape") == "text" and mark.get("look") not in looks:
+        return f"its typeface look {mark.get('look')!r} is none the library has a face for"
+    if mark.get("ink") != "one":
+        return "a text or line mark printed in many inks"
+    if not mark.get("ink_token"):
+        return "a one-ink mark names no palette token for its ink"
+    return None
+
+
+def decal_gap(mark, decal):
+    """Why a picture mark has no library decal (none fits, its ink is not the mark's, no token for its ink), or None."""
+    if decal is None or not mark.get("fits"):
+        return "no library decal is this mark"
+    if decal["ink"] != mark.get("ink"):
+        return f"its decal {decal['address']} is {decal['ink']} ink, the mark {mark.get('ink')}"
+    if decal["ink"] == "one" and not mark.get("ink_token"):
+        return "a one-ink mark names no palette token for its ink"
+    return None
+
+
+def marks_of(answer, decals, finishes, close_up_size, looks=()):
+    """The answer's marks: each box in the close-up's pixels ([x, y, width, height]), what, shape, ink (a one-ink
+    mark's palette token), the finish it is on and the finish that is its print (0-based, None: not listed), and a text
+    mark's words and look, or a picture mark's decal's address; None with `gap` naming why one cannot be printed
+    (drawn_gap, decal_gap). A mark on no finish of the list, or with no area, is left out; one with no shape is a
+    picture."""
     names, codes = [decal["address"] for decal in decals], decal_codes(decals)
     wide, tall = close_up_size
     found = []
@@ -134,18 +173,21 @@ def marks_of(answer, decals, finishes, close_up_size):
         top, left, bottom, right = (min(max(float(value), 0.0), BOX_SCALE) / BOX_SCALE for value in box)
         if bottom <= top or right <= left:
             continue
-        decal = decals[codes.index(mark["decal"])] if mark.get("decal") in codes else None
-        gap = None
-        if decal is None or not mark.get("fits"):
-            gap = "no library decal is this mark"
-        elif decal["ink"] != mark.get("ink"):
-            gap = f"its decal {decal['address']} is {decal['ink']} ink, the mark {mark.get('ink')}"
-        elif decal["ink"] == "one" and not mark.get("ink_token"):
-            gap = "a one-ink mark names no palette token for its ink"
-        found.append({"box": [round(left * wide), round(top * tall), round((right - left) * wide),
-                              round((bottom - top) * tall)], "what": mark.get("what", ""), "ink": mark.get("ink"),
-                      "ink_token": mark.get("ink_token") if mark.get("ink") == "one" else None,
-                      "on_finish": finish, "decal": None if gap else names[codes.index(mark["decal"])], "gap": gap})
+        shape = mark.get("shape") if mark.get("shape") in SHAPES else "picture"
+        printed = int(mark.get("print_finish") or 0) - 1
+        row = {"box": [round(left * wide), round(top * tall), round((right - left) * wide),
+                       round((bottom - top) * tall)], "what": mark.get("what", ""), "shape": shape,
+               "ink": mark.get("ink"), "ink_token": mark.get("ink_token") if mark.get("ink") == "one" else None,
+               "on_finish": finish, "print_finish": printed if 0 <= printed < finishes and printed != finish else None}
+        if shape in ("text", "rule"):
+            gap = drawn_gap(mark, looks)
+            row.update(text=str(mark.get("text") or "").strip() if shape == "text" else None,
+                       look=mark.get("look") if shape == "text" else None, decal=None, gap=gap)
+        else:
+            decal = decals[codes.index(mark["decal"])] if mark.get("decal") in codes else None
+            gap = decal_gap(mark, decal)
+            row.update(decal=None if gap else names[codes.index(mark["decal"])], gap=gap)
+        found.append(row)
     return found
 
 

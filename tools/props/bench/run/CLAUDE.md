@@ -13,7 +13,8 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   split, parts; the list asked of Claude as a place's line asks it, EUR 0), on the benchmark place's surface library:
   score_lib's surfaces in force with a recipe (the adopted tiling set at its fitted settings, the recipes), each colour
   a palette token; a surface painted for one model, or with no recipe, is left out by name. TRELLIS.2 gives no
-  close-up camera, so nothing is laid through it and marks are decal gaps; the bake is a place's and not run. The
+  close-up camera, so one is fitted from its outline against the cut-out close-up (`rgba.png`; surfaces
+  close_up_fit.py, #171), and text marks are drawn as text decals through it; the bake is a place's and not run. The
   measures read its parts as B's finish groups and each part's surface family (`family`) against the truth's.
 - **Nothing goes into score_lib, and the library read is a scratch checkout** (`--library`, a detached worktree; the
   shared checkout is refused). `make` runs with `take_in=False` in a scratch place folder; entries are fetched by

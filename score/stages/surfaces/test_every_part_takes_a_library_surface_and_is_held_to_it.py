@@ -462,6 +462,17 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (a withdrawn decal offered)
 - route_bake.py: `if image is None or ...` -> `if False:` (decals_on) ->
   every_part_takes_a_library_surface_and_is_held_to_it (a decal the library does not hold baked)
+- Text marks (#171), each -> every_part_takes_a_library_surface_and_is_held_to_it (text_marks_held):
+  finish_ask.py drawn_gap's look check -> `if False:` (a stencil word with no library face drawn);
+  finish_ask.py marks_of `and printed != finish` dropped (a line's own finish named its print);
+  route_parts.py decal_placements `and mark.get("shape") not in text_decals.DRAWN` dropped (words a gap);
+  route_parts.py covered_prints `finish_of[printed] = mark["on_finish"]` -> `pass` (the garbled print kept), its
+  `part_of[:] = ...` renumbering dropped (an emptied part left in the numbering);
+  text_decals.py drawn `min(` -> `max(` (words overflow their box); close_up_fit.py framed `- middle[1] * up` ->
+  `+ middle[1] * up` (the camera framed off the outline); route_bake.py decals_on's drawn `is_file()` check -> `pass`
+  (a missing drawn picture baked); route_parts.py ink_pixels `& (spans[:, 1] <= LETTER_WIDEST * spans[:, 0])`
+  dropped (a line's end read as a letter); ink_extent `counts >= counts.max() / 2` -> `counts >= 0` (a line spans the
+  words beside it)
 """
 import contextlib
 import copy
@@ -491,7 +502,8 @@ from score.adapters import compute  # noqa: E402
 from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
-from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, decal_library,  # noqa: E402
+from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, close_up_fit,  # noqa: E402
+                                   decal_library, text_decals,
                                    finish_ask, finish_parts,
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
@@ -2563,6 +2575,96 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                                 lambda address: pathlib.Path("/lib/decal.png")) == [
         {"decal": "surface/decal_arrow@1", "part": 1, "ink_token": "sign-black", "finish": "yellow_plastic",
          "image": "/lib/decal.png", "ink": [0.01, 0.01, 0.01]}]
+    text_marks_held()  # words and numbers drawn as text decals in a library face, on a fitted camera (#171)
+
+
+def text_marks_held():
+    """Text and line marks (#171): the list's words, look and print finish read (marks_of), each placed as a text decal
+    drawn in its look's library face at its cast size (decal_placements, text_decals.drawn), the route's own print
+    under it given the finish and part it is printed on (covered_prints), shipped to the bake from the parts row's own
+    picture (decals_on), on a camera fitted from the model's outline (close_up_fit)."""
+    marked = finish_ask.marks_of({"marks": [
+        {"box_2d": [100, 200, 300, 600], "what": "room number", "shape": "text", "text": " 03 ", "look": "sans",
+         "ink": "one", "ink_token": "sign-white", "on_finish": 1, "print_finish": 2},
+        {"box_2d": [400, 200, 420, 600], "what": "line", "shape": "rule", "ink": "one", "ink_token": "sign-white",
+         "on_finish": 1, "print_finish": 1},
+        {"box_2d": [0, 0, 10, 10], "what": "word", "shape": "text", "text": "EXIT", "look": "stencil", "ink": "one",
+         "ink_token": "sign-white", "on_finish": 1},
+        {"box_2d": [0, 0, 10, 10], "what": "word", "shape": "text", "text": "EXIT", "look": "sans", "ink": "many",
+         "on_finish": 1},
+        {"box_2d": [0, 0, 10, 10], "what": "logo", "shape": "picture", "ink": "many", "on_finish": 1}]},
+        [], 2, (1000, 500), text_decals.FONTS)
+    assert [(mark["shape"], mark.get("text"), mark["print_finish"], mark["decal"], mark["gap"]) for mark in marked] == [
+        ("text", "03", 1, None, None), ("rule", None, None, None, None),
+        ("text", "EXIT", None, None, "its typeface look 'stencil' is none the library has a face for"),
+        ("text", "EXIT", None, None, "a text or line mark printed in many inks"),
+        ("picture", None, None, None, "no library decal is this mark")], marked
+    found, missed = route_parts.decal_placements(marked, np.array([0, 1]), np.array([[0.0, 0.0, 1.0]] * 2),
+                                                 plane_cast([0] * 5), "close-up")
+    assert [(row["shape"], row["text"], row["font"], row["size"]) for row in found] == [
+        ("text", "03", text_decals.FONTS["sans"], [0.4, 0.1]), ("rule", None, None, [0.4, 0.01])], found
+    assert len(missed) == 3, missed
+    picture = np.asarray(text_decals.drawn(found[0]))  # its words fill its box at #161's ~3,000 px a metre
+    inked = np.argwhere(picture[..., 3] > 127)
+    assert picture.shape[:2] == (300, 1200) and (picture[..., :3] == 255).all(), picture.shape
+    assert np.ptp(inked[:, 0]) > 280 and 300 < np.ptp(inked[:, 1]) < 1100, np.ptp(inked, axis=0)
+    assert (np.asarray(text_decals.drawn(found[1]))[..., 3] == 255).all()
+    with tempfile.TemporaryDirectory() as folder:
+        text_decals.drawn(found[0]).save(pathlib.Path(folder) / "text-00.png")
+        assert route_bake.decals_on([dict(found[0], picture="text-00.png")], [{"part": 0, "surface": "paint"}],
+                                    {"sign-white": (1.0, 1.0, 1.0)}, lambda address: None, folder)[0]["image"] == \
+            str(pathlib.Path(folder) / "text-00.png")
+        with pytest.raises(RuntimeError, match="text '03'"):  # a drawn picture not there stops the bake
+            route_bake.decals_on([dict(found[0], picture="text-01.png")], [{"part": 0, "surface": "paint"}],
+                                 {"sign-white": (1.0, 1.0, 1.0)}, lambda address: None, folder)
+    # A mark's ink in the close-up: white letters on grey, the end of a line beside them left out of a word's ink; a
+    # line's band is where its ink is densest, words beside it in its box left out, and a word spans its own ink.
+    picture = np.zeros((100, 200, 4), np.uint8)
+    picture[..., :3], picture[..., 3] = 90, 255
+    picture[20:60, 20:40, :3] = picture[20:60, 60:80, :3] = 250  # two letters
+    picture[80:94, 10:190, :3] = 250  # a line's end, as tall as a third of a letter
+    ink = route_parts.ink_pixels([0, 0, 200, 100], picture, np.array([255.0, 255.0, 255.0]))
+    assert ink[:, 1].max() < 60 and len(ink) == 1600, (ink[:, 1].max(), len(ink))
+    assert len(route_parts.ink_pixels([0, 0, 200, 100], picture, np.array([255.0] * 3), text=False)) == 4120
+    flat = {"normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "at": [0.0, 0.0, 0.0], "size": [1.0, 1.0]}
+    band = np.c_[np.linspace(-0.2, 0.2, 400), np.full(400, 0.101), np.zeros(400)]
+    words = np.c_[np.tile(np.linspace(-0.1, 0.1, 20), 5), np.repeat(np.linspace(0.0, 0.08, 5), 20), np.zeros(100)]
+    both = np.r_[band, words]
+    ruled = route_parts.ink_extent(dict(flat, shape="rule"), both, np.tile([0.0, 0.0, 1.0], (len(both), 1)))
+    assert np.allclose(ruled["size"], [0.4, 0.002], atol=1e-3) and abs(ruled["at"][1] - 0.101) < 0.002, ruled
+    worded = route_parts.ink_extent(dict(flat, shape="text"), words, np.tile([0.0, 0.0, 1.0], (len(words), 1)))
+    assert np.allclose(worded["size"], [0.2, 0.08], atol=0.01) and np.allclose(worded["at"], [0, 0.04, 0], atol=0.01)
+    # A 2 x 2 m panel facing the camera, cut in a 16 x 16 grid: the route's print (finish 1, part 1) in its middle under
+    # the mark and in one corner away from it; the print under the mark takes the panel's finish and part.
+    steps = np.linspace(-1.0, 1.0, 17)
+    corners = np.array([[x, y, 0.0] for y in steps for x in steps])
+    cells = [(row * 17 + column, row * 17 + column + 1, (row + 1) * 17 + column + 1, (row + 1) * 17 + column)
+             for row in range(16) for column in range(16)]
+    grid = trimesh.Trimesh(corners, [face for a, b, c, d in cells for face in ((a, b, c), (a, c, d))], process=False)
+    middle = np.abs(grid.triangles_center[:, :2]).max(1) < 0.25
+    corner = grid.triangles_center[:, :2].min(1) > 0.75
+    finish_of, part_of = np.where(middle | corner, 1, 0), np.select([middle, corner], [1, 2], 0)
+    model = route_cast.Model(grid, np.full((len(grid.faces), 3, 2), np.nan), np.zeros(len(grid.faces), int), [None],
+                             [np.ones(4)], (np.zeros(3), 1.0))
+    camera = (np.array([0.0, 0.0, 6.0]), np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]),
+              2 * np.arctan(1.6 / 6.0))
+    mark = {"shape": "text", "box": [208, 208, 96, 96], "on_finish": 0, "print_finish": 1, "gap": None}
+    assert route_parts.covered_prints((model, camera, (512, 512), None), [mark], finish_of, part_of) == middle.sum()
+    assert (finish_of[middle] == 0).all() and (part_of[middle] == 0).all() and (finish_of[corner] == 1).all()
+    assert sorted(set(part_of)) == [0, 1]  # the emptied print part numbered away
+    # The close-up's camera fitted from the model's outline: a box seen from 6 degrees further round and 3 lower than
+    # the close-up style's view, at a 30 degree field, is found to within a degree or two, its outline met.
+    box = trimesh.creation.box((0.6, 0.4, 0.25))
+    model = route_cast.Model(box, np.full((len(box.faces), 3, 2), np.nan), np.zeros(len(box.faces), int), [None],
+                             [np.ones(4)], (np.zeros(3), 1.0))
+    right, up, back = close_up_fit.axes(41.0, 18.0)
+    eye = close_up_fit.framed(np.asarray(box.vertices), (right, up, back, 256 / np.tan(np.radians(15.0))),
+                              (100, 120, 412, 380), (512, 512))
+    columns, rows = np.meshgrid(np.arange(512), np.arange(512))
+    seen = route_cast.cast_points(model, (eye, right, up, np.radians(30.0)), (512, 512),
+                                  np.c_[columns.ravel() + 0.5, rows.ravel() + 0.5])[0].reshape(512, 512) >= 0
+    fitted = close_up_fit.fitted_camera(model, seen, 35.0, 15.0)["fitted"]
+    assert fitted["fit"] > 0.97 and abs(fitted["turn"] - 41.0) <= 2 and abs(fitted["down"] - 18.0) <= 2, fitted
 
 
 def plane_cast(parts, scale=0.001):

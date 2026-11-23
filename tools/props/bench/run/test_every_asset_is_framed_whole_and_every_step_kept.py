@@ -129,7 +129,7 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
     library = finish.bench_library(root)
     folder = tmp_path / "finish"
     folder.mkdir()
-    row = {"id": name, "words": f"{name} a thing"}
+    row = {"id": name, "words": f"{name} a thing", "size": [0.6, 0.4, 0.25]}
     finish.finished(model, close_up, row, library, folder, ask=listing)
     import shutil
     import trimesh
@@ -228,7 +228,7 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
 
     if failing is None:  # one asset through branch B's finish (the others' rows test the render and the steps)
         (variants, palette, addresses, left), side, family = finished_box(tmp_path, monkeypatch, name,
-                                                                          tmp_path / "made.glb", folder / "closeup.png")
+                                                                          tmp_path / "made.glb", folder / "rgba.png")
         assert set(addresses.values()) == {"surface/simready_m_plastic_grey_a01@1", "surface/rubber@1"}
         assert list(left) == ["surface/simready_m_atlas_a01@1"] and "one model" in left[list(left)[0]], left
         assert variants["families"]["plastic"]["variants"]["simready_m_plastic_grey_a01"]["token"] == \

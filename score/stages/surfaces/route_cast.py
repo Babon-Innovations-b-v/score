@@ -174,30 +174,40 @@ def face_painted(face_colours, faces):
 
 
 def close_up_camera(camera_file):
-    """(distance, horizontal field of view in radians) of the close-up's camera (Pixal3D's transforms.json)."""
+    """(eye, right, up, horizontal field of view in radians) of the close-up's camera, the eye a point and right and up
+    unit ways in the model file's own frame: a fitted camera's own (its `look`, close_up_fit.fitted_camera), else
+    Pixal3D's (transforms.json: its distance on +Z, looking at the model's front)."""
     found = json.loads(pathlib.Path(camera_file).read_text())
+    look = found.get("look")
+    if look:
+        return (np.asarray(look["eye"], dtype=float), np.asarray(look["right"], dtype=float),
+                np.asarray(look["up"], dtype=float), float(found["camera_angle_x"]))
     distance = float(np.linalg.norm(np.array(found["frames"][0]["transform_matrix"], dtype=float)[:3, 3]))
-    return distance, float(found["camera_angle_x"])
+    return np.array([0.0, 0.0, distance]), np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]), \
+        float(found["camera_angle_x"])
+
+
+def pixel_ways(camera, size, pixels):
+    """The unit way of each pixel's ray ([[column, row], ...] of a picture `size` (width, height)) seen by `camera`
+    (close_up_camera), in the model file's own frame."""
+    _, right, up, field = camera
+    width, height = size
+    pixels = np.asarray(pixels, dtype=float).reshape(-1, 2)
+    focal = width / 2 / np.tan(field / 2)
+    ahead = np.cross(up, right)
+    ways = (np.outer((pixels[:, 0] - width / 2) / focal, right) - np.outer((pixels[:, 1] - height / 2) / focal, up)
+            + ahead)
+    return ways / np.linalg.norm(ways, axis=1, keepdims=True)
 
 
 def close_up_cast(model, camera, size):
     """(the face under each sampled pixel, -1 off the model; the pixels' rows; their columns) of a close-up `size`
     (width, height) seen by `camera` (close_up_camera), `model` a route_cast.Model (its faces normalised by its
     frame)."""
-    distance, field = camera
     width, height = size
     step = max(1, -(-max(width, height) // CLOSE_UP_SIDE))
     columns, rows = np.meshgrid(np.arange(0, width, step), np.arange(0, height, step))
-    focal = width / 2 / np.tan(field / 2)
-    ways = np.stack([(columns + 0.5 - width / 2) / focal, -(rows + 0.5 - height / 2) / focal,
-                     -np.ones(columns.shape)], axis=-1).reshape(-1, 3)
-    ways /= np.linalg.norm(ways, axis=1, keepdims=True)
-    middle, side = model.frame
-    eye = (np.array([0.0, 0.0, distance]) - middle) / side
-    hit_faces, hit_rays = model.mesh.ray.intersects_id(np.repeat(eye[None], len(ways), axis=0), ways,
-                                                       multiple_hits=False)
-    faces = np.full(len(ways), -1, dtype=np.int64)
-    faces[hit_rays] = hit_faces
+    faces, _ = cast_points(model, camera, size, np.c_[columns.ravel() + 0.5, rows.ravel() + 0.5])
     return faces.reshape(columns.shape), rows, columns
 
 
@@ -205,15 +215,9 @@ def cast_points(model, camera, size, pixels):
     """(the face under each of `pixels` ([[column, row], ...] of a close-up `size` (width, height)), -1 off the
     model; where its ray met the model, in the model file's own frame, NaN off it) seen by `camera`
     (close_up_camera), as close_up_cast casts its grid (score #164: a printed mark's box placed on the model)."""
-    distance, field = camera
-    width, height = size
-    pixels = np.asarray(pixels, dtype=float).reshape(-1, 2)
-    focal = width / 2 / np.tan(field / 2)
-    ways = np.stack([(pixels[:, 0] - width / 2) / focal, -(pixels[:, 1] - height / 2) / focal,
-                     -np.ones(len(pixels))], axis=-1)
-    ways /= np.linalg.norm(ways, axis=1, keepdims=True)
+    ways = pixel_ways(camera, size, pixels)
     middle, side = model.frame
-    eye = (np.array([0.0, 0.0, distance]) - middle) / side
+    eye = (camera[0] - middle) / side
     hit_faces, hit_rays, met = model.mesh.ray.intersects_id(np.repeat(eye[None], len(ways), axis=0), ways,
                                                             multiple_hits=False, return_locations=True)
     faces = np.full(len(ways), -1, dtype=np.int64)

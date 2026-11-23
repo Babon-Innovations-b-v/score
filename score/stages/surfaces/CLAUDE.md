@@ -25,7 +25,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`route_parts.decal_placements`, parts.json `decals` and `decal_gaps`; a stand-in close-up places none, each a gap)
   and writes each part's own `wear`; `surfaces-bake` ships each decal's picture and prints it in its part's finish
   (`route_bake.decals_on`, make_chunky `decals_on`, `recipes.decal_layer`); a decal the library does not hold stops
-  the bake. Scuffs are the recipe's `scuffs` setting (0 by default), never a picture. parts.json stays contract
+  the bake. **Text and numbers** (#171; owner, 2026-11-23: "TRELLIS isnt able to do text and numbers tho") are never a
+  route's texture: the list reads each text mark's words and look, and each plain printed line, as a mark (asked always,
+  decals in the library or not); `surfaces-parts` draws it as a text decal in the library's face of that look
+  (`text_decals.py`: data/fonts, SIL OFL; score_lib holds no font yet) at its cast size, written beside parts.npy as its
+  placement's `picture`, and the faces of the list's print finish seen under the mark take the finish and part it is
+  printed on (`route_parts.covered_prints`). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from
+  the model's outline (`close_up_fit.py`; a camera file's `look` is read before Pixal3D's +Z rule). Scuffs are the
+  recipe's `scuffs` setting (0 by default), never a picture. parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.
 - **The finish-map method is gone** (2026-10-20, #26): the crops are the places' own takes and the people's line
   runs the route's rows (`../people/line.py`), so its turntable, maps, names and SegviGen rows and modules were

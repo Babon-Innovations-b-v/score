@@ -20,6 +20,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   test_a_finish_record_traces_a_baked_models_finish (a place_build scene's painted console, or its chair's look)
 - trace.decal_rows: `held = True` (a decal the library does not hold traced), or trace.rows without decal_rows ->
   test_a_finish_record_traces_a_baked_models_finish (its bake's printed decals, #164)
+- trace.decal_rows: `held = address if (REPO / address).is_file() else None` -> `held = address` ->
+  test_a_finish_record_traces_a_baked_models_finish (a text decal's face the repository does not hold traced, #171)
 - entries.Shelf.newest: an address with no version not read -> test_a_finish_record_traces_a_baked_models_finish
   (its hull's kit)
 - trace.laid_character: `[]` always -> test_a_finish_record_traces_a_baked_models_finish (the player model's paint
@@ -152,13 +154,17 @@ PLAYER = {"place": "*", "prim": "/*/Characters/*", "aspect": "finish", "what": "
 def test_a_finish_record_traces_a_baked_models_finish(tmp_path):
     rows = judged_fixture("bad.usda", library(tmp_path, ("surface", "decal_caution")),
                           baked={"0" * 64: "surfaces-bake@fixture"},
-                          decals={"0" * 64: ["surface/decal_caution@1", "surface/decal_gone@1"]})
+                          decals={"0" * 64: ["surface/decal_caution@1", "surface/decal_gone@1",
+                                             "data/fonts/barlow/Barlow-Regular.ttf", "data/fonts/gone.ttf"]})
     textured = [row for row in rows if row.get("material", "") and row["material"].endswith("/picture")]
     assert textured[0]["answer"] == trace.LIBRARY and textured[0]["by"] == "surfaces-bake@fixture"
     # the library decals its bake printed (#164): one the library holds traces, one it does not is a finding
     printed = {row["by"] or row["instead"]: row["answer"] for row in rows if row["group"].endswith(": decal")}
+    # a text decal's face (#171): the library's own face traces, one the repository does not hold is a finding
     assert printed == {"surface/decal_caution@1": trace.LIBRARY, "its bake printed decal surface/decal_gone@1, which "
-                       "the library does not hold": trace.NEITHER}, printed
+                       "the library does not hold": trace.NEITHER,
+                       "data/fonts/barlow/Barlow-Regular.ttf": trace.LIBRARY, "its bake printed decal "
+                       "data/fonts/gone.ttf, which the library does not hold": trace.NEITHER}, printed
     # A place_build scene: a model the surface line painted traces by its entry's record, one it did not is a
     # finding; a look names its surface by address; a code-built piece names its kit with no version; a character
     # laid in Objects keeps its own paint only under the player models' exception.

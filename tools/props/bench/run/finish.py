@@ -19,9 +19,11 @@ and its dirt nothing (an NVIDIA asset is drawn clean).
 
 **The route as it runs on a place** (score/stages/surfaces/CLAUDE.md): views (free), the list (finish-route-list's own
 make, its ask sent to Claude as the place line sends it: claude_asks.asking_claude, EUR 0 on the subscription), split,
-parts. The take's close-up is the benchmark's render (`closeup.png`); TRELLIS.2 gives no camera for it, so it is not
-laid on the model, its colours are read from the views' texture (parts.json `colour_from`) and a listed mark cannot be
-placed (each a `decal_gaps` row). The bake (make_chunky through a place's paint) is a place's and is not run here: the
+parts. The take's close-up is the benchmark's render cut out (`rgba.png`, TRELLIS.2's own input); TRELLIS.2 gives no camera
+for it, so one is fitted from the model's outline against it (`fitted_camera`, score/stages/surfaces/close_up_fit.py,
+#171) round the close-up style's view (place_build maker.close_up_view), and where its cast fits the close-up's outline
+(route_cast.CLOSE_UP_FIT) the close-up is laid on the model, its colours read through it and its marks placed (text
+and numbers drawn as text decals in a library face). The bake (make_chunky through a place's paint) is a place's and is not run here: the
 measures read the parts, which name every face's surface.
 """
 import json
@@ -165,6 +167,21 @@ def take_data(row, folder):
     return path
 
 
+def fitted_camera(model, close_up, row, folder):
+    """camera.json in `folder`: the close-up's camera fitted from the model's outline against the close-up's alpha
+    (close_up_fit.fitted_camera, round the close-up style's view of the row's size); its path."""
+    from PIL import Image
+    import close_up_fit
+    import route_cast
+    from score.stages.place_build import maker
+    with Image.open(close_up) as picture:
+        cut = np.asarray(picture.convert("RGBA").getchannel("A")) > 127
+    turn, down = maker.close_up_view(row["size"])
+    path = folder / "camera.json"
+    path.write_text(json.dumps(close_up_fit.fitted_camera(route_cast.loaded(model), cut, turn, down), indent=1))
+    return path
+
+
 def finished(model, close_up, row, library, folder, ask=None):
     """The finish route's rows (views, list, split, parts) on one made model into `folder`, each row's output its own
     folder; the parts row's folder. `ask` replaces the list's ask (a test's); else the place line's (Claude)."""
@@ -176,7 +193,9 @@ def finished(model, close_up, row, library, folder, ask=None):
     import route_views
     rows = library_written(library, folder)
     inputs = {"surfaces": str(take_data(row, folder)), f"model {row['id']}": str(model),
-              f"close-up {row['id']}": str(close_up), **{name: str(path) for name, path in rows.items()}}
+              f"close-up {row['id']}": str(close_up), f"camera {row['id']}": str(fitted_camera(model, close_up, row,
+                                                                                               folder)),
+              **{name: str(path) for name, path in rows.items()}}
     params = {"objects": [row["id"]]}
     makes = (("finish-route-views", route_views.make_views),
              ("finish-route-list", claude_asks.asking_claude(route_list.make_list) if ask is None
