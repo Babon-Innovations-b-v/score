@@ -16,7 +16,11 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **Everything laid comes from the library.** A withdrawn entry is refused (the owner retired every old model,
   kit, character and surface on 2026-10-21), and the finish check fails one already laid. A withdrawn entry that
   names its replacement (`replaced_by`, #155) is laid as the end of that chain (`resolved_address`), refused only when
-  that end is withdrawn too. A model's record's `usd` root is the file laid (an adopted set's root, never a payload
+  that end is withdrawn too. The replacement of a model or kit piece is laid in the old one's footprint
+  (`in_footprint`): turned by quarters so its front is where the old front was (both records' `usd.front`) or its long
+  side along the old one's, centred on it and on its floor, moved the least that clears every other object but the
+  ground and what rested on the old one (set back on it after), refused naming what it would cut when no spot within
+  a metre is clear. A model's record's `usd` root is the file laid (an adopted set's root, never a payload
   beside it), and its layers are only `<root>_<layer>` files in the root's own folder; its `usd.meters_per_unit`
   is laid as its own unit scale op (`xformOp:scale:units`, after the agent's scale), its `usd.up_axis` against the
   scene's (y) as its own turn after that (`xformOp:rotateX:upAxis`, `uprighted`: a Z-up SimReady model stands up, so

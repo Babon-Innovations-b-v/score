@@ -19,7 +19,8 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     put(folder, name, address, at, turn, scale, ground, wear, clip, second)
                                                        a library entry fetched and laid (again) under Objects: a
                                                        glTF-only entry converted once (gltf.py), a character dressed
-                                                       and held in a pose of its clip, a ground marked as the ground
+                                                       and held in a pose of its clip, a ground marked as the ground;
+                                                       a withdrawn entry's replacement laid in its footprint
     dome(folder, name, radius, at, ...)                the dome shell algorithm (dome_shell.py) laid: glass shell, curved ribs
     tube(folder, name, radius, length, at, turn, ...)  the dome shell algorithm's ribbed glass tunnel laid
     stairs(folder, name, storeys, at, turn)            the stair core algorithm (stair_core.py) laid: a walkable
@@ -181,17 +182,23 @@ def camera(folder, eye, aim, fov):
     return record["camera"]
 
 
+def versioned(address, root):
+    """`kind/id@version`, the newest version when `address` gives none."""
+    if "@" in address:
+        return address
+    kind, entry_id = address.split("/", 1)
+    versions = sorted(int(path.name) for path in (pathlib.Path(root) / "entries" / kind / entry_id).glob("*")
+                      if path.name.isdigit())
+    if not versions:
+        raise Refused(f"{address}: the library holds no such entry")
+    return f"{address}@{versions[-1]}"
+
+
 def resolved_address(address, root):
     """`kind/id@version`, the newest version when `address` gives none, a withdrawn entry's replacement (`replaced_by`)
     followed to the end of its chain, so a place laid again takes the replacement (#155). The end may be withdrawn
     with nothing in its place: what lays it (fetch) refuses it then."""
-    if "@" not in address:
-        kind, entry_id = address.split("/", 1)
-        versions = sorted(int(path.name) for path in (pathlib.Path(root) / "entries" / kind / entry_id).glob("*")
-                          if path.name.isdigit())
-        if not versions:
-            raise Refused(f"{address}: the library holds no such entry")
-        address = f"{address}@{versions[-1]}"
+    address = versioned(address, root)
     try:
         return library.replaced_end(root, address)
     except ValueError as why:
@@ -431,7 +438,10 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
     `at`'s height as above the laid ground under it (a rock on a real terrain's relief, sunk in by a negative one);
     `role` and `support` are written as its `score:role` and `score:support` (a window laid flush on its building's
     wall: role "mount", support "wall:<building>"), which the physics check (ready/) reads. An effect entry (a smoke's
-    emitter) is laid as Effects/<name>, role "effect": no solid, as the rain is."""
+    emitter) is laid as Effects/<name>, role "effect": no solid, as the rain is. A model or kit piece laid as the
+    replacement of the withdrawn entry asked for is laid in that one's footprint (`in_footprint`), and what rested on
+    the old one is set back on it."""
+    asked = address
     address, record, copied = fetch(folder, address)
     asset = usd_file(record, copied)
     stage, place = opened(folder)
@@ -441,6 +451,9 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         path, role = f"/{place}/Effects/{name}", "effect"
     if on_ground:
         at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
+    fitted = in_footprint(stage, place, name, asked, record, asset, (at, turn, scale), rest)
+    if fitted:
+        at, turn = fitted["at"], fitted["turn"]
     relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground,
                               float((record.get("usd") or {}).get("meters_per_unit") or 1.0),
                               (record.get("usd") or {}).get("up_axis"))
@@ -450,14 +463,231 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         laid["layers"] = layers
     if record["kind"] == "character":
         laid.update(dressed(stage, path, asset, wear, clip, second))
-    if rest:
+    if rest and not fitted:
         laid["at"] = rested(stage, path, at, turn, scale)
     marked(stage.GetPrimAtPath(path), role, support)
+    if fitted:
+        laid["at"] = at
+        laid["footprint"] = dict(fitted["footprint"], reset=set_back(stage, place, name, fitted["riders"]))
     saved(stage)
     finish = own_paint_finished(folder, stage, place, name) if record["kind"] != "effect" else None
     if finish:
         laid["finish"] = finish
     return laid
+
+
+FOOTPRINT_KINDS = ("model", "kit")  # the kinds whose replacement is laid in the old entry's footprint
+FOOTPRINT_REACH = 1.0  # metres from the old footprint's middle a replacement may move to stand clear
+FOOTPRINT_STEP = 0.015  # metres between the spots tried, and between the points read off a neighbour's surface
+SQUARE = 0.01  # metres within which a footprint's two sides are one length: it has no long side
+FRONTS = {"+x": (1.0, 0.0, 0.0), "-x": (-1.0, 0.0, 0.0), "+z": (0.0, 0.0, 1.0), "-z": (0.0, 0.0, -1.0)}
+
+
+def yaw_matrix(degrees):
+    """The 3 x 3 turn about up by `degrees`, as a row-vector USD transform turns a point (rotateXYZ's Y alone)."""
+    return np.array(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0.0, 1.0, 0.0), float(degrees))))[:3, :3]
+
+
+def footprint_box(stage, asset, record, pose, yaw):
+    """The box of `asset` laid at `pose` (with its record's unit scale and up-axis turn) in a scratch stage with the
+    scene's up axis, in the frame turned back by `yaw` about up: (low, high), exact for an asset whose own box is
+    square to its axes and a turn of quarters off `yaw`."""
+    scratch = Usd.Stage.CreateInMemory()
+    UsdGeom.SetStageUpAxis(scratch, UsdGeom.GetStageUpAxis(stage))
+    prim = scratch.DefinePrim("/footprint")
+    prim.GetReferences().AddReference(str(pathlib.Path(asset).resolve()))
+    unit_scaled(prim, float((record.get("usd") or {}).get("meters_per_unit") or 1.0))
+    uprighted(prim, (record.get("usd") or {}).get("up_axis"))
+    posed(prim, *pose)
+    boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    bound = boxes.ComputeWorldBound(prim)
+    if bound.GetRange().IsEmpty():
+        raise Refused(f"{asset}: no shape to take a footprint of")
+    low, high = (np.array(corner) for corner in (bound.GetRange().GetMin(), bound.GetRange().GetMax()))
+    corners = np.array([[(low, high)[way >> axis & 1][axis] for axis in range(3)] for way in range(8)])
+    matrix = np.array(bound.GetMatrix())
+    framed = (corners @ matrix[:3, :3] + matrix[3, :3]) @ yaw_matrix(yaw).T
+    return framed.min(axis=0), framed.max(axis=0)
+
+
+def old_usd(asked, record):
+    """The withdrawn entry `asked`'s record and its USD file as the library holds it, when `record` (what is laid)
+    replaces it and both are kinds laid in a footprint; (None, None) otherwise (an entry in force, an old entry with
+    no USD file)."""
+    root = library_root()
+    asked = versioned(asked, root)
+    if asked == record["address"] or record["kind"] not in FOOTPRINT_KINDS:
+        return None, None
+    old = entry_of(asked)
+    if old["kind"] not in FOOTPRINT_KINDS:
+        return None, None
+    found = {name: library_files.resolve(library_files.reference(asked, name)) for name in old["files"]}
+    root_file = (old.get("usd") or {}).get("root")
+    names = [root_file] if root_file in found else [name for name, info in old["files"].items()
+                                                    if info.get("role") in USD_ROLES]
+    names = [name for name in names if found.get(name) is not None]
+    return (old, found[names[0]]) if names else (None, None)
+
+
+def front_of(record):
+    """The way the entry's front faces laid unturned (its record's usd.front: +x, -x, +z or -z of the scene), or
+    None when the record does not say."""
+    front = (record.get("usd") or {}).get("front")
+    return np.array(FRONTS[front]) if front in FRONTS else None
+
+
+def footprint_turn(old_extent, new_extent, old_front=None, new_front=None):
+    """The quarter turns (degrees, 0, 90, 180 or 270) about up that lay a replacement on the old footprint: its
+    front where the old front was when both records say where it is, else its long side along the old one's
+    (`old_extent` and `new_extent` the (x, z) sides of each laid unturned in the old one's frame), the least turn
+    that does."""
+    if old_front is not None and new_front is not None:
+        for quarter in (0, 90, 270, 180):
+            if np.allclose(new_front @ yaw_matrix(quarter), old_front, atol=1e-6):
+                return quarter
+    if min(abs(old_extent[0] - old_extent[1]), abs(new_extent[0] - new_extent[1])) < SQUARE:
+        return 0
+    return 0 if (old_extent[0] > old_extent[1]) == (new_extent[0] > new_extent[1]) else 90
+
+
+def surface_points(triangles, step):
+    """Points over each triangle no further than `step` apart (a barycentric grid fine enough for its longest
+    edge), its corners included."""
+    edges = np.linalg.norm(triangles - np.roll(triangles, 1, axis=1), axis=2).max(axis=1)
+    counts = np.maximum(1, np.ceil(edges / step).astype(int))
+    points = []
+    for count in np.unique(counts):
+        grid = np.array([(first, second) for first in range(count + 1) for second in range(count + 1 - first)])
+        weights = grid / count
+        chosen = triangles[counts == count]
+        points.append((chosen[:, None, 0] + weights[None, :, :1] * (chosen[:, None, 1] - chosen[:, None, 0])
+                       + weights[None, :, 1:] * (chosen[:, None, 2] - chosen[:, None, 0])).reshape(-1, 3))
+    return np.concatenate(points) if points else np.zeros((0, 3))
+
+
+def neighbour_points(laid, without, low, high, yaw):
+    """The surface points, in the frame turned back by `yaw`, of every laid object but the ground and `without`
+    that lie over the box's floor (past TOLERANCE, so its support never counts) and under its top, within
+    FOOTPRINT_REACH of its sides; (points, the owner's name of each)."""
+    from score.stages.place_build.ready import TOLERANCE
+    reach = np.array([FOOTPRINT_REACH, 0.0, FOOTPRINT_REACH])
+    region_low, region_high = low - reach + [0.0, TOLERANCE, 0.0], high + reach
+    found, owners = [], []
+    for name in laid.names:
+        if name in without or laid.roles[name] == "ground":
+            continue
+        triangles = laid.meshes[name].triangles @ yaw_matrix(yaw).T
+        meets = np.all(triangles.max(axis=1) >= region_low, axis=1) & np.all(triangles.min(axis=1) <= region_high,
+                                                                               axis=1)
+        if not meets.any():
+            continue
+        points = surface_points(triangles[meets], FOOTPRINT_STEP)
+        points = points[np.all((points > region_low) & (points < region_high), axis=1)]
+        found.append(points)
+        owners += [name] * len(points)
+    return (np.concatenate(found) if found else np.zeros((0, 3))), np.array(owners)
+
+
+def clear_shift(points, middle, half):
+    """The least shift (x, z) of a footprint of half sides `half` (x, z) round `middle` (x, z) that leaves every
+    point outside it, on a FOOTPRINT_STEP grid within FOOTPRINT_REACH; None when every shift there meets one."""
+    count = round(FOOTPRINT_REACH / FOOTPRINT_STEP)
+    grid = np.arange(-count, count + 1) * FOOTPRINT_STEP
+    blocked = np.zeros((len(grid) + 1, len(grid) + 1), dtype=np.int64)
+    if len(points):
+        start = [np.searchsorted(grid, points[:, axis] - middle[way] - half[way], side="right")
+                 for way, axis in enumerate((0, 2))]
+        stop = [np.searchsorted(grid, points[:, axis] - middle[way] + half[way], side="left")
+                for way, axis in enumerate((0, 2))]
+        for rows, columns, sign in ((start[0], start[1], 1), (stop[0], start[1], -1), (start[0], stop[1], -1),
+                                    (stop[0], stop[1], 1)):
+            np.add.at(blocked, (rows, columns), sign)
+    free = np.cumsum(np.cumsum(blocked, axis=0), axis=1)[:-1, :-1] == 0
+    if not free.any():
+        return None
+    across, along = np.meshgrid(grid, grid, indexing="ij")
+    distance = np.where(free, np.hypot(across, along), np.inf)
+    best = np.unravel_index(int(np.argmin(distance)), distance.shape)
+    return float(grid[best[0]]), float(grid[best[1]])
+
+
+def riders_of(laid, name, low, high, yaw):
+    """The laid objects resting on the old footprint (low, high, in the frame turned back by `yaw`): those whose
+    `score:support` names `name`, and those whose foot lies on its top over it."""
+    from score.stages.place_build.ready import TOLERANCE, text_of
+    riders = []
+    for other in laid.names:
+        if other == name or laid.roles[other] == "ground":
+            continue
+        bounds = laid.meshes[other].bounds
+        middle = bounds.mean(axis=0) @ yaw_matrix(yaw).T
+        on_top = abs(bounds[0][1] - high[1]) <= TOLERANCE and np.all(middle[[0, 2]] > low[[0, 2]]) and np.all(
+            middle[[0, 2]] < high[[0, 2]])
+        if text_of(laid.prims[other], "score:support") == name or on_top:
+            riders.append(other)
+    return riders
+
+
+def in_footprint(stage, place, name, asked, record, asset, pose, rest=False):
+    """Where the replacement (`record`, its file `asset`) of the withdrawn entry `asked` is laid in the footprint the
+    old one would have had at `pose` (#155: the adopted desk laid at the old one's spot turned its long side across
+    it and cut into the dome wall and a bin): turned by quarters to `footprint_turn`, its middle over the old one's,
+    its floor on the old one's (`rest`: at `pose`'s height), then shifted the least that keeps its box clear of
+    every other laid object but the ground and those resting on the old one (by more than half a TOLERANCE, read
+    at FOOTPRINT_STEP). {at, turn, footprint, riders}; None when `asked` is no withdrawn entry it replaces (or has
+    no USD file); Refused naming what it would cut when no spot within FOOTPRINT_REACH is clear."""
+    from score.stages.place_build import ready
+    old, old_file = old_usd(asked, record)
+    if old is None:
+        return None
+    at, turn, scale = (list(map(float, part)) for part in pose)
+    yaw = turn[1]
+    old_low, old_high = footprint_box(stage, old_file, old, (at, turn, scale), yaw)
+    if rest:
+        old_high, old_low = old_high - [0.0, old_low[1] - at[1], 0.0], np.array([old_low[0], at[1], old_low[2]])
+    unturned = footprint_box(stage, asset, record, (at, turn, scale), yaw)
+    quarter = footprint_turn(*(np.ptp(box, axis=0)[[0, 2]] for box in ((old_low, old_high), unturned)),
+                             front_of(old), front_of(record))
+    turned = [turn[0], turn[1] + quarter, turn[2]]
+    new_low, new_high = footprint_box(stage, asset, record, (at, turned, scale), yaw)
+    middle = (old_low + old_high)[[0, 2]] / 2.0
+    half = (new_high - new_low)[[0, 2]] / 2.0 - ready.TOLERANCE / 2.0
+    try:
+        laid = ready.Place(stage, place)
+    except Refused:  # nothing laid with a shape: nothing to cut or to rest on it
+        laid = None
+    riders = riders_of(laid, name, old_low, old_high, yaw) if laid else []
+    floor, top = old_low[1], old_low[1] + (new_high - new_low)[1]
+    wanted_low = np.array([middle[0] - half[0], floor, middle[1] - half[1]])
+    wanted_high = np.array([middle[0] + half[0], top, middle[1] + half[1]])
+    points, owners = neighbour_points(laid, {name, *riders}, wanted_low, wanted_high, yaw) if laid else (
+        np.zeros((0, 3)), np.array([]))
+    shift = clear_shift(points, middle, half)
+    if shift is None:
+        inside = np.all(np.abs(points[:, [0, 2]] - middle) < half, axis=1)
+        cut = sorted(set(owners[inside])) or sorted(set(owners))
+        raise Refused(f"{record['address']} in {asked}'s footprint would cut {', '.join(cut)}: no spot within "
+                      f"{FOOTPRINT_REACH} m of it is clear")
+    goal = np.array([middle[0] + shift[0], floor, middle[1] + shift[1]])
+    now = np.array([(new_low[0] + new_high[0]) / 2.0, new_low[1], (new_low[2] + new_high[2]) / 2.0])
+    moved = (goal - now) @ yaw_matrix(yaw)
+    spot = [round(float(value), 6) for value in np.asarray(at) + moved]
+    return {"at": spot, "turn": turned, "riders": riders,
+            "footprint": {"of": versioned(asked, library_root()), "turned": quarter,
+                          "moved": round(float(np.hypot(*shift)), 3)}}
+
+
+def set_back(stage, place, name, riders):
+    """Each object that rested on the old footprint laid back on `name` (ready.placed_on); {rider: its new spot}, or
+    why it could not be."""
+    from score.stages.place_build import ready
+    done = {}
+    for rider in riders:
+        try:
+            done[rider] = ready.placed_on(stage, place, rider, name)["at"]
+        except Refused as why:
+            done[rider] = {"refused": str(why)}
+    return done
 
 
 def own_paint_finished(folder, stage, place, name):

@@ -170,6 +170,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   left off -> the Z-up crate's own up lies along the scene's -x after the agent's quarter turn, not up
 - library.replaced_end: the chain left unfollowed (`return address` at once) -> the retired crate is refused
   withdrawn, not laid as the adopted crate
+- place_build.put: the replacement laid at the asked pose (in_footprint unread) -> the bench's answer has no footprint
+- place_build.footprint_turn: always 0, or the fronts unread -> the long bench is not turned a quarter, or turned 90
+  where the fronts say 270
+- place_build.in_footprint: no shift (clear_shift unread) -> the bench lies 10 cm into the bin and 8 cm into the wall
+- place_build.clear_shift: the first clear spot, not the nearest -> the bench moves a metre
+- place_build.riders_of: the foot on the old top, or `score:support`, unread -> the cup blocks the bench's spot (it
+  moves 40 cm), or the pen floats at 0.9 m
+- place_build.set_back: unread -> the cup stays on the old top 5 cm into the new one
 - place_build.put: an effect laid under Objects -> the wisp is a solid object with no role
 - place_build.hold: the pose's rotations not written -> the walker's hips keep their clip's turn
 - place_build.held_prop: the hold frame left out (the joint's transform alone) -> the stub sits on the hips, not
@@ -372,6 +380,18 @@ def library(root, files):
         if kind != "model" or entry_id != "sm_crate":
             entry(kind, entry_id, {})
         path = root / "entries" / kind / entry_id / "1" / "entry.json"
+        path.write_text(json.dumps(dict(json.loads(path.read_text()), **written)))
+    for entry_id, size, written in (("old_bench", (1.2, 0.75, 0.6), {"state": "withdrawn",
+                                                                     "replaced_by": "model/long_bench@1"}),
+                                     ("long_bench", (0.8, 0.8, 1.6), {})):  # its long side across the old one's
+        bench = Usd.Stage.CreateInMemory()
+        UsdGeom.SetStageUpAxis(bench, UsdGeom.Tokens.y)
+        bench.SetDefaultPrim(UsdGeom.Xform.Define(bench, "/bench").GetPrim())
+        top = UsdGeom.Cube.Define(bench, "/bench/geo")
+        top.AddTranslateOp().Set(Gf.Vec3d(0.0, size[1] / 2, 0.0))
+        top.AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
+        entry("model", entry_id, {"model.usda": ("usd", bench.GetRootLayer().ExportToString())})
+        path = root / "entries" / "model" / entry_id / "1" / "entry.json"
         path.write_text(json.dumps(dict(json.loads(path.read_text()), **written)))
 
 
@@ -869,6 +889,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     skied(tmp_path, root, files)
     adopted(tmp_path / "adopted")
     replaced(tmp_path)
+    footprinted(tmp_path)
 
 
 def adopted(folder):
@@ -969,6 +990,46 @@ def replaced(tmp_path):
         world[2, :3], [0.0, 0.02, 0.0], atol=1e-6), world
     with pytest.raises(place_build.Refused, match="gone_too@1: withdrawn"):
         place_build.put(folder, "lost", "model/gone")
+
+
+def footprinted(tmp_path):
+    """A withdrawn bench (1.2 m along x, 0.6 deep, 0.75 high) laid again as its replacement (0.8 x 0.8 x 1.6, its long
+    side along z) in its footprint (#155: the adopted desk turned across the old one's spot cut into the dome wall and
+    a bin): turned a quarter so its long side lies along the old one's, its floor on the old one's, moved the least
+    that keeps it clear of the wall behind (8 cm into it, centred) and the bin beside (10 cm), never minding the cup
+    on the old top and the pen marked as on the bench, both set back on the new top; between two walls narrower than
+    it, refused naming both. A front both records give turns it to the old front, else the long-side rule."""
+    from score.stages.place_build import ready as ready_check
+    rows = (((1.2, 0.6), (0.8, 1.6), None, None, 90), ((1.2, 0.6), (1.6, 0.8), None, None, 0),
+            ((1.2, 0.6), (0.8, 1.6), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), 270),
+            ((1.2, 0.6), (0.8, 1.6), (0.0, 0.0, 1.0), None, 90), ((1.0, 1.0), (0.8, 1.6), None, None, 0))
+    for old, new, old_front, new_front, quarter in rows:
+        assert place_build.footprint_turn(np.array(old), np.array(new), None if old_front is None else np.array(
+            old_front), None if new_front is None else np.array(new_front)) == quarter, (old, new, old_front)
+    Image.new("RGB", (8, 8)).save(tmp_path / "bench.png")
+    folder = tmp_path / "footprint"
+    place_build.start(folder, "shop", tmp_path / "bench.png")
+    place_build.put(folder, "wall", "kit/box_piece", at=(-2.0, 0.0, -0.82), scale=(4.0, 1.0, 1.0))
+    place_build.put(folder, "bin", "kit/box_piece", at=(0.7, 0.0, -0.3), scale=(0.4, 0.5, 1.2))
+    place_build.put(folder, "cup", "kit/box_piece", at=(-0.05, 0.75, -0.05), scale=(0.1, 0.05, 0.1))
+    place_build.put(folder, "pen", "kit/box_piece", at=(0.3, 0.9, 0.0), scale=(0.1, 0.02, 0.1), support="bench")
+    laid = place_build.put(folder, "bench", "model/old_bench", at=(0.0, 0.0, 0.0))
+    stage, _ = place_build.opened(folder)
+    box = ready_check.solid_of(stage.GetPrimAtPath("/shop/Objects/bench")).bounds
+    assert laid["address"] == "model/long_bench@1" and laid["footprint"]["turned"] == 90, laid
+    assert np.ptp(box[:, 0]) > np.ptp(box[:, 2]) and abs(box[0][1]) < 1e-6, box  # long side along x, on the floor
+    assert box[1][0] <= 0.7 + 0.015 and box[0][2] >= -0.32 - 0.015, box  # clear of the bin and the wall
+    assert laid["footprint"]["moved"] <= np.hypot(0.085, 0.065) + 0.025, laid  # the least move that clears them
+    for rider in ("cup", "pen"):
+        foot = ready_check.solid_of(stage.GetPrimAtPath(f"/shop/Objects/{rider}")).bounds[0][1]
+        assert abs(foot - 0.8) < ready_check.TOLERANCE and rider in laid["footprint"]["reset"], (rider, foot, laid)
+    folder = tmp_path / "slot"
+    place_build.start(folder, "slot", tmp_path / "bench.png")
+    for name, x in (("wall_a", -1.6), ("wall_b", 0.6)):
+        place_build.put(folder, name, "kit/box_piece", at=(x, 0.0, -3.0), scale=(1.0, 1.0, 12.0))
+    with pytest.raises(place_build.Refused, match="would cut wall_a, wall_b"):
+        place_build.put(folder, "bench", "model/old_bench")
+    assert not place_build.opened(folder)[0].GetPrimAtPath("/slot/Objects/bench"), "a refused bench left laid"
 
 
 def skied(tmp_path, root, files):
