@@ -1352,7 +1352,7 @@ def look_shader(stage, path, copied, colour):
 
 def recipe_marked(look, spec):
     """A palette variant's look carries its spec (`score:recipe:spec`, JSON) for the render's recipe pass, and its
-    preview its roughness, metal, glow (a glowing recipe's colour given off) and opacity (glass seen through, as the
+    preview its roughness, metal, glow (a glowing recipe's colour given off, `glow` times over) and opacity (glass seen through, as the
     preview's thin glass and the scene package's transmission read it); any other look carries none."""
     marked = look.GetPrim().GetAttribute("score:recipe:spec")
     if spec is None:
@@ -1363,7 +1363,9 @@ def recipe_marked(look, spec):
     shader = UsdShade.Shader(look.GetPrim().GetStage().GetPrimAtPath(f"{look.GetPath()}/surface"))
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(spec.get("roughness", 0.5)))
     shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(float(spec.get("metal", 0.0)))
-    glow = Gf.Vec3f(*spec["colour"]) if spec["recipe"] == "glowing" else Gf.Vec3f(0.0, 0.0, 0.0)
+    strength = float(spec.get("glow", 1.0))
+    glow = Gf.Vec3f(*[value * strength for value in spec["colour"]]) if spec["recipe"] == "glowing" else \
+        Gf.Vec3f(0.0, 0.0, 0.0)
     shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(glow)
     shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(float(spec.get("opacity", 1.0)))
 

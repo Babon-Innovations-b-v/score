@@ -178,9 +178,10 @@ def glass(colour, roughness):
     return Channels(colour, roughness, 0.0, BLACK, None)
 
 
-def glowing(colour, roughness):
-    """A token colour given off as light: screens, lamp lenses."""
-    return Channels(colour, roughness, 0.0, colour, None)
+def glowing(colour, roughness, glow=1.0):
+    """A token colour given off as light: screens, lamp lenses; `glow` times over (a fitted lamp's 3.7: its source's
+    emissiveColor holds its strength in its size, #155)."""
+    return Channels(colour, roughness, 0.0, pf.nodes.math.vector_scale(vector=colour, scale=glow), None)
 
 
 def face_plane(vector):
@@ -809,7 +810,8 @@ def arguments(spec, wear, dirt, seed, foot=None):
 
         given["image"] = pf.Image(bpy.data.images.load(spec["image"], check_existing=True))
     wanted = inspect.signature(RECIPES[spec["recipe"]]).parameters
-    return {name: given[name] for name in wanted}
+    return {name: given[name] for name, about in wanted.items()
+            if name in given or about.default is inspect.Parameter.empty}
 
 
 def channels(spec, wear, dirt, seed, foot=None):

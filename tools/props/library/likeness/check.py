@@ -132,7 +132,8 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
             results[address] = {"address": address, "error": str(missing), "rounds": 0}
             continue
         made = fit.fitted(address_parts(address)[1], found["maps"], found["tile_metres"], method,
-                          found["normal_convention"], found["albedo_colour"], found["constants"])
+                          found["normal_convention"], found["albedo_colour"], found["constants"],
+                          found["emission_colour"])
         open_pairs[address] = {"name": folder_name(address), "maps": found["maps"], "tile_metres": made["tile_metres"],
                                "normal_convention": found["normal_convention"], "albedo_colour": found["albedo_colour"],
                                "emission_colour": found["emission_colour"],

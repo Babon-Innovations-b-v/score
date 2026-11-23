@@ -48,6 +48,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   in Lab, on (0.8, 0.3, 0.05) is L 99.1 at hue 91.6, in gamut only near grey).
 - fit.FAMILY_WORDS without "mirror" (the mirror row is glass), or family_of's UNMETALLED rule dropped (the metal
   glass row is glass).
+- fit.family_of: the glow rule dropped (the lamp glass row is glass, the warm plastic plastic), or spec_of's glow
+  hue dropped (the warm plastic's colour its diffuse 0.8).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -173,7 +175,7 @@ ROWS = [
      {"emission.png": solid((255,) * 3), "normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 0))},
      {"tile_metres": 1.0, "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5.0, 5.0, 5.0]}},
      (solid((255,) * 3), solid((255,) * 3)),
-     seen("glowing", "name", 1.0, 0.4, None, None, True, (None, True))),
+     {**seen("glowing", "name", 1.0, 0.4, None, None, True, (None, True)), "glow_strength": 1.0}),
     ("a glass's constants, no maps", "m_trans_glass_black_a01", {},
      {"maps": {}, "tile_metres": 1.0,
       "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.27, "metallic": 0.0, "opacity": 0.054}},
@@ -199,6 +201,14 @@ ROWS = [
     ("a glass whose constant metal is 1 is a metal", "m_trans_glass_black_a01", {},
      {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.27, "metallic": 1.0}},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "bare_metal", "family_from": "measures", "metal": 1.0}),
+    ("a glass lamp that glows is glowing, at its strength", "m_trans_glass_light_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [1.0] * 3, "emissiveColor": [3.7] * 3}},
+     (solid((255,) * 3), solid((255,) * 3)),
+     {"recipe": "glowing", "family_from": "measures", "colour": 1.0, "glow_strength": 3.7}),
+    ("a plastic's warm glow: its hue at its strongest channel's strength", "m_opaque_plastic_white_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.8] * 3, "emissiveColor": [3.0, 2.66, 1.65]}},
+     (solid((255,) * 3), solid((255,) * 3)),
+     {"recipe": "glowing", "family_from": "measures", "colour": 0.8122, "glow_strength": 3.0}),
 ]
 
 
@@ -207,7 +217,8 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
                                                                   expected):
     found = written(tmp_path, maps, surface)
     made = fit.fitted(material, found["maps"], found["tile_metres"], normal_convention=found["normal_convention"],
-                      albedo_colour=found["albedo_colour"], constants=found["constants"])
+                      albedo_colour=found["albedo_colour"], constants=found["constants"],
+                      emission_colour=found["emission_colour"])
     spec = made["recipe"]
     relief = (round(spec[fit.SIZE_SETTING[spec["recipe"]]], 4), round(spec["bump"], 3), round(made["tile_metres"], 4)) \
         if spec.get("bump") else None
@@ -220,5 +231,5 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
-              "ranking": measure.ranking(views), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
+              "ranking": measure.ranking(views), "glow_strength": spec.get("glow"), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

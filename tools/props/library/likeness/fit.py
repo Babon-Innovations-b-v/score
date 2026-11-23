@@ -235,11 +235,13 @@ def channel_mean(path, channel):
     return float(shrunk(pixels(path), READ_SIDE)[..., channel].mean())
 
 
-def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None, constants=None):
+def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None, constants=None,
+               emission_colour=None):
     """The maps' measures from {role: path}: the albedo map, else the constant `albedo_colour` (linear); normal, orm
     or roughness and metal when given, else their surface.json `constants` ({measure: value}, described), else a
     roughness of UNSAID_ROUGHNESS and a metal of 0, as the map side draws them; the constant opacity (None when
-    unsaid)."""
+    unsaid); its glow, the strength it gives off light at (an emission map's 1, else the constant `emission_colour`'s
+    strongest channel, else 0) and that constant's hue (its channels over the strongest)."""
     constants = constants or {}
     measured = albedo_statistics(maps["albedo"]) if "albedo" in maps else constant_statistics(albedo_colour)
     measured["tile_metres"] = float(tile_metres)
@@ -252,6 +254,10 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
                                  constants.get("roughness", UNSAID_ROUGHNESS))
         measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else constants.get("metal", 0.0)
     measured["opacity"] = constants.get("opacity")
+    strongest = max(emission_colour or [0.0])
+    measured["glow"] = 1.0 if "emission" in maps else float(max(strongest, 0.0))
+    measured["glow_hue"] = ([float(value) / strongest for value in emission_colour]
+                            if "emission" not in maps and strongest > 0 else None)
     return measured
 
 
@@ -267,8 +273,12 @@ def metal_by_roughness(measured):
 def family_of(name, measured):
     """The recipe family a material's name says (FAMILY_WORDS; a family drawn with no metal, UNMETALLED, yields to a
     metal over METAL_MEAN, which the map side draws as metal), else by its metal and roughness means: (family,
-    "name" | "measures")."""
+    "name" | "measures"). A surface that gives off light is glowing whatever its name (a glass lamp lens fitted as
+    glass drew no light beside its map side's glow)."""
     lowered = name.lower()
+    said = next((family for word, family in FAMILY_WORDS if word in lowered), None)
+    if measured.get("glow", 0.0) > 0 and said != "glowing":
+        return "glowing", "measures"
     for word, family in FAMILY_WORDS:
         if word in lowered:
             if family in UNMETALLED and measured["metal"] > METAL_MEAN:
@@ -300,6 +310,10 @@ def spec_of(family, measured, method=METHOD):
         spec["metal"] = round(measured["metal"], 4)
     if "opacity" in defaults and measured.get("opacity") is not None:
         spec["opacity"] = round(measured["opacity"], 4)
+    if "glow" in defaults and measured.get("glow"):
+        spec["glow"] = round(measured["glow"], 4)
+        if measured.get("glow_hue"):
+            spec["colour"] = [round(value, 5) for value in measured["glow_hue"]]
     size_setting = SIZE_SETTING.get(family)
     feature = measured["feature_metres"]
     drawn = feature
@@ -324,17 +338,18 @@ def fitted_tile(family, measured, method=METHOD):
     return json.loads(pathlib.Path(method).read_text())["recipes"][family][size_setting] / feature
 
 
-def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl", albedo_colour=None, constants=None):
+def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl", albedo_colour=None, constants=None,
+           emission_colour=None):
     """A material's fitted recipe from its maps ({role: path}, with no albedo map its constant `albedo_colour`, with no
     map of a measure its surface.json `constants`), its
     tile size (None: fitted, `fitted_tile`, else TILE_METRES assumed) and its normal map's convention: {"recipe", "statistics", "family_from", "tile_metres",
     "tile_metres_from" (None when given)}."""
     tile_from = None
     if tile_metres is None:
-        at_one = statistics(maps, 1.0, normal_convention, albedo_colour, constants)
+        at_one = statistics(maps, 1.0, normal_convention, albedo_colour, constants, emission_colour)
         tile_metres = fitted_tile(family_of(name, at_one)[0], at_one, method)
         tile_metres, tile_from = (tile_metres, "fitted") if tile_metres else (TILE_METRES, "assumed")
-    measured = statistics(maps, tile_metres, normal_convention, albedo_colour, constants)
+    measured = statistics(maps, tile_metres, normal_convention, albedo_colour, constants, emission_colour)
     family, said_by = family_of(name, measured)
     return {"recipe": spec_of(family, measured, method), "statistics": measured, "family_from": said_by,
             "tile_metres": tile_metres, "tile_metres_from": tile_from}
