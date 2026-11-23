@@ -123,6 +123,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - stair_core.block: `holes + door` -> `holes` -> the street door's doorway stands walled in the lobby's facade
 - stair_core.block: the ground window kept with `street` -> a pane stands across the street door's doorway
+- stair_core.block: `ledges(holes)` left out -> a facade window has no sill proud of the facade under it
 - stair_core.newelled: `inset` -> `0.0` at the well -> a flight's handrail stops short of the well's cross
   railing
 - stair_core.railings: `newelled` left out -> the flights' handrails stop in mid-air at every turn
@@ -876,6 +877,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert not walled.any() and not (pane & (part_middles(lobby, "glass")[:, 1] < stair_core.STOREY)).any() \
         and spots["street"]["inward"] == [-0.0, 0.0, 1.0] and np.isclose(spots["street"]["wide"], stair_core.DOOR[0]) \
         and street_door[0] > stair_core.LONG + stair_core.WALL and "street" not in stair_core.doorway_spots(1)
+    sill = stair_core.STOREY + stair_core.WINDOW[1] - stair_core.LEDGE_GAP  # the first storey's windows' sills
+    proud = across[np.isclose(across[:, 0, 2], -stair_core.FACADE - stair_core.LEDGE[2], atol=1e-5)
+                   & np.isclose(across[:, 1, 2], -stair_core.FACADE - stair_core.LEDGE[2], atol=1e-5)
+                   & np.isclose(across[:, 1, 1], sill, atol=1e-5)]  # each sill's front face
+    assert len(proud) == len(stair_core.WINDOWS), proud  # each facade window a sill proud of the facade under it
     place_build.start(tmp_path / "well", "well", tmp_path / "concept.png")  # a cut core laid again in one batch
     relaid = place_build.batch(tmp_path / "well", [{"step": "stairs", "name": "core", "storeys": 1, "cut": True},
                                                    {"step": "stairs", "name": "core", "storeys": 1, "cut": True,

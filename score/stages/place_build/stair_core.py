@@ -20,8 +20,8 @@ Parts, for their library surfaces (place_build.surface --part):
 - `block`, `glass` and `frame`: the flats' blocks either side of the shaft (BLOCK wide, a floor each storey, the
   facade FACADE out with WINDOWS cut, each a pane in a frame with mullions; the entrance opens into the left one's
   ground floor, and with `street` that ground floor is the lobby a street door in its facade opens onto the street
-  through, in place of its window nearest the shaft), and the shaft's own front wall with a window over each landing
-  and flight;
+  through, in place of its window nearest the shaft; each facade window a sill under it and a hood over it, proud),
+  and the shaft's own front wall with a window over each landing and flight;
 - `balusters` and `handrail`: the railings along the open front and the well, BALUSTER bars every BALUSTER_STEP and a
   rail RAIL high over the pitch line (LANDING_RAIL over a landing).
 
@@ -91,6 +91,8 @@ WINDOWS = (1.3, 3.7)  # a storey's windows' middles in from the shaft's left wal
 WINDOW = (1.2, 0.9, 2.4)  # a window's width, sill and head over its floor
 STREET = WINDOWS[0]  # the street door's middle in from the shaft's side wall: in place of the ground floor's window
 FRAME_BAR = (0.05, 0.06)  # a window frame bar's face and depth
+LEDGE = (0.08, 0.07, 0.12)  # a facade window's sill and hood: their reach past the window each side, thick, proud
+LEDGE_GAP = 0.06  # a sill's top under its window's sill and a hood's foot over its head (clear of a window laid in it)
 PANE = 0.7  # a window's panes no wider than this between mullions
 CURTAIN_PIER = 0.15  # a curtain front's corner piers, in from the shaft's side walls
 CURTAIN_SPANDREL = 0.05  # a curtain front's opening's clearance over its floor and under the slab over it
@@ -332,7 +334,20 @@ def block(storeys, inner, way, street=False):
                for storey in range(1, storeys + 1)]
     pier = sorted((inner, inner - way * WALL))  # the shaft's side wall carried out to the facade's front
     pieces.append(("block", box((pier[0], 0.0, -FACADE), (pier[1], high, 0.0))))
-    return pieces + glazed(holes, -FACADE + WALL / 2)
+    return pieces + ledges(holes) + glazed(holes, -FACADE + WALL / 2)
+
+
+def ledges(holes):
+    """Each facade window's sill under it and hood over it (LEDGE), proud of the facade's front (the concept's
+    tenement: "ledges, window hoods and sills", the 2099 judge, 2026-11-23: a flat slab with holes): [(part, solid)]."""
+    reach, thick, proud = LEDGE
+    pieces = []
+    for x0, x1, sill, head in holes:
+        pieces.append(("block", box((x0 - reach, sill - LEDGE_GAP - thick, -FACADE - proud),
+                                    (x1 + reach, sill - LEDGE_GAP, -FACADE))))
+        pieces.append(("block", box((x0 - reach, head + LEDGE_GAP, -FACADE - proud),
+                                    (x1 + reach, head + LEDGE_GAP + thick, -FACADE))))
+    return pieces
 
 
 def front(storeys, curtain=False):
