@@ -24,8 +24,13 @@ region, the regions the list labelled):
 
 The faces keep their parts (parts.npy): physics, the measures and every reader of the parts take a part a face; only
 the look reads the texels (`<take>/texels.npz` in the split and the parts rows, one uint16 part map a picture, as
-`piece<k>` of the model's pieces in their file order).
+`piece<k>` of the model's pieces in their file order). The paint (place_line.paint_take) turns them into each
+surface's mask, the pictures laid side by side (`laid_pieces`, `surface_masks`), and each .ply's corner UVs moved
+into that layout (`atlas_uv`): `masks_written`, which the bake (make_chunky.texel_masks) and the benchmark's look
+(tools/props/bench/run/finish.look_job) mix each recipe by (#182).
 """
+import pathlib
+
 import numpy as np
 
 # How far along the surface, in border steps (border_step), a texel may reach for the finish its colour names. On tc3s
@@ -266,3 +271,71 @@ def take_texels(mesh, texels, regions, split):
 def pieces_of(texels):
     """The piece numbers the views row measured a picture of, in order."""
     return sorted(int(name[len("face"):]) for name in texels if name.startswith("face"))
+
+
+def laid_pieces(texels):
+    """The parts row's texel maps (`texels.npz`: piece<k>, one part map a picture) laid side by side in piece order,
+    each read nearest onto the largest one's side, so one picture holds them all; and the piece numbers in their
+    order. The look reads one mask a finish in this layout (surface_masks) on the UVs atlas_uv moves into it."""
+    pieces = sorted(int(name[len("piece"):]) for name in texels if name.startswith("piece"))
+    rows, columns = max((texels[f"piece{piece}"].shape for piece in pieces), key=lambda shape: shape[0] * shape[1])
+    laid = []
+    for piece in pieces:
+        found = np.asarray(texels[f"piece{piece}"])
+        down = (np.arange(rows) * found.shape[0]) // rows
+        across = (np.arange(columns) * found.shape[1]) // columns
+        laid.append(found[down[:, None], across[None, :]])
+    return np.concatenate(laid, axis=1), pieces
+
+
+def surface_masks(laid, surface_of_part, count):
+    """Each surface's mask (uint8, 255 on its texels) of a laid part map (laid_pieces): a texel takes the surface of
+    its part (`surface_of_part`, -1 for a part no surface names, and NO_PART), so a finish's border on the model is
+    the texels' and not its triangles'."""
+    surface = np.full(int(max(int(laid.max()), len(surface_of_part))) + 1, -1, dtype=np.int64)
+    surface[:len(surface_of_part)] = surface_of_part
+    found = surface[laid]
+    return [np.where(found == index, 255, 0).astype(np.uint8) for index in range(count)]
+
+
+def atlas_uv(corner_uv, piece_of, pieces):
+    """The faces' corner UVs (n x 3 x 2, glTF's: v up) moved into laid_pieces' layout: piece `pieces[k]`'s u into
+    the k-th of len(pieces) equal columns; NaN for a face of a piece with no texel map."""
+    slot = np.full(int(max(int(piece_of.max()), max(pieces))) + 1, -1)
+    slot[pieces] = np.arange(len(pieces))
+    column = slot[piece_of].astype(float)
+    moved = np.array(corner_uv, dtype=float)
+    moved[..., 0] = (moved[..., 0] + column[:, None]) / len(pieces)
+    moved[column < 0] = np.nan
+    return moved
+
+
+def masks_written(folder, model_file, texels_file, surface_of_part, order, face_labels, inside, shares):
+    """The look's texel masks of a labelled take (#182) in <folder>/texels/: `<surface>.png` (surface_masks over
+    laid_pieces of the parts row's `texels_file`), `uv.npz` (per surface the corner UVs of its .ply's faces in their
+    order, atlas_uv's: the faces of `order`'s index in `face_labels` that are `inside`, as labels.write_parts cuts
+    them) and `masks.json` (the surfaces base first, by `shares`, then the rest; the pieces; the picture's side), which
+    the bake mixes each recipe by (make_chunky.texel_masks). The model's own UVs come from `model_file` read as the
+    views row read them (route_cast.loaded), its faces in the paint's order. Its record: drawn, else why not."""
+    import json
+    from PIL import Image
+    import route_cast
+    if texels_file is None or not pathlib.Path(texels_file).exists():
+        return {"drawn": False, "why": "no texels.npz (the model has no picture)"}
+    model = route_cast.loaded(model_file)
+    if len(model.corner_uv) != len(face_labels):
+        return {"drawn": False, "why": f"the model has {len(model.corner_uv)} faces, the paint {len(face_labels)}"}
+    with np.load(texels_file) as found:
+        laid, pieces = laid_pieces(dict(found))
+    corner_uv = atlas_uv(model.corner_uv, model.piece_of, pieces)
+    if np.isnan(corner_uv[inside]).any():
+        return {"drawn": False, "why": "a face of a piece with no picture or no UVs"}
+    out = pathlib.Path(folder) / "texels"
+    out.mkdir()
+    for name, mask in zip(order, surface_masks(laid, surface_of_part, len(order))):
+        Image.fromarray(mask).save(out / f"{name}.png")
+    np.savez_compressed(out / "uv.npz", **{name: corner_uv[inside & (face_labels == index)].astype(np.float32)
+                                           for index, name in enumerate(order)})
+    based = sorted(order, key=lambda name: -shares.get(name, 0.0))
+    (out / "masks.json").write_text(json.dumps({"order": based, "pieces": pieces, "side": list(laid.shape)}))
+    return {"drawn": True, "pieces": len(pieces), "side": list(laid.shape)}

@@ -41,6 +41,8 @@ kept, and the branch's later steps are not run for it (one try each: no step is 
   list is Claude's (EUR 0), as on a place's line. A `finish` gap leaves the checks standing. Then `physics`
   (weighed_step, #161's rules through sim.py): each finish part's class its surface's, each of make's hulls the class
   of the faces inside it, a real-world mass a part (Claude's answer, EUR 0) held to NVIDIA's bulk density band.
+  And `look` (#182, look_step): the finish drawn as the bake paints it, each slot's recipe mixed by its texel mask on
+  the final model's own UVs, through the card queue (look.py).
 Nothing is taken into score_lib, and the library read is a scratch checkout (--library), never the shared one.
 
 **The measures** (`measure`, free, this PC's processor): each branch's made model (A's finished final.glb, B's final
@@ -81,6 +83,8 @@ import check  # noqa: E402  (tools/props/closeup: the close-up style)
 import finish  # noqa: E402  (branch B's finish: the library finish method)
 
 SCRIPT = HERE / "closeup.py"
+LOOK = HERE / "look.py"  # the finish's look drawn by its texel masks (look_step, #182)
+LOOK_SMALL = 360  # the look's small copy, a page's
 PLACE = "bench163"  # the benchmark's place name: its takes, its inventory's scene, its scratch place folder
 SIZE = 2048  # the close-up's pixels square (#162: Pro draws at 2K)
 FOV = 30.0  # vertical degrees, as tools/usd/compare.py draws
@@ -222,10 +226,11 @@ def blender_box(low, high, up_axis):
     return [low[0], -high[2], low[1]], [high[0], -low[2], high[1]]
 
 
-def queued_blender(job_name, arguments, log):
-    """closeup.py run on this PC's card through the card queue (place_build/render.queued); its exit."""
+def queued_blender(job_name, arguments, log, script=SCRIPT):
+    """`script` (closeup.py, else look.py) run on this PC's card through the card queue (place_build/render.queued);
+    its exit."""
     from score.stages.place_build import render
-    command = render.queued(job_name, SCRIPT, arguments, seconds=RENDER_SECONDS, card_gb=str(CARD_GB),
+    command = render.queued(job_name, script, arguments, seconds=RENDER_SECONDS, card_gb=str(CARD_GB),
                             memory_gb=MEMORY_GB)
     with open(log, "w") as out:
         return subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, cwd=REPO).returncode
@@ -572,6 +577,10 @@ def branch_b(kept, row, material, rgba, scratch, library):
                   scratch)
         run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba, row, library))],
                   scratch)
+        if kept_output(kept, row["id"], "B", "finish"):
+            parted = checked_out(kept, row["id"], "B", "finish", scratch / "B" / "look-finish")
+            camera = json.loads((rgba.parent / "row.json").read_text())["camera"]
+            run_steps(kept, row["id"], "B", [("look", look_step(model, parted, row, camera))], scratch)
     if not kept.entry(row["id"], "B", "physics") and all(kept_output(kept, row["id"], "B", step)
                                                          for step in ("final", "sim", "finish")):
         folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"weighed-{step}")
@@ -609,6 +618,22 @@ def weighed_step(folders, row, material, picture):
         found = sim.physical(hulls, classes, parts, row["size"])
         (folder / "physics.json").write_text(json.dumps(found, indent=1))
         shutil.copyfile(folders["sim"] / "hulls.glb", folder / "hull.glb")
+    return make
+
+
+def look_step(model, parted, row, camera, draw=queued_blender):
+    """The finish's look as the bake paints it (#182, finish.look_job): the made model whole, each slot's recipe mixed
+    by its texel mask on the model's own UVs, drawn by look.py through the card queue from the close-up's `camera`;
+    look.png, its job and masks, and a LOOK_SMALL side copy for a page."""
+    def make(folder):
+        from PIL import Image
+        job = finish.look_job(parted, row["id"], model, camera, folder)
+        code = draw(f"bench-look-{row['id']}", [str(job)], folder / "blender.log", LOOK)
+        if code or not (folder / "look.png").is_file():
+            lines = (folder / "blender.log").read_text(errors="replace").splitlines()
+            raise StepFailed(f"look.py exited {code}: {' | '.join(lines[-6:])}")
+        with Image.open(folder / "look.png") as drawn:
+            drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
     return make
 
 

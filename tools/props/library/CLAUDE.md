@@ -90,7 +90,11 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   into a solid (thickened 5 mm inward, rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which
   the model check fails), cuts it to 20k triangles, cuts its openings (a doorway, porthole or window through its
   depth, or a `recess`: a kit-frame box on any face, a moving door's room in its holder with a back, #72), lays its decals on clear flat spots
-  (`clear_spot`) and bakes the library from the full model onto it (its shape relief kept in the normal map). The
+  (`clear_spot`) and bakes the library from the full model onto it (its shape relief kept in the normal map). Where the
+  paint wrote its texel masks (`<labelled>/texels/`, #182: each surface's texels of the raw take's own picture,
+  route_texels.masks_written), the full model keeps the raw take's UVs (`TEXELS_UV`, read with each .ply as
+  `read_ply` keeps its faces) and its surfaces bake as one material, each recipe mixed in by its mask
+  (`recipes.masked`, bake.Atlas.bake_from `masks`), so a border is TRELLIS.2's colour edge, not its triangles. The
   picture's colours never reach it (method B; round four's picture layer gave every piece its own rust and stains,
   "inconsistent with the rest of the room", and is gone). It reads the labelled parts itself (`read_ply`), never with
   Blender's PLY importer or `Mesh.validate`, which reorder a big part's faces differently each run: two bakes of one

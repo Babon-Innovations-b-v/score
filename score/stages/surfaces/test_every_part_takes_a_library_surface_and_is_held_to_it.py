@@ -488,6 +488,14 @@ tests it turned red:
   folded); filled `parts[rows, columns]` -> `np.where(empty, 0, parts)` (an empty texel reads part 0);
   route_views.py texel_regions `vq(...)[0]` -> `(vq(...)[0] + 1) % len(centres)` (each texel the next region);
   route_split.py `texels_saved(` called -> not called (no texels.npz); route_parts.py the texels' copy -> `pass`
+- route_texels.py (#182; the TEXEL_MASKS rows, the paint's texel masks the bake reads): atlas_uv `(moved[..., 0] +
+  column[:, None]) / len(pieces)` -> `moved[..., 0] / len(pieces)` (the second piece read in the first's column);
+  masks_written `corner_uv[inside & (face_labels == index)]` -> `corner_uv[face_labels == index]` (UVs for faces the
+  .ply has not); `-shares.get(name, 0.0)` -> `shares.get(name, 0.0)` (the smallest surface the base); `if
+  np.isnan(corner_uv[inside]).any():` -> `if False:` (a piece with no picture drawn); `not
+  pathlib.Path(texels_file).exists()` dropped (no texels: raised); surface_masks `surface[laid]` ->
+  `surface[np.zeros_like(laid)]` (every texel the first part's); make_chunky.py texel_masks' masks.json check ->
+  `pass` (a take with no masks: raised)
 """
 import contextlib
 import copy
@@ -2154,6 +2162,10 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert (texels[texels.files[1]][covered] == region_of(views, RED)).all()
     for case, paint, finish_two, where, part in TEXELS:
         assert texel_strip(paint, finish_two, where) == part, case
+    with tempfile.TemporaryDirectory() as temporary:
+        drawn = texel_masks_drawn(pathlib.Path(temporary))
+    for case, measure, want in TEXEL_MASKS:
+        assert drawn[measure] == want, (case, drawn[measure])
     for case, seen_share, reachable, faulted in SEEN:
         judged = route_views.take_faults(TAKE, {**record[TAKE], "seen_share": seen_share, "reachable_share": reachable})
         assert bool(judged) == faulted, (case, judged)
@@ -3822,6 +3834,93 @@ def texel_strip(paint, finish_two, where):
         return int(parts[0][int((1.0 - where[2]) * 40), int(where[1] * 400)])
     at = np.argmin((x - where[0]) ** 2 + (y - where[1]) ** 2 + (face_of < 0) * 1e9)
     return int(parts[0].ravel()[at])
+
+
+# The paint's texel masks (route_texels.masks_written, #182), which the bake mixes each recipe by
+# (make_chunky.texel_masks) on the raw take's own UVs: on a strip 1 x 0.1 of 10 cells, its u its x, the faces under x
+# 0.5 part 0 (surface "a"), the rest part 1 ("b"), the parts row's texels part 1 from u 0.6 on, the faces over x 0.9
+# outside the finished model's box. (case, the measure texel_masks_drawn takes, what it must be.)
+TEXEL_MASKS = [
+    ("a texel past the faces' border is not its face's surface", ("b", 0.55), 0),
+    ("but its texel's", ("a", 0.55), 255),
+    ("and from the texels' border on, the other", ("b", 0.65), 255),
+    ("each .ply's UVs are its faces' own, in file order", "own uv", True),
+    ("a face outside the finished box has no UVs, as it has no .ply face", "uv rows", {"a": 10, "b": 8}),
+    ("the bake reads the largest surface first", "order", ["a", "b"]),
+    ("a model with no texels draws none, and the bake reads none", "no texels", (False, None)),
+    ("a second piece's texels are laid in a column of their own", "second piece", ("b", 255)),
+    ("a piece with no picture draws none", "no picture", False),
+]
+
+
+def texel_strip_model(path, pieces=1, picture=True):
+    """A glb of `pieces` strips 1 x 0.1 of 10 cells (each its own picture; the last none when not `picture`), the
+    n-th 0.2 n up, its u its x and v 10 y."""
+    grid = np.array([(x * 0.1, y * 0.1, 0.0) for y in range(2) for x in range(11)])
+    cells = np.array([face for x in range(10) for face in ((x, x + 1, x + 12), (x, x + 12, x + 11))])
+    found = []
+    for piece in range(pieces):
+        strip = trimesh.Trimesh(grid + (0, 0.2 * piece, 0), cells, process=False)
+        if picture or piece < pieces - 1:
+            strip.visual = trimesh.visual.TextureVisuals(uv=np.c_[grid[:, 0], grid[:, 1] * 10], material=PBRMaterial(
+                baseColorTexture=Image.new("RGB", (4, 4), RED)))
+        found.append(strip)
+    trimesh.Scene(found).export(str(path))
+    return trimesh.load(str(path), force="mesh", process=False)
+
+
+def texel_masks_drawn(folder):
+    """The TEXEL_MASKS measures: the strip painted as paint_take paints it (labels.write_parts, then
+    route_texels.masks_written), read back as make_chunky.texel_masks reads it."""
+    import ast
+    import labels
+    import route_texels  # by its bare name, as place_line imports it
+    tree = ast.parse((REPO / "tools/props/library/inside/make_chunky.py").read_text())
+    space = {"json": json, "pathlib": pathlib}
+    exec(compile(ast.Module(body=[node for node in tree.body if isinstance(node, ast.FunctionDef)
+                                  and node.name == "texel_masks"], type_ignores=[]), "make_chunky", "exec"), space)
+    texel_masks = space["texel_masks"]
+
+    def painted(name, pieces=1, picture=True, texels=True):
+        out = folder / name
+        out.mkdir()
+        mesh = texel_strip_model(out / "raw.glb", pieces, picture)
+        surface = (mesh.triangles_center[:, 0] >= 0.5).astype(int)
+        texel_file = out / "texels.npz"
+        if texels:
+            u = (np.arange(40) + 0.5) / 40  # the second piece's part 1 under u 0.4
+            np.savez(texel_file, **{f"piece{piece}": np.repeat((u >= 0.6) if piece == 0 else (u < 0.4), 8, 0).reshape(
+                40, 8).T.astype(np.uint16) for piece in range(pieces)})
+        bounds = np.array([[-1.0, -1.0, -1.0], [0.9, 1.0, 1.0]])
+        shares, inside = labels.write_parts(mesh, surface, ["a", "b"], surface, None, bounds, out)
+        record = route_texels.masks_written(out, out / "raw.glb", texel_file, [0, 1], ["a", "b"], surface, inside,
+                                            shares)
+        return out, mesh, record
+
+    out, mesh, record = painted("strip")
+    masks = texel_masks(out)
+    pictures = {name: np.asarray(Image.open(path)) for name, path in masks["order"]}
+
+    def at(name, u, v=0.5, picture=None):
+        found = pictures[name] if picture is None else picture
+        return int(found[int((1 - v) * found.shape[0]), min(int(u * found.shape[1]), found.shape[1] - 1)])
+
+    own = True
+    for name in ("a", "b"):
+        ply = trimesh.load(out / f"{name}.ply", process=False)
+        own &= bool(np.allclose(masks["uv"][name][..., 0].mean(1), ply.triangles_center[:, 0], atol=1e-5))
+    found = {("b", 0.55): at("b", 0.55), ("b", 0.65): at("b", 0.65), ("a", 0.55): at("a", 0.55), "own uv": own,
+             "uv rows": {name: len(uv) for name, uv in masks["uv"].items()}, "order": [name for name, _ in masks["order"]]}
+    out, _, record = painted("bare", texels=False)
+    found["no texels"] = (record["drawn"], texel_masks(out))
+    out, _, record = painted("two", pieces=2)
+    second = texel_masks(out)
+    model = route_cast.loaded(out / "raw.glb")
+    face = int(np.flatnonzero((model.piece_of == 1) & (model.corner_uv[..., 0].mean(1) < 0.3))[0])
+    u, v = route_texels.atlas_uv(model.corner_uv, model.piece_of, [0, 1])[face].mean(0)
+    found["second piece"] = ("b", at("b", u, v, np.asarray(Image.open(dict(second["order"])["b"]))))
+    found["no picture"] = painted("half", pieces=2, picture=False)[2]["drawn"]
+    return found
 
 
 def two_boxes(folder):

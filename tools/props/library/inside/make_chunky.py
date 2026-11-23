@@ -102,16 +102,20 @@ DRIFT_SHARE = 0.03
 # leaving the tube's underside over its docking leg as it stands (on five feet), would have had that quadrant brought
 # 0.56 m down to the floor, a sheet hanging off its front (score #156, 2026-11-22).
 LEVEL_BAND, LEVEL_GAP, LEVEL_MOST = 0.25, 0.03, 0.15
+# The full model's UV map holding its raw take's own UVs, which its texel masks are read on (texel_masks).
+TEXELS_UV = "texels"
 # glTF (y up, -z forward), which labels.py wrote in, onto Blender's frame (z up).
 GLTF_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 
 
 def full_model(parts_folder, name):
-    """The full-detail model: every material's part imported and joined, its slot named for the material, welded
-    and wound outward."""
+    """The full-detail model: every material's part imported and joined, its slot named for the material, its raw
+    take's own UVs on its TEXELS_UV map where the paint wrote its texel masks (texel_masks), welded and wound
+    outward."""
     found = []
+    masks = texel_masks(parts_folder)
     for path in sorted(pathlib.Path(parts_folder).glob("*.ply")):
-        part = read_ply(path)
+        part = read_ply(path, masks["uv"][path.stem] if masks and path.stem in masks["uv"] else None)
         part.data.materials.clear()
         part.data.materials.append(shapes.slot(path.stem))
         laid_flat(part)
@@ -129,7 +133,7 @@ def full_model(parts_folder, name):
 
 
 def kept_triangles(corners):
-    """Of a triangle list (n x 3 vertex numbers), those Blender's mesh check would keep, in file order: no corner
+    """Of a triangle list (n x 3 vertex numbers), which Blender's mesh check would keep, in file order: no corner
     repeated, each set of three corners once (its first). Blender's PLY importer runs that check (Mesh.validate),
     whose dropped faces it reorders differently each run, so two bakes of one take got different cut-down copies,
     unwraps and maps (garage_door_1, 2026-10-28: mean 36 to 39 of 255 apart on base colour)."""
@@ -138,12 +142,27 @@ def kept_triangles(corners):
     _, first = np.unique(np.sort(corners, axis=1), axis=0, return_index=True)
     once = np.zeros(len(corners), dtype=bool)
     once[first] = True
-    return corners[whole & once]
+    return whole & once
 
 
-def read_ply(path):
+def texel_masks(parts_folder):
+    """The paint's texel masks of a labelled take (score/stages/surfaces/route_texels.masks_written, #182), or None
+    where it wrote none: {"order": [(surface, its mask's path)], base first; "uv": {surface: its .ply's corner UVs,
+    n x 3 x 2 in its faces' file order}}."""
+    import numpy as np
+    folder = pathlib.Path(parts_folder) / "texels"
+    if not (folder / "masks.json").exists():
+        return None
+    order = json.loads((folder / "masks.json").read_text())["order"]
+    with np.load(folder / "uv.npz") as found:
+        uv = {name: found[name] for name in found.files}
+    return {"order": [(name, folder / f"{name}.png") for name in order], "uv": uv}
+
+
+def read_ply(path, corner_uv=None):
     """A labelled part (labels.py's binary .ply: float x, y, z; triangles) as a new object in the scene, its triangles
-    kept_triangles' in file order, so the same file gives the same mesh every run."""
+    kept_triangles' in file order, so the same file gives the same mesh every run; `corner_uv` (a corner UV a face of
+    the file, n x 3 x 2) laid on its TEXELS_UV map, the kept faces' own."""
     import numpy as np
     data = path.read_bytes()
     end = data.index(b"end_header\n") + len(b"end_header\n")
@@ -156,7 +175,8 @@ def read_ply(path):
                          offset=end + counts["vertex"] * 12)
     if (rows["count"] != 3).any():
         raise SystemExit(f"{path}: a face that is not a triangle")
-    corners = kept_triangles(rows["corners"]).ravel()
+    kept = kept_triangles(rows["corners"])
+    corners = rows["corners"][kept].ravel()
     mesh = bpy.data.meshes.new(path.stem)
     mesh.vertices.add(counts["vertex"])
     mesh.vertices.foreach_set("co", points)
@@ -165,6 +185,10 @@ def read_ply(path):
     mesh.polygons.add(len(corners) // 3)
     mesh.polygons.foreach_set("loop_start", np.arange(0, len(corners), 3, dtype=np.int32))
     mesh.update()
+    if corner_uv is not None:
+        if len(corner_uv) != counts["face"]:
+            raise SystemExit(f"{path}: {counts['face']} faces, its texel UVs {len(corner_uv)}")
+        mesh.uv_layers.new(name=TEXELS_UV).data.foreach_set("uv", np.asarray(corner_uv, "<f4")[kept].ravel())
     part = bpy.data.objects.new(path.stem, mesh)
     bpy.context.scene.collection.objects.link(part)
     return part
@@ -475,8 +499,10 @@ def make_piece(entry, job, out):
     with_decals(whole, decals)
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), specs, one_piece=True,
                         per_face=entry.get("per_face", False), split=True)
+    masks = texel_masks(entry["parts"])
     atlas.bake_from(whole, low, specs, job["wear"], job["dirt"], job["seed"],
-                    bake_reach(entry["size"]), entry.get("foot"))
+                    bake_reach(entry["size"]), entry.get("foot"),
+                    masks=masks and [(name, path) for name, path in masks["order"] if name in specs])
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,

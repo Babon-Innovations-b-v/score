@@ -1080,6 +1080,33 @@ def shaded(found):
     return pf.Material(surface=surface, displacement=found.displacement)
 
 
+def masked(entries, shader_of, relief=True, uv_map="texels"):
+    """One material of several surfaces, each drawn by its texel mask (#182): `entries` [(its mask picture's path,
+    its Channels)] base first, each one's material (`shader_of(channels)`: shaded, or a channel emitted) mixed over
+    those before it by its mask (Non-Color, its first channel) read on the model's own UVs (`uv_map`, the raw take's,
+    make_chunky.TEXELS_UV), its relief mixed alike where `relief`. A mask read between texels blends its border over
+    one texel."""
+    import bpy
+    surface, displacement = None, None
+    uv = pf.nodes.shader.uv_map(uv_map=uv_map)
+    for path, found in entries:
+        made = shader_of(found)
+        if surface is None:
+            surface, displacement = made.surface, found.displacement if relief else None
+            continue
+        image = bpy.data.images.load(str(path), check_existing=True)
+        image.colorspace_settings.name = "Non-Color"
+        factor = pf.nodes.math.separate_xyz(pf.nodes.texture.image(vector=uv, image=pf.Image(image),
+                                                                   extension="EXTEND").color).x
+        surface = pf.nodes.shader.mix_shader(factor, surface, made.surface)
+        if relief and (found.displacement is not None or displacement is not None):
+            zero = (0.0, 0.0, 0.0)
+            displacement = pf.nodes.math.mix(a=zero if displacement is None else displacement,
+                                             b=zero if found.displacement is None else found.displacement,
+                                             factor=factor, data_type=pf.NodeDataType.FLOAT_VECTOR)
+    return pf.Material(surface=surface, displacement=displacement)
+
+
 def emitted(value):
     """One channel given off as light, for baking or scoring it exactly (a colour node, or a number as grey)."""
     if isinstance(value, (int, float)):

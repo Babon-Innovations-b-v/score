@@ -474,11 +474,13 @@ def feet_rows(entry, inputs, take):
 
 def paint_take(inputs, out, take, record, records):
     """One take painted from its part records (method_surfaces): each part's surface, the labelled folder and
-    faces.npz, its report. The surfaces are the records' own (the scene palette offered them), named in the order the
+    faces.npz, its texel masks (route_texels.masks_written: the parts row's texels.npz, each surface's texels on the
+    raw take's own UVs, which the bake mixes each recipe by), its report. The surfaces are the records' own (the scene palette offered them), named in the order the
     parts first name them; a take no part of which names a surface stops here."""
     import numpy as np
     import labels
     import patchy
+    import route_texels
     import split_compare
     import stored_parts
     entry = data_of(inputs)["takes"][take]
@@ -506,13 +508,17 @@ def paint_take(inputs, out, take, record, records):
     if standing:
         tall = max((row["size"][2] for row in standing if len(row.get("size") or ()) == 3), default=None)
         moved.vertices, levelled = levelled_feet(moved.vertices, moved.faces, tall)
-    shares, _ = labels.write_parts(moved, face_labels, order, part_of, painted_parts, bounds, folder)
+    shares, inside = labels.write_parts(moved, face_labels, order, part_of, painted_parts, bounds, folder)
+    surface_of_part = [order.index(names[surface]) if names[surface] in order else -1 for surface in safe]
+    texels = route_texels.masks_written(folder, labels.PIXAL / f"{take}.glb", inputs["parts"] / take / "texels.npz",
+                                        surface_of_part, order, face_labels, inside, shares)
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(folder)
     report = {"take": take, "method": record["method"], "kind": entry["kind"], "parts": records, "shares": shares,
               "judge_unknown": record["judge_unknown"], "unnamed_parts": unnamed,
               "finishes": record.get("finishes", []),
               "unnamed_share": round(sum(row["share"] for row in records if row["part"] in unnamed), 4),
               "painted_parts": int(painted_parts.max()) + 1, "upright_gap": round(gap, 4), "feet": levelled,
+              "texels": texels,
               "patchy": patchy.score(kept, kept_labels, kept_parts, patchy.labelled_regions(folder, kept))}
     stored_parts.write(folder, take, target=folder)
     (folder / "labels.json").write_text(json.dumps(report, indent=1))

@@ -23,6 +23,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.weighed_step: a part's surface class not read (the given class for every part) -> the plastic box touches
   with metal's 0.3; its parts' words not asked -> the ask does not name the grey plastic
 - finish.same_family: a truth surface with no family counted as a mismatch -> its share is 0.0, not unjudged
+- finish.look_job: the texels.npz check dropped -> a finish with none fails on numpy's own error, not its reason;
+  its part's list settings not read (part_spec's `set_spec` dropped) -> the look's spec is not the listed roughness
+  0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182)
 - finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
   the listed roughness 0.4; its class not read -> the box's look has no class
 """
@@ -159,6 +162,35 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
                            (side["surfaces"][0], "surface/simready_m_atlas_a01@1")]
 
 
+def looked(tmp_path, name, view):
+    """The made box's look step (#182) on its finish (finished_box's) with a stand-in look.py: (whether its gap names
+    the missing texels.npz; the masks its job wrote, its first mask's middle texel, its first spec's roughness,
+    its small copy's size) once the finish's texels name part 0 throughout."""
+    folder, model = tmp_path / "finish", tmp_path / "made.glb"
+    drawn = []
+
+    def draw(_job_name, arguments, log, script):
+        job = json.loads(open(arguments[0]).read())
+        drawn.append((job, script))
+        Image.new("RGBA", (job["side"], job["side"])).save(job["out"])
+        open(log, "w").write("drawn\n")
+        return 0
+    bare = tmp_path / "look-bare"
+    bare.mkdir()
+    with pytest.raises(RuntimeError) as refused:
+        bench.look_step(model, folder, {"id": name}, view, draw)(bare)
+    np.savez(folder / "surfaces-parts" / name / "texels.npz", piece0=np.zeros((4, 4), np.uint16))
+    out = tmp_path / "look"
+    out.mkdir()
+    bench.look_step(model, folder, {"id": name}, view, draw)(out)
+    (job, script), = drawn
+    assert script == bench.LOOK and job["eye"] == view["eye"] and job["glb"] == str(model), job
+    with Image.open(out / f"look-{bench.LOOK_SMALL}.png") as small:
+        size = small.size
+    return ("no texels.npz" in str(refused.value), sorted(path.name for path in out.glob("mask-*.png")),
+            int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size)
+
+
 def drawer(scale):
     """A stand-in for Blender: the object a red square with its true alpha; its shadow a half-dark band below it."""
     def draw(_job_name, arguments, log):
@@ -240,6 +272,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert len(side["face_material"]) == len(side["faces"]) and (side["face_material"] >= 0).all()
         assert set(side["surfaces"].values()) <= set(addresses.values()), side["surfaces"]
         assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
+        assert looked(tmp_path, name, view) == (
+            True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL)), name
 
     made = []
 

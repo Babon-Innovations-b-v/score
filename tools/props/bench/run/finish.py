@@ -6,6 +6,7 @@ library surface and the measures can hold its finish split against NVIDIA's face
     finished(model, close_up, row, library, folder)   # the route's rows run on one made model into `folder`
     face_finishes(folder, take)                       # (part a face, each part's surface) of a finished take
     part_looks(folder, take)                          # each part's look as its surface is set on it (#172)
+    look_job(folder, take, model, camera, out)        # its look drawn by the texel masks, look.py's job (#182)
     surface_look(record)                              # a library surface's own look, from its recipe
 
 **The benchmark place's surface library** is score_lib's surfaces in force as the finish route offers a scene's own
@@ -47,6 +48,9 @@ NEUTRAL = "#808080"  # the default token of a recipe with no colour of its own
 RECORD = "surface.json"
 WEAR = {"level": "new", "dirt": 0.0}
 SEED = 168
+# The look's picture (look_job, look.py): its side and samples, #181's after pictures' (r3edges), a preview that
+# never ships.
+LOOK_SIDE, LOOK_SAMPLES = 1080, 32
 
 
 def token_of(linear):
@@ -305,3 +309,72 @@ def face_finishes(folder, take):
     addresses = json.loads((folder / "surface-library" / "addresses.json").read_text())
     part_of = np.load(folder / "surfaces-parts" / take / "parts.npy")
     return part_of, {row["part"]: addresses.get(row["judge"], row["judge"]) for row in parts["parts"]}
+
+
+def z_up(vector):
+    """glTF's Y-up (x, y, z) as Blender's Z-up after its glTF import: (x, -z, y)."""
+    return [vector[0], -vector[2], vector[1]]
+
+
+def slot_of(row):
+    """The surface a finish part bakes as (route_bake.named_records): its settings' surface, else its own."""
+    from score.stages.surfaces import route_settings
+    return route_settings.settings_name(row["judge"], row["settings"]) if row.get("settings") else row["judge"]
+
+
+def part_spec(library, row, colours, decals):
+    """A finish part's recipe spec as the bake paints it: its surface's variant in the bench library in its settings'
+    token, roughness, metal and seed (route_settings.set_spec; a part the colour check moved its surface's own), its
+    slot's text decals (`decals`, the spec's)."""
+    import library as surface_library
+    from score.stages.surfaces import route_settings
+    settings = row.get("settings")
+    token = settings["token"] if settings else surface_library.variants(library)[row["judge"]]["token"]
+    colours.setdefault(token, surface_library.linear(token))
+    spec = surface_library.spec(library, row["judge"], token, colours)
+    if settings:
+        spec = route_settings.set_spec(spec, settings, colours)
+    spec.setdefault("seed", settings.get("seed", 0) if settings else 0)
+    return {**spec, "decals": decals} if decals else spec
+
+
+def look_job(folder, take, model, camera, out):
+    """The finish's look drawn as the bake paints it (#182): one job for look.py, written into `out` with a mask a
+    slot (`mask-<n>.png`), from the finish `folder`'s parts (surfaces-parts: parts.json and the take's texels.npz),
+    each slot's recipe spec (part_spec) mixed by its texel mask on the made `model`'s own UVs, its own vertex normals
+    kept (the model drawn whole, never part by part), from the close-up's `camera` ({eye, aim, fov}, Blender's frame).
+    A take with no texels.npz, or texels of more than one picture, has no look here: the raised reason says so."""
+    import library as surface_library
+    import route_texels
+    from PIL import Image
+    texels_file = folder / "surfaces-parts" / take / "texels.npz"
+    if not texels_file.exists():
+        raise RuntimeError(f"{take}: the finish wrote no texels.npz (the model has no picture)")
+    with np.load(texels_file) as found:
+        laid, pieces = route_texels.laid_pieces(dict(found))
+    if len(pieces) != 1:
+        raise RuntimeError(f"{take}: texels of {len(pieces)} pictures; the look draws one picture's UVs")
+    listed = json.loads((folder / "surfaces-parts" / "parts.json").read_text())["takes"][take]
+    library = json.loads((folder / "surface-library" / "materials.json").read_text())
+    colours = surface_library.token_colours(library)
+    rows = {row["part"]: row for row in listed["parts"]}
+    decals = {}
+    for decal in listed.get("decals", []):
+        decals.setdefault(slot_of(rows[decal["part"]]), []).append({
+            "image": str(folder / "surfaces-parts" / take / decal["picture"]), "at": z_up(decal["at"]),
+            "normal": z_up(decal["normal"]), "up": z_up(decal["up"]), "size_m": decal["size"],
+            "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0),
+            "ink": surface_library.linear(decal["ink_token"]) if decal.get("ink_token") else None})
+    slots = sorted({slot_of(row) for row in rows.values()},
+                   key=lambda slot: -sum(row["share"] for row in rows.values() if slot_of(row) == slot))
+    surface_of_part = [slots.index(slot_of(rows[part])) if part in rows else -1 for part in range(max(rows) + 1)]
+    masks = []
+    for number, (slot, mask) in enumerate(zip(slots, route_texels.surface_masks(laid, surface_of_part, len(slots)))):
+        Image.fromarray(mask).save(out / f"mask-{number}.png")
+        row = next(row for row in rows.values() if slot_of(row) == slot)
+        masks.append({"slot": slot, "mask": str(out / f"mask-{number}.png"), "share": round(float(mask.mean() / 255), 4),
+                      "spec": part_spec(library, row, colours, decals.get(slot))})
+    job = {"glb": str(model), "masks": masks, **camera, "side": LOOK_SIDE, "samples": LOOK_SAMPLES,
+           "out": str(out / "look.png")}
+    (out / "look.json").write_text(json.dumps(job, indent=1, default=float))
+    return out / "look.json"

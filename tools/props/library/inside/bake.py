@@ -262,12 +262,13 @@ def channel_materials(found_by_slot, channel):
 
 
 def shaded_materials(found_by_slot):
-    found = []
-    for channels in found_by_slot:
-        material = recipes.shaded(channels).item()
-        material.displacement_method = "BUMP"
-        found.append(material)
-    return found
+    return [bumped(recipes.shaded(channels).item()) for channels in found_by_slot]
+
+
+def bumped(material):
+    """The material with its displacement drawn as bump."""
+    material.displacement_method = "BUMP"
+    return material
 
 
 def slot_names(item):
@@ -452,12 +453,17 @@ class Atlas:
             item.data.materials[index] = with_target(material, self.pictures["normal"])
         self._bake("normal", "NORMAL")
 
-    def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None):
+    def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None, masks=None):
         """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
         real edges, its lumps smoothed: smoothly_shaded) and baked onto `low`'s place in the shared pictures, each map's
-        faces into its own set (Blender bakes a face into its material's active picture)."""
+        faces into its own set (Blender bakes a face into its material's active picture). `masks` (the paint's texel
+        masks, [(surface, its mask picture)] base first: make_chunky.texel_masks): every slot of those surfaces drawn
+        as one material, each surface's recipe mixed in by its mask on the model's own UVs (recipes.masked), so a
+        border is the texture's colour edge, not the triangles' (#182); any other slot its own."""
         smoothly_shaded(high, specs)
         found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(high)]
+        masked = [(path, recipes.channels(specs[name], wear, dirt, seed, foot)) for name, path in masks or ()]
+        mixed = [name in dict(masks or ()) for name in slot_names(high)]
         targets = []
         for number in range(self.maps):
             target_name = "bake_target" if self.maps == 1 else f"bake_target_{number + 1}"
@@ -471,11 +477,14 @@ class Atlas:
         select_for_bake([high, low], low)
         across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
         for channel, _ in CHANNELS:
+            mix = masked and recipes.masked(masked, lambda found: recipes.emitted(getattr(found, channel)),
+                                                  relief=False).item()
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
-                high.data.materials[index] = material
+                high.data.materials[index] = mix if mixed[index] else material
             self._bake_maps(targets, channel, "EMIT", across)
+        mix = masked and bumped(recipes.masked(masked, recipes.shaded).item())
         for index, material in enumerate(shaded_materials(found_by_slot)):
-            high.data.materials[index] = material
+            high.data.materials[index] = mix if mixed[index] else material
         self._bake_maps(targets, "normal", "NORMAL", across)
 
     def _bake_maps(self, targets, channel, kind, across):

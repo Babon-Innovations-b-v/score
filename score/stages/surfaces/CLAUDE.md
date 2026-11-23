@@ -19,7 +19,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `finish` null when nothing is measured; `<take>/parts.npy` one part per welded face; `<take>/colours.npy` each
   face's seen colour, NaN when none is measured; `<take>/texels.npz`, where the model has a picture, one part per
   texel of it: `route_texels.py`, #159, the look's borders on the texture's colour edges, the faces' parts
-  unchanged). Another method replaces the method's rows and writes it; the
+  unchanged; the paint writes it into its labelled take as each surface's texel mask on the raw take's own UVs,
+  `labelled/<take>/texels/`, which make_chunky mixes each recipe by, #182). Another method replaces the method's rows and writes it; the
   framework's rows (`place_line.py`: paint, bake, check) do not change.
 - **Decals and scuffs** (#164): a printed mark is a library decal (score_lib surface, family `decal`), never a
   picture of the model. `finish-route-list` lists the marks with their decal (`finish_ask.marks_of`, offered by

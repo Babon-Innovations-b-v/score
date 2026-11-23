@@ -378,7 +378,7 @@ def test_a_part_reads_the_same_every_run():
     assert "ply_import" not in source and ".validate(" not in source
     kept_triangles = chunky_functions(("kept_triangles",))["kept_triangles"]
     corners = np.array([[0, 1, 2], [2, 2, 3], [3, 4, 5], [1, 2, 0], [5, 4, 3], [6, 7, 8]])
-    assert kept_triangles(corners).tolist() == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]  # file order, firsts only
+    assert corners[kept_triangles(corners)].tolist() == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]  # file order, firsts only
 
 def test_stored_pictures_are_webp_and_a_room_has_a_budget(tmp_path):
     gltf = tmp_path / "piece_1.gltf"
