@@ -46,6 +46,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - measure.shifted: the colour clipped channel by channel (colour.linear_of_lab alone): the orange row's raised
   colour turns yellow, lightness 96.9 at hue 104, not 99.1 at 92 (its shift, sRGB (255, 200, 120) less (200, 100, 30)
   in Lab, on (0.8, 0.3, 0.05) is L 99.1 at hue 91.6, in gamut only near grey).
+- fit.FAMILY_WORDS without "mirror" (the mirror row is glass), or family_of's UNMETALLED rule dropped (the metal
+  glass row is glass).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -190,6 +192,13 @@ ROWS = [
     ("an orange raised past the gamut keeps its hue", "m_opaque_metal_anodized_orange_a01", {},
      {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.8, 0.3, 0.05]}},
      (solid((255, 200, 120)), solid((200, 100, 30))), {"recipe": "anodized", "refined_lab": (99.1, 92.0)}),
+    ("a mirror is a metal, though its name says glass", "m_opaque_glass_mirror_a01", {"metal.png": solid((255,) * 3)},
+     {"maps": {"metal": "metal.png"}, "tile_metres": 1.0,
+      "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.0}},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "polished_metal", "family_from": "name", "metal": 1.0}),
+    ("a glass whose constant metal is 1 is a metal", "m_trans_glass_black_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.27, "metallic": 1.0}},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "bare_metal", "family_from": "measures", "metal": 1.0}),
 ]
 
 

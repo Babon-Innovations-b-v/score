@@ -40,7 +40,7 @@ ROLE_WORDS = {"albedo": ("alb", "albedo", "basecolor", "basecolour", "color", "c
 # The recipe family a material's name says, first match wins (so fibreglass before glass and plastic, painted metal
 # before metal, stainless before polished): words of a finish, never of a maker.
 FAMILY_WORDS = (("fiberglass", "fiberglass"), ("fibreglass", "fiberglass"), ("emissive", "glowing"),
-                ("glass", "glass"), ("lens", "glass"), ("treadplate", "chequer_plate"),
+                ("mirror", "polished_metal"), ("glass", "glass"), ("lens", "glass"), ("treadplate", "chequer_plate"),
                 ("diamondplate", "chequer_plate"), ("galvan", "galvanized"),
                 ("rust", "rusted_metal"), ("anodiz", "anodized"), ("painted", "painted_metal"),
                 ("enamel", "painted_metal"), ("perforat", "perforated_metal"), ("cast", "cast_metal"),
@@ -255,15 +255,27 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     return measured
 
 
+# Families drawn with no metal, whose name word a measured metal overrules (a metal-coated glass is a metal).
+UNMETALLED = ("glass",)
+
+
+def metal_by_roughness(measured):
+    """A metal's family by its roughness: polished under ROUGH_POLISHED, else bare."""
+    return "polished_metal" if measured["roughness"] < ROUGH_POLISHED else "bare_metal"
+
+
 def family_of(name, measured):
-    """The recipe family a material's name says (FAMILY_WORDS), else by its metal and roughness means: (family,
+    """The recipe family a material's name says (FAMILY_WORDS; a family drawn with no metal, UNMETALLED, yields to a
+    metal over METAL_MEAN, which the map side draws as metal), else by its metal and roughness means: (family,
     "name" | "measures")."""
     lowered = name.lower()
     for word, family in FAMILY_WORDS:
         if word in lowered:
+            if family in UNMETALLED and measured["metal"] > METAL_MEAN:
+                return metal_by_roughness(measured), "measures"
             return family, "name"
     if measured["metal"] > METAL_MEAN:
-        return ("polished_metal" if measured["roughness"] < ROUGH_POLISHED else "bare_metal"), "measures"
+        return metal_by_roughness(measured), "measures"
     return "plastic", "measures"
 
 
