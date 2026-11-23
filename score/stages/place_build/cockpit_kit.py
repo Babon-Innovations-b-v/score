@@ -13,11 +13,11 @@ front +z) and written as built.
 The capsule's body, each a closed piece over its cone (Cone: `radius`, `slope`, `hull`, `lining`, ... as CONE):
 - `hull`: the smooth pressure hull, its round `holes` [[theta, y, r]] (portholes, hatch) open for their sleeves and
   the cut-away (`cut` [theta, half theta, y, half y, power]) its "main" body's gap and its "plug" (`which`).
-- `lining`: the quilted vinyl lining from the floor to the ceiling, one piece: courses of flat full pads with thin
+- `lining`: the quilted vinyl lining from the floor to the ceiling: small puffy cushions in brick bond with stitched
   seams, a bolster along the floor, eased flat round each hole (`fades`) and under each panel (`flats`, flat_spot);
-  holes and cut-away as the hull's.
-- `ceiling` (its lamps' spots flat), `floor` (the round plate, the walked ground), `skirt` (the service ring under
-  the hull, its pipes), `nose`, `lip` (the cut-away's rounded rim), `through_wall` (a porthole's or the hatch's
+  holes and cut-away as the hull's, a wall (`sector`) ending along the seams round its cushions.
+- `ceiling` (its lamps' spots flat), `floor` (the round plate, the walked ground, one faint hatch ring), `skirt`
+  (the service ring under the hull, its pipes), `nose` (the cone carried on to a narrow rimmed top), `lip` (the cut-away's rounded rim), `through_wall` (a porthole's or the hatch's
   sleeve, flanges hugging the lining and the hull, bolts, glass), `hatch_leaf`, `gantry` (the railed walkway).
 - `panel`: a plate with rounded corners, a raised bezel, a label strip with its word in modelled letters, and its
   `items` ({kind, at [u, v], ...}: the hardware below) laid on it.
@@ -37,7 +37,7 @@ from score.stages.place_build import dome_shell
 SEGMENTS = 32  # points round a turned piece
 SEAM = 0.007  # metres between two cushions (the stitched seam the backing shows)
 PLATE = 0.012  # a panel plate's thickness
-BEZEL = 0.006  # how far a panel's bezel stands over its plate
+BEZEL = 0.010  # how far a panel's bezel stands over its plate
 LETTER_ROWS = 7  # the lettering's dot rows (a 5 x 7 face)
 LINE = 0.0025  # a screen graphic's line width
 FLAT_KINDS = ("hull", "lining", "ceiling", "floor", "skirt", "nose", "lip", "through_wall", "tread", "gantry")
@@ -571,12 +571,13 @@ def wheel(size=0.07, **_):
     """A small handwheel `size` across on a boss, three spokes (the pad water valve)."""
     radius = size / 2
     found = turned("dark", [(0.0, 0.0), (0.008, 0.0), (0.008, 0.018), (0.0, 0.018)], segments=16)
+    rim = max(0.006, size * 0.08)  # a stout rim a hand grips, never a wire
     found += tube("metal", [(radius * math.cos(angle), radius * math.sin(angle), 0.02)
-                            for angle in np.linspace(0, 2 * math.pi, 41)], 0.0035, 10)
+                            for angle in np.linspace(0, 2 * math.pi, 41)], rim, 12)
     for step in range(3):
         angle = math.radians(90 + step * 120)
         found += tube("metal", [(0.0, 0.0, 0.018), (radius * math.cos(angle), radius * math.sin(angle), 0.02)],
-                      0.0025, 8)
+                      rim * 0.7, 10)
     return found
 
 
@@ -657,27 +658,36 @@ def framed_plate(outer, inner):
 
 def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, **_):
     """An instrument panel: a plate with rounded corners, a raised bezel round it, a label strip across its top with
-    `label` in modelled letters, and its `items` laid on the plate (their `at` from the plate's middle)."""
+    `label` in modelled letters (a label "A|B" two strips side by side, A over the left third, B over the rest), and
+    its `items` laid on the plate (their `at` from the plate's middle)."""
     corner = 0.022
-    found = framed_plate(rounded_rectangle(wide, high, corner), rounded_rectangle(wide - 0.024, high - 0.024,
+    found = framed_plate(rounded_rectangle(wide, high, corner), rounded_rectangle(wide - 0.03, high - 0.03,
                                                                                     corner * 0.6))
     if label:
         strip_high = label_high * 1.7
-        top = high / 2 - 0.012 - 0.006
-        found += box("label", (-wide / 2 + 0.03, top - strip_high, PLATE - 0.0005), (wide / 2 - 0.03, top, PLATE + 0.0025),
-                     0.0008)
-        found += moved(lettering("ink", label, label_high), offset=(0.0, top - strip_high / 2, PLATE + 0.0025))
+        top = high / 2 - 0.015 - 0.006
+        names = label.split("|")
+        left, right = -wide / 2 + 0.03, wide / 2 - 0.03
+        cuts = [left] + ([left + (right - left) / 3] if len(names) == 2 else []) + [right]
+        for name, start, end in zip(names, cuts[:-1], cuts[1:]):
+            start, end = start + (0.004 if start > left else 0.0), end - (0.004 if end < right else 0.0)
+            found += box("label", (start, top - strip_high, PLATE - 0.0005), (end, top, PLATE + 0.0025), 0.0008)
+            fitted = min(label_high, (end - start - 0.012) / max(1, 6 * len(name.strip()) - 1) * LETTER_ROWS)
+            found += moved(lettering("ink", name.strip(), fitted), offset=((start + end) / 2, top - strip_high / 2,
+                                                                           PLATE + 0.0025))
     found += laid_items(items, PLATE)
     return found
 
 
 # --- the capsule: its cone's hull, lining, ceiling and floor, built in the capsule's own frame -----------------------
 
-CONE = {"radius": 1.40, "slope": 0.18, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.05,
-        "bolster_high": 0.55, "puff": 0.045, "ceiling": 2.05}
-ROWS = (0.0, 0.42, 0.75, 1.08, 1.41, 1.74, 2.05)  # the lining's courses, metres up from the floor
-WIDTHS = (0.55, 0.42, 0.42, 0.40, 0.38, 0.36)  # each course's cushion width
-FADE = 0.06  # metres over which the quilting eases flat round a porthole, a hatch or a panel
+CONE = {"radius": 1.40, "slope": 0.22, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.04,
+        "bolster_high": 0.32, "puff": 0.05, "ceiling": 2.05}
+ROWS = (0.0, 0.30, 0.59, 0.88, 1.17, 1.46, 1.75, 2.05)  # the lining's courses, metres up from the floor
+WIDTHS = (0.36, 0.32, 0.31, 0.30, 0.29, 0.28, 0.27)  # each course's cushion width
+SEAM_SHARE = 0.3  # within this share of its edge-to-middle rise a cushion's face is its stitched seam (part seam)
+FADE = 0.06  # metres over which the quilting eases flat round a porthole or a hatch
+SEATED = (0.004, 0.035)  # a panel's pocket: the cushions rise to full this far (from, over) outside its plate
 THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
 
@@ -845,7 +855,8 @@ def cells_kept(near, cut_cells, which, middle_theta, sector):
     kept = ~corner & (cut_cells if which == "plug" else ~cut_cells)
     if sector is not None:
         start = math.radians(sector[0])
-        kept &= (middle_theta - start) % (2 * math.pi) < math.radians(sector[1] - sector[0])
+        kept &= (middle_theta - start + 1e-9) % (2 * math.pi) < math.radians(sector[1] - sector[0])  # a middle
+        # on a sector's edge (a cushion's, 15 degrees) falls in exactly one
     return kept
 
 
@@ -875,30 +886,34 @@ def hull(cut=None, holes=(), which="main", sector=None, bottom=-0.40, top=2.15, 
     return grid_solid(inner, outer, keep, parts, "hull", "edge", cone.inward(grid_theta))
 
 
-def quilt(cone, theta, y):
-    """The lining's cushions over the spots (theta, y): (how far each stands out, the share of its cushion's puff
-    there). Courses of rounded pads, ROWS high and about WIDTHS wide, each course offset from the one under it, a
-    pad's face flat and full and falling to a thin seam at its edges, its seams wandering a little; the course on
-    the floor a fat bolster."""
+def cushion_at(cone, theta, y):
+    """Which cushion of the lining holds each spot (theta, y) and where in it: (its course, its column, its middle's
+    angle, the share across it, the share up it). Courses ROWS high, cushions about WIDTHS wide, each course
+    staggered half a cushion from the one under it (brick bond)."""
     edges = np.asarray(ROWS)
-    wander = (0.010 * np.sin(3 * theta + 1.7) + 0.006 * np.sin(7 * theta + 0.4)) * smoothstep(0.05, 0.2, y)
-    shifted = y + wander
-    row = np.clip(np.searchsorted(edges, shifted, side="right") - 1, 0, len(edges) - 2)
+    height = np.asarray(y, dtype=np.float64)
+    row = np.clip(np.searchsorted(edges, height, side="right") - 1, 0, len(edges) - 2)
     low, high = edges[row], edges[row + 1]
-    upward = np.clip((shifted - low) / (high - low), 0.0, 1.0)
+    upward = np.clip((height - low) / (high - low), 0.0, 1.0)
     middles = (edges[:-1] + edges[1:]) / 2
     counts = np.maximum(np.round(2 * math.pi * cone.rho(middles, 0.1) / np.asarray(WIDTHS)), 3)
-    shifts = np.array([(0.5 * (number % 2) + 0.13 * number) % 1.0 for number in range(len(counts))])
-    position = (theta % (2 * math.pi)) / (2 * math.pi) * counts[row] + shifts[row]
+    shifts = 0.5 * (np.arange(len(counts)) % 2)
+    position = (np.asarray(theta, dtype=np.float64) % (2 * math.pi)) / (2 * math.pi) * counts[row] + shifts[row]
     column = np.floor(position)
-    across = position - column
-    seed = np.abs(np.sin(row * 12.9898 + (column % counts[row]) * 78.233) * 43758.5453) % 1.0
-    share_across = np.clip(1 - np.abs(2 * across - 1) ** 3.5, 0, 1) ** 0.65
-    share_up = np.where(row == 0, np.clip(1 - np.abs(2 * upward - 1) ** 2.5, 0, 1) ** 0.6,
-                        np.clip(1 - np.abs(2 * upward - 1) ** 3, 0, 1) ** 0.65)
-    share = share_across * share_up
-    puff = cone.sizes["puff"] * np.where(row == 0, 1.7, 1.0) * (0.85 + 0.3 * seed)
-    return puff * share, share
+    middle = (column + 0.5 - shifts[row]) / counts[row] * 2 * math.pi
+    return row, column % counts[row], middle, position - column, upward
+
+
+def quilt(cone, theta, y):
+    """The lining's cushions over the spots (theta, y): (how far each stands out, how near its nearest seam each
+    lies: 0 on a seam, 1 at a cushion's middle row or column). Small puffy pads in brick bond (cushion_at), a pad's
+    face swelling round and falling to a stitched seam at its edges; the course on the floor a fat bolster."""
+    row, column, _, across, upward = cushion_at(cone, theta, y)
+    seed = np.abs(np.sin(row * 12.9898 + column * 78.233) * 43758.5453) % 1.0
+    share_across = np.clip(1 - np.abs(2 * across - 1) ** 2.4, 0, 1) ** 0.5
+    share_up = np.clip(1 - np.abs(2 * upward - 1) ** 2.4, 0, 1) ** 0.5
+    puff = cone.sizes["puff"] * np.where(row == 0, 1.5, 1.0) * (0.85 + 0.3 * seed)
+    return puff * share_across * share_up, np.minimum(share_across, share_up)
 
 
 def flat_spot(theta, y, wide, high, **sizes):
@@ -917,8 +932,9 @@ def flat_spot(theta, y, wide, high, **sizes):
 
 
 def lining_depth(cone, theta, y, back, fades, flats):
-    """How far the lining's face stands off its back at each spot: its skin, the bolster at the floor and the
-    cushions, eased flat round each fade [theta, y, radius] and onto each flat's plane [theta, y, wide, high]."""
+    """How far the lining's face stands off its back at each spot (its skin, the bolster at the floor and the
+    cushions, eased flat round each fade [theta, y, radius] and onto each flat's plane [theta, y, wide, high]) and how
+    near a seam each spot lies (quilt's; 1 where eased flat, so no seam runs under a panel or round a hole)."""
     sizes = cone.sizes
     bump, share = quilt(cone, theta, y)
     soft = sizes["bolster"] * smoothstep(sizes["bolster_high"], 0.0, y) + bump
@@ -934,35 +950,39 @@ def lining_depth(cone, theta, y, back, fades, flats):
         offset = back - cone.at(math.radians(flat_theta), flat_y, sizes["gap"])
         outside = np.hypot(np.maximum(np.abs(offset @ right) - wide / 2, 0.0),
                            np.maximum(np.abs(offset @ up) - high / 2, 0.0))
-        weight = (1 - smoothstep(0.01, 0.01 + FADE, outside)) * (np.abs(offset @ inward) < 0.3)
+        weight = (1 - smoothstep(SEATED[0], SEATED[0] + SEATED[1], outside)) * (np.abs(offset @ inward) < 0.3)
         onto = ((middle - back) @ inward) / np.maximum(np.einsum("...i,i->...", normals, inward), 1e-6)
         depth = depth * (1 - weight) + onto * weight
         flattened = np.maximum(flattened, weight)
     return depth, share * (1 - np.maximum(eased, flattened)) + np.maximum(eased, flattened)
 
 
-def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, cell=0.02, rows=0.016, **sizes):
+def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, cell=0.014, rows=0.012, **sizes):
     """The cabin's quilted lining, one closed piece round the cone from the floor to the ceiling: its back a hair
     off the hull, its face the cushions (lining_depth: worn vinyl pads in courses, thin seams, a bolster along the
     floor), round holes left for the portholes and the hatch (`holes`, as hull), the quilting eased flat round them
-    (`fades`) and under each panel (`flats`, flat_spot), the cut-away left out of its "main" body and filling its
-    "plug". Parts cushion and seam (the faces down in a seam), back."""
+    (`fades`) and under each panel (`flats`, flat_spot, the cushions rising right round it so it sits in a pocket),
+    the cut-away left out of its "main" body and filling its "plug". Parts cushion (a pad's face, and the edges
+    where a wall or the cut-away ends, so two walls meet with no dark line), seam (the stitched seam, under
+    SEAM_SHARE of its puff), back."""
     cone = Cone(**sizes)
     top = cone.sizes["ceiling"]
     thetas, heights = ring_grid(rows, 0.0015, top, 2 * math.pi * float(cone.rho(0.0)), cell)
     grid_theta, grid_y = np.meshgrid(thetas, heights)
     back = cone.at(grid_theta, grid_y, cone.sizes["gap"])
     normals = cone.inward(grid_theta)
-    depth, _ = lining_depth(cone, grid_theta, grid_y, back, fades, flats)
+    depth, seamless = lining_depth(cone, grid_theta, grid_y, back, fades, flats)
     front = back + normals * depth[..., None]
     front[..., 1] = np.maximum(front[..., 1], back[..., 1].min())  # the bolster's foot stays on the floor
     middle_theta = grid_theta[:-1] + math.pi / len(thetas)
     middle_y = (grid_y[:-1] + grid_y[1:]) / 2
     cut_cells = in_cut(middle_theta, middle_y, cut) if cut else np.zeros(middle_y.shape, dtype=bool)
     near = near_hole(cone, back, holes) | near_hole(cone, front, holes)  # the face stands off along its own normal
-    keep = cells_kept(near, cut_cells, which, middle_theta, sector)
-    parts = np.full(keep.shape, "cushion")  # the seams are the pads' own grooves, never a patch of another look
-    return grid_solid(front, back, keep, parts, "back", "seam", normals)
+    _, _, cushion_middle, _, _ = cushion_at(cone, middle_theta, middle_y)  # a wall ends along the seams round its
+    keep = cells_kept(near, cut_cells, which, cushion_middle, sector)  # cushions, never across a cushion's face
+    cell = (seamless[:-1] + np.roll(seamless[:-1], -1, axis=1) + seamless[1:] + np.roll(seamless[1:], -1, axis=1)) / 4
+    parts = np.where(cell < SEAM_SHARE, "seam", "cushion")
+    return grid_solid(front, back, keep, parts, "back", "cushion", normals)
 
 
 def ceiling(lamps=(), rings=26, segments=144, thick=0.07, puff=0.03, **sizes):
@@ -1000,14 +1020,13 @@ def upright(pieces):
 
 def floor(rim=None, bottom=-0.40, **sizes):
     """The cabin's round floor, a solid disc from the hull's foot (`bottom`, on the service module) to its top at
-    y = 0, out to the lining's back (or `rim`): a muted plate, two thin grooves round its middle disc."""
+    y = 0, out to the lining's back (or `rim`): a muted plate and one faint ring of a floor hatch round its middle
+    (part floor_ring, a shade off the floor's own)."""
     cone = Cone(**sizes)
     edge = float(cone.rho(0.0, cone.sizes["gap"])) - 0.002 if rim is None else rim
-    found = turned("floor", [(0.0, bottom), (edge, bottom), (edge, 0.0), (1.06, 0.0)], segments=96)
-    found += turned("groove", [(1.06, 0.0), (1.06, -0.004), (1.04, -0.004), (1.04, 0.0)], segments=96)
-    found += turned("floor", [(1.04, 0.0), (0.62, 0.0)], segments=96)
-    found += turned("groove", [(0.62, 0.0), (0.62, -0.004), (0.60, -0.004), (0.60, 0.0)], segments=96)
-    found += turned("floor", [(0.60, 0.0), (0.0, 0.0)], segments=96)
+    found = turned("floor", [(0.0, bottom), (edge, bottom), (edge, 0.0), (0.47, 0.0)], segments=96)
+    found += turned("floor_ring", [(0.47, 0.0), (0.47, -0.002), (0.45, -0.002), (0.45, 0.0)], segments=96)
+    found += turned("floor", [(0.45, 0.0), (0.0, 0.0)], segments=96)
     return upright(found)
 
 
@@ -1028,15 +1047,18 @@ def skirt(bottom=-2.48, top=-0.40, foot=2.72, **sizes):
     return upright(found)
 
 
-def nose(base=2.15, **sizes):
-    """The capsule's nose over the hull's top (`base`): a rounded shoulder to a flat crown and its docking ring."""
+def nose(base=2.15, high=0.55, **sizes):
+    """The capsule's nose over the hull's top (`base`): the hull's cone carried on `high` metres to a narrow flat
+    top, its edge a small chamfer, and a raised rim round the top (part band): one clean truncated cone."""
     cone = Cone(**sizes)
     edge = float(cone.rho(base, -cone.sizes["hull"]))
-    found = turned("hull", [(0.0, base + 0.0005), (edge, base + 0.0005), (edge - 0.03, base + 0.1),
-                            (edge - 0.12, base + 0.2), (edge - 0.28, base + 0.26), (0.52, base + 0.27),
-                            (0.0, base + 0.27)], segments=96, smooth=True)
-    found += turned("band", [(0.42, base + 0.2695), (0.5, base + 0.2695), (0.5, base + 0.33), (0.47, base + 0.345),
-                             (0.42, base + 0.345), (0.42, base + 0.2695)], segments=96)
+    top = float(cone.rho(base + high, -cone.sizes["hull"]))
+    crown = base + high + 0.025
+    found = turned("hull", [(0.0, base + 0.0005), (edge, base + 0.0005), (top, base + high),
+                            (top - 0.03, crown), (0.0, crown)], segments=96)
+    found += turned("band", [(top - 0.16, crown - 0.0005), (top - 0.05, crown - 0.0005), (top - 0.05, crown + 0.06),
+                             (top - 0.07, crown + 0.075), (top - 0.16, crown + 0.075),
+                             (top - 0.16, crown - 0.0005)], segments=96)
     return upright(found)
 
 
@@ -1063,7 +1085,7 @@ def swept(part, path, normals, deep, wide, segments=20):
     return [piece(part, points, facing(points, triangles, ways), True)]
 
 
-def lip(cut=None, steps=480, deep=0.24, wide=0.10, **sizes):
+def lip(cut=None, steps=480, deep=0.26, wide=0.17, **sizes):
     """The cut-away's rim: one rounded band round its outline (`cut`, as in_cut) over the hull's and the lining's cut
     edges, from outside the hull to past the cushions' face."""
     cone = Cone(**sizes)
@@ -1095,16 +1117,18 @@ def collar_flange(cone, middle, right, up, axis, inner, outer, face, thick, outw
                       part, ways)
 
 
-def bolt_ring(cone, middle, right, up, axis, radius, face, lift, count, size=0.009):
-    """`count` hex bolt heads on a ring of `radius` round `middle`, standing on the face `face` in, `lift` off it."""
+def bolt_ring(cone, middle, right, up, axis, radius, face, lift, count, size=0.009, outward=False):
+    """`count` hex bolt heads on a ring of `radius` round `middle`, standing on the face `face` in, `lift` off it
+    toward the room (or out of the hull, `outward`)."""
     found = []
     head = turned("bolt", [(0.0, 0.0), (size, 0.0), (size, size * 0.5), (size * 0.6, size * 0.8), (0.0, size * 0.8)],
                   segments=6)
+    way, across = (-axis, -right) if outward else (axis, right)
     for step in range(count):
         angle = 2 * math.pi * (step + 0.5) / count
         spot = middle + radius * (math.cos(angle) * right + math.sin(angle) * up)
-        base = cone.onto(spot, axis, face) + axis * (lift - 0.0005)
-        found += placed(head, base, right, up, axis)
+        base = cone.onto(spot, axis, face) + way * (lift - 0.0005)
+        found += placed(head, base, across, up, way)
     return found
 
 
@@ -1132,11 +1156,12 @@ def sleeve(cone, middle, right, up, axis, radius, wall, low, face, bore, segment
 
 
 def through_wall(at=(0.0, 1.45), radius=0.15, wall=0.015, flange=0.07, bolts=10, glass=True, outside=0.03,
-                 bore="bore", **sizes):
+                 bore="bore", outer_thick=0.014, **sizes):
     """A round opening's frame through the hull and lining at `at` [theta (degrees), y]: a sleeve of `radius` along
     the wall's normal from outside the hull to past the cushions' face (sleeve; its inside of the part `bore`), a
     flange hugging the lining's face and one hugging the hull's outside, each with its bolts, and its glass out
-    past the hull (a porthole's) or none (a hatch's)."""
+    past the hull (a porthole's) or none (a hatch's); the outer flange `outer_thick` thick, bolted round when it
+    stands 2 cm or more (a hatch's frame read from outside)."""
     cone = Cone(**sizes)
     angle = math.radians(at[0])
     right, up, axis = cone.frame(angle)
@@ -1146,8 +1171,11 @@ def through_wall(at=(0.0, 1.45), radius=0.15, wall=0.015, flange=0.07, bolts=10,
     bedded = radius + wall - 0.003  # each flange reaches into the sleeve's wall, so no face of one lies on the other
     found += collar_flange(cone, middle, right, up, axis, bedded, radius + wall + flange, face, 0.022, False, "rim")
     found += collar_flange(cone, middle, right, up, axis, bedded, radius + wall + flange * 0.8, -cone.sizes["hull"],
-                           0.014, True, "rim")
+                           outer_thick, True, "rim")
     found += bolt_ring(cone, middle, right, up, axis, radius + wall + flange / 2, face, 0.023, bolts)
+    if outer_thick >= 0.02:
+        found += bolt_ring(cone, middle, right, up, axis, radius + wall + flange * 0.45, -cone.sizes["hull"],
+                           outer_thick + 0.001, bolts, size=0.011, outward=True)
     if glass:
         pane = -cone.sizes["hull"] - outside / 2  # outside the hull, past where the hull and lining read their rays
         found += placed(turned("glass", [(0.0, pane - 0.002), (radius + 0.001, pane - 0.002),
@@ -1195,19 +1223,22 @@ def hatch_leaf(radius=0.6, thick=0.05, bolts=16, **_):
     return found
 
 
-def gantry(long=1.6, wide=1.3, rail=1.05, deep=0.7, start=0.3, **_):
+def gantry(long=1.6, wide=1.3, rail=1.05, deep=0.7, start=0.3, side=-1, **_):
     """The railed walkway outside the hatch, built along +x from the hull (x = 0) with its deck's top at y = 0: a
-    grating deck on edge beams, a railing of posts and rails along both sides from `start`, a truss under each
-    side."""
+    grating deck on edge beams, one railing run of posts and rails from `start` along the `side` (+1 or -1 along z)
+    edge and on round the far end, a truss under each side."""
     found = box("grate", (0.0, -0.04, -wide / 2), (long, 0.0, wide / 2), 0.004)
+    edge = side * (wide / 2 + 0.025)
+    end = long - 0.025
+    run = [(start - 0.02, edge), (end, edge), (end, -edge)]
+    posts = [(x, edge) for x in np.linspace(start, end, 4)] + [(end, z) for z in np.linspace(edge, -edge, 4)[1:]]
+    for x, z in posts:
+        found += tube("rail", [(x, -0.0005, z), (x, rail, z)], 0.02, 12)
+    for height in (rail, rail * 0.5):
+        found += tube("rail", [(x, height, z) for x, z in run], 0.018, 12)
     for side in (-1, 1):
         edge = side * (wide / 2 + 0.025)
         found += box("frame", (0.0, -0.16, edge - 0.025), (long, -0.0005, edge + 0.025), 0.004)
-        posts = np.linspace(start, long - 0.04, 4)
-        for x in posts:
-            found += tube("rail", [(x, -0.0005, edge), (x, rail, edge)], 0.02, 12)
-        for height in (rail, rail * 0.5):
-            found += tube("rail", [(start - 0.02, height, edge), (long - 0.02, height, edge)], 0.018, 12)
         chord = -deep
         found += tube("rail", [(0.05, chord, edge), (long - 0.1, chord, edge)], 0.03, 12)
         verticals = np.linspace(0.05, long - 0.1, 4)
@@ -1222,11 +1253,12 @@ def gantry(long=1.6, wide=1.3, rail=1.05, deep=0.7, start=0.3, **_):
 
 # --- the furniture --------------------------------------------------------------------------------------------------
 
-def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), **_):
+def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0.0, grille=0.4, **_):
     """The long low console before the pilot: a box `wide` across, `deep` from the pilot's side (+z) back, its top
-    sloping up from `front_high` to `back_high` away from the pilot, a bright lip round its top, vents on its front
-    and its `items` laid on its top (their `at` [u, v] up the slope from its middle)."""
-    side = [(0.0, 0.0), (deep, 0.0), (deep, front_high), (0.0, back_high)]
+    sloping up from `front_high` to `back_high` away from the pilot, its far face sloping in `lean` metres to its
+    foot, a bright lip round its top, a slatted vent grille `grille` wide on its pilot's side and its `items` laid on
+    its top (their `at` [u, v] up the slope from its middle)."""
+    side = [(lean, 0.0), (deep, 0.0), (deep, front_high), (0.0, back_high)]
     found = []
     points = [(-wide / 2, y, z) for z, y in side] + [(wide / 2, y, z) for z, y in side]
     for face in ([0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]):
@@ -1242,21 +1274,25 @@ def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), **_):
                       rounded_rectangle(wide - 0.05, length - 0.03, 0.008), 0.0, 0.012)
     top += laid_items(items, 0.008)
     found += moved(top, np.asarray(about("x", -90 + slope)), (0.0, (front_high + back_high) / 2, deep / 2))
-    for step in range(9):
-        x = -0.2 + step * 0.05
-        found += box("vent", (x - 0.012, 0.12, deep - 0.002), (x + 0.012, 0.32, deep + 0.004), 0.002)
-    found += box("lip", (-wide / 2 - 0.006, 0.0, -0.006), (wide / 2 + 0.006, 0.05, deep + 0.006), 0.004)
+    if grille:
+        found += box("vent", (-grille / 2, 0.10, deep - 0.002), (grille / 2, 0.34, deep + 0.002), 0.002)
+        for step in range(int(grille / 0.03)):
+            x = -grille / 2 + 0.015 + step * 0.03
+            found += box("lip", (x - 0.006, 0.115, deep + 0.0015), (x + 0.006, 0.325, deep + 0.008), 0.0015)
+    found += box("lip", (-wide / 2 - 0.006, 0.0, lean * 0.9 - 0.006), (wide / 2 + 0.006, 0.05, deep + 0.006), 0.004)
     return found
 
 
 def switch_box(wide=0.28, deep=0.24, front_high=0.56, back_high=0.66, items=(), **_):
     """The small switch box at the pilot's right hand: a box with a sloping top holding its `items`."""
-    found = console(wide, deep, front_high, back_high, items)
-    return [entry for entry in found if entry[0] != "vent"]
+    return console(wide, deep, front_high, back_high, items, grille=0.0)
+
+
+SEAT_SCALE = 0.8  # the seat drawn to fit a 2.6 m cabin: 0.4 m across its shell, its headrest 1.05 m up
 
 
 def seat(**_):
-    """A compact padded bucket seat on a metal frame (its front toward +z), 0.6 m across: a seat pan and a back
+    """A compact padded bucket seat on a metal frame (its front toward +z), SEAT_SCALE of 0.5 m across: a seat pan and a back
     between raised side bolsters, a headrest, all in a grey shell whose wings wrap them; armrests on posts and a
     pedestal of tubes on a floor plate."""
     found = rounded_box("upholstery", (-0.17, 0.42, -0.18), (0.17, 0.5, 0.22), 0.035, 0.018)
@@ -1287,17 +1323,18 @@ def seat(**_):
         found += tube("frame", [(side * 0.14, 0.19, -0.16), (side * 0.14, 0.19, 0.16)], 0.013, 10)
     found += tube("frame", [(-0.14, 0.19, 0.0), (0.14, 0.19, 0.0)], 0.013, 10)
     found += box("frame", (-0.21, 0.0, -0.23), (0.21, 0.035, 0.23), 0.006)
-    return found
+    return moved(found, np.eye(3) * SEAT_SCALE)
 
 
 def throttle(levers=2, **_):
-    """The throttle quadrant: a box with a slotted top and `levers` levers thrown forward, black knobs."""
+    """The throttle quadrant: a box with a slotted top and `levers` short levers thrown forward, stubby black
+    grips."""
     found = rounded_box("body", (-0.06, 0.0, -0.11), (0.06, 0.07, 0.11), 0.012)
     found += box("dark", (-0.05, 0.068, -0.09), (0.05, 0.074, 0.09), 0.002)
     for number in range(levers):
         x = -0.022 + number * 0.044
-        stem = tube("lever", [(0.0, 0.0, 0.0), (0.0, 0.16, 0.0)], 0.006, 10)
-        stem += moved(rounded_box("knob", (-0.014, 0.0, -0.016), (0.014, 0.05, 0.016), 0.012), offset=(0.0, 0.16, 0.0))
+        stem = tube("lever", [(0.0, 0.0, 0.0), (0.0, 0.085, 0.0)], 0.007, 10)
+        stem += moved(rounded_box("knob", (-0.016, 0.0, -0.02), (0.016, 0.042, 0.02), 0.013), offset=(0.0, 0.08, 0.0))
         found += moved(stem, about("x", -14 - 10 * number), (x, 0.06, 0.0))
     return found
 
