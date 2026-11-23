@@ -1290,7 +1290,8 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
     one object Objects/<name>: a road and its kerbed pavements with `ground` (the place's walked ground), else of
     `role` (`score:role`, BLOCK_ROLES: a structure, a building's walls or a step, by default; a small fitting built from
     blocks a prop, #154: the capsule's stick; a fitting on a wall a mount with its `support`, wall:<object>, as `put`
-    marks one: the stairwell's couplets); each part ready for its surface."""
+    marks one: the stairwell's couplets); each part ready for its surface, and wearing the look the place already gave
+    it when the name is laid again (a hollow: laid_reference drops the old file's overs, its part bindings with them)."""
     if role not in BLOCK_ROLES:
         raise Refused(f"blocks are a {', '.join(BLOCK_ROLES)} or the ground, not {role}")
     import hashlib
@@ -1307,6 +1308,7 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), ground)
     marked(stage.GetPrimAtPath(f"/{place}/Objects/{name}"), None if ground else role, None if ground else support)
+    rebind(stage, place, stage.GetPrimAtPath(f"/{place}/Objects/{name}"))  # a re-laid name keeps its parts' looks
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "boxes": len(boxes), "ground": bool(ground)}
 

@@ -224,6 +224,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.look_shader: a recipe entry's settings alone (the method's defaults unread) -> the panel's recipe glass
   laid from the library carries no opacity (opaque in the package: the stairwell's glass, 2099 2026-11-22)
 - scene_package.held_image: its sides left as halved (no BLOCK_TEXELS) -> the dune's 62 texel sand is held at 31
+- place_build.blocks: no rebind after laying -> the hollowed block's wall loses the look laid on it (a re-laid blocks
+  file drops the old one's overs: the street's facades went white, 2099 2026-11-23)
 - place_build.taken_with: a fitting kept whatever wall is left (FITTING_REACH unread) -> the hollowed block's rack and
   the wash on it stay
 - place_build.taken_with: an object taken out by its middle alone -> the neighbouring block reaching out of the region
@@ -1998,9 +2000,10 @@ def hollowed(folder):
     (2099's prologue: the walker began inside the street's block wall_l1): its boxes cut to what stands outside the
     region, in their parts, pose and role; the shop's table and lamp, the rack on the gone face and the wash on that
     rack taken out with it, the door leaf, the sign on the face and a neighbouring block reaching into the region
-    left kept."""
+    left kept, and its wall still wearing the look laid on it."""
     place_build.blocks(folder, "block", [[0, 0, 0, 4, 3, 6, "wall"], [-0.3, 0, 0, 0, 3, 6, "base"]], at=(40, 0, 0),
                        turn=(0, -90, 0))
+    place_build.surface(folder, "block", "surface/steel", part="wall")
     place_build.blocks(folder, "table", [[36.8, 0, 0.8, 37.2, 0.8, 1.2, "top"]], role="prop")
     place_build.blocks(folder, "rack", [[36.7, 1.0, -0.9, 37.3, 1.2, -0.3, "rack"]], role="mount",
                        support="wall:block")
@@ -2027,4 +2030,7 @@ def hollowed(folder):
     assert {box[6] for box in boxes} == {"wall", "base"} and sorted(made["taken_out"]) == ["rack", "shop_lamp", "table",
                                                                                            "wash"], made
     assert place_build.pose_of(prim)[1] == [0.0, -90.0, 0.0] and prim.GetAttribute("score:role").Get() == "structure"
+    walls = place_build.parts_of(prim)["wall"]
+    assert all(UsdShade.MaterialBindingAPI(wall).GetDirectBinding().GetMaterialPath() == f"/{place}/Looks/block__wall"
+               for wall in walls), walls  # its parts' looks kept through the re-lay
     assert all(stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in ("sign", "gate", "next_block")), made
