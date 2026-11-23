@@ -132,6 +132,8 @@ the file and the exact change. The Square's wording tests read kept plans of the
 - test_the_owners_word_stands, its concept split by SAM 3 (2026-11-16, #128; applied once and seen red):
     concept_objects.py: distinct's `if not any(same(box, other["box"]) for other in kept):` made `if True:` (the
     machine SAM 3 found where a surer crate lies kept as a second object)
+    concept_objects.py: job's `+ [{"key": word, "nouns": [word], "box": list(box), "prompt": list(box), ...` made
+    `+ [{"key": word, "nouns": [word], "box": whole, ...` (a box asked as a noun over the whole picture, #156)
 - test_the_owners_word_stands, its plan's gaps (folded 2026-11-14 from eight tests into the GAP_WORDS rows, each
   break below applied again then and seen red; the reading's rows went with the reading chain, #128):
     plan_checks.py: `for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]` made
@@ -1763,10 +1765,12 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
             (out.parent / "masks.masks" / f"{name}.png").write_bytes(a_picture())
         out.write_text(json.dumps({"crate": [{"box": [0, 0, 10, 10], "score": 0.9}, {"box": [20, 0, 30, 10], "score": 0.5}],
                                    "machine": [{"box": [1, 0, 10, 10], "score": 0.7}, {"box": [40, 40, 60, 60], "score": 0.6}]}))
-    found = concept_objects.objects(tmp_path / "concept.png", split, ("crate", "machine"), run=segmented)
+    found = concept_objects.objects(tmp_path / "concept.png", split, ("crate", "machine"), run=segmented,
+                                    boxes={"lever": [5, 6, 15, 20]})
     [job] = asked_jobs
-    assert [row["nouns"] for row in job["rows"]] == [["crate"], ["machine"]] and all(
-        row["masks"] and row["box"] == [0, 0, 64, 40] for row in job["rows"]), job
+    assert [row["nouns"] for row in job["rows"]] == [["crate"], ["machine"], ["lever"]] and all(
+        row["masks"] and row["box"] == [0, 0, 64, 40] and "prompt" not in row for row in job["rows"][:2]), job
+    assert job["rows"][2]["prompt"] == job["rows"][2]["box"] == [5, 6, 15, 20], job  # the one thing in its box
     assert [(entry["word"], entry["box"], entry["mask"] and pathlib.Path(entry["mask"]).name) for entry in found] == [
         ("crate", [0, 0, 10, 10], "crate.0.png"), ("machine", [40, 40, 60, 60], None),
         ("crate", [20, 0, 30, 10], "crate.1.png")], found

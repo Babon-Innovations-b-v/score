@@ -11,7 +11,10 @@ of the box the mask covers. The out file maps each row's key to its instances, s
 {"box": the mask's pixel box, "score", "inside", "fills"}. No mask leaves the card, but for a row asking for its own
 (`"mask": true`): its instance that best matches its box (`matching`) is saved, full size, as
 <out stem>.masks/<key>.png beside the out file (a code-built row's likeness is held to it: score/stages/props
-thin_straight.py). Refused on this PC (local_models.py); the runner is ../cloud/box_masks_cloud.py.
+thin_straight.py). A row with a `prompt` box (score/review/concept_objects.py's boxes: the one thing in that box, where
+a noun over the whole picture finds specks or two panels as one, #156) is not asked by its nouns: SAM 3's
+point-and-box model (Sam3Tracker) is prompted with the box and its best mask is the row's one instance.
+Refused on this PC (local_models.py); the runner is ../cloud/box_masks_cloud.py.
 """
 import json
 import pathlib
@@ -61,12 +64,27 @@ def save_masks(found, rows, folder):
             Image.fromarray(mask.astype("uint8") * 255).save(folder / f"{row['key']}.png")
 
 
-def picture_rows(model, processor, picture, rows, masks):
-    """Every row of one picture with its nouns' instances measured against its box, surest first; the masks the rows
-    ask for saved in `masks`."""
+def prompted(tracker, image, box):
+    """The thing in `box` by SAM 3's point-and-box model `tracker` ((model, processor)): its best of three masks, as
+    one (mask, score) pair."""
+    model, processor = tracker
+    tensors = processor(images=image, input_boxes=[[box]], return_tensors="pt").to("cuda")
+    with torch.no_grad():
+        outputs = model(**tensors, multimask_output=True)
+    masks = processor.post_process_masks(outputs.pred_masks.cpu(), tensors["original_sizes"])[0]
+    scores = outputs.iou_scores[0, 0].cpu()
+    best = int(scores.argmax())
+    return [(masks[0, best].numpy().astype(bool), float(scores[best]))]
+
+
+def picture_rows(model, processor, picture, rows, masks, tracker=None):
+    """Every row of one picture with its nouns' instances measured against its box, surest first (a row with a
+    `prompt` box: the thing in that box, `prompted`); the masks the rows ask for saved in `masks`."""
     image = Image.open(picture).convert("RGB")
     found = {word: cutout.found(model, processor, image, word, cutout.THRESHOLD)
-             for word in sorted({word for row in rows for word in row["nouns"]})}
+             for word in sorted({word for row in rows if "prompt" not in row for word in row["nouns"]})}
+    found.update({row["key"]: prompted(tracker, image, row["prompt"]) for row in rows if "prompt" in row})
+    rows = [dict(row, nouns=[row["key"]]) if "prompt" in row else row for row in rows]
     save_masks(found, rows, masks)
     return {row["key"]: [dict(measured(mask, row["box"]), score=round(score, 3))
                          for mask, score in sorted((pair for word in row["nouns"] for pair in found[word]),
@@ -80,10 +98,16 @@ def main():
     from transformers import Sam3Model, Sam3Processor
     processor = Sam3Processor.from_pretrained(cutout.WEIGHTS)
     model = Sam3Model.from_pretrained(cutout.WEIGHTS, torch_dtype=torch.float32).to("cuda").eval()
+    jobs = json.loads(jobs_path.read_text())
+    tracker = None
+    if any("prompt" in row for job in jobs for row in job["rows"]):
+        from transformers import Sam3TrackerModel, Sam3TrackerProcessor
+        tracker = (Sam3TrackerModel.from_pretrained(cutout.WEIGHTS).to("cuda").eval(),
+                   Sam3TrackerProcessor.from_pretrained(cutout.WEIGHTS))
     results, masks = {}, out.parent / f"{out.stem}.masks"
     masks.mkdir(parents=True, exist_ok=True)  # there even when empty: the runner copies it back
-    for job in json.loads(jobs_path.read_text()):
-        results.update(picture_rows(model, processor, jobs_path.parent / job["picture"], job["rows"], masks))
+    for job in jobs:
+        results.update(picture_rows(model, processor, jobs_path.parent / job["picture"], job["rows"], masks, tracker))
         print(f"{job['picture']}: {len(job['rows'])} rows", flush=True)
         out.write_text(json.dumps(results, indent=1))
 

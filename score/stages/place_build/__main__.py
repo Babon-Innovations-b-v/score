@@ -2,7 +2,7 @@
 
     python -m score.stages.place_build start <folder> <place> <concept.png> [--objects objects.json] [--split]
                                        [--nouns word,word]
-    python -m score.stages.place_build split <folder> --nouns word,word
+    python -m score.stages.place_build split <folder> [--nouns word,word] [--box word=x0,y0,x1,y1 ...]
     python -m score.stages.place_build camera <folder> --eye x,y,z --aim x,y,z --fov degrees
     python -m score.stages.place_build put <folder> <name> <kind/id[@version]> [--at x,y,z] [--turn rx,ry,rz]
                                        [--scale s|sx,sy,sz] [--ground] [--wear group,group] [--clip name]
@@ -49,7 +49,9 @@
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free),
 asking `--nouns` when given, else its generic probes; `split` asks a laid place's concept for more nouns, their objects
-added after the ones objects.json holds (their numbers, `make concept/<n>`'s, unchanged).
+added after the ones objects.json holds (their numbers, `make concept/<n>`'s, unchanged); its `--box` asks SAM 3 for
+the one thing in a pixel box of the concept (its point-and-box model), named by the word, where a noun over the whole
+picture finds specks or two panels as one.
 `put --rest` stands the piece's lowest point at its `--at` height (on a floor or table); `--on-ground` reads that
 height as above the laid ground there (a rock on a terrain's relief). `put --ground` marks the piece as the place's ground, so the render lays no grey plane of its own; a character is
 dressed in its body group (`--wear`, its made body by default) and held still in a clip (`--clip`, `--second`).
@@ -161,17 +163,27 @@ def this_pc_environment():
 # The split's own process: the cloud tools read PROPS_HOME and the backend once, when imported, so they load in a
 # process started in this PC's run environment, never in this one (where this_pc.py has loaded them already).
 SPLIT = ("import json, sys\nfrom score.review import concept_objects\n"
-         "words = [word for word in sys.argv[4].split(',') if word] or concept_objects.PROBES\n"
-         "json.dump(concept_objects.objects(sys.argv[1], sys.argv[2], words), open(sys.argv[3], 'w'), indent=1)")
+         "boxes = json.loads(sys.argv[5])\n"
+         "words = [word for word in sys.argv[4].split(',') if word] or ([] if boxes else concept_objects.PROBES)\n"
+         "json.dump(concept_objects.objects(sys.argv[1], sys.argv[2], words, boxes=boxes), open(sys.argv[3], 'w'),"
+         " indent=1)")
 
 
-def split(concept, folder, nouns=None, under="split"):
+def boxes_of(given):
+    """{word: [x0, y0, x1, y1]} from 'word=x0,y0,x1,y1' texts."""
+    named = [text.rpartition("=") for text in given or ()]
+    return {word: numbers(box) for word, _, box in named}
+
+
+def split(concept, folder, nouns=None, under="split", boxes=None):
     """The concept split into objects by SAM 3 on this PC's card (free), asked `nouns` (a comma list; the generic
-    probes when none), its answer written as <folder>/<under>/objects.json."""
+    probes when neither nouns nor boxes are given) and the one thing in each of `boxes` ({word: pixel box}), its
+    answer written as <folder>/<under>/objects.json."""
     import pathlib
     import subprocess
     path = f"{folder}/{under}/objects.json"
-    done = subprocess.run([sys.executable, "-c", SPLIT, str(concept), f"{folder}/{under}", path, nouns or ""],
+    done = subprocess.run([sys.executable, "-c", SPLIT, str(concept), f"{folder}/{under}", path, nouns or "",
+                           json.dumps(boxes or {})],
                           env=this_pc_environment(), cwd=pathlib.Path(__file__).resolve().parents[3])
     if done.returncode != 0:
         raise place_build.Refused(f"the concept split on this PC's card failed (exit {done.returncode})")
@@ -187,7 +199,9 @@ def run(args):
     if args.step == "split":
         import pathlib
         under = f"split-{len(list(pathlib.Path(args.folder).glob('split*')))}"
-        found = split(pathlib.Path(args.folder) / "concept.png", args.folder, args.nouns, under)
+        if not args.nouns and not args.box:
+            raise place_build.Refused("split asks SAM 3 something: give --nouns or --box")
+        found = split(pathlib.Path(args.folder) / "concept.png", args.folder, args.nouns, under, boxes_of(args.box))
         return place_build.more_objects(args.folder, found)
     if args.step == "from":
         return place_build.from_library(args.address, args.folder)
@@ -319,7 +333,8 @@ def parser():
     step.add_argument("--nouns", help="word,word: what SAM 3 is asked (its generic probes when not given)")
     step = steps.add_parser("split", help="a laid place's concept asked for more nouns, their objects added")
     step.add_argument("folder")
-    step.add_argument("--nouns", required=True)
+    step.add_argument("--nouns")
+    step.add_argument("--box", action="append", help="word=x0,y0,x1,y1: the one thing in that pixel box of the concept")
     step = steps.add_parser("from", help="a place entry of the library laid out as a place_build folder")
     step.add_argument("address")
     step.add_argument("folder")
