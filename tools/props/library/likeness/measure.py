@@ -149,9 +149,33 @@ def roughness_step(roughness, highlight, earlier=None):
     return float(np.clip(step, -ROUGHNESS_STEP, ROUGHNESS_STEP))
 
 
+# Halvings of the chroma scale that bring a shifted colour into gamut.
+GAMUT_HALVINGS = 30
+
+
+def in_gamut(target):
+    """A Lab colour brought into linear RGB's gamut keeping its lightness (within 0..100) and its hue: its chroma
+    scaled down as little as it takes (a per-channel clip turned an anodized orange raised in lightness yellow,
+    1, 1, 0.02, 2026-11-23)."""
+    lightness = float(np.clip(target[0], 0.0, 100.0))
+
+    def fits(scale):
+        light = colour.linear_of_lab_unclipped(np.array([lightness, target[1] * scale, target[2] * scale]))
+        return bool(np.all(light >= -1e-9) and np.all(light <= 1.0 + 1e-9))
+
+    low, high = 0.0, 1.0
+    if not fits(high):
+        for _ in range(GAMUT_HALVINGS):
+            middle = (low + high) / 2.0
+            low, high = (middle, high) if fits(middle) else (low, middle)
+        high = low
+    return np.array([lightness, target[1] * high, target[2] * high])
+
+
 def shifted(linear_colour, shift):
-    """A linear colour moved by a Lab shift."""
-    return [round(float(value), 5) for value in colour.linear_of_lab(colour.lab(np.asarray(linear_colour)) + shift)]
+    """A linear colour moved by a Lab shift, brought into gamut by its chroma (in_gamut)."""
+    moved = in_gamut(colour.lab(np.asarray(linear_colour)) + shift)
+    return [round(float(value), 5) for value in colour.linear_of_lab(moved)]
 
 
 def refined(spec, views, earlier=None):

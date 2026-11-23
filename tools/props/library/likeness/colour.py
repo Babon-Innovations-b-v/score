@@ -1,7 +1,7 @@
 """Colour arithmetic the likeness fit and check share, in numpy alone: sRGB to linear and back, linear RGB to CIE Lab
 (D65 white, the CIE's own constants) and back.
 
-    linear(srgb)       srgb(linear)       lab(linear)       linear_of_lab(lab)
+    linear(srgb)       srgb(linear)       lab(linear)       linear_of_lab(lab)       linear_of_lab_unclipped(lab)
 
 Arrays of any shape whose last axis is the three channels, values 0..1 (Lab: L 0..100).
 """
@@ -37,10 +37,15 @@ def lab(light):
                      200.0 * (bent[..., 1] - bent[..., 2])], -1)
 
 
-def linear_of_lab(values):
-    """CIE Lab as linear RGB, clipped to 0..1."""
+def linear_of_lab_unclipped(values):
+    """CIE Lab as linear RGB, out of gamut as it falls (below 0 or over 1)."""
     values = np.asarray(values, dtype=float)
     middle = (values[..., 0] + 16.0) / 116.0
     bent = np.stack([middle + values[..., 1] / 500.0, middle, middle - values[..., 2] / 200.0], -1)
     ratio = np.where(bent ** 3 > EPSILON, bent ** 3, (116.0 * bent - 16.0) / KAPPA)
-    return np.clip((ratio * WHITE) @ np.linalg.inv(TO_XYZ).T, 0.0, 1.0)
+    return (ratio * WHITE) @ np.linalg.inv(TO_XYZ).T
+
+
+def linear_of_lab(values):
+    """CIE Lab as linear RGB, clipped to 0..1."""
+    return np.clip(linear_of_lab_unclipped(values), 0.0, 1.0)

@@ -43,6 +43,9 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   metal constants row metal 0), or statistics' UNSAID_ROUGHNESS read as the family's default (the cotton row 0.85).
 - measure.roughness_step: the secant dropped (the dim highlight row steps 0.04 smoother, 0.36, not 0.6), or
   measure.breach's detail share dropped (that row ranks (0, 0.0), a pass).
+- measure.shifted: the colour clipped channel by channel (colour.linear_of_lab alone): the orange row's raised
+  colour turns yellow, lightness 96.9 at hue 104, not 99.1 at 92 (its shift, sRGB (255, 200, 120) less (200, 100, 30)
+  in Lab, on (0.8, 0.3, 0.05) is L 99.1 at hue 91.6, in gamut only near grey).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -55,6 +58,7 @@ from PIL import Image
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import colour  # noqa: E402
 import fit  # noqa: E402
 import measure  # noqa: E402
 
@@ -108,6 +112,12 @@ def seen(recipe, family_from, colour, roughness, metal, relief, passed, glow):
     whether the pictures pass, and the glow it carries (its constant emissiveColor, an emission map)."""
     return {"recipe": recipe, "family_from": family_from, "colour": colour, "roughness": roughness, "metal": metal,
             "relief": relief, "pass": passed, "glow": glow}
+
+
+def lightness_hue(linear):
+    """A linear colour's CIE lightness and hue angle (degrees), rounded."""
+    lab = colour.lab(np.asarray(linear, dtype=float))
+    return round(float(lab[0]), 1), float(round(np.degrees(np.arctan2(lab[2], lab[1]))))
 
 
 def opaque(pixels):
@@ -177,6 +187,9 @@ ROWS = [
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0))}, {"tile_metres": 1.0},
      (stripes(109, 129), solid((119,) * 3), {"roughness": 0.5, "highlight": -2.0}),
      {"recipe": "plastic", "roughness": 0.4, "pass": False, "refined_roughness": 0.6, "ranking": (1, 1.0)}),
+    ("an orange raised past the gamut keeps its hue", "m_opaque_metal_anodized_orange_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.8, 0.3, 0.05]}},
+     (solid((255, 200, 120)), solid((200, 100, 30))), {"recipe": "anodized", "refined_lab": (99.1, 92.0)}),
 ]
 
 
@@ -198,5 +211,5 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
-              "ranking": measure.ranking(views)}
+              "ranking": measure.ranking(views), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name
