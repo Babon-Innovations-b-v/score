@@ -82,6 +82,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.lattice: a brace drawn as a stair of boxes -> a brace's points stray from the straight line between its ends
 - launch_kit.ship: `ring` 0 read as the default 2 m of seams -> the seamless ship has a seam part
 - launch_kit.ferry: its wake laid under the waterline -> the ferry's wake is not on the water
+- launch_kit.water: shaded smooth -> the harbour's top normals lean off straight up
 - place_build.haze: `shape` dropped (always a box) -> the steam puff's shell reaches its box's corners
 - place_build.shaft: the cone not turned onto its aim -> the beam's shell runs up, not toward its aim
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
@@ -996,7 +997,7 @@ def kitted(tmp_path):
 def launched(folder):
     """A launch site's code-built pieces (launch_kit, `kit`): the ship one closed solid of welded parts standing on its
     skirt's foot (its engine bells clear above it), and a tower's braces each a straight bar between its ends."""
-    from score.stages.place_build import launch_kit
+    from score.stages.place_build import cockpit_kit, launch_kit
     ship = place_build.kit(folder, "ship", "ship", {"radius": 1.0, "high": 12.0, "nose": 3.0, "ring": 2.0,
                                                     "segments": 24}, role="fixed",
                            looks={part: "palette/hull_paint" for part in ("hull", "seam", "tiles", "flap", "engine")})
@@ -1025,6 +1026,11 @@ def launched(folder):
     ferry = launch_kit.ferry(long=20.0, wide=5.0, wake=30.0)
     wake = np.concatenate([piece[1] for piece in ferry if piece[0] == "wake"])
     assert wake[:, 1].min() >= 0.0 and wake[:, 0].max() < -10.0, (wake.min(axis=0), wake.max(axis=0))
+    harbour = launch_kit.water(wide=1.0, deep=1.0, depth=0.5)  # small, so a lean from its chamfers would show
+    points, triangles = cockpit_kit.welded(harbour[0][1], harbour[0][2])
+    normals = cockpit_kit.corner_normals(points, triangles, harbour[0][3]).reshape(-1, 3, 3)
+    tops = normals[np.all(np.abs(points[triangles][:, :, 1]) < 1e-9, axis=1)].reshape(-1, 3)
+    assert len(tops) and tops[:, 1].min() > 1.0 - 1e-6, "the harbour's top leans"
 
 
 def adopted(folder):

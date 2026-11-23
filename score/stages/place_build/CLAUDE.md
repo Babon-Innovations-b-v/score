@@ -182,7 +182,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   clamps, hoses and orange-lit boxes; a tower's straight X-bracing (a `blocks` tower keeps its posts, cabin and roof,
   its stepped boxes dropped) on flat-topped girders a lamp stands on; a platform railing; a floodlight's 3 x 3 head;
   a far city's glass towers, its big wheel and smooth hills (marked `fixed`: far scenery, never in the walkers' grid);
-  a harbour ferry with its lit window bands and its wake on the water. The ship with `ring` 0 is one seamless steel
+  a harbour ferry with its lit window bands and its wake on the water; a harbour's `water`, one closed flat-shaded
+  slab whose top grid is finer near the place (blocks draw smooth: a 12 km strip leant its top from its chamfers and
+  the near water mirrored the city in a patch with a ruler-straight edge; the check keeps a ground's faces by their
+  corners near the place, so one huge face would be dropped). The ship with `ring` 0 is one seamless steel
   barrel (the pad's judge: "evenly spaced ring bands"), its canards and aft flaps sized by `fore`, `aft`, `aft_chord`.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure

@@ -22,6 +22,9 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
 - `skyscraper`: a far city's glass tower set back in tiers, its windows lit here and there, mullion fins, a neon band
   round each tier's top and a spire; parts glass, fin, window, neon, spire.
 - `mound`: a smooth hill behind a far city; part hill.
+- `water`: a harbour's water, one slab `wide` x `deep` and `depth` deep, its top at y = 0, shaded flat (its top's
+  normals straight up: the pad's harbour laid as blocks drew smooth, each chamfered corner's lean spread over strips
+  kilometres long, and the near water mirrored the city in a patch cut off by a ruler-straight edge); part water.
 - `ferry`: a harbour ferry on the water (its waterline at y = 0): a hull with a pointed bow, a two-deck cabin with
   its window bands lit, and its wake spreading behind it on the water; parts hull, cabin, window, wake.
 """
@@ -355,8 +358,48 @@ def counter_clockwise(outline):
     return outline if area > 0 else outline[::-1]
 
 
+WATER_LINES = (0.0, 0.01, 0.025, 0.06, 0.15, 0.4, 1.0)  # shares of the half width the water's grid lines stand at
+
+
+def water(wide=12000.0, deep=12000.0, depth=3.0):
+    """A harbour's water: a closed flat-shaded slab `wide` (x) by `deep` (z), `depth` deep, its top at y = 0,
+    centred, its faces a grid finer near its middle (WATER_LINES), so the place laid on it has the water's corners
+    round it (the check keeps a ground's faces by their corners near the place)."""
+    across = np.unique([sign * share * wide / 2 for share in WATER_LINES for sign in (-1.0, 1.0)])
+    along = np.unique([sign * share * deep / 2 for share in WATER_LINES for sign in (-1.0, 1.0)])
+    count_x, count_z = len(across), len(along)
+    grid_x, grid_z = np.meshgrid(across, along, indexing="ij")
+    top = np.column_stack([grid_x.ravel(), np.zeros(grid_x.size), grid_z.ravel()])
+    points = np.vstack([top, top - [0.0, depth, 0.0]])
+    below = len(top)
+
+    def at(column, row, under=False):
+        return column * count_z + row + (below if under else 0)
+
+    triangles = []
+    for column in range(count_x - 1):
+        for row in range(count_z - 1):
+            corners = [at(column, row), at(column, row + 1), at(column + 1, row + 1), at(column + 1, row)]
+            triangles += [[corners[0], corners[1], corners[2]], [corners[0], corners[2], corners[3]]]  # up
+            under = [corner + below for corner in corners]
+            triangles += [[under[0], under[2], under[1]], [under[0], under[3], under[2]]]  # down
+    rim = ([at(column, 0) for column in range(count_x)] + [at(count_x - 1, row) for row in range(1, count_z)]
+           + [at(column, count_z - 1) for column in range(count_x - 2, -1, -1)]
+           + [at(0, row) for row in range(count_z - 2, 0, -1)])
+    for here, there in zip(rim, rim[1:] + rim[:1]):
+        triangles += [[here, here + below, there + below], [here, there + below, there]]
+    triangles = np.asarray(triangles)
+    corners = points[triangles]
+    faces = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    outward = np.einsum("ij,ij->i", faces, corners.mean(axis=1) - [0.0, -depth / 2, 0.0]) >= 0
+    triangles[~outward] = triangles[~outward][:, ::-1]
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece("water", points, triangles, False)]
+
+
 KINDS = {"ship": ship, "launch_ring": launch_ring, "lattice": lattice, "railing": railing, "flood_head": flood_head,
-         "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound, "ferry": ferry}
+         "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound, "ferry": ferry,
+         "water": water}
 
 
 def write(path, kind, sizes):
