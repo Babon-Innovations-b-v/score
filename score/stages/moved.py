@@ -110,7 +110,7 @@ def snapshot(commit, script=SNAPSHOT):
     working tree when `commit` is None."""
     if commit is None:
         return snapshot_here(REPO, script)
-    holder = pathlib.Path(tempfile.mkdtemp(prefix="moved-", dir=REPO.parent))
+    holder = pathlib.Path(tempfile.mkdtemp(prefix="moved-"))
     folder = holder / "tree"
     try:
         subprocess.run(["git", "-C", str(REPO), "worktree", "add", "-q", "--detach", str(folder), commit],

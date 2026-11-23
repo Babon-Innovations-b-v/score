@@ -1596,11 +1596,11 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
             git(repo, "checkout", "--", ".")
         # an unknown commit, or one whose tree cannot work out a snapshot (the toy has no score), raises and leaves
         # no checkout behind
-        checkouts = set(repo.parent.glob("moved-*"))
+        checkouts = set(pathlib.Path(tempfile.gettempdir()).glob("moved-*"))
         for commit in ("f" * 40, git(repo, "rev-parse", "HEAD")):
             with pytest.raises(subprocess.CalledProcessError):
                 moved.snapshot(commit)
-        assert set(repo.parent.glob("moved-*")) == checkouts and len(git(repo, "worktree", "list").splitlines()) == 1
+        assert set(pathlib.Path(tempfile.gettempdir()).glob("moved-*")) == checkouts and len(git(repo, "worktree", "list").splitlines()) == 1
         # a module moved into FRAMEWORK and edited in the same change makes the rows that read it again (no narrowing
         # carry): it is named, a plain move is not
         (repo / "score/graph").mkdir(parents=True)
