@@ -25,6 +25,10 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   beside a flat recipe the refinement would double it, but a quarter of its 0.016 pitch is 0.004;
 - the rusty chrome's rust is 19 of 64 columns, a worn share of 0.2969: its bloom threshold 0.5 + 0.1 x 0.533 (the
   normal's 70.3rd percentile) = 0.5533, so its wear is (0.75 - 0.5533) / 0.3 = 0.6555;
+- the smudged plastic's stripes are L 46.03 and 53.98: mean 50.0, dark shade 3.97 under it, spread 3.97, so its
+  contrast wants 3.97 / (0.3 x 3.97) = 3.33: contrast 1 and a second shade 3.33 x 3.97 under the mean, L 36.8; its
+  ORM green stripes spread 0.0196, a roughness spread of 0.0196 / 0.3 = 0.0654; beside a flat recipe (L 50.03, so
+  the colours shift by -0.03) the refinement doubles the shades' gap at contrast 1: L 49.97 - 2 x 13.24 = 23.5;
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
@@ -73,6 +77,9 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.spec_of: PERIODIC's period dropped (the tread plate's pitch the half-width feature, 0.012), or
   measure.refined's RELIEF_ASPECT cap dropped (its bump doubles to 0.008).
 - fit.spec_of: the WORN_FAMILIES wear dropped (the rusty chrome drawn clean, no wear set).
+- fit.spec_of: the darker second dropped (the smudged plastic's second L 46), or its roughness spread dropped
+  (None: plastic's defaults without the setting), or measure.refined's second move dropped (its second L 36.8, the
+  colours' shift alone).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -306,6 +313,11 @@ ROWS = [
      {"albedo.png": rusty(19), "orm.png": solid((255, 102, 255))},
      {"maps": {"albedo": "albedo.png", "orm": "orm.png"}, "tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "rusted_metal", "wear": 0.6555}),
+    ("a smudged plastic: mottled past contrast 1 by a darker second, its roughness spread", "plastic_black_dirty_c01",
+     {"albedo.png": stripes(109, 129), "orm.png": stripes(70, 80)},
+     {"maps": {"albedo": "albedo.png", "orm": "orm.png"}, "tile_metres": 1.0}, (stripes(109, 129), solid((119,) * 3)),
+     {"recipe": "plastic", "contrast": 1.0, "second_lightness": 36.8, "roughness_spread": 0.0654,
+      "refined_second_lightness": 23.5}),
 ]
 
 
@@ -329,6 +341,10 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
               "ranking": measure.ranking(views), "glow_strength": spec.get("glow"),
-              "scratches": spec.get("scratches"), "wear": spec.get("wear"), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
+              "scratches": spec.get("scratches"), "wear": spec.get("wear"), "contrast": spec.get("contrast"),
+              "roughness_spread": spec.get("roughness_spread"),
+              "second_lightness": round(float(colour.lab(np.asarray(spec["second"]))[0]), 1),
+              "refined_second_lightness": round(float(colour.lab(np.asarray(
+                  measure.refined(spec, views)["second"]))[0]), 1), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
               "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

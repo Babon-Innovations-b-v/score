@@ -398,7 +398,8 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread (a PERIODIC family's pattern size its relief's period); a WORN_FAMILIES spec's own wear from the albedo's
+    spread (past what contrast 1 draws, a second shade further off), the roughness spread from the roughness map's (a
+    PERIODIC family's pattern size its relief's period); a WORN_FAMILIES spec's own wear from the albedo's
     worn share (worn); no relief (RELIEF_SETTINGS 0) with no normal map; scratches by the roughness map's spread (a flat one has
     none: chrome drew scratch glints its maps lack); a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
     slopes (toksvig_roughness)."""
@@ -433,7 +434,13 @@ def spec_of(family, measured, method=METHOD):
         spec["scratches"] = round(min(1.0, measured.get("roughness_spread", 0.0) / SCRATCH_SPREAD), 4)
     apart = abs(measured["lab"][0] - measured["dark_lab"][0])
     if "contrast" in defaults and apart > 1.0:
-        spec["contrast"] = round(min(1.0, measured["lightness_spread"] / (PATTERN_SPREAD * apart)), 4)
+        wanted = measured["lightness_spread"] / (PATTERN_SPREAD * apart)
+        spec["contrast"] = round(min(1.0, wanted), 4)
+        if wanted > 1.0:  # a spread contrast 1 cannot draw: a second shade further off, not a capped contrast
+            spec["second"] = linear_colour(np.asarray(measured["lab"]) +
+                                           (np.asarray(measured["dark_lab"]) - measured["lab"]) * wanted)
+    if "roughness_spread" in defaults:
+        spec["roughness_spread"] = round(measured.get("roughness_spread", 0.0) / PATTERN_SPREAD, 4)
     return spec
 
 

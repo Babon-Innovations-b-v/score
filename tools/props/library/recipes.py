@@ -136,6 +136,20 @@ def rubber_relief(vector, bump, bump_size):
     return plastic_black_rubberized(vector=vector, noise_size=bump_size, noise_height=bump).displacement
 
 
+def mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed):
+    """A flat finish's colour mottled toward `second` in soft patches `mottle_size` across (by `contrast`, as
+    concrete's), and its roughness spread by `roughness_spread` in patches of its own (a scuffed plastic's, a
+    stained paint's): the colour and roughness. Both 0 draw the flat finish (#155: plastic, rubber, cloth and paint
+    had one colour and one roughness, so a smudged or speckled map could not be matched)."""
+    mottle = pf.nodes.texture.noise(vector=vector, scale=1.0 / mottle_size, detail=4.0, noise_dimensions="4D",
+                                    w=seed + 11.0)
+    patches = pf.nodes.texture.noise(vector=vector, scale=1.0 / mottle_size, detail=4.0, noise_dimensions="4D",
+                                     w=seed + 13.0)
+    base = pf.nodes.color.mix_rgb(factor=pf.nodes.math.clamp((mottle.fac - 0.5) * 2.0 * contrast), a=colour,
+                                  b=second)
+    return base, pf.nodes.math.clamp(roughness + (patches.fac - 0.5) * 2.0 * roughness_spread)
+
+
 def layered(top, under, wear_mask, dirt_colour, dirt_amount):
     """Paint `top` over `under` through the wear mask, then dirt over both: (colour, roughness, metal) triples in,
     the same triple out."""
@@ -148,12 +162,15 @@ def layered(top, under, wear_mask, dirt_colour, dirt_amount):
 
 
 def painted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
-                  breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks):
-    """Paint on steel: worn through to bare steel on the edges and where feet kick it, dirty in the cavities."""
+                  breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks, second=None, mottle_size=0.15,
+                  contrast=0.0, roughness_spread=0.0):
+    """Paint on steel, mottled (mottled): worn through to bare steel on the edges and where feet kick it, dirty in
+    the cavities."""
     vector = coordinates()
     kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
     wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
     dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
+    colour, roughness = mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed)
     base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 1.0), wear_mask, dirt_colour, dirty)
     chipped = pf.nodes.shader.displacement(height=wear_mask * -0.0004, midlevel=0.0)
     return Channels(base, rough, shine, BLACK, paint_relief(vector, bump, bump_size) + chipped)
@@ -168,17 +185,22 @@ def bare_metal(colour, dirt_colour, roughness, metal, bump, bump_size, dirt_reac
     return Channels(base, rough, metal, BLACK, brushed_relief(vector, bump, bump_size))
 
 
-def rubber(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, seed):
-    """Black rubber with a fine grain, dusty in the cavities."""
+def rubber(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, seed, second=None, mottle_size=0.15,
+           contrast=0.0, roughness_spread=0.0):
+    """Black rubber with a fine grain, mottled (mottled), dusty in the cavities."""
     vector = coordinates()
+    colour, roughness = mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed)
     dirty = dirt_mask(vector, dirt, dirt_reach, seed)
     base = pf.nodes.color.mix_rgb(factor=dirty, a=colour, b=dirt_colour)
     return Channels(base, roughness, 0.0, BLACK, rubber_relief(vector, bump, bump_size))
 
 
-def cloth(colour, dirt_colour, roughness, thread, bump, dirt_reach, dirt, seed):
-    """Plain woven cloth (overalls, jackets, straps, upholstery): its flat colour, a fine weave, dirt in its creases."""
+def cloth(colour, dirt_colour, roughness, thread, bump, dirt_reach, dirt, seed, second=None, mottle_size=0.15,
+          contrast=0.0, roughness_spread=0.0):
+    """Plain woven cloth (overalls, jackets, straps, upholstery): its colour, mottled (mottled, a heather's), a fine
+    weave, dirt in its creases."""
     vector = coordinates()
+    colour, roughness = mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed)
     base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
     return Channels(base, rough, 0.0, BLACK, cloth_relief(vector, thread, bump))
 
@@ -609,10 +631,12 @@ def ice(colour, second, roughness, crack_scale, crack_width, frost_share, bump, 
 # (likeness/fit.py) and checked to look the same (likeness/check.py).
 
 
-def plastic(colour, dirt_colour, roughness, grain_size, bump, dirt_reach, dirt, seed):
-    """Moulded plastic, glossy to matt by its roughness: a flat colour, the mould's fine grain as relief, dirt in the
-    cavities."""
+def plastic(colour, dirt_colour, roughness, grain_size, bump, dirt_reach, dirt, seed, second=None, mottle_size=0.15,
+            contrast=0.0, roughness_spread=0.0):
+    """Moulded plastic, glossy to matt by its roughness: its colour, mottled (mottled, smudges and scuffs), the mould's
+    fine grain as relief, dirt in the cavities."""
     vector = coordinates()
+    colour, roughness = mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed)
     grain = pf.nodes.texture.noise(vector=vector, scale=1.0 / grain_size, detail=2.0, noise_dimensions="4D", w=seed)
     base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
     return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=(grain.fac - 0.5) * bump,
@@ -761,15 +785,16 @@ SOURCES = {
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
-    "painted_metal": (painted_metal, coordinates, edge_wear_mask, kick_mask, dirt_mask, paint_relief, layered),
+    "painted_metal": (painted_metal, coordinates, mottled, edge_wear_mask, kick_mask, dirt_mask, paint_relief,
+                      layered),
     "bare_metal": (bare_metal, coordinates, dirt_mask, brushed_relief),
     "cast_metal": (cast_metal, coordinates, dirty_flat, dirt_mask),
     "perforated_metal": (perforated_metal, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "chequer_plate": (chequer_plate, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "galvanized": (galvanized, coordinates, dirty_flat, dirt_mask),
     "anodized": (anodized, coordinates, brushed_relief),
-    "rubber": (rubber, coordinates, dirt_mask, rubber_relief),
-    "cloth": (cloth, coordinates, dirty_flat, dirt_mask, cloth_relief),
+    "rubber": (rubber, coordinates, mottled, dirt_mask, rubber_relief),
+    "cloth": (cloth, coordinates, mottled, dirty_flat, dirt_mask, cloth_relief),
     "quilted": (quilted, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "pile": (pile, coordinates, dirty_flat, dirt_mask),
     "written": (written, coordinates, face_plane),
@@ -792,7 +817,7 @@ PARTS = {
     "sand": (sand, coordinates, face_plane),
     "ocean": (ocean, coordinates),
     "ice": (ice, coordinates, ridges),
-    "plastic": (plastic, coordinates, dirty_flat, dirt_mask),
+    "plastic": (plastic, coordinates, mottled, dirty_flat, dirt_mask),
     "polished_metal": (polished_metal, coordinates, ridges),
     "concrete": (concrete, coordinates, dirty_flat, dirt_mask),
     "cardboard": (cardboard, coordinates, face_plane),
@@ -826,6 +851,8 @@ def arguments(spec, wear, dirt, seed, foot=None):
 
         given["image"] = pf.Image(bpy.data.images.load(spec["image"], check_existing=True))
     wanted = inspect.signature(RECIPES[spec["recipe"]]).parameters
+    if "second" in wanted and wanted["second"].default is None and "second" not in given:
+        given["second"] = given["colour"]  # a mottled finish (mottled) whose spec names no second shade: its own
     return {name: given[name] for name, about in wanted.items()
             if name in given or about.default is inspect.Parameter.empty}
 

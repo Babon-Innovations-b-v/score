@@ -186,7 +186,7 @@ def refined(spec, views, earlier=None):
     """The spec moved toward the maps' look from every view's measures: its colours by the mean Lab gap, its
     roughness by the highlight gap (roughness_step, from the `earlier` round's {"roughness", "highlight"} when there
     is one), its bump (grown no higher than RELIEF_ASPECT of its pattern size), contrast and scratches by the detail
-    ratio."""
+    ratio (a contrast already at 1 moving its second shade further off instead)."""
     measures = list(views.values())
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
@@ -203,6 +203,10 @@ def refined(spec, views, earlier=None):
         if size:
             grown = min(grown, max(moved["bump"], size * RELIEF_ASPECT))
         moved["bump"] = round(float(grown), 6)
+    if moved.get("contrast") == 1.0 and scale > 1.0 and "second" in moved:  # contrast spent: the shades apart
+        apart = colour.lab(np.asarray(moved["second"])) - colour.lab(np.asarray(moved["colour"]))
+        moved["second"] = [round(float(value), 5) for value in colour.linear_of_lab(
+            in_gamut(colour.lab(np.asarray(moved["colour"])) + apart * scale))]
     for name in ("contrast", "scratches"):
         if name in moved:
             moved[name] = round(float(min(moved[name] * scale, 1.0)), 4)

@@ -14,7 +14,10 @@
    "bump_size": 0.012,
    "edge_width": 0.006,
    "breakup_scale": 8.0,
-   "dirt_reach": 0.08
+   "dirt_reach": 0.08,
+   "mottle_size": 0.15,
+   "contrast": 0.0,
+   "roughness_spread": 0.0
   },
   "bare_metal": {
    "roughness": 0.38,
@@ -62,13 +65,19 @@
    "bump": 0.0002,
    "bump_size": 0.002,
    "dirt_reach": 0.05,
-   "dirt_share": 0.5
+   "dirt_share": 0.5,
+   "mottle_size": 0.15,
+   "contrast": 0.0,
+   "roughness_spread": 0.0
   },
   "cloth": {
    "roughness": 0.85,
    "thread": 0.003,
    "bump": 0.0002,
-   "dirt_reach": 0.05
+   "dirt_reach": 0.05,
+   "mottle_size": 0.15,
+   "contrast": 0.0,
+   "roughness_spread": 0.0
   },
   "quilted": {
    "roughness": 0.9,
@@ -223,7 +232,10 @@
    "roughness": 0.4,
    "grain_size": 0.002,
    "bump": 0.0001,
-   "dirt_reach": 0.05
+   "dirt_reach": 0.05,
+   "mottle_size": 0.15,
+   "contrast": 0.0,
+   "roughness_spread": 0.0
   },
   "polished_metal": {
    "roughness": 0.08,
