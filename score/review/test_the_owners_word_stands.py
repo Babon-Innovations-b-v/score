@@ -257,6 +257,16 @@ the file and the exact change. The Square's wording tests read kept plans of the
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: edit_inside's `plan, moved = people_moved_out(plan, inventory or {"rows": []})` dropped
         (greenhouse's redrawn astronaut_2 kept in its grow light frame, 2026-11-08)
+- test_the_owners_word_stands, its EDIT_FIXED rows (the free fixes of his edit or a redrawing, plans.edit_inside;
+  wiped with the plan writer on 2026-11-16, #128, they came back on 2026-11-23 after the kept plans of the hangar and
+  the walkway lost them and plan@hangar and @walkway failed `held`, #156; each row as it stood in FIXED before the wipe):
+    plan_fixes.py `items_inside`: `clipped = [min(box[2], outer[2]), min(box[3], outer[3])]` made `clipped =
+    box[2:]` (the facade left past the wall)
+    plan_fixes.py `people_inside`: `walls_things | ~inside` made `walls_things` (its footprint past the outline)
+    plan_fixes.py `moved_inside`: its clamp dropped (`x, y = box[:2]`) (the facade left past the wall)
+    plan_fixes.py `frame_inside`: `plan.pop("frame")` dropped
+    plan_fixes.py `doorways_fit`: `near["wide"] = max(float(near["wide"]), door_wide)` dropped (the vault door's
+    doorway left 0.9 m)
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
         `if False:`
     A hold fitted to its plan's size takes its row's drawn item with it and moves, its item too, so its door meets its
@@ -300,13 +310,14 @@ import re
 import subprocess
 import sys
 
+import numpy
 import pytest
 from PIL import Image
 
 from score import checks, contracts, graph, review, stages
 from score.adapters import compute
 from score.review import (concept_objects, concepts, discuss, environment_concept, environment_concept as ec,
-                          environment_plan, overhead, plan_checks, plans, reading, scene_sky, setting, web)
+                          environment_plan, overhead, plan_checks, plan_fixes, plans, reading, scene_sky, setting, web)
 from score.stages.scene_record import plan as record_plan
 from score.store import RUNNER, Store, runtime_store
 
@@ -1760,6 +1771,15 @@ def test_the_owners_word_stands(tally, store, tmp_path, monkeypatch):
         ("crate", [0, 0, 10, 10], "crate.0.png"), ("machine", [40, 40, 60, 60], None),
         ("crate", [20, 0, 30, 10], "crate.1.png")], found
 
+    # the free fixes of his edit or a redrawing (plans.edit_inside), each on a plan of its own: what it answers and the
+    # plan it leaves, and what it answers given that plan again
+    for row_name, fix, arguments, want, plan_want, *again in EDIT_FIXED:
+        arguments = copy.deepcopy(arguments)
+        answer = fix(*arguments)
+        assert holds(answer, want), (row_name, answer)
+        assert not again or holds(fix(*arguments), again[0]), (row_name, "given its own plan again")
+        assert plan_want is None or holds(arguments[0], plan_want), (row_name, arguments[0])
+
     monkeypatch.setattr(store, "is_framework_store", lambda: True)  # an agent's process keeps no version or reference
     monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
     monkeypatch.setattr(ec, "running_under_agent", lambda: True)
@@ -2425,4 +2445,502 @@ GAP_WORDS = [  # (row, a written plan, its inventory, the gap kinds read or None
     ("a flight too steep, two overlapping, one past its walls", STAIR_CORE, {"rows": []}, {"stairs"},
      {"stair 1 rises 1.5 m over a 1.00 m run, 56 degrees (steeper than 42)", "stair 1 and stair 2 overlap, under 2 m apart",
       "stair 3 lies past its walls (south-east)"}),
+]
+
+
+# --- the free fixes of his edit (plans.edit_inside, score/review/plan_fixes.py) ---------------------------------------
+
+SAID = Said()
+
+
+VAULT = {"w": 4.0, "d": 4.0, "outline": [[0, 0], [4.0, 0], [4.0, 4.0], [0, 4.0]], "leads": {},
+         "doors": [["S", 2.0, 0.9, "VAULT DOOR (0.9 x 2.0 m)"]], "rows": {"VAULT DOOR 1": ["vault_door"]},
+         "items": [["VAULT DOOR 1", 1.0, 3.8, 2.0, 0.2, "N", "item"]],
+         "openings": [{"kind": "door", "at": [2.0, 4.0], "wide": 0.9, "angle": 0.0, "sill": 0.0, "head": 2.0}]}
+
+
+VAULT_ROWS = {"rows": [{"id": "vault_door", "size": [2.0, 0.2, 2.2]}]}
+
+
+NO_ROWS = {"rows": []}
+
+
+GARAGE = {"w": 12.0, "d": 12.0, "outline": [[0, 0], [12, 0], [12, 12], [0, 12]], "fixes": [], "rows": {},
+          "items": [["PIPE 1", -5.0, 1.5, 10.0, 0.1, None, "item"], ["FACADE 1", -3.01, 11.8, 14.0, 0.6, None, "item"],
+                    ["GLASS TUNNEL 1", -4.0, 5.0, 4.0, 2.0, None, "item"], ["CRATE 1", 4.0, 4.0, 1.0, 1.0, None, "item"]],
+          "people": [[7.0, 14.3]], "frame": {"anchor": {"plan": [60.0, 3.0], "place": [0, 0, 0]}}}
+
+
+GARAGE_INSIDE = {key: value for key, value in GARAGE.items() if key != "frame"} | {
+    "items": [["PIPE 1", 0.0, 1.5, 10.0, 0.1, None, "item"], ["FACADE 1", 0.0, 11.4, 12.0, 0.6, None, "item"],
+              ["GLASS TUNNEL 1", -4.0, 5.0, 4.0, 2.0, None, "item"], ["CRATE 1", 4.0, 4.0, 1.0, 1.0, None, "item"]],
+    "people": [[6.975, 11.775]]}
+
+
+def laid_boxes(plan):
+    """Each item's laid box [x, y, w, d] by its name."""
+    return {item[0]: item[1:5] for item in plan["items"]}
+
+
+NO_DROPPED = Meets(lambda plan: "dropped" not in plan)
+
+
+PIPE_WALL = {"id": "pipe", "anchor": "wall", "count": 3, "size": [0.2, 3.0, 0.2]}
+
+
+# settle@airlock, checkout 67: a run of sandbags through its east wall, one into its ramp's stairs, one nudged into
+# the empty suit hung on its back wall
+BAGS_ROW = {"id": "bags", "anchor": "ground", "count": 1, "size": [0.6, 0.5, 0.2]}
+
+
+RUNS = {"w": 10.0, "d": 10.0, "items": [["BAGS 1", 1.0, 2.0, 7.0, 0.5, None, "item"],
+                                        ["BAGS 2", 1.0, 8.8, 3.0, 0.5, None, "item"],
+                                        ["BAGS 3", 6.5, 6.0, 3.0, 0.5, None, "item"],
+                                        ["PIPE 1", 5.9, 1.0, 0.2, 3.0, None, "item"]],
+        "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "PIPE 1": ["pipe"]},
+        "shapes": {**{f"BAGS {number}": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": count}
+                      for number, count in ((1, 7), (2, 3), (3, 3))},
+                   "PIPE 1": {"shape": "rect", "tall": 0.2, "count": 2}},
+        "walls": [{"from": [6.0, 0.0], "to": [6.0, 5.0], "thick": 0.2}, {"from": [0.0, 9.0], "to": [5.0, 9.0],
+                                                                          "thick": 0.2}],
+        "stairs": [{"kind": "ramp", "points": [[7.0, 5.0], [8.0, 5.0], [8.0, 7.0], [7.0, 7.0]]}]}
+
+
+RUN_ROWS = {"rows": [BAGS_ROW, {**PIPE_WALL, "anchor": "on:wall"}]}
+
+
+DOUBLED = {"w": 10.0, "d": 10.0, "items": [["BAGS 1", 1.0, 1.0, 3.0, 0.5, None, "item"],
+                                           ["BAGS 2", 1.2, 1.1, 0.6, 0.4, None, "item"],
+                                           ["BAGS 3", 1.2, 1.1, 0.6, 0.4, None, "item"],
+                                           ["BAGS 4", 3.9, 1.4, 0.6, 0.4, None, "item"],
+                                           ["CRATE 1", 2.0, 1.0, 0.6, 0.4, None, "item"]],
+           "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "BAGS 4": ["bags"],
+                    "CRATE 1": ["crate"]},
+           "shapes": {"BAGS 1": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": 5},
+                      "BAGS 2": {"shape": "rect", "tall": 0.2, "base": -0.2},
+                      "BAGS 3": {"shape": "rect", "tall": 0.2, "base": 0.0},
+                      "BAGS 4": {"shape": "rect", "tall": 0.2, "base": -0.2},
+                      "CRATE 1": {"shape": "rect", "tall": 0.5, "base": -0.2}}}
+
+
+# settle@flat and settle@engineroom, checkout 68: a plan fixed before piled() asked the row's words kept flat's second
+# stove 0.9 m up on its first, in its fridge, and the engine room's pipe 1 ran into its corner pipes
+KITCHEN = {"w": 6.0, "d": 5.0, "items": [["FRIDGE 1", 4.95, 1.95, 0.6, 0.6, "W", "item"],
+                                         ["STOVE 1", 4.94, 2.59, 0.54, 1.0, "W", "item"],
+                                         ["STOVE 2", 4.58, 2.13, 0.8, 0.6, None, "item"],
+                                         ["BAGS 1", 1.0, 1.0, 1.0, 0.5, None, "item"],
+                                         ["BAGS 2", 1.2, 1.1, 1.0, 0.5, None, "item"],
+                                         ["RAIL 1", 0.5, 3.0, 1.0, 1.0, None, "item"],
+                                         ["RAIL 2", 0.6, 3.1, 1.0, 1.0, None, "item"],
+                                         ["PANEL 1", 0.0, 0.0, 6.0, 5.0, None, "item"],
+                                         ["PIPE 1", 1.0, 0.0, 4.0, 0.3, None, "item"],
+                                         ["PIPE 2", 0.8, 0.0, 0.6, 0.3, None, "item"],
+                                         ["PIPE 3", 4.6, 0.0, 0.6, 0.3, None, "item"],
+                                         ["STRING 1", 0.0, 4.0, 6.0, 0.2, None, "item"],
+                                         ["STRING 2", 0.0, 4.1, 6.0, 0.2, None, "item"],
+                                         ["FRAME 1", 3.0, 4.8, 0.5, 0.1, None, "item"],
+                                         ["FRAME 2", 3.1, 4.8, 0.5, 0.1, None, "item"]],
+           "rows": {"FRIDGE 1": ["fridge"], "STOVE 1": ["stove"], "STOVE 2": ["stove"], "BAGS 1": ["sandbags"],
+                    "BAGS 2": ["sandbags"], "RAIL 1": ["railing"], "RAIL 2": ["railing"],
+                    "PANEL 1": ["wall_panel"], "PIPE 1": ["pipe"], "PIPE 2": ["pipe"], "PIPE 3": ["pipe"],
+                    "STRING 1": ["lantern_string"], "STRING 2": ["lantern_string"], "FRAME 1": ["frame"],
+                    "FRAME 2": ["frame"]},
+           "shapes": {"FRIDGE 1": {"shape": "rect", "tall": 1.8, "base": 0.0},
+                      "STOVE 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
+                      "STOVE 2": {"shape": "rect", "tall": 0.9, "base": 0.9},
+                      "BAGS 1": {"shape": "rect", "tall": 0.3, "base": 0.0},
+                      "BAGS 2": {"shape": "rect", "tall": 0.3, "base": 0.3},
+                      "RAIL 1": {"shape": "rect", "tall": 1.0, "base": 0.0},
+                      "RAIL 2": {"shape": "rect", "tall": 1.0, "base": 1.0},
+                      "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0},
+                      "PIPE 1": {"shape": "rect", "tall": 0.2, "base": 2.5},
+                      "PIPE 2": {"shape": "rect", "tall": 0.2, "base": 2.5},
+                      "PIPE 3": {"shape": "rect", "tall": 0.2, "base": 1.0},
+                      "STRING 1": {"shape": "rect", "tall": 0.5, "base": 6.0},
+                      "STRING 2": {"shape": "rect", "tall": 0.5, "base": 6.5},
+                      "FRAME 1": {"shape": "rect", "tall": 0.6, "base": 0.2},
+                      "FRAME 2": {"shape": "rect", "tall": 0.6, "base": 1.2}}}
+
+
+KITCHEN_ROWS = {"rows": [{"id": "fridge"}, {"id": "stove"}, {"id": "sandbags", "where": "a pile by the door"},
+                         {"id": "grating", "anchor": "ground"}, {"id": "railing", "anchor": "on:grating"},
+                         {"id": "hull", "anchor": "ground", "part": "wall"},
+                         {"id": "wall_panel", "anchor": "on:hull", "part": "wall"},
+                         {"id": "pipe", "anchor": "on:wall_panel"},
+                         {"id": "lantern_string", "anchor": "on:grating"},
+                         {"id": "frame", "anchor": "on:wall_panel"}]}
+
+
+KITCHEN_WRITTEN = {**KITCHEN, "fixes": []}  # a writing fixed before kept_apart: the pass fixes it again
+
+
+KITCHEN_PIPED = {**KITCHEN_WRITTEN, "shapes": {**KITCHEN["shapes"], "PIPE 1": {**KITCHEN["shapes"]["PIPE 1"],
+                                                                              "count": 8}}}
+
+
+BOXED_IN = {**KITCHEN, "items": [*KITCHEN["items"], ["CRATE 9", 0.0, 0.0, 6.0, 5.0, None, "item"]],  # the whole floor
+            "rows": {**KITCHEN["rows"], "CRATE 9": ["crate"]},  # taken: its second stove alone piled, its rail stood
+            "shapes": {**KITCHEN["shapes"], "RAIL 2": {**KITCHEN["shapes"]["RAIL 2"], "base": 0.0}}}
+
+
+BOXED_ROWS = {"rows": [*KITCHEN_ROWS["rows"], {"id": "crate"}]}
+
+
+# settle@campgrounds, checkout 68: habitat dome 2 drawn a 6.37 m circle, made 10 m across (its read size), its ramp
+# laid 0.62 m off the circle and so inside the dome
+DOMED = {"w": 24.0, "d": 24.0, "items": [["DOME 1", 3.0, 3.0, 6.0, 6.0, None, "item"],
+                                         ["LANDER 1", 14.0, 2.0, 6.0, 6.0, None, "item"],
+                                         ["TOWER 1", 2.0, 16.0, 4.0, 4.0, None, "item"]],
+         "rows": {"DOME 1": ["dome"], "LANDER 1": ["lander"], "TOWER 1": ["tower"]},
+         "shapes": {"DOME 1": {"shape": "circle", "tall": 6.0}, "LANDER 1": {"shape": "circle", "tall": 8.0},
+                    "TOWER 1": {"shape": "rect", "tall": 30.0}},
+         "stairs": [{"kind": "ramp", "points": [[5.5, 9.6], [6.5, 9.6], [6.5, 11.6], [5.5, 11.6]], "from": 0.0,
+                     "to": 0.5, "angle": 90.0},
+                    {"kind": "ramp", "points": [[16.5, 7.0], [17.5, 7.0], [17.5, 9.0], [16.5, 9.0]], "from": 0.0,
+                     "to": 2.0, "angle": 270.0},
+                    {"kind": "stair", "points": [[7.0, 17.0], [8.0, 17.0], [8.0, 19.0], [7.0, 19.0]], "from": 0.0,
+                     "to": 3.0, "angle": 0.0}]}
+
+
+MADE_ROWS = {"rows": [{"id": "dome", "anchor": "ground", "size": [10.0, 10.0, 6.0]},
+                      {"id": "lander", "anchor": "ground", "size": [8.0, 8.0, 8.0]},
+                      {"id": "tower", "anchor": "ground", "size": [30.0, 30.0, 30.0]}]}
+
+
+# settle@garage, checkout 68: split_runs laid seven 10 m pipes along x, items_inside clamped three into one corner at
+# [0, 0] and the holders stood them over one another on the north wall
+GARAGE_PIPES = {"w": 12.0, "d": 12.0, "outline": [[0.0, 0.0], [12.0, 0.0], [12.0, 12.0], [0.0, 12.0]],
+                "walls": [{"from": [0.0, 0.0], "to": [12.0, 0.0], "thick": 0.3},
+                          {"from": [12.0, 0.0], "to": [12.0, 12.0], "thick": 0.3},
+                          {"from": [12.0, 12.0], "to": [0.0, 12.0], "thick": 0.3},
+                          {"from": [0.0, 12.0], "to": [0.0, 0.0], "thick": 0.3}],
+                "items": [["PIPE 1", 0.0, 0.0, 10.0, 0.1, None, "item"], ["PIPE 2", 0.0, 0.0, 10.0, 0.1, None, "item"],
+                          ["PIPE 3", 0.0, 0.0, 10.0, 0.1, None, "item"], ["PIPE 4", 1.0, 11.9, 10.0, 0.1, None, "item"],
+                          ["PIPE 5", 0.5, 0.0, 10.0, 0.1, None, "item"], ["PIPE 6", 0.0, 0.0, 10.0, 0.1, None, "item"],
+                          ["DUCT 1", 1.0, 0.0, 8.0, 0.2, None, "item"], ["CRANE 1", 1.0, 0.5, 10.0, 1.0, None, "item"],
+                          ["CRANE 2", 1.0, 3.0, 10.0, 1.0, None, "item"]],
+                "rows": {**{f"PIPE {number}": ["pipe"] for number in range(1, 7)}, "DUCT 1": ["pipe"],
+                         "CRANE 1": ["crane"], "CRANE 2": ["crane"]},
+                "shapes": {**{f"PIPE {number}": {"shape": "rect", "tall": 0.1, "base": 0.0} for number in range(1, 7)},
+                           "PIPE 6": {"shape": "rect", "tall": 0.1, "base": 3.0},
+                           "DUCT 1": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2},
+                           "CRANE 1": {"shape": "rect", "tall": 1.0, "base": 6.0},
+                           "CRANE 2": {"shape": "rect", "tall": 1.0, "base": 6.0}}}
+
+
+GARAGE_PIPE_ROWS = {"rows": [{"id": "pipe", "anchor": "wall", "where": "walls", "size": [10.0, 0.1, 0.1], "count": 8},
+                             {"id": "crane", "anchor": "wall", "where": "top, spanning left to right",
+                              "size": [10.0, 1.0, 1.0], "count": 2}]}
+
+
+# settle@greenhouse, checkout 68: its upper floor at 3 m stood over its dome's 2.8 m eave, its reading's stairs row laid
+# two stairs objects on the shell's three flights, and planter beds made 2.5 m stood on the flights' feet
+EAVED = {"w": 10.0, "d": 10.0, "walls": [{"from": [0.0, 0.0], "to": [10.0, 0.0], "tall": 2.8}],
+         "levels": [{"name": "lower floor", "height": 0.0, "points": [[3, 3], [7, 3], [7, 7], [3, 7]]},
+                    {"name": "upper floor", "height": 3.0, "points": [[0, 0], [10, 0], [10, 10], [0, 10]]}],
+         "roofs": [{"kind": "dome", "points": [[0, 0], [10, 0], [10, 10], [0, 10]], "eave": 2.8, "top": 6.2}]}
+
+
+def eaved(low, roof):
+    """EAVED with its one level at `low` and its roof's own values `roof`."""
+    return {**EAVED, "levels": [{**EAVED["levels"][1], "height": low}], "roofs": [{**EAVED["roofs"][0], **roof}]}
+
+
+FLIGHTS = [{"kind": "stair", "points": [[0.2, 2.0], [1.2, 2.0], [1.2, 4.0], [0.2, 4.0]], "from": 0.0, "to": 3.0,
+            "angle": 270.0, "steps": 8}]
+
+
+STAIRS_WALLED = {"stairs": FLIGHTS, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 6.0, None, "item"],
+                                              ["STAIRCASE 1", 4.0, 0.0, 1.0, 3.0, None, "item"]],
+                 "rows": {"ON THE WALLS AND CEILING": ["outer_wall", "stairs"], "STAIRCASE 1": ["staircase"]},
+                 "shapes": {}}
+
+
+STAIR_ROWS = {"rows": [{"id": "outer_wall", "noun": "wall"}, {"id": "stairs", "noun": "stairs"},
+                       {"id": "staircase", "noun": "stairs"}, {"id": "stair_railing", "noun": "railing",
+                                                               "anchor": "on:staircase"}]}
+
+
+BEDS = {"w": 6.0, "d": 6.0, "stairs": FLIGHTS,
+        "levels": [{"name": "floor", "height": 0.0, "points": [[0, 0], [6, 0], [6, 4.6], [0, 4.6]]},
+                   {"name": "gallery", "height": 3.0, "points": [[0, 4.6], [6, 4.6], [6, 6], [0, 6]]}],
+        "items": [["CHAIR 1", 1.3, 4.3, 0.3, 0.3, None, "item"], ["BED 1", 2.5, 2.5, 0.5, 0.5, None, "item"],
+                  ["CART 1", 0.5, 3.8, 0.4, 0.4, None, "item"], ["HALL 1", 1.25, 1.0, 0.5, 0.5, None, "item"]],
+        "rows": {"CHAIR 1": ["chair"], "BED 1": ["bed"], "CART 1": ["cart"], "HALL 1": ["hall"]},
+        "shapes": {name: {"shape": "rect", "tall": 0.5, "base": 0.0} for name in ("CHAIR 1", "BED 1", "CART 1",
+                                                                                "HALL 1")}}
+
+
+BED_ROWS = {"rows": [{"id": "chair", "size": [1.0, 1.0, 0.9]}, {"id": "bed", "size": [5.0, 5.0, 0.5]},
+                     {"id": "cart", "size": [0.6, 0.6, 0.8]}, {"id": "hall", "size": [9.0, 9.0, 9.0]}]}
+
+
+BEDS_CLEAR = {**BEDS, "items": [["CHAIR 1", 1.625, 3.875, 0.3, 0.3, None, "item"], *BEDS["items"][1:]]}  # its chair
+
+
+# moved off the stairs. greenhouse's live plan (2026-11-09): eleven planter beds made up to 2.5 m on a lower floor that
+# holds six clear of the stairs
+BEDS_ROWED = {**BEDS_CLEAR, "items": [*BEDS_CLEAR["items"], ["BED 2", 3.6, 0.1, 0.5, 0.5, None, "item"]],
+              "rows": {**BEDS["rows"], "BED 2": ["bed"]}}
+
+
+POTTED_ROWS = {"rows": [*BED_ROWS["rows"], {"id": "pot", "anchor": "on:bed", "size": [0.3, 0.3, 0.3]}]}
+
+
+def potted_beds(others):
+    """greenhouse's live plan (2026-11-09): its plants 2 stood on planter bed 2, taken off its flights' feet, so 0.5 m
+    up over bare floor. BEDS_CLEAR with POT 1 on BED 1, and with `others` BED 2 with POT 2 on it: neither row's last."""
+    potted = copy.deepcopy(BEDS_CLEAR)
+    potted["items"].append(["POT 1", 2.6, 2.6, 0.3, 0.3, None, "item"])
+    if others:
+        potted["items"] += [["BED 2", 3.6, 0.1, 0.5, 0.5, None, "item"], ["POT 2", 3.7, 0.2, 0.3, 0.3, None, "item"]]
+    potted["rows"].update({"BED 2": ["bed"], "POT 1": ["pot"], "POT 2": ["pot"]})
+    potted["shapes"].update({name: {"shape": "rect", "tall": 0.3, "base": 0.5} for name in ("POT 1", "POT 2")})
+    return potted
+
+
+POTTED_ONE = potted_beds(False)
+
+
+# settle@airlock, env1 checkout 71: sandbags made 0.6 x 0.4 m, 6 on a 0.4 x 1.23 m box, parted by the assembly into
+# one another and its locker's suit; its ramp, laid by the holders up to its locker floor's edge, through a wall
+SACKS = {"w": 6.0, "d": 4.0, "walls": [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.1}],
+         "items": [["BAGS 1", 0.5, 0.5, 1.2, 0.5, None, "item"], ["BAGS 2", 3.5, 3.0, 1.3, 0.5, None, "item"],
+                   ["BAGS 3", 0.2, 2.6, 0.6, 1.2, None, "item"], ["SUIT 1", 2.0, 0.3, 0.5, 0.5, "S", "item"],
+                   ["BAGS 4", 3.0, 4.3, 1.2, 0.8, None, "item"]],
+         "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "SUIT 1": ["suit"],
+                  "BAGS 4": ["bags"]},
+         "shapes": {"BAGS 1": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 4},
+                    "BAGS 2": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2},
+                    "BAGS 3": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 9},
+                    "SUIT 1": {"shape": "rect", "tall": 1.8, "base": 0.0},
+                    "BAGS 4": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 3}}}
+
+
+SACK_ROWS = {"rows": [{"id": "bags", "anchor": "ground", "count": 18, "size": [0.6, 0.4, 0.2]},
+                      {"id": "suit", "anchor": "on:back_wall", "count": 1, "size": [0.6, 0.4, 1.8]}]}
+
+
+def bags_three_cut(plan):
+    """Whether BAGS 3's run of nine is cut to fewer the 4 m room holds end to end inside it, as long as they are as
+    made, the cut said in `dropped`."""
+    kept, box = plan["shapes"]["BAGS 3"]["count"], laid_boxes(plan)["BAGS 3"]
+    return kept < 9 and box[2:] == [0.4, round(0.6 * kept, 3)] and 0.0 <= box[1] and box[1] + box[3] <= 4.0 and \
+        plan["dropped"] == [{"item": "bags", "why": f"{9 - kept} fewer of it laid, its runs as long as their free "
+                                                    f"floor holds as made: {9 + kept} laid", "laid": 9 + kept}]
+
+
+# settle@storage, 2026-11-10: six 2 m cable bundles "round the ceiling edges" on one 2.68 m box, laid 0.45 m apart
+# in one another
+SQUARE_HALL = [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]]
+
+
+HUNG_HALL = {"w": 6.0, "d": 4.0, "outline": SQUARE_HALL,
+             "walls": [{"from": start, "to": end, "thick": 0.2}
+                       for start, end in zip(SQUARE_HALL, SQUARE_HALL[1:] + SQUARE_HALL[:1])],
+             "items": [["CABLES 1", 1.0, 0.1, 2.6, 0.1, None, "item"], ["LAMPS 1", 2.5, 1.5, 0.5, 0.5, None, "item"]],
+             "rows": {"CABLES 1": ["cables"], "LAMPS 1": ["lamps"]},
+             "shapes": {"CABLES 1": {"shape": "rect", "tall": 0.1, "base": 3.0, "count": 6},
+                        "LAMPS 1": {"shape": "rect", "tall": 0.2, "base": 2.8, "count": 3}}}
+
+
+HUNG_ROWS = {"rows": [{"id": "cables", "anchor": "ceiling", "count": 6, "size": [2.0, 0.1, 0.1]},
+                      {"id": "lamps", "anchor": "ceiling", "count": 3, "size": [0.4, 0.4, 0.2]}]}
+
+
+RAMP_ROW = {"id": "ramp", "name": "metal ramp", "noun": "ramp", "anchor": "ground", "count": 1, "size": [1.2, 2.0, 0.2]}
+
+
+def loft_ramp(walled_off):
+    """A 6 m room with a loft at 0.5 m and a ramp laid toward it; `walled_off` a wall between the ramp and the loft."""
+    return {"w": 6.0, "d": 6.0, "walls": [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.1}] + (
+                [{"from": [3.0, 0.0], "to": [3.0, 6.0], "thick": 0.1}] if walled_off else []),
+            "levels": [{"name": "loft", "height": 0.5, "points": [[4, 0], [6, 0], [6, 6], [4, 6]]}],
+            "items": [["RAMP 1", 1.0, 2.5, 1.0, 1.0, None, "item"]], "rows": {"RAMP 1": ["ramp"]},
+            "shapes": {"RAMP 1": {"shape": "rect", "tall": 0.3, "base": 0.0}}}
+
+
+LOFT_BAGGED = loft_ramp(False)  # a run clear of the ramp as drawn, in it where the holders lay it
+LOFT_BAGGED["items"].append(["BAGS 1", 2.2, 2.8, 1.2, 0.4, None, "item"])
+
+
+LOFT_BAGGED["rows"]["BAGS 1"] = ["bags"]
+
+
+LOFT_BAGGED["shapes"]["BAGS 1"] = {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2}
+
+
+# hub, 2026-11-11: 16 monitor screens on a 1.75 m console top, 19 on a 2.73 m bank, laid in one another
+MONITOR_ROWS = {"rows": [{"id": "desk", "anchor": "floor", "count": 1, "size": [2.0, 0.8, 0.8]},
+                         {"id": "monitor", "anchor": "floor", "count": 5, "size": [0.5, 0.1, 0.4]}]}
+
+
+def console_of(count):
+    """A 2 m desk with `count` monitors drawn 0.4 m apart over it, 0.8 m up: on its top."""
+    console = {"w": 6.0, "d": 4.0, "items": [["DESK 1", 1.0, 1.0, 2.0, 0.8, "S", "item"]],
+               "rows": {"DESK 1": ["desk"]}, "shapes": {"DESK 1": {"shape": "rect", "tall": 0.8, "base": 0.0}}}
+    for number in range(1, count + 1):
+        console["items"].append([f"MONITOR {number}", 0.6 + 0.4 * number, 1.3, 0.5, 0.1, "S", "item"])
+        console["rows"][f"MONITOR {number}"] = ["monitor"]
+        console["shapes"][f"MONITOR {number}"] = {"shape": "rect", "tall": 0.4, "base": 0.8}
+    return console
+
+
+EDIT_FIXED = [  # (row, the edit fix, its arguments, the answer as `holds` reads it, the plan given it after or None,
+    # and optionally what the same fix answers when given that plan again)
+    # a doorway is as big as its door (#128 D5: the shiplock's 0.9 m doorway for its 2 x 2 m vault door), its door
+    # row widened with it so the two agree; a doorway already bigger is never narrowed
+    ("a doorway made as big as its door", plan_fixes.doorways_fit, (VAULT, VAULT_ROWS),
+     [Containing("made as big as its door, 2 x 2.2 m"), Containing("its door row 0.9 m wide made its doorway's 2 m")],
+     {"openings": [{"wide": 2.0, "head": 2.2}], "doors": [["S", 2.0, 2.0, ANYTHING]]}, []),
+    ("a doorway bigger than its door is kept", plan_fixes.doorways_fit,
+     ({**VAULT, "openings": [{**VAULT["openings"][0], "wide": 3.0, "head": 2.5}]}, VAULT_ROWS), [], None),
+    ("what the plan lays past its own outline is brought inside it", plan_fixes.kept_inside, (GARAGE, NO_ROWS),
+     ["its frame's anchor [60.0, 3.0] lay outside its 12 x 12 m plan, set in another plan's metres: dropped, the plan "
+      "stands unturned", "pipe 1: moved 5.00 m inside the plan's outline", "facade 1: clipped from 14 x 0.6 m to 12 x "
+      "0.6 m and moved 3.04 m inside the plan's outline", "a standing spot: its spot [7.0, 14.3] moved 2.53 m inside "
+      "the plan's outline"], Exactly(GARAGE_INSIDE)),
+    ("brought inside, nothing is brought in again", plan_fixes.kept_inside, (GARAGE_INSIDE, NO_ROWS), [], None),
+    # a run a wall or stair crosses keeps its longer side, its count cut with its length; one a wall runs along moves
+    # off it; a run on a wall is left there. 2026-11-09: the cut said nowhere, the next pass laid the five cut bags
+    # back; the cut is said with what it lays, so the row's count is no gap
+    ("runs are kept clear of the walls and stairs, the cut said with what it lays", plan_fixes.runs_kept_clear,
+     (RUNS, RUN_ROWS), [SAID, SAID, SAID], All(
+         Meets(lambda plan: [(item[1:5], plan["shapes"][item[0]]["count"]) for item in plan["items"]] == [
+             ([1.0, 2.0, 4.85, 0.5], 5), ([1.0, 9.15, 3.0, 0.5], 3), ([8.05, 6.0, 1.45, 0.5], 1),
+             ([5.9, 1.0, 0.2, 3.0], 2)]),
+         {"dropped": Exactly([{"item": "bags", "why": "4 fewer of it laid, its runs cut clear of the walls and "
+                                                      "stairs: 9 laid", "laid": 9}])},
+         Meets(lambda plan: plan_checks.count_gaps(plan, {"rows": [{**BAGS_ROW, "count": 13}]}, set()) == [])), []),
+    ("a single bag laid in its own row's run at its base is taken off; one piled on it, one touching its end and "
+     "another row's left", plan_fixes.run_doubles_dropped, (DOUBLED, {"rows": [BAGS_ROW, {"id": "crate"}]}),
+     Exactly(["bags: bags 2 taken off, 1 laid again in its own row's run, which lays its pieces there: 7 laid"]),
+     {"items": Meets(lambda items: [item[0] for item in items] == ["BAGS 1", "BAGS 3", "BAGS 4", "CRATE 1"]),
+      "dropped": Meets(lambda dropped: dropped[0]["laid"] == 7)}, []),
+    # a stove is stood on the floor clear of both; a railing on a floor grating too, a sandbag pile stays piled; the
+    # longer pipe is cut off the corner one, a wall panel and a pipe at another height left, strings overhead and
+    # frames hung over each other on a wall left. Fixed once, the plan says nothing more
+    ("what is piled on its own row's though it does not pile is stood apart, runs on a wall parted",
+     plan_fixes.kept_apart, (KITCHEN, KITCHEN_ROWS), [SAID, SAID, SAID], All(
+         {"shapes": {"STOVE 2": {"base": 0.0}, "RAIL 2": {"base": 0.0}, "BAGS 2": {"base": 0.3},
+                     "STRING 2": {"base": 6.5}, "FRAME 2": {"base": 1.2}}},
+         Meets(lambda plan: laid_boxes(plan)["STOVE 2"][2:] == [0.8, 0.6] and not any(plan_fixes.overlapping(
+             [laid_boxes(plan)["STOVE 2"][0] - 0.04, laid_boxes(plan)["STOVE 2"][1] - 0.04, 0.88, 0.68],
+             laid_boxes(plan)[other]) for other in ("FRIDGE 1", "STOVE 1"))),
+         Meets(lambda plan: not plan_fixes.overlapping(laid_boxes(plan)["RAIL 2"], laid_boxes(plan)["RAIL 1"])),
+         Meets(lambda plan: holds(laid_boxes(plan), {
+             "BAGS 2": [1.2, 1.1, 1.0, 0.5], "STRING 2": [0.0, 4.1, 6.0, 0.2], "FRAME 2": [3.1, 4.8, 0.5, 0.1],
+             "PIPE 1": [1.45, 0.0, 3.55, 0.3], "PIPE 3": [4.6, 0.0, 0.6, 0.3], "PANEL 1": [0.0, 0.0, 6.0, 5.0]})),
+         NO_DROPPED), []),
+    ("a counted pipe cut off the corner one lays one fewer, said", plan_fixes.wall_runs_parted,
+     (KITCHEN_PIPED, KITCHEN_ROWS), ANYTHING,
+     {"shapes": {"PIPE 1": {"count": 7}}, "dropped": Exactly([{"item": "pipe", "why": "1 fewer of it laid, pipe 1 cut "
+                                                                      "clear of the piece at its corner: 9 laid",
+                                                               "laid": 9}])}),
+    ("a piled stove with no free floor is taken off, its row's count no gap", plan_fixes.unpiled,
+     (BOXED_IN, BOXED_ROWS),
+     Exactly(["stove: stove 2 taken off, 1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid"]),
+     All(Meets(lambda plan: "STOVE 2" not in laid_boxes(plan) and "STOVE 1" in laid_boxes(plan)),
+         {"dropped": Exactly([{"item": "stove", "why": "1 more of it than the place's free floor holds (0.8 x 0.6 m "
+                                                       "each): 1 laid", "laid": 1}])},
+         Meets(lambda plan: not plan_checks.count_gaps(plan, {"rows": [{"id": "stove", "count": 2}]}, set())))),
+    # the ramp moves out of the dome as made; the lander's ramp up into its lander as drawn stays; a building made
+    # past the plan's edge moves no stair
+    ("a ramp in a building made larger than drawn moves out of it", plan_fixes.kept_apart, (DOMED, MADE_ROWS),
+     Exactly(["ramp 1: moved 1.48 m out of dome 1 as it is made (10.0 m across, drawn 6.00 m)"]),
+     {"stairs": [{"points": Meets(lambda ramp: min(point[1] for point in ramp) >= 11.05
+                                  and [point[0] for point in ramp] == [5.5, 6.5, 6.5, 5.5])},
+                 {"points": [[16.5, 7.0], [17.5, 7.0], [17.5, 9.0], [16.5, 9.0]]},
+                 {"points": [[7.0, 17.0], [8.0, 17.0], [8.0, 19.0], [7.0, 19.0]]}]}, []),
+    ("a wall's runs of one row are spread along free walls, one past what the walls hold taken off",
+     plan_fixes.wall_runs_spread, (GARAGE_PIPES, GARAGE_PIPE_ROWS),
+     Exactly(["pipe 2: laid along the west wall, out of its row's others on its own",
+              "pipe 3: laid along the east wall, out of its row's others on its own",
+              "pipe: pipe 5 taken off, 1 more of it than the place's wall room holds (10 x 0.1 m each): 7 laid"]),
+     All(Meets(lambda plan: holds(laid_boxes(plan), {
+         "PIPE 1": [0.0, 0.0, 10.0, 0.1], "PIPE 2": [0.0, 1.0, 0.1, 10.0], "PIPE 3": [11.9, 1.0, 0.1, 10.0],
+         "PIPE 4": [1.0, 11.9, 10.0, 0.1], "PIPE 6": [0.0, 0.0, 10.0, 0.1], "DUCT 1": [1.0, 0.0, 8.0, 0.2],
+         "CRANE 2": [1.0, 3.0, 10.0, 1.0]}) and "PIPE 5" not in laid_boxes(plan)),
+         {"dropped": Exactly([{"item": "pipe", "laid": 7, "why": "1 more of it than the place's wall room holds "
+                                                                 "(10 x 0.1 m each): 7 laid"}])}), []),
+    # the eave is raised a storey over that floor, its rise kept; a floor at 0.1 m or a vault on its floor left
+    ("an eave under an upper floor is raised a storey over it, its rise kept", plan_fixes.eaves_raised, (EAVED,),
+     Exactly(["dome roof 1: its eave raised from 2.8 m to 5.8 m, a storey (2.8 m) over its upper floor at 3 m"]),
+     {"roofs": [{"top": 9.2}]}),
+    ("a floor at 0.1 m raises no eave", plan_fixes.eaves_raised, (eaved(0.1, {"kind": "dome", "eave": 2.5,
+                                                                             "top": 3.5}),), [],
+     {"roofs": [{"eave": 2.5}]}),
+    ("a vault on its floor is left", plan_fixes.eaves_raised, (eaved(0.0, {"kind": "vault", "eave": 0.0, "top": 3.2}),),
+     [], {"roofs": [{"eave": 0.0}]}),
+    # the stairs row taken off where the plan draws flights, a staircase its railing stands on and a railing kept
+    ("a plan with no flights keeps its stairs rows", plan_fixes.stair_rows_dropped,
+     ({**STAIRS_WALLED, "stairs": []}, STAIR_ROWS), [], None),
+    ("the stairs row is taken off where the shell builds the plan's flights", plan_fixes.stair_rows_dropped,
+     (STAIRS_WALLED, STAIR_ROWS), Exactly(["stairs: taken off, the shell builds the plan's 1 flights"]),
+     {"rows": Exactly({"ON THE WALLS AND CEILING": ["outer_wall"], "STAIRCASE 1": ["staircase"]}),
+      "dropped": Exactly([{"item": "stairs", "why": "the shell builds the plan's 1 flights"}])}),
+    # a thing on a flight as made moved off it on its own level, one with no such floor left a gap, one drawn on the
+    # flight (a cart on its ramp) and one made past the plan (a hall's face) left
+    ("a thing on a flight as made moves off it on its own level; the rest left, the bed a flight gap",
+     plan_fixes.off_flights, (BEDS, BED_ROWS), Meets(lambda moved: len(moved) == 1
+                                                     and moved[0].startswith("chair 1: moved")), All(
+         Meets(lambda plan: (lambda chair: chair[1] + 0.5 <= 4.6 and not plan_fixes.crossing(numpy.array(
+             [[chair[0] - 0.5, chair[1] - 0.5], [chair[0] + 0.5, chair[1] - 0.5], [chair[0] + 0.5, chair[1] + 0.5],
+              [chair[0] - 0.5, chair[1] + 0.5]]), numpy.asarray(FLIGHTS[0]["points"])))(
+             [laid_boxes(plan)["CHAIR 1"][0] + 0.15, laid_boxes(plan)["CHAIR 1"][1] + 0.15])),
+         Meets(lambda plan: holds(laid_boxes(plan), {"BED 1": [2.5, 2.5, 0.5, 0.5], "CART 1": [0.5, 3.8, 0.4, 0.4],
+                                                     "HALL 1": [1.25, 1.0, 0.5, 0.5]})))),
+    ("a bed with no such floor whose row lays another is taken off, said in `dropped`", plan_fixes.off_flights,
+     (BEDS_ROWED, BED_ROWS), Exactly(["bed: bed 1 taken off, 1 more of it than its level's floor clear of the stairs "
+                                      "holds (up to 5 x 5 m as made each): 1 laid"]), All(
+         {"items": Meets(lambda items: [item[0] for item in items] == ["CHAIR 1", "CART 1", "HALL 1", "BED 2"]),
+          "dropped": Meets(lambda dropped: dropped[0]["laid"] == 1)})),
+    ("what the plan places on a thing taken off goes too, its row laying another, said", plan_fixes.off_flights,
+     (potted_beds(True), POTTED_ROWS), Meets(lambda said: said[-1] == "pot: pot 1 taken off, its holder was dropped: "
+                                                                      "1 laid"),
+     All(Meets(lambda plan: "POT 1" not in laid_boxes(plan) and laid_boxes(plan)["POT 2"] == [3.7, 0.2, 0.3, 0.3]),
+         {"dropped": Meets(lambda dropped: dropped[-1] == {"item": "pot", "why": "its holder was dropped: 1 laid",
+                                                           "laid": 1})})),
+    ("a row's last on a thing taken off stays", plan_fixes.surplus_dropped,
+     (POTTED_ONE, POTTED_ROWS, [POTTED_ONE["items"][1]]),
+     Meets(lambda said: said[-1].startswith("bed: bed 1 taken off")),
+     All(Meets(lambda plan: laid_boxes(plan)["POT 1"] == [2.6, 2.6, 0.3, 0.3]),
+         {"dropped": Meets(lambda dropped: [entry["item"] for entry in dropped] == ["bed"])})),
+    # a run is laid as long as its pieces as made, clear of a suit standing low by a wall, its count what a free floor
+    # within reach holds, said in `dropped`; a run that holds its pieces is left
+    ("runs are laid as long as their pieces as made, clear of what stands by them, cut to their free floor",
+     plan_fixes.runs_laid_out, (SACKS, SACK_ROWS), [SAID, SAID, SAID], All(
+         {"shapes": {"BAGS 1": {"count": 4}, "BAGS 2": {"count": 2}, "BAGS 4": {"count": 3}}},
+         Meets(lambda plan: laid_boxes(plan)["BAGS 2"] == [3.5, 3.0, 1.3, 0.5]),  # it holds its two
+         Meets(lambda plan: laid_boxes(plan)["BAGS 1"][2:] == [2.4, 0.4] and not plan_fixes.overlapping(
+             laid_boxes(plan)["BAGS 1"], laid_boxes(plan)["SUIT 1"])),  # off the suit, as long as its four as made
+         Meets(bags_three_cut),
+         Meets(lambda plan: laid_boxes(plan)["BAGS 4"][1] >= 4.0)), []),  # drawn past the outline, kept past it,
+    # a run hung from the roof is hung end to end along the walls under it, nearest first, as many a wall as its face
+    # holds; lamps hung in a cluster are no run and stay
+    ("a run hung from the roof is hung along the walls under it", plan_fixes.hung_runs_laid_out,
+     (HUNG_HALL, HUNG_ROWS), [SAID], All(
+         Meets(lambda plan: {item[0]: (item[1:5], plan["shapes"][item[0]].get("count")) for item in plan["items"]} == {
+             "CABLES 1": ([1.0, 0.1, 4.0, 0.1], 2), "LAMPS 1": ([2.5, 1.5, 0.5, 0.5], 3),
+             "CABLES 2": ([0.1, 1.0, 0.1, 2.0], 1), "CABLES 3": ([5.8, 1.0, 0.1, 2.0], 1),
+             "CABLES 4": ([1.0, 3.8, 4.0, 0.1], 2)}), NO_DROPPED), []),
+    # a ramp laid through a wall is taken off, one laid clear of the walls left
+    ("a ramp the holders lay up through a wall is taken off", plan_fixes.ramps_walled,
+     (loft_ramp(True), {"rows": [RAMP_ROW]}),
+     Exactly(["ramp: ramp 1 taken off, 1 laid up to a raised level through a wall: 0 laid"]), {"items": []}),
+    ("a ramp laid clear of the walls is left", plan_fixes.ramps_walled, (loft_ramp(False), {"rows": [RAMP_ROW]}), [],
+     {"items": [ANYTHING]}),
+    ("a run clear of the ramp as drawn, in it where the holders lay it, is moved out of it", plan_fixes.runs_laid_out,
+     (LOFT_BAGGED, {"rows": [RAMP_ROW, SACK_ROWS["rows"][0]]}), [SAID],
+     {"items": Meets(lambda items: not plan_fixes.overlapping(items[1][1:5], [2.0, 2.4, 2.0, 1.2]))}),
+    # the things of a row stood on a top are cut to those that stand side by side along it as made, the nearest its
+    # middle kept, the rest said in `dropped`; as many as fit are all kept
+    ("five 0.5 m monitors on a 2 m desk are cut to the three nearest its middle", plan_fixes.tops_cut,
+     (console_of(5), MONITOR_ROWS), ANYTHING,
+     {"items": Meets(lambda items: [item[0] for item in items][1:] == ["MONITOR 2", "MONITOR 3", "MONITOR 4"]),
+      "dropped": Exactly([{"item": "monitor", "why": "2 more of it than its holders' tops hold side by side as made: "
+                                                    "3 laid", "laid": 3}])}, []),
+    ("three that fit are all kept", plan_fixes.tops_cut, (console_of(3), MONITOR_ROWS), [], All(
+        {"items": Meets(lambda items: [item[0] for item in items][1:] == ["MONITOR 1", "MONITOR 2", "MONITOR 3"])},
+        NO_DROPPED), []),
 ]

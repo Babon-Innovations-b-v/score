@@ -762,13 +762,24 @@ def doors_led(store, place, shown):
 
 
 def edit_inside(store, place, shown):
-    """`shown` with each person spot of his edit (or a redrawing, `redrawn`) standing in something moved out of it
-    (`people_moved_out`, his things kept), each fix added to its `fixes` (greenhouse's redrawing of 2026-11-05 its
-    astronaut_2 in its grow light frame, 2026-11-08). The plan writer's free fixes went with it (#128)."""
+    """`shown` with what his edit (or a redrawing, `redrawn`) lays past its own outline brought inside it
+    (plan_fixes.kept_inside), each doorway its own door rows say its row's width (plan_fixes.doors_sized, where it
+    stands kept) and as big as the door standing in it (plan_fixes.doorways_fit), nothing laid in a wall or its own
+    row's (plan_fixes.kept_apart: flat's redrawing of 2026-11-05 its second stove piled on its first) and each person
+    spot standing in something moved out of it (`people_moved_out`, his things kept), each fix added to its `fixes`:
+    the hangar's redrawing keeps two person spots past its 32 x 64 m, the walkway's its ceiling light and wall pipes
+    past its 1.5 x 12 m (wiped with the plan writer on 2026-11-16, #128, these failed plan@hangar and @walkway's `held`
+    on 2026-11-22, #156); greenhouse's redrawing of 2026-11-05 its astronaut_2 in its grow light frame, 2026-11-08."""
     if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):
         return shown
+    from score.review import plan_fixes
     plan = copy.deepcopy(shown["plan"])
-    plan, fixes = people_moved_out(plan, inventory_of(store, place) or {"rows": []})
+    inventory = inventory_of(store, place)
+    fixes = plan_fixes.kept_inside(plan, inventory) + plan_fixes.doors_sized(plan)
+    fixes += plan_fixes.doorways_fit(plan, inventory or {"rows": []})
+    fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})
+    plan, moved = people_moved_out(plan, inventory or {"rows": []})
+    fixes += moved
     return {**shown, "plan": {**plan, "fixes": said_once([*plan.get("fixes", []), *fixes])}} if fixes else shown
 
 
