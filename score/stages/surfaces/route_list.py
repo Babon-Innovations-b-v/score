@@ -78,8 +78,13 @@ The palette tokens:
 {tokens}
 Choose by what the part is and how such a part is made, then by its colour: each surface's recipe is how it is
 painted, so a part painted or coated (paint, enamel, powder coat, lacquer) takes a surface of a painted recipe, and a
-bare metal recipe is only for metal left bare. Only when no library surface fits with any settings, set "fits" to
-false and propose a new library surface. Wear is the scene's level ({wear}). A finish
+bare metal recipe is only for metal left bare. A part takes a metal surface only where the pictures show it is metal
+(bare metal's grain or mirror shine, a folded sheet edge, a welded or bolted frame, a tube); a housing, shell, cover,
+casing, panel or sign plate that shows none of that is moulded or cut plastic, painted or not, and takes a plastic
+surface. One finish lit unevenly is still one finish: a smooth panel that fades from light to dark across its face, or
+a glossy part that reads lighter where it faces the light than the same part's edges, takes the finish of the part's
+darkest even tone, never a second, lighter finish of its own. Only when no library surface fits with any settings,
+set "fits" to false and propose a new library surface. Wear is the scene's level ({wear}). A finish
 takes another of the library's wear levels ({levels}) only where the pictures show a cause for it, such as a walked
 path, worn edges or the ground round a door: then set "wear" to that level and say the cause in "wear_cause"; else
 leave both out.
