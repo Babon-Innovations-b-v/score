@@ -1,6 +1,7 @@
 """Invariant: the physics ready check tells the placing agent, by object, every planted fault that keeps a place from
 being walked in and pushed (a crate floating 40 cm over the ground; two crates 10 cm inside each other; a door standing
-free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it; a tunnel whose far end
+free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it, unless that door's leaf is joined to a
+neighbour there (place.json `joins`), whose side the area's joins check walks; a tunnel whose far end
 joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and moves when let go in MuJoCo; an object
 with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
 over the ground; a walker (time-sampled) 30 cm over it, told by its planted foot alone; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
@@ -39,6 +40,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.crossing_depths: `count % 2` made `count % 2 == 0` -> the overlapping crates pass
 - ready.door_faults: the `open_sides` list left empty -> the free-standing door passes
 - ready.room_for_walkway: ERODED made 0 -> the blocked door's far side reads reached
+- ready.walkway_targets: a joined leaf's far side kept -> the door joined to a neighbour past its blocked side is
+  still sent there (the pad's walkway hatch, whose far side is the capsule's, 2099 #161); its join's `from` unread ->
+  a doorway joined as laid (no leaf of it) drops the door's side too
 - ready.connector_faults: JOIN made 10 -> the tunnel's free end reads joined
 - ready.walkers_floor: `clear` taken as all True -> the low tunnel reads walkable
 - ready.placed_on: the gap left unsubtracted -> the monitor floats over the desk
@@ -703,6 +707,13 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     assert "penetration" in told["rock_near_a"] and "penetration" in told["rock_near_b"], found.get("rock_near_a")
     assert {name for name, role in laid.roles.items() if role == "scenery"} == {"rock_far_a", "rock_far_b", "far_shore"}
     assert told["door"] == {"walkway"}, found["door"]
+    stage, place = place_build.opened(folder)
+    laid = ready.Place(stage, place)
+    for joined, kept in (({"door": {"inward": [0.0, 0.0, 1.0], "from": "the door leaf door"}}, 1),  # its far side the
+                         ({"door": {"inward": [0.0, 0.0, 1.0], "from": "the doorway door as laid"}}, 2),  # neighbour's
+                         (None, 2)):
+        sides = {name: spot for name, spot in ready.walkway_targets(laid, joined)[0].items() if name.startswith("door (")}
+        assert len(sides) == kept and (kept == 2 or all(spot[2] > 0.0 for spot in sides.values())), (joined, sides)
     assert "floating" in told["crate_float"], found["crate_float"]
     assert "penetration" in told["crate_a"] and "penetration" in told["crate_b"], (found.get("crate_a"))
     assert "door not in an opening" in told["hatch_free"], found.get("hatch_free")

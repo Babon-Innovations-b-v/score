@@ -847,14 +847,22 @@ def spans_near(grid, span_cells, span_heights, standing, spot, across=0.4):
     return np.flatnonzero(standing & near & (np.abs(span_heights - spot[1]) <= reach.KNEE))
 
 
-def walkway_targets(laid):
+def walkway_targets(laid, joins=None):
     """Where the walkers must get to: each door's two sides (a body's depth out, at its foot) and the floor of each
-    shell and connector (its box): {target name: spot (x, y, z)} and {target name: (low, high)}."""
+    shell and connector (its box): {target name: spot (x, y, z)} and {target name: (low, high)}. A door leaf in a joined
+    doorway (place.json `joins`, recorded from that leaf) leads into its neighbour on its far side: that side is the
+    area's to judge (area/'s joins check walks a way through it, seated), never this place's alone (the pad's walkway
+    hatch, whose far side is the capsule's, 2099 #161)."""
     spots, zones = {}, {}
     for name in laid.with_role("door"):
         middle, axes, half = frame_of(laid, name)
         foot = laid.meshes[name].bounds[0][1]
+        joined = (joins or {}).get(name)
+        inward = np.asarray(joined["inward"], float) if joined and joined.get("from") == f"the door leaf {name}" \
+            else None
         for side, sign in (("front", 1), ("back", -1)):
+            if inward is not None and float(np.dot(axes[2] * sign, inward)) < 0.0:
+                continue
             spot = middle + axes[2] * sign * (half[2] + WALKWAY / 2 + 0.2)
             spots[f"{name} ({side})"] = np.array([spot[0], foot, spot[2]])
     for name in laid.with_role("shell", "connector"):
@@ -862,10 +870,11 @@ def walkway_targets(laid):
     return spots, zones
 
 
-def walkway_faults(laid):
-    """Door sides and zones the walkers cannot reach from the rest on a way WALKWAY wide: [{target, why}]."""
+def walkway_faults(laid, joins=None):
+    """Door sides and zones the walkers cannot reach from the rest on a way WALKWAY wide: [{target, why}] (a joined
+    leaf's far side left to the area, walkway_targets)."""
     grid, span_cells, span_heights, standing, pieces = walkers_floor(laid)
-    spots, zones = walkway_targets(laid)
+    spots, zones = walkway_targets(laid, joins)
     reached = {name: set(pieces[spans_near(grid, span_cells, span_heights, standing, spot)])
                for name, spot in spots.items()}
     middles = grid.middles()[span_cells]
@@ -1698,7 +1707,9 @@ def check(folder, settle=True, neighbours=None):
         faults = person_faults(laid, name)
         if faults:
             found.setdefault(name, []).extend(faults)
-    walkways, floor = walkway_faults(laid)
+    record = place_build.record_of(folder)
+    # Seated among its neighbours their floor stands past a joined leaf (and the joins are in the place's own frame).
+    walkways, floor = walkway_faults(laid, None if neighbours else record.get("joins"))
     for fault in walkways:
         if fault["target"].split(" (")[0] not in lent:
             found.setdefault(fault["target"].split(" (")[0], []).append(fault)
@@ -1706,7 +1717,6 @@ def check(folder, settle=True, neighbours=None):
         for fault in (connector_faults(laid, name, floor) if name not in lent else []):
             found.setdefault(name, []).append(fault)
     del floor  # the looks start from a floor of their own, the doors shut (look_floor): one floor held at a time
-    record = place_build.record_of(folder)
     gaps, seeing = open_faults(laid, record.get("kind") == "outside", record.get("joins"), lent)
     settled, engine = settle_faults(laid, folder) if settle else ({}, "not asked")
     for name, faults in settled.items():

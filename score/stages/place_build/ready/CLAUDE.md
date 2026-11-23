@@ -22,6 +22,11 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   the check's own walkers' floor (WALKWAY wide): the shortest way over standing spans, its corners kept by line of
   sight and rounded over ROUND, so a walk path never leaves the floor the check judged. `route_on` walks a Place already read (area/:
   two joined places round their doorway, seated, every doorway open).
+- **A joined leaf's far side is the area's** (2099 #161): the walkway check sends the walkers to both sides of every
+  door, but a door leaf a join was recorded from (place.json `joins`, `from` "the door leaf <name>") leads into its
+  neighbour on its far side, so that side is left to area/'s joins check (which walks a way through it, seated), never
+  failed alone (the pad's walkway hatch opens onto the capsule, not onto the pad's floor). Seated among its neighbours
+  (`check`'s `neighbours`) both sides are judged, their floor lent in.
 - **The ground is read near the place**: a ground's faces more than GROUND_REACH past the laid objects' box are left
   out (`near_ground`), so a terrain to the horizon (800 000 faces) fits the 8 GB check; walkers' ground included.
 - **A query reaches only what lies near it** (2026-11-16: camp's 660 rocks, 7 million faces, ran the check out of 14
