@@ -23,6 +23,7 @@ The faults, each with its measure:
 """
 import json
 import math
+import re
 import pathlib
 import shutil
 
@@ -118,11 +119,14 @@ def view_at(at, height, target, level):
 
 # --- the faults ---------------------------------------------------------------------------------------------------
 
-def laid_objects(stage, place, role_of):
-    """Each laid object under Objects with a shape: {name, address, role, low, high} (its world box, metres)."""
+def laid_objects(stage, place, role_of, left_out=()):
+    """Each laid object under Objects with a shape: {name, address, role, low, high} (its world box, metres); the
+    objects `left_out` (place.json `backdrop`: a neighbour's part of the concept, none of the place's) skipped."""
     boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = []
     for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
+        if prim.GetName() in left_out:
+            continue
         box = boxes.ComputeWorldBound(prim).ComputeAlignedRange()
         if box.IsEmpty():
             continue
@@ -133,9 +137,9 @@ def laid_objects(stage, place, role_of):
     return found
 
 
-def faults(stage, place, plan, role_of, outside=False):
-    """Every way the laid place strays from its plan (the module's list)."""
-    laid = laid_objects(stage, place, role_of)
+def faults(stage, place, plan, role_of, outside=False, left_out=()):
+    """Every way the laid place strays from its plan (the module's list); its backdrop (`left_out`) is none of it."""
+    laid = laid_objects(stage, place, role_of, left_out)
     return ([] if outside else room_faults(plan, laid)) + item_faults(plan, laid) + dress_faults(plan, laid)
 
 
@@ -183,9 +187,19 @@ def standing_in(item, laid):
     return found
 
 
+def named_by(item, each):
+    """Whether a laid object is named for one of the item's rows: a word of a row in its name or address (the bowl
+    `bowl_2` for the row bowl, `basin_stand` for wash_stand)."""
+    words = {word for row in item.get("rows") or [] for word in row.lower().split("_") if len(word) > 2}
+    said = re.split(r"[^a-z0-9]+", f"{each['name']} {each['address'] or ''}".lower())
+    return bool(words & set(said))
+
+
 def covering(item, things):
-    """Of the library things, the one whose footprint covers most of the item's box."""
+    """Of the library things, the one whose footprint covers most of the item's box, among those named for its rows
+    when any is (a bowl on a table reads as the bowl, never the table it stands on)."""
     x0, z0, x1, z1 = item["box"]
+    things = [each for each in things if named_by(item, each)] or things
 
     def covered(each):
         across = max(0.0, min(x1, each["high"][0]) - max(x0, each["low"][0]))

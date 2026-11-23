@@ -1694,8 +1694,9 @@ def check(folder, settle=True, neighbours=None):
     unfinished = finished.faults(stage, place)
     misread = shapes.faults(stage, place)
     plan = plan_fit.plan_of(folder)
-    strays = None if plan is None else plan_fit.faults(stage, place, plan, role_of,
-                                                       place_build.record_of(folder).get("kind") == "outside")
+    record = place_build.record_of(folder)
+    strays = None if plan is None else plan_fit.faults(stage, place, plan, role_of, record.get("kind") == "outside",
+                                                       set(record.get("backdrop") or []))
     lent = set()
     if neighbours:
         stage, place, lent = seated_among(folder, neighbours)

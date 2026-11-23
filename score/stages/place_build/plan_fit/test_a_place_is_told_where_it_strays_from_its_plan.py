@@ -10,6 +10,8 @@ Breaks (each applied once, seen red, reverted), in plan_fit unless named:
 - standing_in: NEAR dropped from the box -> the lamp standing 0.2 m off its item reads missing
 - standing_in: a structure over the room read as standing in -> the roof stands in for the missing lamp
 - scale_faults: the long side read as the short side -> the 3 m engine on a 1.2 m item passes
+- covering: the rows' names unread -> the lamp on its desk reads as the desk, too big
+- laid_objects: `left_out` unread -> the backdrop's far block makes the room oversized
 - dress_faults: `score:dress` unread -> the dressed wall panels still read undressed
 - views: the doorway's INWARD step dropped -> its view's eye stands in the doorway, not inside it
 - wall_spots: doorways unread -> a panel is laid across the door
@@ -69,9 +71,9 @@ def role_of(prim):
     return prim.GetAttribute("score:role").Get() if prim.GetAttribute("score:role") else "prop"
 
 
-def told(objects):
-    """The faults of the objects against PLAN, as (fault, what) pairs."""
-    found = plan_fit.faults(stage_of(objects), "room", PLAN, role_of)
+def told(objects, left_out=()):
+    """The faults of the objects against PLAN, as (fault, what) pairs; `left_out` the place's backdrop."""
+    found = plan_fit.faults(stage_of(objects), "room", PLAN, role_of, left_out=left_out)
     return sorted((fault["fault"], fault.get("item") or fault.get("row") or "") for fault in found)
 
 
@@ -110,6 +112,10 @@ CASES = [
      lambda tmp: told([each for each in PLANNED if each[0] != "lamp"]
                       + [("roof", 1.3, 0.3, 5.0, 4.0, None, "structure", None)]),
      [("missing", "LAMP 1")]),
+    ("a lamp on a desk reads as the lamp, never the desk under it",
+     lambda tmp: told(PLANNED + [("desk", 2.6, 1.6, 4.0, 2.7, "model/desk@1", None, None)]), []),
+    ("the backdrop's far block is none of the room",
+     lambda tmp: told(PLANNED + [("far_block", 20.0, -4.0, 30.0, 4.0, None, "structure", None)], {"far_block"}), []),
     ("an item nothing stands in is missing", lambda tmp: told([each for each in PLANNED if each[0] != "lamp"]),
      [("missing", "LAMP 1")]),
     ("bare walls are undressed", lambda tmp: told([each for each in PLANNED if not each[7]]),
