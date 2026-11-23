@@ -67,8 +67,12 @@ The regions showing in each view:
 First, list the object's finishes: the distinct surface treatments a painter would give its parts. List a finish only
 when it truly differs in material or paint from the others; dirt, wear, scratches, light and shadow are not finishes.
 For each finish give its parts in words and FIRST the library surface it is, with its settings: the palette token
-nearest its colour, and its roughness and metal from 0 to 1 (the surface's own unless the pictures clearly show
-otherwise). The library's surfaces, each with its own token, roughness and metal:
+nearest its own colour, and its roughness and metal from 0 to 1 (the surface's own unless the pictures clearly show
+otherwise). A part's own colour is its paint or material's colour under plain even light, not the colour the light
+gives it: every colour in the pictures and the texture RGB above is lifted by light, so a dark part reads lighter
+than it is and a shiny metal reads as bright as what it reflects. Take a metal's token from its surface's own unless
+the pictures clearly show it tinted, and a dark part's token darker than it reads. The library's surfaces, each with
+its own token, roughness and metal:
 {surfaces}
 The palette tokens:
 {tokens}

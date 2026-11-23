@@ -95,7 +95,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   Google's Batch API at half price (`route_ask.py`, `tools/cloud/google_batch.py`), seeing the close-up, every
   view and every region view: the complete finish list, each finish matched FIRST to a library surface with settings
   (a library token, roughness, metal, its own seed: `take_seed`, the node's moved by the take's name, so each
-  object's wear and dirt pattern is its own), a new surface only when none fits with any settings; its wear the
+  object's wear and dirt pattern is its own; the token the part's own colour under even light, told that every colour
+  shown is lifted by light, a metal's its surface's own unless clearly tinted, a dark part's darker than it reads:
+  read off the lit texture, tc2's toaster took #e0e0e0 steel and #383838 plastic for NVIDIA's albedo 0.33 and 0.013,
+  #172), a new surface only when none fits with any settings; its wear the
   place's level, or its own library level where the views show a cause (walked paths, edges, round doors; owner,
   2026-10-20), level and cause both or neither, listed in `questions.json`; and a label for each region in each
   view. Split (free): by the labels alone (the paper, "Surfaces: the finish route": the views are split into colour
