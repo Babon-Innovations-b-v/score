@@ -19,7 +19,8 @@ A pair with "through" true (its maps or its recipe let light through) is also dr
 checker backdrop that gives off its own light (so no light or shine moves its squares), each side's pane in its own
 see-through: the map side's "see_through" ({"alpha", "threshold", "transmission"}, fit.see_through_of: its alpha the
 opacity map's where its maps hold one, cut at its threshold, else the constant; its glass's transmission as the
-surface's own, tinted by its colour), the recipe's its spec's `opacity` as the alpha the place's look writes. Writes
+surface's own, tinted by its colour), the recipe's its spec's `opacity` as the alpha the place's look writes, a
+cutout's ("cutout", fit.cutout_of) cut on the recipe side as on the map side. Writes
 <out>/<name>/map-through.png and recipe-through.png, and <out>/backdrop.png, the bare backdrop, once a job.
 """
 import json
@@ -171,9 +172,13 @@ def seen_through(material, maps, see_through):
     return material
 
 
-def recipe_seen_through(spec, seed):
-    """The recipe's material at its spec's opacity, as the alpha of the look the place writes for it."""
+def recipe_seen_through(spec, seed, cutout=None, maps=None):
+    """The recipe's material at its spec's opacity, as the alpha of the look the place writes for it; a cutout's
+    (`cutout`, fit.cutout_of) cut as its maps cut it, so both sides show the same holes and only the finish is
+    compared."""
     material = recipe_material(spec, seed)
+    if cutout:
+        return seen_through(material, maps, cutout)
     surface = next(node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED")
     surface.inputs["Alpha"].default_value = float(spec.get("opacity", 1.0))
     return material
@@ -280,7 +285,7 @@ def through_pictures(pair, pane, stand, camera, folder, seed):
     """A see-through pair's panes before the backdrop: <folder>/<side>-through.png (the map side's only on its first
     round)."""
     projected(pane, pair["tile_metres"])
-    shown = {"recipe": recipe_seen_through(pair["recipe"], seed)}
+    shown = {"recipe": recipe_seen_through(pair["recipe"], seed, pair.get("cutout"), pair["maps"])}
     if pair["map"]:
         shown["map"] = seen_through(map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"),
                                                  pair.get("albedo_colour"), pair.get("emission_colour"),

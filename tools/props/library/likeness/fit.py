@@ -50,8 +50,8 @@ FAMILY_WORDS = (("fiberglass", "fiberglass"), ("fibreglass", "fiberglass"), ("em
                 ("brushed", "bare_metal"), ("stainless", "bare_metal"), ("aluminium", "bare_metal"),
                 ("aluminum", "bare_metal"), ("steel", "bare_metal"), ("chrome", "polished_metal"),
                 ("polished", "polished_metal"), ("metal", "polished_metal"), ("carbon", "composite"),
-                ("_mat_", "mat"), ("matsurface", "mat"), ("fluted", "mat"), ("antislip", "mat"), ("lined", "mat"),
-                ("_line_", "mat"), ("rubber", "rubber"), ("ruberoid", "rubber"),
+                (("matsurface",), "mat"), (("mat", "surface"), "mat"), (("fluted",), "mat"), (("antislip",), "mat"),
+                (("rubber", "lined"), "mat"), (("rubber", "line"), "mat"), ("rubber", "rubber"), ("ruberoid", "rubber"),
                 ("leather", "leather"), ("ceramic", "ceramic"), ("porcelain", "ceramic"), ("osb", "strand_board"),
                 ("hdf", "strand_board"), ("strand", "strand_board"), ("plywood", "grained_wood"),
                 ("wood", "grained_wood"), ("oak", "grained_wood"), ("cardboard", "cardboard"),
@@ -217,6 +217,18 @@ def see_through_of(surface, constants, maps):
     threshold = (cutout or {}).get("threshold") or constants.get("opacityThreshold") or 0.0
     return {"alpha": alpha, "threshold": float(threshold),
             "transmission": float(glass.get("weight", 1.0)) if glass else 0.0}
+
+
+def cutout_of(maps, see_through):
+    """How a cutout surface is cut (see_through_of with no transmission: holes, never a tint), which the check draws
+    on both its sides, or None: a surface cut by an opacity map or at a threshold (a perforated metal, a leaf, a
+    fence) is a cutout and keeps its own family; only a glass's transmission or a constant see-through opacity (no
+    map, no threshold) makes it glass."""
+    if not see_through or see_through["transmission"] > 0.0:
+        return None
+    if "opacity" not in maps and not see_through["threshold"]:
+        return None
+    return dict(see_through, transmission=0.0)
 
 
 def pixels(path):
@@ -412,11 +424,16 @@ def alpha_mean(path):
 
 def opacity_of(maps, see_through):
     """The share of light a surface stops (see_through_of): its alpha (its opacity map's mean, cut at its threshold
-    where it has one, else its constant) less what its glass passes."""
+    texel by texel where it has one, as the map side draws it: holes finer than a read block are counted, never
+    averaged away, else its constant) less what its glass passes."""
     alpha = see_through["alpha"]
-    if "opacity" in maps:
-        values = shrunk(pixels(maps["opacity"]), READ_SIDE).mean(axis=-1)
-        alpha = float((values > see_through["threshold"]).mean() if see_through["threshold"] else values.mean())
+    if "opacity" in maps and see_through["threshold"]:
+        from PIL import Image
+        with Image.open(maps["opacity"]) as opened:
+            summed = np.asarray(opened.convert("RGB")).sum(axis=-1, dtype=np.uint16)
+        alpha = float((summed > see_through["threshold"] * 3 * 255).mean())
+    elif "opacity" in maps:
+        alpha = float(shrunk(pixels(maps["opacity"]), READ_SIDE).mean())
     return round(alpha * (1.0 - see_through["transmission"]), 6)
 
 
@@ -449,6 +466,7 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
             measured["roughness"] = constants.get("roughness", UNSAID_ROUGHNESS)
         measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else constants.get("metal", 0.0)
     measured["opacity"] = opacity_of(maps, see_through) if see_through else constants.get("opacity")
+    measured["cutout"] = cutout_of(maps, see_through) is not None
     strongest = max(emission_colour or [0.0])
     measured["glow"] = 1.0 if "emission" in maps else float(max(strongest, 0.0))
     measured["glow_hue"] = ([float(value) / strongest for value in emission_colour]
@@ -473,24 +491,35 @@ def generic_metal(measured):
     return "bare_metal" if measured.get("slope_rms", 0.0) > RELIEF_SLOPE else metal_by_roughness(measured)
 
 
+def says(word, lowered):
+    """Whether a lowered material name says a FAMILY_WORDS word: a string anywhere in it, a tuple's every word whole
+    among its words (`_`-split: a mat_surface, never a place_mat or a blood_line)."""
+    if isinstance(word, tuple):
+        return set(word) <= set(re.split(r"[^a-z0-9]+", lowered))
+    return word in lowered
+
+
 def family_of(name, measured):
     """The recipe family a material's name says (FAMILY_WORDS; a family drawn with no metal, UNMETALLED, yields to a
     metal over METAL_MEAN, which the map side draws as metal), else by its metal and roughness means: (family,
-    "name" | "measures"); a name saying only "metal" its finish by its maps (generic_metal). A surface that gives off light is glowing whatever its name (a glass lamp lens fitted as
-    glass drew no light beside its map side's glow); one that lets light through (its opacity under 1) is glass, the
-    one family drawn see-through (a clear plastic fitted as plastic was opaque beside its maps' see-through pane); a
+    "name" | "measures"); a name saying only "metal" its finish by its maps (generic_metal). A surface that gives off
+    light is glowing whatever its name (a glass lamp lens fitted as glass drew no light beside its map side's glow);
+    one that lets light through (its opacity under 1) and is no cutout (cutout_of: a perforated metal stays metal) is
+    glass, the one family drawn see-through (a clear plastic fitted as plastic was opaque beside its maps'
+    see-through pane); a
     moulded rubber with relief (RELIEF_SLOPE) that is a grid (periodic_share over PERIODIC_SHARE: a near flat
     map's faint repeat is no grid, three glossy rubbers' 0.72) is a mat. A hammered finish is by its name alone:
     its dents' size is not read from the maps (a relief's half width read 39 plastics' slow swells, 0.1 to 3 m, as
     dents, 2026-11-23)."""
     lowered = name.lower()
-    said = next((family for word, family in FAMILY_WORDS if word in lowered), None)
+    said = next((family for word, family in FAMILY_WORDS if says(word, lowered)), None)
     if measured.get("glow", 0.0) > 0 and said != "glowing":
         return "glowing", "measures"
-    if measured.get("opacity") is not None and measured["opacity"] < 1.0 and said != "glass":
+    if measured.get("opacity") is not None and measured["opacity"] < 1.0 and said != "glass" and \
+            not measured.get("cutout"):
         return "glass", "measures"
     for word, family in FAMILY_WORDS:
-        if word in lowered:
+        if says(word, lowered):
             if family in UNMETALLED and measured["metal"] > METAL_MEAN:
                 return metal_by_roughness(measured), "measures"
             if word == GENERIC_METAL:

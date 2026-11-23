@@ -107,8 +107,14 @@ Breaks of the see-through view and the new families (each applied once, seen red
   see-through share 0 (the same), or measure.refined's opacity step dropped (its opacity stays 0.8).
 - fit.family_of: the see-through rule dropped (the clear plastic is plastic), fit.described's transmission colour
   and roughness dropped (its constants'), or see_through_of's transmission 0 (it stops all light: plastic).
-- fit.opacity_of: the threshold ignored (the opacity map row stops 0.6255).
-- fit.FAMILY_WORDS without "lined", "osb" or "blanket" (the ribs row rubber, the strand board grained wood, the
+- fit.opacity_of: the threshold ignored (the opacity map row stops 0.6255), or the map averaged in READ_SIDE blocks
+  before its threshold (the perforated metal's quarter of holes read as none: it stops 1.0, 2026-11-23).
+- fit.family_of: any opacity under 1 glass again (`not measured.get("cutout")` dropped: the cut leaf and the
+  perforated metal glass, 2026-11-23).
+- fit.FAMILY_WORDS' mat words bare substrings again (`_line_`, `_mat_`, `lined`: the blood line plastic, the woven
+  wood place mat and the lined leather mats, 2026-11-23); fit.says reading a tuple as its words joined by `_`, a
+  substring (the black line rubber no mat).
+- fit.FAMILY_WORDS without ("rubber", "lined"), "osb" or "blanket" (the ribs row rubber, the strand board grained wood, the
   knit cloth, "hammer" the hammered row plastic); fit.family_of's MOULDED rule dropped (the studs row rubber), or
   its relief test (the near flat rubber a mat).
 - fit.studs: ribs always 0 (the ribs row studs), or a stud's share its area (the studs row 0.5); fit.period_of
@@ -245,6 +251,13 @@ def checker(light, dark=0, square=8):
     across, row = np.meshgrid(np.arange(SIDE), np.arange(SIDE))
     lit = ((across // square + row // square) % 2 == 0)[..., None]
     return np.where(lit, np.uint8(light), np.uint8(dark)).repeat(3, axis=-1).astype(np.uint8)
+
+
+def holed(side):
+    """An opacity map `side` texels across, one texel of each 2 x 2 block a hole (64 of 255): a quarter open."""
+    picture = np.full((side, side, 3), 255, dtype=np.uint8)
+    picture[::2, ::2] = 64
+    return picture
 
 
 def opaque(pixels):
@@ -410,12 +423,36 @@ ROWS = [
                                                         "opacity": 0.8}},
      (solid((119,) * 3), solid((119,) * 3), {"through": (checker(255), checker(255, 119), solid((119,) * 3))}),
      {"recipe": "glass", "opacity": 0.8, "see_through": -0.4997, "pass": False, "refined_opacity": 0.3003}),
-    ("an opacity map cut at its threshold: what it stops", "m_opaque_plastic_leaf_a01",
+    ("an opacity map cut at its threshold: what it stops, a cutout keeping its own family",
+     "m_opaque_plastic_leaf_a01",
      {"albedo.png": solid((119,) * 3),
       "opacity.png": np.concatenate([solid((255,) * 3)[:, :32], solid((64,) * 3)[:, 32:]], 1)},
      {"maps": {"albedo": "albedo.png", "opacity": "opacity.png"}, "tile_metres": 1.0,
       "opacity": {"constant": 1.0, "threshold": 0.5}}, (solid((119,) * 3), solid((119,) * 3)),
-     {"recipe": "glass", "family_from": "measures", "opacity": 0.5}),
+     {"recipe": "plastic", "family_from": "name", "measured_opacity": 0.5}),
+    ("a perforated metal's holes finer than a read block, counted texel by texel: a cutout, still metal",
+     "m_opaque_metal_perforated_a01", {"albedo.png": solid((119,) * 3), "opacity.png": holed(1024)},
+     {"maps": {"albedo": "albedo.png", "opacity": "opacity.png"}, "tile_metres": 1.0,
+      "opacity": {"constant": 1.0, "threshold": 0.5}}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "perforated_metal", "family_from": "name", "measured_opacity": 0.75}),
+    ("a constant see-through opacity, no map and no threshold, is glass", "m_trans_plastic_tinted_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.4, "opacity": 0.4}},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "glass", "family_from": "measures", "opacity": 0.4}),
+    ("a plastic blood line is no mat", "simready_m_opaque_plastic_infusion_warmer_blood_line_a01_47b4cde0",
+     {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "plastic", "family_from": "name"}),
+    ("a woven wood place mat is wood, no mat", "simready_m_opaque_wood_place_mat_table_woven_a01_d689814e",
+     {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "grained_wood", "family_from": "name"}),
+    ("a leather lined case is leather, no mat", "m_opaque_leather_lined_brown_a01",
+     {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "leather", "family_from": "name"}),
+    ("a rubber's mat surface is a mat", "simready_m_opaque_rubber_mat_surface_gray_a01_25eb5eda",
+     {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "mat", "family_from": "name"}),
+    ("a black line rubber is a ribbed mat", "simready_m_opaque_rubber_black_line_a01_8c1447d0",
+     {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "mat", "family_from": "name"}),
     ("a lined rubber is a ribbed mat, its pitch the ribs' period", "m_opaque_rubber_lined_black_a01",
      {"albedo.png": solid((119,) * 3), "normal.png": raised(2.0, 16, False)},
      {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
@@ -476,7 +513,8 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
     answer = {"recipe": spec["recipe"], "family_from": made["family_from"], "colour": round(np.mean(spec["colour"]), 4),
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
-              "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
+              "opacity": spec.get("opacity"), "measured_opacity": made["statistics"]["opacity"],
+              "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
               "ranking": measure.ranking(views), "glow_strength": spec.get("glow"),
               "scratches": spec.get("scratches"), "wear": spec.get("wear"), "contrast": spec.get("contrast"),
               "roughness_spread": spec.get("roughness_spread"),

@@ -33,10 +33,15 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   its own light (`inside/likeness.py`): the map side by its alpha and the principled surface's transmission, the
   recipe by its opacity as the look's alpha. `measure.through_measures` reads how much of the checker's contrast each
   pane shows; the gap is held to 0.08 of it (the lightness bound's 8 L over the checker's 100), and the refinement
-  moves the opacity by it. A surface that lets light through is fitted glass whatever its name (glass is the one
-  family drawn see-through), so a see-through plastic fails only where its tint or frost differs.
+  moves the opacity by it. A surface that lets light through by a glass's transmission or a constant opacity under 1
+  (no map, no threshold) is fitted glass whatever its name (glass is the one family drawn see-through), so a
+  see-through plastic fails only where its tint or frost differs. A cutout (`fit.cutout_of`: an opacity map or a
+  threshold, as a perforated metal, a leaf or a fence) keeps its own family, and its cut is drawn on both panes, so
+  only its finish is compared; an opacity map is cut texel by texel before it is counted (holes finer than a read
+  block are never averaged away).
 - **The adopted set's missing families** (2026-11-23, from the first run's diagnosis): `mat` (studs or ribs on a
-  grid: "_mat_", "matsurface", "fluted", "antislip", "lined", "_line_", or a rubber whose relief is a grid,
+  grid: whole words, `fit.says`: matsurface, mat with surface, fluted, antislip, a rubber lined or line, never a
+  place mat, a blood line or a lined leather; or a rubber whose relief is a grid,
   `PERIODIC_SHARE`), `strand_board` (OSB and HDF flakes), `knit` (a blanket's loops), `hammered` (by its name alone:
   a relief's half width read 39 plastics' slow swells as dents, so the grainy black plastic stays plastic) and a printed check on `cloth` (its albedo's print a grid). A mat's ribs or
   studs and their width come from its relief's anisotropy and raised share, a check's pitch, line and colour from its

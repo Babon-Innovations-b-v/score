@@ -153,6 +153,7 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
                                "emission_colour": found["emission_colour"],
                                "roughness": made["statistics"]["roughness"], "metal": made["statistics"]["metal"],
                                "recipe": made["recipe"], "map": True, "see_through": found["see_through"],
+                               "cutout": fit.cutout_of(found["maps"], found["see_through"]),
                                "through": lets_through(found, made["recipe"])}
         results[address] = {"address": address, "family_from": made["family_from"],
                             "tile_metres_from": made["tile_metres_from"] or found["tile_metres_from"],
