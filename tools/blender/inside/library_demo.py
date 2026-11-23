@@ -90,12 +90,15 @@ def world_light(scene, colour, strength):
 
 
 def import_file(path):
+    """One file brought in; the new objects it made. A USD's instanceable prims come in as plain meshes where the stage
+    puts them: Blender's default makes each a collection-instance empty and hands back its prototype mesh at the
+    prototype's own place, so the framing measured the prototypes and missed every SimReady part (score #156)."""
     before = set(bpy.data.objects)
     suffix = pathlib.Path(path).suffix.lower()
     if suffix in (".gltf", ".glb"):
         bpy.ops.import_scene.gltf(filepath=str(path))
     elif suffix in (".usd", ".usda", ".usdc"):
-        bpy.ops.wm.usd_import(filepath=str(path))
+        bpy.ops.wm.usd_import(filepath=str(path), support_scene_instancing=False)
     elif suffix == ".ply":
         bpy.ops.wm.ply_import(filepath=str(path))
         for obj in bpy.data.objects:
