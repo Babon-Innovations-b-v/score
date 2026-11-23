@@ -182,9 +182,8 @@ def fitted_atlas(bake):
     import bpy
 
     class Fitted(bake.Atlas):
-        def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True, per_face=False,
-                     split=False):
-            arguments = (specs, one_piece, backs_hidden, per_face, split)
+        def __init__(self, name, items, density, specs=None, one_piece=False, per_face=False, split=False):
+            arguments = (specs, one_piece, per_face, split)
             super().__init__(name, items, density, *arguments)
             if per_face or self.maps > 1 or self.capped or len(items) != 1:
                 return
@@ -199,7 +198,7 @@ def fitted_atlas(bake):
                 if step == UNFOLD:
                     rounds.append(folded_faces(found, mesh_layout(items[0])[3]))
                 else:
-                    density = density * (2 * step * 0.999) / self.wanted(items, density, specs, backs_hidden)
+                    density = density * (2 * step * 0.999) / self.wanted(items, density, specs)
                 self.laid_again(name, items, density, arguments, unfolding(smart, rounds) if rounds else smart)
                 found = self.measure(items[0])
                 if step == UNFOLD and found["overlap"] >= kept[2]["overlap"]:
@@ -227,9 +226,9 @@ def fitted_atlas(bake):
             found = measured(positions, uvs, triangles, self.colour_side)
             return dict(found, thin=0.0) if len(item.data.materials) == 1 else found
 
-        def wanted(self, items, density, specs, backs_hidden):
+        def wanted(self, items, density, specs):
             """The normal map's side the Atlas works out at `density`, before rounding (bake.Atlas's own rule)."""
-            area = bake.visible_area(items, bake.sharp_slots(specs, density), backs_hidden)
+            area = bake.visible_area(items, bake.sharp_slots(specs, density))
             return (area / bake.UV_FILL) ** 0.5 * density
 
         def laid_again(self, name, items, density, arguments, unwrap):

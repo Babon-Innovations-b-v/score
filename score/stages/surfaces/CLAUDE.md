@@ -337,9 +337,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `LEAST` (1%, the check's PART_LEAST; outside on any share), by model and measure; a batch gate
   (`stages.BATCH_GATES`), so a failing model is a gap of its take. Measured 2026-11-05 on env1's 439 baked models: 31
   fail, 15 by shared texels (smart_project's folds on lumpy takes, the faces sharing a texel 6 to 13% of the model's
-  size apart), 17 by sub-texel charts on small pictures. The back-face fault (`inside/bake.py` HIDDEN_SHARE, a face
-  toward the kit's back packed at a twentieth of the density) is ruled out: every caller passes `backs_hidden=False`,
-  and no model's density facing any axis is under 0.7 of another's (doors included). A model of one surface has no
+  size apart), 17 by sub-texel charts on small pictures. The back-face fault (a face toward the kit's back packed at a
+  twentieth of the density) is ruled out: `inside/bake.py` no longer shrinks any face (removed 2026-11-23), and no model's density facing any axis is under 0.7 of another's (doors included). A model of one surface has no
   thin-chart fault (`ONE_SURFACE`, 2026-11-12): a thin chart takes its neighbours' colour, all its own finish; on env1's
   38 models failing it every thin strip is geometry under a texel at the model's own density, not the packer.
   The bake lays a layout that would fail again before it bakes (`inside/layout_fit.py`, run in make_chunky's place

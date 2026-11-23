@@ -12,8 +12,9 @@ faces fall into blocks of near-equal area, each block its own picture set and it
 SPLIT_DENSITY, the room kit's density. The .gltf then holds one primitive per map.
 
 Texture memory (the owner, round two: share textures between pieces, size them per piece): the pieces of one job
-share one picture set instead of one set each, and each face gets the texels its place needs: a face the room never
-sees (a back against the wall, the top of a roof panel) is packed at a twentieth of the density. Base colour and
+share one picture set instead of one set each, every face at the set's one density (a sharp part's at its larger
+share). A face toward the kit's back once packed at a twentieth of it baked onto the picture's unpainted black: 1,137
+of the October 2026 code-built library models, a median 37% of each one's surface (2026-11-23). Base colour and
 metal-roughness are baked at half the normal map's side, since the ink look draws flat colour by region and the
 detail lives in the normal map.
 
@@ -46,7 +47,6 @@ CAP_SLACK = 1.15
 SMALLEST = 256
 # How much of the square a packed UV layout fills, to size the pictures for a texel density.
 UV_FILL = 0.6
-HIDDEN_SHARE = 0.05
 # How many times the texel density a printed or screen part's faces get (labels, keypads, notices, screen content):
 # read up close, they came out soft at the room's density (the owner, 2026-10-06).
 SHARP_SCALE = 3.0
@@ -78,11 +78,6 @@ SMOOTH_CREASE = math.radians(35.0)
 SMOOTH_ROUNDS_MOST = 200
 
 
-def hidden_faces(item):
-    """Faces the room never sees: those facing the kit frame's back (+z, Blender -y), against a wall or a roof."""
-    return {face.index for face in item.data.polygons if face.normal.dot(Vector((0.0, -1.0, 0.0))) > 0.9}
-
-
 def unwrap(item):
     """The piece's faces laid flat on its own `bake` UV map (made the one the game reads), leaving any `content` map
     (a label's or a screen's picture) as it is."""
@@ -100,39 +95,19 @@ def unwrap(item):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def shrink_hidden(item):
-    """Hidden faces' UV islands scaled down about their own middle."""
-    hidden = hidden_faces(item)
-    if not hidden:
-        return
-    mesh = bmesh.new()
-    mesh.from_mesh(item.data)
-    layer = mesh.loops.layers.uv["bake"]
-    for face in mesh.faces:
-        if face.index in hidden:
-            middle = sum((loop[layer].uv for loop in face.loops), Vector((0.0, 0.0))) / len(face.loops)
-            for loop in face.loops:
-                loop[layer].uv = middle + (loop[layer].uv - middle) * HIDDEN_SHARE
-    mesh.to_mesh(item.data)
-    mesh.free()
+def visible_area(items, sharp=()):
+    return sum(visible_area_of(item, sharp) for item in items)
 
 
-def visible_area(items, sharp=(), backs_hidden=True):
-    return sum(visible_area_of(item, sharp, backs_hidden) for item in items)
+def visible_area_of(item, sharp=()):
+    """The area of the piece's faces, a sharp part's at its larger share."""
+    return float(face_weights(item, sharp).sum())
 
 
-def visible_area_of(item, sharp=(), backs_hidden=True):
-    """The area of the faces the room sees, a sharp part's at its larger share."""
-    return float(face_weights(item, sharp, backs_hidden).sum())
-
-
-def face_weights(item, sharp=(), backs_hidden=True):
-    """Each face's share of the picture set as area: its area, a sharp part's at its larger share, a hidden face's 0
-    (the hidden set found once: per face it made a 40k-face generated piece take 12 minutes, 2026-10-06)."""
-    hidden = hidden_faces(item) if backs_hidden else set()
+def face_weights(item, sharp=()):
+    """Each face's share of the picture set as area: its area, a sharp part's at its larger share."""
     scales = sharp_slots_of(item, sharp)
-    return np.array([0.0 if face.index in hidden else face.area * scales.get(face.material_index, 1.0) ** 2
-                     for face in item.data.polygons])
+    return np.array([face.area * scales.get(face.material_index, 1.0) ** 2 for face in item.data.polygons])
 
 
 def blocks(middles, weights, chosen, count):
@@ -202,9 +177,8 @@ def sharpen(item, sharp):
     mesh.free()
 
 
-def packed_together(items, side, sharp=(), backs_hidden=True):
-    """Every piece's islands at one texel density, packed into the one square; with `backs_hidden`, the faces facing
-    the kit's back shrunk (shrink_hidden)."""
+def packed_together(items, side, sharp=()):
+    """Every piece's islands at one texel density, packed into the one square."""
     bpy.ops.object.select_all(action="DESELECT")
     for item in items:
         item.select_set(True)
@@ -215,8 +189,6 @@ def packed_together(items, side, sharp=(), backs_hidden=True):
     bpy.ops.uv.average_islands_scale()
     bpy.ops.object.mode_set(mode="OBJECT")
     for item in items:
-        if backs_hidden:
-            shrink_hidden(item)
         sharpen(item, sharp)
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
@@ -386,29 +358,25 @@ class Atlas:
     """One shared picture set for a list of pieces: their UVs packed together at one texel density; a split piece's
     several sets (`sets`, one a map)."""
 
-    def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True, per_face=False,
-                 split=False):
+    def __init__(self, name, items, density, specs=None, one_piece=False, per_face=False, split=False):
         """`one_piece`: the set is a single piece; past the cap it takes the density that fits and says so
         (`self.capped`, which make_chunky reports); a shared set too, up to CAP_SLACK past the cap; further past, it
         stops. `split`: a single generated piece past the cap is cut into maps at SPLIT_DENSITY instead (up to
-        MOST_MAPS; past them it is capped as above). `backs_hidden`: the faces facing the kit's back are shrunk
-        (shrink_hidden); a generated piece passes False: shrunk face by face, its small remeshed triangles fell under
-        a texel and baked black, and a chair, a desk or a lander shows its back (job paint, 2026-10-08: every
-        generated piece's back was 35 to 100% black). `per_face`: every face packed as its own island
+        MOST_MAPS; past them it is capped as above). `per_face`: every face packed as its own island
         (packed_per_face; a piece's data asks it, `per_face` in its bake entry), its faces neither shrunk nor
         sharpened."""
         self.name = name
         for item in items:
             unwrap(item)
         sharp = sharp_slots(specs, density)
-        area = visible_area(items, sharp, backs_hidden)
+        area = visible_area(items, sharp)
         wanted = math.sqrt(area / UV_FILL) * density
         self.capped = None
         self.maps = 1
         if wanted > LARGEST and split and one_piece:
             density = SPLIT_DENSITY
             sharp = sharp_slots(specs, density)
-            weights = face_weights(items[0], sharp, backs_hidden)
+            weights = face_weights(items[0], sharp)
             wanted = math.sqrt(weights.sum() / UV_FILL) * density
             self.maps = min(MOST_MAPS, maps_needed(wanted))
             wanted = self.held(wanted / math.sqrt(self.maps), density, weights.sum())
@@ -429,7 +397,7 @@ class Atlas:
         elif per_face:
             packed_per_face(items, self.side)
         else:
-            packed_together(items, self.side, sharp, backs_hidden)
+            packed_together(items, self.side, sharp)
         half = max(SMALLEST // 2, self.side // 2)
         self.sets = [self.picture_set(self.map_name(number), half) for number in range(self.maps)]
         self.first = {channel: True for channel in self.sets[0]}

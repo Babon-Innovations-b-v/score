@@ -474,7 +474,7 @@ def make_piece(entry, job, out):
     decals = [decal for decal in decals if decal["surface"] is not None]
     with_decals(whole, decals)
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), specs, one_piece=True,
-                        backs_hidden=False, per_face=entry.get("per_face", False), split=True)
+                        per_face=entry.get("per_face", False), split=True)
     atlas.bake_from(whole, low, specs, job["wear"], job["dirt"], job["seed"],
                     bake_reach(entry["size"]), entry.get("foot"))
     atlas.finish()
@@ -597,8 +597,7 @@ def make_bodied(entry, job, out, whole, body_entry, began):
         low = solid_copy(whole, faces, f"{entry['name']}_details", size, entry.get("wall", default_wall(size)),
                          DETAIL_VOXEL)
         items.insert(0, low)
-    atlas = bake.Atlas(entry["name"], items, entry.get("density", job["density"]), job["specs"], one_piece=True,
-                       backs_hidden=False)
+    atlas = bake.Atlas(entry["name"], items, entry.get("density", job["density"]), job["specs"], one_piece=True)
     if low is not None:
         atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                         max(REACH_LEAST, REACH_VOXELS * DETAIL_VOXEL), entry.get("foot"))

@@ -82,7 +82,7 @@ def main():
         stored = dict(stored)
     specs = {f"s{number}": JOB["specs"][name] for number, name in enumerate(JOB["slots"])}
     item = body_object(stored, len(JOB["slots"]))
-    atlas = bake.Atlas("body", [item], JOB["density"], specs, one_piece=True, backs_hidden=False)
+    atlas = bake.Atlas("body", [item], JOB["density"], specs, one_piece=True)
     atlas.bake_self(item, specs, JOB["wear"], JOB["dirt"], JOB["seed"])
     atlas.finish()
     np.save(out / "uvs.npy", corner_uvs(item, stored["triangles"]))

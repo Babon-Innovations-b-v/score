@@ -151,8 +151,9 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **A model's feet** (`feet.py`): its low points clustered across and along, each foot's lowest; `level` stretches a
   take's short legs onto the level plane through its lowest foot (the surface stage's paint, before its bake), the
   resting triage judges each foot of a laid object, the settle refuses a tip onto uneven feet.
-- **A generated piece's back is baked at full density** (`bake.Atlas(backs_hidden=False)` from make_chunky): shrunk
-  face by face its remeshed triangles fell under a texel and baked black (every generated piece's back, 2026-10-08).
+- **Every face is baked at the set's one density, its back too**: a back once shrunk to a twentieth fell under a
+  texel and baked onto the picture's black (every generated piece's back, 2026-10-08; 1,137 of the October code-built
+  library models, 2026-11-23), so the shrink is gone from `bake.py`.
 - **One wear for the room, from a cause:** a scene's wear level (its scene palette's on the finish route; `place.json`
   on the kit routes), the bevel test on edges, and kick
   wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). A finish may carry its

@@ -3410,7 +3410,7 @@ def laid_square(low_u, low_v, wide, tall):
 
 # #92, the texture layout the bake wrote (uv_layout.py): a sound pair of 1 m squares in a 1024 x 1024 picture and a
 # third square beside it: (case, the third square, the one fault it is named by, None: sound). The sparse one is the
-# bake's old hidden share, a face given a twentieth of the density (bake.py HIDDEN_SHARE); the stretched one is
+# bake's old hidden share, a face given a twentieth of the density (removed from bake.py 2026-11-23); the stretched one is
 # twice uv_layout.STRETCH long (its height filled in by the test, the constant read there).
 SOUND = [laid_square(0.1, 0.1, 0.3, 0.3), laid_square(0.1, 0.5, 0.3, 0.3)]
 LAYOUTS = [
