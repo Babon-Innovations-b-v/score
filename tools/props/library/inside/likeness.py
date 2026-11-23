@@ -9,7 +9,7 @@ The job: {"out", "size", "samples", "seed", "pairs": [{"name", "maps": {role: pa
 "roughness", "metal", "recipe": spec, "map": bool}]}; a pair with "map" false has its map pictures from an earlier round and renders only its recipe. The
 map material is the maps as a principled surface: the albedo as sRGB colour (with no albedo map, the surface's constant
 linear `albedo_colour`), roughness and metal from an ORM map's
-green and blue (or their own maps; with neither, the pair's `roughness` and `metal`, the fit's reading of the surface's
+green and blue (or their own maps, or a packed albedo's alpha, `roughness_alpha`; with neither, the pair's `roughness` and `metal`, the fit's reading of the surface's
 constants or USD's defaults, never Blender's own), its glow the emission map (sRGB, given off at strength 1, as USD draws it) or the
 constant linear `emission_colour` (its size the strength: (5, 5, 5) is white at 5), the normal map in tangent space (a DirectX map's green turned over), all on texture coordinates cube-projected at the
 maps' tile size, so a repeat covers `tile_metres` as the recipe's metres do. Writes <out>/<name>/map-<view>.png and
@@ -108,6 +108,9 @@ def map_material(name, maps, convention="opengl", albedo_colour=None, emission_c
         for role, socket, constant in (("roughness", "Roughness", roughness), ("metal", "Metallic", metal)):
             if role in maps:
                 tree.links.new(image_node(tree, maps[role], True).outputs["Color"], surface.inputs[socket])
+            elif role == "roughness" and "roughness_alpha" in maps:
+                packed = image_node(tree, maps["roughness_alpha"], False)  # the albedo's own picture: its alpha
+                tree.links.new(packed.outputs["Alpha"], surface.inputs[socket])
             else:
                 surface.inputs[socket].default_value = constant
     if "normal" in maps:

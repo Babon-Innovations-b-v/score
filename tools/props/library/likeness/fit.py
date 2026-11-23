@@ -91,6 +91,8 @@ UNSAID_ROUGHNESS = 0.5
 # A surface.json's constants the fit reads beside its colours: {constant name: the measure it stands in for}.
 CONSTANT_MEASURES = {"roughness": "roughness", "metallic": "metal", "opacity": "opacity"}
 ROLE_ALIASES = {"metallic": "metal"}  # a surface.json's role names (the USD input's) as this fit's
+# A surface.json's packed roles, one file holding two: {role: (the colour role, the role its alpha holds)}.
+PACKED_ROLES = {"albedo_roughness": ("albedo", "roughness_alpha")}
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
 PATTERN_SPREAD = 0.3
@@ -137,6 +139,11 @@ def described(surface, names):
     else:
         tile = (surface["tile_metres"], "surface.json" if surface["tile_metres"] is not None else None)
     found = {ROLE_ALIASES.get(role, role): name for role, name in maps.items()} or roles(names)
+    for packed, (colour_role, alpha_role) in PACKED_ROLES.items():
+        if packed in found:
+            name = found.pop(packed)
+            found.setdefault(colour_role, name)
+            found.setdefault(alpha_role, name)
     constants = surface.get("constants") or {}
     constant = None if "albedo" in found else constants.get("diffuseColor")
     glow = None if "emission" in found else constants.get("emissiveColor")
@@ -235,10 +242,17 @@ def channel_mean(path, channel):
     return float(shrunk(pixels(path), READ_SIDE)[..., channel].mean())
 
 
+def alpha_mean(path):
+    """A picture's alpha mean, as stored (a packed map's second measure, its roughness)."""
+    from PIL import Image
+    with Image.open(path) as opened:
+        return float(shrunk(np.asarray(opened.convert("RGBA"), dtype=float)[..., 3] / 255.0, READ_SIDE).mean())
+
+
 def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None, constants=None,
                emission_colour=None):
     """The maps' measures from {role: path}: the albedo map, else the constant `albedo_colour` (linear); normal, orm
-    or roughness and metal when given, else their surface.json `constants` ({measure: value}, described), else a
+    or roughness (or a packed albedo's alpha, `roughness_alpha`) and metal when given, else their surface.json `constants` ({measure: value}, described), else a
     roughness of UNSAID_ROUGHNESS and a metal of 0, as the map side draws them; the constant opacity (None when
     unsaid); its glow, the strength it gives off light at (an emission map's 1, else the constant `emission_colour`'s
     strongest channel, else 0) and that constant's hue (its channels over the strongest)."""
@@ -250,8 +264,12 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     if "orm" in maps:
         measured["roughness"], measured["metal"] = channel_mean(maps["orm"], 1), channel_mean(maps["orm"], 2)
     else:
-        measured["roughness"] = (channel_mean(maps["roughness"], 0) if "roughness" in maps else
-                                 constants.get("roughness", UNSAID_ROUGHNESS))
+        if "roughness" in maps:
+            measured["roughness"] = channel_mean(maps["roughness"], 0)
+        elif "roughness_alpha" in maps:
+            measured["roughness"] = alpha_mean(maps["roughness_alpha"])
+        else:
+            measured["roughness"] = constants.get("roughness", UNSAID_ROUGHNESS)
         measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else constants.get("metal", 0.0)
     measured["opacity"] = constants.get("opacity")
     strongest = max(emission_colour or [0.0])

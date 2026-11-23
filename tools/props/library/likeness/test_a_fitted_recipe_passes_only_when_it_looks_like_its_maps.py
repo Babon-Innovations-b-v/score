@@ -50,6 +50,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   glass row is glass).
 - fit.family_of: the glow rule dropped (the lamp glass row is glass, the warm plastic plastic), or spec_of's glow
   hue dropped (the warm plastic's colour its diffuse 0.8).
+- fit.described: PACKED_ROLES' split dropped (the packed row has no albedo: KeyError), or statistics' alpha read
+  dropped (its roughness USD's 0.5).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -209,6 +211,11 @@ ROWS = [
      {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.8] * 3, "emissiveColor": [3.0, 2.66, 1.65]}},
      (solid((255,) * 3), solid((255,) * 3)),
      {"recipe": "glowing", "family_from": "measures", "colour": 0.8122, "glow_strength": 3.0}),
+    ("a packed albedo, its roughness in its alpha", "m_trans_glass_colored_a01",
+     {"albedo_roughness.png": solid((119, 119, 119, 51))},
+     {"maps": {"albedo_roughness": "albedo_roughness.png"}, "tile_metres": 1.0, "constants": {"metallic": 1.0}},
+     (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "polished_metal", "colour": 0.1845, "roughness": 0.2, "metal": 1.0}),
 ]
 
 
