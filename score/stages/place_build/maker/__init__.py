@@ -144,8 +144,8 @@ def picture_of(folder, source, like, work):
         return take_picture(source[5:]), source
     if source.startswith("concept/"):
         return cut_out(concept_picture(folder, source[8:], work / "picture.png")), source
-    if pathlib.Path(source).is_file():
-        return cut_out(pathlib.Path(source)), source
+    if pathlib.Path(source).is_file():  # said by its name only: a record is public, a path on this PC is not
+        return cut_out(pathlib.Path(source)), f"the picture {pathlib.Path(source).name}"
     raise place_build.Refused(f"{source}: not take/<take>, concept/<n>, like or a picture's path")
 
 

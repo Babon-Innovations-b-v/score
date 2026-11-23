@@ -2,6 +2,7 @@
 named a mismatch, never forced), its GLB is edited losslessly, and its mass is its hulls' outside skin, not every face.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- maker.picture_of returning a loose picture's path as said -> the public record names a path on this PC
 - maker.flat_card: always False -> the 1 mm card passes as a model
 - maker.cut_out: its rectangle refusal dropped -> a box-cut crop (the capsule's uncut lever, #156) goes to TRELLIS.2;
   maker.concept_picture: its missing-mask refusal dropped -> concept/<n> with no SAM 3 mask is made from no cut
@@ -85,6 +86,8 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
         except Refused:
             refused[source] = True
     assert refused == {"box": True, "opaque": True, "rgb.png": True, "concept/0": True}
+    _, said = maker.picture_of(tmp_path, str(tmp_path / "cut.png"), None, tmp_path)
+    assert said == "the picture cut.png"  # a public record names a loose picture, never its path on this PC
 
     document = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "world"}],
                 "buffers": [{"byteLength": 0}], "images": [{"bufferView": 0, "mimeType": "image/png"}],
