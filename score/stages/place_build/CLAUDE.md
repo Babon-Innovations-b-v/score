@@ -136,8 +136,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   lights at true direction, kelvin and lux, the Sun's disc, every other body a ball at its true size and phase, black
   behind them, the backdrops' domes as the Environment's light, the exposure a white face square to the Sun at 1;
   `--turn` turns the azimuths onto the place's frame. Each body wears its library face (`surface/<body>_face`'s
-  face.json, as its body-face row made it); one the library lacks or withdrew is laid named missing. A body with air
-  is refused (its day dome is not laid here). The light stage's gate (`sky.faults`) holds it in the test.
+  face.json, as its body-face row made it); one the library lacks or withdrew is laid named missing. A body with
+  dusty air (data/physics/dust.json: Mars) gets the light layer's own day sky (#156, camp's black dome): each beam
+  through its dust (`sky.through_dust`), the day dome `scene.write_sky_dome` draws for the light layer at
+  `/<place>/Sky/Dome` (its picture in the folder's `assets/textures`, built by `(mars_sky.write)`), the dome's
+  light on the ground (mars_sky's radiance without its gain, summed over the sky) as the Environment's, the
+  exposure a white face square to the Sun at 1 under the beam and that light. A body with air the table lacks is
+  refused. The light stage's gate (`sky.faults`) holds it in the test.
 - **`sky --background`** sets the sky the camera sees (a palette token's night blue where the entry's is black).
 - **Blocks** (`blocks`, batch only; the street, owner 2026-11-16: "no paper-thin walls, bevels on edges"): a
   straight-sided structure is solid chamfered boxes from the shell algorithm (dome_shell.blocks_file), one object of

@@ -30,8 +30,9 @@ no solid to the film's camera and still one to the walkers, cut in the concept's
 an outside view sees it standing, and a cut stair core's front wall is written to its own file. A still draws the place
 without the walkers' layer. A Moon place's physical sky (sky-at) holds what overhead.py says is overhead at its
 site and time (the light stage's own gate finds no fault), a sky laid before cleared, each body in its library face
-or named missing when the library holds none, black under the airless sky at the brightest light's exposure; a body
-with air is refused.
+or named missing when the library holds none, black under the airless sky at the brightest light's exposure; a Mars
+site's sun reddened through its dust under its day dome, whose light is its ambient light; a body with air the dust
+table lacks is refused.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
@@ -79,7 +80,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.library_face: the withdrawn state not read -> Mars's ball is painted from its withdrawn face
 - place_build.turned: the turn left off -> the light stage's gate finds the Sun and Earth off overhead.py's ways
 - place_build.sky_at: exposure left at 1 -> the Moon's noon renders 1 where a white face square to the Sun reads 1
-- place_build.airless: every body taken as airless -> a Mars site is laid under a black sky
+- place_build.airless: every body taken as airless -> a Mars site is laid under a black sky with no day dome
+- place_build.sky_at: the dust not passed to the sky -> Mars's low sun shines white, not reddened through its dust
+- place_build.sky_light: the dome's light left off the Environment -> Mars's ambient light is nought
+- place_build.day_dome: the picture named as the light layer's (../assets) -> the dome's picture is not in the folder
+- place_build.dusty_air: a body with air and no dust laid -> the Earth's site is laid with no refusal
 - dome_shell.written: no placeholder bound to a part -> the written parts' bindings are empty
 - dome_shell.placeholder: its shader left out -> the glass placeholder has no surface to draw (Cycles' black)
 - dome_shell.skin: the opening's faces kept instead of dropped -> the holed dome's glass closes its opening
@@ -1080,7 +1085,7 @@ def footprinted(tmp_path):
 def skied(tmp_path, root, files):
     """A Moon place's physical sky from its site and time: what overhead.py says is overhead (the light stage's
     gate, sky.faults, on the turned answer), Earth in its library face, Mars's withdrawn face named missing, the sky
-    laid before cleared, black at the Sun's exposure; a Mars site refused for its air."""
+    laid before cleared, black at the Sun's exposure; a Mars site under its dusty day dome, the Earth refused."""
     from score.review import overhead, setting as settings
     from score.stages.light import sky
     face = {"body": "earth", "surface": "earth_face", "family": "ocean", "recipe": "ocean", "token": "sea",
@@ -1119,11 +1124,20 @@ def skied(tmp_path, root, files):
                                stage.GetPrimAtPath("/lock/Sky/Discs/sun"))]
     assert all(str(prim.GetAttribute("score:from").Get()).endswith(place_build.SKY_ALGORITHM) for prim in built), built
     assert stage.GetPrimAtPath("/lock/Looks/sun_disc").GetAttribute("score:surface").Get() == place_build.GLOWING
-    try:
-        place_build.sky_at(folder, on="mars", latitude=30.0, longitude=130.0, time=when)
-        raise AssertionError("a Mars site was laid under an airless sky")
-    except place_build.Refused as why:
-        assert "has air" in str(why)
+    mars = tmp_path / "mars_place"
+    place_build.start(mars, "camp", tmp_path / "moon.png")
+    laid = place_build.sky_at(mars, on="mars", latitude=30.013, longitude=130.314, time="2099-10-01T16:00:00Z")
+    stage = Usd.Stage.Open(str(mars / "scene.usda"))
+    beam = stage.GetPrimAtPath("/camp/Lights/sky_sun").GetAttribute("inputs:color").Get()
+    dome = stage.GetPrimAtPath("/camp/Sky/Dome")
+    picture = stage.GetPrimAtPath("/camp/Sky/dome_look/picture").GetAttribute("inputs:file").Get()
+    ambient = stage.GetPrimAtPath("/camp/Environment").GetAttribute("inputs:color").Get()
+    assert laid["dome"] and beam is not None and beam[0] > beam[2] and min(laid["ambient lux"]) > 0.0, laid
+    assert dome.GetAttribute("score:sky_strength").Get() > 0.0 and ambient[0] > ambient[2], ambient  # a butterscotch sky
+    assert (mars / picture.path).is_file() and \
+        str(dome.GetAttribute("score:from").Get()).endswith(place_build.DUSTY_ALGORITHM), picture
+    with pytest.raises(place_build.Refused, match="no dusty air"):
+        place_build.sky_at(mars, on="earth", latitude=52.0, longitude=4.0, time=when)
 
 
 def from_library(tmp_path, root, files):

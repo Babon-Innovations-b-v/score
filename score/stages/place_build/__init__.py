@@ -49,9 +49,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        a library sky laid as the place's own (its dome, its
                                                        ambient light as /<place>/Environment) and its sun
     sky_at(folder, scene | on, latitude, longitude, height, time, turn, exposure)
-                                                       an airless body's physical sky from where and when the place
-                                                       is (score/stages/light/sky.py on overhead.py): its sun, discs,
+                                                       a body's physical sky from where and when the place is
+                                                       (score/stages/light/sky.py on overhead.py): its sun, discs,
                                                        bodies at true size and phase in their library faces, black
+                                                       on an airless body, a dusty body's day dome (mars_sky.py)
     night(folder, ambient, background, exposure, moon, glow)
                                                        a night sky with no picture: the night's physics as the
                                                        Environment's light and exposure, the moon a distant light
@@ -1828,8 +1829,14 @@ FACE = "surface/{body}_face"  # a body's face in the library: its face.json as i
 FACE_FILE = "face.json"
 # An airless body's sky (the Moon's 3e-13 kPa): no air scatters its sun's light, so the sky the camera sees is black
 # and only the backdrops light it. Set between an exosphere's 1e-13 kPa and Pluto's hazy 1e-3 kPa (natural_grounds'
-# reference table), far under Mars's 0.636 kPa, whose dust scatters a day dome this step does not lay.
+# reference table), far under Mars's 0.636 kPa, whose dust scatters a day dome (DUST).
 AIRLESS_KPA = 1e-6
+DUST = REPO / "data/physics/dust.json"  # the dusty air of the bodies that have it, as mars_sky.py scatters it
+DUSTY_ALGORITHM = "(mars_sky.write)"  # the library algorithm holding mars_sky.py and scene.write_sky_dome
+LUMINANCE = (0.2126, 0.7152, 0.0722)  # Rec. 709's luminance of linear red, green and blue
+# The texels across the day dome's sky when its light on the ground is summed (sky_light): the sum is smooth, within
+# 0.02% of 2048's at Mars's 9.8-degree sun (2026-11-23), where the dome's own 1024 took 1.7 s a call.
+SKY_LIGHT_WIDTH = 256
 SKY_PATHS = ("Sky", "Environment", "Objects/sky", "Lights/sun", "Lights/moon")  # a sky laid before, cleared first
 
 
@@ -1890,23 +1897,65 @@ def turned(seen, turn):
             "bodies": [moved(body) for body in seen["bodies"]]}
 
 
+def dusty_air(setting, site):
+    """The day dome's dusty air over a site on a body with air (the scene record's `sky_dome` entry, writer.sky_dome:
+    data/physics/dust.json's values and the dome's gain), refused for a body whose air the table does not hold."""
+    from score.stages.scene_record import writer
+    entry = writer.sky_dome(None, {"site": site, "setting": setting}, json.loads(DUST.read_text()))
+    if entry is None:
+        raise Refused(f"{site['on']} has air with no dusty air in {DUST.relative_to(REPO)}: sky-at lays no day dome "
+                      "for it")
+    return entry
+
+
+def sky_light(entry, toward, lux):
+    """The day dome's light on the ground, lux in red, green and blue: mars_sky.picture's radiance for a sun of 1
+    (the dome's gain, which sets how the sky reads to the eye, left off) over the upper half of the sky, each way
+    weighed by its height's sine, times the sun's top-of-air `lux`."""
+    import math
+    from score.stages.light import sky as physics_sky
+    width = SKY_LIGHT_WIDTH
+    radiance = physics_sky.mars_sky.picture({**entry, "gain": [1.0, 1.0, 1.0]}, toward, width).astype(np.float64)
+    up = physics_sky.mars_sky.ways(width)[..., 1]
+    height = width // 2
+    polar = np.pi * (np.arange(height) + 0.5) / height
+    solid = (2.0 * math.pi / width) * (math.pi / height) * np.sin(polar)[::-1, None]
+    weight = np.where(up > 0.0, up, 0.0) * solid
+    return float(lux) * np.einsum("hwc,hw->c", radiance, weight)
+
+
+def day_dome(stage, place, folder, entry, seen):
+    """The day dome (scene.write_sky_dome: mars_sky.py's picture for the place's sun) at /<place>/Sky/Dome, its picture
+    in the folder's assets and named from the scene there, the dome and its look built by DUSTY_ALGORITHM."""
+    from score.stages.light import sky as physics_sky
+    physics_sky.scene.write_sky_dome(stage, place, entry, physics_sky.sun_entries(seen), pathlib.Path(folder))
+    picture = UsdShade.Shader(stage.GetPrimAtPath(f"/{place}/Sky/dome_look/picture"))
+    picture.GetInput("file").Set("./assets/textures/sky_dome.png")
+    for path in (f"/{place}/Sky/Dome", f"/{place}/Sky/dome_look"):
+        prim = stage.GetPrimAtPath(path)
+        said = str(prim.GetAttribute("score:from").Get() or "") if prim.HasAttribute("score:from") else ""
+        prim.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(f"{said} {DUSTY_ALGORITHM}".strip())
+
+
 def sky_at(folder, scene=None, on=None, latitude=None, longitude=None, height=0.0, time=None, turn=0.0,
            exposure=None):
     """The place's physical sky from where and when it is (score/stages/light/sky.py's write, the light stage's sky,
     on score/review/overhead.py's answer): each risen light a distant light at its true direction, kelvin and lux,
     a shining body's disc at its true size, every other body a ball at its true direction, size and phase painted
     with its library face (`surface/<body>_face`'s face.json; one the library lacks is laid named missing, never
-    grey-painted), the backdrops' domes as /<place>/Environment's ambient light under a black sky (an airless body
-    only: one with air is refused), `exposure` the camera's (default: a white face square to the brightest light
-    reads 1). The site and time a kept scene's sky (`scene`) or given (`on`, `latitude`, `longitude`, `height`
-    metres, `time` ISO); `turn` degrees turns the sky's azimuths onto the place's frame. A sky laid before (SKY_PATHS,
-    the sky's own lights) is cleared first."""
+    grey-painted). On an airless body the backdrops' domes are /<place>/Environment's ambient light under a black
+    sky; on a body with dusty air (data/physics/dust.json, as the light layer draws Mars) each beam comes through the
+    dust (sky.through_dust), the day dome is laid while a light is up (day_dome) and its light on the ground
+    (sky_light) is the Environment's too; a body with air the table lacks is refused. `exposure` the camera's
+    (default: a white face square to the brightest light, its beam and the dome's light, reads 1). The site and
+    time a kept scene's sky (`scene`) or given (`on`, `latitude`, `longitude`, `height` metres, `time` ISO); `turn`
+    degrees turns the sky's azimuths onto the place's frame. A sky laid before (SKY_PATHS, the sky's own lights) is
+    cleared first."""
     import math
     from score.stages.light import sky as physics_sky
     from score.review import overhead
     setting, site, when = sky_site(scene, on, latitude, longitude, height, time)
-    if not airless(setting, site["on"]):
-        raise Refused(f"{site['on']} has air: its day sky is a scattered dome, not laid by sky-at")
+    dust = None if airless(setting, site["on"]) else dusty_air(setting, site)
     seen = overhead.seen(setting, site, when)
     if seen is None:
         raise Refused(f"{site}: its position on {site['on']} is not known")
@@ -1924,7 +1973,7 @@ def sky_at(folder, scene=None, on=None, latitude=None, longitude=None, height=0.
             missing[body["body"]] = why
     faces = {body: face for body, face in faces.items() if face}
     library_method = json.loads((REPO / "data/library/materials.json").read_text())
-    written = physics_sky.write(stage, place, seen, faces, library_method, None)
+    written = physics_sky.write(stage, place, seen, faces, library_method, dust)
     for found in written["bodies"]:
         ball = stage.GetPrimAtPath(found["path"])
         if found["body"] in faces:
@@ -1932,11 +1981,20 @@ def sky_at(folder, scene=None, on=None, latitude=None, longitude=None, height=0.
         else:
             ball.GetAttribute("score:surface:missing").Set(missing[found["body"]])
     risen = overhead.risen(seen)["lights"]
+    ambient = np.full(3, sum(backdrop["lux"] for backdrop in seen["backdrops"] if backdrop["shape"] == "dome"))
+    beam = risen[0]["lux"] if risen else 0.0
+    if dust and risen:
+        day_dome(stage, place, folder, dust, seen)
+        ambient = ambient + sky_light(dust, physics_sky.sun_entries(seen)[0]["toward"], risen[0]["lux"])
+        beam *= float(np.dot(LUMINANCE, physics_sky.through_dust(risen[0]["altitude"], dust)))
     if exposure is None:
-        exposure = math.pi * physics_sky.LUMENS_PER_WATT / risen[0]["lux"] if risen else 1.0
-    ambient = sum(backdrop["lux"] for backdrop in seen["backdrops"] if backdrop["shape"] == "dome")
+        lit = beam + (float(np.dot(LUMINANCE, ambient)) if dust else 0.0)
+        exposure = math.pi * physics_sky.LUMENS_PER_WATT / lit if lit > 0.0 else 1.0
+    brightness = float(np.dot(LUMINANCE, ambient))
     environment = UsdLux.DomeLight.Define(stage, f"/{place}/Environment")
-    environment.CreateIntensityAttr(float(ambient / math.pi / physics_sky.LUMENS_PER_WATT))
+    environment.CreateIntensityAttr(float(brightness / math.pi / physics_sky.LUMENS_PER_WATT))
+    if brightness > 0.0:
+        environment.CreateColorAttr(Gf.Vec3f(*(float(value) for value in ambient / brightness)))
     prim = environment.GetPrim()
     prim.CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.0, 0.0, 0.0))
     prim.CreateAttribute("score:exposure", Sdf.ValueTypeNames.Float).Set(float(exposure))
@@ -1946,9 +2004,11 @@ def sky_at(folder, scene=None, on=None, latitude=None, longitude=None, height=0.
     saved(stage)
     return {"site": site, "time": when, "lights": [light["name"] for light in risen],
             "bodies": [found["body"] for found in written["bodies"]], "faces missing": missing,
+            "dome": bool(dust and risen), "ambient lux": [round(float(value), 3) for value in ambient],
             "exposure": float(exposure)}
 
 
+BUILT_BY = re.compile(r"\([a-z_]+\.[a-z_]+\)\s*$")  # a score:from naming its library algorithm (complete/library)
 SKY_ALGORITHM = "(sky_orbits.write)"  # the library algorithm holding overhead.py and the light stage's sky
 NIGHT_ALGORITHM = "(night_sky.night)"  # the library algorithm holding the night's physics (light/night.py)
 GLOWING = "surface/glowing"  # the library's glowing recipe a shining body's disc wears
@@ -1958,7 +2018,7 @@ def made_by_library(stage, place, algorithm):
     """The sky's lights, backdrops, discs and Environment named as built by the library `algorithm` (their score:from
     ending "(<id>.<function>)", as a code-built structure's: complete/library traces them to that entry), and a
     shining body's disc look naming the library's glowing recipe it wears (#154: every Moon and night place failed
-    the library check on its sky)."""
+    the library check on its sky); one another algorithm built (the day dome's DUSTY_ALGORITHM) keeps its name."""
     lights = stage.GetPrimAtPath(f"/{place}/Lights")
     prims = [stage.GetPrimAtPath(f"/{place}/Environment")]
     prims += [prim for prim in (lights.GetChildren() if lights else []) if prim.GetName().startswith(("sky_", "moon"))]
@@ -1969,7 +2029,7 @@ def made_by_library(stage, place, algorithm):
             continue
         said = str(prim.GetAttribute("score:from").Get() or "") if prim.HasAttribute("score:from") else ""
         prim.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(
-            said if said.endswith(algorithm) else f"{said} {algorithm}".strip())
+            said if BUILT_BY.search(said) else f"{said} {algorithm}".strip())
     looks = stage.GetPrimAtPath(f"/{place}/Looks")
     for look in looks.GetChildren() if looks else []:
         if look.GetAttribute("score:recipe").Get() == "glowing" if look.HasAttribute("score:recipe") else False:
