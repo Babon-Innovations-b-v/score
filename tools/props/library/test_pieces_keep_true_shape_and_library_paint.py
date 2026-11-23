@@ -216,7 +216,9 @@ def test_every_recipe_s_settings_are_in_the_method():
     assert set(recipes) == set(method)
     assert {name: arguments[function] - given - set(method[name]) for name, function in recipes.items()
             if arguments[function] - given - set(method[name])} == {}
-    assert arguments[recipes["cloth"]] - given == {"roughness", "thread", "bump", "dirt_reach"}
+    # plain cloth's mottle (#155, 2026-11-23): a heathered or stained map's, flat at its defaults
+    assert arguments[recipes["cloth"]] - given == {"roughness", "thread", "bump", "dirt_reach", "mottle_size",
+                                                   "contrast", "roughness_spread"}
     # a flat sheet's print (2026-11-08): a mat's or rug's mottled pile and a note's rows of writing, ink its second
     assert arguments[recipes["pile"]] - given == {"roughness", "tuft_size", "mottle_size", "contrast", "bump",
                                                   "dirt_reach"}
