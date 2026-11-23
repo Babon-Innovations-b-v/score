@@ -241,11 +241,17 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.library_address: every copy taken for made (no library piece) -> kerb2 is a made piece of its own, not
   box_piece
 - package.piece_problems: the digest left unchecked -> the box piece's stale digest passes the check
+- pieces.engine_source: the laid USD's stem not matched -> a take of two glTFs names neither; the re-finished parts
+  left unread -> the cup, cut into paint0, names a glTF that holds no such part
+- pieces.sourced: no mesh written for an entry without a glTF -> the USD-only box piece has no meshes/box_piece.glb
+- pieces.pictures_apart: the picture's view kept in the buffer, or the accessors' views not renumbered -> the
+  character's GLB still holds its picture, or its keys read the picture's bytes
 - scene_package.mass_of: the asset's authored mass left unread (usd_physics.authored_mass skipped) -> the adopted
   prop weighs its record's 3 kg, not its asset's 1.5496 kg times its scale cubed (#155)
 - scene_package.metal_rough: the texture output read left off (`channel(found[0], "r")`) -> the adopted look's
   roughness and metal are its ORM map's occlusion (red), not its green and blue (#155)
 """
+import hashlib
 import json
 import pathlib
 
@@ -1341,8 +1347,15 @@ def pieced(folder, root, out):
     assert copies["kerb_copy"]["piece"] == copies["kerb"]["piece"] == "kerb" and copies["kerb2"]["piece"] == "box_piece"
     assert sorted(path.name for path in (out / "made").iterdir()) == sorted(
         f"{name}.glb" for name, piece in scene["pieces"].items() if "made" in piece)
+    mesh = (out / "meshes/box_piece.glb").read_bytes()
+    mesh_document = json.loads(mesh[20:20 + int.from_bytes(mesh[12:16], "little")])
     assert scene["pieces"]["box_piece"] == {"library": "kit/box_piece@1", "digest": "d-kit/box_piece@1",
-                                            "parts": ["geo", "rim", "top"], "size": [1.0, 2.0, 0.5], "triangles": 14}
+                                            "parts": ["geo", "rim", "top"], "size": [1.0, 2.0, 0.5], "triangles": 14,
+                                            "mesh": "meshes/box_piece.glb", "sha256": hashlib.sha256(mesh).hexdigest()}
+    assert sorted(item["name"] for item in mesh_document["meshes"]) == ["geo", "rim", "top"]  # a USD-only kit piece
+    assert scene["pieces"]["cabinet"]["gltf"] == "cabinet.glb"  # the glTF its laid cabinet.usdc was converted from
+    assert scene["pieces"]["cup"]["mesh"] == "meshes/cup.glb" and "gltf" not in scene["pieces"]["cup"]  # re-finished
+    assert pieces.engine_source(["cup.glb", "cup-final.glb"], "cup-final.usdc", ["part_0"]) == {"gltf": "cup-final.glb"}
     assert scene["pieces"]["cup"]["library"] == "take/cup@1" and copies["cabinet"]["looks"] == {
         "door": "own-cabinet", "part_0": "own-cabinet"}  # a glTF model in its own bake
     assert sorted(mesh["name"] for mesh in document["meshes"]) == ["kerb", "line"] and "materials" not in document
@@ -1353,6 +1366,17 @@ def pieced(folder, root, out):
     assert scene["looks"][copies["crate"]["looks"]["top"]]["library"] == "surface/steel@1" != scene["looks"][
         copies["crate"]["looks"]["geo"]]["library"]
     assert scene["looks"][copies["dune"]["looks"]["top"]]["maps"]["diffuseColor"]["file"] == "surface/sand@1/colour.jpg"
+    picture, keys = b"\x89PNG a picture", np.arange(6, dtype=np.float32).tobytes()
+    embedded = scene_package.packed({"images": [{"bufferView": 0, "mimeType": "image/png"}], "bufferViews": [
+        {"buffer": 0, "byteLength": len(picture)}, {"buffer": 0, "byteOffset": 16, "byteLength": len(keys)}],
+        "accessors": [{"bufferView": 1, "componentType": 5126, "count": 2, "type": "VEC3"}],
+        "buffers": [{"byteLength": 16 + len(keys)}]}, picture + b"\0" * (16 - len(picture)) + keys)
+    apart, held = pieces.pictures_apart(embedded)
+    apart_document, apart_binary = scene_package.unpacked(apart, None)
+    name = f"pictures/{hashlib.sha256(picture).hexdigest()}.png"
+    assert held == {name: picture} and apart_document["images"] == [{"uri": name}]  # the picture once, apart
+    view = apart_document["bufferViews"][apart_document["accessors"][0]["bufferView"]]
+    assert apart_binary[view["byteOffset"]:view["byteOffset"] + view["byteLength"]] == keys  # the keys still read
     assert copies["leader"]["looks"] == {"*": "own-leader"} and scene["pieces"]["leader"]["skinned"] is True
     assert copies["leader"]["plays"] and copies["big"]["collider"]["mass_kg"] == 100.0
     assert scene["environment"]["grade"] is None and scene["lamps"][0]["name"] == "bulb"

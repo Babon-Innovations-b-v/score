@@ -8,12 +8,15 @@ check the check). Written straight from the laid USD with usd-core: no Blender, 
 as its matrix: a copy stretched unevenly stays a copy, its stretch in the matrix):
 - a library piece (a model, take, kit piece, effect or ground laid from score_lib) by its address and the entry's
   content digest from the library's own index, so an engine knows when its held copy is stale; its geometry is the
-  entry's, never written;
+  entry's: `gltf` names the entry's file an engine reads it from (its web3d/full.glb, else the glTF the laid USD was
+  converted from), and an entry that holds no glTF (a kit piece or model kept as USD alone) has its geometry as laid
+  written once as meshes/<name>.glb (`mesh`, `sha256`: positions, normals and a primitive a part, as a made piece's),
+  still held by the engine once for its address and digest;
 - a made piece (an algorithm's: the stair core, blocks, dome shells, tubes, terrain, a ground disc; anything without
   a library entry) as its own small made/<name>.glb in the piece's own frame: positions, normals and one primitive a
   part, no texture, no texture coordinates, no material; two copies of one content are one piece;
 - a character (a SkelRoot, a crowd's every copy) as its skinned glTF (skinned.py, as version 1 carries it: its own
-  texture), made/<name>.glb, its copy's `plays`.
+  texture), made/<name>.glb, its copy's `plays`; its pictures apart, each once at made/pictures/<sha256>.<ending>.
 A piece's parts are its GeomSubsets by name (a model's colour regions), a laid layer as one part by the layer's name
 (a lit screen), the rest of a mesh by the mesh's name. Each copy's `looks` gives each part a look id; `looks` holds
 each look once, with its surface's `library` address: a palette recipe's `score:recipe:spec` word for word (`spec`),
@@ -33,10 +36,12 @@ import numpy as np
 from pxr import Usd, UsdGeom, UsdShade
 
 from score.stages import place_build
-from score.stages.place_build import scene_package
+from score.stages.place_build import finished, scene_package
 import package  # tools/props/library/package.py, on the path by place_build: the format and its check
 
 MADE = "made"  # the made pieces' folder in the package
+MESHES = "meshes"  # the folder of a library piece's geometry as laid, for an entry that holds no glTF
+WEB_COPY = "web3d/full.glb"  # an entry's whole web 3D copy (score_lib's web3d), a glTF of it
 EVERY_PART = package.EVERY_PART  # a copy's look on every part of its piece (a character in its own texture)
 LIBRARY_KINDS = ("model", "take", "kit", "effect", "ground")  # a laid entry of these kinds is a library piece
 
@@ -214,10 +219,47 @@ def even_scale(world):
     return round(float(abs(np.linalg.det(np.asarray(world)[:3, :3])) ** (1.0 / 3.0)), 6)
 
 
-def object_piece(out, prim, pieces, made):
-    """The piece an object copies (added to `pieces` when new) and its parts' looks: a library piece by its address,
-    else a made piece written once by its content (`made`: {sha256: piece name}); (piece name, {part: look}) or
-    (None, None) when it draws no face."""
+def laid_file(prim):
+    """The file name a copy's first reference lays (a library copy's converted USD under assets/), or None."""
+    references = prim.GetMetadata("references").GetAddedOrExplicitItems() if prim.HasMetadata("references") else []
+    paths = [str(reference.assetPath) for reference in references if reference.assetPath]
+    return pathlib.PurePosixPath(paths[0]).name if paths else None
+
+
+def engine_source(files, laid_name, parts):
+    """Where an engine reads a library piece's geometry from, of the entry's `files`: {gltf: its glTF of the laid USD's
+    stem, else its web3d/full.glb}, or None when it holds no glTF or the place re-finished it part by part (its
+    parts finished.PART<n> are the place's own cut of the entry's faces, which no glTF of the entry holds)."""
+    if any(part.startswith(finished.PART) and part[len(finished.PART):].isdigit() for part in parts):
+        return None
+    stem = pathlib.PurePosixPath(laid_name).stem if laid_name else None
+    found = [name for name in files if name.endswith((".glb", ".gltf")) and pathlib.PurePosixPath(name).stem == stem]
+    if len(found) == 1:
+        return {"gltf": found[0]}
+    return {"gltf": WEB_COPY} if WEB_COPY in files else None
+
+
+def sourced(out, pieces, held, laid):
+    """Each library piece given its engine source: the entry's glTF (`gltf`), else its geometry as laid written once
+    at meshes/<name>.glb (`mesh`, `sha256`)."""
+    for name, piece in pieces.items():
+        if "library" not in piece:
+            continue
+        laid_name, corners = laid[name]
+        source = engine_source(held.get(piece["library"], {}).get("files", ()), laid_name, piece["parts"])
+        if source is not None:
+            piece.update(source)
+            continue
+        glb = made_glb(corners)
+        (out / MESHES).mkdir(exist_ok=True)
+        (out / MESHES / f"{name}.glb").write_bytes(glb)
+        piece.update(mesh=f"{MESHES}/{name}.glb", sha256=hashlib.sha256(glb).hexdigest())
+
+
+def object_piece(out, prim, pieces, made, laid):
+    """The piece an object copies (added to `pieces` when new) and its parts' looks: a library piece by its address
+    (its laid file and corners kept in `laid` for its engine source), else a made piece written once by its content
+    (`made`: {sha256: piece name}); (piece name, {part: look}) or (None, None) when it draws no face."""
     corners, bound = part_corners(prim)
     if not corners:
         return None, None
@@ -230,6 +272,7 @@ def object_piece(out, prim, pieces, made):
         if held.get("library") != address:
             raise place_build.Refused(f"{prim.GetName()}: two library entries name the piece {name}")
         held["parts"] = sorted(set(held["parts"]) | set(corners))
+        laid.setdefault(name, (laid_file(prim), corners))
         return name, bound
     glb = made_glb(corners)
     digest = hashlib.sha256(glb).hexdigest()
@@ -243,12 +286,57 @@ def object_piece(out, prim, pieces, made):
     return made[digest], bound
 
 
+PICTURES = "pictures"  # under made/: a character's pictures, each once by its sha256 (pictures_apart)
+ENDINGS = {"image/png": "png", "image/jpeg": "jpg"}
+
+
+def pictures_apart(glb):
+    """A skinned GLB with its embedded pictures taken out into files of their own: (the GLB naming each as
+    pictures/<sha256>.<ending> beside it, {that name: its bytes}). A crowd's copies of one character differ in a few
+    pose keys only, so each copy's GLB is its own but their pictures, nearly all their bytes, are held once (the
+    square's 1,081 people were 13.8 GB of GLBs, 702 distinct, 20 MB of them pictures each)."""
+    document, binary = scene_package.unpacked(glb, None)
+    views = document.get("bufferViews", [])
+    taken, pictures = {}, {}
+    for image in document.get("images", []):
+        if "bufferView" not in image:
+            continue
+        view = views[image.pop("bufferView")]
+        start = view.get("byteOffset", 0)
+        data = binary[start:start + view["byteLength"]]
+        name = f"{PICTURES}/{hashlib.sha256(data).hexdigest()}.{ENDINGS.get(image.pop('mimeType', ''), 'png')}"
+        pictures[name] = data
+        image["uri"] = name
+        taken[id(view)] = True
+    kept, numbers, packed = [], {}, bytearray()
+    for number, view in enumerate(views):
+        if id(view) in taken:
+            continue
+        start = view.get("byteOffset", 0)
+        packed += b"\0" * (-len(packed) % 4)
+        numbers[number] = len(kept)
+        kept.append({**view, "byteOffset": len(packed)})
+        packed += binary[start:start + view["byteLength"]]
+    for accessor in document.get("accessors", []):
+        if "bufferView" in accessor:
+            accessor["bufferView"] = numbers[accessor["bufferView"]]
+    document["bufferViews"] = kept
+    if document.get("buffers"):
+        document["buffers"][0]["byteLength"] = len(packed)
+    return scene_package.packed(document, bytes(packed)), pictures
+
+
 def character_pieces(out, prim, kind, pieces, made, looks):
     """A laid character's copies (scene_package.character_copies: skinned glTFs, checked against UsdSkel's skin) as
-    made pieces in their own texture: [copy] and [{name, why}] of those not carried."""
+    made pieces in their own texture, their pictures apart and held once (pictures_apart): [copy] and [{name, why}] of
+    those not carried."""
     laid, refused = scene_package.character_copies(prim)
     copies = []
-    for name, frame, scale, glb, facts, check in laid:
+    for name, frame, scale, embedded, facts, check in laid:
+        glb, pictures = pictures_apart(embedded)
+        for picture, data in pictures.items():
+            (out / MADE / picture).parent.mkdir(exist_ok=True)
+            (out / MADE / picture).write_bytes(data)
         digest = hashlib.sha256(glb).hexdigest()
         if digest not in made:
             made[digest] = name
@@ -280,8 +368,9 @@ def written_pieces(folder, out, stage, place, seat):
     doors and environment (version 1's), the library digests read from its index."""
     ready_file = folder / "ready.json"
     roles = json.loads(ready_file.read_text())["roles"] if ready_file.is_file() else None
-    if (out / MADE).exists():  # a piece list written before: its made pieces and scene.json
-        shutil.rmtree(out / MADE)
+    for written in (MADE, MESHES):  # a piece list written before: its made pieces, meshes and scene.json
+        if (out / written).exists():
+            shutil.rmtree(out / written)
     (out / "scene.json").unlink(missing_ok=True)
     (out / MADE).mkdir(parents=True)
     found, characters, left_out = scene_package.laid_objects(stage, place)
@@ -290,9 +379,9 @@ def written_pieces(folder, out, stage, place, seat):
                          for listed in (found, characters))
     left_out += [{"name": name, "why": f"the concept's backdrop: a neighbour place of the area {seat['area']} "
                                        "stands for it (place.json backdrop)"} for name in sorted(neighbours)]
-    pieces, made, looks, copies, counts = {}, {}, {}, [], {}
+    pieces, made, looks, copies, counts, first_laid = {}, {}, {}, [], {}, {}
     for prim, kind in found:
-        piece, bound = object_piece(out, prim, pieces, made)
+        piece, bound = object_piece(out, prim, pieces, made, first_laid)
         if piece is None:
             left_out.append({"name": prim.GetName(), "why": "it draws no face"})
             continue
@@ -314,6 +403,7 @@ def written_pieces(folder, out, stage, place, seat):
     for piece in pieces.values():
         if "library" in piece:
             piece["digest"] = held.get(piece["library"], {}).get("digest")
+    sourced(out, pieces, held, first_laid)
     doors, chambers = scene_package.doors_of(stage, place, [copy["name"] for copy in copies])
     for copy in copies:
         if copy["name"] in doors:
@@ -339,7 +429,8 @@ def packaged(folder, out):
     found = package.problems(pathlib.Path(out))
     if found:
         raise place_build.Refused(f"the piece list fails its check: {'; '.join(found[:12])}")
-    made_bytes = sum(path.stat().st_size for path in (pathlib.Path(out) / MADE).glob("*.glb"))
+    made_bytes = sum(path.stat().st_size for folder in (MADE, MESHES) for path in (pathlib.Path(out) / folder).rglob("*")
+                     if path.is_file())
     return {"package": str(out), "summary": package.summary(pathlib.Path(out)), "pieces": len(scene["pieces"]),
             "library_pieces": sum("library" in piece for piece in scene["pieces"].values()),
             "parts": sum(len(piece["parts"]) for piece in scene["pieces"].values()), "looks": len(scene["looks"]),

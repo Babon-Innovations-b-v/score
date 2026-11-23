@@ -73,13 +73,17 @@ per copy role, collider, door, plays), except `environment.sky.file`, the sky's 
 (`kind/id@version/file`), and `environment.grade` and `ground_albedo`, null (Blender draws them). Instead of objects
 and instances:
     pieces               {name: a library piece {library (its entry's address), digest (the entry's content digest,
-                         as the library's index has it), parts, size, triangles}, or a made piece {made (made/<name>.glb
+                         as the library's index has it), parts, size, triangles, and where an engine reads its
+                         geometry: gltf (a file of the entry: its web3d/full.glb, else the glTF its laid USD was
+                         converted from), or for an entry with no glTF mesh (meshes/<name>.glb under the package: its
+                         geometry as laid, a made piece's GLB) and sha256}, or a made piece {made (made/<name>.glb
                          under the package), sha256 (its bytes'), from (the algorithm or entry it was made by, or null),
                          parts, size, triangles; a character's also skinned true, clips and check}}: `parts` the
                          piece's part names (a GeomSubset's name, a laid layer's, else its mesh's), `size` its box
                          sides in its own frame. A made piece's GLB holds one mesh a part, named by it: positions and
                          normals, no material and no texture coordinates (an engine tiles its look in the piece's own
-                         frame); a character's is version 1's skinned glTF in its own texture
+                         frame); a character's is version 1's skinned glTF in its own texture, its pictures apart, each once at
+                         made/pictures/<sha256>.<ending> (images[].uri)
     looks                {id: a palette recipe's {library (its surface's address), spec (its score:recipe:spec word
                          for word: recipe, token, colour, second, bare, dirt_colour, wear, dirt, seed, roughness...)},
                          or another library surface's {library, colour, roughness, metal, opacity, glow, maps {input:
@@ -89,7 +93,8 @@ and instances:
                          looks {part: look id; EVERY_PART for every part}}], with version 1's per-copy blocks
 
 The version 2 check refuses a piece list with a library piece the library does not hold, has withdrawn or holds at
-another digest, a made piece whose file is missing, hashes otherwise or does not hold its parts as named meshes, a
+another digest, names a gltf its entry does not hold, or whose mesh is missing, hashes otherwise or does not hold its
+parts as named meshes, a made piece whose file is missing, hashes otherwise or does not hold its parts as named meshes, a
 piece no copy uses, a copy of no piece, a matrix that is no transform, a part of a copy's piece with no look, a look
 id the list does not hold, an own look of no piece, or a count of copies that differs from `counts`.
 
@@ -316,7 +321,18 @@ def held_entries(addresses):
     for kind in sorted({address.split("/", 1)[0] for address in addresses}):
         indexed.update({row["address"]: {"digest": row["digest"], "state": row["state"]}
                         for row in library.index(root, kind)["entries"]})
-    return {address: indexed[address] for address in addresses if address in indexed}
+    return {address: {**indexed[address], "files": entry_files(library, root, address)} for address in addresses
+            if address in indexed}
+
+
+def entry_files(library, root, address):
+    """The file names of the entry at `address` (score/library's record), [] when its record is not there."""
+    kind, rest = address.split("/", 1)
+    entry_id, version = rest.rsplit("@", 1)
+    try:
+        return sorted(library.entry(root, kind, entry_id, int(version))["files"])
+    except (OSError, ValueError):
+        return []
 
 
 def piece_problems(out, name, piece, held):
@@ -329,19 +345,27 @@ def piece_problems(out, name, piece, held):
             return [f"piece {name}: the library holds no {piece['library']}"]
         if entry["state"] == "withdrawn":
             return [f"piece {name}: {piece['library']} is withdrawn"]
-        return [] if entry["digest"] == piece.get("digest") else [
-            f"piece {name}: its digest is not {piece['library']}'s ({entry['digest'][:12]})"]
-    path = out / piece["made"]
+        if entry["digest"] != piece.get("digest"):
+            return [f"piece {name}: its digest is not {piece['library']}'s ({entry['digest'][:12]})"]
+        if "gltf" in piece:
+            return [] if piece["gltf"] in entry.get("files", ()) else [
+                f"piece {name}: {piece['library']} holds no {piece['gltf']}"]
+        if "mesh" not in piece:
+            return [f"piece {name}: no gltf of its entry and no mesh"]
+    held_file = piece["made"] if "made" in piece else piece["mesh"]
+    path = out / held_file
     if not path.is_file():
-        return [f"piece {name}: no made file at {piece['made']}"]
+        return [f"piece {name}: no made file at {held_file}"]
     data = path.read_bytes()
     if hashlib.sha256(data).hexdigest() != piece["sha256"]:
-        return [f"piece {name}: {piece['made']} does not hash to its sha256"]
+        return [f"piece {name}: {held_file} does not hash to its sha256"]
     if piece.get("skinned"):
-        return []
+        document = json.loads(data[20:20 + int.from_bytes(data[12:16], "little")])
+        return [f"piece {name}: no picture at {image['uri']} beside {held_file}" for image in document.get("images", [])
+                if "uri" in image and not (path.parent / image["uri"]).is_file()]
     length = int.from_bytes(data[12:16], "little")
     meshes = {mesh.get("name") for mesh in json.loads(data[20:20 + length])["meshes"]}
-    return [f"piece {name}: its part {part} is no mesh of {piece['made']}" for part in piece["parts"]
+    return [f"piece {name}: its part {part} is no mesh of {held_file}" for part in piece["parts"]
             if part not in meshes]
 
 
