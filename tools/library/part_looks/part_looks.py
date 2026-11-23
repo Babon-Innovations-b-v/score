@@ -917,17 +917,22 @@ def make(arguments):
 
 # A picture's material class (score_lib decals.CLASSES) by the style the old library drew it in (materials.json
 # `pictures`): a label or keypad legend on a plastic plate, a stencil sprayed on metal, sheets and posters on paper, a
-# banner on cloth, a screen's content behind glass.
+# banner on cloth, a hanzi plate on enamelled metal, a screen's content behind glass; a drawn picture by what it hangs
+# as (the toolboard's outlines painted on its wooden board).
 PICTURE_CLASS = {"label": "plastic", "keypad": "plastic", "stripes": "plastic", "stencil": "metal", "note": "paper",
-                 "sheet": "paper", "hanzi_sheets": "paper", "status": "glass", "readout": "glass", "lens": "glass"}
-SHAPE_CLASS = {"banner": "fabric", "couplet": "paper", "poster": "paper"}  # a hanzi picture's class by its shape
+                 "sheet": "paper", "hanzi_sheets": "paper", "calendar": "paper", "plan": "paper", "status": "glass",
+                 "readout": "glass", "lens": "glass"}
+SHAPE_CLASS = {"banner": "fabric", "couplet": "paper", "poster": "paper", "plate": "metal"}  # a hanzi picture's, by shape
+DRAWN_CLASS = {"toolboard_outlines": "wood"}
 DECAL_WHAT = ("an old picture of score's library (data/library/pictures at score {old}, drawn from its materials.json "
               "`pictures` row) taken in as a decal, so the October code-built models remade by part_looks print it")
 
 
 def words_of(drawn):
-    """The words an old picture prints (its text, title, lines and table rows)."""
-    found = [drawn[key] for key in ("text", "title") if drawn.get(key)] + list(drawn.get("lines", []))
+    """The words an old picture prints (its text, title, lines and table rows); a sheet's `lines` count of ruled
+    lines prints none."""
+    lines = drawn.get("lines", [])
+    found = [drawn[key] for key in ("text", "title") if drawn.get(key)] + (lines if isinstance(lines, list) else [])
     return found + [" ".join(row) for row in drawn.get("rows", [])]
 
 
@@ -942,7 +947,7 @@ def decal_written(tree, library, picture, size, folder):
     variant = next(name for name, found in library.variants(library.theme_library()).items()
                   if found.get("picture") == picture)
     screen = library.variants(library.theme_library())[variant].get("family") == "screen"
-    material = PICTURE_CLASS.get(drawn.get("style")) or SHAPE_CLASS[drawn.get("shape")]
+    material = DRAWN_CLASS.get(picture) or PICTURE_CLASS.get(drawn.get("style")) or SHAPE_CLASS[drawn.get("shape")]
     record = {"variant": picture, "family": "decal", "recipe": "decal", "size_m": size, "class": material,
               "opacity": "emissive" if screen else "opaque", "ink": "many", "words": words_of(drawn),
               "from": {"picture": f"data/library/pictures/{picture}.png", "commit": OLD_COMMIT},
