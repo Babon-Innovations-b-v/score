@@ -57,6 +57,10 @@ FAMILY_WORDS = (("fiberglass", "fiberglass"), ("fibreglass", "fiberglass"), ("em
 # With no family word: metal over this mean is metal, polished under ROUGH_POLISHED roughness; else plastic.
 METAL_MEAN = 0.5
 ROUGH_POLISHED = 0.25
+# The word that says only "a metal", not which finish: its family is read from the maps, as a metal with relief
+# (its normals' rms slope over RELIEF_SLOPE: a polished metal's maps are flat, a ribbed gold's 0.07) is bare.
+GENERIC_METAL = "metal"
+RELIEF_SLOPE = 0.02
 # The pattern size setting each family takes the normal map's feature size into (none: the family has no size).
 SIZE_SETTING = {"plastic": "grain_size", "leather": "grain_size", "concrete": "pore_size", "cardboard": "fibre_size",
                 "fiberglass": "fibre_size", "ceramic": "bump_size", "grained_wood": "ring_pitch",
@@ -252,7 +256,9 @@ def relief_statistics(path, tile_metres, normal_convention="opengl"):
     relief = high_passed(height_of(normal), HIGH_PASS_SHARE)
     return {"height": float(relief.std() * metres_a_texel),
             "feature_metres": float(half_width(relief) * FEATURE_PER_HALF_WIDTH * metres_a_texel),
-            "slope_variance": spread}
+            "slope_variance": spread,
+            "slope_rms": float(np.sqrt(np.mean((normal[..., 0] ** 2 + normal[..., 1] ** 2) /
+                                               np.maximum(normal[..., 2], FLAT_FLOOR) ** 2)))}
 
 
 def sub_texel_variance(averaged):
@@ -298,7 +304,7 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     measured = albedo_statistics(maps["albedo"]) if "albedo" in maps else constant_statistics(albedo_colour)
     measured["tile_metres"] = float(tile_metres)
     measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
-                    {"height": 0.0, "feature_metres": None, "slope_variance": 0.0})
+                    {"height": 0.0, "feature_metres": None, "slope_variance": 0.0, "slope_rms": 0.0})
     measured["roughness_spread"] = (channel_spread(maps["orm"], 1) if "orm" in maps else
                                     channel_spread(maps["roughness"], 0) if "roughness" in maps else 0.0)
     if "orm" in maps:
@@ -328,10 +334,16 @@ def metal_by_roughness(measured):
     return "polished_metal" if measured["roughness"] < ROUGH_POLISHED else "bare_metal"
 
 
+def generic_metal(measured):
+    """A metal its name does not say the finish of, by its maps: bare with relief (GENERIC_METAL), else by its
+    roughness."""
+    return "bare_metal" if measured.get("slope_rms", 0.0) > RELIEF_SLOPE else metal_by_roughness(measured)
+
+
 def family_of(name, measured):
     """The recipe family a material's name says (FAMILY_WORDS; a family drawn with no metal, UNMETALLED, yields to a
     metal over METAL_MEAN, which the map side draws as metal), else by its metal and roughness means: (family,
-    "name" | "measures"). A surface that gives off light is glowing whatever its name (a glass lamp lens fitted as
+    "name" | "measures"); a name saying only "metal" its finish by its maps (generic_metal). A surface that gives off light is glowing whatever its name (a glass lamp lens fitted as
     glass drew no light beside its map side's glow)."""
     lowered = name.lower()
     said = next((family for word, family in FAMILY_WORDS if word in lowered), None)
@@ -341,6 +353,8 @@ def family_of(name, measured):
         if word in lowered:
             if family in UNMETALLED and measured["metal"] > METAL_MEAN:
                 return metal_by_roughness(measured), "measures"
+            if word == GENERIC_METAL:
+                return generic_metal(measured), "measures"
             return family, "name"
     if measured["metal"] > METAL_MEAN:
         return metal_by_roughness(measured), "measures"

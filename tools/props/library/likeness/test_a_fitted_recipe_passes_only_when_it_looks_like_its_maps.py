@@ -62,6 +62,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   cardboard's 0.0003 flutes).
 - fit.spec_of: the scratches fit dropped (the flat chrome keeps polished_metal's 0.3), or measure.refined's scratches
   left out (the scratched chrome's stay 0.2614).
+- fit.family_of: the generic metal rule dropped (both plain "metal" rows polished_metal by their name), or
+  generic_metal's relief test dropped (the ribbed one, polished by its roughness 0.098).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -261,6 +263,14 @@ ROWS = [
      {"T_Metal_Chrome_A_Albedo_1.png": solid((119,) * 3), "T_Metal_Chrome_A_ORM_1.png": stripes(70, 80)},
      {"tile_metres": 1.0}, (stripes(109, 129), solid((119,) * 3)),
      {"recipe": "polished_metal", "scratches": 0.2614, "refined_scratches": 0.5228}),
+    ("a metal its name says no finish of, with relief: bare", "m_opaque_metal_yellow_clean_a01",
+     {"albedo.png": solid((119,) * 3), "orm.png": solid((255, 25, 255)), "normal.png": bumps(2.0, 16)},
+     {"maps": {"albedo": "albedo.png", "orm": "orm.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "bare_metal", "family_from": "measures"}),
+    ("a metal its name says no finish of, flat and rough: bare", "m_opaque_metal_plain_a01",
+     {"albedo.png": solid((119,) * 3), "orm.png": solid((255, 153, 255)), "normal.png": solid(FLAT_NORMAL)},
+     {"maps": {"albedo": "albedo.png", "orm": "orm.png", "normal": "normal.png"}, "tile_metres": 1.0},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "bare_metal", "family_from": "measures"}),
 ]
 
 
