@@ -41,6 +41,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   emission map row's emission.png reads no role).
 - fit.described: `constants` always {} (the glass constants row keeps glass's 0.05 roughness and 0.2 opacity, the
   metal constants row metal 0), or statistics' UNSAID_ROUGHNESS read as the family's default (the cotton row 0.85).
+- measure.roughness_step: the secant dropped (the dim highlight row steps 0.04 smoother, 0.36, not 0.6), or
+  measure.breach's detail share dropped (that row ranks (0, 0.0), a pass).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -170,6 +172,11 @@ ROWS = [
     ("no roughness said anywhere: USD's default, as the map side draws", "m_opaque_fabric_cotton_black_a01",
      {"albedo.png": solid((119,) * 3)}, {"maps": {"albedo": "albedo.png"}, "tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "cloth", "roughness": 0.5}),
+    ("a dim highlight that lowering made dimmer: rougher, ranked by its one breach", "t_plastic_glossy_gray_a01",
+     {"t_plastic_glossy_gray_a01_tile_alb.png": solid((119,) * 3),
+      "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0))}, {"tile_metres": 1.0},
+     (stripes(109, 129), solid((119,) * 3), {"roughness": 0.5, "highlight": -2.0}),
+     {"recipe": "plastic", "roughness": 0.4, "pass": False, "refined_roughness": 0.6, "ranking": (1, 1.0)}),
 ]
 
 
@@ -184,10 +191,12 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
         if spec.get("bump") else None
     Image.fromarray(opaque(pictures[0])).save(tmp_path / "map.png")
     Image.fromarray(opaque(pictures[1])).save(tmp_path / "recipe.png")
-    verdict = measure.likeness({"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")},
-                               "algorithm/surface_recipes@1")
+    views = {"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")}
+    verdict = measure.likeness(views, "algorithm/surface_recipes@1")
+    earlier = pictures[2] if len(pictures) > 2 else None
     answer = {"recipe": spec["recipe"], "family_from": made["family_from"], "colour": round(np.mean(spec["colour"]), 4),
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
-              "opacity": spec.get("opacity")}
+              "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
+              "ranking": measure.ranking(views)}
     assert {key: answer[key] for key in expected} == expected, name

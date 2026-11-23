@@ -5,7 +5,9 @@ show.
     view_measures(map_picture, recipe_picture)   {delta_e, lightness, highlight, detail, ...} for one view
     passes(measured)                             every bound held in that view
     likeness(views, algorithm)                   {"measures": {view: ...}, "pass": ..., "algorithm": ...}
-    refined(spec, views)                         the recipe's spec moved toward the maps' look
+    ranking(views)                               (bounds broken, how far): a round's place among a surface's rounds
+    highlight_of(views)                          the views' mean highlight gap
+    refined(spec, views, earlier)                the recipe's spec moved toward the maps' look
 
 The measures, each over the swatch's pixels both pictures cover:
 - delta_e: the mean CIE76 colour difference of CELL-texel cells (each cell's mean Lab), so a pattern's grain does not
@@ -113,23 +115,56 @@ def likeness(views, algorithm):
             "algorithm": algorithm}
 
 
+def breach(measured):
+    """How far each of one view's measures lies past its bound, as a share of the bound (0 where it holds)."""
+    detail = measured["detail"]
+    return {"delta_e": max(0.0, measured["delta_e"] - DELTA_E_BOUND) / DELTA_E_BOUND,
+            "lightness": max(0.0, measured["lightness"] - LIGHTNESS_BOUND) / LIGHTNESS_BOUND,
+            "highlight": max(0.0, abs(measured["highlight"]) - HIGHLIGHT_BOUND) / HIGHLIGHT_BOUND,
+            "detail": max(0.0, DETAIL_LOW - detail) / DETAIL_LOW + max(0.0, detail - DETAIL_HIGH) / DETAIL_HIGH}
+
+
+def ranking(views):
+    """A round's place among a surface's rounds, the smaller the nearer its maps: (how many bounds it breaks over
+    every view, the sum of how far, each a share of its bound); (0, 0.0) is a pass."""
+    shares = [share for measured in views.values() for share in breach(measured).values()]
+    return sum(1 for share in shares if share > 0), round(float(sum(shares)), 6)
+
+
+def highlight_of(views):
+    """The views' mean highlight gap (the recipe's brightest lightness less the maps')."""
+    return float(np.mean([each["highlight"] for each in views.values()]))
+
+
+def roughness_step(roughness, highlight, earlier=None):
+    """The roughness's move toward the maps' highlight: with an earlier round ({"roughness", "highlight"}) at another
+    roughness that moved the highlight, a secant step to where the gap would close (a highlight is not monotone in
+    roughness under the studio's small suns: a dim one can want a rougher lobe, and the old fixed rule walked
+    glossy glass from 0.05 to 0 while the gap held at -12 to -20, 2026-11-23); else the first round's rule, a
+    recipe's highlight too bright: rougher. At most ROUGHNESS_STEP either way."""
+    step = highlight / HIGHLIGHT_PER_ROUGHNESS
+    if earlier and earlier["roughness"] != roughness and earlier["highlight"] != highlight:
+        slope = (highlight - earlier["highlight"]) / (roughness - earlier["roughness"])
+        step = -highlight / slope
+    return float(np.clip(step, -ROUGHNESS_STEP, ROUGHNESS_STEP))
+
+
 def shifted(linear_colour, shift):
     """A linear colour moved by a Lab shift."""
     return [round(float(value), 5) for value in colour.linear_of_lab(colour.lab(np.asarray(linear_colour)) + shift)]
 
 
-def refined(spec, views):
+def refined(spec, views, earlier=None):
     """The spec moved toward the maps' look from every view's measures: its colours by the mean Lab gap, its
-    roughness by the highlight gap (a recipe's highlight too bright: rougher), its bump and contrast by the detail
-    ratio."""
+    roughness by the highlight gap (roughness_step, from the `earlier` round's {"roughness", "highlight"} when there
+    is one), its bump and contrast by the detail ratio."""
     measures = list(views.values())
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
     for name in COLOUR_SETTINGS:
         if name in moved:
             moved[name] = shifted(moved[name], shift)
-    highlight = float(np.mean([each["highlight"] for each in measures]))
-    step = float(np.clip(highlight / HIGHLIGHT_PER_ROUGHNESS, -ROUGHNESS_STEP, ROUGHNESS_STEP))
+    step = roughness_step(spec["roughness"], highlight_of(views), earlier)
     moved["roughness"] = round(float(np.clip(spec["roughness"] + step, 0.0, 1.0)), 4)
     detail = float(np.mean([each["detail"] for each in measures]))
     scale = float(np.clip(1.0 / max(detail, 1e-6), 1.0 / DETAIL_STEP, DETAIL_STEP))

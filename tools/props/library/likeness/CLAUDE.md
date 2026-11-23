@@ -19,7 +19,10 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   never assumed 1 m.
 - `measure.py` compares the two renders view by view (cell colour difference, lightness histogram, highlight, detail
   ratio), passes or fails at its own bounds, writes the likeness block `{measures, pass, algorithm}` and refines a
-  failing recipe (colour by the Lab gap, roughness by the highlight gap, bump and contrast by the detail ratio). The
+  failing recipe (colour by the Lab gap, roughness by the highlight gap, a secant step once an earlier round shows
+  which way the gap moves, bump and contrast by the detail ratio). `check.py` keeps the best round (`measure.ranking`:
+  the fewest bounds broken, then the least far), not the last, and every round's settings and measures in the
+  result's `history`. The
   bounds are the check's (checks are ours, never the owner's question); they are settled by the first run over the
   set, never loosened to pass.
 - `check.py` is the one batch command over a list of surface addresses: fit, one Blender for all of them through this

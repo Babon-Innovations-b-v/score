@@ -13,7 +13,8 @@ emission map or its constant emissiveColor, its roughness and metal its maps' or
 (fit.described; said in its result as surface.json, fitted or assumed). The recipe algorithm a likeness names is --algorithm,
 else the library index's newest algorithm/surface_recipes. Writes <out>/<surface id>@<version>/likeness.json
 ({"address", "recipe": {"recipe", "settings", "wear_levels"}, "likeness": {"measures", "pass", "algorithm"},
-"rounds", "family_from", "tile_metres_from"}) and <out>/summary.json, and prints one summary line. The pictures stay
+"rounds", "history": [{"settings", "measures", "ranking"} a round], "family_from", "tile_metres_from"}: its recipe and
+likeness the best round's, measure.ranking) and <out>/summary.json, and prints one summary line. The pictures stay
 in <out>: a map's render is an adaptation of the set's own material and is never stored in the library.
 
 A run over many surfaces takes minutes to hours: start it detached (tools/cloud/detached.py), never in the
@@ -139,21 +140,34 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
                                "recipe": made["recipe"], "map": True}
         results[address] = {"address": address, "family_from": made["family_from"],
                             "tile_metres_from": made["tile_metres_from"] or found["tile_metres_from"],
-                            "statistics": made["statistics"], "rounds": 0}
+                            "statistics": made["statistics"], "rounds": 0, "history": []}
     for _ in range(rounds):
         if not open_pairs:
             break
         render_round(out, list(open_pairs.values()), size, samples)
         for address, pair in list(open_pairs.items()):
             views = views_of(out, pair["name"])
-            verdict = measure.likeness(views, algorithm)
-            results[address].update(rounds=results[address]["rounds"] + 1, likeness=verdict,
-                                    recipe=recipe_block(pair["recipe"], wear_levels))
-            if verdict["pass"]:
+            kept(results[address], pair["recipe"], views, algorithm, wear_levels)
+            if results[address]["likeness"]["pass"]:
                 del open_pairs[address]
             else:
-                pair.update(recipe=measure.refined(pair["recipe"], views), map=False)
+                pair.update(recipe=measure.refined(pair["recipe"], views, pair.get("earlier")), map=False,
+                            earlier={"roughness": pair["recipe"]["roughness"],
+                                     "highlight": measure.highlight_of(views)})
     return results
+
+
+def kept(result, spec, views, algorithm, wear_levels):
+    """One round added to a surface's result: its settings and measures in its history, and its recipe and likeness
+    made the result's when it ranks best so far (measure.ranking; a later round is not a better one: a refinement
+    can walk away from its maps, 2026-11-23)."""
+    rank = measure.ranking(views)
+    result["history"].append({"settings": {key: value for key, value in spec.items() if key != "recipe"},
+                              "measures": views, "ranking": list(rank)})
+    result["rounds"] += 1
+    if "likeness" not in result or rank < tuple(result["best_ranking"]):
+        result.update(likeness=measure.likeness(views, algorithm), recipe=recipe_block(spec, wear_levels),
+                      best_ranking=list(rank), best_round=result["rounds"])
 
 
 def recipe_block(spec, wear_levels):
