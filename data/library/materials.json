@@ -77,7 +77,10 @@
    "dirt_reach": 0.05,
    "mottle_size": 0.15,
    "contrast": 0.0,
-   "roughness_spread": 0.0
+   "roughness_spread": 0.0,
+   "check": 0.0,
+   "check_pitch": 0.02,
+   "check_line": 0.002
   },
   "quilted": {
    "roughness": 0.9,
@@ -285,6 +288,36 @@
    "contrast": 0.4,
    "bump": 0.0002,
    "dirt_reach": 0.05
+  },
+  "mat": {
+   "roughness": 0.85,
+   "pitch": 0.015,
+   "stud_share": 0.6,
+   "ribs": 0.0,
+   "contrast": 0.0,
+   "bump": 0.001,
+   "dirt_reach": 0.05
+  },
+  "strand_board": {
+   "roughness": 0.7,
+   "flake_size": 0.02,
+   "contrast": 0.5,
+   "bump": 0.0003,
+   "dirt_reach": 0.05
+  },
+  "knit": {
+   "roughness": 0.9,
+   "stitch": 0.005,
+   "contrast": 0.3,
+   "bump": 0.0008,
+   "dirt_reach": 0.03
+  },
+  "hammered": {
+   "roughness": 0.4,
+   "dent_size": 0.01,
+   "contrast": 0.0,
+   "bump": 0.0003,
+   "dirt_reach": 0.05
   }
  },
  "colour_settings": {
@@ -362,6 +395,18 @@
    "second"
   ],
   "grained_wood": [
+   "second"
+  ],
+  "mat": [
+   "second"
+  ],
+  "strand_board": [
+   "second"
+  ],
+  "knit": [
+   "second"
+  ],
+  "hammered": [
    "second"
   ]
  },

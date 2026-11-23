@@ -26,6 +26,21 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   close view's pixel; no normal map draws no relief; a grid family's pitch is its relief's period; polished metal's
   scratches come from its roughness map's spread; rusted metal's own wear from its albedo's worn share; plastic,
   rubber, cloth and paint mottle by contrast and roughness spread, a darker second shade past contrast 1.
+- **Transparency is compared** (2026-11-23; until then both sides were drawn opaque and no glass's see-through was
+  checked). A surface whose source lets light through (`fit.see_through_of`: a constant opacity or cutout under 1, an
+  opacity map cut at its threshold, a glass's transmission, whose colour and roughness are its look as score_lib's
+  take-in writes it) or whose recipe has an opacity under 1 is also drawn as a pane before a checker that gives off
+  its own light (`inside/likeness.py`): the map side by its alpha and the principled surface's transmission, the
+  recipe by its opacity as the look's alpha. `measure.through_measures` reads how much of the checker's contrast each
+  pane shows; the gap is held to 0.08 of it (the lightness bound's 8 L over the checker's 100), and the refinement
+  moves the opacity by it. A surface that lets light through is fitted glass whatever its name (glass is the one
+  family drawn see-through), so a see-through plastic fails only where its tint or frost differs.
+- **The adopted set's missing families** (2026-11-23, from the first run's diagnosis): `mat` (studs or ribs on a
+  grid: "_mat_", "matsurface", "fluted", "antislip", "lined", "_line_", or a rubber whose relief is a grid,
+  `PERIODIC_SHARE`), `strand_board` (OSB and HDF flakes), `knit` (a blanket's loops), `hammered` (a plastic whose
+  relief stands wider than `HAMMER_FROM`) and a printed check on `cloth` (its albedo's print a grid). A mat's ribs or
+  studs and their width come from its relief's anisotropy and raised share, a check's pitch, line and colour from its
+  albedo's period, off-median area and colour.
 - `measure.py` compares the two renders view by view (cell colour difference, lightness histogram, highlight, detail
   ratio), passes or fails at its own bounds, writes the likeness block `{measures, pass, algorithm}` and refines a
   failing recipe (colour by the Lab gap, roughness by the highlight gap, a secant step once an earlier round shows

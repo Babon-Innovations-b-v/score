@@ -3,6 +3,7 @@ under the same light and camera (inside/likeness.py), compared view by view, and
 show.
 
     view_measures(map_picture, recipe_picture)   {delta_e, lightness, highlight, detail, ...} for one view
+    through_measures(map, recipe, backdrop)      {see_through, map_shows, recipe_shows}: the see-through view
     passes(measured)                             every bound held in that view
     likeness(views, algorithm)                   {"measures": {view: ...}, "pass": ..., "algorithm": ...}
     ranking(views)                               (bounds broken, how far): a round's place among a surface's rounds
@@ -17,7 +18,13 @@ The measures, each over the swatch's pixels both pictures cover:
 - highlight: the gap between the two pictures' brightest lightness (its HIGHLIGHT_QUANTILE), the highlight lobe
   roughness and metal shape;
 - detail: the recipe's high-pass lightness energy over the maps' (relief and pattern), 1 when both are under
-  DETAIL_FLOOR.
+  DETAIL_FLOOR;
+and in the see-through view (a pane of each side held before a checker backdrop that gives off its own light,
+inside/likeness.py, drawn for a surface whose maps or recipe let light through):
+- see_through: how much of the backdrop the recipe's pane shows less how much the maps' pane shows, each the
+  checker's lightness contrast seen through the pane over the bare backdrop's (1 clear, 0 opaque), so a glass's
+  transparency is compared, not only its colour and shine (every glass was drawn opaque on both sides until
+  2026-11-23).
 The bounds are the check's own (a recipe drawn beside its maps under one light): they are first set here and settled
 by the first run over the set, never loosened to pass. Render settings are check-only: a recipe that ships is the
 recipe, never these pictures. Standard library and numpy (Pillow to read).
@@ -40,6 +47,12 @@ DELTA_E_BOUND = 10.0
 LIGHTNESS_BOUND = 8.0
 HIGHLIGHT_BOUND = 12.0
 DETAIL_LOW, DETAIL_HIGH = 0.8, 1.25
+# The see-through gap, a share of the backdrop's contrast: the backdrop's checker spans the lightness scale (L 0 to
+# 100), so a share of LIGHTNESS_BOUND / 100 is the same 8 L the two sides' lightness histograms are held to.
+SEE_THROUGH_BOUND = LIGHTNESS_BOUND / 100.0
+# A backdrop pixel is in a light square over this lightness and a dark one under 100 less it (the squares' edges,
+# blended by the render's filter, between them count for neither).
+SQUARE_LIGHTNESS = 90.0
 # The refinement's steps: the recipe's roughness moved by the highlight gap over this many L units, at most
 # ROUGHNESS_STEP a round; its bump and contrast scaled by the detail ratio, within DETAIL_STEP either way.
 HIGHLIGHT_PER_ROUGHNESS = 100.0
@@ -106,10 +119,33 @@ def view_measures(map_path, recipe_path):
             "recipe_lab": [round(float(value), 3) for value in recipe_lab[covered].mean(axis=0)]}
 
 
+def shows(lightness, light, dark):
+    """How much of a checker a picture's lightness shows: its light squares' mean less its dark squares'."""
+    return float(lightness[light].mean() - lightness[dark].mean())
+
+
+def through_measures(map_path, recipe_path, backdrop_path):
+    """The see-through view's measures: each side's pane's share of the bare backdrop's checker contrast (`shows`)
+    and the recipe's share less the maps'."""
+    backdrop = picture(backdrop_path)[0][..., 0]
+    light, dark = backdrop > SQUARE_LIGHTNESS, backdrop < 100.0 - SQUARE_LIGHTNESS
+    if not light.any() or not dark.any():
+        raise ValueError(f"{backdrop_path} shows no checker")
+    whole = shows(backdrop, light, dark)
+    map_shows = shows(picture(map_path)[0][..., 0], light, dark) / whole
+    recipe_shows = shows(picture(recipe_path)[0][..., 0], light, dark) / whole
+    return {"see_through": round(recipe_shows - map_shows, 4), "map_shows": round(map_shows, 4),
+            "recipe_shows": round(recipe_shows, 4)}
+
+
+def looked(views):
+    """The views that look at the swatch (every view but the see-through one)."""
+    return [measured for measured in views.values() if "delta_e" in measured]
+
+
 def passes(measured):
     """Whether one view's measures all hold their bounds."""
-    return (measured["delta_e"] <= DELTA_E_BOUND and measured["lightness"] <= LIGHTNESS_BOUND
-            and abs(measured["highlight"]) <= HIGHLIGHT_BOUND and DETAIL_LOW <= measured["detail"] <= DETAIL_HIGH)
+    return not any(breach(measured).values())
 
 
 def likeness(views, algorithm):
@@ -121,6 +157,8 @@ def likeness(views, algorithm):
 
 def breach(measured):
     """How far each of one view's measures lies past its bound, as a share of the bound (0 where it holds)."""
+    if "see_through" in measured:
+        return {"see_through": max(0.0, abs(measured["see_through"]) - SEE_THROUGH_BOUND) / SEE_THROUGH_BOUND}
     detail = measured["detail"]
     return {"delta_e": max(0.0, measured["delta_e"] - DELTA_E_BOUND) / DELTA_E_BOUND,
             "lightness": max(0.0, measured["lightness"] - LIGHTNESS_BOUND) / LIGHTNESS_BOUND,
@@ -137,7 +175,7 @@ def ranking(views):
 
 def highlight_of(views):
     """The views' mean highlight gap (the recipe's brightest lightness less the maps')."""
-    return float(np.mean([each["highlight"] for each in views.values()]))
+    return float(np.mean([each["highlight"] for each in looked(views)]))
 
 
 def roughness_step(roughness, highlight, earlier=None):
@@ -196,8 +234,9 @@ def refined(spec, views, earlier=None):
     roughness by the highlight gap (roughness_step, from the `earlier` round's {"roughness", "highlight"} when there
     is one), its bump (grown no higher than RELIEF_ASPECT of its pattern size), contrast and scratches by the detail
     ratio (a contrast already at 1 moving its second shade further off instead); its pattern size by the close view's
-    detail over the overview's when they disagree (views_apart), its bump then by the close view's."""
-    measures = list(views.values())
+    detail over the overview's when they disagree (views_apart), its bump then by the close view's; its opacity by the
+    see-through gap (a recipe showing more of the backdrop than the maps made that much more opaque)."""
+    measures = looked(views)
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
     for name in COLOUR_SETTINGS:
@@ -227,4 +266,6 @@ def refined(spec, views, earlier=None):
     for name in ("contrast", "scratches"):
         if name in moved:
             moved[name] = round(float(min(moved[name] * scale, 1.0)), 4)
+    if "through" in views and "opacity" in moved:
+        moved["opacity"] = round(float(np.clip(moved["opacity"] + views["through"]["see_through"], 0.0, 1.0)), 4)
     return moved

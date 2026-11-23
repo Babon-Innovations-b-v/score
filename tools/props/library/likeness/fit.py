@@ -50,11 +50,14 @@ FAMILY_WORDS = (("fiberglass", "fiberglass"), ("fibreglass", "fiberglass"), ("em
                 ("brushed", "bare_metal"), ("stainless", "bare_metal"), ("aluminium", "bare_metal"),
                 ("aluminum", "bare_metal"), ("steel", "bare_metal"), ("chrome", "polished_metal"),
                 ("polished", "polished_metal"), ("metal", "polished_metal"), ("carbon", "composite"),
-                ("rubber", "rubber"), ("ruberoid", "rubber"),
-                ("leather", "leather"), ("ceramic", "ceramic"), ("porcelain", "ceramic"), ("plywood", "grained_wood"),
+                ("_mat_", "mat"), ("matsurface", "mat"), ("fluted", "mat"), ("antislip", "mat"), ("lined", "mat"),
+                ("_line_", "mat"), ("rubber", "rubber"), ("ruberoid", "rubber"),
+                ("leather", "leather"), ("ceramic", "ceramic"), ("porcelain", "ceramic"), ("osb", "strand_board"),
+                ("hdf", "strand_board"), ("strand", "strand_board"), ("plywood", "grained_wood"),
                 ("wood", "grained_wood"), ("oak", "grained_wood"), ("cardboard", "cardboard"),
                 ("corrugated", "cardboard"), ("box", "cardboard"), ("concrete", "concrete"), ("cement", "concrete"),
-                ("fabric", "cloth"), ("tweed", "cloth"), ("cloth", "cloth"), ("rope", "cloth"),
+                ("knit", "knit"), ("blanket", "knit"), ("hammer", "hammered"), ("fabric", "cloth"), ("tweed", "cloth"),
+                ("cloth", "cloth"), ("rope", "cloth"),
                 ("plastic", "plastic"), ("polyurethane", "plastic"), ("nylon", "plastic"), ("foam", "plastic"),
                 ("gold", "polished_metal"), ("bronze", "polished_metal"), ("copper", "polished_metal"))
 # With no family word: metal over this mean is metal, polished under ROUGH_POLISHED roughness; else plastic.
@@ -70,10 +73,11 @@ SIZE_SETTING = {"plastic": "grain_size", "leather": "grain_size", "concrete": "p
                 "bare_metal": "bump_size", "anodized": "bump_size", "cast_metal": "bump_size", "rubber": "bump_size",
                 "painted_metal": "bump_size", "wood": "bump_size", "cloth": "thread", "composite": "weave",
                 "chequer_plate": "pitch", "perforated_metal": "pitch", "galvanized": "cell_size", "rock": "bump_size",
-                "tiles": "pitch"}
+                "tiles": "pitch", "mat": "pitch", "strand_board": "flake_size", "knit": "stitch",
+                "hammered": "dent_size"}
 # Families drawn as a regular grid: their pattern size is the relief's period (its spectrum's strongest frequency
 # along each axis), not FEATURE_PER_HALF_WIDTH half widths, which for a tread plate's long thin lugs is a lug's width.
-PERIODIC = ("chequer_plate", "perforated_metal", "tiles")
+PERIODIC = ("chequer_plate", "perforated_metal", "tiles", "mat", "knit")
 # A pattern size the fit sets stays within this factor of its family's default either way: a tile's slow swell
 # read as its feature (concrete's 30 cm) is not its pores.
 SIZE_RANGE = 4.0
@@ -120,6 +124,19 @@ WORN_FAMILIES = ("rusted_metal",)
 WORN_GAP = 10.0
 # rusted_metal's blooms: a noise (its values about 0.5, spread about BLOOM_SPREAD) over 0.75 - 0.3 * wear.
 BLOOM_MIDDLE, BLOOM_PER_WEAR, BLOOM_SPREAD = 0.75, 0.3, 0.1
+# A relief or a print is a grid when its spectrum's strongest frequency holds over this share of its power along each
+# axis (periodic_share), set from the set's own maps (2026-11-23, see PERIODIC_SHARE's note below its use).
+PERIODIC_SHARE = 0.25
+# A plastic whose relief features are wider than this (metres) is hammered: four times plastic's largest grain
+# (SIZE_RANGE x its default 0.002), past which a mould's grain is not what its maps show.
+HAMMER_FROM = 0.032
+# A relief whose height spread is under this (metres, a micrometre) stands nowhere: its features are no size.
+HEIGHT_FLOOR = 1e-6
+# A mat's relief whose slopes run one way by over this (anisotropy) is ribbed; a stud's width share kept within range.
+RIBBED = 0.5
+STUD_SHARE_RANGE = (0.2, 0.9)
+# A print's texels are this many L off its median lightness (a check's lines against its ground).
+PRINT_GAP = 10.0
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
 PATTERN_SPREAD = 0.3
@@ -152,9 +169,10 @@ def described(surface, names):
     None) and, with no emission map, its constant glow (its `constants` emissiveColor, linear, its intensity in its
     size as USD holds it: (5, 5, 5) is white given off five times over; else None), and its constant roughness,
     metal and opacity (CONSTANT_MEASURES, {measure: value}, only those it writes; a map of the same measure stands
-    over its constant in `statistics`):
+    over its constant in `statistics`; a glass's transmission colour and roughness over its constants, as its look),
+    and how it lets light through (see_through_of):
     {"maps", "tile_metres", "tile_metres_from", "normal_convention", "albedo_colour", "emission_colour",
-    "constants"}."""
+    "constants", "see_through"}."""
     maps = surface.get("maps") or {}
     if not isinstance(maps, dict):
         raise ValueError(f"surface.json maps is {type(maps).__name__}, not {{role: file}}")
@@ -172,13 +190,38 @@ def described(surface, names):
             found.setdefault(colour_role, name)
             found.setdefault(alpha_role, name)
     constants = surface.get("constants") or {}
+    glass = surface.get("transmission")
+    if glass:  # a glass's look is its transmission's colour and roughness (score_lib's take-in writes its look so)
+        constants = {**constants, "diffuseColor": glass.get("colour", constants.get("diffuseColor")),
+                     "roughness": glass.get("roughness", constants.get("roughness"))}
     constant = None if "albedo" in found else constants.get("diffuseColor")
     glow = None if "emission" in found else constants.get("emissiveColor")
     return {"maps": found, "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention,
             "albedo_colour": None if constant is None else [float(value) for value in constant],
             "emission_colour": None if glow is None else [float(value) for value in glow],
             "constants": {measure: float(constants[name]) for name, measure in CONSTANT_MEASURES.items()
-                          if constants.get(name) is not None}}
+                          if constants.get(name) is not None},
+            "see_through": see_through_of(surface, constants, found)}
+
+
+def see_through_of(surface, constants, maps):
+    """How a surface lets light through, as its source says it: {"alpha": its cutout's share kept (its opacity
+    block's constant, else its constants' opacity; a glass's presence, since a glass's constant opacity is only its
+    preview's), "threshold": the opacity under which it is cut away (0: blended), "transmission": the share its
+    glass passes (0: none)}; an opacity map (role "opacity") stands over the constant alpha where the maps hold one.
+    None for a surface that says nothing of either (opaque)."""
+    glass, cutout = surface.get("transmission"), surface.get("opacity")
+    if not glass and not cutout and constants.get("opacity") is None and "opacity" not in maps:
+        return None
+    if glass:
+        alpha = float(glass.get("presence", 1.0))
+    elif cutout:
+        alpha = float(cutout.get("constant", 1.0))
+    else:
+        alpha = float(constants.get("opacity", 1.0))
+    threshold = (cutout or {}).get("threshold") or constants.get("opacityThreshold") or 0.0
+    return {"alpha": alpha, "threshold": float(threshold),
+            "transmission": float(glass.get("weight", 1.0)) if glass else 0.0}
 
 
 def pixels(path):
@@ -237,15 +280,35 @@ def half_width(field):
     return float(np.mean(lags))
 
 
+def periodic_share(field):
+    """How regular the field is: along each axis, its spectrum's strongest frequency's share of all its power (summed
+    over the other axis, the zero frequency left out), averaged; a grid's is high, a noise's spread over many."""
+    power = np.abs(np.fft.fft2(field - field.mean())) ** 2
+    shares = []
+    for axis in (0, 1):
+        line = power.sum(axis=axis)[1: field.shape[1 - axis] // 2 + 1]
+        shares.append(float(line.max() / line.sum()) if line.sum() > 0 else 0.0)
+    return float(np.mean(shares))
+
+
+def raised_share(field):
+    """The share of a relief standing over the middle of its range (its 2nd to 98th percentile), a mat's studs'
+    or ribs' area."""
+    low, high = np.percentile(field, (2, 98))
+    return float(np.mean(field > (low + high) / 2.0))
+
+
 def period_of(field):
     """The field's period in texels: along each axis, the strongest frequency of its spectrum (summed over the other
-    axis, the zero frequency left out), averaged."""
+    axis, the zero frequency left out), averaged weighted by that frequency's power (ribs, which vary along one axis
+    only, have no period along the other: an even mean read a 16-texel rib's period as 40)."""
     power = np.abs(np.fft.fft2(field - field.mean())) ** 2
-    periods = []
+    periods, weights = [], []
     for axis in (0, 1):
         line = power.sum(axis=axis)[1: field.shape[1 - axis] // 2 + 1]
         periods.append(field.shape[1 - axis] / float(np.argmax(line) + 1))
-    return float(np.mean(periods))
+        weights.append(float(line.max()))
+    return float(np.average(periods, weights=weights)) if sum(weights) > 0 else float(np.mean(periods))
 
 
 def albedo_statistics(path):
@@ -256,6 +319,18 @@ def albedo_statistics(path):
     return {"lab": values.mean(axis=0).tolist(), "dark_lab": dark.mean(axis=0).tolist(),
             "lightness_spread": float(values[:, 0].std()),
             "worn_share": float(np.mean(values[:, 0] < values[:, 0].mean() - WORN_GAP))}
+
+
+def print_statistics(path, tile_metres):
+    """A print on the albedo (a check's lines): how regular its lightness is (periodic_share), its period in
+    metres, the share of its texels PRINT_GAP L or more off its median lightness (the lines') and their mean Lab."""
+    values = colour.lab(colour.linear(shrunk(pixels(path), READ_SIDE)))
+    lightness = values[..., 0]
+    off = np.abs(lightness - np.median(lightness)) >= PRINT_GAP
+    return {"print_share": periodic_share(high_passed(lightness, HIGH_PASS_SHARE)),
+            "print_period_metres": float(period_of(lightness) * tile_metres / lightness.shape[1]),
+            "print_area": float(off.mean()),
+            "print_lab": (values[off] if off.any() else values.reshape(-1, 3)).mean(axis=0).tolist()}
 
 
 def constant_statistics(linear_colour):
@@ -287,9 +362,19 @@ def relief_statistics(path, tile_metres, normal_convention="opengl"):
     return {"height": float(relief.std() * metres_a_texel),
             "feature_metres": float(half_width(relief) * FEATURE_PER_HALF_WIDTH * metres_a_texel),
             "period_metres": float(period_of(relief) * metres_a_texel),
+            "periodic_share": periodic_share(relief), "raised_share": raised_share(relief),
+            "anisotropy": anisotropy(normal),
             "slope_variance": spread,
             "slope_rms": float(np.sqrt(np.mean((normal[..., 0] ** 2 + normal[..., 1] ** 2) /
                                                np.maximum(normal[..., 2], FLAT_FLOOR) ** 2)))}
+
+
+def anisotropy(normal):
+    """How much a relief's slopes run one way: the gap between its slope energy across and down over their sum, 0
+    for studs or noise, 1 for ribs."""
+    across, down = (float(np.mean((normal[..., axis] / np.maximum(normal[..., 2], FLAT_FLOOR)) ** 2))
+                    for axis in (0, 1))
+    return abs(across - down) / (across + down) if across + down > 0 else 0.0
 
 
 def relief_side(tile_metres):
@@ -330,18 +415,32 @@ def alpha_mean(path):
         return float(shrunk(np.asarray(opened.convert("RGBA"), dtype=float)[..., 3] / 255.0, READ_SIDE).mean())
 
 
+def opacity_of(maps, see_through):
+    """The share of light a surface stops (see_through_of): its alpha (its opacity map's mean, cut at its threshold
+    where it has one, else its constant) less what its glass passes."""
+    alpha = see_through["alpha"]
+    if "opacity" in maps:
+        values = shrunk(pixels(maps["opacity"]), READ_SIDE).mean(axis=-1)
+        alpha = float((values > see_through["threshold"]).mean() if see_through["threshold"] else values.mean())
+    return round(alpha * (1.0 - see_through["transmission"]), 6)
+
+
 def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None, constants=None,
-               emission_colour=None):
+               emission_colour=None, see_through=None):
     """The maps' measures from {role: path}: the albedo map, else the constant `albedo_colour` (linear); normal, orm
     or roughness (or a packed albedo's alpha, `roughness_alpha`) and metal when given, else their surface.json `constants` ({measure: value}, described), else a
     roughness of UNSAID_ROUGHNESS and a metal of 0, as the map side draws them; the constant opacity (None when
-    unsaid); its glow, the strength it gives off light at (an emission map's 1, else the constant `emission_colour`'s
+    unsaid), or with a `see_through` (see_through_of) the share it stops (opacity_of); its glow, the strength it
+    gives off light at (an emission map's 1, else the constant `emission_colour`'s
     strongest channel, else 0) and that constant's hue (its channels over the strongest)."""
     constants = constants or {}
     measured = albedo_statistics(maps["albedo"]) if "albedo" in maps else constant_statistics(albedo_colour)
     measured["tile_metres"] = float(tile_metres)
     measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
-                    {"height": 0.0, "feature_metres": None, "slope_variance": 0.0, "slope_rms": 0.0})
+                    {"height": 0.0, "feature_metres": None, "slope_variance": 0.0, "slope_rms": 0.0,
+                     "periodic_share": 0.0})
+    if "albedo" in maps:
+        measured.update(print_statistics(maps["albedo"], tile_metres))
     measured["roughness_spread"] = (channel_spread(maps["orm"], 1) if "orm" in maps else
                                     channel_spread(maps["roughness"], 0) if "roughness" in maps else 0.0)
     if "orm" in maps:
@@ -354,7 +453,7 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
         else:
             measured["roughness"] = constants.get("roughness", UNSAID_ROUGHNESS)
         measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else constants.get("metal", 0.0)
-    measured["opacity"] = constants.get("opacity")
+    measured["opacity"] = opacity_of(maps, see_through) if see_through else constants.get("opacity")
     strongest = max(emission_colour or [0.0])
     measured["glow"] = 1.0 if "emission" in maps else float(max(strongest, 0.0))
     measured["glow_hue"] = ([float(value) / strongest for value in emission_colour]
@@ -364,6 +463,8 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
 
 # Families drawn with no metal, whose name word a measured metal overrules (a metal-coated glass is a metal).
 UNMETALLED = ("glass",)
+# The moulded family whose relief, read as a grid, makes it a mat (a black rubber's coins with no mat word).
+MOULDED = ("rubber",)
 
 
 def metal_by_roughness(measured):
@@ -381,17 +482,30 @@ def family_of(name, measured):
     """The recipe family a material's name says (FAMILY_WORDS; a family drawn with no metal, UNMETALLED, yields to a
     metal over METAL_MEAN, which the map side draws as metal), else by its metal and roughness means: (family,
     "name" | "measures"); a name saying only "metal" its finish by its maps (generic_metal). A surface that gives off light is glowing whatever its name (a glass lamp lens fitted as
-    glass drew no light beside its map side's glow)."""
+    glass drew no light beside its map side's glow); one that lets light through (its opacity under 1) is glass, the
+    one family drawn see-through (a clear plastic fitted as plastic was opaque beside its maps' see-through pane); a
+    moulded rubber with relief (RELIEF_SLOPE) that is a grid (periodic_share over PERIODIC_SHARE: a near flat
+    map's faint repeat is no grid, three glossy rubbers' 0.72) is a mat, a plastic whose relief stands
+    (over HEIGHT_FLOOR) wider than HAMMER_FROM hammered (a flat map's relief, or slopes that integrate to no height,
+    read as one tile-wide feature)."""
     lowered = name.lower()
     said = next((family for word, family in FAMILY_WORDS if word in lowered), None)
     if measured.get("glow", 0.0) > 0 and said != "glowing":
         return "glowing", "measures"
+    if measured.get("opacity") is not None and measured["opacity"] < 1.0 and said != "glass":
+        return "glass", "measures"
     for word, family in FAMILY_WORDS:
         if word in lowered:
             if family in UNMETALLED and measured["metal"] > METAL_MEAN:
                 return metal_by_roughness(measured), "measures"
             if word == GENERIC_METAL:
                 return generic_metal(measured), "measures"
+            if family in MOULDED and measured.get("slope_rms", 0.0) > RELIEF_SLOPE and \
+                    measured.get("periodic_share", 0.0) > PERIODIC_SHARE:
+                return "mat", "measures"
+            if family == "plastic" and measured.get("height", 0.0) > HEIGHT_FLOOR and \
+                    (measured.get("feature_metres") or 0.0) > HAMMER_FROM:
+                return "hammered", "measures"
             return family, "name"
     if measured["metal"] > METAL_MEAN:
         return metal_by_roughness(measured), "measures"
@@ -452,7 +566,30 @@ def spec_of(family, measured, method=METHOD):
                                            (np.asarray(measured["dark_lab"]) - measured["lab"]) * wanted)
     if "roughness_spread" in defaults:
         spec["roughness_spread"] = round(measured.get("roughness_spread", 0.0) / PATTERN_SPREAD, 4)
+    if family == "mat" and feature:
+        spec.update(studs(measured))
+    if family == "cloth" and measured.get("print_share", 0.0) > PERIODIC_SHARE and measured.get("print_area"):
+        spec.update(check_print(measured))
     return spec
+
+
+def studs(measured):
+    """A mat's raised pattern from its relief: ribs (`ribs` 1) where its slopes run one way (anisotropy over
+    RIBBED), else studs; their width as a share of the pitch from the raised area (a rib's its area, a round stud's
+    sqrt(4 area / pi)), within STUD_SHARE_RANGE."""
+    ribs = 1.0 if measured.get("anisotropy", 0.0) > RIBBED else 0.0
+    area = measured.get("raised_share", 0.5)
+    share = area if ribs else float(np.sqrt(4.0 * area / np.pi))
+    return {"ribs": ribs, "stud_share": round(float(np.clip(share, *STUD_SHARE_RANGE)), 4)}
+
+
+def check_print(measured):
+    """A cloth's printed check from its albedo: on (`check` 1), its pitch the print's period, its lines as wide as
+    make up the print's area on a square grid (area = 1 - (1 - line / pitch)^2), in the print's colour."""
+    pitch = measured["print_period_metres"]
+    line = pitch * (1.0 - float(np.sqrt(1.0 - min(measured["print_area"], 0.99))))
+    return {"check": 1.0, "check_pitch": round(pitch, 5), "check_line": round(line, 5),
+            "print_colour": linear_colour(measured["print_lab"])}
 
 
 def worn(share):
@@ -474,17 +611,17 @@ def fitted_tile(family, measured, method=METHOD):
 
 
 def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl", albedo_colour=None, constants=None,
-           emission_colour=None):
+           emission_colour=None, see_through=None):
     """A material's fitted recipe from its maps ({role: path}, with no albedo map its constant `albedo_colour`, with no
     map of a measure its surface.json `constants`), its
     tile size (None: fitted, `fitted_tile`, else TILE_METRES assumed) and its normal map's convention: {"recipe", "statistics", "family_from", "tile_metres",
     "tile_metres_from" (None when given)}."""
     tile_from = None
     if tile_metres is None:
-        at_one = statistics(maps, 1.0, normal_convention, albedo_colour, constants, emission_colour)
+        at_one = statistics(maps, 1.0, normal_convention, albedo_colour, constants, emission_colour, see_through)
         tile_metres = fitted_tile(family_of(name, at_one)[0], at_one, method)
         tile_metres, tile_from = (tile_metres, "fitted") if tile_metres else (TILE_METRES, "assumed")
-    measured = statistics(maps, tile_metres, normal_convention, albedo_colour, constants, emission_colour)
+    measured = statistics(maps, tile_metres, normal_convention, albedo_colour, constants, emission_colour, see_through)
     family, said_by = family_of(name, measured)
     return {"recipe": spec_of(family, measured, method), "statistics": measured, "family_from": said_by,
             "tile_metres": tile_metres, "tile_metres_from": tile_from}

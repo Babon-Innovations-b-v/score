@@ -8,7 +8,8 @@ renders a surface. Each surface's result is its fitted recipe and its likeness b
 
 A surface's maps are the files its surface.json `maps` names by role ({role: file}, else every texture file of its
 entry by fit.roles), its colour the albedo map's, else its constant diffuseColor (surface.json `constants`), its glow the
-emission map or its constant emissiveColor, its roughness and metal its maps' or else its constants (fit.described), fetched through the library (tools/library/library_files.py), its normal map read by its
+emission map or its constant emissiveColor, its roughness and metal its maps' or else its constants, how it lets
+light through its opacity map, constant opacity or glass's transmission (fit.described), fetched through the library (tools/library/library_files.py), its normal map read by its
 `normal_convention`; its tile size is surface.json's `tile_metres`, fitted when that is null, else fit.TILE_METRES
 (fit.described; said in its result as surface.json, fitted or assumed). The recipe algorithm a likeness names is --algorithm,
 else the library index's newest algorithm/surface_recipes. Writes <out>/<surface id>@<version>/likeness.json
@@ -112,10 +113,23 @@ def render_round(out, pairs, size, samples):
         raise CheckFailed(f"the likeness Blender exited {done.returncode}, log {log}: {tail}")
 
 
-def views_of(out, name):
-    """A pair's measures, view by view, from its pictures."""
+def lets_through(found, spec):
+    """Whether a surface's maps (fit.see_through_of: an alpha under 1, an opacity map, a glass) or its fitted recipe
+    (an opacity under 1) let light through, so its pair is also drawn before the see-through view's backdrop."""
+    see = found["see_through"] or {}
+    return bool(see.get("alpha", 1.0) < 1.0 or see.get("transmission", 0.0) > 0.0 or
+                (see and "opacity" in found["maps"]) or float(spec.get("opacity", 1.0)) < 1.0)
+
+
+def views_of(out, name, through=False):
+    """A pair's measures, view by view, from its pictures, its see-through view's ("through") when it lets light
+    through (lets_through)."""
     folder = out / name
-    return {view: measure.view_measures(folder / f"map-{view}.png", folder / f"recipe-{view}.png") for view in VIEWS}
+    views = {view: measure.view_measures(folder / f"map-{view}.png", folder / f"recipe-{view}.png") for view in VIEWS}
+    if through:
+        views["through"] = measure.through_measures(folder / "map-through.png", folder / "recipe-through.png",
+                                                    out / "backdrop.png")
+    return views
 
 
 def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD):
@@ -133,12 +147,13 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
             continue
         made = fit.fitted(address_parts(address)[1], found["maps"], found["tile_metres"], method,
                           found["normal_convention"], found["albedo_colour"], found["constants"],
-                          found["emission_colour"])
+                          found["emission_colour"], found["see_through"])
         open_pairs[address] = {"name": folder_name(address), "maps": found["maps"], "tile_metres": made["tile_metres"],
                                "normal_convention": found["normal_convention"], "albedo_colour": found["albedo_colour"],
                                "emission_colour": found["emission_colour"],
                                "roughness": made["statistics"]["roughness"], "metal": made["statistics"]["metal"],
-                               "recipe": made["recipe"], "map": True}
+                               "recipe": made["recipe"], "map": True, "see_through": found["see_through"],
+                               "through": lets_through(found, made["recipe"])}
         results[address] = {"address": address, "family_from": made["family_from"],
                             "tile_metres_from": made["tile_metres_from"] or found["tile_metres_from"],
                             "statistics": made["statistics"], "rounds": 0, "history": []}
@@ -147,7 +162,7 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
             break
         render_round(out, list(open_pairs.values()), size, samples)
         for address, pair in list(open_pairs.items()):
-            views = views_of(out, pair["name"])
+            views = views_of(out, pair["name"], pair["through"])
             kept(results[address], pair["recipe"], views, algorithm, wear_levels)
             if results[address]["likeness"]["pass"]:
                 del open_pairs[address]

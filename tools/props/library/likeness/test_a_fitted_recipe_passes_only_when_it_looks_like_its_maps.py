@@ -34,6 +34,23 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
+- the see-through rows' backdrop is squares of sRGB 0 and 255 (L 0 and 100): a pane showing the same squares shows
+  all of it (1), a flat grey none (0); squares of sRGB 119 and 255 (L 49.97 and 100) half (0.5003): beside a flat
+  recipe pane the recipe shows 0.4997 less, past the check's 0.08, and its opacity 0.8 is made that much clearer,
+  0.3003; the clear plastic's glass passes all its light (weight 1, presence 1): opacity 0, its colour and roughness
+  its transmission's (0.8, 0.02), not its constants';
+- the opacity map is half 255 and half 64 (0.25), cut at 0.5: half its texels kept, so it stops 0.5 (blended, it
+  would stop (1 + 0.251) / 2 = 0.6255);
+- the ribs row's height is 2 sin(2 pi (x + 1/2) / 16) along x alone: its period 16 texels, 0.016 m at 0.064 m a
+  tile, its slopes all across (anisotropy 1: ribs), half its texels over its middle (stud_share 0.5); the studs row
+  is the same sine times its sine up the picture: a period of 16 both ways, a grid (periodic share 1 over 0.25), no
+  way its slopes run (studs), half its texels raised, so a round stud sqrt(4 x 0.5 / pi) = 0.7979 of its pitch; at
+  0.05 texels high its slopes' rms is about 0.05 x 2 pi / 16 / 2 = 0.01, under 0.02: no relief, a rubber;
+- the strand board's flakes are the relief row's 0.012 m features (within 4 times its 0.02 default); the knit's
+  stitch its 0.016 m period; the hammered plastic's features, 12 texels of a 0.32 m tile, 0.06 m, wider than
+  0.032, drawn at its dents' largest size 4 x 0.01 = 0.04;
+- the printed check is lines of sRGB 60 (linear 0.0452, L 25.4, over 10 L off its ground's 50) 2 texels wide every
+  16: a period of 0.016 m, an area of 1 - (14 / 16)^2 = 0.2344, so lines 0.016 x (1 - sqrt(1 - 0.2344)) = 0.002 wide;
 - sRGB (150, 104, 112) is Lab (48.95, 19.66, 2.96), 19.9 from sRGB 119's (50.0, 0, 0): over the check's 10, while its
   lightness stays within 1.1 (the lightness and highlight bounds hold); stripes of sRGB 109 and 129 (L* 46.0 and
   54.0) two pixels wide beside a flat sRGB 119 differ under 0.1 in cell colour and 4 in lightness, but the flat one
@@ -85,6 +102,18 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.relief_side: READ_SIDE always (the 2 m tile's chequer averaged away, its roughness widened to 0.464).
 - measure.views_apart: None always (the disagreeing views' thread stays 0.012).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
+Breaks of the see-through view and the new families (each applied once, seen red, reverted, 2026-11-23):
+- measure.through_measures: the recipe's pane read as the maps' (the opaque glass row passes), or measure.breach's
+  see-through share 0 (the same), or measure.refined's opacity step dropped (its opacity stays 0.8).
+- fit.family_of: the see-through rule dropped (the clear plastic is plastic), fit.described's transmission colour
+  and roughness dropped (its constants'), or see_through_of's transmission 0 (it stops all light: plastic).
+- fit.opacity_of: the threshold ignored (the opacity map row stops 0.6255).
+- fit.FAMILY_WORDS without "lined", "osb" or "blanket" (the ribs row rubber, the strand board grained wood, the
+  knit cloth); fit.family_of's MOULDED rule dropped (the studs row rubber), or its relief test (the near flat
+  rubber a mat), or its HAMMER_FROM rule (the hammered
+  row plastic), or its HEIGHT_FLOOR (the three flat or unintegrable plastic rows hammered).
+- fit.studs: ribs always 0 (the ribs row studs), or a stud's share its area (the studs row 0.5); fit.period_of
+  averaged evenly (the ribs row's pitch 0.04); fit.spec_of's check_print dropped (the printed cloth's check 0).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
 import pathlib
@@ -185,6 +214,38 @@ def under(normal):
     turned = normal.copy()
     turned[..., 2] = 255 - turned[..., 2]
     return turned
+
+
+def raised(amplitude, period, both):
+    """A GL normal map of the height amplitude * sin(2 pi (x + 1/2) / period), times the same up the picture when
+    `both` (studs; else ribs running up it), sampled half a texel off the sine's zeros so no texel stands level
+    with its middle."""
+    across, row = np.meshgrid(np.arange(SIDE) + 0.5, np.arange(SIDE) + 0.5)
+    wave = 2 * np.pi / period
+    up = SIDE - row
+    rise = np.sin(wave * up) if both else np.ones_like(up)
+    slope_across = amplitude * wave * np.cos(wave * across) * rise
+    slope_up = amplitude * wave * np.sin(wave * across) * np.cos(wave * up) if both else np.zeros_like(up)
+    normal = np.stack([-slope_across, -slope_up, np.ones_like(up)], -1)
+    normal /= np.linalg.norm(normal, axis=-1, keepdims=True)
+    return np.round((normal + 1.0) * 127.5).astype(np.uint8)
+
+
+def printed_grid(ground, ink, pitch, line):
+    """A grey `ground` with `ink` lines `line` texels wide every `pitch` texels both ways: a printed check."""
+    picture = solid((ground,) * 3)
+    lined = np.arange(SIDE) % pitch < line
+    picture[lined, :] = ink
+    picture[:, lined] = ink
+    return picture
+
+
+def checker(light, dark=0, square=8):
+    """Squares `square` texels across alternating sRGB `light` and `dark`: the see-through view's backdrop or a pane
+    showing it."""
+    across, row = np.meshgrid(np.arange(SIDE), np.arange(SIDE))
+    lit = ((across // square + row // square) % 2 == 0)[..., None]
+    return np.where(lit, np.uint8(light), np.uint8(dark)).repeat(3, axis=-1).astype(np.uint8)
 
 
 def opaque(pixels):
@@ -338,6 +399,57 @@ ROWS = [
      {"maps": {"albedo": "albedo.png", "orm": "orm.png"}, "tile_metres": 1.0}, (stripes(109, 129), solid((119,) * 3)),
      {"recipe": "plastic", "contrast": 1.0, "second_lightness": 36.8, "roughness_spread": 0.0654,
       "refined_second_lightness": 23.5}),
+    ("a clear plastic's glass: see-through, its look its transmission's colour and roughness",
+     "m_trans_plastic_clear_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.4, "opacity": 1.0},
+      "transmission": {"weight": 1.0, "presence": 1.0, "colour": [0.8] * 3, "roughness": 0.02}},
+     (solid((119,) * 3), solid((119,) * 3), {"through": (checker(255), checker(255), checker(255))}),
+     {"recipe": "glass", "family_from": "measures", "colour": 0.8, "roughness": 0.02, "opacity": 0.0,
+      "see_through": 0.0, "pass": True}),
+    ("a glass's recipe more opaque than its maps' pane fails, and is made as much clearer", "m_trans_glass_black_a01",
+     {}, {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.27,
+                                                        "opacity": 0.8}},
+     (solid((119,) * 3), solid((119,) * 3), {"through": (checker(255), checker(255, 119), solid((119,) * 3))}),
+     {"recipe": "glass", "opacity": 0.8, "see_through": -0.4997, "pass": False, "refined_opacity": 0.3003}),
+    ("an opacity map cut at its threshold: what it stops", "m_opaque_plastic_leaf_a01",
+     {"albedo.png": solid((119,) * 3),
+      "opacity.png": np.concatenate([solid((255,) * 3)[:, :32], solid((64,) * 3)[:, 32:]], 1)},
+     {"maps": {"albedo": "albedo.png", "opacity": "opacity.png"}, "tile_metres": 1.0,
+      "opacity": {"constant": 1.0, "threshold": 0.5}}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "glass", "family_from": "measures", "opacity": 0.5}),
+    ("a lined rubber is a ribbed mat, its pitch the ribs' period", "m_opaque_rubber_lined_black_a01",
+     {"albedo.png": solid((119,) * 3), "normal.png": raised(2.0, 16, False)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "mat", "family_from": "name", "size": 0.016, "ribs": 1.0, "stud_share": 0.5}),
+    ("a rubber whose relief is a grid of studs is a mat", "m_opaque_rubber_black_a01",
+     {"albedo.png": solid((119,) * 3), "normal.png": raised(2.0, 16, True)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "mat", "family_from": "measures", "size": 0.016, "ribs": 0.0, "stud_share": 0.7979}),
+    ("a near flat rubber's faint repeat is no mat", "m_opaque_rubber_glossy_black_a01",
+     {"albedo.png": solid((119,) * 3), "normal.png": raised(0.05, 16, True)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "rubber", "family_from": "name"}),
+    ("an oriented strand board's flakes", "m_opaque_wood_osb_cleans_a01",
+     {"albedo.png": solid((119,) * 3), "normal.png": bumps(2.0, 16)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "strand_board", "family_from": "name", "size": 0.012}),
+    ("a blanket's knit, its stitch its relief's period", "opaque_fabric_blanket_blue_a",
+     {"albedo.png": solid((119,) * 3), "normal.png": bumps(2.0, 16)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "knit", "family_from": "name", "size": 0.016}),
+    ("a plastic whose relief is wider than any mould grain is hammered", "m_opaque_plastic_grainy_black_a01",
+     {"albedo.png": solid((119,) * 3), "normal.png": bumps(2.0, 16)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.32},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "hammered", "family_from": "measures", "size": 0.04}),
+    ("a cloth's printed check: lines at the print's period, as wide as its area, in its colour",
+     "m_opaque_fabric_body_b01", {"albedo.png": printed_grid(119, 60, 16, 2)},
+     {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "cloth", "check": 1.0, "check_pitch": 0.016, "check_line": 0.002, "print_colour": 0.0452}),
+    ("a plain cloth has no check", "fabric_cotton_black_q01", {"albedo.png": solid((119,) * 3)},
+     {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "cloth", "check": 0.0}),
 ]
 
 
@@ -347,15 +459,20 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
     found = written(tmp_path, maps, surface)
     made = fit.fitted(material, found["maps"], found["tile_metres"], normal_convention=found["normal_convention"],
                       albedo_colour=found["albedo_colour"], constants=found["constants"],
-                      emission_colour=found["emission_colour"])
+                      emission_colour=found["emission_colour"], see_through=found["see_through"])
     spec = made["recipe"]
     relief = (round(spec[fit.SIZE_SETTING[spec["recipe"]]], 4), round(spec["bump"], 3), round(made["tile_metres"], 4)) \
         if spec.get("bump") else None
     Image.fromarray(opaque(pictures[0])).save(tmp_path / "map.png")
     Image.fromarray(opaque(pictures[1])).save(tmp_path / "recipe.png")
     views = {"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")}
-    verdict = measure.likeness(views, "algorithm/surface_recipes@1")
     extra = pictures[2] if len(pictures) > 2 else {}
+    if "through" in extra:
+        for side, pixels in zip(("backdrop", "map-through", "recipe-through"), extra["through"]):
+            Image.fromarray(opaque(pixels)).save(tmp_path / f"{side}.png")
+        views["through"] = measure.through_measures(tmp_path / "map-through.png", tmp_path / "recipe-through.png",
+                                                    tmp_path / "backdrop.png")
+    verdict = measure.likeness(views, "algorithm/surface_recipes@1")
     earlier = extra.get("earlier")
     answer = {"recipe": spec["recipe"], "family_from": made["family_from"], "colour": round(np.mean(spec["colour"]), 4),
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
@@ -369,5 +486,12 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
                   measure.refined(spec, views)["second"]))[0]), 1), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
               "refined_size": measure.refined(spec, extra.get("views", views)).get(
                   fit.SIZE_SETTING.get(spec["recipe"], "")),
-              "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
+              "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS),
+              "refined_lab": lightness_hue(measure.refined(spec, views)["colour"]),
+              "see_through": views.get("through", {}).get("see_through"),
+              "refined_opacity": measure.refined(spec, views, earlier).get("opacity"),
+              "size": round(spec[fit.SIZE_SETTING[spec["recipe"]]], 4) if spec["recipe"] in fit.SIZE_SETTING else None,
+              "ribs": spec.get("ribs"), "stud_share": spec.get("stud_share"), "check": spec.get("check"),
+              "check_pitch": spec.get("check_pitch"), "check_line": spec.get("check_line"),
+              "print_colour": round(float(np.mean(spec["print_colour"])), 4) if "print_colour" in spec else None}
     assert {key: answer[key] for key in expected} == expected, name

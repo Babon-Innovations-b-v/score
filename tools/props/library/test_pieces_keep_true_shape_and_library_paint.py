@@ -211,14 +211,23 @@ def test_every_recipe_s_settings_are_in_the_method():
     table = next(node.value for node in tree.body if isinstance(node, ast.Assign)
                  and getattr(node.targets[0], "id", None) == "RECIPES")
     recipes = {key.value: value.id for key, value in zip(table.keys, table.values)}
-    given = {"colour", "bare", "second", "dirt_colour", "wear", "dirt", "seed", "foot", "kicks", "image"}
+    given = {"colour", "bare", "second", "dirt_colour", "print_colour", "wear", "dirt", "seed", "foot", "kicks",
+             "image"}
     method = library.theme_library()["recipes"]
     assert set(recipes) == set(method)
     assert {name: arguments[function] - given - set(method[name]) for name, function in recipes.items()
             if arguments[function] - given - set(method[name])} == {}
     # plain cloth's mottle (#155, 2026-11-23): a heathered or stained map's, flat at its defaults
     assert arguments[recipes["cloth"]] - given == {"roughness", "thread", "bump", "dirt_reach", "mottle_size",
-                                                   "contrast", "roughness_spread"}
+                                                   "contrast", "roughness_spread", "check", "check_pitch",
+                                                   "check_line"}
+    # the adopted set's missing families (#155, 2026-11-23): a mat's studs or ribs, a strand board's flakes, a knit's
+    # loops, a hammered finish's dents
+    assert {name: arguments[recipes[name]] - given for name in ("mat", "strand_board", "knit", "hammered")} == {
+        "mat": {"roughness", "pitch", "stud_share", "ribs", "contrast", "bump", "dirt_reach"},
+        "strand_board": {"roughness", "flake_size", "contrast", "bump", "dirt_reach"},
+        "knit": {"roughness", "stitch", "contrast", "bump", "dirt_reach"},
+        "hammered": {"roughness", "dent_size", "contrast", "bump", "dirt_reach"}}
     # a flat sheet's print (2026-11-08): a mat's or rug's mottled pile and a note's rows of writing, ink its second
     assert arguments[recipes["pile"]] - given == {"roughness", "tuft_size", "mottle_size", "contrast", "bump",
                                                   "dirt_reach"}

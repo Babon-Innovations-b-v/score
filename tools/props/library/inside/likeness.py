@@ -14,6 +14,13 @@ constants or USD's defaults, never Blender's own), its glow the emission map (sR
 constant linear `emission_colour` (its size the strength: (5, 5, 5) is white at 5), the normal map in tangent space (a DirectX map's green turned over), all on texture coordinates cube-projected at the
 maps' tile size, so a repeat covers `tile_metres` as the recipe's metres do. Writes <out>/<name>/map-<view>.png and
 recipe-<view>.png, and prints "LIKENESS <name>" per pair.
+
+A pair with "through" true (its maps or its recipe let light through) is also drawn as a pane held square before a
+checker backdrop that gives off its own light (so no light or shine moves its squares), each side's pane in its own
+see-through: the map side's "see_through" ({"alpha", "threshold", "transmission"}, fit.see_through_of: its alpha the
+opacity map's where its maps hold one, cut at its threshold, else the constant; its glass's transmission as the
+surface's own, tinted by its colour), the recipe's its spec's `opacity` as the alpha the place's look writes. Writes
+<out>/<name>/map-through.png and recipe-through.png, and <out>/backdrop.png, the bare backdrop, once a job.
 """
 import json
 import pathlib
@@ -29,6 +36,13 @@ import recipes  # noqa: E402
 import scene_setup  # noqa: E402
 
 UV_MAP = "likeness"
+OPAQUE = {"alpha": 1.0, "threshold": 0.0, "transmission": 0.0}  # a map side that says nothing of letting light through
+# The see-through view, far from the swatch so no other camera sees it: a PANE metres square at THROUGH_AT, the
+# backdrop BACKDROP_GAP behind it (near, so a frosted pane blurs its squares as frosted glass near a wall does),
+# checker squares SQUARE metres across, seen square on from THROUGH_DISTANCE through a long lens that the pane fills.
+THROUGH_AT = (6.0, 0.0, 0.5)
+PANE, BACKDROP, BACKDROP_GAP, SQUARE = 0.4, 1.0, 0.05, 0.03
+THROUGH_DISTANCE, THROUGH_LENS = 1.0, 150
 
 
 def projected(piece, tile_metres):
@@ -140,6 +154,66 @@ def map_material(name, maps, convention="opengl", albedo_colour=None, emission_c
     return material
 
 
+def seen_through(material, maps, see_through):
+    """The map material made to let light through as its surface says (fit.see_through_of): its alpha the opacity
+    map's where its maps hold one (cut at its threshold), else the constant, its glass's share passed by the
+    principled surface's transmission; the material."""
+    tree = material.node_tree
+    surface = next(node for node in tree.nodes if node.type == "BSDF_PRINCIPLED")
+    if "opacity" in maps:
+        alpha = image_node(tree, maps["opacity"], True).outputs["Color"]
+        if see_through["threshold"]:
+            alpha = math_node(tree, "GREATER_THAN", alpha, see_through["threshold"])
+        tree.links.new(alpha, surface.inputs["Alpha"])
+    else:
+        surface.inputs["Alpha"].default_value = see_through["alpha"]
+    surface.inputs["Transmission Weight"].default_value = see_through["transmission"]
+    return material
+
+
+def recipe_seen_through(spec, seed):
+    """The recipe's material at its spec's opacity, as the alpha of the look the place writes for it."""
+    material = recipe_material(spec, seed)
+    surface = next(node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED")
+    surface.inputs["Alpha"].default_value = float(spec.get("opacity", 1.0))
+    return material
+
+
+def through_stand():
+    """The see-through view's pane, its backdrop (an emission checker) and its camera: (pane, backdrop, camera)."""
+    middle = THROUGH_AT
+    bpy.ops.mesh.primitive_plane_add(size=PANE, location=middle, rotation=(1.5707963, 0.0, 0.0))
+    pane = bpy.context.object
+    bpy.ops.mesh.primitive_plane_add(size=BACKDROP, location=(middle[0], middle[1] + BACKDROP_GAP, middle[2]),
+                                     rotation=(1.5707963, 0.0, 0.0))
+    backdrop = bpy.context.object
+    lit = bpy.data.materials.new("backdrop")
+    lit.use_nodes = True
+    tree = lit.node_tree
+    tree.nodes.clear()
+    squares = tree.nodes.new("ShaderNodeTexChecker")
+    squares.inputs["Scale"].default_value = BACKDROP / SQUARE / 2.0  # a checker's unit holds two squares a side
+    squares.inputs["Color1"].default_value = (1.0, 1.0, 1.0, 1.0)
+    squares.inputs["Color2"].default_value = (0.0, 0.0, 0.0, 1.0)
+    coordinates = tree.nodes.new("ShaderNodeTexCoord")
+    tree.links.new(coordinates.outputs["UV"], squares.inputs["Vector"])
+    given = tree.nodes.new("ShaderNodeEmission")
+    tree.links.new(squares.outputs["Color"], given.inputs["Color"])
+    output = tree.nodes.new("ShaderNodeOutputMaterial")
+    tree.links.new(given.outputs["Emission"], output.inputs["Surface"])
+    backdrop.data.materials.append(lit)
+    camera = scene_setup.camera_aimed((middle[0], middle[1] - THROUGH_DISTANCE, middle[2]), middle, THROUGH_LENS)
+    return pane, backdrop, camera
+
+
+def shown_alone(shown, hidden):
+    """Each object of `shown` drawn and each of `hidden` left out of the render."""
+    for item in shown:
+        item.hide_render = False
+    for item in hidden:
+        item.hide_render = True
+
+
 def recipe_material(spec, seed):
     """The fitted recipe as the library draws it, new and clean."""
     material = recipes.shaded(recipes.channels(spec, 0.0, 0.0, seed)).item()
@@ -175,6 +249,13 @@ def main():
     cameras = {"overview": scene_setup.camera_on(piece, (0.55, -0.75, 0.62), 2.6),
                "close": scene_setup.camera_aimed((0.12, -0.12, 0.33), (0.12, 0.08, 0.03), 50)}
     scene_setup.studio_light()
+    pane, backdrop, through = through_stand()
+    stand = (pane, backdrop)
+    if any(pair.get("through") for pair in job["pairs"]):
+        shown_alone([backdrop], [piece, pane])
+        bpy.context.scene.camera = through
+        bpy.context.scene.render.filepath = str(out / "backdrop.png")
+        bpy.ops.render.render(write_still=True)
     for pair in job["pairs"]:
         folder = out / pair["name"]
         folder.mkdir(parents=True, exist_ok=True)
@@ -184,12 +265,32 @@ def main():
             shown["map"] = map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"),
                                         pair.get("albedo_colour"), pair.get("emission_colour"), pair["roughness"],
                                         pair["metal"])
+        shown_alone([piece], stand)
         for view, camera in cameras.items():
             bpy.context.scene.camera = camera
             for side, material in shown.items():
                 rendered(piece, material, folder / f"{side}-{view}.png")
         freed(shown.values())
+        if pair.get("through"):
+            through_pictures(pair, pane, stand, through, folder, job["seed"])
         print("LIKENESS", pair["name"], flush=True)
+
+
+def through_pictures(pair, pane, stand, camera, folder, seed):
+    """A see-through pair's panes before the backdrop: <folder>/<side>-through.png (the map side's only on its first
+    round)."""
+    projected(pane, pair["tile_metres"])
+    shown = {"recipe": recipe_seen_through(pair["recipe"], seed)}
+    if pair["map"]:
+        shown["map"] = seen_through(map_material(pair["name"], pair["maps"], pair.get("normal_convention", "opengl"),
+                                                 pair.get("albedo_colour"), pair.get("emission_colour"),
+                                                 pair["roughness"], pair["metal"]),
+                                    pair["maps"], pair["see_through"] or OPAQUE)
+    shown_alone(stand, [])
+    bpy.context.scene.camera = camera
+    for side, material in shown.items():
+        rendered(pane, material, folder / f"{side}-through.png")
+    freed(shown.values())
 
 
 main()

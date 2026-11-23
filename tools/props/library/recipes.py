@@ -196,11 +196,14 @@ def rubber(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, se
 
 
 def cloth(colour, dirt_colour, roughness, thread, bump, dirt_reach, dirt, seed, second=None, mottle_size=0.15,
-          contrast=0.0, roughness_spread=0.0):
-    """Plain woven cloth (overalls, jackets, straps, upholstery): its colour, mottled (mottled, a heather's), a fine
+          contrast=0.0, roughness_spread=0.0, check=0.0, check_pitch=0.02, check_line=0.002, print_colour=None):
+    """Plain woven cloth (overalls, jackets, straps, upholstery): its colour, mottled (mottled, a heather's), a printed
+    check (lines `check_line` wide on a square grid `check_pitch` apart in `print_colour`, by `check`: 0 none), a fine
     weave, dirt in its creases."""
     vector = coordinates()
     colour, roughness = mottled(colour, second, roughness, vector, mottle_size, contrast, roughness_spread, seed)
+    lines = face_joints(vector, check_pitch, check_pitch, check_line)
+    colour = pf.nodes.color.mix_rgb(factor=lines * check, a=colour, b=print_colour)
     base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
     return Channels(base, rough, 0.0, BLACK, cloth_relief(vector, thread, bump))
 
@@ -716,6 +719,63 @@ def fiberglass(colour, second, roughness, fibre_size, contrast, bump, seed):
                                                                                midlevel=0.0))
 
 
+def mat(colour, second, dirt_colour, roughness, pitch, stud_share, ribs, contrast, bump, dirt_reach, dirt, seed):
+    """A moulded mat, rubber or plastic: raised studs or coins on a square grid on the surface's plane, or ribs along
+    it (`ribs` 1), each `stud_share` of its pitch across with sloped sides, their tops a shade toward `second` by
+    `contrast`, dirt between them."""
+    vector = coordinates()
+    across, up = face_grid(vector, pitch)
+    reach = pf.nodes.math.mix(a=pf.nodes.math.sqrt(across * across + up * up), b=pf.nodes.math.absolute(across),
+                              factor=ribs)
+    raised = pf.nodes.math.map_range(value=reach, from_min=stud_share * 0.5, from_max=stud_share * 0.5 - MAT_SLOPE,
+                                     interpolation_type="SMOOTHSTEP")
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt * (1.0 - raised), dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=raised * contrast, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=raised * bump, midlevel=0.0))
+
+
+def strand_board(colour, second, dirt_colour, roughness, flake_size, contrast, bump, dirt_reach, dirt, seed):
+    """Oriented strand or fibre board (OSB, HDF): flakes of wood pressed flat along the board (face_plane),
+    `flake_size` across and FLAKE_LENGTH times as long (a fibre board's fine, its speckle), each its own shade between
+    colour and `second` by `contrast` and a little proud of or under its neighbours; dirt in the cavities."""
+    vector = coordinates()
+    across, upward = face_plane(vector)
+    pressed = pf.nodes.math.combine_xyz(x=across / FLAKE_LENGTH, y=upward, z=0.0)
+    flakes = pf.nodes.texture.voronoi(vector=pressed, scale=1.0 / flake_size, voronoi_dimensions="4D", w=seed)
+    shade = pf.nodes.color.rgb_to_bw(flakes.color)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=shade * contrast, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=(shade - 0.5) * bump, midlevel=0.0))
+
+
+def knit(colour, second, dirt_colour, roughness, stitch, contrast, bump, dirt_reach, dirt, seed):
+    """Knitted cloth (a jumper's, a blanket's): columns of V-shaped loops `stitch` wide on the surface's plane, each
+    loop two slanted ovals leaning together, the gaps between them sunk and a shade toward `second` by `contrast`;
+    dirt in the gaps."""
+    vector = coordinates()
+    across, upward = face_plane(vector)
+    side = pf.nodes.math.absolute(pf.nodes.math.fraction(across / stitch) - 0.5)  # 0 a column's middle, 0.5 its edge
+    row = pf.nodes.math.fraction(upward / (stitch * KNIT_ROW) + side) - 0.5  # the loops lean in: a V
+    off_side, off_row = (side - 0.25) * 4.0, row * 2.0
+    oval = pf.nodes.math.sqrt(off_side * off_side + off_row * off_row)
+    loop = pf.nodes.math.map_range(value=oval, from_min=1.0, from_max=0.3, interpolation_type="SMOOTHSTEP")
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt * (1.0 - loop), dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=(1.0 - loop) * contrast, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=loop * bump, midlevel=0.0))
+
+
+def hammered(colour, second, dirt_colour, roughness, dent_size, contrast, bump, dirt_reach, dirt, seed):
+    """A hammered (dimpled) finish, a moulded plastic's or a paint's: round dents `dent_size` across packed edge to
+    edge (voronoi cells, each sunk most at its middle), their floors a shade toward `second` by `contrast`, the
+    ridges between them catching the light; dirt in the dents."""
+    vector = coordinates()
+    cells = pf.nodes.texture.voronoi(vector=vector, scale=1.0 / dent_size, voronoi_dimensions="4D", w=seed)
+    dent = pf.nodes.math.clamp(1.0 - cells.distance * 2.0)  # 1 at a dent's middle, 0 at its rim
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt * dent, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=dent * contrast, a=base, b=second)
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=-dent * dent * bump, midlevel=0.0))
+
+
 def grained_wood(colour, second, dirt_colour, roughness, ring_pitch, contrast, bump, dirt_reach, dirt, seed):
     """Timber with its grain (planks, plywood, oak): growth rings as bands along the board, bent by a noise, the late
     wood a second shade and a little sunk, dirt in the cavities."""
@@ -739,7 +799,13 @@ RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal
            "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt,
            "regolith": regolith, "rock": rock, "sand": sand, "ocean": ocean, "ice": ice, "plastic": plastic,
            "polished_metal": polished_metal, "concrete": concrete, "cardboard": cardboard, "leather": leather,
-           "ceramic": ceramic, "fiberglass": fiberglass, "grained_wood": grained_wood}
+           "ceramic": ceramic, "fiberglass": fiberglass, "grained_wood": grained_wood, "mat": mat,
+           "strand_board": strand_board, "knit": knit, "hammered": hammered}
+# A mat stud's sloped side, a share of the pitch; a strand board's flake as long as this many times its width; a knit
+# loop's row this share of its stitch's width high.
+MAT_SLOPE = 0.08
+FLAKE_LENGTH = 3.0
+KNIT_ROW = 0.7
 # Where each recipe starts from, for the page and the paper (the coordinator, 2026-10-06).
 SOURCES = {
     "painted_metal": "infinigen2 paint.py (relief, BSD-3) + edgewear.py's bevel test (ported, new threshold band)"
@@ -782,6 +848,10 @@ SOURCES = {
     "ceramic": "written new (voronoi speckles) + plaster's lumpy relief as the glaze's swell",
     "fiberglass": "written new (two stretched noises as chopped strands under a gel coat)",
     "grained_wood": "written new (noise-bent growth-ring bands along the board) + the library's dirt",
+    "mat": "written new (studs or ribs on the surface's plane, sloped sides) + the library's dirt",
+    "strand_board": "written new (voronoi flakes stretched along the board, a shade each) + the library's dirt",
+    "knit": "written new (columns of leaning loop ovals on the surface's plane) + the library's dirt",
+    "hammered": "written new (voronoi dents, deepest at their middles) + the library's dirt",
 }
 # The helpers each recipe is built of, for counting its lines of code.
 PARTS = {
@@ -794,7 +864,7 @@ PARTS = {
     "galvanized": (galvanized, coordinates, dirty_flat, dirt_mask),
     "anodized": (anodized, coordinates, brushed_relief),
     "rubber": (rubber, coordinates, mottled, dirt_mask, rubber_relief),
-    "cloth": (cloth, coordinates, mottled, dirty_flat, dirt_mask, cloth_relief),
+    "cloth": (cloth, coordinates, mottled, face_plane, face_joints, dirty_flat, dirt_mask, cloth_relief),
     "quilted": (quilted, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "pile": (pile, coordinates, dirty_flat, dirt_mask),
     "written": (written, coordinates, face_plane),
@@ -825,8 +895,12 @@ PARTS = {
     "ceramic": (ceramic, coordinates, lumpy_relief),
     "fiberglass": (fiberglass, coordinates),
     "grained_wood": (grained_wood, coordinates, dirty_flat, dirt_mask),
+    "mat": (mat, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
+    "strand_board": (strand_board, coordinates, face_plane, dirty_flat, dirt_mask),
+    "knit": (knit, coordinates, face_plane, dirty_flat, dirt_mask),
+    "hammered": (hammered, coordinates, dirty_flat, dirt_mask),
 }
-COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
+COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour", "print_colour")
 
 
 # A piece that does not say where its foot stands is taken to stand clear of any kick; a spec that does not say
@@ -851,8 +925,9 @@ def arguments(spec, wear, dirt, seed, foot=None):
 
         given["image"] = pf.Image(bpy.data.images.load(spec["image"], check_existing=True))
     wanted = inspect.signature(RECIPES[spec["recipe"]]).parameters
-    if "second" in wanted and wanted["second"].default is None and "second" not in given:
-        given["second"] = given["colour"]  # a mottled finish (mottled) whose spec names no second shade: its own
+    for name in ("second", "print_colour"):
+        if name in wanted and wanted[name].default is None and name not in given:
+            given[name] = given["colour"]  # a mottled or printed finish whose spec names no second shade: its own
     return {name: given[name] for name, about in wanted.items()
             if name in given or about.default is inspect.Parameter.empty}
 
