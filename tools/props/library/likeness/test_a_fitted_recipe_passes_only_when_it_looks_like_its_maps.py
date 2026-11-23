@@ -29,6 +29,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   contrast wants 3.97 / (0.3 x 3.97) = 3.33: contrast 1 and a second shade 3.33 x 3.97 under the mean, L 36.8; its
   ORM green stripes spread 0.0196, a roughness spread of 0.0196 / 0.3 = 0.0654; beside a flat recipe (L 50.03, so
   the colours shift by -0.03) the refinement doubles the shades' gap at contrast 1: L 49.97 - 2 x 13.24 = 23.5;
+- the disagreeing views' close detail 0.65 over the overview's 1.40 is 0.464, outside 0.8..1.25, so the cloth's
+  0.012 thread is refined by that, within the refinement's step of 2 either way: 0.012 / 2 = 0.006;
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
@@ -80,6 +82,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.spec_of: the darker second dropped (the smudged plastic's second L 46), or its roughness spread dropped
   (None: plastic's defaults without the setting), or measure.refined's second move dropped (its second L 36.8, the
   colours' shift alone).
+- fit.relief_side: READ_SIDE always (the 2 m tile's chequer averaged away, its roughness widened to 0.464).
+- measure.views_apart: None always (the disagreeing views' thread stays 0.012).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -170,6 +174,12 @@ def rusty(columns):
     return picture
 
 
+def both_views(detail):
+    """One view's measures with only its detail ratio off (its colour and highlight as the maps')."""
+    return {"delta_e": 0.0, "lightness": 0.0, "highlight": 0.0, "detail": detail, "map_lab": [50.0, 0.0, 0.0],
+            "recipe_lab": [50.0, 0.0, 0.0]}
+
+
 def under(normal):
     """A normal map whose blue is turned under its surface (z negative), its red and green as they were."""
     turned = normal.copy()
@@ -245,7 +255,7 @@ ROWS = [
     ("a dim highlight that lowering made dimmer: rougher, ranked by its one breach", "t_plastic_glossy_gray_a01",
      {"t_plastic_glossy_gray_a01_tile_alb.png": solid((119,) * 3),
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0))}, {"tile_metres": 1.0},
-     (stripes(109, 129), solid((119,) * 3), {"roughness": 0.5, "highlight": -2.0}),
+     (stripes(109, 129), solid((119,) * 3), {"earlier": {"roughness": 0.5, "highlight": -2.0}}),
      {"recipe": "plastic", "roughness": 0.4, "pass": False, "refined_roughness": 0.6, "ranking": (1, 1.0)}),
     ("an orange raised past the gamut keeps its hue", "m_opaque_metal_anodized_orange_a01", {},
      {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.8, 0.3, 0.05]}},
@@ -279,6 +289,11 @@ ROWS = [
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0)),
       "t_plastic_glossy_gray_a01_tile_nor.png": texel_tilts(0.2)}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "plastic", "roughness": 0.464}),
+    ("a large tile's relief is read texel by texel, its slopes not averaged away", "t_plastic_glossy_gray_a01",
+     {"t_plastic_glossy_gray_a01_tile_alb.png": solid((119,) * 3),
+      "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0)),
+      "t_plastic_glossy_gray_a01_tile_nor.png": texel_tilts(0.2)}, {"tile_metres": 2.0},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "plastic", "roughness": 0.4}),
     ("a flat ORM's chrome has no scratches", "T_Metal_Chrome_A",
      {"T_Metal_Chrome_A_Albedo_1.png": solid((119,) * 3), "T_Metal_Chrome_A_ORM_1.png": solid((255, 0, 255))},
      {"tile_metres": 1.0}, (solid((119,) * 3), solid((119,) * 3)), {"recipe": "polished_metal", "scratches": 0.0}),
@@ -309,6 +324,11 @@ ROWS = [
      {"maps": {"albedo": "albedo.png", "orm": "orm.png", "normal": "normal.png"}, "tile_metres": 0.064},
      (stripes(109, 129), solid((119,) * 3)),
      {"recipe": "chequer_plate", "relief": (0.016, 0.004, 0.064), "refined_bump": 0.004}),
+    ("views that disagree on detail: a finer pattern", "fabric_cotton_black_q01",
+     {"albedo.png": solid((119,) * 3), "normal.png": bumps(2.0, 16)},
+     {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
+     (solid((119,) * 3), solid((119,) * 3), {"views": {"overview": both_views(1.40), "close": both_views(0.65)}}),
+     {"recipe": "cloth", "relief": (0.012, 0.004, 0.064), "refined_size": 0.006}),
     ("a rusty chrome's rust is its wear", "m_opaque_metal_chrome_rusty_a01",
      {"albedo.png": rusty(19), "orm.png": solid((255, 102, 255))},
      {"maps": {"albedo": "albedo.png", "orm": "orm.png"}, "tile_metres": 1.0},
@@ -335,7 +355,8 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
     Image.fromarray(opaque(pictures[1])).save(tmp_path / "recipe.png")
     views = {"view": measure.view_measures(tmp_path / "map.png", tmp_path / "recipe.png")}
     verdict = measure.likeness(views, "algorithm/surface_recipes@1")
-    earlier = pictures[2] if len(pictures) > 2 else None
+    extra = pictures[2] if len(pictures) > 2 else {}
+    earlier = extra.get("earlier")
     answer = {"recipe": spec["recipe"], "family_from": made["family_from"], "colour": round(np.mean(spec["colour"]), 4),
               "roughness": round(spec["roughness"], 3), "metal": round(spec["metal"], 3) if "metal" in spec else None,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
@@ -346,5 +367,7 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "second_lightness": round(float(colour.lab(np.asarray(spec["second"]))[0]), 1),
               "refined_second_lightness": round(float(colour.lab(np.asarray(
                   measure.refined(spec, views)["second"]))[0]), 1), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
+              "refined_size": measure.refined(spec, extra.get("views", views)).get(
+                  fit.SIZE_SETTING.get(spec["recipe"], "")),
               "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

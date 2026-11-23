@@ -81,6 +81,11 @@ SIZE_RANGE = 4.0
 DARK_SHARE = 0.2
 # Maps are read averaged down to this many texels across: the swatch's pictures show nothing finer.
 READ_SIDE = 512
+# A normal map's relief is read finer where its tile is large: texels no wider than the close view's pixel (a 50 mm
+# lens at 0.36 m over 256 pixels, about 1 mm; at 512 texels a 1.37 m cloth's weave was averaged away before it was
+# read, 2026-11-23), at most RELIEF_READ_MAX across.
+CLOSE_PIXEL_METRES = 0.001
+RELIEF_READ_MAX = 2048
 # The high-pass's reach, a share of the map's width: relief wider than it is a tile's slow swell, not its relief.
 HIGH_PASS_SHARE = 1.0 / 8.0
 # A recipe's bump from the relief's height spread: its relief (noise - 0.5) * bump or a pattern * bump spreads about
@@ -272,7 +277,7 @@ def relief_statistics(path, tile_metres, normal_convention="opengl"):
     (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation); a DirectX map's green turned over to OpenGL's, its z
     rebuilt from its x and y (rebuilt); and the slope variance finer than the read (sub_texel_variance)."""
     full = rebuilt(pixels(path) * 2.0 - 1.0)
-    normal = shrunk(full, READ_SIDE)
+    normal = shrunk(full, relief_side(tile_metres))
     spread = sub_texel_variance(normal)
     normal = rebuilt(normal)
     if normal_convention == "directx":
@@ -285,6 +290,12 @@ def relief_statistics(path, tile_metres, normal_convention="opengl"):
             "slope_variance": spread,
             "slope_rms": float(np.sqrt(np.mean((normal[..., 0] ** 2 + normal[..., 1] ** 2) /
                                                np.maximum(normal[..., 2], FLAT_FLOOR) ** 2)))}
+
+
+def relief_side(tile_metres):
+    """The texels across a normal map's relief is read at: READ_SIDE, or finer to keep a texel within the close
+    view's pixel (CLOSE_PIXEL_METRES), at most RELIEF_READ_MAX."""
+    return int(min(RELIEF_READ_MAX, max(READ_SIDE, np.ceil(tile_metres / CLOSE_PIXEL_METRES))))
 
 
 def sub_texel_variance(averaged):

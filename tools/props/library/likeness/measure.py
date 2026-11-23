@@ -182,11 +182,21 @@ def shifted(linear_colour, shift):
     return [round(float(value), 5) for value in colour.linear_of_lab(moved)]
 
 
+def views_apart(views):
+    """The close view's detail ratio over the overview's when they disagree past the detail bounds' own width (one
+    view's fine detail short while the other's coarse detail is over: no amplitude can pass both), else None."""
+    if "close" not in views or "overview" not in views:
+        return None
+    apart = views["close"]["detail"] / max(views["overview"]["detail"], 1e-6)
+    return apart if not DETAIL_LOW <= apart <= DETAIL_HIGH else None
+
+
 def refined(spec, views, earlier=None):
     """The spec moved toward the maps' look from every view's measures: its colours by the mean Lab gap, its
     roughness by the highlight gap (roughness_step, from the `earlier` round's {"roughness", "highlight"} when there
     is one), its bump (grown no higher than RELIEF_ASPECT of its pattern size), contrast and scratches by the detail
-    ratio (a contrast already at 1 moving its second shade further off instead)."""
+    ratio (a contrast already at 1 moving its second shade further off instead); its pattern size by the close view's
+    detail over the overview's when they disagree (views_apart), its bump then by the close view's."""
     measures = list(views.values())
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
@@ -196,6 +206,13 @@ def refined(spec, views, earlier=None):
     step = roughness_step(spec["roughness"], highlight_of(views), earlier)
     moved["roughness"] = round(float(np.clip(spec["roughness"] + step, 0.0, 1.0)), 4)
     detail = float(np.mean([each["detail"] for each in measures]))
+    size_setting = fit.SIZE_SETTING.get(moved["recipe"])
+    apart = views_apart(views)
+    if apart is not None and size_setting in moved:
+        # The views disagree: the pattern's size is wrong, not its height. A close view short of the overview's
+        # detail wants a finer pattern; the height then follows the close view alone.
+        moved[size_setting] = round(float(moved[size_setting] * np.clip(apart, 1.0 / DETAIL_STEP, DETAIL_STEP)), 6)
+        detail = views["close"]["detail"]
     scale = float(np.clip(1.0 / max(detail, 1e-6), 1.0 / DETAIL_STEP, DETAIL_STEP))
     if "bump" in moved:
         grown = moved["bump"] * scale
