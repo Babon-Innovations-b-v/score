@@ -2173,10 +2173,10 @@ def view(folder, name, eye, aim, fov, cut=False):
 
 
 def remove(folder, name):
-    """The object (and its look), effect or light called `name` taken out of the scene, and out of place.json `cut`
-    and `backdrop`."""
+    """The object (and its look), effect, haze or light called `name` taken out of the scene, and out of place.json
+    `cut` and `backdrop`."""
     stage, place = opened(folder)
-    paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Effects", "Looks", "Lights")]
+    paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Effects", "Haze", "Looks", "Lights")]
     paths += [str(inside.GetPath()) for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
               if inside.GetName().startswith(f"{name}__")]
     found = [path for path in paths if stage.GetPrimAtPath(path)]
