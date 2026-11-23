@@ -69,7 +69,7 @@ def finish_split(truth, placed, made_faces, made_parts):
     owned, _ = rule.finishes_owned(area, finish, part_of)
     truth_area = _mesh.areas(truth["vertices"], truth["faces"])
     materials = np.bincount(np.asarray(truth["face_material"]), weights=truth_area)
-    parts = np.nonzero(table.sum(1) > 0)[0]
+    parts = np.nonzero(table.sum(1) >= rule.FINISH_LEAST * area.sum())[0]  # a part as a finish is counted: 1% up
     counted_materials = int((materials >= rule.FINISH_LEAST * materials.sum()).sum())
     return {"owned": round(len(owned) / max(len(counted), 1), 4),
             "held_mean": round(float(np.mean(held)), 4), "held_least": round(float(np.min(held)), 4),
