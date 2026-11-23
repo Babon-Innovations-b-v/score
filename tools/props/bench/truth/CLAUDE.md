@@ -5,7 +5,16 @@ docstring; callers import `from tools.props.bench import truth`, never `_pick` o
 
 - **The set is the rule's output, never hand-edited.** `python3 -m tools.props.bench.truth pick` runs #162's rule
   (`_pick.py`) on SCORE_LIB_ROOT and writes `data/checks/prop-bench-set.json` with the rule's words and the score_lib
-  commit. A changed rule or kind table is a change to `_pick.KINDS` and a new pick, recorded on #163.
+  commit. A changed rule or kind table is a change to `_pick.KINDS` and a new pick, recorded on #163. Run `pick` on a
+  detached score_lib checkout at the set's `score_lib_commit`, so the earlier picks stay as they were.
+- **Two named groups follow the rule's picks** (#159): `_pick.DETAILED`, the owner's detailed models (power tools,
+  hand tools, machines), each with its kind, all tune; and `_pick.PICTURED`, the 2099 cockpit cases with no NVIDIA
+  model, whose truth is their close-up and target size alone (measures' `pictured`). A case's close-up is a store
+  object (`python3 -m tools.props.bench.truth picture <png>` keeps it, its blob in the store bucket, and prints the
+  hash the table names); the repo holds only that hash, never the picture or a path on a disk.
+- **Maps are read where a triangle reads them** (`_look.texels` keeps a map as stored; `sampled` makes its few
+  texels floats and linear): the whole 4K map made float and linear first took the tool organizer cart's read past a
+  minute warm and its cold read (the fetch too) past tc4's launch limit (#159).
 - **The truth is in the measures' frame** (`../measures`): metres, Z up as NVIDIA authors it (a stage not Z up is
   `Unread`), instances flattened (`Usd.TraverseInstanceProxies`), each payload's variant enabled alone in the session
   layer (never the cached file). Its `box`, `colliders` and `friction` are the keys the measures read. The entry's USD files and its

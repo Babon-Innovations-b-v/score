@@ -30,6 +30,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182)
 - finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
   the listed roughness 0.4; its class not read -> the box's look has no class
+- A pictured case (#159, the cockpit row: no NVIDIA model) is rendered as its close-up kept in the store, keeps its own
+  material, and its made box at its target size is measured against that close-up and size alone:
+  bench.read_set reading it as a simready row -> it has no version and the set is not read; bench.render_one drawing
+  it as a truth -> Blender's stand-in is asked for it; bench.pictured_render keeping the picture's RGB alone -> its
+  rgba.png has no true alpha; bench.measure_all reading it as a truth -> its truth read is a gap and nothing is measured
 """
 import json
 import math
@@ -52,6 +57,8 @@ ROWS = [
     ("simready_storage_locker_double_bench_b01", "cabinet / locker", "metal", ([0.0, 0.0, 0.0], [0.5, 0.5, 1.9]),
      False, 1.0, "raw"),
     ("simready_box_cardboard_a02", "box", "cardboard", ([-0.3, -0.2, 0.0], [0.3, 0.2, 0.25]), False, 100.0, None),
+    ("cockpit_toggle_switch", "cockpit", "aluminium", ([-0.015, -0.016, 0.0], [0.015, 0.016, 0.036]), False, 1.0,
+     None),
 ]
 PIXELS = 64
 
@@ -209,6 +216,48 @@ def looked(tmp_path, name, view):
             int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size)
 
 
+def pictured_case(tmp_path, name, material, box):
+    """The cockpit row: its close-up (a red square, true alpha) kept in the store, rendered as its close-up, and a
+    made box at its target size measured against it (branch A's kept `finished`, no finish parts)."""
+    low, high = box
+    target = [round(value, 4) for value in np.subtract(high, low)]
+    picture = np.zeros((PIXELS, PIXELS, 4), np.uint8)
+    picture[16:48, 20:44] = (200, 0, 0, 255)
+    (tmp_path / "picture").mkdir()
+    Image.fromarray(picture, "RGBA").save(tmp_path / "picture" / "closeup.png")
+    bucket = FolderBucket(tmp_path / "bucket")
+    kept = bench.Kept(Store.in_folder(tmp_path / "store"), bucket, tmp_path / "index.json")
+    held = kept.store.put_tree(tmp_path / "picture")
+    case = {"id": name, "kind": "cockpit", "split": "tune", "withdrawn": [], "material": material, "made_before": [],
+            "picture": {"closeup": held, "size": target, "size_from": "a test", "words": "a toggle switch",
+                        "labels": ["ON"], "classes": ["metal"], "never": ["cloth"]}}
+    (tmp_path / "set.json").write_text(json.dumps({"objects": [case]}))
+    [row] = bench.read_set(tmp_path / "set.json")
+    assert (row["id"], row["address"], bench.material_for(row)) == (name, None, material)
+
+    def refused(*_):
+        raise AssertionError("a pictured case is never drawn")
+    bench.render_all([row], {}, kept, "trial", refused)
+    folder = kept.store.checkout(kept.entry(name, "input", "render")["output"])
+    given = json.loads((folder / "row.json").read_text())
+    assert (given["size"], given["words"], given["picture"]) == (target, "a toggle switch", held)
+    assert (np.asarray(Image.open(folder / "rgba.png"))[..., 3] == picture[..., 3]).all()
+    assert tuple(np.asarray(Image.open(folder / "closeup.png"))[2, 2]) == bench.BACKDROP
+    import trimesh
+    made = trimesh.creation.box(bounds=[low, high])
+    made.vertices = y_up(made.vertices)
+    (tmp_path / "finished").mkdir()
+    made.export(str(tmp_path / "finished" / "final.glb"))
+    kept.keep(name, "A", "finished", tmp_path / "finished", 0.0)
+    bench.measure_all([row], [row], kept, "trial")
+    record = json.loads((kept.store.checkout(kept.entry(name, "A", "measures")["output"]) /
+                         "measures.json").read_text())
+    rows = {item["measure"]: item for item in record["judged"]["rows"]}
+    assert record["truth"]["closeup"] == held and rows["size.size"]["value"] == 0.0, record["truth"]
+    assert {"shape.closeup", "clean.open_length", "clean.thinnest", "finish.edge_wander"} <= set(rows), rows
+    assert "labels.held" not in rows and "finish.picks" not in rows  # no finish parts: left out, never failed
+
+
 def drawer(scale):
     """A stand-in for Blender: the object a red square with its true alpha; its shadow a half-dark band below it."""
     def draw(_job_name, arguments, log):
@@ -234,6 +283,9 @@ def drawer(scale):
 @pytest.mark.parametrize("name, kind, material, box, flat, scale, failing", ROWS)
 def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, name, kind, material, box, flat, scale,
                                                          failing):
+    if kind == "cockpit":
+        pictured_case(tmp_path, name, material, box)
+        return
     set_file = tmp_path / "set.json"
     set_file.write_text(json.dumps({"objects": [{"address": f"model/{name}@1", "kind": kind, "split": "tune"}]}))
     [row] = bench.read_set(set_file)

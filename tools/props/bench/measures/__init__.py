@@ -14,7 +14,10 @@ asset it was made from, every measure a plain number, each judged at its bar.
     finish_likeness(looks)                            -> {"alike", "within_bounds", "same_family"}
     rested(truth_motion, truth_vertices, made_motion, made_vertices) -> {"rest_up", "rest_height"}
     step_change(truth, before, after)                 -> {"chamfer_change"}
-    judged(found)                                     -> {"rows": [{measure, value, bar, pass}], "pass", "failed"}
+    judged(found, bars=BARS)                          -> {"rows": [{measure, value, bar, pass}], "pass", "failed"}
+    pictured(target, made, fit=None, picture=None)    -> {"size", "shape", "clean", "finish", "labels"}: a model
+                                                          with no NVIDIA truth held to its close-up and target size
+                                                          alone (the 2099 cockpit cases, #159), at PICTURED_BARS
 
 `truth` and `made` are plain dicts, metres, Z up: {"vertices" (N, 3), "faces" (T, 3), "face_material" (T,) material
 or part per face, "box" (low, high), "mass" kg, "colliders" [{"vertices", "faces" or None}], "friction" static}; a
@@ -42,7 +45,7 @@ rested = _physics.rested
 # "near_one" |v - 1| <= bound, "times_truth_most" / "times_truth_least" against bound times the truth's own value
 # (its "truth_clean"), "least_or_truth" value >= the bound or the truth's own when lower, "plus_truth_most" value <=
 # the truth's own plus bound, "wall" value >= the model gate's least wall for the truth's size or bound times the
-# truth's own thinnest wall, whichever is less.
+# truth's own thinnest wall, whichever is less, "gate_wall" value >= the model gate's least wall for the target's size.
 BARS = (
     ("shape", "ring", "least", 0.75),
     ("shape", "input", "least", 0.90),
@@ -103,6 +106,33 @@ BARS = (
     ("drop", "rest_height", "most", 0.02),
 )
 
+
+# A model with no NVIDIA truth (`pictured`, #159: the 2099 cockpit cases) is held to its close-up and its target size
+# alone, so a bar never reads a truth's own value: its silhouette at the input view's bar (the close-up fitted outline,
+# not yet calibrated for a fitted camera), its size at the truth's bar, a made mesh with no open edge, crumb or bad face
+# and its largest piece at the truth path's own floor (0.99), none lowered by a truth's own value (NVIDIA's open,
+# many-pieced assets are why the truth's bars are relative), its wall the gate's least for its size, its finish edges
+# at the truth's absolute bars, every label of the close-up printed as a decal, and its finishes of the classes the
+# close-up shows and of no recipe it does not show (the 2099 palette's cloth on a toggle lever, rust on screen bezels).
+# The truth's relative bars (triangle density, flat share, swell, finish edge density) and its look and physics are
+# not judged: there is nothing to hold them to.
+PICTURED_BARS = (
+    ("shape", "closeup", "least", 0.90),
+    ("size", "size", "most", 0.05),
+    ("clean", "open_length", "most", 0.0),
+    ("clean", "largest_share", "least", 0.99),
+    ("clean", "crumbs", "most", 0),
+    ("clean", "non_manifold_edges", "most", 0),
+    ("clean", "wound_against", "most", 0),
+    ("clean", "degenerate_faces", "most", 0),
+    ("clean", "repeated_faces", "most", 0),
+    ("clean", "thinnest", "gate_wall", None),
+    ("finish", "edge_wander", "most", 0.001),
+    ("finish", "specks", "most", 8),
+    ("finish", "speck_share", "most", 0.0002),
+    ("finish", "picks", "least", 0.95),
+    ("labels", "held", "least", 1.0),
+)
 
 TWIN_REACH = 0.001  # metres two assets' boxes may differ by and still be one geometry (twin)
 
@@ -227,6 +257,55 @@ def measured(truth, made, others=(), input_view=None):
     return found
 
 
+def label_words(text):
+    """A label as compared: upper case, its runs of spaces one."""
+    return " ".join(str(text or "").upper().split())
+
+
+def labels(named, placed):
+    """{"held": the share of the close-up's `named` labels the made model prints as a decal (`placed`: its decals'
+    text), "missing", "placed"}."""
+    printed = {label_words(text) for text in placed}
+    missing = [label for label in named if label_words(label) not in printed]
+    return {"held": round(1 - len(missing) / len(named), 4), "missing": missing, "placed": sorted(printed)}
+
+
+def picks(made, classes, never):
+    """{"picks": the area share of the made faces whose part's class (`made["classes"]`) is one the close-up shows
+    (`classes`) and whose surface's recipe (`made["families"]`) is none it does not show (`never`), "wrong": each
+    part not held, its class, recipe and area share}."""
+    area = _mesh.areas(made["vertices"], made["faces"])
+    parts = np.asarray(made["face_material"])
+    held, wrong = 0.0, []
+    for part in np.unique(parts).tolist():
+        share = float(area[parts == part].sum() / area.sum())
+        kind, family = made["classes"].get(part), made["families"].get(part)
+        if kind in classes and family not in never:
+            held += share
+        else:
+            wrong.append({"part": part, "class": kind, "family": family, "share": round(share, 4)})
+    return {"picks": round(held, 4), "wrong": wrong}
+
+
+def pictured(target, made, fit=None, picture=None):
+    """Every measure of a made model with no NVIDIA truth (PICTURED_BARS): its box as laid against `target` (wide,
+    deep, tall metres: x, y, z), the close-up's silhouette `fit` (the IoU of its outline through the camera fitted on
+    the close-up, close_up_fit), its mesh's cleanliness, and where it has finish parts their edges and, given the case's
+    `picture` ({labels, classes, never}), its labels as decals (`made["decals"]`, their text) and its finish picks
+    (`made["classes"]`, `made["families"]`). A key the made side lacks leaves its measures out."""
+    made = arrays(made)
+    box = [[0.0, 0.0, 0.0], [float(side) for side in target]]
+    found = {"size": size({"box": box}, made), "shape": {} if fit is None else {"closeup": round(float(fit), 4)},
+             "clean": _clean.cleanliness(made["vertices"], made["faces"]), "truth_sides": list(box[1])}
+    if made.get("face_material") is not None:
+        found["finish"] = _edges.finish_edges(made["vertices"], made["faces"], seen_finishes(made))
+        if picture and made.get("classes") is not None:
+            found["finish"].update(picks(made, picture["classes"], picture["never"]))
+    if picture and picture["labels"] and made.get("decals") is not None:
+        found["labels"] = labels(picture["labels"], made["decals"])
+    return found
+
+
 def step_change(truth, before, after):
     """{"chamfer_change"}: the two-way mean distance between one step's model and the step's before it, both as
     laid, over the truth's diagonal (closing and cutting must not move the shape)."""
@@ -246,22 +325,25 @@ def held(test, value, bound, truth_value, sides):
         bound = truth_value + bound
     elif test == "wall":
         bound = min(model_gate().least_wall(sides), bound * truth_value)
+    elif test == "gate_wall":
+        bound = model_gate().least_wall(sides)
     if test == "true":
         return bool(value), True
     if test == "ratio":
         return max(value, 1 / value) <= bound if value > 0 else False, bound
     if test == "near_one":
         return abs(value - 1) <= bound, bound
-    if test in ("least", "least_or_truth", "times_truth_least", "wall"):
+    if test in ("least", "least_or_truth", "times_truth_least", "wall", "gate_wall"):
         return value >= bound, bound
     return value <= bound, bound
 
 
-def judged(found):
-    """Each measure present in `found` (measured's, with any "likeness", "drop" and "steps" groups the runner adds)
-    against its bar: {"rows": [{"measure", "value", "bar", "pass"}], "pass": every row held, "failed": names}."""
+def judged(found, bars=BARS):
+    """Each measure present in `found` (measured's, with any "likeness", "drop" and "steps" groups the runner adds;
+    or pictured's at PICTURED_BARS) against its bar: {"rows": [{"measure", "value", "bar", "pass"}], "pass": every row
+    held, "failed": names}."""
     rows = []
-    for group, measure, test, bound in BARS:
+    for group, measure, test, bound in bars:
         if measure not in found.get(group, {}):
             continue
         value = found[group][measure]

@@ -27,6 +27,9 @@ authored Z-up in centimetres, and a dozen records for the rule. Its model, worke
   box_blue_a01 at its newest version 2; bigbox (no word start), carton (no word), box_old (withdrawn) and
   box_cls (first class crate) never match. The desk kind: desk_a01 is the overlap target (old_desk_1 withdrawn into
   it), so desk_a02 (11fb, its stem) is skipped and desk_oak_a01 (208f) picked.
+- The named groups (#159), the fixture's own tables: the detailed machine kind names box_flat_a01 (no kind took it:
+  tune) and box_blue_a01 (the box kind took it: not repeated); the pictured dial case keeps its id, its material, its
+  2099 make and the palette's never-picks, with no address.
 
 Breaks (each applied once, seen red, reverted), in `_read.py` and `_pick.py`: the stage's metersPerUnit ignored (box,
 volume, colliders), `TraverseInstanceProxies` dropped (box, volume, materials: the shell is not read), the winding
@@ -35,8 +38,9 @@ preferred (mass), the friction not weighted by collider volume (friction), the p
 MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton (colliders), a joint's localRot0 or its body0's transform not applied, or its face's body not walked up its path
 (joints), the salt changed (box
 picks), the stem skip dropped (box picks), a surface's `painted_for` tag not read (one model), the newest version not taken (box picks), the overlap targets' stems
-not taken first (desk picks); in `_look.py` the sRGB map not made linear, v not turned up (the bottom row read) and
-the class not read from the material's name (looks).
+not taken first (desk picks), the detailed skip of an id the rule took dropped (detailed picks), the never-picks not
+given a pictured case (pictured cases); in `_look.py` the sRGB map not made linear, v not turned up (the bottom row
+read) and the class not read from the material's name (looks).
 """
 import json
 import pathlib
@@ -257,6 +261,11 @@ def made(tmp_path_factory):
     patch.setenv("SCORE_LIB_ROOT", str(root))
     patch.setenv("SCORE_LIB_FILES", str(files))
     found = truth.read("model/simready_shell_a01@1")
+    from tools.props.bench.truth import _pick
+    patch.setattr(_pick, "DETAILED", {"simready_box_flat_a01": "machine", "simready_box_blue_a01": "machine"})
+    patch.setattr(_pick, "PICTURED", {"dial": ("metal", ["model/dial_1@1"], {
+        "closeup": "c0ffee", "size": [0.05, 0.02, 0.05], "size_from": "a test", "words": "a dial", "labels": ["ON"],
+        "classes": ["metal"]})})
     picks = truth.picked(root, "abc")["objects"]
     patch.undo()
     return found, picks
@@ -323,6 +332,11 @@ ROWS = [
       ("box_red_a01@1", "held-out", []), ("box_tiny_a01@1", "held-out", [])]),
     ("desk picks", lambda found, picks: picks_of(picks, "desk / table / bench") + picks_of(picks, "overlap"),
      [("desk_oak_a01@1", "tune", []), ("desk_a01@1", "tune", ["model/old_desk_1@1"])]),
+    ("detailed picks", lambda found, picks: picks_of(picks, "machine"), [("box_flat_a01@1", "tune", [])]),
+    ("pictured cases", lambda found, picks: [(item["id"], "address" in item, item["split"], item["material"],
+                                              item["made_before"], item["picture"]["never"])
+                                             for item in picks if item["kind"] == "cockpit"],
+     [("cockpit_dial", False, "tune", "metal", ["model/dial_1@1"], ["cloth", "beta_cloth", "rusted_metal"])]),
 ]
 
 

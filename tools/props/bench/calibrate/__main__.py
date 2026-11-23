@@ -42,7 +42,8 @@ def stored(folder):
 
 
 def run(arguments):
-    objects = bench_truth.the_set()["objects"]
+    # a pictured case (#159: no NVIDIA model, no address) has no truth to calibrate on
+    objects = [item for item in bench_truth.the_set()["objects"] if "address" in item]
     chosen = [item for item in objects if not arguments.only
               or item["address"].split("/", 1)[1].split("@")[0].removeprefix("simready_") in arguments.only
               or item["address"].split("/", 1)[1].split("@")[0] in arguments.only]

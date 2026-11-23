@@ -52,6 +52,11 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   `type_held`, `axis_most` (as lines), `pivot_most` (a hinge's pivot off NVIDIA's hinge line, over the diagonal),
   `range_most` (its open span against NVIDIA's). Its bars are design bars until the calibration pass reads the tune
   split's jointed truths; the made side's `face_part` and `joints` come from branch B's `parts` step.
+- **A model with no NVIDIA truth** (`pictured`, `PICTURED_BARS`; #159: the 2099 cockpit cases) is held to its
+  close-up and target size alone: the IoU of its outline through the camera fitted on the close-up (close_up_fit,
+  the runner's), its box against the target, no open edge, crumb or bad face (its largest piece 0.99), the gate's wall at the
+  target, its finish edges at the truth's absolute bars, every label of the close-up printed as a decal, its finishes
+  of the classes the close-up shows and of no recipe it does not (`never`). The truth-relative bars are not judged.
 - Not measured yet: self-intersecting faces (no free exact test at a million faces); the route's own checks
   (straight.py, the model gate's pass, sausage and lump) run in the calibration pass, not here.
 - Check: `test_a_made_model_passes_only_where_it_matches_its_truth.py`, one table of made models against one small

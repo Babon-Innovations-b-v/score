@@ -9,7 +9,11 @@ step's output kept as a run-store object whose blobs go to the SCORE store bucke
     ... bench.py index --run <id>        # the run's index stored as an object; its hash
 
 **The set** (data/checks/prop-bench-set.json, the truth step's): {"objects": [{"address", "kind", "split"}]} (or a
-list, or {"assets": [...]}; an "id" and "version" in place of the address, `simready_` added when missing).
+list, or {"assets": [...]}; an "id" and "version" in place of the address, `simready_` added when missing). A pictured
+case (#159: the 2099 cockpit cases, `picture`, no NVIDIA model) has its "id" and no address: its `render` is its
+close-up as kept in the store (`picture.closeup`), its row its words and target size, and its `measures` hold each
+made model to that close-up and size alone (measures.pictured at PICTURED_BARS: the close-up's silhouette through the
+camera fitted on it, close_up_fit), as are the 2099 session's own makes of it (`made_before`, branch `old`).
 
 **The material class** both routes are given (sim.py's classes, NVIDIA's table in data/physics/surface_classes.json;
 `make --material`, the class of whatever no finish names) is what a placing agent reads off the words: the first class a word of the entry's id names (CLASS_WORDS),
@@ -128,6 +132,9 @@ def read_set(path):
     rows = (found.get("objects") or found.get("assets")) if isinstance(found, dict) else found
     listed = []
     for row in rows:
+        if row.get("picture"):
+            listed.append({**row, "address": None})
+            continue
         if "address" not in row:
             entry = row["id"] if row["id"].startswith("simready_") else f"simready_{row['id']}"
             row = {**row, "address": f"model/{entry}@{row['version']}"}
@@ -276,6 +283,23 @@ def render_asset(row, values, scratch, out, draw=queued_blender):
     shutil.copyfile(drawn / "report.json", out / "report.json")
     given = {"id": row["id"], "address": row["address"], "words": words_of(record),
              "size": [round(side, 4) for side in size], "lies_flat": check.lies_flat(size), "camera": job["camera"]}
+    (out / "row.json").write_text(json.dumps(given, indent=1))
+    return given
+
+
+def pictured_render(row, kept, out):
+    """A pictured case's close-up (its `picture.closeup` store output, closeup.png) kept as its render: rgba.png (the
+    picture as cut out), closeup.png (on the light grey BACKDROP) and row.json (its words and target size); its row."""
+    picture = row["picture"]
+    folder = kept.store.checkout(picture["closeup"])
+    out.mkdir(parents=True, exist_ok=True)
+    from PIL import Image
+    with Image.open(folder / "closeup.png") as found:
+        found.convert("RGBA").save(out / "rgba.png")
+    on_backdrop(out / "rgba.png", out / "closeup.png")
+    size = [float(side) for side in picture["size"]]
+    given = {"id": row["id"], "address": None, "words": picture["words"], "size": size,
+             "lies_flat": check.lies_flat(size), "camera": None, "picture": picture["closeup"]}
     (out / "row.json").write_text(json.dumps(given, indent=1))
     return given
 
@@ -799,6 +823,13 @@ def made_side(model, physics, finished=None, take=None, parts=None):
 def old_side(address):
     """A withdrawn model of score_lib as a side, at the size it was laid at: its USD root (the record's, else its one
     USD file) when it has one, else its glTF; its own physics is not read."""
+    kind, path = old_model(address)
+    return usd_side(path) if kind == "usd" else gltf_side(path)
+
+
+def old_model(address):
+    """("usd", its USD root) of a model of score_lib (the record's root, else its one USD file), else ("gltf", its
+    glTF), its files fetched."""
     import library_files
     from score import library
     kind, rest = address.split("/", 1)
@@ -809,11 +840,11 @@ def old_side(address):
     stages = [name for name, info in record["files"].items() if info.get("role") == "usd"]
     root = (record.get("usd") or {}).get("root") or (stages[0] if len(stages) == 1 else None)
     if root in files:
-        return usd_side(files[root])
+        return "usd", files[root]
     named = [name for name in files if name.endswith((".gltf", ".glb"))]
     if not named:
         raise StepFailed(f"{address}: no USD root and no glTF among its files")
-    return gltf_side(files[named[0]])
+    return "gltf", files[named[0]]
 
 
 def written_measures(folder, truth, side, others, made):
@@ -849,15 +880,84 @@ def old_step(address, truth, others):
     return make
 
 
+def pictured_side(model, finished=None, take=None):
+    """A made model of a pictured case as a side (measures.pictured's): its glTF faces in their glTF materials, or,
+    with its finish step's folder, in its finish parts with each part's class (`classes`), surface recipe
+    (`families`) and the text of each decal the finish printed on it (`decals`). A part list whose faces are not the
+    model's fails."""
+    side = gltf_side(model)
+    if finished is None:
+        return side
+    part_of, surfaces = finish.face_finishes(finished, take)
+    if len(part_of) != len(side["faces"]):
+        raise StepFailed(f"the finish's parts name {len(part_of)} faces, the model has {len(side['faces'])}")
+    looks = finish.part_looks(finished, take)
+    placed = json.loads((finished / "surfaces-parts" / "parts.json").read_text())["takes"][take].get("decals", [])
+    return {**side, "face_material": np.asarray(part_of, dtype=np.int32), "surfaces": surfaces, "looks": looks,
+            "classes": {part: look["class"] for part, look in looks.items()},
+            "families": {part: finish.family_of(address) for part, address in surfaces.items()},
+            "decals": [decal["text"] for decal in placed if decal.get("text")]}
+
+
+def pictured_measures(folder, row, given, model, side, made):
+    """measures.json of a pictured case's made model: the camera fitted from its outline on the close-up (camera.json
+    beside it, its fit the silhouette), every pictured measure and its judgement at PICTURED_BARS."""
+    from tools.props.bench import calibrate, measures
+    picture = row["picture"]
+    fitted = json.loads(finish.fitted_camera(model, given / "rgba.png", {**row, "size": picture["size"]},
+                                             folder).read_text())["fitted"]
+    found = measures.pictured(picture["size"], side, fitted["fit"], picture)
+    record = {"truth": {"closeup": picture["closeup"], "size": picture["size"], "size_from": picture["size_from"]},
+              "made": made, "found": found, "judged": measures.judged(found, measures.PICTURED_BARS)}
+    (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
+
+
+def measure_pictured(row, kept, scratch):
+    """A pictured case's made models (each branch's, its finish parts where kept; the 2099 session's own makes,
+    branch `old`) held to its kept close-up and target size; its close-up not kept is its gap on branch `truth`."""
+    asset = row["id"]
+    if not kept_output(kept, asset, "input", "render"):
+        kept.gap(asset, "truth", "read", "StepFailed: no close-up kept (run render first)")
+        return
+    _, given = given_row(kept, asset, scratch)
+
+    def branch_step(branch):
+        def make(folder):
+            (step, name), _ = MEASURED[branch]
+            model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
+            done = FINISHED.get(branch)
+            parted = checked_out(kept, asset, branch, done, scratch / branch / f"kept-{done}") \
+                if done and kept_output(kept, asset, branch, done) else None
+            pictured_measures(folder, row, given, model, pictured_side(model, parted, asset), f"{branch} {step}")
+        return make
+
+    def old_step_of(address):
+        def make(folder):
+            kind, model = old_model(address)
+            if kind != "gltf":
+                raise StepFailed(f"{address}: a USD model; its outline is fitted on glTF alone")
+            pictured_measures(folder, row, given, model, gltf_side(model), address)
+        return make
+
+    for branch in MEASURED:
+        if kept_output(kept, asset, branch, MEASURED[branch][0][0]):
+            run_steps(kept, asset, branch, [("measures", branch_step(branch))], scratch)
+    for address in row.get("made_before") or []:
+        run_steps(kept, asset, "old", [(address.split("/", 1)[1], old_step_of(address))], scratch)
+
+
 def measure_all(rows, every, kept, run):
     """Each asset's made models (both branches, and the withdrawn ones an overlap target replaced) measured against
     its truth; `every` (the whole set) gives the kind's other assets, laid like it for the rank. Kept as the
     `measures` step of A and B, and as branch `old`, one step a withdrawn model; a truth that cannot be read is the
-    asset's gap on branch `truth`."""
+    asset's gap on branch `truth`. A pictured case is held to its close-up and target size (measure_pictured)."""
     from tools.props.bench import truth as bench_truth
     for row in rows:
         scratch = job_scratch(run, f"{row['id']}-measures")
         try:
+            if row.get("picture"):
+                measure_pictured(row, kept, scratch)
+                continue
             try:
                 truth = bench_truth.read(row["address"])
                 others = [{**bench_truth.read(mate["address"]), "id": mate["address"]} for mate in every
@@ -910,6 +1010,10 @@ def render_one(row, values, kept, run, draw=queued_blender):
     """One asset's close-up kept as its `render` step (branch "input"), its scratch emptied after."""
     scratch = job_scratch(run, row["id"])
     try:
+        if row.get("picture"):
+            run_steps(kept, row["id"], "input", [("render", lambda folder: pictured_render(row, kept, folder))],
+                      scratch)
+            return
         run_steps(kept, row["id"], "input", [("render", lambda folder: render_asset(row, values, scratch / "work",
                                                                                      folder, draw))], scratch)
     finally:

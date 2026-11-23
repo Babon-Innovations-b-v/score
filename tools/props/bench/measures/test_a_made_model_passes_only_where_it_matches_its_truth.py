@@ -1,9 +1,12 @@
 """The bench's measures pass a made model only where it matches its NVIDIA truth (#163): one table of made models
 against one small truth (a 0.5 x 0.4 x 0.8 m box, its top one material and its sides another, 10 kg, its hull its
 collider, static friction 0.5), each row the one bar a known fault must break, or a known-small error must keep.
-The answers are worked by hand: a box laid on its side or leaning 8 degrees is 90 or 8 degrees off up, 10% wider is
-a size error of 0.10, a cylinder in the box's place is nearer the kind's cylinder, a 1 mm shell's wall is 1 mm, a
-hull grown 3 cm stands 3 cm out, and so on.
+The pictured rows (#159: a model with no NVIDIA truth, the 2099 cockpit cases) hold the same box made at its target
+size to PICTURED_BARS: its close-up outline fit, its target, a closed one-piece mesh, the gate's least wall (3 mm at
+its size), its labels ON and OFF as decals, its sides metal paint and its top its pick (the top is 0.2 of its 1.84 m2,
+so a wrong top holds 0.89 of its area). The answers are worked by hand: a box laid on its side or leaning 8 degrees
+is 90 or 8 degrees off up, 10% wider is a size error of 0.10, a cylinder in the box's place is nearer the kind's
+cylinder, a 1 mm shell's wall is 1 mm, a hull grown 3 cm stands 3 cm out, and so on.
 
 Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _align.aligned keeping the first axis turn (none) and dropping ICP's: the box laid on its side passes up.
@@ -55,6 +58,11 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   -> no moving part passes; line_angle as a signed angle -> NVIDIA's -z against the made +z fails its axis (180);
   off_line the distance between pivots (along the axis too) -> the door's pivot 0.4 m up its hinge line fails;
   range_gap on the upper limits alone -> the door opening 0 to 90 against -90 to 0 fails.
+- __init__.pictured judging its size against the target's proportions: the pictured box 20% too big passes its size.
+- __init__.held taking gate_wall's bound as 0: the pictured 1 mm shell passes its wall.
+- __init__.label_words keeping case and spaces: the labels printed "on" and "OFF " miss two.
+- __init__.picks reading the class alone: the rusted metal top passes its picks.
+- __init__.picks counting every part held: the cloth top passes its picks.
 """
 import functools
 import pathlib
@@ -334,6 +342,18 @@ def leaning(degrees):
     return (trimesh.transformations.rotation_matrix(np.radians(degrees), (1, 0, 0))[:3, :3] @ [0, 0, 1]).tolist()
 
 
+PICTURE = {"labels": ["ON", "OFF"], "classes": ["metal", "plastic"], "never": ["cloth", "rusted_metal"]}
+
+
+def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), material=None):
+    """(the made box's pictured measures against SIDES as its target and PICTURE, PICTURED_BARS): its sides part 0 in
+    metal paint, its top part 1 of `top` (class, recipe), its decals' text `decals`."""
+    parts = top_material(mesh) if material is None else material
+    made = {**side(mesh, parts), "classes": {0: "metal", 1: top[0]}, "families": {0: "paint", 1: top[1]},
+            "decals": list(decals)}
+    return measures.pictured(SIDES, made, fit, PICTURE), measures.PICTURED_BARS
+
+
 CASES = [
     ("the truth itself", lambda: made(box()), None, True),
     ("the door cut and hung as NVIDIA's", lambda: hung(whole=True), None, True),
@@ -409,12 +429,28 @@ CASES = [
     ("a step that flattened it by 10%", lambda: flattened(0.1), "steps.chamfer_change", False),
     ("the drop that laid it on its side", lambda: dropped(90), "drop.rest_up", False),
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),
+    ("pictured: the box as its close-up shows it", lambda: pictured(box()), None, True),
+    ("pictured: its outline off the close-up", lambda: pictured(box(), fit=0.8), "shape.closeup", False),
+    ("pictured: 20% too big all round", lambda: pictured(box((0.6, 0.48, 0.96))), "size.size", False),
+    ("pictured: 4% wider", lambda: pictured(box((0.52, 0.4, 0.8))), "size.size", True),
+    ("pictured: the box missing a face", lambda: pictured(missing_face()), "clean.open_length", False),
+    ("pictured: a 1 cm floater", lambda: pictured(with_floater()), "clean.crumbs", False),
+    ("pictured: a 1 mm shell", lambda: pictured(shell(), material=np.zeros(len(shell().faces), int)),
+     "clean.thinnest", False),
+    ("pictured: the slant given triangle by triangle", lambda: pictured(uneven(), material=slant(uneven())),
+     "finish.edge_wander", False),
+    ("pictured: its OFF label not printed", lambda: pictured(box(), decals=("ON",)), "labels.held", False),
+    ("pictured: its labels printed on and OFF", lambda: pictured(box(), decals=("on", "OFF ")), "labels.held",
+     True),
+    ("pictured: a cloth top", lambda: pictured(box(), top=("fabric", "cloth")), "finish.picks", False),
+    ("pictured: a rusted metal top", lambda: pictured(box(), top=("metal", "rusted_metal")), "finish.picks", False),
 ]
 
 
 @pytest.mark.parametrize("name, found, measure, holds", CASES, ids=[case[0] for case in CASES])
 def test_a_made_model_passes_only_where_it_matches_its_truth(name, found, measure, holds):
-    verdict = measures.judged(found())
+    found = found()
+    verdict = measures.judged(*found) if isinstance(found, tuple) else measures.judged(found)
     if measure is None:
         assert verdict["pass"] is holds, (name, verdict["failed"])
         return

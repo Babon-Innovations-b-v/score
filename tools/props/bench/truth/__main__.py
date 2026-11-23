@@ -1,8 +1,12 @@
-"""The truth's command line (see `__init__.py`): `pick` writes the set file, `read <address>` prints one summary line."""
+"""The truth's command line (see `__init__.py`): `pick` writes the set file, `read <address>` prints one summary line,
+`picture <png>` keeps a pictured case's close-up as a store object (its blob in the store bucket), printing its hash."""
 import argparse
 import json
+import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 
 from score import library
 from tools.props.bench import truth
@@ -31,15 +35,32 @@ def summary(address):
           f"{len(found['bodies'])} bodies, colliders {hulls}")
 
 
+def picture(path):
+    """The close-up kept as a store output holding `closeup.png`, its blob sent to the store bucket; its hash."""
+    from score.store import Store, offload
+    offload.install()
+    store, bucket = Store.default(), offload.open_bucket()
+    with tempfile.TemporaryDirectory() as folder:
+        shutil.copyfile(path, pathlib.Path(folder) / "closeup.png")
+        output = store.put_tree(folder)
+    for sha in sorted(set(store.listing(output).values())):
+        offload.push(store.objects.path(f"blobs/{sha}"), sha, bucket)
+    print(output)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python3 -m tools.props.bench.truth")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("pick")
     one = commands.add_parser("read")
     one.add_argument("address")
+    kept = commands.add_parser("picture")
+    kept.add_argument("png")
     args = parser.parse_args(argv)
     if args.command == "pick":
         pick()
+    elif args.command == "picture":
+        picture(args.png)
     else:
         summary(args.address)
 

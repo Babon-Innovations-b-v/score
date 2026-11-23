@@ -47,6 +47,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
 - **The close-up look** is the prop route's (tools/props/closeup/check.py: TURN_DEGREES, LOOK_DOWN_DEGREES,
   `look_down`, `lies_flat`); change it there, never here. Front is the asset's -y side; a flat row is seen from
   straight above with +y up.
+- **A pictured case** (a set row with `picture` and no address, #159) is not drawn: its `render` is its close-up
+  checked out of the store, and `measure` holds each branch's model, and the 2099 session's own makes of it
+  (`made_before`, branch `old`), to that close-up and its target size (measures.pictured).
 - Test: `test_every_asset_is_framed_whole_and_every_step_kept.py` (a stand-in for Blender, a small USD box, a store and
   a bucket in folders, the box again as a Y-up glb and a Y-up stage, and through the finish on a three-surface library
   with a stand-in list).
