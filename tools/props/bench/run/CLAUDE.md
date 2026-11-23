@@ -20,10 +20,13 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   it are not run; a step the index holds is never run again, so a stopped run is taken up with the same `--run`.
 - **The material class is the route's, never the truth's** (`material_for`: a word of the id, else the kind's
   class), the same for both branches; the truth's physics material is what the measures compare it with.
+- **The measures read every side in the truth's frame** (`measure`: glTF's Y up and a Y-up stage turned to Z up by
+  `Y_UP`, metres), the made model's physics from its own physics step, the withdrawn models of an overlap target at
+  the size they were laid at; `measures.json` keeps `found` whole so a recalibrated bar re-judges a kept run.
 - **Read a made model as the gate does** (`mesh_of`: welded across UV seams). Unwelded, TRELLIS.2's crate split into
   thousands of pieces and the gate's piece count took 40 GB (2026-11-23).
 - **The close-up look** is the prop route's (tools/props/closeup/check.py: TURN_DEGREES, LOOK_DOWN_DEGREES,
   `look_down`, `lies_flat`); change it there, never here. Front is the asset's -y side; a flat row is seen from
   straight above with +y up.
 - Test: `test_every_asset_is_framed_whole_and_every_step_kept.py` (a stand-in for Blender, a small USD box, a store and
-  a bucket in folders).
+  a bucket in folders, the box again as a Y-up glb and a Y-up stage).

@@ -1,7 +1,8 @@
 """The benchmark's close-up frames each asset whole in the close-up style (turned and looking down, or straight above
 when it lies flat), lays it on the grey backdrop while its RGBA keeps the true alpha, refuses a render whose box
 slipped, gives both routes the material class its words or its kind name, and keeps every route step as a store object with its blobs in the bucket: a failing step is its branch's
-gap, the steps after it are not run, and a run taken up again runs no kept step twice.
+gap, the steps after it are not run, and a run taken up again runs no kept step twice; a made model (glTF, Y up) and a
+withdrawn one (a Y-up stage) are measured in the truth's frame, metres Z up.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.view_of: MARGIN left out of `reach` -> the box's outermost corner lands on the frame's edge, not inside it
@@ -12,6 +13,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.Kept.keep: the bucket push dropped -> the step's blobs are not in the bucket
 - bench.run_steps: the gap's `return` dropped -> the step after a failing one runs
 - bench.run_steps: a kept step not skipped -> taking the run up again makes the raw model twice
+- bench.Y_UP the identity (glTF's Y up read as Z up) -> the made box comes back lying on its side
+- bench.usd_side: a Y-up stage not turned -> the withdrawn model's box comes back lying on its side
 """
 import json
 import math
@@ -50,14 +53,23 @@ def projected(view, point):
     return offset @ right / depth / half, offset @ up / depth / half
 
 
-def usd_box(path, low, high):
-    """A Z-up stage in metres holding one box mesh from `low` to `high`."""
+def y_up(points):
+    """Z-up points in a Y-up frame (x across, y up, z toward the viewer), worked out here, apart from bench."""
+    points = np.asarray(points, dtype=float)
+    return np.stack([points[:, 0], points[:, 2], -points[:, 1]], 1)
+
+
+def usd_box(path, low, high, up="z"):
+    """A stage in metres holding one box mesh from `low` to `high` (Z up): a Z-up stage, or a Y-up one (`up` "y")
+    holding the same box in its own axes."""
     from pxr import Usd, UsdGeom
     stage = Usd.Stage.CreateNew(str(path))
-    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z if up == "z" else UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     mesh = UsdGeom.Mesh.Define(stage, "/box")
-    mesh.CreatePointsAttr([(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    stage.SetDefaultPrim(mesh.GetPrim())
+    corners = np.array([(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    mesh.CreatePointsAttr([tuple(point) for point in (corners if up == "z" else y_up(corners))])
     mesh.CreateFaceVertexCountsAttr([4] * 6)
     mesh.CreateFaceVertexIndicesAttr([0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3])
     stage.Save()
@@ -94,6 +106,14 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     assert (row["id"], bench.material_for(row)) == (name, material)
     low, high = box
     usd_box(tmp_path / f"{name}.usda", low, high)
+
+    import trimesh  # a made model as a route writes one: glTF, Y up; and a withdrawn one on a Y-up stage
+    made = trimesh.creation.box(bounds=[low, high])
+    made.vertices = y_up(made.vertices)
+    made.export(str(tmp_path / "made.glb"))
+    usd_box(tmp_path / "old.usda", low, high, up="y")
+    for side in (bench.gltf_side(tmp_path / "made.glb"), bench.usd_side(tmp_path / "old.usda")):
+        assert np.allclose(side["box"], [low, high], atol=1e-6), side["box"]
     monkeypatch.setattr(bench, "fetched", lambda address, values, into: (
         {"title": name, "tags": {"description": ["a thing"]}}, tmp_path / f"{name}.usda"))
     monkeypatch.setattr(bench, "SIZE", PIXELS)

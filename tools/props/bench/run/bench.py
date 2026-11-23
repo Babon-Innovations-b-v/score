@@ -5,6 +5,7 @@ step's output kept as a run-store object whose blobs go to the SCORE store bucke
     PROPS_HOME=~/.score-this-pc SCORE_CLOUD=local SCORE_FREE_ONLY=1 .venv/bin/python tools/props/bench/run/bench.py \
         render <set.json> --library <scratch score_lib checkout> [--run <id>] [--only <id> ...]
     ... bench.py route <set.json> --library <...> --run <id> --branch A|B [--only <id> ...]
+    ... bench.py measure <set.json> --library <...> --run <id> [--only <id> ...]
     ... bench.py index --run <id>        # the run's index stored as an object; its hash
 
 **The set** (data/checks/prop-bench-set.json, the truth step's): {"objects": [{"address", "kind", "split"}]} (or a
@@ -37,6 +38,13 @@ kept, and the branch's later steps are not run for it (one try each: no step is 
   scratch place folder: `raw` (trellis.glb), `final` (set at the size, its paint graded), `sim` (CoACD hulls and
   mass), then `straight` and `gate` on the final model.
 Nothing is taken into score_lib, and the library read is a scratch checkout (--library), never the shared one.
+
+**The measures** (`measure`, free, this PC's processor): each branch's made model (A's finished final.glb, B's final
+model) read in the truth's frame (glTF's Y up turned to Z up), its mass, colliders and friction from its physics step
+(A's physics, B's sim), held to its truth (tools/props/bench/truth) by tools/props/bench/measures, the kind's other set
+assets laid like it for the rank: kept as the branch's `measures` step, measures.json {truth, made, found, judged},
+`found` whole so a later bar re-judges it. An overlap target's withdrawn models (the old models of score_lib it
+replaced) are measured the same way at the size they were laid at, branch `old`, one step each (its address).
 
 The run's index (<PROPS_HOME>/bench/<run>/index.json, rewritten whole after every step) names each output's hash; a
 step already in it is not run again, so a run stopped part way goes on where it stopped.
@@ -553,6 +561,155 @@ def branch_b(kept, row, material, rgba, scratch):
                   scratch)
 
 
+# --- the measures: each made model held to its truth (tools/props/bench/measures) ------------------------------------
+
+# Row vectors from a Y-up frame (glTF's, a Y-up stage's: x across, y up, z toward the viewer) to the measures' Z up.
+Y_UP = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
+# Each branch's model and physics: (the step and file of its model, the step of its physics).
+MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.glb"), "sim")}
+
+
+def side_of(vertices, faces, face_material=None):
+    """A side as the measures read one: metres, Z up, its box (low, high)."""
+    vertices = np.asarray(vertices, dtype=float)
+    return {"vertices": vertices, "faces": np.asarray(faces, dtype=np.int64), "face_material": face_material,
+            "box": [vertices.min(0).tolist(), vertices.max(0).tolist()]}
+
+
+def gltf_meshes(path):
+    """A glTF or glb file's meshes placed in the world by its nodes, each turned from glTF's Y up to Z up."""
+    import trimesh
+    scene = trimesh.load(str(path), force="scene")
+    return [(np.asarray(mesh.vertices, dtype=float) @ Y_UP, np.asarray(mesh.faces), mesh)
+            for mesh in scene.dump(concatenate=False) if len(mesh.faces)]
+
+
+def gltf_side(path):
+    """A glTF or glb model as a side: its meshes joined, each triangle's material an index by its material's name."""
+    vertices, faces, materials, names, offset = [], [], [], {}, 0
+    for points, triangles, mesh in gltf_meshes(path):
+        name = getattr(getattr(mesh.visual, "material", None), "name", None) or ""
+        vertices.append(points)
+        faces.append(triangles + offset)
+        materials.append(np.full(len(triangles), names.setdefault(name, len(names)), dtype=np.int32))
+        offset += len(points)
+    return side_of(np.concatenate(vertices), np.concatenate(faces), np.concatenate(materials))
+
+
+def usd_side(path):
+    """A USD model as a side (the truth reader's mesh walk, its stage turned to Z up when it is Y up): each triangle's
+    material its bound material's index."""
+    from pxr import Usd, UsdGeom
+    from tools.props.bench.truth import _read
+    stage = Usd.Stage.Open(str(path))
+    turn = np.eye(4) * UsdGeom.GetStageMetersPerUnit(stage)
+    if str(UsdGeom.GetStageUpAxis(stage)).upper() == "Y":
+        turn[:3, :3] = turn[:3, :3] @ Y_UP
+    turn[3, 3] = 1.0
+    vertices, faces, face_material, materials, offset = [], [], [], [], 0
+    for prim in Usd.PrimRange(stage.GetDefaultPrim(), Usd.TraverseInstanceProxies()):
+        if not _read.shown(prim):
+            continue
+        points, matrix = _read.placed_points(prim, turn)
+        triangles, polygon = _read.triangles(prim, matrix)
+        count = len(UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get() or [])
+        vertices.append(points)
+        faces.append(triangles + offset)
+        face_material.append(_read.polygon_materials(prim, count, materials)[polygon])
+        offset += len(points)
+    if not vertices:
+        raise StepFailed(f"{path}: no drawn mesh")
+    return side_of(np.concatenate(vertices), np.concatenate(faces), np.concatenate(face_material))
+
+
+def colliders_of(path):
+    """A collider file's hulls, each {vertices, faces}, Z up."""
+    return [{"vertices": points, "faces": triangles} for points, triangles, _ in gltf_meshes(path)]
+
+
+def made_side(model, physics):
+    """A branch's made model as a side, its mass, colliders and friction from its physics step's folder (A: the
+    physics layer's physics.json and hull.glb; B: make's made.json and hulls.glb). Its finish is not split yet (the
+    finish route is not run), so its face materials are left out."""
+    side = {**gltf_side(model), "face_material": None}
+    if (physics / "physics.json").is_file():
+        found, hulls = json.loads((physics / "physics.json").read_text()), physics / "hull.glb"
+    else:
+        found, hulls = json.loads((physics / "made.json").read_text())["physics"], physics / "hulls.glb"
+    return {**side, "mass": found.get("mass_kg"), "colliders": colliders_of(hulls), "friction": found.get("static")}
+
+
+def old_side(address):
+    """A withdrawn model of score_lib as a side, at the size it was laid at: its USD root (the record's, else its one
+    USD file) when it has one, else its glTF; its own physics is not read."""
+    import library_files
+    from score import library
+    kind, rest = address.split("/", 1)
+    entry_id, version = rest.split("@")
+    record = library.entry(library.root_from_environment(), kind, entry_id, int(version))
+    files = {name: library_files.resolve(library_files.reference(address, name))
+             for name, info in record["files"].items() if info.get("role") in ("usd", "gltf", "texture")}
+    stages = [name for name, info in record["files"].items() if info.get("role") == "usd"]
+    root = (record.get("usd") or {}).get("root") or (stages[0] if len(stages) == 1 else None)
+    if root in files:
+        return usd_side(files[root])
+    named = [name for name in files if name.endswith((".gltf", ".glb"))]
+    if not named:
+        raise StepFailed(f"{address}: no USD root and no glTF among its files")
+    return gltf_side(files[named[0]])
+
+
+def written_measures(folder, truth, side, others, made):
+    """measures.json: what was measured, every measure (measures.measured) and its judgement at today's bars."""
+    from tools.props.bench import calibrate, measures
+    found = measures.measured(truth, side, others=others)
+    record = {"truth": truth["address"], "made": made, "found": found, "judged": measures.judged(found)}
+    (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
+
+
+def measure_step(kept, asset, branch, truth, others, scratch):
+    """The branch's made model and its physics read back from the store and measured against the truth."""
+    def make(folder):
+        (step, name), physics = MEASURED[branch]
+        model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
+        held = checked_out(kept, asset, branch, physics, scratch / branch / f"kept-{physics}")
+        written_measures(folder, truth, made_side(model, held), others, f"{branch} {step}")
+    return make
+
+
+def old_step(address, truth, others):
+    def make(folder):
+        written_measures(folder, truth, old_side(address), others, address)
+    return make
+
+
+def measure_all(rows, every, kept, run):
+    """Each asset's made models (both branches, and the withdrawn ones an overlap target replaced) measured against
+    its truth; `every` (the whole set) gives the kind's other assets, laid like it for the rank. Kept as the
+    `measures` step of A and B, and as branch `old`, one step a withdrawn model; a truth that cannot be read is the
+    asset's gap on branch `truth`."""
+    from tools.props.bench import truth as bench_truth
+    for row in rows:
+        scratch = job_scratch(run, f"{row['id']}-measures")
+        try:
+            try:
+                truth = bench_truth.read(row["address"])
+                others = [{**bench_truth.read(mate["address"]), "id": mate["address"]} for mate in every
+                          if mate["kind"] == row["kind"] and mate["address"] != row["address"]]
+            except Exception as why:  # the asset's gap, its reason kept; the other assets are still measured
+                kept.gap(row["id"], "truth", "read", f"{type(why).__name__}: {why}")
+                continue
+            for branch in MEASURED:
+                if kept_output(kept, row["id"], branch, MEASURED[branch][0][0]):
+                    run_steps(kept, row["id"], branch,
+                              [("measures", measure_step(kept, row["id"], branch, truth, others, scratch))], scratch)
+            for address in row.get("withdrawn") or []:
+                run_steps(kept, row["id"], "old", [(address.split("/", 1)[1], old_step(address, truth, others))],
+                          scratch)
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+
 # --- the commands ----------------------------------------------------------------------------------------------------
 
 def props_home():
@@ -639,7 +796,7 @@ def stored_index(kept):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("command", choices=("render", "route", "index"))
+    parser.add_argument("command", choices=("render", "route", "measure", "index"))
     parser.add_argument("set", nargs="?")
     parser.add_argument("--library", help="a scratch score_lib checkout (git worktree add --detach)")
     parser.add_argument("--run", default=datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S"))
@@ -649,13 +806,16 @@ def main():
     kept = opened_kept(options.run)
     if options.command != "index":
         if not options.set or not options.library:
-            raise SystemExit("render and route need the set file and --library")
+            raise SystemExit("render, route and measure need the set file and --library")
         values = library_values(options.library)
         os.environ["SCORE_LIB_ROOT"] = values["SCORE_LIB_ROOT"]  # every library read of the steps: the scratch one
-        rows = chosen(read_set(options.set), options.only)
+        every = read_set(options.set)
+        rows = chosen(every, options.only)
         kept.index.setdefault("set", str(options.set))
         if options.command == "render":
             render_all(rows, values, kept, options.run)
+        elif options.command == "measure":
+            measure_all(rows, every, kept, options.run)
         elif not options.branch:
             raise SystemExit("route needs --branch A or B")
         else:
