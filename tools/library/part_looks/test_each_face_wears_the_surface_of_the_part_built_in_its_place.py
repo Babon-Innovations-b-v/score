@@ -1,10 +1,14 @@
 """part_looks: each face of a remade model wears the library surface of the part its old builder laid in that place,
-the glowing parts' faces taken from the glow file, and a model whose triangles lie off its rebuild, or number other
-than it, is refused, never guessed.
+the glowing parts' faces taken from the glow file, a face the old export cut into triangles otherwise than Blender
+does now still told by its part, and a model whose triangles lie off its rebuild, cover its faces otherwise, or
+number other than it, is refused, never guessed.
 
 Breaks (each applied once, seen red, reverted), in part_looks.py: parts_by_order without the glowing parts put after
 the rest (the glow case's faces wear the wrong parts); TOLERANCE raised to 0.01 (the 1 mm case is made, not refused);
-refinished binding every subset to the first look (a face wears another part's surface); refinished leaving the baked
+runs_of giving each triangle a run of its own, not its part's stretch (the square's triangles no longer have its
+border, so the made cases are refused); faces_off without its edge_balance check (the square's one half twice is
+made); refinished binding every subset to the
+first look (a face wears another part's surface); refinished leaving the baked
 look and `st` on (the atlas is still there); library_place returning the model's own place, not its surface data's
 `library` (the flat's models finished in a place the old library does not hold).
 """
@@ -48,26 +52,35 @@ def triangle_at(x):
     return [[x, 0.0, 0.0], [x + 0.1, 0.0, 0.0], [x, 0.1, 0.0]]
 
 
-# Built in the old join's order: flange, dome (glowing), body, flange again.
-BUILT_ORDER = [0, 1, 2, 0]
-BUILT = [triangle_at(x) for x in (0.0, 1.0, 2.0, 3.0)]
-# The model's files: the rest in order, then the glowing ones in the glow file.
-MODEL = [BUILT[0], BUILT[2], BUILT[3]]
-GLOW = [BUILT[1]]
+QUAD = [[2.0, 0.0, 0.0], [2.1, 0.0, 0.0], [2.1, 0.1, 0.0], [2.0, 0.1, 0.0]]  # the body's one face, a square
+# Built in the old join's order: flange, dome (glowing), body (its square in two triangles), flange again.
+BUILT_ORDER = [0, 1, 2, 2, 0]
+BUILT_POLYGONS = [0, 1, 2, 2, 3]
+OUTLINES = [triangle_at(0.0), triangle_at(1.0), QUAD, triangle_at(3.0)]
+# The body's square as the model may hold it: cut as built, cut along the other diagonal, or one half twice.
+BODY = {"as built": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[2], QUAD[3]]],
+        "the other diagonal": [[QUAD[1], QUAD[3], QUAD[0]], [QUAD[1], QUAD[2], QUAD[3]]],
+        "one half twice": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[1], QUAD[2]]]}
 
 
 # The old surface data: the name the old library knew each place by.
 LIBRARY_PLACES = {"flat": "prologue_flat", "airlock": "airlock"}
 
 
-@pytest.mark.parametrize("case, place, shift, glow, wanted", [
-    ("exact", "flat", 0.0, True, [["flange", "body", "flange"], ["dome"]]),
-    ("off by 0.05 mm, within", "airlock", 5e-5, True, [["flange", "body", "flange"], ["dome"]]),
-    ("off by 1 mm", "flat", 1e-3, True, "lie off"),
-    ("no glow file for a glowing part", "airlock", 0.0, False, "triangles"),
-    ("a place the old surface data does not name", "nowhere", 0.0, True, "no surface data"),
+MADE = [["flange", "body", "body", "flange"], ["dome"]]
+
+
+@pytest.mark.parametrize("case, place, body, shift, glow, wanted", [
+    ("exact", "flat", "as built", 0.0, True, MADE),
+    ("off by 0.05 mm, within", "airlock", "as built", 5e-5, True, MADE),
+    ("a square cut along its other diagonal", "flat", "the other diagonal", 0.0, True, MADE),
+    ("off by 1 mm", "flat", "as built", 1e-3, True, "lie off"),
+    ("a square's one half twice, the other uncovered", "airlock", "one half twice", 0.0, True, "not covered"),
+    ("no glow file for a glowing part", "airlock", "as built", 0.0, False, "triangles"),
+    ("a place the old surface data does not name", "nowhere", "as built", 0.0, True, "no surface data"),
 ])
-def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, case, place, shift, glow, wanted):
+def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, case, place, body, shift, glow,
+                                                                    wanted):
     surfaces = tmp_path / "data/surfaces"
     surfaces.mkdir(parents=True)
     for name, library in LIBRARY_PLACES.items():
@@ -78,17 +91,16 @@ def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, ca
         return
     assert part_looks.library_place(tmp_path, place) == LIBRARY_PLACES[place], case
     model = [[[value + (shift if axis == 1 else 0.0) for axis, value in enumerate(corner)] for corner in triangle]
-             for triangle in MODEL]
-    stages = [baked(tmp_path, "model", model)] + ([baked(tmp_path, "model_glow", GLOW)] if glow else [])
+             for triangle in [triangle_at(0.0), *BODY[body], triangle_at(3.0)]]
+    stages = [baked(tmp_path, "model", model)] + ([baked(tmp_path, "model_glow", [triangle_at(1.0)])] if glow else [])
     counts = [len(part_looks.mesh_of(stage).GetFaceVertexCountsAttr().Get()) for stage in stages]
-    points = np.vstack([part_looks.triangle_middles(part_looks.mesh_of(stage)) for stage in stages])
-    answer = {"parts": PARTS, "order": BUILT_ORDER,
-              "middles": [np.mean(triangle, axis=0).tolist() for triangle in BUILT]}
+    triangles = np.vstack([part_looks.triangle_corners(part_looks.mesh_of(stage)) for stage in stages])
+    answer = {"parts": PARTS, "order": BUILT_ORDER, "polygons": BUILT_POLYGONS, "outlines": OUTLINES}
     if isinstance(wanted, str):
         with pytest.raises(part_looks.Refused, match=wanted):
-            part_looks.parts_by_order(answer, counts, lambda surface: surface == "led_amber", points)
+            part_looks.parts_by_order(answer, counts, lambda surface: surface == "led_amber", triangles)
         return
-    by_file, _ = part_looks.parts_by_order(answer, counts, lambda surface: surface == "led_amber", points)
+    by_file, _ = part_looks.parts_by_order(answer, counts, lambda surface: surface == "led_amber", triangles)
     worn = []
     for stage, faces in zip(stages, by_file):
         part_looks.refinished(stage, [tuple(part) for part in PARTS], faces, SPECS, SURFACES)

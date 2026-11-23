@@ -9,8 +9,10 @@ made again as its next version:
   normals and collision hull as they are), the shared atlas's material, maps and texture coordinates taken off;
 - every face told which part of its old builder it is: the builder at the models' commit (`OLD_COMMIT`, read with
   `git archive`) built again in Blender (rebuild.py), its size fitted to the model's box, and its triangles taken in
-  the order the old join laid them (the glowing parts' into the glow file), each checked to lie within TOLERANCE of
-  the model's triangle in the same place; an entry where any does not is refused, never guessed;
+  the order the old join laid them (the glowing parts' into the glow file), each of the model's checked to lie on the
+  corners of the face built in its place and the face's triangles to cover it, within TOLERANCE (how a face of more
+  than three corners is cut into triangles is Blender's choice, and the old export cut some otherwise); an entry
+  where any does not is refused, never guessed;
 - each part a GeomSubset (`materialBind`) bound to a look of the library surface its builder named
   (map/parts.json, recovered by `recover`): the library's recipe entry (`score:surface`, surface/<recipe>@<newest>)
   in the variant's own settings and the colour of its token in its place, as the old library at OLD_COMMIT resolved it
@@ -50,7 +52,7 @@ MAKER = "framework_models"  # their provenance's maker
 MAP = HERE / "map" / "parts.json"
 REBUILD = HERE / "rebuild.py"
 BLENDER = "5.2.2"
-TOLERANCE = 1e-4  # metres a model's triangle middle may lie from its twin built again
+TOLERANCE = 1e-4  # metres a model's triangle corner may lie from its face's built again
 GLOWING_FAMILIES = ("screen", "light")  # the old library's families split into a glow file (build_only.GLOWING)
 FILES = ("model.usdc", "model_glow.usdc")
 RECORD = "model.json"
@@ -228,15 +230,15 @@ def mesh_of(stage):
     return mesh
 
 
-def triangle_middles(mesh):
-    """Each face's middle; Refused for a mesh not all triangles (the bake wrote triangles, one a face)."""
+def triangle_corners(mesh):
+    """Each face's three corners; Refused for a mesh not all triangles (the bake wrote triangles, one a face)."""
     points = np.array(mesh.GetPointsAttr().Get(), dtype=np.float64)
     counts = np.array(mesh.GetFaceVertexCountsAttr().Get(), dtype=np.int64)
     indices = np.array(mesh.GetFaceVertexIndicesAttr().Get(), dtype=np.int64)
     if not (counts == 3).all():
         raise Refused(f"{mesh.GetPath()}: faces of {sorted(set(counts.tolist()) - {3})} corners, not the bake's "
                       "triangles")
-    return points[indices.reshape(-1, 3)].mean(axis=1)
+    return points[indices.reshape(-1, 3)]
 
 
 def job_of(name, builder, laid, stages):
@@ -246,22 +248,83 @@ def job_of(name, builder, laid, stages):
             "box": [every.min(axis=0).tolist(), every.max(axis=0).tolist()]}
 
 
-def parts_by_order(answer, counts, glows, points):
+def runs_of(parts):
+    """Each triangle's run: the serial of the stretch of triangles in turn that one part laid."""
+    parts = np.asarray(parts)
+    return np.concatenate([[0], np.cumsum(parts[1:] != parts[:-1])]).astype(np.int64)
+
+
+def on_a_face(triangles, faces, outlines):
+    """(each triangle's farthest corner from the corners of the one of `faces` it lies on best, that face, and each
+    of its corners' nearest corner of that face)."""
+    best = np.full(len(triangles), np.inf)
+    face = np.zeros(len(triangles), dtype=np.int64)
+    nearest = np.zeros((len(triangles), 3), dtype=np.int64)
+    for serial in faces:
+        corners = np.asarray(outlines[serial], dtype=np.float64)
+        apart = np.linalg.norm(triangles[:, :, None, :] - corners[None, None], axis=3)
+        off = apart.min(axis=2).max(axis=1)
+        better = off < best
+        best[better], face[better], nearest[better] = off[better], serial, apart[better].argmin(axis=2)
+    return best, face, nearest
+
+
+def edge_balance(loops):
+    """{(low, high): count} of the edges round `loops` (each a list of corner ids in turn), one way counted +1 and
+    the other -1, the edges a surface's own triangles share cancelling, so only its border stays."""
+    found = {}
+    for loop in loops:
+        for start, end in zip(loop, loop[1:] + loop[:1]):
+            if start != end:
+                key = (min(start, end), max(start, end))
+                found[key] = found.get(key, 0) + (1 if start < end else -1)
+    return {key: count for key, count in found.items() if count}
+
+
+def faces_off(triangles, polygons, parts, outlines):
+    """(each triangle's farthest corner from the face it lies on, and the runs whose faces the model's triangles do
+    not cover once): the model's triangles in place of the built ones, run by run, a run the triangles in turn one
+    part laid. Blender cuts a face of more than three corners into triangles its own way, and the old export cut some
+    of the old builders' n-gons otherwise than Blender does now (another cut of a ring's face, its triangles in
+    another order), so a triangle is checked to lie on the corners of one of its run's faces within TOLERANCE, and a
+    run's triangles to have the border its faces have (each face covered once, the same way round): which part a
+    triangle is stays certain, the very triangle built is not asked for."""
+    runs = runs_of(parts)
+    near = np.zeros(len(triangles))
+    uncovered = []
+    for run in range(int(runs.max()) + 1 if len(runs) else 0):
+        inside = np.flatnonzero(runs == run)
+        faces = np.unique(polygons[inside])
+        near[inside], face, nearest = on_a_face(triangles[inside], faces, outlines)
+        ids = {}
+        built = [[ids.setdefault(tuple(corner), len(ids)) for corner in outlines[serial]] for serial in faces]
+        laid = [[ids[tuple(outlines[serial][index])] for index in corners]
+                for serial, corners in zip(face.tolist(), nearest.tolist())]
+        if edge_balance(built) != edge_balance(laid):
+            uncovered.append(run)
+    return near, uncovered
+
+
+def parts_by_order(answer, counts, glows, triangles):
     """Each file's triangles' part index: the built triangles in the old join's order, the glowing parts' after the
-    rest (into the glow file, as the old bake split them), each checked within TOLERANCE of the model's; Refused
-    when the counts or any triangle differ."""
+    rest (into the glow file, as the old bake split them), the model's lying on the corners of the faces the same
+    part laid in their place and covering them (faces_off) within TOLERANCE; Refused when the counts or any triangle differ."""
     order = np.array(answer["order"], dtype=np.int64)
-    middles = np.array(answer["middles"], dtype=np.float64)
     shining = np.isin(order, [index for index, (_, surface) in enumerate(answer["parts"]) if glows(surface)])
     built = [int((~shining).sum()), int(shining.sum())]
     if built != (list(counts) + [0])[:2]:
         raise Refused(f"built again it has {built[0]} triangles and {built[1]} glowing, the model's files "
                       f"{list(counts)}")
     sequence = np.concatenate([np.flatnonzero(~shining), np.flatnonzero(shining)])
-    off = np.linalg.norm(middles[sequence] - np.asarray(points), axis=1)
+    off, uncovered = faces_off(np.asarray(triangles, dtype=np.float64),
+                               np.array(answer["polygons"], dtype=np.int64)[sequence], order[sequence],
+                               answer["outlines"])
     if off.max() > TOLERANCE:
         raise Refused(f"built again, {int((off > TOLERANCE).sum())} of its {len(off)} triangles lie off the model's "
                       f"(the farthest {off.max() * 1000:.2f} mm; {TOLERANCE * 1000:.1f} mm allowed)")
+    if uncovered:
+        raise Refused(f"built again, {len(uncovered)} of its parts' stretches of faces are not covered once by the "
+                      "model's triangles in their place")
     taken = order[sequence]
     return [taken[:counts[0]], *([taken[counts[0]:]] if len(counts) > 1 else [])], float(off.max())
 
@@ -364,11 +427,12 @@ def remade(address, record, model, answer, library, tree, into):
     held = [name for name in FILES if name in record["files"]]
     stages = [Usd.Stage.Open(str(file_path(address, name))) for name in held]
     counts = [len(mesh_of(stage).GetFaceVertexCountsAttr().Get()) for stage in stages]
-    points = np.vstack([triangle_middles(mesh_of(stage)) for stage in stages])
+    triangles = np.vstack([triangle_corners(mesh_of(stage)) for stage in stages])
     parts = [tuple(part) for part in answer["parts"]]
     builder = builder_of(model["kind"], record["provenance"].get("place", ""))
     mapped_parts(builder, [list(part) for part in parts])
-    by_file, farthest = parts_by_order(answer, counts, lambda surface: glowing(library, surface), points)
+    by_file, farthest = parts_by_order(answer, counts, lambda surface: glowing(library, surface),
+                                         triangles)
     place = library_place(tree, record["provenance"]["place"])
     specs = {surface: variant_spec(library, tree, place, surface) for _, surface in parts}
     surfaces = newest_surfaces(specs)

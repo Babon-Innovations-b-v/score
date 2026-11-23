@@ -6,8 +6,9 @@ twentieth of the texel density, so 1,137 models drew a median 37% of their surfa
 `part_looks.py`'s docstring has the method and the command line.
 
 - **Geometry is kept exactly**; only the finish changes. Which part a face is comes from its old builder built again
-  at the models' commit (`rebuild.py`, in Blender) and its triangles taken in the old join's order, each within
-  TOLERANCE of the model's. An entry that does not match is refused and named in the report, never guessed and never
+  at the models' commit (`rebuild.py`, in Blender) and its triangles taken in the old join's order, each of the
+  model's lying on the corners of the face built in its place and covering it, within TOLERANCE (an n-gon's cut into
+  triangles is Blender's choice, so the face is compared, not the triangle). An entry that does not match is refused and named in the report, never guessed and never
   matched looser.
 - **The part-to-surface map is data** (`map/parts.json`), recovered from every builder at 4547b8c54 by `recover`; a
   remake refuses a part the map does not list. Rerun `recover` only if OLD_COMMIT changes.
