@@ -52,6 +52,7 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   hue dropped (the warm plastic's colour its diffuse 0.8).
 - fit.described: PACKED_ROLES' split dropped (the packed row has no albedo: KeyError), or statistics' alpha read
   dropped (its roughness USD's 0.5).
+- fit.rebuilt: the map's own blue kept (the turned-under row's slopes over FLAT_FLOOR: its relief far too high).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -124,6 +125,13 @@ def lightness_hue(linear):
     """A linear colour's CIE lightness and hue angle (degrees), rounded."""
     lab = colour.lab(np.asarray(linear, dtype=float))
     return round(float(lab[0]), 1), float(round(np.degrees(np.arctan2(lab[2], lab[1]))))
+
+
+def under(normal):
+    """A normal map whose blue is turned under its surface (z negative), its red and green as they were."""
+    turned = normal.copy()
+    turned[..., 2] = 255 - turned[..., 2]
+    return turned
 
 
 def opaque(pixels):
@@ -216,6 +224,10 @@ ROWS = [
      {"maps": {"albedo_roughness": "albedo_roughness.png"}, "tile_metres": 1.0, "constants": {"metallic": 1.0}},
      (solid((119,) * 3), solid((119,) * 3)),
      {"recipe": "polished_metal", "colour": 0.1845, "roughness": 0.2, "metal": 1.0}),
+    ("a normal map whose blue points into the surface reads by its slopes", "t_concrete_bare_a01",
+     {"colour.jpg": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": under(bumps(2.0, 16))},
+     {"tile_metres": 0.064}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "concrete", "relief": (0.012, 0.004, 0.064)}),
 ]
 
 

@@ -225,10 +225,19 @@ def constant_statistics(linear_colour):
     return {"lab": lab, "dark_lab": lab, "lightness_spread": 0.0}
 
 
+def rebuilt(normal):
+    """A tangent-space normal's z made again from its x and y, as a two-channel (BC5) normal is read: a map whose blue
+    is not its z (three SimReady metals' blue fell to 0.24, pointing into the surface, 2026-11-23) reads as its slopes
+    say."""
+    normal[..., 2] = np.sqrt(np.clip(1.0 - normal[..., 0] ** 2 - normal[..., 1] ** 2, 0.0, 1.0))
+    return normal
+
+
 def relief_statistics(path, tile_metres, normal_convention="opengl"):
     """The normal map's relief: its height field's high-passed spread (rms, metres) and its features' size in metres
-    (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation); a DirectX map's green turned over to OpenGL's."""
-    normal = shrunk(pixels(path), READ_SIDE) * 2.0 - 1.0
+    (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation); a DirectX map's green turned over to OpenGL's, its z
+    rebuilt from its x and y (rebuilt)."""
+    normal = rebuilt(shrunk(pixels(path), READ_SIDE) * 2.0 - 1.0)
     if normal_convention == "directx":
         normal[..., 1] = -normal[..., 1]
     metres_a_texel = tile_metres / normal.shape[1]

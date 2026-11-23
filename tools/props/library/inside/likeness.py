@@ -55,19 +55,37 @@ def image_node(tree, path, data):
     return node
 
 
+def math_node(tree, operation, first, second=None):
+    """A math node `operation` of its inputs (a socket or a number each)."""
+    node = tree.nodes.new("ShaderNodeMath")
+    node.operation = operation
+    for slot, value in ((0, first), (1, second)):
+        if value is None:
+            continue
+        if isinstance(value, (int, float)):
+            node.inputs[slot].default_value = float(value)
+        else:
+            tree.links.new(value, node.inputs[slot])
+    return node.outputs["Value"]
+
+
 def normal_colour(tree, maps, convention):
-    """The normal map's colour as Blender's (OpenGL's) tangent space reads it: a DirectX map's green turned over."""
+    """The normal map's colour as Blender's (OpenGL's) tangent space reads it: a DirectX map's green turned over, its
+    blue made again from its red and green (z = sqrt(1 - x^2 - y^2), as fit.rebuilt reads it: a map whose blue is not
+    its z rendered black, pointing into the surface)."""
     colour = image_node(tree, maps["normal"], True).outputs["Color"]
-    if convention != "directx":
-        return colour
     split, joined = tree.nodes.new("ShaderNodeSeparateColor"), tree.nodes.new("ShaderNodeCombineColor")
-    turned = tree.nodes.new("ShaderNodeMath")
-    turned.operation = "SUBTRACT"
-    turned.inputs[0].default_value = 1.0
     tree.links.new(colour, split.inputs["Color"])
-    tree.links.new(split.outputs["Green"], turned.inputs[1])
-    for channel, socket in (("Red", split.outputs["Red"]), ("Green", turned.outputs["Value"]),
-                            ("Blue", split.outputs["Blue"])):
+    green = split.outputs["Green"]
+    if convention == "directx":
+        green = math_node(tree, "SUBTRACT", 1.0, green)
+    squares = [math_node(tree, "POWER", math_node(tree, "SUBTRACT", math_node(tree, "MULTIPLY", channel, 2.0), 1.0),
+                         2.0) for channel in (split.outputs["Red"], green)]
+    left = math_node(tree, "MAXIMUM", math_node(tree, "SUBTRACT", math_node(tree, "SUBTRACT", 1.0, squares[0]),
+                                                squares[1]), 0.0)
+    blue = math_node(tree, "MULTIPLY_ADD", math_node(tree, "SQRT", left), 0.5)
+    blue.node.inputs[2].default_value = 0.5
+    for channel, socket in (("Red", split.outputs["Red"]), ("Green", green), ("Blue", blue)):
         tree.links.new(socket, joined.inputs[channel])
     return joined.outputs["Color"]
 
