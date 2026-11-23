@@ -76,8 +76,10 @@ its own token, roughness and metal:
 {surfaces}
 The palette tokens:
 {tokens}
-Choose by what the part is and how such a part is made, then by its colour. Only when no library surface fits with
-any settings, set "fits" to false and propose a new library surface. Wear is the scene's level ({wear}). A finish
+Choose by what the part is and how such a part is made, then by its colour: each surface's recipe is how it is
+painted, so a part painted or coated (paint, enamel, powder coat, lacquer) takes a surface of a painted recipe, and a
+bare metal recipe is only for metal left bare. Only when no library surface fits with any settings, set "fits" to
+false and propose a new library surface. Wear is the scene's level ({wear}). A finish
 takes another of the library's wear levels ({levels}) only where the pictures show a cause for it, such as a walked
 path, worn edges or the ground round a door: then set "wear" to that level and say the cause in "wear_cause"; else
 leave both out.
@@ -96,11 +98,19 @@ def palette_tokens(palette):
 
 
 def surface_lines(surfaces):
-    """Each surface as a line: its code, part_judge's words for it, its token, roughness and metal."""
+    """Each surface as a line: its code, part_judge's words for it, its recipe, its token, roughness and metal. With no
+    recipe named, the desk's "silver powder-coated steel" frame took "powder midgloss gray", whose recipe is
+    bare_metal (tc3s, #159): the recipe says how a surface is painted."""
     import part_judge
     words = part_judge.material_lines(surfaces).splitlines()
-    return "\n".join(f"{line}; token {spec.get('token')}, roughness {spec.get('roughness', 0.5):.2f}, metal "
-                     f"{spec.get('metal', 0.0):.2f}" for line, spec in zip(words, surfaces.values()))
+    return "\n".join(f"{line}{recipe_words(spec)}; token {spec.get('token')}, roughness "
+                     f"{spec.get('roughness', 0.5):.2f}, metal {spec.get('metal', 0.0):.2f}"
+                     for line, spec in zip(words, surfaces.values()))
+
+
+def recipe_words(spec):
+    """", recipe <recipe>" for a surface whose spec names its recipe, else nothing."""
+    return f", recipe {spec['recipe'].replace('_', ' ')}" if spec.get("recipe") else ""
 
 
 def token_lines(tokens):

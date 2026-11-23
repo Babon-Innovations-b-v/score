@@ -473,6 +473,13 @@ tests it turned red:
   (a missing drawn picture baked); route_parts.py ink_pixels `& (spans[:, 1] <= LETTER_WIDEST * spans[:, 0])`
   dropped (a line's end read as a letter); ink_extent `counts >= counts.max() / 2` -> `counts >= 0` (a line spans the
   words beside it)
+- The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
+  every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
+  finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
+  finish.get("printed"):` -> `if False:` (the sign's lettering took the plate's black, CHECKED); in_close_up_order `or
+  lit_own(lighter, every)` dropped (the toaster's steel moved by the order, IN_ORDER); LIGHT_LIFT 22 -> 1000 (a black
+  token seen grey kept, CHECKED); route_parts.py printed_finishes `dict(finish, printed=True)` -> `finish` (the print
+  finish unmarked, text_marks_held); route_list.py recipe_words -> `""` (the surfaces offered without their recipe)
 """
 import contextlib
 import copy
@@ -2250,6 +2257,10 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                                          if token in PALETTE["tokens"]], offered["token"]
     assert len(offered["surface"]["enum"]) == len(route_list.palette_library.take_surfaces(
         {"kind": "two_boxes"}, palette)) and "Wear is the scene's level (worked)" in question
+    # each surface offered with the recipe it is painted as (the desk's powder coat listed as bare metal, tc3s)
+    recipes = [spec["recipe"].replace("_", " ") for spec in route_list.palette_library.take_surfaces(
+        {"kind": "two_boxes"}, palette).values()]
+    assert [line.split(", recipe ")[-1].split(";")[0] for line in question.splitlines() if "; token " in line] == recipes
     assert "token tarp" not in question and "token sign-red" in question
     own = json.loads((rows["finish-route-list"] / "questions.json").read_text())["own_wear"]
     assert len(own) == 2 and "worn (walked path" in own[0], own
@@ -2599,6 +2610,9 @@ def text_marks_held():
         ("text", "EXIT", None, None, "its typeface look 'stencil' is none the library has a face for"),
         ("text", "EXIT", None, None, "a text or line mark printed in many inks"),
         ("picture", None, None, None, "no library decal is this mark")], marked
+    # the finish the words are printed in is the marks' ink, judged by its own colour (the sign's lettering, tc3s)
+    assert [finish.get("printed", False) for finish in route_parts.printed_finishes([{}, {}, {}], marked)] == [
+        False, True, False]
     found, missed = route_parts.decal_placements(marked, np.array([0, 1]), np.array([[0.0, 0.0, 1.0]] * 2),
                                                  plane_cast([0] * 5), "close-up")
     assert [(row["shape"], row["text"], row["font"], row["size"]) for row in found] == [
@@ -3210,6 +3224,15 @@ BEACON_LIBRARY = {"red_plastic": {"family": "plastic", "colour": [0.45, 0.02, 0.
                   "plastic_grey": {"family": "plastic", "colour": [0.33, 0.31, 0.27]}}
 PALE = np.array([70.8, 21.2, 11.5])
 ABSENT = object()
+# tc3s (#159, #176): the fridge's stainless listed #808080 seen at L* 100, the sign's white lettering seen as the plate
+# it is printed on, the toaster's steel listed #b8b8b8 seen at L* 97.5 over its darker-seen light decal.
+FRIDGE = {"steel_grey": {"family": "bare_metal", "colour": [0.22] * 3},
+          "steel_white": {"family": "bare_metal", "colour": [0.87] * 3}}
+SIGN = {"white_plastic": {"family": "plastic", "colour": [0.85] * 3},
+        "black_plastic": {"family": "plastic", "colour": [0.115] * 3}}
+TOASTER = {"steel": {"family": "bare_metal", "colour": [0.479] * 3},
+           "aluminium_white": {"family": "bare_metal", "colour": [0.80] * 3},
+           "decal_white": {"family": "plastic", "colour": [0.63] * 3}}
 
 
 class Words(str):
@@ -3274,6 +3297,15 @@ CHECKED = [
      False, [{"surface": "red_plastic", "by": "its own colour", "cover": True},
              {"surface": "plastic_grey", "by": "nearest of its family by colour"},
              {"surface": "red_plastic", "by": "off its colour"}]),
+    ("a finish in the list's own token seen lighter by the light keeps its surface", {"object": "fridge"},
+     [{"finish": "brushed stainless steel", "parts": "body", "surface": "steel_grey", "colour": [0.22] * 3}],
+     [np.array([100.0, 0.0, 0.0])], FRIDGE, None, False, [{"surface": "steel_grey", "by": "the list"}]),
+    ("a token seen lighter than the light lifts it is still off its colour", {"kind": "lab_chair", "object": "chair"},
+     [dict(GREY_STEEL, colour=[0.01] * 3)], [LIGHT_GREY], CHAIR, None, False, [{"by": "off its colour"}]),
+    ("a finish the marks print keeps its surface over the plate its faces show", {"object": "sign"},
+     [{"finish": "white printed lettering", "parts": "lettering", "surface": "white_plastic", "colour": [0.85] * 3,
+       "printed": True}], [np.array([40.9, 0.0, 0.0])], SIGN, None, False,
+     [{"surface": "white_plastic", "by": "its own colour"}]),
 ]
 
 # Finishes kept in their close-up's lightness order (finish_parts.in_close_up_order): (case, the object, its finishes,
@@ -3303,6 +3335,11 @@ IN_ORDER = [
     ("with no surface nearer the order stays as it was", "parts shelving",
      [dict(SHELVING[0], measured_lab=[66.0, -1.0, -4.0]), dict(SHELVING[1], measured_lab=[80.0, 0.0, 0.0])],
      SHELF_LIBRARY, [None, None]),
+    ("steel in its own token seen lighter by the light is never moved by the order", "toaster",
+     [{"finish": "brushed stainless steel", "surface": "steel", "colour": [0.479] * 3, "measured_lab": [97.5, 0.0, 0.0],
+       "by": "the list"},
+      {"finish": "light printed decal", "surface": "decal_white", "colour": [0.63] * 3, "measured_lab": [60.0, 0.0, 0.0],
+       "by": "the list"}], TOASTER, [None, None]),
 ]
 
 # The list's meaning (finish_parts.meaning_faults, the gate "kept the list's meaning"): a finish moved off its recipe,

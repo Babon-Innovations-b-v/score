@@ -267,6 +267,18 @@ def ink_extent(placement, points, normals):
                 size=[round(float(high[0] - low[0]), 5), round(float(high[1] - low[1]), 5)])
 
 
+def drawn_print(mark):
+    """True for a text or line mark drawn as a text decal over a print finish of the list's own (its `print_finish`)."""
+    return not mark.get("gap") and mark.get("shape") in text_decals.DRAWN and mark.get("print_finish") is not None
+
+
+def printed_finishes(finishes, marks):
+    """The finishes, each a drawn mark prints (drawn_print) marked `printed`: its colour is the mark's ink, which the
+    colour check takes as its own (finish_parts.checked_finishes)."""
+    printed = {mark["print_finish"] for mark in marks if drawn_print(mark)}
+    return [dict(finish, printed=True) if number in printed else finish for number, finish in enumerate(finishes)]
+
+
 def covered_prints(seen, marks, finish_of, part_of):
     """The faces a route's own print shows under the text and line marks (#171: TRELLIS.2 garbles words into blots of
     the print's colour) given the finish and part the mark is printed on, in place: a face of the mark's print finish
@@ -277,7 +289,7 @@ def covered_prints(seen, marks, finish_of, part_of):
     faces, rows, columns = cast.close_up_cast(model, camera, size)
     moved = 0
     for mark in marks:
-        if mark.get("gap") or mark.get("shape") not in text_decals.DRAWN or mark.get("print_finish") is None:
+        if not drawn_print(mark):
             continue
         left, top, wide, tall = mark["box"]
         grow = COVER_GROW * min(wide, tall)
@@ -414,7 +426,7 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     mesh = route_split.model_of(folders["views"])
     every, kit = surfaces
     colours, colour_from = finish_colours(folders, finish_of, len(finishes))
-    checked = finish_parts.checked_finishes(entry, finishes, colours, every, kit)
+    checked = finish_parts.checked_finishes(entry, printed_finishes(finishes, marks), colours, every, kit)
     if folders.get("code") and lit_take(entry, folders["code"]):
         checked = lit_finishes(checked, every)
     checked = finish_parts.looked(checked, every)

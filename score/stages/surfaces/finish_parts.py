@@ -27,6 +27,13 @@ ISLAND_LEAST = 0.002  # split_compare.CRUMB: an island under this share of the a
 # steel as near-black dark_panel 44.9, the lab chair's grey vinyl as navy vinyl_seat 37.8, the power unit's silver
 # tape as dark galvanized_dull 33.2; 2026-10-12). At the bake check's 20 the gold foil turned silver.
 COLOUR_DELTA_E = 32.0
+# A finish in the list's own token (its colour under even light, #172) is seen lighter in the lit close-up by the
+# light alone: on tc3s's benchmark close-ups the matte parts read 13.9 to 22.2 L* over NVIDIA's own albedo on the same
+# faces (the printer box's cardboard 22.2, the desk's laminate 21.3, its tape 17.5, the toaster's plastic 13.9 to 17.2;
+# 2026-11-23). So much of a close-up's lightness over the token is the light's lift, not a difference (`lit_apart`);
+# the parts step read it as one and moved the fridge's stainless (#808080 seen at L* 100) to a white aluminium and its
+# dark plastic (#383838 seen at 66.6) to a light one, and the toaster's steel to aluminium by the order (#176).
+LIGHT_LIFT = 22.0
 
 
 # --- the finishes on the model ----------------------------------------------------------------------------------------
@@ -289,7 +296,10 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
     COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) of the
     take's surfaces (`every`: palette_library.take_surfaces), when within it; else the listed one kept, a new surface
     tinted to the measured colour proposed, and the finish marked off its colour (the paint's gate fails it). A
-    see-through finish of a surface that is not glass, glow or light keeps its surface (coloured_cover). A finish that fits takes the room's own kit
+    see-through finish of a surface that is not glass, glow or light keeps its surface (coloured_cover), and so does
+    a finish the list's drawn marks print (`printed`, route_parts.printed_finishes: its colour is its mark's ink, and
+    its faces show the plate a garbled print lies on; the sign's white lettering took matte black plastic, tc3s). A
+    finish in the list's own token is held to it with the light's lift taken off (lit_apart). A finish that fits takes the room's own kit
     surface where one of its family fits too (`kit`, kit_taken). Every surface taken over the listed one keeps the
     list's meaning (meaning_kept: its recipe and its hue)."""
     import numpy as np
@@ -303,9 +313,12 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
         # in its own colour where the finish names one (the finish route's: its settings' token, which the bake
         # paints), not its surface's default token (astronaut-made-s1, 2026-10-22: suit_patches red under glass-brown)
         listed = dict(every[finish["surface"]], **({"colour": finish["colour"]} if finish.get("colour") else {}))
-        apart = float(np.linalg.norm(library_lab(listed) - colour))
+        apart = (lit_apart(library_lab(listed), colour) if finish.get("colour")
+                 else float(np.linalg.norm(library_lab(listed) - colour)))
         record.update(measured_lab=[round(float(value), 1) for value in colour], delta_e=round(apart, 1))
-        if apart > COLOUR_DELTA_E and coloured_cover(finish, every):
+        if finish.get("printed"):
+            record.update(by="its own colour")
+        elif apart > COLOUR_DELTA_E and coloured_cover(finish, every):
             record.update(by="its own colour", cover=True)
         elif apart > COLOUR_DELTA_E:
             family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
@@ -326,6 +339,23 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
                     "lab": [round(float(value), 1) for value in colour]})
         found.append(kit_taken(record, colour, every, kit))
     return in_close_up_order(entry, found, every)
+
+
+def lit_apart(token_lab, colour):
+    """CIE76 distance between a token's colour and its close-up colour, the close-up's lightness over the token up
+    to LIGHT_LIFT counted as the light's (module constant), not as a difference."""
+    import numpy as np
+    gap = np.asarray(colour, dtype=float) - np.asarray(token_lab, dtype=float)
+    gap[0] -= min(max(gap[0], 0.0), LIGHT_LIFT)
+    return float(np.linalg.norm(gap))
+
+
+def lit_own(finish, every):
+    """True when a finish paints the list's own token on its listed surface and its close-up colour is that token
+    lifted by the light (lit_apart within COLOUR_DELTA_E): the order never moves it (#176)."""
+    own = finish.get("colour") and finish["surface"] == finish.get("listed_surface", finish["surface"])
+    return bool(own and finish.get("measured_lab") is not None
+                and lit_apart(finish_lab(finish, every), finish["measured_lab"]) <= COLOUR_DELTA_E)
 
 
 def kit_taken(record, colour, every, kit):
@@ -590,12 +620,13 @@ def in_close_up_order(entry, found, every):
     kept (reordered) or the lighter finish is marked off its colour by its order (the paint's gate fails it). Where it
     lies lighter by less (the bake may still reverse them: the hangar's parts shelving), the order is kept only by a
     surface nearer the finish's close-up colour. Glass, glow, lamp light and print (OWN_COLOUR) and a finish judged by
-    its own colour are left out; a take with no such pair comes back as it was."""
+    its own colour are left out, and so is a pair whose lighter finish is its own token lifted by the light (lit_own:
+    the light, not the paint, shows it lighter); a take with no such pair comes back as it was."""
     lightness = opaque_lightness(every)
     for lighter in found:
         for darker in found:
             if (lighter.get("by") == "off its colour" or "its own colour" in (lighter.get("by"), darker.get("by"))
-                    or not out_of_order(lighter, darker, every, lightness, ORDER_KEPT)):
+                    or lit_own(lighter, every) or not out_of_order(lighter, darker, every, lightness, ORDER_KEPT)):
                 continue
             wide = out_of_order(lighter, darker, every, lightness)
             if not reordered(lighter, darker, every, lightness, wide) and wide:
