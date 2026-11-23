@@ -16,7 +16,8 @@ there); library_place returning the model's own place, not its surface data's `l
 place the old library does not hold); laid_of reading the piece's `laid` (empty in the kit rooms: the room's dome
 gore built with no arc, every row red); content_coordinates taking the face's first corner for every corner (the
 printed plate's st is not its builder's); looks_written without picture_wired (the printed look shows no picture);
-undecalled returning without NoDecal (the plate with no decal is made in a blank look); island_colours keeping the
+undecalled returning without NoDecal (the plate with no decal is made in a blank look) or taking a part with no
+picture map as mapped (its picture is laid at nothing, or its size fails to solve); island_colours keeping the
 unpainted black (the far face wears the black rubber); regions_worn taking the first painted island for an unpainted
 one, not the nearest face's (the far face wears red).
 """
@@ -46,7 +47,8 @@ DECAL = "surface/label_air_return@2"
 # per built face, None where the part has no picture.
 CONTENTS = {"one face": [None, None, [[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 1.0]], None],
             "a face collapsed": [None, None, [[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 1.0]], None,
-                                 [[0.0, 1.0], [0.0, 1.0], [1.0, 1.0]]]}
+                                 [[0.0, 1.0], [0.0, 1.0], [1.0, 1.0]]],
+            "one face, no picture map": [None, None, None, None]}
 # A room as the kit wrote it at OLD_COMMIT: what each piece shows lies on the piece beside its place.
 ROOM = {"room": "flat", "pieces": [
     {"kind": "flat_dome_gore", "model": "dome_gore_1", "at": [0, 0, 0], "size": [1, 1, 1], "layer": 1,
@@ -105,6 +107,7 @@ OUTLINES = [triangle_at(0.0), triangle_at(1.0), QUAD, triangle_at(3.0)]
 # apart from the square's; the model holds that face's triangle with the square's own corners.
 COLLAPSED = [[QUAD[2][0] + 5e-8, QUAD[2][1], 0.0], [QUAD[2][0], QUAD[2][1] - 5e-8, 0.0], QUAD[3]]
 BUILT = {"one face": ([0, 1, 2, 2, 0], [0, 1, 2, 2, 3], OUTLINES),
+         "one face, no picture map": ([0, 1, 2, 2, 0], [0, 1, 2, 2, 3], OUTLINES),
          "a face collapsed": ([0, 1, 2, 2, 2, 0], [0, 1, 2, 2, 4, 3], [*OUTLINES, COLLAPSED])}
 # The body's square as the model may hold it: cut as built, cut along the other diagonal, or one half twice.
 BODY = {"as built": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[2], QUAD[3]]],
@@ -129,6 +132,8 @@ MADE = [["flange", "body", "body", "flange"], ["dome"]]
      0.0, True, None, [["flange", "body", "body", "body", "flange"], ["dome"]]),
     ("a printed plate wears its library decal", "flat", "one face", "the other diagonal", 0.0, True, DECAL, MADE),
     ("a printed plate the library holds no decal of", "flat", "one face", "as built", 0.0, True, "", "no decal"),
+    ("a printed part its builder laid no picture map on", "flat", "one face, no picture map", "as built", 0.0, True,
+     DECAL, "no picture map"),
     ("off by 1 mm", "flat", "one face", "as built", 1e-3, True, None, "lie off"),
     ("a square's one half twice, the other uncovered", "airlock", "one face", "one half twice", 0.0, True, None,
      "not covered"),

@@ -73,6 +73,7 @@ NOT_IN_SPEC = ("reference",)  # the old variant's words about the picture it was
 DEFAULT_SIZE = (0.5, 0.5, 0.5)  # a builder no room laid at OLD_COMMIT is listed at this size
 PREVIEW_SIZE = 640
 DECAL = "decal.png"  # a library decal's picture (score_lib decals.py)
+MAPPED = 1e-12  # least picture area (twice over) of a part's largest triangle for its builder to have mapped it
 STEP = ("remade part by part in library surfaces by score's part_looks (tools/library/part_looks): its geometry "
         "kept, each part of its old code builder (score {old}) bound to the library recipe its builder named, in the "
         "colour and settings the old library gave it in its place; the shared atlas (every face toward the kit's back "
@@ -463,27 +464,37 @@ def content_coordinates(contents, lies):
     return found
 
 
+def texture_area(coordinates):
+    """Each triangle's area in the picture (its `content` coordinates), twice over."""
+    one, two = coordinates[:, 1] - coordinates[:, 0], coordinates[:, 2] - coordinates[:, 0]
+    return np.abs(one[:, 0] * two[:, 1] - one[:, 1] * two[:, 0])
+
+
 def size_printed(triangles, coordinates):
     """[wide, tall] metres a picture spans as its plate prints it: the triangle of most texture area's corners'
     change across the picture's width and height."""
-    one, two = coordinates[:, 1] - coordinates[:, 0], coordinates[:, 2] - coordinates[:, 0]
-    area = np.abs(one[:, 0] * two[:, 1] - one[:, 1] * two[:, 0])
-    best = int(area.argmax())
-    across = np.linalg.solve(np.array([one[best], two[best]]),
-                             np.array([triangles[best][1] - triangles[best][0],
-                                       triangles[best][2] - triangles[best][0]]))
+    best = int(texture_area(coordinates).argmax())
+    one, two = coordinates[best, 1] - coordinates[best, 0], coordinates[best, 2] - coordinates[best, 0]
+    across = np.linalg.solve(np.array([one, two]), np.array([triangles[best][1] - triangles[best][0],
+                                                             triangles[best][2] - triangles[best][0]]))
     return [round(float(np.linalg.norm(across[0])), 4), round(float(np.linalg.norm(across[1])), 4)]
 
 
 def undecalled(parts, specs, part_of, triangles, coordinates):
-    """NoDecal for an entry printing an old picture the library holds no decal of, each picture's printed size
-    measured on its part."""
+    """Unrecovered for an entry with a part printing an old picture its builder laid no picture map on (nothing
+    says where its picture lies); NoDecal for one printing an old picture the library holds no decal of, each
+    picture's printed size measured on its part."""
     wanted = {}
-    for index, (_, variant) in enumerate(parts):
+    for index, (part, variant) in enumerate(parts):
         spec = specs[variant]
-        if "picture" in spec and not spec["decal"] and spec["picture"] not in wanted:
-            on = part_of == index
-            wanted[spec["picture"]] = size_printed(np.asarray(triangles)[on], coordinates[on]) if on.any() else None
+        on = part_of == index
+        if "picture" not in spec or not on.any():
+            continue
+        if texture_area(coordinates[on]).max() <= MAPPED:
+            raise Unrecovered(f"its part {part} prints the old picture {spec['picture']}, but its builder laid no "
+                              "picture map on it")
+        if not spec["decal"] and spec["picture"] not in wanted:
+            wanted[spec["picture"]] = size_printed(np.asarray(triangles)[on], coordinates[on])
     if wanted:
         raise NoDecal("prints the old pictures " + ", ".join(sorted(wanted)) + ", which the library holds no decal "
                       "of (take them in: part_looks.py decals)", wanted)
