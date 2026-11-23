@@ -412,6 +412,19 @@ def taken_off(stage, place, prim):
             inside.ClearActive()
 
 
+def instances_opened(prim):
+    """Every instanceable prim inside the object made plain in the place's own layer (a SimReady model's parts each
+    stand as an instance of a shared prototype, and USD refuses an edit under an instance proxy, #156), nested ones
+    too, so a re-finish's subsets and bindings are laid on the object's own copy of each part; the model file is never
+    changed."""
+    while True:
+        instances = [inside for inside in Usd.PrimRange(prim) if inside.IsInstance()]
+        if not instances:
+            return
+        for instance in instances:
+            instance.SetInstanceable(False)
+
+
 def is_refinish_part(prim):
     return prim.IsA(UsdGeom.Subset) and prim.GetName().startswith(PART) and prim.GetName()[len(PART):].isdigit()
 
@@ -528,6 +541,7 @@ def refinish(folder, name):
         if not library and not painted.parts:
             raise place_build.Refused(f"{name}'s model has no paint to read parts from: lay a surface on it")
         colours = None if library else variant_colours(folder)
+        instances_opened(prim)
         taken_off(stage, place, prim)
         if library and earlier is None:
             return {"name": name, "finish": "its model's own library paint", "parts": len(painted.parts)}

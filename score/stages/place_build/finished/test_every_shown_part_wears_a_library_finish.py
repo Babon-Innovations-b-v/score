@@ -11,7 +11,8 @@ alone, its grey part in its own library paint; the take's parts laid as the pale
 re-finished at once. An adopted model's own material naming a surface the library holds (`score:surface`) passes
 and one naming a surface it does not hold is `own paint`; a look naming a surface the library withdrew for another
 passes as its replacement (#155), its mesh and material standing under an instanceable prim (a SimReady model's)
-told too. Afterwards the scene's finishes are told no fault.
+told too; a take whose parts stand so (the crate) is re-finished per part as the stool is (#156). Afterwards the
+scene's finishes are told no fault.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.object_faults: the whole-look rule left out (`len(parts) >= PARTS` made `False`) -> the grey generator
@@ -31,6 +32,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.own_surface: always True -> the stall's material naming no held surface passes
 - finished.object_faults: its walk without Usd.TraverseInstanceProxies() -> the booth, the stall's model laid under an
   instanceable prim, shows nothing and passes (#155)
+- finished.refinish: instances_opened unread -> the crate's re-finish authors under an instance proxy and fails (#156)
 - finished.held_surface: the replacement chain unread (`entry_of(address)` for `entry_of(end)`) -> the box's look
   naming the retired metal is `unknown surface`
 - finished.placeholder: the mark unread (only a shaderless material a placeholder) -> the plain kit piece's grey
@@ -96,11 +98,11 @@ def own_surface_text(name, address):
     return layer.ExportToString()
 
 
-def instanced_text(name, address):
-    """own_surface_text's model with its mesh and material under an instanceable prim of it (`shared`), as a SimReady
-    model lays its shapes from its instances' payload (#155)."""
+def instanced_text(name, text):
+    """The model `text` with its mesh and material under an instanceable prim of it (`shared`), as a SimReady model
+    lays its shapes from its instances' payload (#155)."""
     layer = Sdf.Layer.CreateAnonymous(".usda")
-    layer.ImportFromString(own_surface_text(name, address))
+    layer.ImportFromString(text)
     Sdf.CopySpec(layer, f"/{name}", layer, f"/{name}_shared")
     layer.GetPrimAtPath(f"/{name}_shared").specifier = Sdf.SpecifierClass
     stage = Usd.Stage.Open(layer)
@@ -150,8 +152,10 @@ def library(root, files):
     for model, named in (("kiosk", "surface/painted_metal@1"), ("stall", "surface/nowhere@1")):
         entry("model", model, {"model.usda": ("usd", own_surface_text(model, named)),
                                "paint.png": ("texture", halves(RED, GREY))}, [("a_set", "taken in whole")])
-    entry("model", "booth", {"model.usda": ("usd", instanced_text("booth", "surface/nowhere@1")),
+    entry("model", "booth", {"model.usda": ("usd", instanced_text("booth", own_surface_text("booth", "surface/nowhere@1"))),
                              "paint.png": ("texture", halves(RED, GREY))}, [("a_set", "taken in whole")])
+    entry("take", "crate", {"model.usda": ("usd", instanced_text("crate", model_text("crate", "paint.png"))),
+                            "paint.png": ("texture", halves(BROWN, DARK))}, [("pixal3d", "its shape and paint")])
 
 
 def kinds(found, name):
@@ -180,7 +184,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     for name, address, at in (("gen", "model/generator", 0), ("box", "model/box", 4), ("stool", "take/stool", 8),
                               ("bare", "model/bare", 12), ("lantern", "model/generator", 20),
                               ("kiosk", "model/kiosk", 24), ("stall", "model/stall", 28), ("plain", "kit/plain", 32),
-                              ("booth", "model/booth", 36)):
+                              ("booth", "model/booth", 36), ("crate", "take/crate", 40)):
         place_build.put(folder, name, address, at=(at, 0, 0))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
     assert "crop_leaf" in finished.variant_colours(folder) and "sand_ground" not in finished.variant_colours(folder)
@@ -206,7 +210,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     place_build.saved(stage)
     place_build.remove(folder, "stall")
     place_build.remove(folder, "booth")
-    mended = {name: place_build.refinish(folder, name) for name in ("gen", "stool", "lantern")}
+    mended = {name: place_build.refinish(folder, name) for name in ("gen", "stool", "lantern", "crate")}
     put_after = place_build.put(folder, "stool2", "take/stool", at=(16, 0, 0))
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     found = finished.faults(stage, "camp")
@@ -215,7 +219,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
         stage.GetPrimAtPath("/camp/Objects/gen")), mended
     assert set(mended["lantern"]["parts"].values()) == {"palette/lamp_glow", "its model's own library paint"}, mended
     assert sorted(mended["stool"]["parts"].values()) == ["palette/dark_paint", "palette/wood_paint"], mended
-    assert put_after["finish"]["parts"] == mended["stool"]["parts"], put_after
+    assert put_after["finish"]["parts"] == mended["stool"]["parts"] == mended["crate"]["parts"], (put_after, mended)
     bound = finished.bound_parts(stage.GetPrimAtPath("/camp/Objects/lantern/geo"))
     looks = {part.GetName(): str(material.GetPath()) if material else None for part, material in bound}
     glow = [name for name, look in looks.items() if look and look.startswith("/camp/Looks/lantern__")]
