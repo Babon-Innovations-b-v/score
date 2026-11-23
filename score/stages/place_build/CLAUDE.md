@@ -21,7 +21,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   is laid as its own unit scale op (`xformOp:scale:units`, after the agent's scale), its `usd.up_axis` against the
   scene's (y) as its own turn after that (`xformOp:rotateX:upAxis`, `uprighted`: a Z-up SimReady model stands up, so
   the agent's turn, rest and support work on the upright asset), and a mass is weighed only by the agent's scale
-  (`units_of`), never the unit conversion. `put` lays only an entry
+  (`units_of`), never the unit conversion. A SimReady model's shapes and materials stand under instanceable prims:
+  every read of what an object draws, wears or weighs walks with `Usd.TraverseInstanceProxies()` (a plain PrimRange
+  stops at the instance), and nothing writes onto an instance proxy (its asset's own values stay). `put` lays only an entry
   with a USD file (kit pieces, models, the
   sky domes), copied whole under the place's `assets/`; `surface` binds a library surface over everything inside the
   object (a variant's own material, or a recipe in a palette colour), so a model's baked colour never shows; `light`
