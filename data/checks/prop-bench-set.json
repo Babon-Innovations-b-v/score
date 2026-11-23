@@ -1,0 +1,712 @@
+{
+ "rule": "A kind takes an adopted model (model/simready_*, in force, its newest version) when the first of its Wikidata classes is one of the kind's classes and its id holds one of the kind's words at a word start ((^|_)word). Within a kind the ids are sorted by sha256('r162:' + id), the overlap targets left out, and the first 5 taken, skipping an id whose stem (the id without its trailing _<letter><two digits>) an earlier pick or an overlap target already holds; the first 3 are tune, the rest held out. The overlap targets are the adopted models a withdrawn model's replacement chain ends at (#155, #157), all tune, each with its withdrawn models.",
+ "score_lib_commit": "522645e0f0d67e3991bf12f0982e9211330d4222",
+ "kinds": {
+  "box": {
+   "classes": [
+    "cardboard box",
+    "box",
+    "carton"
+   ],
+   "words": [
+    "box"
+   ],
+   "matching": 170
+  },
+  "crate": {
+   "classes": [
+    "crate"
+   ],
+   "words": [
+    "crate"
+   ],
+   "matching": 31
+  },
+  "shelf / rack": {
+   "classes": [
+    "rack with shelves",
+    "shelf"
+   ],
+   "words": [
+    "rack",
+    "shelf",
+    "shelving"
+   ],
+   "matching": 27
+  },
+  "cabinet / locker": {
+   "classes": [
+    "cabinet",
+    "kitchen cabinet",
+    "storage cabinets & locker",
+    "tool cabinets & chest",
+    "Tool cabinet"
+   ],
+   "words": [
+    "cabinet",
+    "locker"
+   ],
+   "matching": 30
+  },
+  "desk / table / bench": {
+   "classes": [
+    "table",
+    "workbench",
+    "coffee table",
+    "desk"
+   ],
+   "words": [
+    "table",
+    "workbench",
+    "desk",
+    "bench"
+   ],
+   "matching": 13
+  },
+  "chair / stool": {
+   "classes": [
+    "chair",
+    "office chair",
+    "stool"
+   ],
+   "words": [
+    "chair",
+    "stool"
+   ],
+   "matching": 11
+  },
+  "monitor / keyboard": {
+   "classes": [
+    "computer monitor",
+    "computer terminal",
+    "computer keyboard"
+   ],
+   "words": [
+    "monitor",
+    "keyboard",
+    "terminal"
+   ],
+   "matching": 13
+  },
+  "lamp body": {
+   "classes": [
+    "lamp",
+    "LED lamp",
+    "task lighting",
+    "light fixture"
+   ],
+   "words": [
+    "lamp",
+    "light"
+   ],
+   "matching": 16
+  },
+  "bin": {
+   "classes": [
+    "waste container",
+    "recycling bin"
+   ],
+   "words": [
+    "bin",
+    "trash",
+    "recycle",
+    "waste"
+   ],
+   "matching": 33
+  },
+  "ladder": {
+   "classes": [
+    "ladder"
+   ],
+   "words": [
+    "ladder"
+   ],
+   "matching": 13
+  },
+  "sign (flat)": {
+   "classes": [
+    "signage",
+    "safety sign",
+    "wet floor sign"
+   ],
+   "words": [
+    "sign"
+   ],
+   "matching": 27
+  },
+  "toolbox / tool cart": {
+   "classes": [
+    "toolbox",
+    "tool cart"
+   ],
+   "words": [
+    "toolbox",
+    "tool",
+    "cart"
+   ],
+   "matching": 13
+  },
+  "fridge / stove / sink": {
+   "classes": [
+    "refrigerator",
+    "gas stove",
+    "sink"
+   ],
+   "words": [
+    "fridge",
+    "refrigerator",
+    "stove",
+    "sink"
+   ],
+   "matching": 13
+  },
+  "hose / pipe (slender)": {
+   "classes": [
+    "hose",
+    "plastic pipe",
+    "pipe"
+   ],
+   "words": [
+    "hose",
+    "pipe"
+   ],
+   "matching": 13
+  },
+  "tray (flat)": {
+   "classes": [
+    "tray",
+    "serving tray"
+   ],
+   "words": [
+    "tray"
+   ],
+   "matching": 6
+  }
+ },
+ "objects": [
+  {
+   "address": "model/simready_box_flat_white_b09@1",
+   "kind": "box",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_box_flat_a10@1",
+   "kind": "box",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_box_printer_brown_b05@1",
+   "kind": "box",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_food_processed_boxed_food_e01@1",
+   "kind": "box",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_box_cardboard_a02@1",
+   "kind": "box",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_crate_plywood_b06@1",
+   "kind": "crate",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_crate_blue_a01@1",
+   "kind": "crate",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_crate_black_a08@1",
+   "kind": "crate",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_crate_green_a20@1",
+   "kind": "crate",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_crate_yellow_a01@1",
+   "kind": "crate",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_storage_tire_rack_e01@1",
+   "kind": "shelf / rack",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_rack_composition_l08@1",
+   "kind": "shelf / rack",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_rack_large_empty_a01@1",
+   "kind": "shelf / rack",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_rack_f04@1",
+   "kind": "shelf / rack",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_rack_h3m_s01@1",
+   "kind": "shelf / rack",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_fixture_cabinet_top_a01@1",
+   "kind": "cabinet / locker",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_cabinet_file_d02@1",
+   "kind": "cabinet / locker",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_storage_locker_double_bench_b01@1",
+   "kind": "cabinet / locker",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_fixture_cabinet_b01@1",
+   "kind": "cabinet / locker",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_fixture_cabinet_pantry_a01@1",
+   "kind": "cabinet / locker",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_furniture_workbench_standard_e01@1",
+   "kind": "desk / table / bench",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_warehouse_packing_table_heavy_duty_c02@1",
+   "kind": "desk / table / bench",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_furniture_coffee_table_a01@1",
+   "kind": "desk / table / bench",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_table_packing_heavyduty_c01@1",
+   "kind": "desk / table / bench",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_furniture_table_coffee_low_a01@1",
+   "kind": "desk / table / bench",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_chair_surgical_b01@1",
+   "kind": "chair / stool",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_furniture_stool_wooden_old_a01@1",
+   "kind": "chair / stool",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_chair_hospital_b01@1",
+   "kind": "chair / stool",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_chair_office_fabric_manager_a01@1",
+   "kind": "chair / stool",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_chair_office_amf_black_a01@1",
+   "kind": "chair / stool",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_monitor_b01@1",
+   "kind": "monitor / keyboard",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_electrical_main_terminal_a01@1",
+   "kind": "monitor / keyboard",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_digital_system_touch_terminal_standing_a01@1",
+   "kind": "monitor / keyboard",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_computer_monitor_office_a01@1",
+   "kind": "monitor / keyboard",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_warehouse_computer_keyboard_a01@1",
+   "kind": "monitor / keyboard",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_lighting_task_light_foldable_ceiling_a01@1",
+   "kind": "lamp body",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_lighting_task_light_corded_inspection_a01@1",
+   "kind": "lamp body",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_lamp_ceiling_50cm_square_a02@1",
+   "kind": "lamp body",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_lamp_ceiling_1m_rectangle_a01@1",
+   "kind": "lamp body",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_lamp_table_bedside_a01@1",
+   "kind": "lamp body",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_trash_can_office_gray_a03@1",
+   "kind": "bin",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_bin_waste_a03@1",
+   "kind": "bin",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_container_recycle_green_b04@1",
+   "kind": "bin",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_trash_can_wheeled_green_a01@1",
+   "kind": "bin",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_container_recycle_blue_b03@1",
+   "kind": "bin",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_ladder_step_folding_a01@1",
+   "kind": "ladder",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_ladder_multi_purpose_aluminium_a05@1",
+   "kind": "ladder",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_ladder_step_aluminium_b02@1",
+   "kind": "ladder",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_ladder_step_fiberglass_heavy_duty_a03@1",
+   "kind": "ladder",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_ladder_step_rolling_a01@1",
+   "kind": "ladder",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_sign_hospital_sidewall_a08@1",
+   "kind": "sign (flat)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_sign_wet_floor_b02@1",
+   "kind": "sign (flat)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_sign_hospital_board_a01@1",
+   "kind": "sign (flat)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_signage_caution_hearing_protection_a02@1",
+   "kind": "sign (flat)",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_sign_warning_a04@1",
+   "kind": "sign (flat)",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_service_tool_line_disconnect_kit_a01@1",
+   "kind": "toolbox / tool cart",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_equipment_multi_tier_bin_cart_c01@1",
+   "kind": "toolbox / tool cart",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_equipment_tool_organizer_cart_j01@1",
+   "kind": "toolbox / tool cart",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_equipment_mechanic_tool_cart_g01@1",
+   "kind": "toolbox / tool cart",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_storage_toolbox_carry_hard_case_b01@1",
+   "kind": "toolbox / tool cart",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_facility_equipment_beverage_fridge_display_a01@1",
+   "kind": "fridge / stove / sink",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_sanitary_sink_wall_mounted_a01@1",
+   "kind": "fridge / stove / sink",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_sink_surgical_a01@1",
+   "kind": "fridge / stove / sink",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_refrigerator_f01@1",
+   "kind": "fridge / stove / sink",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_fixture_sink_basin_b01@1",
+   "kind": "fridge / stove / sink",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_consumable_hose_fuel_a02@1",
+   "kind": "hose / pipe (slender)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_pipe_plastic_gray_b08@1",
+   "kind": "hose / pipe (slender)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_consumable_hose_hydraulic_a02@1",
+   "kind": "hose / pipe (slender)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_consumable_hose_shaped_a02@1",
+   "kind": "hose / pipe (slender)",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_pipe_plastic_black_b06@1",
+   "kind": "hose / pipe (slender)",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_utensil_serving_tray_wooden_b01@1",
+   "kind": "tray (flat)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_kitchenware_tray_a01@1",
+   "kind": "tray (flat)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_tray_sterilization_instrument_c02@1",
+   "kind": "tray (flat)",
+   "split": "tune",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_dishware_plastic_tray_a01@1",
+   "kind": "tray (flat)",
+   "split": "held-out",
+   "withdrawn": []
+  },
+  {
+   "address": "model/simready_appliance_gas_stove_table_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/gas_stove_1@1"
+   ]
+  },
+  {
+   "address": "model/simready_appliance_toaster_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/toaster_1@1"
+   ]
+  },
+  {
+   "address": "model/simready_computer_keyboard_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/kenney_furniture_computer_keyboard@1"
+   ]
+  },
+  {
+   "address": "model/simready_decor_wall_clock_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/wall_clock_1.garage@1"
+   ]
+  },
+  {
+   "address": "model/simready_desk_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/desk_1.engineroom@1",
+    "model/desk_1.greenhouse@1",
+    "model/desk_1.habitat@1",
+    "model/desk_1.lab@1",
+    "model/desk_1.quarters@1",
+    "model/desk_1@1",
+    "model/desk_front_left_1.workshop@1",
+    "model/desk_front_right_1.workshop@1",
+    "model/polyhaven_metal_office_desk@1"
+   ]
+  },
+  {
+   "address": "model/simready_humidifier_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/humidifier_1@1"
+   ]
+  },
+  {
+   "address": "model/simready_mirror_bathroom_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/kenney_furniture_bathroom_mirror@1"
+   ]
+  },
+  {
+   "address": "model/simready_textile_decor_rug_a01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/rug_1.habitat@1"
+   ]
+  },
+  {
+   "address": "model/simready_utensil_set_wooden_b01@1",
+   "kind": "overlap",
+   "split": "tune",
+   "withdrawn": [
+    "model/kitchen_utensils_1.galley@1"
+   ]
+  }
+ ]
+}
