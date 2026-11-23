@@ -22,6 +22,10 @@ Newton's own contacts) in its own pinned Python (`inside/newton_env.sh`) on a re
 - **Mass is the model's surface area times its material's sheet and density** (props are hollow shells); friction and
   restitution are per material (`data/physics/materials.json`, textbook values with their source). A model with no
   labelled parts takes its trial record's `material`. Never tune a mass or a friction to pass a gate.
+- **A made model's moving parts** (#177, place_build/maker/parts.py's nodes) are joined by the record's optional
+  `parted` entries (`write_parted`: each part its own body on a revolute or prismatic joint about its own axis through
+  its origin, limits, mass and drive from its parts.json, its object static as a hinge's frame is). `design.py` does
+  not write them yet: a laid made model carries its joint in its part's name, its limits and mass only in its record.
 - **A door opens by its hinge's motor** (a DriveAPI with a timed torque cap), not by a kinematic hand: on the toy place
   a kinematic box striking a hinged leaf kicked it 50 degrees the wrong way. Hands push free objects (the stool).
 - **The trial comes from the design, never a record written for a scene** (the owner, 2026-10-21: "the modules are

@@ -54,5 +54,12 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   ask's hash), held to NVIDIA's bulk density band for the size class and named, not refused, outside it (NVIDIA's own
   empty box is). `make` weighs the whole as one part of its `--material`; the benchmark's `physics` step weighs the
   finished parts.
+- **Moving parts** (parts.py, #177, #161 rules 1 and 11): one ask (Claude, EUR 0) names what moves in the close-up
+  (function word, hinge, slide or spin, its box, a hinge's side, how far it opens, its thickness); its faces are those
+  the close-up's camera sees in its box, from its outer face in by its thickness; its joint sits on its box's edge or
+  axis, the model's own axes; it is written in moving_parts' node interface (`<part>__<joint>_<axis>[n]`, origin the
+  pivot), which place_build's glTF conversion keeps as its own Xform, the motion layer reads (`parts_of`) and the
+  physics layer joins (`write_parted`). The benchmark runs it (branch B's `parts` step); `make` does not yet, since
+  it fits no close-up camera (the finish route fits one, surfaces/close_up_fit.py).
 - Test: `test_a_made_model_fits_its_place_its_paint_and_its_weight.py` (no TRELLIS.2, no CoACD; its flash-attn part
   runs where torch is).

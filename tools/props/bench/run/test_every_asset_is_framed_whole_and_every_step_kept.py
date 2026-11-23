@@ -22,6 +22,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.made_side: the finish's parts not read -> the made model's faces carry no finish group
 - bench.weighed_step: a part's surface class not read (the given class for every part) -> the plastic box touches
   with metal's 0.3; its parts' words not asked -> the ask does not name the grey plastic
+- bench.parts_step (#177): the parts' masses not shared from the physics step's groups -> the lid and the body do not
+  weigh the box's 2 kg; bench.parted: the axis left in glTF's Y up -> the door's hinge about -y is not turned to Z up; made_side not reading the parts -> the box's faces carry no part
 - finish.same_family: a truth surface with no family counted as a mismatch -> its share is 0.0, not unjudged
 - finish.look_job: the texels.npz check dropped -> a finish with none fails on numpy's own error, not its reason;
   its part's list settings not read (part_spec's `set_spec` dropped) -> the look's spec is not the listed roughness
@@ -148,7 +150,23 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
     monkeypatch.setattr(sim, "claude_ask", lambda body: asked.append(body) or json.dumps(
         {"whole_kg": 2.0, "reason": "a box", "parts": [{"part": 0, "kg": 2.0}]}))
     bench.weighed_step(folders, {**row, "size": [0.6, 0.4, 0.25]}, "metal", close_up)(tmp_path / "physics")
-    side = bench.made_side(model, tmp_path / "physics", folder, name)
+    from score.stages.place_build.maker import parts
+    monkeypatch.setattr(parts, "claude_ask", lambda body: json.dumps({"reason": "its lid", "parts": [
+        {"name": "lid", "joint": "slide", "box": [0.0, 0.0, 1.0, 1.0], "hinge": "none", "opens": 0.1, "thick_m": 1.0}]}))
+    (tmp_path / "parts").mkdir()
+    bench.parts_step({**folders, "physics": tmp_path / "physics"}, row, close_up)(tmp_path / "parts")
+    cut = json.loads((tmp_path / "parts" / "parts.json").read_text())
+    side = bench.made_side(model, tmp_path / "physics", folder, name, tmp_path / "parts")
+    lid = cut["parts"][0]
+    assert len(side["face_part"]) == len(side["faces"]) and (side["face_part"] == 0).any()
+    assert math.isclose(lid["kg"] + cut["body"]["kg"], 2.0) and side["joints"][0]["type"] == "prismatic"
+    assert np.allclose(y_up([side["joints"][0]["axis"]])[0], lid["sign"] * np.eye(3)["xyz".index(lid["axis"])])
+    (tmp_path / "door").mkdir()  # a door hinged about the model's -y at (1, 2, 3), glTF's Y up
+    (tmp_path / "door" / "parts.json").write_text(json.dumps({"parts": [
+        {"joint": "hinge", "axis": "y", "sign": -1, "pivot": [1.0, 2.0, 3.0], "limits": [0.0, 90.0]}]}))
+    np.save(tmp_path / "door" / "face_parts.npy", np.array([-1, 0]))
+    door = bench.parted(tmp_path / "door")["joints"][0]
+    assert np.allclose(y_up([door["axis"], door["pivot"]]), [[0.0, -1.0, 0.0], [1.0, 2.0, 3.0]]), door
     taken = sim.surface_class(held[side["surfaces"][0]])
     assert (side["mass"], side["friction"]) == (2.0, sim.material(taken)["static"]) and taken != "metal"
     assert {(look["class"], tuple(np.round(look["colour"], 4)), look["roughness"]) for look in side["looks"].values()} \

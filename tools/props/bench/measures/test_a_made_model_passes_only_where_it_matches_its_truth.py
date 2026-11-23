@@ -49,6 +49,12 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _finish.part_look judging every class the same: the steel body passes.
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
+- _joints (#177, the hung cabinet: the box with a door slab hinged on its left edge; NVIDIA's hinge about -z, limits -90
+  to 0): moving_bodies taking a joint's body0 (the carcass) -> the door cut as NVIDIA's fails its faces;
+  count_gap never counting
+  -> no moving part passes; line_angle as a signed angle -> NVIDIA's -z against the made +z fails its axis (180);
+  off_line the distance between pivots (along the axis too) -> the door's pivot 0.4 m up its hinge line fails;
+  range_gap on the upper limits alone -> the door opening 0 to 90 against -90 to 0 fails.
 """
 import functools
 import pathlib
@@ -293,8 +299,52 @@ def flattened(share):
     return {"steps": measures.step_change(TRUTH, side(box()), side(after))}
 
 
+@functools.cache
+def hung_cabinet():
+    """The box with a door slab 2 cm thick hung on its front (-y) face, hinged about the upright at its left edge, as
+    NVIDIA's truth (its hinge about -z, -90 to 0 degrees); each of its faces' nearest truth triangle (itself)."""
+    door = trimesh.creation.box((0.48, 0.02, 0.76))
+    door.apply_translation((0.0, -0.21, 0.4))
+    carcass = box()
+    mesh = trimesh.util.concatenate([carcass, door])
+    body = np.r_[np.zeros(len(carcass.faces), int), np.ones(len(door.faces), int)]
+    truth = {**side(mesh), "face_body": body, "bodies": [{"prim": "carcass"}, {"prim": "door"}],
+             "joints": [{"prim": "hinge", "type": "PhysicsRevoluteJoint", "body0": 0, "body1": 1,
+                         "axis": [0.0, 0.0, -1.0], "pivot": [-0.24, -0.21, 0.0], "limits": [-90.0, 0.0]}]}
+    truth = measures.arrays(truth)
+    return mesh, body, truth, measures._finish.carried(truth, truth["vertices"], truth["faces"])
+
+
+HINGE = {"type": "revolute", "axis": [0.0, 0.0, 1.0], "pivot": [-0.24, -0.2, 0.4], "limits": [0.0, 90.0]}
+
+
+def hung(faces="door", whole=False, **joint):
+    """The cabinet made as its truth, its door cut as `faces` ("door", "top" or "none") on `joint` (HINGE changed):
+    every measure (`whole`), else its parts' alone, the made model standing on the truth as it is."""
+    mesh, body, truth, nearest = hung_cabinet()
+    part = {"door": body - 1, "top": np.where((mesh.face_normals[:, 2] > 0.5) & (body == 0), 0, -1),
+            "none": np.full(len(body), -1)}[faces]
+    made_side = {**side(mesh), "face_part": part, "joints": [] if faces == "none" else [{**HINGE, **joint}]}
+    if whole:
+        return measures.measured(truth, made_side)
+    return {"parts": measures._joints.joints(truth, truth["vertices"], made_side, nearest, np.eye(4))}
+
+
+def leaning(degrees):
+    return (trimesh.transformations.rotation_matrix(np.radians(degrees), (1, 0, 0))[:3, :3] @ [0, 0, 1]).tolist()
+
+
 CASES = [
     ("the truth itself", lambda: made(box()), None, True),
+    ("the door cut and hung as NVIDIA's", lambda: hung(whole=True), None, True),
+    ("no moving part cut", lambda: hung("none"), "parts.count_gap", False),
+    ("the top cut as the door", lambda: hung("top"), "parts.faces_least", False),
+    ("the door on a slide", lambda: hung(type="prismatic"), "parts.type_held", False),
+    ("its hinge leaning 15 degrees", lambda: hung(axis=leaning(15)), "parts.axis_most", False),
+    ("its hinge leaning 5 degrees", lambda: hung(axis=leaning(5)), "parts.axis_most", True),
+    ("its hinge on the right edge", lambda: hung(pivot=[0.24, -0.2, 0.4]), "parts.pivot_most", False),
+    ("opening 30 degrees for 90", lambda: hung(limits=[0.0, 30.0]), "parts.range_most", False),
+    ("opening 120 degrees for 90", lambda: hung(limits=[0.0, 120.0]), "parts.range_most", True),
     ("laid on its side", lambda: made(turned(box(), 90)), "alignment.up_error", False),
     ("leaning 8 degrees", lambda: made(turned(box(), 8)), "alignment.up_error", False),
     ("leaning 3 degrees", lambda: made(turned(box(), 3)), "alignment.up_error", True),

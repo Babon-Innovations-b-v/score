@@ -2,7 +2,10 @@
 asset it was made from, every measure a plain number, each judged at its bar.
 
     measured(truth, made, others=(), input_view=None) -> {"alignment", "size", "shape", "clean", "truth_clean",
-                                                          "finish", "physics"}
+                                                          "finish", "parts", "physics"}
+                                                          ("parts": the moving parts and their joints against
+                                                          NVIDIA's, _joints, #177, where the made side has
+                                                          `face_part` and `joints` and the truth `face_body`)
                                                           ("finish" also how cleanly the finishes meet, _edges:
                                                           edge_density, edge_wander, specks, speck_share)
     laid_like(other, truth)                           -> another asset scaled to the truth's longest side
@@ -30,7 +33,7 @@ import numpy as np
 
 import score.stages.props.prop_data as prop_data
 
-from . import _align, _clean, _edges, _finish, _mesh, _physics, _shape
+from . import _align, _clean, _edges, _finish, _joints, _mesh, _physics, _shape
 
 finish_likeness = _finish.finish_likeness
 rested = _physics.rested
@@ -78,6 +81,17 @@ BARS = (
     ("finish", "metal", "least", 0.90),
     ("finish", "roughness", "least", 0.90),
     ("finish", "class", "least", 0.90),
+    # Moving parts and joints (#177, #161 rules 1 and 11), #162-style design bars until the calibration pass sets
+    # them on the tune split's jointed truths: as many moving parts as NVIDIA's; each truth part's faces at least
+    # half its made part's (area in common over area together); every joint of its type; its axis within 10 degrees
+    # (a door's hinge leaning 10 degrees swings visibly off); a hinge's pivot within 5% of the diagonal of its line;
+    # its open span within half of NVIDIA's (a door opening 90 against 135 degrees holds, one opening 45 does not).
+    ("parts", "count_gap", "most", 0),
+    ("parts", "faces_least", "least", 0.5),
+    ("parts", "type_held", "least", 1.0),
+    ("parts", "axis_most", "most", 10.0),
+    ("parts", "pivot_most", "most", 0.05),
+    ("parts", "range_most", "most", 0.5),
     ("likeness", "alike", "least", 0.80),
     ("physics", "mass_ratio", "ratio", 1.5),
     ("physics", "colliders", "least", 1),
@@ -206,6 +220,8 @@ def measured(truth, made, others=(), input_view=None):
         if made.get("looks") is not None and truth.get("face_look") is not None:
             found["finish"].update(_finish.finish_look(truth, placed, made["faces"], made["face_material"], nearest,
                                                        made["looks"]))
+    if made.get("joints") is not None and truth.get("face_body") is not None:
+        found["parts"] = _joints.joints(truth, placed, made, _finish.carried(truth, placed, made["faces"]), matrix)
     if truth.get("colliders"):
         found["physics"] = _physics.physics(truth, made)
     return found

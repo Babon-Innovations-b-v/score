@@ -11,7 +11,7 @@ import sys
 import numpy as np
 import trimesh
 
-from pxr import Usd, UsdGeom, UsdPhysics, UsdShade
+from pxr import Gf, Usd, UsdGeom, UsdPhysics, UsdShade
 
 from score import library
 
@@ -207,18 +207,60 @@ def rigid(stage):
     return bodies, total
 
 
+def joint_place(prim, joint, turn):
+    """(pivot [x, y, z] metres, axis unit [x, y, z], limits [lower, upper] or None) of one joint in the measures'
+    frame: its body0 frame (localPos0, localRot0; the world when it names no body0) carried to the world and to
+    metres; a revolute joint's limits in degrees, a prismatic one's in metres, None for a joint with neither, or a
+    side left unlimited (UsdPhysics' +-inf)."""
+    stage = prim.GetStage()
+    targets = joint.GetBody0Rel().GetTargets()
+    matrix = (np.array(UsdGeom.Xformable(stage.GetPrimAtPath(targets[0])).ComputeLocalToWorldTransform(
+        Usd.TimeCode.Default())) if targets else np.eye(4)) @ turn
+    offset = authored(prim, "physics:localPos0")
+    at = np.r_[np.zeros(3) if offset is None else np.asarray(offset, dtype=float), 1.0] @ matrix
+    rotation = authored(prim, "physics:localRot0")
+    way = np.zeros(3)
+    way["XYZ".index(str(authored(prim, "physics:axis") or "X"))] = 1.0
+    if rotation is not None:
+        way = np.asarray(Gf.Rotation(Gf.Quatd(rotation)).TransformDir(Gf.Vec3d(*way)), dtype=float)
+    way = way @ matrix[:3, :3]
+    limits = [authored(prim, "physics:lowerLimit"), authored(prim, "physics:upperLimit")]
+    if None in limits or not all(np.isfinite(limits)):
+        limits = None
+    elif prim.IsA(UsdPhysics.PrismaticJoint):
+        limits = [float(value) * float(turn[0, 0]) for value in limits]
+    return at[:3].tolist(), (way / np.linalg.norm(way)).tolist(), None if limits is None else [float(value) for value
+                                                                                                 in limits]
+
+
 def joints(stage, bodies):
-    """[{prim, type, body0, body1}] of the stage's physics joints, each body an index into `bodies`' prims (-1 for
-    the world or one outside the asset)."""
+    """[{prim, type, body0, body1, pivot, axis, limits}] of the stage's physics joints, each body an index into
+    `bodies`' prims (-1 for the world or one outside the asset), its place in the measures' frame (joint_place)."""
     paths = [body["prim"] for body in bodies]
+    turn = upright_turn(stage)
     found = []
     for prim in Usd.PrimRange(stage.GetDefaultPrim(), Usd.TraverseInstanceProxies()):
         if prim.IsA(UsdPhysics.Joint):
             joint = UsdPhysics.Joint(prim)
             ends = [joint.GetBody0Rel().GetTargets(), joint.GetBody1Rel().GetTargets()]
             ends = [paths.index(str(end[0])) if end and str(end[0]) in paths else -1 for end in ends]
-            found.append({"prim": str(prim.GetPath()), "type": prim.GetTypeName(), "body0": ends[0], "body1": ends[1]})
+            pivot, axis, limits = joint_place(prim, joint, turn)
+            found.append({"prim": str(prim.GetPath()), "type": prim.GetTypeName(), "body0": ends[0], "body1": ends[1],
+                          "pivot": pivot, "axis": axis, "limits": limits})
     return found
+
+
+def face_bodies(face_prim, prims, bodies):
+    """Each triangle's rigid body (an index into `bodies`, -1: none), by its mesh's nearest body up its path."""
+    paths = [body["prim"] for body in bodies]
+
+    def body_of_path(path):
+        while path and path != "/":
+            if path in paths:
+                return paths.index(path)
+            path = path.rsplit("/", 1)[0]
+        return -1
+    return np.array([body_of_path(path) for path in prims], dtype=np.int32)[np.asarray(face_prim)]
 
 
 def physics_material(prim):
@@ -305,5 +347,6 @@ def read(address):
             "face_look": _look.face_looks(stage, materials, face_material, face_uv),
             "box": [low.tolist(), high.tolist()], "size": (high - low).tolist(),
             "mass": mass, "bodies": bodies, "joints": joints(bodied, bodies),
+            "face_body": face_bodies(face_prim, prims, bodies),
             "colliders": shapes["mujoco"], "friction": friction(shapes["mujoco"], physics["mujoco"]),
             "payloads": shapes, "physics_materials": physics}

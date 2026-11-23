@@ -35,6 +35,10 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   finish part's class its library surface's (the given class only where a surface names none), each of make's hulls
   the class of the faces inside it, and a real-world mass a part from Claude (EUR 0, the close-up shown), its bulk
   density held to NVIDIA's band. The measures read it, not `sim`.
+- **B's `parts` step is maker/parts.py on the final model** (#177): the moving pieces Claude sees in the RGBA
+  close-up (EUR 0), cut through the finish step's fitted camera (`camera.json`), jointed; each part's mass its share
+  of the physics step's finish groups by area and its class theirs of most area (each part keeps its finish groups).
+  It keeps `parts.json`, `face_parts.npy` and `parted.glb`; `measure` reads it (`parted`) for the parts measures.
 - **The measures read every side in the truth's frame** (`measure`: glTF's Y up and a Y-up stage turned to Z up by
   `Y_UP`, metres), the made model's physics from its own physics step, the withdrawn models of an overlap target at
   the size they were laid at; `measures.json` keeps `found` whole so a recalibrated bar re-judges a kept run.

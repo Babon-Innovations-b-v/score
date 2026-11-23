@@ -29,7 +29,10 @@ metres, Z up as NVIDIA authors it, the stage's units brought to metres, every US
 - `box`: [low, high], each [x, y, z], over the drawn triangles; `size`: high - low.
 - `mass`: NVIDIA's authored MassAPI mass in kg summed over its rigid bodies (USD physics' rule: a body's own mass,
   else the masses authored under it); None when a body has none. `bodies` [{prim, mass}]; `joints` [{prim, type,
-  body0, body1}], each body an index into `bodies` (-1: the world).
+  body0, body1, pivot, axis, limits}], each body an index into `bodies` (-1: the world), its pivot (metres) and unit
+  axis in this frame (its body0 frame's localPos0 and localRot0 carried to the world), its limits [lower, upper]
+  (degrees for a revolute joint, metres for a prismatic one; None: unlimited or neither, #177). `face_body` int32
+  (F,): each triangle's rigid body, an index into `bodies` (-1: none), its mesh's nearest body up its path.
 - `colliders`: the MuJoCo payload's colliders, the convex ones a drop trial uses (#155: Newton crashes on a triangle
   mesh collider, and 71 of the set's 83 author no Newton approximation). `friction`: the static friction they touch
   with (their physics materials', weighted by collider volume when they differ; None when none authors one).

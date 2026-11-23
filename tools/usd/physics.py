@@ -19,7 +19,9 @@ writes, beside the place's other layers and held by its root just under the edit
                           are the joint, so they do not collide; the leaf hangs `clear` metres over the floor; a
                           `drive` {speed, torque, start, end} is its motor, a DriveAPI), what a leaf carries held to
                           it by a FixedJoint, each slide a PrismaticJoint along a level axis of the scene through its
-                          leaf's middle (limits `opens`, metres; a sliding door's leaf on its frame, #148), and each
+                          leaf's middle (limits `opens`, metres; a sliding door's leaf on its frame, #148), each moving
+                          part of a made model (`parted`, #177: maker/parts.py's door, drawer or wheel nodes) its own
+                          body on a revolute or prismatic joint about its own axis through its pivot, and each
                           push a kinematic box (an unseen hand, a guide) moved in a line between its seconds
 
 and, after the run, `write_motion` writes layers/physics_motion.usda: each body's transform at every frame of the run
@@ -28,7 +30,8 @@ as time samples, strongest of the root's layers, so any USD reader plays the tri
 The trial record (score/stages/physics/design.py makes it from the scene's design) names the trial: `body`, `gravity`
 (m/s², its body's in the environment concept's physics; a record without it is refused), `material`, `seconds`, `drops` ({object, onto (an object, or "floor":
 y = 0; none: back onto where it stands), at [x, z] (none: its own spot), over}), `hinges` ({leaf, frame, pins, carries, opens, clear, drive}), `slides` (optional: {leaf, frame, along "x" or "z", opens, clear}),
-`pushes` ({name, size, from, to, start, end}) and `moved` (objects only a push moves). Its free check, `faults`,
+`pushes` ({name, size, from, to, start, end}), `moved` (objects only a push moves) and `parted` (optional, #177: a
+made model's moving parts, {object, parts: [{node, joint, axis, sign, limits, kg, drive}]}, write_parted). Its free check, `faults`,
 refuses a trial whose bodies have no drawn mesh or whose drop falls onto anything but its target.
 """
 import argparse
@@ -321,10 +324,11 @@ def joint_frames(joint, one, other, point):
         getattr(joint, f"CreateBody{index}Rel")().SetTargets([body.GetPath()])
 
 
-def write_drive(joint, drive, rate):
+def write_drive(joint, drive, rate, kind=UsdPhysics.Tokens.angular):
     """The hinge's motor: an angular velocity drive (`speed` degrees a second) whose torque is capped at `torque`
-    newton metres between its seconds and is nothing outside them (time samples a frame either side)."""
-    api = UsdPhysics.DriveAPI.Apply(joint, UsdPhysics.Tokens.angular)
+    newton metres between its seconds and is nothing outside them (time samples a frame either side); a slide's
+    (`kind` linear) the same in metres a second and newtons."""
+    api = UsdPhysics.DriveAPI.Apply(joint, kind)
     api.CreateTypeAttr(UsdPhysics.Tokens.force)
     api.CreateTargetVelocityAttr(drive["speed"])
     api.CreateStiffnessAttr(0.0)
@@ -387,6 +391,67 @@ def write_slide(stage, slide):
     pairs = UsdPhysics.FilteredPairsAPI.Apply(leaf).CreateFilteredPairsRel()
     for mesh in own_meshes(frame):
         pairs.AddTarget(mesh.GetPath())
+
+
+def part_frames(joint, holder, part):
+    """A joint's frame at a part's origin, its axes the part's own, in its object's frame (body0) and its own
+    (body1)."""
+    relative = world(part) * world(holder).GetInverse()
+    joint.CreateLocalPos0Attr(Gf.Vec3f(relative.ExtractTranslation()))
+    joint.CreateLocalRot0Attr(Gf.Quatf(Gf.Matrix4d(relative).RemoveScaleShear().ExtractRotationQuat()))
+    joint.CreateLocalPos1Attr(Gf.Vec3f(0.0, 0.0, 0.0))
+    joint.CreateLocalRot1Attr(Gf.Quatf(1.0))
+    joint.CreateBody0Rel().SetTargets([holder.GetPath()])
+    joint.CreateBody1Rel().SetTargets([part.GetPath()])
+
+
+def write_parted(stage, parted, rate):
+    """Each moving part of a made model laid whole (#177: maker/parts.py's nodes, the record's `parted` entry
+    {object, parts: [{node, joint hinge|slide|spin, axis x|y|z, sign, limits, kg, drive (optional)}]}) its own body:
+    its drawn mesh out of the collision, colliding by its convex hull (a guide copy of it, bound to its physics
+    material), weighing its own `kg`; joined to its object (static, as a hinge's frame is) by a RevoluteJoint (hinge,
+    spin) or PrismaticJoint (slide) about or along its own `axis` through its origin (the pivot), its limits the
+    way its `sign` says (a spin free), hard as the hinge's are, filtered against its object's still meshes."""
+    holder = object_prim(stage, parted["object"])
+    joints = place_path(stage).AppendPath("Physics/Joints")
+    for spec in parted["parts"]:
+        part = holder.GetChild(spec["node"])
+        if not part:
+            raise ValueError(f"{parted['object']}: no part {spec['node']} to join")
+        UsdPhysics.RigidBodyAPI.Apply(part)
+        UsdPhysics.MassAPI.Apply(part).CreateMassAttr(float(spec["kg"]))
+        part.CreateAttribute(WEIGHED, Sdf.ValueTypeNames.Bool).Set(True)
+        drawn = own_meshes(part)
+        material = UsdShade.MaterialBindingAPI(drawn[0].GetPrim()).ComputeBoundMaterial("physics")[0]
+        for mesh in drawn:
+            UsdPhysics.CollisionAPI.Apply(mesh.GetPrim()).CreateCollisionEnabledAttr(False)
+            hull = UsdGeom.Mesh.Define(stage, part.GetPath().AppendChild(f"{mesh.GetPrim().GetName()}_hull"))
+            for name in ("points", "faceVertexCounts", "faceVertexIndices"):
+                hull.GetPrim().CreateAttribute(name, mesh.GetPrim().GetAttribute(name).GetTypeName()).Set(
+                    mesh.GetPrim().GetAttribute(name).Get())
+            hull.CreatePurposeAttr(UsdGeom.Tokens.guide)
+            UsdPhysics.CollisionAPI.Apply(hull.GetPrim()).CreateCollisionEnabledAttr(True)
+            UsdPhysics.MeshCollisionAPI.Apply(hull.GetPrim()).CreateApproximationAttr(UsdPhysics.Tokens.convexHull)
+            if material:
+                UsdShade.MaterialBindingAPI.Apply(hull.GetPrim()).Bind(material, UsdShade.Tokens.weakerThanDescendants,
+                                                                       "physics")
+        kind = UsdPhysics.PrismaticJoint if spec["joint"] == "slide" else UsdPhysics.RevoluteJoint
+        joint = kind.Define(stage, joints.AppendChild(f"{parted['object']}_{spec['node']}"))
+        UsdPhysics.ArticulationRootAPI.Apply(joint.GetPrim())
+        joint.CreateAxisAttr(spec["axis"].upper())
+        if spec["joint"] != "spin" and spec.get("limits") is not None:
+            low, high = spec["limits"]
+            low, high = (low, high) if spec["sign"] > 0 else (-high, -low)
+            joint.CreateLowerLimitAttr(low)
+            joint.CreateUpperLimitAttr(high)
+            joint.GetPrim().CreateAttribute("newton:limitStiffness", Sdf.ValueTypeNames.Float).Set(float("inf"))
+        part_frames(joint, holder, part)
+        pairs = UsdPhysics.FilteredPairsAPI.Apply(part).CreateFilteredPairsRel()
+        for mesh in own_meshes(holder):
+            pairs.AddTarget(mesh.GetPath())
+        if spec.get("drive"):
+            write_drive(joint.GetPrim(), {**spec["drive"], "speed": spec["drive"]["speed"] * spec["sign"]}, rate,
+                        UsdPhysics.Tokens.linear if spec["joint"] == "slide" else UsdPhysics.Tokens.angular)
 
 
 def write_push(stage, push, rate):
@@ -486,6 +551,8 @@ def write(folder, record, materials):
         write_hinge(working, hinge, rate)
     for slide in record.get("slides", []):
         write_slide(working, slide)
+    for parted in record.get("parted", []):
+        write_parted(working, parted, rate)
     for push in record["pushes"]:
         write_push(working, push, rate)
     whole_layer.stamped(trial, record["place"]).Save()

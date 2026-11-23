@@ -45,6 +45,13 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   model's triangles: NVIDIA's modelled stickers are tens of triangles). The made side is read by its seen finishes
   (parts in one surface and look are one). NVIDIA's tune truths share few finish edges, so the wander and speck bars
   rest on them and on the tc3s models cut cleanly along a plane (run 1-like edges); the numbers are beside BARS.
+- **Moving parts and joints** (`_joints`, #177, #161 rules 1 and 11): the truth's moving parts are the bodies its
+  revolute and prismatic joints move (the joint's lesser-area body: the door, not the cabinet); each made face carries
+  its nearest truth triangle's body (`_finish.carried`), so a made part and a truth part are compared on the made
+  surface (area in common over area together), paired one to one best first. `parts.count_gap`, `faces_least`,
+  `type_held`, `axis_most` (as lines), `pivot_most` (a hinge's pivot off NVIDIA's hinge line, over the diagonal),
+  `range_most` (its open span against NVIDIA's). Its bars are design bars until the calibration pass reads the tune
+  split's jointed truths; the made side's `face_part` and `joints` come from branch B's `parts` step.
 - Not measured yet: self-intersecting faces (no free exact test at a million faces); the route's own checks
   (straight.py, the model gate's pass, sausage and lump) run in the calibration pass, not here.
 - Check: `test_a_made_model_passes_only_where_it_matches_its_truth.py`, one table of made models against one small

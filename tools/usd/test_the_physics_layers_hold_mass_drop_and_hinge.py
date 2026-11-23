@@ -33,6 +33,10 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
   made `CreateAxisAttr(UsdPhysics.Tokens.x)` (the glass door's leaf slides across its doorway's depth, not its width),
   or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
 
+- a_made_door_and_drawer_join_their_cabinet (#177): write_parted's limits not turned for the negative way (0 to 100),
+  part_frames' rotation the world's (joint_frames') -> the turned cabinet's drawer slides along the world's z; the
+  drive's speed not turned with the sign; the hull copy's approximation left unset.
+
 Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the
 toy place, for a Blender run)
 """
@@ -311,6 +315,67 @@ def instanced_asset(folder):
     base.Save()
 
 
+def a_made_door_and_drawer_join_their_cabinet():
+    """A made cabinet laid whole (#177, maker/parts.py's nodes as place_build's glTF conversion lays them: its body's
+    `geo`, a door node `door_01__hinge_yn` at its hinge and a drawer node `drawer_01__slide_z` at its middle, each
+    holding its own `geo`), the cabinet turned a quarter about up: the door a RevoluteJoint about its own y, -100 to 0
+    degrees (its negative way), its motor's speed turned with it; the drawer a PrismaticJoint along its own z, which
+    the turned cabinet lays along the world's x, 0 to 0.35 m; each its own body of its own mass, colliding by a guide
+    hull copy of its mesh, its drawn mesh out of the collision, filtered against the cabinet's body."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary) / PLACE
+        (folder / "layers").mkdir(parents=True)
+        Sdf.Layer.CreateNew(str(folder / "layers/edit.usda")).Save()
+        stage = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
+        stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{PLACE}").GetPrim())
+        mesh(stage, f"/{PLACE}/Objects/floor_plate_1/geo", [((-3.0, -0.04, -3.0), (3.0, 0.0, 3.0))], (0.0, 0.0, 0.0))
+        holder = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/cabinet_1")
+        holder.MakeMatrixXform().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), 90)) *
+                                     Gf.Matrix4d().SetTranslateOnly(Gf.Vec3d(1.0, 0.0, 0.0)))
+        mesh(stage, f"/{PLACE}/Objects/cabinet_1/geo", [((-0.25, 0.0, -0.2), (0.25, 0.8, 0.2))], (0.0, 0.0, 0.0))
+        for node, pivot, slab in (("door_01__hinge_yn", (-0.24, 0.54, 0.2), ((-0.24, 0.3, 0.2), (0.24, 0.78, 0.22))),
+                                  ("drawer_01__slide_z", (0.0, 0.15, 0.21), ((-0.24, 0.02, 0.2), (0.24, 0.28, 0.22)))):
+            part = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/cabinet_1/{node}")
+            part.MakeMatrixXform().Set(Gf.Matrix4d().SetTranslate(Gf.Vec3d(*pivot)))
+            mesh(stage, f"/{PLACE}/Objects/cabinet_1/{node}/geo", [slab], pivot)
+        stage.Save()
+        root = Sdf.Layer.CreateNew(str(folder / f"{PLACE}.usda"))
+        root.subLayerPaths[:] = ["./layers/edit.usda", "./layers/base.usda"]
+        root.defaultPrim, root.timeCodesPerSecond = PLACE, 24
+        root.Save()
+        door = {"node": "door_01__hinge_yn", "joint": "hinge", "axis": "y", "sign": -1, "limits": [0.0, 100.0],
+                "kg": 4.0, "drive": {"speed": 30.0, "torque": 50.0, "start": 0.5, "end": 2.0}}
+        drawer = {"node": "drawer_01__slide_z", "joint": "slide", "axis": "z", "sign": 1, "limits": [0.0, 0.35],
+                  "kg": 2.0}
+        found = physics.write(folder, {**{key: RECORD[key] for key in ("place", "body", "gravity", "material",
+                                                                        "seconds")},
+                                       "drops": [], "hinges": [], "pushes": [], "moved": [],
+                                       "parted": [{"object": "cabinet_1", "parts": [door, drawer]}]}, MATERIALS)
+        assert not found["faults"], found["faults"]
+        stage = composed(folder)
+        cabinet = stage.GetPrimAtPath(f"/{PLACE}/Objects/cabinet_1")
+        hinge = UsdPhysics.RevoluteJoint(stage.GetPrimAtPath(f"/{PLACE}/Physics/Joints/cabinet_1_door_01__hinge_yn"))
+        slide = UsdPhysics.PrismaticJoint(stage.GetPrimAtPath(f"/{PLACE}/Physics/Joints/cabinet_1_drawer_01__slide_z"))
+        assert hinge.GetAxisAttr().Get() == "Y" and (hinge.GetLowerLimitAttr().Get(), hinge.GetUpperLimitAttr().Get()) \
+            == (-100.0, 0.0) and hinge.GetBody0Rel().GetTargets() == [cabinet.GetPath()]
+        door_prim = stage.GetPrimAtPath(f"/{PLACE}/Objects/cabinet_1/door_01__hinge_yn")
+        assert np.allclose(physics.world(cabinet).Transform(Gf.Vec3d(hinge.GetLocalPos0Attr().Get())),
+                           physics.world(door_prim).ExtractTranslation(), atol=1e-6)
+        way = physics.world(cabinet).TransformDir(Gf.Rotation(Gf.Quatd(slide.GetLocalRot0Attr().Get())).TransformDir(
+            Gf.Vec3d(0, 0, 1)))
+        assert slide.GetAxisAttr().Get() == "Z" and np.allclose(way, (1, 0, 0), atol=1e-6), way
+        assert (slide.GetLowerLimitAttr().Get(), slide.GetUpperLimitAttr().Get()) == (0.0, np.float32(0.35))
+        assert UsdPhysics.MassAPI(door_prim).GetMassAttr().Get() == 4.0 and door_prim.HasAPI(UsdPhysics.RigidBodyAPI)
+        assert UsdPhysics.CollisionAPI(door_prim.GetChild("geo")).GetCollisionEnabledAttr().Get() is False
+        hull = door_prim.GetChild("geo_hull")
+        assert UsdPhysics.MeshCollisionAPI(hull).GetApproximationAttr().Get() == "convexHull" and \
+            UsdGeom.Imageable(hull).ComputePurpose() == "guide"
+        drive = UsdPhysics.DriveAPI(hinge.GetPrim(), "angular")
+        assert drive.GetTargetVelocityAttr().Get() == -30.0 and drive.GetMaxForceAttr().Get(12) == 50.0
+        assert UsdPhysics.FilteredPairsAPI(door_prim).GetFilteredPairsRel().GetTargets() == [
+            Sdf.Path(f"/{PLACE}/Objects/cabinet_1/geo")]
+
+
 def a_blocked_fall_is_refused():
     """A drop whose column holds another object is refused, the object an adopted asset laid in an instance too."""
     with tempfile.TemporaryDirectory() as temporary:
@@ -349,6 +414,7 @@ def main():
     an_adopted_asset_keeps_its_physics()
     a_blocked_fall_is_refused()
     a_record_without_gravity_is_refused()
+    a_made_door_and_drawer_join_their_cabinet()
     print("test_the_physics_layers_hold_mass_drop_and_hinge: ok")
 
 

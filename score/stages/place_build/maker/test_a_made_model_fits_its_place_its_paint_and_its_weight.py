@@ -24,6 +24,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   sim.physical: friction an unweighted mean of the hulls -> 0.4, not the volume-weighted 0.3667 (cube 1 m3 metal,
   cube 2 m3 wood); its mass not the parts' sum, or bulk's band read off the shortest side -> 2 m^3 box is "small";
   sim.weighed: an answer missing a part kept -> the one-part answer to two parts passes
+- parts (#177, the cabinet's door and drawer): parts.checked keeping a box turned inside out, a hinge on no side or
+  an unknown joint -> the three wrong answers pass; parts.cut with no thickness bound (the frustum alone) -> the
+  carcass's front is cut into the door; parts.hinge_line taking the first edge -> the door hinges at its top;
+  jointed's way not flipped -> the door swings in (sign 1); the slide not held to the depth -> 0.6 m;
+  parts.projected's rows not turned down -> its rays are not route_cast's; parts.written laying a part's
+  pieces without its pivot taken off -> the door's points stand 0.24 m off; parts.part_masses by face counts -> 2
+  and 2; parts.part_classes by face counts -> the body is a tie, read metal
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
   (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
@@ -45,6 +52,7 @@ import pathlib
 import numpy as np
 
 from score.stages.place_build.maker import cloud, fit, glb, grade, repair, sim
+from score.stages.place_build.maker import parts as made_parts
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -139,6 +147,29 @@ def shim():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def cabinet_scene():
+    """A cabinet in a made model's frame (glTF's y up, front +z): its carcass 0.5 x 0.8 x 0.4 m, a door 2 cm thick on
+    its front's upper part and a drawer front under it; each its own mesh. Its camera looks from the front, to the
+    right and above (route_cast.close_up_camera's eye, right, up, horizontal field)."""
+    import trimesh
+    scene = trimesh.Scene()
+    for name, extents, middle in (("carcass", (0.5, 0.8, 0.4), (0.0, 0.4, 0.0)),
+                                  ("door", (0.48, 0.48, 0.02), (0.0, 0.54, 0.21)),
+                                  ("drawer", (0.48, 0.26, 0.02), (0.0, 0.15, 0.21))):
+        scene.add_geometry(trimesh.creation.box(extents).apply_translation(middle), node_name=name, geom_name=name)
+    eye, target = np.array([0.5, 0.9, 2.5]), np.array([0.0, 0.4, 0.0])
+    ahead = (target - eye) / np.linalg.norm(target - eye)
+    right = np.cross(ahead, [0.0, 1.0, 0.0])
+    right /= np.linalg.norm(right)
+    return scene, (eye, right, np.cross(right, ahead), np.radians(40.0))
+
+
+def picture_box(corners, camera, size):
+    """[left, top, right, bottom] shares of the picture round the projected `corners`, a pixel out each way."""
+    seen = made_parts.projected(corners, camera, size)
+    return [*((seen.min(0) - 1) / size).tolist(), *((seen.max(0) + 1) / size).tolist()]
 
 
 def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
@@ -250,6 +281,64 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
         raise AssertionError("an answer that weighs one of two parts was kept")
     except ValueError:
         pass
+
+    # Moving parts (#177): the cabinet's door and drawer, seen in its close-up, cut and jointed as worked by hand.
+    import trimesh
+    scene, camera = cabinet_scene()
+    size = (400, 400)
+    meshes = scene.dump(concatenate=False)
+    vertices = np.concatenate([mesh.vertices for mesh in meshes])
+    faces = np.concatenate([mesh.faces + sum(len(other.vertices) for other in meshes[:index])
+                            for index, mesh in enumerate(meshes)])
+    door_corners, drawer_corners = (np.array([[x, y, 0.22] for x in (-0.24, 0.24) for y in ys])
+                                    for ys in ((0.3, 0.78), (0.02, 0.28)))
+    said = {"reason": "a cabinet", "parts": [
+        {"name": "Door", "joint": "hinge", "box": picture_box(door_corners, camera, size), "hinge": "left",
+         "opens": 100, "thick_m": 0.018},
+        {"name": "drawer", "joint": "slide", "box": picture_box(drawer_corners, camera, size), "hinge": "none",
+         "opens": 0.6, "thick_m": 0.018}]}
+    import score.stages.surfaces  # noqa: F401  (its modules import one another through it)
+    import route_cast
+    ways = route_cast.pixel_ways(camera, size, made_parts.projected(door_corners, camera, size))
+    assert np.allclose(ways, (door_corners - camera[0]) / np.linalg.norm(door_corners - camera[0], axis=1)[:, None])
+    asked = []
+    listed = made_parts.asked("a kitchen cabinet", [0.5, 0.4, 0.8],
+                              ask=lambda body: asked.append(body) or json.dumps(said))
+    assert "kitchen cabinet" in asked[0]["contents"][0]["parts"][-1]["text"] and listed[0]["name"] == "door"
+    for wrong in ({"box": [0.6, 0.1, 0.4, 0.5]}, {"hinge": "none"}, {"joint": "twist"}):
+        try:
+            made_parts.asked("a cabinet", [0.5, 0.4, 0.8], ask=lambda body: json.dumps(
+                {"reason": "", "parts": [{**said["parts"][0], **wrong}]}))
+            raise AssertionError(f"a piece answered {wrong} was kept")
+        except ValueError:
+            pass
+    face_part, left_out = made_parts.cut(vertices, faces, listed, camera, size)
+    # Each slab's 12 triangles but its two at the back (z 0.2, behind its outer face 0.22 less 0.018 m) are its part.
+    assert left_out == {} and [int((face_part[12 * slab:12 * slab + 12] == part).sum())
+                               for slab, part in ((0, -1), (1, 0), (2, 1))] == [12, 10, 10], face_part
+    joints = made_parts.jointed(vertices, faces, face_part, listed, camera, size)
+    # The door hinges about the upright (y) at its left edge (x -0.24) and back (z 0.2); about +y its free edge
+    # would swing in, so the way is -y. The drawer slides out along +z, its 0.6 m held to the model's 0.42 m depth.
+    assert joints == {0: {"axis": "y", "sign": -1, "pivot": [-0.24, 0.54, 0.2], "limits": [0.0, 100.0]},
+                      1: {"axis": "z", "sign": 1, "pivot": [0.0, 0.15, 0.21], "limits": [0.0, 0.42]}}, joints
+    written = made_parts.record(listed, face_part, joints, left_out)
+    assert [part["node"] for part in written["parts"]] == ["door_01__hinge_yn", "drawer_01__slide_z"]
+    from score.stages.motion import from_design
+    assert all(from_design.PART.match(part["node"]) for part in written["parts"])
+    model = tmp_path / "cabinet.glb"
+    scene.export(str(model))
+    made_parts.written(model, face_part, written, tmp_path / "parted.glb")
+    back = trimesh.load(str(tmp_path / "parted.glb"), force="scene")
+    door_matrix, _ = back.graph["door_01__hinge_yn"]
+    held = back.graph.transforms.children.get("door_01__hinge_yn", [])
+    door_points = np.concatenate([trimesh.transform_points(back.geometry[back.graph[child][1]].vertices,
+                                                           back.graph[child][0]) for child in held])
+    assert np.allclose(door_matrix[:3, 3], [-0.24, 0.54, 0.2]) and np.allclose(door_points.min(0), [-0.24, 0.3, 0.2])
+    kg, body_kg = made_parts.part_masses([-1, -1, 0, 1], [0, 0, 1, 1], [6.0, 4.0], [1.0, 2.0, 1.0, 3.0], 2)
+    assert kg == [1.0, 3.0] and body_kg == 6.0  # the second group's 4 kg by area, 1 to 3
+    classes = made_parts.part_classes([-1, -1, 0, 0, 0], ["metal", "wood", "glass", "glass", "rubber"],
+                                      [1.0, 2.0, 1.0, 1.0, 1.5], 2)
+    assert classes == (["glass", None], "wood")  # the door's glass 2 against its rubber 1.5; the body's wood 2
 
     models = cloud.REPO / "tools/cloud/images/meshparts/models.json"
     listed = {model["name"] for model in json.loads(models.read_text())}

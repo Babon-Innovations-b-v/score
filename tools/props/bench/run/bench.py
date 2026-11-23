@@ -42,13 +42,16 @@ kept, and the branch's later steps are not run for it (one try each: no step is 
   (weighed_step, #161's rules through sim.py): each finish part's class its surface's, each of make's hulls the class
   of the faces inside it, a real-world mass a part (Claude's answer, EUR 0) held to NVIDIA's bulk density band.
   And `look` (#182, look_step): the finish drawn as the bake paints it, each slot's recipe mixed by its texel mask on
-  the final model's own UVs, through the card queue (look.py).
+  the final model's own UVs, through the card queue (look.py). Then `parts` (parts_step, #177): its moving parts
+  (maker/parts.py) seen in the close-up (Claude, EUR 0), cut through the finish's fitted camera and jointed, each its
+  share of the physics step's masses and its class.
 Nothing is taken into score_lib, and the library read is a scratch checkout (--library), never the shared one.
 
 **The measures** (`measure`, free, this PC's processor): each branch's made model (A's finished final.glb, B's final
 model) read in the truth's frame (glTF's Y up turned to Z up), its mass, colliders and friction from its physics step
 (each branch's `physics`), held to its truth (tools/props/bench/truth) by tools/props/bench/measures (B's faces in their
-finish parts and each part's family against its truth finish's, `family`, where its finish step is kept), the kind's
+finish parts and each part's family against its truth finish's, `family`, where its finish step is kept; its moving
+parts and joints against NVIDIA's, where its parts step is kept), the kind's
 other set assets laid like it for the rank: kept as the branch's `measures` step, measures.json {truth, made, found,
 judged}, `found` whole so a later bar re-judges it. An overlap target's withdrawn models (the old models of score_lib it
 replaced) are measured the same way at the size they were laid at, branch `old`, one step each (its address).
@@ -586,6 +589,51 @@ def branch_b(kept, row, material, rgba, scratch, library):
         folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"weighed-{step}")
                    for step in ("final", "sim", "finish")}
         run_steps(kept, row["id"], "B", [("physics", weighed_step(folders, row, material, rgba))], scratch)
+    if not kept.entry(row["id"], "B", "parts") and all(kept_output(kept, row["id"], "B", step)
+                                                       for step in ("final", "finish", "physics")):
+        folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"parted-{step}")
+                   for step in ("final", "finish", "physics")}
+        run_steps(kept, row["id"], "B", [("parts", parts_step(folders, row, rgba))], scratch)
+
+
+def parts_step(folders, row, picture):
+    """The final model's moving parts (score/stages/place_build/maker/parts.py, #177): the pieces Claude sees move in
+    the route's picture (`picture`, the RGBA close-up; EUR 0), cut through the finish step's fitted camera and jointed,
+    each part's mass its share of the physics step's finish groups by area and its class theirs of most area:
+    parts.json, face_parts.npy (each final face's part, -1 the body) and parted.glb (its part nodes)."""
+    def make(folder):
+        from PIL import Image
+        import score.stages.surfaces  # noqa: F401  (the stage first: its modules import one another through it)
+        import route_cast
+        from score.stages.place_build.maker import parts
+        model = folders["final"] / "final.glb"
+        side = gltf_side(model)
+        vertices = side["vertices"] @ Y_UP.T  # back to the model file's own frame, glTF's Y up
+        camera = route_cast.close_up_camera(folders["finish"] / "camera.json")
+        with Image.open(picture) as shown:
+            size = shown.size
+        listed = parts.asked(row["words"], row["size"], picture)
+        face_part, left_out = parts.cut(vertices, side["faces"], listed, camera, size)
+        found = parts.record(listed, face_part, parts.jointed(vertices, side["faces"], face_part, listed, camera, size),
+                             left_out)
+        part_of, _ = finish.face_finishes(folders["finish"], row["id"])
+        weighed = json.loads((folders["physics"] / "physics.json").read_text())["parts"]
+        group_of = {number: index for index, group in enumerate(weighed) for number in group["finish_parts"]}
+        face_group = np.array([group_of[part] for part in np.asarray(part_of).tolist()])
+        corners = vertices[side["faces"]]
+        areas = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1) / 2
+        indices = [part["index"] for part in found["parts"]]
+        counted = np.array([indices.index(value) if value in indices else -1 for value in face_part.tolist()])
+        kg, found["body"]["kg"] = parts.part_masses(counted, face_group, [group["kg"] for group in weighed], areas,
+                                                    len(indices))
+        classes, found["body"]["class"] = parts.part_classes(counted, [weighed[group]["class"] for group in
+                                                                       face_group], areas, len(indices))
+        for number, (part, mass, name) in enumerate(zip(found["parts"], kg, classes)):
+            part.update(index=number, kg=round(mass, 4), **{"class": name})
+        (folder / "parts.json").write_text(json.dumps(found, indent=1))
+        np.save(folder / "face_parts.npy", counted)
+        parts.written(model, counted, found, folder / "parted.glb")
+    return make
 
 
 def weighed_step(folders, row, material, picture):
@@ -653,6 +701,9 @@ Y_UP = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
 MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.glb"), "physics")}
 # Each branch's finish step, whose parts give its model's faces their finish groups (finish.face_finishes).
 FINISHED = {"B": "finish"}
+# Each branch's moving parts step (#177), whose parts and joints the measures hold to NVIDIA's (parted).
+PARTED = {"B": "parts"}
+JOINT_TYPES = {"hinge": "revolute", "spin": "revolute", "slide": "prismatic"}
 
 
 def side_of(vertices, faces, face_material=None):
@@ -713,7 +764,18 @@ def colliders_of(path):
     return [{"vertices": points, "faces": triangles} for points, triangles, _ in gltf_meshes(path)]
 
 
-def made_side(model, physics, finished=None, take=None):
+def parted(folder):
+    """{"face_part", "joints"} of a parts step's folder (parts_step) in the measures' frame: each final face's moving
+    part, an index into `joints` (-1 the still body), and each part's joint {type revolute or prismatic, axis (its
+    way, signed), pivot, limits}, turned from glTF's Y up to Z up."""
+    found = json.loads((folder / "parts.json").read_text())
+    joints = [{"type": JOINT_TYPES[part["joint"]], "limits": part["limits"],
+               "axis": (part["sign"] * np.eye(3)["xyz".index(part["axis"])] @ Y_UP).tolist(),
+               "pivot": (np.asarray(part["pivot"], dtype=float) @ Y_UP).tolist()} for part in found["parts"]]
+    return {"face_part": np.load(folder / "face_parts.npy"), "joints": joints}
+
+
+def made_side(model, physics, finished=None, take=None, parts=None):
     """A branch's made model as a side, its mass, colliders and friction from its physics step's folder (physics.json
     and hull.glb: A's the physics layer's, B's make's physics on its finished model); each face's material its finish
     part, with `surfaces` {part: library address} and `looks` {part: its look as set, finish.part_looks}, from its
@@ -726,6 +788,10 @@ def made_side(model, physics, finished=None, take=None):
             raise StepFailed(f"the finish's parts name {len(part_of)} faces, the model has {len(side['faces'])}")
         side.update(face_material=np.asarray(part_of, dtype=np.int32), surfaces=surfaces,
                     looks=finish.part_looks(finished, take))
+    if parts is not None:
+        side.update(parted(parts))
+        if len(side["face_part"]) != len(side["faces"]):
+            raise StepFailed(f"the parts name {len(side['face_part'])} faces, the model has {len(side['faces'])}")
     found, hulls = json.loads((physics / "physics.json").read_text()), physics / "hull.glb"
     return {**side, "mass": found.get("mass_kg"), "colliders": colliders_of(hulls), "friction": found.get("static")}
 
@@ -768,9 +834,12 @@ def measure_step(kept, asset, branch, truth, others, scratch):
         model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
         held = checked_out(kept, asset, branch, physics, scratch / branch / f"kept-{physics}")
         finish = FINISHED.get(branch)
-        parted = checked_out(kept, asset, branch, finish, scratch / branch / f"kept-{finish}") \
+        finished_parts = checked_out(kept, asset, branch, finish, scratch / branch / f"kept-{finish}") \
             if finish and kept_output(kept, asset, branch, finish) else None
-        written_measures(folder, truth, made_side(model, held, parted, asset), others, f"{branch} {step}")
+        moving = PARTED.get(branch)
+        cut = checked_out(kept, asset, branch, moving, scratch / branch / f"kept-{moving}") \
+            if moving and kept_output(kept, asset, branch, moving) else None
+        written_measures(folder, truth, made_side(model, held, finished_parts, asset, cut), others, f"{branch} {step}")
     return make
 
 

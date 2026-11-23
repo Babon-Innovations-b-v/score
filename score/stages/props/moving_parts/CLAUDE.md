@@ -13,7 +13,9 @@ over its floor), `write` gives `model.glb` and `parts.json`.
   `spin` or `slide`, x, y or z in the object's own frame, `n` the negative way), its node's origin its pivot; a still part has
   its name alone. The motion layer reads joints off those names (`score/stages/motion/from_design.PART`,
   `parts_of`) and turns each part about its own origin (`tools/usd/motion_layer.py` `about` {"pivot": true},
-  `axis`), so a route that lays the model must keep its nodes' names and origins.
+  `axis`), so a route that lays the model must keep its nodes' names and origins. A made model's moving parts
+  (place_build/maker/parts.py, #177) are written in the same interface, and place_build's glTF conversion keeps each
+  as its own Xform (gltf.py).
 - **Every part names a library recipe** (`data/library/materials.json` `recipes`: painted metal, chequer plate,
   rubber); the scene library's variant of it is the finish route's to choose, never a colour of the build's own.
 - **Not wired into a paid row yet.** `pixal_row`, the finish route and the bake are what would take this build as a

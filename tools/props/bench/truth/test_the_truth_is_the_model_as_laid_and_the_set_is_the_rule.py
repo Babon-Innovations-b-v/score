@@ -15,6 +15,9 @@ authored Z-up in centimetres, and a dozen records for the rule. Its model, worke
   metal 1, roughness 0.2, of class metal by its name (m_opaque__metal__...); `plain` has no shader: NaN.
 - In metres, Z up: x 0 to 5, y 0 to 2, z 0 to 0.5. Volume 1.0 + 0.5 + 0.001 = 1.501
   m^3 (positive: outward wound). Triangles: paint 12, metal 12, the cube's 12. Mass 2 + 5 = 7 (a body's own mass wins).
+- Joints (#177): `hinge` joins Body1 (body0) and Body2 about its Z turned 90 degrees about x (the world's -y), at
+  (0, 0, 50) cm in Body1's frame (translated 300 cm): pivot (3.0, 0, 0.5) m, limits -10 to 80 degrees. The shell's 24
+  triangles are Body1's, the cube's 12 Body2's.
 - Colliders: the shell's hull is [3, 5] x [0, 2] x [0, 0.5], 2.0 m^3 (its mesh is 1.5); under Newton the cube is
   its own mesh (not convex: the simulator cuts it at load), under MuJoCo its hull (MuJoCo hulls every mesh), both
   0.001 m^3. The rubber binds static friction 0.9; the shell (its instance's binding) touches with steel's 0.5, so the
@@ -29,7 +32,8 @@ Breaks (each applied once, seen red, reverted), in `_read.py` and `_pick.py`: th
 volume, colliders), `TraverseInstanceProxies` dropped (box, volume, materials: the shell is not read), the winding
 never turned for a left-handed mesh (volume, colliders), material subsets ignored (materials), a body's own mass not
 preferred (mass), the friction not weighted by collider volume (friction), the payload variants not set (colliders),
-MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton (colliders), the salt changed (box
+MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton (colliders), a joint's localRot0 or its body0's transform not applied, or its face's body not walked up its path
+(joints), the salt changed (box
 picks), the stem skip dropped (box picks), a surface's `painted_for` tag not read (one model), the newest version not taken (box picks), the overlap targets' stems
 not taken first (desk picks); in `_look.py` the sRGB map not made linear, v not turned up (the bottom row read) and
 the class not read from the material's name (looks).
@@ -153,6 +157,16 @@ def Xform "RootNode" (
             rel material:binding = </RootNode/Looks/plain>
             rel material:binding:physics = </RootNode/Physics/rubber>
         }}
+    }}
+    def PhysicsRevoluteJoint "hinge"
+    {{
+        rel physics:body0 = </RootNode/Body1>
+        rel physics:body1 = </RootNode/Body2>
+        uniform token physics:axis = "Z"
+        point3f physics:localPos0 = (0, 0, 50)
+        quatf physics:localRot0 = (0.70710677, 0.70710677, 0, 0)
+        float physics:lowerLimit = -10
+        float physics:upperLimit = 80
     }}
     def Scope "Looks"
     {{
@@ -298,6 +312,12 @@ ROWS = [
                                                 found["physics_materials"].items()},
      {key: {"/RootNode/Physics/rubber": 0.9, "/RootNode/Physics/steel": 0.5} for key in ("newton", "mujoco")}),
     ("friction", lambda found, picks: round(found["friction"], 4), 0.5002),
+    ("joints", lambda found, picks: ([{key: (np.round(value, 4) + 0.0).tolist() if key in ("pivot", "axis") else value
+                                        for key, value in joint.items()} for joint in found["joints"]],
+                                      dict(zip(*(values.tolist() for values in np.unique(found["face_body"],
+                                                                                         return_counts=True))))),
+     ([{"prim": "/RootNode/hinge", "type": "PhysicsRevoluteJoint", "body0": 0, "body1": 1, "pivot": [3.0, 0.0, 0.5],
+        "axis": [0.0, -1.0, 0.0], "limits": [-10.0, 80.0]}], {0: 24, 1: 12})),
     ("box picks", lambda found, picks: picks_of(picks, "box"),
      [("box_tall_a01@1", "tune", []), ("box_blue_a01@2", "tune", []), ("box_wide_a01@1", "tune", []),
       ("box_red_a01@1", "held-out", []), ("box_tiny_a01@1", "held-out", [])]),

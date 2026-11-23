@@ -45,6 +45,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.dressed: WORN's "made" made "far" -> the far body shows and the made one is hidden
 - gltf.part_name: the material's name dropped (`part_<n>` always) -> the glTF's parts lose their names
 - gltf.look: the maps left out -> the door part wears no base colour map (its bake is lost)
+- gltf.moving_node: never finding one (None) -> the made door is joined into the body's geo, no hinge to read (#177);
+  gltf.in_part: the points left in the scene's frame -> the door's slab stands its pivot's offset off
 - place_build.finished_first: `-final` not ranked first -> the take's raw model is laid
 - place_build.ground: the ground mark left False -> the laid disc is no ground
 - dome_shell.ribs: the rib lifted inward (`- out`) -> the dome's box stays inside its radius
@@ -923,6 +925,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     skied(tmp_path, root, files)
     adopted(tmp_path / "adopted")
     replaced(tmp_path)
+    hinged_converted(tmp_path / "hinged")
     footprinted(tmp_path)
 
 
@@ -1074,6 +1077,32 @@ def fetching_nothing_of(entry_id):
             raise place_build.library_files.LibraryUnreachable(f"{name}: out of reach")
         return resolve(name, folder)
     return resolved
+
+
+def hinged_converted(folder):
+    """A made model with a moving part (maker/parts.py's GLB, #177: a door node `door_01__hinge_yn` at its pivot
+    holding its slab, laid from that pivot) converts with the door its own Xform at the pivot, its slab where it was,
+    and the motion layer reads its hinge off it."""
+    from score.stages.motion import from_design
+    from score.stages.place_build import gltf
+    folder.mkdir()
+    scene = trimesh.Scene()
+    scene.add_geometry(trimesh.creation.box((1, 1, 1)), node_name="body_0", geom_name="body_0")
+    scene.graph.update(frame_to="door_01__hinge_yn", frame_from=scene.graph.base_frame,
+                       matrix=trimesh.transformations.translation_matrix((-0.5, 0.0, 0.55)))
+    door = trimesh.creation.box((1, 1, 0.1)).apply_translation((0.5, 0.0, 0.0))
+    scene.add_geometry(door, node_name="door_01_0", geom_name="door_01_0", parent_node_name="door_01__hinge_yn")
+    scene.export(str(folder / "made.glb"))
+    stage = Usd.Stage.Open(str(gltf.converted(folder / "made.glb")))
+    part = stage.GetPrimAtPath("/model/door_01__hinge_yn")
+    pivot = UsdGeom.Xformable(part).ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
+    slab = UsdGeom.Imageable(stage.GetPrimAtPath("/model/door_01__hinge_yn/geo")).ComputeWorldBound(
+        Usd.TimeCode.Default(), "default").ComputeAlignedRange()
+    body = UsdGeom.Imageable(stage.GetPrimAtPath("/model/geo")).ComputeWorldBound(
+        Usd.TimeCode.Default(), "default").ComputeAlignedRange()
+    assert np.allclose(pivot, (-0.5, 0.0, 0.55)) and np.allclose(slab.GetMin(), (-0.5, -0.5, 0.5))
+    assert np.allclose(slab.GetMax(), (0.5, 0.5, 0.6)) and np.allclose(body.GetMax(), (0.5, 0.5, 0.5))
+    assert from_design.parts_of(stage, "/model") == [("/model/door_01__hinge_yn", "hinge", "y", -1)]
 
 
 def footprinted(tmp_path):
