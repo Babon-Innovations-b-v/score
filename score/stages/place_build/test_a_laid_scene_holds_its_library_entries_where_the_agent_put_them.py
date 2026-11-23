@@ -72,8 +72,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - render.views: `review` kept True when final -> the final render runs at the review's samples
 - dome_shell.chamfered_box: the outward flip dropped -> a block's solid has negative volume (faces inward)
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
-- cockpit_kit.warped_out: a pillow's points pushed onto the porthole's edge, not drawn along their way out -> the
-  pillows by the porthole are torn open (not closed solids)
+- cockpit_kit.near_hole: THROUGH dropped -> a porthole's axis, run on across the room, cuts its hole in the far
+  wall too
 - place_build.kit: a part with no look left in its placeholder -> the toggle laid with no look for its lever is not
   refused
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
@@ -306,7 +306,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import film, measure, ready, relief, render, review, stair_core
+from score.stages.place_build import cockpit_kit, film, measure, ready, relief, render, review, stair_core
 
 
 def library(root, files):
@@ -948,32 +948,39 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
 
 
 def kitted(tmp_path):
-    """A cockpit's code-built pieces (cockpit_kit, `kit`): a wall's quilted lining round a porthole, every pillow a
-    closed solid, none reaching into the hole, each part in its look; a panel's label in modelled letters; a piece
-    with a part given no look refused by that part."""
+    """A cockpit's code-built pieces (cockpit_kit, `kit`): two walls of the capsule's quilted lining, a porthole's
+    hole cut in the near one alone (its axis runs on across the room to the far one, which stays whole), each wall
+    one closed body in its looks; a panel's label in modelled letters; a piece with a part given no look refused by
+    that part."""
     folder = tmp_path / "pod"
     place_build.start(folder, "pod", tmp_path / "concept.png")
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
-    looks = {"cushion": "palette/hull_paint", "seam": "palette/hull_paint"}
-    laid = place_build.kit(folder, "lining", "lining", {"wide": 1.2, "high": 1.6, "rows": 4, "columns": 3,
-                                                        "holes": [[0.3, 1.0, 0.2]]}, role="structure", looks=looks)
+    looks = {"cushion": "palette/hull_paint", "seam": "palette/hull_paint", "back": "palette/hull_paint"}
+    hole = [0.0, 1.2, 0.25]
+    laid = {name: place_build.kit(folder, name, "lining", {"holes": [hole], "sector": sector, "cell": 0.05,
+                                                            "rows": 0.05}, role="structure", looks=looks)
+            for name, sector in (("near", [-30, 30]), ("far", [150, 210]))}
     panel = place_build.kit(folder, "plate", "panel", {"wide": 0.3, "high": 0.2, "label": "AB"}, at=(0, 1, -0.2),
                             looks={part: "palette/hull_paint" for part in ("plate", "bezel", "label", "ink")})
     with pytest.raises(place_build.Refused, match="lever"):
         place_build.kit(folder, "bare", "toggle", looks={"metal": "palette/hull_paint"})
     stage = Usd.Stage.Open(str(folder / "scene.usda"))
-    geo = UsdGeom.Mesh(stage.GetPrimAtPath("/pod/Objects/lining/geo"))
-    points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
-    faces = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
-    cushion = next(subset for subset in UsdGeom.Subset.GetAllGeomSubsets(geo) if subset.GetPrim().GetName() == "cushion")
-    pillows = trimesh.Trimesh(points, faces[np.asarray(cushion.GetIndicesAttr().Get())], process=False).split(
-        only_watertight=False)
-    in_hole = np.hypot(points[:, 0] + 0.3, points[:, 1] - 1.0) < 0.2  # the room sees x mirrored: u 0.3 is x -0.3
-    assert laid["parts"] == ["cushion", "seam"] and panel["parts"] == ["bezel", "ink", "label", "plate"], (laid, panel)
-    assert len(pillows) > 8 and all(pillow.is_watertight and pillow.volume > 0 for pillow in pillows)
-    assert not (in_hole & (points[:, 2] < -0.0035)).any()  # no pillow (the seam backing at 3 mm aside) in the hole
-    assert all(stage.GetPrimAtPath(f"/pod/Looks/lining__{part}").GetAttribute("score:surface").Get()
-               for part in ("cushion", "seam"))
+    cone = cockpit_kit.Cone()
+    middle, axis = cone.at(0.0, hole[1]), cone.inward(0.0)
+    walls, off_axis = {}, {}
+    for name in laid:
+        geo = UsdGeom.Mesh(stage.GetPrimAtPath(f"/pod/Objects/{name}/geo"))
+        points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
+        faces = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+        walls[name] = trimesh.Trimesh(points, faces, process=False).split(only_watertight=False)
+        along = (points - middle) @ axis
+        off_axis[name] = np.linalg.norm(points - middle - along[:, None] * axis, axis=1).min()
+    assert laid["near"]["parts"] == ["back", "cushion", "seam"] and panel["parts"] == ["bezel", "ink", "label",
+                                                                                         "plate"], (laid, panel)
+    assert all(len(bodies) == 1 and bodies[0].is_watertight and bodies[0].volume > 0 for bodies in walls.values())
+    assert off_axis["near"] > hole[2] - 0.01 and off_axis["far"] < 0.05, off_axis  # the hole in the near wall only
+    assert all(stage.GetPrimAtPath(f"/pod/Looks/near__{part}").GetAttribute("score:surface").Get()
+               for part in ("cushion", "back"))
     assert stage.GetPrimAtPath("/pod/Objects/plate").GetAttribute("score:support").Get() is None
 
 

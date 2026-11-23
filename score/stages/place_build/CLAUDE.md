@@ -156,13 +156,21 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   a shop's room as a structure (`score:role`). A window, sign or air conditioner flush on a wall is `put` with
   `role` "mount" and `support` "wall:<building>", so the check (ready/) judges it against that wall.
 - **The cockpit kit** (`kit`, batch only; cockpit_kit.py, the capsule lock, owner 2026-11-23: "messy meshes, no
-  panels, ugly walls"): a small craft's inside built in code at real size, laid as `algorithm/place_build`: a wall's
-  quilted lining (rounded pillows over a seam backing, cut round portholes by bending each pillow away from the hole,
-  never by tearing it), the bench ring, the ceiling's cushions, instrument panels (plate, bezel, label strip in
-  modelled letters, hardware in rows), and each switch, lamp, gauge, screen, seat and console as its own piece. Every
-  part takes its look from `looks`; a part with none is refused. Every piece is closed and nothing in it shares a
-  face with another (the check's ray parity reads a shared or open face wrongly); a piece's file is cached by its
-  sizes under `assets/algorithm/place_build/`: delete it there after changing cockpit_kit.py.
+  panels, ugly walls, way to big for the cockpit"): a small craft built in code at real size, laid as
+  `algorithm/place_build`. The capsule's body follows one cone (Cone: the hull's inner face 1.4 m from the axis at the
+  floor, drawn in 0.18 m a metre up; every face of hull and lining a cone offset along its normal): the smooth hull
+  and the quilted lining (courses of full pads with thin grooves, a bolster along the floor, eased flat round each
+  hole and onto each panel's plane, flat_spot) each in walls of their own (`sector`, 30 degrees: a wall's middle
+  then lies by it, so the check's rays from it never cross the room's furniture), the cut-away's `plug` its own
+  object for place.json `cut` and a rounded `lip` round it; ceiling, floor (a solid disc on the service module),
+  skirt, nose, porthole and hatch sleeves (`through_wall`, flanges hugging the cone, the porthole's pane out past the
+  hull), the hatch's `tread` (ground) and leaf, the railed `gantry`; instrument panels (plate and bezel one body,
+  label strip in modelled letters, hardware in rows), each switch, lamp, gauge, screen, seat and console its own
+  piece. Every part takes its look from `looks`; a part with none is refused. Every piece is closed, nothing in it
+  shares a face with another and no face is collapsed (a reader drops it and every part's face numbers after it
+  slip: the floor drew black); a hole is cut only within THROUGH of its wall (its axis runs on to the far wall). A
+  piece's file is cached by its sizes under `assets/algorithm/place_build/`: delete it there after changing
+  cockpit_kit.py. `kit --ground` lays a piece as the walked ground.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; `haze` a box of haze (tools/usd/scene.py's haze body) the renderer fills.

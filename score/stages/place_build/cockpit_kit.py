@@ -5,24 +5,27 @@ place's palette, as the dome shell algorithm's blocks are, so nothing inside the
     write(path, kind, sizes)    the piece of `kind` (KINDS) with its `sizes` written as a USD file at `path`; its parts
 
 Every piece is built facing +z (its front toward the one looking at it, its back on z = 0, x to that one's right, y
-up) and written turned half round y, so laid in a wall's frame (dome_shell blocks: the room at -z) its front faces
-the room, and a word on it reads left to right from inside. A floor piece (a seat, the console) is laid with its own
-turn. `FLAT_KINDS` are written as built (the ceiling's cushions, facing down).
+up) and written turned half round y, so laid with a wall's turn (Cone.turn) its front faces the room and a word on it
+reads left to right from inside. A floor piece (a seat, the console) is laid with its own turn. `FLAT_KINDS` (the
+capsule's own body) are built in the capsule's frame (y up the cone's axis, the floor's top at y = 0, the room's
+front +z) and written as built.
 
-The pieces, each with its sizes in metres (KINDS has their builders):
-- `lining`: a wall's quilted cushions, rows of rounded pillows (a stagger every other row) over a seam backing, round
-  holes left for portholes and a hatch (`holes` [[u, v, r]] as the room sees the wall), `clear` a stretch of the wall
-  left bare (`[u0, u1]`), the wall narrowing from `wide` at its foot to `top_wide` at `high`.
-- `bench`: the low cushion ring's piece of one side, its plan narrowing from the wall to the room.
-- `ceiling`: the ceiling's cushions inside a ten-sided outline `apothem` from the middle, facing down.
+The capsule's body, each a closed piece over its cone (Cone: `radius`, `slope`, `hull`, `lining`, ... as CONE):
+- `hull`: the smooth pressure hull, its round `holes` [[theta, y, r]] (portholes, hatch) open for their sleeves and
+  the cut-away (`cut` [theta, half theta, y, half y, power]) its "main" body's gap and its "plug" (`which`).
+- `lining`: the quilted vinyl lining from the floor to the ceiling, one piece: courses of flat full pads with thin
+  seams, a bolster along the floor, eased flat round each hole (`fades`) and under each panel (`flats`, flat_spot);
+  holes and cut-away as the hull's.
+- `ceiling` (its lamps' spots flat), `floor` (the round plate, the walked ground), `skirt` (the service ring under
+  the hull, its pipes), `nose`, `lip` (the cut-away's rounded rim), `through_wall` (a porthole's or the hatch's
+  sleeve, flanges hugging the lining and the hull, bolts, glass), `hatch_leaf`, `gantry` (the railed walkway).
 - `panel`: a plate with rounded corners, a raised bezel, a label strip with its word in modelled letters, and its
   `items` ({kind, at [u, v], ...}: the hardware below) laid on it.
 - the hardware, each its own piece or an item of a panel: `toggle` (a 2 cm bat toggle, `guard` a red flip cover),
-  `lamp` (`colour` red, green, amber, white), `gauge` (a 6 cm round needle gauge), `bars` (a bar meter), `readout`
-  (a small lit number window), `screen` (`graphic` tower, orbit, attitude, landing, lines), `keypad`, `button`,
-  `rotary`, `wheel`, `slider`, `beacon`, `words` (lettering alone).
-- `rim`: a porthole's bolted ring and its sleeve through the lining; `console`, `switch_box`, `seat`, `throttle`,
-  `stick`, `lamp_fixture`.
+  `lamp` (`colour` red, green, amber, white), `gauge` (a 6 cm round needle gauge), `bars` (a bar meter, up or
+  `across`), `readout` (a small lit number window), `screen` (`graphic` tower, orbit, attitude, landing, lines),
+  `scope` (a round scope), `keypad`, `button`, `rotary`, `wheel`, `slider`, `beacon`, `words` (lettering alone).
+- `console`, `switch_box`, `seat`, `throttle`, `stick`, `lamp_fixture`.
 """
 import math
 
@@ -37,7 +40,7 @@ PLATE = 0.012  # a panel plate's thickness
 BEZEL = 0.006  # how far a panel's bezel stands over its plate
 LETTER_ROWS = 7  # the lettering's dot rows (a 5 x 7 face)
 LINE = 0.0025  # a screen graphic's line width
-FLAT_KINDS = ("ceiling",)
+FLAT_KINDS = ("hull", "lining", "ceiling", "floor", "skirt", "nose", "lip", "through_wall", "tread", "gantry")
 
 FONT = {
     "A": (" ### ", "#   #", "#   #", "#####", "#   #", "#   #", "#   #"),
@@ -413,18 +416,22 @@ def gauge(size=0.06, sweep=240.0, reading=0.35, **_):
     return found
 
 
-def bars(count=3, wide=0.05, high=0.09, levels=(0.7, 0.45, 0.85), colour="green", **_):
-    """A bar meter: `count` lit columns of segments in a dark window, each lit to its level."""
+def bars(count=3, wide=0.05, high=0.09, levels=(0.7, 0.45, 0.85), colour="green", across=False, segments=9, **_):
+    """A bar meter: `count` lit columns of `segments` in a dark window, each lit to its level (rows lit from the left
+    when `across`)."""
     found = box("dark", (-wide / 2, -high / 2, 0.0), (wide / 2, high / 2, 0.004), 0.001)
-    pitch = wide / count
-    segments = 9
+    long, short = (wide, high) if across else (high, wide)
+    pitch = short / count
     for column in range(count):
-        middle = -wide / 2 + pitch * (column + 0.5)
+        middle = -short / 2 + pitch * (column + 0.5)
         lit = int(round(levels[column % len(levels)] * segments))
         for step in range(lit):
-            bottom = -high / 2 + 0.004 + step * (high - 0.008) / segments
-            found += box(LAMP_PARTS[colour], (middle - pitch * 0.3, bottom, 0.0037),
-                         (middle + pitch * 0.3, bottom + (high - 0.008) / segments * 0.72, 0.0048), 0.0002)
+            start = -long / 2 + 0.004 + step * (long - 0.008) / segments
+            end = start + (long - 0.008) / segments * 0.72
+            low, high_end = (start, middle - pitch * 0.3), (end, middle + pitch * 0.3)
+            if not across:
+                low, high_end = (middle - pitch * 0.3, start), (middle + pitch * 0.3, end)
+            found += box(LAMP_PARTS[colour], (low[0], low[1], 0.0037), (high_end[0], high_end[1], 0.0048), 0.0002)
     return found
 
 
@@ -444,24 +451,32 @@ def graphic(kind, wide, high, part):
     """A screen's line drawing (GRAPHICS) fitted to `wide` x `high`, as ribbons on z = 0."""
     lines = []
     if kind == "tower":
-        for x in (-0.32, -0.18):
-            lines.append([(x * wide, -0.42 * high), (x * wide, 0.36 * high)])
-        for step in range(7):
-            y = -0.42 * high + step * 0.12 * high
-            lines.append([(-0.32 * wide, y), (-0.18 * wide, y + 0.12 * high)])
-        body = [(0.0, -0.38), (0.0, 0.18), (0.05, 0.32), (0.1, 0.18), (0.1, -0.38), (0.0, -0.38)]
+        left, right, foot, head = -0.36, -0.2, -0.42, 0.40
+        lines += [[(left * wide, foot * high), (left * wide, head * high)],
+                  [(right * wide, foot * high), (right * wide, head * high)]]
+        for step in range(8):
+            low = foot + step * (head - foot) / 8
+            up = low + (head - foot) / 8
+            lines.append([(left * wide, low * high), (right * wide, low * high)])
+            lines.append([(left * wide, low * high), (right * wide, up * high)])
+            lines.append([(right * wide, low * high), (left * wide, up * high)])
+        lines.append([(left * wide, head * high), (right * wide, head * high)])
+        for arm in (0.22, -0.05):
+            lines.append([(right * wide, arm * high), (-0.04 * wide, arm * high), (-0.04 * wide, (arm - 0.05) * high)])
+        body = [(-0.02, -0.42), (-0.02, 0.18), (0.03, 0.34), (0.08, 0.18), (0.08, -0.42), (-0.02, -0.42)]
         lines.append([(x * wide, y * high) for x, y in body])
-        for fin in ([(0.0, -0.22), (-0.05, -0.38)], [(0.1, -0.22), (0.15, -0.38)]):
-            lines.append([(x * wide, y * high) for x, y in fin])
-        for step in range(4):
-            y = (0.3 - step * 0.14) * high
-            lines.append([(0.25 * wide, y), (0.42 * wide, y)])
+        for step in range(5):
+            y = (0.34 - step * 0.16) * high
+            lines.append([(0.18 * wide, y), ((0.3 + 0.08 * (step % 3)) * wide, y)])
+            lines.append([(0.18 * wide, y - 0.05 * high), (0.44 * wide, y - 0.05 * high)])
     elif kind == "orbit":
-        lines.append(circle_path(0.38 * wide, 0.26 * high, (0.0, -0.02 * high), 48, -10))
-        lines.append(circle_path(0.06 * high, 0.06 * high, (-0.05 * wide, -0.04 * high), 20))
-        lines.append(circle_path(0.012 * high, 0.012 * high, (0.3 * wide, 0.13 * high), 8))
-        lines.append([(-0.45 * wide, 0.38 * high), (-0.15 * wide, 0.38 * high)])
-        lines.append([(0.2 * wide, -0.38 * high), (0.44 * wide, -0.38 * high)])
+        lines.append(circle_path(0.34 * wide, 0.24 * high, (-0.06 * wide, -0.04 * high), 48, -10))
+        lines.append(circle_path(0.07 * high, 0.07 * high, (-0.1 * wide, -0.06 * high), 20))
+        lines.append(circle_path(0.014 * high, 0.014 * high, (0.22 * wide, 0.14 * high), 8))
+        lines.append([(-0.46 * wide, -0.44 * high), (0.46 * wide, -0.44 * high)])
+        for step in range(4):
+            y = (0.3 - step * 0.12) * high
+            lines.append([(0.33 * wide, y), (0.46 * wide, y)])
     elif kind == "attitude":
         for share in (0.38, 0.24):
             lines.append(circle_path(share * high, share * high, (0.0, 0.0), 40))
@@ -489,11 +504,29 @@ def screen(wide=0.2, high=0.15, graphic_kind="lines", colour="green", **sizes):
     `colour`."""
     border = 0.014
     found = outline_slab("frame", rounded_rectangle(wide + 2 * border, high + 2 * border, 0.012), 0.0, 0.012)
-    found += frame_ring("metal", rounded_rectangle(wide + 2 * border, high + 2 * border, 0.012),
-                        rounded_rectangle(wide + 0.004, high + 0.004, 0.006), 0.0115, 0.017)
+    found += frame_ring("metal", rounded_rectangle(wide + 2 * border - 0.003, high + 2 * border - 0.003, 0.011),
+                        rounded_rectangle(wide + 0.004, high + 0.004, 0.006), 0.0105, 0.017)
     found += box("glass_dark", (-wide / 2, -high / 2, 0.011), (wide / 2, high / 2, 0.0135), 0.0005)
     found += moved(graphic(sizes.get("graphic", graphic_kind), wide * 0.9, high * 0.9, LAMP_PARTS[colour]),
                    offset=(0.0, 0.0, 0.0136))
+    if sizes.get("title"):
+        found += moved(lettering(LAMP_PARTS[colour], sizes["title"], high * 0.07, 0.0006, align="left"),
+                       offset=(-wide * 0.45, high * 0.42, 0.0136))
+    return found
+
+
+def scope(size=0.11, colour="cyan", **_):
+    """A round scope `size` across: a bright ring round a dark face with its rings, cross and the craft's mark lit."""
+    radius = size / 2
+    found = turned("metal", [(radius * 0.9, 0.0), (radius * 1.12, 0.0), (radius * 1.12, 0.008), (radius * 1.0, 0.011),
+                             (radius * 0.9, 0.011), (radius * 0.9, 0.0)], segments=48)
+    found += turned("glass_dark", [(0.0, 0.0), (radius * 0.91, 0.0), (radius * 0.91, 0.006), (0.0, 0.006)], segments=48)
+    lines = [circle_path(radius * share, radius * share, (0.0, 0.0), 40) for share in (0.75, 0.45)]
+    lines += [[(-radius * 0.85, 0.0), (radius * 0.85, 0.0)], [(0.0, -radius * 0.85), (0.0, radius * 0.85)],
+              [(-radius * 0.35, radius * 0.1), (0.0, 0.0), (radius * 0.35, radius * 0.1)]]
+    for line in lines:
+        for start, end in zip(line[:-1], line[1:]):
+            found += moved(ribbon(LAMP_PARTS[colour], [start, end], LINE, 0.0), offset=(0.0, 0.0, 0.0062))
     return found
 
 
@@ -574,7 +607,7 @@ def words(text="", high=0.012, part="ink", **_):
 
 
 ITEMS = {"toggle": toggle, "lamp": lamp, "gauge": gauge, "bars": bars, "readout": readout, "screen": screen,
-         "keypad": keypad, "button": button, "rotary": rotary, "wheel": wheel, "slider": slider, "beacon": beacon,
+         "keypad": keypad, "scope": scope, "button": button, "rotary": rotary, "wheel": wheel, "slider": slider, "beacon": beacon,
          "words": words}
 
 
@@ -588,13 +621,46 @@ def laid_items(items, height):
     return found
 
 
+def framed_plate(outer, inner):
+    """A panel's plate and its raised bezel as one closed body: the plate PLATE thick inside the `inner` outline, the
+    bezel BEZEL over it between `inner` and `outer` (each counter-clockwise, as many points), so its middle lies in
+    the plate (a bezel alone, a ring, has its middle in its hole, where the panel's own wired parts sit)."""
+    outer, inner = np.asarray(outer, dtype=np.float64), np.asarray(inner, dtype=np.float64)
+    count = len(outer)
+    rings = [(outer, 0.0), (outer, PLATE + BEZEL), (inner, PLATE + BEZEL), (inner, PLATE)]
+    points = [(x, y, z) for outline, z in rings for x, y in outline]
+    middle_top, middle_bottom = len(points), len(points) + 1
+    points += [(*inner.mean(axis=0), PLATE), (*outer.mean(axis=0), 0.0)]
+    points = np.asarray(points)
+    bands = []
+    for ring in range(len(rings) - 1):
+        for step in range(count):
+            here, there = ring * count + step, ring * count + (step + 1) % count
+            bands += [[here, there, there + count], [here, there + count, here + count]]
+    top = [[middle_top, 3 * count + step, 3 * count + (step + 1) % count] for step in range(count)]
+    bottom = [[middle_bottom, (step + 1) % count, step] for step in range(count)]
+    triangles = np.asarray(bands + top + bottom)
+    corners = points[triangles]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    across = corners.mean(axis=1)[:, :2] - outer.mean(axis=0)
+    zero, flat = np.zeros((count * 2, 2)), np.zeros((count, 2))
+    ways = np.vstack([np.column_stack([across[:count * 2], zero[:, 0]]),  # the bezel's outer wall: out
+                      np.column_stack([zero, np.ones(count * 2)]),  # its top: up
+                      np.column_stack([-across[count * 4:count * 6], zero[:, 0]]),  # its inner wall: in
+                      np.column_stack([flat, np.ones(count)]), np.column_stack([flat, -np.ones(count)])])
+    flip = np.einsum("ij,ij->i", normals, ways) < 0
+    triangles[flip] = triangles[flip][:, ::-1]
+    plate = np.zeros(len(triangles), dtype=bool)
+    plate[len(bands):] = True  # the faces across: the plate's top and its back
+    return [piece("bezel", points, triangles[~plate], False), piece("plate", points, triangles[plate], False)]
+
+
 def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, **_):
     """An instrument panel: a plate with rounded corners, a raised bezel round it, a label strip across its top with
     `label` in modelled letters, and its `items` laid on the plate (their `at` from the plate's middle)."""
     corner = 0.022
-    found = outline_slab("plate", rounded_rectangle(wide, high, corner), 0.0, PLATE)
-    found += frame_ring("bezel", rounded_rectangle(wide, high, corner),
-                        rounded_rectangle(wide - 0.024, high - 0.024, corner * 0.6), PLATE - 0.0005, PLATE + BEZEL)
+    found = framed_plate(rounded_rectangle(wide, high, corner), rounded_rectangle(wide - 0.024, high - 0.024,
+                                                                                    corner * 0.6))
     if label:
         strip_high = label_high * 1.7
         top = high / 2 - 0.012 - 0.006
@@ -605,174 +671,556 @@ def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, **_):
     return found
 
 
-# --- the room: cushions, rims, furniture ----------------------------------------------------------------------------
+# --- the capsule: its cone's hull, lining, ceiling and floor, built in the capsule's own frame -----------------------
 
-def overlaps_hole(low_u, low_v, high_u, high_v, holes, margin):
-    """Whether the rectangle comes within `margin` of any round hole [u, v, r]."""
-    for u, v, radius in holes:
-        nearest_u, nearest_v = min(max(u, low_u), high_u), min(max(v, low_v), high_v)
-        if math.hypot(u - nearest_u, v - nearest_v) < radius + margin:
-            return True
-    return False
-
-
-def lining(wide=1.3, top_wide=None, low=0.0, high=1.7, rows=4, columns=4, depth=0.12, puff=0.03, holes=(),
-           clear=None, under=(), under_depth=0.09, seed=0, **_):
-    """A wall's quilted lining: `rows` of rounded pillows from `low` to `high` (`columns` a row, every other row
-    staggered half a pillow), `depth` thick and swollen `puff` at their middles, over a seam backing; the wall `wide`
-    at its foot narrowing to `top_wide` at `high`; no pillow within a seam of a round hole (`holes` [[u, v, r]]: a
-    porthole's, a hatch's; a pillow over its edge cut round it) nor over the bare stretch `clear`
-    [u0, u1] (a pillow over its edge cut back to it); a pillow behind a panel (`under` [[u0, v0, u1, v1]]) only `under_depth` thick and barely swollen, so
-    the panel sits on it set into its neighbours."""
-    random = np.random.default_rng(seed)
-    top_wide = wide if top_wide is None else top_wide
-    pitch = (high - low) / rows
-    found = []
-
-    def half_at(v):
-        return (wide + (top_wide - wide) * (v - low) / max(high - low, 1e-9)) / 2
-
-    for row in range(rows):
-        bottom, top = low + row * pitch, low + (row + 1) * pitch
-        half = min(half_at(bottom), half_at(top))
-        cell = 2 * half / columns
-        shift = cell / 2 if row % 2 else 0.0
-        edges = sorted({-half, half, *[-half + shift + cell * step for step in range(columns + 1)
-                                       if -half < -half + shift + cell * step < half]})
-        for low_u, high_u in zip(edges[:-1], edges[1:]):
-            if high_u - low_u < 0.04:
-                continue
-            for u0, v0, u1, v1 in split_round(*trimmed(low_u, bottom, high_u, top, clear), holes):
-                if u1 - u0 < 0.05 or v1 - v0 < 0.05 or any(
-                        math.hypot((u0 + u1) / 2 - hu, (v0 + v1) / 2 - hv) < hr + 0.01 for hu, hv, hr in holes):
-                    continue
-                thick = depth * (1 + random.uniform(-0.08, 0.08))
-                swell = puff * random.uniform(0.75, 1.2)
-                if any(u1 > a0 - 0.01 and u0 < a1 + 0.01 and v1 > b0 - 0.01 and v0 < b1 + 0.01
-                       for a0, b0, a1, b1 in under):
-                    thick, swell = under_depth, 0.006
-                near = overlaps_hole(u0, v0, u1, v1, holes, 0.004)
-                pillow = rounded_box("cushion", (u0 + SEAM / 2, v0 + SEAM / 2, 0.004),
-                                     (u1 - SEAM / 2, v1 - SEAM / 2, thick), min(0.045, (u1 - u0) / 3, (v1 - v0) / 3),
-                                     swell, inside=14 if near else 6)
-                found += [(part, warped_out(points, holes, (u0, v0, u1, v1)), triangles, smooth)
-                          for part, points, triangles, smooth in pillow]
-    found += backing(wide, top_wide, low, high, holes, clear)
-    return found
+CONE = {"radius": 1.40, "slope": 0.18, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.05,
+        "bolster_high": 0.55, "puff": 0.045, "ceiling": 2.05}
+ROWS = (0.0, 0.42, 0.75, 1.08, 1.41, 1.74, 2.05)  # the lining's courses, metres up from the floor
+WIDTHS = (0.55, 0.42, 0.42, 0.40, 0.38, 0.36)  # each course's cushion width
+FADE = 0.06  # metres over which the quilting eases flat round a porthole, a hatch or a panel
+THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
 
-def trimmed(low_u, low_v, high_u, high_v, clear):
-    """A pillow's rectangle cut back to the side of the bare stretch `clear` [u0, u1] it mostly lies on (an empty
-    width when it lies within it)."""
-    if clear is None or high_u <= clear[0] or low_u >= clear[1]:
-        return low_u, low_v, high_u, high_v
-    left, right = max(0.0, clear[0] - low_u), max(0.0, high_u - clear[1])
-    return (low_u, low_v, clear[0], high_v) if left >= right else (clear[1], low_v, high_u, high_v)
+class Cone:
+    """The capsule's cone: its hull's inner face `radius` metres from the axis (y) at the floor (y = 0), drawn in
+    `slope` metres a metre up. Every face of the hull and lining is this cone `offset` metres in (along its normal,
+    toward the room): a cone too. An angle `theta` runs from +z toward +x (the room's front and its left)."""
+
+    def __init__(self, **sizes):
+        self.sizes = {**CONE, **{key: value for key, value in sizes.items() if key in CONE}}
+        self.radius, self.slope = float(self.sizes["radius"]), float(self.sizes["slope"])
+        self.cos = 1.0 / math.sqrt(1.0 + self.slope ** 2)
+        self.sin = self.slope * self.cos
+
+    def rho(self, y, offset=0.0):
+        """The face's distance from the axis at height `y`."""
+        return self.radius - self.slope * np.asarray(y, dtype=np.float64) - offset / self.cos
+
+    def at(self, theta, y, offset=0.0):
+        """The points of the face `offset` in at `theta` (radians) and height `y`."""
+        theta, y = np.broadcast_arrays(np.asarray(theta, dtype=np.float64), np.asarray(y, dtype=np.float64))
+        rho = self.rho(y, offset)
+        return np.stack([rho * np.sin(theta), y, rho * np.cos(theta)], axis=-1)
+
+    def inward(self, theta):
+        """The faces' normal toward the room at `theta`."""
+        theta = np.asarray(theta, dtype=np.float64)
+        return np.stack([-np.sin(theta) * self.cos, np.full_like(theta, -self.sin), -np.cos(theta) * self.cos],
+                        axis=-1)
+
+    def frame(self, theta):
+        """At `theta`, as one in the room looking at the wall sees it: (right, up the wall, toward the room); a piece
+        laid there turns [-slope_degrees, theta degrees, 0] (`turn`)."""
+        theta = float(theta)
+        right = np.array([-math.cos(theta), 0.0, math.sin(theta)])
+        up = np.array([-self.sin * math.sin(theta), self.cos, -self.sin * math.cos(theta)])
+        return right, up, self.inward(theta)
+
+    def turn(self, theta):
+        """The turn (rotateXYZ degrees) laying a piece's front (its -z, as written) toward the room at `theta`."""
+        return [round(-math.degrees(math.atan(self.slope)), 6), round(math.degrees(float(theta)), 6), 0.0]
+
+    def onto(self, points, way, offset=0.0):
+        """Where the line from each of `points` along `way` meets the face `offset` in (its nearer crossing)."""
+        points = np.asarray(points, dtype=np.float64)
+        way = np.asarray(way, dtype=np.float64) / np.linalg.norm(way)
+        top = self.radius - offset / self.cos
+        reach = top - self.slope * points[..., 1]
+        rise = -self.slope * way[1]
+        square = way[0] ** 2 + way[2] ** 2 - rise ** 2
+        linear = 2 * (points[..., 0] * way[0] + points[..., 2] * way[2] - reach * rise)
+        constant = points[..., 0] ** 2 + points[..., 2] ** 2 - reach ** 2
+        root = np.sqrt(np.maximum(linear ** 2 - 4 * square * constant, 0.0))
+        near, far = (-linear - root) / (2 * square), (-linear + root) / (2 * square)
+        along = np.where(np.abs(near) < np.abs(far), near, far)
+        return points + along[..., None] * way
 
 
-def split_round(low_u, low_v, high_u, high_v, holes):
-    """A pillow's rectangle split at the middle of each round hole inside it, so every piece has the hole's middle
-    outside it or on its corner (`warped_out` then bends each away from the hole)."""
-    pieces = [(low_u, low_v, high_u, high_v)]
-    for hole_u, hole_v, _ in holes:
-        split = []
-        for u0, v0, u1, v1 in pieces:
-            us = [u0, hole_u, u1] if u0 < hole_u < u1 else [u0, u1]
-            vs = [v0, hole_v, v1] if v0 < hole_v < v1 else [v0, v1]
-            split += [(us[i], vs[j], us[i + 1], vs[j + 1]) for i in range(len(us) - 1) for j in range(len(vs) - 1)]
-        pieces = split
+def smoothstep(low, high, value):
+    """0 at `low`, 1 at `high`, eased between."""
+    share = np.clip((np.asarray(value, dtype=np.float64) - low) / (high - low), 0.0, 1.0)
+    return share * share * (3 - 2 * share)
+
+
+def facing(points, triangles, ways):
+    """The triangles wound so each faces along its `ways` row (one way a triangle)."""
+    corners = points[triangles]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    flip = np.einsum("ij,ij->i", normals, ways) < 0
+    triangles = triangles.copy()
+    triangles[flip] = triangles[flip][:, ::-1]
+    return triangles
+
+
+def grid_solid(front, back, keep, front_parts, back_part, side_part, ways, pole=None):
+    """A closed solid over a grid of cells: `front` and `back` (rows x columns x 3, the columns round a ring), each
+    kept cell (`keep`, rows - 1 x columns) a quad of each, its front facing along `ways` (rows x columns x 3) and its
+    back away, in its `front_parts` (rows - 1 x columns) and `back_part`; a side face of `side_part` on every edge
+    between a kept cell and one not kept (or the grid's first and last row), facing out of the kept one. `pole`
+    [front point, back point] closes the first row round a middle point instead of a side (a disc)."""
+    rows, columns = front.shape[:2]
+    count = rows * columns
+    index = np.arange(count).reshape(rows, columns)
+    following = np.roll(index, -1, axis=1)
+    flat_front, flat_back, flat_ways = front.reshape(-1, 3), back.reshape(-1, 3), ways.reshape(-1, 3)
+    cell_rows, cell_columns = np.nonzero(keep)
+    quads = np.stack([index[cell_rows, cell_columns], following[cell_rows, cell_columns],
+                      following[cell_rows + 1, cell_columns], index[cell_rows + 1, cell_columns]], axis=-1)
+    triangles = np.concatenate([quads[:, [0, 1, 2]], quads[:, [0, 2, 3]]])
+    triangle_ways = flat_ways[triangles].mean(axis=1)
+    parts = np.concatenate([front_parts[cell_rows, cell_columns]] * 2)
+    front_faces = facing(flat_front, triangles, triangle_ways)
+    pieces = [piece(str(part), flat_front, front_faces[parts == part], True) for part in np.unique(parts)]
+    back_faces = [facing(flat_back, triangles, -triangle_ways)]
+    if pole is not None:
+        middle_front, middle_back = np.vstack([flat_front, pole[0]]), np.vstack([flat_back, pole[1]])
+        fan = np.stack([np.full(columns, count), index[0], following[0]], axis=-1)
+        fan_ways = flat_ways[index[0]]
+        pieces.append(piece(str(front_parts[0, 0]), middle_front, facing(middle_front, fan, fan_ways), True))
+        pieces.append(piece(back_part, middle_back, facing(middle_back, fan, -fan_ways), True))
+    pieces.append(piece(back_part, flat_back, np.concatenate(back_faces), True))
+    edge = np.zeros((1, columns), dtype=bool)
+    padded = np.vstack([np.ones((1, columns), dtype=bool) if pole is not None else edge, keep, edge])
+    centres = (front[:-1] + np.roll(front[:-1], -1, axis=1) + front[1:] + np.roll(front[1:], -1, axis=1)) / 4
+    level_rows, level_columns = np.nonzero(padded[:-1] != padded[1:])
+    if pole is not None:
+        keep_first = level_rows > 0
+        level_rows, level_columns = level_rows[keep_first], level_columns[keep_first]
+    above = padded[level_rows + 1, level_columns]
+    starts = index[level_rows, level_columns]
+    ends = following[level_rows, level_columns]
+    kept_rows = np.where(above, level_rows, level_rows - 1)
+    kept_centres = centres[kept_rows, level_columns]
+    left = np.roll(keep, 1, axis=1)
+    upright_rows, upright_columns = np.nonzero(left != keep)
+    kept_columns = np.where(keep[upright_rows, upright_columns], upright_columns, (upright_columns - 1) % columns)
+    starts = np.concatenate([starts, index[upright_rows, upright_columns]])
+    ends = np.concatenate([ends, index[upright_rows + 1, upright_columns]])
+    kept_centres = np.vstack([kept_centres, centres[upright_rows, kept_columns]])
+    if len(starts):
+        sides = np.stack([starts, ends, ends + count, starts + count], axis=-1)
+        both = np.vstack([flat_front, flat_back])
+        outward = (flat_front[starts] + flat_front[ends]) / 2 - kept_centres
+        side_faces = np.concatenate([sides[:, [0, 1, 2]], sides[:, [0, 2, 3]]])
+        pieces.append(piece(side_part, both, facing(both, side_faces, np.vstack([outward, outward])), False))
     return pieces
 
 
-def warped_out(points, holes, cell, past=0.01):
-    """A pillow's points bent away from each round hole [u, v, r] it overlaps: along each way out of the hole's middle,
-    the stretch of the pillow's rectangle `cell` from where the way enters it to where it leaves is drawn onto the
-    stretch from `past` beyond the hole's edge to where it leaves, so the pillow stays whole and closed and hugs the
-    porthole's rim."""
-    points = points.copy()
-    low, high = np.array(cell[:2]) - 1e-6, np.array(cell[2:]) + 1e-6
-    for hole_u, hole_v, radius in holes:
-        centre = np.array([hole_u, hole_v])
-        offset = points[:, :2] - centre
-        distance = np.maximum(np.linalg.norm(offset, axis=1), 1e-9)
-        way = offset / distance[:, None]
-        safe = np.where(np.abs(way) < 1e-12, 1e-12, way)
-        first, second = (low - centre) / safe, (high - centre) / safe
-        enters = np.maximum(np.minimum(first, second).max(axis=1), 0.0)
-        leaves = np.maximum(first, second).min(axis=1)
-        start = np.minimum(np.maximum(enters, radius + past), leaves - 0.005)
-        moved = enters < start
-        share = (distance - enters) / np.maximum(leaves - enters, 1e-9)
-        reach = np.where(moved, start + share * (leaves - start), distance)
-        points[:, :2] = centre + way * reach[:, None]
-    return points
+def wrapped(angle):
+    """An angle (radians) brought within half a turn of 0."""
+    return (np.asarray(angle, dtype=np.float64) + math.pi) % (2 * math.pi) - math.pi
 
 
-def backing(wide, top_wide, low, high, holes, clear, cell=0.02):
-    """The seam backing behind a lining's pillows: one sheet facing the room, a cell left out inside each hole and
-    the bare stretch."""
-    points, triangles = [], []
-    for v in np.arange(low, high - 1e-9, cell):
-        v1 = min(v + cell, high)
-        half = (wide + (top_wide - wide) * (v - low) / max(high - low, 1e-9)) / 2
-        for u in np.arange(-half, half - 1e-9, cell):
-            u1 = min(u + cell, half)
-            if any(math.hypot((u + u1) / 2 - hu, (v + v1) / 2 - hv) < hr for hu, hv, hr in holes):
-                continue
-            if clear is not None and u1 > clear[0] and u < clear[1]:
-                continue
-            first = len(points)
-            points += [(u, v, 0.003), (u1, v, 0.003), (u1, v1, 0.003), (u, v1, 0.003)]
-            triangles += [[first, first + 1, first + 2], [first, first + 2, first + 3]]
-    return [piece("seam", points, triangles, False)] if points else []
+def in_cut(theta, y, cut):
+    """Whether each spot lies inside the cut-away's outline `cut` [theta, half theta (degrees), y, half y, power]: a
+    rounded rectangle on the cone (a superellipse in angle and height), the concept's open side."""
+    middle, half, height, half_high, power = cut
+    across = np.abs(wrapped(theta - math.radians(middle))) / math.radians(half)
+    upward = np.abs(np.asarray(y) - height) / half_high
+    return across ** power + upward ** power < 1.0
 
 
-def bench(wide=1.3, front=0.95, high=0.44, back=0.07, deep=0.58, seed=0, **_):
-    """One side's piece of the low cushion ring: a fat cushion from `back` to `deep` off the wall, `high` tall, its
-    plan `wide` at the wall and `front` at the room, on a seam plinth."""
-    found = rounded_box("cushion", (-wide / 2 + SEAM, 0.0, back), (wide / 2 - SEAM, high, deep), 0.07, 0.025,
-                        narrow=front / wide)
-    found += rounded_box("cushion", (-wide / 2 + SEAM, high - 0.004, back), (wide / 2 - SEAM, high + 0.12,
-                                                                                back + 0.16), 0.05, 0.02)
-    return found
+def near_hole(cone, points, holes):
+    """Whether each point lies within a round hole [theta (degrees), y, radius] of the cone: nearer than the radius
+    to the hole's axis (the face's normal through its middle on the hull's inner face) and within THROUGH of the
+    wall along it (the axis runs on across the room to the far wall, which keeps its cells)."""
+    near = np.zeros(points.shape[:-1], dtype=bool)
+    for theta, y, radius in holes:
+        middle = cone.at(math.radians(theta), y)
+        axis = cone.inward(math.radians(theta))
+        offset = points - middle
+        along = np.einsum("...i,i->...", offset, axis)
+        across = offset - along[..., None] * axis
+        near |= (np.linalg.norm(across, axis=-1) < radius) & (np.abs(along) < THROUGH)
+    return near
 
 
-def ceiling(apothem=1.0, cell=0.3, depth=0.09, puff=0.025, seed=0, **_):
-    """The ceiling's cushions: a grid of pillows `cell` square inside a ten-sided outline `apothem` from the middle
-    (its sides facing 0, 36, ... degrees round y), hanging `depth` under y = 0 and facing down."""
-    random = np.random.default_rng(seed)
-    normals = [(math.sin(math.radians(step * 36)), math.cos(math.radians(step * 36))) for step in range(10)]
+def cells_kept(near, cut_cells, which, middle_theta, sector):
+    """The cells of a grid kept for `which` piece: its "main" body (outside the cut-away; only its `sector` [from,
+    to] degrees round when given, so each sector is a wall of its own whose middle lies by it) or the "plug" filling
+    the cut-away (the camera's alone); a cell with a corner in a hole is in neither."""
+    corner = near[:-1] | np.roll(near[:-1], -1, axis=1) | near[1:] | np.roll(near[1:], -1, axis=1)
+    if which not in ("main", "plug"):
+        raise ValueError(f"a capsule piece is its main body or its plug, not {which!r}")
+    kept = ~corner & (cut_cells if which == "plug" else ~cut_cells)
+    if sector is not None:
+        start = math.radians(sector[0])
+        kept &= (middle_theta - start) % (2 * math.pi) < math.radians(sector[1] - sector[0])
+    return kept
+
+
+def ring_grid(rows, bottom, top, circumference, cell):
+    """A ring grid's angles and heights: as many columns as `cell` metres fit round `circumference`, and rows `rows`
+    apart from `bottom` to `top`."""
+    columns = max(12, int(round(circumference / cell)))
+    heights = np.linspace(bottom, top, max(2, int(round((top - bottom) / rows)) + 1))
+    return np.arange(columns) * 2 * math.pi / columns, heights
+
+
+def hull(cut=None, holes=(), which="main", sector=None, bottom=-0.40, top=2.15, cell=0.025, band=-0.18, **sizes):
+    """The capsule's pressure hull from `bottom` to `top`: a smooth cone `hull` metres thick, its round holes
+    (`holes` [[theta, y, radius]]: the portholes, the hatch) left open for their sleeves, the cut-away (`cut`, as
+    in_cut) left out of its "main" body and filling its "plug"; below `band` its rim (part band)."""
+    cone = Cone(**sizes)
+    thetas, heights = ring_grid(cell, bottom, top, 2 * math.pi * float(cone.rho(bottom)), cell)
+    grid_theta, grid_y = np.meshgrid(thetas, heights)
+    inner = cone.at(grid_theta, grid_y)
+    outer = cone.at(grid_theta, grid_y, -cone.sizes["hull"])
+    middle_theta = grid_theta[:-1] + math.pi / len(thetas)
+    middle_y = (grid_y[:-1] + grid_y[1:]) / 2
+    cut_cells = in_cut(middle_theta, middle_y, cut) if cut else np.zeros(middle_y.shape, dtype=bool)
+    near = near_hole(cone, inner, holes) | near_hole(cone, outer, holes)
+    keep = cells_kept(near, cut_cells, which, middle_theta, sector)
+    parts = np.where(middle_y < band, "band", "hull")
+    return grid_solid(inner, outer, keep, parts, "hull", "edge", cone.inward(grid_theta))
+
+
+def quilt(cone, theta, y):
+    """The lining's cushions over the spots (theta, y): (how far each stands out, the share of its cushion's puff
+    there). Courses of rounded pads, ROWS high and about WIDTHS wide, each course offset from the one under it, a
+    pad's face flat and full and falling to a thin seam at its edges, its seams wandering a little; the course on
+    the floor a fat bolster."""
+    edges = np.asarray(ROWS)
+    wander = (0.010 * np.sin(3 * theta + 1.7) + 0.006 * np.sin(7 * theta + 0.4)) * smoothstep(0.05, 0.2, y)
+    shifted = y + wander
+    row = np.clip(np.searchsorted(edges, shifted, side="right") - 1, 0, len(edges) - 2)
+    low, high = edges[row], edges[row + 1]
+    upward = np.clip((shifted - low) / (high - low), 0.0, 1.0)
+    middles = (edges[:-1] + edges[1:]) / 2
+    counts = np.maximum(np.round(2 * math.pi * cone.rho(middles, 0.1) / np.asarray(WIDTHS)), 3)
+    shifts = np.array([(0.5 * (number % 2) + 0.13 * number) % 1.0 for number in range(len(counts))])
+    position = (theta % (2 * math.pi)) / (2 * math.pi) * counts[row] + shifts[row]
+    column = np.floor(position)
+    across = position - column
+    seed = np.abs(np.sin(row * 12.9898 + (column % counts[row]) * 78.233) * 43758.5453) % 1.0
+    share_across = np.clip(1 - np.abs(2 * across - 1) ** 3.5, 0, 1) ** 0.65
+    share_up = np.where(row == 0, np.clip(1 - np.abs(2 * upward - 1) ** 2.5, 0, 1) ** 0.6,
+                        np.clip(1 - np.abs(2 * upward - 1) ** 3, 0, 1) ** 0.65)
+    share = share_across * share_up
+    puff = cone.sizes["puff"] * np.where(row == 0, 1.7, 1.0) * (0.85 + 0.3 * seed)
+    return puff * share, share
+
+
+def flat_spot(theta, y, wide, high, **sizes):
+    """Where a flat piece `wide` x `high` (a panel) lies on the lining at `theta` (degrees) and height `y`, the
+    quilting under it eased onto its plane: (its back's middle, its turn, (right, up, inward)). The plane stands off
+    the lining's face by the wall's curve across the piece, so its edges rest on the face and nothing sinks in."""
+    cone = Cone(**sizes)
+    angle = math.radians(theta)
+    right, up, inward = cone.frame(angle)
+    face = cone.sizes["gap"] + cone.sizes["lining"]
+    rho = float(cone.rho(y, face))
+    reach = wide / 2 + 0.02
+    sag = rho - math.sqrt(max(rho ** 2 - reach ** 2, 1e-9))
+    middle = cone.at(angle, y, face) + inward * (sag + 0.003)
+    return middle, cone.turn(angle), (right, up, inward)
+
+
+def lining_depth(cone, theta, y, back, fades, flats):
+    """How far the lining's face stands off its back at each spot: its skin, the bolster at the floor and the
+    cushions, eased flat round each fade [theta, y, radius] and onto each flat's plane [theta, y, wide, high]."""
+    sizes = cone.sizes
+    bump, share = quilt(cone, theta, y)
+    soft = sizes["bolster"] * smoothstep(sizes["bolster_high"], 0.0, y) + bump
+    eased = np.zeros(theta.shape)
+    for fade_theta, fade_y, radius in fades:
+        distance = np.linalg.norm(back - cone.at(math.radians(fade_theta), fade_y, sizes["gap"]), axis=-1)
+        eased = np.maximum(eased, 1 - smoothstep(radius, radius + FADE, distance))
+    depth = sizes["lining"] + soft * (1 - eased)
+    flattened = np.zeros(theta.shape)
+    normals = cone.inward(theta)
+    for flat_theta, flat_y, wide, high in flats:
+        middle, _, (right, up, inward) = flat_spot(flat_theta, flat_y, wide, high, **sizes)
+        offset = back - cone.at(math.radians(flat_theta), flat_y, sizes["gap"])
+        outside = np.hypot(np.maximum(np.abs(offset @ right) - wide / 2, 0.0),
+                           np.maximum(np.abs(offset @ up) - high / 2, 0.0))
+        weight = (1 - smoothstep(0.01, 0.01 + FADE, outside)) * (np.abs(offset @ inward) < 0.3)
+        onto = ((middle - back) @ inward) / np.maximum(np.einsum("...i,i->...", normals, inward), 1e-6)
+        depth = depth * (1 - weight) + onto * weight
+        flattened = np.maximum(flattened, weight)
+    return depth, share * (1 - np.maximum(eased, flattened)) + np.maximum(eased, flattened)
+
+
+def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, cell=0.02, rows=0.016, **sizes):
+    """The cabin's quilted lining, one closed piece round the cone from the floor to the ceiling: its back a hair
+    off the hull, its face the cushions (lining_depth: worn vinyl pads in courses, thin seams, a bolster along the
+    floor), round holes left for the portholes and the hatch (`holes`, as hull), the quilting eased flat round them
+    (`fades`) and under each panel (`flats`, flat_spot), the cut-away left out of its "main" body and filling its
+    "plug". Parts cushion and seam (the faces down in a seam), back."""
+    cone = Cone(**sizes)
+    top = cone.sizes["ceiling"]
+    thetas, heights = ring_grid(rows, 0.0015, top, 2 * math.pi * float(cone.rho(0.0)), cell)
+    grid_theta, grid_y = np.meshgrid(thetas, heights)
+    back = cone.at(grid_theta, grid_y, cone.sizes["gap"])
+    normals = cone.inward(grid_theta)
+    depth, _ = lining_depth(cone, grid_theta, grid_y, back, fades, flats)
+    front = back + normals * depth[..., None]
+    front[..., 1] = np.maximum(front[..., 1], back[..., 1].min())  # the bolster's foot stays on the floor
+    middle_theta = grid_theta[:-1] + math.pi / len(thetas)
+    middle_y = (grid_y[:-1] + grid_y[1:]) / 2
+    cut_cells = in_cut(middle_theta, middle_y, cut) if cut else np.zeros(middle_y.shape, dtype=bool)
+    near = near_hole(cone, back, holes) | near_hole(cone, front, holes)  # the face stands off along its own normal
+    keep = cells_kept(near, cut_cells, which, middle_theta, sector)
+    parts = np.full(keep.shape, "cushion")  # the seams are the pads' own grooves, never a patch of another look
+    return grid_solid(front, back, keep, parts, "back", "seam", normals)
+
+
+def ceiling(lamps=(), rings=26, segments=144, thick=0.07, puff=0.03, **sizes):
+    """The ceiling's quilted pad: a round pad in the middle and a ring of eight round it, under the hull's top at the
+    lining's top (`ceiling`), its face down; each lamp's spot [x, z, radius] left flat for the lamp."""
+    cone = Cone(**sizes)
+    low = cone.sizes["ceiling"]
+    outer = float(cone.rho(low, cone.sizes["gap"])) - 0.002
+    radii = np.linspace(outer / rings, outer, rings)
+    angles = np.arange(segments) * 2 * math.pi / segments
+    grid_radius, grid_angle = np.meshgrid(radii, angles, indexing="ij")
+    middle = 0.3
+    centre = np.clip(1 - (grid_radius / middle) ** 4, 0, 1) ** 0.5
+    across = np.clip((grid_radius - middle) / (outer - middle), 0, 1)
+    around = (grid_angle / (2 * math.pi) * 8 + 0.06) % 1.0
+    ring = (np.clip(1 - np.abs(2 * across - 1) ** 4, 0, 1) ** 0.55
+            * np.clip(1 - np.abs(2 * around - 1) ** 5, 0, 1) ** 0.55)
+    share = np.where(grid_radius < middle, centre, ring)
+    flat_x, flat_z = grid_radius * np.sin(grid_angle), grid_radius * np.cos(grid_angle)
+    for x, z, radius in lamps:
+        share = share * smoothstep(radius, radius + FADE, np.hypot(flat_x - x, flat_z - z))
+    under = np.stack([flat_x, low - puff * share, flat_z], axis=-1)
+    shrink = float(cone.rho(low + thick, cone.sizes["gap"])) / (outer + 0.002) - 0.004
+    over = np.stack([flat_x * shrink, np.full_like(flat_x, low + thick), flat_z * shrink], axis=-1)
+    ways = np.broadcast_to(np.array([0.0, -1.0, 0.0]), under.shape)
+    parts = np.full((rings - 1, segments), "cushion")
+    return grid_solid(under, over, np.ones(parts.shape, dtype=bool), parts, "back", "seam", ways,
+                      pole=[np.array([0.0, low - puff, 0.0]), np.array([0.0, low + thick, 0.0])])
+
+
+def upright(pieces):
+    """A piece turned about z (turned's axis) stood up, its axis along y."""
+    return moved(pieces, about("x", -90))
+
+
+def floor(rim=None, bottom=-0.40, **sizes):
+    """The cabin's round floor, a solid disc from the hull's foot (`bottom`, on the service module) to its top at
+    y = 0, out to the lining's back (or `rim`): a muted plate, two thin grooves round its middle disc."""
+    cone = Cone(**sizes)
+    edge = float(cone.rho(0.0, cone.sizes["gap"])) - 0.002 if rim is None else rim
+    found = turned("floor", [(0.0, bottom), (edge, bottom), (edge, 0.0), (1.06, 0.0)], segments=96)
+    found += turned("groove", [(1.06, 0.0), (1.06, -0.004), (1.04, -0.004), (1.04, 0.0)], segments=96)
+    found += turned("floor", [(1.04, 0.0), (0.62, 0.0)], segments=96)
+    found += turned("groove", [(0.62, 0.0), (0.62, -0.004), (0.60, -0.004), (0.60, 0.0)], segments=96)
+    found += turned("floor", [(0.60, 0.0), (0.0, 0.0)], segments=96)
+    return upright(found)
+
+
+def skirt(bottom=-2.48, top=-0.40, foot=2.72, **sizes):
+    """The service module under the capsule, a solid drum from the stack's top (`bottom`, `foot` across) up to the
+    hull's foot: a flare up to the drum, a recess holding three fluid pipes round it, a rust band under the hull."""
+    cone = Cone(**sizes)
+    drum = float(cone.rho(top, -cone.sizes["hull"]))
+    found = turned("skirt", [(0.0, bottom), (foot, bottom), (drum, bottom + 0.88), (drum, top - 0.78)],
+                   segments=96)
+    found += turned("recess", [(drum, top - 0.78), (drum - 0.12, top - 0.75), (drum - 0.12, top - 0.24),
+                               (drum, top - 0.21)], segments=96)
+    found += turned("band", [(drum, top - 0.21), (drum, top), (0.0, top)], segments=96)
+    for height in (top - 0.62, top - 0.49, top - 0.36):
+        found += turned("pipe", [(drum - 0.065 + 0.03 * math.cos(math.radians(angle)),
+                                  height + 0.03 * math.sin(math.radians(angle))) for angle in range(-90, 271, 30)],
+                        segments=96, smooth=True)
+    return upright(found)
+
+
+def nose(base=2.15, **sizes):
+    """The capsule's nose over the hull's top (`base`): a rounded shoulder to a flat crown and its docking ring."""
+    cone = Cone(**sizes)
+    edge = float(cone.rho(base, -cone.sizes["hull"]))
+    found = turned("hull", [(0.0, base + 0.0005), (edge, base + 0.0005), (edge - 0.03, base + 0.1),
+                            (edge - 0.12, base + 0.2), (edge - 0.28, base + 0.26), (0.52, base + 0.27),
+                            (0.0, base + 0.27)], segments=96, smooth=True)
+    found += turned("band", [(0.42, base + 0.2695), (0.5, base + 0.2695), (0.5, base + 0.33), (0.47, base + 0.345),
+                             (0.42, base + 0.345), (0.42, base + 0.2695)], segments=96)
+    return upright(found)
+
+
+def swept(part, path, normals, deep, wide, segments=20):
+    """A closed band of an oval section (`deep` along `normals`, `wide` across them) swept round the closed `path`
+    (n x 3, its first point not repeated): the cut-away's rounded lip."""
+    path, normals = np.asarray(path, dtype=np.float64), np.asarray(normals, dtype=np.float64)
+    tangents = np.roll(path, -1, axis=0) - np.roll(path, 1, axis=0)
+    tangents /= np.linalg.norm(tangents, axis=1, keepdims=True)
+    normals = normals - np.einsum("ij,ij->i", normals, tangents)[:, None] * tangents
+    normals /= np.linalg.norm(normals, axis=1, keepdims=True)
+    sides = np.cross(tangents, normals)
+    angles = np.linspace(0, 2 * math.pi, segments + 1)[:-1]
+    points = (path[:, None] + deep / 2 * np.cos(angles)[None, :, None] * normals[:, None]
+              + wide / 2 * np.sin(angles)[None, :, None] * sides[:, None]).reshape(-1, 3)
+    count = len(path)
+    index = np.arange(count * segments).reshape(count, segments)
+    following = np.roll(index, -1, axis=0)
+    beside = np.roll(index, -1, axis=1)
+    quads = np.stack([index, beside, np.roll(beside, -1, axis=0), following], axis=-1).reshape(-1, 4)
+    triangles = np.concatenate([quads[:, [0, 1, 2]], quads[:, [0, 2, 3]]])
+    centres = np.repeat(path, segments, axis=0)
+    ways = points[triangles].mean(axis=1) - centres[triangles[:, 0]]
+    return [piece(part, points, facing(points, triangles, ways), True)]
+
+
+def lip(cut=None, steps=480, deep=0.24, wide=0.10, **sizes):
+    """The cut-away's rim: one rounded band round its outline (`cut`, as in_cut) over the hull's and the lining's cut
+    edges, from outside the hull to past the cushions' face."""
+    cone = Cone(**sizes)
+    middle, half, height, half_high, power = cut
+    angles = np.linspace(0, 2 * math.pi, steps + 1)[:-1]
+    cos, sin = np.cos(angles), np.sin(angles)
+    across = np.sign(cos) * np.abs(cos) ** (2 / power)
+    upward = np.sign(sin) * np.abs(sin) ** (2 / power)
+    theta = math.radians(middle) + across * math.radians(half)
+    y = height + upward * half_high
+    depth = (cone.sizes["gap"] + cone.sizes["lining"] + cone.sizes["puff"] - cone.sizes["hull"]) / 2
+    path = cone.at(theta, y, depth)
+    return swept("band", path, cone.inward(theta), deep, wide)
+
+
+def collar_flange(cone, middle, right, up, axis, inner, outer, face, thick, outward, part, segments=72, rings=4):
+    """A flat ring hugging a face of the cone round a hole: from radius `inner` to `outer` round `middle` in the
+    plane (right, up), its back on the face `face` in, `thick` thick toward the room (or out, `outward`)."""
+    angles = np.arange(segments) * 2 * math.pi / segments
+    radii = np.linspace(inner, outer, rings + 1)
+    grid_radius, grid_angle = np.meshgrid(radii, angles, indexing="ij")
+    spots = (middle + grid_radius[..., None] * (np.cos(grid_angle)[..., None] * right
+                                                + np.sin(grid_angle)[..., None] * up))
+    way = -axis if outward else axis
+    base = cone.onto(spots, axis, face) + way * 0.001
+    top = base + way * thick
+    ways = np.broadcast_to(way, top.shape)
+    return grid_solid(top, base, np.ones((rings, segments), dtype=bool), np.full((rings, segments), part), part,
+                      part, ways)
+
+
+def bolt_ring(cone, middle, right, up, axis, radius, face, lift, count, size=0.009):
+    """`count` hex bolt heads on a ring of `radius` round `middle`, standing on the face `face` in, `lift` off it."""
     found = []
-    count = int(math.ceil(apothem / cell)) + 1
-    for column in range(-count, count):
-        for row in range(-count, count):
-            x0, z0 = column * cell + SEAM / 2, row * cell + SEAM / 2
-            x1, z1 = x0 + cell - SEAM, z0 + cell - SEAM
-            corners = [(x0, z0), (x1, z0), (x1, z1), (x0, z1)]
-            reach = max(max(nx * x + nz * z for x, z in corners) for nx, nz in normals)
-            if reach > apothem + 0.12 or max(nx * (x0 + x1) / 2 + nz * (z0 + z1) / 2 for nx, nz in normals) > apothem:
-                continue
-            thick = depth * random.uniform(0.9, 1.1)
-            pillow = rounded_box("cushion", (x0, z0, 0.0), (x1, z1, thick), 0.04, puff * random.uniform(0.8, 1.2))
-            found += moved(pillow, [[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+    head = turned("bolt", [(0.0, 0.0), (size, 0.0), (size, size * 0.5), (size * 0.6, size * 0.8), (0.0, size * 0.8)],
+                  segments=6)
+    for step in range(count):
+        angle = 2 * math.pi * (step + 0.5) / count
+        spot = middle + radius * (math.cos(angle) * right + math.sin(angle) * up)
+        base = cone.onto(spot, axis, face) + axis * (lift - 0.0005)
+        found += placed(head, base, right, up, axis)
     return found
 
 
-def rim(radius=0.215, sleeve=0.14, bolts=12, **_):
-    """A porthole's ring round a hole of `radius`: a bright bolted flange over the lining and a sleeve `sleeve` deep
-    back through it to the hull."""
-    outer = radius + 0.055
-    found = turned("rim", [(radius - 0.012, 0.03), (radius - 0.012, 0.0), (outer, 0.0), (outer, 0.022),
-                           (outer - 0.015, 0.038), (radius + 0.008, 0.038), (radius - 0.012, 0.03)], segments=64)
-    found += turned("rim", [(radius - 0.012, -sleeve), (radius - 0.004, -sleeve), (radius - 0.004, 0.001),
-                            (radius - 0.012, 0.001), (radius - 0.012, -sleeve)], segments=64)
+def placed(pieces, origin, right, up, way):
+    """Pieces built round z laid at `origin` with their x along `right`, y along `up` and z along `way`."""
+    return moved(pieces, np.stack([right, up, way], axis=1), origin)
+
+
+def sleeve(cone, middle, right, up, axis, radius, wall, low, face, bore, segments=96, rows=8):
+    """A round sleeve `wall` thick inside `radius` along `axis` through the wall: from `low` (metres along the axis
+    off `middle`, a plane outside the hull) to a hair past the face `face` in, each way round where that face lies
+    (the wall's curve across the sleeve followed, so the sleeve stands no further into the room than its flange); its
+    inside of the part `bore`."""
+    angles = np.arange(segments) * 2 * math.pi / segments
+    around = np.cos(angles)[:, None] * right + np.sin(angles)[:, None] * up
+    reach = [np.einsum("ij,j->i", cone.onto(middle + size * around, axis, face) - middle, axis)
+             for size in (radius, radius + wall)]
+    high = np.maximum(*reach) + 0.015
+    along = low + (high - low)[None, :] * np.linspace(0.0, 1.0, rows + 1)[:, None]
+    inner = middle + radius * around[None] + along[..., None] * axis
+    outer = middle + (radius + wall) * around[None] + along[..., None] * axis
+    ways = np.broadcast_to(-around[None], inner.shape)
+    return grid_solid(inner, outer, np.ones((rows, segments), dtype=bool), np.full((rows, segments), bore), "rim",
+                      "rim", ways)
+
+
+def through_wall(at=(0.0, 1.45), radius=0.15, wall=0.015, flange=0.07, bolts=10, glass=True, outside=0.03,
+                 bore="bore", **sizes):
+    """A round opening's frame through the hull and lining at `at` [theta (degrees), y]: a sleeve of `radius` along
+    the wall's normal from outside the hull to past the cushions' face (sleeve; its inside of the part `bore`), a
+    flange hugging the lining's face and one hugging the hull's outside, each with its bolts, and its glass out
+    past the hull (a porthole's) or none (a hatch's)."""
+    cone = Cone(**sizes)
+    angle = math.radians(at[0])
+    right, up, axis = cone.frame(angle)
+    middle = cone.at(angle, at[1])
+    face = cone.sizes["gap"] + cone.sizes["lining"]
+    found = sleeve(cone, middle, right, up, axis, radius, wall, -cone.sizes["hull"] - outside, face, bore)
+    bedded = radius + wall - 0.003  # each flange reaches into the sleeve's wall, so no face of one lies on the other
+    found += collar_flange(cone, middle, right, up, axis, bedded, radius + wall + flange, face, 0.022, False, "rim")
+    found += collar_flange(cone, middle, right, up, axis, bedded, radius + wall + flange * 0.8, -cone.sizes["hull"],
+                           0.014, True, "rim")
+    found += bolt_ring(cone, middle, right, up, axis, radius + wall + flange / 2, face, 0.023, bolts)
+    if glass:
+        pane = -cone.sizes["hull"] - outside / 2  # outside the hull, past where the hull and lining read their rays
+        found += placed(turned("glass", [(0.0, pane - 0.002), (radius + 0.001, pane - 0.002),
+                                         (radius + 0.001, pane + 0.002), (0.0, pane + 0.002)], segments=96),
+                        middle, right, up, axis)
+    return found
+
+
+def tread(at=(0.0, 0.8), radius=0.63, rise=0.215, start=0.0, end=0.3, **sizes):
+    """The step filling a hatch sleeve's trough (of `radius`, at `at` as through_wall) to a flat tread `rise` over
+    its bottom, from `start` to `end` metres along the wall's normal off the hull's inner face: the walked way
+    through the hatch, as wide as the sleeve's chord there."""
+    cone = Cone(**sizes)
+    angle = math.radians(at[0])
+    right, up, axis = cone.frame(angle)
+    inside = radius - 0.001
+    chord = -inside + rise
+    beta = math.asin(-chord / inside)
+    arc = [(inside * math.cos(turn), inside * math.sin(turn)) for turn in np.linspace(math.pi + beta,
+                                                                                       2 * math.pi - beta, 24)]
+    return placed(outline_slab("tread", arc, start, end), cone.at(angle, at[1]), right, up, axis)
+
+
+def hatch_leaf(radius=0.6, thick=0.05, bolts=16, **_):
+    """The round hatch's door: a dished disc `radius` across, a raised rim on its inside face, bolts round it and a
+    handwheel in its middle (its inside toward +z, as built)."""
+    found = turned("leaf", [(0.0, -thick / 2), (radius, -thick / 2), (radius, thick / 2), (radius - 0.06, thick / 2),
+                            (radius - 0.09, thick / 2 + 0.012), (0.0, thick / 2 + 0.02)], segments=96)
+    found += turned("rim", [(radius - 0.059, thick / 2 + 0.0005), (radius - 0.005, thick / 2 + 0.0005),
+                            (radius - 0.005, thick / 2 + 0.012), (radius - 0.025, thick / 2 + 0.02),
+                            (radius - 0.059, thick / 2 + 0.02), (radius - 0.059, thick / 2 + 0.0005)], segments=96)
     for step in range(bolts):
-        angle = 2 * math.pi * step / bolts
-        bolt = turned("metal", [(0.0, 0.038), (0.007, 0.038), (0.007, 0.043), (0.004, 0.046), (0.0, 0.046)],
-                      segments=6)
-        found += moved(bolt, offset=((radius + 0.032) * math.cos(angle), (radius + 0.032) * math.sin(angle), -0.008))
+        angle = 2 * math.pi * (step + 0.5) / bolts
+        found += moved(turned("bolt", [(0.0, 0.0), (0.009, 0.0), (0.009, 0.005), (0.005, 0.008), (0.0, 0.008)],
+                              segments=6), offset=((radius - 0.033) * math.cos(angle),
+                                                   (radius - 0.033) * math.sin(angle), thick / 2 + 0.0205))
+    found += moved(wheel(size=0.32), offset=(0.0, 0.0, thick / 2 + 0.0205))
+    for step in range(bolts):  # its outside's bolts
+        angle = 2 * math.pi * (step + 0.5) / bolts
+        found += moved(turned("bolt", [(0.0, 0.0), (0.009, 0.0), (0.009, 0.005), (0.005, 0.008), (0.0, 0.008)],
+                              segments=6), about("x", 180), ((radius - 0.033) * math.cos(angle),
+                                                             (radius - 0.033) * math.sin(angle), -thick / 2 - 0.0005))
+    found += turned("rim", [(0.0, -thick / 2 - 0.012), (0.08, -thick / 2 - 0.012), (0.08, -thick / 2 - 0.0005),
+                            (0.0, -thick / 2 - 0.0005)], segments=32)
     return found
 
+
+def gantry(long=1.6, wide=1.3, rail=1.05, deep=0.7, start=0.3, **_):
+    """The railed walkway outside the hatch, built along +x from the hull (x = 0) with its deck's top at y = 0: a
+    grating deck on edge beams, a railing of posts and rails along both sides from `start`, a truss under each
+    side."""
+    found = box("grate", (0.0, -0.04, -wide / 2), (long, 0.0, wide / 2), 0.004)
+    for side in (-1, 1):
+        edge = side * (wide / 2 + 0.025)
+        found += box("frame", (0.0, -0.16, edge - 0.025), (long, -0.0005, edge + 0.025), 0.004)
+        posts = np.linspace(start, long - 0.04, 4)
+        for x in posts:
+            found += tube("rail", [(x, -0.0005, edge), (x, rail, edge)], 0.02, 12)
+        for height in (rail, rail * 0.5):
+            found += tube("rail", [(start - 0.02, height, edge), (long - 0.02, height, edge)], 0.018, 12)
+        chord = -deep
+        found += tube("rail", [(0.05, chord, edge), (long - 0.1, chord, edge)], 0.03, 12)
+        verticals = np.linspace(0.05, long - 0.1, 4)
+        for x in verticals:
+            found += tube("rail", [(x, chord, edge), (x, -0.16, edge)], 0.022, 12)
+        for start_x, end_x in zip(verticals[:-1], verticals[1:]):
+            found += tube("rail", [(start_x + 0.02, chord + 0.03, edge), (end_x - 0.02, -0.19, edge)], 0.016, 10)
+    for x in np.linspace(0.05, long - 0.1, 4):
+        found += tube("rail", [(x, -deep, -wide / 2 - 0.025), (x, -deep, wide / 2 + 0.025)], 0.02, 10)
+    return found
+
+
+# --- the furniture --------------------------------------------------------------------------------------------------
 
 def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), **_):
     """The long low console before the pilot: a box `wide` across, `deep` from the pilot's side (+z) back, its top
@@ -808,27 +1256,37 @@ def switch_box(wide=0.28, deep=0.24, front_high=0.56, back_high=0.66, items=(), 
 
 
 def seat(**_):
-    """A padded bucket seat on a frame: seat pan, back and headrest cushions in a grey shell with side bolsters,
-    armrests on posts and a pedestal of tubes to a floor plate (the seat's front toward +z)."""
-    found = rounded_box("upholstery", (-0.24, 0.40, -0.22), (0.24, 0.50, 0.26), 0.04, 0.02)
-    back = rounded_box("upholstery", (-0.22, 0.0, 0.0), (0.22, 0.6, 0.09), 0.045, 0.02)
-    back += rounded_box("shell", (-0.26, -0.02, -0.06), (0.26, 0.64, 0.02), 0.03)
+    """A compact padded bucket seat on a metal frame (its front toward +z), 0.6 m across: a seat pan and a back
+    between raised side bolsters, a headrest, all in a grey shell whose wings wrap them; armrests on posts and a
+    pedestal of tubes on a floor plate."""
+    found = rounded_box("upholstery", (-0.17, 0.42, -0.18), (0.17, 0.5, 0.22), 0.035, 0.018)
     for side in (-1, 1):
-        back += rounded_box("upholstery", (side * 0.27 - 0.045, 0.02, -0.02), (side * 0.27 + 0.045, 0.46, 0.12), 0.035,
-                            0.01)
-    back += rounded_box("upholstery", (-0.13, 0.66, -0.01), (0.13, 0.84, 0.08), 0.04, 0.015)
-    back += rounded_box("shell", (-0.15, 0.64, -0.05), (0.15, 0.86, 0.0), 0.02)
-    found += moved(back, about("x", -14), (0.0, 0.46, -0.24))
-    found += rounded_box("shell", (-0.27, 0.34, -0.25), (0.27, 0.41, 0.28), 0.025)
+        found += rounded_box("upholstery", (min(side * 0.15, side * 0.23), 0.43, -0.18),
+                             (max(side * 0.15, side * 0.23), 0.56, 0.21), 0.028, 0.01)
+    back = rounded_box("upholstery", (-0.16, 0.0, 0.0), (0.16, 0.56, 0.08), 0.04, 0.02)
     for side in (-1, 1):
-        found += rounded_box("upholstery", (side * 0.3 - 0.035, 0.62, -0.16), (side * 0.3 + 0.035, 0.67, 0.2), 0.02,
-                             0.005)
-        found += tube("frame", [(side * 0.3, 0.41, 0.1), (side * 0.3, 0.62, 0.1)], 0.012, 10)
-        found += tube("frame", [(side * 0.3, 0.41, -0.18), (side * 0.3, 0.62, -0.18)], 0.012, 10)
-        for z in (-0.18, 0.18):
-            found += tube("frame", [(side * 0.17, 0.035, z), (side * 0.17, 0.34, z)], 0.02, 12)
-        found += tube("frame", [(side * 0.17, 0.2, -0.18), (side * 0.17, 0.2, 0.18)], 0.014, 10)
-    found += box("frame", (-0.24, 0.0, -0.26), (0.24, 0.035, 0.26), 0.006)
+        back += rounded_box("upholstery", (min(side * 0.14, side * 0.22), 0.02, 0.0),
+                            (max(side * 0.14, side * 0.22), 0.54, 0.15), 0.028, 0.01)
+    back += rounded_box("upholstery", (-0.11, 0.62, 0.0), (0.11, 0.79, 0.08), 0.04, 0.015)
+    back += rounded_box("shell", (-0.235, -0.02, -0.06), (0.235, 0.6, -0.003), 0.03)
+    for side in (-1, 1):
+        back += rounded_box("shell", (min(side * 0.215, side * 0.25), -0.02, -0.055),
+                            (max(side * 0.215, side * 0.25), 0.58, 0.17), 0.015)
+    back += rounded_box("shell", (-0.13, 0.58, -0.05), (0.13, 0.82, -0.003), 0.025)
+    found += moved(back, about("x", -12), (0.0, 0.46, -0.21))
+    found += rounded_box("shell", (-0.24, 0.35, -0.22), (0.24, 0.415, 0.25), 0.025)
+    for side in (-1, 1):
+        found += rounded_box("shell", (min(side * 0.215, side * 0.25), 0.36, -0.21),
+                             (max(side * 0.215, side * 0.25), 0.55, 0.24), 0.015)
+        found += rounded_box("upholstery", (side * 0.28 - 0.025, 0.63, -0.14), (side * 0.28 + 0.025, 0.675, 0.18),
+                             0.018, 0.004)
+        for z in (-0.14, 0.11):
+            found += tube("frame", [(side * 0.28, 0.415, z), (side * 0.28, 0.63, z)], 0.011, 10)
+        for z in (-0.16, 0.16):
+            found += tube("frame", [(side * 0.14, 0.035, z), (side * 0.14, 0.345, z)], 0.018, 12)
+        found += tube("frame", [(side * 0.14, 0.19, -0.16), (side * 0.14, 0.19, 0.16)], 0.013, 10)
+    found += tube("frame", [(-0.14, 0.19, 0.0), (0.14, 0.19, 0.0)], 0.013, 10)
+    found += box("frame", (-0.21, 0.0, -0.23), (0.21, 0.035, 0.23), 0.006)
     return found
 
 
@@ -866,7 +1324,8 @@ def lamp_fixture(size=0.2, **_):
     return found
 
 
-KINDS = {"lining": lining, "bench": bench, "ceiling": ceiling, "panel": panel, "rim": rim, "console": console,
+KINDS = {"hull": hull, "lining": lining, "ceiling": ceiling, "floor": floor, "skirt": skirt, "nose": nose, "lip": lip,
+         "through_wall": through_wall, "tread": tread, "hatch_leaf": hatch_leaf, "gantry": gantry, "panel": panel, "console": console,
          "switch_box": switch_box, "seat": seat, "throttle": throttle, "stick": stick, "lamp_fixture": lamp_fixture,
          **ITEMS}
 
@@ -874,10 +1333,16 @@ KINDS = {"lining": lining, "bench": bench, "ceiling": ceiling, "panel": panel, "
 # --- writing --------------------------------------------------------------------------------------------------------
 
 def welded(points, triangles):
-    """The piece's points merged where they coincide, and its triangles over them."""
+    """The piece's points merged where they coincide and only those its triangles use, and its triangles over
+    them, each one collapsed to a line or a point (a turned piece's fan at its pole) left out: a reader drops such a
+    face and every part's face numbers after it slip."""
     keys = np.round(points, 7)
     unique, inverse = np.unique(keys, axis=0, return_inverse=True)
-    return unique, inverse.reshape(-1)[triangles]
+    triangles = inverse.reshape(-1)[triangles]
+    triangles = triangles[(triangles[:, 0] != triangles[:, 1]) & (triangles[:, 1] != triangles[:, 2])
+                          & (triangles[:, 0] != triangles[:, 2])]
+    used, compact = np.unique(triangles, return_inverse=True)
+    return unique[used], compact.reshape(triangles.shape)
 
 
 def corner_normals(points, triangles, smooth):
@@ -917,6 +1382,8 @@ def write(path, kind, sizes):
         count += len(piece_points)
         parts.setdefault(part, []).extend(range(first, first + len(piece_triangles)))
     points, triangles, normals = np.vstack(points), np.vstack(triangles), np.vstack(normals)
+    points, triangles = welded(points, triangles)  # one point where pieces meet (their normals stay each its own,
+    # per corner), so the check reads a closed piece of many parts as one body with its own middle
     stage = Usd.Stage.CreateNew(str(path))
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)

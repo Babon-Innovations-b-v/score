@@ -36,7 +36,7 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     terrain(folder, name, address, at, turn, pads)     a library terrain (relief.py) laid as the ground, its pads levelled
     blocks(folder, name, boxes, at, turn, ground)      solid chamfered boxes (dome_shell.blocks_file) as one object: a
                                                        road and kerbed pavements (ground) or a building (structure)
-    kit(folder, name, piece, sizes, at, turn, role, support, looks)
+    kit(folder, name, piece, sizes, at, turn, role, support, looks, ground)
                                                        a cockpit piece built in code (cockpit_kit.py: a quilted
                                                        lining, a panel and its hardware, a seat) as one object, each
                                                        part in its look
@@ -1314,13 +1314,14 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
 
 
 def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="mount", support=None,
-        looks=None):
-    """A cockpit piece built in code at its real size (cockpit_kit.py: a wall's quilted lining, an instrument panel,
-    a toggle, a seat) laid as Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>), its
-    file written once under the place's assets for its kind and `sizes`; each of its parts then wears its look from
-    `looks` ({part: surface address, `palette/<variant>` too}), refused when a part has none, so no part is left
-    in its placeholder grey."""
-    if role not in BLOCK_ROLES:
+        looks=None, ground=False):
+    """A cockpit piece built in code at its real size (cockpit_kit.py: the capsule's hull and quilted lining, an
+    instrument panel, a toggle, a seat) laid as Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`,
+    wall:<object>) or, with `ground`, as the place's walked ground (the cabin's floor, the gantry), its file written
+    once under the place's assets for its kind and `sizes`; each of its parts then wears its look from `looks`
+    ({part: surface address, `palette/<variant>` too}), refused when a part has none, so no part is left in its
+    placeholder grey."""
+    if role not in BLOCK_ROLES and not ground:
         raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
     import hashlib
     from score.stages.place_build import cockpit_kit
@@ -1333,9 +1334,9 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     parts = cockpit_kit.write(target, piece, sizes) if not target.exists() else None
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, KIT, "algorithm",
-                              (at, turn, (1.0, 1.0, 1.0)), False)
+                              (at, turn, (1.0, 1.0, 1.0)), bool(ground))
     prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
-    marked(prim, role, support)
+    marked(prim, None if ground else role, None if ground else support)
     parts = parts or sorted(parts_of(prim))
     missing = [part for part in parts if part not in (looks or {})]
     if missing:
