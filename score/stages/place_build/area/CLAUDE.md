@@ -8,7 +8,9 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
   leading to the other with a door back (scene_record/plan.py `paired`), and the storey heights are `plan.levels_of`
   (the stairwell's flat door 9 m up: the flat's floor 9 m up). Never a height typed in here or in the game. A pair
   both plans lead to each other but the holder's plan holds apart (the square held the street 45 m from the
-  stairwell, 2099 #161) is still joined by its built doorways, and the plan's holds are told.
+  stairwell, 2099 #161) is still joined by its built doorways, and the plan's holds are told. The outside's own door
+  to a place it holds is a join too (`with_holder`: the pad's walkway hatch into the capsule it holds at the tower's
+  top, 2099 #161), the outside held at its own corner.
 - **Where they meet in the built scenes is place.json `joins`** (`place_build join <folder> <doorway> <to>`): a doorway
   the stair core recorded when laid (place.json `doorways`, `<core>_door<k>`) or a door leaf of the scene (its inward
   read from the shell it is set in, else `--inward x,z`). A plan join a folder joins no doorway for is told by name.

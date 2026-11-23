@@ -146,16 +146,25 @@ def seat_onto(seat, doorway, other, rise):
     return seat_matrix(turn, (there[0] - turned[0], seat[1, 3] + rise, there[2] - turned[2]))
 
 
-def planned_joins(holder, plans):
-    """Each pair of held places a door of one joins to a door of the other leading back, nearest first: (place,
-    other, its door, the door back), each pair of doors once; and the faults of each pair the holder's plan holds
-    more than plan.DOORS_MET apart (2099 #161: the square's plan held the street 45 m from the stairwell whose door
-    leads to it). Such a pair is still a join: both plans lead it, the built doorways seat it, and the holder's plan
-    is told to be fixed. A place's second door to the same neighbour pairs only when it meets on the plan."""
+def with_holder(held, outside, holder):
+    """`held` with the outside place itself among them, held at its own corner (plan.on_holder: its plan points as
+    they are), so a door of the outside leading to a place it holds is a join like a sibling's (2099 #161: the pad's
+    walkway hatch leads into the capsule its plan holds at the tower's top)."""
+    return {**held, outside: ({"place": outside, "x": 0.0, "y": 0.0}, holder)}
+
+
+def planned_joins(holder, plans, outside):
+    """Each pair of places of the area (the held places and the outside itself, `with_holder`) a door of one joins to
+    a door of the other leading back, nearest first: (place, other, its door, the door back), each pair of doors once;
+    and the faults of each pair the holder's plan holds more than plan.DOORS_MET apart (2099 #161: the square's plan
+    held the street 45 m from the stairwell whose door leads to it). Such a pair is still a join: both plans lead it,
+    the built doorways seat it, and the holder's plan is told to be fixed. A place's second door to the same neighbour
+    pairs only when it meets on the plan. The held places alone are returned first."""
     held = plan.held_plans(holder, plans)
     found, faults = [], []
-    for name, (hold, own) in sorted(held.items()):
-        for other, (other_hold, other_plan) in sorted(held.items()):
+    placed = with_holder(held, outside, holder)
+    for name, (hold, own) in sorted(placed.items()):
+        for other, (other_hold, other_plan) in sorted(placed.items()):
             if other <= name:
                 continue
             pairs = [pair for pair in plan.paired(own, hold, name, other_plan, other_hold, other)
@@ -237,8 +246,8 @@ def seated(plans, outside, folders, stands=None):
     is left joined to a seated one, the lowest left on the plans (the street, under the stairwell) stands where the
     outside's plan holds it (held_seat)."""
     holder = plan.read(pathlib.Path(plans) / f"{outside}.json")
-    held, planned, faults = planned_joins(holder, plans)
-    levels = plan.levels_of(held)
+    held, planned, faults = planned_joins(holder, plans, outside)
+    levels = plan.levels_of(with_holder(held, outside, holder))
     joins, unbuilt = built_joins(folders, planned)
     faults += unbuilt
     seats = {outside: {"matrix": np.identity(4), "from": f"the area's frame: {outside}'s own"}}

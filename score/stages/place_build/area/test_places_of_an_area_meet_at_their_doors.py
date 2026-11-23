@@ -6,7 +6,9 @@ told by name when the core keeps the hall stub behind that door (no walker's way
 a storey higher than the doorway it is joined at (3 m apart), when the flat's leaf in its frame is 1.2 m wide in the
 core's 1.02 m doorway, and when the flat joins no doorway back (no doorway joined). A flat the town's plan holds far
 from the stairwell its door leads to is still joined and seated by the built doorways, the plan told; a flat given to
-stand stands as laid at its plan's storey and the stairwell is seated onto it at its own floor. Each seat written into its place.json is where the package
+stand stands as laid at its plan's storey and the stairwell is seated onto it at its own floor. A stairwell whose own
+plan holds the flat (the area's outside, as the pad holds its capsule) seats the flat onto its door the same way, the
+stairwell itself the area's frame. Each seat written into its place.json is where the package
 lays the place: the flat's front door packaged on the stairwell's doorway, its scene file unseated. A block of the
 flat's own standing in the stairwell's core is told (seated shells may not stand inside each other); listed as the
 flat's backdrop (a neighbour place stands for it) it is no shell of the flat and its package leaves it out.
@@ -19,6 +21,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - area.built_joins: a plan door with no joined doorway skipped silently -> the flat with no join back passes
 - area.wider: ready.FIT taken as 0.5 m -> the 1.2 m leaf passes in the 1.02 m doorway
 - area.planned_joins: a pair the holder's plan holds apart left out (`met` alone) -> the far flat is never joined
+- area.with_holder: the outside left out of the joined places -> the flat its stairwell holds stands at the
+  stairwell's floor, never seated onto its door 3 m up
 - area.held_seat: the identity seat (as laid) for a place the outside's plan holds -> the stairwell stands on the
   town's middle, not at its hold 8 m west and 8.5 m north
 - area.seated: `stands` unread (lowest first) -> the stairwell stands as laid and the flat given to stand is seated
@@ -37,9 +41,10 @@ from score.stages import place_build
 from score.stages.place_build import area
 
 
-def plans(folder, sill, apart):
+def plans(folder, sill, apart, outside):
     """The area's kept plans: the town holds the stairwell and, `apart` metres south of it, the flat; the stairwell's
-    flat door `sill` metres up meets the flat's front door on the town's plan when they are not apart."""
+    flat door `sill` metres up meets the flat's front door on the town's plan when they are not apart. With the
+    stairwell `outside`, its own plan holds the flat beyond its door."""
     folder.mkdir()
     door = {"kind": "door", "wide": 1.0, "angle": 0.0, "swing": "right", "head": 2.2}
     written = {
@@ -47,6 +52,8 @@ def plans(folder, sill, apart):
                                                  {"place": "flat", "x": 0.0, "y": 3.0 + apart, "w": 4.0, "d": 4.0}]},
         "stairwell": {"w": 4.0, "d": 3.0, "openings": [{**door, "at": [1.0, 3.0], "sill": sill, "to": "flat"}]},
         "flat": {"w": 4.0, "d": 4.0, "openings": [{**door, "at": [1.0, 0.0], "sill": 0.0, "to": "stairwell"}]}}
+    if outside == "stairwell":
+        written["stairwell"]["holds"] = [{"place": "flat", "x": 0.0, "y": 3.0, "w": 4.0, "d": 4.0}]
     for name, body in written.items():
         (folder / f"{name}.json").write_text(json.dumps(body))
     return folder
@@ -102,31 +109,39 @@ BLOCK = ((1.0, -0.5, 0.2), (3.0, 3.5, 4.0))  # the flat's concept block (low cor
 
 ROWS = [  # (case, the core's joined storeys, the stairwell's flat door sill on the plans, the flat joins back, its
     # leaf's width, metres the town's plan holds the flat apart, the place given to stand, the flat's block its
-    # backdrop, told)
-    ("they meet", [1], 3.0, True, 0.96, 0.0, None, True, None),
-    ("the flat stands as laid", [1], 3.0, True, 0.96, 0.0, "flat", True, "stands"),
-    ("the town's plan holds the flat apart", [1], 3.0, True, 0.96, 6.0, None, True,
+    # backdrop, the area's outside, told)
+    ("they meet", [1], 3.0, True, 0.96, 0.0, None, True, "town", None),
+    ("the flat stands as laid", [1], 3.0, True, 0.96, 0.0, "flat", True, "town", "stands"),
+    ("the stairwell holds the flat", [1], 3.0, True, 0.96, 0.0, None, True, "stairwell", "holder"),
+    ("the town's plan holds the flat apart", [1], 3.0, True, 0.96, 6.0, None, True, "town",
      "6.00 m from stairwell's door back"),
-    ("the hall stub walls the flat off", [], 3.0, True, 0.96, 0.0, None, True, "no walker's way"),
-    ("the plans put the flat a storey higher", [1], 6.0, True, 0.96, 0.0, None, True, "3.00 m apart"),
-    ("the flat's leaf is wider than the doorway", [1], 3.0, True, 1.2, 0.0, None, True,
+    ("the hall stub walls the flat off", [], 3.0, True, 0.96, 0.0, None, True, "town", "no walker's way"),
+    ("the plans put the flat a storey higher", [1], 6.0, True, 0.96, 0.0, None, True, "town", "3.00 m apart"),
+    ("the flat's leaf is wider than the doorway", [1], 3.0, True, 1.2, 0.0, None, True, "town",
      "1.20 m wide, stairwell's core_door1"),
-    ("the flat joins no doorway back", [1], 3.0, False, 0.96, 0.0, None, True, "has no doorway joined to stairwell"),
-    ("the flat's block stands in the stairwell", [1], 3.0, True, 0.96, 0.0, None, False,
+    ("the flat joins no doorway back", [1], 3.0, False, 0.96, 0.0, None, True, "town",
+     "has no doorway joined to stairwell"),
+    ("the flat's block stands in the stairwell", [1], 3.0, True, 0.96, 0.0, None, False, "town",
      "flat's block and stairwell's core stand"),
 ]
 
 
-@pytest.mark.parametrize("case, joined, sill, joined_back, wide, apart, stands, backdrop, told", ROWS,
+@pytest.mark.parametrize("case, joined, sill, joined_back, wide, apart, stands, backdrop, outside, told", ROWS,
                          ids=[row[0] for row in ROWS])
 def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joined_back, wide, apart, stands,
-                                               backdrop, told):
+                                               backdrop, outside, told):
     from score.stages.place_build import scene_package
     folders = {"stairwell": stairwell(tmp_path / "stairwell", joined),
                "flat": flat(tmp_path / "flat", joined_back, wide, backdrop)}
-    record = area.area(plans(tmp_path / "plans", sill, apart), "town", folders, tmp_path / "seats.json", seat=True,
-                       stands=stands)
-    if told == "stands":
+    record = area.area(plans(tmp_path / "plans", sill, apart, outside), outside, folders, tmp_path / "seats.json",
+                       seat=True, stands=stands)
+    if told == "holder":
+        seats = {name: np.asarray(record["seats"][name]["matrix"]).reshape(4, 4) for name in folders}
+        assert np.allclose(seats["stairwell"], np.eye(4)) and record["faults"] == [], (seats, record["faults"])
+        assert "on stairwell's doorway" in record["seats"]["flat"]["from"] and abs(seats["flat"][3, 1] - 3.0) < 1e-6, \
+            record["seats"]
+        assert record["joins"][0]["walked"] > 1.5, record["joins"]
+    elif told == "stands":
         assert "on flat's doorway" in record["seats"]["stairwell"]["from"], record["seats"]
         seats = {name: np.asarray(record["seats"][name]["matrix"]).reshape(4, 4) for name in folders}
         assert np.allclose(seats["flat"][:3, :3], np.eye(3)) and abs(seats["flat"][3, 1] - 3.0) < 1e-6, seats
