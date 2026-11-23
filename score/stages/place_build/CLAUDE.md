@@ -181,10 +181,15 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   black-tiled nose, flaps and engine bells inside the aft skirt it stands on; the round launch ring on legs with
   clamps, hoses and orange-lit boxes; a tower's straight X-bracing (a `blocks` tower keeps its posts, cabin and roof,
   its stepped boxes dropped) on flat-topped girders a lamp stands on; a platform railing; a floodlight's 3 x 3 head;
-  a far city's glass towers, its big wheel and smooth hills (marked `fixed`: far scenery, never in the walkers' grid).
+  a far city's glass towers, its big wheel and smooth hills (marked `fixed`: far scenery, never in the walkers' grid);
+  a harbour ferry with its lit window bands and its wake on the water. The ship with `ring` 0 is one seamless steel
+  barrel (the pad's judge: "evenly spaced ring bands"), its canards and aft flaps sized by `fore`, `aft`, `aft_chord`.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
-  and a moon light; `haze` a box of haze (tools/usd/scene.py's haze body) the renderer fills.
+  and a moon light; `haze` a body of haze (tools/usd/scene.py's haze body) the renderer fills, a box or, with
+  `shape`, an ellipsoid or a cylinder (a steam plume's puffs round, never a box's stair-stepped edges); `shaft` a
+  lamp's cone of lit air (scene.py's write_shafts under Haze/<name>: a floodlight's beam, never a box of haze, whose
+  straight edge cut the pad's near water off from the rest).
 - **`batch`** runs many steps in one process on one open stage: a full relayout in seconds, never one call a step.
 - **`review`** (review.py, review_views.py; owner 2026-11-16: "were missing a tool that allow for quick ways to review
   a scene"): a region (the scene, `--box x0,z0,x1,z1` or `--prefix`) as one contact sheet from one Blender call on the

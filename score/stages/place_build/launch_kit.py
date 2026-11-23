@@ -8,9 +8,10 @@ stack of boxes.
 
 Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 unless said) and written as built.
 
-- `ship`: a slim single-stage steel ship (a stainless hull of welded rings, each ring's seam a raised band), an ogive
-  nose with its black heat-shield tip and the black band under it, two forward flaps on the nose and two aft flaps at
-  its foot, a skirt and its engine bells; parts hull, seam, tiles, flap, engine.
+- `ship`: a slim single-stage steel ship (a stainless hull of welded rings, each ring's seam a raised band, or one
+  seamless barrel with `ring` 0), an ogive nose with its black heat-shield tip and the black band under it, two
+  forward flaps (canards, `fore` metres out) on the nose and two aft flaps (`aft` out, `aft_chord` along the hull) at
+  its foot, a skirt and its engine bells; parts hull, seam (only with seams), tiles, flap, engine.
 - `launch_ring`: the round launch mount: a ring on slanted legs over a round plinth, its clamps, hoses down to the
   deck and orange-lit hardware boxes round its rim; parts ring, leg, plinth, clamp, hose, glow.
 - `lattice`: a square tower's straight X-bracing, bay over bay on its four faces between its corner posts, with a
@@ -21,6 +22,8 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
 - `skyscraper`: a far city's glass tower set back in tiers, its windows lit here and there, mullion fins, a neon band
   round each tier's top and a spire; parts glass, fin, window, neon, spire.
 - `mound`: a smooth hill behind a far city; part hill.
+- `ferry`: a harbour ferry on the water (its waterline at y = 0): a hull with a pointed bow, a two-deck cabin with
+  its window bands lit, and its wake spreading behind it on the water; parts hull, cabin, window, wake.
 """
 import math
 
@@ -61,9 +64,10 @@ def flap(part, root, tip, span, thick):
     return outline_slab(part, outline, -thick / 2, thick / 2)
 
 
-def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6):
+def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6, fore=2.2, aft=3.0, aft_chord=10.4):
     """The ship standing on its aft skirt's foot (y = 0), its engine bells inside the skirt, its body `radius`, its tip
-    at `high`; a weld seam every `ring` metres up the barrel; its forward flaps on the x axis, its aft flaps likewise."""
+    at `high`; a weld seam every `ring` metres up the barrel (none with `ring` 0: one seamless steel barrel); its
+    forward flaps `fore` metres out on the x axis, its aft flaps `aft` out and `aft_chord` along the hull likewise."""
     bells = 1.4
     foot = bells  # the skirt's foot
     shoulder = high - nose
@@ -80,17 +84,18 @@ def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6):
                                     (radius + 0.03, shoulder), (radius - 0.05, shoulder), (radius - 0.05, shoulder - band)],
                           segments=segments))
     height = foot + 0.8 + ring
-    while height < shoulder - band - 0.3:
+    while ring > 0 and height < shoulder - band - 0.3:
         found += stood(turned("seam", [(radius - 0.05, height - 0.04), (radius + 0.02, height - 0.04),
                                        (radius + 0.02, height + 0.04), (radius - 0.05, height + 0.04),
                                        (radius - 0.05, height - 0.04)], segments=segments))
         height += ring
     for side in (1.0, -1.0):
         turn = about("y", 0 if side > 0 else 180)
-        forward = flap("flap", (shoulder + 0.4, shoulder + 5.0), (shoulder + 1.6, shoulder + 4.2), 2.2, 0.22)
+        forward = flap("flap", (shoulder + 0.4, shoulder + 5.0), (shoulder + 1.6, shoulder + 4.2), fore, 0.22)
         found += moved(moved(forward, None, (nose_radius(radius, nose, 4.6) - 0.15, 0.0, 0.0)), turn)
-        aft = flap("flap", (foot + 0.6, foot + 11.0), (foot + 0.6, foot + 6.0), 3.0, 0.3)
-        found += moved(moved(aft, None, (radius - 0.15, 0.0, 0.0)), turn)
+        aft_flap = flap("flap", (foot + 0.6, foot + 0.6 + aft_chord), (foot + 0.6, foot + 0.6 + aft_chord * 0.52),
+                        aft, 0.3)
+        found += moved(moved(aft_flap, None, (radius - 0.15, 0.0, 0.0)), turn)
     for number in range(engines):
         angle = 2 * math.pi * (number + 0.5) / engines
         at = (radius * 0.48 * math.cos(angle), 0.0, radius * 0.48 * math.sin(angle))
@@ -316,8 +321,42 @@ def mound(radius=800.0, high=400.0, segments=64, rings=24, seed=0):
     return [piece("hill", points, fixed, True)]
 
 
+def ferry(long=32.0, wide=8.0, freeboard=1.6, decks=2, wake=90.0):
+    """A ferry along +x, its bow at +x, its waterline at y = 0: a hull of `long` x `wide` standing `freeboard` out of
+    the water (sunk 1 m below it) with a pointed bow, `decks` cabin decks set back from the bow, each a band of lit
+    windows round it, and its wake: a thin V of foam on the water behind its stern, `wake` metres long, spreading."""
+    half = wide / 2
+    bow = long / 2
+    outline = [(-bow, -half), (bow - wide, -half), (bow, 0.0), (bow - wide, half), (-bow, half)]
+    found = moved(outline_slab("hull", outline, -1.0, freeboard), about("x", -90))  # the slab's z stood up as y
+    low = freeboard
+    for deck in range(decks):
+        inset = 1.0 + deck * 1.2
+        front, back = bow - wide - inset * 1.5, -bow + inset
+        found += box("cabin", (back, low - 0.05, -half + inset), (front, low + 2.6, half - inset), 0.05)  # sunk in
+        found += box("window", (back + 0.6, low + 1.0, -half + inset - 0.04),
+                     (front - 0.6, low + 1.9, half - inset + 0.04), 0.02)
+        low += 2.6
+    stern = -bow
+    for side in (-1.0, 1.0):  # each arm of the V a thin flat strip on the water, its far end wider and further out
+        spread = half + wake * 0.18
+        arm = [(stern - 1.0, side * half * 0.6), (stern - wake, side * spread),
+               (stern - wake, side * (spread + 3.0 + wake * 0.04)), (stern - 1.0, side * (half * 0.6 + 1.2))]
+        found += moved(outline_slab("wake", counter_clockwise(arm), 0.02, 0.08), about("x", -90))
+    middle = [(stern - 0.5, -half * 0.7), (stern - wake * 0.5, -1.2), (stern - wake * 0.5, 1.2),
+              (stern - 0.5, half * 0.7)]
+    found += moved(outline_slab("wake", counter_clockwise(middle), 0.03, 0.09), about("x", -90))
+    return found
+
+
+def counter_clockwise(outline):
+    """The plan `outline` [(x, y)] walked counter-clockwise (outline_slab's way), reversed when it was not."""
+    area = sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(outline, outline[1:] + outline[:1]))
+    return outline if area > 0 else outline[::-1]
+
+
 KINDS = {"ship": ship, "launch_ring": launch_ring, "lattice": lattice, "railing": railing, "flood_head": flood_head,
-         "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound}
+         "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound, "ferry": ferry}
 
 
 def write(path, kind, sizes):

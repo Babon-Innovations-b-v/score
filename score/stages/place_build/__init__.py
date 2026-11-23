@@ -2125,14 +2125,20 @@ def night(folder, ambient, background, exposure, moon, glow=None):
     return {"night": {"ambient": list(ambient), "exposure": exposure}, "moon": moon}
 
 
-def haze(folder, name, centre, size, colour, density, forward=0.0, reach=None):
-    """A box of haze (tools/usd/scene.py's haze body: a see-through shell the renderer fills with fog of `colour`,
-    `density` its thickness a metre, `forward` its forward throw, only out to `reach` metres from the eye) laid as
-    /<place>/Haze/<name>, beside the objects (no body to collide with)."""
+HAZE_SHAPES = ("box", "ellipsoid", "cylinder")  # tools/usd/builders.haze_volume's shapes
+
+
+def haze(folder, name, centre, size, colour, density, forward=0.0, reach=None, shape="box"):
+    """A body of haze (tools/usd/scene.py's haze body: a see-through shell the renderer fills with fog of `colour`,
+    `density` its thickness a metre, `forward` its forward throw, only out to `reach` metres from the eye), a `shape`
+    of HAZE_SHAPES (a box; an ellipsoid, so a steam plume's puffs have round edges, never a box's straight ones)
+    `size` across, laid as /<place>/Haze/<name>, beside the objects (no body to collide with)."""
+    if shape not in HAZE_SHAPES:
+        raise Refused(f"a haze body is a {', '.join(HAZE_SHAPES)}, not {shape}")
     sys.path.insert(0, str(REPO / "tools/usd"))
     import scene as usd_scene
     stage, place = opened(folder)
-    entry = {"shape": "box", "centre": [float(value) for value in centre], "size": [float(value) for value in size],
+    entry = {"shape": shape, "centre": [float(value) for value in centre], "size": [float(value) for value in size],
              "colour": colour, "density": float(density), "forward": float(forward)}
     if reach:
         entry["reach"] = float(reach)
@@ -2140,6 +2146,24 @@ def haze(folder, name, centre, size, colour, density, forward=0.0, reach=None):
     made_by_haze(stage, stage.GetPrimAtPath(f"/{place}/Haze/{name}"))
     saved(stage)
     return {"haze": name, "density": density}
+
+
+def shaft(folder, name, at, aim, angle, length, colour, density, near=0.5, forward=0.0):
+    """A lamp's shaft of light (tools/usd/scene.py's write_shafts: a body of haze filling the cone from `at` toward
+    `aim`, `angle` degrees either side of its axis, from `near` to `length` metres out, its fog of `colour` and
+    `density` a metre, `forward` its forward throw) laid as /<place>/Haze/<name>; only the lamps light it, so it shows
+    the beam where the lamp at its apex shines (a floodlight's cone), never a box of haze lit all through."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene as usd_scene
+    stage, place = opened(folder)
+    stage.RemovePrim(f"/{place}/Haze/{name}")
+    entry = {"at": [float(value) for value in at], "aim": [float(value) for value in aim], "angle": float(angle),
+             "shaft": {"near": float(near), "length": float(length), "colour": colour, "density": float(density),
+                       "forward": float(forward)}}
+    usd_scene.write_shafts(stage, f"{place}/Haze/{name}", [entry])
+    made_by_haze(stage, stage.GetPrimAtPath(f"/{place}/Haze/{name}"))
+    saved(stage)
+    return {"shaft": name, "density": density}
 
 
 HAZE_ALGORITHM = "(sky_dust_stars_haze.haze)"  # the library algorithm holding tools/usd/scene.py's haze body
@@ -2241,7 +2265,7 @@ def refinish(folder, name):
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door,
          "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "kit": kit, "night": night,
-         "haze": haze, "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
+         "haze": haze, "shaft": shaft, "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
 
 
 

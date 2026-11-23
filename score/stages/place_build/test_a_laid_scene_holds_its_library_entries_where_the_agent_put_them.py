@@ -80,6 +80,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   mesh has an edge used three times (no closed solid)
 - launch_kit.ship: the aft skirt left off -> the ship's lowest points are its engine bells', not the skirt it stands on
 - launch_kit.lattice: a brace drawn as a stair of boxes -> a brace's points stray from the straight line between its ends
+- launch_kit.ship: `ring` 0 read as the default 2 m of seams -> the seamless ship has a seam part
+- launch_kit.ferry: its wake laid under the waterline -> the ferry's wake is not on the water
+- place_build.haze: `shape` dropped (always a box) -> the steam puff's shell reaches its box's corners
+- place_build.shaft: the cone not turned onto its aim -> the beam's shell runs up, not toward its aim
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
 - place_build.made_by_haze: unread -> the mist's body and look name no library algorithm
@@ -1016,6 +1020,11 @@ def launched(folder):
         along = (ends[1] - ends[0]) / np.linalg.norm(ends[1] - ends[0])
         off = bar - ends[0] - np.outer((bar - ends[0]) @ along, along)
         assert np.linalg.norm(off, axis=1).max() <= 0.12 + 1e-6, "a brace strays from its straight line"
+    seamless = {piece[0] for piece in launch_kit.ship(radius=1.0, high=12.0, nose=3.0, ring=0.0, segments=24)}
+    assert "seam" not in seamless, seamless
+    ferry = launch_kit.ferry(long=20.0, wide=5.0, wake=30.0)
+    wake = np.concatenate([piece[1] for piece in ferry if piece[0] == "wake"])
+    assert wake[:, 1].min() >= 0.0 and wake[:, 0].max() < -10.0, (wake.min(axis=0), wake.max(axis=0))
 
 
 def adopted(folder):
@@ -1327,7 +1336,14 @@ def rained(folder):
                                  boots=[[[61.0, 61.0], [63.0, 61.0]]])
     place_build.surface(folder, "ruts", "surface/sand", colour="#8e4a2e")
     place_build.haze(folder, "mist", [62.0, 1.0, 62.0], [4.0, 2.0, 4.0], "#c8c8d0", 0.05)
+    place_build.haze(folder, "puff", [62.0, 1.0, 62.0], [2.0, 2.0, 2.0], "#ffffff", 0.2, shape="ellipsoid")
+    place_build.shaft(folder, "beam", [60.0, 5.0, 60.0], [70.0, 5.0, 60.0], 10.0, 8.0, "#ffffff", 0.05)
     stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    shells = {name: np.concatenate([np.asarray(UsdGeom.Mesh(prim).GetPointsAttr().Get()) for prim in
+                                    Usd.PrimRange(stage.GetPrimAtPath(f"/yard/Haze/{name}")) if prim.IsA(UsdGeom.Mesh)])
+              for name in ("puff", "beam")}
+    assert np.linalg.norm(shells["puff"] - [62.0, 1.0, 62.0], axis=1).max() <= 1.0 + 1e-4, "the puff is no ellipsoid"
+    assert shells["beam"][:, 0].max() > 67.0 and np.ptp(shells["beam"][:, 1]) < 4.0, "the beam runs off its aim"
     hazed = [prim for prim in Usd.PrimRange(stage.GetPrimAtPath("/yard/Haze/mist")) if prim.HasAttribute("score:from")]
     assert hazed and all(prim.GetAttribute("score:from").Get().endswith(place_build.HAZE_ALGORITHM) for prim in hazed) \
         and any(prim.IsA(UsdShade.Material) for prim in hazed), [str(prim.GetPath()) for prim in hazed]
