@@ -16,7 +16,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
   (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
-  the maker's own Python)
+  the maker's own Python, with the three below)
+- generate.chunked_layer_norm: a block normalised in float16 -> the norm is not LayerNorm32's bit for bit;
+  generate.layer_norm_in_place: its eps dropped -> not F.layer_norm's at the decoders' eps
+- remesh.crossing: the crossing edges taken edge by edge (axis first) -> not in cumesh's voxel-by-voxel order
 """
 import importlib.util
 import json
@@ -144,3 +147,22 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     alone = torch.cat([attention.attended(*(packed[bounds[at]:bounds[at + 1], part][None] for part in range(3)))[0]
                        for at in range(len(lengths))])
     assert len(lengths) > attention.FEW and torch.allclose(together, alone, atol=1e-5)
+
+    from score.stages.place_build.maker import remesh  # #169: the lean decoders and remesh answer as TRELLIS.2's own
+    rows_at_once, generate.ROWS_AT_ONCE = generate.ROWS_AT_ONCE, 12  # blocks of two and a part, as at the top level
+    norm = torch.nn.LayerNorm(5, eps=1e-6)
+    norm.weight.data, norm.bias.data = (torch.tensor(random.standard_normal(5) * 3, dtype=torch.float32)
+                                        for _ in range(2))
+    features = torch.tensor(random.standard_normal((23, 5)) * 40 + 7, dtype=torch.float16)
+    chunked = generate.chunked_layer_norm(norm, features)
+    whole = torch.nn.LayerNorm.forward(norm, features.float()).half()
+    lone = features.float() / 1000  # a spread the eps shows in
+    in_place = generate.layer_norm_in_place(lone.clone(), (5,), eps=1e-6)
+    generate.ROWS_AT_ONCE = rows_at_once
+    assert torch.equal(chunked, whole) and torch.equal(in_place, torch.nn.functional.layer_norm(lone, (5,), eps=1e-6))
+    coords = torch.tensor(random.integers(0, 50, (40, 3)), dtype=torch.int32)
+    signs = torch.tensor(random.integers(-1, 2, (40, 3)), dtype=torch.int32)
+    table = remesh.tables("cpu")
+    every_edge = coords.reshape(40, 1, 1, 3) + table["edge_neighbours"].unsqueeze(0)  # cumesh's (voxel, edge) build
+    connected, crossed = remesh.crossing(table, coords, signs)
+    assert torch.equal(connected, every_edge[signs != 0]) and torch.equal(crossed, signs[signs != 0])

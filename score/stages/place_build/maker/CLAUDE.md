@@ -13,8 +13,14 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   the meshparts image's TRELLIS.2 (SegviGen's checkout of its code, its author's wheels), weights from the node cache
   (images/meshparts/models.json `trellis2-4b-make`, `trellis-image-large-ssdec`), any pictures in one job, each in its
   own process; kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
-  itself still uses the card queue (tools/cloud/backends/card_queue.py, a 20 GB scope): one model a process, about two
-  minutes and 14 GB of card. A made model is kept under `<folder>/made/<entry>/` and not made again.
+  itself still uses the card queue (tools/cloud/backends/card_queue.py, a 20 GB scope): one model a process, about four
+  minutes and the whole card (CARD_GB). A made model is kept under `<folder>/made/<entry>/` and not made again.
+- **Fits this PC's card, the model unchanged** (#169: a printer box and a fridge stopped with 'CUDA driver error:
+  device not ready', WSL's answer to a card overrun): `generate.lean` runs the sparse convs on FlexGEMM's implicit
+  GEMM, LayerNorm32 and the decoders' last norm a block of rows at a time, and the remesh on `remesh.py` (CuMesh's,
+  each step's scratch dropped once read); each is bit for bit the code it replaces (the test's torch rows, run in the
+  maker's Python). `generate.capped` holds torch's allocator to the card's free memory, so a real shortage is an
+  out-of-memory, never the driver error. The printer box: 10.2 GB of tensors at most, 13.1 GB of card, 17.4 GB of RAM.
 - **Only a cut-out goes in** (#156: the capsule's throttle, levers on a console top, came out a cube): `concept/<n>`
   is refused without its SAM 3 mask, and any picture whose opaque part is its own rectangle (no transparency, or a
   box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.

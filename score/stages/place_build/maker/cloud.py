@@ -44,7 +44,8 @@ def job_of(pairs):
         lines.append(f"mkdir -p /work/out/{number} && {PYTHON} -I score/stages/place_build/maker/generate.py {ENV} "
                      f"/work/in/{number}.png /work/out/{number}/model.glb")
     return {"command": ["bash", "-c", "set -euo pipefail; " + " && ".join(lines)],
-            "code": ["score/stages/place_build/maker/generate.py", "score/stages/place_build/maker/shim"],
+            "code": ["score/stages/place_build/maker/generate.py", "score/stages/place_build/maker/remesh.py",
+                     "score/stages/place_build/maker/shim"],
             "models": MODELS,
             "env": {"MALLOC_ARENA_MAX": "2"},
             "inputs": [{"local": str(picture), "path": f"/work/in/{number}.png"}

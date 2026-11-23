@@ -40,7 +40,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 ENV = "envs/trellis2"  # under PROPS_HOME: setup.sh's
 SAMPLES = 20000  # surface points a fit and a grade read
-CARD_GB = 10  # TRELLIS.2's card share at the 1024 cascade: 8.6 GB measured with the attention stand-in (2026-11-16)
+CARD_GB = 13.5  # TRELLIS.2's card share: the queue's whole card (card_queue.BUDGET_GB). generate.py's allocator may
+# take the card's free memory (generate.capped); a printer box measured 13.15 GB with the lean decoders (#169)
 MEMORY = "20G"  # its RAM cap (the test: 16.2 GB at the most)
 SOURCE = "trellis2"  # score_lib config/sources.toml
 
