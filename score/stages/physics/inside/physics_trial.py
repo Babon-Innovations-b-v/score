@@ -5,10 +5,13 @@ place's physics trial from the stage's own UsdPhysics (experimental, F11; the la
 
 Newton reads the composed stage as written (`add_usd`: Y up, metres, the scene's pull, each rigid body's MassAPI mass,
 its convex hull guide and its physics material, the revolute joints with their limits and DriveAPI, the fixed joints,
-every other colliding mesh as static triangles) and steps it with MuJoCo's solver on Newton's own contacts
-(`SolverMuJoCo(use_mujoco_contacts=False)`: MuJoCo's own treat a hollow static as convex). What the importer leaves to
-its caller is read with pxr here and driven every substep: each kinematic hand where its time samples move it, and
-each drive's torque cap at its frame (a time-sampled maxForce; nothing outside its window).
+every other colliding mesh as static triangles, inside USD instances too) and steps it with MuJoCo's solver on
+Newton's own contacts (`SolverMuJoCo(use_mujoco_contacts=False)`: MuJoCo's own treat a hollow static as convex). An
+adopted model's body (#155) is read as its asset lays it: its rigid body on its instance prim, its colliders inside
+by their own approximations (its Newton physics variant, which the physics layer chose), its own mass and physics
+materials, named by its laid object. What the importer leaves to its caller is read with pxr here and driven every
+substep: each kinematic hand where its time samples move it, and each drive's torque cap at its frame (a
+time-sampled maxForce; nothing outside its window).
 
 Measured every frame: each body's motion from its start (4 x 4, column vectors, the stage's frame), its lowest point,
 its speed, its kinetic energy (moving and turning, the body's own inertia) and its height's energy, each revolute
@@ -36,6 +39,9 @@ SUBSTEPS = 20
 # Raised this far (metres), a body that only touches what it stands on is not inside it (the resting triage's nudge).
 NUDGE = 0.005
 NOT_SOLID = ("Sky",)
+# Set by the physics layer (tools/usd/physics.py's WEIGHED) on each of our own objects it weighed: a body without it
+# is an adopted model's, its physics its asset's own (#155).
+WEIGHED = "score:physics:weighed"
 
 
 def arguments():
@@ -68,6 +74,72 @@ def hulls_of(prim):
     return found
 
 
+def parts_of(prim):
+    """The prims at and under a body, inside its USD instances too (an adopted model keeps its shapes there), the
+    bodies standing under it left out."""
+    walk = iter(Usd.PrimRange(prim, Usd.TraverseInstanceProxies()))
+    for part in walk:
+        if part != prim and part.HasAPI(UsdPhysics.RigidBodyAPI):
+            walk.PruneChildren()
+            continue
+        yield part
+
+
+def joined_triangles(meshes):
+    """Several meshes' triangles (`triangles`) as one: their points stacked, their faces numbered on."""
+    found = [triangles(mesh) for mesh in meshes]
+    starts = np.cumsum([0] + [len(points) for points, _ in found[:-1]])
+    return np.concatenate([points for points, _ in found]), np.concatenate(
+        [faces + start for (_, faces), start in zip(found, starts)])
+
+
+def laid_name(prim):
+    """The name of the laid object a body stands for: the nearest prim at or over it carrying `score:library` (an
+    adopted model's rigid body sits on its asset's own prim inside it), else its own."""
+    holder = prim
+    while holder and not holder.IsPseudoRoot():
+        if holder.HasAttribute("score:library"):
+            return holder.GetName()
+        holder = holder.GetParent()
+    return prim.GetName()
+
+
+def own_body(prim):
+    """One of our own bodies: colliding by its export's convex hull, drawn by its child mesh `geo`, weighed by the
+    physics layer."""
+    hulls_of(prim)
+    drawn = next(child for child in prim.GetChildren() if child.IsA(UsdGeom.Mesh) and child.GetName() == "geo")
+    friction, restitution = material_of(drawn)
+    return {"name": prim.GetName(), "mass": UsdPhysics.MassAPI(prim).GetMassAttr().Get(), "friction": friction,
+            "restitution": restitution, "drawn": triangles(drawn)}
+
+
+def authored_mass(prim):
+    """A mass a prim authors (MassAPI, above 0), else None."""
+    mass = UsdPhysics.MassAPI(prim).GetMassAttr() if prim.HasAPI(UsdPhysics.MassAPI) else None
+    return float(mass.Get()) if mass and mass.HasAuthoredValue() and mass.Get() > 0 else None
+
+
+def adopted_body(prim):
+    """An adopted model's body (#155): its colliders as its asset lays them, inside its instances, by their own
+    approximations (its Newton physics variant, which the physics layer chose); its asset's own mass (the body's,
+    else its colliders' summed); its drawn meshes' triangles; its colliders' physics materials (one friction and
+    restitution when they share them, else each collider's)."""
+    parts = list(parts_of(prim))
+    colliders = [part for part in parts if part.IsA(UsdGeom.Gprim) and colliding(part)]
+    drawn = [part for part in parts if part.IsA(UsdGeom.Mesh)
+             and UsdGeom.Imageable(part).ComputePurpose() != UsdGeom.Tokens.guide]
+    if not colliders or not drawn:
+        raise RuntimeError(f"{prim.GetPath()}: an adopted body with no {'collider' if drawn else 'drawn mesh'}")
+    masses = [mass for mass in map(authored_mass, colliders) if mass is not None]
+    mass = authored_mass(prim) or (sum(masses) if masses else None)
+    materials = sorted({material_of(collider) for collider in colliders})
+    friction, restitution = materials[0] if len(materials) == 1 else ([pair[0] for pair in materials],
+                                                                       [pair[1] for pair in materials])
+    return {"name": laid_name(prim), "mass": mass, "friction": friction, "restitution": restitution,
+            "drawn": joined_triangles(drawn)}
+
+
 def triangles(mesh):
     """A mesh's points in the world (the stage's start) and its faces as triangles (fans)."""
     geometry = UsdGeom.Mesh(mesh)
@@ -96,18 +168,14 @@ def read_physics(stage):
     pull = UsdPhysics.Scene(scene).GetGravityMagnitudeAttr().Get()
     frames = int(round(scene.GetAttribute("score:physics:seconds").Get() * rate)) + 1
     bodies, hands, joints = {}, {}, []
-    for prim in stage.Traverse():
+    walk = list(Usd.PrimRange(stage.GetPseudoRoot(), Usd.TraverseInstanceProxies()))
+    for prim in walk:
         if prim.HasAPI(UsdPhysics.RigidBodyAPI):
             if UsdPhysics.RigidBodyAPI(prim).GetKinematicEnabledAttr().Get():
                 hand = UsdGeom.Xformable(prim)
                 hands[str(prim.GetPath())] = [hand.ComputeLocalToWorldTransform(code) for code in range(frames)]
                 continue
-            hulls_of(prim)
-            drawn = next(child for child in prim.GetChildren() if child.IsA(UsdGeom.Mesh) and child.GetName() == "geo")
-            friction, restitution = material_of(drawn)
-            bodies[str(prim.GetPath())] = {"name": prim.GetName(), "mass": UsdPhysics.MassAPI(prim).GetMassAttr().Get(),
-                                           "friction": friction, "restitution": restitution,
-                                           "drawn": triangles(drawn)}
+            bodies[str(prim.GetPath())] = own_body(prim) if prim.GetAttribute(WEIGHED).Get() else adopted_body(prim)
         elif prim.IsA(UsdPhysics.RevoluteJoint) or prim.IsA(UsdPhysics.FixedJoint):
             revolute = prim.IsA(UsdPhysics.RevoluteJoint)
             joint = UsdPhysics.RevoluteJoint(prim) if revolute else UsdPhysics.FixedJoint(prim)
@@ -117,7 +185,7 @@ def read_physics(stage):
                            else None,
                            "drive": drive_of(prim, frames) if revolute else None})
     owned = tuple(path + "/" for path in bodies)
-    statics = {str(prim.GetPath()): triangles(prim) for prim in stage.Traverse()
+    statics = {str(prim.GetPath()): triangles(prim) for prim in walk
                if prim.IsA(UsdGeom.Mesh) and colliding(prim) and UsdGeom.Imageable(prim).ComputePurpose() != "guide"
                and not str(prim.GetPath()).startswith(owned)
                and not any(part in NOT_SOLID for part in prim.GetPath().pathString.split("/"))}

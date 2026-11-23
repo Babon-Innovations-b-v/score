@@ -89,6 +89,9 @@ MAY_SKIP = {
         "its two room drops need the Newton env, which needs a GPU",
     "score/stages/place_build/ready/test_every_planted_physics_fault_is_told_by_name.py":
         "its MuJoCo settle needs the physics trial's Python (newton_env.sh); a sandbox home has none: link it in by hand",
+    "score/stages/physics/test_the_trial_comes_from_the_design_and_each_gate_fails_its_break.py":
+        "its adopted-model reading needs the physics trial's Python (newton_env.sh); a sandbox home has none: link it in "
+        "by hand",
 }
 
 # Test files holding more than one test function on 2026-11-01 (118 files, 2139 functions over one), each

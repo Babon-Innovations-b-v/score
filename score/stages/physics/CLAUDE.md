@@ -38,8 +38,12 @@ Newton's own contacts) in its own pinned Python (`inside/newton_env.sh`) on a re
   record): they wait until the place's line has landed it. Run with
   `python -m score run world1 --place habitat --stage physics-trial --detach`, only when `python -m score.stages status
   habitat` shows `assembly@habitat` accepted (else `--stage` drives the place's surface line).
+- **An adopted model's body is its asset's** (#155): the trial reads its rigid body where the asset puts it (a
+  SimReady model's on its instance prim), its colliders inside its instances by their own approximations, its own
+  mass and physics materials; our own bodies are those the physics layer weighed (`score:physics:weighed`).
 - Tests: `test_the_trial_comes_from_the_design_and_each_gate_fails_its_break.py` here (the trial from a design on
-  the toy place, the trial sent to the held card in its own Python, and measures and gates on a written run),
+  the toy place, the trial sent to the held card in its own Python, the trial reading adopted models in that Python
+  where it is built (a sandbox home links `envs/newton_env` in by hand), and measures and gates on a written run),
   tools/usd's physics test (the layers on a toy place; run with a `<folder>` it keeps the toy for a trial of about
   20 s on this PC's card: `bash score/stages/physics/inside/newton_env.sh ~/.farm-factory-props/envs/newton_env &&
   ~/.farm-factory-props/envs/newton_env/bin/python score/stages/physics/inside/physics_trial.py <folder>/toy/toy.usda

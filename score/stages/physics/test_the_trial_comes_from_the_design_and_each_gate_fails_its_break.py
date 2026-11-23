@@ -5,8 +5,10 @@ objects are dropped back onto their own spots, one with a shelf over it left out
 trial's layers write with each drop landing where it stood; the gravity is the body's under the scene's top site (the
 Moon's 1.62 m/s², Mars's 3.71: the textbook values); the `designed` gate fails a body no inventory row has; a trial
 with no hinge passes only when it says why. The trial runs on the held card in its own Python (Newton's, built by
-inside/newton_env.sh) and the renders in Blender, its outputs whole. On a run written here (no engine): a run where the drops land, the door
-opens within its limits and the energy only falls passes every gate; each gate fails its own fault (a drop that ends
+inside/newton_env.sh) and the renders in Blender, its outputs whole; in that Python, where this box has it built, the
+trial reads a place holding adopted models (#155): a rigid body on its instance prim, as a SimReady model lays it.
+On a run written here (no engine): a run where the drops land, the door opens within its limits and the energy only falls
+passes every gate; each gate fails its own fault (a drop that ends
 under its target, a door past its limit, a rise while nothing drives, a body still moving, inside a static or under
 its own floor); the energy's rises are per undriven stretch; the trial's copy keeps the shown places, less the
 contract.
@@ -31,6 +33,12 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_rises_are_per_undriven_stretch: energy_rises without its `begun = None` on a driven frame.
 - the_trial_runs_in_its_own_python_on_the_held_card: make_trial's `TRIAL_MINUTES, env=REPO / TRIAL_ENV)` made
   `TRIAL_MINUTES)` (the trial sent to the card's Blender).
+- the_trial_runs_in_its_own_python_on_the_held_card (the trial reading adopted models, #155; each seen red
+  2026-11-23), all in inside/physics_trial.py: read_physics' `own_body(prim) if prim.GetAttribute(WEIGHED).Get() else
+  adopted_body(prim)` made `own_body(prim)` (it raised: a moving body here collides by its convex hull only), or its
+  statics walked by `stage.Traverse()` (the mesh inside the bodiless model's instance no static), or adopted_body's
+  `laid_name(prim)` made `prim.GetName()` (the body named `obj`, its asset's prim), or its mass made
+  `authored_mass(prim)` (None: the asset authors its mass on its collider).
 - the_trial_stands_the_shown_places_from_the_neighbours_output: trial_folder's copytree without
   `ignore=shutil.ignore_patterns("contract.json")`.
 
@@ -39,13 +47,14 @@ Run: .venv/bin/python score/stages/physics/test_the_trial_comes_from_the_design_
 import json
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/usd"))
-from pxr import Gf, Usd, UsdGeom  # noqa: E402
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade  # noqa: E402
 
 import test_the_physics_layers_hold_mass_drop_and_hinge as toy  # noqa: E402
 from score import checks  # noqa: E402
@@ -246,6 +255,68 @@ class Held:
             Image.new("RGB", (4, 4)).save(pathlib.Path(arguments[2]) / f"{view['name']}-look.png")
 
 
+def instanced_model(stage, name, at, body):
+    """An adopted model laid at `at` as a SimReady model lays itself (#155): its mesh inside a USD instance, colliding
+    by its own triangles with its own mass and physics material there, its rigid body (when `body`) on the instance
+    prim, never on the laid object."""
+    asset = stage.DefinePrim(f"/{name}_asset", "Xform")
+    asset.SetSpecifier(Sdf.SpecifierClass)
+    shape = toy.mesh(stage, f"/{name}_asset/mesh", [((-0.2, 0, -0.2), (0.2, 0.4, 0.2))], (0, 0, 0)).GetPrim()
+    UsdPhysics.CollisionAPI.Apply(shape)
+    UsdPhysics.MeshCollisionAPI.Apply(shape).CreateApproximationAttr(UsdPhysics.Tokens.none)
+    UsdPhysics.MassAPI.Apply(shape).CreateMassAttr(ADOPTED_KG)
+    plastic = UsdShade.Material.Define(stage, f"/{name}_asset/plastic")
+    plastic_api = UsdPhysics.MaterialAPI.Apply(plastic.GetPrim())
+    plastic_api.CreateDynamicFrictionAttr(ADOPTED_FRICTION[0])
+    plastic_api.CreateRestitutionAttr(ADOPTED_FRICTION[1])
+    UsdShade.MaterialBindingAPI.Apply(shape).Bind(plastic, UsdShade.Tokens.weakerThanDescendants, "physics")
+    laid = UsdGeom.Xform.Define(stage, f"/{toy.PLACE}/Objects/{name}")
+    laid.AddTranslateOp().Set(Gf.Vec3d(*at))
+    laid.GetPrim().CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(f"model/{name}@1")
+    instance = stage.DefinePrim(f"/{toy.PLACE}/Objects/{name}/Geometry/obj", "Xform")
+    instance.GetReferences().AddInternalReference(f"/{name}_asset")
+    instance.SetInstanceable(True)
+    if body:
+        UsdPhysics.RigidBodyAPI.Apply(instance)
+
+
+ADOPTED_KG, ADOPTED_FRICTION = 2.5, (0.5, 0.25)
+READ = """import json, sys
+sys.path.insert(0, sys.argv[1])
+from pxr import Usd
+import physics_trial
+found = physics_trial.read_physics(Usd.Stage.Open(sys.argv[2]))
+print(json.dumps({"bodies": {path: [body["name"], body["mass"], body["friction"], body["restitution"],
+                                    len(body["drawn"][0])] for path, body in found["bodies"].items()},
+                  "statics": sorted(found["statics"])}))
+"""
+
+
+def the_trial_reads_an_adopted_model(root):
+    """The trial's own Python reads a place holding adopted models (#155): one whose rigid body sits on its instance
+    prim, read with its own collider, mass and material and named by its laid object, and one with no body, whose
+    mesh inside its instance is a static. Read where this box has the trial's Python built."""
+    from drop import LOCAL_ENV
+    if not list(LOCAL_ENV.glob(".built-*")):
+        print(f"skipped: the trial reading adopted models: no trial Python built at {LOCAL_ENV} ({physics.TRIAL_ENV})")
+        return
+    layer = toy.toy_place(root / "adopted")
+    base = Usd.Stage.Open(str(layer / "layers/base.usda"))
+    instanced_model(base, "simready_1", (-2.0, 0.0, 0.0), body=True)
+    instanced_model(base, "simready_2", (2.5, 0.0, -1.0), body=False)
+    base.Save()
+    assert not toy.physics.write(layer, toy.RECORD, toy.MATERIALS)["faults"]
+    read = subprocess.run([str(LOCAL_ENV / "bin/python"), "-c", READ, str((REPO / physics.TRIAL_SCRIPT).parent),
+                           str(layer / f"{toy.PLACE}.usda")], capture_output=True, text=True, timeout=50)
+    assert read.returncode == 0, read.stderr[-2000:]
+    found = json.loads(read.stdout.splitlines()[-1])
+    place = f"/{toy.PLACE}/Objects"
+    assert found["bodies"][f"{place}/simready_1/Geometry/obj"] == ["simready_1", ADOPTED_KG, *ADOPTED_FRICTION, 8], \
+        found["bodies"]
+    assert f"{place}/simready_2/Geometry/obj/mesh" in found["statics"], found["statics"]
+    assert not any(path.startswith(f"{place}/simready_1/") for path in found["statics"]), found["statics"]
+
+
 def the_trial_runs_in_its_own_python_on_the_held_card():
     import types
     root = pathlib.Path(tempfile.mkdtemp())
@@ -261,6 +332,7 @@ def the_trial_runs_in_its_own_python_on_the_held_card():
         assert Held.jobs == [(physics.TRIAL_SCRIPT, physics.TRIAL_ENV), (physics.RENDER_SCRIPT, None)], Held.jobs
         assert physics.trial_faults(root / "out") == [], physics.trial_faults(root / "out")
         assert physics.TRIAL_FILES["trial env"].endswith(physics.TRIAL_ENV)
+        the_trial_reads_an_adopted_model(root)
     finally:
         physics.engines.machine_runner = kept
         shutil.rmtree(root)
