@@ -3,14 +3,14 @@ the glowing parts' faces taken from the glow file, a face the old export cut int
 does now still told by its part, and a model whose triangles lie off its rebuild, cover its faces otherwise, or
 number other than it, is refused, never guessed.
 
-Breaks (each applied once, seen red, reverted), in part_looks.py: parts_by_order without the glowing parts put after
-the rest (the glow case's faces wear the wrong parts); TOLERANCE raised to 0.01 (the 1 mm case is made, not refused);
-runs_of giving each triangle a run of its own, not its part's stretch (the square's triangles no longer have its
-border, so the made cases are refused); faces_off without its edge_balance check (the square's one half twice is
-made); refinished binding every subset to the
-first look (a face wears another part's surface); refinished leaving the baked
-look and `st` on (the atlas is still there); library_place returning the model's own place, not its surface data's
-`library` (the flat's models finished in a place the old library does not hold).
+Breaks (each applied once, seen red, reverted), in part_looks.py: parts_by_order without the glowing parts put after the
+rest (the glow case's faces wear the wrong parts); TOLERANCE raised to 0.01 (the 1 mm case is made, not refused);
+runs_of giving each triangle a run of its own, not its part's stretch (the square's triangles no longer have its border,
+so the made cases are refused); faces_off without its edge_balance check (the square's one half twice is made);
+SAME_CORNER set to 0 (the collapsed face whose corners are rounded apart is refused); refinished binding every subset to
+the first look (a face wears another part's surface); refinished leaving the baked look and `st` on (the atlas is still
+there); library_place returning the model's own place, not its surface data's `library` (the flat's models finished in a
+place the old library does not hold).
 """
 import json
 import pathlib
@@ -54,13 +54,18 @@ def triangle_at(x):
 
 QUAD = [[2.0, 0.0, 0.0], [2.1, 0.0, 0.0], [2.1, 0.1, 0.0], [2.0, 0.1, 0.0]]  # the body's one face, a square
 # Built in the old join's order: flange, dome (glowing), body (its square in two triangles), flange again.
-BUILT_ORDER = [0, 1, 2, 2, 0]
-BUILT_POLYGONS = [0, 1, 2, 2, 3]
 OUTLINES = [triangle_at(0.0), triangle_at(1.0), QUAD, triangle_at(3.0)]
+# The square built with a face collapsed onto its edge (as a clamped bevel leaves one), its corners rounded a little
+# apart from the square's; the model holds that face's triangle with the square's own corners.
+COLLAPSED = [[QUAD[2][0] + 5e-8, QUAD[2][1], 0.0], [QUAD[2][0], QUAD[2][1] - 5e-8, 0.0], QUAD[3]]
+BUILT = {"one face": ([0, 1, 2, 2, 0], [0, 1, 2, 2, 3], OUTLINES),
+         "a face collapsed": ([0, 1, 2, 2, 2, 0], [0, 1, 2, 2, 4, 3], [*OUTLINES, COLLAPSED])}
 # The body's square as the model may hold it: cut as built, cut along the other diagonal, or one half twice.
 BODY = {"as built": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[2], QUAD[3]]],
         "the other diagonal": [[QUAD[1], QUAD[3], QUAD[0]], [QUAD[1], QUAD[2], QUAD[3]]],
-        "one half twice": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[1], QUAD[2]]]}
+        "one half twice": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[1], QUAD[2]]],
+        "as built, the collapsed face too": [[QUAD[0], QUAD[1], QUAD[2]], [QUAD[0], QUAD[2], QUAD[3]],
+                                             [QUAD[2], QUAD[2], QUAD[3]]]}
 
 
 # The old surface data: the name the old library knew each place by.
@@ -70,16 +75,19 @@ LIBRARY_PLACES = {"flat": "prologue_flat", "airlock": "airlock"}
 MADE = [["flange", "body", "body", "flange"], ["dome"]]
 
 
-@pytest.mark.parametrize("case, place, body, shift, glow, wanted", [
-    ("exact", "flat", "as built", 0.0, True, MADE),
-    ("off by 0.05 mm, within", "airlock", "as built", 5e-5, True, MADE),
-    ("a square cut along its other diagonal", "flat", "the other diagonal", 0.0, True, MADE),
-    ("off by 1 mm", "flat", "as built", 1e-3, True, "lie off"),
-    ("a square's one half twice, the other uncovered", "airlock", "one half twice", 0.0, True, "not covered"),
-    ("no glow file for a glowing part", "airlock", "as built", 0.0, False, "triangles"),
-    ("a place the old surface data does not name", "nowhere", "as built", 0.0, True, "no surface data"),
+@pytest.mark.parametrize("case, place, built, body, shift, glow, wanted", [
+    ("exact", "flat", "one face", "as built", 0.0, True, MADE),
+    ("off by 0.05 mm, within", "airlock", "one face", "as built", 5e-5, True, MADE),
+    ("a square cut along its other diagonal", "flat", "one face", "the other diagonal", 0.0, True, MADE),
+    ("a face collapsed, its corners rounded apart", "flat", "a face collapsed", "as built, the collapsed face too",
+     0.0, True, [["flange", "body", "body", "body", "flange"], ["dome"]]),
+    ("off by 1 mm", "flat", "one face", "as built", 1e-3, True, "lie off"),
+    ("a square's one half twice, the other uncovered", "airlock", "one face", "one half twice", 0.0, True,
+     "not covered"),
+    ("no glow file for a glowing part", "airlock", "one face", "as built", 0.0, False, "triangles"),
+    ("a place the old surface data does not name", "nowhere", "one face", "as built", 0.0, True, "no surface data"),
 ])
-def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, case, place, body, shift, glow,
+def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, case, place, built, body, shift, glow,
                                                                     wanted):
     surfaces = tmp_path / "data/surfaces"
     surfaces.mkdir(parents=True)
@@ -95,7 +103,8 @@ def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, ca
     stages = [baked(tmp_path, "model", model)] + ([baked(tmp_path, "model_glow", [triangle_at(1.0)])] if glow else [])
     counts = [len(part_looks.mesh_of(stage).GetFaceVertexCountsAttr().Get()) for stage in stages]
     triangles = np.vstack([part_looks.triangle_corners(part_looks.mesh_of(stage)) for stage in stages])
-    answer = {"parts": PARTS, "order": BUILT_ORDER, "polygons": BUILT_POLYGONS, "outlines": OUTLINES}
+    order, polygons, outlines = BUILT[built]
+    answer = {"parts": PARTS, "order": order, "polygons": polygons, "outlines": outlines}
     if isinstance(wanted, str):
         with pytest.raises(part_looks.Refused, match=wanted):
             part_looks.parts_by_order(answer, counts, lambda surface: surface == "led_amber", triangles)

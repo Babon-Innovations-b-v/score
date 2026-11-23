@@ -38,6 +38,9 @@ import sys
 import tempfile
 
 import numpy as np
+import scipy.sparse
+import scipy.sparse.csgraph
+import scipy.spatial
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -53,6 +56,7 @@ MAP = HERE / "map" / "parts.json"
 REBUILD = HERE / "rebuild.py"
 BLENDER = "5.2.2"
 TOLERANCE = 1e-4  # metres a model's triangle corner may lie from its face's built again
+SAME_CORNER = 1e-6  # metres apart two built faces' corners are one corner (Blender's float rounding, two faces apart)
 GLOWING_FAMILIES = ("screen", "light")  # the old library's families split into a glow file (build_only.GLOWING)
 FILES = ("model.usdc", "model_glow.usdc")
 RECORD = "model.json"
@@ -269,6 +273,17 @@ def on_a_face(triangles, faces, outlines):
     return best, face, nearest
 
 
+def corner_ids(outlines, faces):
+    """{(face, corner index): id} for the corners of `faces`, corners within SAME_CORNER of each other one id (the
+    faces one part laid meet at corners Blender rounds a little differently face by face)."""
+    keys = [(serial, index) for serial in faces for index in range(len(outlines[serial]))]
+    corners = np.array([outlines[serial][index] for serial, index in keys], dtype=np.float64)
+    pairs = scipy.spatial.cKDTree(corners).query_pairs(SAME_CORNER, output_type="ndarray")
+    graph = scipy.sparse.coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(len(keys), len(keys)))
+    _, labels = scipy.sparse.csgraph.connected_components(graph, directed=False)
+    return dict(zip(keys, labels.tolist()))
+
+
 def edge_balance(loops):
     """{(low, high): count} of the edges round `loops` (each a list of corner ids in turn), one way counted +1 and
     the other -1, the edges a surface's own triangles share cancelling, so only its border stays."""
@@ -296,10 +311,9 @@ def faces_off(triangles, polygons, parts, outlines):
         inside = np.flatnonzero(runs == run)
         faces = np.unique(polygons[inside])
         near[inside], face, nearest = on_a_face(triangles[inside], faces, outlines)
-        ids = {}
-        built = [[ids.setdefault(tuple(corner), len(ids)) for corner in outlines[serial]] for serial in faces]
-        laid = [[ids[tuple(outlines[serial][index])] for index in corners]
-                for serial, corners in zip(face.tolist(), nearest.tolist())]
+        ids = corner_ids(outlines, faces)
+        built = [[ids[(serial, index)] for index in range(len(outlines[serial]))] for serial in faces]
+        laid = [[ids[(serial, index)] for index in corners] for serial, corners in zip(face.tolist(), nearest.tolist())]
         if edge_balance(built) != edge_balance(laid):
             uncovered.append(run)
     return near, uncovered
@@ -308,7 +322,8 @@ def faces_off(triangles, polygons, parts, outlines):
 def parts_by_order(answer, counts, glows, triangles):
     """Each file's triangles' part index: the built triangles in the old join's order, the glowing parts' after the
     rest (into the glow file, as the old bake split them), the model's lying on the corners of the faces the same
-    part laid in their place and covering them (faces_off) within TOLERANCE; Refused when the counts or any triangle differ."""
+    part laid in their place and covering them (faces_off) within TOLERANCE; Refused when the counts or any triangle
+    differ."""
     order = np.array(answer["order"], dtype=np.int64)
     shining = np.isin(order, [index for index, (_, surface) in enumerate(answer["parts"]) if glows(surface)])
     built = [int((~shining).sum()), int(shining.sum())]
