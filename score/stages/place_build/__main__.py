@@ -43,7 +43,7 @@
     python -m score.stages.place_build film <folder> [--through 'stop;stop'] [--seconds s] [--eye m] [--seed n]
     python -m score.stages.place_build film-render <folder> [--every n] [--final] [--out dir]
     python -m score.stages.place_build make <folder> <name> <take/<take>|concept/<n>|like|picture.png> --material class
-                                       (--like model/<id> | --height m)
+                                       (--like model/<id> | --height m | --size wide,deep,tall) [--no-take-in]
     python -m score.stages.place_build route <folder> --through x,y,z --through x,y,z [--through x,y,z ...]
     python -m score.stages.place_build package <folder> <out>
 
@@ -98,8 +98,9 @@ measures; `film-render` renders every `--every`th frame through the card queue (
 `--final` at the films' 1920x1080), with the seconds a frame.
 `make` makes a prop's model with TRELLIS.2 on this PC's card (maker/): from a take's close-up, the concept cut by a
 SAM 3 mask, or the picture the `--like` model was made from; set over the `--like` model it replaces (or `--height`
-metres tall), its paint graded to the place's palette, CoACD hulls and mass from its `--material` class, taken into
-score_lib as a draft model entry; `put` then lays its address.
+metres tall, or `--size` its longest side the size's), its paint graded to the place's palette, CoACD hulls and mass
+from its `--material` class, taken into score_lib as a draft model entry (`--no-take-in`: kept in the place's made/
+folder only, the prop benchmark's mode, #163); `put` then lays its address.
 `route` answers a walker's way through the `--through` spots, in order, on the check's walkers' floor (doors open,
 0.9 m wide): the shortest one, its corners rounded, for a walker's cast `path` (scene clips, sim body).
 `package` writes the place as a scene package any engine loads (scene_package.py; the game 2099's Unity through
@@ -279,7 +280,8 @@ def run(args):
         return ready.check(args.folder, not args.no_settle, dict(given.split("=", 1) for given in args.among or []))
     if args.step == "make":
         from score.stages.place_build import maker
-        return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height)
+        return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height,
+                          numbers(args.size) if args.size else None, not args.no_take_in)
     if args.step == "route":
         from score.stages.place_build import ready
         points, length = ready.route(args.folder, [numbers(spot) for spot in args.through])
@@ -490,6 +492,8 @@ def parser():
     step.add_argument("--material", required=True)
     step.add_argument("--like")
     step.add_argument("--height", type=float)
+    step.add_argument("--size", help="wide,deep,tall metres: its longest side the model's (the prop benchmark)")
+    step.add_argument("--no-take-in", action="store_true", help="keep the made files here, take nothing into score_lib")
     step = steps.add_parser("route")
     step.add_argument("folder")
     step.add_argument("--through", action="append", required=True)

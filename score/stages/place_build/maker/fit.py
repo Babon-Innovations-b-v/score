@@ -1,10 +1,12 @@
 """A made model set in a library model's frame (y up, metres): TRELLIS.2 gives a model in a unit box facing roughly
 its picture's camera, so it is turned a quarter turn at a time, scaled uniformly and moved until it best covers the
 model it replaces (the smallest two-way mean distance between points on both surfaces), standing where that one
-stands; or, with no model to replace, scaled to a given height and stood on y=0 at its centre.
+stands; or, with no model to replace, scaled to a given height, or to a given size's longest side, and stood on y=0
+at its centre.
 
     fitted_matrix(points, like_points) -> (matrix 4x4, {"yaw", "scale", "distance_m"})
     height_matrix(points, height)      -> matrix 4x4
+    size_matrix(points, size)          -> matrix 4x4
 """
 import numpy as np
 from scipy.spatial import cKDTree
@@ -63,5 +65,13 @@ def fitted_matrix(points, like_points):
 def height_matrix(points, height):
     """The scale that makes `points` `height` metres tall, stood on y=0 centred on x and z."""
     scale = height / np.ptp(points[:, 1])
+    scaled = np.diag([scale, scale, scale, 1.0])
+    return standing(applied(scaled, points), np.zeros(3), np.zeros(3)) @ scaled
+
+
+def size_matrix(points, size):
+    """The uniform scale that makes `points`' longest side the longest of `size` (wide, deep, tall metres: the
+    route's own laying, its other sides what the picture gave), stood on y=0 centred on x and z."""
+    scale = max(float(side) for side in size) / np.ptp(points, 0).max()
     scaled = np.diag([scale, scale, scale, 1.0])
     return standing(applied(scaled, points), np.zeros(3), np.zeros(3)) @ scaled

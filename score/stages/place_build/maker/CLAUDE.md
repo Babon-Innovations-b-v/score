@@ -20,7 +20,10 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.
 - **Lossless edits** (glb.py): the fit is a root node's matrix, the grade replaces the base colour picture only.
 - **The fit** (fit.py) covers the model it replaces (`--like`): quarter turns and uniform scales, the smallest two-way
-  point distance; `--height` stands a new prop on the floor.
+  point distance; `--height` stands a new prop on the floor; `--size wide,deep,tall` scales it uniformly so its longest
+  side is the size's (the prop benchmark's row, #163), its other sides what the picture gave.
+- **`--no-take-in`** (the prop benchmark, #163) makes, fits, grades and makes sim-ready as usual and takes nothing into
+  score_lib: the files stay under `<folder>/made/<entry>/`, the address is None.
 - **The grade** (grade.py) moves each colour group GRADE of the way to its nearest palette token; a large group far from
   every token is a `mismatch` in the answer: repaint it from the library (`surface`), never grade harder.
 - **A graded paint is not a finish**: grade.py's `parts` names its paints, and `put` lays each as the palette

@@ -16,7 +16,12 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
 5. Sim-ready (sim.py): CoACD hulls (`<id>-hulls.glb`), mass from the hulls and the material class, friction and
    restitution from the class, in its record (`<id>.json`).
 6. Taken into score_lib as a draft `model/<name>_trellis.<place>` entry (score-lib take-in --save), its picture and
-   TRELLIS.2's commit and weights in its record and provenance; `put` then lays it as any made model.
+   TRELLIS.2's commit and weights in its record and provenance; `put` then lays it as any made model. With
+   `take_in=False` (the prop benchmark, #163) nothing goes into score_lib: the made files stay in the work folder and
+   the address is None.
+
+The size it is set at: `like`'s, `height` metres tall, or `size` (wide, deep, tall metres: its longest side the
+model's, fit.size_matrix).
 """
 import fcntl
 import hashlib
@@ -172,12 +177,15 @@ def faces_for(size):
     return int(max(LEAST_FACES, min(generate.FACES, generate.FACES * (float(size) / FULL_SIZE) ** 2)))
 
 
-def size_of(folder, like, height):
-    """The longest side (m) the model will stand at in the place: `like`'s box, else `height`; None when neither."""
+def size_of(folder, like, height, size=None):
+    """The longest side (m) the model will stand at in the place: `like`'s box, else `height`, else `size`'s longest
+    side; None when none is given."""
     if like:
         points = np.asarray(like_points(folder, like))
         return float(np.ptp(points, axis=0).max()) if len(points) else None
-    return float(height) if height else None
+    if height:
+        return float(height)
+    return max(float(side) for side in size) if size else None
 
 
 def generated(picture, out, faces=None):
@@ -223,7 +231,7 @@ def like_points(folder, like):
     return surface_points(copied[min(models, key=place_build.finished_first)])[0]
 
 
-def placed(raw, folder, like, height):
+def placed(raw, folder, like, height, size=None):
     """The raw model's GLB document and binary set in the place's frame; how it was set."""
     document, binary = glb.read(raw)
     points = surface_points(raw)[0]
@@ -232,8 +240,11 @@ def placed(raw, folder, like, height):
         how["like"] = like
     elif height:
         matrix, how = fit.height_matrix(points, float(height)), {"height_m": float(height)}
+    elif size:
+        matrix, how = fit.size_matrix(points, size), {"size_m": [float(side) for side in size]}
     else:
-        raise place_build.Refused("give --like (the library model it replaces) or --height (metres)")
+        raise place_build.Refused("give --like (the library model it replaces), --height (metres) or --size "
+                                  "(wide,deep,tall metres)")
     return glb.with_root_matrix(document, matrix), binary, how
 
 
@@ -315,9 +326,10 @@ def saved(values, root, entry, files, title, made_with, work):
     return place_build.resolved_address(f"model/{entry}", root)
 
 
-def make(folder, name, source, material, like=None, height=None):
-    """One prop's model made with TRELLIS.2 from `source`'s picture, set in the place (over `like`, or `height`
-    metres tall), graded to its palette, made sim-ready and taken into score_lib; its address and measures."""
+def make(folder, name, source, material, like=None, height=None, size=None, take_in=True):
+    """One prop's model made with TRELLIS.2 from `source`'s picture, set in the place (over `like`, `height` metres
+    tall, or at `size`), graded to its palette, made sim-ready and taken into score_lib unless not `take_in`; its
+    address (None when not taken in) and measures."""
     try:
         sim.material(material)
     except ValueError as why:
@@ -329,8 +341,8 @@ def make(folder, name, source, material, like=None, height=None):
     work.mkdir(parents=True, exist_ok=True)
     picture, said = picture_of(folder, source, like, work)
     raw = work / "trellis.glb"
-    stats = generated(picture, raw, faces_for(size_of(folder, like, height)))
-    document, binary, how = placed(raw, folder, like, height)
+    stats = generated(picture, raw, faces_for(size_of(folder, like, height, size)))
+    document, binary, how = placed(raw, folder, like, height, size)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
     palette = folder / place_build.PALETTE
@@ -353,6 +365,6 @@ def make(folder, name, source, material, like=None, height=None):
                  {"what": "set in the place, its paint graded to the place's palette, CoACD hulls and mass by score "
                           "place_build make", "source": "score"}]
     title = f"{name.replace('_', ' ').capitalize()} (TRELLIS.2, {place})"
-    address = taken_in(entry, files, title, made_with, work)
+    address = taken_in(entry, files, title, made_with, work) if take_in else None
     return {"address": address, "fit": how, "mass_kg": physics["mass_kg"], "hulls": physics["hulls"],
             "mismatch": record["mismatch"], "size_m": record["size_m"], "folder": str(work)}

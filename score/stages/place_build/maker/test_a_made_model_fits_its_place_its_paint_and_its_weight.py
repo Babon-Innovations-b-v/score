@@ -7,6 +7,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.cut_out: its rectangle refusal dropped -> a box-cut crop (the capsule's uncut lever, #156) goes to TRELLIS.2;
   maker.concept_picture: its missing-mask refusal dropped -> concept/<n> with no SAM 3 mask is made from no cut
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
+- fit.size_matrix: scaled by the size's tallest side, not its longest -> the L laid at (2.0, 0.5, 0.3) is 0.6 m long;
+  maker.size_of: `size` ignored -> a model made at a size is made at FACES, not its size's faces
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
@@ -57,10 +59,13 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert how["yaw"] == 270.0 and abs(how["scale"] - 2.5) < 0.01 and how["distance_m"] < 0.02
     tall = fit.applied(fit.height_matrix(made, 1.8), made)
     assert abs(np.ptp(tall[:, 1]) - 1.8) < 1e-9 and abs(tall[:, 1].min()) < 1e-9
+    sized = fit.applied(fit.size_matrix(made, (2.0, 0.5, 0.3)), made)  # wide, deep, tall: its longest side 2 m
+    assert abs(np.ptp(sized, 0).max() - 2.0) < 1e-9 and abs(sized[:, 1].min()) < 1e-9
     from score.stages.place_build import maker
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
                                                                        generate.FACES]  # a sprout, a chair, a wall
+    assert maker.size_of(tmp_path, None, None, (0.5, 0.4, 1.0)) == 1.0  # a size's longest side, no place read
     assert maker.flat_card([0.3, 0.001, 0.05]) and not maker.flat_card([0.3, 0.02, 0.02]) \
         and not maker.flat_card([1.2, 0.006, 0.1])  # a 1 mm card; a stick; a 6 mm sign
 
