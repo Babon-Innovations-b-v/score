@@ -323,12 +323,16 @@ def written(colour, second, roughness, line_pitch, stroke, word_size, ink_share,
 
 
 def composite(colour, second, roughness, weave, bump):
-    """A woven composite panel (glass or carbon fibre): bands one way and the other, a little lighter and darker,
+    """A woven composite panel (glass or carbon fibre): a 2/2 twill, each tow `weave` wide passing over two and under
+    two and the pattern stepping one tow a row, so it runs on a diagonal as carbon cloth does (a plain checker at twice
+    the tow drew four carbon panels as a chequerboard, #155); bands one way and the other, a little lighter and darker,
     under a clear coat."""
     vector = coordinates()
     warp = pf.nodes.texture.wave(vector=vector, scale=1.0 / weave, bands_direction="X", wave_profile="TRI", detail=0.0)
     weft = pf.nodes.texture.wave(vector=vector, scale=1.0 / weave, bands_direction="Z", wave_profile="TRI", detail=0.0)
-    over = pf.nodes.texture.checker(vector=vector, scale=0.5 / weave).fac
+    point = pf.nodes.math.separate_xyz(vector)
+    step = pf.nodes.math.floor(point.x / weave) + pf.nodes.math.floor(point.z / weave)
+    over = pf.nodes.math.less_than(pf.nodes.math.floor_mod(step, 4.0), 2.0)
     woven = pf.nodes.math.mix(a=warp.fac, b=weft.fac, factor=over)
     base = pf.nodes.color.mix_rgb(factor=woven * 0.35, a=colour, b=second)
     return Channels(base, roughness, 0.0, BLACK, pf.nodes.shader.displacement(height=woven * bump, midlevel=0.0))
@@ -727,7 +731,7 @@ SOURCES = {
     "quilted": "written new (stitched pillow grid) + the library's dirt",
     "pile": "written new (noise mottle toward a second colour, fine tuft relief) + the library's dirt",
     "written": "written new (rows of ink on the surface's plane, broken into words by a noise)",
-    "composite": "written new (twill from two wave textures)",
+    "composite": "written new (2/2 twill of two wave textures)",
     "glass": "written new (infinigen2 glass_colored needs transmission, which the ink look cannot draw)",
     "glowing": "written new",
     "screen": "written new: dark glass, its content a picture lit from behind",
