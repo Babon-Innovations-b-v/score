@@ -19,6 +19,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   0.012 = 0.0027 (at its full 0.004 a field of steep bumps that scatters the highlight away);
 - the fine slopes row's 2 x 2 blocks of +-0.2 average to a normal of length 0.9798, hiding a variance of 0.0206
   (Toksvig), so its roughness 0.4 widens to (0.4^4 + 0.0206)^(1/4) = 0.464;
+- the scratched chrome's ORM green stripes of 70 and 80 (0.2745 and 0.3137) spread 0.0196, so its scratches are
+  0.0196 / 0.075 = 0.2614; its flat recipe beside striped maps has no detail, so the refinement doubles them;
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
@@ -58,6 +60,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.spec_of: toksvig_roughness dropped (the fine slopes row's roughness stays 0.4).
 - fit.spec_of: the no-normal-map flattening dropped (the cotton row keeps cloth's 0.0002 bump, the boxes row
   cardboard's 0.0003 flutes).
+- fit.spec_of: the scratches fit dropped (the flat chrome keeps polished_metal's 0.3), or measure.refined's scratches
+  left out (the scratched chrome's stay 0.2614).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -250,6 +254,13 @@ ROWS = [
       "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0)),
       "t_plastic_glossy_gray_a01_tile_nor.png": texel_tilts(0.2)}, {"tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "plastic", "roughness": 0.464}),
+    ("a flat ORM's chrome has no scratches", "T_Metal_Chrome_A",
+     {"T_Metal_Chrome_A_Albedo_1.png": solid((119,) * 3), "T_Metal_Chrome_A_ORM_1.png": solid((255, 0, 255))},
+     {"tile_metres": 1.0}, (solid((119,) * 3), solid((119,) * 3)), {"recipe": "polished_metal", "scratches": 0.0}),
+    ("a scratched chrome's scratches by its roughness spread, raised by its missing detail", "T_Metal_Chrome_A",
+     {"T_Metal_Chrome_A_Albedo_1.png": solid((119,) * 3), "T_Metal_Chrome_A_ORM_1.png": stripes(70, 80)},
+     {"tile_metres": 1.0}, (stripes(109, 129), solid((119,) * 3)),
+     {"recipe": "polished_metal", "scratches": 0.2614, "refined_scratches": 0.5228}),
 ]
 
 
@@ -273,5 +284,6 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
               "ranking": measure.ranking(views), "glow_strength": spec.get("glow"),
+              "scratches": spec.get("scratches"), "refined_scratches": measure.refined(spec, views).get("scratches"),
               "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

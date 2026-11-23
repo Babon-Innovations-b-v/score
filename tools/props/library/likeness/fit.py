@@ -95,6 +95,9 @@ ROLE_ALIASES = {"metallic": "metal"}  # a surface.json's role names (the USD inp
 PACKED_ROLES = {"albedo_roughness": ("albedo", "roughness_alpha")}
 # A recipe's relief settings, its heights: drawn flat (0) for a surface with no normal map, whose maps say smooth.
 RELIEF_SETTINGS = ("bump", "flute_height")
+# A polished metal's scratches from its roughness map's spread: its scratch ridges (about a tenth of the face) are
+# 0.25 rougher at full scratches, which spreads roughness by about 0.25 * sqrt(0.1 * 0.9) = 0.075.
+SCRATCH_SPREAD = 0.075
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
 PATTERN_SPREAD = 0.3
@@ -272,6 +275,11 @@ def channel_mean(path, channel):
     return float(shrunk(pixels(path), READ_SIDE)[..., channel].mean())
 
 
+def channel_spread(path, channel):
+    """A data map's spread (standard deviation) in one channel, as read (READ_SIDE)."""
+    return float(shrunk(pixels(path), READ_SIDE)[..., channel].std())
+
+
 def alpha_mean(path):
     """A picture's alpha mean, as stored (a packed map's second measure, its roughness)."""
     from PIL import Image
@@ -291,6 +299,8 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     measured["tile_metres"] = float(tile_metres)
     measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
                     {"height": 0.0, "feature_metres": None, "slope_variance": 0.0})
+    measured["roughness_spread"] = (channel_spread(maps["orm"], 1) if "orm" in maps else
+                                    channel_spread(maps["roughness"], 0) if "roughness" in maps else 0.0)
     if "orm" in maps:
         measured["roughness"], measured["metal"] = channel_mean(maps["orm"], 1), channel_mean(maps["orm"], 2)
     else:
@@ -348,7 +358,8 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread; no relief (RELIEF_SETTINGS 0) with no normal map; a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
+    spread; no relief (RELIEF_SETTINGS 0) with no normal map; scratches by the roughness map's spread (a flat one has
+    none: chrome drew scratch glints its maps lack); a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
     slopes (toksvig_roughness)."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
     spec = {"recipe": family, **defaults, "colour": linear_colour(measured["lab"])}
@@ -374,6 +385,8 @@ def spec_of(family, measured, method=METHOD):
         spec["bump"] = round(measured["height"] * BUMP_PER_HEIGHT * drawn / feature, 6)
     if feature is None:
         spec.update({setting: 0.0 for setting in RELIEF_SETTINGS if setting in defaults})
+    if "scratches" in defaults:
+        spec["scratches"] = round(min(1.0, measured.get("roughness_spread", 0.0) / SCRATCH_SPREAD), 4)
     apart = abs(measured["lab"][0] - measured["dark_lab"][0])
     if "contrast" in defaults and apart > 1.0:
         spec["contrast"] = round(min(1.0, measured["lightness_spread"] / (PATTERN_SPREAD * apart)), 4)

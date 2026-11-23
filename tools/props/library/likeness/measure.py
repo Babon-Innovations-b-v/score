@@ -181,7 +181,7 @@ def shifted(linear_colour, shift):
 def refined(spec, views, earlier=None):
     """The spec moved toward the maps' look from every view's measures: its colours by the mean Lab gap, its
     roughness by the highlight gap (roughness_step, from the `earlier` round's {"roughness", "highlight"} when there
-    is one), its bump and contrast by the detail ratio."""
+    is one), its bump, contrast and scratches by the detail ratio."""
     measures = list(views.values())
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
@@ -194,6 +194,7 @@ def refined(spec, views, earlier=None):
     scale = float(np.clip(1.0 / max(detail, 1e-6), 1.0 / DETAIL_STEP, DETAIL_STEP))
     if "bump" in moved:
         moved["bump"] = round(float(moved["bump"] * scale), 6)
-    if "contrast" in moved:
-        moved["contrast"] = round(float(min(moved["contrast"] * scale, 1.0)), 4)
+    for name in ("contrast", "scratches"):
+        if name in moved:
+            moved[name] = round(float(min(moved[name] * scale, 1.0)), 4)
     return moved
