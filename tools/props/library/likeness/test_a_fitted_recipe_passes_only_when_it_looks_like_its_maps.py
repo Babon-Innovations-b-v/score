@@ -23,6 +23,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   0.0196 / 0.075 = 0.2614; its flat recipe beside striped maps has no detail, so the refinement doubles them;
 - the tread plate row is the relief row's maps: its period along each axis is 16 texels, 0.016 m, its bump 0.004;
   beside a flat recipe the refinement would double it, but a quarter of its 0.016 pitch is 0.004;
+- the rusty chrome's rust is 19 of 64 columns, a worn share of 0.2969: its bloom threshold 0.5 + 0.1 x 0.533 (the
+  normal's 70.3rd percentile) = 0.5533, so its wear is (0.75 - 0.5533) / 0.3 = 0.6555;
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
@@ -70,6 +72,7 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   marble row plastic by its measures), or "floor_tile" after "marble" (the floor row rock).
 - fit.spec_of: PERIODIC's period dropped (the tread plate's pitch the half-width feature, 0.012), or
   measure.refined's RELIEF_ASPECT cap dropped (its bump doubles to 0.008).
+- fit.spec_of: the WORN_FAMILIES wear dropped (the rusty chrome drawn clean, no wear set).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -151,6 +154,13 @@ def texel_tilts(slope):
     sign = np.where((across + row) % 2 == 0, 1.0, -1.0)
     normal = np.stack([sign * slope, np.zeros_like(sign), np.full_like(sign, np.sqrt(1 - slope ** 2))], -1)
     return np.round((normal + 1.0) * 127.5).astype(np.uint8)
+
+
+def rusty(columns):
+    """A grey albedo (sRGB 150) with its first `columns` of SIDE columns rust (sRGB 90, 50, 30)."""
+    picture = solid((150,) * 3)
+    picture[:, :columns] = (90, 50, 30)
+    return picture
 
 
 def under(normal):
@@ -292,6 +302,10 @@ ROWS = [
      {"maps": {"albedo": "albedo.png", "orm": "orm.png", "normal": "normal.png"}, "tile_metres": 0.064},
      (stripes(109, 129), solid((119,) * 3)),
      {"recipe": "chequer_plate", "relief": (0.016, 0.004, 0.064), "refined_bump": 0.004}),
+    ("a rusty chrome's rust is its wear", "m_opaque_metal_chrome_rusty_a01",
+     {"albedo.png": rusty(19), "orm.png": solid((255, 102, 255))},
+     {"maps": {"albedo": "albedo.png", "orm": "orm.png"}, "tile_metres": 1.0},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "rusted_metal", "wear": 0.6555}),
 ]
 
 
@@ -315,6 +329,6 @@ def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name,
               "relief": relief, "pass": verdict["pass"], "glow": (found["emission_colour"], "emission" in found["maps"]),
               "opacity": spec.get("opacity"), "refined_roughness": measure.refined(spec, views, earlier)["roughness"],
               "ranking": measure.ranking(views), "glow_strength": spec.get("glow"),
-              "scratches": spec.get("scratches"), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
+              "scratches": spec.get("scratches"), "wear": spec.get("wear"), "refined_bump": measure.refined(spec, views).get("bump"), "refined_scratches": measure.refined(spec, views).get("scratches"),
               "heights": tuple(spec.get(setting) for setting in fit.RELIEF_SETTINGS), "refined_lab": lightness_hue(measure.refined(spec, views)["colour"])}
     assert {key: answer[key] for key in expected} == expected, name

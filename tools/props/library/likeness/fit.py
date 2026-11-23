@@ -22,6 +22,7 @@ recipe's palette colours are a scene's, which this fit does not touch. Standard 
 import json
 import pathlib
 import re
+import statistics as stats
 
 import numpy as np
 
@@ -108,6 +109,12 @@ RELIEF_SETTINGS = ("bump", "flute_height")
 # A polished metal's scratches from its roughness map's spread: its scratch ridges (about a tenth of the face) are
 # 0.25 rougher at full scratches, which spreads roughness by about 0.25 * sqrt(0.1 * 0.9) = 0.075.
 SCRATCH_SPREAD = 0.075
+# Families whose look is their wear (rusted_metal's rust comes only with wear, and the check draws a recipe at the
+# place's wear 0): the fit sets the spec's own wear from the albedo's worn share, its texels WORN_GAP L under its mean.
+WORN_FAMILIES = ("rusted_metal",)
+WORN_GAP = 10.0
+# rusted_metal's blooms: a noise (its values about 0.5, spread about BLOOM_SPREAD) over 0.75 - 0.3 * wear.
+BLOOM_MIDDLE, BLOOM_PER_WEAR, BLOOM_SPREAD = 0.75, 0.3, 0.1
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
 PATTERN_SPREAD = 0.3
@@ -242,13 +249,14 @@ def albedo_statistics(path):
     order = np.argsort(values[:, 0])
     dark = values[order[: max(1, int(len(order) * DARK_SHARE))]]
     return {"lab": values.mean(axis=0).tolist(), "dark_lab": dark.mean(axis=0).tolist(),
-            "lightness_spread": float(values[:, 0].std())}
+            "lightness_spread": float(values[:, 0].std()),
+            "worn_share": float(np.mean(values[:, 0] < values[:, 0].mean() - WORN_GAP))}
 
 
 def constant_statistics(linear_colour):
     """A constant colour's albedo_statistics: its Lab as the mean and the dark shade, no spread."""
     lab = colour.lab(np.asarray(linear_colour, dtype=float)).tolist()
-    return {"lab": lab, "dark_lab": lab, "lightness_spread": 0.0}
+    return {"lab": lab, "dark_lab": lab, "lightness_spread": 0.0, "worn_share": 0.0}
 
 
 def rebuilt(normal):
@@ -390,7 +398,8 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread (a PERIODIC family's pattern size its relief's period); no relief (RELIEF_SETTINGS 0) with no normal map; scratches by the roughness map's spread (a flat one has
+    spread (a PERIODIC family's pattern size its relief's period); a WORN_FAMILIES spec's own wear from the albedo's
+    worn share (worn); no relief (RELIEF_SETTINGS 0) with no normal map; scratches by the roughness map's spread (a flat one has
     none: chrome drew scratch glints its maps lack); a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
     slopes (toksvig_roughness)."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
@@ -418,12 +427,23 @@ def spec_of(family, measured, method=METHOD):
         spec["bump"] = round(measured["height"] * BUMP_PER_HEIGHT * drawn / feature, 6)
     if feature is None:
         spec.update({setting: 0.0 for setting in RELIEF_SETTINGS if setting in defaults})
+    if family in WORN_FAMILIES:
+        spec["wear"] = round(worn(measured.get("worn_share", 0.0)), 4)
     if "scratches" in defaults:
         spec["scratches"] = round(min(1.0, measured.get("roughness_spread", 0.0) / SCRATCH_SPREAD), 4)
     apart = abs(measured["lab"][0] - measured["dark_lab"][0])
     if "contrast" in defaults and apart > 1.0:
         spec["contrast"] = round(min(1.0, measured["lightness_spread"] / (PATTERN_SPREAD * apart)), 4)
     return spec
+
+
+def worn(share):
+    """rusted_metal's wear at which its blooms cover `share` of a face: the bloom noise taken as normal about 0.5,
+    BLOOM_SPREAD wide, its threshold BLOOM_MIDDLE - BLOOM_PER_WEAR * wear; 0 for no worn share."""
+    if share <= 0:
+        return 0.0
+    threshold = 0.5 + BLOOM_SPREAD * stats.NormalDist().inv_cdf(1.0 - min(share, 0.999))
+    return float(np.clip((BLOOM_MIDDLE - threshold) / BLOOM_PER_WEAR, 0.0, 1.0))
 
 
 def fitted_tile(family, measured, method=METHOD):
