@@ -28,6 +28,9 @@ laid place needs, made here so the films' and the physics' renders (which key us
   baked from; a see-through variant (glass, its opacity under 1) stays thin glass. A preview look stays for every
   other reader. The views take AgX's medium high contrast look, as a
   camera's grade, rather than the films' flat base.
+- **A picture is drawn at most HELD_TEXELS a side**, the side the game holds it at (scene_package.HELD_TEXELS), so
+  the preview shows what the game shows and a place of adopted 4096 sets fits its Blender's cap (#156, 2026-11-23:
+  the capsule's NVIDIA SimReady parts held 8 GB of maps and the render's 8 GB Blender was killed for memory).
 
     blender -b --python blender_views.py -- <stage.usda> <views.json> <out folder>   (usd_views.py's arguments)
 """
@@ -54,6 +57,7 @@ GROUND = "Ground"  # the name usd_views.stage_ground takes as the stage's own gr
 # AgX's look on the preview's views: a camera's contrast (AgX's base look is the films' flat grade, washing a pale
 # interior out to one beige).
 CONTRAST = "AgX - Medium High Contrast"
+HELD_TEXELS = "2048"  # Cycles' texture limit: scene_package.HELD_TEXELS, the side the game holds a picture at
 
 
 def laid_grounds(objects):
@@ -391,12 +395,24 @@ def with_thin_glass(haze):
         tiled_maps(every)
         recipe_looks(every, specs)
         bpy.context.scene.view_settings.look = CONTRAST
+        held_pictures(bpy.context.scene)
         ground = bpy.data.objects.get(GROUND)
         if ground is not None and ground.type == "MESH":
             displaced(ground)
         hazy(objects)
         return haze(objects)
     return drawn
+
+
+def held_pictures(scene):
+    """Every picture drawn at most HELD_TEXELS a side (Cycles' texture limit under simplify, its other limits left at
+    what the scene draws: subdivision as deep as a displaced ground is cut, every particle, volumes whole)."""
+    scene.render.use_simplify = True
+    scene.render.simplify_subdivision_render = max(scene.render.simplify_subdivision_render, DISPLACEMENT_LEVELS)
+    scene.render.simplify_child_particles_render = 1.0
+    scene.render.simplify_volumes = 1.0
+    scene.cycles.texture_limit_render = HELD_TEXELS
+    scene.cycles.texture_limit = HELD_TEXELS
 
 
 def hazy(objects):
