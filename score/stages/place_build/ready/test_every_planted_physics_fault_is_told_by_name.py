@@ -5,7 +5,8 @@ joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and
 with no triangles; a door 40 cm narrower than its opening and one lying 20 cm over its wall; a person standing 30 cm
 over the ground; a walker (time-sampled) 30 cm over it, told by its planted foot alone; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
 while what rests right passes (the walls, a walker stepping with its left foot 10 cm up, the door filling its opening, the desk, a monitor laid `on` the desk, a
-panel mounted `on` a wall, a crate on the ground, a rock sunk 30 cm into it, a round hatch in the doorway its tunnel's end wall cut to its own
+panel mounted `on` a wall, a block over an adopted bench's gap held by the convex hull its MuJoCo physics
+collides by, a crate on the ground, a rock sunk 30 cm into it, a round hatch in the doorway its tunnel's end wall cut to its own
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support;
 and a walker's route goes round a crate in its way on that same floor and through every spot it is sent through, every point of it standing there, and is refused
@@ -100,6 +101,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.settle_workers: `room` left out of the count -> three models run where two fit
 - ready.settle_mass: its `engine_chosen(prim, "MuJoCo")` left out -> the adopted prop authoring its mass in its
   MuJoCo physics variant alone settles as a hull of DENSITY (NaN), not its 1.5496 kg times its scale cubed (#155)
+- ready.settle_colliders: mujoco_chosen left out (the default variant read) -> the adopted bench collides by its
+  triangles, so the block over its gap has nothing under it in its statics (#155)
+- ready.collider_of: the `convexHull` approximation unread (every collider its triangles) -> the same
+- ready.statics_near: the adopted objects' colliders unread (their drawn triangles taken) -> the same
 - ready.solid_of: its walk without Usd.TraverseInstanceProxies() -> the adopted desk whose top stands under an
   instanceable prim (a SimReady model's) reads no solid, and `on` refuses "no support" (#155)
 """
@@ -504,6 +509,40 @@ def adopted_settle_mass():
     assert laid.prims["prop_1"].GetVariantSets().GetVariantSelection("MuJoCo") == "Disabled"
 
 
+def adopted_settle_colliders():
+    """An adopted bench (#155), two blocks 0.3 m apart in one collision mesh, collides by its triangles in its default
+    physics variant and by their convex hull in its MuJoCo one: a block laid over its gap is held in the settle by the
+    hull's top under it, while the bench drawn, its variant put back, still shows the gap."""
+    stage = Usd.Stage.CreateInMemory()
+    blocks = trimesh.util.concatenate([trimesh.creation.box([0.5, 0.5, 0.5]).apply_translation([x, 0.25, 0.0])
+                                       for x in (-0.4, 0.4)])
+    bench = UsdGeom.Xform.Define(stage, "/p/Objects/bench").GetPrim()
+    bench.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set("model/simready_bench_a01@1")
+    mesh = UsdGeom.Mesh.Define(stage, "/p/Objects/bench/geo")
+    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(blocks.vertices, dtype=np.float32)))
+    mesh.CreateFaceVertexCountsAttr([3] * len(blocks.faces))
+    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(blocks.faces, dtype=np.int32).reshape(-1)))
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
+    UsdPhysics.MassAPI.Apply(mesh.GetPrim()).CreateMassAttr(30.0)
+    UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim())
+    variants = bench.GetVariantSets().AddVariantSet("MuJoCo")
+    for name, approximation in (("Enabled", UsdPhysics.Tokens.convexHull), ("Disabled", UsdPhysics.Tokens.none)):
+        variants.AddVariant(name)
+        variants.SetVariantSelection(name)
+        with variants.GetVariantEditContext():
+            UsdPhysics.MeshCollisionAPI(stage.OverridePrim("/p/Objects/bench/geo")).CreateApproximationAttr(
+                approximation)
+    box(stage, "p", "block", (0.1, 0.1, 0.1), (-0.05, 0.5, -0.05))
+    laid = ready.Place(stage, "p")
+    colliders = ready.settle_colliders(laid)
+    statics = ready.statics_near(laid, "block", colliders)
+    under = trimesh.Trimesh(statics.reshape(-1, 3), np.arange(len(statics) * 3).reshape(-1, 3), process=False)
+    held = under.ray.intersects_any([[0.0, 0.55, 0.0]], [[0.0, -1.0, 0.0]])
+    drawn = laid.meshes["bench"].ray.intersects_any([[0.0, 0.55, 0.0]], [[0.0, -1.0, 0.0]])
+    assert list(colliders) == ["bench"] and held[0] and not drawn[0], (list(colliders), held, drawn)
+    assert laid.prims["bench"].GetVariantSets().GetVariantSelection("MuJoCo") == "Disabled"
+
+
 def instanced_solid():
     """An adopted desk (#155) whose top, a cube 1.2 x 0.05 x 0.6, stands under an instanceable prim (as a SimReady
     model lays its shapes from its instances' payload) reads as that solid."""
@@ -720,6 +759,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     except place_build.Refused as why:
         assert "big" in str(why), str(why)
     adopted_settle_mass()
+    adopted_settle_colliders()
     instanced_solid()
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")

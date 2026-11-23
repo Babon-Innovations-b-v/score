@@ -11,6 +11,10 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   (spans, steps, pieces) with the walkway's own erosion; MuJoCo (settle_mujoco.py) for the settle. The settle runs in
   the physics trial's own Python (score/stages/physics/inside/newton_env.sh, MuJoCo as pinned there, the one sim
   body's walkers use), one small mjSpec model an object, free on this PC's CPU.
+- **An adopted asset settles by its own MuJoCo physics** (#155, 2026-11-23): its mass and its colliders are read with
+  its MuJoCo physics variant chosen in the session layer and put back after (`mujoco_chosen`), each collider by its
+  authored approximation (`collider_of`: `convexHull` a hull, else its triangles), never its drawn shape; the
+  workshop's adopted desk collides by an `sdf` (PhysX only) in its default variant and by its hull in MuJoCo's.
 - **The walkers' ground and routes** (#128, 2026-11-16): `solids` is what a walker stands on and runs into (every
   object the check reads, every door as it stands for the walkers: shut, or swung open when marked `score:opens`
   (`swing_of`: into the shell it is set in, on the hinge that keeps the most floor joined), no characters), the ground sim body and scene clips read for a place_build

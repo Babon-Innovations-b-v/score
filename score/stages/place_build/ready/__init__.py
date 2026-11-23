@@ -55,6 +55,7 @@ model's painted parts); and `shapes` every made object whose shape reads wrong (
 its run, a hard thing with too few flat faces), each for a remake. The place is ready only with neither.
 """
 import ast
+import contextlib
 import gc
 import json
 import os
@@ -65,7 +66,7 @@ import sys
 import numpy as np
 import trimesh
 from scipy import ndimage
-from pxr import Gf, Sdf, Usd, UsdGeom
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
 
 from score.stages import place_build
 
@@ -1390,30 +1391,88 @@ def held_by(laid, name):
     return held
 
 
-def statics_near(laid, name):
-    """The triangles of everything near a loose object (its box grown by NEAR), what it holds aside: (count, 3, 3)."""
-    low, high = laid.meshes[name].bounds
+def statics_near(laid, name, colliders):
+    """The triangles near a loose object that its settle model holds still: every other object's whose box meets its
+    own grown by NEAR, an adopted object's (`colliders`, #155) as its own MuJoCo physics collides, the object and what
+    it holds left out."""
+    low, high = colliders.get(name, laid.meshes[name]).bounds
     low, high = low - NEAR, high + NEAR
     left_out = {laid.number[other] for other in [name, *held_by(laid, name)]}
-    return laid.triangles_in(low, high, without=left_out)[0]
+    found = [laid.triangles_in(low, high, without=left_out | {laid.number[other] for other in colliders})[0]]
+    for other, collider in colliders.items():
+        if laid.number[other] in left_out:
+            continue
+        triangles = collider.triangles
+        meets = np.all(triangles.max(axis=1) >= low, axis=1) & np.all(triangles.min(axis=1) <= high, axis=1)
+        found.append(triangles[meets])
+    return np.concatenate(found)
 
 
-def settle_mass(laid, name):
-    """The mass an adopted prop authors for itself (#155) as MuJoCo reads it, its MuJoCo physics variant chosen in
-    the stage's session layer and put back after, times its laid scale cubed less its asset's unit scale
-    (place_build.units_of: only the scale the agent chose weighs it) (kg); NaN when it authors none."""
+@contextlib.contextmanager
+def mujoco_chosen(laid, name):
+    """An object's prim with its asset's MuJoCo physics variant chosen (usd_physics.engine_chosen: the variant set
+    named for the engine, as a SimReady asset authors it) in the stage's session layer, the stage's own choice put
+    back after, so what the scene shows never changes."""
     prim = laid.prims[name]
     stage, path = prim.GetStage(), prim.GetPath()
     with Usd.EditContext(stage, stage.GetSessionLayer()):
         chosen = usd_physics.engine_chosen(prim, "MuJoCo")
-        mass = usd_physics.authored_mass(stage.GetPrimAtPath(path))
-        for engine in chosen:
-            stage.GetPrimAtPath(path).GetVariantSet(engine).ClearVariantSelection()
-    laid.prims[name] = stage.GetPrimAtPath(path)  # a new variant recomposes the prim: its old handle is gone
+        try:
+            yield stage.GetPrimAtPath(path)
+        finally:
+            for engine in chosen:
+                stage.GetPrimAtPath(path).GetVariantSet(engine).ClearVariantSelection()
+            laid.prims[name] = stage.GetPrimAtPath(path)  # a new variant recomposes the prim: its old handle is gone
+
+
+def settle_mass(laid, name):
+    """The mass an adopted prop authors for itself (#155) as MuJoCo reads it, its MuJoCo physics variant chosen
+    (mujoco_chosen), times its laid scale cubed less its asset's unit scale (place_build.units_of: only the scale the
+    agent chose weighs it) (kg); NaN when it authors none."""
+    with mujoco_chosen(laid, name) as prim:
+        mass = usd_physics.authored_mass(prim)
     if mass is None:
         return float("nan")
     linear = np.asarray(UsdGeom.Xformable(laid.prims[name]).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
     return mass * abs(float(np.linalg.det(linear[:3, :3]))) / place_build.units_of(laid.prims[name]) ** 3
+
+
+def collider_of(prim):
+    """An object's colliders as its asset authors them (UsdPhysics' CollisionAPI on a mesh or cube, inside its
+    instances too, the objects laid on it left out, a collider switched off skipped), in the scene's frame, as one
+    mesh: each a convex hull where its MeshCollisionAPI approximation says `convexHull`, else its own triangles;
+    None when it authors none."""
+    pieces = []
+    walk = iter(Usd.PrimRange(prim, Usd.TraverseInstanceProxies()))
+    for part in walk:
+        if part != prim and part.HasAttribute("score:library"):
+            walk.PruneChildren()
+            continue
+        if not part.HasAPI(UsdPhysics.CollisionAPI) or UsdPhysics.CollisionAPI(part).GetCollisionEnabledAttr().Get() \
+                is False:
+            continue
+        found = gprim_triangles(part)
+        if found is None or not len(found[1]):
+            continue
+        matrix = np.asarray(UsdGeom.Xformable(part).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        piece = trimesh.Trimesh(found[0] @ matrix[:3, :3] + matrix[3, :3], found[1], process=False)
+        approximation = UsdPhysics.MeshCollisionAPI(part).GetApproximationAttr().Get() \
+            if part.HasAPI(UsdPhysics.MeshCollisionAPI) else None
+        pieces.append(piece.convex_hull if approximation == UsdPhysics.Tokens.convexHull else piece)
+    return trimesh.util.concatenate(pieces) if pieces else None
+
+
+def settle_colliders(laid):
+    """Each adopted object's (one authoring its own mass, #155) colliders as its MuJoCo physics variant has them
+    (mujoco_chosen, collider_of): {name: mesh}. The desk SimReady lays collides by an `sdf` of its triangles in its
+    default (PhysX) variant and by its convex hull in MuJoCo's; the settle holds it as MuJoCo does."""
+    found = {}
+    for name in laid.names:
+        with mujoco_chosen(laid, name) as prim:
+            collider = collider_of(prim) if usd_physics.authored_mass(prim) is not None else None
+        if collider is not None:
+            found[name] = collider
+    return found
 
 
 def settle_faults(laid, folder):
@@ -1425,10 +1484,10 @@ def settle_faults(laid, folder):
     if not python.exists():
         return {}, f"not run: no physics trial Python at {SETTLE_ENV} (score/stages/physics/inside/newton_env.sh)"
     job, out = pathlib.Path(folder) / "ready-settle.npz", pathlib.Path(folder) / "ready-settle.json"
-    arrays = {"names": np.array(loose)}
+    arrays, colliders = {"names": np.array(loose)}, settle_colliders(laid)
     for name in loose:
-        vertices = np.asarray(laid.meshes[name].convex_hull.vertices)
-        arrays[f"hull_{name}"], arrays[f"statics_{name}"] = vertices, statics_near(laid, name)
+        vertices = np.asarray(colliders.get(name, laid.meshes[name]).convex_hull.vertices)
+        arrays[f"hull_{name}"], arrays[f"statics_{name}"] = vertices, statics_near(laid, name, colliders)
         arrays[f"mass_{name}"] = np.array(settle_mass(laid, name))
     workers = settle_workers({name: len(arrays[f"statics_{name}"]) for name in loose},
                              sum(array.nbytes for array in arrays.values()))
