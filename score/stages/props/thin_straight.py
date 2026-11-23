@@ -44,7 +44,10 @@ its row's section before it is swept (`pressed`), so a run drawn tapering away f
 line is no teardrop or wedge, its ends reaching its mask's (`reaching`), a wall clamp a strap (CLAMP_SHARE); a row
 named for many is its crop's parallel runs (`many`, `strands`, `parallel`); and pieces of one straight thing split by
 what stands in front of it are joined where they line up (`bridged`): the shape check read five of these builds as
-sausages (#156, 2026-11-22).
+sausages (#156, 2026-11-22). A rigid run that forks, and a flexible run not drawn straight, are built as their
+branches (`branches`: each at one section along its own centreline, a manifold's stubs kept, `stubs`), never pressed
+across one way as one run nor swept as wide as its mask at each point (the engineroom's manifold kept one of its three
+stubs, the quarters' desk cables were a blob, #156 2026-11-23).
 """
 import json
 import pathlib
@@ -103,6 +106,10 @@ FITTED = frozenset(("pipe", "conduit", "duct", "tube", "handrail"))
 # ceiling duct and the engineroom's pipe, swell 0.14 and 0.19 by the shape check, #156 2026-11-22). A post keeps its
 # foot's own width, a mast its antenna's (`stretches`).
 RIGID = FITTED | {"rail"}
+# The flexible run kinds (`graphed`): a cable, wire or hose bends and sags on its own, so it is its branches each
+# swept at its own one section, never a tube as wide as its mask at each point (the quarters' desk cables, swept
+# following their drawn width, a blob, #156 2026-11-23).
+FLEXIBLE = frozenset(("cable", "wire", "hose"))
 # Pieces of one thing split by what stands in front of it are joined (`bridged`) where a free end of one points at a
 # free end of another within this many degrees, each end's way and the gap between them (the lab's arc of pipe in
 # three pieces, the storage's wall pipe in three, the porch post over its foot, #156 2026-11-22) ...
@@ -120,6 +127,11 @@ STRAND_SHARE = 0.85
 # Pixels at most a pressed run's picture is drawn finer to (`path_build`): held across to a twentieth, the engineroom's
 # pipe was a tube 3 grid cells round, ragged.
 PRESS_PIXELS = 1e7
+# Pixels apart at most the forks of a skeleton's runs that are one fork (`stubs`): a fork drawn a few pixels across.
+KNOT_PIXELS = 3.0
+# Pixels at least a branched build's thinnest tube (`branches`) is drawn round, so the pixel steps of its line are no
+# ridges on it (the quarters' cables, drawn 5 round, read rough).
+TUBE_PIXELS = 8.0
 # Pixels a tube swept round a line drawn one pixel wide stands out over its radius (the distance is to the line's
 # pixels, not its axis): a pressed run's radius is less this, or the garage's 0.1 m wall pipe stood 0.116 m across.
 LINE_PIXEL = 0.5
@@ -510,10 +522,15 @@ def path_build(row, alpha, turn=0.0, shade=None):
         runs = [part for points, radius in runs for part in
                 (ladder(points, radius, rail, POST_GAP / scale, kept) if 2 * radius > LADDER_WIDTHS * 2 * rail
                  else [(points, radius)])]
-    straight = straightened(row, skeleton, runs, slant(pieces(alpha)))
+    graph = graph_runs(row, kept, skeleton, ball, reach)
+    held_branches = graph is not None and one_section(row) and forks(graph)  # a rigid one's held round as swept
+    straight = None if held_branches else straightened(row, skeleton, runs, slant(pieces(alpha)))
     runs = straight or runs
     hold, way = 1.0, None
-    if one_section(row):  # one width for the whole run, its length's median, its ends at its mask's, held round
+    branched = held_branches or straight is None and graph is not None and flexible(row)
+    if branched:  # each branch swept at one section along its own centreline, never pressed
+        runs, hold = branches(row, kept, graph, scale, shade)
+    elif one_section(row):  # one width for the whole run, its length's median, its ends at its mask's, held round
         runs = [(points, length_median(runs)) for points, _ in runs]
         drawn_band = 2 * length_median(runs)  # held across whole: a bundle's box is the bundle's
         if many(row) and shade is not None:  # a bundle: its parallel runs side by side across its band
@@ -521,8 +538,10 @@ def path_build(row, alpha, turn=0.0, shade=None):
         hold, way = section_hold(row, drawn_band * scale), across_way(turn, slant(pieces(alpha)))
         runs = pressed(reaching(kept, runs, hold), hold, way)
     # a pressed tube is drawn on a picture as much finer, so its section is as many pixels across as it was drawn
-    finer = max(1.0, min(1.0 / hold, np.sqrt(PRESS_PIXELS / kept.size)))
-    runs = [(np.asarray(points, dtype=float) * finer, radius * finer - (LINE_PIXEL if way is not None else 0.0))
+    finer = max(1.0, min(max(1.0 / hold, TUBE_PIXELS / min(radius for _, radius in runs) if branched else 1.0),
+                         np.sqrt(PRESS_PIXELS / kept.size)))
+    runs = [(np.asarray(points, dtype=float) * finer,
+             radius * finer - (LINE_PIXEL if way is not None or held_branches else 0.0))
             for points, radius in runs]  # a pressed run is held by its radius alone, so the drawn line's own pixel off
     scale, canvas = scale / finer, np.ceil(np.array(kept.shape) * finer).astype(int)
     radii = np.array([radius for _, radius in runs])
@@ -546,12 +565,90 @@ def path_build(row, alpha, turn=0.0, shade=None):
                    drawn_back(found["clamps"]))
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
     mesh.metadata["straight"] = straight is not None  # held_across measures a straight build whole
+    if held_branches:  # held branch by branch as it was swept: held_across holds it no more
+        mesh.metadata["hold"] = 1.0
     if way is not None:  # drawn as the picture draws it again: held_across holds it round to its row's section
         spread = np.eye(4)
         spread[1:3, 1:3] += (1.0 / hold - 1.0) * np.outer(way, way)
         mesh.apply_transform(spread)
         mesh.metadata["hold"] = hold
     return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def flexible(row):
+    """Whether a row is a flexible run (FLEXIBLE, and no rigid kind): a cable, wire or hose, never a light, a railing or
+    a network."""
+    words = kind_words(row)
+    return (bool(words & FLEXIBLE) and not words & RIGID and not slender_light(row) and profile(row) != "railing"
+            and not network(row))
+
+
+def forks(runs):
+    """Whether `runs` ([(points, radius)], pixels) fork: three run ends or more meeting."""
+    ends = [tuple(np.round(points[index], 6)) for points, _ in runs for index in (0, -1)]
+    return max(ends.count(end) for end in ends) >= 3
+
+
+def graph_runs(row, kept, skeleton, ball, reach):
+    """[(points, radius)], pixels: a rigid or flexible row's branches as `branches` sweeps them, or None for any other:
+    the skeleton's runs (`spine`, one width a piece, its ragged edge's fingers dropped and a manifold's stubs kept,
+    `stubs`), pieces split by what stands in front joined (`bridged`). A rigid run that forks so is built as its
+    branches (`branches`): pressed across one way as one run, the engineroom's manifold lost its stubs to that press
+    and to spine's spur rule, and the lab's arc with its branch read as a fork (#156, 2026-11-23). A rigid run that
+    only bends is pressed as before: built where it lies, a pipe drawn as an L was laid 45 degrees off its row by its
+    picture's second moments (`axis_turn`; the garage's 10 m pipe rose 4.6 m), and a run going away from the camera
+    keeps the picture's foreshortening across it (the walkway's wall pipes an S 1.6 m deep). A flexible run not
+    straight (`straightened`) is built as its branches always."""
+    if not (one_section(row) or flexible(row)):
+        return None
+    return bridged(row, kept, spine(stubs(skeleton, ball), ball, part=None, spur=0.0), reach)
+
+
+def branches(row, kept, runs, scale, shade=None):
+    """([(points, radius)], pixels, the hold): a row's branches (`graph_runs`' `runs`), each swept at one section
+    along its own centreline, their length's median, never a tube as wide as its mask at each point. A rigid run's is held round to its row's section (section_hold's
+    rule) where its points stay, so a stub keeps its length and a curve its curve, a row named for many its crop's
+    parallel runs (`many`, `strands`), its forks taking tees and its bends elbows (`fittings`). A flexible run is held
+    across whole as before (`held_across`: a cable drawn lying on the ground shows its plan's depth as its picture's
+    height; held branch by branch, the campgrounds' power cable stood a 9 m loop), its hold one here. Each branch at
+    its own drawn width strayed from the likeness row's swept fit, one width a piece (`swept clean`: the quarters'
+    desk cables 0.104), and a band of cables split into its cables side by side by its width 0.053. Its free ends
+    reach its mask's (`reaching`)."""
+    rigid = one_section(row)
+    runs = [(points, length_median(runs)) for points, _ in runs]
+    hold = section_hold(row, 2 * length_median(runs) * scale) if rigid else 1.0  # a bundle's box is the bundle's
+    if rigid and many(row) and shade is not None:
+        runs = parallel(runs, strands(shade, kept, runs))
+    return [(points, radius * hold) for points, radius in reaching(kept, runs, hold)], hold
+
+
+def stubs(skeleton, ball):
+    """The skeleton less its ragged edge's fingers: of its runs (`traces`) from a free end to a fork shorter than
+    SPUR_WIDTHS of the skeleton's widths (twice its balls' median), two or more off one fork (forks within KNOT_PIXELS
+    are one) are a band's split end, and one alone is a finger when its free end stands less than its own half width
+    (its pixels' median ball) past the surface of the rest (its nearest other skeleton pixel less the ball at its
+    fork). A manifold's stub stands about its own width proud of its pipe, so spine's rule by length alone dropped two
+    of the engineroom's three (#156, 2026-11-23); a finger stands a few pixels."""
+    from scipy.spatial import cKDTree
+    pixels = {(int(across), int(down)) for down, across in zip(*np.nonzero(skeleton))}
+    steps = [(across, down) for across in (-1, 0, 1) for down in (-1, 0, 1) if across or down]
+    around = {point: sum((point[0] + across, point[1] + down) in pixels for across, down in steps) for point in pixels}
+    shortest = SPUR_WIDTHS * 2 * float(np.median(ball[skeleton]))
+    free = []  # (run, tip, fork) of each short run from a free end to a fork
+    for run in traces(skeleton):
+        ends = (around[run[0]], around[run[-1]])
+        if len(run) >= 3 and 1 in ends and max(ends) >= 3 and run_length(np.asarray(run, dtype=float)) < shortest:
+            free.append((run, *((run[0], run[-1]) if ends[0] == 1 else (run[-1], run[0]))))
+    cleaned = skeleton.copy()
+    for run, tip, fork in free:
+        split = sum(np.hypot(fork[0] - other[0], fork[1] - other[1]) <= KNOT_PIXELS for _, _, other in free) > 1
+        rest = np.array(sorted(pixels - set(run[1:-1]) - {tip}))
+        across, down = np.asarray(run).T
+        if split or len(rest) and (cKDTree(rest).query(tip)[0] - ball[fork[1], fork[0]]
+                                   < float(np.median(ball[down, across]))):
+            cleaned[down[1:-1], across[1:-1]] = False
+            cleaned[tip[1], tip[0]] = False
+    return cleaned
 
 
 def many(row):

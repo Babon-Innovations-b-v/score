@@ -69,7 +69,12 @@ swell 0.25 by the shape check), and so do pressed never pressing (`if hold >= 1.
 0.87 m across on 0.3 m), reaching carrying no end (`return runs` first: the duct 11.2 m of 12), CLAMP_SHARE at
 FITTING_SHARE (the wall pipe's curve pressed under its 1 m), bridged joining nothing (`if True: return runs`: the split
 pipe 3 bodies), lined_up by its angle alone (`reach = -1.0`: the post over its offset foot 2 bodies) and parallel
-making one run (`if True: return runs`: the wall pipes one body) (#156, 2026-11-22).
+making one run (`if True: return runs`: the wall pipes one body) (#156, 2026-11-22). path_build never building a
+forked rigid run as its branches (`held_branches = ...` -> `held_branches = False`: the manifold pressed, 0.2 m tall,
+no stub), graph_runs dropping stubs by spine's rule (`spur=0.0` -> `spur=SPUR_WIDTHS`: no stub, no fork), stubs
+keeping every finger (`return skeleton` first: the bump built 0.36 m down) and path_build never building a flexible
+run as its branches (`... and flexible(row)` -> `and False`: the cables' band 2.6 of a strand) each turn it red too
+(#156, 2026-11-23).
 
 likeness_row.still_coded taking every mark (`and (row in thin or flat_sheet.built(...))` -> `and True`) turns
 test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it red (a stale mark of a row grown out of the
@@ -626,6 +631,32 @@ def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thin
     bundle = thin_straight.build({"name": "wall pipes", "noun": "pipes", "size": [5.0, 0.3, 0.3]}, pair > 0, pair)
     assert thin_straight.strands(pair, pair > 0, [(np.array([[30.0, 50.0], [570.0, 50.0]]), 20.0)]) == 2
     assert len(bundle.split(only_watertight=False)) == 2, "bundle"  # two runs, a gap between them
+    # a rigid run that forks is its branches, each at its one section held round where its points stay, joined by
+    # tees: a manifold's stubs stand, a ragged edge's finger does not (the engineroom's manifold, pressed as one run,
+    # kept one of its three stubs, a sausage 0.24); the shape check, reading it along its centreline, sees no sausage
+    manifold = np.zeros((200, 600), dtype=bool)
+    manifold[120:160, 40:560] = True  # its pipe, 40 pixels across
+    for left in (200, 380):
+        manifold[60:120, left:left + 30] = True  # two stubs standing 60 pixels proud of it
+    manifold[160:170, 290:304] = True  # a ragged edge's bump under it
+    made = thin_straight.build({"name": "pipe", "noun": "pipe", "size": [0.2, 8.0, 0.2], "anchor": "wall"}, manifold)
+    over = np.sort(made.vertices[made.vertices[:, 1] > made.bounds[0][1] + 0.4, 2])  # over its pipe
+    assert 1.0 < made.extents[1] < 1.4 and len(over) and (np.diff(over) > 0.3).sum() == 1, made.extents  # two stubs
+    assert not shapes.shape_faults({"id": "pipe_1.engineroom"}, shapes.shape_of(made.vertices, made.faces))
+    # a flexible run is its branches at one section, never as wide as its mask at each point: a band of cables
+    # forking into two is no fat stretch (the quarters' desk cables, a blob)
+    cables = Image.new("L", (600, 200), 0)
+    for start, end, wide in (((40, 108), (300, 108), 36), ((300, 108), (560, 40), 12), ((300, 108), (560, 170), 12)):
+        ImageDraw.Draw(cables).line([start, end], fill=255, width=wide)
+    made = thin_straight.build({"name": "bundle of cables", "noun": "cables", "size": [4.0, 0.2, 0.2]},
+                               np.asarray(cables) > 127)
+    along = made.vertices[:, 2] - made.bounds[0][2]
+
+    def across(share, upper=False):  # its tube's height across a thin slice at `share` of its length
+        slice_ = made.vertices[np.abs(along - share * made.extents[2]) < 0.01 * made.extents[2], 1]
+        return np.ptp(slice_[slice_ > slice_.mean()] if upper else slice_)
+
+    assert across(0.2) <= 1.3 * across(0.9, upper=True), (across(0.2), across(0.9, upper=True))
     # a post's flared foot keeps its own width: the build is as wide as its mask at each point of its centreline (a
     # tube of one width lost the airlock porch post's foot, 0.75 to 0.46, #36 2026-10-30)
     post = {"name": "wooden post", "noun": "post", "size": [0.5, 0.5, 2.5]}

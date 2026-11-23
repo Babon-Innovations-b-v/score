@@ -61,6 +61,15 @@ gate passes it), else
   env1 round 35): built along its mask's centreline, forks kept, each run held across to the row's thinnest side
   (`run_holds`, held_across's rule run by run) and, lying, laid down (`as_built`); a flat build of one before is masked
   anew, never rebuilt from its close-up (`pixal_row.code_builds`).
+- **A rigid run that forks, and a flexible one, are built as their branches** (`thin_straight.branches`, #156
+  2026-11-23): the skeleton's runs with a ragged edge's fingers dropped and a manifold's stubs kept (`stubs`), each
+  branch swept at one section (their length's median) along its own centreline; a rigid one's (`graph_runs`,
+  `forks`) held round to its row's section where its points stay, tees at its forks and elbows at its bends, never
+  pressed across one way (the engineroom's manifold lost its stubs so); a flexible one's (`flexible`: a cable, wire
+  or hose not drawn straight) held across whole as before, never a tube as wide as its mask at each point (the
+  quarters' desk cables, a blob). A rigid run that only bends stays pressed (`pressed`): built where it lies, an L
+  was laid 45 degrees off its row. The shape check reads such a run along its centreline (place_build/shapes
+  `along`).
 - **Flat sheets are built in code when their take made no model** (`flat_sheet.py`): a sheet, its thinnest side under
   `SHEET_SHARE` of its longest (a poster, rug, note, paper, mat), lying flat (its close-up drawn from straight above)
   or standing on its edge on a wall (`upright`: its face in the wall's plane, made in its own pose, never stood), whose
