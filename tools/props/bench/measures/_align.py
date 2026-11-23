@@ -1,6 +1,8 @@
 """The made model set on the truth: kept at the size its route laid it (the route's own laying), turned by the
 best of the cube's 24 axis turns about its box's middle, then moved by ICP (turn and move, never scale), so a size
-error stays a size error and a lean shows as the turn it takes to stand it."""
+error stays a size error and a lean shows as the turn it takes to stand it. Both are fitted on the surface seen from
+outside (_mesh.outside): the inside a picture cannot show (a fridge's liner and shelves) never turns a model over
+(tc3's fridge stood on its head by its shelves, #178)."""
 import itertools
 
 import numpy as np
@@ -9,7 +11,7 @@ from scipy.spatial import cKDTree
 
 from . import _mesh
 
-POINTS = 4000  # surface points each side for the turn and ICP
+POINTS = 4000  # outside surface points each side for the turn and ICP
 # Turns within this share of the best two-way distance are the same fit: the one leaning least is taken. Two samplings
 # of one surface differ by up to 3% in it (the calibration's 0.5 x 0.4 x 0.8 m box cut again: its upside-down turn
 # measured 0.01053 against upright's 0.01085), so 1% stood a perfect copy on its head (#163 calibration).
@@ -41,9 +43,9 @@ def up_error(matrix):
 
 def aligned(truth, made):
     """(4x4 made-to-truth matrix, {"turn_distance", "up_error"}): the best axis turn about the boxes' middles, then
-    ICP from it, of the made surface onto the truth's."""
-    target, _ = _mesh.sampled(truth["vertices"], truth["faces"], POINTS, seed=1)
-    source, _ = _mesh.sampled(made["vertices"], made["faces"], POINTS, seed=2)
+    ICP from it, of the made outside surface onto the truth's."""
+    target = _mesh.outside(truth["vertices"], truth["faces"], POINTS, seed=1)
+    source = _mesh.outside(made["vertices"], made["faces"], POINTS, seed=2)
     target_tree = cKDTree(target)
     target_middle = (truth["vertices"].min(0) + truth["vertices"].max(0)) / 2
     source_middle = (made["vertices"].min(0) + made["vertices"].max(0)) / 2

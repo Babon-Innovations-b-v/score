@@ -9,7 +9,9 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   route laid it: no rescale ever hides a size error, the silhouettes are drawn by one camera framed on the truth (not
   compare.outline's boxed masks), and the turn that stands it on the truth is its up-axis error. A tie between axis
   turns (within `_align.TIE` of the best fit) takes the least-leaning one, so a symmetric shape is not charged for a
-  turn that changes nothing.
+  turn that changes nothing. The turn and ICP are fitted on the surface seen from outside (`_mesh.outside`):
+  NVIDIA's inside (a fridge's liner and shelves, ~80% of its surface) is what a picture cannot show, and on tc3 it
+  stood the upright fridge on its head (#178).
 - **Reuse, never copies.** The ring is tools/usd/compare.py's (YAWS, ELEVATION, FOV), the input view the close-up's
   (tools/props/closeup/check.py TURN_DEGREES, look_down), ownership split_compare.py's rule (OWN_PURITY,
   FINISH_LEAST, finishes_owned), the flat share and swell place_build/shapes', the least wall the model gate's,

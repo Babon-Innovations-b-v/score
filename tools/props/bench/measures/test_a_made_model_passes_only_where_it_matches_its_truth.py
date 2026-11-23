@@ -8,6 +8,8 @@ hull grown 3 cm stands 3 cm out, and so on.
 Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _align.aligned keeping the first axis turn (none) and dropping ICP's: the box laid on its side passes up.
 - _align.up_error returning 0: the box leaning 8 degrees passes up.
+- _align.aligned registering every surface point, not the outside's alone (_mesh.outside): the cabinet made upright
+  with its inner shelves where the truth's sit upside down is stood on its head (tc3's fridge, #178).
 - __init__.size judging the boxes' proportions instead of their sizes: the box laid 20% too big all round passes.
 - __init__.twin never finding one: the truth itself ranks second behind its recoloured twin.
 - __init__.laid_like keeping the other at its own size: the box's double, another asset of the same shape at twice
@@ -134,6 +136,12 @@ def shell(wall=0.001):
     return trimesh.util.concatenate([box(), inner])
 
 
+def cabinet(shelves):
+    """The box closed round three inner shelves at these heights (a fridge's liner and shelves, NVIDIA's inside)."""
+    planks = [box((0.46, 0.36, 0.01)).apply_translation((0, 0, height)) for height in shelves]
+    return trimesh.util.concatenate([box()] + planks)
+
+
 def grown(mesh, reach):
     hull = mesh.copy()
     hull.vertices = hull.vertices + np.sign(hull.vertices - hull.centroid) * reach
@@ -203,6 +211,8 @@ CASES = [
     ("laid on its side", lambda: made(turned(box(), 90)), "alignment.up_error", False),
     ("leaning 8 degrees", lambda: made(turned(box(), 8)), "alignment.up_error", False),
     ("leaning 3 degrees", lambda: made(turned(box(), 3)), "alignment.up_error", True),
+    ("upright, its inner shelves where the truth's sit upside down", lambda: measures.measured(
+        side(cabinet((0.1, 0.18, 0.26)), None), side(cabinet((0.53, 0.61, 0.69)), None)), "alignment.up_error", True),
     ("10% wider", lambda: made(box((0.55, 0.4, 0.8))), "size.size", False),
     ("4% wider", lambda: made(box((0.52, 0.4, 0.8))), "size.size", True),
     ("20% too big all round", lambda: made(box((0.6, 0.48, 0.96))), "size.size", False),

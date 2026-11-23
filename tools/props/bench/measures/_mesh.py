@@ -1,5 +1,6 @@
 """The mesh arithmetic every measure stands on: welded corners, face areas and normals, points drawn on a surface."""
 import numpy as np
+import trimesh
 
 WELD = 1e-6  # corners nearer than this share of the box's diagonal are one corner (a seam's split copies)
 
@@ -47,6 +48,31 @@ def sampled(vertices, faces, count, seed=0):
     points = corners[:, 0] + first[:, None] * (corners[:, 1] - corners[:, 0]) \
         + second[:, None] * (corners[:, 2] - corners[:, 0])
     return points, picked
+
+
+# Points drawn on the whole surface for each one kept on its outside: NVIDIA's fridge is about 80% inside surface.
+OVERDRAW = 8
+# A ray starts this share of the box's diagonal off its point, clear of the point's own face.
+LIFT = 1e-4
+WAYS_OUT = np.vstack([np.eye(3), -np.eye(3)])  # the six axis ways, besides the face's own normal either way
+
+
+def outside(vertices, faces, count, seed=0):
+    """Up to `count` points drawn on the surface that can be seen from outside it: a ray from the point along its
+    face's normal (either way, so a face wound either way counts) or along an axis leaves the model without striking
+    it. A closed cabinet's liner and shelves are not seen; an open rack's shelves are, along its open sides."""
+    points, picked = sampled(vertices, faces, count * OVERDRAW, seed=seed)
+    facing = normals(vertices, faces)[picked]
+    rays = trimesh.Trimesh(vertices, faces, process=False).ray
+    lift = diagonal(vertices) * LIFT
+    seen = np.zeros(len(points), dtype=bool)
+    for way in [facing, -facing] + [np.broadcast_to(axis, points.shape) for axis in WAYS_OUT]:
+        open_ones = np.flatnonzero(~seen)
+        if not len(open_ones):
+            break
+        struck = rays.intersects_any(points[open_ones] + way[open_ones] * lift, way[open_ones])
+        seen[open_ones[~struck]] = True
+    return points[seen][:count]
 
 
 def moved(vertices, matrix):
