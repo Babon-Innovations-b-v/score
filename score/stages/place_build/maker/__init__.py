@@ -9,7 +9,8 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
 2. TRELLIS.2 (generate.py in its own Python, setup.sh) on this PC's card through the card queue, in a memory-capped
    scope; kept under <folder>/made/<name>/, so a second `make` of the same picture is not made again.
 3. Set in the place's frame (fit.py): over the library model it replaces (`like`, its turn, scale and spot found by
-   covering it best), or `height` metres tall on the floor.
+   covering it best), or `height` metres tall on the floor. Its mesh repaired, its shape kept (repair.py: collapsed,
+   repeated and membrane faces out, two solids touching along an edge parted, hidden crumbs out, wound outward).
 4. Its own paint graded toward the place's palette (grade.py, palette.json's tokens); a group still far from every
    token is named a mismatch. A graded paint is still not a library surface: `put` lays the made model's paint parts
    (grade.parts) each as the palette variant nearest its colour (place_build/finished).
@@ -34,7 +35,7 @@ import sys
 import numpy as np
 
 from score.stages import place_build
-from score.stages.place_build.maker import fit, glb, grade, sim
+from score.stages.place_build.maker import fit, glb, grade, repair, sim
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
@@ -370,6 +371,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     raw = work / "trellis.glb"
     stats = generated(picture, raw, faces_for(size_of(folder, like, height, size)))
     document, binary, how = placed(raw, folder, like, height, size, picture)
+    document, binary, mended = repair.repaired_glb(document, binary)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
     palette = folder / place_build.PALETTE
@@ -382,7 +384,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
                                   "not a solid; nothing taken in (a sharper cut-out or another picture)")
     physics = sim.physical(hulls, material)
     record = {"maker": SOURCE, "picture": {"source": said, "sha256": sha256(picture)}, "trellis2": stats,
-              "fit": how, "size_m": [round(float(side), 3) for side in size], "grade": groups,
+              "fit": how, "repair": mended, "size_m": [round(float(side), 3) for side in size], "grade": groups,
               "mismatch": [group for group in groups if group["mismatch"]], "physics": physics,
               "hulls_file": f"{entry}-hulls.glb"}
     (work / f"{entry}.json").write_text(json.dumps(record, indent=1))

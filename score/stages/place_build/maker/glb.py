@@ -3,6 +3,7 @@ its base colour picture, never a re-export that would re-encode the rest).
 
     read(path) -> (document, binary)       write(path, document, binary)
     image(document, binary, index)         with_image(document, binary, index, data) -> binary
+    with_views(document, binary, {view: data}) -> binary
     base_colour_image(document)            the image index the first material's base colour reads, or None
 """
 import json
@@ -60,14 +61,19 @@ def image(document, binary, index):
 def with_image(document, binary, index, data):
     """The binary chunk with image `index` replaced by `data`; every later buffer view moved (4-byte aligned) and the
     document's views updated in place."""
-    target = document["images"][index]["bufferView"]
+    return with_views(document, binary, {document["images"][index]["bufferView"]: data})
+
+
+def with_views(document, binary, pieces):
+    """The binary chunk with each buffer view of `pieces` ({view: bytes}) replaced; every view moved (4-byte aligned)
+    and the document's views updated in place."""
     views = document["bufferViews"]
     order = sorted(range(len(views)), key=lambda number: views[number].get("byteOffset", 0))
     rebuilt = bytearray()
     for number in order:
         view = views[number]
         start = view.get("byteOffset", 0)
-        piece = data if number == target else binary[start:start + view["byteLength"]]
+        piece = pieces[number] if number in pieces else binary[start:start + view["byteLength"]]
         rebuilt.extend(b"\0" * (-len(rebuilt) % 4))
         view["byteOffset"] = len(rebuilt)
         view["byteLength"] = len(piece)

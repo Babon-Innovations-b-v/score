@@ -23,6 +23,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - generate.chunked_layer_norm: a block normalised in float16 -> the norm is not LayerNorm32's bit for bit;
   generate.layer_norm_in_place: its eps dropped -> not F.layer_norm's at the decoders' eps
 - remesh.crossing: the crossing edges taken edge by edge (axis first) -> not in cumesh's voxel-by-voxel order
+- repair.unrepeated: every face kept -> the membrane and the doubled face stay (an edge four faces hold);
+  repair.wedge_pairs: a four-face edge's faces paired with the other neighbour -> the checker's cubes stay joined
+  (3 pieces, not 6); repair.stuck: nothing cut -> the fold's edge stays held by four faces; repair.NUDGE made 0 ->
+  the copies stay one corner; repair.LOOSE made 0 -> the crumb stays; repair.outward: the piece never turned to its
+  normals -> the inside-out cube stays inside out; glb.with_views: a view it does not replace left where it was ->
+  the second image's bytes read back wrong
 """
 import importlib.util
 import json
@@ -30,7 +36,7 @@ import pathlib
 
 import numpy as np
 
-from score.stages.place_build.maker import cloud, fit, glb, grade, sim
+from score.stages.place_build.maker import cloud, fit, glb, grade, repair, sim
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -75,6 +81,49 @@ def z_up_to_model(boxes, yaw, count=4000):
     random = np.random.default_rng(5)
     points = np.concatenate([random.random((count, 3)) * (np.array(high) - low) + low for low, high in boxes])
     return fit.applied(fit.yawed(yaw), points[:, [0, 2, 1]] * [1, 1, -1])
+
+
+def voxels(cells, low=(0.0, 0.0, 0.0), side=1.0):
+    """The outward boundary of unit cells (x, y, z) laid from `low`, `side` long: its points and triangles."""
+    cells = {tuple(cell) for cell in cells}
+    quads = []
+    for cell in cells:
+        for axis in range(3):
+            across, up = np.eye(3)[(axis + 1) % 3], np.eye(3)[(axis + 2) % 3]
+            for sign in (1, -1):
+                if tuple(np.add(cell, np.eye(3, dtype=int)[axis] * sign)) in cells:
+                    continue
+                base = np.array(cell, float) + np.eye(3)[axis] * (sign > 0)
+                quad = [base, base + across, base + across + up, base + up]
+                quads.append(quad if sign > 0 else quad[::-1])
+    points, corners = np.unique(np.array(quads).reshape(-1, 3), axis=0, return_inverse=True)
+    corners = corners.reshape(-1, 4)
+    return points * side + low, np.concatenate([corners[:, [0, 1, 2]], corners[:, [0, 2, 3]]])
+
+
+CHECKER = [(0, 0, 0), (1, 1, 0), (0, 1, 1), (1, 0, 1)]
+
+
+def mended_fixture():
+    """(points, faces, normals, faces wound inside out): four cubes each touching the others along an edge (a checker,
+    three such edges at its middle corner), a fold (two slabs joined by two columns that touch along an edge), a cube
+    wound inside out, a crumb, a membrane, a doubled face and a collapsed one; the normals outward."""
+    parts = [voxels(CHECKER),
+             voxels([(x, y, z) for x in (0, 1) for y in (0, 1) for z in (-1, 1)] + [(0, 0, 0), (1, 1, 0)], (10, 0, 0)),
+             voxels([(0, 0, 0)], (20, 0, 0)), voxels([(0, 0, 0)], (30, 0, 0), 0.01)]
+    offsets = np.cumsum([0] + [len(part) for part, _ in parts])
+    points = np.concatenate([part for part, _ in parts])
+    faces = np.concatenate([triangles + offset for (_, triangles), offset in zip(parts, offsets)])
+    normals = np.zeros_like(points)
+    np.add.at(normals, faces, np.repeat(repair.crossed(points, faces)[:, None], 3, 1))
+    inside_out = np.flatnonzero((points[faces[:, 0], 0] >= 20) & (points[faces[:, 0], 0] < 30))
+    faces[inside_out] = faces[inside_out][:, ::-1]
+    at = {tuple(point): number for number, point in enumerate(points[:offsets[1]])}
+    membrane = [at[(0, 0, 0)], at[(1, 0, 0)], at[(1, 1, 1)]]
+    seam = len(points)  # a seam's copy of the first corner, a face on it collapsed
+    extra = np.array([membrane, membrane[::-1], faces[offsets[1]], [at[(0, 0, 0)], seam, at[(1, 0, 0)]]])
+    return (np.concatenate([points, points[at[(0, 0, 0)]][None]]), np.concatenate([faces, extra]),
+            np.concatenate([normals, normals[at[(0, 0, 0)]][None]]), len(inside_out))
 
 
 def shim():
@@ -171,6 +220,37 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     job = cloud.job_of([("/pictures/a.png", "/made/a/a.glb"), ("/pictures/b.png", "/made/b/b.glb")])
     assert set(job["models"]) <= listed and job["command"][-1].count("generate.py") == 2
     assert [entry["local"] for entry in job["outputs"]] == ["/made/a/.cloud-0", "/made/b/.cloud-1"]
+
+    points, faces, normals, inside_out = mended_fixture()  # #167: the mesh repaired, its shape kept
+    sources, kept, mended, counts = repair.repaired(points, faces, normals)
+    assert [counts[name] for name in ("collapsed", "repeated", "loose_pieces", "turned")] == [1, 3, 1, inside_out]
+    corner = repair.corners_of(kept, repair.diagonal(kept))
+    starts, ends, *_, held = repair.half_edges(corner[mended])
+    assert (held == 2).all() and (np.unique(np.stack([starts, ends], 1), axis=0, return_counts=True)[1] == 1).all()
+    assert len(np.unique(repair.pieces(corner[mended], corner.max() + 1))) == 6  # the checker's cubes parted, no crumb
+    offset = kept - points[sources]
+    length = np.linalg.norm(offset, axis=1)
+    moved = np.flatnonzero(length)
+    assert len(moved) == 11 and length.max() <= repair.NUDGE * repair.diagonal(points) * 1.001
+    into = np.floor(kept[moved] + offset[moved] / length[moved, None] * 0.1).astype(int)  # each copy into its own cube
+    assert all(tuple(cell) in CHECKER for cell, number in zip(into, moved) if kept[number, 0] < 5)
+    assert (np.einsum("ij,ij->i", repair.crossed(kept, mended), normals[sources][mended].sum(1)) > 0).all()
+    document = {"asset": {"version": "2.0"}, "meshes": [{"primitives": [{"attributes": {"POSITION": 0,
+                "TEXCOORD_0": 1}, "indices": 2}]}], "images": [{"bufferView": 3}], "buffers": [{"byteLength": 0}],
+                "accessors": [{"bufferView": 0, "componentType": 5126, "type": "VEC3", "count": len(points)},
+                              {"bufferView": 1, "componentType": 5126, "type": "VEC2", "count": len(points)},
+                              {"bufferView": 2, "componentType": 5125, "type": "SCALAR", "count": faces.size}]}
+    pieces = [points.astype(np.float32).tobytes(), points[:, :2].astype(np.float32).tobytes(),
+              faces.astype(np.uint32).tobytes(), b"picture!"]
+    document["bufferViews"] = [{"buffer": 0, "byteOffset": int(sum(map(len, pieces[:number]))),
+                                "byteLength": len(piece)} for number, piece in enumerate(pieces)]
+    document, binary, _ = repair.repaired_glb(document, b"".join(pieces))
+    glb.write(tmp_path / "mended.glb", document, binary)
+    again, data = glb.read(tmp_path / "mended.glb")
+    assert np.array_equal(repair.accessor_array(again, data, 2).reshape(-1, 3), repair.repaired(points, faces)[2])
+    assert np.array_equal(repair.accessor_array(again, data, 1),
+                          points[repair.repaired(points, faces)[0], :2].astype(np.float32))
+    assert glb.image(again, data, 0) == b"picture!"
 
     if importlib.util.find_spec("torch") is None:  # the maker's own Python has it (setup.sh); score's need not
         print("flash-attn stand-in: skipped (no torch in this Python)")
