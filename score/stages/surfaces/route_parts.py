@@ -24,11 +24,13 @@ Output: parts.json (per take its method, parts (each with its finish's `settings
 {level, cause} or None), finishes with the list's settings and the check's measure, `decals` (each listed mark
 placed: its library decal, part, point, facing, up and size in the take's own frame, cast through the close-up's
 camera, score #164) and `decal_gaps`; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
-the paint's face order), <take>/colours.npy (NaN: the paint joins parts on their surface alone). Gate "parts": every
+the paint's face order), <take>/colours.npy (NaN: the paint joins parts on their surface alone), <take>/texels.npz
+(the split's, carried: one part per texel of the model's pictures). Gate "parts": every
 take the split split has its parts.
 """
 import json
 import pathlib
+import shutil
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -435,6 +437,8 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
+    if (folders["split"] / "texels.npz").exists():
+        shutil.copyfile(folders["split"] / "texels.npz", folders["out"] / "texels.npz")
     rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])

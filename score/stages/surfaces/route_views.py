@@ -20,6 +20,8 @@ agree), <take>/faces.npz, colours.npz and regions.npz (one array a view), <take>
 angle), <take>/regions-<view>.png (each region in its label colour, finish_ask.LABELS), <take>/close-up.png (the take's
 own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN); where the close-up is laid,
 <take>/close-up.npz (its face per pixel and colours) and regions-close-up.png, its regions in regions.npz.
+<take>/texels.npz, where the model has a picture: each picture's texels, the face covering each and its colour's
+region (texel_regions), which the split gives each its finish (route_texels).
 views.json: per take its model, its views' angles, its faces and how many the paint's loading finds, the share of its
 area seen, its regions (CIELAB, sRGB, share of the seen pixels), its close-up's source and whether it was laid.
 Gate "views cast": every take has its raw model, loaded with the faces the paint loads, every view sees it and the
@@ -181,6 +183,26 @@ def views_saved(folder, model, cast_views, regions):
     np.savez_compressed(folder / "regions.npz", **{view: label.astype(np.int16) for view, label in regions.items()})
 
 
+def texel_regions(model, centres):
+    """{face<k>, region<k>}: each texel of the model's piece k's colour picture, the face covering it (-1 none) and the
+    region of its colour (route_texels.face_texels; -1 off the faces), for every piece with a picture and UVs: the
+    texels the split gives each its finish (route_texels)."""
+    import route_texels
+    from scipy.cluster.vq import vq
+    found = {}
+    for piece, picture in enumerate(model.pictures):
+        mine = np.flatnonzero(model.piece_of == piece)
+        if picture is None or not len(mine) or np.isnan(model.corner_uv[mine]).any():
+            continue
+        face_of = route_texels.face_texels(model.corner_uv[mine], mine, picture.shape[:2])
+        covered = face_of >= 0
+        colours = np.clip(picture[covered] * model.factors[piece][:3], 0, 255)
+        region_of = np.full(face_of.shape, -1, dtype=np.int8)
+        region_of[covered] = vq(cast.lab_of(colours), centres)[0]
+        found[f"face{piece}"], found[f"region{piece}"] = face_of.astype(np.int32), region_of
+    return found
+
+
 def close_up_written(folder, close_up, faces, colours):
     """close-up.png: the take's own close-up copied, else the stand-in (its own texture from the front)."""
     if close_up is not None:
@@ -269,6 +291,9 @@ def view_take(model_file, close_up, camera_file, folder, seed):
         every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid
     centres, regions = colour_regions(every_colours, every_faces, seed)
     views_saved(folder, model, (angles, faces, colours), regions)
+    texels = texel_regions(model, centres)
+    if texels:  # a model with no picture (a colour factor alone) has no texels
+        np.savez_compressed(folder / "texels.npz", **texels)
     if laid is not None:
         close_up_saved(folder, laid, regions[CLOSE_UP])
     close_up_written(folder, close_up, faces, colours)

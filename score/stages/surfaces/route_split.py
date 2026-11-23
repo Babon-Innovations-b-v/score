@@ -27,8 +27,10 @@ were gaps here for a surface dE 32 to 41 off a texture region; owner: "how is th
 segmentation method read paper").
 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
-finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
-area unassigned, disagreeing and unseen, its parts and each view's agreement with the vote.
+finish in its label colour, finish_ask.LABELS); <take>/texels.npz where the views measured the
+model's pictures (route_texels: one part per texel, so the look's borders follow the texture's colour edges; the faces
+keep theirs); split.json per take: its fault (None when split), the shares of its area unassigned, disagreeing and
+unseen, its parts, each view's agreement with the vote and its texels' record (`moved`, `specks`: area shares).
 Gate "one finish a face": every listed take is split with no fault (patchy paint's gaps included). Each faulted
 take, and each the rows before named, is a batch gap (batch-gaps.json, score/stages/batch_gaps.py): left out here and
 after, its fault moved to complete by the table.
@@ -221,6 +223,17 @@ def split_saved(out, mesh, folder, angles, found):
                      cast.shading(mesh, faces[view], angles[view])).save(out / f"finish-{view}.png")
 
 
+def texels_saved(folders, mesh, listed, counts, split):
+    """<take>/texels.npz (route_texels: each texel of the model's pictures its part, so the look's borders follow the
+    texture's colour edges); its record. `counts` is (regions, finishes), `split` (part per face, finish per face)."""
+    import route_texels
+    weights = route_texels.region_weights(listed["labels"], counts[0], counts[1], finish_parts.FRONT_VOTE,
+                                          (cast.FRONT, route_views.CLOSE_UP))
+    parts, found = route_texels.take_texels(mesh, dict(np.load(folders["views"] / "texels.npz")), weights, split)
+    np.savez_compressed(folders["out"] / "texels.npz", **{f"piece{piece}": part for piece, part in parts.items()})
+    return found
+
+
 def split_take(folders, listed, record):
     """One take split into folders["out"] unless it is a gap; its split.json record. `record` is its views record."""
     mesh = model_of(folders["views"])
@@ -237,6 +250,8 @@ def split_take(folders, listed, record):
     if patchy_fault(found["patchy"]) is not None:
         return {"fault": patchy_fault(found["patchy"]), **found}
     split_saved(folders["out"], mesh, folders["views"], record["views"], (finish_of, part_of))
+    if (folders["views"] / "texels.npz").exists():
+        found["texels"] = texels_saved(folders, mesh, listed, (len(record["regions"]), count), (part_of, finish_of))
     return {"fault": None, **found, "parts": int(part_of.max()) + 1,
             "agreement": finish_parts.agreement(mesh, finish_of, per_map)}
 

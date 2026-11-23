@@ -17,7 +17,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **The method sits behind one interface**: its rows end in the contract `surfaces-parts` v1 (`parts.json`: per model
   its parts, each with the library surface the method named (`judge`), its words, a proposed new surface or null;
   `finish` null when nothing is measured; `<take>/parts.npy` one part per welded face; `<take>/colours.npy` each
-  face's seen colour, NaN when none is measured). Another method replaces the method's rows and writes it; the
+  face's seen colour, NaN when none is measured; `<take>/texels.npz`, where the model has a picture, one part per
+  texel of it: `route_texels.py`, #159, the look's borders on the texture's colour edges, the faces' parts
+  unchanged). Another method replaces the method's rows and writes it; the
   framework's rows (`place_line.py`: paint, bake, check) do not change.
 - **Decals and scuffs** (#164): a printed mark is a library decal (score_lib surface, family `decal`), never a
   picture of the model. `finish-route-list` lists the marks with their decal (`finish_ask.marks_of`, offered by

@@ -480,6 +480,14 @@ tests it turned red:
   lit_own(lighter, every)` dropped (the toaster's steel moved by the order, IN_ORDER); LIGHT_LIFT 22 -> 1000 (a black
   token seen grey kept, CHECKED); route_parts.py printed_finishes `dict(finish, printed=True)` -> `finish` (the print
   finish unmarked, text_marks_held); route_list.py recipe_words -> `""` (the surfaces offered without their recipe)
+- route_texels.py (#159; the TEXELS rows, the views' and the split's texels.npz): texel_parts `score.argmax(1)]` ->
+  `own]` (the border stays on the triangles); carriers `limit=reach` -> `limit=np.inf` (a far colour paints its
+  finish); speck_islands `(area < least) & (area < largest[finish])` -> `area < least` (a finish's one small island
+  folded); islands `part_of_patch[touching.row] == part_of_patch[touching.col]` -> `touching.row == touching.col`
+  (a detail a UV seam cuts folded as two specks); without_specks `if not len(voters):` -> `if True:` (no speck
+  folded); filled `parts[rows, columns]` -> `np.where(empty, 0, parts)` (an empty texel reads part 0);
+  route_views.py texel_regions `vq(...)[0]` -> `(vq(...)[0] + 1) % len(centres)` (each texel the next region);
+  route_split.py `texels_saved(` called -> not called (no texels.npz); route_parts.py the texels' copy -> `pass`
 """
 import contextlib
 import copy
@@ -2140,6 +2148,12 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert record[TAKE]["reachable_share"] == 1.0, record[TAKE]
         assert sorted(tuple(entry["srgb"]) for entry in record[TAKE]["regions"]) == sorted([BLUE, RED])
         assert (views / TAKE / "regions-bottom.png").exists() and (views / TAKE / "right.png").exists()
+        texels = np.load(views / TAKE / "texels.npz")  # the red box's picture's texels, the blue box has none
+        covered = texels[texels.files[0]] >= 0
+        assert len(texels.files) == 2 and covered.any(), texels.files
+        assert (texels[texels.files[1]][covered] == region_of(views, RED)).all()
+    for case, paint, finish_two, where, part in TEXELS:
+        assert texel_strip(paint, finish_two, where) == part, case
     for case, seen_share, reachable, faulted in SEEN:
         judged = route_views.take_faults(TAKE, {**record[TAKE], "seen_share": seen_share, "reachable_share": reachable})
         assert bool(judged) == faulted, (case, judged)
@@ -2213,6 +2227,10 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
             seen_colours = np.load(rows["finish-route-views"] / TAKE / "colours.npz")["front"]
             reds = np.setdiff1d(faces[(faces >= 0) & (seen_colours == colours[0]).all(-1)], np.flatnonzero(label_faces))
             assert set(finish_of[reds]) == {0} and sorted(np.bincount(finish_of)) == counts, (case, finish_of)
+            texels = np.load(rows["finish-route-split"] / TAKE / "texels.npz")  # the red box's picture: its red
+            part_of = np.load(rows["finish-route-split"] / TAKE / "parts.npy")
+            red_parts = np.unique(texels[texels.files[0]])
+            assert len(texels.files) == 1 and set(finish_of[np.isin(part_of, red_parts)]) == {0}, (case, red_parts)
             if parts is None:
                 continue
             words, by, kept, unmeasured, texture_off, fault_count, fault_words = parts
@@ -2230,6 +2248,8 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                 case, record["finishes"])
             assert record["colour_from"].startswith("close-up") == (laid is not None), (case, record["colour_from"])
             assert len(np.load(rows["surfaces-parts"] / TAKE / "parts.npy")) == 24, case
+            assert (rows["surfaces-parts"] / TAKE / "texels.npz").read_bytes() == (
+                rows["finish-route-split"] / TAKE / "texels.npz").read_bytes(), case
             assert surfaces.finish_parts.parts_faults(rows["surfaces-parts"]) == [], case
             assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass", case
             textured = route_parts.seen_colours(rows["finish-route-views"] / TAKE, finish_of.astype(int),
@@ -3746,6 +3766,62 @@ SEEN = [
     ("everything any angle reaches seen", 0.495, 0.495, False),
     ("under SEEN_LEAST of what the angles reach seen", 0.2, 0.495, True),
 ]
+
+
+# Each texel takes the finish its colour names near its face, so a border follows the texture's colour edge, not the
+# triangles (route_texels, #159: tc3s's desk edge and toaster side). On a strip 1 x 0.1 of 40 x 4 cells, two UV charts
+# (x under 0.5 and over it, laid apart in a 400 x 40 picture), the faces under x 0.55 finish 0, the rest finish 1,
+# the texture's colour 0 under x 0.5 and 1 over it, each region labelled its own finish. (case, paint: (colour, x0, x1,
+# y0, y1) drawn on the texture, the cells (x, y) of finish 2, where (a strip point (x, y), or ("uv", u, v) for a
+# texel no face covers), the part expected there.)
+TEXELS = [
+    ("a border two cells off the colour edge follows the colour", [], [], (0.53, 0.05), 1),
+    ("its own colour beside it keeps its finish", [], [], (0.45, 0.05), 0),
+    ("a colour far from every face of its finish keeps its face's", [(1, 0.1, 0.2, 0.0, 0.1)], [], (0.15, 0.05), 0),
+    ("a speck within reach goes to the part round it", [(0, 0.574, 0.582, 0.046, 0.054)], [], (0.578, 0.05), 1),
+    ("a colour block the views could see stays a part", [(0, 0.56, 0.59, 0.0, 0.1)], [], (0.57, 0.05), 0),
+    ("a finish's one small island stays", [(2, 0.296, 0.304, 0.046, 0.054)], [(0.3, 0.05)], (0.3, 0.05), 2),
+    ("a detail a UV seam cuts in two specks stays whole",
+     [(2, 0.2, 0.25, 0.0, 0.1), (2, 0.486, 0.514, 0.047, 0.053)], [(0.2, 0.05), (0.49, 0.05), (0.51, 0.05)],
+     (0.495, 0.05), 2),
+    ("a texel no face covers reads the part nearest it", [], [], ("uv", 0.452, 0.5), 0),
+    ("and across the gap the other chart's", [], [], ("uv", 0.548, 0.5), 1),
+]
+
+
+def texel_strip(paint, finish_two, where):
+    """The part route_texels gives the texel at `where` on the TEXELS strip (its table's paint and finish 2 cells)."""
+    from score.stages.surfaces import route_texels
+    columns, rows, cell = 40, 4, 0.025
+    grid = np.array([(x * cell, y * cell, 0.0) for y in range(rows + 1) for x in range(columns + 1)])
+    faces = []
+    for y in range(rows):
+        for x in range(columns):
+            corner = y * (columns + 1) + x
+            faces += [(corner, corner + 1, corner + columns + 2), (corner, corner + columns + 2, corner + columns + 1)]
+    mesh = trimesh.Trimesh(grid, np.array(faces), process=False)
+    middles = mesh.triangles_center
+    finish_of = (middles[:, 0] >= 0.55).astype(int)
+    for x, y in finish_two:
+        finish_of[(np.abs(middles[:, 0] - x) < cell / 2) & (np.abs(middles[:, 1] - y) < cell / 2)] = 2
+    right = (middles[:, 0] >= 0.5)[:, None]
+    points = mesh.vertices[mesh.faces]
+    corner_uv = np.stack([np.where(right, 0.55 + (points[..., 0] - 0.5) * 0.9, points[..., 0] * 0.9),
+                          points[..., 1] * 9.0], axis=-1)
+    face_of = route_texels.face_texels(corner_uv, np.arange(len(mesh.faces)), (40, 400))
+    rows_at, columns_at = np.indices(face_of.shape)
+    u, v = (columns_at + 0.5) / 400, 1.0 - (rows_at + 0.5) / 40
+    x, y = np.where(u < 0.5, np.minimum(u / 0.9, 0.4999), 0.5 + (u - 0.55) / 0.9), v / 9.0  # an edge texel its own
+    region = (x >= 0.5).astype(np.int8)
+    for colour, x0, x1, y0, y1 in paint:
+        region[(x >= x0) & (x < x1) & (y >= y0) & (y < y1)] = colour
+    region[face_of < 0] = -1
+    weights = route_texels.region_weights({"front": {"0": 0, "1": 1, "2": 2}}, 3, 3, 2.0, ("front",))
+    parts, _ = route_texels.take_texels(mesh, {"face0": face_of, "region0": region}, weights, (finish_of, finish_of))
+    if where[0] == "uv":
+        return int(parts[0][int((1.0 - where[2]) * 40), int(where[1] * 400)])
+    at = np.argmin((x - where[0]) ** 2 + (y - where[1]) ** 2 + (face_of < 0) * 1e9)
+    return int(parts[0].ravel()[at])
 
 
 def two_boxes(folder):
