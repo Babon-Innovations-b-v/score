@@ -252,6 +252,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   prop weighs its record's 3 kg, not its asset's 1.5496 kg times its scale cubed (#155)
 - scene_package.metal_rough: the texture output read left off (`channel(found[0], "r")`) -> the adopted look's
   roughness and metal are its ORM map's occlusion (red), not its green and blue (#155)
+- scene_package.gprims: its walk without Usd.TraverseInstanceProxies() -> the adopted prop whose mesh stands under an
+  instanceable prim (a SimReady model's) draws nothing in its package (#155)
+- scene_package.animated: its walk without Usd.TraverseInstanceProxies() -> the fan turning inside its instance reads
+  still (#155)
+- place_build.ground_points: its walk without Usd.TraverseInstanceProxies() -> the adopted ground laid under an
+  instanceable prim reads no ground (#155)
 """
 import hashlib
 import json
@@ -869,7 +875,8 @@ def adopted(folder):
     """An adopted asset (#155) as the package reads it: its prop's mass the one its asset authors (UsdPhysics' MassAPI
     on its mesh) times its scale cubed, over its entry's record; its look's UsdPreviewSurface as Blender's importer
     reads it, the ORM map's green its roughness and blue its metal (red, occlusion, unread, as Blender reads none),
-    the normal map (scale 2, bias -1) as glTF holds one, unchanged."""
+    the normal map (scale 2, bias -1) as glTF holds one, unchanged; a prop and a ground whose mesh stands under an
+    instanceable prim (a SimReady model's) are drawn and stood on, and a fan turning inside its instance moves."""
     from score.stages.place_build import scene_package
     record = folder / "assets/model/adopted/1/adopted.json"
     record.parent.mkdir(parents=True)
@@ -905,6 +912,28 @@ def adopted(folder):
     assert material.metallicFactor == material.roughnessFactor == 1.0
     assert material.normalTexture.getpixel((0, 0)) == maps["nor"]
     assert material.baseColorTexture.getpixel((0, 0)) == maps["alb"]
+    plate = UsdGeom.Mesh.Define(stage, "/Prototypes/plate/geo")
+    plate.CreatePointsAttr([(-1, 0, -1), (1, 0, -1), (1, 0, 1), (-1, 0, 1)])
+    plate.CreateFaceVertexCountsAttr([4])
+    plate.CreateFaceVertexIndicesAttr([0, 3, 2, 1])
+    for name in ("prop_2", "floor_2"):
+        stage.DefinePrim(f"/p/Objects/{name}", "Xform")
+        shared = stage.DefinePrim(f"/p/Objects/{name}/Geometry/plate", "Xform")
+        shared.GetReferences().AddInternalReference("/Prototypes/plate")
+        shared.SetInstanceable(True)
+    stage.GetPrimAtPath("/p/Objects/floor_2").CreateAttribute("score:ground", Sdf.ValueTypeNames.Bool).Set(True)
+    drawn = [str(prim.GetPath()) for prim in scene_package.gprims(stage.GetPrimAtPath("/p/Objects/prop_2"))]
+    assert drawn == ["/p/Objects/prop_2/Geometry/plate/geo"], drawn
+    points, triangles = place_build.ground_points(stage, "p")
+    assert len(points) == 4 and len(triangles) == 2, (points, triangles)
+    turning = UsdGeom.Xform.Define(stage, "/Prototypes/fan/blade").AddRotateYOp()
+    turning.Set(0.0, 0.0)
+    turning.Set(90.0, 24.0)
+    fan = stage.DefinePrim("/p/Objects/fan_1/Geometry/fan", "Xform")
+    fan.GetReferences().AddInternalReference("/Prototypes/fan")
+    fan.SetInstanceable(True)
+    assert scene_package.animated(stage.GetPrimAtPath("/p/Objects/fan_1"))
+    assert not scene_package.animated(stage.GetPrimAtPath("/p/Objects/prop_2"))
 
 
 def replaced(tmp_path):

@@ -240,9 +240,10 @@ def bound_parts(gprim):
 
 
 def finishes(prim):
-    """{material path ("" for none): (material prim or None, [parts bound to it])} of the shown gprims of a thing."""
+    """{material path ("" for none): (material prim or None, [parts bound to it])} of the shown gprims of a thing,
+    inside its instances too (an adopted model's, #155)."""
     found = {}
-    for part in Usd.PrimRange(prim):
+    for part in Usd.PrimRange(prim, Usd.TraverseInstanceProxies()):
         if part.IsA(UsdGeom.Gprim) and shown(part):
             for material, piece in bound_parts(part):
                 key = str(material.GetPath()) if material else ""

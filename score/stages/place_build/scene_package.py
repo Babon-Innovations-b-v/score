@@ -336,8 +336,9 @@ def boxed_uv(points, normals, tile):
 # --- an object as one glTF ------------------------------------------------------------------------------------------
 
 def gprims(prim):
-    """Every drawn, shown gprim under an object (its far bodies and guides left out)."""
-    for inside in Usd.PrimRange(prim):
+    """Every drawn, shown gprim under an object, inside its instances too (an adopted model's, #155; its far bodies
+    and guides left out)."""
+    for inside in Usd.PrimRange(prim, Usd.TraverseInstanceProxies()):
         imageable = UsdGeom.Imageable(inside)
         if not imageable or imageable.ComputeVisibility() == UsdGeom.Tokens.invisible \
                 or imageable.ComputePurpose() not in (UsdGeom.Tokens.default_, UsdGeom.Tokens.render):
@@ -1079,8 +1080,8 @@ def doors_of(stage, place, names):
 # --- the package ----------------------------------------------------------------------------------------------------
 
 def animated(prim):
-    """Whether anything under the prim moves over time."""
-    return any(attribute.GetNumTimeSamples() > 1 for inside in Usd.PrimRange(prim)
+    """Whether anything under the prim, inside its instances too, moves over time."""
+    return any(attribute.GetNumTimeSamples() > 1 for inside in Usd.PrimRange(prim, Usd.TraverseInstanceProxies())
                for attribute in inside.GetAttributes())
 
 
@@ -1093,7 +1094,7 @@ def moving_door(prim):
     if ready.role_of(prim) != "door":
         return False
     own = {op.GetAttr().GetName() for op in UsdGeom.Xformable(prim).GetOrderedXformOps()}
-    return not any(attribute.GetNumTimeSamples() > 1 for inside in Usd.PrimRange(prim)
+    return not any(attribute.GetNumTimeSamples() > 1 for inside in Usd.PrimRange(prim, Usd.TraverseInstanceProxies())
                    for attribute in inside.GetAttributes() if inside != prim or attribute.GetName() not in own)
 
 

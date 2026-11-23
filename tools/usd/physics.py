@@ -127,8 +127,11 @@ def hulls(prim):
 
 
 def laid_objects(stage):
-    """Every laid object of the place: a prim under Objects that draws a mesh of its own."""
-    return [prim for prim in Usd.PrimRange(stage.GetDefaultPrim().GetChild("Objects")) if own_meshes(prim)]
+    """Every laid object of the place: a prim under Objects that draws a mesh of its own, or an adopted object (its
+    meshes stand inside its asset's instances, #155)."""
+    adopted = adopted_objects(stage)
+    return [prim for prim in Usd.PrimRange(stage.GetDefaultPrim().GetChild("Objects"))
+            if own_meshes(prim) or prim in adopted]
 
 
 def authored_mass(prim):

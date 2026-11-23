@@ -257,7 +257,7 @@ def paint(asset):
         stage = Usd.Stage.Open(asset)
         top = stage.GetDefaultPrim() or next(iter(stage.GetPseudoRoot().GetChildren()), None)
         meshes = {}
-        for inside in Usd.PrimRange(top) if top else ():
+        for inside in Usd.PrimRange(top, Usd.TraverseInstanceProxies()) if top else ():
             if inside.IsA(UsdGeom.Mesh) and shown(inside):
                 meshes[str(inside.GetPath().MakeRelativePath(top.GetPath()))] = mesh_paint(inside)
         PAINTS[asset] = Paint(meshes)
@@ -322,11 +322,12 @@ def own_paint_why(prim, record):
 
 
 def object_faults(prim, place, surfaces, exceptions):
-    """The object's finish faults: one a kind, with the parts it covers."""
+    """The object's finish faults: one a kind, with the parts it covers (its instances' parts too: an adopted model's
+    shapes and materials stand under an instanceable prim, #155)."""
     record = record_of(prim)
     looks = f"/{place}/Looks"
     told = {}
-    for inside in Usd.PrimRange(prim):
+    for inside in Usd.PrimRange(prim, Usd.TraverseInstanceProxies()):
         if not (inside.IsA(UsdGeom.Gprim) and shown(inside)):
             continue
         for part, material in bound_parts(inside):

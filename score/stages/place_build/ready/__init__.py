@@ -196,9 +196,10 @@ def gprim_triangles(prim):
 
 
 def solid_of(prim):
-    """Every drawn mesh and cube under an object, in the scene's frame, as one mesh; None when it has none."""
+    """Every drawn mesh and cube under an object, inside its instances too (an adopted SimReady model lays its shapes
+    under an instanceable prim, #155), in the scene's frame, as one mesh; None when it has none."""
     pieces = []
-    for inside in Usd.PrimRange(prim):
+    for inside in Usd.PrimRange(prim, Usd.TraverseInstanceProxies()):
         imageable = UsdGeom.Imageable(inside)
         if not imageable or imageable.ComputeVisibility() == UsdGeom.Tokens.invisible \
                 or imageable.ComputePurpose() not in (UsdGeom.Tokens.default_, UsdGeom.Tokens.render):

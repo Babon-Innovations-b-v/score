@@ -39,7 +39,7 @@ def gathered(stage):
     """Every drawn mesh and sphere of the stage a viewer sees as the environment (sight.is_seen), one Scene."""
     cache = UsdGeom.XformCache(Usd.TimeCode.Default())
     parts, prims, prim_of = [], [], []
-    for prim in stage.Traverse():
+    for prim in stage.Traverse(Usd.TraverseInstanceProxies()):  # an adopted model's shapes stand in instances (#155)
         if not prim.IsA(UsdGeom.Gprim) or not sight.is_seen(prim, ()):
             continue
         made = triangles_of(prim, cache)

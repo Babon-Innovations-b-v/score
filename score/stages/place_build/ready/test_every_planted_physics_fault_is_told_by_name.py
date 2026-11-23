@@ -100,6 +100,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.settle_workers: `room` left out of the count -> three models run where two fit
 - ready.settle_mass: its `engine_chosen(prim, "MuJoCo")` left out -> the adopted prop authoring its mass in its
   MuJoCo physics variant alone settles as a hull of DENSITY (NaN), not its 1.5496 kg times its scale cubed (#155)
+- ready.solid_of: its walk without Usd.TraverseInstanceProxies() -> the adopted desk whose top stands under an
+  instanceable prim (a SimReady model's) reads no solid, and `on` refuses "no support" (#155)
 """
 import gc
 import json
@@ -502,6 +504,22 @@ def adopted_settle_mass():
     assert laid.prims["prop_1"].GetVariantSets().GetVariantSelection("MuJoCo") == "Disabled"
 
 
+def instanced_solid():
+    """An adopted desk (#155) whose top, a cube 1.2 x 0.05 x 0.6, stands under an instanceable prim (as a SimReady
+    model lays its shapes from its instances' payload) reads as that solid."""
+    stage = Usd.Stage.CreateInMemory()
+    cube = UsdGeom.Cube.Define(stage, "/Prototypes/top/geo")
+    cube.CreateSizeAttr(1.0)
+    cube.AddScaleOp().Set(Gf.Vec3f(1.2, 0.05, 0.6))
+    UsdGeom.Xform.Define(stage, "/p/Objects/desk").AddTranslateOp().Set(Gf.Vec3d(0.0, 0.75, 0.0))
+    shared = UsdGeom.Xform.Define(stage, "/p/Objects/desk/Geometry/top").GetPrim()
+    shared.GetReferences().AddInternalReference("/Prototypes/top")
+    shared.SetInstanceable(True)
+    solid = ready.solid_of(stage.GetPrimAtPath("/p/Objects/desk"))
+    assert solid is not None and np.allclose(solid.bounds, [[-0.6, 0.725, -0.3], [0.6, 0.775, 0.3]]), \
+        None if solid is None else solid.bounds
+
+
 def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     hull = hatched(tmp_path / "hatched")
     place_build.door(hull, "hatch")
@@ -702,6 +720,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
     except place_build.Refused as why:
         assert "big" in str(why), str(why)
     adopted_settle_mass()
+    instanced_solid()
     if summary["settle"].startswith("not run"):
         print("skipped: the MuJoCo settle (" + summary["settle"] + ")")
         return

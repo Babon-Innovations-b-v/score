@@ -3,7 +3,8 @@ picture's own texture, a default grey, a model no entry holds) fails on exactly 
 each way of tracing holds (score:library, a surface by name, the gltf, the prim an entry names through a variant, an
 effect's placements, the content hash, the finish record); a withdrawn entry traces nothing, one naming its
 replacement traces to the end of that chain while the library holds it (an adopted model's own material naming a
-retired surface too); the library comes only
+retired surface too, and the booth's, its mesh and material standing under an instanceable prim as a SimReady
+model's do, its mesh seen); the library comes only
 from SCORE_LIB_ROOT; exceptions refuse without a reason or an owner and end at their expiry; findings group one kind
 of piece into one problem. The library is a temp folder written here (no entry data is kept in this repository).
 
@@ -30,6 +31,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - entries.Shelf.replacement_end: the chain left unfollowed (`address if self.has(address)` at once), or its loop
   guard dropped (the loop never ends) -> test_a_withdrawn_entry_traces_nothing (the retired deck, the renamed
   smoker's first body and the kiosk's own material trace to nothing)
+- trace.finishes: its walk without Usd.TraverseInstanceProxies() -> test_a_withdrawn_entry_traces_nothing (the
+  booth's own material, under its instance, has no finish row, #155)
+- seen.gathered: its traverse without Usd.TraverseInstanceProxies() -> test_a_withdrawn_entry_traces_nothing (the
+  booth's mesh is no triangle of the scene, so a camera never sees it, #155)
 - trace.rows: a character's poses not read (no pose_rows) -> test_a_withdrawn_entry_traces_nothing (the smoker's held
   pose has no row)
 - entries.from_environment: the repository's default library when unset -> test_the_library_comes_only_from_score_lib_root
@@ -48,7 +53,7 @@ import pathlib
 import pytest
 from pxr import Usd
 
-from score.stages.complete.library import entries, exceptions, findings, trace
+from score.stages.complete.library import entries, exceptions, findings, seen, trace
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 FIXTURES = REPO / "data/checks/library"
@@ -274,14 +279,27 @@ def test_a_withdrawn_entry_traces_nothing(tmp_path):
              '            {\n                rel material:binding = </fixture/Objects/kiosk/paint>\n            }\n'
              '            def Material "paint"\n            {\n'
              '                custom string score:surface = "surface/old_deck@1"\n            }\n        }\n')
+    shared = ('    def Mesh "geo" (\n        prepend apiSchemas = ["MaterialBindingAPI"]\n    )\n    {\n'
+              '        point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]\n        int[] faceVertexCounts = [3]\n'
+              '        int[] faceVertexIndices = [0, 1, 2]\n'
+              '        rel material:binding = </booth_shared/paint>\n    }\n'
+              '    def Material "paint"\n    {\n        custom string score:surface = "surface/old_deck@1"\n    }\n')
+    booth = ('        def Xform "booth"\n        {\n            custom string score:model = "kiosk"\n'
+             '            custom string score:library = "model/kiosk@1"\n'
+             '            def Xform "shared" (\n                instanceable = true\n'
+             '                prepend references = </booth_shared>\n            )\n            {\n            }\n'
+             '        }\n')
     stage = stage_with(tmp_path,
-                       f'def Xform "fixture"\n{{\n    def Scope "Objects"\n    {{\n{smokers}{kiosk}    }}\n}}\n')
+                       f'def Xform "fixture"\n{{\n    def Scope "Objects"\n    {{\n{smokers}{kiosk}{booth}    }}\n}}\n'
+                       f'class Xform "booth_shared"\n{{\n{shared}}}\n')
     rows = trace.rows(stage, trace.Context(place="fixture", shelf=shelf))
+    assert any(path.startswith("/fixture/Objects/booth/") for path in seen.gathered(stage).prims)
     assert [(row["prim"], row["by"]) for row in rows] == [
         ("/fixture/Objects/smoker", "character/body@1"), ("/fixture/Objects/smoker/Held", "character/hold@1"),
         ("/fixture/Objects/stale", "character/body@1"), ("/fixture/Objects/stale/Held", None),
         ("/fixture/Objects/renamed", "character/body@1"), ("/fixture/Objects/renamed/Held", "character/hold@1"),
-        ("/fixture/Objects/kiosk", "model/kiosk@1"), ("/fixture/Objects/kiosk", "surface/deck@1")]
+        ("/fixture/Objects/kiosk", "model/kiosk@1"), ("/fixture/Objects/kiosk", "surface/deck@1"),
+        ("/fixture/Objects/booth", "model/kiosk@1"), ("/fixture/Objects/booth", "surface/deck@1")]
 
 
 def test_the_library_comes_only_from_score_lib_root(tmp_path, monkeypatch):

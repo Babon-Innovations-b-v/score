@@ -27,6 +27,8 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
   dropped (the trial reads the asset's default engine, not Newton's), or authored_mass's `WEIGHED` skip dropped (our
   own library crate_2, weighed by the physics layer, read as adopted: its hull never switched on, and a re-run's
   stage, holding the physics layer, reads every weighed object as adopted).
+- a_blocked_fall_is_refused (#155): laid_objects' `or prim in adopted` dropped (the adopted asset whose mesh stands
+  under an instanceable prim, as a SimReady model's does, is no laid object, so the crate falls through it unrefused).
 - the_hinge_stands_at_its_pins (and the slide beside it, #148): write_slide's `CreateAxisAttr(... [slide["along"]])`
   made `CreateAxisAttr(UsdPhysics.Tokens.x)` (the glass door's leaf slides across its doorway's depth, not its width),
   or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
@@ -288,12 +290,37 @@ def an_adopted_asset_keeps_its_physics():
         assert UsdShade.MaterialBindingAPI(ours).ComputeBoundMaterial("physics")[0].GetPath().name == "steel"
 
 
+def instanced_asset(folder):
+    """An adopted asset laid at (2.5, 0, -1) whose mesh, authoring its own mass, stands under an instanceable prim (as
+    a SimReady model lays its shapes from its instances' payload, #155)."""
+    asset = Usd.Stage.CreateNew(str(pathlib.Path(folder) / "layers/instanced.usda"))
+    root = UsdGeom.Xform.Define(asset, "/instanced")
+    asset.SetDefaultPrim(root.GetPrim())
+    asset.CreateClassPrim("/instanced_shared")
+    geo = mesh(asset, "/instanced_shared/geo", [((-0.1, 0, -0.1), (0.1, 0.2, 0.1))], (0, 0, 0)).GetPrim()
+    UsdPhysics.MassAPI.Apply(geo).CreateMassAttr(ADOPTED_KG)
+    shared = asset.DefinePrim("/instanced/shared", "Xform")
+    shared.GetReferences().AddInternalReference("/instanced_shared")
+    shared.SetInstanceable(True)
+    asset.Save()
+    base = Usd.Stage.Open(str(pathlib.Path(folder) / "layers/base.usda"))
+    laid = base.DefinePrim(f"/{PLACE}/Objects/instanced_1")
+    laid.GetReferences().AddReference("./instanced.usda")
+    UsdGeom.Xformable(laid).AddTranslateOp().Set(Gf.Vec3d(2.5, 0.0, -1.0))
+    laid.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set("model/instanced@1")
+    base.Save()
+
+
 def a_blocked_fall_is_refused():
+    """A drop whose column holds another object is refused, the object an adopted asset laid in an instance too."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = toy_place(pathlib.Path(temporary) / PLACE)
-        record = dict(RECORD, drops=[{"object": "crate_1", "onto": "floor", "at": [-1.0, 0.0], "over": 1.0}])
+        instanced_asset(folder)
+        record = dict(RECORD, drops=[{"object": "crate_1", "onto": "floor", "at": [-1.0, 0.0], "over": 1.0},
+                                     {"object": "crate_2", "onto": "floor", "at": [2.5, -1.0], "over": 1.0}])
         found = physics.write(folder, record, MATERIALS)
-        assert found["faults"] == ["crate_1: table_1 stands in its fall"], found["faults"]
+        assert found["faults"] == ["crate_1: table_1 stands in its fall",
+                                   "crate_2: instanced_1 stands in its fall"], found["faults"]
 
 
 def a_record_without_gravity_is_refused():

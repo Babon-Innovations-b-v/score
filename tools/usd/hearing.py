@@ -175,7 +175,7 @@ def floor_meshes(stage, place):
     """The place's own drawn meshes (not a shown place's, not a collision hull): [(prim, low, high corner)]."""
     boxes = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = []
-    for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{place}")):
+    for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{place}"), Usd.TraverseInstanceProxies()):
         if not prim.IsA(UsdGeom.Mesh) or "/Places/" in str(prim.GetPath()) or prim.GetName() == "collision":
             continue
         if UsdGeom.Imageable(prim).ComputeVisibility() == UsdGeom.Tokens.invisible:

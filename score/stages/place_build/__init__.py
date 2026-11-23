@@ -520,7 +520,7 @@ def ground_points(stage, place):
         return GROUND_POINTS[key]
     points, triangles, count = [], [], 0
     for prim in grounds:
-        for inside in Usd.PrimRange(prim):
+        for inside in Usd.PrimRange(prim, Usd.TraverseInstanceProxies()):
             if inside.IsA(UsdGeom.Mesh):
                 mesh = UsdGeom.Mesh(inside)
                 own = np.array(mesh.GetPointsAttr().Get(), dtype=np.float64)

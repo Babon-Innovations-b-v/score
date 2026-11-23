@@ -3,13 +3,16 @@ made here (its sound layer written with sound.py's prim writer from the test's o
 heard louder near it and on the side it stands; a shown place's room tone is not heard, and outside (the place's own
 room on the suit's bus) only what the boots feel carries; a walk steps on the floor's footstep and a stand does not; a
 step sounds as the library finish under it (a library tile's by its `score:surface`), a baked piece naming none as
-the finished floor it lies on, and with no finish under the feet as nothing; every track is mixed at the one gain, so
+the finished floor it lies on, a rug whose mesh and finish stand under an instanceable prim (a SimReady model's, #155)
+as its finish, and with no finish under the feet as nothing; every track is mixed at the one gain, so
 a quieter stage stays quieter, its peak under the ceiling; and a bed is what the camera hears standing before its
 first moment.
 
 Breaks that turn each check red (each applied once and seen red, 2026-10-27):
 - check_the_finish_underfoot: hearing.footstep_of's `if not surface: continue` made `if not surface: return None` (a
   baked plate silent, not the deck it lies on).
+- check_the_finish_underfoot (#155): hearing.floor_meshes' walk without Usd.TraverseInstanceProxies() (the rug in
+  its instance is no floor, and a step on it sounds as the deck under it).
 - check_the_soundtrack: hearing.heard_gain's `np.cross(forward, [0.0, 1.0, 0.0])` made
   `np.cross([0.0, 1.0, 0.0], forward)` (left and right swapped).
 - check_what_is_heard: hearing.shown_air's body made `return False` (a shown place's room tone heard).
@@ -102,6 +105,17 @@ def small_stage(out):
                 part.GetPrim().CreateAttribute(key, Sdf.ValueTypeNames.String).Set(value)
         if look == "unbanked":  # a finish the place's Library does not hold, naming no footstep of its own
             bound.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("tray_plastic")
+    rug = UsdGeom.Mesh.Define(base, "/rug_shared/geo")  # a rug whose mesh and finish stand in an instance (#155)
+    rug.CreatePointsAttr([(26, 0.02, -2), (29, 0.02, -2), (29, 0.02, 2), (26, 0.02, 2)])
+    rug.CreateFaceVertexCountsAttr([3, 3])
+    rug.CreateFaceVertexIndicesAttr([0, 2, 1, 0, 3, 2])
+    weave = UsdShade.Material.Define(base, "/rug_shared/weave")
+    weave.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("rubber_floor_bumpy")
+    UsdShade.MaterialBindingAPI.Apply(rug.GetPrim()).Bind(weave)
+    base.GetPrimAtPath("/rug_shared").SetSpecifier(Sdf.SpecifierClass)
+    shared = base.DefinePrim(f"/{PLACE}/Objects/rug_1/shared", "Xform")
+    shared.GetReferences().AddInternalReference("/rug_shared")
+    shared.SetInstanceable(True)
     base.GetRootLayer().Save()
     root = Sdf.Layer.CreateNew(str(out / f"{PLACE}.usda"))
     root.subLayerPaths.append("./layers/edit.usda")
@@ -201,6 +215,7 @@ def check_the_finish_underfoot(sound, hearing, out):
     assert heard(-26.0, 5.0) is None, heard(-26.0, 5.0)
     assert heard(-18.0) == "footsteps_rubber", heard(-18.0)
     assert heard(-13.5) is None, heard(-13.5)
+    assert heard(27.5) == "footsteps_rubber", heard(27.5)
 
 
 def check_one_level(sound, hearing, out):
