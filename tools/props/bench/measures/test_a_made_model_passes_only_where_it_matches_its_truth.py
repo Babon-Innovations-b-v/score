@@ -9,11 +9,19 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _align.aligned keeping the first axis turn (none) and dropping ICP's: the box laid on its side passes up.
 - _align.up_error returning 0: the box leaning 8 degrees passes up.
 - __init__.size judging the boxes' proportions instead of their sizes: the box laid 20% too big all round passes.
-- _clean.cleanliness calling a mesh watertight whatever its open edges: the box missing a face passes.
+- __init__.twin never finding one: the truth itself ranks second behind its recoloured twin.
+- __init__.laid_like keeping the other at its own size: the box's double, another asset of the same shape at twice
+  its size, no longer ranks level with it, so a model the shape cannot tell apart ranks first.
+- _clean.cleanliness counting no open edge: the box missing a face passes its open length.
 - _clean.CRUMB at 0: the box with a 1 cm floater passes its crumbs.
 - _clean.thinnest taking the thickest wall: the 1 mm shell passes its wall.
+- __init__.held holding the wall to the gate's 3 mm alone: the 1.5 mm shell made for NVIDIA's 2 mm one fails (NVIDIA's
+  own walls run thinner than the gate's floor: crates 2.3 mm, cartons 0.1 mm; #163 calibration).
+- __init__.by_finish keeping the material prims: the one side part reads as half of each of two finishes.
 - _finish.finish_split holding a finish whatever its parts' purity: one part for two materials passes.
 - _physics.overhang reading the distance from inside the hull: the hull grown 3 cm passes its overhang.
+- _physics.overhang measuring off the drawn mesh instead of its outline (its convex hull): the open box under its
+  own hull, as NVIDIA's crates are, fails its overhang.
 - _physics.convex calling every piece convex: the ring-shaped mesh collider passes.
 - __init__.held taking a mass ratio one way only: the box at half its mass passes.
 - _finish.finish_likeness ignoring the family: a 30% part of the wrong family passes.
@@ -67,6 +75,15 @@ OTHERS = [side(standing(trimesh.creation.cylinder(0.22, 0.8, sections=48)), None
           side(box((0.6, 0.5, 0.05)), None) | {"id": "plate"}]
 
 
+def two_prims_one_finish():
+    """TRUTH with its sides bound as two material prims of one surface (as the pantry cabinet binds its wood)."""
+    mesh = box()
+    split = np.where(mesh.face_normals[:, 2] > 0.5, 1, np.where(mesh.triangles_center[:, 0] < 0, 0, 2))
+    return {**TRUTH, "face_material": split,
+            "materials": [{"name": "side_a", "surface": "wood"}, {"name": "top", "surface": "paint"},
+                          {"name": "side_b", "surface": "wood"}]}
+
+
 def made(mesh, **given):
     """The made side's measures against TRUTH, the kind's others ranked."""
     return measures.measured(TRUTH, side(mesh, given.pop("material", top_material(mesh)), **given), others=OTHERS)
@@ -79,6 +96,12 @@ def with_floater():
 def missing_face():
     mesh = box()
     return trimesh.Trimesh(mesh.vertices, mesh.faces[1:], process=False)
+
+
+def open_top():
+    """The box with no lid: an open crate, its hull still its collider as NVIDIA's are."""
+    mesh = box()
+    return trimesh.Trimesh(mesh.vertices, mesh.faces[mesh.face_normals[:, 2] < 0.5], process=False)
 
 
 def shell(wall=0.001):
@@ -129,17 +152,29 @@ CASES = [
     ("10% wider", lambda: made(box((0.55, 0.4, 0.8))), "size.size", False),
     ("4% wider", lambda: made(box((0.52, 0.4, 0.8))), "size.size", True),
     ("20% too big all round", lambda: made(box((0.6, 0.48, 0.96))), "size.size", False),
+    ("the truth with its recoloured twin among the kind", lambda: measures.measured(
+        TRUTH, side(box(), top_material(box())), others=OTHERS + [{**TRUTH, "id": "twin"}]), "shape.rank", True),
+    ("the truth beside its double at twice the size", lambda: measures.measured(
+        TRUTH, side(box(), top_material(box())), others=[side(box(tuple(2 * value for value in SIDES)), None)]),
+     "shape.rank", False),
     ("a cylinder in the box's place", lambda: made(standing(trimesh.creation.cylinder(0.22, 0.8)), material=None),
      "shape.rank", False),
-    ("the box missing a face", lambda: made(missing_face(), material=None), "clean.watertight", False),
+    ("the box missing a face", lambda: made(missing_face(), material=None), "clean.open_length", False),
     ("a 1 cm floater", lambda: made(with_floater(), material=None), "clean.crumbs", False),
     ("a 1 mm shell", lambda: made(shell(), material=None), "clean.thinnest", False),
+    ("a 1.5 mm shell for a 2 mm one", lambda: measures.measured(side(shell(0.002), None), side(shell(0.0015), None)),
+     "clean.thinnest", True),
+    ("a 0.5 mm shell for a 2 mm one", lambda: measures.measured(side(shell(0.002), None), side(shell(0.0005), None)),
+     "clean.thinnest", False),
     ("cut 16 times finer", lambda: made(box().subdivide().subdivide()), "clean.triangles_per_m2", False),
+    ("its sides bound as two prims of one finish", lambda: measures.measured(
+        two_prims_one_finish(), side(box(), top_material(box()))), "finish.held_least", True),
     ("one part for two materials", lambda: made(box(), material=np.zeros(12, int)), "finish.held_least", False),
     ("half its mass", lambda: made(box(), mass=5.0), "physics.mass_ratio", False),
     ("1.4 times its mass", lambda: made(box(), mass=14.0), "physics.mass_ratio", True),
     ("its hull grown 3 cm", lambda: made(box(), colliders=grown(box(), 0.03)), "physics.overhang", False),
     ("its hull grown 3 mm", lambda: made(box(), colliders=grown(box(), 0.003)), "physics.overhang", True),
+    ("an open box under its hull", lambda: made(open_top(), material=None), "physics.overhang", True),
     ("no collider", lambda: made(box(), colliders=[]), "physics.colliders", False),
     ("a ring-shaped mesh collider", lambda: made(box(), colliders=ring_collider()), "physics.convex", False),
     ("friction 0.7 for 0.5", lambda: made(box(), friction=0.7), "physics.friction_gap", False),

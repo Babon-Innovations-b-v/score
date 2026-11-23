@@ -4,7 +4,6 @@ masks), Chamfer and F-score on surface points, and the rank of the truth among t
 import math
 
 import numpy as np
-from PIL import Image, ImageDraw
 from scipy.spatial import cKDTree
 
 import score.stages.props.likeness as likeness
@@ -14,6 +13,7 @@ from . import _align, _mesh
 SIDE = likeness.SIDE  # pixels across a silhouette
 POINTS = 20000  # surface points each side for Chamfer and the F-score
 REACH = 0.02  # the F-score's distance, a share of the truth's diagonal
+CHUNK = 2_000_000  # pixel centres tested at a time when a mesh is drawn
 
 
 def ring():
@@ -34,26 +34,42 @@ def camera(low, high, yaw, pitch):
     return middle + back * distance, right, up, back, SIDE / 2 / math.tan(view / 2)
 
 
+def covered(corners, mask):
+    """Mark on `mask` every pixel whose centre lies inside or on a triangle (corners (T, 3, 2) in pixels): one rule for
+    a triangle of any size, so a mesh cut finer draws the same outline (the calibration's exact copies: drawing a
+    sub-pixel triangle as dots at its corners left holes, a crate's copy at 0.89 from its input view)."""
+    low = np.clip(np.ceil(corners.min(1) - 0.5), 0, SIDE).astype(int)
+    high = np.clip(np.floor(corners.max(1) - 0.5), -1, SIDE - 1).astype(int)
+    span = (high - low + 1).max(1)
+    first, second, third = corners[:, 0], corners[:, 1], corners[:, 2]
+    signed = (second - first)[:, 0] * (third - first)[:, 1] - (second - first)[:, 1] * (third - first)[:, 0]
+    for reach in np.unique(span[span > 0]):
+        picked = np.flatnonzero(span == reach)
+        for start in range(0, len(picked), max(1, CHUNK // int(reach) ** 2)):
+            chosen = picked[start:start + max(1, CHUNK // int(reach) ** 2)]
+            steps = np.arange(int(reach))
+            columns = low[chosen, 0][:, None, None] + steps[None, None, :]
+            rows = low[chosen, 1][:, None, None] + steps[None, :, None]
+            point = np.stack(np.broadcast_arrays(columns + 0.5, rows + 0.5), -1)
+            way = np.sign(signed[chosen])[:, None, None]
+            inside = np.ones(point.shape[:3], dtype=bool)
+            for start_corner, end_corner in ((first, second), (second, third), (third, first)):
+                edge = (end_corner[chosen] - start_corner[chosen])[:, None, None]
+                towards = point - start_corner[chosen][:, None, None]
+                inside &= way * (edge[..., 0] * towards[..., 1] - edge[..., 1] * towards[..., 0]) >= 0
+            inside &= (way != 0) & (columns <= high[chosen, 0][:, None, None]) & (rows <= high[chosen, 1][:, None, None])
+            mask[np.broadcast_to(rows, inside.shape)[inside], np.broadcast_to(columns, inside.shape)[inside]] = True
+    return mask
+
+
 def silhouette(vertices, faces, frame, yaw, pitch):
-    """The mesh's mask from the camera fitted on `frame` (low, high). A face under a pixel marks the pixels of its
-    corners and middle (most faces of a dense mesh), the rest are drawn whole."""
+    """The mesh's mask from the camera fitted on `frame` (low, high): a pixel is the mesh's when its centre falls in
+    one of its triangles."""
     eye, right, up, back, focal = camera(frame[0], frame[1], yaw, pitch)
     seen = vertices - eye
     depth = np.maximum(-seen @ back, 1e-6)
     pixels = np.stack([SIDE / 2 + focal * (seen @ right) / depth, SIDE / 2 - focal * (seen @ up) / depth], axis=1)
-    corners = pixels[faces]
-    span = corners.max(1) - corners.min(1)
-    small = span.max(1) < 1.0
-    picture = Image.new("L", (SIDE, SIDE), 0)
-    draw = ImageDraw.Draw(picture)
-    for triangle in corners[~small]:
-        draw.polygon([tuple(point) for point in triangle], fill=255)
-    mask = np.asarray(picture) > 127
-    dots = np.concatenate([corners[small].reshape(-1, 2), corners[small].mean(1)]).astype(int)
-    inside = (dots >= 0).all(1) & (dots < SIDE).all(1)
-    mask = mask.copy()
-    mask[dots[inside, 1], dots[inside, 0]] = True
-    return mask
+    return covered(pixels[faces], np.zeros((SIDE, SIDE), dtype=bool))
 
 
 def iou(first, second):

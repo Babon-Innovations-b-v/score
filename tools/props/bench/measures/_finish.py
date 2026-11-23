@@ -9,6 +9,8 @@ import score.stages.props.prop_data as prop_data
 from . import _mesh
 
 CARRY_POINTS = 200000  # truth surface points a made face's material is read from
+CANDIDATES = 8  # truth triangles measured exactly per made face (those of its nearest truth points)
+CARRY_CHUNK = 100000  # made faces carried at a time
 
 
 def split_rule():
@@ -26,10 +28,29 @@ def look_bounds():
 
 
 def carried(truth, placed, made_faces):
-    """Each made face's truth material: the material of the truth surface point nearest its middle."""
+    """Each made face's truth material: the material of the truth triangle nearest its middle, found exactly among
+    the triangles of the CANDIDATES truth points (drawn by area, and every triangle's middle) nearest it. NVIDIA lays
+    tape, decals and labels as a thin layer just over a box's own surface (box_flat_a10's tape 0.4 mm over its card);
+    the nearest drawn point read either layer and blurred a strip's edges by the points' spacing (5 mm there), so an
+    exact copy of box_flat_a10 held none of its tape (#163 calibration). A point nudged out along the normal read
+    the tape's hidden underside as card, so none is."""
+    import trimesh
     points, picked = _mesh.sampled(truth["vertices"], truth["faces"], CARRY_POINTS, seed=6)
-    _, nearest = cKDTree(points).query(placed[made_faces].mean(1))
-    return np.asarray(truth["face_material"])[picked[nearest]]
+    triangles = truth["vertices"][truth["faces"]]
+    points = np.concatenate([points, triangles.mean(1)])
+    picked = np.concatenate([picked, np.arange(len(triangles))])
+    tree, material = cKDTree(points), np.asarray(truth["face_material"])
+    asked = placed[made_faces].mean(1)
+    found = np.empty(len(made_faces), dtype=material.dtype)
+    for start in range(0, len(asked), CARRY_CHUNK):
+        point = asked[start:start + CARRY_CHUNK]
+        _, index = tree.query(point, k=CANDIDATES)
+        candidate = picked[index]
+        nearest = trimesh.triangles.closest_point(triangles[candidate].reshape(-1, 3, 3),
+                                                  np.repeat(point, CANDIDATES, axis=0))
+        distance = np.linalg.norm(nearest - np.repeat(point, CANDIDATES, axis=0), axis=1).reshape(-1, CANDIDATES)
+        found[start:start + CARRY_CHUNK] = material[candidate[np.arange(len(point)), distance.argmin(1)]]
+    return found
 
 
 def finish_split(truth, placed, made_faces, made_parts):

@@ -10,7 +10,10 @@ from scipy.spatial import cKDTree
 from . import _mesh
 
 POINTS = 4000  # surface points each side for the turn and ICP
-TIE = 0.01  # turns within this share of the best two-way distance are the same fit: the one leaning least is taken
+# Turns within this share of the best two-way distance are the same fit: the one leaning least is taken. Two samplings
+# of one surface differ by up to 3% in it (the calibration's 0.5 x 0.4 x 0.8 m box cut again: its upside-down turn
+# measured 0.01053 against upright's 0.01085), so 1% stood a perfect copy on its head (#163 calibration).
+TIE = 0.05
 ICP_ROUNDS = 40
 
 

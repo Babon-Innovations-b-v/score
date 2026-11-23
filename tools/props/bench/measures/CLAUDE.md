@@ -14,8 +14,15 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   (tools/props/closeup/check.py TURN_DEGREES, look_down), ownership split_compare.py's rule (OWN_PURITY,
   FINISH_LEAST, finishes_owned), the flat share and swell place_build/shapes', the least wall the model gate's,
   the finish bounds tools/props/library/likeness/measure.py's `passes`. Change those at their source.
-- **BARS are #162's design bars** until the calibration pass (#163 step 3) confirms or resets each with its numbers;
-  a bar is never loosened to pass. A measure whose input a step lacks (a raw model's parts, mass, colliders) is left
+- **BARS are set by the calibration pass** (tools/props/bench/calibrate, #163 step 3): each with its numbers beside
+  it, the known-good copies passing with margin and the kind's other assets (laid at the truth's size) failing; a bar
+  is never loosened to pass a made model. NVIDIA's own assets are open, many-pieced and thin-walled, so the
+  cleanliness bars are against the truth's own value, never absolute.
+- **What the calibration fixed here**: silhouettes drawn by pixel centres for every triangle size (dots left holes in
+  a finely cut copy), materials carried by the exact nearest truth triangle and read by finish (surface), not by
+  material prim, the turn tie at 5% (sampling noise stood a copy on its head), overhang read off the drawn shape's
+  convex hull (a hull over an open crate is NVIDIA's own collider), the rank and the floors against others laid at the
+  truth's size with its twins (recoloured same geometry) left out, a single hull's own volume. A measure whose input a step lacks (a raw model's parts, mass, colliders) is left
   out, never failed.
 - **The Newton drop runs in the runner** (tools/usd/drop.py on the truth's and the made model's convex colliders;
   #155: a triangle-mesh collider crashes Newton); `rested` compares the two rests. Finish likeness needs each matched

@@ -8,6 +8,8 @@ from scipy.spatial import ConvexHull
 from . import _mesh
 
 GRID = 48  # cells along the colliders' box's longest side when their joined volume is counted
+THIN_CELLS = 4  # cells across its thinnest side, at least
+MOST_CELLS = 1_000_000  # cells counted at most (the step grows past it)
 OVERHANG_POINTS = 2000  # collider surface points whose distance out of the drawn mesh is read
 OVERHANG_PERCENTILE = 95
 CONVEX_SHARE = 0.98  # a piece whose own volume is under this share of its hull's is not convex
@@ -27,10 +29,16 @@ def convex(piece, hull):
 
 
 def joined_volume(found):
-    """The volume inside any of the hulls, counted on a grid over their joined box (overlaps once)."""
+    """The volume inside any of the hulls: one hull's own, several counted on a grid over their joined box (overlaps
+    once) fine enough for THIN_CELLS across its thinnest side (GRID along the longest put no cell inside a sign
+    1.2 cm thick and 2 m long, its colliders read as nothing; #163 calibration), up to MOST_CELLS."""
+    if len(found) == 1:
+        return float(found[0].volume)
     low = np.min([hull.points.min(0) for hull in found], axis=0)
     high = np.max([hull.points.max(0) for hull in found], axis=0)
-    step = float((high - low).max()) / GRID
+    sides = np.maximum(high - low, 1e-9)
+    step = min(float(sides.max()) / GRID, float(sides.min()) / THIN_CELLS)
+    step = max(step, float(np.prod(sides) / MOST_CELLS) ** (1 / 3))
     axes = [np.arange(start + step / 2, end, step) for start, end in zip(low, high)]
     cells = np.stack(np.meshgrid(*axes, indexing="ij"), -1).reshape(-1, 3)
     inside = np.zeros(len(cells), dtype=bool)
@@ -40,16 +48,19 @@ def joined_volume(found):
 
 
 def overhang(vertices, faces, found):
-    """The OVERHANG_PERCENTILE of how far collider surface points lie out of the drawn mesh (0 inside it when the
-    mesh is closed; the distance to its surface when it is open)."""
+    """The OVERHANG_PERCENTILE of how far collider surface points lie out of the drawn mesh's convex hull (0 inside
+    it). The hull, not the mesh: a sim-ready collider is convex pieces, so over an open crate's well or a chair's
+    seat it spans what the drawn mesh leaves open, as NVIDIA's own do (crate_blue_a01's hull stands 12 cm off its
+    open mesh); what floats a thing is a collider standing out past the shape's outline."""
     triangles = np.concatenate([hull.points[hull.simplices] for hull in found])
     corners = triangles.reshape(-1, 3)
     points, _ = _mesh.sampled(corners, np.arange(len(corners)).reshape(-1, 3), OVERHANG_POINTS, seed=7)
-    corners, welded = _mesh.welded(vertices, faces)
-    drawn = trimesh.Trimesh(corners, welded, process=False)
-    _, distance, _ = trimesh.proximity.closest_point(drawn, points)
-    if drawn.is_watertight:
-        distance[drawn.contains(points)] = 0.0
+    drawn = ConvexHull(np.asarray(vertices, dtype=float)[np.unique(faces)])
+    out = (points @ drawn.equations[:, :3].T + drawn.equations[:, 3]).max(1) > 0
+    distance = np.zeros(len(points))
+    if out.any():
+        outline = trimesh.Trimesh(drawn.points, drawn.simplices, process=False)
+        distance[out] = trimesh.proximity.closest_point(outline, points[out])[1]
     return float(np.percentile(distance, OVERHANG_PERCENTILE))
 
 

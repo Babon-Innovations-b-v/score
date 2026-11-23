@@ -3,6 +3,9 @@ asset it was made from, every measure a plain number, each judged at its bar.
 
     measured(truth, made, others=(), input_view=None) -> {"alignment", "size", "shape", "clean", "truth_clean",
                                                           "finish", "physics"}
+    laid_like(other, truth)                           -> another asset scaled to the truth's longest side
+    by_finish(truth)                                  -> its face_material by finish (surface), not material prim
+    twin(other, truth)                                -> whether another asset is the truth's geometry recoloured
     finish_likeness(looks)                            -> {"alike", "within_bounds", "same_family"}
     rested(truth_motion, truth_vertices, made_motion, made_vertices) -> {"rest_up", "rest_height"}
     step_change(truth, before, after)                 -> {"chamfer_change"}
@@ -33,7 +36,8 @@ rested = _physics.rested
 # (group, measure, test, bound): "least" value >= bound, "most" value <= bound, "true", "ratio" max(v, 1/v) <= bound,
 # "near_one" |v - 1| <= bound, "times_truth_most" / "times_truth_least" against bound times the truth's own value
 # (its "truth_clean"), "least_or_truth" value >= the bound or the truth's own when lower, "plus_truth_most" value <=
-# the truth's own plus bound, "wall" value >= the model gate's least wall for the truth's size.
+# the truth's own plus bound, "wall" value >= the model gate's least wall for the truth's size or bound times the
+# truth's own thinnest wall, whichever is less.
 BARS = (
     ("shape", "ring", "least", 0.75),
     ("shape", "input", "least", 0.90),
@@ -42,14 +46,14 @@ BARS = (
     ("alignment", "up_error", "most", 5.0),
     ("size", "size", "most", 0.05),
     ("steps", "chamfer_change", "most", 0.005),
-    ("clean", "watertight", "true", None),
+    ("clean", "open_length", "times_truth_most", 1.0),
     ("clean", "largest_share", "least_or_truth", 0.99),
     ("clean", "crumbs", "times_truth_most", 1.0),
-    ("clean", "non_manifold_edges", "most", 0),
-    ("clean", "wound_against", "most", 0),
-    ("clean", "degenerate_faces", "most", 0),
-    ("clean", "repeated_faces", "most", 0),
-    ("clean", "thinnest", "wall", None),
+    ("clean", "non_manifold_edges", "times_truth_most", 1.0),
+    ("clean", "wound_against", "times_truth_most", 1.0),
+    ("clean", "degenerate_faces", "times_truth_most", 1.0),
+    ("clean", "repeated_faces", "times_truth_most", 1.0),
+    ("clean", "thinnest", "wall", 0.5),
     ("clean", "triangles_per_m2", "times_truth_most", 2.0),
     ("clean", "flat_share", "times_truth_least", 0.8),
     ("clean", "swell", "plus_truth_most", 0.05),
@@ -67,6 +71,9 @@ BARS = (
     ("drop", "rest_up", "most", 10.0),
     ("drop", "rest_height", "most", 0.02),
 )
+
+
+TWIN_REACH = 0.001  # metres two assets' boxes may differ by and still be one geometry (twin)
 
 
 def closeup_check():
@@ -100,10 +107,50 @@ def size(truth, made):
             "ratios": [round(float(value), 4) for value in ratios]}
 
 
+def laid_like(other, truth):
+    """Another asset laid as the route lays a model for `truth`: scaled whole until its longest side is the truth's,
+    its mass by the scale cubed and its colliders with it (a wrong object at the right size, so a rank or a floor
+    is never won on size alone)."""
+    other = arrays(other)
+    true_sides = np.asarray(truth["box"][1], dtype=float) - np.asarray(truth["box"][0], dtype=float)
+    scale = float(true_sides.max() / (other["vertices"].max(0) - other["vertices"].min(0)).max())
+    middle = (other["vertices"].min(0) + other["vertices"].max(0)) / 2
+    laid = {**other, "vertices": (other["vertices"] - middle) * scale + middle,
+            "box": [((np.asarray(corner, dtype=float) - middle) * scale + middle).tolist() for corner in other["box"]]}
+    if other.get("mass") is not None:
+        laid["mass"] = other["mass"] * scale ** 3
+    if other.get("colliders") is not None:
+        laid["colliders"] = [{**piece, "vertices": (np.asarray(piece["vertices"], dtype=float) - middle) * scale
+                              + middle} for piece in other["colliders"]]
+    return laid
+
+
+def by_finish(truth):
+    """The truth with each face's material its finish: a truth that names its `materials` (the truth reader's) has
+    one finish a library surface (else a material name), however many material prims bind it (the pantry cabinet
+    binds its dark wood as four prims, so a made part holding all that wood read as holding a quarter of it). Its
+    `materials` become the finishes, so a truth read by finish reads the same again."""
+    if not truth.get("materials") or truth.get("face_material") is None:
+        return truth
+    names = [item.get("surface") or item.get("name") for item in truth["materials"]]
+    finish = {name: index for index, name in enumerate(dict.fromkeys(names))}
+    lookup = np.array([finish[name] for name in names] + [-1])
+    return {**truth, "face_material": lookup[np.asarray(truth["face_material"])],
+            "materials": [{"name": name, "surface": name} for name in finish]}
+
+
+def twin(other, truth):
+    """Whether another asset is the truth's own geometry in another finish (NVIDIA's colour variants: the same
+    triangles at the same size, crate_blue_a01 and crate_yellow_a01): no other object, so never ranked against."""
+    sides = [np.asarray(side["box"][1], dtype=float) - np.asarray(side["box"][0], dtype=float) for side in (other, truth)]
+    return len(other["faces"]) == len(truth["faces"]) and bool(np.allclose(sides[0], sides[1], atol=TWIN_REACH))
+
+
 def measured(truth, made, others=(), input_view=None):
-    """Every measure of one made model against its truth (the module docstring)."""
-    truth, made = arrays(truth), arrays(made)
-    others = [arrays(other) for other in others]
+    """Every measure of one made model against its truth (the module docstring); the kind's `others` are laid like
+    the truth (laid_like) before the rank, its twins (twin) left out."""
+    truth, made = by_finish(arrays(truth)), arrays(made)
+    others = [laid_like(other, truth) for other in others if not twin(other, truth)]
     if input_view is None:
         check = closeup_check()
         sides = np.asarray(truth["box"][1], dtype=float) - np.asarray(truth["box"][0], dtype=float)
@@ -143,7 +190,7 @@ def held(test, value, bound, truth_value, sides):
     elif test == "plus_truth_most":
         bound = truth_value + bound
     elif test == "wall":
-        bound = model_gate().least_wall(sides)
+        bound = min(model_gate().least_wall(sides), bound * truth_value)
     if test == "true":
         return bool(value), True
     if test == "ratio":
