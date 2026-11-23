@@ -47,31 +47,35 @@ def corner_uvs(prim, triangles, polygon, slots):
 
 
 @functools.lru_cache(maxsize=16)
-def texels(path, srgb):
-    """A map's texels as floats 0..1 (H, W, 4), an sRGB map made linear (its alpha left as it is)."""
+def texels(path):
+    """A map's texels as stored (H, W, 4; a one-channel map's alpha 1) and the value its full level is: they are made
+    floats, and linear, only where a triangle reads them (`sampled`): the whole of a 4K map made float and linear took
+    the tool organizer cart's read past a minute (#159)."""
     from PIL import Image
     with Image.open(path) as picture:
         wide = picture.mode in ("I;16", "I;16B", "I", "F")
-        found = np.asarray(picture.convert("RGBA") if not wide else picture, dtype=np.float32)
-    found = found / (65535.0 if wide else 255.0)
+        found = np.asarray(picture.convert("RGBA") if not wide else picture)
+    full = 65535.0 if wide else 255.0
     if found.ndim == 2:
-        found = np.repeat(found[..., None], 4, 2)
-        found[..., 3] = 1.0
-    if srgb:
-        colour = found[..., :3]
-        found[..., :3] = np.where(colour <= 0.04045, colour / 12.92, ((colour + 0.055) / 1.055) ** 2.4)
-    return found
+        found = np.stack([found, found, found, np.full_like(found, full)], 2)
+    return found, full
 
 
-def sampled(map_texels, uvs):
-    """The mean texel (4,) per triangle of `uvs` (T, 3, 2) over SAMPLES, the map repeated, v up; NaN for a triangle
-    with no coordinates."""
+def sampled(map_texels, uvs, srgb=False):
+    """The mean texel (4,) per triangle of `uvs` (T, 3, 2) over SAMPLES, the map repeated, v up, each texel as floats
+    0..1, an sRGB map's colour made linear (its alpha left as it is) before the mean; NaN for a triangle with no
+    coordinates. `map_texels` is texels'."""
+    stored, full = map_texels
     missing = np.isnan(uvs).any(axis=(1, 2))
     points = np.einsum("sk,tkc->tsc", SAMPLES, np.nan_to_num(uvs))
-    high, wide = map_texels.shape[:2]
+    high, wide = stored.shape[:2]
     column = np.floor(np.mod(points[..., 0], 1.0) * wide).astype(int).clip(0, wide - 1)
     row = np.floor((1.0 - np.mod(points[..., 1], 1.0)) * high).astype(int).clip(0, high - 1)
-    found = map_texels[row, column].mean(1).astype(float)
+    read = stored[row, column].astype(float) / full
+    if srgb:
+        colour = read[..., :3]
+        read[..., :3] = np.where(colour <= 0.04045, colour / 12.92, ((colour + 0.055) / 1.055) ** 2.4)
+    found = read.mean(1)
     found[missing] = np.nan
     return found
 
@@ -107,7 +111,7 @@ def preview_value(shader, name, uvs):
         return np.full((len(uvs), channels), np.nan)
     space = texture.GetInput("sourceColorSpace")
     srgb = name == "diffuseColor" and (space.Get() if space else "auto") != "raw"
-    found = sampled(texels(path, srgb), uvs)
+    found = sampled(texels(path), uvs, srgb)
     scale = np.asarray(texture.GetInput("scale").Get() if texture.GetInput("scale") else (1, 1, 1, 1), dtype=float)
     bias = np.asarray(texture.GetInput("bias").Get() if texture.GetInput("bias") else (0, 0, 0, 0), dtype=float)
     found = found * scale + bias
@@ -122,12 +126,12 @@ def omni_value(shader, name, uvs):
     if name == "diffuseColor":
         path = asset_path(shader.GetInput("diffuse_texture").Get() if shader.GetInput("diffuse_texture") else None)
         if path:
-            return sampled(texels(path, True), uvs)[:, :3]
+            return sampled(texels(path), uvs, True)[:, :3]
     else:
         enabled = shader.GetInput("enable_ORM_texture")
         path = asset_path(shader.GetInput("ORM_texture").Get() if shader.GetInput("ORM_texture") else None)
         if path and enabled and enabled.Get():
-            return sampled(texels(path, False), uvs)[:, [ORM_CHANNEL[name]]]
+            return sampled(texels(path), uvs)[:, [ORM_CHANNEL[name]]]
     constant = shader.GetInput(OMNI[name])
     value = constant.Get() if constant and constant.Get() is not None else OMNI_DEFAULT[name]
     return np.tile(np.asarray(value, dtype=float).reshape(-1)[:channels], (len(uvs), 1))
