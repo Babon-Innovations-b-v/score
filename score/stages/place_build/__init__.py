@@ -842,6 +842,17 @@ def rested(stage, path, at, turn, scale):
     return spot
 
 
+def old_overs_dropped(stage, path):
+    """Every child spec the scene authored under `path` (overs on the laid model's own prims: its paint groups,
+    whose face numbers are that model's) removed, the object's own attributes and its surface binding kept: a model
+    laid on a taken name keeping the old one's paint groups pointed them past its faces (capsule's water panel, #156)."""
+    spec = stage.GetRootLayer().GetPrimAtPath(path)
+    if spec is None:
+        return
+    for child in list(spec.nameChildren):
+        del spec.nameChildren[child.name]
+
+
 def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metres_a_unit=1.0, up_axis=None):
     """The prim at `path` referencing `asset` (a file in the place folder), posed (at, turn, scale), its asset's
     units brought to metres (`unit_scaled`: an adopted model authored in centimetres) and its up axis to the scene's
@@ -849,8 +860,11 @@ def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metr
     reference as written."""
     prim = stage.DefinePrim(path)
     prim.SetTypeName("")  # the entry's own type (a character's SkelRoot) composes through, never an Xform over it
-    prim.GetReferences().ClearReferences()
     relative = "./" + pathlib.Path(asset).resolve().relative_to(pathlib.Path(folder).resolve()).as_posix()
+    held = prim.GetMetadata("references") if prim.HasAuthoredReferences() else None
+    if held and relative not in [str(item.assetPath) for item in held.GetAddedOrExplicitItems()]:
+        old_overs_dropped(stage, path)  # another model laid on the name: the old one's own overs go with it (#156)
+    prim.GetReferences().ClearReferences()
     prim.GetReferences().AddReference(relative)
     unit_scaled(prim, metres_a_unit)
     uprighted(prim, up_axis)

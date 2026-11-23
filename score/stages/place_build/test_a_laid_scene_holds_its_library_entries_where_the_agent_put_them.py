@@ -139,6 +139,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.moving_door: the role read off (every keyed object a door) -> the keyed fan is packaged
 - place_build.from_library: a sublayer the entry does not hold kept -> the lane's scene names a walkers layer its
   folder lacks
+- place_build.laid_reference: old_overs_dropped not called -> the swapped object keeps the old model's paint group
 - place_build.copied_entry: a file already there always kept -> the rewritten draft's piece never reaches the place;
   every file copied again -> the place's edited piece.json is lost
 - place_build.from_library: `entries = localised(folder)` -> `entries = []` (and its key) -> the lane's box names the
@@ -638,6 +639,15 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.put(folder, "dune", "kit/box_piece", at=(6, 0, 0))
     assert (folder / "assets/kit/box_piece/1/piece.usda").read_text().endswith("# rewritten in place\n")
     assert json.loads((folder / "assets/kit/box_piece/1/piece.json").read_text()) == {"edited": True}
+    # another model laid on a taken name drops the old one's own overs (its paint groups), keeps nothing stale (#156)
+    place_build.put(folder, "swapped", "kit/box_piece", at=(50, 0, 50))
+    swapped = Sdf.Layer.FindOrOpen(str(folder / "scene.usda"))
+    Sdf.CreatePrimInLayer(swapped, "/yard/Objects/swapped/geo/paint0")
+    swapped.Save()
+    del swapped
+    place_build.put(folder, "swapped", "model/cabinet", at=(50, 0, 50))
+    assert not Sdf.Layer.FindOrOpen(str(folder / "scene.usda")).GetPrimAtPath("/yard/Objects/swapped").nameChildren
+    place_build.remove(folder, "swapped")
     place_build.surface(folder, "dune", "surface/sand", colour="#ff8000")
     place_build.light(folder, "bulb", at=(0, 2.5, 0), watts=100)
     (tmp_path / "palette.json").write_text(json.dumps({
