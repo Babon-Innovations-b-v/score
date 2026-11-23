@@ -7,7 +7,9 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   (`FAMILY_WORDS`, first match wins; words of a finish, never a maker's or a repository's name), else from its metal
   and roughness means; the colours from the albedo's Lab mean and darkest fifth (a surface with no albedo map: its
   surface.json `constants` diffuseColor, linear, drawn as the map material's constant base colour too); roughness and metal from an ORM map's
-  green and blue (or their own maps); the pattern size and bump from the normal map integrated to a height field
+  green and blue (or their own maps), else the constants' roughness and metallic, else USD's 0.5 and 0, and the map
+  side draws the same (never Blender's default: 41 glass and 8 metal fails, 2026-11-23, and their passes compared a
+  recipe against a 0.5 the surface never said); a constant opacity into glass's; the pattern size and bump from the normal map integrated to a height field
   (Frankot-Chellappa) and high-passed. A pattern size stays within `SIZE_RANGE` of its family's default, and a clamped size scales the bump with it so
   the relief keeps its slope (a 30 cm swell drawn as 8 mm grain at full height scattered two black plastics'
   highlights 60 L away).

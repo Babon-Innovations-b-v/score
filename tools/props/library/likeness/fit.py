@@ -85,6 +85,11 @@ HALF = 0.5
 # The tile size said as assumed when the surface names none and the maps cannot fit one (no relief or no pattern size).
 TILE_METRES = 1.0
 NORMAL_CONVENTIONS = ("opengl", "directx")
+# A finish's roughness when neither a map nor its surface.json's constants say it: USD's UsdPreviewSurface default,
+# which the map side draws too (inside/likeness.py), so both sides start from one roughness.
+UNSAID_ROUGHNESS = 0.5
+# A surface.json's constants the fit reads beside its colours: {constant name: the measure it stands in for}.
+CONSTANT_MEASURES = {"roughness": "roughness", "metallic": "metal", "opacity": "opacity"}
 ROLE_ALIASES = {"metallic": "metal"}  # a surface.json's role names (the USD input's) as this fit's
 # A pattern's contrast from the lightness spread: a mix toward the second shade by contrast * pattern (pattern's
 # spread about 0.3) spreads lightness by contrast * 0.3 * the shades' lightness apart.
@@ -116,8 +121,11 @@ def described(surface, names):
     `fitted` fits it, from None; TILE_METRES "assumed" when it says nothing), its normal convention ("opengl" unless it says
     "directx"), with no albedo map its constant colour (its `constants` diffuseColor, linear as USD holds it; else
     None) and, with no emission map, its constant glow (its `constants` emissiveColor, linear, its intensity in its
-    size as USD holds it: (5, 5, 5) is white given off five times over; else None):
-    {"maps", "tile_metres", "tile_metres_from", "normal_convention", "albedo_colour", "emission_colour"}."""
+    size as USD holds it: (5, 5, 5) is white given off five times over; else None), and its constant roughness,
+    metal and opacity (CONSTANT_MEASURES, {measure: value}, only those it writes; a map of the same measure stands
+    over its constant in `statistics`):
+    {"maps", "tile_metres", "tile_metres_from", "normal_convention", "albedo_colour", "emission_colour",
+    "constants"}."""
     maps = surface.get("maps") or {}
     if not isinstance(maps, dict):
         raise ValueError(f"surface.json maps is {type(maps).__name__}, not {{role: file}}")
@@ -134,7 +142,9 @@ def described(surface, names):
     glow = None if "emission" in found else constants.get("emissiveColor")
     return {"maps": found, "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention,
             "albedo_colour": None if constant is None else [float(value) for value in constant],
-            "emission_colour": None if glow is None else [float(value) for value in glow]}
+            "emission_colour": None if glow is None else [float(value) for value in glow],
+            "constants": {measure: float(constants[name]) for name, measure in CONSTANT_MEASURES.items()
+                          if constants.get(name) is not None}}
 
 
 def pixels(path):
@@ -225,10 +235,12 @@ def channel_mean(path, channel):
     return float(shrunk(pixels(path), READ_SIDE)[..., channel].mean())
 
 
-def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None):
+def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None, constants=None):
     """The maps' measures from {role: path}: the albedo map, else the constant `albedo_colour` (linear); normal, orm
-    or roughness and metal when given (a missing roughness reads as the recipe's default, None; a missing metal as
-    0)."""
+    or roughness and metal when given, else their surface.json `constants` ({measure: value}, described), else a
+    roughness of UNSAID_ROUGHNESS and a metal of 0, as the map side draws them; the constant opacity (None when
+    unsaid)."""
+    constants = constants or {}
     measured = albedo_statistics(maps["albedo"]) if "albedo" in maps else constant_statistics(albedo_colour)
     measured["tile_metres"] = float(tile_metres)
     measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
@@ -236,8 +248,10 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     if "orm" in maps:
         measured["roughness"], measured["metal"] = channel_mean(maps["orm"], 1), channel_mean(maps["orm"], 2)
     else:
-        measured["roughness"] = channel_mean(maps["roughness"], 0) if "roughness" in maps else None
-        measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else 0.0
+        measured["roughness"] = (channel_mean(maps["roughness"], 0) if "roughness" in maps else
+                                 constants.get("roughness", UNSAID_ROUGHNESS))
+        measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else constants.get("metal", 0.0)
+    measured["opacity"] = constants.get("opacity")
     return measured
 
 
@@ -249,7 +263,7 @@ def family_of(name, measured):
         if word in lowered:
             return family, "name"
     if measured["metal"] > METAL_MEAN:
-        return ("polished_metal" if (measured["roughness"] or 1.0) < ROUGH_POLISHED else "bare_metal"), "measures"
+        return ("polished_metal" if measured["roughness"] < ROUGH_POLISHED else "bare_metal"), "measures"
     return "plastic", "measures"
 
 
@@ -264,15 +278,16 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread."""
+    spread; a constant opacity where the family has one (glass)."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
     spec = {"recipe": family, **defaults, "colour": linear_colour(measured["lab"])}
     dark = linear_colour(measured["dark_lab"])
     spec.update(second=dark, bare=dark, dirt_colour=dark)
-    if measured["roughness"] is not None:
-        spec["roughness"] = round(measured["roughness"], 4)
+    spec["roughness"] = round(measured["roughness"], 4)
     if "metal" in defaults:
         spec["metal"] = round(measured["metal"], 4)
+    if "opacity" in defaults and measured.get("opacity") is not None:
+        spec["opacity"] = round(measured["opacity"], 4)
     size_setting = SIZE_SETTING.get(family)
     feature = measured["feature_metres"]
     drawn = feature
@@ -297,16 +312,17 @@ def fitted_tile(family, measured, method=METHOD):
     return json.loads(pathlib.Path(method).read_text())["recipes"][family][size_setting] / feature
 
 
-def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl", albedo_colour=None):
-    """A material's fitted recipe from its maps ({role: path}, with no albedo map its constant `albedo_colour`), its
+def fitted(name, maps, tile_metres, method=METHOD, normal_convention="opengl", albedo_colour=None, constants=None):
+    """A material's fitted recipe from its maps ({role: path}, with no albedo map its constant `albedo_colour`, with no
+    map of a measure its surface.json `constants`), its
     tile size (None: fitted, `fitted_tile`, else TILE_METRES assumed) and its normal map's convention: {"recipe", "statistics", "family_from", "tile_metres",
     "tile_metres_from" (None when given)}."""
     tile_from = None
     if tile_metres is None:
-        at_one = statistics(maps, 1.0, normal_convention, albedo_colour)
+        at_one = statistics(maps, 1.0, normal_convention, albedo_colour, constants)
         tile_metres = fitted_tile(family_of(name, at_one)[0], at_one, method)
         tile_metres, tile_from = (tile_metres, "fitted") if tile_metres else (TILE_METRES, "assumed")
-    measured = statistics(maps, tile_metres, normal_convention, albedo_colour)
+    measured = statistics(maps, tile_metres, normal_convention, albedo_colour, constants)
     family, said_by = family_of(name, measured)
     return {"recipe": spec_of(family, measured, method), "statistics": measured, "family_from": said_by,
             "tile_metres": tile_metres, "tile_metres_from": tile_from}

@@ -8,7 +8,7 @@ renders a surface. Each surface's result is its fitted recipe and its likeness b
 
 A surface's maps are the files its surface.json `maps` names by role ({role: file}, else every texture file of its
 entry by fit.roles), its colour the albedo map's, else its constant diffuseColor (surface.json `constants`), its glow the
-emission map or its constant emissiveColor (fit.described), fetched through the library (tools/library/library_files.py), its normal map read by its
+emission map or its constant emissiveColor, its roughness and metal its maps' or else its constants (fit.described), fetched through the library (tools/library/library_files.py), its normal map read by its
 `normal_convention`; its tile size is surface.json's `tile_metres`, fitted when that is null, else fit.TILE_METRES
 (fit.described; said in its result as surface.json, fitted or assumed). The recipe algorithm a likeness names is --algorithm,
 else the library index's newest algorithm/surface_recipes. Writes <out>/<surface id>@<version>/likeness.json
@@ -131,10 +131,12 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
             results[address] = {"address": address, "error": str(missing), "rounds": 0}
             continue
         made = fit.fitted(address_parts(address)[1], found["maps"], found["tile_metres"], method,
-                          found["normal_convention"], found["albedo_colour"])
+                          found["normal_convention"], found["albedo_colour"], found["constants"])
         open_pairs[address] = {"name": folder_name(address), "maps": found["maps"], "tile_metres": made["tile_metres"],
                                "normal_convention": found["normal_convention"], "albedo_colour": found["albedo_colour"],
-                               "emission_colour": found["emission_colour"], "recipe": made["recipe"], "map": True}
+                               "emission_colour": found["emission_colour"],
+                               "roughness": made["statistics"]["roughness"], "metal": made["statistics"]["metal"],
+                               "recipe": made["recipe"], "map": True}
         results[address] = {"address": address, "family_from": made["family_from"],
                             "tile_metres_from": made["tile_metres_from"] or found["tile_metres_from"],
                             "statistics": made["statistics"], "rounds": 0}
