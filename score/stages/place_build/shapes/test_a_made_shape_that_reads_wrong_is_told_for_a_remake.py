@@ -1,6 +1,7 @@
 """Invariant: a made shape that reads wrong is told for a remake, by object: a crop-built pipe whose section swells
 along its run is `a sausage` while a straight one, or one whose section swells as much as NVIDIA's socketed grey
-pipe, passes; a picture-made console of bumps with no flat face is
+pipe, passes, and so does an arc of pipe of one section (read along its own centreline: sliced across its chord it
+swells 0.12), while an arc that swells is still a sausage; a picture-made console of bumps with no flat face is
 `a lump` while a box console passes; the same bumps as a library kit, or as a made seat, are not judged.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
@@ -11,6 +12,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - shapes.SWELL back at 0.05 -> the socketed pipe (its swell 0.069, NVIDIA's grey pipe's 0.066) is a sausage
 - shapes.flat_share: every direction counted (FULLEST made DIRECTIONS) -> the lumpy console passes
 - shapes.faults: `made` unread -> the library kit's lump is told
+- shapes.shape_faults: the centreline read left out (`and (shape.along is None or shape.along > SWELL)` dropped) ->
+  the arc of one section is a sausage
+- shapes.along: no swell found (`return 0.0` first) -> the swelling arc passes
+- shapes.along: a mesh wound outward-in never cast again (`if np.isnan(widths).mean() > 0.5:` -> `if False:`) -> the
+  swelling arc, wound so, passes
 """
 import json
 
@@ -43,6 +49,18 @@ def pipe(swell):
         radius = np.where((u < 0.05) | (u > 0.95), 0.15, radius)
         return np.stack([u * 3, radius * np.cos(v * 2 * np.pi), radius * np.sin(v * 2 * np.pi)], -1)
     return grid(60, 24, place)
+
+
+def arc(swell):
+    """A quarter circle of pipe 1.5 m round and 0.2 m wide, its radius swelling by `swell` four times along it, its
+    faces wound outward-in."""
+    def place(u, v):
+        turn = u * np.pi / 2
+        radius = (0.1 * (1 + swell * np.sin(u * 8 * np.pi)))[..., None]
+        out = np.stack([np.cos(turn), np.sin(turn), 0 * u], -1)
+        up = np.stack([0 * u, 0 * u, 1 + 0 * u], -1)
+        return 1.5 * out + radius * (np.cos(v * 2 * np.pi)[..., None] * out + np.sin(v * 2 * np.pi)[..., None] * up)
+    return grid(120, 24, place)
 
 
 def lump():
@@ -79,6 +97,8 @@ CASES = [
     ("sausage", "red_pipes_1.cockpit", pipe(0.25), CROP, {"a sausage"}),
     ("straight", "large_pipes_1.hangar", pipe(0.0), CROP, set()),
     ("socketed", "grey_pipes_1.hangar", pipe(0.12), CROP, set()),
+    ("arc", "pipe_1.lab", arc(0.0), CROP, set()),
+    ("swelling_arc", "bent_pipe_1.lab", arc(0.25), CROP, {"a sausage"}),
     ("lumpy", "pilot_console_1.cockpit", lump(), PIXAL, {"a lump"}),
     ("boxed", "comms_console_1.cockpit", box(), PIXAL, set()),
     ("kit", "console_kit", lump(), KIT, set()),
