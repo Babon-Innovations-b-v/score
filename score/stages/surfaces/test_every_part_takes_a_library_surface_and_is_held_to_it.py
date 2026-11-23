@@ -248,6 +248,10 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
 - route_split.py: `return close_up_only(votes, per_map)` -> `return votes`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
+- route_split.py `voted_finishes`: `finish_parts.walked(mesh, behind(mesh, own, voted))` -> `finish_parts.walked(mesh,
+  own)`; and, apart, `return hidden_joined(mesh, finish_parts.merged_islands(` -> `return (lambda found, voted:
+  found)(finish_parts.merged_islands(`  -> every_part_takes_a_library_surface_and_is_held_to_it (its SPLIT_SHELL rows,
+  #173)
 - route_list.py: `failing.append(f"{take}: no finish list" + (f" ({asked['unanswered'][take]})"` ->
   `failing.append(f"{take}: no finish list" + ("" if True else f" ({asked['unanswered'][take]})"`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the batch that ended)
@@ -2259,6 +2263,19 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         chosen = patch if picked == "patch" else np.arange(len(mesh.faces)) == 7
         voted[chosen] = patched
         assert (route_split.voted_finishes(mesh, voted, 2)[1][chosen] == finish).all(), case
+    # a shell's inner wall no view sees takes the finish of the outer wall behind it, in its part (SPLIT_SHELL)
+    tube = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(
+        *(lambda made: (made.vertices, made.faces))(trimesh.creation.annulus(0.95, 1.0, 2.0, sections=48)), 0.2))
+    radial = (tube.triangles_center[:, :2] * tube.face_normals[:, :2]).sum(1)
+    upper = tube.triangles_center[:, 2] > 0
+    walls = {"outer upper": (radial > 0.5) & upper, "inner upper": (radial < -0.5) & upper}
+    voted = np.zeros((len(tube.faces), 2))
+    voted[walls["outer upper"], 0] = 1.0
+    voted[(np.abs(radial) <= 0.5) | ((radial > 0.5) & ~upper), 1] = 1.0  # the rims and the outer wall's lower half
+    shell = dict(zip(("part", "finish"), route_split.voted_finishes(tube, voted, 2)))
+    for case, wall, read, want in SPLIT_SHELL:
+        found = {int(value) for value in shell[read][walls[wall]]}
+        assert found == ({0} if want == "finish 0" else set(shell[read][walls["outer upper"]])), (case, found)
     # the keys the paint and bake rows take from the library, edit after edit to a copy of it
     hub_data(monkeypatch)
     data = a_copy()
@@ -3891,6 +3908,13 @@ SPLIT_VOTES = [
     ("a patch not tied takes its own finish", "patch", [0.6, 0.5], 0),
 ]
 
+# route_split.voted_finishes on a thin tube (annulus) whose outer wall's upper half views give finish 0, its lower half
+# and both rims finish 1, its inner wall seen by none (a TRELLIS.2 shell's inner side, #173): (case, the wall, what is
+# read, what it is). Walked along the surface, the inner wall took the rim's finish 1 and was a part of its own.
+SPLIT_SHELL = [
+    ("the inner wall takes the finish of the outer wall behind it, not the rim's", "inner upper", "finish", "finish 0"),
+    ("and joins the outer wall's part, not a hidden part of its own", "inner upper", "part", "the outer wall's part"),
+]
 
 LISTED = [
     ("every finish labels its region, two takes in one batch", ((RED, BLUE), red_and_blue, None, (TAKE, OTHER), None),

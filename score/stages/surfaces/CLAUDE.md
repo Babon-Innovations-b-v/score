@@ -71,7 +71,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`route_cast.py`), the six `BASE` sides (front is the close-up's, back, right, left, top, bottom), then the
   coverage check before the render (`route_views.covering_views`): from `CANDIDATES` the angle that sees the most area
   no chosen view sees, again, until every face is seen, none sees more or `MOST_VIEWS`; a face no angle can see is
-  counted (`unseen_faces`) and the split walks its nearest seen face's finish onto it. Each view's colour regions:
+  counted (`unseen_faces`) and the split gives it the finish of the voted face nearest it in space, mostly a shell's
+  outer side a wall behind it (`route_split.behind`; walked along the surface, TRELLIS.2's inner walls took a rim's
+  finish, #173), a hidden part joining its finish's nearest voted one (`hidden_joined`). Each view's colour regions:
   the model's own texture under each pixel in groups of distinct colour (at most eight, the same in every view); the
   texture is measured, never painted. The take's own close-up, where its camera's cast fits it
   (`route_cast.CLOSE_UP_FIT`), is laid on the model through that camera, one more view of the regions

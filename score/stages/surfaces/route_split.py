@@ -11,7 +11,9 @@ its nearest labelled face's finish, as an unseen face does (walked), its share s
 split decision, never a gap (owner, 2026-10-28: the views disagreed on 1.2 to 5.8% of eleven takes, one colour region
 over several finishes, and the old 1% limit was never measured): each takes the finish its views weigh most, a tie
 the finish of the part round it (walked); their share is still recorded. A face no view can see (the inside of a raw
-model's shell, out of every camera's reach, is no gap) takes its nearest seen face's finish along the surface (finish_parts.walked); the
+model's shell, out of every camera's reach, is no gap) takes the finish of the voted face nearest it in space, the
+outer side a wall's thickness behind it (behind; walked along the surface it took the rim's finish, #173), and a part
+the views hardly vote on joins its finish's nearest voted part (hidden_joined); the
 finishes are then smoothed, each stray (an island under patchy.py's STRAY_ISLAND of a finish that has a larger one, or
 of one whose islands cover that much only together) given the finish round it (finish_parts.without_strays) and
 crumbs joined (finish_parts.cleaned, merged_islands), each island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures,
@@ -150,14 +152,54 @@ def close_up_only(votes, per_map):
     return found
 
 
+def behind(mesh, own, voted):
+    """`own` with each face no view votes on given the finish of the voted face nearest it in space. Such a face is
+    mostly a shell's inner side, a wall's thickness behind the outer side that shows its finish (TRELLIS.2's models,
+    tc2: 55 to 77% of the area unseen, 74 to 79% of it facing the seen face nearest it); walked along the surface it
+    took whatever finish crossed the rim first (the rack's beams the deck's grey: held_mean 0.57 against NVIDIA's face
+    groups, 0.87 so; the fridge's glass pane's back its door frame's), and the parts mixed NVIDIA's finishes (#173)."""
+    from scipy.spatial import cKDTree
+    found = own.copy()
+    sources = np.flatnonzero(own >= 0)
+    unseen = np.flatnonzero(~voted)
+    if len(sources) and len(unseen):
+        middles = mesh.triangles_center
+        found[unseen] = own[sources[cKDTree(middles[sources]).query(middles[unseen])[1]]]
+    return found
+
+
 def voted_finishes(mesh, votes, count):
     """(part per face, finish per face): each face's most voted finish (a tie left to the walk, so it takes the
-    finish round it), unseen faces walked, smoothed, strays joined to the finish round them and crumbs joined."""
+    finish round it), unseen faces the finish behind them (behind), smoothed, strays joined to the finish round them
+    and crumbs joined."""
     top = np.sort(votes, axis=1)
     tied = (top[:, -1] > 0) & np.isclose(top[:, -1], top[:, -2]) if count > 1 else np.zeros(len(votes), dtype=bool)
-    own = np.where((votes.sum(1) > 0) & ~tied, votes.argmax(1), -1)
-    smoothed = finish_parts.cleaned(mesh, finish_parts.walked(mesh, own), count)
-    return finish_parts.merged_islands(mesh, finish_parts.without_strays(mesh, smoothed))
+    voted = votes.sum(1) > 0
+    own = np.where(voted & ~tied, votes.argmax(1), -1)
+    smoothed = finish_parts.cleaned(mesh, finish_parts.walked(mesh, behind(mesh, own, voted)), count)
+    return hidden_joined(mesh, finish_parts.merged_islands(mesh, finish_parts.without_strays(mesh, smoothed)), voted)
+
+
+def hidden_joined(mesh, found, voted):
+    """(part per face, finish per face) `found` with each part the views hardly vote on (its voted faces under
+    finish_parts.ISLAND_LEAST of the area, a crumb's: a shell's inner side cut off from its outer side by a rim of
+    another finish, a loose piece inside glimpsed through a gap) joined to the part of the voted face of its own
+    finish nearest it; a part whose finish no voted face has stays its own, and so does one under patchy's
+    STRAY_ISLAND of the area: joined, it would read as a blotch of the part it joined (the sign's six, stray 0.031).
+    Left apart, the printer box's one cardboard came out as five parts and its tape as four (tc2, #173)."""
+    import patchy
+    from scipy.spatial import cKDTree
+    part_of, finish_of = found
+    joined = part_of.copy()
+    middles = mesh.triangles_center
+    shown = np.bincount(part_of, weights=np.where(voted, mesh.area_faces, 0.0)) >= finish_parts.ISLAND_LEAST * mesh.area
+    large = np.bincount(part_of, weights=mesh.area_faces) >= patchy.STRAY_ISLAND * mesh.area
+    for part in np.flatnonzero(~shown & large):
+        faces = np.flatnonzero(part_of == part)
+        host = np.flatnonzero(voted & (finish_of == finish_of[faces[0]]))
+        if len(host):
+            joined[faces] = part_of[host[cKDTree(middles[host]).query(middles[faces])[1]]]
+    return np.unique(joined, return_inverse=True)[1], finish_of
 
 
 def patchy_fault(found):
