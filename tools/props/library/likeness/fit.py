@@ -422,10 +422,13 @@ def alpha_mean(path):
         return float(shrunk(np.asarray(opened.convert("RGBA"), dtype=float)[..., 3] / 255.0, READ_SIDE).mean())
 
 
-def opacity_of(maps, see_through):
+def opacity_of(maps, see_through, passing_luminance=1.0):
     """The share of light a surface stops (see_through_of): its alpha (its opacity map's mean, cut at its threshold
     texel by texel where it has one, as the map side draws it: holes finer than a read block are counted, never
-    averaged away, else its constant) less what its glass passes."""
+    averaged away, else its constant) less what its glass passes, its transmission share times the luminance of the
+    colour it tints the light (`passing_luminance`, linear: a black glass passes almost none of what it lets through;
+    until 2026-11-23 every glass was fitted as if clear, so a black glass started fully clear, 0, against its maps'
+    pane showing 0.28 of the backdrop)."""
     alpha = see_through["alpha"]
     if "opacity" in maps and see_through["threshold"]:
         from PIL import Image
@@ -434,7 +437,12 @@ def opacity_of(maps, see_through):
         alpha = float((summed > see_through["threshold"] * 3 * 255).mean())
     elif "opacity" in maps:
         alpha = float(shrunk(pixels(maps["opacity"]), READ_SIDE).mean())
-    return round(alpha * (1.0 - see_through["transmission"]), 6)
+    return round(alpha * (1.0 - see_through["transmission"] * passing_luminance), 6)
+
+
+def luminance(lab_values):
+    """A Lab colour's luminance, linear (CIE Y over the white's, 0..1)."""
+    return float(colour.TO_XYZ[1] @ colour.linear_of_lab(np.asarray(lab_values)))
 
 
 def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None, constants=None,
@@ -442,7 +450,8 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     """The maps' measures from {role: path}: the albedo map, else the constant `albedo_colour` (linear); normal, orm
     or roughness (or a packed albedo's alpha, `roughness_alpha`) and metal when given, else their surface.json `constants` ({measure: value}, described), else a
     roughness of UNSAID_ROUGHNESS and a metal of 0, as the map side draws them; the constant opacity (None when
-    unsaid), or with a `see_through` (see_through_of) the share it stops (opacity_of); its glow, the strength it
+    unsaid), or with a `see_through` (see_through_of) the share it stops (opacity_of, its glass's light tinted by its
+    colour); its glow, the strength it
     gives off light at (an emission map's 1, else the constant `emission_colour`'s
     strongest channel, else 0) and that constant's hue (its channels over the strongest)."""
     constants = constants or {}
@@ -465,7 +474,8 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
         else:
             measured["roughness"] = constants.get("roughness", UNSAID_ROUGHNESS)
         measured["metal"] = channel_mean(maps["metal"], 0) if "metal" in maps else constants.get("metal", 0.0)
-    measured["opacity"] = opacity_of(maps, see_through) if see_through else constants.get("opacity")
+    measured["opacity"] = (opacity_of(maps, see_through, luminance(measured["lab"])) if see_through else
+                           constants.get("opacity"))
     measured["cutout"] = cutout_of(maps, see_through) is not None
     strongest = max(emission_colour or [0.0])
     measured["glow"] = 1.0 if "emission" in maps else float(max(strongest, 0.0))

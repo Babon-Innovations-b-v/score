@@ -37,8 +37,11 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
 - the see-through rows' backdrop is squares of sRGB 0 and 255 (L 0 and 100): a pane showing the same squares shows
   all of it (1), a flat grey none (0); squares of sRGB 119 and 255 (L 49.97 and 100) half (0.5003): beside a flat
   recipe pane the recipe shows 0.4997 less, past the check's 0.08, and its opacity 0.8 is made that much clearer,
-  0.3003; the clear plastic's glass passes all its light (weight 1, presence 1): opacity 0, its colour and roughness
-  its transmission's (0.8, 0.02), not its constants';
+  0.3003; the clear plastic's glass passes all it lets through (weight 1, presence 1) tinted by its transmission
+  colour 0.8, so it stops 1 - 0.8 = 0.2, its colour and roughness its transmission's (0.8, 0.02), not its
+  constants'; the black glass's colour 0.006538 lets through that share: it stops 0.9935; with an earlier round at
+  opacity 0.3 showing 0.2 more than its maps, the 0.8 pane's -0.4997 is a slope of -0.6997 / 0.5 = -1.3994 a unit
+  of opacity, so the secant steps 0.4997 / -1.3994 = -0.3571, to 0.4429 (the gap alone: 0.3003);
 - the opacity map is half 255 and half 64 (0.25), cut at 0.5: half its texels kept, so it stops 0.5 (blended, it
   would stop (1 + 0.251) / 2 = 0.6255);
 - the ribs row's height is 2 sin(2 pi (x + 1/2) / 16) along x alone: its period 16 texels, 0.016 m at 0.064 m a
@@ -107,6 +110,8 @@ Breaks of the see-through view and the new families (each applied once, seen red
   see-through share 0 (the same), or measure.refined's opacity step dropped (its opacity stays 0.8).
 - fit.family_of: the see-through rule dropped (the clear plastic is plastic), fit.described's transmission colour
   and roughness dropped (its constants'), or see_through_of's transmission 0 (it stops all light: plastic).
+- fit.opacity_of: the passing light's luminance dropped (the clear plastic stops 0, the black glass 0: drawn clear).
+- measure.opacity_step: the secant dropped (the stepped glass row 0.3003, not 0.4429).
 - fit.opacity_of: the threshold ignored (the opacity map row stops 0.6255), or the map averaged in READ_SIDE blocks
   before its threshold (the perforated metal's quarter of holes read as none: it stops 1.0, 2026-11-23).
 - fit.family_of: any opacity under 1 glass again (`not measured.get("cutout")` dropped: the cut leaf and the
@@ -416,8 +421,19 @@ ROWS = [
      {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.4, "opacity": 1.0},
       "transmission": {"weight": 1.0, "presence": 1.0, "colour": [0.8] * 3, "roughness": 0.02}},
      (solid((119,) * 3), solid((119,) * 3), {"through": (checker(255), checker(255), checker(255))}),
-     {"recipe": "glass", "family_from": "measures", "colour": 0.8, "roughness": 0.02, "opacity": 0.0,
+     {"recipe": "glass", "family_from": "measures", "colour": 0.8, "roughness": 0.02, "opacity": 0.2,
       "see_through": 0.0, "pass": True}),
+    ("a black glass stops what its tint holds back", "m_trans_glass_black_a01", {},
+     {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.006538] * 3, "roughness": 0.016},
+      "transmission": {"weight": 1.0, "presence": 1.0, "colour": [0.006538] * 3, "roughness": 0.01}},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "glass", "opacity": 0.9935, "measured_opacity": 0.993462}),
+    ("a glass's opacity stepped by a secant once an earlier round shows how its gap moves", "m_trans_glass_a01",
+     {}, {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.27,
+                                                        "opacity": 0.8}},
+     (solid((119,) * 3), solid((119,) * 3), {"through": (checker(255), checker(255, 119), solid((119,) * 3)),
+                                             "earlier": {"roughness": 0.27, "highlight": 0.0, "opacity": 0.3,
+                                                         "see_through": 0.2}}),
+     {"recipe": "glass", "opacity": 0.8, "see_through": -0.4997, "refined_opacity": 0.4429}),
     ("a glass's recipe more opaque than its maps' pane fails, and is made as much clearer", "m_trans_glass_black_a01",
      {}, {"maps": {}, "tile_metres": 1.0, "constants": {"diffuseColor": [0.1845] * 3, "roughness": 0.27,
                                                         "opacity": 0.8}},

@@ -9,6 +9,7 @@ show.
     ranking(views)                               (bounds broken, how far): a round's place among a surface's rounds
     highlight_of(views)                          the views' mean highlight gap
     refined(spec, views, earlier)                the recipe's spec moved toward the maps' look
+    opacity_step(opacity, see_through, earlier)  the opacity's move by the see-through gap (a secant once it can)
 
 The measures, each over the swatch's pixels both pictures cover:
 - delta_e: the mean CIE76 colour difference of CELL-texel cells (each cell's mean Lab), so a pattern's grain does not
@@ -57,6 +58,7 @@ SQUARE_LIGHTNESS = 90.0
 # ROUGHNESS_STEP a round; its bump and contrast scaled by the detail ratio, within DETAIL_STEP either way.
 HIGHLIGHT_PER_ROUGHNESS = 100.0
 ROUGHNESS_STEP = 0.2
+OPACITY_STEP = 0.5  # the most a round moves the recipe's opacity
 DETAIL_STEP = 2.0
 COLOUR_SETTINGS = ("colour", "second", "bare", "dirt_colour")
 # The refinement grows a bump no higher than this share of its pattern's size (its fit's own bump stands): a tread
@@ -191,6 +193,21 @@ def roughness_step(roughness, highlight, earlier=None):
     return float(np.clip(step, -ROUGHNESS_STEP, ROUGHNESS_STEP))
 
 
+def opacity_step(opacity, see_through, earlier=None):
+    """The opacity's move toward the maps' see-through: with an earlier round ({"opacity", "see_through"}) at another
+    opacity that moved the gap, a secant step to where it would close (how much of the backdrop a pane shows is far
+    from linear in its alpha, its colour lit as a veil over the dark squares: a clear glass stepped by its gap went
+    0, 0.0994, 0 and back for six rounds while the gap swung from 0.0994 to -0.2371, 2026-11-23); else the gap
+    itself, a recipe showing more of the backdrop than the maps made that much more opaque. At most OPACITY_STEP
+    either way."""
+    step = see_through
+    if earlier and earlier.get("opacity") is not None and earlier["opacity"] != opacity and \
+            earlier["see_through"] != see_through:
+        slope = (see_through - earlier["see_through"]) / (opacity - earlier["opacity"])
+        step = -see_through / slope
+    return float(np.clip(step, -OPACITY_STEP, OPACITY_STEP))
+
+
 # Halvings of the chroma scale that bring a shifted colour into gamut.
 GAMUT_HALVINGS = 30
 
@@ -235,7 +252,7 @@ def refined(spec, views, earlier=None):
     is one), its bump (grown no higher than RELIEF_ASPECT of its pattern size), contrast and scratches by the detail
     ratio (a contrast already at 1 moving its second shade further off instead); its pattern size by the close view's
     detail over the overview's when they disagree (views_apart), its bump then by the close view's; its opacity by the
-    see-through gap (a recipe showing more of the backdrop than the maps made that much more opaque)."""
+    see-through gap (opacity_step, from the `earlier` round's {"opacity", "see_through"} when there is one)."""
     measures = looked(views)
     shift = np.mean([np.subtract(each["map_lab"], each["recipe_lab"]) for each in measures], axis=0)
     moved = dict(spec)
@@ -267,5 +284,6 @@ def refined(spec, views, earlier=None):
         if name in moved:
             moved[name] = round(float(min(moved[name] * scale, 1.0)), 4)
     if "through" in views and "opacity" in moved:
-        moved["opacity"] = round(float(np.clip(moved["opacity"] + views["through"]["see_through"], 0.0, 1.0)), 4)
+        step = opacity_step(moved["opacity"], views["through"]["see_through"], earlier)
+        moved["opacity"] = round(float(np.clip(moved["opacity"] + step, 0.0, 1.0)), 4)
     return moved

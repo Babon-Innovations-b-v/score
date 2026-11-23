@@ -169,9 +169,17 @@ def checked(addresses, out, algorithm, size, samples, rounds, method=fit.METHOD)
                 del open_pairs[address]
             else:
                 pair.update(recipe=measure.refined(pair["recipe"], views, pair.get("earlier")), map=False,
-                            earlier={"roughness": pair["recipe"]["roughness"],
-                                     "highlight": measure.highlight_of(views)})
+                            earlier=earlier_of(pair["recipe"], views))
     return results
+
+
+def earlier_of(spec, views):
+    """A round's settings and gaps the next round's secant steps read (measure.roughness_step, opacity_step): its
+    roughness and highlight gap, and with a see-through view its opacity and see-through gap."""
+    earlier = {"roughness": spec["roughness"], "highlight": measure.highlight_of(views)}
+    if "through" in views and "opacity" in spec:
+        earlier.update(opacity=spec["opacity"], see_through=views["through"]["see_through"])
+    return earlier
 
 
 def kept(result, spec, views, algorithm, wear_levels):
