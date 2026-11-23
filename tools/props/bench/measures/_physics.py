@@ -1,0 +1,94 @@
+"""Physics against NVIDIA's authored asset: mass, colliders (there, convex, their volume and how far they stand out
+of the drawn mesh), friction; and the two drops' resting poses compared. Colliders are convex pieces, each
+{"vertices"} (its hull is taken) with "faces" where the piece came as a mesh, in the model's own frame."""
+import numpy as np
+import trimesh
+from scipy.spatial import ConvexHull
+
+from . import _mesh
+
+GRID = 48  # cells along the colliders' box's longest side when their joined volume is counted
+OVERHANG_POINTS = 2000  # collider surface points whose distance out of the drawn mesh is read
+OVERHANG_PERCENTILE = 95
+CONVEX_SHARE = 0.98  # a piece whose own volume is under this share of its hull's is not convex
+
+
+def hulls(colliders):
+    """Each collider piece's convex hull (scipy)."""
+    return [ConvexHull(np.asarray(piece["vertices"], dtype=float)) for piece in colliders]
+
+
+def convex(piece, hull):
+    """Whether a piece given as a mesh fills its hull (a piece given as points is its hull)."""
+    if piece.get("faces") is None:
+        return True
+    own = trimesh.Trimesh(np.asarray(piece["vertices"], dtype=float), np.asarray(piece["faces"]), process=False)
+    return bool(own.is_watertight and abs(own.volume) >= CONVEX_SHARE * hull.volume)
+
+
+def joined_volume(found):
+    """The volume inside any of the hulls, counted on a grid over their joined box (overlaps once)."""
+    low = np.min([hull.points.min(0) for hull in found], axis=0)
+    high = np.max([hull.points.max(0) for hull in found], axis=0)
+    step = float((high - low).max()) / GRID
+    axes = [np.arange(start + step / 2, end, step) for start, end in zip(low, high)]
+    cells = np.stack(np.meshgrid(*axes, indexing="ij"), -1).reshape(-1, 3)
+    inside = np.zeros(len(cells), dtype=bool)
+    for hull in found:
+        inside |= (cells @ hull.equations[:, :3].T + hull.equations[:, 3] <= 1e-9).all(1)
+    return float(inside.sum() * step ** 3)
+
+
+def overhang(vertices, faces, found):
+    """The OVERHANG_PERCENTILE of how far collider surface points lie out of the drawn mesh (0 inside it when the
+    mesh is closed; the distance to its surface when it is open)."""
+    triangles = np.concatenate([hull.points[hull.simplices] for hull in found])
+    corners = triangles.reshape(-1, 3)
+    points, _ = _mesh.sampled(corners, np.arange(len(corners)).reshape(-1, 3), OVERHANG_POINTS, seed=7)
+    corners, welded = _mesh.welded(vertices, faces)
+    drawn = trimesh.Trimesh(corners, welded, process=False)
+    _, distance, _ = trimesh.proximity.closest_point(drawn, points)
+    if drawn.is_watertight:
+        distance[drawn.contains(points)] = 0.0
+    return float(np.percentile(distance, OVERHANG_PERCENTILE))
+
+
+def physics(truth, made):
+    """{"mass_ratio" made over truth, "true_density" (the truth's mass over its closed volume, else its colliders'),
+    "colliders", "convex", "collider_volume_ratio", "overhang", "truth_overhang", "friction_gap"}; a measure whose
+    input the made side lacks is left out."""
+    truth_hulls = hulls(truth["colliders"])
+    truth_volume = joined_volume(truth_hulls)
+    closed = trimesh.Trimesh(*_mesh.welded(truth["vertices"], truth["faces"]), process=False)
+    found = {"true_density": round(truth["mass"] / (abs(closed.volume) if closed.is_watertight else truth_volume), 2),
+             "truth_overhang": round(overhang(truth["vertices"], truth["faces"], truth_hulls), 5)}
+    if made.get("mass") is not None:
+        found["mass_ratio"] = round(made["mass"] / truth["mass"], 4)
+    if made.get("colliders") is not None:
+        made_hulls = hulls(made["colliders"]) if made["colliders"] else []
+        found["colliders"] = len(made_hulls)
+        found["convex"] = all(convex(piece, hull) for piece, hull in zip(made["colliders"], made_hulls))
+        if made_hulls:
+            found["collider_volume_ratio"] = round(joined_volume(made_hulls) / truth_volume, 4)
+            found["overhang"] = round(overhang(made["vertices"], made["faces"], made_hulls), 5)
+    if made.get("friction") is not None and truth.get("friction") is not None:
+        found["friction_gap"] = round(abs(made["friction"] - truth["friction"]), 4)
+    return found
+
+
+def rest_of(motion, vertices):
+    """(where up points at rest, the box middle's height over the lowest point at rest) of a model moved by its
+    drop's 4x4 laid-to-rest motion (its laid up is +Z)."""
+    rested = _mesh.moved(vertices, motion)
+    middle = _mesh.moved(((vertices.min(0) + vertices.max(0)) / 2)[None], motion)[0]
+    return motion[:3, 2] / np.linalg.norm(motion[:3, 2]), float(middle[2] - rested[:, 2].min())
+
+
+def rested(truth_motion, truth_vertices, made_motion, made_vertices):
+    """{"rest_up": degrees between the two rests' ups, "rest_height": the gap in metres between their middles'
+    heights over their lowest points}: the made model's drop against the truth's (each a Newton drop of the model
+    on its convex colliders, tools/usd/drop.py, run by the bench's runner)."""
+    truth_up, truth_height = rest_of(np.asarray(truth_motion, dtype=float), truth_vertices)
+    made_up, made_height = rest_of(np.asarray(made_motion, dtype=float), made_vertices)
+    return {"rest_up": round(float(np.degrees(np.arccos(np.clip(truth_up @ made_up, -1.0, 1.0)))), 3),
+            "rest_height": round(abs(made_height - truth_height), 5)}
