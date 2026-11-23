@@ -8,6 +8,8 @@ Breaks (each applied once, seen red, reverted), in plan_fit unless named:
 - room_faults: `ratio.max() > ROOM` made `> 2 * ROOM` -> the room 1.8 times its plan passes
 - item_faults: `is_library_thing` read as any address -> the console of made blocks passes
 - standing_in: NEAR dropped from the box -> the lamp standing 0.2 m off its item reads missing
+- crowd_in: CROWD unread (one person a crowd) -> a lone person stands in for the missing lamp
+- item_faults: the crowd left out of the things -> the place laid as planned is told its crowd of twelve
 - standing_in: a structure over the room read as standing in -> the roof stands in for the missing lamp
 - scale_faults: the long side read as the short side -> the 3 m engine on a 1.2 m item passes
 - covering: the rows' names unread -> the lamp on its desk reads as the desk, too big
@@ -36,6 +38,7 @@ PLAN = {"place": "room", "walls": {"wide": 10.0, "deep": 8.0}, "doors": [], "flo
                   {"name": "ENGINE 1", "box": [-3.0, -1.0, -1.8, 0.0], "kind": "item", "rows": ["engine"]},
                   {"name": "CONSOLE 1", "box": [1.0, -3.0, 2.0, -2.5], "kind": "item", "rows": ["console"]},
                   {"name": "LAMP 1", "box": [3.0, 2.0, 3.3, 2.3], "kind": "item", "rows": ["lamp"]},
+                  {"name": "CROWD 1", "box": [-4.0, 1.5, -1.5, 3.5], "kind": "item", "rows": ["crowd"]},
                   {"name": "KEEP CLEAR", "box": [-1.0, 1.0, 1.0, 3.0], "kind": "zone", "rows": []}],
         "standing": [{"at": [0.0, -2.0], "level": 0.0, "looks_at": None}],
         "doorways": [{"name": "door-1", "middle": [0.0, 0.0, -4.0], "inward": [0.0, 0.0, 1.0], "wide": 1.2,
@@ -49,6 +52,8 @@ PLANNED = [("wall_north", -5.3, -4.3, 5.3, -4.0, None, "structure", None),
            ("lamp", 3.4, 2.4, 3.6, 2.6, "model/lamp@1", None, None),
            ("panel_N0", -2.0, -4.0, -1.0, -3.9, "kit/panel@1", "mount", "wall_panel"),
            ("grate_floor0", -1.0, -1.0, 0.0, 0.0, "kit/grate@1", None, "floor_grating")]
+PLANNED += [(f"person{k}", -3.9 + 0.6 * (k % 4), 1.6 + 0.6 * (k // 4), -3.6 + 0.6 * (k % 4), 1.9 + 0.6 * (k // 4),
+             "character/crowd@1", "character", None) for k in range(12)]  # the crowd on CROWD 1
 
 
 def stage_of(objects):
@@ -116,6 +121,13 @@ CASES = [
      lambda tmp: told(PLANNED + [("desk", 2.6, 1.6, 4.0, 2.7, "model/desk@1", None, None)]), []),
     ("the backdrop's far block is none of the room",
      lambda tmp: told(PLANNED + [("far_block", 20.0, -4.0, 30.0, 4.0, None, "structure", None)], {"far_block"}), []),
+    ("a lone person stands in for no lamp",
+     lambda tmp: told([each for each in PLANNED if each[0] != "lamp"]
+                      + [("walker", 3.0, 2.0, 3.3, 2.3, "character/crowd@1", "character", None)]),
+     [("missing", "LAMP 1")]),
+    ("a crowd thinned to three is missing",
+     lambda tmp: told([each for each in PLANNED if not each[0].startswith("person") or int(each[0][6:]) < 3]),
+     [("missing", "CROWD 1")]),
     ("an item nothing stands in is missing", lambda tmp: told([each for each in PLANNED if each[0] != "lamp"]),
      [("missing", "LAMP 1")]),
     ("bare walls are undressed", lambda tmp: told([each for each in PLANNED if not each[7]]),

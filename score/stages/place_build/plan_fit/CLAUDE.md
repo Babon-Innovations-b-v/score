@@ -9,7 +9,8 @@ one small camera). `__init__.py`'s docstring has the faults and their measures; 
   in as <folder>/plan.json, refused when its own contract faults it. No plan taken in: `plan` is null, nothing judged.
 - **Judged from the laid scene**: each object's world box, its `score:library` address (a model, kit or take is a
   library thing; no address or an algorithm's is a made block), its role (ready.role_of) and its `score:dress` mark.
-  A structure many times an item's size (a roof, a wall) is the building, never a stand-in.
+  A structure many times an item's size (a roof, a wall) is the building, never a stand-in. People stand for an
+  item only as a crowd (CROWD or more in its box, their union measured): a lone person stands in for nothing.
 - **A plan's views are named views** (`plan-stand-<k>`, `plan-<doorway>`), written at `plan`; `render` with no
   `--views` draws them beside the concept's, at render.WIDTH (1920).
 - **Dressing comes from the library** (`dress`): copies of one entry `put` edge to edge (their seams the panel seams)

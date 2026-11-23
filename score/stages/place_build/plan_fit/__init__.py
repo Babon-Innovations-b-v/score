@@ -12,7 +12,9 @@ the plan's walls carry panels, pipes or grates, and a preview of one camera.
 The faults, each with its measure:
 - `room oversized` / `room undersized`: the laid structures' footprint (role structure or shell) wider or deeper than
   the plan's floor by over ROOM times, or under 1/ROOM (an inside place only; an outside one's plan is its ground).
-- `missing`: a plan item with no laid object standing in its box (its middle within NEAR of it).
+- `missing`: a plan item with no laid object standing in its box (its middle within NEAR of it); people (role
+  character) stand for an item only as a crowd, CROWD or more of them in its box, measured together by their union box
+  (the square's CROWD 1, 2099's prologue 2026-11-23: its crowd of laid people read missing, the podium too small).
 - `block stands in`: a plan item where only made blocks stand (an algorithm's or no library address), the library
   thing the plan names left out.
 - `too big` / `too small`: the library thing standing for a plan item (the one covering most of its box) with its
@@ -37,6 +39,7 @@ from score.stages.scene_record import plan as place_plan
 PLAN = "plan.json"  # the place's plan in its folder (`take`)
 ROOM = 1.25  # times the plan floor's wide or deep past which (or under 1/ROOM) the laid room is told
 SCALE = 2.0  # times its plan item's long side past which (or under 1/SCALE) a library thing is told
+CROWD = 10  # people standing in a plan item's box that stand for it together (a crowd the plan names)
 NEAR = 0.3  # metres an object's middle may stand outside a plan item's box and still stand for it
 DRESSINGS = ("panel", "grat", "plate", "pipe", "rivet", "seam", "duct", "vent", "cable", "tile")
 LIBRARY_THINGS = ("model", "kit", "take")  # the kinds of library address that are things, never made blocks
@@ -195,6 +198,21 @@ def named_by(item, each):
     return bool(words & set(said))
 
 
+def crowd_in(item, laid):
+    """The laid people (role character) whose middle stands within NEAR of a plan item's box, as one library thing
+    (their union box) when CROWD or more do: a crowd of library characters standing for the crowd the plan names;
+    None when fewer (a person never stands in for a speaker or a flag)."""
+    x0, z0, x1, z1 = item["box"]
+    people = [each for each in laid if each["role"] == "character"
+              and x0 - NEAR <= (each["low"][0] + each["high"][0]) / 2.0 <= x1 + NEAR
+              and z0 - NEAR <= (each["low"][2] + each["high"][2]) / 2.0 <= z1 + NEAR]
+    if len(people) < CROWD:
+        return None
+    return {"name": f"{len(people)} people", "address": "character", "role": "character", "dress": None,
+            "low": np.min([each["low"] for each in people], axis=0),
+            "high": np.max([each["high"] for each in people], axis=0)}
+
+
 def covering(item, things):
     """Of the library things, the one whose footprint covers most of the item's box, among those named for its rows
     when any is (a bowl on a table reads as the bowl, never the table it stands on)."""
@@ -216,11 +234,12 @@ def item_faults(plan, laid):
             continue
         rows = item.get("rows") or []
         there = standing_in(item, laid)
-        if not there:
+        crowd = crowd_in(item, laid)
+        if not there and crowd is None:
             found.append({"fault": "missing", "item": item["name"], "rows": rows,
                           "why": f"nothing laid stands in the plan's {item['name']}"})
             continue
-        things = [each for each in there if is_library_thing(each)]
+        things = [each for each in there if is_library_thing(each)] + ([crowd] if crowd else [])
         if not things:
             found.append({"fault": "block stands in", "item": item["name"], "rows": rows,
                           "objects": sorted(each["name"] for each in there),
