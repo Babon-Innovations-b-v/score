@@ -5,7 +5,8 @@ than it, is refused, never guessed.
 Breaks (each applied once, seen red, reverted), in part_looks.py: parts_by_order without the glowing parts put after
 the rest (the glow case's faces wear the wrong parts); TOLERANCE raised to 0.01 (the 1 mm case is made, not refused);
 refinished binding every subset to the first look (a face wears another part's surface); refinished leaving the baked
-look and `st` on (the atlas is still there).
+look and `st` on (the atlas is still there); library_place returning the model's own place, not its surface data's
+`library` (the flat's models finished in a place the old library does not hold).
 """
 import json
 import pathlib
@@ -55,13 +56,27 @@ MODEL = [BUILT[0], BUILT[2], BUILT[3]]
 GLOW = [BUILT[1]]
 
 
-@pytest.mark.parametrize("case, shift, glow, wanted", [
-    ("exact", 0.0, True, [["flange", "body", "flange"], ["dome"]]),
-    ("off by 0.05 mm, within", 5e-5, True, [["flange", "body", "flange"], ["dome"]]),
-    ("off by 1 mm", 1e-3, True, "lie off"),
-    ("no glow file for a glowing part", 0.0, False, "triangles"),
+# The old surface data: the name the old library knew each place by.
+LIBRARY_PLACES = {"flat": "prologue_flat", "airlock": "airlock"}
+
+
+@pytest.mark.parametrize("case, place, shift, glow, wanted", [
+    ("exact", "flat", 0.0, True, [["flange", "body", "flange"], ["dome"]]),
+    ("off by 0.05 mm, within", "airlock", 5e-5, True, [["flange", "body", "flange"], ["dome"]]),
+    ("off by 1 mm", "flat", 1e-3, True, "lie off"),
+    ("no glow file for a glowing part", "airlock", 0.0, False, "triangles"),
+    ("a place the old surface data does not name", "nowhere", 0.0, True, "no surface data"),
 ])
-def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, case, shift, glow, wanted):
+def test_each_face_wears_the_surface_of_the_part_built_in_its_place(tmp_path, case, place, shift, glow, wanted):
+    surfaces = tmp_path / "data/surfaces"
+    surfaces.mkdir(parents=True)
+    for name, library in LIBRARY_PLACES.items():
+        (surfaces / f"{name}.json").write_text(json.dumps({"place": name, "library": library}))
+    if place not in LIBRARY_PLACES:
+        with pytest.raises(part_looks.Refused, match=wanted):
+            part_looks.library_place(tmp_path, place)
+        return
+    assert part_looks.library_place(tmp_path, place) == LIBRARY_PLACES[place], case
     model = [[[value + (shift if axis == 1 else 0.0) for axis, value in enumerate(corner)] for corner in triangle]
              for triangle in MODEL]
     stages = [baked(tmp_path, "model", model)] + ([baked(tmp_path, "model_glow", GLOW)] if glow else [])

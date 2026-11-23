@@ -54,7 +54,7 @@ TOLERANCE = 1e-4  # metres a model's triangle middle may lie from its twin built
 GLOWING_FAMILIES = ("screen", "light")  # the old library's families split into a glow file (build_only.GLOWING)
 FILES = ("model.usdc", "model_glow.usdc")
 RECORD = "model.json"
-OLD_FILES = ("tools/props/library", "data/library/materials.json", "data/definitions/place.json",
+OLD_FILES = ("tools/props/library", "data/library/materials.json", "data/definitions/place.json", "data/surfaces",
              "design/tokens/tokens.json", "data/kit")
 NOT_IN_SPEC = ("reference",)  # the old variant's words about the picture it was matched to, no part of the finish
 DEFAULT_SIZE = (0.5, 0.5, 0.5)  # a builder no room laid at OLD_COMMIT is listed at this size
@@ -94,6 +94,17 @@ def token_hex(tree, token):
         if entry["name"] == token:
             return entry["value"]["ops"] if isinstance(entry["value"], dict) else entry["value"]
     raise Refused(f"token {token} is not in the old palette")
+
+
+def library_place(tree, place):
+    """The id the old library knew a place by, its models finished in: the place's surface data's `library`
+    (data/surfaces/<place>.json at OLD_COMMIT: the flat is prologue_flat, the camp expedition_camp, the hangar's roof
+    leaves hdoor the hangar); Refused for a place with no surface data."""
+    path = tree / "data/surfaces" / f"{place}.json"
+    if not path.is_file():
+        raise Refused(f"place {place} has no surface data at OLD_COMMIT (data/surfaces), so its library place is "
+                      "unknown")
+    return json.loads(path.read_text())["library"]
 
 
 def variant_spec(library, tree, place, variant):
@@ -358,7 +369,7 @@ def remade(address, record, model, answer, library, tree, into):
     builder = builder_of(model["kind"], record["provenance"].get("place", ""))
     mapped_parts(builder, [list(part) for part in parts])
     by_file, farthest = parts_by_order(answer, counts, lambda surface: glowing(library, surface), points)
-    place = record["provenance"]["place"]
+    place = library_place(tree, record["provenance"]["place"])
     specs = {surface: variant_spec(library, tree, place, surface) for _, surface in parts}
     surfaces = newest_surfaces(specs)
     into.mkdir(parents=True, exist_ok=True)
