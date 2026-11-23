@@ -17,6 +17,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
 - the plastic relief row is the relief row's maps under a plastic's name: its 0.012 m features are over plastic's
   largest grain (4 x 0.002 = 0.008 m), so the grain is 0.008 and the bump keeps the relief's slope, 0.004 x 0.008 /
   0.012 = 0.0027 (at its full 0.004 a field of steep bumps that scatters the highlight away);
+- the fine slopes row's 2 x 2 blocks of +-0.2 average to a normal of length 0.9798, hiding a variance of 0.0206
+  (Toksvig), so its roughness 0.4 widens to (0.4^4 + 0.0206)^(1/4) = 0.464;
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
@@ -53,6 +55,7 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.described: PACKED_ROLES' split dropped (the packed row has no albedo: KeyError), or statistics' alpha read
   dropped (its roughness USD's 0.5).
 - fit.rebuilt: the map's own blue kept (the turned-under row's slopes over FLAT_FLOOR: its relief far too high).
+- fit.spec_of: toksvig_roughness dropped (the fine slopes row's roughness stays 0.4).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -125,6 +128,15 @@ def lightness_hue(linear):
     """A linear colour's CIE lightness and hue angle (degrees), rounded."""
     lab = colour.lab(np.asarray(linear, dtype=float))
     return round(float(lab[0]), 1), float(round(np.degrees(np.arctan2(lab[2], lab[1]))))
+
+
+def texel_tilts(slope):
+    """A 1024-texel normal map tilted +-`slope` in x texel by texel, a chequer: read at fit.READ_SIDE (512) each 2 x 2
+    block averages to (0, 0, sqrt(1 - slope^2))."""
+    across, row = np.meshgrid(np.arange(1024), np.arange(1024))
+    sign = np.where((across + row) % 2 == 0, 1.0, -1.0)
+    normal = np.stack([sign * slope, np.zeros_like(sign), np.full_like(sign, np.sqrt(1 - slope ** 2))], -1)
+    return np.round((normal + 1.0) * 127.5).astype(np.uint8)
 
 
 def under(normal):
@@ -228,6 +240,11 @@ ROWS = [
      {"colour.jpg": solid((119,) * 3), "roughness.png": solid((102,) * 3), "normal.png": under(bumps(2.0, 16))},
      {"tile_metres": 0.064}, (solid((119,) * 3), solid((119,) * 3)),
      {"recipe": "concrete", "relief": (0.012, 0.004, 0.064)}),
+    ("slopes finer than the read widen the roughness", "t_plastic_glossy_gray_a01",
+     {"t_plastic_glossy_gray_a01_tile_alb.png": solid((119,) * 3),
+      "t_plastic_glossy_gray_a01_tile_orm.png": solid((255, 102, 0)),
+      "t_plastic_glossy_gray_a01_tile_nor.png": texel_tilts(0.2)}, {"tile_metres": 1.0},
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "plastic", "roughness": 0.464}),
 ]
 
 

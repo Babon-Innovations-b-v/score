@@ -236,14 +236,33 @@ def rebuilt(normal):
 def relief_statistics(path, tile_metres, normal_convention="opengl"):
     """The normal map's relief: its height field's high-passed spread (rms, metres) and its features' size in metres
     (FEATURE_PER_HALF_WIDTH half widths of its autocorrelation); a DirectX map's green turned over to OpenGL's, its z
-    rebuilt from its x and y (rebuilt)."""
-    normal = rebuilt(shrunk(pixels(path), READ_SIDE) * 2.0 - 1.0)
+    rebuilt from its x and y (rebuilt); and the slope variance finer than the read (sub_texel_variance)."""
+    full = rebuilt(pixels(path) * 2.0 - 1.0)
+    normal = shrunk(full, READ_SIDE)
+    spread = sub_texel_variance(normal)
+    normal = rebuilt(normal)
     if normal_convention == "directx":
         normal[..., 1] = -normal[..., 1]
     metres_a_texel = tile_metres / normal.shape[1]
     relief = high_passed(height_of(normal), HIGH_PASS_SHARE)
     return {"height": float(relief.std() * metres_a_texel),
-            "feature_metres": float(half_width(relief) * FEATURE_PER_HALF_WIDTH * metres_a_texel)}
+            "feature_metres": float(half_width(relief) * FEATURE_PER_HALF_WIDTH * metres_a_texel),
+            "slope_variance": spread}
+
+
+def sub_texel_variance(averaged):
+    """The slope variance a map's unit normals lose to being averaged into the read's texels (Toksvig, 2005: a mean
+    normal of length L hides a variance of (1 - L) / L): relief too fine to draw, which a render sees as roughness."""
+    length = np.clip(np.linalg.norm(averaged, axis=-1), 1e-6, 1.0)
+    return float(np.mean((1.0 - length) / length))
+
+
+def toksvig_roughness(roughness, slope_variance):
+    """A roughness widened by a sub-texel slope variance: its GGX alpha (roughness squared) and the variance added in
+    quadrature (alpha^2 + variance), as LEAN and Toksvig fold a normal map's fine slopes into its lobe (13 glossy paints'
+    fine normal relief, sub-pixel at the check's render, read as roughness 0.07 drew a pinpoint beside the maps' broad
+    glint, 2026-11-23)."""
+    return float((roughness ** 4 + slope_variance) ** 0.25)
 
 
 def channel_mean(path, channel):
@@ -269,7 +288,7 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     measured = albedo_statistics(maps["albedo"]) if "albedo" in maps else constant_statistics(albedo_colour)
     measured["tile_metres"] = float(tile_metres)
     measured.update(relief_statistics(maps["normal"], tile_metres, normal_convention) if "normal" in maps else
-                    {"height": 0.0, "feature_metres": None})
+                    {"height": 0.0, "feature_metres": None, "slope_variance": 0.0})
     if "orm" in maps:
         measured["roughness"], measured["metal"] = channel_mean(maps["orm"], 1), channel_mean(maps["orm"], 2)
     else:
@@ -327,12 +346,13 @@ def spec_of(family, measured, method=METHOD):
     the relief's features (within SIZE_RANGE of the family's default), the bump from its height spread (scaled with a
     clamped pattern size, so the recipe's relief keeps the maps' slope: a tile's 30 cm swell drawn at 8 mm grain at its
     full height is a field of steep bumps that scatters the highlight away) and the contrast from the lightness
-    spread; a constant opacity where the family has one (glass)."""
+    spread; a constant opacity where the family has one (glass); its roughness widened by the normal map's sub-texel
+    slopes (toksvig_roughness)."""
     defaults = json.loads(pathlib.Path(method).read_text())["recipes"][family]
     spec = {"recipe": family, **defaults, "colour": linear_colour(measured["lab"])}
     dark = linear_colour(measured["dark_lab"])
     spec.update(second=dark, bare=dark, dirt_colour=dark)
-    spec["roughness"] = round(measured["roughness"], 4)
+    spec["roughness"] = round(toksvig_roughness(measured["roughness"], measured.get("slope_variance", 0.0)), 4)
     if "metal" in defaults:
         spec["metal"] = round(measured["metal"], 4)
     if "opacity" in defaults and measured.get("opacity") is not None:
