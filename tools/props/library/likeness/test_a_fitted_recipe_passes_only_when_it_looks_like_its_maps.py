@@ -64,6 +64,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
   left out (the scratched chrome's stay 0.2614).
 - fit.family_of: the generic metal rule dropped (both plain "metal" rows polished_metal by their name), or
   generic_metal's relief test dropped (the ribbed one, polished by its roughness 0.098).
+- fit.FAMILY_WORDS: gold ahead of fabric again (the oxford gold row polished_metal), without stone's words (the
+  marble row plastic by its measures), or "floor_tile" after "marble" (the floor row rock).
 - measure.passes: `measured["delta_e"] <= DELTA_E_BOUND` -> `True` (the shifted colour passes).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
 """
@@ -271,6 +273,15 @@ ROWS = [
      {"albedo.png": solid((119,) * 3), "orm.png": solid((255, 153, 255)), "normal.png": solid(FLAT_NORMAL)},
      {"maps": {"albedo": "albedo.png", "orm": "orm.png", "normal": "normal.png"}, "tile_metres": 1.0},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "bare_metal", "family_from": "measures"}),
+    ("a cloth named gold is a cloth", "fabric_oxford_gold_t01", {"albedo.png": solid((119,) * 3)},
+     {"maps": {"albedo": "albedo.png"}, "tile_metres": 1.0}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "cloth", "family_from": "name"}),
+    ("a marble is a stone", "stone_marble_veined_glossy_a03", {"albedo.png": solid((119,) * 3)},
+     {"maps": {"albedo": "albedo.png"}, "tile_metres": 1.0}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "rock", "family_from": "name"}),
+    ("a marble floor's tiles", "simready_opaque_stone_marble_floor_tile_a", {"albedo.png": solid((119,) * 3)},
+     {"maps": {"albedo": "albedo.png"}, "tile_metres": 1.0}, (solid((119,) * 3), solid((119,) * 3)),
+     {"recipe": "tiles", "family_from": "name"}),
 ]
 
 

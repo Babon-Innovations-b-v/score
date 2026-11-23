@@ -38,22 +38,24 @@ ROLE_WORDS = {"albedo": ("alb", "albedo", "basecolor", "basecolour", "color", "c
               "metal": ("met", "metal", "metallic", "metalness"),
               "emission": ("emission", "emissive", "emit")}
 # The recipe family a material's name says, first match wins (so fibreglass before glass and plastic, painted metal
-# before metal, stainless before polished): words of a finish, never of a maker.
+# before metal, stainless before polished, a tiled floor before its stone, every material before a colour that is
+# also a metal: an oxford gold is a cloth): words of a finish, never of a maker.
 FAMILY_WORDS = (("fiberglass", "fiberglass"), ("fibreglass", "fiberglass"), ("emissive", "glowing"),
-                ("mirror", "polished_metal"), ("glass", "glass"), ("lens", "glass"), ("treadplate", "chequer_plate"),
+                ("mirror", "polished_metal"), ("glass", "glass"), ("floor_tile", "tiles"), ("squares", "tiles"),
+                ("marble", "rock"), ("granite", "rock"), ("stone", "rock"), ("lens", "glass"), ("treadplate", "chequer_plate"),
                 ("diamondplate", "chequer_plate"), ("galvan", "galvanized"),
                 ("rust", "rusted_metal"), ("anodiz", "anodized"), ("painted", "painted_metal"),
                 ("enamel", "painted_metal"), ("perforat", "perforated_metal"), ("cast", "cast_metal"),
                 ("brushed", "bare_metal"), ("stainless", "bare_metal"), ("aluminium", "bare_metal"),
                 ("aluminum", "bare_metal"), ("steel", "bare_metal"), ("chrome", "polished_metal"),
-                ("polished", "polished_metal"), ("gold", "polished_metal"), ("bronze", "polished_metal"),
-                ("copper", "polished_metal"), ("metal", "polished_metal"), ("carbon", "composite"),
+                ("polished", "polished_metal"), ("metal", "polished_metal"), ("carbon", "composite"),
                 ("rubber", "rubber"), ("ruberoid", "rubber"),
                 ("leather", "leather"), ("ceramic", "ceramic"), ("porcelain", "ceramic"), ("plywood", "grained_wood"),
                 ("wood", "grained_wood"), ("oak", "grained_wood"), ("cardboard", "cardboard"),
                 ("corrugated", "cardboard"), ("box", "cardboard"), ("concrete", "concrete"), ("cement", "concrete"),
                 ("fabric", "cloth"), ("tweed", "cloth"), ("cloth", "cloth"), ("rope", "cloth"),
-                ("plastic", "plastic"), ("polyurethane", "plastic"), ("nylon", "plastic"), ("foam", "plastic"))
+                ("plastic", "plastic"), ("polyurethane", "plastic"), ("nylon", "plastic"), ("foam", "plastic"),
+                ("gold", "polished_metal"), ("bronze", "polished_metal"), ("copper", "polished_metal"))
 # With no family word: metal over this mean is metal, polished under ROUGH_POLISHED roughness; else plastic.
 METAL_MEAN = 0.5
 ROUGH_POLISHED = 0.25
@@ -66,7 +68,8 @@ SIZE_SETTING = {"plastic": "grain_size", "leather": "grain_size", "concrete": "p
                 "fiberglass": "fibre_size", "ceramic": "bump_size", "grained_wood": "ring_pitch",
                 "bare_metal": "bump_size", "anodized": "bump_size", "cast_metal": "bump_size", "rubber": "bump_size",
                 "painted_metal": "bump_size", "wood": "bump_size", "cloth": "thread", "composite": "weave",
-                "chequer_plate": "pitch", "perforated_metal": "pitch", "galvanized": "cell_size"}
+                "chequer_plate": "pitch", "perforated_metal": "pitch", "galvanized": "cell_size", "rock": "bump_size",
+                "tiles": "pitch"}
 # A pattern size the fit sets stays within this factor of its family's default either way: a tile's slow swell
 # read as its feature (concrete's 30 cm) is not its pores.
 SIZE_RANGE = 4.0
