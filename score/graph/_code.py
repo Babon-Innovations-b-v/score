@@ -384,8 +384,10 @@ def holds(commit):
     one can pull; plan@quarters and @flat, made at a fixer's 8258bf71 before its rebase landed as 9d1b15aa, stopped
     their lines with "pull main" for good, 2026-11-05), or when its change is in HEAD under another commit (a local
     commit rebased onto main while an old worktree's branch still holds the original: props-inputs@old_station, made at
-    2e6fdaa5 and landed as 462287a69, stopped its line with "pull main" for good, #156, 2026-11-22); False for one only
-    a newer branch holds."""
+    2e6fdaa5 and landed as 462287a69, stopped its line with "pull main" for good, #156, 2026-11-22), or when HEAD holds it rewritten (its author, author
+    date and subject under another commit whose content was edited, so git cherry sees another patch: pixal@street,
+    accepted at 80af60de, which main holds as d43632ac0 with names scrubbed, stopped its line with "pull main" while
+    an old local main still held the original, #156, 2026-11-23); False for one only a newer branch holds."""
     if subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", commit, "HEAD"],
                       capture_output=True).returncode == 0:
         return True
@@ -396,9 +398,24 @@ def holds(commit):
                             text=True)
     if landed.returncode == 0 and landed.stdout.startswith("-"):
         return True
+    if rewritten(commit):
+        return True
     branches = subprocess.run(["git", "-C", str(REPO), "for-each-ref", "--contains", commit, "refs/heads",
                                "refs/remotes"], capture_output=True, text=True)
     return branches.returncode == 0 and not branches.stdout.strip()
+
+
+def rewritten(commit):
+    """True when HEAD holds a commit with `commit`'s author, author date and subject (a rebase or a history rewrite
+    keeps all three, whatever it edits in the change)."""
+    shown = subprocess.run(["git", "-C", str(REPO), "log", "-1", "--format=%an%x00%ad%x00%s", commit],
+                           capture_output=True, text=True)
+    if shown.returncode != 0 or not shown.stdout.strip():
+        return False
+    subject = shown.stdout.rstrip("\n").split("\0")[2]
+    found = subprocess.run(["git", "-C", str(REPO), "log", "HEAD", "--fixed-strings", f"--grep={subject}",
+                            "--format=%an%x00%ad%x00%s"], capture_output=True, text=True)
+    return found.returncode == 0 and shown.stdout.rstrip("\n") in found.stdout.splitlines()
 
 
 def changed_since(commit, relatives):

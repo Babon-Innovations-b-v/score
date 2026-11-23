@@ -689,7 +689,7 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     '        if True:' -> the older checkout's note is accepted;
     or score/graph/_code.py holds: drop `if known.returncode != 0: return True` (a rebased-away commit blocks for good);
     or drop its `landed` check (a commit whose change landed rebased, its original on an old worktree's branch, blocks
-    for good).
+    for good); or drop its `rewritten` check (a commit main holds rewritten, its content edited, blocks for good).
     Break: score/graph/__init__.py: '        if changed:\n            raise RuntimeError(f"{node}: its make wrote' ->
     '        if False:\n            raise RuntimeError(f"{node}: its make wrote' -> writer is accepted.
     Break: score/graph/__init__.py: 'against = self.rejudged_accepted(stage, place) if judged' -> 'against = None if
@@ -1105,7 +1105,7 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     finally:
         STRICT.update({"on": False, "old schema": False})
     assert graph._code.holds("f" * 40)
-    assert landed_holds(pathlib.Path(tempfile.mkdtemp()) / "landed", monkeypatch) == (True, False)
+    assert landed_holds(pathlib.Path(tempfile.mkdtemp()) / "landed", monkeypatch) == (True, False, True)
     upstream = subprocess.run(["git", "-C", str(REPO), "rev-parse", "origin/main"], capture_output=True, text=True)
     behind = subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", upstream.stdout.strip(), "HEAD"])
     if upstream.returncode == 0 and behind.returncode != 0:
@@ -2464,8 +2464,9 @@ NOTED = graph.Stage("noted", "place", make_seen, TEXT, SEEN, files={"notes": "{r
 
 
 def landed_holds(repo, monkeypatch):
-    """(holds a side branch's commit whose change main carries under another commit, holds one main does not carry)
-    in a small repository: a worktree's branch keeps the original of a commit rebased onto main, and another commit."""
+    """(holds a side branch's commit whose change main carries under another commit, holds one main does not carry,
+    holds one main carries rewritten with its content edited) in a small repository: a worktree's branch keeps the
+    original of a commit rebased onto main, and another commit; an old local branch keeps one main rewrote."""
     repo.mkdir()
 
     def git(*command):
@@ -2490,9 +2491,19 @@ def landed_holds(repo, monkeypatch):
     git("add", "z.txt")
     git("commit", "-q", "-m", "other")
     git("cherry-pick", original)
+    git("checkout", "-q", "-b", "old", "side")  # an old local branch keeps a commit main later rewrote
+    (repo / "d.txt").write_text("private name\n")
+    git("add", "d.txt")
+    git("commit", "-q", "-m", "rewritten change")
+    before = git("rev-parse", "HEAD")
+    git("checkout", "-q", "main")
+    git("cherry-pick", before)
+    (repo / "d.txt").write_text("scrubbed name\n")  # its content edited as it landed: git cherry sees another patch
+    git("add", "d.txt")
+    git("commit", "-q", "--amend", "--no-edit")
     with monkeypatch.context() as patch:  # this repository again for the rest of the test
         patch.setattr(_code, "REPO", repo)
-        return _code.holds(original), _code.holds(unlanded)
+        return _code.holds(original), _code.holds(unlanded), _code.holds(before)
 
 
 def git_out(*command):
