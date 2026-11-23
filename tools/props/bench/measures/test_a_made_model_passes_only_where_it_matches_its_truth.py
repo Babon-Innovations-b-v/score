@@ -136,9 +136,12 @@ def with_slivers():
     return mesh, parts
 
 
-def made(mesh, **given):
-    """The made side's measures against TRUTH, the kind's others ranked."""
-    return measures.measured(TRUTH, side(mesh, given.pop("material", top_material(mesh)), **given), others=OTHERS)
+def made(mesh, whole=False, **given):
+    """The made side's measures against TRUTH; with `whole` the kind's others ranked and its top a finish of its own
+    (unless `material` says), else neither: the rank and the finish edges are the dearest measures, and a row that
+    judges another one has no use for them."""
+    material = given.pop("material", top_material(mesh) if whole else None)
+    return measures.measured(TRUTH, side(mesh, material, **given), others=OTHERS if whole else ())
 
 
 @functools.cache
@@ -355,7 +358,7 @@ def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), mat
 
 
 CASES = [
-    ("the truth itself", lambda: made(box()), None, True),
+    ("the truth itself", lambda: made(box(), whole=True), None, True),
     ("the door cut and hung as NVIDIA's", lambda: hung(whole=True), None, True),
     ("no moving part cut", lambda: hung("none"), "parts.count_gap", False),
     ("the top cut as the door", lambda: hung("top"), "parts.faces_least", False),
@@ -378,8 +381,8 @@ CASES = [
     ("the truth beside its double at twice the size", lambda: measures.measured(
         TRUTH, side(box(), top_material(box())), others=[side(box(tuple(2 * value for value in SIDES)), None)]),
      "shape.rank", False),
-    ("a cylinder in the box's place", lambda: made(standing(trimesh.creation.cylinder(0.22, 0.8)), material=None),
-     "shape.rank", False),
+    ("a cylinder in the box's place", lambda: made(standing(trimesh.creation.cylinder(0.22, 0.8)), whole=True,
+                                                   material=None), "shape.rank", False),
     ("the box missing a face", lambda: made(missing_face(), material=None), "clean.open_length", False),
     ("a 1 cm floater", lambda: made(with_floater(), material=None), "clean.crumbs", False),
     ("a 1 mm shell", lambda: made(shell(), material=None), "clean.thinnest", False),
