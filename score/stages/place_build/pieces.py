@@ -70,6 +70,17 @@ def face_parts(gprim, holder, face_count):
     return names, looks, chosen
 
 
+def same_look(one, other):
+    """Whether two bound looks are one look: the same prim, or two prims telling the same glTF PBR (a SimReady
+    model's meshes each carry their own copy of a material of one name, #156)."""
+    if scene_package.pbr_key(one) == scene_package.pbr_key(other):
+        return True
+    if one is None or other is None:
+        return False
+    told = scene_package.pbr(one).get("tells")
+    return told is not None and told == scene_package.pbr(other).get("tells")
+
+
 def part_corners(prim):
     """An object's triangles by part in its own frame (its transforms below the object alone, as scene_package's
     gprim_pieces reads them): {part: (positions (k x 3), normals (k x 3))} a corner each, and {part: the look bound
@@ -96,7 +107,7 @@ def part_corners(prim):
         for part in sorted(set(per_triangle)):
             for look in {scene_package.pbr_key(looks[number]): looks[number]
                          for number in np.unique(per_face[names == part])}.values():
-                if scene_package.pbr_key(bound.setdefault(part, look)) != scene_package.pbr_key(look):
+                if not same_look(bound.setdefault(part, look), look):
                     raise place_build.Refused(f"{prim.GetName()}: its part {part} wears two looks "
                                               f"({scene_package.pbr_key(bound[part])}, {scene_package.pbr_key(look)})")
             chosen = per_triangle == part

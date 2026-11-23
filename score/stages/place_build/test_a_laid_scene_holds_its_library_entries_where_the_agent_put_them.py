@@ -266,6 +266,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.engine_source: the laid USD's stem not matched -> a take of two glTFs names neither; the re-finished parts
   left unread -> the cup, cut into paint0, names a glTF that holds no such part
 - pieces.sourced: no mesh written for an entry without a glTF -> the USD-only box piece has no meshes/box_piece.glb
+- pieces.same_look: two looks of one part told apart by their prims alone -> the SimReady kit's two doors, each
+  carrying its own copy of one material, refuse its piece list (#156)
 - pieces.pictures_apart: the picture's view kept in the buffer, or the accessors' views not renumbered -> the
   character's GLB still holds its picture, or its keys read the picture's bytes
 - scene_package.mass_of: the asset's authored mass left unread (usd_physics.authored_mass skipped) -> the adopted
@@ -1558,6 +1560,23 @@ def pieced(folder, root, out):
     assert any("kerb.glb does not hash" in line for line in found) and any(
         "(crate): its part top has no look" in line for line in found), found
     assert any("kit/box_piece@1 is withdrawn" in line for line in withdrawn), withdrawn
+    copied = Usd.Stage.CreateInMemory()  # a SimReady model: each mesh its own copy of one material of one name
+    for mesh_name, grey in (("door_a", 0.5), ("door_b", 0.5)):
+        mesh = UsdGeom.Mesh.Define(copied, f"/kit/{mesh_name}")
+        mesh.CreatePointsAttr([(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+        mesh.CreateFaceVertexCountsAttr([3])
+        mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
+        look = UsdShade.Material.Define(copied, f"/kit/{mesh_name}/looks/metal")
+        shader = UsdShade.Shader.Define(copied, f"/kit/{mesh_name}/looks/metal/shader")
+        shader.CreateIdAttr("UsdPreviewSurface")
+        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(grey, grey, grey))
+        look.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+        subset = UsdShade.MaterialBindingAPI(mesh).CreateMaterialBindSubset("metal", Vt.IntArray([0]))
+        UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(look)
+    assert sorted(pieces.part_corners(copied.GetPrimAtPath("/kit"))[1]) == ["metal"]  # one part, its one look
+    UsdShade.Shader.Get(copied, "/kit/door_b/looks/metal/shader").GetInput("diffuseColor").Set(Gf.Vec3f(0.9, 0, 0))
+    with pytest.raises(place_build.Refused, match="its part metal wears two looks"):
+        pieces.part_corners(copied.GetPrimAtPath("/kit"))  # a copy that tells another look is two looks
 
 
 def held_pictures(out, scene):
