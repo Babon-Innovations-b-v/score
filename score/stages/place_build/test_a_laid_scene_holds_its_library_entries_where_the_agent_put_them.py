@@ -123,6 +123,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - stair_core.block: `holes + door` -> `holes` -> the street door's doorway stands walled in the lobby's facade
 - stair_core.block: the ground window kept with `street` -> a pane stands across the street door's doorway
+- stair_core.newelled: `inset` -> `0.0` at the well -> a flight's handrail stops short of the well's cross
+  railing
+- stair_core.railings: `newelled` left out -> the flights' handrails stop in mid-air at every turn
 - place_build.rewritten: the open layer's content not taken (`write(path)` over it) -> a cut core laid again in one
   batch fails: USD makes no new layer where its front's is open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
@@ -882,6 +885,15 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     front_stage = Usd.Stage.Open(str(tmp_path / "front.usda"))
     front = np.asarray(UsdGeom.Mesh(front_stage.GetPrimAtPath("/stair_front/geo")).GetPointsAttr().Get())
     assert ((front[:, 0] > 0) & (front[:, 0] < stair_core.LONG) & (front[:, 2] < 0) & (front[:, 1] > 0.5)).any()
+    newels = [np.asarray(points) for part, (points, _) in stair_core.railings(1) if part == "handrail"
+              and np.allclose(np.ptp(np.asarray(points)[:, [0, 2]], axis=0), stair_core.NEWEL)]
+    inset, landing, head = stair_core.RAIL_INSET, stair_core.LANDING, stair_core.LANDING + stair_core.RUN
+    joints = [(landing, 0.0, inset), (landing - inset, stair_core.STOREY, stair_core.DEEP - stair_core.WIDE + inset),
+              (head, stair_core.STOREY / 2, inset), (head + inset, stair_core.STOREY / 2, stair_core.WIDE - inset)]
+    met = [any(post[:, 0].min() <= x <= post[:, 0].max() and post[:, 2].min() <= z <= post[:, 2].max()
+               and post[:, 1].min() <= floor + 1e-6 and post[:, 1].max() >= floor + stair_core.LANDING_RAIL
+               for post in newels) for x, floor, z in joints]
+    assert all(met), met  # every landing's railing meets its flight's handrail at a newel post
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)

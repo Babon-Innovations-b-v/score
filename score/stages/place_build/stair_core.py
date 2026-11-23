@@ -82,6 +82,7 @@ RAIL = 0.9  # a flight's handrail over its pitch line
 LANDING_RAIL = 1.0
 RAIL_SIZE = (0.06, 0.05)  # the handrail's width and height
 RAIL_INSET = 0.05  # a railing's line in from the edge it guards
+NEWEL = 0.08  # a newel post's side: where a flight's handrail meets its landings' railings
 TILE = 1.5  # the ground slab's pieces, metres each way
 PAVEMENT = 2.2  # the ground slab's reach past the block (the street side) and in front of the cut
 BLOCK = 5.0  # the flats' block beside the shaft, past its left wall: its width (x)
@@ -385,9 +386,10 @@ def dado(storeys):
     return pieces
 
 
-def railing(points_along, height_of, rail_high, z):
+def railing(points_along, height_of, rail_high, z, handrail=True):
     """A railing at depth `z` along x from the first of `points_along` to the last: balusters every BALUSTER_STEP
-    from the floor (`height_of(x)`) to the rail, a handrail `rail_high` over the floor line and a bottom bar."""
+    from the floor (`height_of(x)`) to the rail, a handrail `rail_high` over the floor line (unless `handrail` is
+    False: a flight's, laid by newelled) and a bottom bar."""
     start, end = points_along
     count = max(2, int(abs(end - start) / BALUSTER_STEP) + 1)
     pieces = []
@@ -396,8 +398,9 @@ def railing(points_along, height_of, rail_high, z):
         floor = height_of(x)
         pieces.append(("balusters", box((x - BALUSTER / 2, floor, z - BALUSTER / 2),
                                         (x + BALUSTER / 2, floor + rail_high - RAIL_SIZE[1] / 2, z + BALUSTER / 2))))
-    pieces.append(("handrail", beam((start, height_of(start) + rail_high, z), (end, height_of(end) + rail_high, z),
-                                    *RAIL_SIZE)))
+    if handrail:
+        pieces.append(("handrail", beam((start, height_of(start) + rail_high, z),
+                                        (end, height_of(end) + rail_high, z), *RAIL_SIZE)))
     pieces.append(("balusters", beam((start, height_of(start) + 0.1, z), (end, height_of(end) + 0.1, z),
                                      0.03, 0.02)))
     return pieces
@@ -415,18 +418,40 @@ def cross_railing(x, z_from, z_to, floor):
     return pieces
 
 
+def newelled(foot_x, foot_y, way, z, reach):
+    """A flight's handrail at depth `z` run on to the landing railings it meets, `reach` in from the flight's foot
+    and head along x (where the landing's railing ends), with a newel post at each end from its landing up past both
+    rails, so the flight's rail and the landing's join (2099 judge, 2026-11-23: the rails stopped in mid-air, two
+    stubs at different heights with a gap at every turn)."""
+    pieces = []
+    for x, floor in ((foot_x - way * reach, foot_y), (foot_x + way * (RUN + reach), foot_y + STOREY / 2)):
+        rail = pitch(foot_x, foot_y, way, x) + RAIL
+        top = max(rail, floor + LANDING_RAIL) + RAIL_SIZE[1] / 2 + 0.02
+        pieces.append(("handrail", box((x - NEWEL / 2, floor, z - NEWEL / 2), (x + NEWEL / 2, top, z + NEWEL / 2))))
+    start, end = foot_x - way * reach, foot_x + way * (RUN + reach)
+    pieces.append(("handrail", beam((start, pitch(foot_x, foot_y, way, start) + RAIL, z),
+                                    (end, pitch(foot_x, foot_y, way, end) + RAIL, z), *RAIL_SIZE)))
+    return pieces
+
+
 def railings(storeys):
-    """The railings of the open front, the well and the top landing: [(part, (points, faces))]."""
+    """The railings of the open front, the well and the top landing: [(part, (points, faces))]. Each flight's
+    handrail runs on to the landing railings at its foot and head and meets them at a newel post (newelled): the
+    open front's rail to the landing's end (x LANDING, LANDING + RUN), the well's to its cross railing (RAIL_INSET
+    further)."""
     pieces = []
     inset = RAIL_INSET
     for foot_x, foot_y, way, near, far in flights(storeys):
         ends = (foot_x + way * 0.05, foot_x + way * (RUN - 0.05))
         on_flight = lambda x, foot_x=foot_x, foot_y=foot_y, way=way: pitch(foot_x, foot_y, way, x)  # noqa: E731
         if way > 0:
-            pieces += railing(ends, on_flight, RAIL, near + inset)
-            pieces += railing(ends, on_flight, RAIL, far - inset)
+            pieces += railing(ends, on_flight, RAIL, near + inset, handrail=False)
+            pieces += newelled(foot_x, foot_y, way, near + inset, 0.0)
+            pieces += railing(ends, on_flight, RAIL, far - inset, handrail=False)
+            pieces += newelled(foot_x, foot_y, way, far - inset, inset)
         else:
-            pieces += railing(ends, on_flight, RAIL, near + inset)
+            pieces += railing(ends, on_flight, RAIL, near + inset, handrail=False)
+            pieces += newelled(foot_x, foot_y, way, near + inset, inset)
     for storey in range(1, storeys + 1):
         floor = storey * STOREY
         pieces += railing((inset, LANDING), lambda x, floor=floor: floor, LANDING_RAIL, inset)
