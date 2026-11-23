@@ -74,6 +74,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - split_spread `same_regions`: drop `len(painted) == len(shares)` ->
   test_the_spread_matches_regions_and_counts_only_counted_finishes.
 - straight `side_fit`: `tilt = 0.0` -> test_a_square_piece_must_come_out_straight.
+- straight `side_fit`: every hit kept (no BAND_DEGREES) -> test_a_square_piece_must_come_out_straight (the vented
+  locker).
 - labels `finish_turn`: `return best[0]` (no `@ raw_facing(take)`) ->
   test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands (2026-10-29); its `None` option (the
   picture's up kept, only squared) dropped -> the same test, a kept-up take unmatched (2026-11-08); `camera_of`'s
@@ -1033,7 +1035,8 @@ def locker():
 
 def test_a_square_piece_must_come_out_straight():
     """A square box passes; leant atan(0.12) = 6.84 degrees over (round four's locker leant 13) its sides read that
-    tilt and it fails; with its front bowed 10 cm it fails."""
+    tilt and it fails; with its front bowed 10 cm it fails; with its front cut in open vents (the rays through them
+    meet its back, 55 cm behind) it passes, as NVIDIA's slatted crates must (#163 calibration)."""
     assert straight.straightness(locker())["pass"]
     leaning = locker()
     leaning.vertices[:, 0] += leaning.vertices[:, 1] * 0.12
@@ -1043,6 +1046,10 @@ def test_a_square_piece_must_come_out_straight():
     front = bowed.vertices[:, 2] < -0.27
     bowed.vertices[front, 2] -= 0.1 * np.cos(bowed.vertices[front, 1] * np.pi / 2.0)
     assert not straight.straightness(bowed)["pass"]
+    vented = locker()
+    slats = (vented.triangles_center[:, 2] > 0.27) & (np.cos(vented.triangles_center[:, 1] * 2 * np.pi / 0.25) > 0.3)
+    vented = trimesh.Trimesh(vented.vertices, vented.faces[~slats], process=False)
+    assert straight.straightness(vented)["pass"], straight.straightness(vented)
 
 
 

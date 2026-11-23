@@ -19,6 +19,10 @@ import numpy as np
 TILT_DEGREES = 2.0
 WARP_SHARE = 0.012
 GRID = 7
+# A ray that passes through a vent, a slat's gap or an open side meets the piece far behind its side: only hits within
+# tan(BAND_DEGREES) of the grid's span of their median depth are the side (a side leaning up to twice that still
+# reads whole). Without it NVIDIA's slatted crate read 9 degrees off itself (#163 calibration).
+BAND_DEGREES = 15.0
 # A side, as the axis its rays run along (0 x, 1 y, 2 z) and the way they run.
 SIDES = {"front": (2, 1.0), "back": (2, -1.0), "left": (0, -1.0), "right": (0, 1.0), "top": (1, -1.0)}
 
@@ -40,6 +44,8 @@ def side_fit(mesh, axis, way, share=0.8):
     direction[axis] = way
     hits, rays, _ = mesh.ray.intersects_location(np.array(starts), np.tile(direction, (len(starts), 1)),
                                                  multiple_hits=False)
+    span = max(high[across[0]] - low[across[0]], high[across[1]] - low[across[1]]) * share
+    hits = hits[np.abs(hits[:, axis] - np.median(hits[:, axis])) <= math.tan(math.radians(BAND_DEGREES)) * span]
     if len(hits) < GRID * GRID // 2:
         return None
     plane = np.c_[hits[:, across[0]], hits[:, across[1]], np.ones(len(hits))]
