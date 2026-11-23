@@ -52,7 +52,9 @@ MEMORY, refuses with what needs it, never freezing the machine (the Hong Kong sq
 Beside the physics, ready.json's `finishes` holds every object whose shown finish is not the library's (finished/:
 no material, its model's own paint no library surface made, a look naming no library surface, one surface over a
 model's painted parts); and `shapes` every made object whose shape reads wrong (shapes/: a pipe that swells along
-its run, a hard thing with too few flat faces), each for a remake. The place is ready only with neither.
+its run, a hard thing with too few flat faces), each for a remake; and `plan` every way the place strays from its
+plan (plan_fit/: a room bigger than its plan, a plan item missing, stood in for by blocks or at the wrong scale, a wall
+dressing the plan names left bare; null when no plan was taken in). The place is ready only with none of them.
 """
 import ast
 import contextlib
@@ -70,7 +72,7 @@ from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
 
 from score.stages import place_build
 
-from score.stages.place_build import finished, shapes
+from score.stages.place_build import finished, plan_fit, shapes
 from score.stages.place_build.ready import people
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -1691,6 +1693,9 @@ def check(folder, settle=True, neighbours=None):
     stage, place = place_build.opened(folder)
     unfinished = finished.faults(stage, place)
     misread = shapes.faults(stage, place)
+    plan = plan_fit.plan_of(folder)
+    strays = None if plan is None else plan_fit.faults(stage, place, plan, role_of,
+                                                       place_build.record_of(folder).get("kind") == "outside")
     lent = set()
     if neighbours:
         stage, place, lent = seated_among(folder, neighbours)
@@ -1730,11 +1735,12 @@ def check(folder, settle=True, neighbours=None):
     path = pathlib.Path(folder) / "ready.json"
     path.write_text(json.dumps({"place": place, "roles": {name: role for name, role in laid.roles.items()
                                                           if name not in lent},
-                                "objects": found, "open": gaps, "finishes": unfinished, "shapes": misread,
+                                "objects": found, "open": gaps, "finishes": unfinished, "shapes": misread, "plan": strays,
                                 "settle": engine, "among": sorted(neighbours or {})}, indent=1))
-    return {"ready": not found and not unfinished and not misread and not seeing,
+    return {"ready": not found and not unfinished and not misread and not seeing and not strays,
             "objects": len(laid.prims) - len(lent), "with_faults": len(found), "counts": counts, "open": seeing,
-            "unfinished": len(unfinished), "misread": len(misread), "settle": engine,
+            "unfinished": len(unfinished), "misread": len(misread),
+            "plan": "no plan taken in" if strays is None else len(strays), "settle": engine,
             "among": sorted(neighbours or {}), "file": str(path)}
 
 

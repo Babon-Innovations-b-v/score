@@ -33,6 +33,9 @@
     python -m score.stages.place_build hollow <folder> <name> --region x0,y0,z0,x1,y1,z1 [--region ...]
     python -m score.stages.place_build door <folder> <name> [--opens] [--slide] [--lock chamber --side inner|outer]
     python -m score.stages.place_build refinish <folder> <name>
+    python -m score.stages.place_build plan <folder> <plan.json>
+    python -m score.stages.place_build dress <folder> <name> <address> <row> <N|S|E|W|floor> [--support wall]
+                                       [--height m] [--every m] [--front +x|-x|+z|-z]
     python -m score.stages.place_build list <folder>
     python -m score.stages.place_build render <folder> [--width pixels] [--views name,name] [--final]
     python -m score.stages.place_build compare <folder>
@@ -61,7 +64,11 @@ such as surface/ambientcg_ground054; an image surface's maps tile at their real 
 `terrain` lays a heightfield terrain entry (relief.py, a real DTM's relief) as the ground, each `--pad` (a building's
 site) levelled to its laid height. `sky` lays a light entry's sky dome as the place's own sky and a sun from
 `--elevation` and `--heading` (degrees round from +x towards +z). `view` names a camera besides the concept's;
-`render --views` draws those too, as <folder>/view-<name>.png.
+`render --views` draws those too, as <folder>/view-<name>.png. `plan` takes the place's plan in (scene_record's
+place-plan): its views (an eye-height view from each person spot and each doorway) are named views `render` draws
+with the concept's when no --views is given, at 1920 wide, and `check` tells every way the place strays from it
+(ready.json `plan`). `dress` lays copies of a library piece (a wall panel, a pipe run, a floor grate) along a plan
+wall, mounted on the laid wall `--support`, or tiled over the floor, as the row of the plan's walls it dresses.
 A glTF-only model or take (our picture-made props) is laid in its own bake and paint.
 `palette` takes in the place's one surface library (a scene's surface-library output: its ProcFunc recipe variants
 and palette tokens, the ones its props were painted from) with the place's wear and dirt; `surface ... palette/<variant>`
@@ -269,11 +276,17 @@ def run(args):
                                 args.side, args.crouch)
     if args.step == "refinish":
         return place_build.refinish(args.folder, args.name)
+    if args.step == "plan":
+        return place_build.plan(args.folder, args.source)
+    if args.step == "dress":
+        return place_build.dress(args.folder, args.name, args.address, args.row, args.side, args.support,
+                                 args.height, args.every, args.front)
     if args.step == "list":
         return place_build.listing(args.folder)
     if args.step == "render":
         from score.stages.place_build import render
-        return render.render(args.folder, args.width, [name for name in (args.views or "").split(",") if name],
+        return render.render(args.folder, args.width or render.WIDTH,
+                             [name for name in (args.views or "").split(",") if name],
                              args.final)
     if args.step in ("film", "film-render"):
         from score.stages.place_build import film
@@ -440,6 +453,16 @@ def parser():
     step.add_argument("--time")
     step.add_argument("--turn", type=float, default=0.0)
     step.add_argument("--exposure", type=float)
+    step = steps.add_parser("plan")
+    step.add_argument("folder")
+    step.add_argument("source")
+    step = steps.add_parser("dress")
+    for name in ("folder", "name", "address", "row", "side"):
+        step.add_argument(name)
+    step.add_argument("--support")
+    step.add_argument("--height", type=float, default=0.0)
+    step.add_argument("--every", type=float)
+    step.add_argument("--front", default="+z")
     step = steps.add_parser("view")
     step.add_argument("folder")
     step.add_argument("name")
@@ -536,7 +559,7 @@ def parser():
                       "no Blender, no bake")
     step = steps.add_parser("render")
     step.add_argument("folder")
-    step.add_argument("--width", type=int, default=768)
+    step.add_argument("--width", type=int)
     step.add_argument("--views")
     step.add_argument("--final", action="store_true")
     for name in ("review", "viewer"):

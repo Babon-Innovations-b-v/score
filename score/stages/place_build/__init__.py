@@ -59,6 +59,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     haze(folder, name, centre, size, colour, density, forward, reach)
                                                        a box of haze (tools/usd/scene.py's haze body) the renderer fills
     view(folder, name, eye, aim, fov)                  a named view besides the concept's (render --views)
+    plan(folder, source)                               the place's plan taken in (plan_fit/): its views named
+                                                       views, every way the place strays from it in the check
+    dress(folder, name, address, row, side, ...)       copies of a library piece along a plan wall or over its
+                                                       floor, dressing a row of its walls (panels, pipes, grates)
     remove(folder, name)                               an object or light taken out
     listing(folder)                                    what the scene holds, as the agent reads it
     batch(folder, steps)                               many steps (every one above but start and listing; blocks,
@@ -2173,6 +2177,18 @@ def listing(folder):
     return {"place": place, "camera": record_of(folder)["camera"], "objects": objects, "lights": lights}
 
 
+def plan(folder, source):
+    """The place's plan taken in, its views written as named views (plan_fit.take)."""
+    from score.stages.place_build import plan_fit
+    return plan_fit.take(folder, source)
+
+
+def dress(folder, name, address, row, side, support=None, height=0.0, every=None, front="+z"):
+    """Copies of a library piece dressing a row of the plan's walls along one wall or over the floor (plan_fit.dress)."""
+    from score.stages.place_build import plan_fit
+    return plan_fit.dress(folder, name, address, row, side, support, height, every, front)
+
+
 def refinish(folder, name):
     """The object re-finished per part from the place's palette (finished.refinish)."""
     from score.stages.place_build import finished
@@ -2182,7 +2198,7 @@ def refinish(folder, name):
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door,
          "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "night": night, "haze": haze,
-         "refinish": refinish, "hold": hold}
+         "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
 
 
 

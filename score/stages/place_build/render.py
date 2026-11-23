@@ -26,7 +26,8 @@ BLENDER = pathlib.Path(os.environ.get(
     "SCORE_BLENDER", pathlib.Path.home() / ".farm-factory-props/blender-mcp/blender-5.2.2/blender"))
 # Exit 127: the Blender could not start, a library it links missing.
 UNLINKED = 127
-WIDTH = 768  # the preview's pixels across
+# The preview's pixels across (the 2099 judge, 2026-11-23: at 768 a place's faults went unseen; a judge reads 1920).
+WIDTH = 1920
 FINAL_SIZE = (1920, 1080)  # a final render's pixels (owner, 2026-11-16: final views at 1920x1080), whatever the concept's aspect
 FREE_GB = 12  # a Blender starts only with more memory than this available
 MEMORY = "8G"  # its scope's cap
@@ -123,6 +124,13 @@ def queued(job, script, arguments, card=True, seconds=None, card_gb=CARD_GB, mem
             "--priority", "other", "--", *scoped]
 
 
+def plan_views(folder):
+    """The names of the place's views its plan gave (plan_fit.VIEW_PREFIX), in order."""
+    from score.stages.place_build import plan_fit
+    return sorted(name for name in place_build.record_of(folder).get("views", {})
+                  if name.startswith(plan_fit.VIEW_PREFIX))
+
+
 def unlinked_hint(code):
     """The fix named for a Blender that could not start for a missing library (exit UNLINKED), else nothing."""
     if code != UNLINKED:
@@ -132,7 +140,10 @@ def unlinked_hint(code):
 
 
 def render(folder, width=WIDTH, names=(), final=False):
-    """The preview rendered and copied beside the concept, and each named view in `names` as <folder>/view-<name>.png."""
+    """The preview rendered and copied beside the concept, and each named view in `names` as <folder>/view-<name>.png;
+    with no names asked, the plan's views (plan_fit.views, taken in with the plan), so a place is never judged from
+    one camera."""
+    names = list(names) or plan_views(folder)
     free = available_gb()
     if free <= FREE_GB:
         raise RenderFailed(f"{free:.1f} GB memory available, a Blender needs over {FREE_GB}")

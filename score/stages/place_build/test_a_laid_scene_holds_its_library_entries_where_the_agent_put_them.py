@@ -125,6 +125,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   Blender that cannot find libSM (exit 127), and the failure names no fix
 - place_build.layered: the layer mark left off -> the monitor's glow is no part and its screen takes no surface
 - measure.lab: a and b read unsigned -> the concept's blue reads yellow (b over 0)
+- measure.lightness: the render's L* read off the concept -> a white render beside a black concept reads as dark
 - scene_package.enclosure_at: the hull's planes read inward (`>= -1e-6`) -> the lock's doors open between nothing and
   it is no chamber
 - scene_package.doors_of: `None in door["between"]` read for inner doors too -> the porch door reads as an outer door
@@ -877,6 +878,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
     assert measure.lab(Image.open(folder / "concept.png").convert("RGB"))[0, 0, 2] < -40
+    assert measure.lightness(Image.new("RGB", (4, 4)), Image.new("RGB", (4, 4), (255, 255, 255)),
+                             np.ones((4, 4), dtype=bool)) == {"concept": 0.0, "render": 100.0}
     assert Image.open(compared["picture"]).size == (3 * measure.PANEL, measure.PANEL // 2)
     built = place_build.blocks(folder, "kerb", [[0, 0, 0, 2, 0.15, 0.3, "kerb"], [0, 0, 0.3, 2, 0.004, 0.5, "line"]],
                                at=(50, 0, 50))

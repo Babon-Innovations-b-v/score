@@ -11,6 +11,9 @@ with no red, an object the render lacks).
 - objects: each concept object's word, box and `covered` (the share of its mask the render's silhouette covers),
   least covered first.
 - colour: the mean CIE76 difference of the two pictures over a GRID of cells, and each cell's, row by row.
+- lightness: the mean CIE L* (0 black .. 100 white) of the concept and of the render over the render's silhouette,
+  so a place lit or exposed far brighter than its concept (the 2099 judge, 2026-11-23: the engineroom's gunmetal
+  palette read near white under its lamps) shows as a number, apart from its palette's colours.
 """
 import json
 import pathlib
@@ -89,6 +92,13 @@ def colour_cells(concept, render, grid=GRID):
     return {"mean": round(float(difference.mean()), 1), "cells": cells}
 
 
+def lightness(concept, render, silhouette):
+    """The mean L* of the concept and of the render over the silhouette (the whole picture when it is empty)."""
+    where = silhouette if silhouette.any() else np.ones_like(silhouette)
+    return {"concept": round(float(lab(concept)[..., 0][where].mean()), 1),
+            "render": round(float(lab(render)[..., 0][where].mean()), 1)}
+
+
 def overlay(concept, silhouette, masks):
     """The concept dimmed, the render's silhouette tinted red over it, each object's outline green."""
     shown = concept * DIM
@@ -120,4 +130,5 @@ def compare(folder):
     union = np.logical_or.reduce(masks) if masks else None
     side_by_side([rgb(concept), rgb(render), overlay(rgb(concept), silhouette, masks)], folder / "compare.png")
     return {"picture": str(folder / "compare.png"), "layout_iou": iou(union, silhouette) if masks else None,
-            "objects": coverage(objects, masks, silhouette), "colour": colour_cells(concept, render)}
+            "objects": coverage(objects, masks, silhouette), "colour": colour_cells(concept, render),
+            "lightness": lightness(concept, render, silhouette)}

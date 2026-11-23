@@ -84,6 +84,12 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   to its high-pressure side (scene_package.locks_of: the outer one into the chamber, the inner one out of it to the
   base); ready.opening is the one answer to how a door opens, read alike by the walkers' floor, walker_route's door
   times, the film and the scene package's `door` block.
+- **The plan** (plan_fit/, its own overlay; the 2099 judge, 2026-11-23): `plan` takes the place-plan in; `check`
+  tells a room bigger than its plan, a plan item missing, stood in for by blocks or at the wrong scale, and a wall
+  dressing the plan names left bare (ready.json `plan`); `dress` lays a library piece along a plan wall or over the
+  floor as that dressing. The render previews at 1920 wide (render.WIDTH) with the plan's views when none is asked,
+  and `compare` gives the concept's and the render's lightness (mean L*): a place lit far brighter than its concept
+  reads its dark palette as white (engineroom@7: L* 55 against 24, its gunmetal recipes drawn exactly).
 - **Named views** (`view`, `render --views a,b`): inside and low views beside the concept's, their look only. A
   named view sees the building closed; `view --cut` makes it see through place.json `cut` as the concept's does
   (render.views gives each view its own `cut`, blender_views.view_cut applies it per view).
