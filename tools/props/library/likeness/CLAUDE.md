@@ -37,8 +37,8 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   family drawn see-through), so a see-through plastic fails only where its tint or frost differs.
 - **The adopted set's missing families** (2026-11-23, from the first run's diagnosis): `mat` (studs or ribs on a
   grid: "_mat_", "matsurface", "fluted", "antislip", "lined", "_line_", or a rubber whose relief is a grid,
-  `PERIODIC_SHARE`), `strand_board` (OSB and HDF flakes), `knit` (a blanket's loops), `hammered` (a plastic whose
-  relief stands wider than `HAMMER_FROM`) and a printed check on `cloth` (its albedo's print a grid). A mat's ribs or
+  `PERIODIC_SHARE`), `strand_board` (OSB and HDF flakes), `knit` (a blanket's loops), `hammered` (by its name alone:
+  a relief's half width read 39 plastics' slow swells as dents, so the grainy black plastic stays plastic) and a printed check on `cloth` (its albedo's print a grid). A mat's ribs or
   studs and their width come from its relief's anisotropy and raised share, a check's pitch, line and colour from its
   albedo's period, off-median area and colour.
 - `measure.py` compares the two renders view by view (cell colour difference, lightness histogram, highlight, detail

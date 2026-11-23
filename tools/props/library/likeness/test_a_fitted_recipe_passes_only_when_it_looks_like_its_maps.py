@@ -47,8 +47,8 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
   way its slopes run (studs), half its texels raised, so a round stud sqrt(4 x 0.5 / pi) = 0.7979 of its pitch; at
   0.05 texels high its slopes' rms is about 0.05 x 2 pi / 16 / 2 = 0.01, under 0.02: no relief, a rubber;
 - the strand board's flakes are the relief row's 0.012 m features (within 4 times its 0.02 default); the knit's
-  stitch its 0.016 m period; the hammered plastic's features, 12 texels of a 0.32 m tile, 0.06 m, wider than
-  0.032, drawn at its dents' largest size 4 x 0.01 = 0.04;
+  stitch its 0.016 m period; the hammered plastic's features, 12 texels of a 0.32 m tile, 0.06 m, drawn at its
+  dents' largest size 4 x 0.01 = 0.04;
 - the printed check is lines of sRGB 60 (linear 0.0452, L 25.4, over 10 L off its ground's 50) 2 texels wide every
   16: a period of 0.016 m, an area of 1 - (14 / 16)^2 = 0.2344, so lines 0.016 x (1 - sqrt(1 - 0.2344)) = 0.002 wide;
 - sRGB (150, 104, 112) is Lab (48.95, 19.66, 2.96), 19.9 from sRGB 119's (50.0, 0, 0): over the check's 10, while its
@@ -109,9 +109,8 @@ Breaks of the see-through view and the new families (each applied once, seen red
   and roughness dropped (its constants'), or see_through_of's transmission 0 (it stops all light: plastic).
 - fit.opacity_of: the threshold ignored (the opacity map row stops 0.6255).
 - fit.FAMILY_WORDS without "lined", "osb" or "blanket" (the ribs row rubber, the strand board grained wood, the
-  knit cloth); fit.family_of's MOULDED rule dropped (the studs row rubber), or its relief test (the near flat
-  rubber a mat), or its HAMMER_FROM rule (the hammered
-  row plastic), or its HEIGHT_FLOOR (the three flat or unintegrable plastic rows hammered).
+  knit cloth, "hammer" the hammered row plastic); fit.family_of's MOULDED rule dropped (the studs row rubber), or
+  its relief test (the near flat rubber a mat).
 - fit.studs: ribs always 0 (the ribs row studs), or a stud's share its area (the studs row 0.5); fit.period_of
   averaged evenly (the ribs row's pitch 0.04); fit.spec_of's check_print dropped (the printed cloth's check 0).
 - measure.view_measures: `detail = 1.0` always (the flat recipe beside striped maps passes).
@@ -439,10 +438,10 @@ ROWS = [
      {"albedo.png": solid((119,) * 3), "normal.png": bumps(2.0, 16)},
      {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.064},
      (solid((119,) * 3), solid((119,) * 3)), {"recipe": "knit", "family_from": "name", "size": 0.016}),
-    ("a plastic whose relief is wider than any mould grain is hammered", "m_opaque_plastic_grainy_black_a01",
+    ("a hammered plastic's dents, at their largest size", "m_opaque_plastic_hammered_black_a01",
      {"albedo.png": solid((119,) * 3), "normal.png": bumps(2.0, 16)},
      {"maps": {"albedo": "albedo.png", "normal": "normal.png"}, "tile_metres": 0.32},
-     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "hammered", "family_from": "measures", "size": 0.04}),
+     (solid((119,) * 3), solid((119,) * 3)), {"recipe": "hammered", "family_from": "name", "size": 0.04}),
     ("a cloth's printed check: lines at the print's period, as wide as its area, in its colour",
      "m_opaque_fabric_body_b01", {"albedo.png": printed_grid(119, 60, 16, 2)},
      {"maps": {"albedo": "albedo.png"}, "tile_metres": 0.064}, (solid((119,) * 3), solid((119,) * 3)),

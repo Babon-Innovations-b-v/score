@@ -127,11 +127,6 @@ BLOOM_MIDDLE, BLOOM_PER_WEAR, BLOOM_SPREAD = 0.75, 0.3, 0.1
 # A relief or a print is a grid when its spectrum's strongest frequency holds over this share of its power along each
 # axis (periodic_share), set from the set's own maps (2026-11-23, see PERIODIC_SHARE's note below its use).
 PERIODIC_SHARE = 0.25
-# A plastic whose relief features are wider than this (metres) is hammered: four times plastic's largest grain
-# (SIZE_RANGE x its default 0.002), past which a mould's grain is not what its maps show.
-HAMMER_FROM = 0.032
-# A relief whose height spread is under this (metres, a micrometre) stands nowhere: its features are no size.
-HEIGHT_FLOOR = 1e-6
 # A mat's relief whose slopes run one way by over this (anisotropy) is ribbed; a stud's width share kept within range.
 RIBBED = 0.5
 STUD_SHARE_RANGE = (0.2, 0.9)
@@ -485,9 +480,9 @@ def family_of(name, measured):
     glass drew no light beside its map side's glow); one that lets light through (its opacity under 1) is glass, the
     one family drawn see-through (a clear plastic fitted as plastic was opaque beside its maps' see-through pane); a
     moulded rubber with relief (RELIEF_SLOPE) that is a grid (periodic_share over PERIODIC_SHARE: a near flat
-    map's faint repeat is no grid, three glossy rubbers' 0.72) is a mat, a plastic whose relief stands
-    (over HEIGHT_FLOOR) wider than HAMMER_FROM hammered (a flat map's relief, or slopes that integrate to no height,
-    read as one tile-wide feature)."""
+    map's faint repeat is no grid, three glossy rubbers' 0.72) is a mat. A hammered finish is by its name alone:
+    its dents' size is not read from the maps (a relief's half width read 39 plastics' slow swells, 0.1 to 3 m, as
+    dents, 2026-11-23)."""
     lowered = name.lower()
     said = next((family for word, family in FAMILY_WORDS if word in lowered), None)
     if measured.get("glow", 0.0) > 0 and said != "glowing":
@@ -503,9 +498,6 @@ def family_of(name, measured):
             if family in MOULDED and measured.get("slope_rms", 0.0) > RELIEF_SLOPE and \
                     measured.get("periodic_share", 0.0) > PERIODIC_SHARE:
                 return "mat", "measures"
-            if family == "plastic" and measured.get("height", 0.0) > HEIGHT_FLOOR and \
-                    (measured.get("feature_metres") or 0.0) > HAMMER_FROM:
-                return "hammered", "measures"
             return family, "name"
     if measured["metal"] > METAL_MEAN:
         return metal_by_roughness(measured), "measures"
