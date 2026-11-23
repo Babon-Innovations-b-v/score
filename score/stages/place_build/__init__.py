@@ -92,6 +92,7 @@ CAMERA = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -1.0], "fov": 60.0}
 # The roles of an entry's file that can be laid in a scene, first found wins; a glTF one is converted (gltf.py).
 USD_ROLES = ("usd",)
 UNITS = "xformOp:scale:units"  # a laid asset's unit scale op (unit_scaled), after the scale the agent chose
+UPRIGHT = "xformOp:rotateX:upAxis"  # a laid asset's up-axis turn (uprighted), after its unit scale
 ROOTED_KINDS = ("effect", "model")  # the kinds whose record's `usd.root` names the file to lay
 GLTF_ROLES = ("gltf", "web3d")
 # A character's body group shown by default (its others made invisible), the first it has: the made body, the suit;
@@ -378,7 +379,7 @@ def opened(folder):
 
 def posed(prim, at, turn, scale):
     """The prim's transform set to translate `at`, rotateXYZ `turn` (degrees) and `scale`, in that order of ops, and
-    after them its asset's unit scale (`UNITS`) when it has one."""
+    after them its asset's unit scale (`UNITS`) and up-axis turn (`UPRIGHT`) when it has them."""
     xform = UsdGeom.Xformable(prim)
     xform.ClearXformOpOrder()
     xform.AddTranslateOp().Set(Gf.Vec3d(*at))
@@ -386,6 +387,8 @@ def posed(prim, at, turn, scale):
     xform.AddScaleOp().Set(Gf.Vec3f(*scale))
     if prim.HasAttribute(UNITS):
         xform.AddScaleOp(opSuffix="units")
+    if prim.HasAttribute(UPRIGHT):
+        xform.AddRotateXOp(opSuffix="upAxis")
 
 
 def unit_scaled(prim, metres_a_unit):
@@ -397,6 +400,19 @@ def unit_scaled(prim, metres_a_unit):
     else:
         prim.CreateAttribute(UNITS, Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(metres_a_unit, metres_a_unit,
                                                                            metres_a_unit))
+
+
+def uprighted(prim, up_axis):
+    """The prim's up-axis turn (`UPRIGHT`) set from its asset's up axis (its record's usd.up_axis, Y when it names
+    none) to its scene's: -90 degrees about X stands a Z-up asset (an adopted SimReady model) up in a Y-up scene, +90
+    the other way, removed when they agree. Its own op, applied to the asset first, so the agent's turn, the rest, the
+    footprint and the support all work on the upright asset; a turn weighs no mass."""
+    turn = {("Z", "Y"): -90.0, ("Y", "Z"): 90.0}.get(((up_axis or "Y").upper(),
+                                                      str(UsdGeom.GetStageUpAxis(prim.GetStage())).upper()))
+    if turn is None:
+        prim.RemoveProperty(UPRIGHT)
+    else:
+        prim.CreateAttribute(UPRIGHT, Sdf.ValueTypeNames.Float).Set(turn)
 
 
 def units_of(prim):
@@ -426,7 +442,8 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
     if on_ground:
         at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
     relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground,
-                              float((record.get("usd") or {}).get("meters_per_unit") or 1.0))
+                              float((record.get("usd") or {}).get("meters_per_unit") or 1.0),
+                              (record.get("usd") or {}).get("up_axis"))
     laid = {"name": name, "address": address, "usd": relative}
     layers = layered(stage, path, folder, asset, record, copied)
     if layers:
@@ -575,16 +592,18 @@ def rested(stage, path, at, turn, scale):
     return spot
 
 
-def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metres_a_unit=1.0):
+def laid_reference(stage, path, folder, asset, address, kind, pose, ground, metres_a_unit=1.0, up_axis=None):
     """The prim at `path` referencing `asset` (a file in the place folder), posed (at, turn, scale), its asset's
-    units brought to metres (`unit_scaled`: an adopted model authored in centimetres) and carrying its library
-    address, kind and ground mark; the reference as written."""
+    units brought to metres (`unit_scaled`: an adopted model authored in centimetres) and its up axis to the scene's
+    (`uprighted`: an adopted model authored Z-up), and carrying its library address, kind and ground mark; the
+    reference as written."""
     prim = stage.DefinePrim(path)
     prim.SetTypeName("")  # the entry's own type (a character's SkelRoot) composes through, never an Xform over it
     prim.GetReferences().ClearReferences()
     relative = "./" + pathlib.Path(asset).resolve().relative_to(pathlib.Path(folder).resolve()).as_posix()
     prim.GetReferences().AddReference(relative)
     unit_scaled(prim, metres_a_unit)
+    uprighted(prim, up_axis)
     posed(prim, *pose)
     prim.CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set(address)
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(kind)

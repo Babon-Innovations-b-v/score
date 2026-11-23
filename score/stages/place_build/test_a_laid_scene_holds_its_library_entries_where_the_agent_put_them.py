@@ -166,6 +166,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.put: the record's usd.meters_per_unit unread (laid_reference given 1.0) -> the centimetre crate stands
   100 times too big; or place_build.posed's unit op left off -> it does after a snap; or scene_package.mass_of's
   `scale / place_build.units_of(prim)` dropped -> its mass is weighed by the centimetres too (1e-6 of it)
+- place_build.put: the record's usd.up_axis unread (laid_reference given None), or place_build.posed's up-axis op
+  left off -> the Z-up crate's own up lies along the scene's -x after the agent's quarter turn, not up
 - library.replaced_end: the chain left unfollowed (`return address` at once) -> the retired crate is refused
   withdrawn, not laid as the adopted crate
 - place_build.put: an effect laid under Objects -> the wisp is a solid object with no role
@@ -354,7 +356,8 @@ def library(root, files):
                                 "simready_usd/payloads/sm_crate_01_geo.usda": ("usd", base),
                                 "simready_usd/sm_crate_01.usda": ("usd", rooted)})
     for kind, entry_id, written in (("model", "sm_crate", {"usd": {"root": "simready_usd/sm_crate_01.usda",
-                                                                              "meters_per_unit": 0.01}}),
+                                                                              "meters_per_unit": 0.01,
+                                                                              "up_axis": "Z"}}),
                                     ("model", "old_crate", {"state": "withdrawn", "replaced_by": "model/old_box@1"}),
                                     ("model", "old_box", {"state": "withdrawn", "replaced_by": "model/sm_crate@1"}),
                                     ("model", "gone", {"state": "withdrawn", "replaced_by": "model/gone_too@1"}),
@@ -909,12 +912,14 @@ def replaced(tmp_path):
     crate, through a retired box, as the adopted crate laid by its record's usd root (its payloads beside it, one named
     like the root's layers, never laid as a layer), the retired steel as the steel; a chain ending withdrawn refused.
     The adopted crate is authored in centimetres: laid at the agent's scale 2 its unit scale (0.01) is its own op
-    after his, so his scale reads back as 2 and its mass is weighed by 2 cubed alone, never by the centimetres."""
+    after his, so his scale reads back as 2 and its mass is weighed by 2 cubed alone, never by the centimetres; and
+    authored Z-up, its up-axis turn is its own op after that, so its own up stands along the scene's up under his
+    quarter turn about up, before and after a snap."""
     from score.stages.place_build import scene_package
     folder = tmp_path / "replaced"
     Image.new("RGB", (8, 8)).save(tmp_path / "replaced.png")
     place_build.start(folder, "depot", tmp_path / "replaced.png")
-    laid = place_build.put(folder, "crate", "model/old_crate", scale=(2.0, 2.0, 2.0))
+    laid = place_build.put(folder, "crate", "model/old_crate", turn=(0.0, 90.0, 0.0), scale=(2.0, 2.0, 2.0))
     worn = place_build.surface(folder, "crate", "surface/old_steel@1")
     assert (laid["address"], laid["usd"], laid.get("layers")) == (
         "model/sm_crate@1", "./assets/model/sm_crate/1/simready_usd/sm_crate_01.usda", None), laid
@@ -925,12 +930,14 @@ def replaced(tmp_path):
     world = np.asarray(UsdGeom.Xformable(crate).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
     assert place_build.pose_of(crate)[2] == [2.0, 2.0, 2.0] and np.allclose(np.linalg.norm(world[:3, :3], axis=1),
                                                                            0.02), world
+    assert np.allclose(world[2, :3], [0.0, 0.02, 0.0], atol=1e-6), world  # the asset's +Z along the scene's +Y
     with Usd.EditContext(stage, stage.GetSessionLayer()):
         UsdPhysics.MassAPI.Apply(stage.GetPrimAtPath("/depot/Objects/crate/geo")).CreateMassAttr(1.5496)
     assert scene_package.mass_of(folder, crate, 0.02) == round(1.5496 * 8, 4)
-    place_build.snap(folder, "crate")  # posed again: the unit scale kept
-    assert np.allclose(np.linalg.norm(np.asarray(UsdGeom.Xformable(crate).ComputeLocalToWorldTransform(
-        Usd.TimeCode.Default()))[:3, :3], axis=1), 0.02)
+    place_build.snap(folder, "crate")  # posed again: the unit scale and the up-axis turn kept
+    world = np.asarray(UsdGeom.Xformable(crate).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    assert np.allclose(np.linalg.norm(world[:3, :3], axis=1), 0.02) and np.allclose(
+        world[2, :3], [0.0, 0.02, 0.0], atol=1e-6), world
     with pytest.raises(place_build.Refused, match="gone_too@1: withdrawn"):
         place_build.put(folder, "lost", "model/gone")
 
