@@ -8,8 +8,10 @@ docstring; callers import `from tools.props.bench import truth`, never `_pick` o
   commit. A changed rule or kind table is a change to `_pick.KINDS` and a new pick, recorded on #163.
 - **The truth is in the measures' frame** (`../measures`): metres, Z up as NVIDIA authors it (a stage not Z up is
   `Unread`), instances flattened (`Usd.TraverseInstanceProxies`), each payload's variant enabled alone in the session
-  layer (never the cached file). Its `box`, `colliders` and `friction` are the keys the measures read. Only the entry's USD files are
-  fetched (library_files, the library cache), not its maps.
+  layer (never the cached file). Its `box`, `colliders` and `friction` are the keys the measures read. The entry's USD files and its
+  maps are fetched (library_files, the library cache): the maps give each triangle's look (`face_look`, `_look.py`,
+  #172: base colour, metalness and roughness where the triangle lies on NVIDIA's preview surface or OmniPBR maps, and
+  its material's class by sim.py's rule), NaN where it has none, never a guess.
 - **Colliders as the simulator collides**: MuJoCo hulls every mesh geom whatever its approximation; Newton's
   `convexDecomposition` is cut by the simulator at load, so its payload holds only the mesh (`convex` False). A drop
   trial uses the MuJoCo colliders (#155: Newton crashes on a triangle mesh collider; 71 of the 83 author none).

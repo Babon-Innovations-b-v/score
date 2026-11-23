@@ -27,9 +27,16 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _physics.convex calling every piece convex: the ring-shaped mesh collider passes.
 - __init__.held taking a mass ratio one way only: the box at half its mass passes.
 - _finish.finish_likeness ignoring the family: a 30% part of the wrong family passes.
+- _finish.part_look measuring the colour difference in a*b* alone (lightness free): the toaster's body in stainless
+  #e0e0e0 passes its colour, and so does the #484848 body.
+- _finish.carried returning each face's truth material instead of its triangle: every look row reads the wrong faces.
+- _finish.part_look holding every metalness: the metal body passes.
+- _finish.finish_look judging every roughness held: the body rough 0.9 passes.
+- _finish.part_look judging every class the same: the steel body passes.
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
 """
+import functools
 import pathlib
 import sys
 
@@ -149,6 +156,36 @@ def looks(wrong_family_area, wrong_colour_area):
                                                   for area, view, family in rows if area > 0])}
 
 
+# NVIDIA's look on the truth (#172), as the owner's toaster: its sides and floor a dark grey plastic (linear albedo
+# 0.013, sRGB #1d1d1d), its top an aluminium (0.33, metal 0.9). A part's look: linear colour, metal, roughness, class.
+BODY = {"colour": [0.013] * 3, "metal": 0.0, "roughness": 0.24, "class": "plastic"}
+TOP = {"colour": [0.33] * 3, "metal": 0.9, "roughness": 0.3, "class": "aluminium"}
+
+
+def linear(token):
+    """An sRGB hex token's linear grey."""
+    value = int(token[1:3], 16) / 255
+    return [value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4] * 3
+
+
+@functools.cache
+def looked_truth():
+    """(TRUTH wearing NVIDIA's look, BODY sides and TOP top; each of its faces' nearest truth triangle: its own)."""
+    faces = top_material(box())
+    truth_look = {key: np.array([(TOP if face else BODY)[name] for face in faces], dtype=object if key == "class"
+                                else float) for key, name in (("albedo", "colour"), ("metal", "metal"),
+                                                              ("roughness", "roughness"), ("class", "class"))}
+    truth = {**measures.arrays(TRUTH), "face_look": truth_look}
+    return truth, measures._finish.carried(truth, truth["vertices"], truth["faces"])
+
+
+def worn(body, top=TOP):
+    """The finish look of the box made with its two parts in these looks, laid as TRUTH, against looked_truth."""
+    (truth, nearest), faces = looked_truth(), top_material(box())
+    return {"finish": measures._finish.finish_look(truth, truth["vertices"], truth["faces"], faces, nearest,
+                                                   {0: {**BODY, **body}, 1: {**TOP, **top}})}
+
+
 def dropped(made_turn):
     """The two drops' rests: the truth stays as laid, the made one turned `made_turn` degrees about X."""
     motion = trimesh.transformations.rotation_matrix(np.radians(made_turn), (1, 0, 0))
@@ -201,6 +238,15 @@ CASES = [
     ("friction 0.7 for 0.5", lambda: made(box(), friction=0.7), "physics.friction_gap", False),
     ("a 30% part of the wrong family", lambda: looks(0.3, 0.0), "likeness.alike", False),
     ("a 10% part too far in colour", lambda: looks(0.0, 0.1), "likeness.alike", True),
+    ("each part in its matching surface", lambda: worn({}), "finish.colour", True),
+    ("the toaster's body in stainless #e0e0e0", lambda: worn({"colour": linear("#e0e0e0"), "metal": 1.0,
+                                                              "roughness": 0.16, "class": "metal"}),
+     "finish.colour", False),
+    ("its body a #282828 plastic for #1d1d1d", lambda: worn({"colour": linear("#282828")}), "finish.colour", True),
+    ("its body a #484848 plastic for #1d1d1d", lambda: worn({"colour": linear("#484848")}), "finish.colour", False),
+    ("its body metal", lambda: worn({"metal": 1.0}), "finish.metal", False),
+    ("its body rough 0.9 for 0.24", lambda: worn({"roughness": 0.9}), "finish.roughness", False),
+    ("its body steel for plastic", lambda: worn({"class": "metal"}), "finish.class", False),
     ("a step that flattened it by 10%", lambda: flattened(0.1), "steps.chamfer_change", False),
     ("the drop that laid it on its side", lambda: dropped(90), "drop.rest_up", False),
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),

@@ -1,5 +1,6 @@
 """The truth of an adopted model is the model as NVIDIA stands it (metres, Z up, its instances flattened, each triangle's
-material and library surface, its rigid bodies' mass, each payload's colliders as its simulator collides with them,
+material and library surface, each triangle's look on NVIDIA's material (#172), its rigid bodies' mass, each
+payload's colliders as its simulator collides with them,
 its physics material and friction), and the set is #162's rule.
 
 The fixture is a tiny library (SCORE_LIB_ROOT for the records, SCORE_LIB_FILES for the files): one adopted model
@@ -9,6 +10,9 @@ authored Z-up in centimetres, and a dozen records for the rule. Its model, worke
   the rest to the mesh's `paint`), colliding by its convex hull, mass 2 on the mesh. `Body2` is a 10 cm cube at the
   origin, its own body mass 5 over its mesh's 1, drawn with `plain` (no library surface); its collider authors
   convexDecomposition under Newton (its variant) and no approximation under MuJoCo.
+- Looks (#172): the shell's paint is a UsdPreviewSurface whose colour is a 2 x 2 sRGB map read at (0.25, 0.75), its
+  top left texel (188, 0, 0): linear 0.5029 red, metal 0 (the fallback), roughness 0.6; its metal a constant grey 0.5,
+  metal 1, roughness 0.2, of class metal by its name (m_opaque__metal__...); `plain` has no shader: NaN.
 - In metres, Z up: x 0 to 5, y 0 to 2, z 0 to 0.5. Volume 1.0 + 0.5 + 0.001 = 1.501
   m^3 (positive: outward wound). Triangles: paint 12, metal 12, the cube's 12. Mass 2 + 5 = 7 (a body's own mass wins).
 - Colliders: the shell's hull is [3, 5] x [0, 2] x [0, 0.5], 2.0 m^3 (its mesh is 1.5); under Newton the cube is
@@ -27,7 +31,8 @@ never turned for a left-handed mesh (volume, colliders), material subsets ignore
 preferred (mass), the friction not weighted by collider volume (friction), the payload variants not set (colliders),
 MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton (colliders), the salt changed (box
 picks), the stem skip dropped (box picks), a surface's `painted_for` tag not read (one model), the newest version not taken (box picks), the overlap targets' stems
-not taken first (desk picks).
+not taken first (desk picks); in `_look.py` the sRGB map not made linear, v not turned up (the bottom row read) and
+the class not read from the material's name (looks).
 """
 import json
 import pathlib
@@ -58,6 +63,9 @@ def Xform "Part"
         point3f[] points = [{points(SHELL_POINTS)}]
         int[] faceVertexCounts = [{", ".join(["4"] * 12)}]
         int[] faceVertexIndices = {BOX_QUADS + [index + 8 for index in BOX_QUADS]}
+        texCoord2f[] primvars:st = [{", ".join(["(0.25, 0.75)"] * 24 + ["(0.75, 0.25)"] * 24)}] (
+            interpolation = "faceVarying"
+        )
         rel material:binding = </Part/Looks/paint>
         uniform token physics:approximation = "convexHull"
         float physics:mass = 2
@@ -66,7 +74,7 @@ def Xform "Part"
             uniform token elementType = "face"
             uniform token familyName = "materialBind"
             int[] indices = [6, 7, 8, 9, 10, 11]
-            rel material:binding = </Part/Looks/metal>
+            rel material:binding = </Part/Looks/m_opaque__metal__shell>
         }}
     }}
     def Scope "Looks"
@@ -74,10 +82,34 @@ def Xform "Part"
         def Material "paint"
         {{
             custom uniform string score:surface = "surface/paint@1"
+            token outputs:surface.connect = </Part/Looks/paint/surface.outputs:surface>
+            def Shader "surface"
+            {{
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor.connect = </Part/Looks/paint/map.outputs:rgb>
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }}
+            def Shader "map"
+            {{
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @./paint.png@
+                token inputs:sourceColorSpace = "sRGB"
+                float3 outputs:rgb
+            }}
         }}
-        def Material "metal"
+        def Material "m_opaque__metal__shell"
         {{
             custom uniform string score:surface = "surface/metal@1"
+            token outputs:surface.connect = </Part/Looks/m_opaque__metal__shell/surface.outputs:surface>
+            def Shader "surface"
+            {{
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.5, 0.5, 0.5)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.2
+                token outputs:surface
+            }}
         }}
     }}
 }}
@@ -183,7 +215,11 @@ RECORDS = [record("simready_box_tall_a01"), record("simready_box_blue_a01"), rec
            record("simready_desk_a02", classes=("desk",)), record("simready_desk_oak_a01", classes=("desk",)),
            record("old_desk_1", state="withdrawn", replaced_by="model/simready_desk_a01@1"),
            record("simready_shell_a01", classes=("thing",),
-                  files={"root.usda": {"role": "usd"}, "geometry.usda": {"role": "usd"}})]
+                  files={"root.usda": {"role": "usd"}, "geometry.usda": {"role": "usd"},
+                         "paint.png": {"role": "texture"}})]
+# The paint's map, 2 x 2 texels, sRGB: its top row (v 0.5 to 1) dark red then blue, its bottom row green then white.
+# The shell's paint quads read it at (0.25, 0.75): the top left, sRGB 188 red, linear 0.5029.
+PAINT_TEXELS = [[(188, 0, 0), (0, 0, 255)], [(0, 255, 0), (255, 255, 255)]]
 
 
 @pytest.fixture(scope="module")
@@ -201,6 +237,8 @@ def made(tmp_path_factory):
     model.mkdir(parents=True)
     (model / "root.usda").write_text(ROOT)
     (model / "geometry.usda").write_text(GEOMETRY)
+    from PIL import Image
+    Image.fromarray(np.array(PAINT_TEXELS, dtype=np.uint8)).save(model / "paint.png")
     patch = pytest.MonkeyPatch()
     patch.setenv("SCORE_LIB_ROOT", str(root))
     patch.setenv("SCORE_LIB_FILES", str(files))
@@ -213,6 +251,20 @@ def made(tmp_path_factory):
 def materials(found):
     return {found["materials"][index]["surface"] if index >= 0 else "unbound": int(count)
             for index, count in zip(*np.unique(found["face_material"], return_counts=True))}
+
+
+def looks(found):
+    """{surface: (its faces' albedo, metal, roughness, as read; its class)}, NaN read as None."""
+    look = found["face_look"]
+    held = {}
+    for index, item in enumerate(found["materials"] + [None]):
+        faces = np.asarray(found["face_material"]) == (index if item else -1)
+        if not faces.any():
+            continue
+        values = [sorted({None if np.isnan(value) else round(float(value), 4) for value in look[key][faces].ravel()})
+                  for key in ("albedo", "metal", "roughness")]
+        held[item["surface"] if item else "unbound"] = (*values, sorted({str(name) for name in look["class"][faces]}))
+    return held
 
 
 def colliders(found):
@@ -233,6 +285,9 @@ ROWS = [
     ("materials", lambda found, picks: materials(found), {"surface/paint@1": 12, "surface/metal@1": 12, None: 12}),
     ("one model", lambda found, picks: {item["surface"]: item["one_model"] for item in found["materials"]},
      {"surface/paint@1": False, "surface/metal@1": True, None: False}),
+    ("looks", lambda found, picks: looks(found),
+     {"surface/paint@1": ([0.0, 0.5029], [0.0], [0.6], ["None"]),
+      "surface/metal@1": ([0.5], [1.0], [0.2], ["metal"]), None: ([None], [None], [None], ["None"])}),
     ("mass", lambda found, picks: (found["mass"], [body["mass"] for body in found["bodies"]]), (7.0, [2.0, 5.0])),
     ("colliders", lambda found, picks: colliders(found),
      {"newton": [("convexHull", True, 2.0), ("convexDecomposition", False, 0.001)],

@@ -61,6 +61,10 @@ BARS = (
     ("finish", "held_least", "least", 0.50),
     ("finish", "purity", "least", 0.85),
     ("finish", "parts_per_material", "most", 2.0),
+    ("finish", "colour", "least", 0.90),
+    ("finish", "metal", "least", 0.90),
+    ("finish", "roughness", "least", 0.90),
+    ("finish", "class", "least", 0.90),
     ("likeness", "alike", "least", 0.80),
     ("physics", "mass_ratio", "ratio", 1.5),
     ("physics", "colliders", "least", 1),
@@ -170,7 +174,11 @@ def measured(truth, made, others=(), input_view=None):
              "truth_clean": _clean.cleanliness(truth["vertices"], truth["faces"]),
              "truth_sides": (truth["vertices"].max(0) - truth["vertices"].min(0)).tolist()}
     if made.get("face_material") is not None:
-        found["finish"] = _finish.finish_split(truth, placed, made["faces"], made["face_material"])
+        nearest = _finish.carried(truth, placed, made["faces"])
+        found["finish"] = _finish.finish_split(truth, placed, made["faces"], made["face_material"], nearest)
+        if made.get("looks") is not None and truth.get("face_look") is not None:
+            found["finish"].update(_finish.finish_look(truth, placed, made["faces"], made["face_material"], nearest,
+                                                       made["looks"]))
     if truth.get("colliders"):
         found["physics"] = _physics.physics(truth, made)
     return found

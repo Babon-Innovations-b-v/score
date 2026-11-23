@@ -23,6 +23,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.weighed_step: a part's surface class not read (the given class for every part) -> the plastic box touches
   with metal's 0.3; its parts' words not asked -> the ask does not name the grey plastic
 - finish.same_family: a truth surface with no family counted as a mismatch -> its share is 0.0, not unjudged
+- finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
+  the listed roughness 0.4; its class not read -> the box's look has no class
 """
 import json
 import math
@@ -146,6 +148,8 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
     side = bench.made_side(model, tmp_path / "physics", folder, name)
     taken = sim.surface_class(held[side["surfaces"][0]])
     assert (side["mass"], side["friction"]) == (2.0, sim.material(taken)["static"]) and taken != "metal"
+    assert {(look["class"], tuple(np.round(look["colour"], 4)), look["roughness"]) for look in side["looks"].values()} \
+        <= {(taken, tuple(np.round(finish.linear_of(token), 4)), 0.4) for token in library[1]["tokens"]}, side["looks"]
     assert "grey plastic" in asked[0]["contents"][0]["parts"][-1]["text"]
     from tools.props.bench import measures
     split = measures.measured({**side, "face_material": np.zeros(len(side["faces"]), int),

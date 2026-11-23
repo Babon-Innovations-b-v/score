@@ -27,6 +27,13 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
 - **The Newton drop runs in the runner** (tools/usd/drop.py on the truth's and the made model's convex colliders;
   #155: a triangle-mesh collider crashes Newton); `rested` compares the two rests. Finish likeness needs each matched
   pair drawn by tools/props/library/likeness; `finish_likeness` judges those measures.
+- **The finish is judged on what each group got, not only the grouping** (#172, owner 2026-11-23: tc2's toaster body
+  passed finish 4/4 in stainless #e0e0e0 where NVIDIA's is dark grey). Each made face carries its nearest truth
+  triangle (`_finish.carried`), so each counted part is held to NVIDIA's look on its own faces (the truth's
+  `face_look`, read off NVIDIA's maps): colour (CIE76 delta E of its surface's token from NVIDIA's albedo mean,
+  `COLOUR_REACH`), metal or not (`METAL_REACH`), roughness (`ROUGHNESS_REACH`), class (sim.py's); `finish.colour`,
+  `metal`, `roughness` and `class` are the area shares held. The made side's `looks` are its parts' settings as the
+  route set them (bench/run finish.part_looks); a calibration copy wears its finishes' own library surfaces.
 - Not measured yet: self-intersecting faces (no free exact test at a million faces); the route's own checks
   (straight.py, the model gate's pass, sausage and lump) run in the calibration pass, not here.
 - Check: `test_a_made_model_passes_only_where_it_matches_its_truth.py`, one table of made models against one small

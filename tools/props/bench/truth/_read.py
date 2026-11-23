@@ -19,6 +19,8 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "tools/library"))
 import library_files  # noqa: E402
 
+from tools.props.bench.truth import _look  # noqa: E402
+
 SURFACE = "score:surface"  # the library surface a material names (score_lib's take-in writes it)
 SHOWN = ("default", "render")  # the purposes of a mesh that is drawn
 SIMULATORS = {"newton": "Newton", "mujoco": "MuJoCo"}  # the payloads read: {key: its variant set on the root}
@@ -27,6 +29,7 @@ MESHED = ("none", "convexDecomposition", "meshSimplification", "sdf")  # Newton 
 FRICTION = {"static_friction": "physics:staticFriction", "dynamic_friction": "physics:dynamicFriction",
             "restitution": "physics:restitution", "density": "physics:density"}
 OWN_PREFIXES = ("newton:", "mjc:")  # a physics material's simulator-own settings, kept as they are
+FETCHED = ("usd", "texture")  # the entry's files read: its stages, and its maps for each face's look (_look)
 
 
 class Unread(RuntimeError):
@@ -34,7 +37,7 @@ class Unread(RuntimeError):
 
 
 def fetched_root(address):
-    """The entry's root USD file in the library cache, its other USD files fetched beside it."""
+    """The entry's root USD file in the library cache, its other USD files and its maps (FETCHED) fetched beside it."""
     kind, rest = address.split("/", 1)
     entry_id, version = rest.split("@")
     root = library.root_from_environment() or library_files.default_root()
@@ -44,7 +47,7 @@ def fetched_root(address):
         raise Unread(f"{address}: its record names no USD root among its files")
     found = {}
     for name, info in record["files"].items():
-        if info.get("role") == "usd":
+        if info.get("role") in FETCHED:
             path = library_files.resolve(library_files.reference(address, name))
             if path is None:
                 raise Unread(f"{address}/{name}: the library does not hold this file")
@@ -82,23 +85,24 @@ def placed_points(prim, turn):
 
 
 def triangles(prim, matrix):
-    """(the mesh's polygons fanned into triangles (T, 3), each triangle's polygon index (T,)), wound so their normals
-    point out after `matrix` (a left-handed mesh or a mirroring transform turned over)."""
+    """(the mesh's polygons fanned into triangles (T, 3), each triangle's polygon index (T,), each corner's face-vertex
+    slot (T, 3): where a face-varying primvar holds it), wound so their normals point out after `matrix` (a
+    left-handed mesh or a mirroring transform turned over)."""
     mesh = UsdGeom.Mesh(prim)
     counts = np.asarray(mesh.GetFaceVertexCountsAttr().Get() or [], dtype=np.int64)
     corners = np.asarray(mesh.GetFaceVertexIndicesAttr().Get() or [], dtype=np.int64)
     if not len(counts):
-        return np.zeros((0, 3), dtype=np.int64), np.zeros(0, dtype=np.int64)
+        return np.zeros((0, 3), dtype=np.int64), np.zeros(0, dtype=np.int64), np.zeros((0, 3), dtype=np.int64)
     starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
     fans = np.clip(counts - 2, 0, None)
     polygon = np.repeat(np.arange(len(counts)), fans)
     step = np.arange(len(polygon)) - np.repeat(np.cumsum(fans) - fans, fans)
     first = starts[polygon]
-    faces = np.stack([corners[first], corners[first + step + 1], corners[first + step + 2]], axis=1)
+    slots = np.stack([first, first + step + 1, first + step + 2], axis=1)
     mirrored = np.linalg.det(matrix[:3, :3]) < 0
     if (mesh.GetOrientationAttr().Get() == UsdGeom.Tokens.leftHanded) != mirrored:
-        faces = faces[:, ::-1]
-    return faces, polygon
+        slots = slots[:, ::-1]
+    return corners[slots], polygon, slots
 
 
 def polygon_materials(prim, count, materials):
@@ -127,16 +131,18 @@ def shown(prim):
 
 
 def visual(stage):
-    """(vertices, faces, face_material, materials, face_prim, prims) of every drawn mesh, instances flattened."""
+    """(vertices, faces, face_material, materials, face_prim, prims, face_uv) of every drawn mesh, instances
+    flattened; face_uv (T, 3, 2) each triangle's corners' texture coordinates (_look.corner_uvs, NaN without)."""
     turn = upright_turn(stage)
-    vertices, faces, face_material, face_prim, materials, prims = [], [], [], [], [], []
+    vertices, faces, face_material, face_prim, materials, prims, face_uv = [], [], [], [], [], [], []
     offset = 0
     for prim in Usd.PrimRange(stage.GetDefaultPrim(), Usd.TraverseInstanceProxies()):
         if not shown(prim):
             continue
         points, matrix = placed_points(prim, turn)
-        triangle, polygon = triangles(prim, matrix)
+        triangle, polygon, slots = triangles(prim, matrix)
         counts = UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get() or []
+        face_uv.append(_look.corner_uvs(prim, triangle, polygon, slots))
         vertices.append(points)
         faces.append(triangle + offset)
         face_material.append(polygon_materials(prim, len(counts), materials)[polygon])
@@ -146,7 +152,7 @@ def visual(stage):
     if not prims:
         raise Unread(f"{stage.GetRootLayer().identifier}: no drawn mesh")
     return (np.concatenate(vertices), np.concatenate(faces), np.concatenate(face_material), materials,
-            np.concatenate(face_prim), prims)
+            np.concatenate(face_prim), prims, np.concatenate(face_uv))
 
 
 def described(stage, path, painted=()):
@@ -283,7 +289,7 @@ def read(address):
     """The truth of the adopted model at `address` (`model/<id>@<version>`), as `truth/__init__.py` names it."""
     record, path = fetched_root(address)
     stage = opened(path)
-    vertices, faces, face_material, materials, face_prim, prims = visual(stage)
+    vertices, faces, face_material, materials, face_prim, prims, face_uv = visual(stage)
     bodied = opened(path, SIMULATORS["mujoco"])
     bodies, mass = rigid(bodied)
     physics, shapes = {}, {}
@@ -296,6 +302,7 @@ def read(address):
             "words": list(tags.get("description") or []), "wikidata_class": list(tags.get("wikidata_class") or []),
             "vertices": vertices, "faces": faces, "face_material": face_material, "face_prim": face_prim,
             "prims": prims, "materials": [described(stage, name, painted) for name in materials],
+            "face_look": _look.face_looks(stage, materials, face_material, face_uv),
             "box": [low.tolist(), high.tolist()], "size": (high - low).tolist(),
             "mass": mass, "bodies": bodies, "joints": joints(bodied, bodies),
             "colliders": shapes["mujoco"], "friction": friction(shapes["mujoco"], physics["mujoco"]),

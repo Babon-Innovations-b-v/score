@@ -672,7 +672,7 @@ def usd_side(path):
         if not _read.shown(prim):
             continue
         points, matrix = _read.placed_points(prim, turn)
-        triangles, polygon = _read.triangles(prim, matrix)
+        triangles, polygon, _ = _read.triangles(prim, matrix)
         count = len(UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get() or [])
         vertices.append(points)
         faces.append(triangles + offset)
@@ -691,14 +691,16 @@ def colliders_of(path):
 def made_side(model, physics, finished=None, take=None):
     """A branch's made model as a side, its mass, colliders and friction from its physics step's folder (physics.json
     and hull.glb: A's the physics layer's, B's make's physics on its finished model); each face's material its finish
-    part, with `surfaces` {part: library address}, from its finish step's folder (finish.face_finishes) when it has
-    one, else left out. A part list whose faces are not the model's (another face count) fails."""
+    part, with `surfaces` {part: library address} and `looks` {part: its look as set, finish.part_looks}, from its
+    finish step's folder (finish.face_finishes) when it has one, else left out. A part list whose faces are not the
+    model's (another face count) fails."""
     side = {**gltf_side(model), "face_material": None}
     if finished is not None:
         part_of, surfaces = finish.face_finishes(finished, take)
         if len(part_of) != len(side["faces"]):
             raise StepFailed(f"the finish's parts name {len(part_of)} faces, the model has {len(side['faces'])}")
-        side.update(face_material=np.asarray(part_of, dtype=np.int32), surfaces=surfaces)
+        side.update(face_material=np.asarray(part_of, dtype=np.int32), surfaces=surfaces,
+                    looks=finish.part_looks(finished, take))
     found, hulls = json.loads((physics / "physics.json").read_text()), physics / "hull.glb"
     return {**side, "mass": found.get("mass_kg"), "colliders": colliders_of(hulls), "friction": found.get("static")}
 

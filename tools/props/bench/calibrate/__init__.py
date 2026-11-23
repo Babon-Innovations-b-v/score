@@ -5,7 +5,9 @@ sausage and lump, patchy) is run on the truth itself; each NVIDIA mass is read a
 A check that fails a known-good asset judges wrongly and is fixed at its source; the bars in measures.BARS are set
 from these numbers (the tune split's; the held-out split only confirms them).
 
-    remeshed(truth)              -> the known-good copy: its surface cut again unmoved (each triangle in four)
+    remeshed(truth)              -> the known-good copy: its surface cut again unmoved (each triangle in four), each
+                                    finish wearing its matching surface's look (own_looks)
+    own_looks(side)              -> {material: look}: each material's library surface's own look, else NVIDIA's own
     cut(truth)                   -> the truth decimated to CUT_SHARE of its triangles, as the route's cut
     route_checks(truth, kind)    -> {"gate", "straight", "shapes", "patchy"} each with its "pass"
     mass_check(truth)            -> {"mass", "volume", "volume_of", "density", "plausible"}
@@ -32,6 +34,8 @@ from score.stages.place_build import shapes
 from tools.props.bench import truth as bench_truth
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "run"))
+import finish  # noqa: E402  (the run's finish: a library surface's own look)
 import measures  # noqa: E402
 from measures import _mesh  # noqa: E402
 
@@ -49,6 +53,32 @@ def carried_over(truth, vertices, faces):
     return np.asarray(truth["face_material"])[nearest]
 
 
+def own_looks(side):
+    """{material: look} for a truth (or another asset laid like one): each material's matching surface as the route
+    would set it (#172): its library surface's own look (finish.surface_look) where the surface names a colour,
+    else NVIDIA's own on its faces (a surface painted for one model has no recipe), area-weighted."""
+    materials = side.get("materials") or []
+    addresses = sorted({item["surface"] for item in materials
+                        if isinstance(item.get("surface"), str) and item["surface"].startswith("surface/")})
+    records = finish.records(addresses) if addresses else {}
+    area = _mesh.areas(np.asarray(side["vertices"], dtype=float), np.asarray(side["faces"]))
+    face_material = np.asarray(side["face_material"])
+    found = {}
+    for number, item in enumerate(materials):
+        record = records.get(item.get("surface"))
+        look = finish.surface_look(record) if record else None
+        if look and look["colour"] is not None and look["roughness"] is not None:
+            found[number] = look
+            continue
+        held = np.flatnonzero(face_material == number)
+        if not len(held) or side.get("face_look") is None:
+            continue
+        albedo, metal, roughness, name = measures._finish.true_look(side["face_look"], held, area[held])
+        found[number] = {"colour": None if albedo is None else albedo.tolist(), "metal": metal,
+                         "roughness": roughness, "class": name}
+    return found
+
+
 def remeshed(truth):
     """The known-good copy: the truth's surface cut again without moving it, each triangle split in four at its edges'
     middles (one over SUBDIVIDE_MOST triangles keeps its own, their order turned round); mass, colliders, friction
@@ -61,7 +91,7 @@ def remeshed(truth):
     else:
         faces, material = faces[::-1], np.asarray(truth["face_material"])[::-1]
     return {**sided(truth), "vertices": vertices, "faces": faces, "face_material": material,
-            "box": [vertices.min(0), vertices.max(0)]}
+            "box": [vertices.min(0), vertices.max(0)], "looks": own_looks(truth)}
 
 
 def cut(truth):
@@ -152,7 +182,8 @@ def calibrated(item, mates):
     others = [{**bench_truth.read(mate["address"]), "id": mate["address"]} for mate in mates]
     good = measures.measured(truth, remeshed(truth), others=others)
     decimated = measures.measured(truth, cut(truth))
-    wrong = [{"other": other["id"], "found": plain(measures.measured(truth, measures.laid_like(other, truth)))}
+    wrong = [{"other": other["id"], "found": plain(measures.measured(truth, {**measures.laid_like(other, truth),
+                                                                             "looks": own_looks(other)}))}
              for other in others if not measures.twin(other, truth)]
     return plain({"address": item["address"], "kind": item["kind"], "split": item["split"],
                   "faces": int(len(truth["faces"])), "good": plain(good), "cut": plain(decimated), "wrong": wrong,

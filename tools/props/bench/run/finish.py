@@ -5,6 +5,8 @@ library surface and the measures can hold its finish split against NVIDIA's face
     library = bench_library(root)                     # the benchmark place's surface library (below)
     finished(model, close_up, row, library, folder)   # the route's rows run on one made model into `folder`
     face_finishes(folder, take)                       # (part a face, each part's surface) of a finished take
+    part_looks(folder, take)                          # each part's look as its surface is set on it (#172)
+    surface_look(record)                              # a library surface's own look, from its recipe
 
 **The benchmark place's surface library** is score_lib's surfaces in force as the finish route offers a scene's own
 (palette_library's loader form, materials.json, with its palette.json): every adopted tiling surface at its fitted
@@ -248,6 +250,52 @@ def same_family(pairs, made_surfaces, truth_surfaces):
         held += pair["area"] if made == true else 0.0
     return {"same_family": round(held / judged, 4) if judged else None, "unjudged": round(unjudged, 4),
             "pairs": rows}
+
+
+def linear_of(token):
+    """A palette token's (sRGB hex) linear RGB."""
+    srgb = np.array([int(token[index:index + 2], 16) for index in (1, 3, 5)], dtype=float) / 255
+    return np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+
+
+def surface_look(record):
+    """A library surface's own look (#172): {"colour": its recipe's colour (linear RGB; None for a recipe with no
+    colour of its own or none), "metal", "roughness" (its recipe's, metal 0 where it names none), "class" (sim.py's
+    surface_class)}."""
+    from score.stages.place_build.maker import sim
+    recipe = record.get("recipe")
+    settings = (recipe.get("settings") or {}) if isinstance(recipe, dict) else {}
+    return {"colour": settings.get("colour"), "metal": float(settings.get("metal", 0.0)),
+            "roughness": settings.get("roughness"), "class": sim.surface_class(record)}
+
+
+def own_spec(library, variant):
+    """A bench library variant's own spec as it paints (its recipe's defaults under its own settings), {} for none."""
+    for family in library["families"].values():
+        if variant in family["variants"]:
+            spec = family["variants"][variant]
+            return {**library["recipes"].get(spec.get("recipe"), {}), **spec}
+    return {}
+
+
+def part_looks(folder, take):
+    """{part: {"colour" linear RGB, "metal", "roughness", "class"}}: each finish part's look as the route set its
+    surface on it (its row's token, metal and roughness: the list's settings, else, where the colour check moved its
+    surface (route_settings.applied), that surface's own spec in the bench library) and its surface's class (sim.py's
+    surface_class of its record; None for a surface outside the library)."""
+    from score.stages.place_build.maker import sim
+    part_of, surfaces = face_finishes(folder, take)
+    listed = json.loads((folder / "surfaces-parts" / "parts.json").read_text())["takes"][take]["parts"]
+    library = json.loads((folder / "surface-library" / "materials.json").read_text())
+    held = records(sorted({address for address in surfaces.values() if address.startswith("surface/")}))
+    found = {}
+    for row in listed:
+        settings = row.get("settings") or own_spec(library, row["judge"])
+        record = held.get(surfaces[row["part"]])
+        found[row["part"]] = {"colour": linear_of(settings["token"]).tolist() if settings.get("token") else None,
+                              "metal": settings.get("metal"), "roughness": settings.get("roughness"),
+                              "class": sim.surface_class(record) if record else None}
+    return found
 
 
 def face_finishes(folder, take):

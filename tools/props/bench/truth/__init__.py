@@ -24,6 +24,8 @@ metres, Z up as NVIDIA authors it, the stage's units brought to metres, every US
   `materials` [{prim, name, surface, one_model}], `surface` the library address its `score:surface` names (None:
   names none), `one_model` whether that surface is painted for one model (its index row's `painted_for`).
 - `face_prim` int32 (F,): each triangle's mesh, an index into `prims` (its USD prim paths).
+- `face_look`: each triangle's look on NVIDIA's material (#172, `_look.py`): {"albedo" (F, 3) linear RGB, "metal"
+  (F,), "roughness" (F,), NaN where it has none; "class" (F,) its material's class by sim.py's rule, None: none}.
 - `box`: [low, high], each [x, y, z], over the drawn triangles; `size`: high - low.
 - `mass`: NVIDIA's authored MassAPI mass in kg summed over its rigid bodies (USD physics' rule: a body's own mass,
   else the masses authored under it); None when a body has none. `bodies` [{prim, mass}]; `joints` [{prim, type,

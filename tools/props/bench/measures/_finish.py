@@ -1,6 +1,8 @@
 """The finish against NVIDIA's: the made model's parts held to the truth's material faces (each made face takes the
 material of the nearest truth surface point, the made model set on the truth), by split_compare's ownership rule;
-and each matched part's surface held to the truth's by the look-alike check's bounds."""
+what each part got held to NVIDIA's look on the same faces (#172: its surface's colour, metal or not, roughness and
+class against the truth's maps there); and each matched part's surface held to the truth's by the look-alike check's
+bounds."""
 import numpy as np
 from scipy.spatial import cKDTree
 
@@ -11,6 +13,13 @@ from . import _mesh
 CARRY_POINTS = 200000  # truth surface points a made face's material is read from
 CANDIDATES = 8  # truth triangles measured exactly per made face (those of its nearest truth points)
 CARRY_CHUNK = 100000  # made faces carried at a time
+# A part's look held (#172, set by the calibration pass, tools/props/bench/calibrate): its colour within COLOUR_REACH
+# (CIE76 delta E of its surface's base colour from NVIDIA's albedo mean on its faces), its roughness within
+# ROUGHNESS_REACH of NVIDIA's mean there, its metalness within METAL_REACH of NVIDIA's mean there: metal or not, a
+# metallic paint (NVIDIA's mean 0.4 to 0.6, the tire rack's 0.53 under a library 0.47) either.
+COLOUR_REACH = 10.0
+ROUGHNESS_REACH = 0.25
+METAL_REACH = 0.5
 
 
 def split_rule():
@@ -28,20 +37,21 @@ def look_bounds():
 
 
 def carried(truth, placed, made_faces):
-    """Each made face's truth material: the material of the truth triangle nearest its middle, found exactly among
-    the triangles of the CANDIDATES truth points (drawn by area, and every triangle's middle) nearest it. NVIDIA lays
-    tape, decals and labels as a thin layer just over a box's own surface (box_flat_a10's tape 0.4 mm over its card);
-    the nearest drawn point read either layer and blurred a strip's edges by the points' spacing (5 mm there), so an
-    exact copy of box_flat_a10 held none of its tape (#163 calibration). A point nudged out along the normal read
-    the tape's hidden underside as card, so none is."""
+    """Each made face's truth triangle: the truth triangle nearest its middle (its material the face's truth
+    material, its look the face's truth look), found exactly among the triangles of the CANDIDATES truth points
+    (drawn by area, and every triangle's middle) nearest it. NVIDIA lays tape, decals and labels as a thin layer
+    just over a box's own surface (box_flat_a10's tape 0.4 mm over its card); the nearest drawn point read either
+    layer and blurred a strip's edges by the points' spacing (5 mm there), so an exact copy of box_flat_a10 held
+    none of its tape (#163 calibration). A point nudged out along the normal read the tape's hidden underside as
+    card, so none is."""
     import trimesh
     points, picked = _mesh.sampled(truth["vertices"], truth["faces"], CARRY_POINTS, seed=6)
     triangles = truth["vertices"][truth["faces"]]
     points = np.concatenate([points, triangles.mean(1)])
     picked = np.concatenate([picked, np.arange(len(triangles))])
-    tree, material = cKDTree(points), np.asarray(truth["face_material"])
+    tree = cKDTree(points)
     asked = placed[made_faces].mean(1)
-    found = np.empty(len(made_faces), dtype=material.dtype)
+    found = np.empty(len(made_faces), dtype=np.int64)
     for start in range(0, len(asked), CARRY_CHUNK):
         point = asked[start:start + CARRY_CHUNK]
         _, index = tree.query(point, k=CANDIDATES)
@@ -49,17 +59,18 @@ def carried(truth, placed, made_faces):
         nearest = trimesh.triangles.closest_point(triangles[candidate].reshape(-1, 3, 3),
                                                   np.repeat(point, CANDIDATES, axis=0))
         distance = np.linalg.norm(nearest - np.repeat(point, CANDIDATES, axis=0), axis=1).reshape(-1, CANDIDATES)
-        found[start:start + CARRY_CHUNK] = material[candidate[np.arange(len(point)), distance.argmin(1)]]
+        found[start:start + CARRY_CHUNK] = candidate[np.arange(len(point)), distance.argmin(1)]
     return found
 
 
-def finish_split(truth, placed, made_faces, made_parts):
+def finish_split(truth, placed, made_faces, made_parts, nearest):
     """{"owned": finishes owned of those counted, "held_mean", "held_least": each counted finish's share held in
     parts pure in it, "purity": area-weighted share of each made part in its main finish, "parts", "materials",
-    "pairs": [{"part", "material", "area"}] each made part with its main truth material and its area share}."""
+    "pairs": [{"part", "material", "area"}] each made part with its main truth material and its area share};
+    `nearest` each made face's truth triangle (carried)."""
     rule = split_rule()
     area = _mesh.areas(placed, made_faces)
-    finish = carried(truth, placed, made_faces)
+    finish = np.asarray(truth["face_material"])[nearest]
     part_of = np.asarray(made_parts)
     table = np.zeros((int(part_of.max()) + 1, int(finish.max()) + 1))
     np.add.at(table, (part_of, finish), area)
@@ -78,6 +89,75 @@ def finish_split(truth, placed, made_faces, made_parts):
             "parts_per_material": round(len(parts) / max(counted_materials, 1), 3),
             "pairs": [{"part": int(part), "material": int(table[part].argmax()),
                        "area": round(float(table[part].sum() / table.sum()), 5)} for part in parts]}
+
+
+def colour_lab(linear):
+    """Linear RGB as CIE Lab (tools/props/library/likeness/colour.py)."""
+    with prop_data.tools("props/library/likeness", "props/library", "props"):
+        import colour
+    return colour.lab(linear)
+
+
+def true_look(look, triangles, weights):
+    """NVIDIA's look over some truth triangles, area-weighted: (albedo, metal, roughness, class), each None where
+    none of them has it."""
+    def mean(values):
+        values = np.asarray(values, dtype=float).reshape(len(triangles), -1)
+        kept = ~np.isnan(values).any(1)
+        return np.average(values[kept], axis=0, weights=weights[kept]) if weights[kept].sum() > 0 else None
+    albedo, metal, roughness = (mean(look[name][triangles]) for name in ("albedo", "metal", "roughness"))
+    classes = np.asarray(look["class"], dtype=object)[triangles]
+    named = [name for name in dict.fromkeys(classes) if name is not None]
+    held = {name: float(weights[classes == name].sum()) for name in named}
+    return (albedo, None if metal is None else float(metal[0]), None if roughness is None else float(roughness[0]),
+            max(held, key=held.get) if held else None)
+
+
+def part_look(made, truth):
+    """One part's look held to NVIDIA's on its faces: {"delta_e", "metal", "roughness_gap", "class"}, each None where
+    either side lacks it (`made` {colour, metal, roughness, class}; `truth` true_look's)."""
+    albedo, metal, roughness, name = truth
+    return {"delta_e": None if albedo is None or made.get("colour") is None else
+            round(float(np.linalg.norm(colour_lab(np.asarray(made["colour"], dtype=float)) - colour_lab(albedo))), 2),
+            "metal": None if metal is None or made.get("metal") is None else
+            bool(abs(made["metal"] - metal) < METAL_REACH),
+            "roughness_gap": None if roughness is None or made.get("roughness") is None else
+            round(abs(float(made["roughness"]) - roughness), 3),
+            "class": None if name is None or made.get("class") is None else bool(made["class"] == name),
+            "made": {key: made.get(key) for key in ("colour", "metal", "roughness", "class")},
+            "true": {"albedo": None if albedo is None else [round(float(value), 4) for value in albedo],
+                     "metal": None if metal is None else round(metal, 3),
+                     "roughness": None if roughness is None else round(roughness, 3), "class": name}}
+
+
+def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
+    """{"colour", "metal", "roughness", "class": the area share of the counted parts (split_compare's FINISH_LEAST)
+    whose look holds (part_look: delta E within COLOUR_REACH, metal or not as NVIDIA's (METAL_REACH), roughness within
+    ROUGHNESS_REACH, the same class), of those both sides name; "parts": each part's look}. `looks` {part: {colour
+    linear RGB, metal, roughness, class}} what each made part got; `nearest` each made face's truth triangle."""
+    rule = split_rule()
+    area = _mesh.areas(placed, made_faces)
+    part_of = np.asarray(made_parts)
+    truth_area = _mesh.areas(truth["vertices"], truth["faces"])
+    rows = []
+    for part in np.unique(part_of):
+        held = part_of == part
+        if area[held].sum() < rule.FINISH_LEAST * area.sum() or looks.get(int(part)) is None:
+            continue
+        triangles = nearest[held]
+        found = part_look(looks[int(part)], true_look(truth["face_look"], triangles,
+                                                      area[held] * (truth_area[triangles] > 0)))
+        rows.append({"part": int(part), "area": round(float(area[held].sum() / area.sum()), 5), **found})
+    tests = {"colour": lambda row: row["delta_e"] <= COLOUR_REACH, "metal": lambda row: row["metal"],
+             "roughness": lambda row: row["roughness_gap"] <= ROUGHNESS_REACH, "class": lambda row: row["class"]}
+    keys = {"colour": "delta_e", "metal": "metal", "roughness": "roughness_gap", "class": "class"}
+    found = {}
+    for name, test in tests.items():
+        judged = [row for row in rows if row[keys[name]] is not None]
+        total = sum(row["area"] for row in judged)
+        if total > 0:
+            found[name] = round(sum(row["area"] for row in judged if test(row)) / total, 4)
+    return {**found, "parts": rows}
 
 
 def finish_likeness(looks):
