@@ -174,6 +174,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.footprint_turn: always 0, or the fronts unread -> the long bench is not turned a quarter, or turned 90
   where the fronts say 270
 - place_build.in_footprint: no shift (clear_shift unread) -> the bench lies 10 cm into the bin and 8 cm into the wall
+- place_build.riders_of: the support compared to the bare name alone (`wall:<name>` uncounted) -> the plaque mounted
+  on the bench is no rider and stays where it stood; place_build.set_back: a mount set back as one standing on it
+  (its `wall:` branch dropped) -> it is not mounted back on the bench's face
+- place_build.old_usd: every file of the old entry resolved (its texture too) -> the out-of-reach texture leaves
+  the bench unmeasured, never turned into the old footprint; in_footprint without its `except
+  library_files.LibraryUnreachable` -> the bench whose old entry is out of reach is never laid
 - place_build.clear_shift: the first clear spot, not the nearest -> the bench moves a metre
 - place_build.riders_of: the foot on the old top, or `score:support`, unread -> the cup blocks the bench's spot (it
   moves 40 cm), or the pen floats at 0.9 m
@@ -390,7 +396,8 @@ def library(root, files):
         top = UsdGeom.Cube.Define(bench, "/bench/geo")
         top.AddTranslateOp().Set(Gf.Vec3d(0.0, size[1] / 2, 0.0))
         top.AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
-        entry("model", entry_id, {"model.usda": ("usd", bench.GetRootLayer().ExportToString())})
+        textured = {"wood.png": ("texture", None)} if entry_id == "old_bench" else {}  # a box needs no texture
+        entry("model", entry_id, {"model.usda": ("usd", bench.GetRootLayer().ExportToString()), **textured})
         path = root / "entries" / "model" / entry_id / "1" / "entry.json"
         path.write_text(json.dumps(dict(json.loads(path.read_text()), **written)))
 
@@ -992,12 +999,34 @@ def replaced(tmp_path):
         place_build.put(folder, "lost", "model/gone")
 
 
+def fetching_no_texture(resolve):
+    """library_files.resolve that cannot fetch a texture (a library out of reach for all but the USD)."""
+    def resolved(name, folder=None):
+        if not name.endswith(".usda"):
+            raise place_build.library_files.LibraryUnreachable(f"{name}: out of reach")
+        return resolve(name, folder)
+    return resolved
+
+
+def fetching_nothing_of(entry_id):
+    """library_files.resolve that cannot fetch any file of `entry_id`."""
+    resolve = place_build.library_files.resolve
+
+    def resolved(name, folder=None):
+        if f"/{entry_id}@" in name:
+            raise place_build.library_files.LibraryUnreachable(f"{name}: out of reach")
+        return resolve(name, folder)
+    return resolved
+
+
 def footprinted(tmp_path):
     """A withdrawn bench (1.2 m along x, 0.6 deep, 0.75 high) laid again as its replacement (0.8 x 0.8 x 1.6, its long
     side along z) in its footprint (#155: the adopted desk turned across the old one's spot cut into the dome wall and
     a bin): turned a quarter so its long side lies along the old one's, its floor on the old one's, moved the least
     that keeps it clear of the wall behind (8 cm into it, centred) and the bin beside (10 cm), never minding the cup
-    on the old top and the pen marked as on the bench, both set back on the new top; between two walls narrower than
+    on the old top and the pen marked as on the bench, both set back on the new top, and the plaque mounted on it
+    (`wall:bench`), mounted back on its face at its height; measured by the old entry's USD alone (its texture out of
+    reach); an old entry whose USD is out of reach laid at the asked pose, saying so; between two walls narrower than
     it, refused naming both. A front both records give turns it to the old front, else the long-side rule."""
     from score.stages.place_build import ready as ready_check
     rows = (((1.2, 0.6), (0.8, 1.6), None, None, 90), ((1.2, 0.6), (1.6, 0.8), None, None, 0),
@@ -1013,7 +1042,11 @@ def footprinted(tmp_path):
     place_build.put(folder, "bin", "kit/box_piece", at=(0.7, 0.0, -0.3), scale=(0.4, 0.5, 1.2))
     place_build.put(folder, "cup", "kit/box_piece", at=(-0.05, 0.75, -0.05), scale=(0.1, 0.05, 0.1))
     place_build.put(folder, "pen", "kit/box_piece", at=(0.3, 0.9, 0.0), scale=(0.1, 0.02, 0.1), support="bench")
-    laid = place_build.put(folder, "bench", "model/old_bench", at=(0.0, 0.0, 0.0))
+    place_build.put(folder, "plaque", "kit/box_piece", at=(-0.3, 0.3, 0.6), scale=(0.2, 0.1, 0.04), role="mount",
+                    support="wall:bench")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(place_build.library_files, "resolve", fetching_no_texture(place_build.library_files.resolve))
+        laid = place_build.put(folder, "bench", "model/old_bench", at=(0.0, 0.0, 0.0))
     stage, _ = place_build.opened(folder)
     box = ready_check.solid_of(stage.GetPrimAtPath("/shop/Objects/bench")).bounds
     assert laid["address"] == "model/long_bench@1" and laid["footprint"]["turned"] == 90, laid
@@ -1023,6 +1056,18 @@ def footprinted(tmp_path):
     for rider in ("cup", "pen"):
         foot = ready_check.solid_of(stage.GetPrimAtPath(f"/shop/Objects/{rider}")).bounds[0][1]
         assert abs(foot - 0.8) < ready_check.TOLERANCE and rider in laid["footprint"]["reset"], (rider, foot, laid)
+    plaque = ready_check.solid_of(stage.GetPrimAtPath("/shop/Objects/plaque")).bounds
+    assert "plaque" in laid["footprint"]["reset"] and abs(plaque[0][2] - box[1][2]) < ready_check.TOLERANCE and abs(
+        plaque[0][1] - 0.3) < 1e-6, (plaque, box, laid)  # mounted back on the new bench's face at its height
+    folder = tmp_path / "unreached"
+    place_build.start(folder, "unreached", tmp_path / "bench.png")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(place_build.library_files, "resolve", fetching_nothing_of("old_bench"))
+        laid = place_build.put(folder, "bench", "model/old_bench", at=(0.5, 0.0, 0.5))
+    stage, _ = place_build.opened(folder)
+    bench = stage.GetPrimAtPath("/unreached/Objects/bench")
+    assert laid["address"] == "model/long_bench@1" and place_build.pose_of(bench)[0] == [0.5, 0.0, 0.5] and \
+        "unmeasured" in laid["footprint"], laid  # the old entry unmeasurable: laid by the old pose rule, and said
     folder = tmp_path / "slot"
     place_build.start(folder, "slot", tmp_path / "bench.png")
     for name, x in (("wall_a", -1.6), ("wall_b", 0.6)):

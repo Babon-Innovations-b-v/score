@@ -1781,6 +1781,22 @@ def placed_on(stage, place, name, support, level=None, height=None):
     return {"name": name, "on": support, "at": spot}
 
 
+def floor_under(laid, name, wall):
+    """The height of the floor under the object's middle (the ground, a shell's, a connector's or a structure's deck,
+    the wall it is mounted on left out), else 0."""
+    mesh = laid.meshes[name]
+    middle = mesh.bounds.mean(axis=0)
+    floor_gap, _ = gaps_down(laid, name, mesh.bounds[0][None] * [0, 1, 0] + [middle[0], 0, middle[2]],
+                             only=[other for other in laid.with_role("ground", "shell", "connector", "structure")
+                                   if other != wall])  # a blocks-built deck is a structure (#154: airlock@2's 0.42 m)
+    return mesh.bounds[0][1] - float(floor_gap[0]) if np.isfinite(floor_gap[0]) else 0.0
+
+
+def mount_height(laid, name, wall):
+    """How high the mount stands over its floor (`floor_under`): the height `mounted` lays it at again."""
+    return float(laid.meshes[name].bounds[0][1] - floor_under(laid, name, wall))
+
+
 def mounted(laid, name, wall, height, pose):
     """The object at `height` over the floor under it (the ground, a shell's, a connector's or a structure's deck, the
     wall itself left out), moved straight to the wall's nearest face until it touches."""
@@ -1789,11 +1805,7 @@ def mounted(laid, name, wall, height, pose):
     at, turn, scale = pose
     mesh = laid.meshes[name]
     middle = mesh.bounds.mean(axis=0)
-    floor_gap, _ = gaps_down(laid, name, mesh.bounds[0][None] * [0, 1, 0] + [middle[0], 0, middle[2]],
-                             only=[other for other in laid.with_role("ground", "shell", "connector", "structure")
-                                   if other != wall])  # a blocks-built deck is a structure (#154: airlock@2's 0.42 m)
-    floor_y = mesh.bounds[0][1] - float(floor_gap[0]) if np.isfinite(floor_gap[0]) else 0.0
-    lift = (floor_y + float(height or 0.0)) - mesh.bounds[0][1]
+    lift = (floor_under(laid, name, wall) + float(height or 0.0)) - mesh.bounds[0][1]
     nearest, _, _ = trimesh.proximity.closest_point(laid.meshes[wall], middle[None])
     towards = nearest[0] - middle
     towards[1] = 0.0

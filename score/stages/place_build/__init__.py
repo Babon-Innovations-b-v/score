@@ -451,7 +451,8 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
         path, role = f"/{place}/Effects/{name}", "effect"
     if on_ground:
         at = [float(at[0]), float(at[1]) + ground_height(stage, place, at[0], at[2]), float(at[2])]
-    fitted = in_footprint(stage, place, name, asked, record, asset, (at, turn, scale), rest)
+    footprint = in_footprint(stage, place, name, asked, record, asset, (at, turn, scale), rest)
+    fitted = footprint if footprint and "at" in footprint else None
     if fitted:
         at, turn = fitted["at"], fitted["turn"]
     relative = laid_reference(stage, path, folder, asset, address, record["kind"], (at, turn, scale), ground,
@@ -469,6 +470,8 @@ def put(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), scale=(
     if fitted:
         laid["at"] = at
         laid["footprint"] = dict(fitted["footprint"], reset=set_back(stage, place, name, fitted["riders"]))
+    elif footprint:
+        laid["footprint"] = footprint["footprint"]
     saved(stage)
     finish = own_paint_finished(folder, stage, place, name) if record["kind"] != "effect" else None
     if finish:
@@ -510,23 +513,27 @@ def footprint_box(stage, asset, record, pose, yaw):
     return framed.min(axis=0), framed.max(axis=0)
 
 
-def old_usd(asked, record):
-    """The withdrawn entry `asked`'s record and its USD file as the library holds it, when `record` (what is laid)
-    replaces it and both are kinds laid in a footprint; (None, None) otherwise (an entry in force, an old entry with
-    no USD file)."""
-    root = library_root()
-    asked = versioned(asked, root)
+def old_entry(asked, record):
+    """The withdrawn entry `asked`'s record when `record` (what is laid) replaces it and both are kinds laid in a
+    footprint; None otherwise (an entry in force)."""
+    asked = versioned(asked, library_root())
     if asked == record["address"] or record["kind"] not in FOOTPRINT_KINDS:
-        return None, None
+        return None
     old = entry_of(asked)
-    if old["kind"] not in FOOTPRINT_KINDS:
-        return None, None
-    found = {name: library_files.resolve(library_files.reference(asked, name)) for name in old["files"]}
+    return old if old["kind"] in FOOTPRINT_KINDS else None
+
+
+def old_usd(asked, old):
+    """The withdrawn entry's (`old`, at `asked`) USD file as the library holds it, its root's payloads beside it, or
+    None when it has no USD file. Only its USD files are fetched (never its textures: a box needs none);
+    LibraryUnreachable when one cannot be."""
+    asked = versioned(asked, library_root())
     root_file = (old.get("usd") or {}).get("root")
-    names = [root_file] if root_file in found else [name for name, info in old["files"].items()
-                                                    if info.get("role") in USD_ROLES]
+    usd_names = [name for name, info in old["files"].items() if info.get("role") in USD_ROLES or name == root_file]
+    found = {name: library_files.resolve(library_files.reference(asked, name)) for name in usd_names}
+    names = [root_file] if root_file in found else usd_names
     names = [name for name in names if found.get(name) is not None]
-    return (old, found[names[0]]) if names else (None, None)
+    return found[names[0]] if names else None
 
 
 def front_of(record):
@@ -613,7 +620,7 @@ def clear_shift(points, middle, half):
 
 def riders_of(laid, name, low, high, yaw):
     """The laid objects resting on the old footprint (low, high, in the frame turned back by `yaw`): those whose
-    `score:support` names `name`, and those whose foot lies on its top over it."""
+    `score:support` names `name` (or `wall:<name>`: mounted on it), and those whose foot lies on its top over it."""
     from score.stages.place_build.ready import TOLERANCE, text_of
     riders = []
     for other in laid.names:
@@ -623,7 +630,7 @@ def riders_of(laid, name, low, high, yaw):
         middle = bounds.mean(axis=0) @ yaw_matrix(yaw).T
         on_top = abs(bounds[0][1] - high[1]) <= TOLERANCE and np.all(middle[[0, 2]] > low[[0, 2]]) and np.all(
             middle[[0, 2]] < high[[0, 2]])
-        if text_of(laid.prims[other], "score:support") == name or on_top:
+        if text_of(laid.prims[other], "score:support") in (name, f"wall:{name}") or on_top:
             riders.append(other)
     return riders
 
@@ -635,10 +642,18 @@ def in_footprint(stage, place, name, asked, record, asset, pose, rest=False):
     its floor on the old one's (`rest`: at `pose`'s height), then shifted the least that keeps its box clear of
     every other laid object but the ground and those resting on the old one (by more than half a TOLERANCE, read
     at FOOTPRINT_STEP). {at, turn, footprint, riders}; None when `asked` is no withdrawn entry it replaces (or has
-    no USD file); Refused naming what it would cut when no spot within FOOTPRINT_REACH is clear."""
+    no USD file); {footprint: {of, unmeasured: why}} when the old entry's USD cannot be fetched to measure it (laid
+    by the old pose rule, at `pose`); Refused naming what it would cut when no spot within FOOTPRINT_REACH is clear."""
     from score.stages.place_build import ready
-    old, old_file = old_usd(asked, record)
+    old = old_entry(asked, record)
     if old is None:
+        return None
+    try:
+        old_file = old_usd(asked, old)
+    except library_files.LibraryUnreachable as why:
+        return {"footprint": {"of": versioned(asked, library_root()),
+                              "unmeasured": f"its USD could not be fetched, laid at the asked pose: {why}"}}
+    if old_file is None:
         return None
     at, turn, scale = (list(map(float, part)) for part in pose)
     yaw = turn[1]
@@ -678,12 +693,16 @@ def in_footprint(stage, place, name, asked, record, asset, pose, rest=False):
 
 
 def set_back(stage, place, name, riders):
-    """Each object that rested on the old footprint laid back on `name` (ready.placed_on); {rider: its new spot}, or
-    why it could not be."""
+    """Each object that rested on the old footprint laid back on `name` (ready.placed_on), a mount (`wall:<name>`)
+    mounted on it again at its height over its floor; {rider: its new spot}, or why it could not be."""
     from score.stages.place_build import ready
     done = {}
     for rider in riders:
         try:
+            if ready.text_of(stage.GetPrimAtPath(f"/{place}/Objects/{rider}"), "score:support") == f"wall:{name}":
+                height = ready.mount_height(ready.Place(stage, place), rider, name)
+                done[rider] = ready.placed_on(stage, place, rider, f"wall:{name}", height=height)["at"]
+                continue
             done[rider] = ready.placed_on(stage, place, rider, name)["at"]
         except Refused as why:
             done[rider] = {"refused": str(why)}
