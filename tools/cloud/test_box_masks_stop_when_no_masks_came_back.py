@@ -2,15 +2,21 @@
 never a return with no masks written (crops-concept read a missing instances.json, 2026-10-24), and the machine's
 ledger line is written either way; and every set-up script a card runner runs there is sent with it, to the folder
 it is run from (crops-concept, try 4 of 2026-10-25: the runners moved to tools/cloud in 80fab258 and their set-ups
-still sent only tools/props, so bash found no box_masks_setup.sh; closeups and scene the same).
+still sent only tools/props, so bash found no box_masks_setup.sh; closeups and scene the same); and its set-up
+script, on a card it already set up, fetches nothing again unless the venv there is another set-up's (pixal@walkway,
+2026-11-23: every claim of this PC's card fetched uv from astral.sh again, and one failed name lookup stopped it).
 
 One world: every cloud call faked, `mask` driven through its real set-up once with the set-up script failing and
 once with it working, then the closeups and scene set-ups run on the same faked remote and copy; every script any of
-them ran is checked against what was sent.
+them ran is checked against what was sent. Then box_masks_setup.sh itself runs in bash with /root moved to a folder
+here and curl failing as a failed name lookup does, on a fresh card, on a card it set up, and on one whose venv
+another set-up left.
 
 Break that turns it red: in `mask` drop the `if shares.failed or shares.waiting` stop; or in box_masks_cloud's
-`set_up` leave `box_masks_setup.sh` out of what it copies.
+`set_up` leave `box_masks_setup.sh` out of what it copies; or in box_masks_setup.sh drop the done mark's early exit
+or its import check.
 """
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -95,3 +101,30 @@ def test_box_masks_stop_when_no_masks_came_back(tmp_path, monkeypatch):
             there = pathlib.PurePosixPath(script)
             assert any(pathlib.Path(source).name == there.name and pathlib.Path(source).is_file()
                        and destination.endswith(f"{there.parent}/") for source, destination in copied), (name, script)
+
+    # box_masks_setup.sh on a card: (a mark from an earlier set-up, the venv there imports SAM 3, it fetches again)
+    root = tmp_path / "card"
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (tools / "curl").write_text("#!/bin/sh\necho fetched >> \"$FETCHES\"\nexit 6\n")
+    (tools / "nvidia-smi").write_text("#!/bin/sh\necho card\n")
+    setup = (pathlib.Path(box_masks_cloud.__file__).parent / "box_masks_setup.sh").read_text()
+    script = tmp_path / "box_masks_setup.sh"
+    script.write_text(setup.replace("/root", str(root)))
+    venv_python = root / "venv" / "bin" / "python"
+    venv_python.parent.mkdir(parents=True)
+    for tool in (tools / "curl", tools / "nvidia-smi"):
+        tool.chmod(0o755)
+    for marked, imports, fetches in ((False, True, True), (True, True, False), (True, False, True)):
+        for mark in root.glob(".box-masks-setup-*"):
+            mark.unlink()
+        if marked:  # the mark a finished set-up of this very script wrote
+            name = hashlib.sha256(script.read_bytes() + b"jetjodh/sam3\n").hexdigest()[:16]
+            (root / f".box-masks-setup-{name}").write_text("")
+        venv_python.write_text(f"#!/bin/sh\nexit {0 if imports else 1}\n")
+        venv_python.chmod(0o755)
+        fetched = tmp_path / f"fetches-{marked}-{imports}"
+        environment = {"PATH": f"{tools}:/usr/bin:/bin", "SAM3_WEIGHTS": "jetjodh/sam3", "FETCHES": str(fetched)}
+        ran = subprocess.run(["bash", str(script)], env=environment, capture_output=True, text=True)
+        assert fetched.exists() == fetches and (ran.returncode != 0) == fetches, (marked, imports, ran.stdout,
+                                                                                 ran.stderr)
