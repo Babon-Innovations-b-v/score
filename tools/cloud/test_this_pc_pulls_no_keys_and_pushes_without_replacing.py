@@ -56,7 +56,7 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `push_stated`: drop the `unlink` -> status still says a run kept its outputs after a later one pushed.
 - this_pc.py `pull`: drop `+ evicted_named(home)` -> a blob evicted here into the bucket is sent down again, and the
   store here is never a cache (2026-11-19: 331 GB on the PC).
-- this_pc.py `pull`: drop `+ library_files.evicted_lines(home)` -> a library cache file evicted here is sent down
+- this_pc.py `pull`: drop `+ library_cache.evicted_lines(home)` -> a library cache file evicted here is sent down
   again, and the cache here is never capped.
 - this_pc.py `landed_whole`: drop the blob's `chmod(0o444)` -> a pulled blob stays writable as the conductor's tar
   gave it, and every checkout of it is a whole copy (2026-11-24: 84 GB of copies beside their blobs on this PC).
@@ -245,7 +245,7 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
     assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0) and not (home / blob).exists()
     # a library cache file evicted here (its line in library-evicted.jsonl, at the size and mtime it had) is not sent
     swatch = home / "cache/library/swatch.png"
-    write(home / "cache" / this_pc.library_files.EVICTED, this_pc.json.dumps(
+    write(home / "cache" / this_pc.library_cache.EVICTED, this_pc.json.dumps(
         {"path": "swatch.png", "size": swatch.stat().st_size, "mtime": int(swatch.stat().st_mtime)}) + "\n")
     swatch.unlink()
     assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0) and not swatch.exists()

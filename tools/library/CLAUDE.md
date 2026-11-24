@@ -20,9 +20,10 @@ score_lib (#22). `library_files.py` is the way in (its docstring has the names a
 - **The library's store is its public Hugging Face copy** (#141; owner 2026-11-19: "agree and retire, we use the same
   lib as everyone else"): `blob_store` names it (HUB_REPO) when no store is set, read with no key; a take-in
   (`write=True`) gets its write token from the scaleway secret `hf-write-token`, in the command's environment only. The bucket the library was copied from was retired on 2026-11-22.
-- **The file cache is capped** (`capped`, CACHE_GB 20, SCORE_LIB_CACHE_GB; 2026-11-24: 59 GB here and 41 GB in this
-  PC's run home, no cap): after every fetch, and after this PC's push, the least recently read files go until the rest
-  fits, each only once its bytes hash to its entry's sha256 and the public copy answers a HEAD for that blob with its
-  size and sha256; never one read in the last RECENT_SECONDS, one of a withdrawn entry, or one linked elsewhere. Each
-  is written to `cache/library-evicted.jsonl`, which this PC's pull names so the door does not send it again; a
-  resolve fetches it back. By hand: `PROPS_HOME=<home> .venv/bin/python tools/library/library_files.py cap [GB]`.
+- **The file cache is capped** (`library_cache.py`, CACHE_GB 20, SCORE_LIB_CACHE_GB; 2026-11-24: 59 GB here and 41 GB
+  in this PC's run home, no cap): after this PC's push and at the end of a prop benchmark run, the least recently read
+  files go until the rest fits, each only once its bytes hash to its entry's sha256 and the public copy answers a HEAD
+  for that blob with its size and sha256; never one read in the last RECENT_SECONDS, one of a withdrawn entry, or one
+  linked elsewhere. Each is written to `cache/library-evicted.jsonl`, which this PC's pull names so the door does not
+  send it again; a resolve fetches it back. By hand: `PROPS_HOME=<home> .venv/bin/python tools/library/library_cache.py
+  cap [GB]`. A module of its own: library_files.py is in every library-reading stage's code version.

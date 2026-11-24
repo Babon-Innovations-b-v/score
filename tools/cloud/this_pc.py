@@ -53,7 +53,7 @@ ask, since 2026-11-08), or over ssh to `--host`.
   score/store/offload; the runner fetches an evicted blob back on its first read, from the local backend's store
   bucket, the Scaleway backend's). Refused with a run live in HOME, it evicts nothing and says why. A pull names each blob evicted here (its
   mark under store/evicted) in its manifest, so the door never sends it back down. `status` gives the GB held.
-  score_lib's file cache here (cache/library, pulled) is capped the same way after the push (`library_files.py cap`,
+  score_lib's file cache here (cache/library, pulled) is capped the same way after the push (`library_cache.py cap`,
   SCORE_LIB_CACHE_GB), and a pull names each file evicted from it (cache/library-evicted.jsonl) at the size and mtime
   it had, so the door does not send it again.
 - **The owner's decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat
@@ -111,7 +111,7 @@ sys.path.insert(0, str(REPO / "tools" / "cloud" / "conductor"))
 sys.path.insert(0, str(REPO / "tools" / "library"))
 
 from agent_door import PULLED, PUSHED, Refused, cluster_check, env_file_values, manifest, walked  # noqa: E402
-import library_files  # noqa: E402
+import library_cache  # noqa: E402
 
 HOME = pathlib.Path(os.environ.get("SCORE_THIS_PC_HOME", pathlib.Path.home() / ".score-this-pc"))
 DASHBOARD_ENV = pathlib.Path.home() / ".config" / "score" / "dashboard.env"  # this PC's cockpit's, its SCORE_OWNER
@@ -150,7 +150,7 @@ CONTENT_BLOB = re.compile(r"store/objects/blobs/([0-9a-f]{64})")  # a blob named
 BLOBS_CHECKED = "blobs-checked"  # under HOME: when the held blobs were last hashed; one changed since is hashed again
 PULLING = "tmp/this-pc-pull"  # under HOME: each pulled file written here whole, then renamed into place
 CACHE_GB = float(os.environ.get("SCORE_THIS_PC_CACHE_GB") or 50)  # the store's blobs held here past this are evicted
-LIBRARY_CAP = (str(REPO / "tools/library/library_files.py"), "cap")  # score_lib's file cache within its cap
+LIBRARY_CAP = (str(REPO / "tools/library/library_cache.py"), "cap")  # score_lib's file cache within its cap
 # disk.clean_cache first: the checkouts (links to blobs, made again on the next read) cleared with no run live, so
 # store-evict is not kept off every blob a past read linked (2026-11-24: 14,649 blobs kept as linked on this PC).
 CLEAN_CACHE = ("-m", "score.conductor", "clean-cache")
@@ -207,7 +207,7 @@ def pull(home, command):
     parts.mkdir(parents=True)
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     process.stdin.write(gzip.compress((manifest(home, PULLED) + evicted_named(home)
-                                         + library_files.evicted_lines(home)).encode()))
+                                         + library_cache.evicted_lines(home)).encode()))
     process.stdin.close()
     files, size = 0, 0
     with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
@@ -259,7 +259,7 @@ def capped(home, environment):
 
 
 def library_capped(environment):
-    """score_lib's file cache under `environment`'s PROPS_HOME brought within its cap (library_files.capped: the least
+    """score_lib's file cache under `environment`'s PROPS_HOME brought within its cap (library_cache.capped: the least
     recently read files the public copy proves it holds evicted); its one line."""
     done = asked([str(REPO / ".venv/bin/python"), *LIBRARY_CAP], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
     return (done.stdout.strip().splitlines() or done.stderr.strip().splitlines()
