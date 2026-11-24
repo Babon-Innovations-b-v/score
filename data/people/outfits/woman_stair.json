@@ -1,0 +1,43 @@
+{
+ "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the library's skin_light.",
+ "look": "woman_stair",
+ "mean": "mean_female",
+ "garments": [
+  {
+   "name": "skirt",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": null,
+    "meta.wb": "FittedWB",
+    "meta.bottom": "SkirtCircle",
+    "flare-skirt.length": 0.55,
+    "flare-skirt.suns": 0.35
+   },
+   "worn": [
+    "lower_interface"
+   ],
+   "surface": {
+    "name": "simready_m_opaque_fabric_cotton_gray_q01_3c7db7da",
+    "address": "surface/simready_m_opaque_fabric_cotton_gray_q01_3c7db7da@1",
+    "recipe": "cloth"
+   }
+  },
+  {
+   "name": "tee",
+   "design": "t-shirt.yaml",
+   "set": {
+    "shirt.length": 1.4,
+    "collar.width": 0.0
+   },
+   "surface": {
+    "name": "simready_m_opaque_fabric_cotton_red_d01_13ec6be9",
+    "address": "surface/simready_m_opaque_fabric_cotton_red_d01_13ec6be9@1",
+    "recipe": "cloth"
+   }
+  }
+ ],
+ "body surface": {
+  "name": "skin_light",
+  "address": "surface/skin_light@1"
+ }
+}

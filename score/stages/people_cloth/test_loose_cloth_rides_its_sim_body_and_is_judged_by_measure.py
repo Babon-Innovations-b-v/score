@@ -7,8 +7,8 @@ On one toy person and its garment, made here: a 1 cm square of two triangles wit
 four points, the face that lost a corner dropped), its fitted shell four rig points beside its corners with offsets
 0.01, 0.01, 0.06 and 0.2 m (OFFSET_MOST 0.05: the two corners by the last two loose; a point beside the last that
 no face draws, as a primitive sharing another's points holds, loose and not free; a lone loose triangle beside it
-and a loose flap on one riding corner, hung by no edge, not free), its cloth the cotton row (E 30.54
-N/m, nu 0.3058: lambda 10.3026 N/m, worked by hand), a loose edge pulled 20% past its built and skin length while one
+and a loose flap on one riding corner, hung by no edge, not free), its cloth the cotton row (E 30544.5
+N/m, nu 0.3058: lambda 10304.0801 N/m, worked by hand), a loose edge pulled 20% past its built and skin length while one
 the skin itself draws long, or one at its built length where the skin draws it short, is not stretched; a two-joint
 skeleton (Hips at 1 m, Shin 0.5 m under it) whose sim poses are its bind (it stays at its bind), then both turned 90
 degrees about up (the shin's foot, 0.5 m under, stays under and turns no further than the Hips), then the Hips alone
@@ -159,8 +159,8 @@ def test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure(tmp_path):
     # its cloth values from the cotton row by plane stress, the bending over the welded cloth's mean edge
     row = json.loads((people_cloth.REPO / "data/physics/cloth.json").read_text())["recipes"]["cloth"]
     material = people_cloth.material_of(row, points, faces, 0.003)
-    assert material["mu"] == row["shear"] == 4.971
-    assert round(material["lambda"], 4) == 10.3026
+    assert material["mu"] == row["shear"] == 4971.0
+    assert round(material["lambda"], 4) == 10304.0801
     assert np.isclose(material["bending"], row["bending"] / ((2 * SIDE + SIDE * 2 ** 0.5) / 3))
     assert material["radius"] == 0.0015 and material["density"] == 0.224
 

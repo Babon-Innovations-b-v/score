@@ -4,11 +4,11 @@
   "cloth": {
    "is": "plain woven cloth (the library's `cloth` recipe): cotton",
    "density": 0.224,
-   "young": 30.54,
-   "shear": 4.971,
+   "young": 30544.5,
+   "shear": 4971.0,
    "poisson": 0.3058,
-   "bending": 1.19e-7,
-   "source": "Larionov, Eckert, Wolff and Stuyck, Estimating Cloth Elasticity Parameters Using Position-Based Simulation of Compliant Constrained Dynamics, arXiv:2212.08790 (2022), Table 2, cotton: density 0.0224 g/cm2, E_u 30823 and E_v 30266, shear 4971, Poisson 0.3058, bending 1.19, in the paper's centimetre-gram-second units (dyn/cm for the moduli, erg for the bending stiffness: the units are read from its statement that it uses CGS, the table names none)"
+   "bending": 0.000119,
+   "source": "Larionov, Eckert, Wolff and Stuyck, Estimating Cloth Elasticity Parameters Using Position-Based Simulation of Compliant Constrained Dynamics, arXiv:2212.08790v1 (2022), Table 2, cotton: density 0.0224 g/cm2, E_u 30823 and E_v 30266, shear 4971, Poisson 0.3058, bending 1.19. The paper names its units only as CGS. Its own loads fix the stiffnesses' scale: a 9.6 cm swatch pulled by 3 Mdyn (30 N, 312 N/m along its edge) at small strain needs E near 3e4 N/m, so the moduli are in kg/s2 (N/m) with lengths in centimetres, not g/s2 (read as g/s2, 30.5 N/m, that load would stretch it tenfold); the bending stiffness in the same units, kg cm2/s2, is 1.19e-4 J. Read again 2026-11-24 (#225): a sewn tee at the g/s2 reading slid off a shoulder and stretched 42% at its 95th percentile."
   }
  }
 }
