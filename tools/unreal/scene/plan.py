@@ -29,6 +29,18 @@ import frames  # noqa: E402
 import layout  # noqa: E402
 import looks  # noqa: E402
 
+ROOT = "/Game/Score"  # where editor.py makes every asset
+
+
+def level_path(place):
+    """The level editor.py makes for the place, as a map path."""
+    return f"{ROOT}/{place}/L_{place}"
+
+
+def sequence_path(place):
+    """The place's film as a Level Sequence, as Movie Render Queue's object path."""
+    return f"{ROOT}/{place}/LS_{place}_film.LS_{place}_film"
+
 
 def meshes_and_materials(package, scene, textures):
     """Each object's mesh {object, file, character, nanite, slots} and every distinct material instance by name, its

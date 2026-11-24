@@ -17,6 +17,10 @@ Breaks, each applied once and seen red (2026-11-24):
 - `_twice.check`'s `len(names) == frames` dropped -> a check pass that made fewer frames counts as same.
 - `_cost.frame_cost` divides by the check pass's frames -> EUR 0.375 a frame, not 0.03125.
 - `render` sends before `project_refusal` -> a refused project is bought.
+- `project_made` writes MADE_SETTINGS alone (2026-11-24) -> a made project fails its own refusal check.
+- `plugins_held` keeps every plugin -> an image without EditorScriptingUtilities stops the editor.
+- `object_path` returns the path unchanged -> Movie Render Queue is given /Game/ScoreRender/Check, no object.
+- `job`'s scene inputs dropped -> the package never goes up with a --package shot.
 """
 import json
 import pathlib
@@ -144,6 +148,15 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
     shot = render.shot(good / "Street.uproject", "/Game/Place/Street", "/Game/Place/Film.Film", 96)
     check_pass = shot["passes"][1]
     command = on_card.render_command(shot, check_pass)
+    made = render.project_made(tmp_path / "made", "Score")
+    (tmp_path / "engine/Plugins/Python/PythonScriptPlugin").mkdir(parents=True)
+    (tmp_path / "engine/Plugins/Python/PythonScriptPlugin/PythonScriptPlugin.uplugin").write_text("{}")
+    (tmp_path / "engine/Plugins/MovieScene/MovieRenderPipeline").mkdir(parents=True)
+    (tmp_path / "engine/Plugins/MovieScene/MovieRenderPipeline/MovieRenderPipeline.uplugin").write_text("{}")
+    dropped = on_card.plugins_held(made, tmp_path / "engine/Plugins")
+    (tmp_path / "pkg").mkdir()
+    scened = render.job(tmp_path / "made", 1, shot_file, tmp_path / "back", tmp_path / "pkg", tmp_path / "path.json")
+    scene_shot = render.shot(made, "/m", "/s", 1, render.scene_step(tmp_path / "path.json"))
     # (case, answer, expected), each expectation worked by hand
     rows = [
         ("a ray-tracing project passes", render.project_refusal(GOOD), None),
@@ -174,7 +187,19 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
                                                                                    "-nullrhi")],
          [render.EDITOR, "/work/unreal/project/Street.uproject", "/Game/Place/Street", "-game",
           "-LevelSequence=/Game/Place/Film.Film", "-RenderOffscreen", "-Unattended"]),
-        ("the render command's config", "-MoviePipelineConfig=/Game/ScoreRender/Check" in command, True),
+        ("the render command's config", "-MoviePipelineConfig=/Game/ScoreRender/Check.Check" in command, True),
+        ("a made project can ray-trace", render.project_refusal((tmp_path / "made/Config/DefaultEngine.ini")
+                                                                .read_text()), None),
+        ("a made project's plugins the engine lacks", (dropped, [plugin["Name"] for plugin in json.loads(
+            made.read_text())["Plugins"]]), (["EditorScriptingUtilities"],
+                                             ["PythonScriptPlugin", "MovieRenderPipeline"])),
+        ("a package goes up with its film path", (scened["code"], scened["inputs"][2:], scened["minutes"]),
+         (["tools/cloud/unreal", "tools/unreal/scene"],
+          [{"local": str(tmp_path / "pkg"), "path": "/work/unreal/package"},
+           {"local": str(tmp_path / "path.json"), "path": "/work/unreal/path.json"}], 133)),
+        ("the scene commandlet", [flag for flag in on_card.scene_command(scene_shot, "/r/editor.py")
+                                  if flag.startswith("-script") or flag == "-nullrhi"],
+         ["-script=/r/editor.py /work/unreal/package /work/unreal/stage /work/unreal/path.json", "-nullrhi"]),
         ("the config commandlet has no GPU", [flag for flag in on_card.config_command(shot, "/x/in_editor.py")
                                               if flag in ("-nullrhi", "-run=pythonscript", "-script=/x/in_editor.py")],
          ["-run=pythonscript", "-script=/x/in_editor.py", "-nullrhi"]),

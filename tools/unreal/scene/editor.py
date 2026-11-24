@@ -7,9 +7,17 @@ Level Sequence's cine camera.
     UnrealEditor-Cmd <project>.uproject -run=pythonscript \
         -script="tools/unreal/scene/editor.py <package> <into> [<place>/film/path.json]"
 
+The level is made new at plan.level_path and every asset saved at the end; <into>/made.json says what was made, the
+import's measured axes beside frames.BASIS and the faults (on_card.py reads it: a script that raised writes none,
+whatever the commandlet's exit code). Each step logs "score: <step>" first, so a failure's log names where it stopped.
+What the level cannot stand without (the axes, the level, the film's sequence, the save) raises; a look, an object or
+a light the editor refused is a fault, logged "score: FAULT", left out and listed in made.json's `faults`, so one run
+shows every call the engine refuses (render.py then calls the frames a run with faults, never a clean result).
+
 Every decision is plan.py's (tested outside Unreal); this layer only calls the editor. No engine file or Epic asset
 is named here but the engine's own classes: every picture and material is ours (the library rule, #217).
 """
+import json
 import pathlib
 import re
 import sys
@@ -21,7 +29,7 @@ import frames  # noqa: E402
 import looks  # noqa: E402
 import plan as planning  # noqa: E402
 
-ROOT = "/Game/Score"
+ROOT = planning.ROOT
 TOOLS = unreal.AssetToolsHelpers.get_asset_tools()
 EDITING = unreal.MaterialEditingLibrary
 SAMPLERS = {"colour": unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, "data": unreal.MaterialSamplerType.SAMPLERTYPE_MASKS,
@@ -31,23 +39,46 @@ BLENDS = {"solid": unreal.BlendMode.BLEND_OPAQUE, "masked": unreal.BlendMode.BLE
           "glass": unreal.BlendMode.BLEND_TRANSLUCENT}
 
 
-def imported(files, destination):
-    """The files imported into `destination` as automated import tasks: each file's imported asset objects."""
+def combining():
+    """Interchange's generic assets pipeline with an object's meshes combined into one (its nodes' transforms baked
+    in): a package's glTF is one object, often of several nodes, and an actor is one mesh."""
+    pipeline = unreal.InterchangeGenericAssetsPipeline()
+    meshes = pipeline.get_editor_property("mesh_pipeline")
+    meshes.set_editor_property("combine_static_meshes", True)
+    pipeline.set_editor_property("mesh_pipeline", meshes)
+    return pipeline
+
+
+def imported(files, destination, options=None):
+    """The files imported into `destination` as automated import tasks (under `options`, an import pipeline, when
+    given): each file's imported asset objects."""
     tasks = []
     for file in files:
         task = unreal.AssetImportTask()
         for key, value in (("filename", str(file)), ("destination_path", destination), ("automated", True),
                            ("save", True), ("replace_existing", True)):
             task.set_editor_property(key, value)
+        if options is not None:
+            task.set_editor_property("options", options)
         tasks.append(task)
     TOOLS.import_asset_tasks(tasks)
     return [[unreal.load_asset(path) for path in task.get_editor_property("imported_object_paths")] for task in tasks]
 
 
+def only(found, kind, what):
+    """The one asset of `kind` among an import's assets; refused when there is none or more than one."""
+    assets = [asset for asset in found if isinstance(asset, kind)]
+    if len(assets) != 1:
+        raise RuntimeError(f"{what}: {len(assets)} {kind.__name__} assets imported, one expected "
+                           f"({[asset.get_path_name() for asset in assets][:6]})")
+    return assets[0]
+
+
 def measured_basis(into):
     """The glTF import's own axes: frames' calibration box imported and its bounds read (frames.basis_from_bounds)."""
-    found = imported([frames.written_calibration(pathlib.Path(into) / "calibration.gltf")], f"{ROOT}/Calibration")[0]
-    mesh = next(asset for asset in found if isinstance(asset, unreal.StaticMesh))
+    found = imported([frames.written_calibration(pathlib.Path(into) / "calibration.gltf")], f"{ROOT}/Calibration",
+                     combining())[0]
+    mesh = only(found, unreal.StaticMesh, "the calibration box")
     box = mesh.get_bounding_box()
     return frames.basis_from_bounds([box.min.x, box.min.y, box.min.z], [box.max.x, box.max.y, box.max.z])
 
@@ -63,6 +94,7 @@ def textures_made(listed, place):
                                     if about["normal"] else unreal.TextureCompressionSettings.TC_DEFAULT
                                     if about["srgb"] else unreal.TextureCompressionSettings.TC_MASKS)
         texture.set_editor_property("never_stream", True)
+        unreal.EditorAssetLibrary.save_loaded_asset(texture)
         made[about["name"]] = texture
     return made
 
@@ -159,22 +191,32 @@ def plain(name):
     return re.sub(r"[^A-Za-z0-9]+", "_", str(name)).strip("_").lower()
 
 
+def slot_look(slots, slot_name, what):
+    """The instance a mesh's material slot wears, by its name as the import cleaned it; refused, naming the plan's
+    slots, when the import named it otherwise."""
+    if plain(slot_name) not in slots:
+        raise RuntimeError(f"{what}: the import's slot {slot_name!r} is none of the plan's {sorted(slots)}")
+    if slots[plain(slot_name)] is None:
+        raise RuntimeError(f"{what}: the look its slot {slot_name!r} wears was not made")
+    return slots[plain(slot_name)]
+
+
 def mesh_made(mesh, place, instances):
     """One object's glTF imported (a Static Mesh, Nanite when the plan says; a character's a Skeletal Mesh), each
     material slot wearing its look's instance; the mesh asset."""
-    found = imported([mesh["file"]], f"{ROOT}/{place}/Objects/{mesh['object']}")[0]
-    kind = unreal.SkeletalMesh if mesh["character"] else unreal.StaticMesh
-    asset = next(item for item in found if isinstance(item, kind))
+    found = imported([mesh["file"]], f"{ROOT}/{place}/Objects/{mesh['object']}", combining())[0]
+    asset = only(found, unreal.SkeletalMesh if mesh["character"] else unreal.StaticMesh, mesh["object"])
     slots = {plain(slot): instances[look] for slot, look in mesh["slots"].items()}
     if mesh["character"]:
         materials = asset.get_editor_property("materials")
         for material in materials:
-            material.set_editor_property("material_interface", slots[plain(material.get_editor_property(
-                "material_slot_name"))])
+            material.set_editor_property("material_interface", slot_look(
+                slots, material.get_editor_property("material_slot_name"), mesh["object"]))
         asset.set_editor_property("materials", materials)
     else:
         for number, material in enumerate(asset.get_editor_property("static_materials")):
-            asset.set_material(number, slots[plain(material.get_editor_property("material_slot_name"))])
+            asset.set_material(number, slot_look(slots, material.get_editor_property("material_slot_name"),
+                                                 mesh["object"]))
         settings = asset.get_editor_property("nanite_settings")
         settings.set_editor_property("enabled", mesh["nanite"])
         asset.set_editor_property("nanite_settings", settings)
@@ -205,7 +247,7 @@ def spawned(kind, location=(0.0, 0.0, 0.0), rotation=None):
 def lamps_laid(lamps):
     """Every lamp a point light in lumens at its spot, radius and colour."""
     for lamp in lamps:
-        light = spawned(unreal.PointLight, lamp["location"]).point_light_component
+        light = spawned(unreal.PointLight, lamp["location"]).get_editor_property("light_component")
         light.set_editor_property("intensity_units", unreal.LightUnits.LUMENS)
         light.set_intensity(lamp["lumens"])
         light.set_editor_property("source_radius", lamp["radius"])
@@ -216,7 +258,7 @@ def bodies_laid(environment):
     """The sun and the moon each a directional light in lux, turned to shine from where it stands."""
     for body in (environment["sun"], environment["moon"]):
         if body:
-            light = spawned(unreal.DirectionalLight, rotation=body["rotation"]).directional_light_component
+            light = spawned(unreal.DirectionalLight, rotation=body["rotation"]).get_editor_property("light_component")
             light.set_intensity(body["lux"])
             light.set_light_color(unreal.LinearColor(*body["colour"], 1.0))
             light.set_editor_property("light_source_angle", body["angle"])
@@ -226,7 +268,7 @@ def sky_laid(sky, place):
     """The sky's picture imported as a cube map and laid as the sky light, turned and at its strength."""
     cube = next(asset for asset in imported([sky["file"]], f"{ROOT}/{place}/Sky")[0]
                 if isinstance(asset, unreal.TextureCube))
-    light = spawned(unreal.SkyLight).light_component
+    light = spawned(unreal.SkyLight).get_editor_property("light_component")
     light.set_editor_property("source_type", unreal.SkyLightSourceType.SLS_SPECIFIED_CUBEMAP)
     light.set_editor_property("cubemap", cube)
     light.set_editor_property("source_cubemap_angle", sky["turn"])
@@ -256,24 +298,24 @@ def keyed(section, keys, values_of):
 
 
 def filmed(made):
-    """The film path as a Level Sequence: a spawnable cine camera on our filmback, its location, rotation and focal
-    length keyed every frame, and a camera cut on it the whole film."""
+    """The film path as a Level Sequence: a cine camera in the level on our filmback, possessed by the sequence, its
+    location, rotation and focal length keyed every frame, and a camera cut on it the whole film."""
     shots = made["camera"]
-    sequence = TOOLS.create_asset(f"LS_{made['place']}_film", f"{ROOT}/{made['place']}", unreal.LevelSequence,
-                                  unreal.LevelSequenceFactoryNew())
+    folder, name = planning.sequence_path(made["place"]).split(".")[0].rsplit("/", 1)
+    sequence = TOOLS.create_asset(name, folder, unreal.LevelSequence, unreal.LevelSequenceFactoryNew())
     rate = unreal.FrameRate(shots["fps"], 1)
     sequence.set_display_rate(rate)
     sequence.set_tick_resolution(rate)
     sequence.set_playback_start(0)
     sequence.set_playback_end(shots["frames"])
     actor = spawned(unreal.CineCameraActor)
+    actor.set_actor_label(f"{made['place']}_film_camera")
     lens = actor.get_cine_camera_component()
     filmback = lens.get_editor_property("filmback")
     filmback.set_editor_property("sensor_width", shots["filmback"][0])
     filmback.set_editor_property("sensor_height", shots["filmback"][1])
     lens.set_editor_property("filmback", filmback)
-    binding = sequence.add_spawnable_from_instance(actor)
-    actor.destroy_actor()
+    binding = sequence.add_possessable(actor)
     motion = binding.add_track(unreal.MovieScene3DTransformTrack).add_section()
     motion.set_range(0, shots["frames"])
     keyed(motion, shots["keys"], lambda key: key["location"] + [key["rotation"][axis] for axis in
@@ -292,26 +334,81 @@ def filmed(made):
     return sequence
 
 
+def attempted(faults, what, call, *arguments):
+    """call(*arguments), or None with its error added to `faults` as {what, error} and logged."""
+    try:
+        return call(*arguments)
+    except Exception as error:  # noqa: BLE001 - every refusal is listed in made.json and fails the result
+        faults.append({"what": what, "error": f"{type(error).__name__}: {error}"})
+        unreal.log_error(f"score: FAULT {what}: {type(error).__name__}: {error}")
+        return None
+
+
+def step(name):
+    """Log the step about to run, so a failure's log names where it stopped."""
+    unreal.log(f"score: {name}")
+
+
+def level_made(place):
+    """A new level at plan.level_path, open (one an earlier run left replaced)."""
+    path = planning.level_path(place)
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        unreal.EditorAssetLibrary.delete_asset(path)
+    if not unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).new_level(path):
+        raise RuntimeError(f"the level {path} was not made")
+
+
+def saved(place):
+    """The level and every changed asset saved; refused when one was not."""
+    if not unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level():
+        raise RuntimeError(f"the level {planning.level_path(place)} was not saved")
+    if not unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True):
+        raise RuntimeError("the changed assets were not all saved")
+
+
 def main(arguments):
-    """The package at arguments[0] carried into the open level, its textures staged under arguments[1], its film path
-    (arguments[2]) as a Level Sequence when given."""
-    package, into = arguments[0], arguments[1]
-    made = planning.planned(package, into, arguments[2] if len(arguments) > 2 else None, measured_basis(into))
+    """The package at arguments[0] carried into a new level, its textures staged under arguments[1], its film path
+    (arguments[2]) as a Level Sequence when given; <into>/made.json written last."""
+    package, into = arguments[0], pathlib.Path(arguments[1])
+    into.mkdir(parents=True, exist_ok=True)
+    step("measuring the import's axes")
+    basis = measured_basis(into)
+    made = planning.planned(package, into, arguments[2] if len(arguments) > 2 else None, basis)
+    step(f"a new level for {made['place']}")
+    level_made(made["place"])
+    step(f"{len(made['textures'])} textures")
     textures = textures_made(made["textures"], made["place"])
-    instances = {look["name"]: instance_made(look, made["place"], textures) for look in made["materials"]}
-    meshes = {mesh["object"]: mesh_made(mesh, made["place"], instances) for mesh in made["meshes"]}
+    faults = []
+    step(f"{len(made['materials'])} material instances")
+    instances = {look["name"]: attempted(faults, f"look {look['name']}", instance_made, look, made["place"], textures)
+                 for look in made["materials"]}
+    step(f"{len(made['meshes'])} meshes")
+    meshes = {mesh["object"]: attempted(faults, f"object {mesh['object']}", mesh_made, mesh, made["place"], instances)
+              for mesh in made["meshes"]}
+    step(f"{len(made['actors'])} actors, the lamps, sun, sky and exposure")
     for actor_plan in made["actors"]:
-        placed(actor_plan, meshes[actor_plan["object"]], made["place"])
-    lamps_laid(made["lamps"])
-    bodies_laid(made["environment"])
+        if meshes[actor_plan["object"]] is not None:
+            attempted(faults, f"actor {actor_plan['name']}", placed, actor_plan, meshes[actor_plan["object"]],
+                      made["place"])
+    attempted(faults, "lamps", lamps_laid, made["lamps"])
+    attempted(faults, "sun and moon", bodies_laid, made["environment"])
     if made["environment"]["sky"]:
-        sky_laid(made["environment"]["sky"], made["place"])
-    exposure_set(made["environment"]["exposure_bias"])
+        attempted(faults, "sky", sky_laid, made["environment"]["sky"], made["place"])
+    attempted(faults, "exposure", exposure_set, made["environment"]["exposure_bias"])
     if made["camera"]:
+        step("the film's Level Sequence")
         filmed(made)
-    unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
-    unreal.log(f"SCORE: {made['place']}: {len(meshes)} meshes, {len(made['actors'])} actors, "
-               f"{len(instances)} material instances, camera {bool(made['camera'])}")
+    step("saving")
+    saved(made["place"])
+    summary = {"place": made["place"], "level": planning.level_path(made["place"]),
+               "sequence": planning.sequence_path(made["place"]) if made["camera"] else None,
+               "measured_basis": [list(row) for row in basis], "expected_basis": [list(row) for row in frames.BASIS],
+               "basis_as_expected": [list(row) for row in basis] == [list(row) for row in frames.BASIS],
+               "meshes": sum(mesh is not None for mesh in meshes.values()), "actors": len(made["actors"]),
+               "materials": sum(look is not None for look in instances.values()), "textures": len(textures),
+               "lamps": len(made["lamps"]), "left_out": made["left_out"], "faults": faults}
+    (into / "made.json").write_text(json.dumps(summary, indent=1))
+    unreal.log(f"score: made {json.dumps(summary)}")
 
 
 if __name__ == "__main__":
