@@ -266,7 +266,8 @@ tests it turned red:
   texture); `colours_read`'s `or offset <= COLOUR_OFFSET` dropped -> every_part_takes_a_library_surface_and_is_held_to_it
   (a thin frame cast a pixel off, IoU under CLOSE_UP_FIT, reads its views' texture: the tc4r rack's red beams, #186)
 - finish_parts.py `checked_finishes`: the `listed.get("family") in OWN_COLOUR` branch after the family's nearest ->
-  every_part_takes_a_library_surface_and_is_held_to_it (the tc4r fridge's clear glass moved to dark glass, #186)
+  every_part_takes_a_library_surface_and_is_held_to_it (the tc4r fridge's clear glass moved to dark glass, #186);
+  its `+ LIT_FAMILIES` dropped (tc5r's white LED strip moved to the black LEDs, #197)
 - route_parts.py: `and not lamps.on_stem({"size": built.get("size")})` -> `and True`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows); so does `zip(checked, lit if
   any(lit) else [True] * len(checked))` -> `zip(checked, [True] * len(checked))` (the light bar's metal end caps
@@ -3485,6 +3486,11 @@ CHECKED = [
      False, [{"surface": "red_plastic", "by": "its own colour", "cover": True},
              {"surface": "plastic_grey", "by": "nearest of its family by colour"},
              {"surface": "red_plastic", "by": "off its colour"}]),
+    ("a lit strip seen dark keeps its glow, never the black LEDs nearest its colour (tc5r's vending machine, #197)",
+     {"object": "vending machine"}, [{"finish": "white LED light strip", "parts": "trim", "surface": "white_led"}],
+     [np.array([20.0, 0.0, 0.0])], {"white_led": {"family": "glowing", "recipe": "glowing", "colour": [1.0] * 3},
+                                    "black_leds": {"family": "glowing", "recipe": "glowing", "colour": [0.01] * 3}},
+     None, False, [{"surface": "white_led", "by": "its own colour"}]),
     ("a finish in the list's own token seen lighter by the light keeps its surface", {"object": "fridge"},
      [{"finish": "brushed stainless steel", "parts": "body", "surface": "steel_grey", "colour": [0.22] * 3}],
      [np.array([100.0, 0.0, 0.0])], FRIDGE, None, False, [{"surface": "steel_grey", "by": "the list"}]),

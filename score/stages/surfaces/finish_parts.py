@@ -325,8 +325,10 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
             record.update(by="its own colour")
         elif apart > COLOUR_DELTA_E and coloured_cover(finish, every):
             record.update(by="its own colour", cover=True)
-        elif apart > COLOUR_DELTA_E and listed.get("family") in OWN_COLOUR:
-            record.update(by="its own colour")  # never moved to the glass nearest what shows through it
+        elif apart > COLOUR_DELTA_E and listed.get("family") in OWN_COLOUR + LIT_FAMILIES:
+            # never moved to the glass nearest what shows through it, nor to the glow nearest its light: a thin lit
+            # strip's close-up colour moved tc5r's white LED strip onto NVIDIA's black LEDs (#197)
+            record.update(by="its own colour")
         elif apart > COLOUR_DELTA_E:
             family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
                       if spec.get("family") == listed.get("family") and "colour" in spec
