@@ -1588,7 +1588,11 @@ BAKE_MEMORY_GB = 6
 # the street, 2026-11-24, a 3684x3368 map's run peaked at 3.33 GB and baked it in 69 s (5.6 s a megapixel), and the
 # run whose first map was 8192x8192 was killed at the 8 GB scope. Memory: half a GB and BAKE_GB_A_MEGAPIXEL
 # for its largest map (0.23 measured, the rest margin); time: BAKE_SECONDS_A_MEGAPIXEL over all its maps (about 3x).
+# The card the same way, BAKE_CARD_GB_A_MEGAPIXEL of its largest map: 2.2 GB was the highest read at 4096 (16.8 MP,
+# 0.13 a megapixel), and the street's 8192 maps lost their CUDA context at a 4 GB share beside another run's
+# (2026-11-24: "Unknown error in CUDA queue copy_from_device"), so one such run holds most of the card.
 BAKE_GB_A_MEGAPIXEL = 0.3
+BAKE_CARD_GB_A_MEGAPIXEL = 0.15
 BAKE_SECONDS_A_MEGAPIXEL = 15
 BAKE = "bake/maps"
 BAKE_CODE = ("bake_looks.py", "../../../tools/props/library/recipes.py")  # under this folder: the code a map's key holds
@@ -1642,11 +1646,14 @@ def batches(jobs):
 
 
 def run_needs(jobs):
-    """A bake run's memory (GB) and time (s) for its jobs' maps: at least BAKE_MEMORY_GB and STEP_SECONDS' bake run,
-    more for big maps (BAKE_GB_A_MEGAPIXEL of its largest, BAKE_SECONDS_A_MEGAPIXEL of all)."""
+    """A bake run's memory (GB), time (s) and card (GB) for its jobs' maps: at least BAKE_MEMORY_GB, STEP_SECONDS'
+    bake run and BAKE_CARD_GB, more for big maps (BAKE_GB_A_MEGAPIXEL and BAKE_CARD_GB_A_MEGAPIXEL of its largest,
+    BAKE_SECONDS_A_MEGAPIXEL of all)."""
     megapixels = [job["size"][0] * job["size"][1] / 1e6 for job in jobs]
-    return (max(BAKE_MEMORY_GB, math.ceil(0.5 + BAKE_GB_A_MEGAPIXEL * max(megapixels, default=0))),
-            max(STEP_SECONDS["bake run"], math.ceil(BAKE_SECONDS_A_MEGAPIXEL * sum(megapixels))))
+    largest = max(megapixels, default=0)
+    return (max(BAKE_MEMORY_GB, math.ceil(0.5 + BAKE_GB_A_MEGAPIXEL * largest)),
+            max(STEP_SECONDS["bake run"], math.ceil(BAKE_SECONDS_A_MEGAPIXEL * sum(megapixels))),
+            max(BAKE_CARD_GB, math.ceil(0.5 + BAKE_CARD_GB_A_MEGAPIXEL * largest)))
 
 
 def blender_run(out, listing, log):
@@ -1655,10 +1662,10 @@ def blender_run(out, listing, log):
     import subprocess
     from score.stages.place_build import render
     script = pathlib.Path(__file__).resolve().parent / "bake_looks.py"
-    memory_gb, seconds = run_needs(json.loads(listing.read_text())["jobs"])
+    memory_gb, seconds, card_gb = run_needs(json.loads(listing.read_text())["jobs"])
     with log.open("a") as written_log:
         return subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())],
-                                            seconds=seconds, card_gb=BAKE_CARD_GB, memory_gb=memory_gb),
+                                            seconds=seconds, card_gb=card_gb, memory_gb=memory_gb),
                               stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO).returncode
 
 
