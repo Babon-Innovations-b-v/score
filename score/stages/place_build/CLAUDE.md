@@ -209,7 +209,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   own piece: a curved row of screws of its own had its middle behind the face) screwed along every joint clear of
   holes, plates and the cut; lamps sit in a black bezel with a low lens, an `annunciator` lays them in a grid (unlit
   ones "off", dark glass), the ball carries its pitch lines and roll scale, `talk_key` is the radio's rubber
-  push-to-talk key, and a toggle's plate is dark (a bright plate read as a toy block).
+  push-to-talk key, and a toggle's plate is dark (a bright plate read as a toy block). Round 3 (the judge: "bare bat
+  switches", "a plain light-tan disc" for the hatch): a toggle's wickets are stout bails on feet standing over the bat
+  (a thin wire beside it read as no guard), the hatch leaf's inside carries eight ribs from its wheel's hub and a lit
+  ring inside its rim (part lamp_white), and a panel's label is 14 mm by default (20 mm read as game lettering).
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its

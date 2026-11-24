@@ -394,10 +394,14 @@ def toggle(guard=False, **_):
         cover = box("cover", (-0.0105, -0.026, -0.0015), (0.0105, 0.0, 0.0015), 0.0005)
         found += moved(cover, about("x", -110), (0.0, 0.012, 0.024))
     elif guard:
-        for side in (-1, 1):
-            loop = [(side * 0.0115, -0.012, 0.0008), (side * 0.0115, -0.009, 0.019), (side * 0.0115, -0.004, 0.025),
-                    (side * 0.0115, 0.004, 0.025), (side * 0.0115, 0.009, 0.019), (side * 0.0115, 0.012, 0.0008)]
-            found += tube("guard", loop, 0.0014, 8)
+        for side in (-1, 1):  # a stout bright bail standing on a foot at each end, taller than the bat (a thin
+            # dark wire beside the switch read as no guard at all: the judge's "bare bat switches")
+            loop = [(side * 0.0125, -0.0135, 0.0015), (side * 0.0125, -0.0105, 0.021), (side * 0.0125, -0.0045, 0.028),
+                    (side * 0.0125, 0.0045, 0.028), (side * 0.0125, 0.0105, 0.021), (side * 0.0125, 0.0135, 0.0015)]
+            found += tube("guard", loop, 0.0021, 10)
+            for end in (-0.0135, 0.0135):
+                found += box("guard", (side * 0.0125 - 0.0032, end - 0.0032, 0.0), (side * 0.0125 + 0.0032,
+                                                                                    end + 0.0032, 0.0026), 0.0006)
     return found
 
 
@@ -794,7 +798,7 @@ def framed_plate(outer, inner):
     return [piece("bezel", points, triangles[~plate], False), piece("plate", points, triangles[plate], False)]
 
 
-def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, split=0.5, **_):
+def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.014, split=0.5, **_):
     """An instrument panel: a plate with rounded corners, a raised bezel round it screwed down (panel_screws), a label strip across its top with
     `label` in modelled letters, and its `items` laid on the plate (their `at` from the plate's middle). A label
     "A|B" makes two sections, the plate parted at `split` of its width by a raised divider, each section with its own
@@ -1518,7 +1522,8 @@ def tread(at=(0.0, 0.8), radius=0.63, rise=0.215, start=0.0, end=0.3, **sizes):
 
 def hatch_leaf(radius=0.6, thick=0.05, bolts=16, **_):
     """The round hatch's door: a dished disc `radius` across, a raised rim on its inside face, bolts round it and a
-    handwheel in its middle (its inside toward +z, as built); on its outside a hinge arm on two straps out to the
+    handwheel in its middle, eight ribs from the wheel's hub to the rim and a lit ring inside the rim (part
+    lamp_white) (its inside toward +z, as built); on its outside a hinge arm on two straps out to the
     hinge's knuckle past its edge (part hinge)."""
     found = turned("leaf", [(0.0, -thick / 2), (radius, -thick / 2), (radius, thick / 2), (radius - 0.06, thick / 2),
                             (radius - 0.09, thick / 2 + 0.012), (0.0, thick / 2 + 0.02)], segments=96)
@@ -1531,6 +1536,13 @@ def hatch_leaf(radius=0.6, thick=0.05, bolts=16, **_):
                               segments=6), offset=((radius - 0.033) * math.cos(angle),
                                                    (radius - 0.033) * math.sin(angle), thick / 2 + 0.0205))
     found += moved(wheel(size=0.32), offset=(0.0, 0.0, thick / 2 + 0.0205))
+    for step in range(8):  # the inside face's stiffening ribs, from the wheel's hub out to the rim (a real hatch's
+        # structure: a plain dished disc read as unfinished)
+        rib = box("leaf", (0.19, -0.009, thick / 2 + 0.006), (radius - 0.1, 0.009, thick / 2 + 0.034), 0.003)
+        found += moved(rib, about("z", 22.5 + step * 45))
+    found += turned("lamp_white", [(radius - 0.078, thick / 2 + 0.001), (radius - 0.066, thick / 2 + 0.001),
+                                   (radius - 0.066, thick / 2 + 0.009), (radius - 0.078, thick / 2 + 0.009),
+                                   (radius - 0.078, thick / 2 + 0.001)], segments=96)  # a lit ring inside its rim
     for step in range(bolts):  # its outside's bolts
         angle = 2 * math.pi * (step + 0.5) / bolts
         found += moved(turned("bolt", [(0.0, 0.0), (0.009, 0.0), (0.009, 0.005), (0.005, 0.008), (0.0, 0.008)],
