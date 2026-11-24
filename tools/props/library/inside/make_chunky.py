@@ -159,6 +159,13 @@ def texel_masks(parts_folder):
     return {"order": [(name, folder / f"{name}.png") for name in order], "uv": uv}
 
 
+def occlusion_of(whole, masks):
+    """The full model's own ambient occlusion on its TEXELS_UV map at its texel masks' side (bake.occlusion, #206),
+    which the bake darkens the masked finishes' base colour by: from the model's shape, never its take's texture."""
+    side = bpy.data.images.load(str(masks["order"][0][1]), check_existing=True).size[0]
+    return bake.occlusion([whole], TEXELS_UV, side, bake.occlusion_reach([whole]))
+
+
 def read_ply(path, corner_uv=None):
     """A labelled part (labels.py's binary .ply: float x, y, z; triangles) as a new object in the scene, its triangles
     kept_triangles' in file order, so the same file gives the same mesh every run; `corner_uv` (a corner UV a face of
@@ -504,7 +511,8 @@ def make_piece(entry, job, out):
     masks = texel_masks(entry["parts"])
     atlas.bake_from(whole, low, specs, job["wear"], job["dirt"], job["seed"],
                     bake_reach(entry["size"]), entry.get("foot"),
-                    masks=masks and [(name, path) for name, path in masks["order"] if name in specs])
+                    masks=masks and [(name, path) for name, path in masks["order"] if name in specs],
+                    occluded=masks and occlusion_of(whole, masks))
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,

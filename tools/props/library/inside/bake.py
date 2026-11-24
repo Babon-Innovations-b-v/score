@@ -78,6 +78,20 @@ SMOOTH_REACH = 0.03
 # stays sharp, so its wear stays on it.
 SMOOTH_CREASE = math.radians(35.0)
 SMOOTH_ROUNDS_MOST = 200
+# A generated model's ambient occlusion (occlusion, #206): samples a texel, and its rays' reach as a share of the
+# model's box diagonal (occlusion_reach). On tc6w2's anesthesia machine (bench finish.shade, its parts held to the input
+# close-up's shading): unshaded 0.22 of its area held, at 0.05 of its diagonal 0.76, at 0.1 0.76 with its white body's
+# creases 3.9 deep for the input's 5.1, at 0.02 0.22 (a seam's shadow too narrow to show at the look's pixels).
+OCCLUSION_SAMPLES = 128
+OCCLUSION_SHARE = 0.1
+
+
+def occlusion_reach(items):
+    """How far the ambient occlusion of `items` looks: OCCLUSION_SHARE of their box's diagonal, in metres."""
+    corners = [item.matrix_world @ Vector(corner) for item in items for corner in item.bound_box]
+    low = Vector([min(corner[axis] for corner in corners) for axis in range(3)])
+    high = Vector([max(corner[axis] for corner in corners) for axis in range(3)])
+    return OCCLUSION_SHARE * (high - low).length
 
 
 def unwrap(item):
@@ -243,6 +257,42 @@ def packed_maps(item, tile, count, side, sharp=(), per_face=False):
         else:
             bpy.ops.uv.pack_islands(rotate=True, margin=2 * MARGIN_PIXELS / side)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def occlusion(items, uv_map, side, reach):
+    """The ambient occlusion of `items` (a generated model's full meshes) from their own shape alone, baked by Cycles
+    on their `uv_map` ("" the active one; the texel masks' UVs, make_chunky.TEXELS_UV) into a new Non-Color picture
+    `side` square, rays reaching `reach` metres, every other mesh of the scene out of the bake (#206: tc6w2's anesthesia
+    machine drawn one flat white where NVIDIA's shades into every seam, drawer line and corner). Never the take's own
+    texture: the shading comes from the geometry. The scene's samples, its world's reach and each material are as
+    they were after."""
+    scene = bpy.context.scene
+    picture = new_picture("occlusion", side, False)
+    picture.generated_color = (1.0, 1.0, 1.0, 1.0)
+    others = [item for item in scene.objects if item.type == "MESH" and item not in items and not item.hide_render]
+    for item in items:
+        if not item.data.materials:
+            item.data.materials.append(bpy.data.materials.new("occlusion"))
+    materials = {material for item in items for material in item.data.materials if material is not None}
+    for material in materials:
+        material.use_nodes = True
+    nodes = [(material, with_target(material, picture).node_tree.nodes.active) for material in materials]
+    if scene.world is None:
+        scene.world = bpy.data.worlds.new("occlusion")
+    held = scene.cycles.samples, scene.world.light_settings.distance
+    scene.cycles.samples, scene.world.light_settings.distance = OCCLUSION_SAMPLES, reach
+    for item in others:
+        item.hide_render = True
+    try:
+        select_for_bake(items, items[0])
+        bpy.ops.object.bake(type="AO", margin=MARGIN_PIXELS, use_clear=True, uv_layer=uv_map)
+    finally:
+        scene.cycles.samples, scene.world.light_settings.distance = held
+        for item in others:
+            item.hide_render = False
+        for material, node in nodes:
+            material.node_tree.nodes.remove(node)
+    return picture
 
 
 def new_picture(name, side, colour_data):
@@ -461,13 +511,15 @@ class Atlas:
             item.data.materials[index] = with_target(material, self.pictures["normal"])
         self._bake("normal", "NORMAL")
 
-    def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None, masks=None):
+    def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None, masks=None, occluded=None):
         """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
         real edges, its lumps smoothed: smoothly_shaded) and baked onto `low`'s place in the shared pictures, each map's
         faces into its own set (Blender bakes a face into its material's active picture). `masks` (the paint's texel
         masks, [(surface, its mask picture)] base first: make_chunky.texel_masks): every slot of those surfaces drawn
         as one material, each surface's recipe mixed in by its mask on the model's own UVs (recipes.masked), so a
-        border is the texture's colour edge, not the triangles' (#182); any other slot its own."""
+        border is the texture's colour edge, not the triangles' (#182); any other slot its own. `occluded` (the full
+        model's own ambient occlusion on the masks' UVs, `occlusion`) darkens those masked surfaces' base colour
+        (#206)."""
         smoothly_shaded(high, specs)
         found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(high)]
         masked = [(path, recipes.channels(specs[name], wear, dirt, seed, foot)) for name, path in masks or ()]
@@ -486,7 +538,7 @@ class Atlas:
         across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
         for channel in self._through(found_by_slot + [found for _, found in masked]):
             mix = masked and recipes.masked(masked, lambda found: recipes.emitted(getattr(found, channel)),
-                                                  relief=False).item()
+                                                  relief=False, occlusion=occluded).item()
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
                 high.data.materials[index] = mix if mixed[index] else material
             self._bake_maps(targets, channel, "EMIT", across)

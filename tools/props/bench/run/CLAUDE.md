@@ -30,7 +30,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   it are not run; a step the index holds is never run again, so a stopped run is taken up with the same `--run`.
 - **B's `look` step** (#182, after `finish`): the finish drawn as the bake paints it (`finish.look_job`, `look.py`
   through the card queue): the final model whole, its own vertex normals kept, each slot's recipe mixed in by its
-  texel mask (the finish's texels.npz) on the model's own UVs, from the close-up's camera and its up
+  texel mask (the finish's texels.npz) on the model's own UVs, every base colour darkened by the model's own ambient
+  occlusion baked on those UVs from its shape (bake.occlusion, as make_chunky's bake does, #206; never TRELLIS.2's
+  texture), from the close-up's camera and its up
   (`finish.look_axes`: a flat row straight down, +y up), under the close-up's own light (closeup.lit, #200: under
   two suns and an even grey world chrome reflected only that grey and was drawn dull); `look.png` (1080) and `look-360.png`. Then the mesh alone in
   plain white (`bare.png`) and `holes.json`: `look_holes`, the share of its silhouette the look shows as background or

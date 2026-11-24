@@ -1101,17 +1101,27 @@ def seen_through(found):
     return not isinstance(found.alpha, (int, float)) or found.alpha < 1.0
 
 
-def masked(entries, shader_of, relief=True, uv_map="texels"):
+def occluded(found, occlusion):
+    """The Channels with their base colour darkened by `occlusion` (a number node, 1 open to 0 shut): the model's own
+    ambient occlusion (bake.occlusion, #206), so a finish shades into its seams and corners as a modelled one does."""
+    colour = pf.Color(found.base_color) if isinstance(found.base_color, tuple) else found.base_color
+    return found._replace(base_color=pf.nodes.math.vector_scale(vector=colour, scale=occlusion))
+
+
+def masked(entries, shader_of, relief=True, uv_map="texels", occlusion=None):
     """One material of several surfaces, each drawn by its texel mask (#182): `entries` [(its mask picture's path,
     its Channels)] base first, each one's material (`shader_of(channels)`: shaded, or a channel emitted) mixed over
     those before it by its mask (Non-Color, its first channel) read on the model's own UVs (`uv_map`, the raw take's,
     make_chunky.TEXELS_UV), its relief mixed alike where `relief`. A mask read between texels blends its border over
-    one texel."""
+    one texel. `occlusion` (a Blender picture on the same UVs: bake.occlusion's) darkens every surface's base colour
+    by the model's own ambient occlusion (occluded, #206)."""
     import bpy
     surface, displacement = None, None
     uv = pf.nodes.shader.uv_map(uv_map=uv_map)
+    shut = None if occlusion is None else pf.nodes.math.separate_xyz(
+        pf.nodes.texture.image(vector=uv, image=pf.Image(occlusion), extension="EXTEND").color).x
     for path, found in entries:
-        made = shader_of(found)
+        made = shader_of(found if shut is None else occluded(found, shut))
         if surface is None:
             surface, displacement = made.surface, found.displacement if relief else None
             continue

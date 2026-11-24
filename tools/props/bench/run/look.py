@@ -1,13 +1,14 @@
 """Inside Blender (bench.py's look step, through the card queue, #182): a made model's finish drawn as the bake paints
-it, the model whole (its own vertex normals kept) under one material, each slot's library recipe mixed in by its
-texel mask on the model's own UVs (recipes.masked), seen from the close-up's view direction and up (a flat row from
-straight above, +y up), framed on its own box under the close-up's own studio light (closeup.lit: two large area
-lamps and a dim grey sky), so it is lit as NVIDIA's input render it is held to. Under the library renders' two suns and
-a bright, even grey world a mirror finish reflects only that grey: tc5r's chrome chucks, nozzle and rods were drawn
-dull flat grey at roughness 0.13, where the input's chrome shines (#159). Drawn at wear 0 and dirt 0: the bench names
-none. Then the mesh alone (`bare.png`, the job's `bare`): the same model, camera
-and light in one plain white surface, its own vertex normals kept, which the look's holes check reads (bench.py
-look_holes, #159: the printer box's normals turned inward drew black holes through its front).
+it, the model whole (its own vertex normals kept) under one material, each slot's library recipe mixed in by its texel
+mask on the model's own UVs (recipes.masked) and darkened by the model's own ambient occlusion baked on them
+(bake.occlusion, #206: tc6w2's anesthesia machine drawn one flat white where NVIDIA's shades into its seams), seen from
+the close-up's view direction and up (a flat row from straight above, +y up), framed on its own box under the close-up's
+own studio light (closeup.lit: two large area lamps and a dim grey sky), so it is lit as NVIDIA's input render it is
+held to. Under the library renders' two suns and a bright, even grey world a mirror finish reflects only that grey:
+tc5r's chrome chucks, nozzle and rods were drawn dull flat grey at roughness 0.13, where the input's chrome shines
+(#159). Drawn at wear 0 and dirt 0: the bench names none. Then the mesh alone (`bare.png`, the job's `bare`): the same
+model, camera and light in one plain white surface, its own vertex normals kept, which the look's holes check reads
+(bench.py look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
 metres; each text decal's box as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
 A job naming a `usd` in place of a `glb` draws NVIDIA's own model, its own materials, by this camera and light alone
@@ -30,6 +31,7 @@ sys.path.insert(0, str(HERE))
 import runtime  # noqa: E402
 
 runtime.ready()
+import bake  # noqa: E402  (the model's own ambient occlusion, #206)
 import closeup  # noqa: E402  (the close-up's light, `lit`)
 import recipes  # noqa: E402
 import scene_setup  # noqa: E402
@@ -38,14 +40,22 @@ from finish import look_axes  # noqa: E402
 BARE_WHITE = (0.8, 0.8, 0.8, 1.0)  # the mesh-alone picture's one surface: the principled default's white
 
 
-def look_material(masks):
+def look_material(masks, occlusion=None):
     """One material: each slot's recipe (at wear 0, dirt 0 and its spec's seed) mixed over the ones before it by its
     texel mask, read on the model's active UVs, a glass's alpha drawn as the bake carries it (recipes.shaded's
-    `through`, #186)."""
+    `through`, #186), every base colour darkened by the model's own ambient occlusion (`occlusion`, #206)."""
     entries = [(mask["mask"], recipes.channels(mask["spec"], 0.0, 0.0, mask["spec"]["seed"])) for mask in masks]
-    material = recipes.masked(entries, lambda found: recipes.shaded(found, through=True), uv_map="").item()
+    material = recipes.masked(entries, lambda found: recipes.shaded(found, through=True), uv_map="",
+                              occlusion=occlusion).item()
     material.displacement_method = "BUMP"
     return material
+
+
+def occluded(meshes, masks):
+    """The model's own ambient occlusion on its active UVs, at its texel masks' side (bake.occlusion, as the place's
+    bake gives its finish, #206)."""
+    side = bpy.data.images.load(str(masks[0]["mask"]), check_existing=True).size[0]
+    return bake.occlusion(meshes, "", side, bake.occlusion_reach(meshes))
 
 
 def laid(meshes):
@@ -142,7 +152,7 @@ def main():
     bpy.ops.import_scene.gltf(filepath=job["glb"])
     meshes = [item for item in scene.objects if item.type == "MESH"]
     laid(meshes)
-    material = look_material(job["masks"])
+    material = look_material(job["masks"], occluded(meshes, job["masks"]))
     for item in meshes:
         item.data.materials.clear()
         item.data.materials.append(material)
