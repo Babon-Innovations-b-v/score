@@ -349,9 +349,19 @@ def taken_in(entry, files, title, made_with, work):
     root = values.get("SCORE_LIB_ROOT")
     if not root:
         raise place_build.Refused("no library is configured (SCORE_LIB_ROOT)")
-    with open(pathlib.Path(root) / ".git" / "score-make.lock", "w") as lock:
+    with open(lock_file(root), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)  # makes side by side take in one at a time (one checkout, one push each)
         return saved(values, root, entry, files, title, made_with, work)
+
+
+def lock_file(root):
+    """The take-in lock of the library checkout at `root`, in its repository's shared git folder, so a checkout that
+    is a git worktree (its .git a file) locks with every other checkout of that repository."""
+    found = subprocess.run(["git", "-C", str(root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                           capture_output=True, text=True)
+    if found.returncode != 0:
+        raise place_build.Refused(f"the library at {root} is no git checkout: {found.stderr[-300:]}")
+    return pathlib.Path(found.stdout.strip()) / "score-make.lock"
 
 
 def saved(values, root, entry, files, title, made_with, work):
