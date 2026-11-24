@@ -19,10 +19,13 @@ Steps, each failing the job loudly:
 4. The full pass, then the check pass (the first frames again, a second editor process), each
    `UnrealEditor-Cmd <project> <map> -game -LevelSequence=... -MoviePipelineConfig=... -RenderOffscreen -Unattended`.
 5. Unreal's local cache server (zenserver), which outlives the editor, is stopped, so the runtime packs a cache no
-   process is writing (its kernel cache upload follows the command).
+   process is writing (its kernel cache upload follows the command). A server that ended is a zombie until reaped
+   (the job's first process reaps no orphans), so a zombie counts as stopped (zen_pids).
 
 The Derived Data Cache goes into the job's kernel-cache folder (the parent of the CUDA cache the runtime points
-there) through `UE-LocalDataCachePath`, a variable a shell cannot set (its name has a dash), set here. record.json in
+there): UE 5.8 keeps it in its user's home whatever `UE-LocalDataCachePath` says (#222, run 8: zenserver's data
+and the filesystem cache under ~/.config/Epic/UnrealEngine/Common, the kernel-cache folder left empty), so those
+folders are links into it (caches_linked) before the editor first starts. record.json in
 the out folder holds each step's seconds, each pass's frames, the card Vulkan named and the cache's bytes before and
 after; logs/ the editor's own logs of every start. A failing step still writes record.json (its `failure`) and
 logs/, and the job exits 0 so the runtime brings them back (it brings outputs back only from a command that
@@ -46,6 +49,9 @@ EXTENSIONS = ("VK_KHR_ray_tracing_pipeline", "VK_KHR_ray_query", "VK_KHR_acceler
 DDC_FOLDER = "unreal-ddc"
 ZEN = "zenserver"
 ZEN_SECONDS = 60
+# The editor's caches in its user's home (UE 5.8 on Linux), each linked to a folder of that name in the shader cache.
+CACHE_HOMES = {"zen": ".config/Epic/UnrealEngine/Common/Zen/Data",
+               "local": ".config/Epic/UnrealEngine/Common/DerivedDataCache"}
 STDERR_LINES = 4
 
 
@@ -99,10 +105,26 @@ def ddc_folder(environ):
     return pathlib.Path(environ["CUDA_CACHE_PATH"]).parent / DDC_FOLDER
 
 
-def editor_environment(environ, shot_path, ddc, home):
-    """The editor's environment: the job's, its user's home, the cache's folder and where in_editor.py finds the
-    shot."""
-    return {**environ, "HOME": home, "UE-LocalDataCachePath": str(ddc), "SCORE_UNREAL_SHOT": str(shot_path)}
+def editor_environment(environ, shot_path, home):
+    """The editor's environment: the job's, its user's home and where in_editor.py finds the shot."""
+    return {**environ, "HOME": home, "SCORE_UNREAL_SHOT": str(shot_path)}
+
+
+def caches_linked(home, ddc):
+    """Each of the editor's home caches (CACHE_HOMES) a link to its folder in the shader cache `ddc`, so what the
+    editor writes there is packed with the job (a folder already there, the pod's own, is replaced); the links."""
+    links = []
+    for name, inside in CACHE_HOMES.items():
+        (ddc / name).mkdir(parents=True, exist_ok=True)
+        link = pathlib.Path(home) / inside
+        link.parent.mkdir(parents=True, exist_ok=True)
+        if link.is_symlink() or link.is_file():
+            link.unlink()
+        elif link.is_dir():
+            shutil.rmtree(link)
+        link.symlink_to(ddc / name, target_is_directory=True)
+        links.append(link)
+    return links
 
 
 def config_command(shot, script):
@@ -176,16 +198,19 @@ def run_as(command, user, environ):
     return seconds
 
 
-def zen_pids():
-    """The processes named ZEN in this container."""
+def zen_pids(proc=pathlib.Path("/proc")):
+    """The running processes named ZEN in this container. A zombie (state Z: it has ended, its parent has not
+    reaped it) is not one: the job's first process reaps no orphans, so a server that stopped stays listed until
+    the pod ends, and run 7 and 8 (#222) read that as a server that would not stop."""
     found = []
-    for comm in pathlib.Path("/proc").glob("[0-9]*/comm"):
+    for stat in pathlib.Path(proc).glob("[0-9]*/stat"):
         try:
-            if comm.read_text().strip() == ZEN:
-                found.append(int(comm.parent.name))
-        except OSError:
+            name, rest = stat.read_text().split("(", 1)[1].rsplit(")", 1)
+        except (OSError, IndexError, ValueError):
             continue  # gone while read
-    return found
+        if name == ZEN and rest.split()[0] != "Z":
+            found.append(int(stat.parent.name))
+    return sorted(found)
 
 
 def stop_zen():
@@ -265,9 +290,11 @@ def main(shot_path):
     vulkaninfo = done.stdout
     ddc, user = ddc_folder(os.environ), shot["user"]
     out = pathlib.Path(shot["out"])
-    for folder in (ddc, out, pathlib.Path(shot["project"]).parent):
+    home = pwd.getpwnam(user).pw_dir
+    caches_linked(home, ddc)
+    for folder in (ddc, out, pathlib.Path(shot["project"]).parent, pathlib.Path(home) / ".config"):
         give(folder, user)
-    environ = editor_environment(os.environ, shot_path, ddc, pwd.getpwnam(user).pw_dir)
+    environ = editor_environment(os.environ, shot_path, home)
     engine_plugins = pathlib.Path(shot["editor"]).parents[2] / "Plugins"  # <engine>/Engine/Plugins
     record = {"card": device_name(vulkaninfo), "ddc": {"folder": str(ddc), "bytes_before": size_of(ddc)},
               "plugins_dropped": plugins_held(shot["project"], engine_plugins), "passes": {}}

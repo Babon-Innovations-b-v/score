@@ -27,6 +27,8 @@ Breaks, each applied once and seen red (2026-11-24):
 - `scene_record` refuses a non-zero exit -> a level made with faults stops the render (#222, run 6).
 - `render` skips `card_failure` -> a run that stopped on the card is priced and checked as frames.
 - `cache_dropped` keeps the cache of a killed server -> a half-written shader cache is packed (#222, run 7).
+- `zen_pids` counts a zombie -> a cache server that stopped reads as one that will not (#222, runs 7 and 8).
+- `caches_linked` makes the folders but no links -> the editor's home cache never reaches the kernel cache (run 8).
 """
 import json
 import pathlib
@@ -126,6 +128,14 @@ def kept_cache(folder):
     return folder
 
 
+def proc(folder, processes):
+    """A stand-in /proc: {pid: (comm, state)} as each process's stat line."""
+    for pid, (name, state) in processes.items():
+        (folder / str(pid)).mkdir(parents=True)
+        (folder / str(pid) / "stat").write_text(f"{pid} ({name}) {state} 1 {pid} {pid} 0 -1\n")
+    return folder
+
+
 def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_priced(tmp_path, monkeypatch):
     names = [f"{number:04d}.png" for number in range(8)]
     full = frames(tmp_path / "out/full", names, {"0001.png": noisy})
@@ -179,6 +189,8 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
                    tmp_path / "failed/out")
     (tmp_path / "stage").mkdir()
     (tmp_path / "stage/made.json").write_text(json.dumps({"faults": [{"what": "actor a"}]}))
+    linked = on_card.caches_linked(tmp_path / "home", tmp_path / "ddc")
+    (linked[0] / "blob").write_bytes(b"z")
     # (case, answer, expected), each expectation worked by hand
     rows = [
         ("a ray-tracing project passes", render.project_refusal(GOOD), None),
@@ -253,8 +265,13 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
         ("the cache beside CUDA's", on_card.ddc_folder({"CUDA_CACHE_PATH": "/cache/kernels/u/sm89-580.1/cuda"}),
          pathlib.Path("/cache/kernels/u/sm89-580.1/unreal-ddc")),
         ("no kernel cache, no render", raised(lambda: on_card.ddc_folder({})) is not None, True),
-        ("the editor's cache variable", on_card.editor_environment({"A": "1"}, "/s.json", pathlib.Path("/d"), "/h"),
-         {"A": "1", "HOME": "/h", "UE-LocalDataCachePath": "/d", "SCORE_UNREAL_SHOT": "/s.json"}),
+        ("the editor's environment", on_card.editor_environment({"A": "1"}, "/s.json", "/h"),
+         {"A": "1", "HOME": "/h", "SCORE_UNREAL_SHOT": "/s.json"}),
+        ("the editor's home caches land in the kernel cache", (
+            [str(link.relative_to(tmp_path / "home")) for link in linked], (tmp_path / "ddc/zen/blob").read_bytes()),
+         ([".config/Epic/UnrealEngine/Common/Zen/Data", ".config/Epic/UnrealEngine/Common/DerivedDataCache"], b"z")),
+        ("a zombie cache server has stopped", on_card.zen_pids(proc(tmp_path / "proc", {
+            11: ("zenserver", "S"), 12: ("zenserver", "Z"), 13: ("UnrealEditor", "S")})), [11]),
         ("two clean renders are the same", {key: value for key, value in _twice.check(
             full, frames(tmp_path / "same", names), 8).items() if key in ("same", "faulty", "checked")},
          {"same": True, "faulty": [], "checked": 8}),

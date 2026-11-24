@@ -17,8 +17,10 @@ Unreal's editor Python; `_twice.py` and `_cost.py` are render.py's.
   cores), since L40S frames come out slightly darker than other cards'.
 - **The shader cache rides the runtime's kernel cache** (`runtime/kernels.py`): `kernel_cache` = `ddc_name` (engine,
   RHI, the project's Linux-target and renderer settings), the runtime adds the card and driver, restores it before the
-  job and uploads it when it grew. Unreal's DDC goes into that folder through `UE-LocalDataCachePath` (set in Python:
-  the dash keeps a shell from setting it). Never change the runtime for Unreal: every image's tag moves with it.
+  job and uploads it when it grew. UE 5.8 keeps its DDC (zenserver's data and the filesystem cache) in the editor
+  user's home whatever `UE-LocalDataCachePath` says (#222, run 8), so `on_card.caches_linked` links those folders
+  into the kernel-cache folder before the editor starts. A zenserver that ended is a zombie (nothing reaps it in the
+  pod), so `zen_pids` skips state Z; one still running after SIGTERM is killed and its cache dropped. Never change the runtime for Unreal: every image's tag moves with it.
 - **From a scene package** (`render.py --package`, #221): the project is made here (`project_made`: our .uproject and
   the REQUIRED settings) and the level on the card first (tools/unreal/scene/editor.py as a commandlet); what the
   editor refused is listed as faults in record.json and the run is then no result, only a debugging one.
