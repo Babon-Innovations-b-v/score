@@ -3,15 +3,15 @@ its picture's camera, so it is turned a quarter turn at a time, scaled uniformly
 model it replaces (the smallest two-way mean distance between points on both surfaces), standing where that one
 stands; or, with no model to replace, scaled to a given height, or to a given size, and stood on y=0 at its centre.
 A model set at a size is first turned to its close-up's heading (`headed`): TRELLIS.2 lays a model with its own heading
-(a desk's long side along x, #166), so the quarter turn, or its mirror, whose outline from the close-up's camera best
-overlaps the picture's is the one laid; turns its outline cannot tell apart (a box's front and back) are left to
-the close-up's content (`pick`, front.picked, #192). It is then brought to each of the size's sides (`size_matrix`,
-#170: a uniform scale kept TRELLIS.2's proportions, tc2's sign 13% too thick and its desk 9% too wide), each axis at
-most STRETCH off the uniform scale that sets its longest side, so a part thin along an axis is never thinned or thickened
-past it.
+(a desk's long side along x, #166), so the quarter turn (never a mirror: TRELLIS.2 makes its picture's hand) whose
+outline from the close-up's camera best overlaps the picture's is the one laid; turns its outline cannot tell apart (a
+box's front and back) are left to the close-up's content (`pick`, front.picked, #192). It is then brought to each of
+the size's sides (`size_matrix`, #170: a uniform scale kept TRELLIS.2's proportions, tc2's sign 13% too thick and its
+desk 9% too wide), each axis at most STRETCH off the uniform scale that sets its longest side, so a part thin along an
+axis is never thinned or thickened past it.
 
     fitted_matrix(points, like_points) -> (matrix 4x4, {"yaw", "scale", "distance_m"})
-    headed(points, cut, turn, down, pick=None) -> (matrix 4x4, {"yaw", "mirrored", "overlap"[, "open", "front"]})
+    headed(points, cut, turn, down, pick=None) -> (matrix 4x4, {"yaw", "overlap"[, "open", "front"]})
     height_matrix(points, height)      -> matrix 4x4
     size_matrix(points, size)          -> (matrix 4x4, {"stretch", "off"})
 """
@@ -21,7 +21,6 @@ from scipy.spatial import cKDTree
 
 YAWS = (0.0, 90.0, 180.0, 270.0)
 OUTLINE = 64  # pixels across the square an outline is compared in, its longer side filling it
-MIRROR_GAIN = 0.05  # a mirror is laid only when its overlap beats every quarter turn's by this (the picture says so)
 STRETCH = 0.25  # the most one axis is scaled off the uniform scale, either way: tc2's furthest was 13.4% (the sign's
 # depth); past a quarter the row and the model disagree on what the thing is (a wrong heading or a wrong row), and a
 # leg or a panel along that axis would come out a quarter thinner or thicker than TRELLIS.2 drew it
@@ -139,31 +138,29 @@ def overlap(drawn, seen):
 
 
 def headed(points, cut, turn, down, pick=None):
-    """The turn about y (a quarter turn, mirrored across x only when the picture says so, MIRROR_GAIN) that lays
-    `points` (Y up) as the close-up `cut` (its opaque pixels) shows it from a camera turned `turn` degrees and looking
-    down `down`; what was chosen. Turns whose outline overlaps within FRONT_BAND of the best are open (a box-like
-    object's front and back): `pick` (front.picked's way: the open turns' matrices in, an index and its reason out)
-    decides between them from the close-up's content, else a later turn is kept over an earlier only when it beats it
-    by TIE (TRELLIS.2's own heading first)."""
+    """The quarter turn about y that lays `points` (Y up) as the close-up `cut` (its opaque pixels) shows it from a
+    camera turned `turn` degrees and looking down `down`; what was chosen. Never a mirror (#159 r15: TRELLIS.2 makes
+    its picture's hand, and hand drill b01, mirrored on a 0.05 better outline, laid its crank pointing at the camera
+    behind its own knob, so no look drew it). Turns whose outline overlaps within FRONT_BAND of the best are open (a
+    box-like object's front and back): `pick` (front.picked's way: the open turns' matrices in, an index and its reason
+    out) decides between them from the close-up's content, else a later turn is kept over an earlier only when it
+    beats it by TIE (TRELLIS.2's own heading first)."""
     right, up = view_axes(turn, down)
     seen = cut_outline(cut)
-    tried = {False: [], True: []}
-    for mirrored in (False, True):
-        for yaw in YAWS:
-            matrix = yawed(yaw) @ np.diag([-1.0 if mirrored else 1.0, 1.0, 1.0, 1.0])
-            laid = applied(matrix, points)
-            tried[mirrored].append((overlap(outline(laid @ right, laid @ up), seen), matrix, yaw))
-    best = {mirrored: max(score for score, _, _ in found) for mirrored, found in tried.items()}
-    mirrored = best[True] > best[False] + MIRROR_GAIN
-    opened = [entry for entry in tried[mirrored] if entry[0] >= best[mirrored] - FRONT_BAND]
+    tried = []
+    for yaw in YAWS:
+        laid = applied(yawed(yaw), points)
+        tried.append((overlap(outline(laid @ right, laid @ up), seen), yawed(yaw), yaw))
+    best = max(score for score, _, _ in tried)
+    opened = [entry for entry in tried if entry[0] >= best - FRONT_BAND]
     if pick is not None and len(opened) > 1:
         index, reason = pick([matrix for _, matrix, _ in opened])
         score, matrix, yaw = opened[index]
-        return matrix, {"yaw": yaw, "mirrored": mirrored, "overlap": round(score, 4),
-                        "open": [entry[2] for entry in opened], "front": reason}
-    kept = tried[mirrored][0]
-    for entry in tried[mirrored][1:]:
+        return matrix, {"yaw": yaw, "overlap": round(score, 4), "open": [entry[2] for entry in opened],
+                        "front": reason}
+    kept = tried[0]
+    for entry in tried[1:]:
         if entry[0] > kept[0] + TIE:
             kept = entry
     score, matrix, yaw = kept
-    return matrix, {"yaw": yaw, "mirrored": mirrored, "overlap": round(score, 4)}
+    return matrix, {"yaw": yaw, "overlap": round(score, 4)}

@@ -83,6 +83,8 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   the painted board fails; the check left out of finish_look's tests: the stipple has no finish.grain row (#159).
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
+- _shape.MISSING_REACH made 1.0 (every part counted as near): the drill's crank left out passes (#159 r15, drill b01);
+  _shape.edge_length reading the outline with its holes filled: the pegboard melted shut passes (the tool cart's).
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail;
   without its look.stretched row (#212, r14l) -> the locks closed to their points (r13's cracks) pass, its bar 1.5 ->
   5.0 -> the same; PICTURED_BARS without it -> the pictured lock closed to its point passes.
@@ -104,7 +106,10 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   shape is off its close-up and the look worse than the previous round's pass; without ("look", "holes") -> the look
   holed through passes.
 """
+import concurrent.futures
 import functools
+import multiprocessing
+import os
 import pathlib
 import sys
 
@@ -452,8 +457,48 @@ def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), mat
     return found, measures.PICTURED_BARS
 
 
+def joined(*meshes):
+    """Meshes as one, standing as the truth: their silhouettes are what the thin and small rows read."""
+    return standing(trimesh.util.concatenate(meshes))
+
+
+def bar(low, high):
+    """A box from corner `low` to corner `high`."""
+    low, high = np.asarray(low, float), np.asarray(high, float)
+    return trimesh.creation.box(high - low, trimesh.transformations.translation_matrix((low + high) / 2))
+
+
+def cranked(arm=True):
+    """A 0.3 m hand drill's shape as boxes (#159 r15, drill b01): a body, a crank arm 6 mm thick standing out 0.12 m
+    from its top and a knob on it; without its `arm` the crank is gone."""
+    body = bar((-0.15, -0.03, 0.0), (0.15, 0.03, 0.04))
+    crank = [bar((0.0, -0.003, 0.04), (0.12, 0.003, 0.046)), bar((0.11, -0.008, 0.046), (0.12, 0.008, 0.08))]
+    return joined(body, *(crank if arm else []))
+
+
+def pegboard(holed=True):
+    """A 0.6 x 0.8 m pegboard 1 cm thick (#159 r15, the tool cart's), its holes 3 cm across on a 6 cm grid as the bars
+    between them; not `holed`, one plate (the remesh's melted board)."""
+    if not holed:
+        return joined(bar((-0.3, 0.0, 0.0), (0.3, 0.01, 0.8)))
+    rails = [bar((-0.3, 0.0, z), (0.3, 0.01, z + 0.03)) for z in np.arange(0.0, 0.8, 0.06)]
+    posts = [bar((x, 0.0, 0.0), (x + 0.03, 0.01, 0.8)) for x in np.arange(-0.3, 0.3, 0.06)]
+    return joined(*rails, *posts, bar((-0.3, 0.0, 0.78), (0.3, 0.01, 0.8)), bar((0.27, 0.0, 0.0), (0.3, 0.01, 0.8)))
+
+
+def thin_and_small(truth, made_mesh):
+    """`made_mesh`'s measures against `truth` (a mesh), no material, mass or collider read."""
+    return measures.measured({**side(truth), "colliders": []}, {**side(made_mesh), "colliders": []})
+
+
 CASES = [
     ("the truth itself", lambda: made(box(), whole=True), None, True),
+    ("the drill with its crank", lambda: thin_and_small(cranked(), cranked()), "shape.missing_part", True),
+    ("the drill's crank left out (r15: drill b01's)", lambda: thin_and_small(cranked(), cranked(arm=False)),
+     "shape.missing_part", False),
+    ("the pegboard holed", lambda: thin_and_small(pegboard(), pegboard()), "shape.outline_detail", True),
+    ("the pegboard's holes melted shut (r15: the tool cart's)", lambda: thin_and_small(pegboard(), pegboard(False)),
+     "shape.outline_detail", False),
     ("the door cut and hung as NVIDIA's", lambda: hung(whole=True), None, True),
     ("no moving part cut", lambda: hung("none"), "parts.count_gap", False),
     ("the top cut as the door", lambda: hung("top"), "parts.faces_least", False),
@@ -644,9 +689,23 @@ CASES = [
 ]
 
 
-@pytest.mark.parametrize("name, found, measure, holds", CASES, ids=[case[0] for case in CASES])
-def test_a_made_model_passes_only_where_it_matches_its_truth(name, found, measure, holds):
-    found = found()
+def case_found(index):
+    """The measures CASES[index] gives (run in a worker)."""
+    return CASES[index][1]()
+
+
+@functools.cache
+def every_found():
+    """Every row's measures, the rows side by side in forked workers (each a sandboxed copy of this module)."""
+    workers = max(1, min(6, os.cpu_count() or 1))
+    with concurrent.futures.ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("fork")) as pool:
+        return dict(zip([case[0] for case in CASES], pool.map(case_found, range(len(CASES)))))
+
+
+@pytest.mark.parametrize("name, measure, holds", [(case[0], case[2], case[3]) for case in CASES],
+                         ids=[case[0] for case in CASES])
+def test_a_made_model_passes_only_where_it_matches_its_truth(name, measure, holds):
+    found = every_found()[name]
     verdict = measures.judged(*found) if isinstance(found, tuple) else measures.judged(found)
     if measure is None:
         assert verdict["pass"] is holds, (name, verdict["failed"])

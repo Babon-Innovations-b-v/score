@@ -18,11 +18,15 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - fit.headed: its quarter turns not tried (TRELLIS.2's own heading kept), or fit.view_axes turned the other way, or
   straight down taken with the front up -> a desk L made long along x, its close-up long along depth, is laid
-  wide and shallow (#166: desk, rack and sign); MIRROR_GAIN made -1 -> the L is laid mirrored; `pick` not asked
+  wide and shallow (#166: desk, rack and sign); its mirror tried and taken (the 0.05 gain hand drill b01 was
+  mirrored on, #159 r15) -> the L is laid mirrored; `pick` not asked
   (the outline's earliest kept), or FRONT_BAND made 0 -> the desk top TRELLIS.2 laid a half turn off keeps its cable
   hole in the far corner (#192, tc4r's desk)
 - front.drawn laying the model unturned (`matrix` not applied) -> every open turn is drawn alike and the first is
   picked; front.picked numbering its drawings from 0 -> the turn after the picked one is laid
+- generate.band_for: BAND for every model (#191's rule alone) -> the drill and the cart with no glass are remeshed at
+  band 3, their gear teeth and pegboard holes closed (#159 r15); band 1 for every model -> the fridge's glass door
+  keeps its pinholes
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - glb.root_matrix not turned back to row-major (`.T` dropped) -> the decoded mesh's matrix reads its move in the bottom
   row; maker.decoded_placed laying the decoded mesh with no matrix (`with_root_matrix` dropped) -> it is not set in
@@ -244,7 +248,7 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
         for yaw in (90.0, 180.0):  # TRELLIS.2's own headings
             heading, how = fit.headed(z_up_to_model(boxes, yaw), drawn(boxes, turn, down), turn, down)
             laid = fit.applied(heading, z_up_to_model(boxes, yaw))
-            assert not how["mirrored"] and (how["yaw"] + yaw) % 360 == 0 and np.allclose(np.sort(laid, 0),
+            assert np.linalg.det(heading[:3, :3]) > 0 and (how["yaw"] + yaw) % 360 == 0 and np.allclose(np.sort(laid, 0),
                                                                                           np.sort(truth, 0)), how
     slab = holed_slab(tmp_path / "slab.glb")
     mesh, texels, factor = front.textured(slab)
@@ -262,6 +266,8 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
                                                                        generate.FACES]  # a sprout, a chair, a wall
+    assert [generate.band_for(clear) for clear in (0.0, 0.005, 0.02)] == [(1, 0.0), (1, 0.0), (
+        generate.BAND, generate.PROJECT)]  # the drill, the cart and the locker at band 1; the fridge's glass at BAND
     import subprocess
     library, origin = tmp_path / "library", tmp_path / "origin.git"
     for command in (["init", "-q", "--bare", "-b", "main", str(origin)], ["init", "-q", "-b", "main", str(library)],

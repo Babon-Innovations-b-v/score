@@ -23,12 +23,18 @@ HERE = pathlib.Path(__file__).resolve().parent
 SEED = 42
 TEXTURE = 2048
 FACES = 500000
-# to_glb's remesh contours the surface lying BAND voxels off TRELLIS.2's own, then moves each vertex PROJECT of the way
-# back to it: one voxel off, as at band 1 with no projection (the shape kept: the bench's shape moved 0.3 thousandths
-# of the box on the fridge, 0.07 on the locker), while a hole through a thin sheet up to BAND voxels across is closed
-# (#191: at band 1 the fridge's 2 mm glass door kept 155 pinholes seen straight on, 4 at band 3).
+# to_glb's remesh contours the surface lying `band` voxels off TRELLIS.2's own (band_for), then moves each vertex
+# `project` of the way back to it, so it lies one voxel off at either band (the shape kept). Contoured BAND voxels off,
+# every gap or hole up to twice BAND voxels across is closed: a thin sheet's pinholes (#191: the fridge's 2 mm glass
+# door kept 155 pinholes seen straight on at band 1, 4 at band 3), but also every groove, slot and hole the model
+# holds (#159 r15: hand drill b01's gear teeth, the tool cart's pegboard holes and the locker's vents; the surface
+# TRELLIS.2 decoded lay 5.5 voxels from the band 3 remesh at its 99th percentile on the drill, 4.9 on the cart, against
+# 1.2 and 3.0 at band 1). So BAND is laid only on a model TRELLIS.2 decoded as see-through (glass: its pinholes are
+# where its alpha drops), every other at band 1 with no projection.
 BAND = 3
 PROJECT = 1 - 1 / BAND
+CLEAR = 0.5  # a voxel whose decoded alpha is under this is see-through
+SEE_THROUGH = 0.01  # the share of its voxels see-through that makes a model glass-holding (laid at BAND)
 # The decoded mesh before the remesh (#159, r11): TRELLIS.2's own surface holds every drawer seam and panel line a voxel
 # or less wide, which the remesh closes with #191's pinholes, so it is kept beside the model as the shape its seams are
 # shaded from (bake.seamed), never shown. Cut to FACES whatever the model's own faces (a 20k-face toaster still shades
@@ -145,6 +151,18 @@ def decoded_written(mesh, out):
     return int(len(shaped.faces))
 
 
+def see_through(mesh):
+    """The share of TRELLIS.2's decoded voxels (`mesh.attrs`, its PBR volume) whose alpha is under CLEAR."""
+    alpha = mesh.attrs[:, mesh.layout["alpha"]].float()
+    return float((alpha < CLEAR).float().mean())
+
+
+def band_for(clear):
+    """(band, project) to_glb's remesh is laid at for a model `clear` (see_through) of its voxels see-through: BAND
+    projected back to one voxel off for a model holding glass (SEE_THROUGH or more), else band 1 unprojected."""
+    return (BAND, PROJECT) if clear >= SEE_THROUGH else (1, 0.0)
+
+
 def made(pipeline, picture, out, faces=FACES):
     """The model of `picture` written as `out` (GLB), its decoded mesh beside it (decoded_written); its counts."""
     import torch
@@ -156,14 +174,17 @@ def made(pipeline, picture, out, faces=FACES):
     mesh = pipeline.run(image, seed=SEED, pipeline_type="1024_cascade")[0]
     mesh.simplify(16777216)
     torch.cuda.empty_cache()  # the decoders' cached blocks back to the card: the remesh starts from what is in use
+    clear = see_through(mesh)
+    band, project = band_for(clear)
     glb = o_voxel.postprocess.to_glb(
         vertices=mesh.vertices, faces=mesh.faces, attr_volume=mesh.attrs, coords=mesh.coords,
         attr_layout=mesh.layout, voxel_size=mesh.voxel_size, aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
-        decimation_target=faces, texture_size=TEXTURE, remesh=True, remesh_band=BAND, remesh_project=PROJECT, verbose=False)
+        decimation_target=faces, texture_size=TEXTURE, remesh=True, remesh_band=band, remesh_project=project,
+        verbose=False)
     glb.export(str(out), extension_webp=False)
     torch.cuda.empty_cache()
-    return {"faces": int(len(glb.faces)), "vertices": int(len(glb.vertices)),
-            "decoded_faces": decoded_written(mesh, out)}
+    return {"faces": int(len(glb.faces)), "vertices": int(len(glb.vertices)), "see_through": round(clear, 5),
+            "band": band, "decoded_faces": decoded_written(mesh, out)}
 
 
 def main():

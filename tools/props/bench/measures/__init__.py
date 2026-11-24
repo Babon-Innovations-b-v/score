@@ -56,6 +56,14 @@ BARS = (
     ("shape", "input", "least", 0.90),
     ("shape", "f_score", "least", 0.80),
     ("shape", "rank", "most", 1),
+    # The thin and small parts (_shape.thin_and_small, #159 r15, drawn at 1024 from the ring's eight ways and the
+    # input's). An exact copy: 0 left out and its outline 1.0 every way. tc6's hand drill b01, its crank laid mirrored
+    # behind its knob: 0.047 of NVIDIA's silhouette left out, outline 0.88; r10cart's tool cart 0.024 (a side rail
+    # past its narrow side), outline 0.64 (its pegboard's holes and its tray's slots closed); r14's locker none left
+    # out, outline 0.82 (its vents). A part NVIDIA shows that is left out fails at half a per cent; an outline that
+    # holds under 0.9 of NVIDIA's teeth, ribs and holes at any way fails.
+    ("shape", "missing_part", "most", 0.005),
+    ("shape", "outline_detail", "least", 0.90),
     ("alignment", "up_error", "most", 5.0),
     # The heading as laid, held by its own paint against NVIDIA's look (_heading, #159 round 7): the 24 axis turns
     # above turn a model laid round back before anything is held (tc4r's desk a half turn off, its fridge's glass
@@ -295,7 +303,8 @@ def measured(truth, made, others=(), input_view=None):
     matrix, alignment = _align.aligned(truth, made)
     placed = _mesh.moved(made["vertices"], matrix)
     shape = {**_shape.silhouettes(truth, placed, made["faces"], input_view),
-             **_shape.distances(truth["vertices"], truth["faces"], placed, made["faces"])}
+             **_shape.distances(truth["vertices"], truth["faces"], placed, made["faces"]),
+             **_shape.thin_and_small(truth, placed, made["faces"], input_view)}
     if others:
         shape["rank"], shape["others"] = _shape.rank(made, shape["f_score"], others)
     found = {"alignment": {**alignment, "matrix": matrix.round(6).tolist()}, "size": size(truth, made),

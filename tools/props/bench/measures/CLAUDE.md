@@ -18,6 +18,11 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   truth's outside, each finish weighted alike (a cable hole as much as the top), by correlation: TRELLIS.2 paints its
   picture's light in, so a colour difference took a right-laid terminal for a half turn. `MARGIN` and `FLOOR` are from
   tc4r's 15 made models.
+- **Thin and small parts** (`_shape.thin_and_small`, #159 r15: drill b01's crank gone from its look, the tool cart's
+  pegboard holes and the locker's vents melted): NVIDIA's model and the made one drawn at DETAIL_SIDE (1024) from the
+  ring's ways and the input's; `shape.missing_part` the largest piece of NVIDIA's silhouette further than
+  MISSING_REACH (2% of the frame) from the made one's, `shape.outline_detail` the made outline's length, holes' rims
+  included, over NVIDIA's at its least way. NVIDIA's masks are drawn once a truth (`truth_masks`).
 - **Reuse, never copies.** The ring is tools/usd/compare.py's (YAWS, ELEVATION, FOV), the input view the close-up's
   (tools/props/closeup/check.py TURN_DEGREES, look_down), ownership split_compare.py's rule (OWN_PURITY,
   FINISH_LEAST, finishes_owned), the flat share and swell place_build/shapes', the least wall the model gate's,

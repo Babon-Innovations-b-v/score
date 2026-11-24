@@ -21,10 +21,13 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   each step's scratch dropped once read); each is bit for bit the code it replaces (the test's torch rows, run in the
   maker's Python). `generate.capped` holds torch's allocator to the card's free memory, so a real shortage is an
   out-of-memory, never the driver error. The printer box: 10.2 GB of tensors at most, 13.1 GB of card, 17.4 GB of RAM.
-- **Thin sheets kept whole** (#191: the fridge's 2 mm glass door came out with pinholes straight through): to_glb's
-  remesh contours the surface BAND (3) voxels off TRELLIS.2's and projects each vertex back to one voxel off, where
-  band 1 left it; a hole up to BAND voxels across closes, the shape stays (0.3 thousandths of the box on the fridge).
-  Real openings wider than that (the locker's vents, a shelf's cells) stay open.
+- **Thin sheets kept whole, small detail kept open** (#191, #159 r15): to_glb's remesh contours the surface `band`
+  voxels off TRELLIS.2's and projects each vertex back to one voxel off (`generate.band_for`). At BAND (3) every gap up
+  to six voxels across closes: the fridge's 2 mm glass door's pinholes (#191), but also hand drill b01's gear teeth, the
+  tool cart's pegboard holes and the locker's vents (r15: the decoded surface 5.5 voxels off the band 3 remesh at its
+  99th percentile on the drill, 1.2 at band 1). So BAND is laid only on a model whose decoded voxels are SEE_THROUGH
+  (1%) or more under CLEAR alpha (glass, where TRELLIS.2's pinholes are), every other at band 1 unprojected; `made`
+  records `see_through` and `band`.
 - **The decoded mesh kept beside it** (#159 r11: the remesh closes the drawer seams, door lines and vents a voxel or
   less wide with #191's pinholes, while TRELLIS.2's decoded mesh still holds them): generate.py writes it at
   `decoded_path` (<out>-decoded.glb, cut to FACES whatever the model's faces, its shape alone), and `make` sets it in
@@ -53,7 +56,8 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   so a leg or panel is not thinned further, and the record's `off` says how far the box stayed off). Set at a size, it
   is first turned to its close-up's heading (`fit.headed`, #166: TRELLIS.2 keeps its own heading, so the desk, rack and
   sign lay wide for deep): the quarter turn whose outline from the close-up's camera (tools/props/closeup/check.py's
-  turn and look-down) best overlaps the picture's, its mirror only when it beats them all by MIRROR_GAIN. Turns within
+  turn and look-down) best overlaps the picture's, never a mirror (#159 r15: TRELLIS.2 makes its picture's hand; hand
+  drill b01, mirrored on a 0.05 better outline, laid its crank behind its knob). Turns within
   FRONT_BAND of the best (a box-like object's front and back: tc4r's desk a half turn off, its fridge's glass door on
   its side, #192) go to `front.picked`: each drawn in the model's own texture from the close-up style's camera, and one
   ask (Claude, EUR 0) picks the drawing whose content sits where the close-up shows it.
