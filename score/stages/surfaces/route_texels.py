@@ -73,17 +73,34 @@ def region_weights(labels, region_count, count, front_vote, front_views):
     return found
 
 
-def carriers(mesh, part_of, finish_of, count, reach):
-    """(face x finish) the part of the face of that finish nearest each face along the surface (face middles joined
-    across shared edges), -1 where none lies within `reach`; a face's own finish carries its own part."""
+def surface_graph(mesh):
+    """The faces' middles joined across shared edges, each join its length: a sparse graph to walk the surface on."""
     from scipy import sparse
-    from scipy.sparse.csgraph import dijkstra
     pairs = mesh.face_adjacency
     middles = mesh.triangles_center
     length = np.linalg.norm(middles[pairs[:, 0]] - middles[pairs[:, 1]], axis=1) + 1e-12
-    faces = len(part_of)
+    faces = len(mesh.faces)
     ends = (np.r_[pairs[:, 0], pairs[:, 1]], np.r_[pairs[:, 1], pairs[:, 0]])
-    graph = sparse.coo_matrix((np.r_[length, length], ends), shape=(faces, faces)).tocsr()
+    return sparse.coo_matrix((np.r_[length, length], ends), shape=(faces, faces)).tocsr()
+
+
+def carried_from(mesh, sources):
+    """The faces within the reach a texel's finish is carried (REACH steps, carriers) of any of `sources` along the
+    surface: where a print's texels may lie off its own faces (route_parts.covered_prints)."""
+    from scipy.sparse.csgraph import dijkstra
+    if not len(sources):
+        return np.zeros(0, dtype=np.int64)
+    distance = dijkstra(surface_graph(mesh), directed=False, indices=sources, min_only=True,
+                        limit=REACH * border_step(mesh))
+    return np.flatnonzero(np.isfinite(distance))
+
+
+def carriers(mesh, part_of, finish_of, count, reach):
+    """(face x finish) the part of the face of that finish nearest each face along the surface (face middles joined
+    across shared edges), -1 where none lies within `reach`; a face's own finish carries its own part."""
+    from scipy.sparse.csgraph import dijkstra
+    graph = surface_graph(mesh)
+    faces = len(part_of)
     found = np.full((faces, count), -1, dtype=np.int64)
     for finish in range(count):
         sources = np.flatnonzero(finish_of == finish)
@@ -111,9 +128,12 @@ def border_step(mesh):
     return max(view_pixel(mesh), float(np.median(np.linalg.norm(middles[pairs[:, 0]] - middles[pairs[:, 1]], axis=1))))
 
 
-def texel_parts(face_of, region_of, weights, carried, finish_of):
+def texel_parts(face_of, region_of, weights, carried, finish_of, lit=(), told=None):
     """Each texel's part (-1 where no face covers it): the finish its region weighs most among those `carried` near its
-    face, its face's own on a tie or where its region names none of them."""
+    face, its face's own on a tie or where its region names none of them. A finish that gives off light (`lit`) the
+    texture's regions cannot show (route_split.close_up_only): a texel the close-up shows (`told`, the finish the
+    close-up's label gives each texel, -1 none) takes that finish where it is carried near, so a lit part follows the
+    close-up's own edges; a texel on a lit face the close-up does not tell keeps its face's own."""
     covered = face_of >= 0
     faces, regions = face_of[covered], region_of[covered]
     near = carried[faces]
@@ -121,8 +141,14 @@ def texel_parts(face_of, region_of, weights, carried, finish_of):
     score[regions < 0] = -1.0
     own = finish_of[faces]
     score[np.arange(len(faces)), own] = np.maximum(score[np.arange(len(faces)), own], 0.0) + 0.5
+    picked = score.argmax(1)
+    told = np.full(len(faces), -1) if told is None else told[covered]
+    shown = (told >= 0) & (np.isin(told, list(lit)) | np.isin(own, list(lit)))
+    shown &= near[np.arange(len(faces)), np.maximum(told, 0)] >= 0
+    kept = np.isin(own, list(lit)) & ~shown
+    picked[kept], picked[shown] = own[kept], told[shown]
     found = np.full(face_of.shape, -1, dtype=np.int64)
-    found[covered] = near[np.arange(len(faces)), score.argmax(1)]
+    found[covered] = near[np.arange(len(faces)), picked]
     return found
 
 
@@ -248,15 +274,30 @@ def filled(parts):
     return parts[rows, columns].astype(np.uint16)
 
 
-def take_texels(mesh, texels, regions, split):
+def told_finishes(regions, labels):
+    """The finish the close-up's labels ({region: finish}) give each texel by the close-up's region it shows it in
+    (`regions`, -1 unseen), -1 where none; None without the close-up's regions."""
+    if regions is None:
+        return None
+    lookup = np.full(max(labels, default=0) + 2, -1, dtype=np.int64)
+    for region, finish in labels.items():
+        lookup[region] = finish
+    return np.where(regions >= 0, lookup[np.clip(regions.astype(np.int64), 0, len(lookup) - 1)], -1)
+
+
+def take_texels(mesh, texels, regions, split, lit=((), {})):
     """({piece: part per texel, uint16}, its record) of one take: `texels` the views row's (each picture's face and
-    region per texel), `regions` (region x finish weights: region_weights), `split` (part per face, finish per face).
+    region per texel, and the close-up's region where it is laid), `regions` (region x finish weights:
+    region_weights), `split` (part per face, finish per face), `lit` (the finishes that give off light, the close-up's
+    {region: finish} labels) read as texel_parts reads them.
     The record: the share of the area whose texels took another face's part (`moved`) and the specks' (`specks`)."""
     part_of, finish_of = split
     faces = {piece: texels[f"face{piece}"] for piece in pieces_of(texels)}
     carried = carriers(mesh, part_of, finish_of, regions.shape[1], REACH * border_step(mesh))
-    parts = {piece: texel_parts(faces[piece], texels[f"region{piece}"], regions, carried, finish_of)
-             for piece in faces}
+    lights, labels = lit
+    told = {piece: told_finishes(texels.get(f"closeup{piece}"), labels) for piece in faces}
+    parts = {piece: texel_parts(faces[piece], texels[f"region{piece}"], regions, carried, finish_of, lights,
+                                told[piece]) for piece in faces}
     areas = texel_areas(faces, mesh.area_faces)
     moved = sum(float(areas[piece][(parts[piece] >= 0) & (parts[piece] != part_of[np.maximum(faces[piece], 0)])].sum())
                 for piece in faces)

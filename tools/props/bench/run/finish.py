@@ -502,6 +502,7 @@ def look_job(folder, take, model, camera, out):
             "image": str(folder / "surfaces-parts" / take / decal["picture"]), "at": z_up(decal["at"]),
             "normal": z_up(decal["normal"]), "up": z_up(decal["up"]), "size_m": decal["size"],
             "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0), "text": decal.get("text"),
+            "depth": decal.get("depth", 0.0),
             "ink": surface_library.linear(decal["ink_token"]) if decal.get("ink_token") else None})
     slots = sorted({slot_of(row) for row in rows.values()},
                    key=lambda slot: -sum(row["share"] for row in rows.values() if slot_of(row) == slot))

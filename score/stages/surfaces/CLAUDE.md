@@ -37,7 +37,16 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   over the plate, `hidden_under`) take the finish and part it is printed on (`route_parts.covered_prints`; a library
   picture decal over a print covers it too, `covering`). The texels follow (#185): a print texel on a face under the
   mark takes that part and every texel is numbered as the faces are (`covered_texels`), else the look and the bake
-  draw TRELLIS.2's garbled print from its texels (tc4r's sign: a "C" for "03"). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from
+  draw TRELLIS.2's garbled print from its texels (tc4r's sign: a "C" for "03"). **Small text** (#196, #159 round 8: the
+  cockpit cases' ON, OFF and ARM, 2.5 mm tall, read as glyphs): a line under 1 cm is drawn `text_decals.TEXT_PX` tall
+  (`density`, kept as the placement's `px_per_m`, which bake.sharp_slots bakes its part at); the print's whole island
+  under a mark is covered (`print_islands`: its letters lie off their ink by the fitted camera's error), with the
+  texels its reach carried (`route_texels.carried_from`); and the print reaches the raised letters its ink was seen on
+  (ink_extent's `depth`, recipes.decal_depth). **Lit parts** (finish_parts.LIT_FAMILIES, glowing and screen) are the
+  close-up's: a texture cannot show light, so a face it labels lit takes that finish (`route_split.close_up_only`),
+  kept through the smoothing as parts of its own (`lit_laid`), its texels following the close-up's own edges
+  (route_views `close_up_texels`, each texel's close-up region at its point; route_texels.texel_parts); a lit face
+  seen in a drawn mark's box is the mark's ink (covered_prints). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from
   the model's outline (`close_up_fit.py`; a camera file's `look` is read before Pixal3D's +Z rule). Scuffs are the
   recipe's `scuffs` setting (0 by default), never a picture. parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.

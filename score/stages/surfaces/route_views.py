@@ -21,7 +21,8 @@ angle), <take>/regions-<view>.png (each region in its label colour, finish_ask.L
 own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN); where the close-up is laid,
 <take>/close-up.npz (its face per pixel and colours) and regions-close-up.png, its regions in regions.npz.
 <take>/texels.npz, where the model has a picture: each picture's texels, the face covering each and its colour's
-region (texel_regions), which the split gives each its finish (route_texels).
+region (texel_regions), which the split gives each its finish (route_texels), and where the close-up is laid the
+region it shows each texel in (close_up_texels).
 views.json: per take its model, its views' angles, its faces and how many the paint's loading finds, the share of its
 area seen, its regions (CIELAB, sRGB, share of the seen pixels), its close-up's source and whether it was laid.
 Gate "views cast": every take has its raw model, loaded with the faces the paint loads, every view sees it and the
@@ -66,6 +67,10 @@ FINE = 4 * REGIONS
 ACCENT_DE = 15.0  # CIE76: a pixel this far from every fine group's centre is a colour none of them holds
 ACCENT_LEAST = 40  # the fewest pixels (every view and the close-up together) a group of its own needs
 CLOSE_UP = "close-up"  # the close-up's own pixels laid on the model through its camera, a view of the regions
+# How far, in the close-up's pixels at its depth, a texel may lie from the face the close-up shows there and still be
+# the one it shows (close_up_texels): a texel's face is often not the one cast at its pixel's middle where faces are
+# finer than the cast.
+SEEN_DEPTH = 3.0
 EDGE = 2  # a close-up pixel is kept only when those EDGE away on every side lie on the model in the cast and alpha
 
 
@@ -203,6 +208,64 @@ def texel_regions(model, centres):
     return found
 
 
+def texel_points(model, face_of):
+    """(the texels of a picture (`face_of`, the face covering each, -1 none) a face covers, as a mask; each one's point
+    on its face, in the model's normalised frame, NaN where its face's UVs have no area): read back from its place in
+    the picture (UV) to its face's corners."""
+    tall, wide = face_of.shape
+    covered = face_of >= 0
+    rows, columns = np.nonzero(covered)
+    faces = face_of[covered]
+    uv = np.c_[(columns + 0.5) / wide, 1.0 - (rows + 0.5) / tall]
+    corners = model.corner_uv[faces]
+    first, second, to = corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0], uv - corners[:, 0]
+    across = first[:, 0] * second[:, 1] - first[:, 1] * second[:, 0]
+    flat = np.abs(across) < 1e-12
+    across = np.where(flat, 1.0, across)
+    along = (to[:, 0] * second[:, 1] - to[:, 1] * second[:, 0]) / across
+    upward = (first[:, 0] * to[:, 1] - first[:, 1] * to[:, 0]) / across
+    ends = model.mesh.vertices[model.mesh.faces[faces]]
+    points = ends[:, 0] + along[:, None] * (ends[:, 1] - ends[:, 0]) + upward[:, None] * (ends[:, 2] - ends[:, 0])
+    points[flat] = np.nan
+    return covered, points
+
+
+def close_up_texels(model, own, laid_faces, laid_regions, texels):
+    """{closeup<k>}: each texel of piece k the region the laid close-up shows it in, -1 where it does not see it (off
+    the cast, or a surface in front nearer than SEEN_DEPTH of the close-up's pixels): read at the texel's own point on
+    its face through the close-up's camera (`own`: the close-up and its camera file), so a part the texture lacks is
+    drawn at the texels' detail, not the faces' (#159 round 8: the readout window's lit digits came out as shards of
+    the coarse window faces under them)."""
+    from PIL import Image
+    with Image.open(own[0]) as picture:
+        wide, tall = picture.size
+    eye, right, up, field = cast.close_up_camera(own[1])
+    focal = wide / 2 / np.tan(field / 2)
+    ahead = np.cross(up, right)
+    step = max(1, -(-max(wide, tall) // cast.CLOSE_UP_SIDE))
+    middle, side = model.frame
+    centres = model.mesh.triangles_center * side + middle
+    found = {}
+    for name in [name for name in texels if name.startswith("face")]:
+        face_of = texels[name]
+        covered, points = texel_points(model, face_of)
+        relative = points * side + middle - eye
+        depth = relative @ ahead
+        safe = np.where(depth > 0, depth, np.nan)
+        row = np.floor((tall / 2 - focal * (relative @ up) / safe) / step)
+        column = np.floor((wide / 2 + focal * (relative @ right) / safe) / step)
+        inside = (row >= 0) & (row < laid_faces.shape[0]) & (column >= 0) & (column < laid_faces.shape[1])
+        row, column = np.where(inside, row, 0).astype(int), np.where(inside, column, 0).astype(int)
+        shown = laid_faces[row, column]
+        nearest = (centres[np.maximum(shown, 0)] - eye) @ ahead
+        seen = inside & (shown >= 0) & ((shown == face_of[covered])
+                                        | (np.abs(nearest - depth) <= SEEN_DEPTH * step * safe / focal))
+        region = np.full(face_of.shape, -1, dtype=np.int8)
+        region[covered] = np.where(seen, laid_regions[row, column], -1)
+        found[f"closeup{name[len('face'):]}"] = region
+    return found
+
+
 def close_up_written(folder, close_up, faces, colours):
     """close-up.png: the take's own close-up copied, else the stand-in (its own texture from the front)."""
     if close_up is not None:
@@ -292,6 +355,8 @@ def view_take(model_file, close_up, camera_file, folder, seed):
     centres, regions = colour_regions(every_colours, every_faces, seed)
     views_saved(folder, model, (angles, faces, colours), regions)
     texels = texel_regions(model, centres)
+    if texels and laid is not None:
+        texels.update(close_up_texels(model, (close_up, camera_file), laid[0], regions[CLOSE_UP], texels))
     if texels:  # a model with no picture (a colour factor alone) has no texels
         np.savez_compressed(folder / "texels.npz", **texels)
     if laid is not None:

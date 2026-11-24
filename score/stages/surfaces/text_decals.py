@@ -6,6 +6,7 @@ the faces the library's `printed` recipe sets its labels in), as a one-ink decal
 bake printing it in its palette token's ink (recipes.decal_layer), as a single-ink library decal is.
 
     FONTS                          {look: the library face set for it}
+    density(placement)             the pixels a metre its picture is drawn at (the bake's least for its part)
     drawn(placement)               the decal's picture (RGBA), its words filling its measured box
 """
 import pathlib
@@ -23,12 +24,24 @@ DRAWN = ("text", "rule")  # the mark shapes drawn here; a "picture" mark is a li
 PX_PER_M = 3000  # #161 rule 7: a part with print is baked at about 3,000 px a metre
 MOST_PX = 4096
 SET_PX = 512  # the size a line is set at before it is fitted to its box
+# The fewest pixels a text line is drawn tall, so a line under TEXT_PX / PX_PER_M (1 cm) still reads: at PX_PER_M the
+# cockpit cases' ON, OFF and ARM (2.4 to 2.5 mm tall) were drawn 7 or 8 px tall, and the look read them as glyphs
+# (#159 round 8: "???", "IE", "AR"). Its part is baked at this density too (density, bake.sharp_slots).
+TEXT_PX = 30
 
 
-def pixels(size_m):
-    """(width, height) in pixels of a decal `size_m` metres at PX_PER_M, its longer side at most MOST_PX."""
-    scale = min(PX_PER_M, MOST_PX / max(max(size_m), 1e-6))
-    return max(1, round(size_m[0] * scale)), max(1, round(size_m[1] * scale))
+def density(placement):
+    """The pixels a metre a drawn mark's picture is drawn at: PX_PER_M, a text line under TEXT_PX / PX_PER_M tall at
+    enough for it to be TEXT_PX tall; its longer side at most MOST_PX."""
+    size_m = placement["size"]
+    wanted = max(PX_PER_M, TEXT_PX / max(size_m[1], 1e-6)) if placement["shape"] == "text" else PX_PER_M
+    return min(wanted, MOST_PX / max(max(size_m), 1e-6))
+
+
+def pixels(placement):
+    """(width, height) in pixels of a drawn mark's picture at its density."""
+    scale = density(placement)
+    return max(1, round(placement["size"][0] * scale)), max(1, round(placement["size"][1] * scale))
 
 
 def set_line(text, look):
@@ -46,7 +59,7 @@ def drawn(placement):
     in its look's face, scaled whole to fit inside the box and centred in it (a face is never stretched); a rule the
     whole box."""
     from PIL import Image
-    wide, tall = pixels(placement["size"])
+    wide, tall = pixels(placement)
     alpha = Image.new("L", (wide, tall), 0)
     if placement["shape"] == "rule":
         alpha.paste(255, (0, 0, wide, tall))

@@ -175,8 +175,9 @@ def scuff_mask(vector, wear, scuffs, seed):
 
 # A decal (score #164): a library print laid on a part of a piece by a box projector in the piece's own frame. It is
 # part of its part's finish's material, so it prints only on that finish's faces, and only within DECAL_FACING (60
-# degrees) of its facing and within DECAL_DEPTH of its plane (a quarter of its short side when that is less), so it
-# never wraps round a corner or prints through a thin part.
+# degrees) of its facing and within DECAL_DEPTH of its plane (a quarter of its short side when that is less, or the
+# depth its ink was seen at off its plane when more: a placement's `depth`, score route_parts.ink_extent), so it never
+# wraps round a corner or prints through a thin part.
 DECAL_DEPTH = 0.02
 DECAL_FACING = math.cos(math.radians(60.0))
 
@@ -201,6 +202,12 @@ def decal_axes(decal):
     return turned_right, turned_up, normal
 
 
+def decal_depth(decal):
+    """How far off its plane a decal placement prints (DECAL_DEPTH at most): a quarter of its short side, or the depth
+    its ink was seen at (`depth`) when more."""
+    return min(DECAL_DEPTH, max(0.25 * min(decal["size_m"]), decal.get("depth", 0.0)))
+
+
 def decal_layer(vector, decal, image):
     """One decal as (mask, colour, roughness): its picture read through a box projector at its placement (`at`,
     `normal`, `up`, `size_m`, `turn`), masked to the faces facing it within its depth; a single-ink decal (`ink` a
@@ -218,7 +225,7 @@ def decal_layer(vector, decal, image):
     picture = pf.nodes.texture.image(vector=across, image=image, extension="CLIP")
     facing = pf.nodes.math.separate_xyz(pf.nodes.shader.coord().normal)
     turned = facing.x * normal[0] + facing.y * normal[1] + facing.z * normal[2]
-    depth = min(DECAL_DEPTH, 0.25 * min(width, height))
+    depth = decal_depth(decal)
     near = pf.nodes.math.less_than(pf.nodes.math.absolute(along(normal)), depth)
     mask = picture.fac * near * pf.nodes.math.greater_than(turned, DECAL_FACING)
     colour = pf.Color(tuple(decal["ink"])) if decal.get("ink") else picture.color

@@ -3,7 +3,8 @@ labels voted across every view. In each view a face takes the region most of its
 region's label there (route_list); the views vote (squared_votes: each view's vote on a face weighed by how squarely
 it sees it, the cosine between the face's normal and the way to the eye, the close-up's front counting FRONT_VOTE).
 The close-up laid on the model (route_views.CLOSE_UP, where the views row laid it) votes as the front does, and a
-finish only it labels, one no view of the texture shows, takes the faces it labels it on (close_up_only).
+finish only it labels, one no view of the texture shows, or a lit one (finish_parts.LIT_FAMILIES: a texture cannot
+show light), takes the faces it labels it on (close_up_only).
 
 Every face gets exactly one finish, or its take is a gap, named (owner, 2026-10-20): a face some view sees whose
 regions no view labelled is unassigned, a gap once its share of the area passes UNASSIGNED_MOST; under it each takes
@@ -122,10 +123,11 @@ def split_fault(found):
     return None
 
 
-def squared_votes(mesh, per_map, angles, count):
+def squared_votes(mesh, per_map, angles, count, lit=()):
     """Each face's votes per finish, each view's weighed by the cosine between the face's normal and the way to that
     view's eye (a raw take's normals may face in, so its size), the close-up's front and the laid close-up (seen from
-    the front) by FRONT_VOTE too; a finish only the laid close-up labels takes the faces it labels (close_up_only)."""
+    the front) by FRONT_VOTE too; a finish only the laid close-up labels, or one of `lit`, takes the faces it labels
+    (close_up_only)."""
     votes = np.zeros((len(mesh.faces), count))
     for view, label in per_map.items():
         seen = np.flatnonzero(label >= 0)
@@ -134,20 +136,22 @@ def squared_votes(mesh, per_map, angles, count):
         square = np.maximum(np.abs(mesh.face_normals[seen] @ cast.camera(turn)[0]), EDGE_ON)
         front = view in (cast.FRONT, route_views.CLOSE_UP)
         votes[seen, label[seen]] += square * (finish_parts.FRONT_VOTE if front else 1.0)
-    return close_up_only(votes, per_map)
+    return close_up_only(votes, per_map, lit)
 
 
-def close_up_only(votes, per_map):
-    """`votes` with each face the laid close-up labels with a finish no view of the texture labels given that finish
-    alone. The close-up is what the model is held to (likeness's close-up parts present), and a small part it shows
-    (a red label, a blue decal, a screen's glow) the raw take's texture often lacks: greenhouse desk's views labelled
-    every face of its screens and labels steel, so counted they voted the close-up's finishes away (2026-10-29)."""
+def close_up_only(votes, per_map, lit=()):
+    """`votes` with each face the laid close-up labels with a finish no view of the texture labels, or with one of
+    `lit` (the finishes that give off light), given that finish alone. The close-up is what the model is held to
+    (likeness's close-up parts present), and a small part it shows (a red label, a blue decal, a screen's glow) the raw
+    take's texture often lacks: greenhouse desk's views labelled every face of its screens and labels steel, so
+    counted they voted the close-up's finishes away (2026-10-29). A lit part no texture shows lit: the readout
+    window's texture drew its lit digits as dark relief and voted them the frame's paint (#159 round 8)."""
     laid = per_map.get(route_views.CLOSE_UP)
     if laid is None:
         return votes
     textured = {int(finish) for view, label in per_map.items() if view != route_views.CLOSE_UP
                 for finish in np.unique(label[label >= 0])}
-    only = np.flatnonzero((laid >= 0) & ~np.isin(laid, list(textured)))
+    only = np.flatnonzero((laid >= 0) & (~np.isin(laid, list(textured)) | np.isin(laid, list(lit))))
     found = votes.copy()
     found[only] = 0.0
     found[only, laid[only]] = 1.0
@@ -223,15 +227,41 @@ def split_saved(out, mesh, folder, angles, found):
                      cast.shading(mesh, faces[view], angles[view])).save(out / f"finish-{view}.png")
 
 
-def texels_saved(folders, mesh, listed, counts, split):
+def texels_saved(folders, mesh, listed, counts, split, lit=()):
     """<take>/texels.npz (route_texels: each texel of the model's pictures its part, so the look's borders follow the
-    texture's colour edges); its record. `counts` is (regions, finishes), `split` (part per face, finish per face)."""
+    texture's colour edges; a lit finish's where the close-up shows it, route_texels.texel_parts); its record.
+    `counts` is (regions, finishes), `split` (part per face, finish per face)."""
     import route_texels
     weights = route_texels.region_weights(listed["labels"], counts[0], counts[1], finish_parts.FRONT_VOTE,
                                           (cast.FRONT, route_views.CLOSE_UP))
-    parts, found = route_texels.take_texels(mesh, dict(np.load(folders["views"] / "texels.npz")), weights, split)
+    told = {int(region): int(finish) for region, finish in listed["labels"].get(route_views.CLOSE_UP, {}).items()}
+    parts, found = route_texels.take_texels(mesh, dict(np.load(folders["views"] / "texels.npz")), weights, split,
+                                            (lit, told))
     np.savez_compressed(folders["out"] / "texels.npz", **{f"piece{piece}": part for piece, part in parts.items()})
     return found
+
+
+def lit_laid(mesh, found, laid, lit):
+    """(part per face, finish per face) `found` with each face the laid close-up (`laid`, finish per face, -1 none)
+    labels with one of the `lit` finishes given it again after the smoothing, each island of it holding one a part of
+    its own: a lit part is the close-up's (close_up_only), and its small islands are no stray of paint (the readout
+    window's lit digits, islands of 0.01 to 0.1% of its area, were folded into the frame's paint because its texture's
+    back held a larger lit island, #159 round 8)."""
+    import patchy
+    part_of, finish_of = found
+    chosen = np.isin(laid, list(lit)) if laid is not None else np.zeros(len(finish_of), dtype=bool)
+    if not chosen.any():
+        return found
+    finish_of = finish_of.copy()
+    finish_of[chosen] = laid[chosen]
+    island = patchy.islands(finish_of, mesh.face_adjacency)
+    own = np.isin(island, island[chosen])
+    return np.unique(np.where(own, part_of.max() + 1 + island, part_of), return_inverse=True)[1], finish_of
+
+
+def lit_finishes(finishes):
+    """The numbers of the listed finishes that give off light (their family one of finish_parts.LIT_FAMILIES)."""
+    return [number for number, finish in enumerate(finishes) if finish.get("family") in finish_parts.LIT_FAMILIES]
 
 
 def split_take(folders, listed, record):
@@ -241,17 +271,19 @@ def split_take(folders, listed, record):
     labelled = per_view(folders["views"], listed["labels"], len(record["regions"]), len(mesh.faces))
     per_map = finishes_only(labelled)
     found = shares(mesh, labelled, finish_parts.voted(per_map, count))  # the views' own disagreement, unweighed
-    votes = squared_votes(mesh, per_map, record["views"], count)
+    lit = lit_finishes(listed["finishes"])
+    votes = squared_votes(mesh, per_map, record["views"], count, lit)
     fault = split_fault(found)
     if fault is not None:
         return {"fault": fault, **found}
-    part_of, finish_of = voted_finishes(mesh, votes, count)
+    part_of, finish_of = lit_laid(mesh, voted_finishes(mesh, votes, count), per_map.get(route_views.CLOSE_UP), lit)
     found["patchy"] = finish_parts.patchiness(mesh, finish_of, part_of, listed["finishes"])
     if patchy_fault(found["patchy"]) is not None:
         return {"fault": patchy_fault(found["patchy"]), **found}
     split_saved(folders["out"], mesh, folders["views"], record["views"], (finish_of, part_of))
     if (folders["views"] / "texels.npz").exists():
-        found["texels"] = texels_saved(folders, mesh, listed, (len(record["regions"]), count), (part_of, finish_of))
+        found["texels"] = texels_saved(folders, mesh, listed, (len(record["regions"]), count), (part_of, finish_of),
+                                       lit)
     return {"fault": None, **found, "parts": int(part_of.max()) + 1,
             "agreement": finish_parts.agreement(mesh, finish_of, per_map)}
 

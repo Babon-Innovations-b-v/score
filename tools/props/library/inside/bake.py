@@ -58,6 +58,8 @@ SHARP_FAMILIES = ("print", "screen")
 # A part carrying decals (score #164) is drawn at route.PRINT colour texels a metre, NVIDIA's median for small and
 # medium models (#161 rule 7): colour is baked at half the normal map's side, so its faces take 2 * PRINT over the
 # set's density (about 5.9 times a near set's), never less than SHARP_SCALE; a 6 mm key legend is then 18 px across.
+# A text decal drawn denser (its `px_per_m`, score text_decals.density: a line under 1 cm tall, #159 round 8) has its
+# part drawn at its own density, so the bake prints its letters as sharp as they were drawn.
 COLOUR_SHARE = 2.0
 MARGIN_PIXELS = 3
 # A per-face packed piece's gap round each face, in normal-map pixels (packed_per_face). Measured on the greenhouse
@@ -144,12 +146,13 @@ def maps_needed(wanted):
 
 def sharp_slots(specs, density):
     """{library name: how many times the set's density its parts are drawn at} of the parts a set at `density` draws
-    sharp, from SHARP_FROM up: SHARP_SCALE for those of SHARP_FAMILIES, enough for route.PRINT colour texels a metre
-    (never less) for those carrying decals."""
+    sharp, from SHARP_FROM up: SHARP_SCALE for those of SHARP_FAMILIES, enough for route.PRINT colour texels a metre,
+    or a decal's own `px_per_m` where more (never less), for those carrying decals."""
     if density < SHARP_FROM:
         return {}
     found = {slot: SHARP_SCALE for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
-    found.update({slot: max(SHARP_SCALE, COLOUR_SHARE * route.PRINT / density)
+    found.update({slot: max(SHARP_SCALE, COLOUR_SHARE * max(route.PRINT, *(decal.get("px_per_m", 0.0)
+                                                                         for decal in spec["decals"])) / density)
                   for slot, spec in (specs or {}).items() if spec.get("decals")})
     return found
 

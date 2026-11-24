@@ -270,7 +270,9 @@ def ink_extent(placement, points, normals):
     1 - INK_TRIM quantiles each way, a line the band across its up where its ink is densest (RULE_BIN bins at least
     half the densest's count) and its ink's span along it. Its facing is its ink's faces' mean (`normals`, one a
     point): one face's under its middle tilts on a route's bumpy mesh, so a thin line's slab cut the face aslant. As it
-    was with fewer than INK_FEWEST points."""
+    was with fewer than INK_FEWEST points. Its `depth`: how far off its plane its ink lies within its span, which the
+    print reaches (recipes.decal_layer: TRELLIS.2's garbled letters stand up to 1 mm over the guarded switch's plate
+    under its ARM, 2.5 mm tall, and the print's quarter-height slab left its M off them, #159 round 8)."""
     if len(points) < INK_FEWEST:
         return placement
     normal = normals.mean(0) / np.linalg.norm(normals.mean(0))
@@ -278,21 +280,23 @@ def ink_extent(placement, points, normals):
     up = square_up([0.0, 1.0, 0.0], normal) if up is None else up
     right = np.cross(up, normal)
     offset = points - placement["at"]
-    across, upward = offset @ right, offset @ up
+    across, upward, along = offset @ right, offset @ up, offset @ normal
     if placement["shape"] == "rule":
         bins = np.floor(upward / RULE_BIN).astype(int)
         counts = np.bincount(bins - bins.min())
         dense = np.flatnonzero(counts >= counts.max() / 2) + bins.min()
         band = np.isin(bins, dense[np.abs(dense - (counts.argmax() + bins.min())) <= len(dense)])
-        across, upward = across[band], upward[band]
+        across, upward, along = across[band], upward[band], along[band]
         low, high = [across.min(), upward.min()], [across.max(), upward.max() + RULE_BIN]
     else:
         low, high = np.quantile(np.c_[across, upward], [INK_TRIM, 1 - INK_TRIM], axis=0)
     middle = (np.asarray(low) + np.asarray(high)) / 2
     at = np.asarray(placement["at"]) + middle[0] * right + middle[1] * up
+    spanned = (across >= low[0]) & (across <= high[0]) & (upward >= low[1]) & (upward <= high[1])
     rounded = lambda vector: [round(float(value), 5) for value in vector]  # noqa: E731
     return dict(placement, at=rounded(at), normal=rounded(normal), up=rounded(up),
-                size=[round(float(high[0] - low[0]), 5), round(float(high[1] - low[1]), 5)])
+                size=[round(float(high[0] - low[0]), 5), round(float(high[1] - low[1]), 5)],
+                depth=round(float(np.abs(along[spanned]).max()), 5))
 
 
 def drawn_print(mark):
@@ -340,13 +344,33 @@ def covering(mark):
     return not mark.get("gap") and placed and mark.get("print_finish") is not None
 
 
-def covered_prints(seen, marks, finish_of, part_of):
+def print_islands(mesh, finish_of, printed, under):
+    """`under` with every face of each island of the `printed` finish (its faces joined across shared edges) that holds
+    one of them: TRELLIS.2's garbled letters lie off the close-up's ink by the fitted camera's error (the toggle
+    switch's ON and OFF 10 to 30 px left of their boxes, 272 of their 450 print faces outside, drawn white beside the
+    decal: #159 round 8), and a letter is printed whole or not at all."""
+    from scipy import sparse
+    from scipy.sparse.csgraph import connected_components
+    pairs = mesh.face_adjacency
+    pairs = pairs[(finish_of[pairs[:, 0]] == printed) & (finish_of[pairs[:, 1]] == printed)]
+    graph = sparse.coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(len(finish_of),) * 2)
+    _, island = connected_components(graph, directed=False)
+    held = np.unique(island[under[finish_of[under] == printed]])
+    return np.union1d(under, np.flatnonzero((finish_of == printed) & np.isin(island, held)))
+
+
+def covered_prints(seen, marks, finish_of, part_of, lit=()):
     """The faces a route's own print shows under the marks drawn over it (#171: TRELLIS.2 garbles words into blots of
     the print's colour) given the finish and part the mark is printed on, in place: a face of the mark's print finish
-    (finish_ask.marks_of's `print_finish`) seen in its box grown by COVER_GROW takes its `on_finish` and the part of
-    that finish seen most there, the parts then numbered again with none left empty. `seen` is close_up_seen's. (The
-    faces moved; the covers, one a mark that moved faces: the faces seen in its grown box, its print finish and the
-    part it took, in the parts' numbering before; the part numbers kept, in their new order.)"""
+    (finish_ask.marks_of's `print_finish`) seen in its box grown by COVER_GROW, or in one island with such a face
+    (print_islands), takes its `on_finish` and the part of that finish seen most there, and so does a face of a `lit`
+    finish (one that gives off light) seen in its box itself: there the light is the mark's ink (the readout window's
+    white ALT M shares its lit digits' colour region, and the close-up gave the caption's faces their light, #159
+    round 8). The parts are then numbered again with none left empty. `seen` is close_up_seen's. (The faces moved; the
+    covers, one a finish a mark moved faces of: the faces seen in its grown box and those its moved faces' texels may
+    lie on (route_texels.carried_from), that finish and the part it took, in the parts' numbering before; the part
+    numbers kept, in their new order.)"""
+    import route_texels
     model, camera, size, _ = seen
     faces, rows, columns = cast.close_up_cast(model, camera, size)
     moved, covers = 0, []
@@ -357,16 +381,20 @@ def covered_prints(seen, marks, finish_of, part_of):
         grow = COVER_GROW * min(wide, tall)
         inside = ((columns >= left - grow) & (columns <= left + wide + grow) & (rows >= top - grow)
                   & (rows <= top + tall + grow) & (faces >= 0))
-        under = np.union1d(faces[inside], hidden_under(model, camera, size, mark["box"], grow))
+        boxed = faces[inside & (columns >= left) & (columns <= left + wide) & (rows >= top) & (rows <= top + tall)]
+        under = print_islands(model.mesh, finish_of, mark["print_finish"],
+                              np.union1d(faces[inside], hidden_under(model, camera, size, mark["box"], grow)))
         base = under[finish_of[under] == mark["on_finish"]]
-        printed = under[finish_of[under] == mark["print_finish"]]
-        if not len(base) or not len(printed):
-            continue
-        onto = int(np.bincount(part_of[faces[inside][np.isin(faces[inside], base)]]).argmax())
-        finish_of[printed] = mark["on_finish"]
-        part_of[printed] = onto
-        moved += len(printed)
-        covers.append((under, mark["print_finish"], onto))
+        for finish, held in ((mark["print_finish"], under),
+                             *((light, np.unique(boxed)) for light in lit if light != mark["on_finish"])):
+            printed = held[finish_of[held] == finish]
+            if not len(base) or not len(printed):
+                continue
+            onto = int(np.bincount(part_of[faces[inside][np.isin(faces[inside], base)]]).argmax())
+            finish_of[printed] = mark["on_finish"]
+            part_of[printed] = onto
+            moved += len(printed)
+            covers.append((np.union1d(under, route_texels.carried_from(model.mesh, printed)), finish, onto))
     kept, part_of[:] = np.unique(part_of, return_inverse=True)  # parts numbered from 0 with none emptied (part_rows)
     return moved, covers, kept
 
@@ -435,7 +463,8 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None):
     """(placements, gaps) of a take's marks: cast through its own close-up's camera (`seen`, close_up_seen), each text
     or line mark placed and sized by its ink in the `close_up` (inked, ink_extent; `inks` the palette's
     {token: "#rrggbb"}) and its picture drawn into `out` (text_decals.drawn, its placement's `picture` that file's name
-    there); a take whose close-up cannot be cast places none, each mark a gap naming why."""
+    there, `px_per_m` its density, the least its part is baked at); a take whose close-up cannot be cast places none,
+    each mark a gap naming why."""
     if not marks:
         return [], []
     model, camera, size, why = seen
@@ -452,7 +481,8 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None):
             faces, points = cast.cast_points(model, camera, size, ink)
             kept = (faces >= 0) & (part_of[np.maximum(faces, 0)] == placement["part"])
             placement = ink_extent(placement, points[kept], model.mesh.face_normals[faces[kept]])
-        placements[number] = dict(placement, picture=f"text-{number:02d}.png")
+        placements[number] = dict(placement, picture=f"text-{number:02d}.png",
+                                  px_per_m=text_decals.density(placement))
         text_decals.drawn(placements[number]).save(out / placements[number]["picture"])
     return placements, gaps
 
@@ -533,7 +563,9 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     seen = close_up_seen(folders) if marks else (None, None, None, None)
     finish_of_part = np.zeros(int(part_of.max()) + 1, dtype=np.int64)
     finish_of_part[part_of] = finish_of  # the split's, before a cover moves any face
-    covered, covers, kept = covered_prints(seen, marks, finish_of, part_of) if seen[0] is not None else (0, [], None)
+    lit = [number for number, finish in enumerate(finishes) if finish.get("family") in finish_parts.LIT_FAMILIES]
+    covered, covers, kept = covered_prints(seen, marks, finish_of, part_of, lit) if seen[0] is not None \
+        else (0, [], None)
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))

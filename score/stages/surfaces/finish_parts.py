@@ -287,6 +287,10 @@ def library_lab(spec):
 # the plastic seen 27.7 L* lighter baked 4.5 darker).
 # A finish seen through (see_through): its surface's family, or these words in its finish or parts.
 SEEN_THROUGH_FAMILIES = ("glass", "screen", "light")
+# The families that give off light (the recipes `glowing` and `screen`): a raw take's texture cannot show light, so a
+# lit part is the close-up's to place (route_split.close_up_only, route_texels.texel_parts; #159 round 8: the readout
+# window's lit digits drawn dark, its texture's dark relief outvoting them).
+LIT_FAMILIES = ("glowing", "screen")
 SEEN_THROUGH_WORDS = ("transparent", "translucent")
 OWN_COLOUR = ("glass", "screen", "light", "print")
 ORDER_L, ORDER_LIBRARY, ORDER_KEPT = 10.0, 3.0, 0.0

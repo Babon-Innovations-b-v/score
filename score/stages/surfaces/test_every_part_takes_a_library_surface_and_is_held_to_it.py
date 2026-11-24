@@ -481,6 +481,18 @@ tests it turned red:
   (a missing drawn picture baked); route_parts.py ink_pixels `& (spans[:, 1] <= LETTER_WIDEST * spans[:, 0])`
   dropped (a line's end read as a letter); ink_extent `counts >= counts.max() / 2` -> `counts >= 0` (a line spans the
   words beside it)
+- Small labels and lit parts (#159 round 8, #196), each -> every_part_takes_a_library_surface_and_is_held_to_it:
+  text_decals.py density `max(PX_PER_M, TEXT_PX / ...)` -> `PX_PER_M` (the toggle switch's 2.5 mm ON drawn 8 px tall,
+  SMALL_TEXT); bake.py sharp_slots `max(route.PRINT, *(decal px_per_m))` -> `route.PRINT` (a small line's part baked
+  at 3,000 px a metre); recipes.py decal_depth's `max(..., decal.get("depth", 0.0))` dropped and route_parts.py
+  ink_extent's `depth=` -> `0.0` (the print's slab short of the raised letters its ink was seen on, the ARM's M);
+  print_islands `return np.union1d(...)` -> `return under` (TRELLIS.2's letters off their ink kept white);
+  covered_prints' lit finishes dropped (the readout's ALT M lit as its digits); its `route_texels.carried_from(...)`
+  dropped (a print texel its reach gave a panel face past the box kept); route_split.py close_up_only
+  `| np.isin(laid, list(lit))` dropped and lit_laid `if not chosen.any():` -> `if True:` (the lit digits voted and
+  smoothed away); route_texels.py texel_parts `picked[kept], picked[shown] = ...` -> `pass` (a lit part's texels the
+  texture's); route_views.py close_up_texels `np.where(seen, ...)` -> the region alone (a texel the close-up does not
+  see given its region), texel_points' corner sum -> `ends.mean(1)` (each texel at its face's middle)
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
   every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
   finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
@@ -2180,6 +2192,35 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert (texels[texels.files[1]][covered] == region_of(views, RED)).all()
     for case, paint, finish_two, where, part in TEXELS:
         assert texel_strip(paint, finish_two, where) == part, case
+    # A texel of a lit finish follows the close-up, not the texture (#159 round 8): on face 0 (finish 0) and face 1 (lit
+    # finish 1), each region naming finish 0, a texel the close-up shows lit takes the lit part, one on the lit face it
+    # shows unlit the other, one on the lit face it does not see keeps its face's; with no finish lit, the regions'.
+    from score.stages.surfaces import route_texels
+    lit_texels = [route_texels.texel_parts(np.array([[0, 0, 1, 1]]), np.zeros((1, 4), int), np.array([[5.0, 0.0]]),
+                                           np.array([[10, 11], [10, 11]]), np.array([0, 1]), lit,
+                                           np.array([[1, -1, 0, -1]]))[0].tolist() for lit in ([1], [])]
+    assert lit_texels == [[11, 10, 10, 11], [10, 10, 10, 10]], lit_texels
+    assert route_texels.told_finishes(np.array([[0, 1, -1, 5]], np.int8), {0: 1, 1: 0}).tolist() == [[1, 0, -1, -1]]
+    # Each texel read back to its point on its face, and the region the laid close-up shows there: a unit square seen
+    # straight on, its left half region 1, its right region 0, its top rows not laid (-1).
+    square = trimesh.Trimesh([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], [[0, 1, 2], [0, 2, 3]],
+                             process=False)
+    model = route_cast.Model(square, square.vertices[square.faces][..., :2], np.zeros(2, int), [None], [np.ones(4)],
+                             (np.zeros(3), 1.0))
+    face_of = route_texels.face_texels(model.corner_uv, np.arange(2), (8, 8))
+    covered, points = route_views.texel_points(model, face_of)
+    rows, columns = np.nonzero(covered)
+    assert np.allclose(points, np.c_[(columns + 0.5) / 8, 1 - (rows + 0.5) / 8, np.zeros(len(rows))]), points
+    with tempfile.TemporaryDirectory() as temporary:
+        own = (pathlib.Path(temporary) / "close-up.png", pathlib.Path(temporary) / "camera.json")
+        Image.new("RGBA", (64, 64)).save(own[0])
+        own[1].write_text(json.dumps({"look": {"eye": [0.5, 0.5, 3.0], "right": [1, 0, 0], "up": [0, 1, 0]},
+                                      "camera_angle_x": 2 * math.atan(0.6 / 3.0)}))
+        laid = route_cast.close_up_cast(model, route_cast.close_up_camera(own[1]), (64, 64))[0]
+        laid[:20] = -1
+        regions = np.where(np.arange(64) < 32, 1, 0)[None, :].repeat(64, 0)
+        shown = route_views.close_up_texels(model, own, laid, regions, {"face0": face_of})["closeup0"]
+    assert (shown[4:, :4] == 1).all() and (shown[4:, 4:] == 0).all() and (shown[0] == -1).all(), shown
     with tempfile.TemporaryDirectory() as temporary:
         drawn = texel_masks_drawn(pathlib.Path(temporary))
     for case, measure, want in TEXEL_MASKS:
@@ -2336,6 +2377,18 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         chosen = patch if picked == "patch" else np.arange(len(mesh.faces)) == 7
         voted[chosen] = patched
         assert (route_split.voted_finishes(mesh, voted, 2)[1][chosen] == finish).all(), case
+    # A lit finish (1) is the close-up's (#159 round 8: the readout window's lit digits, drawn dark by its texture):
+    # a face the laid close-up labels lit takes it alone though a texture view labels it elsewhere, and after the
+    # smoothing its small island is lit again, a part of its own; a finish that gives no light keeps its votes.
+    votes, laid = np.zeros((3, 2)), {"front": np.array([0, 1, 0]), route_split.route_views.CLOSE_UP: np.array([1, -1, 0])}
+    votes[:, 0] = 5.0
+    assert route_split.close_up_only(votes, laid, [1])[0].tolist() == [0.0, 1.0]
+    assert route_split.close_up_only(votes, laid)[0].tolist() == [5.0, 0.0]
+    lit_patch = np.where(patch, 1, -1)
+    part_of, finish_of = route_split.lit_laid(mesh, (np.zeros(len(mesh.faces), int), np.zeros(len(mesh.faces), int)),
+                                              lit_patch, [1])
+    assert (finish_of == patch).all() and len(set(part_of[patch])) == 1 and part_of[patch][0] not in part_of[~patch]
+    assert (route_split.lit_laid(mesh, (part_of * 0, finish_of * 0), lit_patch, [])[1] == 0).all()
     # a shell's inner wall no view sees takes the finish of the outer wall behind it, in its part (SPLIT_SHELL)
     tube = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(
         *(lambda made: (made.vertices, made.faces))(trimesh.creation.annulus(0.95, 1.0, 2.0, sections=48)), 0.2))
@@ -2639,6 +2692,26 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     text_marks_held()  # words and numbers drawn as text decals in a library face, on a fitted camera (#171)
 
 
+# A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
+# px a metre the cockpit cases' ON, 2.5 mm tall, was 8 px and read as glyphs (#159 round 8).
+SMALL_TEXT = [
+    ("a line under 1 cm is drawn TEXT_PX tall", {"shape": "text", "size": [0.00412, 0.00252]}, 30),
+    ("a line over 1 cm keeps 3,000 px a metre", {"shape": "text", "size": [0.08, 0.02]}, 60),
+    ("a printed line is never raised", {"shape": "rule", "size": [0.08, 0.002]}, 6),
+]
+
+
+def inside_function(path, name, settings):
+    """A function of a file that runs inside Blender (bake.py, recipes.py), with its `settings`, taken from its text."""
+    import ast
+    tree = ast.parse(pathlib.Path(path).read_text())
+    kept = [node for node in tree.body if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", None)
+            in settings or isinstance(node, ast.FunctionDef) and node.name == name]
+    space = {"route": route, "math": math}
+    exec(compile(ast.Module(body=kept, type_ignores=[]), pathlib.Path(path).name, "exec"), space)
+    return space[name]
+
+
 def text_marks_held():
     """Text and line marks (#171): the list's words, look and print finish read (marks_of), each placed as a text decal
     drawn in its look's library face at its cast size (decal_placements, text_decals.drawn), the route's own print
@@ -2698,6 +2771,21 @@ def text_marks_held():
     assert np.allclose(ruled["size"], [0.4, 0.002], atol=1e-3) and abs(ruled["at"][1] - 0.101) < 0.002, ruled
     worded = route_parts.ink_extent(dict(flat, shape="text"), words, np.tile([0.0, 0.0, 1.0], (len(words), 1)))
     assert np.allclose(worded["size"], [0.2, 0.08], atol=0.01) and np.allclose(worded["at"], [0, 0.04, 0], atol=0.01)
+    assert worded["depth"] == 0.0, worded  # its ink lies on its plane
+    raised = route_parts.ink_extent(dict(flat, shape="text"), words + [0.0, 0.0, 0.001] * (np.arange(100) % 2)[:, None],
+                                    np.tile([0.0, 0.0, 1.0], (len(words), 1)))
+    assert abs(raised["depth"] - 0.001) < 1e-6, raised  # the print reaches the route's raised letters it was seen on
+    for case, placement, tall in SMALL_TEXT:  # a line under 1 cm is drawn TEXT_PX tall, its bake as dense
+        drawn = np.asarray(text_decals.drawn(dict(placement, text="ON", look="bold sans")))
+        assert drawn.shape[0] == tall, (case, drawn.shape)
+    depth = inside_function(REPO / "tools/props/library/recipes.py", "decal_depth", {"DECAL_DEPTH"})
+    assert [depth({"size_m": [0.006, 0.0025], **reach}) for reach in ({}, {"depth": 0.001}, {"depth": 0.5})] == [
+        0.000625, 0.001, 0.02]  # the slab reaches the raised letters its ink was seen on, never past DECAL_DEPTH
+    sharp = inside_function(REPO / "tools/props/library/inside/bake.py", "sharp_slots",
+                            {"SHARP_SCALE", "SHARP_FROM", "SHARP_FAMILIES", "COLOUR_SHARE"})
+    print_slot = {"decals": [{"px_per_m": text_decals.density({"shape": "text", "size": [0.00412, 0.00252]})}]}
+    assert sharp({"plate": print_slot, "plain": {"decals": [{}]}}, 1024) == {
+        "plate": pytest.approx(2 * text_decals.TEXT_PX / 0.00252 / 1024), "plain": 2 * route.PRINT / 1024}
     # A 2 x 2 m panel facing the camera, cut in a 16 x 16 grid: the route's print (finish 1, part 1) in its middle under
     # the mark and in one corner away from it; the print under the mark takes the panel's finish and part. Behind the
     # middle, hidden from the camera, two pieces of print: one raised 0.05 under the panel (TRELLIS.2's letters 2 to
@@ -2743,6 +2831,23 @@ def text_marks_held():
     finish_of_part = np.array([0, 1, 1, 1])
     found = route_parts.covered_texels(texels.astype(np.uint16), faces, covers, finish_of_part, kept, part_of)
     assert found.dtype == np.uint16 and (found[0] == np.r_[part_of, 1, 0, 1, 1]).all(), found
+    # The print past the grown box in one island with the print under the mark (TRELLIS.2's letters off their ink, the
+    # toggle switch's ON) is covered whole, and a texel its reach gives a panel face past it too; a lit finish (2) seen
+    # in the mark's box itself is its ink, taken; one seen only in the grown box is kept (#159 round 8).
+    across, upward = grid.triangles_center[:, 0], grid.triangles_center[:, 1]
+    flat = np.arange(len(grid.faces)) < len(grid.faces) - 2
+    strip = flat & (np.abs(upward) < 0.125) & (across > -0.25) & (across < 0.875)
+    lit_in = flat & (np.abs(across) < 0.125) & (upward > 0.125) & (upward < 0.25)
+    lit_out = flat & (np.abs(across) < 0.125) & (upward > 0.375) & (upward < 0.5)
+    finish_of = np.select([strip | corner, lit_in | lit_out], [1, 2], 0)
+    part_of = np.select([strip | corner, lit_in, lit_out], [1, 2, 3], 0)  # the corner's print keeps the part
+    moved, covers, kept = route_parts.covered_prints((model, camera, (512, 512), None), [mark], finish_of, part_of, [2])
+    assert (finish_of[strip | lit_in] == 0).all() and (finish_of[lit_out | corner] != 0).all(), finish_of
+    assert [cover[1] for cover in covers] == [1, 2] and moved == (strip | lit_in).sum(), (covers, moved)
+    past = int(np.flatnonzero(flat & (np.abs(upward) < 0.07) & (across > 0.9))[0])
+    found = route_parts.covered_texels(np.array([[1]], np.uint16), np.array([[past]]), covers, np.array([0, 1, 2, 2]),
+                                       kept, part_of)
+    assert found[0, 0] == part_of[past] != part_of[corner][0], found
     # The close-up's camera fitted from the model's outline: a box seen from 6 degrees further round and 3 lower than
     # the close-up style's view, at a 30 degree field, is found to within a degree or two, its outline met.
     box = trimesh.creation.box((0.6, 0.4, 0.25))
