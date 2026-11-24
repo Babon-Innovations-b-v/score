@@ -84,6 +84,24 @@ SMOOTH_ROUNDS_MOST = 200
 # creases 3.9 deep for the input's 5.1, at 0.02 0.22 (a seam's shadow too narrow to show at the look's pixels).
 OCCLUSION_SAMPLES = 128
 OCCLUSION_SHARE = 0.1
+# The seams a generated model's remesh closed (seamed, #159 r11: TRELLIS.2's decoded mesh holds every drawer seam and
+# door line, a voxel or less wide, and to_glb's remesh closes them with #191's pinholes). The decoded mesh's occlusion is
+# baked onto the model's UVs from a cage SEAM_CAGE of the model's longest side out (its surface lies a voxel, a 1024th
+# of the box, or so off the model's: on the bench's anesthesia machine 1.8 mm at the median, 2.6 at the 95th
+# percentile, for 2.3 m). Its holes and flipped patches bake dark blots there too, so only a thin long dark run is kept:
+# a texel SEAM_DARK of its mean within SEAM_REACH texels or darker, on a run SEAM_LENGTH texels long along one of four
+# ways at SEAM_ALONG full and at most SEAM_ACROSS of the 9 texels across it, both its sides SEAM_REACH texels across
+# lighter by SEAM_DARK (a blot's rim, dark on one side, is no seam), grown a texel; it shades the model's own
+# occlusion by its ratio to that mean, never below SEAM_LEAST. Seen on r206ao's anesthesia machine and locker (r11):
+# the locker's door outlines and the cabinet's side seam drawn, no blot; unfiltered, blots and black flipped patches
+# over the drawers and the bench's leg.
+SEAM_CAGE = 0.004
+SEAM_REACH = 4
+SEAM_DARK = 0.85
+SEAM_LENGTH = 12
+SEAM_ALONG = 0.8
+SEAM_ACROSS = 3
+SEAM_LEAST = 0.55
 
 
 def occlusion_reach(items):
@@ -259,17 +277,76 @@ def packed_maps(item, tile, count, side, sharp=(), per_face=False):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def occlusion(items, uv_map, side, reach):
+def seam_lines(dark, found):
+    """Where `dark` (side x side bool) runs thin and long between lighter sides (SEAM_LENGTH, SEAM_ALONG and
+    SEAM_ACROSS along one of four ways, `found`'s occlusion SEAM_REACH across on both sides lighter by SEAM_DARK),
+    grown a texel and held to `dark`: a seam, never a pinhole's dot or a hole's blot or its rim."""
+    shade = dark.astype(np.float32)
+    half = SEAM_LENGTH // 2
+    lines = np.zeros(dark.shape, dtype=bool)
+    for row, column in ((0, 1), (1, 0), (1, 1), (1, -1)):
+        along = sum(np.roll(shade, (row * step, column * step), (0, 1)) for step in range(-half, half + 1))
+        across = sum(np.roll(shade, (column * step, -row * step), (0, 1)) for step in range(-4, 5))
+        sides = [np.roll(found, (column * step, -row * step), (0, 1)) * SEAM_DARK >= found
+                 for step in (-SEAM_REACH, SEAM_REACH)]
+        lines |= (along >= SEAM_ALONG * (2 * half + 1)) & (across <= SEAM_ACROSS) & sides[0] & sides[1]
+    grown = lines.copy()
+    for step in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        grown |= np.roll(lines, step, (0, 1))
+    return grown & dark
+
+
+def seam_shade(found):
+    """Each texel's shade from the seams in `found` (side x side: the decoded mesh's occlusion): its ratio to its mean
+    within SEAM_REACH texels each way, held to SEAM_LEAST and 1, on seam_lines' texels; 1 everywhere else."""
+    padded = np.pad(found, SEAM_REACH, mode="edge")
+    width = 2 * SEAM_REACH + 1
+    total = sum(padded[row:row + found.shape[0], column:column + found.shape[1]]
+                for row in range(width) for column in range(width))
+    ratio = np.clip(found / np.maximum(total / width ** 2, 1e-3), SEAM_LEAST, 1.0)
+    return np.where(seam_lines(ratio <= SEAM_DARK, found), ratio, 1.0)
+
+
+def outward(item):
+    """The mesh's faces wound one way, outward (Blender's own), so a flipped patch reads open, not shut."""
+    select_for_bake([item], item)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def seamed(items, decoded, uv_map, side, reach):
+    """`items`' own ambient occlusion (`occlusion`) darkened in the seams their decoded mesh `decoded` holds (the
+    mesh TRELLIS.2 decoded before its remesh closed them, generate.decoded_path; #159): its occlusion baked across
+    from it onto the same `uv_map` (`occlusion`'s `source`, a texel its rays miss left open), kept on its thin long
+    dark runs (seam_shade). The geometry's alone, as `occlusion` is; `decoded` is never drawn."""
+    own = occlusion(items, uv_map, side, reach)
+    outward(decoded)
+    size = max(max(item.dimensions) for item in items)
+    lines = occlusion(items, uv_map, side, reach, source=decoded, cage=SEAM_CAGE * size)
+    pixels = np.asarray(own.pixels[:], dtype=np.float32).reshape(side, side, 4)
+    found = np.asarray(lines.pixels[:], dtype=np.float32).reshape(side, side, 4)[..., 0]
+    pixels[..., :3] *= seam_shade(found)[..., None]
+    own.pixels[:] = pixels.ravel()
+    own.update()
+    bpy.data.images.remove(lines)
+    return own
+
+
+def occlusion(items, uv_map, side, reach, source=None, cage=0.0):
     """The ambient occlusion of `items` (a generated model's full meshes) from their own shape alone, baked by Cycles
     on their `uv_map` ("" the active one; the texel masks' UVs, make_chunky.TEXELS_UV) into a new Non-Color picture
     `side` square, rays reaching `reach` metres, every other mesh of the scene out of the bake (#206: tc6w2's anesthesia
     machine drawn one flat white where NVIDIA's shades into every seam, drawer line and corner). Never the take's own
     texture: the shading comes from the geometry. The scene's samples, its world's reach and each material are as
-    they were after."""
+    they were after. With a `source` mesh, its occlusion is baked across onto `items` instead (selected to active, from
+    a cage `cage` metres out), a texel no ray of it meets left white."""
     scene = bpy.context.scene
     picture = new_picture("occlusion", side, False)
     picture.generated_color = (1.0, 1.0, 1.0, 1.0)
-    others = [item for item in scene.objects if item.type == "MESH" and item not in items and not item.hide_render]
+    others = [item for item in scene.objects if item.type == "MESH" and item not in items and item is not source
+              and not item.hide_render]
     for item in items:
         if not item.data.materials:
             item.data.materials.append(bpy.data.materials.new("occlusion"))
@@ -284,8 +361,14 @@ def occlusion(items, uv_map, side, reach):
     for item in others:
         item.hide_render = True
     try:
-        select_for_bake(items, items[0])
-        bpy.ops.object.bake(type="AO", margin=MARGIN_PIXELS, use_clear=True, uv_layer=uv_map)
+        if source is None:
+            select_for_bake(items, items[0])
+            bpy.ops.object.bake(type="AO", margin=MARGIN_PIXELS, use_clear=True, uv_layer=uv_map)
+        else:
+            for item in items:
+                select_for_bake([source, item], item)
+                bpy.ops.object.bake(type="AO", margin=MARGIN_PIXELS, use_clear=False, uv_layer=uv_map,
+                                    use_selected_to_active=True, cage_extrusion=cage, max_ray_distance=2 * cage)
     finally:
         scene.cycles.samples, scene.world.light_settings.distance = held
         for item in others:

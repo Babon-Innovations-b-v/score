@@ -604,7 +604,8 @@ def scratch_place(scratch):
 
 def made_steps(row, rgba, material, place):
     """`make` (TRELLIS.2, set at the row's size, sim-ready, nothing taken in) with its files split into the raw, final
-    and sim steps; a raw model kept by an earlier invocation is put back where make reads it, so TRELLIS.2 runs once."""
+    and sim steps (the final step its decoded mesh beside it, `decoded.glb`, where make kept one); a raw model kept by
+    an earlier invocation is put back where make reads it, so TRELLIS.2 runs once."""
     from score.stages.place_build import maker
     work = place / "made" / maker.entry_id(row["id"], PLACE)
 
@@ -619,6 +620,8 @@ def made_steps(row, rgba, material, place):
 
     def final(folder):
         shutil.copyfile(made() / f"{work.name}-final.glb", folder / "final.glb")
+        if (work / f"{work.name}-decoded.glb").is_file():  # its seams' shape (bake.seamed, #159); none made before it
+            shutil.copyfile(work / f"{work.name}-decoded.glb", folder / "decoded.glb")
 
     def sim(folder):
         shutil.copyfile(made() / f"{work.name}-hulls.glb", folder / "hulls.glb")

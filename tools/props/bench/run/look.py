@@ -1,7 +1,8 @@
 """Inside Blender (bench.py's look step, through the card queue, #182): a made model's finish drawn as the bake paints
 it, the model whole (its own vertex normals kept) under one material, each slot's library recipe mixed in by its texel
 mask on the model's own UVs (recipes.masked) and darkened by the model's own ambient occlusion baked on them
-(bake.occlusion, #206: tc6w2's anesthesia machine drawn one flat white where NVIDIA's shades into its seams), seen from
+(bake.occlusion, #206: tc6w2's anesthesia machine drawn one flat white where NVIDIA's shades into its seams), and
+in the seams its decoded mesh holds where the job names one (`decoded`: bake.seamed, #159), seen from
 the close-up's view direction and up (a flat row from straight above, +y up), framed on its own box under the close-up's
 own studio light (closeup.lit: two large area lamps and a dim grey sky), so it is lit as NVIDIA's input render it is
 held to. Under the library renders' two suns and a bright, even grey world a mirror finish reflects only that grey:
@@ -51,11 +52,27 @@ def look_material(masks, occlusion=None):
     return material
 
 
-def occluded(meshes, masks):
+def occluded(meshes, masks, decoded=None):
     """The model's own ambient occlusion on its active UVs, at its texel masks' side (bake.occlusion, as the place's
-    bake gives its finish, #206)."""
+    bake gives its finish, #206), darkened in the seams its `decoded` mesh holds where the job names one
+    (bake.seamed, #159)."""
     side = bpy.data.images.load(str(masks[0]["mask"]), check_existing=True).size[0]
-    return bake.occlusion(meshes, "", side, bake.occlusion_reach(meshes))
+    if decoded is None:
+        return bake.occlusion(meshes, "", side, bake.occlusion_reach(meshes))
+    return bake.seamed(meshes, decoded, "", side, bake.occlusion_reach(meshes))
+
+
+def decoded_of(job):
+    """The job's `decoded` mesh (TRELLIS.2's before its remesh, set in the place as the model is: make's
+    <entry>-decoded.glb) imported as one object, or None where the job names none."""
+    if not job.get("decoded"):
+        return None
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=job["decoded"])
+    found = [item for item in bpy.context.scene.objects if item not in before and item.type == "MESH"]
+    if len(found) != 1:
+        raise SystemExit(f"{job['decoded']}: {len(found)} meshes, not the one decoded mesh")
+    return found[0]
 
 
 def laid(meshes):
@@ -151,8 +168,11 @@ def main():
         return
     bpy.ops.import_scene.gltf(filepath=job["glb"])
     meshes = [item for item in scene.objects if item.type == "MESH"]
-    laid(meshes)
-    material = look_material(job["masks"], occluded(meshes, job["masks"]))
+    decoded = decoded_of(job)
+    laid(meshes + ([decoded] if decoded else []))
+    material = look_material(job["masks"], occluded(meshes, job["masks"], decoded))
+    if decoded is not None:
+        bpy.data.objects.remove(decoded)
     for item in meshes:
         item.data.materials.clear()
         item.data.materials.append(material)

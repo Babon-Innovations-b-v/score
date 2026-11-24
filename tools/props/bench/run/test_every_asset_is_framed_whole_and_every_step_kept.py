@@ -31,7 +31,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finish.same_family: a truth surface with no family counted as a mismatch -> its share is 0.0, not unjudged
 - finish.look_job: the texels.npz check dropped -> a finish with none fails on numpy's own error, not its reason;
   its part's list settings not read (part_spec's `set_spec` dropped) -> the look's spec is not the listed roughness
-  0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182)
+  0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182); the decoded mesh
+  beside the model not named (`job["decoded"]` dropped) -> look.py shades no seam from it (#159)
 - bench.look_holes (#159): the look's background not read -> the box's holes are 100 of the square's pixels, not 200;
   the mesh alone's black not read -> 100, not 200; finish.look_axes: a fixed +z up for the close-up's own -> a
   camera straight down has no frame (NaN axes, the ceiling task light's empty look)
@@ -83,6 +84,7 @@ import io
 import json
 import math
 import pathlib
+import shutil
 
 import numpy as np
 import pytest
@@ -270,9 +272,11 @@ def looked(tmp_path, name, view):
     np.savez(folder / "surfaces-parts" / name / "texels.npz", piece0=np.zeros((4, 4), np.uint16))
     out = tmp_path / "look"
     out.mkdir()
+    shutil.copyfile(model, model.with_name("decoded.glb"))  # its decoded mesh beside it, as make's final step keeps it
     bench.look_step(model, folder, {"id": name}, view, draw, ask)(out)
     (job, script), = drawn
-    assert script == bench.LOOK and job["eye"] == view["eye"] and job["glb"] == str(model), job
+    assert script == bench.LOOK and job["eye"] == view["eye"] and job["glb"] == str(model) and \
+        job["decoded"] == str(model.with_name("decoded.glb")), job
     with Image.open(out / f"look-{bench.LOOK_SMALL}.png") as small:
         size = small.size
     read = [(mark["text"], mark["read"]) for mark in json.loads((out / "read.json").read_text())]

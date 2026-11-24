@@ -9,7 +9,8 @@ No RMBG-2.0 (the picture's own alpha is the cut-out: an all-opaque picture is re
 nvdiffrast (shim/). One model a process: each flow model is dropped from the card and RAM after its stage (moved to
 torch's meta device), which keeps the process under 20 GB. Its card memory is cut to fit beside the Windows desktop
 (lean, remesh.py; the same model bit for bit) and held to the card's free memory (capped). Writes <out.glb> and
-<out>.json (seconds, card peak).
+<out>.json (seconds, card peak), and beside them the decoded mesh before the remesh (`decoded_path`, #159): it keeps
+the drawer seams, door lines and vents the remesh closes, which the look and the bake shade from (bake.seamed).
 """
 import json
 import os
@@ -28,6 +29,11 @@ FACES = 500000
 # (#191: at band 1 the fridge's 2 mm glass door kept 155 pinholes seen straight on, 4 at band 3).
 BAND = 3
 PROJECT = 1 - 1 / BAND
+# The decoded mesh before the remesh (#159, r11): TRELLIS.2's own surface holds every drawer seam and panel line a voxel
+# or less wide, which the remesh closes with #191's pinholes, so it is kept beside the model as the shape its seams are
+# shaded from (bake.seamed), never shown. Cut to FACES whatever the model's own faces (a 20k-face toaster still shades
+# from the seams 500k faces hold); its own texture is never read, so it is drawn at DECODED_TEXTURE and left out.
+DECODED_TEXTURE = 256
 # 1024_cascade never uses the 512 texture flow model, so it is not loaded (2.6 GB of RAM).
 MODELS = ["sparse_structure_decoder", "sparse_structure_flow_model", "shape_slat_decoder", "shape_slat_flow_model_512",
           "shape_slat_flow_model_1024", "tex_slat_decoder", "tex_slat_flow_model_1024"]
@@ -121,8 +127,26 @@ def loaded(env):
     return pipeline
 
 
+def decoded_path(out):
+    """Where the model `out`'s decoded mesh is kept: <out stem>-decoded.glb beside it."""
+    return out.with_name(f"{out.stem}-decoded.glb")
+
+
+def decoded_written(mesh, out):
+    """TRELLIS.2's decoded `mesh` cut to FACES with no remesh, its shape alone (no texture) written at
+    decoded_path(out) in the model's own frame (to_glb's, as `out`'s); its faces."""
+    import o_voxel.postprocess
+    import trimesh
+    shaped = o_voxel.postprocess.to_glb(
+        vertices=mesh.vertices, faces=mesh.faces, attr_volume=mesh.attrs, coords=mesh.coords,
+        attr_layout=mesh.layout, voxel_size=mesh.voxel_size, aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
+        decimation_target=FACES, texture_size=DECODED_TEXTURE, remesh=False, verbose=False)
+    trimesh.Trimesh(vertices=shaped.vertices, faces=shaped.faces, process=False).export(str(decoded_path(out)))
+    return int(len(shaped.faces))
+
+
 def made(pipeline, picture, out, faces=FACES):
-    """The model of `picture` written as `out` (GLB); its counts."""
+    """The model of `picture` written as `out` (GLB), its decoded mesh beside it (decoded_written); its counts."""
     import torch
     import o_voxel.postprocess  # imported by name: the meshparts image's o_voxel leaves it out of its __init__
     from PIL import Image
@@ -137,7 +161,9 @@ def made(pipeline, picture, out, faces=FACES):
         attr_layout=mesh.layout, voxel_size=mesh.voxel_size, aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
         decimation_target=faces, texture_size=TEXTURE, remesh=True, remesh_band=BAND, remesh_project=PROJECT, verbose=False)
     glb.export(str(out), extension_webp=False)
-    return {"faces": int(len(glb.faces)), "vertices": int(len(glb.vertices))}
+    torch.cuda.empty_cache()
+    return {"faces": int(len(glb.faces)), "vertices": int(len(glb.vertices)),
+            "decoded_faces": decoded_written(mesh, out)}
 
 
 def main():

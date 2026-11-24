@@ -7,7 +7,9 @@ place_build's `make`, one prop's model from its picture, made ready for the plac
    back from the library when it is not on this PC), `concept/<n>` (the place's concept cut by its n-th SAM 3 mask,
    objects.json), `like` (the close-up the `like` entry was made from) or a cut-out PNG's path.
 2. TRELLIS.2 (generate.py in its own Python, setup.sh) on this PC's card through the card queue, in a memory-capped
-   scope; kept under <folder>/made/<name>/, so a second `make` of the same picture is not made again.
+   scope; kept under <folder>/made/<name>/, so a second `make` of the same picture is not made again. Its decoded
+   mesh before the remesh is kept beside it and set in the place with it (`decoded_placed`): the shape its seams are
+   shaded from (bake.seamed, #159).
 3. Set in the place's frame (fit.py): over the library model it replaces (`like`, its turn, scale and spot found by
    covering it best), or `height` metres tall on the floor. Its mesh repaired, its shape kept (repair.py: collapsed,
    repeated and membrane faces out, two solids touching along an edge parted, hidden crumbs out, wound outward).
@@ -281,6 +283,19 @@ def placed(raw, folder, like, height, size=None, picture=None, words=None):
     return glb.with_root_matrix(document, matrix), binary, how
 
 
+def decoded_placed(raw, document, out):
+    """The raw model's decoded mesh (generate.decoded_path, kept when it was made) set in the place as the placed
+    model's `document` is, under its root matrix, written at `out` (bake.seamed shades the model's seams from it,
+    #159); False where the raw model kept none (made before it was kept)."""
+    from score.stages.place_build.maker import generate
+    found = generate.decoded_path(pathlib.Path(raw))
+    if not found.is_file():
+        return False
+    shape, data = glb.read(found)
+    glb.write(out, glb.with_root_matrix(shape, glb.root_matrix(document)), data)
+    return True
+
+
 def painted(document, binary, path, tokens):
     """The binary with its base colour picture graded toward `tokens`; each group's move. `path` is the placed GLB
     (its texture coordinates are read from it)."""
@@ -380,6 +395,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     document, binary, mended = repair.repaired_glb(document, binary)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
+    decoded_placed(raw, document, work / f"{entry}-decoded.glb")
     palette = folder / place_build.PALETTE
     tokens = json.loads(palette.read_text()).get("tokens", {}) if palette.is_file() else {}
     binary, groups = painted(document, binary, final, tokens)

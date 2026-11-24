@@ -21,6 +21,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - front.drawn laying the model unturned (`matrix` not applied) -> every open turn is drawn alike and the first is
   picked; front.picked numbering its drawings from 0 -> the turn after the picked one is laid
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
+- glb.root_matrix not turned back to row-major (`.T` dropped) -> the decoded mesh's matrix reads its move in the bottom
+  row; maker.decoded_placed laying the decoded mesh with no matrix (`with_root_matrix` dropped) -> it is not set in
+  the place
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
 - sim.surface_class: the NVIDIA name's class not read (the recipe's taken first), or the aluminium base ignored ->
   the painted steel surface reads as its recipe's or the brushed aluminium one as steel's row (0.3, not 0.61);
@@ -295,6 +298,17 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert data[again["bufferViews"][1]["byteOffset"]:][:3] == b"bbb"
     assert again["scenes"][0]["nodes"] == [1] and again["nodes"][1]["children"] == [0]
     assert again["nodes"][1]["matrix"][0] == 2.0 and json.dumps(again)
+    moved = np.eye(4)
+    moved[:3, 3] = [1.0, 2.0, 3.0]  # the decoded mesh set in the place under the placed model's own matrix (#159)
+    import shutil
+    shutil.copyfile(slab, generate.decoded_path(tmp_path / "trellis.glb"))
+    placed = glb.with_root_matrix(glb.read(slab)[0], moved)
+    kept = [maker.decoded_placed(tmp_path / name, placed, tmp_path / "decoded.glb") for name in ("none.glb",
+                                                                                                "trellis.glb")]
+    shape, _ = glb.read(tmp_path / "decoded.glb")
+    laid = shape["nodes"][shape["scenes"][0]["nodes"][0]]["matrix"]
+    assert kept == [False, True] and np.allclose(glb.root_matrix(placed), moved) and laid == placed["nodes"][-1][
+        "matrix"], (kept, glb.root_matrix(placed), laid)
 
     tokens = {"olive": "#6e7052", "sky": "#1a2238"}
     near = np.ones((4, 4, 3)) * np.array([0x70, 0x78, 0x50]) / 255

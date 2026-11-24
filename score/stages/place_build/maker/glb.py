@@ -97,3 +97,12 @@ def with_root_matrix(document, matrix):
                               "matrix": [float(value) for value in matrix.T.reshape(-1)]})
     scene["nodes"] = [len(document["nodes"]) - 1]
     return document
+
+
+def root_matrix(document):
+    """The matrix (4x4, row-major as numpy gives it) of the scene's one root node, as with_root_matrix laid it."""
+    import numpy as np
+    scene = document["scenes"][document.get("scene", 0)]
+    if len(scene["nodes"]) != 1 or "matrix" not in document["nodes"][scene["nodes"][0]]:
+        raise ValueError("the scene has no one root node carrying a matrix (with_root_matrix's)")
+    return np.asarray(document["nodes"][scene["nodes"][0]]["matrix"], dtype=float).reshape(4, 4).T

@@ -489,7 +489,8 @@ def look_job(folder, take, model, camera, out):
     each slot's recipe spec (part_spec) mixed by its texel mask on the made `model`'s own UVs, its own vertex normals
     kept (the model drawn whole, never part by part), from the close-up's `camera` ({eye, aim, up, fov}, Blender's
     frame); and the mesh alone (`bare.png`) for the holes check.
-    A take with no texels.npz, or texels of more than one picture, has no look here: the raised reason says so."""
+    A take with no texels.npz, or texels of more than one picture, has no look here: the raised reason says so.
+    A `decoded.glb` beside the model (bench made_steps' final step) is the job's `decoded`: its seams' shape (#159)."""
     import library as surface_library
     import route_texels
     from PIL import Image
@@ -524,6 +525,9 @@ def look_job(folder, take, model, camera, out):
                       "spec": spec})
     job = {"glb": str(model), "masks": masks, **camera, "side": LOOK_SIDE, "samples": LOOK_SAMPLES,
            "out": str(out / "look.png"), "bare": str(out / "bare.png")}
+    decoded = pathlib.Path(model).with_name("decoded.glb")
+    if decoded.is_file():  # the model's seams' shape, which look.py shades from (bake.seamed, #159)
+        job["decoded"] = str(decoded)
     (out / "look.json").write_text(json.dumps(job, indent=1, default=float))
     return out / "look.json"
 

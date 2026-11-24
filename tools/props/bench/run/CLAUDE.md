@@ -35,7 +35,8 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   through the card queue): the final model whole, its own vertex normals kept, each slot's recipe mixed in by its
   texel mask (the finish's texels.npz) on the model's own UVs, every base colour darkened by the model's own ambient
   occlusion baked on those UVs from its shape (bake.occlusion, as make_chunky's bake does, #206; never TRELLIS.2's
-  texture), from the close-up's camera and its up
+  texture), darkened in the seams its decoded mesh holds where make kept one (the final step's `decoded.glb`, the
+  job's `decoded`: bake.seamed, #159 r11), from the close-up's camera and its up
   (`finish.look_axes`: a flat row straight down, +y up), under the close-up's own light (closeup.lit, #200: under
   two suns and an even grey world chrome reflected only that grey and was drawn dull); `look.png` (1080) and `look-360.png`. Then the mesh alone in
   plain white (`bare.png`) and `holes.json`: `look_holes`, the share of its silhouette the look shows as background or
