@@ -18,6 +18,9 @@ Unreal's editor Python; `_twice.py` and `_cost.py` are render.py's.
   RHI, the project's Linux-target and renderer settings), the runtime adds the card and driver, restores it before the
   job and uploads it when it grew. Unreal's DDC goes into that folder through `UE-LocalDataCachePath` (set in Python:
   the dash keeps a shell from setting it). Never change the runtime for Unreal: every image's tag moves with it.
+- **From a scene package** (`render.py --package`, #221): the project is made here (`project_made`: our .uproject and
+  the REQUIRED settings) and the level on the card first (tools/unreal/scene/editor.py as a commandlet); what the
+  editor refused is listed as faults in record.json and the run is then no result, only a debugging one.
 - **Render twice.** The first CHECK_FRAMES are rendered again by a second editor process and compared tile by tile
   (`_twice.py`); a run whose check differs is not a result. `twice.json` always gives the largest tile difference.
 - **Paid.** Only inside a cleared run (SCORE_SPEND_TICKET or the owner's override), held to the batch cap by the
