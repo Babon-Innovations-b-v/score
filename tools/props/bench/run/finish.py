@@ -541,7 +541,7 @@ def look_camera(raw, job):
 
 
 def part_grid(model, camera, picture, part_of, metres):
-    """(each grid pixel's part, -1 off the model or off the picture's alpha; the picture's CIE L* there) of `picture`
+    """(each grid pixel's part, -1 off the model or off the picture's alpha; the picture's CIELAB there) of `picture`
     (RGBA array) seen by `camera` (route_cast's), area-averaged to `metres` a pixel at the model's middle."""
     from PIL import Image
     import route_cast
@@ -557,7 +557,7 @@ def part_grid(model, camera, picture, part_of, metres):
     faces, _ = route_cast.cast_points(model, camera, (width, width), np.c_[columns.ravel(), rows.ravel()])
     parts = np.where(faces >= 0, np.asarray(part_of)[np.maximum(faces, 0)], -1).reshape(side, side)
     parts[shrunk[..., 3] < 0.5] = -1
-    return parts, lab_colour.lab(lab_colour.linear(shrunk[..., :3]))[..., 0]
+    return parts, lab_colour.lab(lab_colour.linear(shrunk[..., :3]))
 
 
 def look_faces(model, looked):
@@ -579,11 +579,14 @@ def look_faces(model, looked):
 
 
 def drawn_patterns(model, finished, looked, close_up, take):
-    """{part: {"pattern", "true_pattern"}}: each finish part's lightness detail (the median size of likeness
-    measure.high_pass, L units) as its look draws it (`looked`: look.png and look.json, look_job's) and as NVIDIA's close-up (`close_up`,
-    the RGBA render) shows it on the same part (the finish's fitted camera, camera.json), both read at the coarser
-    picture's metres a pixel (#186: the surgical chair's seat drawn speckled granite where NVIDIA's is smooth); None
-    on a side that shows the part on under PATTERN_LEAST whole-reach pixels."""
+    """{part: {"pattern", "true_pattern", "drawn", "true_drawn"}}: each finish part's lightness detail (the median
+    size of likeness measure.high_pass, L units) and its median CIELAB colour as its look draws it (`looked`: look.png
+    and look.json, look_job's) and as NVIDIA's close-up (`close_up`, the RGBA render) shows it on the same part (the
+    finish's fitted camera, camera.json), both read at the coarser picture's metres a pixel; None on a side that shows
+    the part on under PATTERN_LEAST (whole-reach) pixels. The pattern: #186, the surgical chair's seat drawn speckled
+    granite where NVIDIA's is smooth. The colour (#198): the look is drawn under the close-up's own light, so a part
+    drawn more saturated or darker than the input shows it on the same view is its colour's fault, which NVIDIA's
+    albedo alone missed (tc5r's hospital chair seat, its albedo dE inside the reach's spread, drawn royal blue)."""
     from PIL import Image
     import route_cast
     with likeness_tools():
@@ -600,9 +603,13 @@ def drawn_patterns(model, finished, looked, close_up, take):
                  for picture, camera in pictures.values())
     found = {}
     for key, (picture, camera) in pictures.items():
-        parts, lightness = part_grid(loaded, camera, picture, part_of, metres)
+        parts, lab = part_grid(loaded, camera, picture, part_of, metres)
+        drawn = {"pattern": "drawn", "true_pattern": "true_drawn"}[key]
         for part in np.unique(parts[parts >= 0]).tolist():
-            detail = np.abs(measure.high_pass(lightness, parts == part))
-            found.setdefault(part, {"pattern": None, "true_pattern": None})[key] = (
-                round(float(np.median(detail)), 3) if len(detail) >= PATTERN_LEAST else None)
+            detail = np.abs(measure.high_pass(lab[..., 0], parts == part))
+            colours = lab[parts == part]
+            entry = found.setdefault(part, {"pattern": None, "true_pattern": None, "drawn": None, "true_drawn": None})
+            entry[key] = round(float(np.median(detail)), 3) if len(detail) >= PATTERN_LEAST else None
+            entry[drawn] = ([round(float(value), 1) for value in np.median(colours, axis=0)]
+                            if len(colours) >= PATTERN_LEAST else None)
     return found

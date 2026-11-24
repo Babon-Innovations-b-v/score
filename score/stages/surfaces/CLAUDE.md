@@ -57,7 +57,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **The line is the finish route** (owner, 2026-10-20, #18; library first): every surface that faces the air is a
   library material carrying the look (palette colour, wear, shine, seed), so there is no paid paint step and no
   finish-map picture. Rows, in `ROWS` (`__init__.py`), on every painting place's line: `finish-route-views` (free,
-  `route_views.py`), `finish-route-list` (paid, `route_list.py`), `finish-route-split` (free, `route_split.py`),
+  `route_views.py`), `finish-route-list` (paid, `route_list.py`; a part's colour read off the close-up, each region's colour there
+  given beside the texture's and each token's L* and chroma beside its words, #198), `finish-route-split` (free, `route_split.py`),
   `surfaces-parts` (free, `route_parts.py`: the method's interface), `surfaces-bake` (paid, `route_bake.py`: the
   paint and the bake in one job), `surfaces-paint` (free, `route_paint.py`: the bake's painted takes, the paint's
   gates; a take a gate fails is a batch gap, as a model the check fails is: `route_paint.item_gaps`), `finish-route-recheck` (paid, `route_recheck.py`; `surfaces-check` reads it, so a failed

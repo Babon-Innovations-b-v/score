@@ -24,7 +24,8 @@ own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN); 
 region (texel_regions), which the split gives each its finish (route_texels), and where the close-up is laid the
 region it shows each texel in (close_up_texels).
 views.json: per take its model, its views' angles, its faces and how many the paint's loading finds, the share of its
-area seen, its regions (CIELAB, sRGB, share of the seen pixels), its close-up's source and whether it was laid.
+area seen, its regions (CIELAB, sRGB, share of the seen pixels; where the close-up is laid, each one's colour there,
+close_up_shown, which the list reads its colour from), its close-up's source and whether it was laid.
 Gate "views cast": every take has its raw model, loaded with the faces the paint loads, every view sees it and the
 views together see SEEN_LEAST of the area any angle sees (both measured at MEASURE_SIDE). A take a batch gap names
 (score/stages/batch_gaps.py: its close-up or its Pixal3D job failed in the batch) is left out, and its gap carried on
@@ -71,6 +72,9 @@ CLOSE_UP = "close-up"  # the close-up's own pixels laid on the model through its
 # the one it shows (close_up_texels): a texel's face is often not the one cast at its pixel's middle where faces are
 # finer than the cast.
 SEEN_DEPTH = 3.0
+# A region's colour in the laid close-up (close_up_shown) is read from at least this many of its pixels: fewer are a
+# few edge pixels of a part the close-up hardly shows.
+SHOWN_LEAST = 25
 EDGE = 2  # a close-up pixel is kept only when those EDGE away on every side lie on the model in the cast and alpha
 
 
@@ -158,15 +162,41 @@ def colour_regions(colours, faces, seed):
     return centres, per_pixel
 
 
-def region_records(centres, colours, per_pixel):
-    """Each region's CIELAB centre, median sRGB 0-255 over its pixels in every view and share of the seen pixels."""
+def region_records(centres, colours, per_pixel, shown=None):
+    """Each region's CIELAB centre, median sRGB 0-255 over its pixels in every view and share of the seen pixels;
+    with `shown` (close_up_shown, where the close-up is laid) its `close_up_srgb` too."""
     seen = sum(int((label >= 0).sum()) for label in per_pixel.values())
     found = []
     for region, centre in enumerate(centres):
         pixels = np.concatenate([colours[view][per_pixel[view] == region] for view in colours])
         found.append({"region": region, "lab": [round(float(value), 1) for value in centre],
                       "srgb": np.median(pixels, axis=0).round().astype(int).tolist(),
-                      "share": round(len(pixels) / max(seen, 1), 4)})
+                      "share": round(len(pixels) / max(seen, 1), 4),
+                      **({"close_up_srgb": shown[region]} if shown is not None else {})})
+    return found
+
+
+def close_up_shown(faces, per_pixel, laid, count):
+    """Each of the `count` regions' median sRGB 0-255 in the laid close-up (`laid`: its face and colour per pixel) over
+    the faces the texture's views give that region (each face the region of most of its pixels there), None where
+    the close-up shows under SHOWN_LEAST pixels of them. The texture is TRELLIS.2's copy of the close-up and drifts from
+    it in hue, saturation and value: tc5r's hospital chair seat textured royal blue (chroma 46) where the close-up shows
+    teal (23), its vending cabinet textured L* 18 where the close-up shows 42, and the list took each token off the
+    texture (#198)."""
+    laid_faces, laid_colours = laid
+    textured = [view for view in faces if view != CLOSE_UP]
+    face_ids = np.concatenate([faces[view][per_pixel[view] >= 0] for view in textured])
+    labels = np.concatenate([per_pixel[view][per_pixel[view] >= 0] for view in textured])
+    votes = np.zeros((int(max(face_ids.max(initial=-1), laid_faces.max(initial=-1))) + 1, count), dtype=np.int64)
+    np.add.at(votes, (face_ids, labels), 1)
+    face_region = np.where(votes.any(1), votes.argmax(1), -1)
+    on = laid_faces >= 0
+    region_seen = face_region[laid_faces[on]]
+    pixels = laid_colours[on]
+    found = []
+    for region in range(count):
+        held = pixels[region_seen == region]
+        found.append(np.median(held, axis=0).round().astype(int).tolist() if len(held) >= SHOWN_LEAST else None)
     return found
 
 
@@ -367,7 +397,10 @@ def view_take(model_file, close_up, camera_file, folder, seed):
     return {**view_record(model, {view: measured[view] for view in angles}, angles, close_up),
             "reachable_share": round(seen_share(model.mesh, measured.values()), 3),
             "paint_faces": paint_faces(model_file),
-            "regions": region_records(centres, every_colours, regions), "close_up_laid": laid_record}
+            "regions": region_records(centres, every_colours, regions,
+                                      None if laid is None else close_up_shown(every_faces, regions, laid,
+                                                                               len(centres))),
+            "close_up_laid": laid_record}
 
 
 def files(place):

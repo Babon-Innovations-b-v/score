@@ -99,6 +99,10 @@ BARS = (
     # Each part's drawn pattern as NVIDIA's on it (#186: the surgical chair's seat drawn speckled granite, 26% of it;
     # the humidifier's ribbed column drawn smooth, 58%), at the look bars' 0.90; its reach is beside _finish's.
     ("finish", "pattern", "least", 0.90),
+    # Each part's colour as the look draws it under the close-up's light, held to the input's on the same view (#198:
+    # tc5r's hospital chair seat drawn royal blue, drill b01's red too strong, both inside NVIDIA's albedo reach on
+    # some parts), at the look bars' 0.90; its reaches are beside _finish's.
+    ("finish", "drawn", "least", 0.90),
     # Moving parts and joints (#177, #161 rules 1 and 11), #162-style design bars until the calibration pass sets
     # them on the tune split's jointed truths: as many moving parts as NVIDIA's; each truth part's faces at least
     # half its made part's (area in common over area together); every joint of its type; its axis within 10 degrees

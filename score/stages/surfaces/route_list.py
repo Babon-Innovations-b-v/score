@@ -3,8 +3,9 @@ price, route_ask.py: asked once, an ask asked before read back free).
 
 Gemini sees the take's close-up (its own, or the stand-in, said so in the question), every view of the model's own
 texture and the same views split into the views row's colour regions (and its close-up laid on the model in those
-regions, the view route_views.CLOSE_UP, where the views row laid it), and gives in one answer the take's complete
-finish list and a label for each region in each view. Each finish is matched FIRST to a surface of the library with
+regions, the view route_views.CLOSE_UP, where the views row laid it), each region's colour in the texture and,
+where the close-up is laid, in the close-up (a part's colour is read off that, #198), and gives in one answer the
+take's complete finish list and a label for each region in each view. Each finish is matched FIRST to a surface of the library with
 its settings: the palette token of its colour (one of the scene palette's, read from its design by the palette row,
 scene_palette.py), its shine (roughness, metal), its seed (one a finish of each take, `take_seed`, so each object's wear
 and dirt pattern is its own) and its wear: the scene's level (its scene palette's), or its own level of the library's
@@ -71,7 +72,16 @@ nearest its own colour, and its roughness and metal from 0 to 1 (the surface's o
 otherwise). A part's own colour is its paint or material's colour under plain even light, not the colour the light
 gives it: every colour in the pictures and the texture RGB above is lifted by light, so a dark part reads lighter
 than it is and a shiny metal reads as bright as what it reflects. Take a metal's token from its surface's own unless
-the pictures clearly show it tinted, and a dark part's token darker than it reads. The library's surfaces, each with
+the pictures clearly show it tinted, and a dark part's token darker than it reads. Read a part's hue and colour
+strength off the close-up, never off the model's texture: the texture is a generator's copy of the close-up and drifts
+from it in hue, saturation and lightness (a teal seat textured royal blue, a mid grey cabinet textured near black), so
+where a region gives the close-up's colour, start from that colour, then take the light off it. The close-up's studio
+light shows a matte or satin paint or plastic part about 15 to 25 L* lighter than its own colour and with about a
+third more chroma (a muted teal seat of its own L* 35, chroma 16 reads L* 57, chroma 23; a coral red of L* 43, chroma
+43 reads L* 65, chroma 50): take a token of the close-up's hue, its L* about 20 under the close-up's and its chroma
+about three quarters of it, never a stronger, purer one than the close-up shows, nor one leaning to another hue (a
+slate blue-grey is not a violet). Only a white part keeps a near-white token, and bare metal reads darker than its
+own, as above. The library's surfaces, each with
 its own token, roughness and metal:
 {surfaces}
 The palette tokens:
@@ -132,14 +142,33 @@ def recipe_words(spec):
     return f", recipe {spec['recipe'].replace('_', ' ')}" if spec.get("recipe") else ""
 
 
+def strength(srgb):
+    """"L* <lightness>, chroma <colour strength>" of an sRGB 0-255 colour (CIELAB): the words alone named a pure and a
+    muted blue alike, and the list took the pure one (#198: tc5r's hospital chair seat, its drill's red)."""
+    lab = route_views.cast.lab_of(np.asarray([srgb], dtype=float))[0]
+    return f"L* {lab[0]:.0f}, chroma {np.hypot(lab[1], lab[2]):.0f}"
+
+
 def token_lines(tokens):
     import part_judge
-    return "\n".join(f"- {token}: {part_judge.colour_words(colour)}" for token, colour in tokens.items())
+    return "\n".join(f"- {token}: {part_judge.colour_words(colour)} ({strength(srgb_of(colour))})"
+                     for token, colour in tokens.items())
+
+
+def srgb_of(linear):
+    """A linear RGB colour as sRGB 0-255."""
+    linear = np.clip(np.asarray(linear, dtype=float), 0.0, 1.0)
+    return np.where(linear <= 0.0031308, 12.92 * linear, 1.055 * linear ** (1 / 2.4) - 0.055) * 255
 
 
 def region_lines(regions):
+    """Each region's line: its label colour, its share, its texture's colour and, where the views row read it
+    (route_views.close_up_shown), the close-up's colour on its faces."""
     return "\n".join(f"- region {entry['region'] + 1}: {finish_ask.LABEL_WORDS[entry['region']]}, "
                      f"{entry['share']:.0%} of the model seen, its texture there about RGB {entry['srgb']}"
+                     + (f", the close-up there about RGB {entry['close_up_srgb']} ({strength(entry['close_up_srgb'])})"
+                        if entry.get("close_up_srgb")
+                        else "")
                      for entry in regions)
 
 

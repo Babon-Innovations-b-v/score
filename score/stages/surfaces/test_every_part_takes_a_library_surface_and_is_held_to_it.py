@@ -246,6 +246,13 @@ tests it turned red:
   greys and rust)
 - route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
+- route_views.py close_up_shown: `held = pixels[region_seen == region]` -> `held = pixels` -> every_part_takes_a_library_
+  surface_and_is_held_to_it (its LISTED row with the close-up laid: the blue box's region read the whole close-up's
+  colour, #198)
+- route_list.py token_lines: ` ({strength(srgb_of(colour))})` dropped -> every_part_takes_a_library_surface_and_is_
+  held_to_it (the tokens offered in words alone, #198)
+- route_list.py region_lines: the `the close-up there about RGB` clause dropped -> every_part_takes_a_library_surface_and_
+  is_held_to_it (the list is asked the texture's colour alone, #198)
 - route_split.py: `return close_up_only(votes, per_map)` -> `return votes`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
 - route_split.py `voted_finishes`: `finish_parts.walked(mesh, behind(mesh, own, voted))` -> `finish_parts.walked(mesh,
@@ -527,6 +534,7 @@ import json
 import math
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -2267,6 +2275,15 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
             assert laid_record["laid"] == (laid == "views") and (
                 not laid_record["laid"] or laid_record["fit"] >= route_cast.CLOSE_UP_FIT), (case, laid_record)
             parts_asked = asked[0][TAKE]["contents"][0]["parts"]
+            # where the close-up is laid each region carries its colour there and the list is asked it (#198): the
+            # blue box's texture BLUE, its close-up LIT_BLUE; the red box's front the close-up's GREEN label
+            shown = {tuple(entry["srgb"]): entry.get("close_up_srgb") for entry in viewed["regions"]}
+            assert (shown[BLUE], shown[RED]) == (((list(LIT_BLUE), list(GREEN)) if laid == "views" else (None, None))
+                                                 ), (case, shown)
+            assert (f"the close-up there about RGB {list(LIT_BLUE)} ({route_list.strength(LIT_BLUE)})" in parts_asked[-1]["text"]) == (
+                laid == "views"), case
+            assert re.search(r"\n- \S+: [a-z ]+ \(L\* \d+, chroma \d+\)\n", parts_asked[-1]["text"]), case  # each token's
+            # strength offered beside its words: the words named a pure and a muted blue alike (#198)
             assert len(parts_asked) == 2 * len(viewed["views"]) + past_views, (case, len(parts_asked))
             assert last_words is None or last_words in parts_asked[-1]["text"], case
             written = rows["finish-route-list"] / f"{TAKE}.json"

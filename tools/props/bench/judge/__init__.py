@@ -56,6 +56,14 @@ SHOWN = 768  # the longest side of each picture as the judge sees it
 PAD = 0.04  # the share of the frame kept round the objects when they are cut to it
 BACKDROP = (214, 214, 214)  # the close-up's backdrop (tools/props/bench/run/bench.py BACKDROP)
 CALLER = "bench-picture"
+# Colour strength and value are the part's, not the light's (#198: tc5r's hospital chair seat drawn royal blue for the
+# original's muted teal, drill b01's red and the heat gun's navy, the vending cabinet near-black for mid grey, the air
+# ratchet glossy jet black for satin grey; the judge forgave them as the other renderer's brightness).
+STRENGTH = (" Judge each part's colour strength and value as well as its hue: a whole part drawn clearly more "
+            "saturated than the original shows the same part (royal blue for a muted teal, a pure red for a coral, an "
+            "orange wood for a brown one), or clearly darker or lighter as a whole (near-black for a mid grey, a satin "
+            "grey drawn glossy jet black, a white plastic part drawn grey), is a `colour` fault even where its hue is "
+            "right; only a shade that follows the light across a face (a shaded side, a highlight) is the light's.")
 # What picture 1 is: NVIDIA's model rendered, or a pictured case's close-up (#159: the 2099 cockpit cases, no NVIDIA
 # model; its look is drawn from the camera fitted on that close-up's outline). The render's words are the ask's as
 # calibrated on #184, kept byte for byte so its kept answers hold.
@@ -147,7 +155,7 @@ def asking_body(words, made, given, previous=None, pictured=False):
             f"kind, where it is and what is wrong. The kinds: {kinds}. Then give a verdict for every kind: `clean` "
             "(none seen), `slight` (a difference a careful person comparing the two would let pass) or `fault` "
             "(one he would point at). A part the original shows and the made model lacks is a fault, as is text "
-            "that cannot be read as the original's.")
+            "that cannot be read as the original's." + STRENGTH)
     schema_verdicts = {"type": "OBJECT", "properties": {kind: {"type": "STRING", "enum": list(VERDICTS)}
                                                         for kind in KINDS}, "required": list(KINDS)}
     properties = {} if not pictured else {

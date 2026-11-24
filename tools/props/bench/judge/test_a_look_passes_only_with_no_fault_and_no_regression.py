@@ -14,6 +14,8 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/judge/__ini
 - asking_body: `pictured` not read (#159 round 7) -> the cockpit close-up is named NVIDIA's render in the ask.
 - asking_body: CHROME left out of the ask (#159: tc5r's chrome drawn dull grey passed as a difference of reflection)
   -> the ask does not hold chrome drawn dull as a `colour` fault.
+- asking_body: STRENGTH left out of the ask (#198: tc5r's royal seat and near-black cabinet forgiven as brightness)
+  -> the ask does not hold a part's colour strength and value as a `colour` fault.
 - measures.BARS: the picture rows left out -> the faulty look passes (no picture row judged).
 - counted: `cutout` not read for a pictured case (#159: tc5r's torn cockpit cut-outs) -> the torn close-up passes and
   the pictured answer with no cut-out verdict raises nothing; measures.PICTURED_BARS without ("picture", "cutout")
@@ -104,6 +106,7 @@ def test_a_look_passes_only_with_no_fault_and_no_regression(tmp_path, name, made
     assert ("close-up picture the model was made from" in text, "NVIDIA" in text, "cutout_faults" in text) == (
         pictured, not pictured, pictured), text
     assert judge.CHROME in text and "`colour` fault" in judge.CHROME, text
+    assert judge.STRENGTH in text and "`colour` fault" in judge.STRENGTH, text
     shown = [Image.open(io.BytesIO(base64.b64decode(part["inline_data"]["data"])))
              for part in bodies[0]["contents"][0]["parts"] if "inline_data" in part]
     assert len(shown) == asked

@@ -8,6 +8,8 @@ on the previous round counts) made a check. `__init__.py` is the way in (its doc
   made look and, when given, the previous round's look, shown alike (on the close-up's backdrop, one crop round every
   object drawn, SHOWN px). Its answer is kept by the hash of the model and the body (claude_code.CACHE), so the same
   pictures are never asked twice.
+- **Colour strength and value are the part's** (STRENGTH, #198): a whole part drawn more saturated, darker or
+  lighter than the original shows it is a `colour` fault even where its hue is right.
 - **The kinds of fault are the owner's** (KINDS: edges, specks, holes, lumps, colour, text, shape, parts), each with a
   verdict clean, slight or fault. The bars live in measures.BARS (group `picture`): no kind at fault, no regression,
   a drawn look. A bar or a kind is never loosened to pass a made look; a fault the owner sees and the judge missed is

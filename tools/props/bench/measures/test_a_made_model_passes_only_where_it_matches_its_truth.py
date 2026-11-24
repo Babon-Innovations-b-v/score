@@ -61,6 +61,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   _finish.true_through reading no truth as see-through: the opaque top is not judged.
 - _finish.pattern_held judging the ratio one way only (`ratio <= PATTERN_REACH`): the humidifier's lost ribs pass;
   without PATTERN_FLOOR: the granite seat over NVIDIA's 0.0 divides by zero.
+- _finish.drawn_held reading lightness alone (`np.hypot(gap[1], gap[2]) <= DRAWN_AB and` dropped): the royal seat and
+  the navy heat gun pass; its lightness not read (`and abs(gap[0]) <= DRAWN_L` dropped): the seat drawn 18 L* lighter
+  passes (#198).
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail.
@@ -514,6 +517,15 @@ CASES = [
      lambda: worn({"pattern": 4.96, "true_pattern": 0.0}), "finish.pattern", False),
     ("its ribbed body drawn smooth (the humidifier's column, 0.2 for 12.9)",
      lambda: worn({"pattern": 0.2, "true_pattern": 12.9}), "finish.pattern", False),
+    ("its body drawn as the input shows it, 3 L* darker (tc5r's relit coffee counter)",
+     lambda: worn({"drawn": [36.5, 0.0, 0.0], "true_drawn": [39.5, 0.0, 0.0]}), "finish.drawn", True),
+    ("its seat drawn royal for the input's teal (tc5r's hospital chair, a*b* 16.7 apart)",
+     lambda: worn({"drawn": [57.3, -8.7, -37.4], "true_drawn": [57.3, -9.6, -20.7]}), "finish.drawn", False),
+    ("its slate body drawn navy (tc5r's heat gun, a*b* 5.0 apart)",
+     lambda: worn({"drawn": [47.9, 0.8, -9.4], "true_drawn": [50.5, -2.4, -5.6]}), "finish.drawn", False),
+    ("its seat drawn 18 L* lighter than the input", lambda: worn({"drawn": [75.5, -9.6, -20.7],
+                                                                  "true_drawn": [57.3, -9.6, -20.7]}),
+     "finish.drawn", False),
     ("a step that flattened it by 10%", lambda: flattened(0.1), "steps.chamfer_change", False),
     ("the drop that laid it on its side", lambda: dropped(90), "drop.rest_up", False),
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),
