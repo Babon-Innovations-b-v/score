@@ -70,6 +70,10 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _finish.clipped_held not reading the input's own clipping (`- made["true_clipped"]` dropped): the white body the
   input clips as much fails; judging a lit part (`or made.get("lit")` dropped): the glowing body fails; the check
   left out of finish_look's tests: the blown-out locker body passes (#159).
+- _finish.shade_held not reading the crease depth (its `held = held and ...` line dropped): the anesthesia machine's
+  flat white body passes; not reading the spread (`held = True`): its squeezed panel passes; judging a lit part
+  (`or made.get("lit")` dropped): the glowing body fails; the check left out of finish_look's tests: the flat white body
+  has no finish.shade row (#206).
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail.
@@ -548,6 +552,22 @@ CASES = [
     ("its glowing body drawn at its light's strength (tc6's humidifier ring, 0.95 over the input)",
      lambda: worn({"clipped": 0.95, "true_clipped": 0.0, "lit": True}, {**TOP, "clipped": 0.0, "true_clipped": 0.0}),
      "finish.clipped", True),
+    ("its white body shaded as the input (NVIDIA's own anesthesia machine drawn by the look: 18.3 spread, 4.0 deep)",
+     lambda: worn({"shade": {"spread": 18.3, "crease": 4.0}, "true_shade": {"spread": 18.8, "crease": 5.1}}),
+     "finish.shade", True),
+    ("its white body one flat white (tc6w2's anesthesia machine: its creases 1.0 deep for the input's 5.1)",
+     lambda: worn({"shade": {"spread": 14.9, "crease": 1.0}, "true_shade": {"spread": 18.8, "crease": 5.1}}),
+     "finish.shade", False),
+    ("its painted body as flat as NVIDIA's own (tc6w2's locker: 1.3 deep for 0.4)",
+     lambda: worn({"shade": {"spread": 17.9, "crease": 1.3}, "true_shade": {"spread": 18.5, "crease": 0.4}}),
+     "finish.shade", True),
+    ("its panel's tones squeezed, its creases kept (the anesthesia machine's: spread 22.5 for 59.8)",
+     lambda: worn({"shade": {"spread": 22.5, "crease": 6.7}, "true_shade": {"spread": 59.8, "crease": 10.2}}),
+     "finish.shade", False),
+    ("its glowing body drawn flat at its light's strength", lambda: worn(
+        {"shade": {"spread": 0.0, "crease": 0.0}, "true_shade": {"spread": 18.8, "crease": 5.1}, "lit": True},
+        {**TOP, "shade": {"spread": 9.0, "crease": 2.0}, "true_shade": {"spread": 9.0, "crease": 2.0}}),
+     "finish.shade", True),
     ("a step that flattened it by 10%", lambda: flattened(0.1), "steps.chamfer_change", False),
     ("the drop that laid it on its side", lambda: dropped(90), "drop.rest_up", False),
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),

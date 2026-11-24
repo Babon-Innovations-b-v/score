@@ -46,6 +46,23 @@ DRAWN_L = 15.0
 # the 28 others hold (the sign, the tire rack, the grinder, the ladder, the ratchet whole). A part that gives off light
 # (finish part_looks' `lit`) is drawn at its light's strength and is not judged.
 CLIPPED_REACH = 0.15
+# A part's shading held (#206, owner 2026-11-24 on tc6w2's anesthesia machine: "this one got a bit worse, and u
+# overlit the others aswell"; its mean lightness the input's, 0.819 for 0.819, its whites one flat white where NVIDIA's
+# shade into every seam, drawer line and corner): its look's lightness spread (L* of its 90th less its 10th percentile,
+# bench/run finish.drawn_patterns) at least the input close-up's on the same part over SPREAD_REACH, and how deep its
+# creases fall (the 5th percentile of its lightness less its local mean, likeness measure.high_pass, as a depth) at
+# least the input's over CREASE_REACH, each side taken as at least its floor (under it, a part is plain). Never judged
+# the other way: a part shaded more than the input is `pattern`'s and the picture judge's. Calibrated on tc6's 26 looks
+# with an r206 light step, their 132 parts over 1% of the close-up: NVIDIA's own model drawn by the look (r206's light
+# step, laid on the close-up by its outline) holds 0.958 of the area at least (the tire rack), 1.0 on the 25 others;
+# today's made looks fail 18 of 26 at the bar's 0.90: the anesthesia machine 0.22 (its white body's creases 1.0 deep
+# for the input's 5.1, its drawer front 1.9 for 13.0, its arm 1.3 for 23.9), the stove, the printer box, both chairs,
+# the drills, the grinder, the heat gun, the ratchet, the hammer, the humidifier, the vending machine; the locker
+# (0.98: NVIDIA's flat painted body 0.4 deep), the toaster (0.98) and the desk (1.0) hold.
+SPREAD_REACH = 2.5
+SPREAD_FLOOR = 2.0
+CREASE_REACH = 2.0
+CREASE_FLOOR = 1.0
 
 
 def split_rule():
@@ -183,13 +200,27 @@ def clipped_held(made):
     return bool(made["clipped"] - made["true_clipped"] <= CLIPPED_REACH)
 
 
+def shade_held(made):
+    """Whether a part's look shades it as the input close-up does on it (SPREAD_REACH, CREASE_REACH): no flatter, its
+    creases no shallower; None where either side has none measured or the part gives off light (`made` {shade,
+    true_shade: {spread, crease}, lit}). A side with no crease measured (no pixel whose whole reach lies on the part)
+    is held by its spread alone."""
+    if made.get("shade") is None or made.get("true_shade") is None or made.get("lit"):
+        return None
+    drawn, given = made["shade"], made["true_shade"]
+    held = max(drawn["spread"], SPREAD_FLOOR) >= max(given["spread"], SPREAD_FLOOR) / SPREAD_REACH
+    if drawn.get("crease") is not None and given.get("crease") is not None:
+        held = held and max(drawn["crease"], CREASE_FLOOR) >= max(given["crease"], CREASE_FLOOR) / CREASE_REACH
+    return bool(held)
+
+
 def part_look(made, truth, through=None):
     """One part's look held to NVIDIA's on its faces: {"delta_e", "metal", "roughness_gap", "class", "see_through"},
     each None where either side lacks it (`made` {colour, metal, roughness, class, opacity}; `truth` true_look's;
     `through` true_through's)."""
     albedo, metal, roughness, name = truth
     return {"see_through": see_through_held(made, through), "pattern": pattern_held(made), "drawn": drawn_held(made),
-            "clipped": clipped_held(made),
+            "clipped": clipped_held(made), "shade": shade_held(made),
             "delta_e": None if albedo is None or made.get("colour") is None else
             round(float(np.linalg.norm(colour_lab(np.asarray(made["colour"], dtype=float)) - colour_lab(albedo))), 2),
             "metal": None if metal is None or made.get("metal") is None else
@@ -199,7 +230,7 @@ def part_look(made, truth, through=None):
             "class": None if name is None or made.get("class") is None else bool(made["class"] == name),
             "made": {key: made.get(key) for key in ("colour", "metal", "roughness", "class", "opacity", "pattern",
                                                     "true_pattern", "drawn", "true_drawn", "clipped",
-                                                    "true_clipped", "lit")},
+                                                    "true_clipped", "shade", "true_shade", "lit")},
             "true": {"albedo": None if albedo is None else [round(float(value), 4) for value in albedo],
                      "metal": None if metal is None else round(metal, 3),
                      "roughness": None if roughness is None else round(roughness, 3), "class": name,
@@ -210,7 +241,7 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
     """{"colour", "metal", "roughness", "class", "see_through": the area share of the counted parts (split_compare's
     FINISH_LEAST) whose look holds (part_look: delta E within COLOUR_REACH, metal or not as NVIDIA's (METAL_REACH),
     roughness within ROUGHNESS_REACH, the same class, see-through where NVIDIA's is and only there, its drawn pattern
-    NVIDIA's: pattern_held, its drawn colour the input's: drawn_held, its whites no more clipped: clipped_held), of
+    NVIDIA's: pattern_held, its drawn colour the input's: drawn_held, its whites no more clipped: clipped_held, its shading no flatter: shade_held), of
     those both sides name; "parts": each part's look}. `looks` {part: {colour
     linear RGB, metal, roughness, class}} what each made part got; `nearest` each made face's truth triangle."""
     rule = split_rule()
@@ -230,9 +261,11 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
     tests = {"colour": lambda row: row["delta_e"] <= COLOUR_REACH, "metal": lambda row: row["metal"],
              "roughness": lambda row: row["roughness_gap"] <= ROUGHNESS_REACH, "class": lambda row: row["class"],
              "see_through": lambda row: row["see_through"], "pattern": lambda row: row["pattern"],
-             "drawn": lambda row: row["drawn"], "clipped": lambda row: row["clipped"]}
+             "drawn": lambda row: row["drawn"], "clipped": lambda row: row["clipped"],
+             "shade": lambda row: row["shade"]}
     keys = {"colour": "delta_e", "metal": "metal", "roughness": "roughness_gap", "class": "class",
-            "see_through": "see_through", "pattern": "pattern", "drawn": "drawn", "clipped": "clipped"}
+            "see_through": "see_through", "pattern": "pattern", "drawn": "drawn", "clipped": "clipped",
+            "shade": "shade"}
     found = {}
     for name, test in tests.items():
         judged = [row for row in rows if row[keys[name]] is not None]

@@ -46,7 +46,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   speckled black on white holds NVIDIA's smooth pattern (the surgical chair's granite seat, #186); its colour read
   off the close-up for the look too (`drawn = {...}[key]` -> `drawn = "true_drawn"`) -> the flat grey look has no
   drawn colour (#198); its clipped share read off the close-up for the look too (`clipped = {...}[key]` ->
-  `"true_clipped"`) -> the speckled look's white squares are not clipped (#159, tc6's blown-out locker)
+  `"true_clipped"`) -> the speckled look's white squares are not clipped (#159, tc6's blown-out locker); its shading
+  read off the close-up for the look too (`shade = ...` -> `"true_shade"`) -> the speckled look has no spread (#206)
 - finish.drawn_opacity: every spec drawn whole (1.0) -> the glass recipe's look is opaque, not its method's 0.2
   (the tc4r fridge's door, #186)
 - route_settings.set_spec: the second shade not moved with the list's token (`moved` dropped) -> the grey leather's
@@ -284,7 +285,7 @@ def patterned(tmp_path, name, close_up):
     """Each finish part's drawn pattern held to the close-up's (measures pattern_held) when its look (the look step's
     job, looked's) is drawn flat and when it is drawn speckled black on white in 64-pixel squares, coarser than the
     close-up's pixels (the 64-pixel close-up's box is read at its scale): (flat, the flat look's drawn colours, its
-    clipped white, speckled, its clipped white)."""
+    clipped white, its spread, speckled, its clipped white, its spread)."""
     from tools.props.bench.measures import _finish
     held = []
     for look, pixels in (("flat", np.full((1080, 1080, 4), 200, np.uint8)),
@@ -302,6 +303,8 @@ def patterned(tmp_path, name, close_up):
         # whether over a tenth of each part is drawn clipped white: none of the flat grey; the speckled look's white
         # squares, 0.19 of the box where the coarser grid's pixels lie wholly on one
         held.append(sorted({pattern["clipped"] > 0.1 for pattern in found.values()}))
+        # each part's lightness spread as the look draws it, over 10 L*: none of the flat grey, every part speckled
+        held.append(sorted({pattern["shade"]["spread"] > 10 for pattern in found.values()}))
     return tuple(held)
 
 
@@ -582,7 +585,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         # The marks read in their boxes grown by READ_MARGIN of the longer side (200 px: 30 each way); the one the
         # reader left unanswered is read as nothing (#185).
         looked_box = looked(tmp_path, name, view)
-        assert patterned(tmp_path, name, folder / "rgba.png") == ([True], [(80.6, 0.0, 0.0)], [False], [False], [True])
+        assert patterned(tmp_path, name, folder / "rgba.png") == ([True], [(80.6, 0.0, 0.0)], [False], [False], [False], [True],
+                                                                      [True])
         assert looked_box == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),

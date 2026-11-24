@@ -586,9 +586,18 @@ def look_faces(model, looked):
     return np.bincount(faces[faces >= 0], minlength=len(loaded.mesh.faces))
 
 
+def shading(lightness, detail):
+    """{"spread": the L* of a part's 90th percentile less its 10th, "crease": how deep its darkest seams fall, the 5th
+    percentile of its lightness less its local mean (`detail`, likeness measure.high_pass) as a depth, None under
+    PATTERN_LEAST whole-reach pixels} (#206: tc6w2's anesthesia machine drawn one flat white where NVIDIA's input
+    shades into every seam, drawer line and corner)."""
+    return {"spread": round(float(np.percentile(lightness, 90) - np.percentile(lightness, 10)), 2),
+            "crease": round(float(-np.percentile(detail, 5)), 2) if len(detail) >= PATTERN_LEAST else None}
+
+
 def drawn_patterns(model, finished, looked, close_up, take):
-    """{part: {"pattern", "true_pattern", "drawn", "true_drawn", "clipped", "true_clipped"}}: each finish part's
-    lightness detail (the median size of likeness measure.high_pass, L units), its median CIELAB colour and the share of
+    """{part: {"pattern", "true_pattern", "drawn", "true_drawn", "clipped", "true_clipped", "shade", "true_shade"}}:
+    each finish part's lightness detail (the median size of likeness measure.high_pass, L units), its median CIELAB colour and the share of
     its pixels clipped white (CLIPPED_L) as its look draws it (`looked`: look.png
     and look.json, look_job's) and as NVIDIA's close-up (`close_up`, the RGBA render) shows it on the same part (the
     finish's fitted camera, camera.json), both read at the coarser picture's metres a pixel; None on a side that shows
@@ -597,7 +606,8 @@ def drawn_patterns(model, finished, looked, close_up, take):
     drawn more saturated or darker than the input shows it on the same view is its colour's fault, which NVIDIA's
     albedo alone missed (tc5r's hospital chair seat, its albedo dE inside the reach's spread, drawn royal blue). The
     clipped share (#159): a white token too light for that light draws a part flat white where the input still shades
-    it (tc6's locker and anesthesia machine), which its median colour, white on both sides, does not show."""
+    it (tc6's locker and anesthesia machine), which its median colour, white on both sides, does not show.
+    Its shading (`shading`, #206): its lightness spread and crease depth, the look's held to the input's."""
     from PIL import Image
     import route_cast
     with likeness_tools():
@@ -615,13 +625,16 @@ def drawn_patterns(model, finished, looked, close_up, take):
     found = {}
     for key, (picture, camera) in pictures.items():
         parts, lab = part_grid(loaded, camera, picture, part_of, metres)
-        drawn, clipped = {"pattern": ("drawn", "clipped"), "true_pattern": ("true_drawn", "true_clipped")}[key]
+        drawn, clipped, shade = {"pattern": ("drawn", "clipped", "shade"),
+                                 "true_pattern": ("true_drawn", "true_clipped", "true_shade")}[key]
         for part in np.unique(parts[parts >= 0]).tolist():
-            detail = np.abs(measure.high_pass(lab[..., 0], parts == part))
+            signed = measure.high_pass(lab[..., 0], parts == part)
+            detail = np.abs(signed)
             colours = lab[parts == part]
             entry = found.setdefault(part, {"pattern": None, "true_pattern": None, "drawn": None, "true_drawn": None,
-                                            "clipped": None, "true_clipped": None})
+                                            "clipped": None, "true_clipped": None, "shade": None, "true_shade": None})
             entry[key] = round(float(np.median(detail)), 3) if len(detail) >= PATTERN_LEAST else None
+            entry[shade] = shading(colours[:, 0], signed) if len(colours) >= PATTERN_LEAST else None
             entry[drawn] = ([round(float(value), 1) for value in np.median(colours, axis=0)]
                             if len(colours) >= PATTERN_LEAST else None)
             entry[clipped] = (round(float((colours[:, 0] >= CLIPPED_L).mean()), 4)
