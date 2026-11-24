@@ -11,12 +11,13 @@ on the previous round counts) made a check. `__init__.py` is the way in (its doc
 - **The kinds of fault are the owner's** (KINDS: edges, specks, holes, lumps, colour, text, shape, parts), each with a
   verdict clean, slight or fault. The bars live in measures.BARS (group `picture`): no kind at fault, no regression,
   a drawn look. A bar or a kind is never loosened to pass a made look; a fault the owner sees and the judge missed is
-  fixed in the ask, with a row in the test.
+  fixed in the ask, with a row in the test. Chrome or mirror metal drawn flat dull grey is a `colour` fault, not light
+  (`CHROME`, #200).
 - **A pictured case's close-up is judged as a cut-out of its own** (#159: tc5r's attitude panel, flight screen and
   pilot console were torn cut-outs and their copied ragged outlines were booked as make faults): the ask (CUTOUT)
   lists the cut-out's faults first (`cutout_faults`, verdict `cutout`), and a made model only following them is not
   at fault for it; PICTURED_BARS holds `picture.cutout` at 0, so a torn close-up fails as the input's fault. The
-  render's ask is unchanged byte for byte.
+  render's ask is unchanged by it.
 - **Calibration**: NVIDIA's input render against itself and against a re-render (the look's 1080 px, fewer samples)
   must pass; the numbers are on #184.
 - **Wired into** `bench.py measure` (run/): branch B's measures carry `picture` when its look is kept; `--previous

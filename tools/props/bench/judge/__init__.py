@@ -47,6 +47,11 @@ KINDS = {
              "pattern, trim, bolt heads)",
 }
 VERDICTS = ("clean", "slight", "fault")
+# A mirror finish drawn dull is a material fault, not the light's (#159: tc5r's chrome chuck, nozzle, hand drill and
+# rods drawn flat matte grey; the judge let all but the nozzle pass as a difference of reflection).
+CHROME = ("But a part the original shows as polished chrome or mirror metal (crisp bright highlights and dark "
+          "reflections across it) that the made model draws as flat, dull or matte grey is a `colour` fault: that is "
+          "its material lost, not the light. ")
 SHOWN = 768  # the longest side of each picture as the judge sees it
 PAD = 0.04  # the share of the frame kept round the objects when they are cut to it
 BACKDROP = (214, 214, 214)  # the close-up's backdrop (tools/props/bench/run/bench.py BACKDROP)
@@ -136,6 +141,7 @@ def asking_body(words, made, given, previous=None, pictured=False):
     text = (ORIGINALS["closeup" if pictured else "render"].format(words=words) +
             " so a different brightness, shading, reflection or shadow alone is no fault; the made model's surfaces "
             "come from a library, so a different fine grain of the same material and colour is no fault either. " +
+            CHROME +
             (CUTOUT if pictured else "") +
             "Look at every part of the made model against the original and list every visible fault, each with its "
             f"kind, where it is and what is wrong. The kinds: {kinds}. Then give a verdict for every kind: `clean` "
