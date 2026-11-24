@@ -10,6 +10,11 @@ takes that surface's own spec: the list's settings were for the surface it named
 mottle's, a leather's creases, a spangle's: `second`) moves with its colour, its CIELAB step from the colour kept
 (`shade_moved`): kept as fitted, the grey leather's #686068 creases under the list's white #e8e8e8 drew the surgical
 chair's seat as speckled grey-black granite (tc4r, #186). An under layer (`bare`, the metal under paint) stays.
+A timber finish's settings carry the way its grain runs (`grain`, a unit axis in the model's frame, glTF's: x across,
+y up, z deep) and its boards' width across the grain (`board`, metres, 0 where it shows no joints), read off the
+close-up by the list (route_list.timber_settings) or, where the list gave no way, its part's long axis
+(route_parts.grained); the spec carries them to the recipe as `grain` and `board_width` (recipes.grained_wood, #159:
+the coffee station's walnut drawn a flat orange stipple, its boards merged).
 
     applied(finish)                   its settings, or None when the colour check moved its surface
     settings_name(surface, settings)  the surface a part paints and bakes as
@@ -17,6 +22,10 @@ chair's seat as speckled grey-black granite (tc4r, #186). An under layer (`bare`
 """
 SEPARATOR = "__"
 OWN = ("seed", "wear")  # what a spec carries of its own over the job's seed and the place's wear (recipes.arguments)
+TIMBER = ("grained_wood", "wood")  # the recipes whose grain runs one way (recipes.grain_frame)
+# The ways the list reads a timber's grain running, as axes of the model's frame (glTF's: up +y; the view named front
+# looks along -z, its left to right +x; the view named right looks along -x, its left to right -z).
+GRAIN_WAYS = {"up": [0.0, 1.0, 0.0], "across": [1.0, 0.0, 0.0], "deep": [0.0, 0.0, 1.0]}
 
 
 def applied(finish):
@@ -33,17 +42,30 @@ def settings_name(surface, settings):
     token = settings["token"].replace("-", "_")
     name = f"{surface}{SEPARATOR}{token}_r{round(settings['roughness'] * 100):03d}_m{round(settings['metal'] * 100):03d}"
     name += f"_s{settings['seed']}" if "seed" in settings else ""
-    return name + (f"_w{round(settings['wear'] * 100):03d}" if "wear" in settings else "")
+    name += f"_w{round(settings['wear'] * 100):03d}" if "wear" in settings else ""
+    return name + grain_name(settings)
+
+
+def grain_name(settings):
+    """A timber finish's grain and boards in its name (letters and digits): its axis in fiftieths from -1 and its
+    boards' width in millimetres; nothing for a finish with no grain."""
+    if not settings.get("grain"):
+        return ""
+    axis = "".join(f"{round((value + 1.0) * 50):03d}" for value in settings["grain"])
+    return f"_g{axis}_b{round(settings.get('board', 0.0) * 1000):04d}"
 
 
 def set_spec(spec, settings, colours):
     """The variant's resolved spec (library.spec: it keeps `library`, the variant's name) in the settings' token
-    colour, roughness and metal, with its seed and own wear where it has them, the settings recorded beside."""
+    colour, roughness and metal, with its seed and own wear where it has them and a timber's grain and boards
+    (`grain`, `board_width`), the settings recorded beside."""
     own = {name: settings[name] for name in OWN if name in settings}
     colour = colours[settings["token"]]
     moved = {"second": shade_moved(spec["second"], spec["colour"], colour)} if "second" in spec else {}
+    grain = {"grain": list(settings["grain"]), "board_width": float(settings.get("board", 0.0))} \
+        if settings.get("grain") else {}
     return dict(spec, token=settings["token"], colour=colour, roughness=settings["roughness"],
-                metal=settings["metal"], **moved, **own, settings=dict(settings))
+                metal=settings["metal"], **moved, **own, **grain, settings=dict(settings))
 
 
 def shade_moved(shade, colour, new_colour):

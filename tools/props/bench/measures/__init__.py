@@ -109,6 +109,9 @@ BARS = (
     # Each part shaded as the input shows it, no flatter and its creases no shallower (#206: tc6w2's anesthesia
     # machine one flat white, its seams and drawer lines lost), at the look bars' 0.90; its reaches are beside _finish's.
     ("finish", "shade", "least", 0.90),
+    # Each wood part's grain run as NVIDIA's (#159: the coffee station's walnut veneer drawn a stipple, no grain, its
+    # boards merged): no wood part may miss, so the bar is every one; its reaches are beside _finish's.
+    ("finish", "grain", "least", 1.0),
     # Moving parts and joints (#177, #161 rules 1 and 11), #162-style design bars until the calibration pass sets
     # them on the tune split's jointed truths: as many moving parts as NVIDIA's; each truth part's faces at least
     # half its made part's (area in common over area together); every joint of its type; its axis within 10 degrees

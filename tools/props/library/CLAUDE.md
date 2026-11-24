@@ -57,6 +57,11 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   Python branch on a setting, so ProcFunc's tracer lists them (`settings_of`). Relief from `vendor/infinigen2`'s
   base materials (BSD-3); their colour noise is left out on purpose: the ink look draws flat colour by region. Wear
   reads the true geometry (the bevel test) and the noise only scales it, so a flat face never wears.
+- **Timber runs one way** (#159): `grained_wood` and `wood` take the way their grain runs (`grain_x`, `grain_y`,
+  `grain_z`, the object's frame; a spec's `grain`, recipes.arguments) and `grained_wood` its boards' width
+  (`board_width`, 0 none): rings as long bands from a far log heart, the figure's streaks and fibres stretched along
+  the grain, each board its own tone parted by a dark sunk joint. The finish list reads the way and the boards off the
+  close-up (score/stages/surfaces route_list.timber_settings), else the part's long axis (route_parts.grained).
 - **Earth's recipes** (the prologue build, 2026-10-07): `painted_plaster`, `tiles`, `terrazzo`, `boards`,
   `rusted_metal` and `wet_asphalt` (their families and variants retired with every old material, 2026-10-21), each
   wearing from a cause: chips on edges, scuffs where feet kick, worn floor paint where feet go, rust where rain gets

@@ -53,7 +53,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   off the close-up for the look too (`drawn = {...}[key]` -> `drawn = "true_drawn"`) -> the flat grey look has no
   drawn colour (#198); its clipped share read off the close-up for the look too (`clipped = {...}[key]` ->
   `"true_clipped"`) -> the speckled look's white squares are not clipped (#159, tc6's blown-out locker); its shading
-  read off the close-up for the look too (`shade = ...` -> `"true_shade"`) -> the speckled look has no spread (#206)
+  read off the close-up for the look too (`shade = ...` -> `"true_shade"`) -> the speckled look has no spread (#206);
+  finish.grain_of: its way not turned from across the grain to along it (`across + 90.0` -> `across`) -> the striped look runs 0 degrees, not 90; its strength the
+  structure tensor's largest share, not its coherence (`np.hypot(...)` -> `max(xx, yy)`) -> the speckled look runs
+  one way at 0.5 or more (#159: the coffee station's stipple read as grain)
 - finish.drawn_opacity: every spec drawn whole (1.0) -> the glass recipe's look is opaque, not its method's 0.2
   (the tc4r fridge's door, #186)
 - route_settings.set_spec: the second shade not moved with the list's token (`moved` dropped) -> the grey leather's
@@ -377,6 +380,18 @@ def patterned(tmp_path, name):
                                   tmp_path / "nvidia-speckled", name)
     held.append(sorted({(pattern["pattern"], pattern["clipped"]) == (pattern["true_pattern"], pattern["true_clipped"])
                         for pattern in alike.values()}))
+    # Each part's grain (#159, finish.grain_of): the speckled look runs no one way (under 0.5); a look striped up in
+    # columns 16 pixels wide runs up (90 degrees from the picture's right) all one way (over 0.9).
+    held.append(sorted({pattern["grain"]["strength"] < 0.5 for pattern in alike.values()}))
+    striped = np.where((np.arange(1080) // 16 % 2)[None, :, None], 230, 90).astype(np.uint8).repeat(1080, 0)
+    (tmp_path / "look-striped").mkdir()
+    (tmp_path / "look-striped" / "look.json").write_text((tmp_path / "look" / "look.json").read_text())
+    Image.fromarray(np.dstack([striped.repeat(3, 2), np.full((1080, 1080, 1), 255, np.uint8)])).save(
+        tmp_path / "look-striped" / "look.png")
+    grained = finish.drawn_patterns(tmp_path / "made.glb", tmp_path / "finish", tmp_path / "look-striped",
+                                    tmp_path / "nvidia-speckled", name)
+    held.append(sorted({(round(pattern["grain"]["way"]), pattern["grain"]["strength"] > 0.9)
+                        for pattern in grained.values()}))
     return tuple(held)
 
 
@@ -692,7 +707,7 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         # reader left unanswered is read as nothing (#185).
         looked_box = looked(tmp_path, name, view, folder / "rgba.png")
         assert patterned(tmp_path, name) == ([True], [(80.6, 0.0, 0.0)], [False], [False], [False], [True], [True],
-                                             [True])
+                                             [True], [True], [(90, True)])
         assert looked_box == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),

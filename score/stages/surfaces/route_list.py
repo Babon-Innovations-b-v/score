@@ -18,6 +18,8 @@ check reads before anything is baked. A take whose answer lists a finish it labe
 its answer and that finish told (followed_up), in one more batch of those takes alone: every other take's ask and
 answer stay as they were.
 
+A timber finish (#159) also reads the way its grain runs and its boards' width off the close-up (TIMBER, told the
+model's size: timber_settings), into its settings (route_settings).
 Output: <take>.json per take (its finishes, each with surface, settings, fits, new_surface, wear_level, wear_cause,
 colour, family; its labels, {view: {region: finish}}, 0-based; its marks, finish_ask.marks_of: each printed mark's
 box in the close-up, what, shape, ink, finish, and a text mark's words and look or a picture mark's library decal or
@@ -51,6 +53,7 @@ import finish_ask  # noqa: E402
 import palette_library  # noqa: E402
 import route_ask  # noqa: E402
 import route_data  # noqa: E402
+import route_settings  # noqa: E402
 import route_views  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import text_decals  # noqa: E402
@@ -120,8 +123,17 @@ set "fits" to false and propose a new library surface. Wear is the scene's level
 takes another of the library's wear levels ({levels}) only where the pictures show a cause for it, such as a walked
 path, worn edges or the ground round a door: then set "wear" to that level and say the cause in "wear_cause"; else
 leave both out.
+{timber}
 Then label every region showing in every view with the finish (its number in your list, from 1) that the region's
 part has in that view: one label for each view and region listed above."""
+# Added to the list question (#159: the coffee station's walnut veneer drawn a flat stipple, its boards merged): how a
+# timber finish's grain runs and how wide its boards are, read off the close-up.
+TIMBER = """For each timber finish (a surface of recipe grained wood or wood), read its grain off the close-up: give in
+"grain" the way the grain's streaks run on the most of its parts: "up" (bottom to top), "across" (left to right in the
+view named front) or "deep" (left to right in the view named right). Where its parts are boards, planks or veneer
+strips laid side by side, parted by straight joint lines along the grain, give in "board" one board's width across the
+grain in metres{size}; give 0 where the timber shows no joints. Leave both out for every other finish."""
+SIZE = " (the object is {width:.2f} m across, {depth:.2f} m deep and {height:.2f} m tall)"
 # The follow-up of an answer that lists a finish it labels no region with (followed_up).
 FOLLOW_UP = ("Your answer was:\n{answer}\nIt lists finish {finishes} but labels no region with it in any view. Look "
              "again, view by view, for the regions its parts show in, and answer the whole question again, in full: "
@@ -199,10 +211,12 @@ def list_schema(surfaces, tokens, views, levels, decals=(), patterns=(), pieces=
                              "token": {"type": "STRING", "enum": list(tokens)},
                              "roughness": {"type": "NUMBER"}, "metal": {"type": "NUMBER"},
                              "fits": {"type": "BOOLEAN"}, "new_surface": proposal,
-                             "wear": {"type": "STRING", "enum": list(levels)}, "wear_cause": {"type": "STRING"}},
+                             "wear": {"type": "STRING", "enum": list(levels)}, "wear_cause": {"type": "STRING"},
+                             "grain": {"type": "STRING", "enum": list(route_settings.GRAIN_WAYS)},
+                             "board": {"type": "NUMBER"}},
               "required": ["parts", "finish", "surface", "token", "roughness", "metal", "fits"],
               "propertyOrdering": ["parts", "finish", "surface", "token", "roughness", "metal", "fits", "new_surface",
-                                   "wear", "wear_cause"]}
+                                   "wear", "wear_cause", "grain", "board"]}
     label = {"type": "OBJECT", "properties": {"view": {"type": "STRING", "enum": list(views)},
                                               "region": {"type": "INTEGER"}, "finish": {"type": "INTEGER"}},
              "required": ["view", "region", "finish"]}
@@ -213,13 +227,14 @@ def list_schema(surfaces, tokens, views, levels, decals=(), patterns=(), pieces=
             "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels", "marks"]}
 
 
-def list_body(pictures, entry, record, library, wear, decals=(), patterns=(), pieces=()):
+def list_body(pictures, entry, record, library, wear, decals=(), patterns=(), pieces=(), size=None):
     """The request: the close-up, the views, the region views (the laid close-up's last, where the views row laid it),
     the question and its schema. `record` is the take's views record; `library` its surfaces, the tokens and the wear
     levels; `wear` the scene's level (its scene palette's); `decals` the library's decals the marks are picked from
     for a picture mark (decal_library.catalogue; none: a picture mark is a gap); text marks are always asked, and
     pattern marks when the library holds `patterns` (decal_library.patterns, #210), hardware marks when it holds
-    hardware `pieces` (decal_library.hardware, #212)."""
+    hardware `pieces` (decal_library.hardware, #212). `size` is the model's (wide, tall, deep) in metres
+    (model_size), told for a timber's boards."""
     surfaces, tokens, levels = library
     stand_in = record.get("close_up") == route_data.STAND_IN
     views = list(record["views"])
@@ -229,7 +244,9 @@ def list_body(pictures, entry, record, library, wear, decals=(), patterns=(), pi
                            count=len(views), views=", ".join(views), regions=region_lines(record["regions"]),
                            laid=LAID.format(view=route_views.CLOSE_UP) if laid is not None else "",
                            shown=shown_lines(pictures["shown"]), surfaces=surface_lines(surfaces),
-                           tokens=token_lines(tokens), wear=wear, levels=", ".join(levels))
+                           tokens=token_lines(tokens), wear=wear, levels=", ".join(levels),
+                           timber=TIMBER.format(size=SIZE.format(width=size[0], height=size[1], depth=size[2])
+                                                if size else ""))
     text += finish_ask.marks_text(decals, text_decals.FONTS, patterns, pieces)
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
@@ -275,6 +292,7 @@ def finishes_of(answer, library, seed):
         if level is not None:
             settings["wear"] = float(levels[level])
         name, colour = names[codes.index(entry["surface"])], tokens.get(entry["token"])
+        settings.update(timber_settings(entry, surfaces[name]))
         found.append({"finish": entry["finish"], "parts": entry["parts"], "surface": name, "settings": settings,
                       "fits": bool(entry["fits"]), "new_surface": entry.get("new_surface"), "wear_level": level,
                       "wear_cause": cause, "family": surfaces[name].get("family"), "by": "the list",
@@ -282,6 +300,23 @@ def finishes_of(answer, library, seed):
     if not found:
         raise ValueError("the finish list is empty")
     return found
+
+
+def timber_settings(entry, surface):
+    """A timber finish's grain and boards from its answer (#159): {"grain": its way's axis (route_settings.GRAIN_WAYS),
+    "board": its boards' width in metres, 0 for none}; {} for a finish of another recipe or a timber whose answer gives
+    no way (the parts row lays its grain along its part's long axis, route_parts.grained)."""
+    if surface.get("recipe") not in route_settings.TIMBER or entry.get("grain") not in route_settings.GRAIN_WAYS:
+        return {}
+    return {"grain": route_settings.GRAIN_WAYS[entry["grain"]],
+            "board": round(max(float(entry.get("board") or 0.0), 0.0), 4)}
+
+
+def model_size(path):
+    """A model's (wide, tall, deep) in metres in its own frame (glTF's: x across, y up, z deep)."""
+    import trimesh
+    low, high = trimesh.load(str(path), force="scene", process=False).bounds
+    return [round(float(value), 3) for value in high - low]
 
 
 def labels_of(answer, shown, count):
@@ -388,7 +423,9 @@ def make_list(inputs, out, seed, params):
     decals, patterns = decal_library.catalogue(library_root()), decal_library.patterns(library_root())
     pieces = decal_library.hardware(library_root())
     bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear, decals,
-                              patterns, pieces) for take, record in cast_takes.items()}
+                              patterns, pieces, model_size(inputs[f"model {take}"])
+                              if inputs.get(f"model {take}") else None)
+              for take, record in cast_takes.items()}
     answers = ask(bodies) if bodies else {}
     answers.update(followed_up(answers, bodies, lambda take, answer: listed(
         answer, (surfaces[take], tokens, levels), take_seed(seed, take), pictures[take]["shown"])))

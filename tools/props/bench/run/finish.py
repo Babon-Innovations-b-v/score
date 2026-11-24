@@ -325,15 +325,17 @@ def own_spec(library, variant):
 
 
 def part_looks(folder, take):
-    """{part: {"colour" linear RGB, "metal", "roughness", "class", "opacity", "lit"}}: each finish part's look as the
+    """{part: {"colour" linear RGB, "metal", "roughness", "class", "opacity", "lit", "timber"}}: each finish part's look
+    as the
     route set its surface on it (its row's token, metal and roughness: the list's settings, else, where the colour
     check moved its surface (route_settings.applied), that surface's own spec in the bench library), its surface's
     class (sim.py's surface_class of its record; None for a surface outside the library), its drawn opacity (its own
-    spec's, drawn_opacity) and whether it gives off light (its surface's family, family_of, one of
-    finish_parts.LIT_FAMILIES)."""
+    spec's, drawn_opacity), whether it gives off light (its surface's family, family_of, one of
+    finish_parts.LIT_FAMILIES) and whether it is timber (route_settings.TIMBER)."""
     from score.stages.place_build.maker import sim
     import score.stages.surfaces  # noqa: F401  (the stage first: its modules import one another through it)
     import finish_parts
+    from score.stages.surfaces import route_settings
     part_of, surfaces = face_finishes(folder, take)
     listed = json.loads((folder / "surfaces-parts" / "parts.json").read_text())["takes"][take]["parts"]
     library = json.loads((folder / "surface-library" / "materials.json").read_text())
@@ -346,7 +348,8 @@ def part_looks(folder, take):
                               "metal": settings.get("metal"), "roughness": settings.get("roughness"),
                               "class": sim.surface_class(record) if record else None,
                               "opacity": drawn_opacity(own_spec(library, row["judge"])),
-                              "lit": family_of(surfaces[row["part"]]) in finish_parts.LIT_FAMILIES}
+                              "lit": family_of(surfaces[row["part"]]) in finish_parts.LIT_FAMILIES,
+                              "timber": family_of(surfaces[row["part"]]) in route_settings.TIMBER}
     return found
 
 
@@ -378,7 +381,8 @@ def part_spec(library, row, colours, decals, out):
     that the variant names none of is the spec's own colour, as recipes.arguments gives a mottled or printed finish
     with no second shade its own: score_lib's recipe entries (finish.variant_of) carry a token alone (#182: the rack's
     painted_metal had no `bare`, the humidifier's perforated_metal no `second`); a printed or screen recipe
-    (scene_library.PICTURED) with no picture of its own draws clear_picture's, written into `out`."""
+    (scene_library.PICTURED) with no picture of its own draws clear_picture's, written into `out`. A timber's grain
+    (route_settings.set_spec's `grain`, the model file's frame) is turned into Blender's, as its decals are."""
     import library as surface_library
     from score.stages.surfaces import route_settings, scene_library
     settings = row.get("settings")
@@ -388,6 +392,8 @@ def part_spec(library, row, colours, decals, out):
     spec = surface_library.spec(library, row["judge"], own, colours)
     if settings:
         spec = route_settings.set_spec(spec, settings, colours)
+    if spec.get("grain"):  # a timber's grain, set in the model file's frame, as Blender imports it (#159)
+        spec["grain"] = z_up(spec["grain"])
     spec.setdefault("seed", settings.get("seed", 0) if settings else 0)
     for setting in library.get("colour_settings", {}).get(spec["recipe"], []):
         spec.setdefault(setting, spec["colour"])
@@ -631,8 +637,33 @@ def shading(lightness, detail):
             "crease": round(float(-np.percentile(detail, 5)), 2) if len(detail) >= PATTERN_LEAST else None}
 
 
+def grain_of(lightness, covered, reach):
+    """{"way": the way a part's lightness detail runs in the picture, in degrees from the picture's right toward its top
+    (0 to 180), "strength": how much of the detail runs that one way (the structure tensor's coherence: 0 none, 1 all of
+    it)}, over its `covered` pixels whose whole `reach` (likeness measure.DETAIL_REACH) lies on it, the detail its
+    lightness less its local mean as likeness measure.high_pass reads it; None under PATTERN_LEAST such pixels (#159:
+    the coffee station's walnut drawn a stipple, strength 0.61, where NVIDIA's veneer runs 0.93 to 0.96 up its
+    boards)."""
+    blurred, inside = lightness, covered.astype(float)
+    for axis in (0, 1):
+        blurred = sum(np.roll(blurred, shift, axis=axis) for shift in range(-reach, reach + 1)) / (2 * reach + 1)
+        inside = sum(np.roll(inside, shift, axis=axis) for shift in range(-reach, reach + 1)) / (2 * reach + 1)
+    kept = inside > 0.999
+    if kept.sum() < PATTERN_LEAST:
+        return None
+    down, right = np.gradient(lightness - blurred)
+    xx, yy, xy = (right * right)[kept].sum(), (down * down)[kept].sum(), (-right * down)[kept].sum()
+    total = xx + yy
+    if total <= 0:
+        return {"way": 0.0, "strength": 0.0}
+    across = np.degrees(0.5 * np.arctan2(2 * xy, xx - yy))  # the way the lightness changes most: across the grain
+    return {"way": round(float((across + 90.0) % 180.0), 1),
+            "strength": round(float(np.hypot(xx - yy, 2 * xy) / total), 3)}
+
+
 def drawn_patterns(model, finished, looked, nvidia, take):
-    """{part: {"pattern", "true_pattern", "drawn", "true_drawn", "clipped", "true_clipped", "shade", "true_shade"}}:
+    """{part: {"pattern", "true_pattern", "drawn", "true_drawn", "clipped", "true_clipped", "shade", "true_shade",
+    "grain", "true_grain"}}:
     each finish part's lightness detail (the median size of likeness measure.high_pass, L units), its median CIELAB colour and the share of
     its pixels clipped white (CLIPPED_L) as its look draws it (`looked`: look.png
     and look.json, look_job's) and as NVIDIA's own model drawn by the same look shows it on the same part (`nvidia`:
@@ -645,7 +676,9 @@ def drawn_patterns(model, finished, looked, nvidia, take):
     albedo alone missed (tc5r's hospital chair seat, its albedo dE inside the reach's spread, drawn royal blue). The
     clipped share (#159): a white token too light for that light draws a part flat white where the input still shades
     it (tc6's locker and anesthesia machine), which its median colour, white on both sides, does not show.
-    Its shading (`shading`, #206): its lightness spread and crease depth, the look's held to the input's."""
+    Its shading (`shading`, #206): its lightness spread and crease depth, the look's held to the input's. Its grain
+    (`grain_of`, #159): the way its detail runs and how much of it runs that way, the look's held to NVIDIA's on
+    wood."""
     from PIL import Image
     import route_cast
     with likeness_tools():
@@ -663,14 +696,16 @@ def drawn_patterns(model, finished, looked, nvidia, take):
     found = {}
     for key, (picture, camera) in pictures.items():
         parts, lab = part_grid(loaded, camera, picture, part_of, metres)
-        drawn, clipped, shade = {"pattern": ("drawn", "clipped", "shade"),
-                                 "true_pattern": ("true_drawn", "true_clipped", "true_shade")}[key]
+        drawn, clipped, shade, grain = {"pattern": ("drawn", "clipped", "shade", "grain"),
+                                        "true_pattern": ("true_drawn", "true_clipped", "true_shade", "true_grain")}[key]
         for part in np.unique(parts[parts >= 0]).tolist():
             signed = measure.high_pass(lab[..., 0], parts == part)
             detail = np.abs(signed)
             colours = lab[parts == part]
             entry = found.setdefault(part, {"pattern": None, "true_pattern": None, "drawn": None, "true_drawn": None,
-                                            "clipped": None, "true_clipped": None, "shade": None, "true_shade": None})
+                                            "clipped": None, "true_clipped": None, "shade": None, "true_shade": None,
+                                            "grain": None, "true_grain": None})
+            entry[grain] = grain_of(lab[..., 0], parts == part, measure.DETAIL_REACH)
             entry[key] = round(float(np.median(detail)), 3) if len(detail) >= PATTERN_LEAST else None
             entry[shade] = shading(colours[:, 0], signed) if len(colours) >= PATTERN_LEAST else None
             entry[drawn] = ([round(float(value), 1) for value in np.median(colours, axis=0)]

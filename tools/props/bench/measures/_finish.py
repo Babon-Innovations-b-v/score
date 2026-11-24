@@ -63,6 +63,16 @@ SPREAD_REACH = 2.5
 SPREAD_FLOOR = 2.0
 CREASE_REACH = 2.0
 CREASE_FLOOR = 1.0
+# A wood part's grain held (#159, owner 2026-11-24 on the coffee station: "wood doesnt get shown accurate"; NVIDIA's
+# walnut veneer runs up each board, ours was a flat orange stipple): where NVIDIA's faces under a part are wood (their
+# class) or the part's finish is timber, and NVIDIA's look of it shows a grain (bench/run finish.grain_of: its detail's
+# structure tensor coherence at least GRAIN_STRENGTH), the made look's detail runs as strongly one way and within
+# GRAIN_WAY degrees of NVIDIA's. On the coffee station NVIDIA's veneer parts read 0.93 and 0.96 at 91 and 89 degrees,
+# its charcoal painted board 0.35 and 0.54 (no grain: not judged); tc6's stipple 0.61 and 0.60 (failed: no grain), the
+# grained recipe drawn up the boards 0.93 and 0.85 at 91 and 89 (held).
+GRAIN_STRENGTH = 0.75
+GRAIN_WAY = 20.0
+WOOD_CLASS = "wood"
 
 
 def split_rule():
@@ -216,13 +226,27 @@ def shade_held(made):
     return bool(held)
 
 
+def grain_held(made, name):
+    """Whether a wood part's look runs its grain as NVIDIA's does (GRAIN_STRENGTH, GRAIN_WAY): None unless NVIDIA's
+    faces under it are wood (`name`, their class) or its finish is timber (`made` timber) and NVIDIA's look of it shows
+    a grain; False where the made look shows none or runs it another way (`made` {grain, true_grain: {way,
+    strength}})."""
+    given = made.get("true_grain")
+    if not (name == WOOD_CLASS or made.get("timber")) or not given or given["strength"] < GRAIN_STRENGTH:
+        return None
+    drawn = made.get("grain")
+    if not drawn or drawn["strength"] < GRAIN_STRENGTH:
+        return False
+    return bool(abs((drawn["way"] - given["way"] + 90.0) % 180.0 - 90.0) <= GRAIN_WAY)
+
+
 def part_look(made, truth, through=None):
     """One part's look held to NVIDIA's on its faces: {"delta_e", "metal", "roughness_gap", "class", "see_through"},
     each None where either side lacks it (`made` {colour, metal, roughness, class, opacity}; `truth` true_look's;
     `through` true_through's)."""
     albedo, metal, roughness, name = truth
     return {"see_through": see_through_held(made, through), "pattern": pattern_held(made), "drawn": drawn_held(made),
-            "clipped": clipped_held(made), "shade": shade_held(made),
+            "clipped": clipped_held(made), "shade": shade_held(made), "grain": grain_held(made, truth[3]),
             "delta_e": None if albedo is None or made.get("colour") is None else
             round(float(np.linalg.norm(colour_lab(np.asarray(made["colour"], dtype=float)) - colour_lab(albedo))), 2),
             "metal": None if metal is None or made.get("metal") is None else
@@ -232,7 +256,8 @@ def part_look(made, truth, through=None):
             "class": None if name is None or made.get("class") is None else bool(made["class"] == name),
             "made": {key: made.get(key) for key in ("colour", "metal", "roughness", "class", "opacity", "pattern",
                                                     "true_pattern", "drawn", "true_drawn", "clipped",
-                                                    "true_clipped", "shade", "true_shade", "lit")},
+                                                    "true_clipped", "shade", "true_shade", "lit", "timber",
+                                                    "grain", "true_grain")},
             "true": {"albedo": None if albedo is None else [round(float(value), 4) for value in albedo],
                      "metal": None if metal is None else round(metal, 3),
                      "roughness": None if roughness is None else round(roughness, 3), "class": name,
@@ -243,7 +268,8 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
     """{"colour", "metal", "roughness", "class", "see_through": the area share of the counted parts (split_compare's
     FINISH_LEAST) whose look holds (part_look: delta E within COLOUR_REACH, metal or not as NVIDIA's (METAL_REACH),
     roughness within ROUGHNESS_REACH, the same class, see-through where NVIDIA's is and only there, its drawn pattern
-    NVIDIA's: pattern_held, its drawn colour the input's: drawn_held, its whites no more clipped: clipped_held, its shading no flatter: shade_held), of
+    NVIDIA's: pattern_held, its drawn colour the input's: drawn_held, its whites no more clipped: clipped_held, its shading no flatter: shade_held,
+    a wood part's grain NVIDIA's: grain_held), of
     those both sides name; "parts": each part's look}. `looks` {part: {colour
     linear RGB, metal, roughness, class}} what each made part got; `nearest` each made face's truth triangle."""
     rule = split_rule()
@@ -264,10 +290,10 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
              "roughness": lambda row: row["roughness_gap"] <= ROUGHNESS_REACH, "class": lambda row: row["class"],
              "see_through": lambda row: row["see_through"], "pattern": lambda row: row["pattern"],
              "drawn": lambda row: row["drawn"], "clipped": lambda row: row["clipped"],
-             "shade": lambda row: row["shade"]}
+             "shade": lambda row: row["shade"], "grain": lambda row: row["grain"]}
     keys = {"colour": "delta_e", "metal": "metal", "roughness": "roughness_gap", "class": "class",
             "see_through": "see_through", "pattern": "pattern", "drawn": "drawn", "clipped": "clipped",
-            "shade": "shade"}
+            "shade": "shade", "grain": "grain"}
     found = {}
     for name, test in tests.items():
         judged = [row for row in rows if row[keys[name]] is not None]

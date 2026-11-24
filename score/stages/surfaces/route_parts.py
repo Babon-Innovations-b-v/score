@@ -15,7 +15,8 @@ takes the nearest surface of its family that fits, or one of the scene's own she
 proposed surface, and the paint's gate "colour against the close-up" fails it by name. The bake check holds each
 baked part against the same close-up colour (bake_check.close_up_faults, its `measured_lab`). Each part takes its finish's
 checked surface (finish_parts.part_rows), and the list's settings where its finish kept the surface the list named
-(route_settings.applied: the bake paints and bakes the surface with them). A light built in code (`lit_take`: a
+(route_settings.applied: the bake paints and bakes the surface with them; a timber the list read no grain of takes its
+part's long axis, `grained`, #159). A light built in code (`lit_take`: a
 light bar, strip or string the thin straight route built, score/stages/props/thin_straight.py) is its light: every
 lit finish (`lit_finishes`) takes the scene library's glowing surface (the library's `glowing` recipe) nearest the
 colour its concept crop shows (`lit_finishes`; owner, 2026-10-25: "the engines themself should be a source of light and there are lights in
@@ -678,7 +679,8 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     texels_written(folders, covers, finish_of_part, kept, part_of)
     rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
     for row in rows:
-        row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
+        finish = checked[part_finish(mesh, part_of, finish_of, row["part"])]
+        row["settings"] = grained(route_settings.applied(finish), finish, mesh, part_of == row["part"])
     part_wear(rows, checked, mesh, part_of, finish_of)
     printed = [mark for mark in marks if mark.get("shape") != finish_ask.PIECE]
     decals, decal_gaps = take_decals(seen, printed, part_of, folders["out"], inks, folders.get("close_up"), finish_of)
@@ -688,6 +690,25 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked),
                          "decals": len(decals), "decal gaps": len(decal_gaps), "print faces covered": covered,
                          "hardware": len(pieces), "hardware gaps": len(piece_gaps)}}
+
+
+def grained(settings, finish, mesh, faces):
+    """A part's settings with its timber's grain (#159): where its finish is timber (route_settings.TIMBER) and the
+    list read no way its grain runs, its grain laid along the part's long axis (the main axis of its `faces`' points,
+    each weighted by its area: long_axis), its boards none; any other settings as they are."""
+    if not settings or settings.get("grain") or finish.get("family") not in route_settings.TIMBER:
+        return settings
+    return dict(settings, grain=long_axis(mesh, faces), board=0.0)
+
+
+def long_axis(mesh, faces):
+    """The unit axis (model frame, rounded to thousandths) the faces `faces` (a mask over mesh.faces) spread most
+    along: the main axis of their centres weighted by area."""
+    centres, areas = np.asarray(mesh.triangles_center)[faces], np.asarray(mesh.area_faces)[faces]
+    spread = centres - np.average(centres, axis=0, weights=areas)
+    _, axes = np.linalg.eigh((spread * areas[:, None]).T @ spread)
+    axis = axes[:, -1] * np.sign(axes[np.argmax(np.abs(axes[:, -1])), -1])
+    return [round(float(value), 3) for value in axis]
 
 
 def cut_marks(marks, pieces, model, finish_of, part_of):

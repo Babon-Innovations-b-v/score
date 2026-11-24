@@ -42,7 +42,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`density`, kept as the placement's `px_per_m`, which bake.sharp_slots bakes its part at); the print's whole island
   under a mark is covered (`print_islands`: its letters lie off their ink by the fitted camera's error), with the
   texels its reach carried (`route_texels.carried_from`); and the print reaches the raised letters its ink was seen on
-  (ink_extent's `depth`, recipes.decal_depth). **Lit parts** (finish_parts.LIT_FAMILIES, glowing and screen) are the
+  (ink_extent's `depth`, recipes.decal_depth). **Timber's grain** (#159, the coffee station's walnut drawn a flat
+  stipple, its boards merged): the list reads each timber finish's grain way (up, across, deep by the named views) and
+  its boards' width off the close-up (route_list.timber_settings, told the model's size), a timber it read none of runs
+  along its part's long axis (route_parts.grained), and the settings carry both to the recipe (route_settings
+  `grain`, `board`; recipes.grained_wood). **Lit parts** (finish_parts.LIT_FAMILIES, glowing and screen) are the
   close-up's: a texture cannot show light, so a face it labels lit takes that finish (`route_split.close_up_only`),
   kept through the smoothing as parts of its own (`lit_laid`), its texels following the close-up's own edges
   (route_views `close_up_texels`, each texel's close-up region at its point; route_texels.texel_parts); a lit face

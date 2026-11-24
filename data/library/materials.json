@@ -128,7 +128,10 @@
    "roughness": 0.7,
    "bump": 0.0005,
    "bump_size": 0.01,
-   "dirt_reach": 0.05
+   "dirt_reach": 0.05,
+   "grain_x": 1.0,
+   "grain_y": 0.0,
+   "grain_z": 0.0
   },
   "painted_plaster": {
    "roughness": 0.8,
@@ -290,7 +293,12 @@
    "ring_pitch": 0.008,
    "contrast": 0.4,
    "bump": 0.0002,
-   "dirt_reach": 0.05
+   "dirt_reach": 0.05,
+   "grain_x": 1.0,
+   "grain_y": 0.0,
+   "grain_z": 0.0,
+   "board_width": 0.0,
+   "joint": 0.0025
   },
   "mat": {
    "roughness": 0.85,

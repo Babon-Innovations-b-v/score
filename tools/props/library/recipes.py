@@ -374,16 +374,21 @@ def cast_metal(colour, dirt_colour, roughness, metal, bump, bump_size, dirt_reac
     return Channels(base, rough, metal, BLACK, relief)
 
 
-def wood(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, seed):
-    """Plain timber: a flat colour with a soft relief stretched along the board, dirt in the cavities; its grain and
-    wear come from the piece's own picture (bake.Atlas.lay_picture), not from noise."""
+def wood(colour, dirt_colour, roughness, bump, bump_size, dirt_reach, dirt, seed, grain_x=1.0, grain_y=0.0,
+         grain_z=0.0):
+    """Plain timber: a flat colour with a soft relief stretched WOOD_STRETCH times along its grain (grain_x, grain_y,
+    grain_z in the object's frame, grained_wood's), dirt in the cavities."""
     vector = coordinates()
-    point = pf.nodes.math.separate_xyz(vector)
-    stretched = pf.nodes.math.combine_xyz(x=point.x, y=point.y * 0.08, z=point.z)
-    fibres = pf.nodes.texture.noise(vector=stretched, scale=1.0 / bump_size, detail=2.0, noise_dimensions="4D", w=seed)
+    along = pf.nodes.math.vector_dot_product(vector, pf.nodes.math.vector_normalize(
+        pf.nodes.math.combine_xyz(x=grain_x, y=grain_y, z=grain_z)))
+    stretched = grain_stretched(vector, along, grain_x, grain_y, grain_z, bump_size, WOOD_STRETCH)
+    fibres = pf.nodes.texture.noise(vector=stretched, scale=1.0, detail=2.0, noise_dimensions="4D", w=seed)
     relief = pf.nodes.shader.displacement(height=(fibres.fac - 0.5) * bump, midlevel=0.0)
     base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
     return Channels(base, rough, 0.0, BLACK, relief)
+
+
+WOOD_STRETCH = 12.5  # plain timber's relief is this many times longer along its grain than across it
 
 
 def perforated_metal(colour, second, dirt_colour, roughness, metal, pitch, hole_share, dirt_reach, dirt, seed):
@@ -900,18 +905,80 @@ def hammered(colour, second, dirt_colour, roughness, dent_size, contrast, bump, 
     return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=-dent * dent * bump, midlevel=0.0))
 
 
-def grained_wood(colour, second, dirt_colour, roughness, ring_pitch, contrast, bump, dirt_reach, dirt, seed):
-    """Timber with its grain (planks, plywood, oak): growth rings as bands along the board, bent by a noise, the late
-    wood a second shade and a little sunk, dirt in the cavities."""
+# Timber's grain (grained_wood, #159): the log's heart lies RING_HEART metres off the grain's line (far, so its rings
+# cut a board as long, nearly straight bands); the rings bend along the grain over RING_BEND_STRETCH times their
+# spread across it; fibre streaks are FIBRE_SHARE of a ring apart and FIBRE_STRETCH times as long, and the figure's
+# broad dark streaks FIGURE_SHARE of a ring across and FIGURE_STRETCH times as long; boards are parted by a joint
+# BOARD_JOINT wide (NVIDIA's coffee station's veneer boards: a dark line about 2 mm wide), drawn JOINT_DARK of the way
+# to black.
+RING_HEART = (0.61, 0.83, 0.47)
+RING_BEND_STRETCH = 12.0
+FIBRE_SHARE, FIBRE_STRETCH = 0.12, 40.0
+FIGURE_SHARE, FIGURE_STRETCH = 2.5, 15.0
+BOARD_JOINT, JOINT_DARK = 0.0025, 0.85
+
+
+def grain_frame(vector, grain_x, grain_y, grain_z):
+    """(along, rings, across) of a point on timber whose grain runs along the axis (grain_x, grain_y, grain_z), in the
+    object's own frame: its distance along the grain; its distance from a log's heart RING_HEART off the grain's line,
+    whose rings cut a face as long bands along the grain (straight on a face the heart lies beside, arches on one it
+    lies under, as sawn timber shows); and its distance across the grain on its face (the face's normal crossed with
+    the grain), across which boards are laid side by side."""
+    axis = pf.nodes.math.vector_normalize(pf.nodes.math.combine_xyz(x=grain_x, y=grain_y, z=grain_z))
+    along = pf.nodes.math.vector_dot_product(vector, axis)
+    heart = pf.nodes.math.combine_xyz(x=RING_HEART[0], y=RING_HEART[1], z=RING_HEART[2])
+    heart = pf.nodes.math.vector_subtract(heart, pf.nodes.math.vector_scale(
+        vector=axis, scale=pf.nodes.math.vector_dot_product(heart, axis)))
+    off_line = pf.nodes.math.vector_subtract(vector, pf.nodes.math.vector_scale(vector=axis, scale=along))
+    rings = pf.nodes.math.vector_distance(off_line, heart)
+    side = pf.nodes.math.vector_normalize(pf.nodes.math.vector_cross_product(pf.nodes.shader.geometry().normal, axis))
+    return along, rings, pf.nodes.math.vector_dot_product(vector, side)
+
+
+def grain_stretched(vector, along, grain_x, grain_y, grain_z, pitch, stretch):
+    """The point scaled to `pitch` across the grain and `stretch` times `pitch` along it, so a noise read at it draws
+    streaks along the grain."""
+    axis = pf.nodes.math.vector_normalize(pf.nodes.math.combine_xyz(x=grain_x, y=grain_y, z=grain_z))
+    off_line = pf.nodes.math.vector_subtract(vector, pf.nodes.math.vector_scale(vector=axis, scale=along))
+    return pf.nodes.math.vector_add(pf.nodes.math.vector_scale(vector=off_line, scale=1.0 / pitch),
+                                    pf.nodes.math.vector_scale(vector=axis, scale=along / (pitch * stretch)))
+
+
+def grained_wood(colour, second, dirt_colour, roughness, ring_pitch, contrast, bump, dirt_reach, dirt, seed,
+                 grain_x=1.0, grain_y=0.0, grain_z=0.0, board_width=0.0, joint=BOARD_JOINT):
+    """Timber with its grain (planks, plywood, veneer, oak) running along (grain_x, grain_y, grain_z) in the object's
+    frame (#159: the coffee station's walnut drawn a flat orange stipple, no grain, its boards merged): growth rings
+    `ring_pitch` apart as long bands along the grain (grain_frame), bent along it, their late wood a darker line toward
+    `second`; the figure's broad dark streaks and fine fibre streaks along the grain; and, where `board_width` is over
+    0, boards that wide laid side by side across the grain, each a little lighter or darker than its neighbour and its
+    rings its own, parted by a dark sunk joint `joint` wide. Dirt in the cavities."""
     vector = coordinates()
-    point = pf.nodes.math.separate_xyz(vector)
-    bend = pf.nodes.texture.noise(vector=pf.nodes.math.combine_xyz(x=point.x * 0.1, y=point.y, z=point.z),
-                                  scale=0.5 / ring_pitch, detail=2.0, noise_dimensions="4D", w=seed)
-    late = pf.nodes.math.power(1.0 - pf.nodes.math.absolute(
-        pf.nodes.math.fraction(point.y / ring_pitch + bend.fac * 3.0) - 0.5) * 2.0, 3.0)
+    along, rings, across = grain_frame(vector, grain_x, grain_y, grain_z)
+    laid = pf.nodes.math.greater_than(board_width, 0.0)
+    width = pf.nodes.math.maximum(board_width, 0.001)
+    board = pf.nodes.math.floor(across / width) * laid
+    middle = pf.nodes.math.absolute(pf.nodes.math.fraction(across / width) - 0.5) * width  # from the board's middle
+    in_joint = pf.nodes.math.greater_than(middle, width * 0.5 - joint * 0.5) * laid
+    bend = pf.nodes.texture.noise(vector=grain_stretched(vector, along, grain_x, grain_y, grain_z, ring_pitch * 4.0,
+                                                         RING_BEND_STRETCH),
+                                  scale=1.0, detail=3.0, noise_dimensions="4D", w=seed + board * 7.31)
+    band = pf.nodes.math.fraction(rings / ring_pitch + bend.fac * 4.0 + board * 0.37)
+    late = pf.nodes.math.power(1.0 - pf.nodes.math.absolute(band - 0.5) * 2.0, 2.5)
+    figure = pf.nodes.texture.noise(vector=grain_stretched(vector, along, grain_x, grain_y, grain_z,
+                                                           ring_pitch * FIGURE_SHARE, FIGURE_STRETCH),
+                                    scale=1.0, detail=2.0, noise_dimensions="4D", w=seed + 5.0 + board * 3.17)
+    streaks = pf.nodes.math.map_range(value=figure.fac, from_min=0.45, from_max=0.65, interpolation_type="SMOOTHSTEP")
+    fibres = pf.nodes.texture.noise(vector=grain_stretched(vector, along, grain_x, grain_y, grain_z,
+                                                           ring_pitch * FIBRE_SHARE, FIBRE_STRETCH),
+                                    scale=1.0, detail=3.0, noise_dimensions="4D", w=seed + 3.0)
+    tone = pf.nodes.texture.noise(vector=pf.nodes.math.combine_xyz(x=board * 1.7, y=0.0, z=0.0), scale=1.0,
+                                  detail=0.0, noise_dimensions="4D", w=seed + 11.0)
+    shade = pf.nodes.math.clamp(streaks * 0.55 + late * 0.45 + (fibres.fac - 0.5) * 0.8 + (tone.fac - 0.5) * laid)
     base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
-    base = pf.nodes.color.mix_rgb(factor=late * contrast, a=base, b=second)
-    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=-late * bump, midlevel=0.0))
+    base = pf.nodes.color.mix_rgb(factor=shade * contrast, a=base, b=second)
+    base = pf.nodes.color.mix_rgb(factor=in_joint * JOINT_DARK, a=base, b=BLACK)
+    height = -late * bump - in_joint * joint * 0.5
+    return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=height, midlevel=0.0))
 
 
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
@@ -997,7 +1064,7 @@ PARTS = {
     "glowing": (glowing,),
     "screen": (screen, picture_on),
     "printed": (printed, picture_on),
-    "wood": (wood, coordinates, dirty_flat, dirt_mask),
+    "wood": (wood, coordinates, grain_stretched, dirty_flat, dirt_mask),
     "painted_plaster": (painted_plaster, coordinates, edge_wear_mask, kick_mask, scuff_mask, dirt_mask, lumpy_relief,
                         layered),
     "weathered_render": (weathered_render, coordinates, edge_wear_mask, kick_mask, dirt_mask, rain_streaks, face_plane,
@@ -1019,7 +1086,7 @@ PARTS = {
     "leather": (leather, coordinates, dirty_flat, dirt_mask),
     "ceramic": (ceramic, coordinates, lumpy_relief),
     "fiberglass": (fiberglass, coordinates),
-    "grained_wood": (grained_wood, coordinates, dirty_flat, dirt_mask),
+    "grained_wood": (grained_wood, coordinates, grain_frame, grain_stretched, dirty_flat, dirt_mask),
     "mat": (mat, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "strand_board": (strand_board, coordinates, face_plane, dirty_flat, dirt_mask),
     "knit": (knit, coordinates, face_plane, dirty_flat, dirt_mask),
@@ -1048,6 +1115,8 @@ def arguments(spec, wear, dirt, seed, foot=None):
     for name in COLOUR_ARGUMENTS:
         if name in spec:
             given[name] = pf.Color(tuple(spec[name]))
+    if spec.get("grain"):  # the way timber's grain runs, in the object's frame (grain_frame, #159)
+        given.update(zip(("grain_x", "grain_y", "grain_z"), (float(value) for value in spec["grain"])))
     if spec.get("image"):
         import bpy
 

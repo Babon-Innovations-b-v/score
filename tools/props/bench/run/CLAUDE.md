@@ -83,6 +83,11 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   close-up, each laid and cut as the judge sees them). The `light` step holds this picture to the close-up. An older
   run's `light` step holds the same picture (`nvidia_looked` reads it); a run with neither cannot be measured until
   `render` draws it.
+- **A wood part's grain is judged** (#159, owner 2026-11-24 on the coffee station: "wood doesnt get shown accurate"):
+  finish.grain_of reads which way each part's lightness detail runs in the look and in NVIDIA's (the structure
+  tensor's way and coherence), and measures `finish.grain` (bar: every wood part) fails a part whose faces NVIDIA
+  calls wood, or whose finish is timber, where NVIDIA's look runs a grain and the made look runs none or another way
+  (_finish.grain_held: GRAIN_STRENGTH, GRAIN_WAY).
 - **The measures count only the specks the look draws** (#159, `seen_faces`: finish.look_faces casts each drawn pixel
   of look.png through look.json's camera onto the model; the side's `face_seen`), for a truth case and a pictured one.
 - **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge

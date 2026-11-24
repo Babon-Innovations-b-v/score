@@ -76,6 +76,11 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   flat white body passes; not reading the spread (`held = True`): its squeezed panel passes; judging a lit part
   (`or made.get("lit")` dropped): the glowing body fails; the check left out of finish_look's tests: the flat white body
   has no finish.shade row (#206).
+- _finish.grain_held not reading the made look's strength (`drawn["strength"] < GRAIN_STRENGTH` dropped): the
+  coffee station's stipple passes; not reading its way (`return True` for the last line): the veneer grained across
+  its boards passes; the way's difference taken straight (no turn by 180): the veneer at 175 degrees for 4 fails;
+  judging every part (the wood and timber test dropped): the plastic stipple fails; not reading NVIDIA's strength:
+  the painted board fails; the check left out of finish_look's tests: the stipple has no finish.grain row (#159).
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail;
@@ -559,6 +564,27 @@ CASES = [
     ("its glowing body drawn at its light's strength (tc6's humidifier ring, 0.95 over the input)",
      lambda: worn({"clipped": 0.95, "true_clipped": 0.0, "lit": True}, {**TOP, "clipped": 0.0, "true_clipped": 0.0}),
      "finish.clipped", True),
+    ("its veneer body grained up its boards as NVIDIA's (the coffee station, the grained recipe: 0.85 at 89 degrees)",
+     lambda: worn({"timber": True, "grain": {"way": 88.7, "strength": 0.85},
+                   "true_grain": {"way": 89.2, "strength": 0.96}}), "finish.grain", True),
+    ("its veneer body a stipple, no grain (tc6's coffee station: 0.60 for NVIDIA's 0.96)",
+     lambda: worn({"timber": True, "grain": {"way": 92.4, "strength": 0.60},
+                   "true_grain": {"way": 89.2, "strength": 0.96}}), "finish.grain", False),
+    ("its veneer body grained across its boards (0 degrees for NVIDIA's 89)",
+     lambda: worn({"timber": True, "grain": {"way": 1.0, "strength": 0.9},
+                   "true_grain": {"way": 89.2, "strength": 0.96}}), "finish.grain", False),
+    ("its veneer body grained 175 degrees for NVIDIA's 4 (the same way, across the turn)",
+     lambda: worn({"timber": True, "grain": {"way": 175.0, "strength": 0.9},
+                   "true_grain": {"way": 4.0, "strength": 0.96}}), "finish.grain", True),
+    ("its plastic body drawn a stipple where NVIDIA's look runs one way (not wood: not judged)",
+     lambda: worn({"grain": {"way": 0.0, "strength": 0.1}, "true_grain": {"way": 90.0, "strength": 0.96}},
+                  {**TOP, "timber": True, "grain": {"way": 90.0, "strength": 0.9},
+                   "true_grain": {"way": 91.0, "strength": 0.93}}), "finish.grain", True),
+    ("its painted board drawn plain where NVIDIA's shows no grain (the charcoal board's 0.54: not judged)",
+     lambda: worn({"timber": True, "grain": {"way": 30.0, "strength": 0.3}, "true_grain": {"way": 174.7,
+                                                                                         "strength": 0.54}},
+                  {**TOP, "timber": True, "grain": {"way": 90.0, "strength": 0.9},
+                   "true_grain": {"way": 91.0, "strength": 0.93}}), "finish.grain", True),
     ("its white body shaded as the input (NVIDIA's own anesthesia machine drawn by the look: 18.3 spread, 4.0 deep)",
      lambda: worn({"shade": {"spread": 18.3, "crease": 4.0}, "true_shade": {"spread": 18.8, "crease": 5.1}}),
      "finish.shade", True),

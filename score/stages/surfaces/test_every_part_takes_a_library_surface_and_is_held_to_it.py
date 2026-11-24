@@ -256,6 +256,11 @@ tests it turned red:
 - route_views.py close_up_shown: `held = pixels[region_seen == region]` -> `held = pixels` -> every_part_takes_a_library_
   surface_and_is_held_to_it (its LISTED row with the close-up laid: the blue box's region read the whole close-up's
   colour, #198)
+- route_list.py timber_settings (#159): not reading the surface's recipe (`surface.get("recipe") not in
+  route_settings.TIMBER or` dropped) -> a paint's answer is read with a grain (timbered); route_settings.py
+  settings_name without grain_name -> a timber with and without its grain bake as one slot; set_spec without its
+  `**grain` -> the spec carries no grain; route_parts.py grained without long_axis -> a timber the list read no way of
+  is drawn with no grain.
 - route_list.py token_lines: ` ({strength(srgb_of(colour))})` dropped -> every_part_takes_a_library_surface_and_is_
   held_to_it (the tokens offered in words alone, #198)
 - route_list.py region_lines: the `the close-up there about RGB` clause dropped -> every_part_takes_a_library_surface_and_
@@ -932,6 +937,29 @@ WORDED = [
      ("roughness 0.90",), ("drawn red",)),
     ("a finish with no settings worded in its surface's colour", None, ("drawn red",), ()),
 ]
+
+
+def timbered():
+    """A timber finish's grain and boards (#159, the coffee station's walnut veneer): (the list's answer "up", 0.29 m
+    boards, read into settings; a paint's answer with a grain, read as none; a timber answering no way, read as none;
+    whether its slot's name differs from the same finish with no grain and is letters, digits and underscores; the
+    spec's grain and board width; a part 0.8 m long across x and 0.1 m tall: its long axis, the same part's grain where
+    the list read none, a part whose list grain is up kept up)."""
+    timber, paint = {"recipe": "grained_wood"}, {"recipe": "painted_metal"}
+    read = route_list.timber_settings({"grain": "up", "board": 0.29}, timber)
+    settings = {"token": "walnut", "roughness": 0.46, "metal": 0.0, "seed": 3}
+    named = route_settings.settings_name("walnut_veneer", {**settings, **read})
+    spec = route_settings.set_spec({"recipe": "grained_wood", "colour": [0.2, 0.1, 0.05]}, {**settings, **read},
+                                   {"walnut": [0.19, 0.08, 0.04]})
+    board = trimesh.creation.box(extents=(0.8, 0.1, 0.02))
+    faces = np.ones(len(board.faces), dtype=bool)
+    finish = {"family": "grained_wood"}
+    return (read, route_list.timber_settings({"grain": "up", "board": 0.29}, paint),
+            route_list.timber_settings({"board": 0.29}, timber),
+            named != route_settings.settings_name("walnut_veneer", settings) and re.fullmatch(r"\w+", named) is not None,
+            (spec["grain"], spec["board_width"]), [abs(value) for value in route_parts.long_axis(board, faces)],
+            route_parts.grained(settings, finish, board, faces)["grain"],
+            route_parts.grained({**settings, **read}, finish, board, faces)["grain"])
 
 
 def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
@@ -2426,6 +2454,10 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     # the ask offers the whole library filtered by the scene palette's tokens, and its wear
     question = body["contents"][0]["parts"][-1]["text"]
     offered = body["generationConfig"]["responseSchema"]["properties"]["finishes"]["items"]["properties"]
+    # a timber's grain and boards are asked (#159), read into its settings, named in its slot and carried to its spec
+    assert "For each timber finish" in question and offered["grain"]["enum"] == ["up", "across", "deep"]
+    assert timbered() == ({"grain": [0.0, 1.0, 0.0], "board": 0.29}, {}, {}, True, ([0.0, 1.0, 0.0], 0.29),
+                          [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
     palette = route_list.palette_library.read(rows)
     assert offered["token"]["enum"] == [token for token in route_list.palette_library.library_tokens(palette)
                                          if token in PALETTE["tokens"]], offered["token"]
