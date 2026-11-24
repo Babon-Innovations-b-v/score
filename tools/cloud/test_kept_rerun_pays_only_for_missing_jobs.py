@@ -43,6 +43,8 @@ again. The break that turns the test red (each applied once, seen red, reverted)
   crate's views made again); or in `call`, `json.dumps(record, sort_keys=True)` -> `json.dumps(record)` (a made
   take's record keeps its own key order, a kept one's comes back sorted: the row's output bytes depend on what was
   kept, finish-route-views@tube 2026-11-07).
+- a kept job's blob evicted into the store bucket comes back on its rerun: in `placed`, drop `fetch_installed()`
+  (the evicted frame is not fetched back: FileNotFoundError).
 - the sweep drops only what no current key asks for: in `sweep`, `if asked(entry):` -> `if True:` (nothing dropped);
   or `- held - output_blobs()` -> `- held` (a blob a stored output holds is freed).
 - a job kept as copies before the blobs (env1 2026-10-29: this PC's run kept its jobs as copies under 5a46a96e) is
@@ -63,6 +65,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 import kept  # noqa: E402
+from score.store import Store  # noqa: E402
 
 FIRSTS = range(0, 96, 12)  # eight jobs of twelve frames
 SYSTEM = "score-this-pc:1 sha256:0123"
@@ -313,6 +316,21 @@ def test_kept_rerun_pays_only_for_missing_jobs(monkeypatch, tmp_path):
     left = [entry["job"] for _, entry in kept.entries()]
     assert first["outside"] not in left and first["no code"] not in left and first["cut short"] not in left and \
         first["mark gone"] not in left
+
+    # a kept job's blob evicted into the store bucket (store-evict, a FolderBucket here) comes back on its rerun
+    from score.store import offload, runtime_store
+    monkeypatch.setattr(runtime_store.FolderStore, "path", offload.PLAIN_PATH)  # as a process that never installed
+    monkeypatch.setattr(runtime_store.FolderStore, "exists",
+                        lambda store, key: offload.PLAIN_PATH(store, key).is_file())
+    monkeypatch.setattr(Store, "put_blob", Store.put_blob)
+    bucket = offload.FolderBucket(tmp_path / "bucket")
+    monkeypatch.setattr(offload, "open_bucket", lambda: bucket)  # for a process installing it now
+    monkeypatch.setitem(offload.OPENER, "open", lambda: bucket)  # and for one that installed it before (the runner)
+    monkeypatch.setitem(offload.OPENER, "bucket", None)
+    evicted = hashlib.sha256(b"frame 59").hexdigest()
+    assert offload.push(blobs / evicted, evicted, bucket) == "sent"
+    offload.evict(tmp_path / "store" / "objects", evicted, (blobs / evicted).stat().st_size)
+    assert not (blobs / evicted).exists()
 
     # --- the second attempt: a new key, its own home, the inputs changed as COMES_BACK says, one `missing` ---
     (models / "crate.glb").write_text("crate model, fixed")

@@ -87,8 +87,9 @@ store-evict (#74, 2026-11-04: store/objects 138 GB, store-gc freed 0, Batch 1 di
 live, no run has pinned an input) and one at a time (alone: `score run` refuses while it holds its lock), sends every local blob the store bucket does not list
 into it (score/store/offload: a conditional put, a 412 meaning the same bytes are there) and removes the local copy
 of a blob only once the bucket answers for it with its size and sha256 (offload.proven), and only a blob that has one
-link (no checkout, kept mark or work/pixal link), is named by nothing under the home but the output listings (records,
-concepts, kept jobs, the design and cockpit links keep theirs), is in no listing of an output a node stands on (each
+link (no checkout, kept mark or work/pixal link), is named by nothing under the home but the output listings and
+kept jobs (records, concepts, the design and cockpit links keep theirs; a kept job's blob is fetched back when a rerun
+places it), is in no listing of an output a node stands on (each
 node's current accept and its newest record's output: what the next run reads), and is no text naming other blobs
 (store-gc follows those). Its mark (store/evicted/<sha>) is written first; the runner and the review fetch a marked
 blob back on its first read. Never cloud/google-cache, never anything outside store/objects/blobs. Only its own
@@ -843,6 +844,10 @@ SCAN_SKIPPED = {".git", ".venv", "node_modules", "__pycache__"}
 # tools/cloud/kept.py file_hash's memo: one record a file version, its sha256, so a file is not hashed twice; it reads
 # no blob, and naming one keeps nothing (2026-11-24: its 140,828 records held 114,604 blobs on this PC past the cap).
 HASH_MEMO = "store/kept/hashes"
+# tools/cloud/kept.py's kept jobs: their blobs are fetched back when a rerun places them (kept.fetch_installed), so
+# store-evict may evict them like an output's (2026-11-24: they held 67.5 GB on this PC past its 50 GB cap); store-gc
+# still keeps every blob they name.
+KEPT_JOBS = "store/kept"
 CHUNK = 8 * 1024 ** 2
 GC_YOUNG_SECONDS = 24 * 3600  # a blob this new may be one a write in progress (a put_tree, a concept) names next
 
@@ -984,11 +989,11 @@ def standing_outputs(objects):
 
 
 def evict_keep(home, repo):
-    """Every blob store-evict keeps here: named by a file or link under the home other than an output listing (the
-    records, concepts, kept jobs, design, cockpit links), in the listing of an output a node stands on, or named by a
+    """Every blob store-evict keeps here: named by a file or link under the home other than an output listing or a
+    kept job (the records, concepts, design, cockpit links), in the listing of an output a node stands on, or named by a
     text-like blob so kept, followed to its end."""
     objects = home / "store" / "objects"
-    held = named_outside(home, repo, objects / "blobs", also=(objects / "outputs",))
+    held = named_outside(home, repo, objects / "blobs", also=(objects / "outputs", home / KEPT_JOBS))
     for output in standing_outputs(objects):
         listing = objects / "outputs" / f"{output}.json"
         held |= set(read_object(listing).values()) if listing.is_file() else set()

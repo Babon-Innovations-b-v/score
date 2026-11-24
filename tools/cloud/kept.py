@@ -295,6 +295,16 @@ def mark_of(slot, content, named=None):
     return entry
 
 
+def fetch_installed():
+    """An evicted blob fetched back from the store bucket on its read in this process (offload.install), unless it is
+    installed already (a pod's own bucket stays): a kept entry's blobs may be evicted like any output's (2026-11-24:
+    the kept jobs held 67.5 GB of blobs on this PC past its 50 GB cap)."""
+    from score.store import offload
+
+    if offload.runtime_store.FolderStore.path is not offload.fetching_path:
+        offload.install()
+
+
 def placed(entries):
     """Each file of the entries linked in place in the making folder from its blob, the one written last where two
     entries hold the same file, unless the file there is newer."""
@@ -303,6 +313,7 @@ def placed(entries):
         for name, (sha, written_at) in entry["files"].items():
             if name not in newest or written_at > newest[name][1]:
                 newest[name] = (sha, written_at)
+    fetch_installed()
     blobs, folder = store(), making()
     for name, (sha, written_at) in sorted(newest.items()):
         place = folder / name
