@@ -105,7 +105,9 @@ SAMPLES = 128
 BACKDROP = (214, 214, 214)  # the light grey even backdrop
 BOX_TOLERANCE = 0.01
 CARD_GB = 6
-MEMORY_GB = 8
+# A close-up's memory: the tool organizer cart (5.5M triangles, 27 maps of 4096) peaked at 8.8 GB under a 12 GB scope
+# and was killed under the 8 GB one in every run (#159, tc4 to tc6); the 33 others of tc6 drew under 8 GB.
+MEMORY_GB = 12
 RENDER_SECONDS = 1800
 RENDERS_AT_ONCE = 2  # close-ups drawn side by side (the card queue gives each its share; card_turn's two slots)
 NOT_RUN = {"finish-route": "a place's surface line (views, list, split, parts, bake); its list is a paid Gemini call",
@@ -276,7 +278,9 @@ def render_asset(row, values, scratch, out, draw=queued_blender):
         lines = (scratch / "blender.log").read_text(errors="replace").splitlines() \
             if (scratch / "blender.log").is_file() else []
         said = [line for line in lines if "Error" in line or "error:" in line] or lines[-6:]
-        raise StepFailed(f"the close-up render exited {code}: {' | '.join(said[-6:])}")
+        from score.stages.place_build import render
+        cause = f" (killed past its {MEMORY_GB} GB memory cap)" if code == render.KILLED else ""
+        raise StepFailed(f"the close-up render exited {code}{cause}: {' | '.join(said[-6:])}")
     report = json.loads((drawn / "report.json").read_text())
     diagonal = float(np.linalg.norm(np.subtract(high, low)))
     slip = float(np.abs(np.subtract(report["box"], [low, high])).max())

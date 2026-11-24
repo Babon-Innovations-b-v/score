@@ -1509,7 +1509,7 @@ def written_scene(folder, out, stage, place, seat, draft=False):
 
 PICTURES = ("base_color", "metal_roughness", "normal")  # a baked map's pictures, as glTF reads them
 # A Blender run bakes at most BATCH maps of one object, then ends and gives its memory back (the street, 2026-11-20:
-# one run over 225 maps of 4096 grew past render.MEMORY and was killed at its 173rd after 106 min). Its maps land in
+# one run over 225 maps of 4096 grew past render.MEMORY_GB and was killed at its 173rd after 106 min). Its maps land in
 # <out>/BAKE as <key>_<picture>.png with a <key>.done mark (bake_looks.written); `package` again keeps them (write
 # leaves bake/ standing) and bakes only the maps not yet marked, a map's key its request, its object's file and the
 # bake's code, so a changed object or recipe is baked again.

@@ -12,6 +12,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.on_backdrop: the alpha left out (the render's RGB alone) -> the backdrop comes out black, not BACKDROP
 - bench.material_for: a CLASS_WORDS word matched whole only -> the wooden tray is given plastic, not wood
 - bench.render_asset: the box check dropped -> the render Blender laid in centimetres is kept
+- bench.MEMORY_GB 8 (the scope's own cap) -> the close-up's scope holds 8 GB, and the tool organizer cart (8.8 GB) is
+  killed in every run (#159); render.KILLED not named -> a close-up killed past its cap reads only "exited 137"
 - bench.Kept.keep: the bucket push dropped -> the step's blobs are not in the bucket
 - bench.run_steps: the gap's `return` dropped -> the step after a failing one runs
 - bench.run_steps: a kept step not skipped -> taking the run up again makes the raw model twice
@@ -453,6 +455,13 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     found = kept.entry(name, "input", "render")
     if scale != 1.0:
         assert "gap" in found and "off" in found["gap"], found
+        with pytest.raises(bench.StepFailed, match="exited 137 \\(killed past its 12 GB memory cap\\)"):
+            bench.render_asset(row, {}, tmp_path / "killed", tmp_path / "killed-out", lambda *_: 137)
+        ran = []
+        monkeypatch.setattr(bench.subprocess, "run", lambda command, **_: ran.append(command) or
+                            type("Done", (), {"returncode": 0})())
+        bench.queued_blender("bench-cart", [], tmp_path / "queued.log")
+        assert "MemoryMax=12G" in ran[0] and "OOMPolicy=continue" in ran[0], ran
         return
     folder = kept.store.checkout(found["output"])
     for sha in set(kept.store.listing(found["output"]).values()):

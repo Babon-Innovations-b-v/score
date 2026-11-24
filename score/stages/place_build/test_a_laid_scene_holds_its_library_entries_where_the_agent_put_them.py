@@ -263,6 +263,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.blender_baked: its runs one after another (SIDE_BY_SIDE ignored) -> the three objects' runs never
   hold the card two at once
 - render.queued: `card_gb` and `memory_gb` ignored -> a bake run asks the queue for render.CARD_GB and no memory
+- render.queued: the scope's cap MEMORY_GB whatever the job asks -> a 12 GB job's scope holds 8 GB (#159: the cart
+  killed); OOMPolicy=continue left out -> a Blender killed past its cap exits 124, read as past its time
 - render.still_stage: the walkers' layer kept -> the still's scene holds walker_one
 - render.still_stage: its paths left unanchored -> the still under render/ misses every laid object's model
 - scene_package.write: the whole package folder removed -> the stopped bake's maps are gone before the bake
@@ -1902,6 +1904,8 @@ def side_by_side(out):
                             memory_gb=scene_package.BAKE_MEMORY_GB)
     asked = command[:command.index("--priority")]
     assert asked[-4:] == ["--card-gb", "4", "--memory-gb", "6"], asked
+    larger = render.queued("job", "script.py", [], memory_gb=12)
+    assert "MemoryMax=8G" in command and "MemoryMax=12G" in larger and "OOMPolicy=continue" in command, larger
 
 
 def sized_and_timed(out):

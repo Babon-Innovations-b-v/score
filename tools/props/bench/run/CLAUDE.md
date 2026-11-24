@@ -16,6 +16,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   close-up camera, so one is fitted from its outline against the cut-out close-up (`rgba.png`; surfaces
   close_up_fit.py, #171), and text marks are drawn as text decals through it; the bake is a place's and not run. The
   measures read its parts as B's finish groups and each part's surface family (`family`) against the truth's.
+- **A close-up's scope holds MEMORY_GB (12)** (#203): the tool organizer cart's close-up (5.5M triangles, 27 maps of
+  4096) peaks at 8.8 GB and was killed under the queue's own 8 GB in tc4 to tc6, its kill read as exit 124. A Blender
+  killed past its cap exits render.KILLED (137) and its gap says so; a time-out is 124 alone.
 - **Nothing goes into score_lib, and the library read is a scratch checkout** (`--library`, a detached worktree; the
   shared checkout is refused). `make` runs with `take_in=False` in a scratch place folder; entries are fetched by
   score_lib's own command into job scratch, never the library's file cache.

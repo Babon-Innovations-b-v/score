@@ -30,8 +30,12 @@ UNLINKED = 127
 WIDTH = 1920
 FINAL_SIZE = (1920, 1080)  # a final render's pixels (owner, 2026-11-16: final views at 1920x1080), whatever the concept's aspect
 FREE_GB = 12  # a Blender starts only with more memory than this available
-MEMORY = "8G"  # its scope's cap
+MEMORY_GB = 8  # its scope's cap, unless the job asks the queue for more (queued's `memory_gb`)
 TIMED_OUT = 124  # coreutils timeout's exit when it stopped the run (queued's `seconds`)
+# The exit of a Blender the kernel killed past its scope's cap. The scope keeps OOMPolicy=continue: under systemd's
+# default the OOM kill stopped the scope, its SIGTERM reached `timeout`, and `timeout` exited TIMED_OUT, so a run past
+# its memory read as one past its time (#159: the tool organizer cart, 8.8 GB, "exited 124" after 12 s).
+KILLED = 137
 CARD_GB = "8"  # its share of the card
 
 
@@ -110,13 +114,16 @@ def command(folder, width=WIDTH, names=(), final=False):
 def queued(job, script, arguments, card=True, seconds=None, card_gb=CARD_GB, memory_gb=0):
     """The card queue's command running a Blender script with its arguments in a memory-capped scope (with no `card`,
     the scoped command alone: an export that draws nothing waits for no card), holding `card_gb` of the card and
-    `memory_gb` of the PC's memory (card_queue's room; 0: the scope's cap alone); with `seconds`, the Blender stopped
-    past them (coreutils timeout: exit TIMED_OUT), its wait for the card not counted."""
+    `memory_gb` of the PC's memory (card_queue's room; 0: the scope's cap alone; the scope's cap the larger of it and
+    MEMORY_GB, a Blender past it killed: exit KILLED); with `seconds`, the Blender stopped past them (coreutils
+    timeout: exit TIMED_OUT), its wait for the card not counted."""
     limit = ["timeout", "-k", "30", str(seconds)] if seconds else []
     blender = [*limit, str(BLENDER), "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", str(script),
                "--", *arguments]
     linked = ":".join(filter(None, [libraries(), "/usr/lib/wsl/lib"]))
-    scoped = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={MEMORY}", "-p", "MemorySwapMax=0",
+    cap = max(MEMORY_GB, float(memory_gb))
+    scoped = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={cap:g}G", "-p", "MemorySwapMax=0",
+              "-p", "OOMPolicy=continue",
               "--setenv=FARM_CYCLES_GPU=1", f"--setenv=LD_LIBRARY_PATH={linked}", *blender]
     if not card:
         return scoped
