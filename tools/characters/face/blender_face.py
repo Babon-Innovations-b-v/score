@@ -6,8 +6,8 @@
 `<piece>.surfaces` (score_lib surface ids, one a finish the piece wears), `<piece>.finish` (each triangle's index into
 them), optionally `<piece>.uv` (each triangle's three UV corners) and `<piece>.shapes` (one offset set per name in
 `shape_names`); `shots` a JSON list of {name, weights: {shape name: weight}}; `aim` and `eye_distance`. Each surface is
-the library entry's own material.usda (`<library folder>/score_lib/surface/<id>/<version>/material.usda`), imported by
-Blender's USD reader with its maps, nothing set by hand. Cycles on the card (`FARM_CYCLES_GPU=1`).
+the library entry's own material.usda (`<library folder>/surface/<id>/<version>/material.usda`, as place_build's fetch
+lays it), imported by Blender's USD reader with its maps, nothing set by hand. Cycles on the card (`FARM_CYCLES_GPU=1`).
 """
 import json
 import math
@@ -34,7 +34,7 @@ def library_material(library, surface):
     """The score_lib surface's own material, imported once from its material.usda."""
     if surface in bpy.data.materials:
         return bpy.data.materials[surface]
-    found = sorted((pathlib.Path(library) / "score_lib" / "surface" / surface).glob("*/material.usda"))
+    found = sorted((pathlib.Path(library) / "surface" / surface).glob("*/material.usda"))
     if not found:
         raise FileNotFoundError(f"score_lib surface {surface} is not fetched under {library}")
     bpy.ops.wm.usd_import(filepath=str(found[-1]), import_all_materials=True)
