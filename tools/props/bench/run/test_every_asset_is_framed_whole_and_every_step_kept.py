@@ -22,7 +22,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.Y_UP the identity (glTF's Y up read as Z up) -> the made box comes back lying on its side
 - bench.usd_side: a Y-up stage not turned -> the withdrawn model's box comes back lying on its side
 - finish.offered_addresses: the `painted_for` tag not read -> the one-model surface is fetched, left out only for its
-  missing recipe
+  missing recipe; the `pattern` family not read (#210) -> the vent pattern's record is fetched (KeyError)
 - bench.made_side: the finish's parts not read -> the made model's faces carry no finish group
 - bench.weighed_step: a part's surface class not read (the given class for every part) -> the plastic box touches
   with metal's 0.3; its parts' words not asked -> the ask does not name the grey plastic
@@ -146,11 +146,12 @@ def usd_box(path, low, high, up="z"):
 
 
 def surface_library(root):
-    """A small score_lib with three surfaces in its index: one adopted and tiling (a fitted plastic), one painted for
-    one model, one a recipe's own entry; {address: its surface.json}."""
+    """A small score_lib with four surfaces in its index: one adopted and tiling (a fitted plastic), one painted for
+    one model, one a recipe's own entry, one a vent pattern (#210, whose record is never fetched); {address: its
+    surface.json} but the pattern's."""
     (root / "index").mkdir(parents=True)
     rows = [("surface/simready_m_plastic_grey_a01@1", {}), ("surface/simready_m_atlas_a01@1", {"painted_for": ["x"]}),
-            ("surface/rubber@1", {})]
+            ("surface/rubber@1", {}), ("surface/vent_round_holes@1", {"family": ["pattern"]})]
     (root / "index/surface.json").write_text(json.dumps({"schema": "score-lib-index/1", "kind": "surface", "entries": [
         {"address": address, "state": "draft", "tags": tags} for address, tags in rows]}))
     for address, _ in rows:
@@ -580,7 +581,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         (variants, palette, addresses, left), side, family = finished_box(tmp_path, monkeypatch, name,
                                                                           tmp_path / "made.glb", folder / "rgba.png")
         assert set(addresses.values()) == {"surface/simready_m_plastic_grey_a01@1", "surface/rubber@1"}
-        assert list(left) == ["surface/simready_m_atlas_a01@1"] and "one model" in left[list(left)[0]], left
+        assert list(left) == ["surface/simready_m_atlas_a01@1", "surface/vent_round_holes@1"], left
+        assert "one model" in left["surface/simready_m_atlas_a01@1"] and "pattern" in left["surface/vent_round_holes@1"]
         assert variants["families"]["plastic"]["variants"]["simready_m_plastic_grey_a01"]["token"] == \
             finish.token_of([0.2, 0.2, 0.2]) and finish.NEUTRAL in palette["tokens"]
         assert len(side["face_material"]) == len(side["faces"]) and (side["face_material"] >= 0).all()

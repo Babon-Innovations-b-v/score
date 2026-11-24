@@ -5,6 +5,12 @@ placement record (route_parts.decal_placements) and baked by the finish's recipe
     catalogue(root)                    every decal in force: [{address, class, ink, size_m, words, title}]
     offered(decals, material_class, ink)   those of one material class and ink (either None: any)
     picture(address)                   its decal.png on disk (tools/library/library_files), or None: a gap
+    patterns(root)                     every pattern in force (#210): [{address, opening, shape, length_share, relief,
+                                       roughness, title}]
+
+A pattern (#210) is a surface of family `pattern`: the shape of one opening of a vent or perforation pattern (round
+holes, slots, ribs), its length share, its relief and its roughness, all in its tags, which pattern_decals.py tiles
+at a mark's pitch inside its outline.
 
 Read through score/library (ADR-0007: score reads score_lib's files only there) from its index of surfaces; an entry
 withdrawn is not offered, and nothing is offered from a library that is not set (an empty catalogue, never a guess).
@@ -18,6 +24,7 @@ if str(REPO / "tools/library") not in sys.path:
 
 FAMILY = "decal"
 PICTURE = "decal.png"
+PATTERN_FAMILY = "pattern"
 
 
 def size_of(tags):
@@ -45,6 +52,36 @@ def catalogue(root):
                       "ink": (tags.get("ink") or [None])[0], "size_m": size_of(tags),
                       "words": tags.get("words", []), "title": row.get("title", "")})
     return found
+
+
+def first_number(tags, name):
+    """A tag's first value as a number, or None."""
+    try:
+        return float((tags.get(name) or [None])[0])
+    except (TypeError, ValueError):
+        return None
+
+
+def patterns(root):
+    """Every pattern in force in the library at `root` (None: no library, no pattern), one an opening: those naming
+    an opening shape pattern_decals draws."""
+    import pattern_decals
+    from score import library
+    if root is None or not (pathlib.Path(root) / "index" / "surface.json").is_file():
+        return []
+    found = {}
+    for row in library.index(root, "surface")["entries"]:
+        tags = row.get("tags", {})
+        if PATTERN_FAMILY not in tags.get("family", []) or row.get("state") == "withdrawn":
+            continue
+        shape, opening = (tags.get("shape") or [None])[0], (tags.get("opening") or [None])[0]
+        if shape not in pattern_decals.SHAPES or not opening or opening in found:
+            continue
+        found[opening] = {"address": row["address"], "opening": opening, "shape": shape,
+                          "length_share": first_number(tags, "length_share") or 1.0,
+                          "relief": first_number(tags, "relief_m") or 0.0,
+                          "roughness": first_number(tags, "roughness") or 0.9, "title": row.get("title", "")}
+    return list(found.values())
 
 
 def offered(decals, material_class=None, ink=None):

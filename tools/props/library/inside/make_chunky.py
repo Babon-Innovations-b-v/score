@@ -240,8 +240,8 @@ def into_kit_frame(whole, base, size):
 def decal_laid(decal, move):
     """One placement of the take's decals (route_parts.decal_placements: at, normal, up and size in the take's own
     frame, the frame its labelled parts hold) moved as its model was (`move`, into_kit_frame's), its size stretched as
-    the model was along its own right and up, its depth along its normal: a spec's decal (recipes.decal_layer reads at,
-    normal, up, size_m, depth)."""
+    the model was along its own right and up, its depth and a pattern's relief (score #210) along its normal: a spec's
+    decal (recipes.decal_layer reads at, normal, up, size_m, depth, relief)."""
     turn = move.to_3x3()
     normal, up = Vector(decal["normal"]).normalized(), Vector(decal["up"]).normalized()
     right = up.cross(normal)
@@ -249,7 +249,8 @@ def decal_laid(decal, move):
                 normal=list((turn.inverted().transposed() @ normal).normalized()),
                 up=list((turn @ up).normalized()),
                 size_m=[decal["size"][0] * (turn @ right).length, decal["size"][1] * (turn @ up).length],
-                depth=decal.get("depth", 0.0) * (turn @ normal).length)
+                depth=decal.get("depth", 0.0) * (turn @ normal).length,
+                relief=decal.get("relief", 0.0) * (turn @ normal).length)
 
 
 def piece_specs(specs, decals, move):

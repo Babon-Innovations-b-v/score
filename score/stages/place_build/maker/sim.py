@@ -31,7 +31,10 @@ CLASSES = REPO / "data/physics/surface_classes.json"
 HULLS = 48  # CoACD's most hulls a model
 CONCAVITY = 0.03  # CoACD's threshold, its default's middle
 INSIDE = 1e-4  # metres: a face's middle this near a hull's planes is inside it
-UNWEIGHED = 1e-4  # a part under this share of the surface is not asked and weighs 0 (finish_parts.NO_AREA's)
+# A part under this share of the surface is not asked and weighs 0: finish_parts.NO_AREA's islands, and a print or what
+# shows through vent holes once a pattern covers the rest (#210: the locker's "dark interior seen through openings",
+# share 0.0004, answered 0 kg and refused).
+UNWEIGHED = 1e-3
 
 
 def table():

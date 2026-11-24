@@ -204,7 +204,11 @@ def decal_axes(decal):
 
 def decal_depth(decal):
     """How far off its plane a decal placement prints (DECAL_DEPTH at most): a quarter of its short side, or the depth
-    its ink was seen at (`depth`) when more."""
+    its ink was seen at (`depth`) when more; a pattern (one that sinks, its `relief`: score #210) half its short side,
+    so it reaches round the curve of the part it is cut into (the humidifier's fluted body, 0.12 m round: its ribs
+    printed only in a band where it lay within DECAL_DEPTH of the plane)."""
+    if decal.get("relief"):
+        return 0.5 * min(decal["size_m"])
     return min(DECAL_DEPTH, max(0.25 * min(decal["size_m"]), decal.get("depth", 0.0)))
 
 
@@ -230,6 +234,22 @@ def decal_layer(vector, decal, image):
     mask = picture.fac * near * pf.nodes.math.greater_than(turned, DECAL_FACING)
     colour = pf.Color(tuple(decal["ink"])) if decal.get("ink") else picture.color
     return mask, colour, float(decal.get("roughness", 0.45))
+
+
+def decal_relief(decals):
+    """The displacement of a spec's decals that sink (score #210: a vent pattern's openings, its `relief` in metres):
+    each its decal_layer mask times its relief, downward, summed; None when none sinks."""
+    import bpy
+
+    found = None
+    for decal in decals or ():
+        if not decal.get("relief"):
+            continue
+        image = pf.Image(bpy.data.images.load(decal["image"], check_existing=True))
+        mask, _, _ = decal_layer(coordinates(), decal, image)
+        sunk = pf.nodes.shader.displacement(height=mask * -float(decal["relief"]), midlevel=0.0)
+        found = sunk if found is None else found + sunk
+    return found
 
 
 def with_decals(top, decals):
@@ -1058,9 +1078,12 @@ def channels(spec, wear, dirt, seed, foot=None):
     """One library material at one wear and dirt setting, on a piece whose foot stands `foot` over its floor, as
     Channels. A recipe that layers paint (it takes `decals`) prints its decals under its wear and dirt; any other gets
     them printed over its finish; print gives off no light, so a glowing finish's light is masked under it (#159 round
-    8: the push button's IGN and ARMED vanished in its lit cap's glow)."""
+    8: the push button's IGN and ARMED vanished in its lit cap's glow); a decal with a `relief` sinks (decal_relief)."""
     given = arguments(spec, wear, dirt, seed, foot)
     found = RECIPES[spec["recipe"]](**given)
+    sunk = decal_relief(spec.get("decals"))
+    if sunk is not None:  # a pattern's openings sink into the finish under them (score #210)
+        found = found._replace(displacement=sunk if found.displacement is None else found.displacement + sunk)
     if not spec.get("decals") or "decals" in given:
         return found
     layers = decal_layers(spec["decals"])

@@ -24,7 +24,9 @@ box in the close-up, what, shape, ink, finish, and a text mark's words and look 
 gap, score #164, #171), questions.json (the finishes with their own wear and why, the takes with no usable answer).
 The library's decals (decal_library.catalogue) are offered in the same question; the list names one per picture mark,
 and a mark no decal fits is a gap, never cut from the close-up. Words, numbers and plain lines are read as text marks
-(text_decals.py), drawn in a library face: a route's texture garbles them.
+(text_decals.py), drawn in a library face: a route's texture garbles them. Vent and perforation patterns are read as
+pattern marks when the library holds patterns (decal_library.patterns, pattern_decals.py, #210): TRELLIS.2 draws them
+as bumps.
 Gate "library first": every cast take is listed, every finish names a library surface with settings inside the
 library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a gap, named. Each
 such take is a batch gap (batch-gaps.json, score/stages/batch_gaps.py, with the ones carried from the views): the gate
@@ -182,10 +184,11 @@ def shown_lines(shown):
                      for view, regions in shown.items())
 
 
-def list_schema(surfaces, tokens, views, levels, decals=()):
+def list_schema(surfaces, tokens, views, levels, decals=(), patterns=()):
     """The answer's schema: the finishes, each surface one of the surfaces' codes, token one of the tokens and wear one
     of the library's wear levels, the labels, each a view, a region and a finish, and the marks
-    (finish_ask.mark_schema: a text mark's look one of text_decals.FONTS, a picture mark's one of `decals`)."""
+    (finish_ask.mark_schema: a text mark's look one of text_decals.FONTS, a picture mark's one of `decals`, a
+    pattern mark's opening one of `patterns`)."""
     proposal = {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "description": {"type": "STRING"},
                                                  "why": {"type": "STRING"}}, "required": ["name", "description", "why"]}
     finish = {"type": "OBJECT",
@@ -203,15 +206,17 @@ def list_schema(surfaces, tokens, views, levels, decals=()):
              "required": ["view", "region", "finish"]}
     return {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish},
                                              "labels": {"type": "ARRAY", "items": label},
-                                             "marks": finish_ask.mark_schema(decals, tokens, text_decals.FONTS)},
+                                             "marks": finish_ask.mark_schema(decals, tokens, text_decals.FONTS,
+                                                                             patterns)},
             "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels", "marks"]}
 
 
-def list_body(pictures, entry, record, library, wear, decals=()):
+def list_body(pictures, entry, record, library, wear, decals=(), patterns=()):
     """The request: the close-up, the views, the region views (the laid close-up's last, where the views row laid it),
     the question and its schema. `record` is the take's views record; `library` its surfaces, the tokens and the wear
     levels; `wear` the scene's level (its scene palette's); `decals` the library's decals the marks are picked from
-    for a picture mark (decal_library.catalogue; none: a picture mark is a gap); text marks are always asked."""
+    for a picture mark (decal_library.catalogue; none: a picture mark is a gap); text marks are always asked, and
+    pattern marks when the library holds `patterns` (decal_library.patterns, #210)."""
     surfaces, tokens, levels = library
     stand_in = record.get("close_up") == route_data.STAND_IN
     views = list(record["views"])
@@ -222,7 +227,7 @@ def list_body(pictures, entry, record, library, wear, decals=()):
                            laid=LAID.format(view=route_views.CLOSE_UP) if laid is not None else "",
                            shown=shown_lines(pictures["shown"]), surfaces=surface_lines(surfaces),
                            tokens=token_lines(tokens), wear=wear, levels=", ".join(levels))
-    text += finish_ask.marks_text(decals, text_decals.FONTS)
+    text += finish_ask.marks_text(decals, text_decals.FONTS, patterns)
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["regions"]]
@@ -230,7 +235,7 @@ def list_body(pictures, entry, record, library, wear, decals=()):
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
                                  "responseSchema": list_schema(surfaces, tokens, list(pictures["shown"]), levels,
-                                                               decals)}}
+                                                               decals, patterns)}}
 
 
 def library_root():
@@ -377,9 +382,9 @@ def make_list(inputs, out, seed, params):
     wear = palette["wear"]["level"]
     surfaces = {take: palette_library.take_surfaces(takes[take], palette) for take in cast_takes}
     pictures = {take: pictures_of(views / take, record["views"]) for take, record in cast_takes.items()}
-    decals = decal_library.catalogue(library_root())
-    bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear, decals)
-              for take, record in cast_takes.items()}
+    decals, patterns = decal_library.catalogue(library_root()), decal_library.patterns(library_root())
+    bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear, decals,
+                              patterns) for take, record in cast_takes.items()}
     answers = ask(bodies) if bodies else {}
     answers.update(followed_up(answers, bodies, lambda take, answer: listed(
         answer, (surfaces[take], tokens, levels), take_seed(seed, take), pictures[take]["shown"])))
@@ -395,7 +400,7 @@ def make_list(inputs, out, seed, params):
             unanswered[take] = f"no usable answer: {error!r}"[:300]
             continue
         marks = finish_ask.marks_of(json.loads(answer), decals, len(finishes), pictures[take]["close_up"].size,
-                                     text_decals.FONTS)
+                                     text_decals.FONTS, patterns)
         (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes,
                                                       "labels": labels, "marks": marks}, indent=1))
         own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the scene's wear is {wear})"

@@ -31,7 +31,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   sim.physical: friction an unweighted mean of the hulls -> 0.4, not the volume-weighted 0.3667 (cube 1 m3 metal,
   cube 2 m3 wood); its mass not the parts' sum, or bulk's band read off the shortest side -> 2 m^3 box is "small";
   sim.weighed: an answer missing a part kept -> the one-part answer to two parts passes; every part asked (no
-  UNWEIGHED skip) -> the ink of share 0.0 is asked, the two-part answer refused (#159 r11d's toaster)
+  UNWEIGHED skip) -> the ink of share 0.0 is asked, the two-part answer refused (#159 r11d's toaster); UNWEIGHED 1e-4
+  (#210) -> what the locker's vent holes show, share 0.0004, is asked and the answer refused
 - parts (#177, the cabinet's door and drawer): parts.checked keeping a box turned inside out, a hinge on no side or
   an unknown joint -> the three wrong answers pass; parts.cut with no thickness bound (the frustum alone) -> the
   carcass's front is cut into the door; parts.hinge_line taking the first edge -> the door hinges at its top;
@@ -350,10 +351,11 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
         raise AssertionError("an answer that weighs one of two parts was kept")
     except ValueError:
         pass
-    ink = [parts[0], {"words": "white printed ink", "class": "paper", "share": 0.0}, parts[1]]
+    ink = [parts[0], {"words": "white printed ink", "class": "paper", "share": 0.0}, parts[1],
+           {"words": "dark interior seen through vent holes", "class": "metal", "share": 0.0004}]
     assert sim.weighed("a toaster", [0.3, 0.2, 0.2], ink, ask=lambda body: json.dumps(
         {"whole_kg": 42, "reason": "steel", "parts": [{"part": 0, "kg": 30}, {"part": 1, "kg": 12}]})) \
-        == [30.0, 0.0, 12.0], "a part of no area is asked or weighed"
+        == [30.0, 0.0, 12.0, 0.0], "a part of no area is asked or weighed"
 
     # Moving parts (#177): the cabinet's door and drawer, seen in its close-up, cut and jointed as worked by hand.
     import trimesh

@@ -48,7 +48,16 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (route_views `close_up_texels`, each texel's close-up region at its point; route_texels.texel_parts); a lit face
   seen in a drawn mark's box is the mark's ink (covered_prints). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from
   the model's outline (`close_up_fit.py`; a camera file's `look` is read before Pixal3D's +Z rule). Scuffs are the
-  recipe's `scuffs` setting (0 by default), never a picture. parts.json stays contract
+  recipe's `scuffs` setting (0 by default), never a picture. **Vent patterns** (#210, #159 round 12: TRELLIS.2 draws a
+  locker's vent holes, a battery's slots and a humidifier's ribs as blobby bumps with black smears) are library work
+  too: the list reads each patch of openings as a mark of shape `pattern` (its opening, rows, columns, stagger,
+  outline, opening share, the way it runs, the token inside it; asked when score_lib holds surfaces of family
+  `pattern`, `decal_library.patterns`, whose tags give the opening's shape, length share, relief and roughness), its
+  library pattern's address its `decal`; `surfaces-parts` places it as a decal sized by its openings' ink on its
+  part's plate (`pattern_facing`, `near_plate`: not what its holes show behind) and draws it tiled inside its outline
+  (`pattern_decals.py`); the bake prints its openings in the token's ink and sinks them by its `relief`
+  (recipes.decal_relief); the route's own openings finish under it is covered as a print under a text mark is.
+  parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.
 - **The finish-map method is gone** (2026-10-20, #26): the crops are the places' own takes and the people's line
   runs the route's rows (`../people/line.py`), so its turntable, maps, names and SegviGen rows and modules were

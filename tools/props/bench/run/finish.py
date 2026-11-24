@@ -88,8 +88,8 @@ def token_of(linear):
 
 
 def offered_addresses(root):
-    """[(address, why left out or None)] of score_lib's surfaces in force: one painted for one model, or whose entry
-    holds no surface record, left out by name."""
+    """[(address, why left out or None)] of score_lib's surfaces in force: one painted for one model, a vent pattern
+    (decal_library.patterns, offered to the list's marks), or whose entry holds no surface record, left out by name."""
     from score import library
     found = []
     for row in library.index(root, "surface")["entries"]:
@@ -97,6 +97,9 @@ def offered_addresses(root):
             continue
         if row.get("tags", {}).get("painted_for"):
             found.append((row["address"], "painted for one model: its maps cover that model's UVs once"))
+            continue
+        if "pattern" in row.get("tags", {}).get("family", []):
+            found.append((row["address"], "a vent pattern: a mark's openings (#210), never a part's finish"))
             continue
         kind, rest = row["address"].split("/", 1)
         entry_id, version = rest.split("@")
@@ -512,6 +515,7 @@ def look_job(folder, take, model, camera, out):
             "normal": z_up(decal["normal"]), "up": z_up(decal["up"]), "size_m": decal["size"],
             "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0), "text": decal.get("text"),
             "depth": decal.get("depth", 0.0),
+            **{name: decal[name] for name in ("roughness", "relief") if decal.get(name) is not None},
             "ink": surface_library.linear(decal["ink_token"]) if decal.get("ink_token") else None})
     slots = sorted({slot_of(row) for row in rows.values()},
                    key=lambda slot: -sum(row["share"] for row in rows.values() if slot_of(row) == slot))

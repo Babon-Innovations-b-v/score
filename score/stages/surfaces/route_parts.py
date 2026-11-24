@@ -24,8 +24,9 @@ the concept"); with none in the scene library it is marked off its colour, and t
 Output: parts.json (per take its method, parts (each with its finish's `settings` or None and its own `wear`
 {level, cause} or None), finishes with the list's settings and the check's measure, `decals` (each listed mark
 placed: its library decal, part, point, facing, up and size in the take's own frame, cast through the close-up's
-camera, score #164) and `decal_gaps`; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
-the paint's face order), <take>/colours.npy (NaN: the paint joins parts on their surface alone), <take>/texels.npz
+camera, score #164; a vent pattern's drawn from its library pattern, #210) and `decal_gaps`; the takes left out and
+why), <take>/parts.npy (one part per face of the raw take, the paint's face order), <take>/colours.npy (NaN: the
+paint joins parts on their surface alone), <take>/texels.npz
 (the split's, carried: one part per texel of the model's pictures; a print a mark covers given its part's surface
 there too, covered_texels, and numbered as the faces). Gate "parts": every
 take the split split has its parts.
@@ -43,6 +44,7 @@ import numpy as np  # noqa: E402
 
 import finish_parts  # noqa: E402
 import palette_library  # noqa: E402
+import pattern_decals  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
 import route_settings  # noqa: E402
@@ -75,6 +77,15 @@ COVER_GROW = 0.25
 INK_MOST, INK_FEWEST, INK_TRIM, RULE_BIN = 6000, 20, 0.01, 0.002
 LETTER_SHARE = 0.3  # a piece of a text mark's ink is a letter when at least this share of its tallest's height
 LETTER_WIDEST = 3.0  # and at most this many times as wide as it is tall (a line's end in the box is not a letter)
+# A pattern's facing (#210, pattern_facing) is the mean normal of the faces of its part seen on a FACING_GRID x
+# FACING_GRID grid across its box: its ink is its openings, which TRELLIS.2 cuts as pits and holes whose faces turn
+# every way (the tc6 locker's door holes show the cabinet's inside), and the face under its middle is often one.
+FACING_GRID = 9
+PLATE_DEPTH = 0.01  # a pattern's ink further than this off its plate is seen through its holes (near_plate)
+# A pattern's probes lie PATTERN_EDGE_IN inside its box (#210): its box runs to its outer openings, and on the
+# humidifier's fluted body, a cylinder, the fitted camera's error put the probes at EDGE_IN off the model and on the
+# white band above it.
+PATTERN_EDGE_IN = 0.25
 PROBES = {"middle": (0.5, 0.5), "left": (EDGE_IN, 0.5), "right": (1 - EDGE_IN, 0.5), "top": (0.5, EDGE_IN),
           "bottom": (0.5, 1 - EDGE_IN)}
 
@@ -151,10 +162,18 @@ def part_finish(mesh, part_of, finish_of, part):
     return int(np.bincount(finish_of[members], weights=mesh.area_faces[members]).argmax())
 
 
-def mark_probes(box):
-    """The close-up pixels a mark's box is cast at ([column, row] for each of PROBES, in its order)."""
+def probe_edge(mark):
+    """How far inside its box a mark's side probes lie: PATTERN_EDGE_IN for a pattern, else EDGE_IN."""
+    return PATTERN_EDGE_IN if mark.get("shape") == pattern_decals.SHAPE else EDGE_IN
+
+
+def mark_probes(box, edge=EDGE_IN):
+    """The close-up pixels a mark's box is cast at ([column, row] for each of PROBES, in its order), its side probes
+    `edge` of the box inside its edges."""
     left, top, wide, tall = box
-    return [[left + across * wide, top + down * tall] for across, down in PROBES.values()]
+    shares = {"middle": (0.5, 0.5), "left": (edge, 0.5), "right": (1 - edge, 0.5), "top": (0.5, edge),
+              "bottom": (0.5, 1 - edge)}
+    return [[left + shares[name][0] * wide, top + shares[name][1] * tall] for name in PROBES]
 
 
 def spanned(points, on_part, first, second, inner):
@@ -171,17 +190,22 @@ def square_up(up, normal):
     return None if length < 1e-6 else up / length
 
 
-def placement(mark, number, faces, points, part_of, normals, seen):
+def placement(mark, number, faces, points, part_of, normals, seen, finish_of=None):
     """One mark's placement ({decal, part, at, normal, up, size, turn, layer, ink_token, what, from}) in the take's own
-    frame, or the reason it cannot be placed: its middle off the model, or both its sizes off its part."""
+    frame, or the reason it cannot be placed: its middle off the model, or both its sizes off its part. A pattern's
+    probes may lie on any part of its part's finish (`finish_of`, a face's; #210: the split cut the humidifier's
+    fluted body into islands, and its ribs run round them all), where the bake prints it alike."""
     names = list(PROBES)
     middle = faces[names.index("middle")]
     if middle < 0:
         return None, "its box's middle is off the model"
     part = int(part_of[middle])
-    on_part = {name: faces[at] >= 0 and part_of[faces[at]] == part for at, name in enumerate(names)}
+    if mark.get("shape") == pattern_decals.SHAPE and finish_of is not None:
+        on_part = {name: faces[at] >= 0 and finish_of[faces[at]] == finish_of[middle] for at, name in enumerate(names)}
+    else:
+        on_part = {name: faces[at] >= 0 and part_of[faces[at]] == part for at, name in enumerate(names)}
     points = dict(zip(names, np.asarray(points, dtype=float)))
-    inner = 1 - 2 * EDGE_IN
+    inner = 1 - 2 * probe_edge(mark)
     wide = spanned(points, on_part, "left", "right", inner)
     tall = spanned(points, on_part, "top", "bottom", inner)
     if wide is None and tall is None:
@@ -196,25 +220,33 @@ def placement(mark, number, faces, points, part_of, normals, seen):
     rounded = lambda vector: [round(float(value), 5) for value in vector]  # noqa: E731
     drawn = {"shape": mark["shape"], "text": mark.get("text"), "look": mark.get("look"),
              "font": text_decals.FONTS.get(mark.get("look"))} if mark.get("shape") in text_decals.DRAWN else {}
+    if mark.get("shape") == pattern_decals.SHAPE:
+        drawn = {"shape": mark["shape"], **{name: mark.get(name) for name in PATTERN_FIELDS}}
     return {"decal": mark["decal"], "part": part, "at": rounded(points["middle"]), "normal": rounded(normal),
             "up": rounded(up), "size": [round(wide, 5), round(tall, 5)], "turn": 0.0, "layer": number,
             "ink_token": mark.get("ink_token"), "what": mark.get("what", ""), **drawn,
             "from": {"close_up_box": mark["box"], "seen": seen}}, None
 
 
-def decal_placements(marks, part_of, normals, cast, seen):
+# The fields a pattern mark carries into its placement (finish_ask.pattern_row), which pattern_decals draws by and the
+# bake prints by (its relief and roughness).
+PATTERN_FIELDS = ("opening", "opening_shape", "length_share", "relief", "roughness", "rows", "columns", "staggered",
+                  "outline", "opening_share", "along")
+
+
+def decal_placements(marks, part_of, normals, cast, seen, finish_of=None):
     """(placements, gaps) of a take's listed marks (route_list's, finish_ask.marks_of): each mark naming a library
     decal, and each text or line mark (text_decals.DRAWN, drawn in a library face), cast through the close-up
     (`cast(pixels)` -> (faces, points in the take's own frame), route_cast.cast_points) and placed on the part under
     its middle (placement); a mark with a gap, or with no decal and not drawn, or that cannot be placed, a gap naming
-    why. `seen` says which close-up the boxes are in."""
+    why. `seen` says which close-up the boxes are in; `finish_of` (a face's) lets a pattern span its finish's parts."""
     placements, gaps = [], []
     for number, mark in enumerate(marks):
         if mark.get("gap") or (mark.get("decal") is None and mark.get("shape") not in text_decals.DRAWN):
             gaps.append({"what": mark.get("what", ""), "why": mark.get("gap") or "no library decal named"})
             continue
-        faces, points = cast(mark_probes(mark["box"]))
-        found, why = placement(mark, number, faces, points, part_of, normals, seen)
+        faces, points = cast(mark_probes(mark["box"], probe_edge(mark)))
+        found, why = placement(mark, number, faces, points, part_of, normals, seen, finish_of)
         if found is None:
             gaps.append({"what": mark.get("what", ""), "decal": mark["decal"], "why": why})
         else:
@@ -444,7 +476,7 @@ def inked(marks, close_up, inks):
     found, pixels = [], []
     for mark in marks:
         token = (inks or {}).get(mark.get("ink_token"))
-        if mark.get("gap") or mark.get("shape") not in text_decals.DRAWN or token is None:
+        if mark.get("gap") or mark.get("shape") not in (*text_decals.DRAWN, pattern_decals.SHAPE) or token is None:
             found.append(mark)
             pixels.append(None)
             continue
@@ -459,7 +491,7 @@ def inked(marks, close_up, inks):
     return found, pixels
 
 
-def take_decals(seen, marks, part_of, out, inks=None, close_up=None):
+def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=None):
     """(placements, gaps) of a take's marks: cast through its own close-up's camera (`seen`, close_up_seen), each text
     or line mark placed and sized by its ink in the `close_up` (inked, ink_extent; `inks` the palette's
     {token: "#rrggbb"}) and its picture drawn into `out` (text_decals.drawn, its placement's `picture` that file's name
@@ -472,19 +504,58 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None):
         return [], [{"what": mark.get("what", ""), "decal": mark.get("decal"), "why": why} for mark in marks]
     marks, pixels = inked(marks, close_up, inks)
     placements, gaps = decal_placements(marks, part_of, model.mesh.face_normals,
-                                        lambda pixels: cast.cast_points(model, camera, size, pixels), "close-up")
+                                        lambda pixels: cast.cast_points(model, camera, size, pixels), "close-up",
+                                        finish_of)
     for number, placement in enumerate(placements):
-        if placement.get("shape") not in text_decals.DRAWN:
+        patterned = placement.get("shape") == pattern_decals.SHAPE
+        if placement.get("shape") not in text_decals.DRAWN and not patterned:
             continue
         ink = pixels[placement["layer"]]
         if ink is not None and len(ink):
             faces, points = cast.cast_points(model, camera, size, ink)
             kept = (faces >= 0) & (part_of[np.maximum(faces, 0)] == placement["part"])
-            placement = ink_extent(placement, points[kept], model.mesh.face_normals[faces[kept]])
-        placements[number] = dict(placement, picture=f"text-{number:02d}.png",
-                                  px_per_m=text_decals.density(placement))
-        text_decals.drawn(placements[number]).save(out / placements[number]["picture"])
+            if patterned and finish_of is not None:  # its finish's parts (placement)
+                kept = (faces >= 0) & (finish_of[np.maximum(faces, 0)] == finish_of[part_faces(part_of, placement)])
+            normals = model.mesh.face_normals[faces[kept]]
+            if patterned:
+                facing = pattern_facing(marks[placement["layer"]]["box"], placement, part_of, model.mesh.face_normals,
+                                        lambda pixels: cast.cast_points(model, camera, size, pixels))
+                kept[kept] = near_plate(points[kept], facing)
+                normals = np.tile(facing, (int(kept.sum()), 1))
+            placement = ink_extent(placement, points[kept], normals)
+        drawer = pattern_decals if patterned else text_decals
+        placements[number] = dict(placement, picture=f"{'pattern' if patterned else 'text'}-{number:02d}.png",
+                                  px_per_m=drawer.density(placement))
+        drawer.drawn(placements[number]).save(out / placements[number]["picture"])
     return placements, gaps
+
+
+def part_faces(part_of, placement):
+    """One face of a placement's part."""
+    return int(np.flatnonzero(part_of == placement["part"])[0])
+
+
+def near_plate(points, facing):
+    """Which of a pattern's ink `points` lie within PLATE_DEPTH of their median along its `facing`: the pits TRELLIS.2
+    cut at its openings, not what is seen through its holes (the locker's cabinet inside, 0.3 m behind its door)."""
+    along = np.asarray(points, dtype=float) @ facing
+    return np.abs(along - np.median(along)) <= PLATE_DEPTH if len(along) else np.zeros(0, dtype=bool)
+
+
+def pattern_facing(box, placement, part_of, normals, cast_pixels):
+    """A pattern's facing (#210): the mean of the normals of its part's faces seen on a FACING_GRID x FACING_GRID grid
+    across its `box`, of length 1; its placement's own normal when none is."""
+    left, top, wide, tall = box
+    steps = (np.arange(FACING_GRID) + 0.5) / FACING_GRID
+    grid = np.array([[left + across * wide, top + down * tall] for down in steps for across in steps])
+    faces, _ = cast_pixels(grid)
+    faces = faces[(faces >= 0)]
+    faces = faces[part_of[faces] == placement["part"]]
+    if not len(faces):
+        return np.asarray(placement["normal"], dtype=float)
+    mean = normals[faces].mean(0)
+    length = float(np.linalg.norm(mean))
+    return np.asarray(placement["normal"], dtype=float) if length < 1e-6 else mean / length
 
 
 def part_wear(rows, finishes, mesh, part_of, finish_of):
@@ -574,7 +645,7 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
     part_wear(rows, checked, mesh, part_of, finish_of)
-    decals, decal_gaps = take_decals(seen, marks, part_of, folders["out"], inks, folders.get("close_up"))
+    decals, decal_gaps = take_decals(seen, marks, part_of, folders["out"], inks, folders.get("close_up"), finish_of)
     return {"method": METHOD, "object": entry.get("object"), "parts": rows, "judge_unknown": [], "finishes": checked,
             "colour_from": colour_from, "decals": decals, "decal_gaps": decal_gaps,
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked),

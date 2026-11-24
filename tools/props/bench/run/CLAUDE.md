@@ -12,7 +12,8 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
 - **Branch B's finish** (`finish.py`, #168): the final model through the surface stage's finish route (views, list,
   split, parts; the list asked of Claude as a place's line asks it, EUR 0), on the benchmark place's surface library:
   score_lib's surfaces in force with a recipe (the adopted tiling set at its fitted settings, the recipes), each colour
-  a palette token; a surface painted for one model, or with no recipe, is left out by name. TRELLIS.2 gives no
+  a palette token; a surface painted for one model, a vent pattern (#210: a mark's openings, offered to the list's
+  marks), or one with no recipe, is left out by name. TRELLIS.2 gives no
   close-up camera, so one is fitted from its outline against the cut-out close-up (`rgba.png`; surfaces
   close_up_fit.py, #171), and text marks are drawn as text decals through it; the bake is a place's and not run. The
   measures read its parts as B's finish groups and each part's surface family (`family`) against the truth's.

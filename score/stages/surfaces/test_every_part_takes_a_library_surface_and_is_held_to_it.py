@@ -508,6 +508,17 @@ tests it turned red:
   smoothed away); route_texels.py texel_parts `picked[kept], picked[shown] = ...` -> `pass` (a lit part's texels the
   texture's); route_views.py close_up_texels `np.where(seen, ...)` -> the region alone (a texel the close-up does not
   see given its region), texel_points' corner sum -> `ends.mean(1)` (each texel at its face's middle)
+- Vent patterns (#210), each -> every_part_takes_a_library_surface_and_is_held_to_it (pattern_marks_held):
+  finish_ask.py pattern_gap's `if pattern is None:` -> `if False:` (a pattern of an opening the library has none of
+  drawn, TypeError); its ink token check -> `if False:` (openings drawn in no ink); marks_of `(*SHAPES, PATTERN)` ->
+  `SHAPES` (a pattern read as a picture mark, a gap); decal_library.py patterns' withdrawn check dropped (a withdrawn
+  pattern offered); route_parts.py placement's pattern fields dropped (the drawer has no rows); pattern_decals.py
+  centres' `- 1 if moved` dropped (a staggered row's last opening past the box), `inside(...)` -> `True` (the diamond
+  drawn as a full grid), pitches' `(columns - 1 + fill_across)` -> `(columns + 0)` (openings short of the box's
+  edges); near_plate's `<= PLATE_DEPTH` -> `<= 1.0` (what the holes show 0.3 m behind sizes the pattern); pattern_facing's part check
+  dropped (a cabinet face of another part tilts the facing); placement's same-finish probes -> same part (the
+  humidifier's ribs a gap); probe_edge's PATTERN_EDGE_IN -> EDGE_IN (its probes off the cylinder); recipes.py
+  decal_depth's `if decal.get("relief"):` -> `if False:` (the ribs printed in a band round the cylinder)
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
   every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
   finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
@@ -564,7 +575,7 @@ from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, close_up_fit,  # noqa: E402
-                                   decal_library, text_decals,
+                                   decal_library, pattern_decals, text_decals,
                                    finish_ask, finish_parts,
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
@@ -2742,6 +2753,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         {"decal": "surface/decal_arrow@1", "part": 1, "ink_token": "sign-black", "finish": "yellow_plastic",
          "image": "/lib/decal.png", "ink": [0.01, 0.01, 0.01]}]
     text_marks_held()  # words and numbers drawn as text decals in a library face, on a fitted camera (#171)
+    pattern_marks_held()  # vent and perforation patterns drawn from a library pattern, never TRELLIS.2's bumps (#210)
 
 
 # A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
@@ -2833,6 +2845,7 @@ def text_marks_held():
     depth = inside_function(REPO / "tools/props/library/recipes.py", "decal_depth", {"DECAL_DEPTH"})
     assert [depth({"size_m": [0.006, 0.0025], **reach}) for reach in ({}, {"depth": 0.001}, {"depth": 0.5})] == [
         0.000625, 0.001, 0.02]  # the slab reaches the raised letters its ink was seen on, never past DECAL_DEPTH
+    assert depth({"size_m": [0.24, 0.75], "relief": 0.001}) == 0.12  # a pattern reaches round its curved part (#210)
     sharp = inside_function(REPO / "tools/props/library/inside/bake.py", "sharp_slots",
                             {"SHARP_SCALE", "SHARP_FROM", "SHARP_FAMILIES", "COLOUR_SHARE"})
     print_slot = {"decals": [{"px_per_m": text_decals.density({"shape": "text", "size": [0.00412, 0.00252]})}]}
@@ -2913,6 +2926,106 @@ def text_marks_held():
                                   np.c_[columns.ravel() + 0.5, rows.ravel() + 0.5])[0].reshape(512, 512) >= 0
     fitted = close_up_fit.fitted_camera(model, seen, 35.0, 15.0)["fitted"]
     assert fitted["fit"] > 0.97 and abs(fitted["turn"] - 41.0) <= 2 and abs(fitted["down"] - 18.0) <= 2, fitted
+
+
+PATTERNS = [{"address": "surface/vent_round_holes@1", "opening": "round holes", "shape": "disk", "length_share": 1.0,
+             "relief": 0.0015, "roughness": 0.9, "title": "Vent round holes (pattern)"},
+            {"address": "surface/vent_slots@1", "opening": "slots", "shape": "stadium", "length_share": 0.8,
+             "relief": 0.0015, "roughness": 0.9, "title": "Vent slots (pattern)"}]
+# A pattern's picture (pattern_decals.drawn): (case, its placement, the openings drawn, each the full opening). The
+# locker's door vents: a 4-wide diamond of 16 holes in a rotated grid (rows 1, 2, 3, 4, 3, 2, 1); a drill battery's
+# two rows of eight slots; a box 4 x 3 holes.
+PATTERN_PICTURES = [
+    ("the locker's diamond: 16 holes", {"opening_shape": "disk", "rows": 7, "columns": 4, "staggered": True,
+                                        "outline": "diamond", "opening_share": 0.4, "size": [0.06, 0.084]}, 16),
+    ("two rows of eight slots", {"opening_shape": "stadium", "length_share": 0.8, "rows": 2, "columns": 8,
+                                 "outline": "rectangle", "opening_share": 0.45, "along": "up",
+                                 "size": [0.05, 0.03]}, 16),
+    ("a grid of 4 x 3 holes", {"opening_shape": "disk", "rows": 3, "columns": 4, "outline": "rectangle",
+                               "opening_share": 0.5, "size": [0.07, 0.05]}, 12),
+]
+
+
+def pattern_marks_held():
+    """Vent patterns (#210): the list's pattern marks read (marks_of: a library pattern by its opening, the counts,
+    stagger, outline and share), the library's patterns offered (decal_library.patterns), each placed with its fields
+    (decal_placements), drawn as its openings tiled inside its outline, its box tight round them (pattern_decals), its
+    facing and size from its part's plate, not what its holes show (pattern_facing, near_plate), and the route's own
+    openings under it covered as a print is (covering)."""
+    from scipy import ndimage
+    listed = {"box_2d": [100, 200, 300, 300], "what": "door vent", "shape": "pattern", "opening": "round holes",
+              "rows": 7, "columns": 4, "staggered": True, "outline": "diamond", "opening_share": 1.4, "ink": "one",
+              "ink_token": "vent-black", "on_finish": 1, "print_finish": 2}
+    marked = finish_ask.marks_of({"marks": [listed, dict(listed, opening="hexagons"), dict(listed, ink_token=None),
+                                            dict(listed, rows=0)]}, [], 2, (1000, 500), text_decals.FONTS, PATTERNS)
+    assert [(mark["shape"], mark["decal"], mark["gap"]) for mark in marked] == [
+        ("pattern", "surface/vent_round_holes@1", None),
+        ("pattern", None, "no library pattern is its opening 'hexagons'"),
+        ("pattern", None, "a pattern mark names no palette token for inside its openings"),
+        ("pattern", None, "a pattern mark counts no rows or columns of openings")], marked
+    assert {name: marked[0][name] for name in ("opening_shape", "rows", "columns", "staggered", "outline",
+                                               "opening_share", "relief", "print_finish")} == {
+        "opening_shape": "disk", "rows": 7, "columns": 4, "staggered": True, "outline": "diamond",
+        "opening_share": finish_ask.OPENING_SHARE[1], "relief": 0.0015, "print_finish": 1}, marked[0]
+    assert finish_ask.marks_of({"marks": [listed]}, [], 2, (1000, 500), text_decals.FONTS)[0]["gap"].startswith(
+        "no library pattern")  # a library with no pattern draws none
+    asked = finish_ask.mark_schema([], ["vent-black"], text_decals.FONTS, PATTERNS)["items"]["properties"]
+    assert "pattern" in asked["shape"]["enum"] and asked["opening"]["enum"] == ["round holes", "slots"], asked
+    assert "pattern" not in finish_ask.mark_schema([], ["vent-black"], text_decals.FONTS)["items"]["properties"][
+        "shape"]["enum"]
+    assert "round holes, slots" in finish_ask.marks_text([], text_decals.FONTS, PATTERNS) and \
+        "pattern" not in finish_ask.marks_text([], text_decals.FONTS)
+    with tempfile.TemporaryDirectory() as folder:  # the patterns offered: the library's in force, of a shape drawn
+        (pathlib.Path(folder) / "index").mkdir()
+        (pathlib.Path(folder) / "index" / "surface.json").write_text(json.dumps({
+            "schema": "score-lib-index/1", "kind": "surface", "entries": [
+                {"address": "surface/vent_round_holes@1", "state": "draft", "title": "Vent round holes (pattern)",
+                 "tags": {"family": ["pattern"], "opening": ["round holes"], "shape": ["disk"],
+                          "length_share": ["1.0"], "relief_m": ["0.0015"], "roughness": ["0.9"]}},
+                {"address": "surface/vent_old@1", "state": "withdrawn", "title": "old",
+                 "tags": {"family": ["pattern"], "opening": ["slots"], "shape": ["stadium"]}},
+                {"address": "surface/vent_star@1", "state": "draft", "title": "star",
+                 "tags": {"family": ["pattern"], "opening": ["stars"], "shape": ["star"]}},
+                {"address": "surface/decal_label@1", "state": "draft", "title": "label",
+                 "tags": {"family": ["decal"]}}]}))
+        assert decal_library.patterns(folder) == PATTERNS[:1] and decal_library.patterns(None) == []
+    found, missed = route_parts.decal_placements(marked, np.array([0, 1]), np.array([[0.0, 0.0, 1.0]] * 2),
+                                                 plane_cast([0] * 5), "close-up")
+    assert len(found) == 1 and len(missed) == 3 and found[0]["decal"] == "surface/vent_round_holes@1", (found, missed)
+    assert {name: found[0][name] for name in ("shape", "opening_shape", "rows", "columns", "outline", "size")} == {
+        "shape": "pattern", "opening_shape": "disk", "rows": 7, "columns": 4, "outline": "diamond",
+        "size": [0.1, 0.1]}, found[0]
+    assert route_parts.covering(marked[0]) and not route_parts.covering(marked[1])  # the route's openings covered
+    # Ribs round a fluted body the split cut into islands (the humidifier, round 12): its probes on other parts of its
+    # finish are on it; on another finish's, never.
+    islands = route_parts.decal_placements(marked[:1], np.array([0, 1, 2]), np.array([[0.0, 0.0, 1.0]] * 3),
+                                           plane_cast([0, 1, 1, 1, 1]), "close-up", np.array([0, 0, 1]))
+    assert islands[0] and islands[0][0]["size"] == [0.1, 0.1], islands
+    other = route_parts.decal_placements(marked[:1], np.array([0, 1, 2]), np.array([[0.0, 0.0, 1.0]] * 3),
+                                         plane_cast([0, 2, 2, 2, 2]), "close-up", np.array([0, 0, 1]))
+    assert not other[0] and other[1][0]["why"] == "it spans more than its part 0", other
+    # its side probes lie PATTERN_EDGE_IN inside its box (the fitted camera's error put EDGE_IN's off the cylinder)
+    assert route_parts.mark_probes([0, 0, 100, 100], route_parts.probe_edge(marked[0]))[1:3] == [[25, 50], [75, 50]]
+    for case, placement, count in PATTERN_PICTURES:
+        placement = {"length_share": 1.0, "staggered": False, "along": "up", **placement}
+        alpha = np.asarray(pattern_decals.drawn(placement))[..., 3] > 127
+        pieces, number = ndimage.label(alpha)
+        sizes = np.bincount(pieces.ravel())[1:]
+        assert number == count and sizes.min() > 0.8 * sizes.max(), (case, number, sizes)
+        rows, columns = np.nonzero(alpha)  # the box is tight round its openings
+        assert columns.min() <= 1 and columns.max() >= alpha.shape[1] - 2, (case, columns.min(), columns.max())
+        assert rows.min() <= 1 and rows.max() >= alpha.shape[0] - 2, (case, rows.min(), rows.max())
+    # A plate facing +z at z = 0 with holes through it showing a wall 0.3 m behind: the pattern's size comes from the
+    # plate's ink, its facing from the plate's faces of its part on the grid (a face of another part tilted away).
+    plate = np.c_[np.linspace(0.0, 0.1, 50), np.linspace(0.0, 0.08, 50), np.zeros(50)]
+    behind = np.c_[np.linspace(-0.2, 0.3, 20), np.linspace(-0.2, 0.3, 20), np.full(20, -0.3)]
+    kept = route_parts.near_plate(np.r_[plate, behind], np.array([0.0, 0.0, 1.0]))
+    assert kept[:50].all() and not kept[50:].any(), kept
+    normals = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
+    tilted = lambda pixels: (np.arange(len(pixels)) % 2, None)  # noqa: E731
+    facing = route_parts.pattern_facing([0, 0, 90, 90], {"part": 0, "normal": [0.0, 1.0, 0.0]},
+                                        np.array([0, 1]), normals, tilted)
+    assert np.allclose(facing, [0.0, 0.0, 1.0]), facing
 
 
 def plane_cast(parts, scale=0.001):

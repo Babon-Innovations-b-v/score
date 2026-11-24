@@ -91,8 +91,24 @@ DECALS_TEXT = """
 For a picture mark, FIRST say which of these library decals it is (its code), with "fits" false when none of them is
 that mark (then give the closest code). The library's decals:
 {decals}"""
+# Added to MARKS when the library holds patterns (#210, pattern_decals.py): a vent or perforation pattern is a mark of
+# its own, drawn from a library pattern at the pitch read here, never TRELLIS.2's bumps.
+PATTERNS = """
+Also list each regular pattern of openings cut, punched or moulded into a surface (vent holes, perforations, cooling
+slots, grille slots, ribs or grooves) as a mark of shape "pattern", one mark for each separate patch of openings, its
+box tight round the openings' outer edges. Give its "opening", the nearest of: {openings}; "rows" (how many rows of
+openings from top to bottom in the picture) and "columns" (the most openings in one row; for ribs or long slots that
+run top to bottom, rows is 1 and columns their count); "staggered" (true when every second row is moved half a spacing
+across, as in a diamond or honeycomb grid); "outline", the shape the openings fill together: one of {outlines};
+"opening_share", one opening's width across its narrow side as a share of the distance between neighbouring
+openings' middles (0.1 to 0.9); "along" for slots and ribs, "up" when they run top to bottom in the picture, else
+"across"; "ink": "one", with "ink_token" the palette token nearest the colour seen inside the openings; "on_finish"
+the finish they are cut into, and "print_finish" the finish in your list that is the openings themselves, when you
+listed them as a finish of their own, else 0. Count the openings in the picture; do not guess."""
 BOX_SCALE = 1000.0  # a mark's box in thousandths of the close-up's height and width
 SHAPES = ("text", "rule", "picture")
+PATTERN = "pattern"  # a mark of openings (#210), offered when the library holds patterns
+OPENING_SHARE = (0.05, 0.95)  # an opening's width as a share of its spacing, held inside these
 
 
 def decal_codes(decals):
@@ -110,23 +126,35 @@ def decal_lines(decals):
     return "\n".join(lines) or "- (the library holds no decal)"
 
 
-def marks_text(decals, looks):
-    """The MARKS paragraph: text marks read in one of `looks` (text_decals.FONTS), and the library's `decals` offered
-    for a picture mark when it holds any."""
-    return MARKS.format(looks=", ".join(looks), decals=DECALS_TEXT.format(decals=decal_lines(decals)) if decals else "")
+def marks_text(decals, looks, patterns=()):
+    """The MARKS paragraph: text marks read in one of `looks` (text_decals.FONTS), the library's `decals` offered
+    for a picture mark when it holds any, and pattern marks asked when it holds `patterns` (decal_library.patterns)."""
+    import pattern_decals
+    text = MARKS.format(looks=", ".join(looks), decals=DECALS_TEXT.format(decals=decal_lines(decals)) if decals else "")
+    return text + (PATTERNS.format(openings=", ".join(pattern["opening"] for pattern in patterns),
+                                   outlines=", ".join(pattern_decals.OUTLINES)) if patterns else "")
 
 
-def mark_schema(decals, tokens, looks):
+def mark_schema(decals, tokens, looks, patterns=()):
     """The schema of the answer's `marks`: a box, what, its shape, its words and typeface look, ink (a one-ink mark's
-    palette token), the finish it is on and the finish it is itself, and, with decals offered, a decal code and fits."""
+    palette token), the finish it is on and the finish it is itself, with decals offered a decal code and fits, and
+    with `patterns` a pattern mark's opening, rows, columns, stagger, outline, opening share and the way it runs."""
+    import pattern_decals
+    shapes = [*SHAPES, PATTERN] if patterns else list(SHAPES)
     properties = {"box_2d": {"type": "ARRAY", "items": {"type": "INTEGER"}}, "what": {"type": "STRING"},
-                  "shape": {"type": "STRING", "enum": list(SHAPES)}, "text": {"type": "STRING"},
+                  "shape": {"type": "STRING", "enum": shapes}, "text": {"type": "STRING"},
                   "look": {"type": "STRING", "enum": list(looks)},
                   "ink": {"type": "STRING", "enum": ["one", "many"]},
                   "ink_token": {"type": "STRING", "enum": list(tokens)}, "on_finish": {"type": "INTEGER"},
                   "print_finish": {"type": "INTEGER"}}
     if decals:
         properties.update(decal={"type": "STRING", "enum": decal_codes(decals)}, fits={"type": "BOOLEAN"})
+    if patterns:
+        properties.update(opening={"type": "STRING", "enum": [pattern["opening"] for pattern in patterns]},
+                          rows={"type": "INTEGER"}, columns={"type": "INTEGER"}, staggered={"type": "BOOLEAN"},
+                          outline={"type": "STRING", "enum": list(pattern_decals.OUTLINES)},
+                          opening_share={"type": "NUMBER"},
+                          along={"type": "STRING", "enum": list(pattern_decals.ALONG)})
     return {"type": "ARRAY", "items": {"type": "OBJECT", "properties": properties,
                                        "required": ["box_2d", "what", "shape", "ink", "on_finish"],
                                        "propertyOrdering": list(properties)}}
@@ -157,11 +185,42 @@ def decal_gap(mark, decal):
     return None
 
 
-def marks_of(answer, decals, finishes, close_up_size, looks=()):
+def pattern_gap(mark, pattern):
+    """Why a pattern mark cannot be drawn (no library pattern of its opening, no openings counted, no palette token
+    for what is seen inside them), or None."""
+    if pattern is None:
+        return f"no library pattern is its opening {mark.get('opening')!r}"
+    if int(mark.get("rows") or 0) < 1 or int(mark.get("columns") or 0) < 1:
+        return "a pattern mark counts no rows or columns of openings"
+    if not mark.get("ink_token"):
+        return "a pattern mark names no palette token for inside its openings"
+    return None
+
+
+def pattern_row(mark, patterns):
+    """A pattern mark's own fields (#210): its library pattern's address as its `decal`, its opening's shape, length
+    share, relief and roughness, and the mark's rows, columns, stagger, outline, opening share (held inside
+    OPENING_SHARE) and the way it runs; with `gap` naming why it cannot be drawn (pattern_gap)."""
+    import pattern_decals
+    pattern = next((each for each in patterns if each["opening"] == mark.get("opening")), None)
+    gap = pattern_gap(mark, pattern)
+    share = min(max(float(mark.get("opening_share") or 0.5), OPENING_SHARE[0]), OPENING_SHARE[1])
+    return {"decal": None if gap else pattern["address"], "gap": gap, "opening": mark.get("opening"),
+            "opening_shape": pattern and pattern["shape"], "length_share": pattern and pattern["length_share"],
+            "relief": pattern and pattern["relief"], "roughness": pattern and pattern["roughness"],
+            "rows": int(mark.get("rows") or 0), "columns": int(mark.get("columns") or 0),
+            "staggered": bool(mark.get("staggered")),
+            "outline": mark.get("outline") if mark.get("outline") in pattern_decals.OUTLINES else "rectangle",
+            "opening_share": share,
+            "along": mark.get("along") if mark.get("along") in pattern_decals.ALONG else "up"}
+
+
+def marks_of(answer, decals, finishes, close_up_size, looks=(), patterns=()):
     """The answer's marks: each box in the close-up's pixels ([x, y, width, height]), what, shape, ink (a one-ink
     mark's palette token), the finish it is on and the finish that is its print (0-based, None: not listed), and a text
-    mark's words and look, or a picture mark's decal's address; None with `gap` naming why one cannot be printed
-    (drawn_gap, decal_gap). A mark on no finish of the list, or with no area, is left out; one with no shape is a
+    mark's words and look, a picture mark's decal's address, or a pattern mark's library pattern and counts
+    (pattern_row, `patterns` decal_library.patterns); None with `gap` naming why one cannot be printed (drawn_gap,
+    decal_gap, pattern_gap). A mark on no finish of the list, or with no area, is left out; one with no shape is a
     picture."""
     names, codes = [decal["address"] for decal in decals], decal_codes(decals)
     wide, tall = close_up_size
@@ -173,13 +232,15 @@ def marks_of(answer, decals, finishes, close_up_size, looks=()):
         top, left, bottom, right = (min(max(float(value), 0.0), BOX_SCALE) / BOX_SCALE for value in box)
         if bottom <= top or right <= left:
             continue
-        shape = mark.get("shape") if mark.get("shape") in SHAPES else "picture"
+        shape = mark.get("shape") if mark.get("shape") in (*SHAPES, PATTERN) else "picture"
         printed = int(mark.get("print_finish") or 0) - 1
         row = {"box": [round(left * wide), round(top * tall), round((right - left) * wide),
                        round((bottom - top) * tall)], "what": mark.get("what", ""), "shape": shape,
                "ink": mark.get("ink"), "ink_token": mark.get("ink_token") if mark.get("ink") == "one" else None,
                "on_finish": finish, "print_finish": printed if 0 <= printed < finishes and printed != finish else None}
-        if shape in ("text", "rule"):
+        if shape == PATTERN:
+            row.update(text=None, look=None, **pattern_row(mark, patterns))
+        elif shape in ("text", "rule"):
             gap = drawn_gap(mark, looks)
             row.update(text=str(mark.get("text") or "").strip() if shape == "text" else None,
                        look=mark.get("look") if shape == "text" else None, decal=None, gap=gap)
