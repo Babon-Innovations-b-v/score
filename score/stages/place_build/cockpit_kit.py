@@ -13,8 +13,9 @@ front +z) and written as built.
 The capsule's body, each a closed piece over its cone (Cone: `radius`, `slope`, `hull`, `lining`, ... as CONE):
 - `hull`: the smooth pressure hull, its round `holes` [[theta, y, r]] (portholes, hatch) open for their sleeves and
   the cut-away (`cut` [theta, half theta, y, half y, power]) its "main" body's gap and its "plug" (`which`).
-- `lining`: the quilted vinyl lining from the floor to the ceiling: big stuffed pillows in courses meeting in deep
-  creases, a bolster along the floor, eased flat round each hole (`fades`), each mounting plate (`flats`, flat_spot)
+- `lining`: the quilted vinyl lining from the floor to the ceiling: big stuffed pillows of their own widths in
+  courses meeting in deep creases, curving over into the ceiling at its top (`rise` keeps one height of it), a
+  bolster along the floor, eased flat round each hole (`fades`), each mounting plate (`flats`, flat_spot)
   set into it with the cushions it cuts swelling from a crease against its edge;
   holes and cut-away as the hull's, a wall (`sector`) ending along the seams round its cushions.
 - `ceiling` (its lamps' spots flat), `floor` (the round plate, the walked ground, one faint hatch ring), `skirt`
@@ -87,6 +88,8 @@ FONT = {
 
 
 # --- shapes: each a (part, points, triangles, smooth) piece ----------------------------------------------------------
+# (`smooth` True, False, or each point's own unit normal (n x 3) where a surface's shading must run on unbroken
+# across its parts and across the walls it is cut into: the lining's cushions)
 
 def piece(part, points, triangles, smooth):
     """One piece: its part, points (n x 3), triangles (m x 3, wound to face out) and whether it shades smooth."""
@@ -97,7 +100,8 @@ def piece(part, points, triangles, smooth):
 def moved(pieces, rotation=None, offset=(0.0, 0.0, 0.0)):
     """The pieces turned by `rotation` (3 x 3) and moved by `offset`."""
     turn = np.eye(3) if rotation is None else np.asarray(rotation, dtype=np.float64)
-    return [(part, points @ turn.T + np.asarray(offset, dtype=np.float64), triangles, smooth)
+    return [(part, points @ turn.T + np.asarray(offset, dtype=np.float64), triangles,
+             smooth @ turn.T if isinstance(smooth, np.ndarray) else smooth)
             for part, points, triangles, smooth in pieces]
 
 
@@ -691,18 +695,24 @@ def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, split=0.5, **
 # --- the capsule: its cone's hull, lining, ceiling and floor, built in the capsule's own frame -----------------------
 
 CONE = {"radius": 1.40, "slope": 0.22, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.04,
-        "bolster_high": 0.32, "puff": 0.07, "ceiling": 2.05}
-ROWS = (0.0, 0.30, 0.59, 0.88, 1.17, 1.46, 1.75, 2.05)  # the lining's courses, metres up from the floor
-COLUMNS = 18  # cushions round every course: their seams run up the cone's slope, one gore over another (quilting,
-# owner 2026-11-24: "uggly creme bricks"; never a brick bond)
-PILLOW = 2.6  # the power of a cushion's outline (a superellipse): its corners rounded in, pinched into the creases
-FULLNESS = 0.42  # how fast a cushion swells from its crease (a power under 1: a fat pillow, its sides steep)
+        "bolster_high": 0.32, "puff": 0.09, "ceiling": 2.05, "shoulder": 1.80, "inset": 0.30}
+ROWS = (0.0, 0.30, 0.59, 0.88, 1.30, 1.80, 2.05)  # the lining's courses, metres up from the floor (of its back):
+# the fourth behind the screens, the fifth round the portholes (never a seam through one), the last over the shoulder
+CUSHION_WIDE = 0.40  # metres round a cushion on average, along its course's middle on the lining's face
+WIDE_SPREAD = 0.4  # how far each cushion's width strays from that, a share of it either way: every course's cushions
+# of their own widths and its seams set off from the next's at random (the concept's stuffed pillows; owner
+# 2026-11-24: "uggly creme bricks", never a flat grid of equal tiles)
+CUSHION_SEED = 2099  # the cushions' widths and offsets drawn from it, so the lining is the same every time
+PILLOW = 3.2  # the power of a cushion's outline (a superellipse): its corners rounded in, pinched into the creases
+FULLNESS = 0.36  # how fast a cushion swells from its crease (a power under 1: a fat pillow, its sides steep)
 CUT_FLAT = 0.03  # metres along the wall either side of the cut-away's outline the quilting lies flat
-FADE = 0.06  # metres over which the quilting eases flat round a porthole or a hatch
+FADE = 0.14  # metres over which the quilting eases flat round a porthole or a hatch
 MOUNT_BORDER = 0.03  # metres of the lining laid flat on a mounting plate's plane round its edge, so the plate's
 # outline sits on a clean flat band of the padding (never ragged where a cushion swells against it)
 MOUNT_EASE = 0.05  # metres outside that band over which the lining's skin eases from its plane to the cone
 MOUNT_ROLL = 0.07  # metres outside a mounting plate over which a cut cushion swells from its crease against it
+TUCK = 0.03  # metres the ceiling's pad reaches over the top of the lining's shoulder
+TUCK_DROP = 0.025  # metres its edge sinks there, into the shoulder's top
 THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
 
@@ -777,12 +787,13 @@ def facing(points, triangles, ways):
     return triangles
 
 
-def grid_solid(front, back, keep, front_parts, back_part, side_part, ways, pole=None):
+def grid_solid(front, back, keep, front_parts, back_part, side_part, ways, pole=None, front_normals=None):
     """A closed solid over a grid of cells: `front` and `back` (rows x columns x 3, the columns round a ring), each
     kept cell (`keep`, rows - 1 x columns) a quad of each, its front facing along `ways` (rows x columns x 3) and its
     back away, in its `front_parts` (rows - 1 x columns) and `back_part`; a side face of `side_part` on every edge
     between a kept cell and one not kept (or the grid's first and last row), facing out of the kept one. `pole`
-    [front point, back point] closes the first row round a middle point instead of a side (a disc)."""
+    [front point, back point] closes the first row round a middle point instead of a side (a disc). `front_normals`
+    (rows x columns x 3) shade the front by the whole grid's own normals, so no part or wall edge breaks it."""
     rows, columns = front.shape[:2]
     count = rows * columns
     index = np.arange(count).reshape(rows, columns)
@@ -796,6 +807,8 @@ def grid_solid(front, back, keep, front_parts, back_part, side_part, ways, pole=
     parts = np.concatenate([front_parts[cell_rows, cell_columns]] * 2)
     front_faces = facing(flat_front, triangles, triangle_ways)
     pieces = [piece(str(part), flat_front, front_faces[parts == part], True) for part in np.unique(parts)]
+    if front_normals is not None:
+        pieces = [(part, points, triangles, front_normals.reshape(-1, 3)) for part, points, triangles, _ in pieces]
     back_faces = [facing(flat_back, triangles, -triangle_ways)]
     if pole is not None:
         middle_front, middle_back = np.vstack([flat_front, pole[0]]), np.vstack([flat_back, pole[1]])
@@ -901,19 +914,53 @@ def hull(cut=None, holes=(), which="main", sector=None, bottom=-0.40, top=2.15, 
     return grid_solid(inner, outer, keep, parts, "hull", "edge", cone.inward(grid_theta))
 
 
+def shoulder(cone, y):
+    """How far the lining's face is carried in toward the axis and up at each height `y` of its back, so the padding
+    curves over into the ceiling: a quarter ellipse from `shoulder` up, `inset` in and up to `ceiling` (its top
+    level there, meeting the ceiling's pad); nothing below `shoulder`. (inset, lift)."""
+    start, top, inset = (float(cone.sizes[key]) for key in ("shoulder", "ceiling", "inset"))
+    height = np.asarray(y, dtype=np.float64)
+    turn = np.clip((height - start) / (top - start), 0.0, 1.0) * math.pi / 2
+    above = height > start
+    return (np.where(above, inset * (1 - np.cos(turn)), 0.0),
+            np.where(above, start + (top - start) * np.sin(turn) - height, 0.0))
+
+
+def course_seams(cone):
+    """Each course's seams round it (ROWS): (where its first seam stands, a share of a turn; its seams from there as
+    shares of a turn). About CUSHION_WIDE apart along the course's middle on the face, each cushion's width its own
+    (WIDE_SPREAD) and each course's seams set off from the next's at random (CUSHION_SEED)."""
+    face = cone.sizes["gap"] + cone.sizes["lining"]
+    seams = []
+    for course in range(len(ROWS) - 1):
+        draw = np.random.default_rng(CUSHION_SEED + course)
+        middle = (ROWS[course] + ROWS[course + 1]) / 2
+        around = 2 * math.pi * (float(cone.rho(middle, face)) - float(shoulder(cone, middle)[0]))
+        count = max(6, int(round(around / CUSHION_WIDE)))
+        widths = 1 + WIDE_SPREAD * (2 * draw.random(count) - 1)
+        seams.append((float(draw.random()), np.concatenate([[0.0], np.cumsum(widths) / widths.sum()])))
+    return seams
+
+
 def cushion_at(cone, theta, y):
     """Which cushion of the lining holds each spot (theta, y) and where in it: (its course, its column, its middle's
-    angle, the share across it, the share up it). Courses ROWS high, COLUMNS cushions round each, every course's
-    seams over the one's under it, so the seams run up the cone's slope and round it (quilting, not a brick bond)."""
+    angle, the share across it, the share up it). Courses ROWS high, each of its own cushions (course_seams)."""
+    theta, height = np.broadcast_arrays(np.asarray(theta, dtype=np.float64), np.asarray(y, dtype=np.float64))
     edges = np.asarray(ROWS)
-    height = np.asarray(y, dtype=np.float64)
     row = np.clip(np.searchsorted(edges, height, side="right") - 1, 0, len(edges) - 2)
     low, high = edges[row], edges[row + 1]
     upward = np.clip((height - low) / (high - low), 0.0, 1.0)
-    position = (np.asarray(theta, dtype=np.float64) % (2 * math.pi)) / (2 * math.pi) * COLUMNS
-    column = np.floor(position)
-    middle = (column + 0.5) / COLUMNS * 2 * math.pi
-    return row, column % COLUMNS, middle, position - column, upward
+    share = (theta % (2 * math.pi)) / (2 * math.pi)
+    column, middle, across = np.zeros(theta.shape, dtype=np.int64), np.zeros(theta.shape), np.zeros(theta.shape)
+    for course, (start, seams) in enumerate(course_seams(cone)):
+        here = row == course
+        local = (share[here] - start) % 1.0
+        index = np.clip(np.searchsorted(seams, local, side="right") - 1, 0, len(seams) - 2)
+        first, last = seams[index], seams[index + 1]
+        column[here] = index
+        across[here] = (local - first) / (last - first)
+        middle[here] = ((first + last) / 2 + start) % 1.0 * 2 * math.pi
+    return row, column, middle, across, upward
 
 
 def quilt(cone, theta, y):
@@ -959,8 +1006,8 @@ def flat_spot(theta, y, wide, high, **sizes):
 
 
 def lining_depth(cone, theta, y, back, fades, flats, cut=None):
-    """How far the lining's face stands off its back at each spot (its skin, the bolster at the floor and the
-    cushions, eased flat round each fade [theta, y, radius] and along the cut-away's outline `cut`, so its section is
+    """How far the lining's face stands off its back at each spot, (its skin, the bolster at the floor; the
+    cushions over it; how much the spot is eased flat), the cushions eased flat round each fade [theta, y, radius] and along the cut-away's outline `cut`, so its section is
     a clean band of the padding) and how much each spot is eased flat (1 where eased, so no seam runs round a hole,
     along the cut or under a plate). Each flat [theta, y, wide, high] is a mounting plate set into the padding
     (mount): its skin lies on the plate's plane under it and a MOUNT_BORDER band round it, eases back onto the cone
@@ -972,7 +1019,8 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
     eased = np.zeros(theta.shape)
     for fade_theta, fade_y, radius in fades:
         distance = np.linalg.norm(back - cone.at(math.radians(fade_theta), fade_y, sizes["gap"]), axis=-1)
-        eased = np.maximum(eased, 1 - smoothstep(radius, radius + FADE, distance))
+        eased = 1 - (1 - eased) * smoothstep(radius, radius + FADE, distance)  # two fades meeting ease the
+        # padding between them flat together, never a pinched crumple
     if cut:
         eased = np.maximum(eased, 1 - smoothstep(CUT_FLAT, CUT_FLAT + FADE, cut_distance(cone, theta, y, cut)))
     skin = sizes["lining"] + sizes["bolster"] * smoothstep(sizes["bolster_high"], 0.0, y) * (1 - eased)
@@ -990,26 +1038,35 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
         skin = skin * (1 - weight) + np.maximum(onto, skin) * weight
         bump = bump * np.where(near, np.clip(outside / MOUNT_ROLL, 0.0, 1.0) ** FULLNESS, 1.0)
         flattened = np.maximum(flattened, (outside < 0.004) * near)
-    return skin + bump, np.maximum(eased, flattened)
+    return skin, bump, np.maximum(eased, flattened)
 
 
-def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, cell=0.014, rows=0.012, **sizes):
+def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, rise=None, cell=0.014, rows=0.012,
+           **sizes):
     """The cabin's quilted lining, one closed piece round the cone from the floor to the ceiling: its back a hair
-    off the hull, its face the cushions (lining_depth: stuffed vinyl pillows in courses meeting in deep creases, a
-    bolster along the floor), round holes left for the portholes and the hatch (`holes`, as hull), the quilting eased
+    off the hull, its face the cushions (lining_depth: stuffed vinyl pillows of their own widths in courses meeting
+    in deep creases, a bolster along the floor), curving over at the top into the ceiling (shoulder, the cushions
+    standing off the curve along its own normal; `rise` [from, to] keeps only that height of it), round holes left for the portholes and the hatch (`holes`, as hull), the quilting eased
     flat round them (`fades`) and onto each mounting plate's plane (`flats`, flat_spot, the cut cushions swelling
     from a crease against its edge),
     the cut-away left out of its "main" body and filling its "plug", eased flat along it. Parts cushion (a pad's
     face, and the edges where a wall or the cut-away ends, so two walls meet with no dark line), seam (the one row
-    of cells along each cushion's edge, the bottom of its crease), back."""
+    of cells along each cushion's edge, the bottom of its crease), back; the face shaded by the whole grid's
+    normals (surface_normals), so neither a part's edge nor a wall's breaks the shading."""
     cone = Cone(**sizes)
     top = cone.sizes["ceiling"]
     thetas, heights = ring_grid(rows, 0.0015, top, 2 * math.pi * float(cone.rho(0.0)), cell)
     grid_theta, grid_y = np.meshgrid(thetas, heights)
     back = cone.at(grid_theta, grid_y, cone.sizes["gap"])
     normals = cone.inward(grid_theta)
-    depth, eased = lining_depth(cone, grid_theta, grid_y, back, fades, flats, cut)
-    front = back + normals * depth[..., None]
+    skin, bump, eased = lining_depth(cone, grid_theta, grid_y, back, fades, flats, cut)
+    base = back + normals * skin[..., None]
+    inset, lift = shoulder(cone, grid_y)
+    base[..., 0] -= np.sin(grid_theta) * inset
+    base[..., 2] -= np.cos(grid_theta) * inset
+    base[..., 1] += lift
+    face_normals = surface_normals(base, normals)
+    front = base + face_normals * bump[..., None]
     front[..., 1] = np.maximum(front[..., 1], back[..., 1].min())  # the bolster's foot stays on the floor
     middle_theta = grid_theta[:-1] + math.pi / len(thetas)
     middle_y = (grid_y[:-1] + grid_y[1:]) / 2
@@ -1017,6 +1074,9 @@ def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, ce
     near = near_hole(cone, back, holes) | near_hole(cone, front, holes)  # the face stands off along its own normal
     _, _, cushion_middle, _, _ = cushion_at(cone, middle_theta, middle_y)  # a wall ends along the seams round its
     keep = cells_kept(near, cut_cells, which, cushion_middle, sector)  # cushions, never across a cushion's face
+    if rise is not None:  # only the cells from rise[0] to rise[1] up the back: the shoulder a wall of its own, so a
+        # wall's middle stays by its padding, never out in the room (the check's rays start there)
+        keep &= (middle_y >= rise[0]) & (middle_y < rise[1])
     rows_of, columns_of, _, _, _ = cushion_at(cone, grid_theta, grid_y)
     cushion = rows_of * 10000 + columns_of
     corners = [cushion[:-1], np.roll(cushion[:-1], -1, axis=1), cushion[1:], np.roll(cushion[1:], -1, axis=1)]
@@ -1026,15 +1086,27 @@ def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, ce
         crossed |= other != corners[0]
     parts = np.where(crossed & (smoothed < 0.05), "seam", "cushion")  # the crease along a cushion's edge, none
     # where the quilting is eased even a little (no stray dark bits on the flat round a hole or along the cut)
-    return grid_solid(front, back, keep, parts, "back", "cushion", normals)
+    return grid_solid(front, back, keep, parts, "back", "cushion", face_normals,
+                      front_normals=surface_normals(front, face_normals))
+
+
+def surface_normals(grid, toward):
+    """The unit normals of a ring grid's surface (rows x columns x 3, the columns round a ring), each turned to
+    the side `toward` (rows x columns x 3) points."""
+    along_rows = np.gradient(grid, axis=0)
+    round_ring = np.roll(grid, -1, axis=1) - np.roll(grid, 1, axis=1)
+    normals = np.cross(round_ring, along_rows)
+    normals *= np.sign(np.einsum("...i,...i->...", normals, toward))[..., None]
+    return normals / np.linalg.norm(normals, axis=-1, keepdims=True)
 
 
 def ceiling(lamps=(), rings=26, segments=144, thick=0.07, puff=0.03, **sizes):
     """The ceiling's quilted pad: a round pad in the middle and a ring of eight round it, under the hull's top at the
-    lining's top (`ceiling`), its face down; each lamp's spot [x, z, radius] left flat for the lamp."""
+    lining's top (`ceiling`), its face down, reaching TUCK over the top of the lining's shoulder and its edge
+    sunk TUCK_DROP into it, so no slit shows between them; each lamp's spot [x, z, radius] left flat for the lamp."""
     cone = Cone(**sizes)
     low = cone.sizes["ceiling"]
-    outer = float(cone.rho(low, cone.sizes["gap"])) - 0.002
+    outer = float(cone.rho(low, cone.sizes["gap"] + cone.sizes["lining"])) - cone.sizes["inset"] + TUCK
     radii = np.linspace(outer / rings, outer, rings)
     angles = np.arange(segments) * 2 * math.pi / segments
     grid_radius, grid_angle = np.meshgrid(radii, angles, indexing="ij")
@@ -1048,8 +1120,9 @@ def ceiling(lamps=(), rings=26, segments=144, thick=0.07, puff=0.03, **sizes):
     flat_x, flat_z = grid_radius * np.sin(grid_angle), grid_radius * np.cos(grid_angle)
     for x, z, radius in lamps:
         share = share * smoothstep(radius, radius + FADE, np.hypot(flat_x - x, flat_z - z))
-    under = np.stack([flat_x, low - puff * share, flat_z], axis=-1)
-    shrink = float(cone.rho(low + thick, cone.sizes["gap"])) / (outer + 0.002) - 0.004
+    under = np.stack([flat_x, low - puff * share - TUCK_DROP * smoothstep(outer - TUCK, outer, grid_radius),
+                      flat_z], axis=-1)
+    shrink = min(1.0, float(cone.rho(low + thick, cone.sizes["gap"])) / (outer + 0.002) - 0.004)
     over = np.stack([flat_x * shrink, np.full_like(flat_x, low + thick), flat_z * shrink], axis=-1)
     ways = np.broadcast_to(np.array([0.0, -1.0, 0.0]), under.shape)
     parts = np.full((rings - 1, segments), "cushion")
@@ -1519,8 +1592,11 @@ def written(path, pieces):
     for part, piece_points, piece_triangles, smooth in pieces:
         if not len(piece_triangles):
             continue
+        given = smooth[piece_triangles].reshape(-1, 3) if isinstance(smooth, np.ndarray) else None
         piece_points, piece_triangles = welded(piece_points, piece_triangles)
-        normals.append(corner_normals(piece_points, piece_triangles, smooth))
+        if given is not None and len(given) != 3 * len(piece_triangles):
+            raise ValueError(f"part {part}: a piece shaded by its points' own normals lost a collapsed face")
+        normals.append(given if given is not None else corner_normals(piece_points, piece_triangles, smooth))
         first = sum(len(found) for found in triangles)
         triangles.append(piece_triangles + count)
         points.append(piece_points)
