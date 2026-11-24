@@ -159,12 +159,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   panels, ugly walls, way to big for the cockpit"): a small craft built in code at real size, laid as
   `algorithm/place_build`. The capsule's body follows one cone (Cone: the hull's inner face 1.4 m from the axis at the
   floor, drawn in 0.22 m a metre up, carried on over the ceiling by the `nose` to a narrow rimmed top; every face of
-  hull and lining a cone offset along its normal): the smooth hull and the quilted lining (small puffy cushions in
-  brick bond, each domed and rolling down to a narrow flat crease along its edge, so two cushions and two walls meet
-  in one continuous crease and never a step; part seam the one row of cells along each edge, the stitching, in a
-  shade of the vinyl, never a dark strip; a bolster along the floor, eased flat round each hole, along the cut-away's
-  outline (its section a clean band of the padding) and onto each
-  panel's plane, flat_spot, the cushions rising right round a panel so it sits in a pocket) each in walls of their own
+  hull and lining a cone offset along its normal): the smooth hull and the quilted lining (big stuffed pillows in
+  courses, each a superellipse dome swelling steeply from its edge, so two pillows meet in a deep crease and their
+  corners pinch in; part seam the one row of cells along each crease, a dark shade of the vinyl; owner 2026-11-24:
+  "uggly creme bricks", never a flat grid with drawn lines; a bolster along the floor, eased flat round each hole and
+  along the cut-away's outline (its section a clean band of the padding); a `mount` plate set into the padding where
+  a panel or screen hangs on the wall, the lining's skin on its plane under it and the cushions it cuts swelling from a
+  crease against its edge, never puckered round it (`flats`, flat_spot) each in walls of their own
   (`sector`, 30 degrees; a lining's wall ends along the seams round its cushions, never across one, so two walls meet
   in a seam with no line; a wall's middle then lies by it, so the check's rays from it never cross the room's
   furniture: lay the walls so no middle falls inside a panel, the capsule's from 15 degrees), the cut-away's `plug` its own
@@ -176,7 +177,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   (one railing run along one edge and round its end); instrument panels (plate and bezel one body, label strip in
   modelled letters, "A|B" two sections parted at `split` by a raised divider, each with its own strip, a "/" stacking
   a name's words), each switch, lamp, gauge, screen, seat (a padded bucket seat, `scale`) and console its own
-  piece. Every part takes its look from `looks`; a part with none is refused. Every piece is closed, nothing in it
+  piece. A cabin laid for play (owner 2026-11-24: "chair in middle, joystick with trottle in front"): the seat in the
+  middle, the console before it (stick under the right hand, throttle under the left), the screens on mounting plates
+  straight ahead at seated eye height, and the labelled panels on `console` pods in an arc round the seat, each
+  pod's sloping top square to it and within seated reach; nothing he needs behind him. Every part takes its look from `looks`; a part with none is refused. Every piece is closed, nothing in it
   shares a face with another and no face is collapsed (a reader drops it and every part's face numbers after it
   slip: the floor drew black); a hole is cut only within THROUGH of its wall (its axis runs on to the far wall). A
   piece's file is cached by its sizes under `assets/algorithm/place_build/`: delete it there after changing

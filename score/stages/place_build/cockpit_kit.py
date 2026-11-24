@@ -13,8 +13,9 @@ front +z) and written as built.
 The capsule's body, each a closed piece over its cone (Cone: `radius`, `slope`, `hull`, `lining`, ... as CONE):
 - `hull`: the smooth pressure hull, its round `holes` [[theta, y, r]] (portholes, hatch) open for their sleeves and
   the cut-away (`cut` [theta, half theta, y, half y, power]) its "main" body's gap and its "plug" (`which`).
-- `lining`: the quilted vinyl lining from the floor to the ceiling: small puffy cushions in brick bond with stitched
-  seams, a bolster along the floor, eased flat round each hole (`fades`) and under each panel (`flats`, flat_spot);
+- `lining`: the quilted vinyl lining from the floor to the ceiling: big stuffed pillows in courses meeting in deep
+  creases, a bolster along the floor, eased flat round each hole (`fades`), each mounting plate (`flats`, flat_spot)
+  set into it with the cushions it cuts swelling from a crease against its edge;
   holes and cut-away as the hull's, a wall (`sector`) ending along the seams round its cushions.
 - `ceiling` (its lamps' spots flat), `floor` (the round plate, the walked ground, one faint hatch ring), `skirt`
   (the service ring under the hull, its pipes), `nose` (the cone carried on to a narrow rimmed top), `lip` (the cut-away's rounded rim), `through_wall` (a porthole's or the hatch's
@@ -25,7 +26,9 @@ The capsule's body, each a closed piece over its cone (Cone: `radius`, `slope`, 
   `lamp` (`colour` red, green, amber, white), `gauge` (a 6 cm round needle gauge), `bars` (a bar meter, up or
   `across`), `readout` (a small lit number window), `screen` (`graphic` tower, orbit, attitude, landing, lines),
   `scope` (a round scope), `keypad`, `button`, `rotary`, `wheel`, `slider`, `beacon`, `words` (lettering alone).
-- `console`, `switch_box`, `seat`, `throttle`, `stick`, `lamp_fixture`.
+- `mount`: a flat mounting plate set into the lining (its `flats`), a panel or a screen on it.
+- `console` (also a pod beside the seat: a panel laid on its sloping top), `switch_box`, `seat`, `throttle`, `stick`,
+  `lamp_fixture`.
 """
 import math
 
@@ -688,14 +691,15 @@ def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, split=0.5, **
 # --- the capsule: its cone's hull, lining, ceiling and floor, built in the capsule's own frame -----------------------
 
 CONE = {"radius": 1.40, "slope": 0.22, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.04,
-        "bolster_high": 0.32, "puff": 0.05, "ceiling": 2.05}
+        "bolster_high": 0.32, "puff": 0.07, "ceiling": 2.05}
 ROWS = (0.0, 0.30, 0.59, 0.88, 1.17, 1.46, 1.75, 2.05)  # the lining's courses, metres up from the floor
-WIDTHS = (0.36, 0.32, 0.31, 0.30, 0.29, 0.28, 0.27)  # each course's cushion width
-SEAM_FLAT = 0.008  # metres either side of a cushion's edge its face lies flat in the crease (the stitched seam)
-ROLL = 0.11  # metres over which a cushion's face rolls up from its crease to its dome
+WIDTHS = (0.44, 0.42, 0.40, 0.38, 0.36, 0.34, 0.32)  # each course's cushion width
+PILLOW = 2.6  # the power of a cushion's outline (a superellipse): its corners rounded in, pinched into the creases
+FULLNESS = 0.42  # how fast a cushion swells from its crease (a power under 1: a fat pillow, its sides steep)
 CUT_FLAT = 0.03  # metres along the wall either side of the cut-away's outline the quilting lies flat
 FADE = 0.06  # metres over which the quilting eases flat round a porthole or a hatch
-SEATED = (0.004, 0.035)  # a panel's pocket: the cushions rise to full this far (from, over) outside its plate
+MOUNT_EASE = 0.05  # metres outside a mounting plate over which the lining's skin eases from its plane to the cone
+MOUNT_ROLL = 0.07  # metres outside a mounting plate over which a cut cushion swells from its crease against it
 THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
 
@@ -912,21 +916,20 @@ def cushion_at(cone, theta, y):
 
 
 def quilt(cone, theta, y):
-    """How far the lining's cushions stand out over the spots (theta, y): small puffy pads in brick bond (cushion_at),
-    each pad's face domed over its middle and rolling down over ROLL metres to a narrow flat crease SEAM_FLAT either
-    side of its edge (the stitched seam), so two pads meet in one continuous crease and never a step; the course on
-    the floor a fat bolster."""
+    """How far the lining's cushions stand out over the spots (theta, y): big stuffed pillows in courses
+    (cushion_at), each a superellipse dome (PILLOW) swelling steeply from zero along its edge (FULLNESS), so two
+    pillows meet in a deep crease and their corners pinch in, each a little fuller or flatter than the next; the
+    course on the floor a fat bolster."""
     row, column, _, across, upward = cushion_at(cone, theta, y)
-    edges = np.asarray(ROWS)
-    middles = (edges[:-1] + edges[1:]) / 2
-    widths = 2 * math.pi * cone.rho(middles, 0.1) / cushion_counts(cone)
     seed = np.abs(np.sin(row * 12.9898 + column * 78.233) * 43758.5453) % 1.0
-    to_side = np.minimum(across, 1 - across) * widths[row]
-    to_course = np.minimum(upward, 1 - upward) * (edges[row + 1] - edges[row])
-    roll = smoothstep(SEAM_FLAT, SEAM_FLAT + ROLL, to_side) * smoothstep(SEAM_FLAT, SEAM_FLAT + ROLL, to_course)
-    dome = 1 - 0.25 * (2 * across - 1) ** 2 - 0.25 * (2 * upward - 1) ** 2
-    puff = cone.sizes["puff"] * np.where(row == 0, 1.5, 1.0) * (0.85 + 0.3 * seed)
-    return puff * roll * dome
+    lean = np.abs(np.sin(row * 39.3468 + column * 11.135) * 24634.6345) % 1.0
+    middle_across = 0.5 + 0.08 * (lean - 0.5)  # each pillow's crown a little off its middle
+    side = np.where(across < middle_across, (middle_across - across) / middle_across,
+                    (across - middle_across) / (1 - middle_across))
+    reach = (side ** PILLOW + np.abs(2 * upward - 1) ** PILLOW) ** (1.0 / PILLOW)
+    swell = np.clip(1 - reach ** PILLOW, 0.0, 1.0) ** FULLNESS
+    puff = cone.sizes["puff"] * np.where(row == 0, 1.3, 1.0) * (0.85 + 0.3 * seed)
+    return puff * swell
 
 
 def cushion_counts(cone):
@@ -963,41 +966,47 @@ def flat_spot(theta, y, wide, high, **sizes):
 
 def lining_depth(cone, theta, y, back, fades, flats, cut=None):
     """How far the lining's face stands off its back at each spot (its skin, the bolster at the floor and the
-    cushions, eased flat round each fade [theta, y, radius], along the cut-away's outline `cut` (so its section is a
-    clean band of the padding) and onto each flat's plane [theta, y, wide, high]) and how much each spot is eased
-    flat (1 where eased, so no seam runs under a panel, round a hole or along the cut)."""
+    cushions, eased flat round each fade [theta, y, radius] and along the cut-away's outline `cut`, so its section is
+    a clean band of the padding) and how much each spot is eased flat (1 where eased, so no seam runs round a hole,
+    along the cut or under a plate). Each flat [theta, y, wide, high] is a mounting plate set into the padding
+    (mount): its skin lies on the plate's plane under it and eases back onto the cone over MOUNT_EASE, and the
+    cushions it cuts swell from a crease against its edge over MOUNT_ROLL, as they do from a seam (never pulled
+    down into a pocket round it)."""
     sizes = cone.sizes
     bump = quilt(cone, theta, y)
-    soft = sizes["bolster"] * smoothstep(sizes["bolster_high"], 0.0, y) + bump
     eased = np.zeros(theta.shape)
     for fade_theta, fade_y, radius in fades:
         distance = np.linalg.norm(back - cone.at(math.radians(fade_theta), fade_y, sizes["gap"]), axis=-1)
         eased = np.maximum(eased, 1 - smoothstep(radius, radius + FADE, distance))
     if cut:
         eased = np.maximum(eased, 1 - smoothstep(CUT_FLAT, CUT_FLAT + FADE, cut_distance(cone, theta, y, cut)))
-    depth = sizes["lining"] + soft * (1 - eased)
+    skin = sizes["lining"] + sizes["bolster"] * smoothstep(sizes["bolster_high"], 0.0, y) * (1 - eased)
+    bump = bump * (1 - eased)
     flattened = np.zeros(theta.shape)
     normals = cone.inward(theta)
     for flat_theta, flat_y, wide, high in flats:
         middle, _, (right, up, inward) = flat_spot(flat_theta, flat_y, wide, high, **sizes)
         offset = back - cone.at(math.radians(flat_theta), flat_y, sizes["gap"])
+        near = np.abs(offset @ inward) < 0.3
         outside = np.hypot(np.maximum(np.abs(offset @ right) - wide / 2, 0.0),
                            np.maximum(np.abs(offset @ up) - high / 2, 0.0))
-        weight = (1 - smoothstep(SEATED[0], SEATED[0] + SEATED[1], outside)) * (np.abs(offset @ inward) < 0.3)
+        weight = (1 - smoothstep(0.0, MOUNT_EASE, outside)) * near
         onto = ((middle - back) @ inward) / np.maximum(np.einsum("...i,i->...", normals, inward), 1e-6)
-        depth = depth * (1 - weight) + onto * weight
-        flattened = np.maximum(flattened, weight)
-    return depth, np.maximum(eased, flattened)
+        skin = skin * (1 - weight) + np.maximum(onto, skin) * weight
+        bump = bump * np.where(near, np.clip(outside / MOUNT_ROLL, 0.0, 1.0) ** FULLNESS, 1.0)
+        flattened = np.maximum(flattened, (outside < 0.004) * near)
+    return skin + bump, np.maximum(eased, flattened)
 
 
 def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, cell=0.014, rows=0.012, **sizes):
     """The cabin's quilted lining, one closed piece round the cone from the floor to the ceiling: its back a hair
-    off the hull, its face the cushions (lining_depth: worn vinyl pads in courses, thin seams, a bolster along the
-    floor), round holes left for the portholes and the hatch (`holes`, as hull), the quilting eased flat round them
-    (`fades`) and under each panel (`flats`, flat_spot, the cushions rising right round it so it sits in a pocket),
+    off the hull, its face the cushions (lining_depth: stuffed vinyl pillows in courses meeting in deep creases, a
+    bolster along the floor), round holes left for the portholes and the hatch (`holes`, as hull), the quilting eased
+    flat round them (`fades`) and onto each mounting plate's plane (`flats`, flat_spot, the cut cushions swelling
+    from a crease against its edge),
     the cut-away left out of its "main" body and filling its "plug", eased flat along it. Parts cushion (a pad's
     face, and the edges where a wall or the cut-away ends, so two walls meet with no dark line), seam (the one row
-    of cells along each cushion's edge, the crease's stitching), back."""
+    of cells along each cushion's edge, the bottom of its crease), back."""
     cone = Cone(**sizes)
     top = cone.sizes["ceiling"]
     thetas, heights = ring_grid(rows, 0.0015, top, 2 * math.pi * float(cone.rho(0.0)), cell)
@@ -1312,11 +1321,24 @@ def gantry(long=1.6, wide=1.3, rail=1.05, deep=0.7, start=0.3, side=-1, **_):
 
 # --- the furniture --------------------------------------------------------------------------------------------------
 
-def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0.0, grille=0.4, **_):
+def mount(wide=0.4, high=0.3, thick=0.016, corner=0.03, **_):
+    """A flat mounting plate `wide` x `high` and `thick`, set into the lining where it is eased flat (lining_depth's
+    flats): rounded corners and a bolt head in each corner."""
+    found = outline_slab("mount", rounded_rectangle(wide, high, corner), 0.0, thick)
+    head = [(0.0, 0.0), (0.006, 0.0), (0.006, 0.002), (0.004, 0.0035), (0.0, 0.0035)]
+    for x in (-1, 1):
+        for y in (-1, 1):
+            found += moved(turned("bolt", head, segments=12),
+                           offset=(x * (wide / 2 - 0.016), y * (high / 2 - 0.016), thick - 0.0003))
+    return found
+
+
+def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0.0, grille=0.4, rear=0.0, **_):
     """The long low console before the pilot: a box `wide` across, `deep` from the pilot's side (+z) back, its top
     sloping up from `front_high` to `back_high` away from the pilot, its far face sloping in `lean` metres to its
-    foot, a bright lip round its top, a slatted vent grille `grille` wide on its pilot's side and its `items` laid on
-    its top (their `at` [u, v] up the slope from its middle)."""
+    foot, a bright lip round its top, a slatted vent grille `grille` wide on its pilot's side (and `rear` wide on its
+    far face, standing upright when `lean` is 0: a pod seen from behind) and its `items` laid on its top (their `at`
+    [u, v] up the slope from its middle)."""
     side = [(lean, 0.0), (deep, 0.0), (deep, front_high), (0.0, back_high)]
     found = []
     points = [(-wide / 2, y, z) for z, y in side] + [(wide / 2, y, z) for z, y in side]
@@ -1338,6 +1360,13 @@ def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0
         for step in range(int(grille / 0.03)):
             x = -grille / 2 + 0.015 + step * 0.03
             found += box("lip", (x - 0.006, 0.115, deep + 0.0015), (x + 0.006, 0.325, deep + 0.008), 0.0015)
+    if rear:
+        if lean:
+            raise ValueError("a console's rear grille stands on an upright far face (lean 0)")
+        found += box("vent", (-rear / 2, 0.12, -0.002), (rear / 2, back_high - 0.15, 0.002), 0.002)
+        for step in range(int(rear / 0.03)):
+            x = -rear / 2 + 0.015 + step * 0.03
+            found += box("lip", (x - 0.006, 0.135, -0.008), (x + 0.006, back_high - 0.165, -0.0015), 0.0015)
     found += box("lip", (-wide / 2 - 0.006, 0.0, lean * 0.9 - 0.006), (wide / 2 + 0.006, 0.05, deep + 0.006), 0.004)
     return found
 
@@ -1437,7 +1466,7 @@ def lamp_fixture(size=0.2, **_):
 
 KINDS = {"hull": hull, "lining": lining, "ceiling": ceiling, "floor": floor, "skirt": skirt, "nose": nose, "lip": lip,
          "through_wall": through_wall, "tread": tread, "hatch_leaf": hatch_leaf, "gantry": gantry, "panel": panel, "console": console,
-         "switch_box": switch_box, "seat": seat, "throttle": throttle, "stick": stick, "lamp_fixture": lamp_fixture,
+         "switch_box": switch_box, "mount": mount, "seat": seat, "throttle": throttle, "stick": stick, "lamp_fixture": lamp_fixture,
          **ITEMS}
 
 
