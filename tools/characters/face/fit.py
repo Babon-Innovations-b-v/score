@@ -64,8 +64,9 @@ def shaped(model, coefficients):
 
 
 def head_mesh(body):
-    """The body's head and neck as a trimesh (its triangles with every corner above the shoulders)."""
-    above = body["points"][:, 1] > body["joint_LeftEye"][1] - 0.25
+    """The body's outer head and neck skin as a trimesh: its triangles with every corner above the shoulders, none in
+    the eye and mouth bags SOMA-X fills in itself (`filled`), whose MHR offsets are no skin's."""
+    above = (body["points"][:, 1] > body["joint_LeftEye"][1] - 0.25) & ~body["filled"]
     triangles = body["triangles"][above[body["triangles"]].all(axis=1)]
     return trimesh.Trimesh(body["points"], triangles, process=False)
 
@@ -255,10 +256,11 @@ def same_way(loop, points, centre):
     return loop if area > 0 else loop[::-1]
 
 
-def seam(body_points, body_triangles, face_points, face_triangles, loop, centre):
-    """The body cut under the face and the strip joining the cut to the face's border: (the body's kept triangles,
-    the strip in one numbering, body points first and the face's after them, the face's loop, the cut's loop)."""
-    under = covered(body_points, face_points, face_triangles, loop, centre)
+def seam(body_points, body_triangles, face_points, face_triangles, loop, centre, filled):
+    """The body cut under the face, its `filled` points (the eye and mouth bags) with it, and the strip joining the
+    cut to the face's border: (the body's kept triangles, the strip in one numbering, body points first and the
+    face's after them, the face's loop, the cut's loop)."""
+    under = covered(body_points, face_points, face_triangles, loop, centre) | filled
     kept = kept_body(body_triangles, under)
     face_loop = same_way(loop, face_points, centre)
     body_loop = same_way(border_loop(kept), body_points, centre)
@@ -291,6 +293,6 @@ def fitted(body, model):
     loop = border_loop(face_triangles)
     points, share = laid_on_skin(points, face_triangles, loop, head_mesh(body))
     kept, strip, face_loop, body_loop = seam(body["points"], body["triangles"], points, face_triangles, loop,
-                                             head_centre(body))
+                                             head_centre(body), body["filled"])
     return {"points": points, "scale": scale, "turn": turn, "shift": shift, "identity": coefficients,
             "share": share, "kept": kept, "strip": strip, "face_loop": face_loop, "body_loop": body_loop}

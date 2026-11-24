@@ -43,7 +43,8 @@ def shut_skin():
     face_points, face_triangles = finer.vertices[used], renumbered.reshape(-1, 3)
     loop = fit.border_loop(face_triangles)
     centre = np.zeros(3)
-    kept, strip, _, _ = fit.seam(body.vertices, body.faces, face_points, face_triangles, loop, centre)
+    kept, strip, _, _ = fit.seam(body.vertices, body.faces, face_points, face_triangles, loop, centre,
+                                  np.zeros(len(body.vertices), dtype=bool))
     skin = fit.joined_skin(body.vertices, kept, strip, face_points, face_triangles, centre)
     directed = np.vstack([skin[:, [0, 1]], skin[:, [1, 2]], skin[:, [2, 0]]])
     _, undirected = np.unique(np.sort(directed, axis=1), axis=0, return_counts=True)

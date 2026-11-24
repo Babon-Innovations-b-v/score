@@ -7,7 +7,7 @@ nvidia/soma-x, Apache-2.0). The body is built as `../people/body.py` builds a pe
 its 68 part scales and six bone lengths, SOMA-X's dense mesh); each expression is MHR asked for that one expression at
 1 and the shape carried onto SOMA's topology by SOMA-X's own MHR transfer, so the body and its face are one mesh.
 Writes, in metres with the soles on the floor: the rest points, the triangles, the 72 expressions' offsets (MHR's
-order, `MHR_EXPRESSIONS`), the head's and both eyes' joints.
+order, `expressions.MHR_EXPRESSIONS`), the points SOMA-X fills in itself (`filled`), the head's, eyes' and jaw's joints.
 """
 import sys
 
@@ -63,6 +63,14 @@ def face_joints(layer):
     return {name: world[names.index(name), :3, 3].astype(np.float64) for name in FACE_JOINTS}
 
 
+def filled(layer):
+    """Which body points SOMA-X fills in itself (its eye and mouth bags, which MHR's mesh lacks): solved by a Laplacian
+    from the points round them, so MHR's expressions throw them far (20 cm at jawDrop on the officer)."""
+    points = np.zeros(layer.identity_model._laplacian_mesh.V.shape[0], dtype=bool)
+    points[layer.identity_model._laplacian_mesh.vid_unknown.numpy()] = True
+    return points
+
+
 def main(identity, out):
     """Write the body, its 72 expression offsets and its face joints to `out`, in metres on the floor."""
     layer, arguments = person_layer(identity)
@@ -75,7 +83,7 @@ def main(identity, out):
     faces = layer.faces if hasattr(layer, "faces") else layer.mesh_faces
     np.savez_compressed(out, points=rest + [0, lift, 0],
                         triangles=np.asarray(faces.detach().numpy() if hasattr(faces, "detach") else faces),
-                        offsets=offsets.astype(np.float32),
+                        offsets=offsets.astype(np.float32), filled=filled(layer),
                         **{f"joint_{name}": joints[name] + [0, lift, 0] for name in joints})
     print(f"body face: {rest.shape[0]} points, {EXPRESSIONS} expressions, largest offset "
           f"{np.abs(offsets).max() * 1000:.1f} mm -> {out}")
