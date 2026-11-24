@@ -2,9 +2,11 @@
 measurements off a body's own surface (girths at their levels, the arm's length and angle, the shoulders' width, the
 neck's base) and carries the rest from GarmentCode's mean body by the girth each follows or by the height; seated.py
 fails a garment sewn off centre, a shoulder seam sliding off its shoulder, a neckline dropping, or the body standing
-out through the cloth that covers it, and passes one that sways with the body. Each row is a toy body of tubes
-measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams) worn on
-a toy torso one way.
+out through the cloth that covers it, or a garment under it out through it (the toy torso worn as a garment under the
+tee), and passes one that sways with the body; shaped.py gives a body another build (wider and taller as its shape
+model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most. Each
+row is a toy body of tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side
+and shoulder seams) worn on a toy torso one way, or the toy body reshaped or its arms cleared.
 
 Breaks that turn it red (each applied once, seen red, reverted), in measure.py: a girth taken off another band than its
 own (the bust's off the waist's levels, the hips' with the hands in the cut), a girth not the tape's (the cut's points
@@ -13,13 +15,17 @@ a length left in metres, an unread measurement carried by the height where it fo
 by the mean body's. In seated.py: the side seam taken for the shoulder seam (the lower chain), the neckline's fall read
 off its points at the clip's first frame rather than their places on the moving skin, the body's outward normal not
 turning the cloth's (a covered point under inward-wound cloth read as out), or a seam's place on the shoulder judged by
-its distance off the skin alone (a seam slid down the arm's side in the turn, lying on the skin, read as seated)."""
+its distance off the skin alone (a seam slid down the arm's side in the turn, lying on the skin, read as seated); a
+garment under another judged by its winding point by point or not at all (a garment wound inward read as through),
+against its sewn shape rather than its frames, or never failed. In shaped.py: the arms turned in rather than out, an
+arm point read sunk outside the torso, the armpit's fold counted or every arm point left out, a shape's standard
+deviations not scaling its direction, the height not set, or the joints left unscaled with the skin."""
 import math
 
 import numpy as np
 import pytest
 
-from tools.characters.garments import measure, seated
+from tools.characters.garments import measure, seated, shaped
 
 NAMES = ["Hips", "Spine2", "Chest", "Neck1", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm",
          "LeftHand", "RightForeArm", "RightHand", "LeftLeg", "LeftShin", "RightLeg", "RightShin"]
@@ -181,15 +187,71 @@ def worn(wear, body, cloth, record, scale):
     return sewn, cloths, bodies
 
 
+PARENTS = [-1, 0, 1, 2, 2, 2, 4, 5, 6, 8, 7, 10, 0, 12, 0, 14]  # NAMES' parents
+
+
+def widened(points, weights, share):
+    """The toy body with its torso (Hips, Spine2, Chest) `share` times as wide and deep."""
+    torso = np.isin(np.asarray(weights).argmax(axis=1), [NAMES.index(name) for name in ("Hips", "Spine2", "Chest")])
+    found = np.array(points, dtype=float)
+    found[torso] *= [share, 1.0, share]
+    return found
+
+
+def toy_clip(bind, inward):
+    """Three frames of the toy body with both upper arms turned `inward` degrees further down than at the bind."""
+    from scipy.spatial.transform import Rotation
+    local = np.array([bind[joint] if parent < 0 else np.linalg.inv(bind[parent]) @ bind[joint]
+                      for joint, parent in enumerate(PARENTS)])
+    clip = np.repeat(local[None], 3, axis=0)
+    for name, side in (("LeftArm", 1.0), ("RightArm", -1.0)):
+        clip[:, NAMES.index(name), :3, :3] = Rotation.from_rotvec([0.0, 0.0, -side * math.radians(inward)]).as_matrix()
+    return clip
+
+
+def arms_turned_out(scale, wear):
+    """shaped.arms_cleared on the toy body for a `wear` of ARMS: (torso widening, arms turned in) -> the degrees
+    the arms are turned out, or None when they cannot be cleared."""
+    points, faces, weights, bind, _ = toy_body(scale)
+    share, inward = ARMS[wear]
+    try:
+        return shaped.arms_cleared(bind, widened(points, weights, share), faces, weights, NAMES, np.array(PARENTS),
+                                   toy_clip(bind, inward))[3]
+    except ValueError:
+        return None
+
+
+# Rows of shaped.py (a body given another build): the torso's widening and the arms' turn in on the clip.
+ARMS = {"arms clear of a mean torso": (1.0, 25.0), "arms sunk in a wide torso": (1.6, 25.0),
+        "arms sunk past the most turn": (2.0, 25.0)}
+
+
+def toy_built(scale):
+    """shaped.built on the toy body as its own shape model, one direction widening the torso a twentieth, given two
+    standard deviations of it and a height of 1.8 m: (its torso girth over the toy's, its height in m)."""
+    points, faces, weights, bind, _ = toy_body(scale)
+    shapes = {"mean": points, "faces": faces, "directions": (widened(points, weights, 1.1) - points)[None] / 2.0}
+    build = {"bind": bind, "source_points": points, "points": points, "weights": weights}
+    found = shaped.built(build, weights, PARENTS, {"shape": {"0": 2.0}, "height_m": 1.8}, shapes)
+    assert "points" not in found and "weights" not in found
+    measured = measure.measured(found["source_points"], faces, weights, NAMES, found["bind"])
+    girth = measured["waist"] / measure.measured(points, faces, weights, NAMES, bind)["waist"]
+    return girth * float(scale) / (1.8 / (points[:, 1].max() - points[:, 1].min())), measured["height"] / 100.0
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
     (1.0, "a seam moved under its limit", []),
     (1.0, "sewn off centre", ["off centre"]),
     (1.0, "slid off the left shoulder", ["left shoulder seam"]),
-    (1.15, "slid down the left arm in the turn", ["body through cloth", "left shoulder seam"]),
+    (1.15, "slid down the left arm in the turn", ["body through cloth", "left shoulder seam", "under through over"]),
     (1.0, "neckline dropped", ["neckline drop"]),
-    (1.0, "body out through the cloth", ["body through cloth"]),
+    (1.0, "body out through the cloth", ["body through cloth", "under through over"]),
+    (1.0, "arms clear of a mean torso", 0.0),
+    (1.0, "arms sunk in a wide torso", 14.0),
+    (1.0, "arms sunk past the most turn", None),
+    (1.0, "built a tenth wider and 1.8 m tall", (1.1, 1.8)),
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed):
     points, faces, weights, bind, built = toy_body(scale)
@@ -205,6 +267,12 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
     assert sized["armscye_depth"] == pytest.approx(12.6 * found["height"] / 166.0, rel=1e-3)
     assert sized["hip_inclination"] == 12.7
     assert sized["arm_length"] == pytest.approx(found["arm_length"], rel=1e-3)
+    if wear in ARMS:
+        assert arms_turned_out(scale, wear) == failed
+        return
+    if wear.startswith("built"):
+        assert toy_built(scale) == pytest.approx(failed, abs=0.01)
+        return
     torso, torso_faces = toy_torso()
     record, cloth, cloth_faces = toy_tee()
     sewn, cloths, bodies = worn(wear, torso * scale, cloth * scale, record, scale)
@@ -212,5 +280,11 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
                               {"bind": torso * scale, "faces": torso_faces, "frames": bodies})
     assert seating["body points covered"] > 1000, seating
     lines = seated.faults(seating)
+    # the torso worn as a garment under the tee, its triangles wound inward (as a GarmentCode panel may be), turned
+    # out by the body inside it
+    under = {"sewn": torso * scale, "worn": bodies, "faces": torso_faces[:, ::-1]}
+    lines += seated.layer_faults("under", "over", seated.layered(
+        under, {"sewn": sewn, "worn": cloths, "faces": cloth_faces}, torso * scale * [0.9, 0.95, 0.9]))
     assert sorted(kind for kind in ["off centre", "left shoulder seam", "right shoulder seam", "neckline drop",
-                                    "body through cloth"] if any(kind in line for line in lines)) == failed, lines
+                                    "body through cloth", "under through over"]
+                  if any(kind in line for line in lines)) == failed, lines

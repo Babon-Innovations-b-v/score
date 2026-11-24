@@ -1,0 +1,109 @@
+{
+ "about": "A tall man (192 cm, SOMA's shape: broad chest over narrow hips) in long dark grey trousers with a belt, a long-sleeved blue cotton shirt and a knee-length charcoal wool coat over it (#223, several people), each a GarmentCode design sized to his body and laid in layers (layer_m). GarmentCode has no front opening or buttons: the shirt and coat are closed garments with a V neck (a gap: buttons, plackets, a shirt collar; its SimpleLapel collar's box mesh crosses itself and is refused). The library's wool surface wears the cloth recipe's cotton row (data/physics/cloth.json has no wool row: a gap).",
+ "look": "person",
+ "mean": "mean_male",
+ "body": {
+  "shape": {
+   "5": -1.5,
+   "7": 1.0
+  },
+  "height_m": 1.92,
+  "about": "SOMA principal directions 5 and 7: chest over hips; the height set by height_m (direction 0, height in SOMA's scans, also lowers the arms into the sides as it shortens: SizeUSA's scan poses, 2026-11-24)"
+ },
+ "garments": [
+  {
+   "name": "trousers",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": null,
+    "meta.wb": "StraightWB",
+    "meta.bottom": "Pants",
+    "pants.length": 0.9,
+    "pants.width": 1.1
+   },
+   "worn": [
+    "lower_interface"
+   ],
+   "surface": {
+    "name": "simready_m_opaque_fabric_gray_a01_b8bd5f1d",
+    "address": "surface/simready_m_opaque_fabric_gray_a01_b8bd5f1d@1",
+    "recipe": "cloth"
+   }
+  },
+  {
+   "name": "shirt",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": "Shirt",
+    "meta.wb": null,
+    "meta.bottom": null,
+    "shirt.length": 1.35,
+    "sleeve.sleeveless": false,
+    "sleeve.length": 1.0,
+    "sleeve.connecting_width": 0.6,
+    "sleeve.end_width": 0.7,
+    "collar.f_collar": "VNeckHalf",
+    "collar.width": 0.1,
+    "collar.fc_depth": 0.6
+   },
+   "layer_m": 0.012,
+   "surface": {
+    "name": "simready_m_opaque_fabric_cotton_blue_o01_a59b8391",
+    "address": "surface/simready_m_opaque_fabric_cotton_blue_o01_a59b8391@1",
+    "recipe": "cloth"
+   }
+  },
+  {
+   "name": "coat",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": "Shirt",
+    "meta.wb": null,
+    "meta.bottom": null,
+    "shirt.length": 2.3,
+    "shirt.width": 1.2,
+    "shirt.flare": 1.25,
+    "sleeve.sleeveless": false,
+    "sleeve.length": 1.05,
+    "sleeve.connecting_width": 0.8,
+    "sleeve.end_width": 0.9,
+    "collar.f_collar": "VNeckHalf",
+    "collar.fc_depth": 1.2,
+    "collar.width": 0.3
+   },
+   "layer_m": 0.03,
+   "surface": {
+    "name": "wool_charcoal",
+    "address": "surface/wool_charcoal@1",
+    "recipe": "cloth"
+   }
+  }
+ ],
+ "body surface": {
+  "name": "skin_dark",
+  "address": "surface/skin_dark@1"
+ },
+ "accessories": {
+  "shoes": {
+   "upper": {
+    "name": "simready_m_opaque_leather_black_a01_9038819b",
+    "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
+   },
+   "sole": {
+    "name": "simready_m_opaque_leather_black_a01_9038819b",
+    "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
+   }
+  },
+  "belt": {
+   "on": "trousers",
+   "strap": {
+    "name": "simready_m_opaque_leather_black_glossy_a01_bebbeeca",
+    "address": "surface/simready_m_opaque_leather_black_glossy_a01_bebbeeca@1"
+   },
+   "buckle": {
+    "name": "simready_m_opaque_metal_brass_polished_a01_08774e2f",
+    "address": "surface/simready_m_opaque_metal_brass_polished_a01_08774e2f@1"
+   }
+  }
+ }
+}

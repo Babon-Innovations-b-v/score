@@ -121,6 +121,9 @@ def made(job):
         folder.mkdir(parents=True, exist_ok=True)
         spec = pattern(job["garmentcode"], measurements, garment, folder)
         box = boxmeshgen.BoxMesh(str(spec), float(job["resolution"]))
+        # The box mesh's own look for panels crossing themselves only warns (a coat's SimpleLapel, 2026-11-24).
+        if box.is_self_intersecting():
+            raise SystemExit(f"{garment['name']}: GarmentCode's box mesh has panels crossing themselves")
         box.load()
         record = box_record(box)
         np.savez(folder / f"{garment['name']}.npz", **record)

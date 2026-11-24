@@ -1,6 +1,6 @@
 """python -m tools.characters.garments <outfit.json> --clip <clip> --out <folder> [--frames N] [--turn-views N]
-[--walk-every N]: the outfit's look dressed end to end (the package docstring's steps) with its accessories (shoes,
-a belt: tools/characters/accessories), its measures printed."""
+[--walk-every N] [--turn-frame N]: the outfit's look dressed end to end (the package docstring's steps) with its
+accessories (shoes, a belt: tools/characters/accessories), its measures printed."""
 import argparse
 import json
 import os
@@ -28,12 +28,12 @@ def fetched(outfit, out):
     return folder / "score_lib"
 
 
-def rendered(usd, out, still, turn_views, walk_every):
+def rendered(usd, out, still, turn_frame, turn_views, walk_every):
     """The pictures, Blender through this PC's card queue."""
     command = ["python3", str(garments.CARD_QUEUE), "run", "--job", "garment-render", "--card-gb", "4", "--priority",
                "other", "--", str(BLENDER), "-b", "--factory-startup", "-P",
                str(garments.REPO / "tools/characters/garments/inside/render.py"), "--", str(usd), str(out),
-               str(still), "0", str(turn_views), str(walk_every)]
+               str(still), str(turn_frame), str(turn_views), str(walk_every)]
     subprocess.run(command, check=True, env={**os.environ, "LD_LIBRARY_PATH": str(BLENDER_LIBS)},
                    stdout=subprocess.DEVNULL)
 
@@ -46,16 +46,17 @@ def main():
     parser.add_argument("--frames", type=int, default=0, help="clip frames to run (all when 0)")
     parser.add_argument("--turn-views", type=int, default=24)
     parser.add_argument("--walk-every", type=int, default=0)
+    parser.add_argument("--turn-frame", type=int, default=0, help="clip frame the turn is drawn at (-1: the middle)")
     given = parser.parse_args()
     outfit = json.loads(pathlib.Path(given.outfit).read_text())
     out = pathlib.Path(given.out)
     out.mkdir(parents=True, exist_ok=True)
-    body = garments.built_body(outfit["look"], given.clip)
+    body = garments.built_body(outfit["look"], given.clip, outfit.get("body"))
     pattern_folder = garments.patterns(outfit, body, out)
     drape = dict(np.load(garments.draped(outfit, body, pattern_folder, out, given.frames)))
     records = {garment["name"]: dict(np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz"))
                for garment in outfit["garments"]}
-    found = garments.measures(drape, dict(np.load(out / "body.npz")), records, out)
+    found = garments.measures(drape, dict(np.load(out / "body.npz")), records, out, outfit)
     dressed = accessories.worn(outfit.get("accessories", {}), body, drape, records)
     found["accessories"] = dict(dressed["found"], faults=dressed["faults"])
     (out / "measures.json").write_text(json.dumps(found, indent=1))
@@ -66,9 +67,11 @@ def main():
     accessories.written_into(stage, dressed, outfit.get("accessories", {}), library)
     stage.GetRootLayer().Save()
     clip_frames = len(drape[outfit["garments"][0]["name"]])
-    rendered(usd, out, clip_frames // 2, given.turn_views, given.walk_every)
+    turn_frame = clip_frames // 2 if given.turn_frame < 0 else given.turn_frame
+    rendered(usd, out, clip_frames // 2, turn_frame, given.turn_views, given.walk_every)
     print(json.dumps(found, indent=1))
     failed = [f"{name}: {line}" for name, seating in found["seating"].items() for line in seating["faults"]]
+    failed += [line for layer in found["layers"].values() for line in layer["faults"]]
     failed += [f"accessories: {line}" for line in dressed["faults"]]
     if failed:
         raise SystemExit("a garment or an accessory does not stay seated:\n" + "\n".join(failed))

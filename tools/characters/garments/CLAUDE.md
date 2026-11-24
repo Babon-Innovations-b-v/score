@@ -24,8 +24,18 @@ runs them (an outfit file per look in `data/people/outfits/`).
   (`inside/drape.py`), Blender (`inside/render.py`, its missing libSM/libICE from `blender-mcp/libs`).
 - **A garment that does not stay seated fails the run** (`seated.py`, owner 2026-11-24: "clothes falling off"):
   shoulder seams off centre when sewn, a shoulder seam off the shoulder's top or moved over the clip, the neckline
-  fallen below its places on the skin, the body out through the cloth over it; `measures.json` carries each garment's `seating` and its `faults`,
+  fallen below its places on the skin, the body out through the cloth over it, a garment out through the one
+  laid over it (`layered`); `measures.json` carries each garment's `seating` and its `faults`,
   and the run exits non-zero after its pictures. Limits are never loosened to pass.
+- **Other builds** (`shaped.py`, several people): an outfit's `body` ({"shape": {SOMA direction: standard
+  deviations}, "height_m"}) reshapes the look's SOMA body in SOMA's own shape space (`SOMA_neutral.npz`,
+  nvidia/soma-x, Apache-2.0; `SOMA_NEUTRAL` overrides its path) and scales it to the height. Direction 0 is left
+  out: it carries SizeUSA's scan poses, its shorter bodies' arms down into their sides. A wider build's arms are
+  turned out until none past the armpit's fold sinks in the torso at the bind or walking (`arms_cleared`, up to 20
+  degrees; a build that needs more is refused): cloth caught between a sunk arm and the chest blew the drape up.
+- **Layers** (an outfit's `layer_m` per garment): an outer garment's box mesh is laid that much further off the
+  skin, so a shirt and the coat over it start apart and meet by contact as they are sewn. GarmentCode's box mesh
+  crossing itself (its SimpleLapel collar, 2026-11-24) is refused in `inside/pattern.py`, never draped.
 - **Accessories** (shoes, a belt: `../accessories`, #228) are fitted after the drape from the outfit file's
   `accessories` and written into the same `outfit.usda`; their faults fail the run like a garment's.
 - Tests: `test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it.py` (a toy body of tubes measured, a toy tee

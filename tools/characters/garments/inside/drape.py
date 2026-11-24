@@ -9,7 +9,8 @@ job.json (written by tools/characters/garments): {"device", "rate" (frames a sec
 frame of the run: its turn from the bind to the clip's first frame, then the clip), `clip_start`>, "sew_seconds",
 "still_seconds", "garments": [{"name", "record": <pattern.py's npz>, "offset": [x, y, z] (m, the record's frame to the
 body's), "worn": [labels of the record's points worn on the body], "holds": [{"label", "axis" (0 x, 1 y, 2 z),
-"value" (m), "side" (+1 or -1)}: points past a level drawn back to it, those on its side left], "material":
+"value" (m), "side" (+1 or -1)}: points past a level drawn back to it, those on its side left], "layer_m" (an outer
+garment's box points laid that much further off the skin, `laid_out`), "material":
 {"density" kg/m2, "mu" N/m, "lambda" N/m, "bending" N, "radius" m}}], "contact": {"mu", "ke", "kd", "margin" (m)},
 "self": {"margin", "gap" (m)}, "neck": [the body's points round its neck's base: the holds' levels move with their
 mean], "holds_until": "sewn", "turned" or "worn" (the drawn points held while sewing, through the turn too, or
@@ -49,6 +50,7 @@ import warp as wp
 SEW_SPEED = 0.25  # m/s, GarmentCode's global_max_velocity while the panels close (sim_config.py)
 CENTIMETRES = 0.01
 HOLDING = {"sewn": 0, "turned": 1, "worn": 2}  # how long the drawn points are held: sewing, the turn too, the clip too
+BLOWN = None  # where a clip that blows up keeps its garments' frames before it (run's out.npz, .blown.npz)
 HOLD_SHARE = 1.0  # of the way back to its level a drawn point past it moves each substep while held
 
 
@@ -148,10 +150,22 @@ def held_on(particles: wp.array[wp.int32], corners: wp.array[wp.vec3i], weights:
     positions[particle] = target
 
 
+def laid_out(points, skin, reach):
+    """Each point moved `reach` (m) further from the skin point nearest it: an outer garment's box mesh laid outside
+    the garments under it, so layers start apart and meet by contact as they are sewn (laid on the same box, a coat's
+    panels started inside its shirt's and the two were sewn through each other)."""
+    from scipy.spatial import cKDTree
+    if reach <= 0.0:
+        return points
+    _, nearest = cKDTree(skin).query(points)
+    away = points - skin[nearest]
+    return points + reach * away / np.maximum(np.linalg.norm(away, axis=1, keepdims=True), 1e-9)
+
+
 class Garment:
     """One garment's cloth in the builder: its particles, triangles, bending edges and held points."""
 
-    def __init__(self, builder, spec):
+    def __init__(self, builder, spec, skin):
         record = dict(np.load(spec["record"]))
         offset = np.asarray(spec["offset"], dtype=float)
         self.name, self.first = spec["name"], builder.particle_count
@@ -182,6 +196,7 @@ class Garment:
             builder.add_triangles(panel_faces[:, 0], panel_faces[:, 1], panel_faces[:, 2],
                                   tri_ke=[material["mu"]] * count, tri_ka=[material["lambda"]] * count,
                                   tri_kd=[0.0] * count, tri_drag=[0.0] * count, tri_lift=[0.0] * count)
+        self.points = laid_out(self.points, skin, float(spec.get("layer_m", 0.0)))
         for index, point in enumerate(self.points):
             builder.particle_q[self.first + index] = wp.vec3(*point)
         sides = bending_edges(welded)
@@ -204,7 +219,7 @@ class Outfit:
                                                margin=contact["margin"])
         self.body = newton.Mesh(self.bind, self.faces.ravel())
         builder.add_shape_mesh(body=-1, mesh=self.body, cfg=shape)
-        self.garments = [Garment(builder, spec) for spec in job["garments"]]
+        self.garments = [Garment(builder, spec, self.bind.astype(float)) for spec in job["garments"]]
         builder.color(include_bending=True)
         self.model = builder.finalize(device=job["device"])
         self.model.soft_contact_mu, self.model.soft_contact_ke = contact["mu"], contact["ke"]
@@ -321,12 +336,17 @@ def worn(outfit, job, clip_start):
         for garment in outfit.garments:
             found[garment.name].append(outfit.points(garment))
         if not np.isfinite(outfit.now.particle_q.numpy()).all():
-            raise RuntimeError(f"the cloth blew up at clip frame {frame - clip_start}")
+            blown = [name for name, frames in found.items() if not np.isfinite(frames[-1]).all()]
+            np.savez_compressed(BLOWN, **{name: np.asarray(frames[:-1]) for name, frames in found.items()})
+            raise RuntimeError(f"the cloth blew up at clip frame {frame - clip_start}: {', '.join(blown)} (the frames "
+                               f"before it in {BLOWN})")
     wp.synchronize()
     return {name: np.asarray(value) for name, value in found.items()}, time.monotonic() - began
 
 
 def run(job_path, out_path):
+    global BLOWN
+    BLOWN = out_path.with_suffix(".blown.npz")
     job = json.loads(job_path.read_text())
     body = dict(np.load(job["body"]))
     wp.init()

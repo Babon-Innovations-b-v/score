@@ -57,28 +57,36 @@ NECK_REACH_CM = 2.0  # past the neck's half width, the body's points round the n
 CARD_GB = 4.0  # the drape's card share (one outfit, one body)
 
 
-def built_body(look, clip):
-    """The person's body for the drape: its SOMA surface at the bind, the clip played on its build (the sim body's
-    `person_rig`), and its joints (`worlds`) and skin every frame of the turn from the bind into the clip and of the
-    clip."""
+def built_body(look, clip, build=None):
+    """The person's body for the drape: its SOMA surface at the bind (given another `build`, the outfit's `body`:
+    SOMA's shape and a height, shaped.py), the clip played on its build (the sim body's `person_rig`), and its joints
+    (`worlds`) and skin every frame of the turn from the bind into the clip and of the clip."""
     from score.stages.sim_body import _body
     from score.stages.people_cloth import skinned
     from tools.characters import played
+    from tools.characters.garments import shaped
     clips_rig = dict(np.load(CLIPS))
     built = dict(np.load(PEOPLE / look / "made/fit/rig.npz"))
+    if build:
+        built = shaped.built(built, clips_rig["weights"], clips_rig["parents"], build)
     found, _ = _body.person_rig(clips_rig, built)
     parents, bind = np.asarray(clips_rig["parents"]), np.asarray(found["bind"], dtype=float)
     local = np.asarray(found[f"clip_{clip}"], dtype=float)
+    points = np.asarray(found["points"], dtype=float)
+    arms_out = 0.0
+    if build:
+        bind, points, local, arms_out = shaped.arms_cleared(bind, points, np.asarray(built["source_faces"]),
+                                                            np.asarray(clips_rig["weights"], dtype=float),
+                                                            clips_rig["names"], parents, local)
     worlds = np.concatenate([played.chained(turned(bind, local[0], parents), parents),
                              played.chained(local, parents)])
     weights = np.asarray(clips_rig["weights"], dtype=float)
     joints = np.tile(np.arange(weights.shape[1]), (len(weights), 1))
-    points = np.asarray(found["points"], dtype=float)
     worlds = np.concatenate([bind[None], worlds])
     frames = skinned(points, joints, weights, worlds, bind)
     return {"bind": points, "faces": np.asarray(built["source_faces"], dtype=np.int64), "weights": weights,
             "names": np.asarray(clips_rig["names"]), "joints": bind, "worlds": worlds, "frames": frames,
-            "clip_start": np.array(1 + int(round(TURN_SECONDS * RATE)))}
+            "clip_start": np.array(1 + int(round(TURN_SECONDS * RATE))), "arms_out": arms_out}
 
 
 def turned(bind, first, parents):
@@ -177,7 +185,7 @@ def draped(outfit, body, pattern_folder, out, frames):
                for garment in outfit["garments"]}
     job = dict(DRAPE, body=str(out / "body.npz"), neck=neck(body, measurements, shift), garments=[
         {"name": garment["name"], "record": str(pattern_folder / garment["name"] / f"{garment['name']}.npz"),
-         "offset": shift.tolist(), "worn": garment.get("worn", []),
+         "offset": shift.tolist(), "worn": garment.get("worn", []), "layer_m": float(garment.get("layer_m", 0.0)),
          "holds": holds(garment, records[garment["name"]], measurements, shift),
          "material": cloth_material(garment["surface"])}
         for garment in outfit["garments"]])
@@ -220,11 +228,28 @@ def seating(drape, body, records):
     return found
 
 
-def measures(drape, body, records, out):
-    """measures.json: penetration, seating, and the drape's seconds a clip frame on this card."""
+def layers(drape, body, outfit):
+    """Each garment against every garment laid over it (a larger `layer_m`) over the clip (seated.layered): its
+    measures and its faults, keyed "<under> under <over>"."""
+    from tools.characters.garments import seated
+    found = {}
+    laid = [(float(garment.get("layer_m", 0.0)), garment["name"]) for garment in outfit["garments"]]
+    for under_layer, under in laid:
+        for over_layer, over in laid:
+            if over_layer <= under_layer:
+                continue
+            pair = [{"sewn": drape[f"{name}/sewn"], "worn": drape[name], "faces": drape[f"{name}/faces"]}
+                    for name in (under, over)]
+            found[f"{under} under {over}"] = seated.layered(*pair, body["bind"])
+            found[f"{under} under {over}"]["faults"] = seated.layer_faults(under, over, found[f"{under} under {over}"])
+    return found
+
+
+def measures(drape, body, records, out, outfit):
+    """measures.json: penetration, seating, layers, and the drape's seconds a clip frame on this card."""
     clip_frames = max(1, len(drape[next(key for key in drape if key.startswith("inside/"))]) - 1)
     found = {"engine": str(drape["engine"]), "penetration": penetration(drape, THICKNESS_M),
-             "seating": seating(drape, body, records),
+             "seating": seating(drape, body, records), "layers": layers(drape, body, outfit),
              "sew seconds": round(float(drape["seconds/sew"]), 1),
              "clip seconds a frame": round(float(drape["seconds/clip"]) / clip_frames, 3),
              "substeps a frame": DRAPE["substeps"], "iterations": DRAPE["iterations"]}

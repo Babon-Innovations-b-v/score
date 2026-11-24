@@ -1,0 +1,72 @@
+{
+ "about": "A short heavy person (158 cm, SOMA's shape: short, round belly and hips) in a work uniform: straight canvas work trousers and a long-sleeved high-visibility yellow jacket over them (#223, several people), each a GarmentCode design sized to the body. GarmentCode has no front opening, pockets or reflective tape: the jacket is a closed garment (gaps).",
+ "look": "person",
+ "mean": "mean_male",
+ "body": {
+  "shape": {
+   "1": -2.0,
+   "3": 1.5
+  },
+  "height_m": 1.58,
+  "about": "SOMA principal directions 1 and 3: girth; the height set by height_m (direction 0 lowers the arms into the sides as it shortens: SizeUSA's scan poses, 2026-11-24)"
+ },
+ "garments": [
+  {
+   "name": "trousers",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": null,
+    "meta.wb": "StraightWB",
+    "meta.bottom": "Pants",
+    "pants.length": 0.9,
+    "pants.width": 1.2
+   },
+   "worn": [
+    "lower_interface"
+   ],
+   "surface": {
+    "name": "simready_m_opaque_fabric_cotton_canvas_gray_a01_18a07d41",
+    "address": "surface/simready_m_opaque_fabric_cotton_canvas_gray_a01_18a07d41@1",
+    "recipe": "cloth"
+   }
+  },
+  {
+   "name": "jacket",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": "Shirt",
+    "meta.wb": null,
+    "meta.bottom": null,
+    "shirt.length": 1.6,
+    "shirt.width": 1.15,
+    "sleeve.sleeveless": false,
+    "sleeve.length": 1.0,
+    "sleeve.connecting_width": 0.7,
+    "sleeve.end_width": 0.8,
+    "collar.width": 0.2
+   },
+   "layer_m": 0.015,
+   "surface": {
+    "name": "simready_m_opaque_fabric_polyester_yellow_a01_811e628c",
+    "address": "surface/simready_m_opaque_fabric_polyester_yellow_a01_811e628c@1",
+    "recipe": "cloth"
+   }
+  }
+ ],
+ "body surface": {
+  "name": "skin_medium",
+  "address": "surface/skin_medium@1"
+ },
+ "accessories": {
+  "shoes": {
+   "upper": {
+    "name": "simready_m_opaque_leather_glossy_gray_a01_1f6c9de1",
+    "address": "surface/simready_m_opaque_leather_glossy_gray_a01_1f6c9de1@1"
+   },
+   "sole": {
+    "name": "simready_m_opaque_leather_black_a01_9038819b",
+    "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
+   }
+  }
+ }
+}

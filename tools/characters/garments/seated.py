@@ -197,15 +197,18 @@ def standing_out(body, outward, place, corners):
     return found
 
 
-def through(cloth, cloth_faces, body, body_faces, covered, held):
+def through(cloth, cloth_faces, body, body_faces, covered, held, sides=None):
     """How far each covered body point stands out past the cloth over it (m, negative under it), the lesser of two
     readings, so both must find it out: past the cloth at its nearest place now (NaN where that place is at the
     cloth's open edge: the point no longer under it), and past the cloth at the place it was under when sewn
     (`held`: the cloth's triangle and weights there), carried with the cloth. A point out past the nearest cloth
-    alone faces another fold; out past its own sewn place alone, the cloth has slid off it (the seams' measure)."""
+    alone faces another fold; out past its own sewn place alone, the cloth has slid off it (the seams' measure).
+    `sides` (+1 or -1 a body point) turns the body's normals outward where its triangles do not wind outward (a
+    garment under another, GarmentCode's panels wound either way)."""
     cloth, cloth_faces = np.asarray(cloth, dtype=float), np.asarray(cloth_faces)
     body = np.asarray(body, dtype=float)
-    outward = normals(body, body_faces)[covered]
+    outward = normals(body, body_faces) * (1.0 if sides is None else np.asarray(sides)[:, None])
+    outward = outward[covered]
     place, triangle, _ = nearest_on(cloth, cloth_faces, body[covered])
     corners = cloth[cloth_faces[triangle]]
     nearest = standing_out(body[covered], outward, place, corners)
@@ -259,6 +262,44 @@ def measured(garment, body):
     found["most body points through on a frame"] = int(poking.sum(axis=1).max())
     found["body through deepest mm"] = round(float(max(0.0, np.nanmax(out))) * 1000.0, 1)
     return found
+
+
+def outward_sides(points, faces, body):
+    """+1 when most of a garment's triangles at the bind face away from the body (the nearest body point to each of
+    its points), else -1: its winding, one way for the whole garment (judged point by point, a cap's points whose
+    normal stands square to the way to the body were read the wrong way round, 2026-11-24)."""
+    from scipy.spatial import cKDTree
+    points = np.asarray(points, dtype=float)
+    _, nearest = cKDTree(np.asarray(body, dtype=float)).query(points)
+    away = np.sum(normals(points, faces) * (points - np.asarray(body)[nearest]), axis=1)
+    return np.full(len(points), 1.0 if np.median(away) >= 0.0 else -1.0)
+
+
+def layered(under, over, bind):
+    """A garment worn under another (`under`, `over`: {"sewn", "worn", "faces"} as `measured` takes them; `bind`
+    the body's points at the bind): the under garment's points the over one covers when sewn that stand out
+    through it over the clip, as the body's through its cloth (`through`). A shirt's or trousers' cloth out through
+    the coat or jacket over it shows on the outside."""
+    under_sewn, over_sewn = np.asarray(under["sewn"], dtype=float), np.asarray(over["sewn"], dtype=float)
+    sides = outward_sides(under_sewn, under["faces"], bind)
+    _, _, distance = nearest_on(over_sewn, over["faces"], under_sewn)
+    covered = np.flatnonzero(distance < COVER_M)
+    held = held_under(over_sewn, over["faces"], under_sewn, covered)
+    at_sewing = np.isfinite(through(over_sewn, over["faces"], under_sewn, under["faces"], covered, held, sides))
+    covered, held = covered[at_sewing], (held[0][at_sewing], held[1][at_sewing])
+    out = np.array([through(cloth, over["faces"], frame, under["faces"], covered, held, sides)
+                    for cloth, frame in zip(np.asarray(over["worn"]), np.asarray(under["worn"]))])
+    poking = np.nan_to_num(out, nan=-1.0) > THROUGH_M
+    return {"points covered": int(len(covered)), "most points through on a frame": int(poking.sum(axis=1).max()),
+            "through deepest mm": round(float(max(0.0, np.nanmax(out))) * 1000.0, 1) if len(covered) else 0.0}
+
+
+def layer_faults(under_name, over_name, found):
+    """The fault line of a garment out through the one over it (none when it stays under)."""
+    if not found["most points through on a frame"]:
+        return []
+    return [f"{under_name} through {over_name}: {found['most points through on a frame']} points on a frame, "
+            f"{found['through deepest mm']} mm deep (limit {THROUGH_M * 1000.0:.0f} mm)"]
 
 
 def faults(found):

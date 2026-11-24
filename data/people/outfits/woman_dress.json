@@ -1,0 +1,53 @@
+{
+ "about": "A slim woman (170 cm, SOMA's shape: slim, hips wider than chest) in an ankle-length dress with elbow sleeves (#223, several people): GarmentCode's fitted bodice sewn to a circle skirt as one garment, sized to her body.",
+ "look": "person",
+ "mean": "mean_female",
+ "body": {
+  "shape": {
+   "1": 1.0,
+   "3": -0.6,
+   "5": 1.5,
+   "7": -1.0
+  },
+  "height_m": 1.7,
+  "about": "SOMA principal directions: 1 and 3 slimmer, 5 and 7 hips over chest"
+ },
+ "garments": [
+  {
+   "name": "dress",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": "FittedShirt",
+    "meta.wb": null,
+    "meta.bottom": "SkirtCircle",
+    "flare-skirt.length": 0.85,
+    "flare-skirt.suns": 0.3,
+    "sleeve.sleeveless": false,
+    "sleeve.length": 0.5,
+    "sleeve.connecting_width": 0.6,
+    "collar.width": 0.2
+   },
+   "surface": {
+    "name": "simready_m_opaque_fabric_cotton_blue_o01_a59b8391",
+    "address": "surface/simready_m_opaque_fabric_cotton_blue_o01_a59b8391@1",
+    "recipe": "cloth"
+   }
+  }
+ ],
+ "body surface": {
+  "name": "skin_light",
+  "address": "surface/skin_light@1"
+ },
+ "accessories": {
+  "shoes": {
+   "upper": {
+    "name": "simready_m_opaque_leather_black_glossy_a01_bebbeeca",
+    "address": "surface/simready_m_opaque_leather_black_glossy_a01_bebbeeca@1"
+   },
+   "sole": {
+    "name": "simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d",
+    "address": "surface/simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d@1"
+   }
+  }
+ }
+}
