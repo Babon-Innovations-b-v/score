@@ -10,7 +10,7 @@ as its matrix: a copy stretched unevenly stays a copy, its stretch in the matrix
   content digest from the library's own index, so an engine knows when its held copy is stale; its geometry is the
   entry's: `gltf` names the entry's file an engine reads it from (its web3d/full.glb, else the glTF the laid USD was
   converted from), and an entry that holds no glTF (a kit piece or model kept as USD alone) has its geometry as laid
-  written once as meshes/<name>.glb (`mesh`, `sha256`: positions, normals and a primitive a part, as a made piece's),
+  written once as meshes/<name>.glb (`mesh`, `sha256`: positions, normals, texture coordinates (`paged`) and a primitive a part),
   still held by the engine once for its address and digest;
 - a made piece (an algorithm's: the stair core, blocks, dome shells, tubes, terrain, a ground disc; anything without
   a library entry) as its own small made/<name>.glb in the piece's own frame: positions, normals and one primitive a
@@ -85,14 +85,15 @@ def same_look(one, other):
 
 def part_corners(prim):
     """An object's triangles by part in its own frame (its transforms below the object alone, as scene_package's
-    gprim_pieces reads them): {part: (positions (k x 3), normals (k x 3))} a corner each, and {part: the look bound
-    on it} (Refused when one part wears two looks)."""
+    gprim_pieces reads them): {part: (positions (k x 3), normals (k x 3), texture coordinates (k x 2) or None when
+    a mesh of it has none)} a corner each, and {part: the look bound on it} (Refused when one part wears two
+    looks)."""
     corners, bound = {}, {}
     for gprim in scene_package.gprims(prim):
         found = scene_package.drawn(gprim)
         if found is None or not len(found[2]):
             continue
-        points, indices, triangles, faces, normals, _ = found
+        points, indices, triangles, faces, normals, uv = found
         own = points[indices]
         if normals is not None:
             normals_at = triangles
@@ -116,23 +117,72 @@ def part_corners(prim):
             placed = own[triangles[chosen].ravel()] @ matrix[:3, :3] + matrix[3, :3]
             turned = normals[normals_at[chosen].ravel()] @ turn
             turned /= np.maximum(np.linalg.norm(turned, axis=1, keepdims=True), 1e-12)
+            page = None if uv is None else uv[triangles[chosen].ravel()]
             if flipped:
                 placed = placed.reshape(-1, 3, 3)[:, ::-1].reshape(-1, 3)
                 turned = turned.reshape(-1, 3, 3)[:, ::-1].reshape(-1, 3)
+                page = None if page is None else page.reshape(-1, 3, 2)[:, ::-1].reshape(-1, 2)
             held = corners.get(part)
-            corners[part] = (placed, turned) if held is None else (np.vstack([held[0], placed]),
-                                                                    np.vstack([held[1], turned]))
+            corners[part] = (placed, turned, page) if held is None else (
+                np.vstack([held[0], placed]), np.vstack([held[1], turned]),
+                None if held[2] is None or page is None else np.vstack([held[2], page]))
     return corners, bound
 
 
-def made_glb(corners):
-    """A made piece's GLB: one mesh a part (named by it), welded positions and normals, no material, no texture
-    coordinates."""
+PAGE_AREA = 1e-6  # texture coordinates whose triangles cover less of the unit square than this lay no page
+
+
+def covers(uv):
+    """Whether corner texture coordinates lay a page: their triangles cover some of the unit square (a kit piece's
+    palette swatch puts each face's corners on one point of its swatch sheet, which covers none)."""
+    if uv is None:
+        return False
+    triangle = uv.reshape(-1, 3, 2)
+    one, other = triangle[:, 1] - triangle[:, 0], triangle[:, 2] - triangle[:, 0]
+    return float(np.abs(one[:, 0] * other[:, 1] - one[:, 1] * other[:, 0]).sum()) / 2.0 > PAGE_AREA
+
+
+def boxed(corners):
+    """Each part's corners given texture coordinates projected from the piece's own box (v up the piece, its y),
+    each triangle onto the box side its face looks out of, read as one looking at that side (u to the right), so a
+    side's face spans the unit square: a decal's page laid on a kit card whose own coordinates are its palette
+    swatch (the flat's calendar, 2099 #161)."""
+    points = np.vstack([positions for positions, _, _ in corners.values()])
+    low, side = points.min(axis=0), np.maximum(np.ptp(points, axis=0), 1e-9)
+    paged = {}
+    for part, (positions, normals, _) in corners.items():
+        triangle = positions.reshape(-1, 3, 3)
+        facing = np.cross(triangle[:, 1] - triangle[:, 0], triangle[:, 2] - triangle[:, 0])
+        axis = np.repeat(np.abs(facing).argmax(axis=1), 3)
+        sign = np.repeat(np.sign(facing[np.arange(len(facing)), np.abs(facing).argmax(axis=1)]), 3)
+        across = (positions - low) / side
+        u = np.where(axis == 0, np.where(sign > 0, 1.0 - across[:, 2], across[:, 2]),
+                     np.where(axis == 2, np.where(sign > 0, across[:, 0], 1.0 - across[:, 0]), across[:, 0]))
+        v = np.where(axis == 1, across[:, 2], across[:, 1])
+        paged[part] = (positions, normals, np.stack([u, v], axis=1))
+    return paged
+
+
+def paged(corners):
+    """A library piece's corners with the texture coordinates its glTF carries: its meshes' own where every part's
+    lay a page (a SimReady model's maps read by them), else its box's (`boxed`)."""
+    if all(covers(uv) for _, _, uv in corners.values()):
+        return corners
+    return boxed(corners)
+
+
+def made_glb(corners, pages=False):
+    """A piece's GLB: one mesh a part (named by it), welded positions and normals, no material; texture coordinates
+    (TEXCOORD_0, `paged`) when `pages` (a library piece's geometry as laid, whose looks' maps read them), none for a
+    made piece."""
     import trimesh
     scene = trimesh.Scene()
+    corners = paged(corners) if pages else corners
     for part in sorted(corners):
-        vertices, normals, _, faces = scene_package.welded(*corners[part], None)
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=normals, process=False)
+        positions, normals, uv = corners[part]
+        vertices, normals, uv, faces = scene_package.welded(positions, normals, uv if pages else None)
+        visual = trimesh.visual.TextureVisuals(uv=uv) if pages else None
+        mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=normals, visual=visual, process=False)
         scene.add_geometry(mesh, node_name=part, geom_name=part)
     document, binary = scene_package.unpacked(scene.export(file_type="glb", include_normals=True), None)
     document.pop("materials", None)
@@ -144,9 +194,9 @@ def made_glb(corners):
 
 def size_of(corners):
     """A piece's box sides (x, y, z, metres) in its own frame and its triangle count."""
-    points = np.vstack([positions for positions, _ in corners.values()])
+    points = np.vstack([positions for positions, _, _ in corners.values()])
     return [round(float(side), 4) for side in np.ptp(points, axis=0)], sum(len(positions) // 3
-                                                                           for positions, _ in corners.values())
+                                                                           for positions, _, _ in corners.values())
 
 
 # --- looks ----------------------------------------------------------------------------------------------------------
@@ -266,7 +316,7 @@ def sourced(out, pieces, held, laid):
         if source is not None:
             piece.update(source)
             continue
-        glb = made_glb(corners)
+        glb = made_glb(corners, pages=True)
         (out / MESHES).mkdir(exist_ok=True)
         (out / MESHES / f"{name}.glb").write_bytes(glb)
         piece.update(mesh=f"{MESHES}/{name}.glb", sha256=hashlib.sha256(glb).hexdigest())

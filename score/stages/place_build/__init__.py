@@ -1722,10 +1722,15 @@ def recipe_marked(look, spec):
 def tinted(stage, shader, colour):
     """The look's colour set to `colour`: its diffuse colour, or, when that comes from an image surface's map, the
     map multiplied by it (the texture's scale, which Blender's reader brings in as a multiply), so a scanned ground
-    takes the planet's tint and keeps its grain."""
+    takes the planet's tint and keeps its grain; a decal's page (`decal_read`) keeps its own ink and is laid on paper
+    of `colour` (the diffuse colour under its connection, which an engine shows where the page is clear: the flat's
+    red poster under its gold words, 2099 #161)."""
     linear = colour_of(colour)
     source = shader.GetInput("diffuseColor")
     connected = source.GetConnectedSources()[0] if source else []
+    if connected and connected[0].source.GetPrim().GetName() == "decal":
+        source.Set(Gf.Vec3f(*linear))
+        return
     if connected:
         texture = UsdShade.Shader(connected[0].source.GetPrim())
         texture.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(*linear, 1.0))

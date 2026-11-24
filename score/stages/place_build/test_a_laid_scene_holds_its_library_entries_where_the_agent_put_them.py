@@ -19,7 +19,8 @@ colour difference of the two pictures, and draws them side by side; and a review
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
 straight down under its cut with +x right and +z down, and a physics fault boxed in red and named on the plan; and
 the laid scene as a piece list (score.scene v2, no Blender: each library piece once by its address and digest, the
-made geometry as untextured GLBs a mesh a part, each copy's parts' looks, its check sound and refusing a stale digest,
+made geometry as untextured GLBs a mesh a part, a library piece's laid geometry with its texture coordinates (a kit
+card's palette swatch replaced by its box's, so a decal's page spans its face), each copy's parts' looks, its check sound and refusing a stale digest,
 a withdrawn entry, a changed made file and a part with no look) and
 the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
 copies in one surface one object, its texture caps the game's (a film package's raised, the game's set back after), a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
@@ -318,6 +319,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   carrying its own copy of one material, refuse its piece list (#156)
 - place_build.decal_read: a decal surface laid as a recipe -> the panel's page surface asks for a colour, or wears
   none of its page (2099 #161, the flat's blank white calendar)
+- place_build.tinted: a decal's colour multiplied into its page -> the red paper's page has its ink tinted and no
+  paper under it (2099 #161, the flat's poster)
+- pieces.paged: a library mesh written without texture coordinates, or a kit card's swatch kept -> the card's page
+  is one point and a SimReady model's maps read nothing (2099 #161, the flat's calendar and stove)
 - pieces.own_look: a look bound inside the object taken for its own whatever it names -> the kit's door in a library
   surface is its own bake, and the engine draws the materialless mesh white (2099 #161, the flat's wardrobe)
 - pieces.pictures_apart: the picture's view kept in the buffer, or the accessors' views not renumbered -> the
@@ -727,6 +732,12 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     page_source = UsdShade.Shader.Get(paged, "/yard/Looks/panel/surface").GetInput("diffuseColor").GetConnectedSources()[0]
     page_file = UsdShade.Shader(page_source[0].source.GetPrim()).GetInput("file").Get().path if page_source else None
     del paged
+    place_build.surface(folder, "panel", "surface/page", colour="#ff0000")  # a page on red paper
+    papered = Usd.Stage.Open(str(folder / "scene.usda"))
+    paper = UsdShade.Shader.Get(papered, "/yard/Looks/panel/surface").GetInput("diffuseColor")
+    page_scale = UsdShade.Shader.Get(papered, "/yard/Looks/panel/decal").GetInput("scale")
+    paper_colour, page_tinted = tuple(paper.Get()), bool(page_scale and page_scale.Get() is not None)
+    del papered
     place_build.surface(folder, "panel", "palette/hull_paint")
     batched = place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
@@ -823,6 +834,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert place_build.palette_spec(folder, "porthole")["opacity"] == method["opacity"] < 1.0  # see-through
     assert np.isclose(pane_opacity, method["opacity"]), pane_opacity  # the method's, as palette_spec takes it
     assert page_file and page_file.endswith("page/1/decal.png"), page_file  # the decal's page is its colour
+    assert np.allclose(paper_colour, (1.0, 0.0, 0.0)) and not page_tinted  # its ink kept, laid on paper of the colour
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
     holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))
@@ -1849,6 +1861,15 @@ def pieced(folder, root, out):
     assert pieces.own_look(copied.GetPrimAtPath("/kit"), door_a)  # its own bake, no library surface named
     door_a.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("surface/wood@1")
     assert not pieces.own_look(copied.GetPrimAtPath("/kit"), door_a)  # a library surface bound inside the model
+    card = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 2], [0, 1, 0], [0, 1, 2], [0, 0, 2]], dtype=float)  # a +x face
+    swatch = {"face": (card, np.tile([1.0, 0, 0], (6, 1)), np.full((6, 2), 0.3))}  # a palette swatch: one point
+    page = pieces.paged(swatch)["face"][2]
+    assert np.allclose(page[[0, 1, 2, 4]], [[1, 0], [1, 1], [0, 0], [0, 1]]), page  # boxed: the face spans the page,
+    # read as one looking at it (+z to the left), up the piece
+    own = {"face": (card, np.tile([1.0, 0, 0], (6, 1)), np.array([[0, 0], [1, 0], [0, 1], [0, 1], [1, 0], [1, 1.0]]))}
+    assert pieces.paged(own)["face"][2] is own["face"][2]  # its own coordinates kept where they lay a page
+    glb = pieces.made_glb(own, pages=True)
+    assert b"TEXCOORD_0" in glb and b"TEXCOORD_0" not in pieces.made_glb(own)  # a made piece carries none
 
 
 def held_pictures(out, scene):
