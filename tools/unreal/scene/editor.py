@@ -45,7 +45,6 @@ def combining():
     pipeline = unreal.InterchangeGenericAssetsPipeline()
     meshes = pipeline.get_editor_property("mesh_pipeline")
     meshes.set_editor_property("combine_static_meshes_behavior", unreal.InterchangeCombineStaticMeshesBehavior.ALL)
-    pipeline.set_editor_property("mesh_pipeline", meshes)
     return pipeline
 
 
