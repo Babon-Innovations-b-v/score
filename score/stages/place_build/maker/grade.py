@@ -6,7 +6,7 @@ the paint's own detail (its wear, its print, its shading) stays and only its col
 A group of at least MISMATCH_SHARE of the surface still further than MISMATCH_DELTA from every token is a mismatch:
 its prop is repainted from the library (`surface`), never graded harder.
 A graded paint is still the model's own, not a library surface: `parts` names its paints (the groups of at least
-PART_SHARE, further than PART_DELTA apart), which the place's finish (place_build/finished) lays each as the palette
+PART_SHARE, further than PART_DELTA apart, and a small one far from them all), which the place's finish (place_build/finished) lays each as the palette
 variant nearest its colour.
 
     graded(rgb, samples, tokens) -> (graded rgb, [{"share", "from", "token", "delta_e", ...}])
@@ -22,6 +22,11 @@ MISMATCH_SHARE = 0.15
 MISMATCH_DELTA = 30.0
 PART_SHARE = 0.1  # a colour group painting at least this share of a surface is a part of its own
 PART_DELTA = 20.0  # delta E: groups nearer than this to a larger one are one paint (its wear and shading)
+# A smaller group still a part of its own when it paints at least DISTINCT_SHARE and stands at least DISTINCT_DELTA
+# from every larger part: a police car's siren and tail lamps, a sign's letters (2099 #161: the street's car came out
+# one black paint, its siren painted over), never a speck.
+DISTINCT_SHARE = 0.002
+DISTINCT_DELTA = 40.0
 WHITE = np.array([0.95047, 1.0, 1.08883])  # D65
 TO_XYZ = np.array([[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750],
                    [0.0193339, 0.1191920, 0.9503041]])
@@ -93,13 +98,14 @@ def graded(rgb, samples, tokens):
 
 def parts(samples):
     """A paint's parts from its colours at points spread evenly over the surface (CIELAB, n x 3): its colour groups,
-    one smaller than PART_SHARE or nearer than PART_DELTA to a larger one joined into that one (its share added);
-    [(centre, share)], largest first."""
+    one nearer than PART_DELTA to a larger one, or smaller than PART_SHARE and not distinct (DISTINCT_SHARE,
+    DISTINCT_DELTA), joined into that one (its share added); [(centre, share)], largest first."""
     centres, shares = groups(samples)
     kept = []
     for index in np.argsort(-shares):
         gaps = [float(np.linalg.norm(centre - centres[index])) for centre, _ in kept]
-        if kept and (shares[index] < PART_SHARE or min(gaps) < PART_DELTA):
+        distinct = shares[index] >= DISTINCT_SHARE and kept and min(gaps) >= DISTINCT_DELTA
+        if kept and ((shares[index] < PART_SHARE and not distinct) or min(gaps) < PART_DELTA):
             nearest = int(np.argmin(gaps))
             kept[nearest] = (kept[nearest][0], kept[nearest][1] + float(shares[index]))
         else:

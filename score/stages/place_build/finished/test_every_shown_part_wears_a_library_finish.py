@@ -17,7 +17,9 @@ scene's finishes are told no fault.
 Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.object_faults: the whole-look rule left out (`len(parts) >= PARTS` made `False`) -> the grey generator
   passes
-- grade.parts: PART_DELTA made 1000 -> the generator's red and grey are one paint, its grey look passes
+- grade.parts: PART_DELTA made 1000 -> the generator's red and grey are one paint, its grey look passes;
+  `not distinct` dropped -> the black car's 0.3% red siren is joined into its body (2099 #161), and `>= DISTINCT_SHARE`
+  dropped -> the 0.1% white speck is a part of its own
 - finished.library_painted: always True -> the take's own paint passes
 - place_build.surface: whole_over_parts unread -> the second whole grey look is laid, not refused
 - place_build.put: own_paint_finished unread -> the take laid after the palette keeps its own paint
@@ -163,6 +165,10 @@ def kinds(found, name):
 
 
 def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
+    from score.stages.place_build.maker import grade
+    import numpy as np
+    car = np.array([[2.0, 0.0, 0.0]] * 899 + [[40.0, 0.0, 0.0]] * 97 + [[45.0, 65.0, 50.0]] * 3 + [[90.0, 0.0, 0.0]])
+    assert [round(share, 3) for _, share in grade.parts(car)] == [0.997, 0.003]  # body (grey, speck in it), siren
     root, files, folder = tmp_path / "lib", tmp_path / "files", tmp_path / "place"
     library(root, files)
     monkeypatch.setenv("SCORE_LIB_ROOT", str(root))
