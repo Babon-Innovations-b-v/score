@@ -565,6 +565,9 @@ what proves it.
   seen (or heard) the layer.
 - **The people line** (`score/stages/people`, `tools/characters/maker`): Pixal3D bodies rigged with SOMA-X and Kimodo's
   clips. Proven when its looks pass every body gate on every clip and the owner picks them.
+- **The face** (`tools/characters/face`, PRD #223, #226): ICT-FaceKit's face (MIT) fitted onto a SOMA body's head and
+  joined into its skin, with eyes, teeth and lashes, MHR's 72 expressions its controls, its finishes score_lib's.
+  Proven when a person's face reaches the people line's bodies and the owner picks its stills.
 - **The animal route** (`tools/characters/animals/`, `make.py --experimental`; no animal rows since #128). Proven when an
   animal moves in a scene.
 - **The reach check** (`tools/usd/reach.py`): shown, not counted. Counted once the owner sets the scenery rule and it
