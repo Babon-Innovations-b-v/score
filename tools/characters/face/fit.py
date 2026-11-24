@@ -10,6 +10,8 @@ import heapq
 
 import numpy as np
 import trimesh
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import breadth_first_order, dijkstra
 from scipy.spatial import cKDTree
 
 import ict
@@ -21,8 +23,8 @@ IDENTITY_PULL = 0.02
 EYE_WEIGHT = 40.0  # each eye centre's weight against one face point's, so the eyes sit in the body's eye joints
 TRIM_METRES = 0.012  # a face point further than this from the body's skin is left out of a round's solve
 KEEP_SHARE = 0.9  # and only the nearest share of the rest are taken, so lids and lips that differ do not pull
-BLEND_METRES = 0.025  # how far in from the face's border the body's skin still shapes the face
-COVER_METRES = 0.015  # a body point is under the face when it lies within this of it and inside its border
+BLEND_METRES = 0.04  # how far in from the face's border the body's skin still shapes the face
+WALL_REACH = 0.05  # metres: no leg of the wall along the face's border is longer
 CENTRE_BEHIND = 0.08  # the head's centre for the border's projection: this far behind the eyes
 CENTRE_BELOW = 0.03  # and this far below them
 
@@ -166,15 +168,17 @@ def body_share(distance):
 
 
 def laid_on_skin(points, face_triangles, loop, head):
-    """The face's points with its border put on the body's skin and the move faded inward; the face points' share
-    of the body. Points of other pieces move with their nearest face point."""
-    snapped, _, _ = trimesh.proximity.closest_point(head, points[loop])
-    move = np.zeros_like(points)
-    move[loop] = snapped - points[loop]
+    """The face's points pulled onto the body's skin by their share of the body (on the border fully, fading to none
+    BLEND_METRES in), and that share. Where ICT's face stands off the body's head (its jaw's sides stood up to 20 mm
+    off the officer's) the band round the border takes the body's shape, so no gap opens under it. Points of other
+    pieces move with their nearest face point."""
     face_count = ict.PIECES["face"][1] + 1
-    distance, nearest = graph_distance(points[:face_count], face_triangles, loop)
+    distance, _ = graph_distance(points[:face_count], face_triangles, loop)
     share = body_share(distance)
-    move[:face_count] = move[nearest] * share[:, None]
+    move = np.zeros_like(points)
+    pulled = np.flatnonzero(share > 0.0)
+    snapped, _, _ = trimesh.proximity.closest_point(head, points[pulled])
+    move[pulled] = (snapped - points[pulled]) * share[pulled, None]
     rest = np.arange(face_count, len(points))
     _, owner = cKDTree(points[:face_count]).query(points[rest])
     move[rest] = move[owner]
@@ -194,37 +198,76 @@ def directions(points, centre):
                      np.arctan2(offset[:, 1], np.hypot(offset[:, 0], offset[:, 2]))], axis=1)
 
 
-def inside_polygon(points, polygon):
-    """Whether each 2D point lies inside a closed 2D polygon (even-odd rule)."""
-    inside = np.zeros(len(points), dtype=bool)
-    start = polygon
-    end = np.roll(polygon, -1, axis=0)
-    for (x_start, y_start), (x_end, y_end) in zip(start, end):
-        crosses = (y_start > points[:, 1]) != (y_end > points[:, 1])
-        at = (x_end - x_start) * (points[:, 1] - y_start) / np.where(y_end == y_start, 1e-12, y_end - y_start) + x_start
-        inside ^= crosses & (points[:, 0] < at)
-    return inside
+def border_edges(triangles):
+    """The edges of a triangle set used by one triangle only, as sorted point pairs."""
+    edges = np.sort(np.vstack([triangles[:, [0, 1]], triangles[:, [1, 2]], triangles[:, [2, 0]]]), axis=1)
+    unique, counts = np.unique(edges, axis=0, return_counts=True)
+    return {tuple(edge) for edge in unique[counts == 1]}
 
 
-def covered(body_points, face_points, face_triangles, loop, centre):
-    """Which body points lie under the laid face: inside its border seen from the head's centre and near it."""
-    polygon = directions(face_points[loop], centre)
-    within = inside_polygon(directions(body_points, centre), polygon)
-    face = trimesh.Trimesh(face_points, face_triangles, process=False)
-    candidates = np.flatnonzero(within)
-    _, distance, _ = trimesh.proximity.closest_point(face, body_points[candidates])
+def edge_graph(points, triangles):
+    """The mesh's edges as a sparse graph weighted by their lengths."""
+    edges = np.unique(np.sort(np.vstack([triangles[:, [0, 1]], triangles[:, [1, 2]], triangles[:, [2, 0]]]), axis=1),
+                      axis=0)
+    lengths = np.linalg.norm(points[edges[:, 0]] - points[edges[:, 1]], axis=1)
+    return coo_matrix((lengths, (edges[:, 0], edges[:, 1])), shape=(len(points), len(points))).tocsr()
+
+
+def wall(graph, stops):
+    """A closed path of body points through the stops in order, each leg the shortest along the mesh's edges."""
+    path = []
+    for start, end in zip(stops, np.roll(stops, -1)):
+        _, before = dijkstra(graph, directed=False, indices=start, return_predecessors=True, limit=WALL_REACH)
+        leg = [end]
+        while leg[-1] != start:
+            if before[leg[-1]] < 0:
+                raise RuntimeError(f"no path on the body from point {start} to {end} within {WALL_REACH} m")
+            leg.append(before[leg[-1]])
+        path.extend(leg[::-1][:-1])
+    return np.array(path)
+
+
+def covered(body_points, body_triangles, face_points, loop, middle):
+    """Which body points lie under the laid face: a wall of body points is drawn along the face's border (which lies
+    on the skin), and the body is filled from the point under the face's `middle` up to it. Cut by nearness instead,
+    the neck under the jaw and the skin in front of the ear lay near the face behind its border and were cut 27 mm
+    and more past it."""
+    graph = edge_graph(body_points, body_triangles)
+    tree = cKDTree(body_points)
+    _, stops = tree.query(face_points[loop])
+    stops = stops[np.concatenate([[True], np.diff(stops) != 0])]
+    blocked = np.zeros(len(body_points), dtype=bool)
+    blocked[wall(graph, stops)] = True
+    _, seed = tree.query(middle)
+    if blocked[seed]:
+        raise RuntimeError("the face's middle lies on its own border's wall")
+    kept_edges = graph.tocoo()
+    open_edges = ~blocked[kept_edges.row] & ~blocked[kept_edges.col]
+    walkable = coo_matrix((np.ones(open_edges.sum()), (kept_edges.row[open_edges], kept_edges.col[open_edges])),
+                          shape=graph.shape)
+    reached = breadth_first_order(walkable, seed, directed=False, return_predecessors=False)
     under = np.zeros(len(body_points), dtype=bool)
-    under[candidates[distance < COVER_METRES]] = True
+    under[reached] = True
+    if under.sum() > len(body_points) / 2:
+        raise RuntimeError("the face's border wall leaks: the fill under the face reached half the body")
     return under
 
 
 def kept_body(triangles, under):
     """The body's triangles left once every triangle touching a covered point is cut, and islands cut off by it
-    (only the largest connected part of the body is kept)."""
-    kept = triangles[~under[triangles].any(axis=1)]
-    parts = trimesh.graph.connected_components(np.vstack([kept[:, [0, 1]], kept[:, [1, 2]]]), min_len=1)
-    largest = set(max(parts, key=len).tolist())
-    return kept[np.array([triangle[0] in largest for triangle in kept])]
+    (only the largest connected part of the body is kept), the cut widened at any point its border passes twice (a
+    pinch, where two corners of the cut meet: its border would be no single loop)."""
+    under = under.copy()
+    while True:
+        kept = triangles[~under[triangles].any(axis=1)]
+        parts = trimesh.graph.connected_components(np.vstack([kept[:, [0, 1]], kept[:, [1, 2]]]), min_len=1)
+        largest = set(max(parts, key=len).tolist())
+        kept = kept[np.array([triangle[0] in largest for triangle in kept])]
+        border = np.array(sorted(border_edges(kept)))
+        passes = np.bincount(border.reshape(-1), minlength=len(under))
+        if not (passes > 2).any():
+            return kept
+        under |= passes > 2
 
 
 def zipper(outer, inner, outer_points, inner_points):
@@ -260,7 +303,9 @@ def seam(body_points, body_triangles, face_points, face_triangles, loop, centre,
     """The body cut under the face, its `filled` points (the eye and mouth bags) with it, and the strip joining the
     cut to the face's border: (the body's kept triangles, the strip in one numbering, body points first and the
     face's after them, the face's loop, the cut's loop)."""
-    under = covered(body_points, face_points, face_triangles, loop, centre) | filled
+    used = np.unique(face_triangles)
+    furthest, _ = cKDTree(face_points[loop]).query(face_points[used])
+    under = covered(body_points, body_triangles, face_points, loop, face_points[used[np.argmax(furthest)]]) | filled
     kept = kept_body(body_triangles, under)
     face_loop = same_way(loop, face_points, centre)
     body_loop = same_way(border_loop(kept), body_points, centre)
