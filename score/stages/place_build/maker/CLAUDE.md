@@ -41,7 +41,10 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   so a leg or panel is not thinned further, and the record's `off` says how far the box stayed off). Set at a size, it
   is first turned to its close-up's heading (`fit.headed`, #166: TRELLIS.2 keeps its own heading, so the desk, rack and
   sign lay wide for deep): the quarter turn whose outline from the close-up's camera (tools/props/closeup/check.py's
-  turn and look-down) best overlaps the picture's, its mirror only when it beats them all by MIRROR_GAIN.
+  turn and look-down) best overlaps the picture's, its mirror only when it beats them all by MIRROR_GAIN. Turns within
+  FRONT_BAND of the best (a box-like object's front and back: tc4r's desk a half turn off, its fridge's glass door on
+  its side, #192) go to `front.picked`: each drawn in the model's own texture from the close-up style's camera, and one
+  ask (Claude, EUR 0) picks the drawing whose content sits where the close-up shows it.
 - **`--no-take-in`** (the prop benchmark, #163) makes, fits, grades and makes sim-ready as usual and takes nothing into
   score_lib: the files stay under `<folder>/made/<entry>/`, the address is None.
 - **The grade** (grade.py) moves each colour group GRADE of the way to its nearest palette token; a large group far from

@@ -22,7 +22,8 @@ asset it was made from, every measure a plain number, each judged at its bar.
                                                           read back where its look drew them (#185)
 
 `truth` and `made` are plain dicts, metres, Z up: {"vertices" (N, 3), "faces" (T, 3), "face_material" (T,) material
-or part per face, "box" (low, high), "mass" kg, "colliders" [{"vertices", "faces" or None}], "friction" static}; a
+or part per face, "box" (low, high), "mass" kg, "colliders" [{"vertices", "faces" or None}], "friction" static; the
+made side's "painted" {"points", "colour" linear RGB}, its own paint, gives "orientation", its heading as laid}; a
 key the made side lacks (a raw model has no parts, mass or colliders) leaves its measures out, never failed.
 `others` are the kind's other truths, for the rank. `input_view` is (yaw, pitch) of the input render, by default
 the close-up's (tools/props/closeup/check.py TURN_DEGREES and look_down for the truth's size).
@@ -38,7 +39,7 @@ import numpy as np
 
 import score.stages.props.prop_data as prop_data
 
-from . import _align, _clean, _edges, _finish, _joints, _mesh, _physics, _shape
+from . import _align, _clean, _edges, _finish, _heading, _joints, _mesh, _physics, _shape
 from tools.props.bench.judge import KINDS as PICTURE_KINDS
 
 finish_likeness = _finish.finish_likeness
@@ -55,6 +56,10 @@ BARS = (
     ("shape", "f_score", "least", 0.80),
     ("shape", "rank", "most", 1),
     ("alignment", "up_error", "most", 5.0),
+    # The heading as laid, held by its own paint against NVIDIA's look (_heading, #159 round 7): the 24 axis turns
+    # above turn a model laid round back before anything is held (tc4r's desk a half turn off, its fridge's glass
+    # door on its side, both passing every shape measure while the picture judge saw them turned).
+    ("orientation", "heading", "most", 0),
     ("size", "size", "most", 0.05),
     ("steps", "chamfer_change", "most", 0.005),
     ("clean", "open_length", "times_truth_most", 1.0),
@@ -276,6 +281,9 @@ def measured(truth, made, others=(), input_view=None):
              "shape": shape, "clean": _clean.cleanliness(made["vertices"], made["faces"]),
              "truth_clean": _clean.cleanliness(truth["vertices"], truth["faces"]),
              "truth_sides": (truth["vertices"].max(0) - truth["vertices"].min(0)).tolist()}
+    turned = _heading.heading(truth, made)
+    if turned is not None:
+        found["orientation"] = turned
     if made.get("face_material") is not None:
         nearest = _finish.carried(truth, placed, made["faces"])
         found["finish"] = _finish.finish_split(truth, placed, made["faces"], made["face_material"], nearest)

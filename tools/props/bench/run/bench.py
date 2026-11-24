@@ -743,6 +743,7 @@ def finish_step(model, close_up, row, library):
 # --- the measures: each made model held to its truth (tools/props/bench/measures) ------------------------------------
 
 # Row vectors from a Y-up frame (glTF's, a Y-up stage's: x across, y up, z toward the viewer) to the measures' Z up.
+PAINT_POINTS = 200000  # surface points a made model's own paint is read at, for its heading (measures._heading)
 Y_UP = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
 # Each branch's model and physics: (the step and file of its model, the step of its physics).
 MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.glb"), "physics")}
@@ -782,6 +783,42 @@ def gltf_side(path):
         materials.append(np.full(len(triangles), names.setdefault(name, len(names)), dtype=np.int32))
         offset += len(points)
     return side_of(np.concatenate(vertices), np.concatenate(faces), np.concatenate(materials))
+
+
+def painted(path, count=PAINT_POINTS):
+    """{"points", "colour"}: `count` points on a glTF or glb model's surface (Z up, as gltf_side lays it), each with
+    the linear base colour its own material paints there (its texture at the point's UV times its factor), for the
+    heading (measures._heading); None for a model with no base colour at all."""
+    import trimesh
+    meshes = gltf_meshes(path)
+    areas = np.array([float(mesh.area) for _, _, mesh in meshes])
+    if not len(meshes) or areas.sum() <= 0:
+        return None
+    points, colours, painted_any = [], [], False
+    for (vertices, faces, mesh), share in zip(meshes, areas / areas.sum()):
+        material = getattr(mesh.visual, "material", None)
+        factor = np.asarray(getattr(material, "baseColorFactor", None) if material is not None and
+                            getattr(material, "baseColorFactor", None) is not None else [255, 255, 255, 255],
+                            dtype=float)[:3]
+        factor = factor / 255.0 if factor.max() > 1.0 else factor
+        picture = getattr(material, "baseColorTexture", None)
+        uv = getattr(mesh.visual, "uv", None)
+        painted_any |= picture is not None or getattr(material, "baseColorFactor", None) is not None
+        sampled, face = trimesh.sample.sample_surface(trimesh.Trimesh(vertices, faces, process=False),
+                                                      max(1, round(count * share)), seed=7)
+        colour = np.ones((len(sampled), 3))
+        if picture is not None and uv is not None:
+            weights = trimesh.triangles.points_to_barycentric(vertices[faces[face]], sampled)
+            where = np.einsum("ij,ijk->ik", weights, np.asarray(uv)[faces[face]])
+            texels = np.asarray(picture.convert("RGB"), dtype=float) / 255.0
+            height, width = texels.shape[:2]
+            rows = np.clip(np.round((1 - where[:, 1] % 1.0) * (height - 1)), 0, height - 1).astype(int)
+            columns = np.clip(np.round((where[:, 0] % 1.0) * (width - 1)), 0, width - 1).astype(int)
+            shade = texels[rows, columns]
+            colour = np.where(shade <= 0.04045, shade / 12.92, ((shade + 0.055) / 1.055) ** 2.4)
+        points.append(sampled)
+        colours.append(colour * factor)
+    return {"points": np.concatenate(points), "colour": np.concatenate(colours)} if painted_any else None
 
 
 def usd_side(path):
@@ -832,7 +869,7 @@ def made_side(model, physics, finished=None, take=None, parts=None):
     part, with `surfaces` {part: library address} and `looks` {part: its look as set, finish.part_looks}, from its
     finish step's folder (finish.face_finishes) when it has one, else left out. A part list whose faces are not the
     model's (another face count) fails."""
-    side = {**gltf_side(model), "face_material": None}
+    side = {**gltf_side(model), "face_material": None, "painted": painted(model)}
     if finished is not None:
         part_of, surfaces = finish.face_finishes(finished, take)
         if len(part_of) != len(side["faces"]):

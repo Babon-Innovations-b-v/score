@@ -4,13 +4,14 @@ model it replaces (the smallest two-way mean distance between points on both sur
 stands; or, with no model to replace, scaled to a given height, or to a given size, and stood on y=0 at its centre.
 A model set at a size is first turned to its close-up's heading (`headed`): TRELLIS.2 lays a model with its own heading
 (a desk's long side along x, #166), so the quarter turn, or its mirror, whose outline from the close-up's camera best
-overlaps the picture's is the one laid. It is then brought to each of the size's sides (`size_matrix`, #170: a
-uniform scale kept TRELLIS.2's proportions, tc2's sign 13% too thick and its desk 9% too wide), each axis at most
-STRETCH off the uniform scale that sets its longest side, so a part thin along an axis is never thinned or thickened
+overlaps the picture's is the one laid; turns its outline cannot tell apart (a box's front and back) are left to
+the close-up's content (`pick`, front.picked, #192). It is then brought to each of the size's sides (`size_matrix`,
+#170: a uniform scale kept TRELLIS.2's proportions, tc2's sign 13% too thick and its desk 9% too wide), each axis at
+most STRETCH off the uniform scale that sets its longest side, so a part thin along an axis is never thinned or thickened
 past it.
 
     fitted_matrix(points, like_points) -> (matrix 4x4, {"yaw", "scale", "distance_m"})
-    headed(points, cut, turn, down)    -> (matrix 4x4, {"yaw", "mirrored", "overlap"})
+    headed(points, cut, turn, down, pick=None) -> (matrix 4x4, {"yaw", "mirrored", "overlap"[, "open", "front"]})
     height_matrix(points, height)      -> matrix 4x4
     size_matrix(points, size)          -> (matrix 4x4, {"stretch", "off"})
 """
@@ -26,6 +27,9 @@ STRETCH = 0.25  # the most one axis is scaled off the uniform scale, either way:
 # leg or a panel along that axis would come out a quarter thinner or thicker than TRELLIS.2 drew it
 TIE = 0.01  # an overlap within this of the best keeps the earlier turn (TRELLIS.2's own heading first): a box's
 # half turns differ by under it (tc1's toaster: 0.897 and 0.894)
+FRONT_BAND = 0.05  # turns whose outline overlap is within this of the best are left to the close-up's content
+# (front.picked, #192): tc4r's desk's 90 and 270 degree outlines 0.551 and 0.538 (the right one the lower), its
+# fridge's four within 0.007; a chair's half turn shows another outline and stays out
 
 
 def yawed(degrees):
@@ -134,20 +138,32 @@ def overlap(drawn, seen):
     return float((drawn & seen).sum() / max((drawn | seen).sum(), 1))
 
 
-def headed(points, cut, turn, down):
+def headed(points, cut, turn, down, pick=None):
     """The turn about y (a quarter turn, mirrored across x only when the picture says so, MIRROR_GAIN) that lays
     `points` (Y up) as the close-up `cut` (its opaque pixels) shows it from a camera turned `turn` degrees and looking
-    down `down`; what was chosen."""
+    down `down`; what was chosen. Turns whose outline overlaps within FRONT_BAND of the best are open (a box-like
+    object's front and back): `pick` (front.picked's way: the open turns' matrices in, an index and its reason out)
+    decides between them from the close-up's content, else a later turn is kept over an earlier only when it beats it
+    by TIE (TRELLIS.2's own heading first)."""
     right, up = view_axes(turn, down)
     seen = cut_outline(cut)
-    best = {}
+    tried = {False: [], True: []}
     for mirrored in (False, True):
         for yaw in YAWS:
             matrix = yawed(yaw) @ np.diag([-1.0 if mirrored else 1.0, 1.0, 1.0, 1.0])
             laid = applied(matrix, points)
-            score = overlap(outline(laid @ right, laid @ up), seen)
-            if mirrored not in best or score > best[mirrored][0] + TIE:
-                best[mirrored] = (score, matrix, yaw)
-    mirrored = best[True][0] > best[False][0] + MIRROR_GAIN
-    score, matrix, yaw = best[mirrored]
+            tried[mirrored].append((overlap(outline(laid @ right, laid @ up), seen), matrix, yaw))
+    best = {mirrored: max(score for score, _, _ in found) for mirrored, found in tried.items()}
+    mirrored = best[True] > best[False] + MIRROR_GAIN
+    opened = [entry for entry in tried[mirrored] if entry[0] >= best[mirrored] - FRONT_BAND]
+    if pick is not None and len(opened) > 1:
+        index, reason = pick([matrix for _, matrix, _ in opened])
+        score, matrix, yaw = opened[index]
+        return matrix, {"yaw": yaw, "mirrored": mirrored, "overlap": round(score, 4),
+                        "open": [entry[2] for entry in opened], "front": reason}
+    kept = tried[mirrored][0]
+    for entry in tried[mirrored][1:]:
+        if entry[0] > kept[0] + TIE:
+            kept = entry
+    score, matrix, yaw = kept
     return matrix, {"yaw": yaw, "mirrored": mirrored, "overlap": round(score, 4)}

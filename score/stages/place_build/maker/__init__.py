@@ -37,7 +37,7 @@ import sys
 import numpy as np
 
 from score.stages import place_build
-from score.stages.place_build.maker import fit, glb, grade, repair, sim
+from score.stages.place_build.maker import fit, front, glb, grade, repair, sim
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
@@ -245,9 +245,10 @@ def close_up_view(size):
     return (0.0 if check.lies_flat(size) else check.TURN_DEGREES), check.look_down(size)
 
 
-def sized_matrix(points, picture, size):
-    """`points` turned to the heading `picture` (the row's close-up, cut out) shows, then scaled to `size`
-    (fit.headed, fit.size_matrix); how it was set."""
+def sized_matrix(points, picture, size, raw, words):
+    """`points` (the raw model `raw`'s) turned to the heading `picture` (the row's close-up, cut out) shows, the turns
+    its outline leaves open decided by its content (front.picked, #192: the object's `words` given), then scaled to
+    `size` (fit.headed, fit.size_matrix); how it was set."""
     from PIL import Image
     image = Image.open(picture)
     if "A" not in image.getbands():
@@ -255,14 +256,15 @@ def sized_matrix(points, picture, size):
                                   "out of its background)")
     cut = np.asarray(image.getchannel("A")) > 127
     turn, down = close_up_view(size)
-    heading, how = fit.headed(points, cut, turn, down)
+    heading, how = fit.headed(points, cut, turn, down,
+                              lambda matrices: front.picked(words, raw, picture, cut, turn, down, matrices))
     matrix, stretched = fit.size_matrix(fit.applied(heading, points), size)
     return matrix @ heading, {**how, **stretched}
 
 
-def placed(raw, folder, like, height, size=None, picture=None):
+def placed(raw, folder, like, height, size=None, picture=None, words=None):
     """The raw model's GLB document and binary set in the place's frame (at a `size`, turned as its close-up
-    `picture` shows it); how it was set."""
+    `picture` of the object's `words` shows it); how it was set."""
     document, binary = glb.read(raw)
     points = surface_points(raw)[0]
     if like:
@@ -271,7 +273,7 @@ def placed(raw, folder, like, height, size=None, picture=None):
     elif height:
         matrix, how = fit.height_matrix(points, float(height)), {"height_m": float(height)}
     elif size:
-        matrix, how = sized_matrix(points, picture, size)
+        matrix, how = sized_matrix(points, picture, size, raw, words)
         how["size_m"] = [float(side) for side in size]
     else:
         raise place_build.Refused("give --like (the library model it replaces), --height (metres) or --size "
@@ -373,7 +375,8 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     picture, said = picture_of(folder, source, like, work)
     raw = work / "trellis.glb"
     stats = generated(picture, raw, faces_for(size_of(folder, like, height, size)))
-    document, binary, how = placed(raw, folder, like, height, size, picture)
+    words = name.replace("_", " ")
+    document, binary, how = placed(raw, folder, like, height, size, picture, words)
     document, binary, mended = repair.repaired_glb(document, binary)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
@@ -385,7 +388,6 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     if flat_card(size):
         raise place_build.Refused(f"{name}: TRELLIS.2 made a flat card {', '.join(f'{side:.3f}' for side in size)} m, "
                                   "not a solid; nothing taken in (a sharper cut-out or another picture)")
-    words = name.replace("_", " ")
     mass = sim.weighed(words, size, [{"words": words, "class": material, "share": 1.0}], picture)
     physics = sim.physical(hulls, [material] * len(hulls),
                            [{"words": words, "class": material, "share": 1.0, "kg": round(mass[0], 4)}], size)

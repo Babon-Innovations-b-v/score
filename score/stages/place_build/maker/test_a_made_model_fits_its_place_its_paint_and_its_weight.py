@@ -15,7 +15,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - fit.headed: its quarter turns not tried (TRELLIS.2's own heading kept), or fit.view_axes turned the other way, or
   straight down taken with the front up -> a desk L made long along x, its close-up long along depth, is laid
-  wide and shallow (#166: desk, rack and sign); MIRROR_GAIN made -1 -> the L is laid mirrored
+  wide and shallow (#166: desk, rack and sign); MIRROR_GAIN made -1 -> the L is laid mirrored; `pick` not asked
+  (the outline's earliest kept), or FRONT_BAND made 0 -> the desk top TRELLIS.2 laid a half turn off keeps its cable
+  hole in the far corner (#192, tc4r's desk)
+- front.drawn laying the model unturned (`matrix` not applied) -> every open turn is drawn alike and the first is
+  picked; front.picked numbering its drawings from 0 -> the turn after the picked one is laid
 - glb.with_image: the later views not moved -> the second image's bytes read back wrong
 - grade.graded: `moves` made the token minus the centre without GRADE -> the near colour moves all the way
 - sim.surface_class: the NVIDIA name's class not read (the recipe's taken first), or the aluminium base ignored ->
@@ -52,7 +56,7 @@ import pathlib
 
 import numpy as np
 
-from score.stages.place_build.maker import cloud, fit, glb, grade, repair, sim
+from score.stages.place_build.maker import cloud, fit, front, glb, grade, repair, sim
 from score.stages.place_build.maker import parts as made_parts
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -98,6 +102,41 @@ def z_up_to_model(boxes, yaw, count=4000):
     random = np.random.default_rng(5)
     points = np.concatenate([random.random((count, 3)) * (np.array(high) - low) + low for low, high in boxes])
     return fit.applied(fit.yawed(yaw), points[:, [0, 2, 1]] * [1, 1, -1])
+
+
+def holed_slab(path):
+    """A desk top as TRELLIS.2 gives one (a GLB, Y up, its own texture): a 1.8 x 0.8 m slab 6 cm thick, white, a dark
+    cable hole painted near its front left corner; its outline from the close-up's camera the same a half turn round."""
+    import trimesh
+    from PIL import Image
+    slab = trimesh.creation.box((1.8, 0.06, 0.8)).subdivide().subdivide().subdivide()
+    slab = trimesh.Trimesh(slab.vertices[slab.faces].reshape(-1, 3), np.arange(len(slab.faces) * 3).reshape(-1, 3),
+                           process=False)
+    middles = slab.triangles_center
+    hole = (middles[:, 1] > 0.02) & (middles[:, 0] < -0.6) & (middles[:, 2] > 0.15)
+    uv = np.repeat(np.where(hole[:, None], [[0.75, 0.5]], [[0.25, 0.5]]), 3, axis=0)
+    texture = Image.fromarray(np.array([[[245, 245, 245], [20, 20, 20]]], np.uint8))
+    material = trimesh.visual.material.PBRMaterial(baseColorTexture=texture)
+    slab.visual = trimesh.visual.TextureVisuals(uv=uv, material=material)
+    slab.export(path)
+    return path
+
+
+def darkest(picture):
+    """The middle of a picture's dark pixels (a PNG's bytes): where its cable hole is drawn."""
+    import io
+    from PIL import Image
+    rows, columns = np.nonzero(np.asarray(Image.open(io.BytesIO(picture)).convert("L")) < 60)
+    return np.array([columns.mean(), rows.mean()])
+
+
+def nearest_hole(body):
+    """A stand-in for the front ask: the drawing whose cable hole lies nearest the picture's, as its answer's JSON."""
+    import base64
+    shown = [base64.b64decode(part["inline_data"]["data"]) for part in body["contents"][0]["parts"]
+             if "inline_data" in part]
+    gaps = [np.linalg.norm(darkest(drawing) - darkest(shown[0])) for drawing in shown[1:]]
+    return json.dumps({"pick": int(np.argmin(gaps)) + 1, "reason": "the cable hole"})
 
 
 def voxels(cells, low=(0.0, 0.0, 0.0), side=1.0):
@@ -197,6 +236,18 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
             laid = fit.applied(heading, z_up_to_model(boxes, yaw))
             assert not how["mirrored"] and (how["yaw"] + yaw) % 360 == 0 and np.allclose(np.sort(laid, 0),
                                                                                           np.sort(truth, 0)), how
+    slab = holed_slab(tmp_path / "slab.glb")
+    mesh, texels, factor = front.textured(slab)
+    shown = front.drawn(mesh, texels, factor, fit.yawed(180.0), (0, 0, 400, 400), (60, 130, 340, 270), (400, 400),
+                        35.0, 15.0)  # the close-up: the slab TRELLIS.2 laid a half turn off, its hole far right
+    from PIL import Image
+    alpha = np.where(np.any(shown != front.BACKDROP.astype(np.uint8), -1), 255, 0).astype(np.uint8)
+    Image.fromarray(np.dstack([shown, alpha]), "RGBA").save(tmp_path / "slab.png")
+    cut = alpha > 127
+    points = np.asarray(mesh.sample(4000, seed=2))
+    heading, how = fit.headed(points, cut, 35.0, 15.0, lambda matrices: front.picked(
+        "desk", slab, tmp_path / "slab.png", cut, 35.0, 15.0, matrices, ask=nearest_hole))
+    assert how["open"] == [0.0, 180.0] and how["yaw"] == 180.0 and how["front"] == "the cable hole", how
     from score.stages.place_build import maker
     from score.stages.place_build.maker import generate
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,

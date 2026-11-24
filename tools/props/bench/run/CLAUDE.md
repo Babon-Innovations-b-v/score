@@ -52,6 +52,8 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   close-up (EUR 0), cut through the finish step's fitted camera (`camera.json`), jointed; each part's mass its share
   of the physics step's finish groups by area and its class theirs of most area (each part keeps its finish groups).
   It keeps `parts.json`, `face_parts.npy` and `parted.glb`; `measure` reads it (`parted`) for the parts measures.
+- **A made model's own paint is read with it** (`painted`, #192): points on its surface with its base colour, which
+  the measures' `orientation.heading` holds to NVIDIA's look with the model as laid, no axis turn search.
 - **The measures read every side in the truth's frame** (`measure`: glTF's Y up and a Y-up stage turned to Z up by
   `Y_UP`, metres), the made model's physics from its own physics step, the withdrawn models of an overlap target at
   the size they were laid at; `measures.json` keeps `found` whole so a recalibrated bar re-judges a kept run.

@@ -12,6 +12,12 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   turn that changes nothing. The turn and ICP are fitted on the surface seen from outside (`_mesh.outside`):
   NVIDIA's inside (a fridge's liner and shelves, ~80% of its surface) is what a picture cannot show, and on tc3 it
   stood the upright fridge on its head (#178).
+- **The heading is held as laid** (`_heading`, #192): the axis turns above set a model laid round back first, so a
+  box-like one a half or quarter turn off passed every shape measure (tc4r's desk and fridge). `orientation.heading`
+  turns the model only about up from as laid and holds its own paint (the side's `painted`) to NVIDIA's look on the
+  truth's outside, each finish weighted alike (a cable hole as much as the top), by correlation: TRELLIS.2 paints its
+  picture's light in, so a colour difference took a right-laid terminal for a half turn. `MARGIN` and `FLOOR` are from
+  tc4r's 15 made models.
 - **Reuse, never copies.** The ring is tools/usd/compare.py's (YAWS, ELEVATION, FOV), the input view the close-up's
   (tools/props/closeup/check.py TURN_DEGREES, look_down), ownership split_compare.py's rule (OWN_PURITY,
   FINISH_LEAST, finishes_owned), the flat share and swell place_build/shapes', the least wall the model gate's,

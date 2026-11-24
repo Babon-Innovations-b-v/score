@@ -61,6 +61,11 @@ def outside(vertices, faces, count, seed=0):
     """Up to `count` points drawn on the surface that can be seen from outside it: a ray from the point along its
     face's normal (either way, so a face wound either way counts) or along an axis leaves the model without striking
     it. A closed cabinet's liner and shelves are not seen; an open rack's shelves are, along its open sides."""
+    return outside_faces(vertices, faces, count, seed)[0]
+
+
+def outside_faces(vertices, faces, count, seed=0):
+    """(outside's points, the face each lies on)."""
     points, picked = sampled(vertices, faces, count * OVERDRAW, seed=seed)
     facing = normals(vertices, faces)[picked]
     rays = trimesh.Trimesh(vertices, faces, process=False).ray
@@ -72,7 +77,7 @@ def outside(vertices, faces, count, seed=0):
             break
         struck = rays.intersects_any(points[open_ones] + way[open_ones] * lift, way[open_ones])
         seen[open_ones[~struck]] = True
-    return points[seen][:count]
+    return points[seen][:count], picked[seen][:count]
 
 
 def moved(vertices, matrix):

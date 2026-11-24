@@ -11,6 +11,11 @@ cylinder, a 1 mm shell's wall is 1 mm, a hull grown 3 cm stands 3 cm out, and so
 Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _align.aligned keeping the first axis turn (none) and dropping ICP's: the box laid on its side passes up.
 - _align.up_error returning 0: the box leaning 8 degrees passes up.
+- _heading.turned not turning (every turn the model as laid), or _heading.heading reading the as-laid turn's own
+  correlation as the best: the desk-like box laid a half or quarter turn off passes its heading (#192: tc4r's desk and
+  fridge passed every shape measure, the 24 axis turns setting them back first); _heading.finish_weights weighting
+  each point alike (by area): the half and quarter turns pass (the 6 cm cable hole is 0.2% of the area);
+  __init__.BARS without its orientation.heading row: the half turn has no row to fail.
 - _align.aligned registering every surface point, not the outside's alone (_mesh.outside): the cabinet made upright
   with its inner shelves where the truth's sit upside down is stood on its head (tc3's fridge, #178).
 - __init__.size judging the boxes' proportions instead of their sizes: the box laid 20% too big all round passes.
@@ -310,6 +315,42 @@ def worn(body, top=TOP):
                                                    {0: {**BODY, **body}, 1: {**TOP, **top}})}
 
 
+HOLE = 0.06  # metres across the dark cable hole on the desk-like truth's top, near its front left corner
+
+
+@functools.cache
+def holed_truth():
+    """The box with a dark 6 cm cable hole laid 1 mm over its top near its front left corner (0.2% of its area, as
+    tc4r's desk's), NVIDIA's look on it: its sides BODY's dark plastic, its top TOP's aluminium, the hole black."""
+    body = box()
+    low, high = body.bounds
+    corner = np.array([low[0] + 0.05, low[1] + 0.05, high[2] + 0.001])
+    hole = trimesh.Trimesh(np.array([corner, corner + [HOLE, 0, 0], corner + [HOLE, HOLE, 0], corner + [0, HOLE, 0]]),
+                           [[0, 1, 2], [0, 2, 3]])
+    mesh = trimesh.util.concatenate([body, hole])
+    finish = np.r_[top_material(body), [2, 2]]
+    colours = {0: BODY["colour"], 1: TOP["colour"], 2: [0.002] * 3}
+    look = {"albedo": np.array([colours[int(one)] for one in finish], dtype=float)}
+    return {**measures.arrays(side(mesh, finish)), "face_look": look}, mesh, finish, colours
+
+
+def headed(degrees):
+    """The measures of the box laid turned `degrees` about up, painted as a made model is (`painted`: its own texture
+    on its one surface, the hole painted into its top), against the holed truth."""
+    truth, mesh, _, colours = holed_truth()
+    body = box()
+    points, faces = trimesh.sample.sample_surface(body, 20000, seed=3)
+    low = mesh.vertices[-4]
+    in_hole = (points[:, 2] > body.bounds[1][2] - 1e-6) \
+        & np.all((points[:, :2] >= low[:2]) & (points[:, :2] <= low[:2] + HOLE), 1)
+    colour = np.where(in_hole[:, None], colours[2], np.where(top_material(body)[faces][:, None] == 1, colours[1],
+                                                               colours[0]))
+    turn = trimesh.transformations.rotation_matrix(np.radians(degrees), (0, 0, 1), body.bounds.mean(0))
+    laid = trimesh.Trimesh(trimesh.transformations.transform_points(body.vertices, turn), body.faces, process=False)
+    painted = {"points": trimesh.transformations.transform_points(points, turn), "colour": colour}
+    return measures.measured(truth, {**side(laid), "painted": painted})
+
+
 def dropped(made_turn):
     """The two drops' rests: the truth stays as laid, the made one turned `made_turn` degrees about X."""
     motion = trimesh.transformations.rotation_matrix(np.radians(made_turn), (1, 0, 0))
@@ -388,6 +429,10 @@ CASES = [
     ("opening 30 degrees for 90", lambda: hung(limits=[0.0, 30.0]), "parts.range_most", False),
     ("opening 120 degrees for 90", lambda: hung(limits=[0.0, 120.0]), "parts.range_most", True),
     ("laid on its side", lambda: made(turned(box(), 90)), "alignment.up_error", False),
+    ("its cable hole where NVIDIA's is", lambda: headed(0), "orientation.heading", True),
+    ("laid a half turn off, its cable hole in the far corner (tc4r's desk)", lambda: headed(180),
+     "orientation.heading", False),
+    ("laid a quarter turn off (tc4r's fridge, its door on its side)", lambda: headed(90), "orientation.heading", False),
     ("leaning 8 degrees", lambda: made(turned(box(), 8)), "alignment.up_error", False),
     ("leaning 3 degrees", lambda: made(turned(box(), 3)), "alignment.up_error", True),
     ("upright, its inner shelves where the truth's sit upside down", lambda: measures.measured(
