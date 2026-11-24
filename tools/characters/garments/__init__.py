@@ -59,7 +59,8 @@ CARD_GB = 4.0  # the drape's card share (one outfit, one body)
 
 def built_body(look, clip):
     """The person's body for the drape: its SOMA surface at the bind, the clip played on its build (the sim body's
-    `person_rig`), and the body's skin every frame of the turn from the bind into the clip and of the clip."""
+    `person_rig`), and its joints (`worlds`) and skin every frame of the turn from the bind into the clip and of the
+    clip."""
     from score.stages.sim_body import _body
     from score.stages.people_cloth import skinned
     from tools.characters import played
@@ -73,9 +74,10 @@ def built_body(look, clip):
     weights = np.asarray(clips_rig["weights"], dtype=float)
     joints = np.tile(np.arange(weights.shape[1]), (len(weights), 1))
     points = np.asarray(found["points"], dtype=float)
-    frames = skinned(points, joints, weights, np.concatenate([bind[None], worlds]), bind)
+    worlds = np.concatenate([bind[None], worlds])
+    frames = skinned(points, joints, weights, worlds, bind)
     return {"bind": points, "faces": np.asarray(built["source_faces"], dtype=np.int64), "weights": weights,
-            "names": np.asarray(clips_rig["names"]), "joints": bind, "frames": frames,
+            "names": np.asarray(clips_rig["names"]), "joints": bind, "worlds": worlds, "frames": frames,
             "clip_start": np.array(1 + int(round(TURN_SECONDS * RATE)))}
 
 

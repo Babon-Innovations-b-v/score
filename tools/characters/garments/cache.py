@@ -44,7 +44,8 @@ def bound(stage, mesh, surface, library):
 
 
 def written(path, body, drape, records, outfit, library, rate):
-    """outfit.usda: /Outfit/Body and /Outfit/Garments/<name>, every clip frame, garments bound to their surfaces."""
+    """outfit.usda: /Outfit/Body and /Outfit/Garments/<name>, every clip frame, garments bound to their surfaces. The
+    stage, saved, for what is worn beside the garments to be added to."""
     from pxr import Sdf, Usd, UsdGeom
     stage = Usd.Stage.CreateNew(str(path))
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
@@ -68,4 +69,4 @@ def written(path, body, drape, records, outfit, library, rate):
         uvs.Set(corner_uvs(record).astype(np.float32).tolist())
         bound(stage, mesh, garment["surface"], library)
     stage.GetRootLayer().Save()
-    return path
+    return stage

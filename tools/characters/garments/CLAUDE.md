@@ -26,5 +26,7 @@ runs them (an outfit file per look in `data/people/outfits/`).
   shoulder seams off centre when sewn, a shoulder seam off the shoulder's top or moved over the clip, the neckline
   fallen below its places on the skin, the body out through the cloth over it; `measures.json` carries each garment's `seating` and its `faults`,
   and the run exits non-zero after its pictures. Limits are never loosened to pass.
+- **Accessories** (shoes, a belt: `../accessories`, #228) are fitted after the drape from the outfit file's
+  `accessories` and written into the same `outfit.usda`; their faults fail the run like a garment's.
 - Tests: `test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it.py` (a toy body of tubes measured, a toy tee
   on a toy torso worn each way; no GarmentCode, Newton or Blender).

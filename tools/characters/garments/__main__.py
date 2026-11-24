@@ -1,5 +1,6 @@
 """python -m tools.characters.garments <outfit.json> --clip <clip> --out <folder> [--frames N] [--turn-views N]
-[--walk-every N]: the outfit's look dressed end to end (the package docstring's steps), its measures printed."""
+[--walk-every N]: the outfit's look dressed end to end (the package docstring's steps) with its accessories (shoes,
+a belt: tools/characters/accessories), its measures printed."""
 import argparse
 import json
 import os
@@ -8,7 +9,7 @@ import subprocess
 
 import numpy as np
 
-from tools.characters import garments
+from tools.characters import accessories, garments
 from tools.characters.garments import cache
 
 BLENDER = pathlib.Path(os.environ.get("BLENDER",
@@ -20,7 +21,8 @@ SCORE_LIB = garments.REPO.parent / "score_lib"
 def fetched(outfit, out):
     """Every library surface the outfit wears fetched from score_lib into `out`/library."""
     folder = out / "library"
-    addresses = [outfit["body surface"]["address"], *[garment["surface"]["address"] for garment in outfit["garments"]]]
+    addresses = [outfit["body surface"]["address"], *[garment["surface"]["address"] for garment in outfit["garments"]],
+                 *[surface["address"] for surface in accessories.surfaces(outfit.get("accessories", {}))]]
     subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "fetch", *addresses, "--into", str(folder)], check=True,
                    cwd=SCORE_LIB, stdout=subprocess.DEVNULL)
     return folder / "score_lib"
@@ -54,15 +56,22 @@ def main():
     records = {garment["name"]: dict(np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz"))
                for garment in outfit["garments"]}
     found = garments.measures(drape, dict(np.load(out / "body.npz")), records, out)
+    dressed = accessories.worn(outfit.get("accessories", {}), body, drape, records)
+    found["accessories"] = dict(dressed["found"], faults=dressed["faults"])
+    (out / "measures.json").write_text(json.dumps(found, indent=1))
     usd = out / "outfit.usda"
     usd.unlink(missing_ok=True)
-    cache.written(usd, dict(np.load(out / "body.npz")), drape, records, outfit, fetched(outfit, out), garments.RATE)
+    library = fetched(outfit, out)
+    stage = cache.written(usd, dict(np.load(out / "body.npz")), drape, records, outfit, library, garments.RATE)
+    accessories.written_into(stage, dressed, outfit.get("accessories", {}), library)
+    stage.GetRootLayer().Save()
     clip_frames = len(drape[outfit["garments"][0]["name"]])
     rendered(usd, out, clip_frames // 2, given.turn_views, given.walk_every)
     print(json.dumps(found, indent=1))
     failed = [f"{name}: {line}" for name, seating in found["seating"].items() for line in seating["faults"]]
+    failed += [f"accessories: {line}" for line in dressed["faults"]]
     if failed:
-        raise SystemExit("a garment does not stay seated:\n" + "\n".join(failed))
+        raise SystemExit("a garment or an accessory does not stay seated:\n" + "\n".join(failed))
 
 
 main()

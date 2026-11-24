@@ -1,5 +1,5 @@
 {
- "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the library's skin_light. The tee's sleeves are cut loose (sleeve.connecting_width 0.6, GarmentCode's 0.2 sat 9% stretched round her upper arms and the walking arms dragged the tee off a shoulder, 2026-11-24).",
+ "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the library's skin_light. The tee's sleeves are cut loose (sleeve.connecting_width 0.6, GarmentCode's 0.2 sat 9% stretched round her upper arms and the walking arms dragged the tee off a shoulder, 2026-11-24). Her shoes and belt (#228): the library holds no shoe or belt model, so both are fitted on her (tools/characters/accessories): black leather shoes on white foam soles, a glossy black leather belt over the skirt's waistband with a polished brass buckle, each a score_lib surface (NVIDIA SimReady, CC BY 4.0).",
  "look": "woman_stair",
  "mean": "mean_female",
  "garments": [
@@ -40,5 +40,28 @@
  "body surface": {
   "name": "skin_light",
   "address": "surface/skin_light@1"
+ },
+ "accessories": {
+  "shoes": {
+   "upper": {
+    "name": "simready_m_opaque_leather_black_a01_9038819b",
+    "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
+   },
+   "sole": {
+    "name": "simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d",
+    "address": "surface/simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d@1"
+   }
+  },
+  "belt": {
+   "on": "skirt",
+   "strap": {
+    "name": "simready_m_opaque_leather_black_glossy_a01_bebbeeca",
+    "address": "surface/simready_m_opaque_leather_black_glossy_a01_bebbeeca@1"
+   },
+   "buckle": {
+    "name": "simready_m_opaque_metal_brass_polished_a01_08774e2f",
+    "address": "surface/simready_m_opaque_metal_brass_polished_a01_08774e2f@1"
+   }
+  }
  }
 }
