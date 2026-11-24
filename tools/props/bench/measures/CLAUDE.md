@@ -33,7 +33,7 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   truth's size with its twins (recoloured same geometry) left out, a single hull's own volume. A measure whose input a step lacks (a raw model's parts, mass, colliders) is left
   out, never failed.
 - **The Newton drop runs in the runner** (tools/usd/drop.py on the truth's and the made model's convex colliders;
-  #155: a triangle-mesh collider crashes Newton); `rested` compares the two rests. Finish likeness needs each matched
+  #155: a triangle-mesh collider crashes Newton); `rested` compares the two rests. A collider piece with no volume (its points in a plane, tc6's anesthesia machine's card) is `_physics.Flat`: no volume, no inside, its outline its surface, and never convex. Finish likeness needs each matched
   pair drawn by tools/props/library/likeness; `finish_likeness` judges those measures.
 - **The finish is judged on what each group got, not only the grouping** (#172, owner 2026-11-23: tc2's toaster body
   passed finish 4/4 in stainless #e0e0e0 where NVIDIA's is dark grey). Each made face carries its nearest truth

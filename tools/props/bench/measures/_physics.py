@@ -13,15 +13,45 @@ MOST_CELLS = 1_000_000  # cells counted at most (the step grows past it)
 OVERHANG_POINTS = 2000  # collider surface points whose distance out of the drawn mesh is read
 OVERHANG_PERCENTILE = 95
 CONVEX_SHARE = 0.98  # a piece whose own volume is under this share of its hull's is not convex
+FLAT_SPREAD = 1e-9  # a piece whose thinnest spread is under this share of its widest is flat (rounding, not a wall)
+
+
+class Flat:
+    """The hull of a piece whose points lie in a plane, on a line or at one point (#159: tc6's anesthesia machine had
+    a four-cornered card among its 48 hulls, which scipy's ConvexHull refuses): no volume and no inside, its surface
+    the points' outline in their plane (none on a line or a point), so it is measured as flat, never an error."""
+
+    def __init__(self, points):
+        self.points = points
+        self.volume = 0.0
+        self.equations = np.array([[0.0, 0.0, 0.0, 1.0]])  # no point lies inside
+        middle = points.mean(0)
+        _, spread, axes = np.linalg.svd(points - middle, full_matrices=False)
+        self.simplices = np.zeros((0, 3), dtype=int)
+        if len(spread) > 1 and spread[1] > FLAT_SPREAD * max(spread[0], 1e-12):
+            ring = ConvexHull((points - middle) @ axes[:2].T).vertices
+            self.simplices = np.stack([np.full(len(ring) - 2, ring[0]), ring[1:-1], ring[2:]], 1)
+
+
+def hull_of(points):
+    """A piece's convex hull (scipy), or its Flat hull when its points span no volume."""
+    points = np.asarray(points, dtype=float)
+    _, spread, _ = np.linalg.svd(points - points.mean(0), full_matrices=False)
+    if len(spread) < 3 or spread[2] <= FLAT_SPREAD * max(spread[0], 1e-12):
+        return Flat(points)
+    return ConvexHull(points)
 
 
 def hulls(colliders):
-    """Each collider piece's convex hull (scipy)."""
-    return [ConvexHull(np.asarray(piece["vertices"], dtype=float)) for piece in colliders]
+    """Each collider piece's hull (hull_of)."""
+    return [hull_of(piece["vertices"]) for piece in colliders]
 
 
 def convex(piece, hull):
-    """Whether a piece given as a mesh fills its hull (a piece given as points is its hull)."""
+    """Whether a piece is a convex solid: a flat one holds nothing; one given as a mesh must fill its hull (a piece
+    given as points is its hull)."""
+    if isinstance(hull, Flat):
+        return False
     if piece.get("faces") is None:
         return True
     own = trimesh.Trimesh(np.asarray(piece["vertices"], dtype=float), np.asarray(piece["faces"]), process=False)
@@ -52,7 +82,7 @@ def overhang(vertices, faces, found):
     it). The hull, not the mesh: a sim-ready collider is convex pieces, so over an open crate's well or a chair's
     seat it spans what the drawn mesh leaves open, as NVIDIA's own do (crate_blue_a01's hull stands 12 cm off its
     open mesh); what floats a thing is a collider standing out past the shape's outline."""
-    triangles = np.concatenate([hull.points[hull.simplices] for hull in found])
+    triangles = np.concatenate([hull.points[hull.simplices] for hull in found if len(hull.simplices)])
     corners = triangles.reshape(-1, 3)
     points, _ = _mesh.sampled(corners, np.arange(len(corners)).reshape(-1, 3), OVERHANG_POINTS, seed=7)
     drawn = ConvexHull(np.asarray(vertices, dtype=float)[np.unique(faces)])

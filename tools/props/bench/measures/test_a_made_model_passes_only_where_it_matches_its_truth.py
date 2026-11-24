@@ -49,6 +49,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _physics.overhang measuring off the drawn mesh instead of its outline (its convex hull): the open box under its
   own hull, as NVIDIA's crates are, fails its overhang.
 - _physics.convex calling every piece convex: the ring-shaped mesh collider passes.
+- _physics.hull_of handing a flat piece to scipy's ConvexHull (#159: tc6's anesthesia machine's four-cornered card
+  among its hulls stopped its measures with a QhullError): both card rows raise; _physics.convex calling a flat piece
+  convex: the card passes.
 - __init__.held taking a mass ratio one way only: the box at half its mass passes.
 - _finish.finish_likeness ignoring the family: a 30% part of the wrong family passes.
 - _finish.part_look measuring the colour difference in a*b* alone (lightness free): the toaster's body in stainless
@@ -278,6 +281,12 @@ def grown(mesh, reach):
     return [{"vertices": hull.vertices, "faces": None}]
 
 
+def with_card():
+    """The box's hull and a flat card 7 x 5 cm on its side (four corners at one x, as tc6's anesthesia machine had)."""
+    card = np.array([[0.25, -0.03, 0.2], [0.25, 0.04, 0.2], [0.25, 0.04, 0.25], [0.25, -0.03, 0.25]])
+    return [{"vertices": box().vertices, "faces": None}, {"vertices": card, "faces": np.array([[0, 1, 2], [0, 2, 3]])}]
+
+
 def ring_collider():
     ring = trimesh.creation.annulus(r_min=0.1, r_max=0.2, height=0.3)
     return [{"vertices": ring.vertices, "faces": ring.faces}]
@@ -495,6 +504,9 @@ CASES = [
     ("an open box under its hull", lambda: made(open_top(), material=None), "physics.overhang", True),
     ("no collider", lambda: made(box(), colliders=[]), "physics.colliders", False),
     ("a ring-shaped mesh collider", lambda: made(box(), colliders=ring_collider()), "physics.convex", False),
+    ("its hull and a flat card: its volume", lambda: made(box(), colliders=with_card()),
+     "physics.collider_volume_ratio", True),
+    ("its hull and a flat card: not convex", lambda: made(box(), colliders=with_card()), "physics.convex", False),
     ("friction 0.7 for 0.5", lambda: made(box(), friction=0.7), "physics.friction_gap", False),
     ("a 30% part of the wrong family", lambda: looks(0.3, 0.0), "likeness.alike", False),
     ("a 10% part too far in colour", lambda: looks(0.0, 0.1), "likeness.alike", True),
