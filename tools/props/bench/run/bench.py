@@ -28,6 +28,9 @@ MARGIN of a SIZE px square frame at a vertical FOV, its materials by their own m
 (the true alpha: the cut-out's truth and TRELLIS.2's input), `row.json` (what the route is given: the entry's words
 and its true size, wide deep tall) and Blender's `report.json`. A box Blender drew off the pxr box by more than
 BOX_TOLERANCE of its diagonal fails the render (a unit or up-axis slip).
+Then NVIDIA's own model drawn by the look a made model is drawn by (the input's `look` step, NVIDIA_LOOK: the
+close-up's camera, the look's light, size, samples and renderer), the picture every made look is held to and shown
+beside, and the look's light held to the close-up (`light`, #206).
 
 **The routes**, each step a kept output in order; a step that fails is the asset's gap on that branch, its reason
 kept, and the branch's later steps are not run for it (one try each: no step is run again inside a run).
@@ -68,6 +71,7 @@ import argparse
 import concurrent.futures
 import datetime
 import functools
+import io
 import json
 import math
 import os
@@ -93,6 +97,11 @@ import finish  # noqa: E402  (branch B's finish: the library finish method)
 SCRIPT = HERE / "closeup.py"
 LOOK = HERE / "look.py"  # the finish's look drawn by its texel masks (look_step, #182)
 LOOK_SMALL = 360  # the look's small copy, a page's
+# The input branch's step that draws NVIDIA's own model by the look (nvidia_look_step, #159): the picture every made
+# look is held to, by eye (judged_look), by its parts' patterns and colours (finish.drawn_patterns) and on its sheet.
+# Beside NVIDIA's own close-up (another camera, light and sampling) the owner could not tell the look's drawing from
+# the pipeline (2026-11-24); through the same look the model is the only difference.
+NVIDIA_LOOK = "look"
 # A pixel of the mesh alone in plain white (look.py's bare.png) darker than this display luminance (0 to 1) faces away
 # from every light: its normal is turned into the body or it lies in a fold (#159: the printer box's holes are 0.0047
 # of its silhouette at 0.1 and 0.0052 at 0.2; tc4r's clean made models 0.00001 at most at either).
@@ -648,8 +657,10 @@ def branch_b(kept, row, material, rgba, scratch, library):
         if kept_output(kept, row["id"], "B", "finish"):
             parted = checked_out(kept, row["id"], "B", "finish", scratch / "B" / "look-finish")
             camera = finish.look_view(json.loads((rgba.parent / "row.json").read_text())["camera"], parted)
-            run_steps(kept, row["id"], "B", [("look", look_step(model, parted, row, camera,
-                                                                uncalibrated=unheld_light(kept, row)))], scratch)
+            drawn = nvidia_looked(kept, row["id"], scratch / "B" / "look-nvidia")
+            run_steps(kept, row["id"], "B", [("look", look_step(
+                model, parted, row, camera, uncalibrated=unheld_light(kept, row),
+                nvidia=drawn / "look.png" if drawn is not None else None, close_up=rgba))], scratch)
     if not kept.entry(row["id"], "B", "physics") and all(kept_output(kept, row["id"], "B", step)
                                                          for step in ("final", "sim", "finish")):
         folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"weighed-{step}")
@@ -744,13 +755,16 @@ def unheld_light(kept, row):
     return f"the look's light is not held to the close-up: {found['gap'] if found else 'its light step not run'}"
 
 
-def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalibrated=None):
+def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalibrated=None, nvidia=None,
+              close_up=None):
     """The finish's look as the bake paints it (#182, finish.look_job): the made model whole, each slot's recipe mixed
     by its texel mask on the model's own UVs, drawn by look.py through the card queue from the close-up's `camera`;
     look.png, its job and masks, a LOOK_SMALL side copy for a page, holes.json (its holes, look_holes, and how far
     closing its hardware cuts stretched the mesh round them, look.py's closed.json: #212), and each text mark read back
     where it was drawn (finish.marks_read, `ask` a test's: marks.json, read.json; #185). Not drawn where
-    `uncalibrated` names why the look's light is not held to the close-up (unheld_light, #206): the step's gap."""
+    `uncalibrated` names why the look's light is not held to the close-up (unheld_light, #206): the step's gap. Its
+    sheet.png (sheet, #159): `nvidia` (NVIDIA's model through the same look, nvidia_look_step's look.png; a pictured
+    case has none), the look, and `close_up` (the route's input) side by side, each given one."""
     def make(folder):
         from PIL import Image
         if uncalibrated:
@@ -762,6 +776,7 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalib
         (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png", folder / "bare.png"),
                                                        "stretched": closed["stretched"]}))
         finish.marks_read(folder, ask)
+        sheet([path for path in (nvidia, folder / "look.png", close_up) if path is not None], folder / "sheet.png")
     return make
 
 
@@ -775,28 +790,66 @@ def drawn_look(model, parted, asset, camera, folder, draw=queued_blender):
     return folder / "look.png"
 
 
-def light_step(row, values, scratch, given, draw=queued_blender):
-    """The look's light calibration (#206): NVIDIA's own model (the row's entry, fetched into `scratch`) drawn by
-    look.py with the look's camera, light, size and samples from the close-up's camera (the `given` render folder's
-    row.json), held to that render's rgba.png (exposure_held): light.json with both pictures' lightness and clipped
-    white; a look light that draws NVIDIA's model lighter or darker than its own close-up is the step's gap, and B's
-    look is not drawn under it (branch_b)."""
+def nvidia_look_step(row, values, scratch, given, draw=queued_blender):
+    """NVIDIA's own model (the row's entry, fetched into `scratch`, its own materials) drawn by look.py as a made
+    model's look is drawn (#159): the close-up's camera (the `given` render folder's row.json), framed on its own box,
+    the look's light, size, samples and renderer, so beside a made look the model is the only difference. look.png, its
+    LOOK_SMALL copy and its job (look.json: its camera, which finish.drawn_patterns reads)."""
     def make(folder):
-        _, root = fetched(row["address"], values, scratch / "light-entry")
+        from PIL import Image
+        _, root = fetched(row["address"], values, scratch / "look-entry")
         camera = json.loads((given / "row.json").read_text())["camera"]
         job = {"usd": str(root), **camera, "side": finish.LOOK_SIDE, "samples": finish.LOOK_SAMPLES,
                "out": str(folder / "look.png")}
         (folder / "look.json").write_text(json.dumps(job, indent=1))
-        code = draw(f"bench-light-{row['id']}", [str(folder / "look.json")], folder / "blender.log", LOOK)
-        shutil.rmtree(scratch / "light-entry", ignore_errors=True)
+        code = draw(f"bench-nvidia-look-{row['id']}", [str(folder / "look.json")], folder / "blender.log", LOOK)
+        shutil.rmtree(scratch / "look-entry", ignore_errors=True)
         if code or not (folder / "look.png").is_file():
             lines = (folder / "blender.log").read_text(errors="replace").splitlines()
             raise StepFailed(f"look.py exited {code} on NVIDIA's model: {' | '.join(lines[-6:])}")
-        held = exposure_held(folder / "look.png", given / "rgba.png")
+        with Image.open(folder / "look.png") as drawn:
+            drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
+    return make
+
+
+def nvidia_looked(kept, asset, into):
+    """NVIDIA's own model as the look draws it (look.png, look.json) read back into `into`: the input's NVIDIA_LOOK
+    step, else an older run's `light` step, whose look.png the same look drew (#206); None where neither is kept."""
+    for step in (NVIDIA_LOOK, "light"):
+        if kept_output(kept, asset, "input", step):
+            return checked_out(kept, asset, "input", step, into)
+    return None
+
+
+def light_step(given, drawn):
+    """The look's light calibration (#206): NVIDIA's model as the look drew it (the `drawn` folder's look.png,
+    nvidia_look_step's) held to the `given` render folder's rgba.png, the close-up it was drawn into (exposure_held):
+    light.json with both pictures' lightness and clipped white; a look light that draws NVIDIA's model lighter or
+    darker than its own close-up is the step's gap, and B's look is not drawn under it (branch_b)."""
+    def make(folder):
+        held = exposure_held(drawn / "look.png", given / "rgba.png")
         (folder / "light.json").write_text(json.dumps(held, indent=1))
         if not held["held"]:
             raise StepFailed(f"the look's light draws NVIDIA's model unlike its close-up: {json.dumps(held)}")
     return make
+
+
+def sheet(pictures, out):
+    """The `pictures` side by side as the picture judge sees them (judge.shown: each laid on the close-up's backdrop
+    and cut to one frame round every object drawn, so each is the same size), written to `out` (#159: NVIDIA's model
+    through the look, the made model through the look, the close-up the route was given)."""
+    from PIL import Image
+    from tools.props.bench import judge
+    crop = judge.framed(*pictures)
+    panels = [Image.open(io.BytesIO(judge.shown(path, crop))) for path in pictures]
+    laid = Image.new("RGB", (sum(panel.width for panel in panels), max(panel.height for panel in panels)),
+                     BACKDROP)
+    left = 0
+    for panel in panels:
+        laid.paste(panel, (left, 0))
+        left += panel.width
+    laid.save(out)
+    return out
 
 
 def exposure(picture):
@@ -856,7 +909,8 @@ MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.
 FINISHED = {"B": "finish"}
 # Each branch's moving parts step (#177), whose parts and joints the measures hold to NVIDIA's (parted).
 PARTED = {"B": "parts"}
-# Each branch's look step (#182), whose picture the picture judge holds to NVIDIA's render (judged_look, #184)
+# Each branch's look step (#182), whose picture the picture judge holds to NVIDIA's model drawn by the same look
+# (judged_look, #184, #159)
 # and whose holes (look_holes) the measures judge as `look.holes` (#159).
 # Its text marks read back (read.json, #185) the measures hold to the close-up's words as `look.read`.
 LOOKED = {"B": "look"}
@@ -1054,9 +1108,10 @@ def written_measures(folder, truth, side, others, made, picture=None, looked=Non
 
 
 def judged_look(kept, asset, branch, previous, scratch, draw=queued_blender):
-    """The branch's kept look held by the picture judge (tools/props/bench/judge, #184) to NVIDIA's render (a pictured
-    case's: its close-up, #159) and to the same asset's look in the `previous` run (a Kept, where it kept one): the
-    measure group "picture", or None where the branch keeps no look."""
+    """The branch's kept look held by the picture judge (tools/props/bench/judge, #184) to NVIDIA's model drawn by the
+    same look (nvidia_looked, #159; a pictured case's: its close-up) and to the same asset's look in the `previous` run
+    (a Kept, where it kept one): the measure group "picture", or None where the branch keeps no look. A run that drew
+    no NVIDIA look is the step's gap (its `render` draws it)."""
     from tools.props.bench import judge
     step = LOOKED.get(branch)
     if not step or not kept_output(kept, asset, branch, step):
@@ -1065,10 +1120,19 @@ def judged_look(kept, asset, branch, previous, scratch, draw=queued_blender):
     # measure_step's own copy: the store's files are read-only, so a second copy into one folder was refused (#186)
     given = checked_out(kept, asset, "input", "render", scratch / "input-judged")
     row = json.loads((given / "row.json").read_text())
+    original = given / "rgba.png" if row.get("picture") else drawn_nvidia(kept, asset, scratch / "input-judged-look")
     before = None
     if previous is not None and kept_output(previous, asset, branch, step):
         before = redrawn_look(previous, asset, branch, row, scratch, draw)
-    return judge.looked(row["words"], look, given / "rgba.png", before, pictured=bool(row.get("picture")))
+    return judge.looked(row["words"], look, original, before, pictured=bool(row.get("picture")))
+
+
+def drawn_nvidia(kept, asset, into):
+    """NVIDIA's model drawn by the look (nvidia_looked): its look.png; a run that drew none raises StepFailed."""
+    drawn = nvidia_looked(kept, asset, into)
+    if drawn is None:
+        raise StepFailed(f"{asset}: NVIDIA's model is not drawn by the look in this run (run `render` on it)")
+    return drawn / "look.png"
 
 
 def redrawn_look(previous, asset, branch, row, scratch, draw=queued_blender):
@@ -1087,7 +1151,8 @@ def redrawn_look(previous, asset, branch, row, scratch, draw=queued_blender):
 
 def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
     """The branch's made model and its physics read back from the store and measured against the truth; its look
-    judged against NVIDIA's render and the `previous` run's look (judged_look)."""
+    judged against NVIDIA's model drawn by the same look and the `previous` run's look (judged_look); each finish
+    part's drawn pattern, colour and shading held to the same part in NVIDIA's look (finish.drawn_patterns)."""
     def make(folder):
         (step, name), physics = MEASURED[branch]
         model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
@@ -1105,8 +1170,8 @@ def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
         if looked is not None:
             side["face_seen"] = seen_faces(model, looked, side)
         if looked is not None and finished_parts is not None:  # each part's drawn pattern beside NVIDIA's (#186)
-            rendered = checked_out(kept, asset, "input", "render", scratch / branch / "kept-render")
-            patterns = finish.drawn_patterns(model, finished_parts, looked, rendered / "rgba.png", asset)
+            drawn = drawn_nvidia(kept, asset, scratch / branch / "kept-nvidia-look").parent
+            patterns = finish.drawn_patterns(model, finished_parts, looked, drawn, asset)
             side["looks"] = {part: {**look, **patterns.get(part, {})} for part, look in side["looks"].items()}
         written_measures(folder, truth, side, others, f"{branch} {step}",
                          judged_look(kept, asset, branch, previous, scratch), looked)
@@ -1262,8 +1327,9 @@ def chosen(rows, only):
 
 
 def render_one(row, values, kept, run, draw=queued_blender):
-    """One asset's close-up kept as its `render` step (branch "input"), then the look's light held to it (`light`,
-    light_step; a pictured case has no NVIDIA model to hold), its scratch emptied after."""
+    """One asset's close-up kept as its `render` step (branch "input"), NVIDIA's model drawn by the look (NVIDIA_LOOK,
+    nvidia_look_step) and the look's light held to the close-up (`light`, light_step; a pictured case has no NVIDIA
+    model to draw), its scratch emptied after."""
     scratch = job_scratch(run, row["id"])
     try:
         if row.get("picture"):
@@ -1274,7 +1340,11 @@ def render_one(row, values, kept, run, draw=queued_blender):
                                                                                      folder, draw))], scratch)
         if kept_output(kept, row["id"], "input", "render"):
             given = checked_out(kept, row["id"], "input", "render", scratch / "given")
-            run_steps(kept, row["id"], "input", [("light", light_step(row, values, scratch, given, draw))], scratch)
+            run_steps(kept, row["id"], "input", [(NVIDIA_LOOK, nvidia_look_step(row, values, scratch, given, draw))],
+                      scratch)
+            drawn = nvidia_looked(kept, row["id"], scratch / "drawn")
+            if drawn is not None:
+                run_steps(kept, row["id"], "input", [("light", light_step(given, drawn))], scratch)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
 

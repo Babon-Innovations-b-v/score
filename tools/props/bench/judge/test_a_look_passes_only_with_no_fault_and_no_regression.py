@@ -26,6 +26,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/judge/__ini
   the pictured answer with no cut-out verdict raises nothing; measures.PICTURED_BARS without ("picture", "cutout")
   -> the torn close-up passes.
 - asking_body: CUTOUT not asked for a pictured case -> its ask names no `cutout_faults`.
+- ORIGINALS["render"]: NVIDIA's model named as drawn by another renderer under other light (its brightness, shading
+  and shadow forgiven) -> the render ask does not name the same renderer and light (#159: the owner, 2026-11-24, could
+  not tell the drawing from the pipeline beside NVIDIA's own close-up).
 """
 import base64
 import io
@@ -122,6 +125,9 @@ def test_a_look_passes_only_with_no_fault_and_no_regression(tmp_path, name, made
     text = bodies[0]["contents"][0]["parts"][-1]["text"]
     assert ("close-up picture the model was made from" in text, "NVIDIA" in text, "cutout_faults" in text) == (
         pictured, not pictured, pictured), text
+    # NVIDIA's model is drawn by the same look (#159): its light is the made look's, so a shading is the model's
+    assert ("same renderer from the same camera under the same light" in text,
+            "shading, reflection or shadow alone is no fault" in text) == (not pictured, pictured), text
     assert judge.CHROME in text and "`colour` fault" in judge.CHROME, text
     assert judge.STRENGTH in text and "`colour` fault" in judge.STRENGTH, text
     shown = [Image.open(io.BytesIO(base64.b64decode(part["inline_data"]["data"])))

@@ -1,6 +1,6 @@
 """The prop benchmark's picture judge (#184, PRD #159): the owner's own way of judging made a check. Each made model's
 look (branch B's `look` step, #182: the finish as the bake paints it, from the close-up's camera) is held by eye to
-NVIDIA's input render of the same object, and, when given, to the same object's look in the previous round.
+NVIDIA's model of the same object drawn by the same look (#159), and, when given, to the same object's look in the previous round.
 
     looked(words, made, given, previous=None, ask=None, pictured=False) -> the bench measure group "picture":
         {"drawn": 1 or 0, <each of KINDS>: 1 when a fault of that kind is seen else 0, "regressed": 1 or 0 (only with
@@ -11,7 +11,8 @@ NVIDIA's input render of the same object, and, when given, to the same object's 
     shown(path, crop) -> the picture's PNG bytes as the judge sees it
     framed(*paths)     -> the crop (shares of the frame) round every object drawn
 
-`made` is the look (look.png, RGBA), `given` NVIDIA's render (the render step's rgba.png, true alpha; with `pictured`,
+`made` is the look (look.png, RGBA), `given` NVIDIA's model drawn by the same look (bench.nvidia_look_step's
+look.png, the model the only difference, #159; with `pictured`,
 a pictured case's close-up, #159: the ask names it so, ORIGINALS), `previous` the
 previous round's look (look.png: its made model drawn by today's look, from the same camera, bench.redrawn_look). Each is laid on the close-up's light grey
 backdrop (bench.BACKDROP), cut to the same frame round both objects and drawn at SHOWN px, so the three are seen alike.
@@ -19,7 +20,7 @@ A look with nothing drawn (no opaque pixel) is `drawn` 0 and asked nothing.
 
 The faults ask is one Claude call on the subscription (score/adapters/models/claude_code, EUR 0), its answer a
 structured JSON: every visible fault of the made model against NVIDIA's, its kind of KINDS, and a verdict per kind
-(clean; slight: a difference a careful eye lets pass, such as the renderers' light, a library grain for NVIDIA's;
+(clean; slight: a difference a careful eye lets pass, such as a library grain for NVIDIA's;
 fault). With a previous look the regression is asked apart (COMPARE, #205), beside it: the original and the two looks
 as A and B, which is closer to the original as a whole, asked in both orders; regressed only when both answers choose
 the previous look (regression_of). An answer is kept by the hash of the model and the
@@ -81,19 +82,23 @@ STRENGTH = (" Judge each part's colour strength and value as well as its hue: a 
             "orange wood for a brown one), or clearly darker or lighter as a whole (near-black for a mid grey, a satin "
             "grey drawn glossy jet black, a white plastic part drawn grey), is a `colour` fault even where its hue is "
             "right; only a shade that follows the light across a face (a shaded side, a highlight) is the light's.")
-# What picture 1 is: NVIDIA's model rendered, or a pictured case's close-up (#159: the 2099 cockpit cases, no NVIDIA
-# model; its look is drawn from the camera fitted on that close-up's outline). The render's words are the ask's as
-# calibrated on #184, kept byte for byte so its kept answers hold.
+# What picture 1 is: NVIDIA's model drawn by the same look as the made model (bench.nvidia_look_step, #159: beside
+# NVIDIA's own close-up, another renderer and light, the owner could not tell the drawing from the pipeline, and the
+# ask forgave a brightness or shading the model drew as the renderers'), or a pictured case's close-up (#159: the 2099
+# cockpit cases, no NVIDIA model; its look is drawn from the camera fitted on that close-up's outline), whose words are
+# the ask's as calibrated, kept byte for byte so its kept answers hold.
 ORIGINALS = {
     "render": ("You judge, by eye and strictly, a 3D model made again from a picture of an original model. The "
-               "object: {words}. Picture 1 is the ORIGINAL (NVIDIA's model, rendered). Picture 2 is the MADE model, "
-               "drawn from the same camera on the same backdrop. The two are drawn by different renderers under "
-               "different light,"),
+               "object: {words}. Picture 1 is the ORIGINAL (NVIDIA's model). Picture 2 is the MADE model. The two are "
+               "drawn by the same renderer from the same camera under the same light on the same backdrop, so the "
+               "model is the only difference between them: a part drawn lighter, darker, duller, shinier or shaded "
+               "otherwise than the original's is the made model's, never the light's;"),
     "closeup": ("You judge, by eye and strictly, a 3D model made from a picture of an object. The object: {words}. "
                 "Picture 1 is the ORIGINAL: the close-up picture the model was made from (an image of the object, not "
                 "a render of this model). Picture 2 is the MADE model, drawn on the same backdrop from a camera "
                 "fitted to the close-up's outline, so its view may differ by a few degrees and its framing a little. "
-                "The two are drawn under different light,"),
+                "The two are drawn under different light, so a different brightness, shading, reflection or shadow "
+                "alone is no fault;"),
 }
 # A pictured case's close-up judged as a cut-out of its own (#159), asked after ORIGINALS["closeup"]'s words.
 CUTOUT = ("Picture 1 is cut out of a larger picture, and the cut-out itself can be at fault: a torn, ragged, frayed or "
@@ -164,7 +169,7 @@ def asking_body(words, made, given, pictured=False):
     faults and verdicts."""
     kinds = "; ".join(f"`{kind}`: {what}" for kind, what in KINDS.items())
     text = (ORIGINALS["closeup" if pictured else "render"].format(words=words) +
-            " so a different brightness, shading, reflection or shadow alone is no fault; the made model's surfaces "
+            " the made model's surfaces "
             "come from a library, so a different fine grain of the same material and colour is no fault either. " +
             CHROME +
             (CUTOUT if pictured else "") +
@@ -208,7 +213,8 @@ def claude_asks(bodies):
 def compared_body(words, first, second, given, pictured=False):
     """The regression ask (COMPARE): the original (NVIDIA's render, or with `pictured` the close-up) and two made looks
     (PNG bytes) shown as A (`first`) and B (`second`), answered as which is closer to the original."""
-    original = "the close-up picture the models were made from" if pictured else "NVIDIA's model, rendered"
+    original = "the close-up picture the models were made from" if pictured else \
+        "NVIDIA's model, drawn by the same renderer and light as the two"
     parts = [{"text": f"Picture 1, the ORIGINAL ({original}):"}, inline(given), {"text": "Picture A:"}, inline(first),
              {"text": "Picture B:"}, inline(second), {"text": COMPARE.format(words=words)}]
     schema = {"type": "OBJECT", "properties": {

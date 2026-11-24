@@ -5,10 +5,14 @@ on the previous round counts) made a check. `__init__.py` is the way in (its doc
 `__main__.py` judges pictures named by hand (calibration, a round against pictures no run keeps as a look).
 
 - **Claude asks on the subscription** (score/adapters/models/claude_code, EUR 0) per look, shown alike (on the
-  close-up's backdrop, one crop round every object drawn, SHOWN px): the faults ask (NVIDIA's render and the made
-  look) and, when a previous look is given, the regression ask (COMPARE) twice, the two looks as A and B in both
+  close-up's backdrop, one crop round every object drawn, SHOWN px): the faults ask (NVIDIA's model drawn by the same
+  look, bench.nvidia_look_step, and the made look) and, when a previous look is given, the regression ask (COMPARE) twice, the two looks as A and B in both
   orders; regressed only when both choose the previous look. Its answer is kept by the hash of the model and the body (claude_code.CACHE), so the same
   pictures are never asked twice.
+- **NVIDIA's model is drawn by the same look** (#159, ORIGINALS["render"]): the same renderer, camera, light and
+  backdrop, so the ask holds a part drawn lighter, darker, duller or shaded otherwise as the model's, never the
+  light's (beside NVIDIA's own close-up the owner could not tell the drawing from the pipeline, 2026-11-24). A
+  pictured case's close-up is still another light (ORIGINALS["closeup"]).
 - **Colour strength and value are the part's** (STRENGTH, #198): a whole part drawn more saturated, darker or
   lighter than the original shows it is a `colour` fault even where its hue is right.
 - **The kinds of fault are the owner's** (KINDS: edges, specks, holes, lumps, colour, text, shape, parts), each with a

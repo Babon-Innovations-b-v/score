@@ -73,10 +73,20 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   lifts a matte surface's picture well above its own colour (the locker's NVIDIA paint of 0.32 linear reads 0.87 on
   screen), so a colour read off the close-up is taken under it in the list (route_list, #198, #204), never by dimming
   the look: dimmed, the look no longer draws NVIDIA's own model as its close-up.
+- **NVIDIA's model is drawn by the same look** (#159, the input's `look` step after `render`, NVIDIA_LOOK,
+  `nvidia_look_step`): look.py on NVIDIA's own model (a job's `usd`) from the close-up's camera, framed on its own box,
+  under the look's light, size, samples and renderer, so beside a made look the model is the only difference (the
+  owner, 2026-11-24, beside NVIDIA's own close-up: "its hard to see if its ur drawing or the pipeline"). It is what
+  every made look is held to: the picture judge (`judged_look`, whose ask now names the same renderer and light, so a
+  shading is the model's), each part's pattern, colour, clipped white and shading (finish.drawn_patterns, read through
+  look_camera as the made look is) and B's look step's `sheet.png` (`sheet`: NVIDIA's look, the made look, the
+  close-up, each laid and cut as the judge sees them). The `light` step holds this picture to the close-up. An older
+  run's `light` step holds the same picture (`nvidia_looked` reads it); a run with neither cannot be measured until
+  `render` draws it.
 - **The measures count only the specks the look draws** (#159, `seen_faces`: finish.look_faces casts each drawn pixel
   of look.png through look.json's camera onto the model; the side's `face_seen`), for a truth case and a pictured one.
 - **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge
-  (tools/props/bench/judge) to NVIDIA's render and, with `--previous <run>`, to that run's look of the asset; the
+  (tools/props/bench/judge) to NVIDIA's model drawn by the same look and, with `--previous <run>`, to that run's look of the asset; the
   group `picture` in measures.json.
 - **The material class is the route's, never the truth's** (`material_for`: a word of the id, else the kind's
   class), the same for both branches; the truth's physics material is what the measures compare it with.

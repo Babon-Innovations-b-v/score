@@ -82,6 +82,15 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   the previous run's kept look -> its model is never drawn again and the judge is shown the kept picture; the
   previous drawn from the row's own camera when it has none (`row["camera"]`) -> drawn from None, not its finish's fitted
   camera
+- NVIDIA's model drawn by the look a made model is drawn by (#159, the input's `look` step; the owner, 2026-11-24:
+  beside NVIDIA's own close-up he could not tell the drawing from the pipeline): bench.render_one not running
+  nvidia_look_step -> the crate keeps no input look (TypeError); its job not given the close-up's camera (`**camera`
+  dropped) -> its look.json holds no eye; bench.nvidia_looked not reading an older run's `light` step -> that run's
+  look is refused; bench.judged_look showing the judge the close-up (`given / "rgba.png"`) -> its original is not
+  NVIDIA's look and a run that drew none is not refused; finish.drawn_patterns reading NVIDIA's look through the
+  finish's fitted close-up camera (camera.json), not look_camera -> the speckled look and the same picture as NVIDIA's
+  do not read alike; bench.look_step's sheet without the close-up -> it holds two panels, not NVIDIA's, the look's and
+  the close-up's
 """
 import ast
 import base64
@@ -98,6 +107,7 @@ from PIL import Image
 
 import bench
 import finish
+from tools.props.bench import judge
 from score.store import Store
 from score.store.offload import FolderBucket
 
@@ -241,13 +251,14 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
                            (side["surfaces"][0], "surface/simready_m_atlas_a01@1")]
 
 
-def looked(tmp_path, name, view):
+def looked(tmp_path, name, view, close_up):
     """The made box's look step (#182) on its finish (finished_box's) with a stand-in look.py and a stand-in reader
     (#185): (whether its gap names the missing texels.npz; the masks its job wrote, its first mask's middle texel, its
     first spec's roughness, its small copy's size, its holes; the crops read, each its size; read.json) once the
     finish's texels name part 0 throughout. The stand-in draws the box as a square half the side across, a 10 x 10
     hole through the look and a 10 x 10 black patch on the mesh alone (#159: its holes 200 of the square's pixels),
-    and two text marks (marks.json)."""
+    and two text marks (marks.json). Then its sheet (#159): NVIDIA's model through the look (a blue square), the look and
+    the `close_up` side by side: its size, each panel's colour at 0.4 of its side."""
     folder, model = tmp_path / "finish", tmp_path / "made.glb"
     drawn, crops = [], []
 
@@ -295,7 +306,11 @@ def looked(tmp_path, name, view):
     (files / PIECE / "hardware.glb").write_bytes(b"glTF")
     os.environ["SCORE_LIB_FILES"] = str(files)
     try:
-        bench.look_step(model, folder, {"id": name}, view, draw, ask)(out)
+        nvidia = np.zeros((64, 64, 4), np.uint8)
+        nvidia[16:40, 16:48] = (0, 0, 200, 255)
+        Image.fromarray(nvidia, "RGBA").save(tmp_path / "nvidia-look.png")
+        bench.look_step(model, folder, {"id": name}, view, draw, ask, nvidia=tmp_path / "nvidia-look.png",
+                        close_up=close_up)(out)
     finally:
         del os.environ["SCORE_LIB_FILES"]
     (job, script), = drawn
@@ -311,28 +326,45 @@ def looked(tmp_path, name, view):
             (piece["glb"] == str(files / PIECE / "hardware.glb"), piece["at"], piece["normal"], piece["up"],
              piece["cut"]["at"], piece["spec"]["roughness"]),
             ({key: piece["cut"]["closed"][key] for key in ("at", "normal", "up", "plate_point", "box")},
-             json.loads((out / "holes.json").read_text())["stretched"]))
+             json.loads((out / "holes.json").read_text())["stretched"]), sheet_of(out / "sheet.png"))
+
+
+def sheet_of(path):
+    """A sheet's size and each of its panels' colour at 0.4 of its side (clear of the look's hole), to the ten (its
+    resampling rings a few levels)."""
+    with Image.open(path) as laid:
+        side = laid.height
+        return laid.size, [tuple(round(channel, -1) for channel in laid.getpixel((round(panel * side + 0.4 * side),
+                                                                                round(0.4 * side))))
+                           for panel in range(laid.width // side)]
 
 
 PIECE = "model/hardware_lock_box_0badcafe@1"  # a hardware piece the finish laid on the box (#212)
 
 
-def patterned(tmp_path, name, close_up):
-    """Each finish part's drawn pattern held to the close-up's (measures pattern_held) when its look (the look step's
-    job, looked's) is drawn flat and when it is drawn speckled black on white in 64-pixel squares, coarser than the
-    close-up's pixels (the 64-pixel close-up's box is read at its scale): (flat, the flat look's drawn colours, its
-    clipped white, its spread, speckled, its clipped white, its spread)."""
+def patterned(tmp_path, name):
+    """Each finish part's drawn pattern held to NVIDIA's (measures pattern_held) on NVIDIA's model drawn by the same
+    look (#159: a flat grey look.png with the look's camera, nvidia_look_step's, 64 pixels: the parts read at its
+    coarser scale) when its look (the look step's job, looked's) is drawn flat and when it is drawn speckled black on
+    white in 64-pixel squares: (flat, the flat look's
+    drawn colours, its clipped white, its spread, speckled, its clipped white, its spread; whether every part of the
+    speckled look reads as NVIDIA's on the same speckled picture: the same camera, so the same pixels)."""
     from tools.props.bench.measures import _finish
     held = []
-    for look, pixels in (("flat", np.full((1080, 1080, 4), 200, np.uint8)),
-                         ("speckled", np.where((np.indices((1080, 1080)) // 64).sum(0)[..., None] % 2, 255, 0).astype(
-                             np.uint8).repeat(4, 2))):
-        folder = tmp_path / f"look-{look}"
-        folder.mkdir()
-        (folder / "look.json").write_text((tmp_path / "look" / "look.json").read_text())
+    pictures = {"flat": np.full((1080, 1080, 4), 200, np.uint8),
+                "speckled": np.where((np.indices((1080, 1080)) // 64).sum(0)[..., None] % 2, 255, 0).astype(
+                    np.uint8).repeat(4, 2)}
+    for look, pixels in pictures.items():
         pixels[..., 3] = 255
-        Image.fromarray(pixels).save(folder / "look.png")
-        found = finish.drawn_patterns(tmp_path / "made.glb", tmp_path / "finish", folder, close_up, name)
+        for drawn in (f"look-{look}", f"nvidia-{look}"):
+            (tmp_path / drawn).mkdir()
+            (tmp_path / drawn / "look.json").write_text((tmp_path / "look" / "look.json").read_text())
+            Image.fromarray(pixels).resize((64, 64) if drawn == "nvidia-flat" else (1080, 1080)).save(
+                tmp_path / drawn / "look.png")
+    for look in pictures:
+        folder = tmp_path / f"look-{look}"
+        found = finish.drawn_patterns(tmp_path / "made.glb", tmp_path / "finish", folder, tmp_path / "nvidia-flat",
+                                      name)
         held.append(sorted({_finish.pattern_held(pattern) for pattern in found.values()}, key=str))
         if look == "flat":  # each part's colour as the flat look draws it: sRGB 200 grey, L* 80.6 (#198)
             held.append(sorted({tuple(pattern["drawn"]) for pattern in found.values()}))
@@ -341,6 +373,10 @@ def patterned(tmp_path, name, close_up):
         held.append(sorted({pattern["clipped"] > 0.1 for pattern in found.values()}))
         # each part's lightness spread as the look draws it, over 10 L*: none of the flat grey, every part speckled
         held.append(sorted({pattern["shade"]["spread"] > 10 for pattern in found.values()}))
+    alike = finish.drawn_patterns(tmp_path / "made.glb", tmp_path / "finish", tmp_path / "look-speckled",
+                                  tmp_path / "nvidia-speckled", name)
+    held.append(sorted({(pattern["pattern"], pattern["clipped"]) == (pattern["true_pattern"], pattern["true_clipped"])
+                        for pattern in alike.values()}))
     return tuple(held)
 
 
@@ -507,14 +543,40 @@ def light_held(tmp_path):
     return held, ["gap 0.2" in reasons[0], reasons[1], "not run" in reasons[2]], drawn
 
 
+def nvidia_judged(tmp_path, monkeypatch, kept, name):
+    """The made look judged against NVIDIA's model drawn by the same look (#159): (whether the judge is shown the
+    input's look step's picture; an older run's `light` step's look.png, which the same look drew (#206); whether a run
+    that drew no NVIDIA look is refused)."""
+    from tools.props.bench import judge
+    shown = []
+    monkeypatch.setattr(judge, "looked", lambda words, made, given, before, pictured: shown.append(given) or {})
+    ours = tmp_path / "ours-look"
+    ours.mkdir()
+    Image.new("RGBA", (8, 8), (90, 90, 90, 255)).save(ours / "look.png")
+    nvidia = (kept.store.checkout(kept.entry(name, "input", "look")["output"]) / "look.png").read_bytes()
+    runs = {}
+    for run, steps in (("now", {"render": "render", "look": "look"}), ("older", {"render": "render", "light": "look"}),
+                       ("undrawn", {"render": "render"})):
+        runs[run] = bench.Kept(kept.store, kept.bucket, tmp_path / f"{run}-index.json")
+        for step, source in steps.items():
+            runs[run].write(name, "input", step, kept.entry(name, "input", source))
+        runs[run].keep(name, "B", "look", ours, 0)
+    for run in ("now", "older"):
+        bench.judged_look(runs[run], name, "B", None, tmp_path / f"{run}-judged")
+    with pytest.raises(bench.StepFailed) as refused:
+        bench.judged_look(runs["undrawn"], name, "B", None, tmp_path / "undrawn-judged")
+    return (pathlib.Path(shown[0]).read_bytes() == nvidia, pathlib.Path(shown[1]).read_bytes() == nvidia,
+            "not drawn by the look" in str(refused.value))
+
+
 def drawer(scale, lit=0):
     """A stand-in for Blender: the object a red square with its true alpha; its shadow a half-dark band below it, the
-    object there `lit` brighter (its floor lighting it). As look.py on NVIDIA's model (the light step's job, #206): the
-    same red square."""
+    object there `lit` brighter (its floor lighting it). As look.py on NVIDIA's model (the input's look step, #159): the
+    same red square a shade darker (as light as the close-up, LIGHT_REACH, but not its bytes)."""
     def draw(_job_name, arguments, log, script=bench.SCRIPT):
         if script == bench.LOOK:
             rgba = np.zeros((PIXELS, PIXELS, 4), np.uint8)
-            rgba[16:40, 16:48] = (200, 0, 0, 255)
+            rgba[16:40, 16:48] = (190, 0, 0, 255)
             Image.fromarray(rgba, "RGBA").save(json.loads(open(arguments[0]).read())["out"])
             return 0
         root, job, out = arguments
@@ -593,6 +655,13 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     rise = math.degrees(math.asin(looking[2] / np.linalg.norm(looking)))
     turn = math.degrees(math.atan2(looking[0], -looking[1]))
     assert (rise, turn if not flat else 0.0) == pytest.approx((90.0, 0.0) if flat else (15.0, 35.0), abs=1e-6)
+    if name == "simready_crate_blue_a01":  # NVIDIA's model drawn by the look as the made model is (#159), once
+        drawn = kept.store.checkout(kept.entry(name, "input", "look")["output"])
+        job = json.loads((drawn / "look.json").read_text())
+        assert ({key: job[key] for key in view}, job["usd"], job["side"], job["samples"]) == (
+            view, str(tmp_path / f"{name}.usda"), finish.LOOK_SIDE, finish.LOOK_SAMPLES), job
+        assert (drawn / f"look-{bench.LOOK_SMALL}.png").is_file()
+        assert nvidia_judged(tmp_path, monkeypatch, kept, name) == (True, True, True)
     # The look's camera on the close-up's view and up (#159), and on the ceiling task light's: straight down, exactly.
     for camera in (view, {"eye": [0.0, 0.0, 2.6], "aim": [0.0, 0.0, 0.08], "up": [0.0, 1.0, 0.0]}):
         axes = np.array(finish.look_axes(camera))
@@ -621,16 +690,17 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
         # The marks read in their boxes grown by READ_MARGIN of the longer side (200 px: 30 each way); the one the
         # reader left unanswered is read as nothing (#185).
-        looked_box = looked(tmp_path, name, view)
-        assert patterned(tmp_path, name, folder / "rgba.png") == ([True], [(80.6, 0.0, 0.0)], [False], [False], [False], [True],
-                                                                      [True])
+        looked_box = looked(tmp_path, name, view, folder / "rgba.png")
+        assert patterned(tmp_path, name) == ([True], [(80.6, 0.0, 0.0)], [False], [False], [False], [True], [True],
+                                             [True])
         assert looked_box == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),
             [(260, 260), (57, 17)], [("03", "03"), ("Patient room", None)],
             (True, [0.1, -0.3, 0.2], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.12, -0.3, 0.2], 0.4),
             ({"at": [0.12, -0.3, 0.2], "normal": [0.0, -1.0, 0.0], "up": [0.0, 0.0, 1.0],
-              "plate_point": [0.2, -0.3, 0.2], "box": [-0.03, -0.03, 0.03, 0.03]}, 4.2)), name
+              "plate_point": [0.2, -0.3, 0.2], "box": [-0.03, -0.03, 0.03, 0.03]}, 4.2),
+            ((3 * judge.SHOWN, judge.SHOWN), [(0, 0, 200), (200, 200, 200), (200, 0, 0)])), name
         assert bench.look_found(tmp_path / "look") == {
             "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "stretched": 4.2, "read": 0.5,
             "misread": [{"text": "Patient room", "read": None}]}

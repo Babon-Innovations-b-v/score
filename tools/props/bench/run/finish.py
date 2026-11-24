@@ -631,12 +631,14 @@ def shading(lightness, detail):
             "crease": round(float(-np.percentile(detail, 5)), 2) if len(detail) >= PATTERN_LEAST else None}
 
 
-def drawn_patterns(model, finished, looked, close_up, take):
+def drawn_patterns(model, finished, looked, nvidia, take):
     """{part: {"pattern", "true_pattern", "drawn", "true_drawn", "clipped", "true_clipped", "shade", "true_shade"}}:
     each finish part's lightness detail (the median size of likeness measure.high_pass, L units), its median CIELAB colour and the share of
     its pixels clipped white (CLIPPED_L) as its look draws it (`looked`: look.png
-    and look.json, look_job's) and as NVIDIA's close-up (`close_up`, the RGBA render) shows it on the same part (the
-    finish's fitted camera, camera.json), both read at the coarser picture's metres a pixel; None on a side that shows
+    and look.json, look_job's) and as NVIDIA's own model drawn by the same look shows it on the same part (`nvidia`:
+    bench.nvidia_look_step's look.png and look.json, #159; its camera framed on NVIDIA's box at the made model's true
+    size, so read through look_camera on the made model as the made look is), both read at the coarser picture's
+    metres a pixel; None on a side that shows
     the part on under PATTERN_LEAST (whole-reach) pixels. The pattern: #186, the surgical chair's seat drawn speckled
     granite where NVIDIA's is smooth. The colour (#198): the look is drawn under the close-up's own light, so a part
     drawn more saturated or darker than the input shows it on the same view is its colour's fault, which NVIDIA's
@@ -654,8 +656,8 @@ def drawn_patterns(model, finished, looked, close_up, take):
     raw = np.asarray(loaded.mesh.vertices) * size + middle
     pictures = {"pattern": (np.asarray(Image.open(looked / "look.png").convert("RGBA")),
                             look_camera(raw, json.loads((looked / "look.json").read_text()))),
-                "true_pattern": (np.asarray(Image.open(close_up).convert("RGBA")),
-                                 route_cast.close_up_camera(finished / "camera.json"))}
+                "true_pattern": (np.asarray(Image.open(nvidia / "look.png").convert("RGBA")),
+                                 look_camera(raw, json.loads((nvidia / "look.json").read_text())))}
     metres = max(2 * np.linalg.norm(camera[0] - middle) * np.tan(camera[3] / 2) / picture.shape[1]
                  for picture, camera in pictures.values())
     found = {}
