@@ -107,6 +107,8 @@ import tarfile
 import time
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+# A git worktree has no .venv of its own: it runs under the Python that runs this file.
+PYTHON = str(REPO / ".venv/bin/python") if (REPO / ".venv/bin/python").exists() else sys.executable
 sys.path.insert(0, str(REPO / "tools" / "cloud" / "conductor"))
 sys.path.insert(0, str(REPO / "tools" / "library"))
 
@@ -251,8 +253,8 @@ def capped(home, environment):
     held = held_gb(home)
     if held <= CACHE_GB:
         return f"store cache {held:.1f} GB here, within its {CACHE_GB:g} GB cap"
-    asked([str(REPO / ".venv/bin/python"), *CLEAN_CACHE], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
-    done = asked([str(REPO / ".venv/bin/python"), *STORE_EVICT, "--cap-gb", f"{CACHE_GB:g}"], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
+    asked([PYTHON, *CLEAN_CACHE], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
+    done = asked([PYTHON, *STORE_EVICT, "--cap-gb", f"{CACHE_GB:g}"], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
     said = (done.stdout.strip().splitlines() or done.stderr.strip().splitlines()
             or [f"store-evict exit {done.returncode}, nothing said"])[-1]
     return f"store cache {held:.1f} GB here, over its {CACHE_GB:g} GB cap: {said}"
@@ -261,7 +263,7 @@ def capped(home, environment):
 def library_capped(environment):
     """score_lib's file cache under `environment`'s PROPS_HOME brought within its cap (library_cache.capped: the least
     recently read files the public copy proves it holds evicted); its one line."""
-    done = asked([str(REPO / ".venv/bin/python"), *LIBRARY_CAP], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
+    done = asked([PYTHON, *LIBRARY_CAP], cwd=REPO, env=environment, stdin=subprocess.DEVNULL)
     return (done.stdout.strip().splitlines() or done.stderr.strip().splitlines()
             or [f"library cap exit {done.returncode}, nothing said"])[-1]
 
@@ -448,7 +450,7 @@ def design_current(home, code, environment):
     said = []
     for step in DESIGN_STEPS:
         module = " ".join(step)
-        done = asked([str(REPO / ".venv/bin/python"), "-m", *step], cwd=code, env=environment,
+        done = asked([PYTHON, "-m", *step], cwd=code, env=environment,
                      stdin=subprocess.DEVNULL)
         if done.returncode:
             raise SystemExit(f"{module} failed (exit {done.returncode}): "
@@ -467,7 +469,7 @@ def run(home, arguments, go=None, ticket=None):
     entry = live_run(home)
     print(design_current(home, REPO, environment) if entry is None else
           f"the design left as it is: run {entry['id']} is live and reads it", flush=True)
-    command = [str(REPO / ".venv/bin/python"), "-m", "score", "run", *arguments]
+    command = [PYTHON, "-m", "score", "run", *arguments]
     if "--free" not in command:
         command.append("--free")
     return subprocess.run(command, cwd=REPO, env=environment).returncode
@@ -513,7 +515,7 @@ def deciding(home, verb, arguments):
     cockpit names him; its exit status."""
     owner = os.environ.get("SCORE_OWNER") or env_file_values(DASHBOARD_ENV).get("SCORE_OWNER", "")
     environment = {**run_environment(home), "SCORE_OWNER": owner}
-    return subprocess.run([str(REPO / ".venv/bin/python"), "-m", "score.dashboard", verb, *arguments], cwd=REPO,
+    return subprocess.run([PYTHON, "-m", "score.dashboard", verb, *arguments], cwd=REPO,
                           env=environment).returncode
 
 
@@ -641,7 +643,7 @@ def resume(home):
     (code / ".venv").symlink_to((REPO / ".venv").resolve())
     environment = {**run_environment(prepared(home)), **record["env"]}
     design_current(home, code, environment)
-    started = asked([str(REPO / ".venv/bin/python"), "-m", "score", *record["argv"], "--detach"], cwd=code,
+    started = asked([PYTHON, "-m", "score", *record["argv"], "--detach"], cwd=code,
                     stdin=subprocess.DEVNULL, env=environment)
     line = re.search(r"^detached: started .*$", started.stdout, re.MULTILINE)
     if started.returncode or not line:
