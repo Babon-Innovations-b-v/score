@@ -17,7 +17,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   blender image, `parts.py` with the parts image, `meshparts.py` with the meshparts image, `segment.py` and
   `scene.py` (its steps as one job) with the sam image, `judge.py` with the judge image, `pictures.py` (klein and
   Qwen-Image-Edit) with the pictures image, `moss_sound.py` with the moss image, and `batch.py` (Pixal3D) with the
-  pixal image, its takes grouped as many to a job as a 24 GB card runs at once and finished here as today.
+  pixal image, its takes grouped as many to a job as a 24 GB card runs at once and finished here as today. `unreal/render.py`
+  (Unreal Engine renders, #222) runs on the cluster only, with the unreal image.
   `characters.py` sends only its clip makes (people-clips-made, scene-clips: the steps `characters.CLUSTER_STEPS`)
   to the cluster, one job a make in the characters-motion image, which holds the motion environment alone; a look's
   shell, build and route need the person chain's other environments, so a make with one of those steps is refused

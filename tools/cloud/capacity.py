@@ -101,6 +101,9 @@ KINDS = {
     # GEM-X Body Motion on LabValidation's videos (tools/cloud/gemx, #98): its DINOv3 ViT-H/16+ pose backbone and
     # ViTPose loaded stage by stage, any single card; one card's jobs one at a time until a batch measured more.
     "gemx": SINGLE_CARD,
+    # Unreal Engine renders (tools/cloud/unreal, #222): Lumen's hardware ray tracing needs ray-tracing cores, which an
+    # H100 lacks; one shot runs on one card model (its runner names one class).
+    "unreal": ("gpu-48gb", "gpu-24gb"),
 }
 # Kinds that take their offers in an order of their own, the cheapest per job first, measured in October 2026
 # (`capacity.py report`, euros a job): Pixal3D L4 0.137, L40S 0.147, H100 0.161, two-H100 0.472 (an H100 is about three
