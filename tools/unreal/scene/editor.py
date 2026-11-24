@@ -44,7 +44,7 @@ def combining():
     in): a package's glTF is one object, often of several nodes, and an actor is one mesh."""
     pipeline = unreal.InterchangeGenericAssetsPipeline()
     meshes = pipeline.get_editor_property("mesh_pipeline")
-    meshes.set_editor_property("combine_static_meshes", True)
+    meshes.set_editor_property("combine_static_meshes_behavior", unreal.InterchangeCombineStaticMeshesBehavior.ALL)
     pipeline.set_editor_property("mesh_pipeline", meshes)
     return pipeline
 
