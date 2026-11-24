@@ -3,7 +3,7 @@ roughness read where the triangle lies on its maps, and each material's class.
 
     corner_uvs(prim, triangles, polygon, slots)              -> (T, 3, 2) each corner's texture coordinates (NaN: none)
     face_looks(stage, materials, face_material, face_uv)     -> {"albedo" (T, 3), "metal" (T,), "roughness" (T,),
-                                                                "class" (T,)}
+                                                                "class" (T,), "see_through" (T,)}
     material_class(stage, path)                              -> the material's class (sim.py's classes) or None
 
 A material is read through its UsdPreviewSurface (the universal surface output): an input's constant, else the
@@ -167,9 +167,9 @@ def surface_shader(material):
 
 
 def face_looks(stage, materials, face_material, face_uv):
-    """{"albedo" (T, 3) linear, "metal" (T,), "roughness" (T,), "class" (T,)}: each triangle's look on its material,
-    NaN where it has none, its material none, or a map it needs has no coordinates; its material's class (None:
-    none)."""
+    """{"albedo" (T, 3) linear, "metal" (T,), "roughness" (T,), "class" (T,), "see_through" (T,)}: each triangle's
+    look on its material, NaN where it has none, its material none, or a map it needs has no coordinates; its
+    material's class (None: none); whether its material lets light through (material_through; False: none)."""
     count = len(face_material)
     albedo, metal, roughness = np.full((count, 3), np.nan), np.full(count, np.nan), np.full(count, np.nan)
     for number, path in enumerate(materials):
@@ -183,7 +183,23 @@ def face_looks(stage, materials, face_material, face_uv):
         metal[held] = read(shader, "metallic", uvs)[:, 0]
         roughness[held] = read(shader, "roughness", uvs)[:, 0]
     classes = np.array([material_class(stage, path) for path in materials] + [None], dtype=object)
-    return {"albedo": albedo, "metal": metal, "roughness": roughness, "class": classes[np.asarray(face_material)]}
+    through = np.array([material_through(stage, path) for path in materials] + [False])
+    return {"albedo": albedo, "metal": metal, "roughness": roughness, "class": classes[np.asarray(face_material)],
+            "see_through": through[np.asarray(face_material)]}
+
+
+def material_through(stage, path):
+    """Whether NVIDIA's material lets light through (#186): its name's opacity word `trans` (m_trans__glass__...), an
+    OmniGlass shader, or a preview surface's opacity under 1 (NVIDIA's glass keeps its preview opacity at 1)."""
+    material = UsdShade.Material(stage.GetPrimAtPath(path))
+    if material.GetPrim().GetName().split("__")[0].split("_")[-1] == "trans":
+        return True
+    mdl = material.ComputeSurfaceSource("mdl")[0]
+    if mdl and "OmniGlass" in (mdl.GetSourceAsset("mdl") or Sdf.AssetPath()).path:
+        return True
+    preview = material.ComputeSurfaceSource()[0]
+    opacity = preview.GetInput("opacity") if preview and preview.GetIdAttr().Get() == "UsdPreviewSurface" else None
+    return bool(opacity and not opacity.HasConnectedSource() and opacity.Get() is not None and opacity.Get() < 1.0)
 
 
 def material_class(stage, path):

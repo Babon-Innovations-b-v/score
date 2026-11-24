@@ -36,7 +36,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   final.glb's mesh sits under a turned, scaled `fitted` node, and in its object coordinates the decals printed nowhere
   on the face). Each text mark is then read back where it was drawn (`finish.marks_read`: look.py's `marks.json`,
   each box grown by READ_MARGIN, asked of Claude on the subscription, EUR 0: no free local OCR is installed here) into
-  `read.json`, which `measure` holds to the close-up's words (`look_found`, measures `look.read`).
+  `read.json`, which `measure` holds to the close-up's words (`look_found`, measures `look.read`). A part is resolved
+  as the bake resolves it (its variant in its own token, then the list's settings over it: route_settings.set_spec,
+  its second shade moved with its colour) and a glass is drawn with its alpha as the bake now carries it (#186).
 - **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge
   (tools/props/bench/judge) to NVIDIA's render and, with `--previous <run>`, to that run's look of the asset; the
   group `picture` in measures.json.

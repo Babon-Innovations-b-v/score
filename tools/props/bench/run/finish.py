@@ -49,6 +49,16 @@ NEUTRAL = "#808080"  # the default token of a recipe with no colour of its own
 RECORD = "surface.json"
 WEAR = {"level": "new", "dirt": 0.0}
 SEED = 168
+# The recipes that draw an alpha (recipes.glass's opacity, which the bake carries into the base colour's alpha, #186):
+# a part of one of these under opacity 1 lets what lies behind it through; every other recipe draws opaque.
+SEEN_THROUGH_RECIPES = ("glass",)
+# A part's drawn pattern (drawn_patterns, #186): the median of its lightness less its local mean (likeness
+# measure.high_pass) on its own pixels in its look and in NVIDIA's close-up, both pictures read at the coarser one's
+# metres a pixel (area-averaged), only over PATTERN_LEAST pixels whose whole reach lies on it. The median, not the rms:
+# on tc4r the rms counted a bare steel tube's sharp highlights (the tire rack's, made 6.7 against NVIDIA's 1.7 L,
+# which the owner saw right) as much as the surgical chair's granite seat (7.4 against 1.9); the median reads the
+# seat 4.96 against 0.0 and the tube 1.63 against 1.17.
+PATTERN_LEAST = 30
 # The look's picture (look_job, look.py): its side and samples, #181's after pictures' (r3edges), a preview that
 # never ships.
 LOOK_SIDE, LOOK_SAMPLES = 1080, 32
@@ -276,12 +286,25 @@ def linear_of(token):
 def surface_look(record):
     """A library surface's own look (#172): {"colour": its recipe's colour (linear RGB; None for a recipe with no
     colour of its own or none), "metal", "roughness" (its recipe's, metal 0 where it names none), "class" (sim.py's
-    surface_class)}."""
+    surface_class), "opacity" (drawn_opacity)}."""
     from score.stages.place_build.maker import sim
     recipe = record.get("recipe")
     settings = (recipe.get("settings") or {}) if isinstance(recipe, dict) else {}
+    name = recipe.get("recipe") if isinstance(recipe, dict) else recipe
     return {"colour": settings.get("colour"), "metal": float(settings.get("metal", 0.0)),
-            "roughness": settings.get("roughness"), "class": sim.surface_class(record)}
+            "roughness": settings.get("roughness"), "class": sim.surface_class(record),
+            "opacity": drawn_opacity({**method_defaults(name), **settings, "recipe": name})}
+
+
+def method_defaults(recipe):
+    """A recipe's default settings in the library method (data/library/materials.json), {} for none."""
+    return json.loads((REPO / "data/library/materials.json").read_text())["recipes"].get(recipe) or {}
+
+
+def drawn_opacity(spec):
+    """How much of a spec's surface is drawn there (#186): its opacity where its recipe draws one
+    (SEEN_THROUGH_RECIPES), else 1."""
+    return float(spec.get("opacity", 1.0)) if spec.get("recipe") in SEEN_THROUGH_RECIPES else 1.0
 
 
 def own_spec(library, variant):
@@ -294,10 +317,11 @@ def own_spec(library, variant):
 
 
 def part_looks(folder, take):
-    """{part: {"colour" linear RGB, "metal", "roughness", "class"}}: each finish part's look as the route set its
-    surface on it (its row's token, metal and roughness: the list's settings, else, where the colour check moved its
-    surface (route_settings.applied), that surface's own spec in the bench library) and its surface's class (sim.py's
-    surface_class of its record; None for a surface outside the library)."""
+    """{part: {"colour" linear RGB, "metal", "roughness", "class", "opacity"}}: each finish part's look as the route
+    set its surface on it (its row's token, metal and roughness: the list's settings, else, where the colour check
+    moved its surface (route_settings.applied), that surface's own spec in the bench library), its surface's class
+    (sim.py's surface_class of its record; None for a surface outside the library) and its drawn opacity (its own
+    spec's, drawn_opacity)."""
     from score.stages.place_build.maker import sim
     part_of, surfaces = face_finishes(folder, take)
     listed = json.loads((folder / "surfaces-parts" / "parts.json").read_text())["takes"][take]["parts"]
@@ -309,7 +333,8 @@ def part_looks(folder, take):
         record = held.get(surfaces[row["part"]])
         found[row["part"]] = {"colour": linear_of(settings["token"]).tolist() if settings.get("token") else None,
                               "metal": settings.get("metal"), "roughness": settings.get("roughness"),
-                              "class": sim.surface_class(record) if record else None}
+                              "class": sim.surface_class(record) if record else None,
+                              "opacity": drawn_opacity(own_spec(library, row["judge"]))}
     return found
 
 
@@ -478,3 +503,73 @@ def look_job(folder, take, model, camera, out):
            "out": str(out / "look.png"), "bare": str(out / "bare.png")}
     (out / "look.json").write_text(json.dumps(job, indent=1, default=float))
     return out / "look.json"
+
+
+def likeness_tools():
+    """The look-alike check's folders on the path (its colour and measure modules), as the measures read them."""
+    from score.stages.props import prop_data
+    return prop_data.tools("props/library/likeness", "props/library", "props")
+
+
+def look_camera(raw, job):
+    """The look's camera (look.py `framed`: on the close-up's view direction and up, look_axes, framing the model's box
+    at its field) as route_cast's (eye, right, up, field) in the model file's own frame (glTF's Y up), `raw` its vertices there."""
+    corners = np.asarray([z_up(point) for point in (raw.min(0), raw.max(0))])
+    low, high = corners.min(0), corners.max(0)
+    centre, radius = (low + high) / 2, np.linalg.norm(high - low) / 2
+    right, up, back = look_axes({"up": [0.0, 0.0, 1.0], **job})  # a look drawn before #159 kept no up: +z
+    field = np.radians(job["fov"])
+    eye = centre + back * radius / np.sin(field / 2) * 1.05
+    def gltf(vector):  # Blender's Z up back to glTF's Y up: z_up's inverse
+        return np.array([vector[0], vector[2], -vector[1]])
+    return gltf(eye), gltf(right), gltf(up), float(field)
+
+
+def part_grid(model, camera, picture, part_of, metres):
+    """(each grid pixel's part, -1 off the model or off the picture's alpha; the picture's CIE L* there) of `picture`
+    (RGBA array) seen by `camera` (route_cast's), area-averaged to `metres` a pixel at the model's middle."""
+    from PIL import Image
+    import route_cast
+    with likeness_tools():
+        import colour as lab_colour
+    width = picture.shape[1]
+    middle, _ = model.frame
+    per_metre = width / (2 * np.linalg.norm(camera[0] - middle) * np.tan(camera[3] / 2))
+    side = max(1, int(round(width / (per_metre * metres))))
+    shrunk = np.asarray(Image.fromarray(picture).resize((side, side), Image.BOX), dtype=float) / 255
+    centres = (np.arange(side) + 0.5) * width / side
+    columns, rows = np.meshgrid(centres, centres)
+    faces, _ = route_cast.cast_points(model, camera, (width, width), np.c_[columns.ravel(), rows.ravel()])
+    parts = np.where(faces >= 0, np.asarray(part_of)[np.maximum(faces, 0)], -1).reshape(side, side)
+    parts[shrunk[..., 3] < 0.5] = -1
+    return parts, lab_colour.lab(lab_colour.linear(shrunk[..., :3]))[..., 0]
+
+
+def drawn_patterns(model, finished, looked, close_up, take):
+    """{part: {"pattern", "true_pattern"}}: each finish part's lightness detail (the median size of likeness
+    measure.high_pass, L units) as its look draws it (`looked`: look.png and look.json, look_job's) and as NVIDIA's close-up (`close_up`,
+    the RGBA render) shows it on the same part (the finish's fitted camera, camera.json), both read at the coarser
+    picture's metres a pixel (#186: the surgical chair's seat drawn speckled granite where NVIDIA's is smooth); None
+    on a side that shows the part on under PATTERN_LEAST whole-reach pixels."""
+    from PIL import Image
+    import route_cast
+    with likeness_tools():
+        import measure
+    part_of, _ = face_finishes(finished, take)
+    loaded = route_cast.loaded(model)
+    middle, size = loaded.frame
+    raw = np.asarray(loaded.mesh.vertices) * size + middle
+    pictures = {"pattern": (np.asarray(Image.open(looked / "look.png").convert("RGBA")),
+                            look_camera(raw, json.loads((looked / "look.json").read_text()))),
+                "true_pattern": (np.asarray(Image.open(close_up).convert("RGBA")),
+                                 route_cast.close_up_camera(finished / "camera.json"))}
+    metres = max(2 * np.linalg.norm(camera[0] - middle) * np.tan(camera[3] / 2) / picture.shape[1]
+                 for picture, camera in pictures.values())
+    found = {}
+    for key, (picture, camera) in pictures.items():
+        parts, lightness = part_grid(loaded, camera, picture, part_of, metres)
+        for part in np.unique(parts[parts >= 0]).tolist():
+            detail = np.abs(measure.high_pass(lightness, parts == part))
+            found.setdefault(part, {"pattern": None, "true_pattern": None})[key] = (
+                round(float(np.median(detail)), 3) if len(detail) >= PATTERN_LEAST else None)
+    return found

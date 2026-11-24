@@ -34,7 +34,12 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   triangle (`_finish.carried`), so each counted part is held to NVIDIA's look on its own faces (the truth's
   `face_look`, read off NVIDIA's maps): colour (CIE76 delta E of its surface's token from NVIDIA's albedo mean,
   `COLOUR_REACH`), metal or not (`METAL_REACH`), roughness (`ROUGHNESS_REACH`), class (sim.py's); `finish.colour`,
-  `metal`, `roughness` and `class` are the area shares held. The made side's `looks` are its parts' settings as the
+  `metal`, `roughness` and `class` are the area shares held; `see_through` (#186) the share of the parts over NVIDIA's
+  glass (its `m_trans` and OmniGlass materials, over half a part's area) drawn see-through, and of see-through parts
+  over it, at bar 1.0: the tc4r fridge's glass door drawn an opaque panel fails it. `pattern` (#186) the share whose
+  drawn lightness detail (bench/run finish.drawn_patterns: the look's and NVIDIA's close-up's median high-pass on the
+  part, at one scale) lies within PATTERN_REACH of NVIDIA's either way: the surgical chair's granite seat over a smooth
+  one and the humidifier's lost ribs fail it. The made side's `looks` are its parts' settings as the
   route set them (bench/run finish.part_looks); a calibration copy wears its finishes' own library surfaces.
 - **How cleanly the finishes meet** (`_edges`, #179; owner 2026-11-23: tc3s's "table and toaster mesh became messy
   compared to run 1"): a finish given triangle by triangle on TRELLIS.2's uneven triangles meets in a sawtooth and

@@ -35,9 +35,10 @@ BARE_WHITE = (0.8, 0.8, 0.8, 1.0)  # the mesh-alone picture's one surface: the p
 
 def look_material(masks):
     """One material: each slot's recipe (at wear 0, dirt 0 and its spec's seed) mixed over the ones before it by its
-    texel mask, read on the model's active UVs."""
+    texel mask, read on the model's active UVs, a glass's alpha drawn as the bake carries it (recipes.shaded's
+    `through`, #186)."""
     entries = [(mask["mask"], recipes.channels(mask["spec"], 0.0, 0.0, mask["spec"]["seed"])) for mask in masks]
-    material = recipes.masked(entries, recipes.shaded, uv_map="").item()
+    material = recipes.masked(entries, lambda found: recipes.shaded(found, through=True), uv_map="").item()
     material.displacement_method = "BUMP"
     return material
 

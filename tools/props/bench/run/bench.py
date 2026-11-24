@@ -910,7 +910,8 @@ def judged_look(kept, asset, branch, previous, scratch):
     step = LOOKED.get(branch)
     if not step or not kept_output(kept, asset, branch, step):
         return None
-    look = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / "look.png"
+    look = checked_out(kept, asset, branch, step, scratch / branch / f"judged-{step}") / "look.png"  # never over
+    # measure_step's own copy: the store's files are read-only, so a second copy into one folder was refused (#186)
     given = checked_out(kept, asset, "input", "render", scratch / "input-judged")
     before = None
     if previous is not None and kept_output(previous, asset, branch, step):
@@ -926,16 +927,21 @@ def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
         (step, name), physics = MEASURED[branch]
         model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
         held = checked_out(kept, asset, branch, physics, scratch / branch / f"kept-{physics}")
-        finish = FINISHED.get(branch)
-        finished_parts = checked_out(kept, asset, branch, finish, scratch / branch / f"kept-{finish}") \
-            if finish and kept_output(kept, asset, branch, finish) else None
+        finishing = FINISHED.get(branch)
+        finished_parts = checked_out(kept, asset, branch, finishing, scratch / branch / f"kept-{finishing}") \
+            if finishing and kept_output(kept, asset, branch, finishing) else None
         moving = PARTED.get(branch)
         cut = checked_out(kept, asset, branch, moving, scratch / branch / f"kept-{moving}") \
             if moving and kept_output(kept, asset, branch, moving) else None
         look = LOOKED.get(branch)
         looked = checked_out(kept, asset, branch, look, scratch / branch / f"kept-{look}") \
             if look and kept_output(kept, asset, branch, look) else None
-        written_measures(folder, truth, made_side(model, held, finished_parts, asset, cut), others, f"{branch} {step}",
+        side = made_side(model, held, finished_parts, asset, cut)
+        if looked is not None and finished_parts is not None:  # each part's drawn pattern beside NVIDIA's (#186)
+            rendered = checked_out(kept, asset, "input", "render", scratch / branch / "kept-render")
+            patterns = finish.drawn_patterns(model, finished_parts, looked, rendered / "rgba.png", asset)
+            side["looks"] = {part: {**look, **patterns.get(part, {})} for part, look in side["looks"].items()}
+        written_measures(folder, truth, side, others, f"{branch} {step}",
                          judged_look(kept, asset, branch, previous, scratch), looked)
     return make
 

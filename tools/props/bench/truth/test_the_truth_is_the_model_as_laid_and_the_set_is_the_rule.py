@@ -40,8 +40,8 @@ MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton 
 picks), the stem skip dropped (box picks), a surface's `painted_for` tag not read (one model), the newest version not taken (box picks), the overlap targets' stems
 not taken first (desk picks), the detailed skip of an id the rule took dropped (detailed picks), the never-picks not
 given a pictured case (pictured cases); in `_look.py` the sRGB map not made linear, v not turned up (the bottom row
-read), the class not read from the material's name and a `<UDIM>` map not read by its tile (the paint's roughness
-read NaN: looks).
+read), the class not read from the material's name, a `<UDIM>` map not read by its tile (the paint's roughness
+read NaN) and a preview surface's opacity under 1 not read as letting light through (the paint opaque: looks).
 """
 import json
 import pathlib
@@ -97,6 +97,7 @@ def Xform "Part"
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor.connect = </Part/Looks/paint/map.outputs:rgb>
                 float inputs:roughness.connect = </Part/Looks/paint/rough.outputs:r>
+                float inputs:opacity = 0.5
                 token outputs:surface
             }}
             def Shader "map"
@@ -286,7 +287,8 @@ def materials(found):
 
 
 def looks(found):
-    """{surface: (its faces' albedo, metal, roughness, as read; its class)}, NaN read as None."""
+    """{surface: (its faces' albedo, metal, roughness, as read; its class; whether it lets light through)}, NaN read
+    as None."""
     look = found["face_look"]
     held = {}
     for index, item in enumerate(found["materials"] + [None]):
@@ -295,7 +297,8 @@ def looks(found):
             continue
         values = [sorted({None if np.isnan(value) else round(float(value), 4) for value in look[key][faces].ravel()})
                   for key in ("albedo", "metal", "roughness")]
-        held[item["surface"] if item else "unbound"] = (*values, sorted({str(name) for name in look["class"][faces]}))
+        held[item["surface"] if item else "unbound"] = (*values, sorted({str(name) for name in look["class"][faces]}),
+                                                        sorted({bool(value) for value in look["see_through"][faces]}))
     return held
 
 
@@ -318,8 +321,8 @@ ROWS = [
     ("one model", lambda found, picks: {item["surface"]: item["one_model"] for item in found["materials"]},
      {"surface/paint@1": False, "surface/metal@1": True, None: False}),
     ("looks", lambda found, picks: looks(found),
-     {"surface/paint@1": ([0.0, 0.5029], [0.0], [0.6], ["None"]),
-      "surface/metal@1": ([0.5], [1.0], [0.2], ["metal"]), None: ([None], [None], [None], ["None"])}),
+     {"surface/paint@1": ([0.0, 0.5029], [0.0], [0.6], ["None"], [True]),
+      "surface/metal@1": ([0.5], [1.0], [0.2], ["metal"], [False]), None: ([None], [None], [None], ["None"], [False])}),
     ("mass", lambda found, picks: (found["mass"], [body["mass"] for body in found["bodies"]]), (7.0, [2.0, 5.0])),
     ("colliders", lambda found, picks: colliders(found),
      {"newton": [("convexHull", True, 2.0), ("convexDecomposition", False, 0.001)],

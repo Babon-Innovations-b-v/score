@@ -86,15 +86,21 @@ def cell_means(lightness_lab, covered):
     return np.array(means).reshape(-1, 3)
 
 
-def high_pass_energy(lightness, covered):
-    """The rms of lightness less its local mean, over covered texels whose whole blur reach is covered."""
+def high_pass(lightness, covered):
+    """Lightness less its local mean (a box blur DETAIL_REACH each side) over the covered texels whose whole blur
+    reach is covered: those texels' values."""
     reach = DETAIL_REACH
     blurred, inside = lightness, covered.astype(float)
     for axis in (0, 1):
         blurred = sum(np.roll(blurred, shift, axis=axis) for shift in range(-reach, reach + 1)) / (2 * reach + 1)
         inside = sum(np.roll(inside, shift, axis=axis) for shift in range(-reach, reach + 1)) / (2 * reach + 1)
-    kept = inside > 0.999
-    return float(np.sqrt(np.mean((lightness - blurred)[kept] ** 2))) if kept.any() else 0.0
+    return (lightness - blurred)[inside > 0.999]
+
+
+def high_pass_energy(lightness, covered):
+    """The rms of lightness less its local mean, over covered texels whose whole blur reach is covered."""
+    kept = high_pass(lightness, covered)
+    return float(np.sqrt(np.mean(kept ** 2))) if len(kept) else 0.0
 
 
 def view_measures(map_path, recipe_path):

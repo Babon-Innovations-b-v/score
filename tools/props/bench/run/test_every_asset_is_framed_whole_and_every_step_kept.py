@@ -38,6 +38,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   its holes alone
 - finish.part_spec: a colour setting the variant names none of not filled -> painted_metal's look is drawn with no
   `bare` (the rack's KeyError, #182); a pictured recipe given no clear picture -> printed is drawn with no `image`
+- finish.drawn_patterns: the close-up read for the look too (`pictures["pattern"]` NVIDIA's) -> the box drawn
+  speckled black on white holds NVIDIA's smooth pattern (the surgical chair's granite seat, #186)
+- finish.drawn_opacity: every spec drawn whole (1.0) -> the glass recipe's look is opaque, not its method's 0.2
+  (the tc4r fridge's door, #186)
 - route_settings.set_spec: the second shade not moved with the list's token (`moved` dropped) -> the grey leather's
   #686068 creases stay under the white #e8e8e8, dE 50.6 from it, not the variant's 8.1 (the surgical chair's granite
   seat, #186)
@@ -253,6 +257,25 @@ def looked(tmp_path, name, view):
             json.loads((out / "holes.json").read_text())["holes"], crops, read)
 
 
+def patterned(tmp_path, name, close_up):
+    """Each finish part's drawn pattern held to the close-up's (measures pattern_held) when its look (the look step's
+    job, looked's) is drawn flat and when it is drawn speckled black on white in 64-pixel squares, coarser than the
+    close-up's pixels (the 64-pixel close-up's box is read at its scale): (flat, speckled)."""
+    from tools.props.bench.measures import _finish
+    held = []
+    for look, pixels in (("flat", np.full((1080, 1080, 4), 200, np.uint8)),
+                         ("speckled", np.where((np.indices((1080, 1080)) // 64).sum(0)[..., None] % 2, 255, 0).astype(
+                             np.uint8).repeat(4, 2))):
+        folder = tmp_path / f"look-{look}"
+        folder.mkdir()
+        (folder / "look.json").write_text((tmp_path / "look" / "look.json").read_text())
+        pixels[..., 3] = 255
+        Image.fromarray(pixels).save(folder / "look.png")
+        found = finish.drawn_patterns(tmp_path / "made.glb", tmp_path / "finish", folder, close_up, name)
+        held.append(sorted({_finish.pattern_held(pattern) for pattern in found.values()}, key=str))
+    return tuple(held)
+
+
 RECIPES = pathlib.Path(finish.REPO) / "tools/props/library/recipes.py"
 # What recipes.arguments gives every recipe on its own: the place's wear and dirt, the job's seed, the piece's foot.
 ARGUMENTS_GIVEN = {"wear", "dirt", "seed", "foot", "kicks"}
@@ -435,7 +458,9 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
         # The marks read in their boxes grown by READ_MARGIN of the longer side (200 px: 30 each way); the one the
         # reader left unanswered is read as nothing (#185).
-        assert looked(tmp_path, name, view) == (
+        looked_box = looked(tmp_path, name, view)
+        assert patterned(tmp_path, name, folder / "rgba.png") == ([True], [False])
+        assert looked_box == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),
             [(260, 260), (57, 17)], [("03", "03"), ("Patient room", None)]), name
@@ -445,6 +470,9 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert undrawn(tmp_path) == {}, "the look draws every recipe family"
         drawn, own = recoloured_step()
         assert drawn == pytest.approx(own, abs=0.5), (drawn, own)
+        assert [finish.surface_look({"recipe": recipe})["opacity"] for recipe in ("glass", "rubber")] == [
+            json.loads((pathlib.Path(finish.REPO) / "data/library/materials.json").read_text())["recipes"]["glass"][
+                "opacity"], 1.0]  # a glass drawn see-through at its method's opacity, a rubber whole (#186)
 
     made = []
 

@@ -50,6 +50,10 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _finish.part_look holding every metalness: the metal body passes.
 - _finish.finish_look judging every roughness held: the body rough 0.9 passes.
 - _finish.part_look judging every class the same: the steel body passes.
+- _finish.see_through_held judging every part held (#186): the top drawn opaque and the body drawn see-through pass;
+  _finish.true_through reading no truth as see-through: the opaque top is not judged.
+- _finish.pattern_held judging the ratio one way only (`ratio <= PATTERN_REACH`): the humidifier's lost ribs pass;
+  without PATTERN_FLOOR: the granite seat over NVIDIA's 0.0 divides by zero.
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail.
@@ -274,8 +278,8 @@ def looks(wrong_family_area, wrong_colour_area):
 
 # NVIDIA's look on the truth (#172), as the owner's toaster: its sides and floor a dark grey plastic (linear albedo
 # 0.013, sRGB #1d1d1d), its top an aluminium (0.33, metal 0.9). A part's look: linear colour, metal, roughness, class.
-BODY = {"colour": [0.013] * 3, "metal": 0.0, "roughness": 0.24, "class": "plastic"}
-TOP = {"colour": [0.33] * 3, "metal": 0.9, "roughness": 0.3, "class": "aluminium"}
+BODY = {"colour": [0.013] * 3, "metal": 0.0, "roughness": 0.24, "class": "plastic", "opacity": 1.0, "through": False}
+TOP = {"colour": [0.33] * 3, "metal": 0.9, "roughness": 0.3, "class": "aluminium", "opacity": 0.3, "through": True}
 
 
 def linear(token):
@@ -290,7 +294,8 @@ def looked_truth():
     faces = top_material(box())
     truth_look = {key: np.array([(TOP if face else BODY)[name] for face in faces], dtype=object if key == "class"
                                 else float) for key, name in (("albedo", "colour"), ("metal", "metal"),
-                                                              ("roughness", "roughness"), ("class", "class"))}
+                                                              ("roughness", "roughness"), ("class", "class"),
+                                                              ("see_through", "through"))}
     truth = {**measures.arrays(TRUTH), "face_look": truth_look}
     return truth, measures._finish.carried(truth, truth["vertices"], truth["faces"])
 
@@ -437,6 +442,16 @@ CASES = [
     ("its body metal", lambda: worn({"metal": 1.0}), "finish.metal", False),
     ("its body rough 0.9 for 0.24", lambda: worn({"roughness": 0.9}), "finish.roughness", False),
     ("its body steel for plastic", lambda: worn({"class": "metal"}), "finish.class", False),
+    ("its see-through top see-through, its body not", lambda: worn({}), "finish.see_through", True),
+    ("its see-through top drawn opaque (the tc4r fridge's door)", lambda: worn({}, {**TOP, "opacity": 1.0}),
+     "finish.see_through", False),
+    ("its opaque body drawn see-through", lambda: worn({"opacity": 0.3}), "finish.see_through", False),
+    ("its body's grain a little over NVIDIA's (the tire rack's tube, 1.63 for 1.17)",
+     lambda: worn({"pattern": 1.63, "true_pattern": 1.17}), "finish.pattern", True),
+    ("its smooth body drawn speckled granite (the surgical chair's seat, 4.96 for 0.0)",
+     lambda: worn({"pattern": 4.96, "true_pattern": 0.0}), "finish.pattern", False),
+    ("its ribbed body drawn smooth (the humidifier's column, 0.2 for 12.9)",
+     lambda: worn({"pattern": 0.2, "true_pattern": 12.9}), "finish.pattern", False),
     ("a step that flattened it by 10%", lambda: flattened(0.1), "steps.chamfer_change", False),
     ("the drop that laid it on its side", lambda: dropped(90), "drop.rest_up", False),
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),

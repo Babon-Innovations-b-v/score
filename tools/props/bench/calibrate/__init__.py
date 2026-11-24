@@ -74,8 +74,10 @@ def own_looks(side):
         if not len(held) or side.get("face_look") is None:
             continue
         albedo, metal, roughness, name = measures._finish.true_look(side["face_look"], held, area[held])
+        through = measures._finish.true_through(side["face_look"], held, area[held])
         found[number] = {"colour": None if albedo is None else albedo.tolist(), "metal": metal,
-                         "roughness": roughness, "class": name}
+                         "roughness": roughness, "class": name,
+                         "opacity": None if through is None else 0.0 if through > 0.5 else 1.0}
     return found
 
 

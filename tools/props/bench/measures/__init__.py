@@ -87,6 +87,12 @@ BARS = (
     ("finish", "metal", "least", 0.90),
     ("finish", "roughness", "least", 0.90),
     ("finish", "class", "least", 0.90),
+    # A part over NVIDIA's glass drawn see-through and a see-through part only over it (#186: the tc4r fridge's glass
+    # door drawn an opaque grey panel): no part may miss, so the bar is every one.
+    ("finish", "see_through", "least", 1.0),
+    # Each part's drawn pattern as NVIDIA's on it (#186: the surgical chair's seat drawn speckled granite, 26% of it;
+    # the humidifier's ribbed column drawn smooth, 58%), at the look bars' 0.90; its reach is beside _finish's.
+    ("finish", "pattern", "least", 0.90),
     # Moving parts and joints (#177, #161 rules 1 and 11), #162-style design bars until the calibration pass sets
     # them on the tune split's jointed truths: as many moving parts as NVIDIA's; each truth part's faces at least
     # half its made part's (area in common over area together); every joint of its type; its axis within 10 degrees

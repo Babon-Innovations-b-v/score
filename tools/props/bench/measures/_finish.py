@@ -20,6 +20,14 @@ CARRY_CHUNK = 100000  # made faces carried at a time
 COLOUR_REACH = 10.0
 ROUGHNESS_REACH = 0.25
 METAL_REACH = 0.5
+# A part's drawn pattern held (#186): its look's lightness detail (bench/run finish.drawn_patterns: the median of the
+# high-pass, L units) within PATTERN_REACH times NVIDIA's close-up's on the same part either way, each side taken as at
+# least PATTERN_FLOOR (under it, a surface is smooth). tc4r's 48 parts over 1% of their models' area: the surgical
+# chair's granite seat 4.96 against NVIDIA's smooth 0.0 (4.96 times), the humidifier's column 0.2 against its ribs'
+# 12.9 (12.5 times under: "ribs lost") and its diffuser 4.7 times under fail; the owner's clean ones held: the locker's
+# wooden bench 2.9 times under NVIDIA's grain, the gas stove's grates 2.5 times, the tire rack's steel tube 1.4 over.
+PATTERN_REACH = 3.0
+PATTERN_FLOOR = 1.0
 
 
 def split_rule():
@@ -113,27 +121,59 @@ def true_look(look, triangles, weights):
             max(held, key=held.get) if held else None)
 
 
-def part_look(made, truth):
-    """One part's look held to NVIDIA's on its faces: {"delta_e", "metal", "roughness_gap", "class"}, each None where
-    either side lacks it (`made` {colour, metal, roughness, class}; `truth` true_look's)."""
+def true_through(look, triangles, weights):
+    """The area share of some truth triangles whose NVIDIA material lets light through (face_look's `see_through`),
+    None for a truth that does not say or no area."""
+    if look.get("see_through") is None or weights.sum() <= 0:
+        return None
+    return float(weights[np.asarray(look["see_through"], dtype=bool)[triangles]].sum() / weights.sum())
+
+
+def see_through_held(made, through):
+    """Whether a part lets light through as NVIDIA's faces under it do (#186: the tc4r fridge's glass door drawn an
+    opaque panel): None where neither side is see-through (its made `opacity` under 1, over half its faces' area
+    NVIDIA's glass) or either side does not say."""
+    if through is None or made.get("opacity") is None:
+        return None
+    made_through, true_through_ = made["opacity"] < 1.0, through > 0.5
+    return None if not (made_through or true_through_) else made_through == true_through_
+
+
+def pattern_held(made):
+    """Whether a part's drawn pattern is NVIDIA's on its faces (PATTERN_REACH, PATTERN_FLOOR), None where either side
+    has none measured (`made` {pattern, true_pattern})."""
+    if made.get("pattern") is None or made.get("true_pattern") is None:
+        return None
+    ratio = max(made["pattern"], PATTERN_FLOOR) / max(made["true_pattern"], PATTERN_FLOOR)
+    return bool(1.0 / PATTERN_REACH <= ratio <= PATTERN_REACH)
+
+
+def part_look(made, truth, through=None):
+    """One part's look held to NVIDIA's on its faces: {"delta_e", "metal", "roughness_gap", "class", "see_through"},
+    each None where either side lacks it (`made` {colour, metal, roughness, class, opacity}; `truth` true_look's;
+    `through` true_through's)."""
     albedo, metal, roughness, name = truth
-    return {"delta_e": None if albedo is None or made.get("colour") is None else
+    return {"see_through": see_through_held(made, through), "pattern": pattern_held(made),
+            "delta_e": None if albedo is None or made.get("colour") is None else
             round(float(np.linalg.norm(colour_lab(np.asarray(made["colour"], dtype=float)) - colour_lab(albedo))), 2),
             "metal": None if metal is None or made.get("metal") is None else
             bool(abs(made["metal"] - metal) < METAL_REACH),
             "roughness_gap": None if roughness is None or made.get("roughness") is None else
             round(abs(float(made["roughness"]) - roughness), 3),
             "class": None if name is None or made.get("class") is None else bool(made["class"] == name),
-            "made": {key: made.get(key) for key in ("colour", "metal", "roughness", "class")},
+            "made": {key: made.get(key) for key in ("colour", "metal", "roughness", "class", "opacity", "pattern",
+                                                    "true_pattern")},
             "true": {"albedo": None if albedo is None else [round(float(value), 4) for value in albedo],
                      "metal": None if metal is None else round(metal, 3),
-                     "roughness": None if roughness is None else round(roughness, 3), "class": name}}
+                     "roughness": None if roughness is None else round(roughness, 3), "class": name,
+                     "see_through": None if through is None else round(through, 3)}}
 
 
 def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
-    """{"colour", "metal", "roughness", "class": the area share of the counted parts (split_compare's FINISH_LEAST)
-    whose look holds (part_look: delta E within COLOUR_REACH, metal or not as NVIDIA's (METAL_REACH), roughness within
-    ROUGHNESS_REACH, the same class), of those both sides name; "parts": each part's look}. `looks` {part: {colour
+    """{"colour", "metal", "roughness", "class", "see_through": the area share of the counted parts (split_compare's
+    FINISH_LEAST) whose look holds (part_look: delta E within COLOUR_REACH, metal or not as NVIDIA's (METAL_REACH),
+    roughness within ROUGHNESS_REACH, the same class, see-through where NVIDIA's is and only there, its drawn pattern
+    NVIDIA's: pattern_held), of those both sides name; "parts": each part's look}. `looks` {part: {colour
     linear RGB, metal, roughness, class}} what each made part got; `nearest` each made face's truth triangle."""
     rule = split_rule()
     area = _mesh.areas(placed, made_faces)
@@ -145,12 +185,15 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
         if area[held].sum() < rule.FINISH_LEAST * area.sum() or looks.get(int(part)) is None:
             continue
         triangles = nearest[held]
-        found = part_look(looks[int(part)], true_look(truth["face_look"], triangles,
-                                                      area[held] * (truth_area[triangles] > 0)))
+        weights = area[held] * (truth_area[triangles] > 0)
+        found = part_look(looks[int(part)], true_look(truth["face_look"], triangles, weights),
+                          true_through(truth["face_look"], triangles, weights))
         rows.append({"part": int(part), "area": round(float(area[held].sum() / area.sum()), 5), **found})
     tests = {"colour": lambda row: row["delta_e"] <= COLOUR_REACH, "metal": lambda row: row["metal"],
-             "roughness": lambda row: row["roughness_gap"] <= ROUGHNESS_REACH, "class": lambda row: row["class"]}
-    keys = {"colour": "delta_e", "metal": "metal", "roughness": "roughness_gap", "class": "class"}
+             "roughness": lambda row: row["roughness_gap"] <= ROUGHNESS_REACH, "class": lambda row: row["class"],
+             "see_through": lambda row: row["see_through"], "pattern": lambda row: row["pattern"]}
+    keys = {"colour": "delta_e", "metal": "metal", "roughness": "roughness_gap", "class": "class",
+            "see_through": "see_through", "pattern": "pattern"}
     found = {}
     for name, test in tests.items():
         judged = [row for row in rows if row[keys[name]] is not None]
