@@ -80,10 +80,11 @@ light shows a matte or satin paint or plastic part about 15 to 25 L* lighter tha
 third more chroma (a muted teal seat of its own L* 35, chroma 16 reads L* 57, chroma 23; a coral red of L* 43, chroma
 43 reads L* 65, chroma 50): take a token of the close-up's hue, its L* about 20 under the close-up's and its chroma
 about three quarters of it, never a stronger, purer one than the close-up shows, nor one leaning to another hue (a
-slate blue-grey is not a violet). A white or light grey part is lifted the same way and its token taken as far under:
-the light takes a white past what the picture can show, so the close-up draws a white of its own L* 80 (an off-white
-near #c8c8c8) at L* 95 to 100, flat white, and one of L* 64 at L* 88; a near-white token (#e0e0e0 and over) draws
-every face of the part flat white, its drawers, panel lines and vents lost. Bare metal reads darker than its own, as
+slate blue-grey is not a violet). A white or light grey part is lifted more, so take its token about 25 L* under the
+close-up's: the light takes a white past what the picture can show, so the close-up draws a white of its own L* 80
+(an off-white near #c8c8c8) at L* 95 to 100, flat white, one of L* 69 (#a8a8a8) at L* 92 with its lit faces clipped,
+and one of L* 64 (#9c9c9c) at L* 88; a near-white token (#e0e0e0 and over) draws every face of the part flat white,
+its drawers, panel lines and vents lost. Bare metal reads darker than its own, as
 above. The library's surfaces, each with
 its own token, roughness and metal:
 {surfaces}
