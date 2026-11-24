@@ -261,9 +261,12 @@ tests it turned red:
 - route_parts.py: `np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))` -> `np.save(folders["out"] /
   "parts.npy", part_of[:1].astype(np.int32))`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its parted LISTED rows)
-- route_parts.py `finish_colours`: `if fit >= cast.CLOSE_UP_FIT:` -> `if False:` (the views' light-baked texture
+- route_parts.py `finish_colours`: `if colours_read(fit, offset):` -> `if False:` (the views' light-baked texture
   read, never the close-up)  -> every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the shaded
-  texture)
+  texture); `colours_read`'s `or offset <= COLOUR_OFFSET` dropped -> every_part_takes_a_library_surface_and_is_held_to_it
+  (a thin frame cast a pixel off, IoU under CLOSE_UP_FIT, reads its views' texture: the tc4r rack's red beams, #186)
+- finish_parts.py `checked_finishes`: the `listed.get("family") in OWN_COLOUR` branch after the family's nearest ->
+  every_part_takes_a_library_surface_and_is_held_to_it (the tc4r fridge's clear glass moved to dark glass, #186)
 - route_parts.py: `and not lamps.on_stem({"size": built.get("size")})` -> `and True`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows); so does `zip(checked, lit if
   any(lit) else [True] * len(checked))` -> `zip(checked, [True] * len(checked))` (the light bar's metal end caps
@@ -1081,6 +1084,16 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     lightness = finish_parts.opaque_lightness(GREYS)
     for case, lighter, other, out in OUT_OF_ORDER:
         assert bool(finish_parts.out_of_order(lighter, other, GREYS, lightness)) == out, case
+    # tc4r (#186): a frame three pixels wide cast a pixel off fits under CLOSE_UP_FIT yet its colours are read; a
+    # disc cast eight pixels off is not
+    ring = np.zeros((64, 64), dtype=bool)
+    ring[8:56, 8:56], ring[11:53, 11:53] = True, False
+    disc = np.hypot(*np.mgrid[-32:32, -32:32]) < 20
+    for shape_mask, shift, read in ((ring, 1, True), (disc, 8, False)):
+        cast_mask = np.roll(shape_mask, shift, axis=1)
+        fit = (shape_mask & cast_mask).sum() / (shape_mask | cast_mask).sum()
+        assert fit < route_cast.CLOSE_UP_FIT, fit
+        assert route_parts.colours_read(fit, route_parts.outline_offset(shape_mask, cast_mask)) == read, (shift, fit)
     for case, finish, through in SEE_THROUGH:
         assert finish_parts.see_through(finish, SURFACE_FAMILIES) == through, case
     for case, data, kicks in UNWALKED:
@@ -3260,6 +3273,9 @@ ABSENT = object()
 # it is printed on, the toaster's steel listed #b8b8b8 seen at L* 97.5 over its darker-seen light decal.
 FRIDGE = {"steel_grey": {"family": "bare_metal", "colour": [0.22] * 3},
           "steel_white": {"family": "bare_metal", "colour": [0.87] * 3}}
+# tc4r (#186): the fridge's clear glass (#ffffff) seen at L* 57.9 through its door, the library's dark glass #888888.
+DOOR_GLASS = {"glass_clear": {"family": "glass", "colour": [1.0] * 3},
+              "glass_dark": {"family": "glass", "colour": [0.246] * 3}}
 SIGN = {"white_plastic": {"family": "plastic", "colour": [0.85] * 3},
         "black_plastic": {"family": "plastic", "colour": [0.115] * 3}}
 TOASTER = {"steel": {"family": "bare_metal", "colour": [0.479] * 3},
@@ -3321,6 +3337,9 @@ CHECKED = [
      {"kind": "lamp", "object": "lamp"}, [{"finish": "red lit lens", "parts": "lens", "surface": "glass"}],
      [np.array([45.0, 60.0, 40.0])], TANK_LIBRARY, None, False,
      [{"surface": "glass", "by": "its own colour", "cover": ABSENT}]),
+    ("clear glass seen grey keeps its surface, never the dark glass nearest what shows through it (tc4r's fridge)",
+     {"object": "fridge"}, [{"finish": "clear glass", "parts": "door glass panel", "surface": "glass_clear"}],
+     [np.array([57.9, 0.0, 0.0])], DOOR_GLASS, None, False, [{"surface": "glass_clear", "by": "its own colour"}]),
     ("the beacon's see-through dome keeps red against its highlights, an opaque grey moves, an opaque red is off",
      {"kind": "beacon", "object": "beacon"},
      [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},

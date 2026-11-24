@@ -7,7 +7,8 @@ free (finish_parts.checked_finishes, the same check the finish-map method ran; t
 lie within dE 32 of its colour there"): its colour is read where the close-up shows it (`close_up_colours`: the
 model cast through the close-up's own camera, each pixel taking the finish of the face under it), never the raw
 model's texture, whose colours carry the picture's baked light. A take with no own close-up or camera, or whose cast
-does not fit the close-up's outline (route_cast.CLOSE_UP_FIT), is measured on its views' texture instead
+does not fit the close-up's outline (route_cast.CLOSE_UP_FIT, or its outline lies within COLOUR_OFFSET of the
+close-up's: `outline_offset`), is measured on its views' texture instead
 (`seen_colours`), named so in its record (`colour_from`), as a stand-in close-up is. A finish off its listed surface
 takes the nearest surface of its family that fits, or one of the scene's own shell surfaces
 (palette_library.shell_surfaces: the variants its surface library gives the shell laid from its locked plan); one no surface fits is marked off its colour with a
@@ -52,6 +53,13 @@ import score.stages.props.prop_data as prop_data  # noqa: E402
 import score.stages.props.thin_straight as thin_straight  # noqa: E402
 
 METHOD = "finish-route"
+# A finish's colour is read off the close-up through a cast under CLOSE_UP_FIT too when the cast's outline lies on
+# average within COLOUR_OFFSET of the close-up's (outline_offset, in the cast's pixels): a thin frame's long outline
+# holds its IoU low while its inner pixels (EDGE) still lie on their finish. tc4r (#186): the rack at IoU 0.82 lay 2.7
+# px off and read its beams salmon (L*a*b* 51.5 19.2 12.4) where its views' texture read them saturated red (49.7 56.8
+# 37.8, the list's #b83030 beams, NVIDIA's albedo dE 43 to 50 from it); the surgical chair at 0.715 lay 6.2 px off and
+# read its black plastic white (L* 99.7). The thirteen others fit at 0.877 to 0.995.
+COLOUR_OFFSET = 3.0
 EDGE = 2  # a pixel counts when those EDGE away on every side show its finish too, so no border mixes two finishes
 # A printed mark is placed by casting its box through the close-up's camera (score #164): its middle gives its part,
 # point and facing, and a probe EDGE_IN of the box inside each edge its size and up, so a probe sits on the mark, not
@@ -92,9 +100,24 @@ def inner(finish_map):
     return kept
 
 
+def outline_offset(shown, hit):
+    """How far, on average, the cast's outline (`hit`) lies from the close-up's (`shown`), in pixels: the pixels only
+    one of them covers over the mean of their outlines' lengths."""
+    from scipy import ndimage
+    def outline(mask):
+        return int((mask & ~ndimage.binary_erosion(mask)).sum())
+    return float((shown ^ hit).sum() / max((outline(shown) + outline(hit)) / 2, 1))
+
+
+def colours_read(fit, offset):
+    """Whether a cast through the close-up's camera reads each finish's colour: it fits the close-up's outline
+    (CLOSE_UP_FIT) or lies near it (COLOUR_OFFSET)."""
+    return fit >= cast.CLOSE_UP_FIT or offset <= COLOUR_OFFSET
+
+
 def close_up_colours(model, camera_file, close_up, finish_of, count):
     """(each finish's median CIELAB colour in the close-up where it shows it (inner pixels the cast and the close-up's
-    alpha share), None where it shows none; the cast's fit: its outline's IoU with the close-up's)."""
+    alpha share), None where it shows none; the cast's fit: its outline's IoU with the close-up's; its outline_offset)."""
     faces, sampled, both, fit = cast.close_up_pixels(model, camera_file, close_up)
     finish_map = np.where(both, finish_of[np.maximum(faces, 0)], -1)
     kept = inner(finish_map)
@@ -102,18 +125,20 @@ def close_up_colours(model, camera_file, close_up, finish_of, count):
     for number in range(count):
         pixels = sampled[kept & (finish_map == number)][:, :3]
         found.append(np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None)
-    return found, fit
+    return found, fit, round(outline_offset(sampled[..., 3] > 127, faces >= 0), 2)
 
 
 def finish_colours(folders, finish_of, count):
     """(each finish's colour, where it was read): the close-up's (close_up_colours) when the take has its own
-    close-up and camera and the cast fits it, else its views' texture (seen_colours), with why."""
+    close-up and camera and the cast fits it (CLOSE_UP_FIT) or lies near its outline (COLOUR_OFFSET), else its views'
+    texture (seen_colours), with why."""
     if folders.get("close_up") and folders.get("camera"):
-        found, fit = close_up_colours(cast.loaded(folders["model"]), folders["camera"], folders["close_up"],
-                                      finish_of, count)
-        if fit >= cast.CLOSE_UP_FIT:
-            return found, f"close-up (outline fit {fit})"
-        why = f"views: the close-up's cast fits its outline at IoU {fit}, under {cast.CLOSE_UP_FIT}"
+        found, fit, offset = close_up_colours(cast.loaded(folders["model"]), folders["camera"], folders["close_up"],
+                                              finish_of, count)
+        if colours_read(fit, offset):
+            return found, f"close-up (outline fit {fit}, {offset} px off)"
+        why = (f"views: the close-up's cast fits its outline at IoU {fit}, under {cast.CLOSE_UP_FIT}, {offset} px off, "
+               f"over {COLOUR_OFFSET}")
     else:
         why = "views: no own close-up or camera"
     return seen_colours(folders["views"], finish_of, count), why

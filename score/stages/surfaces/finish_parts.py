@@ -279,7 +279,8 @@ def library_lab(spec):
 
 
 # Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print are judged by their own colour, so one
-# off the close-up's lit colour keeps its surface. A finish the close-up shows over ORDER_L lighter than another is
+# off the close-up's lit colour keeps its surface, never moved to the one of its family nearest that colour: the tc4r
+# fridge's clear glass door (#ffffff) went to dark glass (#888888), the grey its interior showed through it (#186). A finish the close-up shows over ORDER_L lighter than another is
 # named again when it lies over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED), and its
 # parts keep the order in the library itself (ORDER_KEPT): the bake moves a surface's L* on its own (the hangar's parts
 # shelving, 2026-10-13: plastic_grey 1.5 under galvanized_steel in the library, the steel baked 3.0 over its colour, so
@@ -320,6 +321,8 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
             record.update(by="its own colour")
         elif apart > COLOUR_DELTA_E and coloured_cover(finish, every):
             record.update(by="its own colour", cover=True)
+        elif apart > COLOUR_DELTA_E and listed.get("family") in OWN_COLOUR:
+            record.update(by="its own colour")  # never moved to the glass nearest what shows through it
         elif apart > COLOUR_DELTA_E:
             family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
                       if spec.get("family") == listed.get("family") and "colour" in spec
@@ -327,8 +330,6 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
             nearest_apart, nearest = min(family) if family else (float("inf"), None)
             if nearest_apart <= COLOUR_DELTA_E:
                 record.update(surface=nearest, delta_e=round(nearest_apart, 1), by="nearest of its family by colour")
-            elif listed.get("family") in OWN_COLOUR:
-                record.update(by="its own colour")
             else:
                 record.update(by="off its colour", fits=False, new_surface={
                     "name": f"{finish['finish']} ({take_words(entry)})",
