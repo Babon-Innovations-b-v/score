@@ -189,14 +189,31 @@ def zen_pids():
 
 
 def stop_zen():
-    """End the cache server the editor left, waiting up to ZEN_SECONDS; it is the job's own (one pod, one job)."""
+    """End the cache server the editor left, waiting up to ZEN_SECONDS, then killing it; True when it stopped of
+    itself. It is the job's own (one pod, one job)."""
     for pid in zen_pids():
         os.kill(pid, signal.SIGTERM)
     deadline = time.time() + ZEN_SECONDS
     while zen_pids() and time.time() < deadline:
         time.sleep(1)
-    if zen_pids():
-        raise SystemExit(f"{ZEN} did not stop within {ZEN_SECONDS} s; the shader cache would be packed mid-write")
+    if not zen_pids():
+        return True
+    for pid in zen_pids():
+        os.kill(pid, signal.SIGKILL)
+    return False
+
+
+def cache_dropped(ddc, stopped):
+    """The shader cache emptied when its server had to be killed (it may hold a half-written file, so it is never
+    packed); the reason, or None when the server stopped of itself. The frames are kept either way (#222, run 7)."""
+    if stopped:
+        return None
+    for entry in pathlib.Path(ddc).iterdir():
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+    return f"{ZEN} did not stop within {ZEN_SECONDS} s and was killed; this run's shader cache was dropped"
 
 
 def logs_kept(project_file, out):
@@ -229,7 +246,7 @@ def closed(record, failure, project_file, out):
     logs kept and <out>/record.json written with the failure. The job then exits 0 even on a failure, since the
     runtime brings the out folder back only from a command that succeeded; render.py reads the failure from
     record.json (render.card_failure) and fails the run there. (main stops the cache server first: one that does
-    not stop still fails the job, so no cache is packed mid-write.)"""
+    not stop is killed and its cache dropped, so no cache is packed mid-write and the frames still come back.)"""
     logs_kept(project_file, out)
     record["failure"] = failure
     (out / "record.json").write_text(json.dumps(record, indent=1))
@@ -259,7 +276,7 @@ def main(shot_path):
         failure = None
     except (Exception, SystemExit) as error:  # noqa: BLE001 - written to record.json; render.py fails the run on it
         failure = f"{type(error).__name__}: {error}"
-    stop_zen()
+    record["ddc"]["dropped"] = cache_dropped(ddc, stop_zen())
     record["ddc"]["bytes_after"] = size_of(ddc)
     record["job_seconds"] = round(time.time() - began, 1)
     closed(record, failure, shot["project"], out)

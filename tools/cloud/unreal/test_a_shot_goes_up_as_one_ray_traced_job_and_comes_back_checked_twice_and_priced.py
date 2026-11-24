@@ -26,6 +26,7 @@ Breaks, each applied once and seen red (2026-11-24):
 - `closed` skips `logs_kept` (2026-11-24) -> a failed run comes back without the editor's logs.
 - `scene_record` refuses a non-zero exit -> a level made with faults stops the render (#222, run 6).
 - `render` skips `card_failure` -> a run that stopped on the card is priced and checked as frames.
+- `cache_dropped` keeps the cache of a killed server -> a half-written shader cache is packed (#222, run 7).
 """
 import json
 import pathlib
@@ -114,6 +115,14 @@ def project(folder, ini=GOOD):
     (folder / "Config").mkdir(parents=True)
     (folder / "Config/DefaultEngine.ini").write_text(ini)
     (folder / "Street.uproject").write_text("{}")
+    return folder
+
+
+def kept_cache(folder):
+    """A shader cache folder holding one file and one folder, as the editor leaves it."""
+    (folder / "Zen").mkdir(parents=True)
+    (folder / "Zen/blob").write_bytes(b"x")
+    (folder / "index").write_bytes(b"y")
     return folder
 
 
@@ -237,6 +246,10 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
          "vulkaninfo exited with 1; vulkaninfo said: ERROR: [Loader Message] Code 0 : libGLX_nvidia.so.0: cannot open "
          "shared object file | Cannot create Vulkan instance. | b | vkCreateInstance failed with "
          "ERROR_INCOMPATIBLE_DRIVER"),
+        ("a killed cache server's cache is dropped", (on_card.cache_dropped(kept_cache(tmp_path / "killed"), False)
+                                                     is not None, list((tmp_path / "killed").iterdir())), (True, [])),
+        ("a stopped cache server's cache is kept", (on_card.cache_dropped(kept_cache(tmp_path / "stopped"), True),
+                                                    len(list((tmp_path / "stopped").iterdir()))), (None, 2)),
         ("the cache beside CUDA's", on_card.ddc_folder({"CUDA_CACHE_PATH": "/cache/kernels/u/sm89-580.1/cuda"}),
          pathlib.Path("/cache/kernels/u/sm89-580.1/unreal-ddc")),
         ("no kernel cache, no render", raised(lambda: on_card.ddc_folder({})) is not None, True),
