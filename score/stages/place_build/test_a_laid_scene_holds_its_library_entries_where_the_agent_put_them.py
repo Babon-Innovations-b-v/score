@@ -74,6 +74,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.blocks: the structure role not written -> a building's blocks read as a loose prop to the check
 - cockpit_kit.near_hole: THROUGH dropped -> a porthole's axis, run on across the room, cuts its hole in the far
   wall too
+- cockpit_kit.lining_depth: a fade measured straight from the hole's middle again -> a cushion of the lining swells
+  through a wide hole's inner flange at its sides, where the cone curves away
 - place_build.kit: a part with no look left in its placeholder -> the toggle laid with no look for its lever is not
   refused
 - launch_kit.ship: the barrel and the nose turned as two solids (the barrel's top left open) -> the ship's welded
@@ -1001,6 +1003,16 @@ def kitted(tmp_path):
     assert all(stage.GetPrimAtPath(f"/pod/Looks/near__{part}").GetAttribute("score:surface").Get()
                for part in ("cushion", "back"))
     assert stage.GetPrimAtPath("/pod/Objects/plate").GetAttribute("score:support").Get() is None
+    hatch = {"at": [0.0, 1.0], "radius": 0.7, "wall": 0.04, "flange": 0.08}
+    reach = hatch["radius"] + hatch["wall"] + hatch["flange"]
+    hatched = cockpit_kit.lining(holes=[[0.0, 1.0, reach - 0.07]], fades=[[0.0, 1.0, reach + 0.01]],
+                                 sector=[-70, 70], cell=0.03, rows=0.03)
+    face_points = np.vstack([piece[1][np.unique(piece[2])] for piece in hatched if piece[0] == "cushion"])
+    along = (face_points - cone.at(0.0, 1.0)) @ cone.inward(0.0)
+    under = cockpit_kit.off_axis(cone, face_points, 0.0, 1.0) < reach
+    flange_top = (cone.onto(face_points, cone.inward(0.0), cone.sizes["gap"] + cone.sizes["lining"])
+                  - cone.at(0.0, 1.0)) @ cone.inward(0.0) + 0.022
+    assert under.any() and (along[under] < flange_top[under]).all(), (along - flange_top)[under].max()
     launched(folder)
 
 

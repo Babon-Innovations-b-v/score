@@ -864,13 +864,20 @@ def near_hole(cone, points, holes):
     wall along it (the axis runs on across the room to the far wall, which keeps its cells)."""
     near = np.zeros(points.shape[:-1], dtype=bool)
     for theta, y, radius in holes:
-        middle = cone.at(math.radians(theta), y)
-        axis = cone.inward(math.radians(theta))
-        offset = points - middle
-        along = np.einsum("...i,i->...", offset, axis)
-        across = offset - along[..., None] * axis
-        near |= (np.linalg.norm(across, axis=-1) < radius) & (np.abs(along) < THROUGH)
+        near |= off_axis(cone, points, theta, y) < radius
     return near
+
+
+def off_axis(cone, points, theta, y):
+    """How far each point lies from the axis of a round hole at `theta` (degrees) and `y` (the face's normal through
+    its middle on the hull's inner face, along which its sleeve and flanges are laid), measured across it; infinite
+    for a point further than THROUGH along it (the axis runs on across the room to the far wall)."""
+    middle = cone.at(math.radians(theta), y)
+    axis = cone.inward(math.radians(theta))
+    offset = points - middle
+    along = np.einsum("...i,i->...", offset, axis)
+    across = np.linalg.norm(offset - along[..., None] * axis, axis=-1)
+    return np.where(np.abs(along) < THROUGH, across, np.inf)
 
 
 def cells_kept(near, cut_cells, which, middle_theta, sector):
@@ -1017,8 +1024,11 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
     sizes = cone.sizes
     bump = quilt(cone, theta, y)
     eased = np.zeros(theta.shape)
+    skin_face = back + cone.inward(theta) * sizes["lining"]
     for fade_theta, fade_y, radius in fades:
-        distance = np.linalg.norm(back - cone.at(math.radians(fade_theta), fade_y, sizes["gap"]), axis=-1)
+        distance = off_axis(cone, skin_face, fade_theta, fade_y)  # on the skin's face and across the hole's axis,
+        # as its flange is laid: a straight line from its middle, or a spot on the back, runs short of the flange's
+        # edge where the cone curves away from a wide hole (a hatch's sides), and a cushion swelled through it there
         eased = 1 - (1 - eased) * smoothstep(radius, radius + FADE, distance)  # two fades meeting ease the
         # padding between them flat together, never a pinched crumple
     if cut:
@@ -1037,7 +1047,8 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
         onto = ((middle - back) @ inward) / np.maximum(np.einsum("...i,i->...", normals, inward), 1e-6)
         skin = skin * (1 - weight) + np.maximum(onto, skin) * weight
         bump = bump * np.where(near, np.clip(outside / MOUNT_ROLL, 0.0, 1.0) ** FULLNESS, 1.0)
-        flattened = np.maximum(flattened, (outside < 0.004) * near)
+        flattened = np.maximum(flattened, (1 - smoothstep(0.0, MOUNT_ROLL, outside)) * near)  # under the plate
+        # and where the cushions it cuts lie low against it: no crease's dark seam drawn across the flat there
     return skin, bump, np.maximum(eased, flattened)
 
 

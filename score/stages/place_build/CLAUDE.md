@@ -163,12 +163,15 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   courses, each course's cushions of their own widths (CUSHION_WIDE, WIDE_SPREAD, drawn from CUSHION_SEED) and its
   seams set off from the next's at random, each a superellipse dome swelling steeply from its edge, so two pillows
   meet in a deep crease and their corners pinch in; owner 2026-11-24: "uggly creme bricks", never a flat grid of
-  equal tiles with drawn lines: the crease is dark by its depth alone (part seam, the one row of cells along each
-  crease, takes the vinyl's own look in the capsule) and the face is shaded by the whole grid's own normals, so no
+  equal tiles with drawn lines: the crease is dark by its depth and a seam a shade under the vinyl (part seam, the
+  one row of cells along each crease; round 4 the concept's caramel-brown vinyl, never creme), drawn nowhere the
+  quilting is eased, a plate's roll included, and the face is shaded by the whole grid's own normals, so no
   part's or wall's edge breaks it, and a vinyl look wears no edge (a worn edge drew a bright line along every join
   of two walls); the padding curves over at the top into the ceiling (`shoulder`, `inset`), its own walls
   (`rise`) so no wall's middle stands out in the room; no seam where the quilting is eased; two fades meeting ease
-  the padding between them flat together; a bolster along the floor, eased flat round each hole and
+  the padding between them flat together, each fade measured on the skin's face across its hole's axis as the
+  hole's flange is laid (a straight line from its middle ran short at a hatch's sides, and a cushion swelled
+  through the flange there); a bolster along the floor, eased flat round each hole and
   along the cut-away's outline (its section a clean band of the padding); a `mount` plate set into the padding where
   a panel or screen hangs on the wall, the lining's skin on its plane under it and a MOUNT_BORDER band round it and the
   cushions it cuts swelling from a crease beyond that, never puckered or ragged round it (`flats`, flat_spot) each in walls of their own
