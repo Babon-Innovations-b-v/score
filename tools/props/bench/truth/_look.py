@@ -8,14 +8,18 @@ roughness read where the triangle lies on its maps, and each material's class.
 
 A material is read through its UsdPreviewSurface (the universal surface output): an input's constant, else the
 UsdUVTexture it is wired to (its channel, scale and bias, an sRGB map made linear), else the input's fallback; a
+map named with a `<UDIM>` tile is read from each triangle's own tile's file (`map_values`: 1001 plus its u's whole
+part plus ten times its v's, beside the layer that names it; unread, the rack's whole look was NaN and its red
+beams' colour never judged, tc4r, #186); a
 material with no preview surface is read through its OmniPBR shader's inputs (the constants and the diffuse and ORM
 maps). A triangle's value from a map is the mean of SAMPLES points inside it (nearest texel, the map repeated); a
 triangle with no material or no coordinates where its look needs them is NaN, never a guess.
 """
 import functools
+import os
 
 import numpy as np
-from pxr import Sdf, UsdGeom, UsdShade
+from pxr import Sdf, Usd, UsdGeom, UsdShade
 
 # Barycentric points a triangle's map value is read at: its middle and one toward each corner.
 SAMPLES = np.array([[1 / 3, 1 / 3, 1 / 3], [2 / 3, 1 / 6, 1 / 6], [1 / 6, 2 / 3, 1 / 6], [1 / 6, 1 / 6, 2 / 3]])
@@ -27,6 +31,7 @@ ORM_CHANNEL = {"roughness": 1, "metallic": 2}
 OMNI = {"diffuseColor": "diffuse_color_constant", "metallic": "metallic_constant",
         "roughness": "reflection_roughness_constant"}
 OMNI_DEFAULT = {"diffuseColor": (0.2, 0.2, 0.2), "metallic": 0.0, "roughness": 0.5}
+UDIM = "<UDIM>"  # a map path's tile marker: the file of tile 1001 + u + 10 v (u, v the coordinates' whole parts)
 
 
 def corner_uvs(prim, triangles, polygon, slots):
@@ -80,11 +85,27 @@ def sampled(map_texels, uvs, srgb=False):
     return found
 
 
-def asset_path(value):
-    """An asset input's resolved file path, None when it names none or does not resolve."""
-    if not isinstance(value, Sdf.AssetPath):
+def map_values(attribute, uvs, srgb=False):
+    """The map an asset input names, read per triangle (`sampled`'s (T, 4)), or None when it names none or its file
+    does not resolve. A `<UDIM>` map: each triangle read from its own tile's file beside the layer that names it, NaN
+    where that tile's file is not there."""
+    value = attribute.Get() if attribute else None
+    if not isinstance(value, Sdf.AssetPath) or not value.path:
         return None
-    return value.resolvedPath or None
+    if UDIM not in value.path:
+        return sampled(texels(value.resolvedPath), uvs, srgb) if value.resolvedPath else None
+    layer = attribute.GetAttr().GetPropertyStack(Usd.TimeCode.Default())[0].layer
+    middle = np.nanmean(uvs, axis=1)
+    known = ~np.isnan(middle).any(1)
+    tile = np.full(len(uvs), -1)
+    tile[known] = 1001 + np.floor(middle[known, 0]).astype(int) + 10 * np.floor(middle[known, 1]).astype(int)
+    found = np.full((len(uvs), 4), np.nan)
+    for number in np.unique(tile[known]):
+        path = layer.ComputeAbsolutePath(value.path.replace(UDIM, str(number)))
+        if os.path.isfile(path):
+            held = tile == number
+            found[held] = sampled(texels(path), uvs[held], srgb)
+    return found
 
 
 def wired(shader_input):
@@ -106,12 +127,11 @@ def preview_value(shader, name, uvs):
         value = shader_input.Get() if shader_input and shader_input.Get() is not None else FALLBACK[name]
         return np.tile(np.asarray(value, dtype=float).reshape(-1)[:channels], (len(uvs), 1))
     texture, output = texture
-    path = asset_path(texture.GetInput("file").Get() if texture.GetInput("file") else None)
-    if path is None:
-        return np.full((len(uvs), channels), np.nan)
     space = texture.GetInput("sourceColorSpace")
     srgb = name == "diffuseColor" and (space.Get() if space else "auto") != "raw"
-    found = sampled(texels(path), uvs, srgb)
+    found = map_values(texture.GetInput("file"), uvs, srgb)
+    if found is None:
+        return np.full((len(uvs), channels), np.nan)
     scale = np.asarray(texture.GetInput("scale").Get() if texture.GetInput("scale") else (1, 1, 1, 1), dtype=float)
     bias = np.asarray(texture.GetInput("bias").Get() if texture.GetInput("bias") else (0, 0, 0, 0), dtype=float)
     found = found * scale + bias
@@ -124,14 +144,14 @@ def omni_value(shader, name, uvs):
     one is set, else the shader's constant, else OmniPBR's default."""
     channels = 3 if name == "diffuseColor" else 1
     if name == "diffuseColor":
-        path = asset_path(shader.GetInput("diffuse_texture").Get() if shader.GetInput("diffuse_texture") else None)
-        if path:
-            return sampled(texels(path), uvs, True)[:, :3]
+        found = map_values(shader.GetInput("diffuse_texture"), uvs, True)
+        if found is not None:
+            return found[:, :3]
     else:
         enabled = shader.GetInput("enable_ORM_texture")
-        path = asset_path(shader.GetInput("ORM_texture").Get() if shader.GetInput("ORM_texture") else None)
-        if path and enabled and enabled.Get():
-            return sampled(texels(path), uvs)[:, [ORM_CHANNEL[name]]]
+        found = map_values(shader.GetInput("ORM_texture"), uvs) if enabled and enabled.Get() else None
+        if found is not None:
+            return found[:, [ORM_CHANNEL[name]]]
     constant = shader.GetInput(OMNI[name])
     value = constant.Get() if constant and constant.Get() is not None else OMNI_DEFAULT[name]
     return np.tile(np.asarray(value, dtype=float).reshape(-1)[:channels], (len(uvs), 1))

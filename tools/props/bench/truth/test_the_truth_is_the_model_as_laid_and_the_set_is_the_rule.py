@@ -40,7 +40,8 @@ MuJoCo colliders not hulled (colliders), the drop's colliders taken from Newton 
 picks), the stem skip dropped (box picks), a surface's `painted_for` tag not read (one model), the newest version not taken (box picks), the overlap targets' stems
 not taken first (desk picks), the detailed skip of an id the rule took dropped (detailed picks), the never-picks not
 given a pictured case (pictured cases); in `_look.py` the sRGB map not made linear, v not turned up (the bottom row
-read) and the class not read from the material's name (looks).
+read), the class not read from the material's name and a `<UDIM>` map not read by its tile (the paint's roughness
+read NaN: looks).
 """
 import json
 import pathlib
@@ -95,7 +96,7 @@ def Xform "Part"
             {{
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor.connect = </Part/Looks/paint/map.outputs:rgb>
-                float inputs:roughness = 0.6
+                float inputs:roughness.connect = </Part/Looks/paint/rough.outputs:r>
                 token outputs:surface
             }}
             def Shader "map"
@@ -104,6 +105,13 @@ def Xform "Part"
                 asset inputs:file = @./paint.png@
                 token inputs:sourceColorSpace = "sRGB"
                 float3 outputs:rgb
+            }}
+            def Shader "rough"
+            {{
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @./rough.<UDIM>.png@
+                token inputs:sourceColorSpace = "raw"
+                float outputs:r
             }}
         }}
         def Material "m_opaque__metal__shell"
@@ -234,7 +242,7 @@ RECORDS = [record("simready_box_tall_a01"), record("simready_box_blue_a01"), rec
            record("old_desk_1", state="withdrawn", replaced_by="model/simready_desk_a01@1"),
            record("simready_shell_a01", classes=("thing",),
                   files={"root.usda": {"role": "usd"}, "geometry.usda": {"role": "usd"},
-                         "paint.png": {"role": "texture"}})]
+                         "paint.png": {"role": "texture"}, "rough.1001.png": {"role": "texture"}})]
 # The paint's map, 2 x 2 texels, sRGB: its top row (v 0.5 to 1) dark red then blue, its bottom row green then white.
 # The shell's paint quads read it at (0.25, 0.75): the top left, sRGB 188 red, linear 0.5029.
 PAINT_TEXELS = [[(188, 0, 0), (0, 0, 255)], [(0, 255, 0), (255, 255, 255)]]
@@ -257,6 +265,7 @@ def made(tmp_path_factory):
     (model / "geometry.usda").write_text(GEOMETRY)
     from PIL import Image
     Image.fromarray(np.array(PAINT_TEXELS, dtype=np.uint8)).save(model / "paint.png")
+    Image.fromarray(np.full((2, 2), 153, dtype=np.uint8)).save(model / "rough.1001.png")  # 0.6, tile 1001 alone
     patch = pytest.MonkeyPatch()
     patch.setenv("SCORE_LIB_ROOT", str(root))
     patch.setenv("SCORE_LIB_FILES", str(files))
