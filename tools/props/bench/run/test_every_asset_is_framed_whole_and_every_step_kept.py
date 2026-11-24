@@ -62,7 +62,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   passing the row's camera on as it is -> the case's None reaches look_axes (TypeError); its aim behind the eye
   (`eye - ahead`) -> the look faces away, its axes not right, up and back as fitted; bench.measure_pictured not
   judging the look (judged_look's group not passed) -> B's measures hold no picture row and its shape fault passes;
-  bench.judged_look not naming the case pictured -> the judge is asked about NVIDIA's render, not the close-up
+  bench.judged_look not naming the case pictured -> the judge is asked about NVIDIA's render, not the close-up.
+  The previous round's look is its made model drawn again by today's look (#205: tc5r's looks, drawn under an even grey
+  world, held against tc6's under the close-up's light, were judged regressed in 26 of 30): bench.judged_look holding
+  the previous run's kept look -> its model is never drawn again and the judge is shown the kept picture; the
+  previous drawn from the row's own camera when it has none (`row["camera"]`) -> drawn from None, not its finish's fitted
+  camera
 """
 import ast
 import base64
@@ -388,9 +393,11 @@ def pictured_case(tmp_path, monkeypatch, name, material, box):
     kept.keep(name, "B", "look", tmp_path / "look", 0.0)
     from tools.props.bench import judge
     asked = []
-    monkeypatch.setattr(judge, "claude_ask", lambda body: asked.append(body) or json.dumps(
-        {"faults": [{"kind": "shape", "where": "body", "what": "squat"}], "cutout_faults": [], "cutout": "clean",
-         "verdicts": {kind: "fault" if kind == "shape" else "clean" for kind in judge.KINDS}}))
+    said = json.dumps({"faults": [{"kind": "shape", "where": "body", "what": "squat"}], "cutout_faults": [],
+                       "cutout": "clean", "verdicts": {kind: "fault" if kind == "shape" else "clean"
+                                                       for kind in judge.KINDS}})
+    monkeypatch.setattr(judge, "claude_asks", lambda bodies: {key: asked.append(body) or said
+                                                              for key, body in bodies.items()})
     bench.measure_all([row], [row], kept, "trial")
     record = json.loads((kept.store.checkout(kept.entry(name, "A", "measures")["output"]) /
                          "measures.json").read_text())
@@ -403,6 +410,23 @@ def pictured_case(tmp_path, monkeypatch, name, material, box):
                                 "measures.json").read_text())
     assert "picture.shape" in looked_record["judged"]["failed"], looked_record["judged"]
     assert len(asked) == 1 and "close-up picture" in asked[0]["contents"][0]["parts"][-1]["text"]
+    # Held to a previous round (here the same run): its made model drawn again by today's look from its finish's
+    # fitted camera, that drawing shown to the judge as the previous look, never the kept one.
+    kept.keep(name, "B", "finish", tmp_path / "fitted", 0.0)
+    redrawn = []
+
+    def drawn_again(model, parted, asset, camera, folder, draw=None):
+        redrawn.append((pathlib.Path(model).read_bytes(), camera))
+        Image.fromarray(np.roll(picture, 3, axis=1), "RGBA").save(folder / "look.png")
+        return folder / "look.png"
+    monkeypatch.setattr(bench, "drawn_look", drawn_again)
+    compared = json.dumps({"a_better": "", "b_better": "", "closer": "same"})
+    shown = []
+    monkeypatch.setattr(judge, "claude_asks", lambda bodies: {key: shown.append(body) or (
+        said if key == "faults" else compared) for key, body in bodies.items()})
+    found = bench.judged_look(kept, name, "B", kept, tmp_path / "judged")
+    assert redrawn == [((tmp_path / "finished" / "final.glb").read_bytes(), view)], redrawn
+    assert found["regressed"] == 0 and found["pictures"]["previous"] != found["pictures"]["made"], found
 
 
 def drawer(scale, lit=0):

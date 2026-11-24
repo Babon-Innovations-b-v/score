@@ -4,7 +4,8 @@ NVIDIA's input render of the same object, and, when given, to the same object's 
 
     looked(words, made, given, previous=None, ask=None, pictured=False) -> the bench measure group "picture":
         {"drawn": 1 or 0, <each of KINDS>: 1 when a fault of that kind is seen else 0, "regressed": 1 or 0 (only with
-         `previous`), "verdicts": {kind: clean | slight | fault}, "faults": [{kind, where, what}], "regression": text,
+         `previous`, with "closer": {made_first, previous_first} its two answers), "verdicts": {kind: clean | slight |
+         fault}, "faults": [{kind, where, what}], "regression": text,
          "pictures": {name: sha256 of the picture as shown}; with `pictured`, "cutout": 1 when the close-up's own cut-out
          is at fault, "cutout_faults": [{where, what}]}
     shown(path, crop) -> the picture's PNG bytes as the judge sees it
@@ -12,14 +13,16 @@ NVIDIA's input render of the same object, and, when given, to the same object's 
 
 `made` is the look (look.png, RGBA), `given` NVIDIA's render (the render step's rgba.png, true alpha; with `pictured`,
 a pictured case's close-up, #159: the ask names it so, ORIGINALS), `previous` the
-previous round's look (look.png, or any picture of it from the same camera). Each is laid on the close-up's light grey
+previous round's look (look.png: its made model drawn by today's look, from the same camera, bench.redrawn_look). Each is laid on the close-up's light grey
 backdrop (bench.BACKDROP), cut to the same frame round both objects and drawn at SHOWN px, so the three are seen alike.
 A look with nothing drawn (no opaque pixel) is `drawn` 0 and asked nothing.
 
-The ask is one Claude call on the subscription (score/adapters/models/claude_code, EUR 0), its answer a structured
-JSON: every visible fault of the made model against NVIDIA's, its kind of KINDS, and a verdict per kind (clean;
-slight: a difference a careful eye lets pass, such as the renderers' light, a library grain for NVIDIA's; fault),
-and with a previous look whether the made one looks worse than it. An answer is kept by the hash of the model and the
+The faults ask is one Claude call on the subscription (score/adapters/models/claude_code, EUR 0), its answer a
+structured JSON: every visible fault of the made model against NVIDIA's, its kind of KINDS, and a verdict per kind
+(clean; slight: a difference a careful eye lets pass, such as the renderers' light, a library grain for NVIDIA's;
+fault). With a previous look the regression is asked apart (COMPARE, #205), beside it: the original and the two looks
+as A and B, which is closer to the original as a whole, asked in both orders; regressed only when both answers choose
+the previous look (regression_of). An answer is kept by the hash of the model and the
 body (claude_code.CACHE), whose pictures are these bytes, so the same pictures are never asked twice. The bars are in
 measures.BARS: no kind at `fault`, no regression, a drawn look.
 A pictured case's close-up is cut out of a larger picture (#159: tc5r's attitude panel, flight screen and pilot
@@ -52,6 +55,20 @@ VERDICTS = ("clean", "slight", "fault")
 CHROME = ("But a part the original shows as polished chrome or mirror metal (crisp bright highlights and dark "
           "reflections across it) that the made model draws as flat, dull or matte grey is a `colour` fault: that is "
           "its material lost, not the light. ")
+# The regression ask (#159 round 10: in one ask with the faults, "worse in any way you would point at, even where
+# better in others" marked 26 of 30 tc6 looks regressed where the eye found 4 worse, 12 better): its own ask, both looks
+# against the original as a whole, the way the owner chooses which to keep, asked once in each order.
+COMPARE = ("You compare two 3D models made again from the same original, to tell which made model is closer to it. The "
+           "object: {words}. Pictures A and B are the two made models, drawn alike: the same camera, backdrop and "
+           "light, so every difference between A and B is the models' own. Look at both against the original as a "
+           "careful person does when choosing which one to keep: the shape, every part and detail, each part's colour "
+           "and material, any text, and surface faults (torn or ragged edges, specks and blotches, holes, lumps and "
+           "warps). A part, detail or text one has right and the other lost, or a new tear, blotch or warp, counts as "
+           "much as a colour. In `a_better` say what A has closer to the original than B, in `b_better` what B has "
+           "closer than A (empty when nothing). Then `closer`: `A` or `B` when that one is closer to the original "
+           "overall, its gains clearly outweighing its losses; `same` when neither is clearly closer (their "
+           "differences small, or their gains and losses even).")
+CLOSER = ("A", "B", "same")
 SHOWN = 768  # the longest side of each picture as the judge sees it
 PAD = 0.04  # the share of the frame kept round the objects when they are cut to it
 BACKDROP = (214, 214, 214)  # the close-up's backdrop (tools/props/bench/run/bench.py BACKDROP)
@@ -141,10 +158,10 @@ def drawn(path):
     return opened(path).getchannel("A").getextrema()[1] > 0
 
 
-def asking_body(words, made, given, previous=None, pictured=False):
-    """The ask (a Gemini generateContent body, as claude_code reads one): NVIDIA's render (with `pictured`, the
-    close-up the model was made from: ORIGINALS), the made look and the previous round's look (PNG bytes), the object's
-    words, answered as its faults and verdicts."""
+def asking_body(words, made, given, pictured=False):
+    """The faults ask (a Gemini generateContent body, as claude_code reads one): NVIDIA's render (with `pictured`, the
+    close-up the model was made from: ORIGINALS) and the made look (PNG bytes), the object's words, answered as its
+    faults and verdicts."""
     kinds = "; ".join(f"`{kind}`: {what}" for kind, what in KINDS.items())
     text = (ORIGINALS["closeup" if pictured else "render"].format(words=words) +
             " so a different brightness, shading, reflection or shadow alone is no fault; the made model's surfaces "
@@ -169,15 +186,6 @@ def asking_body(words, made, given, previous=None, pictured=False):
         "verdicts": schema_verdicts})
     required = (["cutout_faults", "cutout"] if pictured else []) + ["faults", "verdicts"]
     parts = [{"text": "Picture 1, the ORIGINAL:"}, inline(given), {"text": "Picture 2, the MADE model:"}, inline(made)]
-    if previous is not None:
-        parts += [{"text": "Picture 3, the same object made in the PREVIOUS round, from the same camera:"},
-                  inline(previous)]
-        text += (" Last, compare picture 2 with picture 3, each against the original: `regressed` is true when the "
-                 "made model (picture 2) looks worse against the original than the previous round's (picture 3) in "
-                 "any way you would point at (a fault it did not have, a part or text it had right and lost, a colour "
-                 "further off), even where it is better in others; `regression` says what got worse, or is empty.")
-        properties.update(regressed={"type": "BOOLEAN"}, regression={"type": "STRING"})
-        required += ["regressed", "regression"]
     schema = {"type": "OBJECT", "properties": properties, "required": required}
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"responseMimeType": "application/json", "responseSchema": schema}}
@@ -187,16 +195,42 @@ def inline(picture):
     return {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(picture).decode()}}
 
 
-def claude_ask(body):
-    """The ask sent to Claude on the subscription (EUR 0), its answer's JSON text."""
+def claude_asks(bodies):
+    """{key: the answer's JSON text} of {key: body}, asked of Claude on the subscription (EUR 0) side by side."""
     from score.adapters.models import claude_code
-    answer = claude_code.asked({"picture": body}, caller=CALLER)["picture"]
-    if isinstance(answer, Exception):
-        raise ValueError(f"no picture judgement: {answer}")
-    return answer
+    answers = claude_code.asked(bodies, caller=CALLER)
+    for answer in answers.values():
+        if isinstance(answer, Exception):
+            raise ValueError(f"no picture judgement: {answer}")
+    return answers
 
 
-def counted(answer, regression_asked, pictured=False):
+def compared_body(words, first, second, given, pictured=False):
+    """The regression ask (COMPARE): the original (NVIDIA's render, or with `pictured` the close-up) and two made looks
+    (PNG bytes) shown as A (`first`) and B (`second`), answered as which is closer to the original."""
+    original = "the close-up picture the models were made from" if pictured else "NVIDIA's model, rendered"
+    parts = [{"text": f"Picture 1, the ORIGINAL ({original}):"}, inline(given), {"text": "Picture A:"}, inline(first),
+             {"text": "Picture B:"}, inline(second), {"text": COMPARE.format(words=words)}]
+    schema = {"type": "OBJECT", "properties": {
+        "a_better": {"type": "STRING"}, "b_better": {"type": "STRING"},
+        "closer": {"type": "STRING", "enum": list(CLOSER)}}, "required": ["a_better", "b_better", "closer"]}
+    return {"contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {"responseMimeType": "application/json", "responseSchema": schema}}
+
+
+def regression_of(made_first, previous_first):
+    """`regressed` and `regression` of the two compare answers (made as A, then the previous as A): regressed when
+    both choose the previous look as the closer, so neither the order shown nor one answer's whim decides it; the
+    regression says what the previous look had better, in both answers' words."""
+    chose = (made_first["closer"], previous_first["closer"])
+    if any(choice not in CLOSER for choice in chose):
+        raise ValueError(f"the regression judgement chose no look: {chose}")
+    regressed = chose == ("B", "A")
+    return {"regressed": int(regressed), "closer": {"made_first": chose[0], "previous_first": chose[1]},
+            "regression": " | ".join((made_first["b_better"], previous_first["a_better"])) if regressed else ""}
+
+
+def counted(answer, pictured=False):
     """The measure group of one answer: each kind 1 when its verdict is `fault` (the listed faults, slight ones too,
     are kept beside it), and with `pictured` the close-up's own cut-out (`cutout`) alike; ValueError for an answer
     missing a verdict."""
@@ -209,8 +243,6 @@ def counted(answer, regression_asked, pictured=False):
     found = {"drawn": 1, **{kind: int(verdicts[kind] == "fault") for kind in KINDS},
              "verdicts": {kind: verdicts[kind] for kind in KINDS},
              "faults": [{key: fault[key] for key in ("kind", "where", "what")} for fault in answer["faults"]]}
-    if regression_asked:
-        found.update(regressed=int(bool(answer["regressed"])), regression=answer.get("regression", ""))
     if pictured:
         found.update(cutout=int(answer["cutout"] == "fault"),
                      cutout_faults=[{key: fault[key] for key in ("where", "what")} for fault in answer["cutout_faults"]])
@@ -228,6 +260,15 @@ def looked(words, made, given, previous=None, ask=None, pictured=False):
     if not drawn(made):
         return {"drawn": 0, "faults": [{"kind": "parts", "where": "the whole look", "what": "nothing is drawn"}],
                 "pictures": hashes}
-    body = asking_body(words, pictures["made"], pictures["given"], pictures.get("previous"), pictured)
-    answer = json.loads((ask or claude_ask)(body))
-    return {**counted(answer, previous is not None, pictured), "pictures": hashes}
+    bodies = {"faults": asking_body(words, pictures["made"], pictures["given"], pictured)}
+    if previous:
+        bodies.update(made_first=compared_body(words, pictures["made"], pictures["previous"], pictures["given"],
+                                               pictured),
+                      previous_first=compared_body(words, pictures["previous"], pictures["made"], pictures["given"],
+                                                   pictured))
+    answers = {key: json.loads(text) for key, text in
+               ({key: ask(body) for key, body in bodies.items()} if ask else claude_asks(bodies)).items()}
+    found = counted(answers["faults"], pictured)
+    if previous:
+        found.update(regression_of(answers["made_first"], answers["previous_first"]))
+    return {**found, "pictures": hashes}

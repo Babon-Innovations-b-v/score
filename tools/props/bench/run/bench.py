@@ -729,17 +729,23 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None):
     (finish.marks_read, `ask` a test's: marks.json, read.json; #185)."""
     def make(folder):
         from PIL import Image
-        job = finish.look_job(parted, row["id"], model, camera, folder)
-        code = draw(f"bench-look-{row['id']}", [str(job)], folder / "blender.log", LOOK)
-        if code or not (folder / "look.png").is_file():
-            lines = (folder / "blender.log").read_text(errors="replace").splitlines()
-            raise StepFailed(f"look.py exited {code}: {' | '.join(lines[-6:])}")
+        drawn_look(model, parted, row["id"], camera, folder, draw)
         with Image.open(folder / "look.png") as drawn:
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
         (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png",
                                                                              folder / "bare.png")}))
         finish.marks_read(folder, ask)
     return make
+
+
+def drawn_look(model, parted, asset, camera, folder, draw=queued_blender):
+    """The finish `parted` of `model` drawn by look.py from `camera` into `folder` (finish.look_job): its look.png."""
+    job = finish.look_job(parted, asset, model, camera, folder)
+    code = draw(f"bench-look-{asset}", [str(job)], folder / "blender.log", LOOK)
+    if code or not (folder / "look.png").is_file():
+        lines = (folder / "blender.log").read_text(errors="replace").splitlines()
+        raise StepFailed(f"look.py exited {code}: {' | '.join(lines[-6:])}")
+    return folder / "look.png"
 
 
 def look_holes(look, bare):
@@ -972,7 +978,7 @@ def written_measures(folder, truth, side, others, made, picture=None, looked=Non
     (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
 
 
-def judged_look(kept, asset, branch, previous, scratch):
+def judged_look(kept, asset, branch, previous, scratch, draw=queued_blender):
     """The branch's kept look held by the picture judge (tools/props/bench/judge, #184) to NVIDIA's render (a pictured
     case's: its close-up, #159) and to the same asset's look in the `previous` run (a Kept, where it kept one): the
     measure group "picture", or None where the branch keeps no look."""
@@ -983,11 +989,25 @@ def judged_look(kept, asset, branch, previous, scratch):
     look = checked_out(kept, asset, branch, step, scratch / branch / f"judged-{step}") / "look.png"  # never over
     # measure_step's own copy: the store's files are read-only, so a second copy into one folder was refused (#186)
     given = checked_out(kept, asset, "input", "render", scratch / "input-judged")
+    row = json.loads((given / "row.json").read_text())
     before = None
     if previous is not None and kept_output(previous, asset, branch, step):
-        before = checked_out(previous, asset, branch, step, scratch / branch / f"previous-{step}") / "look.png"
-    row = json.loads((given / "row.json").read_text())
+        before = redrawn_look(previous, asset, branch, row, scratch, draw)
     return judge.looked(row["words"], look, given / "rgba.png", before, pictured=bool(row.get("picture")))
+
+
+def redrawn_look(previous, asset, branch, row, scratch, draw=queued_blender):
+    """The `previous` run's made model of the asset drawn again by today's look (drawn_look), from the camera its own
+    look was drawn from: its kept look.png was drawn by that day's look, and a look's light changed between rounds
+    (#200; #159 round 10: tc5r's looks under an even grey world held against tc6's under the close-up's light), so the
+    judge saw the renderers' difference as the models'."""
+    (step, name), _ = MEASURED[branch]
+    model = checked_out(previous, asset, branch, step, scratch / branch / f"previous-{step}") / name
+    parted = checked_out(previous, asset, branch, FINISHED[branch], scratch / branch / "previous-finish")
+    folder = scratch / branch / "previous-look"
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    return drawn_look(model, parted, asset, finish.look_view(row.get("camera"), parted), folder, draw)
 
 
 def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
