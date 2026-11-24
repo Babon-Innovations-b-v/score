@@ -27,6 +27,10 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   far closing the cuts stretched the mesh round them is `closed.json`'s `stretched`, judged as `look.stretched`
   (1.5 at most: r13's 4.2 to 9.2, r14l's 1.09). The look and the mesh alone both draw the piece; the measures' shape
   and the physics and parts steps do not read it yet.
+- **Printed panels held to NVIDIA's** (#159 round 15): the look step writes `printed` into holes.json
+  (bench.panels_printed): each panel decal's corners through the look's own camera (look_frame, from look.json and the
+  box look.py logs) against NVIDIA's look in the panel's close-up box, by measures.printed (NVIDIA's inks there, the
+  made panel's pixels near them and their shares), judged as `look.printed`.
 - **Holes through a mark's plate** (r13's black dots, decal_plates.holes_closed): a hole TRELLIS.2 cut through a
   closed mark's plate outside every closed region is closed by a box of its own in that mark's `also`, pressed and
   carded as its own box is.

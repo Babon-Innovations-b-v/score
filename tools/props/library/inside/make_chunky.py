@@ -254,7 +254,8 @@ def decal_laid(decal, move):
                 up=list((turn @ up).normalized()),
                 size_m=[decal["size"][0] * across, decal["size"][1] * upward],
                 depth=decal.get("depth", 0.0) * outward,
-                relief=decal.get("relief", 0.0) * outward)
+                relief=decal.get("relief", 0.0) * outward,
+                **({"reach": decal["reach"] * outward} if decal.get("reach") else {}))
     if decal.get("closed"):
         stretched = lambda box: [box[0] * across, box[1] * upward, box[2] * across, box[3] * upward]  # noqa: E731
         laid["closed"] = dict(decal["closed"], box=stretched(decal["closed"]["box"]),

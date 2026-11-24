@@ -30,6 +30,15 @@ SET_PX = 512  # the size a line is set at before it is fitted to its box
 TEXT_PX = 30
 
 
+def missing(text, look):
+    """The characters of `text` the library face of `look` has no glyph for (#159 round 15: r14's stove name 瓦斯爐,
+    its 爐 traditional, set as an empty box by the simplified face), in order, spaces left out."""
+    from fontTools.ttLib import TTFont
+    mapped = TTFont(str(REPO / FONTS[look]), lazy=True).getBestCmap()
+    return "".join(character for character in dict.fromkeys(text) if not character.isspace()
+                   and ord(character) not in mapped)
+
+
 def density(placement):
     """The pixels a metre a drawn mark's picture is drawn at: PX_PER_M, a text line under TEXT_PX / PX_PER_M tall at
     enough for it to be TEXT_PX tall; its longer side at most MOST_PX."""

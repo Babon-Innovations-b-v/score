@@ -209,6 +209,8 @@ def decal_depth(decal):
     printed only in a band where it lay within DECAL_DEPTH of the plane)."""
     if decal.get("relief"):
         return 0.5 * min(decal["size_m"])
+    if decal.get("reach"):  # a printed panel's own (panel_decals.REACH): its wide box reached the stove's rounded lip
+        return float(decal["reach"])
     return min(DECAL_DEPTH, max(0.25 * min(decal["size_m"]), decal.get("depth", 0.0)))
 
 

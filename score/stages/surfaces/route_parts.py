@@ -49,6 +49,7 @@ import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
 import hardware_pieces  # noqa: E402
 import palette_library  # noqa: E402
+import panel_decals  # noqa: E402
 import pattern_decals  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
@@ -81,6 +82,12 @@ COVER_GROW = 0.25
 # word's span between quantiles INK_TRIM from each end, a line's band in RULE_BIN metre bins.
 INK_MOST, INK_FEWEST, INK_TRIM, RULE_BIN = 6000, 20, 0.01, 0.002
 LETTER_SHARE = 0.3  # a piece of a text mark's ink is a letter when at least this share of its tallest's height
+PRINT_TRIM, PRINT_FEWEST = 0.005, 50  # a panel's box drawn in to its print's pixels between these quantiles (print_box)
+# Close-up pixels a panel's box is grown by for the faces it covers: grown by COVER_GROW of its side (123 px on the
+# stove) it reached the grates' front faces over the lip, and their texels took the steel's part (r15p's second look
+# drew the grates silver).
+PANEL_GROW = 8
+PANEL_TURN = 35  # degrees: a face under a printed panel turned further off its faces' median is not its plate (an edge)
 LETTER_WIDEST = 3.0  # and at most this many times as wide as it is tall (a line's end in the box is not a letter)
 # A pattern's facing (#210, pattern_facing) is the mean normal of the faces of its part seen on a FACING_GRID x
 # FACING_GRID grid across its box: its ink is its openings, which TRELLIS.2 cuts as pits and holes whose faces turn
@@ -247,6 +254,8 @@ def decal_placements(marks, part_of, normals, cast, seen, finish_of=None):
     why. `seen` says which close-up the boxes are in; `finish_of` (a face's) lets a pattern span its finish's parts."""
     placements, gaps = [], []
     for number, mark in enumerate(marks):
+        if mark.get("shape") == panel_decals.SHAPE and not mark.get("gap"):
+            continue  # placed on its plate by take_decals (panel_placed)
         if mark.get("gap") or (mark.get("decal") is None and mark.get("shape") not in text_decals.DRAWN):
             gaps.append({"what": mark.get("what", ""), "why": mark.get("gap") or "no library decal named"})
             continue
@@ -378,6 +387,8 @@ def covering(mark):
     """True for a mark placed over a print finish of the list's own (its `print_finish`): a text or line mark drawn
     as a text decal, or a picture mark naming its library decal; the route's print under it is covered."""
     placed = mark.get("shape") in text_decals.DRAWN or mark.get("decal") is not None or mark.get("hardware")
+    if mark.get("shape") == panel_decals.SHAPE:  # a printed panel covers every print under it (panel_covered)
+        return not mark.get("gap")
     return not mark.get("gap") and bool(placed) and mark.get("print_finish") is not None
 
 
@@ -410,16 +421,26 @@ def covered_prints(seen, marks, finish_of, part_of, lit=()):
     import route_texels
     model, camera, size, _ = seen
     faces, rows, columns = cast.close_up_cast(model, camera, size)
-    moved, covers = 0, []
-    for mark in marks:
+    moved, covers, panels = 0, [], []
+    for mark in sorted(marks, key=lambda each: each.get("shape") != panel_decals.SHAPE):  # a panel's first
         if not covering(mark):
             continue
+        mark = in_panel(mark, panels)
         left, top, wide, tall = mark["box"]
-        grow = COVER_GROW * min(wide, tall)
+        grow = PANEL_GROW if mark.get("shape") == panel_decals.SHAPE else COVER_GROW * min(wide, tall)
         inside = ((columns >= left - grow) & (columns <= left + wide + grow) & (rows >= top - grow)
                   & (rows <= top + tall + grow) & (faces >= 0))
         boxed = faces[inside & (columns >= left) & (columns <= left + wide) & (rows >= top) & (rows <= top + tall)]
         near, cut_part = faces[inside], mark.get("cut_part")
+        if mark.get("shape") == panel_decals.SHAPE:
+            found = panel_covered(seen, marks, mark, finish_of, part_of, (near, boxed, grow, (faces, rows, columns)),
+                                  lit)
+            moved += sum(len(printed) for _, printed, _ in found)
+            covers += [(np.union1d(printed, route_texels.carried_from(model.mesh, printed)), finish, onto)
+                       for finish, printed, onto in found]
+            if found:
+                panels.append((mark["box"], mark["on_finish"], found[0][2]))
+            continue
         if cut_part is None:
             under = print_islands(model.mesh, finish_of, mark["print_finish"],
                                   np.union1d(near, hidden_under(model, camera, size, mark["box"], grow)))
@@ -439,6 +460,84 @@ def covered_prints(seen, marks, finish_of, part_of, lit=()):
             covers.append((np.union1d(under, route_texels.carried_from(model.mesh, printed)), finish, onto))
     kept, part_of[:] = np.unique(part_of, return_inverse=True)  # parts numbered from 0 with none emptied (part_rows)
     return moved, covers, kept
+
+
+def in_panel(mark, panels):
+    """A hardware piece's cut mark (its `cut_part`) whose box's middle lies in a printed panel's box (`panels`: [(box,
+    the finish it is printed on, the part its print took)], covered_prints') given that finish and part: the cut is
+    closed under the panel's one picture (#159 round 15), not in the torn print's part round it."""
+    if mark.get("cut_part") is None:
+        return mark
+    middle = (mark["box"][0] + mark["box"][2] / 2, mark["box"][1] + mark["box"][3] / 2)
+    for (left, top, wide, tall), finish, part in panels:
+        if left <= middle[0] <= left + wide and top <= middle[1] <= top + tall:
+            return dict(mark, cut_part=part, on_finish=finish)
+    return mark
+
+
+def print_box(mark, grid, finish_of, plain):
+    """A printed panel's box [left, top, wide, tall] drawn in to its print (#159 round 15: the list's box round the
+    stove's panel held its steel rim and lip, drawn into the panel's picture as grey bands): the PRINT_TRIM to
+    1 - PRINT_TRIM quantiles of the close-up's cast pixels in it whose face is of no `plain` finish (the one it is
+    printed on, a hardware piece's, a lit one); None when under PRINT_FEWEST are."""
+    faces, rows, columns = grid
+    left, top, wide, tall = mark["box"]
+    inside = ((columns >= left) & (columns <= left + wide) & (rows >= top) & (rows <= top + tall) & (faces >= 0))
+    printed = inside & ~np.isin(finish_of[np.maximum(faces, 0)], plain)
+    if printed.sum() < PRINT_FEWEST:
+        return None
+    low = np.quantile(np.c_[columns[printed], rows[printed]], PRINT_TRIM, axis=0)
+    high = np.quantile(np.c_[columns[printed], rows[printed]], 1 - PRINT_TRIM, axis=0)
+    step = float(columns[0, 1] - columns[0, 0]) if columns.shape[1] > 1 else 1.0
+    low, high = np.maximum(low - step, [left, top]), np.minimum(high + step, [left + wide, top + tall])
+    return [int(round(low[0])), int(round(low[1])), int(round(high[0] - low[0])), int(round(high[1] - low[1]))]
+
+
+def panel_covered(seen, marks, mark, finish_of, part_of, cast_box, lit=()):
+    """[(finish, its faces moved, the part they took)] of a printed panel's mark (panel_decals.py, #159 round 15: r14's
+    gas stove's red and white panel drawn as torn pieces of its print finishes with the steel between). Its box is
+    first drawn in to its print (print_box). Then every face seen in it grown by PANEL_GROW, hidden under it
+    (hidden_under) or with its middle in it, that faces the way the panel's own faces do (within PANEL_TURN of their
+    median) and is of no hardware piece's finish nor a lit one takes the finish the panel is printed on (r15p: the
+    stove's name box was split as the grates' cast iron, drawn their dark grey) and the part of that finish seen most
+    in its box (the part most of them hold when it shows none), so its one
+    picture decal is printed over one part; the mark's `covered` the finishes moved. `cast_box`: the faces seen in its
+    box grown, those in the box, the growth and the close-up's cast grid (close_up_cast's), from covered_prints, which
+    moves them in place."""
+    model, camera, size, _ = seen
+    near, boxed, grow, grid = cast_box
+    fixed = {piece.get("print_finish") for piece in marks if piece.get("shape") == finish_ask.PIECE} | set(lit)
+    fixed = np.array(sorted(finish for finish in fixed if finish is not None), dtype=np.int64)
+    boxed = np.unique(boxed)
+    own = boxed[~np.isin(finish_of[boxed], fixed)]
+    if not len(own):
+        mark["covered"] = []
+        return []
+    facing = np.median(model.mesh.face_normals[own], axis=0)
+    facing = facing / max(float(np.linalg.norm(facing)), 1e-9)
+    tight = print_box(mark, grid, finish_of, np.union1d(fixed, [mark["on_finish"]]))
+    if tight is not None:
+        mark.update(listed_box=mark["box"], box=tight)
+    left, top, wide, tall = mark["box"]
+    middle, side = model.frame
+    where = panel_decals.projected(camera, size, model.mesh.triangles_center * side + middle)
+    turned = model.mesh.face_normals @ facing > np.cos(np.radians(PANEL_TURN))
+    boxed_all = np.flatnonzero(turned & (where[:, 0] >= left - grow) & (where[:, 0] <= left + wide + grow)
+                               & (where[:, 1] >= top - grow) & (where[:, 1] <= top + tall + grow))
+    under = np.union1d(np.union1d(near, hidden_under(model, camera, size, mark["box"], grow)), boxed_all)
+    under = under[turned[under] & ~np.isin(finish_of[under], fixed)]
+    base = own[finish_of[own] == mark["on_finish"]]
+    onto = int(np.bincount(part_of[base if len(base) else under]).argmax()) if len(under) else None
+    found = []
+    for finish in np.unique(finish_of[under]):
+        printed = under[finish_of[under] == finish]
+        if finish == mark["on_finish"] or onto is None:
+            continue
+        finish_of[printed] = mark["on_finish"]
+        part_of[printed] = onto
+        found.append((int(finish), printed, onto))
+    mark["covered"] = [finish for finish, _, _ in found]
+    return found
 
 
 def covered_texels(parts, faces, covers, finish_of_part, kept, part_of):
@@ -501,7 +600,43 @@ def inked(marks, close_up, inks):
     return found, pixels
 
 
-def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=None):
+def overlaps(first, second):
+    """True when two boxes [left, top, wide, tall] share any area."""
+    return (first[0] < second[0] + second[2] and second[0] < first[0] + first[2] and first[1] < second[1] + second[3]
+            and second[1] < first[1] + first[3])
+
+
+def panel_placed(seen, marks, placements, part_of, out, close_up, colours, inks=None, plates=None):
+    """(placements, gaps) of a take's printed panels (panel_decals.py, #159 round 15): each panel mark framed on its
+    plate, below every other mark (its layer under theirs), its picture made from the `close_up`'s own pixels with
+    the ink of each text mark placed over it (`placements`; its ink token's colour, `inks`) taken out, its colours
+    their paint's (`colours`, panel_decals.unlit's map, or as seen when None), clear where it shows the finish it is
+    printed on (`plates`, each finish's close-up CIELAB, finish_colours'), written into `out` as its `picture`."""
+    from PIL import Image
+    model, camera, size, _ = seen
+    with Image.open(close_up) as opened:
+        picture = np.asarray(opened.convert("RGBA"))
+    found, gaps = [], []
+    for number, mark in enumerate(marks):
+        if mark.get("shape") != panel_decals.SHAPE or mark.get("gap"):
+            continue
+        placement, why = panel_decals.framed(mark, number, (model, camera, size), part_of, number - len(marks))
+        if placement is None:
+            gaps.append({"what": mark.get("what", ""), "decal": None, "why": why})
+            continue
+        over = [(marks[each["layer"]].get("listed_box", marks[each["layer"]]["box"]),
+                 (inks or {}).get(marks[each["layer"]].get("ink_token"))) for each in placements
+                if each.get("shape") == "text" and overlaps(marks[each["layer"]]["box"], mark["box"])]
+        placement = dict(placement, picture=f"panel-{number:02d}.png",
+                         px_per_m=round(panel_decals.pixels(placement)[0] / placement["size"][0], 1))
+        panel_decals.drawn(placement, picture, (model, camera, size), part_of, panel_decals.erased(picture, over),
+                           colours or (lambda lab: lab), plates[mark["on_finish"]] if plates else None
+                           ).save(out / placement["picture"])
+        found.append(placement)
+    return found, gaps
+
+
+def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=None, colours=None, plates=None):
     """(placements, gaps) of a take's marks: cast through its own close-up's camera (`seen`, close_up_seen), each text
     or line mark placed and sized by its ink in the `close_up` (inked, ink_extent; `inks` the palette's
     {token: "#rrggbb"}) and its picture drawn into `out` (text_decals.drawn, its placement's `picture` that file's name
@@ -537,7 +672,8 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=N
         placements[number] = dict(placement, picture=f"{'pattern' if patterned else 'text'}-{number:02d}.png",
                                   px_per_m=drawer.density(placement))
         drawer.drawn(placements[number]).save(out / placements[number]["picture"])
-    return on_plates(placements, gaps, cast.own_mesh(model), part_of, finish_of)
+    panels, panel_gaps = panel_placed(seen, marks, placements, part_of, out, close_up, colours, inks, plates)
+    return on_plates(panels + placements, gaps + panel_gaps, cast.own_mesh(model), part_of, finish_of)
 
 
 def on_plates(placements, gaps, mesh, part_of, finish_of=None):
@@ -667,7 +803,8 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     finish_of_part[part_of] = finish_of  # the split's, before a cover moves any face
     lit = [number for number, finish in enumerate(finishes) if finish.get("family") in finish_parts.LIT_FAMILIES]
     pieces, piece_gaps = take_hardware(seen, [mark for mark in marks if mark.get("shape") == finish_ask.PIECE],
-                                       finish_of, part_of, folders.get("close_up"))
+                                       finish_of, part_of, folders.get("close_up"),
+                                       [mark for mark in marks if mark.get("shape") == panel_decals.SHAPE])
     marks = cut_marks(marks, pieces, seen[0], finish_of, part_of)
     covered, covers, kept = covered_prints(seen, marks, finish_of, part_of, lit) if seen[0] is not None \
         else (0, [], None)
@@ -683,13 +820,27 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
         row["settings"] = grained(route_settings.applied(finish), finish, mesh, part_of == row["part"])
     part_wear(rows, checked, mesh, part_of, finish_of)
     printed = [mark for mark in marks if mark.get("shape") != finish_ask.PIECE]
-    decals, decal_gaps = take_decals(seen, printed, part_of, folders["out"], inks, folders.get("close_up"), finish_of)
+    decals, decal_gaps = take_decals(seen, printed, part_of, folders["out"], inks, folders.get("close_up"), finish_of,
+                                     panel_colours(printed, finishes, colours), colours)
     return {"method": METHOD, "object": entry.get("object"), "parts": rows, "judge_unknown": [], "finishes": checked,
             "colour_from": colour_from, "decals": decals, "decal_gaps": decal_gaps, "hardware": pieces,
             "hardware_gaps": piece_gaps,
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked),
                          "decals": len(decals), "decal gaps": len(decal_gaps), "print faces covered": covered,
                          "hardware": len(pieces), "hardware gaps": len(piece_gaps)}}
+
+
+def panel_colours(marks, finishes, colours):
+    """The map from a printed panel's close-up colours to its paint's (panel_decals.unlit) fitted on the finishes its
+    marks covered (panel_covered's `covered`; a metal one left out, its colour what it reflects), each its close-up
+    colour (`colours`, finish_colours') against its palette token; None when no panel covered a finish with both."""
+    import route_cast as cast
+    numbers = sorted({finish for mark in marks for finish in mark.get("covered", ())})
+    pairs = [(colours[number], cast.lab_of([[int(token[at:at + 2], 16) for at in (1, 3, 5)]])[0], 1.0)
+             for number in numbers if colours[number] is not None
+             for token in [((finishes[number].get("settings") or {}).get("token") or "")]
+             if len(token) == 7 and float((finishes[number].get("settings") or {}).get("metal") or 0.0) < 0.5]
+    return panel_decals.unlit(pairs) if pairs else None
 
 
 def grained(settings, finish, mesh, faces):
@@ -729,10 +880,11 @@ def cut_marks(marks, pieces, model, finish_of, part_of):
     return found
 
 
-def take_hardware(seen, marks, finish_of, part_of, close_up):
+def take_hardware(seen, marks, finish_of, part_of, close_up, panels=()):
     """(placements, gaps) of a take's hardware marks (#212, hardware_pieces.placements) cast through its own
-    close-up's camera (`seen`, close_up_seen) and measured on that `close_up`; a take whose close-up cannot be cast
-    lays none, each mark a gap naming why."""
+    close-up's camera (`seen`, close_up_seen) and measured on that `close_up`, each printed panel's (`panels`, its
+    marks) box and the finishes seen in it given (a cut inside it tears no print: the panel's picture is printed over
+    it, #159 round 15); a take whose close-up cannot be cast lays none, each mark a gap naming why."""
     if not marks:
         return [], []
     model, camera, size, why = seen
@@ -741,7 +893,13 @@ def take_hardware(seen, marks, finish_of, part_of, close_up):
     from PIL import Image
     with Image.open(close_up) as shown:
         picture = np.asarray(shown.convert("RGBA"))
-    return hardware_pieces.placements(marks, model, camera, size, finish_of, part_of, picture)
+    printed = []
+    for panel in panels:
+        if panel.get("gap"):
+            continue
+        faces, _ = cast.cast_points(model, camera, size, panel_decals.box_grid(panel["box"]))
+        printed.append((panel["box"], {int(finish) for finish in np.unique(finish_of[faces[faces >= 0]])}))
+    return hardware_pieces.placements(marks, model, camera, size, finish_of, part_of, picture, printed)
 
 
 def make_parts(inputs, out, seed, params):

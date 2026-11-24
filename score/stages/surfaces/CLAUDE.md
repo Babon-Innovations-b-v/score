@@ -69,6 +69,16 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   look and the place's bake draw it (tools/props/library/inside/bake.pressed_under, cards_over); a mark whose plate is not flat
   is left `open`. A hole TRELLIS.2 cut through a closed mark's plate outside every closed region (r13's black dot above
   each locker vent) is closed too, a box of its own in the nearest mark's `also` (`holes_closed`, a plate cast once).
+  **Printed panels** (#159 round 15, r14's gas stove: its red and white control panel drawn as torn white and red
+  pieces with a grey box): a printed area of several inks on one flat face is one mark of shape `panel`
+  (finish_ask.PANEL), its words still text marks. `surfaces-parts` covers every face under it that faces its plate
+  (route_parts.panel_covered: its box first drawn in to its print, `print_box`; a hardware piece's and a lit finish
+  kept), frames it on its plate (panel_decals.framed) and draws its picture from the close-up's own pixels rectified
+  onto that plate (panel_decals.drawn: what stands in front filled, a placed text mark's ink taken out, clear where it
+  shows the plate's own finish, its colours mapped to the list's tokens by `unlit`), laid under every other mark with
+  a print `reach` of 8 mm (recipes.decal_depth). A word whose library face lacks a glyph is a gap (text_decals.missing:
+  the stove's 爐), so the panel's own pixels show it. A hardware cut inside a panel tears none of its finishes
+  (hardware_pieces.panel_finishes) and is closed in the panel's part (route_parts.in_panel).
   **Small hardware** (#212: TRELLIS.2 turns a locker's small hex cam locks into big round blobs, a stove's knobs into
   lumps) is laid as library pieces: score_lib's `model` entries of family `hardware` (`score-lib hardware cut`, a
   lock, knob, handle, hinge or latch cut from an adopted NVIDIA model, its credit carried; `decal_library.hardware`)

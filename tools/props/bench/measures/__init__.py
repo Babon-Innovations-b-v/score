@@ -20,6 +20,8 @@ asset it was made from, every measure a plain number, each judged at its bar.
                                                           alone (the 2099 cockpit cases, #159), at PICTURED_BARS
     text_read(marks)                                  -> {"read", "misread"}: the share of the close-up's words
                                                           read back where its look drew them (#185)
+    printed(look, nvidia, panels)                     -> {"printed", "panels"}: each printed panel drawn whole and in
+                                                          its colours, held to NVIDIA's look (#159 round 15)
 
 `truth` and `made` are plain dicts, metres, Z up: {"vertices" (N, 3), "faces" (T, 3), "face_material" (T,) material
 or part per face, "face_seen" (T,) the made face's pixels in its look (its specks only those drawn, _edges),
@@ -161,6 +163,12 @@ BARS = (
     # an edge within 1.5 cut radii grew). r13's locker, its lock blobs closed to their points: 4.2 to 9.2 at its four
     # locks, drawn as white cracks and starbursts round two; pressed onto their plate (r14l) 1.05 to 1.09.
     ("look", "stretched", "most", 1.5),
+    # A printed panel drawn whole and in its colours (printed, #159 round 15: r14's gas stove's red and white panel
+    # came out as torn white and red pieces with a grey box): the least, over its panels, of the share of the made
+    # panel's pixels near NVIDIA's inks there and one less how far its inks' shares lie from NVIDIA's. Calibration
+    # (2026-11-24, the stove's front panel, r15p's box): NVIDIA's look against itself 0.96; r14's torn look 0.75
+    # (0.75 of its pixels near, its shares 0.22 off).
+    ("look", "printed", "least", 0.80),
 )
 
 
@@ -352,6 +360,63 @@ def text_read(marks):
     misread = [{"text": mark["text"], "read": mark["read"]} for mark in marks
                if label_words(mark["read"]) != label_words(mark["text"])]
     return {"read": round(1 - len(misread) / len(marks), 4), "misread": misread}
+
+
+# printed (#159 round 15): NVIDIA's look of a panel's box is cut into PRINT_INKS colours (k-means in CIELAB, PRINT_ROUNDS
+# rounds from its lightness quantiles); the made look's panel is held to them: the share of its pixels within
+# PRINT_NEAR (CIE76) of one, and how far its share of each lies from NVIDIA's (half the summed difference). The two
+# looks are framed each on its own model's box, so a made pixel is never compared with NVIDIA's at its place.
+PRINT_INKS = 6
+PRINT_ROUNDS = 20
+PRINT_NEAR = 15.0
+
+
+def lab_picture(picture):
+    """An RGBA picture (0-255) laid on the look's grey ground (200), as CIELAB."""
+    from tools.props.library import labels
+    rgba = np.asarray(picture, dtype=float) / 255.0
+    flat = rgba[..., :3] * rgba[..., 3:] + (200 / 255.0) * (1 - rgba[..., 3:])
+    return labels.lab(flat)
+
+
+def inks_of(pixels, count=PRINT_INKS):
+    """`count` colours the CIELAB `pixels` are cut into (k-means, started at their lightness quantiles)."""
+    order = np.argsort(pixels[:, 0])
+    centres = pixels[order[np.linspace(0, len(pixels) - 1, count).astype(int)]]
+    for _ in range(PRINT_ROUNDS):
+        nearest = np.argmin(((pixels[:, None] - centres[None]) ** 2).sum(-1), 1)
+        centres = np.array([pixels[nearest == ink].mean(0) if (nearest == ink).any() else centres[ink]
+                            for ink in range(count)])
+    return centres
+
+
+def ink_shares(pixels, centres):
+    """(each pixel's distance to its nearest of `centres`, the share of the pixels nearest each)."""
+    apart = np.sqrt(((pixels[:, None] - centres[None]) ** 2).sum(-1))
+    return apart.min(1), np.bincount(apart.argmin(1), minlength=len(centres)) / max(len(pixels), 1)
+
+
+def printed(look, nvidia, panels):
+    """{"printed": the least over `panels` of min(the share of the made `look`'s pixels in the panel within PRINT_NEAR
+    of one of NVIDIA's inks there, 1 - how far its inks' shares lie from NVIDIA's), "panels": each one's [near,
+    apart]} or None with no panel. `panels`: [(the made look's mask of the panel, NVIDIA's look's mask of it)]; `look`
+    and `nvidia` RGBA 0-255. A panel drawn in torn pieces of its inks with the plate between them, or in other colours,
+    holds few of its pixels near NVIDIA's inks or shares them otherwise."""
+    if not panels:
+        return None
+    made, truth = lab_picture(look), lab_picture(nvidia)
+    found = []
+    for own, theirs in panels:
+        if not own.any() or not theirs.any():
+            continue
+        centres = inks_of(truth[theirs])
+        apart, shares = ink_shares(made[own], centres)
+        _, truth_shares = ink_shares(truth[theirs], centres)
+        found.append([round(float((apart <= PRINT_NEAR).mean()), 4),
+                      round(float(np.abs(shares - truth_shares).sum() / 2), 4)])
+    if not found:
+        return None
+    return {"printed": round(min(min(near, 1 - apart) for near, apart in found), 4), "panels": found}
 
 
 def picks(made, classes, never):

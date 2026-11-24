@@ -537,6 +537,16 @@ tests it turned red:
   holes_closed's `in_frame(...)` -> the hole's box as cast (laid in the wrong vent's frame), its nearest mark ->
   `group[0]` (the hole closed by the far vent); plate_holes' `height < -HOLE_DEEP` -> `< -0.5` (the hole through
   to the wall 0.3 m behind not seen) (#159 r13, r14l).
+- Printed panels (#159 round 15), each -> every_part_takes_a_library_surface_and_is_held_to_it (panels_held):
+  finish_ask.py marks_of's `elif shape == PANEL:` -> `elif False:` (the panel read as a picture mark, a gap);
+  drawn_gap's `if lacking:` -> `if False:` (the stove's 爐 set as an empty box); route_parts.py covering's panel
+  branch -> `if False:` (a panel naming no print finish covers nothing); decal_placements' panel skip -> `if False:`
+  (the panel a gap, "no library decal named"); hardware_pieces.py panel_finishes' box test -> `if True` (a knob's
+  cut outside the panel let tear the print); route_parts.py in_panel's `dict(mark, cut_part=part, ...)` -> `mark`
+  (the knob's cut closed in the torn print's part); print_box's `& ~np.isin(...)` dropped (the box held the steel
+  rim); panel_decals.py erased's `<` -> `>` (the maroon taken out, the word left); unlit's `if kept.any():` -> `if
+  False:` (the yellow ink read white darkened the white); unlit's lightness line -> `lab[..., 0]` (the close-up's
+  light left on)
 - Hardware pieces (#212), each -> every_part_takes_a_library_surface_and_is_held_to_it (hardware_marks_held):
   finish_ask.py piece_row's `if found else "no library hardware piece named"` -> `None` (a mark naming no piece laid,
   TypeError); marks_of `(*SHAPES, PATTERN, PIECE)` -> `(*SHAPES, PATTERN)` (a lock read as a picture mark, no
@@ -608,7 +618,8 @@ from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, close_up_fit,  # noqa: E402
-                                   decal_library, decal_plates, hardware_pieces, pattern_decals, text_decals,
+                                   decal_library, decal_plates, hardware_pieces, panel_decals, pattern_decals,
+                                   text_decals,
                                    finish_ask, finish_parts,
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
@@ -2816,6 +2827,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     pattern_marks_held()  # vent and perforation patterns drawn from a library pattern, never TRELLIS.2's bumps (#210)
     plates_held()  # the made shape under a mark flat and closed, a pattern moved off a seam (#159 round 13)
     hardware_marks_held()  # small locks and knobs laid as library pieces, TRELLIS.2's blobs cut away (#212)
+    panels_held()  # a printed panel one picture decal from the close-up, its print covered whole (#159 round 15)
 
 
 # A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
@@ -3184,6 +3196,55 @@ def hardware_plate(folder):
     path = pathlib.Path(folder) / "plate.glb"
     trimesh.Trimesh(vertices, np.asarray(faces), process=False).export(path)
     return route_cast.loaded(path)
+
+
+def panels_held():
+    """Printed panels (#159 round 15, r14's gas stove: its red and white panel torn into pieces of its inks with a
+    grey box): the list reads one as a mark of shape panel with no library decal and no gap, and a word its library
+    face has no glyph for a gap (set, it printed an empty box); the panel covers every print under it with no print
+    finish named, a hardware piece's cut inside it tears none of its finishes and is closed in its part; its box is
+    drawn in to its print; a text mark's whole ink is taken out of its picture; its colours are mapped to the list's
+    tokens, a finish read off another colour setting nothing."""
+    listed = {"box_2d": [400, 100, 600, 900], "what": "control panel", "shape": "panel", "ink": "many", "on_finish": 1,
+              "print_finish": 2}
+    named = {"box_2d": [450, 400, 500, 500], "what": "name", "shape": "text", "ink": "one", "ink_token": "#f0f0f0",
+             "look": "bold sans", "on_finish": 2, "text": "瓦斯爐"}
+    marked = finish_ask.marks_of({"marks": [listed, named, dict(named, text="瓦斯炉")]}, [], 3, (1000, 1000),
+                                 text_decals.FONTS)
+    assert [(mark["shape"], mark["decal"], mark["gap"]) for mark in marked] == [
+        ("panel", None, None), ("text", None, "the library face for 'bold sans' has no glyph for 爐"),
+        ("text", None, None)], marked
+    assert "panel" in finish_ask.mark_schema([], ["steel"], text_decals.FONTS)["items"]["properties"]["shape"]["enum"]
+    assert route_parts.covering(dict(marked[0], print_finish=None)) and not route_parts.covering(
+        dict(marked[0], gap="no"))
+    placed, gaps = route_parts.decal_placements(marked[:1], np.zeros(1, dtype=int), np.zeros((1, 3)),
+                                                lambda pixels: (None, None), "close-up")
+    assert (placed, gaps) == ([], []), (placed, gaps)  # placed on its plate by take_decals alone
+    printed = [((100, 400, 800, 200), {0, 1, 2})]
+    assert hardware_pieces.panel_finishes((440, 450, 40, 40), printed) == [0, 1, 2]
+    assert hardware_pieces.panel_finishes((50, 450, 40, 40), printed) == []
+    panels = [((100, 400, 800, 200), 1, 7)]
+    assert route_parts.in_panel({"box": (440, 450, 40, 40), "cut_part": 3, "on_finish": 2}, panels) == {
+        "box": (440, 450, 40, 40), "cut_part": 7, "on_finish": 1}
+    assert route_parts.in_panel({"box": (40, 450, 40, 40), "cut_part": 3, "on_finish": 2}, panels)["cut_part"] == 3
+    columns, rows = np.meshgrid(np.arange(0, 1000, 4), np.arange(0, 1000, 4))
+    finish_of = np.array([0, 1, 2, 3])
+    faces = np.where((columns >= 100) & (columns <= 900) & (rows >= 400) & (rows <= 600), 1, -1)
+    faces[(columns >= 300) & (columns < 700) & (rows >= 450) & (rows < 550)] = 2  # the print, inside a loose box
+    tight = route_parts.print_box({"box": [100, 400, 800, 200]}, (faces, rows, columns), finish_of, [1])
+    assert 290 <= tight[0] <= 302 and 440 <= tight[1] <= 452 and 396 <= tight[2] <= 412 and 96 <= tight[3] <= 108, tight
+    picture = np.zeros((100, 100, 4), dtype=np.uint8)
+    picture[...] = (110, 30, 40, 255)
+    picture[40:60, 20:80] = (240, 240, 240, 255)  # a white word of 1,200 pixels in a maroon box
+    mask = panel_decals.erased(picture, [((10, 30, 80, 40), "#f0f0f0")])
+    assert mask[40:60, 20:80].all() and not mask[:30].any(), mask.sum()
+    token = lambda hex_colour: route_cast.lab_of([[int(hex_colour[at:at + 2], 16) for at in (1, 3, 5)]])[0]  # noqa
+    pairs = [((100.0, 0.0, 0.0), token("#e0e0e0"), 1.0), ((57.7, 53.3, 22.2), token("#a03030"), 1.0)]
+    mapped = panel_decals.unlit(pairs)
+    misread = panel_decals.unlit(pairs + [((100.0, 0.0, 0.0), token("#b88820"), 1.0)])
+    white, red = mapped(np.array([[100.0, 0.0, 0.0], [57.7, 53.3, 22.2]]))
+    assert abs(white[0] - token("#e0e0e0")[0]) < 2 and abs(red[0] - token("#a03030")[0]) < 2, (white, red)
+    assert np.allclose(misread(np.array([100.0, 0.0, 0.0])), white), misread(np.array([100.0, 0.0, 0.0]))
 
 
 def hardware_marks_held():

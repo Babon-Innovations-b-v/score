@@ -87,7 +87,10 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   _shape.edge_length reading the outline with its holes filled: the pegboard melted shut passes (the tool cart's).
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail;
   without its look.stretched row (#212, r14l) -> the locks closed to their points (r13's cracks) pass, its bar 1.5 ->
-  5.0 -> the same; PICTURED_BARS without it -> the pictured lock closed to its point passes.
+  5.0 -> the same; PICTURED_BARS without it -> the pictured lock closed to its point passes; without its look.printed
+  row (#159 round 15) -> the whole panel has no row (KeyError); printed's `(apart <= PRINT_NEAR).mean()` -> `1.0` ->
+  the torn panel passes; its `min(near, 1 - apart)` -> `near` -> the blank white panel passes; PRINT_INKS 6 -> 1 ->
+  the whole panel fails.
 - _joints (#177, the hung cabinet: the box with a door slab hinged on its left edge; NVIDIA's hinge about -z, limits -90
   to 0): moving_bodies taking a joint's body0 (the carcass) -> the door cut as NVIDIA's fails its faces;
   count_gap never counting
@@ -655,6 +658,11 @@ CASES = [
      "look.stretched", False),
     ("its locks' blobs pressed onto their plate (r14l)", lambda: {"look": {"stretched": 1.09}}, "look.stretched",
      True),
+    ("its panel drawn whole in its inks, framed lower", lambda: panel_look("whole"), "look.printed", True),
+    ("its panel torn into pieces with the steel between (r14's stove)", lambda: panel_look("torn"), "look.printed",
+     False),
+    ("its panel's white drawn grey", lambda: panel_look("grey"), "look.printed", False),
+    ("its panel's swoosh and name box lost under white", lambda: panel_look("blank"), "look.printed", False),
     ("pictured: the box as its close-up shows it", lambda: pictured(box()), None, True),
     ("pictured: its outline off the close-up", lambda: pictured(box(), fit=0.8), "shape.closeup", False),
     ("pictured: 20% too big all round", lambda: pictured(box((0.6, 0.48, 0.96))), "size.size", False),
@@ -687,6 +695,35 @@ CASES = [
     ("pictured: its lock's blob closed to its point", lambda: pictured(box(), seen={"look": {"stretched": 4.23}}),
      "look.stretched", False),
 ]
+
+
+def panel_look(kind):
+    """The look group of a made look's printed panel held to NVIDIA's (measures.printed, #159 round 15): NVIDIA's
+    panel white over a red swoosh band beside a maroon name box (120 x 200 px); the made one the same drawn 10 px
+    lower in its own framing, `whole`, or `torn` (a third of it in squares of the steel's grey between its inks), or
+    `grey` (its white drawn as #a0a0a0), or `blank` (its swoosh and box drawn in its white: every pixel one of its
+    inks, their shares not)."""
+    def panel():
+        picture = np.zeros((120, 200, 4), dtype=np.uint8)
+        picture[...] = (245, 245, 245, 255)
+        picture[70:110] = (200, 30, 40, 255)
+        picture[20:80, 80:130] = (100, 30, 35, 255)
+        return picture
+    truth, made = np.zeros((160, 240, 4), dtype=np.uint8), np.zeros((160, 240, 4), dtype=np.uint8)
+    truth[10:130, 20:220] = panel()
+    drawn = panel()
+    if kind == "torn":
+        for row in range(0, 120, 20):
+            for column in range((row // 20) % 2 * 20, 200, 60):
+                drawn[row:row + 20, column:column + 20] = (150, 150, 150, 255)
+    if kind == "grey":
+        drawn[(drawn[..., :3] == 245).all(-1)] = (160, 160, 160, 255)
+    if kind == "blank":
+        drawn[...] = (245, 245, 245, 255)
+    made[20:140, 20:220] = drawn
+    theirs, own = np.zeros(truth.shape[:2], dtype=bool), np.zeros(truth.shape[:2], dtype=bool)
+    theirs[10:130, 20:220], own[20:140, 20:220] = True, True
+    return {"look": {"printed": measures.printed(made, truth, [(own, theirs)])["printed"]}}
 
 
 def case_found(index):

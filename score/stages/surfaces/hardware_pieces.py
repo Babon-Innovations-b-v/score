@@ -312,9 +312,10 @@ def torn(model, placement, finish_of, own):
     return sorted({int(finish) for finish in finish_of[moved[outside & flat]]} - kept)
 
 
-def placement(mark, number, model, seen, finish_of, part_of, taken):
+def placement(mark, number, model, seen, finish_of, part_of, taken, printed=()):
     """One hardware mark's placement (module docstring), or (None, why it cannot be laid); `seen` the close-up's
-    (camera, size, picture RGBA), `taken` the blobs other pieces cut (blob_cut)."""
+    (camera, size, picture RGBA), `taken` the blobs other pieces cut (blob_cut), `printed` the printed panels' boxes
+    and the finishes seen in each (panel_finishes)."""
     camera, size, picture = seen
     mark = dict(mark, box=piece_box(mark["box"], picture))
     normal, offset, part = face_round(mark, model, camera, size, finish_of, part_of)
@@ -345,12 +346,21 @@ def placement(mark, number, model, seen, finish_of, part_of, taken):
             "cut": {"at": rounded(cut_at), "radius": round(radius, 5), "depth": CUT_DEPTH, "rise": round(rise, 5),
                     "falloff": round(falloff, 4), "edge_turn": EDGE_TURN, "stands": CUT_STANDS},
             "what": mark.get("what", ""), "from": {"close_up_box": mark["box"], "seen": "close-up"}}
-    tears = torn(model, laid, finish_of, (mark["on_finish"], own))
+    tears = torn(model, laid, finish_of, (mark["on_finish"], own, *panel_finishes(mark["box"], printed)))
     if tears:
         return None, f"its cut would tear the print round it (finishes {tears} outside its footprint)"
     laid["cut"]["closed"] = cut_closed(model, part_of == part, cut_at, normal, up, (radius * (1 - falloff), radius),
                                        rise)
     return laid, None
+
+
+def panel_finishes(box, printed):
+    """The finishes seen in each printed panel's box ([(box, finishes)], route_parts.take_hardware) whose box holds
+    the middle of a piece's `box`: its cut tears none of them, the panel's one picture is printed over the cut (#159
+    round 15: r14's stove knobs left TRELLIS.2's blobs, their cuts said to tear the panel's red, white and orange)."""
+    middle = (box[0] + box[2] / 2, box[1] + box[3] / 2)
+    return sorted({finish for (left, top, wide, tall), finishes in printed
+                   if left <= middle[0] <= left + wide and top <= middle[1] <= top + tall for finish in finishes})
 
 
 def cut_faces(model, placement):
@@ -365,7 +375,7 @@ def cut_faces(model, placement):
     return np.flatnonzero((across < cut["radius"]) & (height > -cut["depth"]) & (height < cut["rise"]))
 
 
-def placements(marks, model, camera, size, finish_of, part_of, picture):
+def placements(marks, model, camera, size, finish_of, part_of, picture, printed=()):
     """([placement], [gap]) of a take's hardware marks (shape finish_ask.PIECE) cast through its own close-up
     (`model` a route_cast.Model, `camera` close_up_camera's, `size` the close-up's, `picture` it, RGBA 0-255);
     `finish_of` and `part_of` each face's finish and part. A mark with a gap, or that cannot be laid, is a gap naming
@@ -375,7 +385,7 @@ def placements(marks, model, camera, size, finish_of, part_of, picture):
         if mark.get("gap"):
             gaps.append({"what": mark.get("what", ""), "hardware": mark.get("hardware"), "why": mark["gap"]})
             continue
-        laid, why = placement(mark, number, model, (camera, size, picture), finish_of, part_of, taken)
+        laid, why = placement(mark, number, model, (camera, size, picture), finish_of, part_of, taken, printed)
         if laid is None:
             gaps.append({"what": mark.get("what", ""), "hardware": mark["hardware"], "why": why})
         else:

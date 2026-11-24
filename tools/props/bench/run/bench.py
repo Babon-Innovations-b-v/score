@@ -773,8 +773,10 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalib
         with Image.open(folder / "look.png") as drawn:
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
         closed = json.loads((folder / "closed.json").read_text())  # look.py's: its cuts' stretch (#212)
-        (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png", folder / "bare.png"),
-                                                       "stretched": closed["stretched"]}))
+        found = {"holes": look_holes(folder / "look.png", folder / "bare.png"), "stretched": closed["stretched"]}
+        if nvidia is not None and close_up is not None:  # each printed panel held to NVIDIA's (#159 round 15)
+            found.update(panels_printed(folder, nvidia, parted, row["id"], close_up))
+        (folder / "holes.json").write_text(json.dumps(found))
         finish.marks_read(folder, ask)
         sheet([path for path in (nvidia, folder / "look.png", close_up) if path is not None], folder / "sheet.png")
     return make
@@ -874,6 +876,60 @@ def exposure_held(look, close_up):
     return {"look": {"lightness": round(light, 4), "clipped": round(clipped, 4)},
             "close_up": {"lightness": round(light_given, 4), "clipped": round(clipped_given, 4)},
             "gap": round(gap, 4), "held": abs(gap) <= LIGHT_REACH and clipped <= clipped_given + CLIP_SLACK}
+
+
+def look_frame(job, box):
+    """(eye, right, up, back, focal in pixels) of look.py's camera (its `framed`): on the close-up's view (`job`'s eye,
+    aim, up: finish.look_axes) at its vertical `fov`, framing the model's `box` ([low, high], Blender's frame)."""
+    low, high = np.asarray(box[0], dtype=float), np.asarray(box[1], dtype=float)
+    right, up, back = finish.look_axes(job)
+    radius = float(np.linalg.norm(high - low)) / 2
+    eye = (low + high) / 2 + back * radius / math.sin(math.radians(job["fov"]) / 2) * 1.05
+    return eye, right, up, back, job["side"] / 2 / math.tan(math.radians(job["fov"]) / 2)
+
+
+def panel_corners(decal, frame, side):
+    """A panel decal's four corners ([column, row] in the look) seen through look_frame's `frame`."""
+    eye, right, up, back, focal = frame
+    at, normal, upward = (np.asarray(finish.z_up(decal[name]), dtype=float) for name in ("at", "normal", "up"))
+    across = np.cross(upward, normal)
+    wide, tall = decal["size"]
+    corners = []
+    for sideways, rising in ((-1, 1), (1, 1), (1, -1), (-1, -1)):
+        reach = at + across * sideways * wide / 2 + upward * rising * tall / 2 - eye
+        depth = -float(reach @ back)
+        corners.append((side / 2 + focal * float(reach @ right) / depth, side / 2 - focal * float(reach @ up) / depth))
+    return corners
+
+
+def panels_printed(looked, nvidia, parted, take, close_up):
+    """{"printed", "printed_panels"} of a look step's folder `looked` (measures.printed, #159 round 15): each printed
+    panel the finish `parted` laid (parts.json's decals of shape panel) as the look drew it (its corners through the
+    look's camera: look.json and the model's box look.py logged) against NVIDIA's look (`nvidia`) in its close-up box
+    (the close-up `close_up`'s pixels scaled to the look's); {} with no panel."""
+    from PIL import Image, ImageDraw
+    from tools.props.bench import measures
+    listed = json.loads((parted / "surfaces-parts" / "parts.json").read_text())["takes"][take]
+    decals = [decal for decal in listed.get("decals", []) if decal.get("shape") == "panel"]
+    if not decals:
+        return {}
+    job = json.loads((looked / "look.json").read_text())
+    logged = [line for line in (looked / "blender.log").read_text(errors="replace").splitlines()
+              if line.startswith("LOOK ")]
+    frame = look_frame(job, json.loads(logged[-1][len("LOOK "):])["box"])
+    with Image.open(close_up) as given:
+        scale = job["side"] / given.width
+    panels = []
+    for decal in decals:
+        own = Image.new("L", (job["side"], job["side"]))
+        ImageDraw.Draw(own).polygon(panel_corners(decal, frame, job["side"]), fill=1)
+        left, top, wide, tall = (value * scale for value in decal["from"]["close_up_box"])
+        theirs = Image.new("L", (job["side"], job["side"]))
+        ImageDraw.Draw(theirs).rectangle((left, top, left + wide, top + tall), fill=1)
+        panels.append((np.asarray(own) > 0, np.asarray(theirs) > 0))
+    with Image.open(looked / "look.png") as drawn, Image.open(nvidia) as truth:
+        found = measures.printed(np.asarray(drawn.convert("RGBA")), np.asarray(truth.convert("RGBA")), panels)
+    return {} if found is None else {"printed": found["printed"], "printed_panels": found["panels"]}
 
 
 def look_holes(look, bare):

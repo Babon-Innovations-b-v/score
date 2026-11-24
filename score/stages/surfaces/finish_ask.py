@@ -75,16 +75,19 @@ glass, lamp light, screens and print are judged by what they are, not by this co
 
 # Added to the route's list question (route_list.py, score #164, #171): the printed marks a part carries, each placed
 # later by free code (route_parts.decal_placements): words, numbers and plain lines drawn as text decals in a library
-# face (text_decals.py: a route's texture garbles them), any other mark printed from a library decal, never cut from the
-# close-up.
+# face (text_decals.py: a route's texture garbles them), a printed panel of many inks as one picture decal made from the
+# close-up's own pixels on its plate (panel_decals.py, #159 round 15), any other mark printed from a library decal.
 MARKS = """
 Last, list the printed marks you see on the object in the first picture: words, numbers, plain printed lines or bars,
 labels, logos, warning signs, button and key legends, stickers. For each give its box in that picture as
 [ymin, xmin, ymax, xmax] from 0 to 1000, tight round its ink, what it is in a few words, and its shape: "text" for words
 or numbers (each line of text its own mark, its exact words in "text" as printed, and the look of its typeface, the
 nearest of: {looks}), "rule" for a plain straight printed line or bar, "picture" for anything else (a logo, an icon, a
-label with a picture of its own). Say whether it is printed in one ink or many (a one-ink mark: the palette token
-nearest its ink), the finish (its number in your list, from 1) it is printed on, and "print_finish": the number of the
+label with a picture of its own), "panel" for a printed panel or sticker: a printed area holding several inks
+together on one flat face (coloured bands or swooshes, a name box, scale arcs, words and pictures side by side), one
+mark for the whole printed area, its box tight round the whole print, while each line of its words is still a text
+mark of its own and each knob or dial on it a mark of its own. Say whether it is printed in one ink or many (a
+one-ink mark: the palette token nearest its ink), the finish (its number in your list, from 1) it is printed on, and "print_finish": the number of the
 finish in your list that is this print itself, when you listed the print as a finish of its own, else 0. Leave out marks
 you cannot see clearly.{decals}"""
 DECALS_TEXT = """
@@ -116,7 +119,8 @@ mounted on, and "print_finish" the finish in your list that is the piece itself 
 The library's hardware pieces:
 {pieces}"""
 BOX_SCALE = 1000.0  # a mark's box in thousandths of the close-up's height and width
-SHAPES = ("text", "rule", "picture")
+SHAPES = ("text", "rule", "picture", "panel")
+PANEL = "panel"  # a printed panel (#159 round 15): one picture decal made from the close-up's own pixels
 PATTERN = "pattern"  # a mark of openings (#210), offered when the library holds patterns
 PIECE = "hardware"  # a mark of a small hardware piece (#212), offered when the library holds hardware pieces
 OPENING_SHARE = (0.05, 0.95)  # an opening's width as a share of its spacing, held inside these
@@ -196,6 +200,12 @@ def drawn_gap(mark, looks):
         return "a text mark names no words"
     if mark.get("shape") == "text" and mark.get("look") not in looks:
         return f"its typeface look {mark.get('look')!r} is none the library has a face for"
+    if mark.get("shape") == "text":
+        import text_decals
+        lacking = text_decals.missing(str(mark["text"]).strip(), mark["look"]) if mark["look"] in text_decals.FONTS \
+            else ""
+        if lacking:  # set, it would print an empty box; a panel under it keeps the close-up's own letters
+            return f"the library face for {mark['look']!r} has no glyph for {lacking}"
     if mark.get("ink") != "one":
         return "a text or line mark printed in many inks"
     if not mark.get("ink_token"):
@@ -283,6 +293,8 @@ def marks_of(answer, decals, finishes, close_up_size, looks=(), patterns=(), pie
             row.update(text=None, look=None, **pattern_row(mark, patterns))
         elif shape == PIECE:
             row.update(piece_row(mark, pieces))
+        elif shape == PANEL:  # its picture made from the close-up (panel_decals.py), never a library decal named
+            row.update(text=None, look=None, decal=None, gap=None)
         elif shape in ("text", "rule"):
             gap = drawn_gap(mark, looks)
             row.update(text=str(mark.get("text") or "").strip() if shape == "text" else None,

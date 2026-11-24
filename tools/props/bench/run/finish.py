@@ -546,7 +546,7 @@ def look_job(folder, take, model, camera, out):
             "normal": z_up(decal["normal"]), "up": z_up(decal["up"]), "size_m": decal["size"],
             "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0), "text": decal.get("text"),
             "depth": decal.get("depth", 0.0),
-            **{name: decal[name] for name in ("roughness", "relief") if decal.get(name) is not None},
+            **{name: decal[name] for name in ("roughness", "relief", "reach") if decal.get(name) is not None},
             **({"closed": dict(decal["closed"], plate_point=z_up(decal["closed"]["plate_point"]))}
                if decal.get("closed") else {}),
             "ink": surface_library.linear(decal["ink_token"]) if decal.get("ink_token") else None})
