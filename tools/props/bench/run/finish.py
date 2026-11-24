@@ -356,11 +356,23 @@ def clear_picture(out):
     return path
 
 
+def look_axes(camera):
+    """The look camera's (right, up, back) unit rows in Blender's frame from the close-up's `camera` (eye, aim, up):
+    its own up, so a flat row seen from straight above has +y up (#159: a fixed +z up crossed with a straight-down
+    view is zero, and the ceiling task light's look came out empty)."""
+    back = np.subtract(camera["eye"], camera["aim"])
+    back = back / np.linalg.norm(back)
+    right = np.cross(camera["up"], back)
+    right = right / np.linalg.norm(right)
+    return right, np.cross(back, right), back
+
+
 def look_job(folder, take, model, camera, out):
     """The finish's look drawn as the bake paints it (#182): one job for look.py, written into `out` with a mask a
     slot (`mask-<n>.png`), from the finish `folder`'s parts (surfaces-parts: parts.json and the take's texels.npz),
     each slot's recipe spec (part_spec) mixed by its texel mask on the made `model`'s own UVs, its own vertex normals
-    kept (the model drawn whole, never part by part), from the close-up's `camera` ({eye, aim, fov}, Blender's frame).
+    kept (the model drawn whole, never part by part), from the close-up's `camera` ({eye, aim, up, fov}, Blender's
+    frame); and the mesh alone (`bare.png`) for the holes check.
     A take with no texels.npz, or texels of more than one picture, has no look here: the raised reason says so."""
     import library as surface_library
     import route_texels
@@ -394,6 +406,6 @@ def look_job(folder, take, model, camera, out):
         masks.append({"slot": slot, "mask": str(out / f"mask-{number}.png"), "share": round(float(mask.mean() / 255), 4),
                       "spec": spec})
     job = {"glb": str(model), "masks": masks, **camera, "side": LOOK_SIDE, "samples": LOOK_SAMPLES,
-           "out": str(out / "look.png")}
+           "out": str(out / "look.png"), "bare": str(out / "bare.png")}
     (out / "look.json").write_text(json.dumps(job, indent=1, default=float))
     return out / "look.json"

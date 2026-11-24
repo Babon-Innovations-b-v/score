@@ -1,7 +1,10 @@
 """Inside Blender (bench.py's look step, through the card queue, #182): a made model's finish drawn as the bake paints
 it, the model whole (its own vertex normals kept) under one material, each slot's library recipe mixed in by its
-texel mask on the model's own UVs (recipes.masked), seen from the close-up's view direction, framed on its own box
-under the library renders' studio light on a light grey world. Drawn at wear 0 and dirt 0: the bench names none.
+texel mask on the model's own UVs (recipes.masked), seen from the close-up's view direction and up (a flat row from
+straight above, +y up), framed on its own box under the library renders' studio light on a light grey world. Drawn at
+wear 0 and dirt 0: the bench names none. Then the mesh alone (`bare.png`, the job's `bare`): the same model, camera
+and light in one plain white surface, its own vertex normals kept, which the look's holes check reads (bench.py
+look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 
     blender -b -P look.py -- <look.json (finish.look_job's)>
 """
@@ -15,13 +18,16 @@ from mathutils import Matrix, Vector
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / "library" / "inside"))
+sys.path.insert(0, str(HERE))
 import runtime  # noqa: E402
 
 runtime.ready()
 import recipes  # noqa: E402
 import scene_setup  # noqa: E402
+from finish import look_axes  # noqa: E402
 
 WORLD_GREY = 0.8
+BARE_WHITE = (0.8, 0.8, 0.8, 1.0)  # the mesh-alone picture's one surface: the principled default's white
 
 
 def look_material(masks):
@@ -34,24 +40,37 @@ def look_material(masks):
 
 
 def framed(scene, meshes, job):
-    """A camera on the close-up's view direction (job eye and aim), framing the meshes' box at its fov."""
+    """A camera on the close-up's view direction and up (finish.look_axes of the job's eye, aim and up), framing the
+    meshes' box at its fov."""
     corners = [item.matrix_world @ Vector(corner) for item in meshes for corner in item.bound_box]
     low = Vector([min(corner[axis] for corner in corners) for axis in range(3)])
     high = Vector([max(corner[axis] for corner in corners) for axis in range(3)])
     centre, radius = (low + high) / 2, (high - low).length / 2
-    back = (Vector(job["eye"]) - Vector(job["aim"])).normalized()
+    right, up, back = (Vector(axis) for axis in look_axes(job))
     distance = radius / math.sin(math.radians(job["fov"]) / 2) * 1.05
     data = bpy.data.cameras.new("look")
     data.sensor_fit, data.angle = "VERTICAL", math.radians(job["fov"])
     data.clip_start, data.clip_end = 0.001 * radius, 100 * radius
     camera = bpy.data.objects.new("look", data)
     scene.collection.objects.link(camera)
-    up = Vector((0, 0, 1))
-    right = up.cross(back).normalized()
-    camera.matrix_world = Matrix.Translation(centre + back * distance) @ Matrix(
-        (right, back.cross(right), back)).transposed().to_4x4()
+    camera.matrix_world = Matrix.Translation(centre + back * distance) @ Matrix((right, up, back)).transposed().to_4x4()
     scene.camera = camera
     return [list(low), list(high)]
+
+
+def drawn(scene, path):
+    """The scene rendered to `path` as an RGBA PNG."""
+    scene.render.filepath = path
+    scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGBA"
+    bpy.ops.render.render(write_still=True)
+
+
+def bare_material():
+    """One plain white surface: the mesh alone, shaded by its own normals."""
+    material = bpy.data.materials.new("bare")
+    material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = BARE_WHITE
+    return material
 
 
 def main():
@@ -66,10 +85,12 @@ def main():
     box = framed(scene, meshes, job)
     scene_setup.studio_light()
     scene.world.node_tree.nodes["Background"].inputs[0].default_value = (WORLD_GREY, WORLD_GREY, WORLD_GREY, 1)
-    scene.render.filepath = job["out"]
-    scene.render.image_settings.file_format = "PNG"
-    scene.render.image_settings.color_mode = "RGBA"
-    bpy.ops.render.render(write_still=True)
+    drawn(scene, job["out"])
+    bare = bare_material()
+    for item in meshes:
+        item.data.materials.clear()
+        item.data.materials.append(bare)
+    drawn(scene, job["bare"])
     print("LOOK", json.dumps({"out": job["out"], "box": box, "slots": [mask["slot"] for mask in job["masks"]]}),
           flush=True)
 

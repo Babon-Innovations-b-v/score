@@ -42,7 +42,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   repair.wedge_pairs: a four-face edge's faces paired with the other neighbour -> the checker's cubes stay joined
   (3 pieces, not 6); repair.stuck: nothing cut -> the fold's edge stays held by four faces; repair.NUDGE made 0 ->
   the copies stay one corner; repair.LOOSE made 0 -> the crumb stays; repair.outward: the piece never turned to its
-  normals -> the inside-out cube stays inside out; glb.with_views: a view it does not replace left where it was ->
+  normals -> the inside-out cube stays inside out; repair.facing_normals: no normal set to its faces' -> the five
+  normals turned into the cubes stay turned (#159: the printer box's black holes); glb.with_views: a view it does not replace left where it was ->
   the second image's bytes read back wrong
 """
 import importlib.util
@@ -360,6 +361,11 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     into = np.floor(kept[moved] + offset[moved] / length[moved, None] * 0.1).astype(int)  # each copy into its own cube
     assert all(tuple(cell) in CHECKER for cell, number in zip(into, moved) if kept[number, 0] < 5)
     assert (np.einsum("ij,ij->i", repair.crossed(kept, mended), normals[sources][mended].sum(1)) > 0).all()
+    faced = np.zeros_like(kept)  # #159: a vertex normal turned into the body is set to its faces'
+    np.add.at(faced, mended, np.repeat(repair.crossed(kept, mended)[:, None], 3, 1))
+    turned_in = faced * np.where(np.arange(len(kept)) < 5, -1.0, 1.0)[:, None]
+    fixed, count = repair.facing_normals(kept, mended, turned_in)
+    assert count == 5 and np.allclose(fixed[5:], faced[5:]) and (np.einsum("ij,ij->i", fixed, faced) > 0).all()
     document = {"asset": {"version": "2.0"}, "meshes": [{"primitives": [{"attributes": {"POSITION": 0,
                 "TEXCOORD_0": 1}, "indices": 2}]}], "images": [{"bufferView": 3}], "buffers": [{"byteLength": 0}],
                 "accessors": [{"bufferView": 0, "componentType": 5126, "type": "VEC3", "count": len(points)},

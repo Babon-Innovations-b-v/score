@@ -28,6 +28,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finish.look_job: the texels.npz check dropped -> a finish with none fails on numpy's own error, not its reason;
   its part's list settings not read (part_spec's `set_spec` dropped) -> the look's spec is not the listed roughness
   0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182)
+- bench.look_holes (#159): the look's background not read -> the box's holes are 100 of the square's pixels, not 200;
+  the mesh alone's black not read -> 100, not 200; finish.look_axes: a fixed +z up for the close-up's own -> a
+  camera straight down has no frame (NaN axes, the ceiling task light's empty look)
 - finish.part_spec: a colour setting the variant names none of not filled -> painted_metal's look is drawn with no
   `bare` (the rack's KeyError, #182); a pictured recipe given no clear picture -> printed is drawn with no `image`
 - finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
@@ -194,14 +197,23 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
 def looked(tmp_path, name, view):
     """The made box's look step (#182) on its finish (finished_box's) with a stand-in look.py: (whether its gap names
     the missing texels.npz; the masks its job wrote, its first mask's middle texel, its first spec's roughness,
-    its small copy's size) once the finish's texels name part 0 throughout."""
+    its small copy's size, its holes) once the finish's texels name part 0
+    throughout. The stand-in draws the box as a square half the side across, a 10 x 10 hole through the look and a
+    10 x 10 black patch on the mesh alone (#159: its holes 200 of the square's pixels)."""
     folder, model = tmp_path / "finish", tmp_path / "made.glb"
     drawn = []
 
     def draw(_job_name, arguments, log, script):
         job = json.loads(open(arguments[0]).read())
         drawn.append((job, script))
-        Image.new("RGBA", (job["side"], job["side"])).save(job["out"])
+        side = job["side"]
+        square = np.zeros((side, side, 4), np.uint8)
+        square[side // 4:side // 4 + side // 2, side // 4:side // 4 + side // 2] = 200
+        look, bare = square.copy(), square.copy()
+        look[side // 2:side // 2 + 10, side // 2:side // 2 + 10] = 0
+        bare[side // 3:side // 3 + 10, side // 3:side // 3 + 10, :3] = 0
+        Image.fromarray(look).save(job["out"])
+        Image.fromarray(bare).save(job["bare"])
         open(log, "w").write("drawn\n")
         return 0
     bare = tmp_path / "look-bare"
@@ -217,7 +229,8 @@ def looked(tmp_path, name, view):
     with Image.open(out / f"look-{bench.LOOK_SMALL}.png") as small:
         size = small.size
     return ("no texels.npz" in str(refused.value), sorted(path.name for path in out.glob("mask-*.png")),
-            int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size)
+            int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size,
+            json.loads((out / "holes.json").read_text())["holes"])
 
 
 RECIPES = pathlib.Path(finish.REPO) / "tools/props/library/recipes.py"
@@ -359,6 +372,10 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     rise = math.degrees(math.asin(looking[2] / np.linalg.norm(looking)))
     turn = math.degrees(math.atan2(looking[0], -looking[1]))
     assert (rise, turn if not flat else 0.0) == pytest.approx((90.0, 0.0) if flat else (15.0, 35.0), abs=1e-6)
+    # The look's camera on the close-up's view and up (#159), and on the ceiling task light's: straight down, exactly.
+    for camera in (view, {"eye": [0.0, 0.0, 2.6], "aim": [0.0, 0.0, 0.08], "up": [0.0, 1.0, 0.0]}):
+        axes = np.array(finish.look_axes(camera))
+        assert np.allclose(axes @ axes.T, np.eye(3)) and axes[1] @ camera["up"] > 0.9, axes
 
     laid = np.asarray(Image.open(folder / "closeup.png"))
     assert laid.shape[2] == 3 and tuple(laid[2, 2]) == bench.BACKDROP and tuple(laid[20, 20]) == (200, 0, 0)
@@ -377,7 +394,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert set(side["surfaces"].values()) <= set(addresses.values()), side["surfaces"]
         assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
         assert looked(tmp_path, name, view) == (
-            True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL)), name
+            True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
+            round(200 / (finish.LOOK_SIDE // 2) ** 2, 5)), name
         assert undrawn(tmp_path) == {}, "the look draws every recipe family"
 
     made = []

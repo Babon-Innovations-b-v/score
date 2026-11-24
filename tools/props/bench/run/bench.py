@@ -93,6 +93,10 @@ import finish  # noqa: E402  (branch B's finish: the library finish method)
 SCRIPT = HERE / "closeup.py"
 LOOK = HERE / "look.py"  # the finish's look drawn by its texel masks (look_step, #182)
 LOOK_SMALL = 360  # the look's small copy, a page's
+# A pixel of the mesh alone in plain white (look.py's bare.png) darker than this display luminance (0 to 1) faces away
+# from every light: its normal is turned into the body or it lies in a fold (#159: the printer box's holes are 0.0047
+# of its silhouette at 0.1 and 0.0052 at 0.2; tc4r's clean made models 0.00001 at most at either).
+LOOK_DARK = 0.1
 PLACE = "bench163"  # the benchmark's place name: its takes, its inventory's scene, its scratch place folder
 SIZE = 2048  # the close-up's pixels square (#162: Pro draws at 2K)
 FOV = 30.0  # vertical degrees, as tools/usd/compare.py draws
@@ -707,7 +711,23 @@ def look_step(model, parted, row, camera, draw=queued_blender):
             raise StepFailed(f"look.py exited {code}: {' | '.join(lines[-6:])}")
         with Image.open(folder / "look.png") as drawn:
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
+        (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png",
+                                                                             folder / "bare.png")}))
     return make
+
+
+def look_holes(look, bare):
+    """The share of the model's own silhouette (the mesh alone, `bare`'s opaque pixels) that the `look` shows as a
+    hole: the background there (the look transparent), or the mesh alone black (LOOK_DARK) in plain white, its
+    normals turned away from every light (#159: the printer box's front)."""
+    from PIL import Image
+    with Image.open(look) as drawn, Image.open(bare) as alone:
+        looked = np.asarray(drawn.convert("RGBA"), dtype=np.float64) / 255
+        plain = np.asarray(alone.convert("RGBA"), dtype=np.float64) / 255
+    inside = plain[..., 3] >= 0.5
+    dark = plain[..., :3] @ np.array([0.2126, 0.7152, 0.0722]) < LOOK_DARK
+    holes = inside & ((looked[..., 3] < 0.5) | dark)
+    return round(float(holes.sum() / max(int(inside.sum()), 1)), 5)
 
 
 def finish_step(model, close_up, row, library):
@@ -728,7 +748,8 @@ MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.
 FINISHED = {"B": "finish"}
 # Each branch's moving parts step (#177), whose parts and joints the measures hold to NVIDIA's (parted).
 PARTED = {"B": "parts"}
-# Each branch's look step (#182), whose picture the picture judge holds to NVIDIA's render (judged_look, #184).
+# Each branch's look step (#182), whose picture the picture judge holds to NVIDIA's render (judged_look, #184)
+# and whose holes (look_holes) the measures judge as `look.holes` (#159).
 LOOKED = {"B": "look"}
 JOINT_TYPES = {"hinge": "revolute", "spin": "revolute", "slide": "prismatic"}
 
@@ -850,13 +871,16 @@ def old_model(address):
     return "gltf", files[named[0]]
 
 
-def written_measures(folder, truth, side, others, made, picture=None):
-    """measures.json: what was measured, every measure (measures.measured, and the picture judge's group `picture`
-    where given) and its judgement at today's bars."""
+def written_measures(folder, truth, side, others, made, picture=None, looked=None):
+    """measures.json: what was measured, every measure (measures.measured, the picture judge's group `picture` where
+    given, and the look's holes from its look step's folder `looked` where it has them) and its judgement at today's
+    bars."""
     from tools.props.bench import calibrate, measures
     found = measures.measured(truth, side, others=others)
     if picture is not None:
         found["picture"] = picture
+    if looked is not None and (looked / "holes.json").exists():
+        found["look"] = json.loads((looked / "holes.json").read_text())
     if side.get("surfaces") is not None and "finish" in found:
         named = [entry["surface"] for entry in measures.by_finish(truth)["materials"]]
         found["family"] = finish.same_family(found["finish"]["pairs"], side["surfaces"], named)
@@ -894,8 +918,11 @@ def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
         moving = PARTED.get(branch)
         cut = checked_out(kept, asset, branch, moving, scratch / branch / f"kept-{moving}") \
             if moving and kept_output(kept, asset, branch, moving) else None
+        look = LOOKED.get(branch)
+        looked = checked_out(kept, asset, branch, look, scratch / branch / f"kept-{look}") \
+            if look and kept_output(kept, asset, branch, look) else None
         written_measures(folder, truth, made_side(model, held, finished_parts, asset, cut), others, f"{branch} {step}",
-                         judged_look(kept, asset, branch, previous, scratch))
+                         judged_look(kept, asset, branch, previous, scratch), looked)
     return make
 
 

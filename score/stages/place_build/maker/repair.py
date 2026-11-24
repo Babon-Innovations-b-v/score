@@ -13,7 +13,9 @@ Read on corners (vertices at one place are one corner: a texture seam's copies a
   at a point no longer share it (the edge held by four faces becomes two edges held by two; its faces paired by the
   solid wedge between them, and a surface folded onto itself along the edge cut there);
 - a piece (faces joined through corners) under LOOSE of the area is dropped;
-- each piece is wound one way (trimesh's fix_winding) and outward as the model's own vertex normals look.
+- each piece is wound one way (trimesh's fix_winding) and outward as the model's own vertex normals look;
+- in the GLB, a vertex normal that points against its faces (their wound normals, area-weighted) is set to theirs
+  (facing_normals): TRELLIS.2's own turn into the body on a few patches, which a renderer shades black, as holes.
 """
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -288,9 +290,22 @@ def with_accessor(document, number, values):
     return values.tobytes()
 
 
+def facing_normals(positions, faces, normals):
+    """(normals, turned): the vertex `normals` with each one that points against its faces (their wound normals,
+    area-weighted) set to theirs, and how many were. TRELLIS.2's own turn into the body on a few patches (#159: 387 of
+    the tc4 printer box's 11,179 vertices), lit from inside: black holes through its front."""
+    summed = np.zeros((len(positions), 3))
+    np.add.at(summed, faces.reshape(-1), np.repeat(crossed(positions, faces), 3, axis=0))
+    against = np.einsum("ij,ij->i", summed, normals) < 0
+    fixed = np.array(normals, dtype=np.float64)
+    fixed[against] = summed[against] / np.linalg.norm(summed[against], axis=1, keepdims=True)
+    return fixed, int(against.sum())
+
+
 def repaired_glb(document, binary):
     """(document, binary, counts): the GLB's one primitive repaired, every attribute carried with its vertex (a moved
-    copy keeps its texture place and normal), the rest of the file as it was."""
+    copy keeps its texture place and normal), a normal turned against its faces set to theirs (facing_normals), the
+    rest of the file as it was."""
     from score.stages.place_build.maker import glb
     primitive = primitive_of(document)
     positions = accessor_array(document, binary, primitive["attributes"]["POSITION"])
@@ -301,6 +316,8 @@ def repaired_glb(document, binary):
     pieces = {}
     for name, number in primitive["attributes"].items():
         values = moved if name == "POSITION" else accessor_array(document, binary, number)[sources]
+        if name == "NORMAL":
+            values, counts["normals_turned"] = facing_normals(moved, faces, values)
         pieces[document["accessors"][number]["bufferView"]] = with_accessor(document, number, values)
     indices = primitive["indices"]
     pieces[document["accessors"][indices]["bufferView"]] = with_accessor(document, indices, faces.reshape(-1))

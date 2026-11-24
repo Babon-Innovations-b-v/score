@@ -27,7 +27,9 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   fan's copy moved NUDGE (1e-5) of the diagonal into its own fan (a four-face edge paired by the solid wedge between
   its faces; a fold of one surface cut); pieces under LOOSE (the bench's crumb, 0.1% of the area) out (every one on
   tc1, 692 of 698, lay inside the body); each piece wound one way and outward as TRELLIS.2's own vertex normals look (a
-  signed volume of an open piece turned real parts inside out). The bench's shape measures moved by 0.005 at most.
+  signed volume of an open piece turned real parts inside out); a vertex normal pointing against its faces set to
+  theirs (`facing_normals`, #159: the printer box's normals turned into its body drew black holes through its
+  front). The bench's shape measures moved by 0.005 at most.
 - **Only a cut-out goes in** (#156: the capsule's throttle, levers on a console top, came out a cube): `concept/<n>`
   is refused without its SAM 3 mask, and any picture whose opaque part is its own rectangle (no transparency, or a
   box cut) is refused (`cut_out`); a missing noun is asked with `split --nouns`.

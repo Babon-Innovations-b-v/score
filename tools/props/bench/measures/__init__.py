@@ -113,6 +113,12 @@ BARS = (
     ("picture", "drawn", "true", None),
     *(("picture", kind, "most", 0) for kind in PICTURE_KINDS),
     ("picture", "regressed", "most", 0),
+    # The look's holes (bench/run look_holes, #159: the printer box's normals turned into its body drew black holes
+    # through its front): the share of its silhouette the look shows as background or the mesh alone black. tc4r's 15
+    # made models (1080, 16 and 32 samples): 0.00001 at most on ten, the humidifier's dark vents 0.00007 to 0.00012;
+    # the printer box 0.0047 (0.00008 with its turned normals set to their faces'), the locker's garbled door labels
+    # 0.0029, the fridge's specked door 0.00096 (0.0004 with its normals set).
+    ("look", "holes", "most", 0.0002),
 )
 
 
