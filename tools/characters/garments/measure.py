@@ -4,7 +4,8 @@ sewing patterns are sized to the body that wears them (PRD #223, #225). Numpy an
 The body is the person's SOMA surface at its bind (A-pose, metres, y up, feet at 0, facing +z): its points, triangles,
 skin weights and joints. What a tape or a level reads off it is measured here: the height, the neck base, the bust,
 waist and hips (each its torso girth and level), the thigh and wrist girths, the arm's length and angle, the shoulder
-width. What a surface tape cannot read off a bare mesh without landmarks (GarmentCode's armscye depth, bust and bum
+width, the front's length from the waist over the bust to the neck's base. What a surface tape cannot read off a bare
+mesh without landmarks (GarmentCode's armscye depth, bust and bum
 points, back widths, slopes, the bust's vertical line, the neck's width) is GarmentCode's own mean body's number carried
 to this body: scaled by the girth it follows (FOLLOWS), or by the height, and its angles kept (ANGLES). The mean body's
 numbers are its measurement file (assets/bodies/mean_female.yaml or mean_male.yaml, MIT, from GarmentMeasurements' own
@@ -20,6 +21,7 @@ ANGLES = ("arm_pose_angle", "hip_inclination", "shoulder_incl")
 FOLLOWS = {"underbust": "bust", "back_width": "bust", "waist_back_width": "waist", "hip_back_width": "hips"}
 LIMBS = ("Arm", "ForeArm", "Hand", "Shoulder", "Leg", "Shin", "Foot", "Toe")
 SCAN = 25  # levels tried in each band a girth is looked for in
+BIN_M = 0.005  # the height steps a front's profile is read at
 
 
 def section(points, faces, origin, normal):
@@ -73,9 +75,32 @@ def level_girths(points, faces, low, high):
     return [(girth(points, faces, [0.0, level, 0.0], [0.0, 1.0, 0.0]), level) for level in np.linspace(low, high, SCAN)]
 
 
+def over_bust(points, faces, bust_level, waist_level, neck_level):
+    """GarmentCode's waist_over_bust_line (m): the front's length from the waist level over the bust point up to the
+    neck's base level (or the shoulder's top, when it is lower there), in the upright plane through each side's bust
+    point (the bust level's most forward point that side), the mean of the two sides. Carried from the mean body by
+    the height, a slim woman's bodice front was cut 6 cm longer than her front and bunched under the bust
+    (2026-11-24)."""
+    level = section(points, faces, np.array([0.0, bust_level, 0.0]), [0.0, 1.0, 0.0])
+    lengths = []
+    for side in (1.0, -1.0):
+        mine = level[side * level[:, 0] > 0.0]
+        apex = mine[mine[:, 2].argmax()]
+        cut = section(points, faces, apex, [1.0, 0.0, 0.0])
+        cut = cut[cut[:, 2] > 0.0]
+        profile = []
+        for height in np.arange(waist_level, neck_level + BIN_M / 2.0, BIN_M):
+            near = cut[np.abs(cut[:, 1] - height) < BIN_M / 2.0]
+            if len(near):
+                profile.append((height, near[:, 2].max()))
+        profile = np.asarray(profile)
+        lengths.append(float(np.linalg.norm(np.diff(profile, axis=0), axis=1).sum()))
+    return float(np.mean(lengths))
+
+
 def measured(points, faces, weights, names, bind):
     """The body's own measurements (centimetres and degrees): height, head_l, bust, waist, hips, their lines, leg_circ,
-    wrist, arm_length, arm_pose_angle and shoulder_w (between the shoulder joints)."""
+    wrist, arm_length, arm_pose_angle, shoulder_w (between the shoulder joints) and waist_over_bust_line."""
     names = [str(name) for name in names]
     joint = {name: np.asarray(bind[names.index(name)])[:3, 3] for name in names}
     torso = faces_of(faces, weights, names, is_torso)
@@ -99,7 +124,8 @@ def measured(points, faces, weights, names, bind):
     found = {"height": top - floor, "head_l": top - neck, "bust": bust[0], "waist": waist[0], "hips": hips[0],
              "bust_line": neck - bust[1], "waist_line": neck - waist[1], "hips_line": waist[1] - hips[1],
              "leg_circ": thigh[0], "wrist": wrist, "arm_length": float(np.linalg.norm(arm)),
-             "shoulder_w": float(np.linalg.norm(joint["LeftArm"] - joint["RightArm"]))}
+             "shoulder_w": float(np.linalg.norm(joint["LeftArm"] - joint["RightArm"])),
+             "waist_over_bust_line": over_bust(points, torso, bust[1], waist[1], neck)}
     found = {key: float(value) * CENTIMETRES for key, value in found.items()}
     found["arm_pose_angle"] = float(np.degrees(np.arcsin(-arm[1] / np.linalg.norm(arm))))
     return found

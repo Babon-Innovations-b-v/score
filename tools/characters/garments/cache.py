@@ -8,13 +8,17 @@ import pathlib
 
 import numpy as np
 
+from tools.characters.garments import bands
+
 TEXTURE_METRES = 0.5  # the cloth a library surface's texture covers once (its st 0..1)
 
 
-def corner_uvs(record):
-    """Each triangle corner's texture coordinate from its flat panel (cm), in TEXTURE_METRES."""
-    return np.asarray(record["flat"], dtype=float)[np.asarray(record["faces"])].reshape(-1, 2) / (
-        100.0 * TEXTURE_METRES)
+def corner_uvs(record, flat=None):
+    """Each triangle corner's texture coordinate from its flat panel (cm; `flat` each corner's when its triangles
+    were cut, bands.corner_flat), in TEXTURE_METRES."""
+    if flat is None:
+        flat = np.asarray(record["flat"], dtype=float)[np.asarray(record["faces"])].reshape(-1, 2)
+    return np.asarray(flat, dtype=float) / (100.0 * TEXTURE_METRES)
 
 
 def mesh_at(stage, path, faces, frames, start):
@@ -31,7 +35,8 @@ def mesh_at(stage, path, faces, frames, start):
 
 
 def bound(stage, mesh, surface, library):
-    """`mesh` bound to its library surface, referenced from the fetched library (`library`/<kind>/<id>/<version>)."""
+    """`mesh` (a mesh or a face subset of one) bound to its library surface, referenced from the fetched library
+    (`library`/<kind>/<id>/<version>)."""
     from pxr import UsdShade
     kind, rest = surface["address"].split("/", 1)
     name, version = rest.split("@")
@@ -41,6 +46,16 @@ def bound(stage, mesh, surface, library):
     prim = stage.DefinePrim(f"/Outfit/Looks/{name}")
     prim.GetReferences().AddReference(str(material_file))
     UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(UsdShade.Material(prim))
+
+
+def taped(stage, mesh, triangles, surface, library):
+    """The garment's band triangles a subset of `mesh` bound to the bands' library surface (its tape)."""
+    from pxr import UsdGeom, UsdShade, Vt
+    subset = UsdGeom.Subset.Define(stage, mesh.GetPath().AppendChild("bands"))
+    subset.CreateElementTypeAttr(UsdGeom.Tokens.face)
+    subset.CreateFamilyNameAttr(UsdShade.Tokens.materialBind)
+    subset.CreateIndicesAttr(Vt.IntArray([int(triangle) for triangle in triangles]))
+    bound(stage, subset, surface, library)
 
 
 def written(path, body, drape, records, outfit, library, rate):
@@ -62,11 +77,17 @@ def written(path, body, drape, records, outfit, library, rate):
     bound(stage, skin, outfit["body surface"], library)
     for garment in outfit["garments"]:
         record = records[garment["name"]]
-        mesh = mesh_at(stage, f"/Outfit/Garments/{garment['name']}", np.asarray(record["box"])[record["faces"]],
-                       drape[garment["name"]], 0)
+        faces, frames, flat = np.asarray(record["box"])[record["faces"]], drape[garment["name"]], None
+        if "bands" in garment:
+            banded = bands.cut(record, drape[f"{garment['name']}/sewn"], garment["bands"])
+            faces, flat = banded["faces"], bands.corner_flat(record, banded["corners"])
+            frames = bands.frames_with(frames, banded["made"], banded["weights"])
+        mesh = mesh_at(stage, f"/Outfit/Garments/{garment['name']}", faces, frames, 0)
         uvs = UsdGeom.PrimvarsAPI(mesh).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray,
                                                      UsdGeom.Tokens.faceVarying)
-        uvs.Set(corner_uvs(record).astype(np.float32).tolist())
+        uvs.Set(corner_uvs(record, flat).astype(np.float32).tolist())
         bound(stage, mesh, garment["surface"], library)
+        if "bands" in garment:
+            taped(stage, mesh, np.flatnonzero(banded["banded"]), garment["bands"]["surface"], library)
     stage.GetRootLayer().Save()
     return stage

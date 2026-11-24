@@ -23,6 +23,7 @@ def fetched(outfit, out):
     """Every library surface the outfit wears fetched from score_lib into `out`/library."""
     folder = out / "library"
     addresses = [outfit["body surface"]["address"], *[garment["surface"]["address"] for garment in outfit["garments"]],
+                 *[garment["bands"]["surface"]["address"] for garment in outfit["garments"] if "bands" in garment],
                  *[surface["address"] for surface in accessories.surfaces(outfit.get("accessories", {}))]]
     subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "fetch", *addresses, "--into", str(folder)], check=True,
                    cwd=SCORE_LIB, stdout=subprocess.DEVNULL)

@@ -166,14 +166,22 @@ def patterns(outfit, body, out):
     return folder
 
 
-def holds(garment, record, measurements, shift):
+def holds(garment, record, measurements, shift, under=0):
     """The points a garment's sewing draws to a level, as GarmentCode's simulation attaches them while it sews
     (pygarment/meshgen/garment.py `_add_attachment_labels`): a neckline's halves (`right_collar`, `left_collar`) kept
     inside the planes either side of the neck, a centimetre inside it (its neck_w less 2 cm), along x, each plane's
-    normal pointing in."""
-    half = (measurements["neck_w"] - 2.0) / 2.0 / 100.0
+    normal pointing in; for a garment over `under` necklines, each plane that many layers out (two cloth
+    thicknesses each: a coat's neckline held on its shirt's planes was pressed into the shirt's)."""
+    half = (measurements["neck_w"] - 2.0) / 2.0 / 100.0 + under * 2.0 * THICKNESS_M
     return [{"label": label, "axis": 0, "value": float(shift[0] + side * half), "side": -side}
             for label, side in (("right_collar", -1.0), ("left_collar", 1.0)) if f"label/{label}" in record]
+
+
+def necklines_under(outfit, garment, records):
+    """How many of the outfit's garments with a neckline are laid under `garment` (a smaller `layer_m`)."""
+    layer = float(garment.get("layer_m", 0.0))
+    return sum(1 for other in outfit["garments"] if float(other.get("layer_m", 0.0)) < layer
+               and "label/right_collar" in records[other["name"]])
 
 
 def neck(body, measurements, shift):
@@ -211,7 +219,8 @@ def draped(outfit, body, pattern_folder, out, frames):
     job = dict(DRAPE, body=str(out / "body.npz"), neck=neck(body, measurements, shift), garments=[
         {"name": garment["name"], "record": str(pattern_folder / garment["name"] / f"{garment['name']}.npz"),
          "offset": shift.tolist(), "worn": garment.get("worn", []), "layer_m": float(garment.get("layer_m", 0.0)),
-         "holds": holds(garment, records[garment["name"]], measurements, shift),
+         "holds": holds(garment, records[garment["name"]], measurements, shift,
+                        necklines_under(outfit, garment, records)),
          "material": cloth_material(garment["surface"])}
         for garment in outfit["garments"]])
     if "belt" in outfit.get("accessories", {}):

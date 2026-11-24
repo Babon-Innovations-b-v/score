@@ -2,30 +2,34 @@
 measurements off a body's own surface (girths at their levels, the arm's length and angle, the shoulders' width, the
 neck's base) and carries the rest from GarmentCode's mean body by the girth each follows or by the height; seated.py
 fails a garment sewn off centre, a shoulder seam sliding off its shoulder, a neckline dropping, or the body standing
-out through the cloth that covers it, or a garment under it out through it (the toy torso worn as a garment under the
-tee), and passes one that sways with the body; shaped.py gives a body another build (wider and taller as its shape
-model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most. Each
-row is a toy body of tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side
-and shoulder seams) worn on a toy torso one way, or the toy body reshaped or its arms cleared.
+out through the cloth that covers it, or a garment under it out through it (the toy torso worn as a garment under
+the tee), and passes one that sways with the body; shaped.py gives a body another build (wider and taller as its
+shape model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most;
+bands.py cuts a band out of a garment's cloth along its edges, a set height over its hem. Each row is a toy body of
+tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
+worn on a toy torso one way, or the toy body reshaped or its arms cleared.
 
 Breaks that turn it red (each applied once, seen red, reverted), in measure.py: a girth taken off another band than its
 own (the bust's off the waist's levels, the hips' with the hands in the cut), a girth not the tape's (the cut's points
 summed rather than its hull's perimeter), the wrist read off the upper arm, the arm's angle taken against the vertical,
-a length left in metres, an unread measurement carried by the height where it follows a girth, or a read one overwritten
-by the mean body's. In seated.py: the side seam taken for the shoulder seam (the lower chain), the neckline's fall read
-off its points at the clip's first frame rather than their places on the moving skin, the body's outward normal not
-turning the cloth's (a covered point under inward-wound cloth read as out), or a seam's place on the shoulder judged by
-its distance off the skin alone (a seam slid down the arm's side in the turn, lying on the skin, read as seated); a
-garment under another judged by its winding point by point or not at all (a garment wound inward read as through),
-against its sewn shape rather than its frames, or never failed. In shaped.py: the arms turned in rather than out, an
-arm point read sunk outside the torso, the armpit's fold counted or every arm point left out, a shape's standard
-deviations not scaling its direction, the height not set, or the joints left unscaled with the skin."""
+a length left in metres, the front's length over the bust left unread (carried by the height), an unread measurement
+carried by the height where it follows a girth, or a read one overwritten by the mean body's. In seated.py: the side
+seam taken for the shoulder seam (the lower chain), the neckline's fall read off its points at the clip's first frame
+rather than their places on the moving skin, the body's outward normal not turning the cloth's (a covered point under
+inward-wound cloth read as out), or a seam's place on the shoulder judged by its distance off the skin alone (a seam
+slid down the arm's side in the turn, lying on the skin, read as seated); a garment under another judged by its winding
+point by point or not at all (a garment wound inward read as through), against its sewn shape rather than its frames,
+or never failed. In shaped.py: the arms turned in rather than out, an arm point read sunk outside the torso, the
+armpit's fold counted or every arm point left out, a shape's standard deviations not scaling its direction, the height
+not set, or the joints left unscaled with the skin. In bands.py: the triangles taken whole by their middles (not cut on
+the band's edges), or a cut's point made once per panel rather than once per seam point (the cloth opened along its
+seams)."""
 import math
 
 import numpy as np
 import pytest
 
-from tools.characters.garments import measure, seated, shaped
+from tools.characters.garments import bands, measure, seated, shaped
 
 NAMES = ["Hips", "Spine2", "Chest", "Neck1", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm",
          "LeftHand", "RightForeArm", "RightHand", "LeftLeg", "LeftShin", "RightLeg", "RightShin"]
@@ -91,7 +95,9 @@ def toy_body(scale):
     bind[:, :3, 3] *= scale
     built = {"height": 150.0, "head_l": 0.0, "bust": 2 * math.pi * 14.0, "waist": 2 * math.pi * 11.0,
              "hips": 2 * math.pi * 15.0, "leg_circ": 2 * math.pi * 6.0, "wrist": 2 * math.pi * 2.5, "arm_length": 50.0,
-             "shoulder_w": 40.0, "arm_pose_angle": math.degrees(ARM), "waist_line": 45.0}
+             "shoulder_w": 40.0, "arm_pose_angle": math.degrees(ARM), "waist_line": 45.0,
+             # the front's profile from the waist (1.05 m, r 11 cm) over the bust (1.25, 14) to the neck (1.50, 10)
+             "waist_over_bust_line": math.hypot(20.0, 3.0) + math.hypot(25.0, 4.0)}
     built = {key: value * (scale if key != "arm_pose_angle" else 1.0) for key, value in built.items()}
     return np.concatenate(points) * scale, np.concatenate(faces), weights, bind, built
 
@@ -239,6 +245,27 @@ def toy_built(scale):
     return girth * float(scale) / (1.8 / (points[:, 1].max() - points[:, 1].min())), measured["height"] / 100.0
 
 
+def taped(scale, width):
+    """The toy tee's torso cut along a band `width` tall 3 cm over its hem (bands.cut): how far the band's triangles
+    and the rest stray from their sides of its edges (m, 0 when the cut is clean), refused when the band's area is
+    not its girth times its width or the cut opened the cloth."""
+    record, cloth, _ = toy_tee()
+    sewn = cloth * scale
+    banded = bands.cut(record, sewn, {"width_m": width, "torso_m": [0.03], "sleeve_m": []})
+    points = bands.frames_with(sewn[None], banded["made"], banded["weights"])[0]
+    corners = points[banded["faces"]]
+    above = corners[:, :, 1] - sewn[:, 1].min()
+    within = np.minimum(above - 0.03, 0.03 + width - above)  # a corner's depth inside the band, negative out of it
+    torso = above.max(axis=1) < TOP * scale - sewn[:, 1].min()  # the triangles under the shoulders' turn
+    stray = max(0.0, -within[banded["banded"]].min(), within[~banded["banded"] & torso].max())
+    areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
+    girth = 2.0 * math.pi * (TORSO + CLOTH) * scale
+    assert areas[banded["banded"]].sum() == pytest.approx(girth * width, rel=0.02)
+    welded = np.asarray(record["box"])[record["faces"]]
+    assert len(seated.open_edge_points(banded["faces"])) == len(seated.open_edge_points(welded))
+    return stray
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
@@ -252,6 +279,8 @@ def toy_built(scale):
     (1.0, "arms sunk in a wide torso", 14.0),
     (1.0, "arms sunk past the most turn", None),
     (1.0, "built a tenth wider and 1.8 m tall", (1.1, 1.8)),
+    (1.0, "a band round the torso", 0.05),
+    (1.15, "a band round the torso", 0.05),
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed):
     points, faces, weights, bind, built = toy_body(scale)
@@ -272,6 +301,9 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         return
     if wear.startswith("built"):
         assert toy_built(scale) == pytest.approx(failed, abs=0.01)
+        return
+    if wear.startswith("a band"):
+        assert taped(scale, failed) == pytest.approx(0.0, abs=1e-9)
         return
     torso, torso_faces = toy_torso()
     record, cloth, cloth_faces = toy_tee()

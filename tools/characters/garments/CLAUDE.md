@@ -33,8 +33,17 @@ runs them (an outfit file per look in `data/people/outfits/`).
   out: it carries SizeUSA's scan poses, its shorter bodies' arms down into their sides. A wider build's arms are
   turned out until none past the armpit's fold sinks in the torso at the bind or walking (`arms_cleared`, up to 20
   degrees; a build that needs more is refused): cloth caught between a sunk arm and the chest blew the drape up.
-- **Layers** (an outfit's `layer_m` per garment): an outer garment's box mesh is laid that much further off the
-  skin, so a shirt and the coat over it start apart and meet by contact as they are sewn. GarmentCode's box mesh
+- **Layers** (an outfit's `layer_m` per garment): sewn a layer at a time, innermost first (`sewn_in_layers`); an
+  outer garment's box mesh is laid that much further off the skin and outside the cloth sewn under it, so a shirt and
+  the coat over it start apart and meet by contact as they are sewn (laid all at once, a jacket's hem lay inside the
+  trousers' waistband box and the two tangled as the waistband was carried in). A garment over another's neckline
+  holds its own neckline two cloth thicknesses further out per neckline under it.
+- **Neckline holds keep a point from going further out, never pull it in** past where the pattern lays it (drawn in
+  at once, a dress's and a jacket's neckline ends were gathered into lumps on the shoulders).
+- **Bands** (`bands.py`, an outfit garment's `bands`: tape round the torso over the hem and round each sleeve over
+  the cuff) are cut out of the cloth along their edges in the point cache and bound to their own library surface.
+  The garments' own finishes (high-visibility yellow, retroreflective tape) are written by `finishes.py` for
+  score_lib take-in. GarmentCode's box mesh
   crossing itself (its SimpleLapel collar, 2026-11-24) is refused in `inside/pattern.py`, never draped.
 - **Accessories** (shoes, a belt: `../accessories`, #228) are fitted after the drape from the outfit file's
   `accessories` and written into the same `outfit.usda`; their faults fail the run like a garment's.
