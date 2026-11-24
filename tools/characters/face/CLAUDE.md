@@ -9,10 +9,13 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
 - `ict.py`: ICT-FaceKit fetched at its pinned commit and packed once into a capped cache (`~/.cache/score/ict-facekit/
   <commit>/model.npz`, 22 MB, the OBJs dropped); nothing of it is in the repo.
 - `fit.py`: the face's similarity and identity solved to the body's head (eyes on the eye joints, the narrow face on
-  the skin), the band within `BLEND_METRES` of its border pulled onto the skin by its share of the body (ICT's jaw
-  stood 20 mm off the officer's), the body cut inside a wall of body points drawn along the border (cut by nearness,
-  the neck under the jaw and the skin before the ear were cut far past it and the strip hung in flaps), SOMA-X's
-  filled eye and mouth bags cut with it, and a strip zipped between the two loops: one shut skin.
+  the skin), the band within `BLEND_METRES` of its border moved by its border's (smoothed) moves onto the skin, by its
+  share of the body (ICT's jaw stood 20 mm off the officer's; each point snapped on its own, the ears were crushed
+  flat), the body cut inside a wall of body points drawn along the border plus the skin under the face near the
+  border joined to that cut (cut by nearness alone, the neck under the jaw and the skin before the ear were cut far
+  past it; the wall alone left half its points inside the border and the strip folded in flaps), SOMA-X's filled eye
+  and mouth bags cut with it, and a strip zipped between the two loops by their places along the face's border: one
+  shut skin.
 - `expressions.py`: MHR's control names onto ICT's ARKit-named expressions; a control ICT has none for moves the face
   by the body's own MHR offsets. On the face, each control is ICT's expression blended into the body's offsets by the
   face's share of the body (1 on the border), so the seam never opens.

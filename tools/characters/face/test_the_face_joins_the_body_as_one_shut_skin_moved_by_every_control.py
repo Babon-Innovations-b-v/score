@@ -2,17 +2,23 @@
 the strip between them make one skin with no open edge, every triangle turned the same way and the cut within one body
 edge of the face's border all round (fit.seam and
 fit.joined_skin), the body's skin shapes the face fully on its border and not past the blend (fit.body_share), a face
-standing off the head is laid on it at its border and keeps its middle (fit.laid_on_skin), and
+standing off the head is laid on it at its border and keeps its middle, an ear standing off within the band keeps
+its height (fit.laid_on_skin), the skin under the face near its border is cut and the skin beside it kept
+(fit.inside_border), and
 MHR's 72 controls each move the face, through ICT expressions or the body's own offsets, a name ICT lacks refused
 (expressions.mapping).
 
-Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it.
+Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it (one
+with a bump for an ear).
 
 Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - the shut skin: zipper's `advance_outer` made `at_outer < count_outer` (the strip walks the face's loop first and
   leaves triangles that cross); and, apart, joined_skin's `outward(strip, ...)` made `strip` (the strip turned
   against the body's skin); and, apart, covered's `blocked[wall(graph, stops)] = True` made
   `blocked[stops[:1]] = True` (no wall along the border: the fill under the face leaks and is refused).
+- the ear: laid_on_skin's band moved by its border's moves made each point's own snap onto the skin (the ears were
+  crushed flat onto the head; seen red 2026-11-24).
+- the skin under the face: inside_border's `under_face(...)` made `False` (seen red 2026-11-24).
 - the body's share: body_share's `1.0 - distance / BLEND_METRES` made `distance / BLEND_METRES`.
 - the face laid on the skin: laid_on_skin's `* share[pulled, None]` made `* 0.0` (the face's border stood 10 mm off
   the head, the strip a wall).
@@ -79,6 +85,42 @@ def border_on_skin():
                                                                                            face_points[middle]))]
 
 
+def ear_kept():
+    """A bump standing 15 mm off the head inside the band (an ear), laid on the skin with the rest of the face: its
+    height off the head after, in mm, stays above 10."""
+    head = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    finer = trimesh.creation.icosphere(subdivisions=5, radius=0.1)
+    cap = np.flatnonzero(finer.vertices[:, 2] > 0.04)
+    inside = np.isin(finer.faces, cap).all(axis=1)
+    used, renumbered = np.unique(finer.faces[inside], return_inverse=True)
+    face_points, face_triangles = finer.vertices[used].copy(), renumbered.reshape(-1, 3)
+    loop = fit.border_loop(face_triangles)
+    border_point = face_points[loop[0]]
+    inward = np.array([0.0, 0.0, 0.1]) - border_point
+    ear_centre = border_point + 0.01 * inward / np.linalg.norm(inward)
+    ear = np.flatnonzero(np.linalg.norm(face_points - ear_centre, axis=1) < 0.006)
+    face_points[ear] *= 1.15
+    padded = np.vstack([face_points, np.zeros((fit.ict.PIECES["face"][1] + 1 - len(face_points), 3))])
+    laid, _ = fit.laid_on_skin(padded, face_triangles, loop, head)
+    return bool(np.linalg.norm(laid[ear], axis=1).max() - 0.1 > 0.010)
+
+
+def skin_under_the_face():
+    """The body points near the face's border that inside_border cuts: all under the face, none beside it."""
+    body = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    finer = trimesh.creation.icosphere(subdivisions=5, radius=0.1)
+    cap = np.flatnonzero(finer.vertices[:, 2] > 0.06)
+    inside = np.isin(finer.faces, cap).all(axis=1)
+    used, renumbered = np.unique(finer.faces[inside], return_inverse=True)
+    face_points, face_triangles = finer.vertices[used], renumbered.reshape(-1, 3)
+    loop = fit.border_loop(face_triangles)
+    cut = fit.inside_border(body.vertices, face_points, face_triangles, loop)
+    height = body.vertices[:, 2]
+    rim = face_points[loop][:, 2].min()
+    return [bool(cut.any()), bool((height[cut] > rim - 0.001).all()),
+            bool(cut[(height > rim + 0.004) & (height < rim + 0.012)].all())]
+
+
 def shares():
     """The body's share on the border, halfway in and past the blend."""
     return [round(float(share), 6) for share in fit.body_share(np.array([0.0, fit.BLEND_METRES / 2,
@@ -105,6 +147,9 @@ def a_missing_name_refused():
     ("the face's border, the cut and the strip are one shut skin", shut_skin, True),
     ("the body's skin shapes the face fully on the border and not past the blend", shares, [1.0, 0.5, 0.0]),
     ("a face standing off the head is laid on it at its border and keeps its middle", border_on_skin, [0.0, True]),
+    ("an ear standing off the head inside the band keeps its height", ear_kept, True),
+    ("the skin under the face near its border is cut, the skin beside it kept", skin_under_the_face,
+     [True, True, True]),
     ("every one of MHR's 72 controls moves the face", controls_moving_the_face, True),
     ("a mapping onto an expression ICT lacks is refused", a_missing_name_refused, True),
 ])
