@@ -26,7 +26,8 @@ Output: parts.json (per take its method, parts (each with its finish's `settings
 placed: its library decal, part, point, facing, up and size in the take's own frame, cast through the close-up's
 camera, score #164) and `decal_gaps`; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
 the paint's face order), <take>/colours.npy (NaN: the paint joins parts on their surface alone), <take>/texels.npz
-(the split's, carried: one part per texel of the model's pictures). Gate "parts": every
+(the split's, carried: one part per texel of the model's pictures; a print a mark covers given its part's surface
+there too, covered_texels, and numbered as the faces). Gate "parts": every
 take the split split has its parts.
 """
 import json
@@ -306,32 +307,104 @@ def printed_finishes(finishes, marks):
     return [dict(finish, printed=True) if number in printed else finish for number, finish in enumerate(finishes)]
 
 
+def hidden_under(model, camera, size, box, grow):
+    """The faces under a mark's `box` grown by `grow` pixels that the close-up's cast does not meet: each turned toward
+    the camera, its middle seen inside the grown box and at most as far behind the surface the close-up shows there as
+    the box is grown across, at that distance (#185: TRELLIS.2 raised the sign's garbled letters 2 to 4 mm over a
+    plate face, their sides and the plate under them hidden, and the look drew them as ghosts round the words)."""
+    middle, side = model.frame
+    eye, right, up, field = camera
+    focal = size[0] / 2 / np.tan(field / 2)
+    ahead = np.cross(up, right)
+    centres = model.mesh.triangles_center * side + middle
+    relative = centres - eye
+    depth = relative @ ahead
+    toward = (model.mesh.face_normals @ ahead < 0) & (depth > 0)
+    pixels = np.c_[size[0] / 2 + focal * (relative @ right) / np.maximum(depth, 1e-9),
+                   size[1] / 2 - focal * (relative @ up) / np.maximum(depth, 1e-9)]
+    left, top, wide, tall = box
+    candidates = np.flatnonzero(toward & (pixels[:, 0] >= left - grow) & (pixels[:, 0] <= left + wide + grow)
+                                & (pixels[:, 1] >= top - grow) & (pixels[:, 1] <= top + tall + grow))
+    if not len(candidates):
+        return candidates
+    met, points = cast.cast_points(model, camera, size, pixels[candidates])
+    shown = np.linalg.norm(points - eye, axis=1)
+    behind = np.linalg.norm(relative[candidates], axis=1) - shown
+    return candidates[(met >= 0) & (behind <= grow * shown / focal)]
+
+
+def covering(mark):
+    """True for a mark placed over a print finish of the list's own (its `print_finish`): a text or line mark drawn
+    as a text decal, or a picture mark naming its library decal; the route's print under it is covered."""
+    placed = mark.get("shape") in text_decals.DRAWN or mark.get("decal") is not None
+    return not mark.get("gap") and placed and mark.get("print_finish") is not None
+
+
 def covered_prints(seen, marks, finish_of, part_of):
-    """The faces a route's own print shows under the text and line marks (#171: TRELLIS.2 garbles words into blots of
+    """The faces a route's own print shows under the marks drawn over it (#171: TRELLIS.2 garbles words into blots of
     the print's colour) given the finish and part the mark is printed on, in place: a face of the mark's print finish
     (finish_ask.marks_of's `print_finish`) seen in its box grown by COVER_GROW takes its `on_finish` and the part of
-    that finish seen most there, the parts then numbered again with none left empty. `seen` is close_up_seen's; the
-    faces moved."""
+    that finish seen most there, the parts then numbered again with none left empty. `seen` is close_up_seen's. (The
+    faces moved; the covers, one a mark that moved faces: the faces seen in its grown box, its print finish and the
+    part it took, in the parts' numbering before; the part numbers kept, in their new order.)"""
     model, camera, size, _ = seen
     faces, rows, columns = cast.close_up_cast(model, camera, size)
-    moved = 0
+    moved, covers = 0, []
     for mark in marks:
-        if not drawn_print(mark):
+        if not covering(mark):
             continue
         left, top, wide, tall = mark["box"]
         grow = COVER_GROW * min(wide, tall)
         inside = ((columns >= left - grow) & (columns <= left + wide + grow) & (rows >= top - grow)
                   & (rows <= top + tall + grow) & (faces >= 0))
-        under = np.unique(faces[inside])
+        under = np.union1d(faces[inside], hidden_under(model, camera, size, mark["box"], grow))
         base = under[finish_of[under] == mark["on_finish"]]
         printed = under[finish_of[under] == mark["print_finish"]]
         if not len(base) or not len(printed):
             continue
+        onto = int(np.bincount(part_of[faces[inside][np.isin(faces[inside], base)]]).argmax())
         finish_of[printed] = mark["on_finish"]
-        part_of[printed] = np.bincount(part_of[faces[inside][np.isin(faces[inside], base)]]).argmax()
+        part_of[printed] = onto
         moved += len(printed)
-    part_of[:] = np.unique(part_of, return_inverse=True)[1]  # parts numbered from 0 with none emptied (part_rows)
-    return moved
+        covers.append((under, mark["print_finish"], onto))
+    kept, part_of[:] = np.unique(part_of, return_inverse=True)  # parts numbered from 0 with none emptied (part_rows)
+    return moved, covers, kept
+
+
+def covered_texels(parts, faces, covers, finish_of_part, kept, part_of):
+    """One picture's texel parts (`parts`, the split's texels.npz map, in the split's part numbers; `faces` the face
+    under each texel, -1 none: the views row's) under covered_prints' `covers`: a texel of a cover's print finish
+    (`finish_of_part`, the split's) on a face seen under its mark takes the part that mark's print took (#159 round
+    6: tc4r's sign drew TRELLIS.2's garbled "03" from its texels, the faces under it moved), then numbered as the
+    faces were (`kept`), a texel whose part no face holds any more its face's (`part_of`, the faces' new parts), and
+    the texels no face covers filled again from their nearest (route_texels.filled), as uint16."""
+    import route_texels
+    found = np.where(faces >= 0, parts.astype(np.int64), -1)
+    known = (found >= 0) & (found < len(finish_of_part))
+    finish = np.where(known, finish_of_part[np.where(known, found, 0)], -1)
+    for under, printed, onto in covers:
+        found[np.isin(faces, under) & (finish == printed)] = onto
+    number = np.full(max(int(found.max()), int(kept.max())) + 1, -1, dtype=np.int64)
+    number[kept] = np.arange(len(kept))
+    found = np.where(found >= 0, number[np.maximum(found, 0)], -1)
+    lost = (found < 0) & (faces >= 0)
+    found[lost] = part_of[faces[lost]]
+    return route_texels.filled(found)
+
+
+def texels_written(folders, covers, finish_of_part, kept, part_of):
+    """<out>/texels.npz: the split's texel maps, each under the covers (covered_texels, its faces the views row's
+    texels.npz) when a mark covered a print, else copied as the split wrote them; nothing when the split wrote none."""
+    split = folders["split"] / "texels.npz"
+    if not split.exists():
+        return
+    if not covers:
+        shutil.copyfile(split, folders["out"] / "texels.npz")
+        return
+    with np.load(split) as found, np.load(folders["views"] / "texels.npz") as seen:
+        maps = {name: covered_texels(found[name], seen[f"face{name[len('piece'):]}"], covers, finish_of_part, kept,
+                                     part_of) for name in found}
+    np.savez_compressed(folders["out"] / "texels.npz", **maps)
 
 
 def inked(marks, close_up, inks):
@@ -458,12 +531,13 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
         checked = lit_finishes(checked, every)
     checked = finish_parts.looked(checked, every)
     seen = close_up_seen(folders) if marks else (None, None, None, None)
-    covered = covered_prints(seen, marks, finish_of, part_of) if seen[0] is not None else 0
+    finish_of_part = np.zeros(int(part_of.max()) + 1, dtype=np.int64)
+    finish_of_part[part_of] = finish_of  # the split's, before a cover moves any face
+    covered, covers, kept = covered_prints(seen, marks, finish_of, part_of) if seen[0] is not None else (0, [], None)
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
-    if (folders["split"] / "texels.npz").exists():
-        shutil.copyfile(folders["split"] / "texels.npz", folders["out"] / "texels.npz")
+    texels_written(folders, covers, finish_of_part, kept, part_of)
     rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])

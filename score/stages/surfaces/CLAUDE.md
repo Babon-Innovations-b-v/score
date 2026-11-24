@@ -32,8 +32,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   route's texture: the list reads each text mark's words and look, and each plain printed line, as a mark (asked always,
   decals in the library or not); `surfaces-parts` draws it as a text decal in the library's face of that look
   (`text_decals.py`: data/fonts, SIL OFL; score_lib holds no font yet) at its cast size, written beside parts.npy as its
-  placement's `picture`, and the faces of the list's print finish seen under the mark take the finish and part it is
-  printed on (`route_parts.covered_prints`). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from
+  placement's `picture`, and the faces of the list's print finish under the mark (seen in its grown box, and those
+  the close-up hides at most as deep behind the face shown as the box is grown: TRELLIS.2 raises its garbled letters
+  over the plate, `hidden_under`) take the finish and part it is printed on (`route_parts.covered_prints`; a library
+  picture decal over a print covers it too, `covering`). The texels follow (#185): a print texel on a face under the
+  mark takes that part and every texel is numbered as the faces are (`covered_texels`), else the look and the bake
+  draw TRELLIS.2's garbled print from its texels (tc4r's sign: a "C" for "03"). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from
   the model's outline (`close_up_fit.py`; a camera file's `look` is read before Pixal3D's +Z rule). Scuffs are the
   recipe's `scuffs` setting (0 by default), never a picture. parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.

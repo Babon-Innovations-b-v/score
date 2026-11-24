@@ -470,7 +470,12 @@ tests it turned red:
   finish_ask.py marks_of `and printed != finish` dropped (a line's own finish named its print);
   route_parts.py decal_placements `and mark.get("shape") not in text_decals.DRAWN` dropped (words a gap);
   route_parts.py covered_prints `finish_of[printed] = mark["on_finish"]` -> `pass` (the garbled print kept), its
-  `part_of[:] = ...` renumbering dropped (an emptied part left in the numbering);
+  `part_of[:] = ...` renumbering dropped (an emptied part left in the numbering); hidden_under `return candidates[...]`
+  -> `return candidates[:0]` (the raised print hidden under the plate kept, #185); covering's `or mark.get("decal")
+  is not None` dropped (a library picture's print not covered); covered_texels' `found[...] = onto` -> `pass` (the
+  print's texels under the mark kept, #185: tc4r's sign drew its garbled "C"), `number[kept] = np.arange(...)` ->
+  `= kept` (the split's numbers kept, every texel part after an emptied one off by one), `found[lost] = ...` -> `pass`
+  (a texel of an emptied part takes its neighbour's, not its face's);
   text_decals.py drawn `min(` -> `max(` (words overflow their box); close_up_fit.py framed `- middle[1] * up` ->
   `+ middle[1] * up` (the camera framed off the outline); route_bake.py decals_on's drawn `is_file()` check -> `pass`
   (a missing drawn picture baked); route_parts.py ink_pixels `& (spans[:, 1] <= LETTER_WIDEST * spans[:, 0])`
@@ -2694,23 +2699,50 @@ def text_marks_held():
     worded = route_parts.ink_extent(dict(flat, shape="text"), words, np.tile([0.0, 0.0, 1.0], (len(words), 1)))
     assert np.allclose(worded["size"], [0.2, 0.08], atol=0.01) and np.allclose(worded["at"], [0, 0.04, 0], atol=0.01)
     # A 2 x 2 m panel facing the camera, cut in a 16 x 16 grid: the route's print (finish 1, part 1) in its middle under
-    # the mark and in one corner away from it; the print under the mark takes the panel's finish and part.
+    # the mark and in one corner away from it; the print under the mark takes the panel's finish and part. Behind the
+    # middle, hidden from the camera, two pieces of print: one raised 0.05 under the panel (TRELLIS.2's letters 2 to
+    # 4 mm under the sign's plate, #185), taken too, and one 0.5 behind it, another surface, kept.
     steps = np.linspace(-1.0, 1.0, 17)
     corners = np.array([[x, y, 0.0] for y in steps for x in steps])
     cells = [(row * 17 + column, row * 17 + column + 1, (row + 1) * 17 + column + 1, (row + 1) * 17 + column)
              for row in range(16) for column in range(16)]
-    grid = trimesh.Trimesh(corners, [face for a, b, c, d in cells for face in ((a, b, c), (a, c, d))], process=False)
-    middle = np.abs(grid.triangles_center[:, :2]).max(1) < 0.25
-    corner = grid.triangles_center[:, :2].min(1) > 0.75
-    finish_of, part_of = np.where(middle | corner, 1, 0), np.select([middle, corner], [1, 2], 0)
+    hidden = [[[-0.1, -0.1, depth], [0.1, -0.1, depth], [0.1, 0.1, depth]] for depth in (-0.05, -0.5)]
+    grid = trimesh.Trimesh(np.r_[corners, np.reshape(hidden, (-1, 3))], [
+        *[face for a, b, c, d in cells for face in ((a, b, c), (a, c, d))], [289, 290, 291], [292, 293, 294]],
+        process=False)
+    middle = np.r_[np.abs(grid.triangles_center[:-2, :2]).max(1) < 0.25, True, False]
+    corner = np.r_[grid.triangles_center[:-2, :2].min(1) > 0.75, False, False]
+    near, far = np.eye(len(grid.faces), dtype=bool)[-2:]
+    # The print one part in the middle and the corner (it outlives the cover), the raised piece a part of its own.
+    finish_of = np.where(middle | corner | far, 1, 0)
+    part_of = np.select([middle & ~near, corner, near, far], [1, 1, 2, 3], 0)
+    split = finish_of.copy(), part_of.copy()
     model = route_cast.Model(grid, np.full((len(grid.faces), 3, 2), np.nan), np.zeros(len(grid.faces), int), [None],
                              [np.ones(4)], (np.zeros(3), 1.0))
     camera = (np.array([0.0, 0.0, 6.0]), np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]),
               2 * np.arctan(1.6 / 6.0))
     mark = {"shape": "text", "box": [208, 208, 96, 96], "on_finish": 0, "print_finish": 1, "gap": None}
-    assert route_parts.covered_prints((model, camera, (512, 512), None), [mark], finish_of, part_of) == middle.sum()
-    assert (finish_of[middle] == 0).all() and (part_of[middle] == 0).all() and (finish_of[corner] == 1).all()
-    assert sorted(set(part_of)) == [0, 1]  # the emptied print part numbered away
+    moved, covers, kept = route_parts.covered_prints((model, camera, (512, 512), None), [mark], finish_of, part_of)
+    assert moved == middle.sum() and len(covers) == 1, (moved, covers)
+    assert (finish_of[middle] == 0).all() and (part_of[middle] == 0).all() and (finish_of[corner | far] == 1).all()
+    assert sorted(set(part_of)) == [0, 1, 2] and list(kept) == [0, 1, 3]  # the emptied print part numbered away
+    # A library picture mark over a print is covered too; a picture mark with no decal (a gap), never (#185).
+    assert [route_parts.covering(dict(mark, shape="picture", decal=decal, gap=gap))
+            for decal, gap in (("D1", None), (None, None), ("D1", "no fit"))] == [True, False, False]
+    # The texels (#181, #185): one a face, then four more: the print's texels under the mark take the panel's part (a
+    # texel of the print on a panel face beside its print, as the split's reach gives it, too); the corner's and the
+    # far one's are numbered as their faces; a texel of the emptied raised part on a panel face away from the mark
+    # (between two of the corner's) takes its face's part; a texel no face covers takes its nearest's.
+    centre = np.abs(grid.triangles_center[:, :2]).max(1)
+    beside = int(np.flatnonzero(~middle & (centre < 0.3))[0])
+    away = int(np.flatnonzero(~corner & ~middle & (centre > 0.6) & (finish_of == 0))[0])
+    held = int(np.flatnonzero(corner)[0])
+    faces = np.r_[np.arange(len(grid.faces)), held, away, held, -1][None, :]
+    texels = np.r_[split[1], 1, 2, 1, 1][None, :]
+    texels[0, beside] = 1
+    finish_of_part = np.array([0, 1, 1, 1])
+    found = route_parts.covered_texels(texels.astype(np.uint16), faces, covers, finish_of_part, kept, part_of)
+    assert found.dtype == np.uint16 and (found[0] == np.r_[part_of, 1, 0, 1, 1]).all(), found
     # The close-up's camera fitted from the model's outline: a box seen from 6 degrees further round and 3 lower than
     # the close-up style's view, at a 30 degree field, is found to within a degree or two, its outline met.
     box = trimesh.creation.box((0.6, 0.4, 0.25))
