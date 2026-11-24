@@ -12,6 +12,8 @@ Breaks, each applied once and seen red (2026-11-24):
 - `job`'s check frames dropped from the minutes -> 161, not 164.
 - `render_command`'s "-RenderOffscreen" dropped -> the render wants a window.
 - `vulkan_missing` checks only the first extension -> a driver without position fetch passes.
+- `driver_refusal`'s `node != baked` dropped -> a node on another driver runs libraries that do not load.
+- `vulkan_refusal` drops vulkaninfo's stderr -> the failure no longer says why Vulkan would not start.
 - `ddc_folder`'s `.parent` dropped -> the cache goes inside the CUDA cache's folder.
 - `_twice.compare`'s `np.abs` dropped -> a darker full render is no fault.
 - `_twice.check`'s `len(names) == frames` dropped -> a check pass that made fewer frames counts as same.
@@ -205,6 +207,19 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
          ["-run=pythonscript", "-script=/x/in_editor.py", "-nullrhi"]),
         ("vulkan without position fetch", on_card.vulkan_missing(VULKANINFO), ["VK_KHR_ray_tracing_position_fetch"]),
         ("vulkan's card", on_card.device_name(VULKANINFO), "NVIDIA L40S"),
+        ("the image's driver on its node", on_card.driver_refusal("595.91.07", "595.91.07"), None),
+        ("another node driver is refused naming both", on_card.driver_refusal("610.43.02", "595.91.07"),
+         "the node's NVIDIA driver is 610.43.02, the image's graphics libraries are 595.91.07: rebuild the image for "
+         "610.43.02 (NVIDIA_DRIVER in tools/cloud/images/unreal/Dockerfile)"),
+        ("an image without a driver is refused", on_card.driver_refusal("595.91.07", None) is not None, True),
+        ("vulkan with every extension passes", on_card.vulkan_refusal(
+            VULKANINFO + "\tVK_KHR_ray_tracing_position_fetch : extension revision 1\n", "", 0), None),
+        ("a failed vulkaninfo keeps its stderr's last lines", on_card.vulkan_refusal(
+            "", "a\nERROR: [Loader Message] Code 0 : libGLX_nvidia.so.0: cannot open shared object file\n"
+                "Cannot create Vulkan instance.\nb\nvkCreateInstance failed with ERROR_INCOMPATIBLE_DRIVER\n", 1),
+         "vulkaninfo exited with 1; vulkaninfo said: ERROR: [Loader Message] Code 0 : libGLX_nvidia.so.0: cannot open "
+         "shared object file | Cannot create Vulkan instance. | b | vkCreateInstance failed with "
+         "ERROR_INCOMPATIBLE_DRIVER"),
         ("the cache beside CUDA's", on_card.ddc_folder({"CUDA_CACHE_PATH": "/cache/kernels/u/sm89-580.1/cuda"}),
          pathlib.Path("/cache/kernels/u/sm89-580.1/unreal-ddc")),
         ("no kernel cache, no render", raised(lambda: on_card.ddc_folder({})) is not None, True),

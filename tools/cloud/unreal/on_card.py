@@ -7,7 +7,9 @@ root.
 
 Steps, each failing the job loudly:
 1. Vulkan with hardware ray tracing (`vulkaninfo`): a card or driver without it fails here, in seconds, not after a
-   shader compile of an hour.
+   shader compile of an hour. First the node's driver (`nvidia-smi`) is held against the one the image carries the
+   graphics libraries of (SCORE_NVIDIA_DRIVER, the Dockerfile's NVIDIA_DRIVER): user libraries of another version
+   than the kernel module do not load. A failing vulkaninfo's last stderr lines go into the failure.
 2. The level, when the shot has a scene step (render.py --package): a commandlet (`-run=pythonscript`, no GPU) runs
    tools/unreal/scene/editor.py, which makes the level and its Level Sequence from the scene package; its made.json
    (written last, so a script that raised leaves none, whatever the commandlet's exit) is checked and recorded.
@@ -42,6 +44,37 @@ EXTENSIONS = ("VK_KHR_ray_tracing_pipeline", "VK_KHR_ray_query", "VK_KHR_acceler
 DDC_FOLDER = "unreal-ddc"
 ZEN = "zenserver"
 ZEN_SECONDS = 60
+STDERR_LINES = 4
+
+
+def driver_refusal(node, baked):
+    """Why the node's driver cannot run the image's graphics libraries (None when it can): `node` as nvidia-smi gives
+    it, `baked` the image's SCORE_NVIDIA_DRIVER."""
+    if not baked:
+        return "the image names no SCORE_NVIDIA_DRIVER: it carries no graphics libraries for a known driver"
+    if node != baked:
+        return (f"the node's NVIDIA driver is {node or 'unknown'}, the image's graphics libraries are {baked}: "
+                f"rebuild the image for {node or 'the node'} (NVIDIA_DRIVER in tools/cloud/images/unreal/Dockerfile)")
+    return None
+
+
+def node_driver():
+    """The node's driver version as nvidia-smi gives it, or '' when it gives none."""
+    done = subprocess.run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], capture_output=True,
+                          text=True)
+    lines = done.stdout.split()
+    return lines[0] if lines else ""
+
+
+def vulkan_refusal(stdout, stderr, returncode):
+    """Why `vulkaninfo`'s run shows no hardware ray tracing (None when it does), its stderr's last lines kept."""
+    missing = vulkan_missing(stdout)
+    if not returncode and not missing:
+        return None
+    tail = " | ".join(line.strip() for line in stderr.strip().splitlines()[-STDERR_LINES:])
+    head = (f"vulkaninfo exited with {returncode}" if returncode
+            else f"Vulkan lacks {', '.join(missing)}: no hardware ray tracing on this card or driver")
+    return f"{head}; vulkaninfo said: {tail}" if tail else head
 
 
 def vulkan_missing(vulkaninfo):
@@ -179,10 +212,14 @@ def scene_made(shot, user, environ):
 def main(shot_path):
     began = time.time()
     shot = json.loads(pathlib.Path(shot_path).read_text())
-    vulkaninfo = subprocess.run(["vulkaninfo"], capture_output=True, text=True).stdout
-    missing = vulkan_missing(vulkaninfo)
-    if missing:
-        raise SystemExit(f"Vulkan lacks {', '.join(missing)}: no hardware ray tracing on this card or driver")
+    refusal = driver_refusal(node_driver(), os.environ.get("SCORE_NVIDIA_DRIVER"))
+    if refusal:
+        raise SystemExit(refusal)
+    done = subprocess.run(["vulkaninfo"], capture_output=True, text=True)
+    refusal = vulkan_refusal(done.stdout, done.stderr, done.returncode)
+    if refusal:
+        raise SystemExit(refusal)
+    vulkaninfo = done.stdout
     ddc, user = ddc_folder(os.environ), shot["user"]
     out = pathlib.Path(shot["out"])
     for folder in (ddc, out, pathlib.Path(shot["project"]).parent):

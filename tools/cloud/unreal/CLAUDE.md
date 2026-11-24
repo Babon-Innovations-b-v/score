@@ -11,8 +11,9 @@ Unreal's editor Python; `_twice.py` and `_cost.py` are render.py's.
 - **Logic outside Unreal, the engine part thin.** Everything that decides (the project's settings check, the shader
   cache's name, the job, the passes and their commands, the render-twice check, the cost) is plain Python tested here
   without the engine; `in_editor.py` only applies shot.json through the `unreal` module.
-- **Cluster only** (SCORE_CLOUD=k8s): the GPU operator's full driver gives containers Vulkan; the rented machines'
-  compute driver has no Vulkan files. One shot, one card model (`--class`, L40S or L4; an H100 has no ray-tracing
+- **Cluster only** (SCORE_CLOUD=k8s): the nodes inject NVIDIA's compute libraries only, so the image carries the
+  graphics and Vulkan user libraries for exactly the nodes' driver (NVIDIA_DRIVER in its Dockerfile); `on_card.py`
+  refuses a node on another driver, naming both. A driver upgrade on the nodes means rebuilding the image. One shot, one card model (`--class`, L40S or L4; an H100 has no ray-tracing
   cores), since L40S frames come out slightly darker than other cards'.
 - **The shader cache rides the runtime's kernel cache** (`runtime/kernels.py`): `kernel_cache` = `ddc_name` (engine,
   RHI, the project's Linux-target and renderer settings), the runtime adds the card and driver, restores it before the
