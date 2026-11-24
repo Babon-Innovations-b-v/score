@@ -67,6 +67,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - _finish.drawn_held reading lightness alone (`np.hypot(gap[1], gap[2]) <= DRAWN_AB and` dropped): the royal seat and
   the navy heat gun pass; its lightness not read (`and abs(gap[0]) <= DRAWN_L` dropped): the seat drawn 18 L* lighter
   passes (#198).
+- _finish.clipped_held not reading the input's own clipping (`- made["true_clipped"]` dropped): the white body the
+  input clips as much fails; judging a lit part (`or made.get("lit")` dropped): the glowing body fails; the check
+  left out of finish_look's tests: the blown-out locker body passes (#159).
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail.
@@ -538,6 +541,13 @@ CASES = [
     ("its seat drawn 18 L* lighter than the input", lambda: worn({"drawn": [75.5, -9.6, -20.7],
                                                                   "true_drawn": [57.3, -9.6, -20.7]}),
      "finish.drawn", False),
+    ("its white body drawn blown out (tc6's locker, 0.88 clipped against the input's 0.03)",
+     lambda: worn({"clipped": 0.88, "true_clipped": 0.03}), "finish.clipped", False),
+    ("its white body clipped as the input clips it (tc6's anesthesia machine's 0.54 for 0.50)",
+     lambda: worn({"clipped": 0.54, "true_clipped": 0.50}), "finish.clipped", True),
+    ("its glowing body drawn at its light's strength (tc6's humidifier ring, 0.95 over the input)",
+     lambda: worn({"clipped": 0.95, "true_clipped": 0.0, "lit": True}, {**TOP, "clipped": 0.0, "true_clipped": 0.0}),
+     "finish.clipped", True),
     ("a step that flattened it by 10%", lambda: flattened(0.1), "steps.chamfer_change", False),
     ("the drop that laid it on its side", lambda: dropped(90), "drop.rest_up", False),
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),

@@ -47,7 +47,9 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   part, at one scale) lies within PATTERN_REACH of NVIDIA's either way: the surgical chair's granite seat over a smooth
   one and the humidifier's lost ribs fail it. `drawn` (#198) the share whose colour as its look draws it (under
   the close-up's own light, the same view) lies within DRAWN_AB in a*b* and DRAWN_L in L* of the input close-up's
-  on the part: tc5r's royal chair seat and navy heat gun, inside NVIDIA's albedo reach, fail it. The made side's `looks` are its parts' settings as the
+  on the part: tc5r's royal chair seat and navy heat gun, inside NVIDIA's albedo reach, fail it. `clipped` (#159) the
+  share whose look draws no more of it clipped white than the input close-up does, within CLIPPED_REACH (a part that
+  gives off light left out): tc6's blown-out locker and anesthesia machine, white on both sides by `drawn`, fail it. The made side's `looks` are its parts' settings as the
   route set them (bench/run finish.part_looks); a calibration copy wears its finishes' own library surfaces.
 - **How cleanly the finishes meet** (`_edges`, #179; owner 2026-11-23: tc3s's "table and toaster mesh became messy
   compared to run 1"): a finish given triangle by triangle on TRELLIS.2's uneven triangles meets in a sawtooth and

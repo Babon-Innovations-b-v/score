@@ -103,6 +103,9 @@ BARS = (
     # tc5r's hospital chair seat drawn royal blue, drill b01's red too strong, both inside NVIDIA's albedo reach on
     # some parts), at the look bars' 0.90; its reaches are beside _finish's.
     ("finish", "drawn", "least", 0.90),
+    # Each part drawn no more clipped white than the input shows it (#159: tc6's locker and anesthesia machine blown
+    # out, their drawers, panels and vents lost), at the look bars' 0.90; its reach is beside _finish's.
+    ("finish", "clipped", "least", 0.90),
     # Moving parts and joints (#177, #161 rules 1 and 11), #162-style design bars until the calibration pass sets
     # them on the tune split's jointed truths: as many moving parts as NVIDIA's; each truth part's faces at least
     # half its made part's (area in common over area together); every joint of its type; its axis within 10 degrees

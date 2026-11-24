@@ -60,6 +60,10 @@ SEEN_THROUGH_RECIPES = ("glass",)
 # which the owner saw right) as much as the surgical chair's granite seat (7.4 against 1.9); the median reads the
 # seat 4.96 against 0.0 and the tube 1.63 against 1.17.
 PATTERN_LEAST = 30
+# A grid pixel of a part (drawn_patterns, area-averaged) at or over this L* is clipped white: the light took its every
+# channel to the top (sRGB 252 grey is L* 99.0), so the shading and the detail on it are gone (#159: tc6's locker drawn
+# 72% clipped where NVIDIA's close-up shows 1%, its anesthesia machine's drawers and panels lost).
+CLIPPED_L = 99.0
 # The look's picture (look_job, look.py): its side and samples, #181's after pictures' (r3edges), a preview that
 # never ships.
 LOOK_SIDE, LOOK_SAMPLES = 1080, 32
@@ -318,12 +322,15 @@ def own_spec(library, variant):
 
 
 def part_looks(folder, take):
-    """{part: {"colour" linear RGB, "metal", "roughness", "class", "opacity"}}: each finish part's look as the route
-    set its surface on it (its row's token, metal and roughness: the list's settings, else, where the colour check
-    moved its surface (route_settings.applied), that surface's own spec in the bench library), its surface's class
-    (sim.py's surface_class of its record; None for a surface outside the library) and its drawn opacity (its own
-    spec's, drawn_opacity)."""
+    """{part: {"colour" linear RGB, "metal", "roughness", "class", "opacity", "lit"}}: each finish part's look as the
+    route set its surface on it (its row's token, metal and roughness: the list's settings, else, where the colour
+    check moved its surface (route_settings.applied), that surface's own spec in the bench library), its surface's
+    class (sim.py's surface_class of its record; None for a surface outside the library), its drawn opacity (its own
+    spec's, drawn_opacity) and whether it gives off light (its surface's family, family_of, one of
+    finish_parts.LIT_FAMILIES)."""
     from score.stages.place_build.maker import sim
+    import score.stages.surfaces  # noqa: F401  (the stage first: its modules import one another through it)
+    import finish_parts
     part_of, surfaces = face_finishes(folder, take)
     listed = json.loads((folder / "surfaces-parts" / "parts.json").read_text())["takes"][take]["parts"]
     library = json.loads((folder / "surface-library" / "materials.json").read_text())
@@ -335,7 +342,8 @@ def part_looks(folder, take):
         found[row["part"]] = {"colour": linear_of(settings["token"]).tolist() if settings.get("token") else None,
                               "metal": settings.get("metal"), "roughness": settings.get("roughness"),
                               "class": sim.surface_class(record) if record else None,
-                              "opacity": drawn_opacity(own_spec(library, row["judge"]))}
+                              "opacity": drawn_opacity(own_spec(library, row["judge"])),
+                              "lit": family_of(surfaces[row["part"]]) in finish_parts.LIT_FAMILIES}
     return found
 
 
@@ -579,14 +587,17 @@ def look_faces(model, looked):
 
 
 def drawn_patterns(model, finished, looked, close_up, take):
-    """{part: {"pattern", "true_pattern", "drawn", "true_drawn"}}: each finish part's lightness detail (the median
-    size of likeness measure.high_pass, L units) and its median CIELAB colour as its look draws it (`looked`: look.png
+    """{part: {"pattern", "true_pattern", "drawn", "true_drawn", "clipped", "true_clipped"}}: each finish part's
+    lightness detail (the median size of likeness measure.high_pass, L units), its median CIELAB colour and the share of
+    its pixels clipped white (CLIPPED_L) as its look draws it (`looked`: look.png
     and look.json, look_job's) and as NVIDIA's close-up (`close_up`, the RGBA render) shows it on the same part (the
     finish's fitted camera, camera.json), both read at the coarser picture's metres a pixel; None on a side that shows
     the part on under PATTERN_LEAST (whole-reach) pixels. The pattern: #186, the surgical chair's seat drawn speckled
     granite where NVIDIA's is smooth. The colour (#198): the look is drawn under the close-up's own light, so a part
     drawn more saturated or darker than the input shows it on the same view is its colour's fault, which NVIDIA's
-    albedo alone missed (tc5r's hospital chair seat, its albedo dE inside the reach's spread, drawn royal blue)."""
+    albedo alone missed (tc5r's hospital chair seat, its albedo dE inside the reach's spread, drawn royal blue). The
+    clipped share (#159): a white token too light for that light draws a part flat white where the input still shades
+    it (tc6's locker and anesthesia machine), which its median colour, white on both sides, does not show."""
     from PIL import Image
     import route_cast
     with likeness_tools():
@@ -604,12 +615,15 @@ def drawn_patterns(model, finished, looked, close_up, take):
     found = {}
     for key, (picture, camera) in pictures.items():
         parts, lab = part_grid(loaded, camera, picture, part_of, metres)
-        drawn = {"pattern": "drawn", "true_pattern": "true_drawn"}[key]
+        drawn, clipped = {"pattern": ("drawn", "clipped"), "true_pattern": ("true_drawn", "true_clipped")}[key]
         for part in np.unique(parts[parts >= 0]).tolist():
             detail = np.abs(measure.high_pass(lab[..., 0], parts == part))
             colours = lab[parts == part]
-            entry = found.setdefault(part, {"pattern": None, "true_pattern": None, "drawn": None, "true_drawn": None})
+            entry = found.setdefault(part, {"pattern": None, "true_pattern": None, "drawn": None, "true_drawn": None,
+                                            "clipped": None, "true_clipped": None})
             entry[key] = round(float(np.median(detail)), 3) if len(detail) >= PATTERN_LEAST else None
             entry[drawn] = ([round(float(value), 1) for value in np.median(colours, axis=0)]
                             if len(colours) >= PATTERN_LEAST else None)
+            entry[clipped] = (round(float((colours[:, 0] >= CLIPPED_L).mean()), 4)
+                              if len(colours) >= PATTERN_LEAST else None)
     return found

@@ -513,6 +513,8 @@ tests it turned red:
   lit_own(lighter, every)` dropped (the toaster's steel moved by the order, IN_ORDER); LIGHT_LIFT 22 -> 1000 (a black
   token seen grey kept, CHECKED); route_parts.py printed_finishes `dict(finish, printed=True)` -> `finish` (the print
   finish unmarked, text_marks_held); route_list.py recipe_words -> `""` (the surfaces offered without their recipe)
+- route_texels.py texel_parts `picked[confirmed] = own[confirmed]` dropped (#159: a texel the close-up shows in its
+  face's own finish takes the texture region's, tc6's cutting tool's grips blotched black)
 - route_texels.py (#159; the TEXELS rows, the views' and the split's texels.npz): texel_parts `score.argmax(1)]` ->
   `own]` (the border stays on the triangles); carriers `limit=reach` -> `limit=np.inf` (a far colour paints its
   finish); speck_islands `(area < least) & (area < largest[finish])` -> `area < least` (a finish's one small island
@@ -2214,6 +2216,12 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                                            np.array([[10, 11], [10, 11]]), np.array([0, 1]), lit,
                                            np.array([[1, -1, 0, -1]]))[0].tolist() for lit in ([1], [])]
     assert lit_texels == [[11, 10, 10, 11], [10, 10, 10, 10]], lit_texels
+    # A texel the close-up shows in its face's own finish keeps it, lit or not (#159: tc6's cutting tool's grips drawn
+    # the body's black where the texture is dark): face 1's first texel, shown finish 1, keeps part 11.
+    shown_own = route_texels.texel_parts(np.array([[0, 0, 1, 1]]), np.zeros((1, 4), int), np.array([[5.0, 0.0]]),
+                                         np.array([[10, 11], [10, 11]]), np.array([0, 1]), [],
+                                         np.array([[-1, -1, 1, -1]]))[0].tolist()
+    assert shown_own == [10, 10, 11, 10], shown_own
     assert route_texels.told_finishes(np.array([[0, 1, -1, 5]], np.int8), {0: 1, 1: 0}).tolist() == [[1, 0, -1, -1]]
     # Each texel read back to its point on its face, and the region the laid close-up shows there: a unit square seen
     # straight on, its left half region 1, its right region 0, its top rows not laid (-1).

@@ -133,7 +133,10 @@ def texel_parts(face_of, region_of, weights, carried, finish_of, lit=(), told=No
     face, its face's own on a tie or where its region names none of them. A finish that gives off light (`lit`) the
     texture's regions cannot show (route_split.close_up_only): a texel the close-up shows (`told`, the finish the
     close-up's label gives each texel, -1 none) takes that finish where it is carried near, so a lit part follows the
-    close-up's own edges; a texel on a lit face the close-up does not tell keeps its face's own."""
+    close-up's own edges; a texel on a lit face the close-up does not tell keeps its face's own. A texel the close-up
+    shows in its face's own finish keeps it, lit or not: the texture drifts from the close-up (#159: tc6's cutting
+    tool, its grips textured as dark as its body and lit in pale patches, drew the body's black over the grips the
+    split gave the grey rubber, with grey blotches where the patches lay)."""
     covered = face_of >= 0
     faces, regions = face_of[covered], region_of[covered]
     near = carried[faces]
@@ -143,6 +146,8 @@ def texel_parts(face_of, region_of, weights, carried, finish_of, lit=(), told=No
     score[np.arange(len(faces)), own] = np.maximum(score[np.arange(len(faces)), own], 0.0) + 0.5
     picked = score.argmax(1)
     told = np.full(len(faces), -1) if told is None else told[covered]
+    confirmed = told == own
+    picked[confirmed] = own[confirmed]
     shown = (told >= 0) & (np.isin(told, list(lit)) | np.isin(own, list(lit)))
     shown &= near[np.arange(len(faces)), np.maximum(told, 0)] >= 0
     kept = np.isin(own, list(lit)) & ~shown

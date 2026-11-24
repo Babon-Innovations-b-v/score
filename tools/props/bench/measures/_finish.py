@@ -37,6 +37,15 @@ PATTERN_FLOOR = 1.0
 # metal's reflections (the held parts lay within 13 L*); the chair's seat drawn 18 to 21 L* lighter fails it.
 DRAWN_AB = 4.5
 DRAWN_L = 15.0
+# A part's whites held (#159): the share of its pixels its look draws clipped white (bench/run finish.drawn_patterns,
+# under the close-up's own light) at most CLIPPED_REACH over the input close-up's on the same part and view. Its median
+# colour is white on both sides, so `drawn` held tc6's blown-out locker (its body 0.88 clipped against NVIDIA's 0.03, a
+# #c8c8c8 token for NVIDIA's 0.32 albedo) and anesthesia machine (0.22 more over 56% of it, its drawers and panels
+# lost). Over tc6's 33 looks at the bar's 0.90 of the area, five fail: those two, the humidifier's white shade (0.25
+# over), the fridge's body drawn chrome (0.25) and the hospital chair's white frame drawn flatter than NVIDIA's (0.18);
+# the 28 others hold (the sign, the tire rack, the grinder, the ladder, the ratchet whole). A part that gives off light
+# (finish part_looks' `lit`) is drawn at its light's strength and is not judged.
+CLIPPED_REACH = 0.15
 
 
 def split_rule():
@@ -166,12 +175,21 @@ def drawn_held(made):
     return bool(np.hypot(gap[1], gap[2]) <= DRAWN_AB and abs(gap[0]) <= DRAWN_L)
 
 
+def clipped_held(made):
+    """Whether a part's look draws no more of it clipped white than the input close-up does, within CLIPPED_REACH;
+    None where either side has none measured or the part gives off light (`made` {clipped, true_clipped, lit})."""
+    if made.get("clipped") is None or made.get("true_clipped") is None or made.get("lit"):
+        return None
+    return bool(made["clipped"] - made["true_clipped"] <= CLIPPED_REACH)
+
+
 def part_look(made, truth, through=None):
     """One part's look held to NVIDIA's on its faces: {"delta_e", "metal", "roughness_gap", "class", "see_through"},
     each None where either side lacks it (`made` {colour, metal, roughness, class, opacity}; `truth` true_look's;
     `through` true_through's)."""
     albedo, metal, roughness, name = truth
     return {"see_through": see_through_held(made, through), "pattern": pattern_held(made), "drawn": drawn_held(made),
+            "clipped": clipped_held(made),
             "delta_e": None if albedo is None or made.get("colour") is None else
             round(float(np.linalg.norm(colour_lab(np.asarray(made["colour"], dtype=float)) - colour_lab(albedo))), 2),
             "metal": None if metal is None or made.get("metal") is None else
@@ -180,7 +198,8 @@ def part_look(made, truth, through=None):
             round(abs(float(made["roughness"]) - roughness), 3),
             "class": None if name is None or made.get("class") is None else bool(made["class"] == name),
             "made": {key: made.get(key) for key in ("colour", "metal", "roughness", "class", "opacity", "pattern",
-                                                    "true_pattern", "drawn", "true_drawn")},
+                                                    "true_pattern", "drawn", "true_drawn", "clipped",
+                                                    "true_clipped", "lit")},
             "true": {"albedo": None if albedo is None else [round(float(value), 4) for value in albedo],
                      "metal": None if metal is None else round(metal, 3),
                      "roughness": None if roughness is None else round(roughness, 3), "class": name,
@@ -191,7 +210,8 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
     """{"colour", "metal", "roughness", "class", "see_through": the area share of the counted parts (split_compare's
     FINISH_LEAST) whose look holds (part_look: delta E within COLOUR_REACH, metal or not as NVIDIA's (METAL_REACH),
     roughness within ROUGHNESS_REACH, the same class, see-through where NVIDIA's is and only there, its drawn pattern
-    NVIDIA's: pattern_held, its drawn colour the input's: drawn_held), of those both sides name; "parts": each part's look}. `looks` {part: {colour
+    NVIDIA's: pattern_held, its drawn colour the input's: drawn_held, its whites no more clipped: clipped_held), of
+    those both sides name; "parts": each part's look}. `looks` {part: {colour
     linear RGB, metal, roughness, class}} what each made part got; `nearest` each made face's truth triangle."""
     rule = split_rule()
     area = _mesh.areas(placed, made_faces)
@@ -210,9 +230,9 @@ def finish_look(truth, placed, made_faces, made_parts, nearest, looks):
     tests = {"colour": lambda row: row["delta_e"] <= COLOUR_REACH, "metal": lambda row: row["metal"],
              "roughness": lambda row: row["roughness_gap"] <= ROUGHNESS_REACH, "class": lambda row: row["class"],
              "see_through": lambda row: row["see_through"], "pattern": lambda row: row["pattern"],
-             "drawn": lambda row: row["drawn"]}
+             "drawn": lambda row: row["drawn"], "clipped": lambda row: row["clipped"]}
     keys = {"colour": "delta_e", "metal": "metal", "roughness": "roughness_gap", "class": "class",
-            "see_through": "see_through", "pattern": "pattern", "drawn": "drawn"}
+            "see_through": "see_through", "pattern": "pattern", "drawn": "drawn", "clipped": "clipped"}
     found = {}
     for name, test in tests.items():
         judged = [row for row in rows if row[keys[name]] is not None]
