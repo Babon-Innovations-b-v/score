@@ -23,7 +23,8 @@ and uploads it after a run that grew it. A cold first start compiles every shade
 Higgsfield on fresh machines), so a run that starts warm is the cheap one.
 
 Back in <out>: full/ (every frame), check/ (the first CHECK_FRAMES rendered again by a second editor process),
-record.json (on_card's passes and timings), twice.json (the check: a fault where a tile's brightness differs between
+record.json (on_card's passes and timings; a failure on the card comes back too, as its `failure` with the
+editor's logs in logs/, and fails the run), twice.json (the check: a fault where a tile's brightness differs between
 the two renders, the dark rectangles Higgsfield saw in 4 of 7 final renders) and cost.json (what a frame cost).
 Spending: as every cluster run, only inside a cleared run (SCORE_SPEND_TICKET, or the owner's override); the
 submitter holds the run to the batch cap.
@@ -204,6 +205,12 @@ def finish(out, run_name, card_class):
     return twice
 
 
+def card_failure(out):
+    """Why the job stopped on the card (record.json's `failure`, which on_card.py writes and still brings back with
+    the editor's logs), None when it finished."""
+    return json.loads((pathlib.Path(out) / "record.json").read_text()).get("failure")
+
+
 def scene_faults(out):
     """What the editor refused making the level on the card (record.json's scene step), none without one."""
     record = json.loads((pathlib.Path(out) / "record.json").read_text())
@@ -247,6 +254,10 @@ def render(project, level, sequence, frames, card_class, out, who, dry_run=False
         shutil.rmtree(scratch, ignore_errors=True)
     if failed:
         raise SystemExit(f"run {run_name}: the render did not finish (its failure is said above)")
+    failure = card_failure(out)
+    if failure:
+        raise SystemExit(f"run {run_name}: the render stopped on the card: {failure} (the editor's logs in "
+                         f"{pathlib.Path(out) / 'logs'}, record.json beside them)")
     twice = finish(out, run_name, card_class)
     faults = scene_faults(out)
     print(f"{run_name}: {frames} frames in {out}; render twice: {'same' if twice['same'] else 'DIFFERS'} "

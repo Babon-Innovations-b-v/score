@@ -24,7 +24,9 @@ Steps, each failing the job loudly:
 The Derived Data Cache goes into the job's kernel-cache folder (the parent of the CUDA cache the runtime points
 there) through `UE-LocalDataCachePath`, a variable a shell cannot set (its name has a dash), set here. record.json in
 the out folder holds each step's seconds, each pass's frames, the card Vulkan named and the cache's bytes before and
-after; logs/ the editor's own logs of every start.
+after; logs/ the editor's own logs of every start. A failing step still writes record.json (its `failure`) and
+logs/, and the job exits 0 so the runtime brings them back (it brings outputs back only from a command that
+succeeded); render.py fails the run on that failure.
 """
 import json
 import os
@@ -159,13 +161,19 @@ def give(folder, user):
         os.chown(path, entry.pw_uid, entry.pw_gid, follow_symlinks=False)
 
 
-def run_as(command, user, environ):
-    """Run the command as `user`; its seconds. A non-zero exit fails the job."""
+def exited(command, user, environ):
+    """Run the command as `user`; its exit code and seconds."""
     began = time.time()
     done = subprocess.run(command, user=user, group=pwd.getpwnam(user).pw_gid, extra_groups=[], env=environ)
-    if done.returncode:
-        raise SystemExit(f"{pathlib.Path(command[0]).name} exited with {done.returncode}: {command[2:5]}")
-    return round(time.time() - began, 1)
+    return done.returncode, round(time.time() - began, 1)
+
+
+def run_as(command, user, environ):
+    """Run the command as `user`; its seconds. A non-zero exit fails the job."""
+    returncode, seconds = exited(command, user, environ)
+    if returncode:
+        raise SystemExit(f"{pathlib.Path(command[0]).name} exited with {returncode}: {command[2:5]}")
+    return seconds
 
 
 def zen_pids():
@@ -199,14 +207,32 @@ def logs_kept(project_file, out):
 
 
 def scene_made(shot, user, environ):
-    """The scene step: the level made from the package by editor.py, its made.json read back; {seconds, made}."""
+    """The scene step: the level made from the package by editor.py, its made.json read back (scene_record)."""
     into = pathlib.Path(shot["scene"]["into"])
     for folder in (into, pathlib.Path(shot["scene"]["package"])):
         give(folder, user)
-    seconds = run_as(scene_command(shot, REPO / shot["scene"]["script"]), user, environ)
+    return scene_record(into, *exited(scene_command(shot, REPO / shot["scene"]["script"]), user, environ))
+
+
+def scene_record(into, returncode, seconds):
+    """The scene step's record {seconds, exit, made} from <into>/made.json, which editor.py writes last: its faults
+    were logged as errors, so the commandlet exits non-zero with a level made, and made.json, not the exit code, says
+    the level stands. Refused when there is none."""
     if not (into / "made.json").is_file():
-        raise SystemExit("editor.py wrote no made.json: the level was not made (its log above says where it stopped)")
-    return {"seconds": seconds, "made": json.loads((into / "made.json").read_text())}
+        raise SystemExit(f"editor.py wrote no made.json (the commandlet exited with {returncode}): the level was not "
+                         "made (the editor's log in logs/ says where it stopped)")
+    return {"seconds": seconds, "exit": returncode, "made": json.loads((into / "made.json").read_text())}
+
+
+def closed(record, failure, project_file, out):
+    """The job's end, whether its steps finished or `failure` (a step's error, or None) stopped them: the editor's
+    logs kept and <out>/record.json written with the failure. The job then exits 0 even on a failure, since the
+    runtime brings the out folder back only from a command that succeeded; render.py reads the failure from
+    record.json (render.card_failure) and fails the run there. (main stops the cache server first: one that does
+    not stop still fails the job, so no cache is packed mid-write.)"""
+    logs_kept(project_file, out)
+    record["failure"] = failure
+    (out / "record.json").write_text(json.dumps(record, indent=1))
 
 
 def main(shot_path):
@@ -228,6 +254,20 @@ def main(shot_path):
     engine_plugins = pathlib.Path(shot["editor"]).parents[2] / "Plugins"  # <engine>/Engine/Plugins
     record = {"card": device_name(vulkaninfo), "ddc": {"folder": str(ddc), "bytes_before": size_of(ddc)},
               "plugins_dropped": plugins_held(shot["project"], engine_plugins), "passes": {}}
+    try:
+        passes_run(shot, user, environ, record)
+        failure = None
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - written to record.json; render.py fails the run on it
+        failure = f"{type(error).__name__}: {error}"
+    stop_zen()
+    record["ddc"]["bytes_after"] = size_of(ddc)
+    record["job_seconds"] = round(time.time() - began, 1)
+    closed(record, failure, shot["project"], out)
+
+
+def passes_run(shot, user, environ, record):
+    """The scene step (with a package), the config assets and every pass, each one's seconds (and frames) put in
+    record["passes"] as it ends; the first that fails raises."""
     if shot.get("scene"):
         record["passes"]["scene"] = scene_made(shot, user, environ)
     record["passes"]["config"] = {"seconds": run_as(config_command(shot, HERE / "in_editor.py"), user, environ)}
@@ -238,11 +278,6 @@ def main(shot_path):
             raise SystemExit(f"the {one_pass['name']} pass made {frames} frames of "
                              f"{one_pass['end'] - one_pass['start']}")
         record["passes"][one_pass["name"]] = {"seconds": seconds, "frames": frames}
-    stop_zen()
-    record["ddc"]["bytes_after"] = size_of(ddc)
-    record["job_seconds"] = round(time.time() - began, 1)
-    logs_kept(shot["project"], out)
-    (out / "record.json").write_text(json.dumps(record, indent=1))
 
 
 if __name__ == "__main__":

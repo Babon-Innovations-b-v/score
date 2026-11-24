@@ -23,6 +23,9 @@ Breaks, each applied once and seen red (2026-11-24):
 - `plugins_held` keeps every plugin -> an image without EditorScriptingUtilities stops the editor.
 - `object_path` returns the path unchanged -> Movie Render Queue is given /Game/ScoreRender/Check, no object.
 - `job`'s scene inputs dropped -> the package never goes up with a --package shot.
+- `closed` skips `logs_kept` (2026-11-24) -> a failed run comes back without the editor's logs.
+- `scene_record` refuses a non-zero exit -> a level made with faults stops the render (#222, run 6).
+- `render` skips `card_failure` -> a run that stopped on the card is priced and checked as frames.
 """
 import json
 import pathlib
@@ -128,7 +131,8 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
         out = pathlib.Path(jobs[0]["outputs"][0]["local"])
         frames(out / "full", names)
         frames(out / "check", names)
-        (out / "record.json").write_text(json.dumps(RECORD))
+        stopped = {**RECORD, "failure": "SystemExit: the full pass made 0 frames of 8"}
+        (out / "record.json").write_text(json.dumps(stopped if out.name == "stopped" else RECORD))
         return []
 
     monkeypatch.setitem(sys.modules, "cluster_jobs", types.SimpleNamespace(
@@ -159,6 +163,13 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
     (tmp_path / "pkg").mkdir()
     scened = render.job(tmp_path / "made", 1, shot_file, tmp_path / "back", tmp_path / "pkg", tmp_path / "path.json")
     scene_shot = render.shot(made, "/m", "/s", 1, render.scene_step(tmp_path / "path.json"))
+    (tmp_path / "failed/project/Saved/Logs").mkdir(parents=True)
+    (tmp_path / "failed/project/Saved/Logs/Score.log").write_text("LogSpawn: Warning: SpawnActor failed\n")
+    (tmp_path / "failed/out").mkdir()
+    on_card.closed({"passes": {}}, "SystemExit: UnrealEditor-Cmd exited with 1", tmp_path / "failed/project/S.uproject",
+                   tmp_path / "failed/out")
+    (tmp_path / "stage").mkdir()
+    (tmp_path / "stage/made.json").write_text(json.dumps({"faults": [{"what": "actor a"}]}))
     # (case, answer, expected), each expectation worked by hand
     rows = [
         ("a ray-tracing project passes", render.project_refusal(GOOD), None),
@@ -202,6 +213,12 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
         ("the scene commandlet", [flag for flag in on_card.scene_command(scene_shot, "/r/editor.py")
                                   if flag.startswith("-script") or flag == "-nullrhi"],
          ["-script=/r/editor.py /work/unreal/package /work/unreal/stage /work/unreal/path.json", "-nullrhi"]),
+        ("a failure comes back with the editor's logs", (
+            (tmp_path / "failed/out/logs/Score.log").read_text(), render.card_failure(tmp_path / "failed/out")),
+         ("LogSpawn: Warning: SpawnActor failed\n", "SystemExit: UnrealEditor-Cmd exited with 1")),
+        ("a level made with faults goes on to render", on_card.scene_record(tmp_path / "stage", 1, 12.5),
+         {"seconds": 12.5, "exit": 1, "made": {"faults": [{"what": "actor a"}]}}),
+        ("no made.json, no level", raised(lambda: on_card.scene_record(tmp_path / "none", 0, 1.0)) is not None, True),
         ("the config commandlet has no GPU", [flag for flag in on_card.config_command(shot, "/x/in_editor.py")
                                               if flag in ("-nullrhi", "-run=pythonscript", "-script=/x/in_editor.py")],
          ["-run=pythonscript", "-script=/x/in_editor.py", "-nullrhi"]),
@@ -261,6 +278,10 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
         ("what was written back", (json.loads((tmp_path / "back/twice.json").read_text())["same"],
                                    json.loads((tmp_path / "back/cost.json").read_text())["euros_per_frame"]),
          (True, 0.03125)),
+        ("a failure on the card fails the run", raised(lambda: render.render(
+            good, "/m", "/s", 8, "gpu-48gb", tmp_path / "stopped", "t")),
+         f"run unreal-run-1: the render stopped on the card: SystemExit: the full pass made 0 frames of 8 (the "
+         f"editor's logs in {tmp_path / 'stopped/logs'}, record.json beside them)"),
     ]
     wrong = [(case, answer, expected) for case, answer, expected in rows if answer != expected]
     assert not wrong, wrong

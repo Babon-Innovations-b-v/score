@@ -224,11 +224,28 @@ def mesh_made(mesh, place, instances):
 
 
 def placed(actor_plan, asset, place):
-    """One copy spawned: its object's mesh at its laid transform, labelled by its name, in the place's folder."""
+    """One copy spawned: its object's mesh at its laid transform, labelled by its name, in the place's folder.
+
+    A Static Mesh goes in as an empty StaticMeshActor given its mesh after the spawn, so the spawn never tests the
+    mesh's collision against what is already laid: spawn_actor_from_object returned None for 11 wall-mounted copies
+    on one facade (#222, run 6) while the same mesh at the same turn spawned elsewhere, the mark of a spawn refused
+    for encroaching. A character's Skeletal Mesh goes through the mesh's own actor factory. A spawn that still gives
+    no actor raises, naming the spot (the engine's LogSpawn line in Saved/Logs says why)."""
     transform = actor_plan["transform"]
+    location = unreal.Vector(*transform["location"])
     rotation = unreal.Quat(*transform["rotation"]).rotator()
-    actor = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).spawn_actor_from_object(
-        asset, unreal.Vector(*transform["location"]), rotation)
+    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    if isinstance(asset, unreal.StaticMesh):
+        actor = actors.spawn_actor_from_class(unreal.StaticMeshActor, location, rotation)
+        if actor is not None and not actor.get_editor_property("static_mesh_component").set_static_mesh(asset):
+            raise RuntimeError(f"{asset.get_path_name()} was not set on the spawned StaticMeshActor")
+    elif isinstance(asset, unreal.SkeletalMesh):
+        actor = actors.spawn_actor_from_object(asset, location, rotation)
+    else:
+        raise RuntimeError(f"{asset.get_path_name()} is a {type(asset).__name__}, not a Static or Skeletal Mesh")
+    if actor is None:
+        raise RuntimeError(f"the editor spawned no actor for {asset.get_path_name()} at {list(transform['location'])} "
+                           f"turned {list(transform['rotation'])}")
     actor.set_actor_scale3d(unreal.Vector(transform["scale"], transform["scale"], transform["scale"]))
     actor.set_actor_label(actor_plan["name"])
     actor.set_folder_path(f"Score/{place}")
