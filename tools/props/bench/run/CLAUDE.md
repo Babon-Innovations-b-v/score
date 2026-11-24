@@ -43,6 +43,15 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   `read.json`, which `measure` holds to the close-up's words (`look_found`, measures `look.read`). A part is resolved
   as the bake resolves it (its variant in its own token, then the list's settings over it: route_settings.set_spec,
   its second shade moved with its colour) and a glass is drawn with its alpha as the bake now carries it (#186).
+- **The look's light is held to the close-up** (#206, `light_step`, the input's `light` step after `render`): NVIDIA's
+  own model drawn by look.py (a job's `usd`: its own materials, the look's camera, light, size and samples) held to the
+  close-up it was drawn into (`exposure_held`: mean display lightness of the opaque pixels within LIGHT_REACH, clipped
+  white no more than the close-up's by CLIP_SLACK); unheld, the step is a gap and B's look is not drawn (`unheld_light`).
+  On tc6's 26 NVIDIA close-ups the look held at 0.009 lightness and 0.008 clipped at most; the old two suns and grey
+  world sat 0.13 to 0.26 darker, and the close-up's light 20% up or down 0.024 to 0.078 away. The close-up's light
+  lifts a matte surface's picture well above its own colour (the locker's NVIDIA paint of 0.32 linear reads 0.87 on
+  screen), so a colour read off the close-up is taken under it in the list (route_list, #198, #204), never by dimming
+  the look: dimmed, the look no longer draws NVIDIA's own model as its close-up.
 - **The measures count only the specks the look draws** (#159, `seen_faces`: finish.look_faces casts each drawn pixel
   of look.png through look.json's camera onto the model; the side's `face_seen`), for a truth case and a pictured one.
 - **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge

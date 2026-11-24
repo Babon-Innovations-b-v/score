@@ -97,6 +97,15 @@ LOOK_SMALL = 360  # the look's small copy, a page's
 # from every light: its normal is turned into the body or it lies in a fold (#159: the printer box's holes are 0.0047
 # of its silhouette at 0.1 and 0.0052 at 0.2; tc4r's clean made models 0.00001 at most at either).
 LOOK_DARK = 0.1
+# The look's light calibration (#206, light_step): NVIDIA's own model drawn by the look step held to the close-up it
+# was drawn into. Its mean display lightness within LIGHT_REACH of the close-up's, and its share of clipped white
+# (every channel at 255) no more than the close-up's by CLIP_SLACK. The look draws at 1080 and 32 samples, the close-up
+# at 2048 and 128, framed a little apart: on tc6's 26 NVIDIA close-ups that alone moved the lightness by 0.0093 at most
+# (the humidifier) and the clipped share up by 0.0083 at most (the ceiling task light); the close-up's light 20% up or
+# down moved it 0.024 to 0.078 (anesthesia machine, toaster, locker), the look's old two suns and grey world 0.13 to
+# 0.26 darker.
+LIGHT_REACH = 0.02
+CLIP_SLACK = 0.01
 PLACE = "bench163"  # the benchmark's place name: its takes, its inventory's scene, its scratch place folder
 SIZE = 2048  # the close-up's pixels square (#162: Pro draws at 2K)
 FOV = 30.0  # vertical degrees, as tools/usd/compare.py draws
@@ -636,7 +645,8 @@ def branch_b(kept, row, material, rgba, scratch, library):
         if kept_output(kept, row["id"], "B", "finish"):
             parted = checked_out(kept, row["id"], "B", "finish", scratch / "B" / "look-finish")
             camera = finish.look_view(json.loads((rgba.parent / "row.json").read_text())["camera"], parted)
-            run_steps(kept, row["id"], "B", [("look", look_step(model, parted, row, camera))], scratch)
+            run_steps(kept, row["id"], "B", [("look", look_step(model, parted, row, camera,
+                                                                uncalibrated=unheld_light(kept, row)))], scratch)
     if not kept.entry(row["id"], "B", "physics") and all(kept_output(kept, row["id"], "B", step)
                                                          for step in ("final", "sim", "finish")):
         folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"weighed-{step}")
@@ -722,13 +732,25 @@ def weighed_step(folders, row, material, picture):
     return make
 
 
-def look_step(model, parted, row, camera, draw=queued_blender, ask=None):
+def unheld_light(kept, row):
+    """Why the look's light is not held to the row's close-up (#206: its `light` step a gap, or not run: `render`
+    draws it), or None where it is held or the row is a pictured case (no NVIDIA model to hold it to)."""
+    if row.get("picture") or kept_output(kept, row["id"], "input", "light"):
+        return None
+    found = kept.entry(row["id"], "input", "light")
+    return f"the look's light is not held to the close-up: {found['gap'] if found else 'its light step not run'}"
+
+
+def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalibrated=None):
     """The finish's look as the bake paints it (#182, finish.look_job): the made model whole, each slot's recipe mixed
     by its texel mask on the model's own UVs, drawn by look.py through the card queue from the close-up's `camera`;
     look.png, its job and masks, a LOOK_SMALL side copy for a page, and each text mark read back where it was drawn
-    (finish.marks_read, `ask` a test's: marks.json, read.json; #185)."""
+    (finish.marks_read, `ask` a test's: marks.json, read.json; #185). Not drawn where `uncalibrated` names why the
+    look's light is not held to the close-up (unheld_light, #206): the step's gap."""
     def make(folder):
         from PIL import Image
+        if uncalibrated:
+            raise StepFailed(uncalibrated)
         drawn_look(model, parted, row["id"], camera, folder, draw)
         with Image.open(folder / "look.png") as drawn:
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
@@ -746,6 +768,54 @@ def drawn_look(model, parted, asset, camera, folder, draw=queued_blender):
         lines = (folder / "blender.log").read_text(errors="replace").splitlines()
         raise StepFailed(f"look.py exited {code}: {' | '.join(lines[-6:])}")
     return folder / "look.png"
+
+
+def light_step(row, values, scratch, given, draw=queued_blender):
+    """The look's light calibration (#206): NVIDIA's own model (the row's entry, fetched into `scratch`) drawn by
+    look.py with the look's camera, light, size and samples from the close-up's camera (the `given` render folder's
+    row.json), held to that render's rgba.png (exposure_held): light.json with both pictures' lightness and clipped
+    white; a look light that draws NVIDIA's model lighter or darker than its own close-up is the step's gap, and B's
+    look is not drawn under it (branch_b)."""
+    def make(folder):
+        _, root = fetched(row["address"], values, scratch / "light-entry")
+        camera = json.loads((given / "row.json").read_text())["camera"]
+        job = {"usd": str(root), **camera, "side": finish.LOOK_SIDE, "samples": finish.LOOK_SAMPLES,
+               "out": str(folder / "look.png")}
+        (folder / "look.json").write_text(json.dumps(job, indent=1))
+        code = draw(f"bench-light-{row['id']}", [str(folder / "look.json")], folder / "blender.log", LOOK)
+        shutil.rmtree(scratch / "light-entry", ignore_errors=True)
+        if code or not (folder / "look.png").is_file():
+            lines = (folder / "blender.log").read_text(errors="replace").splitlines()
+            raise StepFailed(f"look.py exited {code} on NVIDIA's model: {' | '.join(lines[-6:])}")
+        held = exposure_held(folder / "look.png", given / "rgba.png")
+        (folder / "light.json").write_text(json.dumps(held, indent=1))
+        if not held["held"]:
+            raise StepFailed(f"the look's light draws NVIDIA's model unlike its close-up: {json.dumps(held)}")
+    return make
+
+
+def exposure(picture):
+    """A drawn picture's (lightness, clipped): the mean display luminance (Rec. 709, 0 to 1) of its opaque pixels (the
+    edge's part-covered ones left out), and the share of them clipped white (every channel 255)."""
+    from PIL import Image
+    with Image.open(picture) as drawn:
+        pixels = np.asarray(drawn.convert("RGBA"), dtype=np.float64)
+    opaque = pixels[..., 3] >= 255
+    if not opaque.any():
+        raise StepFailed(f"{picture} draws nothing opaque")
+    colours = pixels[..., :3][opaque]
+    lightness = (colours / 255) @ np.array([0.2126, 0.7152, 0.0722])
+    return float(lightness.mean()), float((colours >= 255).all(axis=1).mean())
+
+
+def exposure_held(look, close_up):
+    """{"look", "close_up": {lightness, clipped}, "gap": look's lightness less the close-up's, "held"}: the look as
+    light as the close-up within LIGHT_REACH, and clipped white no more than it by CLIP_SLACK."""
+    (light, clipped), (light_given, clipped_given) = exposure(look), exposure(close_up)
+    gap = light - light_given
+    return {"look": {"lightness": round(light, 4), "clipped": round(clipped, 4)},
+            "close_up": {"lightness": round(light_given, 4), "clipped": round(clipped_given, 4)},
+            "gap": round(gap, 4), "held": abs(gap) <= LIGHT_REACH and clipped <= clipped_given + CLIP_SLACK}
 
 
 def look_holes(look, bare):
@@ -1187,7 +1257,8 @@ def chosen(rows, only):
 
 
 def render_one(row, values, kept, run, draw=queued_blender):
-    """One asset's close-up kept as its `render` step (branch "input"), its scratch emptied after."""
+    """One asset's close-up kept as its `render` step (branch "input"), then the look's light held to it (`light`,
+    light_step; a pictured case has no NVIDIA model to hold), its scratch emptied after."""
     scratch = job_scratch(run, row["id"])
     try:
         if row.get("picture"):
@@ -1196,6 +1267,9 @@ def render_one(row, values, kept, run, draw=queued_blender):
             return
         run_steps(kept, row["id"], "input", [("render", lambda folder: render_asset(row, values, scratch / "work",
                                                                                      folder, draw))], scratch)
+        if kept_output(kept, row["id"], "input", "render"):
+            given = checked_out(kept, row["id"], "input", "render", scratch / "given")
+            run_steps(kept, row["id"], "input", [("light", light_step(row, values, scratch, given, draw))], scratch)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
 

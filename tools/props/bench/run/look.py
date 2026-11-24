@@ -10,6 +10,8 @@ and light in one plain white surface, its own vertex normals kept, which the loo
 look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
 metres; each text decal's box as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
+A job naming a `usd` in place of a `glb` draws NVIDIA's own model, its own materials, by this camera and light alone
+(`truth_drawn`): the look's light held to the close-up it was drawn into (bench.light_step, #206).
 
     blender -b -P look.py -- <look.json (finish.look_job's)>
 """
@@ -112,9 +114,31 @@ def bare_material():
     return material
 
 
+def seen(scene, meshes, job):
+    """The look's camera framing the meshes (framed) and the close-up's own light on their box (closeup.lit, #200):
+    one setting for a made model and for NVIDIA's own (truth_drawn), so the light the bench holds to the close-up is
+    the light every look is drawn under (#206). The box."""
+    box = framed(scene, meshes, job)
+    closeup.lit(scene, *box, {"eye": list(scene.camera.matrix_world.translation)})
+    return box
+
+
+def truth_drawn(scene, job):
+    """NVIDIA's own model (the job's `usd`, read as closeup.imported reads it, its own materials) drawn by this look's
+    camera and light to the job's `out`: the look's light calibration (bench.light_step, #206), held to the
+    close-up NVIDIA's model was drawn into."""
+    meshes = closeup.imported(pathlib.Path(job["usd"]))
+    box = seen(scene, meshes, job)
+    drawn(scene, job["out"])
+    print("LOOK", json.dumps({"out": job["out"], "box": box, "truth": job["usd"]}), flush=True)
+
+
 def main():
     job = json.loads(pathlib.Path(sys.argv[sys.argv.index("--") + 1]).read_text())
     scene = scene_setup.empty_scene(job["side"], job["samples"])
+    if job.get("usd"):
+        truth_drawn(scene, job)
+        return
     bpy.ops.import_scene.gltf(filepath=job["glb"])
     meshes = [item for item in scene.objects if item.type == "MESH"]
     laid(meshes)
@@ -122,8 +146,7 @@ def main():
     for item in meshes:
         item.data.materials.clear()
         item.data.materials.append(material)
-    box = framed(scene, meshes, job)
-    closeup.lit(scene, *box, {"eye": list(scene.camera.matrix_world.translation)})
+    box = seen(scene, meshes, job)
     drawn(scene, job["out"])
     bare = bare_material()
     for item in meshes:

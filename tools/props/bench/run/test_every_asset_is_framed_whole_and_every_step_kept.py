@@ -54,6 +54,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   seat, #186)
 - finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
   the listed roughness 0.4; its class not read -> the box's look has no class
+- The look's light held to the close-up (#206, light_held: NVIDIA's model drawn by the look, as its close-up):
+  bench.render_one not running the light step -> the crate keeps no light row (TypeError); bench.exposure_held's
+  `abs(gap)` -> `gap` -> a look drawn darker than its close-up is held; its CLIP_SLACK check dropped -> a look as light
+  but clipped white more is held; bench.exposure counting the edge's part-covered pixels (`>= 255` -> `> 0`) -> a look
+  drawn as its close-up is not held; bench.unheld_light not leaving a pictured case out -> the cockpit row's look is
+  refused; bench.look_step's `uncalibrated` not refused -> a look is drawn under an unheld light
 - A pictured case (#159, the cockpit row: no NVIDIA model) is rendered as its close-up kept in the store, keeps its own
   material, and its made box at its target size is measured against that close-up and size alone:
   bench.read_set reading it as a simready row -> it has no version and the set is not read; bench.render_one drawing
@@ -434,10 +440,44 @@ def pictured_case(tmp_path, monkeypatch, name, material, box):
     assert found["regressed"] == 0 and found["pictures"]["previous"] != found["pictures"]["made"], found
 
 
+def light_held(tmp_path):
+    """The look's light held to its close-up (#206): (held of a look drawn as the close-up, of one darker, of one as
+    light but clipped white more; the reason a light step's gap gives, a pictured row's, a light step not run; whether
+    a look under an unheld light was drawn)."""
+    def picture(name, white, grey, edge=0):
+        pixels = np.zeros((10, 10, 4), np.uint8)
+        pixels[:, :, 3] = 255
+        pixels.reshape(-1, 4)[:white, :3] = 255
+        pixels.reshape(-1, 4)[white:, :3] = grey
+        pixels.reshape(-1, 4)[100 - edge:] = (0, 0, 0, 128)  # the edge's part-covered pixels: never counted
+        Image.fromarray(pixels, "RGBA").save(tmp_path / name)
+        return tmp_path / name
+    close_up = picture("light-close-up.png", 45, 155, edge=10)  # 45 clipped white of 90 opaque, the rest grey
+    held = [bench.exposure_held(picture(f"light-{name}.png", white, grey), close_up)["held"]
+            for name, white, grey in (("same", 50, 155), ("darker", 0, 120), ("clipped", 60, 130))]
+    kept = bench.Kept(Store.in_folder(tmp_path / "light-store"), FolderBucket(tmp_path / "light-bucket"),
+                      tmp_path / "light-index.json")
+    kept.gap("simready_crate_blue_a01", "input", "light", "StepFailed: gap 0.2")
+    reasons = [bench.unheld_light(kept, {"id": asset, **extra}) for asset, extra in (
+        ("simready_crate_blue_a01", {}), ("cockpit_toggle_switch", {"picture": "a1"}), ("simready_desk_a01", {}))]
+    drawn = []
+    (tmp_path / "light-look").mkdir()
+    with pytest.raises(bench.StepFailed, match="gap 0.2"):
+        bench.look_step(None, None, {"id": "simready_crate_blue_a01"}, {}, lambda *given: drawn.append(given),
+                        uncalibrated=reasons[0])(tmp_path / "light-look")
+    return held, ["gap 0.2" in reasons[0], reasons[1], "not run" in reasons[2]], drawn
+
+
 def drawer(scale, lit=0):
     """A stand-in for Blender: the object a red square with its true alpha; its shadow a half-dark band below it, the
-    object there `lit` brighter (its floor lighting it)."""
-    def draw(_job_name, arguments, log):
+    object there `lit` brighter (its floor lighting it). As look.py on NVIDIA's model (the light step's job, #206): the
+    same red square."""
+    def draw(_job_name, arguments, log, script=bench.SCRIPT):
+        if script == bench.LOOK:
+            rgba = np.zeros((PIXELS, PIXELS, 4), np.uint8)
+            rgba[16:40, 16:48] = (200, 0, 0, 255)
+            Image.fromarray(rgba, "RGBA").save(json.loads(open(arguments[0]).read())["out"])
+            return 0
         root, job, out = arguments
         job = json.loads(open(job).read())
         from pathlib import Path
@@ -486,6 +526,10 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     bench.render_all([row], {}, kept, "trial", drawer(scale))
 
     found = kept.entry(name, "input", "render")
+    if name == "simready_crate_blue_a01":  # the look's light held to the close-up (#206), once
+        light = kept.store.checkout(kept.entry(name, "input", "light")["output"]) / "light.json"
+        assert json.loads(light.read_text())["held"] is True
+        assert light_held(tmp_path) == ([True, False, False], [True, None, True], [])
     if scale != 1.0:
         assert "gap" in found and "off" in found["gap"], found
         with pytest.raises(bench.StepFailed, match="exited 137 \\(killed past its 12 GB memory cap\\)"):
