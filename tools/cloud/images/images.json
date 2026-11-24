@@ -1088,5 +1088,14 @@
     }
    }
   }
+ },
+ "unreal": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-unreal:1-bdccccaf3cf7@sha256:12ecbf15c814258a45fa7adf44e720c1e44983dc3b67a3c5e11ebd301d3e5e9b",
+  "tag": "1-bdccccaf3cf7",
+  "digest": "sha256:12ecbf15c814258a45fa7adf44e720c1e44983dc3b67a3c5e11ebd301d3e5e9b",
+  "platforms": "linux/amd64",
+  "size_mb": 24056.5,
+  "build_minutes": 18.4,
+  "built": "2026-11-24T14:26:33Z"
  }
 }
