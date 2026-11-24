@@ -26,6 +26,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   run store, `offload.push` of each blob). The run's folder `<PROPS_HOME>/bench/<run>/` holds only its index, the
   batch's inventory, list and logs; `index` stores that folder too. Job scratch (`<PROPS_HOME>/tmp/bench163-<run>/`)
   and a take's files in WORK/pixal are removed once kept.
+- **The run ends by capping its home** (`capped_home`, 2026-11-24: the bench pushes nothing, so this PC's caps never ran
+  and the home's store reached 191 GB): this_pc.capped (checkouts cleared, store-evict to CACHE_GB) and the library
+  file cache's cap, as after a push. A blob a later step or index read wants is fetched back from the bucket.
 - **One try a step.** A step that fails is its asset's gap on that branch, its reason in the index, and the steps after
   it are not run; a step the index holds is never run again, so a stopped run is taken up with the same `--run`.
 - **B's `look` step** (#182, after `finish`): the finish drawn as the bake paints it (`finish.look_job`, `look.py`

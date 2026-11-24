@@ -13,6 +13,10 @@ file's sha256 and blob, commits and pushes), and on the repository's own code an
   when the cached bytes changed, refused when the fetched bytes are other than the entry's sha256; with no blob store
   set the command is handed the cloud backend's object store (a fake here) under the prefix score_lib, through its
   environment only, and with one set the cloud's is not read;
+- the cache is capped: past its cap the least recently read files go until the rest fits, each only when read long
+  enough ago, linked nowhere else, of an entry not withdrawn, the bytes its entry records and answered for by the
+  public copy (a HEAD's X-Linked-Size and X-Linked-ETag; never with another store set), each written down so this PC's
+  pull leaves it out until it is fetched back (rows of one table);
 - a Pixal3D take freed from work/pixal (pixal_takes.py) comes back whole from the library, the same bytes under the
   same names, camera folder included, and is read back whole only when the library hands every file back at its size
   and hash;
@@ -31,6 +35,14 @@ The break that turns the test red (applied once each, seen red, reverted):
   (SCORE_CLOUD's backend) instead of the library's store backend (a take-in under SCORE_CLOUD=local finds no
   secret), or backends/local.py loses its tools/props path (the real provider cannot be imported under
   SCORE_CLOUD=local: no module named paths).
+- evict_why's `now - status.st_atime < RECENT_SECONDS` -> `False` (a file read recently is evicted), or its
+  `record.get("state") == "withdrawn"` -> `False`, or its `sha256(path) != expected` dropped, or its public_holds test
+  dropped, or its `st_nlink > 1` test dropped (each: a file that must stay is evicted).
+- capped's `over <= 0` dropped (the newer file goes too though the rest fits), or its mark not written (evicted_lines
+  names nothing, so the pull sends it again); evicted_lines' `exists()` test dropped (a file fetched back is still
+  named).
+- public_holds' `linked == (str(size), sha)` -> `linked[1] == sha` (another size passes), or its BLOB_STORE refusal
+  dropped (another store is asked of the public copy).
 - a record value `"model": "assets/rover.glb"` added to data/library/lamps.json (a data guard: the data names no model
   or sound file today).
 - a line `GODOT = "res://scenes/x.tscn"` added to library_files.py.
@@ -271,10 +283,65 @@ def test_every_record_name_resolves_or_is_a_gap(library, tmp_path, monkeypatch):
                             env={**os.environ, "SCORE_CLOUD": "local"}, capture_output=True, text=True)
     assert loaded.returncode == 0 and loaded.stdout.startswith("local <function"), loaded.stderr[-400:]
     assert not any(value in ("SK", "TOKEN") for value in library_files.settings().values())
+
+    # The cache is capped: past its cap the least recently read file that may go is evicted and written down, until
+    # the rest fits; read again, it is fetched back. A row: its name, age in days since read, entry state, whether the
+    # public copy answers for it, whether its entry records its bytes, and whether it goes.
+    rows = [("model/withdrawn@1/a.glb", 5, "withdrawn", True, True, False),
+            ("model/unproven@1/a.glb", 5, "locked", False, True, False),
+            ("model/changed@1/a.glb", 5, "locked", True, False, False),
+            ("model/linked@1/a.glb", 5, "linked", True, True, False),  # hard-linked elsewhere: frees nothing
+            ("model/oldest@1/a.glb", 4, "locked", True, True, True),
+            ("model/newer@1/a.glb", 2, "locked", True, True, False),  # the cache fits once the oldest is gone
+            ("model/fresh@1/a.glb", 0.01, "locked", True, True, False)]
+    now, held = library_files.time.time(), set()
+    for name, days, state, answers, recorded, _ in rows:
+        parts = library_files.parsed(name)
+        data = f"the bytes of {name}".encode()
+        sha = hashlib.sha256(data).hexdigest()
+        (tmp_path / "lib/blobs" / sha).write_bytes(data)
+        entry = library / "entries" / parts["kind"] / parts["id"] / parts["version"] / "entry.json"
+        entry.parent.mkdir(parents=True)
+        entry.write_text(json.dumps({"state": state, "files": {parts["file"]: {"sha256": sha if recorded else "0" * 64}}}))
+        path = cache / library_files.stage_name(name)
+        path.parent.mkdir(parents=True)
+        path.write_bytes(data)
+        library_files.os.utime(path, (now - days * 86400, now - 9 * 86400))
+        if state == "linked":
+            os.link(path, tmp_path / "elsewhere.glb")
+        held |= {sha if recorded else "0" * 64} if answers else set()
+    oldest = cache / "model/oldest/1/a.glb"
+    total = sum(path.stat().st_size for path in cache.rglob("*") if path.is_file())
+    with monkeypatch.context() as patched:
+        patched.setattr(library_files, "public_holds", lambda values, sha, size: sha in held)
+        done = library_files.capped(cap_gb=(total - oldest.stat().st_size) / 1e9, now=now)
+    assert done["evicted"] == 1 and {name: (cache / library_files.stage_name(name)).exists()
+                                     for name, *_ in rows} == {name: not goes for name, *_, goes in rows}, done
+    assert library_files.evicted_lines(tmp_path / "home") == (
+        f"{len(b'the bytes of model/oldest@1/a.glb')}\t{int(now - 9 * 86400)}\tcache/library/score_lib/model/oldest/1/a.glb\n")
+    assert library_files.resolve("model/oldest@1/a.glb").read_bytes() == b"the bytes of model/oldest@1/a.glb"
+    assert library_files.evicted_lines(tmp_path / "home") == ""
+    assert library_files.resolve("model/fresh@1/a.glb") and library_files.resolve("model/newer@1/a.glb")  # read now
+    with monkeypatch.context() as patched:  # with no room at all, only what was read recently stays
+        patched.setattr(library_files, "public_holds", lambda values, sha, size: sha in held)
+        library_files.capped(cap_gb=0)
+    assert all((cache / library_files.stage_name(name)).exists() for name, *_, goes in rows if not goes)
+    # The public copy's answer: a 302 carrying the blob's size and sha256 holds it; other bytes, or another store, not.
+    found_headers = {"X-Linked-Size": "5", "X-Linked-ETag": '"' + "ab" * 32 + '"'}
+
+    class Opener:
+        def open(self, request, timeout):
+            raise library_files.urllib.error.HTTPError(request.full_url, 302, "Found", found_headers, None)
+
+    with monkeypatch.context() as patched:
+        patched.setattr(library_files.urllib.request, "build_opener", lambda *handlers: Opener())
+        assert [library_files.public_holds(values, sha, size) for values, sha, size in (
+            ({}, "ab" * 32, 5), ({}, "cd" * 32, 5), ({}, "ab" * 32, 6), ({"SCORE_LIB_BLOBS_DIR": "b"}, "ab" * 32, 5))
+        ] == [True, False, False, False]
     found.write_bytes(b"changed")  # the cache's bytes moved: fetched again, then checked, now with a store set
     monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(tmp_path / "lib/blobs"))
     assert library_files.resolve(HUM).read_bytes() == b"a hum"
-    assert len(fetches.read_text().split()) == 2
+    assert fetches.read_text().split().count("sound/hum.recordings@1") == 2
     assert store.read_text() == " "  # a store of its own: the public copy is not added
     (tmp_path / "lib/blobs" / hashlib.sha256(b"a hum").hexdigest()).write_bytes(b"other bytes")
     found.unlink()

@@ -13,7 +13,12 @@ thing out (the remake fills it, #19), never a crash.
 A referenced file is fetched once into the cache (`$PROPS_HOME/cache/library/score_lib/<kind>/<id>/<version>/<file>`)
 by the library's own command (`<SCORE_LIB_COMMAND> --root <SCORE_LIB_ROOT> fetch <address> --file <file> --into
 <cache>`; score never imports the library's code) and checked against the sha256 the entry records, every time it is
-resolved. The library's settings are the SCORE_LIB_* environment variables; when they are not set, `defaults()` gives
+resolved. The cache is capped (owner, 2026-11-19: a machine's disk holds only capped caches): past CACHE_GB
+(SCORE_LIB_CACHE_GB) the least recently read files go after every fetch (`capped`, by hand `library_files.py cap`),
+each only once its bytes hash to the entry's sha256 and the public copy answers for it with that size and sha256, none
+read in the last RECENT_SECONDS (a run may still hold its path), none of a withdrawn entry (its bytes may be gone), none
+linked elsewhere; each one evicted is written to EVICTED with its size and mtime, so this PC's pull names it and is not
+sent it again, and a resolve fetches it back. The library's settings are the SCORE_LIB_* environment variables; when they are not set, `defaults()` gives
 the score_lib checkout beside score's own and its command, and when no blob store is set (SCORE_LIB_BLOBS_DIR,
 SCORE_LIB_S3_*, or SCORE_LIB_HUB_REPO), `blob_store()` gives the library's public Hugging Face copy (HUB_REPO), read
 with no key; a take-in's write token comes from STORE_BACKEND's secret store, read once a run and handed to the
@@ -36,6 +41,9 @@ import re
 import shlex
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 REFERENCE = re.compile(r"^(?P<address>(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(?:\.[a-z0-9_]+)?)@(?P<version>[1-9][0-9]*))"
@@ -54,6 +62,12 @@ BLOB_STORE = ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_ENDPOINT", "SCORE_LIB_HUB_REP
 TIMEOUT = 600
 # The gaps already named on this run.
 SAID = set()
+CACHE_GB = float(os.environ.get("SCORE_LIB_CACHE_GB") or 20)  # the file cache's cap, GB of 1e9 bytes
+RECENT_SECONDS = 24 * 3600  # a file read this recently is never evicted (a run may hold its path; relatime is daily)
+EVICTED = "library-evicted.jsonl"  # beside the cache (never pulled): one line {path, size, mtime} a file evicted
+# A blob of the public copy (score_lib's hub store: blobs/<sha[:2]>/<sha>); its HEAD answers X-Linked-Size and
+# X-Linked-ETag, the blob's sha256.
+HUB_BLOB = "https://huggingface.co/datasets/{repo}/resolve/main/blobs/{head}/{sha}"
 
 
 class LibraryUnreachable(RuntimeError):
@@ -187,11 +201,110 @@ def from_library(name, parts):
         return None
     target = cache_folder() / "score_lib" / parts["kind"] / parts["id"] / parts["version"] / parts["file"]
     if target.is_file() and sha256(target) == expected:
-        return target
+        return read_now(target)
     fetched(values, parts, target)
     if not target.is_file() or sha256(target) != expected:
         raise LibraryUnreachable(f"{name}: the fetched file does not hash to the entry's sha256 {expected}")
+    capped(values)
     return target
+
+
+def read_now(path):
+    """`path` with its last-read time set to now (its mtime kept: the pull's manifest reads that), the order `capped`
+    evicts by; relatime alone moves it once a day at most."""
+    try:
+        os.utime(path, (time.time(), path.stat().st_mtime))
+    except PermissionError:  # a file another user owns keeps the order relatime gives it
+        pass
+    return path
+
+
+def public_holds(values, sha, size):
+    """Whether the library's public copy answers for the blob with this size and this sha256 (one HEAD, redirects not
+    followed); False when another blob store is set, which this cannot ask."""
+    if any(values.get(name) for name in BLOB_STORE):
+        return False
+
+    class Kept(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+
+    request = urllib.request.Request(HUB_BLOB.format(repo=HUB_REPO, head=sha[:2], sha=sha), method="HEAD")
+    try:
+        answer = urllib.request.build_opener(Kept).open(request, timeout=60)
+    except urllib.error.HTTPError as error:
+        answer = error  # the 302 to the bytes carries the headers; a 404 carries none
+    linked = (answer.headers.get("X-Linked-Size"), (answer.headers.get("X-Linked-ETag") or "").strip('"'))
+    return linked == (str(size), sha)
+
+
+def cached_files():
+    """(last read, path, its reference's parts) of every file in the cache, the least recently read first."""
+    root = cache_folder() / "score_lib"
+    found = []
+    for path in root.rglob("*") if root.is_dir() else []:
+        relative = path.relative_to(root).parts
+        if path.is_file() and not path.is_symlink() and len(relative) >= 4:
+            parts = parsed(f"{relative[0]}/{relative[1]}@{relative[2]}/{'/'.join(relative[3:])}")
+            found.append((path.stat().st_atime, path, parts))
+    return sorted(found, key=lambda item: item[0])
+
+
+def evict_why(values, path, parts, now):
+    """Why the cached file at `path` stays, or None once it may go: read long enough ago, linked nowhere else, its
+    entry not withdrawn, its bytes the entry's sha256 and the public copy holding them."""
+    status = path.stat()
+    if now - status.st_atime < RECENT_SECONDS:
+        return "read recently"
+    if status.st_nlink > 1:
+        return "linked elsewhere too"
+    record = entry_record(values["SCORE_LIB_ROOT"], parts) if parts else None
+    if record is None or record.get("state") == "withdrawn":
+        return "no entry, or a withdrawn one"
+    expected = (record.get("files") or {}).get(parts["file"], {}).get("sha256")
+    if expected is None or sha256(path) != expected:
+        return "not the bytes its entry records"
+    if not public_holds(values, expected, status.st_size):
+        return "the public copy did not answer with its size and sha256"
+    return None
+
+
+def capped(values=None, cap_gb=None, now=None):
+    """The file cache brought within `cap_gb` (CACHE_GB): the least recently read files that may go (evict_why)
+    evicted, each written to EVICTED first, until the rest fits; {evicted, freed_gb, kept: {why: count}}."""
+    values, cap_gb = values or settings(), CACHE_GB if cap_gb is None else cap_gb
+    now = time.time() if now is None else now
+    files = cached_files()
+    over = sum(path.stat().st_size for _, path, _ in files) - cap_gb * 1e9
+    done = {"evicted": 0, "freed_gb": 0.0, "kept": {}}
+    for _, path, parts in files:
+        if over <= 0 or not values.get("SCORE_LIB_ROOT"):
+            break
+        why = evict_why(values, path, parts, now)
+        if why:
+            done["kept"][why] = done["kept"].get(why, 0) + 1
+            continue
+        status = path.stat()
+        line = {"path": path.relative_to(cache_folder()).as_posix(), "size": status.st_size,
+                "mtime": int(status.st_mtime)}
+        with open(cache_folder().parent / EVICTED, "a") as marks:
+            marks.write(json.dumps(line) + "\n")
+        path.unlink()
+        over -= status.st_size
+        done["evicted"], done["freed_gb"] = done["evicted"] + 1, done["freed_gb"] + status.st_size / 1e9
+    done["freed_gb"] = round(done["freed_gb"], 2)
+    return done
+
+
+def evicted_lines(home):
+    """`size<TAB>mtime<TAB>cache/library/<path>` manifest lines of each file evicted from `home`'s cache and not
+    fetched back: the door then leaves it out of a pull."""
+    marks, lines = pathlib.Path(home) / "cache" / EVICTED, {}
+    for text in marks.read_text().splitlines() if marks.is_file() else []:
+        mark = json.loads(text)
+        if not (pathlib.Path(home) / "cache" / "library" / mark["path"]).exists():
+            lines[mark["path"]] = f"{mark['size']}\t{mark['mtime']}\tcache/library/{mark['path']}\n"
+    return "".join(lines.values())
 
 
 def from_folder(name, folder):
@@ -221,3 +334,10 @@ def say_gap(name, what):
     if name not in SAID:
         SAID.add(name)
         print(f"gap: {what} names {name}, which the library does not hold (left out)", flush=True)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] != ["cap"]:
+        raise SystemExit("usage: library_files.py cap [cap GB]   # $PROPS_HOME's file cache brought within its cap")
+    done = capped(cap_gb=float(sys.argv[2]) if sys.argv[2:] else None)
+    print(f"library cache: evicted {done['evicted']} files, {done['freed_gb']} GB; kept {done['kept']}", flush=True)

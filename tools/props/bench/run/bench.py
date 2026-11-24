@@ -1349,6 +1349,18 @@ def main():
         else:
             route_all(rows, kept, options.run, options.branch)
     print(json.dumps({"run": options.run, "index": str(kept.index_path), "stored": stored_index(kept)}))
+    capped_home()
+
+
+def capped_home():
+    """This home's store and library file cache brought within their caps once the run's outputs are in the bucket
+    (this_pc.capped and library_capped, as after a run's push here: the bench pushes nothing, so they ran never and its
+    home's store reached 191 GB, 2026-11-24); their lines said."""
+    sys.path.insert(0, str(REPO / "tools" / "cloud"))
+    import this_pc
+    environment = {**os.environ, "PROPS_HOME": str(props_home())}
+    print(this_pc.capped(props_home(), environment), flush=True)
+    print(this_pc.library_capped(environment), flush=True)
 
 
 if __name__ == "__main__":

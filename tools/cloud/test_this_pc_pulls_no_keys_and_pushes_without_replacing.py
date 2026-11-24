@@ -56,8 +56,14 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `push_stated`: drop the `unlink` -> status still says a run kept its outputs after a later one pushed.
 - this_pc.py `pull`: drop `+ evicted_named(home)` -> a blob evicted here into the bucket is sent down again, and the
   store here is never a cache (2026-11-19: 331 GB on the PC).
+- this_pc.py `pull`: drop `+ library_files.evicted_lines(home)` -> a library cache file evicted here is sent down
+  again, and the cache here is never capped.
+- this_pc.py `landed_whole`: drop the blob's `chmod(0o444)` -> a pulled blob stays writable as the conductor's tar
+  gave it, and every checkout of it is a whole copy (2026-11-24: 84 GB of copies beside their blobs on this PC).
 - this_pc.py `capped`: `held <= CACHE_GB` -> `True` -> a push over the cap evicts nothing; or `False` -> a store under
   its cap runs store-evict after every push.
+- this_pc.py `capped`: drop the CLEAN_CACHE call -> every blob a checkout links stays local, and the cap is never
+  reached (2026-11-24: 14,649 blobs kept as linked).
 - this_pc.py `capped`: drop `"--cap-gb"` -> store-evict evicts every evictable blob, not the least recently read down to
   the cap, so a blob the next run reads is fetched again.
 - this_pc.py `disk`: `free < FREE_WARN_GB` -> `False` -> status says 76 GB free with no warning; or drop the MACHINE
@@ -219,6 +225,7 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
     (home / blob).write_bytes(body[:65536])
     assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len(body))
     assert (home / blob).read_bytes() == body
+    assert not (home / blob).stat().st_mode & 0o222  # read-only as the store keeps it, so a checkout links to it
     assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0)
     # a pull killed midway through a blob: nothing under its name, and the next pull brings it whole
     (home / blob).unlink()
@@ -236,6 +243,12 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
     (home / blob).unlink()
     write(home / this_pc.EVICTED / pathlib.Path(blob).name, '{"size": 1}')
     assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0) and not (home / blob).exists()
+    # a library cache file evicted here (its line in library-evicted.jsonl, at the size and mtime it had) is not sent
+    swatch = home / "cache/library/swatch.png"
+    write(home / "cache" / this_pc.library_files.EVICTED, this_pc.json.dumps(
+        {"path": "swatch.png", "size": swatch.stat().st_size, "mtime": int(swatch.stat().st_mtime)}) + "\n")
+    swatch.unlink()
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0) and not swatch.exists()
     assert hand_in.read_text() == this_pc.json.dumps(STALE)  # every pull left the hand-in written here
     assert not (home / "design/surfaces/hangar.json").exists()
 
@@ -292,7 +305,8 @@ def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(t
         assert this_pc.capped(home, {"PROPS_HOME": str(home)}).endswith("over its 1e-09 GB cap: store-evict: done")
         cap.setattr(this_pc, "CACHE_GB", 1.0)
         assert "within its 1 GB cap" in this_pc.capped(home, {"PROPS_HOME": str(home)})
-    assert evicts == [([*this_pc.STORE_EVICT, "--cap-gb", "1e-09"], str(home))]  # to the cap, least read first
+    assert evicts == [(list(this_pc.CLEAN_CACHE), str(home)),  # its checkouts cleared first: no blob kept as linked
+                      ([*this_pc.STORE_EVICT, "--cap-gb", "1e-09"], str(home))]  # to the cap, least read first
 
     # a run's own arguments, and whether it pushes
     for parser, arguments, gives, refusal in PARSED:
