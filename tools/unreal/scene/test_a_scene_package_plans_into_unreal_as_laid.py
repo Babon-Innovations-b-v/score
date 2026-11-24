@@ -8,8 +8,9 @@ one texture a way they are read; glow is its factor times its strength in Unreal
 transmitting look is glass at 1 - transmission; a solid object is Nanite, a glass one and a character not; the film
 path's camera keys see along each frame's aim with no roll at the focal length its field of view needs, its yaw
 unwound, and a package seated in its area's frame has the path (in the place's own frame) laid on its seat, one in an
-area's frame with no seat refused; the sun shines from where it stands, in lux, the sky light's strength is in
-Unreal's units too, a place with no sky picture is lit by an even sky of its ambient, and the exposure divides the
+area's frame with no seat refused; keys that did not all land in a sequence section (fewer channels than a key's
+values, or a channel short of keys) are refused, so the camera never stays where it was spawned unseen; the sun
+shines from where it stands, in lux, the sky light's strength is in Unreal's units too, a place with no sky picture is lit by an even sky of its ambient, and the exposure divides the
 lumens back out.
 
 Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
@@ -28,6 +29,8 @@ Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - camera.keys: the yaws left wound -> the fourth key's yaw is -170, not 190
 - camera.keys: the eye not laid on the seat -> the seated camera stands at (0, 0, 160), not (1000, 500, 140)
 - camera.keys: the aim not laid on the seat -> the seated camera looks along -y, not -x
+- camera.unlanded: the channel count unchecked -> a section with no channels (runs 9 and 10's still camera) lands
+- camera.unlanded: the keys a channel holds unchecked -> a channel holding 1 of 600 keys lands
 - plan.seat_of: an area's frame with no seat let through -> that package is planned, not refused
 - camera.focal_length: the half angle doubled (fov * 2) -> 90 degrees reads as no finite focal length, not 18 mm
 - layout.directional: the sun's way not turned round -> the sun shines away from where it stands
@@ -44,6 +47,7 @@ import sys
 from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import camera  # noqa: E402
 import frames  # noqa: E402
 import layout  # noqa: E402
 import plan  # noqa: E402
@@ -231,6 +235,8 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "seated camera": ([round(value, 6) for value in seated["location"]],
                           [round(value, 6) + 0.0 for value in ahead_of(seated["rotation"])]),
         "area frame with no seat": unseated,
+        "keys landed": [camera.unlanded(values, counts, 600) is None for values, counts in
+                        ((6, []), (6, [600] * 5 + [1] + [0] * 3), (6, [600] * 6 + [0] * 3), (1, [600]))],
         "sun": ([round(value, 6) for value in ahead_of(sun["rotation"])] ==
                 [round(-value, 6) for value in toward], sun["lux"]),
         "exposure": round(made["environment"]["exposure_bias"], 6),
@@ -251,6 +257,7 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
                    (270.0, 45.0, 0.0, 18.0)],
         "camera at": [0.0, 0.0, 160.0],
         "seated camera": ([1000.0, 500.0, 140.0], [-1.0, 0.0, 0.0]), "area frame with no seat": "refused",
+        "keys landed": [False, False, True, True],
         "sun": (True, 4.0 * 683.0), "exposure": round(math.log2(2.0 / 683.0), 6),
         "lamp": ([0.0, 0.0, 300.0], 6830.0), "caps": "film"}, answer
     json.dumps(made)  # the plan is what plan.py writes

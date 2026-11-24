@@ -25,6 +25,7 @@ import sys
 import unreal
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import camera  # noqa: E402
 import frames  # noqa: E402
 import looks  # noqa: E402
 import plan as planning  # noqa: E402
@@ -347,17 +348,25 @@ def exposure_set(bias):
 
 
 def keyed(section, keys, values_of):
-    """Each key's values (values_of(key): one a channel, in the section's channel order) keyed at its frame."""
-    channels = section.get_all_channels()
+    """Each key's values (values_of(key): one a channel, in the section's channel order) keyed at its frame; refused
+    (camera.unlanded) when the section has fewer channels than a key's values or a channel did not take every key,
+    which a plain zip let through silently (#222, runs 9 and 10: the camera stood at the level's origin, unkeyed)."""
+    channels = list(section.get_all_channels())
     for key in keys:
         for channel, value in zip(channels, values_of(key)):
             channel.add_key(unreal.FrameNumber(key["frame"]), value)
+    fault = camera.unlanded(len(values_of(keys[0])), [len(channel.get_keys()) for channel in channels], len(keys))
+    if fault:
+        raise RuntimeError(fault)
 
 
-def filmed(made):
-    """The film path as a Level Sequence: a cine camera in the level on our filmback, possessed by the sequence, its
-    location, rotation and focal length keyed every frame, and a camera cut on it the whole film."""
+def filmed(made, faults):
+    """The film path as a Level Sequence: a cine camera in the level on our filmback, standing at the first key with
+    its focal length (so the first frame is the path's even when the sequence does not move it), possessed by the
+    sequence, its location, rotation and focal length keyed every frame (keys that did not land are a fault), and a
+    camera cut on it the whole film."""
     shots = made["camera"]
+    first = shots["keys"][0]
     folder, name = planning.sequence_path(made["place"]).split(".")[0].rsplit("/", 1)
     sequence = TOOLS.create_asset(name, folder, unreal.LevelSequence, unreal.LevelSequenceFactoryNew())
     rate = unreal.FrameRate(shots["fps"], 1)
@@ -365,9 +374,10 @@ def filmed(made):
     sequence.set_tick_resolution(rate)
     sequence.set_playback_start(0)
     sequence.set_playback_end(shots["frames"])
-    actor = spawned(unreal.CineCameraActor)
+    actor = spawned(unreal.CineCameraActor, first["location"], first["rotation"])
     actor.set_actor_label(f"{made['place']}_film_camera")
     lens = actor.get_cine_camera_component()
+    lens.set_editor_property("current_focal_length", first["focal_length"])
     filmback = lens.get_editor_property("filmback")
     filmback.set_editor_property("sensor_width", shots["filmback"][0])
     filmback.set_editor_property("sensor_height", shots["filmback"][1])
@@ -375,15 +385,15 @@ def filmed(made):
     binding = sequence.add_possessable(actor)
     motion = binding.add_track(unreal.MovieScene3DTransformTrack).add_section()
     motion.set_range(0, shots["frames"])
-    keyed(motion, shots["keys"], lambda key: key["location"] + [key["rotation"][axis] for axis in
-                                                                 ("roll", "pitch", "yaw")])
+    attempted(faults, "camera motion keys", keyed, motion, shots["keys"],
+              lambda key: key["location"] + [key["rotation"][axis] for axis in ("roll", "pitch", "yaw")])
     lens_binding = sequence.add_possessable(lens)
     lens_binding.set_parent(binding)
     focal = lens_binding.add_track(unreal.MovieSceneFloatTrack)
     focal.set_property_name_and_path("CurrentFocalLength", "CurrentFocalLength")
     focal_section = focal.add_section()
     focal_section.set_range(0, shots["frames"])
-    keyed(focal_section, shots["keys"], lambda key: [key["focal_length"]])
+    attempted(faults, "camera focal keys", keyed, focal_section, shots["keys"], lambda key: [key["focal_length"]])
     cut = sequence.add_track(unreal.MovieSceneCameraCutTrack).add_section()
     cut.set_range(0, shots["frames"])
     cut.set_camera_binding_id(sequence.get_portable_binding_id(sequence, binding))
@@ -454,7 +464,7 @@ def main(arguments):
     attempted(faults, "exposure", exposure_set, made["environment"]["exposure_bias"])
     if made["camera"]:
         step("the film's Level Sequence")
-        filmed(made)
+        filmed(made, faults)
     step("saving")
     saved(made["place"])
     summary = {"place": made["place"], "level": planning.level_path(made["place"]),
@@ -464,7 +474,8 @@ def main(arguments):
                "meshes": sum(mesh is not None for mesh in meshes.values()),
                "parts": sum(len(mesh) for mesh in meshes.values() if mesh is not None), "actors": len(made["actors"]),
                "materials": sum(look is not None for look in instances.values()), "textures": len(textures),
-               "lamps": len(made["lamps"]), "left_out": made["left_out"], "faults": faults}
+               "lamps": len(made["lamps"]), "camera_first": made["camera"]["keys"][0] if made["camera"] else None,
+               "left_out": made["left_out"], "faults": faults}
     (into / "made.json").write_text(json.dumps(summary, indent=1))
     unreal.log(f"score: made {json.dumps(summary)}")
 

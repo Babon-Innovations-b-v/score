@@ -42,6 +42,20 @@ def on_seat(seat, way, shifted):
             for row in range(3)]
 
 
+def unlanded(values, counts, keys):
+    """Why a sequence section's keys did not all land (None when they did): `values` a key gives, `counts` the keys
+    each of the section's channels holds after keying (its channel order), `keys` the path's keys. A section with
+    fewer channels than a key's values, or a channel holding fewer keys, leaves the camera where it was spawned (#222,
+    runs 9 and 10)."""
+    if len(counts) < values:
+        return f"the section has {len(counts)} channels, a key {values} values"
+    short = [(index, count) for index, count in enumerate(counts[:values]) if count != keys]
+    if short:
+        return "channels holding other than the path's {} keys: {}".format(
+            keys, ", ".join(f"{index}: {count}" for index, count in short))
+    return None
+
+
 def keys(path, basis, seat=None):
     """The film path's camera keys, its views laid on the package's `seat` (on_seat): {fps, frames, filmback, keys
     [{frame, location (cm), rotation {roll, pitch, yaw}, focal_length}]}."""
