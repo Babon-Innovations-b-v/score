@@ -353,6 +353,10 @@ def smoothly_shaded(high, specs):
 
 
 CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
+# A glass's alpha (recipes.Channels.alpha, its opacity) baked as one more channel where a piece's slots let light
+# through (recipes.seen_through), into its base colour's alpha (`finish`), the glTF's material blended: drawn
+# opaque, every glass a prop shipped was a flat panel (the tc4r fridge's door, #186).
+ALPHA = "alpha"
 
 
 class Atlas:
@@ -403,6 +407,7 @@ class Atlas:
         self.sets = [self.picture_set(self.map_name(number), half) for number in range(self.maps)]
         self.first = {channel: True for channel in self.sets[0]}
         self.metal_roughness = [None] * self.maps
+        self.through = False  # whether a slot let light through: its alpha baked (`_through`)
 
     def held(self, wanted, density, area):
         """A side past LARGEST held to it: the density that fits (`self.capped`), reported."""
@@ -445,7 +450,7 @@ class Atlas:
         over its floor (the kick wear's)."""
         found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(item)]
         select_for_bake([item], item)
-        for channel, _ in CHANNELS:
+        for channel in self._through(found_by_slot):
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
                 item.data.materials[index] = with_target(material, self.pictures[channel])
             self._bake(channel, "EMIT")
@@ -476,7 +481,7 @@ class Atlas:
         self.laid_maps(low)
         select_for_bake([high, low], low)
         across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
-        for channel, _ in CHANNELS:
+        for channel in self._through(found_by_slot + [found for _, found in masked]):
             mix = masked and recipes.masked(masked, lambda found: recipes.emitted(getattr(found, channel)),
                                                   relief=False).item()
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
@@ -486,6 +491,19 @@ class Atlas:
         for index, material in enumerate(shaded_materials(found_by_slot)):
             high.data.materials[index] = mix if mixed[index] else material
         self._bake_maps(targets, "normal", "NORMAL", across)
+
+    def _through(self, found):
+        """The channels to bake for these Channels: CHANNELS, and ALPHA where one lets light through (its picture
+        made in every map's set the first time)."""
+        if not any(recipes.seen_through(each) for each in found):
+            return [channel for channel, _ in CHANNELS]
+        if not self.through:  # whole where nothing is baked into it (a piece baked before, the gaps): never cleared
+            for number, pictures in enumerate(self.sets):
+                pictures[ALPHA] = new_picture(f"{self.map_name(number)}_{ALPHA}", pictures["roughness"].size[0], False)
+                pictures[ALPHA].generated_color = (1.0, 1.0, 1.0, 1.0)
+            self.first[ALPHA] = False
+            self.through = True
+        return [channel for channel, _ in CHANNELS] + [ALPHA]
 
     def _bake_maps(self, targets, channel, kind, across):
         """`channel` baked into every map's picture. One map: one bake, as a shared set always was. A split piece: one
@@ -519,6 +537,23 @@ class Atlas:
             both[..., 2] = shine[..., 0]
             self.metal_roughness[number] = new_picture(f"{self.map_name(number)}_metal_roughness", side, False)
             self.metal_roughness[number].pixels.foreach_set(both.ravel())
+            if self.through:
+                self.with_alpha(number)
+
+    def with_alpha(self, number):
+        """A map's base colour given its baked alpha (ALPHA) as a picture with alpha of its own, in its place."""
+        pictures = self.sets[number]
+        side = pictures["base_color"].size[0]
+        colour = np.empty(side * side * 4, dtype=np.float32)
+        pictures["base_color"].pixels.foreach_get(colour)
+        alpha = np.empty(side * side * 4, dtype=np.float32)
+        pictures[ALPHA].pixels.foreach_get(alpha)
+        colour = colour.reshape(side, side, 4)
+        colour[..., 3] = alpha.reshape(side, side, 4)[..., 0]
+        through = bpy.data.images.new(f"{self.map_name(number)}_base_color_alpha", side, side, alpha=True)
+        through.colorspace_settings.name = "sRGB"
+        through.pixels.foreach_set(colour.ravel())
+        pictures["base_color"] = through
 
     def game_material(self, number=0):
         """The material a map's faces carry: its pictures on one principled surface, wired the way the glTF
@@ -534,6 +569,9 @@ class Atlas:
         colour = nodes.new("ShaderNodeTexImage")
         colour.image = self.sets[number]["base_color"]
         links.new(colour.outputs["Color"], surface.inputs["Base Color"])
+        if self.through:  # the glTF exporter writes alphaMode BLEND for an image's alpha wired to the surface's
+            links.new(colour.outputs["Alpha"], surface.inputs["Alpha"])
+            material.surface_render_method = "BLENDED"
         packed_node = nodes.new("ShaderNodeTexImage")
         packed_node.image = self.metal_roughness[number]
         split = nodes.new("ShaderNodeSeparateColor")

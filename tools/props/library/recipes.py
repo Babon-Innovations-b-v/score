@@ -39,6 +39,7 @@ class Channels(NamedTuple):
     metallic: object
     emission: object
     displacement: object
+    alpha: object = 1.0  # how much of the surface is there: under 1 a glass lets what lies behind it through (#186)
 
 
 def coordinates():
@@ -297,9 +298,10 @@ def cloth(colour, dirt_colour, roughness, thread, bump, dirt_reach, dirt, seed, 
     return Channels(base, rough, 0.0, BLACK, cloth_relief(vector, thread, bump))
 
 
-def glass(colour, roughness):
-    """Dark glass drawn as its own flat colour and a sharp shine."""
-    return Channels(colour, roughness, 0.0, BLACK, None)
+def glass(colour, roughness, opacity=1.0):
+    """Glass drawn as its own flat colour and a sharp shine, `opacity` of it there (its alpha): what lies behind shows
+    through the rest (#186: drawn opaque, the tc4r fridge's glass door was a grey panel)."""
+    return Channels(colour, roughness, 0.0, BLACK, None, opacity)
 
 
 def glowing(colour, roughness, glow=1.0):
@@ -1070,14 +1072,20 @@ def settings_of(recipe):
             "lines": sum(len(inspect.getsource(part).splitlines()) for part in PARTS[recipe])}
 
 
-def shaded(found):
-    """The Channels as a material to render: a principled surface over the relief."""
+def shaded(found, through=False):
+    """The Channels as a material to render: a principled surface over the relief; `through`, its alpha drawn (what
+    a baked piece's base colour carries, bake.py: a glass seen through), else drawn whole."""
     glows = 1.0 if found.displacement is None and found.emission is not BLACK else 0.0
     emission = pf.Color(found.emission) if isinstance(found.emission, tuple) else found.emission
     surface = pf.nodes.shader.principled_bsdf(base_color=found.base_color, roughness=found.roughness,
                                               metallic=found.metallic, emission_color=emission,
-                                              emission_strength=glows)
+                                              emission_strength=glows, alpha=found.alpha if through else 1.0)
     return pf.Material(surface=surface, displacement=found.displacement)
+
+
+def seen_through(found):
+    """Whether a recipe's Channels let what lies behind them through (an alpha under 1)."""
+    return not isinstance(found.alpha, (int, float)) or found.alpha < 1.0
 
 
 def masked(entries, shader_of, relief=True, uv_map="texels"):

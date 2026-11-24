@@ -112,7 +112,10 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   into the parent's prop scene, their glowing parts under one `Glow` node.
 - **Texture memory:** a job's pieces share one picture set (`inside/bake.py` `Atlas`), every face at one texel
   density except those the room never sees (backs against a wall or roof, a twentieth), colour and metal-roughness
-  at half the normal map's side. Pieces export as .gltf beside the shared pictures.
+  at half the normal map's side. Pieces export as .gltf beside the shared pictures. A set whose slots let light
+  through (a glass: `recipes.Channels.alpha`, its opacity) bakes that alpha as one more channel into its base colour's
+  alpha and its material is blended (glTF alphaMode BLEND); drawn opaque, every prop's glass shipped a flat panel
+  (the tc4r fridge's door, #186). The normal bake draws every slot whole.
 - **No bake or render on this PC.** A local bake took every core and WSL crashed (2026-10-06). Everything under
   `inside/` runs through `../cloud/library_bake.py` (one class fixed at price time; a processor class only when asked for with `--classes cpu-32c-128gb`). `tune.py`
   renders there too, a machine a round. `inside/runtime.py` maps the sockets Blender 5 renamed for ProcFunc.
