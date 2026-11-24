@@ -519,6 +519,15 @@ tests it turned red:
   dropped (a cabinet face of another part tilts the facing); placement's same-finish probes -> same part (the
   humidifier's ribs a gap); probe_edge's PATTERN_EDGE_IN -> EDGE_IN (its probes off the cylinder); recipes.py
   decal_depth's `if decal.get("relief"):` -> `if False:` (the ribs printed in a band round the cylinder)
+- The made shape under a mark (#159 round 13), each -> every_part_takes_a_library_surface_and_is_held_to_it
+  (plates_held): decal_plates.py on_plate's `+ offset * normal` dropped (the vent left on a bump's top) and its
+  `- slope_across * right - slope_up * up` dropped (its tilted normal kept); held's `upright(placement)` -> `placement`
+  (the close-up's tilted up kept); closed_region's `& ~proud` dropped (the region grown over the handle) and its
+  `joined` -> its box alone (the bar cut through past it left open); LIP 2 -> 0 (the card's edge on the bar's
+  end); clear_of's `None if abs(move) > half` -> the move
+  (a vent between two seams moved past one onto the other); held's text `open` dropped (a text mark moved off a
+  seam); tolerance_of -> TOLERANCE (a 4 cm label on an 8 cm cylinder closed flat); fitted's share check -> `if False:`
+  (the same); route_parts.py on_plates' refusal kept as a placement (a vent it cannot place drawn, unclosed).
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
   every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
   finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
@@ -575,7 +584,7 @@ from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, close_up_fit,  # noqa: E402
-                                   decal_library, pattern_decals, text_decals,
+                                   decal_library, decal_plates, pattern_decals, text_decals,
                                    finish_ask, finish_parts,
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
@@ -2754,6 +2763,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
          "image": "/lib/decal.png", "ink": [0.01, 0.01, 0.01]}]
     text_marks_held()  # words and numbers drawn as text decals in a library face, on a fitted camera (#171)
     pattern_marks_held()  # vent and perforation patterns drawn from a library pattern, never TRELLIS.2's bumps (#210)
+    plates_held()  # the made shape under a mark flat and closed, a pattern moved off a seam (#159 round 13)
 
 
 # A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
@@ -3026,6 +3036,70 @@ def pattern_marks_held():
     facing = route_parts.pattern_facing([0, 0, 90, 90], {"part": 0, "normal": [0.0, 1.0, 0.0]},
                                         np.array([0, 1]), normals, tilted)
     assert np.allclose(facing, [0.0, 0.0, 1.0]), facing
+
+
+def door(seams=(-0.06,), round_too=False):
+    """A locker door as TRELLIS.2 makes one (#159 round 13), facing +z at z = 0 on a 2 mm grid, 0.5 m square: 3 mm bumps
+    in a 6 cm square round (0.1, 0.1), a bar 8 cm long cut through it at (0.1, 0.07) to a wall 0.3 m behind, a handle
+    3 cm proud just above them at (0.1, 0.145), a groove 4 mm wide and 3 mm deep across it at each of `seams` (y),
+    and, `round_too`, the door bent round an 8 cm cylinder along y for x under -0.12 (a label 4 cm wide on it lies
+    1.5 mm off its tangent plane over 39% of its grid, 0.8 mm over 28%). The mesh and each face's part (the bar's
+    wall the second)."""
+    step = 0.002
+    grid = np.arange(-0.25, 0.25 + step / 2, step)
+    across, upward = np.meshgrid(grid, grid)
+    height = np.zeros_like(across)
+    bumps = (np.abs(across - 0.1) < 0.03) & (np.abs(upward - 0.1) < 0.03)
+    height[bumps & ((np.round(across / 0.01) + np.round(upward / 0.01)) % 2 == 0)] = 0.003
+    height[(np.abs(across - 0.1) < 0.015) & (np.abs(upward - 0.145) < 0.015)] = 0.03
+    for seam in seams:
+        height[np.abs(upward - seam) < 0.002] = -0.003
+    if round_too:
+        bent = across < -0.12
+        height[bent] = np.sqrt(np.maximum(0.08 ** 2 - (across[bent] + 0.2) ** 2, 0.0)) - 0.08
+    points = np.c_[across.ravel(), upward.ravel(), height.ravel()]
+    side = len(grid)
+    corner = (np.arange(side - 1)[:, None] * side + np.arange(side - 1)[None, :]).ravel()
+    faces = np.r_[np.c_[corner, corner + 1, corner + side + 1], np.c_[corner, corner + side + 1, corner + side]]
+    middles = points[faces].mean(1)
+    faces = faces[~((np.abs(middles[:, 0] - 0.1) < 0.04) & (np.abs(middles[:, 1] - 0.07) < 0.003))]  # the bar
+    wall = np.array([[-0.25, -0.25, -0.3], [0.25, -0.25, -0.3], [0.25, 0.25, -0.3], [-0.25, 0.25, -0.3]])
+    mesh = trimesh.Trimesh(np.r_[points, wall], np.r_[faces, len(points) + np.array([[0, 1, 2], [0, 2, 3]])],
+                           process=False)
+    return mesh, np.r_[np.zeros(len(faces), dtype=int), [1, 1]]
+
+
+def plates_held():
+    """The made shape under a mark held to its plate (#159 round 13, decal_plates.held): a vent pattern cast tilted on
+    the door's bumps set on the door, its normal the door's and its up the door's own; its region to close its box
+    grown over the bar cut out of it, short of the handle; a pattern cast across the door's seam moved clear above it;
+    one between two seams refused (by the parts row, a gap); a text mark across a seam, or on a bent part, left
+    open."""
+    mesh, part_of = door()
+    vent = {"decal": "surface/vent_round_holes@1", "part": 0, "at": [0.1, 0.1, 0.003], "size": [0.06, 0.06],
+            "normal": [0.0, -0.08, 0.997], "up": [0.06, 0.998, 0.08], "shape": "pattern", "from": {}}
+    found, why = decal_plates.held(vent, mesh, part_of == 0, True)
+    assert why is None and abs(found["at"][2]) < 0.0005 and found["normal"][2] > 0.9999, found
+    assert abs(found["up"][0]) < 1e-3 and "moved" not in found["from"], found  # the door's own up, not moved
+    left, bottom, right, top = found["closed"]["box"]
+    assert (-0.044 < left < -0.040, 0.040 < right < 0.044, -0.038 < bottom < -0.034, 0.030 < top < 0.034,
+            found["closed"]["most"], abs(found["closed"]["plate_point"][2]) < 1e-4) == (
+        True, True, True, True, decal_plates.BUMP_MOST, True), found["closed"]
+    crossing = dict(vent, at=[-0.05, -0.05, 0.0], normal=[0.0, 0.0, 1.0], up=[0.0, 1.0, 0.0])
+    found, why = decal_plates.held(crossing, mesh, part_of == 0, True)  # its box's bottom put just over the seam
+    assert why is None and found["from"]["moved"] == pytest.approx([0.0, 0.025], abs=0.003), found
+    found, why = decal_plates.held(dict(crossing, shape="text"), mesh, part_of == 0, False)
+    assert (why, found.get("open"), found.get("closed")) == (None, "its box crosses a seam or an edge", None), found
+    mesh, part_of = door(seams=(-0.06, 0.1, 0.12), round_too=True)
+    found, why = decal_plates.held(dict(crossing, at=[0.0, 0.11, 0.0]), mesh, part_of == 0, True)
+    assert found is None and why.startswith("its box crosses a seam"), (found, why)
+    found, why = decal_plates.held(dict(crossing, at=[-0.2, 0.0, 0.0], size=[0.04, 0.02]), mesh, part_of == 0, False)
+    assert found.get("open") == "its plate is not flat round it", found
+    # the parts row holds every placement it places (route_parts.on_plates): a pattern it cannot place a gap
+    placed = [dict(vent, at=[0.0, -0.15, 0.0]), dict(crossing, at=[0.0, 0.11, 0.0], what="door vent")]
+    held, gaps = route_parts.on_plates(placed, [], *door(seams=(-0.06, 0.1, 0.12)))
+    assert ([placement["closed"]["most"] for placement in held], [gap["what"] for gap in gaps]) == (
+        [decal_plates.BUMP_MOST], ["door vent"]), (held, gaps)
 
 
 def plane_cast(parts, scale=0.001):

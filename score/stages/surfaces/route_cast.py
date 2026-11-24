@@ -211,6 +211,14 @@ def close_up_cast(model, camera, size):
     return faces.reshape(columns.shape), rows, columns
 
 
+def own_mesh(model):
+    """The model's mesh in the model file's own frame (its loaded mesh is normalised: model.frame), its faces as
+    they are."""
+    import trimesh
+    middle, side = model.frame
+    return trimesh.Trimesh(np.asarray(model.mesh.vertices) * side + middle, model.mesh.faces, process=False)
+
+
 def cast_points(model, camera, size, pixels):
     """(the face under each of `pixels` ([[column, row], ...] of a close-up `size` (width, height)), -1 off the
     model; where its ray met the model, in the model file's own frame, NaN off it) seen by `camera`

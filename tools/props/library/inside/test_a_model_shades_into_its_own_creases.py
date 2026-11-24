@@ -4,7 +4,9 @@ than out in the open, while a slab laid just over the floor (as a piece's cut-do
 model) shades nothing, and the scene's samples and the slab are as they were after. And a flat panel shades the seam
 its decoded mesh holds (#159: bake.seamed, TRELLIS.2's mesh before the remesh closed its drawer seams): a 2 cm slit
 3 mm deep across the decoded panel darkens the panel's texels over it and nowhere else; of a seam's run, a pinhole's
-dot, a hole's blot and a hole's slot dark in a decoded occlusion, only the seam shades (bake.seam_shade).
+dot, a hole's blot and a hole's slot dark in a decoded occlusion, only the seam shades (bake.seam_shade). And a door
+closed under a mark (#159 round 13, bake.pressed_under and cards_over) has its bump in the mark's region pressed onto its plate and
+one card over the region in the finish of its plate.
 
 Breaks (each applied once, seen red, reverted, 2026-11-24):
 - bake.occlusion not taking the other meshes out (`others = []`) -> the slab over the floor shuts its open end too;
@@ -18,6 +20,12 @@ Breaks (each applied once, seen red, reverted, 2026-11-24):
 - bake.seam_shade keeping every dark texel (seam_lines dropped) -> the dot, the blot and the slot shade too;
   seam_lines not holding both sides lighter (`sides` dropped) -> the blot's rim shades as a seam; SEAM_ACROSS made 9
   -> the slot, 6 texels wide, shades.
+- bake.closed_points `<= decal["closed"]["most"]` -> `<= 0.0` -> the bump is left standing; closing_card's
+  `+ CARD_PROUD * normal` dropped -> the card lies in the plate; cards_over's `face.material_index` -> 0 -> the
+  card in the steel, not the paint its plate point is in; plate_texel's middle -> its first loop's -> the card's
+  texel on its face's rim; plate_texel's facing filter dropped -> the card in the steel
+  of the sheet's back; its `closed` filter dropped (`list(decals)`) -> a decal with no region
+  closed, KeyError; pressed_under's `if decal.get("closed")` dropped -> KeyError (#159 round 13).
 """
 import json
 import os
@@ -122,7 +130,35 @@ dark[50, 50] = 0.5  # a pinhole's dot
 dark[16:32, 36:52] = 0.5  # a hole's blot
 dark[40:60, 20:26] = 0.5  # a hole's slot, 6 texels wide
 shade = bake.seam_shade(dark)
-print("FOUND", json.dumps({"crease": at(0.01, 0.5), "open": at(0.49, 0.5), "samples": scene.cycles.samples,
+door_points = [(column / 10 - 0.5, row / 10 - 0.5, 0.0) for row in range(11) for column in range(11)]
+door_points[5 * 11 + 5] = (0.0, 0.0, 0.003)  # a 3 mm bump in the middle, inside the closed box
+door_points[5 * 11 + 1] = (-0.4, 0.0, 0.003)  # one outside it
+door_faces = [(row * 11 + column, row * 11 + column + 1, (row + 1) * 11 + column + 1, (row + 1) * 11 + column)
+              for row in range(10) for column in range(10)]
+door_points += [(0.46, 0.06, -0.002), (0.46, 0.1, -0.002), (0.5, 0.1, -0.002), (0.5, 0.06, -0.002)]
+door_faces.append((121, 122, 123, 124))  # the sheet's back 2 mm behind the plate point, facing in
+mesh = bpy.data.meshes.new("door")
+mesh.from_pydata(door_points, [], door_faces)
+mesh.materials.append(bpy.data.materials.new("steel"))
+mesh.materials.append(bpy.data.materials.new("paint"))
+for face in mesh.polygons:
+    face.material_index = 1 if face.center.x > 0.3 and face.center.z > -0.001 else 0
+layer = mesh.uv_layers.new(name="texels")
+for loop in mesh.loops:
+    layer.data[loop.index].uv = (door_points[loop.vertex_index][0] + 0.5, door_points[loop.vertex_index][1] + 0.5)
+door = bpy.data.objects.new("door", mesh)
+scene.collection.objects.link(door)
+door_decals = [{"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2],
+                "closed": {"box": [-0.25, -0.25, 0.25, 0.25], "most": 0.006, "plate_point": [0.48, 0.08, 0.0]}},
+               {"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2]}]
+bake.pressed_under(door, door_decals)
+cards = bake.cards_over(door, door_decals)
+card = door.data.polygons[-1]
+print("FOUND", json.dumps({"cards": cards, "faces": len(door.data.polygons), "bump": door.data.vertices[60].co.z,
+                           "outside": door.data.vertices[56].co.z, "card_paint": card.material_index,
+                           "card_z": [round(door.data.vertices[vertex].co.z, 6) for vertex in card.vertices],
+                           "card_uv": [list(door.data.uv_layers["texels"].data[loop].uv) for loop in card.loop_indices],
+                           "crease": at(0.01, 0.5), "open": at(0.49, 0.5), "samples": scene.cycles.samples,
                            "slab_drawn": not copy.hide_render, "slit": on_panel(0.25, 0.5),
                            "panel": on_panel(0.75, 0.5), "seam": float(shade[24, 10]), "dot": float(shade[50, 50]),
                            "blot": float(shade[24, 36]), "slot": float(shade[50, 22]),
@@ -146,6 +182,11 @@ def test_a_model_shades_into_its_own_creases(tmp_path):
     # the floor's crease shut by the wall, its open end under nothing (the slab out of the bake); the scene as it was
     # and the panel shaded over its decoded slit alone, by the seam's run alone of the three dark marks
     # and the floor baked alone on a 64 x 32 map, its wall another object among it, shut at the crease all the same
+    # a door closed under its one closed decal (#159 round 13): the bump in its box pressed flat, the one outside left,
+    # one card in front of it in the finish of the face nearest its plate point, at that face's middle's texel
+    assert (found["cards"], found["faces"], found["bump"], found["outside"], found["card_paint"],
+            found["card_z"], found["card_uv"]) == (1, 102, 0.0, pytest.approx(0.003), 1, [0.0003] * 4,
+                                                  [pytest.approx([0.95, 0.55])] * 4), json.dumps(found)
     assert (found["crease"] < 0.8, found["open"] > 0.9, found["samples"], found["slab_drawn"], found["slit"] < 0.85,
             found["panel"] > 0.97, found["seam"] < 0.9, found["dot"], found["blot"], found["slot"],
             found["part_crease"] < 0.8, found["part_open"] > 0.9, found["part_size"]) == \

@@ -240,17 +240,26 @@ def into_kit_frame(whole, base, size):
 def decal_laid(decal, move):
     """One placement of the take's decals (route_parts.decal_placements: at, normal, up and size in the take's own
     frame, the frame its labelled parts hold) moved as its model was (`move`, into_kit_frame's), its size stretched as
-    the model was along its own right and up, its depth and a pattern's relief (score #210) along its normal: a spec's
-    decal (recipes.decal_layer reads at, normal, up, size_m, depth, relief)."""
+    the model was along its own right and up, its depth and a pattern's relief (score #210) along its normal, and the
+    region its plate is closed in (score #159 round 13, `closed`: its box, its pressed height and its plate point) as
+    they were: a spec's decal (recipes.decal_layer reads at, normal, up, size_m, depth, relief; bake.pressed_under and
+    cards_over closed)."""
     turn = move.to_3x3()
     normal, up = Vector(decal["normal"]).normalized(), Vector(decal["up"]).normalized()
     right = up.cross(normal)
-    return dict(decal, at=list(move @ Vector(decal["at"])),
+    across, upward, outward = (turn @ right).length, (turn @ up).length, (turn @ normal).length
+    laid = dict(decal, at=list(move @ Vector(decal["at"])),
                 normal=list((turn.inverted().transposed() @ normal).normalized()),
                 up=list((turn @ up).normalized()),
-                size_m=[decal["size"][0] * (turn @ right).length, decal["size"][1] * (turn @ up).length],
-                depth=decal.get("depth", 0.0) * (turn @ normal).length,
-                relief=decal.get("relief", 0.0) * (turn @ normal).length)
+                size_m=[decal["size"][0] * across, decal["size"][1] * upward],
+                depth=decal.get("depth", 0.0) * outward,
+                relief=decal.get("relief", 0.0) * outward)
+    if decal.get("closed"):
+        left, bottom, right_end, top = decal["closed"]["box"]
+        laid["closed"] = dict(decal["closed"], box=[left * across, bottom * upward, right_end * across, top * upward],
+                              most=decal["closed"]["most"] * outward,
+                              plate_point=list(move @ Vector(decal["closed"]["plate_point"])))
+    return laid
 
 
 def piece_specs(specs, decals, move):
@@ -478,7 +487,10 @@ def write_shape(entry, job, folder):
     take = take_of(entry["parts"])
     if bodies.body_of(take):
         return
-    into_kit_frame(whole, bodies.laid_turn(take, entry["base"]), entry["size"])
+    move = into_kit_frame(whole, bodies.laid_turn(take, entry["base"]), entry["size"])
+    decals = [decal_laid(decal, move) for decal in entry.get("decals_on", [])]
+    bake.pressed_under(whole, decals)
+    bake.cards_over(whole, decals)
     low, _ = laid_copy(entry, job, whole)
     flat = np.empty(len(low.data.vertices) * 3)
     low.data.vertices.foreach_get("co", flat)
@@ -495,6 +507,11 @@ def make_piece(entry, job, out):
     if bodies.body_of(take):
         return make_bodied(entry, job, out, whole, bodies.body_of(take), began)
     specs = piece_specs(job["specs"], entry.get("decals_on", []), move)
+    decals = [decal for spec in specs.values() for decal in spec.get("decals", [])]
+    bake.pressed_under(whole, decals)  # closed under its marks (score #159 round 13): pressed, its occlusion, its cards
+    masks = texel_masks(entry["parts"])
+    occluded = masks and occlusion_of(whole, masks)
+    bake.cards_over(whole, decals)
     low, levelled = laid_copy(entry, job, whole)
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
@@ -509,11 +526,10 @@ def make_piece(entry, job, out):
     with_decals(whole, decals)
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), specs, one_piece=True,
                         per_face=entry.get("per_face", False), split=True)
-    masks = texel_masks(entry["parts"])
     atlas.bake_from(whole, low, specs, job["wear"], job["dirt"], job["seed"],
                     bake_reach(entry["size"]), entry.get("foot"),
                     masks=masks and [(name, path) for name, path in masks["order"] if name in specs],
-                    occluded=masks and occlusion_of(whole, masks))
+                    occluded=occluded)
     atlas.finish()
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,

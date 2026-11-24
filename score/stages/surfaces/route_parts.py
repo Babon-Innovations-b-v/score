@@ -42,6 +42,7 @@ if str(HERE) not in sys.path:
 
 import numpy as np  # noqa: E402
 
+import decal_plates  # noqa: E402
 import finish_parts  # noqa: E402
 import palette_library  # noqa: E402
 import pattern_decals  # noqa: E402
@@ -527,7 +528,26 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=N
         placements[number] = dict(placement, picture=f"{'pattern' if patterned else 'text'}-{number:02d}.png",
                                   px_per_m=drawer.density(placement))
         drawer.drawn(placements[number]).save(out / placements[number]["picture"])
-    return placements, gaps
+    return on_plates(placements, gaps, cast.own_mesh(model), part_of, finish_of)
+
+
+def on_plates(placements, gaps, mesh, part_of, finish_of=None):
+    """(placements, gaps) with each placement held to its part's plate (decal_plates.held, #159 round 13: the made
+    shape under a mark flat and closed, a pattern moved clear of a seam its box crosses), on its finish's parts for a
+    pattern (placement's `finish_of`); a pattern that cannot be placed clear of a seam a gap naming why."""
+    held, refused = [], []
+    for placement in placements:
+        patterned = placement.get("shape") == pattern_decals.SHAPE
+        if patterned and finish_of is not None:
+            same = finish_of == finish_of[part_faces(part_of, placement)]
+        else:
+            same = part_of == placement["part"]
+        found, why = decal_plates.held(placement, mesh, same, patterned)
+        if found is None:
+            refused.append({"what": placement.get("what", ""), "decal": placement["decal"], "why": why})
+        else:
+            held.append(found)
+    return held, gaps + refused
 
 
 def part_faces(part_of, placement):

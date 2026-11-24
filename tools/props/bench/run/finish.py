@@ -516,6 +516,8 @@ def look_job(folder, take, model, camera, out):
             "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0), "text": decal.get("text"),
             "depth": decal.get("depth", 0.0),
             **{name: decal[name] for name in ("roughness", "relief") if decal.get(name) is not None},
+            **({"closed": dict(decal["closed"], plate_point=z_up(decal["closed"]["plate_point"]))}
+               if decal.get("closed") else {}),
             "ink": surface_library.linear(decal["ink_token"]) if decal.get("ink_token") else None})
     slots = sorted({slot_of(row) for row in rows.values()},
                    key=lambda slot: -sum(row["share"] for row in rows.values() if slot_of(row) == slot))

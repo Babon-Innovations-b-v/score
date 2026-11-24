@@ -57,6 +57,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   part's plate (`pattern_facing`, `near_plate`: not what its holes show behind) and draws it tiled inside its outline
   (`pattern_decals.py`); the bake prints its openings in the token's ink and sinks them by its `relief`
   (recipes.decal_relief); the route's own openings finish under it is covered as a print under a text mark is.
+  **The made shape under a mark is flat and closed** (#214, #159 round 13: the pattern drawn over TRELLIS.2's 4 mm
+  bumps and the bars it cut through the locker's doors): the parts row holds every placement to its part's plate
+  (`decal_plates.py`, route_parts.on_plates: a grid of rays at its box gives the plate, a fitted plane, and its seams
+  and edges); a pattern crossing a seam is moved clear of it or is a gap, and takes the take's own up; its `closed`
+  region (box, pressed height, plate point) is pressed flat and covered by one card in the plate's finish where the
+  look and the place's bake draw it (tools/props/library/inside/bake.pressed_under, cards_over); a mark whose plate is not flat
+  is left `open`.
   parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.
 - **The finish-map method is gone** (2026-10-20, #26): the crops are the places' own takes and the people's line

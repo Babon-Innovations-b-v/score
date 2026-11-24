@@ -12,6 +12,9 @@ model, camera and light in one plain white surface, its own vertex normals kept,
 (bench.py look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
 metres; each text decal's box as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
+Under each mark its plate is closed, as the place's bake closes it (#159 round 13): TRELLIS.2's vent bumps pressed flat
+before its occlusion is baked (bake.pressed_under) and the holes it cut through a locker's door covered after
+(bake.cards_over).
 A job naming a `usd` in place of a `glb` draws NVIDIA's own model, its own materials, by this camera and light alone
 (`truth_drawn`): the look's light held to the close-up it was drawn into (bench.light_step, #206).
 
@@ -170,7 +173,13 @@ def main():
     meshes = [item for item in scene.objects if item.type == "MESH"]
     decoded = decoded_of(job)
     laid(meshes + ([decoded] if decoded else []))
+    decals = [decal for mask in job["masks"] for decal in mask["spec"].get("decals") or []]
+    closing = len(meshes) == 1  # closed under its marks (score #159 round 13) as the place's bake closes it
+    if closing:
+        bake.pressed_under(meshes[0], decals)
     material = look_material(job["masks"], occluded(meshes, job["masks"], decoded))
+    if closing:
+        bake.cards_over(meshes[0], decals)
     if decoded is not None:
         bpy.data.objects.remove(decoded)
     for item in meshes:

@@ -95,6 +95,10 @@ OCCLUSION_SHARE = 0.1
 # occlusion by its ratio to that mean, never below SEAM_LEAST. Seen on r206ao's anesthesia machine and locker (r11):
 # the locker's door outlines and the cabinet's side seam drawn, no blot; unfiltered, blots and black flipped patches
 # over the drawers and the bench's leg.
+# A closing card (cards_over, score #159 round 13) lies this far in front of the plate it closes, over the points
+# pressed onto it.
+CARD_PROUD = 0.0003
+FACING_PLATE = 0.7  # a face its card takes its finish from faces the plate's way at least this much (cosine)
 SEAM_CAGE = 0.004
 SEAM_REACH = 4
 SEAM_DARK = 0.85
@@ -320,6 +324,91 @@ def outward(item):
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.mesh.normals_make_consistent(inside=False)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def closed_points(points, decal):
+    """`points` (n x 3, the model's own frame) with every one in a closed decal's region (score #159 round 13: its
+    `closed`, score/stages/surfaces/decal_plates.py, `box` across and up its face from its `at`) standing proud of its
+    plate by up to its `most` pressed onto the plate: TRELLIS.2's vent bumps under a pattern (tc6's locker's doors,
+    4 mm proud), shading under its drawn holes."""
+    right, up, normal = (np.asarray(axis, dtype=float) for axis in recipes.decal_axes(decal))
+    left, bottom, right_end, top = decal["closed"]["box"]
+    offset = np.asarray(points, dtype=float) - np.asarray(decal["at"], dtype=float)
+    across, upward, height = offset @ right, offset @ up, offset @ normal
+    inside = ((across >= left) & (across <= right_end) & (upward >= bottom) & (upward <= top) & (height > 0)
+              & (height <= decal["closed"]["most"]))
+    pressed = np.array(points, dtype=float)
+    pressed[inside] -= np.outer(height[inside], normal)
+    return pressed
+
+
+def closing_card(decal):
+    """The four corners of a closed decal's card (its `closed` `box` on its plate, CARD_PROUD in front), wound about
+    its normal: the cover over the holes TRELLIS.2 cut through a locker's door sheet under its vents (#191)."""
+    right, up, normal = (np.asarray(axis, dtype=float) for axis in recipes.decal_axes(decal))
+    left, bottom, right_end, top = decal["closed"]["box"]
+    at = np.asarray(decal["at"], dtype=float) + CARD_PROUD * normal
+    return [at + across * right + upward * up for across, upward in
+            ((left, bottom), (right_end, bottom), (right_end, top), (left, top))]
+
+
+def plate_texel(mesh, point, normal):
+    """(the face of `mesh` facing its plate's `normal` whose middle is nearest `point`, {UV map: the texel at that
+    face's middle}): where a closing card takes its finish from. A face turned away is the sheet's back, 2 mm behind
+    (the locker's door: its back faces the dark inside, and its left doors' cards took that finish), and a corner's
+    texel lies on its island's rim, where the masks bleed into the next part's (r13holes: its cards drawn dark)."""
+    middles, normals = np.empty(len(mesh.polygons) * 3), np.empty(len(mesh.polygons) * 3)
+    mesh.polygons.foreach_get("center", middles)
+    mesh.polygons.foreach_get("normal", normals)
+    apart = np.linalg.norm(middles.reshape(-1, 3) - point, axis=1)
+    apart[normals.reshape(-1, 3) @ np.asarray(normal, dtype=float) < FACING_PLATE] = np.inf
+    face = mesh.polygons[int(np.argmin(apart))]
+    return face, {layer.name: tuple(np.mean([tuple(layer.data[loop].uv) for loop in face.loop_indices], axis=0))
+                  for layer in mesh.uv_layers}
+
+
+def pressed_under(item, decals):
+    """The model `item`'s points pressed onto the plate under each of its closed decals (score #159 round 13,
+    decal_plates: closed_points); a decal not closed is passed by."""
+    mesh = item.data
+    flat = np.empty(len(mesh.vertices) * 3)
+    mesh.vertices.foreach_get("co", flat)
+    points = flat.reshape(-1, 3)
+    for decal in decals:
+        if decal.get("closed"):
+            points = closed_points(points, decal)
+    mesh.vertices.foreach_set("co", points.ravel())
+    mesh.update()
+
+
+def cards_over(item, decals):
+    """One card over each closed decal's region (closing_card) joined to the model `item`, in the finish of the plate
+    at its decal's `plate_point`: that face's material and, on every UV map, its middle's texel, so the texel masks,
+    the occlusion and the decals print on it as on the plate round it; the number of cards. Laid after the model's
+    occlusion is baked (look.py, make_chunky): every card's texel is its plate face's, and a card in the bake wrote
+    there the dark of the vent holes its decoded mesh still holds (r13holes: the locker's cards drawn grey)."""
+    closed = [decal for decal in decals if decal.get("closed")]
+    if not closed:
+        return 0
+    mesh, cards = item.data, []
+    for number, decal in enumerate(closed):
+        face, texels = plate_texel(mesh, np.asarray(decal["closed"]["plate_point"], dtype=float),
+                                   recipes.decal_axes(decal)[2])
+        card = bpy.data.meshes.new(f"{item.name}_card_{number}")
+        card.from_pydata([list(corner) for corner in closing_card(decal)], [], [(0, 1, 2, 3)])
+        for material in mesh.materials:
+            card.materials.append(material)
+        card.polygons[0].material_index = face.material_index
+        for name, texel in texels.items():
+            for corner in card.uv_layers.new(name=name).data:
+                corner.uv = texel
+        found = bpy.data.objects.new(card.name, card)
+        item.users_collection[0].objects.link(found)
+        found.matrix_world = item.matrix_world.copy()
+        cards.append(found)
+    with bpy.context.temp_override(active_object=item, object=item, selected_editable_objects=[item, *cards]):
+        bpy.ops.object.join()
+    return len(cards)
 
 
 def seamed(items, decoded, uv_map, side, reach, among=()):
