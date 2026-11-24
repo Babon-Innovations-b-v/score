@@ -1090,12 +1090,12 @@
   }
  },
  "unreal": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-unreal:1-bdccccaf3cf7@sha256:12ecbf15c814258a45fa7adf44e720c1e44983dc3b67a3c5e11ebd301d3e5e9b",
-  "tag": "1-bdccccaf3cf7",
-  "digest": "sha256:12ecbf15c814258a45fa7adf44e720c1e44983dc3b67a3c5e11ebd301d3e5e9b",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-unreal:1-4b161eb69164@sha256:f96cc462216882db1e67ea51d5aaedac52df310820cde2b18604310115b7c008",
+  "tag": "1-4b161eb69164",
+  "digest": "sha256:f96cc462216882db1e67ea51d5aaedac52df310820cde2b18604310115b7c008",
   "platforms": "linux/amd64",
-  "size_mb": 24056.5,
-  "build_minutes": 18.4,
-  "built": "2026-11-24T14:26:33Z"
+  "size_mb": 24181.2,
+  "build_minutes": 16.6,
+  "built": "2026-11-24T16:42:38Z"
  }
 }
