@@ -10,7 +10,8 @@ stand stands as laid at its plan's storey and the stairwell is seated onto it at
 plan holds the flat (the area's outside, as the pad holds its capsule) seats the flat onto its door the same way, the
 stairwell itself the area's frame, its exposure the seats' own, so the flat's piece list is lit for the
 stairwell's grade (its bulb's watts times its own exposure over the stairwell's). Each seat written into its place.json is where the package
-lays the place: the flat's front door packaged on the stairwell's doorway, its scene file unseated. A block of the
+lays the place: the flat's front door packaged on the stairwell's doorway, the seat carried in its scene.json, its
+scene file unseated. A block of the
 flat's own standing in the stairwell's core is told (seated shells may not stand inside each other); listed as the
 flat's backdrop (a neighbour place stands for it) it is no shell of the flat and its package leaves it out; such a
 backdrop block standing across the way in from the flat's door walls no walker off (the game leaves it out).
@@ -32,6 +33,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.relit: the lamps left at their own watts -> the flat's 100 W bulb stays 100 W under the area's 0.5 grade
   (lit for its own 2: drawn four times too dark)
 - area.area: shells_crossed unread -> the flat's block standing in the stairwell's core passes
+- scene_package.written_scene: the seat left out of scene.json -> the package carries no seat to lay its film path on
+  (an engine's camera stands where the place stood unseated, #222 run 9)
 - scene_package.written_scene: the backdrop packaged when seated -> the flat's block is packaged beside its front door
 - area.joined_stage: the backdrop laid on the join's stage -> the backdrop block across the flat's way in walls it off
 """
@@ -179,6 +182,7 @@ def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joi
         assert np.allclose(seat[:3, :3].T @ [0.0, 0.0, -0.025] + seat[3, :3], door["middle"], atol=0.03), seat
         scene = scene_package.write(folders["flat"], tmp_path / "flat_package")
         [leaf] = [copy for copy in scene["instances"] if copy["name"] == "front_door"]
+        assert scene["seat"] == record["seats"]["flat"]["matrix"], scene.get("seat")  # what lays its film path
         assert "block" not in {copy["name"] for copy in scene["instances"]} and \
             "block" in {item["name"] for item in scene["left_out"]}, scene["left_out"]  # the neighbour's to stand
         at = np.asarray(leaf["matrix"]).reshape(4, 4)[3, :3]  # the leaf's middle, half its 2.05 m over the sill

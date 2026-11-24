@@ -7,8 +7,10 @@ Material Instance, a baked recipe's maps its own instance named by its surface (
 one texture a way they are read; glow is its factor times its strength in Unreal's units (times LUMENS_A_WATT), a
 transmitting look is glass at 1 - transmission; a solid object is Nanite, a glass one and a character not; the film
 path's camera keys see along each frame's aim with no roll at the focal length its field of view needs, its yaw
-unwound; the sun shines from where it stands, in lux, the sky light's strength is in Unreal's units too, a place with
-no sky picture is lit by an even sky of its ambient, and the exposure divides the lumens back out.
+unwound, and a package seated in its area's frame has the path (in the place's own frame) laid on its seat, one in an
+area's frame with no seat refused; the sun shines from where it stands, in lux, the sky light's strength is in
+Unreal's units too, a place with no sky picture is lit by an even sky of its ambient, and the exposure divides the
+lumens back out.
 
 Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - frames.copy_transform: the turn taken B R (no B^T) -> the turned copies' points land off their laid spots
@@ -24,6 +26,9 @@ Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - looks.surface_of: the map page kept -> the rust's instance is named for "recipe/rust@1 map2"
 - looks.solid: the glass unread -> the pane is Nanite
 - camera.keys: the yaws left wound -> the fourth key's yaw is -170, not 190
+- camera.keys: the eye not laid on the seat -> the seated camera stands at (0, 0, 160), not (1000, 500, 140)
+- camera.keys: the aim not laid on the seat -> the seated camera looks along -y, not -x
+- plan.seat_of: an area's frame with no seat let through -> that package is planned, not refused
 - camera.focal_length: the half angle doubled (fov * 2) -> 90 degrees reads as no finite focal length, not 18 mm
 - layout.directional: the sun's way not turned round -> the sun shines away from where it stands
 - layout.environment: the sky's strength not in Unreal's units -> 1.0, not 683
@@ -177,6 +182,16 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
     other = ((0, 1, 0), (0, 0, -1), (1, 0, 0))  # another import's axes, as a calibration might read them
     made = plan.planned(root, tmp_path / "into", root / "path.json")
     remade = plan.planned(root, tmp_path / "into_other", root / "path.json", other)
+    seat = turn_y(90, 1, [10, -0.2, 5])  # the place turned a quarter and moved onto its area seat
+    in_area = dict(scene, frame="the area square's frame (the place's seat): metres, y up")
+    (root / "scene.json").write_text(json.dumps(dict(in_area, seat=seat)))
+    seated = plan.planned(root, tmp_path / "into_seated", root / "path.json")["camera"]["keys"][0]
+    (root / "scene.json").write_text(json.dumps(in_area))
+    try:
+        plan.planned(root, tmp_path / "into_unseated", root / "path.json")
+        unseated = "planned"
+    except ValueError:
+        unseated = "refused"
     try:
         frames.basis_from_bounds([0, 0, 0], [100, 100, 300])  # two axes a metre long: no calibration box
         garbage = "read"
@@ -213,6 +228,9 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "camera": [(round(key["rotation"]["yaw"], 6), round(key["rotation"]["pitch"], 6), round(key["rotation"]["roll"], 6),
                     round(key["focal_length"], 6)) for key in keys],
         "camera at": [round(value, 6) for value in keys[0]["location"]],
+        "seated camera": ([round(value, 6) for value in seated["location"]],
+                          [round(value, 6) + 0.0 for value in ahead_of(seated["rotation"])]),
+        "area frame with no seat": unseated,
         "sun": ([round(value, 6) for value in ahead_of(sun["rotation"])] ==
                 [round(-value, 6) for value in toward], sun["lux"]),
         "exposure": round(made["environment"]["exposure_bias"], 6),
@@ -232,6 +250,7 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "camera": [(-90.0, 0.0, 0.0, 18.0), (0.0, 0.0, 0.0, 18.0), (90.0, 0.0, 0.0, 18.0), (100.0, 0.0, 0.0, 18.0),
                    (270.0, 45.0, 0.0, 18.0)],
         "camera at": [0.0, 0.0, 160.0],
+        "seated camera": ([1000.0, 500.0, 140.0], [-1.0, 0.0, 0.0]), "area frame with no seat": "refused",
         "sun": (True, 4.0 * 683.0), "exposure": round(math.log2(2.0 / 683.0), 6),
         "lamp": ([0.0, 0.0, 300.0], 6830.0), "caps": "film"}, answer
     json.dumps(made)  # the plan is what plan.py writes

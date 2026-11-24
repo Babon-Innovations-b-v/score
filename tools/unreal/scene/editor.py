@@ -254,8 +254,9 @@ def placed_part(actor_plan, asset, place, label):
     A Static Mesh goes in as an empty StaticMeshActor given its mesh after the spawn, so the spawn never tests the
     mesh's collision against what is already laid: spawn_actor_from_object returned None for 11 wall-mounted copies
     on one facade (#222, run 6) while the same mesh at the same turn spawned elsewhere, the mark of a spawn refused
-    for encroaching. A character's Skeletal Mesh goes through the mesh's own actor factory. A spawn that still gives
-    no actor raises, naming the spot (the engine's LogSpawn line in Saved/Logs says why)."""
+    for encroaching. A character's Skeletal Mesh goes in the same way, as an empty SkeletalMeshActor given its mesh
+    (the mesh's own actor factory gave no actor for all 12 walkers, #222 run 9). A spawn that still gives no actor
+    raises, naming the spot (the engine's LogSpawn line in Saved/Logs says why)."""
     transform = actor_plan["transform"]
     location = unreal.Vector(*transform["location"])
     rotation = unreal.Quat(*transform["rotation"]).rotator()
@@ -265,7 +266,12 @@ def placed_part(actor_plan, asset, place, label):
         if actor is not None and not actor.get_editor_property("static_mesh_component").set_static_mesh(asset):
             raise RuntimeError(f"{asset.get_path_name()} was not set on the spawned StaticMeshActor")
     elif isinstance(asset, unreal.SkeletalMesh):
-        actor = actors.spawn_actor_from_object(asset, location, rotation)
+        actor = actors.spawn_actor_from_class(unreal.SkeletalMeshActor, location, rotation)
+        if actor is not None:
+            skin = actor.get_editor_property("skeletal_mesh_component")
+            skin.set_skeletal_mesh_asset(asset)
+            if skin.get_skeletal_mesh_asset() != asset:
+                raise RuntimeError(f"{asset.get_path_name()} was not set on the spawned SkeletalMeshActor")
     else:
         raise RuntimeError(f"{asset.get_path_name()} is a {type(asset).__name__}, not a Static or Skeletal Mesh")
     if actor is None:

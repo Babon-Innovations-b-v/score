@@ -4,7 +4,9 @@ frame rate. Plain Python with no numpy: Unreal's own Python runs it.
 
 `fov` is the angle across the picture (degrees, tools/blender/inside/usd_views.py), so the focal length is the
 filmback's half width over its half tangent. The yaw is kept continuous from frame to frame (no jump from 180 to
--180 between two keys), as the sequence's curves ease between keys.
+-180 between two keys), as the sequence's curves ease between keys. The path is in its place's own frame; a package
+seated in its area's frame (scene.json `seat`) has its path's eyes and ways turned and shifted onto that seat first,
+or the camera stands where the place stood before it was seated (#222, run 9: 27 m off the street, behind a block).
 """
 import json
 import math
@@ -30,16 +32,27 @@ def unwound(yaws):
     return found
 
 
-def keys(path, basis):
-    """The film path's camera keys: {fps, frames, filmback, keys [{frame, location (cm), rotation {roll, pitch, yaw},
-    focal_length}]}."""
+def on_seat(seat, way, shifted):
+    """A place-frame point (`shifted`) or way as the package's seat lays it (`seat`: scene.json's 16 numbers, column by
+    column like a copy's matrix; None: the package is in its place's own frame)."""
+    if seat is None:
+        return list(way)
+    rows = frames.column_matrix(seat)
+    return [sum(rows[row][column] * way[column] for column in range(3)) + (rows[row][3] if shifted else 0.0)
+            for row in range(3)]
+
+
+def keys(path, basis, seat=None):
+    """The film path's camera keys, its views laid on the package's `seat` (on_seat): {fps, frames, filmback, keys
+    [{frame, location (cm), rotation {roll, pitch, yaw}, focal_length}]}."""
     made = json.loads(pathlib.Path(path).read_text())
     found = []
     for view in made["views"]:
-        ahead = [aim - eye for aim, eye in zip(view["aim"], view["eye"])]
-        found.append({"frame": view.get("frame", len(found)), "location": frames.point(basis, view["eye"]),
-                      "rotation": frames.rotator(frames.turned(basis, ahead),
-                                                 frames.turned(basis, view.get("up", [0.0, 1.0, 0.0]))),
+        ahead = on_seat(seat, [aim - eye for aim, eye in zip(view["aim"], view["eye"])], False)
+        found.append({"frame": view.get("frame", len(found)),
+                      "location": frames.point(basis, on_seat(seat, view["eye"], True)),
+                      "rotation": frames.rotator(frames.turned(basis, ahead), frames.turned(
+                          basis, on_seat(seat, view.get("up", [0.0, 1.0, 0.0]), False))),
                       "focal_length": focal_length(view["fov"])})
     for key, yaw in zip(found, unwound([key["rotation"]["yaw"] for key in found])):
         key["rotation"]["yaw"] = yaw

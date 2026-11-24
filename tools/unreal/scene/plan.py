@@ -16,7 +16,7 @@ writes <into>/plan.json and the textures to import under <into>/textures, and pr
     actors             [{name, object, kind, character, transform {location, rotation, scale}, plays}]
     lamps              [{name, location, lumens, radius, colour}]
     environment        {sun, moon, sky, exposure_bias, ambient, grade}: layout.environment, a night's sky its ambient
-    camera             camera.keys of the film path, or null
+    camera             camera.keys of the film path laid on the package's seat (seat_of), or null
     left_out           scene.json's
 """
 import argparse
@@ -62,6 +62,16 @@ def meshes_and_materials(package, scene, textures):
     return meshes, materials
 
 
+def seat_of(scene):
+    """The package's seat (scene.json `seat`), which lays its place's own frame, the film path's, in the package's;
+    None for a package in its place's own frame. Refused (ValueError) for a package in an area's frame that carries
+    no seat: its film path cannot be laid on it."""
+    if scene.get("seat") is None and str(scene.get("frame", "")).startswith("the area"):
+        raise ValueError(f"{scene['place']}: the package is in an area's frame but carries no `seat` "
+                         "(package it again): its film path is in the place's own frame")
+    return scene.get("seat")
+
+
 def planned(package, into, path=None, basis=frames.BASIS):
     """The plan for the package at <package> (its textures written under <into>), the camera from the film path at
     `path` when given, every point and turn through `basis`."""
@@ -77,7 +87,7 @@ def planned(package, into, path=None, basis=frames.BASIS):
             "materials": [materials[name] for name in sorted(materials)], "meshes": meshes,
             "actors": layout.actors(scene, basis), "lamps": layout.lamps(scene, basis),
             "environment": layout.lit_by_ambient(layout.environment(scene, package, basis), into),
-            "camera": camera.keys(path, basis) if path else None, "left_out": scene.get("left_out", [])}
+            "camera": camera.keys(path, basis, seat_of(scene)) if path else None, "left_out": scene.get("left_out", [])}
 
 
 def main():

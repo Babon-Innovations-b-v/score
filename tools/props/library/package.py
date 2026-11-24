@@ -19,6 +19,9 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
     ground               how a copy's height is meant: a lift off the ground under its spot, so an engine with terrain
                          stands each copy on its own ground (a flat place frame has its ground at y = 0)
     on_seat              where the place's middle sits on its seat, (across, along)
+    seat                 [place_build] the area seat that lays the place's own frame in the package's (16 numbers,
+                         column by column like a copy's matrix; place.json `seat`), null in the place's own frame: what
+                         lays a film path (in the place's own frame) on the package
     objects              {name: {file, kind, route, size (x, y, z as laid, metres), triangles, check {pass, ...}}};
                          [place_build] a character's (kind "character", route "skinned from the laid USD") glTF is
                          skinned (score/stages/place_build/skinned.py: skin 0, its joints under node 1, morph targets

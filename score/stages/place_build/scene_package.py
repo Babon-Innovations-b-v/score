@@ -1555,7 +1555,8 @@ def written_scene(folder, out, stage, place, seat, draft=False):
                 copy["door"] = doors[copy["name"]]
         scene = {"format": package.FORMAT, "version": package.VERSION, "place": place,
                  "frame": f"the area {seat['area']}'s frame (the place's seat, {seat['from']}): metres, y up"
-                 if seat else "the place's own frame: metres, y up", "units": "metre", "up": "+y", "ground": GROUND,
+                 if seat else "the place's own frame: metres, y up", "seat": seat["matrix"] if seat else None,
+                 "units": "metre", "up": "+y", "ground": GROUND,
                  "on_seat": [0.0, 0.0], "objects": objects, "instances": instances, "children": [],
                  "lamps": [lamp for lamp in lamps_of(stage, place) if lamp["name"] not in neighbours],
                  "counts": counts,
