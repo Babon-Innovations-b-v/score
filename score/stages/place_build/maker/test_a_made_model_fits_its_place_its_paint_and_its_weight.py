@@ -8,7 +8,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.cut_out: its rectangle refusal dropped -> a box-cut crop (the capsule's uncut lever, #156) goes to TRELLIS.2;
   maker.concept_picture: its missing-mask refusal dropped -> concept/<n> with no SAM 3 mask is made from no cut
 - maker.lock_file: the lock under `<root>/.git` -> a library checkout that is a git worktree (its .git a file) cannot
-  take in (round 1 of 2099 #161's car: NotADirectoryError after TRELLIS.2 had made the car)
+  take in (round 1 of 2099 #161's car: NotADirectoryError after TRELLIS.2 had made the car); maker.brought_forward
+  pulling with no remote branch named -> the detached worktree is not brought forward ("not currently on a branch")
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
 - fit.size_matrix: one uniform scale (TRELLIS.2's proportions kept), or its sides read as wide, deep, tall in the
   model's Y-up order -> the L drawn 10% tall and 12% shallow is not laid at the size, the L's at twice (#170);
@@ -262,10 +263,18 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert [maker.faces_for(size) for size in (0.3, 1.0, 3.0, None)] == [maker.LEAST_FACES, 125000, generate.FACES,
                                                                        generate.FACES]  # a sprout, a chair, a wall
     import subprocess
-    library = tmp_path / "library"
-    for command in (["init", "-q", str(library)], ["-C", str(library), "commit", "-q", "--allow-empty", "-m", "one"],
-                    ["-C", str(library), "worktree", "add", "-q", "--detach", str(tmp_path / "beside")]):
+    library, origin = tmp_path / "library", tmp_path / "origin.git"
+    for command in (["init", "-q", "--bare", "-b", "main", str(origin)], ["init", "-q", "-b", "main", str(library)],
+                    ["-C", str(library), "commit", "-q", "--allow-empty", "-m", "one"],
+                    ["-C", str(library), "remote", "add", "origin", str(origin)],
+                    ["-C", str(library), "push", "-q", "origin", "main"],
+                    ["-C", str(library), "worktree", "add", "-q", "--detach", str(tmp_path / "beside")],
+                    ["-C", str(library), "commit", "-q", "--allow-empty", "-m", "two"],
+                    ["-C", str(library), "push", "-q", "origin", "main"]):
         subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *command], check=True)
+    maker.brought_forward(tmp_path / "beside")  # the detached worktree, one commit behind origin's main
+    assert subprocess.run(["git", "-C", str(tmp_path / "beside"), "log", "-1", "--format=%s"], capture_output=True,
+                          text=True).stdout.strip() == "two"
     assert maker.lock_file(library) == maker.lock_file(tmp_path / "beside") == (library / ".git" / "score-make.lock")
     open(maker.lock_file(tmp_path / "beside"), "w").close()  # a worktree's lock is written, one for both checkouts
     assert maker.size_of(tmp_path, None, None, (0.5, 0.4, 1.0)) == 1.0  # a size's longest side, no place read

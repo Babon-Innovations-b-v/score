@@ -337,6 +337,10 @@ def hulls_written(final, out):
     return hulls, np.ptp(mesh.vertices, 0)
 
 
+# The library's branch a take-in starts from and pushes to.
+LIBRARY_BRANCH = "main"
+
+
 def sha256(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
@@ -354,6 +358,14 @@ def taken_in(entry, files, title, made_with, work):
         return saved(values, root, entry, files, title, made_with, work)
 
 
+def brought_forward(root):
+    """The library checkout at `root` fast-forwarded to origin's main, a detached HEAD (every worktree's) as well."""
+    pulled = subprocess.run(["git", "-C", str(root), "pull", "-q", "--ff-only", "origin", LIBRARY_BRANCH],
+                            capture_output=True, text=True)
+    if pulled.returncode != 0:
+        raise place_build.Refused(f"the library's checkout could not be brought forward: {pulled.stderr[-300:]}")
+
+
 def lock_file(root):
     """The take-in lock of the library checkout at `root`, in its repository's shared git folder, so a checkout that
     is a git worktree (its .git a file) locks with every other checkout of that repository."""
@@ -367,9 +379,7 @@ def lock_file(root):
 def saved(values, root, entry, files, title, made_with, work):
     """The take-in itself, under the caller's lock; the entry's address."""
     import pixal_takes
-    pulled = subprocess.run(["git", "-C", root, "pull", "-q", "--ff-only"], capture_output=True, text=True)
-    if pulled.returncode != 0:
-        raise place_build.Refused(f"the library's checkout could not be brought forward: {pulled.stderr[-300:]}")
+    brought_forward(root)
     commit = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     listing = {"world": "world1", "commit": commit, "taken_from": "score place_build make (TRELLIS.2 on this PC)",
                "entries": [{"kind": "model", "id": entry, "title": title,
