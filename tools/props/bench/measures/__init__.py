@@ -106,7 +106,10 @@ BARS = (
     ("drop", "rest_up", "most", 10.0),
     ("drop", "rest_height", "most", 0.02),
     # The picture judge (tools/props/bench/judge, #184): the made look held by eye to NVIDIA's render and the previous
-    # round's look. Each kind of fault at `fault` fails; a `slight` passes. CALIBRATION
+    # round's look. Each kind of fault at `fault` fails; a `slight` passes. Calibration (2026-11-24, tc4r's renders):
+    # NVIDIA's input against itself 15 of 15 every kind clean; against a re-render (1080 px, 32 samples) 5 of 5 pass,
+    # two kinds slight (the box's specks, the rack's colour); the input with the re-render as previous 5 of 5 not
+    # regressed. tc4r's 15 looks: 0 of 15 pass, every fault tc4/looked.json names found.
     ("picture", "drawn", "true", None),
     *(("picture", kind, "most", 0) for kind in PICTURE_KINDS),
     ("picture", "regressed", "most", 0),
