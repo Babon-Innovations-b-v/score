@@ -273,6 +273,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.batches: one run for all the maps -> a run holds the maps of both objects, past BATCH
 - scene_package.blender_baked: its runs one after another (SIDE_BY_SIDE ignored) -> the three objects' runs never
   hold the card two at once
+- scene_package.run_needs: BAKE_MEMORY_GB whatever the maps (2026-11-24) -> an 8192 map's run held to 6 GB (the
+  street's film bake killed at its first)
 - render.queued: `card_gb` and `memory_gb` ignored -> a bake run asks the queue for render.CARD_GB and no memory
 - render.queued: the scope's cap MEMORY_GB whatever the job asks -> a 12 GB job's scope holds 8 GB (#159: the cart
   killed); OOMPolicy=continue left out -> a Blender killed past its cap exits 124, read as past its time
@@ -1960,6 +1962,8 @@ def side_by_side(out):
     asked = command[:command.index("--priority")]
     assert asked[-4:] == ["--card-gb", "4", "--memory-gb", "6"], asked
     larger = render.queued("job", "script.py", [], memory_gb=12)
+    needs = [scene_package.run_needs(sized) for sized in ([{"size": [4096, 4096]}], [{"size": [8192, 8192]}] * 6)]
+    assert needs == [(6, 1800), (21, 6040)], needs
     assert "MemoryMax=8G" in command and "MemoryMax=12G" in larger and "OOMPolicy=continue" in command, larger
 
 

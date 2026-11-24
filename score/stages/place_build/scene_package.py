@@ -1584,6 +1584,12 @@ BATCH = 6
 SIDE_BY_SIDE = 2
 BAKE_CARD_GB = 4
 BAKE_MEMORY_GB = 6
+# A run's memory and time follow its maps' pixels past those (a film package's maps reach 8192 a side, FILM_CAPS):
+# the street, 2026-11-24, a 3684x3368 map's run peaked at 3.33 GB and baked it in 69 s (5.6 s a megapixel), and the
+# run whose first map was 8192x8192 was killed at the 8 GB scope. Memory: half a GB and BAKE_GB_A_MEGAPIXEL
+# for its largest map (0.23 measured, the rest margin); time: BAKE_SECONDS_A_MEGAPIXEL over all its maps (about 3x).
+BAKE_GB_A_MEGAPIXEL = 0.3
+BAKE_SECONDS_A_MEGAPIXEL = 15
 BAKE = "bake/maps"
 BAKE_CODE = ("bake_looks.py", "../../../tools/props/library/recipes.py")  # under this folder: the code a map's key holds
 
@@ -1635,16 +1641,24 @@ def batches(jobs):
     return [held[start:start + BATCH] for held in by_file.values() for start in range(0, len(held), BATCH)]
 
 
+def run_needs(jobs):
+    """A bake run's memory (GB) and time (s) for its jobs' maps: at least BAKE_MEMORY_GB and STEP_SECONDS' bake run,
+    more for big maps (BAKE_GB_A_MEGAPIXEL of its largest, BAKE_SECONDS_A_MEGAPIXEL of all)."""
+    megapixels = [job["size"][0] * job["size"][1] / 1e6 for job in jobs]
+    return (max(BAKE_MEMORY_GB, math.ceil(0.5 + BAKE_GB_A_MEGAPIXEL * max(megapixels, default=0))),
+            max(STEP_SECONDS["bake run"], math.ceil(BAKE_SECONDS_A_MEGAPIXEL * sum(megapixels))))
+
+
 def blender_run(out, listing, log):
     """One run of bake_looks.py over `listing` in headless Blender on this PC's card, through the card queue
-    (render.queued), stopped past STEP_SECONDS' bake run, its output added to `log`; its exit code."""
+    (render.queued), held to its maps' run_needs, its output added to `log`; its exit code."""
     import subprocess
     from score.stages.place_build import render
     script = pathlib.Path(__file__).resolve().parent / "bake_looks.py"
+    memory_gb, seconds = run_needs(json.loads(listing.read_text())["jobs"])
     with log.open("a") as written_log:
         return subprocess.run(render.queued(f"place-build-bake-{out.name}", script, [str(listing.resolve())],
-                                            seconds=STEP_SECONDS["bake run"], card_gb=BAKE_CARD_GB,
-                                            memory_gb=BAKE_MEMORY_GB),
+                                            seconds=seconds, card_gb=BAKE_CARD_GB, memory_gb=memory_gb),
                               stdout=written_log, stderr=subprocess.STDOUT, cwd=place_build.REPO).returncode
 
 
