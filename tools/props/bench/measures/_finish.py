@@ -110,11 +110,13 @@ def finish_split(truth, placed, made_faces, made_parts, nearest):
     """{"owned": finishes owned of those counted, "held_mean", "held_least": each counted finish's share held in
     parts pure in it, "purity": area-weighted share of each made part in its main finish, "parts", "materials",
     "pairs": [{"part", "material", "area"}] each made part with its main truth material and its area share};
-    `nearest` each made face's truth triangle (carried)."""
+    `nearest` each made face's truth triangle (carried). Faces bound to no material (-1) are one part of their own: tc6's
+    withdrawn polyhaven_metal_office_desk binds none, and its -1s, read as an index, made no part at all."""
     rule = split_rule()
     area = _mesh.areas(placed, made_faces)
     finish = np.asarray(truth["face_material"])[nearest]
     part_of = np.asarray(made_parts)
+    part_of = np.where(part_of < 0, part_of.max() + 1, part_of)
     table = np.zeros((int(part_of.max()) + 1, int(finish.max()) + 1))
     np.add.at(table, (part_of, finish), area)
     pure = table / np.maximum(table.sum(1, keepdims=True), 1e-12)

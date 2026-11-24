@@ -31,6 +31,8 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - __init__.by_finish reading a surface painted for one model as one finish: one part for its two names passes.
 - _finish.finish_split counting every part, however small: the three slivers make five parts for two finishes.
 - _finish.finish_split holding a finish whatever its parts' purity: one part for two materials passes.
+- _finish.finish_split reading an unbound face's -1 as a part's index: the box bound to no material makes no part
+  and fails with an IndexError (#159: tc6's withdrawn office desk).
 - _edges.wander returning 0: the slant given triangle by triangle passes its wander.
 - __init__.seen_finishes keeping the parts: the slant between two parts in one surface and look fails its wander
   (nothing shows where they meet).
@@ -488,6 +490,9 @@ CASES = [
     ("three sliver parts beside its two", lambda: made(with_slivers()[0], material=with_slivers()[1]),
      "finish.parts_per_material", True),
     ("one part for two materials", lambda: made(box(), material=np.zeros(12, int)), "finish.held_least", False),
+    # tc6's withdrawn polyhaven_metal_office_desk binds no material (#159)
+    ("a model bound to no material is one part", lambda: made(box(), material=np.full(12, -1)), "finish.held_least",
+     False),
     ("the top cut along the box's rim", lambda: edged(uneven(), top_material(uneven())), "finish.edge_wander", True),
     ("a slant cut cleanly through its triangles", lambda: edged(*cut_cleanly()), "finish.edge_wander", True),
     ("a square label cut cleanly into its front", lambda: edged(*labelled()), "finish.edge_wander", True),

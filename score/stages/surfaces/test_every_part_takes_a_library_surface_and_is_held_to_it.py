@@ -169,6 +169,8 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (its MERGED "loose bit" row)
 - finish_parts.py: `part_of[lost] = island[lost[0]]` -> `part_of[lost] = island[lost]`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its MERGED "crumbs only" row)
+- finish_parts.py merged_islands: `host = np.flatnonzero(hosts)` under NO_AREA -> `pass`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its MERGED "no area" row: the speck stays a part, #159)
 - finish_parts.py: `return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed), mesh.area_faces)` ->
   `return labels.without_crumbs(mesh, smoothed)`, or kept_finishes `lost = np.union1d(..., shrunk)` -> `lost =
   np.setdiff1d(np.unique(before), np.unique(after))`  -> every_part_takes_a_library_surface_and_is_held_to_it (its
@@ -3302,6 +3304,9 @@ MERGED = [
      [HOST, ((0.02,) * 3, (0.53, 0, 0), 1), ((1, 1, 1), (3, 0, 0), 1)], 2, [1, 2]),
     ("a finish of crumbs only keeps them as one part however small", [HOST, *CRUMBS], 2, [1, 2, 3, 4]),
     ("one crumb alone keeps its finish as a part of its own", [HOST, CRUMBS[0]], 2, [1]),
+    # the toaster's white printed ink (#159 r11d): one face of no area, a part of share 0.0 nothing could weigh
+    ("a finish of no area joins the nearest larger island of any finish",
+     [HOST, ((1, 1, 1), (3, 0, 0), 1), ((0.001,) * 3, (3.53, 0, 0), 2)], 2, [1, 2]),
 ]
 
 # A finish the cleaning left (finish_parts.kept_finishes): (case, the labels before, after, the face areas, kept).

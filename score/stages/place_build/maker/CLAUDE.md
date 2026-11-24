@@ -68,7 +68,8 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   nor volume x density: Claude answers it from the picture, words, size and parts (`weighed`, EUR 0, kept by the
   ask's hash), held to NVIDIA's bulk density band for the size class and named, not refused, outside it (NVIDIA's own
   empty box is). `make` weighs the whole as one part of its `--material`; the benchmark's `physics` step weighs the
-  finished parts.
+  finished parts. A part under UNWEIGHED (1e-4) of the surface is not asked and weighs 0 (#159: the toaster's one-face
+  ink, which the split no longer makes a part, finish_parts.NO_AREA).
 - **Moving parts** (parts.py, #177, #161 rules 1 and 11): one ask (Claude, EUR 0) names what moves in the close-up
   (function word, hinge, slide or spin, its box, a hinge's side, how far it opens, its thickness); its faces are those
   the close-up's camera sees in its box, from its outer face in by its thickness; its joint sits on its box's edge or

@@ -21,6 +21,7 @@ if str(REPO) not in sys.path:
 
 FRONT_VOTE = 2.0  # the close-up's map is the one the owner checked (2026-10-12: "finish map seed 1 looks great")
 ISLAND_LEAST = 0.002  # split_compare.CRUMB: an island under this share of the area joins the nearest larger one
+NO_AREA = 1e-4  # a finish whose faces together hold under this share of the area is no part (merged_islands)
 # A finish's library surface must lie within this (CIE76) of its colour in the close-up. A photo's light, dirt and
 # muted saturation move a right surface far: on round 4's six models the right ones lay up to dE 29.7 from it (the
 # lander's light paint, its gold foil 29.5, black rubber 29.4), the wrong ones 33.2 to 44.9 (the power unit's grey
@@ -224,8 +225,10 @@ def merged_islands(mesh, face_label):
     larger island, its finish's small islands together are one part, however small: a finish the close-up lists is
     no crumb (the outer hatch's porthole glass, 0.16% of its area, vanished into the steel, 2026-10-15). Taken in by
     space alone, the crane trolley's black warning stripes (each band a crumb) and the cut's yellow and rope crumbs
-    went into its forged steel, the black finish vanished and that part mixed (2026-10-12). With no larger island,
-    the largest island takes the rest."""
+    went into its forged steel, the black finish vanished and that part mixed (2026-10-12). A finish whose faces
+    together hold under NO_AREA of the area is no part: they take the part and finish of the nearest larger island of
+    any finish (#159 r11d: the toaster's white printed ink was one face, 3e-6 of its area, a part of share 0.0 that
+    could be neither seen nor weighed). With no larger island, the largest island takes the rest."""
     import numpy as np
     from scipy.spatial import cKDTree
     import patchy
@@ -241,7 +244,9 @@ def merged_islands(mesh, face_label):
     for finish in np.unique(face_label[~kept]):
         lost = np.flatnonzero(~kept & (face_label == finish))
         host = np.flatnonzero(hosts & (face_label == finish))
-        if not len(host):
+        if not len(host) and mesh.area_faces[lost].sum() < NO_AREA * mesh.area:
+            host = np.flatnonzero(hosts)
+        elif not len(host):
             part_of[lost] = island[lost[0]]
             continue
         nearest = host[cKDTree(middles[host]).query(middles[lost])[1]]

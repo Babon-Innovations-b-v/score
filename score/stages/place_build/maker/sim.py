@@ -31,6 +31,7 @@ CLASSES = REPO / "data/physics/surface_classes.json"
 HULLS = 48  # CoACD's most hulls a model
 CONCAVITY = 0.03  # CoACD's threshold, its default's middle
 INSIDE = 1e-4  # metres: a face's middle this near a hull's planes is inside it
+UNWEIGHED = 1e-4  # a part under this share of the surface is not asked and weighs 0 (finish_parts.NO_AREA's)
 
 
 def table():
@@ -145,14 +146,21 @@ def claude_ask(body):
 
 def weighed(words, size, parts, picture=None, ask=None):
     """Each part's real-world mass in kg (module docstring), seen in its `picture` (a PNG's path) when given; `ask`
-    takes the body and gives the answer's JSON text (a test's), else Claude's. An answer missing a part, or with a
-    mass that is not above zero, is refused."""
+    takes the body and gives the answer's JSON text (a test's), else Claude's. A part under UNWEIGHED of the surface
+    is not asked and weighs 0 (#159 r11d: the toaster's one-face ink, share 0.0, was answered 0 kg and refused). An
+    answer missing a part, or with a mass that is not above zero, is refused."""
     shown = pathlib.Path(picture).read_bytes() if picture else None
-    answer = json.loads((ask or claude_ask)(weighing_body(words, size, parts, shown)))
+    asked = [number for number, part in enumerate(parts) if part["share"] >= UNWEIGHED]
+    if not asked:
+        raise ValueError(f"no part to weigh: each of the {len(parts)} parts holds under {UNWEIGHED} of the surface")
+    answer = json.loads((ask or claude_ask)(weighing_body(words, size, [parts[number] for number in asked], shown)))
     masses = {int(row["part"]): float(row["kg"]) for row in answer["parts"]}
-    if sorted(masses) != list(range(len(parts))) or min(masses.values()) <= 0:
-        raise ValueError(f"the mass answer does not weigh each of the {len(parts)} parts: {answer['parts']}")
-    return [masses[number] for number in range(len(parts))]
+    if sorted(masses) != list(range(len(asked))) or min(masses.values()) <= 0:
+        raise ValueError(f"the mass answer does not weigh each of the {len(asked)} parts: {answer['parts']}")
+    found = [0.0] * len(parts)
+    for index, number in enumerate(asked):
+        found[number] = masses[index]
+    return found
 
 
 def hull_classes(vertices, faces, face_class, hull_list):
