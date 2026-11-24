@@ -294,7 +294,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - skinned.animation_of: the blend shape weights left out -> the leader's mesh node keys no weights
 - skinned.moves_of: the walk left out -> node 0 keys no translation
 - skinned.lived: unread (plays left on the still pose) -> a held character plays `Held`, standing still in the game;
-  skinned.taken_from: no sample matched -> the character held before its pose named its clip stays still
+  skinned.taken_from: no sample matched -> the character held before its pose named its clip stays still;
+  skinned.between_keys: only the keys tried -> the character held between two keys stays still;
+  skinned.lived: ON_THE_SPOT unread -> the character held mid-stride treads `walking` on the spot
 - skinned.sample_times: the clip kept whole (no round) -> the leader's clip lasts two rounds
 - skinned.copies_of: the prototype's transform taken for the instance's -> the crowd copies stand at one spot
 - scene_package.densities: the eyes ignored (DENSITY on every face) -> the panel seen from 100 m is baked at 24
@@ -1882,28 +1884,37 @@ def skinned_characters(folder, out, scene, copies):
 
 def held_lives(folder):
     """A character `put` holds still plays, in a game, the clip its pose was taken from, round from that second: by
-    the clip the pose names, or (a scene laid before it named one) the clip whose sample the pose equals; its check
-    still skins the still pose; one posed from a library pose (`score:pose`) stays still."""
+    the clip the pose names, or (a scene laid before it named one) the clip time the pose equals, on a key or between
+    two; one held mid-stride (a walking clip, no route) stands in `standing`; its check still skins the still pose;
+    one posed from a library pose (`score:pose`) stays still."""
     from score.stages import place_build
     from score.stages.place_build import skinned
     stage = Usd.Stage.CreateInMemory()
     stage.SetTimeCodesPerSecond(30)
     asset = folder / "assets/characters/skinny.usda"
-    lives = {"animation": "standing", "starts": -1.0 / 30.0, "loops": True}
-    for name, unnamed, posed in (("named", False, False), ("unnamed", True, False), ("posed", False, True)):
+    rows = (("named", 1.0, False, False, False), ("unnamed", 1.0, True, False, False),
+            ("between", 0.5, True, False, False), ("stride", 1.0, False, False, True), ("posed", 1.0, False, True, False))
+    for name, frame, unnamed, posed, stride in rows:
         root = stage.DefinePrim(f"/held/{name}", "SkelRoot")
         root.GetReferences().AddReference(str(asset))
-        place_build.dressed(stage, str(root.GetPath()), asset, clip="standing", second=1.0 / 30.0)
+        place_build.dressed(stage, str(root.GetPath()), asset, clip="standing", second=frame / 30.0)
         held = stage.GetPrimAtPath(f"{root.GetPath()}/Held")
         if unnamed:
             held.RemoveProperty(place_build.HELD_CLIP)
             held.RemoveProperty(place_build.HELD_SECONDS)
         if posed:
             held.CreateAttribute("score:pose", Sdf.ValueTypeNames.String).Set("character/hold")
+        if stride:  # the pose names a walking clip the body has: it walks no route, so it stands
+            walking = UsdSkel.Animation.Define(stage, f"{root.GetPath()}/Animations/walking")
+            walking.CreateJointsAttr(["hips", "hips/chest"])
+            walking.CreateTranslationsAttr().Set(Vt.Vec3fArray([(0, 1, 0), (0, 0.5, 0)]), 0)
+            walking.CreateRotationsAttr().Set(Vt.QuatfArray([Gf.Quatf(1), Gf.Quatf(1)]), 0)
+            walking.CreateScalesAttr().Set(Vt.Vec3hArray([Gf.Vec3h(1), Gf.Vec3h(1)]), 0)
+            held.GetAttribute(place_build.HELD_CLIP).Set("walking")
         glb, facts = skinned.character_glb(root)
         assert facts["plays"]["animation"] == ("Held" if posed else "standing"), (name, facts["plays"])
         if not posed:
-            assert facts["plays"]["loops"] and abs(facts["plays"]["starts"] - lives["starts"]) < 1e-9, facts["plays"]
+            assert facts["plays"]["loops"] and abs(facts["plays"]["starts"] + frame / 30.0) < 1e-6, (name, facts["plays"])
         assert facts["checked"] == "Held" and skinned.check_of(root, glb, facts)["pass"], (name, facts)
 
 

@@ -46,6 +46,7 @@ import skel_usd  # noqa: E402  (its reader: read back what was written)
 
 CLOSE = 1e-4  # metres: how far the glTF's skin may lie from UsdSkel's at the played key
 ROUND = 1e-3  # frames: how near a sample must lie to a clip's round to be kept as its last
+ON_THE_SPOT = ("walking",)  # clips whose feet stride on the spot: a body held from one walks no route, so stands
 
 
 class Unconvertible(ValueError):
@@ -231,7 +232,8 @@ def lived(held, named, rate):
     stands still stands breathing (2099 #161, the owner: "the people are half, and just standing still"). The clip is
     the one the pose names (place_build.HELD_CLIP, HELD_SECONDS), else the one of its `Animations` whose sample equals
     the pose exactly (a scene laid before the pose named it); a pose set from a library pose (`score:pose`, place_build's
-    `hold`: the smoker's arm) or one no clip holds stays still."""
+    `hold`: the smoker's arm) or one no clip holds stays still. A pose taken mid-stride (ON_THE_SPOT: the street's
+    walkers, 2099 #161) has no route to walk, so it stands in place_build.CLIP, never treading on the spot."""
     if held is None or not held.IsValid() or held.GetAttribute("score:pose").HasAuthoredValue():
         return None
     if held.GetParent().GetName() == "Animations" or sample_times(held, None, rate) != [None]:
@@ -242,28 +244,63 @@ def lived(held, named, rate):
         clip, second = taken_from(held, clips, rate)
     if clip is None:
         return None
+    if clip in ON_THE_SPOT and place_build.CLIP in clips:
+        clip = place_build.CLIP
     return {"animation": clip, "starts": -float(second or 0.0), "loops": clip not in skel_usd.ONCE}
 
 
 def taken_from(held, clips, rate):
-    """(clip, second) of the first clip sample whose joints' rotations and translations equal the still pose's
-    (within CLOSE), else (None, None)."""
+    """(clip, second) of the first clip time whose joints' rotations and translations equal the still pose's (within
+    CLOSE), else (None, None). A pose is taken at any second, between two keys as often as on one (cast.held_still:
+    the street's walkers, each a tenth of a frame on), so each pair of keys is also tried at the share of the way
+    between them the pose lies at (between_keys)."""
     pose = UsdSkel.Animation(held)
     joints = list(pose.GetJointsAttr().Get() or [])
     rotations, translations = pose.GetRotationsAttr().Get(), pose.GetTranslationsAttr().Get()
     if not joints or rotations is None or translations is None:
         return None, None
+    rotations, translations = np.array(rotations, dtype=np.float64), np.array(translations, dtype=np.float64)
     for name, prim in sorted(clips.items()):
         clip = UsdSkel.Animation(prim)
         if list(clip.GetJointsAttr().Get() or []) != joints:
             continue
-        for time in clip.GetRotationsAttr().GetTimeSamples():
+        for time in between_keys(clip, rotations, translations):
             turned = np.array(clip.GetRotationsAttr().Get(time), dtype=np.float64)
             moved = np.array(clip.GetTranslationsAttr().Get(time), dtype=np.float64)
-            same_turn = np.abs(np.abs(np.sum(turned * np.array(rotations, dtype=np.float64), axis=1)) - 1.0)
-            if np.max(same_turn) < CLOSE and np.max(np.abs(moved - np.array(translations, dtype=np.float64))) < CLOSE:
+            same_turn = np.abs(np.abs(np.sum(turned * rotations, axis=1)) - 1.0)
+            if np.max(same_turn) < CLOSE and np.max(np.abs(moved - translations)) < CLOSE:
                 return name, time / rate
     return None, None
+
+
+def between_keys(clip, rotations, translations):
+    """The clip times a pose of `rotations` and `translations` may have been taken at: each key, and between each two
+    keys the share of the way (0 to 1) that puts the keys' interpolation on the pose: by its translations, which
+    UsdSkel interpolates linearly, else (none moves) by the turn of the joint that turns most, slerped."""
+    times = list(clip.GetRotationsAttr().GetTimeSamples())
+    keyed = [(np.array(clip.GetRotationsAttr().Get(time), dtype=np.float64),
+              np.array(clip.GetTranslationsAttr().Get(time), dtype=np.float64)) for time in times]
+    found = list(times)
+    for (start, end), (before, after) in zip(zip(times, times[1:]), zip(keyed, keyed[1:])):
+        share = share_between(before, after, rotations, translations)
+        if share is not None:
+            found.append(start + share * (end - start))
+    return found
+
+
+def share_between(before, after, rotations, translations):
+    """How far (0 to 1) a pose lies from key `before` to key `after` (each (rotations, translations)), or None when
+    the two keys are one pose."""
+    step = after[1] - before[1]
+    length = float(np.sum(step * step))
+    if length > CLOSE * CLOSE:
+        return min(1.0, max(0.0, float(np.sum((translations - before[1]) * step)) / length))
+    turns = 2.0 * np.arccos(np.clip(np.abs(np.sum(before[0] * after[0], axis=1)), 0.0, 1.0))
+    joint = int(np.argmax(turns))
+    if turns[joint] <= CLOSE:
+        return None
+    turned = 2.0 * np.arccos(min(1.0, abs(float(np.sum(before[0][joint] * rotations[joint])))))
+    return min(1.0, max(0.0, turned / float(turns[joint])))
 
 
 def clip_round(root, name, prim):
