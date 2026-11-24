@@ -73,7 +73,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   library piece stood on that face and fitted to the box (`fitted`: its size and spot the close-up's, its depth seen
   aslant included), the model's own blob beside it found and cut (`blob_cut`: flattened onto the face and closed to
   a point, stopping short of the face's edge, never another face's vertices), the blob's faces covered as a print
-  under a mark is, onto the part it is laid on (`cut_marks`). The bench's look draws it (tools/props/bench/run); a
+  under a mark is, onto the part it is laid on (`cut_marks`). A piece is laid only where its cut leaves the print
+  round it whole (`torn`, #159 round 13: r13's stove knobs, library dials too small for their blobs, tore the panel's
+  print): a face the cut moves outside the piece's box in another finish than the face's, the piece's or the blob's
+  makes the mark a gap, TRELLIS.2's blob kept. The bench's look draws it (tools/props/bench/run); a
   place's bake does not yet, nor do the physics and parts steps add the piece (a gap on #212).
   parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.

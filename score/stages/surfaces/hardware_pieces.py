@@ -33,6 +33,10 @@ piece's on its cut's where it stands in it. A cut stops short of its face's edge
 face) and the face's own (look.py cut_away: turned within the cut's `edge_turn` of its facing), never an edge to
 another face. With no such group, or one reaching past CUT_MOST half diagonals,
 the cut is the piece's own spot and half diagonal.
+A piece is laid only where its cut leaves the print round it whole (`torn`): the cut draws the face's own paint in
+over the blob, so where the face it moves outside the piece's own box holds another finish than the face's, the
+piece's or the blob's, the mark is a gap and TRELLIS.2's own blob is kept (#159 round 13: r13's gas stove's 44 mm
+library dials over its 65 mm knob blobs tore the panel's red and white print).
 """
 import numpy as np
 
@@ -265,6 +269,29 @@ def fitted(mark, camera, size, plane, axes, at):
     return at, (scale * wide, scale * tall)
 
 
+def torn(model, placement, finish_of, own):
+    """The finishes (sorted) the placement's cut would tear outside the piece's footprint: those of the face's own
+    faces it moves (cut_faces standing no more than its `stands` over the face and turned within its `edge_turn` of
+    its facing, as look.py cut_away moves them: the blob's close to its point, of no area) whose middles lie off the
+    piece's own box on its face (its `at`, `size` along its `up` and their cross with its `normal`), of a finish none
+    of `own` (the face's and the piece's) nor the blob's (most of its faces'). The cut draws the face's own paint in
+    over the blob, so a print round the piece is torn: r13's gas stove's knobs pulled its panel's red, white and orange
+    print and the steel round it into their cuts, 44 mm library dials over 65 mm blobs (#159 round 13)."""
+    moved = cut_faces(model, placement)
+    middle, side = model.frame
+    normal, up, cut = np.asarray(placement["normal"]), np.asarray(placement["up"]), placement["cut"]
+    middles = model.mesh.triangles_center[moved] * side + middle
+    flat = ((middles - np.asarray(cut["at"])) @ normal <= cut["stands"]) & \
+        (model.mesh.face_normals[moved] @ normal > np.cos(np.radians(cut["edge_turn"])))
+    reach = middles - np.asarray(placement["at"])
+    across, upward = placement["size"]
+    outside = (np.abs(reach @ np.cross(up, normal)) > across / 2) | (np.abs(reach @ up) > upward / 2)
+    blob = finish_of[moved[~flat]]  # the finish the split gave the blob itself (r13's stove: its knobs cast metal)
+    kept = {int(finish) for finish in own if finish is not None} | ({int(np.bincount(blob).argmax())} if len(blob)
+                                                                     else set())
+    return sorted({int(finish) for finish in finish_of[moved[outside & flat]]} - kept)
+
+
 def placement(mark, number, model, seen, finish_of, part_of, taken):
     """One hardware mark's placement (module docstring), or (None, why it cannot be laid); `seen` the close-up's
     (camera, size, picture RGBA), `taken` the blobs other pieces cut (blob_cut)."""
@@ -292,12 +319,16 @@ def placement(mark, number, model, seen, finish_of, part_of, taken):
     cut_at, radius, falloff, middle = blob_cut(model, middle, normal, half, rise, taken)
     rounded = lambda vector: [round(float(value), 5) for value in vector]  # noqa: E731
     own = mark.get("print_finish")
-    return {"hardware": mark["hardware"], "kind": mark.get("kind"), "moves": mark.get("moves"), "part": part,
+    laid = {"hardware": mark["hardware"], "kind": mark.get("kind"), "moves": mark.get("moves"), "part": part,
             "finish": own if own is not None else mark["on_finish"], "at": rounded(middle), "normal": rounded(normal),
             "up": rounded(up), "size": [round(across, 5), round(upward, 5)], "layer": number,
             "cut": {"at": rounded(cut_at), "radius": round(radius, 5), "depth": CUT_DEPTH, "rise": round(rise, 5),
                     "falloff": round(falloff, 4), "edge_turn": EDGE_TURN, "stands": CUT_STANDS},
-            "what": mark.get("what", ""), "from": {"close_up_box": mark["box"], "seen": "close-up"}}, None
+            "what": mark.get("what", ""), "from": {"close_up_box": mark["box"], "seen": "close-up"}}
+    tears = torn(model, laid, finish_of, (mark["on_finish"], own))
+    if tears:
+        return None, f"its cut would tear the print round it (finishes {tears} outside its footprint)"
+    return laid, None
 
 
 def cut_faces(model, placement):

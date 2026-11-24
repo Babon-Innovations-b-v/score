@@ -537,7 +537,10 @@ tests it turned red:
   read as the knob); placement's `fitted(...)` dropped (the box laid flat: its size read with its depth); blob_cut's
   `taken` and nearest group -> the piece's own spot (the blob left standing beside the lock); cut_faces'
   `height < cut["rise"]` -> `height < 0.0` (the blob's faces not covered); route_parts.py covering's
-  `or mark.get("hardware")` dropped (the blob's chrome kept on the flattened face)
+  `or mark.get("hardware")` dropped (the blob's chrome kept on the flattened face); hardware_pieces.py placement's
+  `if tears:` -> `if False:` (a cut through the print round the blob laid), torn's blob finish dropped from its own
+  (the blob's paint on the face under it read as a print torn), placement's `mark["on_finish"]` dropped from torn's
+  own (the face's own finish read as a print torn)
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
   every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
   finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
@@ -3210,6 +3213,24 @@ def hardware_marks_held():
         middles = model.mesh.triangles_center * model.frame[1] + model.frame[0]
         standing = np.flatnonzero(middles[:, 2] > 0.002)
         assert np.isin(standing, cut).all() and not np.isin(np.flatnonzero(np.abs(middles[:, 0]) > 0.15), cut).any()
+        # The face round the blob as finished: a piece is laid only where its cut leaves the print round it whole
+        # (#159 round 13: r13's stove knobs tore their panel's print); its blob kept, TRELLIS.2's, where it would not.
+        round_blob = np.hypot(middles[:, 0] - 0.05, middles[:, 1])
+        for name, finished, expected in [
+            ("a plain face round the blob: the piece is laid", {}, None),
+            ("the blob's own finish running onto the face under it is the blob's, no print torn",
+             {4: (round_blob < 0.02)}, None),
+            ("a print round the blob inside its cut: the piece is a gap, the blob kept",
+             {5: (round_blob > 0.017) & (round_blob < laid["cut"]["radius"]) & (middles[:, 2] < 0.002),
+              4: middles[:, 2] >= 0.002},
+             "its cut would tear the print round it (finishes [5] outside its footprint)")]:
+            finishes = np.full(len(model.mesh.faces), marked[0]["on_finish"], dtype=np.int64)  # the face's own
+            for finish, faces in finished.items():
+                finishes[faces] = finish
+            found, gaps = hardware_pieces.placements([dict(marked[0], box=box)], model, camera, (1000, 1000),
+                                                     finishes, part_of, seen)
+            assert [gap["why"] for gap in gaps] == ([expected] if expected else []), (name, found, gaps)
+            assert len(found) == (expected is None), (name, found)
     assert route_parts.covering(dict(marked[0], print_finish=2)) and not route_parts.covering(marked[1])
 
 
