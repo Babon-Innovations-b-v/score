@@ -11,7 +11,9 @@ tc5r's chrome chucks, nozzle and rods were drawn dull flat grey at roughness 0.1
 model, camera and light in one plain white surface, its own vertex normals kept, which the look's holes check reads
 (bench.py look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
-metres; each text decal's box as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
+metres; the blob under each hardware piece the finish laid is cut away (`cut_away`, #212) and the piece's library
+mesh laid there in its finish's recipe (`laid_pieces`), drawn in the look and in the mesh alone; each text decal's box
+as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
 Under each mark its plate is closed, as the place's bake closes it (#159 round 13): TRELLIS.2's vent bumps pressed flat
 before its occlusion is baked (bake.pressed_under) and the holes it cut through a locker's door covered after
 (bake.cards_over).
@@ -89,6 +91,94 @@ def laid(meshes):
         item.data.update()
         item.matrix_world = Matrix.Identity(4)
     bpy.context.view_layer.update()  # each bound_box (framed's) read anew
+
+
+def vertex_normals(mesh):
+    """Each vertex's normal as the mesh draws it (its corners' own normals, the model's kept ones, averaged)."""
+    import numpy as np
+    corners = np.empty(len(mesh.loops) * 3)
+    mesh.corner_normals.foreach_get("vector", corners)
+    vertex = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get("vertex_index", vertex)
+    found = np.zeros((len(mesh.vertices), 3))
+    np.add.at(found, vertex, corners.reshape(-1, 3))
+    return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-9)
+
+
+def cut_away(meshes, pieces):
+    """Each hardware piece's blob cut away (#212, hardware_pieces.py's `cut`): every vertex of the laid meshes within
+    its radius of the line through the cut's point along the piece's facing, and between its depth under the face and
+    its rise over it (the blob's, standing `stands` over the face, or the face's own, turned within `edge_turn` of its
+    facing: never an edge to another face), laid on the face (the plane through the cut's point, which lies on the face) and drawn in
+    to the line (closed), each moved vertex's drawn normal turned to the face's. The blob, inside the radius's flat core (all
+    but its outer `falloff`), closes to its point, its faces of no area; the ring of face round it is drawn in over the
+    core, its own paint with it, so the face's own surface fills the cut, flat. Laid flat in place the blob folded over
+    itself and its coincident faces drew the cut as a dark crumpled ring (the tc6 locker's locks), and a patch in one
+    finish over it painted out the gas stove's printed panel."""
+    import numpy as np
+    for item in meshes:
+        points = np.empty(len(item.data.vertices) * 3)
+        item.data.vertices.foreach_get("co", points)
+        points = points.reshape(-1, 3)
+        normals = vertex_normals(item.data)
+        for piece in pieces:
+            normal, cut = np.asarray(piece["normal"]), piece["cut"]
+            reach = points - np.asarray(cut["at"])
+            height = reach @ normal
+            way = reach - np.outer(height, normal)
+            across = np.linalg.norm(way, axis=1)
+            core = cut["radius"] * (1 - cut["falloff"])
+            inside = ((across < cut["radius"]) & (height > -cut["depth"]) & (height < cut["rise"])
+                      & ((height > cut["stands"]) | (normals @ normal > np.cos(np.radians(cut["edge_turn"])))))
+            drawn = np.clip((across[inside] - core) / (cut["radius"] - core), 0.0, 1.0)
+            eased = 1.0 - drawn
+            rim = np.asarray(cut["at"]) + way[inside] / np.maximum(across[inside], 1e-12)[:, None] * cut["radius"]
+            closed = np.outer(eased, cut["at"]) + rim * drawn[:, None]
+            points[inside] = closed + np.outer(height[inside] * drawn, normal)
+            normals[inside] = normals[inside] * drawn[:, None] + normal * eased[:, None]
+        item.data.vertices.foreach_set("co", points.ravel())
+        lengths = np.linalg.norm(normals, axis=1, keepdims=True)
+        item.data.normals_split_custom_set_from_vertices((normals / np.maximum(lengths, 1e-9)).tolist())
+        item.data.update()
+
+
+def laid_pieces(scene, pieces):
+    """Each hardware piece's library mesh (its glb: +z out of its face, its back at z 0, glTF's Y up, which Blender's
+    import turns to its -y) laid at its point on its face, its +z along the facing, its +y along the up, scaled evenly
+    to its size (the geometric mean of its two sides' ratios, turned a quarter when its long side runs the other way),
+    in the recipe of the finish it is painted in; the pieces' objects."""
+    import numpy as np
+    laid = []
+    for piece in pieces:
+        before = set(scene.objects)
+        bpy.ops.import_scene.gltf(filepath=piece["glb"])
+        found = [item for item in scene.objects if item not in before and item.type == "MESH"]
+        for item in found:
+            placed = item.matrix_world.copy()
+            item.parent = None
+            item.data.transform(placed)
+            item.matrix_world = Matrix.Identity(4)
+        points = np.array([list(vertex.co) for item in found for vertex in item.data.vertices])
+        wide, tall = np.ptp(points[:, 0]), np.ptp(points[:, 2])  # its own x and y (y up turned to Blender's z)
+        across, upward = piece["size_m"]
+        turned = (wide > tall) != (across > upward) and max(wide, tall) > 1.2 * min(wide, tall)
+        if turned:
+            wide, tall = tall, wide
+        scale = math.sqrt(across / max(wide, 1e-9) * upward / max(tall, 1e-9))
+        normal, up = Vector(piece["normal"]).normalized(), Vector(piece["up"]).normalized()
+        right = up.cross(normal)
+        if turned:
+            right, up = -up, right
+        # its own axes in Blender after the import: x across, -y out of its face, z up
+        basis = Matrix((right, -normal, up)).transposed().to_4x4()
+        material = recipes.shaded(recipes.channels(piece["spec"], 0.0, 0.0, piece["spec"]["seed"]),
+                                  through=True).item()
+        for item in found:
+            item.matrix_world = Matrix.Translation(Vector(piece["at"])) @ basis @ Matrix.Scale(scale, 4)
+            item.data.materials.clear()
+            item.data.materials.append(material)
+        laid += found
+    return laid
 
 
 def mark_boxes(scene, masks):
@@ -173,6 +263,7 @@ def main():
     meshes = [item for item in scene.objects if item.type == "MESH"]
     decoded = decoded_of(job)
     laid(meshes + ([decoded] if decoded else []))
+    cut_away(meshes + ([decoded] if decoded else []), job.get("hardware") or [])
     decals = [decal for mask in job["masks"] for decal in mask["spec"].get("decals") or []]
     closing = len(meshes) == 1  # closed under its marks (score #159 round 13) as the place's bake closes it
     if closing:
@@ -185,10 +276,11 @@ def main():
     for item in meshes:
         item.data.materials.clear()
         item.data.materials.append(material)
+    pieces = laid_pieces(scene, job.get("hardware") or [])
     box = seen(scene, meshes, job)
     drawn(scene, job["out"])
     bare = bare_material()
-    for item in meshes:
+    for item in meshes + pieces:
         item.data.materials.clear()
         item.data.materials.append(bare)
     drawn(scene, job["bare"])

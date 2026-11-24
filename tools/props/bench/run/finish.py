@@ -486,12 +486,34 @@ def look_view(camera, folder):
             "fov": float(found["fitted"]["field_vertical"])}
 
 
+def hardware_laid(listed, library, colours, out):
+    """look.py's `hardware` (#212): each hardware piece the finish laid (parts.json's `hardware`,
+    route_parts.take_hardware) as its library mesh (decal_library.piece), its point, facing and up in Blender's frame,
+    its size, the blob's cut and the recipe spec of the finish it is painted in (part_spec of that finish's surface and
+    the list's settings, as a part of it is painted); one the library does not hold is a fault, never skipped."""
+    import decal_library
+    from score.stages.surfaces import route_settings
+    found = []
+    for piece in listed.get("hardware", []):
+        mesh = decal_library.piece(piece["hardware"])
+        if mesh is None:
+            raise RuntimeError(f"{piece['hardware']}: the library holds no hardware.glb")
+        finish = listed["finishes"][piece["finish"]]
+        row = {"judge": finish["surface"], "settings": route_settings.applied(finish)}
+        found.append({"glb": str(mesh), "at": z_up(piece["at"]), "normal": z_up(piece["normal"]),
+                      "up": z_up(piece["up"]), "size_m": piece["size"],
+                      "cut": dict(piece["cut"], at=z_up(piece["cut"]["at"])),
+                      "spec": part_spec(library, row, colours, None, out)})
+    return found
+
+
 def look_job(folder, take, model, camera, out):
     """The finish's look drawn as the bake paints it (#182): one job for look.py, written into `out` with a mask a
     slot (`mask-<n>.png`), from the finish `folder`'s parts (surfaces-parts: parts.json and the take's texels.npz),
     each slot's recipe spec (part_spec) mixed by its texel mask on the made `model`'s own UVs, its own vertex normals
     kept (the model drawn whole, never part by part), from the close-up's `camera` ({eye, aim, up, fov}, Blender's
-    frame); and the mesh alone (`bare.png`) for the holes check.
+    frame), with the hardware pieces the finish laid (hardware_laid, #212); and the mesh alone (`bare.png`) for the
+    holes check.
     A take with no texels.npz, or texels of more than one picture, has no look here: the raised reason says so.
     A `decoded.glb` beside the model (bench made_steps' final step) is the job's `decoded`: its seams' shape (#159)."""
     import library as surface_library
@@ -530,7 +552,8 @@ def look_job(folder, take, model, camera, out):
         masks.append({"slot": slot, "mask": str(out / f"mask-{number}.png"), "share": round(float(mask.mean() / 255), 4),
                       "spec": spec})
     job = {"glb": str(model), "masks": masks, **camera, "side": LOOK_SIDE, "samples": LOOK_SAMPLES,
-           "out": str(out / "look.png"), "bare": str(out / "bare.png")}
+           "out": str(out / "look.png"), "bare": str(out / "bare.png"),
+           "hardware": hardware_laid(listed, library, colours, out)}
     decoded = pathlib.Path(model).with_name("decoded.glb")
     if decoded.is_file():  # the model's seams' shape, which look.py shades from (bake.seamed, #159)
         job["decoded"] = str(decoded)

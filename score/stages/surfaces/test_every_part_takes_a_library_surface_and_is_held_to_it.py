@@ -528,6 +528,16 @@ tests it turned red:
   (a vent between two seams moved past one onto the other); held's text `open` dropped (a text mark moved off a
   seam); tolerance_of -> TOLERANCE (a 4 cm label on an 8 cm cylinder closed flat); fitted's share check -> `if False:`
   (the same); route_parts.py on_plates' refusal kept as a placement (a vent it cannot place drawn, unclosed).
+- Hardware pieces (#212), each -> every_part_takes_a_library_surface_and_is_held_to_it (hardware_marks_held):
+  finish_ask.py piece_row's `if found else "no library hardware piece named"` -> `None` (a mark naming no piece laid,
+  TypeError); marks_of `(*SHAPES, PATTERN, PIECE)` -> `(*SHAPES, PATTERN)` (a lock read as a picture mark, no
+  piece);
+  decal_library.py hardware's withdrawn check dropped (a withdrawn piece offered); hardware_pieces.py piece_box's
+  `binary_opening(...)` -> the mask alone (the seam joins the lock), its PIECE_MOST check dropped (the printed panel
+  read as the knob); placement's `fitted(...)` dropped (the box laid flat: its size read with its depth); blob_cut's
+  `taken` and nearest group -> the piece's own spot (the blob left standing beside the lock); cut_faces'
+  `height < cut["rise"]` -> `height < 0.0` (the blob's faces not covered); route_parts.py covering's
+  `or mark.get("hardware")` dropped (the blob's chrome kept on the flattened face)
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
   every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
   finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
@@ -584,7 +594,7 @@ from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, close_up_fit,  # noqa: E402
-                                   decal_library, decal_plates, pattern_decals, text_decals,
+                                   decal_library, decal_plates, hardware_pieces, pattern_decals, text_decals,
                                    finish_ask, finish_parts,
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
@@ -2764,6 +2774,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     text_marks_held()  # words and numbers drawn as text decals in a library face, on a fitted camera (#171)
     pattern_marks_held()  # vent and perforation patterns drawn from a library pattern, never TRELLIS.2's bumps (#210)
     plates_held()  # the made shape under a mark flat and closed, a pattern moved off a seam (#159 round 13)
+    hardware_marks_held()  # small locks and knobs laid as library pieces, TRELLIS.2's blobs cut away (#212)
 
 
 # A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
@@ -3100,6 +3111,106 @@ def plates_held():
     held, gaps = route_parts.on_plates(placed, [], *door(seams=(-0.06, 0.1, 0.12)))
     assert ([placement["closed"]["most"] for placement in held], [gap["what"] for gap in gaps]) == (
         [decal_plates.BUMP_MOST], ["door vent"]), (held, gaps)
+PIECES = [{"address": "model/hardware_lock_locker_b03_4cf5ce2c@1", "kind": "lock", "size_m": [0.03, 0.05, 0.012],
+           "moves": "turn", "title": "lock from locker_b03 (hardware)"},
+          {"address": "model/hardware_knob_toaster_8a44e701@1", "kind": "knob", "size_m": [0.031, 0.031, 0.026],
+           "moves": "turn", "title": "knob from toaster (hardware)"}]
+
+
+def hardware_plate(folder):
+    """A 0.4 m square plate facing +z (a grid of 2 mm-high bumps' worth of noise-free quads) with a blob 20 mm high
+    and 30 mm across standing 50 mm right of its middle (TRELLIS.2's lump where a lock was), as a route_cast Model."""
+    across = np.linspace(-0.2, 0.2, 121)
+    columns, rows = np.meshgrid(across, across)
+    height = 0.02 * np.exp(-((columns - 0.05) ** 2 + rows ** 2) / (2 * 0.008 ** 2))
+    vertices = np.c_[columns.ravel(), rows.ravel(), height.ravel()]
+    side = len(across)
+    faces = [[row * side + column, row * side + column + 1, (row + 1) * side + column + 1] for row in range(side - 1)
+             for column in range(side - 1)]
+    faces += [[row * side + column, (row + 1) * side + column + 1, (row + 1) * side + column] for row in range(side - 1)
+              for column in range(side - 1)]
+    path = pathlib.Path(folder) / "plate.glb"
+    trimesh.Trimesh(vertices, np.asarray(faces), process=False).export(path)
+    return route_cast.loaded(path)
+
+
+def hardware_marks_held():
+    """Small hardware as library pieces (#212): the list's hardware marks read (marks_of: a library piece by its code,
+    its kind, how it moves and its size), the library's pieces offered (decal_library.hardware), each piece's box
+    measured again on the close-up (piece_box: the list's runs loose, a seam is no piece, the print round it is not
+    it), its library piece stood on the face read round it and fitted to its box (fitted: its size and spot the
+    close-up's, never the blob's), the blob beside it found, cut whole and its faces listed (blob_cut, cut_faces), and
+    the blob's own finish covered as a print under a mark is (covering)."""
+    listed = {"box_2d": [400, 450, 500, 560], "what": "cam lock", "shape": "hardware", "kind": "lock",
+              "hardware": "H1", "ink": "one", "on_finish": 1, "print_finish": 2}
+    marked = finish_ask.marks_of({"marks": [listed, dict(listed, hardware="H9")]}, [], 3, (1000, 1000),
+                                 text_decals.FONTS, (), PIECES)
+    assert [(mark["shape"], mark["hardware"], mark["gap"]) for mark in marked] == [
+        ("hardware", "model/hardware_lock_locker_b03_4cf5ce2c@1", None),
+        ("hardware", None, "no library hardware piece named")], marked
+    assert marked[0]["piece_size"] == [0.03, 0.05, 0.012] and marked[0]["moves"] == "turn", marked[0]
+    assert finish_ask.marks_of({"marks": [listed]}, [], 3, (1000, 1000), text_decals.FONTS)[0]["gap"] == \
+        "no library hardware piece named"  # a library with no hardware lays none
+    asked = finish_ask.mark_schema([], ["steel"], text_decals.FONTS, (), PIECES)["items"]["properties"]
+    assert "hardware" in asked["shape"]["enum"] and asked["hardware"]["enum"] == ["H1", "H2"], asked
+    assert "hardware" not in finish_ask.mark_schema([], ["steel"], text_decals.FONTS)["items"]["properties"]
+    assert "H1: lock" in finish_ask.marks_text([], text_decals.FONTS, (), PIECES) and \
+        "hardware" not in finish_ask.marks_text([], text_decals.FONTS)
+    with tempfile.TemporaryDirectory() as folder:  # the pieces offered: the library's in force, sized, of a kind
+        (pathlib.Path(folder) / "index").mkdir()
+        (pathlib.Path(folder) / "index" / "model.json").write_text(json.dumps({
+            "schema": "score-lib-index/1", "kind": "model", "entries": [
+                {"address": PIECES[0]["address"], "state": "draft", "title": PIECES[0]["title"],
+                 "tags": {"family": ["hardware"], "kind": ["lock"], "moves": ["turn"],
+                          "size_m": ["0.0300x0.0500x0.0120"]}},
+                {"address": "model/hardware_old@1", "state": "withdrawn", "title": "old",
+                 "tags": {"family": ["hardware"], "kind": ["knob"], "size_m": ["0.03x0.03x0.02"]}},
+                {"address": "model/hardware_unsized@1", "state": "draft", "title": "unsized",
+                 "tags": {"family": ["hardware"], "kind": ["knob"]}},
+                {"address": "model/locker@1", "state": "draft", "title": "locker", "tags": {}}]}))
+        assert decal_library.hardware(folder) == PIECES[:1] and decal_library.hardware(None) == []
+    # The close-up: a light grey plate, a door seam (2 px) along the lock's side, and the lock at pixels 470-530 x
+    # 400-500; the list's box lies off it by a third of itself.
+    picture = np.full((1000, 1000, 4), 200, dtype=np.uint8)
+    picture[..., 3] = 255
+    picture[:, 468:470, :3] = 90
+    picture[400:500, 470:530, :3] = 60
+    assert np.allclose(hardware_pieces.piece_box([490, 430, 60, 100], picture), [470, 400, 60, 100], atol=2)
+    printed = picture.copy()
+    printed[300:700, 300:700, :3] = (200, 30, 30)  # a printed panel, a white label touching the lock: the list's box
+    printed[380:520, 450:550, :3] = 255
+    printed[400:500, 470:530, :3] = 60
+    assert hardware_pieces.piece_box([490, 430, 60, 100], printed) == [490, 430, 60, 100]
+    with tempfile.TemporaryDirectory() as folder:
+        model = hardware_plate(folder)
+        slant = math.radians(45)  # seen 45 degrees off the plate's facing: the lock's 12 mm depth widens its box
+        camera = (np.array([math.sin(slant), 0.0, math.cos(slant)]), np.array([math.cos(slant), 0.0, -math.sin(slant)]),
+                  np.array([0.0, 1.0, 0.0]), 2 * math.atan(0.25))
+        lock = np.array([[across, 0.025 + upward, out] for across in (-0.015, 0.015) for upward in (-0.025, 0.025)
+                         for out in (0.0, 0.012)])
+        low, high = np.floor(hardware_pieces.seen_at(camera, (1000, 1000), lock)).astype(int).min(0), \
+            np.ceil(hardware_pieces.seen_at(camera, (1000, 1000), lock)).astype(int).max(0)
+        seen = np.full((1000, 1000, 4), 200, dtype=np.uint8)
+        seen[..., 3] = 255
+        seen[low[1]:high[1], low[0]:high[0], :3] = 60
+        finish_of = np.zeros(len(model.mesh.faces), dtype=np.int64)
+        part_of = np.zeros(len(model.mesh.faces), dtype=np.int64)
+        box = [int(low[0]) + 10, int(low[1]) + 15, int(high[0] - low[0]), int(high[1] - low[1])]
+        found, gaps = hardware_pieces.placements([dict(marked[0], box=box), marked[1]], model, camera, (1000, 1000),
+                                                 finish_of, part_of, seen)
+        assert len(found) == 1 and gaps == [{"what": "cam lock", "hardware": None,
+                                             "why": "no library hardware piece named"}], (found, gaps)
+        laid = found[0]
+        assert np.allclose(laid["normal"], [0, 0, 1], atol=0.01) and np.allclose(laid["up"], [0, 1, 0], atol=0.01)
+        assert np.allclose(laid["at"], [0.0, 0.025, 0.0], atol=0.002), laid  # the lock's spot, not the blob's
+        assert np.allclose(laid["size"], [0.03, 0.05], rtol=0.06), laid  # its own, its depth seen aslant not in it
+        assert np.allclose(laid["cut"]["at"], [0.05, 0.0, 0.0], atol=0.003), laid["cut"]  # the blob beside it, cut
+        assert 0.0144 < laid["cut"]["radius"] * (1 - laid["cut"]["falloff"]) < 0.03, laid["cut"]  # it stands to 14 mm
+        cut = hardware_pieces.cut_faces(model, laid)
+        middles = model.mesh.triangles_center * model.frame[1] + model.frame[0]
+        standing = np.flatnonzero(middles[:, 2] > 0.002)
+        assert np.isin(standing, cut).all() and not np.isin(np.flatnonzero(np.abs(middles[:, 0]) > 0.15), cut).any()
+    assert route_parts.covering(dict(marked[0], print_finish=2)) and not route_parts.covering(marked[1])
 
 
 def plane_cast(parts, scale=0.001):

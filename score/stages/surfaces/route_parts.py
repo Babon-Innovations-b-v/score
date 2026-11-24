@@ -24,8 +24,9 @@ the concept"); with none in the scene library it is marked off its colour, and t
 Output: parts.json (per take its method, parts (each with its finish's `settings` or None and its own `wear`
 {level, cause} or None), finishes with the list's settings and the check's measure, `decals` (each listed mark
 placed: its library decal, part, point, facing, up and size in the take's own frame, cast through the close-up's
-camera, score #164; a vent pattern's drawn from its library pattern, #210) and `decal_gaps`; the takes left out and
-why), <take>/parts.npy (one part per face of the raw take, the paint's face order), <take>/colours.npy (NaN: the
+camera, score #164; a vent pattern's drawn from its library pattern, #210) and `decal_gaps`, `hardware` (each
+hardware mark laid as its library piece, the blob under it cut away: hardware_pieces.py, #212) and `hardware_gaps`;
+the takes left out and why), <take>/parts.npy (one part per face of the raw take, the paint's face order), <take>/colours.npy (NaN: the
 paint joins parts on their surface alone), <take>/texels.npz
 (the split's, carried: one part per texel of the model's pictures; a print a mark covers given its part's surface
 there too, covered_texels, and numbered as the faces). Gate "parts": every
@@ -43,7 +44,9 @@ if str(HERE) not in sys.path:
 import numpy as np  # noqa: E402
 
 import decal_plates  # noqa: E402
+import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
+import hardware_pieces  # noqa: E402
 import palette_library  # noqa: E402
 import pattern_decals  # noqa: E402
 import route_cast as cast  # noqa: E402
@@ -373,8 +376,8 @@ def hidden_under(model, camera, size, box, grow):
 def covering(mark):
     """True for a mark placed over a print finish of the list's own (its `print_finish`): a text or line mark drawn
     as a text decal, or a picture mark naming its library decal; the route's print under it is covered."""
-    placed = mark.get("shape") in text_decals.DRAWN or mark.get("decal") is not None
-    return not mark.get("gap") and placed and mark.get("print_finish") is not None
+    placed = mark.get("shape") in text_decals.DRAWN or mark.get("decal") is not None or mark.get("hardware")
+    return not mark.get("gap") and bool(placed) and mark.get("print_finish") is not None
 
 
 def print_islands(mesh, finish_of, printed, under):
@@ -415,15 +418,20 @@ def covered_prints(seen, marks, finish_of, part_of, lit=()):
         inside = ((columns >= left - grow) & (columns <= left + wide + grow) & (rows >= top - grow)
                   & (rows <= top + tall + grow) & (faces >= 0))
         boxed = faces[inside & (columns >= left) & (columns <= left + wide) & (rows >= top) & (rows <= top + tall)]
-        under = print_islands(model.mesh, finish_of, mark["print_finish"],
-                              np.union1d(faces[inside], hidden_under(model, camera, size, mark["box"], grow)))
+        near, cut_part = faces[inside], mark.get("cut_part")
+        if cut_part is None:
+            under = print_islands(model.mesh, finish_of, mark["print_finish"],
+                                  np.union1d(near, hidden_under(model, camera, size, mark["box"], grow)))
+        else:  # a hardware piece's blob: the faces its cut flattens take the part it is laid on (#212)
+            near = boxed = np.asarray(mark["cut_faces"], dtype=np.int64)
+            under = print_islands(model.mesh, finish_of, mark["print_finish"], near)
         base = under[finish_of[under] == mark["on_finish"]]
         for finish, held in ((mark["print_finish"], under),
                              *((light, np.unique(boxed)) for light in lit if light != mark["on_finish"])):
             printed = held[finish_of[held] == finish]
-            if not len(base) or not len(printed):
+            if not len(printed) or (cut_part is None and not len(base)):
                 continue
-            onto = int(np.bincount(part_of[faces[inside][np.isin(faces[inside], base)]]).argmax())
+            onto = cut_part if cut_part is not None else int(np.bincount(part_of[near[np.isin(near, base)]]).argmax())
             finish_of[printed] = mark["on_finish"]
             part_of[printed] = onto
             moved += len(printed)
@@ -655,8 +663,13 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     finish_of_part = np.zeros(int(part_of.max()) + 1, dtype=np.int64)
     finish_of_part[part_of] = finish_of  # the split's, before a cover moves any face
     lit = [number for number, finish in enumerate(finishes) if finish.get("family") in finish_parts.LIT_FAMILIES]
+    pieces, piece_gaps = take_hardware(seen, [mark for mark in marks if mark.get("shape") == finish_ask.PIECE],
+                                       finish_of, part_of, folders.get("close_up"))
+    marks = cut_marks(marks, pieces, seen[0], finish_of, part_of)
     covered, covers, kept = covered_prints(seen, marks, finish_of, part_of, lit) if seen[0] is not None \
         else (0, [], None)
+    for piece in pieces:  # its part numbered as the parts are after the covers
+        piece["part"] = int(np.searchsorted(kept, piece["part"]))
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
@@ -665,11 +678,47 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
     part_wear(rows, checked, mesh, part_of, finish_of)
-    decals, decal_gaps = take_decals(seen, marks, part_of, folders["out"], inks, folders.get("close_up"), finish_of)
+    printed = [mark for mark in marks if mark.get("shape") != finish_ask.PIECE]
+    decals, decal_gaps = take_decals(seen, printed, part_of, folders["out"], inks, folders.get("close_up"), finish_of)
     return {"method": METHOD, "object": entry.get("object"), "parts": rows, "judge_unknown": [], "finishes": checked,
-            "colour_from": colour_from, "decals": decals, "decal_gaps": decal_gaps,
+            "colour_from": colour_from, "decals": decals, "decal_gaps": decal_gaps, "hardware": pieces,
+            "hardware_gaps": piece_gaps,
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked),
-                         "decals": len(decals), "decal gaps": len(decal_gaps), "print faces covered": covered}}
+                         "decals": len(decals), "decal gaps": len(decal_gaps), "print faces covered": covered,
+                         "hardware": len(pieces), "hardware gaps": len(piece_gaps)}}
+
+
+def cut_marks(marks, pieces, model, finish_of, part_of):
+    """The marks, each hardware mark laid as a piece given `cut_faces` (the faces its cut flattens,
+    hardware_pieces.cut_faces), which covered_prints covers in place of those seen round its box (its blob lies off
+    the piece: TRELLIS.2 laid the tc6 locker's lower-left knob 0.14 m off its lock), `cut_part` the part it is laid
+    on and `on_finish` that part's finish (over most of its faces), which they take."""
+    laid = {piece["layer"]: piece for piece in pieces}
+    found, number = [], 0
+    for mark in marks:
+        if mark.get("shape") == finish_ask.PIECE:
+            if number in laid:
+                part = laid[number]["part"]
+                mark = dict(mark, cut_faces=hardware_pieces.cut_faces(model, laid[number]).tolist(), cut_part=part,
+                            on_finish=int(np.bincount(finish_of[part_of == part]).argmax()))
+            number += 1
+        found.append(mark)
+    return found
+
+
+def take_hardware(seen, marks, finish_of, part_of, close_up):
+    """(placements, gaps) of a take's hardware marks (#212, hardware_pieces.placements) cast through its own
+    close-up's camera (`seen`, close_up_seen) and measured on that `close_up`; a take whose close-up cannot be cast
+    lays none, each mark a gap naming why."""
+    if not marks:
+        return [], []
+    model, camera, size, why = seen
+    if model is None:
+        return [], [{"what": mark.get("what", ""), "hardware": mark.get("hardware"), "why": why} for mark in marks]
+    from PIL import Image
+    with Image.open(close_up) as shown:
+        picture = np.asarray(shown.convert("RGBA"))
+    return hardware_pieces.placements(marks, model, camera, size, finish_of, part_of, picture)
 
 
 def make_parts(inputs, out, seed, params):

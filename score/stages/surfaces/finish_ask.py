@@ -105,9 +105,20 @@ openings' middles (0.1 to 0.9); "along" for slots and ribs, "up" when they run t
 "across"; "ink": "one", with "ink_token" the palette token nearest the colour seen inside the openings; "on_finish"
 the finish they are cut into, and "print_finish" the finish in your list that is the openings themselves, when you
 listed them as a finish of their own, else 0. Count the openings in the picture; do not guess."""
+# Added to MARKS when the library holds hardware pieces (#212, decal_library.hardware): a small lock, knob, handle,
+# hinge or latch is a mark of its own, laid as a library piece at its measured size and spot, never TRELLIS.2's blob.
+HARDWARE = """
+Also list each small piece of hardware mounted on a surface (a lock or cam lock, a knob or dial, a handle or pull, a
+hinge, a latch) as a mark of shape "hardware", one mark for each piece, its box tight round the piece itself as seen.
+Give its "kind", one of {kinds}, and "hardware": the code of the library piece below most like it in shape (same kind
+first); its size is measured from its box, so pick by shape, not size. Give "on_finish" the finish of the surface it is
+mounted on, and "print_finish" the finish in your list that is the piece itself (its metal or plastic), else 0.
+The library's hardware pieces:
+{pieces}"""
 BOX_SCALE = 1000.0  # a mark's box in thousandths of the close-up's height and width
 SHAPES = ("text", "rule", "picture")
 PATTERN = "pattern"  # a mark of openings (#210), offered when the library holds patterns
+PIECE = "hardware"  # a mark of a small hardware piece (#212), offered when the library holds hardware pieces
 OPENING_SHARE = (0.05, 0.95)  # an opening's width as a share of its spacing, held inside these
 
 
@@ -126,21 +137,36 @@ def decal_lines(decals):
     return "\n".join(lines) or "- (the library holds no decal)"
 
 
-def marks_text(decals, looks, patterns=()):
+def piece_codes(pieces):
+    """The codes the question lists the library's hardware pieces by (H1, H2, ...)."""
+    return [f"H{index + 1}" for index in range(len(pieces))]
+
+
+def piece_lines(pieces):
+    """One line a hardware piece: its code, kind, title and size."""
+    return "\n".join(f"- {code}: {piece['kind']}: {piece['title']} ("
+                     + "x".join(f"{side * 1000:.0f}" for side in piece["size_m"]) + " mm)"
+                     for code, piece in zip(piece_codes(pieces), pieces))
+
+
+def marks_text(decals, looks, patterns=(), pieces=()):
     """The MARKS paragraph: text marks read in one of `looks` (text_decals.FONTS), the library's `decals` offered
-    for a picture mark when it holds any, and pattern marks asked when it holds `patterns` (decal_library.patterns)."""
+    for a picture mark when it holds any, pattern marks asked when it holds `patterns` (decal_library.patterns), and
+    hardware marks when it holds hardware `pieces` (decal_library.hardware, #212)."""
     import pattern_decals
     text = MARKS.format(looks=", ".join(looks), decals=DECALS_TEXT.format(decals=decal_lines(decals)) if decals else "")
-    return text + (PATTERNS.format(openings=", ".join(pattern["opening"] for pattern in patterns),
-                                   outlines=", ".join(pattern_decals.OUTLINES)) if patterns else "")
+    text += (PATTERNS.format(openings=", ".join(pattern["opening"] for pattern in patterns),
+                             outlines=", ".join(pattern_decals.OUTLINES)) if patterns else "")
+    return text + (HARDWARE.format(kinds=", ".join(sorted({piece["kind"] for piece in pieces})),
+                                   pieces=piece_lines(pieces)) if pieces else "")
 
 
-def mark_schema(decals, tokens, looks, patterns=()):
+def mark_schema(decals, tokens, looks, patterns=(), pieces=()):
     """The schema of the answer's `marks`: a box, what, its shape, its words and typeface look, ink (a one-ink mark's
     palette token), the finish it is on and the finish it is itself, with decals offered a decal code and fits, and
     with `patterns` a pattern mark's opening, rows, columns, stagger, outline, opening share and the way it runs."""
     import pattern_decals
-    shapes = [*SHAPES, PATTERN] if patterns else list(SHAPES)
+    shapes = [*SHAPES, *([PATTERN] if patterns else []), *([PIECE] if pieces else [])]
     properties = {"box_2d": {"type": "ARRAY", "items": {"type": "INTEGER"}}, "what": {"type": "STRING"},
                   "shape": {"type": "STRING", "enum": shapes}, "text": {"type": "STRING"},
                   "look": {"type": "STRING", "enum": list(looks)},
@@ -155,6 +181,9 @@ def mark_schema(decals, tokens, looks, patterns=()):
                           outline={"type": "STRING", "enum": list(pattern_decals.OUTLINES)},
                           opening_share={"type": "NUMBER"},
                           along={"type": "STRING", "enum": list(pattern_decals.ALONG)})
+    if pieces:
+        properties.update(kind={"type": "STRING", "enum": sorted({piece["kind"] for piece in pieces})},
+                          hardware={"type": "STRING", "enum": piece_codes(pieces)})
     return {"type": "ARRAY", "items": {"type": "OBJECT", "properties": properties,
                                        "required": ["box_2d", "what", "shape", "ink", "on_finish"],
                                        "propertyOrdering": list(properties)}}
@@ -215,12 +244,24 @@ def pattern_row(mark, patterns):
             "along": mark.get("along") if mark.get("along") in pattern_decals.ALONG else "up"}
 
 
-def marks_of(answer, decals, finishes, close_up_size, looks=(), patterns=()):
+def piece_row(mark, pieces):
+    """A hardware mark's own fields (#212): its library piece's address (`hardware`), kind and how it moves, with
+    `gap` naming why it cannot be laid (no library piece named); `decal` None (it is laid, not printed)."""
+    codes = piece_codes(pieces)
+    found = pieces[codes.index(mark["hardware"])] if mark.get("hardware") in codes else None
+    return {"decal": None, "text": None, "look": None, "hardware": found and found["address"],
+            "kind": mark.get("kind") or (found and found["kind"]), "moves": found and found["moves"],
+            "piece_size": found and found["size_m"],
+            "gap": None if found else "no library hardware piece named"}
+
+
+def marks_of(answer, decals, finishes, close_up_size, looks=(), patterns=(), pieces=()):
     """The answer's marks: each box in the close-up's pixels ([x, y, width, height]), what, shape, ink (a one-ink
     mark's palette token), the finish it is on and the finish that is its print (0-based, None: not listed), and a text
     mark's words and look, a picture mark's decal's address, or a pattern mark's library pattern and counts
-    (pattern_row, `patterns` decal_library.patterns); None with `gap` naming why one cannot be printed (drawn_gap,
-    decal_gap, pattern_gap). A mark on no finish of the list, or with no area, is left out; one with no shape is a
+    (pattern_row, `patterns` decal_library.patterns), or a hardware mark's library piece (piece_row, `pieces`
+    decal_library.hardware, #212); None with `gap` naming why one cannot be printed (drawn_gap, decal_gap, pattern_gap,
+    piece_row). A mark on no finish of the list, or with no area, is left out; one with no shape is a
     picture."""
     names, codes = [decal["address"] for decal in decals], decal_codes(decals)
     wide, tall = close_up_size
@@ -232,7 +273,7 @@ def marks_of(answer, decals, finishes, close_up_size, looks=(), patterns=()):
         top, left, bottom, right = (min(max(float(value), 0.0), BOX_SCALE) / BOX_SCALE for value in box)
         if bottom <= top or right <= left:
             continue
-        shape = mark.get("shape") if mark.get("shape") in (*SHAPES, PATTERN) else "picture"
+        shape = mark.get("shape") if mark.get("shape") in (*SHAPES, PATTERN, PIECE) else "picture"
         printed = int(mark.get("print_finish") or 0) - 1
         row = {"box": [round(left * wide), round(top * tall), round((right - left) * wide),
                        round((bottom - top) * tall)], "what": mark.get("what", ""), "shape": shape,
@@ -240,6 +281,8 @@ def marks_of(answer, decals, finishes, close_up_size, looks=(), patterns=()):
                "on_finish": finish, "print_finish": printed if 0 <= printed < finishes and printed != finish else None}
         if shape == PATTERN:
             row.update(text=None, look=None, **pattern_row(mark, patterns))
+        elif shape == PIECE:
+            row.update(piece_row(mark, pieces))
         elif shape in ("text", "rule"):
             gap = drawn_gap(mark, looks)
             row.update(text=str(mark.get("text") or "").strip() if shape == "text" else None,

@@ -64,6 +64,17 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   region (box, pressed height, plate point) is pressed flat and covered by one card in the plate's finish where the
   look and the place's bake draw it (tools/props/library/inside/bake.pressed_under, cards_over); a mark whose plate is not flat
   is left `open`.
+  **Small hardware** (#212: TRELLIS.2 turns a locker's small hex cam locks into big round blobs, a stove's knobs into
+  lumps) is laid as library pieces: score_lib's `model` entries of family `hardware` (`score-lib hardware cut`, a
+  lock, knob, handle, hinge or latch cut from an adopted NVIDIA model, its credit carried; `decal_library.hardware`)
+  are offered to the list, which reads each piece as a mark of shape `hardware` (its kind, the library piece most like
+  it, the finish it is mounted on and the finish it is); `surfaces-parts` lays it (`hardware_pieces.py`, parts.json's
+  `hardware` and `hardware_gaps`): its box measured again on the close-up (`piece_box`), its face read round it, its
+  library piece stood on that face and fitted to the box (`fitted`: its size and spot the close-up's, its depth seen
+  aslant included), the model's own blob beside it found and cut (`blob_cut`: flattened onto the face and closed to
+  a point, stopping short of the face's edge, never another face's vertices), the blob's faces covered as a print
+  under a mark is, onto the part it is laid on (`cut_marks`). The bench's look draws it (tools/props/bench/run); a
+  place's bake does not yet, nor do the physics and parts steps add the piece (a gap on #212).
   parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.
 - **The finish-map method is gone** (2026-10-20, #26): the crops are the places' own takes and the people's line

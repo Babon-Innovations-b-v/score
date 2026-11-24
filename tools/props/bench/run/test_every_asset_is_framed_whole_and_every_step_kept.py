@@ -32,7 +32,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finish.look_job: the texels.npz check dropped -> a finish with none fails on numpy's own error, not its reason;
   its part's list settings not read (part_spec's `set_spec` dropped) -> the look's spec is not the listed roughness
   0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182); the decoded mesh
-  beside the model not named (`job["decoded"]` dropped) -> look.py shades no seam from it (#159)
+  beside the model not named (`job["decoded"]` dropped) -> look.py shades no seam from it (#159); hardware_laid's
+  cut point left in glTF's Y up (`dict(piece["cut"], at=z_up(...))` -> `piece["cut"]`) -> the blob cut away a frame
+  off its piece, its piece's spec not its finish's (`part_spec(...)` -> `{}`) -> the lock drawn in no recipe (#212)
 - bench.look_holes (#159): the look's background not read -> the box's holes are 100 of the square's pixels, not 200;
   the mesh alone's black not read -> 100, not 200; finish.look_axes: a fixed +z up for the close-up's own -> a
   camera straight down has no frame (NaN axes, the ceiling task light's empty look)
@@ -83,6 +85,7 @@ import base64
 import io
 import json
 import math
+import os
 import pathlib
 import shutil
 
@@ -274,16 +277,35 @@ def looked(tmp_path, name, view):
     out = tmp_path / "look"
     out.mkdir()
     shutil.copyfile(model, model.with_name("decoded.glb"))  # its decoded mesh beside it, as make's final step keeps it
-    bench.look_step(model, folder, {"id": name}, view, draw, ask)(out)
+    parts_file = folder / "surfaces-parts" / "parts.json"
+    parts = json.loads(parts_file.read_text())
+    parts["takes"][name]["hardware"] = [{"hardware": PIECE, "finish": 0, "part": 0, "at": [0.1, 0.2, 0.3],
+                                         "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size": [0.03, 0.05],
+                                         "cut": {"at": [0.12, 0.2, 0.3], "radius": 0.04, "falloff": 0.25}}]
+    parts_file.write_text(json.dumps(parts))
+    files = tmp_path / "library-files"
+    (files / PIECE).mkdir(parents=True)
+    (files / PIECE / "hardware.glb").write_bytes(b"glTF")
+    os.environ["SCORE_LIB_FILES"] = str(files)
+    try:
+        bench.look_step(model, folder, {"id": name}, view, draw, ask)(out)
+    finally:
+        del os.environ["SCORE_LIB_FILES"]
     (job, script), = drawn
     assert script == bench.LOOK and job["eye"] == view["eye"] and job["glb"] == str(model) and \
         job["decoded"] == str(model.with_name("decoded.glb")), job
     with Image.open(out / f"look-{bench.LOOK_SMALL}.png") as small:
         size = small.size
     read = [(mark["text"], mark["read"]) for mark in json.loads((out / "read.json").read_text())]
+    piece, = job["hardware"]
     return ("no texels.npz" in str(refused.value), sorted(path.name for path in out.glob("mask-*.png")),
             int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size,
-            json.loads((out / "holes.json").read_text())["holes"], crops, read)
+            json.loads((out / "holes.json").read_text())["holes"], crops, read,
+            (piece["glb"] == str(files / PIECE / "hardware.glb"), piece["at"], piece["normal"], piece["up"],
+             piece["cut"]["at"], piece["spec"]["roughness"]))
+
+
+PIECE = "model/hardware_lock_box_0badcafe@1"  # a hardware piece the finish laid on the box (#212)
 
 
 def patterned(tmp_path, name, close_up):
@@ -596,7 +618,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert looked_box == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),
-            [(260, 260), (57, 17)], [("03", "03"), ("Patient room", None)]), name
+            [(260, 260), (57, 17)], [("03", "03"), ("Patient room", None)],
+            (True, [0.1, -0.3, 0.2], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.12, -0.3, 0.2], 0.4)), name
         assert bench.look_found(tmp_path / "look") == {
             "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "read": 0.5,
             "misread": [{"text": "Patient room", "read": None}]}
