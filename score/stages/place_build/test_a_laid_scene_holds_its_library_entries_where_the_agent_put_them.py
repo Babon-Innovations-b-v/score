@@ -316,6 +316,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.sourced: no mesh written for an entry without a glTF -> the USD-only box piece has no meshes/box_piece.glb
 - pieces.same_look: two looks of one part told apart by their prims alone -> the SimReady kit's two doors, each
   carrying its own copy of one material, refuse its piece list (#156)
+- place_build.decal_read: a decal surface laid as a recipe -> the panel's page surface asks for a colour, or wears
+  none of its page (2099 #161, the flat's blank white calendar)
+- pieces.own_look: a look bound inside the object taken for its own whatever it names -> the kit's door in a library
+  surface is its own bake, and the engine draws the materialless mesh white (2099 #161, the flat's wardrobe)
 - pieces.pictures_apart: the picture's view kept in the buffer, or the accessors' views not renumbered -> the
   character's GLB still holds its picture, or its keys read the picture's bytes
 - scene_package.mass_of: the asset's authored mass left unread (usd_physics.authored_mass skipped) -> the adopted
@@ -412,6 +416,8 @@ def library(root, files):
               '</sand/colour.outputs:rgb>\n  token outputs:surface\n }\n}\n')
     entry("surface", "sand", {"material.usda": ("usd", mapped), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
+    entry("surface", "page", {"surface.json": ("record", json.dumps({"recipe": "decal", "maps": {"decal": "decal.png"}})),
+                              "decal.png": ("texture", "a page")})
     entry("surface", "pane", {"surface.json": ("record", json.dumps({"recipe": "glass",
                                                                      "settings": {"roughness": 0.05}}))})
     glass = variant.replace("steel", "glass").replace("(0.3, 0.3, 0.4)", "(0.5, 0.5, 1)\n  float inputs:opacity = 0.2")
@@ -716,6 +722,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     paned = Sdf.Layer.FindOrOpen(str(folder / "scene.usda"))
     pane_opacity = paned.GetAttributeAtPath("/yard/Looks/panel/surface.inputs:opacity").default
     del paned  # a layer held open is read again stale by the steps after
+    place_build.surface(folder, "panel", "surface/page")  # a decal: its page read as the colour, no --colour asked
+    paged = Usd.Stage.Open(str(folder / "scene.usda"))
+    page_source = UsdShade.Shader.Get(paged, "/yard/Looks/panel/surface").GetInput("diffuseColor").GetConnectedSources()[0]
+    page_file = UsdShade.Shader(page_source[0].source.GetPrim()).GetInput("file").Get().path if page_source else None
+    del paged
     place_build.surface(folder, "panel", "palette/hull_paint")
     batched = place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
@@ -811,6 +822,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     method = json.loads((place_build.REPO / "data/library/materials.json").read_text())["recipes"]["glass"]
     assert place_build.palette_spec(folder, "porthole")["opacity"] == method["opacity"] < 1.0  # see-through
     assert np.isclose(pane_opacity, method["opacity"]), pane_opacity  # the method's, as palette_spec takes it
+    assert page_file and page_file.endswith("page/1/decal.png"), page_file  # the decal's page is its colour
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
     holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))
@@ -1833,6 +1845,10 @@ def pieced(folder, root, out):
     UsdShade.Shader.Get(copied, "/kit/door_b/looks/metal/shader").GetInput("diffuseColor").Set(Gf.Vec3f(0.9, 0, 0))
     with pytest.raises(place_build.Refused, match="its part metal wears two looks"):
         pieces.part_corners(copied.GetPrimAtPath("/kit"))  # a copy that tells another look is two looks
+    door_a = UsdShade.Material.Get(copied, "/kit/door_a/looks/metal")
+    assert pieces.own_look(copied.GetPrimAtPath("/kit"), door_a)  # its own bake, no library surface named
+    door_a.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set("surface/wood@1")
+    assert not pieces.own_look(copied.GetPrimAtPath("/kit"), door_a)  # a library surface bound inside the model
 
 
 def held_pictures(out, scene):

@@ -194,8 +194,11 @@ def look_id(record):
 
 
 def own_look(prim, look):
-    """Whether the look is the object's own (bound from inside it: a model's bake, never a place's look)."""
-    return look is not None and look.GetPath().HasPrefix(prim.GetPath())
+    """Whether the look is the object's own bake (bound from inside it and naming no library surface): never a place's
+    look, nor a library surface a model binds on its own parts (wardrobe_1's varnished wood), which the engine draws
+    from the library as any place look; its mesh piece carries no material, and 2099 drew such models white (#161)."""
+    return (look is not None and look.GetPath().HasPrefix(prim.GetPath())
+            and not scene_package.text_of(look.GetPrim(), "score:surface"))
 
 
 def copy_looks(folder, prim, piece, bound, looks):

@@ -1662,11 +1662,16 @@ def look_shader(stage, path, copied, colour):
             pathlib.Path(stage.GetRootLayer().realPath).parent).as_posix())
         shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}/surface"))
     else:
-        if colour is None:
+        own = json.loads(copied["surface.json"].read_text())
+        picture = (own.get("maps") or {}).get("decal")
+        if colour is None and picture is None:
             raise Refused("a recipe surface has no colour of its own: give --colour #rrggbb")
         shader = UsdShade.Shader.Define(stage, f"{path}/surface")
         shader.CreateIdAttr("UsdPreviewSurface")
-        own = json.loads(copied["surface.json"].read_text())
+        if picture is not None:
+            decal_read(stage, path, shader, copied[picture])
+        elif shader.GetInput("diffuseColor"):
+            shader.GetInput("diffuseColor").DisconnectSource()  # a decal laid here before no longer colours it
         method = json.loads((REPO / "data/library/materials.json").read_text())["recipes"].get(own.get("recipe"), {})
         settings = {**method, **own.get("settings", {})}  # a recipe entry made before glass carried its opacity
         shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(settings.get("roughness", 0.6)))
@@ -1676,6 +1681,22 @@ def look_shader(stage, path, copied, colour):
     if colour is not None:
         tinted(stage, shader, colour)
     return look
+
+
+def decal_read(stage, path, shader, picture):
+    """A decal surface's picture (its surface.json `maps.decal`, a calendar's page) as the look's colour, read by the
+    mesh's texture coordinates: without it the decal was laid as plain white paper (2099 #161, the flat's calendar)."""
+    reader = UsdShade.Shader.Define(stage, f"{path}/st")
+    reader.CreateIdAttr("UsdPrimvarReader_float2")
+    reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+    texture = UsdShade.Shader.Define(stage, f"{path}/decal")
+    texture.CreateIdAttr("UsdUVTexture")
+    texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        "./" + picture.resolve().relative_to(pathlib.Path(stage.GetRootLayer().realPath).parent).as_posix())
+    texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("sRGB")
+    texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(reader.ConnectableAPI(), "result")
+    rgb = texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(rgb)
 
 
 def recipe_marked(look, spec):
