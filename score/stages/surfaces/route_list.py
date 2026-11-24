@@ -81,7 +81,21 @@ painted, so a part painted or coated (paint, enamel, powder coat, lacquer) takes
 bare metal recipe is only for metal left bare. A part takes a metal surface only where the pictures show it is metal
 (bare metal's grain or mirror shine, a folded sheet edge, a welded or bolted frame, a tube); a housing, shell, cover,
 casing, panel or sign plate that shows none of that is moulded or cut plastic, painted or not, and takes a plastic
-surface. One finish lit unevenly is still one finish: a smooth panel that fades from light to dark across its face, or
+surface. Tell bare metal from paint by how the close-up's soft studio lamps in their dark room show on a flat face.
+Paint, powder coat and plastic hold their own hue and one even tone across a flat face, its shade changing only where
+the face turns; a glossy one adds a small bright highlight over that even colour. Metal mirrors the room: a flat face
+of it reads a neutral, hueless grey much darker than a grey paint would, and fades smoothly across the face from dark
+to a soft light sheen or cloudy, mottled patches (in the region views often two or more regions of the same hue on
+one face); fine scratches, scuffs and swirls that read only lighter than the face, a brushed grain, and cut edges or
+seams that catch the light as thin bright lines are bare metal's. Neutral grey or charcoal with no hue is no sign of
+paint: sheet steel decking, plates, shelves and treads are often left bare, and grey paint is told only by its
+even tone and a coat's own marks (chips or worn edges of another colour, an orange-peel or powder texture). A part
+that shows bare metal's marks and no coat's is bare steel or other bare metal, however dark it reads: it takes a bare
+metal surface and a metal near 1, never a painted surface with a low metal. Only a coat the pictures show (a black or
+coloured paint whose flat faces still fade across them this way, a metallic paint) takes a surface of a painted recipe
+(never a bare metal recipe, whatever the surface's name) and a metal between 0.3 and 0.7; a part of even matte or
+glossy colour keeps metal 0.
+One finish lit unevenly is still one finish: a smooth panel that fades from light to dark across its face, or
 a glossy part that reads lighter where it faces the light than the same part's edges, takes the finish of the part's
 darkest even tone, never a second, lighter finish of its own. Only when no library surface fits with any settings,
 set "fits" to false and propose a new library surface. Wear is the scene's level ({wear}). A finish
