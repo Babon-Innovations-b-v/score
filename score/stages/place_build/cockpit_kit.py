@@ -693,12 +693,15 @@ def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, split=0.5, **
 CONE = {"radius": 1.40, "slope": 0.22, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.04,
         "bolster_high": 0.32, "puff": 0.07, "ceiling": 2.05}
 ROWS = (0.0, 0.30, 0.59, 0.88, 1.17, 1.46, 1.75, 2.05)  # the lining's courses, metres up from the floor
-WIDTHS = (0.44, 0.42, 0.40, 0.38, 0.36, 0.34, 0.32)  # each course's cushion width
+COLUMNS = 18  # cushions round every course: their seams run up the cone's slope, one gore over another (quilting,
+# owner 2026-11-24: "uggly creme bricks"; never a brick bond)
 PILLOW = 2.6  # the power of a cushion's outline (a superellipse): its corners rounded in, pinched into the creases
 FULLNESS = 0.42  # how fast a cushion swells from its crease (a power under 1: a fat pillow, its sides steep)
 CUT_FLAT = 0.03  # metres along the wall either side of the cut-away's outline the quilting lies flat
 FADE = 0.06  # metres over which the quilting eases flat round a porthole or a hatch
-MOUNT_EASE = 0.05  # metres outside a mounting plate over which the lining's skin eases from its plane to the cone
+MOUNT_BORDER = 0.03  # metres of the lining laid flat on a mounting plate's plane round its edge, so the plate's
+# outline sits on a clean flat band of the padding (never ragged where a cushion swells against it)
+MOUNT_EASE = 0.05  # metres outside that band over which the lining's skin eases from its plane to the cone
 MOUNT_ROLL = 0.07  # metres outside a mounting plate over which a cut cushion swells from its crease against it
 THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
@@ -900,19 +903,17 @@ def hull(cut=None, holes=(), which="main", sector=None, bottom=-0.40, top=2.15, 
 
 def cushion_at(cone, theta, y):
     """Which cushion of the lining holds each spot (theta, y) and where in it: (its course, its column, its middle's
-    angle, the share across it, the share up it). Courses ROWS high, cushions about WIDTHS wide, each course
-    staggered half a cushion from the one under it (brick bond)."""
+    angle, the share across it, the share up it). Courses ROWS high, COLUMNS cushions round each, every course's
+    seams over the one's under it, so the seams run up the cone's slope and round it (quilting, not a brick bond)."""
     edges = np.asarray(ROWS)
     height = np.asarray(y, dtype=np.float64)
     row = np.clip(np.searchsorted(edges, height, side="right") - 1, 0, len(edges) - 2)
     low, high = edges[row], edges[row + 1]
     upward = np.clip((height - low) / (high - low), 0.0, 1.0)
-    counts = cushion_counts(cone)
-    shifts = 0.5 * (np.arange(len(counts)) % 2)
-    position = (np.asarray(theta, dtype=np.float64) % (2 * math.pi)) / (2 * math.pi) * counts[row] + shifts[row]
+    position = (np.asarray(theta, dtype=np.float64) % (2 * math.pi)) / (2 * math.pi) * COLUMNS
     column = np.floor(position)
-    middle = (column + 0.5 - shifts[row]) / counts[row] * 2 * math.pi
-    return row, column % counts[row], middle, position - column, upward
+    middle = (column + 0.5) / COLUMNS * 2 * math.pi
+    return row, column % COLUMNS, middle, position - column, upward
 
 
 def quilt(cone, theta, y):
@@ -930,13 +931,6 @@ def quilt(cone, theta, y):
     swell = np.clip(1 - reach ** PILLOW, 0.0, 1.0) ** FULLNESS
     puff = cone.sizes["puff"] * np.where(row == 0, 1.3, 1.0) * (0.85 + 0.3 * seed)
     return puff * swell
-
-
-def cushion_counts(cone):
-    """How many cushions run round each course of the lining (about WIDTHS wide)."""
-    edges = np.asarray(ROWS)
-    middles = (edges[:-1] + edges[1:]) / 2
-    return np.maximum(np.round(2 * math.pi * cone.rho(middles, 0.1) / np.asarray(WIDTHS)), 3)
 
 
 def cut_distance(cone, theta, y, cut):
@@ -969,7 +963,8 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
     cushions, eased flat round each fade [theta, y, radius] and along the cut-away's outline `cut`, so its section is
     a clean band of the padding) and how much each spot is eased flat (1 where eased, so no seam runs round a hole,
     along the cut or under a plate). Each flat [theta, y, wide, high] is a mounting plate set into the padding
-    (mount): its skin lies on the plate's plane under it and eases back onto the cone over MOUNT_EASE, and the
+    (mount): its skin lies on the plate's plane under it and a MOUNT_BORDER band round it, eases back onto the cone
+    over MOUNT_EASE, and the
     cushions it cuts swell from a crease against its edge over MOUNT_ROLL, as they do from a seam (never pulled
     down into a pocket round it)."""
     sizes = cone.sizes
@@ -988,8 +983,8 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
         middle, _, (right, up, inward) = flat_spot(flat_theta, flat_y, wide, high, **sizes)
         offset = back - cone.at(math.radians(flat_theta), flat_y, sizes["gap"])
         near = np.abs(offset @ inward) < 0.3
-        outside = np.hypot(np.maximum(np.abs(offset @ right) - wide / 2, 0.0),
-                           np.maximum(np.abs(offset @ up) - high / 2, 0.0))
+        outside = np.hypot(np.maximum(np.abs(offset @ right) - wide / 2 - MOUNT_BORDER, 0.0),
+                           np.maximum(np.abs(offset @ up) - high / 2 - MOUNT_BORDER, 0.0))
         weight = (1 - smoothstep(0.0, MOUNT_EASE, outside)) * near
         onto = ((middle - back) @ inward) / np.maximum(np.einsum("...i,i->...", normals, inward), 1e-6)
         skin = skin * (1 - weight) + np.maximum(onto, skin) * weight
@@ -1029,7 +1024,8 @@ def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, ce
     crossed = np.zeros(cushion[:-1].shape, dtype=bool)
     for other in corners[1:]:
         crossed |= other != corners[0]
-    parts = np.where(crossed & (smoothed < 0.5), "seam", "cushion")  # the crease along a cushion's edge
+    parts = np.where(crossed & (smoothed < 0.05), "seam", "cushion")  # the crease along a cushion's edge, none
+    # where the quilting is eased even a little (no stray dark bits on the flat round a hole or along the cut)
     return grid_solid(front, back, keep, parts, "back", "cushion", normals)
 
 
@@ -1146,10 +1142,11 @@ def swept(part, path, normals, deep, wide, segments=20):
     return [piece(part, points, facing(points, triangles, ways), True)]
 
 
-def lip(cut=None, steps=480, deep=0.17, wide=0.07, **sizes):
-    """The cut-away's rim (part lip): one narrow rolled band round its outline (`cut`, as in_cut) over the hull's and
-    the lining's cut edges, `deep` through the wall from outside the hull to past the padding's face and `wide`
-    along it, so the section reads as the wall's own thickness and never a frame round the room."""
+def lip(cut=None, steps=480, out=0.035, wide=0.07, **sizes):
+    """The cut-away's rim (part lip): one narrow rolled band round its outline (`cut`, as in_cut) over the hull's cut
+    edge, through the wall from `out` metres outside the hull to the lining's back and `wide` along it, so the
+    section reads as the wall's own thickness and never a frame round the room; never into the room, so with the
+    plug in place (a view that does not cut, the game) the padding closes over it with no band across the wall."""
     cone = Cone(**sizes)
     middle, half, height, half_high, power = cut
     angles = np.linspace(0, 2 * math.pi, steps + 1)[:-1]
@@ -1158,9 +1155,9 @@ def lip(cut=None, steps=480, deep=0.17, wide=0.07, **sizes):
     upward = np.sign(sin) * np.abs(sin) ** (2 / power)
     theta = math.radians(middle) + across * math.radians(half)
     y = height + upward * half_high
-    depth = (cone.sizes["gap"] + cone.sizes["lining"] - cone.sizes["hull"]) / 2  # the eased section's middle
-    path = cone.at(theta, y, depth)
-    return swept("lip", path, cone.inward(theta), deep, wide)
+    inner, outer = cone.sizes["gap"], -cone.sizes["hull"] - out  # offsets in from the hull's inner face
+    path = cone.at(theta, y, (inner + outer) / 2)
+    return swept("lip", path, cone.inward(theta), inner - outer, wide)
 
 
 def collar_flange(cone, middle, right, up, axis, inner, outer, face, thick, outward, part, segments=72, rings=4):
@@ -1349,10 +1346,12 @@ def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0
              for part, points, triangles, smooth in found]
     slope = math.degrees(math.atan2(back_high - front_high, deep))
     length = math.hypot(deep, back_high - front_high)
-    top = box("deck", (-wide / 2 + 0.03, -length / 2 + 0.02, 0.0), (wide / 2 - 0.03, length / 2 - 0.02, 0.008),
+    # the deck and the lip sunk a little into the top, so neither shares the top's face (a ray along the top would
+    # count one face for two)
+    top = box("deck", (-wide / 2 + 0.03, -length / 2 + 0.02, -0.004), (wide / 2 - 0.03, length / 2 - 0.02, 0.008),
               0.002)
     top += frame_ring("lip", rounded_rectangle(wide + 0.012, length + 0.012, 0.01),
-                      rounded_rectangle(wide - 0.05, length - 0.03, 0.008), 0.0, 0.012)
+                      rounded_rectangle(wide - 0.05, length - 0.03, 0.008), -0.004, 0.012)
     top += laid_items(items, 0.008)
     found += moved(top, np.asarray(about("x", -90 + slope)), (0.0, (front_high + back_high) / 2, deep / 2))
     if grille:
