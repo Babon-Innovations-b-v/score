@@ -55,12 +55,18 @@ DRAPE = {"device": "cuda:0", "rate": RATE, "substeps": 40, "iterations": 10, "gr
          "holds_until": "worn"}
 NECK_REACH_CM = 2.0  # past the neck's half width, the body's points round the neck's base that move the holds
 CARD_GB = 4.0  # the drape's card share (one outfit, one body)
+# Under a belt, the cloth thicknesses off the skin the garment it is worn on (its waistband rides the skin out by its
+# radius and the contact margin: 2) and a garment over it (that, the cloth's self-contact gap and its own two: 5) may
+# stand.
+BELT_LAYERS = (2.0, 5.0)
 
 
-def built_body(look, clip, build=None):
+def built_body(look, clip, build=None, face=None):
     """The person's body for the drape: its SOMA surface at the bind (given another `build`, the outfit's `body`:
     SOMA's shape and a height, shaped.py), the clip played on its build (the sim body's `person_rig`), and its joints
-    (`worlds`) and skin every frame of the turn from the bind into the clip and of the clip."""
+    (`worlds`) and skin every frame of the turn from the bind into the clip and of the clip. With `face` ({"face":
+    face.npz, "body": body_face.py's npz}) the surface is the person's own body with its face
+    (`tools.characters.whole.carried_skin`), the clothes sewn and worn on the skin that is drawn."""
     from score.stages.sim_body import _body
     from score.stages.people_cloth import skinned
     from tools.characters import played
@@ -82,9 +88,15 @@ def built_body(look, clip, build=None):
                              played.chained(local, parents)])
     weights = np.asarray(clips_rig["weights"], dtype=float)
     joints = np.tile(np.arange(weights.shape[1]), (len(weights), 1))
+    faces = np.asarray(built["source_faces"], dtype=np.int64)
+    if face is not None:
+        from tools.characters import whole
+        skin = whole.carried_skin(dict(np.load(face["face"])), dict(np.load(face["body"])), clips_rig, bind)
+        points, faces, weights = skin["points"], skin["faces"], skin["weights"]
+        joints = np.tile(np.arange(weights.shape[1]), (len(weights), 1))
     worlds = np.concatenate([bind[None], worlds])
     frames = skinned(points, joints, weights, worlds, bind)
-    return {"bind": points, "faces": np.asarray(built["source_faces"], dtype=np.int64), "weights": weights,
+    return {"bind": points, "faces": faces, "weights": weights,
             "names": np.asarray(clips_rig["names"]), "joints": bind, "worlds": worlds, "frames": frames,
             "clip_start": np.array(1 + int(round(TURN_SECONDS * RATE))), "arms_out": arms_out}
 
@@ -174,6 +186,19 @@ def neck(body, measurements, shift):
                           & (np.abs(points[:, 2] - shift[2]) < reach)).tolist()
 
 
+def belt_job(outfit):
+    """The drape's belt (drape.py's job `belt`): the garment it is worn on, its band's place under that waistband's
+    top (accessories' own numbers) and how far off the skin each garment's cloth may stand there: the garment under
+    it one layer (BELT_LAYERS[0] cloth thicknesses), every other garment over it the next (the belt pulls a tee worn
+    over the skirt in, owner 2026-11-24)."""
+    from tools.characters import accessories
+    under = outfit["accessories"]["belt"]["on"]
+    return {"on": under, "under_top": accessories.UNDER_TOP_M - accessories.CLEAR_M,
+            "width": accessories.BELT_M + 2.0 * accessories.CLEAR_M, "reach": accessories.REACH_M,
+            "limits": {garment["name"]: THICKNESS_M * BELT_LAYERS[garment["name"] != under]
+                       for garment in outfit["garments"]}}
+
+
 def draped(outfit, body, pattern_folder, out, frames):
     """The outfit sewn, draped and worn over the clip on Newton, through this PC's card queue: drape.npz."""
     clip_end = int(body["clip_start"]) + frames if frames else len(body["frames"])
@@ -189,6 +214,8 @@ def draped(outfit, body, pattern_folder, out, frames):
          "holds": holds(garment, records[garment["name"]], measurements, shift),
          "material": cloth_material(garment["surface"])}
         for garment in outfit["garments"]])
+    if "belt" in outfit.get("accessories", {}):
+        job["belt"] = belt_job(outfit)
     (out / "drape.json").write_text(json.dumps(job, indent=1))
     environment(NEWTON_SCRIPT, NEWTON_ENV)
     subprocess.run(["python3", str(CARD_QUEUE), "run", "--job", "garment-drape", "--card-gb", str(CARD_GB),

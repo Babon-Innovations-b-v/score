@@ -50,6 +50,9 @@ FLOOR_LIMIT_M = 0.002  # a sole this far under the floor is through it
 HOVER_LIMIT_M = 0.005  # a sole never nearer the floor than this over the whole clip never stands on it
 FOOT_LIMIT_M = 0.0  # a foot point this far out past its shoe's surface is out through it
 BELT_LIMIT_M = 0.015  # a belt's top this far from the waistband's top is off it
+# A belt's inside this far off the skin under it holds the cloth out, not in: the drape holds the cloth under a belt
+# within 15 mm of the skin (garments.BELT_LAYERS: two layers, their gaps and contact margins), with 5 mm of a fold.
+HOLD_LIMIT_M = 0.02
 
 
 def vertex_normals(points, faces):
@@ -297,6 +300,27 @@ def ring_bins(around, centre, axes):
     return np.maximum(found, np.maximum(np.roll(found, 1), np.roll(found, -1)))
 
 
+def in_band(ring, points, turn):
+    """Which of `points` are in the belt's band: from its top (UNDER_TOP_M under the waistband's top, `ring`) down
+    BELT_M, CLEAR_M either side, and no further round than REACH_M past the waistband's widest."""
+    side, up, front = turn[:, 0], turn[:, 1], turn[:, 2]
+    centre = ring.mean(axis=0)
+    top = float(((ring - centre) @ up).max())
+    offset = points - centre
+    band = offset @ up
+    reach = np.hypot(offset @ side, offset @ front)
+    widest = float(np.hypot((ring - centre) @ side, (ring - centre) @ front).max())
+    return (band > top - UNDER_TOP_M - BELT_M - CLEAR_M) & (band < top + CLEAR_M) & (reach < widest + REACH_M)
+
+
+def held_in(ring, skin, belt_radius, turn):
+    """How far the belt's inside stands off the skin under it at its farthest turn round (m): what the cloth between
+    them holds it out by. A belt that holds the cloth in stands off the skin by the cloth's layers alone."""
+    side, up, front = turn[:, 0], turn[:, 1], turn[:, 2]
+    skin_radius = ring_bins(skin[in_band(ring, skin, turn)], ring.mean(axis=0), (side, up, front))
+    return float((belt_radius[:BINS] - CLEAR_M - skin_radius).max())
+
+
 def belt_frame(ring, around, turn):
     """The belt on one frame: its points (rows of BINS + 1, the seam point twice for its texture: inside top, inside
     bottom, outside bottom, outside top), the waistband's top height and the frame's axes."""
@@ -304,12 +328,7 @@ def belt_frame(ring, around, turn):
     centre = ring.mean(axis=0)
     top = float(((ring - centre) @ up).max())
     belt_top = top - UNDER_TOP_M
-    offset = around - centre
-    band = offset @ up
-    reach = np.hypot(offset @ side, offset @ front)
-    widest = float(np.hypot((ring - centre) @ side, (ring - centre) @ front).max())
-    near = (band > belt_top - BELT_M - CLEAR_M) & (band < top + CLEAR_M) & (reach < widest + REACH_M)
-    radius = ring_bins(around[near], centre, (side, up, front)) + CLEAR_M
+    radius = ring_bins(around[in_band(ring, around, turn)], centre, (side, up, front)) + CLEAR_M
     angles = (np.arange(BINS + 1) + 0.5) * 2.0 * np.pi / BINS
     radius = np.append(radius, radius[0])
     directions = np.cos(angles)[:, None] * side + np.sin(angles)[:, None] * front
@@ -363,11 +382,12 @@ def belt(body, start, garments, ring_points):
     count = len(worn[0])
     body_frames = np.asarray(body["frames"])[start:start + count]
     turns = hips_turns(body, np.arange(start, start + count))
-    belts, buckles, tops, ups = [], [], [], []
+    belts, buckles, tops, ups, off_skin = [], [], [], [], []
     for frame in range(count):
         ring = worn[0][frame][ring_points]
         around = np.concatenate([points[frame] for points in worn] + [body_frames[frame]])
         points, top, axes, radius = belt_frame(ring, around, turns[frame])
+        off_skin.append(held_in(ring, body_frames[frame], radius, turns[frame]))
         belts.append(points)
         tops.append(top)
         ups.append(axes[1])
@@ -375,7 +395,8 @@ def belt(body, start, garments, ring_points):
         buckles.append(buckle_points(ring.mean(axis=0), axes, radius[front],
                                      float((top - ring.mean(axis=0)) @ axes[1]) - UNDER_TOP_M))
     return {"belt": np.asarray(belts), "belt faces": band_faces(BINS + 1, 4), "buckle": np.asarray(buckles),
-            "buckle faces": buckle_faces(), "waistband top": np.asarray(tops), "up": np.asarray(ups)}
+            "buckle faces": buckle_faces(), "waistband top": np.asarray(tops), "up": np.asarray(ups),
+            "off the skin": np.asarray(off_skin)}
 
 
 def belt_uvs():
@@ -486,7 +507,8 @@ def measured(shoes, worn_shoes, body_frames, body_faces, belted, lift):
         inner = belted["belt"][:, :BINS]
         girth = np.linalg.norm(np.diff(np.concatenate([inner, inner[:, :1]], axis=1), axis=1), axis=2).sum(axis=1)
         found["belt"] = {"top farthest off the waistband top mm": round(float(top_off.max()) * 1000.0, 1),
-                         "girth cm": [round(float(girth.min()) * 100.0, 1), round(float(girth.max()) * 100.0, 1)]}
+                         "girth cm": [round(float(girth.min()) * 100.0, 1), round(float(girth.max()) * 100.0, 1)],
+                         "inside farthest off the skin mm": round(float(belted["off the skin"].max()) * 1000.0, 1)}
     return found
 
 
@@ -508,6 +530,9 @@ def faults(found):
     if "belt" in found and found["belt"]["top farthest off the waistband top mm"] > BELT_LIMIT_M * 1000.0:
         lines.append(f"belt off the waistband: its top {found['belt']['top farthest off the waistband top mm']} mm "
                      f"off the waistband's top (limit {BELT_LIMIT_M * 1000.0:.0f})")
+    if "belt" in found and found["belt"]["inside farthest off the skin mm"] > HOLD_LIMIT_M * 1000.0:
+        lines.append(f"belt not holding the cloth in: its inside {found['belt']['inside farthest off the skin mm']} "
+                     f"mm off the skin (limit {HOLD_LIMIT_M * 1000.0:.0f})")
     return lines
 
 

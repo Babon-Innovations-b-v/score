@@ -1,6 +1,7 @@
 """python -m tools.characters.garments <outfit.json> --clip <clip> --out <folder> [--frames N] [--turn-views N]
-[--walk-every N] [--turn-frame N]: the outfit's look dressed end to end (the package docstring's steps) with its
-accessories (shoes, a belt: tools/characters/accessories), its measures printed."""
+[--walk-every N] [--turn-frame N] [--face <face.npz> --face-body <body.npz>]: the outfit's look dressed end to end
+(the package docstring's steps) with its accessories (shoes, a belt: tools/characters/accessories), its measures
+printed. With --face the body is the person's own with its face (tools/characters/whole)."""
 import argparse
 import json
 import os
@@ -15,7 +16,7 @@ from tools.characters.garments import cache
 BLENDER = pathlib.Path(os.environ.get("BLENDER",
                                       garments.HOME / ".farm-factory-props/blender-mcp/blender-5.2.2/blender"))
 BLENDER_LIBS = BLENDER.parent.parent / "libs"  # the libraries this PC's Blender lacks (libSM, libICE)
-SCORE_LIB = garments.REPO.parent / "score_lib"
+SCORE_LIB = pathlib.Path(os.environ.get("SCORE_LIB_ROOT", garments.REPO.parent / "score_lib"))  # its checkout
 
 
 def fetched(outfit, out):
@@ -47,11 +48,14 @@ def main():
     parser.add_argument("--turn-views", type=int, default=24)
     parser.add_argument("--walk-every", type=int, default=0)
     parser.add_argument("--turn-frame", type=int, default=0, help="clip frame the turn is drawn at (-1: the middle)")
+    parser.add_argument("--face", help="the person's face.npz (tools/characters/face): worn on its own body")
+    parser.add_argument("--face-body", help="body_face.py's npz the face was fitted to (with --face)")
     given = parser.parse_args()
     outfit = json.loads(pathlib.Path(given.outfit).read_text())
     out = pathlib.Path(given.out)
     out.mkdir(parents=True, exist_ok=True)
-    body = garments.built_body(outfit["look"], given.clip, outfit.get("body"))
+    face = {"face": given.face, "body": given.face_body} if given.face else None
+    body = garments.built_body(outfit["look"], given.clip, outfit.get("body"), face)
     pattern_folder = garments.patterns(outfit, body, out)
     drape = dict(np.load(garments.draped(outfit, body, pattern_folder, out, given.frames)))
     records = {garment["name"]: dict(np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz"))

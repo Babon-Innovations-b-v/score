@@ -1,7 +1,8 @@
 """Shoes and a belt stay on the body that wears them: a shoe made on a toy foot covers the foot under its collar and
 nothing over it, its sole lies under the foot, it moves with the foot, and the foot stays inside it; a belt goes round
 the toy skirt's waistband top, round all of it; and `faults` names a sole through the floor, a sole that never
-reaches it, a foot out through its shoe and a belt off its waistband. Each row is the toy body walking forward one way.
+reaches it, a foot out through its shoe, a belt off its waistband and a belt held off the skin by cloth it does not
+hold in (a loose tee under it). Each row is the toy body walking forward one way.
 
 Breaks that turn it red (each applied once, seen red, reverted): the shoe's offset along the last's normals taken
 inward (`- normals` in `shoe`: the foot out through the shoe); the collar's cut keeping the faces over it (`~inside`:
@@ -9,7 +10,8 @@ the shoe over the ankle); a shoe carried by the bind's joints alone (`worlds[:1]
 the foot walks); the lift left out of the sole's lowest in `measured` (every worn row below the floor); the belt's
 radius taken from the waistband's ring alone rather than from all round it (`around` the ring in `belt`: the belt
 inside the skirt's flare); the belt's top measured off its inside bottom row (`belted["belt"][:, BINS + 1:2 * (BINS +
-1)]` in `measured`: the belt read off its waistband)."""
+1)]` in `measured`: the belt read off its waistband); the belt's distance off the skin read off the skin alone
+(`skin_radius` in `held_in` taken as the belt's own radius: no belt ever holds anything out)."""
 import numpy as np
 import pytest
 import trimesh
@@ -39,6 +41,7 @@ def toy_body():
     hips = trimesh.creation.cylinder(radius=0.14, height=0.3, sections=48)
     hips.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2.0, [1, 0, 0]))
     hips.apply_translation([0.0, 0.95, 0.0])
+    hips = hips.subdivide_to_size(0.01)  # skin points all down its side, as a body has, for the belt's band
     pieces.append(hips)
     joints.append(np.full(len(hips.vertices), NAMES.index("Hips")))
     joined = trimesh.util.concatenate(pieces)
@@ -76,6 +79,7 @@ def toy_skirt():
     ("lifted too far", ["left shoe never on the floor", "right shoe never on the floor"]),
     ("left shoe shrunk on the foot", ["left foot out through its shoe"]),
     ("belt slid down the skirt", ["belt off the waistband"]),
+    ("loose tee under the belt", ["belt not holding the cloth in"]),
 ])
 def test_shoes_and_a_belt_stay_on_the_body_that_wears_them(wear, failed):
     body = toy_body()
@@ -98,15 +102,23 @@ def test_shoes_and_a_belt_stay_on_the_body_that_wears_them(wear, failed):
         middle = worn["Left"].mean(axis=1, keepdims=True)
         worn["Left"] = middle + (worn["Left"] - middle) * np.array([0.85, 1.0, 0.85])  # narrower and shorter
     skirt, ring = toy_skirt()
-    belted = accessories.belt(body, start, [skirt], ring)
+    worn_round = [skirt]
+    if wear == "loose tee under the belt":  # a tee hanging 3 cm off the hips all round the belt's band
+        loose = skirt.copy()
+        loose[..., 0] *= 0.17 / 0.142
+        loose[..., 2] = (loose[..., 2] - STEP_M * np.arange(1, FRAMES + 1)[:, None]) * 0.17 / 0.142 + STEP_M * \
+            np.arange(1, FRAMES + 1)[:, None]
+        worn_round.append(loose)
+    belted = accessories.belt(body, start, worn_round, ring)
     if wear == "belt slid down the skirt":
         belted["belt"] = belted["belt"] - np.array([0.0, 0.04, 0.0])
     radii = np.hypot(belted["belt"][..., 0], belted["belt"][..., 2] - STEP_M * np.arange(1, FRAMES + 1)[:, None])
     assert radii.min() > 0.1465  # round the flare under the top (its 0.98 m ring, 0.145 m), not the top (0.142 m)
+    assert belted["off the skin"].min() > 0.0
     found = accessories.measured(shoes, worn, np.asarray(body["frames"])[start:], np.asarray(body["faces"]), belted,
                                  lift)
     lines = accessories.faults(found)
     kinds = ["left shoe below the floor", "right shoe below the floor", "left shoe never on the floor",
              "right shoe never on the floor", "left foot out through its shoe", "right foot out through its shoe",
-             "belt off the waistband"]
+             "belt off the waistband", "belt not holding the cloth in"]
     assert [kind for kind in kinds if any(line.startswith(kind) for line in lines)] == failed, lines

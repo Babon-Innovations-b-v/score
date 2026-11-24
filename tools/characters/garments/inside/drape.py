@@ -14,7 +14,8 @@ garment's box points laid that much further off the skin, `laid_out`), "material
 {"density" kg/m2, "mu" N/m, "lambda" N/m, "bending" N, "radius" m}}], "contact": {"mu", "ke", "kd", "margin" (m)},
 "self": {"margin", "gap" (m)}, "neck": [the body's points round its neck's base: the holds' levels move with their
 mean], "holds_until": "sewn", "turned" or "worn" (the drawn points held while sewing, through the turn too, or
-through the clip too)}.
+through the clip too), "belt" (optional): {"on": the garment it is worn on, "under_top", "width", "reach" (m),
+"limits": {garment name: m}}}.
 
 The run, in the order GarmentCode's own drape goes: each garment's box mesh (its panels laid round the body, each seam's
 points shared) is one cloth whose triangles rest at their flat panels' shapes and whose edges bend flat, so the seams
@@ -31,8 +32,10 @@ cm past its planes and the tee was sewn up to 4 cm to her left, 2026-11-24). Gra
 body turns from its bind to the clip's first frame (the job's frames up to `clip_start`), stands `still_seconds`, and
 plays the clip. Each substep the body mesh's points and velocities are set where the skin is at the substep's end and
 the mesh refitted, so the cloth meets the moving body with its own speed (Newton reads mesh velocities for contact).
-Cloth and cloth collide (self contact, between garments too). No cloth damping of its own. VBD's run-to-run
-deterministic mode is off: on this card it took a substep from 10 ms to 180 ms (2026-11-24).
+A belt, once sewn (from the turn on), holds the cloth under it in: each substep a point of a belted garment over
+the band's skin and further off it than that garment's limit is moved BELT_SHARE of the way back to its limit along
+the skin's normal. Cloth and cloth collide (self contact, between garments too). No cloth damping of its
+own. VBD's run-to-run deterministic mode is off: on this card it took a substep from 10 ms to 180 ms (2026-11-24).
 
 out.npz: per garment `<name>` clip frames x points x 3 (m, world, each clip frame's end), `<name>/sewn` points x 3 (at
 the bind after sewing), `inside/<name>` clip frames x points (each point's signed distance to the body at that frame,
@@ -51,6 +54,11 @@ SEW_SPEED = 0.25  # m/s, GarmentCode's global_max_velocity while the panels clos
 CENTIMETRES = 0.01
 HOLDING = {"sewn": 0, "turned": 1, "worn": 2}  # how long the drawn points are held: sewing, the turn too, the clip too
 BLOWN = None  # where a clip that blows up keeps its garments' frames before it (run's out.npz, .blown.npz)
+BELT_REACH = 0.1  # m: a cloth point further than this from the skin is not looked at by the belt
+# Of the way back to its limit a cloth point past it under the belt moves each substep: moved the whole way (with its
+# speed outward taken away, and the arms' skin still posed otherwise than the clips rig's bind) the cloth blew up at
+# walk frame 25 (2026-11-24).
+BELT_SHARE = 0.1
 HOLD_SHARE = 1.0  # of the way back to its level a drawn point past it moves each substep while held
 
 
@@ -120,6 +128,23 @@ def drawn(particles: wp.array[wp.int32], axis: int, value: float, side: float, s
     if side * (position[axis] - value) < 0.0:
         position[axis] = position[axis] + share * (value - position[axis])
         positions[particle] = position
+
+
+@wp.kernel
+def cinched(mesh: wp.uint64, particles: wp.array[wp.int32], limits: wp.array[wp.float32],
+            banded: wp.array[wp.int32], reach: float, share: float, positions: wp.array[wp.vec3]):
+    """Each point over the belt's band of skin (`banded` triangles) further off it than its limit moved `share` of
+    the way back to the limit along the skin's normal: the belt holding the cloth in."""
+    index = wp.tid()
+    particle = particles[index]
+    query = wp.mesh_query_point_no_sign(mesh, positions[particle], reach)
+    if query.result:
+        if banded[query.face] == 1:
+            on = wp.mesh_eval_position(mesh, query.face, query.u, query.v)
+            normal = wp.mesh_eval_face_normal(mesh, query.face)
+            off = wp.dot(positions[particle] - on, normal)
+            if off > limits[index]:
+                positions[particle] = positions[particle] - normal * (off - limits[index]) * share
 
 
 @wp.kernel
@@ -238,6 +263,7 @@ class Outfit:
         self.frames_card = wp.array(self.frames.reshape(-1, 3), dtype=wp.vec3)
         self.held = [self.worn_on(garment) for garment in self.garments if len(garment.held)]
         self.neck = np.asarray(job.get("neck", []), dtype=np.int64)
+        self.belt = self.belted(job.get("belt"))
         self.holding = HOLDING[job.get("holds_until", "sewn")]
 
     def worn_on(self, garment):
@@ -257,6 +283,36 @@ class Outfit:
         return (wp.array((garment.first + garment.held).astype(np.int32), dtype=wp.int32),
                 wp.array(self.faces[faces].astype(np.int32), dtype=wp.vec3i), wp.array(weights, dtype=wp.vec3),
                 wp.array(garment.points[garment.held], dtype=wp.vec3), radius)
+
+    def belted(self, belt):
+        """The belt on the card (job `belt`: {"on": the garment whose waistband it is worn on, "under_top",
+        "width", "reach" (m), "limits": {garment: how far off the skin its cloth may stand there}}): (particles,
+        their limits, each body triangle under the band 1 else 0), or None with no belt. The band is the skin from
+        `under_top` under the waistband's top, where its held points are worn at the bind, down `width`, no further
+        round than `reach` past the waistband's widest (as the belt is laid, accessories.in_band)."""
+        if not belt:
+            return None
+        on = next(number for number, garment in enumerate(self.garments) if garment.name == belt["on"])
+        _, corners, weights, _, _ = self.held[[garment.name for garment in self.garments
+                                               if len(garment.held)].index(belt["on"])]
+        ring = np.einsum("pc,pcd->pd", weights.numpy(), self.bind[corners.numpy()])
+        centre = ring.mean(axis=0)
+        top = float(ring[:, 1].max())
+        reach = np.hypot(self.bind[:, 0] - centre[0], self.bind[:, 2] - centre[2])
+        widest = float(np.hypot(ring[:, 0] - centre[0], ring[:, 2] - centre[2]).max())
+        under = ((self.bind[:, 1] < top - belt["under_top"]) & (self.bind[:, 1] > top - belt["under_top"]
+                                                                  - belt["width"]) & (reach < widest + belt["reach"]))
+        banded = under[self.faces].all(axis=1).astype(np.int32)
+        print(f"belt: on {self.garments[on].name}, its top {top:.3f} m, {int(banded.sum())} skin triangles under it",
+              flush=True)
+        particles, limits = [], []
+        for garment in self.garments:
+            if garment.name in belt["limits"]:
+                particles.append(garment.first + np.arange(garment.count))
+                limits.append(np.full(garment.count, belt["limits"][garment.name]))
+        return (wp.array(np.concatenate(particles).astype(np.int32), dtype=wp.int32),
+                wp.array(np.concatenate(limits).astype(np.float32), dtype=wp.float32),
+                wp.array(banded, dtype=wp.int32))
 
     def moved(self, frame, axis):
         """How far the body's neck has moved along `axis` from the bind by `frame` (m): a hold's level moves with it."""
@@ -282,6 +338,10 @@ class Outfit:
         self.now, self.next = self.next, self.now
         if sewing:
             wp.launch(capped, dim=self.model.particle_count, inputs=[self.now.particle_qd, SEW_SPEED])
+        if self.belt is not None and not sewing:
+            particles, limits, banded = self.belt
+            wp.launch(cinched, dim=len(particles), inputs=[self.mesh.id, particles, limits, banded, BELT_REACH,
+                                                            BELT_SHARE, self.now.particle_q])
         if holding:
             after = min(frame + 1, len(self.frames) - 1) if share > 0.0 else frame
             for particles, axis, value, side in self.holds:
