@@ -160,16 +160,22 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `algorithm/place_build`. The capsule's body follows one cone (Cone: the hull's inner face 1.4 m from the axis at the
   floor, drawn in 0.22 m a metre up, carried on over the ceiling by the `nose` to a narrow rimmed top; every face of
   hull and lining a cone offset along its normal): the smooth hull and the quilted lining (small puffy cushions in
-  brick bond with stitched seams, part seam, a bolster along the floor, eased flat round each hole and onto each
+  brick bond, each domed and rolling down to a narrow flat crease along its edge, so two cushions and two walls meet
+  in one continuous crease and never a step; part seam the one row of cells along each edge, the stitching, in a
+  shade of the vinyl, never a dark strip; a bolster along the floor, eased flat round each hole, along the cut-away's
+  outline (its section a clean band of the padding) and onto each
   panel's plane, flat_spot, the cushions rising right round a panel so it sits in a pocket) each in walls of their own
   (`sector`, 30 degrees; a lining's wall ends along the seams round its cushions, never across one, so two walls meet
   in a seam with no line; a wall's middle then lies by it, so the check's rays from it never cross the room's
   furniture: lay the walls so no middle falls inside a panel, the capsule's from 15 degrees), the cut-away's `plug` its own
-  object for place.json `cut` and a rounded `lip` round it; ceiling, floor (a solid disc on the service module),
-  skirt, nose, porthole and hatch sleeves (`through_wall`, flanges hugging the cone, the porthole's pane out past the
-  hull; a hatch's outer flange bolted when 2 cm thick or more), the hatch's `tread` (ground) and leaf, the `gantry`
+  object for place.json `cut` and a narrow rolled `lip` round it (part lip; through the wall's thickness, never a
+  frame round the room: the judge's "TV screen"); ceiling, floor (a solid disc on the service module, two rings of
+  deck plates), skirt (an open service bay of struts and pipes), nose, porthole and hatch sleeves (`through_wall`, flanges hugging the cone, the porthole's pane out past the
+  hull; a hatch's outer flange bolted when 2 cm thick or more), the hatch's `tread` (ground) and leaf (a hinge arm
+  across its outside; laid shut, the walkers swing it), the `gantry`
   (one railing run along one edge and round its end); instrument panels (plate and bezel one body, label strip in
-  modelled letters, "A|B" two strips, hardware in rows), each switch, lamp, gauge, screen, seat and console its own
+  modelled letters, "A|B" two sections parted at `split` by a raised divider, each with its own strip, a "/" stacking
+  a name's words), each switch, lamp, gauge, screen, seat (a padded bucket seat, `scale`) and console its own
   piece. Every part takes its look from `looks`; a part with none is refused. Every piece is closed, nothing in it
   shares a face with another and no face is collapsed (a reader drops it and every part's face numbers after it
   slip: the floor drew black); a hole is cut only within THROUGH of its wall (its axis runs on to the far wall). A
