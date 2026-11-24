@@ -322,12 +322,16 @@ def slot_of(row):
     return route_settings.settings_name(row["judge"], row["settings"]) if row.get("settings") else row["judge"]
 
 
-def part_spec(library, row, colours, decals):
+def part_spec(library, row, colours, decals, out):
     """A finish part's recipe spec as the bake paints it: its surface's variant in the bench library in its settings'
     token, roughness, metal and seed (route_settings.set_spec; a part the colour check moved its surface's own), its
-    slot's text decals (`decals`, the spec's)."""
+    slot's text decals (`decals`, the spec's). A colour setting its recipe needs (the library's `colour_settings`)
+    that the variant names none of is the spec's own colour, as recipes.arguments gives a mottled or printed finish
+    with no second shade its own: score_lib's recipe entries (finish.variant_of) carry a token alone (#182: the rack's
+    painted_metal had no `bare`, the humidifier's perforated_metal no `second`); a printed or screen recipe
+    (scene_library.PICTURED) with no picture of its own draws clear_picture's, written into `out`."""
     import library as surface_library
-    from score.stages.surfaces import route_settings
+    from score.stages.surfaces import route_settings, scene_library
     settings = row.get("settings")
     token = settings["token"] if settings else surface_library.variants(library)[row["judge"]]["token"]
     colours.setdefault(token, surface_library.linear(token))
@@ -335,7 +339,21 @@ def part_spec(library, row, colours, decals):
     if settings:
         spec = route_settings.set_spec(spec, settings, colours)
     spec.setdefault("seed", settings.get("seed", 0) if settings else 0)
+    for setting in library.get("colour_settings", {}).get(spec["recipe"], []):
+        spec.setdefault(setting, spec["colour"])
+    if spec["recipe"] in scene_library.PICTURED and not spec.get("image"):
+        spec["image"] = str(clear_picture(out))
     return {**spec, "decals": decals} if decals else spec
+
+
+def clear_picture(out):
+    """A one-pixel picture with nothing on it, in `out`: what a printed or screen recipe (scene_library.PICTURED) draws
+    for a surface with no picture of its own (score_lib's `surface/printed`, a recipe entry), so its colour shows
+    through (recipes.picture_on), its text the slot's decals (#182: the gas stove's control panel)."""
+    from PIL import Image
+    path = out / "clear.png"
+    Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(path)
+    return path
 
 
 def look_job(folder, take, model, camera, out):
@@ -372,8 +390,9 @@ def look_job(folder, take, model, camera, out):
     for number, (slot, mask) in enumerate(zip(slots, route_texels.surface_masks(laid, surface_of_part, len(slots)))):
         Image.fromarray(mask).save(out / f"mask-{number}.png")
         row = next(row for row in rows.values() if slot_of(row) == slot)
+        spec = part_spec(library, row, colours, decals.get(slot), out)
         masks.append({"slot": slot, "mask": str(out / f"mask-{number}.png"), "share": round(float(mask.mean() / 255), 4),
-                      "spec": part_spec(library, row, colours, decals.get(slot))})
+                      "spec": spec})
     job = {"glb": str(model), "masks": masks, **camera, "side": LOOK_SIDE, "samples": LOOK_SAMPLES,
            "out": str(out / "look.png")}
     (out / "look.json").write_text(json.dumps(job, indent=1, default=float))

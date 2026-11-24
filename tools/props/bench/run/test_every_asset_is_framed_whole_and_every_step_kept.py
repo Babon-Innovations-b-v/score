@@ -28,6 +28,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finish.look_job: the texels.npz check dropped -> a finish with none fails on numpy's own error, not its reason;
   its part's list settings not read (part_spec's `set_spec` dropped) -> the look's spec is not the listed roughness
   0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182)
+- finish.part_spec: a colour setting the variant names none of not filled -> painted_metal's look is drawn with no
+  `bare` (the rack's KeyError, #182); a pictured recipe given no clear picture -> printed is drawn with no `image`
 - finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
   the listed roughness 0.4; its class not read -> the box's look has no class
 - A pictured case (#159, the cockpit row: no NVIDIA model) is rendered as its close-up kept in the store, keeps its own
@@ -36,8 +38,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   it as a truth -> Blender's stand-in is asked for it; bench.pictured_render keeping the picture's RGB alone -> its
   rgba.png has no true alpha; bench.measure_all reading it as a truth -> its truth read is a gap and nothing is measured
 """
+import ast
 import json
 import math
+import pathlib
 
 import numpy as np
 import pytest
@@ -216,6 +220,36 @@ def looked(tmp_path, name, view):
             int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size)
 
 
+RECIPES = pathlib.Path(finish.REPO) / "tools/props/library/recipes.py"
+# What recipes.arguments gives every recipe on its own: the place's wear and dirt, the job's seed, the piece's foot.
+ARGUMENTS_GIVEN = {"wear", "dirt", "seed", "foot", "kicks"}
+
+
+def undrawn(tmp_path):
+    """Each recipe of recipes.py (its RECIPES, read by ast: ProcFunc is Blender's) as score_lib's own recipe entry
+    (finish.variant_of's: a token alone) through the look's part_spec: {recipe: the arguments it needs that the spec
+    leaves out}, the empty ones dropped."""
+    tree = ast.parse(RECIPES.read_text())
+    functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    table = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+                 and getattr(node.targets[0], "id", None) == "RECIPES")
+    method = json.loads((pathlib.Path(finish.REPO) / "data/library/materials.json").read_text())
+    library = {"recipes": method["recipes"], "colour_settings": method["colour_settings"],
+               "tokens": {finish.NEUTRAL: finish.NEUTRAL}, "dirt": finish.NEUTRAL, "pictures": {},
+               "families": {key.value: {"surface": None, "variants": {key.value: {"recipe": key.value,
+                                                                                    "token": finish.NEUTRAL}}}
+                            for key in table.keys}}
+    import library as surface_library
+    colours = surface_library.token_colours(library)
+    found = {}
+    for key in table.keys:
+        spec = finish.part_spec(library, {"judge": key.value}, colours, None, tmp_path)
+        listed = functions[key.value].args
+        needed = [argument.arg for argument in listed.args[:len(listed.args) - len(listed.defaults)]]
+        found[key.value] = [name for name in needed if name not in spec and name not in ARGUMENTS_GIVEN]
+    return {recipe: missing for recipe, missing in found.items() if missing}
+
+
 def pictured_case(tmp_path, name, material, box):
     """The cockpit row: its close-up (a red square, true alpha) kept in the store, rendered as its close-up, and a
     made box at its target size measured against it (branch A's kept `finished`, no finish parts)."""
@@ -344,6 +378,7 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
         assert looked(tmp_path, name, view) == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL)), name
+        assert undrawn(tmp_path) == {}, "the look draws every recipe family"
 
     made = []
 

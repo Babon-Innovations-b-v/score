@@ -28,7 +28,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
 - **B's `look` step** (#182, after `finish`): the finish drawn as the bake paints it (`finish.look_job`, `look.py`
   through the card queue): the final model whole, its own vertex normals kept, each slot's recipe mixed in by its
   texel mask (the finish's texels.npz) on the model's own UVs, from the close-up's camera; `look.png` (1080) and
-  `look-360.png`. A finish with no texels.npz, or texels of several pictures, is the step's gap.
+  `look-360.png`. A finish with no texels.npz, or texels of several pictures, is the step's gap. Every recipe of
+  recipes.py draws: a colour setting a variant names none of is its own colour, a printed or screen surface with no
+  picture draws a clear one (`part_spec`).
 - **The material class is the route's, never the truth's** (`material_for`: a word of the id, else the kind's
   class), the same for both branches; the truth's physics material is what the measures compare it with.
 - **B's `physics` step is make's physics on its finished model** (#159, #161's rules through maker/sim.py): each
