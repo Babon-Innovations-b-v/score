@@ -22,7 +22,8 @@ ground one seamless GROUND_TILE box-projected; its base colour, metal-roughness 
 object's own buffer. A picture-made model's parts (a take, a TRELLIS.2 model: finished.picture_made) are baked shaded
 as the bench draws its look (shade_of, #209): their base colour darkened by the model's own ambient occlusion and, where
 make kept its decoded mesh in the place's made/ folder, in the seams it holds. Every picture an object carries (baked, an image surface's, a library glTF's, a character's) is
-written at most HELD_TEXELS a side, as the game holds it (a bigger one halved as its mips are made), and pictures of
+written at most HELD_TEXELS a side, as the game holds it (a bigger one halved as its mips are made; a film package's
+at FILM_CAPS, every baked map whole: capped), and pictures of
 one object alike in bytes and in how they are read are one picture (pictures_held). A glTF-only model or take laid in its own bake (no look of the place's on it) goes as its library
 entry's own glTF, unchanged.
 Two objects that convert to the same file are one object. A copy turned and scaled evenly keeps its object in its
@@ -85,7 +86,7 @@ DENSITY = 512
 NEAR = 2.0  # metres from an eye within which a face gets DENSITY (a texel a pixel at 2 m, above); farther, less (#153)
 EYE_CELL = 1.0  # metres: the walkers' eyes kept one a cube this wide (thinned), each face's distance less its diagonal
 LEAST_DENSITY = 16  # texels a metre no baked face goes under however far (6 cm a texel: a far wall's courses still read)
-LARGEST = 4096
+LARGEST = 4096  # the game's; a film package's is FILM_CAPS' (capped)
 PADDING = 4
 SPAN_SHARE = 0.9  # how much of a map's side one block of a part may span (blocks_of): its charts' slack
 FILL = 0.5  # how much of a LARGEST map one group of blocks may hold at DENSITY (map_groups): xatlas's packing slack
@@ -96,6 +97,11 @@ GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
 TEXTURES = "textures"  # the baked pictures' folder beside the objects' .gltf files
 HELD_TEXELS = 2048  # the longest side a package's picture is written at: the side the game holds it at (2099 #161,
 # PlaceTextures.MostTexels), so a picture over it is written as the game's own taken-down mip, never decoded at 4096
+# A film package's texture caps (`package --film`, an Unreal film render, #215, #221): a game's package keeps the game's
+# own (HELD_TEXELS the side 2099 holds a picture at, LARGEST its biggest baked map); a film's keeps every baked map
+# whole (held no smaller than its largest map) on maps up to 8192 a side, Unreal's own texture limit, since quality is
+# no cost lever for a film. A film's laid ground's GROUND_TILE is then baked at 8192 too (1024 texels a metre).
+FILM_CAPS = {"held_texels": 8192, "largest": 8192}
 BLOCK_TEXELS = 4  # every picture written has sides a multiple of this: an engine compresses it in 4 x 4 blocks
 # (DXT/BC), and 2099 held one of another side raw (flat@4: 4.4 GB of its 5.5 GB uncompressed, 1182 x 1792 maps)
 # The final render's grade, which the engine's tone mapping takes (blender_views.CONTRAST, usd_views' AgX).
@@ -1782,10 +1788,31 @@ def ground_albedo(out, jobs):
     return [round(float(value), 6) for value in linear.reshape(-1, 3).mean(axis=0)]
 
 
-def packaged(folder, out, baker=blender_baked, grader=blender_graded, draft=False):
-    """The package written, its palette recipes baked (`baker(out, jobs)` writes each job's pictures) and put on
-    their looks (a `draft`'s never: DRAFT), its grade drawn (`grader(out, environment)` writes GRADE_FILE:
-    environment `grade`), and checked by package.py's own check: its summary, or Refused naming its problems."""
+@contextlib.contextmanager
+def capped(film):
+    """HELD_TEXELS and LARGEST as FILM_CAPS while a `film` package is written, the game's kept for any other (and
+    set back after): the caps in force, {use ("film" or "game"), held_texels, largest}."""
+    global HELD_TEXELS, LARGEST
+    kept = HELD_TEXELS, LARGEST
+    if film:
+        HELD_TEXELS, LARGEST = FILM_CAPS["held_texels"], FILM_CAPS["largest"]
+    try:
+        yield {"use": "film" if film else "game", "held_texels": HELD_TEXELS, "largest": LARGEST}
+    finally:
+        HELD_TEXELS, LARGEST = kept
+
+
+def packaged(folder, out, baker=blender_baked, grader=blender_graded, draft=False, film=False):
+    """The package written under its texture caps (a `film`'s raised, a game's kept: capped, scene.json `textures`),
+    its palette recipes baked (`baker(out, jobs)` writes each job's pictures) and put on their looks (a `draft`'s never:
+    DRAFT), its grade drawn (`grader(out, environment)` writes GRADE_FILE: environment `grade`), and checked by
+    package.py's own check: its summary, or Refused naming its problems."""
+    with capped(film) as caps:
+        return packaged_capped(folder, out, baker, grader, draft, caps)
+
+
+def packaged_capped(folder, out, baker, grader, draft, caps):
+    """packaged's body under `caps`."""
     out = pathlib.Path(out)
     scene = write(folder, out, draft)
     jobs = bake_jobs(out)
@@ -1796,6 +1823,7 @@ def packaged(folder, out, baker=blender_baked, grader=blender_graded, draft=Fals
         scene["environment"]["ground_albedo"] = ground_albedo(out, jobs)
         attached(out, jobs)
     grader(out, scene["environment"])
+    scene["textures"] = caps
     scene["environment"]["grade"] = dict(GRADE, file=GRADE_FILE, display="sRGB", layout=(
         "size tiles of size x size side by side: red along a tile, blue tile by tile, green up from the bottom row"))
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
@@ -1804,4 +1832,5 @@ def packaged(folder, out, baker=blender_baked, grader=blender_graded, draft=Fals
         raise place_build.Refused(f"the package fails its check: {'; '.join(found[:12])}")
     return {"package": str(out), "summary": package.summary(pathlib.Path(out)), "objects": len(scene["objects"]),
             "copies": len(scene["instances"]), "left_out": scene["left_out"], "baked_maps": len(jobs),
-            "sky": (scene["environment"]["sky"] or {}).get("file"), "check": "sound", "draft": draft}
+            "sky": (scene["environment"]["sky"] or {}).get("file"), "check": "sound", "draft": draft,
+            "textures": caps["use"]}

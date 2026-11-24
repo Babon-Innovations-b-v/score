@@ -22,7 +22,7 @@ the laid scene as a piece list (score.scene v2, no Blender: each library piece o
 made geometry as untextured GLBs a mesh a part, each copy's parts' looks, its check sound and refusing a stale digest,
 a withdrawn entry, a changed made file and a part with no look) and
 the laid scene packaged for an engine (score.scene v1, package.py's check sound) with every copy filling its laid box,
-copies in one surface one object, a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
+copies in one surface one object, its texture caps the game's (a film package's raised, the game's set back after), a glTF model laid unchanged its own library glTF, its looks as PBR (a palette
 recipe baked into its own maps, on a ground one seamless tile; glass as transmission), its colliders from the
 physics check's roles and the place's environment (its night, sun and grade), its bake run a few maps of one object at
 a time and a stopped bake resumed from the maps it finished, a changed object's maps baked again. A wall the camera cuts (place.json `cut`) is
@@ -232,6 +232,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.object_prim: Effects not looked in -> the ruts take no surface ("no object ruts")
 - scene_package.copy_frame: every copy kept whole (no evenness test) -> a stretched copy fails the package check
 - scene_package.taken_down: every picture kept at its own size -> a 64 texel map is packaged over HELD_TEXELS
+- scene_package.capped: FILM_CAPS unread (`film` ignored) -> a film package holds the 64 map at the game's 32
+- scene_package.capped: the caps not set back after -> the game's package holds the 64 map whole after a film's
+- scene_package.packaged_capped: `textures` left out of scene.json -> the package names no caps it was written under
 - scene_package.pictures_held: no picture held once (`by_bytes` unread) -> two of an object's images hold one picture
 - scene_package.pictures_read_as: every map read as linear -> the base colour shares its picture with linear maps
 - scene_package.held_image: unread in pbr (every map held whole) -> the dune's look holds its sand map at 64
@@ -321,6 +324,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   instanceable prim reads no ground (#155)
 """
 import hashlib
+import io
 import json
 import math
 import pathlib
@@ -1587,12 +1591,24 @@ def packaged(folder, out):
     dune_prim = held.GetPrimAtPath(f"/{held.GetDefaultPrim().GetName()}/Objects/dune")
     assert {look["material"].baseColorTexture.size for look in scene_package.looks_of(dune_prim).values()
             if look["material"].baseColorTexture is not None} == {(32, 32)}  # a look holds what the package writes
+    # a film package's caps (#221): a map the game holds at 32 kept whole, on maps up to the film's largest, and the
+    # game's caps back after
+    scene_package.FILM_CAPS, film_caps = {"held_texels": 64, "largest": 128}, scene_package.FILM_CAPS
+    map_bytes = io.BytesIO()
+    Image.new("RGB", (64, 64)).save(map_bytes, format="PNG")
+    with scene_package.capped(True) as caps:
+        film_held = Image.open(io.BytesIO(scene_package.taken_down(map_bytes.getvalue())[0])).size, scene_package.LARGEST
+    game_held = Image.open(io.BytesIO(scene_package.taken_down(map_bytes.getvalue())[0])).size, scene_package.LARGEST
+    scene_package.FILM_CAPS = film_caps
+    assert (caps, film_held, game_held) == ({"use": "film", "held_texels": 64, "largest": 128}, ((64, 64), 128),
+                                            ((32, 32), 64)), (caps, film_held, game_held)
     scene_package.DENSITY, scene_package.LARGEST, scene_package.HELD_TEXELS = 512, 4096, 2048
     # a character at a time: the leader written before the crowd's first person is made, so no two are held at once
     assert events.index(("written", "leader")) < next(at for at, (what, path) in enumerate(events)
                                                       if what == "made" and "crowd" in path), events
     assert (out / scene_package.BAKE / "kept.done").is_file() and not (out / "old.json").exists()
     scene = json.loads((out / "scene.json").read_text())
+    assert scene["textures"] == {"use": "game", "held_texels": 32, "largest": 64}, scene["textures"]
     copies = {copy["name"]: copy for copy in scene["instances"]}
     # the re-finished take's maps alone shaded by its own occlusion and the seams of its decoded mesh (#209)
     cup_file = scene["objects"][copies["cup"]["object"]]["file"]

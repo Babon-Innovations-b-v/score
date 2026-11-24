@@ -60,6 +60,9 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          16-bit PNG under the package), size, low, high, middle, display, layout}: the view transform
                          and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -
                          low)) for c from 0 to 1 in its lattice
+    textures             [place_build] the caps its pictures were written under: {use ("game", or "film" for an
+                         Unreal film render, `package --film`), held_texels (the longest side a picture is written
+                         at), largest (the longest side of a baked map)}
     draft                [place_build] present only on a preview that never ships (`package --draft`): {baked: false,
                          why}; its palette recipes are their plain colour, metal and roughness, never baked, and
                          score-lib take-in refuses a place whose package carries it
