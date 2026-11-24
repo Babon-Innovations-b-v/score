@@ -24,7 +24,9 @@ any other surface's factors (colour, roughness, metal, opacity, glow) and its ma
 (the piece's own texture: a picture-made model left in its bake, a character). Lamps, doors, chambers, colliders and
 the environment are version 1's (scene_package), but the sky is named by its library reference, never copied, and
 nothing drawn by Blender is written: no grade lattice (the same for every place: scene_package.VIEW and GRADE) and no
-ground albedo (it came from the bake).
+ground albedo (it came from the bake). A place seated in an area whose seat names the area's exposure (area.area) is
+lit for it (relit): its lamps, sky light and glows scaled by its own exposure over the area's, its exposure the area's,
+so it draws in the area's one grade as its own render drew it.
 """
 import hashlib
 import json
@@ -364,6 +366,37 @@ def character_pieces(out, prim, kind, pieces, made, looks):
     return copies, refused
 
 
+def relit(lamps, environment, looks, exposure):
+    """A seated place's light made for its area's one grade, in place: every lamp, its ambient, background, sun and
+    moon and every look's glow times its own exposure over the area's (`exposure`, its seat's: the area's outside
+    place's), and its exposure the area's, so the place draws as its own render did once graded at the area's exposure
+    (2099 grades an area once, at its lighter's: the stairwell's lamps, lit for 3.75, drew 6.8 times too dark under the
+    square's 0.55). `environment.relit` says by how much; nothing changes when no exposure is given."""
+    if not exposure:
+        return
+    times = environment["exposure"] / float(exposure)
+    for lamp in lamps:
+        for key in ("intensity", "watts", "strength"):
+            if key in lamp:
+                lamp[key] = round(lamp[key] * times, 6)
+    for key in ("ambient", "background"):
+        if environment.get(key):
+            environment[key] = [round(value * times, 6) for value in environment[key]]
+    for light in (environment.get("sun"), (environment.get("night") or {}).get("moon")):
+        if light:
+            light["strength"] *= times
+    for look in looks.values():
+        numbers = look.get("spec") or look
+        glow = numbers.get("glow")
+        if isinstance(glow, list):
+            numbers["glow"] = [round(value * times, 6) for value in glow]
+        elif glow:
+            numbers["glow"] = round(glow * times, 6)
+    environment.update(exposure=float(exposure), relit={
+        "times": round(times, 6), "why": f"lit for the area's exposure {float(exposure):g}, not its own "
+                                         f"{float(exposure) * times:g}: its lamps, sky light and glows times {times:.4g}"})
+
+
 def write(folder, out):
     """The laid place in <folder> as a piece list in <out>, laid at its area seat (scene_package.seated); scene.json's
     content."""
@@ -421,12 +454,13 @@ def written_pieces(folder, out, stage, place, seat):
             copy["door"] = doors[copy["name"]]
     environment = scene_package.environment_of(stage, place, None)
     environment.update(ground_albedo=None, grade=None)
+    lamps = [lamp for lamp in scene_package.lamps_of(stage, place) if lamp["name"] not in neighbours]
+    relit(lamps, environment, looks, (seat or {}).get("exposure"))
     scene = {"format": package.FORMAT, "version": package.PIECES, "place": place,
              "frame": f"the area {seat['area']}'s frame (the place's seat, {seat['from']}): metres, y up"
              if seat else "the place's own frame: metres, y up", "units": "metre", "up": "+y",
              "ground": scene_package.GROUND, "on_seat": [0.0, 0.0], "pieces": pieces, "looks": looks,
-             "copies": copies, "lamps": [lamp for lamp in scene_package.lamps_of(stage, place)
-                                         if lamp["name"] not in neighbours],
+             "copies": copies, "lamps": lamps,
              "counts": counts, "physics": "ready.json" if roles is not None else None, "left_out": left_out,
              "chambers": chambers, "environment": environment}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")

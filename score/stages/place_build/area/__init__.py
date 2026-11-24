@@ -13,7 +13,9 @@ sill middle, its inward way (into its own place) and its width, and the place it
     seated(plans, outside, folders)         {place: its seat}, each joined place at its plan's storey height with its
                                             door on its neighbour's, the rest as laid; the joins and their faults
     shells_crossed(folders, seats)          a fault for each two seated places' shells standing inside each other
-    area(plans, outside, folders, out)      the seats and the joins check written as one record (seats.json)
+    area(plans, outside, folders, out)      the seats and the joins check written as one record (seats.json), each
+                                            seat with the outside's exposure when its folder is given
+    exposure_of(folder)                     a place's camera exposure: the area's one grade when it is the outside
 
 A seat is the place's frame in the area's: a turn about up and a shift, a 4 x 4 matrix in USD's row-vector order
 (the 16 numbers of glTF's column-major matrix). The outside place is the area's frame; when no place left is joined
@@ -427,11 +429,22 @@ def shells_crossed(folders, seats):
     return faults
 
 
+def exposure_of(folder):
+    """The place's camera exposure (its Environment's score:exposure, a multiplier as place_build.night and sky_at lay
+    it), 1 when it names none: the exposure an area of it is graded at when it is the area's outside place."""
+    stage, place = place_build.opened(folder)
+    sky = stage.GetPrimAtPath(f"/{place}/Environment")
+    given = sky.GetAttribute("score:exposure") if sky else None
+    return float(given.Get()) if given and given.HasValue() else 1.0
+
+
 def area(plans, outside, folders, out=None, seat=False, stands=None):
     """The area's seats and its joins and shells checks as one record (written to `out` when given): every place's
     seat (`stands` laid as it is, seated), every planned join judged, every two places' shells crossed, and every
     fault; with `seat`, each place's seat also written
-    into its folder's place.json `seat` (the package then lays the place in the area's frame: scene_package.seated)."""
+    into its folder's place.json `seat` (the package then lays the place in the area's frame: scene_package.seated),
+    with the outside place's exposure when its folder is given (the piece list then lights the place for the area's one
+    grade: pieces.relit)."""
     seats, joins, faults = seated(plans, outside, folders, stands)
     judged_joins = [judged(folders, seats, ends) for ends in joins]
     faults += shells_crossed(folders, seats)
@@ -441,10 +454,13 @@ def area(plans, outside, folders, out=None, seat=False, stands=None):
               "joins": judged_joins,
               "faults": faults + [fault for entry in judged_joins for fault in entry["faults"]],
               "frame": "each seat the place's frame in the area's, USD's row-vector order (glTF's column-major)"}
+    exposure = exposure_of(folders[outside]) if outside in folders else None
+    if exposure is not None:
+        record["exposure"] = exposure
     if out:
         pathlib.Path(out).write_text(json.dumps(record, indent=1))
     for name, folder in folders.items() if seat else ():
         laid = place_build.record_of(folder)
-        laid["seat"] = {"area": outside, **record["seats"][name]}
+        laid["seat"] = {"area": outside, **record["seats"][name], **({} if exposure is None else {"exposure": exposure})}
         place_build.write_record(folder, laid)
     return record

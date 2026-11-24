@@ -8,7 +8,8 @@ core's 1.02 m doorway, and when the flat joins no doorway back (no doorway joine
 from the stairwell its door leads to is still joined and seated by the built doorways, the plan told; a flat given to
 stand stands as laid at its plan's storey and the stairwell is seated onto it at its own floor. A stairwell whose own
 plan holds the flat (the area's outside, as the pad holds its capsule) seats the flat onto its door the same way, the
-stairwell itself the area's frame. Each seat written into its place.json is where the package
+stairwell itself the area's frame, its exposure the seats' own, so the flat's piece list is lit for the
+stairwell's grade (its bulb's watts times its own exposure over the stairwell's). Each seat written into its place.json is where the package
 lays the place: the flat's front door packaged on the stairwell's doorway, its scene file unseated. A block of the
 flat's own standing in the stairwell's core is told (seated shells may not stand inside each other); listed as the
 flat's backdrop (a neighbour place stands for it) it is no shell of the flat and its package leaves it out; such a
@@ -28,11 +29,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   town's middle, not at its hold 8 m west and 8.5 m north
 - area.seated: `stands` unread (lowest first) -> the stairwell stands as laid and the flat given to stand is seated
 - scene_package.seated: the seat left off the package -> the packaged front door stands at the flat's own spot
+- pieces.relit: the lamps left at their own watts -> the flat's 100 W bulb stays 100 W under the area's 0.5 grade
+  (lit for its own 2: drawn four times too dark)
 - area.area: shells_crossed unread -> the flat's block standing in the stairwell's core passes
 - scene_package.written_scene: the backdrop packaged when seated -> the flat's block is packaged beside its front door
 - area.joined_stage: the backdrop laid on the join's stage -> the backdrop block across the flat's way in walls it off
 """
 import json
+import math
 
 import numpy as np
 import pytest
@@ -138,6 +142,11 @@ def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joi
     block = ACROSS if "across its way in" in case else BLOCK
     folders = {"stairwell": stairwell(tmp_path / "stairwell", joined),
                "flat": flat(tmp_path / "flat", joined_back, wide, backdrop, block)}
+    if told == "holder":  # the outside graded at 0.5, the flat lit for 2 by a 100 W bulb
+        moon = {"elevation": 38.0, "heading": 112.0, "strength": 0.04, "colour": [0.5, 0.6, 1.0]}
+        place_build.night(folders["stairwell"], [0.01, 0.02, 0.04], [0.0, 0.0, 0.01], 0.5, moon)
+        place_build.night(folders["flat"], [0.01, 0.02, 0.04], [0.0, 0.0, 0.01], 2.0, moon)
+        place_build.light(folders["flat"], "bulb", at=(0.0, 2.5, 0.0), watts=100)
     record = area.area(plans(tmp_path / "plans", sill, apart, outside), outside, folders, tmp_path / "seats.json",
                        seat=True, stands=stands)
     if told == "holder":
@@ -146,6 +155,12 @@ def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joi
         assert "on stairwell's doorway" in record["seats"]["flat"]["from"] and abs(seats["flat"][3, 1] - 3.0) < 1e-6, \
             record["seats"]
         assert record["joins"][0]["walked"] > 1.5, record["joins"]
+        from score.stages.place_build import pieces
+        lit = pieces.write(folders["flat"], tmp_path / "flat_pieces")  # lit for the area's 0.5: four times its lamps
+        [bulb] = [lamp for lamp in lit["lamps"] if lamp["name"] == "bulb"]
+        assert place_build.record_of(folders["flat"])["seat"]["exposure"] == 0.5 and abs(bulb["watts"] - 400.0 * math.pi) < 1e-3 \
+            and lit["environment"]["exposure"] == 0.5 and lit["environment"]["relit"]["times"] == 4.0, \
+            (bulb, lit["environment"])
     elif told == "stands":
         assert "on flat's doorway" in record["seats"]["stairwell"]["from"], record["seats"]
         seats = {name: np.asarray(record["seats"][name]["matrix"]).reshape(4, 4) for name in folders}

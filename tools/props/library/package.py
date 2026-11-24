@@ -55,7 +55,9 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          (linear), `background` [r, g, b] or null, `exposure` (a multiplier), `view_transform` and
                          `look` (the grade the engine's tone mapping takes), `sun` {name, elevation, heading (degrees
                          round from +x towards +z), strength (Blender's W/m²), colour, angle} or null, `night` {moon
-                         (as the sun), glow {threshold, intensity} or null} or null, `ground_albedo` [r, g, b] (linear: the laid ground's
+                         (as the sun), glow {threshold, intensity} or null} or null, `relit` {times, why} when a piece
+                         list seated in an area is lit for the area's exposure (its lamps, sky light and glows times
+                         its own exposure over the area's, `exposure` then the area's), `ground_albedo` [r, g, b] (linear: the laid ground's
                          baked tile's mean base colour, the light it throws back up) or null, `grade` {file (a
                          16-bit PNG under the package), size, low, high, middle, display, layout}: the view transform
                          and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -
