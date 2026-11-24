@@ -22,6 +22,12 @@ HERE = pathlib.Path(__file__).resolve().parent
 SEED = 42
 TEXTURE = 2048
 FACES = 500000
+# to_glb's remesh contours the surface lying BAND voxels off TRELLIS.2's own, then moves each vertex PROJECT of the way
+# back to it: one voxel off, as at band 1 with no projection (the shape kept: the bench's shape moved 0.3 thousandths
+# of the box on the fridge, 0.07 on the locker), while a hole through a thin sheet up to BAND voxels across is closed
+# (#191: at band 1 the fridge's 2 mm glass door kept 155 pinholes seen straight on, 4 at band 3).
+BAND = 3
+PROJECT = 1 - 1 / BAND
 # 1024_cascade never uses the 512 texture flow model, so it is not loaded (2.6 GB of RAM).
 MODELS = ["sparse_structure_decoder", "sparse_structure_flow_model", "shape_slat_decoder", "shape_slat_flow_model_512",
           "shape_slat_flow_model_1024", "tex_slat_decoder", "tex_slat_flow_model_1024"]
@@ -129,7 +135,7 @@ def made(pipeline, picture, out, faces=FACES):
     glb = o_voxel.postprocess.to_glb(
         vertices=mesh.vertices, faces=mesh.faces, attr_volume=mesh.attrs, coords=mesh.coords,
         attr_layout=mesh.layout, voxel_size=mesh.voxel_size, aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
-        decimation_target=faces, texture_size=TEXTURE, remesh=True, remesh_band=1, remesh_project=0, verbose=False)
+        decimation_target=faces, texture_size=TEXTURE, remesh=True, remesh_band=BAND, remesh_project=PROJECT, verbose=False)
     glb.export(str(out), extension_webp=False)
     return {"faces": int(len(glb.faces)), "vertices": int(len(glb.vertices))}
 

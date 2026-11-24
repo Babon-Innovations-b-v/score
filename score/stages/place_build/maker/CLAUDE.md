@@ -21,6 +21,10 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   each step's scratch dropped once read); each is bit for bit the code it replaces (the test's torch rows, run in the
   maker's Python). `generate.capped` holds torch's allocator to the card's free memory, so a real shortage is an
   out-of-memory, never the driver error. The printer box: 10.2 GB of tensors at most, 13.1 GB of card, 17.4 GB of RAM.
+- **Thin sheets kept whole** (#191: the fridge's 2 mm glass door came out with pinholes straight through): to_glb's
+  remesh contours the surface BAND (3) voxels off TRELLIS.2's and projects each vertex back to one voxel off, where
+  band 1 left it; a hole up to BAND voxels across closes, the shape stays (0.3 thousandths of the box on the fridge).
+  Real openings wider than that (the locker's vents, a shelf's cells) stay open.
 - **Its mesh repaired, its shape kept** (repair.py, #167: tc1's TRELLIS.2 models held 30 to 2,290 edges four faces
   held, membranes of two opposite faces and, on the rack, 289 crumbs). On the fitted GLB, every attribute carried with
   its vertex: collapsed faces and membranes out; a corner where two solids touch is one corner a fan, the further
