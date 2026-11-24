@@ -11,7 +11,8 @@ plan holds the flat (the area's outside, as the pad holds its capsule) seats the
 stairwell itself the area's frame. Each seat written into its place.json is where the package
 lays the place: the flat's front door packaged on the stairwell's doorway, its scene file unseated. A block of the
 flat's own standing in the stairwell's core is told (seated shells may not stand inside each other); listed as the
-flat's backdrop (a neighbour place stands for it) it is no shell of the flat and its package leaves it out.
+flat's backdrop (a neighbour place stands for it) it is no shell of the flat and its package leaves it out; such a
+backdrop block standing across the way in from the flat's door walls no walker off (the game leaves it out).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - area.seat_onto: `rise` left out of the seat's height -> the flat sits at the street's level, 3 m under its doorway
@@ -29,6 +30,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.seated: the seat left off the package -> the packaged front door stands at the flat's own spot
 - area.area: shells_crossed unread -> the flat's block standing in the stairwell's core passes
 - scene_package.written_scene: the backdrop packaged when seated -> the flat's block is packaged beside its front door
+- area.joined_stage: the backdrop laid on the join's stage -> the backdrop block across the flat's way in walls it off
 """
 import json
 
@@ -86,16 +88,16 @@ def stairwell(folder, joined):
     return folder
 
 
-def flat(folder, joined_back, wide, backdrop):
+def flat(folder, joined_back, wide, backdrop, block):
     """A room 4 x 4 m on its own floor at 0, its front door's leaf `wide` metres (marked to open) on its north edge,
-    and beyond that door, beside the way in, its concept's block where the stairwell is seated: listed as its
-    backdrop (a neighbour place stands for it) when `backdrop`."""
+    and its concept's `block` (low corner, size): beyond that door beside the way in, where the stairwell is seated,
+    or across the way in; listed as its backdrop (a neighbour place stands for it) when `backdrop`."""
     folder = started(folder, "flat")
     stage, place = place_build.opened(folder)
     box(stage, place, "floor", (4.0, 0.2, 4.1), (-2.0, -0.2, -4.0), "structure")
     leaf = box(stage, place, "front_door", (wide, 2.05, 0.05), (-wide / 2, 0.0, -0.05), "door")
     leaf.CreateAttribute("score:opens", Sdf.ValueTypeNames.Bool).Set(True)
-    box(stage, place, "block", BLOCK[1], BLOCK[0], "structure")
+    box(stage, place, "block", block[1], block[0], "structure")
     stage.GetRootLayer().Save()
     if backdrop:
         place_build.backdrop(folder, "block")
@@ -105,12 +107,14 @@ def flat(folder, joined_back, wide, backdrop):
 
 
 BLOCK = ((1.0, -0.5, 0.2), (3.0, 3.5, 4.0))  # the flat's concept block (low corner, size): in the core, off the way
+ACROSS = ((-2.0, 0.0, -1.3), (4.0, 2.5, 0.3))  # the flat's concept block across its way in, 1 m in from its door
 
 
 ROWS = [  # (case, the core's joined storeys, the stairwell's flat door sill on the plans, the flat joins back, its
     # leaf's width, metres the town's plan holds the flat apart, the place given to stand, the flat's block its
-    # backdrop, the area's outside, told)
+    # backdrop and where it stands, the area's outside, told)
     ("they meet", [1], 3.0, True, 0.96, 0.0, None, True, "town", None),
+    ("the flat's backdrop stands across its way in", [1], 3.0, True, 0.96, 0.0, None, True, "town", None),
     ("the flat stands as laid", [1], 3.0, True, 0.96, 0.0, "flat", True, "town", "stands"),
     ("the stairwell holds the flat", [1], 3.0, True, 0.96, 0.0, None, True, "stairwell", "holder"),
     ("the town's plan holds the flat apart", [1], 3.0, True, 0.96, 6.0, None, True, "town",
@@ -131,8 +135,9 @@ ROWS = [  # (case, the core's joined storeys, the stairwell's flat door sill on 
 def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joined_back, wide, apart, stands,
                                                backdrop, outside, told):
     from score.stages.place_build import scene_package
+    block = ACROSS if "across its way in" in case else BLOCK
     folders = {"stairwell": stairwell(tmp_path / "stairwell", joined),
-               "flat": flat(tmp_path / "flat", joined_back, wide, backdrop)}
+               "flat": flat(tmp_path / "flat", joined_back, wide, backdrop, block)}
     record = area.area(plans(tmp_path / "plans", sill, apart, outside), outside, folders, tmp_path / "seats.json",
                        seat=True, stands=stands)
     if told == "holder":

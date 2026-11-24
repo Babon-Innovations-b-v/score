@@ -289,7 +289,10 @@ def seated_bounds(prim, seat):
 
 def joined_stage(folders, seats, places, middle):
     """An in-memory stage /area/Objects holding, seated, every object of `places` whose box in the area comes within
-    REACH of `middle`: each a reference to its own scene's object, its seat the first (outermost) of its ops."""
+    REACH of `middle`, each place's backdrop (place.json `backdrop`: a neighbour stands for it, its package leaves it
+    out) left out as the game leaves it (2099's prologue, 2026-11-24: the stairwell's flat_wall, which the flat stands
+    for, walled the flat's join off): each a reference to its own scene's object, its seat the first (outermost) of
+    its ops."""
     stage = Usd.Stage.CreateInMemory()
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     root = UsdGeom.Xform.Define(stage, f"/{AREA}")
@@ -300,7 +303,10 @@ def joined_stage(folders, seats, places, middle):
         source, place = place_build.opened(folders[name])
         path = str(place_build.scene_path(folders[name]).resolve())
         seat = seats[name]["matrix"]
+        neighbours = set(place_build.record_of(folders[name]).get("backdrop") or [])
         for prim in source.GetPrimAtPath(f"/{place}/Objects").GetChildren():
+            if prim.GetName() in neighbours:
+                continue
             bounds = seated_bounds(prim, seat)
             if bounds is None or np.any(bounds[1] < low) or np.any(bounds[0] > high):
                 continue

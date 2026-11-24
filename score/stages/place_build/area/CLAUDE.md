@@ -24,7 +24,7 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
   an area's places where their packages put them, so no game-side offset remains.
 - **The joins check**: sills within LEVEL, middles within ALIGN, facing within FACING, a leaf no wider than the
   doorway it is seated in (ready.FIT), and a walker's way WALKWAY wide from INSIDE in from one doorway to INSIDE in
-  from the other over both places' objects round the join, seated, every doorway open (ready.route_on, as the walkway
+  from the other over both places' objects round the join (their backdrops left out, as the game leaves them), seated, every doorway open (ready.route_on, as the walkway
   check judges a doorway a way). A failed join is fixed in the place (rebuilt) or the plan, never by a looser measure.
 - **The shells check** (`shells_crossed`, 2099's prologue 2026-11-22: the walker began inside the street's block,
   the flat and stairwell seated within it): every two seated places' shell objects (SHELLS, ready.role_of; a place's
