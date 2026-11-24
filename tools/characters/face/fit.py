@@ -34,6 +34,17 @@ BORDER_NEAR = 0.025
 BORDER_INSIDE = 0.001
 CENTRE_BEHIND = 0.08  # the head's centre for the border's projection: this far behind the eyes
 CENTRE_BELOW = 0.03  # and this far below them
+MODEL_METRE = 100.0  # ICT-FaceKit's points are in centimetres
+# ICT's face piece ends on each ear's helix rim; the ear's back is its head_and_neck piece's. A head_and_neck point
+# whose normal turns more than 60 degrees from facing out of the head's centre faces the head: the ear's back. Left
+# out, the rim was the face's border, laid on the skin, and the ears lay glued flat onto the head (#226, 2026-11-24).
+EAR_BACK_FACING = 0.5
+# An ear stands off the head as an ear: its outer edge (its skin within EAR_REACH of the helix's back) at most this
+# far from the head's skin behind it, in mm (cephaloauricular distance, adult norms about 15 to 22; ICT's generic ear
+# at the officer's scale 19.5), and its back, from the helix to its root on the head, this deep in mm (ICT's 5.6).
+EAR_REACH = 0.01
+EAR_PROTRUSION_MM = (12.0, 30.0)
+EAR_DEPTH_MM = (3.0, 15.0)
 
 
 def eye_centres(points):
@@ -109,6 +120,79 @@ def fit_pose_and_identity(model, body):
     return scale, turn, shift, coefficients
 
 
+def ear_backs(model):
+    """Each ear's back, as head_and_neck point indices: grown from the face's border through head_and_neck points
+    facing the head (EAR_BACK_FACING), the parts standing wholly further out to the side than the eyes (the neck's
+    cut end under the jaw also faces in, but crosses the middle)."""
+    points, triangles = model["neutral"], model["triangles"]
+    first, last = ict.PIECES["head_and_neck"]
+    head = triangles[(triangles <= last).all(axis=1)]
+    normal = trimesh.Trimesh(points, head, process=False).vertex_normals
+    out = points - (eye_centres(points).mean(axis=0) + np.array([0.0, -CENTRE_BELOW, -CENTRE_BEHIND]) * MODEL_METRE)
+    facing = np.einsum("pd,pd->p", normal, out / np.linalg.norm(out, axis=1, keepdims=True))
+    loop = border_loop(piece_triangles(model, "face"))
+    allowed = np.zeros(len(points), dtype=bool)
+    allowed[first:last + 1] = facing[first:last + 1] < EAR_BACK_FACING
+    allowed[loop] = True
+    graph = edge_graph(points, head)
+    grown_back = grown(graph, loop, allowed)
+    grown_back[loop] = False
+    edges = graph.tocoo()
+    inside = grown_back[edges.row] & grown_back[edges.col]
+    labels = connected_components(coo_matrix((np.ones(inside.sum()), (edges.row[inside], edges.col[inside])),
+                                             shape=graph.shape), directed=False)[1]
+    eye_side = np.abs(eye_centres(points)[:, 0]).max()
+    parts = [np.flatnonzero(grown_back & (labels == label)) for label in np.unique(labels[grown_back])]
+    backs = [part for part in parts if (np.abs(points[part, 0]) > eye_side).all()]
+    if len(backs) != 2:
+        raise RuntimeError(f"found {len(backs)} ear backs on ICT's head, not two")
+    return backs
+
+
+def skin_triangles(model):
+    """The face's skin: ICT's face piece and each ear's back (ear_backs), with the triangles spanning the two."""
+    triangles = model["triangles"]
+    on = np.zeros(len(model["neutral"]), dtype=bool)
+    on[:ict.PIECES["face"][1] + 1] = True
+    on[np.concatenate(ear_backs(model))] = True
+    return triangles[on[triangles].all(axis=1)]
+
+
+def ears(model):
+    """Each ear's helix rim (the face piece's border along its back) and root (the skin's border along it), as point
+    indices: [(rim, root), ...]."""
+    triangles = model["triangles"]
+    face_loop = border_loop(piece_triangles(model, "face"))
+    skin_loop = border_loop(skin_triangles(model))
+    found = []
+    for back in ear_backs(model):
+        touching = np.unique(triangles[np.isin(triangles, back).any(axis=1)])
+        found.append((np.intersect1d(face_loop, touching), np.intersect1d(skin_loop, touching)))
+    return found
+
+
+def ear_measures(points, ear_list, skin, head):
+    """Each ear's (protrusion, depth) in mm: the largest distance from the `head` mesh (the skin behind it) of its skin
+    (`skin` triangles) within EAR_REACH of its helix, and its helix's mean distance from its root."""
+    measured = []
+    for rim, root in ear_list:
+        along, _ = graph_distance(points, skin, rim)
+        _, apart, _ = trimesh.proximity.closest_point(head, points[along < EAR_REACH])
+        depth = np.linalg.norm(points[rim][:, None] - points[root][None], axis=2).min(axis=1).mean()
+        measured.append((round(float(apart.max()) * 1000, 1), round(float(depth) * 1000, 1)))
+    return measured
+
+
+def ears_standing(measured):
+    """The measures, refused when an ear is squashed: its protrusion or depth outside EAR_PROTRUSION_MM, EAR_DEPTH_MM."""
+    for side, (protrusion, depth) in enumerate(measured):
+        if not (EAR_PROTRUSION_MM[0] <= protrusion <= EAR_PROTRUSION_MM[1] and
+                EAR_DEPTH_MM[0] <= depth <= EAR_DEPTH_MM[1]):
+            raise RuntimeError(f"ear {side} is squashed: it stands {protrusion} mm off the head (wanted "
+                               f"{EAR_PROTRUSION_MM}), {depth} mm rim to root (wanted {EAR_DEPTH_MM})")
+    return measured
+
+
 def piece_triangles(model, piece):
     """The model's triangles of one piece (every corner within its points)."""
     first, last = ict.PIECES[piece]
@@ -179,23 +263,23 @@ def laid_on_skin(points, face_triangles, loop, head):
     BLEND_METRES in), and that share. Where ICT's face stands off the body's head (its jaw's sides stood up to 20 mm
     off the officer's) the band round the border follows its border down, so no gap opens under it. Each point moves
     as its nearest border point moves, the border's moves smoothed along it (BORDER_SMOOTHING): snapped onto the skin
-    one by one, the ears, which stand off the head within the band, were crushed flat onto it. Points of other pieces
-    move with their nearest face point."""
-    face_count = ict.PIECES["face"][1] + 1
-    distance, nearest = graph_distance(points[:face_count], face_triangles, loop)
+    one by one, the ears, which stand off the head within the band, were crushed flat onto it. Points off the face's
+    triangles move with their nearest point on them; the share is 0 off them."""
+    skin = np.unique(face_triangles)
+    distance, nearest = graph_distance(points, face_triangles, loop)
     share = body_share(distance)
     snapped, _, _ = trimesh.proximity.closest_point(head, points[loop])
     reach = np.arange(-BORDER_SMOOTHING, BORDER_SMOOTHING + 1)
     border_move = (snapped - points[loop])[(np.arange(len(loop))[:, None] + reach) % len(loop)].mean(axis=1)
-    move_of = np.zeros_like(points[:face_count])
+    move_of = np.zeros_like(points)
     move_of[loop] = border_move
     move = np.zeros_like(points)
     reached = nearest >= 0
-    move[:face_count][reached] = move_of[nearest[reached]] * share[reached, None]
+    move[reached] = move_of[nearest[reached]] * share[reached, None]
     move[loop] = snapped - points[loop]  # the border itself lands on the skin
-    rest = np.arange(face_count, len(points))
-    _, owner = cKDTree(points[:face_count]).query(points[rest])
-    move[rest] = move[owner]
+    rest = np.setdiff1d(np.arange(len(points)), skin)
+    _, owner = cKDTree(points[skin]).query(points[rest])
+    move[rest] = move[skin[owner]]
     return points + move, share
 
 
@@ -400,14 +484,18 @@ def outward(triangles, points, centre):
 
 def fitted(body, model):
     """The face laid on the body: every model point in metres, the similarity and identity, the face's share of the
-    body per face point, the body's kept triangles and the strip joining them (strip indices: body points first,
-    then the model's points offset by the body's count))."""
+    body per model point, the body's kept triangles and the strip joining them (strip indices: body points first,
+    then the model's points offset by the body's count), and each ear's measures (ears_standing: refused when one is
+    squashed)."""
     scale, turn, shift, coefficients = fit_pose_and_identity(model, body)
     points = scale * shaped(model, coefficients) @ turn.T + shift
-    face_triangles = piece_triangles(model, "face")
+    face_triangles = skin_triangles(model)
     loop = border_loop(face_triangles)
     points, share = laid_on_skin(points, face_triangles, loop, head_mesh(body))
     kept, strip, face_loop, body_loop = seam(body["points"], body["triangles"], points, face_triangles, loop,
                                              head_centre(body), body["filled"])
+    behind = trimesh.Trimesh(np.vstack([body["points"], points]), np.vstack([kept, strip]), process=False)
+    measured = ears_standing(ear_measures(points, ears(model), face_triangles, behind))
     return {"points": points, "scale": scale, "turn": turn, "shift": shift, "identity": coefficients,
-            "share": share, "kept": kept, "strip": strip, "face_loop": face_loop, "body_loop": body_loop}
+            "share": share, "kept": kept, "strip": strip, "face_loop": face_loop, "body_loop": body_loop,
+            "ears": measured}

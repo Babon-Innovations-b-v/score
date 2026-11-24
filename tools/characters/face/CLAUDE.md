@@ -9,18 +9,24 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
 - `ict.py`: ICT-FaceKit fetched at its pinned commit and packed once into a capped cache (`~/.cache/score/ict-facekit/
   <commit>/model.npz`, 22 MB, the OBJs dropped); nothing of it is in the repo.
 - `fit.py`: the face's similarity and identity solved to the body's head (eyes on the eye joints, the narrow face on
-  the skin), the band within `BLEND_METRES` of its border moved by its border's (smoothed) moves onto the skin, by its
-  share of the body (ICT's jaw stood 20 mm off the officer's; each point snapped on its own, the ears were crushed
-  flat), the body cut inside a wall of body points drawn along the border plus the skin under the face near the
-  border joined to that cut (cut by nearness alone, the neck under the jaw and the skin before the ear were cut far
-  past it; the wall alone left half its points inside the border and the strip folded in flaps), SOMA-X's filled eye
-  and mouth bags cut with it, and a strip zipped between the two loops by their places along the face's border: one
-  shut skin.
+  the skin); the face's skin is ICT's face piece plus each ear's back (`ear_backs`: head_and_neck points grown from the
+  face's border while they face the head; ICT's face piece ends on the helix's back, and laid as the border, the
+  helix was glued flat onto the head); the band within `BLEND_METRES` of its border moved by its border's (smoothed)
+  moves onto the skin, by its share of the body (ICT's jaw stood 20 mm off the officer's), the body cut inside a wall
+  of body points drawn along the border plus the skin under the face near the border joined to that cut, SOMA-X's
+  filled eye and mouth bags cut with it, and a strip zipped between the two loops by their places along the face's
+  border: one shut skin. `ears_standing` refuses a squashed ear (its edge's distance off the head and its back's
+  depth, `EAR_PROTRUSION_MM`, `EAR_DEPTH_MM`); the run's measures go to `<out>/measures.json`.
 - `expressions.py`: MHR's control names onto ICT's ARKit-named expressions; a control ICT has none for moves the face
   by the body's own MHR offsets. On the face, each control is ICT's expression blended into the body's offsets by the
   face's share of the body (1 on the border), so the seam never opens.
-- `face.py`: the pieces (skin, mouth, teeth, eyes by UV ring, lashes grown as thin ribbons along ICT's lash cards,
-  tears), `face.npz`, and the stills through the card queue (`blender_face.py`, Cycles, each finish the library
+- `strands.py`: the brows and lashes as short strands, grown as the hair route grows (#227) and drawn as Blender hair
+  curves in its Principled Hair BSDF (the library surface's colour): brows over a band along ICT's brow landmarks,
+  pointing up at the head and outward and down at the tail, each point bound to the skin under it; lashes rooted on
+  ICT's lash cards' root edges (the lids' margins) and curled off them (ICT's cards are flat strips standing straight
+  out, their curl painted in ICT's picture), each bound to its root's card triangle so it turns with a blink.
+  `checked` refuses brow hairs off or inside the skin.
+- `face.py`: the pieces (skin, mouth, teeth, eyes by UV ring, brows and lashes from `strands.py`, tears), `face.npz`, and the stills through the card queue (`blender_face.py`, Cycles, each finish the library
   entry's own `material.usda` imported by Blender's USD reader). `finishes.py` writes the face's own finishes as
   score_lib drafts (taken in with `score-lib take-in`).
 - Run: `<motion python> body_face.py <identity.npz> <body.npz>`, then `python face.py <body.npz> <out>` (SCORE_LIB_ROOT

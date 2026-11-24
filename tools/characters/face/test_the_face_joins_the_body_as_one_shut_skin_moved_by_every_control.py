@@ -3,13 +3,16 @@ the strip between them make one skin with no open edge, every triangle turned th
 edge of the face's border all round (fit.seam and
 fit.joined_skin), the body's skin shapes the face fully on its border and not past the blend (fit.body_share), a face
 standing off the head is laid on it at its border and keeps its middle, an ear standing off within the band keeps
-its height (fit.laid_on_skin), the skin under the face near its border is cut and the skin beside it kept
-(fit.inside_border), and
+its height (fit.laid_on_skin), an ear squashed onto the head is refused and one standing off it passes
+(fit.ear_measures, fit.ears_standing), the skin under the face near its border is cut and the skin beside it kept
+(fit.inside_border), brow hairs lie on the skin, grow up at the brow's head and outward and down at its tail and move
+with the skin (strands.brow_strands, strands.checked), a lash curls up off an upper lid and down off a lower and
+turns with its card (strands.lash_frame, strands.lash_line), and
 MHR's 72 controls each move the face, through ICT expressions or the body's own offsets, a name ICT lacks refused
 (expressions.mapping).
 
 Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it (one
-with a bump for an ear).
+with a bump for an ear); a strip standing off a sphere for an ear; one card triangle for a lash.
 
 Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - the shut skin: zipper's `advance_outer` made `at_outer < count_outer` (the strip walks the face's loop first and
@@ -18,6 +21,12 @@ Breaks that turn it red (each applied once and seen red, 2026-11-24):
   `blocked[stops[:1]] = True` (no wall along the border: the fill under the face leaks and is refused).
 - the ear: laid_on_skin's band moved by its border's moves made each point's own snap onto the skin (the ears were
   crushed flat onto the head; seen red 2026-11-24).
+- the squashed ear: ears_standing's range test made `True` (a squashed ear passes; seen red 2026-11-24).
+- the brows: brow_strands' `+ mesh.face_normals[under] * lift[:, None]` made `-` (the hairs lie inside the skin and
+  checked refuses them; seen red 2026-11-24); and, apart, brow_angle's `angle - BROW_MEET * across` made
+  `-angle - ...` (the head's hairs point down; seen red 2026-11-24).
+- the lashes: lash_frame's `normal[1] * rising > 0` made `normal[1] > 0` (a lower lash curls up into the lid; seen
+  red 2026-11-24).
 - the skin under the face: inside_border's `under_face(...)` made `False` (seen red 2026-11-24).
 - the body's share: body_share's `1.0 - distance / BLEND_METRES` made `distance / BLEND_METRES`.
 - the face laid on the skin: laid_on_skin's `* share[pulled, None]` made `* 0.0` (the face's border stood 10 mm off
@@ -36,6 +45,7 @@ import trimesh
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import expressions  # noqa: E402
 import fit  # noqa: E402
+import strands  # noqa: E402
 
 ICT_NAMES = sorted({name for weights in expressions.ICT_OF.values() for name in weights})
 # MHR's controls with no ICT counterpart, which move the face by the body's own offsets (expressions.py).
@@ -105,6 +115,63 @@ def ear_kept():
     return bool(np.linalg.norm(laid[ear], axis=1).max() - 0.1 > 0.010)
 
 
+def ears_judged():
+    """A strip standing off a sphere's side as an ear (its root on the skin, the helix's back 6 mm out, its outer edge
+    14 mm out) passes ears_standing; the same strip squashed to 15% of its height is refused."""
+    head = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    out = np.array([0.0, 0.003, 0.006, 0.010, 0.014])  # metres off the skin, root to edge
+    angles = np.radians(np.linspace(-15.0, 15.0, 7))
+    side = np.stack([np.cos(angles), np.sin(angles), np.zeros_like(angles)], axis=1)
+    grid = np.arange(len(out) * len(angles)).reshape(len(out), len(angles))
+    skin = np.array([triangle for row in range(len(out) - 1) for column in range(len(angles) - 1)
+                     for triangle in ([grid[row, column], grid[row + 1, column], grid[row + 1, column + 1]],
+                                      [grid[row, column], grid[row + 1, column + 1], grid[row, column + 1]])])
+    ear_list = [(grid[2], grid[0])]
+    judged = []
+    for squash in (1.0, 0.15):
+        points = np.vstack([side * (0.1 + height * squash) + [0.0, 0.0, -0.002 * row]
+                            for row, height in enumerate(out)])
+        try:
+            fit.ears_standing(fit.ear_measures(points, ear_list, skin, head))
+            judged.append("passes")
+        except RuntimeError:
+            judged.append("refused")
+    return judged
+
+
+def brows_grown():
+    """One brow grown on a sphere's front along a line (head by the middle, tail outward): its hairs on the skin and
+    none in it, the head's hairs pointing up, the tail's outward and down, and every point moved by the skin's own
+    offsets."""
+    skin = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    line = np.array([[0.01 + 0.01 * step, 0.03, 0.0] for step in range(5)])
+    line[:, 2] = np.sqrt(0.1 ** 2 - line[:, 0] ** 2 - line[:, 1] ** 2)
+    offsets = np.tile([0.0, -0.002, 0.0], (1, len(skin.vertices), 1))
+    counts, points, _, shapes = strands.brow_strands(skin, offsets, line, np.array([0.0, 1.0, 0.0]),
+                                                     np.random.default_rng(1))
+    measures = strands.checked(counts, points, skin)
+    hairs = points.reshape(len(counts), -1, 3)
+    heading = hairs[:, -1] - hairs[:, 0]
+    head, tail = hairs[:, 0, 0] < 0.014, hairs[:, 0, 0] > 0.046
+    return [measures["strands"] == strands.BROW_HAIRS, bool((heading[head, 1] > np.abs(heading[head, 0])).mean() > 0.7),
+            bool(heading[tail, 0].mean() > 0 and heading[tail, 1].mean() < 0),
+            bool(np.allclose(shapes, [0.0, -0.002, 0.0]))]
+
+
+def lashes_curled():
+    """A lash on a card standing straight out of a lid curls up off an upper lid, down off a lower, and turns with its
+    card when the card turns down (a blink)."""
+    card = np.array([[0.0, 0.0, 0.0], [0.01, 0.0, 0.0], [0.005, 0.0, 0.005]])  # flat, standing out along +z
+    places = ((np.array([0, 1, 2]), np.array([0.5, 0.5, 0.0])), (np.array([0, 1, 2]), np.array([0.25, 0.25, 0.5])))
+    upper = strands.lash_line(*strands.lash_frame(card, *places, 1.0), 0.01, 0.35)
+    lower = strands.lash_line(*strands.lash_frame(card, *places, -1.0), 0.01, 0.2)
+    blink = np.radians(70.0)  # the card's out turned 70 degrees down
+    turn = np.array([[1.0, 0.0, 0.0], [0.0, np.cos(blink), -np.sin(blink)], [0.0, np.sin(blink), np.cos(blink)]])
+    closed = strands.lash_line(*strands.lash_frame(card @ turn.T, *places, 1.0), 0.01, 0.35)
+    return [bool(upper[-1, 1] > upper[0, 1] + 0.003), bool(lower[-1, 1] < lower[0, 1] - 0.0015),
+            bool(closed[-1, 1] < closed[0, 1] - 0.006)]
+
+
 def skin_under_the_face():
     """The body points near the face's border that inside_border cuts: all under the face, none beside it."""
     body = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
@@ -148,6 +215,11 @@ def a_missing_name_refused():
     ("the body's skin shapes the face fully on the border and not past the blend", shares, [1.0, 0.5, 0.0]),
     ("a face standing off the head is laid on it at its border and keeps its middle", border_on_skin, [0.0, True]),
     ("an ear standing off the head inside the band keeps its height", ear_kept, True),
+    ("an ear standing off the head passes, one squashed onto it is refused", ears_judged, ["passes", "refused"]),
+    ("brow hairs lie on the skin, up at the head, outward and down at the tail, moved by the skin", brows_grown,
+     [True, True, True, True]),
+    ("a lash curls up off an upper lid, down off a lower, and turns down with its card", lashes_curled,
+     [True, True, True]),
     ("the skin under the face near its border is cut, the skin beside it kept", skin_under_the_face,
      [True, True, True]),
     ("every one of MHR's 72 controls moves the face", controls_moving_the_face, True),

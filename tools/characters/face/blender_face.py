@@ -5,7 +5,8 @@
 `face.npz` (`face.py` writes it): `pieces` (names), and for each piece `<piece>.points`, `<piece>.triangles`,
 `<piece>.surfaces` (score_lib surface ids, one a finish the piece wears), `<piece>.finish` (each triangle's index into
 them), optionally `<piece>.uv` (each triangle's three UV corners) and `<piece>.shapes` (one offset set per name in
-`shape_names`); `shots` a JSON list of {name, weights: {shape name: weight}}; `aim` and `eye_distance`. Each surface is
+`shape_names`), or for strands `<piece>.counts` (points a strand) and `<piece>.radius` (per point) in place of
+triangles; `shots` a JSON list of {name, weights: {shape name: weight}}; `aim` and `eye_distance`. Each surface is
 the library entry's own material.usda (`<library folder>/surface/<id>/<version>/material.usda`, as place_build's fetch
 lays it), imported by Blender's USD reader with its maps, nothing set by hand. Cycles on the card (`FARM_CYCLES_GPU=1`).
 """
@@ -73,6 +74,57 @@ def piece_object(face, piece, library, shape_names):
     return item
 
 
+def library_colour(material):
+    """The linear base colour of a library material as Blender's USD reader made it (its Principled BSDF's)."""
+    principled = next(node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED")
+    return tuple(principled.inputs["Base Color"].default_value)[:3]
+
+
+def strands_material(library, surface):
+    """The hair route's finish (#227): Cycles' Principled Hair BSDF in direct colouring, its colour the library
+    surface's own. score_lib holds no hair recipe yet, so its roughness and coat are Blender's defaults."""
+    name = f"{surface}.strands"
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    hair = bpy.data.materials.new(name)
+    hair.use_nodes = True
+    nodes = hair.node_tree.nodes
+    nodes.remove(nodes["Principled BSDF"])
+    bsdf = nodes.new("ShaderNodeBsdfHairPrincipled")
+    bsdf.parametrization = "COLOR"
+    bsdf.inputs["Color"].default_value = (*library_colour(library_material(library, surface)), 1.0)
+    hair.node_tree.links.new(bsdf.outputs[0], nodes["Material Output"].inputs["Surface"])
+    return hair
+
+
+def strands_object(face, piece, library):
+    """One piece of strands (`<piece>.counts`, points, radius) as a hair Curves object in the hair route's finish."""
+    counts = face[f"{piece}.counts"].astype(np.int64)
+    curves = bpy.data.hair_curves.new(piece)
+    curves.add_curves(counts.tolist())
+    curves.attributes["position"].data.foreach_set("vector", z_up(face[f"{piece}.points"]).reshape(-1)
+                                                   .astype(np.float32))
+    if "radius" not in curves.attributes:
+        curves.attributes.new("radius", "FLOAT", "POINT")
+    curves.attributes["radius"].data.foreach_set("value", face[f"{piece}.radius"].astype(np.float32))
+    curves.materials.append(strands_material(library, str(face[f"{piece}.surfaces"][0])))
+    item = bpy.data.objects.new(piece, curves)
+    bpy.context.scene.collection.objects.link(item)
+    return item
+
+
+def strands_posed(item, face, shape_names, weights):
+    """A strands object's points moved by the shot's weights: each point by its own offsets per control (they carry
+    the skin or the lash card they are bound to)."""
+    piece = item.name
+    points = face[f"{piece}.points"].astype(np.float64).copy()
+    for index, name in enumerate(shape_names):
+        if weights.get(name, 0.0):
+            points += float(weights[name]) * face[f"{piece}.shapes"][index]
+    item.data.attributes["position"].data.foreach_set("vector", z_up(points).reshape(-1).astype(np.float32))
+    item.data.update_tag()
+
+
 def lights(aim, distance):
     """A plain portrait light: a large soft key above and to one side, a fill, a rim behind, a grey world."""
     world = bpy.data.worlds.new("grey")
@@ -134,6 +186,7 @@ def renderer():
     scene.cycles.use_denoising = True
     if os.environ.get("FARM_CYCLES_GPU") == "1":
         on_card(scene)
+    scene.cycles_curves.shape = "THICK"
     scene.render.resolution_x, scene.render.resolution_y = SIZE
     scene.render.film_transparent = False
     scene.view_settings.view_transform = "AgX"
@@ -144,7 +197,8 @@ def main(face_path, library, out):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     face = dict(np.load(face_path, allow_pickle=False))
     shape_names = [str(name) for name in face.get("shape_names", [])]
-    items = [piece_object(face, str(piece), library, shape_names) for piece in face["pieces"]]
+    items = [strands_object(face, str(piece), library) if f"{piece}.counts" in face else
+             piece_object(face, str(piece), library, shape_names) for piece in face["pieces"]]
     aim, distance = Vector(z_up(face["aim"]).tolist()), float(face["eye_distance"])
     lights(aim, distance)
     look = camera(aim, distance)
@@ -152,7 +206,9 @@ def main(face_path, library, out):
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)
     for shot in json.loads(str(face["shots"])):
         for item in items:
-            if item.data.shape_keys:
+            if item.type == "CURVES":
+                strands_posed(item, face, shape_names, shot["weights"])
+            elif item.data.shape_keys:
                 for key in item.data.shape_keys.key_blocks[1:]:
                     key.value = float(shot["weights"].get(key.name, 0.0))
         for view, degrees in VIEWS.items():
