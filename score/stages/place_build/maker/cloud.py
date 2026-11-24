@@ -6,6 +6,8 @@ decoder, DINOv3), one job for any number of pictures, each in its own process as
 
     made(pairs, who) -> {out.glb: its stats} for [(picture.png, out.glb), ...], run on the cluster (SCORE_CLOUD=k8s)
 
+Each model comes back as generate.py leaves it here: its .json and its decoded mesh beside it (brought_back).
+
 The env folder generate.py reads (weights/, src/TRELLIS.2, ready.json) is laid in the pod from those (`ENV_LINES`);
 pipeline_here.json is written in its own TRELLIS.2-4B folder there, never into the node cache.
 """
@@ -66,11 +68,21 @@ def made(pairs, who):
         raise RuntimeError(f"TRELLIS.2's cloud job failed ({len(pairs)} pictures)")
     stats = {}
     for output, (picture, out) in zip(job["outputs"], pairs):
-        back, out = pathlib.Path(output["local"]), pathlib.Path(out)
-        if not (back / "model.glb").is_file():
+        if not (pathlib.Path(output["local"]) / "model.glb").is_file():
             raise RuntimeError(f"{picture}: no model came back")
-        (back / "model.glb").replace(out)
-        (back / "model.json").replace(out.with_suffix(".json"))
-        back.rmdir()
-        stats[str(out)] = json.loads(out.with_suffix(".json").read_text())
+        stats[str(out)] = brought_back(pathlib.Path(output["local"]), pathlib.Path(out))
     return stats
+
+
+def brought_back(back, out):
+    """A model's cloud output folder `back` laid where generate.py writes it on this PC: its model at `out`, its
+    stats at <out>.json and its decoded mesh beside it (generate.decoded_path, #159: the seams the place's bake and the
+    bench's look shade from, #209) where it made one; the folder removed. Its stats."""
+    from score.stages.place_build.maker import generate
+    (back / "model.glb").replace(out)
+    (back / "model.json").replace(out.with_suffix(".json"))
+    decoded = generate.decoded_path(back / "model.glb")
+    if decoded.is_file():
+        decoded.replace(generate.decoded_path(out))
+    back.rmdir()
+    return json.loads(out.with_suffix(".json").read_text())

@@ -40,7 +40,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   pieces without its pivot taken off -> the door's points stand 0.24 m off; parts.part_masses by face counts -> 2
   and 2; parts.part_classes by face counts -> the body is a tie, read metal
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
-  (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies
+  (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies;
+  cloud.brought_back leaving the decoded mesh behind -> its folder is not removed (rmdir refuses) and no
+  trellis-decoded.glb lies beside the model (#209)
 - shim/flash_attn: the padded batch's key mask dropped -> padded keys are attended (checked where torch is, as in
   the maker's own Python, with the three below)
 - generate.chunked_layer_norm: a block normalised in float16 -> the norm is not LayerNorm32's bit for bit;
@@ -416,6 +418,14 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     job = cloud.job_of([("/pictures/a.png", "/made/a/a.glb"), ("/pictures/b.png", "/made/b/b.glb")])
     assert set(job["models"]) <= listed and job["command"][-1].count("generate.py") == 2
     assert [entry["local"] for entry in job["outputs"]] == ["/made/a/.cloud-0", "/made/b/.cloud-1"]
+    for number, decoded in enumerate((True, False)):  # a model back from the cloud with its decoded mesh, and one without
+        back, out = tmp_path / f".cloud-{number}", tmp_path / f"cloud{number}" / "trellis.glb"
+        back.mkdir()
+        out.parent.mkdir()
+        for name in ("model.glb", "model.json") + (("model-decoded.glb",) if decoded else ()):
+            (back / name).write_text(json.dumps({"from": name}))
+        assert cloud.brought_back(back, out) == {"from": "model.json"} and not back.exists()
+        assert (out.is_file(), generate.decoded_path(out).is_file()) == (True, decoded)
 
     points, faces, normals, inside_out = mended_fixture()  # #167: the mesh repaired, its shape kept
     sources, kept, mended, counts = repair.repaired(points, faces, normals)

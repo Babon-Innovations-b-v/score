@@ -19,7 +19,9 @@ dirt and relief) is baked as the preview draws it, in headless Blender on this P
 (bake_looks.py): the part unwrapped (xatlas; its big faces cut, in blocks no wider than a map) at DENSITY texels a
 metre on maps each as big as its charts and at most LARGEST, each map its own primitive and material, or on a laid
 ground one seamless GROUND_TILE box-projected; its base colour, metal-roughness and normal pictures carried in the
-object's own buffer. Every picture an object carries (baked, an image surface's, a library glTF's, a character's) is
+object's own buffer. A picture-made model's parts (a take, a TRELLIS.2 model: finished.picture_made) are baked shaded
+as the bench draws its look (shade_of, #209): their base colour darkened by the model's own ambient occlusion and, where
+make kept its decoded mesh in the place's made/ folder, in the seams it holds. Every picture an object carries (baked, an image surface's, a library glTF's, a character's) is
 written at most HELD_TEXELS a side, as the game holds it (a bigger one halved as its mips are made), and pictures of
 one object alike in bytes and in how they are read are one picture (pictures_held). A glTF-only model or take laid in its own bake (no look of the place's on it) goes as its library
 entry's own glTF, unchanged.
@@ -465,18 +467,18 @@ def gathered_of(prim, baked, draft=False):
     return gathered, looks
 
 
-def object_glb(prim, baked, made, sights=None, draft=False):
+def object_glb(prim, baked, made, sights=None, draft=False, shade=None):
     """The object's GLB (a primitive a look) in its own frame, `baked` (a row-major 3 x 3, or None) drawn into it, its
     triangle count and the triangles its unwrap cut them into besides (subdivided); None when it draws no face. `made`
     holds the GLBs written so far by what tells them (`told`) and what they copy (copied_from), so a copy of one already
     made is not written again; `sights` the walkers' eyes in each content's frame by what it copies (eyes_by_content),
-    every copy's together; a `draft`'s recipes never baked (pbr)."""
+    every copy's together; a `draft`'s recipes never baked (pbr); `shade` its maps' shading (shade_of)."""
     gathered, looks = gathered_of(prim, baked, draft)
     if not gathered:
         return None, 0, 0
     tells = (told(gathered, looks), copied_from(prim, baked))
     if tells not in made:
-        made[tells] = gltf_written(gathered, looks, (sights or {}).get(tells[1]))
+        made[tells] = gltf_written(gathered, looks, (sights or {}).get(tells[1]), shade)
     return made[tells]
 
 
@@ -695,10 +697,11 @@ def unwrapped(vertices, normals, faces, eyes=None):
     return found
 
 
-def gltf_written(gathered, looks, eyes=None):
+def gltf_written(gathered, looks, eyes=None, shade=None):
     """The GLB of an object's corners grouped by look (a recipe to bake on its own unwrapped maps, a part a map), its
     triangle count and the triangles its unwrap cut them into besides (subdivided); `eyes` the walkers' eyes in its
-    frame (eyes_by_content), each baked face's density set by them (unwrapped)."""
+    frame (eyes_by_content), each baked face's density set by them (unwrapped); `shade` (shade_of) asked of every
+    unwrapped map's bake."""
     import trimesh
     scene, triangles, written_triangles, parts = trimesh.Scene(), 0, 0, []
     for key in sorted(gathered):
@@ -719,6 +722,8 @@ def gltf_written(gathered, looks, eyes=None):
             scene.add_geometry(mesh, node_name=f"part_{number}", geom_name=f"part_{number}")
             written_triangles += len(faces)
             asked = dict(bake, size=size, texels_a_metre=texels) if bake else None
+            if asked and shade and not bake["tile"]:
+                asked["shade"] = shade
             parts.append({"factors": looks[key].get("factors", {}), "bake": asked,
                           "name": looks[key]["material"].name + (f" map{page + 1}" if len(maps) > 1 else "")})
     return exactly(scene.export(file_type="glb"), parts), triangles, written_triangles - triangles
@@ -795,6 +800,56 @@ def entry_glb(prim):
             if all("uri" not in item for item in document.get("images", [])) and len(document.get("buffers", [])) <= 1:
                 return glb
     return None
+
+
+# --- a picture-made model's shading (#209) ---------------------------------------------------------------------------
+
+def decoded_source(folder, prim):
+    """The decoded mesh make kept for the object's entry in the place's made/ folder (maker.decoded_file), or None
+    where there is none (made elsewhere, or before make kept it)."""
+    from score.stages.place_build import maker
+    address = text_of(prim, "score:library") or ""
+    if "/" not in address:
+        return None
+    found = maker.decoded_file(pathlib.Path(folder) / "made" / address.split("/", 1)[1].split("@")[0])
+    return found if found.is_file() else None
+
+
+def stretched_decoded(source, baked):
+    """The decoded mesh `source` as the copy draws its model: itself, or where the copy is stretched unevenly
+    (`baked`, its row-major 3 x 3 drawn into the object, gprim_pieces) a copy stretched alike, written once beside it
+    named by the stretch."""
+    if baked is None:
+        return source
+    import trimesh
+    stretch = np.asarray(baked, dtype=np.float64)
+    target = source.with_name(f"{source.stem}-{hashlib.sha256(stretch.round(9).tobytes()).hexdigest()[:12]}.glb")
+    if not target.is_file():
+        mesh = trimesh.load(source, file_type="glb", force="mesh", process=False)
+        trimesh.Trimesh(vertices=np.asarray(mesh.vertices) @ stretch, faces=mesh.faces, process=False).export(
+            str(target), file_type="glb")
+    return target
+
+
+def shade_of(folder, prim, baked, held):
+    """How a picture-made model's maps are shaded in the bake (bake_looks.py, #209), or None for any other object: its
+    own ambient occlusion (`code` the hash of tools/props/library/inside/bake.py, which bakes it, so a change there
+    bakes it again) and, where make kept its decoded mesh (decoded_source), that mesh's path (stretched_decoded) and
+    sha256, whose seams it is darkened in (bake.seamed). `held` keeps each answer by entry and stretch."""
+    from score.stages.place_build import finished
+    key = (text_of(prim, "score:library"), None if baked is None else np.asarray(baked).round(9).tobytes())
+    if key not in held:
+        record = finished.record_of(prim)
+        shade = None
+        if finished.picture_made(record):
+            code = place_build.REPO / "tools/props/library/inside/bake.py"
+            shade = {"occlusion": True, "code": hashlib.sha256(code.read_bytes()).hexdigest()}
+            source = decoded_source(folder, prim)
+            if source is not None:
+                decoded = stretched_decoded(source, baked)
+                shade.update(decoded=str(decoded.resolve()), decoded_sha256=library_files.sha256(decoded))
+        held[key] = shade
+    return held[key]
 
 
 # --- a copy ---------------------------------------------------------------------------------------------------------
@@ -1248,11 +1303,11 @@ def environment_of(stage, place, out):
     return found
 
 
-def converted(prim, baked, made, sights=None, draft=False):
+def converted(prim, baked, made, sights=None, draft=False, shade=None):
     """An object's glTF (GLB bytes), where it came from, and its check: the library entry's own when laid unchanged
     in an even copy, else converted from the laid USD (`made` the conversions so far, object_glb), its triangles
     counted against the USD's (the triangles an unwrap cut a face into counted besides); a `draft`'s recipes never
-    baked (pbr)."""
+    baked (pbr); `shade` its maps' shading (shade_of)."""
     import trimesh
     usd_triangles = sum(len(found[2]) for found in (drawn(inside) for inside in gprims(prim)) if found is not None)
     own = entry_glb(prim) if baked is None else None
@@ -1260,7 +1315,7 @@ def converted(prim, baked, made, sights=None, draft=False):
         loaded = trimesh.load(trimesh.util.wrap_as_stream(own), file_type="glb", force="mesh", skip_materials=True)
         return own, "library glTF", {"pass": len(loaded.faces) == usd_triangles > 0, "triangles": len(loaded.faces),
                                      "usd_triangles": usd_triangles}
-    glb, triangles, cut = object_glb(prim, baked, made, sights, draft)
+    glb, triangles, cut = object_glb(prim, baked, made, sights, draft, shade)
     if glb is None:
         return None, None, None
     loaded = trimesh.load(trimesh.util.wrap_as_stream(glb), file_type="glb", force="mesh", skip_materials=True)
@@ -1446,14 +1501,15 @@ def written_scene(folder, out, stage, place, seat, draft=False):
                          for listed in (found, characters))
     left_out += [{"name": name, "why": f"the concept's backdrop: a neighbour place of the area {seat['area']} "
                                        "stands for it (place.json backdrop)"} for name in sorted(neighbours)]
-    objects, instances, by_content, counts, made = {}, [], {}, {}, {}
+    objects, instances, by_content, counts, made, shades = {}, [], {}, {}, {}, {}
     with deadline(out, "the walkers' eyes", "scene"):
         sights = {} if draft else eyes_by_content(stage, place, found)
     for prim, kind in found:
         with deadline(out, prim.GetName(), "object"):
             world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
             frame, scale, baked = copy_frame(world)
-            glb, route, check = converted(prim, baked, made, sights, draft)
+            shade = None if draft else shade_of(folder, prim, baked, shades)
+            glb, route, check = converted(prim, baked, made, sights, draft, shade)
             if glb is None:
                 left_out.append({"name": prim.GetName(), "why": "it draws no face"})
                 continue
@@ -1528,7 +1584,8 @@ BAKE_CODE = ("bake_looks.py", "../../../tools/props/library/recipes.py")  # unde
 
 def bake_jobs(out):
     """Every baked map the package's objects ask for (a material's `score_bake`): [{gltf, material (its number),
-    mesh (its part's node), spec, size, tile, pictures {kind: path under objects/}}]."""
+    mesh (its part's node), spec, size, tile, pictures {kind: path under objects/}, and a picture-made model's
+    `shade` (shade_of)}]."""
     jobs = []
     for path in sorted((out / "objects").glob("*.gltf")):
         document = json.loads(path.read_text())
@@ -1540,7 +1597,8 @@ def bake_jobs(out):
                 jobs.append({"gltf": f"objects/{path.name}", "material": number, "mesh": mesh["name"],
                              "spec": asked["spec"], "size": asked["size"], "tile": asked["tile"],
                              "texels_a_metre": asked["texels_a_metre"],
-                             "pictures": {kind: f"{TEXTURES}/{stem}_{kind}.png" for kind in PICTURES}})
+                             "pictures": {kind: f"{TEXTURES}/{stem}_{kind}.png" for kind in PICTURES},
+                             **({"shade": asked["shade"]} if asked.get("shade") else {})})
     return jobs
 
 

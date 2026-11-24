@@ -240,6 +240,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.gprim_pieces: the cube's own transform left out (identity) -> the crate's model misses its laid box
 - scene_package.look_name: the look's own prim name -> the two steel walls are two objects
 - scene_package.entry_glb: never reused (None) -> the cabinet is converted, not its library glTF
+- scene_package.shade_of: every object shaded (finished.picture_made unread) -> the monitor's maps ask the take's
+  occlusion too; gltf_written not asking it (`asked["shade"]` dropped) -> the re-finished cup's maps ask none (#209)
 - scene_package.face_looks: the parts' subsets ignored -> the crate's lid top has no steel look
 - scene_package.pbr: the map's tint left off -> the sand's base colour is white
 - scene_package.gprim_pieces: the tile ignored (the mesh's own st) -> the dune has no tiled coordinates
@@ -1570,6 +1572,9 @@ def packaged(folder, out):
     laid.Save()
     (out / scene_package.BAKE).mkdir(parents=True)
     (out / scene_package.BAKE / "kept.done").touch()  # a stopped bake's map, for the next bake to keep or drop
+    decoded = folder / "made/cup/cup-decoded.glb"  # the take's decoded mesh as make keeps one (#209)
+    decoded.parent.mkdir(parents=True)
+    decoded.write_bytes(tmp_glb(out.parent))
     (out / "old.json").touch()
     events, held_written, held_glb = [], scene_package.written, scene_package.skinned.character_glb
     scene_package.written = lambda out, name, glb: events.append(("written", name)) or held_written(out, name, glb)
@@ -1589,6 +1594,12 @@ def packaged(folder, out):
     assert (out / scene_package.BAKE / "kept.done").is_file() and not (out / "old.json").exists()
     scene = json.loads((out / "scene.json").read_text())
     copies = {copy["name"]: copy for copy in scene["instances"]}
+    # the re-finished take's maps alone shaded by its own occlusion and the seams of its decoded mesh (#209)
+    cup_file = scene["objects"][copies["cup"]["object"]]["file"]
+    shades = {job["gltf"]: job["shade"] for job in asked if job.get("shade")}
+    assert (set(shades), all(bool(job.get("shade")) for job in asked if job["gltf"] == cup_file),
+            shades[cup_file]["decoded"], shades[cup_file]["decoded_sha256"]) == (
+        {cup_file}, True, str(decoded.resolve()), hashlib.sha256(decoded.read_bytes()).hexdigest()), shades
     boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
     for name, copy in ((name, copy) for name, copy in copies.items() if copy["kind"] != "character"):
         model = trimesh.load(out / scene["objects"][copy["object"]]["file"], force="mesh")

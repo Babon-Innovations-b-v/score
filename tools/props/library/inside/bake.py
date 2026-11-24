@@ -104,11 +104,17 @@ SEAM_ACROSS = 3
 SEAM_LEAST = 0.55
 
 
-def occlusion_reach(items):
-    """How far the ambient occlusion of `items` looks: OCCLUSION_SHARE of their box's diagonal, in metres."""
+def box_of(items):
+    """The low and high corners of `items`' box in the scene (each one's bound box as placed)."""
     corners = [item.matrix_world @ Vector(corner) for item in items for corner in item.bound_box]
     low = Vector([min(corner[axis] for corner in corners) for axis in range(3)])
     high = Vector([max(corner[axis] for corner in corners) for axis in range(3)])
+    return low, high
+
+
+def occlusion_reach(items):
+    """How far the ambient occlusion of `items` looks: OCCLUSION_SHARE of their box's diagonal, in metres."""
+    low, high = box_of(items)
     return OCCLUSION_SHARE * (high - low).length
 
 
@@ -316,17 +322,19 @@ def outward(item):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def seamed(items, decoded, uv_map, side, reach):
-    """`items`' own ambient occlusion (`occlusion`) darkened in the seams their decoded mesh `decoded` holds (the
-    mesh TRELLIS.2 decoded before its remesh closed them, generate.decoded_path; #159): its occlusion baked across
-    from it onto the same `uv_map` (`occlusion`'s `source`, a texel its rays miss left open), kept on its thin long
+def seamed(items, decoded, uv_map, side, reach, among=()):
+    """`items`' own ambient occlusion (`occlusion`, `among` the model's other meshes shading them too) darkened in the
+    seams their decoded mesh `decoded` holds (the mesh TRELLIS.2 decoded before its remesh closed them,
+    generate.decoded_path; #159): its occlusion baked across from it onto the same `uv_map` (`occlusion`'s `source`, a
+    texel its rays miss left open) from a cage SEAM_CAGE of the whole model's longest side out, kept on its thin long
     dark runs (seam_shade). The geometry's alone, as `occlusion` is; `decoded` is never drawn."""
-    own = occlusion(items, uv_map, side, reach)
+    own = occlusion(items, uv_map, side, reach, among=among)
     outward(decoded)
-    size = max(max(item.dimensions) for item in items)
-    lines = occlusion(items, uv_map, side, reach, source=decoded, cage=SEAM_CAGE * size)
-    pixels = np.asarray(own.pixels[:], dtype=np.float32).reshape(side, side, 4)
-    found = np.asarray(lines.pixels[:], dtype=np.float32).reshape(side, side, 4)[..., 0]
+    low, high = box_of([*items, *among])
+    lines = occlusion(items, uv_map, side, reach, source=decoded, cage=SEAM_CAGE * max(high - low))
+    width, height = own.size
+    pixels = np.asarray(own.pixels[:], dtype=np.float32).reshape(height, width, 4)
+    found = np.asarray(lines.pixels[:], dtype=np.float32).reshape(height, width, 4)[..., 0]
     pixels[..., :3] *= seam_shade(found)[..., None]
     own.pixels[:] = pixels.ravel()
     own.update()
@@ -334,19 +342,20 @@ def seamed(items, decoded, uv_map, side, reach):
     return own
 
 
-def occlusion(items, uv_map, side, reach, source=None, cage=0.0):
+def occlusion(items, uv_map, side, reach, source=None, cage=0.0, among=()):
     """The ambient occlusion of `items` (a generated model's full meshes) from their own shape alone, baked by Cycles
     on their `uv_map` ("" the active one; the texel masks' UVs, make_chunky.TEXELS_UV) into a new Non-Color picture
-    `side` square, rays reaching `reach` metres, every other mesh of the scene out of the bake (#206: tc6w2's anesthesia
-    machine drawn one flat white where NVIDIA's shades into every seam, drawer line and corner). Never the take's own
-    texture: the shading comes from the geometry. The scene's samples, its world's reach and each material are as
-    they were after. With a `source` mesh, its occlusion is baked across onto `items` instead (selected to active, from
-    a cage `cage` metres out), a texel no ray of it meets left white."""
+    `side` square (or `side` [width, height]: a place's map, #209), rays reaching `reach` metres, every other mesh of
+    the scene out of the bake but those `among` (the model's other parts, which shade these where a place bakes a part
+    alone, #209) (#206: tc6w2's anesthesia machine drawn one flat white where NVIDIA's shades into every seam, drawer
+    line and corner). Never the take's own texture: the shading comes from the geometry. The scene's samples, its
+    world's reach and each material are as they were after. With a `source` mesh, its occlusion is baked across onto
+    `items` instead (selected to active, from a cage `cage` metres out), a texel no ray of it meets left white."""
     scene = bpy.context.scene
     picture = new_picture("occlusion", side, False)
     picture.generated_color = (1.0, 1.0, 1.0, 1.0)
     others = [item for item in scene.objects if item.type == "MESH" and item not in items and item is not source
-              and not item.hide_render]
+              and (source is not None or item not in among) and not item.hide_render]
     for item in items:
         if not item.data.materials:
             item.data.materials.append(bpy.data.materials.new("occlusion"))
@@ -379,7 +388,9 @@ def occlusion(items, uv_map, side, reach, source=None, cage=0.0):
 
 
 def new_picture(name, side, colour_data):
-    picture = bpy.data.images.new(name, side, side, alpha=False, float_buffer=False)
+    """A new picture `side` square, or `side` [width, height]."""
+    width, height = side if isinstance(side, (list, tuple)) else (side, side)
+    picture = bpy.data.images.new(name, width, height, alpha=False, float_buffer=False)
     picture.colorspace_settings.name = "sRGB" if colour_data else "Non-Color"
     return picture
 

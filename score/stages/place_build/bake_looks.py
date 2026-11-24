@@ -5,6 +5,10 @@ roughness and metal, not a lit picture, and the normal map is baked from the sha
 tools/props/library/inside/bake.py bakes the props. A part is baked in its object's own frame (z up, metres, its
 other parts beside it), on the texture coordinates scene_package unwrapped for it; a laid ground's recipe is baked once
 on a flat GROUND_TILE square and blended seamless (seamless), the package box-projecting it over the ground.
+A picture-made model's part (a job's `shade`, scene_package.shade_of, #209) has its base colour darkened by the model's
+own ambient occlusion on its map, every other part of the model shading it too (tools/props/library/inside/bake.py
+occlusion, as the bench's look and make_chunky's take bake give theirs, #206), and in the seams its decoded mesh holds
+where make kept one (bake.seamed, #159 route C): so the place's bake draws it as its bench look does.
 
     blender -b --python bake_looks.py -- <jobs.json>        (scene_package.blender_baked, through the card queue)
 
@@ -26,6 +30,8 @@ sys.path.insert(0, str(REPO / "tools/props/library/inside"))
 import runtime  # noqa: E402
 
 runtime.ready()
+import bake as props_bake  # noqa: E402  (the model's own ambient occlusion and its seams, #206, #159)
+import procfunc as pf  # noqa: E402
 import recipes  # noqa: E402
 import scene_setup  # noqa: E402
 
@@ -125,6 +131,39 @@ def freed():
     gc.collect()
 
 
+def decoded_of(shade):
+    """The model's decoded mesh the job's `shade` names (its path in the place's made/ folder) imported as one object,
+    or None where it names none (a model made before make kept it)."""
+    if not shade.get("decoded"):
+        return None
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=shade["decoded"])
+    found = [item for item in bpy.context.scene.objects if item not in before and item.type == "MESH"]
+    if len(found) != 1:
+        raise SystemExit(f"{shade['decoded']}: {len(found)} meshes, not the one decoded mesh")
+    return found[0]
+
+
+def occlusion_of(item, model, decoded, size):
+    """The model's own ambient occlusion on the part `item`'s map (`size` [width, height]), the model's other parts
+    (`model`, every mesh of its file) shading it too, darkened in the seams its `decoded` mesh holds where it has one
+    (bake.occlusion, bake.seamed): a Non-Color picture on the part's active UVs."""
+    among = [other for other in model if other is not item]
+    reach = props_bake.occlusion_reach(model)
+    if decoded is None:
+        return props_bake.occlusion([item], "", list(size), reach, among=among)
+    return props_bake.seamed([item], decoded, "", list(size), reach, among=among)
+
+
+def occluded(channels, picture):
+    """The Channels' base colour darkened by the occlusion `picture` read on the part's active UVs (recipes.occluded,
+    as recipes.masked darkens the bench look's)."""
+    uv = pf.nodes.shader.uv_map(uv_map="")
+    shut = pf.nodes.math.separate_xyz(pf.nodes.texture.image(vector=uv, image=pf.Image(picture),
+                                                             extension="EXTEND").color).x
+    return recipes.occluded(channels, shut)
+
+
 def bake(item, channels, size):
     """The recipe's channels baked onto the object's texture coordinates: {channel: pixels}; each channel's material
     and picture removed once read."""
@@ -170,12 +209,18 @@ def baked_file(out, into, gltf, jobs):
     bpy.context.scene.render.bake.margin_type = "EXTEND"
     if not all(job["tile"] for job in jobs):  # a ground's tile is baked on its own square, never on the ground
         bpy.ops.import_scene.gltf(filepath=str(out / gltf))
+    model = [item for item in bpy.context.scene.objects if item.type == "MESH"]
+    shade = next((job["shade"] for job in jobs if job.get("shade")), None)
+    decoded = decoded_of(shade) if shade else None
     for job in jobs:
         began = time.time()
         spec = job["spec"]
         channels = recipes.channels(spec, spec["wear"], spec["dirt"], recipes.SEED)
         item = tile_square(job["tile"]) if job["tile"] else bpy.data.objects[job["mesh"]]
-        found = bake(item, channels, job["size"])
+        shut = occlusion_of(item, model, decoded, job["size"]) if job.get("shade") else None
+        found = bake(item, channels if shut is None else occluded(channels, shut), job["size"])
+        if shut is not None:
+            bpy.data.images.remove(shut)
         written(found, job["size"], bool(job["tile"]), into, job["key"])
         del found
         if job["tile"]:

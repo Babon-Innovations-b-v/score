@@ -283,6 +283,12 @@ def placed(raw, folder, like, height, size=None, picture=None, words=None):
     return glb.with_root_matrix(document, matrix), binary, how
 
 
+def decoded_file(work):
+    """Where make keeps a model's decoded mesh as set in the place: <work>/<entry>-decoded.glb, `work` the model's
+    made/<entry> folder (scene_package.shade_of reads it there, #209)."""
+    return pathlib.Path(work) / f"{pathlib.Path(work).name}-decoded.glb"
+
+
 def decoded_placed(raw, document, out):
     """The raw model's decoded mesh (generate.decoded_path, kept when it was made) set in the place as the placed
     model's `document` is, under its root matrix, written at `out` (bake.seamed shades the model's seams from it,
@@ -395,7 +401,7 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     document, binary, mended = repair.repaired_glb(document, binary)
     final = work / f"{entry}-final.glb"
     glb.write(final, document, binary)
-    decoded_placed(raw, document, work / f"{entry}-decoded.glb")
+    decoded_placed(raw, document, decoded_file(work))
     palette = folder / place_build.PALETTE
     tokens = json.loads(palette.read_text()).get("tokens", {}) if palette.is_file() else {}
     binary, groups = painted(document, binary, final, tokens)

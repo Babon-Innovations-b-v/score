@@ -28,9 +28,11 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
 - **The decoded mesh kept beside it** (#159 r11: the remesh closes the drawer seams, door lines and vents a voxel or
   less wide with #191's pinholes, while TRELLIS.2's decoded mesh still holds them): generate.py writes it at
   `decoded_path` (<out>-decoded.glb, cut to FACES whatever the model's faces, its shape alone), and `make` sets it in
-  the place under the placed model's root matrix (`decoded_placed`: <entry>-decoded.glb). Never shown and never taken
-  into score_lib: the bench look shades the model's seams from it (bake.seamed). A model made before it was kept has
-  none (its look keeps the model's own occlusion alone); `cloud.made` does not bring it back yet.
+  the place under the placed model's root matrix (`decoded_placed`: `decoded_file`, made/<entry>/<entry>-decoded.glb).
+  Never shown and never taken into score_lib: the bench look and the place's package bake (scene_package.shade_of,
+  #209) shade the model's seams from it (bake.seamed), the package reading it in the place's made/ folder, so a model
+  laid in another place is shaded by its own occlusion alone, as is one made before it was kept. `cloud.made` brings
+  it back beside the model (`brought_back`).
 - **Its mesh repaired, its shape kept** (repair.py, #167: tc1's TRELLIS.2 models held 30 to 2,290 edges four faces
   held, membranes of two opposite faces and, on the rack, 289 crumbs). On the fitted GLB, every attribute carried with
   its vertex: collapsed faces and membranes out; a corner where two solids touch is one corner a fan, the further
