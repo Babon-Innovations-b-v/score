@@ -33,6 +33,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   camera straight down has no frame (NaN axes, the ceiling task light's empty look)
 - finish.part_spec: a colour setting the variant names none of not filled -> painted_metal's look is drawn with no
   `bare` (the rack's KeyError, #182); a pictured recipe given no clear picture -> printed is drawn with no `image`
+- route_settings.set_spec: the second shade not moved with the list's token (`moved` dropped) -> the grey leather's
+  #686068 creases stay under the white #e8e8e8, dE 50.6 from it, not the variant's 8.1 (the surgical chair's granite
+  seat, #186)
 - finish.part_looks: a part's list settings not read (its surface's own spec for every part) -> the box's look is not
   the listed roughness 0.4; its class not read -> the box's look has no class
 - A pictured case (#159, the cockpit row: no NVIDIA model) is rendered as its close-up kept in the store, keeps its own
@@ -263,6 +266,26 @@ def undrawn(tmp_path):
     return {recipe: missing for recipe, missing in found.items() if missing}
 
 
+def recoloured_step():
+    """The CIELAB step from colour to second shade of a fitted grey leather (#707070, creases #686068) as the look
+    paints it under the list's white token (#e8e8e8): (that step, the variant's own)."""
+    import library as surface_library
+    from score.stages.props import prop_data
+    with prop_data.tools("props/library/likeness"):
+        import colour as lab_colour
+    method = json.loads((pathlib.Path(finish.REPO) / "data/library/materials.json").read_text())
+    tokens = {token: token for token in ("#707070", "#686068", "#e8e8e8")}
+    library = {"recipes": method["recipes"], "colour_settings": method["colour_settings"], "tokens": tokens,
+               "dirt": "#707070", "pictures": {}, "families": {"leather": {"surface": None, "variants": {
+                   "grey_leather": {"recipe": "leather", "token": "#707070", "second": "#686068"}}}}}
+    colours = surface_library.token_colours(library)
+    row = {"judge": "grey_leather", "settings": {"token": "#e8e8e8", "roughness": 0.5, "metal": 0.0, "seed": 1}}
+    spec = finish.part_spec(library, row, colours, None, None)
+    def step(one, other):
+        return float(np.linalg.norm(lab_colour.lab(np.asarray(one)) - lab_colour.lab(np.asarray(other))))
+    return step(spec["colour"], spec["second"]), step(colours["#707070"], colours["#686068"])
+
+
 def pictured_case(tmp_path, name, material, box):
     """The cockpit row: its close-up (a red square, true alpha) kept in the store, rendered as its close-up, and a
     made box at its target size measured against it (branch A's kept `finished`, no finish parts)."""
@@ -397,6 +420,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5)), name
         assert undrawn(tmp_path) == {}, "the look draws every recipe family"
+        drawn, own = recoloured_step()
+        assert drawn == pytest.approx(own, abs=0.5), (drawn, own)
 
     made = []
 

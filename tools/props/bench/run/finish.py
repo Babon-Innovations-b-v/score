@@ -323,8 +323,9 @@ def slot_of(row):
 
 
 def part_spec(library, row, colours, decals, out):
-    """A finish part's recipe spec as the bake paints it: its surface's variant in the bench library in its settings'
-    token, roughness, metal and seed (route_settings.set_spec; a part the colour check moved its surface's own), its
+    """A finish part's recipe spec as the bake paints it: its surface's variant in the bench library in its own token,
+    then its settings' token, roughness, metal and seed over it (route_settings.set_spec, as route_bake.baked_specs: its
+    second shade moved with its colour; a part the colour check moved its surface's own), its
     slot's text decals (`decals`, the spec's). A colour setting its recipe needs (the library's `colour_settings`)
     that the variant names none of is the spec's own colour, as recipes.arguments gives a mottled or printed finish
     with no second shade its own: score_lib's recipe entries (finish.variant_of) carry a token alone (#182: the rack's
@@ -333,9 +334,10 @@ def part_spec(library, row, colours, decals, out):
     import library as surface_library
     from score.stages.surfaces import route_settings, scene_library
     settings = row.get("settings")
-    token = settings["token"] if settings else surface_library.variants(library)[row["judge"]]["token"]
-    colours.setdefault(token, surface_library.linear(token))
-    spec = surface_library.spec(library, row["judge"], token, colours)
+    own = surface_library.variants(library)[row["judge"]]["token"]
+    for token in (own, *([settings["token"]] if settings else [])):
+        colours.setdefault(token, surface_library.linear(token))
+    spec = surface_library.spec(library, row["judge"], own, colours)
     if settings:
         spec = route_settings.set_spec(spec, settings, colours)
     spec.setdefault("seed", settings.get("seed", 0) if settings else 0)
