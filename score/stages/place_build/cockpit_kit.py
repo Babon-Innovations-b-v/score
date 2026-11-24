@@ -17,19 +17,22 @@ The capsule's body, each a closed piece over its cone (Cone: `radius`, `slope`, 
   courses meeting in deep creases, curving over into the ceiling at its top (`rise` keeps one height of it), a
   bolster along the floor, eased flat round each hole (`fades`), each mounting plate (`flats`, flat_spot)
   set into it with the cushions it cuts swelling from a crease against its edge;
-  holes and cut-away as the hull's, a wall (`sector`) ending along the seams round its cushions.
+  holes and cut-away as the hull's, a wall (`sector`) ending along the seams round its cushions; with `panels`
+  (CONE) a real cabin's panelled wall instead, its kick pad along the floor still quilted.
 - `ceiling` (its lamps' spots flat), `floor` (the round plate, the walked ground, one faint hatch ring), `skirt`
   (the service ring under the hull, its pipes), `nose` (the cone carried on to a narrow rimmed top), `lip` (the cut-away's rounded rim), `through_wall` (a porthole's or the hatch's
   sleeve, flanges hugging the lining and the hull, bolts, glass), `hatch_leaf`, `gantry` (the railed walkway).
 - `panel`: a plate with rounded corners, a raised bezel, a label strip with its word in modelled letters, and its
   `items` ({kind, at [u, v], ...}: the hardware below) laid on it.
-- the hardware, each its own piece or an item of a panel: `toggle` (a 2 cm bat toggle, `guard` a red flip cover),
+- the hardware, each its own piece or an item of a panel: `toggle` (a 2 cm bat toggle, `guard` its wickets or
+  "cover" a red flip cover),
   `lamp` (`colour` red, green, amber, white), `gauge` (a 6 cm round needle gauge), `bars` (a bar meter, up or
   `across`), `readout` (a small lit number window), `screen` (`graphic` tower, orbit, attitude, landing, lines),
-  `scope` (a round scope), `keypad`, `button`, `rotary`, `wheel`, `slider`, `beacon`, `words` (lettering alone).
+  `scope` (a round scope), `keypad`, `button`, `rotary`, `wheel` (a valve handwheel), `slider`, `guarded_button`,
+  `breakers` (a row of push-pull circuit breakers), `ball` (an attitude ball), `words` (lettering alone).
 - `mount`: a flat mounting plate set into the lining (its `flats`), a panel or a screen on it.
 - `console` (also a pod beside the seat: a panel laid on its sloping top), `switch_box`, `seat`, `throttle`, `stick`,
-  `lamp_fixture`.
+  `lamp_fixture`, `handrail` (a grab handle on a wall), `cables` (a clamped cable run along the wall, capsule frame).
 """
 import math
 
@@ -43,7 +46,8 @@ PLATE = 0.012  # a panel plate's thickness
 BEZEL = 0.010  # how far a panel's bezel stands over its plate
 LETTER_ROWS = 7  # the lettering's dot rows (a 5 x 7 face)
 LINE = 0.0025  # a screen graphic's line width
-FLAT_KINDS = ("hull", "lining", "ceiling", "floor", "skirt", "nose", "lip", "through_wall", "tread", "gantry")
+FLAT_KINDS = ("hull", "lining", "ceiling", "floor", "skirt", "nose", "lip", "through_wall", "tread", "gantry",
+              "cables")
 
 FONT = {
     "A": (" ### ", "#   #", "#   #", "#####", "#   #", "#   #", "#   #"),
@@ -372,20 +376,26 @@ LAMP_PARTS = {"red": "lamp_red", "green": "lamp_green", "amber": "lamp_amber", "
 
 
 def toggle(guard=False, **_):
-    """A bat-handle toggle switch 2 cm tall on a small plate, thrown up, with a red flip cover held open over it
-    when `guard`."""
+    """A bat-handle toggle switch 2 cm tall on a small plate, thrown up. `guard` True stands a wicket either side of
+    it (a bent bar loop, as the Apollo command module's guarded switches: a hand brushing past cannot throw it);
+    `guard` "cover" holds a red flip cover open over it between two posts instead (a critical switch: STAGE, CHUTE)."""
     found = box("metal", (-0.008, -0.013, 0.0), (0.008, 0.013, 0.0015), 0.0005)
     found += turned("metal", [(0.0, 0.0012), (0.0065, 0.0012), (0.0065, 0.004), (0.0045, 0.0045), (0.0045, 0.008),
                               (0.0, 0.008)], segments=6)
     lever = turned("lever", [(0.0, 0.0), (0.0021, 0.0), (0.0017, 0.017), (0.0028, 0.0185), (0.0028, 0.0205),
                              (0.0, 0.021)], segments=12)
     found += moved(lever, about("x", -22), (0.0, 0.0, 0.007))
-    if guard:
+    if guard == "cover":
         for side in (-1, 1):
             found += box("guard", (side * 0.0095 - 0.001, -0.012, 0.0012), (side * 0.0095 + 0.001, 0.012, 0.024),
                          0.0004)
-        cover = box("guard", (-0.0105, -0.026, -0.0015), (0.0105, 0.0, 0.0015), 0.0005)
+        cover = box("cover", (-0.0105, -0.026, -0.0015), (0.0105, 0.0, 0.0015), 0.0005)
         found += moved(cover, about("x", -110), (0.0, 0.012, 0.024))
+    elif guard:
+        for side in (-1, 1):
+            loop = [(side * 0.0115, -0.012, 0.0008), (side * 0.0115, -0.009, 0.019), (side * 0.0115, -0.004, 0.025),
+                    (side * 0.0115, 0.004, 0.025), (side * 0.0115, 0.009, 0.019), (side * 0.0115, 0.012, 0.0008)]
+            found += tube("guard", loop, 0.0014, 8)
     return found
 
 
@@ -549,12 +559,13 @@ def keypad(columns=3, rows=4, key=0.013, gap=0.004, **_):
 
 
 def button(colour="red", size=0.016, **_):
-    """A push button `size` across: a bright collar and a lit cap of `colour`."""
+    """A push button `size` across: a bright collar and a lit cap of `colour`, flat-topped with a chamfered edge
+    (a panel's real push button, never a domed sweet)."""
     radius = size / 2
     found = turned("metal", [(radius * 0.8, 0.0), (radius * 1.3, 0.0), (radius * 1.3, 0.004), (radius * 0.9, 0.006),
                              (radius * 0.8, 0.006), (radius * 0.8, 0.0)], segments=20)
-    found += turned(LAMP_PARTS[colour], [(0.0, 0.003), (radius * 0.85, 0.003), (radius * 0.85, 0.009), (radius * 0.6, 0.011),
-                                         (0.0, 0.011)], segments=20, smooth=True)
+    found += turned(LAMP_PARTS[colour], [(0.0, 0.003), (radius * 0.85, 0.003), (radius * 0.85, 0.0085),
+                                         (radius * 0.72, 0.0097), (0.0, 0.0097)], segments=20)
     return found
 
 
@@ -565,7 +576,7 @@ def rotary(size=0.028, **_):
                              (radius * 0.6, 0.0)], segments=24)
     found += turned("dark", [(0.0, 0.0025), (radius * 0.75, 0.0025), (radius * 0.75, 0.003), (radius * 0.75, 0.014), (radius * 0.6, 0.017), (0.0, 0.017)],
                     segments=12)
-    found += moved(ribbon("dial", [(0.0, 0.0), (0.0, radius * 0.65)], 0.002, 0.0), offset=(0.0, 0.0, 0.0172))
+    found += moved(ribbon("ink", [(0.0, 0.0), (0.0, radius * 0.65)], 0.002, 0.0), offset=(0.0, 0.0, 0.0172))
     for step in range(6):
         angle = math.radians(150 - step * 24)
         found += ribbon("ink", [(radius * 1.35 * math.cos(angle), radius * 1.35 * math.sin(angle)),
@@ -574,16 +585,21 @@ def rotary(size=0.028, **_):
 
 
 def wheel(size=0.07, **_):
-    """A small handwheel `size` across on a boss, three spokes (the pad water valve)."""
+    """A valve handwheel `size` across (the pad water valve): a painted cast rim with a scalloped grip round its
+    inside, four flat spokes to a raised hub, and a hex nut on a stem standing off the panel."""
     radius = size / 2
-    found = turned("dark", [(0.0, 0.0), (0.008, 0.0), (0.008, 0.018), (0.0, 0.018)], segments=16)
-    rim = max(0.006, size * 0.08)  # a stout rim a hand grips, never a wire
-    found += tube("metal", [(radius * math.cos(angle), radius * math.sin(angle), 0.02)
-                            for angle in np.linspace(0, 2 * math.pi, 41)], rim, 12)
-    for step in range(3):
-        angle = math.radians(90 + step * 120)
-        found += tube("metal", [(0.0, 0.0, 0.018), (radius * math.cos(angle), radius * math.sin(angle), 0.02)],
-                      rim * 0.7, 10)
+    found = turned("metal", [(0.0, 0.0), (0.009, 0.0), (0.009, 0.014), (0.0075, 0.016), (0.0, 0.016)], segments=16)
+    rim = max(0.0045, size * 0.065)  # a stout cast rim a hand grips, never a wire
+    path = [(radius * (1 - 0.06 * max(0.0, math.cos(8 * angle)) ** 4) * math.cos(angle),
+             radius * (1 - 0.06 * max(0.0, math.cos(8 * angle)) ** 4) * math.sin(angle), 0.02)
+            for angle in np.linspace(0, 2 * math.pi * (1 + 1 / 192), 98)]  # its ends overlapping, never one face
+    found += tube("valve", path, rim, 10)
+    for step in range(4):
+        spoke = box("valve", (0.006, -0.0035, -0.0022), (radius - rim * 0.5, 0.0035, 0.0022), 0.001)
+        found += moved(spoke, about("z", 45 + step * 90), (0.0, 0.0, 0.0195))
+    found += turned("valve", [(0.0, 0.0145), (0.0105, 0.0145), (0.0105, 0.0245), (0.008, 0.027), (0.0, 0.027)],
+                    segments=20)
+    found += turned("metal", [(0.0, 0.026), (0.0055, 0.026), (0.0055, 0.031), (0.0, 0.031)], segments=6)
     return found
 
 
@@ -595,16 +611,61 @@ def slider(high=0.06, level=0.6, **_):
     return found
 
 
-def beacon(**_):
-    """The master alarm: a red dome on a bright base inside a wire cage."""
-    found = turned("metal", [(0.0, 0.0), (0.03, 0.0), (0.03, 0.008), (0.024, 0.012), (0.0, 0.012)], segments=24)
-    found += turned("glow", [(0.0, 0.012)] + [(0.021 * math.cos(math.radians(angle)), 0.012 + 0.03 * math.sin(math.radians(angle)))
-                             for angle in range(0, 91, 10)], segments=24, smooth=True)
-    for step in range(4):
-        angle = math.radians(45 + step * 90)
-        found += tube("metal", [(0.024 * math.cos(angle) * math.cos(math.radians(tilt)),
-                                 0.024 * math.sin(angle) * math.cos(math.radians(tilt)),
-                                 0.012 + 0.034 * math.sin(math.radians(tilt))) for tilt in range(0, 91, 15)], 0.0012, 6)
+def guarded_button(colour="red", size=0.026, **_):
+    """A guarded push button (the master alarm, an abort): a square lit cap `size` across in a square bezel, and a
+    bent bar guard arching over it from side to side, so it is pressed on purpose, never knocked."""
+    half = size / 2
+    found = box("metal", (-half - 0.006, -half - 0.006, 0.0), (half + 0.006, half + 0.006, 0.006), 0.0015)
+    found += box("dark", (-half - 0.001, -half - 0.001, 0.0045), (half + 0.001, half + 0.001, 0.0075), 0.0006)
+    found += box(LAMP_PARTS[colour], (-half + 0.001, -half + 0.001, 0.006), (half - 0.001, half - 0.001, 0.0125),
+                 0.0012)
+    arch = [(-half - 0.003, 0.0, 0.004)] + [(-(half + 0.003) * math.cos(math.radians(angle)), 0.0,
+                                             0.004 + 0.022 * math.sin(math.radians(angle)))
+                                            for angle in range(15, 180, 15)] + [(half + 0.003, 0.0, 0.004)]
+    for offset in (-half + 0.002, half - 0.002):
+        found += tube("guard", [(x, y + offset, z) for x, y, z in arch], 0.0018, 8)
+    return found
+
+
+def breakers(count=6, pitch=0.019, out=(), **_):
+    """A row of `count` push-pull circuit breakers `pitch` apart: each a bright threaded collar, a black cap and its
+    white band; the ones in `out` (their numbers) pulled, standing taller with the band showing below the cap."""
+    found = box("dark", (-count * pitch / 2, -0.008, 0.0), (count * pitch / 2, 0.008, 0.002), 0.0006)
+    for number in range(count):
+        x = (number - (count - 1) / 2) * pitch
+        lift = 0.005 if number in out else 0.0
+        found += moved(turned("metal", [(0.0, 0.0015), (0.0058, 0.0015), (0.0058, 0.0045), (0.0, 0.0045)],
+                              segments=6), offset=(x, 0.0, 0.0))
+        found += moved(turned("knob", [(0.0, 0.004), (0.0042, 0.004), (0.0042, 0.0115), (0.0034, 0.0125),
+                                       (0.0, 0.0125)], segments=16), offset=(x, 0.0, lift))
+        if lift:
+            found += moved(turned("ink", [(0.0, 0.0044), (0.004, 0.0044), (0.004, 0.0095), (0.0, 0.0095)],
+                                  segments=16), offset=(x, 0.0, 0.0))
+    return found
+
+
+def ball(size=0.09, **_):
+    """An attitude ball (the flight director's): a dark case and a bright bezel holding a ball `size` across, its sky
+    half pale and its ground half black parted along the horizon, and an orange craft marker across its face."""
+    radius = size / 2
+    deep = 0.01
+    found = turned("dark", [(0.0, 0.0), (radius * 1.3, 0.0), (radius * 1.3, deep), (0.0, deep)], segments=48)
+    found += turned("metal", [(radius * 1.02, deep - 0.001), (radius * 1.32, deep - 0.001), (radius * 1.32, deep + 0.004),
+                              (radius * 1.2, deep + 0.007), (radius * 1.02, deep + 0.006), (radius * 1.02, deep - 0.001)],
+                    segments=48)
+    centre, squash = deep + 0.002, 0.45  # the ball drawn shallow along the panel's normal, its back in the plate
+    pitch = 25.0  # the ball turned nose down a little, its horizon below its middle: sky and ground both read from a
+    # seat looking down onto a sloping panel
+    gap = 0.0006
+    half = [(0.0, gap)] + [(radius * math.cos(math.radians(angle)), gap + radius * math.sin(math.radians(angle)))
+                           for angle in range(0, 91, 10)]
+    for part, turn in (("ball_sky", -90), ("ball_ground", 90)):
+        found += moved(turned(part, half, segments=32, smooth=True), np.diag([1.0, 1.0, squash]) @ np.asarray(
+            about("x", pitch)) @ np.asarray(about("x", turn)), (0.0, 0.0, centre))
+    front = centre + radius * squash
+    found += box("marker", (-radius * 0.5, -0.0016, front - 0.0035), (-radius * 0.12, 0.0016, front + 0.0015), 0.0006)
+    found += box("marker", (radius * 0.12, -0.0016, front - 0.0035), (radius * 0.5, 0.0016, front + 0.0015), 0.0006)
+    found += box("marker", (-0.0025, -0.0025, front - 0.003), (0.0025, 0.0025, front + 0.002), 0.0008)
     return found
 
 
@@ -614,8 +675,8 @@ def words(text="", high=0.012, part="ink", **_):
 
 
 ITEMS = {"toggle": toggle, "lamp": lamp, "gauge": gauge, "bars": bars, "readout": readout, "screen": screen,
-         "keypad": keypad, "scope": scope, "button": button, "rotary": rotary, "wheel": wheel, "slider": slider, "beacon": beacon,
-         "words": words}
+         "keypad": keypad, "scope": scope, "button": button, "rotary": rotary, "wheel": wheel, "slider": slider,
+         "guarded_button": guarded_button, "breakers": breakers, "ball": ball, "words": words}
 
 
 def laid_items(items, height):
@@ -663,7 +724,7 @@ def framed_plate(outer, inner):
 
 
 def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, split=0.5, **_):
-    """An instrument panel: a plate with rounded corners, a raised bezel round it, a label strip across its top with
+    """An instrument panel: a plate with rounded corners, a raised bezel round it screwed down (panel_screws), a label strip across its top with
     `label` in modelled letters, and its `items` laid on the plate (their `at` from the plate's middle). A label
     "A|B" makes two sections, the plate parted at `split` of its width by a raised divider, each section with its own
     strip over it; a "/" in a name stacks its words in lines on a taller strip."""
@@ -688,14 +749,37 @@ def panel(wide=0.4, high=0.3, label="", items=(), label_high=0.02, split=0.5, **
         if len(names) == 2:
             found += box("bezel", (cuts[1] - 0.003, -high / 2 + 0.016, PLATE - 0.0005),
                          (cuts[1] + 0.003, top, PLATE + 0.005), 0.0015)
+    found += panel_screws(wide, high)
     found += laid_items(items, PLATE)
+    return found
+
+
+def panel_screws(wide, high, inset=0.0075, most=0.12):
+    """The screws holding a panel down, along the middle of its bezel: one by each corner and more along each edge,
+    at most `most` metres apart (a real panel's bolted edge)."""
+    head = [(0.0, 0.0), (0.0034, 0.0), (0.0034, 0.0012), (0.0024, 0.0021), (0.0, 0.0021)]
+    corner_x, corner_y = wide / 2 - 0.012, high / 2 - 0.012
+    spots = [(sx * corner_x, sy * corner_y) for sx in (-1, 1) for sy in (-1, 1)]
+    for reach, edge, across in ((corner_x, high / 2 - inset, False), (corner_y, wide / 2 - inset, True)):
+        count = max(1, math.ceil(2 * reach / most))
+        for step in range(1, count):
+            along = -reach + 2 * reach * step / count
+            spots += [(side * edge, along) if across else (along, side * edge) for side in (-1, 1)]
+    found = []
+    for x, y in spots:
+        found += moved(turned("bolt", head, segments=10), offset=(x, y, PLATE + BEZEL - 0.0004))
     return found
 
 
 # --- the capsule: its cone's hull, lining, ceiling and floor, built in the capsule's own frame -----------------------
 
 CONE = {"radius": 1.40, "slope": 0.22, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.04,
-        "bolster_high": 0.32, "puff": 0.09, "ceiling": 2.05, "shoulder": 1.80, "inset": 0.30}
+        "bolster_high": 0.32, "puff": 0.09, "ceiling": 2.05, "shoulder": 1.80, "inset": 0.30, "panels": 0,
+        "panel_from": 0.0}
+# `panels` 0: the concept's stuffed pillows; else the lining is a real cabin's wall: `panels` padded panels round
+# every course, their joints lined up course over course from `panel_from` degrees (so a wall of the lining, its
+# `sector`, can hold whole panels), each a flat face of PANEL_PUFF rolled off at its edge into a dark joint, the
+# course along the floor (QUILTED_COURSES) a stitched quilted kick pad
 ROWS = (0.0, 0.30, 0.59, 0.88, 1.30, 1.80, 2.05)  # the lining's courses, metres up from the floor (of its back):
 # the fourth behind the screens, the fifth round the portholes (never a seam through one), the last over the shoulder
 CUSHION_WIDE = 0.40  # metres round a cushion on average, along its course's middle on the lining's face
@@ -713,6 +797,10 @@ MOUNT_EASE = 0.05  # metres outside that band over which the lining's skin eases
 MOUNT_ROLL = 0.07  # metres outside a mounting plate over which a cut cushion swells from its crease against it
 TUCK = 0.03  # metres the ceiling's pad reaches over the top of the lining's shoulder
 TUCK_DROP = 0.025  # metres its edge sinks there, into the shoulder's top
+PANEL_PUFF = 0.02  # metres a wall panel's flat face stands off its joint (a panelled lining, CONE's `panels`)
+PANEL_EDGE = 10.0  # the power of a wall panel's outline: square, only its corners rounded
+PANEL_ROLL = 0.3  # how fast a wall panel's face rolls off its edge (a power under 1: flat, a narrow rounded edge)
+QUILTED_COURSES = (0,)  # a panelled lining's courses still quilted: the kick pad along the floor
 THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
 
@@ -943,6 +1031,9 @@ def course_seams(cone):
         draw = np.random.default_rng(CUSHION_SEED + course)
         middle = (ROWS[course] + ROWS[course + 1]) / 2
         around = 2 * math.pi * (float(cone.rho(middle, face)) - float(shoulder(cone, middle)[0]))
+        if cone.sizes["panels"]:  # a real cabin's panels: even widths, their joints lined up course over course
+            seams.append((cone.sizes["panel_from"] / 360.0 % 1.0, np.linspace(0.0, 1.0, int(cone.sizes["panels"]) + 1)))
+            continue
         count = max(6, int(round(around / CUSHION_WIDE)))
         widths = 1 + WIDE_SPREAD * (2 * draw.random(count) - 1)
         seams.append((float(draw.random()), np.concatenate([[0.0], np.cumsum(widths) / widths.sum()])))
@@ -974,7 +1065,8 @@ def quilt(cone, theta, y):
     """How far the lining's cushions stand out over the spots (theta, y): big stuffed pillows in courses
     (cushion_at), each a superellipse dome (PILLOW) swelling steeply from zero along its edge (FULLNESS), so two
     pillows meet in a deep crease and their corners pinch in, each a little fuller or flatter than the next; the
-    course on the floor a fat bolster."""
+    course on the floor a fat bolster. A panelled lining (CONE's `panels`) stands its wall panels' flat faces
+    PANEL_PUFF off instead, rolled off at their square edges, its QUILTED_COURSES still pillows."""
     row, column, _, across, upward = cushion_at(cone, theta, y)
     seed = np.abs(np.sin(row * 12.9898 + column * 78.233) * 43758.5453) % 1.0
     lean = np.abs(np.sin(row * 39.3468 + column * 11.135) * 24634.6345) % 1.0
@@ -984,7 +1076,11 @@ def quilt(cone, theta, y):
     reach = (side ** PILLOW + np.abs(2 * upward - 1) ** PILLOW) ** (1.0 / PILLOW)
     swell = np.clip(1 - reach ** PILLOW, 0.0, 1.0) ** FULLNESS
     puff = cone.sizes["puff"] * np.where(row == 0, 1.3, 1.0) * (0.85 + 0.3 * seed)
-    return puff * swell
+    if not cone.sizes["panels"]:
+        return puff * swell
+    square = (np.abs(2 * across - 1) ** PANEL_EDGE + np.abs(2 * upward - 1) ** PANEL_EDGE) ** (1.0 / PANEL_EDGE)
+    panel = PANEL_PUFF * np.clip(1 - square ** PANEL_EDGE, 0.0, 1.0) ** PANEL_ROLL
+    return np.where(np.isin(row, QUILTED_COURSES), puff * swell, panel)
 
 
 def cut_distance(cone, theta, y, cut):
@@ -1095,8 +1191,10 @@ def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, ri
     crossed = np.zeros(cushion[:-1].shape, dtype=bool)
     for other in corners[1:]:
         crossed |= other != corners[0]
-    parts = np.where(crossed & (smoothed < 0.05), "seam", "cushion")  # the crease along a cushion's edge, none
-    # where the quilting is eased even a little (no stray dark bits on the flat round a hole or along the cut)
+    eased_limit = 0.95 if cone.sizes["panels"] else 0.05
+    parts = np.where(crossed & (smoothed < eased_limit), "seam", "cushion")  # the crease along a cushion's edge,
+    # none where the quilting is eased even a little (no stray dark bits on the flat round a hole or along the cut);
+    # a panelled wall's joints run on to the fitting they meet, never stopping short in the open wall
     return grid_solid(front, back, keep, parts, "back", "cushion", face_normals,
                       front_normals=surface_normals(front, face_normals))
 
@@ -1547,10 +1645,49 @@ def lamp_fixture(size=0.2, **_):
     return found
 
 
+def handrail(long=0.42, stand=0.06, radius=0.011, **_):
+    """A grab handle on a wall, upright `long` metres between its two feet: a round bar bent off the wall `stand`
+    metres on each foot, each foot a plate bolted twice to the wall (its back on z = 0, the bar toward +z)."""
+    half = long / 2
+    bend = [(0.0, -half, 0.0)] + [(0.0, -half + 0.03 * (1 - math.cos(math.radians(angle))),
+                                   stand * math.sin(math.radians(angle))) for angle in range(15, 91, 15)]
+    path = bend + [(x, -y, z) for x, y, z in reversed(bend)]
+    found = tube("rail", path, radius, 14)
+    head = [(0.0, 0.0), (0.004, 0.0), (0.004, 0.0015), (0.0028, 0.0025), (0.0, 0.0025)]
+    for end in (-half, half):
+        found += box("metal", (-0.022, end - 0.032, -0.004), (0.022, end + 0.032, 0.006), 0.002)
+        for offset in (-0.021, 0.021):
+            found += moved(turned("bolt", head, segments=10), offset=(0.0, end + offset, 0.0055))
+    return found
+
+
+def cables(around=(300.0, 380.0), y=1.74, count=3, pitch=0.026, stand=0.03, clamp_every=0.32, **sizes):
+    """A cable run along the cabin wall in the capsule's frame: `count` bundled cables of their own thicknesses
+    `pitch` apart up the wall at height `y` (their middle), from `around` [from, to] degrees round the cone, `stand`
+    metres off the lining's face (past its panels), held by a bright clamp strap every `clamp_every` metres."""
+    cone = Cone(**sizes)
+    face = cone.sizes["gap"] + cone.sizes["lining"] + PANEL_PUFF + stand
+    start, end = (math.radians(value) for value in around)
+    length = abs(end - start) * float(cone.rho(y, face))
+    thetas = np.linspace(start, end, max(8, int(length / 0.03)))
+    found = []
+    radii = [0.009, 0.0065, 0.0075, 0.006][:count]
+    for number, radius in enumerate(radii):
+        height = y + (number - (count - 1) / 2) * pitch
+        found += tube("cable", [cone.at(theta, height, face) for theta in thetas], radius, 12)
+    reach = (count - 1) / 2 * pitch + 0.014
+    clamps = max(2, int(length / clamp_every) + 1)
+    for theta in np.linspace(start, end, clamps)[1:-1] if clamps > 2 else []:
+        right, up, inward = cone.frame(theta)
+        strap = box("clamp", (-0.008, -reach, -stand - 0.004), (0.008, reach, 0.011), 0.002)
+        found += moved(strap, np.column_stack([right, up, inward]), cone.at(theta, y, face))
+    return found
+
+
 KINDS = {"hull": hull, "lining": lining, "ceiling": ceiling, "floor": floor, "skirt": skirt, "nose": nose, "lip": lip,
          "through_wall": through_wall, "tread": tread, "hatch_leaf": hatch_leaf, "gantry": gantry, "panel": panel, "console": console,
          "switch_box": switch_box, "mount": mount, "seat": seat, "throttle": throttle, "stick": stick, "lamp_fixture": lamp_fixture,
-         **ITEMS}
+         "handrail": handrail, "cables": cables, **ITEMS}
 
 
 # --- writing --------------------------------------------------------------------------------------------------------

@@ -78,6 +78,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   through a wide hole's inner flange at its sides, where the cone curves away
 - place_build.kit: a part with no look left in its placeholder -> the toggle laid with no look for its lever is not
   refused
+- cockpit_kit.course_seams: a panelled lining's courses started at random again -> its wall panels' joints no longer
+  line up course over course from `panel_from`
+- cockpit_kit.wheel: the rim's ends laid on one face again -> the valve handwheel is no closed solid
 - launch_kit.ship: the barrel and the nose turned as two solids (the barrel's top left open) -> the ship's welded
   mesh has an edge used three times (no closed solid)
 - launch_kit.ship: the aft skirt left off -> the ship's lowest points are its engine bells', not the skirt it stands on
@@ -982,7 +985,7 @@ def kitted(tmp_path):
                                                             "rows": 0.05}, role="structure", looks=looks)
             for name, sector in (("near", [-30, 30]), ("far", [150, 210]))}
     panel = place_build.kit(folder, "plate", "panel", {"wide": 0.3, "high": 0.2, "label": "AB"}, at=(0, 1, -0.2),
-                            looks={part: "palette/hull_paint" for part in ("plate", "bezel", "label", "ink")})
+                            looks={part: "palette/hull_paint" for part in ("plate", "bezel", "label", "ink", "bolt")})
     with pytest.raises(place_build.Refused, match="lever"):
         place_build.kit(folder, "bare", "toggle", looks={"metal": "palette/hull_paint"})
     stage = Usd.Stage.Open(str(folder / "scene.usda"))
@@ -996,8 +999,8 @@ def kitted(tmp_path):
         walls[name] = trimesh.Trimesh(points, faces, process=False).split(only_watertight=False)
         along = (points - middle) @ axis
         off_axis[name] = np.linalg.norm(points - middle - along[:, None] * axis, axis=1).min()
-    assert laid["near"]["parts"] == ["back", "cushion", "seam"] and panel["parts"] == ["bezel", "ink", "label",
-                                                                                         "plate"], (laid, panel)
+    assert laid["near"]["parts"] == ["back", "cushion", "seam"] and panel["parts"] == ["bezel", "bolt", "ink",
+                                                                                         "label", "plate"], (laid, panel)
     assert all(len(bodies) == 1 and bodies[0].is_watertight and bodies[0].volume > 0 for bodies in walls.values())
     assert off_axis["near"] > hole[2] - 0.01 and off_axis["far"] < 0.05, off_axis  # the hole in the near wall only
     assert all(stage.GetPrimAtPath(f"/pod/Looks/near__{part}").GetAttribute("score:surface").Get()
@@ -1013,6 +1016,14 @@ def kitted(tmp_path):
     flange_top = (cone.onto(face_points, cone.inward(0.0), cone.sizes["gap"] + cone.sizes["lining"])
                   - cone.at(0.0, 1.0)) @ cone.inward(0.0) + 0.022
     assert under.any() and (along[under] < flange_top[under]).all(), (along - flange_top)[under].max()
+    panelled = cockpit_kit.Cone(panels=15, panel_from=4.0)
+    assert {start for start, _ in cockpit_kit.course_seams(panelled)} == {4.0 / 360.0}  # joints lined up
+    for kind in ("wheel", "guarded_button", "ball", "breakers", "handrail"):
+        built = cockpit_kit.KINDS[kind]()
+        points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in built]), np.vstack(
+            [found[2] + sum(len(earlier[1]) for earlier in built[:number]) for number, found in enumerate(built)]))
+        assert all(body.is_watertight for body in trimesh.Trimesh(points, triangles, process=False).split(
+            only_watertight=False)), kind
     launched(folder)
 
 

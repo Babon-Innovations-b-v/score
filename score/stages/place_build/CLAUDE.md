@@ -197,7 +197,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   shares a face with another and no face is collapsed (a reader drops it and every part's face numbers after it
   slip: the floor drew black); a hole is cut only within THROUGH of its wall (its axis runs on to the far wall). A
   piece's file is cached by its sizes under `assets/algorithm/place_build/`: delete it there after changing
-  cockpit_kit.py. `kit --ground` lays a piece as the walked ground.
+  cockpit_kit.py. `kit --ground` lays a piece as the walked ground. A real cabin's look (owner 2026-11-24: "look up
+  a real cockpit of a rocket ... that light padding just ugly"): the lining's `panels` (CONE) lays it as a real
+  cabin's wall, that many padded panels round, their joints lined up from `panel_from` so one panel is one wall of the
+  lining, the joints running on to the fitting they meet, the kick pad along the floor still quilted; panels are
+  screwed down round their bezels; a toggle's `guard` is its wickets (the Apollo command module's), "cover" the red
+  flip cover of a critical switch; the hardware takes a valve handwheel, a guarded push button, push-pull circuit
+  breakers, an attitude ball, and a wall's grab `handrail` and clamped `cables` run.
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its
