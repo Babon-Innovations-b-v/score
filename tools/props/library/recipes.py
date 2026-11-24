@@ -1057,14 +1057,20 @@ def decal_layers(decals):
 def channels(spec, wear, dirt, seed, foot=None):
     """One library material at one wear and dirt setting, on a piece whose foot stands `foot` over its floor, as
     Channels. A recipe that layers paint (it takes `decals`) prints its decals under its wear and dirt; any other gets
-    them printed over its finish."""
+    them printed over its finish; print gives off no light, so a glowing finish's light is masked under it (#159 round
+    8: the push button's IGN and ARMED vanished in its lit cap's glow)."""
     given = arguments(spec, wear, dirt, seed, foot)
     found = RECIPES[spec["recipe"]](**given)
     if not spec.get("decals") or "decals" in given:
         return found
-    colour, roughness, metal = with_decals((found.base_color, found.roughness, found.metallic),
-                                           decal_layers(spec["decals"]))
-    return found._replace(base_color=colour, roughness=roughness, metallic=metal)
+    layers = decal_layers(spec["decals"])
+    colour, roughness, metal = with_decals((found.base_color, found.roughness, found.metallic), layers)
+    emission = pf.Color(found.emission) if isinstance(found.emission, tuple) else found.emission
+    if found.emission is not BLACK:
+        for mask, _, _ in layers:
+            emission = pf.nodes.math.vector_scale(vector=emission, scale=1.0 - mask)
+    return found._replace(base_color=colour, roughness=roughness, metallic=metal,
+                          emission=found.emission if found.emission is BLACK else emission)
 
 
 def settings_of(recipe):
