@@ -611,7 +611,7 @@ def branch_b(kept, row, material, rgba, scratch, library):
                   scratch)
         if kept_output(kept, row["id"], "B", "finish"):
             parted = checked_out(kept, row["id"], "B", "finish", scratch / "B" / "look-finish")
-            camera = json.loads((rgba.parent / "row.json").read_text())["camera"]
+            camera = finish.look_view(json.loads((rgba.parent / "row.json").read_text())["camera"], parted)
             run_steps(kept, row["id"], "B", [("look", look_step(model, parted, row, camera))], scratch)
     if not kept.entry(row["id"], "B", "physics") and all(kept_output(kept, row["id"], "B", step)
                                                          for step in ("final", "sim", "finish")):
@@ -903,9 +903,9 @@ def written_measures(folder, truth, side, others, made, picture=None, looked=Non
 
 
 def judged_look(kept, asset, branch, previous, scratch):
-    """The branch's kept look held by the picture judge (tools/props/bench/judge, #184) to NVIDIA's render and to the
-    same asset's look in the `previous` run (a Kept, where it kept one): the measure group "picture", or None where
-    the branch keeps no look."""
+    """The branch's kept look held by the picture judge (tools/props/bench/judge, #184) to NVIDIA's render (a pictured
+    case's: its close-up, #159) and to the same asset's look in the `previous` run (a Kept, where it kept one): the
+    measure group "picture", or None where the branch keeps no look."""
     from tools.props.bench import judge
     step = LOOKED.get(branch)
     if not step or not kept_output(kept, asset, branch, step):
@@ -916,8 +916,8 @@ def judged_look(kept, asset, branch, previous, scratch):
     before = None
     if previous is not None and kept_output(previous, asset, branch, step):
         before = checked_out(previous, asset, branch, step, scratch / branch / f"previous-{step}") / "look.png"
-    words = json.loads((given / "row.json").read_text())["words"]
-    return judge.looked(words, look, given / "rgba.png", before)
+    row = json.loads((given / "row.json").read_text())
+    return judge.looked(row["words"], look, given / "rgba.png", before, pictured=bool(row.get("picture")))
 
 
 def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
@@ -971,15 +971,17 @@ def pictured_side(model, finished=None, take=None):
             "decals": [decal["text"] for decal in placed if decal.get("text")]}
 
 
-def pictured_measures(folder, row, given, model, side, made, looked=None):
+def pictured_measures(folder, row, given, model, side, made, looked=None, judged=None):
     """measures.json of a pictured case's made model: the camera fitted from its outline on the close-up (camera.json
     beside it, its fit the silhouette), every pictured measure (and its look's from its look step's folder `looked`,
-    look_found) and its judgement at PICTURED_BARS."""
+    look_found; the picture judge's group `picture`, `judged`, where given) and its judgement at PICTURED_BARS."""
     from tools.props.bench import calibrate, measures
     picture = row["picture"]
     fitted = json.loads(finish.fitted_camera(model, given / "rgba.png", {**row, "size": picture["size"]},
                                              folder).read_text())["fitted"]
     found = measures.pictured(picture["size"], side, fitted["fit"], picture)
+    if judged is not None:
+        found["picture"] = judged
     look = look_found(looked) if looked is not None else {}
     if look:
         found["look"] = look
@@ -988,9 +990,10 @@ def pictured_measures(folder, row, given, model, side, made, looked=None):
     (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
 
 
-def measure_pictured(row, kept, scratch):
+def measure_pictured(row, kept, scratch, previous=None):
     """A pictured case's made models (each branch's, its finish parts where kept; the 2099 session's own makes,
-    branch `old`) held to its kept close-up and target size; its close-up not kept is its gap on branch `truth`."""
+    branch `old`) held to its kept close-up and target size, each kept look by eye to the close-up and the `previous`
+    run's look (judged_look); its close-up not kept is its gap on branch `truth`."""
     asset = row["id"]
     if not kept_output(kept, asset, "input", "render"):
         kept.gap(asset, "truth", "read", "StepFailed: no close-up kept (run render first)")
@@ -1008,7 +1011,7 @@ def measure_pictured(row, kept, scratch):
             looked = checked_out(kept, asset, branch, look, scratch / branch / f"kept-{look}") \
                 if look and kept_output(kept, asset, branch, look) else None
             pictured_measures(folder, row, given, model, pictured_side(model, parted, asset), f"{branch} {step}",
-                              looked)
+                              looked, judged_look(kept, asset, branch, previous, scratch))
         return make
 
     def old_step_of(address):
@@ -1037,7 +1040,7 @@ def measure_all(rows, every, kept, run, previous=None):
         scratch = job_scratch(run, f"{row['id']}-measures")
         try:
             if row.get("picture"):
-                measure_pictured(row, kept, scratch)
+                measure_pictured(row, kept, scratch, previous)
                 continue
             try:
                 truth = bench_truth.read(row["address"])

@@ -7,6 +7,7 @@ library surface and the measures can hold its finish split against NVIDIA's face
     face_finishes(folder, take)                       # (part a face, each part's surface) of a finished take
     part_looks(folder, take)                          # each part's look as its surface is set on it (#172)
     look_job(folder, take, model, camera, out)        # its look drawn by the texel masks, look.py's job (#182)
+    look_view(camera, folder)                         # the look's camera: the render's, else the finish's fitted one
     marks_read(folder, ask=None)                      # each text mark of a drawn look read back (#185)
     surface_look(record)                              # a library surface's own look, from its recipe
 
@@ -459,6 +460,19 @@ def look_axes(camera):
     right = np.cross(camera["up"], back)
     right = right / np.linalg.norm(right)
     return right, np.cross(back, right), back
+
+
+def look_view(camera, folder):
+    """The look's camera ({eye, aim, up, fov}: Blender's frame, its vertical field in degrees): the close-up's own
+    `camera` where its render kept one, else (a pictured case, #159: its close-up drawn by no known camera, the cockpit
+    looks' TypeError on tc5) the one the finish `folder` fitted on the made model's outline (camera.json,
+    close_up_fit.fitted_camera's `look` in the model file's own frame, glTF's Y up, looking along up x right)."""
+    if camera is not None:
+        return camera
+    found = json.loads((folder / "camera.json").read_text())
+    eye, right, up = (np.asarray(found["look"][key], dtype=float) for key in ("eye", "right", "up"))
+    return {"eye": z_up(eye.tolist()), "aim": z_up((eye + np.cross(up, right)).tolist()), "up": z_up(up.tolist()),
+            "fov": float(found["fitted"]["field_vertical"])}
 
 
 def look_job(folder, take, model, camera, out):

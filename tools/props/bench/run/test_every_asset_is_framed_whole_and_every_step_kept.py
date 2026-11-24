@@ -51,7 +51,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   material, and its made box at its target size is measured against that close-up and size alone:
   bench.read_set reading it as a simready row -> it has no version and the set is not read; bench.render_one drawing
   it as a truth -> Blender's stand-in is asked for it; bench.pictured_render keeping the picture's RGB alone -> its
-  rgba.png has no true alpha; bench.measure_all reading it as a truth -> its truth read is a gap and nothing is measured
+  rgba.png has no true alpha; bench.measure_all reading it as a truth -> its truth read is a gap and nothing is measured.
+  Its look (#159 round 7, tc5's cockpit looks failed on TypeError 'NoneType' object is not a mapping): finish.look_view
+  passing the row's camera on as it is -> the case's None reaches look_axes (TypeError); its aim behind the eye
+  (`eye - ahead`) -> the look faces away, its axes not right, up and back as fitted; bench.measure_pictured not
+  judging the look (judged_look's group not passed) -> B's measures hold no picture row and its shape fault passes;
+  bench.judged_look not naming the case pictured -> the judge is asked about NVIDIA's render, not the close-up
 """
 import ast
 import base64
@@ -326,9 +331,10 @@ def recoloured_step():
     return step(spec["colour"], spec["second"]), step(colours["#707070"], colours["#686068"])
 
 
-def pictured_case(tmp_path, name, material, box):
+def pictured_case(tmp_path, monkeypatch, name, material, box):
     """The cockpit row: its close-up (a red square, true alpha) kept in the store, rendered as its close-up, and a
-    made box at its target size measured against it (branch A's kept `finished`, no finish parts)."""
+    made box at its target size measured against it (branch A's kept `finished`, no finish parts; branch B's the same
+    box with a kept look, judged by a stand-in for Claude)."""
     low, high = box
     target = [round(value, 4) for value in np.subtract(high, low)]
     picture = np.zeros((PIXELS, PIXELS, 4), np.uint8)
@@ -359,6 +365,23 @@ def pictured_case(tmp_path, name, material, box):
     (tmp_path / "finished").mkdir()
     made.export(str(tmp_path / "finished" / "final.glb"))
     kept.keep(name, "A", "finished", tmp_path / "finished", 0.0)
+    # Branch B's look of it (#159 round 7): drawn from the camera its finish fitted on the close-up (its row keeps
+    # none), and held by eye to the close-up itself, asked as such (a stand-in judge seeing its shape off).
+    (tmp_path / "fitted").mkdir()  # a fitted camera 2 m out on glTF's +z, looking at the origin, glTF's +y up
+    (tmp_path / "fitted" / "camera.json").write_text(json.dumps({"camera_angle_x": 0.5, "look": {
+        "eye": [0.0, 0.0, 2.0], "right": [1.0, 0.0, 0.0], "up": [0.0, 1.0, 0.0]}, "fitted": {"field_vertical": 30.0}}))
+    view = finish.look_view(given["camera"], tmp_path / "fitted")
+    assert np.allclose(finish.look_axes(view), [[1, 0, 0], [0, 0, 1], [0, -1, 0]]) and view["fov"] == 30.0, view
+    assert finish.look_view({"eye": [1.0, 2.0, 3.0]}, tmp_path / "fitted") == {"eye": [1.0, 2.0, 3.0]}
+    kept.keep(name, "B", "final", tmp_path / "finished", 0.0)
+    (tmp_path / "look").mkdir()
+    Image.fromarray(picture, "RGBA").save(tmp_path / "look" / "look.png")
+    kept.keep(name, "B", "look", tmp_path / "look", 0.0)
+    from tools.props.bench import judge
+    asked = []
+    monkeypatch.setattr(judge, "claude_ask", lambda body: asked.append(body) or json.dumps(
+        {"faults": [{"kind": "shape", "where": "body", "what": "squat"}],
+         "verdicts": {kind: "fault" if kind == "shape" else "clean" for kind in judge.KINDS}}))
     bench.measure_all([row], [row], kept, "trial")
     record = json.loads((kept.store.checkout(kept.entry(name, "A", "measures")["output"]) /
                          "measures.json").read_text())
@@ -366,6 +389,11 @@ def pictured_case(tmp_path, name, material, box):
     assert record["truth"]["closeup"] == held and rows["size.size"]["value"] == 0.0, record["truth"]
     assert {"shape.closeup", "clean.open_length", "clean.thinnest", "finish.edge_wander"} <= set(rows), rows
     assert "labels.held" not in rows and "finish.picks" not in rows  # no finish parts: left out, never failed
+    assert not any(measure.startswith("picture.") for measure in rows)  # branch A keeps no look
+    looked_record = json.loads((kept.store.checkout(kept.entry(name, "B", "measures")["output"]) /
+                                "measures.json").read_text())
+    assert "picture.shape" in looked_record["judged"]["failed"], looked_record["judged"]
+    assert len(asked) == 1 and "close-up picture" in asked[0]["contents"][0]["parts"][-1]["text"]
 
 
 def drawer(scale):
@@ -394,7 +422,7 @@ def drawer(scale):
 def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, name, kind, material, box, flat, scale,
                                                          failing):
     if kind == "cockpit":
-        pictured_case(tmp_path, name, material, box)
+        pictured_case(tmp_path, monkeypatch, name, material, box)
         return
     set_file = tmp_path / "set.json"
     set_file.write_text(json.dumps({"objects": [{"address": f"model/{name}@1", "kind": kind, "split": "tune"}]}))

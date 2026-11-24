@@ -140,8 +140,8 @@ BARS = (
 # many-pieced assets are why the truth's bars are relative), its wall the gate's least for its size, its finish edges
 # at the truth's absolute bars, every label of the close-up printed as a decal, and its finishes of the classes the
 # close-up shows and of no recipe it does not show (the 2099 palette's cloth on a toggle lever, rust on screen bezels).
-# The truth's relative bars (triangle density, flat share, swell, finish edge density) and its look and physics are
-# not judged: there is nothing to hold them to.
+# The truth's relative bars (triangle density, flat share, swell, finish edge density) and its physics are not judged:
+# there is nothing to hold them to. Its look is held by eye to the close-up itself.
 PICTURED_BARS = (
     ("shape", "closeup", "least", 0.90),
     ("size", "size", "most", 0.05),
@@ -159,6 +159,13 @@ PICTURED_BARS = (
     ("finish", "picks", "least", 0.95),
     ("labels", "held", "least", 1.0),
     ("look", "read", "least", 1.0),
+    # Its look by eye against its close-up and the previous round's look (the picture judge, #159 round 7: the cockpit
+    # looks were drawn by no step and judged by no one), and its look's holes: the truth path's own bars, none of which
+    # reads a truth's value.
+    ("picture", "drawn", "true", None),
+    *(("picture", kind, "most", 0) for kind in PICTURE_KINDS),
+    ("picture", "regressed", "most", 0),
+    ("look", "holes", "most", 0.0002),
 )
 
 TWIN_REACH = 0.001  # metres two assets' boxes may differ by and still be one geometry (twin)

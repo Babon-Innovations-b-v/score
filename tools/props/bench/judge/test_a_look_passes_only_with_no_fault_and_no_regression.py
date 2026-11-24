@@ -11,6 +11,7 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/judge/__ini
 - shown: the picture's alpha not laid on BACKDROP (its RGB alone) -> the shown corners are black, not the backdrop.
 - framed: the first object's box alone, not the union -> the input's object in the far corner is cut out of the
   shown input.
+- asking_body: `pictured` not read (#159 round 7) -> the cockpit close-up is named NVIDIA's render in the ask.
 - measures.BARS: the picture rows left out -> the faulty look passes (no picture row judged).
 """
 import base64
@@ -45,7 +46,7 @@ def answer(faults=(), regressed=None, missing=()):
 
 
 # name, the look's box (None: nothing drawn), the input's box, a previous look, the stand-in's answer, the failed
-# measures, the pictures asked (None: not asked)
+# measures, the pictures asked (None: not asked); a row named "pictured" holds its look to a close-up, not a render
 ROWS = [
     ("clean", (16, 16, 48, 48), (16, 16, 48, 48), False, answer(), [], 2),
     ("slight", (16, 16, 48, 48), (16, 16, 48, 48), False, answer([("colour", "slight")]), [], 2),
@@ -56,6 +57,8 @@ ROWS = [
     ("empty", None, (16, 16, 48, 48), False, None, ["picture.drawn"], None),
     ("apart", (2, 2, 12, 12), (52, 52, 62, 62), False, answer(), [], 2),
     ("unjudged", (16, 16, 48, 48), (16, 16, 48, 48), False, answer(missing=("text",)), ValueError, 2),
+    ("pictured", (16, 16, 48, 48), (16, 16, 48, 48), True, answer([("shape", "fault")], regressed=False),
+     ["picture.shape"], 3),
 ]
 
 
@@ -78,12 +81,15 @@ def test_a_look_passes_only_with_no_fault_and_no_regression(tmp_path, name, made
         with pytest.raises(ValueError):
             judge.looked("a red box", made, given, before, ask=ask)
         return
-    found = judge.looked("a red box", made, given, before, ask=ask)
+    found = judge.looked("a red box", made, given, before, ask=ask, pictured=name == "pictured")
     assert measures.judged({"picture": found})["failed"] == failed
     assert {row[1] for row in measures.BARS if row[0] == "picture"} >= {"drawn", "regressed", *judge.KINDS}
     if asked is None:
         assert bodies == [] and found["drawn"] == 0
         return
+    text = bodies[0]["contents"][0]["parts"][-1]["text"]
+    assert ("close-up picture the model was made from" in text, "NVIDIA" in text) == (
+        name == "pictured", name != "pictured"), text
     shown = [Image.open(io.BytesIO(base64.b64decode(part["inline_data"]["data"])))
              for part in bodies[0]["contents"][0]["parts"] if "inline_data" in part]
     assert len(shown) == asked

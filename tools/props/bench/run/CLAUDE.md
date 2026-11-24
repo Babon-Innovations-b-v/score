@@ -62,7 +62,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   straight above with +y up.
 - **A pictured case** (a set row with `picture` and no address, #159) is not drawn: its `render` is its close-up
   checked out of the store, and `measure` holds each branch's model, and the 2099 session's own makes of it
-  (`made_before`, branch `old`), to that close-up and its target size (measures.pictured).
+  (`made_before`, branch `old`), to that close-up and its target size (measures.pictured). Its row keeps no camera,
+  so B's look is drawn from the one its finish fitted on the close-up (`finish.look_view`: camera.json), and the
+  picture judge holds that look to the close-up itself (and `--previous`'s look), at PICTURED_BARS (#159 round 7).
 - Test: `test_every_asset_is_framed_whole_and_every_step_kept.py` (a stand-in for Blender, a small USD box, a store and
   a bucket in folders, the box again as a Y-up glb and a Y-up stage, and through the finish on a three-surface library
   with a stand-in list).

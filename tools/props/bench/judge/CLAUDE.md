@@ -15,5 +15,7 @@ on the previous round counts) made a check. `__init__.py` is the way in (its doc
 - **Calibration**: NVIDIA's input render against itself and against a re-render (the look's 1080 px, fewer samples)
   must pass; the numbers are on #184.
 - **Wired into** `bench.py measure` (run/): branch B's measures carry `picture` when its look is kept; `--previous
-  <run>` names the round whose looks it is held to.
+  <run>` names the round whose looks it is held to. A pictured case (the 2099 cockpit cases, no NVIDIA model) is held
+  to its close-up, the ask naming it so (`pictured`, ORIGINALS); the render's words stay byte for byte, so kept
+  answers hold.
 - Test: `test_a_look_passes_only_with_no_fault_and_no_regression.py`, a stand-in for Claude, small RGBA pictures.

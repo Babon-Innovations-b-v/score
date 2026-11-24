@@ -2,14 +2,15 @@
 look (branch B's `look` step, #182: the finish as the bake paints it, from the close-up's camera) is held by eye to
 NVIDIA's input render of the same object, and, when given, to the same object's look in the previous round.
 
-    looked(words, made, given, previous=None, ask=None) -> the bench measure group "picture":
+    looked(words, made, given, previous=None, ask=None, pictured=False) -> the bench measure group "picture":
         {"drawn": 1 or 0, <each of KINDS>: 1 when a fault of that kind is seen else 0, "regressed": 1 or 0 (only with
          `previous`), "verdicts": {kind: clean | slight | fault}, "faults": [{kind, where, what}], "regression": text,
          "pictures": {name: sha256 of the picture as shown}}
     shown(path, crop) -> the picture's PNG bytes as the judge sees it
     framed(*paths)     -> the crop (shares of the frame) round every object drawn
 
-`made` is the look (look.png, RGBA), `given` NVIDIA's render (the render step's rgba.png, true alpha), `previous` the
+`made` is the look (look.png, RGBA), `given` NVIDIA's render (the render step's rgba.png, true alpha; with `pictured`,
+a pictured case's close-up, #159: the ask names it so, ORIGINALS), `previous` the
 previous round's look (look.png, or any picture of it from the same camera). Each is laid on the close-up's light grey
 backdrop (bench.BACKDROP), cut to the same frame round both objects and drawn at SHOWN px, so the three are seen alike.
 A look with nothing drawn (no opaque pixel) is `drawn` 0 and asked nothing.
@@ -45,6 +46,20 @@ SHOWN = 768  # the longest side of each picture as the judge sees it
 PAD = 0.04  # the share of the frame kept round the objects when they are cut to it
 BACKDROP = (214, 214, 214)  # the close-up's backdrop (tools/props/bench/run/bench.py BACKDROP)
 CALLER = "bench-picture"
+# What picture 1 is: NVIDIA's model rendered, or a pictured case's close-up (#159: the 2099 cockpit cases, no NVIDIA
+# model; its look is drawn from the camera fitted on that close-up's outline). The render's words are the ask's as
+# calibrated on #184, kept byte for byte so its kept answers hold.
+ORIGINALS = {
+    "render": ("You judge, by eye and strictly, a 3D model made again from a picture of an original model. The "
+               "object: {words}. Picture 1 is the ORIGINAL (NVIDIA's model, rendered). Picture 2 is the MADE model, "
+               "drawn from the same camera on the same backdrop. The two are drawn by different renderers under "
+               "different light,"),
+    "closeup": ("You judge, by eye and strictly, a 3D model made from a picture of an object. The object: {words}. "
+                "Picture 1 is the ORIGINAL: the close-up picture the model was made from (an image of the object, not "
+                "a render of this model). Picture 2 is the MADE model, drawn on the same backdrop from a camera "
+                "fitted to the close-up's outline, so its view may differ by a few degrees and its framing a little. "
+                "The two are drawn under different light,"),
+}
 
 
 def opened(path):
@@ -98,14 +113,13 @@ def drawn(path):
     return opened(path).getchannel("A").getextrema()[1] > 0
 
 
-def asking_body(words, made, given, previous=None):
-    """The ask (a Gemini generateContent body, as claude_code reads one): NVIDIA's render, the made look and the
-    previous round's look (PNG bytes), the object's words, answered as its faults and verdicts."""
+def asking_body(words, made, given, previous=None, pictured=False):
+    """The ask (a Gemini generateContent body, as claude_code reads one): NVIDIA's render (with `pictured`, the
+    close-up the model was made from: ORIGINALS), the made look and the previous round's look (PNG bytes), the object's
+    words, answered as its faults and verdicts."""
     kinds = "; ".join(f"`{kind}`: {what}" for kind, what in KINDS.items())
-    text = (f"You judge, by eye and strictly, a 3D model made again from a picture of an original model. The object: "
-            f"{words}. Picture 1 is the ORIGINAL (NVIDIA's model, rendered). Picture 2 is the MADE model, drawn from "
-            "the same camera on the same backdrop. The two are drawn by different renderers under different light, "
-            "so a different brightness, shading, reflection or shadow alone is no fault; the made model's surfaces "
+    text = (ORIGINALS["closeup" if pictured else "render"].format(words=words) +
+            " so a different brightness, shading, reflection or shadow alone is no fault; the made model's surfaces "
             "come from a library, so a different fine grain of the same material and colour is no fault either. "
             "Look at every part of the made model against the original and list every visible fault, each with its "
             f"kind, where it is and what is wrong. The kinds: {kinds}. Then give a verdict for every kind: `clean` "
@@ -163,9 +177,10 @@ def counted(answer, regression_asked):
     return found
 
 
-def looked(words, made, given, previous=None, ask=None):
-    """The bench measure group "picture" of one made look (module docstring); `ask` takes the body and gives the
-    answer's JSON text (a test's), else Claude's."""
+def looked(words, made, given, previous=None, ask=None, pictured=False):
+    """The bench measure group "picture" of one made look (module docstring); `pictured`: `given` is a pictured case's
+    close-up, not NVIDIA's render (ORIGINALS); `ask` takes the body and gives the answer's JSON text (a test's), else
+    Claude's."""
     paths = [pathlib.Path(made), pathlib.Path(given)] + ([pathlib.Path(previous)] if previous else [])
     crop = framed(*paths)
     pictures = {name: shown(path, crop) for name, path in zip(("made", "given", "previous"), paths)}
@@ -173,6 +188,6 @@ def looked(words, made, given, previous=None, ask=None):
     if not drawn(made):
         return {"drawn": 0, "faults": [{"kind": "parts", "where": "the whole look", "what": "nothing is drawn"}],
                 "pictures": hashes}
-    body = asking_body(words, pictures["made"], pictures["given"], pictures.get("previous"))
+    body = asking_body(words, pictures["made"], pictures["given"], pictures.get("previous"), pictured)
     answer = json.loads((ask or claude_ask)(body))
     return {**counted(answer, previous is not None), "pictures": hashes}

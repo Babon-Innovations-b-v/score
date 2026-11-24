@@ -71,6 +71,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - __init__.text_read counting every mark read (#185: tc4r's sign drew a garbled "C" for "03" and passed): the OFF label
   drawn garbled passes; label_words(mark["read"]) -> mark["read"]: the labels read "on" and "OFF " fail;
   ("look", "read") left out of PICTURED_BARS: the garbled label is not judged.
+- PICTURED_BARS without the picture judge's rows (#159 round 7: the cockpit looks judged by no one) -> the look whose
+  shape is off its close-up and the look worse than the previous round's pass; without ("look", "holes") -> the look
+  holed through passes.
 """
 import functools
 import pathlib
@@ -357,16 +360,19 @@ def leaning(degrees):
 PICTURE = {"labels": ["ON", "OFF"], "classes": ["metal", "plastic"], "never": ["cloth", "rusted_metal"]}
 
 
-def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), material=None, read=None):
+def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), material=None, read=None, seen=None):
     """(the made box's pictured measures against SIDES as its target and PICTURE, PICTURED_BARS): its sides part 0 in
-    metal paint, its top part 1 of `top` (class, recipe), its decals' text `decals`, and with `read` ((its words, what
-    its look read there), ...) its look's text marks read back (#185)."""
+    metal paint, its top part 1 of `top` (class, recipe), its decals' text `decals`, with `read` ((its words, what
+    its look read there), ...) its look's text marks read back (#185), and with `seen` ({group: {measure: value}})
+    its look's holes and the picture judge's group against its close-up (#159 round 7)."""
     parts = top_material(mesh) if material is None else material
     made = {**side(mesh, parts), "classes": {0: "metal", 1: top[0]}, "families": {0: "paint", 1: top[1]},
             "decals": list(decals)}
     found = measures.pictured(SIDES, made, fit, PICTURE)
     if read is not None:
-        found["look"] = measures.text_read([{"text": text, "read": seen} for text, seen in read])
+        found["look"] = measures.text_read([{"text": text, "read": shown} for text, shown in read])
+    for group, values in (seen or {}).items():
+        found[group] = {**found.get(group, {}), **values}
     return found, measures.PICTURED_BARS
 
 
@@ -478,6 +484,14 @@ CASES = [
      "look.read", False),
     ("pictured: a cloth top", lambda: pictured(box(), top=("fabric", "cloth")), "finish.picks", False),
     ("pictured: a rusted metal top", lambda: pictured(box(), top=("metal", "rusted_metal")), "finish.picks", False),
+    ("pictured: its look seen as its close-up", lambda: pictured(box(), seen={"picture": {
+        "drawn": 1, "shape": 0, "regressed": 0}, "look": {"holes": 0.00005}}), None, True),
+    ("pictured: its look's shape off its close-up by eye", lambda: pictured(box(), seen={"picture": {
+        "drawn": 1, "shape": 1}}), "picture.shape", False),
+    ("pictured: its look worse than the previous round's", lambda: pictured(box(), seen={"picture": {
+        "drawn": 1, "regressed": 1}}), "picture.regressed", False),
+    ("pictured: its look holed through", lambda: pictured(box(), seen={"look": {"holes": 0.0047}}), "look.holes",
+     False),
 ]
 
 
