@@ -40,6 +40,8 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   bumps of the surface under it are no wander).
 - _edges.islands counting an island that meets no other finish: the 6 cm sticker's model fails its speck share (its
   1 cm block modelled apart reads as a speck).
+- _edges.finish_edges ignoring `face_seen` (#159: tc5r's surgical chair, 98 of its 112 specks where its clean look
+  shows nothing): the twelve side specks its look, drawn from above, never shows fail its specks.
 - _edges.finish_edges dropping SPECK_TRIANGLES: the 6 cm sticker on a model 6 m across (NVIDIA's rack composition:
   0.5 to 33 cm2 stickers on 4.3 m) fails its speck share.
 - _edges.density counting every point as at an edge: a finish per triangle at random passes its density.
@@ -228,11 +230,16 @@ def with_sticker():
     return trimesh.util.concatenate([mesh, block]), np.r_[parts, np.zeros(len(block.faces), int)]
 
 
-def edged(mesh, material):
-    """How cleanly a made model's finishes meet (its parts its finishes), against TRUTH's own: the finish-edge
-    measures alone, as measured adds them."""
+def edged(mesh, material, seen=None):
+    """How cleanly a made model's finishes meet (its parts its finishes; `seen` each face's pixels in its look),
+    against TRUTH's own: the finish-edge measures alone, as measured adds them."""
     own = measures._edges.finish_edges(TRUTH["vertices"], TRUTH["faces"], TRUTH["face_material"])
-    return {"finish": measures._edges.finish_edges(mesh.vertices, mesh.faces, material), "truth_clean": own}
+    return {"finish": measures._edges.finish_edges(mesh.vertices, mesh.faces, material, seen), "truth_clean": own}
+
+
+def looked_from(mesh, way):
+    """Each face's pixels in a look drawn from straight `way` (a unit axis): one where the face turns towards it."""
+    return (mesh.face_normals @ np.asarray(way, dtype=float) > 0.5).astype(int)
 
 
 def with_floater():
@@ -470,6 +477,10 @@ CASES = [
         **side(uneven(), slant(uneven())), "surfaces": {0: "surface/paint", 1: "surface/paint"},
         "looks": {0: BODY, 1: BODY}}), "finish.edge_wander", True),
     ("twelve lone triangles of the top's finish", lambda: edged(*specked()), "finish.specks", False),
+    ("twelve lone side triangles its look, drawn from above, never shows",
+     lambda: edged(*specked(), looked_from(specked()[0], (0, 0, 1))), "finish.specks", True),
+    ("twelve lone side triangles its look, drawn all round, shows", lambda: edged(*specked(), np.ones(
+        len(specked()[0].faces), int)), "finish.specks", False),
     ("a 6 cm sticker on a model 6 m across", lambda: edged(*with_sticker()), "finish.speck_share", True),
     ("the box's own finishes cut finely", lambda: edged(uneven(), top_material(uneven())), "finish.edge_density", True),
     ("a finish per triangle at random", lambda: edged(uneven(), np.random.default_rng(3).integers(

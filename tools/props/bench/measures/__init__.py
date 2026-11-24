@@ -22,7 +22,8 @@ asset it was made from, every measure a plain number, each judged at its bar.
                                                           read back where its look drew them (#185)
 
 `truth` and `made` are plain dicts, metres, Z up: {"vertices" (N, 3), "faces" (T, 3), "face_material" (T,) material
-or part per face, "box" (low, high), "mass" kg, "colliders" [{"vertices", "faces" or None}], "friction" static; the
+or part per face, "face_seen" (T,) the made face's pixels in its look (its specks only those drawn, _edges),
+"box" (low, high), "mass" kg, "colliders" [{"vertices", "faces" or None}], "friction" static; the
 made side's "painted" {"points", "colour" linear RGB}, its own paint, gives "orientation", its heading as laid}; a
 key the made side lacks (a raw model has no parts, mass or colliders) leaves its measures out, never failed.
 `others` are the kind's other truths, for the rank. `input_view` is (yaw, pitch) of the input render, by default
@@ -170,6 +171,8 @@ PICTURED_BARS = (
     ("picture", "drawn", "true", None),
     *(("picture", kind, "most", 0) for kind in PICTURE_KINDS),
     ("picture", "regressed", "most", 0),
+    # The close-up's own cut-out (#159: tc5r's torn cockpit cut-outs): its fault the input's, booked apart from the make.
+    ("picture", "cutout", "most", 0),
     ("look", "holes", "most", 0.0002),
 )
 
@@ -287,7 +290,8 @@ def measured(truth, made, others=(), input_view=None):
     if made.get("face_material") is not None:
         nearest = _finish.carried(truth, placed, made["faces"])
         found["finish"] = _finish.finish_split(truth, placed, made["faces"], made["face_material"], nearest)
-        found["finish"].update(_edges.finish_edges(placed, made["faces"], seen_finishes(made)))
+        found["finish"].update(_edges.finish_edges(placed, made["faces"], seen_finishes(made),
+                                                       made.get("face_seen")))
         found["truth_clean"].update(_edges.finish_edges(truth["vertices"], truth["faces"], truth["face_material"]))
         if made.get("looks") is not None and truth.get("face_look") is not None:
             found["finish"].update(_finish.finish_look(truth, placed, made["faces"], made["face_material"], nearest,
@@ -351,7 +355,8 @@ def pictured(target, made, fit=None, picture=None):
     found = {"size": size({"box": box}, made), "shape": {} if fit is None else {"closeup": round(float(fit), 4)},
              "clean": _clean.cleanliness(made["vertices"], made["faces"]), "truth_sides": list(box[1])}
     if made.get("face_material") is not None:
-        found["finish"] = _edges.finish_edges(made["vertices"], made["faces"], seen_finishes(made))
+        found["finish"] = _edges.finish_edges(made["vertices"], made["faces"], seen_finishes(made),
+                                              made.get("face_seen"))
         if picture and made.get("classes") is not None:
             found["finish"].update(picks(made, picture["classes"], picture["never"]))
     if picture and picture["labels"] and made.get("decals") is not None:

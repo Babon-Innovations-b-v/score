@@ -911,6 +911,15 @@ def old_model(address):
     return "gltf", files[named[0]]
 
 
+def seen_faces(model, looked, side):
+    """Each of the side's faces' pixels in its kept look (finish.look_faces), the measures' `face_seen`; a look cast
+    on another face count fails."""
+    seen = finish.look_faces(model, looked)
+    if len(seen) != len(side["faces"]):
+        raise StepFailed(f"the look's faces are {len(seen)}, the model has {len(side['faces'])}")
+    return seen
+
+
 def look_found(looked):
     """The look group of measures.json from a kept look step's folder `looked`: its holes (holes.json) and its text
     marks read back (read.json, measures.text_read, #185), each where the step wrote it."""
@@ -974,6 +983,8 @@ def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
         looked = checked_out(kept, asset, branch, look, scratch / branch / f"kept-{look}") \
             if look and kept_output(kept, asset, branch, look) else None
         side = made_side(model, held, finished_parts, asset, cut)
+        if looked is not None:
+            side["face_seen"] = seen_faces(model, looked, side)
         if looked is not None and finished_parts is not None:  # each part's drawn pattern beside NVIDIA's (#186)
             rendered = checked_out(kept, asset, "input", "render", scratch / branch / "kept-render")
             patterns = finish.drawn_patterns(model, finished_parts, looked, rendered / "rgba.png", asset)
@@ -1047,8 +1058,11 @@ def measure_pictured(row, kept, scratch, previous=None):
             look = LOOKED.get(branch)
             looked = checked_out(kept, asset, branch, look, scratch / branch / f"kept-{look}") \
                 if look and kept_output(kept, asset, branch, look) else None
-            pictured_measures(folder, row, given, model, pictured_side(model, parted, asset), f"{branch} {step}",
-                              looked, judged_look(kept, asset, branch, previous, scratch))
+            side = pictured_side(model, parted, asset)
+            if looked is not None:
+                side["face_seen"] = seen_faces(model, looked, side)
+            pictured_measures(folder, row, given, model, side, f"{branch} {step}", looked,
+                              judged_look(kept, asset, branch, previous, scratch))
         return make
 
     def old_step_of(address):

@@ -5,7 +5,8 @@ NVIDIA's input render of the same object, and, when given, to the same object's 
     looked(words, made, given, previous=None, ask=None, pictured=False) -> the bench measure group "picture":
         {"drawn": 1 or 0, <each of KINDS>: 1 when a fault of that kind is seen else 0, "regressed": 1 or 0 (only with
          `previous`), "verdicts": {kind: clean | slight | fault}, "faults": [{kind, where, what}], "regression": text,
-         "pictures": {name: sha256 of the picture as shown}}
+         "pictures": {name: sha256 of the picture as shown}; with `pictured`, "cutout": 1 when the close-up's own cut-out
+         is at fault, "cutout_faults": [{where, what}]}
     shown(path, crop) -> the picture's PNG bytes as the judge sees it
     framed(*paths)     -> the crop (shares of the frame) round every object drawn
 
@@ -21,6 +22,10 @@ slight: a difference a careful eye lets pass, such as the renderers' light, a li
 and with a previous look whether the made one looks worse than it. An answer is kept by the hash of the model and the
 body (claude_code.CACHE), whose pictures are these bytes, so the same pictures are never asked twice. The bars are in
 measures.BARS: no kind at `fault`, no regression, a drawn look.
+A pictured case's close-up is cut out of a larger picture (#159: tc5r's attitude panel, flight screen and pilot
+console were torn cut-outs, and the judge booked the ragged outlines their looks copied as the make's faults): the
+ask names the cut-out's own faults apart (CUTOUT), `cutout` holds them, and a made model that only follows them is
+not at fault for it.
 """
 import base64
 import hashlib
@@ -60,6 +65,16 @@ ORIGINALS = {
                 "fitted to the close-up's outline, so its view may differ by a few degrees and its framing a little. "
                 "The two are drawn under different light,"),
 }
+# A pictured case's close-up judged as a cut-out of its own (#159), asked after ORIGINALS["closeup"]'s words.
+CUTOUT = ("Picture 1 is cut out of a larger picture, and the cut-out itself can be at fault: a torn, ragged, frayed or "
+          "soft outline, flaps or fringes of background, shadow or another object left on, a part of the object cut "
+          "off. First look at picture 1 alone: list each such fault of the cut-out in `cutout_faults` and give the "
+          "cut-out its own verdict in `cutout`: `clean` (none), `slight` (a careful person would let it pass) or "
+          "`fault` (one he would point at, such as a torn outline or a flap left on). Then judge the made model on "
+          "what it makes of the object: for each ragged, torn or flapping place of its outline, look at the same "
+          "place in picture 1; where picture 1's outline is ragged, torn or flapping there too, or the cut-out cut "
+          "that part off, the made model only follows the cut-out, which is no fault of the made model (no `edges`, "
+          "`shape` or `parts` fault of it). A ragged or torn place picture 1 does not have is the made model's. ")
 
 
 def opened(path):
@@ -120,7 +135,8 @@ def asking_body(words, made, given, previous=None, pictured=False):
     kinds = "; ".join(f"`{kind}`: {what}" for kind, what in KINDS.items())
     text = (ORIGINALS["closeup" if pictured else "render"].format(words=words) +
             " so a different brightness, shading, reflection or shadow alone is no fault; the made model's surfaces "
-            "come from a library, so a different fine grain of the same material and colour is no fault either. "
+            "come from a library, so a different fine grain of the same material and colour is no fault either. " +
+            (CUTOUT if pictured else "") +
             "Look at every part of the made model against the original and list every visible fault, each with its "
             f"kind, where it is and what is wrong. The kinds: {kinds}. Then give a verdict for every kind: `clean` "
             "(none seen), `slight` (a difference a careful person comparing the two would let pass) or `fault` "
@@ -128,12 +144,16 @@ def asking_body(words, made, given, previous=None, pictured=False):
             "that cannot be read as the original's.")
     schema_verdicts = {"type": "OBJECT", "properties": {kind: {"type": "STRING", "enum": list(VERDICTS)}
                                                         for kind in KINDS}, "required": list(KINDS)}
-    properties = {
+    properties = {} if not pictured else {
+        "cutout_faults": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "where": {"type": "STRING"}, "what": {"type": "STRING"}}, "required": ["where", "what"]}},
+        "cutout": {"type": "STRING", "enum": list(VERDICTS)}}
+    properties.update({
         "faults": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
             "kind": {"type": "STRING", "enum": list(KINDS)}, "where": {"type": "STRING"},
             "what": {"type": "STRING"}}, "required": ["kind", "where", "what"]}},
-        "verdicts": schema_verdicts}
-    required = ["faults", "verdicts"]
+        "verdicts": schema_verdicts})
+    required = (["cutout_faults", "cutout"] if pictured else []) + ["faults", "verdicts"]
     parts = [{"text": "Picture 1, the ORIGINAL:"}, inline(given), {"text": "Picture 2, the MADE model:"}, inline(made)]
     if previous is not None:
         parts += [{"text": "Picture 3, the same object made in the PREVIOUS round, from the same camera:"},
@@ -162,11 +182,14 @@ def claude_ask(body):
     return answer
 
 
-def counted(answer, regression_asked):
+def counted(answer, regression_asked, pictured=False):
     """The measure group of one answer: each kind 1 when its verdict is `fault` (the listed faults, slight ones too,
-    are kept beside it); ValueError for an answer missing a kind's verdict."""
+    are kept beside it), and with `pictured` the close-up's own cut-out (`cutout`) alike; ValueError for an answer
+    missing a verdict."""
     verdicts = answer["verdicts"]
     missing = [kind for kind in KINDS if verdicts.get(kind) not in VERDICTS]
+    if pictured and answer.get("cutout") not in VERDICTS:
+        missing.append("cutout")
     if missing:
         raise ValueError(f"the picture judgement gave no verdict for {missing}: {verdicts}")
     found = {"drawn": 1, **{kind: int(verdicts[kind] == "fault") for kind in KINDS},
@@ -174,6 +197,9 @@ def counted(answer, regression_asked):
              "faults": [{key: fault[key] for key in ("kind", "where", "what")} for fault in answer["faults"]]}
     if regression_asked:
         found.update(regressed=int(bool(answer["regressed"])), regression=answer.get("regression", ""))
+    if pictured:
+        found.update(cutout=int(answer["cutout"] == "fault"),
+                     cutout_faults=[{key: fault[key] for key in ("where", "what")} for fault in answer["cutout_faults"]])
     return found
 
 
@@ -190,4 +216,4 @@ def looked(words, made, given, previous=None, ask=None, pictured=False):
                 "pictures": hashes}
     body = asking_body(words, pictures["made"], pictures["given"], pictures.get("previous"), pictured)
     answer = json.loads((ask or claude_ask)(body))
-    return {**counted(answer, previous is not None), "pictures": hashes}
+    return {**counted(answer, previous is not None, pictured), "pictures": hashes}

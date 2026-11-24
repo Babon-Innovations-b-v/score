@@ -560,6 +560,24 @@ def part_grid(model, camera, picture, part_of, metres):
     return parts, lab_colour.lab(lab_colour.linear(shrunk[..., :3]))[..., 0]
 
 
+def look_faces(model, looked):
+    """Each face of the made `model`'s pixels in its look (`looked`: look.png and look.json, look_job's): every pixel
+    the look draws (alpha over half) cast through the look's camera onto the model, so the measures count only the
+    specks the look shows (#159: tc5r's surgical chair's 112, 98 of them inside its mechanism, under its seat and
+    inside its wheels, its look clean)."""
+    from PIL import Image
+    import route_cast
+    loaded = route_cast.loaded(model)
+    middle, size = loaded.frame
+    camera = look_camera(np.asarray(loaded.mesh.vertices) * size + middle,
+                         json.loads((looked / "look.json").read_text()))
+    alpha = np.asarray(Image.open(looked / "look.png").convert("RGBA"))[..., 3]
+    rows, columns = np.nonzero(alpha > 127)
+    faces, _ = route_cast.cast_points(loaded, camera, (alpha.shape[1], alpha.shape[0]),
+                                      np.c_[columns + 0.5, rows + 0.5])
+    return np.bincount(faces[faces >= 0], minlength=len(loaded.mesh.faces))
+
+
 def drawn_patterns(model, finished, looked, close_up, take):
     """{part: {"pattern", "true_pattern"}}: each finish part's lightness detail (the median size of likeness
     measure.high_pass, L units) as its look draws it (`looked`: look.png and look.json, look_job's) and as NVIDIA's close-up (`close_up`,

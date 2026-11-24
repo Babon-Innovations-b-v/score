@@ -39,6 +39,8 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   `read.json`, which `measure` holds to the close-up's words (`look_found`, measures `look.read`). A part is resolved
   as the bake resolves it (its variant in its own token, then the list's settings over it: route_settings.set_spec,
   its second shade moved with its colour) and a glass is drawn with its alpha as the bake now carries it (#186).
+- **The measures count only the specks the look draws** (#159, `seen_faces`: finish.look_faces casts each drawn pixel
+  of look.png through look.json's camera onto the model; the side's `face_seen`), for a truth case and a pictured one.
 - **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge
   (tools/props/bench/judge) to NVIDIA's render and, with `--previous <run>`, to that run's look of the asset; the
   group `picture` in measures.json.

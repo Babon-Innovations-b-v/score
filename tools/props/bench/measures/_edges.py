@@ -14,7 +14,10 @@ leaves specks of itself inside another, where run 1's painted picture met in smo
 - `specks`, `speck_share`: the islands of one finish (faces of one finish joined through shared edges) that meet
   another finish and are under SPECK of the diagonal squared and under SPECK_TRIANGLES of the model's median triangle
   in area, how many and their share of the area: a triangle or two given another finish, where a detail NVIDIA
-  modelled in a finish of its own (a sticker on a rack, 0.5 to 33 cm2) is cut in tens of its triangles.
+  modelled in a finish of its own (a sticker on a rack, 0.5 to 33 cm2) is cut in tens of its triangles. Given the
+  faces the made model's look draws (`face_seen`, #159), only the specks it draws on at least one pixel count: tc5r's
+  surgical chair counted 112, of which 98 lay where its look shows nothing (inside its seat mechanism, under its seat
+  and inside its wheels) while its look read clean; a model with no look (NVIDIA's own) counts every one.
 """
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -124,13 +127,16 @@ def wander(corners, lines, normal_of, window):
     return distance / length / window if length else 0.0
 
 
-def islands(count, pairs, same, area):
-    """The area of each island of one finish that meets another finish (faces joined through the edges where both
-    sides are one finish; a piece of its own, a screw modelled apart, meets none and is no speck)."""
+def islands(count, pairs, same, area, seen):
+    """(the area of each island of one finish that meets another finish, whether any of its faces is `seen`): faces
+    joined through the edges where both sides are one finish; a piece of its own, a screw modelled apart, meets none
+    and is no speck."""
     kept = pairs[same]
     graph = coo_matrix((np.ones(len(kept)), (kept[:, 0], kept[:, 1])), shape=(count, count))
     _, label = connected_components(graph, directed=False)
-    return np.bincount(label, weights=area, minlength=count)[np.unique(label[pairs[~same]])]
+    meeting = np.unique(label[pairs[~same]])
+    shown = np.bincount(label, weights=seen.astype(float), minlength=count)[meeting] > 0
+    return np.bincount(label, weights=area, minlength=count)[meeting], shown
 
 
 def density(corners, faces, material, diagonal):
@@ -148,12 +154,14 @@ def density(corners, faces, material, diagonal):
     return float(near.mean() / (2 * REACH))
 
 
-def finish_edges(vertices, faces, face_material):
-    """{"edge_density", "edge_wander", "specks", "speck_share"} (the module docstring) of one model's finishes."""
+def finish_edges(vertices, faces, face_material, face_seen=None):
+    """{"edge_density", "edge_wander", "specks", "speck_share"} (the module docstring) of one model's finishes; with
+    `face_seen` (each face's pixels in its look), its specks only those the look draws."""
     corners, welded = _mesh.welded(np.asarray(vertices, dtype=float), np.asarray(faces))
     area = _mesh.areas(corners, welded)
     kept = area > 0
-    welded, area, material = welded[kept], area[kept], np.asarray(face_material)[kept]
+    seen = np.ones(len(welded), dtype=bool) if face_seen is None else np.asarray(face_seen) > 0
+    welded, area, material, seen = welded[kept], area[kept], np.asarray(face_material)[kept], seen[kept]
     diagonal = _mesh.diagonal(corners)
     edges, pairs = held_edges(welded)
     same = material[pairs[:, 0]] == material[pairs[:, 1]]
@@ -161,8 +169,8 @@ def finish_edges(vertices, faces, face_material):
     meeting = edges[~same]
     normal_of = dict(zip(map(tuple, meeting.tolist()),
                          (face_normals[pairs[~same, 0]] + face_normals[pairs[~same, 1]]).tolist()))
-    small = islands(len(welded), pairs, same, area)
-    small = small[small < min((SPECK * diagonal) ** 2, SPECK_TRIANGLES * float(np.median(area)))]
+    small, shown = islands(len(welded), pairs, same, area, seen)
+    small = small[(small < min((SPECK * diagonal) ** 2, SPECK_TRIANGLES * float(np.median(area)))) & shown]
     return {"edge_density": round(density(corners, welded, material, diagonal), 4),
             "edge_wander": round(wander(corners, runs(meeting), normal_of, WINDOW * diagonal), 5),
             "specks": int(len(small)), "speck_share": round(float(small.sum() / area.sum()), 5)}

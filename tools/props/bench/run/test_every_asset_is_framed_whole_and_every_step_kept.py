@@ -376,11 +376,12 @@ def pictured_case(tmp_path, monkeypatch, name, material, box):
     kept.keep(name, "B", "final", tmp_path / "finished", 0.0)
     (tmp_path / "look").mkdir()
     Image.fromarray(picture, "RGBA").save(tmp_path / "look" / "look.png")
+    (tmp_path / "look" / "look.json").write_text(json.dumps(view))  # its camera, as look_job keeps it
     kept.keep(name, "B", "look", tmp_path / "look", 0.0)
     from tools.props.bench import judge
     asked = []
     monkeypatch.setattr(judge, "claude_ask", lambda body: asked.append(body) or json.dumps(
-        {"faults": [{"kind": "shape", "where": "body", "what": "squat"}],
+        {"faults": [{"kind": "shape", "where": "body", "what": "squat"}], "cutout_faults": [], "cutout": "clean",
          "verdicts": {kind: "fault" if kind == "shape" else "clean" for kind in judge.KINDS}}))
     bench.measure_all([row], [row], kept, "trial")
     record = json.loads((kept.store.checkout(kept.entry(name, "A", "measures")["output"]) /

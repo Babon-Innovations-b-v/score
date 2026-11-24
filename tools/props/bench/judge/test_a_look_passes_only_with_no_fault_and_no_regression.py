@@ -13,6 +13,10 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/judge/__ini
   shown input.
 - asking_body: `pictured` not read (#159 round 7) -> the cockpit close-up is named NVIDIA's render in the ask.
 - measures.BARS: the picture rows left out -> the faulty look passes (no picture row judged).
+- counted: `cutout` not read for a pictured case (#159: tc5r's torn cockpit cut-outs) -> the torn close-up passes and
+  the pictured answer with no cut-out verdict raises nothing; measures.PICTURED_BARS without ("picture", "cutout")
+  -> the torn close-up passes.
+- asking_body: CUTOUT not asked for a pictured case -> its ask names no `cutout_faults`.
 """
 import base64
 import io
@@ -33,13 +37,16 @@ def picture(path, box, colour=(200, 40, 40, 255), size=64):
     return path
 
 
-def answer(faults=(), regressed=None, missing=()):
+def answer(faults=(), regressed=None, missing=(), cutout=None):
+    """The stand-in's answer; `cutout` (a pictured case's) its close-up's own cut-out verdict, one fault listed."""
     verdicts = {kind: "clean" for kind in judge.KINDS if kind not in missing}
     listed = []
     for kind, verdict in faults:
         verdicts[kind] = verdict
         listed.append({"kind": kind, "where": "the body", "what": f"a {verdict} {kind}"})
     found = {"faults": listed, "verdicts": verdicts}
+    if cutout is not None:
+        found.update(cutout=cutout, cutout_faults=[{"where": "its outline", "what": "torn"}])
     if regressed is not None:
         found.update(regressed=regressed, regression="worse" if regressed else "")
     return json.dumps(found)
@@ -57,8 +64,11 @@ ROWS = [
     ("empty", None, (16, 16, 48, 48), False, None, ["picture.drawn"], None),
     ("apart", (2, 2, 12, 12), (52, 52, 62, 62), False, answer(), [], 2),
     ("unjudged", (16, 16, 48, 48), (16, 16, 48, 48), False, answer(missing=("text",)), ValueError, 2),
-    ("pictured", (16, 16, 48, 48), (16, 16, 48, 48), True, answer([("shape", "fault")], regressed=False),
-     ["picture.shape"], 3),
+    ("pictured", (16, 16, 48, 48), (16, 16, 48, 48), True, answer([("shape", "fault")], regressed=False,
+                                                                    cutout="clean"), ["picture.shape"], 3),
+    # tc5r's torn cockpit cut-outs (#159): the outline the look copies is the close-up's fault, booked as its own
+    ("pictured torn", (16, 16, 48, 48), (16, 16, 48, 48), False, answer(cutout="fault"), ["picture.cutout"], 2),
+    ("pictured unjudged", (16, 16, 48, 48), (16, 16, 48, 48), False, answer(), ValueError, 2),
 ]
 
 
@@ -79,17 +89,18 @@ def test_a_look_passes_only_with_no_fault_and_no_regression(tmp_path, name, made
 
     if failed is ValueError:
         with pytest.raises(ValueError):
-            judge.looked("a red box", made, given, before, ask=ask)
+            judge.looked("a red box", made, given, before, ask=ask, pictured=name.startswith("pictured"))
         return
-    found = judge.looked("a red box", made, given, before, ask=ask, pictured=name == "pictured")
-    assert measures.judged({"picture": found})["failed"] == failed
+    pictured = name.startswith("pictured")
+    found = judge.looked("a red box", made, given, before, ask=ask, pictured=pictured)
+    assert measures.judged({"picture": found}, measures.PICTURED_BARS if pictured else measures.BARS)["failed"] == failed
     assert {row[1] for row in measures.BARS if row[0] == "picture"} >= {"drawn", "regressed", *judge.KINDS}
     if asked is None:
         assert bodies == [] and found["drawn"] == 0
         return
     text = bodies[0]["contents"][0]["parts"][-1]["text"]
-    assert ("close-up picture the model was made from" in text, "NVIDIA" in text) == (
-        name == "pictured", name != "pictured"), text
+    assert ("close-up picture the model was made from" in text, "NVIDIA" in text, "cutout_faults" in text) == (
+        pictured, not pictured, pictured), text
     shown = [Image.open(io.BytesIO(base64.b64decode(part["inline_data"]["data"])))
              for part in bodies[0]["contents"][0]["parts"] if "inline_data" in part]
     assert len(shown) == asked

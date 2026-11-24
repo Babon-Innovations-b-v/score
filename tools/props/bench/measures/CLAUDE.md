@@ -53,7 +53,9 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   pieces of their own, count) against the truth's; `edge_wander` (each run of shared finish edges against parabola
   fits behind, about and ahead of each point, across the edge within its faces, so corners, curves and the surface's
   bumps are no wander); `specks` and `speck_share` (islands of one finish inside another under a size and a few of the
-  model's triangles: NVIDIA's modelled stickers are tens of triangles). The made side is read by its seen finishes
+  model's triangles: NVIDIA's modelled stickers are tens of triangles), on a made side with a look only those its look
+  draws (`face_seen`, #159: tc5r's surgical chair counted 112, 98 inside its mechanism, under its seat and inside its
+  wheels, its look clean; a texture's speckle is `pattern`'s and the picture judge's). The made side is read by its seen finishes
   (parts in one surface and look are one). NVIDIA's tune truths share few finish edges, so the wander and speck bars
   rest on them and on the tc3s models cut cleanly along a plane (run 1-like edges); the numbers are beside BARS.
 - **Moving parts and joints** (`_joints`, #177, #161 rules 1 and 11): the truth's moving parts are the bodies its
