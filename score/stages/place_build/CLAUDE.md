@@ -193,6 +193,14 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   the near water mirrored the city in a patch with a ruler-straight edge; the check keeps a ground's faces by their
   corners near the place, so one huge face would be dropped). The ship with `ring` 0 is one seamless steel
   barrel (the pad's judge: "evenly spaced ring bands"), its canards and aft flaps sized by `fore`, `aft`, `aft_chord`.
+  The pad's join to the capsule (2099 #161, 2026-11-24: the walkway's 1.41 x 2.06 m door led into the ship's steel):
+  the ship's `hatch` makes its skin a band `thick` deep from `low` to `high` round a hollow the crew capsule sits in,
+  opened by `rows` (the hatch frame's outline and the capsule's bulge, seen along the arm's level way), the hull under
+  it and the nose over it closed solids HATCH_GAP apart; a `door_wall` is a flat wall holding a doorway of a door's
+  own outline (`rows` [up, left, right] from the doorway's middle), its doorway recorded in place.json `doorways` as
+  `<name>_door` (`of` the piece), so the arm's end is cut to the capsule's round hatch and joined there with no leaf
+  of its own (one leaf a join: the capsule's hatch). `remove` takes a removed object's doorways and the joins read
+  from it or them out of place.json.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; `haze` a body of haze (tools/usd/scene.py's haze body) the renderer fills, a box or, with

@@ -83,6 +83,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.ship: `ring` 0 read as the default 2 m of seams -> the seamless ship has a seam part
 - launch_kit.ferry: its wake laid under the waterline -> the ferry's wake is not on the water
 - launch_kit.water: shaded smooth -> the harbour's top normals lean off straight up
+- launch_kit.door_wall: the reveal's sides left off -> the wall with a round doorway is no closed solid
+- launch_kit.hatch_band: a hatch row's run laid as a whole ring -> the hatched ship's skin stands across its hatch
+- launch_kit.hatched: the band laid on the hull with no gap -> the hatched ship's hull shares a face with its band
+- launch_kit.door_wall: the rows' sill row left out of the doorway -> the wall's volume is a round doorway's short
+- place_build.kit: a door wall's doorway not recorded -> place.json holds no doorway arm_end_door to join at
+- place_build.kit: the doorway left in the wall's own frame -> the recorded doorway's inward is not the turned +x
+- place_build.remove: a removed door wall's doorway and join kept -> the pad's walkway still joins at a wall gone
 - place_build.haze: `shape` dropped (always a box) -> the steam puff's shell reaches its box's corners
 - place_build.shaft: the cone not turned onto its aim -> the beam's shell runs up, not toward its aim
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
@@ -305,6 +312,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 """
 import hashlib
 import json
+import math
 import pathlib
 
 import trimesh
@@ -1021,6 +1029,20 @@ def launched(folder):
         along = (ends[1] - ends[0]) / np.linalg.norm(ends[1] - ends[0])
         off = bar - ends[0] - np.outer((bar - ends[0]) @ along, along)
         assert np.linalg.norm(off, axis=1).max() <= 0.12 + 1e-6, "a brace strays from its straight line"
+    hatch = {"around": 30.0, "sill": 8.0, "low": 7.5, "high": 9.5, "thick": 0.05,
+             "rows": [[0.0, -0.1, 0.1], [0.4, -0.3, 0.3], [0.8, -0.1, 0.1]]}
+    hatched = [piece for piece in launch_kit.ship(radius=1.0, high=12.0, nose=3.0, ring=0.0, segments=24, hatch=hatch)
+               if piece[0] == "hull"]
+    points, triangles = cockpit_kit.welded(np.vstack([piece[1] for piece in hatched]), np.vstack(
+        [piece[2] + sum(len(earlier[1]) for earlier in hatched[:number]) for number, piece in enumerate(hatched)]))
+    edges = np.sort(triangles[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2), axis=1)
+    _, uses = np.unique(edges, axis=0, return_counts=True)
+    assert not (uses % 2).any(), "an edge of the hatched ship is used an odd number of times"
+    way = np.array([math.sin(math.radians(30.0)), 0.0, math.cos(math.radians(30.0))])
+    across = np.cross([0.0, 1.0, 0.0], way)
+    skin = points[np.linalg.norm(points[:, [0, 2]], axis=1) > 0.5]
+    assert not ((np.abs(skin @ across) < 0.2) & (skin[:, 1] > 8.15) & (skin[:, 1] < 8.65) & (skin @ way > 0)).any(), \
+        "the hatched ship's skin stands across its hatch"
     seamless = {piece[0] for piece in launch_kit.ship(radius=1.0, high=12.0, nose=3.0, ring=0.0, segments=24)}
     assert "seam" not in seamless, seamless
     ferry = launch_kit.ferry(long=20.0, wide=5.0, wake=30.0)
@@ -1031,6 +1053,27 @@ def launched(folder):
     normals = cockpit_kit.corner_normals(points, triangles, harbour[0][3]).reshape(-1, 3, 3)
     tops = normals[np.all(np.abs(points[triangles][:, :, 1]) < 1e-9, axis=1)].reshape(-1, 3)
     assert len(tops) and tops[:, 1].min() > 1.0 - 1e-6, "the harbour's top leans"
+    circle = [[0.6 + 0.6 * math.sin(angle), -0.6 * math.cos(angle) - 0.01, 0.6 * math.cos(angle) + 0.01]
+              for angle in np.linspace(-math.pi / 2, math.pi / 2, 31)]
+    _, points, triangles, _ = launch_kit.door_wall(2.4, 2.6, 0.1, circle)[0]
+    points, triangles = cockpit_kit.welded(points, triangles)
+    edges = np.sort(triangles[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2), axis=1)
+    _, uses = np.unique(edges, axis=0, return_counts=True)
+    corners = points[triangles]
+    volume = float(np.einsum("ij,ij->i", corners[:, 0], np.cross(corners[:, 1], corners[:, 2])).sum()) / 6
+    assert (uses == 2).all(), "the door wall is no closed solid"
+    doorway = sum((low[2] - low[1] + top[2] - top[1]) / 2 * (top[0] - low[0]) for low, top in zip(circle, circle[1:]))
+    assert abs(volume - (2.4 * 2.6 - doorway) * 0.1) < 1e-6, (volume, doorway)
+    place_build.kit(folder, "arm_end", "door_wall", {"wide": 2.4, "high": 2.6, "thick": 0.1, "rows": circle},
+                    at=(3.0, 1.0, -6.0), turn=(0.0, 90.0, 0.0), role="structure", looks={"frame": "palette/hull_paint"})
+    door = place_build.record_of(folder)["doorways"]["arm_end_door"]
+    assert np.allclose(door["middle"], [3.0, 1.0, -6.0]) and np.allclose(door["inward"], [1.0, 0.0, 0.0]), door
+    assert (door["sill"], door["head"], door["of"]) == (1.0, 2.2, "arm_end") and abs(door["wide"] - 1.22) < 1e-3, door
+    from score.stages.place_build import area
+    area.join(folder, "arm_end_door", "capsule")
+    place_build.remove(folder, "arm_end")
+    left = place_build.record_of(folder)
+    assert "arm_end_door" not in (left.get("doorways") or {}) and "arm_end_door" not in (left.get("joins") or {}), left
 
 
 def adopted(folder):

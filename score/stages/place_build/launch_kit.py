@@ -27,6 +27,14 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
   kilometres long, and the near water mirrored the city in a patch cut off by a ruler-straight edge); part water.
 - `ferry`: a harbour ferry on the water (its waterline at y = 0): a hull with a pointed bow, a two-deck cabin with
   its window bands lit, and its wake spreading behind it on the water; parts hull, cabin, window, wake.
+- `door_wall`: a flat wall `wide` (x, centred) by `high` (y, its foot on 0) and `thick` (z, centred) holding a
+  doorway of a door's own outline (`rows`: [up, left, right] from its sill up, across from the doorway's middle, which
+  stands on the wall's x = 0, as a join reads a leaf's middle): the access arm's end
+  cut to the capsule's round hatch (2099 #161), so the walkway's door is the hatch's shape, never a rectangle the
+  hatch is seated in; one closed solid, part frame. Its doorway is recorded as the place's (`doorways`), so a
+  neighbour place joins it there (area/).
+
+    doorways(kind, sizes)       a piece's doorways in its own frame ({key: sill middle, inward, wide, sill, head})
 """
 import math
 
@@ -35,6 +43,7 @@ import numpy as np
 from score.stages.place_build.cockpit_kit import about, box, moved, outline_slab, tube, turned, written
 
 UP = about("x", -90)
+BAND_STEP = 0.25  # metres between the rings of a ship's hatch band, round its hatch's rows
 NOSE_POWER = 2.4  # the nose's fullness: its radius falls as (1 - share^power)^0.5, a blunt ogive  # a turned piece's axis (z) stood up along y
 
 
@@ -67,10 +76,14 @@ def flap(part, root, tip, span, thick):
     return outline_slab(part, outline, -thick / 2, thick / 2)
 
 
-def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6, fore=2.2, aft=3.0, aft_chord=10.4):
+def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6, fore=2.2, aft=3.0, aft_chord=10.4,
+         hatch=None):
     """The ship standing on its aft skirt's foot (y = 0), its engine bells inside the skirt, its body `radius`, its tip
     at `high`; a weld seam every `ring` metres up the barrel (none with `ring` 0: one seamless steel barrel); its
-    forward flaps `fore` metres out on the x axis, its aft flaps `aft` out and `aft_chord` along the hull likewise."""
+    forward flaps `fore` metres out on the x axis, its aft flaps `aft` out and `aft_chord` along the hull likewise.
+    With `hatch` ({around, sill, rows, low, high, thick}: hatch_band's) its skin from `low` to `high` is a band
+    `thick` deep round a hollow holding the crew capsule, opened at the hatch the access arm meets (2099 #161: the
+    pad's walkway door led into the steel), the hull under it and the nose over it closed solids HATCH_GAP apart."""
     bells = 1.4
     foot = bells  # the skirt's foot
     shoulder = high - nose
@@ -78,8 +91,11 @@ def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6, fo
     profile = nose_profile(radius, shoulder, nose)
     steel = [point for point in profile if point[1] <= tip_from]
     black = [point for point in profile if point[1] >= steel[-1][1]]
-    hull = [(0.0, foot), (radius * 0.92, foot), (radius, foot + 0.8)] + steel + [(0.0, steel[-1][1])]
-    found = stood(turned("hull", hull, segments=segments, smooth=False))
+    if hatch:
+        found = hatched(radius, nose, foot, shoulder, steel, segments, **hatch)
+    else:
+        hull = [(0.0, foot), (radius * 0.92, foot), (radius, foot + 0.8)] + steel + [(0.0, steel[-1][1])]
+        found = stood(turned("hull", hull, segments=segments, smooth=False))
     tucked = (black[0][0] * 0.97, black[0][1] - 0.1)  # the tip's foot inside the steel, so no face is shared
     found += stood(turned("tiles", [(0.0, tucked[1]), tucked] + black, segments=segments, smooth=True))
     band = 0.9
@@ -397,9 +413,174 @@ def water(wide=12000.0, deep=12000.0, depth=3.0):
     return [piece("water", points, triangles, False)]
 
 
+HATCH_GAP = 0.0005  # metres between a hatched ship's band and the hull under it and the nose over it (no face shared)
+
+
+def hatched(radius, nose, foot, shoulder, steel, segments, around, sill, rows, low, high, thick=0.05):
+    """A hatched ship's hull (ship's `hatch`): the hull closed under `low`, the hatch band (hatch_band) from `low` to
+    `high` and the nose closed over `high`, each a closed solid; ValueError when the band leaves the steel or the
+    hatch the band."""
+    radius_at = lambda height: radius if height <= shoulder else nose_radius(radius, nose, height - shoulder)  # noqa
+    rows = [[float(value) for value in row] for row in rows]
+    if not foot + 0.8 + HATCH_GAP < low < sill + rows[0][0] <= sill + rows[-1][0] < high < steel[-1][1] - HATCH_GAP:
+        raise ValueError(f"a ship's hatch band stands on its steel ({foot + 0.8} to {steel[-1][1]} m) round its hatch "
+                         f"({sill + rows[0][0]} to {sill + rows[-1][0]} m), not {low} to {high}")
+    if any(max(abs(row[1]), abs(row[2])) >= radius_at(sill + row[0]) - thick for row in rows):
+        raise ValueError("a ship's hatch is narrower than its skin")
+    under, over = low - HATCH_GAP, high + HATCH_GAP
+    lower = ([(0.0, foot), (radius * 0.92, foot), (radius, foot + 0.8)] + [point for point in steel if point[1] < under]
+             + [(radius_at(under), under), (0.0, under)])
+    upper = ([(0.0, over), (radius_at(over), over)] + [point for point in steel if point[1] > over]
+             + [(0.0, steel[-1][1])])
+    return (stood(turned("hull", lower, segments=segments, smooth=False))
+            + hatch_band(radius_at, low, high, around, sill, rows, thick, segments)
+            + stood(turned("hull", upper, segments=segments, smooth=False)))
+
+
+def door_rows(wide, high, rows):
+    """A door wall's doorway rows ([up, left, right] from its sill up) as floats, refused (ValueError) unless two or
+    more rise strictly, each left of its right, all inside the wall and under its top."""
+    rows = [[float(value) for value in row] for row in rows]
+    if len(rows) < 2 or any(len(row) != 3 for row in rows):
+        raise ValueError("a door wall's doorway is two or more rows of up, left, right")
+    if any(later[0] <= row[0] for row, later in zip(rows, rows[1:])) or rows[0][0] < 0 or rows[-1][0] >= high:
+        raise ValueError(f"a door wall's doorway rows rise from 0 or more to under its top {high} m")
+    if any(not -wide / 2 < left < right < wide / 2 for _, left, right in rows):
+        raise ValueError(f"each doorway row's left stands left of its right, inside the wall {wide} m wide")
+    return rows
+
+
+def thickened(part, front, outside, inside):
+    """One closed solid from a face laid in its own two coordinates: `front` its triangles over the keys of its points
+    (hashable, wound anticlockwise as seen from outside), `outside` and `inside` each putting the keys (a list) where
+    the face's outer and inner skins stand ([n, 3]); a side between the skins along every edge only one triangle has
+    (the rim and a doorway's reveal)."""
+    keys = {}
+    for triangle in front:
+        for corner in triangle:
+            keys.setdefault(corner, len(keys))
+    count = len(keys)
+    points = np.vstack([outside(list(keys)), inside(list(keys))])
+    front = [[keys[corner] for corner in triangle] for triangle in front]
+    used = set()
+    for triangle in front:
+        used.update(zip(triangle, triangle[1:] + triangle[:1]))
+    rim = [(here, there) for (here, there) in used if (there, here) not in used]
+    triangles = front + [[a + count, c + count, b + count] for a, b, c in front]
+    for here, there in rim:
+        triangles += [[there, here, here + count], [there, here + count, there + count]]
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece(part, points, triangles, False)]
+
+
+def key(across, up):
+    return (round(float(across), 7), round(float(up), 7))
+
+
+def door_wall(wide=2.4, high=2.6, thick=0.1, rows=((0.0, -0.45, 0.45), (2.0, -0.45, 0.45))):
+    """A flat wall holding a doorway of a door's own outline (`rows`, door_rows): its front face (z = thick / 2) laid
+    in quads row by row, either side of the doorway between its rows, under the doorway's sill and over its head split
+    where the doorway's corners stand (no corner of one quad on another's edge), its back face the same, and a side
+    between them along every edge only one quad has (the wall's rim and the doorway's reveal): one closed solid."""
+    rows = door_rows(wide, high, rows)
+    half = wide / 2
+    quads = []
+    for (low, left_low, right_low), (top, left_top, right_top) in zip(rows, rows[1:]):
+        quads += [[(-half, low), (left_low, low), (left_top, top), (-half, top)],
+                  [(right_low, low), (half, low), (half, top), (right_top, top)]]
+    for low, top, (_, left, right) in ((0.0, rows[0][0], rows[0]), (rows[-1][0], high, rows[-1])):
+        if top > low:
+            edges = [-half, left, right, half]
+            quads += [[(edges[at], low), (edges[at + 1], low), (edges[at + 1], top), (edges[at], top)]
+                      for at in range(3)]
+    front = []
+    for quad in quads:
+        at = [key(*corner) for corner in quad]
+        front += [[at[0], at[1], at[2]], [at[0], at[2], at[3]]]
+    return thickened("frame", front, lambda flat: np.column_stack([flat, np.full(len(flat), thick / 2)]),
+                     lambda flat: np.column_stack([flat, np.full(len(flat), -thick / 2)]))
+
+
+def zipped(below, above):
+    """The triangles (anticlockwise, the first coordinate across) of the strip between two runs of points [(order,
+    key)] each walked one way (the lower run, then the upper), taking each next point from the run whose next stands
+    first."""
+    triangles, low, high = [], 0, 0
+    while low < len(below) - 1 or high < len(above) - 1:
+        if high == len(above) - 1 or (low < len(below) - 1 and below[low + 1][0] <= above[high + 1][0]):
+            triangles.append([below[low][1], below[low + 1][1], above[high][1]])
+            low += 1
+        else:
+            triangles.append([below[low][1], above[high + 1][1], above[high][1]])
+            high += 1
+    return triangles
+
+
+def hatch_band(radius_at, low, high, around, sill, rows, thick=0.05, segments=96):
+    """The ship's skin from `low` to `high` (its outer face `radius_at(y)` from the axis, `thick` deep) holding a
+    hatch: an opening of `rows` ([up, left, right] from its `sill` up, across from its middle, as door_rows) on the
+    skin seen along the level way out at `around` degrees (from +z toward +x), so the access arm's walkway meets the
+    capsule's hatch through it (2099 #161). Laid in rings of `segments` round, a ring every BAND_STEP and one at each
+    of the hatch's rows, each split where the hatch's sides stand (no corner on another's edge); its inner skin the
+    outer's points drawn in `thick`, the hatch's sides kept parallel to its way out: one closed solid, part hull."""
+    rows = [[float(value) for value in row] for row in rows]
+    turn = math.radians(around)
+    sides = {round(sill + up, 7): (left, right) for up, left, right in rows}
+    bottom, top = min(sides), max(sides)
+    grid = np.linspace(low, high, max(2, int(math.ceil((high - low) / BAND_STEP))) + 1)
+    heights = sorted({round(float(height), 7) for height in grid if not bottom <= height <= top} | set(sides))
+    ring = np.linspace(-math.pi, math.pi, segments + 1)[:-1]
+    clear = math.pi / segments * 0.5  # a ring's angle this near a hatch side is left out of its run
+
+    def run(height, beside):
+        """The (order, key) points round the skin at `height`: the ring's angles and the hatch's sides where it
+        stands; `beside` (a row of the hatch), from its right side round to its left, else the whole ring closed."""
+        side = sides.get(height)
+        if side is None:
+            found = [(angle, (round(angle, 7), height)) for angle in ring]
+            return found + [(found[0][0] + 2 * math.pi, found[0][1])]
+        left, right = (math.asin(edge / radius_at(height)) for edge in side)
+        others = [angle for angle in ring if not left - clear <= angle <= right + clear]
+        ends = [(left, (("side", round(side[0], 7)), height)), (right, (("side", round(side[1], 7)), height))]
+        if not beside:
+            found = sorted([(angle, (round(angle, 7), height)) for angle in others] + ends)
+            return found + [(found[0][0] + 2 * math.pi, found[0][1])]
+        walked = sorted((angle if angle > right else angle + 2 * math.pi, (round(angle, 7), height)) for angle in others)
+        return [ends[1]] + walked + [(left + 2 * math.pi, ends[0][1])]
+
+    front = []
+    for below, above in zip(heights, heights[1:]):
+        beside = below in sides and above in sides
+        front += zipped(run(below, beside), run(above, beside))
+
+    def placed(keys, inset):
+        found = []
+        for angle, height in keys:
+            rho = radius_at(height) - inset
+            if isinstance(angle, tuple):
+                angle = math.asin(angle[1] / rho)
+            found.append((rho * math.sin(turn + angle), height, rho * math.cos(turn + angle)))
+        return np.asarray(found, dtype=np.float64)
+
+    return thickened("hull", front, lambda keys: placed(keys, 0.0), lambda keys: placed(keys, thick))
+
+
 KINDS = {"ship": ship, "launch_ring": launch_ring, "lattice": lattice, "railing": railing, "flood_head": flood_head,
          "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound, "ferry": ferry,
-         "water": water}
+         "water": water, "door_wall": door_wall}
+
+
+def doorways(kind, sizes):
+    """The doorways a piece of `kind` holds with its `sizes`, in its own frame: {key: {middle (its sill middle),
+    inward (its +z: give the join its inward way), wide, sill, head}}; none but a door wall's."""
+    if kind != "door_wall":
+        return {}
+    defaults = door_wall.__defaults__
+    wide, high = float(sizes.get("wide", defaults[0])), float(sizes.get("high", defaults[1]))
+    rows = door_rows(wide, high, sizes.get("rows", defaults[3]))
+    left, right = min(row[1] for row in rows), max(row[2] for row in rows)
+    return {"door": {"middle": [0.0, rows[0][0], 0.0], "inward": [0.0, 0.0, 1.0],
+                     "wide": round(right - left, 4), "sill": rows[0][0], "head": rows[-1][0]}}
 
 
 def write(path, kind, sizes):

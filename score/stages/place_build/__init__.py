@@ -1320,7 +1320,9 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>) or, with `ground`, as the
     place's walked ground (the cabin's floor, the gantry), its file written once under the place's assets for its
     kind and `sizes`; each of its parts then wears its look from `looks` ({part: surface address,
-    `palette/<variant>` too}), refused when a part has none, so no part is left in its placeholder grey."""
+    `palette/<variant>` too}), refused when a part has none, so no part is left in its placeholder grey. A doorway the
+    piece holds (launch_kit.doorways: a door wall's) is recorded in place.json `doorways` (`<name>_<key>`, the
+    scene's frame, `of` the piece), so a neighbour place joins it there (area/), as the stair core records its own."""
     if role not in BLOCK_ROLES and not ground:
         raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
     import hashlib
@@ -1343,10 +1345,19 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     missing = [part for part in parts if part not in (looks or {})]
     if missing:
         raise Refused(f"{name}: no look for its part(s) {', '.join(missing)} (its parts are {', '.join(parts)})")
+    held = launch_kit.doorways(piece, sizes) if piece in launch_kit.KINDS else {}
+    laid = laid_doorways(prim, held)
     saved(stage)
     for part in parts:
         surface(folder, name, looks[part], part=part)
-    return {"name": name, "address": KIT, "usd": relative, "piece": piece, "parts": parts}
+    record = record_of(folder)
+    if held or any(spot.get("of") == name for spot in (record.get("doorways") or {}).values()):
+        record["doorways"] = {**{key: spot for key, spot in (record.get("doorways") or {}).items()
+                                 if spot.get("of") != name},
+                              **{f"{name}_{key}": {**spot, "of": name} for key, spot in laid.items()}}
+        write_record(folder, record)
+    return {"name": name, "address": KIT, "usd": relative, "piece": piece, "parts": parts,
+            **({"doorways": sorted(f"{name}_{key}" for key in laid)} if laid else {})}
 
 
 HOLLOW_LEAST = 0.02  # metres: a box's piece left thinner than this by a hollow is dropped (a sliver, no wall)
@@ -2201,7 +2212,8 @@ def view(folder, name, eye, aim, fov, cut=False):
 
 def remove(folder, name):
     """The object (and its look), effect, haze or light called `name` taken out of the scene, and out of place.json
-    `cut` and `backdrop`."""
+    `cut` and `backdrop`; the doorways a kit piece of it held (place.json `doorways`, `of` it) and a join recorded
+    from it or from them (`joins`: a door leaf's) go with it, so no join is left read from what is gone."""
     stage, place = opened(folder)
     paths = [f"/{place}/{part}/{name}" for part in ("Objects", "Effects", "Haze", "Looks", "Lights")]
     paths += [str(inside.GetPath()) for inside in stage.GetPrimAtPath(f"/{place}/Looks").GetChildren()
@@ -2216,7 +2228,13 @@ def remove(folder, name):
     listed_in = [key for key in ("cut", "backdrop") if name in (record.get(key) or [])]
     for key in listed_in:  # a removed object is no longer the camera's to see through, nor a neighbour's
         record[key] = [listed for listed in record[key] if listed != name]
-    if listed_in:
+    held = [key for key, spot in (record.get("doorways") or {}).items() if spot.get("of") == name]
+    joined = [key for key, spot in (record.get("joins") or {}).items()
+              if key in held or spot.get("from") == f"the door leaf {name}"]
+    for key, gone in (("doorways", held), ("joins", joined)):
+        if gone:
+            record[key] = {kept: spot for kept, spot in record[key].items() if kept not in gone}
+    if listed_in or held or joined:
         write_record(folder, record)
     return {"removed": name}
 
