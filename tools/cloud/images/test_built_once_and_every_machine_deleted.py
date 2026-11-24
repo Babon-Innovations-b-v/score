@@ -20,6 +20,9 @@ turns it red (each applied once and seen red):
   Break: `shutil.copyfile` for `shutil.copy2` in `staged_context` (`shutil.copy` keeps the mode too).
 - buildx pushes with the registry as its layer cache and the parent's digest as BASE.
   Break: drop `"--push"` in `build_command`.
+- A kind whose Dockerfile names a `# pull-login:` registry is built after the builder logged in there with the named
+  secrets, the token over the command's input and never on a command line (unreal: Epic's images on ghcr.io).
+  Break: drop `log_in_to_pull(machine, kind)` in `build_one`. Break: put the token in the login command.
 - A failed build still deletes its machine, records the run in the ledger and stops with an error.
   Break: move `batch.delete_machine` out of `rent_one`'s `finally`. Break: drop the `shares.failed` check in `build`.
 - A proof or a warm-up with no offer rents nothing; with one, its single machine is deleted and recorded by kind.
@@ -46,6 +49,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import build  # noqa: E402
+import secret_store  # noqa: E402
 import prove  # noqa: E402
 import warm  # noqa: E402
 from build import stores, submit  # noqa: E402
@@ -62,7 +66,7 @@ def world(folder):
     """The images folder: a two-platform base, a child `app` with an executable script, the runner exported from a
     scratch repository (its project, lock and file wheels), and a runtime with a test file under either name."""
     for kind, dockerfile in (("base", "# platforms: linux/amd64,linux/arm64\nFROM x\n"),
-                             ("app", "ARG BASE\nFROM ${BASE}\n"), ("runner", "ARG BASE\nFROM ${BASE}\n")):
+                             ("app", "# pull-login: ghcr.io pull-user pull-token\nARG BASE\nFROM ${BASE}\n"), ("runner", "ARG BASE\nFROM ${BASE}\n")):
         (folder / kind).mkdir(parents=True)
         (folder / kind / "Dockerfile").write_text(dockerfile)
     for kind in ("base", "app"):
@@ -111,11 +115,13 @@ def test_built_once_and_every_machine_deleted(tmp_path, monkeypatch):
 
     # The fake cloud: one machine of the row's class per rent; its commands answer like docker and buildx would.
     seen = {"deleted": [], "ledger": [], "said": [], "warmed": []}
-    commands, staged = {}, {}
+    commands, staged, given = {}, {}, {}
+    secrets = {"pull-user": "epic-linked", "pull-token": "the-read-token"}
     row = {}
 
-    def remote(_folder, host, command, **_options):
+    def remote(_folder, host, command, **options):
         commands.setdefault(host, []).append(command)
+        given.setdefault(host, []).append(options.get("input"))
         words = shlex.split(command) if command.startswith("docker") else []
         answer = {"returncode": 0, "stdout": ""}
         if words[:3] == ["docker", "buildx", "build"]:
@@ -164,6 +170,7 @@ def test_built_once_and_every_machine_deleted(tmp_path, monkeypatch):
             (build.spread, "on_machines", on_machines), (build.cloud, "account", lambda: "account"),
             (build.cloud, "registry", lambda: {"endpoint": "reg/ns", "username": "u", "password": "p"}),
             (build.cloud, "allow_key", lambda account, name, key: None),
+            (secret_store, "secret", secrets.__getitem__),
             (warm, "measure", lambda machine, image, spec, results: seen["warmed"].append(machine["class"]))):
         monkeypatch.setattr(owner, name, value)
 
@@ -243,6 +250,13 @@ def test_built_once_and_every_machine_deleted(tmp_path, monkeypatch):
     assert built["base"]["image"] == f"reg/ns/score-base:{built['base']['tag']}@sha256:base"
     assert "type=registry,ref=reg/ns/score-app:buildcache" in buildx["app"]
     assert any(part.startswith("type=registry,ref=reg/ns/score-app:buildcache,mode=max") for part in buildx["app"])
+    logins = [(number, command, given["built"][number]) for number, command in enumerate(commands["built"])
+              if command.startswith("docker login ghcr.io")]
+    app_build = next(number for number, command in enumerate(commands["built"])
+                     if command.startswith("docker buildx build") and command.endswith("/app"))
+    assert [(command, token) for _number, command, token in logins] == [
+        ("docker login ghcr.io -u epic-linked --password-stdin", "the-read-token")]
+    assert logins[0][0] < app_build and not any("the-read-token" in command for command in commands["built"])
     platforms = {kind: words[words.index("--platform") + 1] for kind, words in buildx.items()}
     assert platforms == {"base": "linux/amd64,linux/arm64", "app": "linux/amd64", "runner": "linux/amd64"}
 

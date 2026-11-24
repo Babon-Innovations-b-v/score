@@ -9,7 +9,10 @@ Each image folder here (`<kind>/`) holds its Dockerfile, models.json and the sma
 with docker buildx from a context of its folder plus the job runtime (`runtime/`), for the platforms its Dockerfile
 names on a `# platforms:` line (linux/amd64 when it names none; arm64 runs under QEMU on the builder), with the
 registry as the layer cache, so rebuilding one image reuses every layer that did not change. A Dockerfile that
-declares `ARG BASE` is built FROM the score-base image of this run or of images.json. The tag is
+declares `ARG BASE` is built FROM the score-base image of this run or of images.json. A Dockerfile whose parent sits
+in a registry that wants a login names it on a `# pull-login: <host> <user secret> <token secret>` line: the builder
+logs in there before that kind's build, both values read by name through secret_store (unreal: Epic's images on
+ghcr.io). The tag is
 `<IMAGE_VERSION>-<hash of the folder (models.json aside: no weights are in an image), the runtime and the parent's
 digest>`; an image whose tag images.json already holds is not built again unless --force.
 
@@ -112,6 +115,15 @@ def platforms(kind):
     return "linux/amd64"
 
 
+def pull_login(kind):
+    """The (host, user secret, token secret) the Dockerfile's `# pull-login:` line names, or None."""
+    for line in dockerfile(kind).splitlines():
+        if line.startswith("# pull-login:"):
+            host, user, token = line.split(":", 1)[1].split()
+            return host, user, token
+    return None
+
+
 def has_parent(kind):
     return kind != PARENT and "ARG BASE" in dockerfile(kind)
 
@@ -205,6 +217,20 @@ def log_in(machine, registry):
                  input=registry["password"], text=True, check=True, capture_output=True)
 
 
+def log_in_to_pull(machine, kind):
+    """Log the builder's docker into the registry the kind's parent is pulled from, when its Dockerfile names one;
+    the token over ssh's input, never on a command line."""
+    named = pull_login(kind)
+    if not named:
+        return
+    import secret_store
+
+    host, user, token = named
+    batch.remote(machine["folder"], machine["host"],
+                 f"docker login {shlex.quote(host)} -u {shlex.quote(secret_store.secret(user))} --password-stdin",
+                 input=secret_store.secret(token), text=True, check=True, capture_output=True)
+
+
 def send_store_environment(machine, store_spec):
     """The store's SCORE_STORE_* variables into /root/smoke/store.env on the machine (only root may read it), for
     `docker run --env-file`."""
@@ -264,6 +290,7 @@ def build_one(machine, kind, registry, built):
     name = f"{registry['endpoint']}/score-{kind}"
     reference = f"{name}:{tag(kind, built)}"
     send_context(machine, kind)
+    log_in_to_pull(machine, kind)
     began = time.time()
     command = build_command(kind, reference, f"{name}:buildcache", built[PARENT]["image"] if has_parent(kind) else None)
     with (folder / f"build-{kind}.log").open("w") as log:
