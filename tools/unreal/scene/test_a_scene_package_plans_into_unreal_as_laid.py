@@ -11,7 +11,9 @@ unwound, and a package seated in its area's frame has the path (in the place's o
 area's frame with no seat refused; keys that did not all land in a sequence section (fewer channels than a key's
 values, or a channel short of keys) are refused, so the camera never stays where it was spawned unseen; the sun
 shines from where it stands, in lux, the sky light's strength is in Unreal's units too, a place with no sky picture is lit by an even sky of its ambient, and the exposure divides the
-lumens back out.
+lumens back out; each lamp reaches until it lights a white wall to layout.FAINTEST once exposed, the background is in
+Unreal's units, and the grade that replaces Unreal's tonemapper reads each colour of Blender's grade lattice at the
+pixel grade_lut wrote it to, its code exposing by Blender's exposure.
 
 Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - frames.copy_transform: the turn taken B R (no B^T) -> the turned copies' points land off their laid spots
@@ -37,6 +39,11 @@ Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - layout.environment: the sky's strength not in Unreal's units -> 1.0, not 683
 - layout.lit_by_ambient: the ambient left unlaid -> a night has no sky light
 - layout.rgbe: the exponent's bias 128 dropped -> the even sky reads 2 ** 128 times too bright
+- layout.reach: the exposure left out -> the lamp reaches its faintest at 0.5, not 1 (run 11: every lamp cut at 10 m)
+- layout.environment: the background not in Unreal's units -> (0.01, 0.02, 0.04), black under the exposure
+- layout.grade_place: green read down from the top row -> every lattice colour lands on another row
+- layout.grade_place: the blue tiles not a size apart -> the colours past the first tile land off their column
+- layout.grade_code: LUMENS_A_WATT not divided out of the exposure -> the code carries 2, not 2 / 683
 """
 import io
 import json
@@ -120,6 +127,9 @@ def package(root):
                         "colour": [1, 1, 1]}, {"name": "sun", "kind": "sun", "strength": 4.0, "colour": [1, 1, 1]}],
              "environment": {"sun": {"name": "sun", "elevation": 30.0, "heading": 90.0, "strength": 4.0,
                                      "colour": [1, 0.9, 0.8], "angle": 0.5}, "exposure": 2.0,
+                             "background": [0.01, 0.02, 0.04],
+                             "grade": {"size": 64, "low": -12.0, "high": 4.0, "middle": 0.18,
+                                       "file": "environment/grade.png"},
                              "sky": {"file": "environment/sky.hdr", "turn": 15.0, "strength": 1.0}}}
     (root / "scene.json").write_text(json.dumps(scene))
     views = [((0, 1.6, 0), (0, 1.6, -10)), ((0, 1.6, 0), (10, 1.6, 0)), ((0, 1.6, 0), (0, 1.6, 10)),
@@ -178,6 +188,21 @@ def first_pixel(hdr):
     data = hdr.read_bytes()
     pixel = data[data.index(b"+X") + data[data.index(b"+X"):].index(b"\n") + 1:][:4]
     return [value * 2.0 ** (pixel[3] - 136) for value in pixel[:3]]
+
+
+def grade_landing(grade, step):
+    """Whether layout.grade_place reads the lattice colour of `step` (red, green, blue steps: grade_lut.lattice's
+    middle * 2 ** (low + c * (high - low)), step 0 black) at the centre of the pixel grade_lut wrote it to: column
+    blue * size + red, row size - 1 - green from the top (Blender's pixels are bottom first), no blend to the next
+    tile."""
+    size = grade["size"]
+    colour = [0.0 if index == 0 else grade["middle"] * 2.0 ** (grade["low"] + index / (size - 1) * (grade["high"]
+                                                                                                    - grade["low"]))
+              for index in step]
+    lower, upper, v, blend = layout.grade_place(colour, grade)
+    column, row = lower * size * size - 0.5, v * size - 0.5
+    return (round(column, 6), round(row, 6), round(blend, 6)) == (step[2] * size + step[0], size - 1 - step[1], 0.0) \
+        and round(upper - lower, 9) == (round(1.0 / size, 9) if step[2] < size - 1 else 0.0)
 
 
 def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
@@ -241,6 +266,13 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
                 [round(-value, 6) for value in toward], sun["lux"]),
         "exposure": round(made["environment"]["exposure_bias"], 6),
         "lamp": (made["lamps"][0]["location"], made["lamps"][0]["lumens"]),
+        "lamp reaches its faintest": round(10.0 / (4 * math.pi) / (made["lamps"][0]["reach"] / 100.0) ** 2 * 2.0
+                                           / math.pi / layout.FAINTEST, 6),
+        "background": [round(value, 6) for value in made["environment"]["background"]],
+        "grade lands on its lattice": [grade_landing(made["environment"]["grade"], step) for step in
+                                       ((0, 0, 0), (5, 10, 20), (63, 1, 62), (63, 63, 63))],
+        "grade code": [f"{2.0 / 683.0:.9g}" in made["environment"]["grade"]["code"],
+                       "float3(6.83, 13.66, 27.32)" in made["environment"]["grade"]["code"]],
         "caps": made["caps"]["use"],
     }
     assert answer == {
@@ -259,5 +291,7 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "seated camera": ([1000.0, 500.0, 140.0], [-1.0, 0.0, 0.0]), "area frame with no seat": "refused",
         "keys landed": [False, False, True, True],
         "sun": (True, 4.0 * 683.0), "exposure": round(math.log2(2.0 / 683.0), 6),
-        "lamp": ([0.0, 0.0, 300.0], 6830.0), "caps": "film"}, answer
+        "lamp": ([0.0, 0.0, 300.0], 6830.0), "lamp reaches its faintest": 1.0,
+        "background": [6.83, 13.66, 27.32], "grade lands on its lattice": [True] * 4, "grade code": [True, True],
+        "caps": "film"}, answer
     json.dumps(made)  # the plan is what plan.py writes

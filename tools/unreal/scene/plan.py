@@ -14,8 +14,9 @@ writes <into>/plan.json and the textures to import under <into>/textures, and pr
     meshes             [{object, file, character, nanite, parts, slots {glTF material name: material}}]: parts the
                        glTF's mesh nodes, the most mesh assets its import may give (it may combine them)
     actors             [{name, object, kind, character, transform {location, rotation, scale}, plays}]
-    lamps              [{name, location, lumens, radius, colour}]
-    environment        {sun, moon, sky, exposure_bias, ambient, grade}: layout.environment, a night's sky its ambient
+    lamps              [{name, location, lumens, radius, reach, colour}]: reach the attenuation radius (layout.reach)
+    environment        {sun, moon, sky, exposure_bias, ambient, background, grade}: layout.environment, a night's sky its
+                       ambient, the grade its tonemapper material's HLSL
     camera             camera.keys of the film path laid on the package's seat (seat_of), or null
     left_out           scene.json's
 """

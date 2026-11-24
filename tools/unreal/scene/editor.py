@@ -1,8 +1,8 @@
 """The editor layer (#221): runs inside Unreal Editor's own Python and carries out plan.py's plan for one scene
 package, into /Game/Score/<place>: the import's axes measured (frames' calibration box), our textures imported, our
 master materials built from code and one Material Instance a look, every object's glTF imported (Nanite on the solid
-ones) wearing those instances, an actor a copy, the lamps, sun, sky light and manual exposure, and the film path as a
-Level Sequence's cine camera.
+ones) wearing those instances, an actor a copy, the lamps (each to its reach), sun, sky light, manual exposure and the
+grade in place of Unreal's tonemapper, and the film path as a Level Sequence's cine camera.
 
     UnrealEditor-Cmd <project>.uproject -run=pythonscript \
         -script="tools/unreal/scene/editor.py <package> <into> [<place>/film/path.json]"
@@ -307,6 +307,7 @@ def lamps_laid(lamps):
         light.set_editor_property("intensity_units", unreal.LightUnits.LUMENS)
         light.set_intensity(lamp["lumens"])
         light.set_editor_property("source_radius", lamp["radius"])
+        light.set_editor_property("attenuation_radius", lamp["reach"])
         light.set_light_color(unreal.LinearColor(*lamp["colour"], 1.0))
 
 
@@ -333,8 +334,48 @@ def sky_laid(sky, place):
     light.recapture_sky()
 
 
-def exposure_set(bias):
-    """An unbound post-process volume holding the manual exposure at `bias` (EV), no physical camera's."""
+def grade_picture(grade, place):
+    """The package's grade picture imported as a lookup table: read as it is written (no sRGB), unfiltered across
+    mips (none), clamped at its edges, never compressed or streamed."""
+    texture = next(asset for asset in imported([grade["file"]], f"{ROOT}/{place}/Grade")[0]
+                   if isinstance(asset, unreal.Texture2D))
+    for key, value in (("srgb", False), ("compression_settings", unreal.TextureCompressionSettings.TC_HDR),
+                       ("mip_gen_settings", unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS),
+                       ("filter", unreal.TextureFilter.TF_BILINEAR), ("address_x", unreal.TextureAddress.TA_CLAMP),
+                       ("address_y", unreal.TextureAddress.TA_CLAMP), ("never_stream", True)):
+        texture.set_editor_property(key, value)
+    unreal.EditorAssetLibrary.save_loaded_asset(texture)
+    return texture
+
+
+def graded(grade, place):
+    """The post-process material that replaces Unreal's tonemapper with the final render's grade (layout.grade_code:
+    the scene colour, or the background where nothing stands, exposed and looked up in the grade picture)."""
+    material = TOOLS.create_asset("M_Score_grade", f"{ROOT}/{place}", unreal.Material, unreal.MaterialFactoryNew())
+    material.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)
+    material.set_editor_property("blendable_location", unreal.BlendableLocation.BL_REPLACING_TONEMAPPER)
+    custom = expression(material, unreal.MaterialExpressionCustom, (-300, 0), code=grade["code"],
+                        output_type=unreal.CustomMaterialOutputType.CMOT_FLOAT3, description="score grade",
+                        inputs=[unreal.CustomInput(input_name=name) for name in ("Color", "Depth", "Grade")])
+    colour = expression(material, unreal.MaterialExpressionSceneTexture, (-700, -200),
+                        scene_texture_id=unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0)
+    depth = expression(material, unreal.MaterialExpressionSceneTexture, (-700, 0),
+                       scene_texture_id=unreal.SceneTextureId.PPI_SCENE_DEPTH)
+    picture = expression(material, unreal.MaterialExpressionTextureObject, (-700, 200),
+                         texture=grade_picture(grade, place))
+    for source, output, name in ((colour, "Color", "Color"), (depth, "Color", "Depth"), (picture, "", "Grade")):
+        if not EDITING.connect_material_expressions(source, output, custom, name):
+            raise RuntimeError(f"the grade's {name} input was not connected")
+    if not EDITING.connect_material_property(custom, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
+        raise RuntimeError("the grade's output was not connected")
+    EDITING.recompile_material(material)
+    unreal.EditorAssetLibrary.save_loaded_asset(material)
+    return material
+
+
+def exposure_set(bias, grade=None):
+    """An unbound post-process volume holding the manual exposure at `bias` (EV), no physical camera's, and the
+    `grade` material (graded) in place of Unreal's tonemapper when given."""
     volume = spawned(unreal.PostProcessVolume)
     volume.set_editor_property("unbound", True)
     settings = volume.get_editor_property("settings")
@@ -344,6 +385,9 @@ def exposure_set(bias):
                        ("override_auto_exposure_apply_physical_camera_exposure", True),
                        ("auto_exposure_apply_physical_camera_exposure", False)):
         settings.set_editor_property(key, value)
+    if grade is not None:
+        settings.set_editor_property("weighted_blendables", unreal.WeightedBlendables(
+            array=[unreal.WeightedBlendable(weight=1.0, object=grade)]))
     volume.set_editor_property("settings", settings)
 
 
@@ -461,7 +505,9 @@ def main(arguments):
     attempted(faults, "sun and moon", bodies_laid, made["environment"])
     if made["environment"]["sky"]:
         attempted(faults, "sky", sky_laid, made["environment"]["sky"], made["place"])
-    attempted(faults, "exposure", exposure_set, made["environment"]["exposure_bias"])
+    grade = attempted(faults, "grade", graded, made["environment"]["grade"], made["place"]) \
+        if made["environment"]["grade"] else None
+    attempted(faults, "exposure", exposure_set, made["environment"]["exposure_bias"], grade)
     if made["camera"]:
         step("the film's Level Sequence")
         filmed(made, faults)
