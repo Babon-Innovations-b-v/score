@@ -203,7 +203,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   lining, the joints running on to the fitting they meet, the kick pad along the floor still quilted; panels are
   screwed down round their bezels; a toggle's `guard` is its wickets (the Apollo command module's), "cover" the red
   flip cover of a critical switch; the hardware takes a valve handwheel, a guarded push button, push-pull circuit
-  breakers, an attitude ball, and a wall's grab `handrail` and clamped `cables` run.
+  breakers, an attitude ball, and a wall's grab `handrail` and clamped `cables` run. Round 2 (the judge: "still
+  quilted padding ... no painted-metal wall panels, no bolted structure"): the cone's `panel_puff` a few millimetres
+  and `quilted` empty make the lining charcoal painted metal panels, its walls' `screws` (wall_screws, in the wall's
+  own piece: a curved row of screws of its own had its middle behind the face) screwed along every joint clear of
+  holes, plates and the cut; lamps sit in a black bezel with a low lens, an `annunciator` lays them in a grid (unlit
+  ones "off", dark glass), the ball carries its pitch lines and roll scale, `talk_key` is the radio's rubber
+  push-to-talk key, and a toggle's plate is dark (a bright plate read as a toy block).
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its

@@ -81,6 +81,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - cockpit_kit.course_seams: a panelled lining's courses started at random again -> its wall panels' joints no longer
   line up course over course from `panel_from`
 - cockpit_kit.wheel: the rim's ends laid on one face again -> the valve handwheel is no closed solid
+- cockpit_kit.wall_screws: a hole's clearance dropped -> a wall panel's screw stands on the porthole's flange
 - launch_kit.ship: the barrel and the nose turned as two solids (the barrel's top left open) -> the ship's welded
   mesh has an edge used three times (no closed solid)
 - launch_kit.ship: the aft skirt left off -> the ship's lowest points are its engine bells', not the skirt it stands on
@@ -1018,7 +1019,11 @@ def kitted(tmp_path):
     assert under.any() and (along[under] < flange_top[under]).all(), (along - flange_top)[under].max()
     panelled = cockpit_kit.Cone(panels=15, panel_from=4.0)
     assert {start for start, _ in cockpit_kit.course_seams(panelled)} == {4.0 / 360.0}  # joints lined up
-    for kind in ("wheel", "guarded_button", "ball", "breakers", "handrail"):
+    screwed = cockpit_kit.Cone(panels=15, panel_from=4.0, panel_puff=0.006, quilted=[])
+    heads = [found[1].mean(axis=0) for found in cockpit_kit.wall_screws(
+        holes=[[16.0, 1.55, 0.2]], sector=[4.0, 28.0], panels=15, panel_from=4.0, panel_puff=0.006, quilted=[])]
+    assert heads and min(cockpit_kit.off_axis(screwed, np.asarray(heads), 16.0, 1.55)) > 0.2 + 0.05
+    for kind in ("wheel", "guarded_button", "ball", "breakers", "handrail", "annunciator", "talk_key"):
         built = cockpit_kit.KINDS[kind]()
         points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in built]), np.vstack(
             [found[2] + sum(len(earlier[1]) for earlier in built[:number]) for number, found in enumerate(built)]))

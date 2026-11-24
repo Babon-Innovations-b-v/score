@@ -372,14 +372,16 @@ def circle_path(radius_x, radius_y, centre=(0.0, 0.0), steps=40, start=0.0, swee
 
 # --- hardware: each built at its own spot, its back on z = 0 --------------------------------------------------------
 
-LAMP_PARTS = {"red": "lamp_red", "green": "lamp_green", "amber": "lamp_amber", "white": "lamp_white", "cyan": "lamp_cyan"}
+LAMP_PARTS = {"red": "lamp_red", "green": "lamp_green", "amber": "lamp_amber", "white": "lamp_white", "cyan": "lamp_cyan",
+              "off": "lamp_off"}  # "off": a lamp or a button cap unlit, dark glass (most of a real panel's are)
 
 
 def toggle(guard=False, **_):
     """A bat-handle toggle switch 2 cm tall on a small plate, thrown up. `guard` True stands a wicket either side of
     it (a bent bar loop, as the Apollo command module's guarded switches: a hand brushing past cannot throw it);
-    `guard` "cover" holds a red flip cover open over it between two posts instead (a critical switch: STAGE, CHUTE)."""
-    found = box("metal", (-0.008, -0.013, 0.0), (0.008, 0.013, 0.0015), 0.0005)
+    `guard` "cover" holds a red flip cover open over it between two posts instead (a critical switch: STAGE, CHUTE).
+    Its plate dark, so only the nut and the bat read (a bright plate drew a white block: the judge's "toy")."""
+    found = box("dark", (-0.008, -0.013, 0.0), (0.008, 0.013, 0.0015), 0.0005)
     found += turned("metal", [(0.0, 0.0012), (0.0065, 0.0012), (0.0065, 0.004), (0.0045, 0.0045), (0.0045, 0.008),
                               (0.0, 0.008)], segments=6)
     lever = turned("lever", [(0.0, 0.0), (0.0021, 0.0), (0.0017, 0.017), (0.0028, 0.0185), (0.0028, 0.0205),
@@ -400,12 +402,13 @@ def toggle(guard=False, **_):
 
 
 def lamp(colour="green", size=0.009, **_):
-    """A round indicator lamp: a bright ring and a domed lens of `colour` (LAMP_PARTS) `size` metres across."""
+    """A round indicator lamp: a black knurled bezel and a low lens of `colour` (LAMP_PARTS) `size` metres across,
+    nearly flat (a panel's jewel lamp; a domed lens in a bright ring read as a sweet, the judge's "candy dots")."""
     radius = size / 2
-    found = turned("metal", [(radius * 0.7, 0.0), (radius * 1.35, 0.0), (radius * 1.35, 0.002), (radius * 1.1, 0.004),
-                             (radius * 0.95, 0.004), (radius * 0.7, 0.004), (radius * 0.7, 0.0)], segments=20)
+    found = turned("dark", [(radius * 0.7, 0.0), (radius * 1.4, 0.0), (radius * 1.4, 0.003), (radius * 1.15, 0.005),
+                            (radius * 0.95, 0.005), (radius * 0.7, 0.005), (radius * 0.7, 0.0)], segments=20)
     profile = [(0.0, 0.003)] + [(radius * math.cos(math.radians(angle)),
-                                 0.003 + radius * 0.75 * math.sin(math.radians(angle))) for angle in range(0, 91, 15)]
+                                 0.003 + radius * 0.32 * math.sin(math.radians(angle))) for angle in range(0, 91, 15)]
     found += turned(LAMP_PARTS[colour], profile, segments=20, smooth=True)
     return found
 
@@ -627,6 +630,44 @@ def guarded_button(colour="red", size=0.026, **_):
     return found
 
 
+def annunciator(columns=4, rows=2, tile=(0.026, 0.013), lit=(), **_):
+    """A caution and warning block: `columns` x `rows` rectangular lamp tiles `tile` (wide, high) in a dark frame, a
+    black web between them, the tiles in `lit` ([column, row, colour], LAMP_PARTS) lit and the rest dark glass
+    (lamp_off): a real cabin's lamps in a grid, never scattered dots."""
+    wide, high = tile
+    web = 0.002
+    outer_wide, outer_high = columns * (wide + web) + web + 0.008, rows * (high + web) + web + 0.008
+    found = box("dark", (-outer_wide / 2, -outer_high / 2, 0.0), (outer_wide / 2, outer_high / 2, 0.005), 0.0012)
+    colours = {(int(column), int(row)): colour for column, row, colour in lit}
+    for column in range(columns):
+        for row in range(rows):
+            x = -outer_wide / 2 + 0.004 + web + column * (wide + web)
+            y = outer_high / 2 - 0.004 - web - (row + 1) * high - row * web
+            part = LAMP_PARTS[colours[(column, row)]] if (column, row) in colours else "lamp_off"
+            found += box(part, (x, y, 0.0035), (x + wide, y + high, 0.0062), 0.0006)
+    return found
+
+
+def talk_key(size=0.034, **_):
+    """A push-to-talk key `size` across (the radio's): a square cast collar screwed to the panel round a black
+    rubber key standing proud of it, ribbed across its top for a gloved thumb, and its lit transmit bar over it."""
+    half = size / 2
+    found = box("metal", (-half - 0.007, -half - 0.007, 0.0), (half + 0.007, half + 0.007, 0.006), 0.0015)
+    found += box("dark", (-half - 0.001, -half - 0.001, 0.004), (half + 0.001, half + 0.001, 0.0068), 0.0006)
+    found += rounded_box("boot", (-half + 0.001, -half + 0.001, 0.0055), (half - 0.001, half - 0.001, 0.016),
+                         0.0035, steps=2, inside=1)
+    for row in range(-2, 3):
+        found += box("knob", (-half + 0.005, row * 0.0055 - 0.0011, 0.0155), (half - 0.005, row * 0.0055 + 0.0011,
+                                                                                0.0172), 0.0004)
+    found += box("lamp_green", (-half * 0.6, half + 0.0025, 0.0055), (half * 0.6, half + 0.0055, 0.0075), 0.0005)
+    head = [(0.0, 0.0), (0.0022, 0.0), (0.0022, 0.0008), (0.0015, 0.0013), (0.0, 0.0013)]
+    for x in (-1, 1):
+        for y in (-1, 1):
+            found += moved(turned("bolt", head, segments=8),
+                           offset=(x * (half + 0.0038), y * (half + 0.0038), 0.0058))
+    return found
+
+
 def breakers(count=6, pitch=0.019, out=(), **_):
     """A row of `count` push-pull circuit breakers `pitch` apart: each a bright threaded collar, a black cap and its
     white band; the ones in `out` (their numbers) pulled, standing taller with the band showing below the cap."""
@@ -666,6 +707,35 @@ def ball(size=0.09, **_):
     found += box("marker", (-radius * 0.5, -0.0016, front - 0.0035), (-radius * 0.12, 0.0016, front + 0.0015), 0.0006)
     found += box("marker", (radius * 0.12, -0.0016, front - 0.0035), (radius * 0.5, 0.0016, front + 0.0015), 0.0006)
     found += box("marker", (-0.0025, -0.0025, front - 0.003), (0.0025, 0.0025, front + 0.002), 0.0008)
+    found += ball_marks(radius, centre, squash, pitch, deep)
+    return found
+
+
+def ball_marks(radius, centre, squash, pitch, deep):
+    """An attitude ball's markings (the FDAI's): its pitch lines every 30 degrees and its middle meridian drawn on
+    the ball, dark on the sky half and white on the ground half, turned with it; the bezel's roll scale, a tick every
+    10 degrees, long every 30; and the roll pointer over the top (a plain ball with one dash read as a toy)."""
+    shape = np.diag([1.0, 1.0, squash]) @ np.asarray(about("x", pitch))
+    on_ball = lambda points: [tuple(shape @ (radius * 1.004 * np.asarray(point)) + np.array([0.0, 0.0, centre]))
+                              for point in points]
+    found = []
+    for latitude in (-60.0, -30.0, 30.0, 60.0):
+        lat = math.radians(latitude)
+        ring = [(math.cos(lat) * math.sin(math.radians(along)), math.sin(lat), math.cos(lat) * math.cos(math.radians(along)))
+                for along in range(-80, 81, 8)]
+        found += tube("dark" if latitude > 0 else "ink", on_ball(ring), 0.00055, 6)
+    for low, high, part in ((4, 84, "dark"), (-84, -4, "ink")):
+        meridian = [(0.0, math.sin(math.radians(angle)), math.cos(math.radians(angle))) for angle in range(low, high + 1, 8)]
+        kept = [point for point in meridian if (shape @ np.asarray(point))[2] > 0.15]
+        if len(kept) > 1:
+            found += tube(part, on_ball(kept), 0.00055, 6)
+    for tick in range(36):
+        angle = math.radians(tick * 10)
+        inner = radius * (1.07 if tick % 3 == 0 else 1.12)
+        found += ribbon("ink", [(inner * math.cos(angle), inner * math.sin(angle)),
+                                (radius * 1.19 * math.cos(angle), radius * 1.19 * math.sin(angle))],
+                        0.0012 if tick % 3 else 0.0018, deep + 0.0066)
+    found += box("marker", (-0.0022, radius * 1.21, deep + 0.004), (0.0022, radius * 1.30, deep + 0.009), 0.0005)
     return found
 
 
@@ -676,7 +746,8 @@ def words(text="", high=0.012, part="ink", **_):
 
 ITEMS = {"toggle": toggle, "lamp": lamp, "gauge": gauge, "bars": bars, "readout": readout, "screen": screen,
          "keypad": keypad, "scope": scope, "button": button, "rotary": rotary, "wheel": wheel, "slider": slider,
-         "guarded_button": guarded_button, "breakers": breakers, "ball": ball, "words": words}
+         "guarded_button": guarded_button, "breakers": breakers, "ball": ball, "words": words,
+         "annunciator": annunciator, "talk_key": talk_key}
 
 
 def laid_items(items, height):
@@ -775,11 +846,13 @@ def panel_screws(wide, high, inset=0.0075, most=0.12):
 
 CONE = {"radius": 1.40, "slope": 0.22, "hull": 0.05, "gap": 0.003, "lining": 0.05, "bolster": 0.04,
         "bolster_high": 0.32, "puff": 0.09, "ceiling": 2.05, "shoulder": 1.80, "inset": 0.30, "panels": 0,
-        "panel_from": 0.0}
+        "panel_from": 0.0, "panel_puff": 0.02, "quilted": (0,)}
 # `panels` 0: the concept's stuffed pillows; else the lining is a real cabin's wall: `panels` padded panels round
 # every course, their joints lined up course over course from `panel_from` degrees (so a wall of the lining, its
-# `sector`, can hold whole panels), each a flat face of PANEL_PUFF rolled off at its edge into a dark joint, the
-# course along the floor (QUILTED_COURSES) a stitched quilted kick pad
+# `sector`, can hold whole panels), each a flat face of `panel_puff` rolled off at its edge into a dark joint, the
+# course along the floor (`quilted`) a stitched quilted kick pad; `panel_puff` how far a panel's face stands off its
+# joint: a few millimetres for a real cabin's painted metal wall panels (2099 #246 round 2, the owner: "that light
+# padding just ugly"; `quilted` empty: no quilting on its walls at all)
 ROWS = (0.0, 0.30, 0.59, 0.88, 1.30, 1.80, 2.05)  # the lining's courses, metres up from the floor (of its back):
 # the fourth behind the screens, the fifth round the portholes (never a seam through one), the last over the shoulder
 CUSHION_WIDE = 0.40  # metres round a cushion on average, along its course's middle on the lining's face
@@ -797,10 +870,8 @@ MOUNT_EASE = 0.05  # metres outside that band over which the lining's skin eases
 MOUNT_ROLL = 0.07  # metres outside a mounting plate over which a cut cushion swells from its crease against it
 TUCK = 0.03  # metres the ceiling's pad reaches over the top of the lining's shoulder
 TUCK_DROP = 0.025  # metres its edge sinks there, into the shoulder's top
-PANEL_PUFF = 0.02  # metres a wall panel's flat face stands off its joint (a panelled lining, CONE's `panels`)
 PANEL_EDGE = 10.0  # the power of a wall panel's outline: square, only its corners rounded
 PANEL_ROLL = 0.3  # how fast a wall panel's face rolls off its edge (a power under 1: flat, a narrow rounded edge)
-QUILTED_COURSES = (0,)  # a panelled lining's courses still quilted: the kick pad along the floor
 THROUGH = 0.5  # metres along a hole's axis off the hull's inner face within which the wall is cut for it
 
 
@@ -1066,7 +1137,7 @@ def quilt(cone, theta, y):
     (cushion_at), each a superellipse dome (PILLOW) swelling steeply from zero along its edge (FULLNESS), so two
     pillows meet in a deep crease and their corners pinch in, each a little fuller or flatter than the next; the
     course on the floor a fat bolster. A panelled lining (CONE's `panels`) stands its wall panels' flat faces
-    PANEL_PUFF off instead, rolled off at their square edges, its QUILTED_COURSES still pillows."""
+    `panel_puff` off instead, rolled off at their square edges, its `quilted` courses still pillows."""
     row, column, _, across, upward = cushion_at(cone, theta, y)
     seed = np.abs(np.sin(row * 12.9898 + column * 78.233) * 43758.5453) % 1.0
     lean = np.abs(np.sin(row * 39.3468 + column * 11.135) * 24634.6345) % 1.0
@@ -1079,8 +1150,8 @@ def quilt(cone, theta, y):
     if not cone.sizes["panels"]:
         return puff * swell
     square = (np.abs(2 * across - 1) ** PANEL_EDGE + np.abs(2 * upward - 1) ** PANEL_EDGE) ** (1.0 / PANEL_EDGE)
-    panel = PANEL_PUFF * np.clip(1 - square ** PANEL_EDGE, 0.0, 1.0) ** PANEL_ROLL
-    return np.where(np.isin(row, QUILTED_COURSES), puff * swell, panel)
+    panel = cone.sizes["panel_puff"] * np.clip(1 - square ** PANEL_EDGE, 0.0, 1.0) ** PANEL_ROLL
+    return np.where(np.isin(row, list(cone.sizes["quilted"])), puff * swell, panel)
 
 
 def cut_distance(cone, theta, y, cut):
@@ -1149,7 +1220,7 @@ def lining_depth(cone, theta, y, back, fades, flats, cut=None):
 
 
 def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, rise=None, cell=0.014, rows=0.012,
-           **sizes):
+           screws=None, **sizes):
     """The cabin's quilted lining, one closed piece round the cone from the floor to the ceiling: its back a hair
     off the hull, its face the cushions (lining_depth: stuffed vinyl pillows of their own widths in courses meeting
     in deep creases, a bolster along the floor), curving over at the top into the ceiling (shoulder, the cushions
@@ -1159,7 +1230,9 @@ def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, ri
     the cut-away left out of its "main" body and filling its "plug", eased flat along it. Parts cushion (a pad's
     face, and the edges where a wall or the cut-away ends, so two walls meet with no dark line), seam (the one row
     of cells along each cushion's edge, the bottom of its crease), back; the face shaded by the whole grid's
-    normals (surface_normals), so neither a part's edge nor a wall's breaks the shading."""
+    normals (surface_normals), so neither a part's edge nor a wall's breaks the shading. `screws` ({pitch, off,
+    top, clear}, wall_screws) screws a panelled wall's panels down along their joints in its `sector`, part bolt, in
+    the wall's own piece (a row of screws of its own, a curved line, had its middle behind the wall's face)."""
     cone = Cone(**sizes)
     top = cone.sizes["ceiling"]
     thetas, heights = ring_grid(rows, 0.0015, top, 2 * math.pi * float(cone.rho(0.0)), cell)
@@ -1195,8 +1268,11 @@ def lining(cut=None, holes=(), fades=(), flats=(), which="main", sector=None, ri
     parts = np.where(crossed & (smoothed < eased_limit), "seam", "cushion")  # the crease along a cushion's edge,
     # none where the quilting is eased even a little (no stray dark bits on the flat round a hole or along the cut);
     # a panelled wall's joints run on to the fitting they meet, never stopping short in the open wall
-    return grid_solid(front, back, keep, parts, "back", "cushion", face_normals,
-                      front_normals=surface_normals(front, face_normals))
+    found = grid_solid(front, back, keep, parts, "back", "cushion", face_normals,
+                       front_normals=surface_normals(front, face_normals))
+    if screws and which == "main" and sector is not None and (rise is None or rise[0] < screws.get("top", 1.76)):
+        found += wall_screws(cut, fades, flats, sector, **screws, **sizes)
+    return found
 
 
 def surface_normals(grid, toward):
@@ -1666,7 +1742,7 @@ def cables(around=(300.0, 380.0), y=1.74, count=3, pitch=0.026, stand=0.03, clam
     `pitch` apart up the wall at height `y` (their middle), from `around` [from, to] degrees round the cone, `stand`
     metres off the lining's face (past its panels), held by a bright clamp strap every `clamp_every` metres."""
     cone = Cone(**sizes)
-    face = cone.sizes["gap"] + cone.sizes["lining"] + PANEL_PUFF + stand
+    face = cone.sizes["gap"] + cone.sizes["lining"] + cone.sizes["panel_puff"] + stand
     start, end = (math.radians(value) for value in around)
     length = abs(end - start) * float(cone.rho(y, face))
     thetas = np.linspace(start, end, max(8, int(length / 0.03)))
@@ -1681,6 +1757,65 @@ def cables(around=(300.0, 380.0), y=1.74, count=3, pitch=0.026, stand=0.03, clam
         right, up, inward = cone.frame(theta)
         strap = box("clamp", (-0.008, -reach, -stand - 0.004), (0.008, reach, 0.011), 0.002)
         found += moved(strap, np.column_stack([right, up, inward]), cone.at(theta, y, face))
+    return found
+
+
+def joint_spots(cone, pitch, off, top):
+    """Where a panelled lining's screws stand (theta radians, y): along both sides of every joint, `off` metres off
+    it and about `pitch` metres apart, the upright joints from the floor's course to `top`, the level ones between
+    the courses under it; none where two joints cross."""
+    face = cone.sizes["gap"] + cone.sizes["lining"]
+    joints = [math.radians(cone.sizes["panel_from"] + 360.0 * step / cone.sizes["panels"])
+              for step in range(int(cone.sizes["panels"]))]
+    levels = [row for row in ROWS[1:] if row < top]
+    spots = []
+    for joint in joints:
+        for y in np.arange(0.06, top, pitch):
+            if min(abs(y - level) for level in levels) > 2 * off:
+                rho = float(cone.rho(y, face))
+                spots += [(joint + side * off / rho, float(y)) for side in (-1, 1)]
+    for level in levels:
+        rho = float(cone.rho(level, face))
+        count = int(2 * math.pi * rho / pitch)
+        for theta in np.arange(count) * 2 * math.pi / count:
+            if min(abs(wrapped(theta - joint)) for joint in joints) * rho > 2 * off:
+                spots += [(float(theta), level + side * off) for side in (-1, 1)]
+    return spots
+
+
+def wall_screws(cut=None, holes=(), flats=(), sector=(0.0, 360.0), pitch=0.11, off=0.02, top=1.76, clear=0.05,
+                **sizes):
+    """The screws holding a panelled lining's wall panels (CONE's `panels`) to the frame, in the capsule's frame:
+    a domed head along both sides of each joint (joint_spots) on the panel's face, laid along its normal, in the
+    walls of `sector` [from, to] degrees only; none in the cut-away, nor within `clear` metres of a hole's flange
+    (`holes` [theta, y, radius] as the lining's fades) or of a mounting plate (`flats`, as the lining's): a real
+    cabin's bolted panels, never a smooth padded wall."""
+    cone = Cone(**sizes)
+    face = cone.sizes["gap"] + cone.sizes["lining"]
+    head = [(0.0, 0.0), (0.0042, 0.0), (0.0042, 0.0011), (0.0032, 0.0022), (0.0016, 0.0027), (0.0, 0.0028)]
+    low, high = (math.radians(value) for value in sector)
+    found = []
+    for theta, y in joint_spots(cone, pitch, off, top):
+        if (theta - low) % (2 * math.pi) >= (high - low) % (2 * math.pi) or (cut and in_cut(theta, y, cut)):
+            continue
+        if cut and cut_distance(cone, theta, y, cut) < clear:
+            continue
+        back = cone.at(theta, y, cone.sizes["gap"])
+        skin = cone.at(theta, y, face)
+        if any(off_axis(cone, skin[None], hole_theta, hole_y)[0] < radius + clear for hole_theta, hole_y, radius in holes):
+            continue
+        blocked = False
+        for flat_theta, flat_y, wide, high_flat in flats:
+            _, _, (right, up, inward) = flat_spot(flat_theta, flat_y, wide, high_flat, **sizes)
+            offset = back - cone.at(math.radians(flat_theta), flat_y, cone.sizes["gap"])
+            reach = MOUNT_BORDER + MOUNT_EASE + clear
+            blocked |= bool(abs(offset @ right) < wide / 2 + reach and abs(offset @ up) < high_flat / 2 + reach)
+        if blocked:
+            continue
+        right, up, inward = cone.frame(theta)
+        stand = float(quilt(cone, np.array([theta]), np.array([y]))[0])
+        found += moved(turned("bolt", head, segments=8), np.column_stack([right, up, inward]),
+                       cone.at(theta, y, face + stand - 0.0004))
     return found
 
 
