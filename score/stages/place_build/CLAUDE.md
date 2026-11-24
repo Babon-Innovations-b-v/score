@@ -212,7 +212,13 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   push-to-talk key, and a toggle's plate is dark (a bright plate read as a toy block). Round 3 (the judge: "bare bat
   switches", "a plain light-tan disc" for the hatch): a toggle's wickets are stout bails on feet standing over the bat
   (a thin wire beside it read as no guard), the hatch leaf's inside carries eight ribs from its wheel's hub and a lit
-  ring inside its rim (part lamp_white), and a panel's label is 14 mm by default (20 mm read as game lettering).
+  ring inside its rim (part lamp_white), and a panel's label is 14 mm by default (20 mm read as game lettering). Round 4
+  (the judge: "a toy or a pool float" handwheel, "a glowing outline" round "a flat dark disc", guards blurring "into
+  blobs", breakers "tiny dots"): a `wheel` is machined, one true round rim, three round spokes and a chamfered hub (its
+  `part` "metal" on the hatch); the hatch leaf's lit ring is gone and it carries its locking gear, a gearbox drum
+  under the wheel and eight latch dogs at its rim on link rods; a toggle's wickets are 5.6 mm bars a third taller
+  than the bat; `breakers` takes a `size` (the wall rows at 1.3, an index tick under each); `talk_key` takes a
+  `guard`, a bar each side arching over it.
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its
