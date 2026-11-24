@@ -15,7 +15,8 @@
 ARG BASE
 FROM ${BASE} AS score
 
-FROM ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4
+# Epic's tag pinned by the digest ghcr.io gave for it on 2026-11-24 (30 layers, 24.0 GB compressed; Ubuntu 22.04).
+FROM ghcr.io/epicgames/unreal-engine:dev-slim-5.8.4@sha256:b3165cf745a8a30dfeea7074c2f223c213f4cbdf45ad921fb3a0c32c9336e897
 USER root
 ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 SCORE_WORK=/work SCORE_CACHE=/cache \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics,display
@@ -24,9 +25,14 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=score /opt/score /opt/score
 COPY --from=score /usr/local/bin/score-job /usr/local/bin/score-job
+# The layout on_card.py assumes, failing the build when it differs: the editor's command-line binary, the user, and the
+# Movie Render Queue and Python Editor Script plugins (found wherever Epic keeps them, their paths printed).
 RUN mkdir -p /work /cache \
  && test -x /home/ue4/UnrealEngine/Engine/Binaries/Linux/UnrealEditor-Cmd \
  && id ue4 \
+ && cat /home/ue4/UnrealEngine/Engine/Build/Build.version \
+ && find /home/ue4/UnrealEngine/Engine/Plugins -name MovieRenderPipeline.uplugin | grep . \
+ && find /home/ue4/UnrealEngine/Engine/Plugins -name PythonScriptPlugin.uplugin | grep . \
  && /opt/score/venv/bin/python -c "import boto3; print('runtime ok')"
 WORKDIR /work
 ENTRYPOINT ["score-job"]

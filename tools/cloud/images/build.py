@@ -67,6 +67,9 @@ DISK_GB = 200
 SETUP_MINUTES = 5
 # A first build of one image without a warm cache, the estimate the limits are checked against.
 MINUTES_EACH = 25
+# A kind far past the others in size builds on a larger disk, with a longer estimate: unreal is FROM Epic's editor image
+# (24 GB compressed, 30 layers), pulled, unpacked by buildkit beside its blobs and pushed with its layer cache (#222).
+LARGE = {"unreal": {"minutes": 60, "disk_gb": 400}}
 REMOTE = pathlib.PurePosixPath("/root/build")
 PARENT = "base"
 RUNNER = "runner"
@@ -365,6 +368,16 @@ def smoke(machine, kind, entry, store_spec):
     return numbers
 
 
+def build_minutes(kinds):
+    """The estimate for building the kinds on one builder: its set-up and each kind's first build."""
+    return SETUP_MINUTES + sum(LARGE.get(kind, {}).get("minutes", MINUTES_EACH) for kind in kinds)
+
+
+def disk_gb(kinds):
+    """The builder's disk for the kinds: DISK_GB, or the largest a LARGE kind among them needs."""
+    return max([DISK_GB] + [LARGE[kind]["disk_gb"] for kind in kinds if kind in LARGE])
+
+
 def build_all(machine, kinds, registry, built, store_spec):
     """Build each kind in order on one builder, smoke-testing each when asked."""
     for kind in kinds:
@@ -379,7 +392,7 @@ def price(kinds, account):
     found = batch.offers(list(PROCESSORS))
     if not found:
         raise SystemExit("no processor machine is sold by the backend")
-    minutes = SETUP_MINUTES + MINUTES_EACH * len(kinds)
+    minutes = build_minutes(kinds)
     dearest = max(offer.price for offer in found)
     spent = batch.month_spent(account)
     batch.say(f"{len(kinds)} images ({', '.join(kinds)}) on one machine: about {minutes} min, "
@@ -427,7 +440,7 @@ def build(kinds, who, smoke_test):
     built = saved()
     _run, shares, entry = rent_one(  # one share: the kinds in order, on one builder
         account, found, KIND, "images-%Y%m%d-%H%M%S", allowed_minutes, kinds, lambda machine: set_up(machine, registry),
-        lambda machine, share, _card: build_all(machine, share, registry, built, store_spec), DISK_GB,
+        lambda machine, share, _card: build_all(machine, share, registry, built, store_spec), disk_gb(kinds),
         {"who": who, "images": kinds})
     if shares.failed or shares.waiting:
         raise SystemExit(f"the build did not finish (logs under {batch.BATCHES / entry['batch']})")
