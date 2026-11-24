@@ -18,10 +18,14 @@ The placement's `closed` ({box, most, plate_point}): the plate's region the bake
 right, top] in metres across and up its face from its `at` (its own box, and the bumps and holes that reach out of it,
 at most CLOSE_GROW of its size, never over a seam), in which every point standing up to `most` (BUMP_MOST) proud is
 pressed onto the plate, and one flat card laid over it on the plate in the finish of the plate at `plate_point`. Its
-`at` lies on the plate and its `normal` is the plate's.
+`at` lies on the plate and its `normal` is the plate's. Its `also`: a box, across and up from the same `at`, round each
+hole TRELLIS.2 cut through the plate outside every closed region (holes_closed), closed as its `box` is.
 
     held(placement, mesh, same, pattern)   the placement on its plate, closed; (None, why) when a pattern cannot be
                                            placed clear of a seam
+    holes_closed(placements, mesh, sames)  the placements with the holes through their plates outside every closed
+                                           region closed too (`also`)
+    closed_round(placement, mesh, same, most, reach)  a hardware cut's region closed on its plate (#212), or None
 """
 import numpy as np
 from scipy import ndimage
@@ -46,6 +50,16 @@ BUMP_MOST = 0.006  # a cell proud of the plate by more than this is a fitting (a
 CLOSE_GROW = 0.3  # the closed region reaches at most this share of the box's size past it each way
 # and LIP grid cells past what it closes: a bar's end cut between two cells drew a dark sliver at the card's edge.
 LIP = 2
+# A hole TRELLIS.2 cut through a closed mark's plate outside its region (holes_closed, r13: a black dot above each of
+# the locker's vents, 1 to 2 cm across, seeing the cabinet's inside 0.24 m behind its door): a patch of the plate's
+# grid HOLE_STEP apart (coarser where the plate holds over HOLE_CELLS) whose rays meet nothing or meet the model more
+# than HOLE_DEEP behind the plate (the door sheet is 7 mm), at most HOLE_MOST across, ringed LIP cells wide by its
+# part within BUMP_MOST of the plate, is closed by a box of its own round it.
+HOLE_STEP = 0.002
+HOLE_CELLS = 250000
+HOLE_DEEP = 0.01
+HOLE_MOST = 0.025
+PLATE_SAME = 0.999  # two closed marks' normals this alike (cosine), and their plates within BUMP_MOST, share one
 
 
 def axes(placement):
@@ -60,14 +74,19 @@ def axes(placement):
 
 
 def sampled(placement, mesh, same):
-    """(across, up, height, mine, facing): the grid over the placement's box grown by its own size each way, each
-    cell's height off its point along its normal where a ray from FRONT in front first meets the mesh (NaN where it
-    meets nothing: an edge, or a hole right through), whether that face is of its part (`same`, a face's) and its
-    facing (across, up and out)."""
-    right, up, normal = axes(placement)
+    """(across, up, height, mine, facing): the grid over the placement's box grown by its own size each way (cast)."""
     wide, tall = placement["size"]
     step = max(min(wide, tall) / GRID, max(wide, tall) / GRID_MOST)
-    across, upward = np.meshgrid(np.arange(-wide, wide + step / 2, step), np.arange(-tall, tall + step / 2, step))
+    return cast(placement, mesh, same, *np.meshgrid(np.arange(-wide, wide + step / 2, step),
+                                                    np.arange(-tall, tall + step / 2, step)))
+
+
+def cast(placement, mesh, same, across, upward):
+    """(across, up, height, mine, facing) of the grid `across`, `upward` on the placement's face: each cell's height
+    off its point along its normal where a ray from FRONT in front first meets the mesh (NaN where it meets nothing: an
+    edge, or a hole right through), whether that face is of its part (`same`, a face's) and its facing (across, up and
+    out)."""
+    right, up, normal = axes(placement)
     at = np.asarray(placement["at"], dtype=float)
     origins = at + across.reshape(-1, 1) * right + upward.reshape(-1, 1) * up + FRONT * normal
     faces, rays, points = mesh.ray.intersects_id(origins, np.tile(-normal, (len(origins), 1)), multiple_hits=False,
@@ -171,13 +190,14 @@ def moved_clear(lines, size):
     return [round(float(value), 5) for value in move]
 
 
-def closed_region(across, upward, height, mine, lines, size):
+def closed_region(across, upward, height, mine, lines, size, most=BUMP_MOST, reach=None):
     """[left, bottom, right, top] of the region to close: the box, grown over the cells off the plate (sunk or
-    through, or of its part and proud by at most BUMP_MOST; never another part's standing proud, a fitting) joined
-    to it and LIP cells past them, at most CLOSE_GROW of its size past it each way, ending a grid cell short of a seam (`lines`, seams')."""
+    through, or of its part and proud by at most `most`; never another part's standing proud, a fitting) joined
+    to it and LIP cells past them, at most CLOSE_GROW of its size past it each way (or to `reach` of its middle), ending
+    a grid cell short of a seam (`lines`, seams')."""
     wide, tall = size
     tolerance, step = tolerance_of(size), across[0, 1] - across[0, 0]
-    proud = height > np.where(mine, BUMP_MOST, tolerance)
+    proud = height > np.where(mine, most, tolerance)
     on_seams = np.zeros(across.shape, dtype=bool)
     for _, _, cells in lines:
         on_seams |= cells
@@ -185,7 +205,7 @@ def closed_region(across, upward, height, mine, lines, size):
     boxed = (np.abs(across) <= wide / 2) & (np.abs(upward) <= tall / 2)
     labels, _ = ndimage.label(closable)
     joined = np.isin(labels, np.setdiff1d(np.unique(labels[boxed & closable]), [0])) | boxed
-    reach = np.array(size) / 2 * (1 + 2 * CLOSE_GROW)
+    reach = np.array(size) / 2 * (1 + 2 * CLOSE_GROW) if reach is None else np.array([reach, reach])
     low = np.maximum([across[joined].min() - LIP * step, upward[joined].min() - LIP * step], -reach)
     high = np.minimum([across[joined].max() + LIP * step, upward[joined].max() + LIP * step], reach)
     for way, place, _ in lines:
@@ -277,3 +297,127 @@ def held(placement, mesh, same, pattern):
     return dict(on_plate(turned, plane), closed={
         "box": closed_region(across, upward, height, mine, lines, turned["size"]), "most": BUMP_MOST,
         "plate_point": point}), None
+
+
+def plate_extent(placement, mesh, same):
+    """(low, high) [across, up] of the faces of the placement's part (`same`) on its plate (their middles within
+    BUMP_MOST of it, turned its way), from its `at` on its face; None where none is."""
+    right, up, normal = axes(placement)
+    offset = mesh.triangles_center - np.asarray(placement["at"], dtype=float)
+    on = same & (np.abs(offset @ normal) <= BUMP_MOST) & (mesh.face_normals @ normal > np.cos(np.radians(SEAM_TURN)))
+    if not on.any():
+        return None
+    laid = offset[on] @ np.c_[right, up]
+    return laid.min(0), laid.max(0)
+
+
+def plate_holes(placement, mesh, same):
+    """[[left, bottom, right, top]] across and up from the placement's `at` of each hole through its part's plate (the
+    module's HOLE_ rule), each grown LIP cells: its plate cast over the whole of its part's extent on it."""
+    extent = plate_extent(placement, mesh, same)
+    if extent is None:
+        return []
+    low, high = extent
+    step = max(HOLE_STEP, float(np.sqrt(np.prod(high - low + HOLE_STEP) / HOLE_CELLS)))
+    across, upward, height, mine, _ = cast(placement, mesh, same, *np.meshgrid(
+        np.arange(low[0], high[0] + step / 2, step), np.arange(low[1], high[1] + step / 2, step)))
+    through = np.isnan(height) | (height < -HOLE_DEEP)
+    plate = mine & (np.abs(height) <= BUMP_MOST)
+    labels, _ = ndimage.label(through)
+    found = []
+    for number, cells in enumerate(ndimage.find_objects(labels), start=1):
+        hole = labels[cells] == number
+        rows, columns = cells
+        if (rows.start < LIP or columns.start < LIP or rows.stop > across.shape[0] - LIP
+                or columns.stop > across.shape[1] - LIP):
+            continue
+        if max(np.ptp(across[cells][hole]), np.ptp(upward[cells][hole])) + step > HOLE_MOST:
+            continue
+        ring = ndimage.binary_dilation(labels == number, iterations=LIP) & (labels != number)
+        if not plate[ring].all():
+            continue
+        found.append([round(float(value), 5) for value in (
+            across[cells][hole].min() - LIP * step, upward[cells][hole].min() - LIP * step,
+            across[cells][hole].max() + LIP * step, upward[cells][hole].max() + LIP * step)])
+    return found
+
+
+def in_frame(box, source, target):
+    """A box across and up from `source`'s `at` laid across and up from `target`'s (on the same plate)."""
+    right, up, _ = axes(source)
+    middle = (np.asarray(source["at"], dtype=float) + (box[0] + box[2]) / 2 * right + (box[1] + box[3]) / 2 * up
+              - np.asarray(target["at"], dtype=float))
+    their_right, their_up, _ = axes(target)
+    across, upward = float(middle @ their_right), float(middle @ their_up)
+    half_wide, half_tall = (box[2] - box[0]) / 2, (box[3] - box[1]) / 2
+    return [round(value, 5) for value in (across - half_wide, upward - half_tall, across + half_wide,
+                                          upward + half_tall)]
+
+
+def shared_plate(first, second):
+    """Whether two closed placements lie on one plate: their normals PLATE_SAME alike, each `at` within BUMP_MOST of
+    the other's plate (the locker's doors stand a few mm apart: a plate cast twice closed its holes twice)."""
+    _, _, normal = axes(first)
+    return bool(axes(second)[2] @ normal >= PLATE_SAME
+                and abs((np.asarray(second["at"], dtype=float) - np.asarray(first["at"], dtype=float)) @ normal)
+                <= BUMP_MOST)
+
+
+def holes_closed(placements, mesh, sames):
+    """The placements with each hole TRELLIS.2 cut through a closed one's plate outside every region closed on it
+    (plate_holes) closed too: its box in the `also` of the closed placement on that plate (its part's faces the same,
+    `sames` a placement's) nearest it. r13's locker drew a black dot through each door above its vents, 1 to 2 cm
+    outside their closed boxes; a plate is cast once for all its marks."""
+    found = [dict(placement, closed=dict(placement["closed"])) if placement.get("closed") else placement
+             for placement in placements]
+    done = []
+    for number, placement in enumerate(found):
+        if not placement.get("closed") or any(
+                shared_plate(found[other], placement) and np.array_equal(sames[other], sames[number])
+                for other in done):
+            continue
+        done.append(number)
+        group = [other for other, each in enumerate(found) if each.get("closed") and shared_plate(placement, each)
+                 and np.array_equal(sames[other], sames[number])]
+        for hole in plate_holes(placement, mesh, sames[number]):
+            laid = {other: in_frame(hole, placement, found[other]) for other in group}
+            if any(inside_closed(laid[other], found[other]["closed"]) for other in group):
+                continue
+            nearest = min(group, key=lambda other: np.hypot(laid[other][0] + laid[other][2],
+                                                            laid[other][1] + laid[other][3]))
+            found[nearest]["closed"] = dict(found[nearest]["closed"],
+                                            also=[*found[nearest]["closed"].get("also", []), laid[nearest]])
+    return found
+
+
+def inside_closed(box, closed):
+    """Whether a box's middle lies in a closed region's own `box` or any of its `also`."""
+    across, upward = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    return any(left <= across <= right and bottom <= upward <= top
+               for left, bottom, right, top in [closed["box"], *closed.get("also", [])])
+
+
+def closed_round(placement, mesh, same, most, reach):
+    """A hardware piece's cut (#212, hardware_pieces: its `at` on its face, `normal`, `up` and `size` the blob's square
+    core) closed as a mark's plate is: {at, normal, up} set on the plate (on_plate), its `box` (closed_region: every
+    cell of its part standing up to `most` closable, to the cut's `reach` of its middle, ending short of a seam), the
+    blob's square core pressed past it too where it stands over BUMP_MOST (`pressed`, its `least`: TRELLIS.2 laid
+    r13's locker's locks over their doors' edge grooves; stopped at the groove the blob stood beside each lock as a
+    lump, a card over the groove hid the door's edge, and the neighbouring door 3.4 mm proud of this one, pressed too,
+    drew a white crumpled strip), `most` and `plate_point`; None where its plate is not flat round it or holds no
+    point outside its box. Closed to its point, r13's lock blobs stretched their faces from the cut's rim into white
+    cracks and starbursts."""
+    found = measured(placement, mesh, same)
+    if found is None:
+        return None
+    across, upward, height, mine, lines, plane = found
+    point = plate_point(placement, across, upward, off_plate(height, mine, tolerance_of(placement["size"])), plane)
+    if point is None:
+        return None
+    laid = on_plate(placement, plane)
+    wide, tall = placement["size"]
+    return {"at": laid["at"], "normal": laid["normal"], "up": laid["up"], "most": round(float(most), 5),
+            "box": closed_region(across, upward, height, mine, lines, placement["size"], most, reach),
+            "pressed": [{"box": [round(float(value), 5) for value in (-wide / 2, -tall / 2, wide / 2, tall / 2)],
+                         "least": BUMP_MOST}],
+            "plate_point": point}

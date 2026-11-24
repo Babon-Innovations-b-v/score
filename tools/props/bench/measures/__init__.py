@@ -146,6 +146,10 @@ BARS = (
     # the printer box 0.0047 (0.00008 with its turned normals set to their faces'), the locker's garbled door labels
     # 0.0029, the fridge's specked door 0.00096 (0.0004 with its normals set).
     ("look", "holes", "most", 0.0002),
+    # How far closing its hardware cuts stretched the mesh round them (bench/run look.py `stretched`, #212: the most
+    # an edge within 1.5 cut radii grew). r13's locker, its lock blobs closed to their points: 4.2 to 9.2 at its four
+    # locks, drawn as white cracks and starbursts round two; pressed onto their plate (r14l) 1.05 to 1.09.
+    ("look", "stretched", "most", 1.5),
 )
 
 
@@ -184,6 +188,7 @@ PICTURED_BARS = (
     # The close-up's own cut-out (#159: tc5r's torn cockpit cut-outs): its fault the input's, booked apart from the make.
     ("picture", "cutout", "most", 0),
     ("look", "holes", "most", 0.0002),
+    ("look", "stretched", "most", 1.5),
 )
 
 TWIN_REACH = 0.001  # metres two assets' boxes may differ by and still be one geometry (twin)

@@ -11,9 +11,11 @@ tc5r's chrome chucks, nozzle and rods were drawn dull flat grey at roughness 0.1
 model, camera and light in one plain white surface, its own vertex normals kept, which the look's holes check reads
 (bench.py look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
-metres; the blob under each hardware piece the finish laid is cut away (`cut_away`, #212) and the piece's library
-mesh laid there in its finish's recipe (`laid_pieces`), drawn in the look and in the mesh alone; each text decal's box
-as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
+metres; the blob under each hardware piece the finish laid is closed on its face (`cut_closed`, #212) and the
+piece's library mesh laid there in its finish's recipe (`laid_pieces`), drawn in the look and in the mesh alone; each
+text decal's box as drawn is written beside the picture (`marks.json`), which the bench reads back (#185), and how far
+closing the cuts stretched the mesh round them (`closed.json`: `stretched`, which the measures judge as
+`look.stretched`, #212).
 Under each mark its plate is closed, as the place's bake closes it (#159 round 13): TRELLIS.2's vent bumps pressed flat
 before its occlusion is baked (bake.pressed_under) and the holes it cut through a locker's door covered after
 (bake.cards_over).
@@ -42,6 +44,8 @@ import closeup  # noqa: E402  (the close-up's light, `lit`)
 import recipes  # noqa: E402
 import scene_setup  # noqa: E402
 from finish import look_axes  # noqa: E402
+
+STRETCH_REACH = 1.5  # a cut's edges are read this many of its radii round its point (stretched)
 
 BARE_WHITE = (0.8, 0.8, 0.8, 1.0)  # the mesh-alone picture's one surface: the principled default's white
 
@@ -93,53 +97,49 @@ def laid(meshes):
     bpy.context.view_layer.update()  # each bound_box (framed's) read anew
 
 
-def vertex_normals(mesh):
-    """Each vertex's normal as the mesh draws it (its corners' own normals, the model's kept ones, averaged)."""
-    import numpy as np
-    corners = np.empty(len(mesh.loops) * 3)
-    mesh.corner_normals.foreach_get("vector", corners)
-    vertex = np.empty(len(mesh.loops), dtype=np.int64)
-    mesh.loops.foreach_get("vertex_index", vertex)
-    found = np.zeros((len(mesh.vertices), 3))
-    np.add.at(found, vertex, corners.reshape(-1, 3))
-    return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-9)
+def cut_closed(pieces):
+    """Each hardware piece's cut (#212, hardware_pieces.py's `cut`) as a region closed on its plate as a mark's is
+    (its `closed`: decal_plates.closed_round; bake.closed_points and cards_over): every point standing up to its `most`
+    over the plate in its box and its `pressed` pressed straight onto it, one flat card over the box in the finish of
+    the plate at its `plate_point`. Closed to its point, the blob's faces stretched from the cut's rim and drew white
+    cracks and starbursts round two of r13's locker's locks; laid flat in place it folded over itself and drew a dark
+    crumpled ring (tc6)."""
+    return [{key: piece["cut"]["closed"][key] for key in ("at", "normal", "up")}
+            | {"closed": {key: piece["cut"]["closed"][key] for key in ("box", "pressed", "most", "plate_point")}}
+            for piece in pieces]
 
 
-def cut_away(meshes, pieces):
-    """Each hardware piece's blob cut away (#212, hardware_pieces.py's `cut`): every vertex of the laid meshes within
-    its radius of the line through the cut's point along the piece's facing, and between its depth under the face and
-    its rise over it (the blob's, standing `stands` over the face, or the face's own, turned within `edge_turn` of its
-    facing: never an edge to another face), laid on the face (the plane through the cut's point, which lies on the face) and drawn in
-    to the line (closed), each moved vertex's drawn normal turned to the face's. The blob, inside the radius's flat core (all
-    but its outer `falloff`), closes to its point, its faces of no area; the ring of face round it is drawn in over the
-    core, its own paint with it, so the face's own surface fills the cut, flat. Laid flat in place the blob folded over
-    itself and its coincident faces drew the cut as a dark crumpled ring (the tc6 locker's locks), and a patch in one
-    finish over it painted out the gas stove's printed panel."""
+def points_of(item):
+    """The mesh `item`'s vertices (n x 3)."""
     import numpy as np
-    for item in meshes:
-        points = np.empty(len(item.data.vertices) * 3)
-        item.data.vertices.foreach_get("co", points)
-        points = points.reshape(-1, 3)
-        normals = vertex_normals(item.data)
-        for piece in pieces:
-            normal, cut = np.asarray(piece["normal"]), piece["cut"]
-            reach = points - np.asarray(cut["at"])
-            height = reach @ normal
-            way = reach - np.outer(height, normal)
-            across = np.linalg.norm(way, axis=1)
-            core = cut["radius"] * (1 - cut["falloff"])
-            inside = ((across < cut["radius"]) & (height > -cut["depth"]) & (height < cut["rise"])
-                      & ((height > cut["stands"]) | (normals @ normal > np.cos(np.radians(cut["edge_turn"])))))
-            drawn = np.clip((across[inside] - core) / (cut["radius"] - core), 0.0, 1.0)
-            eased = 1.0 - drawn
-            rim = np.asarray(cut["at"]) + way[inside] / np.maximum(across[inside], 1e-12)[:, None] * cut["radius"]
-            closed = np.outer(eased, cut["at"]) + rim * drawn[:, None]
-            points[inside] = closed + np.outer(height[inside] * drawn, normal)
-            normals[inside] = normals[inside] * drawn[:, None] + normal * eased[:, None]
-        item.data.vertices.foreach_set("co", points.ravel())
-        lengths = np.linalg.norm(normals, axis=1, keepdims=True)
-        item.data.normals_split_custom_set_from_vertices((normals / np.maximum(lengths, 1e-9)).tolist())
-        item.data.update()
+    found = np.empty(len(item.data.vertices) * 3)
+    item.data.vertices.foreach_get("co", found)
+    return found.reshape(-1, 3)
+
+
+def stretched(item, before, pieces):
+    """The most any triangle of the mesh `item` whose middle lies within STRETCH_REACH of a hardware piece's cut radius
+    of its point grew in closing its cut (its longest side now over its longest side in `before`, the points before it
+    was closed); 1.0 with no piece. Pressed straight onto its plate a triangle grew 1.09 at most round r14l's locker
+    locks; closed to its point, r13's lock blobs stretched the triangles round each cut 4.2 to 9.2 times into white
+    cracks and starbursts (#212)."""
+    import numpy as np
+    item.data.calc_loop_triangles()
+    corners = np.empty(len(item.data.loop_triangles) * 3, dtype=np.int64)
+    item.data.loop_triangles.foreach_get("vertices", corners)
+    corners = corners.reshape(-1, 3)
+
+    def longest(points):
+        return np.max([np.linalg.norm(points[corners[:, first]] - points[corners[:, second]], axis=1)
+                       for first, second in ((0, 1), (1, 2), (2, 0))], axis=0)
+    grown = longest(points_of(item)) / np.maximum(longest(before), 1e-9)
+    most = 1.0
+    for piece in pieces:
+        near = (np.linalg.norm(before[corners].mean(1) - np.asarray(piece["cut"]["at"]), axis=1)
+                < STRETCH_REACH * piece["cut"]["radius"])
+        if near.any():
+            most = max(most, float(grown[near].max()))
+    return round(most, 3)
 
 
 def laid_pieces(scene, pieces):
@@ -263,14 +263,19 @@ def main():
     meshes = [item for item in scene.objects if item.type == "MESH"]
     decoded = decoded_of(job)
     laid(meshes + ([decoded] if decoded else []))
-    cut_away(meshes + ([decoded] if decoded else []), job.get("hardware") or [])
-    decals = [decal for mask in job["masks"] for decal in mask["spec"].get("decals") or []]
+    cuts = cut_closed(job.get("hardware") or [])
+    marked = [decal for mask in job["masks"] for decal in mask["spec"].get("decals") or []]
     closing = len(meshes) == 1  # closed under its marks (score #159 round 13) as the place's bake closes it
     if closing:
-        bake.pressed_under(meshes[0], decals)
+        before = points_of(meshes[0])
+        bake.pressed_under(meshes[0], cuts)
+        stretch = stretched(meshes[0], before, job.get("hardware") or [])  # the cuts' own, before the marks'
+        bake.pressed_under(meshes[0], marked)
+    if decoded is not None:  # its blobs pressed too: standing, they shaded the face round each card
+        bake.pressed_under(decoded, cuts)
     material = look_material(job["masks"], occluded(meshes, job["masks"], decoded))
     if closing:
-        bake.cards_over(meshes[0], decals)
+        bake.cards_over(meshes[0], marked + cuts)
     if decoded is not None:
         bpy.data.objects.remove(decoded)
     for item in meshes:
@@ -286,6 +291,7 @@ def main():
     drawn(scene, job["bare"])
     marks = pathlib.Path(job["out"]).with_name("marks.json")
     marks.write_text(json.dumps(mark_boxes(scene, job["masks"]), indent=1))
+    pathlib.Path(job["out"]).with_name("closed.json").write_text(json.dumps({"stretched": stretch if closing else 1.0}))
     print("LOOK", json.dumps({"out": job["out"], "box": box, "slots": [mask["slot"] for mask in job["masks"]]}),
           flush=True)
 

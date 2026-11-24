@@ -26,6 +26,10 @@ Breaks (each applied once, seen red, reverted, 2026-11-24):
   texel on its face's rim; plate_texel's facing filter dropped -> the card in the steel
   of the sheet's back; its `closed` filter dropped (`list(decals)`) -> a decal with no region
   closed, KeyError; pressed_under's `if decal.get("closed")` dropped -> KeyError (#159 round 13).
+- bake.closed_boxes' `*closed.get("also", [])` dropped -> the hole's rim left standing and no card over it (r13's
+  dots); closed_points' `pressed` loop dropped -> the blob past the cut's box left standing (a lump beside the lock),
+  its `least` -> 0 -> the face's own step pressed too (the neighbouring door's white crumpled strip); cards_over laying
+  one card a decal (`closing_cards(decal)` -> its first) -> two cards, the hole's rim uncovered (#212, r14l).
 """
 import json
 import os
@@ -133,6 +137,10 @@ shade = bake.seam_shade(dark)
 door_points = [(column / 10 - 0.5, row / 10 - 0.5, 0.0) for row in range(11) for column in range(11)]
 door_points[5 * 11 + 5] = (0.0, 0.0, 0.003)  # a 3 mm bump in the middle, inside the closed box
 door_points[5 * 11 + 1] = (-0.4, 0.0, 0.003)  # one outside it
+door_points[1 * 11 + 9] = (0.4, -0.4, 0.004)  # a hole's rim far off it, in its `also` box (#159 r13: the dots)
+door_points[1 * 11 + 1] = (-0.4, -0.4, 0.02)  # a hardware blob 2 cm high in a cut's box (#212)
+door_points[1 * 11 + 2] = (-0.3, -0.4, 0.02)  # past its box, in its `pressed`, a blob still
+door_points[1 * 11 + 3] = (-0.2, -0.4, 0.004)  # in its `pressed` too, the face's own step under its `least`
 door_faces = [(row * 11 + column, row * 11 + column + 1, (row + 1) * 11 + column + 1, (row + 1) * 11 + column)
               for row in range(10) for column in range(10)]
 door_points += [(0.46, 0.06, -0.002), (0.46, 0.1, -0.002), (0.5, 0.1, -0.002), (0.5, 0.06, -0.002)]
@@ -149,15 +157,24 @@ for loop in mesh.loops:
 door = bpy.data.objects.new("door", mesh)
 scene.collection.objects.link(door)
 door_decals = [{"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2],
-                "closed": {"box": [-0.25, -0.25, 0.25, 0.25], "most": 0.006, "plate_point": [0.48, 0.08, 0.0]}},
-               {"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2]}]
+                "closed": {"box": [-0.25, -0.25, 0.25, 0.25], "also": [[0.35, -0.45, 0.45, -0.35]], "most": 0.006,
+                           "plate_point": [0.48, 0.08, 0.0]}},
+               {"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2]},
+               {"at": [-0.4, -0.4, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0],
+                "closed": {"box": [-0.05, -0.05, 0.05, 0.05], "pressed": [{"box": [-0.05, -0.05, 0.25, 0.05],
+                                                                          "least": 0.006}],
+                           "most": 0.05, "plate_point": [-0.35, -0.15, 0.0]}}]
 bake.pressed_under(door, door_decals)
 cards = bake.cards_over(door, door_decals)
-card = door.data.polygons[-1]
+laid_cards = {}
+for face in door.data.polygons[101:]:
+    middle = [round(value, 2) for value in face.center[:2]]
+    heights = [round(door.data.vertices[vertex].co.z, 6) for vertex in face.vertices]
+    texel = door.data.uv_layers["texels"].data[face.loop_indices[0]].uv
+    laid_cards[str(middle)] = [face.material_index, heights, [round(value, 3) for value in texel]]
 print("FOUND", json.dumps({"cards": cards, "faces": len(door.data.polygons), "bump": door.data.vertices[60].co.z,
-                           "outside": door.data.vertices[56].co.z, "card_paint": card.material_index,
-                           "card_z": [round(door.data.vertices[vertex].co.z, 6) for vertex in card.vertices],
-                           "card_uv": [list(door.data.uv_layers["texels"].data[loop].uv) for loop in card.loop_indices],
+                           "outside": door.data.vertices[56].co.z, "laid_cards": laid_cards,
+                           "rims": [round(door.data.vertices[index].co.z, 6) for index in (20, 12, 13, 14)],
                            "crease": at(0.01, 0.5), "open": at(0.49, 0.5), "samples": scene.cycles.samples,
                            "slab_drawn": not copy.hide_render, "slit": on_panel(0.25, 0.5),
                            "panel": on_panel(0.75, 0.5), "seam": float(shade[24, 10]), "dot": float(shade[50, 50]),
@@ -182,11 +199,15 @@ def test_a_model_shades_into_its_own_creases(tmp_path):
     # the floor's crease shut by the wall, its open end under nothing (the slab out of the bake); the scene as it was
     # and the panel shaded over its decoded slit alone, by the seam's run alone of the three dark marks
     # and the floor baked alone on a 64 x 32 map, its wall another object among it, shut at the crease all the same
-    # a door closed under its one closed decal (#159 round 13): the bump in its box pressed flat, the one outside left,
-    # one card in front of it in the finish of the face nearest its plate point, at that face's middle's texel
-    assert (found["cards"], found["faces"], found["bump"], found["outside"], found["card_paint"],
-            found["card_z"], found["card_uv"]) == (1, 102, 0.0, pytest.approx(0.003), 1, [0.0003] * 4,
-                                                  [pytest.approx([0.95, 0.55])] * 4), json.dumps(found)
+    # a door closed under its closed decals (#159 round 13): the bump in its box pressed flat, the one outside left,
+    # a card in front of it in the finish of the face nearest its plate point, at that face's middle's texel; a hole's
+    # rim far off it in its `also` pressed and carded the same (r13's dots); a hardware cut's blob pressed in its box
+    # and past it in its `pressed` where it stands over its `least`, the face's own step there left, one card over
+    # its box alone in its own plate's finish (#212, r14l)
+    assert (found["cards"], found["faces"], found["bump"], found["outside"], found["rims"], found["laid_cards"]) == (
+        3, 104, 0.0, pytest.approx(0.003), [0.0, 0.0, 0.0, pytest.approx(0.004)],
+        {"[0.0, 0.0]": [1, [0.0003] * 4, [0.95, 0.55]], "[0.4, -0.4]": [1, [0.0003] * 4, [0.95, 0.55]],
+         "[-0.4, -0.4]": [0, [0.0003] * 4, [0.15, 0.35]]}), json.dumps(found)
     assert (found["crease"] < 0.8, found["open"] > 0.9, found["samples"], found["slab_drawn"], found["slit"] < 0.85,
             found["panel"] > 0.97, found["seam"] < 0.9, found["dot"], found["blot"], found["slot"],
             found["part_crease"] < 0.8, found["part_open"] > 0.9, found["part_size"]) == \

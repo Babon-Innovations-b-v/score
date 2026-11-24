@@ -527,7 +527,11 @@ tests it turned red:
   end); clear_of's `None if abs(move) > half` -> the move
   (a vent between two seams moved past one onto the other); held's text `open` dropped (a text mark moved off a
   seam); tolerance_of -> TOLERANCE (a 4 cm label on an 8 cm cylinder closed flat); fitted's share check -> `if False:`
-  (the same); route_parts.py on_plates' refusal kept as a placement (a vent it cannot place drawn, unclosed).
+  (the same); route_parts.py on_plates' refusal kept as a placement (a vent it cannot place drawn, unclosed);
+  on_plates' `decal_plates.holes_closed(...)` -> `held` (the hole under the vent left open, r13's black dots);
+  holes_closed's `in_frame(...)` -> the hole's box as cast (laid in the wrong vent's frame), its nearest mark ->
+  `group[0]` (the hole closed by the far vent); plate_holes' `height < -HOLE_DEEP` -> `< -0.5` (the hole through
+  to the wall 0.3 m behind not seen) (#159 r13, r14l).
 - Hardware pieces (#212), each -> every_part_takes_a_library_surface_and_is_held_to_it (hardware_marks_held):
   finish_ask.py piece_row's `if found else "no library hardware piece named"` -> `None` (a mark naming no piece laid,
   TypeError); marks_of `(*SHAPES, PATTERN, PIECE)` -> `(*SHAPES, PATTERN)` (a lock read as a picture mark, no
@@ -540,7 +544,9 @@ tests it turned red:
   `or mark.get("hardware")` dropped (the blob's chrome kept on the flattened face); hardware_pieces.py placement's
   `if tears:` -> `if False:` (a cut through the print round the blob laid), torn's blob finish dropped from its own
   (the blob's paint on the face under it read as a print torn), placement's `mark["on_finish"]` dropped from torn's
-  own (the face's own finish read as a print torn)
+  own (the face's own finish read as a print torn); decal_plates.py closed_round's
+  `lines` -> `[]` (the cut's card laid over the door's groove), its `most` -> BUMP_MOST (the blob 2 cm high left
+  standing in its box) (#212, r14l: closed to its point, the blob drew white cracks and starbursts)
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
   every_part_takes_a_library_surface_and_is_held_to_it: finish_parts.py checked_finishes `lit_apart(...) if
   finish.get("colour")` -> the plain distance (the fridge's stainless seen lighter moved, CHECKED); `if
@@ -3052,13 +3058,14 @@ def pattern_marks_held():
     assert np.allclose(facing, [0.0, 0.0, 1.0]), facing
 
 
-def door(seams=(-0.06,), round_too=False):
+def door(seams=(-0.06,), round_too=False, dot=False):
     """A locker door as TRELLIS.2 makes one (#159 round 13), facing +z at z = 0 on a 2 mm grid, 0.5 m square: 3 mm bumps
     in a 6 cm square round (0.1, 0.1), a bar 8 cm long cut through it at (0.1, 0.07) to a wall 0.3 m behind, a handle
     3 cm proud just above them at (0.1, 0.145), a groove 4 mm wide and 3 mm deep across it at each of `seams` (y),
     and, `round_too`, the door bent round an 8 cm cylinder along y for x under -0.12 (a label 4 cm wide on it lies
-    1.5 mm off its tangent plane over 39% of its grid, 0.8 mm over 28%). The mesh and each face's part (the bar's
-    wall the second)."""
+    1.5 mm off its tangent plane over 39% of its grid, 0.8 mm over 28%), and, `dot`, a hole 1 cm square cut through it
+    at (0.1, 0.0) (r13's locker: a black dot under each vent). The mesh and each face's part (the bar's wall the
+    second)."""
     step = 0.002
     grid = np.arange(-0.25, 0.25 + step / 2, step)
     across, upward = np.meshgrid(grid, grid)
@@ -3077,6 +3084,9 @@ def door(seams=(-0.06,), round_too=False):
     faces = np.r_[np.c_[corner, corner + 1, corner + side + 1], np.c_[corner, corner + side + 1, corner + side]]
     middles = points[faces].mean(1)
     faces = faces[~((np.abs(middles[:, 0] - 0.1) < 0.04) & (np.abs(middles[:, 1] - 0.07) < 0.003))]  # the bar
+    if dot:
+        middles = points[faces].mean(1)
+        faces = faces[~((np.abs(middles[:, 0] - 0.1) < 0.005) & (np.abs(middles[:, 1]) < 0.005))]
     wall = np.array([[-0.25, -0.25, -0.3], [0.25, -0.25, -0.3], [0.25, 0.25, -0.3], [-0.25, 0.25, -0.3]])
     mesh = trimesh.Trimesh(np.r_[points, wall], np.r_[faces, len(points) + np.array([[0, 1, 2], [0, 2, 3]])],
                            process=False)
@@ -3104,6 +3114,13 @@ def plates_held():
     assert why is None and found["from"]["moved"] == pytest.approx([0.0, 0.025], abs=0.003), found
     found, why = decal_plates.held(dict(crossing, shape="text"), mesh, part_of == 0, False)
     assert (why, found.get("open"), found.get("closed")) == (None, "its box crosses a seam or an edge", None), found
+    mesh, part_of = door(dot=True)  # a hole 1 cm across through the door 10 cm under the vent, closed by its own box
+    vent_low = dict(vent, at=[-0.1, -0.15, 0.0], normal=[0.0, 0.0, 1.0], up=[0.0, 1.0, 0.0])
+    held, _ = route_parts.on_plates([vent_low, vent], [], mesh, part_of)
+    (left, bottom, right, top), = held[1]["closed"]["also"]  # the vent nearer it, in its frame; the plate cast once
+    assert (abs((left + right) / 2) < 0.003, abs((bottom + top) / 2 + 0.1) < 0.003, 0.01 < right - left < 0.02,
+            "also" in held[0]["closed"], "also" in route_parts.on_plates([vent], [], *door())[0][0]["closed"]) == (
+        True, True, True, False, False), held
     mesh, part_of = door(seams=(-0.06, 0.1, 0.12), round_too=True)
     found, why = decal_plates.held(dict(crossing, at=[0.0, 0.11, 0.0]), mesh, part_of == 0, True)
     assert found is None and why.startswith("its box crosses a seam"), (found, why)
@@ -3213,6 +3230,18 @@ def hardware_marks_held():
         middles = model.mesh.triangles_center * model.frame[1] + model.frame[0]
         standing = np.flatnonzero(middles[:, 2] > 0.002)
         assert np.isin(standing, cut).all() and not np.isin(np.flatnonzero(np.abs(middles[:, 0]) > 0.15), cut).any()
+        # the blob closed on its plate as a mark's is (decal_plates.closed_round, #212 r14l): its whole core boxed on
+        # the plate, pressed up to its rise, its card in the plate's finish at a point of the plate outside it
+        closed, core = laid["cut"]["closed"], laid["cut"]["radius"] * (1 - laid["cut"]["falloff"])
+        left, bottom, right, top = closed["box"]
+        assert (closed["most"] == laid["cut"]["rise"], np.allclose(closed["normal"], [0, 0, 1], atol=0.01),
+                abs(closed["at"][2]) < 0.001,
+                left <= -0.0143 and right >= 0.0143 and bottom <= -0.0143 <= 0.0143 <= top,
+                abs(closed["plate_point"][2]) < 0.001,
+                np.hypot(*np.subtract(closed["plate_point"][:2], closed["at"][:2])) > 0.0143,
+                closed["pressed"][0]["least"] == decal_plates.BUMP_MOST
+                and np.allclose(closed["pressed"][0]["box"], [-core, -core, core, core], atol=2e-4)) == (True,) * 7, \
+            closed
         # The face round the blob as finished: a piece is laid only where its cut leaves the print round it whole
         # (#159 round 13: r13's stove knobs tore their panel's print); its blob kept, TRELLIS.2's, where it would not.
         round_blob = np.hypot(middles[:, 0] - 0.05, middles[:, 1])
@@ -3232,6 +3261,13 @@ def hardware_marks_held():
             assert [gap["why"] for gap in gaps] == ([expected] if expected else []), (name, found, gaps)
             assert len(found) == (expected is None), (name, found)
     assert route_parts.covering(dict(marked[0], print_finish=2)) and not route_parts.covering(marked[1])
+    # a cut's box ends short of a groove (a door's edge) and its core is pressed past it: the door's handle, 3 cm
+    # proud, closed with a groove 2 cm under its middle (r13's locks over their doors' edge grooves)
+    mesh, part_of = door(seams=(0.125,))
+    closed = decal_plates.closed_round({"at": [0.1, 0.145, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0],
+                                        "size": [0.04, 0.04]}, mesh, part_of == 0, 0.05, 0.03)
+    assert (-0.018 <= closed["box"][1] < 0.0, closed["box"][3] >= 0.015, closed["pressed"][0]["box"][1],
+            closed["most"]) == (True, True, -0.02, 0.05), closed
 
 
 def plane_cast(parts, scale=0.001):

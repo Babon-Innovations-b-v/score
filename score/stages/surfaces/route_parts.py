@@ -542,8 +542,9 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=N
 def on_plates(placements, gaps, mesh, part_of, finish_of=None):
     """(placements, gaps) with each placement held to its part's plate (decal_plates.held, #159 round 13: the made
     shape under a mark flat and closed, a pattern moved clear of a seam its box crosses), on its finish's parts for a
-    pattern (placement's `finish_of`); a pattern that cannot be placed clear of a seam a gap naming why."""
-    held, refused = [], []
+    pattern (placement's `finish_of`), and the holes through those plates closed too (decal_plates.holes_closed); a
+    pattern that cannot be placed clear of a seam a gap naming why."""
+    held, sames, refused = [], [], []
     for placement in placements:
         patterned = placement.get("shape") == pattern_decals.SHAPE
         if patterned and finish_of is not None:
@@ -555,7 +556,8 @@ def on_plates(placements, gaps, mesh, part_of, finish_of=None):
             refused.append({"what": placement.get("what", ""), "decal": placement["decal"], "why": why})
         else:
             held.append(found)
-    return held, gaps + refused
+            sames.append(same)
+    return decal_plates.holes_closed(held, mesh, sames), gaps + refused
 
 
 def part_faces(part_of, placement):

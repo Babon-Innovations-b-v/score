@@ -18,12 +18,18 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   close_up_fit.py, #171), and text marks are drawn as text decals through it; the bake is a place's and not run. The
   measures read its parts as B's finish groups and each part's surface family (`family`) against the truth's.
 - **Small hardware** (#212): a hardware piece the finish laid (parts.json's `hardware`, score/stages/surfaces
-  hardware_pieces.py) is drawn by the look (`finish.hardware_laid`, look.py): the model's blob cut away first
-  (`cut_away`: its vertices laid on the face and closed to the cut's point, its ring of face drawn in over it with its
-  own paint, each moved normal turned to the face's; laid flat in place the blob folded over itself and drew a dark
-  crumpled ring), then the library piece's mesh laid at its point and facing, scaled evenly to its size, in the recipe
-  of the finish it is. The look and the mesh alone both draw it; the measures and the physics and parts steps do not
-  read it yet.
+  hardware_pieces.py) is drawn by the look (`finish.hardware_laid`, look.py): the model's blob closed on its plate as a
+  mark's is (`cut_closed`: the cut's `closed`, decal_plates.closed_round: every point in its box standing up to its
+  `most` pressed straight onto the plate, the blob's core past the box where it stands over BUMP_MOST, one card over
+  the box in the plate's finish, bake.closed_points and cards_over), then the library piece's mesh laid at its point
+  and facing, scaled evenly to its size, in the recipe of the finish it is. Closed to its point (r13) the blob's
+  faces stretched into white cracks and starbursts; laid flat in place (tc6) it folded into a dark crumpled ring. How
+  far closing the cuts stretched the mesh round them is `closed.json`'s `stretched`, judged as `look.stretched`
+  (1.5 at most: r13's 4.2 to 9.2, r14l's 1.09). The look and the mesh alone both draw the piece; the measures' shape
+  and the physics and parts steps do not read it yet.
+- **Holes through a mark's plate** (r13's black dots, decal_plates.holes_closed): a hole TRELLIS.2 cut through a
+  closed mark's plate outside every closed region is closed by a box of its own in that mark's `also`, pressed and
+  carded as its own box is.
 - **A close-up's scope holds MEMORY_GB (12)** (#203): the tool organizer cart's close-up (5.5M triangles, 27 maps of
   4096) peaks at 8.8 GB and was killed under the queue's own 8 GB in tc4 to tc6, its kill read as exit 124. A Blender
   killed past its cap exits render.KILLED (137) and its gap says so; a time-out is 124 alone.

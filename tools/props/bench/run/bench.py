@@ -747,9 +747,10 @@ def unheld_light(kept, row):
 def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalibrated=None):
     """The finish's look as the bake paints it (#182, finish.look_job): the made model whole, each slot's recipe mixed
     by its texel mask on the model's own UVs, drawn by look.py through the card queue from the close-up's `camera`;
-    look.png, its job and masks, a LOOK_SMALL side copy for a page, and each text mark read back where it was drawn
-    (finish.marks_read, `ask` a test's: marks.json, read.json; #185). Not drawn where `uncalibrated` names why the
-    look's light is not held to the close-up (unheld_light, #206): the step's gap."""
+    look.png, its job and masks, a LOOK_SMALL side copy for a page, holes.json (its holes, look_holes, and how far
+    closing its hardware cuts stretched the mesh round them, look.py's closed.json: #212), and each text mark read back
+    where it was drawn (finish.marks_read, `ask` a test's: marks.json, read.json; #185). Not drawn where
+    `uncalibrated` names why the look's light is not held to the close-up (unheld_light, #206): the step's gap."""
     def make(folder):
         from PIL import Image
         if uncalibrated:
@@ -757,8 +758,9 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalib
         drawn_look(model, parted, row["id"], camera, folder, draw)
         with Image.open(folder / "look.png") as drawn:
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
-        (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png",
-                                                                             folder / "bare.png")}))
+        closed = json.loads((folder / "closed.json").read_text())  # look.py's: its cuts' stretch (#212)
+        (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png", folder / "bare.png"),
+                                                       "stretched": closed["stretched"]}))
         finish.marks_read(folder, ask)
     return make
 

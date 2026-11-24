@@ -78,7 +78,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   has no finish.shade row (#206).
 - __init__.step_change measuring after against itself: the step that flattened the box by 10% passes.
 - _physics.rested comparing heights only: the drop that laid it on its side passes up.
-- __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail.
+- __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail;
+  without its look.stretched row (#212, r14l) -> the locks closed to their points (r13's cracks) pass, its bar 1.5 ->
+  5.0 -> the same; PICTURED_BARS without it -> the pictured lock closed to its point passes.
 - _joints (#177, the hung cabinet: the box with a door slab hinged on its left edge; NVIDIA's hinge about -z, limits -90
   to 0): moving_bodies taking a joint's body0 (the carcass) -> the door cut as NVIDIA's fails its faces;
   count_gap never counting
@@ -578,6 +580,10 @@ CASES = [
     ("the drop that left it as the truth's", lambda: dropped(0), "drop.rest_up", True),
     ("its look holed through its front (tc4's printer box)", lambda: {"look": {"holes": 0.0047}}, "look.holes", False),
     ("its look with a humidifier's few dark vents", lambda: {"look": {"holes": 0.00012}}, "look.holes", True),
+    ("its locks' blobs closed to their points (r13's cracks)", lambda: {"look": {"stretched": 4.23}},
+     "look.stretched", False),
+    ("its locks' blobs pressed onto their plate (r14l)", lambda: {"look": {"stretched": 1.09}}, "look.stretched",
+     True),
     ("pictured: the box as its close-up shows it", lambda: pictured(box()), None, True),
     ("pictured: its outline off the close-up", lambda: pictured(box(), fit=0.8), "shape.closeup", False),
     ("pictured: 20% too big all round", lambda: pictured(box((0.6, 0.48, 0.96))), "size.size", False),
@@ -607,6 +613,8 @@ CASES = [
         "drawn": 1, "regressed": 1}}), "picture.regressed", False),
     ("pictured: its look holed through", lambda: pictured(box(), seen={"look": {"holes": 0.0047}}), "look.holes",
      False),
+    ("pictured: its lock's blob closed to its point", lambda: pictured(box(), seen={"look": {"stretched": 4.23}}),
+     "look.stretched", False),
 ]
 
 

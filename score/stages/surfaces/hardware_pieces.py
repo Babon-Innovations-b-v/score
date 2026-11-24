@@ -10,8 +10,12 @@ piece is mounted on under its box's middle, `normal` that face's facing, `up` th
 [wide, tall] its box laid on that face, `part` the part of the face it is joined to, `finish` the finish (0-based, the
 list's) it is painted in (the piece's own finish, else its face's), and `cut`: the blob cut away, every vertex of the
 model within `radius` of the line through the cut's own `at` along `normal` and between `depth` under the face and
-`rise` over it moved onto the face (the face's surface fills the cut, flat; the last `falloff` of the radius eased, so
-no step rings it), its faces left as they are. The faces it
+`rise` over it, and `closed`: the region a mark's plate is closed in (decal_plates.closed_round, `cut_closed`: the
+blob's flat core, the radius less its `falloff`, square on its plate and grown as a vent's region is, to the radius
+at most), every point standing up to `rise` in it pressed straight onto the plate and a flat card laid over it in the
+finish of the plate at its `plate_point` (bake.closed_points and cards_over: r13's look closed the blob to its point and
+its stretched faces drew white cracks and starbursts round two of the locker's locks), its faces left as they are.
+The faces it
 flattens (`cut_faces`) are covered as a print under a mark is (route_parts.covered_prints): the blob's own finish there
 takes its face's.
 
@@ -29,8 +33,7 @@ SEARCH half diagonals of the piece, joined by the mesh's edges, a group standing
 own bumps stand under it); the nearest group no other piece took is cut (TRELLIS.2 laid the tc6 locker's lower-left
 knob 0.14 m off its lock), its middle the cut's `at`, its farthest vertex across the face grown by CUT_MARGIN its
 flat core (the radius less its falloff, so no part of the blob is only eased); the cut's `at` and the piece's are then laid on the model's own surface round each (`surface_height`), the
-piece's on its cut's where it stands in it. A cut stops short of its face's edge (blob_cut), and moves only the blob's vertices (standing CUT_STANDS over the
-face) and the face's own (look.py cut_away: turned within the cut's `edge_turn` of its facing), never an edge to
+piece's on its cut's where it stands in it. A cut stops short of its face's edge (blob_cut), so it presses no edge to
 another face. With no such group, or one reaching past CUT_MOST half diagonals,
 the cut is the piece's own spot and half diagonal.
 A piece is laid only where its cut leaves the print round it whole (`torn`): the cut draws the face's own paint in
@@ -40,6 +43,7 @@ library dials over its 65 mm knob blobs tore the panel's red and white print).
 """
 import numpy as np
 
+import decal_plates
 import route_cast as cast
 
 RING_GROW = 2.2   # the box grown this many times each way: the face round it is read in that ring (#212)
@@ -54,12 +58,12 @@ FACE_TURN = 25.0
 CUT_DEPTH = 0.006
 CUT_RISE = 2.0    # a vertex is cut only up to this many times the piece's larger side over the face
 CUT_MARGIN = 1.2  # the cut's radius: the blob's farthest standing vertex across the face grown by this
-FALLOFF = 0.25    # the outer share of a cut's radius over which its lift eases to none (look.py cut_away)
-# Degrees a vertex's normal may turn from a cut's facing past its flat core and still be moved (the cut's `edge_turn`,
-# look.py cut_away): the gas stove's knobs fill their narrow side panel, and drawn in with it the stove's top and foot
-# were pinched in.
+FALLOFF = 0.25    # the outer share of a cut's radius past the blob's reach (a margin round it, pressed with it)
+# Degrees a vertex's normal turns from a cut's facing to be another face, an edge the cut stops short of (edge_reach),
+# and the face's own faces a cut covers are turned within it (torn, the cut's `edge_turn`): the gas stove's knobs fill
+# their narrow side panel, and cut past it the stove's top and foot were pinched in.
 EDGE_TURN = 60.0
-CUT_STANDS = 0.002  # metres: a vertex standing this over a cut's face is the blob's, moved however it is turned
+CUT_STANDS = 0.002  # metres: a face standing this over a cut's face is the blob's (torn, the cut's `stands`)
 EDGE_SHARE = 0.9  # a cut stops at this share of the way to its face's nearest edge (edge_reach)
 GROOVE, GROOVE_TURN = 0.015, 10.0  # metres past an edge the face may go on, and degrees off its way: a groove
 LEAST_FALLOFF = 0.1  # a cut's falloff, narrowed to stop short of an edge, never under this share of its radius
@@ -236,6 +240,22 @@ def blob_cut(model, at, normal, half, rise, taken):
     return centre, radius, falloff, at + surface_height(vertices, at, normal, (0.0, 2 * half)) * normal
 
 
+def cut_closed(model, same, centre, normal, up, reach, rise):
+    """The cut's region closed on its face (decal_plates.closed_round, as a mark's plate is closed): the square of the
+    blob's flat core (`reach`: the core, then the cut's radius it grows to at most) round its `centre`, every point of
+    its part (`same`, a face's) standing up to `rise` pressed onto the plate, one card over it; where the plate is not
+    flat round it, the core's square as it is, its card in the finish of the face at its `centre`."""
+    core, radius = reach
+    placement = {"at": [float(value) for value in centre], "normal": [float(value) for value in normal],
+                 "up": [float(value) for value in up], "size": [2 * core, 2 * core]}
+    found = decal_plates.closed_round(placement, cast.own_mesh(model), same, rise, radius)
+    if found is not None:
+        return found
+    return {**{key: [round(value, 5) for value in placement[key]] for key in ("at", "normal", "up")},
+            "box": [round(value, 5) for value in (-core, -core, core, core)], "pressed": [],
+            "most": round(float(rise), 5), "plate_point": [round(value, 5) for value in placement["at"]]}
+
+
 def seen_at(camera, size, points):
     """The close-up pixels ([column, row]) the `points` (the model file's own frame) are seen at through `camera`
     (close_up_camera's: eye, right, up, field), as route_cast casts its pixels."""
@@ -271,11 +291,11 @@ def fitted(mark, camera, size, plane, axes, at):
 
 def torn(model, placement, finish_of, own):
     """The finishes (sorted) the placement's cut would tear outside the piece's footprint: those of the face's own
-    faces it moves (cut_faces standing no more than its `stands` over the face and turned within its `edge_turn` of
-    its facing, as look.py cut_away moves them: the blob's close to its point, of no area) whose middles lie off the
+    faces it covers (cut_faces standing no more than its `stands` over the face and turned within its `edge_turn` of
+    its facing; the blob's own stand higher or turn) whose middles lie off the
     piece's own box on its face (its `at`, `size` along its `up` and their cross with its `normal`), of a finish none
-    of `own` (the face's and the piece's) nor the blob's (most of its faces'). The cut draws the face's own paint in
-    over the blob, so a print round the piece is torn: r13's gas stove's knobs pulled its panel's red, white and orange
+    of `own` (the face's and the piece's) nor the blob's (most of its faces'). The cut's card is drawn in one finish,
+    the plate's, so a print round the piece is torn: r13's gas stove's knobs pulled its panel's red, white and orange
     print and the steel round it into their cuts, 44 mm library dials over 65 mm blobs (#159 round 13)."""
     moved = cut_faces(model, placement)
     middle, side = model.frame
@@ -328,12 +348,14 @@ def placement(mark, number, model, seen, finish_of, part_of, taken):
     tears = torn(model, laid, finish_of, (mark["on_finish"], own))
     if tears:
         return None, f"its cut would tear the print round it (finishes {tears} outside its footprint)"
+    laid["cut"]["closed"] = cut_closed(model, part_of == part, cut_at, normal, up, (radius * (1 - falloff), radius),
+                                       rise)
     return laid, None
 
 
 def cut_faces(model, placement):
     """The faces a placement's cut flattens: their middles within its radius of the line through its point along its
-    facing, and from its depth under its face to its rise over it (look.py cut_away's vertices, by the faces')."""
+    facing, and from its depth under its face to its rise over it (the blob and the face under it, by the faces')."""
     middle, side = model.frame
     reach = model.mesh.triangles_center * side + middle - np.asarray(placement["cut"]["at"])
     normal = np.asarray(placement["normal"])

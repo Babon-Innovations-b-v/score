@@ -241,7 +241,8 @@ def decal_laid(decal, move):
     """One placement of the take's decals (route_parts.decal_placements: at, normal, up and size in the take's own
     frame, the frame its labelled parts hold) moved as its model was (`move`, into_kit_frame's), its size stretched as
     the model was along its own right and up, its depth and a pattern's relief (score #210) along its normal, and the
-    region its plate is closed in (score #159 round 13, `closed`: its box, its pressed height and its plate point) as
+    region its plate is closed in (score #159 round 13, `closed`: its box and the holes' boxes round it, `also`, its
+    pressed height and its plate point) as
     they were: a spec's decal (recipes.decal_layer reads at, normal, up, size_m, depth, relief; bake.pressed_under and
     cards_over closed)."""
     turn = move.to_3x3()
@@ -255,8 +256,9 @@ def decal_laid(decal, move):
                 depth=decal.get("depth", 0.0) * outward,
                 relief=decal.get("relief", 0.0) * outward)
     if decal.get("closed"):
-        left, bottom, right_end, top = decal["closed"]["box"]
-        laid["closed"] = dict(decal["closed"], box=[left * across, bottom * upward, right_end * across, top * upward],
+        stretched = lambda box: [box[0] * across, box[1] * upward, box[2] * across, box[3] * upward]  # noqa: E731
+        laid["closed"] = dict(decal["closed"], box=stretched(decal["closed"]["box"]),
+                              also=[stretched(box) for box in decal["closed"].get("also", [])],
                               most=decal["closed"]["most"] * outward,
                               plate_point=list(move @ Vector(decal["closed"]["plate_point"])))
     return laid

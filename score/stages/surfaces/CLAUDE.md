@@ -63,7 +63,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   and edges); a pattern crossing a seam is moved clear of it or is a gap, and takes the take's own up; its `closed`
   region (box, pressed height, plate point) is pressed flat and covered by one card in the plate's finish where the
   look and the place's bake draw it (tools/props/library/inside/bake.pressed_under, cards_over); a mark whose plate is not flat
-  is left `open`.
+  is left `open`. A hole TRELLIS.2 cut through a closed mark's plate outside every closed region (r13's black dot above
+  each locker vent) is closed too, a box of its own in the nearest mark's `also` (`holes_closed`, a plate cast once).
   **Small hardware** (#212: TRELLIS.2 turns a locker's small hex cam locks into big round blobs, a stove's knobs into
   lumps) is laid as library pieces: score_lib's `model` entries of family `hardware` (`score-lib hardware cut`, a
   lock, knob, handle, hinge or latch cut from an adopted NVIDIA model, its credit carried; `decal_library.hardware`)
@@ -71,12 +72,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   it, the finish it is mounted on and the finish it is); `surfaces-parts` lays it (`hardware_pieces.py`, parts.json's
   `hardware` and `hardware_gaps`): its box measured again on the close-up (`piece_box`), its face read round it, its
   library piece stood on that face and fitted to the box (`fitted`: its size and spot the close-up's, its depth seen
-  aslant included), the model's own blob beside it found and cut (`blob_cut`: flattened onto the face and closed to
-  a point, stopping short of the face's edge, never another face's vertices), the blob's faces covered as a print
-  under a mark is, onto the part it is laid on (`cut_marks`). A piece is laid only where its cut leaves the print
-  round it whole (`torn`, #159 round 13: r13's stove knobs, library dials too small for their blobs, tore the panel's
-  print): a face the cut moves outside the piece's box in another finish than the face's, the piece's or the blob's
-  makes the mark a gap, TRELLIS.2's blob kept. The bench's look draws it (tools/props/bench/run); a
+  aslant included), the model's own blob beside it found and cut (`blob_cut`, stopping short of the face's edge) and
+  closed on its plate as a mark's is (the cut's `closed`, `decal_plates.closed_round`: pressed straight onto the
+  plate, one card over it short of a seam, the blob's core pressed past it; closed to a point in r13 it drew white
+  cracks and starbursts), the blob's faces covered as a print under a mark is, onto the part it is laid on
+  (`cut_marks`). A piece is laid only where its cut leaves the print round it whole (`torn`, #159 round 13: r13's
+  stove knobs, library dials too small for their blobs, tore the panel's print): a face the cut covers outside the
+  piece's box in another finish than the face's, the piece's or the blob's makes the mark a gap, TRELLIS.2's blob
+  kept. The bench's look draws it (tools/props/bench/run); a
   place's bake does not yet, nor do the physics and parts steps add the piece (a gap on #212).
   parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.

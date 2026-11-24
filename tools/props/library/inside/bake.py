@@ -328,28 +328,45 @@ def outward(item):
 
 def closed_points(points, decal):
     """`points` (n x 3, the model's own frame) with every one in a closed decal's region (score #159 round 13: its
-    `closed`, score/stages/surfaces/decal_plates.py, `box` across and up its face from its `at`) standing proud of its
-    plate by up to its `most` pressed onto the plate: TRELLIS.2's vent bumps under a pattern (tc6's locker's doors,
-    4 mm proud), shading under its drawn holes."""
+    `closed`, score/stages/surfaces/decal_plates.py: its `box` and each box of its `also` across and up its face from
+    its `at`, and each `box` of its `pressed`, pressed with no card over it, where it stands over that one's `least`)
+    standing proud of its plate by up to its `most` pressed straight onto the plate: TRELLIS.2's vent bumps
+    under a pattern (tc6's locker's doors, 4 mm proud), shading under its drawn holes; the holes it cut through a plate
+    round them (`also`, decal_plates.holes_closed); and its blob under a hardware piece (score #212, its cut's `closed`:
+    closed to its point, the blob drew white cracks and starbursts round r13's locks)."""
     right, up, normal = (np.asarray(axis, dtype=float) for axis in recipes.decal_axes(decal))
-    left, bottom, right_end, top = decal["closed"]["box"]
+    closed = decal["closed"]
     offset = np.asarray(points, dtype=float) - np.asarray(decal["at"], dtype=float)
     across, upward, height = offset @ right, offset @ up, offset @ normal
-    inside = ((across >= left) & (across <= right_end) & (upward >= bottom) & (upward <= top) & (height > 0)
-              & (height <= decal["closed"]["most"]))
+    def boxed(box):
+        left, bottom, right_end, top = box
+        return (across >= left) & (across <= right_end) & (upward >= bottom) & (upward <= top)
+    inside = np.zeros(len(offset), dtype=bool)
+    for box in closed_boxes(closed):
+        inside |= boxed(box) & (height > 0)
+    for pressed in closed.get("pressed", []):
+        inside |= boxed(pressed["box"]) & (height > pressed["least"])
+    inside &= height <= closed["most"]
     pressed = np.array(points, dtype=float)
     pressed[inside] -= np.outer(height[inside], normal)
     return pressed
 
 
-def closing_card(decal):
-    """The four corners of a closed decal's card (its `closed` `box` on its plate, CARD_PROUD in front), wound about
-    its normal: the cover over the holes TRELLIS.2 cut through a locker's door sheet under its vents (#191)."""
+def closed_boxes(closed):
+    """The boxes of a decal's `closed` region ([left, bottom, right, top] across and up from its `at`): its own `box`,
+    then each of its `also` (decal_plates.holes_closed)."""
+    return [closed["box"], *closed.get("also", [])]
+
+
+def closing_cards(decal):
+    """The four corners of each card of a closed decal (a box of its `closed` region, closed_boxes), CARD_PROUD in
+    front of its plate, each wound about its normal: the cover over the holes TRELLIS.2 cut through a locker's door
+    sheet under its vents (#191) and round them, and over the blob it drew under a hardware piece, pressed (#212)."""
     right, up, normal = (np.asarray(axis, dtype=float) for axis in recipes.decal_axes(decal))
-    left, bottom, right_end, top = decal["closed"]["box"]
     at = np.asarray(decal["at"], dtype=float) + CARD_PROUD * normal
-    return [at + across * right + upward * up for across, upward in
-            ((left, bottom), (right_end, bottom), (right_end, top), (left, top))]
+    return [[at + across * right + upward * up for across, upward in
+             ((left, bottom), (right_end, bottom), (right_end, top), (left, top))]
+            for left, bottom, right_end, top in closed_boxes(decal["closed"])]
 
 
 def plate_texel(mesh, point, normal):
@@ -382,30 +399,31 @@ def pressed_under(item, decals):
 
 
 def cards_over(item, decals):
-    """One card over each closed decal's region (closing_card) joined to the model `item`, in the finish of the plate
-    at its decal's `plate_point`: that face's material and, on every UV map, its middle's texel, so the texel masks,
-    the occlusion and the decals print on it as on the plate round it; the number of cards. Laid after the model's
-    occlusion is baked (look.py, make_chunky): every card's texel is its plate face's, and a card in the bake wrote
-    there the dark of the vent holes its decoded mesh still holds (r13holes: the locker's cards drawn grey)."""
+    """The cards over each closed decal's region (closing_cards) joined to the model `item`, in the finish of the
+    plate at its decal's `plate_point`: that face's material and, on every UV map, its middle's texel, so the texel
+    masks, the occlusion and the decals print on it as on the plate round it; the number of cards. Laid after the
+    model's occlusion is baked (look.py, make_chunky): every card's texel is its plate face's, and a card in the bake
+    wrote there the dark of the vent holes its decoded mesh still holds (r13holes: the locker's cards drawn grey)."""
     closed = [decal for decal in decals if decal.get("closed")]
     if not closed:
         return 0
     mesh, cards = item.data, []
-    for number, decal in enumerate(closed):
+    for decal in closed:
         face, texels = plate_texel(mesh, np.asarray(decal["closed"]["plate_point"], dtype=float),
                                    recipes.decal_axes(decal)[2])
-        card = bpy.data.meshes.new(f"{item.name}_card_{number}")
-        card.from_pydata([list(corner) for corner in closing_card(decal)], [], [(0, 1, 2, 3)])
-        for material in mesh.materials:
-            card.materials.append(material)
-        card.polygons[0].material_index = face.material_index
-        for name, texel in texels.items():
-            for corner in card.uv_layers.new(name=name).data:
-                corner.uv = texel
-        found = bpy.data.objects.new(card.name, card)
-        item.users_collection[0].objects.link(found)
-        found.matrix_world = item.matrix_world.copy()
-        cards.append(found)
+        for corners in closing_cards(decal):
+            card = bpy.data.meshes.new(f"{item.name}_card_{len(cards)}")
+            card.from_pydata([list(corner) for corner in corners], [], [(0, 1, 2, 3)])
+            for material in mesh.materials:
+                card.materials.append(material)
+            card.polygons[0].material_index = face.material_index
+            for name, texel in texels.items():
+                for corner in card.uv_layers.new(name=name).data:
+                    corner.uv = texel
+            found = bpy.data.objects.new(card.name, card)
+            item.users_collection[0].objects.link(found)
+            found.matrix_world = item.matrix_world.copy()
+            cards.append(found)
     with bpy.context.temp_override(active_object=item, object=item, selected_editable_objects=[item, *cards]):
         bpy.ops.object.join()
     return len(cards)

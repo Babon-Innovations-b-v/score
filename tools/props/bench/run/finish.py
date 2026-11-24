@@ -489,8 +489,9 @@ def look_view(camera, folder):
 def hardware_laid(listed, library, colours, out):
     """look.py's `hardware` (#212): each hardware piece the finish laid (parts.json's `hardware`,
     route_parts.take_hardware) as its library mesh (decal_library.piece), its point, facing and up in Blender's frame,
-    its size, the blob's cut and the recipe spec of the finish it is painted in (part_spec of that finish's surface and
-    the list's settings, as a part of it is painted); one the library does not hold is a fault, never skipped."""
+    its size, the blob's cut (its point and its closed region's turned too) and the recipe spec of the finish it is
+    painted in (part_spec of that finish's surface and the list's settings, as a part of it is painted); one the library
+    does not hold is a fault, never skipped."""
     import decal_library
     from score.stages.surfaces import route_settings
     found = []
@@ -502,7 +503,9 @@ def hardware_laid(listed, library, colours, out):
         row = {"judge": finish["surface"], "settings": route_settings.applied(finish)}
         found.append({"glb": str(mesh), "at": z_up(piece["at"]), "normal": z_up(piece["normal"]),
                       "up": z_up(piece["up"]), "size_m": piece["size"],
-                      "cut": dict(piece["cut"], at=z_up(piece["cut"]["at"])),
+                      "cut": dict(piece["cut"], at=z_up(piece["cut"]["at"]), closed=dict(
+                          piece["cut"]["closed"], **{key: z_up(piece["cut"]["closed"][key])
+                                                     for key in ("at", "normal", "up", "plate_point")})),
                       "spec": part_spec(library, row, colours, None, out)})
     return found
 

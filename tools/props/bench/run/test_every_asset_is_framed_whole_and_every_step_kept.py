@@ -34,7 +34,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   0.4; surface_masks' `found == index` -> `found != index` -> the box's one mask is empty (#182); the decoded mesh
   beside the model not named (`job["decoded"]` dropped) -> look.py shades no seam from it (#159); hardware_laid's
   cut point left in glTF's Y up (`dict(piece["cut"], at=z_up(...))` -> `piece["cut"]`) -> the blob cut away a frame
-  off its piece, its piece's spec not its finish's (`part_spec(...)` -> `{}`) -> the lock drawn in no recipe (#212)
+  off its piece, its piece's spec not its finish's (`part_spec(...)` -> `{}`) -> the lock drawn in no recipe (#212);
+  the cut's closed region left in glTF's Y up (`closed=dict(...)` dropped) -> its box closed a frame off the blob,
+  its card's plate point in no face (#212, r14l); bench.look_step not carrying look.py's stretch (`"stretched":
+  closed["stretched"]` dropped) -> the look group holds no `stretched`, the cracks round a cut unjudged
 - bench.look_holes (#159): the look's background not read -> the box's holes are 100 of the square's pixels, not 200;
   the mesh alone's black not read -> 100, not 200; finish.look_axes: a fixed +z up for the close-up's own -> a
   camera straight down has no frame (NaN axes, the ceiling task light's empty look)
@@ -261,6 +264,7 @@ def looked(tmp_path, name, view):
         Image.fromarray(bare).save(job["bare"])
         marks = [{"text": "03", "box": [100.0, 200.0, 300.0, 400.0]}, {"text": "Patient room", "box": [0, 0, 50, 10]}]
         (pathlib.Path(job["out"]).parent / "marks.json").write_text(json.dumps(marks))
+        (pathlib.Path(job["out"]).parent / "closed.json").write_text(json.dumps({"stretched": 4.2}))
         open(log, "w").write("drawn\n")
         return 0
 
@@ -281,7 +285,10 @@ def looked(tmp_path, name, view):
     parts = json.loads(parts_file.read_text())
     parts["takes"][name]["hardware"] = [{"hardware": PIECE, "finish": 0, "part": 0, "at": [0.1, 0.2, 0.3],
                                          "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size": [0.03, 0.05],
-                                         "cut": {"at": [0.12, 0.2, 0.3], "radius": 0.04, "falloff": 0.25}}]
+                                         "cut": {"at": [0.12, 0.2, 0.3], "radius": 0.04, "falloff": 0.25,
+                                                 "closed": {"at": [0.12, 0.2, 0.3], "normal": [0.0, 0.0, 1.0],
+                                                            "up": [0.0, 1.0, 0.0], "box": [-0.03, -0.03, 0.03, 0.03],
+                                                            "most": 0.1, "plate_point": [0.2, 0.2, 0.3]}}}]
     parts_file.write_text(json.dumps(parts))
     files = tmp_path / "library-files"
     (files / PIECE).mkdir(parents=True)
@@ -302,7 +309,9 @@ def looked(tmp_path, name, view):
             int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size,
             json.loads((out / "holes.json").read_text())["holes"], crops, read,
             (piece["glb"] == str(files / PIECE / "hardware.glb"), piece["at"], piece["normal"], piece["up"],
-             piece["cut"]["at"], piece["spec"]["roughness"]))
+             piece["cut"]["at"], piece["spec"]["roughness"]),
+            ({key: piece["cut"]["closed"][key] for key in ("at", "normal", "up", "plate_point", "box")},
+             json.loads((out / "holes.json").read_text())["stretched"]))
 
 
 PIECE = "model/hardware_lock_box_0badcafe@1"  # a hardware piece the finish laid on the box (#212)
@@ -619,9 +628,11 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
             round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),
             [(260, 260), (57, 17)], [("03", "03"), ("Patient room", None)],
-            (True, [0.1, -0.3, 0.2], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.12, -0.3, 0.2], 0.4)), name
+            (True, [0.1, -0.3, 0.2], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.12, -0.3, 0.2], 0.4),
+            ({"at": [0.12, -0.3, 0.2], "normal": [0.0, -1.0, 0.0], "up": [0.0, 0.0, 1.0],
+              "plate_point": [0.2, -0.3, 0.2], "box": [-0.03, -0.03, 0.03, 0.03]}, 4.2)), name
         assert bench.look_found(tmp_path / "look") == {
-            "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "read": 0.5,
+            "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "stretched": 4.2, "read": 0.5,
             "misread": [{"text": "Patient room", "read": None}]}
         assert undrawn(tmp_path) == {}, "the look draws every recipe family"
         drawn, own = recoloured_step()
