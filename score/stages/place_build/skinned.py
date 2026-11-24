@@ -25,8 +25,9 @@ The glTF (one per character, in the SkelRoot's own frame; scene.json's copy `mat
                     would need a bake is refused (Unconvertible): a character wears its own paint or flat colours
 
 `about` (scene.json's object): `clips` {animation: seconds}, `plays` {animation, starts (the stage's second its first
-key falls at: a crowd's phase is a start before 0), loops} or null, and `check`: the glTF skinned in numpy at its
-played animation's first key against UsdSkel's own posed skin (ready/people.posed_body) at that time, in the
+key falls at: a crowd's phase is a start before 0), loops} or null (a character held still plays the clip its pose was
+taken from, `lived`), and `check`: the glTF skinned in numpy at the animation the stage plays (`checked`: a held
+character's still pose) against UsdSkel's own posed skin (ready/people.posed_body) at that time, in the
 SkelRoot's frame, every point within CLOSE; its triangles against the USD's.
 """
 import io
@@ -222,6 +223,47 @@ def animations_of(root, skeleton_query):
     if all(prim.GetPath() != played.GetPath() for _, prim in found):
         found.append((played.GetName(), played))
     return found, next(name for name, prim in found if prim.GetPath() == played.GetPath())
+
+
+def lived(held, named, rate):
+    """A held-still character's life in a game: the clip its still pose was taken from, played round from the second
+    it was taken at ({animation, starts, loops}), or None. A still pose is only a picture's: in a game a person who
+    stands still stands breathing (2099 #161, the owner: "the people are half, and just standing still"). The clip is
+    the one the pose names (place_build.HELD_CLIP, HELD_SECONDS), else the one of its `Animations` whose sample equals
+    the pose exactly (a scene laid before the pose named it); a pose set from a library pose (`score:pose`, place_build's
+    `hold`: the smoker's arm) or one no clip holds stays still."""
+    if held is None or not held.IsValid() or held.GetAttribute("score:pose").HasAuthoredValue():
+        return None
+    if held.GetParent().GetName() == "Animations" or sample_times(held, None, rate) != [None]:
+        return None  # a clip, or a keyed animation of its own (a sim body's): it is played as it is
+    clips = {name: prim for name, prim in named if prim.GetParent().GetName() == "Animations"}
+    clip, second = held.GetAttribute(place_build.HELD_CLIP).Get(), held.GetAttribute(place_build.HELD_SECONDS).Get()
+    if clip not in clips:
+        clip, second = taken_from(held, clips, rate)
+    if clip is None:
+        return None
+    return {"animation": clip, "starts": -float(second or 0.0), "loops": clip not in skel_usd.ONCE}
+
+
+def taken_from(held, clips, rate):
+    """(clip, second) of the first clip sample whose joints' rotations and translations equal the still pose's
+    (within CLOSE), else (None, None)."""
+    pose = UsdSkel.Animation(held)
+    joints = list(pose.GetJointsAttr().Get() or [])
+    rotations, translations = pose.GetRotationsAttr().Get(), pose.GetTranslationsAttr().Get()
+    if not joints or rotations is None or translations is None:
+        return None, None
+    for name, prim in sorted(clips.items()):
+        clip = UsdSkel.Animation(prim)
+        if list(clip.GetJointsAttr().Get() or []) != joints:
+            continue
+        for time in clip.GetRotationsAttr().GetTimeSamples():
+            turned = np.array(clip.GetRotationsAttr().Get(time), dtype=np.float64)
+            moved = np.array(clip.GetTranslationsAttr().Get(time), dtype=np.float64)
+            same_turn = np.abs(np.abs(np.sum(turned * np.array(rotations, dtype=np.float64), axis=1)) - 1.0)
+            if np.max(same_turn) < CLOSE and np.max(np.abs(moved - np.array(translations, dtype=np.float64))) < CLOSE:
+                return name, time / rate
+    return None, None
 
 
 def clip_round(root, name, prim):
@@ -485,7 +527,7 @@ def character_glb(root, baked=None):
         if "extras" in mesh:
             morphed.append((len(document["nodes"]) - 1, mesh["extras"]["targetNames"]))
     named, played = animations_of(root, skeleton_query)
-    document["animations"], clips, plays, keyed = [], {}, None, [None]
+    document["animations"], clips, plays, keyed, checked = [], {}, None, [None], None
     for name, prim in named:
         round_seconds = clip_round(root, name, prim)
         times = sample_times(prim, round_seconds, rate)
@@ -496,9 +538,11 @@ def character_glb(root, baked=None):
                 moved_channels(animation, moves, contents)
             plays = {"animation": name, "starts": 0.0 if times[0] is None else float(times[0] / rate),
                      "loops": round_seconds is not None and name not in skel_usd.ONCE}
-            keyed = times
+            keyed, checked = times, name
         document["animations"].append(animation)
         clips[name] = round(length, 6)
+    if moves_of(root, rate) is None:  # a walker's route is keyed on the animation it plays: it keeps that one
+        plays = lived(dict(named).get(played), named, rate) or plays
     document["scenes"], document["scene"] = [{"nodes": [0]}], 0
     glb.refuse_a_tangled_graph(document)
     blob = contents.blob()
@@ -507,7 +551,7 @@ def character_glb(root, baked=None):
         document["images"] = contents.images
     usd_triangles = sum(len(scene_package.drawn(target.GetPrim())[2]) for target in targets)
     facts = {"triangles": triangles, "usd_triangles": usd_triangles, "clips": clips, "plays": plays,
-             "joints": len(order), "points_of": points_of, "keyed": keyed}
+             "joints": len(order), "points_of": points_of, "keyed": keyed, "checked": checked}
     return scene_package.packed(document, blob), facts
 
 
@@ -624,7 +668,7 @@ def usd_skin(root, time):
 
 def skin_error(root, glb_bytes, facts, key):
     """The largest distance (metres) between the glTF's skin and UsdSkel's at the played animation's key `key`."""
-    ours = gltf_skin(glb_bytes, (facts["plays"] or {}).get("animation"), key)
+    ours = gltf_skin(glb_bytes, facts["checked"], key)
     theirs = usd_skin(root, facts["keyed"][key])
     if len(ours) != len(theirs):
         return float("inf")

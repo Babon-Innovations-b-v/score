@@ -293,6 +293,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   UsdSkel's and its check fails
 - skinned.animation_of: the blend shape weights left out -> the leader's mesh node keys no weights
 - skinned.moves_of: the walk left out -> node 0 keys no translation
+- skinned.lived: unread (plays left on the still pose) -> a held character plays `Held`, standing still in the game;
+  skinned.taken_from: no sample matched -> the character held before its pose named its clip stays still
 - skinned.sample_times: the clip kept whole (no round) -> the leader's clip lasts two rounds
 - skinned.copies_of: the prototype's transform taken for the instance's -> the crowd copies stand at one spot
 - scene_package.densities: the eyes ignored (DENSITY on every face) -> the panel seen from 100 m is baked at 24
@@ -1875,6 +1877,34 @@ def skinned_characters(folder, out, scene, copies):
     glb, facts = skinned.character_glb(root)
     unbound = tampered(glb, scene_package.unpacked(glb, None)[0]["skins"][0]["inverseBindMatrices"])
     assert skinned.check_of(root, glb, facts)["pass"] and not skinned.check_of(root, unbound, facts)["pass"]
+    held_lives(folder)
+
+
+def held_lives(folder):
+    """A character `put` holds still plays, in a game, the clip its pose was taken from, round from that second: by
+    the clip the pose names, or (a scene laid before it named one) the clip whose sample the pose equals; its check
+    still skins the still pose; one posed from a library pose (`score:pose`) stays still."""
+    from score.stages import place_build
+    from score.stages.place_build import skinned
+    stage = Usd.Stage.CreateInMemory()
+    stage.SetTimeCodesPerSecond(30)
+    asset = folder / "assets/characters/skinny.usda"
+    lives = {"animation": "standing", "starts": -1.0 / 30.0, "loops": True}
+    for name, unnamed, posed in (("named", False, False), ("unnamed", True, False), ("posed", False, True)):
+        root = stage.DefinePrim(f"/held/{name}", "SkelRoot")
+        root.GetReferences().AddReference(str(asset))
+        place_build.dressed(stage, str(root.GetPath()), asset, clip="standing", second=1.0 / 30.0)
+        held = stage.GetPrimAtPath(f"{root.GetPath()}/Held")
+        if unnamed:
+            held.RemoveProperty(place_build.HELD_CLIP)
+            held.RemoveProperty(place_build.HELD_SECONDS)
+        if posed:
+            held.CreateAttribute("score:pose", Sdf.ValueTypeNames.String).Set("character/hold")
+        glb, facts = skinned.character_glb(root)
+        assert facts["plays"]["animation"] == ("Held" if posed else "standing"), (name, facts["plays"])
+        if not posed:
+            assert facts["plays"]["loops"] and abs(facts["plays"]["starts"] - lives["starts"]) < 1e-9, facts["plays"]
+        assert facts["checked"] == "Held" and skinned.check_of(root, glb, facts)["pass"], (name, facts)
 
 
 def resumed(out):

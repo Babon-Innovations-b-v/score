@@ -110,6 +110,8 @@ GLTF_ROLES = ("gltf", "web3d")
 WORN = ("made", "suit")
 FAR = "far"
 CLIP = "standing"  # the clip a laid character is held in by default, at its start
+HELD_CLIP = "score:clip"  # on a character's Held pose: the clip it was taken from, so a game plays that clip
+HELD_SECONDS = "score:clipSeconds"  # ... and how far into it (seconds)
 TRACKS = "algorithm/ground_tracks"  # the ground tracks algorithm's library address (its code: ground_tracks.py)
 RAIN = "algorithm/rain"  # the rain algorithm's library address (its code: rainfall.py)
 DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its code: dome_shell.py)
@@ -1513,7 +1515,8 @@ def terrain(folder, name, address, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), pad
 
 def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
     """A laid character's body groups `wear` shown (WORN's first it has by default) and every other made invisible,
-    its skeleton held still in `clip` `second` seconds in (tools/characters/cast.py's own steps)."""
+    its skeleton held still in `clip` `second` seconds in (tools/characters/cast.py's own steps), the Held pose
+    naming that clip and second (HELD_CLIP, HELD_SECONDS) so a game plays the clip from there (skinned.lived)."""
     sys.path.insert(0, str(REPO / "tools/characters"))
     import cast
     groups, clips = cast.asset_facts(asset)
@@ -1529,6 +1532,9 @@ def dressed(stage, path, asset, wear=None, clip=None, second=0.0):
     if clip not in clips:
         raise Refused(f"{path}: no clip {clip} (it has {', '.join(sorted(clips))})")
     cast.held_still(stage, path, asset, clip, second)
+    held = stage.GetPrimAtPath(f"{path}/Held")
+    held.CreateAttribute(HELD_CLIP, Sdf.ValueTypeNames.String).Set(clip)
+    held.CreateAttribute(HELD_SECONDS, Sdf.ValueTypeNames.Double).Set(float(second))
     return {"wear": worn, "clip": clip, "second": second}
 
 
