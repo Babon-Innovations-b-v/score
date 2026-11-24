@@ -148,7 +148,7 @@ def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joi
         place_build.night(folders["flat"], [0.01, 0.02, 0.04], [0.0, 0.0, 0.01], 2.0, moon)
         place_build.light(folders["flat"], "bulb", at=(0.0, 2.5, 0.0), watts=100)
     record = area.area(plans(tmp_path / "plans", sill, apart, outside), outside, folders, tmp_path / "seats.json",
-                       seat=True, stands=stands)
+                       seat=True, stands=stands, graded="stairwell" if told == "holder" else None)
     if told == "holder":
         seats = {name: np.asarray(record["seats"][name]["matrix"]).reshape(4, 4) for name in folders}
         assert np.allclose(seats["stairwell"], np.eye(4)) and record["faults"] == [], (seats, record["faults"])

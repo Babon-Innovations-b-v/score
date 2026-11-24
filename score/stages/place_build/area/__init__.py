@@ -14,8 +14,8 @@ sill middle, its inward way (into its own place) and its width, and the place it
                                             door on its neighbour's, the rest as laid; the joins and their faults
     shells_crossed(folders, seats)          a fault for each two seated places' shells standing inside each other
     area(plans, outside, folders, out)      the seats and the joins check written as one record (seats.json), each
-                                            seat with the outside's exposure when its folder is given
-    exposure_of(folder)                     a place's camera exposure: the area's one grade when it is the outside
+                                            seat with the grading place's exposure (`graded`, default the outside)
+    exposure_of(folder)                     a place's camera exposure: the area's one grade when it grades the area
 
 A seat is the place's frame in the area's: a turn about up and a shift, a 4 x 4 matrix in USD's row-vector order
 (the 16 numbers of glTF's column-major matrix). The outside place is the area's frame; when no place left is joined
@@ -438,13 +438,13 @@ def exposure_of(folder):
     return float(given.Get()) if given and given.HasValue() else 1.0
 
 
-def area(plans, outside, folders, out=None, seat=False, stands=None):
+def area(plans, outside, folders, out=None, seat=False, stands=None, graded=None):
     """The area's seats and its joins and shells checks as one record (written to `out` when given): every place's
     seat (`stands` laid as it is, seated), every planned join judged, every two places' shells crossed, and every
     fault; with `seat`, each place's seat also written
     into its folder's place.json `seat` (the package then lays the place in the area's frame: scene_package.seated),
-    with the outside place's exposure when its folder is given (the piece list then lights the place for the area's one
-    grade: pieces.relit)."""
+    with the exposure of `graded` (the place the game grades the area by; default the outside) when its folder is given
+    (the piece list then lights the place for the area's one grade: pieces.relit)."""
     seats, joins, faults = seated(plans, outside, folders, stands)
     judged_joins = [judged(folders, seats, ends) for ends in joins]
     faults += shells_crossed(folders, seats)
@@ -454,7 +454,8 @@ def area(plans, outside, folders, out=None, seat=False, stands=None):
               "joins": judged_joins,
               "faults": faults + [fault for entry in judged_joins for fault in entry["faults"]],
               "frame": "each seat the place's frame in the area's, USD's row-vector order (glTF's column-major)"}
-    exposure = exposure_of(folders[outside]) if outside in folders else None
+    graded = graded or outside
+    exposure = exposure_of(folders[graded]) if graded in folders else None
     if exposure is not None:
         record["exposure"] = exposure
     if out:
