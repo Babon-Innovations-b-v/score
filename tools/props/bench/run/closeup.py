@@ -174,4 +174,5 @@ def main():
     (out / "report.json").write_text(json.dumps(report, indent=1))
 
 
-main()
+if __name__ == "__main__":  # look.py imports `lit` to draw a made model under the same light
+    main()

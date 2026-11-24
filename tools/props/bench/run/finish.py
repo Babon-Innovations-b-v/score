@@ -66,7 +66,7 @@ LOOK_SIDE, LOOK_SAMPLES = 1080, 32
 # A text mark of the look is read (marks_read, #185) in its drawn box grown by this share of its longer side each way,
 # so a garbled print beside the words is in the picture read too.
 READ_MARGIN = 0.15
-READ_GREY = 204  # the look's light grey world (look.py WORLD_GREY), behind the crop's clear pixels
+READ_GREY = 204  # a light grey behind the crop's clear pixels (the look is drawn on a clear film)
 READING = ("This picture is a close crop of a rendered object's surface where printed text should be. Read the printed "
            "text exactly as it appears, character by character, in reading order on one line. Leave out only print "
            "that the picture's edge cuts through (it belongs to a neighbouring mark). Write ? for every "

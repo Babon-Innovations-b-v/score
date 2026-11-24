@@ -1,8 +1,11 @@
 """Inside Blender (bench.py's look step, through the card queue, #182): a made model's finish drawn as the bake paints
 it, the model whole (its own vertex normals kept) under one material, each slot's library recipe mixed in by its
 texel mask on the model's own UVs (recipes.masked), seen from the close-up's view direction and up (a flat row from
-straight above, +y up), framed on its own box under the library renders' studio light on a light grey world. Drawn at
-wear 0 and dirt 0: the bench names none. Then the mesh alone (`bare.png`, the job's `bare`): the same model, camera
+straight above, +y up), framed on its own box under the close-up's own studio light (closeup.lit: two large area
+lamps and a dim grey sky), so it is lit as NVIDIA's input render it is held to. Under the library renders' two suns and
+a bright, even grey world a mirror finish reflects only that grey: tc5r's chrome chucks, nozzle and rods were drawn
+dull flat grey at roughness 0.13, where the input's chrome shines (#159). Drawn at wear 0 and dirt 0: the bench names
+none. Then the mesh alone (`bare.png`, the job's `bare`): the same model, camera
 and light in one plain white surface, its own vertex normals kept, which the look's holes check reads (bench.py
 look_holes, #159: the printer box's normals turned inward drew black holes through its front).
 The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
@@ -25,11 +28,11 @@ sys.path.insert(0, str(HERE))
 import runtime  # noqa: E402
 
 runtime.ready()
+import closeup  # noqa: E402  (the close-up's light, `lit`)
 import recipes  # noqa: E402
 import scene_setup  # noqa: E402
 from finish import look_axes  # noqa: E402
 
-WORLD_GREY = 0.8
 BARE_WHITE = (0.8, 0.8, 0.8, 1.0)  # the mesh-alone picture's one surface: the principled default's white
 
 
@@ -120,8 +123,7 @@ def main():
         item.data.materials.clear()
         item.data.materials.append(material)
     box = framed(scene, meshes, job)
-    scene_setup.studio_light()
-    scene.world.node_tree.nodes["Background"].inputs[0].default_value = (WORLD_GREY, WORLD_GREY, WORLD_GREY, 1)
+    closeup.lit(scene, *box, {"eye": list(scene.camera.matrix_world.translation)})
     drawn(scene, job["out"])
     bare = bare_material()
     for item in meshes:

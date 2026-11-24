@@ -28,7 +28,8 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
 - **B's `look` step** (#182, after `finish`): the finish drawn as the bake paints it (`finish.look_job`, `look.py`
   through the card queue): the final model whole, its own vertex normals kept, each slot's recipe mixed in by its
   texel mask (the finish's texels.npz) on the model's own UVs, from the close-up's camera and its up
-  (`finish.look_axes`: a flat row straight down, +y up); `look.png` (1080) and `look-360.png`. Then the mesh alone in
+  (`finish.look_axes`: a flat row straight down, +y up), under the close-up's own light (closeup.lit, #200: under
+  two suns and an even grey world chrome reflected only that grey and was drawn dull); `look.png` (1080) and `look-360.png`. Then the mesh alone in
   plain white (`bare.png`) and `holes.json`: `look_holes`, the share of its silhouette the look shows as background or
   the mesh alone black (normals turned into the body, folds), which the measures judge as `look.holes` (#159). A finish with no texels.npz, or texels of several pictures, is the step's gap. Every recipe of
   recipes.py draws: a colour setting a variant names none of is its own colour, a printed or screen surface with no
