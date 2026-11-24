@@ -51,15 +51,18 @@ def main():
     body = garments.built_body(outfit["look"], given.clip)
     pattern_folder = garments.patterns(outfit, body, out)
     drape = dict(np.load(garments.draped(outfit, body, pattern_folder, out, given.frames)))
-    found = garments.measures(drape, out)
     records = {garment["name"]: dict(np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz"))
                for garment in outfit["garments"]}
+    found = garments.measures(drape, dict(np.load(out / "body.npz")), records, out)
     usd = out / "outfit.usda"
     usd.unlink(missing_ok=True)
     cache.written(usd, dict(np.load(out / "body.npz")), drape, records, outfit, fetched(outfit, out), garments.RATE)
     clip_frames = len(drape[outfit["garments"][0]["name"]])
     rendered(usd, out, clip_frames // 2, given.turn_views, given.walk_every)
     print(json.dumps(found, indent=1))
+    failed = [f"{name}: {line}" for name, seating in found["seating"].items() for line in seating["faults"]]
+    if failed:
+        raise SystemExit("a garment does not stay seated:\n" + "\n".join(failed))
 
 
 main()

@@ -43,10 +43,17 @@ DRAPE = {"device": "cuda:0", "rate": RATE, "substeps": 40, "iterations": 10, "gr
          "still_seconds": 1.0,
          # Cloth on the body: the soft contact of Newton's VBD dressing benchmark (newton-physics/newton#3084: ke 1e5,
          # kd 0.1; Newton's own default ke 1e3 let a woven cotton's 3e4 N/m membrane through the body by up to 10 cm,
-         # 2026-11-24), Newton's default friction (mu 0.5), the margin the cloth's thickness; cloth keeps the cloth's
+         # 2026-11-24), the margin the cloth's thickness; friction 0.2: at Newton's default 0.5 the walking arms
+         # dragged the sleeves with them, tore the tee (its 95th percentile triangle stretched 186% by walk frame 59)
+         # and walked it off the left shoulder; at 0.2 it stretched under 12% (2026-11-24). Cloth keeps the cloth's
          # thickness off cloth, looked for a thickness further.
-         "contact": {"mu": 0.5, "ke": 1.0e5, "kd": 0.1, "margin": THICKNESS_M},
-         "self": {"margin": THICKNESS_M, "gap": THICKNESS_M}}
+         "contact": {"mu": 0.2, "ke": 1.0e5, "kd": 0.1, "margin": THICKNESS_M},
+         "self": {"margin": THICKNESS_M, "gap": THICKNESS_M},
+         # The neckline's holds kept through the turn and the clip, as GarmentCode keeps its attachments for the whole
+         # of its drape (attachment_frames 400, default_sim_props.yaml): let go after sewing, the tee slid off both
+         # shoulders in the turn out of the A-pose (2026-11-24).
+         "holds_until": "worn"}
+NECK_REACH_CM = 2.0  # past the neck's half width, the body's points round the neck's base that move the holds
 CARD_GB = 4.0  # the drape's card share (one outfit, one body)
 
 
@@ -139,11 +146,22 @@ def patterns(outfit, body, out):
 
 def holds(garment, record, measurements, shift):
     """The points a garment's sewing draws to a level, as GarmentCode's simulation attaches them while it sews
-    (pygarment/meshgen/garment.py `_add_attachment_labels`): a neckline's sides (`right_collar`, `left_collar`) to
-    either side of the neck, a centimetre inside it (its neck_w less 2 cm), along x."""
+    (pygarment/meshgen/garment.py `_add_attachment_labels`): a neckline's halves (`right_collar`, `left_collar`) kept
+    inside the planes either side of the neck, a centimetre inside it (its neck_w less 2 cm), along x, each plane's
+    normal pointing in."""
     half = (measurements["neck_w"] - 2.0) / 2.0 / 100.0
-    return [{"label": label, "axis": 0, "value": float(shift[0] + side * half)}
+    return [{"label": label, "axis": 0, "value": float(shift[0] + side * half), "side": -side}
             for label, side in (("right_collar", -1.0), ("left_collar", 1.0)) if f"label/{label}" in record]
+
+
+def neck(body, measurements, shift):
+    """The body's points round its neck's base (height less head_l, within 3 cm of it and NECK_REACH_CM round the
+    neck's middle): the drape moves the neckline's holds with their mean."""
+    points = np.asarray(body["bind"])
+    level = (measurements["height"] - measurements["head_l"]) / 100.0
+    reach = (measurements["neck_w"] / 2.0 + NECK_REACH_CM) / 100.0
+    return np.flatnonzero((np.abs(points[:, 1] - level) < 0.03) & (np.abs(points[:, 0] - shift[0]) < reach)
+                          & (np.abs(points[:, 2] - shift[2]) < reach)).tolist()
 
 
 def draped(outfit, body, pattern_folder, out, frames):
@@ -155,7 +173,7 @@ def draped(outfit, body, pattern_folder, out, frames):
     measurements = json.loads((pattern_folder / "measurements.json").read_text())
     records = {garment["name"]: np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz")
                for garment in outfit["garments"]}
-    job = dict(DRAPE, body=str(out / "body.npz"), garments=[
+    job = dict(DRAPE, body=str(out / "body.npz"), neck=neck(body, measurements, shift), garments=[
         {"name": garment["name"], "record": str(pattern_folder / garment["name"] / f"{garment['name']}.npz"),
          "offset": shift.tolist(), "worn": garment.get("worn", []),
          "holds": holds(garment, records[garment["name"]], measurements, shift),
@@ -186,10 +204,25 @@ def penetration(drape, thickness_m):
     return found
 
 
-def measures(drape, out):
-    """measures.json: penetration, and the drape's seconds a clip frame on this card."""
+def seating(drape, body, records):
+    """Each garment's seating over the clip (seated.py): its shoulder seams, neckline and the body through it."""
+    from tools.characters.garments import seated
+    start = int(body["clip_start"])
+    found = {}
+    for name, record in records.items():
+        worn = np.asarray(drape[name])
+        found[name] = seated.measured(
+            {"record": record, "sewn": drape[f"{name}/sewn"], "worn": worn, "faces": drape[f"{name}/faces"]},
+            {"bind": body["bind"], "faces": body["faces"], "frames": body["frames"][start:start + len(worn)]})
+        found[name]["faults"] = seated.faults(found[name])
+    return found
+
+
+def measures(drape, body, records, out):
+    """measures.json: penetration, seating, and the drape's seconds a clip frame on this card."""
     clip_frames = max(1, len(drape[next(key for key in drape if key.startswith("inside/"))]) - 1)
     found = {"engine": str(drape["engine"]), "penetration": penetration(drape, THICKNESS_M),
+             "seating": seating(drape, body, records),
              "sew seconds": round(float(drape["seconds/sew"]), 1),
              "clip seconds a frame": round(float(drape["seconds/clip"]) / clip_frames, 3),
              "substeps a frame": DRAPE["substeps"], "iterations": DRAPE["iterations"]}

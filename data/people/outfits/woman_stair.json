@@ -1,5 +1,5 @@
 {
- "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the library's skin_light.",
+ "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the library's skin_light. The tee's sleeves are cut loose (sleeve.connecting_width 0.6, GarmentCode's 0.2 sat 9% stretched round her upper arms and the walking arms dragged the tee off a shoulder, 2026-11-24).",
  "look": "woman_stair",
  "mean": "mean_female",
  "garments": [
@@ -27,7 +27,8 @@
    "design": "t-shirt.yaml",
    "set": {
     "shirt.length": 1.4,
-    "collar.width": 0.0
+    "collar.width": 0.0,
+    "sleeve.connecting_width": 0.6
    },
    "surface": {
     "name": "simready_m_opaque_fabric_cotton_red_d01_13ec6be9",

@@ -9,21 +9,28 @@ job.json (written by tools/characters/garments): {"device", "rate" (frames a sec
 frame of the run: its turn from the bind to the clip's first frame, then the clip), `clip_start`>, "sew_seconds",
 "still_seconds", "garments": [{"name", "record": <pattern.py's npz>, "offset": [x, y, z] (m, the record's frame to the
 body's), "worn": [labels of the record's points worn on the body], "holds": [{"label", "axis" (0 x, 1 y, 2 z),
-"value" (m)}: points drawn to a level while sewing], "material": {"density" kg/m2, "mu" N/m, "lambda" N/m, "bending" N,
-"radius" m}}], "contact": {"mu", "ke", "kd", "margin" (m)}, "self": {"margin", "gap" (m)}}.
+"value" (m), "side" (+1 or -1)}: points past a level drawn back to it, those on its side left], "material":
+{"density" kg/m2, "mu" N/m, "lambda" N/m, "bending" N, "radius" m}}], "contact": {"mu", "ke", "kd", "margin" (m)},
+"self": {"margin", "gap" (m)}, "neck": [the body's points round its neck's base: the holds' levels move with their
+mean], "holds_until": "sewn", "turned" or "worn" (the drawn points held while sewing, through the turn too, or
+through the clip too)}.
 
 The run, in the order GarmentCode's own drape goes: each garment's box mesh (its panels laid round the body, each seam's
 points shared) is one cloth whose triangles rest at their flat panels' shapes and whose edges bend flat, so the seams
 pull shut and the panels take their sewn shape round the body; a garment's held points (its waistband's top,
 GarmentCode's `lower_interface`) are carried from where the box lays them to the body's skin under them at the waist
 level and then ride the skin as a worn waistband does, every other point is cloth; a garment's drawn points (a
-neckline's sides, GarmentCode's `right_collar` and `left_collar`) are drawn to their level while sewing, as
-GarmentCode's attachments draw them, and let go after. Gravity is off for the first fifth
-of `sew_seconds`, then on; speeds are capped at SEW_SPEED while sewing (GarmentCode's global cap), never after. Then
-the body turns from its bind to the clip's first frame (the job's frames up to `clip_start`), stands `still_seconds`,
-and plays the clip. Each substep the body mesh's points and velocities are set where the skin is at the substep's end
-and the mesh refitted, so the cloth meets the moving body with its own speed (Newton reads mesh velocities for
-contact). Cloth and cloth collide (self contact, between garments too). No cloth damping of its own. VBD's run-to-run
+neckline's halves, GarmentCode's `right_collar` and `left_collar`) that stand out past their level are drawn back to it,
+as GarmentCode's attachments (a plane and its normal) draw them, while sewing and as long as the job's `holds_until`
+says, the levels moving with the body's neck; a point inside the level is left (drawn both ways, every point of a half
+pulled to the neck's side, the neckline's middle was torn open sideways and the tee sewn several centimetres off centre,
+2026-11-24), a point past it put back on it each substep (moved a twentieth of the way, the cloth pulled the neckline 5
+cm past its planes and the tee was sewn up to 4 cm to her left, 2026-11-24). Gravity is off for the first fifth of
+`sew_seconds`, then on; speeds are capped at SEW_SPEED while sewing (GarmentCode's global cap), never after. Then the
+body turns from its bind to the clip's first frame (the job's frames up to `clip_start`), stands `still_seconds`, and
+plays the clip. Each substep the body mesh's points and velocities are set where the skin is at the substep's end and
+the mesh refitted, so the cloth meets the moving body with its own speed (Newton reads mesh velocities for contact).
+Cloth and cloth collide (self contact, between garments too). No cloth damping of its own. VBD's run-to-run
 deterministic mode is off: on this card it took a substep from 10 ms to 180 ms (2026-11-24).
 
 out.npz: per garment `<name>` clip frames x points x 3 (m, world, each clip frame's end), `<name>/sewn` points x 3 (at
@@ -41,7 +48,8 @@ import warp as wp
 
 SEW_SPEED = 0.25  # m/s, GarmentCode's global_max_velocity while the panels close (sim_config.py)
 CENTIMETRES = 0.01
-HOLD_SHARE = 0.05  # of the way to its level a drawn point moves each substep while sewing
+HOLDING = {"sewn": 0, "turned": 1, "worn": 2}  # how long the drawn points are held: sewing, the turn too, the clip too
+HOLD_SHARE = 1.0  # of the way back to its level a drawn point past it moves each substep while held
 
 
 def arguments():
@@ -100,13 +108,16 @@ def nearest(mesh: wp.uint64, points: wp.array[wp.vec3], reach: float, faces: wp.
 
 
 @wp.kernel
-def drawn(particles: wp.array[wp.int32], axis: int, value: float, share: float, positions: wp.array[wp.vec3]):
-    """Each point moved `share` of the way to `value` along `axis` (GarmentCode's attachment while sewing)."""
+def drawn(particles: wp.array[wp.int32], axis: int, value: float, side: float, share: float,
+          positions: wp.array[wp.vec3]):
+    """Each point past `value` along `axis` moved `share` of the way back to it, a point on its `side` of it left
+    (GarmentCode's attachment: a plane at the level whose normal is `side` along the axis)."""
     index = wp.tid()
     particle = particles[index]
     position = positions[particle]
-    position[axis] = position[axis] + share * (value - position[axis])
-    positions[particle] = position
+    if side * (position[axis] - value) < 0.0:
+        position[axis] = position[axis] + share * (value - position[axis])
+        positions[particle] = position
 
 
 @wp.kernel
@@ -155,7 +166,7 @@ class Garment:
         np.add.at(masses, welded.ravel(), np.repeat(areas / 3.0 * material["density"], 3))
         self.held = np.unique(np.concatenate([record[f"label/{key}"] for key in spec.get("worn", [])]
                                              or [np.zeros(0, int)]))
-        self.holds = [(record[f"label/{hold['label']}"] + self.first, hold["axis"], hold["value"])
+        self.holds = [(record[f"label/{hold['label']}"] + self.first, hold["axis"], hold["value"], hold["side"])
                       for hold in spec.get("holds", [])]
         masses[self.held] = 0.0
         builder.add_particles([tuple(point) for point in self.points], [(0.0, 0.0, 0.0)] * self.count,
@@ -207,10 +218,12 @@ class Outfit:
         self.now, self.next = self.model.state(), self.model.state()
         self.control = self.model.control()
         self.rate, self.substeps = job["rate"], job["substeps"]
-        self.holds = [(wp.array(points.astype(np.int32), dtype=wp.int32), axis, value)
-                      for garment in self.garments for points, axis, value in garment.holds]
+        self.holds = [(wp.array(points.astype(np.int32), dtype=wp.int32), axis, value, side)
+                      for garment in self.garments for points, axis, value, side in garment.holds]
         self.frames_card = wp.array(self.frames.reshape(-1, 3), dtype=wp.vec3)
         self.held = [self.worn_on(garment) for garment in self.garments if len(garment.held)]
+        self.neck = np.asarray(job.get("neck", []), dtype=np.int64)
+        self.holding = HOLDING[job.get("holds_until", "sewn")]
 
     def worn_on(self, garment):
         """Where each held point is worn: the body's nearest surface point to it at the bind, out by the cloth's
@@ -230,9 +243,16 @@ class Outfit:
                 wp.array(self.faces[faces].astype(np.int32), dtype=wp.vec3i), wp.array(weights, dtype=wp.vec3),
                 wp.array(garment.points[garment.held], dtype=wp.vec3), radius)
 
-    def step(self, frame, share, carry, sewing):
+    def moved(self, frame, axis):
+        """How far the body's neck has moved along `axis` from the bind by `frame` (m): a hold's level moves with it."""
+        if not len(self.neck):
+            return 0.0
+        return float(self.frames[frame][self.neck, axis].mean() - self.bind[self.neck, axis].mean())
+
+    def step(self, frame, share, carry, sewing, holding):
         """One substep ending `share` of the way from `frame` to the next: the body there (its mesh's points and
-        velocities, refitted), the held points carried `carry` of the way to the skin, then VBD."""
+        velocities, refitted), the held points carried `carry` of the way to the skin, then VBD; the drawn points
+        drawn while `holding`, the speeds capped while `sewing`."""
         after = min(frame + 1, len(self.frames) - 1)
         wp.launch(skin_at, dim=len(self.bind), inputs=[self.frames_card, len(self.bind), frame, after, share,
                                                         self.rate, self.mesh.points, self.mesh.velocities])
@@ -247,14 +267,17 @@ class Outfit:
         self.now, self.next = self.next, self.now
         if sewing:
             wp.launch(capped, dim=self.model.particle_count, inputs=[self.now.particle_qd, SEW_SPEED])
-            for particles, axis, value in self.holds:
-                wp.launch(drawn, dim=len(particles), inputs=[particles, axis, value, HOLD_SHARE, self.now.particle_q])
+        if holding:
+            after = min(frame + 1, len(self.frames) - 1) if share > 0.0 else frame
+            for particles, axis, value, side in self.holds:
+                wp.launch(drawn, dim=len(particles), inputs=[particles, axis, value + self.moved(after, axis), side,
+                                                             HOLD_SHARE, self.now.particle_q])
 
-    def frame(self, frame, carry=1.0, sewing=False, moving=True):
+    def frame(self, frame, carry=1.0, sewing=False, moving=True, holding=False):
         """Every substep from `frame` to the next (not `moving`: the body held at `frame`)."""
         for number in range(self.substeps):
             share = (number + 1) / self.substeps * moving
-            self.step(frame, share, carry, sewing)
+            self.step(frame, share, carry, sewing, holding or sewing)
 
     def points(self, garment):
         return self.now.particle_q.numpy()[garment.first:garment.first + garment.count].copy()
@@ -287,14 +310,14 @@ def worn(outfit, job, clip_start):
     """The turn from the bind to the clip's first frame, `still_seconds` standing, then the clip: each garment's
     points at each clip frame's end, and the clip's wall seconds."""
     for frame in range(clip_start):
-        outfit.frame(frame)
+        outfit.frame(frame, holding=outfit.holding >= HOLDING["turned"])
     for _ in range(int(job["still_seconds"] * job["rate"])):
-        outfit.frame(clip_start, moving=False)
+        outfit.frame(clip_start, moving=False, holding=outfit.holding >= HOLDING["turned"])
     found = {garment.name: [outfit.points(garment)] for garment in outfit.garments}
     wp.synchronize()
     began = time.monotonic()
     for frame in range(clip_start, len(outfit.frames) - 1):
-        outfit.frame(frame)
+        outfit.frame(frame, holding=outfit.holding >= HOLDING["worn"])
         for garment in outfit.garments:
             found[garment.name].append(outfit.points(garment))
         if not np.isfinite(outfit.now.particle_q.numpy()).all():

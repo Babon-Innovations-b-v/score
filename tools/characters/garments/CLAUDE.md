@@ -16,10 +16,15 @@ runs them (an outfit file per look in `data/people/outfits/`).
 - **Cloth values are the library recipe's row** of `data/physics/cloth.json` (`cloth_material`, the people cloth
   stage's own conversion), never typed here. Solver and contact numbers name their source in `DRAPE`.
 - **GarmentCode's own steps, Newton's solver**: the box mesh's triangles rest at their flat panels, seams sewn by
-  shared points, a waistband's top worn on the skin, a neckline's sides drawn to the neck while sewing
-  (`holds`, GarmentCode's attachments), speeds capped only while sewing.
+  shared points, a waistband's top worn on the skin, a neckline's halves kept inside the planes either side of
+  the neck (`holds`, GarmentCode's attachments: one-sided, a point inside its plane left), speeds capped only while
+  sewing.
 - **Runs on this PC's card through the card queue** (`tools/cloud/backends/card_queue.py`), each step in its own
   Python: the score venv (body, measures, cache), GarmentCode's (`inside/pattern.py`), Newton's
   (`inside/drape.py`), Blender (`inside/render.py`, its missing libSM/libICE from `blender-mcp/libs`).
-- Tests: `test_a_pattern_is_sized_to_the_body_that_wears_it.py` (a toy body of tubes; no GarmentCode, Newton or
-  Blender).
+- **A garment that does not stay seated fails the run** (`seated.py`, owner 2026-11-24: "clothes falling off"):
+  shoulder seams off centre when sewn, a shoulder seam off the shoulder's top or moved over the clip, the neckline
+  fallen below its places on the skin, the body out through the cloth over it; `measures.json` carries each garment's `seating` and its `faults`,
+  and the run exits non-zero after its pictures. Limits are never loosened to pass.
+- Tests: `test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it.py` (a toy body of tubes measured, a toy tee
+  on a toy torso worn each way; no GarmentCode, Newton or Blender).
