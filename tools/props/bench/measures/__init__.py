@@ -18,6 +18,8 @@ asset it was made from, every measure a plain number, each judged at its bar.
     pictured(target, made, fit=None, picture=None)    -> {"size", "shape", "clean", "finish", "labels"}: a model
                                                           with no NVIDIA truth held to its close-up and target size
                                                           alone (the 2099 cockpit cases, #159), at PICTURED_BARS
+    text_read(marks)                                  -> {"read", "misread"}: the share of the close-up's words
+                                                          read back where its look drew them (#185)
 
 `truth` and `made` are plain dicts, metres, Z up: {"vertices" (N, 3), "faces" (T, 3), "face_material" (T,) material
 or part per face, "box" (low, high), "mass" kg, "colliders" [{"vertices", "faces" or None}], "friction" static}; a
@@ -96,6 +98,9 @@ BARS = (
     ("parts", "axis_most", "most", 10.0),
     ("parts", "pivot_most", "most", 0.05),
     ("parts", "range_most", "most", 0.5),
+    # Every text mark of the close-up reads its words where the look drew it (#185, owner's rule: tc4r's sign drew a
+    # garbled "C" for tc3's clean "03" and every measure passed). A word read wrong, or a ? for a glyph not clean, fails.
+    ("look", "read", "least", 1.0),
     ("likeness", "alike", "least", 0.80),
     ("physics", "mass_ratio", "ratio", 1.5),
     ("physics", "colliders", "least", 1),
@@ -147,6 +152,7 @@ PICTURED_BARS = (
     ("finish", "speck_share", "most", 0.0002),
     ("finish", "picks", "least", 0.95),
     ("labels", "held", "least", 1.0),
+    ("look", "read", "least", 1.0),
 )
 
 TWIN_REACH = 0.001  # metres two assets' boxes may differ by and still be one geometry (twin)
@@ -283,6 +289,17 @@ def labels(named, placed):
     printed = {label_words(text) for text in placed}
     missing = [label for label in named if label_words(label) not in printed]
     return {"held": round(1 - len(missing) / len(named), 4), "missing": missing, "placed": sorted(printed)}
+
+
+def text_read(marks):
+    """{"read": the share of `marks` ([{"text": the close-up's words, "read": what was read where the look drew them,
+    None unanswered}], bench/run finish.marks_read) whose words were read back (label_words alike), "misread": each
+    one not}, or None when there is no mark to read."""
+    if not marks:
+        return None
+    misread = [{"text": mark["text"], "read": mark["read"]} for mark in marks
+               if label_words(mark["read"]) != label_words(mark["text"])]
+    return {"read": round(1 - len(misread) / len(marks), 4), "misread": misread}
 
 
 def picks(made, classes, never):

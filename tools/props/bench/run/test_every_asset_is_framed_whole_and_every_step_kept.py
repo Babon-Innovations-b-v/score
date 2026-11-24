@@ -31,6 +31,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.look_holes (#159): the look's background not read -> the box's holes are 100 of the square's pixels, not 200;
   the mesh alone's black not read -> 100, not 200; finish.look_axes: a fixed +z up for the close-up's own -> a
   camera straight down has no frame (NaN axes, the ceiling task light's empty look)
+- finish.marks_read (#185): mark_crop's READ_MARGIN growth dropped -> the crops are the marks' boxes alone (200 x 200,
+  not 260 x 260); an unanswered reading taken as read (`read = None if ...` -> `read = {"text": mark["text"], ...}`)
+  -> the mark nobody read is read as its words; bench.look_step not reading the marks -> no read.json;
+  bench.look_found not reading read.json (`if (looked / "read.json").exists()` -> `if False`) -> the look group holds
+  its holes alone
 - finish.part_spec: a colour setting the variant names none of not filled -> painted_metal's look is drawn with no
   `bare` (the rack's KeyError, #182); a pictured recipe given no clear picture -> printed is drawn with no `image`
 - route_settings.set_spec: the second shade not moved with the list's token (`moved` dropped) -> the grey leather's
@@ -45,6 +50,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   rgba.png has no true alpha; bench.measure_all reading it as a truth -> its truth read is a gap and nothing is measured
 """
 import ast
+import base64
+import io
 import json
 import math
 import pathlib
@@ -198,13 +205,14 @@ def finished_box(tmp_path, monkeypatch, name, model, close_up):
 
 
 def looked(tmp_path, name, view):
-    """The made box's look step (#182) on its finish (finished_box's) with a stand-in look.py: (whether its gap names
-    the missing texels.npz; the masks its job wrote, its first mask's middle texel, its first spec's roughness,
-    its small copy's size, its holes) once the finish's texels name part 0
-    throughout. The stand-in draws the box as a square half the side across, a 10 x 10 hole through the look and a
-    10 x 10 black patch on the mesh alone (#159: its holes 200 of the square's pixels)."""
+    """The made box's look step (#182) on its finish (finished_box's) with a stand-in look.py and a stand-in reader
+    (#185): (whether its gap names the missing texels.npz; the masks its job wrote, its first mask's middle texel, its
+    first spec's roughness, its small copy's size, its holes; the crops read, each its size; read.json) once the
+    finish's texels name part 0 throughout. The stand-in draws the box as a square half the side across, a 10 x 10
+    hole through the look and a 10 x 10 black patch on the mesh alone (#159: its holes 200 of the square's pixels),
+    and two text marks (marks.json)."""
     folder, model = tmp_path / "finish", tmp_path / "made.glb"
-    drawn = []
+    drawn, crops = [], []
 
     def draw(_job_name, arguments, log, script):
         job = json.loads(open(arguments[0]).read())
@@ -217,8 +225,16 @@ def looked(tmp_path, name, view):
         bare[side // 3:side // 3 + 10, side // 3:side // 3 + 10, :3] = 0
         Image.fromarray(look).save(job["out"])
         Image.fromarray(bare).save(job["bare"])
+        marks = [{"text": "03", "box": [100.0, 200.0, 300.0, 400.0]}, {"text": "Patient room", "box": [0, 0, 50, 10]}]
+        (pathlib.Path(job["out"]).parent / "marks.json").write_text(json.dumps(marks))
         open(log, "w").write("drawn\n")
         return 0
+
+    def ask(bodies):
+        for key, body in sorted(bodies.items()):
+            shown = base64.b64decode(body["contents"][0]["parts"][0]["inline_data"]["data"])
+            crops.append(Image.open(io.BytesIO(shown)).size)
+        return {"0": json.dumps({"reason": "clean", "text": "03"}), "1": RuntimeError("no answer")}
     bare = tmp_path / "look-bare"
     bare.mkdir()
     with pytest.raises(RuntimeError) as refused:
@@ -226,14 +242,15 @@ def looked(tmp_path, name, view):
     np.savez(folder / "surfaces-parts" / name / "texels.npz", piece0=np.zeros((4, 4), np.uint16))
     out = tmp_path / "look"
     out.mkdir()
-    bench.look_step(model, folder, {"id": name}, view, draw)(out)
+    bench.look_step(model, folder, {"id": name}, view, draw, ask)(out)
     (job, script), = drawn
     assert script == bench.LOOK and job["eye"] == view["eye"] and job["glb"] == str(model), job
     with Image.open(out / f"look-{bench.LOOK_SMALL}.png") as small:
         size = small.size
+    read = [(mark["text"], mark["read"]) for mark in json.loads((out / "read.json").read_text())]
     return ("no texels.npz" in str(refused.value), sorted(path.name for path in out.glob("mask-*.png")),
             int(np.asarray(Image.open(job["masks"][0]["mask"]))[2, 2]), job["masks"][0]["spec"]["roughness"], size,
-            json.loads((out / "holes.json").read_text())["holes"])
+            json.loads((out / "holes.json").read_text())["holes"], crops, read)
 
 
 RECIPES = pathlib.Path(finish.REPO) / "tools/props/library/recipes.py"
@@ -416,9 +433,15 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
         assert len(side["face_material"]) == len(side["faces"]) and (side["face_material"] >= 0).all()
         assert set(side["surfaces"].values()) <= set(addresses.values()), side["surfaces"]
         assert [(share["same_family"], share["unjudged"]) for share in family] == [(1.0, 0.0), (None, 1.0)], family
+        # The marks read in their boxes grown by READ_MARGIN of the longer side (200 px: 30 each way); the one the
+        # reader left unanswered is read as nothing (#185).
         assert looked(tmp_path, name, view) == (
             True, ["mask-0.png"], 255, 0.4, (bench.LOOK_SMALL, bench.LOOK_SMALL),
-            round(200 / (finish.LOOK_SIDE // 2) ** 2, 5)), name
+            round(200 / (finish.LOOK_SIDE // 2) ** 2, 5),
+            [(260, 260), (57, 17)], [("03", "03"), ("Patient room", None)]), name
+        assert bench.look_found(tmp_path / "look") == {
+            "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "read": 0.5,
+            "misread": [{"text": "Patient room", "read": None}]}
         assert undrawn(tmp_path) == {}, "the look draws every recipe family"
         drawn, own = recoloured_step()
         assert drawn == pytest.approx(own, abs=0.5), (drawn, own)

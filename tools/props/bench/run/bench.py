@@ -698,10 +698,11 @@ def weighed_step(folders, row, material, picture):
     return make
 
 
-def look_step(model, parted, row, camera, draw=queued_blender):
+def look_step(model, parted, row, camera, draw=queued_blender, ask=None):
     """The finish's look as the bake paints it (#182, finish.look_job): the made model whole, each slot's recipe mixed
     by its texel mask on the model's own UVs, drawn by look.py through the card queue from the close-up's `camera`;
-    look.png, its job and masks, and a LOOK_SMALL side copy for a page."""
+    look.png, its job and masks, a LOOK_SMALL side copy for a page, and each text mark read back where it was drawn
+    (finish.marks_read, `ask` a test's: marks.json, read.json; #185)."""
     def make(folder):
         from PIL import Image
         job = finish.look_job(parted, row["id"], model, camera, folder)
@@ -713,6 +714,7 @@ def look_step(model, parted, row, camera, draw=queued_blender):
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
         (folder / "holes.json").write_text(json.dumps({"holes": look_holes(folder / "look.png",
                                                                              folder / "bare.png")}))
+        finish.marks_read(folder, ask)
     return make
 
 
@@ -750,6 +752,7 @@ FINISHED = {"B": "finish"}
 PARTED = {"B": "parts"}
 # Each branch's look step (#182), whose picture the picture judge holds to NVIDIA's render (judged_look, #184)
 # and whose holes (look_holes) the measures judge as `look.holes` (#159).
+# Its text marks read back (read.json, #185) the measures hold to the close-up's words as `look.read`.
 LOOKED = {"B": "look"}
 JOINT_TYPES = {"hinge": "revolute", "spin": "revolute", "slide": "prismatic"}
 
@@ -871,16 +874,27 @@ def old_model(address):
     return "gltf", files[named[0]]
 
 
+def look_found(looked):
+    """The look group of measures.json from a kept look step's folder `looked`: its holes (holes.json) and its text
+    marks read back (read.json, measures.text_read, #185), each where the step wrote it."""
+    from tools.props.bench import measures
+    found = json.loads((looked / "holes.json").read_text()) if (looked / "holes.json").exists() else {}
+    read = measures.text_read(json.loads((looked / "read.json").read_text())) \
+        if (looked / "read.json").exists() else None
+    return {**found, **(read or {})}
+
+
 def written_measures(folder, truth, side, others, made, picture=None, looked=None):
     """measures.json: what was measured, every measure (measures.measured, the picture judge's group `picture` where
-    given, and the look's holes from its look step's folder `looked` where it has them) and its judgement at today's
-    bars."""
+    given, and the look's holes and text marks read back from its look step's folder `looked` where it has them,
+    look_found) and its judgement at today's bars."""
     from tools.props.bench import calibrate, measures
     found = measures.measured(truth, side, others=others)
     if picture is not None:
         found["picture"] = picture
-    if looked is not None and (looked / "holes.json").exists():
-        found["look"] = json.loads((looked / "holes.json").read_text())
+    look = look_found(looked) if looked is not None else {}
+    if look:
+        found["look"] = look
     if side.get("surfaces") is not None and "finish" in found:
         named = [entry["surface"] for entry in measures.by_finish(truth)["materials"]]
         found["family"] = finish.same_family(found["finish"]["pairs"], side["surfaces"], named)
@@ -951,14 +965,18 @@ def pictured_side(model, finished=None, take=None):
             "decals": [decal["text"] for decal in placed if decal.get("text")]}
 
 
-def pictured_measures(folder, row, given, model, side, made):
+def pictured_measures(folder, row, given, model, side, made, looked=None):
     """measures.json of a pictured case's made model: the camera fitted from its outline on the close-up (camera.json
-    beside it, its fit the silhouette), every pictured measure and its judgement at PICTURED_BARS."""
+    beside it, its fit the silhouette), every pictured measure (and its look's from its look step's folder `looked`,
+    look_found) and its judgement at PICTURED_BARS."""
     from tools.props.bench import calibrate, measures
     picture = row["picture"]
     fitted = json.loads(finish.fitted_camera(model, given / "rgba.png", {**row, "size": picture["size"]},
                                              folder).read_text())["fitted"]
     found = measures.pictured(picture["size"], side, fitted["fit"], picture)
+    look = look_found(looked) if looked is not None else {}
+    if look:
+        found["look"] = look
     record = {"truth": {"closeup": picture["closeup"], "size": picture["size"], "size_from": picture["size_from"]},
               "made": made, "found": found, "judged": measures.judged(found, measures.PICTURED_BARS)}
     (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
@@ -980,7 +998,11 @@ def measure_pictured(row, kept, scratch):
             done = FINISHED.get(branch)
             parted = checked_out(kept, asset, branch, done, scratch / branch / f"kept-{done}") \
                 if done and kept_output(kept, asset, branch, done) else None
-            pictured_measures(folder, row, given, model, pictured_side(model, parted, asset), f"{branch} {step}")
+            look = LOOKED.get(branch)
+            looked = checked_out(kept, asset, branch, look, scratch / branch / f"kept-{look}") \
+                if look and kept_output(kept, asset, branch, look) else None
+            pictured_measures(folder, row, given, model, pictured_side(model, parted, asset), f"{branch} {step}",
+                              looked)
         return make
 
     def old_step_of(address):

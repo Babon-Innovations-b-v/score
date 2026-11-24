@@ -5,6 +5,8 @@ straight above, +y up), framed on its own box under the library renders' studio 
 wear 0 and dirt 0: the bench names none. Then the mesh alone (`bare.png`, the job's `bare`): the same model, camera
 and light in one plain white surface, its own vertex normals kept, which the look's holes check reads (bench.py
 look_holes, #159: the printer box's normals turned inward drew black holes through its front).
+The mesh is laid in the model's own frame first (`laid`), as its finish placed the decals and the recipes measure in
+metres; each text decal's box as drawn is written beside the picture (`marks.json`), which the bench reads back (#185).
 
     blender -b -P look.py -- <look.json (finish.look_job's)>
 """
@@ -14,6 +16,7 @@ import pathlib
 import sys
 
 import bpy
+from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Matrix, Vector
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -37,6 +40,38 @@ def look_material(masks):
     material = recipes.masked(entries, recipes.shaded, uv_map="").item()
     material.displacement_method = "BUMP"
     return material
+
+
+def laid(meshes):
+    """Each mesh's own data moved into the model's frame and its object left at none (#185): final.glb's mesh sits
+    under a `fitted` node that turns and scales it, so in its object coordinates the decals (placed in the model's
+    frame) printed on its side, smeared, and the recipes' sizes in metres were drawn a third too large."""
+    for item in meshes:
+        placed = item.matrix_world.copy()
+        item.parent = None
+        item.data.transform(placed)
+        item.data.update()
+        item.matrix_world = Matrix.Identity(4)
+    bpy.context.view_layer.update()  # each bound_box (framed's) read anew
+
+
+def mark_boxes(scene, masks):
+    """[{"text", "box": [left, top, right, bottom] pixels}] of each text decal of the slots' specs as drawn: its four
+    corners (recipes.decal_axes about its `at`, its size) seen through the scene's camera."""
+    side = scene.render.resolution_x
+    found = []
+    for mask in masks:
+        for decal in mask["spec"].get("decals") or []:
+            if not decal.get("text"):
+                continue
+            right, up, _ = recipes.decal_axes(decal)
+            width, height = decal["size_m"]
+            corners = [Vector(decal["at"]) + Vector(right) * (across * width / 2) + Vector(up) * (upward * height / 2)
+                       for across in (-1, 1) for upward in (-1, 1)]
+            seen = [world_to_camera_view(scene, scene.camera, corner) for corner in corners]
+            columns, rows = [point.x * side for point in seen], [(1 - point.y) * side for point in seen]
+            found.append({"text": decal["text"], "box": [min(columns), min(rows), max(columns), max(rows)]})
+    return found
 
 
 def framed(scene, meshes, job):
@@ -78,6 +113,7 @@ def main():
     scene = scene_setup.empty_scene(job["side"], job["samples"])
     bpy.ops.import_scene.gltf(filepath=job["glb"])
     meshes = [item for item in scene.objects if item.type == "MESH"]
+    laid(meshes)
     material = look_material(job["masks"])
     for item in meshes:
         item.data.materials.clear()
@@ -91,6 +127,8 @@ def main():
         item.data.materials.clear()
         item.data.materials.append(bare)
     drawn(scene, job["bare"])
+    marks = pathlib.Path(job["out"]).with_name("marks.json")
+    marks.write_text(json.dumps(mark_boxes(scene, job["masks"]), indent=1))
     print("LOOK", json.dumps({"out": job["out"], "box": box, "slots": [mask["slot"] for mask in job["masks"]]}),
           flush=True)
 

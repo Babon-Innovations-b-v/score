@@ -60,6 +60,9 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
 - **The look by eye** (`picture`, #184): tools/props/bench/judge holds branch B's look to NVIDIA's render and the
   previous round's look (one Claude ask, EUR 0); measures.measured does not compute it, the runner adds the group.
   Its bars: no kind of judge.KINDS at fault, no regression, a drawn look.
+- **The look reads its words** (`text_read`, `look.read` in BARS and PICTURED_BARS, #185; tc4r's sign drew a garbled
+  "C" for tc3's clean "03" and every measure passed): each text mark of the close-up must be read back, as compared
+  by `label_words`, where branch B's look drew it (bench/run finish.marks_read); a misread or unclear glyph fails.
 - Not measured yet: self-intersecting faces (no free exact test at a million faces); the route's own checks
   (straight.py, the model gate's pass, sausage and lump) run in the calibration pass, not here.
 - Check: `test_a_made_model_passes_only_where_it_matches_its_truth.py`, one table of made models against one small

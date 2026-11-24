@@ -32,7 +32,11 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   plain white (`bare.png`) and `holes.json`: `look_holes`, the share of its silhouette the look shows as background or
   the mesh alone black (normals turned into the body, folds), which the measures judge as `look.holes` (#159). A finish with no texels.npz, or texels of several pictures, is the step's gap. Every recipe of
   recipes.py draws: a colour setting a variant names none of is its own colour, a printed or screen surface with no
-  picture draws a clear one (`part_spec`).
+  picture draws a clear one (`part_spec`). look.py lays the mesh in the model's own frame first (`laid`, #185:
+  final.glb's mesh sits under a turned, scaled `fitted` node, and in its object coordinates the decals printed nowhere
+  on the face). Each text mark is then read back where it was drawn (`finish.marks_read`: look.py's `marks.json`,
+  each box grown by READ_MARGIN, asked of Claude on the subscription, EUR 0: no free local OCR is installed here) into
+  `read.json`, which `measure` holds to the close-up's words (`look_found`, measures `look.read`).
 - **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge
   (tools/props/bench/judge) to NVIDIA's render and, with `--previous <run>`, to that run's look of the asset; the
   group `picture` in measures.json.

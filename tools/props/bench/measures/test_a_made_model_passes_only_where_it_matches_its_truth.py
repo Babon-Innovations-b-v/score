@@ -64,6 +64,9 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - __init__.label_words keeping case and spaces: the labels printed "on" and "OFF " miss two.
 - __init__.picks reading the class alone: the rusted metal top passes its picks.
 - __init__.picks counting every part held: the cloth top passes its picks.
+- __init__.text_read counting every mark read (#185: tc4r's sign drew a garbled "C" for "03" and passed): the OFF label
+  drawn garbled passes; label_words(mark["read"]) -> mark["read"]: the labels read "on" and "OFF " fail;
+  ("look", "read") left out of PICTURED_BARS: the garbled label is not judged.
 """
 import functools
 import pathlib
@@ -349,13 +352,17 @@ def leaning(degrees):
 PICTURE = {"labels": ["ON", "OFF"], "classes": ["metal", "plastic"], "never": ["cloth", "rusted_metal"]}
 
 
-def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), material=None):
+def pictured(mesh, fit=0.95, decals=("ON", "OFF"), top=("plastic", "paint"), material=None, read=None):
     """(the made box's pictured measures against SIDES as its target and PICTURE, PICTURED_BARS): its sides part 0 in
-    metal paint, its top part 1 of `top` (class, recipe), its decals' text `decals`."""
+    metal paint, its top part 1 of `top` (class, recipe), its decals' text `decals`, and with `read` ((its words, what
+    its look read there), ...) its look's text marks read back (#185)."""
     parts = top_material(mesh) if material is None else material
     made = {**side(mesh, parts), "classes": {0: "metal", 1: top[0]}, "families": {0: "paint", 1: top[1]},
             "decals": list(decals)}
-    return measures.pictured(SIDES, made, fit, PICTURE), measures.PICTURED_BARS
+    found = measures.pictured(SIDES, made, fit, PICTURE)
+    if read is not None:
+        found["look"] = measures.text_read([{"text": text, "read": seen} for text, seen in read])
+    return found, measures.PICTURED_BARS
 
 
 CASES = [
@@ -448,6 +455,12 @@ CASES = [
     ("pictured: its OFF label not printed", lambda: pictured(box(), decals=("ON",)), "labels.held", False),
     ("pictured: its labels printed on and OFF", lambda: pictured(box(), decals=("on", "OFF ")), "labels.held",
      True),
+    ("pictured: its labels read back where its look drew them", lambda: pictured(
+        box(), read=(("ON", "on"), ("OFF", "OFF "))), "look.read", True),
+    ("pictured: its OFF label drawn garbled", lambda: pictured(box(), read=(("ON", "ON"), ("OFF", "?F?"))),
+     "look.read", False),
+    ("pictured: its look's reading unanswered", lambda: pictured(box(), read=(("ON", "ON"), ("OFF", None))),
+     "look.read", False),
     ("pictured: a cloth top", lambda: pictured(box(), top=("fabric", "cloth")), "finish.picks", False),
     ("pictured: a rusted metal top", lambda: pictured(box(), top=("metal", "rusted_metal")), "finish.picks", False),
 ]

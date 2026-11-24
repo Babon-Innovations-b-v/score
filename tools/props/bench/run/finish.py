@@ -7,6 +7,7 @@ library surface and the measures can hold its finish split against NVIDIA's face
     face_finishes(folder, take)                       # (part a face, each part's surface) of a finished take
     part_looks(folder, take)                          # each part's look as its surface is set on it (#172)
     look_job(folder, take, model, camera, out)        # its look drawn by the texel masks, look.py's job (#182)
+    marks_read(folder, ask=None)                      # each text mark of a drawn look read back (#185)
     surface_look(record)                              # a library surface's own look, from its recipe
 
 **The benchmark place's surface library** is score_lib's surfaces in force as the finish route offers a scene's own
@@ -51,6 +52,16 @@ SEED = 168
 # The look's picture (look_job, look.py): its side and samples, #181's after pictures' (r3edges), a preview that
 # never ships.
 LOOK_SIDE, LOOK_SAMPLES = 1080, 32
+# A text mark of the look is read (marks_read, #185) in its drawn box grown by this share of its longer side each way,
+# so a garbled print beside the words is in the picture read too.
+READ_MARGIN = 0.15
+READ_GREY = 204  # the look's light grey world (look.py WORLD_GREY), behind the crop's clear pixels
+READING = ("This picture is a close crop of a rendered object's surface where printed text should be. Read the printed "
+           "text exactly as it appears, character by character, in reading order on one line. Leave out only print "
+           "that the picture's edge cuts through (it belongs to a neighbouring mark). Write ? for every "
+           "character that is not a clean, legible letter or digit (garbled, broken, blotched or partly missing). "
+           "Never guess or complete a word from what it should say; when nothing legible is printed, answer an "
+           "empty text.")
 
 
 def token_of(linear):
@@ -348,6 +359,62 @@ def part_spec(library, row, colours, decals, out):
     return {**spec, "decals": decals} if decals else spec
 
 
+def mark_crop(picture, box):
+    """A text mark's place in the look (`picture` RGBA, `box` [left, top, right, bottom] pixels) grown by READ_MARGIN
+    of its longer side each way, laid on the look's grey, as PNG bytes."""
+    import io
+    from PIL import Image
+    left, top, right, bottom = box
+    grow = READ_MARGIN * max(right - left, bottom - top)
+    cut = picture.crop((int(max(left - grow, 0)), int(max(top - grow, 0)), int(min(right + grow, picture.width)),
+                        int(min(bottom + grow, picture.height))))
+    laid = Image.new("RGBA", cut.size, (READ_GREY, READ_GREY, READ_GREY, 255))
+    laid.alpha_composite(cut)
+    found = io.BytesIO()
+    laid.convert("RGB").save(found, format="PNG")
+    return found.getvalue()
+
+
+def reading_body(shown):
+    """The ask that reads one mark's crop (`shown`, PNG bytes), as claude_code reads a Gemini generateContent body: the
+    text printed there, never the words it should hold."""
+    import base64
+    schema = {"type": "OBJECT", "properties": {"reason": {"type": "STRING"}, "text": {"type": "STRING"}},
+              "required": ["reason", "text"]}
+    return {"contents": [{"role": "user", "parts": [
+        {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(shown).decode()}}, {"text": READING}]}],
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": schema}}
+
+
+def claude_read(bodies):
+    """{key: the answer's JSON text, or why there is none} of the reading asks, sent to Claude on the subscription
+    side by side (EUR 0)."""
+    from score.adapters.models import claude_code
+    return claude_code.asked(bodies, caller="bench-look-read")
+
+
+def marks_read(folder, ask=None):
+    """read.json in a drawn look's `folder` (#185: the sign's look drew a garbled "C" for "03" and no measure read
+    text): each text mark of look.py's marks.json, its words and its place in look.png, read back by `ask`
+    ({key: body} -> {key: answer JSON text or an exception}; a test's, else Claude's: no free local OCR is installed
+    on this PC). [{"text", "box", "read": what was read there, None when unanswered, "why"}]."""
+    from PIL import Image
+    marks = json.loads((folder / "marks.json").read_text())
+    with Image.open(folder / "look.png") as drawn:
+        picture = drawn.convert("RGBA")
+    answers = (ask or claude_read)({str(number): reading_body(mark_crop(picture, mark["box"]))
+                                    for number, mark in enumerate(marks)}) if marks else {}
+    found = []
+    for number, mark in enumerate(marks):
+        answer = answers[str(number)]
+        read = None if isinstance(answer, Exception) else json.loads(answer)
+        found.append({"text": mark["text"], "box": [round(value, 1) for value in mark["box"]],
+                      "read": None if read is None else read["text"],
+                      "why": repr(answer)[:300] if read is None else read["reason"]})
+    (folder / "read.json").write_text(json.dumps(found, indent=1))
+    return found
+
+
 def clear_picture(out):
     """A one-pixel picture with nothing on it, in `out`: what a printed or screen recipe (scene_library.PICTURED) draws
     for a surface with no picture of its own (score_lib's `surface/printed`, a recipe entry), so its colour shows
@@ -395,7 +462,7 @@ def look_job(folder, take, model, camera, out):
         decals.setdefault(slot_of(rows[decal["part"]]), []).append({
             "image": str(folder / "surfaces-parts" / take / decal["picture"]), "at": z_up(decal["at"]),
             "normal": z_up(decal["normal"]), "up": z_up(decal["up"]), "size_m": decal["size"],
-            "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0),
+            "turn": decal.get("turn", 0.0), "layer": decal.get("layer", 0), "text": decal.get("text"),
             "ink": surface_library.linear(decal["ink_token"]) if decal.get("ink_token") else None})
     slots = sorted({slot_of(row) for row in rows.values()},
                    key=lambda slot: -sum(row["share"] for row in rows.values() if slot_of(row) == slot))
