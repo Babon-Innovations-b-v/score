@@ -57,6 +57,9 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   the runner's), its box against the target, no open edge, crumb or bad face (its largest piece 0.99), the gate's wall at the
   target, its finish edges at the truth's absolute bars, every label of the close-up printed as a decal, its finishes
   of the classes the close-up shows and of no recipe it does not (`never`). The truth-relative bars are not judged.
+- **The look by eye** (`picture`, #184): tools/props/bench/judge holds branch B's look to NVIDIA's render and the
+  previous round's look (one Claude ask, EUR 0); measures.measured does not compute it, the runner adds the group.
+  Its bars: no kind of judge.KINDS at fault, no regression, a drawn look.
 - Not measured yet: self-intersecting faces (no free exact test at a million faces); the route's own checks
   (straight.py, the model gate's pass, sausage and lump) run in the calibration pass, not here.
 - Check: `test_a_made_model_passes_only_where_it_matches_its_truth.py`, one table of made models against one small

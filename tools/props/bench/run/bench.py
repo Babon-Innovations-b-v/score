@@ -5,7 +5,7 @@ step's output kept as a run-store object whose blobs go to the SCORE store bucke
     PROPS_HOME=~/.score-this-pc SCORE_CLOUD=local SCORE_FREE_ONLY=1 .venv/bin/python tools/props/bench/run/bench.py \
         render <set.json> --library <scratch score_lib checkout> [--run <id>] [--only <id> ...]
     ... bench.py route <set.json> --library <...> --run <id> --branch A|B [--only <id> ...]
-    ... bench.py measure <set.json> --library <...> --run <id> [--only <id> ...]
+    ... bench.py measure <set.json> --library <...> --run <id> [--only <id> ...] [--previous <run>]
     ... bench.py index --run <id>        # the run's index stored as an object; its hash
 
 **The set** (data/checks/prop-bench-set.json, the truth step's): {"objects": [{"address", "kind", "split"}]} (or a
@@ -55,7 +55,8 @@ Nothing is taken into score_lib, and the library read is a scratch checkout (--l
 model) read in the truth's frame (glTF's Y up turned to Z up), its mass, colliders and friction from its physics step
 (each branch's `physics`), held to its truth (tools/props/bench/truth) by tools/props/bench/measures (B's faces in their
 finish parts and each part's family against its truth finish's, `family`, where its finish step is kept; its moving
-parts and joints against NVIDIA's, where its parts step is kept), the kind's
+parts and joints against NVIDIA's, where its parts step is kept; its look held by eye to NVIDIA's render and to the
+`--previous` run's look of the asset by the picture judge, tools/props/bench/judge, #184), the kind's
 other set assets laid like it for the rank: kept as the branch's `measures` step, measures.json {truth, made, found,
 judged}, `found` whole so a later bar re-judges it. An overlap target's withdrawn models (the old models of score_lib it
 replaced) are measured the same way at the size they were laid at, branch `old`, one step each (its address).
@@ -727,6 +728,8 @@ MEASURED = {"A": (("finished", "final.glb"), "physics"), "B": (("final", "final.
 FINISHED = {"B": "finish"}
 # Each branch's moving parts step (#177), whose parts and joints the measures hold to NVIDIA's (parted).
 PARTED = {"B": "parts"}
+# Each branch's look step (#182), whose picture the picture judge holds to NVIDIA's render (judged_look, #184).
+LOOKED = {"B": "look"}
 JOINT_TYPES = {"hinge": "revolute", "spin": "revolute", "slide": "prismatic"}
 
 
@@ -847,10 +850,13 @@ def old_model(address):
     return "gltf", files[named[0]]
 
 
-def written_measures(folder, truth, side, others, made):
-    """measures.json: what was measured, every measure (measures.measured) and its judgement at today's bars."""
+def written_measures(folder, truth, side, others, made, picture=None):
+    """measures.json: what was measured, every measure (measures.measured, and the picture judge's group `picture`
+    where given) and its judgement at today's bars."""
     from tools.props.bench import calibrate, measures
     found = measures.measured(truth, side, others=others)
+    if picture is not None:
+        found["picture"] = picture
     if side.get("surfaces") is not None and "finish" in found:
         named = [entry["surface"] for entry in measures.by_finish(truth)["materials"]]
         found["family"] = finish.same_family(found["finish"]["pairs"], side["surfaces"], named)
@@ -858,8 +864,26 @@ def written_measures(folder, truth, side, others, made):
     (folder / "measures.json").write_text(json.dumps(calibrate.plain(record), indent=1))
 
 
-def measure_step(kept, asset, branch, truth, others, scratch):
-    """The branch's made model and its physics read back from the store and measured against the truth."""
+def judged_look(kept, asset, branch, previous, scratch):
+    """The branch's kept look held by the picture judge (tools/props/bench/judge, #184) to NVIDIA's render and to the
+    same asset's look in the `previous` run (a Kept, where it kept one): the measure group "picture", or None where
+    the branch keeps no look."""
+    from tools.props.bench import judge
+    step = LOOKED.get(branch)
+    if not step or not kept_output(kept, asset, branch, step):
+        return None
+    look = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / "look.png"
+    given = checked_out(kept, asset, "input", "render", scratch / "input-judged")
+    before = None
+    if previous is not None and kept_output(previous, asset, branch, step):
+        before = checked_out(previous, asset, branch, step, scratch / branch / f"previous-{step}") / "look.png"
+    words = json.loads((given / "row.json").read_text())["words"]
+    return judge.looked(words, look, given / "rgba.png", before)
+
+
+def measure_step(kept, asset, branch, truth, others, scratch, previous=None):
+    """The branch's made model and its physics read back from the store and measured against the truth; its look
+    judged against NVIDIA's render and the `previous` run's look (judged_look)."""
     def make(folder):
         (step, name), physics = MEASURED[branch]
         model = checked_out(kept, asset, branch, step, scratch / branch / f"kept-{step}") / name
@@ -870,7 +894,8 @@ def measure_step(kept, asset, branch, truth, others, scratch):
         moving = PARTED.get(branch)
         cut = checked_out(kept, asset, branch, moving, scratch / branch / f"kept-{moving}") \
             if moving and kept_output(kept, asset, branch, moving) else None
-        written_measures(folder, truth, made_side(model, held, finished_parts, asset, cut), others, f"{branch} {step}")
+        written_measures(folder, truth, made_side(model, held, finished_parts, asset, cut), others, f"{branch} {step}",
+                         judged_look(kept, asset, branch, previous, scratch))
     return make
 
 
@@ -946,9 +971,10 @@ def measure_pictured(row, kept, scratch):
         run_steps(kept, asset, "old", [(address.split("/", 1)[1], old_step_of(address))], scratch)
 
 
-def measure_all(rows, every, kept, run):
+def measure_all(rows, every, kept, run, previous=None):
     """Each asset's made models (both branches, and the withdrawn ones an overlap target replaced) measured against
-    its truth; `every` (the whole set) gives the kind's other assets, laid like it for the rank. Kept as the
+    its truth; `every` (the whole set) gives the kind's other assets, laid like it for the rank; each look judged
+    against the `previous` run's (a Kept) where given. Kept as the
     `measures` step of A and B, and as branch `old`, one step a withdrawn model; a truth that cannot be read is the
     asset's gap on branch `truth`. A pictured case is held to its close-up and target size (measure_pictured)."""
     from tools.props.bench import truth as bench_truth
@@ -968,7 +994,8 @@ def measure_all(rows, every, kept, run):
             for branch in MEASURED:
                 if kept_output(kept, row["id"], branch, MEASURED[branch][0][0]):
                     run_steps(kept, row["id"], branch,
-                              [("measures", measure_step(kept, row["id"], branch, truth, others, scratch))], scratch)
+                              [("measures", measure_step(kept, row["id"], branch, truth, others, scratch, previous))],
+                              scratch)
             for address in row.get("withdrawn") or []:
                 run_steps(kept, row["id"], "old", [(address.split("/", 1)[1], old_step(address, truth, others))],
                           scratch)
@@ -1074,6 +1101,8 @@ def main():
     parser.add_argument("--run", default=datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S"))
     parser.add_argument("--branch", choices=("A", "B"))
     parser.add_argument("--only", action="append", help="this asset's id alone (repeat)")
+    parser.add_argument("--previous", help="measure: the previous round's run, whose looks the picture judge holds "
+                                           "each look to (#184)")
     options = parser.parse_args()
     kept = opened_kept(options.run)
     if options.command != "index":
@@ -1087,7 +1116,7 @@ def main():
         if options.command == "render":
             render_all(rows, values, kept, options.run)
         elif options.command == "measure":
-            measure_all(rows, every, kept, options.run)
+            measure_all(rows, every, kept, options.run, opened_kept(options.previous) if options.previous else None)
         elif not options.branch:
             raise SystemExit("route needs --branch A or B")
         else:

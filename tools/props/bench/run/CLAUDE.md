@@ -31,6 +31,9 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   `look-360.png`. A finish with no texels.npz, or texels of several pictures, is the step's gap. Every recipe of
   recipes.py draws: a colour setting a variant names none of is its own colour, a printed or screen surface with no
   picture draws a clear one (`part_spec`).
+- **B's measures judge its look** (#184, `judged_look`): the kept look held by the picture judge
+  (tools/props/bench/judge) to NVIDIA's render and, with `--previous <run>`, to that run's look of the asset; the
+  group `picture` in measures.json.
 - **The material class is the route's, never the truth's** (`material_for`: a word of the id, else the kind's
   class), the same for both branches; the truth's physics material is what the measures compare it with.
 - **B's `physics` step is make's physics on its finished model** (#159, #161's rules through maker/sim.py): each

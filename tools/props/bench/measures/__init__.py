@@ -37,6 +37,7 @@ import numpy as np
 import score.stages.props.prop_data as prop_data
 
 from . import _align, _clean, _edges, _finish, _joints, _mesh, _physics, _shape
+from tools.props.bench.judge import KINDS as PICTURE_KINDS
 
 finish_likeness = _finish.finish_likeness
 rested = _physics.rested
@@ -104,6 +105,11 @@ BARS = (
     ("physics", "friction_gap", "most", 0.15),
     ("drop", "rest_up", "most", 10.0),
     ("drop", "rest_height", "most", 0.02),
+    # The picture judge (tools/props/bench/judge, #184): the made look held by eye to NVIDIA's render and the previous
+    # round's look. Each kind of fault at `fault` fails; a `slight` passes. CALIBRATION
+    ("picture", "drawn", "true", None),
+    *(("picture", kind, "most", 0) for kind in PICTURE_KINDS),
+    ("picture", "regressed", "most", 0),
 )
 
 
