@@ -164,7 +164,8 @@ def surface_item(record, defaults):
     if missing:
         return None, f"its surface.json names maps it does not hold: {missing}"
     return {"fetch": fetch_list(record, maps.values()),
-            "surface": {"maps": maps, "constants": surface.get("constants") or {},
+            "surface": {"maps": maps, "constants": {**(surface.get("constants") or {}), **(
+                {"emissiveColor": surface["emission"]} if surface.get("emission") is not None else {})},
                         "transmission": surface.get("transmission"), "metre": surface.get("tile_metres") or 1.0}}, None
 
 

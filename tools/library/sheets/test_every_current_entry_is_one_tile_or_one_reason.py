@@ -5,7 +5,8 @@ Breaks (each applied once, seen red, reverted), in sheets.py: model_file ignorin
 layer is drawn: red); current_entries keeping withdrawn entries (red); prepare sending a kit with no piece to the
 sheets as a failure instead of skipping it (red); result_of taking a render with no result as drawn (red); compose
 leaving a failed render out of index.json's failures (red); surface_item drawing a surface painted for one model on a
-sphere, or leaving a glass's transmission out of its job (red); clip_points scaling the points by the clip's
+sphere, or leaving a glass's transmission out of its job, or drawing an adopted glow's source nits (the LED strip's
+5000) over its `emission` in the recipes' units (#197) (red); clip_points scaling the points by the clip's
 metersPerUnit and not the widths (the puff's points lie inside one puff: red); effect_item sending a baked clip's
 mesh to the machine as clip.usdc, which Blender opens at a frame with no mesh (red).
 """
@@ -45,7 +46,8 @@ def clip(path, shape):
 def drawn(item):
     """What the machine draws an item from: its first file's name, its particles, or its glass's shader."""
     if "surface" in item:
-        return (item["surface"]["transmission"] or {}).get("shader")
+        glow = item["surface"]["constants"].get("emissiveColor")
+        return (item["surface"]["transmission"] or {}).get("shader") or (f"glow {max(glow)}" if glow else None)
     return pathlib.Path(item["show"]["files"][0]).name if item["show"]["files"] else "particles"
 
 
@@ -71,6 +73,8 @@ CASES = [
     (entry("surface", "glass", ["surface.json"], record={"tiling": True, "maps": {}, "constants": {"opacity": 1.0},
                                                          "transmission": {"shader": "OmniGlass", "weight": 1.0}}),
      "OmniGlass", "ok", "drawn"),
+    (entry("surface", "lamp", ["surface.json"], record={"tiling": True, "maps": {}, "constants": {
+        "emissiveColor": [5000.0, 4955.6, 2062.7]}, "emission": [0.5, 0.49554, 0.20626]}), "glow 0.5", "ok", "drawn"),
     (entry("effect", "steam", ["clip.usdc", "settings.json"], clip="puff"), "particles", "ok", "drawn"),
     (entry("effect", "pour", ["clip.usdc", "settings.json"], clip="mesh"), "effect__pour_1.ply", "ok", "drawn"),
     (entry("concept", "cockpit", ["concept.png", "concept.json"]), None, None, "drawn"),
