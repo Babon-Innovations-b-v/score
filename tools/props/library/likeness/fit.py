@@ -161,8 +161,11 @@ def described(surface, names):
     texture files `names` by their roles), its tile metres ("surface.json"; None when it says it does not know, so
     `fitted` fits it, from None; TILE_METRES "assumed" when it says nothing), its normal convention ("opengl" unless it says
     "directx"), with no albedo map its constant colour (its `constants` diffuseColor, linear as USD holds it; else
-    None) and, with no emission map, its constant glow (its `constants` emissiveColor, linear, its intensity in its
-    size as USD holds it: (5, 5, 5) is white given off five times over; else None), and its constant roughness,
+    None) and, with no emission map, its constant glow in the recipes' units (an adopted set's `emission`, score_lib's
+    take-in's conversion of its source's nits, #197; else its `constants` emissiveColor, linear, its intensity in its
+    size as USD holds it: (5, 5, 5) is white given off five times over; else None; an adopted surface whose constants
+    give an emissiveColor and no `emission` is refused, its source's nits being no recipe strength: the LED strip's
+    5000 drew a push button's cap blown white), and its constant roughness,
     metal and opacity (CONSTANT_MEASURES, {measure: value}, only those it writes; a map of the same measure stands
     over its constant in `statistics`; a glass's transmission colour and roughness over its constants, as its look),
     and how it lets light through (see_through_of):
@@ -190,7 +193,10 @@ def described(surface, names):
         constants = {**constants, "diffuseColor": glass.get("colour", constants.get("diffuseColor")),
                      "roughness": glass.get("roughness", constants.get("roughness"))}
     constant = None if "albedo" in found else constants.get("diffuseColor")
-    glow = None if "emission" in found else constants.get("emissiveColor")
+    if surface.get("source") and constants.get("emissiveColor") and "emission" not in surface:
+        raise ValueError("an adopted surface's emissiveColor is its source's nits, and its surface.json gives no "
+                         "`emission` in the recipes' units (score-lib adopted glow)")
+    glow = None if "emission" in found else surface.get("emission", constants.get("emissiveColor"))
     return {"maps": found, "tile_metres": tile[0], "tile_metres_from": tile[1], "normal_convention": convention,
             "albedo_colour": None if constant is None else [float(value) for value in constant],
             "emission_colour": None if glow is None else [float(value) for value in glow],
@@ -481,6 +487,7 @@ def statistics(maps, tile_metres, normal_convention="opengl", albedo_colour=None
     measured["glow"] = 1.0 if "emission" in maps else float(max(strongest, 0.0))
     measured["glow_hue"] = ([float(value) / strongest for value in emission_colour]
                             if "emission" not in maps and strongest > 0 else None)
+    measured["unlit"] = emission_colour is not None and "emission" not in maps and strongest <= 0
     return measured
 
 
@@ -513,7 +520,10 @@ def family_of(name, measured):
     """The recipe family a material's name says (FAMILY_WORDS; a family drawn with no metal, UNMETALLED, yields to a
     metal over METAL_MEAN, which the map side draws as metal), else by its metal and roughness means: (family,
     "name" | "measures"); a name saying only "metal" its finish by its maps (generic_metal). A surface that gives off
-    light is glowing whatever its name (a glass lamp lens fitted as glass drew no light beside its map side's glow);
+    light is glowing whatever its name (a glass lamp lens fitted as glass drew no light beside its map side's glow),
+    and one whose stated emission is none (`unlit`: a constant of zero, an adopted set's under one 8-bit step in the
+    recipes' units) is not, whatever its name (#197: NVIDIA's black LEDs, emissive_leds, drawn as black plastic in its
+    own render, offered as a glowing LED strip);
     one that lets light through (its opacity under 1) and is no cutout (cutout_of: a perforated metal stays metal) is
     glass, the one family drawn see-through (a clear plastic fitted as plastic was opaque beside its maps'
     see-through pane); a
@@ -522,13 +532,14 @@ def family_of(name, measured):
     its dents' size is not read from the maps (a relief's half width read 39 plastics' slow swells, 0.1 to 3 m, as
     dents, 2026-11-23)."""
     lowered = name.lower()
-    said = next((family for word, family in FAMILY_WORDS if says(word, lowered)), None)
+    words = [(word, family) for word, family in FAMILY_WORDS if not (family == "glowing" and measured.get("unlit"))]
+    said = next((family for word, family in words if says(word, lowered)), None)
     if measured.get("glow", 0.0) > 0 and said != "glowing":
         return "glowing", "measures"
     if measured.get("opacity") is not None and measured["opacity"] < 1.0 and said != "glass" and \
             not measured.get("cutout"):
         return "glass", "measures"
-    for word, family in FAMILY_WORDS:
+    for word, family in words:
         if says(word, lowered):
             if family in UNMETALLED and measured["metal"] > METAL_MEAN:
                 return metal_by_roughness(measured), "measures"

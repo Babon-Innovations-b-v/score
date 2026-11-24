@@ -72,4 +72,8 @@ same, so a place can draw it either way. Bible: `architecture/components`; gloss
   `fit.described` carries a surface's glow (`emission_colour`, its constant emissiveColor, linear, its intensity in
   its size; none beside an emission map, which the map side draws itself, as USD draws a connected input) and the map
   side draws it: rerun the same day, the emissive white (55f5469a, emissiveColor 5) passes in one render, both sides
-  a flat glowing white (cell colour 0, detail 1.0 in both views).
+  a flat glowing white (cell colour 0, detail 1.0 in both views). That pass was a fault both sides shared: NVIDIA's
+  emissiveColor is its colour times its intensity in nits, so both sides drew the LED strip's 5000 blown white and a
+  push button's cap finished in it was white (#197). An adopted surface's glow is now its surface.json `emission`,
+  score_lib's take-in's conversion into the recipes' units (`score-lib adopted glow` for the ones already in); one
+  without it is refused, and an emission of none (NVIDIA's black LEDs) is no glow whatever its emissive name.

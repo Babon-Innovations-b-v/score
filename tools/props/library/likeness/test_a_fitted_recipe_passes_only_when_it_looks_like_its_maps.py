@@ -34,6 +34,10 @@ Blender and the card: it is proven by a run on this PC's card, see the overlay).
 - the constant colour row has no albedo map: its colour is its surface.json's constant diffuseColor, linear 0.1845;
 - the glow rows are an emissive white: its constant emissiveColor (5, 5, 5) is carried as the map side's glow, unless
   an emission map feeds the glow (USD draws a connected input, never its constant): then the map, and no constant;
+- the adopted glow rows are an adopted set's (its surface.json names its `source`): its emissiveColor is its
+  source's nits (5000), drawn as a strength the push button's cap blew white (#197), so its glow is its `emission`,
+  score_lib's take-in's conversion into the recipes' units (0.5), and with no `emission` it is refused; NVIDIA's
+  black LEDs (0.0077 nits, none in the recipes' units) are a plastic whatever their emissive name;
 - the see-through rows' backdrop is squares of sRGB 0 and 255 (L 0 and 100): a pane showing the same squares shows
   all of it (1), a flat grey none (0); squares of sRGB 119 and 255 (L 49.97 and 100) half (0.5003): beside a flat
   recipe pane the recipe shows 0.4997 less, past the check's 0.08, and its opacity 0.8 is made that much clearer,
@@ -72,7 +76,9 @@ Breaks (each applied once, seen red, reverted, 2026-11-22):
 - fit.described: `albedo_colour` always None (the constant colour row has no albedo: KeyError).
 - fit.described: `emission_colour` always None (the constant glow row loses its five-times white), or the constant
   read even beside an emission map (the emission map row glows twice); fit.ROLE_WORDS without "emission" (the
-  emission map row's emission.png reads no role).
+  emission map row's emission.png reads no role); its `emission` not read (the adopted glow row glows 5000 times
+  over), or an adopted surface's nits let through (the refused row fits); fit.family_of reading an emissive name
+  over an emission of none (the black LEDs glow).
 - fit.described: `constants` always {} (the glass constants row keeps glass's 0.05 roughness and 0.2 opacity, the
   metal constants row metal 0), or statistics' UNSAID_ROUGHNESS read as the family's default (the cotton row 0.85).
 - measure.roughness_step: the secant dropped (the dim highlight row steps 0.04 smoother, 0.36, not 0.6), or
@@ -312,6 +318,23 @@ ROWS = [
       "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5.0, 5.0, 5.0]}},
      (solid((255,) * 3), solid((255,) * 3)),
      seen("glowing", "name", 1.0, 0.4, None, None, True, ([5.0, 5.0, 5.0], False))),
+    ("an adopted glow, its source's nits in the recipes' units", "m_opaque_plastic_emissive_led_strip_light_a01",
+     {"normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 0))},
+     {"source": "nvidia_simready", "maps": {"normal": "normal.png", "orm": "orm.png"}, "tile_metres": 1.0,
+      "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5000.0, 5000.0, 5000.0]},
+      "emission": [0.5, 0.5, 0.5]}, (solid((255,) * 3), solid((255,) * 3)),
+     {"recipe": "glowing", "glow": ([0.5, 0.5, 0.5], False), "glow_strength": 0.5}),
+    ("an adopted emission of none is no glow, whatever its name", "m_opaque_plastic_emissive_leds_a01",
+     {"normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 0))},
+     {"source": "nvidia_simready", "maps": {"normal": "normal.png", "orm": "orm.png"}, "tile_metres": 1.0,
+      "constants": {"diffuseColor": [0.01, 0.01, 0.01], "emissiveColor": [0.0077, 0.0077, 0.0077]},
+      "emission": [0.0, 0.0, 0.0]}, (solid((3,) * 3), solid((3,) * 3)),
+     {"recipe": "plastic", "glow_strength": None}),
+    ("an adopted glow in its source's nits is refused", "m_opaque_plastic_emissive_led_strip_light_a01",
+     {"normal.png": solid(FLAT_NORMAL)},
+     {"source": "nvidia_simready", "maps": {"normal": "normal.png"}, "tile_metres": 1.0,
+      "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5000.0, 5000.0, 5000.0]}},
+     (solid((255,) * 3), solid((255,) * 3)), {"refused": "an adopted surface's emissiveColor is its source's nits"}),
     ("an emission map by its file name, over a constant glow", "m_opaque_plastic_emissive_white_a01",
      {"emission.png": solid((255,) * 3), "normal.png": solid(FLAT_NORMAL), "orm.png": solid((255, 102, 0))},
      {"tile_metres": 1.0, "constants": {"diffuseColor": [1.0, 1.0, 1.0], "emissiveColor": [5.0, 5.0, 5.0]}},
@@ -508,7 +531,11 @@ ROWS = [
 @pytest.mark.parametrize("name, material, maps, surface, pictures, expected", ROWS, ids=[row[0] for row in ROWS])
 def test_a_fitted_recipe_passes_only_when_it_looks_like_its_maps(tmp_path, name, material, maps, surface, pictures,
                                                                   expected):
-    found = written(tmp_path, maps, surface)
+    try:
+        found = written(tmp_path, maps, surface)
+    except ValueError as why:
+        assert {"refused": str(why)[:len(expected.get("refused", ""))]} == expected, name
+        return
     made = fit.fitted(material, found["maps"], found["tile_metres"], normal_convention=found["normal_convention"],
                       albedo_colour=found["albedo_colour"], constants=found["constants"],
                       emission_colour=found["emission_colour"], see_through=found["see_through"])
