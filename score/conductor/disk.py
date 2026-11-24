@@ -840,6 +840,9 @@ def clean_kept(home=None, runs_folder=None, runner=None, systems=None, say=print
 
 SHA = re.compile(rb"[0-9a-f]{64}")
 SCAN_SKIPPED = {".git", ".venv", "node_modules", "__pycache__"}
+# tools/cloud/kept.py file_hash's memo: one record a file version, its sha256, so a file is not hashed twice; it reads
+# no blob, and naming one keeps nothing (2026-11-24: its 140,828 records held 114,604 blobs on this PC past the cap).
+HASH_MEMO = "store/kept/hashes"
 CHUNK = 8 * 1024 ** 2
 GC_YOUNG_SECONDS = 24 * 3600  # a blob this new may be one a write in progress (a put_tree, a concept) names next
 
@@ -872,11 +875,11 @@ def unread(path):
 
 def named_outside(home, repo, blobs, also=()):
     """Every 64-hex word any file or link under `home` and the checkout's data names, the blobs themselves, the prop
-    environment, checkouts (links to blobs, read through their listings), git and venv folders and the folders `also`
-    names left out."""
+    environment, checkouts (links to blobs, read through their listings), the kept jobs' hash memo (HASH_MEMO), git
+    and venv folders and the folders `also` names left out."""
     found = set()
     skipped = {blobs.resolve(), (home / "env").resolve(), (home / "store/cache/checkouts").resolve(),
-               *(pathlib.Path(folder).resolve() for folder in also)}
+               (home / HASH_MEMO).resolve(), *(pathlib.Path(folder).resolve() for folder in also)}
     for root in (home, repo / "data"):
         for folder, folders, files in os.walk(root):
             folders[:] = [name for name in folders if name not in SCAN_SKIPPED

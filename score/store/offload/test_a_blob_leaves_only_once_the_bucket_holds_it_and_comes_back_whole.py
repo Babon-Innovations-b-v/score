@@ -11,6 +11,8 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.FolderBucket.put_new / Bucket.put_new: a taken key overwritten instead of refused (the 412 is gone).
 - disk.evict_why: drop the `st_nlink > 1` check (a checkout's linked blob evicted), or evict_keep: drop the standing
   outputs' listings (an accepted output the next run reads evicted).
+- disk.named_outside: drop HASH_MEMO from its skipped folders (a blob kept.py's hash memo names stays local for good;
+  this PC's capped store kept 114,604 so, 2026-11-24).
 - offload.fetching_path: return PLAIN_PATH at once (an evicted blob is never fetched; the checkout fails), or
   missing_sha's miss asked only when marked (a PC that pulled a listing without its blob cannot read it: red).
 - offload.install: drop the as_a_write wrap of Store.put_blob (a new blob's write asks the bucket; a bucket that
@@ -110,6 +112,9 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
         {"output": outputs["standing"][0], "at": "2026-11-04T00:00:00+00:00", "by": "runner"}))
     (home / "design").mkdir()
     (home / "design" / "plan.json").write_text(json.dumps({"picture": outputs["designed"][1]}))
+    memo = home / disk.HASH_MEMO / "0d8b71ba"  # kept.py's hash memo names a blob it never reads: it keeps nothing
+    memo.parent.mkdir(parents=True)
+    memo.write_text(json.dumps({"raw": outputs["free"][1], "clean": [str(home)]}))
 
     dry = disk.store_evict(home, dry=True, repo=tmp_path / "repo", say=lambda line: None)
     assert dry["refused"] is None and dry["evicted"] == 4 and dry["sent"] == 0, dry  # free, lost, clash, bad
