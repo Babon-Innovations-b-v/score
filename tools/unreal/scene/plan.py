@@ -11,10 +11,11 @@ writes <into>/plan.json and the textures to import under <into>/textures, and pr
     basis              frames' BASIS every point and turn below was made with (editor.py measures the import's own)
     textures           [{name, file, srgb, normal}]: looks.written_textures
     materials          [{name, surface, master, vectors, scalars, two_sided, textures}]: one a distinct look
-    meshes             [{object, file, character, nanite, slots {glTF material name: material}}]
+    meshes             [{object, file, character, nanite, parts, slots {glTF material name: material}}]: parts the
+                       glTF's mesh nodes, the most mesh assets its import may give (it may combine them)
     actors             [{name, object, kind, character, transform {location, rotation, scale}, plays}]
     lamps              [{name, location, lumens, radius, colour}]
-    environment        {sun, moon, sky, exposure_bias, ambient, grade}: layout.environment
+    environment        {sun, moon, sky, exposure_bias, ambient, grade}: layout.environment, a night's sky its ambient
     camera             camera.keys of the film path, or null
     left_out           scene.json's
 """
@@ -57,7 +58,7 @@ def meshes_and_materials(package, scene, textures):
             materials.setdefault(instance["name"], instance)
         character = about.get("kind") == "character"
         meshes.append({"object": name, "file": str(gltf), "character": character,
-                       "nanite": not character and looks.solid(gltf), "slots": slots})
+                       "nanite": not character and looks.solid(gltf), "parts": looks.mesh_nodes(gltf), "slots": slots})
     return meshes, materials
 
 
@@ -75,7 +76,7 @@ def planned(package, into, path=None, basis=frames.BASIS):
             "textures": looks.written_textures(textures, into),
             "materials": [materials[name] for name in sorted(materials)], "meshes": meshes,
             "actors": layout.actors(scene, basis), "lamps": layout.lamps(scene, basis),
-            "environment": layout.environment(scene, package, basis),
+            "environment": layout.lit_by_ambient(layout.environment(scene, package, basis), into),
             "camera": camera.keys(path, basis) if path else None, "left_out": scene.get("left_out", [])}
 
 

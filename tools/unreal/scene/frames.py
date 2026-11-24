@@ -3,8 +3,10 @@
 
 How the glTF import turns a mesh is measured, not assumed: the editor imports a box from the origin to (1, 2, 3)
 metres (calibration_gltf) and reads its bounds (basis_from_bounds), every turn then made with that BASIS. BASIS here is
-the expected one (glTF's ahead, -z, Unreal's +x; its right, +x, Unreal's +y; its up, +y, Unreal's +z), what a plan
-written outside Unreal uses. Plain Python with no numpy: Unreal's own Python runs it.
+the expected one, what a plan written outside Unreal uses: Interchange's glTF import as UE 5.8 measured it (#222, run
+8: the box read 1 m along Unreal's x, 3 m along its y, 2 m along its z), glTF's +x Unreal's +x, its +z Unreal's +y,
+its up, +y, Unreal's +z (a mirror, as a right-handed frame into a left-handed one must be; glTF's ahead, -z, is then
+Unreal's -y). Plain Python with no numpy: Unreal's own Python runs it.
 """
 import base64
 import json
@@ -12,7 +14,7 @@ import math
 import struct
 
 CENTIMETRES = 100.0  # Unreal's units a metre
-BASIS = ((0, 0, -1), (1, 0, 0), (0, 1, 0))  # row i: Unreal's axis i from a glTF point's (x, y, z)
+BASIS = ((1, 0, 0), (0, 0, 1), (0, 1, 0))  # row i: Unreal's axis i from a glTF point's (x, y, z)
 CALIBRATION = (1.0, 2.0, 3.0)  # metres: the calibration box's far corner, each axis its own length
 
 

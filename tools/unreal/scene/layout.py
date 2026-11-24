@@ -6,7 +6,10 @@ it.
 Light units: scene.json's `strength` is Blender's (watts, a sun's W/m²), as the final render lights with it; Unreal
 lights in lumens and lux. LUMENS_A_WATT (the luminous efficacy of 555 nm light) turns one into the other, and the
 manual exposure divides it back out, so a pixel reads as Blender's; both are assumptions the side-by-side test (#218)
-measures against Blender's frames.
+measures against Blender's frames. What Unreal reads as a luminance (a sky light's picture, a look's glow) is
+therefore Blender's radiance times LUMENS_A_WATT too, or the exposure leaves it 683 times too dark (#222, run 8: the
+glows barely showed). A place with no sky picture (a night's) is lit by its ambient as Blender's world colour lights
+it: a sky light of one even colour (ambient_sky).
 """
 import math
 
@@ -49,16 +52,45 @@ def directional(body, basis):
 
 
 def environment(scene, package, basis):
-    """The place's sky and light for Unreal: {sun, moon, sky {file, turn, strength} or null, exposure_bias (EV, Unreal's
-    manual exposure: Blender's exposure with LUMENS_A_WATT divided back out), ambient, grade (scene.json's, its file
-    under the package)}."""
+    """The place's sky and light for Unreal: {sun, moon, sky {file, turn, strength (Unreal's units)} or null,
+    exposure_bias (EV, Unreal's manual exposure: Blender's exposure with LUMENS_A_WATT divided back out), ambient,
+    grade (scene.json's, its file under the package)}."""
     found = scene.get("environment") or {}
     sky = found.get("sky")
     night = found.get("night") or {}
     return {"sun": directional(found["sun"], basis) if found.get("sun") else None,
             "moon": directional(night["moon"], basis) if night.get("moon") else None,
-            "sky": {"file": str(package / sky["file"]), "turn": sky.get("turn", 0.0), "strength": sky.get("strength", 1.0)}
-            if sky and sky.get("file") else None,
+            "sky": {"file": str(package / sky["file"]), "turn": sky.get("turn", 0.0),
+                    "strength": sky.get("strength", 1.0) * LUMENS_A_WATT} if sky and sky.get("file") else None,
             "exposure_bias": math.log2(float(found.get("exposure", 1.0)) / LUMENS_A_WATT),
             "ambient": found.get("ambient"),
             "grade": dict(found["grade"], file=str(package / found["grade"]["file"])) if found.get("grade") else None}
+
+
+def rgbe(colour):
+    """One Radiance pixel (RGBE) of a linear colour."""
+    largest = max(colour)
+    if largest < 1e-32:
+        return bytes(4)
+    mantissa, exponent = math.frexp(largest)
+    scale = mantissa * 256.0 / largest
+    return bytes([int(value * scale) for value in colour] + [exponent + 128])
+
+
+def ambient_sky(colour, path, width=64):
+    """An even sky of the ambient `colour` written at `path` as a long-lat Radiance picture (width by width / 2, as
+    Unreal imports one as a cube map); the path."""
+    height = width // 2
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(f"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y {height} +X {width}\n".encode()
+                     + rgbe(colour) * (width * height))
+    return path
+
+
+def lit_by_ambient(environment, into):
+    """The environment with its sky made from its ambient (ambient_sky, under `into`) when it has no sky picture: a
+    night's dome lights Blender's frame though it shows no picture; unchanged otherwise."""
+    if environment["sky"] or not environment["ambient"]:
+        return environment
+    file = ambient_sky([float(value) for value in environment["ambient"]], into / "ambient_sky.hdr")
+    return dict(environment, sky={"file": str(file), "turn": 0.0, "strength": LUMENS_A_WATT})

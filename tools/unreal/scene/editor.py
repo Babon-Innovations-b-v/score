@@ -40,8 +40,9 @@ BLENDS = {"solid": unreal.BlendMode.BLEND_OPAQUE, "masked": unreal.BlendMode.BLE
 
 
 def combining():
-    """Interchange's generic assets pipeline with an object's meshes combined into one (its nodes' transforms baked
-    in): a package's glTF is one object, often of several nodes, and an actor is one mesh."""
+    """Interchange's generic assets pipeline asked to combine an object's meshes into one (its nodes' transforms
+    baked in). UE 5.8 still gave one asset a mesh node (#222, run 8), so an object may come in as several parts
+    (parts_of), each laid at the object's transform."""
     pipeline = unreal.InterchangeGenericAssetsPipeline()
     meshes = pipeline.get_editor_property("mesh_pipeline")
     meshes.set_editor_property("combine_static_meshes_behavior", unreal.InterchangeCombineStaticMeshesBehavior.ALL)
@@ -71,6 +72,16 @@ def only(found, kind, what):
         raise RuntimeError(f"{what}: {len(assets)} {kind.__name__} assets imported, one expected "
                            f"({[asset.get_path_name() for asset in assets][:6]})")
     return assets[0]
+
+
+def parts_of(found, kind, what, most):
+    """The assets of `kind` among an import's assets, the object's parts: at least one and at most `most` (its
+    glTF's mesh nodes, plan.py's `parts`); refused otherwise, naming what came."""
+    assets = [asset for asset in found if isinstance(asset, kind)]
+    if not 1 <= len(assets) <= max(most, 1):
+        raise RuntimeError(f"{what}: {len(assets)} {kind.__name__} assets imported, 1 to {max(most, 1)} expected "
+                           f"({[asset.get_path_name() for asset in assets][:6]})")
+    return assets
 
 
 def measured_basis(into):
@@ -201,11 +212,18 @@ def slot_look(slots, slot_name, what):
 
 
 def mesh_made(mesh, place, instances):
-    """One object's glTF imported (a Static Mesh, Nanite when the plan says; a character's a Skeletal Mesh), each
-    material slot wearing its look's instance; the mesh asset."""
+    """One object's glTF imported (Static Meshes, Nanite when the plan says; a character's Skeletal Meshes, sharing
+    one skeleton, standing unposed until its plays are keyed), each part's material slots wearing their looks'
+    instances; the parts' mesh assets."""
     found = imported([mesh["file"]], f"{ROOT}/{place}/Objects/{mesh['object']}", combining())[0]
-    asset = only(found, unreal.SkeletalMesh if mesh["character"] else unreal.StaticMesh, mesh["object"])
     slots = {plain(slot): instances[look] for slot, look in mesh["slots"].items()}
+    return [part_made(asset, mesh, slots) for asset in parts_of(
+        found, unreal.SkeletalMesh if mesh["character"] else unreal.StaticMesh, mesh["object"], mesh["parts"])]
+
+
+def part_made(asset, mesh, slots):
+    """One imported part of an object: its material slots wearing their looks' instances (Nanite on a Static Mesh
+    when the plan says), saved; the asset."""
     if mesh["character"]:
         materials = asset.get_editor_property("materials")
         for material in materials:
@@ -223,8 +241,15 @@ def mesh_made(mesh, place, instances):
     return asset
 
 
-def placed(actor_plan, asset, place):
-    """One copy spawned: its object's mesh at its laid transform, labelled by its name, in the place's folder.
+def placed(actor_plan, assets, place):
+    """One copy spawned: an actor a part of its object (placed_part), each at the copy's laid transform."""
+    for asset in assets:
+        placed_part(actor_plan, asset, place, actor_plan["name"] if len(assets) == 1
+                    else f"{actor_plan['name']}_{asset.get_name()}")
+
+
+def placed_part(actor_plan, asset, place, label):
+    """One part of a copy spawned: its mesh at the copy's laid transform, labelled `label`, in the place's folder.
 
     A Static Mesh goes in as an empty StaticMeshActor given its mesh after the spawn, so the spawn never tests the
     mesh's collision against what is already laid: spawn_actor_from_object returned None for 11 wall-mounted copies
@@ -247,7 +272,7 @@ def placed(actor_plan, asset, place):
         raise RuntimeError(f"the editor spawned no actor for {asset.get_path_name()} at {list(transform['location'])} "
                            f"turned {list(transform['rotation'])}")
     actor.set_actor_scale3d(unreal.Vector(transform["scale"], transform["scale"], transform["scale"]))
-    actor.set_actor_label(actor_plan["name"])
+    actor.set_actor_label(label)
     actor.set_folder_path(f"Score/{place}")
     return actor
 
@@ -260,10 +285,18 @@ def spawned(kind, location=(0.0, 0.0, 0.0), rotation=None):
         kind, unreal.Vector(*location), turn)
 
 
+def movable(actor):
+    """A light's actor made Movable (Lumen lights it with no built lighting, and a Stationary light past four
+    overlapping loses its shadows); its light component."""
+    light = actor.get_editor_property("light_component")
+    light.set_mobility(unreal.ComponentMobility.MOVABLE)
+    return light
+
+
 def lamps_laid(lamps):
     """Every lamp a point light in lumens at its spot, radius and colour."""
     for lamp in lamps:
-        light = spawned(unreal.PointLight, lamp["location"]).get_editor_property("light_component")
+        light = movable(spawned(unreal.PointLight, lamp["location"]))
         light.set_editor_property("intensity_units", unreal.LightUnits.LUMENS)
         light.set_intensity(lamp["lumens"])
         light.set_editor_property("source_radius", lamp["radius"])
@@ -274,21 +307,23 @@ def bodies_laid(environment):
     """The sun and the moon each a directional light in lux, turned to shine from where it stands."""
     for body in (environment["sun"], environment["moon"]):
         if body:
-            light = spawned(unreal.DirectionalLight, rotation=body["rotation"]).get_editor_property("light_component")
+            light = movable(spawned(unreal.DirectionalLight, rotation=body["rotation"]))
             light.set_intensity(body["lux"])
             light.set_light_color(unreal.LinearColor(*body["colour"], 1.0))
             light.set_editor_property("light_source_angle", body["angle"])
 
 
 def sky_laid(sky, place):
-    """The sky's picture imported as a cube map and laid as the sky light, turned and at its strength."""
+    """The sky's picture (a night's its even ambient) imported as a cube map and laid as the sky light, turned and at
+    its strength (Unreal's units, layout.environment), captured."""
     cube = next(asset for asset in imported([sky["file"]], f"{ROOT}/{place}/Sky")[0]
                 if isinstance(asset, unreal.TextureCube))
-    light = spawned(unreal.SkyLight).get_editor_property("light_component")
+    light = movable(spawned(unreal.SkyLight))
     light.set_editor_property("source_type", unreal.SkyLightSourceType.SLS_SPECIFIED_CUBEMAP)
     light.set_editor_property("cubemap", cube)
     light.set_editor_property("source_cubemap_angle", sky["turn"])
     light.set_intensity(sky["strength"])
+    light.recapture_sky()
 
 
 def exposure_set(bias):
@@ -420,7 +455,8 @@ def main(arguments):
                "sequence": planning.sequence_path(made["place"]) if made["camera"] else None,
                "measured_basis": [list(row) for row in basis], "expected_basis": [list(row) for row in frames.BASIS],
                "basis_as_expected": [list(row) for row in basis] == [list(row) for row in frames.BASIS],
-               "meshes": sum(mesh is not None for mesh in meshes.values()), "actors": len(made["actors"]),
+               "meshes": sum(mesh is not None for mesh in meshes.values()),
+               "parts": sum(len(mesh) for mesh in meshes.values() if mesh is not None), "actors": len(made["actors"]),
                "materials": sum(look is not None for look in instances.values()), "textures": len(textures),
                "lamps": len(made["lamps"]), "left_out": made["left_out"], "faults": faults}
     (into / "made.json").write_text(json.dumps(summary, indent=1))

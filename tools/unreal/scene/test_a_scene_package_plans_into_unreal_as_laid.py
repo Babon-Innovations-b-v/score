@@ -1,19 +1,24 @@
 """Invariant: a scene package planned for Unreal (plan.planned) stands in Unreal as it was laid and wears its own looks:
 every copy's actor transform puts its object's points where the copy's matrix puts them (through the expected basis and
 through any other the calibration box reads); the calibration box's bounds give back the basis it was imported
-through, and bounds of no such box are refused; a look shared by two objects is one Material Instance, a baked
-recipe's maps its own instance named by its surface (its map page dropped), its pictures one texture a way they are
-read; glow is its factor times its strength, a transmitting look is glass at 1 - transmission; a solid object is
-Nanite, a glass one and a character not; the film path's camera keys see along each frame's aim with no roll at the
-focal length its field of view needs, its yaw unwound; the sun shines from where it stands, in lux, and the exposure
-divides the lumens back out.
+through, the bounds UE 5.8's import gave (#222, run 8) read as the expected basis, and bounds of no such box are
+refused; an object's parts are its glTF scene's mesh nodes, however deep; a look shared by two objects is one
+Material Instance, a baked recipe's maps its own instance named by its surface (its map page dropped), its pictures
+one texture a way they are read; glow is its factor times its strength in Unreal's units (times LUMENS_A_WATT), a
+transmitting look is glass at 1 - transmission; a solid object is Nanite, a glass one and a character not; the film
+path's camera keys see along each frame's aim with no roll at the focal length its field of view needs, its yaw
+unwound; the sun shines from where it stands, in lux, the sky light's strength is in Unreal's units too, a place with
+no sky picture is lit by an even sky of its ambient, and the exposure divides the lumens back out.
 
 Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - frames.copy_transform: the turn taken B R (no B^T) -> the turned copies' points land off their laid spots
 - frames.quaternion: the first branch's x sign flipped -> the turned copies' points land off their laid spots
-- frames.basis_from_bounds: every side read +1 -> the expected basis is read back with +z for -z
+- frames.basis_from_bounds: every side read +1 -> another basis's -1 side is read back as +1
+- frames.BASIS: left at (-z, +x, +y) as first assumed -> run 8's measured bounds are not the expected basis
+- looks.mesh_nodes: only the scene's root nodes counted -> the pane's two parts under a group count none
 - frames.rotator: roll read from side against top swapped -> every level camera key rolls 90 degrees
-- looks.factors_of: the emissive strength unread -> the glow is (1, 0.5, 0), not (4, 2, 0)
+- looks.factors_of: the emissive strength unread -> the glow is (683, 341.5, 0), not (2732, 1366, 0)
+- looks.factors_of: LUMENS_A_WATT left out -> the glow is (4, 2, 0), 683 times too dark under the exposure
 - looks.factors_of: the transmission unread -> the pane's glass is a solid look
 - looks.texture_name: how a picture is read left out -> the map read as colour and as data is one texture
 - looks.surface_of: the map page kept -> the rust's instance is named for "recipe/rust@1 map2"
@@ -21,6 +26,9 @@ Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - camera.keys: the yaws left wound -> the fourth key's yaw is -170, not 190
 - camera.focal_length: the half angle doubled (fov * 2) -> 90 degrees reads as no finite focal length, not 18 mm
 - layout.directional: the sun's way not turned round -> the sun shines away from where it stands
+- layout.environment: the sky's strength not in Unreal's units -> 1.0, not 683
+- layout.lit_by_ambient: the ambient left unlaid -> a night has no sky light
+- layout.rgbe: the exponent's bias 128 dropped -> the even sky reads 2 ** 128 times too bright
 """
 import io
 import json
@@ -32,6 +40,7 @@ from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import frames  # noqa: E402
+import layout  # noqa: E402
 import plan  # noqa: E402
 
 
@@ -41,8 +50,9 @@ def png(colour):
     return held.getvalue()
 
 
-def gltf(path, materials, pictures, skinned=False):
-    """A glTF of materials only (what the plan reads), its pictures in its .bin by buffer view."""
+def gltf(path, materials, pictures, skinned=False, nodes=({"mesh": 0},)):
+    """A glTF of materials and nodes only (what the plan reads), its pictures in its .bin by buffer view; its scene
+    the first node."""
     binary, views = b"", []
     for data in pictures:
         views.append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(data)})
@@ -51,7 +61,8 @@ def gltf(path, materials, pictures, skinned=False):
     document = {"asset": {"version": "2.0"}, "materials": materials, "bufferViews": views,
                 "images": [{"bufferView": number, "mimeType": "image/png"} for number in range(len(pictures))],
                 "textures": [{"source": number} for number in range(len(pictures))],
-                "buffers": [{"byteLength": len(binary), "uri": path.with_suffix(".bin").name}]}
+                "buffers": [{"byteLength": len(binary), "uri": path.with_suffix(".bin").name}],
+                "nodes": list(nodes), "scenes": [{"nodes": [0]}]}
     if skinned:
         document["skins"] = [{"joints": [0]}]
     path.write_text(json.dumps(document))
@@ -84,8 +95,10 @@ def package(root):
                             "KHR_materials_ior": {"ior": 1.5}}}
     data = {"name": "surface/painted@1", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}
     gltf(root / "objects/crate.gltf", [steel, rust, glow], [png((150, 60, 20)), png((0, 200, 0)), png((128, 128, 255))])
-    gltf(root / "objects/pane.gltf", [steel, glass, data], [png((0, 200, 0))])
-    gltf(root / "objects/walker.gltf", [steel], [], skinned=True)
+    gltf(root / "objects/pane.gltf", [steel, glass, data], [png((0, 200, 0))],
+         nodes=({"children": [1]}, {"children": [2, 3]}, {"mesh": 0}, {"mesh": 1}))
+    gltf(root / "objects/walker.gltf", [steel], [], skinned=True,
+         nodes=({"children": [1, 2]}, {"mesh": 0}, {"mesh": 1}))
     scene = {"format": "score.scene", "version": 1, "place": "yard", "textures": {"use": "film"},
              "objects": {name: {"file": f"objects/{name}.gltf", "kind": "character" if name == "walker" else "model"}
                          for name in ("crate", "pane", "walker")},
@@ -151,10 +164,17 @@ def ahead_of(rotation):
     return [math.cos(pitch) * math.cos(yaw), math.cos(pitch) * math.sin(yaw), math.sin(pitch)]
 
 
+def first_pixel(hdr):
+    """A flat Radiance picture's first pixel as linear RGB."""
+    data = hdr.read_bytes()
+    pixel = data[data.index(b"+X") + data[data.index(b"+X"):].index(b"\n") + 1:][:4]
+    return [value * 2.0 ** (pixel[3] - 136) for value in pixel[:3]]
+
+
 def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
     root = package(tmp_path / "package")
     scene = json.loads((root / "scene.json").read_text())
-    other = ((0, 1, 0), (0, 0, 1), (1, 0, 0))  # another import's axes, as a calibration might read them
+    other = ((0, 1, 0), (0, 0, -1), (1, 0, 0))  # another import's axes, as a calibration might read them
     made = plan.planned(root, tmp_path / "into", root / "path.json")
     remade = plan.planned(root, tmp_path / "into_other", root / "path.json", other)
     try:
@@ -168,6 +188,7 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
     textures = {about["name"]: about for about in made["textures"]}
     keys = made["camera"]["keys"]
     sun = made["environment"]["sun"]
+    night = layout.lit_by_ambient({"sky": None, "ambient": [0.5, 0.25, 0.125]}, tmp_path / "night")
     toward = frames.turned(frames.BASIS, [math.cos(math.radians(30)) * math.cos(math.radians(90)),
                                           math.sin(math.radians(30)),
                                           math.cos(math.radians(30)) * math.sin(math.radians(90))])
@@ -175,6 +196,10 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "placed within a micron": placement_error(made, scene, frames.BASIS) < 1e-4,
         "placed through another basis": placement_error(remade, scene, other) < 1e-4,
         "basis read back": [frames.basis_from_bounds(*bounds_through(basis)) == basis for basis in (frames.BASIS, other)],
+        "run 8's bounds are the expected basis": frames.basis_from_bounds([0, 0, 0], [100, 300, 200]) == frames.BASIS,
+        "parts": {name: mesh["parts"] for name, mesh in meshes.items()},
+        "sky strength": made["environment"]["sky"]["strength"],
+        "night sky": (night["sky"]["strength"], first_pixel(pathlib.Path(night["sky"]["file"]))),
         "no box": garbage,
         "steel shared": meshes["crate"]["slots"]["surface/steel@1"] == meshes["pane"]["slots"]["surface/steel@1"],
         "rust": (crate[1]["surface"], crate[1]["master"], sorted(crate[1]["textures"])),
@@ -196,14 +221,16 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
     }
     assert answer == {
         "placed within a micron": True, "placed through another basis": True, "basis read back": [True, True],
+        "run 8's bounds are the expected basis": True, "parts": {"crate": 1, "pane": 2, "walker": 2},
+        "sky strength": 683.0, "night sky": (683.0, [0.5, 0.25, 0.125]),
         "no box": "refused", "steel shared": True,
         "rust": ("recipe/rust@1", "solid", ["BaseColorMap", "MetalRoughnessMap", "NormalMap"]),
-        "glow": [4.0, 2.0, 0.0, 1.0], "glass": ("glass", 0.2, 1.5),
+        "glow": [2732.0, 1366.0, 0.0, 1.0], "glass": ("glass", 0.2, 1.5),
         "textures read apart": [(False, False), (False, True), (True, False), (True, False)],
         "pictures written": True,
         "nanite": {"crate": (True, False), "pane": (False, False), "walker": (False, True)},
-        "camera": [(0.0, 0.0, 0.0, 18.0), (90.0, 0.0, 0.0, 18.0), (180.0, 0.0, 0.0, 18.0), (190.0, 0.0, 0.0, 18.0),
-                   (360.0, 45.0, 0.0, 18.0)],
+        "camera": [(-90.0, 0.0, 0.0, 18.0), (0.0, 0.0, 0.0, 18.0), (90.0, 0.0, 0.0, 18.0), (100.0, 0.0, 0.0, 18.0),
+                   (270.0, 45.0, 0.0, 18.0)],
         "camera at": [0.0, 0.0, 160.0],
         "sun": (True, 4.0 * 683.0), "exposure": round(math.log2(2.0 / 683.0), 6),
         "lamp": ([0.0, 0.0, 300.0], 6830.0), "caps": "film"}, answer

@@ -17,6 +17,8 @@ import re
 import struct
 import zlib
 
+import layout
+
 # Our master materials (editor.py builds them from code): `solid` opaque, `masked` cut by its colour's alpha at its
 # cutoff, `glass` see-through (its opacity 1 - transmission, refracting at its IOR).
 MASTERS = ("solid", "masked", "glass")
@@ -69,12 +71,14 @@ def surface_of(name):
 
 
 def factors_of(material):
-    """A glTF material's parameters as our masters read them: {master, vectors, scalars, two_sided}."""
+    """A glTF material's parameters as our masters read them: {master, vectors, scalars, two_sided}; the glow in
+    Unreal's units (layout: Blender's radiance times LUMENS_A_WATT, as the exposure divides it back out)."""
     metal = material.get("pbrMetallicRoughness", {})
     extensions = material.get("extensions", {})
     colour = [float(value) for value in metal.get("baseColorFactor", [1.0, 1.0, 1.0, 1.0])]
     strength = float(extensions.get("KHR_materials_emissive_strength", {}).get("emissiveStrength", 1.0))
-    glow = [float(value) * strength for value in material.get("emissiveFactor", [0.0, 0.0, 0.0])]
+    glow = [float(value) * strength * layout.LUMENS_A_WATT
+            for value in material.get("emissiveFactor", [0.0, 0.0, 0.0])]
     transmission = float(extensions.get("KHR_materials_transmission", {}).get("transmissionFactor", 0.0))
     alpha_mode = material.get("alphaMode", "OPAQUE")
     master = "glass" if transmission > 0 or alpha_mode == "BLEND" else "masked" if alpha_mode == "MASK" else "solid"
@@ -125,6 +129,20 @@ def solid(gltf):
     document = json.loads(gltf.read_text())
     return not document.get("skins") and all(factors_of(material)["master"] != "glass"
                                              for material in document.get("materials", []))
+
+
+def mesh_nodes(gltf):
+    """How many nodes of an object's glTF scene draw a mesh: the most mesh assets its import can give, one a node
+    when the import does not combine them (#222, run 8: Interchange gave one a part even when told to combine)."""
+    document = json.loads(gltf.read_text())
+    nodes = document.get("nodes", [])
+    roots = document["scenes"][document.get("scene", 0)]["nodes"] if document.get("scenes") else []
+    found, waiting = 0, list(roots)
+    while waiting:
+        node = nodes[waiting.pop()]
+        found += "mesh" in node
+        waiting.extend(node.get("children", []))
+    return found
 
 
 def chunk(kind, body):
