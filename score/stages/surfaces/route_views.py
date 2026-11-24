@@ -67,6 +67,15 @@ SAMPLE = 60000  # the pixels k-means is fitted on, drawn with the node's seed
 FINE = 4 * REGIONS
 ACCENT_DE = 15.0  # CIE76: a pixel this far from every fine group's centre is a colour none of them holds
 ACCENT_LEAST = 40  # the fewest pixels (every view and the close-up together) a group of its own needs
+# Two groups each holding MAJOR_SHARE of the pixels whose hues lie MAJOR_CHROMA apart (CIE a*b* distance, so shading
+# steps of one colour, which differ in L*, never count) are two materials and merge last (merged_centres, #202):
+# tc6's heat gun's slate blue body (texture L* 30, a*b* -1.3 -9.4, 40% of its pixels) and dark grey cap and battery
+# (L* 23, -0.2 -4.3, 51%), 8.6 apart, merged into one region before the laid close-up's shading steps of each did
+# (14 apart in L*), and the list drew the battery the body's blue. Measured on all 33 of tc6's takes: only the heat
+# gun's regions and the surgical chair's (its two textured whites, a*b* 4.5 apart, kept apart for a 0.2% group of
+# L* 78) change.
+MAJOR_SHARE = 0.1
+MAJOR_CHROMA = 4.0
 CLOSE_UP = "close-up"  # the close-up's own pixels laid on the model through its camera, a view of the regions
 # How far, in the close-up's pixels at its depth, a texel may lie from the face the close-up shows there and still be
 # the one it shows (close_up_texels): a texel's face is often not the one cast at its pixel's middle where faces are
@@ -130,19 +139,29 @@ def accent_centres(every, centres, seed):
 def merged_centres(every, centres):
     """`centres` with the groups of fewer than ACCENT_LEAST of `every`'s pixels dropped (their pixels go to the
     nearest group left), then the two nearest merged (weighed by their pixels) until REGIONS are left: shading steps
-    of one colour lie close and merge first, a colour far from the rest keeps its own region however small."""
+    of one colour lie close and merge first, a colour far from the rest keeps its own region however small, and two
+    materials (two_materials) merge only when no other two groups are left."""
     from scipy.cluster.vq import vq
     counts = np.bincount(vq(every, centres)[0], minlength=len(centres)).astype(float)
     kept = counts >= min(ACCENT_LEAST, counts.max())
     centres, counts = centres[kept], counts[kept]
     while len(centres) > REGIONS:
         apart = np.linalg.norm(centres[:, None] - centres[None], axis=-1) + np.diag(np.full(len(centres), np.inf))
-        first, second = np.unravel_index(apart.argmin(), apart.shape)
+        last = apart + 1e3 * two_materials(centres, counts)  # 1000: past any two CIELAB colours' distance
+        first, second = np.unravel_index(last.argmin(), apart.shape)
         centres[first] = (centres[first] * counts[first] + centres[second] * counts[second]) \
             / (counts[first] + counts[second])
         counts[first] += counts[second]
         centres, counts = np.delete(centres, second, axis=0), np.delete(counts, second)
     return centres
+
+
+def two_materials(centres, counts):
+    """Whether each two groups are two materials (MAJOR_SHARE and MAJOR_CHROMA): each holds MAJOR_SHARE of the
+    pixels and their hues lie MAJOR_CHROMA apart."""
+    major = counts >= MAJOR_SHARE * counts.sum()
+    hue = np.linalg.norm(centres[:, None, 1:] - centres[None, :, 1:], axis=-1)
+    return major[:, None] & major[None] & (hue >= MAJOR_CHROMA)
 
 
 def colour_regions(colours, faces, seed):

@@ -244,6 +244,11 @@ tests it turned red:
 - route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
   REGIONS, seed=seed, minit="++")[0]`  -> every_part_takes_a_library_surface_and_is_held_to_it (its red among
   greys and rust)
+- route_views.py merged_centres: `last = apart + 1e3 * two_materials(centres, counts)` -> `last = apart`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its slate body and grey battery among shading ramps and
+  accents: merged into one region under seeds 8 and 11, #202)
+- route_split.py voted_finishes: `joined[held] = own[held]` dropped -> every_part_takes_a_library_surface_and_is_held_
+  to_it (its HELD_ISLANDS row of a hub the views agree on: joined into the tyre round it, #202)
 - route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
 - route_views.py close_up_shown: `held = pixels[region_seen == region]` -> `held = pixels` -> every_part_takes_a_library_
@@ -2259,6 +2264,17 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert len(centres) <= route_views.REGIONS and np.linalg.norm(centres - red, axis=1).min() < 5, (seed, centres)
         assert len(np.unique(per_pixel["front"][0, -40:])) == 1  # one region holds the red, and only the red
         assert not np.isin(per_pixel["front"][0, :-40], per_pixel["front"][0, -40:]).any(), seed
+    # two materials of one tool (#202, tc6's heat gun): its slate body and dark grey battery, 8.6 apart in CIELAB, among
+    # the laid close-up's shading ramps of each and four small accents keep a region each under every seed
+    materials = [np.tile([[72, 78, 90]], (20000, 1)), np.tile([[56, 58, 62]], (24000, 1))]
+    ramps = [np.repeat(np.linspace(70, 170, 6000)[:, None], 3, axis=1),
+             np.stack([np.linspace(80, 150, 6000), np.linspace(90, 165, 6000), np.linspace(100, 178, 6000)], axis=1)]
+    accents = [np.tile([colour], (300, 1)) for colour in ([250, 240, 215], [110, 30, 30], [20, 20, 20], [200, 170, 40])]
+    pixels = np.concatenate(materials + ramps + accents).astype(np.uint8)
+    for seed in range(7, 12):
+        found = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)},
+                                           {"front": np.zeros((1, len(pixels)), dtype=int)}, seed)[1]["front"][0]
+        assert found[0] != found[20000], seed
     # the list, split and parts rows on the two boxes, each world's batches faked (LISTED)
     worlds = {}
     for case, (colours, answer, again, takes, laid), (asks, used, again_words, past_views, last_words), \
@@ -2395,6 +2411,14 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         chosen = patch if picked == "patch" else np.arange(len(mesh.faces)) == 7
         voted[chosen] = patched
         assert (route_split.voted_finishes(mesh, voted, 2)[1][chosen] == finish).all(), case
+    fine = trimesh.creation.icosphere(subdivisions=4)
+    round_top = np.argsort(np.linalg.norm(fine.triangles_center - (0, 0, 1), axis=1))
+    for case, count, agree, finish in HELD_ISLANDS:
+        voted = np.zeros((len(fine.faces), 2))
+        voted[:, 1] = 1.0
+        voted[fine.triangles_center[:, 2] < -0.5] = [1.0, 0.0]
+        voted[round_top[:count]] = [agree, 1 - agree]
+        assert (route_split.voted_finishes(fine, voted, 2)[1][round_top[:count]] == finish).all(), case
     # A lit finish (1) is the close-up's (#159 round 8: the readout window's lit digits, drawn dark by its texture):
     # a face the laid close-up labels lit takes it alone though a texture view labels it elsewhere, and after the
     # smoothing its small island is lit again, a part of its own; a finish that gives no light keeps its votes.
@@ -4399,6 +4423,16 @@ SPLIT_VOTES = [
     ("a face seen in a region no label reaches takes its nearest label's finish", "face 7", [0.0, 0.0], 1),
     ("a patch tied between the two finishes takes the finish round it", "patch", [0.5, 0.5], 1),
     ("a patch not tied takes its own finish", "patch", [0.6, 0.5], 0),
+]
+
+# route_split.voted_finishes on a finer sphere (finish 0 below z -0.5, finish 1 above) with an island of faces round its
+# top voted finish 0 (#202: tc6's surgical chair's white wheel hubs, 0.13 to 0.15% of its area, their votes 0.95 to
+# 1.0 white, drawn the black of the tyres round them): (case, the island's faces, its votes for finish 0, the finish it
+# takes).
+HELD_ISLANDS = [
+    ("a hub the views agree on keeps its finish, under the crumb's size", 6, 0.95, 0),
+    ("an island the views disagree on is joined to the finish round it", 6, 0.6, 1),
+    ("a one-face crumb, under HELD_LEAST, is joined", 1, 0.95, 1),
 ]
 
 # route_split.voted_finishes on a thin tube (annulus) whose outer wall's upper half views give finish 0, its lower half

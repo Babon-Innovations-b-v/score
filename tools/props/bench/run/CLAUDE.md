@@ -65,6 +65,10 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   the size they were laid at; `measures.json` keeps `found` whole so a recalibrated bar re-judges a kept run.
 - **Read a made model as the gate does** (`mesh_of`: welded across UV seams). Unwelded, TRELLIS.2's crate split into
   thousands of pieces and the gate's piece count took 40 GB (2026-11-23).
+- **The close-up draws the asset as rgba.png does** (#202): its floor is a shadow catcher seen by the camera alone,
+  so no bounce or mirror of it lights the asset (tc6's stove walls and desk legs, light bare metal, read white on the
+  backdrop and steel in the route's input); `render_asset` refuses a close-up `drawn_apart` from rgba.png by over
+  ALIKE_DE.
 - **The close-up look** is the prop route's (tools/props/closeup/check.py: TURN_DEGREES, LOOK_DOWN_DEGREES,
   `look_down`, `lies_flat`); change it there, never here. Front is the asset's -y side; a flat row is seen from
   straight above with +y up.

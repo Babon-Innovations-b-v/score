@@ -104,6 +104,11 @@ MARGIN = 0.08  # the share of the half frame kept clear round the box
 SAMPLES = 128
 BACKDROP = (214, 214, 214)  # the light grey even backdrop
 BOX_TOLERANCE = 0.01
+# The close-up on its backdrop draws the asset as the route's input does (`drawn_apart`, #202): the mean CIE76 delta E
+# between closeup.png and rgba.png over the asset's opaque pixels at most ALIKE_DE. tc6's renders, the catcher lighting
+# the asset from below, were 4.8 (the surgical chair) to 13.6 (the stove, whose light bare metal read white) apart;
+# drawn again with the catcher seen by the camera alone, the same assets were 0.3 to 0.4 apart (sampling noise).
+ALIKE_DE = 2.0
 CARD_GB = 6
 # A close-up's memory: the tool organizer cart (5.5M triangles, 27 maps of 4096) peaked at 8.8 GB under a 12 GB scope
 # and was killed under the 8 GB one in every run (#159, tc4 to tc6); the 33 others of tc6 drew under 8 GB.
@@ -253,6 +258,17 @@ def queued_blender(job_name, arguments, log, script=SCRIPT):
         return subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, cwd=REPO).returncode
 
 
+def drawn_apart(rgba, closeup):
+    """The mean CIE76 delta E between the asset's opaque pixels in `rgba` (the route's input) and the same pixels of
+    `closeup` (on its backdrop)."""
+    from PIL import Image
+    import labels  # tools/props/library (finish's path)
+    alone = np.asarray(Image.open(rgba).convert("RGBA"), dtype=np.float64) / 255
+    laid = np.asarray(Image.open(closeup).convert("RGB"), dtype=np.float64) / 255
+    opaque = alone[..., 3] >= 1.0
+    return float(np.linalg.norm(labels.lab(alone[..., :3][opaque]) - labels.lab(laid[opaque]), axis=1).mean())
+
+
 def on_backdrop(shadow, out):
     """The render with its caught shadow laid on the light grey BACKDROP (its alpha over it), opaque RGB."""
     from PIL import Image
@@ -289,6 +305,10 @@ def render_asset(row, values, scratch, out, draw=queued_blender):
     out.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(drawn / "rgba.png", out / "rgba.png")
     on_backdrop(drawn / "shadow.png", out / "closeup.png")
+    apart = drawn_apart(out / "rgba.png", out / "closeup.png")
+    if apart > ALIKE_DE:
+        raise StepFailed(f"the close-up on its backdrop draws the asset {apart:.2f} dE off the route's input, over "
+                         f"{ALIKE_DE}: its floor lights it")
     shutil.copyfile(drawn / "report.json", out / "report.json")
     given = {"id": row["id"], "address": row["address"], "words": words_of(record),
              "size": [round(side, 4) for side in size], "lies_flat": check.lies_flat(size), "camera": job["camera"]}

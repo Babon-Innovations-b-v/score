@@ -59,6 +59,14 @@ EDGE_ON = 1e-3  # the least weight of a view's vote on a face it sees (squared_v
 # its 969,698 faces, which only the laid close-up sees, in a small region the list left unlabelled there). Measured,
 # never loosened past what a real take showed.
 UNASSIGNED_MOST = 0.0001
+# A small island the views agree on is a part of its own, never a crumb or a stray (held_islands, #202): every face of
+# it seen by a view, at least HELD_AGREE of the weighed votes on it its finish's, and at least HELD_LEAST of the area.
+# tc6's surgical chair's ten white wheel hubs (each 0.13 to 0.15% of its area, 15 to 47 faces, their votes 0.95 to
+# 1.0 their finish's) were joined into the black tyres round them as crumbs (finish_parts.cleaned at ISLAND_LEAST,
+# 0.2%) and drawn black. On tc6's stove, desk, heat gun, fridge and chair the floor keeps no one- or two-face crumb
+# (the desk's 200 islands the views agree on under it are 0.03% of its area together).
+HELD_AGREE = 0.9
+HELD_LEAST = 0.0005
 
 
 def model_of(folder):
@@ -177,13 +185,32 @@ def behind(mesh, own, voted):
 def voted_finishes(mesh, votes, count):
     """(part per face, finish per face): each face's most voted finish (a tie left to the walk, so it takes the
     finish round it), unseen faces the finish behind them (behind), smoothed, strays joined to the finish round them
-    and crumbs joined."""
+    and crumbs joined; a held island (held_islands) keeps its own finish through the smoothing."""
     top = np.sort(votes, axis=1)
     tied = (top[:, -1] > 0) & np.isclose(top[:, -1], top[:, -2]) if count > 1 else np.zeros(len(votes), dtype=bool)
     voted = votes.sum(1) > 0
     own = np.where(voted & ~tied, votes.argmax(1), -1)
     smoothed = finish_parts.cleaned(mesh, finish_parts.walked(mesh, behind(mesh, own, voted)), count)
-    return hidden_joined(mesh, finish_parts.merged_islands(mesh, finish_parts.without_strays(mesh, smoothed)), voted)
+    joined = finish_parts.without_strays(mesh, smoothed)
+    held = held_islands(mesh, own, votes)
+    joined[held] = own[held]
+    return hidden_joined(mesh, finish_parts.merged_islands(mesh, joined), voted)
+
+
+def held_islands(mesh, own, votes):
+    """Whether each face lies in a held island of `own` (each face's voted finish, -1 none): one under patchy's
+    STRAY_ISLAND of the area and at least HELD_LEAST of it, whose every face a view votes on, HELD_AGREE of the votes
+    on it its finish's: a part the views agree on, however small (a wheel's hub), which the crumb and stray joins
+    would give the finish round it. A larger island is never joined away, so its smoothed border stands."""
+    import patchy
+    island = np.unique(patchy.islands(own, mesh.face_adjacency), return_inverse=True)[1]
+    areas = mesh.area_faces
+    agree = np.bincount(island, weights=votes[np.arange(len(own)), np.maximum(own, 0)]) \
+        / np.maximum(np.bincount(island, weights=votes.sum(1)), 1e-12)
+    voted = np.bincount(island, weights=(own < 0).astype(float)) == 0
+    area = np.bincount(island, weights=areas) / areas.sum()
+    held = voted & (agree >= HELD_AGREE) & (area >= HELD_LEAST) & (area < patchy.STRAY_ISLAND)
+    return held[island]
 
 
 def hidden_joined(mesh, found, voted):

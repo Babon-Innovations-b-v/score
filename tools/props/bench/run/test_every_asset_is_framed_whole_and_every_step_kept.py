@@ -14,6 +14,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - bench.render_asset: the box check dropped -> the render Blender laid in centimetres is kept
 - bench.MEMORY_GB 8 (the scope's own cap) -> the close-up's scope holds 8 GB, and the tool organizer cart (8.8 GB) is
   killed in every run (#159); render.KILLED not named -> a close-up killed past its cap reads only "exited 137"
+- bench.render_asset: the `drawn_apart` check dropped -> a close-up its floor lights (the red square drawn pinker on
+  the backdrop than in rgba.png) is kept (#202)
 - bench.Kept.keep: the bucket push dropped -> the step's blobs are not in the bucket
 - bench.run_steps: the gap's `return` dropped -> the step after a failing one runs
 - bench.run_steps: a kept step not skipped -> taking the run up again makes the raw model twice
@@ -403,8 +405,9 @@ def pictured_case(tmp_path, monkeypatch, name, material, box):
     assert len(asked) == 1 and "close-up picture" in asked[0]["contents"][0]["parts"][-1]["text"]
 
 
-def drawer(scale):
-    """A stand-in for Blender: the object a red square with its true alpha; its shadow a half-dark band below it."""
+def drawer(scale, lit=0):
+    """A stand-in for Blender: the object a red square with its true alpha; its shadow a half-dark band below it, the
+    object there `lit` brighter (its floor lighting it)."""
     def draw(_job_name, arguments, log):
         root, job, out = arguments
         job = json.loads(open(job).read())
@@ -416,6 +419,7 @@ def drawer(scale):
         Image.fromarray(rgba, "RGBA").save(out / "rgba.png")
         shadow = rgba.copy()
         shadow[40:48, 16:48] = (0, 0, 0, 128)
+        shadow[16:40, 16:48, :3] += np.array([0, lit, lit], np.uint8)
         Image.fromarray(shadow, "RGBA").save(out / "shadow.png")
         low, high, _ = bench.true_box(root)
         (out / "report.json").write_text(json.dumps({"box": [[side * scale for side in low],
@@ -487,6 +491,10 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     assert laid[44, 30].sum() < sum(bench.BACKDROP)  # its shadow darker than the backdrop
     alpha = np.asarray(Image.open(folder / "rgba.png"))[..., 3]
     assert alpha[20, 20] == 255 and alpha[44, 30] == 0  # the true alpha holds no shadow
+    # the close-up draws the asset as the route's input does (#202): one its floor lights (tc6's stove walls read white
+    # on the backdrop, steel in rgba.png) is refused
+    with pytest.raises(bench.StepFailed, match="floor lights it"):
+        bench.render_asset(row, {}, tmp_path / "lit-scratch", tmp_path / "lit", drawer(scale, lit=40))
 
     if failing is None:  # one asset through branch B's finish (the others' rows test the render and the steps)
         (variants, palette, addresses, left), side, family = finished_box(tmp_path, monkeypatch, name,

@@ -10,8 +10,8 @@ its render purpose only (no colliders or proxies).
 Soft studio light (lit): a large key from the camera's left above, a fill from its right, a little grey sky light.
 
 Writes <out>/rgba.png (the asset alone, its true alpha), <out>/shadow.png (the asset with its shadow on the floor
-caught, transparent elsewhere; bench.py lays it on the grey backdrop) and <out>/report.json (the box Blender drew,
-the meshes, and each material with the pictures it reads).
+caught, transparent elsewhere, the asset itself drawn as in rgba.png; bench.py lays it on the grey backdrop) and
+<out>/report.json (the box Blender drew, the meshes, and each material with the pictures it reads).
 """
 import json
 import math
@@ -141,12 +141,16 @@ def lit(scene, low, high, view):
 
 
 def floor(scene, low, high):
-    """A shadow catcher under the box, wide enough to hold its shadow."""
+    """A shadow catcher under the box, wide enough to hold its shadow, seen by the camera alone: no light of the
+    asset's bounces off it and no face of it mirrors it, so closeup.png draws the asset as rgba.png does (#202: lit
+    from below by the catcher, tc6's stove walls and desk legs, light bare metal, read as white paint on the backdrop
+    and steel in the route's input; the chair's plastic 4.8 dE apart, the stove's 13.6)."""
     diagonal = (Vector(high) - Vector(low)).length
     bpy.ops.mesh.primitive_plane_add(size=20 * diagonal, location=((low[0] + high[0]) / 2, (low[1] + high[1]) / 2,
                                                                    low[2]))
     plane = bpy.context.active_object
     plane.is_shadow_catcher = True
+    plane.visible_diffuse = plane.visible_glossy = plane.visible_transmission = False
     return plane
 
 
