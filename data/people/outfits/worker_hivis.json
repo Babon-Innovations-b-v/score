@@ -1,5 +1,5 @@
 {
- "about": "A short heavy person (158 cm, SOMA's shape: short, round belly and hips) in a work uniform: straight canvas work trousers and a long-sleeved high-visibility yellow jacket over them (#223, several people), each a GarmentCode design sized to the body. The jacket wears a high-visibility fluorescent yellow with retroreflective bands (EN ISO 20471's layout: two round the torso, the lower 5 cm over the hem, and two round each sleeve), cut into its cloth (bands.py). GarmentCode has no front opening or pockets: the jacket is a closed garment (gaps).",
+ "about": "A short heavy person (158 cm, SOMA's shape: short, round belly and hips) in a work uniform: straight canvas work trousers and a long-sleeved high-visibility yellow jacket over them (#223, several people), each a GarmentCode design sized to the body. The jacket wears a high-visibility fluorescent yellow with retroreflective bands (EN ISO 20471's layout: two round the torso, the lower 5 cm over the hem, and two round each sleeve), cut into its cloth (bands.py). GarmentCode has no front opening or pockets: the jacket is a closed garment (gaps). His jewellery (tools/characters/whole/jewellery.py, made on him): gold rings on his left ring finger and right middle finger, the library's polished gold (NVIDIA SimReady, CC BY 4.0); no watch, his jacket's sleeves cover the wrist.",
  "look": "person",
  "mean": "mean_male",
  "body": {
@@ -82,6 +82,12 @@
     "name": "simready_m_opaque_leather_black_a01_9038819b",
     "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
    }
+  }
+ },
+ "jewellery": {
+  "rings": {
+   "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+   "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
   }
  }
 }

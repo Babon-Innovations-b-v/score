@@ -1,5 +1,5 @@
 {
- "about": "A tall man (192 cm, SOMA's shape: broad chest over narrow hips) in long dark grey trousers with a belt, a long-sleeved blue cotton shirt and a knee-length charcoal wool coat over it (#223, several people), each a GarmentCode design sized to his body and laid in layers (layer_m). GarmentCode has no front opening or buttons: the shirt and coat are closed garments with a V neck (a gap: buttons, plackets, a shirt collar; its SimpleLapel collar's box mesh crosses itself and is refused). His belt is on the trousers, the shirt tucked under it, the coat over it (`covered by`). The library's wool surface wears the cloth recipe's cotton row (data/physics/cloth.json has no wool row: a gap).",
+ "about": "A tall man (192 cm, SOMA's shape: broad chest over narrow hips) in long dark grey trousers with a belt, a long-sleeved blue cotton shirt and a knee-length charcoal wool coat over it (#223, several people), each a GarmentCode design sized to his body and laid in layers (layer_m). GarmentCode has no front opening or buttons: the shirt and coat are closed garments with a V neck (a gap: buttons, plackets, a shirt collar; its SimpleLapel collar's box mesh crosses itself and is refused). His belt is on the trousers, the shirt tucked under it, the coat over it (`covered by`). The library's wool surface wears the cloth recipe's cotton row (data/physics/cloth.json has no wool row: a gap). His jewellery (tools/characters/whole/jewellery.py, made on him): gold rings on his left ring finger and right middle finger, the library's polished gold (NVIDIA SimReady, CC BY 4.0); no watch, his coat's sleeves cover the wrist.",
  "look": "person",
  "mean": "mean_male",
  "body": {
@@ -107,6 +107,12 @@
     "name": "simready_m_opaque_metal_brass_polished_a01_08774e2f",
     "address": "surface/simready_m_opaque_metal_brass_polished_a01_08774e2f@1"
    }
+  }
+ },
+ "jewellery": {
+  "rings": {
+   "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+   "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
   }
  }
 }

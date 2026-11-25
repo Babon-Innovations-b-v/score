@@ -1,8 +1,9 @@
 """python -m tools.characters.whole <outfit.json> --dressed <garments run folder> --clip <clip> --face <face.npz>
---face-body <body.npz> --groom <groom bind usd> --frame <clip frame> --name <pose> --out <folder>: the whole person
-(the package docstring) at one clip frame of a dressed run (`python -m tools.characters.garments ... --face`), drawn
-from the front, the back, both sides and three quarters (render.py, Blender through this PC's card queue); its
-measures and faults in <out>/<pose>-measures.json, the run failing on a fault after its pictures."""
+--face-body <body.npz> --groom <groom bind usd> --style <its style json> --frame <clip frame> --name <pose> --out
+<folder>: the whole person (the package docstring) at one clip frame of a dressed run (`python -m
+tools.characters.garments ... --face`), drawn from the front, the back, both sides and three quarters (render.py,
+Blender through this PC's card queue); its measures and faults in <out>/<pose>-measures.json, the run failing on a
+fault after its pictures."""
 import argparse
 import json
 import os
@@ -17,7 +18,6 @@ from tools.characters.whole import jewellery
 
 VIEWS = {"front": 0.0, "three_quarter": 35.0, "left": 90.0, "back": 180.0, "right": 270.0}
 FACE_PIECES = ("eyes", "teeth", "mouth", "tears", "brows", "lashes")
-HAIR_SURFACE = "hair_brown"  # the library's hair colour (score_lib surface/hair_brown, the style's family)
 BACKDROP = "paper_white"
 THICK_M = garments.THICKNESS_M
 HEAD_ABOVE_M = 0.25  # the skin this far under the Head joint and up is what the hair is kept off
@@ -42,6 +42,10 @@ def usd_pieces(usd, frame):
         material = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
         piece = {"points": points, "triangles": faces, "surfaces": [material.GetPrim().GetName()],
                  "finish": np.zeros(len(faces), np.int64)}
+        for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh):  # a garment's bands: their triangles in their own finish
+            bound = UsdShade.MaterialBindingAPI(subset.GetPrim()).ComputeBoundMaterial()[0]
+            piece["finish"][np.asarray(subset.GetIndicesAttr().Get(), np.int64)] = len(piece["surfaces"])
+            piece["surfaces"].append(bound.GetPrim().GetName())
         primvar = UsdGeom.PrimvarsAPI(prim).GetPrimvar("st")
         if primvar and primvar.HasValue():
             st = np.asarray(primvar.Get(), dtype=float)
@@ -183,10 +187,10 @@ def jewels(outfit, body, face, skin, start, count, frame):
     return pieces, found
 
 
-def scene_file(pieces, name, path):
-    """The pieces in blender_face's format, with the views and the pose's name."""
+def scene_file(pieces, name, path, cloth):
+    """The pieces in blender_face's format, with the views, the pose's name and the pieces that are `cloth`."""
     arrays = {"pieces": np.array(list(pieces)), "views": np.array(json.dumps(VIEWS)), "name": np.array(name),
-              "subdivided": np.array(True), "thick": np.array(THICK_M)}
+              "subdivided": np.array(True), "thick": np.array(THICK_M), "cloth": np.array(cloth)}
     for piece_name, piece in pieces.items():
         arrays[f"{piece_name}.surfaces"] = np.array(piece["surfaces"])
         for field in ("points", "triangles", "finish", "uv", "counts", "radius"):
@@ -201,7 +205,8 @@ def fetched(pieces, out):
     from tools.characters.garments.__main__ import SCORE_LIB
     names = sorted({surface for piece in pieces.values() for surface in piece["surfaces"]} | {BACKDROP})
     folder = out / "library"
-    subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "fetch", *[f"surface/{name}@1" for name in names],
+    subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "--root", str(SCORE_LIB), "fetch",
+                    *[f"surface/{name}@1" for name in names],
                     "--into", str(folder)], check=True, cwd=SCORE_LIB, stdout=subprocess.DEVNULL)
     return folder / "score_lib"
 
@@ -224,6 +229,7 @@ def main():
     parser.add_argument("--face", required=True)
     parser.add_argument("--face-body", required=True)
     parser.add_argument("--groom", required=True)
+    parser.add_argument("--style", required=True, help="the groom's style (data/people/hair/<look>.json)")
     parser.add_argument("--frame", type=int, default=0, help="the clip frame drawn")
     parser.add_argument("--name", required=True)
     parser.add_argument("--out", required=True)
@@ -238,7 +244,8 @@ def main():
     usd = pathlib.Path(given.dressed) / "outfit.usda"
     lift = lift_of(usd)
     start = int(body["clip_start"])
-    count = len(np.load(pathlib.Path(given.dressed) / "drape.npz")["skirt"])
+    garment_names = [garment["name"] for garment in outfit["garments"]]
+    count = len(np.load(pathlib.Path(given.dressed) / "drape.npz")[garment_names[0]])
     at = start + given.frame
     pieces = usd_pieces(usd, given.frame)
     pieces["skin"]["triangles"] = np.asarray(face["skin.triangles"], np.int64)
@@ -252,7 +259,7 @@ def main():
     brows = {"points": pieces["brows"]["points"] - [0.0, lift, 0.0]}
     hair, short = hair_laid(groom, body, at, skin_points, brows, float(np.asarray(body["worlds"])[at, head, 1, 3]))
     pieces["hair"] = {"counts": groom[0], "points": hair + [0.0, lift, 0.0], "radius": groom[2],
-                      "surfaces": [HAIR_SURFACE]}
+                      "surfaces": [json.loads(pathlib.Path(given.style).read_text())["library"]]}
     worn, found = jewels(outfit, body, face, skin, start, count, at)
     for name, piece in worn.items():
         piece["points"] = piece["points"] + [0.0, lift, 0.0]
@@ -264,7 +271,7 @@ def main():
     faults = whole.faults(skin) + found.get("faults", [])
     measures["faults"] = faults
     (out / f"{given.name}-measures.json").write_text(json.dumps(measures, indent=1))
-    scene = scene_file(pieces, given.name, out / f"{given.name}-scene.npz")
+    scene = scene_file(pieces, given.name, out / f"{given.name}-scene.npz", garment_names)
     drawn(scene, fetched(pieces, out), out)
     print(json.dumps(measures, indent=1))
     if faults:

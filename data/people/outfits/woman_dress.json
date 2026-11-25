@@ -1,5 +1,5 @@
 {
- "about": "A slim woman (170 cm, SOMA's shape: slim, hips wider than chest) in an ankle-length dress with elbow sleeves (#223, several people): GarmentCode's fitted bodice sewn to a circle skirt as one garment, sized to her body.",
+ "about": "A slim woman (170 cm, SOMA's shape: slim, hips wider than chest) in an ankle-length dress with elbow sleeves (#223, several people): GarmentCode's fitted bodice sewn to a circle skirt as one garment, sized to her body. Her jewellery (tools/characters/whole/jewellery.py, made on her; the library holds no jewellery model): polished gold hoop earrings, a fine gold chain and gold rings, each the library's polished gold (NVIDIA SimReady, CC BY 4.0).",
  "look": "person",
  "mean": "mean_female",
  "body": {
@@ -48,6 +48,20 @@
     "name": "simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d",
     "address": "surface/simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d@1"
    }
+  }
+ },
+ "jewellery": {
+  "earrings": {
+   "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+   "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
+  },
+  "necklace": {
+   "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+   "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
+  },
+  "rings": {
+   "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+   "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
   }
  }
 }

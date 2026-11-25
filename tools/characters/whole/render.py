@@ -3,11 +3,12 @@ every side, each piece in its score_lib finish.
 
     blender -b --python render.py -- <scene.npz> <library folder> <out folder>
 
-scene.npz is face/blender_face.py's piece format (`pieces`, and per piece its points, triangles, surfaces, finish, uv
-or strands' counts and radius; y up), with `views` (JSON: {name: degrees round the person from its front}), `name`
-(the pose's) and `subdivided` / `thick` (the pieces drawn subdivided once, and the cloth pieces given their
-thickness, m). Each surface is the library entry's own material.usda through Blender's USD reader
-(`blender_face.library_material`); hair, brows and lashes in the hair route's Principled Hair BSDF.
+scene.npz is face/blender_face.py's piece format (`pieces`, and per piece its points, triangles, surfaces, finish,
+uv or strands' counts and radius; y up), with `views` (JSON: {name: degrees round the person from its front}),
+`name` (the pose's), `cloth` (the garments' pieces) and `subdivided` / `thick` (the pieces drawn subdivided once,
+and the cloth pieces given their thickness, m). Each surface is the library entry's own material.usda through
+Blender's USD reader (`blender_face.library_material`); hair, brows and lashes in the hair route's Principled Hair
+BSDF.
 
 The studio: a seamless backdrop (a floor curving up into a wall behind, the library's paper_white), a large soft key
 from the camera's left above, a fill from its right, a rim from behind for the hair's edge, a dim grey sky; the
@@ -38,7 +39,6 @@ RIM = {"turn": 160.0, "rise": 35.0, "size": 1.2, "watts": 500.0}
 SKY = (0.5, 0.5, 0.5)
 SKY_STRENGTH = 0.25
 BACKDROP = {"surface": "paper_white", "behind": 2.2, "width": 8.0, "height": 4.5, "bend": 0.8}
-CLOTH = ("skirt", "tee")
 
 
 def arguments():
@@ -107,12 +107,12 @@ def sky():
     bpy.context.scene.world = world
 
 
-def dressed(items, subdivided, thick):
-    """Every mesh piece subdivided once (smooth skin and cloth), the cloth given its thickness."""
+def dressed(items, subdivided, thick, cloth):
+    """Every mesh piece subdivided once (smooth skin and cloth), the `cloth` pieces given their thickness."""
     for item in items:
         if item.type != "MESH":
             continue
-        if item.name in CLOTH:
+        if item.name in cloth:
             solid = item.modifiers.new("thickness", "SOLIDIFY")
             solid.thickness, solid.offset = thick, 1.0
         if subdivided and len(item.data.polygons) > 200:
@@ -137,7 +137,8 @@ def main(scene_path, library, out):
     scene_file = dict(np.load(scene_path, allow_pickle=False))
     items = [blender_face.strands_object(scene_file, str(piece), library) if f"{piece}.counts" in scene_file else
              blender_face.piece_object(scene_file, str(piece), library, []) for piece in scene_file["pieces"]]
-    dressed(items, bool(scene_file["subdivided"]), float(scene_file["thick"]))
+    dressed(items, bool(scene_file["subdivided"]), float(scene_file["thick"]),
+            {str(name) for name in scene_file["cloth"]})
     low, high = bounds([item for item in items if item.name == "skin"])
     middle = (low + high) / 2.0
     backdrop(library, middle)
