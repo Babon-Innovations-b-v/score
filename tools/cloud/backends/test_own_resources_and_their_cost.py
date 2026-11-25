@@ -125,9 +125,11 @@ The invariants, each with the break that turns its test red (each applied once a
   the desktop, alone or beside another share, with its cores and memory, one line in measures.jsonl when given back.
   Break: drop `record(handle, cores, memory_gb)` in `release` -> nothing measured; or `<= 1` -> `< 1` in `read_card` ->
   never alone; or drop `- DESKTOP_GB` in `record` -> 8.79 GB.
-- The container keeps HOST_CORES of this PC's cores (--cpus 20 of 24) at every claim, and a claim whose run gives its
-  measured memory is held to it times MEMORY_MARGIN (17 GB: 26g), set back at its delete; one with none keeps 27g.
-  Break: drop `*cpu_arguments()` from `running`'s update; or `memory_gb * MEMORY_MARGIN` -> `memory_gb` in `held_to`
+- The container keeps HOST_CORES of this PC's cores (--cpus 20 of 24) at every claim, a kind's own container its
+  kind's measured cores once MEASURED_TAKES takes measured them (5.63 x CORES_MARGIN: 9), and a claim whose run gives
+  its measured memory is held to it times MEMORY_MARGIN (17 GB: 26g), set back at its delete; one with none keeps 27g.
+  Break: drop `*cpu_arguments(name)` from `running`'s update; or `measured = None if ...` -> `measured = None` in
+  `cpu_arguments` -> the characters container keeps 20; or `memory_gb * MEMORY_MARGIN` -> `memory_gb` in `held_to`
   -> 17g; or drop the `elif ... held_to(...)` branch in `take`; or drop `need = own_need(kind, need)` in `take` -> a
   sim-body chain held to blender_cloud's Blender prediction, 3g (sim-body@airlock and @garage killed, 2026-11-13).
 - Claims of different kinds run side by side, each in its kind's own container (Blender in score-this-pc, the others
@@ -571,7 +573,7 @@ ROUTE = {"card_gb": 1, "memory_gb": 3}
 # alone memory takes added), ("sweep",: the runner's folders emptied, each kept), ("anon", anon and file bytes of the
 # bakes' container's cgroup), ("card turn copied",), ("started since", label, containers started), ("want",
 # "elsewhere" or "gone": a Blender job alone's want as another live process's), ("room", GiB free for a job alone),
-# ("measures", job, (card GB, memory GB) of its takes), ("held memory", job, the GiB its held shares hold), ("run
+# ("measures", job, (card GB, memory GB) of its takes[, their cores]), ("held memory", job, the GiB its held shares hold), ("run
 # cap", claims at once) or ("containers", the containers made, each 27g of memory and swap and 20 of 24 cores, its
 # installer caches gone once).
 ASKS = [
@@ -776,7 +778,16 @@ ASKS = [
         # (its layer measured again only after LAYER_EVERY_SECONDS)
         ("containers", {"score-this-pc-characters", "score-this-pc-similar", "score-this-pc", "score-this-pc-pixal"}),
         # the Blender kind's memory: its claims' readings alone in the container, the 5 GB of two together left out
-        ("measured", r"(?m)^this-pc blender: \d+ takes, .*, memory 3\.0 GB \([1-9]\d* alone\)$")])]
+        ("measured", r"(?m)^this-pc blender: \d+ takes, .*, memory 3\.0 GB \([1-9]\d* alone\)$"),
+        # the characters kind's cores measured by the queue: its own container is held to them, the bakes' is not
+        ("set", local, "OWN", True),
+        ("measures", "this-pc characters", [(3.4, 16.6), (3.1, 16.2), (2.9, 15.8), (3.3, 16.7), (3.0, 16.1)], 5.63),
+        ("claim", "clips", "characters", {"card_gb": 4, "memory_gb": 17}, {"here": True}),
+        ("called", ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "9", "score-this-pc-characters")),
+        ("delete", "clips", None),
+        ("claim", "bakes", "blender", None, {}),
+        ("last update", ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", "score-this-pc")),
+        ("delete", "bakes", None)])]
 
 
 def this_pc(monkeypatch, tmp_path):
@@ -1180,7 +1191,8 @@ def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_
         elif kind == "measures":
             with (card_queue.QUEUE / "measures.jsonl").open("a") as measures:
                 for card_gb, memory_gb in step[2]:
-                    measures.write(json.dumps({"job": step[1], "card_gb": card_gb, "alone": True, "cores": 9.7,
+                    measures.write(json.dumps({"job": step[1], "card_gb": card_gb, "alone": True,
+                                               "cores": step[3] if len(step) > 3 else 9.7,
                                                "memory_gb": memory_gb, "memory_alone": True}) + "\n")
         elif kind == "held memory":
             assert [round(share["memory_gb"], 1) for share in card_queue.live("held")

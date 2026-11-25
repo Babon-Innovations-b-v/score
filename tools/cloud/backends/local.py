@@ -134,9 +134,15 @@ MEASURED_TAKES = 5
 PREDICTED_ONLY = frozenset({"sim-body"})
 CARDS = {}  # {machine id: its open share of the card queue} for the claims this process holds
 # Cores the container never gets (--cpus): WSL, the desktop and the run's own steps beside it keep them, so this PC
-# answers while the container is busy (2026-10-31: the PC lagged under load). No kind's cores are measured yet: each
-# claim's are, from the container's cgroup (card_queue.py measured), to set a kind's own from.
+# answers while the container is busy (2026-10-31: the PC lagged under load). Each claim's cores are measured from its
+# container's cgroup (card_queue.py measured: the claim's processor seconds over its wall seconds).
 HOST_CORES = 4
+# A kind's own container (MACHINE-<kind>) is held to the highest cores the card queue measured of its claims times
+# CORES_MARGIN, once MEASURED_TAKES of them are kept (2026-11-25: characters 5.63, pixal 2.94, segment 1.14, similar
+# 0.92 of the 20 each container got), so kinds side by side never take every core between them; MACHINE, whose
+# Blender bakes share it across places, and a kind not measured yet keep this PC's less HOST_CORES. A measure is a
+# claim's mean, so the margin leaves its bursts room; a job held under it takes longer, never fails for it.
+CORES_MARGIN = 1.5
 # A claim whose run gives its measured memory (run.need's memory_gb: characters' steps, MOSS) runs in the container
 # held to that times MEMORY_MARGIN, so a job past its measure ends alone; any other keeps memory_cap.
 MEMORY_MARGIN = 1.5
@@ -531,10 +537,10 @@ def running(public_key, name=MACHINE):
         docker("build", "-t", IMAGE, "-", input=DOCKERFILE, timeout=1800)
     state = docker("inspect", "-f", "{{.State.Running}}", name, check=False)
     if state.returncode != 0:
-        docker("run", "-d", "--name", name, *card_arguments(), "--shm-size", "8g", *memory_arguments(), *cpu_arguments(),
+        docker("run", "-d", "--name", name, *card_arguments(), "--shm-size", "8g", *memory_arguments(), *cpu_arguments(name),
                "-e", f"AUTHORIZED_KEY={public_key}", IMAGE)
     else:
-        docker("update", *memory_arguments(), *cpu_arguments(), name)  # one made before these limits takes them too
+        docker("update", *memory_arguments(), *cpu_arguments(name), name)  # one made before these limits takes them too
         if state.stdout.strip() != "true":
             docker("start", name)
     return answering(name)
@@ -547,9 +553,19 @@ def memory_arguments():
     return ["--memory", memory_cap(), "--memory-swap", memory_cap()]
 
 
-def cpu_arguments():
-    """The container's cores: this PC's less HOST_CORES (at least 1)."""
-    return ["--cpus", str(max(1, os.cpu_count() - HOST_CORES))]
+def cpu_arguments(name=MACHINE):
+    """Container `name`'s cores: this PC's less HOST_CORES (at least 1), or for a kind's own container its kind's
+    measured_cores when known, never past that."""
+    whole = max(1, os.cpu_count() - HOST_CORES)
+    measured = None if name == MACHINE else measured_cores(name.removeprefix(f"{MACHINE}-"))
+    return ["--cpus", str(whole if measured is None else min(whole, measured))]
+
+
+def measured_cores(kind):
+    """The whole cores `kind`'s claims get: the card queue's highest measured cores of them times CORES_MARGIN, rounded
+    up; None until MEASURED_TAKES of its takes measured them."""
+    peak = card_queue.peaks().get(f"this-pc {kind}", {})
+    return math.ceil(peak["cores"] * CORES_MARGIN) if peak.get("cores_takes", 0) >= MEASURED_TAKES else None
 
 
 def held_to(memory_gb, name=MACHINE):

@@ -294,9 +294,9 @@ def record(handle, cores=None, memory_gb=None):
 
 
 def peaks():
-    """measures.jsonl by job: {job: {"takes", "card_gb", "card_takes", "cores", "memory_gb", "memory_takes"}}, the
-    highest card GB of its takes alone on the card (others' shares beside it would count in a reading), the highest
-    cores, and the highest memory GB of its takes alone in their container (other claims there count in a reading);
+    """measures.jsonl by job: {job: {"takes", "card_gb", "card_takes", "cores", "cores_takes", "memory_gb",
+    "memory_takes"}}, the highest card GB of its takes alone on the card (others' shares beside it would count in a
+    reading), the highest cores of the takes that measured them, and the highest memory GB of its takes alone in their container (other claims there count in a reading);
     a part never measured None, with no takes."""
     rows = {}
     path = QUEUE / "measures.jsonl"
@@ -309,7 +309,7 @@ def peaks():
         row["memory_gb"] += [item["memory_gb"]] if item["memory_gb"] is not None and item.get(
             "memory_alone", True) else []
     return {job: {"takes": row["takes"], "card_gb": max(row["alone"], default=None), "card_takes": len(row["alone"]),
-                  "cores": max(row["cores"], default=None), "memory_gb": max(row["memory_gb"], default=None),
+                  "cores": max(row["cores"], default=None), "cores_takes": len(row["cores"]), "memory_gb": max(row["memory_gb"], default=None),
                   "memory_takes": len(row["memory_gb"])} for job, row in rows.items()}
 
 

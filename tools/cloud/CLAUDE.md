@@ -107,7 +107,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `card_queue.watch_memory`, alone only while no other claim held that container), one line
   in the queue's `measures.jsonl`; `card_queue.py measured` gives each job's highest, the card only from takes alone on
   it (a card user outside the queue still counts in a reading). The container keeps `local.HOST_CORES` (4) of this PC's
-  cores (`--cpus 20`), and a claim whose run gives its measured memory (characters' steps, MOSS) runs held to it times
+  cores (`--cpus 20`), a kind's own container its kind's highest measured cores times `local.CORES_MARGIN` (1.5)
+  once `MEASURED_TAKES` takes measured them (`local.measured_cores`), and a claim whose run gives its measured memory (characters' steps, MOSS) runs held to it times
   `local.MEMORY_MARGIN` (1.5), set back to `memory_cap` at its delete. Under `SCORE_THIS_PC_OWN_CONTAINERS=1` (set by
   the run at a restart; `local.OWN`) each kind runs in a container of its own made from the same image,
   `score-this-pc:1` (`local.container`: Blender and the library bakes stay in `score-this-pc`, which holds their
