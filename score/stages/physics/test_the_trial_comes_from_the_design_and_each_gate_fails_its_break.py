@@ -38,6 +38,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   named `obj`, its asset's prim), or its mass made `authored_mass(prim)` (None: the asset authors its mass on its
   collider), or read_physics' `keyed_apart(bodies)` made `bodies` (the articulated model's two bodies both named
   `simready_3`: their tracks merged).
+- the_trial_reads_an_adopted_model, made_parts_move (#177, seen red 2026-11-25 on this PC's trial Python): read_physics
+  without `UsdPhysics.PrismaticJoint` among the joint kinds (the drawer's slide not followed: no slide found).
 - the_trial_stands_the_shown_places_from_the_neighbours_output: trial_folder's copytree without
   `ignore=shutil.ignore_patterns("contract.json")`.
 
@@ -294,13 +296,52 @@ def the_trial_reads_an_adopted_model():
     """The trial's own Python reads a place holding adopted models (#155): one whose rigid body sits on its instance
     prim, read with its own collider, mass and material and named by its laid object; one with no body, whose mesh
     inside its instance is a static; and an articulated one, two bodies in one laid object, each its own body named by
-    the object and its path inside it. Read where this box has the trial's Python built."""
+    the object and its path inside it. And it runs a made model's moving parts (#177, made_parts_move): a cabinet's
+    door on its hinge and its drawer on its slide, each driven, open to their limits and no further. Read and run where
+    this box has the trial's Python built."""
     from drop import LOCAL_ENV
     if not list(LOCAL_ENV.glob(".built-*")):
         print(f"skipped: the trial reading adopted models: no trial Python built at {LOCAL_ENV} ({physics.TRIAL_ENV})")
         return
     with tempfile.TemporaryDirectory() as temporary:
         read_adopted(pathlib.Path(temporary), LOCAL_ENV)
+        made_parts_move(pathlib.Path(temporary), LOCAL_ENV)
+
+
+PART_SLACK = (2.0, 0.01)  # degrees and metres a driven part may stop short of, or past, its limit
+
+
+def made_parts_move(root, env):
+    """A made cabinet's door (hinge about its own y, its negative way, 0 to 100 degrees) and drawer (slide along its
+    own z, 0 to 0.3 m), laid as maker/parts.py's nodes and joined by write_parted, each driven past its limit for the
+    trial's seconds: Newton with MuJoCo's solver opens each to its limit, never past it by PART_SLACK."""
+    layer = toy.toy_place(root / "parted")
+    base = Usd.Stage.Open(str(layer / "layers/base.usda"))
+    holder = UsdGeom.Xform.Define(base, f"/{toy.PLACE}/Objects/cabinet_1")
+    holder.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 1.5))
+    toy.mesh(base, f"/{toy.PLACE}/Objects/cabinet_1/geo", [((-0.25, 0.0, -0.2), (0.25, 0.8, 0.2))], (0.0, 0.0, 0.0))
+    for node, pivot, slab in (("door_01__hinge_yn", (-0.24, 0.54, 0.205), ((-0.24, 0.3, 0.205), (0.24, 0.78, 0.225))),
+                              ("drawer_01__slide_z", (0.0, 0.15, 0.215), ((-0.24, 0.02, 0.205), (0.24, 0.28, 0.225)))):
+        part = UsdGeom.Xform.Define(base, f"/{toy.PLACE}/Objects/cabinet_1/{node}")
+        part.AddTranslateOp().Set(Gf.Vec3d(*pivot))
+        toy.mesh(base, f"/{toy.PLACE}/Objects/cabinet_1/{node}/geo", [slab], pivot)
+    base.Save()
+    door = {"node": "door_01__hinge_yn", "joint": "hinge", "axis": "y", "sign": -1, "limits": [0.0, 100.0], "kg": 4.0,
+            "drive": {"speed": 90.0, "torque": 40.0, "start": 0.2, "end": 3.5}}
+    drawer = {"node": "drawer_01__slide_z", "joint": "slide", "axis": "z", "sign": 1, "limits": [0.0, 0.3], "kg": 2.0,
+              "drive": {"speed": 0.4, "torque": 60.0, "start": 0.2, "end": 3.5}}
+    record = {**toy.RECORD, "drops": [], "hinges": [], "slides": [], "pushes": [], "moved": [],
+              "parted": [{"object": "cabinet_1", "parts": [door, drawer]}]}
+    assert not toy.physics.write(layer, record, toy.MATERIALS)["faults"]
+    out = root / "parted.json"
+    ran = subprocess.run([str(env / "bin/python"), str(REPO / physics.TRIAL_SCRIPT), str(layer / f"{toy.PLACE}.usda"),
+                          str(out)], capture_output=True, text=True, timeout=240)
+    assert ran.returncode == 0, ran.stderr[-2000:]
+    found = json.loads(out.read_text())
+    angles = next(hinge["angles"] for leaf, hinge in found["hinges"].items() if leaf.endswith("door_01__hinge_yn"))
+    metres = next(slide["metres"] for part, slide in found["slides"].items() if part.endswith("drawer_01__slide_z"))
+    assert -100.0 - PART_SLACK[0] <= min(angles) and angles[-1] <= -100.0 + PART_SLACK[0], angles[::12]
+    assert max(metres) <= 0.3 + PART_SLACK[1] and metres[-1] >= 0.3 - PART_SLACK[1], metres[::12]
 
 
 def read_adopted(root, env):

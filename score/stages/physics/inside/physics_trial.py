@@ -4,7 +4,8 @@ place's physics trial from the stage's own UsdPhysics (experimental, F11; the la
     <env>/bin/python score/stages/physics/inside/physics_trial.py <stage.usda> <out.json>
 
 Newton reads the composed stage as written (`add_usd`: Y up, metres, the scene's pull, each rigid body's MassAPI mass,
-its convex hull guide and its physics material, the revolute joints with their limits and DriveAPI, the fixed joints,
+its convex hull guide and its physics material, the revolute and prismatic joints with their limits and DriveAPI (a
+prismatic's linear, #177: a made model's drawer or trigger), the fixed joints,
 every other colliding mesh as static triangles, inside USD instances too) and steps it with MuJoCo's solver on
 Newton's own contacts (`SolverMuJoCo(use_mujoco_contacts=False)`: MuJoCo's own treat a hollow static as convex). An
 adopted model's body (#155) is read as its asset lays it: its rigid body on its instance prim, its colliders inside
@@ -15,13 +16,13 @@ time-sampled maxForce; nothing outside its window).
 
 Measured every frame: each body's motion from its start (4 x 4, column vectors, the stage's frame), its lowest point,
 its speed, its kinetic energy (moving and turning, the body's own inertia) and its height's energy, each revolute
-joint's angle (degrees, as UsdPhysics measures it), and whether anything drives the trial (a hand moves, a motor is
+joint's angle (degrees, as UsdPhysics measures it), each prismatic joint's travel (metres), and whether anything drives the trial (a hand moves, a motor is
 on). At the start and the end: the statics each body lies inside (its drawn triangles crossing theirs after raising
 it NUDGE).
 
 out.json: {"rate", "frames", "gravity", "bodies": {name: {"path", "mass", "friction", "restitution", "motions": [...],
 "lowest": [...], "speed": [...]}}, "energy": [...], "driven": [...], "hinges": {leaf: {"frame", "lower",
-"upper", "angles": [...]}}, "joined": [[name, name], ...], "inside at start": {name: [...]}, "inside at end": {...},
+"upper", "angles": [...]}}, "slides": {part: {"frame", "lower", "upper", "metres": [...]}}, "joined": [[name, name], ...], "inside at start": {name: [...]}, "inside at end": {...},
 "statics": n, "engine": "..."}
 """
 import json
@@ -169,11 +170,12 @@ def triangles(mesh):
     return points, np.asarray(faces, dtype=np.int64)
 
 
-def drive_of(joint, frames):
-    """A revolute joint's angular drive: its torque cap at each frame (a time-sampled maxForce)."""
-    if not joint.HasAPI(UsdPhysics.DriveAPI, "angular"):
+def drive_of(joint, frames, kind="angular"):
+    """A revolute joint's angular drive (a prismatic joint's linear, `kind`): its force cap at each frame (a
+    time-sampled maxForce)."""
+    if not joint.HasAPI(UsdPhysics.DriveAPI, kind):
         return None
-    force = UsdPhysics.DriveAPI(joint, "angular").GetMaxForceAttr()
+    force = UsdPhysics.DriveAPI(joint, kind).GetMaxForceAttr()
     return [float(force.Get(code)) for code in range(frames)]
 
 
@@ -192,14 +194,17 @@ def read_physics(stage):
                 hands[str(prim.GetPath())] = [hand.ComputeLocalToWorldTransform(code) for code in range(frames)]
                 continue
             bodies[str(prim.GetPath())] = own_body(prim) if prim.GetAttribute(WEIGHED).Get() else adopted_body(prim)
-        elif prim.IsA(UsdPhysics.RevoluteJoint) or prim.IsA(UsdPhysics.FixedJoint):
-            revolute = prim.IsA(UsdPhysics.RevoluteJoint)
-            joint = UsdPhysics.RevoluteJoint(prim) if revolute else UsdPhysics.FixedJoint(prim)
-            joints.append({"path": str(prim.GetPath()), "revolute": revolute,
+        elif any(prim.IsA(kind) for kind in (UsdPhysics.RevoluteJoint, UsdPhysics.PrismaticJoint,
+                                             UsdPhysics.FixedJoint)):
+            revolute, prismatic = prim.IsA(UsdPhysics.RevoluteJoint), prim.IsA(UsdPhysics.PrismaticJoint)
+            joint = (UsdPhysics.RevoluteJoint(prim) if revolute else UsdPhysics.PrismaticJoint(prim) if prismatic
+                     else UsdPhysics.FixedJoint(prim))
+            joints.append({"path": str(prim.GetPath()), "revolute": revolute, "prismatic": prismatic,
                            "bodies": [str(rel.GetTargets()[0]) for rel in (joint.GetBody0Rel(), joint.GetBody1Rel())],
-                           "limits": [joint.GetLowerLimitAttr().Get(), joint.GetUpperLimitAttr().Get()] if revolute
-                           else None,
-                           "drive": drive_of(prim, frames) if revolute else None})
+                           "limits": [joint.GetLowerLimitAttr().Get(), joint.GetUpperLimitAttr().Get()]
+                           if revolute or prismatic else None,
+                           "drive": drive_of(prim, frames) if revolute
+                           else drive_of(prim, frames, "linear") if prismatic else None})
     owned = tuple(path + "/" for path in bodies)
     statics = {str(prim.GetPath()): triangles(prim) for prim in walk
                if prim.IsA(UsdGeom.Mesh) and colliding(prim) and UsdGeom.Imageable(prim).ComputePurpose() != "guide"
@@ -264,6 +269,8 @@ class Trial:
                        for joint in physics["joints"] if joint["drive"]]
         self.angles = {joint["path"]: builder.joint_q_start[joint_index[joint["path"]]]
                        for joint in physics["joints"] if joint["revolute"]}
+        self.slides = {joint["path"]: builder.joint_q_start[joint_index[joint["path"]]]
+                       for joint in physics["joints"] if joint.get("prismatic")}
         self.hand_joints = {path: next(joint for joint, child in enumerate(builder.joint_child) if child == index)
                             for path, index in self.hand_index.items()}
         self.model = builder.finalize(device=wp.get_preferred_device())
@@ -348,7 +355,7 @@ def run(stage_path, out):
                physics["bodies"].items()}
     found = {body["name"]: {key: body[key] for key in ("mass", "friction", "restitution")} | {
         "path": path, "motions": [], "lowest": [], "speed": []} for path, body in physics["bodies"].items()}
-    angles = {path: [] for path in trial.angles}
+    angles, slides = {path: [] for path in trial.angles}, {path: [] for path in trial.slides}
     energies, driven, before = [], [], dict(starts)
     for code in range(frames):
         if code:
@@ -369,6 +376,8 @@ def run(stage_path, out):
         joint_q = trial.now.joint_q.numpy()
         for path, at in trial.angles.items():
             angles[path].append(round(math.degrees(float(joint_q[at])), 4))
+        for path, at in trial.slides.items():
+            slides[path].append(round(float(joint_q[at]), 5))
         energies.append(round(total, 5))
         driven.append(any(code > 0 and poses[code][:3] != poses[code - 1][:3] for poses in hands.values())
                       or any(torques[code] > 0 for _, torques in trial.drives))
@@ -379,6 +388,9 @@ def run(stage_path, out):
               "hinges": {names[joint["bodies"][1]]: {"frame": joint["bodies"][0], "lower": joint["limits"][0],
                                                      "upper": joint["limits"][1], "angles": angles[joint["path"]]}
                          for joint in physics["joints"] if joint["revolute"]},
+              "slides": {names[joint["bodies"][1]]: {"frame": joint["bodies"][0], "lower": joint["limits"][0],
+                                                     "upper": joint["limits"][1], "metres": slides[joint["path"]]}
+                         for joint in physics["joints"] if joint.get("prismatic")},
               "joined": [[names.get(path, path) for path in joint["bodies"]] for joint in physics["joints"]],
               "inside at start": inside(physics, {path: body["drawn"][0] for path, body in physics["bodies"].items()}),
               "inside at end": inside(physics, {path: locals_[path] @ ended[path][:3, :3].T + ended[path][:3, 3]
