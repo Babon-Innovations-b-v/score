@@ -256,6 +256,12 @@ tests it turned red:
 - route_views.py close_up_shown: `held = pixels[region_seen == region]` -> `held = pixels` -> every_part_takes_a_library_
   surface_and_is_held_to_it (its LISTED row with the close-up laid: the blue box's region read the whole close-up's
   colour, #198)
+- route_list.py: `kept = {take: kept_lists.read(` -> `kept = {take: None and kept_lists.read(`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (kept_list_held: the list made again asks again)
+- kept_lists.py read: `if not fits(answer, ...)` -> `if False:`  -> every_part_takes_a_library_surface_and_is_held_to_it
+  (kept_list_held: a kept answer naming a token no longer offered read back)
+- kept_lists.py read: `renamed(json.loads(path.read_text()), names, codes)` -> `json.loads(path.read_text())`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (kept_list_held: a kept answer by name not read back)
 - route_list.py timber_settings (#159): not reading the surface's recipe (`surface.get("recipe") not in
   route_settings.TIMBER or` dropped) -> a paint's answer is read with a grain (timbered); route_settings.py
   settings_name without grain_name -> a timber with and without its grain bake as one slot; set_spec without its
@@ -2840,6 +2846,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     pattern_marks_held()  # vent and perforation patterns drawn from a library pattern, never TRELLIS.2's bumps (#210)
     plates_held()  # the made shape under a mark flat and closed, a pattern moved off a seam (#159 round 13)
     hardware_marks_held()  # small locks and knobs laid as library pieces, TRELLIS.2's blobs cut away (#212)
+    kept_list_held()  # a take's finish list asked once and read back by name after (#229)
     panels_held()  # a printed panel one picture decal from the close-up, its print covered whole (#159 round 15)
 
 
@@ -3298,6 +3305,49 @@ def panels_held():
     white, red = mapped(np.array([[100.0, 0.0, 0.0], [57.7, 53.3, 22.2]]))
     assert abs(white[0] - token("#e0e0e0")[0]) < 2 and abs(red[0] - token("#a03030")[0]) < 2, (white, red)
     assert np.allclose(misread(np.array([100.0, 0.0, 0.0])), white), misread(np.array([100.0, 0.0, 0.0]))
+
+
+def kept_list_held():
+    """A take's finish list is asked once and read back after (#229, kept_lists.py): the list row made again in the
+    same world asks nothing and writes the same list, naming the take kept; a kept answer is read back by name, so a
+    library in another order gives its surface's new code, and one naming a surface or token no longer offered is not
+    read back (the take is asked again)."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    rows, asked = listed(folder, lambda views, take: two_finish_answer(views))
+    first = json.loads((rows["finish-route-list"] / f"{TAKE}.json").read_text())
+    again, out = [], folder / "list again"
+    original, kept_folder = route_list.ask, route_list.kept_lists.FOLDER
+    route_list.ask = lambda bodies: again.append(bodies) or {take: "{}" for take in bodies}
+    route_list.kept_lists.FOLDER = folder / "kept"
+    try:
+        out.mkdir()
+        route_list.make_list({name: value for name, value in rows.items() if name != "finish-route-list"}, out, 7,
+                             {"objects": [TAKE]})
+    finally:
+        route_list.ask, route_list.kept_lists.FOLDER = original, kept_folder
+    assert (len(asked), again) == (1, []), (asked, again)
+    assert json.loads((out / f"{TAKE}.json").read_text()) == first
+    assert json.loads((out / "questions.json").read_text())["kept"] == [TAKE]
+    kept = route_list.kept_lists
+    tokens, levels = {"sign-red": [0.5, 0.0, 0.0], "bay-three": [0.0, 0.0, 0.5]}, ["clean", "worn"]
+    answer = {"finishes": [finish_entry("blue paint", surface="M2", token="bay-three")], "labels": []}
+    stored = {"red_paint": {}, "blue_paint": {}}
+    for offered, offered_tokens, surface in ((("red_paint", "blue_paint"), tokens, "M2"),  # as kept
+                                             (("blue_paint", "red_paint"), tokens, "M1"),  # reordered: its new code
+                                             (("red_paint",), tokens, None),  # its surface gone: asked again
+                                             (("red_paint", "blue_paint"), {"sign-red": [0.5, 0, 0]}, None)):  # token
+        surfaces = {name: {} for name in offered}
+        body = {"contents": [{"parts": [{"inline_data": {"data": "a picture"}}]}],
+                "generationConfig": {"responseSchema": route_list.list_schema(surfaces, offered_tokens, ["front"],
+                                                                              levels)}}
+        with tempfile.TemporaryDirectory() as there:
+            kept.FOLDER = pathlib.Path(there)
+            try:
+                kept.keep("digest", json.dumps(answer), stored, (), ())
+                found = kept.read("digest", body, surfaces, (), ())
+            finally:
+                kept.FOLDER = kept_folder
+        assert (found and json.loads(found)["finishes"][0]["surface"]) == surface, (offered, offered_tokens, found)
 
 
 def hardware_marks_held():
@@ -4785,10 +4835,11 @@ def two_finish_answer(views, finish_of_colour=lambda view, colour: 1 if colour =
 def listed(folder, answer, takes=(TAKE,), again=None, labelled_close_up=False):
     """The views and list rows made with the list's batch faked to answer `answer(views, take)` (a dict, or an
     exception the batch holds), every ask after the first `again(views, take)` when given: the rows' inputs and the
-    batches asked."""
+    batches asked. The world keeps its lists in its own folder (folder / "kept", kept_lists.FOLDER)."""
     inputs, views = cast_views(folder, takes, labelled_close_up)
     asked = []
-    original = route_list.ask
+    original, kept_folder = route_list.ask, route_list.kept_lists.FOLDER
+    route_list.kept_lists.FOLDER = folder / "kept"
 
     def answered(bodies):
         asked.append(bodies)
@@ -4802,7 +4853,7 @@ def listed(folder, answer, takes=(TAKE,), again=None, labelled_close_up=False):
         out.mkdir()
         route_list.make_list({**inputs, "finish-route-views": views}, out, 7, {"objects": list(takes)})
     finally:
-        route_list.ask = original
+        route_list.ask, route_list.kept_lists.FOLDER = original, kept_folder
     return {**inputs, "finish-route-views": views, "finish-route-list": out}, asked
 
 

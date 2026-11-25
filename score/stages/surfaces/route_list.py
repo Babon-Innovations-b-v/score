@@ -50,6 +50,7 @@ import numpy as np  # noqa: E402
 
 import decal_library  # noqa: E402
 import finish_ask  # noqa: E402
+import kept_lists  # noqa: E402
 import palette_library  # noqa: E402
 import route_ask  # noqa: E402
 import route_data  # noqa: E402
@@ -138,6 +139,10 @@ SIZE = " (the object is {width:.2f} m across, {depth:.2f} m deep and {height:.2f
 FOLLOW_UP = ("Your answer was:\n{answer}\nIt lists finish {finishes} but labels no region with it in any view. Look "
              "again, view by view, for the regions its parts show in, and answer the whole question again, in full: "
              "keep every finish of your list, and label each region with the finish its part has in that view.")
+# The question's own wording, without the library's lists: a take's answer is kept by it (kept_lists.py, #229), so a
+# change of the wording asks every take again and a change of the library's lists alone does not.
+WORDING = "".join((QUESTION, LAID, TIMBER, SIZE, FOLLOW_UP, finish_ask.MARKS, finish_ask.DECALS_TEXT,
+                   finish_ask.PATTERNS, finish_ask.HARDWARE))
 
 
 def palette_tokens(palette):
@@ -410,7 +415,8 @@ def usable(reading, take, answer):
 def make_list(inputs, out, seed, params):
     """Every cast take's finish list and labels from one batch, and the finishes with their own wear. Each take is
     asked once, and once more where its answer lists a finish it labels no region with (followed_up); one with no
-    usable answer gets no list, so judge_list names it a gap."""
+    usable answer gets no list, so judge_list names it a gap. A take whose answer is kept (kept_lists.py: the same
+    pictures, wording and kinds, everything it names still offered) is read back, not asked; questions.json names it."""
     views = pathlib.Path(inputs["finish-route-views"])
     _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = {take: record for take, record in json.loads((views / "views.json").read_text()).items()
@@ -422,13 +428,21 @@ def make_list(inputs, out, seed, params):
     pictures = {take: pictures_of(views / take, record["views"]) for take, record in cast_takes.items()}
     decals, patterns = decal_library.catalogue(library_root()), decal_library.patterns(library_root())
     pieces = decal_library.hardware(library_root())
+    sizes = {take: model_size(inputs[f"model {take}"]) if inputs.get(f"model {take}") else None for take in cast_takes}
     bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear, decals,
-                              patterns, pieces, model_size(inputs[f"model {take}"])
-                              if inputs.get(f"model {take}") else None)
+                              patterns, pieces, sizes[take])
               for take, record in cast_takes.items()}
-    answers = ask(bodies) if bodies else {}
-    answers.update(followed_up(answers, bodies, lambda take, answer: listed(
+    vocabulary = {"hardware": sorted({piece["kind"] for piece in pieces}),
+                  "patterns": sorted(pattern["opening"] for pattern in patterns)}
+    digests = {take: kept_lists.key(take, body, WORDING, {**vocabulary, "object": takes[take]["object"],
+                                                          "size": sizes[take]})
+               for take, body in bodies.items()}
+    kept = {take: kept_lists.read(digests[take], body, surfaces[take], decals, pieces) for take, body in bodies.items()}
+    asking = {take: body for take, body in bodies.items() if kept[take] is None}
+    answers = ask(asking) if asking else {}
+    answers.update(followed_up(answers, asking, lambda take, answer: listed(
         answer, (surfaces[take], tokens, levels), take_seed(seed, take), pictures[take]["shown"])))
+    answers.update({take: answer for take, answer in kept.items() if answer is not None})
     own, unanswered = [], {}
     for take in cast_takes:
         answer = answers.get(take, finish_ask.NoAnswer("the batch gave no answer"))
@@ -442,11 +456,15 @@ def make_list(inputs, out, seed, params):
             continue
         marks = finish_ask.marks_of(json.loads(answer), decals, len(finishes), pictures[take]["close_up"].size,
                                      text_decals.FONTS, patterns, pieces)
+        if take in asking:
+            kept_lists.keep(digests[take], answer, surfaces[take], decals, pieces)
         (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes,
                                                       "labels": labels, "marks": marks}, indent=1))
         own += [f"{take}: {entry['finish']}: {entry['wear_level']} ({entry['wear_cause']}; the scene's wear is {wear})"
                 for entry in finishes if entry["wear_level"]]
-    (out / "questions.json").write_text(json.dumps({"own_wear": own, "unanswered": unanswered}, indent=1))
+    (out / "questions.json").write_text(json.dumps({"own_wear": own, "unanswered": unanswered,
+                                                    "kept": sorted(take for take in kept if take not in asking)},
+                                                   indent=1))
     batch_gaps.write(out, [*batch_gaps.of(inputs), *list_gaps(out, cast_takes, unanswered, tokens)])
 
 
