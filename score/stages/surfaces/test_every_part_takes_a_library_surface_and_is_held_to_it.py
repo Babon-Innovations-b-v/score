@@ -547,7 +547,7 @@ tests it turned red:
   pattern offered); route_parts.py placement's pattern fields dropped (the drawer has no rows); pattern_decals.py
   centres' `- 1 if moved` dropped (a staggered row's last opening past the box), `inside(...)` -> `True` (the diamond
   drawn as a full grid), pitches' `(columns - 1 + fill_across)` -> `(columns + 0)` (openings short of the box's
-  edges); near_plate's `<= PLATE_DEPTH` -> `<= 1.0` (what the holes show 0.3 m behind sizes the pattern); pattern_facing's median -> mean (a vent two in five of whose faces are hole walls faces 33 degrees off its plate, #229); pattern_facing's part check
+  edges); near_plate's `<= PLATE_DEPTH` -> `<= 1.0` (what the holes show 0.3 m behind sizes the pattern); route_parts.placement without `pattern_middle` (#229: a vent whose middle probe met a stray chrome face a gap, seen red 2026-11-25); pattern_facing's median -> mean (a vent two in five of whose faces are hole walls faces 33 degrees off its plate, #229); pattern_facing's part check
   dropped (a cabinet face of another part tilts the facing); placement's same-finish probes -> same part (the
   humidifier's ribs a gap); probe_edge's PATTERN_EDGE_IN -> EDGE_IN (its probes off the cylinder); recipes.py
   decal_depth's `if decal.get("relief"):` -> `if False:` (the ribs printed in a band round the cylinder)
@@ -3219,7 +3219,12 @@ def pattern_marks_held():
     assert islands[0] and islands[0][0]["size"] == [0.1, 0.1], islands
     other = route_parts.decal_placements(marked[:1], np.array([0, 1, 2]), np.array([[0.0, 0.0, 1.0]] * 3),
                                          plane_cast([0, 2, 2, 2, 2]), "close-up", np.array([0, 0, 1]))
-    assert not other[0] and other[1][0]["why"] == "it spans more than its part 0", other
+    # its middle probe alone on a speck of another finish (#229, r16k's locker: one of TRELLIS.2's stray chrome faces on
+    # its bumps), its four others on one finish: laid on that one, not a gap
+    assert [placed["part"] for placed in other[0]] == [2] and not other[1], other
+    alone = route_parts.decal_placements(marked[:1], np.array([0, 1, 2]), np.array([[0.0, 0.0, 1.0]] * 3),
+                                         plane_cast([0, 2, 2, 0, 0]), "close-up", np.array([0, 0, 1]))
+    assert [placed["part"] for placed in alone[0]] == [0], alone  # two of five: the middle's finish stands
     # its probes held to its plate (#159 r15): the band 1 remesh kept TRELLIS.2's holes in the locker's doors, and a
     # vent's middle probe went through one onto the cabinet's inside 0.24 m back; laid on the door, never there
     holed = route_parts.decal_placements([dict(marked[0], box=[0, 0, 100, 100])], np.array([0, 1]),

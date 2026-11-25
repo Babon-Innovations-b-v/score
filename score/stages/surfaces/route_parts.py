@@ -102,6 +102,7 @@ PLATE_FEWEST = 12
 # humidifier's fluted body, a cylinder, the fitted camera's error put the probes at EDGE_IN off the model and on the
 # white band above it.
 PATTERN_EDGE_IN = 0.25
+PATTERN_MOST = 3  # of a pattern's 5 probes meeting one finish outvote its middle's (pattern_middle)
 PROBES = {"middle": (0.5, 0.5), "left": (EDGE_IN, 0.5), "right": (1 - EDGE_IN, 0.5), "top": (0.5, EDGE_IN),
           "bottom": (0.5, 1 - EDGE_IN)}
 
@@ -206,6 +207,19 @@ def square_up(up, normal):
     return None if length < 1e-6 else up / length
 
 
+def pattern_middle(faces, finish_of):
+    """A pattern's reference face: its middle probe's, unless most of its probes (PATTERN_MOST) meet another finish,
+    then the first of those (#229, r16k's locker: a vent's middle probe met one of 25 stray chrome faces on TRELLIS.2's
+    bumps, its four others the door's painted steel, and the vent was a gap)."""
+    middle = faces[list(PROBES).index("middle")]
+    met = [face for face in faces if face >= 0]
+    finishes = [finish_of[face] for face in met]
+    most = max(set(finishes), key=finishes.count)
+    if finish_of[middle] != most and finishes.count(most) >= PATTERN_MOST:
+        return next(face for face in met if finish_of[face] == most)
+    return middle
+
+
 def placement(mark, number, faces, points, part_of, normals, seen, finish_of=None):
     """One mark's placement ({decal, part, at, normal, up, size, turn, layer, ink_token, what, from}) in the take's own
     frame, or the reason it cannot be placed: its middle off the model, or both its sizes off its part. A pattern's
@@ -215,6 +229,8 @@ def placement(mark, number, faces, points, part_of, normals, seen, finish_of=Non
     middle = faces[names.index("middle")]
     if middle < 0:
         return None, "its box's middle is off the model"
+    if mark.get("shape") == pattern_decals.SHAPE and finish_of is not None:
+        middle = pattern_middle(faces, finish_of)
     part = int(part_of[middle])
     if mark.get("shape") == pattern_decals.SHAPE and finish_of is not None:
         on_part = {name: faces[at] >= 0 and finish_of[faces[at]] == finish_of[middle] for at, name in enumerate(names)}
