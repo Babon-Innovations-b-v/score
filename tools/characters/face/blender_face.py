@@ -238,10 +238,14 @@ def coated(material, coat):
 def clear(material, transmission):
     """Clear glass (the cornea): the record's transmission, fully opaque to the camera; shadow rays pass straight
     through it, as light does through a real eye's (Cycles draws no caustics, so a glass cornea would shade the iris
-    black)."""
+    black). A library surface's record holds its transmission as a block ({"weight", "ior", ...}), the face's own
+    finishes as a plain weight; both are read."""
     tree = material.node_tree
     principled = principled_of(material)
-    principled.inputs["Transmission Weight"].default_value = transmission
+    weight = transmission["weight"] if isinstance(transmission, dict) else transmission
+    principled.inputs["Transmission Weight"].default_value = weight
+    if isinstance(transmission, dict) and "ior" in transmission:
+        principled.inputs["IOR"].default_value = transmission["ior"]
     principled.inputs["Alpha"].default_value = 1.0
     output = next(node for node in tree.nodes if node.type == "OUTPUT_MATERIAL")
     path = tree.nodes.new("ShaderNodeLightPath")
