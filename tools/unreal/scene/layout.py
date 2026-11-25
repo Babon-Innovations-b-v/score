@@ -107,10 +107,12 @@ def grade_place(colour, grade):
 
 
 def grade_code(grade, exposure, background):
-    """The HLSL of the post-process material that replaces Unreal's tonemapper: the scene colour (its pre-exposure
-    taken off, Unreal's radiance), or the `background` radiance where nothing stands (depth past SKY_DEPTH), times
-    the `exposure` (Blender's, LUMENS_A_WATT divided out), looked up in the grade picture as grade_place does; inputs
-    Color, Depth (scene textures) and Grade (the picture). Its output is the display's sRGB value Blender shows."""
+    """The HLSL of the post-process material that replaces Unreal's tonemapper: the scene colour (Unreal's radiance:
+    Movie Render Queue hands it over not pre-exposed, #222 run 14), or the `background` radiance where nothing stands
+    (depth past SKY_DEPTH), times the `exposure` (Blender's, LUMENS_A_WATT divided out), looked up in the grade
+    picture as grade_place does; inputs Color, Depth (scene textures) and Grade (the picture). The picture holds the
+    display's sRGB value Blender shows, and Unreal sRGB-encodes what the material returns (run 14), so the code
+    returns it decoded to linear."""
     size, low, high, middle = (float(grade[key]) for key in ("size", "low", "high", "middle"))
     back = ", ".join(f"{value:.9g}" for value in (background or [0.0, 0.0, 0.0]))
     return "\n".join((
@@ -123,7 +125,8 @@ def grade_code(grade, exposure, background):
         f"float up = 1.0 - (steps.g + 0.5) / {size:.9g};",
         f"float3 below = Grade.SampleLevel(GradeSampler, float2(across + lower / {size:.9g}, up), 0).rgb;",
         f"float3 above = Grade.SampleLevel(GradeSampler, float2(across + upper / {size:.9g}, up), 0).rgb;",
-        "return lerp(below, above, steps.b - lower);"))
+        "float3 shown = lerp(below, above, steps.b - lower);",
+        "return lerp(pow((shown + 0.055) / 1.055, 2.4), shown / 12.92, step(shown, 0.04045));"))
 
 
 def rgbe(colour):

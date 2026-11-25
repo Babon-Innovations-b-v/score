@@ -21,6 +21,7 @@ import json
 import pathlib
 import re
 import sys
+import traceback
 
 import unreal
 
@@ -348,6 +349,14 @@ def grade_picture(grade, place):
     return texture
 
 
+def custom_input(name):
+    """A Custom expression's input called `name`: CustomInput shows Python no Blueprint property, so its constructor
+    takes no keywords (run 12: "call() takes at most 0 arguments") and its name is set as an editor property."""
+    made = unreal.CustomInput()
+    made.set_editor_property("input_name", name)
+    return made
+
+
 def graded(grade, place):
     """The post-process material that replaces Unreal's tonemapper with the final render's grade (layout.grade_code:
     the scene colour, or the background where nothing stands, exposed and looked up in the grade picture)."""
@@ -356,7 +365,7 @@ def graded(grade, place):
     material.set_editor_property("blendable_location", unreal.BlendableLocation.BL_REPLACING_TONEMAPPER)
     custom = expression(material, unreal.MaterialExpressionCustom, (-300, 0), code=grade["code"],
                         output_type=unreal.CustomMaterialOutputType.CMOT_FLOAT3, description="score grade",
-                        inputs=[unreal.CustomInput(input_name=name) for name in ("Color", "Depth", "Grade")])
+                        inputs=[custom_input(name) for name in ("Color", "Depth", "Grade")])
     colour = expression(material, unreal.MaterialExpressionSceneTexture, (-700, -200),
                         scene_texture_id=unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0)
     depth = expression(material, unreal.MaterialExpressionSceneTexture, (-700, 0),
@@ -450,7 +459,9 @@ def attempted(faults, what, call, *arguments):
     try:
         return call(*arguments)
     except Exception as error:  # noqa: BLE001 - every refusal is listed in made.json and fails the result
-        faults.append({"what": what, "error": f"{type(error).__name__}: {error}"})
+        here = [frame for frame in traceback.extract_tb(error.__traceback__) if frame.filename == __file__]
+        faults.append({"what": what, "error": f"{type(error).__name__}: {error}",
+                       "line": here[-1].lineno if here else None})
         unreal.log_error(f"score: FAULT {what}: {type(error).__name__}: {error}")
         return None
 

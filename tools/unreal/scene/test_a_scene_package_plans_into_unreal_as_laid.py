@@ -13,7 +13,8 @@ values, or a channel short of keys) are refused, so the camera never stays where
 shines from where it stands, in lux, the sky light's strength is in Unreal's units too, a place with no sky picture is lit by an even sky of its ambient, and the exposure divides the
 lumens back out; each lamp reaches until it lights a white wall to layout.FAINTEST once exposed, the background is in
 Unreal's units, and the grade that replaces Unreal's tonemapper reads each colour of Blender's grade lattice at the
-pixel grade_lut wrote it to, its code exposing by Blender's exposure.
+pixel grade_lut wrote it to, its code exposing Unreal's radiance (never pre-exposed) by Blender's exposure and
+returning linear, as Unreal sRGB-encodes its output.
 
 Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - frames.copy_transform: the turn taken B R (no B^T) -> the turned copies' points land off their laid spots
@@ -44,6 +45,8 @@ Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - layout.grade_place: green read down from the top row -> every lattice colour lands on another row
 - layout.grade_place: the blue tiles not a size apart -> the colours past the first tile land off their column
 - layout.grade_code: LUMENS_A_WATT not divided out of the exposure -> the code carries 2, not 2 / 683
+- layout.grade_code: the scene colour divided by View.PreExposure -> run 14's frame 7 stops too bright, the code names it
+- layout.grade_code: the grade picture's sRGB value returned undecoded -> Unreal encodes it twice (run 14), no decode
 """
 import io
 import json
@@ -272,7 +275,9 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "grade lands on its lattice": [grade_landing(made["environment"]["grade"], step) for step in
                                        ((0, 0, 0), (5, 10, 20), (63, 1, 62), (63, 63, 63))],
         "grade code": [f"{2.0 / 683.0:.9g}" in made["environment"]["grade"]["code"],
-                       "float3(6.83, 13.66, 27.32)" in made["environment"]["grade"]["code"]],
+                       "float3(6.83, 13.66, 27.32)" in made["environment"]["grade"]["code"],
+                       "PreExposure" not in made["environment"]["grade"]["code"],
+                       "pow((shown + 0.055) / 1.055, 2.4)" in made["environment"]["grade"]["code"]],
         "caps": made["caps"]["use"],
     }
     assert answer == {
@@ -292,6 +297,6 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "keys landed": [False, False, True, True],
         "sun": (True, 4.0 * 683.0), "exposure": round(math.log2(2.0 / 683.0), 6),
         "lamp": ([0.0, 0.0, 300.0], 6830.0), "lamp reaches its faintest": 1.0,
-        "background": [6.83, 13.66, 27.32], "grade lands on its lattice": [True] * 4, "grade code": [True, True],
+        "background": [6.83, 13.66, 27.32], "grade lands on its lattice": [True] * 4, "grade code": [True] * 4,
         "caps": "film"}, answer
     json.dumps(made)  # the plan is what plan.py writes

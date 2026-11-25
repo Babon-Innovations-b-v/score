@@ -23,4 +23,9 @@ runs inside Unreal's Python and carries the plan out. Rules: the parent overlay'
   out are checked against Blender's frames in the side-by-side test (#218), not trusted. Everything Unreal reads as
   light (lamps, sun, sky light, glow) is Blender's figure times LUMENS_A_WATT, or the exposure leaves it 683 times too
   dark; a night's ambient is an even sky light, and every light is Movable (no built lighting).
+- **The grade replaces the tonemapper, measured (#222 run 14).** Movie Render Queue hands the material the scene
+  colour as radiance, not pre-exposed (`View.PreExposure` is the manual exposure, 4.5 / 683 there: dividing by it
+  left the frame 7 stops too bright), and Unreal sRGB-encodes what the material returns, so `layout.grade_code`
+  returns the grade picture's value decoded to linear. A struct with no Blueprint property (`unreal.CustomInput`)
+  takes no constructor keywords: build it empty and set its fields with `set_editor_property`.
 - Plain Python with no numpy in every file but `editor.py` (which needs `unreal`): Unreal's own Python imports them.
