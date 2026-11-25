@@ -84,4 +84,5 @@ def main():
         raise SystemExit("a garment or an accessory does not stay seated:\n" + "\n".join(failed))
 
 
-main()
+if __name__ == "__main__":  # imported by tools/characters/whole for its paths, never run then
+    main()
