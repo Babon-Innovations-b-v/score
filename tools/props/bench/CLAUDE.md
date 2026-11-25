@@ -8,6 +8,8 @@ SimReady models (score_lib `model/simready_*`). Each part is its own module dire
   assets, the route's checks on the truths; the bars in `measures/` are set from it.
 - `run/`: each object drawn as its close-up (Blender on this PC's card) and made again by both routes from it, every
   step's output a store object.
+- `joints/`: a made model's moving parts run in Newton (#177): its parts step's parted GLB staged, joined, driven
+  to their limits and measured.
 - **Nothing is taken into score_lib** and nothing reads it but through `score.library` and `library_files`; the
   benchmark ids are held out from the route's own library lookups.
 - **Results live in the store bucket** (runner rows, `score/store/offload`): inputs, each step's model, `measures.json`,
