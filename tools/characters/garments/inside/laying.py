@@ -37,6 +37,7 @@ AXES = np.array([[1.0, 0, 0], [-1.0, 0, 0], [0, 1.0, 0], [0, -1.0, 0], [0, 0, 1.
 SLIVER = 0.5
 LEVEL_M = 0.01  # the band a level's points and skin are read in (half its height)
 LEG_LEVELS = 9  # levels of a leg's lower half its move across is read at
+RING_WAYS = 360  # level ways out from a waistband's middle the skin's ring round her is read along
 CROTCH_GAP_M = 0.01  # a leg moved in towards the crotch's middle keeps its points this far off it (the legs apart)
 
 
@@ -196,38 +197,111 @@ def skin_normals(skin, faces):
     return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)
 
 
-def worn_places(points, skin, faces):
-    """Where a waistband's held points (`points`, its box mesh's top ring as laid) are worn: each where the level way
-    from it to the ring's middle (its points' mean, across x and z) first meets the skin, so the band's top is worn at
-    the level its pattern cuts it for, as GarmentCode's drape attaches its `lower_interface` at the waist's level: (the
-    skin triangle of each, its corners' weights). Carried to the skin point nearest them instead, the box's flat front
-    and back panels, laid 7 to 15 cm off woman_stair's hips at one level, were worn on a line up to 6 cm higher at the
-    back's sides (the skin nearest them up on the waist over her seat), longer than the band is cut; the side seams
-    were held 6 to 15 cm open, the band stood 3.6 cm off her hips there, and the tee laid over it crossed it however
-    far out (2026-11-25). A point whose level way meets no skin is refused."""
-    points, skin, faces = np.asarray(points, dtype=float), np.asarray(skin, dtype=float), np.asarray(faces)
-    middle = points.mean(axis=0)
+def top_ring(record, labels, scale):
+    """A garment's held top ring in its box mesh, round in order: the points GarmentCode labels `labels` (its
+    `lower_interface`) and the side seams' top points that close them into one ring, each with its edge's cut length
+    to the next (m, `scale` m to the record's unit: the flat panel's, along the triangle that holds the edge). GarmentCode
+    labels each band panel's top edge without its seam corners, so its front and back are two chains apart at the side
+    seams, each closed by the point that joins its two ends along the shortest cut (the seam's top, not the point
+    under it a diagonal away); held without those corners, woman_stair_modern's jeans' waistband had no held point for 16.5 cm at each
+    side seam and its ends were pulled across the gap, up to 7 times their cut length (#225 round 8, 2026-11-25). A
+    labelled top that is not one closed ring is refused."""
+    held = set(np.unique(np.concatenate([record[f"label/{label}"] for label in labels])).tolist())
+    box, faces, copies = np.asarray(record["box"]), np.asarray(record["faces"]), np.asarray(record["copies"])
+    cut = {}
+    for face in faces:
+        for one, two in ((0, 1), (1, 2), (2, 0)):
+            pair = tuple(sorted((int(box[face[one]]), int(box[face[two]]))))
+            cut[pair] = float(np.linalg.norm(copies[face[one]] - copies[face[two]])) * scale
+    neighbours = {}
+    for one, two in cut:
+        neighbours.setdefault(one, set()).add(two)
+        neighbours.setdefault(two, set()).add(one)
+    ring = lambda point: neighbours.get(point, set()) & held
+    ends = {point for point in held if len(ring(point)) == 1}
+    closing = {}
+    for end in ends:
+        for point in neighbours[end] - held:
+            pair = tuple(sorted(neighbours[point] & ends))
+            if len(pair) == 2:
+                length = sum(cut[tuple(sorted((point, other)))] for other in pair)
+                closing[pair] = min(closing.get(pair, (length, point)), (length, point))
+    held |= {point for _, point in closing.values()}
+    if any(len(ring(point)) != 2 for point in held):
+        raise RuntimeError(f"a held top of {len(held)} points is not one closed ring")
+    order = [min(held)]
+    while len(order) < len(held):
+        step = sorted(ring(order[-1]) - set(order))
+        if not step:
+            raise RuntimeError(f"a held top of {len(held)} points is more than one ring")
+        order.append(step[0])
+    order = np.asarray(order, dtype=np.int64)
+    return order, np.array([cut[tuple(sorted((int(one), int(two))))] for one, two in zip(order, np.roll(order, -1))])
+
+
+def level_hit(origin, towards, skin, faces):
+    """Where the level way from `origin` along `towards` (unit, y 0) first meets the skin (Moller and Trumbore):
+    (its triangle, its corners' weights, how far along), or None where it meets none."""
     corner = skin[faces[:, 0]]
     first, second = skin[faces[:, 1]] - corner, skin[faces[:, 2]] - corner
+    across = np.cross(towards, second)
+    determinant = np.sum(first * across, axis=1)
+    usable = np.abs(determinant) > 1e-14
+    inverse = 1.0 / np.where(usable, determinant, 1.0)
+    offset = origin - corner
+    one = np.sum(offset * across, axis=1) * inverse
+    turned = np.cross(offset, first)
+    two = (turned @ towards) * inverse
+    along = np.sum(second * turned, axis=1) * inverse
+    hit = usable & (one >= 0.0) & (two >= 0.0) & (one + two <= 1.0) & (along > 0.0)
+    if not hit.any():
+        return None
+    found = np.flatnonzero(hit)[np.argmin(along[hit])]
+    return found, np.array([1.0 - one[found] - two[found], one[found], two[found]]), float(along[found])
+
+
+def worn_places(points, cut, skin, faces):
+    """Where a waistband's held points (`points`, its box mesh's top ring as laid, round in order, `top_ring`) are
+    worn: round the skin's ring at their level (where the level ways out from the ring's middle, its points' mean
+    across x and z, first meet the skin, read every 360th of a turn), each as far round it as it is round the band's
+    cut (`cut`: each point's edge length to the next), so the band is held round her evenly at the level its pattern
+    cuts it for, as GarmentCode's drape attaches its `lower_interface` at the waist's level. The ring's turn round her
+    is the mean of how far round each point stands where it was laid. (the skin triangle of each, its corners'
+    weights). Carried to the skin point nearest them, the box's flat front and back panels, laid 7 to 15 cm off
+    woman_stair's hips at one level, were worn on a line up to 6 cm higher at the back's sides (2026-11-25); each worn
+    where its own level way to the middle met the skin, the flat panels' points crowded her front and back and left
+    16.5 cm at each side seam, the band's ends there stretched up to 7 times their cut length (#225 round 8). A level
+    way that meets no skin is refused."""
+    points, skin, faces = np.asarray(points, dtype=float), np.asarray(skin, dtype=float), np.asarray(faces)
+    middle = points.mean(axis=0)
+    turns = np.linspace(0.0, 2.0 * np.pi, RING_WAYS, endpoint=False)
+    ways = np.stack([np.cos(turns), np.zeros(RING_WAYS), np.sin(turns)], axis=1)
+    reach = []
+    for way in ways:
+        found = level_hit(middle, way, skin, faces)
+        if found is None:
+            raise RuntimeError(f"the level way out from {np.round(middle, 3).tolist()} at {np.round(way, 3).tolist()} "
+                               "meets no skin")
+        reach.append(found[2])
+    contour = middle + ways * np.asarray(reach)[:, None]
+    round_at = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.roll(contour, -1, axis=0) - contour, axis=1))])
+    whole = round_at[-1]
+    laid_turn = np.mod(np.arctan2(points[:, 2] - middle[2], points[:, 0] - middle[0]), 2.0 * np.pi)
+    laid_round = np.interp(laid_turn, np.append(turns, 2.0 * np.pi), round_at)
+    cut = np.asarray(cut, dtype=float)
+    share = np.concatenate([[0.0], np.cumsum(cut)[:-1]]) / cut.sum() * whole
+    outline = points[:, [0, 2]] - middle[[0, 2]]
+    if np.sum(outline[:, 0] * np.roll(outline[:, 1], -1) - np.roll(outline[:, 0], -1) * outline[:, 1]) < 0.0:
+        share = -share  # the ring runs the other way round
+    phase = np.angle(np.mean(np.exp(1j * 2.0 * np.pi * (laid_round - share) / whole))) / (2.0 * np.pi) * whole
+    worn_turn = np.interp(np.mod(share + phase, whole), round_at, np.append(turns, 2.0 * np.pi))
     triangles, weights = np.zeros(len(points), dtype=np.int64), np.zeros((len(points), 3))
-    for index, point in enumerate(points):
-        towards = np.array([middle[0] - point[0], 0.0, middle[2] - point[2]])
-        towards /= max(np.linalg.norm(towards), 1e-12)
-        across = np.cross(towards, second)
-        determinant = np.sum(first * across, axis=1)
-        usable = np.abs(determinant) > 1e-14
-        inverse = 1.0 / np.where(usable, determinant, 1.0)
-        offset = point - corner
-        one = np.sum(offset * across, axis=1) * inverse
-        turned = np.cross(offset, first)
-        two = (turned @ towards) * inverse
-        along = np.sum(second * turned, axis=1) * inverse
-        hit = usable & (one >= 0.0) & (two >= 0.0) & (one + two <= 1.0) & (along > 0.0)
-        if not hit.any():
-            raise RuntimeError(f"a held point at {np.round(point, 3).tolist()} meets no skin on its level way in")
-        found = np.flatnonzero(hit)[np.argmin(along[hit])]
-        triangles[index] = found
-        weights[index] = [1.0 - one[found] - two[found], one[found], two[found]]
+    for index, (point, turn) in enumerate(zip(points, worn_turn)):
+        origin = np.array([middle[0], point[1], middle[2]])
+        found = level_hit(origin, np.array([np.cos(turn), 0.0, np.sin(turn)]), skin, faces)
+        if found is None:
+            raise RuntimeError(f"a held point at {np.round(point, 3).tolist()} meets no skin on its level way")
+        triangles[index], weights[index] = found[0], found[1]
     return triangles, weights
 
 

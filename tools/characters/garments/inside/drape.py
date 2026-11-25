@@ -20,9 +20,9 @@ through the clip too), "belt" (optional): {"on": the garment it is worn on, "und
 The run, in the order GarmentCode's own drape goes: each garment's box mesh (its panels laid round the body, each seam's
 points shared) is one cloth whose triangles rest first as laid and go over to their flat panels' shapes in the first
 fifth of sewing (`laying.rest_lengths`), and whose edges bend flat, so the seams pull shut and the panels take their
-sewn shape round the body; a garment's held points (its waistband's top,
-GarmentCode's `lower_interface`) are carried from where the box lays them to the body's skin under them at the waist
-level and then ride the skin as a worn waistband does, every other point is cloth; a garment's drawn points (a
+sewn shape round the body; a garment's held points (its waistband's top ring, GarmentCode's `lower_interface` and
+the side seams' top points that close it, `laying.top_ring`) are carried from where the box lays them to the body's
+skin round her at their level, spaced as the band is cut, and then ride the skin as a worn waistband does, every other point is cloth; a garment's drawn points (a
 neckline's halves, GarmentCode's `right_collar` and `left_collar`) that stand out past their level are drawn back to it,
 as GarmentCode's attachments (a plane and its normal) draw them, while sewing and as long as the job's `holds_until`
 says, the levels moving with the body's neck; a point inside the level is left (drawn both ways, every point of a half
@@ -261,8 +261,8 @@ class Garment:
         areas = 0.5 * np.linalg.norm(np.cross(flat[:, 1] - flat[:, 0], flat[:, 2] - flat[:, 0]), axis=1)
         masses = np.zeros(self.count)
         np.add.at(masses, welded.ravel(), np.repeat(areas / 3.0 * material["density"], 3))
-        self.held = np.unique(np.concatenate([record[f"label/{key}"] for key in spec.get("worn", [])]
-                                             or [np.zeros(0, int)]))
+        self.held, self.cut = (laying.top_ring(record, spec["worn"], CENTIMETRES) if spec.get("worn")
+                               else (np.zeros(0, dtype=np.int64), np.zeros(0)))
         self.holds = [(record[f"label/{hold['label']}"] + self.first, hold["axis"],
                        levels(self.points[record[f"label/{hold['label']}"]], hold), hold["side"])
                       for hold in spec.get("holds", [])]
@@ -393,10 +393,10 @@ class Outfit:
         self.share = share
 
     def worn_on(self, garment):
-        """Where each held point is worn: the skin at the bind where its level way in meets it (`laying.worn_places`),
-        out by the cloth's radius along that triangle's normal, as arrays on the card: (particles, the triangles'
-        corners, barycentric weights, the box mesh's start, the radius)."""
-        faces, weights = laying.worn_places(garment.points[garment.held], self.bind, self.faces)
+        """Where each held point is worn: round the skin's ring at its level at the bind, as far round as it is round
+        the band's cut (`laying.worn_places`), out by the cloth's radius along that triangle's normal, as arrays on
+        the card: (particles, the triangles' corners, barycentric weights, the box mesh's start, the radius)."""
+        faces, weights = laying.worn_places(garment.points[garment.held], garment.cut, self.bind, self.faces)
         radius = float(self.model.particle_radius.numpy()[garment.first])
         return (wp.array((garment.first + garment.held).astype(np.int32), dtype=wp.int32),
                 wp.array(self.faces[faces].astype(np.int32), dtype=wp.vec3i), wp.array(weights, dtype=wp.vec3),

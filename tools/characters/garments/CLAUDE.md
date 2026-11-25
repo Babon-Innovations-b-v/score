@@ -19,7 +19,9 @@ runs them (an outfit file per look in `data/people/outfits/`).
   from as laid while the gravity-free fifth of sewing runs: rested flat at once, the seam triangles laid 15 to 50 times
   their panel overran Newton's float32 membrane), seams sewn by shared points, a waistband's top worn on the skin at its own level (`laying.worn_places`: carried
   to the skin nearest it, the box's flat panels 7 to 15 cm off her hips put the top 6 cm higher at the back's sides
-  and held the side seams open), a neckline's halves kept inside the planes either side of
+  and held the side seams open), its whole ring held, the side seams' tops too, and spaced round her as it is cut
+  (`laying.top_ring`: held at the flat panels' points alone, the side seams were left 16.5 cm unheld and the band's
+  ends torn across them), a neckline's halves kept inside the planes either side of
   the neck (`holds`, GarmentCode's attachments: one-sided, a point inside its plane left), speeds capped only while
   sewing.
 - **Runs on this PC's card through the card queue** (`tools/cloud/backends/card_queue.py`), each step in its own

@@ -44,7 +44,9 @@ its first edge or its shape transposed (not Newton's), the share not reaching th
 its start; trouser legs not moved over the legs, moved the other way, or moved in past the crotch's gap; a crossing's points not left out against the triangle it passes through, its edge not against that
 triangle's edges, or an edge sharing a corner with a triangle taken for one through it (cloth that crosses nothing
 leaving its own neighbours out of self contact); a waistband's top worn where the skin is nearest it (off its level
-on a body that narrows above the hips) or at its level way's last hit rather than its first."""
+on a body that narrows above the hips), its side seams' tops not held (the ring open at the seams), each point worn
+where its own level way in meets the skin, spaced by count rather than by its cut, or run the other way round her (left
+and right swapped), or a side seam closed by the point under its top."""
 import json
 import math
 import pathlib
@@ -514,23 +516,62 @@ def sleeve_crossed(wear):
     return points_to, edges_to, (lower, upper), under, crossing
 
 
+def toy_band():
+    """A toy waistband's box mesh as pattern.py records it: a front panel (+z) and a back panel, each 9 columns by 2
+    rows, sewn at the side seams by their end columns' shared points, laid as GarmentCode's box mesh lays them (flat
+    panels 8 cm off the toy body at 0.3 m high, the seams' points at the sides) and cut 6 cm a column at the front, 9
+    at the back; `lower_interface` labels each panel's top edge without its seam corners, as GarmentCode does.
+    (record, laid points in m)."""
+    across = np.linspace(-0.2, 0.2, 9)
+    laid = []
+    for height in (0.3, 0.28):
+        laid += [[-0.26, height, 0.0]] + [[x, height, 0.31] for x in across[1:-1]] + [[0.26, height, 0.0]]
+    for height in (0.3, 0.28):
+        laid += [[x, height, -0.31] for x in across[1:-1]]
+    box, panel, copies, faces = [], [], [], []
+    for number, step in enumerate((6.0, 9.0)):
+        start = len(box)
+        for row in range(2):
+            for column in range(9):
+                seam = column in (0, 8)
+                box.append(row * 9 + column if number == 0 or seam else 18 + row * 7 + column - 1)
+                panel.append(number)
+                copies.append([column * step, -row * 2.0, 0.0])
+        for column in range(8):
+            here, below = start + column, start + 9 + column
+            faces += [[here, below, here + 1], [here + 1, below, below + 1]]
+    box = np.asarray(box)
+    top = box[[number * 18 + column for number in range(2) for column in range(1, 8)]]
+    record = {"box": box, "panel": np.asarray(panel), "faces": np.asarray(faces), "copies": np.asarray(copies),
+              "label/lower_interface": top}
+    return record, np.asarray(laid)
+
+
+WIDER = 1.3  # the toy waist's x over its z
+
+
 def waistband_worn():
-    """A toy waistband's top ring laid as GarmentCode's box mesh lays it (flat front and back panels 8 cm off a body
-    whose hips widen 4 cm in each 10 cm down, at one level) worn by `laying.worn_places`: each place's height off its
-    point's level, and its distance off the toy body's skin at that level on the point's own side (m, the most of
-    each)."""
+    """The toy band's top ring (`toy_band`) worn by `laying.top_ring` and `laying.worn_places` on a body whose waist is
+    WIDER across than deep and whose hips widen 4 cm in each 10 cm down: how many points the ring holds, each place's
+    height off its point's level and its distance off the skin at that level (m, the most of each), the most and
+    least of the worn edges' lengths over their cut lengths, and how many places stand on the other side (left or right,
+    front or back) from their points as laid."""
     profile = [(0.15 + 0.4 * (0.5 - height), height) for height in np.arange(0.0, 0.81, 0.01)]
     profile = [(max(radius, 0.12), height) for radius, height in profile]
     skin, faces = revolved(profile, 96, 0.0)
-    across = np.linspace(-0.2, 0.2, 9)
-    ring = np.array([[x, 0.3, side * 0.31] for side in (1.0, -1.0) for x in across])
-    triangles, weights = laying.worn_places(ring, skin, faces)
+    skin[:, 0] *= WIDER
+    record, laid = toy_band()
+    order, cut = laying.top_ring(record, ["lower_interface"], 0.01)
+    ring = laid[order]
+    triangles, weights = laying.worn_places(ring, cut, skin, faces)
     worn = np.sum(skin[faces[triangles]] * weights[:, :, None], axis=1)
     radius = 0.15 + 0.4 * (0.5 - 0.3)
-    # the way in from each point to its place is the way from it to the skin on its own side, never the far side's
-    way_in = np.linalg.norm(ring[:, [0, 2]] - worn[:, [0, 2]], axis=1) - (np.linalg.norm(ring[:, [0, 2]], axis=1) - radius)
-    return (float(np.abs(worn[:, 1] - ring[:, 1]).max()),
-            float(max(np.abs(np.linalg.norm(worn[:, [0, 2]], axis=1) - radius).max(), np.abs(way_in).max())))
+    stretch = np.linalg.norm(np.roll(worn, -1, axis=0) - worn, axis=1) / cut
+    sided = np.abs(ring[:, [0, 2]]) > 1e-9
+    return (len(order), float(np.abs(worn[:, 1] - ring[:, 1]).max()),
+            float(np.abs(np.hypot(worn[:, 0] / WIDER, worn[:, 2]) - radius).max()),
+            float(stretch.max()), float(stretch.min()),
+            int(np.sum(sided & (np.sign(worn[:, [0, 2]]) != np.sign(ring[:, [0, 2]])))))
 
 
 @pytest.mark.parametrize("scale, wear, failed", [
@@ -612,9 +653,12 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         assert off_newton == pytest.approx(0.0, abs=1e-6) and half_area > 0.0
         return
     if wear.startswith("a waistband"):
-        # worn on the skin at the ring's own level (the 96-sided ring's chords at most 0.2 mm in), never off it
-        level, off = waistband_worn()
-        assert level == pytest.approx(failed, abs=1e-9) and off < 0.0005, (level, off)
+        # the ring closed by both side seams' tops (14 labelled, 16 held), worn on the skin at its own level (the
+        # 96-sided ring's chords at most 0.2 mm in), each edge stretched alike round her (but for its chords' 2% across
+        # the waist's turns), every point on its own side
+        held, level, off, most, least, swapped = waistband_worn()
+        assert held == 16 and level == pytest.approx(failed, abs=1e-9) and off < 0.0005, (held, level, off)
+        assert most / least < 1.02 and swapped == 0, (most, least, swapped)
         return
     if wear.startswith("a sleeve cap"):
         points_to, edges_to, (lower, upper), under, crossing = sleeve_crossed(wear)
