@@ -171,10 +171,12 @@ def measured(path, row):
 
 
 def same_row(row, then):
-    """Whether a row is the one props-inputs handed before (`then`), all but its concept's path (a make's frozen home)
-    and the wording chosen on it here."""
+    """Whether a row is the one props-inputs handed before (`then`), all but its concept's path (a make's frozen home),
+    the wording chosen on it here and the pictures' sha256 props-inputs writes beside their paths (#89: an output
+    accepted before that field has none; reuse_row still holds each take to its rebuilt request's digest)."""
     def plain(entry):
-        return {key: value for key, value in entry.items() if key not in ("concept", "pro_wording")}
+        return {key: value for key, value in entry.items()
+                if key not in ("concept", "pro_wording", "concept_sha256", "drawn_sha256")}
     return then is not None and plain(row) == plain(then)
 
 

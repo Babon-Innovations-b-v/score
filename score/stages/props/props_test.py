@@ -18,7 +18,8 @@ red;
 draw_missing's new takes asked in a free-only run too (`[] if runs_free_only() else` dropped), or a gap worded by the
 run's mode, turns
 test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_is_never_drawn_again red;
-reuse_row's `if today == then` made `if True`, or draw_missing's `reused_pictures(...)` dropped, turns
+reuse_row's `if today == then` made `if True`, draw_missing's `reused_pictures(...)` dropped, or same_row comparing
+the `*_sha256` fields props-inputs writes beside its pictures (#89), turns
 test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_same_request red; unbaked's
 `hold[:3, :3] = ...` made `pass` (the bake's turn kept) turns
 test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it red; pixal_cut held to its largest
@@ -721,9 +722,13 @@ def test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_
     os.environ["SCORE_FREE_ONLY"] = "1"
     try:
         picture = accepted("same")
-        found = closeup_row.draw_missing([dict(row) for row in rows], folder / "now", store)
-        assert list(found["lamp"]) == ["pro"], found
-        assert (folder / "now/pro/lamp.png").read_bytes() == picture
+        # Today's rows as props-inputs hands them: as the accepted output's, or (#89) with each picture's sha256
+        # beside its path, which an output accepted before that field never carries.
+        sha256s = {"concept_sha256": "ab" * 32, "drawn_sha256": None}
+        for case, extra in {"as then": {}, "with its sha256s": sha256s}.items():
+            found = closeup_row.draw_missing([{**row, **extra} for row in rows], folder / "now" / case, store)
+            assert list(found.get("lamp", {})) == ["pro"], (case, found)
+            assert (folder / "now" / case / "pro/lamp.png").read_bytes() == picture, case
         accepted("other crop", crop_colour=(0, 0, 0))
         assert closeup_row.draw_missing([dict(row) for row in rows], folder / "later", store) == {}
         assert not (folder / "later/pro/lamp.png").exists()
