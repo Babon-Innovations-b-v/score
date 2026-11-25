@@ -13,9 +13,9 @@ BSDF.
 The studio: a seamless backdrop (a floor curving up into a wall behind, the library's paper_white), a large soft key
 from the camera's left above, a fill from its right, a rim from behind for the hair's edge, a dim grey sky; the
 person turned on a turntable for each view, so every side is lit and backed alike. An 85 mm lens framing the whole
-person, AgX. Then a close-up of the face (the head filling the frame, from FACE_TURN off its front) in the same
-studio, and the person in one simple real setting (`setting`: {"floor", "wall"}, library surfaces: a concrete floor
-running to a concrete wall behind) in daylight (a low sun, a pale sky) from SETTING_VIEW.
+person, AgX in its medium high contrast look. Then a close-up of the face (the head filling the frame, from FACE_TURN
+off its front) in the same studio, and the person in one simple real setting (`setting`: {"floor", "wall"}, library
+surfaces: a concrete floor running to a concrete wall behind) in daylight (a low sun, a pale sky) from SETTING_VIEW.
 Writes <out>/<name>-<view>.png, <out>/<name>-face.png and <out>/<name>-setting.png.
 """
 import json
@@ -35,9 +35,12 @@ SAMPLES = 512
 LENS_MM = 85.0
 EYE_HEIGHT = 1.15  # m: the camera at the person's chest, a fashion photograph's height
 MARGIN = 1.18  # the frame's height over the person's
-KEY = {"turn": 45.0, "rise": 40.0, "size": 2.2, "watts": 900.0}
-FILL = {"turn": -60.0, "rise": 15.0, "size": 2.5, "watts": 250.0}
-RIM = {"turn": 160.0, "rise": 35.0, "size": 1.2, "watts": 500.0}
+# The lamps a stop under the first whole person's (2026-11-25: her skin drew at 0.95 of white, the frame blown), the
+# key four times the fill so the shade reads, AgX's medium high contrast look over its base.
+KEY = {"turn": 45.0, "rise": 40.0, "size": 2.2, "watts": 450.0}
+FILL = {"turn": -60.0, "rise": 15.0, "size": 2.5, "watts": 110.0}
+RIM = {"turn": 160.0, "rise": 35.0, "size": 1.2, "watts": 250.0}
+LOOK = "AgX - Medium High Contrast"
 SKY = (0.5, 0.5, 0.5)
 SKY_STRENGTH = 0.25
 BACKDROP = {"surface": "paper_white", "behind": 2.2, "width": 8.0, "height": 4.5, "bend": 0.8}
@@ -188,6 +191,7 @@ def main(scene_path, library, out):
     sky()
     blender_face.renderer()
     render = bpy.context.scene
+    render.view_settings.look = LOOK
     render.cycles.samples = SAMPLES
     render.render.resolution_x, render.render.resolution_y = SIZE
     camera = bpy.data.objects.new("camera", bpy.data.cameras.new("camera"))

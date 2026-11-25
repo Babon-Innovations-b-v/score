@@ -41,7 +41,90 @@ def library_material(library, surface):
     bpy.ops.wm.usd_import(filepath=str(found[-1]), import_all_materials=True)
     if surface not in bpy.data.materials:
         raise RuntimeError(f"{found[-1]} imported no material named {surface}")
-    return bpy.data.materials[surface]
+    material = bpy.data.materials[surface]
+    record_path = found[-1].with_name("surface.json")
+    record = json.loads(record_path.read_text()) if record_path.is_file() else {}
+    if "subsurface" in record:
+        light_through(material, record["subsurface"])
+    if "detail" in record:
+        grained(material, record["detail"])
+    return material
+
+
+def light_through(material, subsurface):
+    """The record's light under the surface on the imported Principled BSDF: its weight, mean free paths (mm, the
+    scene in metres), anisotropy, index and method."""
+    principled = next(node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED")
+    principled.subsurface_method = subsurface["method"]
+    principled.inputs["Subsurface Weight"].default_value = subsurface["weight"]
+    principled.inputs["Subsurface Radius"].default_value = subsurface["radius_mm"]
+    principled.inputs["Subsurface Scale"].default_value = 0.001
+    principled.inputs["Subsurface Anisotropy"].default_value = subsurface["anisotropy"]
+    principled.inputs["Subsurface IOR"].default_value = subsurface["ior"]
+
+
+def grain_texture(tree, kind, spacing, coordinates):
+    """A Voronoi (pores) or noise texture whose cells or features are `spacing` metres apart on the object."""
+    texture = tree.nodes.new("ShaderNodeTexVoronoi" if kind == "cells" else "ShaderNodeTexNoise")
+    texture.inputs["Scale"].default_value = 1.0 / spacing
+    if kind != "cells":
+        texture.inputs["Detail"].default_value = 4.0
+    tree.links.new(coordinates.outputs["Object"], texture.inputs["Vector"])
+    return texture
+
+
+def toned(tree, colour_socket, texture_output, share, towards):
+    """The colour reaching `colour_socket` moved towards `towards` by up to `share` where the texture is high."""
+    scaled = tree.nodes.new("ShaderNodeMath")
+    scaled.operation = "MULTIPLY"
+    scaled.inputs[1].default_value = share
+    tree.links.new(texture_output, scaled.inputs[0])
+    mix = tree.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    first, second = (next(socket for socket in mix.inputs if socket.name == name and socket.type == "RGBA")
+                     for name in ("A", "B"))
+    result = next(socket for socket in mix.outputs if socket.type == "RGBA")
+    tree.links.new(scaled.outputs[0], mix.inputs["Factor"])
+    link = colour_socket.links[0] if colour_socket.is_linked else None
+    if link:
+        tree.links.new(link.from_socket, first)
+    else:
+        first.default_value = colour_socket.default_value
+    second.default_value = (*towards, 1.0)
+    tree.links.new(result, colour_socket)
+
+
+def grained(material, detail):
+    """The record's grain on the imported material, on the object's own coordinates (the skin has no UVs): pores
+    (Voronoi cells, the pits their edges' distance) and a fine grain bumped into the normal, blotches and freckles
+    toning the base colour, the gloss spread by the blotches."""
+    tree = material.node_tree
+    principled = next(node for node in tree.nodes if node.type == "BSDF_PRINCIPLED")
+    coordinates = tree.nodes.new("ShaderNodeTexCoord")
+    normal = None
+    for name in ("pores", "fine"):
+        texture = grain_texture(tree, "cells" if name == "pores" else "noise", detail[name]["spacing_m"], coordinates)
+        bump = tree.nodes.new("ShaderNodeBump")
+        bump.inputs["Distance"].default_value = detail[name]["depth_m"]
+        tree.links.new(texture.outputs["Distance" if name == "pores" else "Fac"], bump.inputs["Height"])
+        if normal is not None:
+            tree.links.new(normal, bump.inputs["Normal"])
+        normal = bump.outputs["Normal"]
+    tree.links.new(normal, principled.inputs["Normal"])
+    for name in ("mottle", "freckles"):
+        texture = grain_texture(tree, "noise", detail[name]["spacing_m"], coordinates)
+        ramp = tree.nodes.new("ShaderNodeMapRange")
+        ramp.inputs["From Min"].default_value, ramp.inputs["From Max"].default_value = (0.45, 0.75)
+        tree.links.new(texture.outputs["Fac"], ramp.inputs["Value"])
+        toned(tree, principled.inputs["Base Color"], ramp.outputs["Result"], detail[name]["share"],
+              detail[name]["towards"])
+        if name == "mottle":
+            spread = tree.nodes.new("ShaderNodeMapRange")
+            base = principled.inputs["Roughness"].default_value
+            spread.inputs["To Min"].default_value = base - detail["roughness_spread"]
+            spread.inputs["To Max"].default_value = base + detail["roughness_spread"]
+            tree.links.new(texture.outputs["Fac"], spread.inputs["Value"])
+            tree.links.new(spread.outputs["Result"], principled.inputs["Roughness"])
 
 
 def z_up(points):

@@ -8,17 +8,34 @@ Writes each finish's `material.usda` (one UsdPreviewSurface, its constants below
 constants, its family and why) under `<folder>/<id>/`, and `<folder>/take-in.json`, the listing `score-lib take-in`
 reads. Colours are linear albedo: the skin the cockpit palette's skin token (world1), the rest measured ranges for
 each tissue (an iris's dark brown, a pupil near black, a wet mucosa's red, the tear film clear with water's IOR).
-No subsurface: UsdPreviewSurface has none, so the skin's light through it waits for a skin recipe (#223).
+UsdPreviewSurface has no subsurface and no procedural grain, so the skin's record carries them beside its constants
+(`subsurface`: weight, mean free paths in mm, anisotropy, index, method; `detail`: pores, a fine grain, blotches and
+freckles, each a spacing and a depth or a share of a tone, and the gloss's spread); a reader that knows them
+(blender_face.library_material) lays them on the imported material, any other reads the constants (#223).
 """
 import json
 import pathlib
 import sys
 
 FINISHES = {
-    "face_skin_light": {"title": "Face skin, light (constant)", "family": "skin",
-                        "constants": {"diffuseColor": [0.76815116, 0.4507858, 0.28314874], "roughness": 0.5,
-                                      "metallic": 0.0},
-                        "why": "the cockpit palette's skin-light token (world1), the officer's place"},
+    "face_skin_light": {"title": "Skin, light, with light through it and pores", "family": "skin",
+                        "constants": {"diffuseColor": [0.76815116, 0.4507858, 0.28314874], "roughness": 0.42,
+                                      "metallic": 0.0, "ior": 1.4},
+                        "subsurface": {"weight": 1.0, "radius_mm": [3.67, 1.37, 0.68], "anisotropy": 0.8,
+                                       "ior": 1.4, "method": "RANDOM_WALK_SKIN"},
+                        "detail": {"pores": {"spacing_m": 0.0009, "depth_m": 0.00015},
+                                   "fine": {"spacing_m": 0.00025, "depth_m": 0.00004},
+                                   "mottle": {"spacing_m": 0.03, "share": 0.12,
+                                              "towards": [0.62, 0.3, 0.2]},
+                                   "freckles": {"spacing_m": 0.004, "share": 0.06,
+                                                "towards": [0.5, 0.26, 0.15]},
+                                   "roughness_spread": 0.08},
+                        "why": "the cockpit palette's skin-light token (world1), the officer's place; the light under "
+                               "it Jensen et al. 2001's measured skin (mean free paths 3.67, 1.37, 0.68 mm red, green, "
+                               "blue; forward scattering 0.8, index 1.4); pores about a millimetre apart and a fine "
+                               "grain at a quarter of that, faint blotches a few centimetres across and small freckles "
+                               "towards a redder and a browner tone, the gloss varied across the face (#223, "
+                               "2026-11-25: the constant skin read as plastic)"},
     "face_mouth_inside": {"title": "Mouth inside, gums and tongue (constant)", "family": "skin",
                           "constants": {"diffuseColor": [0.35, 0.09, 0.08], "roughness": 0.3, "metallic": 0.0},
                           "why": "a wet mucosa's red, glossier than the skin"},
@@ -62,6 +79,7 @@ def written(folder, commit):
         own.mkdir(parents=True, exist_ok=True)
         (own / "material.usda").write_text(material_usda(surface, finish["constants"]))
         record = {"family": finish["family"], "constants": finish["constants"], "why": finish["why"],
+                  **{key: finish[key] for key in ("subsurface", "detail") if key in finish},
                   "made_by": "score tools/characters/face/finishes.py"}
         (own / "surface.json").write_text(json.dumps(record, indent=2) + "\n")
         entries.append({"kind": "surface", "id": surface, "title": finish["title"],
