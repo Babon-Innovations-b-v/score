@@ -196,15 +196,21 @@ def neck(body, measurements, shift):
 
 def belt_job(outfit):
     """The drape's belt (drape.py's job `belt`): the garment it is worn on, its band's place under that waistband's
-    top (accessories' own numbers) and how far off the skin each garment's cloth may stand there: the garment under
-    it one layer (BELT_LAYERS[0] cloth thicknesses), every other garment over it the next (the belt pulls a tee worn
-    over the skirt in, owner 2026-11-24)."""
+    top (accessories' own numbers), how far off the skin each garment it holds in may stand there (the garment under
+    it one layer, BELT_LAYERS[0] cloth thicknesses; every other garment it is worn over the next: the belt pulls a tee
+    worn over the skirt in, owner 2026-11-24), and how near the skin each garment over it (the belt's `covered by`, a
+    coat over a belted shirt) may come there: outside the belt (its inside, its strap and the cloth's own thickness
+    past the farthest the belted cloth may stand; held in with the shirt, the coat was pulled into it and the two
+    tangled, and the belt was laid round the coat, 2026-11-25)."""
     from tools.characters import accessories
-    under = outfit["accessories"]["belt"]["on"]
+    chosen = outfit["accessories"]["belt"]
+    under, over = chosen["on"], set(chosen.get("covered by", []))
+    limits = {garment["name"]: THICKNESS_M * BELT_LAYERS[garment["name"] != under]
+              for garment in outfit["garments"] if garment["name"] not in over}
+    least = max(limits.values()) + accessories.CLEAR_M + accessories.BELT_THICK_M + THICKNESS_M
     return {"on": under, "under_top": accessories.UNDER_TOP_M - accessories.CLEAR_M,
             "width": accessories.BELT_M + 2.0 * accessories.CLEAR_M, "reach": accessories.REACH_M,
-            "limits": {garment["name"]: THICKNESS_M * BELT_LAYERS[garment["name"] != under]
-                       for garment in outfit["garments"]}}
+            "limits": limits, "outside": {name: least for name in over}}
 
 
 def draped(outfit, body, pattern_folder, out, frames):

@@ -25,8 +25,10 @@ def fetched(outfit, out):
     addresses = [outfit["body surface"]["address"], *[garment["surface"]["address"] for garment in outfit["garments"]],
                  *[garment["bands"]["surface"]["address"] for garment in outfit["garments"] if "bands" in garment],
                  *[surface["address"] for surface in accessories.surfaces(outfit.get("accessories", {}))]]
-    subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "fetch", *addresses, "--into", str(folder)], check=True,
-                   cwd=SCORE_LIB, stdout=subprocess.DEVNULL)
+    # --root names the checkout: its venv's score-lib reads the checkout it was installed from otherwise (a score_lib
+    # worktree's own take-in not found, 2026-11-25)
+    subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "--root", str(SCORE_LIB), "fetch", *addresses, "--into",
+                    str(folder)], check=True, cwd=SCORE_LIB, stdout=subprocess.DEVNULL)
     return folder / "score_lib"
 
 

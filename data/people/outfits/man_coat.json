@@ -1,5 +1,5 @@
 {
- "about": "A tall man (192 cm, SOMA's shape: broad chest over narrow hips) in long dark grey trousers with a belt, a long-sleeved blue cotton shirt and a knee-length charcoal wool coat over it (#223, several people), each a GarmentCode design sized to his body and laid in layers (layer_m). GarmentCode has no front opening or buttons: the shirt and coat are closed garments with a V neck (a gap: buttons, plackets, a shirt collar; its SimpleLapel collar's box mesh crosses itself and is refused). The library's wool surface wears the cloth recipe's cotton row (data/physics/cloth.json has no wool row: a gap).",
+ "about": "A tall man (192 cm, SOMA's shape: broad chest over narrow hips) in long dark grey trousers with a belt, a long-sleeved blue cotton shirt and a knee-length charcoal wool coat over it (#223, several people), each a GarmentCode design sized to his body and laid in layers (layer_m). GarmentCode has no front opening or buttons: the shirt and coat are closed garments with a V neck (a gap: buttons, plackets, a shirt collar; its SimpleLapel collar's box mesh crosses itself and is refused). His belt is on the trousers, the shirt tucked under it, the coat over it (`covered by`). The library's wool surface wears the cloth recipe's cotton row (data/physics/cloth.json has no wool row: a gap).",
  "look": "person",
  "mean": "mean_male",
  "body": {
@@ -96,6 +96,9 @@
   },
   "belt": {
    "on": "trousers",
+   "covered by": [
+    "coat"
+   ],
    "strap": {
     "name": "simready_m_opaque_leather_black_glossy_a01_bebbeeca",
     "address": "surface/simready_m_opaque_leather_black_glossy_a01_bebbeeca@1"

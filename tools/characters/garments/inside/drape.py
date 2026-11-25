@@ -15,7 +15,7 @@ garment's box points laid that much further off the skin, `laid_out`), "material
 "self": {"margin", "gap" (m)}, "neck": [the body's points round its neck's base: the holds' levels move with their
 mean], "holds_until": "sewn", "turned" or "worn" (the drawn points held while sewing, through the turn too, or
 through the clip too), "belt" (optional): {"on": the garment it is worn on, "under_top", "width", "reach" (m),
-"limits": {garment name: m}}}.
+"limits": {garment name: m} (the garments it holds in), "outside": {garment name: m} (the garments over it)}}.
 
 The run, in the order GarmentCode's own drape goes: each garment's box mesh (its panels laid round the body, each seam's
 points shared) is one cloth whose triangles rest at their flat panels' shapes and whose edges bend flat, so the seams
@@ -34,7 +34,7 @@ plays the clip. Each substep the body mesh's points and velocities are set where
 the mesh refitted, so the cloth meets the moving body with its own speed (Newton reads mesh velocities for contact).
 A belt, once sewn (from the turn on), holds the cloth under it in: each substep a point of a belted garment over
 the band's skin and further off it than that garment's limit is moved BELT_SHARE of the way back to its limit along
-the skin's normal. Cloth and cloth collide (self contact, between garments too). No cloth damping of its
+the skin's normal; a point of a garment over the belt nearer the skin than its `outside` is moved out the same way. Cloth and cloth collide (self contact, between garments too). No cloth damping of its
 own. VBD's run-to-run deterministic mode is off: on this card it took a substep from 10 ms to 180 ms (2026-11-24).
 
 out.npz: per garment `<name>` clip frames x points x 3 (m, world, each clip frame's end), `<name>/sewn` points x 3 (at
@@ -61,6 +61,8 @@ BELT_REACH = 0.1  # m: a cloth point further than this from the skin is not look
 BELT_SHARE = 0.1
 HOLD_SHARE = 1.0  # of the way back to its level a drawn point past it moves each substep while held
 UNDER_FOOT_M = 0.03  # sewn cloth whose nearest skin lies this near an outer point's is the cloth under it
+CROSS_STEP_M = 0.004  # how far out a laid point whose cloth crosses the cloth under it is moved a round
+CROSS_ROUNDS = 40  # rounds of that before the laying is refused (16 cm out)
 
 
 def arguments():
@@ -135,9 +137,11 @@ def drawn(particles: wp.array[wp.int32], axis: int, levels: wp.array[wp.float32]
 
 @wp.kernel
 def cinched(mesh: wp.uint64, particles: wp.array[wp.int32], limits: wp.array[wp.float32],
-            banded: wp.array[wp.int32], reach: float, share: float, positions: wp.array[wp.vec3]):
+            least: wp.array[wp.float32], banded: wp.array[wp.int32], reach: float, share: float,
+            positions: wp.array[wp.vec3]):
     """Each point over the belt's band of skin (`banded` triangles) further off it than its limit moved `share` of
-    the way back to the limit along the skin's normal: the belt holding the cloth in."""
+    the way back to the limit along the skin's normal (the belt holding the cloth in), and one nearer it than its
+    `least` moved `share` of the way out to it (cloth over the belt)."""
     index = wp.tid()
     particle = particles[index]
     query = wp.mesh_query_point_no_sign(mesh, positions[particle], reach)
@@ -148,6 +152,8 @@ def cinched(mesh: wp.uint64, particles: wp.array[wp.int32], limits: wp.array[wp.
             off = wp.dot(positions[particle] - on, normal)
             if off > limits[index]:
                 positions[particle] = positions[particle] - normal * (off - limits[index]) * share
+            elif off < least[index]:
+                positions[particle] = positions[particle] + normal * (least[index] - off) * share
 
 
 @wp.kernel
@@ -178,26 +184,92 @@ def held_on(particles: wp.array[wp.int32], corners: wp.array[wp.vec3i], weights:
     positions[particle] = target
 
 
-def laid_out(points, skin, reach, under=None, clear=0.0):
-    """Each point moved `reach` (m) further from the skin point nearest it, and on out until it stands `clear` (m)
-    further off the skin than the sewn cloth under it (`under`: the points of the garments sewn before it, whose
-    nearest skin lies within UNDER_FOOT_M of this point's): an outer garment's box mesh laid outside the garments
-    under it, so layers start apart and meet by contact as they are sewn (laid on the same box, a coat's panels
-    started inside its shirt's and the two were sewn through each other; laid only `reach` off the skin, a jacket's
-    hem started inside the trousers' waistband box, 8 cm off the skin, and was tangled with it as the waistband was
-    carried in, 2026-11-24)."""
+def laid_out(points, skin, reach):
+    """Each of a box mesh's points moved `reach` (m) further from the skin point nearest it: an outer garment's
+    panels laid off the skin before it is sewn alone (`sewn_in_layers`)."""
+    from scipy.spatial import cKDTree
+    distance, nearest = cKDTree(skin).query(points)
+    away = (points - skin[nearest]) / np.maximum(distance, 1e-9)[:, None]
+    return skin[nearest] + away * (distance + max(reach, 0.0))[:, None]
+
+
+def laid_over(points, faces, skin, under, clear):
+    """A garment sewn alone on the body (`points`, its `faces`) laid outside the cloth sewn under it (`under`: its
+    points and faces): each point moved out from the skin point nearest it until it stands `clear` (m) further off
+    the skin than that cloth (where the cloth's nearest skin lies within UNDER_FOOT_M of the point's), then
+    `uncrossed`. Its box mesh laid over the sewn cloth, a seam's long triangles (a front panel's edge to the back
+    panel's, 16 to 18 cm) cut through it however far out the points were laid: a jacket's side seams through the
+    trousers' waistband, a coat's through its shirt at the sides and armpits (2026-11-25); sewn, every triangle is
+    the cloth's own small one."""
     from scipy.spatial import cKDTree
     skin_tree = cKDTree(skin)
     distance, nearest = skin_tree.query(points)
     away = (points - skin[nearest]) / np.maximum(distance, 1e-9)[:, None]
-    least = distance + max(reach, 0.0)
-    if under is not None and len(under):
-        under_distance, under_nearest = skin_tree.query(under)
-        feet = cKDTree(skin[under_nearest])
-        for index, near in enumerate(feet.query_ball_point(skin[nearest], UNDER_FOOT_M)):
-            if near:
-                least[index] = max(least[index], under_distance[near].max() + clear)
-    return skin[nearest] + away * least[:, None]
+    least = distance.copy()
+    under_points, under_faces = under
+    under_distance, under_nearest = skin_tree.query(under_points)
+    feet = cKDTree(skin[under_nearest])
+    for index, near in enumerate(feet.query_ball_point(skin[nearest], UNDER_FOOT_M)):
+        if near:
+            least[index] = max(least[index], under_distance[near].max() + clear)
+    return uncrossed(skin[nearest] + away * least[:, None], faces, away, under_points, under_faces)
+
+
+def edges_of(faces):
+    """The mesh's edges, each once (point pairs, the lower first)."""
+    found = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    return np.unique(found, axis=0)
+
+
+def through(points, edges, other, faces, edge_wise):
+    """Which of the segments `edges` (on `points`) pass through which triangles `faces` (on `other`): (segment,
+    triangle) index pairs. Candidates are the triangles near each segment (`edge_wise`: looked for round each
+    segment, for long segments and small triangles; else round each triangle)."""
+    from scipy.spatial import cKDTree
+    middles, half = points[edges].mean(axis=1), np.linalg.norm(points[edges[:, 1]] - points[edges[:, 0]], axis=1) / 2.0
+    centres = other[faces].mean(axis=1)
+    sizes = np.linalg.norm(other[faces] - centres[:, None], axis=2).max(axis=1)
+    if edge_wise:
+        near = cKDTree(centres).query_ball_point(middles, half + sizes.max())
+        segment = np.repeat(np.arange(len(edges)), [len(each) for each in near])
+        triangle = np.fromiter((index for each in near for index in each), int, len(segment))
+    else:
+        near = cKDTree(middles).query_ball_point(centres, sizes + half.max())
+        triangle = np.repeat(np.arange(len(faces)), [len(each) for each in near])
+        segment = np.fromiter((index for each in near for index in each), int, len(triangle))
+    start, along = points[edges[segment, 0]], points[edges[segment, 1]] - points[edges[segment, 0]]
+    corner = other[faces[triangle, 0]]
+    first, second = other[faces[triangle, 1]] - corner, other[faces[triangle, 2]] - corner
+    across = np.cross(along, second)
+    determinant = np.sum(first * across, axis=1)
+    usable = np.abs(determinant) > 1e-14
+    inverse = 1.0 / np.where(usable, determinant, 1.0)
+    offset = start - corner
+    one = np.sum(offset * across, axis=1) * inverse
+    turned = np.cross(offset, first)
+    two = np.sum(along * turned, axis=1) * inverse
+    share = np.sum(second * turned, axis=1) * inverse
+    hit = usable & (one >= 0.0) & (two >= 0.0) & (one + two <= 1.0) & (share >= 0.0) & (share <= 1.0)
+    return segment[hit], triangle[hit]
+
+
+def uncrossed(points, faces, away, under_points, under_faces):
+    """An outer garment's laid points moved out (`away`: each point's way off the skin) CROSS_STEP_M a round until
+    none of its edges passes through the cloth under it and none of that cloth's edges through its triangles, at
+    most CROSS_ROUNDS rounds, else refused: cloth that starts crossed stays tangled, VBD's self contact keeps a
+    crossed point from moving (a coat's and shirt's crossed points were left in the air as the body walked on, and the
+    trousers caught in them blew up at clip frame 29, 2026-11-25)."""
+    points = np.array(points, dtype=float)
+    edges, under_edges = edges_of(faces), edges_of(under_faces)
+    for _ in range(CROSS_ROUNDS):
+        crossing, _ = through(points, edges, under_points, under_faces, edge_wise=True)
+        _, pierced = through(under_points, under_edges, points, faces, edge_wise=False)
+        moved = np.unique(np.concatenate([edges[crossing].ravel(), faces[pierced].ravel()]))
+        if not len(moved):
+            return points
+        points[moved] += away[moved] * CROSS_STEP_M
+    raise RuntimeError(f"a garment laid {CROSS_ROUNDS * CROSS_STEP_M * 100:.0f} cm out still crosses the cloth under "
+                       f"it at {len(moved)} points")
 
 
 def levels(points, hold):
@@ -213,7 +285,7 @@ def levels(points, hold):
 class Garment:
     """One garment's cloth in the builder: its particles, triangles, bending edges and held points."""
 
-    def __init__(self, builder, spec, skin, placed=None, under=None):
+    def __init__(self, builder, spec, skin, placed=None):
         record = dict(np.load(spec["record"]))
         offset = np.asarray(spec["offset"], dtype=float)
         self.name, self.first = spec["name"], builder.particle_count
@@ -248,7 +320,7 @@ class Garment:
         if placed is not None:
             self.points = np.asarray(placed, dtype=float)
         else:
-            self.points = laid_out(self.points, skin, float(spec.get("layer_m", 0.0)), *(under or (None, 0.0)))
+            self.points = laid_out(self.points, skin, float(spec.get("layer_m", 0.0)))
         for index, point in enumerate(self.points):
             builder.particle_q[self.first + index] = wp.vec3(*point)
         sides = bending_edges(welded)
@@ -259,12 +331,26 @@ class Garment:
         self.edges = len(sides)
 
 
+def welded_faces(spec):
+    """A garment's triangles on its box mesh's points (as `Garment` builds them)."""
+    record = np.load(spec["record"])
+    return record["box"][record["faces"]]
+
+
+def sewn_cloth(points, faces):
+    """The garments sewn before a stage as one cloth: (points, faces), or None when there are none."""
+    if not points:
+        return None
+    firsts = np.cumsum([0] + [len(each) for each in points[:-1]])
+    return (np.concatenate(points), np.concatenate([each + first for each, first in zip(faces, firsts)]))
+
+
 class Outfit:
     """The body and every garment in one Newton model, VBD over it."""
 
     def __init__(self, job, body, placed=None):
-        """`placed`: {garment name: its points sewn in an earlier stage}; the other garments are laid outside them
-        (`laid_out`)."""
+        """`placed`: {garment name: its points sewn in an earlier stage}; the other garments' box meshes are laid
+        `laid_out`."""
         placed = placed or {}
         builder = newton.ModelBuilder(up_axis=newton.Axis.Y, gravity=(0.0, 0.0, 0.0))
         self.frames, self.bind = body["frames"].astype(np.float32), body["bind"].astype(np.float32)
@@ -274,12 +360,7 @@ class Outfit:
                                                margin=contact["margin"])
         self.body = newton.Mesh(self.bind, self.faces.ravel())
         builder.add_shape_mesh(body=-1, mesh=self.body, cfg=shape)
-        under = [spec for spec in job["garments"] if spec["name"] in placed]
-        cloth = np.concatenate([placed[spec["name"]] for spec in under]) if under else None
-        top = max([float(spec.get("layer_m", 0.0)) for spec in under], default=0.0)
-        clear = 2.0 * job["self"]["gap"]
-        self.garments = [Garment(builder, spec, self.bind.astype(float), placed.get(spec["name"]),
-                                 (cloth, max(float(spec.get("layer_m", 0.0)) - top, clear)))
+        self.garments = [Garment(builder, spec, self.bind.astype(float), placed.get(spec["name"]))
                          for spec in job["garments"]]
         builder.color(include_bending=True)
         self.model = builder.finalize(device=job["device"])
@@ -322,8 +403,9 @@ class Outfit:
 
     def belted(self, belt):
         """The belt on the card (job `belt`: {"on": the garment whose waistband it is worn on, "under_top",
-        "width", "reach" (m), "limits": {garment: how far off the skin its cloth may stand there}}): (particles,
-        their limits, each body triangle under the band 1 else 0), or None with no belt. The band is the skin from
+        "width", "reach" (m), "limits": {garment: how far off the skin its cloth may stand there}, "outside":
+        {garment over the belt: how near the skin it may come there}}): (particles, their limits, their least, each
+        body triangle under the band 1 else 0), or None with no belt. The band is the skin from
         `under_top` under the waistband's top, where its held points are worn at the bind, down `width`, no further
         round than `reach` past the waistband's widest (as the belt is laid, accessories.in_band)."""
         if not belt:
@@ -341,13 +423,16 @@ class Outfit:
         banded = under[self.faces].all(axis=1).astype(np.int32)
         print(f"belt: on {self.garments[on].name}, its top {top:.3f} m, {int(banded.sum())} skin triangles under it",
               flush=True)
-        particles, limits = [], []
+        particles, limits, least = [], [], []
+        outside = belt.get("outside", {})
         for garment in self.garments:
-            if garment.name in belt["limits"]:
+            if garment.name in belt["limits"] or garment.name in outside:
                 particles.append(garment.first + np.arange(garment.count))
-                limits.append(np.full(garment.count, belt["limits"][garment.name]))
+                limits.append(np.full(garment.count, belt["limits"].get(garment.name, np.inf)))
+                least.append(np.full(garment.count, outside.get(garment.name, -np.inf)))
         return (wp.array(np.concatenate(particles).astype(np.int32), dtype=wp.int32),
                 wp.array(np.concatenate(limits).astype(np.float32), dtype=wp.float32),
+                wp.array(np.concatenate(least).astype(np.float32), dtype=wp.float32),
                 wp.array(banded, dtype=wp.int32))
 
     def moved(self, frame, axis):
@@ -375,8 +460,8 @@ class Outfit:
         if sewing:
             wp.launch(capped, dim=self.model.particle_count, inputs=[self.now.particle_qd, SEW_SPEED])
         if self.belt is not None and not sewing:
-            particles, limits, banded = self.belt
-            wp.launch(cinched, dim=len(particles), inputs=[self.mesh.id, particles, limits, banded, BELT_REACH,
+            particles, limits, least, banded = self.belt
+            wp.launch(cinched, dim=len(particles), inputs=[self.mesh.id, particles, limits, least, banded, BELT_REACH,
                                                             BELT_SHARE, self.now.particle_q])
         if holding:
             after = min(frame + 1, len(self.frames) - 1) if share > 0.0 else frame
@@ -441,15 +526,27 @@ def worn(outfit, job, clip_start):
 
 
 def sewn_in_layers(job, body):
-    """The outfit sewn a layer at a time, innermost first (each garment's `layer_m`): each stage's garments laid
-    outside the cloth sewn before them and sewn with it in place (all laid at once, a trousers' waistband carried in
-    to the skin from its box passed through the jacket's hem over it, 2026-11-24). The last stage's outfit (the
-    belt in it) and the wall seconds of every stage."""
+    """The outfit sewn a layer at a time, innermost first (each garment's `layer_m`): a layer over sewn cloth is
+    first sewn alone on the body, then `laid_over` that cloth, then sewn with it in place (all laid at once, a
+    trousers' waistband carried in to the skin from its box passed through the jacket's hem over it, 2026-11-24).
+    The last stage's outfit (the belt in it) and the wall seconds of every stage."""
     layers = sorted({float(spec.get("layer_m", 0.0)) for spec in job["garments"]})
     placed, seconds = {}, 0.0
+    skin = body["bind"].astype(float)
     for number, layer in enumerate(layers):
         last = number == len(layers) - 1
         stage = {key: value for key, value in job.items() if key != "belt" or last}
+        new = [spec for spec in job["garments"] if float(spec.get("layer_m", 0.0)) == layer]
+        if placed:
+            under = [spec for spec in job["garments"] if spec["name"] in placed]
+            alone = Outfit({key: value for key, value in stage.items() if key != "belt"} | {"garments": new}, body)
+            print(f"sewing layer {number + 1} of {len(layers)} alone: {', '.join(spec['name'] for spec in new)}",
+                  flush=True)
+            seconds += sewn(alone, job)
+            cloth = sewn_cloth([placed[spec["name"]] for spec in under], [welded_faces(spec) for spec in under])
+            clear = max(layer - max(float(spec.get("layer_m", 0.0)) for spec in under), 2.0 * job["self"]["gap"])
+            for garment, spec in zip(alone.garments, new):
+                placed[spec["name"]] = laid_over(alone.points(garment), garment.faces, skin, cloth, clear)
         stage["garments"] = [spec for spec in job["garments"] if float(spec.get("layer_m", 0.0)) <= layer]
         outfit = Outfit(stage, body, placed)
         print(f"sewing layer {number + 1} of {len(layers)}: {', '.join(spec['name'] for spec in stage['garments'])}",
