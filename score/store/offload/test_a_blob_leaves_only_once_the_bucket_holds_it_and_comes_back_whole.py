@@ -22,10 +22,9 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.fetched: catch the bucket's error and return (a network error read as absent).
 - offload.bucket_now: `OPENER["open"]` bound to open_bucket at import again (a patched open_bucket is not the one a
   fetch opens, so a test reaches the real store bucket with the runtime key, #81).
-- offload.Bucket: drop `s3={"payload_signing_enabled": True}` (a body is sent UNSIGNED-PAYLOAD), or drop
-  `request_checksum_calculation="when_required"` (botocore 1.36+ sends every put and part as
-  STREAMING-UNSIGNED-PAYLOAD-TRAILER whatever payload_signing says): the bucket never checks the body's sha256, so a
-  put corrupted at the right length lands.
+- offload.Bucket.put_new: drop `ChecksumSHA256=...` from put_object (no x-amz-checksum-sha256: Scaleway checks no
+  sha256, it ignores x-amz-content-sha256, so a put changed at the right length lands: refused here), or in put_parts
+  drop a part's `ChecksumAlgorithm`/`ChecksumSHA256` or the complete's per-part `ChecksumSHA256` (red, 2026-11-25).
 - offload.store_policy: the runtime-locks Resource `{bucket}/*` (the runtime key may delete any blob), or the keeper
   statement dropped (the user applying it is shut out of the bucket).
 - offload.push: `for tried in range(PUSH_TRIES):` -> `for tried in range(1):` (a put whose connection the bucket drops
@@ -45,6 +44,58 @@ import pytest
 
 from score.conductor import disk
 from score.store import Store, file_hash, offload, runtime_store
+
+
+BUCKET_SENDS = [  # (the file's bytes, the bytes its sha256 was hashed from, put_new's outcome, the requests answered)
+    (b"body", b"body", True, ["put"]),
+    (b"bodx", b"body", "InvalidRequest", ["put refused"]),  # changed after it was hashed: the bucket refuses it
+    (b"0123456789", b"0123456789", True, ["create", "part", "part", "part", "complete"]),
+]
+CREATED = (b"<InitiateMultipartUploadResult><Bucket>store</Bucket><Key>key</Key><UploadId>up</UploadId>"
+           b"</InitiateMultipartUploadResult>")
+REFUSED = b"<Error><Code>InvalidRequest</Code><Message>checksum</Message></Error>"
+
+
+class Answer:
+    """A response body botocore reads (AWSResponse.raw)."""
+
+    def __init__(self, body):
+        self.body = body
+
+    def stream(self, **_):
+        yield self.body
+
+
+def answered(request, sent):
+    """The bucket's answer to `request` before it is sent, as Scaleway gives it: a put or part whose body does not
+    hash to its x-amz-checksum-sha256 (or has none) refused; each request's kind and headers kept in `sent`."""
+    from botocore.awsrequest import AWSResponse
+
+    body = request.body or b""
+    if hasattr(body, "read"):
+        start = body.tell()
+        body, _ = body.read(), body.seek(start)
+    query = request.url.split("?", 1)[1] if "?" in request.url else ""
+    headers = {name.lower(): value.decode() if isinstance(value, bytes) else value
+               for name, value in request.headers.items()}
+    summed = offload.checksum(hashlib.sha256(body).digest())
+    if request.method == "PUT":
+        kind = "part" if "partNumber=" in query else "put"
+        if headers.get("x-amz-checksum-sha256") != summed:
+            sent.append((f"{kind} refused", headers))
+            return AWSResponse(request.url, 400, {}, Answer(REFUSED))
+        sent.append((kind, headers))
+        return AWSResponse(request.url, 200, {"ETag": '"e"'}, Answer(b""))
+    if request.method == "DELETE":
+        sent.append(("abort", headers))
+        return AWSResponse(request.url, 204, {}, Answer(b""))
+    if query.startswith("uploads"):
+        sent.append(("create" if headers.get("x-amz-checksum-algorithm") == "SHA256" else "create unchecked", headers))
+        return AWSResponse(request.url, 200, {}, Answer(CREATED))
+    listed = body.decode().count("<ChecksumSHA256>") == body.decode().count("<Part>")
+    sent.append(("complete" if listed else "complete unchecked", headers))
+    return AWSResponse(request.url, 200, {}, Answer(b"<CompleteMultipartUploadResult><ETag>\"e\"</ETag>"
+                                                   b"</CompleteMultipartUploadResult>"))
 
 
 class LostUploads(offload.FolderBucket):
@@ -92,21 +143,25 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
     monkeypatch.setattr(Store, "put_blob", Store.put_blob)
     monkeypatch.setattr(offload, "OPENER", {"open": None, "bucket": None})  # install's bucket undone after too
 
-    # the bucket checks each body's sha256 itself: a put and a part each carry it as x-amz-content-sha256 (SigV4),
-    # not botocore's STREAMING-UNSIGNED-PAYLOAD-TRAILER; each request is caught before it is sent, none leaves
+    # the bucket checks each body's sha256 itself (Scaleway honours x-amz-checksum-sha256, not x-amz-content-sha256):
+    # a put carries the blob's sha256 hashed before the upload, each part its own, and botocore adds no crc32 of its
+    # own; every request is answered before it is sent, as Scaleway would (a body off its checksum refused), none leaves
     real = offload.Bucket({"endpoint": "https://s3.example.invalid", "region": "fr-par", "bucket": "store",
                            "access_key": "key", "secret_key": "secret"})
     sent = []
-
-    def caught(request, **_):
-        sent.append(request.headers.get("X-Amz-Content-SHA256"))
-        raise InterruptedError("caught before sending")
-
-    real.client.meta.events.register("before-send.s3", caught)
-    for send, extra in ((real.client.put_object, {}), (real.client.upload_part, {"UploadId": "up", "PartNumber": 1})):
-        with pytest.raises(InterruptedError):
-            send(Bucket="store", Key="key", Body=b"body", **extra)
-    assert sent == [hashlib.sha256(b"body").hexdigest().encode()] * 2, sent
+    real.client.meta.events.register("before-send.s3", lambda request, **_: answered(request, sent))
+    for body, hashed, landed, kinds in BUCKET_SENDS:
+        sent.clear()
+        (tmp_path / "upload").write_bytes(body)
+        try:
+            with monkeypatch.context() as small_parts:
+                small_parts.setattr(runtime_store, "part_size", lambda size: 4)  # a 10-byte file in three parts
+                outcome = real.put_new(tmp_path / "upload", "key", hashlib.sha256(hashed).hexdigest())
+        except botocore.exceptions.ClientError as error:
+            outcome = error.response["Error"]["Code"]
+        assert (outcome, [kind for kind, _ in sent]) == (landed, kinds), (body, sent)
+        assert not any(name.lower().startswith(("x-amz-checksum-crc", "x-amz-trailer"))
+                       for _, headers in sent for name in headers), sent  # no crc32 of botocore's beside it
     # its policy: the runtime key lists, reads and writes, deletes only under locks/; the keeper keeps every right
     policy = offload.store_policy("store", "app-1", "user-1")
     granted = [(statement["Principal"]["SCW"], action, resource) for statement in policy["Statement"]

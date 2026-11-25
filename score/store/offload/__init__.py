@@ -30,8 +30,10 @@ FRAMEWORK lists this folder), so it is in no row's key: score/store/__init__.py 
 in every row's code version and are not edited. Which blobs may be evicted (no checkout or kept link, none a live run
 or the next one reads) is score/conductor/disk.py's store-evict; this module only moves and proves bytes.
 """
+import base64
 import datetime
 import functools
+import hashlib
 import json
 import os
 import pathlib
@@ -76,11 +78,11 @@ class Bucket:
                                    aws_access_key_id=spec["access_key"], aws_secret_access_key=spec["secret_key"],
                                    config=botocore.config.Config(max_pool_connections=WORKERS,
                                                                  retries={"mode": "standard"},
-                                                                 request_checksum_calculation="when_required",
-                                                                 s3={"payload_signing_enabled": True}))
-        # every body signed with its sha256 (x-amz-content-sha256), so the bucket itself refuses a put or part whose
-        # bytes changed on the way, not only at another length (#81); boto3 sends UNSIGNED-PAYLOAD over https without
-        # payload signing, and botocore 1.36+ STREAMING-UNSIGNED-PAYLOAD-TRAILER (a crc32) unless only when_required
+                                                                 request_checksum_calculation="when_required"))
+        # each put and part carries its body's sha256 as x-amz-checksum-sha256 (put_new, put_parts), which Scaleway
+        # checks: a body changed on the way is refused (#81, probed 2026-11-25; it ignores x-amz-content-sha256, so
+        # payload signing proves nothing there). when_required: a request sent without a sum of ours gets no crc32
+        # trailer of botocore's (1.36+) either
 
     def put_policy(self, document):
         """`document` (store_policy's) as the bucket's one policy, replacing any it had. Only with the key of the
@@ -108,7 +110,7 @@ class Bucket:
             if size <= part:
                 with open(path, "rb") as source:
                     self.client.put_object(Bucket=self.name, Key=key, Body=source, IfNoneMatch="*",
-                                           Metadata={SHA_FIELD: sha})
+                                           Metadata={SHA_FIELD: sha}, ChecksumSHA256=checksum(bytes.fromhex(sha)))
             else:
                 self.put_parts(path, key, sha, part)
         except Exception as error:
@@ -118,16 +120,19 @@ class Bucket:
         return True
 
     def put_parts(self, path, key, sha, part):
-        """A multipart upload completed with If-None-Match: *, aborted on any failure (the 412 included)."""
-        upload = self.client.create_multipart_upload(Bucket=self.name, Key=key, Metadata={SHA_FIELD: sha})["UploadId"]
+        """A multipart upload completed with If-None-Match: *, each part sent with its own sha256 for the bucket to
+        check, aborted on any failure (the 412 included)."""
+        upload = self.client.create_multipart_upload(Bucket=self.name, Key=key, Metadata={SHA_FIELD: sha},
+                                                     ChecksumAlgorithm="SHA256")["UploadId"]
         try:
             parts = []
             with open(path, "rb") as source:
                 while chunk := source.read(part):
                     number = len(parts) + 1
+                    summed = checksum(hashlib.sha256(chunk).digest())
                     sent = self.client.upload_part(Bucket=self.name, Key=key, UploadId=upload, PartNumber=number,
-                                                   Body=chunk)
-                    parts.append({"ETag": sent["ETag"], "PartNumber": number})
+                                                   Body=chunk, ChecksumAlgorithm="SHA256", ChecksumSHA256=summed)
+                    parts.append({"ETag": sent["ETag"], "PartNumber": number, "ChecksumSHA256": summed})
             self.client.complete_multipart_upload(Bucket=self.name, Key=key, UploadId=upload, IfNoneMatch="*",
                                                   MultipartUpload={"Parts": parts})
         except BaseException:
@@ -153,6 +158,11 @@ class Bucket:
         for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.name, Prefix=prefix):
             found |= {item["Key"] for item in page.get("Contents", [])}
         return found
+
+
+def checksum(digest):
+    """A sha256 digest as x-amz-checksum-sha256 carries it (base64)."""
+    return base64.b64encode(digest).decode()
 
 
 def refused_as_there(error):

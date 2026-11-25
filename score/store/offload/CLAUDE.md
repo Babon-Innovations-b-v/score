@@ -15,15 +15,23 @@ The package docstring is the contract.
 - **Writes are conditional** (`If-None-Match: *`, PutObject or CompleteMultipartUpload; a failed multipart upload is
   aborted): a 412 means the key is taken, for a blob the same bytes. Each object carries its sha256 as metadata,
   from the bytes hashed just before the upload. Probed 2026-11-04 from this PC: the second put and the second
-  complete both 412, HEAD gives the size and the metadata, a missing key 404. Every body is signed with its sha256
-  (`payload_signing_enabled`, x-amz-content-sha256), so the bucket itself checks each put and part (#81); it takes
-  `request_checksum_calculation="when_required"` too, since botocore 1.36+ otherwise sends every put and part as
-  STREAMING-UNSIGNED-PAYLOAD-TRAILER (a crc32 trailer, no sha256) whatever payload signing says. The test reads the
-  header each request would send.
+  complete both 412, HEAD gives the size and the metadata, a missing key 404.
+- **What the bucket checks** (#81, probed 2026-11-25): Scaleway verifies `x-amz-checksum-sha256` (a put whose body
+  does not hash to it is refused `InvalidRequest`) and ignores `x-amz-content-sha256` (a signed put with a wrong
+  payload hash landed), so payload signing is not used. A single put sends `ChecksumSHA256`, the base64 of the sha256
+  offload hashed from the local copy before the upload: the bucket refuses bytes that changed after that hash. A
+  multipart upload is created with `ChecksumAlgorithm="SHA256"`, each part sends the sha256 of the chunk as read and
+  the complete lists each part's: that covers each part in transit, not a file changed between the hash and the read
+  (only a ranged-read or the fetch's own sha256 check would). Whether Scaleway checks the per-part sums the same way
+  is not yet probed. `request_checksum_calculation="when_required"` keeps botocore 1.36+ from adding a crc32 trailer
+  to a request that carries no sum of ours. The test answers each request before it is sent (a `before-send` hook,
+  no network) as Scaleway would: a body off its checksum refused.
 - **The policy** (`store_policy`, applied by `Bucket.put_policy` with the keeper's own key, never the runtime key's):
   Scaleway's 2023-04-17 version allows only what it lists, so it has no Deny; the runtime application lists, reads
   and writes, and deletes only under `locks/`; the keeper user keeps every right. No condition key reads
-  If-None-Match, so overwrites stay refused only by the conditional puts.
+  If-None-Match, so overwrites stay refused only by the conditional puts. Applied 2026-11-25 (#81). Policy actions
+  follow the runtime application's IAM permission set (ObjectStorageFullAccess), not the policy, so the runtime key
+  can still put or delete the policy itself until that set is narrowed on the owner's side.
 - **Evicting**: `score/conductor/disk.py` store-evict (its own command and the door's verb, never the sweep) picks which blobs (one link, nothing but output listings naming
   them, no output a node stands on, no text naming blobs, no run live) and calls `proven` then `evict`. The mark
   `store/evicted/<sha256>` is written and synced before the copy goes.

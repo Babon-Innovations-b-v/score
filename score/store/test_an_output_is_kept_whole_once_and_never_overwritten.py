@@ -23,6 +23,8 @@ Each break (applied once, seen red, reverted), in score/store/__init__.py unless
 - killed between partial and link: durable.write_once writes a cut object at the target first.
 - quarantined: durable.read reads an unreadable object as absent without quarantining it.
 - owner decision: durable.read's owner-area check becomes `if False:`.
+- no real bucket after the install: installed_by_the_framework leaves offload installed (FolderStore.path and
+  exists offload's), so a later read of a missing blob asks the real store bucket with the runtime key (#81).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/store/test_an_output_is_kept_whole_once_and_never_overwritten.py
 """
@@ -37,10 +39,12 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from score.store import AGENT_MARKERS, RUNNER, Store, durable, file_hash, tree_hash, tree_listing  # noqa: E402
+from score.store import (AGENT_MARKERS, RUNNER, Store, durable, file_hash, runtime_store, tree_hash,  # noqa: E402
+                         tree_listing)
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PLAIN = {name: vars(Store).get(name) for name in durable.METHODS}  # Store as score/store/__init__.py writes it
+PLAIN_EXISTS = vars(runtime_store.FolderStore)["exists"]  # FolderStore's own, before offload's install
 durable.install()  # as the runner and the owner's commands run the store
 
 TREE = {"stage.usda": "#usda 1.0", "layers/base.usda": "base" * 100000}  # stage.usda's bytes shared with OTHER
@@ -118,7 +122,9 @@ def installed_by_the_framework(store):
     Store), with `store` as the framework's store meanwhile so the live one is never touched."""
     from score import graph
     from score.review import __main__ as owner
+    from score.store import offload
     default = vars(Store)["default"]
+    reads = vars(runtime_store.FolderStore)["path"], vars(runtime_store.FolderStore)["exists"], dict(offload.OPENER)
     try:
         plain_store()
         graph.Runner((), None, store)
@@ -133,6 +139,11 @@ def installed_by_the_framework(store):
     finally:
         Store.default = default
         durable.install()
+        # offload's install undone, its write wrap of put_blob kept: no later read in this process asks the real
+        # store bucket (#81: a missing blob's HEAD went out with the runtime key)
+        runtime_store.FolderStore.path, runtime_store.FolderStore.exists = reads[:2]
+        offload.OPENER.clear()
+        offload.OPENER.update(reads[2])
     return store
 
 
@@ -161,6 +172,9 @@ def written(store, key, value):
 
 def test_an_output_is_kept_whole_once_and_never_overwritten():
     store = installed_by_the_framework(Store.in_folder(tempfile.mkdtemp()))
+    from score.store import offload
+    assert (runtime_store.FolderStore.path, runtime_store.FolderStore.exists) == (offload.PLAIN_PATH, PLAIN_EXISTS), \
+        "a read after the install would ask the real store bucket"
 
     # Named by its content and stored once, whole, by eight processes storing it at once.
     folder = a_folder(TREE)
