@@ -22,7 +22,8 @@ Breaks (each applied once, seen red, reverted, 2026-11-24):
   seam_lines not holding both sides lighter (`sides` dropped) -> the blot's rim shades as a seam; SEAM_ACROSS made 9
   -> the slot, 6 texels wide, shades.
 - bake.closed_points `<= decal["closed"]["most"]` -> `<= 0.0` -> the bump is left standing; closing_card's
-  `+ CARD_PROUD * normal` dropped -> the card lies in the plate; cards_over's `face.material_index` -> 0 -> the
+  `+ CARD_PROUD * normal` dropped -> the card lies in the plate; closing_cards' `(first + number) * CARD_STEP` -> 0
+  -> the cards in one plane (#229, r16k3's grey streaks; seen red 2026-11-26); cards_over's `face.material_index` -> 0 -> the
   card in the steel, not the paint its plate point is in; plate_texel's middle -> its first loop's -> the card's
   texel on its face's rim; plate_texel's facing filter dropped -> the card in the steel
   of the sheet's back; its `closed` filter dropped (`list(decals)`) -> a decal with no region
@@ -235,8 +236,8 @@ def test_a_model_shades_into_its_own_creases(tmp_path):
     # its box alone in its own plate's finish (#212, r14l)
     assert (found["cards"], found["faces"], found["bump"], found["outside"], found["rims"], found["laid_cards"]) == (
         3, 104, 0.0, pytest.approx(0.003), [0.0, 0.0, 0.0, pytest.approx(0.004)],
-        {"[0.0, 0.0]": [1, [0.0003] * 4, [0.95, 0.55]], "[0.4, -0.4]": [1, [0.0003] * 4, [0.95, 0.55]],
-         "[-0.4, -0.4]": [0, [0.0003] * 4, [0.15, 0.35]]}), json.dumps(found)
+        {"[0.0, 0.0]": [1, [0.0003] * 4, [0.95, 0.55]], "[0.4, -0.4]": [1, [0.0004] * 4, [0.95, 0.55]],
+         "[-0.4, -0.4]": [0, [0.0005] * 4, [0.15, 0.35]]}), json.dumps(found)
     assert (found["crease"] < 0.8, found["open"] > 0.9, found["samples"], found["slab_drawn"], found["slit"] < 0.85,
             found["panel"] > 0.97, found["seam"] < 0.9, found["dot"], found["blot"], found["slot"],
             found["part_crease"] < 0.8, found["part_open"] > 0.9, found["part_size"]) == \

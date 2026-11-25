@@ -98,6 +98,9 @@ OCCLUSION_SHARE = 0.1
 # A closing card (cards_over, score #159 round 13) lies this far in front of the plate it closes, over the points
 # pressed onto it.
 CARD_PROUD = 0.0003
+# Each next card of a model this much further out (#229, r16k3's locker: a vent's own box and the bump patches over it,
+# in one plane, fought in the look as grey streaks).
+CARD_STEP = 0.0001
 # A closed region's points within PRESS_REACH metres of its edge, and those pressed past it, are laid on the
 # surface round them read within PRESS_REACH (surface_under, PRESS_ROUNDS rounds of means): the face's own points
 # standing at most PRESS_SURFACE over the plate (decal_plates.BUMP_MOST) and at most half that under it (never its
@@ -410,15 +413,16 @@ def closed_boxes(closed):
     return [closed["box"], *closed.get("also", [])]
 
 
-def closing_cards(decal):
+def closing_cards(decal, first=0):
     """The four corners of each card of a closed decal (a box of its `closed` region, closed_boxes), CARD_PROUD in
     front of its plate, each wound about its normal: the cover over the holes TRELLIS.2 cut through a locker's door
-    sheet under its vents (#191) and round them, and over the blob it drew under a hardware piece, pressed (#212)."""
+    sheet under its vents (#191) and round them, and over the blob it drew under a hardware piece, pressed (#212); the
+    model's card number `first` and each after it CARD_STEP further out, so no two lie in one plane."""
     right, up, normal = (np.asarray(axis, dtype=float) for axis in recipes.decal_axes(decal))
-    at = np.asarray(decal["at"], dtype=float) + CARD_PROUD * normal
-    return [[at + across * right + upward * up for across, upward in
+    return [[np.asarray(decal["at"], dtype=float) + (CARD_PROUD + (first + number) * CARD_STEP) * normal
+             + across * right + upward * up for across, upward in
              ((left, bottom), (right_end, bottom), (right_end, top), (left, top))]
-            for left, bottom, right_end, top in closed_boxes(decal["closed"])]
+            for number, (left, bottom, right_end, top) in enumerate(closed_boxes(decal["closed"]))]
 
 
 def plate_texel(mesh, point, normal):
@@ -463,7 +467,7 @@ def cards_over(item, decals):
     for decal in closed:
         face, texels = plate_texel(mesh, np.asarray(decal["closed"]["plate_point"], dtype=float),
                                    recipes.decal_axes(decal)[2])
-        for corners in closing_cards(decal):
+        for corners in closing_cards(decal, len(cards)):
             card = bpy.data.meshes.new(f"{item.name}_card_{len(cards)}")
             card.from_pydata([list(corner) for corner in corners], [], [(0, 1, 2, 3)])
             for material in mesh.materials:
@@ -479,6 +483,7 @@ def cards_over(item, decals):
     with bpy.context.temp_override(active_object=item, object=item, selected_editable_objects=[item, *cards]):
         bpy.ops.object.join()
     return len(cards)
+
 
 
 def seamed(items, decoded, uv_map, side, reach, among=()):
