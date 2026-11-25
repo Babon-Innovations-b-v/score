@@ -513,10 +513,11 @@ def coast_heights(x, z, wide, deep, sea, rise, shore, berm, depth, sites, seed):
 
 
 def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, depth=8.0, cell=20.0, sites=(),
-          seed=0, scrub=0.0, roads=0, houses=0):
+          seed=0, scrub=0.0, roads=0, houses=0, trees=0):
     """A coast (the docstring's `coast`): a heightfield on a grid of `cell` metres, closed by a flat bottom 2 m under
     the sea bed's deepest and its four sides; parts land and shore (inland of the shore band, or not), the land's
-    gentle faces (up-normal over `scrub`) part scrub, and its night dressing (coast_dressing) when asked."""
+    gentle faces (up-normal over `scrub`) part scrub, its night dressing (coast_dressing) and its woods (coast_trees)
+    when asked."""
     across = np.linspace(-wide / 2, wide / 2, int(round(wide / cell)) + 1)
     along = np.linspace(-deep, sea, int(round((deep + sea) / cell)) + 1)
     grid_x, grid_z = np.meshgrid(across, along, indexing="ij")
@@ -557,7 +558,91 @@ def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, 
         found.append(piece("scrub", points, land[gentle], True))
     if roads or houses:
         found += coast_dressing(wide, deep, sea, rise, shore, berm, depth, sites, seed, roads, houses)
+    if trees:
+        found += coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, roads)
     return found
+
+
+TREE_SIDES, TREE_RINGS = 7, 4  # a tree crown's sides round and its rings up (a closed seven-sided ellipsoid)
+TREE_HIGH = (6.0, 16.0)  # metres: a tree's least and greatest height (subtropical hill wood: Hong Kong's is 5 to 15 m)
+
+
+def tree_crown(x, ground, z, high, wide, turn):
+    """One tree: a closed crown of TREE_SIDES by TREE_RINGS (an ellipsoid `wide` across, its widest a third of the
+    way up) on a short trunk of three sides, its foot sunk 0.5 m under `ground`; (points, triangles) wound out."""
+    foot = ground - 0.5
+    bottom = ground + high * 0.3
+    rings = [(bottom + (high - (bottom - ground)) * (1 - math.cos(math.pi * step / TREE_RINGS)) / 2,
+              wide / 2 * math.sin(math.pi * step / TREE_RINGS) ** 0.8) for step in range(1, TREE_RINGS)]
+    points = [(x, bottom, z), (x, ground + high, z)]
+    for height, radius in rings:
+        for side in range(TREE_SIDES):
+            angle = turn + 2 * math.pi * side / TREE_SIDES
+            points.append((x + radius * math.cos(angle), height, z + radius * math.sin(angle)))
+    triangles = []
+    for side in range(TREE_SIDES):
+        after = (side + 1) % TREE_SIDES
+        triangles.append([0, 2 + side, 2 + after])
+        for ring in range(len(rings) - 1):
+            low, up = 2 + ring * TREE_SIDES, 2 + (ring + 1) * TREE_SIDES
+            triangles += [[low + side, up + side, up + after], [low + side, up + after, low + after]]
+        top = 2 + (len(rings) - 1) * TREE_SIDES
+        triangles.append([1, top + after, top + side])
+    trunk = len(points)
+    girth = max(0.15, wide * 0.05)
+    for level in (foot, bottom + 0.3):
+        for side in range(3):
+            angle = turn + 2 * math.pi * side / 3
+            points.append((x + girth * math.cos(angle), level, z + girth * math.sin(angle)))
+    for side in range(3):
+        after = (side + 1) % 3
+        triangles += [[trunk + side, trunk + after, trunk + 3 + after], [trunk + side, trunk + 3 + after, trunk + 3 + side]]
+    triangles += [[trunk, trunk + 2, trunk + 1], [trunk + 3, trunk + 4, trunk + 5]]
+    points = np.asarray(points)
+    triangles = np.asarray(triangles)
+    for start, stop, middle in ((0, len(triangles) - 8, (x, bottom + (high - (bottom - ground)) / 2, z)),
+                                (len(triangles) - 8, len(triangles), (x, (foot + bottom + 0.3) / 2, z))):
+        corners = points[triangles[start:stop]]
+        faces = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+        inward = np.einsum("ij,ij->i", faces, corners.mean(axis=1) - np.asarray(middle)) < 0
+        triangles[start:stop][inward] = triangles[start:stop][inward][:, ::-1]
+    return points, triangles
+
+
+def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, roads=0):
+    """A coast's woods: `trees` trees (tree_crown) seeded over its land inland of twice its shore band, thicker up the
+    hills and in clumps (a second seeded relief), clear of its sites by twice their radius and of its roads by 8 m;
+    one piece of part tree, each crown sized and turned by the seed."""
+    sites = [tuple(float(value) for value in site) for site in sites]
+    ground = coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed)
+    shoreline = seeded_waves(np.random.default_rng(seed), COAST_WAVES, wide / 2, shore * 1.5)
+    clumps = seeded_waves(np.random.default_rng(seed + 7), COAST_WAVES, 400.0, 1.0)
+    reach = deep * 0.45
+    road_at = [shore * 0.6 + number * reach / max(1, roads) for number in range(roads)]
+    generator = np.random.default_rng(seed + 2)
+    points, triangles = [], []
+    count = 0
+    for _ in range(trees * 30):
+        if count >= trees:
+            break
+        x = generator.uniform(-wide / 2 + 10.0, wide / 2 - 10.0)
+        inland_at = generator.uniform(shore * 2.0, deep * 0.95)
+        z = float(shoreline(x, 0.0)) - inland_at
+        if not off_sites(x, z, sites, 2.0) or any(abs(inland_at - along) < 8.0 + ROAD_WIDE / 2 for along in road_at):
+            continue
+        thick = 0.35 + 0.65 * min(1.0, inland_at / (deep * 0.4))
+        if generator.random() > thick * (0.5 + 0.5 * math.tanh(2.0 * float(clumps(x, z)))):
+            continue
+        height = float(ground(np.array([x]), np.array([z]))[0][0])
+        high = generator.uniform(*TREE_HIGH)
+        crown, faces = tree_crown(x, height, z, high, high * generator.uniform(0.55, 0.9), generator.uniform(0, math.pi))
+        triangles.append(faces + sum(len(done) for done in points))
+        points.append(crown)
+        count += 1
+    if not points:
+        return []
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece("tree", np.vstack(points), np.vstack(triangles), False)]
 
 
 ROAD_WIDE, ROAD_THICK, ROAD_STEP = 7.0, 0.6, 10.0  # a coast road's width, slab and the metres between its points
