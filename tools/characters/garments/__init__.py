@@ -126,12 +126,14 @@ def centre(body):
 
 
 def measured_body(body):
-    """The body's own measurements (measure.py), taken with its chest over x = z = 0."""
+    """The body's own measurements (measure.py: GarmentCode's and the lower leg's), taken with its chest over
+    x = z = 0."""
     from tools.characters.garments import measure
     shift = centre(body)
     joints = np.array(body["joints"])
     joints[:, :3, 3] -= shift
-    return measure.measured(body["bind"] - shift, body["faces"], body["weights"], body["names"], joints)
+    given = (body["bind"] - shift, body["faces"], body["weights"], body["names"], joints)
+    return {**measure.measured(*given), **measure.below_knee(*given)}
 
 
 def cloth_material(surface):
@@ -157,7 +159,8 @@ def patterns(outfit, body, out):
     folder.mkdir(parents=True, exist_ok=True)
     job = {"garmentcode": str(GARMENT_ENV / "GarmentCode"), "out": str(folder), "measured": measured_body(body),
            "mean": outfit["mean"], "resolution": RESOLUTION_CM,
-           "garments": [{"name": garment["name"], "design": garment["design"], "set": garment.get("set", {})}
+           "garments": [{"name": garment["name"], "design": garment["design"], "set": garment.get("set", {}),
+                         "knee_ease_cm": garment.get("knee_ease_cm")}
                         for garment in outfit["garments"]]}
     (folder / "job.json").write_text(json.dumps(job, indent=1))
     environment(GARMENT_SCRIPT, GARMENT_ENV)

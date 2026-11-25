@@ -20,7 +20,7 @@ worn on a toy torso one way, or the toy body reshaped or its arms cleared.
 Breaks that turn it red (each applied once, seen red, reverted), in measure.py: a girth taken off another band than its
 own (the bust's off the waist's levels, the hips' with the hands in the cut), a girth not the tape's (the cut's points
 summed rather than its hull's perimeter), the wrist read off the upper arm, the arm's angle taken against the vertical,
-a length left in metres, the front's length over the bust left unread (carried by the height), an unread measurement
+the knee's girth read off the thigh's band or the calf's off the knee's, a length left in metres, the front's length over the bust left unread (carried by the height), an unread measurement
 carried by the height where it follows a girth, or a read one overwritten by the mean body's. In seated.py: the side
 seam taken for the shoulder seam (the lower chain), the neckline's fall read off its points at the clip's first frame
 rather than their places on the moving skin, the body's outward normal not turning the cloth's (a covered point under
@@ -53,7 +53,8 @@ from tools.characters.garments import bands, details, measure, seated, shaped
 from tools.characters.garments.inside import laying
 
 NAMES = ["Hips", "Spine2", "Chest", "Neck1", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm",
-         "LeftHand", "RightForeArm", "RightHand", "LeftLeg", "LeftShin", "RightLeg", "RightShin"]
+         "LeftHand", "RightForeArm", "RightHand", "LeftLeg", "LeftShin", "RightLeg", "RightShin", "LeftFoot",
+         "RightFoot"]
 SIDES = 48
 ARM = math.radians(50.0)  # the arms' angle under the horizontal (not 45: its sine and cosine would agree)
 
@@ -77,8 +78,9 @@ def tube(centres, radii, axis, joint_of):
 
 
 def toy_body(scale):
-    """A body of tubes, `scale` times the base size: a torso with a bust, a waist and hips, two legs, two arms ARM
-    down with a narrower wrist. Its measurements as built (cm and degrees)."""
+    """A body of tubes, `scale` times the base size: a torso with a bust, a waist and hips, two legs (a thigh, a
+    narrower knee, a calf and an ankle), two arms ARM down with a narrower wrist. Its measurements as built (cm and
+    degrees)."""
     levels = np.linspace(0.80, 1.50, 57)
     profile = np.interp(levels, [0.80, 0.90, 0.97, 1.05, 1.25, 1.50], [0.13, 0.15, 0.12, 0.11, 0.14, 0.10])
     pieces = [tube([[0.0, level, 0.0] for level in levels], profile, [0, 1, 0],
@@ -86,7 +88,8 @@ def toy_body(scale):
     for side in (1.0, -1.0):
         prefix = "Left" if side > 0 else "Right"
         legs = np.linspace(0.0, 0.85, 35)
-        pieces.append(tube([[side * 0.07, level, 0.0] for level in legs], [0.06] * len(legs), [0, 1, 0],
+        legs_r = np.interp(legs, [0.0, 0.10, 0.32, 0.45, 0.60, 0.85], [0.03, 0.03, 0.05, 0.045, 0.06, 0.06])
+        pieces.append(tube([[side * 0.07, level, 0.0] for level in legs], legs_r, [0, 1, 0],
                            lambda ring, p=prefix, l=legs: f"{p}Leg" if l[ring] > 0.45 else f"{p}Shin"))
         direction = np.array([side * math.cos(ARM), -math.sin(ARM), 0.0])
         shares = np.linspace(0.0, 1.0, 41)
@@ -105,7 +108,8 @@ def toy_body(scale):
     places = {"Hips": (0, 0.95), "Spine2": (0, 1.10), "Chest": (0, 1.20), "Neck1": (0, 1.45),
               "LeftShoulder": (0.1, 1.42),
               "RightShoulder": (-0.1, 1.42), "LeftLeg": (0.07, 0.85), "RightLeg": (-0.07, 0.85),
-              "LeftShin": (0.07, 0.45), "RightShin": (-0.07, 0.45)}
+              "LeftShin": (0.07, 0.45), "RightShin": (-0.07, 0.45), "LeftFoot": (0.07, 0.08),
+              "RightFoot": (-0.07, 0.08)}
     bind = np.tile(np.eye(4), (len(NAMES), 1, 1))
     for name, (x, y) in places.items():
         bind[NAMES.index(name), :2, 3] = x, y
@@ -118,7 +122,8 @@ def toy_body(scale):
              "hips": 2 * math.pi * 15.0, "leg_circ": 2 * math.pi * 6.0, "wrist": 2 * math.pi * 2.5, "arm_length": 50.0,
              "shoulder_w": 40.0, "arm_pose_angle": math.degrees(ARM), "waist_line": 45.0,
              # the front's profile from the waist (1.05 m, r 11 cm) over the bust (1.25, 14) to the neck (1.50, 10)
-             "waist_over_bust_line": math.hypot(20.0, 3.0) + math.hypot(25.0, 4.0)}
+             "waist_over_bust_line": math.hypot(20.0, 3.0) + math.hypot(25.0, 4.0),
+             "knee_circ": 2 * math.pi * 4.5, "knee_h": 45.0, "calf_circ": 2 * math.pi * 5.0, "calf_h": 32.0}
     built = {key: value * (scale if key != "arm_pose_angle" else 1.0) for key, value in built.items()}
     return np.concatenate(points) * scale, np.concatenate(faces), weights, bind, built
 
@@ -218,7 +223,7 @@ def worn(wear, body, cloth, record, scale):
     return sewn, cloths, bodies
 
 
-PARENTS = [-1, 0, 1, 2, 2, 2, 4, 5, 6, 8, 7, 10, 0, 12, 0, 14]  # NAMES' parents
+PARENTS = [-1, 0, 1, 2, 2, 2, 4, 5, 6, 8, 7, 10, 0, 12, 0, 14, 13, 15]  # NAMES' parents
 
 
 def widened(points, weights, share):
@@ -494,10 +499,12 @@ def sleeve_crossed(wear):
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed, tmp_path):
     points, faces, weights, bind, built = toy_body(scale)
-    found = measure.measured(points, faces, weights, NAMES, bind)
+    found = {**measure.measured(points, faces, weights, NAMES, bind),
+             **measure.below_knee(points, faces, weights, NAMES, bind)}
     for key, value in built.items():
         # a girth is a SIDES-gon's perimeter (0.07% under its circle's); a level is read to the scan's step
-        tolerance = 0.01 * value if key in ("bust", "waist", "hips", "leg_circ", "wrist") else 1.5
+        tolerance = 0.01 * value if key in ("bust", "waist", "hips", "leg_circ", "wrist", "knee_circ",
+                                            "calf_circ") else 1.5
         assert found[key] == pytest.approx(value, abs=tolerance), key
     mean = {"height": 166.0, "bust": 97.0, "underbust": 81.0, "back_width": 46.0, "hip_inclination": 12.7,
             "armscye_depth": 12.6, "arm_length": 51.6, "waist": 80.0, "hips": 104.0}

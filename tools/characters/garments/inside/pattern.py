@@ -10,7 +10,7 @@ job.json (written by tools/characters/garments): {"garmentcode": <GarmentCode's 
 GarmentCode mean body whose measurement file carries the rest over, ../measure.py `sized`), "resolution": <cm
 between mesh points>,
 "garments": [{"name", "design": <a design file of GarmentCode's assets/design_params>, "set": {"<dotted design
-path>": value}}]}.
+path>": value}, "knee_ease_cm": <optional: a Pants leg taken in at the knee to the knee's girth and this, `slim_legs`>}]}.
 
 Writes <out>/measurements.yaml and .json (the 26 measurements the patterns are sized to) and <out>/<name>/ for each
 garment: GarmentCode's pattern (<name>_specification.json, design.yaml, the body's
@@ -60,7 +60,104 @@ def design_of(garmentcode, garment):
     return design
 
 
-def pattern(garmentcode, measurements_file, garment, folder):
+def height_share(edge, height):
+    """The share (0 to 1) along an edge's curve where it reaches `height` (its y; the edge rises or falls throughout)."""
+    curve = edge.as_curve()
+    rising = curve.point(1.0).imag > curve.point(0.0).imag
+    low, high = 0.0, 1.0
+    for _ in range(50):
+        middle = (low + high) / 2.0
+        if (curve.point(middle).imag < height) == rising:
+            low = middle
+        else:
+            high = middle
+    return (low + high) / 2.0
+
+
+def across_at(edge, height):
+    """The edge's x where it reaches `height`."""
+    return float(edge.as_curve().point(height_share(edge, height)).real)
+
+
+def across_on(edges, height):
+    """The x where the one of `edges` that spans `height` reaches it."""
+    spanning = [edge for edge in edges if min(edge.start[1], edge.end[1]) <= height <= max(edge.start[1], edge.end[1])]
+    return across_at(spanning[0], height)
+
+
+def split_at(panel, edge, height, shift):
+    """The panel's edge split where it reaches `height`, that point moved `shift` along x, in the panel's outline and
+    in every interface of the panel the edge is in, the half at the hem first: a stitch pairs its two interfaces'
+    edges in order, and a back panel's leg seams run the other way round its outline from the front's (in outline
+    order, the front's hem half was sewn to the back's upper half)."""
+    import pygarment as pyg
+    share = height_share(edge, height)
+    pieces = edge.subdivide_param([share, 1.0 - share])
+    pieces[0].end[0] += shift
+    panel.edges.substitute(edge, pieces)
+    low, high = sorted(pieces, key=lambda piece: min(piece.start[1], piece.end[1]))
+    for interface in panel.interfaces.values():
+        if any(own is edge for own in interface.edges):
+            interface.substitute(edge, pyg.EdgeSequence(low, high), [panel, panel])
+
+
+def stitches_matched(made):
+    """Every stitch of the garment whose two sides no longer split alike matched again (GarmentCode's own
+    StitchingRule.match_interfaces): a leg's seams split at the knee after its stitches were matched."""
+    stack = [made]
+    while stack:
+        part = stack.pop()
+        for rule in getattr(getattr(part, "stitching_rules", None), "rules", []):
+            if not rule.isMatching():
+                rule.match_interfaces()
+        if hasattr(part, "_get_subcomponents"):
+            stack.extend(part._get_subcomponents())
+
+
+def slim_legs(made, body, design, legs, ease):
+    """A Pants leg taken in at the knee (cm): GarmentCode cuts each leg panel straight from the thigh to the hem, so
+    a slim leg cut to its thigh and a 37 cm hem stood 56 cm round her 37 cm knee and gathered in folds at the calf
+    as she walked (#225 round 6). Each leg panel's outseam and inseam get a point at the knee's height as cut (the
+    hem stands (1 - pants.length) of GarmentCode's leg length over the sole), moved in by a quarter of what the leg's
+    two panels measure there past the knee's girth and `ease`. A leg left narrower than the calf's girth at the calf's
+    height is refused."""
+    import pygarment as pyg
+    hem_at = (1.0 - design["pants"]["length"]["v"]) * body["_leg_length"]
+    panels = {}
+    stack = [made]
+    while stack:
+        part = stack.pop()
+        if isinstance(part, pyg.Panel):
+            panels[part.name] = part
+        elif hasattr(part, "_get_subcomponents"):
+            stack.extend(part._get_subcomponents())
+    for tag in ("r", "l"):
+        pair = [panels[f"pant_{side}_{tag}"] for side in ("f", "b")]
+        seams = [(panel, panel.interfaces["outside"].edges[0], panel.interfaces["inside"].edges[0]) for panel in pair]
+        hem = [min(vertex[1] for edge in panel.edges for vertex in (edge.start, edge.end)) for panel in pair]
+        knee = [low + legs["knee_h"] - hem_at for low in hem]
+        wide = sum(abs(across_at(inside, level) - across_at(outside, level))
+                   for (_, outside, inside), level in zip(seams, knee))
+        take = (wide - legs["knee_circ"] - ease) / 4.0
+        if take <= 0.0:
+            continue
+        for (panel, outside, inside), level in zip(seams, knee):
+            inward = np.sign(across_at(inside, level) - across_at(outside, level))
+            split_at(panel, outside, level, inward * take)
+            split_at(panel, inside, level, -inward * take)
+        calf = [low + legs["calf_h"] - hem_at for low in hem]
+        round_calf = sum(abs(across_on(panel.interfaces["inside"].edges, level)
+                             - across_on(panel.interfaces["outside"].edges, level))
+                         for panel, level in zip(pair, calf))
+        if round_calf < legs["calf_circ"]:
+            raise SystemExit(f"pants leg {tag}: {round_calf:.1f} cm round at the calf, under its "
+                             f"{legs['calf_circ']:.1f} cm girth")
+        print(f"pants leg {tag}: {wide:.1f} cm round at the knee taken in to {wide - 4.0 * take:.1f} "
+              f"(knee {legs['knee_circ']:.1f} + {ease}); {round_calf:.1f} cm round at the calf "
+              f"({legs['calf_circ']:.1f})", flush=True)
+
+
+def pattern(garmentcode, measurements_file, garment, folder, legs):
     """The garment's sewing pattern on the body, serialised in `folder`; its specification file."""
     import yaml
     from assets.bodies.body_params import BodyParameters
@@ -68,6 +165,9 @@ def pattern(garmentcode, measurements_file, garment, folder):
     design = design_of(garmentcode, garment)
     body = BodyParameters(str(measurements_file))
     made = MetaGarment(garment["name"], body, design)
+    if garment.get("knee_ease_cm") is not None:
+        slim_legs(made, body, design, legs, float(garment["knee_ease_cm"]))
+        stitches_matched(made)
     built = made.assembly()
     if made.is_self_intersecting():
         raise SystemExit(f"{garment['name']}: GarmentCode's pattern has panels crossing themselves")
@@ -119,7 +219,7 @@ def made(job):
     for garment in job["garments"]:
         folder = out / garment["name"]
         folder.mkdir(parents=True, exist_ok=True)
-        spec = pattern(job["garmentcode"], measurements, garment, folder)
+        spec = pattern(job["garmentcode"], measurements, garment, folder, job["measured"])
         box = boxmeshgen.BoxMesh(str(spec), float(job["resolution"]))
         # The box mesh's own look for panels crossing themselves only warns (a coat's SimpleLapel, 2026-11-24).
         if box.is_self_intersecting():

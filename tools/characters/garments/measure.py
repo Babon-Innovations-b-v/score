@@ -131,6 +131,21 @@ def measured(points, faces, weights, names, bind):
     return found
 
 
+def below_knee(points, faces, weights, names, bind):
+    """The lower leg's measures a trouser leg is tapered to (centimetres; the left leg, not one of GarmentCode's 26):
+    `knee_circ` the girth at the knee joint, `knee_h` that joint's height over the sole, `calf_circ` the largest girth
+    between the knee and the ankle and `calf_h` its height. GarmentCode's Pants run straight from the thigh to the hem,
+    so a slim leg cut to its thigh and hem alone stood 15 cm wide of the knee and gathered at the calf (#225)."""
+    names = [str(name) for name in names]
+    joint = {name: np.asarray(bind[names.index(name)])[:3, 3] for name in ("LeftShin", "LeftFoot")}
+    floor = points[:, 1].min()
+    leg = faces_of(faces, weights, names, is_left_leg)
+    knee = girth(points, leg, [0.0, joint["LeftShin"][1], 0.0], [0.0, 1.0, 0.0])
+    calf = max(level_girths(points, leg, joint["LeftFoot"][1] + 0.05, joint["LeftShin"][1] - 0.04))
+    found = {"knee_circ": knee, "knee_h": joint["LeftShin"][1] - floor, "calf_circ": calf[0], "calf_h": calf[1] - floor}
+    return {key: float(value) * CENTIMETRES for key, value in found.items()}
+
+
 def sized(mean, ours):
     """GarmentCode's 26 measurements for the body: each read here as it is, the rest the mean body's (`mean`,
     centimetres) carried over: an angle kept, a FOLLOWS width by its girth's ratio, any other length by the height's."""

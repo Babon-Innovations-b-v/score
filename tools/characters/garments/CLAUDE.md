@@ -47,6 +47,11 @@ runs them (an outfit file per look in `data/people/outfits/`).
   together, and woman_stair_modern's tee, its sleeve caps laid through its torso by GarmentCode's box mesh, was held
   behind her as she walked until it blew up (2026-11-25). A box mesh closes with no self contact in the gravity-free
   fifth of sewing; self contact then starts with the pairs still crossed left out, looked for again before the turn.
+- **A slim leg is taken in at the knee** (an outfit garment's `knee_ease_cm`, `inside/pattern.py` `slim_legs`):
+  GarmentCode's Pants run each leg straight from the thigh to the hem, so jeans cut to a slim hem stood 56 cm round a
+  37 cm knee and gathered at the calf. Each leg seam gets a point at the knee's height as cut, moved in to the knee's
+  girth (`measure.below_knee`) and the ease, and the stitches are matched again; a leg narrower than the calf is
+  refused.
 - **Neckline holds keep a point from going further out, never pull it in** past where the pattern lays it (drawn in
   at once, a dress's and a jacket's neckline ends were gathered into lumps on the shoulders).
 - **Bands** (`bands.py`, an outfit garment's `bands`: tape round the torso over the hem and round each sleeve over
