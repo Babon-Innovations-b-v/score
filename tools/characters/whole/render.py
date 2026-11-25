@@ -13,8 +13,10 @@ BSDF.
 The studio: a seamless backdrop (a floor curving up into a wall behind, the library's paper_white), a large soft key
 from the camera's left above, a fill from its right, a rim from behind for the hair's edge, a dim grey sky; the
 person turned on a turntable for each view, so every side is lit and backed alike. An 85 mm lens framing the whole
-person, AgX.
-Writes <out>/<name>-<view>.png.
+person, AgX. Then a close-up of the face (the head filling the frame, from FACE_TURN off its front) in the same
+studio, and the person in one simple real setting (`setting`: {"floor", "wall"}, library surfaces: a concrete floor
+running to a concrete wall behind) in daylight (a low sun, a pale sky) from SETTING_VIEW.
+Writes <out>/<name>-<view>.png, <out>/<name>-face.png and <out>/<name>-setting.png.
 """
 import json
 import math
@@ -39,6 +41,13 @@ RIM = {"turn": 160.0, "rise": 35.0, "size": 1.2, "watts": 500.0}
 SKY = (0.5, 0.5, 0.5)
 SKY_STRENGTH = 0.25
 BACKDROP = {"surface": "paper_white", "behind": 2.2, "width": 8.0, "height": 4.5, "bend": 0.8}
+FACE_TURN = 20.0  # degrees: the close-up a little off the face's front, so the nose and an ear read in depth
+FACE_FRAME_M = 0.42  # the close-up's frame height: the head and the neck's top
+SETTING_VIEW = "three_quarter"
+SUN = {"turn": 60.0, "rise": 35.0, "watts": 4.0, "angle": 1.5}  # W/m2, the sun's disc in degrees: soft-edged shade
+DAY_SKY = (0.55, 0.68, 0.9)
+DAY_STRENGTH = 1.2
+SETTING = {"behind": 3.0, "width": 14.0, "height": 4.0, "tile_m": 1.5}
 
 
 def arguments():
@@ -78,6 +87,40 @@ def backdrop(library, middle):
     item = bpy.data.objects.new("backdrop", mesh)
     bpy.context.scene.collection.objects.link(item)
     return item
+
+
+def setting(library, middle, surfaces):
+    """The real setting: a concrete floor (its st one tile a SETTING tile_m) to a concrete wall SETTING behind the
+    person's middle, each its library surface."""
+    half, behind, tile = SETTING["width"] / 2.0, middle.y + SETTING["behind"], SETTING["tile_m"]
+    found = []
+    for name, corners in (("floor", [(-half, middle.y - 12.0, 0.0), (half, middle.y - 12.0, 0.0), (half, behind, 0.0),
+                                     (-half, behind, 0.0)]),
+                          ("wall", [(-half, behind, 0.0), (half, behind, 0.0), (half, behind, SETTING["height"]),
+                                    (-half, behind, SETTING["height"])])):
+        points = [(middle.x + x, y, z) for x, y, z in corners]
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(points, [], [(0, 1, 2, 3)])
+        layer = mesh.uv_layers.new(name="st")
+        flat = [(x, y) if name == "floor" else (x, z) for x, y, z in points]
+        layer.data.foreach_set("uv", np.asarray(flat, dtype=np.float32).ravel() / tile)
+        mesh.materials.append(blender_face.library_material(library, surfaces[name]))
+        item = bpy.data.objects.new(name, mesh)
+        bpy.context.scene.collection.objects.link(item)
+        found.append(item)
+    return found
+
+
+def daylight(aim, heading):
+    """The sun SUN off the camera's heading and a pale sky, in place of the studio's lamps and grey sky."""
+    data = bpy.data.lights.new("sun", "SUN")
+    data.energy, data.angle = SUN["watts"], math.radians(SUN["angle"])
+    item = bpy.data.objects.new("sun", data)
+    bpy.context.scene.collection.objects.link(item)
+    placed(item, SUN, aim, heading, 10.0)
+    background = bpy.context.scene.world.node_tree.nodes["Background"]
+    background.inputs["Color"].default_value = (*DAY_SKY, 1.0)
+    background.inputs["Strength"].default_value = DAY_STRENGTH
 
 
 def lamp(name, spec):
@@ -154,8 +197,10 @@ def main(scene_path, library, out):
     render.camera = camera
     tall = (high.z - 0.0) * MARGIN
     distance = tall / 2.0 / math.tan(camera.data.angle_y / 2.0)
+    lamps = []
     for name, spec in (("key", KEY), ("fill", FILL), ("rim", RIM)):
-        placed(lamp(name, spec), spec, Vector((middle.x, middle.y, high.z * 0.55)), 0.0, 3.5)
+        lamps.append(lamp(name, spec))
+        placed(lamps[-1], spec, Vector((middle.x, middle.y, high.z * 0.55)), 0.0, 3.5)
     camera.location = Vector((middle.x, middle.y - distance, EYE_HEIGHT))
     camera.rotation_euler = (Vector((middle.x, middle.y, high.z * 0.5)) - camera.location).to_track_quat(
         "-Z", "Y").to_euler()
@@ -166,11 +211,29 @@ def main(scene_path, library, out):
         item.parent = turntable
         item.matrix_parent_inverse = turntable.matrix_world.inverted()
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)
-    for view, degrees in json.loads(str(scene_file["views"])).items():
-        turntable.rotation_euler = (0.0, 0.0, -math.radians(degrees))
-        render.render.filepath = str(pathlib.Path(out) / f"{scene_file['name']}-{view}.png")
-        bpy.ops.render.render(write_still=True)
-        print(f"drew {scene_file['name']}-{view}", flush=True)
+    views = json.loads(str(scene_file["views"]))
+    for view, degrees in views.items():
+        drawn(render, turntable, degrees, out, f"{scene_file['name']}-{view}")
+    face_middle = Vector((middle.x, middle.y, high.z - FACE_FRAME_M * 0.42))
+    full = (camera.location.copy(), camera.rotation_euler.copy())
+    camera.location = face_middle + Vector((0.0, -FACE_FRAME_M / 2.0 / math.tan(camera.data.angle_y / 2.0), 0.0))
+    camera.rotation_euler = (face_middle - camera.location).to_track_quat("-Z", "Y").to_euler()
+    drawn(render, turntable, FACE_TURN, out, f"{scene_file['name']}-face")
+    camera.location, camera.rotation_euler = full
+    surfaces = json.loads(str(scene_file["setting"]))
+    for item in [*lamps, *[item for item in render.objects if item.name == "backdrop"]]:
+        bpy.data.objects.remove(item)
+    setting(library, middle, surfaces)
+    daylight(Vector((middle.x, middle.y, high.z * 0.55)), 0.0)
+    drawn(render, turntable, views[SETTING_VIEW], out, f"{scene_file['name']}-setting")
+
+
+def drawn(render, turntable, degrees, out, name):
+    """The person turned `degrees` from the camera, drawn to <out>/<name>.png."""
+    turntable.rotation_euler = (0.0, 0.0, -math.radians(degrees))
+    render.render.filepath = str(pathlib.Path(out) / f"{name}.png")
+    bpy.ops.render.render(write_still=True)
+    print(f"drew {name}", flush=True)
 
 
 if __name__ == "__main__":

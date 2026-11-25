@@ -19,6 +19,8 @@ from tools.characters.whole import jewellery
 VIEWS = {"front": 0.0, "three_quarter": 35.0, "left": 90.0, "back": 180.0, "right": 270.0}
 FACE_PIECES = ("eyes", "teeth", "mouth", "tears", "brows", "lashes")
 BACKDROP = "paper_white"
+SETTING = {"floor": "simready_m_opaque_concrete_bare_c01_3a571927",  # the real setting's (render.py): NVIDIA
+           "wall": "simready_m_opaque_concrete_plain_wall_a01_8c6d57b1"}  # SimReady concretes, CC BY 4.0
 THICK_M = garments.THICKNESS_M
 HEAD_ABOVE_M = 0.25  # the skin this far under the Head joint and up is what the hair is kept off
 BROW_REACH_M = 0.012  # a hair point this near a brow hair keeps clear of the brows
@@ -190,7 +192,8 @@ def jewels(outfit, body, face, skin, start, count, frame):
 def scene_file(pieces, name, path, cloth):
     """The pieces in blender_face's format, with the views, the pose's name and the pieces that are `cloth`."""
     arrays = {"pieces": np.array(list(pieces)), "views": np.array(json.dumps(VIEWS)), "name": np.array(name),
-              "subdivided": np.array(True), "thick": np.array(THICK_M), "cloth": np.array(cloth)}
+              "subdivided": np.array(True), "thick": np.array(THICK_M), "cloth": np.array(cloth),
+              "setting": np.array(json.dumps(SETTING))}
     for piece_name, piece in pieces.items():
         arrays[f"{piece_name}.surfaces"] = np.array(piece["surfaces"])
         for field in ("points", "triangles", "finish", "uv", "counts", "radius"):
@@ -203,7 +206,8 @@ def scene_file(pieces, name, path, cloth):
 def fetched(pieces, out):
     """Every library surface the pieces wear, and the backdrop's, fetched from score_lib into `out`/library."""
     from tools.characters.garments.__main__ import SCORE_LIB
-    names = sorted({surface for piece in pieces.values() for surface in piece["surfaces"]} | {BACKDROP})
+    names = sorted({surface for piece in pieces.values() for surface in piece["surfaces"]}
+                   | {BACKDROP, *SETTING.values()})
     folder = out / "library"
     subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "--root", str(SCORE_LIB), "fetch",
                     *[f"surface/{name}@1" for name in names],

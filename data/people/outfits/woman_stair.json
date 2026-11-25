@@ -54,6 +54,9 @@
   },
   "belt": {
    "on": "skirt",
+   "covered by": [
+    "tee"
+   ],
    "strap": {
     "name": "simready_m_opaque_leather_black_glossy_a01_bebbeeca",
     "address": "surface/simready_m_opaque_leather_black_glossy_a01_bebbeeca@1"
