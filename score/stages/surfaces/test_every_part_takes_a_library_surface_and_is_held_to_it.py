@@ -248,6 +248,9 @@ tests it turned red:
 - route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
   REGIONS, seed=seed, minit="++")[0]`  -> every_part_takes_a_library_surface_and_is_held_to_it (its red among
   greys and rust)
+- route_views.py merged_centres: `+ 2e3 * (centre_groups[:, None] != centre_groups[None]))` -> `)`, or
+  colour_regions `if (every_group > 0).mean() < PIECE_SHARE:` -> `if True:`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its board's grey underside and its legs' grey, #174)
 - route_views.py merged_centres: `last = apart + 1e3 * two_materials(centres, counts)` -> `last = apart`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its slate body and grey battery among shading ramps and
   accents: merged into one region under seeds 8 and 11, #202)
@@ -2368,7 +2371,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     pixels = np.concatenate([greys, rust, np.tile([[200, 30, 30]], (40, 1))]).astype(np.uint8)
     red = route_cast.lab_of(np.array([[200, 30, 30]]))[0]
     for seed in range(7, 12):
-        centres, per_pixel = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)},
+        centres, per_pixel, _ = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)},
                                                         {"front": np.zeros((1, len(pixels)), dtype=int)}, seed)
         assert len(centres) <= route_views.REGIONS and np.linalg.norm(centres - red, axis=1).min() < 5, (seed, centres)
         assert len(np.unique(per_pixel["front"][0, -40:])) == 1  # one region holds the red, and only the red
@@ -2384,6 +2387,20 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         found = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)},
                                            {"front": np.zeros((1, len(pixels)), dtype=int)}, seed)[1]["front"][0]
         assert found[0] != found[20000], seed
+    # one grey over two pieces (#174, TRELLIS.2's desk: its board's underside and its legs, sRGB 182 against 179): the
+    # board (face 0, white top and grey underside) and the legs (face 1) give the two greys a region each, a region
+    # never holding both pieces, under every seed; with no pieces (one group) the greys stay one region
+    board = np.repeat(np.linspace(196, 255, 20000)[:, None], 3, axis=1)
+    pixels = np.concatenate([board, np.tile([[182, 182, 182]], (6000, 1)),
+                             np.tile([[179, 179, 179]], (5000, 1))]).astype(np.uint8)
+    on_face = np.r_[np.zeros(26000, dtype=int), np.ones(5000, dtype=int)][None]
+    for seed, groups in [(seed, groups) for seed in range(7, 10) for groups in (np.array([0, 1]), None)]:
+        _, per_pixel, region_groups = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)},
+                                                                 {"front": on_face}, seed, groups)
+        found = per_pixel["front"][0]
+        assert (found[20000] != found[-1]) == (groups is not None), (seed, groups, found[[20000, -1]])
+        assert groups is None or not np.isin(found[:26000], found[26000:]).any(), seed
+        assert groups is None or sorted(set(region_groups)) == [0, 1], (seed, region_groups)
     # the list, split and parts rows on the two boxes, each world's batches faked (LISTED)
     worlds = {}
     for case, (colours, answer, again, takes, laid), (asks, used, again_words, past_views, last_words), \

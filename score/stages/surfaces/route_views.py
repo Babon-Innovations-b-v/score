@@ -13,7 +13,8 @@ view of the regions, CLOSE_UP: a small part it shows (a red label, a decal, a sc
 lacks. Its regions: every seen pixel's CIELAB colour, the views' and the laid close-up's, in groups of distinct colour
 (colour_regions: FINE k-means groups fitted on SAMPLE pixels with the node's seed, a group for each far colour they
 miss, the nearest merged down to REGIONS; colours only split, they name nothing), the same groups in every view, so
-the list's answer labels each region of each view with a finish.
+the list's answer labels each region of each view with a finish. A region holds one piece group (piece_groups: the
+model's main piece or the rest, where the rest shows PIECE_SHARE), so one colour on two pieces is two regions (#174).
 
 Output per take: <take>/model.npz (the welded, normalised vertices and faces every later row reads, so the face ids
 agree), <take>/faces.npz, colours.npz and regions.npz (one array a view), <take>/<view>.png (the texture, shaded by
@@ -76,6 +77,13 @@ ACCENT_LEAST = 40  # the fewest pixels (every view and the close-up together) a 
 # L* 78) change.
 MAJOR_SHARE = 0.1
 MAJOR_CHROMA = 4.0
+# A colour spanning the model's main piece and its other pieces is two regions (#174): TRELLIS.2's desk made its
+# board and its legs separate pieces, but colour alone grouped the board's underside with the legs (sRGB 182 against
+# 179) and the list could only label the whole region, as frame metal in all 16 views. Each pixel is of the main piece
+# (the model's largest connected piece and every piece lying mostly inside its box: a shell's inner wall) or of the
+# rest (piece_groups), and a region never holds both (colour_regions); only where the rest shows PIECE_SHARE of the
+# seen pixels (on that desk 11%, its legs and feet), so a model of one piece and its crumbs groups as before.
+PIECE_SHARE = 0.05
 CLOSE_UP = "close-up"  # the close-up's own pixels laid on the model through its camera, a view of the regions
 # How far, in the close-up's pixels at its depth, a texel may lie from the face the close-up shows there and still be
 # the one it shows (close_up_texels): a texel's face is often not the one cast at its pixel's middle where faces are
@@ -136,24 +144,27 @@ def accent_centres(every, centres, seed):
     return groups[counts >= ACCENT_LEAST]
 
 
-def merged_centres(every, centres):
-    """`centres` with the groups of fewer than ACCENT_LEAST of `every`'s pixels dropped (their pixels go to the
-    nearest group left), then the two nearest merged (weighed by their pixels) until REGIONS are left: shading steps
-    of one colour lie close and merge first, a colour far from the rest keeps its own region however small, and two
-    materials (two_materials) merge only when no other two groups are left."""
-    from scipy.cluster.vq import vq
-    counts = np.bincount(vq(every, centres)[0], minlength=len(centres)).astype(float)
+def merged_centres(every, centres, groups):
+    """(`centres` and their piece groups) with the groups of fewer than ACCENT_LEAST of `every`'s pixels dropped
+    (their pixels go to the nearest group left), then the two nearest merged (weighed by their pixels) until REGIONS
+    are left: shading steps of one colour lie close and merge first, a colour far from the rest keeps its own region
+    however small, two materials (two_materials) merge only when no other two groups are left, and two of other piece
+    groups (`groups`: each pixel's and each centre's, colour_regions) last of all."""
+    every_group, centre_groups = groups
+    counts = np.bincount(assigned(every, every_group, centres, centre_groups), minlength=len(centres)).astype(float)
     kept = counts >= min(ACCENT_LEAST, counts.max())
-    centres, counts = centres[kept], counts[kept]
+    centres, counts, centre_groups = centres[kept], counts[kept], centre_groups[kept]
     while len(centres) > REGIONS:
         apart = np.linalg.norm(centres[:, None] - centres[None], axis=-1) + np.diag(np.full(len(centres), np.inf))
-        last = apart + 1e3 * two_materials(centres, counts)  # 1000: past any two CIELAB colours' distance
+        last = (apart + 1e3 * two_materials(centres, counts)  # 1000: past any two CIELAB colours' distance
+                + 2e3 * (centre_groups[:, None] != centre_groups[None]))
         first, second = np.unravel_index(last.argmin(), apart.shape)
         centres[first] = (centres[first] * counts[first] + centres[second] * counts[second]) \
             / (counts[first] + counts[second])
         counts[first] += counts[second]
         centres, counts = np.delete(centres, second, axis=0), np.delete(counts, second)
-    return centres
+        centre_groups = np.delete(centre_groups, second)
+    return centres, centre_groups
 
 
 def two_materials(centres, counts):
@@ -164,21 +175,56 @@ def two_materials(centres, counts):
     return major[:, None] & major[None] & (hue >= MAJOR_CHROMA)
 
 
-def colour_regions(colours, faces, seed):
-    """(the regions' CIELAB centres, each view's region per pixel, -1 off the model): every seen pixel's colour in
-    at most REGIONS groups of distinct colour (fine_centres merged, merged_centres); groups no pixel falls in are
-    dropped."""
-    from scipy.cluster.vq import vq
+def colour_regions(colours, faces, seed, groups=None):
+    """(the regions' CIELAB centres, each view's region per pixel, -1 off the model, each region's piece group):
+    every seen pixel's colour in at most REGIONS groups of distinct colour (fine_centres merged, merged_centres), a
+    region of one piece group only where `groups` (piece_groups, per face) gives the rest PIECE_SHARE of the seen
+    pixels, else one group; groups no pixel falls in are dropped."""
     seen = {view: cast.lab_of(colours[view][faces[view] >= 0]) for view in faces}
     every = np.concatenate(list(seen.values()))
-    centres = merged_centres(every, fine_centres(every, seed))
-    centres = centres[np.unique(vq(every, centres)[0])]
+    if groups is None:
+        of = {view: np.zeros(len(lab), dtype=int) for view, lab in seen.items()}
+    else:
+        of = {view: np.asarray(groups)[faces[view][faces[view] >= 0]].astype(int) for view in faces}
+    every_group = np.concatenate(list(of.values()))
+    if (every_group > 0).mean() < PIECE_SHARE:
+        of = {view: np.zeros_like(group) for view, group in of.items()}
+        every_group = np.zeros_like(every_group)
+    fitted = [(fine_centres(every[every_group == group], seed + group), group) for group in np.unique(every_group)]
+    centres = np.concatenate([found for found, _ in fitted])
+    centre_groups = np.concatenate([np.full(len(found), group) for found, group in fitted])
+    centres, centre_groups = merged_centres(every, centres, (every_group, centre_groups))
+    used = np.unique(assigned(every, every_group, centres, centre_groups))
+    centres, centre_groups = centres[used], centre_groups[used]
     per_pixel = {}
     for view, lab in seen.items():
         label = np.full(faces[view].shape, -1)
-        label[faces[view] >= 0] = vq(lab, centres)[0]
+        label[faces[view] >= 0] = assigned(lab, of[view], centres, centre_groups)
         per_pixel[view] = label
-    return centres, per_pixel
+    return centres, per_pixel, centre_groups
+
+
+def piece_groups(mesh):
+    """Each face's piece group: 0 on the model's largest connected piece and every piece whose faces' centres lie at
+    least half inside that piece's box (a shell's inner wall), 1 on the rest (PIECE_SHARE's note)."""
+    import trimesh
+    piece = trimesh.graph.connected_component_labels(mesh.face_adjacency, node_count=len(mesh.faces))
+    counts = np.bincount(piece)
+    centres = mesh.triangles_center
+    main = centres[piece == counts.argmax()]
+    inside = ((centres >= main.min(0)) & (centres <= main.max(0))).all(1)
+    return (np.bincount(piece, weights=inside)[piece] / counts[piece] < 0.5).astype(int)
+
+
+def assigned(lab, lab_groups, centres, centre_groups):
+    """Each CIELAB pixel's nearest centre among its own piece group's (all of them where its group has none)."""
+    from scipy.cluster.vq import vq
+    found = np.zeros(len(lab), dtype=int)
+    for group in np.unique(lab_groups):
+        mine, own = lab_groups == group, np.flatnonzero(centre_groups == group)
+        own = own if len(own) else np.arange(len(centres))
+        found[mine] = own[vq(lab[mine], centres[own])[0]]
+    return found
 
 
 def region_records(centres, colours, per_pixel, shown=None):
@@ -237,12 +283,13 @@ def views_saved(folder, model, cast_views, regions):
     np.savez_compressed(folder / "regions.npz", **{view: label.astype(np.int16) for view, label in regions.items()})
 
 
-def texel_regions(model, centres):
+def texel_regions(model, centres, groups):
     """{face<k>, region<k>}: each texel of the model's piece k's colour picture, the face covering it (-1 none) and the
-    region of its colour (route_texels.face_texels; -1 off the faces), for every piece with a picture and UVs: the
-    texels the split gives each its finish (route_texels)."""
+    region of its colour among its face's piece group's (route_texels.face_texels; -1 off the faces; `groups`: each
+    face's group and each region's, colour_regions), for every piece with a picture and UVs: the texels the split
+    gives each its finish (route_texels)."""
     import route_texels
-    from scipy.cluster.vq import vq
+    face_groups, region_groups = groups
     found = {}
     for piece, picture in enumerate(model.pictures):
         mine = np.flatnonzero(model.piece_of == piece)
@@ -252,7 +299,7 @@ def texel_regions(model, centres):
         covered = face_of >= 0
         colours = np.clip(picture[covered] * model.factors[piece][:3], 0, 255)
         region_of = np.full(face_of.shape, -1, dtype=np.int8)
-        region_of[covered] = vq(cast.lab_of(colours), centres)[0]
+        region_of[covered] = assigned(cast.lab_of(colours), face_groups[face_of[covered]], centres, region_groups)
         found[f"face{piece}"], found[f"region{piece}"] = face_of.astype(np.int32), region_of
     return found
 
@@ -401,9 +448,12 @@ def view_take(model_file, close_up, camera_file, folder, seed):
     every_faces, every_colours = dict(faces), dict(colours)
     if laid is not None:
         every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid
-    centres, regions = colour_regions(every_colours, every_faces, seed)
+    groups = piece_groups(model.mesh)
+    centres, regions, region_groups = colour_regions(every_colours, every_faces, seed, groups)
+    if not region_groups.any():  # one piece group (PIECE_SHARE): every face of it
+        groups = np.zeros_like(groups)
     views_saved(folder, model, (angles, faces, colours), regions)
-    texels = texel_regions(model, centres)
+    texels = texel_regions(model, centres, (groups, region_groups))
     if texels and laid is not None:
         texels.update(close_up_texels(model, (close_up, camera_file), laid[0], regions[CLOSE_UP], texels))
     if texels:  # a model with no picture (a colour factor alone) has no texels

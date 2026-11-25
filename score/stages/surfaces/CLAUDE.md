@@ -157,7 +157,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   screen glow or valve paint (greenhouse desk's eight were seven greys from L* 21 to 62 and one paper yellow,
   2026-10-29). The groups are fitted finer (`FINE`), a group added for each colour far from all of them
   (`ACCENT_DE`, at least `ACCENT_LEAST` pixels), and the nearest merged down to eight, so shading steps merge first and
-  a small saturated area keeps its region. In the split the laid close-up votes as the front does, and a finish only
+  a small saturated area keeps its region. A region holds one piece group (`piece_groups`: the model's largest
+  connected piece with the pieces lying mostly in its box, or the rest, where the rest shows `PIECE_SHARE` 5% of the
+  seen pixels), so one colour on two pieces is two regions the list labels apart (#174: TRELLIS.2's desk board's
+  underside grouped with its legs and drawn as frame metal; a model of one piece groups as before). In the split the laid close-up votes as the front does, and a finish only
   it labels (no texture view shows it) takes the faces it labels (`route_split.close_up_only`); never a whole part
   painted to pass a check. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
   Google's Batch API at half price (`route_ask.py`, `tools/cloud/google_batch.py`), seeing the close-up, every
