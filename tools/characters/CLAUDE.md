@@ -10,6 +10,10 @@ OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter
   played on a person's build (the sim body's, and prop_build.py's arithmetic until its next paid re-make); `hair/`
   grows strand hair on a kept person and writes it as USD curves (#223); `garments/` sews and drapes its clothes
   (#225) and `accessories/` fits its shoes and belt (#228). Each has its own overlay.
+- **Card work goes through this PC's card queue** (`garment-drape`, `whole-person`, the hair's and accessories' draws), so a
+  chain script that shares the card with another session exports `SCORE_CARD_LOCK=<the lock file>` and never wraps a
+  command in `flock <lock file>`: the queue holds the lock for each card job alone (`tools/cloud/CLAUDE.md`, "A session's
+  own card lock"; #159: r16's close-ups waited 11 to 87 min behind whole-person commands held under flock).
 - `skel_usd.py` turns a built body into a UsdSkel asset; `cast.py` holds a cast's rules and the prims the cast stage's
   characters layer (`score/stages/cast/layer.py`) lays from a place's cast record (written from its design by
   `score/stages/people_rows.py`). Their docstrings have the layout of each.

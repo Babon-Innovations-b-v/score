@@ -124,6 +124,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `pool.paused` for a warm pool: its deadline held as far ahead as when the wait began, the runaway watch told;
   2026-10-31: likeness@base's similar claim ran out of its minutes waiting behind sim body's share). The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
   the whole PC, whatever `PROPS_HOME` a run works under.
+- **A session's own card lock** (#159, 2026-11-25: n25 waited 10,078 s, r16 11 to 87 min a close-up, behind a `flock`
+  held round whole commands for seconds of card work): a command whose card work all goes through the queue (bench,
+  `make`, the characters tools, `render.queued`) runs with `SCORE_CARD_LOCK=<the lock file>` exported, never under
+  `flock <lock file> <command>`; `card_queue run` then holds that file shared for each card job alone. `flock` (exclusive)
+  only round card work that bypasses the queue (a Newton trial), for that work alone.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
   a scene's steps (target, SAM 3 cut-outs, MoGe-2 depth, redraws) on one card, then its objects
