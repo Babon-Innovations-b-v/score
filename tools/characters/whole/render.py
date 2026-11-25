@@ -1,22 +1,23 @@
-"""Inside Blender (5.x, Cycles on the card): a whole person (`__main__`'s scene.npz) drawn as a studio photograph from
-every side, each piece in its score_lib finish.
+"""Inside Blender (5.x, Cycles on the card): a whole person (`__main__`'s scene.npz) drawn as a daylight photograph
+from every side, each piece in its score_lib finish.
 
     blender -b --python render.py -- <scene.npz> <library folder> <out folder>
 
 scene.npz is face/blender_face.py's piece format (`pieces`, and per piece its points, triangles, surfaces, finish,
 uv or strands' counts and radius; y up), with `views` (JSON: {name: degrees round the person from its front}),
-`name` (the pose's), `cloth` (the garments' pieces) and `subdivided` / `thick` (the pieces drawn subdivided once,
-and the cloth pieces given their thickness, m). Each surface is the library entry's own material.usda through
-Blender's USD reader (`blender_face.library_material`); hair, brows and lashes in the hair route's Principled Hair
-BSDF.
+`name` (the pose's), `cloth` (the garments' pieces), `subdivided` / `thick` (the pieces drawn subdivided once,
+and the cloth pieces given their thickness, m) and `setting` ({"floor", "wall"}: library surfaces). Each surface is
+the library entry's own material.usda through Blender's USD reader (`blender_face.library_material`); hair, brows
+and lashes in the hair route's Principled Hair BSDF.
 
-The studio: a seamless backdrop (a floor curving up into a wall behind, the library's paper_white), a large soft key
-from the camera's left above, a fill from its right, a rim from behind for the hair's edge, a dim grey sky; the
-person turned on a turntable for each view, so every side is lit and backed alike. An 85 mm lens framing the whole
-person, AgX in its medium high contrast look. Then a close-up of the face (the head filling the frame, from FACE_TURN
-off its front) in the same studio, and the person in one simple real setting (`setting`: {"floor", "wall"}, library
-surfaces: a concrete floor running to a concrete wall behind) in daylight (a low sun, a pale sky) from SETTING_VIEW.
-Writes <out>/<name>-<view>.png, <out>/<name>-face.png and <out>/<name>-setting.png.
+The light (owner, 2026-11-25: the white studio read flat and overexposed): one real setting, a concrete floor running
+to a concrete wall behind, under Blender's physical sky (multiple scattering): the sun's disc, its direct light and
+the blue sky it lights all from one sun, as outdoors in late morning; nothing else lights the person. The person is
+turned on a turntable for each view, so the sun stays on the camera's left above and every side is lit alike. An
+85 mm lens framing the whole person at chest height, AgX in its medium high contrast look, exposed by EXPOSURE.
+Then a close-up of the face (the head filling the frame, from FACE_TURN off its front) and the setting from further
+back (SETTING_VIEW turned, the frame SETTING_MARGIN of the person's height). Writes <out>/<name>-<view>.png,
+<out>/<name>-face.png and <out>/<name>-setting.png.
 """
 import json
 import math
@@ -35,61 +36,21 @@ SAMPLES = 512
 LENS_MM = 85.0
 EYE_HEIGHT = 1.15  # m: the camera at the person's chest, a fashion photograph's height
 MARGIN = 1.18  # the frame's height over the person's
-# The lamps a stop under the first whole person's (2026-11-25: her skin drew at 0.95 of white, the frame blown), the
-# key four times the fill so the shade reads, AgX's medium high contrast look over its base.
-KEY = {"turn": 45.0, "rise": 40.0, "size": 2.2, "watts": 450.0}
-FILL = {"turn": -60.0, "rise": 15.0, "size": 2.5, "watts": 110.0}
-RIM = {"turn": 160.0, "rise": 35.0, "size": 1.2, "watts": 250.0}
 LOOK = "AgX - Medium High Contrast"
-SKY = (0.5, 0.5, 0.5)
-SKY_STRENGTH = 0.25
-BACKDROP = {"surface": "paper_white", "behind": 2.2, "width": 8.0, "height": 4.5, "bend": 0.8}
+# The sun 40 degrees up, 50 degrees round to the camera's left from straight behind it: the face and the front lit,
+# the shade side and the wall's cast shadow on the right. Blender's sky at strength 1 is the real sun's and sky's
+# radiance, so the film is exposed down as a camera in daylight is (EXPOSURE stops).
+SUN = {"turn": 50.0, "rise": 40.0, "strength": 1.0, "air": 1.0, "haze": 1.0}
+EXPOSURE = -4.0
 FACE_TURN = 20.0  # degrees: the close-up a little off the face's front, so the nose and an ear read in depth
 FACE_FRAME_M = 0.42  # the close-up's frame height: the head and the neck's top
 SETTING_VIEW = "three_quarter"
-SUN = {"turn": 60.0, "rise": 35.0, "watts": 4.0, "angle": 1.5}  # W/m2, the sun's disc in degrees: soft-edged shade
-DAY_SKY = (0.55, 0.68, 0.9)
-DAY_STRENGTH = 1.2
-SETTING = {"behind": 3.0, "width": 14.0, "height": 4.0, "tile_m": 1.5}
+SETTING_MARGIN = 1.9  # the setting's frame: the person and the floor and wall round her
+SETTING = {"behind": 2.5, "width": 14.0, "height": 4.0, "tile_m": 1.5}
 
 
 def arguments():
     return sys.argv[sys.argv.index("--") + 1:]
-
-
-def backdrop(library, middle):
-    """The seamless paper: a floor that curves up into a wall `behind` the person's middle (z up, the person facing
-    -y), its st in metres over the paper's texture."""
-    rows = []
-    depth, bend = BACKDROP["behind"], BACKDROP["bend"]
-    for step in range(40):
-        angle = step / 39.0 * math.pi / 2.0
-        rows.append((middle.y + depth - bend + bend * math.sin(angle), bend - bend * math.cos(angle)))
-    rows = [(middle.y - 10.0, 0.0)] + rows + [(middle.y + depth, BACKDROP["height"])]
-    half = BACKDROP["width"] / 2.0
-    points, faces, along = [], [], 0.0
-    lengths = [0.0]
-    for (y0, z0), (y1, z1) in zip(rows, rows[1:]):
-        along += math.hypot(y1 - y0, z1 - z0)
-        lengths.append(along)
-    for (y, z) in rows:
-        points += [(middle.x - half, y, z), (middle.x + half, y, z)]
-    for row in range(len(rows) - 1):
-        here = row * 2
-        faces.append((here, here + 1, here + 3, here + 2))
-    mesh = bpy.data.meshes.new("backdrop")
-    mesh.from_pydata(points, [], faces)
-    layer = mesh.uv_layers.new(name="st")
-    corners = []
-    for row in range(len(rows) - 1):
-        for column, length in ((0, lengths[row]), (1, lengths[row]), (1, lengths[row + 1]), (0, lengths[row + 1])):
-            corners += [column * BACKDROP["width"] / 2.0, length / 2.0]
-    layer.data.foreach_set("uv", np.asarray(corners, dtype=np.float32))
-    mesh.polygons.foreach_set("use_smooth", np.ones(len(faces), dtype=bool))
-    mesh.materials.append(blender_face.library_material(library, BACKDROP["surface"]))
-    item = bpy.data.objects.new("backdrop", mesh)
-    bpy.context.scene.collection.objects.link(item)
-    return item
 
 
 def setting(library, middle, surfaces):
@@ -114,42 +75,22 @@ def setting(library, middle, surfaces):
     return found
 
 
-def daylight(aim, heading):
-    """The sun SUN off the camera's heading and a pale sky, in place of the studio's lamps and grey sky."""
-    data = bpy.data.lights.new("sun", "SUN")
-    data.energy, data.angle = SUN["watts"], math.radians(SUN["angle"])
-    item = bpy.data.objects.new("sun", data)
-    bpy.context.scene.collection.objects.link(item)
-    placed(item, SUN, aim, heading, 10.0)
-    background = bpy.context.scene.world.node_tree.nodes["Background"]
-    background.inputs["Color"].default_value = (*DAY_SKY, 1.0)
-    background.inputs["Strength"].default_value = DAY_STRENGTH
-
-
-def lamp(name, spec):
-    data = bpy.data.lights.new(name, "AREA")
-    data.size, data.energy = spec["size"], spec["watts"]
-    item = bpy.data.objects.new(name, data)
-    bpy.context.scene.collection.objects.link(item)
-    return item
-
-
-def placed(item, spec, aim, heading, reach):
-    """The lamp `spec` turn degrees off the camera's heading (radians round the person) and rise degrees up, aimed at
-    `aim`."""
-    angle = heading + math.radians(spec["turn"])
-    rise = math.radians(spec["rise"])
-    item.location = aim + Vector((math.sin(angle) * math.cos(rise), -math.cos(angle) * math.cos(rise),
-                                  math.sin(rise))) * reach
-    item.rotation_euler = (aim - item.location).to_track_quat("-Z", "Y").to_euler()
-
-
-def sky():
-    world = bpy.data.worlds.new("studio")
+def daylight():
+    """Blender's physical sky (multiple scattering: the sun's disc and the sky that sun lights) as the world, the sun
+    SUN turn degrees round from behind the camera to its left and rise degrees up."""
+    world = bpy.data.worlds.new("daylight")
     world.use_nodes = True
-    background = world.node_tree.nodes["Background"]
-    background.inputs["Color"].default_value = (*SKY, 1.0)
-    background.inputs["Strength"].default_value = SKY_STRENGTH
+    nodes = world.node_tree.nodes
+    sky = nodes.new("ShaderNodeTexSky")
+    sky.sky_type = "MULTIPLE_SCATTERING"
+    sky.sun_disc = True
+    sky.sun_elevation = math.radians(SUN["rise"])
+    # Blender's sun_rotation turns from +y anticlockwise seen from above; the camera looks along +y from -y.
+    sky.sun_rotation = math.radians(180.0 - SUN["turn"])
+    sky.air_density, sky.aerosol_density = SUN["air"], SUN["haze"]
+    background = nodes["Background"]
+    world.node_tree.links.new(sky.outputs["Color"], background.inputs["Color"])
+    background.inputs["Strength"].default_value = SUN["strength"]
     bpy.context.scene.world = world
 
 
@@ -178,6 +119,15 @@ def bounds(items):
     return low, high
 
 
+def framed(camera, middle, high, margin, height):
+    """The camera back from the person's middle so the frame holds `margin` of its height, at `height`, aimed at its
+    half height."""
+    distance = high.z * margin / 2.0 / math.tan(camera.data.angle_y / 2.0)
+    camera.location = Vector((middle.x, middle.y - distance, height))
+    camera.rotation_euler = (Vector((middle.x, middle.y, high.z * 0.5)) - camera.location).to_track_quat(
+        "-Z", "Y").to_euler()
+
+
 def main(scene_path, library, out):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene_file = dict(np.load(scene_path, allow_pickle=False))
@@ -187,11 +137,12 @@ def main(scene_path, library, out):
             {str(name) for name in scene_file["cloth"]})
     low, high = bounds([item for item in items if item.name == "skin"])
     middle = (low + high) / 2.0
-    backdrop(library, middle)
-    sky()
+    setting(library, middle, json.loads(str(scene_file["setting"])))
+    daylight()
     blender_face.renderer()
     render = bpy.context.scene
     render.view_settings.look = LOOK
+    render.view_settings.exposure = EXPOSURE
     render.cycles.samples = SAMPLES
     render.render.resolution_x, render.render.resolution_y = SIZE
     camera = bpy.data.objects.new("camera", bpy.data.cameras.new("camera"))
@@ -199,18 +150,13 @@ def main(scene_path, library, out):
     camera.data.sensor_fit = "VERTICAL"
     render.collection.objects.link(camera)
     render.camera = camera
-    tall = (high.z - 0.0) * MARGIN
-    distance = tall / 2.0 / math.tan(camera.data.angle_y / 2.0)
-    lamps = []
-    for name, spec in (("key", KEY), ("fill", FILL), ("rim", RIM)):
-        lamps.append(lamp(name, spec))
-        placed(lamps[-1], spec, Vector((middle.x, middle.y, high.z * 0.55)), 0.0, 3.5)
-    camera.location = Vector((middle.x, middle.y - distance, EYE_HEIGHT))
-    camera.rotation_euler = (Vector((middle.x, middle.y, high.z * 0.5)) - camera.location).to_track_quat(
-        "-Z", "Y").to_euler()
+    framed(camera, middle, high, MARGIN, EYE_HEIGHT)
     turntable = bpy.data.objects.new("turntable", None)
     render.collection.objects.link(turntable)
     turntable.location = Vector((middle.x, middle.y, 0.0))
+    # Its matrix_world is only its location once the scene is updated: read before, it was the identity and every
+    # piece stood twice its distance off the turntable's middle, a walking person turned out of the side views.
+    bpy.context.view_layer.update()
     for item in items:
         item.parent = turntable
         item.matrix_parent_inverse = turntable.matrix_world.inverted()
@@ -219,16 +165,10 @@ def main(scene_path, library, out):
     for view, degrees in views.items():
         drawn(render, turntable, degrees, out, f"{scene_file['name']}-{view}")
     face_middle = Vector((middle.x, middle.y, high.z - FACE_FRAME_M * 0.42))
-    full = (camera.location.copy(), camera.rotation_euler.copy())
     camera.location = face_middle + Vector((0.0, -FACE_FRAME_M / 2.0 / math.tan(camera.data.angle_y / 2.0), 0.0))
     camera.rotation_euler = (face_middle - camera.location).to_track_quat("-Z", "Y").to_euler()
     drawn(render, turntable, FACE_TURN, out, f"{scene_file['name']}-face")
-    camera.location, camera.rotation_euler = full
-    surfaces = json.loads(str(scene_file["setting"]))
-    for item in [*lamps, *[item for item in render.objects if item.name == "backdrop"]]:
-        bpy.data.objects.remove(item)
-    setting(library, middle, surfaces)
-    daylight(Vector((middle.x, middle.y, high.z * 0.55)), 0.0)
+    framed(camera, middle, high, SETTING_MARGIN, EYE_HEIGHT * 1.3)
     drawn(render, turntable, views[SETTING_VIEW], out, f"{scene_file['name']}-setting")
 
 
