@@ -45,23 +45,39 @@ def sequence_path(place):
     return f"{ROOT}/{place}/LS_{place}_film.LS_{place}_film"
 
 
+def object_slots(gltf, textures):
+    """An object's material slots {glTF material name: instance name} and its instances, its pictures added to
+    `textures`; None (nothing added) when two of its materials of one name are two looks: the editor finds a slot by
+    its name, so it could not tell them apart."""
+    slots, found, pictures = {}, {}, dict(textures)
+    for slot, instance in looks.object_looks(gltf, pictures):
+        if slots.get(slot, instance["name"]) != instance["name"]:
+            return None
+        slots[slot] = instance["name"]
+        found.setdefault(instance["name"], instance)
+    textures.update(pictures)
+    return slots, found
+
+
 def meshes_and_materials(package, scene, textures):
-    """Each object's mesh {object, file, character, nanite, slots} and every distinct material instance by name, its
-    pictures added to `textures`. Refused (ValueError) when one object's two glTF materials of one name are two
-    looks (the editor finds a slot by its name)."""
-    meshes, materials = [], {}
+    """Each object's mesh {object, file, character, nanite, slots}, every distinct material instance by name (their
+    pictures added to `textures`), and the objects left out [{name, why}]: one whose two glTF materials of one name
+    are two looks (object_slots; square@4's fg_east4_0_ac and tower_left, #222 run 18) is left out, the rest laid."""
+    meshes, materials, left_out = [], {}, []
     for name, about in sorted(scene["objects"].items()):
         gltf = package / about["file"]
-        slots = {}
-        for slot, instance in looks.object_looks(gltf, textures):
-            if slots.get(slot, instance["name"]) != instance["name"]:
-                raise ValueError(f"{name}: two looks share the material name {slot!r}")
-            slots[slot] = instance["name"]
-            materials.setdefault(instance["name"], instance)
+        made = object_slots(gltf, textures)
+        if made is None:
+            left_out.append({"name": name, "why": "two of its looks share one material name: the editor finds a slot "
+                                                  "by its name"})
+            continue
+        slots, found = made
+        for look, instance in found.items():
+            materials.setdefault(look, instance)
         character = about.get("kind") == "character"
         meshes.append({"object": name, "file": str(gltf), "character": character,
                        "nanite": not character and looks.solid(gltf), "parts": looks.mesh_nodes(gltf), "slots": slots})
-    return meshes, materials
+    return meshes, materials, left_out
 
 
 def seat_of(scene):
@@ -82,15 +98,17 @@ def planned(package, into, path=None, basis=frames.BASIS):
     if scene.get("version") != 1:
         raise ValueError(f"{package}: not a score.scene version 1 package (a piece list has no baked looks)")
     textures = {}
-    meshes, materials = meshes_and_materials(package, scene, textures)
+    meshes, materials, refused = meshes_and_materials(package, scene, textures)
+    unlaid = {out["name"] for out in refused}
     shots = camera.keys(path, basis, seat_of(scene)) if path else None
     return {"format": "score.unreal", "version": 1, "place": scene["place"], "package": str(package),
             "caps": scene.get("textures"), "draft": "draft" in scene, "basis": [list(row) for row in basis],
             "textures": looks.written_textures(textures, into),
             "materials": [materials[name] for name in sorted(materials)], "meshes": meshes,
-            "actors": layout.actors(scene, basis), "lamps": layout.lamps(scene, basis),
+            "actors": [actor for actor in layout.actors(scene, basis) if actor["object"] not in unlaid],
+            "lamps": layout.lamps(scene, basis),
             "environment": layout.lit_by_ambient(layout.environment(scene, package, basis), into),
-            "camera": shots, "left_out": scene.get("left_out", [])}
+            "camera": shots, "left_out": scene.get("left_out", []) + refused}
 
 
 def in_view(made, shots):

@@ -45,6 +45,8 @@ Breaks (each applied once, seen red, reverted), in tools/unreal/scene:
 - layout.grade_place: green read down from the top row -> every lattice colour lands on another row
 - layout.grade_place: the blue tiles not a size apart -> the colours past the first tile land off their column
 - layout.grade_code: LUMENS_A_WATT not divided out of the exposure -> the code carries 2, not 2 / 683
+- plan.meshes_and_materials: a clashing object kept -> the bin is planned with one of its two looks lost
+- plan.planned: a left-out object's copies kept -> the bin's actor has no mesh to stand on (#222 run 18 refused all)
 - camera.view_planes: the side planes' normals turned outward -> the lamp ahead is dropped and the one beside kept
 - camera.lights_in_view: a lamp's reach left out of the test -> the lamp just past the view's edge is dropped too
 - layout.grade_code: the scene colour divided by View.PreExposure -> run 14's frame 7 stops too bright, the code names it
@@ -226,6 +228,13 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         unseated = "planned"
     except ValueError:
         unseated = "refused"
+    grey = {"name": "surface/steel@1", "pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1.0]}}
+    gltf(root / "objects/bin.gltf", [grey, dict(grey, pbrMetallicRoughness={"baseColorFactor": [0.9, 0.1, 0.1, 1.0]})],
+         [])
+    (root / "scene.json").write_text(json.dumps(dict(
+        scene, objects=dict(scene["objects"], bin={"file": "objects/bin.gltf", "kind": "model"}),
+        instances=scene["instances"] + [{"object": "bin", "name": "bin", "matrix": turn_y(0, 1, [0, 0, 0])}])))
+    clashed = plan.planned(root, tmp_path / "into_clashed")
     try:
         frames.basis_from_bounds([0, 0, 0], [100, 100, 300])  # two axes a metre long: no calibration box
         garbage = "read"
@@ -281,6 +290,9 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
                        "PreExposure" not in made["environment"]["grade"]["code"],
                        "pow((shown + 0.055) / 1.055, 2.4)" in made["environment"]["grade"]["code"]],
         "caps": made["caps"]["use"],
+        "two looks of one name": ([out["name"] for out in clashed["left_out"]],
+                                  sorted({actor["object"] for actor in clashed["actors"]}),
+                                  sorted(mesh["object"] for mesh in clashed["meshes"])),
         "lamps in view": camera.lights_in_view(
             [{"name": name, "location": at, "reach": 100.0} for name, at in (
                 ("ahead", [1000.0, 0.0, 0.0]), ("behind", [-1000.0, 0.0, 0.0]), ("behind near", [-50.0, 0.0, 0.0]),
@@ -306,5 +318,7 @@ def test_a_scene_package_plans_into_unreal_as_laid(tmp_path):
         "sun": (True, 4.0 * 683.0), "exposure": round(math.log2(2.0 / 683.0), 6),
         "lamp": ([0.0, 0.0, 300.0], 6830.0), "lamp reaches its faintest": 1.0,
         "background": [6.83, 13.66, 27.32], "grade lands on its lattice": [True] * 4, "grade code": [True] * 4,
-        "caps": "film", "lamps in view": ["behind", "beside"]}, answer
+        "caps": "film",
+        "two looks of one name": (["bin"], ["crate", "pane", "walker"], ["crate", "pane", "walker"]),
+        "lamps in view": ["behind", "beside"]}, answer
     json.dumps(made)  # the plan is what plan.py writes
