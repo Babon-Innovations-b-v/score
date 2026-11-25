@@ -23,6 +23,8 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          column by column like a copy's matrix; place.json `seat`), null in the place's own frame: what
                          lays a film path (in the place's own frame) on the package
     objects              {name: {file, kind, route, size (x, y, z as laid, metres), triangles, check {pass, ...}}};
+                         [place_build] also `library`, the score_lib address (`kind/id@version`) of the entry the
+                         object was laid from (its prim's score:library), null for one laid from none (#143);
                          [place_build] a character's (kind "character", route "skinned from the laid USD") glTF is
                          skinned (score/stages/place_build/skinned.py: skin 0, its joints under node 1, morph targets
                          named in each mesh's extras.targetNames), its `clips` {animation: seconds} each a glTF

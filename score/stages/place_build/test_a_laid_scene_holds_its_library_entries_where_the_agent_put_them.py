@@ -249,6 +249,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.gprim_pieces: the cube's own transform left out (identity) -> the crate's model misses its laid box
 - scene_package.look_name: the look's own prim name -> the two steel walls are two objects
 - scene_package.entry_glb: never reused (None) -> the cabinet is converted, not its library glTF
+- scene_package.written_scene: an object's `library` left out (#143) -> the cabinet names no model/cabinet@1
 - scene_package.shade_of: every object shaded (finished.picture_made unread) -> the monitor's maps ask the take's
   occlusion too; gltf_written not asking it (`asked["shade"]` dropped) -> the re-finished cup's maps ask none (#209)
 - scene_package.face_looks: the parts' subsets ignored -> the crate's lid top has no steel look
@@ -1687,6 +1688,7 @@ def packaged(folder, out):
     assert copies["plank"]["scale"] == 1.0 and scene["objects"][copies["plank"]["object"]]["size"] == [2.0, 2.0, 0.5]
     assert {copies[name]["object"] for name in ("cabinet", "shelf", "stone")} == {"cabinet"}
     assert scene["objects"]["cabinet"]["route"] == "library glTF" and scene["objects"]["dune"]["route"] != "library glTF"
+    assert scene["objects"]["cabinet"]["library"] == "model/cabinet@1", scene["objects"]["cabinet"]  # #143
     assert np.allclose(crate["surface/boards@1"]["pbrMetallicRoughness"]["baseColorFactor"], (1, 0, 0, 1))
     assert crate["surface/boards@1"]["doubleSided"] is True  # an opaque look drawn from both sides, as Cycles draws it
     assert np.allclose(crate["surface/steel@1 top"]["pbrMetallicRoughness"]["baseColorFactor"], (0.3, 0.3, 0.4, 1))

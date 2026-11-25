@@ -1525,6 +1525,7 @@ def written_scene(folder, out, stage, place, seat, draft=False):
                 by_content[digest] = prim.GetName()
                 written(out, prim.GetName(), glb)
                 objects[prim.GetName()] = {"file": f"objects/{prim.GetName()}.gltf", "kind": kind, "route": route,
+                                           "library": text_of(prim, "score:library"),
                                            "size": box_size(glb), "triangles": check["triangles"], "check": check}
             copy = instance_of(prim.GetName(), by_content[digest], kind, frame, scale)
             if roles is not None:
@@ -1542,7 +1543,7 @@ def written_scene(folder, out, stage, place, seat, draft=False):
                     by_content[digest] = name
                     written(out, name, glb)
                     objects[name] = {"file": f"objects/{name}.gltf", "kind": kind, "route": "skinned from the laid USD",
-                                     "size": box_size(glb), "triangles": check["triangles"], "check": check,
+                                     "library": text_of(prim, "score:library"), "size": box_size(glb), "triangles": check["triangles"], "check": check,
                                      "clips": facts["clips"]}
                 copy = instance_of(name, by_content[digest], kind, frame, scale)
                 copy["plays"] = facts["plays"]
