@@ -165,11 +165,12 @@ BARS = (
     # an edge within 1.5 cut radii grew). r13's locker, its lock blobs closed to their points: 4.2 to 9.2 at its four
     # locks, drawn as white cracks and starbursts round two; pressed onto their plate (r14l) 1.05 to 1.09.
     ("look", "stretched", "most", 1.5),
-    # A printed panel drawn whole and in its colours (printed, #159 round 15: r14's gas stove's red and white panel
-    # came out as torn white and red pieces with a grey box): the least, over its panels, of the share of the made
-    # panel's pixels near NVIDIA's inks there and one less how far its inks' shares lie from NVIDIA's. Calibration
-    # (2026-11-24, the stove's front panel, r15p's box): NVIDIA's look against itself 0.96; r14's torn look 0.75
-    # (0.75 of its pixels near, its shares 0.22 off).
+    # A printed panel drawn whole, in place and in its colours (printed, #159 round 15: r14's gas stove's red and white
+    # panel came out as torn white and red pieces with a grey box): the least, over its panels, of the share of the
+    # made panel's pixels drawn in NVIDIA's colour within a few pixels of their place, NVIDIA's moved onto the made
+    # look, and of NVIDIA's in the made one. Calibration (2026-11-25, the stove's front panel, r15p's box, 1080 px):
+    # NVIDIA's look against itself 1.0; r15p's whole panel 0.90 (its knobs of another shape); r14's torn look 0.77.
+    # The first measure (2026-11-24: NVIDIA's inks and their shares, no place) gave r14 0.75 above r15p's 0.72.
     ("look", "printed", "least", 0.80),
     # Dark torn marks on a flat painted plate (torn, #159 round 15: the band 1 remesh kept TRELLIS.2's holes in the
     # locker's doors, two vents cast through them onto the cabinet's inside, and the doors drew black torn marks where
@@ -371,13 +372,19 @@ def text_read(marks):
     return {"read": round(1 - len(misread) / len(marks), 4), "misread": misread}
 
 
-# printed (#159 round 15): NVIDIA's look of a panel's box is cut into PRINT_INKS colours (k-means in CIELAB, PRINT_ROUNDS
-# rounds from its lightness quantiles); the made look's panel is held to them: the share of its pixels within
-# PRINT_NEAR (CIE76) of one, and how far its share of each lies from NVIDIA's (half the summed difference). The two
-# looks are framed each on its own model's box, so a made pixel is never compared with NVIDIA's at its place.
-PRINT_INKS = 6
-PRINT_ROUNDS = 20
+# printed (#159 round 15): the made look's panel held to NVIDIA's look at the same place, as a person compares the two
+# pictures. The two looks are framed each on its own model's box, so NVIDIA's is first moved onto the made one (the
+# shift within PRINT_SHIFT pixels, tried every PRINT_STEP, that draws the panel's pixels least far from NVIDIA's); then
+# a pixel is held where the other look draws a colour within PRINT_NEAR (CIE76) of it within PRINT_GIVE pixels (a few
+# mm, a knob of another shape), each way: the made print's pixels in NVIDIA's inks at their place, and NVIDIA's at
+# theirs in the made print (its fine marks lost in a plain plate are held only this way). A print torn into pieces of
+# its inks, or drawn in other colours, holds few either way; a whole one shifted a little holds nearly all.
+# Calibration (2026-11-25, the gas stove's front panel at 1080 px): NVIDIA against itself 1.0, r15p's whole panel
+# 0.90 (its misses its knobs' other shape and its edges), r14's torn panel 0.77 (r15p's panel box).
 PRINT_NEAR = 15.0
+PRINT_GIVE = 4
+PRINT_SHIFT = 32
+PRINT_STEP = 2
 
 
 def lab_picture(picture):
@@ -388,44 +395,52 @@ def lab_picture(picture):
     return labels.lab(flat)
 
 
-def inks_of(pixels, count=PRINT_INKS):
-    """`count` colours the CIELAB `pixels` are cut into (k-means, started at their lightness quantiles)."""
-    order = np.argsort(pixels[:, 0])
-    centres = pixels[order[np.linspace(0, len(pixels) - 1, count).astype(int)]]
-    for _ in range(PRINT_ROUNDS):
-        nearest = np.argmin(((pixels[:, None] - centres[None]) ** 2).sum(-1), 1)
-        centres = np.array([pixels[nearest == ink].mean(0) if (nearest == ink).any() else centres[ink]
-                            for ink in range(count)])
-    return centres
+def picked(picture, rows, columns):
+    """`picture`'s pixels at `rows`, `columns`, each held to the picture's edge."""
+    return picture[np.clip(rows, 0, picture.shape[0] - 1), np.clip(columns, 0, picture.shape[1] - 1)]
 
 
-def ink_shares(pixels, centres):
-    """(each pixel's distance to its nearest of `centres`, the share of the pixels nearest each)."""
-    apart = np.sqrt(((pixels[:, None] - centres[None]) ** 2).sum(-1))
-    return apart.min(1), np.bincount(apart.argmin(1), minlength=len(centres)) / max(len(pixels), 1)
+def print_shift(made, truth, rows, columns):
+    """(down, right): the shift within PRINT_SHIFT that lays `truth` (CIELAB) on `made`'s pixels at `rows`,
+    `columns` least far from them (the mean CIE76 distance)."""
+    own = made[rows, columns]
+
+    def apart(shift):
+        theirs = picked(truth, rows + shift[0], columns + shift[1])
+        return float(np.sqrt(((own - theirs) ** 2).sum(-1)).mean())
+    tried = range(-PRINT_SHIFT, PRINT_SHIFT + 1, PRINT_STEP)
+    return min(((down, right) for down in tried for right in tried), key=apart)
+
+
+def held_near(own, target, to):
+    """The share of the CIELAB pixels `own` within PRINT_NEAR of one of `target`'s within PRINT_GIVE pixels of `to`
+    (their places in `target`: rows, columns)."""
+    nearest = np.full(len(own), np.inf)
+    for down in range(-PRINT_GIVE, PRINT_GIVE + 1):
+        for right in range(-PRINT_GIVE, PRINT_GIVE + 1):
+            if down * down + right * right <= PRINT_GIVE * PRINT_GIVE:
+                theirs = picked(target, to[0] + down, to[1] + right)
+                nearest = np.minimum(nearest, np.sqrt(((own - theirs) ** 2).sum(-1)))
+    return round(float((nearest <= PRINT_NEAR).mean()), 4)
 
 
 def printed(look, nvidia, panels):
-    """{"printed": the least over `panels` of min(the share of the made `look`'s pixels in the panel within PRINT_NEAR
-    of one of NVIDIA's inks there, 1 - how far its inks' shares lie from NVIDIA's), "panels": each one's [near,
-    apart]} or None with no panel. `panels`: [(the made look's mask of the panel, NVIDIA's look's mask of it)]; `look`
-    and `nvidia` RGBA 0-255. A panel drawn in torn pieces of its inks with the plate between them, or in other colours,
-    holds few of its pixels near NVIDIA's inks or shares them otherwise."""
-    if not panels:
-        return None
+    """{"printed": the least over `panels` of either way's held share, "panels": each one's [the made print's pixels
+    held in NVIDIA's look, NVIDIA's held in the made one]} or None with no panel. `panels`: the made look's mask of
+    each printed panel; `look` and `nvidia` RGBA 0-255 of one camera, each framed on its own model."""
     made, truth = lab_picture(look), lab_picture(nvidia)
     found = []
-    for own, theirs in panels:
-        if not own.any() or not theirs.any():
+    for panel in panels:
+        rows, columns = np.nonzero(panel)
+        if not len(rows):
             continue
-        centres = inks_of(truth[theirs])
-        apart, shares = ink_shares(made[own], centres)
-        _, truth_shares = ink_shares(truth[theirs], centres)
-        found.append([round(float((apart <= PRINT_NEAR).mean()), 4),
-                      round(float(np.abs(shares - truth_shares).sum() / 2), 4)])
+        down, right = print_shift(made, truth, rows, columns)
+        moved = (rows + down, columns + right)
+        found.append([held_near(made[rows, columns], truth, moved),
+                      held_near(picked(truth, *moved), made, (rows, columns))])
     if not found:
         return None
-    return {"printed": round(min(min(near, 1 - apart) for near, apart in found), 4), "panels": found}
+    return {"printed": round(min(min(pair) for pair in found), 4), "panels": found}
 
 
 # torn: a pixel is dark under TORN_DARK L*, NVIDIA's plate light at TORN_PLAIN L* or over with its L* spread under

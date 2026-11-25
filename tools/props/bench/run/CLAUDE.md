@@ -29,8 +29,10 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   and the physics and parts steps do not read it yet.
 - **Printed panels held to NVIDIA's** (#159 round 15): the look step writes `printed` into holes.json
   (bench.panels_printed): each panel decal's corners through the look's own camera (look_frame, from look.json and the
-  box look.py logs) against NVIDIA's look in the panel's close-up box, by measures.printed (NVIDIA's inks there, the
-  made panel's pixels near them and their shares), judged as `look.printed`.
+  box look.py logs) held to NVIDIA's look there by measures.printed (NVIDIA's look moved onto the made one, each
+  way's pixels drawn in the other's colour within a few pixels of their place), judged as `look.printed`. The close-up
+  box is not the region: it is axis-aligned and took the stove's top and its other ink shares in (r15p 0.72 below
+  r14's torn 0.75).
 - **Holes through a mark's plate** (r13's black dots, decal_plates.holes_closed): a hole TRELLIS.2 cut through a
   closed mark's plate outside every closed region is closed by a box of its own in that mark's `also`, pressed and
   carded as its own box is.

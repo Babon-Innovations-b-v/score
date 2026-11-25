@@ -777,8 +777,7 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalib
         found = {"holes": look_holes(folder / "look.png", folder / "bare.png"), "stretched": closed["stretched"]}
         if nvidia is not None:  # its dark torn marks on NVIDIA's flat plate (#159 round 15)
             found.update(look_torn(folder / "look.png", nvidia))
-        if nvidia is not None and close_up is not None:  # each printed panel held to NVIDIA's (#159 round 15)
-            found.update(panels_printed(folder, nvidia, parted, row["id"], close_up))
+            found.update(panels_printed(folder, nvidia, parted, row["id"]))  # each printed panel (#159 round 15)
         (folder / "holes.json").write_text(json.dumps(found))
         finish.marks_read(folder, ask)
         sheet([path for path in (nvidia, folder / "look.png", close_up) if path is not None], folder / "sheet.png")
@@ -905,11 +904,11 @@ def panel_corners(decal, frame, side):
     return corners
 
 
-def panels_printed(looked, nvidia, parted, take, close_up):
+def panels_printed(looked, nvidia, parted, take):
     """{"printed", "printed_panels"} of a look step's folder `looked` (measures.printed, #159 round 15): each printed
     panel the finish `parted` laid (parts.json's decals of shape panel) as the look drew it (its corners through the
-    look's camera: look.json and the model's box look.py logged) against NVIDIA's look (`nvidia`) in its close-up box
-    (the close-up `close_up`'s pixels scaled to the look's); {} with no panel."""
+    look's camera: look.json and the model's box look.py logged) held to NVIDIA's look (`nvidia`) there; {} with no
+    panel."""
     from PIL import Image, ImageDraw
     from tools.props.bench import measures
     listed = json.loads((parted / "surfaces-parts" / "parts.json").read_text())["takes"][take]
@@ -920,16 +919,11 @@ def panels_printed(looked, nvidia, parted, take, close_up):
     logged = [line for line in (looked / "blender.log").read_text(errors="replace").splitlines()
               if line.startswith("LOOK ")]
     frame = look_frame(job, json.loads(logged[-1][len("LOOK "):])["box"])
-    with Image.open(close_up) as given:
-        scale = job["side"] / given.width
     panels = []
     for decal in decals:
         own = Image.new("L", (job["side"], job["side"]))
         ImageDraw.Draw(own).polygon(panel_corners(decal, frame, job["side"]), fill=1)
-        left, top, wide, tall = (value * scale for value in decal["from"]["close_up_box"])
-        theirs = Image.new("L", (job["side"], job["side"]))
-        ImageDraw.Draw(theirs).rectangle((left, top, left + wide, top + tall), fill=1)
-        panels.append((np.asarray(own) > 0, np.asarray(theirs) > 0))
+        panels.append(np.asarray(own) > 0)
     with Image.open(looked / "look.png") as drawn, Image.open(nvidia) as truth:
         found = measures.printed(np.asarray(drawn.convert("RGBA")), np.asarray(truth.convert("RGBA")), panels)
     return {} if found is None else {"printed": found["printed"], "printed_panels": found["panels"]}

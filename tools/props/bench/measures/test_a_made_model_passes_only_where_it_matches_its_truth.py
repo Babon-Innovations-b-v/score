@@ -88,12 +88,13 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
 - __init__.BARS without its look.holes row (#159) -> the printer box's holed look has no look.holes row to fail;
   without its look.stretched row (#212, r14l) -> the locks closed to their points (r13's cracks) pass, its bar 1.5 ->
   5.0 -> the same; PICTURED_BARS without it -> the pictured lock closed to its point passes; without its look.printed
-  row (#159 round 15) -> the whole panel has no row (KeyError); printed's `(apart <= PRINT_NEAR).mean()` -> `1.0` ->
-  the torn panel passes; its `min(near, 1 - apart)` -> `near` -> the blank white panel passes; PRINT_INKS 6 -> 1 ->
-  the whole panel fails. Without its look.torn row (#159 round 15) -> the torn door plate has no row (KeyError);
-  torn's ring test dropped (TORN_LIT 0) -> the handle on its grey mount laid 20 px off fails; its flat test dropped
-  (TORN_FLAT 1000) -> the dark reflection on the chrome band fails; its plate test dropped (TORN_INSIDE 0) -> the
-  clean plate's vent fails.
+  row (#159 round 15) -> the whole panel has no row (KeyError); print_shift trying no shift -> the whole panel framed
+  10 px lower fails (0.83); PRINT_GIVE 4 -> 0 -> its fine marks 1 px off fail (0.73); printed holding the made print
+  in NVIDIA's look alone (NVIDIA's held in it 1.0), or either way's larger share -> the fine marks lost in its white
+  pass (1.0); PRINT_NEAR 15 -> 100 -> every panel passes (the out of place, torn, grey and blank ones). Without its
+  look.torn row (#159 round 15) -> the torn door plate has no row (KeyError); torn's ring test dropped (TORN_LIT 0)
+  -> the handle on its grey mount laid 20 px off fails; its flat test dropped (TORN_FLAT 1000) -> the dark reflection
+  on the chrome band fails; its plate test dropped (TORN_INSIDE 0) -> the clean plate's vent fails.
 - _joints (#177, the hung cabinet: the box with a door slab hinged on its left edge; NVIDIA's hinge about -z, limits -90
   to 0): moving_bodies taking a joint's body0 (the carcass) -> the door cut as NVIDIA's fails its faces;
   count_gap never counting
@@ -661,9 +662,14 @@ CASES = [
      "look.stretched", False),
     ("its locks' blobs pressed onto their plate (r14l)", lambda: {"look": {"stretched": 1.09}}, "look.stretched",
      True),
+    ("its panel NVIDIA's own look", lambda: panel_look("nvidia"), "look.printed", True),
     ("its panel drawn whole in its inks, framed lower", lambda: panel_look("whole"), "look.printed", True),
-    ("its panel torn into pieces with the steel between (r14's stove)", lambda: panel_look("torn"), "look.printed",
+    ("its panel whole under a knob of another shape, 3 px off", lambda: panel_look("knob"), "look.printed", True),
+    ("its panel's pieces in its inks out of place (r14's stove)", lambda: panel_look("jumbled"), "look.printed",
      False),
+    ("its panel torn into pieces with the steel between", lambda: panel_look("torn"), "look.printed", False),
+    ("its panel's fine red marks drawn 1 px off", lambda: panel_look("marks"), "look.printed", True),
+    ("its panel's fine red marks lost in its white", lambda: panel_look("lost"), "look.printed", False),
     ("its panel's white drawn grey", lambda: panel_look("grey"), "look.printed", False),
     ("its panel's swoosh and name box lost under white", lambda: panel_look("blank"), "look.printed", False),
     ("its door plate clean, its dark vent where NVIDIA's is", lambda: plate_look("clean"), "look.torn", True),
@@ -706,19 +712,40 @@ CASES = [
 
 def panel_look(kind):
     """The look group of a made look's printed panel held to NVIDIA's (measures.printed, #159 round 15): NVIDIA's
-    panel white over a red swoosh band beside a maroon name box (120 x 200 px); the made one the same drawn 10 px
-    lower in its own framing, `whole`, or `torn` (a third of it in squares of the steel's grey between its inks), or
-    `grey` (its white drawn as #a0a0a0), or `blank` (its swoosh and box drawn in its white: every pixel one of its
-    inks, their shares not)."""
+    panel white over a red swoosh band beside a maroon name box (120 x 200 px) with a round dark knob on it; the made
+    one drawn 10 px lower in its own framing: `nvidia` (NVIDIA's own look, unmoved), `whole`, `knob` (its knob square
+    and 3 px off), `jumbled` (its left and right halves swapped: every pixel one of its inks, their shares NVIDIA's,
+    r14's stove's pieces out of place), `torn` (a third of it in squares of the steel's grey between its inks),
+    `grey` (its white drawn as #a0a0a0) or `blank` (its swoosh and box drawn in its white). NVIDIA's white is red
+    pinstriped (2 px on, 2 off) for `marks` (the made one's stripes 1 px off) and `lost` (the made one's white plain:
+    every made pixel is NVIDIA's ink within a few pixels, half NVIDIA's stripes nowhere in it)."""
     def panel():
         picture = np.zeros((120, 200, 4), dtype=np.uint8)
         picture[...] = (245, 245, 245, 255)
         picture[70:110] = (200, 30, 40, 255)
         picture[20:80, 80:130] = (100, 30, 35, 255)
         return picture
+
+    def knob(picture, square):
+        rows, columns = np.mgrid[:120, :200]
+        if square:
+            picture[42:68, 22:48] = (55, 55, 55, 255)
+        else:
+            picture[np.hypot(rows - 55, columns - 35) <= 14] = (55, 55, 55, 255)
+    def striped(picture, offset):
+        white = (picture[..., :3] == 245).all(-1) & ((np.arange(200) + offset) % 4 < 2)[None]
+        picture[white] = (200, 30, 40, 255)
     truth, made = np.zeros((160, 240, 4), dtype=np.uint8), np.zeros((160, 240, 4), dtype=np.uint8)
     truth[10:130, 20:220] = panel()
+    knob(truth[10:130, 20:220], False)
     drawn = panel()
+    knob(drawn, kind == "knob")
+    if kind in ("marks", "lost"):
+        striped(truth[10:130, 20:220], 0)
+    if kind == "marks":
+        striped(drawn, 1)
+    if kind == "jumbled":
+        drawn = np.concatenate([drawn[:, 100:], drawn[:, :100]], axis=1)
     if kind == "torn":
         for row in range(0, 120, 20):
             for column in range((row // 20) % 2 * 20, 200, 60):
@@ -728,9 +755,11 @@ def panel_look(kind):
     if kind == "blank":
         drawn[...] = (245, 245, 245, 255)
     made[20:140, 20:220] = drawn
-    theirs, own = np.zeros(truth.shape[:2], dtype=bool), np.zeros(truth.shape[:2], dtype=bool)
-    theirs[10:130, 20:220], own[20:140, 20:220] = True, True
-    return {"look": {"printed": measures.printed(made, truth, [(own, theirs)])["printed"]}}
+    own = np.zeros(truth.shape[:2], dtype=bool)
+    own[20:140, 20:220] = True
+    if kind == "nvidia":
+        made, own = truth, np.roll(own, -10, 0)
+    return {"look": {"printed": measures.printed(made, truth, [own])["printed"]}}
 
 
 def plate_look(kind):
