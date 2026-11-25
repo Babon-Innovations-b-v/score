@@ -140,13 +140,23 @@ view named front) or "deep" (left to right in the view named right). Where its p
 strips laid side by side, parted by straight joint lines along the grain, give in "board" one board's width across the
 grain in metres{size}; give 0 where the timber shows no joints. Leave both out for every other finish."""
 SIZE = " (the object is {width:.2f} m across, {depth:.2f} m deep and {height:.2f} m tall)"
+# Added to the list question (#201, owner's choice of 2026-11-25: tc5r's fridge showed its white interior through a
+# clear glass door, and the faces behind the glass took the body's steel): what the close-up shows through each glass,
+# a finish of the list, which the split gives the faces behind that glass in the close-up's camera (glass_through.py).
+THROUGH = """
+For each clear or see-through finish (glass, a clear plastic window or cover), give in "through" the number of the
+finish in your list (from 1) that the close-up shows through it: what lies behind it, as it looks through it (a
+fridge's white interior behind its glass door, the goods behind a shop window, a dial's face under its cover). List
+that finish too when nothing else in your list is it, even where no region of the views shows it, and label regions
+with it only where the views show it. Leave "through" out for every other finish and where the close-up shows nothing
+through it."""
 # The follow-up of an answer that lists a finish it labels no region with (followed_up).
 FOLLOW_UP = ("Your answer was:\n{answer}\nIt lists finish {finishes} but labels no region with it in any view. Look "
              "again, view by view, for the regions its parts show in, and answer the whole question again, in full: "
              "keep every finish of your list, and label each region with the finish its part has in that view.")
 # The question's own wording, without the library's lists: a take's answer is kept by it (kept_lists.py, #229), so a
 # change of the wording asks every take again and a change of the library's lists alone does not.
-WORDING = "".join((QUESTION, LAID, TIMBER, SIZE, FOLLOW_UP, finish_ask.MARKS, finish_ask.DECALS_TEXT,
+WORDING = "".join((QUESTION, LAID, TIMBER, SIZE, THROUGH, FOLLOW_UP, finish_ask.MARKS, finish_ask.DECALS_TEXT,
                    finish_ask.PATTERNS, finish_ask.HARDWARE))
 
 
@@ -223,10 +233,10 @@ def list_schema(surfaces, tokens, views, levels, decals=(), patterns=(), pieces=
                              "fits": {"type": "BOOLEAN"}, "new_surface": proposal,
                              "wear": {"type": "STRING", "enum": list(levels)}, "wear_cause": {"type": "STRING"},
                              "grain": {"type": "STRING", "enum": list(route_settings.GRAIN_WAYS)},
-                             "board": {"type": "NUMBER"}},
+                             "board": {"type": "NUMBER"}, "through": {"type": "INTEGER"}},
               "required": ["parts", "finish", "surface", "token", "roughness", "metal", "fits"],
               "propertyOrdering": ["parts", "finish", "surface", "token", "roughness", "metal", "fits", "new_surface",
-                                   "wear", "wear_cause", "grain", "board"]}
+                                   "wear", "wear_cause", "grain", "board", "through"]}
     label = {"type": "OBJECT", "properties": {"view": {"type": "STRING", "enum": list(views)},
                                               "region": {"type": "INTEGER"}, "finish": {"type": "INTEGER"}},
              "required": ["view", "region", "finish"]}
@@ -257,7 +267,7 @@ def list_body(pictures, entry, record, library, wear, decals=(), patterns=(), pi
                            tokens=token_lines(tokens), wear=wear, levels=", ".join(levels),
                            timber=TIMBER.format(size=SIZE.format(width=size[0], height=size[1], depth=size[2])
                                                 if size else ""))
-    text += finish_ask.marks_text(decals, text_decals.FONTS, patterns, pieces)
+    text += THROUGH + finish_ask.marks_text(decals, text_decals.FONTS, patterns, pieces)
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["regions"]]
@@ -307,6 +317,9 @@ def finishes_of(answer, library, seed):
                       "fits": bool(entry["fits"]), "new_surface": entry.get("new_surface"), "wear_level": level,
                       "wear_cause": cause, "family": surfaces[name].get("family"), "by": "the list",
                       "colour": None if colour is None else [round(float(value), 5) for value in colour]})
+        through = seen_through(entry, number, len(answer["finishes"]))
+        if through is not None:
+            found[-1]["through"] = through
     if not found:
         raise ValueError("the finish list is empty")
     return found
@@ -319,6 +332,16 @@ def held_roughness(entry, surface):
     if surface.get("family") == "bare_metal" and "brushed" in entry["finish"].lower():
         roughness = max(roughness, BRUSHED_ROUGHNESS)
     return round(roughness, 3)
+
+
+def seen_through(entry, number, count):
+    """The finish (0-based) the close-up shows through finish `number` (THROUGH: its answer's 1-based "through"), or
+    None where it names none, itself or no finish of the `count` listed."""
+    through = entry.get("through")
+    if not isinstance(through, int) or isinstance(through, bool) or not 1 <= through <= count \
+            or through - 1 == number:
+        return None
+    return through - 1
 
 
 def timber_settings(entry, surface):
@@ -384,8 +407,10 @@ def listed(answer, library, seed, shown):
 
 
 def unlabelled(finishes, labels):
-    """The finishes (0-based) no region of any view is labelled with."""
+    """The finishes (0-based) no region of any view is labelled with, but those a glass shows through (THROUGH: the
+    split gives them the faces behind it, glass_through.py)."""
     used = {finish for regions in labels.values() for finish in regions.values()}
+    used |= {entry.get("through") for entry in finishes}
     return [number for number in range(len(finishes)) if number not in used]
 
 

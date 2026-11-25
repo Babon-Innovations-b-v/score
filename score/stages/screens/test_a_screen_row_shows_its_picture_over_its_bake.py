@@ -14,6 +14,8 @@ Breaks that turn it red (each applied once, seen red, reverted, 2026-11-06):
   (the bake's binding wins over the picture's)
 - screens.judge_pictured: `checks.FAIL if failing else checks.PASS` -> `checks.PASS`
 - score/stages/motion/__init__.py coverage: `**read_json(inputs["screens"])["read_by"]` dropped
+- screens.screen_parts.named: `if said(name, specs, words)` -> `if said(name, specs, words) and screens.lit(specs.get(
+  name, {}))` (SCREEN_PARTS: the unlit LCD left dark, 2026-11-25)
 """
 import json
 import pathlib
@@ -35,6 +37,15 @@ SPECS = {"screen_glow__a": {"recipe": "glowing", "library": "screen_glow", "colo
                             "token": "screen-blue"},
          "case_paint": {"recipe": "painted_metal", "library": "case_paint", "colour": [0.5, 0.5, 0.5]},
          "led_glow": {"recipe": "glowing", "library": "led_glow", "colour": [1.0, 0.1, 0.1]}}
+# A model's screen parts (screen_parts.named): (case, its specs, its screen parts).
+SCREEN_PARTS = [
+    ("a lit screen named so", SPECS, ["screen_glow__a"]),
+    ("an unlit LCD named a screen (glass_screen_a)", {**SPECS, "screen_glow__a": {"recipe": "glass", "family": "glass",
+                                                                                  "library": "glass_screen_a"}},
+     ["screen_glow__a"]),
+    ("no part named a screen: none, the lit LED never", {**SPECS, "screen_glow__a": dict(SPECS["screen_glow__a"],
+                                                                                         library="panel_glow")}, []),
+]
 COLOURS = {"space-black": [0.01, 0.01, 0.02], "screen-blue": [0.1, 0.5, 0.8]}
 RECIPES = {"screen": {"roughness": 0.1}}
 
@@ -99,3 +110,19 @@ def test_a_screen_row_shows_its_picture_over_its_bake(tmp_path):
     design = {"rows": [{"id": "monitor_screen", "name": "monitor screen", "noun": "monitor"}]}
     assert row_kinds.uncovered(design, row_kinds.table(), motion.coverage(inputs)) == []
     assert row_kinds.uncovered(design, row_kinds.table()) != []  # row-kinds.json alone still leaves it unmade
+    # any other model's screen part, lit or not (#201: a vending machine's LCD on glass_screen_a), is pictured too, by
+    # the screens row as the table makes it; a model with none is no gap
+    from score import stages
+    from score.stages.screens import screen_parts
+    row = {stage.name: stage for stage in stages.STAGES}["screens"]
+    assert row.make is screen_parts.make and row.applies is screen_parts.applies
+    for case, specs, parts in SCREEN_PARTS:
+        assert screen_parts.named(SURFACES, areas, specs, words) == parts, case
+    machine = {**SPECS, "screen_glow__a": {"recipe": "glass", "family": "glass", "library": "glass_screen_a",
+                                           "colour": [0.12, 0.12, 0.12], "seed": 77, "token": "screen-blue"}}
+    saved, screens.display = screens.display, screen_parts.named
+    try:
+        record = screens.pictured("vending_1", found, machine, COLOURS, "space-black", RECIPES, None, words, out)
+    finally:
+        screens.display = saved
+    assert record["surfaces"] == ["screen_glow__a"] and (out / "screens" / "vending_1.usda").is_file(), record

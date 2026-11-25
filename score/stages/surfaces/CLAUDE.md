@@ -47,7 +47,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   its boards' width off the close-up (route_list.timber_settings, told the model's size), a timber it read none of runs
   along its part's long axis (route_parts.grained), and the settings carry both to the recipe (route_settings
   `grain`, `board`; recipes.grained_wood). **Lit parts** (finish_parts.LIT_FAMILIES, glowing and screen) are the
-  close-up's: a texture cannot show light, so a face it labels lit takes that finish (`route_split.close_up_only`),
+  close-up's: a texture cannot show light, so a face it labels lit takes that finish (`route_split.close_up_only`);
+  **what shows through a glass** (#201, tc5r's fridge: its white interior behind the glass door drawn as the body's
+  steel) is the list's too: a see-through finish names the finish seen through it (`route_list.THROUGH`, its
+  `through`; a finish only a glass shows is never asked again as unlabelled), and the split gives the first face its
+  close-up's rays meet past the pane that finish (`glass_through.py`, set on the split row by `stages.glass_split`
+  with the close-up's camera; the bench's finish makes the split the same way),
   kept through the smoothing as parts of its own (`lit_laid`), its texels following the close-up's own edges
   (route_views `close_up_texels`, each texel's close-up region at its point; route_texels.texel_parts); a lit face
   seen in a drawn mark's box is the mark's ink (covered_prints). A close-up with no camera of its own (TRELLIS.2's) gets one fitted from

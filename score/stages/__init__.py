@@ -41,9 +41,10 @@ from score.stages import (assembly, cast, complete, demo_film, design_layers, ea
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           scene_clips, screens, shapes_first, sim_body, sound,
                           surface_tiles, surfaces, terrain)
+from score.stages.screens import screen_parts  # the screens row's make: its own module, so the assembly stays
 from score.stages.cast import feet as cast_feet  # cast's make: its own module, so no other row's key moves with it
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
-    parts_kept, recheck_picks, route_check, uv_layout, bake_fitted, baked_recheck
+    parts_kept, recheck_picks, route_check, uv_layout, bake_fitted, baked_recheck, glass_through
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -772,6 +773,15 @@ def layout_fitted(row):
     return dataclasses.replace(row, make=bake_fitted.make_bake)
 
 
+def glass_split(row):
+    """finish-route-split made by glass_through.make_split, with each own close-up's camera as a file
+    (route_views.files): the faces behind a glass in the close-up's camera take the finish the list says shows through
+    it (#201, owner's choice of 2026-11-25). Set here, as baked_rechecked is, so no row reading route_split.py moves."""
+    if row.name != "finish-route-split":
+        return row
+    return dataclasses.replace(row, make=glass_through.make_split, files=surfaces.route_views.files)
+
+
 def baked_rechecked(row):
     """finish-route-recheck made by baked_recheck.make_recheck on surfaces-bake, now an input of it: each take's views
     drawn in the bake's own base colour map, so the recheck sees a worn recipe's bare (#100, owner's option 1,
@@ -1043,12 +1053,14 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
 
 
 # Each screen row's picture (score/stages/screens, #88, free): its take's display parts given the library's screen
-# picture over its bake, which the assembly lays over the baked asset; nothing before the assembly reads it.
-SCREENS = graph.Stage("screens", "place", screens.make, screens.CONTRACT, screens.CHECKS, files=screens.files,
+# picture over its bake, which the assembly lays over the baked asset; nothing before the assembly reads it. Any other
+# model's screen part, lit or not, is pictured too (screen_parts.py, #201: a vending machine's LCD), set here so the
+# assembly, whose make screens.assembled wraps, does not move.
+SCREENS = graph.Stage("screens", "place", screen_parts.make, screens.CONTRACT, screens.CHECKS, files=screens.files,
                       after={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                              "finish-route-palette": ("finish-route-palette", 1),
                              "surface-library": ("surface-library", 1)},
-                      applies=screens.applies)
+                      applies=screen_parts.applies)
 
 
 STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
@@ -1058,8 +1070,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(baked_rechecked, map(layout_fitted,map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
-              close_up_laid, map(pictures_hashed, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))))))),
+          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(glass_split, map(baked_rechecked, map(layout_fitted,map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
+              close_up_laid, map(pictures_hashed, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS,

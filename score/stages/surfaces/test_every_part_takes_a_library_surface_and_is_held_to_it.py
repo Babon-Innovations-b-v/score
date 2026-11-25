@@ -334,6 +334,8 @@ tests it turned red:
   = lambda name: {**palette_library.specs(palette)}`  -> every_part_takes_a_library_surface_and_is_held_to_it (the spec the bake baked)
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its WORDED rows)
+- glass_through.py: `(distances > distances[first] + PANE_DEPTH))` -> `(distances > distances[first]))`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (GLASS_BEHIND: the pane's back took the interior, not the shelf)
 - baked_recheck.py: `for _ in range(FIT_ROUNDS):` -> `for _ in range(1):`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its BAKED_DRAWN "feet levelled" row: the frame misses by 4 mm)
 - __init__.py (score/stages): baked_rechecked's `return dataclasses.replace(row, make=baked_recheck.make_recheck,` ->
@@ -2965,6 +2967,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     kept_list_held()  # a take's finish list asked once and read back by name after (#229)
     panels_held()  # a printed panel one picture decal from the close-up, its print covered whole (#159 round 15)
     baked_recheck_held(monkeypatch)  # the recheck draws what the bake made, rust and all (#100)
+    glass_through_held()  # the faces behind a glass take what the list says shows through it (#201)
 
 
 # A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
@@ -4990,7 +4993,7 @@ def listed(folder, answer, takes=(TAKE,), again=None, labelled_close_up=False):
 def split(folder, rows):
     out = folder / "split"
     out.mkdir()
-    route_split.make_split(rows, out, 7, {})
+    inspect.unwrap(ROWS["finish-route-split"].make)(rows, out, 7, {})  # as the table makes it (glass_through)
     return {**rows, "finish-route-split": out}
 
 
@@ -6070,3 +6073,48 @@ def baked_recheck_held(monkeypatch):
         found, near = baked_recheck.face_colours(np.array(points), np.array([[0.0, 0.0, 0.0], [5.0, 0.0, 0.3]]),
                                                  np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]), reach)
         assert found.tolist() == colours and near.tolist() == reached, case
+
+
+# The faces behind a glass in the close-up's camera (glass_through.behind_faces, #201): (case, hits as (face, ray,
+# distance), the laid close-up's finish per face, {glass: finish shown through it}, each face's finish given). Faces: 0
+# the glass door's front, 1 its back, 2 a shelf, 3 the interior's back wall, 4 the body; finishes: 0 the body's steel,
+# 1 the glass, 2 the white interior.
+GLASS_BEHIND = [
+    ("the shelf behind the door, past its pane, takes the white interior",
+     [(0, 0, 1.0), (1, 0, 1.01), (2, 0, 1.3), (3, 0, 1.6)], [1, -1, -1, -1, 0], {1: 2}, [-1, -1, 2, -1, -1]),
+    ("a ray met first by the body gives nothing", [(4, 1, 1.0), (3, 1, 1.5)], [1, -1, -1, -1, 0], {1: 2},
+     [-1, -1, -1, -1, -1]),
+    ("only the pane's own back behind it: nothing", [(1, 2, 1.015), (0, 2, 1.0)], [1, -1, -1, -1, 0], {1: 2},
+     [-1, -1, -1, -1, -1]),
+    ("a glass naming nothing shown through it: nothing", [(0, 0, 1.0), (2, 0, 1.3)], [1, -1, -1, -1, 0], {},
+     [-1, -1, -1, -1, -1]),
+]
+# The list's `through` read (route_list.seen_through): (case, the answer's finish, its number, the count, read).
+THROUGH_READ = [
+    ("finish 3 seen through finish 1", {"through": 3}, 0, 3, 2),
+    ("itself", {"through": 1}, 0, 3, None),
+    ("past the list", {"through": 4}, 0, 3, None),
+    ("none given", {}, 0, 3, None),
+    ("not a number", {"through": True}, 0, 3, None),
+]
+
+
+def glass_through_held():
+    """The list names what each glass shows through it, never asked again for a finish only a glass shows; the split
+    row (as the table makes it) gives the faces behind a clear glass in the close-up's camera that finish (#201)."""
+    from score.stages.surfaces import glass_through
+    assert inspect.unwrap(ROWS["finish-route-split"].make) is glass_through.make_split
+    assert route_list.THROUGH in route_list.WORDING
+    schema = route_list.list_schema({}, {"grey": (0.5, 0.5, 0.5)}, ["front"], {"none": 0.0})
+    assert "through" in schema["properties"]["finishes"]["items"]["properties"]
+    for case, hits, laid, shown, given in GLASS_BEHIND:
+        found = glass_through.behind_faces(list(zip(*hits)), np.array(laid), shown, len(laid))
+        assert found.tolist() == given, case
+    for case, entry, number, count, read in THROUGH_READ:
+        assert route_list.seen_through(entry, number, count) == read, case
+    finishes = [{"finish": "steel", "parts": "body", "family": "metal"},
+                {"finish": "clear glass", "parts": "door", "family": "glass", "through": 2},
+                {"finish": "white plastic", "parts": "interior", "family": "plastic"},
+                {"finish": "lit screen", "parts": "display", "family": "screen", "through": 0}]
+    assert glass_through.glasses(finishes) == {1: 2}  # a lit screen shows its own light, never what lies behind
+    assert route_list.unlabelled(finishes, {"front": {0: 0, 1: 1}}) == [3]  # the interior is the glass's

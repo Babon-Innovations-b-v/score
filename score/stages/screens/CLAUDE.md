@@ -20,6 +20,11 @@ take's display parts, over its bake. The module docstring has the make and the g
   library name holds a screen word (`screens.json` `words`), else its largest lit one; all of them one picture, seeded
   and inked by the largest. Each screen of them (pieces joined edge to edge over `SCREEN_LEAST` of their area) takes
   the whole picture, laid flat on its front, upright, unmirrored; crumbs take their nearest screen's frame.
+- **Any other model's screen part is pictured too** (#201, tc5r's vending machine: its LCD listed on the unlit
+  `glass_screen_a`, its row a machine): `screen_parts.py`, the row's make in the stage table, pictures every surface
+  whose library name holds a screen word, lit or not, on every baked model whose row does not show; none is no gap.
+  The row applies to every place whose design bakes a model. Kept out of `__init__.py`, which the assembly's make
+  (screens.assembled) holds in its code version.
 - **A screen take its bake made with no display part is a gap** (`batch-gaps.json`, gate `pictured`, moved by the
   table's `BATCH_GATES`): the finish list gave it no glowing or screen part, so its fix is upstream (the list).
 - **Measured on env1's accepted bakes, 2026-11-06** (free, this PC): 16 models pictured in 12 places; gaps:

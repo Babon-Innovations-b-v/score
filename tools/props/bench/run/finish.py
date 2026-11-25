@@ -222,9 +222,9 @@ def finished(model, close_up, row, library, folder, ask=None, masks=None):
     a folder of SAM 3's masks of the close-up, the views' input `masks <take>` (#207), each a face group there."""
     import score.stages.surfaces  # noqa: F401  (the stage first: its modules import one another through it)
     import claude_asks
+    import glass_through  # the split as the stage table makes it: a glass's faces behind it (#201)
     import route_list
     import route_parts
-    import route_split
     import route_views
     rows = library_written(library, folder)
     inputs = {"surfaces": str(take_data(row, folder)), f"model {row['id']}": str(model),
@@ -236,7 +236,7 @@ def finished(model, close_up, row, library, folder, ask=None, masks=None):
     makes = (("finish-route-views", route_views.make_views),
              ("finish-route-list", claude_asks.asking_claude(route_list.make_list) if ask is None
               else asked_by(route_list, ask)),
-             ("finish-route-split", route_split.make_split), ("surfaces-parts", route_parts.make_parts))
+             ("finish-route-split", glass_through.make_split), ("surfaces-parts", route_parts.make_parts))
     for name, make in makes:
         out = folder / name
         out.mkdir()
