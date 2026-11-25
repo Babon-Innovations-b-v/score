@@ -66,6 +66,10 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   a live run: 90 s for the file fixed, two drops): contact_room's `max(CONTACTS * shapes, BODY_CONTACTS * bodies)`
   made `CONTACTS * shapes` (the room of 16 a shape: the 14 boxes' drop fails, as assembly@old_station's did), or
   made `BODY_CONTACTS * (bodies + shapes)` (the parted body's room moved).
+- a_cloud_drop_runs_on_the_trials_card_in_its_python_once, its buried_in_a_slab_reads_inside (inside/settle_drop.py,
+  the trial's Python, else `skipped`; #104, 2026-11-25): inside_statics' `or buried_in(points, (others,
+  other_faces))` made `or False` (the box wholly in the slab reads free, as settle@airlock's sandbags did), or
+  buried_in's `return np.count_nonzero(...) * 2 > len(samples)` made `return True` (the box on its top reads inside).
 
 Run: .venv/bin/python score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py
 """
@@ -124,7 +128,7 @@ def a_cloud_drop_runs_on_the_trials_card_in_its_python_once():
         blender_cloud.Machine = real
     wanted = [{"classes": ("gpu-24gb",), "script": drop.INSIDE, "env": drop.ENV}]
     problems = [] if asked == wanted else [f"the drops asked {asked}, not {wanted} once"]
-    return problems + room_for_many_touching_bodies()
+    return problems + room_for_many_touching_bodies() + buried_in_a_slab_reads_inside()
 
 
 # A box's corners and faces (metres; its foot at y = 0), and the fine ground's cell: the box bottoms of
@@ -198,6 +202,40 @@ def room_for_many_touching_bodies():
     if found["parted"]["room"] != 16 * 4:
         problems.append(f"a box of four layers: room {found['parted']['room']}, not 64 as before")
     return problems
+
+
+# How each box lies against a 0.8 m slab (its top at y = 0), its foot's height and what the drop's inside test says
+# (settle@airlock's sandbags laid in their floor deck, their tops flush with its top, read as free: #104): wholly
+# enclosed, a box crosses none of the slab's triangles.
+SLAB_CASES = (("buried wholly", -0.6, ["slab"]), ("buried with its top flush", -0.4, ["slab"]),
+              ("resting on its top", 0.0, []))
+INSIDE_TEST = """
+import json, sys
+import numpy as np
+sys.path.insert(0, sys.argv[1])
+import settle_drop
+box, faces = np.array(json.loads(sys.argv[2])), np.array(json.loads(sys.argv[3])).reshape(-1, 4)
+triangles = np.array([(face[0], face[corner], face[corner + 1]) for face in faces for corner in (1, 2)])
+slab = box * [10.0, 2.0, 10.0] - [0.0, 0.8, 0.0]
+print(json.dumps({name: settle_drop.inside_statics((box + [0.0, foot, 0.0], triangles), {"slab": (slab, triangles)})
+                  for name, foot, _ in json.loads(sys.argv[4])}))
+"""
+
+
+def buried_in_a_slab_reads_inside():
+    """A box buried in a static slab, wholly (crossing none of its triangles) or with its top flush with the slab's,
+    starts inside it; one resting on its top does not (the trial's Python, as the drop runs it)."""
+    import subprocess
+    import drop
+    if not list(drop.LOCAL_ENV.glob(".built-*")):
+        print(f"skipped: {buried_in_a_slab_reads_inside.__name__}: no trial Python built at {drop.LOCAL_ENV}")
+        return []
+    found = json.loads(subprocess.run(
+        [str(drop.LOCAL_ENV / "bin/python"), "-c", INSIDE_TEST, str(drop.INSIDE.parent), json.dumps(BOX),
+         json.dumps(BOX_FACES), json.dumps(SLAB_CASES)], capture_output=True, text=True, check=True).stdout
+        .splitlines()[-1])
+    return [f"a box {name}: inside {found[name]}, not {wanted}" for name, _, wanted in SLAB_CASES
+            if found[name] != wanted]
 
 
 def laid(stage, name):

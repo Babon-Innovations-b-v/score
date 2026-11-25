@@ -150,7 +150,8 @@ def inside_statics(mine, statics):
     """The statics an object (its drawn triangles as laid) starts inside: an overlap that survives raising it NUDGE (the
     deck it stands on does not count) and moving it NUDGE away from the static's middle (a wall it stands against does
     not count), with a static reaching below its middle (a thing standing on it does not count either), as the resting
-    triage's overlap survives its nudge."""
+    triage's overlap survives its nudge; or one buried in a static's volume (`buried_in`), which crosses none of its
+    triangles (settle@airlock's sandbags laid in their floor deck, their tops flush with its top, 2026-10-30, #104)."""
     points, faces = mine
     middle = (points[:, 1].min() + points[:, 1].max()) / 2
     found = []
@@ -159,9 +160,34 @@ def inside_statics(mine, statics):
             continue
         way = (points.min(axis=0) + points.max(axis=0)) / 2 - (others.min(axis=0) + others.max(axis=0)) / 2
         away = way / np.linalg.norm(way) * NUDGE if np.linalg.norm(way) > 1e-9 else np.array([0.0, NUDGE, 0.0])
-        if all(crossing((points + shift, faces), (others, other_faces)) for shift in ([0.0, NUDGE, 0.0], away)):
+        if all(crossing((points + shift, faces), (others, other_faces)) for shift in ([0.0, NUDGE, 0.0], away)) \
+                or buried_in(points, (others, other_faces)):
             found.append(name)
     return found
+
+
+@wp.kernel
+def winding_signs(mesh: wp.uint64, points: wp.array(dtype=wp.vec3), signs: wp.array(dtype=float)):
+    """Each point's side of a closed mesh by its winding number (inside below 0, at 0.5 or more)."""
+    index = wp.tid()
+    signs[index] = wp.mesh_query_point_sign_winding_number(mesh, points[index], 1.0e6, 2.0, 0.5).sign
+
+
+def buried_in(points, static):
+    """Whether most of an object's points, each drawn NUDGE in toward its box's middle, lie inside a static's volume
+    (the winding number of its triangles, as wound: a shell facing in holds nothing): a piece flush in a slab is, one
+    resting on its top or standing against its side is not."""
+    others, other_faces = static
+    middle = (points.min(axis=0) + points.max(axis=0)) / 2
+    inward = middle - points
+    lengths = np.linalg.norm(inward, axis=1, keepdims=True)
+    samples = points + np.where(lengths > NUDGE, inward / np.maximum(lengths, 1e-12) * NUDGE, inward)
+    mesh = wp.Mesh(wp.array(others, dtype=wp.vec3, device="cpu"),
+                   wp.array(other_faces.reshape(-1), dtype=wp.int32, device="cpu"), support_winding_number=True)
+    signs = wp.zeros(len(samples), dtype=float, device="cpu")
+    wp.launch(winding_signs, dim=len(samples), inputs=[mesh.id, wp.array(samples, dtype=wp.vec3, device="cpu")],
+              outputs=[signs], device="cpu")
+    return np.count_nonzero(signs.numpy() < 0.0) * 2 > len(samples)
 
 
 def crossing(one, other):
