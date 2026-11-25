@@ -67,7 +67,7 @@ def toy_hand():
 def toy_groom():
     """A round head (9 cm, eyes on its front at its middle's height) and the bob combed on it with few roots: the
     head's points, faces, eyes and the groom (counts, points, radius)."""
-    sphere = trimesh.creation.icosphere(subdivisions=5, radius=0.09)
+    sphere = trimesh.creation.icosphere(subdivisions=4, radius=0.09)
     points, faces = np.asarray(sphere.vertices), np.asarray(sphere.faces)
     eyes = np.array([[0.032, 0.0, 0.07], [-0.032, 0.0, 0.07]])
     style = {"length_m": 0.2, "wave_m": 0.0015, "wave_period_m": 0.06, "parting_m": 0.025, "parting_side": "left",
