@@ -65,12 +65,12 @@ def main():
     records = {garment["name"]: dict(np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz"))
                for garment in outfit["garments"]}
     found = garments.measures(drape, dict(np.load(out / "body.npz")), records, out, outfit)
-    dressed = accessories.worn(outfit.get("accessories", {}), body, drape, records)
+    library = fetched(outfit, out)
+    dressed = accessories.worn(outfit.get("accessories", {}), body, drape, records, library)
     found["accessories"] = dict(dressed["found"], faults=dressed["faults"])
     (out / "measures.json").write_text(json.dumps(found, indent=1))
     usd = out / "outfit.usda"
     usd.unlink(missing_ok=True)
-    library = fetched(outfit, out)
     stage = cache.written(usd, dict(np.load(out / "body.npz")), drape, records, outfit, library, garments.RATE)
     accessories.written_into(stage, dressed, outfit.get("accessories", {}), library)
     stage.GetRootLayer().Save()

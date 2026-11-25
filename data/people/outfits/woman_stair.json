@@ -1,5 +1,5 @@
 {
- "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the face's own skin, the library's face_skin_light (#226), so face and body are one skin. The tee's sleeves are cut loose (sleeve.connecting_width 0.6, GarmentCode's 0.2 sat 9% stretched round her upper arms and the walking arms dragged the tee off a shoulder, 2026-11-24). Her shoes and belt (#228): the library holds no shoe or belt model, so both are fitted on her (tools/characters/accessories): black leather shoes on white foam soles, a glossy black leather belt over the skirt's waistband with a polished brass buckle, each a score_lib surface (NVIDIA SimReady, CC BY 4.0). Her jewellery (#228's next slice, tools/characters/whole/jewellery.py): the library holds no jewellery model, so each piece is made on her: polished gold hoop earrings, a fine gold chain, gold rings on her left ring finger and right middle finger, and a watch on her left wrist (a black leather strap, a gold case, a white ceramic dial under clear glass), each a score_lib surface (NVIDIA SimReady, CC BY 4.0). Her skirt's fitted waistband is cut narrow (waistband.width 0.1 of the hips' depth, GarmentCode's least): its top is where the belt is laid, and at GarmentCode's 0.2 the band stood 5.5 cm over her waist, so the belt rode just under her bust (2026-11-25); now it sits at her waist, under the tee.",
+ "about": "woman_stair-made's outfit as sewn clothes (#225): the tee and the skirt her close-up shows (work/pixal/woman_stair-made-s1.svviews/input.png: a pink short-sleeved tee worn over a grey A-line skirt to mid-calf), each a GarmentCode design (assets/design_params at the pinned commit) with the settings named, and each with a score_lib surface. The library holds no pink cotton: the tee wears the library's red cotton. Both cottons are the cloth recipe's cotton row in data/physics/cloth.json (the library's adopted NVIDIA cottons carry no recipe of their own). The body wears the face's own skin, the library's face_skin_light (#226), so face and body are one skin. The tee's sleeves are cut loose (sleeve.connecting_width 0.6, GarmentCode's 0.2 sat 9% stretched round her upper arms and the walking arms dragged the tee off a shoulder, 2026-11-24). Her shoes (#228): the library's adopted knit runner (Shopify's Materials Variants Shoe, CC BY 4.0) fitted to her feet (tools/characters/accessories/shoe_model.py), in its blush pink beach colourway. Her belt: the library holds no belt model, so it is fitted on her (tools/characters/accessories): a glossy black leather belt over the skirt's waistband with a polished brass buckle, each a score_lib surface (NVIDIA SimReady, CC BY 4.0). Her jewellery (#228's next slice, tools/characters/whole/jewellery.py): the library holds no jewellery model, so each piece is made on her: polished gold hoop earrings, a fine gold chain, gold rings on her left ring finger and right middle finger, and a watch on her left wrist (a black leather strap, a gold case, a white ceramic dial under clear glass), each a score_lib surface (NVIDIA SimReady, CC BY 4.0). Her skirt's fitted waistband is cut narrow (waistband.width 0.1 of the hips' depth, GarmentCode's least): its top is where the belt is laid, and at GarmentCode's 0.2 the band stood 5.5 cm over her waist, so the belt rode just under her bust (2026-11-25); now it sits at her waist, under the tee.",
  "look": "woman_stair",
  "mean": "mean_female",
  "garments": [
@@ -44,13 +44,14 @@
  },
  "accessories": {
   "shoes": {
-   "upper": {
-    "name": "simready_m_opaque_leather_black_a01_9038819b",
-    "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
+   "model": {
+    "name": "sneaker_knit_runner",
+    "address": "model/sneaker_knit_runner@1",
+    "file": "MaterialsVariantsShoe.glb"
    },
-   "sole": {
-    "name": "simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d",
-    "address": "surface/simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d@1"
+   "finish": {
+    "name": "sneaker_knit_runner_beach",
+    "address": "surface/sneaker_knit_runner_beach@1"
    }
   },
   "belt": {

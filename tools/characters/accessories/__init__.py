@@ -1,17 +1,21 @@
 """What a dressed person of the people line wears beside its sewn clothes (#228, under PRD #223): shoes on its feet and
 a belt on its skirt's waistband, each built on the person it is worn by and finished with score_lib surfaces.
 
-The library holds no shoe or belt model (score_lib checked 2026-11-24: no footwear; its belts are conveyor and engine
-belts), so each is fitted from the body as the garments are sized from it:
+Shoes are a library model when the outfit names one (`shoes.model`, its finish `shoes.finish`): `shoe_model.py`
+fits it to each foot (scaled to the foot, set on it where it stands flattest, the upper stretched a little where the
+foot presses, carried by the foot's skin weights) and checks the foot inside it every clip frame (owner, 2026-11-25:
+the made slip-on read as no real shoe; the library's first is an adopted knit runner with laces, eyelets, a heel tab
+and a foam sole). The library holds no belt model (its belts are conveyor and engine belts), so a belt, and a shoe
+that names no model, is fitted from the body as the garments are sized from it:
 
-- A shoe is made on a last of the body's own foot (`last`: the convex hull of the foot's cross-sections along it, so
-  the toes are boxed), out along the last's normals by the upper's thickness and, where it faces down, a sole SOLE_M
-  deep, cut at its collar (the ankle joint's height at the heel, THROAT_M lower over the toes' base). Each point is
-  carried by the skin weights of the foot points nearest it, so it moves with the foot and bends at the toes as the
-  clip plays (the clips rig's joints every frame, `worlds`); where the foot would still come out of it at the bind
-  or on the clip, it is pushed out (`cleared`). The person is lifted so the lower sole's lowest over the clip stands
-  on the floor, as the clip's bare feet do. In the outfit's USD each shoe's upper and sole are UsdPhysics colliders
-  (a convex hull each) for Newton.
+- A shoe with no model is made on a last of the body's own foot (`last`: the convex hull of the foot's cross-sections
+  along it, so the toes are boxed), out along the last's normals by the upper's thickness and, where it faces down, a
+  sole SOLE_M deep, cut at its collar (the ankle joint's height at the heel, THROAT_M lower over the toes' base). Each
+  point is carried by the skin weights of the foot points nearest it, so it moves with the foot and bends at the toes as
+  the clip plays (the clips rig's joints every frame, `worlds`); where the foot would still come out of it at the bind
+  or on the clip, it is pushed out (`cleared`). The person is lifted so the lower sole's lowest over the clip stands on
+  the floor, as the clip's bare feet do. In the outfit's USD each shoe's upper and sole are UsdPhysics colliders (a
+  convex hull each) for Newton.
 - A belt is a band BELT_M wide just under the skirt's waistband top (its `lower_interface` label), round whatever
   is there each frame (the garments' cloth and the body) but the garments the outfit's belt is `covered by` (a coat
   over a belted shirt), CLEAR_M off it, with a buckle at the front; its frame turns with the hips. It is laid after the drape and does not hold the cloth under it (the drape's own belt is #228's
@@ -20,6 +24,8 @@ belts), so each is fitted from the body as the garments are sized from it:
 `measured` reads the fit over the clip and `faults` names what is past its limit (a sole through the floor, the
 foot out through its shoe, a belt off its waistband); the garments run fails on a fault, after its pictures.
 """
+import pathlib
+
 import numpy as np
 
 UPPER_M = 0.004  # the upper's leather off the skin
@@ -518,9 +524,8 @@ def measured(shoes, worn_shoes, body_frames, body_faces, belted, lift):
     for side, made in shoes.items():
         frames = worn_shoes[side]
         lowest = float(frames[..., 1].min()) + lift
-        outs = []
-        for frame, skin in zip(frames, body_frames):
-            outs.append(float(out_past(skin[made["covered"]], frame, made["faces"]).max()))
+        outs = made.get("outs") or [float(out_past(skin[made["covered"]], frame, made["faces"]).max())
+                                    for frame, skin in zip(frames, body_frames)]
         found[side.lower()] = {"foot length cm": round(made["foot length m"] * 100.0, 1),
                                "eu size": round(1.5 * (made["foot length m"] * 100.0 + 1.5), 1),
                                "sole lowest over the floor mm": round(lowest * 1000.0, 1),
@@ -566,18 +571,17 @@ def faults(found):
     return lines
 
 
-def worn(chosen, body, drape, records):
+def worn(chosen, body, drape, records, library=None):
     """The outfit's accessories (its `accessories`: "shoes" and a "belt" "on" a garment) over the drape's clip
-    frames: {"shoes": {side: shoe with its "frames"}, "belt": belt() or None, "lift", "found", "faults"}."""
+    frames: {"shoes": {side: shoe with its "frames"}, "belt": belt() or None, "lift", "found", "faults"}. Shoes that
+    name a library `model` are that model fitted on each foot (`shoe_model`, read from the fetched `library`), else
+    made on the foot (`shoe`)."""
     start = int(body["clip_start"])
     names = [name for name in drape if name in records]
     count = len(drape[names[0]])
     shoes = {}
     if "shoes" in chosen:
-        for side in ("Left", "Right"):
-            made = shoe(body, side)
-            made["frames"] = carried(made["points"], made["weights"], body)[start:start + count]
-            shoes[side] = made
+        shoes = shoes_worn(chosen["shoes"], body, start, count, library)
     belted = None
     if "belt" in chosen:
         under, over = chosen["belt"]["on"], chosen["belt"].get("covered by", [])
@@ -591,6 +595,27 @@ def worn(chosen, body, drape, records):
                      np.asarray(body["frames"])[start:start + count], np.asarray(body["faces"]), belted, lift)
     return {"shoes": shoes, "belt": belted, "lift": lift, "found": found,
             "faults": faults(found)}
+
+
+def shoes_worn(chosen, body, start, count, library):
+    """Each side's shoe carried over the clip's `count` frames from `start` ("frames"); a library model's with how far
+    the foot is out of it each frame ("outs", `shoe_model.out_of`)."""
+    from tools.characters.accessories import shoe_model
+    found = {}
+    if "model" in chosen:
+        kind, rest = chosen["model"]["address"].split("/", 1)
+        name, version = rest.split("@")
+        model = shoe_model.read(pathlib.Path(library) / kind / name / version / chosen["model"]["file"])
+        grid = shoe_model.cavity(model)
+    for side in ("Left", "Right"):
+        made = shoe_model.fitted(body, side, model, grid) if "model" in chosen else shoe(body, side)
+        made["frames"] = carried(made["points"], made["weights"], body)[start:start + count]
+        if "model" in chosen:
+            made["outs"] = [float(shoe_model.out_of(made, np.asarray(body["frames"])[frame][made["covered"]],
+                                                    shoe_model.moves_at(body, frame)).max())
+                            for frame in range(start, start + count)]
+        found[side] = made
+    return found
 
 
 def collidable(mesh, first):
@@ -609,8 +634,9 @@ def textured(mesh, uvs, interpolation):
 
 
 def written_into(stage, dressed, chosen, library):
-    """/Outfit/Accessories in `stage`: each shoe an upper and a sole (colliders), the belt and its buckle, every clip
-    frame, each bound to its library surface; /Outfit lifted by the soles."""
+    """/Outfit/Accessories in `stage`: each shoe an upper and a sole (colliders; a library model's one mesh, a
+    collider, in its finish), the belt and its buckle, every clip frame, each bound to its library surface; /Outfit
+    lifted by the soles."""
     from pxr import Gf, UsdGeom
     from tools.characters.garments import cache
     UsdGeom.Xform.Define(stage, "/Outfit/Accessories")
@@ -618,6 +644,13 @@ def written_into(stage, dressed, chosen, library):
         UsdGeom.Xformable(stage.GetPrimAtPath("/Outfit")).AddTranslateOp().Set(Gf.Vec3d(0.0, dressed["lift"], 0.0))
     for side, made in dressed["shoes"].items():
         UsdGeom.Xform.Define(stage, f"/Outfit/Accessories/{side.lower()}_shoe")
+        if "uv" in made:  # a library model: one mesh, its own UVs, its finish
+            mesh = cache.mesh_at(stage, f"/Outfit/Accessories/{side.lower()}_shoe/shoe", made["faces"], made["frames"],
+                                 0)
+            textured(mesh, made["uv"], UsdGeom.Tokens.vertex)
+            collidable(mesh, made["frames"][0])
+            cache.bound(stage, mesh, chosen["shoes"]["finish"], library)
+            continue
         for part, faces in (("upper", made["faces"][~made["sole"]]), ("sole", made["faces"][made["sole"]])):
             mesh = cache.mesh_at(stage, f"/Outfit/Accessories/{side.lower()}_shoe/{part}", faces, made["frames"], 0)
             textured(mesh, face_uvs(made["points"], faces), UsdGeom.Tokens.faceVarying)

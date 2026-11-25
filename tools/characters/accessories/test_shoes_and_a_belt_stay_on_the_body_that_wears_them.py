@@ -5,6 +5,9 @@ reaches it, a foot out through its shoe, a belt off its waistband, a belt held o
 hold in (a loose tee under it) and a belt out through the coat worn over it (a coat pulled in between the belt's
 inside and its outside). Each row is the toy body walking forward one way.
 
+A library shoe model (a toy: an open ellipsoid cup, `toy_shoe`) fitted to the toy feet covers the foot and the foot
+stays inside it as it walks; shrunk on the foot, the foot is out through it.
+
 Breaks that turn it red (each applied once, seen red, reverted): the shoe's offset along the last's normals taken
 inward (`- normals` in `shoe`: the foot out through the shoe); the collar's cut keeping the faces over it (`~inside`:
 the shoe over the ankle); a shoe carried by the bind's joints alone (`worlds[:1]` in `carried`: the shoe left behind as
@@ -13,12 +16,16 @@ radius taken from the waistband's ring alone rather than from all round it (`aro
 inside the skirt's flare); the belt's top measured off its inside bottom row (`belted["belt"][:, BINS + 1:2 * (BINS +
 1)]` in `measured`: the belt read off its waistband); the belt's distance off the skin read off the skin alone
 (`skin_radius` in `held_in` taken as the belt's own radius: no belt ever holds anything out); the belt's outside
-taken as its inside (`+ BELT_THICK_M` left out in `under_cover`: the coat pulled in through the belt's strap)."""
+taken as its inside (`+ BELT_THICK_M` left out in `under_cover`: the coat pulled in through the belt's strap); the
+walking skin taken back to the bind rather than to where the model shoe was fitted (`made["fit moves"]` left out in
+`shoe_model.out_of`: the foot out through the fitted shoe); the model's cavity left unfilled (`filled = shell` in
+`shoe_model.cavity`: nothing inside any shoe, no scale takes the foot)."""
 import numpy as np
 import pytest
 import trimesh
 
 from tools.characters import accessories
+from tools.characters.accessories import shoe_model
 
 NAMES = ["Hips", "LeftShin", "LeftFoot", "LeftToeBase", "LeftToeEnd",
          "RightShin", "RightFoot", "RightToeBase", "RightToeEnd"]
@@ -83,7 +90,42 @@ def toy_coat(radius):
     return points[None] + np.array([0.0, 0.0, STEP_M])[None, None] * np.arange(1, FRAMES + 1)[:, None, None]
 
 
+def toy_shoe(folder):
+    """A library shoe model's stand-in: an ellipsoid cup 0.3 m long, 0.12 m wide, open over 9 cm (its collar), in the
+    model's frame (x to the toe, y up), with texture coordinates, as a glTF file."""
+    cup = trimesh.creation.icosphere(subdivisions=4)
+    cup.apply_scale([0.15, 0.07, 0.06])
+    cup.apply_translation([0.0, 0.07, 0.0])
+    cup.update_faces(cup.vertices[cup.faces][..., 1].max(axis=1) < 0.09)
+    cup.remove_unreferenced_vertices()
+    cup.visual = trimesh.visual.TextureVisuals(uv=np.zeros((len(cup.vertices), 2)))
+    path = folder / "shoe.glb"
+    cup.export(path)
+    return path
+
+
+def model_shoes(body, folder, shrunk):
+    """Each toy foot's shoe the toy model fitted (its scale shrunk by `shrunk` once fitted), with its frames and how
+    far the foot is out of it each frame."""
+    model = shoe_model.read(toy_shoe(folder))
+    grid = shoe_model.cavity(model)
+    start = int(body["clip_start"])
+    shoes = {}
+    for side in ("Left", "Right"):
+        made = shoe_model.fitted(body, side, model, grid)
+        if shrunk and side == "Left":
+            made["place"] = dict(made["place"], scale=made["place"]["scale"] * np.array([0.85, 1.0, 0.85]))
+        made["frames"] = accessories.carried(made["points"], made["weights"], body)[start:]
+        made["outs"] = [float(shoe_model.out_of(made, np.asarray(body["frames"])[frame][made["covered"]],
+                                                shoe_model.moves_at(body, frame)).max())
+                        for frame in range(start, len(body["frames"]))]
+        shoes[side] = made
+    return shoes
+
+
 @pytest.mark.parametrize("wear, failed", [
+    ("model shoes worn", []),
+    ("model shoe shrunk on the foot", ["left foot out through its shoe"]),
     ("worn", []),
     ("lifted short", ["left shoe below the floor", "right shoe below the floor"]),
     ("lifted too far", ["left shoe never on the floor", "right shoe never on the floor"]),
@@ -93,18 +135,25 @@ def toy_coat(radius):
     ("coat over the belt", []),
     ("coat pulled in to the belt", ["belt out through the cloth over it"]),
 ])
-def test_shoes_and_a_belt_stay_on_the_body_that_wears_them(wear, failed):
+def test_shoes_and_a_belt_stay_on_the_body_that_wears_them(wear, failed, tmp_path):
     body = toy_body()
     start = int(body["clip_start"])
-    shoes = {side: accessories.shoe(body, side) for side in ("Left", "Right")}
+    if wear.startswith("model"):
+        shoes = model_shoes(body, tmp_path, wear == "model shoe shrunk on the foot")
+    else:
+        shoes = {side: accessories.shoe(body, side) for side in ("Left", "Right")}
     worn = {side: accessories.carried(made["points"], made["weights"], body)[start:] for side, made in shoes.items()}
     for side, made in shoes.items():
         foot = np.asarray(body["bind"])[made["covered"]]
         assert len(made["covered"]) > 100
-        assert made["points"][:, 1].max() < accessories.collar_height(body, side, made["points"]).max() + 0.01
-        assert made["points"][made["faces"][made["sole"]]][..., 1].mean() < foot[:, 1].min()
         assert made["foot length m"] == pytest.approx(0.26, abs=0.01)
         assert np.allclose(worn[side][-1] - worn[side][0], [0.0, 0.0, STEP_M * (FRAMES - 1)], atol=1e-9)
+        if wear.startswith("model"):  # the shoe's sole under the foot, the shoe longer than it
+            assert made["points"][:, 1].min() < foot[:, 1].min()
+            assert np.ptp(made["points"][:, 2]) > made["foot length m"]
+            continue
+        assert made["points"][:, 1].max() < accessories.collar_height(body, side, made["points"]).max() + 0.01
+        assert made["points"][made["faces"][made["sole"]]][..., 1].mean() < foot[:, 1].min()
     lift = max(-float(frames[..., 1].min()) for frames in worn.values())
     if wear == "lifted short":
         lift -= 0.005

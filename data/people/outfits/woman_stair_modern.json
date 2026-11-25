@@ -1,5 +1,5 @@
 {
- "about": "woman_stair dressed as people dress today (#225, owner 2026-11-25: the first outfit read as a 1950s costume): a fitted crew-neck heather grey jersey tee worn untucked over slim mid-rise mid-indigo jeans and white shoes. Each garment a GarmentCode design (assets/design_params at the pinned commit) with the settings named: the jeans GarmentCode's Pants on a straight waistband, at its narrowest width (1.0) tapered to the ankle (flare 0.65) at a mid rise (0.7); the tee its t-shirt at its narrowest (shirt.width 1.0), to the hip (length 1.45), a close crew neck (collar.width -0.3, fc_depth 0.3), the sleeves cut loose (connecting_width 0.6, as woman_stair's). Fabrics and construction marks are score's own score_lib surfaces (tools/characters/garments/fabrics.py, MIT): denim_indigo_twill and jersey_heather_grey, the cloth recipe's cotton row (data/physics/cloth.json holds no denim or knit row yet); the jeans' felled seams topstitched in gold on one side, a hem chain stitch, back patch pockets, front scoops with a coin pocket, the fly's J-stitch, copper rivets and belt loops; the tee's seams, coverstitch hems and an 18 mm rib crew neck (tools/characters/garments/details.py). GarmentCode halves the tee's torso and sleeves; those centre seams are left bare (`plain seams`), as a real tee has none.",
+ "about": "woman_stair dressed as people dress today (#225, owner 2026-11-25: the first outfit read as a 1950s costume): a fitted crew-neck heather grey jersey tee worn untucked over slim mid-rise mid-indigo jeans and knit running shoes (#228: the library's adopted knit runner, Shopify's Materials Variants Shoe, CC BY 4.0, fitted to her feet by tools/characters/accessories/shoe_model.py, in its charcoal street colourway). Each garment a GarmentCode design (assets/design_params at the pinned commit) with the settings named: the jeans GarmentCode's Pants on a straight waistband, at its narrowest width (1.0) tapered to the ankle (flare 0.65) at a mid rise (0.7); the tee its t-shirt at its narrowest (shirt.width 1.0), to the hip (length 1.45), a close crew neck (collar.width -0.3, fc_depth 0.3), the sleeves cut loose (connecting_width 0.6, as woman_stair's). Fabrics and construction marks are score's own score_lib surfaces (tools/characters/garments/fabrics.py, MIT): denim_indigo_twill and jersey_heather_grey, the cloth recipe's cotton row (data/physics/cloth.json holds no denim or knit row yet); the jeans' felled seams topstitched in gold on one side, a hem chain stitch, back patch pockets, front scoops with a coin pocket, the fly's J-stitch, copper rivets and belt loops; the tee's seams, coverstitch hems and an 18 mm rib crew neck (tools/characters/garments/details.py). GarmentCode halves the tee's torso and sleeves; those centre seams are left bare (`plain seams`), as a real tee has none.",
  "look": "woman_stair",
  "mean": "mean_female",
  "garments": [
@@ -237,13 +237,14 @@
  },
  "accessories": {
   "shoes": {
-   "upper": {
-    "name": "simready_m_opaque_rubber_smooth_white_a01_5df3b2a8",
-    "address": "surface/simready_m_opaque_rubber_smooth_white_a01_5df3b2a8@1"
+   "model": {
+    "name": "sneaker_knit_runner",
+    "address": "model/sneaker_knit_runner@1",
+    "file": "MaterialsVariantsShoe.glb"
    },
-   "sole": {
-    "name": "simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d",
-    "address": "surface/simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d@1"
+   "finish": {
+    "name": "sneaker_knit_runner_street",
+    "address": "surface/sneaker_knit_runner_street@1"
    }
   }
  },
