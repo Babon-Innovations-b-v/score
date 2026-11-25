@@ -145,10 +145,17 @@ def uproject(folder):
     return found[0]
 
 
-def scene_step(film_path):
-    """What on_card.py's scene step reads (the package, its staging folder, the film path, the script up there)."""
+def among_path(number):
+    """Where the number-th neighbour package (render.py --among) goes up."""
+    return UP / "among" / str(number)
+
+
+def scene_step(film_path, among=()):
+    """What on_card.py's scene step reads (the package, its staging folder, the film path, the neighbour packages
+    laid beside it, the script up there)."""
     return {"script": SCENE_SCRIPT, "package": str(UP / "package"), "into": str(UP / "stage"),
-            "path": str(UP / "path.json") if film_path else None}
+            "path": str(UP / "path.json") if film_path else None,
+            "among": [str(among_path(number)) for number in range(len(among))]}
 
 
 def shot(project_file, level, sequence, frames, scene=None):
@@ -164,15 +171,17 @@ def shot(project_file, level, sequence, frames, scene=None):
                         "end": min(CHECK_FRAMES, frames), "folder": str(out / "check")}]}
 
 
-def job(project, frames, shot_file, out, package=None, film_path=None):
+def job(project, frames, shot_file, out, package=None, film_path=None, among=()):
     """The cluster job (cluster_jobs.run's form) that renders the shot: on_card.py in the image, the project and
-    shot.json up (and the scene package and film path the level is made from, when given), the out folder back, the
-    shader cache named."""
+    shot.json up (and the scene package, its film path and the neighbour packages laid beside it, when given), the
+    out folder back, the shader cache named."""
     ini = (pathlib.Path(project) / "Config/DefaultEngine.ini").read_text()
     starts = 3 + bool(package)
     minutes = COLD_MINUTES + starts * START_MINUTES + (frames + min(CHECK_FRAMES, frames)) * SECONDS_A_FRAME / 60
     scene = [{"local": str(package), "path": str(UP / "package")}] if package else []
     scene += [{"local": str(film_path), "path": str(UP / "path.json")}] if package and film_path else []
+    scene += [{"local": str(folder), "path": str(among_path(number))}
+              for number, folder in enumerate(among)] if package else []
     return {"command": ["/opt/score/venv/bin/python", "tools/cloud/unreal/on_card.py", str(UP / "shot.json")],
             "code": ["tools/cloud/unreal"] + (["tools/unreal/scene"] if package else []),
             "inputs": [{"local": str(project), "path": str(UP / "project")},
@@ -217,10 +226,12 @@ def scene_faults(out):
     return record["passes"].get("scene", {}).get("made", {}).get("faults", [])
 
 
-def render(project, level, sequence, frames, card_class, out, who, dry_run=False, package=None, film_path=None):
+def render(project, level, sequence, frames, card_class, out, who, dry_run=False, package=None, film_path=None,
+           among=()):
     """Send the shot's job, bring its frames back and write the check and the cost; the run's name. With `package`
     (and no project) the project is made here and the level from the package on the card, its map and sequence
-    plan.py's names for the package's place."""
+    plan.py's names for the package's place, and each `among` package (a neighbour the area seats in the same frame)
+    laid beside it."""
     import cluster_jobs
     import provider
 
@@ -240,8 +251,8 @@ def render(project, level, sequence, frames, card_class, out, who, dry_run=False
             raise SystemExit(f"the project cannot render with hardware ray tracing: {refused}")
         shot_file = scratch / "shot.json"
         shot_file.write_text(json.dumps(shot(uproject(project), level, sequence, frames,
-                                             scene_step(film_path) if package else None), indent=1))
-        described = job(project, frames, shot_file, out, package, film_path)
+                                             scene_step(film_path, among) if package else None), indent=1))
+        described = job(project, frames, shot_file, out, package, film_path, among)
         if dry_run:
             print(json.dumps(described, indent=1))
             return None
@@ -274,6 +285,8 @@ def main():
     parser.add_argument("--sequence", help="the level sequence, as /Game/....<name> (not with --package)")
     parser.add_argument("--package", help="a scene package (package --film) whose level is made on the card")
     parser.add_argument("--film-path", help="the place's film/path.json, the Level Sequence's camera (with --package)")
+    parser.add_argument("--among", action="append", default=[], help="a neighbour place's scene package the area "
+                        "seats in the package's frame, laid beside it (with --package); again for each")
     parser.add_argument("--frames", type=int, required=True)
     parser.add_argument("--class", dest="card_class", required=True, choices=CLASSES, help="one card model a shot")
     parser.add_argument("--out", required=True)
@@ -282,10 +295,12 @@ def main():
     options = parser.parse_args()
     if not options.package and not (options.project and options.map and options.sequence):
         parser.error("give a project with --map and --sequence, or --package")
+    if options.among and not options.package:
+        parser.error("--among lays neighbours beside a --package")
     if options.package and (options.map or options.sequence):
         parser.error("--package makes its own level and sequence: no --map or --sequence")
     render(options.project, options.map, options.sequence, options.frames, options.card_class, options.out,
-           options.who, options.dry_run, options.package, options.film_path)
+           options.who, options.dry_run, options.package, options.film_path, options.among)
 
 
 if __name__ == "__main__":

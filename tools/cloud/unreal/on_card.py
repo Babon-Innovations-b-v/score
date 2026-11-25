@@ -137,7 +137,8 @@ def scene_command(shot, script):
     """The commandlet that makes the level from the scene package (no GPU: -nullrhi); its arguments ride in -script,
     as the Python plugin's commandlet takes them."""
     scene = shot["scene"]
-    words = [str(script), scene["package"], scene["into"]] + ([scene["path"]] if scene["path"] else [])
+    words = ([str(script), scene["package"], scene["into"]] + ([scene["path"]] if scene["path"] else [])
+             + [f"--among={folder}" for folder in scene.get("among", [])])
     return [shot["editor"], shot["project"], "-run=pythonscript", f"-script={' '.join(words)}", "-nullrhi",
             "-Unattended", "-NoSplash", "-NoSound", "-stdout", "-FullStdOutLogOutput"]
 
@@ -251,7 +252,8 @@ def logs_kept(project_file, out):
 def scene_made(shot, user, environ):
     """The scene step: the level made from the package by editor.py, its made.json read back (scene_record)."""
     into = pathlib.Path(shot["scene"]["into"])
-    for folder in (into, pathlib.Path(shot["scene"]["package"])):
+    for folder in (into, pathlib.Path(shot["scene"]["package"]),
+                   *(pathlib.Path(among) for among in shot["scene"].get("among", []))):
         give(folder, user)
     return scene_record(into, *exited(scene_command(shot, REPO / shot["scene"]["script"]), user, environ))
 

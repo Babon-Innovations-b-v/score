@@ -23,6 +23,8 @@ Breaks, each applied once and seen red (2026-11-24):
 - `plugins_held` keeps every plugin -> an image without EditorScriptingUtilities stops the editor.
 - `object_path` returns the path unchanged -> Movie Render Queue is given /Game/ScoreRender/Check, no object.
 - `job`'s scene inputs dropped -> the package never goes up with a --package shot.
+- `job`'s neighbour inputs dropped (2026-11-25) -> the square never goes up beside the street.
+- `scene_command` leaves out `--among` -> the editor lays no neighbour though its package went up.
 - `closed` skips `logs_kept` (2026-11-24) -> a failed run comes back without the editor's logs.
 - `scene_record` refuses a non-zero exit -> a level made with faults stops the render (#222, run 6).
 - `render` skips `card_failure` -> a run that stopped on the card is priced and checked as frames.
@@ -182,6 +184,9 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
     (tmp_path / "pkg").mkdir()
     scened = render.job(tmp_path / "made", 1, shot_file, tmp_path / "back", tmp_path / "pkg", tmp_path / "path.json")
     scene_shot = render.shot(made, "/m", "/s", 1, render.scene_step(tmp_path / "path.json"))
+    among = render.job(tmp_path / "made", 1, shot_file, tmp_path / "back", tmp_path / "pkg", None,
+                       [tmp_path / "square"])
+    among_shot = render.shot(made, "/m", "/s", 1, render.scene_step(None, [tmp_path / "square"]))
     (tmp_path / "failed/project/Saved/Logs").mkdir(parents=True)
     (tmp_path / "failed/project/Saved/Logs/Score.log").write_text("LogSpawn: Warning: SpawnActor failed\n")
     (tmp_path / "failed/out").mkdir()
@@ -234,6 +239,12 @@ def test_a_shot_goes_up_as_one_ray_traced_job_and_comes_back_checked_twice_and_p
         ("the scene commandlet", [flag for flag in on_card.scene_command(scene_shot, "/r/editor.py")
                                   if flag.startswith("-script") or flag == "-nullrhi"],
          ["-script=/r/editor.py /work/unreal/package /work/unreal/stage /work/unreal/path.json", "-nullrhi"]),
+        ("a neighbour goes up and is laid beside the package", (
+            among["inputs"][2:], [flag for flag in on_card.scene_command(among_shot, "/r/editor.py")
+                                  if flag.startswith("-script")]),
+         ([{"local": str(tmp_path / "pkg"), "path": "/work/unreal/package"},
+           {"local": str(tmp_path / "square"), "path": "/work/unreal/among/0"}],
+          ["-script=/r/editor.py /work/unreal/package /work/unreal/stage --among=/work/unreal/among/0"])),
         ("a failure comes back with the editor's logs", (
             (tmp_path / "failed/out/logs/Score.log").read_text(), render.card_failure(tmp_path / "failed/out")),
          ("LogSpawn: Warning: SpawnActor failed\n", "SystemExit: UnrealEditor-Cmd exited with 1")),

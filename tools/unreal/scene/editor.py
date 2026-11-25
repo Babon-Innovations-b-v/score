@@ -488,31 +488,56 @@ def saved(place):
         raise RuntimeError("the changed assets were not all saved")
 
 
+def place_laid(made, faults):
+    """One planned place carried into the open level: its textures, one instance a look, its objects, an actor a copy
+    and its lamps, under /Game/Score/<place>, each refusal a fault named for the place; {meshes, parts, materials,
+    textures} made."""
+    place = made["place"]
+    step(f"{place}: {len(made['textures'])} textures")
+    textures = textures_made(made["textures"], place)
+    step(f"{place}: {len(made['materials'])} material instances")
+    instances = {look["name"]: attempted(faults, f"{place} look {look['name']}", instance_made, look, place, textures)
+                 for look in made["materials"]}
+    step(f"{place}: {len(made['meshes'])} meshes")
+    meshes = {mesh["object"]: attempted(faults, f"{place} object {mesh['object']}", mesh_made, mesh, place, instances)
+              for mesh in made["meshes"]}
+    step(f"{place}: {len(made['actors'])} actors and {len(made['lamps'])} lamps")
+    for actor_plan in made["actors"]:
+        if meshes[actor_plan["object"]] is not None:
+            attempted(faults, f"{place} actor {actor_plan['name']}", placed, actor_plan, meshes[actor_plan["object"]],
+                      place)
+    attempted(faults, f"{place} lamps", lamps_laid, made["lamps"])
+    return {"meshes": sum(mesh is not None for mesh in meshes.values()),
+            "parts": sum(len(mesh) for mesh in meshes.values() if mesh is not None),
+            "materials": sum(look is not None for look in instances.values()), "textures": len(textures)}
+
+
+def among_of(arguments):
+    """The words of the editor's arguments: (the positional ones, the neighbour packages each `--among=<folder>`)."""
+    among = [word.split("=", 1)[1] for word in arguments if word.startswith("--among=")]
+    return [word for word in arguments if not word.startswith("--among=")], among
+
+
 def main(arguments):
     """The package at arguments[0] carried into a new level, its textures staged under arguments[1], its film path
-    (arguments[2]) as a Level Sequence when given; <into>/made.json written last."""
+    (arguments[2]) as a Level Sequence when given, and each `--among=<package>` (a neighbour place the area seats in
+    the same frame) laid beside it: its objects, looks and lamps, the main place's sky, exposure, grade and camera
+    alone; <into>/made.json written last."""
+    arguments, among = among_of(arguments)
     package, into = arguments[0], pathlib.Path(arguments[1])
     into.mkdir(parents=True, exist_ok=True)
     step("measuring the import's axes")
     basis = measured_basis(into)
     made = planning.planned(package, into, arguments[2] if len(arguments) > 2 else None, basis)
+    neighbours = [planning.planned(folder, into / "among" / str(number), None, basis)
+                  for number, folder in enumerate(among)]
     step(f"a new level for {made['place']}")
     level_made(made["place"])
-    step(f"{len(made['textures'])} textures")
-    textures = textures_made(made["textures"], made["place"])
     faults = []
-    step(f"{len(made['materials'])} material instances")
-    instances = {look["name"]: attempted(faults, f"look {look['name']}", instance_made, look, made["place"], textures)
-                 for look in made["materials"]}
-    step(f"{len(made['meshes'])} meshes")
-    meshes = {mesh["object"]: attempted(faults, f"object {mesh['object']}", mesh_made, mesh, made["place"], instances)
-              for mesh in made["meshes"]}
-    step(f"{len(made['actors'])} actors, the lamps, sun, sky and exposure")
-    for actor_plan in made["actors"]:
-        if meshes[actor_plan["object"]] is not None:
-            attempted(faults, f"actor {actor_plan['name']}", placed, actor_plan, meshes[actor_plan["object"]],
-                      made["place"])
-    attempted(faults, "lamps", lamps_laid, made["lamps"])
+    counts = place_laid(made, faults)
+    beside = [dict(place_laid(neighbour, faults), place=neighbour["place"], actors=len(neighbour["actors"]),
+                   lamps=len(neighbour["lamps"])) for neighbour in neighbours]
+    step("the sun, sky and exposure")
     attempted(faults, "sun and moon", bodies_laid, made["environment"])
     if made["environment"]["sky"]:
         attempted(faults, "sky", sky_laid, made["environment"]["sky"], made["place"])
@@ -524,15 +549,13 @@ def main(arguments):
         filmed(made, faults)
     step("saving")
     saved(made["place"])
-    summary = {"place": made["place"], "level": planning.level_path(made["place"]),
-               "sequence": planning.sequence_path(made["place"]) if made["camera"] else None,
-               "measured_basis": [list(row) for row in basis], "expected_basis": [list(row) for row in frames.BASIS],
-               "basis_as_expected": [list(row) for row in basis] == [list(row) for row in frames.BASIS],
-               "meshes": sum(mesh is not None for mesh in meshes.values()),
-               "parts": sum(len(mesh) for mesh in meshes.values() if mesh is not None), "actors": len(made["actors"]),
-               "materials": sum(look is not None for look in instances.values()), "textures": len(textures),
-               "lamps": len(made["lamps"]), "camera_first": made["camera"]["keys"][0] if made["camera"] else None,
-               "left_out": made["left_out"], "faults": faults}
+    summary = dict(counts, place=made["place"], level=planning.level_path(made["place"]),
+                   sequence=planning.sequence_path(made["place"]) if made["camera"] else None,
+                   measured_basis=[list(row) for row in basis], expected_basis=[list(row) for row in frames.BASIS],
+                   basis_as_expected=[list(row) for row in basis] == [list(row) for row in frames.BASIS],
+                   actors=len(made["actors"]), lamps=len(made["lamps"]),
+                   camera_first=made["camera"]["keys"][0] if made["camera"] else None, among=beside,
+                   left_out=made["left_out"], faults=faults)
     (into / "made.json").write_text(json.dumps(summary, indent=1))
     unreal.log(f"score: made {json.dumps(summary)}")
 
