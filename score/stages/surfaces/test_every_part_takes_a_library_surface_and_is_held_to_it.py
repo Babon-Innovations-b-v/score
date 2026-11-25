@@ -274,6 +274,8 @@ tests it turned red:
   settings_name without grain_name -> a timber with and without its grain bake as one slot; set_spec without its
   `**grain` -> the spec carries no grain; route_parts.py grained without long_axis -> a timber the list read no way of
   is drawn with no grain.
+- route_list.py held_roughness (#202): `roughness = max(roughness, BRUSHED_ROUGHNESS)` -> `pass`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (ROUGHNESS_HELD: tc6's brushed stainless kept at 0.26)
 - route_list.py token_lines: ` ({strength(srgb_of(colour))})` dropped -> every_part_takes_a_library_surface_and_is_
   held_to_it (the tokens offered in words alone, #198)
 - route_list.py region_lines: the `the close-up there about RGB` clause dropped -> every_part_takes_a_library_surface_and_
@@ -973,6 +975,22 @@ WORDED = [
     ("a finish worded in the token it is drawn and baked in", {"token": "glass-brown", "roughness": 0.9, "metal": 0.0},
      ("roughness 0.90",), ("drawn red",)),
     ("a finish with no settings worded in its surface's colour", None, ("drawn red",), ()),
+]
+
+
+# route_list.held_roughness (#202, tc6's fridge: "brushed stainless steel" listed at its kitchenette stainless's own
+# 0.26 drew TRELLIS.2's wavy panels as torn edges): (case, the answer's finish and roughness, its surface, the
+# roughness kept)
+ROUGHNESS_HELD = [
+    ("a brushed bare metal shinier than NVIDIA's brushed steels is held at theirs",
+     {"finish": "Brushed stainless steel", "roughness": 0.26}, {"family": "bare_metal"}, route_list.BRUSHED_ROUGHNESS),
+    ("a brushed bare metal rougher than theirs keeps its own", {"finish": "brushed aluminium", "roughness": 0.45},
+     {"family": "bare_metal"}, 0.45),
+    ("a polished bare metal keeps its shine", {"finish": "polished chrome", "roughness": 0.08},
+     {"family": "bare_metal"}, 0.08),
+    ("a brushed finish on a painted surface keeps its own", {"finish": "brushed-look paint", "roughness": 0.2},
+     {"family": "painted_metal"}, 0.2),
+    ("past 1 is clipped", {"finish": "brushed steel", "roughness": 1.4}, {"family": "bare_metal"}, 1.0),
 ]
 
 
@@ -2519,6 +2537,8 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     assert "For each timber finish" in question and offered["grain"]["enum"] == ["up", "across", "deep"]
     assert timbered() == ({"grain": [0.0, 1.0, 0.0], "board": 0.29}, {}, {}, True, ([0.0, 1.0, 0.0], 0.29),
                           [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+    for case, entry, surface, kept in ROUGHNESS_HELD:  # a brushed bare metal no shinier than NVIDIA's (#202)
+        assert route_list.held_roughness(entry, surface) == kept, case
     palette = route_list.palette_library.read(rows)
     assert offered["token"]["enum"] == [token for token in route_list.palette_library.library_tokens(palette)
                                          if token in PALETTE["tokens"]], offered["token"]

@@ -63,6 +63,11 @@ import score.stages.batch_gaps as batch_gaps  # noqa: E402
 LIST_EUROS = 0.5  # a guess for the row's run (a place's takes at half of google_spend.ESTIMATES); never a price
 CALLER = "finish-route-list"
 SEED_SPAN = 100000  # take seeds lie within this of the node's, each take's finishes counted on from its own
+# A bare metal finish the list words brushed is never shinier than NVIDIA's own brushed and stainless steels (#202):
+# score_lib's SimReady brushed metals lie at a median roughness of 0.32, its stainless ones 0.33, and NVIDIA's tc6
+# fridge's body steel at 0.33. tc6's fridge listed "brushed stainless steel" on a kitchenette stainless of its own
+# 0.26, a near mirror that drew TRELLIS.2's slightly wavy door and bottom panels as torn, wrinkled edges.
+BRUSHED_ROUGHNESS = 0.33
 LAID = (". The last picture is the close-up's own colours laid on the model, split into the same regions (the view "
         "named {view}): a small part the texture shows faintly or not at all, such as a label, a lamp or a screen, has "
         "its region there")
@@ -291,12 +296,12 @@ def finishes_of(answer, library, seed):
     names, codes = list(surfaces), finish_ask.surface_codes(surfaces)
     found = []
     for number, entry in enumerate(answer["finishes"]):
-        settings = {"token": entry["token"], "roughness": round(float(np.clip(entry["roughness"], 0, 1)), 3),
+        name, colour = names[codes.index(entry["surface"])], tokens.get(entry["token"])
+        settings = {"token": entry["token"], "roughness": held_roughness(entry, surfaces[name]),
                     "metal": round(float(np.clip(entry["metal"], 0, 1)), 3), "seed": int(seed) + number}
         level, cause = own_wear(entry, levels)
         if level is not None:
             settings["wear"] = float(levels[level])
-        name, colour = names[codes.index(entry["surface"])], tokens.get(entry["token"])
         settings.update(timber_settings(entry, surfaces[name]))
         found.append({"finish": entry["finish"], "parts": entry["parts"], "surface": name, "settings": settings,
                       "fits": bool(entry["fits"]), "new_surface": entry.get("new_surface"), "wear_level": level,
@@ -305,6 +310,15 @@ def finishes_of(answer, library, seed):
     if not found:
         raise ValueError("the finish list is empty")
     return found
+
+
+def held_roughness(entry, surface):
+    """A finish's roughness from its answer, clipped to 0-1; a bare metal surface the answer words brushed at least
+    BRUSHED_ROUGHNESS (#202)."""
+    roughness = float(np.clip(entry["roughness"], 0, 1))
+    if surface.get("family") == "bare_metal" and "brushed" in entry["finish"].lower():
+        roughness = max(roughness, BRUSHED_ROUGHNESS)
+    return round(roughness, 3)
 
 
 def timber_settings(entry, surface):
