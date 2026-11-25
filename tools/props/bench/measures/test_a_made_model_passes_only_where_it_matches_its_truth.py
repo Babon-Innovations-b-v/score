@@ -24,6 +24,8 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   its size, no longer ranks level with it, so a model the shape cannot tell apart ranks first.
 - _clean.cleanliness counting no open edge: the box missing a face passes its open length.
 - _clean.CRUMB at 0: the box with a 1 cm floater passes its crumbs.
+- _clean.pieces counting every corner's label, not only the faces' (#167): a corner no face holds is a zero-area
+  piece, so a crumb, and the box carrying one fails its crumbs.
 - _clean.thinnest taking the thickest wall: the 1 mm shell passes its wall.
 - __init__.held holding the wall to the gate's 3 mm alone: the 1.5 mm shell made for NVIDIA's 2 mm one fails (NVIDIA's
   own walls run thinner than the gate's floor: crates 2.3 mm, cartons 0.1 mm; #163 calibration).
@@ -278,6 +280,12 @@ def looked_from(mesh, way):
 
 def with_floater():
     return trimesh.util.concatenate([box(), trimesh.creation.box((0.01, 0.01, 0.01)).apply_translation((0, 0, 1.2))])
+
+
+def unused_corner():
+    """The box with a stray corner that no face holds, first in its welded corners (#167: a truth's unused vertices)."""
+    mesh = box()
+    return trimesh.Trimesh(np.vstack([[-1.0, -1.0, -1.0], mesh.vertices]), mesh.faces + 1, process=False)
 
 
 def missing_face():
@@ -536,6 +544,7 @@ CASES = [
                                                    material=None), "shape.rank", False),
     ("the box missing a face", lambda: made(missing_face(), material=None), "clean.open_length", False),
     ("a 1 cm floater", lambda: made(with_floater(), material=None), "clean.crumbs", False),
+    ("a corner no face holds", lambda: made(unused_corner(), material=None), "clean.crumbs", True),
     ("a 1 mm shell", lambda: made(shell(), material=None), "clean.thinnest", False),
     ("a 1.5 mm shell for a 2 mm one", lambda: measures.measured(side(shell(0.002), None), side(shell(0.0015), None)),
      "clean.thinnest", True),

@@ -25,12 +25,14 @@ def edges(faces):
 
 
 def pieces(corners, faces, area):
-    """(the area of each piece, largest first): faces joined through shared corners."""
+    """(the area of each piece, largest first): faces joined through shared corners; a corner no face holds is no
+    piece (#167)."""
     rows = np.concatenate([faces[:, 0], faces[:, 1]])
     columns = np.concatenate([faces[:, 1], faces[:, 2]])
     graph = coo_matrix((np.ones(len(rows)), (rows, columns)), shape=(len(corners), len(corners)))
     _, label = connected_components(graph, directed=False)
-    return np.sort(np.bincount(label[faces[:, 0]], weights=area))[::-1]
+    _, piece = np.unique(label[faces[:, 0]], return_inverse=True)
+    return np.sort(np.bincount(piece.reshape(-1), weights=area))[::-1]
 
 
 def thinnest(corners, faces):
