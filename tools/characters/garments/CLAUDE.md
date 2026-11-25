@@ -38,6 +38,10 @@ runs them (an outfit file per look in `data/people/outfits/`).
   the coat over it start apart and meet by contact as they are sewn (laid all at once, a jacket's hem lay inside the
   trousers' waistband box and the two tangled as the waistband was carried in). A garment over another's neckline
   holds its own neckline two cloth thicknesses further out per neckline under it.
+- **A box mesh starts outside the body** (`inside/laying.py`): GarmentCode lays its panels round its own mean body,
+  and on ours some points stand inside (a tee's sleeve fronts up to 5.7 cm in the arms, jeans' front crotch curve
+  above the crotch between thighs that cross each other). Each is put out through its nearest skin, else the
+  shortest way out along an axis; one left inside refuses the garment in the drape, never sewn.
 - **Neckline holds keep a point from going further out, never pull it in** past where the pattern lays it (drawn in
   at once, a dress's and a jacket's neckline ends were gathered into lumps on the shoulders).
 - **Bands** (`bands.py`, an outfit garment's `bands`: tape round the torso over the hem and round each sleeve over

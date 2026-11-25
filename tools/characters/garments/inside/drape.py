@@ -10,7 +10,7 @@ frame of the run: its turn from the bind to the clip's first frame, then the cli
 "still_seconds", "garments": [{"name", "record": <pattern.py's npz>, "offset": [x, y, z] (m, the record's frame to the
 body's), "worn": [labels of the record's points worn on the body], "holds": [{"label", "axis" (0 x, 1 y, 2 z),
 "value" (m), "side" (+1 or -1)}: points past a level drawn back to it, those on its side left], "layer_m" (an outer
-garment's box points laid that much further off the skin, `laid_out`), "material":
+garment's box points laid that much further off the skin, `laying.laid_out`), "material":
 {"density" kg/m2, "mu" N/m, "lambda" N/m, "bending" N, "radius" m}}], "contact": {"mu", "ke", "kd", "margin" (m)},
 "self": {"margin", "gap" (m)}, "neck": [the body's points round its neck's base: the holds' levels move with their
 mean], "holds_until": "sewn", "turned" or "worn" (the drawn points held while sewing, through the turn too, or
@@ -49,6 +49,8 @@ import time
 import newton
 import numpy as np
 import warp as wp
+
+import laying
 
 SEW_SPEED = 0.25  # m/s, GarmentCode's global_max_velocity while the panels close (sim_config.py)
 CENTIMETRES = 0.01
@@ -120,6 +122,19 @@ def nearest(mesh: wp.uint64, points: wp.array[wp.vec3], reach: float, faces: wp.
         uvs[index] = wp.vec2(query.u, query.v)
 
 
+def body_inside(skin, faces):
+    """Which of a set of points stand inside the body at `skin` (the card's winding number, a metre's reach): for
+    laying.laid_out."""
+    mesh = wp.Mesh(points=wp.array(skin, dtype=wp.vec3), indices=wp.array(faces.ravel(), dtype=wp.int32),
+                   support_winding_number=True)
+
+    def inside(points):
+        found = wp.zeros(len(points), dtype=wp.float32)
+        wp.launch(signed_distance, dim=len(points), inputs=[mesh.id, wp.array(points, dtype=wp.vec3), 1.0, found])
+        return found.numpy() < 0.0
+    return inside
+
+
 @wp.kernel
 def drawn(particles: wp.array[wp.int32], axis: int, levels: wp.array[wp.float32], moved: float, side: float,
           share: float, positions: wp.array[wp.vec3]):
@@ -182,15 +197,6 @@ def held_on(particles: wp.array[wp.int32], corners: wp.array[wp.vec3i], weights:
     particle = particles[index]
     velocities[particle] = (target - positions[particle]) * rate
     positions[particle] = target
-
-
-def laid_out(points, skin, reach):
-    """Each of a box mesh's points moved `reach` (m) further from the skin point nearest it: an outer garment's
-    panels laid off the skin before it is sewn alone (`sewn_in_layers`)."""
-    from scipy.spatial import cKDTree
-    distance, nearest = cKDTree(skin).query(points)
-    away = (points - skin[nearest]) / np.maximum(distance, 1e-9)[:, None]
-    return skin[nearest] + away * (distance + max(reach, 0.0))[:, None]
 
 
 def laid_over(points, faces, skin, under, clear):
@@ -285,7 +291,7 @@ def levels(points, hold):
 class Garment:
     """One garment's cloth in the builder: its particles, triangles, bending edges and held points."""
 
-    def __init__(self, builder, spec, skin, placed=None):
+    def __init__(self, builder, spec, skin, inside, clear, placed=None):
         record = dict(np.load(spec["record"]))
         offset = np.asarray(spec["offset"], dtype=float)
         self.name, self.first = spec["name"], builder.particle_count
@@ -320,7 +326,10 @@ class Garment:
         if placed is not None:
             self.points = np.asarray(placed, dtype=float)
         else:
-            self.points = laid_out(self.points, skin, float(spec.get("layer_m", 0.0)))
+            self.points = laying.laid_out(self.points, skin, float(spec.get("layer_m", 0.0)), clear, inside)
+            left = np.flatnonzero(inside(self.points))
+            if len(left):
+                raise RuntimeError(f"{self.name}: {len(left)} of its box mesh's points still inside the body as laid")
         for index, point in enumerate(self.points):
             builder.particle_q[self.first + index] = wp.vec3(*point)
         sides = bending_edges(welded)
@@ -350,7 +359,7 @@ class Outfit:
 
     def __init__(self, job, body, placed=None):
         """`placed`: {garment name: its points sewn in an earlier stage}; the other garments' box meshes are laid
-        `laid_out`."""
+        `laying.laid_out`."""
         placed = placed or {}
         builder = newton.ModelBuilder(up_axis=newton.Axis.Y, gravity=(0.0, 0.0, 0.0))
         self.frames, self.bind = body["frames"].astype(np.float32), body["bind"].astype(np.float32)
@@ -360,7 +369,9 @@ class Outfit:
                                                margin=contact["margin"])
         self.body = newton.Mesh(self.bind, self.faces.ravel())
         builder.add_shape_mesh(body=-1, mesh=self.body, cfg=shape)
-        self.garments = [Garment(builder, spec, self.bind.astype(float), placed.get(spec["name"]))
+        inside = body_inside(self.bind, self.faces)
+        self.garments = [Garment(builder, spec, self.bind.astype(float), inside,
+                                 spec["material"]["radius"] + contact["margin"], placed.get(spec["name"]))
                          for spec in job["garments"]]
         builder.color(include_bending=True)
         self.model = builder.finalize(device=job["device"])

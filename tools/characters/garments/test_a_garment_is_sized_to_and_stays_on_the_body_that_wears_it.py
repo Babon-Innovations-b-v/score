@@ -7,7 +7,9 @@ the tee), and passes one that sways with the body; shaped.py gives a body anothe
 shape model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most;
 bands.py cuts a band out of a garment's cloth along its edges, a set height over its hem; details.py lays a garment's
 construction marks on its cloth (a seam's mark on one panel's side and its other side's on the other, an edge's along
-each open edge, a plain seam left bare, a patch at its anchor), each a hair's breadth outside the cloth's drawn face. Each row is a toy body of
+each open edge, a plain seam left bare, a patch at its anchor), each a hair's breadth outside the cloth's drawn face; inside/laying.py lays a box mesh's points that stand inside the
+body out of it (in a thigh, and between two thighs that cross each other) and leaves one with no way out inside, for
+the drape to refuse. Each row is a toy body of
 tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
 worn on a toy torso one way, or the toy body reshaped or its arms cleared.
 
@@ -27,7 +29,9 @@ not set, or the joints left unscaled with the skin. In bands.py: the triangles t
 the band's edges), or a cut's point made once per panel rather than once per seam point (the cloth opened along its
 seams). In details.py: a seam taken for an open edge (two panels sharing box points not matched), a plain seam marked,
 a strip laid outside its panel (its inward normal not turned), the lift not past the thickness on outward-wound cloth,
-or a patch's side taken towards the body's middle."""
+or a patch's side taken towards the body's middle. In inside/laying.py: no point inside put out (each moved straight off
+its nearest skin), no way out along the axes for a point the first step leaves inside, that step's points not looked
+at again, or a point the layer's reach moves into a fold of the skin kept there."""
 import json
 import math
 import pathlib
@@ -36,6 +40,7 @@ import numpy as np
 import pytest
 
 from tools.characters.garments import bands, details, measure, seated, shaped
+from tools.characters.garments.inside import laying
 
 NAMES = ["Hips", "Spine2", "Chest", "Neck1", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm",
          "LeftHand", "RightForeArm", "RightHand", "LeftLeg", "LeftShin", "RightLeg", "RightShin"]
@@ -332,6 +337,40 @@ def marked(library, plain):
     return counts, off, past, (patch[:, :2].min(axis=0) + patch[:, :2].max(axis=0)) / 2.0 * 100.0
 
 
+def toy_thighs():
+    """Two closed thighs, 6 cm round and 10 cm apart, so they overlap 2 cm between them (as a SOMA body's touching
+    thighs cross each other): (points, faces)."""
+    points, faces = [], []
+    for side in (1.0, -1.0):
+        levels = np.linspace(0.0, 0.8, 17)
+        ring_points, ring_faces, _ = tube([[side * 0.05, level, 0.0] for level in levels], [0.06] * len(levels),
+                                          [0, 1, 0], lambda ring: "Hips")
+        ends = [len(ring_points), len(ring_points) + 1]
+        ring_points = np.concatenate([ring_points, [[side * 0.05, 0.0, 0.0], [side * 0.05, 0.8, 0.0]]])
+        last = (len(levels) - 1) * SIDES
+        caps = [[ends[0], (side_ + 1) % SIDES, side_] for side_ in range(SIDES)]
+        caps += [[ends[1], last + side_, last + (side_ + 1) % SIDES] for side_ in range(SIDES)]
+        faces.append(np.concatenate([ring_faces, caps]) + sum(len(each) for each in points))
+        points.append(ring_points)
+    return np.concatenate(points), np.concatenate(faces)
+
+
+def pants_laid(clear):
+    """Toy pants points as GarmentCode's box mesh may lay them on another body (one 3 cm deep in a thigh, as her tee's
+    sleeve fronts in her arms; one in the overlap between the thighs, as her jeans' front crotch curve above her crotch,
+    the skin nearest it the other thigh's; one outside) laid 6 mm out with `clear`: how many stay inside the body."""
+    skin, faces = toy_thighs()
+
+    def inside(points):
+        return np.abs(laying.winding(points, skin, faces)) > laying.INSIDE
+    points = np.array([[0.08, 0.5, 0.0], [0.0, 0.5, 0.0], [0.0, 0.5, 0.2]])
+    assert inside(points).tolist() == [True, True, False]
+    laid = laying.laid_out(points, skin, 0.006, clear, inside)
+    nearest = skin[np.linalg.norm(skin - points[2], axis=1).argmin()]
+    assert np.linalg.norm(laid[2] - nearest) == pytest.approx(np.linalg.norm(points[2] - nearest) + 0.006)
+    return int(inside(laid).sum())
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
@@ -349,6 +388,8 @@ def marked(library, plain):
     (1.15, "a band round the torso", 0.05),
     (1.0, "marks on a seam, its edges and a pocket", False),
     (1.0, "marks with the seam plain", True),
+    (1.0, "pants laid round thighs that touch", 0),
+    (1.0, "pants laid with too short a way out", 1),
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed, tmp_path):
     points, faces, weights, bind, built = toy_body(scale)
@@ -372,6 +413,10 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         return
     if wear.startswith("a band"):
         assert taped(scale, failed) == pytest.approx(0.0, abs=1e-9)
+        return
+    if wear.startswith("pants"):
+        # the drape refuses a garment with a point left inside the body, never sews it
+        assert pants_laid(0.001 if "too short" in wear else 0.0045) == failed
         return
     if wear.startswith("marks"):
         counts, off, past, middle = marked(tmp_path, failed)
