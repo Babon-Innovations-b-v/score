@@ -55,6 +55,9 @@ FLUSH = [((40, 41), (0.3, -2.2), (1.6, 1.4), 0.8), ((46, 47), (-0.3, -2.2), (1.6
 UNDER_EYE = [((39, 40, 41), (0.0, -0.55), (1.0, 0.4), 0.9), ((42, 46, 47), (0.0, -0.55), (1.0, 0.4), 0.9)]
 EAR_SIDE_CM = 7.0  # a face point further out to the side than this, and over the jaw's angle, is an ear's,
 EAR_FADE_CM = 1.0  # its flush fading in over this much before it
+# and under the ear's top, this much over the brows' (the flush fading out over EAR_FADE_CM over it): read as all the
+# side of the head over the jaw's angle, the ears' flush reached up the temples onto the scalp under the hair (#227).
+EAR_TOP_OVER_BROWS_CM = 0.5
 LIP_EDGE_CM = 0.15  # the lips' tone fades in over this inside their outer line
 SHOTS = [{"name": "neutral", "weights": {}},
          {"name": "smile", "weights": {"lipCornerPuller_L": 1.0, "lipCornerPuller_R": 1.0, "cheekRaiser_L": 0.6,
@@ -137,6 +140,8 @@ def tones(model):
     skin = np.unique(fit.skin_triangles(model))
     points = neutral[skin]
     ear = np.clip((np.abs(points[:, 0]) - EAR_SIDE_CM) / EAR_FADE_CM + 1.0, 0.0, 1.0) * (points[:, 1] > landmarks[3, 1])
+    ear_top = landmarks[[19, 24], 1].max() + EAR_TOP_OVER_BROWS_CM
+    ear = ear * np.clip((ear_top - points[:, 1]) / EAR_FADE_CM + 1.0, 0.0, 1.0)
     found[skin, 0] = np.maximum(blobs(points, landmarks, FLUSH), 0.7 * ear)
     found[skin, 1] = blobs(points, landmarks, UNDER_EYE)
     found[skin, 2] = lips(points, landmarks)

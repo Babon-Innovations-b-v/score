@@ -251,7 +251,8 @@ def main():
     style = json.loads(pathlib.Path(given.style).read_text())
     eyes = eyes_at(face, skin, body)
     groom = strands.combed(np.asarray(body["bind"]), np.asarray(body["faces"]), eyes, style)
-    hair_found = strands.measured(*groom[:2], np.asarray(body["bind"]), np.asarray(body["faces"]), eyes)
+    hair_found = strands.measured(*groom[:2], np.asarray(body["bind"]), np.asarray(body["faces"]), eyes, style,
+                                  groom[2])
     brows = {"points": pieces["brows"]["points"] - [0.0, lift, 0.0]}
     hair, short = hair_laid(groom, body, at, skin_points, brows, float(np.asarray(body["worlds"])[at, head, 1, 3]))
     pieces["hair"] = {"counts": groom[0], "points": hair + [0.0, lift, 0.0], "radius": groom[2],

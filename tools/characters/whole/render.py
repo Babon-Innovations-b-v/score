@@ -16,8 +16,9 @@ the blue sky it lights all from one sun, as outdoors in late morning; nothing el
 turned on a turntable for each view, so the sun stays on the camera's left above and every side is lit alike. An
 85 mm lens framing the whole person at chest height, AgX in its medium high contrast look, exposed by EXPOSURE.
 Then close-ups of the face (the head filling the frame, from its front and three quarters, FACE_VIEWS) and the setting from further
-back (SETTING_VIEW turned, the frame SETTING_MARGIN of the person's height). Writes <out>/<name>-<view>.png,
-<out>/<name>-face-<view>.png and <out>/<name>-setting.png.
+back (SETTING_VIEW turned, the frame SETTING_MARGIN of the person's height), and the hair's parting and hairline close
+up (HAIR_VIEWS: from above, the front and three quarters). Writes <out>/<name>-<view>.png,
+<out>/<name>-face-<view>.png, <out>/<name>-hair-<view>.png and <out>/<name>-setting.png.
 """
 import json
 import math
@@ -44,6 +45,11 @@ SUN = {"turn": 50.0, "rise": 40.0, "strength": 1.0, "air": 1.0, "haze": 1.0}
 EXPOSURE = -4.0
 FACE_VIEWS = {"front": 0.0, "three_quarter": 35.0}  # the face's close-ups, degrees off its front
 FACE_FRAME_M = 0.42  # the close-up's frame height: the head and the neck's top
+# The hair's close-ups (#227): the parting and the hairline, each (degrees off the face's front, degrees the camera
+# rises over the head's top front), framed HAIR_FRAME_M high round the top of the forehead.
+HAIR_VIEWS = {"parting-above": (0.0, 70.0), "hairline-front": (0.0, 12.0), "hairline-three_quarter": (35.0, 20.0)}
+HAIR_FRAME_M = 0.17
+HAIR_AIM_M = (0.03, 0.035)  # the aim behind the head's front and under its top (m)
 SETTING_VIEW = "three_quarter"
 SETTING_MARGIN = 1.9  # the setting's frame: the person and the floor and wall round her
 SETTING = {"behind": 2.5, "width": 14.0, "height": 4.0, "tile_m": 1.5}
@@ -169,8 +175,26 @@ def main(scene_path, library, out):
     camera.rotation_euler = (face_middle - camera.location).to_track_quat("-Z", "Y").to_euler()
     for view, degrees in FACE_VIEWS.items():
         drawn(render, turntable, degrees, out, f"{scene_file['name']}-face-{view}")
-    framed(camera, middle, high, SETTING_MARGIN, EYE_HEIGHT * 1.3)
-    drawn(render, turntable, views[SETTING_VIEW], out, f"{scene_file['name']}-setting")
+    for view, (degrees, rise) in HAIR_VIEWS.items():
+        turntable.rotation_euler = (0.0, 0.0, 0.0)
+        bpy.context.view_layer.update()
+        hair_framed(camera, next(item for item in items if item.name == "skin"), high, rise)
+        drawn(render, turntable, degrees, out, f"{scene_file['name']}-hair-{view}")
+    if SETTING_VIEW in views:
+        framed(camera, middle, high, SETTING_MARGIN, EYE_HEIGHT * 1.3)
+        drawn(render, turntable, views[SETTING_VIEW], out, f"{scene_file['name']}-setting")
+
+
+def hair_framed(camera, skin, high, rise):
+    """The camera `rise` degrees over the head's top front, from in front of the face, framing HAIR_FRAME_M round
+    it."""
+    points = np.array([tuple(skin.matrix_world @ vertex.co) for vertex in skin.data.vertices])
+    head = points[points[:, 2] > high.z - 0.12]
+    aim = Vector((head[:, 0].mean(), head[:, 1].min() + HAIR_AIM_M[0], high.z - HAIR_AIM_M[1]))
+    distance = HAIR_FRAME_M / 2.0 / math.tan(camera.data.angle_y / 2.0)
+    lift = math.radians(rise)
+    camera.location = aim + Vector((0.0, -distance * math.cos(lift), distance * math.sin(lift)))
+    camera.rotation_euler = (aim - camera.location).to_track_quat("-Z", "Y").to_euler()
 
 
 def drawn(render, turntable, degrees, out, name):

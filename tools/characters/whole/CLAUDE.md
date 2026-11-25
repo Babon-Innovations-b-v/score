@@ -20,7 +20,9 @@ docstring has how the face's body is carried onto the clips rig's bind.
 - **The hair is combed on the head it is worn on**, never brought over from another head: Blender's groom grown on
   the made person's hair shell (#227), dropped point by point onto the face's head, lay in flat blocks over the eyes
   with a bald crown (2026-11-25). `hair.py` roots it on this scalp and checks it there: roots off the scalp, strands
-  before the eyes, a bald scalp, clumps and strays.
+  before the eyes, a bald scalp, clumps and strays, the parting's bare strip seen from above, gaps in the roots and
+  a hard hairline (owner, 2026-11-25: "hairline is also still just crazy gap"). The render's hair close-ups
+  (`<pose>-hair-*.png`: the parting from above, the hairline from the front and three quarters) are where to look.
 - **A fault fails the run** after its pictures (a skin point off its low body, a piece through the skin, an earring
   out of its lobe, the hair's). Limits are never loosened to pass.
 - **Daylight, not a studio** (owner, 2026-11-25: the white studio read flat and overexposed): Blender's physical sky
