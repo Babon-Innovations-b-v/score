@@ -1322,7 +1322,8 @@ def environment_of(stage, place, out):
     """The place's sky and light as the final render draws it (usd_views.stage_sky, blender_views): the sky picture
     (sky_picture: copied into `out`, or by its library reference with none), the dome's ambient light, the background
     the camera sees, the exposure (a multiplier), the sun,
-    the view transform and look; `night` its moon and glow where the place has a night (place_build.night)."""
+    the view transform and look; `night` its moon and glow where the place has a night (place_build.night); `haze`
+    its bodies of haze (hazes_of)."""
     sky = stage.GetPrimAtPath(f"/{place}/Environment")
     lights = {prim.GetName(): prim for prim in (stage.GetPrimAtPath(f"/{place}/Lights").GetChildren()
                                                 if stage.GetPrimAtPath(f"/{place}/Lights") else [])
@@ -1343,6 +1344,30 @@ def environment_of(stage, place, out):
             found["night"] = {"moon": distant(lights["moon"]), "glow": {
                 key: float(text_of(sky, f"score:glow_{key}")) for key in ("threshold", "intensity")}
                 if text_of(sky, "score:glow_threshold") is not None else None}
+    found["haze"] = hazes_of(stage, place)
+    return found
+
+
+def hazes_of(stage, place):
+    """[{name, low, high, colour, density, forward}] of the place's bodies of haze (place_build.haze, tools/usd/scene.py's
+    write_haze_volume): each shell's box in the package's frame (its world bound as the stage stands, seated), the fog's
+    colour, its density (thickness a metre) and how strongly it throws light forward, for the game's FogVolume (2099
+    #161: the street's rain air was in the place, drawn by the renders, and never reached the game)."""
+    holder = stage.GetPrimAtPath(f"/{place}/Haze")
+    bounds = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    found = []
+    for prim in Usd.PrimRange(holder) if holder else ():
+        density = prim.GetAttribute("score:haze_density")
+        if not prim.IsA(UsdGeom.Mesh) or not density or not density.HasValue():
+            continue
+        box = bounds.ComputeWorldBound(prim).ComputeAlignedRange()
+        named = prim.GetParent().GetParent() if prim.GetParent().GetName() == "Sky" else prim
+        forward = prim.GetAttribute("score:haze_forward")
+        found.append({"name": named.GetName(), "low": [round(float(value), 4) for value in box.GetMin()],
+                      "high": [round(float(value), 4) for value in box.GetMax()],
+                      "colour": [round(float(value), 6) for value in prim.GetAttribute("score:haze_colour").Get()],
+                      "density": round(float(density.Get()), 6),
+                      "forward": round(float(forward.Get()), 4) if forward and forward.HasValue() else 0.0})
     return found
 
 
