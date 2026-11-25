@@ -93,8 +93,9 @@ def test_the_inputs_row_declares_its_scenes_inventory_not_the_whole_folder():
         assert runner.files_of(row, place)["inventories"] == "{data}/inventory/" + f"{place}.json", place
     loop_split = stages.shapes_first.SPLIT  # the loop's parts split: props-inputs with its registration gate (#41)
     floor_held = pathlib.Path(stages.shapes_first.floor_fit.__file__)  # its fits-the-plan check, the table's (78461f7f)
+    hashed = pathlib.Path(stages.inputs_row.__file__)  # its make, the table's: each picture's sha256 named (#89)
     assert set(_code.source_files(graph.code_functions(row))) == {
-        *_code.source_files(graph.code_functions(loop_split)), floor_held}
+        *_code.source_files(graph.code_functions(loop_split)), floor_held, hashed}
 
 
 def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name():
@@ -325,9 +326,13 @@ def test_a_drawn_close_up_that_does_not_open_is_one_object_s_gap():
     prop data names a close-up has one drawn, and one that does not open is that object's batch gap. Checkout 18,
     2026-11-04 (#75): rows.json kept its concept and drawn close-ups as absolute paths into the frozen home of the run
     that made it, gone after, so every later close-up failed; they are kept relative to PROPS_HOME and found again
-    under the run's own (home_relative's `str(path)` returned whole, or make_closeups without `at_home`, turns it red)."""
+    under the run's own (home_relative's `str(path)` returned whole, or make_closeups without `at_home`, turns it red).
+    #89: a concept changed at the same path moves props-inputs' rows.json, so closeup's key with it (inputs_row's
+    `row[sha] = ...` made `None` turns it red)."""
+    import hashlib
     import score.store as score_store
     import score.stages.props.closeup_row as closeup_row
+    import score.stages.props.inputs_row as inputs_row
     from PIL import Image
     with tempfile.TemporaryDirectory() as held:
         data = pathlib.Path(held)
@@ -336,6 +341,7 @@ def test_a_drawn_close_up_that_does_not_open_is_one_object_s_gap():
         (then / "tool").mkdir(parents=True)
         (then / "design/concepts").mkdir(parents=True)
         Image.new("RGB", (64, 64), closeup_row.GREY).save(then / "lamp.png")
+        Image.new("RGB", (64, 64), (10, 20, 30)).save(then / "design/concepts/square.png")
         objects = {"stage": {"route": "prop", "take": "stage-p1"},
                    "crate": {"route": "prop", "take": "crate-p1", "closeup": "{data}/crate.png"},
                    "lamp": {"route": "prop", "take": "lamp-p1", "closeup": "{home}/lamp.png"}}
@@ -351,11 +357,20 @@ def test_a_drawn_close_up_that_does_not_open_is_one_object_s_gap():
         closeup_row.draw_missing = lambda rows, out: asked.extend(rows) or {}
         try:
             score_store.PROPS_HOME = then
-            closeup_row.make_inputs(inputs, data / "inputs", 7, {})
+            inputs_row.make_inputs(inputs, data / "inputs", 7, {})
             found = {row["id"]: row for row in json.loads((data / "inputs/rows.json").read_text())["rows"]}
             assert {row: entry["drawn"] for row, entry in found.items()} == {
                 "stage": None, "crate": "tool", "lamp": "lamp.png"}, found
             assert found["stage"]["concept"] == "design/concepts/square.png", found
+            assert {row: (entry["concept_sha256"], entry["drawn_sha256"]) for row, entry in found.items()} == {
+                "stage": (hashlib.sha256((then / "design/concepts/square.png").read_bytes()).hexdigest(), None),
+                "crate": (None, None),
+                "lamp": (None, hashlib.sha256((then / "lamp.png").read_bytes()).hexdigest())}, found
+            first = (data / "inputs/rows.json").read_bytes()
+            Image.new("RGB", (64, 64), (30, 20, 10)).save(then / "design/concepts/square.png")
+            (data / "redrawn").mkdir()
+            inputs_row.make_inputs(inputs, data / "redrawn", 7, {})
+            assert (data / "redrawn/rows.json").read_bytes() != first, "a changed concept left props-inputs as it was"
             then.rename(now)
             score_store.PROPS_HOME = now
             (data / "out").mkdir()

@@ -41,7 +41,9 @@ def picture_sha(row, field, files):
 
 def props_inputs(store, record):
     """The content of the props-inputs output `record` made: {file: sha256} of every file but rows.json, and
-    rows.json itself with each picture's path replaced by that picture's sha256 (picture_sha)."""
+    rows.json itself with each picture's path replaced by that picture's sha256 (picture_sha) and the sha256 the
+    output names beside it (inputs_row.SHAS, #89) left out: the record's hash is the picture's bytes either way, so an
+    output from before the field and one after it, of the same pictures, are the same content."""
     listing = {name: sha for name, sha in store.listing(record["output"]).items() if name != "rows.json"}
     rows = store.read_file(record["output"], "rows.json")
     if rows is None:
@@ -50,6 +52,7 @@ def props_inputs(store, record):
         for field in PICTURES:
             if row.get(field):
                 row[field] = picture_sha(row, field, record.get("files", {}))
+            row.pop(f"{field}_sha256", None)
     return {"files": listing, "rows.json": rows}
 
 

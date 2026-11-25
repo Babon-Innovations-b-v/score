@@ -60,6 +60,7 @@ from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.railing_hold as railing_hold
 import score.stages.props.flat_drawn as flat_drawn
+import score.stages.props.inputs_row as inputs_row
 import score.stages.terrain.bounded as bounded_relief
 import score.stages.people_rows as people_rows
 import score.stages.props.prop_data as prop_data
@@ -963,6 +964,15 @@ def boxed_split(row):
                                checks=tuple(fit if check.name == fit.name else check for check in row.checks))
 
 
+def pictures_hashed(row):
+    """props-inputs made by inputs_row.make_inputs, its rows.json naming each picture's sha256 beside its path, so a
+    concept changed at the same path moves closeup's key (#89). Wired here, in the table: score/stages/props/__init__.py
+    is in 77 rows' code, so an import there would re-key them all."""
+    if row.name != "props-inputs":
+        return row
+    return dataclasses.replace(row, make=inputs_row.make_inputs)
+
+
 # Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, or
 # fails it only on its accepted gaps (gapped: the overseer, 2026-10-15), only for the places a locked film script
 # shows (demo_film.films), paid.
@@ -1039,7 +1049,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(layout_fitted, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))))),
+              close_up_laid, map(pictures_hashed, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS,

@@ -147,7 +147,8 @@ tests it turned red:
 - props/same_content.py: `return PROPS_HOME.joinpath(*parts[index + 1:])` -> `return path`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT closeup moved by path text alone)
 - props/same_content.py: `return files[name]` -> `return str(path)` (a closeup whose picture really changed kept), or
-  its `if not files.get(name): raise` dropped (a record with no hash read by today's bytes on disk)  ->
+  its `if not files.get(name): raise` dropped (a record with no hash read by today's bytes on disk), or
+  `row.pop(f"{field}_sha256", None)` dropped (#89: the sha256 field re-buys every close-up once)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT closeup rows)
 - carry.py: `if contents[0] != contents[1]:` -> `if False:`  -> every_part_takes_a_library_surface_and_is_held_to_it
   (its CONTENT_KEPT rows whose content differs); carry.py changes_by_content `return None, None, why` ->
@@ -4460,11 +4461,12 @@ FROZEN_GLTF = ("/home/someone/.score/frozen/20261110-101556-1.home/store/cache/c
 
 def props_inputs_output(store, key, given):
     """A props-inputs@hub output whose one row names given["concept"] (a path under PROPS_HOME, made absolute when it
-    names the frozen home), recorded under `key` as read from a picture of given["sha"]'s text hash ("" for no hash);
-    (its output, None)."""
+    names the frozen home, and given["named"] beside it as its concept_sha256 when given, #89), recorded under `key`
+    as read from a picture of given["sha"]'s text hash ("" for no hash); (its output, None)."""
     folder = pathlib.Path(tempfile.mkdtemp())
     concept = str(PROPS_HOME / given["concept"]) if given["concept"].startswith("frozen/") else given["concept"]
-    row = {"id": "desk", "scene": "hub", "view": "v1", "concept": concept, "drawn": None, "layer": "objects"}
+    row = {"id": "desk", "scene": "hub", "view": "v1", "concept": concept, "drawn": None, "layer": "objects",
+           **({"concept_sha256": given["named"], "drawn_sha256": None} if "named" in given else {})}
     (folder / "rows.json").write_text(json.dumps({"rows": [row], "not_in_inventory": []}))
     (folder / "contract.json").write_text("{}")
     output = store.put_tree(folder)
@@ -4520,6 +4522,8 @@ READS = {
 CONTENT_KEPT = [
     ("a closeup whose props-inputs moved by path text alone", "closeup", {"concept": PICTURE, "sha": "the concept"},
      {}, None, None),
+    ("a closeup whose props-inputs now names its pictures' sha256 beside them (#89)", "closeup",
+     {"concept": PICTURE, "sha": "the concept", "named": "c" * 64}, {}, None, None),
     ("a closeup whose picture really changed", "closeup", {"concept": PICTURE, "sha": "another concept"}, {},
      "props-inputs's output holds other content (rows.json)", None),
     ("a closeup whose picture's path resolves to no file", "closeup",
