@@ -34,6 +34,7 @@ WHEEL_FACES = 32
 # Words of a vehicle that runs on tracks, not on wheels that turn alone (a tracked rover is one piece).
 TRACKED = ("tracked", "track", "tracks", "crawler")
 VEHICLES = ("vehicle",)
+CARS = ("car", "cars", "taxi", "sedan", "saloon")  # words of a wheeled vehicle built as a car (car.py)
 SLIDING = ("sliding", "slide", "slider", "pocket")  # words of a door whose leaf slides aside along its frame
 RECIPES = "data/library/materials.json"
 
@@ -53,7 +54,7 @@ def parted(row, kinds):
             return "double door"
         return "sliding door" if said & set(SLIDING) else None
     if kind in VEHICLES and not said & set(TRACKED) and "drone" not in said:
-        return "wheeled"
+        return "car" if said & set(CARS) else "wheeled"
     return None
 
 
@@ -152,7 +153,15 @@ def vehicle_parts(size):
     return [part("body", [body], "painted_metal"), *wheels]
 
 
-BUILDERS = {"double door": door_parts, "sliding door": sliding_parts, "hatch": hatch_parts, "wheeled": vehicle_parts}
+def car_parts(size):
+    """A car (car.py): its body, glass, cabin, lamps and trim still, its front door on its hinge, its wheels on their
+    axles."""
+    from score.stages.props.moving_parts import car
+    return car.car_parts(size)
+
+
+BUILDERS = {"double door": door_parts, "sliding door": sliding_parts, "hatch": hatch_parts, "wheeled": vehicle_parts,
+            "car": car_parts}
 
 
 def scene_of(parts, centre):
@@ -180,7 +189,8 @@ def build(row, kinds):
     record = {"row": row.get("id"), "rule": rule, "size": [round(float(value), 4) for value in frame_size(row)],
               "parts": [{"name": entry["name"], "finish": entry["finish"], "joint": entry["joint"],
                          "axis": entry["axis"], "sign": entry["sign"],
-                         "pivot": [round(float(value), 5) for value in entry["pivot"] + centre]}
+                         "pivot": [round(float(value), 5) for value in entry["pivot"] + centre],
+                         **({"variant": entry["variant"]} if "variant" in entry else {})}
                         for entry in parts],
               "from": "score/stages/props/moving_parts: built in code with its parts apart, each pivot at its "
                       "node's origin (#19, 2026-11-05)"}

@@ -3,7 +3,9 @@ rows (a garage's "square double door", a docking airlock's "floor hatch", a "lun
 flat's "sliding glass balcony door" take their parted rule, and a single hinged door, a "tracked rover", a drone and a cabinet take none; the double door's two
 leaves hinge on its outer edges about the upright, the left the positive way and the right the negative, the sliding
 door's leaf slides along its frame by its width (`__slide_z`, its node's origin its shut middle), the hatch's
-lid on its level edge, the rover's four wheels spin about their axles at their own middles, each part a node of its
+lid on its level edge, the rover's four wheels spin about their axles at their own middles, the police car is a car
+(car.py): one door, its skin and window hinged at its front edge on its right side, cut out of the body so no second
+skin stands behind it, every part in a palette variant of its recipe, each part a node of its
 own whose name the motion layer reads its joint from (from_design.PART) and whose origin is its pivot, every part
 finished with a recipe of the library (data/library/materials.json), the object at its row's size centred over its
 floor; its model and record are written, the model's nodes by their part names.
@@ -16,6 +18,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/props/moving_par
     `if kind in VEHICLES and not said & set(TRACKED) and "drone" not in said:` -> `if kind in VEHICLES:`
     `transform=trimesh.transformations.translation_matrix(pivot))` -> `transform=np.eye(4))` (no pivot at the origin)
     a wheel's `"rubber"` -> `"tyre"` (a finish no library recipe names)
+    `return "car" if said & set(CARS) else "wheeled"` -> `return "wheeled"` (the police car a slab on wheels)
+in car.py:
+    body_and_door's `kept(vertices, faces, ~door)` -> `kept(vertices, faces, door | ~door)` (a door out of a door)
+    `"door", hinge, "hinge", "y", 1)` -> `"door", hinge)` (the door does not open)
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/moving_parts/
 """
@@ -36,7 +42,7 @@ ROWS = {"square_door": ({"id": "square_door", "name": "square double door", "nou
                         "hatch"),
         "rover": ({"id": "rover", "name": "lunar rover", "noun": "rover", "size": [4.5, 2.5, 2.5]}, "wheeled"),
         "police_car": ({"id": "police_car", "name": "black police car", "noun": "police car",
-                        "size": [1.9, 4.8, 1.5]}, "wheeled"),
+                        "size": [1.9, 4.8, 1.5]}, "car"),
         "door": ({"id": "door", "name": "door", "noun": "door", "size": [1.0, 0.1, 2.1]}, None),
         "balcony_door": ({"id": "balcony_door", "name": "sliding glass balcony door", "noun": "door",
                           "size": [1.4, 0.12, 2.2]}, "sliding door"),
@@ -80,6 +86,18 @@ def test_a_moving_thing_is_built_with_its_parts_on_their_pivots(tmp_path):
             assert np.allclose(placed[:3, 3], entry["pivot"], atol=1e-5), (name, entry["name"])
             named = from_design.PART.match(entry["name"])
             assert (named["joint"], named["axis"]) == (entry["joint"], entry["axis"]) if entry["joint"] else not named
+    police, police_record = built["police_car"]
+    hinged = {name: joint for name, joint in joints(police_record).items() if joint[0] == "hinge"}
+    assert hinged == {"door__hinge_y": ("hinge", "y", 1), "door_window__hinge_y": ("hinge", "y", 1)}, hinged
+    hinge = next(entry["pivot"] for entry in police_record["parts"] if entry["name"] == "door__hinge_y")
+    door = police.geometry["door__hinge_y"].bounds + hinge
+    assert hinge[0] < 0 and np.isclose(door[1][2], hinge[2], atol=0.02), (hinge, door)  # right side, front edge
+    body = police.geometry["body"]
+    behind = body.vertices + police.graph["body"][0][:3, 3]
+    inside = (behind[:, 2] > door[0][2] + 0.05) & (behind[:, 2] < door[1][2] - 0.05) & \
+        (behind[:, 1] > door[0][1] + 0.05) & (behind[:, 1] < door[1][1] - 0.05) & (behind[:, 0] < door[1][0] + 0.05)
+    assert not inside.any(), behind[inside][:3]  # the body has an opening where the door shuts, no skin of its own
+    assert all(entry.get("variant") for entry in police_record["parts"]), police_record["parts"]
     wheel = next(entry for entry in rover["parts"] if entry["name"] == "wheel_1__spin_x")
     hub = built["rover"][0].geometry["wheel_1__spin_x"].bounds.mean(axis=0)
     assert np.allclose(hub, 0.0, atol=1e-6), (wheel, hub)  # it spins at its own middle
