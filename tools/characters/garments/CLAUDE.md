@@ -45,6 +45,14 @@ runs them (an outfit file per look in `data/people/outfits/`).
   The garments' own finishes (high-visibility yellow, retroreflective tape) are written by `finishes.py` for
   score_lib take-in. GarmentCode's box mesh
   crossing itself (its SimpleLapel collar, 2026-11-24) is refused in `inside/pattern.py`, never draped.
+- **Fabrics and construction marks** (owner 2026-11-25: flat single-colour basic patterns "look from 1950"):
+  `fabrics.py` draws denim (3/1 twill, ring-dyed indigo) and jersey (V loops, heather melange) tiles at their real
+  thread counts, and decals (seam lines, topstitching, hems, a rib neck, pockets, a fly, belt loops, rivets) at their
+  makers' measures, written as score's own score_lib surfaces (MIT) for take-in. `details.py` lays an outfit
+  garment's `details` on its cloth as `/Outfit/Garments/<name>_details`: strips along seams and open edges (from the
+  pattern's panels: a seam is an edge two panels share), patches at an anchor of a panel, each point carried by its
+  flat triangle and lifted past the cloth's drawn thickness. GarmentCode's halved panels' centre seams a real
+  garment has none of are listed `plain seams`.
 - **Accessories** (shoes, a belt: `../accessories`, #228) are fitted after the drape from the outfit file's
   `accessories` and written into the same `outfit.usda`; their faults fail the run like a garment's.
 - Tests: `test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it.py` (a toy body of tubes measured, a toy tee

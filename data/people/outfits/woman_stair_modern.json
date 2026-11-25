@@ -1,0 +1,274 @@
+{
+ "about": "woman_stair dressed as people dress today (#225, owner 2026-11-25: the first outfit read as a 1950s costume): a fitted crew-neck heather grey jersey tee worn untucked over slim mid-rise mid-indigo jeans and white shoes. Each garment a GarmentCode design (assets/design_params at the pinned commit) with the settings named: the jeans GarmentCode's Pants on a straight waistband, at its narrowest width (1.0) tapered to the ankle (flare 0.65) at a mid rise (0.7); the tee its t-shirt at its narrowest (shirt.width 1.0), to the hip (length 1.45), a close crew neck (collar.width -0.3, fc_depth 0.3), the sleeves cut loose (connecting_width 0.6, as woman_stair's). Fabrics and construction marks are score's own score_lib surfaces (tools/characters/garments/fabrics.py, MIT): denim_indigo_twill and jersey_heather_grey, the cloth recipe's cotton row (data/physics/cloth.json holds no denim or knit row yet); the jeans' felled seams topstitched in gold on one side, a hem chain stitch, back patch pockets, front scoops with a coin pocket, the fly's J-stitch, copper rivets and belt loops; the tee's seams, coverstitch hems and an 18 mm rib crew neck (tools/characters/garments/details.py). GarmentCode halves the tee's torso and sleeves; those centre seams are left bare (`plain seams`), as a real tee has none.",
+ "look": "woman_stair",
+ "mean": "mean_female",
+ "garments": [
+  {
+   "name": "jeans",
+   "design": "default.yaml",
+   "set": {
+    "meta.upper": null,
+    "meta.wb": "StraightWB",
+    "meta.bottom": "Pants",
+    "pants.length": 0.9,
+    "pants.width": 1.0,
+    "pants.flare": 0.65,
+    "pants.rise": 0.7,
+    "waistband.width": 0.2
+   },
+   "worn": [
+    "lower_interface"
+   ],
+   "surface": {
+    "name": "denim_indigo_twill",
+    "address": "surface/denim_indigo_twill@1",
+    "recipe": "cloth"
+   },
+   "details": {
+    "seam": {
+     "name": "topstitch_jeans_gold",
+     "address": "surface/topstitch_jeans_gold@1"
+    },
+    "seam other side": {
+     "name": "seam_shadow",
+     "address": "surface/seam_shadow@1"
+    },
+    "edge": {
+     "name": "hem_jeans_gold",
+     "address": "surface/hem_jeans_gold@1"
+    },
+    "patches": [
+     {
+      "mark": {
+       "name": "pocket_back_jeans_gold",
+       "address": "surface/pocket_back_jeans_gold@1"
+      },
+      "panel": "pant_b_r",
+      "anchor": "top-centre",
+      "across_cm": 10.0,
+      "down_cm": 13.0
+     },
+     {
+      "mark": {
+       "name": "pocket_back_jeans_gold",
+       "address": "surface/pocket_back_jeans_gold@1"
+      },
+      "panel": "pant_b_l",
+      "anchor": "top-centre",
+      "across_cm": 10.0,
+      "down_cm": 13.0
+     },
+     {
+      "mark": {
+       "name": "pocket_front_jeans_gold",
+       "address": "surface/pocket_front_jeans_gold@1"
+      },
+      "panel": "pant_f_r",
+      "anchor": "top-side",
+      "across_cm": -5.5,
+      "down_cm": 4.5
+     },
+     {
+      "mark": {
+       "name": "pocket_front_jeans_gold",
+       "address": "surface/pocket_front_jeans_gold@1"
+      },
+      "panel": "pant_f_l",
+      "anchor": "top-side",
+      "across_cm": -5.5,
+      "down_cm": 4.5
+     },
+     {
+      "mark": {
+       "name": "fly_jeans_gold",
+       "address": "surface/fly_jeans_gold@1"
+      },
+      "panel": "pant_f_l",
+      "anchor": "top-centre",
+      "across_cm": 2.25,
+      "down_cm": 9.5
+     },
+     {
+      "mark": {
+       "name": "rivet_copper",
+       "address": "surface/rivet_copper@1"
+      },
+      "panel": "pant_f_r",
+      "anchor": "top-side",
+      "across_cm": -0.8,
+      "down_cm": 7.2
+     },
+     {
+      "mark": {
+       "name": "rivet_copper",
+       "address": "surface/rivet_copper@1"
+      },
+      "panel": "pant_f_l",
+      "anchor": "top-side",
+      "across_cm": -0.8,
+      "down_cm": 7.2
+     },
+     {
+      "mark": {
+       "name": "rivet_copper",
+       "address": "surface/rivet_copper@1"
+      },
+      "panel": "pant_f_r",
+      "anchor": "top-side",
+      "across_cm": -10.0,
+      "down_cm": 0.8
+     },
+     {
+      "mark": {
+       "name": "rivet_copper",
+       "address": "surface/rivet_copper@1"
+      },
+      "panel": "pant_f_l",
+      "anchor": "top-side",
+      "across_cm": -10.0,
+      "down_cm": 0.8
+     },
+     {
+      "mark": {
+       "name": "belt_loop_jeans_gold",
+       "address": "surface/belt_loop_jeans_gold@1"
+      },
+      "panel": "wb_front",
+      "anchor": "top-middle",
+      "across_cm": -9.0,
+      "down_cm": 2.75
+     },
+     {
+      "mark": {
+       "name": "belt_loop_jeans_gold",
+       "address": "surface/belt_loop_jeans_gold@1"
+      },
+      "panel": "wb_front",
+      "anchor": "top-middle",
+      "across_cm": 9.0,
+      "down_cm": 2.75
+     },
+     {
+      "mark": {
+       "name": "belt_loop_jeans_gold",
+       "address": "surface/belt_loop_jeans_gold@1"
+      },
+      "panel": "wb_back",
+      "anchor": "top-middle",
+      "across_cm": 0.0,
+      "down_cm": 2.75
+     },
+     {
+      "mark": {
+       "name": "belt_loop_jeans_gold",
+       "address": "surface/belt_loop_jeans_gold@1"
+      },
+      "panel": "wb_back",
+      "anchor": "top-middle",
+      "across_cm": -9.0,
+      "down_cm": 2.75
+     },
+     {
+      "mark": {
+       "name": "belt_loop_jeans_gold",
+       "address": "surface/belt_loop_jeans_gold@1"
+      },
+      "panel": "wb_back",
+      "anchor": "top-middle",
+      "across_cm": 9.0,
+      "down_cm": 2.75
+     }
+    ]
+   }
+  },
+  {
+   "name": "tee",
+   "design": "t-shirt.yaml",
+   "layer_m": 0.006,
+   "set": {
+    "shirt.length": 1.45,
+    "shirt.width": 1.0,
+    "collar.width": -0.3,
+    "sleeve.connecting_width": 0.6,
+    "collar.fc_depth": 0.3
+   },
+   "surface": {
+    "name": "jersey_heather_grey",
+    "address": "surface/jersey_heather_grey@1",
+    "recipe": "cloth"
+   },
+   "details": {
+    "seam": {
+     "name": "seam_shadow",
+     "address": "surface/seam_shadow@1"
+    },
+    "edge": {
+     "name": "hem_coverstitch_grey",
+     "address": "surface/hem_coverstitch_grey@1"
+    },
+    "neck": {
+     "name": "neck_rib_heather_grey",
+     "address": "surface/neck_rib_heather_grey@1"
+    },
+    "plain seams": [
+     [
+      "right_ftorso",
+      "left_ftorso"
+     ],
+     [
+      "right_btorso",
+      "left_btorso"
+     ],
+     [
+      "right_sleeve_f",
+      "right_sleeve_b"
+     ],
+     [
+      "left_sleeve_f",
+      "left_sleeve_b"
+     ]
+    ]
+   }
+  }
+ ],
+ "body surface": {
+  "name": "face_skin_light",
+  "address": "surface/face_skin_light@1"
+ },
+ "accessories": {
+  "shoes": {
+   "upper": {
+    "name": "simready_m_opaque_rubber_smooth_white_a01_5df3b2a8",
+    "address": "surface/simready_m_opaque_rubber_smooth_white_a01_5df3b2a8@1"
+   },
+   "sole": {
+    "name": "simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d",
+    "address": "surface/simready_m_opaque_rubber_foam_white_glossy_a01_aca37a0d@1"
+   }
+  }
+ },
+ "jewellery": {
+  "earrings": {
+   "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+   "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
+  },
+  "watch": {
+   "strap": {
+    "name": "simready_m_opaque_leather_black_a01_9038819b",
+    "address": "surface/simready_m_opaque_leather_black_a01_9038819b@1"
+   },
+   "case": {
+    "name": "simready_m_opaque_metal_gold_polished_a01_0e7e4963",
+    "address": "surface/simready_m_opaque_metal_gold_polished_a01_0e7e4963@1"
+   },
+   "dial": {
+    "name": "simready_m_opaque_ceramic_glossy_white_a01_ab8f1883",
+    "address": "surface/simready_m_opaque_ceramic_glossy_white_a01_ab8f1883@1"
+   },
+   "glass": {
+    "name": "simready_m_trans_glass_clear_a01_0c8515aa",
+    "address": "surface/simready_m_trans_glass_clear_a01_0c8515aa@1"
+   }
+  }
+ }
+}

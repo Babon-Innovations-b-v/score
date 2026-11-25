@@ -5,7 +5,9 @@ fails a garment sewn off centre, a shoulder seam sliding off its shoulder, a nec
 out through the cloth that covers it, or a garment under it out through it (the toy torso worn as a garment under
 the tee), and passes one that sways with the body; shaped.py gives a body another build (wider and taller as its
 shape model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most;
-bands.py cuts a band out of a garment's cloth along its edges, a set height over its hem. Each row is a toy body of
+bands.py cuts a band out of a garment's cloth along its edges, a set height over its hem; details.py lays a garment's
+construction marks on its cloth (a seam's mark on one panel's side and its other side's on the other, an edge's along
+each open edge, a plain seam left bare, a patch at its anchor), each a hair's breadth outside the cloth's drawn face. Each row is a toy body of
 tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
 worn on a toy torso one way, or the toy body reshaped or its arms cleared.
 
@@ -23,13 +25,17 @@ or never failed. In shaped.py: the arms turned in rather than out, an arm point 
 armpit's fold counted or every arm point left out, a shape's standard deviations not scaling its direction, the height
 not set, or the joints left unscaled with the skin. In bands.py: the triangles taken whole by their middles (not cut on
 the band's edges), or a cut's point made once per panel rather than once per seam point (the cloth opened along its
-seams)."""
+seams). In details.py: a seam taken for an open edge (two panels sharing box points not matched), a plain seam marked,
+a strip laid outside its panel (its inward normal not turned), the lift not past the thickness on outward-wound cloth,
+or a patch's side taken towards the body's middle."""
+import json
 import math
+import pathlib
 
 import numpy as np
 import pytest
 
-from tools.characters.garments import bands, measure, seated, shaped
+from tools.characters.garments import bands, details, measure, seated, shaped
 
 NAMES = ["Hips", "Spine2", "Chest", "Neck1", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm",
          "LeftHand", "RightForeArm", "RightHand", "LeftLeg", "LeftShin", "RightLeg", "RightShin"]
@@ -266,6 +272,66 @@ def taped(scale, width):
     return stray
 
 
+def toy_sheet():
+    """Two 20 x 30 cm flat panels side by side on the plane z = 0.1 m (front, +z out), sharing their middle edge
+    (x = 0) at the body's middle, as pattern.py records them: the right panel at -x, the left at +x."""
+    grid = np.arange(0.0, 21.0, 2.0), np.arange(0.0, 31.0, 2.0)
+    copies, flat, box, panel_of, faces, places = [], [], [], [], [], {}
+    for number, sign in ((0, -1.0), (1, 1.0)):
+        start = len(copies)
+        for row, height in enumerate(grid[1]):
+            for column, across in enumerate(grid[0]):
+                key = (round(sign * across, 3), height)
+                places.setdefault(key, len(places))
+                copies.append([sign * across, height, 10.0])
+                flat.append([sign * across, height])
+                box.append(places[key])
+                panel_of.append(number)
+        width = len(grid[0])
+        for row in range(len(grid[1]) - 1):
+            for column in range(width - 1):
+                corner = start + row * width + column
+                quad = [corner, corner + 1, corner + width + 1, corner + width]
+                if sign < 0:
+                    quad = quad[::-1]
+                faces += [[quad[0], quad[1], quad[2]], [quad[0], quad[2], quad[3]]]
+    points = np.zeros((len(places), 3))
+    for (across, height), index in places.items():
+        points[index] = [across / 100.0, height / 100.0, 0.1]
+    record = {"copies": np.asarray(copies), "flat": np.asarray(flat), "box": np.asarray(box),
+              "panel": np.asarray(panel_of), "panel_names": np.asarray(["right", "left"]), "faces": np.asarray(faces)}
+    return record, points
+
+
+def marked(library, plain):
+    """The toy sheet's marks (a 6 mm seam mark, a 10 mm edge mark, a 4 x 2 cm patch 5 cm towards the left panel's
+    side and 5 cm down from its top inner corner): each mark's triangle count, the farthest any point lies off the
+    sheet less the lift, and the patch's middle (cm)."""
+    record, points = toy_sheet()
+    sizes = {"seam": [0.012, 0.006], "edge": [0.012, 0.010], "patch": [0.04, 0.02]}
+    for name, size in sizes.items():
+        own = pathlib.Path(library) / "surface" / name / "1"
+        own.mkdir(parents=True, exist_ok=True)
+        (own / "surface.json").write_text(json.dumps({"size_m": size}))
+    surface = {name: {"name": name, "address": f"surface/{name}@1"} for name in sizes}
+    garment = {"details": {"seam": surface["seam"], "edge": surface["edge"],
+                           "plain seams": [["right", "left"]] if plain else [],
+                           "patches": [{"mark": surface["patch"], "panel": "left", "anchor": "top-centre",
+                                        "across_cm": 5.0, "down_cm": 5.0}]}}
+    body = points - [0.0, 0.0, 0.1]
+    made = details.laid(record, garment, library, points[None], body, 0.003)
+    laid, triangles, _, finish, surfaces = made
+    names = [known["name"] for known in surfaces]
+    counts = {name: int((finish == index).sum()) for index, name in enumerate(names)}
+    sheet = record["faces"][0]
+    normal = np.cross(*(points[record["box"][sheet[1:]]] - points[record["box"][sheet[0]]]))
+    lift = details.CLEAR_M + (0.003 if normal[2] > 0 else 0.0)
+    off = float(np.abs(laid[0][:, 2] - 0.1 - lift).max())
+    past = float(max(np.abs(laid[0][:, 0]).max() - 0.2, -laid[0][:, 1].min(), laid[0][:, 1].max() - 0.3)) * 100.0
+    patch = laid[0][triangles[finish == names.index("patch")].ravel()]
+    return counts, off, past, (patch[:, :2].min(axis=0) + patch[:, :2].max(axis=0)) / 2.0 * 100.0
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
@@ -281,8 +347,10 @@ def taped(scale, width):
     (1.0, "built a tenth wider and 1.8 m tall", (1.1, 1.8)),
     (1.0, "a band round the torso", 0.05),
     (1.15, "a band round the torso", 0.05),
+    (1.0, "marks on a seam, its edges and a pocket", False),
+    (1.0, "marks with the seam plain", True),
 ])
-def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed):
+def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed, tmp_path):
     points, faces, weights, bind, built = toy_body(scale)
     found = measure.measured(points, faces, weights, NAMES, bind)
     for key, value in built.items():
@@ -304,6 +372,14 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         return
     if wear.startswith("a band"):
         assert taped(scale, failed) == pytest.approx(0.0, abs=1e-9)
+        return
+    if wear.startswith("marks"):
+        counts, off, past, middle = marked(tmp_path, failed)
+        # the seam's 30 cm, a strip a side every 0.5 cm: 60 quads a side; each panel's three open edges 70 cm
+        assert counts.get("seam", 0) == (0 if failed else 2 * 60 * 2), counts
+        assert counts["edge"] == 2 * 2 * (20 * 2 + 30) * 2 and counts["patch"] == 4 * 2 * 2, counts
+        assert off == pytest.approx(0.0, abs=1e-6) and past < 1e-6, (off, past)
+        assert middle == pytest.approx([5.0, 25.0], abs=1e-6)
         return
     torso, torso_faces = toy_torso()
     record, cloth, cloth_faces = toy_tee()

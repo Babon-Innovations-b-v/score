@@ -8,7 +8,7 @@ import pathlib
 
 import numpy as np
 
-from tools.characters.garments import bands
+from tools.characters.garments import bands, details
 
 TEXTURE_METRES = 0.5  # the cloth a library surface's texture covers once (its st 0..1)
 
@@ -58,6 +58,27 @@ def taped(stage, mesh, triangles, surface, library):
     bound(stage, subset, surface, library)
 
 
+def marked(stage, record, garment, library, frames, body_points):
+    """The garment's construction marks (details.py) as /Outfit/Garments/<name>_details over the clip, each mark's
+    triangles bound to its library decal (the first by the mesh, the rest by face subsets)."""
+    from pxr import Sdf, UsdGeom, UsdShade, Vt
+    from tools.characters import garments
+    made = details.laid(record, garment, library, frames, body_points, garments.THICKNESS_M)
+    if made is None:
+        return
+    points, triangles, st, finish, surfaces = made
+    mesh = mesh_at(stage, f"/Outfit/Garments/{garment['name']}_details", triangles, points, 0)
+    uvs = UsdGeom.PrimvarsAPI(mesh).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.faceVarying)
+    uvs.Set(st.reshape(-1, 2).astype(np.float32).tolist())
+    bound(stage, mesh, surfaces[0], library)
+    for index, surface in enumerate(surfaces[1:], start=1):
+        subset = UsdGeom.Subset.Define(stage, mesh.GetPath().AppendChild(f"mark{index}"))
+        subset.CreateElementTypeAttr(UsdGeom.Tokens.face)
+        subset.CreateFamilyNameAttr(UsdShade.Tokens.materialBind)
+        subset.CreateIndicesAttr(Vt.IntArray([int(triangle) for triangle in np.flatnonzero(finish == index)]))
+        bound(stage, subset, surface, library)
+
+
 def written(path, body, drape, records, outfit, library, rate):
     """outfit.usda: /Outfit/Body and /Outfit/Garments/<name>, every clip frame, garments bound to their surfaces. The
     stage, saved, for what is worn beside the garments to be added to."""
@@ -89,5 +110,6 @@ def written(path, body, drape, records, outfit, library, rate):
         bound(stage, mesh, garment["surface"], library)
         if "bands" in garment:
             taped(stage, mesh, np.flatnonzero(banded["banded"]), garment["bands"]["surface"], library)
+        marked(stage, record, garment, library, frames, body["frames"][start])
     stage.GetRootLayer().Save()
     return stage

@@ -11,7 +11,7 @@ import subprocess
 import numpy as np
 
 from tools.characters import accessories, garments
-from tools.characters.garments import cache
+from tools.characters.garments import cache, details
 
 BLENDER = pathlib.Path(os.environ.get("BLENDER",
                                       garments.HOME / ".farm-factory-props/blender-mcp/blender-5.2.2/blender"))
@@ -24,7 +24,8 @@ def fetched(outfit, out):
     folder = out / "library"
     addresses = [outfit["body surface"]["address"], *[garment["surface"]["address"] for garment in outfit["garments"]],
                  *[garment["bands"]["surface"]["address"] for garment in outfit["garments"] if "bands" in garment],
-                 *[surface["address"] for surface in accessories.surfaces(outfit.get("accessories", {}))]]
+                 *[surface["address"] for surface in accessories.surfaces(outfit.get("accessories", {}))],
+                 *[surface["address"] for garment in outfit["garments"] for surface in details.surfaces(garment)]]
     # --root names the checkout: its venv's score-lib reads the checkout it was installed from otherwise (a score_lib
     # worktree's own take-in not found, 2026-11-25)
     subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "--root", str(SCORE_LIB), "fetch", *addresses, "--into",
