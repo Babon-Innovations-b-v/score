@@ -19,7 +19,8 @@ its class pools, its nodes with their billed times, prices, the month's bill). T
   a disk a claim holds.
 - **Stock fallback** (#109): `scaleway.py` `restock(euros_left, hours)`, asked by the submitter every
   `RESTOCK_SECONDS` of a run, deletes the `creation_error` nodes (recorded in `CREATION_ERRORS`), holds a pool whose
-  zone is out of its type at max 0 under its `stockout-until` tag (a doubling backoff, never past `stockout-max`) and
-  caps the rest by the euros left (cap_pools' pricing), never under a pool's live nodes (their paid jobs keep
-  running), so the autoscaler grows the same class in a zone with stock and
+  zone is out of its type at its running nodes (0 when none runs) under its `stockout-until` tag (a doubling backoff,
+  never past `stockout-max`) and caps the rest by the euros left (cap_pools' pricing), never under a pool's running
+  nodes (their paid jobs keep running; counted from the node list, never the pool's `size`, which holds creating,
+  failed and deleting nodes too), so the autoscaler grows the same class in a zone with stock and
   a class out everywhere widens to the next. `tenant.py` has none: its pools' maxes are its owner's.

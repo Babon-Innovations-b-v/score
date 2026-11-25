@@ -32,11 +32,11 @@ What Scaleway offers (read from its docs and the scw CLI, 2026-10-09):
   retrying the out-of-stock fr-par-2 L4 pool and never tried the other zone's or an L40S pool, its failed nodes
   holding the pool's slots (#109). So `restock` (the submitter's, every RESTOCK_SECONDS of a run) does the fallback
   itself: it reads Scaleway's availability for each zone the pools are in, deletes every `creation_error` node (each
-  recorded in CREATION_ERRORS: pool, zone, time, error), holds a pool whose zone is out of its type at max 0 until
-  its `stockout-until` tag (a backoff from STOCKOUT_FIRST_MINUTES doubling to the pool's `stockout-max` tag, else
+  recorded in CREATION_ERRORS: pool, zone, time, error), holds a pool whose zone is out of its type at its running
+  node count (none still creating, failed or deleting: 0 when none runs) until its `stockout-until` tag (a backoff from STOCKOUT_FIRST_MINUTES doubling to the pool's `stockout-max` tag, else
   STOCKOUT_MOST_MINUTES), so the autoscaler grows the same class in a zone with stock, and gives every other pool the
   max the euros left pay for (cap_pools' pricing), saying each change with its price. A class out in every zone
-  leaves its pools at 0, so the autoscaler says "max node group size reached" and the submitter widens the kind to
+  leaves its pools at their running node counts, none of them growing, so the autoscaler says "max node group size reached" and the submitter widens the kind to
   its next class (`../submitter.py`), whose pools carry only what the batch's euros left can.
 - **GPU pools** get NVIDIA's GPU operator from Scaleway (driver, container toolkit, device plugin, through Helm) on
   every GPU node, with the resource `nvidia.com/gpu` and the label `nvidia.com/gpu.present=true`; the driver lands
@@ -137,6 +137,7 @@ KUBECONFIG = HOME / "cloud" / f"kubeconfig-{CLUSTER_NAME}.yaml"
 STOCKOUT_UNTIL, STOCKOUT_WAIT, STOCKOUT_MAX = "stockout-until", "stockout-wait", "stockout-max"
 STOCKOUT_FIRST_MINUTES, STOCKOUT_MOST_MINUTES = 5, 60
 NO_STOCK = ("shortage",)  # Scaleway's availability word for none (scarce still sells)
+NOT_RUNNING = ("creating", "creation_error", "deleting", "deleted")  # node statuses in a pool's size that run no job
 CREATION_ERRORS = HOME / "cloud" / "k8s-creation-errors.jsonl"  # every creation_error node restock deleted
 WAIT_SECONDS = 15
 # A pool or cluster change waits out the cluster's own update (a pool max change takes about a minute) this often.
@@ -383,10 +384,11 @@ def stockout_tags(tags, out, now):
 def stock_caps(pools, stock, euros_left, hours, share, now):
     """What a stock read gives each class pool: ({name: max}, {name: its new tags, only those that change}, the lines
     saying each change and its price). A pool whose zone is out of its type (`stock`: {(type, zone): availability},
-    a type unlisted counted out), or still inside its `stockout-until`, is held at 0; every other gets the nodes the
+    a type unlisted counted out), or still inside its `stockout-until`, is held at its running nodes; every other gets the nodes the
     euros left pay for `hours` each within `share` (cap_pools' pricing), so a fallback to a dearer zone or class grows
     only what the batch can carry, and a class with no pool left that it can carry is said refused. No cap goes under
-    a pool's live nodes (`size`): a held or underpaid pool keeps the nodes running its paid jobs, and Kapsule is never
+    a pool's running nodes (`running`, from the node list; never Scaleway's `size`, which also counts nodes still
+    creating, failed or being deleted, so a held pool would keep re-ordering nodes in a zone with no cards, #109): a held or underpaid pool keeps the nodes running its paid jobs, and Kapsule is never
     asked to shrink them."""
     caps, tags, lines, held = {}, {}, [], set()
     for pool in pools:
@@ -398,9 +400,9 @@ def stock_caps(pools, stock, euros_left, hours, share, now):
         if until is not None and until > now:
             held.add(pool["name"])
         paid = 0 if pool["name"] in held else affordable_nodes(euros_left, pool["euros_a_minute"], hours, share)
-        caps[pool["name"]] = max(paid, pool["size"])
+        caps[pool["name"]] = max(paid, pool["running"])
         if pool["name"] in held and pool["max"]:
-            live = " (its live nodes)" if pool["size"] else ""
+            live = " (its live nodes)" if pool["running"] else ""
             lines.append(f"{pool['name']}: {pool['type']} out of stock in {pool['zone']}; held at "
                          f"{caps[pool['name']]}{live} until {time.strftime('%H:%M', time.gmtime(until))} UTC")
         elif pool["name"] not in held and caps[pool["name"]] != pool["max"]:
@@ -427,10 +429,20 @@ def failed_nodes(listed, pools_by_id, now):
             for node in listed if node.get("status") == "creation_error"]
 
 
-def clear_failed(cluster_id, pools_by_id, now):
-    """Delete every `creation_error` node of the cluster, so none holds its pool's size, each recorded first in
-    CREATION_ERRORS; their records."""
-    found = failed_nodes(scw("k8s", "node", "list", f"cluster-id={cluster_id}") or [], pools_by_id, now)
+def running_nodes(listed):
+    """{pool id: how many of `listed` (Scaleway's node records) run}: a node still creating, failed or deleting is
+    in its pool's `size` but runs no job."""
+    counts = {}
+    for node in listed:
+        if node.get("status") not in NOT_RUNNING:
+            counts[node["pool_id"]] = counts.get(node["pool_id"], 0) + 1
+    return counts
+
+
+def clear_failed(listed, pools_by_id, now):
+    """Delete every `creation_error` node of `listed` (the cluster's node records), so none holds its pool's size,
+    each recorded first in CREATION_ERRORS; their records."""
+    found = failed_nodes(listed, pools_by_id, now)
     for record in found:
         CREATION_ERRORS.parent.mkdir(parents=True, exist_ok=True)
         with CREATION_ERRORS.open("a") as written:
@@ -453,8 +465,10 @@ def restock(euros_left, hours, now=None):
     now = time.time() if now is None else now
     found = owned_cluster(backend.account())
     listed = pools(found["id"])
-    failed = clear_failed(found["id"], {pool["id"]: pool for pool in listed}, now)
-    class_found = class_pools()
+    nodes_listed = scw("k8s", "node", "list", f"cluster-id={found['id']}") or []
+    failed = clear_failed(nodes_listed, {pool["id"]: pool for pool in listed}, now)
+    running = running_nodes(nodes_listed)
+    class_found = [{**pool, "running": running.get(pool["id"], 0)} for pool in class_pools()]
     caps, tags, lines = stock_caps(class_found, zone_stock(pool["zone"] for pool in class_found), euros_left, hours,
                                    node_share(len(class_found)), now)
     for pool in class_found:

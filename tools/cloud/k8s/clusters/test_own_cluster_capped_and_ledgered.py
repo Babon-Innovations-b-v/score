@@ -33,8 +33,9 @@ turns it red (each applied once and seen red):
   euros left pay for; a class out everywhere leaves its pools at 0 (the submitter widens to the next class) and the
   next class's pool carries what the euros left pay for, or is said refused when they pay for no node; a hold still
   running stays at 0 in stock, a passed one is lifted; every creation_error node is recorded with its pool, zone and
-  error; no cap is set under a pool's live nodes (a held or underpaid pool running paid jobs keeps them). Break:
-  drop the `pool["size"]` floor in `stock_caps`. Break: `out = False` in `stock_caps` (the out pool keeps growing). Break: `last * 2` -> `last` in
+  error; no cap is set under a pool's running nodes (a held or underpaid pool running paid jobs keeps them), and
+  nodes still creating, failed or deleting hold no cap up. Break: drop the `pool["running"]` floor in `stock_caps`.
+  Break: floor at `pool["size"]` in `stock_caps`. Break: drop `"creating"` from `NOT_RUNNING`. Break: `out = False` in `stock_caps` (the out pool keeps growing). Break: `last * 2` -> `last` in
   `stockout_tags`. Break: drop the `elif not any(caps...)` refusal line. Break: `== "creation_error"` -> `== "error"`
   in `failed_nodes`.
 """
@@ -177,16 +178,18 @@ POOL_KINDS = [(("gpu-24gb", "L4-1-24G", "fr-par-2"),
                ("taints.0.key=score.dev/class", "taints.0.value=cpu-32c-128gb", "min-size=0"))]
 
 
-def stock_pool(name, machine_class, machine_type, zone, euros_an_hour, tags=(), most=6, live=0):
-    """A class_pools record at max `most`, running `live` nodes."""
+def stock_pool(name, machine_class, machine_type, zone, euros_an_hour, tags=(), most=6, live=0, size=None):
+    """A class_pools record at max `most`, running `live` nodes, Scaleway's `size` (its node target, nodes still
+    creating or failed among them) `size`, else `live`."""
     return {"name": name, "id": name, "class": machine_class, "type": machine_type, "zone": zone, "max": most,
-            "size": live, "tags": ["score-jobs", *tags], "euros_a_minute": euros_an_hour / 60, "unit_minutes": 60}
+            "size": live if size is None else size, "running": live, "tags": ["score-jobs", *tags],
+            "euros_a_minute": euros_an_hour / 60, "unit_minutes": 60}
 
 
-def stock_pools(z2_tags=(), z2_live=0):
+def stock_pools(z2_tags=(), z2_live=0, z2_size=None):
     """The 2026-11-10 shape: an L4 pool in each fr-par zone and an L40S in fr-par-2."""
     return [stock_pool("l4-z1", "gpu-24gb", "L4-1-24G", "fr-par-1", 0.79, most=4),
-            stock_pool("l4-z2", "gpu-24gb", "L4-1-24G", "fr-par-2", 0.79, z2_tags, live=z2_live),
+            stock_pool("l4-z2", "gpu-24gb", "L4-1-24G", "fr-par-2", 0.79, z2_tags, live=z2_live, size=z2_size),
             stock_pool("l40s-z2", "gpu-48gb", "L40S-1-48G", "fr-par-2", 1.47, most=0)]
 
 
@@ -218,6 +221,10 @@ STOCK = [
     ("a pool out of stock still running nodes is held at its live nodes", stock_pools(z2_live=2),
      stock_of("available", "shortage", "available"), 100.0, {"l4-z1": 20, "l4-z2": 2, "l40s-z2": 17},
      ["score-jobs", f"stockout-until={NOW + 300:.0f}", "stockout-wait=5"], "held at 2 (its live nodes) until"),
+    ("a pool out of stock whose size counts only creating and failed nodes is held at 0",
+     stock_pools(z2_live=0, z2_size=2), stock_of("available", "shortage", "available"), 100.0,
+     {"l4-z1": 20, "l4-z2": 0, "l40s-z2": 17}, ["score-jobs", f"stockout-until={NOW + 300:.0f}", "stockout-wait=5"],
+     "l4-z2: L4-1-24G out of stock in fr-par-2; held at 0 until"),
     ("a pool the euros left pay less for keeps its live nodes", stock_pools(z2_live=3),
      stock_of("available", "available", "available"), 5.0, {"l4-z1": 1, "l4-z2": 3, "l40s-z2": 0}, None,
      "l4-z2: max 6 -> 3 at EUR 0.79 an hour"),
@@ -236,6 +243,8 @@ def test_own_cluster_capped_and_ledgered(monkeypatch, tmp_path):
                                   {"p2": {"name": "l4-z2", "zone": "fr-par-2"}}, NOW)
     assert [(record["node"], record["pool"], record["zone"], record["error"]) for record in failed] == [
         ("n1", "l4-z2", "fr-par-2", "L4-1-24G is out of stock")] and failed[0]["at"].startswith("2027-01-15")
+    assert cluster.running_nodes([{"pool_id": "p2", "status": status} for status in (
+        "ready", "creating", "creation_error", "deleting", "not_ready")]) == {"p2": 2}
     for euros, nodes in AFFORDABLE:
         assert cluster.affordable_nodes(euros, L4_A_MINUTE, 4) == nodes, f"EUR {euros} left"
     for arguments, wanted in POOL_KINDS:
