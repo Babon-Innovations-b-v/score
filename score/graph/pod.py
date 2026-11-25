@@ -132,7 +132,7 @@ def job_of(runner, stage, place, keyed, code, table):
         files[name] = {"path": str(path), "folder": path.is_dir(),
                        "listing": {relative: graph.stamped_hash(found)
                                    for relative, found in score_store.tree_files(path).items()
-                                   if not graph.bytecode(relative)}}
+                                   if not graph.unkeyed(relative)}}
     inputs = {**keyed["after"], **keyed.get("beside", {})}
     return {"node": graph.node_name(stage, place), "stage": stage.name, "place": place, "keyed": keyed,
             "code": code, "table": table, "objects": sorted(runner.objects) if runner.objects else None,

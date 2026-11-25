@@ -698,6 +698,8 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     brief and a source in its folder are kept.
     Break: score/graph/__init__.py: 'for name, found in tree_files(path).items() if not bytecode(name)})' ->
     'for name, found in tree_files(path).items()})' -> the bytecode row is dropped.
+    Break: score/graph/__init__.py: 'return bytecode(relative) or _code.a_test_file(relative)' -> 'return
+    bytecode(relative)' -> the test-file row is dropped.
     Break: score/graph/__init__.py: '             if path.is_file() and not path.name.endswith(".partial"))' ->
     '             if path.is_file())' -> "accepts/laid@hangar/" lists the .partial file.
     Break: score/graph/__init__.py: '        self.store.objects.keys = listed_once(self.store.objects.keys)' -> '        self.store.objects.keys = self.store.objects.keys'
@@ -2953,6 +2955,7 @@ WRITERS = {
     "rebrief": (BRIEF, {"writes": [["brief", "beside.txt"], ["brief", "brief.txt"]]}),  # its own brief moved
     "importer": (CODE, {"imports": True}),  # a code folder it imports, in its own process and a child's
     "bytecode": (PLACE, {"writes": [["place", "__pycache__/brief.cpython-312.pyc"], ["place", "stray.pyc"]]}),
+    "testing": (PLACE, {"writes": [["place", "test_a_fold.py"], ["place", "tests/folded_test.py"]]}),  # #121
     "sourcing": (PLACE, {"writes": [["place", "notes.txt"]]}),  # a source in a folder it reads
 }
 WAITS = "made: pass; fault report"  # passed, not accepted: worse than the accepted output
@@ -2991,6 +2994,9 @@ GUARDED = (
      True, "code"),
     ("bytecode written in a folder it reads is no input", "brief.txt", "a ship", {}, None, "bytecode", ACCEPTED, (),
      False, True, None),
+    # #121: a fold of sim_body/inside's tests re-keyed every paid row declaring that folder.
+    ("a test file written in a folder it reads is no input", "brief.txt", "a ship", {}, None, "testing", ACCEPTED,
+     (), False, True, None),
     ("a source written in a folder it reads: dropped", "brief.txt", "a ship", {}, None, "sourcing",
      MOVED.format(node="sourcing"), (), True, False, None),
 )

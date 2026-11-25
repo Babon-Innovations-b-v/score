@@ -426,10 +426,18 @@ def changed_since(commit, relatives):
     return sorted(found.stdout.split()) if found.returncode == 0 else None
 
 
+def a_test_file(relative):
+    """True for a test file (test_*.py or *_test.py) by its path: a declared folder's key leaves it out (graph.unkeyed),
+    as a make never runs one and a fold of the tests in a declared code folder (sim_body/inside, #121) re-keyed every
+    paid row declaring it."""
+    name = relative.rsplit("/", 1)[-1]
+    return name.endswith(".py") and (name.startswith("test_") or name.endswith("_test.py"))
+
+
 def source_hash_at(commit, relative):
     """The key hash (graph.source_hash) a repository file or folder had at `commit`, from git's own objects (None
     for a commit git does not know): the
-    sources only, as git holds no bytecode."""
+    sources only, as git holds no bytecode, its test files left out (a_test_file)."""
     from score.store import listing_hash
     listed = subprocess.run(["git", "-C", str(REPO), "ls-tree", "-r", "-z", commit, "--", relative],
                             capture_output=True, text=True)
@@ -439,9 +447,10 @@ def source_hash_at(commit, relative):
     blobs = {}
     for entry in filter(None, entries):
         meta, name = entry.split("\t", 1)
-        if meta.split()[1] == "blob":
-            blobs[pathlib.PurePosixPath(name).name if name == relative
-                  else pathlib.PurePosixPath(name).relative_to(relative).as_posix()] = meta.split()[2]
+        inside = pathlib.PurePosixPath(name).name if name == relative \
+            else pathlib.PurePosixPath(name).relative_to(relative).as_posix()
+        if meta.split()[1] == "blob" and not a_test_file(inside):
+            blobs[inside] = meta.split()[2]
     if not blobs:  # nothing there at that commit
         return listing_hash({})
     asked = ("\n".join(blobs.values()) + "\n").encode()

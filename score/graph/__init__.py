@@ -404,7 +404,7 @@ def node_seed(world_seed, stage, place):
     return int(text_hash(f"{world_seed}/{stage}/{place}")[:8], 16)
 
 
-BYTECODE_REASON = "same sources, bytecode left out of the key"
+BYTECODE_REASON = "same sources, bytecode and test files left out of the key"
 NO_OP_REASON = "same result: every change since it was made is proved a no-op for it"
 NARROWING_REASON = "same reads: every file its key reads today reads as it did when it was made"
 WORDS_REASON = "same meaning: every file its key reads today reads as when it was made, or differs only in words"
@@ -434,6 +434,11 @@ def bytecode(relative):
     return relative.endswith(".pyc") or "__pycache__" in relative.split("/")
 
 
+def unkeyed(relative):
+    """True for a file of a declared folder its key leaves out: bytecode and test files (_code.a_test_file)."""
+    return bytecode(relative) or _code.a_test_file(relative)
+
+
 # {(device, inode, size, mtime ns, ctime ns): sha256} of the files source_hash read: a status of environment 1 hashed
 # 38,078 files for 1,065 nodes (65 of its 91 s, 2026-10-27), the same input folders again for every node reading
 # them. Any write moves a file's ctime, so a hit is the same bytes and every key is as without it; a file changed in
@@ -455,8 +460,9 @@ def stamped_hash(path):
 
 
 def source_hash(path):
-    """An environment file's or folder's hash as a key part: the store's tree hash of it, its bytecode left out."""
-    return listing_hash({name: stamped_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
+    """An environment file's or folder's hash as a key part: the store's tree hash of it, its bytecode and test files
+    left out (unkeyed)."""
+    return listing_hash({name: stamped_hash(found) for name, found in tree_files(path).items() if not unkeyed(name)})
 
 
 def stacks_on_ask():
@@ -1804,7 +1810,7 @@ class Runner:
 
     def bytecode_proof(self, stage, place, keyed):
         """{file name: its recorded hash, its sources' hash at the record's commit and now} when the node's accepted
-        output differs from `keyed` only by bytecode in declared repository files (#67: keys hashed each checkout's
+        output differs from `keyed` only by bytecode or test files in declared repository files (#67: keys hashed each checkout's
         __pycache__ until 2026-10-13): a record of a committed tree, every other key part the same, and each file
         that moved, rebuilt from git at the record's commit, hashing as it does now. None otherwise."""
         node = node_name(stage, place)
