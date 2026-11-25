@@ -7,6 +7,7 @@ score_lib's surfaces with a recipe, never one painted for one model or with none
 model a part bound to a library surface, which the measures read as its finish groups and families.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- bench.masks_step: glob `f"{asset}.*.png"` -> `"*.png"` -> the crate keeps another asset's mask as its own (#207)
 - bench.view_of: MARGIN left out of `reach` -> the box's outermost corner lands on the frame's edge, not inside it
 - bench.view_of: LOOK_DOWN_DEGREES for every row, not check.look_down -> the tray is not seen from straight above
 - bench.on_backdrop: the alpha left out (the render's RGB alone) -> the backdrop comes out black, not BACKDROP
@@ -693,6 +694,14 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
     # on the backdrop, steel in rgba.png) is refused
     with pytest.raises(bench.StepFailed, match="floor lights it"):
         bench.render_asset(row, {}, tmp_path / "lit-scratch", tmp_path / "lit", drawer(scale, lit=40))
+    if name == "simready_crate_blue_a01":  # SAM 3's masks of each close-up kept as its input's step (#207), once
+        (tmp_path / "found").mkdir()
+        for mask in (f"{name}.window.0.png", "simready_other_a01.window.0.png"):
+            Image.new("L", (4, 4), 255).save(tmp_path / "found" / mask)
+        bench.masks_all([row, {**row, "id": "simready_none_a01"}], kept, "trial", tmp_path / "found")
+        masked = kept.store.listing(kept.entry(name, "input", "masks")["output"])
+        assert list(masked) == [f"{name}.window.0.png"], masked
+        assert "no SAM 3 mask" in kept.entry("simready_none_a01", "input", "masks")["gap"]
 
     if failing is None:  # one asset through branch B's finish (the others' rows test the render and the steps)
         (variants, palette, addresses, left), side, family = finished_box(tmp_path, monkeypatch, name,

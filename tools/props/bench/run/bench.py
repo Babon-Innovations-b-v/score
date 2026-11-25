@@ -4,6 +4,7 @@ step's output kept as a run-store object whose blobs go to the SCORE store bucke
 
     PROPS_HOME=~/.score-this-pc SCORE_CLOUD=local SCORE_FREE_ONLY=1 .venv/bin/python tools/props/bench/run/bench.py \
         render <set.json> --library <scratch score_lib checkout> [--run <id>] [--only <id> ...]
+    ... bench.py masks <set.json> --library <...> --run <id> --from <box_masks_cloud.py's masks folder> [--only ...]
     ... bench.py route <set.json> --library <...> --run <id> --branch A|B [--only <id> ...]
     ... bench.py measure <set.json> --library <...> --run <id> [--only <id> ...] [--previous <run>]
     ... bench.py index --run <id>        # the run's index stored as an object; its hash
@@ -656,7 +657,9 @@ def branch_b(kept, row, material, rgba, scratch, library):
         model = checked_out(kept, row["id"], "B", "final", scratch / "B" / "kept-final") / "final.glb"
         run_steps(kept, row["id"], "B", [("straight", straight_step(model)), ("gate", gate_step(model, row))],
                   scratch)
-        run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba, row, library))],
+        masks = (checked_out(kept, row["id"], "input", "masks", scratch / "B" / "kept-masks")
+                 if kept_output(kept, row["id"], "input", "masks") else None)
+        run_steps(kept, row["id"], "B", [("finish", finish_step(model, rgba, row, library, masks))],
                   scratch)
         if kept_output(kept, row["id"], "B", "finish"):
             parted = checked_out(kept, row["id"], "B", "finish", scratch / "B" / "look-finish")
@@ -957,12 +960,32 @@ def look_holes(look, bare):
     return round(float(holes.sum() / max(int(inside.sum()), 1)), 5)
 
 
-def finish_step(model, close_up, row, library):
+def finish_step(model, close_up, row, library, masks=None):
     """The made model through the library finish method (finish.py: views, list, split, parts) on the benchmark
-    place's surface library; its rows' outputs kept whole."""
+    place's surface library, the close-up's SAM 3 masks (`masks`, the input's `masks` step, #207) its views' face
+    groups where kept; its rows' outputs kept whole."""
     def make(folder):
-        finish.finished(model, close_up, row, library(), folder)
+        finish.finished(model, close_up, row, library(), folder, masks=masks)
     return make
+
+
+def masks_step(found, asset):
+    """The asset's SAM 3 masks of its close-up (#207: tools/cloud/box_masks_cloud.py's `<asset>.<word>.<n>.png` in
+    `found`, asked of its rgba.png) kept as its input's `masks` step, which its finish's views read; none found is
+    the step's gap, the finish then made as before."""
+    def make(folder):
+        mine = sorted(pathlib.Path(found).glob(f"{asset}.*.png"))
+        if not mine:
+            raise StepFailed(f"{asset}: no SAM 3 mask of its close-up in {found}")
+        for path in mine:
+            shutil.copyfile(path, folder / path.name)
+    return make
+
+
+def masks_all(rows, kept, run, found):
+    """Each asset's SAM 3 masks in `found` kept as its input's `masks` step (masks_step)."""
+    for row in rows:
+        run_steps(kept, row["id"], "input", [("masks", masks_step(found, row["id"]))], job_scratch(run, row["id"]))
 
 
 # --- the measures: each made model held to its truth (tools/props/bench/measures) ------------------------------------
@@ -1465,7 +1488,7 @@ def stored_index(kept):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("command", choices=("render", "route", "measure", "index"))
+    parser.add_argument("command", choices=("render", "masks", "route", "measure", "index"))
     parser.add_argument("set", nargs="?")
     parser.add_argument("--library", help="a scratch score_lib checkout (git worktree add --detach)")
     parser.add_argument("--run", default=datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M%S"))
@@ -1473,6 +1496,7 @@ def main():
     parser.add_argument("--only", action="append", help="this asset's id alone (repeat)")
     parser.add_argument("--previous", help="measure: the previous round's run, whose looks the picture judge holds "
                                            "each look to (#184)")
+    parser.add_argument("--from", dest="found", help="masks: box_masks_cloud.py's masks folder (<out stem>.masks)")
     options = parser.parse_args()
     kept = opened_kept(options.run)
     if options.command != "index":
@@ -1485,6 +1509,10 @@ def main():
         kept.index.setdefault("set", str(options.set))
         if options.command == "render":
             render_all(rows, values, kept, options.run)
+        elif options.command == "masks":
+            if not options.found:
+                raise SystemExit("masks needs --from <box_masks_cloud.py's masks folder>")
+            masks_all(rows, kept, options.run, options.found)
         elif options.command == "measure":
             measure_all(rows, every, kept, options.run, opened_kept(options.previous) if options.previous else None)
         elif not options.branch:

@@ -216,9 +216,10 @@ def fitted_camera(model, close_up, row, folder):
     return path
 
 
-def finished(model, close_up, row, library, folder, ask=None):
+def finished(model, close_up, row, library, folder, ask=None, masks=None):
     """The finish route's rows (views, list, split, parts) on one made model into `folder`, each row's output its own
-    folder; the parts row's folder. `ask` replaces the list's ask (a test's); else the place line's (Claude)."""
+    folder; the parts row's folder. `ask` replaces the list's ask (a test's); else the place line's (Claude). `masks`:
+    a folder of SAM 3's masks of the close-up, the views' input `masks <take>` (#207), each a face group there."""
     import score.stages.surfaces  # noqa: F401  (the stage first: its modules import one another through it)
     import claude_asks
     import route_list
@@ -229,7 +230,8 @@ def finished(model, close_up, row, library, folder, ask=None):
     inputs = {"surfaces": str(take_data(row, folder)), f"model {row['id']}": str(model),
               f"close-up {row['id']}": str(close_up), f"camera {row['id']}": str(fitted_camera(model, close_up, row,
                                                                                                folder)),
-              **{name: str(path) for name, path in rows.items()}}
+              **{name: str(path) for name, path in rows.items()},
+              **({} if masks is None else {f"masks {row['id']}": str(masks)})}
     params = {"objects": [row["id"]]}
     makes = (("finish-route-views", route_views.make_views),
              ("finish-route-list", claude_asks.asking_claude(route_list.make_list) if ask is None

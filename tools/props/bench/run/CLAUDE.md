@@ -12,7 +12,7 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
   assets are made ROUTES_AT_ONCE (2) side by side, one on the card while the other runs its processor and Claude steps.
   Nothing paid runs here: the close-up redraw (Nano Banana Pro, tier 2) is not called;
   on branch A the finish route and the solid copy are recorded as not run (`NOT_RUN`).
-- **Branch B's finish** (`finish.py`, #168): the final model through the surface stage's finish route (views, list,
+- **Branch B's finish** (`finish.py`, #168; its views given the close-up's SAM 3 masks where the input's `masks` step keeps them, `bench.py masks --from` box_masks_cloud.py's masks folder, #207): the final model through the surface stage's finish route (views, list,
   split, parts; the list asked of Claude as a place's line asks it, EUR 0), on the benchmark place's surface library:
   score_lib's surfaces in force with a recipe (the adopted tiling set at its fitted settings, the recipes), each colour
   a palette token; a surface painted for one model, a vent pattern (#210: a mark's openings, offered to the list's

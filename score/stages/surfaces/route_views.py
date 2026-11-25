@@ -14,7 +14,10 @@ lacks. Its regions: every seen pixel's CIELAB colour, the views' and the laid cl
 (colour_regions: FINE k-means groups fitted on SAMPLE pixels with the node's seed, a group for each far colour they
 miss, the nearest merged down to REGIONS; colours only split, they name nothing), the same groups in every view, so
 the list's answer labels each region of each view with a finish. A region holds one piece group (piece_groups: the
-model's main piece or the rest, where the rest shows PIECE_SHARE), so one colour on two pieces is two regions (#174).
+model's main piece or the rest, where the rest shows PIECE_SHARE), so one colour on two pieces is two regions (#174),
+and one SAM 3 mask of the close-up where the take has them (its input `masks <take>`, a folder: mask_faces, laid
+through the close-up's camera), so a panel bounded by an edge is a region even where its colour lies inside its
+body's (#207).
 
 Output per take: <take>/model.npz (the welded, normalised vertices and faces every later row reads, so the face ids
 agree), <take>/faces.npz, colours.npz and regions.npz (one array a view), <take>/<view>.png (the texture, shaded by
@@ -93,6 +96,18 @@ SEEN_DEPTH = 3.0
 # few edge pixels of a part the close-up hardly shows.
 SHOWN_LEAST = 25
 EDGE = 2  # a close-up pixel is kept only when those EDGE away on every side lie on the model in the cast and alpha
+# SAM 3's masks of the close-up (#207, the input `masks <take>`, mask_faces): tc6's humidifier's control window, a
+# mid-grey panel (sRGB 95 to 115) on a ribbed grey body whose rib light and shadow span 76 to 155, fell by colour alone
+# in regions holding rib pixels. Each mask laid through the close-up's camera is a group of its own, so its faces are
+# regions no other part's pixels join. A face is a mask's when MASK_SHARE of its laid pixels lie under it (the
+# smallest such mask, so a panel inside a door's mask keeps its own); a mask showing under SHOWN_LEAST laid pixels, or
+# over MASK_MOST of the laid model, is none (a speck, or the whole body), nor one whose overlap with a kept one is
+# MASK_SAME of the two together (the same panel under two words). At most MASKS_MOST are kept, the largest first, so the piece groups and every
+# mask keep a region of the REGIONS.
+MASK_SHARE = 0.5
+MASK_MOST = 0.5
+MASK_SAME = 0.8
+MASKS_MOST = REGIONS - 2
 
 
 def seen_area(mesh, found):
@@ -176,11 +191,12 @@ def two_materials(centres, counts):
     return major[:, None] & major[None] & (hue >= MAJOR_CHROMA)
 
 
-def colour_regions(colours, faces, seed, groups=None):
-    """(the regions' CIELAB centres, each view's region per pixel, -1 off the model, each region's piece group):
+def colour_regions(colours, faces, seed, groups=None, masked=None):
+    """(the regions' CIELAB centres, each view's region per pixel, -1 off the model, each region's group):
     every seen pixel's colour in at most REGIONS groups of distinct colour (fine_centres merged, merged_centres), a
     region of one piece group only where `groups` (piece_groups, per face) gives the rest PIECE_SHARE of the seen
-    pixels, else one group; groups no pixel falls in are dropped."""
+    pixels, else one group, and of one close-up mask where `masked` (mask_faces, per face, 0 under none) names one
+    (each group its piece's and mask's together, masked_groups); groups no pixel falls in are dropped."""
     seen = {view: cast.lab_of(colours[view][faces[view] >= 0]) for view in faces}
     every = np.concatenate(list(seen.values()))
     if groups is None:
@@ -190,7 +206,10 @@ def colour_regions(colours, faces, seed, groups=None):
     every_group = np.concatenate(list(of.values()))
     if (every_group > 0).mean() < PIECE_SHARE:
         of = {view: np.zeros_like(group) for view, group in of.items()}
-        every_group = np.zeros_like(every_group)
+    if masked is not None:
+        of = {view: masked_groups(group, np.asarray(masked)[faces[view][faces[view] >= 0]], masked)
+              for view, group in of.items()}
+    every_group = np.concatenate(list(of.values()))
     fitted = [(fine_centres(every[every_group == group], seed + group), group) for group in np.unique(every_group)]
     centres = np.concatenate([found for found, _ in fitted])
     centre_groups = np.concatenate([np.full(len(found), group) for found, group in fitted])
@@ -215,6 +234,54 @@ def piece_groups(mesh):
     main = centres[piece == counts.argmax()]
     inside = ((centres >= main.min(0)) & (centres <= main.max(0))).all(1)
     return (np.bincount(piece, weights=inside)[piece] / counts[piece] < 0.5).astype(int)
+
+
+def masked_groups(pieces, masks, masked):
+    """Each of `pieces` (piece groups) and its mask in `masks` (one of `masked`'s, mask_faces: 0 under none) as one
+    group, `piece * span + mask`, span one past `masked`'s most, so the main piece under no mask stays group 0."""
+    return np.asarray(pieces) * (int(np.max(masked, initial=0)) + 1) + np.asarray(masks)
+
+
+def mask_faces(face_count, laid, masks):
+    """Each face's close-up mask (#207): one more than the number among the kept masks (MASK_MOST, SHOWN_LEAST,
+    MASK_SAME, MASKS_MOST; the largest first) of the smallest under which MASK_SHARE of the face's laid pixels lie, 0
+    under none or not laid. `laid`: the face under each close-up pixel kept (kept_close_up), `masks`: SAM 3's of the
+    close-up on the same grid (close_up_masks), bool (count, rows, columns)."""
+    on = laid >= 0
+    seen = np.bincount(laid[on], minlength=face_count)
+    shown = [int((mask & on).sum()) for mask in masks]
+    kept = []
+    for index in sorted(range(len(masks)), key=lambda number: -shown[number]):
+        if len(kept) == MASKS_MOST or not SHOWN_LEAST <= shown[index] <= MASK_MOST * on.sum():
+            continue
+        if any((masks[index] & masks[other] & on).sum() > MASK_SAME * ((masks[index] | masks[other]) & on).sum()
+               for other in kept):
+            continue
+        kept.append(index)
+    found = np.zeros(face_count, dtype=int)
+    for number, index in enumerate(kept):  # largest first: a smaller mask a face lies under takes it after
+        under = np.bincount(laid[on & masks[index]], minlength=face_count)
+        found[(seen > 0) & (under >= MASK_SHARE * seen)] = number + 1
+    return found
+
+
+def close_up_masks(folder, close_up):
+    """SAM 3's masks of the take's close-up (#207, its input `masks <take>`: a folder of them, one picture each, white
+    on black at the close-up's own size), by name, read on the grid route_cast.close_up_cast samples the close-up on
+    (every step-th pixel, at most route_cast.CLOSE_UP_SIDE across): bool (count, rows, columns). A mask of another
+    size is refused: it is not a mask of this close-up."""
+    from PIL import Image
+    with Image.open(close_up) as picture:
+        width, height = picture.size
+    step = max(1, -(-max(width, height) // cast.CLOSE_UP_SIDE))
+    found = []
+    for path in sorted(pathlib.Path(folder).glob("*.png")):
+        with Image.open(path) as mask:
+            if mask.size != (width, height):
+                raise ValueError(f"{path.name}: a mask of {mask.size[0]}x{mask.size[1]}, the close-up is "
+                                 f"{width}x{height}: not a mask of this close-up")
+            found.append(np.asarray(mask.convert("L"))[::step, ::step] > 127)
+    return np.array(found, dtype=bool).reshape(len(found), -(-height // step), -(-width // step))
 
 
 def assigned(lab, lab_groups, centres, centre_groups):
@@ -438,9 +505,10 @@ def laid_close_up(model, close_up, camera_file):
     return (faces, colours), {"laid": True, "fit": fit}
 
 
-def view_take(model_file, close_up, camera_file, folder, seed):
+def view_take(model_file, close_up, camera_file, folder, seed, masks=None):
     """One take's views and regions into `folder`, the close-up laid on the model one more view of the regions
-    (laid_close_up) where it fits; its record (view_record, its regions, the paint's face count, the laid close-up)."""
+    (laid_close_up) where it fits, there each of its SAM 3 masks (`masks`, a folder: close_up_masks) a group of faces
+    (mask_faces); its record (view_record, its regions, the paint's face count, the laid close-up, the masks)."""
     model = cast.loaded(model_file)
     angles, casts = covering_views(model.mesh)
     faces = {view: found for view, (found, _) in casts.items()}
@@ -450,9 +518,14 @@ def view_take(model_file, close_up, camera_file, folder, seed):
     if laid is not None:
         every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid
     groups = piece_groups(model.mesh)
-    centres, regions, region_groups = colour_regions(every_colours, every_faces, seed, groups)
-    if not region_groups.any():  # one piece group (PIECE_SHARE): every face of it
+    masked = None if laid is None or masks is None else mask_faces(len(model.mesh.faces), laid[0],
+                                                                     close_up_masks(masks, close_up))
+    centres, regions, region_groups = colour_regions(every_colours, every_faces, seed, groups, masked)
+    span = 1 if masked is None else int(masked.max(initial=0)) + 1
+    if not (region_groups // span).any():  # one piece group (PIECE_SHARE): every face of it
         groups = np.zeros_like(groups)
+    if masked is not None:
+        groups = masked_groups(groups, masked, masked)
     views_saved(folder, model, (angles, faces, colours), regions)
     texels = texel_regions(model, centres, (groups, region_groups))
     if texels and laid is not None:
@@ -470,7 +543,10 @@ def view_take(model_file, close_up, camera_file, folder, seed):
             "regions": region_records(centres, every_colours, regions,
                                       None if laid is None else close_up_shown(every_faces, regions, laid,
                                                                                len(centres))),
-            "close_up_laid": laid_record}
+            "close_up_laid": laid_record,
+            "masks": None if masked is None else {"given": len(list(pathlib.Path(masks).glob("*.png"))),
+                                                  "kept": int(masked.max(initial=0)),
+                                                  "faces": int((masked > 0).sum())}}
 
 
 def files(place):
@@ -494,7 +570,7 @@ def make_views(inputs, out, seed, params):
             found[take] = {"model": None}
             continue
         record = view_take(model_file, inputs.get(f"close-up {take}"), inputs.get(f"camera {take}"), out / take,
-                           seed)
+                           seed, inputs.get(f"masks {take}"))
         found[take] = {"model": pathlib.Path(model_file).name, **record}
     (out / "views.json").write_text(json.dumps(found, indent=1))
 

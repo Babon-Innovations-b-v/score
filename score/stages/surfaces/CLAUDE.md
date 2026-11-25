@@ -160,7 +160,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   a small saturated area keeps its region. A region holds one piece group (`piece_groups`: the model's largest
   connected piece with the pieces lying mostly in its box, or the rest, where the rest shows `PIECE_SHARE` 5% of the
   seen pixels), so one colour on two pieces is two regions the list labels apart (#174: TRELLIS.2's desk board's
-  underside grouped with its legs and drawn as frame metal; a model of one piece groups as before). In the split the laid close-up votes as the front does, and a finish only
+  underside grouped with its legs and drawn as frame metal; a model of one piece groups as before), and one SAM 3 mask of the close-up where the take has them (#207: its input `masks <take>`, a folder of masks at the close-up's size, `mask_faces`: each face its smallest kept mask under MASK_SHARE of its laid pixels, the whole body's and specks dropped, at most MASKS_MOST), so a panel bounded by an edge is a region even where its colour lies inside its body's (tc6's humidifier's control window on its ribbed grey body). In the split the laid close-up votes as the front does, and a finish only
   it labels (no texture view shows it) takes the faces it labels (`route_split.close_up_only`); never a whole part
   painted to pass a check. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
   Google's Batch API at half price (`route_ask.py`, `tools/cloud/google_batch.py`), seeing the close-up, every

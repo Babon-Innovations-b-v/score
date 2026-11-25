@@ -252,6 +252,11 @@ tests it turned red:
 - route_views.py merged_centres: `+ 1e3 * (centre_groups[:, None] != centre_groups[None])` -> `+ 0`, or
   colour_regions `if (every_group > 0).mean() < PIECE_SHARE:` -> `if True:`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its board's grey underside and its legs' grey, #174)
+- route_views.py colour_regions: `if masked is not None:` -> `if False:`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (tc6's humidifier window sharing regions with its ribs, #207);
+  mask_faces taken smallest first (`reversed(list(enumerate(kept)))`) -> the same test (the window inside the
+  panel's mask takes the panel's); close_up_masks `[::step, ::step]` -> `[:, :]` -> the same test (the masks off the
+  cast's grid)
 - route_views.py merged_centres: `+ 2e3 * two_materials(centres, counts))` -> `)`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its slate body and grey battery among shading ramps and
   accents: merged into one region under seeds 8 and 11, #202); and, apart, its `1e3` and `2e3` swapped -> the same
@@ -2367,6 +2372,42 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         regions = np.where(np.arange(64) < 32, 1, 0)[None, :].repeat(64, 0)
         shown = route_views.close_up_texels(model, own, laid, regions, {"face0": face_of})["closeup0"]
     assert (shown[4:, :4] == 1).all() and (shown[4:, 4:] == 0).all() and (shown[0] == -1).all(), shown
+    # SAM 3's masks of a close-up (#207) read on the grid its cast samples (a 1100 x 700 close-up: every third pixel),
+    # and a mask of another size refused
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        Image.new("RGBA", (1100, 700)).save(folder / "close-up.png")
+        (folder / "masks").mkdir()
+        Image.new("L", (1100, 700), 255).save(folder / "masks" / "a.png")
+        read = route_views.close_up_masks(folder / "masks", folder / "close-up.png")
+        (folder / "camera.json").write_text(json.dumps({"look": {"eye": [0.5, 0.5, 3.0], "right": [1, 0, 0],
+                                                                 "up": [0, 1, 0]},
+                                                        "camera_angle_x": 2 * math.atan(0.6 / 3.0)}))
+        cast_grid = route_cast.close_up_cast(model, route_cast.close_up_camera(folder / "camera.json"), (1100, 700))[0]
+        assert read.shape == (1, *cast_grid.shape) and read.all(), (read.shape, cast_grid.shape)
+        Image.new("L", (550, 350)).save(folder / "masks" / "b.png")
+        with pytest.raises(ValueError, match="not a mask of this close-up"):
+            route_views.close_up_masks(folder / "masks", folder / "close-up.png")
+    # each face its smallest kept mask (#207): four faces a quadrant each of a 20 x 20 laid close-up; the whole body's
+    # mask (over MASK_MOST), a speck (under SHOWN_LEAST) and the window's twin under another word are none; the
+    # window (face 0) inside the panel's mask (faces 0 and 1) keeps its own
+    laid_faces = np.repeat(np.repeat(np.array([[0, 1], [2, 3]]), 10, axis=0), 10, axis=1)
+    quadrant = np.zeros((20, 20), bool)
+    quadrant[:10, :10] = True
+    panel, speck = np.zeros((20, 20), bool), np.zeros((20, 20), bool)
+    panel[:10], speck[15:17, 15:17] = True, True
+    masks = np.array([np.ones((20, 20), bool), panel, quadrant, quadrant.copy(), speck])
+    assert route_views.mask_faces(5, laid_faces, masks).tolist() == [2, 1, 0, 0, 0]
+    # tc6's humidifier (#207): its control window's greys (sRGB 95 to 115, face 1) inside its ribbed body's (76 to 155,
+    # face 0): by colour alone the window shares regions with rib pixels; its mask's group keeps it apart, every seed
+    ribs = np.repeat(np.linspace(76, 155, 20000)[:, None], 3, axis=1)
+    window = np.repeat(np.linspace(95, 115, 3000)[:, None], 3, axis=1)
+    pixels = np.concatenate([ribs, window]).astype(np.uint8)
+    on_face = np.r_[np.zeros(20000, dtype=int), np.ones(3000, dtype=int)][None]
+    for seed, masked in [(seed, masked) for seed in range(7, 10) for masked in (None, np.array([0, 1]))]:
+        found = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)}, {"front": on_face}, seed, None,
+                                           masked)[1]["front"][0]
+        assert (not np.isin(found[20000:], found[:20000]).any()) == (masked is not None), (seed, masked)
     with tempfile.TemporaryDirectory() as temporary:
         drawn = texel_masks_drawn(pathlib.Path(temporary))
     for case, measure, want in TEXEL_MASKS:
