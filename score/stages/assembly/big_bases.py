@@ -63,8 +63,9 @@ def levelled(points, triangles):
     cut = deep_cut(points, triangles) if cut is None else cut
     stood = footing.cut_at(points, cut) if cut else np.asarray(points, dtype=np.float64)
     stood, gaps = even_feet.level_feet(stood, triangles)
+    stood, rim = even_feet.level_rim(stood)
     stood, sole = sole_cut(stood, triangles)
-    return stood, turned + ([round(cut, 4)] if cut else []) + gaps + sole
+    return stood, turned + ([round(cut, 4)] if cut else []) + gaps + rim + sole
 
 
 def upright(points, triangles):

@@ -18,6 +18,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_foot_off_the_floor_and_a_lean_fail: feet_faults' `if gap > TOLERANCE:` made `if gap > 0.1:`; and, apart,
   feet_gaps' `or not within_a_foot(members, down)` left out (a lip 9 cm up inside a plinth's base reads as a foot off;
   seen red 2026-11-09).
+  And rim_gaps' `return [(point, float(gap)) ...]` made `return []` (the rim rising 8 cm between its low points
+  passes, as habitat_dome_1's did), or rim_of's `reach[band] < RING_HOLE * np.median(reach[band])` made
+  `reach[band] < 0.0` (every base a ring: the box tipped 2.5 degrees reads its rim off); #105, 2026-11-25.
 - a_block_tipped_onto_one_edge_of_its_sole_leans: feet_faults' `if found["lean"] > LEAN_MOST:` made
   `if found["lean"] > 10.0:`.
 - the_collision_set: collide.py's intersection_test `... fcl.CollisionResult()) > 0` made `>= 0`.
@@ -193,6 +196,22 @@ def plinth_with_lip():
     return trimesh.util.concatenate([*skirt, deck, lip])
 
 
+def ring_wall(rise, around=96):
+    """A round wall 2 m across, 5 cm thick and 0.8 m tall, open below and above (a dome's rim), its foot `rise`
+    metres up at each angle round it (a function of the angle, radians): campgrounds' habitat_dome_1, whose rim arcs
+    each touched at one low point and rose to 28 cm between (2026-11-09, #105)."""
+    angles = np.linspace(0.0, 2 * np.pi, around, endpoint=False)
+    corners = [(radius * np.cos(angle), height, radius * np.sin(angle)) for angle in angles
+               for radius, height in ((1.0, rise(angle)), (1.0, 0.8), (0.95, 0.8), (0.95, rise(angle)))]
+    faces = []
+    for step in range(around):
+        here, there = 4 * step, 4 * ((step + 1) % around)
+        for side in range(4):
+            one, two = here + side, here + (side + 1) % 4
+            faces += [(one, there + side, there + (side + 1) % 4), (one, there + (side + 1) % 4, two)]
+    return trimesh.Trimesh(np.array(corners), np.array(faces), process=False)
+
+
 def wedge(degrees):
     """A 1 m block whose base is cut at `degrees` across its depth: laid tilted by as much, its base lies flat."""
     rise = np.tan(np.radians(degrees))
@@ -203,7 +222,9 @@ def wedge(degrees):
 
 def a_foot_off_the_floor_and_a_lean_fail():
     """Both ways: a tank on three feet with the fourth 7 cm up fails by its foot (four contacts and its weight inside
-    them passed it before), one on four level feet passes; a block whose own up leans 7.5 degrees from the floor it
+    them passed it before), one on four level feet passes; a round wall whose rim touches at four low points and rises
+    8 cm between fails by its rim (one foot to feet_gaps), one whose rim is seated all round passes, and a 1 m box
+    tipped 2.5 degrees onto its edge (under LEAN_MOST) is no ring, its far edge 4 cm up no rim off; a block whose own up leans 7.5 degrees from the floor it
     stands flat on fails unless its row says it leans."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
@@ -212,20 +233,25 @@ def a_foot_off_the_floor_and_a_lean_fail():
         export_test.box_gltf(folder / "models", "level_tank", legged_tank((0.0, 0.0, 0.0, 0.0)))
         export_test.box_gltf(folder / "models", "wedge", wedge(7.5))
         export_test.box_gltf(folder / "models", "plinth", plinth_with_lip())
+        export_test.box_gltf(folder / "models", "rim", ring_wall(lambda angle: 0.08 * (1 - np.cos(4 * angle)) / 2))
+        export_test.box_gltf(folder / "models", "seated_rim", ring_wall(lambda angle: 0.0))
         stage = place_of(folder, [("tank", "tank", (0, 0, 0)), ("level", "level_tank", (4, 0, 0)),
                                   ("wedge", "wedge", (8, 0, 0)), ("leaning", "wedge", (11, 0, 0)),
-                                  ("plinth", "plinth", (15, 0, 0))],
+                                  ("plinth", "plinth", (15, 0, 0)), ("dome", "rim", (19, 0, 0)),
+                                  ("seated", "seated_rim", (23, 0, 0)), ("slight", "box", (27, 0, 0))],
                          [row("tank"), row("level"), row("wedge"), row("leaning", leans="a ramp, cut to lean"),
-                          row("plinth")])
+                          row("plinth"), row("dome"), row("seated"), row("slight")])
         kit = json.loads((folder / "kit.json").read_text())
         for piece in kit["pieces"][2:4]:
             piece.update(tilt=7.5, at=[piece["at"][0], -0.5 * np.sin(np.radians(7.5)), 0.0])
+        kit["pieces"][7].update(tilt=2.5, at=[27.0, 0.5 * np.sin(np.radians(2.5)), 0.0])
         (folder / "kit.json").write_text(json.dumps(kit))
         stage = export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
                               inventory_path=folder / "inventory.json")
         said = verdicts(triage.triage(stage))
         expected = {"tank_1": [("foot off", True)], "level_1": None, "wedge_1": [("leans", True)], "leaning_1": None,
-                    "plinth_1": None}
+                    "plinth_1": None, "dome_1": [("foot off", True)], "seated_1": None,
+                    "slight_1": None}
         return [f"{name} reads {said.get(name)}, not {want}" for name, want in expected.items()
                 if said.get(name) != want]
 

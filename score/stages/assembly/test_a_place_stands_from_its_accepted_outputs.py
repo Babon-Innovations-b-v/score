@@ -36,6 +36,7 @@ from score.stages import assembly  # noqa: E402
 from score.stages.assembly import (baked, built_tops, crest_tops, face_down, fine_tops, fitting,  # noqa: E402
                                      floor_down, flush_tops, level_spot, made_waiting, neighbours, on_ground,
                                      record, roof_tops, scene_tree, sounds, tops_levelled)
+import test_only_real_resting_faults_are_kept  # noqa: E402  (its ring_wall: a dome's rim)
 
 TOY = "toy"
 PLACE = "wreck"  # a place the environment knows (export lays its ground); its layout and inventory here are the test's
@@ -1393,6 +1394,9 @@ BAKED = [
          box_at((0.1, 0.6 - lift, 0.1), (x, 0.3 + lift / 2, z))
          for x, z, lift in ((-0.9, -0.9, 0.0), (-0.9, 0.9, 0.0), (0.9, -0.9, 0.0), (0.9, 0.9, 0.027))]]),
      "wanted": {"under": [((0.9, 0.9), 0.051, 0.051, 0.0)], "tall": 2.0}},
+    {"case": "campgrounds' dome: a round wall whose rim touches at four low points and rises 8 cm between (#105)",
+     "name": "dome", "how": "floor", "made": test_only_real_resting_faults_are_kept.ring_wall(
+         lambda angle: 0.08 * (1 - np.cos(4 * angle)) / 2), "wanted": {"rim within": 0.02, "tall": 0.8}},
     {"case": "square's flag: a 0.5 m pole leaned 10 degrees with a 0.4 m cloth on it", "name": "flag", "how": "parted",
      "coarse": True, "made": a_pole(box_at((0.4, 0.3, 0.004), (0.2075, 0.35, 0.0)), 10),
      "wanted": {"plated": True}},
@@ -3692,6 +3696,13 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's, one the scene record
     attaches on its holder's top (the workshop's lamp, its robotic arm's head, turned 44 degrees and cut 13 cm of its
     20 cm, 2026-11-14) and an asset linked from elsewhere are left as they are.
+    Its domes' rims (#105, 2026-11-25): a round wall whose rim touches at four low points and rises 8 cm between, one
+    foot to level_feet, is laid with its rim within 2 cm of its lowest in every sector.
+    Break: score/stages/assembly/big_bases.py: levelled's `stood, rim = even_feet.level_rim(stood)` -> `rim = []`
+    Break: score/stages/assembly/even_feet.py: level_rim's `heights.max() <= RIM_DOWN` -> `heights.max() <=
+        triage.TOLERANCE` (the rim left 2.3 cm up between its sectors' middles); and tools/usd/triage.py rim_of's
+        `if len(rim) >= RIM_ROUND * RIM_SECTORS else None` dropped (the stool's leg 2 cm short, within the check's
+        3 cm, levelled: its four legs reach into 8 of 24 sectors, 6 of them touching)
     Break: score/stages/assembly/even_feet.py: `and said_row(prim) not in attached` dropped (the attached one levelled)
     Break: score/stages/assembly/even_feet.py: `if foot - lowest > most and not` -> `if False and not`
     Break: score/stages/assembly/big_bases.py: sole_cut's `for spare in (SPARE, 0.0):` -> `for spare in (0.0,):` (the
@@ -4750,6 +4761,9 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
                 assert np.allclose((points.min(axis=0) + points.max(axis=0))[[0, 2]] / 2, across, atol=within), \
                     f"{case['case']}: {points}"
             assert "bottom" not in wanted or np.isclose(points[:, 1].min(), wanted["bottom"]), case["case"]
+            if "rim within" in wanted:  # a ring base's rim down in every sector (triage.rim_of)
+                lows = points[list(triage.rim_of(points)[1].values()), 1] - points[:, 1].min()
+                assert len(lows) == triage.RIM_SECTORS and lows.max() <= wanted["rim within"], f"{case['case']}: {lows}"
             if "lies" in wanted:  # down on its broad side, toward the side clear of the crate beside it
                 least, within, most = wanted["lies"]
                 assert np.isclose(points[:, 2].min(), least, atol=within) and points[:, 2].max() <= most, points

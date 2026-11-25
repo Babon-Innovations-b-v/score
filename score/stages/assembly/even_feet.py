@@ -30,6 +30,9 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 # Times a model's feet are found again and levelled: a foot brought down can leave a part of it that was linked
 # through it a foot of its own.
 ROUNDS = 3
+# How far over the plane a ring base's rim may stay in a sector (metres): its sectors between their middles are let
+# down by a line, so a sector's own lowest can stay up to the resting check's 3 cm short in one round (#105: 2 cm).
+RIM_DOWN = 0.01
 # How far apart the sizes a model is laid at may be and still be levelled as one (a share).
 SAME_SIZE = 0.01
 
@@ -135,6 +138,37 @@ def level_feet(points, triangles):
             moved = True
         if not moved:
             break
+    return points, gaps
+
+
+def level_rim(points):
+    """A mesh's points (+y up, in metres) with a ring base's rim (triage.rim_of: a dome's) brought down onto the level
+    plane through its lowest point where RIM_RING of its sectors or more already touch: each point lowered by its
+    rim's gap at its angle (each sector's, read at its middle angle, between them in a line), stretched over the band
+    over that gap (one at the rim's foot moved the whole gap, one LOW_BAND over it not at all), never under the plane;
+    round after round (ROUNDS) until every sector's rim is within RIM_DOWN; and the gaps brought down. Its arcs each hold a low point,
+    so level_feet reads its rim one foot: campgrounds' habitat_dome_1 kept 11 of 24 sectors 1.1 to 28 cm up (#105)."""
+    import math
+    import triage
+    points = np.array(points, dtype=np.float64)
+    gaps = []
+    for _ in range(ROUNDS):
+        found = triage.rim_of(points)
+        if found is None or not found[1]:
+            break
+        middle, rim = found
+        lowest = float(points[:, 1].min())
+        sectors = sorted(rim)
+        heights = points[[rim[number] for number in sectors], 1] - lowest
+        if np.count_nonzero(heights <= triage.TOLERANCE) < triage.RIM_RING * triage.RIM_SECTORS or \
+                heights.max() <= RIM_DOWN:
+            break
+        angles = np.arctan2(points[:, 2] - middle[1], points[:, 0] - middle[0])
+        centres = (np.array(sectors) + 0.5) / triage.RIM_SECTORS * 2 * math.pi - math.pi
+        gap = np.interp(angles, centres, heights, period=2 * math.pi)
+        share = np.clip((lowest + gap + triage.LOW_BAND - points[:, 1]) / triage.LOW_BAND, 0.0, 1.0)
+        points[:, 1] = np.maximum(points[:, 1] - gap * share, lowest)
+        gaps += [round(float(height), 4) for height in heights if height > RIM_DOWN]
     return points, gaps
 
 

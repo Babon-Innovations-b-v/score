@@ -87,6 +87,16 @@ FOOT_SPACING = 0.015
 FOOT_SAMPLES = (4000, 60000)
 FOOT_LOWEST = 10
 FOOT_SOLE = 200
+# A ring base (a dome's rim, a round tent's skirt): the points within LOW_BAND of its lowest, seen from above, leave its
+# middle empty (under RING_HOLE of their middle reach from it, at most RING_STRAY of them). Its rim is read in
+# RIM_SECTORS sectors round that middle, each sector's rim its points within RIM_WIDTH (metres, or that share of its
+# reach, the more) of the band's reach there and under RIM_REACH over the lowest (a doorway in the rim reads as no
+# rim); it runs round RIM_ROUND of the sectors or more (a table's four legs reach into 8 of 24). A ring of which
+# RIM_RING of the sectors or more touch is on its rim, and every other sector must touch too:
+# its arcs each hold a low point and were one foot to feet_gaps, so campgrounds' habitat_dome_1 kept 11 of 24 sectors
+# 1.1 to 28 cm up and passed (2026-11-09, #105). A sofa's or a table's legs touch in a few sectors and are no ring.
+RING_HOLE, RING_STRAY = 0.5, 0.01
+RIM_SECTORS, RIM_WIDTH, RIM_REACH, RIM_RING, RIM_ROUND = 24, (0.05, 0.05), 0.5, 1 / 3, 0.75
 # A floor or held object's own up axis may lean this far (degrees) from the plane under what it touches, unless its
 # inventory row says it leans (`leans`: why, in words). The water tank stood 7.5 degrees off and passed.
 LEAN_MOST = 3.0
@@ -315,6 +325,7 @@ def standing(entry, ground, surfaces, left_out, statics):
             "depth": max(0.0, -float(np.nanmin(clearance[known]))) if known.any() else 0.0,
             "lowest": points[np.argmin(over_plane(points, plane))],
             "feet": feet_gaps(entry["mesh"], lambda low: gaps_at(low, ground, surfaces, left_out), plane),
+            "rim": rim_gaps(entry["mesh"], lambda low: gaps_at(low, ground, surfaces, left_out), plane),
             "lean": lean(entry["matrix"], points[touching], best[touching])}
 
 
@@ -381,6 +392,54 @@ def feet_gaps(mesh, gaps_of, plane=None):
         found.append((members, low[np.argmin(gaps)], float(gaps.min())))
     down = [members for members, _, gap in found if gap <= TOLERANCE]
     return [(point, gap) for members, point, gap in found if gap <= TOLERANCE or not within_a_foot(members, down)]
+
+
+def rim_of(points):
+    """A ring base's rim (points +y up over a level plane): (the base's middle seen from above, {sector: the index of
+    its rim's lowest point} for each of RIM_SECTORS sectors round it that has a rim: sector_of); None for a base that
+    is no ring (RING_HOLE, RIM_ROUND)."""
+    heights = points[:, 1]
+    band = heights <= heights.min() + LOW_BAND
+    across = points[:, [0, 2]]
+    middle = (across[band].min(axis=0) + across[band].max(axis=0)) / 2
+    reach = np.linalg.norm(across - middle, axis=1)
+    if np.count_nonzero(reach[band] < RING_HOLE * np.median(reach[band])) > RING_STRAY * np.count_nonzero(band):
+        return None
+    sector = sector_of(across, middle)
+    rim = {}
+    for number in range(RIM_SECTORS):
+        banded = reach[band & (sector == number)]
+        if not len(banded):
+            continue
+        ring = float(np.median(banded))
+        near = np.nonzero((sector == number) & (np.abs(reach - ring) <= max(RIM_WIDTH[0], RIM_WIDTH[1] * ring))
+                          & (heights <= heights.min() + RIM_REACH))[0]
+        rim[number] = int(near[np.argmin(heights[near])])
+    return (middle, rim) if len(rim) >= RIM_ROUND * RIM_SECTORS else None
+
+
+def sector_of(across, middle):
+    """Each point's sector (across: its x and z) of RIM_SECTORS round `middle`, sector 0 from the angle -pi."""
+    angles = np.arctan2(across[:, 1] - middle[1], across[:, 0] - middle[0])
+    return np.floor((angles + math.pi) / (2 * math.pi) * RIM_SECTORS).astype(int) % RIM_SECTORS
+
+
+def rim_gaps(mesh, gaps_of, plane=None):
+    """Each sector of a ring base's rim (rim_of, heights read over `plane` when given) off what is under it, as (its
+    rim's lowest point, its gap), when RIM_RING of its sectors or more touch within TOLERANCE; [] for a base that is no
+    ring or is not on its rim."""
+    every = np.vstack([np.asarray(mesh.vertices), mesh.sample(OWN_SAMPLES, seed=0)]) if mesh.area > 0 else \
+        np.asarray(mesh.vertices)
+    level = every.copy()
+    level[:, 1] -= plane_under(every, plane)
+    found = rim_of(level)
+    if found is None or not found[1]:
+        return []
+    lows = every[list(found[1].values())]
+    gaps = gaps_of(lows)
+    if np.count_nonzero(gaps <= TOLERANCE) < RIM_RING * RIM_SECTORS:
+        return []
+    return [(point, float(gap)) for point, gap in zip(lows, gaps) if gap > TOLERANCE]
 
 
 def within_a_foot(members, down):
@@ -460,6 +519,11 @@ def feet_faults(entry, found):
         if gap > TOLERANCE:
             faults.append(fault(entry, "foot off", gap, True, f"a foot {gap * 100:.1f} cm off what is under it while "
                                 f"another touches (over {TOLERANCE * 100:.0f} cm)", point))
+    if found.get("rim"):
+        point, gap = max(found["rim"], key=lambda off: off[1])
+        faults.append(fault(entry, "foot off", gap, True, f"its rim {gap * 100:.1f} cm off what is under it in "
+                            f"{len(found['rim'])} of its {RIM_SECTORS} sectors while the rest touch (over "
+                            f"{TOLERANCE * 100:.0f} cm)", point))
     if found["lean"] > LEAN_MOST:
         faults.append(fault(entry, "leans", found["lean"], True, f"its up axis leans {found['lean']:.1f} degrees from "
                             f"what it stands on (over {LEAN_MOST:.0f}; its row does not say it leans)",
