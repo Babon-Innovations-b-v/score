@@ -18,8 +18,14 @@ import ict
 
 ROUNDS = 30
 # The identity's pull toward the model's mean, against the mean squared size of its modes: enough to keep a face a
-# face where the body's coarser head says little (the body's head is 18,056-point SOMA, the face 26,719 points).
-IDENTITY_PULL = 0.02
+# face where the body's coarser head says little (the body's head is 18,056-point SOMA, the face 26,719 points). At
+# 0.02 woman_stair's weights reached 4.6 (their length 14.8 over 100 modes): the face chased SOMA's coarse head into a
+# caricature, puffed cheeks and a lump down the front of the neck (owner, 2026-11-25); at 0.3 the largest is 1.7 and
+# the throat runs smooth.
+IDENTITY_PULL = 0.3
+# ICT's identity modes come scaled to their spread (each smaller than the one before), so a weight is in standard
+# deviations of its population: a face whose largest weight is past this is a caricature, not a person, and is refused.
+IDENTITY_LIMIT = 3.0
 EYE_WEIGHT = 40.0  # each eye centre's weight against one face point's, so the eyes sit in the body's eye joints
 TRIM_METRES = 0.012  # a face point further than this from the body's skin is left out of a round's solve
 KEEP_SHARE = 0.9  # and only the nearest share of the rest are taken, so lids and lips that differ do not pull
@@ -118,6 +124,15 @@ def fit_pose_and_identity(model, body):
                                                                                       len(eye_row))
                                                                               for eye_row in eye_rows]))
     return scale, turn, shift, coefficients
+
+
+def within_population(coefficients):
+    """The identity weights, refused when the largest is past IDENTITY_LIMIT standard deviations (a caricature)."""
+    largest = float(np.abs(coefficients).max())
+    if largest > IDENTITY_LIMIT:
+        raise RuntimeError(f"the face's identity is a caricature: a weight {largest:.2f} standard deviations off the "
+                           f"model's mean (limit {IDENTITY_LIMIT})")
+    return coefficients
 
 
 def ear_backs(model):
@@ -488,6 +503,7 @@ def fitted(body, model):
     then the model's points offset by the body's count), and each ear's measures (ears_standing: refused when one is
     squashed)."""
     scale, turn, shift, coefficients = fit_pose_and_identity(model, body)
+    within_population(coefficients)
     points = scale * shaped(model, coefficients) @ turn.T + shift
     face_triangles = skin_triangles(model)
     loop = border_loop(face_triangles)

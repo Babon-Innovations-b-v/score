@@ -13,6 +13,7 @@ import sys
 
 import numpy as np
 import trimesh
+from matplotlib.path import Path
 
 import expressions
 import fit
@@ -23,8 +24,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 # Each piece's score_lib surfaces (its finishes); a piece of more than one says which triangle wears which.
 SURFACES = {"skin": ["surface/face_skin_light"], "mouth": ["surface/face_mouth_inside"],
             "teeth": ["surface/simready_m_opaque_ceramic_glossy_white_a01_ab8f1883"],
-            "eyes": ["surface/simready_m_opaque_ceramic_glossy_white_a01_ab8f1883", "surface/face_iris_brown",
-                     "surface/face_pupil"],
+            "eyes": ["surface/face_sclera", "surface/face_iris_brown", "surface/face_pupil"],
+            "cornea": ["surface/face_cornea"],
             "lashes": ["surface/face_lash_dark"], "brows": ["surface/face_lash_dark"],
             "tears": ["surface/face_tear_film"]}
 # The model's pieces drawn in each piece of the face besides the skin's own (fit.skin_triangles: the face and the
@@ -37,6 +38,24 @@ MODEL_PIECES = {"skin": ("eye_socket_left", "eye_socket_right"), "mouth": ("mout
 # across (an iris) and one 0.048 out 3.5 mm (a pupil).
 IRIS_UV = 0.125
 PUPIL_UV = 0.048
+# The cornea (Gullstrand's schematic eye): its front a sphere of 7.7 mm radius on an eye of about 12 mm, so a dome
+# CORNEA_OF_EYE of the eye's radius rising over the iris and meeting the eye at its edge (the limbus); the rest of the
+# eye's front under a tear film TEAR_FILM_M thick. The shell covers the eye out to EYE_FRONT_UV, past what the lids show.
+CORNEA_OF_EYE = 7.7 / 12.0
+TEAR_FILM_M = 0.0001
+EYE_FRONT_UV = 0.3
+# The skin's tones by region, read on ICT's neutral face (centimetres, y up, the face along +z) round its 68 landmarks
+# (iBUG order): each a centre (a landmark or a mean of them, then moved), a spread (x, y) and a strength, its channel 0
+# the redder flush, 1 the bluish thin skin, 2 the lips. Where they sit is anatomy: the flush on the cheeks' apples,
+# the nose's tip and wings, the chin and the ears; the blue in the hollow under the lower lids; the lips inside their
+# outer line. Their colours and shares are the skin's library record's (`regions`), not here.
+FLUSH = [((40, 41), (0.3, -2.2), (1.6, 1.4), 0.8), ((46, 47), (-0.3, -2.2), (1.6, 1.4), 0.8),
+         ((30,), (0.0, 0.0), (0.9, 0.8), 0.9), ((31,), (0.0, 0.0), (0.6, 0.6), 0.7), ((35,), (0.0, 0.0), (0.6, 0.6), 0.7),
+         ((8,), (0.0, 0.5), (1.4, 1.0), 0.35)]
+UNDER_EYE = [((39, 40, 41), (0.0, -0.55), (1.0, 0.4), 0.9), ((42, 46, 47), (0.0, -0.55), (1.0, 0.4), 0.9)]
+EAR_SIDE_CM = 7.0  # a face point further out to the side than this, and over the jaw's angle, is an ear's,
+EAR_FADE_CM = 1.0  # its flush fading in over this much before it
+LIP_EDGE_CM = 0.15  # the lips' tone fades in over this inside their outer line
 SHOTS = [{"name": "neutral", "weights": {}},
          {"name": "smile", "weights": {"lipCornerPuller_L": 1.0, "lipCornerPuller_R": 1.0, "cheekRaiser_L": 0.6,
                                        "cheekRaiser_R": 0.6}},
@@ -88,6 +107,83 @@ def compact(points, triangles, shapes):
     return points[used], renumbered.reshape(triangles.shape), shapes[:, used]
 
 
+def blobs(points, landmarks, rows):
+    """The largest of the Gaussian blobs (`rows` as FLUSH) at each point, by its (x, y) on ICT's neutral face."""
+    found = np.zeros(len(points))
+    for marks, (move_x, move_y), (spread_x, spread_y), strength in rows:
+        centre = landmarks[list(marks)].mean(axis=0)[:2] + [move_x, move_y]
+        across = ((points[:, 0] - centre[0]) / spread_x) ** 2 + ((points[:, 1] - centre[1]) / spread_y) ** 2
+        found = np.maximum(found, strength * np.exp(-0.5 * across))
+    return found
+
+
+def lips(points, landmarks):
+    """1 inside the lips' outer line (landmarks 48 to 59) on the face's front, fading in over LIP_EDGE_CM."""
+    line = landmarks[48:60, :2]
+    inside = Path(line).contains_points(points[:, :2]) & (points[:, 2] > landmarks[48:60, 2].min() - 1.0)
+    starts, ends = line, np.roll(line, -1, axis=0)
+    along = ends - starts
+    share = np.clip(np.einsum("psd,sd->ps", points[:, None, :2] - starts[None], along) / (along ** 2).sum(axis=1), 0, 1)
+    edge = np.linalg.norm(points[:, None, :2] - (starts[None] + share[..., None] * along[None]), axis=2).min(axis=1)
+    return inside * np.clip(edge / LIP_EDGE_CM, 0.0, 1.0)
+
+
+def tones(model):
+    """Each model point's skin tones (flush, thin blue, lips; 0 to 1) from its place on ICT's neutral face; zero off
+    the face's skin."""
+    neutral = model["neutral"]
+    landmarks = neutral[model["landmarks"]]
+    found = np.zeros((len(neutral), 3))
+    skin = np.unique(fit.skin_triangles(model))
+    points = neutral[skin]
+    ear = np.clip((np.abs(points[:, 0]) - EAR_SIDE_CM) / EAR_FADE_CM + 1.0, 0.0, 1.0) * (points[:, 1] > landmarks[3, 1])
+    found[skin, 0] = np.maximum(blobs(points, landmarks, FLUSH), 0.7 * ear)
+    found[skin, 1] = blobs(points, landmarks, UNDER_EYE)
+    found[skin, 2] = lips(points, landmarks)
+    return found
+
+
+def corner_values(triangles, corners, count):
+    """Per-corner values (triangles x 3 x k) as per-point ones, each point the mean of its corners."""
+    total = np.zeros((count, corners.shape[-1]))
+    np.add.at(total, triangles.reshape(-1), corners.reshape(-1, corners.shape[-1]))
+    return total / np.maximum(np.bincount(triangles.reshape(-1), minlength=count), 1)[:, None]
+
+
+def dome(direction, axis, radius, limbus):
+    """How far from the eye's centre its outer surface lies along each unit `direction`: the cornea's sphere
+    (CORNEA_OF_EYE of the eye's `radius`, meeting the eye where it is `limbus` across from the axis) over the iris, the
+    eye's own sphere and its tear film elsewhere."""
+    cornea = CORNEA_OF_EYE * radius
+    behind = np.sqrt(radius ** 2 - limbus ** 2) - np.sqrt(cornea ** 2 - limbus ** 2)
+    cosine = np.clip(direction @ axis, -1.0, 1.0)
+    reach = behind * cosine + np.sqrt(np.clip(cornea ** 2 - behind ** 2 * (1.0 - cosine ** 2), 0.0, None))
+    return np.maximum(radius + TEAR_FILM_M, reach)
+
+
+def cornea(eyes):
+    """The clear shell over each eye's front (out to EYE_FRONT_UV): the cornea's dome over the iris and a tear film
+    over the white, each point over its eye's point and moving with it; a piece as the eyes are."""
+    out = np.linalg.norm(corner_values(eyes["triangles"], eyes["uv"], len(eyes["points"])) - 0.5, axis=1)
+    points = eyes["points"].copy()
+    side = points[:, 0] > np.median(points[:, 0])
+    for one in (side, ~side):
+        centre = eyes["points"][one].mean(axis=0)
+        offset = eyes["points"][one] - centre
+        axis = offset[out[one] < PUPIL_UV / 2].mean(axis=0)
+        axis /= np.linalg.norm(axis)
+        radius = float(np.median(np.linalg.norm(offset[(out[one] > IRIS_UV * 1.3) & (out[one] < 0.25)], axis=1)))
+        ring = offset[np.abs(out[one] - IRIS_UV) < 0.01]
+        limbus = float(np.median(np.linalg.norm(ring - np.outer(ring @ axis, axis), axis=1)))
+        direction = offset / np.linalg.norm(offset, axis=1, keepdims=True)
+        points[one] = centre + direction * dome(direction, axis, radius, limbus)[:, None]
+    front = (out[eyes["triangles"]] < EYE_FRONT_UV).all(axis=1)
+    triangles = eyes["triangles"][front]
+    used, renumbered = np.unique(triangles, return_inverse=True)
+    return {"points": points[used], "triangles": renumbered.reshape(triangles.shape),
+            "finish": np.zeros(len(triangles), np.int64), "shapes": eyes["shapes"][:, used]}
+
+
 def eye_finish(uv):
     """Each eye triangle's finish from its UV corners: 0 the white, 1 the iris, 2 the pupil, by its distance out
     from the eyeball's front in UV."""
@@ -106,8 +202,9 @@ def pieces(body, model, laid, matrix):
     joined_shapes = np.concatenate([body["offsets"].astype(np.float64), offsets], axis=1)
     skin = fit.joined_skin(body["points"], laid["kept"], laid["strip"], laid["points"], face_triangles, centre)
     points, triangles, shapes = compact(joined_points, skin, joined_shapes)
+    joined_tones = np.vstack([np.zeros((len(body["points"]), 3)), tones(model)])
     made["skin"] = {"points": points, "triangles": triangles, "finish": np.zeros(len(triangles), np.int64),
-                    "shapes": shapes}
+                    "shapes": shapes, "tones": joined_tones[np.unique(skin)]}
     brow_skin = trimesh.Trimesh(laid["points"], fit.outward(fit.piece_triangles(model, "face"), laid["points"], centre),
                                 process=False)
     for name, grown in (("brows", strands.brows(model, laid["points"], offsets, brow_skin)),
@@ -123,6 +220,7 @@ def pieces(body, model, laid, matrix):
             piece["finish"] = eye_finish(piece["uv"])
         piece["points"], piece["triangles"], piece["shapes"] = compact(laid["points"], triangles, offsets)
         made[name] = piece
+    made["cornea"] = cornea(made["eyes"])
     return made
 
 
@@ -134,7 +232,7 @@ def face_file(made, body, out):
               "eye_distance": np.array(LENS_DISTANCE)}
     for name, piece in made.items():
         arrays[f"{name}.surfaces"] = np.array([address.split("/", 1)[1] for address in SURFACES[name]])
-        for field in ("points", "triangles", "finish", "uv", "counts", "radius"):
+        for field in ("points", "triangles", "finish", "uv", "counts", "radius", "tones"):
             if field in piece:
                 arrays[f"{name}.{field}"] = piece[field]
         arrays[f"{name}.shapes"] = piece["shapes"].astype(np.float32)

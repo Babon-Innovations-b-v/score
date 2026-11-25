@@ -25,7 +25,11 @@ docstring has how the face's body is carried onto the clips rig's bind.
   out of its lobe, the hair's). Limits are never loosened to pass.
 - **Daylight, not a studio** (owner, 2026-11-25: the white studio read flat and overexposed): Blender's physical sky
   (multiple scattering) lights every view, its sun and its sky one light, the film exposed down as a camera in sun.
-- **Look at the pictures**: front, back, both sides and three quarters, standing and mid-walk. The numbers say the
+- **Hands at rest.** The clips rig has one joint a hand, so `relaxed_hands` bends the skin's fingers towards the
+  palm past the knuckles and draws them together (owner, 2026-11-25: stiff splayed fingers); the hands' flush and
+  thin skin join the face's region tones on the one skin.
+- **Look at the pictures**: front, back, both sides and three quarters, standing and mid-walk, and the face close
+  up from the front and three quarters (`--views` draws fewer of the whole person's sides). The numbers say the
   pieces sit; only the pictures say whether it reads as a photograph.
 - Tests: `test_a_whole_person_wears_its_own_skin_hair_and_jewellery.py` (toy bodies, a toy head, finger, wrist and
   neck; no SOMA, Newton or Blender).

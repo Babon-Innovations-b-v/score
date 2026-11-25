@@ -18,7 +18,7 @@ from tools.characters.whole import hair as strands
 from tools.characters.whole import jewellery
 
 VIEWS = {"front": 0.0, "three_quarter": 35.0, "left": 90.0, "back": 180.0, "right": 270.0}
-FACE_PIECES = ("eyes", "teeth", "mouth", "tears", "brows", "lashes")
+FACE_PIECES = ("eyes", "cornea", "teeth", "mouth", "tears", "brows", "lashes")
 SETTING = {"floor": "simready_m_opaque_concrete_bare_c01_3a571927",  # the daylight setting's (render.py): NVIDIA
            "wall": "simready_m_opaque_concrete_plain_wall_a01_8c6d57b1"}  # SimReady concretes, CC BY 4.0
 THICK_M = garments.THICKNESS_M
@@ -176,14 +176,14 @@ def jewels(outfit, body, face, skin, start, count, frame):
     return pieces, found
 
 
-def scene_file(pieces, name, path, cloth):
+def scene_file(pieces, name, path, cloth, views=VIEWS):
     """The pieces in blender_face's format, with the views, the pose's name and the pieces that are `cloth`."""
-    arrays = {"pieces": np.array(list(pieces)), "views": np.array(json.dumps(VIEWS)), "name": np.array(name),
+    arrays = {"pieces": np.array(list(pieces)), "views": np.array(json.dumps(views)), "name": np.array(name),
               "subdivided": np.array(True), "thick": np.array(THICK_M), "cloth": np.array(cloth),
               "setting": np.array(json.dumps(SETTING))}
     for piece_name, piece in pieces.items():
         arrays[f"{piece_name}.surfaces"] = np.array(piece["surfaces"])
-        for field in ("points", "triangles", "finish", "uv", "counts", "radius"):
+        for field in ("points", "triangles", "finish", "uv", "counts", "radius", "tones"):
             if field in piece:
                 arrays[f"{piece_name}.{field}"] = np.asarray(piece[field])
     np.savez_compressed(path, **arrays)
@@ -223,6 +223,8 @@ def main():
     parser.add_argument("--frame", type=int, default=0, help="the clip frame drawn")
     parser.add_argument("--name", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--views", nargs="+", choices=list(VIEWS), default=list(VIEWS),
+                        help="the whole person's views drawn (all by default; the face close-ups always)")
     given = parser.parse_args()
     outfit = json.loads(pathlib.Path(given.outfit).read_text())
     out = pathlib.Path(given.out)
@@ -240,6 +242,7 @@ def main():
     pieces = usd_pieces(usd, given.frame)
     pieces["skin"]["triangles"] = np.asarray(face["skin.triangles"], np.int64)
     pieces["skin"]["surfaces"] = [outfit["body surface"]["name"]]
+    pieces["skin"]["tones"] = skin["tones"]
     names = [str(name) for name in body["names"]]
     head = names.index("Head")
     moves = np.asarray(body["worlds"])[at, head] @ np.linalg.inv(np.asarray(whole.clips_bind())[head])
@@ -264,7 +267,8 @@ def main():
     faults = whole.faults(skin) + strands.faults(hair_found) + found.get("faults", [])
     measures["faults"] = faults
     (out / f"{given.name}-measures.json").write_text(json.dumps(measures, indent=1))
-    scene = scene_file(pieces, given.name, out / f"{given.name}-scene.npz", garment_names)
+    scene = scene_file(pieces, given.name, out / f"{given.name}-scene.npz", garment_names,
+                       {view: VIEWS[view] for view in given.views})
     drawn(scene, fetched(pieces, out), out)
     print(json.dumps(measures, indent=1))
     if faults:

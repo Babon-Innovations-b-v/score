@@ -52,6 +52,18 @@ def library_material(library, surface):
         light_through(material, record["subsurface"])
     if "detail" in record:
         grained(material, record["detail"])
+    if "regions" in record:
+        regioned(material, record["regions"])
+    if "veins" in record:
+        vessels(material, record["veins"])
+    if "fibres" in record:
+        fibred(material, record["fibres"])
+    if "crevices" in record:
+        creviced(material, record["crevices"])
+    if "coat" in record:
+        coated(material, record["coat"])
+    if "transmission" in record:
+        clear(material, record["transmission"])
     return material
 
 
@@ -65,6 +77,180 @@ def light_through(material, subsurface):
     principled.inputs["Subsurface Scale"].default_value = 0.001
     principled.inputs["Subsurface Anisotropy"].default_value = subsurface["anisotropy"]
     principled.inputs["Subsurface IOR"].default_value = subsurface["ior"]
+
+
+def principled_of(material):
+    """The material's Principled BSDF (Blender's USD reader makes one)."""
+    return next(node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED")
+
+
+def scaled_by(tree, value_socket, factor):
+    """A math node's output: `value_socket` times `factor`."""
+    node = tree.nodes.new("ShaderNodeMath")
+    node.operation = "MULTIPLY"
+    node.inputs[1].default_value = factor
+    tree.links.new(value_socket, node.inputs[0])
+    return node.outputs[0]
+
+
+def times(tree, first, second):
+    """A math node's output: one socket's value times another's."""
+    node = tree.nodes.new("ShaderNodeMath")
+    node.operation = "MULTIPLY"
+    tree.links.new(first, node.inputs[0])
+    tree.links.new(second, node.inputs[1])
+    return node.outputs[0]
+
+
+def regioned(material, regions):
+    """The skin's regions (the mesh's `tones` attribute: 0 the flush, 1 the thin skin, 2 the lips; zero on a mesh
+    without it) toning the base colour towards each region's colour by its share, veins in the thin skin, the lips'
+    gloss raised."""
+    tree = material.node_tree
+    principled = principled_of(material)
+    attribute = tree.nodes.new("ShaderNodeAttribute")
+    attribute.attribute_name = "tones"
+    channels = tree.nodes.new("ShaderNodeSeparateColor")
+    tree.links.new(attribute.outputs["Color"], channels.inputs["Color"])
+    flush, thin, lip = channels.outputs[0], channels.outputs[1], channels.outputs[2]
+    for name, channel in (("flush", flush), ("thin", thin)):
+        toned(tree, principled.inputs["Base Color"], channel, regions[name]["share"], regions[name]["towards"])
+    veins = regions["veins"]
+    lines = vein_lines(tree, veins["spacing_m"], veins["width"], tree.nodes.new("ShaderNodeTexCoord").outputs["Object"])
+    toned(tree, principled.inputs["Base Color"], times(tree, lines, thin), veins["share"], veins["towards"])
+    toned(tree, principled.inputs["Base Color"], lip, regions["lips"]["share"], regions["lips"]["towards"])
+    rough = principled.inputs["Roughness"]
+    glossier = tree.nodes.new("ShaderNodeMath")
+    glossier.operation = "ADD"
+    if rough.is_linked:
+        tree.links.new(rough.links[0].from_socket, glossier.inputs[0])
+    else:
+        glossier.inputs[0].default_value = rough.default_value
+    tree.links.new(scaled_by(tree, lip, regions["lips"]["roughness"]), glossier.inputs[1])
+    tree.links.new(glossier.outputs[0], rough)
+
+
+def vein_lines(tree, spacing, width, vector):
+    """Branching lines `spacing` metres apart, 1 on a line fading to 0 `width` of a cell off it: a Voronoi's cell
+    edges, wandered by a noise so they do not run straight."""
+    wander = tree.nodes.new("ShaderNodeTexNoise")
+    wander.inputs["Scale"].default_value = 1.0 / spacing
+    wandered = tree.nodes.new("ShaderNodeMix")
+    wandered.data_type = "VECTOR"
+    wandered.inputs["Factor"].default_value = 0.15 * spacing
+    tree.links.new(vector, next(socket for socket in wandered.inputs if socket.name == "A" and socket.type == "VECTOR"))
+    tree.links.new(wander.outputs["Color"],
+                   next(socket for socket in wandered.inputs if socket.name == "B" and socket.type == "VECTOR"))
+    tree.links.new(vector, wander.inputs["Vector"])
+    cells = tree.nodes.new("ShaderNodeTexVoronoi")
+    cells.feature = "DISTANCE_TO_EDGE"
+    cells.inputs["Scale"].default_value = 1.0 / spacing
+    tree.links.new(next(socket for socket in wandered.outputs if socket.type == "VECTOR"), cells.inputs["Vector"])
+    edge = tree.nodes.new("ShaderNodeMapRange")
+    edge.inputs["From Min"].default_value, edge.inputs["From Max"].default_value = 0.0, width
+    edge.inputs["To Min"].default_value, edge.inputs["To Max"].default_value = 1.0, 0.0
+    tree.links.new(cells.outputs["Distance"], edge.inputs["Value"])
+    return edge.outputs["Result"]
+
+
+def uv_polar(tree):
+    """The eyeball UV's (distance out from its front at (0.5, 0.5), angle round it) as two sockets."""
+    uv = tree.nodes.new("ShaderNodeUVMap")
+    uv.uv_map = "st"
+    centred = tree.nodes.new("ShaderNodeVectorMath")
+    centred.operation = "SUBTRACT"
+    centred.inputs[1].default_value = (0.5, 0.5, 0.0)
+    tree.links.new(uv.outputs["UV"], centred.inputs[0])
+    length = tree.nodes.new("ShaderNodeVectorMath")
+    length.operation = "LENGTH"
+    tree.links.new(centred.outputs["Vector"], length.inputs[0])
+    parts = tree.nodes.new("ShaderNodeSeparateXYZ")
+    tree.links.new(centred.outputs["Vector"], parts.inputs["Vector"])
+    angle = tree.nodes.new("ShaderNodeMath")
+    angle.operation = "ARCTAN2"
+    tree.links.new(parts.outputs["Y"], angle.inputs[0])
+    tree.links.new(parts.outputs["X"], angle.inputs[1])
+    return length.outputs["Value"], angle.outputs[0]
+
+
+def vessels(material, veins):
+    """The eye white's vessels: vein lines on the object, shown more the further out from the iris on the UV
+    (`from_uv` none, `to_uv` fully), toning the colour towards the vessels' red."""
+    tree = material.node_tree
+    principled = principled_of(material)
+    out, _ = uv_polar(tree)
+    reach = tree.nodes.new("ShaderNodeMapRange")
+    reach.inputs["From Min"].default_value, reach.inputs["From Max"].default_value = veins["from_uv"], veins["to_uv"]
+    tree.links.new(out, reach.inputs["Value"])
+    lines = vein_lines(tree, veins["spacing_m"], veins["width"], tree.nodes.new("ShaderNodeTexCoord").outputs["Object"])
+    toned(tree, principled.inputs["Base Color"], times(tree, lines, reach.outputs["Result"]), veins["share"],
+          veins["towards"])
+
+
+def fibred(material, fibres):
+    """The iris's radial fibres (a noise stretched out along the radius, `count` round it) toning it lighter, and its
+    dark outer edge from `edge_from` of the iris out."""
+    tree = material.node_tree
+    principled = principled_of(material)
+    out, angle = uv_polar(tree)
+    across = scaled_by(tree, out, 1.0 / fibres["iris_uv"])
+    places = tree.nodes.new("ShaderNodeCombineXYZ")
+    tree.links.new(scaled_by(tree, angle, fibres["count"] / (2.0 * math.pi)), places.inputs["X"])
+    tree.links.new(scaled_by(tree, across, 3.0), places.inputs["Y"])
+    noise = tree.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 1.0
+    noise.inputs["Detail"].default_value = 6.0
+    tree.links.new(places.outputs["Vector"], noise.inputs["Vector"])
+    strands = tree.nodes.new("ShaderNodeMapRange")
+    strands.inputs["From Min"].default_value, strands.inputs["From Max"].default_value = 0.4, 0.7
+    tree.links.new(noise.outputs["Fac"], strands.inputs["Value"])
+    toned(tree, principled.inputs["Base Color"], strands.outputs["Result"], fibres["share"], fibres["towards"])
+    edge = tree.nodes.new("ShaderNodeMapRange")
+    edge.inputs["From Min"].default_value, edge.inputs["From Max"].default_value = fibres["edge_from"], 1.0
+    tree.links.new(across, edge.inputs["Value"])
+    toned(tree, principled.inputs["Base Color"], edge.outputs["Result"], fibres["edge_share"], fibres["edge_towards"])
+
+
+def creviced(material, crevices):
+    """Folds and holes darker and redder: the colour toned towards `towards` by how much other surfaces close round a
+    point within `reach_m` (Cycles' ambient occlusion, every object's)."""
+    tree = material.node_tree
+    principled = principled_of(material)
+    closed = tree.nodes.new("ShaderNodeAmbientOcclusion")
+    closed.samples = 16
+    closed.only_local = False
+    closed.inputs["Distance"].default_value = crevices["reach_m"]
+    shut = tree.nodes.new("ShaderNodeMath")
+    shut.operation = "SUBTRACT"
+    shut.inputs[0].default_value = 1.0
+    tree.links.new(closed.outputs["AO"], shut.inputs[1])
+    toned(tree, principled.inputs["Base Color"], shut.outputs[0], crevices["share"], crevices["towards"])
+
+
+def coated(material, coat):
+    """A thin clear coat (the skin's oil): its weight, roughness and index."""
+    principled = principled_of(material)
+    principled.inputs["Coat Weight"].default_value = coat["weight"]
+    principled.inputs["Coat Roughness"].default_value = coat["roughness"]
+    principled.inputs["Coat IOR"].default_value = coat["ior"]
+
+
+def clear(material, transmission):
+    """Clear glass (the cornea): the record's transmission, fully opaque to the camera; shadow rays pass straight
+    through it, as light does through a real eye's (Cycles draws no caustics, so a glass cornea would shade the iris
+    black)."""
+    tree = material.node_tree
+    principled = principled_of(material)
+    principled.inputs["Transmission Weight"].default_value = transmission
+    principled.inputs["Alpha"].default_value = 1.0
+    output = next(node for node in tree.nodes if node.type == "OUTPUT_MATERIAL")
+    path = tree.nodes.new("ShaderNodeLightPath")
+    see_through = tree.nodes.new("ShaderNodeBsdfTransparent")
+    mix = tree.nodes.new("ShaderNodeMixShader")
+    tree.links.new(path.outputs["Is Shadow Ray"], mix.inputs["Fac"])
+    tree.links.new(principled.outputs["BSDF"], mix.inputs[1])
+    tree.links.new(see_through.outputs["BSDF"], mix.inputs[2])
+    tree.links.new(mix.outputs["Shader"], output.inputs["Surface"])
 
 
 def grain_texture(tree, kind, spacing, coordinates):
@@ -110,7 +296,13 @@ def grained(material, detail):
         texture = grain_texture(tree, "cells" if name == "pores" else "noise", detail[name]["spacing_m"], coordinates)
         bump = tree.nodes.new("ShaderNodeBump")
         bump.inputs["Distance"].default_value = detail[name]["depth_m"]
-        tree.links.new(texture.outputs["Distance" if name == "pores" else "Fac"], bump.inputs["Height"])
+        height = texture.outputs["Distance" if name == "pores" else "Fac"]
+        if "radius_m" in detail[name]:  # a pore a small pit at its cell's middle, the skin flat between
+            pit = tree.nodes.new("ShaderNodeMapRange")
+            pit.inputs["From Min"].default_value, pit.inputs["From Max"].default_value = 0.0, detail[name]["radius_m"]
+            tree.links.new(height, pit.inputs["Value"])
+            height = pit.outputs["Result"]
+        tree.links.new(height, bump.inputs["Height"])
         if normal is not None:
             tree.links.new(normal, bump.inputs["Normal"])
         normal = bump.outputs["Normal"]
@@ -150,6 +342,10 @@ def piece_object(face, piece, library, shape_names):
     if f"{piece}.uv" in face:
         layer = mesh.uv_layers.new(name="st")
         layer.data.foreach_set("uv", face[f"{piece}.uv"].reshape(-1).astype(np.float32))
+    if f"{piece}.tones" in face:  # the skin's regions (face.tones), read by the skin's `regions`
+        tones = mesh.color_attributes.new(name="tones", type="FLOAT_COLOR", domain="POINT")
+        rgba = np.concatenate([face[f"{piece}.tones"], np.ones((len(points), 1))], axis=1)
+        tones.data.foreach_set("color", rgba.reshape(-1).astype(np.float32))
     mesh.update()
     item = bpy.data.objects.new(piece, mesh)
     bpy.context.scene.collection.objects.link(item)

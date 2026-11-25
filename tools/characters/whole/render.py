@@ -15,9 +15,9 @@ to a concrete wall behind, under Blender's physical sky (multiple scattering): t
 the blue sky it lights all from one sun, as outdoors in late morning; nothing else lights the person. The person is
 turned on a turntable for each view, so the sun stays on the camera's left above and every side is lit alike. An
 85 mm lens framing the whole person at chest height, AgX in its medium high contrast look, exposed by EXPOSURE.
-Then a close-up of the face (the head filling the frame, from FACE_TURN off its front) and the setting from further
+Then close-ups of the face (the head filling the frame, from its front and three quarters, FACE_VIEWS) and the setting from further
 back (SETTING_VIEW turned, the frame SETTING_MARGIN of the person's height). Writes <out>/<name>-<view>.png,
-<out>/<name>-face.png and <out>/<name>-setting.png.
+<out>/<name>-face-<view>.png and <out>/<name>-setting.png.
 """
 import json
 import math
@@ -42,7 +42,7 @@ LOOK = "AgX - Medium High Contrast"
 # radiance, so the film is exposed down as a camera in daylight is (EXPOSURE stops).
 SUN = {"turn": 50.0, "rise": 40.0, "strength": 1.0, "air": 1.0, "haze": 1.0}
 EXPOSURE = -4.0
-FACE_TURN = 20.0  # degrees: the close-up a little off the face's front, so the nose and an ear read in depth
+FACE_VIEWS = {"front": 0.0, "three_quarter": 35.0}  # the face's close-ups, degrees off its front
 FACE_FRAME_M = 0.42  # the close-up's frame height: the head and the neck's top
 SETTING_VIEW = "three_quarter"
 SETTING_MARGIN = 1.9  # the setting's frame: the person and the floor and wall round her
@@ -167,7 +167,8 @@ def main(scene_path, library, out):
     face_middle = Vector((middle.x, middle.y, high.z - FACE_FRAME_M * 0.42))
     camera.location = face_middle + Vector((0.0, -FACE_FRAME_M / 2.0 / math.tan(camera.data.angle_y / 2.0), 0.0))
     camera.rotation_euler = (face_middle - camera.location).to_track_quat("-Z", "Y").to_euler()
-    drawn(render, turntable, FACE_TURN, out, f"{scene_file['name']}-face")
+    for view, degrees in FACE_VIEWS.items():
+        drawn(render, turntable, degrees, out, f"{scene_file['name']}-face-{view}")
     framed(camera, middle, high, SETTING_MARGIN, EYE_HEIGHT * 1.3)
     drawn(render, turntable, views[SETTING_VIEW], out, f"{scene_file['name']}-setting")
 

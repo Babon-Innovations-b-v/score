@@ -9,7 +9,8 @@ its height (fit.laid_on_skin), an ear squashed onto the head is refused and one 
 with the skin (strands.brow_strands, strands.checked), a lash curls up off an upper lid and down off a lower and
 turns with its card (strands.lash_frame, strands.lash_line), and
 MHR's 72 controls each move the face, through ICT expressions or the body's own offsets, a name ICT lacks refused
-(expressions.mapping).
+(expressions.mapping), an identity past three standard deviations refused as a caricature (fit.within_population),
+and the cornea rises over the iris to Gullstrand's height and meets the eye at the iris's edge (face.dome).
 
 Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it (one
 with a bump for an ear); a strip standing off a sphere for an ear; one card triangle for a lash.
@@ -34,6 +35,10 @@ Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - every control moves the face: the ICT_OF row "jawDrop" dropped (the jaw would move only by the body's own offsets:
   an unmapped control outside the five families with no ICT expression).
 - a name ICT lacks: mapping's `if ict not in ict_names: raise` dropped.
+- the caricature: within_population's `largest > IDENTITY_LIMIT` made `largest > 10 * IDENTITY_LIMIT` (woman_stair's
+  4.6 passes; seen red 2026-11-25).
+- the cornea: dome's `np.maximum(radius + TEAR_FILM_M, reach)` made `radius + TEAR_FILM_M` (no dome over the iris;
+  seen red 2026-11-25).
 """
 import pathlib
 import sys
@@ -44,6 +49,7 @@ import trimesh
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import expressions  # noqa: E402
+import face  # noqa: E402
 import fit  # noqa: E402
 import strands  # noqa: E402
 
@@ -210,6 +216,27 @@ def a_missing_name_refused():
     return False
 
 
+def caricature_refused():
+    """A face 1.7 standard deviations off the mean passes, one 4.6 off it (woman_stair's at the old pull) is refused."""
+    judged = []
+    for weights in (np.array([1.7, -0.4]), np.array([0.2, -4.6])):
+        try:
+            fit.within_population(weights)
+            judged.append("passes")
+        except RuntimeError:
+            judged.append("refused")
+    return judged
+
+
+def cornea_domed():
+    """On a 12 mm eye with an iris 11.7 mm across: the cornea's apex about 1.2 mm out from the eye's sphere, the iris's
+    edge on the sphere (under its tear film) and the side of the eye the sphere's own (mm, rounded)."""
+    radius, limbus, axis = 0.012, 0.00585, np.array([0.0, 0.0, 1.0])
+    edge = np.arcsin(limbus / radius)
+    directions = np.array([axis, [np.sin(edge), 0.0, np.cos(edge)], [1.0, 0.0, 0.0]])
+    return [round(float(reach - radius) * 1000.0, 1) for reach in face.dome(directions, axis, radius, limbus)]
+
+
 @pytest.mark.parametrize("case, made, wanted", [
     ("the face's border, the cut and the strip are one shut skin", shut_skin, True),
     ("the body's skin shapes the face fully on the border and not past the blend", shares, [1.0, 0.5, 0.0]),
@@ -224,6 +251,8 @@ def a_missing_name_refused():
      [True, True, True]),
     ("every one of MHR's 72 controls moves the face", controls_moving_the_face, True),
     ("a mapping onto an expression ICT lacks is refused", a_missing_name_refused, True),
+    ("a caricature's identity is refused, a person's passes", caricature_refused, ["passes", "refused"]),
+    ("the cornea rises over the iris and meets the eye at its edge", cornea_domed, [1.2, 0.1, 0.1]),
 ])
 def test_the_face_joins_the_body_as_one_shut_skin_moved_by_every_control(case, made, wanted):
     assert made() == wanted, case

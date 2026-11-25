@@ -4,7 +4,8 @@ round toy head passes the hair's checks, and a root lifted off the scalp, strand
 strands taken away and 400 strands gathered into one each fail theirs; hair inside the skin is put out to its
 clearance and hair outside left; a ring goes round the finger it is meant for (read off a toy hand's skin), a watch
 round its wrist with its case on the back of the wrist, a chain round the neck on its skin and moving with it; and
-`faults` names a piece pushed into the skin. Each row is one toy (no SOMA, Newton or Blender).
+`faults` names a piece pushed into the skin; a toy hand's fingers bend towards its palm (the side its thumb stands to)
+past the knuckles, their length kept, the palm left where it was. Each row is one toy (no SOMA, Newton or Blender).
 
 Breaks that turn it red (each applied once, seen red, reverted): the limbs' turns left out (`posed_like_mean`
 returning its points: the toy arm 15 degrees off the mean's); the comb's face guard left out (`direction[front]`
@@ -15,7 +16,8 @@ for `normals` in `pushed_out`: a point inside left inside); the ring sized off i
 its farthest (`.min()` for `.max()` of the radius in `ring`: the ring inside the finger); the fingers counted from the
 thickest (`sizes[-1] < sizes[0]` turned: the ring on the middle finger); the watch's case on the wrist's front
 (`-back`); `deepest` reading only the first frame (a ring pushed in on the last frame passes); `skin_carried` carrying
-only the first frame (the chain left behind as the neck turns)."""
+only the first frame (the chain left behind as the neck turns); `hand_frame`'s palm turned to the thumb's other
+side (`-np.sign`: the fingers bend back; seen red 2026-11-25)."""
 import functools
 
 import numpy as np
@@ -82,12 +84,28 @@ def tube_skin(radius, start, end, sections=48):
     return np.asarray(tube.vertices), np.asarray(tube.faces)
 
 
+def toy_hands():
+    """Two toy hands (toy_hand with a thumb standing out across and towards the palm's side, -y), the left at the
+    origin and the right 1 m away, each carried by its Hand joint: points, weights, names and bind."""
+    skin, _ = toy_hand()
+    thumb = trimesh.creation.cylinder(radius=0.009, segment=[[0.03, -0.02, 0.055], [0.07, -0.03, 0.075]],
+                                      sections=16).subdivide_to_size(0.004)
+    one = np.concatenate([skin, thumb.vertices])
+    points = np.concatenate([one, one + [1.0, 0.0, 0.0]])
+    names = np.array(["LeftForeArm", "LeftHand", "RightForeArm", "RightHand"])
+    weights = np.zeros((len(points), 4))
+    weights[:len(one), 1] = weights[len(one):, 3] = 1.0
+    bind = np.tile(np.eye(4), (4, 1, 1))
+    bind[:, :3, 3] = [[-0.25, 0.0, 0.0], [0.0, 0.0, 0.0], [0.75, 0.0, 0.0], [1.0, 0.0, 0.0]]
+    return points, weights, names, bind
+
+
 @pytest.mark.parametrize("case", ["laid on the mean", "hair combed on its head", "hair rooted off the scalp",
                                   "hair before the eyes", "hair leaving the crown bald", "hair in a clump",
                                   "hair kept out",
                                   "ring round its finger",
                                   "watch round its wrist", "chain round the neck", "ring pushed in",
-                                  "chain carried by the skin"])
+                                  "chain carried by the skin", "fingers relaxed"])
 def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
     if case == "laid on the mean":
         mean, weights = toy_mean()
@@ -101,6 +119,17 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         turns = whole.limb_turns(low * scale + shift, mean, weights, NAMES)
         back = whole.posed_like_mean(low * scale + shift, weights, turns)
         assert np.abs(back - mean).max() < 1e-6
+    if case == "fingers relaxed":
+        points, weights, names, bind = toy_hands()
+        moved, tones = whole.relaxed_hands(points, weights, names, bind)
+        tip = points[:, 0] == points[: len(points) // 2, 0].max()
+        assert (moved[tip, 1] - points[tip, 1]).mean() < -0.02  # towards the palm (-y), the thumb's side
+        palm = (points[:, 0] < 0.07) & (np.abs(points[:, 2]) <= 0.05)  # the palm, not its thumb
+        assert np.abs(moved[palm] - points[palm]).max() == 0.0
+        knuckle = np.array([whole.KNUCKLES_OF_HAND * 0.17, 0.0])
+        reach = np.hypot(*(moved[tip][:, :2] - knuckle).T)
+        assert reach.mean() > 0.9 * (0.17 - knuckle[0])  # bent, not shortened
+        assert tones[tip, 0].min() > tones[palm, 0].max()
     if case == "hair kept out":
         sphere = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
         points = np.array([[0.0, 0.09, 0.0], [0.105, 0.0, 0.0], [0.0, 0.0, 0.1005]])
