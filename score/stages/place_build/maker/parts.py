@@ -43,6 +43,7 @@ FRONT = 90  # the percentile of the met points along the way a piece faces that 
 CRUMB = 0.05  # a connected piece of a part under this share of its area is not the part's
 LEAST_FACES = 4
 LEAST_SHARE = 0.001  # of the model's area
+MEAN_HELD = 0.3  # a facing's mean normal under this share of the area along its axis says no way (a closed piece)
 WIDEST_HINGE = 180.0  # degrees a hinge may open
 
 
@@ -135,11 +136,18 @@ def met(mesh, camera, size, box):
     return np.asarray(faces), np.asarray(points)
 
 
-def facing(normals, areas, faces):
-    """(axis, sign) of the model's axis nearest the met faces' area-weighted mean normal."""
-    mean = (normals[faces] * areas[faces, None]).sum(0)
-    axis = int(np.argmax(np.abs(mean)))
-    return axis, 1 if mean[axis] >= 0 else -1
+def facing(normals, areas, faces, toward=None):
+    """(axis, sign): the model's axis most of the faces' area faces along, either way (a closed piece's normals cancel:
+    r16k's stove knobs, two alike, took x and z by the noise of a mean near 0, 89.8 degrees off NVIDIA's on one); its
+    sign the way their area-weighted mean normal points along it, or, where that mean is under MEAN_HELD of the area
+    along it (a closed piece), the way `toward` (from the piece to the camera) points."""
+    weighted = normals[faces] * areas[faces, None]
+    along = np.abs(weighted).sum(0)
+    axis = int(np.argmax(along))
+    mean = float(weighted[:, axis].sum())
+    if toward is not None and abs(mean) < MEAN_HELD * along[axis]:
+        return axis, 1 if toward[axis] >= 0 else -1
+    return axis, 1 if mean >= 0 else -1
 
 
 def welded_pieces(vertices, faces, members):
@@ -220,8 +228,8 @@ def jointed(vertices, faces, face_part, listed, camera, size):
         piece, members = listed[index], np.nonzero(np.asarray(face_part) == index)[0]
         corners = vertices[faces[members]].reshape(-1, 3)
         low, high = corners.min(0), corners.max(0)
-        axis, sign = facing(mesh.face_normals, mesh.area_faces, members)
         middle = (low + high) / 2
+        axis, sign = facing(mesh.face_normals, mesh.area_faces, members, np.asarray(camera[0]) - middle)
         if piece["joint"] == "hinge":
             along, pivot = hinge_line(low, high, axis, sign, piece, camera, size)
             way = np.cross(np.eye(3)[along], middle - pivot)[axis] * sign

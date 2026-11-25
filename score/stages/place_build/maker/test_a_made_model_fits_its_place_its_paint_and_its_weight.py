@@ -47,7 +47,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   parts.projected's rows not turned down -> its rays are not route_cast's; parts.written laying a part's
   pieces without its pivot taken off -> the door's points stand 0.24 m off; parts.part_masses by face counts -> 2
   and 2; parts.part_classes by face counts -> the body is a tie, read metal; parts.made's `kg=round(mass, 4)` -> `kg=0.0`
-  -> the made cabinet's parts and body no longer weigh its 12 kg (seen red 2026-11-25)
+  -> the made cabinet's parts and body no longer weigh its 12 kg (seen red 2026-11-25); parts.facing's axis by
+  `np.abs(weighted).sum(0)` made the mean's `np.abs(weighted.sum(0))` -> the closed knob faces by noise (seen red
+  2026-11-25)
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
   (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies;
   cloud.brought_back leaving the decoded mesh behind -> its folder is not removed (rmdir refuses) and no
@@ -450,6 +452,12 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert abs(sum(part["kg"] for part in moving["parts"]) + moving["body"]["kg"] - 12.0) < 1e-3
     assert {"door_01__hinge_yn", "drawer_01__slide_z"} <= set(trimesh.load(str(tmp_path / "made.glb"),
                                                                          force="scene").graph.nodes)
+    # a closed knob (a cylinder 6 cm across and 2 cm deep along x, its normals cancelling): it faces x, toward the
+    # camera's side (r16k's stove: two alike knobs took x and z)
+    knob = trimesh.creation.cylinder(radius=0.03, height=0.02, sections=48)
+    knob.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+    assert made_parts.facing(knob.face_normals, knob.area_faces, np.arange(len(knob.faces)), [-1.0, 0.2, 0.3]) == (0, -1)
+    assert made_parts.facing(knob.face_normals, knob.area_faces, np.arange(len(knob.faces)), [1.0, 0.2, 0.3]) == (0, 1)
     assert made_parts.made(model, picture, "a crate", [0.5, 0.4, 0.8], 12.0, tmp_path / "none.glb",
                            ask=lambda body: json.dumps({"reason": "nothing moves", "parts": []})) is None
     kg, body_kg = made_parts.part_masses([-1, -1, 0, 1], [0, 0, 1, 1], [6.0, 4.0], [1.0, 2.0, 1.0, 3.0], 2)
