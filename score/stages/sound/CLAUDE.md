@@ -77,7 +77,8 @@ gates; `takes.py` the paid part.
   `sounds.json`; a sound two names would play the same files under is one name, so the library holds it once.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (`beds.py`), one event sound for each row
   of its scene inventory whose kind moves and a voice where its design stands people
-  (`data/sound/voices.json`, on its first person, played at `/<place>/Characters/<name>`).
+  (`data/sound/voices.json`, the one by how the scene is heard, `needs.voice_of`, as the row plays it: #88, on its
+  first person, played at `/<place>/Characters/<name>`).
   Each need is answered from the library, by a brief this row makes, or not at all; the gaps check shows the last
   two (`score/stages/complete/gaps/layers.py`), and the `events` and `voices` gates fail a place's output that
   leaves one silent. Keep needs generic: read them off the records, never a list of places.

@@ -64,12 +64,15 @@ def toy():
     design folder holding the toy scenes' plans and inventories."""
     folder = pathlib.Path(tempfile.mkdtemp())
     data, design = folder / "data", folder / "design"
-    for name in ("sound/sounds.json", "physics/bodies.json", "checks/row-kinds.json"):
+    for name in ("sound/sounds.json", "sound/voices.json", "physics/bodies.json", "checks/row-kinds.json"):
         (data / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REPO / "data" / name, data / name)
     (data / "physics/setting.json").write_text(json.dumps(SETTING))
     (data / "places").mkdir()
     (data / "places/within.json").write_text(json.dumps(HOLDERS))
+    (data / "people").mkdir()  # one person in every toy scene, so each needs its people's voice
+    (data / "people/rows.json").write_text(json.dumps({"places": {
+        place: {"rows": {"pilot": {"looks": ["pilot-drawn"]}}} for place, *_ in BEDS}}))
     (design / "plans").mkdir(parents=True)
     for place, plan in PLANS.items():
         (design / "plans" / f"{place}.json").write_text(json.dumps(plan))
@@ -82,6 +85,7 @@ def toy():
 
 
 SUIT = ["suit_fans", "suit_breathing_calm"]
+VOICES = {"suit": "helmet_radio_talk", "open": "outdoor_chatter", None: "crew_talk"}  # #88: by hearing, not `people`
 # (place, how it is heard, its bed's sounds, what its design lacks, whether its design is kept: a sound row of its own)
 BEDS = [
     ("room", "room", ["habitat", "base_hum"], [], True),  # one potted plant makes no greenhouse
@@ -647,6 +651,9 @@ def test_a_place_is_heard_as_its_design_says(toy):
     Break: score/stages/sound/__init__.py: `if bed["facts"].get("heard") == "suit":` -> `if False:`
     Break: score/stages/sound/gates.py: `if facts.get(key) not in values]` -> `if False]`
     Break: score/stages/sound/__init__.py: `for entry in voices.get("by_hearing", []):` -> `for entry in []:`
+    Break: score/stages/sound/needs.py: `voice_of(read(data / "sound/voices.json"), bed["facts"])[0]` ->
+        `read(data / "sound/voices.json").get("people")` (the pre-batch need list names crew_talk where the row
+        makes another voice, #88)
     Break: score/stages/sound/gates.py: people_of's `if name not in gapped]` -> `]` (cockpit's gapped pilot wanted a
         voice)
     Break: score/stages/sound/gates.py: `if not record["sounds"].get(use["sound"], {}).get("files")]` -> `if False]`
@@ -722,6 +729,9 @@ def test_a_place_is_heard_as_its_design_says(toy):
         assert (verdict.answer, verdict.findings) == (checks.PASS if sounds else checks.FAIL, tuple(missing)), (
             place, verdict)
         gap = {gap["id"]: gap for gap in needs.gaps(place, data, design)}["sound:bed:room"]
+        voice = {need["kind"]: need for need in needs.needs(place, data, design)}["voice"]["sounds"]
+        assert voice == [VOICES.get(heard, needs.voice_of(json.loads((data / "sound/voices.json").read_text()),
+                                                          found["facts"])[0])], (place, voice)  # the voice it plays
         assert place in beds.places(design) and needs.sounded(place, design) == kept, place
         if missing:
             assert all(lack in gap["work"] for lack in missing) and gap["node"] is None, (place, gap)

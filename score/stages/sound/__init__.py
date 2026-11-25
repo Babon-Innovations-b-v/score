@@ -133,24 +133,15 @@ def object_uses(inputs):
     return uses
 
 
-def voice_of(voices, facts):
-    """The voice a scene heard as `facts` says plays (data/sound/voices.json): the first of `by_hearing` whose heard
-    and air fit, else `people`; (name, where it came from)."""
-    for entry in voices.get("by_hearing", []):
-        if entry["heard"] == facts.get("heard") and entry.get("air", facts.get("air")) == facts.get("air"):
-            return entry["sound"], f"data/sound/voices.json by_hearing ({facts.get('heard')}, {facts.get('air')})"
-    return voices.get("people"), "data/sound/voices.json people"
-
-
 def voice_uses(place, inputs, facts=None):
-    """The voice of the place's people as the scene is heard (voice_of), on the first person its design stands that
+    """The voice of the place's people as the scene is heard (needs.voice_of), on the first person its design stands that
     no accepted bodies gap leaves unlaid (gates.gapped_people: stairwell's man, 2026-11-11, voiced at nothing); none
     with no one, or while no voice is named (the voices gate fails it then)."""
     gapped = gates.gapped_people(inputs)
     people = [name for name in (needs.people(place, inputs["people"]) if "people" in inputs else [])
               if name not in gapped]
     facts = beds.of_place(place, inputs)["facts"] if facts is None else facts
-    voice, said = voice_of(read_json(inputs["voices"]), facts)
+    voice, said = needs.voice_of(read_json(inputs["voices"]), facts)
     if not people or not voice:
         return []
     return [{"sound": voice, "role": "object", "on": people[0], "voice": True,

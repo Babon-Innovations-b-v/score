@@ -7,7 +7,7 @@
             (moving.sounds_for). The stage's events are the motion row's own moves (design_moves: its moves.json,
             made from the design, one an object); things moving exactly together are one event
     voice   the people its picked design stands (data/people/rows.json, people_rows.persons): the people's voice
-            (data/sound/voices.json), on the first of them
+            as the scene is heard (data/sound/voices.json `by_hearing`, else `people`: voice_of), on the first of them
 
 Each need is in one state: `library` (every sound named has a library file), `make` (a sound named has a brief with
 prompts and no file: the sound row's batch makes it) or `none` (nothing named, or a name with neither file nor
@@ -62,6 +62,15 @@ def people(place, rows_path):
     return [person["name"] for person in people_rows.persons(place, read(rows_path) or {"places": {}})]
 
 
+def voice_of(voices, facts):
+    """The voice a scene heard as `facts` says plays (data/sound/voices.json): the first of `by_hearing` whose heard
+    and air fit, else `people`; (name, where it came from)."""
+    for entry in voices.get("by_hearing", []):
+        if entry["heard"] == facts.get("heard") and entry.get("air", facts.get("air")) == facts.get("air"):
+            return entry["sound"], f"data/sound/voices.json by_hearing ({facts.get('heard')}, {facts.get('air')})"
+    return voices.get("people"), "data/sound/voices.json people"
+
+
 def design_moves(inputs):
     """The motion row's rigid record of the place (its output's moves.json, made from the design); {} where the place
     has no motion row."""
@@ -110,7 +119,6 @@ def needs(place, data, design=beds.DESIGN):
     """Every sound need of the place: [{"kind", "item", "prim", "sounds", "state"}], the bed's with what its design
     does not give (`missing`)."""
     data = pathlib.Path(data)
-    voice = read(data / "sound/voices.json").get("people")
     catalogue = read(data / "sound/catalogue.json").get("sounds", {})
     sounds = read(data / "sound/sounds.json").get("sounds", {})
     inventory = read(inventory_of(place, data, design))
@@ -118,6 +126,7 @@ def needs(place, data, design=beds.DESIGN):
     kinds, table = read(data / "checks/row-kinds.json").get("kinds", {}), read(data / "sound/moving.json")
     found = []
     bed = beds.of_place(place, beds.paths(place, data, design))
+    voice = voice_of(read(data / "sound/voices.json"), bed["facts"])[0]  # the voice by hearing the row plays (#88)
     found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed["sounds"],
                   "missing": bed["facts"]["missing"]})
     for event in events([], designed_movers(place, inventory, kinds), {}):
