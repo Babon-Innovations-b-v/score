@@ -34,6 +34,7 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
   or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
 
 - a_made_door_and_drawer_join_their_cabinet (#177): part_drive's speed not turned by the sign (30, not -30);
+  part_drive's lift without `* climb` (a level drawer sped up to lift its weight);
   write_parted's sibling filter dropped (the drawer left out of the door's pairs); part_inertia's box made a thin
   rod's (0, 0, kg) (fails A + B >= C) (each seen red 2026-11-25);
 - a_made_door_and_drawer_join_their_cabinet (#177): write_parted's limits not turned for the negative way (0 to 100),
@@ -378,6 +379,10 @@ def a_made_door_and_drawer_join_their_cabinet():
         drive = UsdPhysics.DriveAPI(hinge.GetPrim(), "angular")
         assert drive.GetTargetVelocityAttr().Get() == -30.0 and drive.GetMaxForceAttr().Get(12) == 50.0
         assert 0 < drive.GetDampingAttr().Get() < physics.STIFF_DRIVE
+        # a slide lifts its weight only by the share of it along its way: the drawer runs level, so it keeps its speed
+        part_drive = physics.part_drive({**drawer, "drive": {"speed": 0.001}}, [0.1, 0.1, 0.1], 24, climb=0.0)
+        assert part_drive["speed"] == 0.001 and physics.part_drive({**drawer, "drive": {"speed": 0.001}},
+                                                                  [0.1, 0.1, 0.1], 24)["speed"] > 0.01
         inertia = sorted(UsdPhysics.MassAPI(door_prim).GetDiagonalInertiaAttr().Get())
         assert inertia[0] > 0 and inertia[0] + inertia[1] >= inertia[2], inertia
         assert UsdPhysics.FilteredPairsAPI(door_prim).GetFilteredPairsRel().GetTargets() == [

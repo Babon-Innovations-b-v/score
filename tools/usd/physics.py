@@ -428,16 +428,18 @@ def part_inertia(part, kg):
                               kg / 12 * (wide ** 2 + tall ** 2)]
 
 
-def part_drive(spec, inertia, rate):
+def part_drive(spec, inertia, rate, climb=1.0):
     """A part's drive by speed sized to its own inertia (its mass for a slide) at the trial's substep: its damping
     PART_DRIVE_SHARE of the inertia over the step (UsdPhysics' angular damping per degree, the inertia per radian), its
-    speed the way its sign opens it, a slide's at least what lifts its own weight (LIFT_MARGIN)."""
+    speed the way its sign opens it, a slide's at least what lifts the share of its own weight along it (`climb`, the
+    cosine of its way to the stage's up; LIFT_MARGIN): a sideways slide keeps its own slow speed (r16: drill a01's 3 mm
+    button, sped up to lift a weight it never carried, met its limit at 2.7 cm/s and went 0.6 mm past)."""
     held = float(spec["kg"]) if spec["joint"] == "slide" else float(inertia["xyz".index(spec["axis"])])
     per = 1.0 if spec["joint"] == "slide" else np.pi / 180.0
     damping = PART_DRIVE_SHARE * held * rate * TRIAL_STEPS
     speed = float(spec["drive"]["speed"])
     if spec["joint"] == "slide":
-        speed = max(speed, LIFT_MARGIN * held * GRAVITY / damping)
+        speed = max(speed, LIFT_MARGIN * held * GRAVITY * climb / damping)
     return {**spec["drive"], "speed": speed * spec["sign"], "damping": damping * per}
 
 
@@ -491,7 +493,9 @@ def write_parted(stage, parted, rate):
         for mesh in own_meshes(holder):
             pairs.AddTarget(mesh.GetPath())
         if spec.get("drive"):
-            write_drive(joint.GetPrim(), part_drive(spec, inertia, rate),
+            way = world(part).TransformDir(Gf.Vec3d(*(1.0 if axis == spec["axis"] else 0.0 for axis in "xyz")))
+            climb = abs(way[1]) / max(way.GetLength(), 1e-9)  # the stage is y up
+            write_drive(joint.GetPrim(), part_drive(spec, inertia, rate, climb),
                         rate, UsdPhysics.Tokens.linear if spec["joint"] == "slide" else UsdPhysics.Tokens.angular)
     nodes = [holder.GetChild(spec["node"]) for spec in parted["parts"]]
     for part in nodes:  # a model's own parts never meet: a cut's hull may reach a neighbour's (r16's locker doors)
