@@ -70,6 +70,7 @@ def built_body(look, clip, build=None, face=None):
     from score.stages.sim_body import _body
     from score.stages.people_cloth import skinned
     from tools.characters import played
+    from tools.characters import posture
     from tools.characters.garments import shaped
     clips_rig = dict(np.load(CLIPS))
     built = dict(np.load(PEOPLE / look / "made/fit/rig.npz"))
@@ -79,6 +80,8 @@ def built_body(look, clip, build=None, face=None):
     parents, bind = np.asarray(clips_rig["parents"]), np.asarray(found["bind"], dtype=float)
     local = np.asarray(found[f"clip_{clip}"], dtype=float)
     points = np.asarray(found["points"], dtype=float)
+    if clip in posture.RELAXED:
+        local = relaxed_clip(local, clips_rig, bind, points, np.asarray(built["source_faces"], np.int64), face)
     arms_out = 0.0
     if build:
         bind, points, local, arms_out = shaped.arms_cleared(bind, points, np.asarray(built["source_faces"]),
@@ -99,6 +102,26 @@ def built_body(look, clip, build=None, face=None):
     return {"bind": points, "faces": faces, "weights": weights,
             "names": np.asarray(clips_rig["names"]), "joints": bind, "worlds": worlds, "frames": frames,
             "clip_start": np.array(1 + int(round(TURN_SECONDS * RATE))), "arms_out": arms_out}
+
+
+def relaxed_clip(local, clips_rig, bind, points, faces, face):
+    """A clip made to stand at ease (`posture.RELAXED`) with its feet under the hips, its arms hanging against the
+    body that plays it (the face's skin when `face` is given, else the build's surface) and its gaze level, the face's
+    own look at rest counted (`tools.characters.posture`); a posture that still faults stops the run."""
+    from tools.characters import posture, whole
+    parents, names = np.asarray(clips_rig["parents"]), [str(name) for name in clips_rig["names"]]
+    weights = np.asarray(clips_rig["weights"], dtype=float)
+    face_file = dict(np.load(face["face"])) if face is not None else None
+    if face is not None:
+        skin = whole.carried_skin(face_file, dict(np.load(face["body"])), clips_rig, bind)
+        points, faces, weights = skin["points"], skin["faces"], skin["weights"]
+    gaze = posture.rest_gaze(face_file)
+    clears = posture.clearance({"points": points, "faces": faces, "weights": weights}, names, parents, bind, local)
+    local = posture.relaxed(local, parents, names, bind, gaze, clears)
+    faults = posture.faults(posture.measured(local, parents, names, bind, gaze))
+    if faults:
+        raise ValueError("the clip's posture: " + "; ".join(faults))
+    return local
 
 
 def turned(bind, first, parents):

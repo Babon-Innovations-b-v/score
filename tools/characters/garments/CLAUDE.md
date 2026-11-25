@@ -34,6 +34,10 @@ runs them (an outfit file per look in `data/people/outfits/`).
   out: it carries SizeUSA's scan poses, its shorter bodies' arms down into their sides. A wider build's arms are
   turned out until none past the armpit's fold sinks in the torso at the bind or walking (`arms_cleared`, up to 20
   degrees; a build that needs more is refused): cloth caught between a sunk arm and the chest blew the drape up.
+- **A relaxed clip is stood at ease first** (`relaxed_clip`, `../posture`, owner 2026-11-25: "the posture head ...
+  so weird"): standing and walking get their feet under the hips, their arms hung against the skin that plays them
+  and their gaze levelled with the face's own look counted, before any build clears the arms; a posture that still
+  faults stops the run.
 - **Layers** (an outfit's `layer_m` per garment): sewn a layer at a time, innermost first (`sewn_in_layers`); an
   outer garment's box mesh is laid that much further off the skin and outside the cloth sewn under it, so a shirt and
   the coat over it start apart and meet by contact as they are sewn (laid all at once, a jacket's hem lay inside the

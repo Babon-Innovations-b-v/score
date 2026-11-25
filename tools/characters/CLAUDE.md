@@ -9,7 +9,8 @@ OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter
   (`score/stages/scene_clips`); `people/` holds the body model's and the clips' pieces and the join measures they use; `played/` is how a clip is
   played on a person's build (the sim body's, and prop_build.py's arithmetic until its next paid re-make); `hair/`
   grows strand hair on a kept person and writes it as USD curves (#223); `garments/` sews and drapes its clothes
-  (#225) and `accessories/` fits its shoes and belt (#228). Each has its own overlay.
+  (#225) and `accessories/` fits its shoes and belt (#228); `posture/` stands a relaxed clip at ease and fails one
+  that holds the arms out or gazes up (#223). Each has its own overlay.
 - **Card work goes through this PC's card queue** (`garment-drape`, `whole-person`, the hair's and accessories' draws), so a
   chain script that shares the card with another session exports `SCORE_CARD_LOCK=<the lock file>` and never wraps a
   command in `flock <lock file>`: the queue holds the lock for each card job alone (`tools/cloud/CLAUDE.md`, "A session's
