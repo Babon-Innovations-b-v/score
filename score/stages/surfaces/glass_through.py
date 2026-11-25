@@ -2,8 +2,9 @@
 its white interior through its clear glass door, and the faces behind the glass (TRELLIS.2's wire shelves) took the
 body's stainless steel from the texture's labels. The list now names, for a see-through finish, the finish the
 close-up shows through it (route_list.THROUGH, its finishes' `through`); here every face first met behind such a
-glass by the close-up's own camera takes that finish alone, as a lit finish takes the faces the laid close-up labels
-(route_split.close_up_only).
+glass by the close-up's own camera takes that finish alone, once the split has filled and smoothed every face: forced
+on the votes, those faces were fill sources for the faces no view sees, and tc6's fridge's 1802 hidden inner faces
+behind its pane (NVIDIA's glass shelves) took the liner, see-through 1.0 to 0.734 (r202).
 
 Behind the glass: the close-up's pixels cast through its camera (route_cast.close_up_camera, sampled as
 route_cast.close_up_cast samples them) with every hit along each ray; a ray whose first face the laid close-up labels
@@ -31,7 +32,7 @@ import route_split  # noqa: E402
 import route_views  # noqa: E402
 
 PANE_DEPTH = 0.02  # a glass pane's own back lies within this share of the model's largest side behind its front
-SPLIT_TAKE, CLOSE_UP_ONLY = route_split.split_take, route_split.close_up_only  # route_split's own
+SPLIT_TAKE, VOTED_FINISHES = route_split.split_take, route_split.voted_finishes  # route_split's own
 
 
 def glasses(finishes):
@@ -95,27 +96,31 @@ def through_votes(inputs, take, listed, views):
     return behind_faces(close_up_hits(model, files[1], files[2]), laid, shown, len(model.mesh.faces))
 
 
-def forced(votes, behind):
-    """`votes` with each face behind a glass given the finish it shows through it alone."""
+def forced(found, behind):
+    """(part per face, finish per face) `found` with each face behind a glass given the finish it shows through it,
+    each part parted where it now holds two finishes."""
+    part_of, finish_of = found
     chosen = np.flatnonzero(behind >= 0)
-    found = votes.copy()
-    found[chosen] = 0.0
-    found[chosen, behind[chosen]] = 1.0
-    return found
+    if not len(chosen):
+        return found
+    finish_of = finish_of.copy()
+    finish_of[chosen] = behind[chosen]
+    return np.unique(np.c_[part_of, finish_of], axis=0, return_inverse=True)[1].ravel(), finish_of
 
 
 CURRENT = {}  # the make running: its inputs and views, and the take being split's faces behind a glass
 
 
-def close_up_only(votes, per_map, lit=()):
-    """route_split.close_up_only, then the faces behind a glass of the take being split forced (forced)."""
-    found = CLOSE_UP_ONLY(votes, per_map, lit)
+def voted_finishes(mesh, votes, count):
+    """route_split.voted_finishes, then the faces behind a glass of the take being split forced (forced): after
+    the unseen faces took the finish nearest them, so a face no view sees never takes what shows through a glass."""
+    found = VOTED_FINISHES(mesh, votes, count)
     behind = CURRENT.get("behind")
     return found if behind is None else forced(found, behind)
 
 
 def split_take(folders, listed, record):
-    """route_split.split_take with its faces behind a glass forced (through_votes, close_up_only); its record names
+    """route_split.split_take with its faces behind a glass forced (through_votes, voted_finishes); its record names
     them by finish (`behind_glass`). The table answers it per take through kept.call (stages.PER_TAKE)."""
     take = folders["views"].name
     behind = through_votes(CURRENT["inputs"], take, listed, CURRENT["views"])
@@ -132,12 +137,12 @@ def split_take(folders, listed, record):
 
 def make_split(inputs, out, seed, params):
     """route_split.make_split with each take split by this module's split_take (looked up at each call, so the
-    table's per-take keeping answers it) and close_up_only."""
+    table's per-take keeping answers it) and voted_finishes."""
     CURRENT.update(inputs=inputs, views=pathlib.Path(inputs["finish-route-views"]))
     route_split.split_take = lambda *arguments: split_take(*arguments)
-    route_split.close_up_only = close_up_only
+    route_split.voted_finishes = voted_finishes
     try:
         route_split.make_split(inputs, out, seed, params)
     finally:
-        route_split.split_take, route_split.close_up_only = SPLIT_TAKE, CLOSE_UP_ONLY
+        route_split.split_take, route_split.voted_finishes = SPLIT_TAKE, VOTED_FINISHES
         CURRENT.clear()

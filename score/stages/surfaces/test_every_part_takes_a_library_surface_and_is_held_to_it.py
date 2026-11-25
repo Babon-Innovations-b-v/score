@@ -336,6 +336,10 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (its WORDED rows)
 - glass_through.py: `(distances > distances[first] + PANE_DEPTH))` -> `(distances > distances[first]))`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (GLASS_BEHIND: the pane's back took the interior, not the shelf)
+- glass_through.py voted_finishes: `found = VOTED_FINISHES(mesh, votes, count)` -> the faces behind a glass forced on
+  `votes` first, then `VOTED_FINISHES` and nothing forced after (the order of aee4f4fca)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (GLASS_SPLIT: the hidden shelf took the liner seen through the
+  pane from the seen shelf, not the pane's glass; tc6's fridge, r202)
 - baked_recheck.py: `for _ in range(FIT_ROUNDS):` -> `for _ in range(1):`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its BAKED_DRAWN "feet levelled" row: the frame misses by 4 mm)
 - __init__.py (score/stages): baked_rechecked's `return dataclasses.replace(row, make=baked_recheck.make_recheck,` ->
@@ -6124,6 +6128,15 @@ GLASS_BEHIND = [
     ("a glass naming nothing shown through it: nothing", [(0, 0, 1.0), (2, 0, 1.3)], [1, -1, -1, -1, 0], {},
      [-1, -1, -1, -1, -1]),
 ]
+# The split with a glass's faces behind it forced (glass_through.voted_finishes, #201, r202's fridge): plates of
+# 1 x 1 m, the glass pane at z 0 (voted finish 1, the glass), a shelf seen through it at z -0.3 (no view votes on it;
+# the close-up shows finish 2, the liner, through the pane), a shelf no ray reaches at z -0.2 (no votes, nothing
+# behind a glass) and the body beside them (voted finish 0): (case, the plate, its finish after the split).
+GLASS_SPLIT = [
+    ("the shelf seen through the pane takes the finish shown through it", "seen shelf", 2),
+    ("the shelf no view sees keeps the pane's finish, never the forced one", "hidden shelf", 1),
+    ("the pane keeps its own", "pane", 1),
+]
 # The list's `through` read (route_list.seen_through): (case, the answer's finish, its number, the count, read).
 THROUGH_READ = [
     ("finish 3 seen through finish 1", {"through": 3}, 0, 3, 2),
@@ -6145,6 +6158,21 @@ def glass_through_held():
     for case, hits, laid, shown, given in GLASS_BEHIND:
         found = glass_through.behind_faces(list(zip(*hits)), np.array(laid), shown, len(laid))
         assert found.tolist() == given, case
+    plates = {name: trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(*(lambda made: (made.vertices, made.faces))(
+        trimesh.creation.box(bounds=((x0, 0, z - 0.005), (x0 + 1, 1, z)))), 0.1))
+        for name, x0, z in (("pane", 0, 0), ("seen shelf", 0, -0.3), ("hidden shelf", 0, -0.2), ("body", 2.4, 0))}
+    fridge = trimesh.util.concatenate(list(plates.values()))
+    plate_of = np.repeat(list(plates), [len(plate.faces) for plate in plates.values()])
+    votes = np.zeros((len(fridge.faces), 3))
+    votes[plate_of == "pane", 1] = votes[plate_of == "body", 0] = 1.0
+    glass_through.CURRENT["behind"] = np.where(plate_of == "seen shelf", 2, -1)
+    try:
+        split = glass_through.voted_finishes(fridge, votes, 3)
+    finally:
+        glass_through.CURRENT.pop("behind")
+    for case, plate, finish in GLASS_SPLIT:
+        assert set(split[1][plate_of == plate].tolist()) == {finish}, case
+        assert not set(split[0][plate_of == plate]) & set(split[0][split[1] != finish]), case  # one finish a part
     for case, entry, number, count, read in THROUGH_READ:
         assert route_list.seen_through(entry, number, count) == read, case
     finishes = [{"finish": "steel", "parts": "body", "family": "metal"},
