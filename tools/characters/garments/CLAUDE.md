@@ -53,6 +53,11 @@ runs them (an outfit file per look in `data/people/outfits/`).
   together, and woman_stair_modern's tee, its sleeve caps laid through its torso by GarmentCode's box mesh, was held
   behind her as she walked until it blew up (2026-11-25). A box mesh closes with no self contact in the gravity-free
   fifth of sewing; self contact then starts with the pairs still crossed left out, looked for again before the turn.
+- **Trouser legs are laid over her legs** (`laying.over_legs`): GarmentCode lays a leg's panels flat, the back one
+  reaching far to the side, so the laid leg stood 12 cm outside hers, its inseam strip through her calf; sewn, the lower
+  leg caught on the wrong side of the calf and hung as a flap (#225 rounds 6 and 8). Each leg is moved across over
+  the body's leg before laying out, short of the crotch's middle. A torn edge is judged against its cut length, not
+  its sewn one (a garment torn as it was sewn passed).
 - **A slim leg is taken in at the knee** (an outfit garment's `knee_ease_cm`, `inside/pattern.py` `slim_legs`):
   GarmentCode's Pants run each leg straight from the thigh to the hem, so jeans cut to a slim hem stood 56 cm round a
   37 cm knee and gathered at the calf. Each leg seam gets a point at the knee's height as cut, moved in to the knee's

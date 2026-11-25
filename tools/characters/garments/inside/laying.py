@@ -18,6 +18,12 @@ float32 membrane read the area ratio of a triangle 23 times stretched and that f
 difference of two numbers near 2.8e5, clamped to 1e-20): a force of 4e11 N, a hessian of 1e23, a NaN point and "the
 cloth blew up sewing" (2026-11-25). Sewn here, each triangle rests first as laid and its rest goes over to its flat
 panel's while the cloth sews (`rest_lengths`), so no triangle is ever far from its rest.
+
+GarmentCode lays a trouser leg's front and back panels flat, their inseams together beside its crotch and the back
+panel reaching far out to the side, so the laid leg's middle stood 12 cm outside woman_stair's own leg, the back
+panel's inseam strip through her calf and knee: sewn, the leg's lower cloth was caught on the wrong side of the calf
+and hung from it as a flap (#225 round 8; round 6's hems as well). Laid here, each leg's points are moved across to
+stand over the body's own leg first (`over_legs`).
 """
 import numpy as np
 from scipy.spatial import cKDTree
@@ -29,6 +35,9 @@ AXES = np.array([[1.0, 0, 0], [-1.0, 0, 0], [0, 1.0, 0], [0, -1.0, 0], [0, 0, 1.
 # sliver rest (woman_stair_modern's jeans have laid triangles a thousandth of their flat area) turns a small opening of
 # the cloth into a stretch past what float32 reads.
 SLIVER = 0.5
+LEVEL_M = 0.01  # the band a level's points and skin are read in (half its height)
+LEG_LEVELS = 9  # levels of a leg's lower half its move across is read at
+CROTCH_GAP_M = 0.01  # a leg moved in towards the crotch's middle keeps its points this far off it (the legs apart)
 
 
 def winding(points, skin, faces):
@@ -42,6 +51,68 @@ def winding(points, skin, faces):
     below = (lengths[:, :, 0] * lengths[:, :, 1] * lengths[:, :, 2] + np.sum(one * two, axis=2) * lengths[:, :, 2]
              + np.sum(two * three, axis=2) * lengths[:, :, 0] + np.sum(three * one, axis=2) * lengths[:, :, 1])
     return np.arctan2(volume, below).sum(axis=1) / (2.0 * np.pi)
+
+
+def leg_points(record):
+    """A garment's leg points in its box mesh (GarmentCode's Pants panels `pant_<f|b>_<l|r>`): {+1: the left leg's
+    (+x), -1: the right leg's}, each held by its own leg's panels alone, and the points both legs' panels hold (the
+    crotch seam). Empty for a garment with no legs."""
+    names = [str(name) for name in record["panel_names"]]
+    box, panel = np.asarray(record["box"]), np.asarray(record["panel"])
+    held = {}
+    for side, tag in ((1, "l"), (-1, "r")):
+        numbers = [number for number, name in enumerate(names) if name.startswith("pant_") and name.endswith(f"_{tag}")]
+        held[side] = np.unique(box[np.isin(panel, numbers)])
+    if not len(held[1]) or not len(held[-1]):
+        return {}, np.zeros(0, dtype=np.int64)
+    crotch = np.intersect1d(held[1], held[-1])
+    return {side: np.setdiff1d(points, crotch) for side, points in held.items()}, crotch
+
+
+def leg_middles(points, skin, side, middle, level):
+    """The middles (x) of a leg's laid points and of the body's skin on the leg's side of `middle` at `level` (m),
+    or None where either has nothing there."""
+    laid = points[np.abs(points[:, 1] - level) < LEVEL_M, 0]
+    body = skin[(np.abs(skin[:, 1] - level) < LEVEL_M) & (side * (skin[:, 0] - middle) > 0.0), 0]
+    if not len(laid) or not len(body):
+        return None
+    return (laid.min() + laid.max()) / 2.0, (body.min() + body.max()) / 2.0
+
+
+def over_legs(points, legs, crotch, skin):
+    """A garment's legs (`leg_points`) moved across (x) to stand over the body's own legs: each leg by the median, over
+    LEG_LEVELS levels of its lower half, of how far its laid middle stands from the middle of the skin on its side of
+    the crotch there, in full from the top of that half down and going over to none at the crotch's lowest point (the
+    crotch seam and all above it as GarmentCode lays them). A leg moved in stops short of the crotch's middle, each
+    point no nearer it than CROTCH_GAP_M (or where it was laid, when nearer): GarmentCode's flat leg is twice as wide
+    as her leg, and stood over it whole, the two legs' inseams were laid over each other at the middle. The lower
+    half moves whole (its innermost point stopping there); a point above it moved past that is stopped alone."""
+    points = np.array(points, dtype=float)
+    if not len(crotch):
+        return points
+    skin = np.asarray(skin, dtype=float)
+    lowest = crotch[np.argmin(points[crotch, 1])]
+    top, middle = points[lowest, 1], points[lowest, 0]
+    for side, mine in legs.items():
+        hem = points[mine, 1].min()
+        full = hem + (top - hem) / 2.0
+        found = [leg_middles(points[mine], skin, side, middle, level)
+                 for level in np.linspace(hem + LEVEL_M, full, LEG_LEVELS)]
+        moves = [body - laid for laid, body in (pair for pair in found if pair is not None)]
+        if not moves:
+            continue
+        across = float(np.median(moves))
+        if side * across < 0.0:
+            lower = mine[points[mine, 1] <= full]
+            across = -side * min(-side * across, max(float(np.min(side * (points[lower, 0] - middle))) - CROTCH_GAP_M,
+                                                     0.0))
+        share = np.clip((top - points[mine, 1]) / (top - full), 0.0, 1.0)
+        move = across * share
+        room = np.maximum(side * (points[mine, 0] - middle) - CROTCH_GAP_M, 0.0)
+        inward = side * move < 0.0
+        move[inward] = -side * np.minimum(-side * move[inward], room[inward])
+        points[mine, 0] += move
+    return points
 
 
 def laid_out(points, skin, reach, clear, inside):

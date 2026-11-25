@@ -2,7 +2,8 @@
 measurements off a body's own surface (girths at their levels, the arm's length and angle, the shoulders' width, the
 neck's base) and carries the rest from GarmentCode's mean body by the girth each follows or by the height; seated.py
 fails a garment sewn off centre, a shoulder seam sliding off its shoulder, a neckline dropping, the body standing out
-through the cloth that covers it, cloth torn (part of it left behind as the body walks on), or a garment under it out
+through the cloth that covers it, cloth torn (part of it left behind as the body walks on, or hanging off the rest
+from when it was sewn), or a garment under it out
 through it (the toy torso worn as a garment under the tee), and passes one that sways with the body;
 shaped.py gives a body another build (wider and taller as its
 shape model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most;
@@ -10,7 +11,8 @@ bands.py cuts a band out of a garment's cloth along its edges, a set height over
 construction marks on its cloth (a seam's mark on one panel's side and its other side's on the other, an edge's along
 each open edge, a plain seam left bare, a patch at its anchor), each a hair's breadth outside the cloth's drawn face; inside/laying.py lays a box mesh's points that stand inside the
 body out of it (in a thigh, and between two thighs that cross each other) and leaves one with no way out inside, for
-the drape to refuse, and leaves a sleeve cap's sheet laid through a torso panel out of self contact against it;
+the drape to refuse, moves trouser legs laid as GarmentCode lays them (wide of the legs) across over the legs, short of
+the crotch's middle, and leaves a sleeve cap's sheet laid through a torso panel out of self contact against it;
 inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
 and at its flat panel (as Newton's builder rests a triangle) when it ends, so float32 reads its area as the seam
 closes, and a laid sliver at its flat panel throughout. Each row is a toy body of
@@ -27,7 +29,7 @@ rather than their places on the moving skin, the body's outward normal not turni
 inward-wound cloth read as out), or a seam's place on the shoulder judged by its distance off the skin alone (a seam
 slid down the arm's side in the turn, lying on the skin, read as seated); a garment under another judged by its winding
 point by point or not at all (a garment wound inward read as through), against its sewn shape rather than its frames, or
-never failed; torn edges never failed. In shaped.py: the arms turned in rather than out, an arm point read sunk
+never failed; torn edges never failed, or judged against the sewn cloth rather than the cut. In shaped.py: the arms turned in rather than out, an arm point read sunk
 outside the torso, the
 armpit's fold counted or every arm point left out, a shape's standard deviations not scaling its direction, the height
 not set, or the joints left unscaled with the skin. In bands.py: the triangles taken whole by their middles (not cut on
@@ -39,7 +41,7 @@ its nearest skin), no way out along the axes for a point the first step leaves i
 at again, or a point the layer's reach moves into a fold of the skin kept there; a seam's triangle rested at its flat
 panel from the start (its float32 area ratio lost as the seam is crushed), a rest's corner 2 put the other way along
 its first edge or its shape transposed (not Newton's), the share not reaching the flat panel, or a laid sliver kept as
-its start; a crossing's points not left out against the triangle it passes through, its edge not against that
+its start; trouser legs not moved over the legs, moved the other way, or moved in past the crotch's gap; a crossing's points not left out against the triangle it passes through, its edge not against that
 triangle's edges, or an edge sharing a corner with a triangle taken for one through it (cloth that crosses nothing
 leaving its own neighbours out of self contact); a waistband's top worn where the skin is nearest it (off its level
 on a body that narrows above the hips) or at its level way's last hit rather than its first."""
@@ -181,7 +183,7 @@ def toy_tee():
         panel_of.extend([number] * len(used))
     neckline = np.flatnonzero(np.isclose(points[:, 1], 0.565))
     record = {"points": points * 100.0, "box": np.asarray(box), "panel": np.asarray(panel_of),
-              "panel_names": np.asarray(names), "faces": copied,
+              "panel_names": np.asarray(names), "faces": copied, "flat": points[np.asarray(box)] * 100.0,
               "label/right_collar": neckline[points[neckline, 0] <= 0.0],
               "label/left_collar": neckline[points[neckline, 0] > 0.0]}
     return record, points, faces
@@ -217,6 +219,11 @@ def worn(wear, body, cloth, record, scale):
         # from the middle frame the left side's lower half left behind where it was, the rest walking on
         flap = np.flatnonzero((cloth[:, 0] > 0.0) & (cloth[:, 1] < (TOP - 0.15) * scale))
         cloths[later, flap] = sewn[flap] + moves[FRAMES // 2]
+    if wear == "torn as it was sewn":
+        # the left side's lower half sewn 10 cm low, hanging off the rest from the start and worn on with it
+        flap = np.flatnonzero((cloth[:, 0] > 0.0) & (cloth[:, 1] < (TOP - 0.15) * scale))
+        sewn[flap, 1] -= 0.1
+        cloths = np.array([sewn + move for move in moves])
     if wear == "body out through the cloth":
         belly = np.flatnonzero((body[:, 1] > 0.2) & (body[:, 1] < 0.3) & (body[:, 2] > 0.1))
         bodies[later][:, belly] += np.stack([body[belly, 0], np.zeros(len(belly)), body[belly, 2]], axis=1) * (
@@ -391,6 +398,41 @@ def pants_laid(clear):
     return int(inside(laid).sum())
 
 
+def legs_laid(moved):
+    """Toy trousers laid as GarmentCode lays them (each leg's front and back panels flat, 24 cm wide, from 6 cm off the
+    crotch's middle outwards, a crotch point both legs hold) beside two toy legs 8 cm either side of the middle, 8 cm
+    across, and `laying.over_legs` applied or not: (the share of each leg's width at its lowest level inside its laid
+    cloth's, the least, the nearest a leg's point comes to the crotch's middle, the crotch point's move; m)."""
+    columns, levels = np.linspace(0.06, 0.30, 13), np.arange(0.05, 0.76, 0.05)
+    points, panel, names = [[0.0, 0.8, 0.0], [0.0, 0.8, 0.0]], [0, 2], ["pant_f_l", "pant_b_l", "pant_f_r", "pant_b_r"]
+    for number, name in enumerate(names):
+        side, depth = (1.0 if name.endswith("_l") else -1.0), (0.15 if "_f_" in name else -0.15)
+        for level in levels:
+            points.extend([side * column, level, depth] for column in columns)
+            panel.extend([number] * len(columns))
+    points = np.asarray(points)
+    box = np.arange(len(points))
+    box[1] = 0  # the crotch point held by the left and right front panels both
+    record = {"panel_names": np.asarray(names), "box": box, "panel": np.asarray(panel)}
+    turn = np.linspace(0.0, 2.0 * math.pi, 24, endpoint=False)
+    skin = np.array([[side * 0.08 + 0.04 * math.cos(angle), level, 0.04 * math.sin(angle)]
+                     for side in (1.0, -1.0) for level in np.arange(0.0, 0.8, 0.01) for angle in turn])
+    legs, crotch = laying.leg_points(record)
+    laid = points[np.unique(box)]
+    index = {int(point): number for number, point in enumerate(np.unique(box))}
+    legs = {side: np.array([index[int(point)] for point in mine]) for side, mine in legs.items()}
+    crotch = np.array([index[int(point)] for point in crotch])
+    after = laying.over_legs(laid, legs, crotch, skin) if moved else laid
+    shares, nearest = [], []
+    for side, mine in legs.items():
+        low = mine[after[mine, 1] == after[mine, 1].min()]
+        leg = skin[(np.abs(skin[:, 1] - 0.05) < 0.005) & (side * skin[:, 0] > 0.0), 0]
+        inside = np.clip(leg, after[low, 0].min(), after[low, 0].max())
+        shares.append(float(np.ptp(inside) / np.ptp(leg)))
+        nearest.append(float(np.min(side * after[mine, 0])))
+    return min(shares), min(nearest), float(np.linalg.norm(after[crotch] - laid[crotch]))
+
+
 def builder_rest(corners):
     """Newton's builder's rest of triangles from their corners (add_triangles: the corners seen in the triangle's own
     frame, the first axis along corner 0 to 1): D's inverse per triangle."""
@@ -501,6 +543,7 @@ def waistband_worn():
                                                   "under through over"]),
     (1.0, "neckline dropped", ["neckline drop"]),
     (1.0, "torn into a flap", ["body through cloth", "torn", "under through over"]),
+    (1.0, "torn as it was sewn", ["torn"]),
     (1.0, "body out through the cloth", ["body through cloth", "under through over"]),
     (1.0, "arms clear of a mean torso", 0.0),
     (1.0, "arms sunk in a wide torso", 14.0),
@@ -512,6 +555,8 @@ def waistband_worn():
     (1.0, "marks with the seam plain", True),
     (1.0, "pants laid round thighs that touch", 0),
     (1.0, "pants laid with too short a way out", 1),
+    (1.0, "trouser legs laid over the legs", True),
+    (1.0, "trouser legs laid as GarmentCode lays them", False),
     (1.0, "a seam's triangle laid across the body", "rests as laid"),
     (1.0, "a sliver laid", "rests flat"),
     (1.0, "a sleeve cap laid through its torso", True),
@@ -542,6 +587,13 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         return
     if wear.startswith("a band"):
         assert taped(scale, failed) == pytest.approx(0.0, abs=1e-9)
+        return
+    if wear.startswith("trouser legs"):
+        share, nearest, crotch = legs_laid(failed)
+        # moved over the legs, each leg's width lies inside its laid cloth's at the hem, no leg point nearer the
+        # crotch's middle than the gap, the crotch seam where it was laid; as GarmentCode lays them, a quarter out
+        assert (share == pytest.approx(1.0)) == failed, share
+        assert nearest >= laying.CROTCH_GAP_M - 1e-9 and crotch == 0.0, (nearest, crotch)
         return
     if wear.startswith("pants"):
         # the drape refuses a garment with a point left inside the body, never sews it

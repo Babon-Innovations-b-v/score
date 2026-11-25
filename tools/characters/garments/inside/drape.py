@@ -290,6 +290,7 @@ class Garment:
         if placed is not None:
             self.points = np.asarray(placed, dtype=float)
         else:
+            self.points = laying.over_legs(self.points, *laying.leg_points(record), skin)
             self.points = laying.laid_out(self.points, skin, float(spec.get("layer_m", 0.0)), clear, inside)
             left = np.flatnonzero(inside(self.points))
             if len(left):
