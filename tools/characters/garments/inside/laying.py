@@ -9,6 +9,15 @@ inside (her jeans' front crotch curve laid 3 to 4 cm above her crotch, where the
 past it the other thigh, 2026-11-25) is moved instead the shortest way out along the body's six axes; then every
 point is moved the layer's reach further off. A point the laying leaves inside refuses the garment (drape.py), never
 sewn.
+
+A box mesh laid round the body has the triangles beside each seam stretched across it (a seam's points are shared, so a
+back panel's triangle at the shoulder reaches the front panel's edge: woman_stair_modern's tee 15 to 50 times its flat
+panel's lengths, edges up to 39 cm on a 1.5 cm mesh). Resting at their flat panels from the first substep, those
+triangles pulled their seams shut in two frames, crushed a shoulder seam's edge from 1.3 cm to 0.4 mm, and Newton's
+float32 membrane read the area ratio of a triangle 23 times stretched and that flat as nothing (its J_s squared, the
+difference of two numbers near 2.8e5, clamped to 1e-20): a force of 4e11 N, a hessian of 1e23, a NaN point and "the
+cloth blew up sewing" (2026-11-25). Sewn here, each triangle rests first as laid and its rest goes over to its flat
+panel's while the cloth sews (`rest_lengths`), so no triangle is ever far from its rest.
 """
 import numpy as np
 from scipy.spatial import cKDTree
@@ -16,6 +25,10 @@ from scipy.spatial import cKDTree
 INSIDE = 0.5  # a point's winding number past this is inside the body (1 inside a closed surface, 0 outside)
 OUT_ROUNDS = 20  # steps of `clear` a point still inside is looked along each axis for the way out
 AXES = np.array([[1.0, 0, 0], [-1.0, 0, 0], [0, 1.0, 0], [0, -1.0, 0], [0, 0, 1.0], [0, 0, -1.0]])
+# A triangle whose rest as laid would be thinner than this share of its flat panel's area starts at its flat rest: a
+# sliver rest (woman_stair_modern's jeans have laid triangles a thousandth of their flat area) turns a small opening of
+# the cloth into a stretch past what float32 reads.
+SLIVER = 0.5
 
 
 def winding(points, skin, faces):
@@ -63,3 +76,50 @@ def laid_out(points, skin, reach, clear, inside):
     back = np.flatnonzero(inside(laid))
     laid[back] = points[back]
     return laid
+
+
+def edge_lengths(points, faces):
+    """Each triangle's edge lengths, in Newton's order: corner 0 to 1, 0 to 2, 1 to 2."""
+    points = np.asarray(points, dtype=float)
+    corners = points[np.asarray(faces)]
+    return np.stack([np.linalg.norm(corners[:, 1] - corners[:, 0], axis=1),
+                     np.linalg.norm(corners[:, 2] - corners[:, 0], axis=1),
+                     np.linalg.norm(corners[:, 2] - corners[:, 1], axis=1)], axis=1)
+
+
+def rest_shapes(lengths):
+    """Triangles from their edge lengths (`edge_lengths`' order) as Newton's builder rests them (add_triangles): the
+    corners 1 and 2 seen from corner 0 in the triangle's own frame (the first axis along corner 1), D = [[a, x],
+    [0, y]]: (D's inverse per triangle, the areas)."""
+    lengths = np.asarray(lengths, dtype=float)
+    first, second, third = lengths[:, 0], lengths[:, 1], lengths[:, 2]
+    along = (first ** 2 + second ** 2 - third ** 2) / (2.0 * first)
+    across = np.sqrt(np.maximum(second ** 2 - along ** 2, 0.0))
+    shapes = np.zeros((len(lengths), 2, 2))
+    shapes[:, 0, 0], shapes[:, 0, 1], shapes[:, 1, 1] = first, along, across
+    return np.linalg.inv(shapes), first * across / 2.0
+
+
+def rest_lengths(laid, flat, share):
+    """Each triangle's rest edge lengths `share` (0 to 1) of the way through its sewing: from the longer of its laid
+    and its flat length, edge by edge (a seam's stretched triangle rests as laid, a squeezed one at its panel), to its
+    flat panel's. Both ends and every share between keep the triangle inequality (a sum of valid triangles' lengths);
+    a triangle whose start is thinner than SLIVER of its flat area starts flat."""
+    laid, flat = np.asarray(laid, dtype=float), np.asarray(flat, dtype=float)
+    start = np.maximum(laid, flat)
+    _, start_area = rest_shapes(start)
+    _, flat_area = rest_shapes(flat)
+    thin = start_area < SLIVER * flat_area
+    start[thin] = flat[thin]
+    return start + (flat - start) * min(max(float(share), 0.0), 1.0)
+
+
+def skin_normals(skin, faces):
+    """Each skin point's outward normal (the body's triangles wind outward): the area-weighted sum of its triangles',
+    unit length, as seated.normals (drape.py's Python has only this module)."""
+    skin, faces = np.asarray(skin, dtype=float), np.asarray(faces)
+    crossed = np.cross(skin[faces[:, 1]] - skin[faces[:, 0]], skin[faces[:, 2]] - skin[faces[:, 0]])
+    found = np.zeros_like(skin)
+    for corner in range(3):
+        np.add.at(found, faces[:, corner], crossed)
+    return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)

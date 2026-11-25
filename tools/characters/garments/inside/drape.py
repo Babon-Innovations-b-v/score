@@ -18,8 +18,9 @@ through the clip too), "belt" (optional): {"on": the garment it is worn on, "und
 "limits": {garment name: m} (the garments it holds in), "outside": {garment name: m} (the garments over it)}}.
 
 The run, in the order GarmentCode's own drape goes: each garment's box mesh (its panels laid round the body, each seam's
-points shared) is one cloth whose triangles rest at their flat panels' shapes and whose edges bend flat, so the seams
-pull shut and the panels take their sewn shape round the body; a garment's held points (its waistband's top,
+points shared) is one cloth whose triangles rest first as laid and go over to their flat panels' shapes in the first
+fifth of sewing (`laying.rest_lengths`), and whose edges bend flat, so the seams pull shut and the panels take their
+sewn shape round the body; a garment's held points (its waistband's top,
 GarmentCode's `lower_interface`) are carried from where the box lays them to the body's skin under them at the waist
 level and then ride the skin as a worn waistband does, every other point is cloth; a garment's drawn points (a
 neckline's halves, GarmentCode's `right_collar` and `left_collar`) that stand out past their level are drawn back to it,
@@ -199,26 +200,32 @@ def held_on(particles: wp.array[wp.int32], corners: wp.array[wp.vec3i], weights:
     positions[particle] = target
 
 
-def laid_over(points, faces, skin, under, clear):
+def laid_over(points, faces, skin, skin_faces, under, clear):
     """A garment sewn alone on the body (`points`, its `faces`) laid outside the cloth sewn under it (`under`: its
-    points and faces): each point moved out from the skin point nearest it until it stands `clear` (m) further off
-    the skin than that cloth (where the cloth's nearest skin lies within UNDER_FOOT_M of the point's), then
-    `uncrossed`. Its box mesh laid over the sewn cloth, a seam's long triangles (a front panel's edge to the back
-    panel's, 16 to 18 cm) cut through it however far out the points were laid: a jacket's side seams through the
-    trousers' waistband, a coat's through its shirt at the sides and armpits (2026-11-25); sewn, every triangle is
-    the cloth's own small one."""
+    points and faces): each point moved out along the skin's normal at the skin point nearest it until it stands
+    `clear` (m) further off the skin than that cloth (where the cloth's nearest skin lies within UNDER_FOOT_M of the
+    point's), then `uncrossed`. Its box mesh laid over the sewn cloth, a seam's long triangles (a front panel's edge to
+    the back panel's, 16 to 18 cm) cut through it however far out the points were laid: a jacket's side seams through
+    the trousers' waistband, a coat's through its shirt at the sides and armpits (2026-11-25); sewn, every triangle is
+    the cloth's own small one. Moved along the way from its nearest skin point instead, cloth sewn a centimetre off a
+    skin of 4.5 mm triangles went along the skin as much as off it (for 30% of woman_stair_modern's tee more than 60
+    degrees off the normal), neighbouring points apart, and a tee triangle at her back's waist was pulled to 18 cm
+    and through her jeans however far out (2026-11-25)."""
     from scipy.spatial import cKDTree
     skin_tree = cKDTree(skin)
-    distance, nearest = skin_tree.query(points)
-    away = (points - skin[nearest]) / np.maximum(distance, 1e-9)[:, None]
-    least = distance.copy()
+    normals = laying.skin_normals(skin, skin_faces)
+    _, nearest = skin_tree.query(points)
+    away = normals[nearest]
+    height = np.sum((points - skin[nearest]) * away, axis=1)
+    least = height.copy()
     under_points, under_faces = under
-    under_distance, under_nearest = skin_tree.query(under_points)
+    _, under_nearest = skin_tree.query(under_points)
+    under_height = np.sum((under_points - skin[under_nearest]) * normals[under_nearest], axis=1)
     feet = cKDTree(skin[under_nearest])
     for index, near in enumerate(feet.query_ball_point(skin[nearest], UNDER_FOOT_M)):
         if near:
-            least[index] = max(least[index], under_distance[near].max() + clear)
-    return uncrossed(skin[nearest] + away * least[:, None], faces, away, under_points, under_faces)
+            least[index] = max(least[index], under_height[near].max() + clear)
+    return uncrossed(points + away * (least - height)[:, None], faces, away, under_points, under_faces)
 
 
 def edges_of(faces):
@@ -314,15 +321,22 @@ class Garment:
                               masses.tolist(), radius=[material["radius"]] * self.count)
         # A triangle's rest shape is read off its corners where they stand when it is added: each panel's corners are
         # put on its flat panel (laid in 3D) while its triangles go in, then every point goes back to the box mesh.
+        order = []
         for panel in np.unique(record["panel"]):
             mine = np.flatnonzero(record["panel"] == panel)
             for copy in mine:
                 builder.particle_q[self.first + int(box[copy])] = wp.vec3(*copies[copy])
-            panel_faces = welded[record["panel"][faces[:, 0]] == panel] + self.first
-            count = len(panel_faces)
+            chosen = np.flatnonzero(record["panel"][faces[:, 0]] == panel)
+            panel_faces = welded[chosen] + self.first
+            count, before = len(panel_faces), builder.tri_count
             builder.add_triangles(panel_faces[:, 0], panel_faces[:, 1], panel_faces[:, 2],
                                   tri_ke=[material["mu"]] * count, tri_ka=[material["lambda"]] * count,
                                   tri_kd=[0.0] * count, tri_drag=[0.0] * count, tri_lift=[0.0] * count)
+            if builder.tri_count - before != count:
+                raise RuntimeError(f"{self.name}: a degenerate triangle on panel {panel} left out by Newton")
+            order.append(chosen)
+        order = np.concatenate(order)
+        self.flat = laying.edge_lengths(copies, faces[order])  # each triangle's lengths on its flat panel, as added
         if placed is not None:
             self.points = np.asarray(placed, dtype=float)
         else:
@@ -332,6 +346,7 @@ class Garment:
                 raise RuntimeError(f"{self.name}: {len(left)} of its box mesh's points still inside the body as laid")
         for index, point in enumerate(self.points):
             builder.particle_q[self.first + index] = wp.vec3(*point)
+        self.laid = laying.edge_lengths(self.points, welded[order])
         sides = bending_edges(welded)
         corners = np.array([corner for corner, _ in sides], dtype=np.int64) + self.first
         builder.add_edges(corners[:, 0].tolist(), corners[:, 1].tolist(), corners[:, 2].tolist(),
@@ -375,6 +390,9 @@ class Outfit:
                          for spec in job["garments"]]
         builder.color(include_bending=True)
         self.model = builder.finalize(device=job["device"])
+        self.laid = np.concatenate([garment.laid for garment in self.garments])
+        self.flat = np.concatenate([garment.flat for garment in self.garments])
+        self.share = None
         self.model.soft_contact_mu, self.model.soft_contact_ke = contact["mu"], contact["ke"]
         self.model.soft_contact_kd = contact["kd"]
         self.mesh = self.body.mesh  # the wp.Mesh the model collides with, its points moved each substep
@@ -393,6 +411,19 @@ class Outfit:
         self.neck = np.asarray(job.get("neck", []), dtype=np.int64)
         self.belt = self.belted(job.get("belt"))
         self.holding = HOLDING[job.get("holds_until", "sewn")]
+
+    def rested(self, share):
+        """Every triangle's rest `share` of the way from as laid to its flat panel (`laying.rest_lengths`), set on the
+        model VBD reads each substep. The flat rest is the panel's own lengths: Newton's builder reads a triangle's
+        rest off its points, and a box point with two copies on one panel (a panel sewn to itself) has one place
+        there, so woman_stair_modern's jeans had 135 triangles resting up to 2.7 times their panel (2026-11-25)."""
+        share = min(max(float(share), 0.0), 1.0)
+        if share == self.share:
+            return
+        poses, areas = laying.rest_shapes(laying.rest_lengths(self.laid, self.flat, share))
+        self.model.tri_poses.assign(poses.astype(np.float32))
+        self.model.tri_areas.assign(areas.astype(np.float32))
+        self.share = share
 
     def worn_on(self, garment):
         """Where each held point is worn: the body's nearest surface point to it at the bind, out by the cloth's
@@ -499,10 +530,12 @@ class Outfit:
 
 
 def sewn(outfit, job):
-    """The garments sewn and settled on the body held at its bind: gravity off for the first fifth, the held points
-    carried onto the skin over the first half; the wall seconds."""
+    """The garments sewn and settled on the body held at its bind: gravity off for the first fifth, each triangle's
+    rest going over from as laid to its flat panel's in it (`Outfit.rested`), the held points carried onto the skin
+    over the first half; the wall seconds."""
     began, frames = time.monotonic(), int(job["sew_seconds"] * job["rate"])
     for count in range(frames):
+        outfit.rested(count / (frames // 5))
         if count == frames // 5:
             outfit.model.set_gravity((0.0, -job["gravity"], 0.0))
         outfit.frame(0, carry=min(1.0, count / (frames / 2.0)), sewing=True, moving=False)
@@ -557,7 +590,8 @@ def sewn_in_layers(job, body):
             cloth = sewn_cloth([placed[spec["name"]] for spec in under], [welded_faces(spec) for spec in under])
             clear = max(layer - max(float(spec.get("layer_m", 0.0)) for spec in under), 2.0 * job["self"]["gap"])
             for garment, spec in zip(alone.garments, new):
-                placed[spec["name"]] = laid_over(alone.points(garment), garment.faces, skin, cloth, clear)
+                placed[spec["name"]] = laid_over(alone.points(garment), garment.faces, skin, body["faces"], cloth,
+                                                 clear)
         stage["garments"] = [spec for spec in job["garments"] if float(spec.get("layer_m", 0.0)) <= layer]
         outfit = Outfit(stage, body, placed)
         print(f"sewing layer {number + 1} of {len(layers)}: {', '.join(spec['name'] for spec in stage['garments'])}",

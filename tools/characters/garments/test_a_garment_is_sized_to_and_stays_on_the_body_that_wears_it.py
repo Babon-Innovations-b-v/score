@@ -9,7 +9,9 @@ bands.py cuts a band out of a garment's cloth along its edges, a set height over
 construction marks on its cloth (a seam's mark on one panel's side and its other side's on the other, an edge's along
 each open edge, a plain seam left bare, a patch at its anchor), each a hair's breadth outside the cloth's drawn face; inside/laying.py lays a box mesh's points that stand inside the
 body out of it (in a thigh, and between two thighs that cross each other) and leaves one with no way out inside, for
-the drape to refuse. Each row is a toy body of
+the drape to refuse; inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
+and at its flat panel (as Newton's builder rests a triangle) when it ends, so float32 reads its area as the seam
+closes, and a laid sliver at its flat panel throughout. Each row is a toy body of
 tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
 worn on a toy torso one way, or the toy body reshaped or its arms cleared.
 
@@ -31,7 +33,10 @@ seams). In details.py: a seam taken for an open edge (two panels sharing box poi
 a strip laid outside its panel (its inward normal not turned), the lift not past the thickness on outward-wound cloth,
 or a patch's side taken towards the body's middle. In inside/laying.py: no point inside put out (each moved straight off
 its nearest skin), no way out along the axes for a point the first step leaves inside, that step's points not looked
-at again, or a point the layer's reach moves into a fold of the skin kept there."""
+at again, or a point the layer's reach moves into a fold of the skin kept there; a seam's triangle rested at its flat
+panel from the start (its float32 area ratio lost as the seam is crushed), a rest's corner 2 put the other way along
+its first edge or its shape transposed (not Newton's), the share not reaching the flat panel, or a laid sliver kept as
+its start."""
 import json
 import math
 import pathlib
@@ -371,6 +376,53 @@ def pants_laid(clear):
     return int(inside(laid).sum())
 
 
+def builder_rest(corners):
+    """Newton's builder's rest of triangles from their corners (add_triangles: the corners seen in the triangle's own
+    frame, the first axis along corner 0 to 1): D's inverse per triangle."""
+    first, second = corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]
+    along = first / np.linalg.norm(first, axis=1, keepdims=True)
+    normal = np.cross(first, second)
+    up = np.cross(normal / np.linalg.norm(normal, axis=1, keepdims=True), along)
+    frame = np.stack([along, up], axis=2)
+    return np.linalg.inv(np.matmul(frame.transpose(0, 2, 1), np.stack([first, second], axis=2)))
+
+
+def area_ratio_error(corners, rest):
+    """How far Newton's float32 J_s squared (the area ratio's square, (f0.f0)(f1.f1) - (f0.f1)^2 of the deformation
+    gradient's columns) is off its float64 value for triangles at `corners` resting at `rest`, relative to it."""
+    found = []
+    for kind in (np.float32, np.float64):
+        edges = np.stack([corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]], axis=2).astype(kind)
+        gradient = np.matmul(edges, rest.astype(kind))
+        one, two = gradient[:, :, 0], gradient[:, :, 1]
+        found.append(np.sum(one * one, axis=1) * np.sum(two * two, axis=1) - np.sum(one * two, axis=1) ** 2)
+    return np.abs(found[0].astype(float) - found[1]) / found[1]
+
+
+def seam_rested(wear):
+    """A toy seam's triangle (a 1.3 cm panel triangle laid with its corner 1 20 cm across the body, as a back panel's
+    triangle at a box mesh's shoulder) or a laid sliver, rested through its sewing (`laying.rest_lengths`): (the laid
+    cloth's stretch at the start, its rest at the end against Newton's flat rest, float32's error on its area ratio
+    with its corner 2 crushed to 0.4 mm along the long edge and 0.03 mm off it (woman_stair_modern's tee triangle 4609
+    as it blew up) resting at the start and resting flat, the rest's area half way)."""
+    flat = np.array([[[0.0, 0.0, 0.0], [0.013, 0.0, 0.0], [0.006, 0.011, 0.0]]])
+    far = np.array([0.02, 0.2, 0.05])
+    laid = np.array([[[0.0, 0.0, 0.0], far, [0.006, 0.011, 0.0]] if "seam" in wear
+                     else [[0.0, 0.0, 0.0], [0.4, 0.0, 0.0], [0.2, 0.0001, 0.0]]])
+    lengths = laying.edge_lengths(laid[0], [[0, 1, 2]]), laying.edge_lengths(flat[0], [[0, 1, 2]])
+    start, _ = laying.rest_shapes(laying.rest_lengths(*lengths, 0.0))
+    end, _ = laying.rest_shapes(laying.rest_lengths(*lengths, 1.0))
+    _, half = laying.rest_shapes(laying.rest_lengths(*lengths, 0.5))
+    gradient = np.matmul(np.stack([laid[:, 1] - laid[:, 0], laid[:, 2] - laid[:, 0]], axis=2), start)
+    along = far / np.linalg.norm(far)
+    off = np.cross(along, [1.0, 0.0, 0.0])
+    crushed = laid.copy()
+    crushed[0, 2] = 0.0004 * along + 0.00003 * off / np.linalg.norm(off)
+    return (float(np.linalg.norm(gradient)), float(np.abs(end - builder_rest(flat)).max()),
+            float(area_ratio_error(crushed, start)[0]), float(area_ratio_error(crushed, builder_rest(flat))[0]),
+            float(half[0]))
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
@@ -390,6 +442,8 @@ def pants_laid(clear):
     (1.0, "marks with the seam plain", True),
     (1.0, "pants laid round thighs that touch", 0),
     (1.0, "pants laid with too short a way out", 1),
+    (1.0, "a seam's triangle laid across the body", "rests as laid"),
+    (1.0, "a sliver laid", "rests flat"),
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed, tmp_path):
     points, faces, weights, bind, built = toy_body(scale)
@@ -417,6 +471,18 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
     if wear.startswith("pants"):
         # the drape refuses a garment with a point left inside the body, never sews it
         assert pants_laid(0.001 if "too short" in wear else 0.0045) == failed
+        return
+    if wear.startswith(("a seam's", "a sliver")):
+        stretch, off_newton, area_error, flat_error, half_area = seam_rested(wear)
+        # at the start the laid cloth is at its rest (a deformation gradient a rotation: its norm the square root of
+        # two), where at its flat panel it stood 18 times stretched; at the end the rest is Newton's own flat one
+        if failed == "rests as laid":
+            assert stretch == pytest.approx(math.sqrt(2.0), abs=1e-6)
+            # resting flat, float32 loses the crushed triangle's area ratio whole (the blow-up); resting as laid not
+            assert flat_error > 0.5 and area_error < 0.01, (flat_error, area_error)
+        else:
+            assert stretch > 20.0, stretch
+        assert off_newton == pytest.approx(0.0, abs=1e-6) and half_area > 0.0
         return
     if wear.startswith("marks"):
         counts, off, past, middle = marked(tmp_path, failed)

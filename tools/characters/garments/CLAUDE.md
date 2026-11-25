@@ -15,8 +15,9 @@ runs them (an outfit file per look in `data/people/outfits/`).
   sews whole garments. The people_cloth overlay's "never sew" is that stage's rule.
 - **Cloth values are the library recipe's row** of `data/physics/cloth.json` (`cloth_material`, the people cloth
   stage's own conversion), never typed here. Solver and contact numbers name their source in `DRAPE`.
-- **GarmentCode's own steps, Newton's solver**: the box mesh's triangles rest at their flat panels, seams sewn by
-  shared points, a waistband's top worn on the skin, a neckline's halves kept inside the planes either side of
+- **GarmentCode's own steps, Newton's solver**: the box mesh's triangles rest at their flat panels (going over to them
+  from as laid while the gravity-free fifth of sewing runs: rested flat at once, the seam triangles laid 15 to 50 times
+  their panel overran Newton's float32 membrane), seams sewn by shared points, a waistband's top worn on the skin, a neckline's halves kept inside the planes either side of
   the neck (`holds`, GarmentCode's attachments: one-sided, a point inside its plane left), speeds capped only while
   sewing.
 - **Runs on this PC's card through the card queue** (`tools/cloud/backends/card_queue.py`), each step in its own
