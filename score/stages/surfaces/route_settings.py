@@ -72,7 +72,7 @@ def shade_moved(shade, colour, new_colour):
     """A variant's second shade (linear RGB) moved with its colour onto `new_colour`: the same CIELAB step from it,
     clipped into gamut (tools/props/library/likeness/colour.py)."""
     import numpy as np
-    from score.stages.props import prop_data
+    import score.stages.props.prop_data as prop_data  # the module, not the package: the table stays out of the code
     with prop_data.tools("props/library/likeness"):
         import colour as lab_colour
     step = lab_colour.lab(np.asarray(shade, dtype=float)) - lab_colour.lab(np.asarray(colour, dtype=float))
