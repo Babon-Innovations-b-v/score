@@ -81,7 +81,8 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   the close-up's camera sees in its box, from its outer face in by its thickness; its joint sits on its box's edge or
   axis, the model's own axes; it is written in moving_parts' node interface (`<part>__<joint>_<axis>[n]`, origin the
   pivot), which place_build's glTF conversion keeps as its own Xform, the motion layer reads (`parts_of`) and the
-  physics layer joins (`write_parted`). The benchmark runs it (branch B's `parts` step); `make` does not yet, since
-  it fits no close-up camera (the finish route fits one, surfaces/close_up_fit.py).
+  physics layer joins (`write_parted`). The benchmark runs it (branch B's `parts` step), and `make` runs it too
+  (`parts.made`: its camera fitted to the cut-out's outline as the finish route fits one, surfaces/close_up_fit.py;
+  the model taken in holds the part nodes, its record `moving_parts` each part's joint, limits and kg).
 - Test: `test_a_made_model_fits_its_place_its_paint_and_its_weight.py` (no TRELLIS.2, no CoACD; its flash-attn part
   runs where torch is).

@@ -316,3 +316,46 @@ def part_classes(face_part, face_class, areas, count):
             held[name] = held.get(name, 0.0) + float(area)
         found.append(max(held, key=held.get) if held else None)
     return found[:-1], found[-1]
+
+def made(model, picture, words, size, kg, out, ask=None):
+    """A made model's moving parts as `make` takes them in (#177): the close-up's camera fitted to `picture`'s
+    outline (surfaces/close_up_fit.py, as the finish route fits it; `size` the model's wide, deep and tall in metres,
+    as a row's), the pieces Claude sees move in it asked, cut and
+    jointed, each part's mass its share of the model's `kg` by area; the model split into its part nodes written to
+    `out` (a GLB) and the record (record's, each part with its kg; the body's kg) returned. None, and nothing written,
+    when nothing moves or every piece is left out."""
+    import trimesh
+    from PIL import Image
+    import score.stages.surfaces  # noqa: F401  (the stage first: its modules import one another through it)
+    import close_up_fit
+    import route_cast
+    from score.stages.place_build import maker
+    listed = asked(words, size, picture, ask)
+    if not listed:
+        return None
+    with Image.open(picture) as shown:
+        cut_out, shape = np.asarray(shown.convert("RGBA").getchannel("A")) > 127, shown.size
+    camera_file = pathlib.Path(out).with_suffix(".camera.json")
+    camera_file.write_text(json.dumps(close_up_fit.fitted_camera(route_cast.loaded(model), cut_out,
+                                                                 *maker.close_up_view(size)), indent=1))
+    camera = route_cast.close_up_camera(camera_file)
+    meshes = trimesh.load(str(model), force="scene").dump(concatenate=False)
+    vertices, faces, offset = [], [], 0
+    for mesh in meshes:
+        vertices.append(np.asarray(mesh.vertices))
+        faces.append(np.asarray(mesh.faces) + offset)
+        offset += len(mesh.vertices)
+    vertices, faces = np.concatenate(vertices), np.concatenate(faces)
+    face_part, left_out = cut(vertices, faces, listed, camera, shape)
+    found = record(listed, face_part, jointed(vertices, faces, face_part, listed, camera, shape), left_out)
+    if not found["parts"]:
+        return None
+    indices = [part["index"] for part in found["parts"]]
+    counted = np.array([indices.index(value) if value in indices else -1 for value in np.asarray(face_part).tolist()])
+    corners = vertices[faces]
+    areas = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1) / 2
+    masses, found["body"]["kg"] = part_masses(counted, np.zeros(len(faces), dtype=int), [kg], areas, len(indices))
+    for number, (part, mass) in enumerate(zip(found["parts"], masses)):
+        part.update(index=number, kg=round(mass, 4))
+    written(model, counted, found, out)
+    return found

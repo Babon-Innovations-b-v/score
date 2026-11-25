@@ -46,7 +46,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   jointed's way not flipped -> the door swings in (sign 1); the slide not held to the depth -> 0.6 m;
   parts.projected's rows not turned down -> its rays are not route_cast's; parts.written laying a part's
   pieces without its pivot taken off -> the door's points stand 0.24 m off; parts.part_masses by face counts -> 2
-  and 2; parts.part_classes by face counts -> the body is a tie, read metal
+  and 2; parts.part_classes by face counts -> the body is a tie, read metal; parts.made's `kg=round(mass, 4)` -> `kg=0.0`
+  -> the made cabinet's parts and body no longer weigh its 12 kg (seen red 2026-11-25)
 - cloud.job_of: a model it names missing from the meshparts image's models.json, two pictures made in one process
   (generate.py drops its flow models after one), or a picture's output not brought back where its out.glb lies;
   cloud.brought_back leaving the decoded mesh behind -> its folder is not removed (rmdir refuses) and no
@@ -433,6 +434,21 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     door_points = np.concatenate([trimesh.transform_points(back.geometry[back.graph[child][1]].vertices,
                                                            back.graph[child][0]) for child in held])
     assert np.allclose(door_matrix[:3, 3], [-0.24, 0.54, 0.2]) and np.allclose(door_points.min(0), [-0.24, 0.3, 0.2])
+    # make's own cut (parts.made, #177): the close-up a cut-out drawn through the camera, its camera fitted from that
+    # outline, the same answer: both parts cut and jointed, the model's kg shared by area, the parted GLB written
+    from PIL import Image
+    hit = route_cast.close_up_cast(route_cast.loaded(model), camera, size)[0] >= 0
+    alpha = np.asarray(Image.fromarray((hit * 255).astype(np.uint8)).resize(size, Image.NEAREST))
+    picture = tmp_path / "close_up.png"
+    Image.fromarray(np.dstack([np.full(alpha.shape + (3,), 128, np.uint8), alpha])).save(picture)
+    moving = made_parts.made(model, picture, "a kitchen cabinet", [0.5, 0.4, 0.8], 12.0, tmp_path / "made.glb",
+                             ask=lambda body: json.dumps(said))
+    assert [part["node"] for part in moving["parts"]] == ["door_01__hinge_yn", "drawer_01__slide_z"], moving
+    assert abs(sum(part["kg"] for part in moving["parts"]) + moving["body"]["kg"] - 12.0) < 1e-3
+    assert {"door_01__hinge_yn", "drawer_01__slide_z"} <= set(trimesh.load(str(tmp_path / "made.glb"),
+                                                                         force="scene").graph.nodes)
+    assert made_parts.made(model, picture, "a crate", [0.5, 0.4, 0.8], 12.0, tmp_path / "none.glb",
+                           ask=lambda body: json.dumps({"reason": "nothing moves", "parts": []})) is None
     kg, body_kg = made_parts.part_masses([-1, -1, 0, 1], [0, 0, 1, 1], [6.0, 4.0], [1.0, 2.0, 1.0, 3.0], 2)
     assert kg == [1.0, 3.0] and body_kg == 6.0  # the second group's 4 kg by area, 1 to 3
     classes = made_parts.part_classes([-1, -1, 0, 0, 0], ["metal", "wood", "glass", "glass", "rubber"],

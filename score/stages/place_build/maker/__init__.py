@@ -39,7 +39,7 @@ import sys
 import numpy as np
 
 from score.stages import place_build
-from score.stages.place_build.maker import fit, front, glb, grade, repair, sim
+from score.stages.place_build.maker import fit, front, glb, grade, parts, repair, sim
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[3]
@@ -402,8 +402,9 @@ def saved(values, root, entry, files, title, made_with, work):
 
 def make(folder, name, source, material, like=None, height=None, size=None, take_in=True):
     """One prop's model made with TRELLIS.2 from `source`'s picture, set in the place (over `like`, `height` metres
-    tall, or at `size`), graded to its palette, made sim-ready and taken into score_lib unless not `take_in`; its
-    address (None when not taken in) and measures."""
+    tall, or at `size`), graded to its palette, made sim-ready, its moving parts cut and jointed (parts.made, #177:
+    its record's `moving_parts`, the model's part nodes) and taken into score_lib unless not `take_in`; its address
+    (None when not taken in) and measures."""
     try:
         sim.material(material)
     except ValueError as why:
@@ -433,10 +434,14 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     mass = sim.weighed(words, size, [{"words": words, "class": material, "share": 1.0}], picture)
     physics = sim.physical(hulls, [material] * len(hulls),
                            [{"words": words, "class": material, "share": 1.0, "kg": round(mass[0], 4)}], size)
+    moving = parts.made(final, picture, words, [size[0], size[2], size[1]], physics["mass_kg"],  # wide, deep, tall
+                        work / f"{entry}-parted.glb")
+    if moving:  # the model taken in holds its moving parts as nodes at their pivots (#177)
+        (work / f"{entry}-parted.glb").replace(final)
     record = {"maker": SOURCE, "picture": {"source": said, "sha256": sha256(picture)}, "trellis2": stats,
               "fit": how, "repair": mended, "size_m": [round(float(side), 3) for side in size], "grade": groups,
               "mismatch": [group for group in groups if group["mismatch"]], "physics": physics,
-              "hulls_file": f"{entry}-hulls.glb"}
+              "hulls_file": f"{entry}-hulls.glb", "moving_parts": moving}
     (work / f"{entry}.json").write_text(json.dumps(record, indent=1))
     files = {path.name: path for path in (final, work / f"{entry}-hulls.glb", work / f"{entry}.json")}
     made_with = [{"what": f"{name}: its shape and paint, TRELLIS.2 (1024 cascade, seed {stats['seed']}) from {said}",
