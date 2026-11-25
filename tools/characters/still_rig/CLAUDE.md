@@ -29,5 +29,12 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   3.4 cm past her toes, stood 2 cm in every tread. Each arm of the bind is turned onto the line from its
   shoulder through the middle of the still's sleeve (`arms_turned`): turned only parallel to it, the woman's arms
   hung 10 cm behind her sleeves, whose upper half took her chest's weights and bulged at the shoulder.
+- **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
+  the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the
+  work bodies' (leaning, pointing, checking, clipboard, cheering, waiting, clapping, shifting) from their own sentences
+  in people/clips.py, read and never edited (the paid people rows key that folder), free on this PC's card through the
+  card queue, Kimodo's text encoder on the processor; `../maker/prop_skeleton.py` rigs them (MOTION_WORK=<out>) and
+  `clips_added.py` lays every clip a body's file lacks on its own skeleton by prop_build's steps, a climb's height run
+  taken off (the game carries the body up the flight). The clips it had stay byte for byte. Look at the frames.
 - Plain CPU here; any GPU render goes to the cloud, never this PC's card.
 - Test: `test_a_rigged_still_rides_its_joints_without_a_crack.py`.

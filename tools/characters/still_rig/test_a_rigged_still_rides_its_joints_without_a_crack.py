@@ -29,6 +29,10 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
 - a person's flat shoes 3 cm longer than the body's feet and 1 cm aside (`feet_fitted`) are not laid heel to toe on
   the body's foot skin, centred on it and pitched onto its rising sole, or a point above the ankle's blend moves (the stairwell woman's shoes stood
   2 cm in every tread and 18 cm under the next step).
+- a body's file grown by the place clips (`clips_added`) reads its rest offsets other than its bind's (a clip then
+  played on the wrong bones), takes a clips rig's joints in the rig's order rather than the skin's, loses a byte of the
+  numbers it had (the clips it was built with changed), or a climb keeps its height's run over the loop, gives a rise
+  other than its own, or a climb going the wrong way is kept (`level_climb`).
 """
 import pathlib
 import sys
@@ -38,6 +42,7 @@ import trimesh
 from scipy.spatial.transform import Rotation
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import clips_added  # noqa: E402
 import still_rig  # noqa: E402
 
 NAMES = ["Root", "Hips", "Chest", "Head"]
@@ -179,3 +184,34 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
         assert np.allclose(sole[:, 1], 0.1 * (sole[:, 2] + 0.08), atol=1e-3)
     above = shoe[:, 1] > feet["Left"][1] + still_rig.ANKLE_BLEND
     assert np.allclose(laid[above], shoe[above])
+
+    rest = np.repeat(np.eye(4)[None], 3, axis=0)
+    rest[:, 1, 3] = [0.0, 1.0, 1.4]
+    rest[2, 0, 3] = 0.1
+    skin_glb = {"nodes": [{"name": "Root", "children": [1]}, {"name": "Hips", "children": [2]}, {"name": "Chest"}],
+                "skins": [{"joints": [0, 1, 2], "inverseBindMatrices": 0}]}
+    inverse = np.linalg.inv(rest).transpose(0, 2, 1).astype(np.float32)
+    skin_glb["accessors"] = [{"bufferView": 0, "componentType": 5126, "count": 3, "type": "MAT4"}]
+    skin_glb["bufferViews"] = [{"buffer": 0, "byteOffset": 0, "byteLength": inverse.nbytes}]
+    names, parents, bind, offsets = clips_added.skeleton(skin_glb, inverse.tobytes())
+    assert names == ["Root", "Hips", "Chest"] and list(parents) == [-1, 0, 1]
+    assert np.allclose(offsets, [[0, 0, 0], [0, 1.0, 0], [0.1, 0.4, 0]], atol=1e-6)
+    rig = {"names": np.array(["Chest", "Root", "Hips"]), "bind": np.arange(3)[:, None, None] * np.ones((3, 4, 4)),
+           "clips": np.array(["talking"]), "clip_talking": np.arange(3)[None, :, None, None] * np.ones((2, 3, 4, 4))}
+    ordered = clips_added.in_rig_order(type("Held", (), {"files": list(rig), "__getitem__": lambda self, key:
+                                                         rig[key]})(), names)
+    assert list(ordered["bind"][:, 0, 0]) == [1, 2, 0] and list(ordered["clip_talking"][0, :, 0, 0]) == [1, 2, 0]
+    grown = clips_added.contents_of(skin_glb, inverse.tobytes())
+    grown.reading([1.0, 2.0], "SCALAR", 5126)
+    assert grown.blob()[:inverse.nbytes] == inverse.tobytes() and len(grown.accessors) == 2
+
+    climb = np.repeat(np.eye(4)[None, None], 31, axis=0).repeat(2, axis=1)
+    climb[:, 1, 1, 3] = 1.0 + np.linspace(0.0, 0.6, 31) + 0.02 * np.sin(np.linspace(0, 4 * np.pi, 31))
+    level, rise = clips_added.level_climb(climb, 1, 30.0)
+    assert abs(level[-1, 1, 1, 3] - level[0, 1, 1, 3]) < 1e-9 and abs(rise - 0.6) < 1e-9
+    assert np.allclose(np.diff(level[:, 1, 1, 3]) - np.diff(climb[:, 1, 1, 3]), -0.02)
+    try:
+        clips_added.level_climb(climb, -1, 30.0)
+        raise AssertionError("a climb up kept as a climb down")
+    except ValueError:
+        pass
