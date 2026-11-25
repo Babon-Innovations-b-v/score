@@ -36,6 +36,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import subprocess
@@ -71,6 +72,13 @@ MINUTES_EACH = 25
 # (24 GB compressed, 30 layers), pulled, unpacked by buildkit beside its blobs and pushed with its layer cache (#222).
 LARGE = {"unreal": {"minutes": 60, "disk_gb": 400}}
 REMOTE = pathlib.PurePosixPath("/root/build")
+# The machine path's runners and set-up scripts, whose commit pins must be their image's (drift).
+CODE = REPO / "tools/cloud"
+COMMIT = "[0-9a-f]{40}"
+# A GitHub repository fetched at a ref: pip's git+...@ref, an archive's /archive/ref, codeload's /tar.gz/ref.
+AT_REF = r"github\.com/([\w.-]+?)/([\w.-]+?)(?:\.git)?(?:@|/archive/|/tar\.gz/)"
+# A pip install of a GitHub repository at no ref at all.
+UNPINNED = r"git\+https://github\.com/([\w.-]+?)/([\w.-]+?)(?:\.git)?(?=[\"'\s]|$)"
 PARENT = "base"
 RUNNER = "runner"
 LOCK_SHA = "lock.sha256"
@@ -150,6 +158,50 @@ def tag(kind, built):
     if has_parent(kind):
         digest.update(built[PARENT]["digest"].encode())
     return f"{IMAGE_VERSION}-{digest.hexdigest()[:12]}"
+
+
+def image_pins():
+    """The commits the images pin: ({ARG name: its commits}, {owner/repo: the commits a Dockerfile fetches it at}),
+    from each image's `ARG NAME=<commit>` lines and the GitHub repositories its Dockerfile fetches at such an ARG."""
+    named, fetched = {}, {}
+    for kind in image_kinds():
+        text = dockerfile(kind)
+        arguments = dict(re.findall(rf"(?m)^ARG (\w+)=\"?({COMMIT})\"?\s*$", text))
+        for name, commit in arguments.items():
+            named.setdefault(name, set()).add(commit)
+        for owner, repository, name in re.findall(AT_REF + r"\$\{?(\w+)\}?", text):
+            if name in arguments:
+                fetched.setdefault(f"{owner}/{repository}".lower(), set()).add(arguments[name])
+    return named, fetched
+
+
+def code_pins(names):
+    """The machine path's pins (CODE's *_setup.sh and runner modules, tests aside), each (file:line, what, commit): a
+    constant, variable or dict key among `names` set to a commit, a GitHub repository fetched at a commit, and a pip install of
+    one at no ref (commit None)."""
+    files = sorted(CODE.glob("*_setup.sh")) + sorted(path for path in CODE.glob("*.py")
+                                                      if not path.name.startswith("test_"))
+    for path in files:
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            where = f"{path.relative_to(CODE)}:{number}"
+            for name, commit in re.findall(rf"\b(\w+)[\"']?\s*[=:]\s*[\"']?({COMMIT})\b", line):
+                if name in names:
+                    yield where, name, commit
+            for owner, repository, commit in re.findall(AT_REF + f"({COMMIT})", line):
+                yield where, f"{owner}/{repository}".lower(), commit
+            for owner, repository in re.findall(UNPINNED, line):
+                yield where, f"{owner}/{repository}".lower(), None
+
+
+def drift():
+    """Each pin of the machine path that differs from its image's, one line each (empty when none): a constant named
+    as an image's commit ARG, or a repository an image fetches at a commit, set to another commit or to none
+    (2026-10-27: characters_setup.sh installed SOMA-X from main while the image pinned d6aa640, and a machine set up
+    from it failed at the rig step)."""
+    named, fetched = image_pins()
+    pinned = {**named, **fetched}
+    return [f"{where}: {what} at {commit or 'no commit'}, the image's {', '.join(sorted(pinned[what]))}"
+            for where, what, commit in code_pins(named) if what in pinned and commit not in pinned[what]]
 
 
 def stale(kinds, built, force):
@@ -469,6 +521,9 @@ def main():
     if unknown or not asked:
         raise SystemExit(f"no image folder named {', '.join(sorted(unknown)) or '(none given)'}; "
                          f"there are {', '.join(image_kinds())}")
+    drifted = drift()
+    if drifted:
+        raise SystemExit("an image's pins differ from the machine path's; make them one first:\n" + "\n".join(drifted))
     kinds = stale(asked, saved(), options.force)
     if not kinds:
         batch.say("every image asked for is built at its tag")

@@ -36,6 +36,11 @@ turns it red (each applied once and seen red):
   Break: drop the kernel cache in `job_spec`. Break: key the proof by `numbers["type"]` always in `save_results`.
 - A proof on a processor machine (the runner's) sets up docker without the NVIDIA toolkit and runs without --gpus.
   Break: `on_a_card` returns True.
+- An image's commit pins and the machine path's are one (the SOMA-X case, 2026-10-27: characters_setup.sh installed
+  SOMA-X from main while the image pinned d6aa640): a runner's constant named as an image's commit ARG, or a set-up's
+  fetch of a repository the image fetches at a commit, at another commit or at none is drift, a test file's or a
+  variable's is not, and the repository holds none today. Break: drop the `UNPINNED` loop in `code_pins` -> the
+  set-up at no commit passes. Break: drop the `AT_REF + f"({COMMIT})"` loop -> the set-up at another commit passes.
 """
 import json
 import pathlib
@@ -313,3 +318,35 @@ def test_built_once_and_every_machine_deleted(tmp_path, monkeypatch):
         if move_built:
             move_built(entries)
         assert build.stale(kinds, entries, force=force) == expected, name
+
+    # The machine path's pins against the images': the repository's own first, then rows of a runner's files against
+    # one image fetching Org/Lib at the commit its ARG names. (id, {file: text}, the drift lines.)
+    monkeypatch.setattr(build, "HERE", pathlib.Path(build.__file__).resolve().parent)
+    monkeypatch.setattr(build, "CODE", build.REPO / "tools/cloud")
+    assert build.drift() == []
+    pinned, other = "a" * 40, "b" * 40
+    image = tmp_path / "drift/images/lib"
+    image.mkdir(parents=True)
+    (image / "Dockerfile").write_text(f'FROM x\nARG LIB={pinned}\nRUN pip install "git+https://github.com/Org/Lib.git@${{LIB}}"\n')
+    point_at(monkeypatch, image.parent)
+    drifts = [
+        ("the same commits", {"lib.py": f'LIB = "{pinned}"\n', "lib_setup.sh": f"git+https://github.com/Org/Lib@{pinned}\n"},
+         []),
+        ("a runner's constant moved", {"lib.py": f'LIB = "{other}"\n'}, [f"lib.py:1: LIB at {other}, the image's {pinned}"]),
+        ("a runner's dict key moved", {"lib.py": f'PINS = {{\n    "LIB": "{other}",\n}}\n'},
+         [f"lib.py:2: LIB at {other}, the image's {pinned}"]),
+        ("a set-up at another commit", {"lib_setup.sh": f'pip install "git+https://github.com/org/lib.git@{other}"\n'},
+         [f"lib_setup.sh:1: org/lib at {other}, the image's {pinned}"]),
+        ("a set-up at no commit", {"lib_setup.sh": 'pip install "git+https://github.com/Org/Lib.git"\n'},
+         [f"lib_setup.sh:1: org/lib at no commit, the image's {pinned}"]),
+        ("a set-up at the runner's variable", {"lib_setup.sh": 'pip install "git+https://github.com/Org/Lib@${LIB:?}"\n'},
+         []),
+        ("a test's own pin", {"test_lib.py": f'LIB = "{other}"\n'}, []),
+    ]
+    for name, files, expected in drifts:
+        code = tmp_path / "drift/code" / name.replace(" ", "-").replace("'", "")
+        code.mkdir(parents=True)
+        for file_name, text in files.items():
+            (code / file_name).write_text(text)
+        monkeypatch.setattr(build, "CODE", code)
+        assert build.drift() == expected, name
