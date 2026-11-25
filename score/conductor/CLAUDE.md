@@ -48,7 +48,9 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   while its own process is (`size.entry_alive`: a reused pid is not the run).
 - **`kill.py`**: `stop_all(asked_by, words)` and `allow_paid(asked_by, words)`, the cockpit's owner-only kill
   switch, and `stop_batch` (the run monitor's Stop this batch: the same stop, no latch), refused in an agent's process; the latch is `conductor/free-only` (`SCORE_FREE_ONLY=1`, an env file), read
-  by every `score` command at its start (`conductor.apply_free_only`). It closes every open warm pool and ends its
+  by every `score` command at its start (`conductor.apply_free_only`). It ends every Buy still planning from the
+  checkout with its process group, its `score plan` and that plan's children (`stop_planning`, the report's
+  `planning`; #117, 2026-11-11: a stopped Buy's plans held the conductor's processors 45 min). It closes every open warm pool and ends its
   collector (`pool.close_all`) before it releases the parked machines, so no collector orders cards in their place.
   Then it ends every process still working in the frozen copy of a run no longer live (`frozen.users`/`frozen.end`,
   the report's `leftovers` with each command line; 2026-10-26: six processes of a stopped run held the checkout for an

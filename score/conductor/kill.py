@@ -9,7 +9,9 @@ conductor free only until his second click clears it.
 stop_all writes the latch first (FREE_ONLY_LATCH holding SCORE_FREE_ONLY=1: every `score` command reads it at its
 start, and a unit may read it as an EnvironmentFile), so nothing started meanwhile can spend, and takes back a resize's
 mark (so no run reads its SIGTERM as the resize's and waits to be resumed); then SIGTERM to every
-live run (each claim in runs/active.json, and every running entry whose process lives): with the machine up a run
+live run (each claim in runs/active.json, and every running entry whose process lives) and every Buy still planning
+(stop_planning: its process group, its `score plan` and that plan's children, the report's `planning`; #117): with the
+machine up a run
 registers itself `stopped` and is never resumed unasked, and passes the stop to its group, so each batch deletes its
 own machines; then every waiting run is marked stopped and its process ended; then every open warm pool is closed and
 its collector ended (pool.close_all), so none orders a card in place of the ones released next; then every parked
@@ -189,6 +191,7 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
             report["runs"].append(pid)
         except ProcessLookupError:
             pass
+    report["planning"] = stop_planning(checkout)
     for path, entry in runs.waiting(folder).items():
         size.stop_waiting(path, say=lambda line: None)
         report["waiting"].append(entry["id"])
@@ -243,11 +246,40 @@ def checkout_starting(checkout=None):
     """The pids of each `score run` or `score resume` still starting from the checkout itself, before it makes its
     frozen copy (tools/cloud/conductor/update.py's `starting`, the one rule the checkout's update waits on): a stop
     stops it as a run (2026-11-06: a sync pass's plan run spent 54 min there and held the conductor off the pin)."""
+    return checkout_processes(None, checkout)
+
+
+def checkout_processes(starters=None, checkout=None):
+    """The pids of the score processes of `starters` (pairs of command-line words; update.py's STARTERS, `score run`
+    and `score resume`, when None) whose working folder is the checkout itself (update.py's `starting`)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("conductor_update", CHECKOUT / "tools/cloud/conductor/update.py")
     update = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(update)
-    return update.starting(pathlib.Path(checkout or CHECKOUT))
+    return update.starting(pathlib.Path(checkout or CHECKOUT), starters=starters or update.STARTERS)
+
+
+# A Buy (the door's `buy`: python -m score.dashboard buy, in a session of its own from the checkout) before it
+# launches its run: its `score plan` and every plan that one starts are in its process group.
+BUYING = (("score.dashboard", "buy"),)
+
+
+def stop_planning(checkout=None):
+    """Every Buy still planning from the checkout, ended with its whole process group (its `score plan` and that plan's
+    child plans) by one SIGTERM; their pids. A Buy is the leader of its own session (agent_door.buy_started), so its
+    group is its pid; one that is not is signalled alone. Fault of 2026-11-11 (#117): a stop-batch ended a man_stair
+    Buy still planning in nothing, and its plan and 8 child plans held every processor of the conductor for 45 min."""
+    stopped = []
+    for pid in checkout_processes(BUYING, checkout):
+        try:
+            if os.getpgid(pid) == pid:
+                os.killpg(pid, signal.SIGTERM)
+            else:
+                os.kill(pid, signal.SIGTERM)
+            stopped.append(pid)
+        except ProcessLookupError:
+            pass
+    return stopped
 
 
 def starting_runs(frozen_folder=None):

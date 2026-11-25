@@ -22,7 +22,8 @@ release the parked machines before closing the pools, or drop its `stop_cluster`
 running), or pass no `every_box` to cluster_stopper (a cap stop leaves another box's Jobs running), or drop the
 `every_box_stops` call (the runner's machines keep billing past the cap), or drop `+ starting_runs(frozen_folder)` (a
 starting run goes on past the stop) or `+ checkout_starting(checkout)` (a `score run` starting from the checkout goes
-on); or in kill.leftovers read frozen.users only (the two naming a copy by SCORE_FROZEN or command line stay), or drop
+on), or in kill.stop_planning signal the Buy alone (`os.killpg(pid, ...)` -> `os.kill(pid, ...)`: its `score plan`
+goes on, #117); or in kill.leftovers read frozen.users only (the two naming a copy by SCORE_FROZEN or command line stay), or drop
 its `pid not in passes` (the sync pass is ended); or in kill.starting drop its young or owner test (the old copy's
 owner, or the gone copy's unmarked processes, stay; dropping kill.starting itself stays green, as before this fold: the
 stop's SIGTERM ends the starting run before the sweep looks); or in conductor.project_refusal drop either name from its
@@ -266,7 +267,11 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         assert tail == ["[listen] up"] and kubectl[-1][1:7] == [
             "-n", namespace, "logs", "pod/score-conductor-0", "-c", "conductor"], (found, kubectl[-1])
     # On the cluster's home (#76) a detached run is a Job of its own, from its frozen copy, beside the conductor's pod,
-    # its command the scope's, no retry, no secret's value in its spec; the pid its pod writes is the run's
+    # its command the scope's, no retry, no secret's value in its spec; the pid its pod writes is the run's. The
+    # cluster owner's labels are the box's settings (#142): stand-ins here, never this box's own
+    for name, value in (("SCORE_K8S_NODE_ROLE", "owner.example/role=score-conductor"),
+                        ("SCORE_K8S_TENANT_LABEL", "owner.example/tenant=score")):
+        monkeypatch.setenv(name, value)
     log, applied = tmp_path / "score-run-20261107T2000Z.log", []
     (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
     environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
@@ -883,8 +888,11 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
                 report = kill.cap_stop(words, cloud=Cloud(), **given)
             else:
                 report = kill.stop_everything("owner", words, latched=latched, **given)
-            stopped = [*batch["left"], batch["live"], batch["waiter"], batch["begin"], batch["starting"]]
+            stopped = [*batch["left"], batch["live"], batch["waiter"], batch["begin"], batch["starting"],
+                       batch["buying"]]
             assert all(process.wait(10) == -15 for process in stopped), row
+            # a Buy still planning ends with its plan, said in the report (#117)
+            assert report["planning"] == [batch["buying"].pid] and ended(batch["plan"]), row
             assert batch["node"].poll() is None, row  # the stopping run ends its own (remove_owned)
             assert batch["passing"].poll() is None, row  # a sync pass's own process is its own to end
         finally:
@@ -963,6 +971,19 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     assert all(result["ok"] for result in results) and dry.returncode == 0
 
 
+def ended(pid, seconds=5):
+    """Whether process `pid` is gone (or only a zombie) within `seconds`."""
+    stat = pathlib.Path(f"/proc/{pid}/stat")
+    for _ in range(int(seconds / 0.05)):
+        try:
+            if stat.read_text().rpartition(")")[2].split()[0] == "Z":
+                return True
+        except FileNotFoundError:
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def a_batch(home):
     """A batch as a stop finds it, in `home`: a claimed run working in its frozen copy (a node of its own beside it),
     a waiting run, two parked machines (the provider refuses the second), a resize mark, a sync pass holding, a run
@@ -987,6 +1008,17 @@ def a_batch(home):
             subprocess.Popen(SLEEP, cwd=old, env={**os.environ, **owner, "SCORE_FROZEN": str(old)})]
     begin = subprocess.Popen(SLEEP, cwd=home, env={**os.environ, **owner, "SCORE_FROZEN": str(begun)})
     starting = subprocess.Popen([*SLEEP, "-m", "score", "run", "world1"], cwd=home / "checkout")
+    # a Buy still planning: its own session from the checkout, its `score plan` a child in its group (#117)
+    planned = home / "plan.pid"
+    buying = subprocess.Popen([sys.executable, "-c", "import pathlib, subprocess, sys, time; plan = subprocess.Popen("
+                               "[sys.executable, '-c', 'import time; time.sleep(60)', '-m', 'score', 'plan', 'world1']); "
+                               f"pathlib.Path({str(planned)!r}).write_text(str(plan.pid)); time.sleep(60)",
+                               "-m", "score.dashboard", "buy", "yes-1"], cwd=home / "checkout", start_new_session=True)
+    for _ in range(200):
+        if planned.exists() and planned.read_text():
+            break
+        time.sleep(0.05)
+    plan = int(planned.read_text())
     passing = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO)!r}); "
                                 f"from score import conductor; h = conductor.holding('sync-pass', "
                                 f"__import__('pathlib').Path({str(home / 'holds')!r})); h.__enter__(); "
@@ -1006,8 +1038,8 @@ def a_batch(home):
     assert passing.stdout.readline().strip() == "held"
     time.sleep(0.3)  # the children are in their folders before the stop looks
     return {"home": home, "left": left, "live": live, "node": node, "waiter": waiter, "begin": begin,
-            "starting": starting, "passing": passing, "waiting": entry, "entry": waiting,
-            "all": [*left, live, node, waiter, begin, starting, passing]}
+            "starting": starting, "passing": passing, "waiting": entry, "entry": waiting, "buying": buying,
+            "plan": plan, "all": [*left, live, node, waiter, begin, starting, passing, buying]}
 
 
 # --- disk: the copies no run needs -----------------------------------------------------------------------------------
