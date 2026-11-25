@@ -764,9 +764,27 @@ def poll(run):
     run.watch_nodes()
 
 
+# How often a run asks its cluster to fall back for stock (a provider's `restock`, clusters/scaleway.py; #109).
+RESTOCK_SECONDS = 180
+
+
+def restocked(run, now):
+    """Every RESTOCK_SECONDS, the cluster's stock fallback (its creation_error nodes cleared, pools out of stock held
+    at 0, the rest capped by what the batch's euros left carry), each line it gives said; nothing on a provider without
+    one (the tenant's pools are its owner's)."""
+    restock = getattr(run.cluster, "restock", None)
+    if restock is None or now - getattr(run, "restocked_at", 0.0) < RESTOCK_SECONDS:
+        return
+    run.restocked_at = now
+    for line in restock(ledger.batch_cap()[0] - run.live_euros(), ledger.BATCH_HOURS):
+        say(f"stock: {line}")
+
+
 def look(run, parallel):
-    """One turn of the run's loop: a poll, the next jobs put on, the batch cap checked."""
+    """One turn of the run's loop: a poll, the cluster's stock fallback, the next jobs put on, the batch cap
+    checked."""
     poll(run)
+    restocked(run, time.time())
     submit_more(run, parallel)
     why = over_limits(run)
     if why:

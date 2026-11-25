@@ -17,3 +17,8 @@ its class pools, its nodes with their billed times, prices, the month's bill). T
   node an hour on, a runner machine past its deadline, a SCORE project's loose disk or a loose node root disk over a
   day). It deletes across projects with the rights the owner gave the conductor's key; never babon's machines, never
   a disk a claim holds.
+- **Stock fallback** (#109): `scaleway.py` `restock(euros_left, hours)`, asked by the submitter every
+  `RESTOCK_SECONDS` of a run, deletes the `creation_error` nodes (recorded in `CREATION_ERRORS`), holds a pool whose
+  zone is out of its type at max 0 under its `stockout-until` tag (a doubling backoff, never past `stockout-max`) and
+  caps the rest by the euros left (cap_pools' pricing), so the autoscaler grows the same class in a zone with stock and
+  a class out everywhere widens to the next. `tenant.py` has none: its pools' maxes are its owner's.

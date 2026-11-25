@@ -28,6 +28,14 @@ turns it red (each applied once and seen red):
 - Pools scale from zero, card pools carry the GPU taint, processor pools their class taint; Kapsule pools stay in
   the cluster's region. Break: taint processor pools with GPU_TAINT. Break: `zones` returns every backend zone.
 - A change asked while the cluster applies the last one is asked again. Break: re-raise on "transient state" in `scw`.
+- The stock fallback (#109, STOCK rows): a pool whose zone is out of its type is held at 0 under a `stockout-until`
+  a backoff away (doubling, never past its `stockout-max`) while the same class in a zone with stock gets what the
+  euros left pay for; a class out everywhere leaves its pools at 0 (the submitter widens to the next class) and the
+  next class's pool carries what the euros left pay for, or is said refused when they pay for no node; a hold still
+  running stays at 0 in stock, a passed one is lifted; every creation_error node is recorded with its pool, zone and
+  error. Break: `out = False` in `stock_caps` (the out pool keeps growing). Break: `last * 2` -> `last` in
+  `stockout_tags`. Break: drop the `elif not any(caps...)` refusal line. Break: `== "creation_error"` -> `== "error"`
+  in `failed_nodes`.
 """
 import importlib.util
 import json
@@ -130,6 +138,13 @@ class Cloud:
                     self.busy -= 1
                     raise subprocess.CalledProcessError(1, "scw", stderr="is in a transient state 'updating'")
                 return None
+            case ("k8s", "node", "list"):  # one node Scaleway could not make in pool p0 (restock)
+                return [node for node in [{"id": "n-failed", "name": "scw-p0", "pool_id": "id0",
+                                           "status": "creation_error", "error_message": "L4-1-24G is out of stock"}]
+                        if node["id"] not in self.gone]
+            case ("k8s", "node", "delete"):
+                self.gone.append(words[3])
+                return None
             case ("instance", "server-type", "list"):
                 return [{"name": name, "availability": "available"} for name in self.sold.get(zone, [])]
             case ("instance", "server", "list") if zone == "fr-par-2":
@@ -161,7 +176,59 @@ POOL_KINDS = [(("gpu-24gb", "L4-1-24G", "fr-par-2"),
                ("taints.0.key=score.dev/class", "taints.0.value=cpu-32c-128gb", "min-size=0"))]
 
 
+def stock_pool(name, machine_class, machine_type, zone, euros_an_hour, tags=(), most=6):
+    """A class_pools record at max `most`."""
+    return {"name": name, "id": name, "class": machine_class, "type": machine_type, "zone": zone, "max": most,
+            "tags": ["score-jobs", *tags], "euros_a_minute": euros_an_hour / 60, "unit_minutes": 60}
+
+
+def stock_pools(z2_tags=()):
+    """The 2026-11-10 shape: an L4 pool in each fr-par zone and an L40S in fr-par-2."""
+    return [stock_pool("l4-z1", "gpu-24gb", "L4-1-24G", "fr-par-1", 0.79, most=4),
+            stock_pool("l4-z2", "gpu-24gb", "L4-1-24G", "fr-par-2", 0.79, z2_tags),
+            stock_pool("l40s-z2", "gpu-48gb", "L40S-1-48G", "fr-par-2", 1.47, most=0)]
+
+
+def stock_of(z1, z2, l40s):
+    return {("L4-1-24G", "fr-par-1"): z1, ("L4-1-24G", "fr-par-2"): z2, ("L40S-1-48G", "fr-par-2"): l40s}
+
+
+# (row, pools, stock, euros left; the caps, l4-z2's tags after (None: unchanged), a line it must say) at 4 h a node
+STOCK = [
+    ("zone out to zone in", stock_pools(), stock_of("scarce", "shortage", "shortage"), 100.0,
+     {"l4-z1": 20, "l4-z2": 0, "l40s-z2": 0},
+     ["score-jobs", f"stockout-until={NOW + 300:.0f}", "stockout-wait=5"], "l4-z2: L4-1-24G out of stock in fr-par-2"),
+    ("class out everywhere to next class", stock_pools(), stock_of("shortage", "shortage", "available"), 100.0,
+     {"l4-z1": 0, "l4-z2": 0, "l40s-z2": 17}, ["score-jobs", f"stockout-until={NOW + 300:.0f}", "stockout-wait=5"],
+     "gpu-24gb: out of stock in every zone"),
+    ("a fallback the cap does not allow is refused, said", stock_pools(), stock_of("shortage", "shortage", "available"),
+     5.0, {"l4-z1": 0, "l4-z2": 0, "l40s-z2": 0}, ["score-jobs", f"stockout-until={NOW + 300:.0f}", "stockout-wait=5"],
+     "gpu-48gb: refused: in stock, but the batch's EUR 5.00 left pays for no node"),
+    ("a hold still running stays at 0 in stock", stock_pools([f"stockout-until={NOW + 600:.0f}", "stockout-wait=5"]),
+     stock_of("available", "available", "available"), 100.0, {"l4-z1": 20, "l4-z2": 0, "l40s-z2": 17}, None,
+     "l4-z2: L4-1-24G out of stock in fr-par-2; held at 0"),
+    ("a passed hold in stock is lifted", stock_pools([f"stockout-until={NOW - 10:.0f}", "stockout-wait=5"]),
+     stock_of("available", "available", "available"), 100.0, {"l4-z1": 20, "l4-z2": 20, "l40s-z2": 17},
+     ["score-jobs"], "l4-z2: max 6 -> 20 at EUR 0.79 an hour"),
+    ("the backoff doubles, never past the pool's stockout-max",
+     stock_pools([f"stockout-until={NOW - 10:.0f}", "stockout-wait=40", "stockout-max=60"]),
+     stock_of("available", "shortage", "available"), 100.0, {"l4-z1": 20, "l4-z2": 0, "l40s-z2": 17},
+     ["score-jobs", "stockout-max=60", f"stockout-until={NOW + 3600:.0f}", "stockout-wait=60"], "held at 0 until"),
+]
+
+
 def test_own_cluster_capped_and_ledgered(monkeypatch, tmp_path):
+    for row, pools, stock, euros, caps, z2_tags, said in STOCK:
+        found, tags, lines = cluster.stock_caps(pools, stock, euros, 4, 20, NOW)
+        assert found == caps, (row, found)
+        assert tags.get("l4-z2") == z2_tags, (row, tags)
+        assert any(said in line for line in lines), (row, lines)
+    failed = cluster.failed_nodes([{"id": "n1", "name": "scw-l4", "pool_id": "p2", "status": "creation_error",
+                                    "error_message": "L4-1-24G is out of stock"},
+                                   {"id": "n2", "name": "scw-ok", "pool_id": "p2", "status": "ready"}],
+                                  {"p2": {"name": "l4-z2", "zone": "fr-par-2"}}, NOW)
+    assert [(record["node"], record["pool"], record["zone"], record["error"]) for record in failed] == [
+        ("n1", "l4-z2", "fr-par-2", "L4-1-24G is out of stock")] and failed[0]["at"].startswith("2027-01-15")
     for euros, nodes in AFFORDABLE:
         assert cluster.affordable_nodes(euros, L4_A_MINUTE, 4) == nodes, f"EUR {euros} left"
     for arguments, wanted in POOL_KINDS:
@@ -218,6 +285,15 @@ def test_own_cluster_capped_and_ledgered(monkeypatch, tmp_path):
     assert set(cluster.cap_pools(1500, 4).values()) == {18}
     updates = [call[3] for call in cloud.calls if call[:3] == ("k8s", "pool", "update")]
     assert updates[:2] == ["id0", "id0"] and len(updates) == 9 and cloud.busy == 0
+    # The stock fallback's pass: the creation_error node deleted and recorded; every pool in stock, so none held
+    monkeypatch.setattr(cluster, "CREATION_ERRORS", tmp_path / "creation-errors.jsonl")
+    cloud.calls.clear()
+    lines = cluster.restock(1500, 4, NOW)
+    assert cloud.gone == ["n-failed"] and lines[0].startswith("p0: node scw-p0 deleted, creation_error in fr-par-2")
+    assert json.loads(cluster.CREATION_ERRORS.read_text())["error"] == "L4-1-24G is out of stock"
+    assert not [call for call in cloud.calls if call[:3] == ("k8s", "pool", "update")
+                and any(word.startswith("tags.") for word in call)]  # no hold written (the stub keeps no max)
+    cloud.gone.clear()
 
     # down deletes our project's cluster only; two of our name stop the module.
     assert cluster.down() is True

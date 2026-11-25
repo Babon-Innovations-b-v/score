@@ -84,6 +84,8 @@ invariant with the break that turns it red (each applied once and seen red):
   score/graph), the mark gone after an error or a stop. Break: drop the `finally` unlink in `watch`. stop-batch's
   `stop_score_jobs` deletes only Jobs labelled with a run, only in score-jobs, and refuses another namespace.
   Break: drop the namespace check in `stop_score_jobs`.
+- A run asks its cluster's stock fallback (#109) once every RESTOCK_SECONDS, on its batch's euros left, saying each
+  line; a provider without one is left alone. Break: drop the `RESTOCK_SECONDS` test in `submitter.restocked`.
 - SCORE_CLOUD_KINDS narrows SCORE_CLOUD=k8s to its kinds; a runner naming none is known by its script's name.
   Break: `return True` in place of the kinds check in `provider.on_cluster`.
   The warm pool's collector refuses to rent, saying why, while the run's launch (its registry entry, or one it was
@@ -101,6 +103,7 @@ import signal
 import subprocess
 import sys
 import time
+import types
 
 import pytest
 
@@ -331,6 +334,19 @@ def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
     from what was last seen and bill only their own nodes, warm holds kept on idle nodes; runs side by side share their
     nodes; the box's queue takes runs, stop-batch ends only score's Jobs, and the cloud settings say which work goes on
     the cluster at all."""
+    # The cluster's stock fallback (#109) runs once every RESTOCK_SECONDS of a run, on the euros its batch has left,
+    # its lines said; a provider without one (the tenant) is left alone
+    submitter = cluster_jobs.submitter
+    asked, said = [], []
+    with monkeypatch.context() as stubbed:
+        stubbed.setattr(submitter, "say", said.append)
+        stubbed.setattr(submitter.ledger, "batch_cap", lambda: (30.0, "the batch cap"))
+        stocked = types.SimpleNamespace(cluster=types.SimpleNamespace(
+            restock=lambda euros, hours: asked.append(euros) or ["l4-z2: held at 0"]), live_euros=lambda: 4.0)
+        for now in (1000.0, 1100.0, 1000.0 + submitter.RESTOCK_SECONDS):
+            submitter.restocked(stocked, now)
+        submitter.restocked(types.SimpleNamespace(cluster=types.SimpleNamespace()), 1000.0)
+    assert asked == [26.0, 26.0] and said == ["stock: l4-z2: held at 0"] * 2, (asked, said)
     helper = Helper(tmp_path / "store")
     monkeypatch.setattr(cluster_jobs.submitter, "runtime", lambda: helper)
     seen, uploads, fetches = {}, [], []

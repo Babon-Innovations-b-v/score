@@ -27,9 +27,17 @@ What Scaleway offers (read from its docs and the scw CLI, 2026-10-09):
   autoscaler runs in Scaleway's control plane, not in the cluster; other flags (max-node-provision-time, backoff)
   keep upstream's defaults.
 - **A node Scaleway cannot make** (a zone out of cards) comes back as `creation_error`; the autoscaler counts that
-  as a failed scale-up, backs the pool off (upstream: 5 min, doubling to 30 min) and grows another pool that fits the
-  pod. That is the stock fallback inside one class; between classes the submitter widens a job's classes in the
-  kind's order (`../submitter.py`).
+  as a failed scale-up and backs the pool off (upstream: 5 min, doubling to 30 min), and is meant to grow another
+  pool that fits the pod. On 2026-11-10, with every card short in every zone but L4 scarce in fr-par-1, it kept
+  retrying the out-of-stock fr-par-2 L4 pool and never tried the other zone's or an L40S pool, its failed nodes
+  holding the pool's slots (#109). So `restock` (the submitter's, every RESTOCK_SECONDS of a run) does the fallback
+  itself: it reads Scaleway's availability for each zone the pools are in, deletes every `creation_error` node (each
+  recorded in CREATION_ERRORS: pool, zone, time, error), holds a pool whose zone is out of its type at max 0 until
+  its `stockout-until` tag (a backoff from STOCKOUT_FIRST_MINUTES doubling to the pool's `stockout-max` tag, else
+  STOCKOUT_MOST_MINUTES), so the autoscaler grows the same class in a zone with stock, and gives every other pool the
+  max the euros left pay for (cap_pools' pricing), saying each change with its price. A class out in every zone
+  leaves its pools at 0, so the autoscaler says "max node group size reached" and the submitter widens the kind to
+  its next class (`../submitter.py`), whose pools carry only what the batch's euros left can.
 - **GPU pools** get NVIDIA's GPU operator from Scaleway (driver, container toolkit, device plugin, through Helm) on
   every GPU node, with the resource `nvidia.com/gpu` and the label `nvidia.com/gpu.present=true`; the driver lands
   shortly after the node joins, so a pod must ask for `nvidia.com/gpu` rather than only for the node.
@@ -124,6 +132,12 @@ AUTOSCALER = {"expander": "random", "scale-down-unneeded-time": "5m", "scale-dow
               "skip-nodes-with-local-storage": "false", "ignore-daemonsets-utilization": "true",
               "balance-similar-node-groups": "true"}
 KUBECONFIG = HOME / "cloud" / f"kubeconfig-{CLUSTER_NAME}.yaml"
+# A pool out of stock (restock): its tags `stockout-until=<epoch seconds>` (held at max 0 till then) and
+# `stockout-wait=<minutes>` (the last backoff, doubled at the next stock-out), never past `stockout-max=<minutes>`.
+STOCKOUT_UNTIL, STOCKOUT_WAIT, STOCKOUT_MAX = "stockout-until", "stockout-wait", "stockout-max"
+STOCKOUT_FIRST_MINUTES, STOCKOUT_MOST_MINUTES = 5, 60
+NO_STOCK = ("shortage",)  # Scaleway's availability word for none (scarce still sells)
+CREATION_ERRORS = HOME / "cloud" / "k8s-creation-errors.jsonl"  # every creation_error node restock deleted
 WAIT_SECONDS = 15
 # A pool or cluster change waits out the cluster's own update (a pool max change takes about a minute) this often.
 BUSY_TRIES = 20
@@ -306,7 +320,7 @@ def class_pools():
         per_minute, unit_minutes = price(pool["node_type"], pool["zone"])
         found.append({"name": pool["name"], "id": pool["id"], "class": machine_class,
                       "type": machine_type_name(pool["node_type"]), "zone": pool["zone"],
-                      "max": pool.get("max_size", 0),
+                      "max": pool.get("max_size", 0), "tags": list(pool.get("tags") or []),
                       "euros_a_minute": per_minute, "unit_minutes": unit_minutes})
     return found
 
@@ -338,6 +352,117 @@ def cap_pools(euros_left, hours):
         if caps[pool["name"]] != pool["max"]:
             scw("k8s", "pool", "update", pool["id"], f"max-size={caps[pool['name']]}")
     return caps
+
+
+def tag_number(tags, name):
+    """The number a `name=<number>` tag of `tags` holds, or None."""
+    found = next((tag.split("=", 1)[1] for tag in tags if tag.startswith(f"{name}=")), None)
+    try:
+        return float(found) if found is not None else None
+    except ValueError:
+        return None
+
+
+def stockout_tags(tags, out, now):
+    """A pool's tags after a stock read: out of stock (`out`) with no hold still running, a new `stockout-until` a
+    backoff away (the last wait doubled, from STOCKOUT_FIRST_MINUTES, never past its `stockout-max`, else
+    STOCKOUT_MOST_MINUTES); in stock once its hold has passed, the hold's tags dropped; else as they were."""
+    until = tag_number(tags, STOCKOUT_UNTIL)
+    held = until is not None and until > now
+    kept = [tag for tag in tags if not tag.startswith((f"{STOCKOUT_UNTIL}=", f"{STOCKOUT_WAIT}="))]
+    if out and not held:
+        most = tag_number(tags, STOCKOUT_MAX) or STOCKOUT_MOST_MINUTES
+        last = tag_number(tags, STOCKOUT_WAIT)
+        wait = min(most, last * 2 if last else STOCKOUT_FIRST_MINUTES)
+        return [*kept, f"{STOCKOUT_UNTIL}={now + wait * 60:.0f}", f"{STOCKOUT_WAIT}={wait:g}"]
+    if not out and until is not None and not held:
+        return kept
+    return list(tags)
+
+
+def stock_caps(pools, stock, euros_left, hours, share, now):
+    """What a stock read gives each class pool: ({name: max}, {name: its new tags, only those that change}, the lines
+    saying each change and its price). A pool whose zone is out of its type (`stock`: {(type, zone): availability},
+    a type unlisted counted out), or still inside its `stockout-until`, is held at 0; every other gets the nodes the
+    euros left pay for `hours` each within `share` (cap_pools' pricing), so a fallback to a dearer zone or class grows
+    only what the batch can carry, and a class with no pool left that it can carry is said refused."""
+    caps, tags, lines, held = {}, {}, [], set()
+    for pool in pools:
+        out = stock.get((pool["type"], pool["zone"])) in (*NO_STOCK, None)
+        after = stockout_tags(pool["tags"], out, now)
+        if after != pool["tags"]:
+            tags[pool["name"]] = after
+        until = tag_number(after, STOCKOUT_UNTIL)
+        if until is not None and until > now:
+            held.add(pool["name"])
+        caps[pool["name"]] = 0 if pool["name"] in held else affordable_nodes(euros_left, pool["euros_a_minute"],
+                                                                             hours, share)
+        if pool["name"] in held and pool["max"]:
+            lines.append(f"{pool['name']}: {pool['type']} out of stock in {pool['zone']}; held at 0 until "
+                         f"{time.strftime('%H:%M', time.gmtime(until))} UTC")
+        elif pool["name"] not in held and caps[pool["name"]] != pool["max"]:
+            lines.append(f"{pool['name']}: max {pool['max']} -> {caps[pool['name']]} at EUR "
+                         f"{pool['euros_a_minute'] * 60:.2f} an hour ({pool['type']} in {pool['zone']})")
+    for machine_class in sorted({pool["class"] for pool in pools}):
+        stocked = [pool for pool in pools if pool["class"] == machine_class and pool["name"] not in held]
+        if not stocked:
+            lines.append(f"{machine_class}: out of stock in every zone; its jobs widen to their next class")
+        elif not any(caps[pool["name"]] for pool in stocked):
+            cheapest = min(pool["euros_a_minute"] for pool in stocked) * 60
+            lines.append(f"{machine_class}: refused: in stock, but the batch's EUR {euros_left:.2f} left pays for no "
+                         f"node of it for {hours:g} h (EUR {cheapest:.2f} an hour)")
+    return caps, tags, lines
+
+
+def failed_nodes(listed, pools_by_id, now):
+    """The `creation_error` nodes of `listed` (Scaleway's node records), each as its record line: pool, zone, time,
+    error text, and the node's id to delete."""
+    return [{"node": node["id"], "name": node.get("name"), "pool": pools_by_id.get(node["pool_id"], {}).get(
+                 "name", node["pool_id"]), "zone": pools_by_id.get(node["pool_id"], {}).get("zone", "?"),
+             "at": datetime.datetime.fromtimestamp(now, datetime.timezone.utc).isoformat(timespec="seconds"),
+             "error": node.get("error_message") or ""}
+            for node in listed if node.get("status") == "creation_error"]
+
+
+def clear_failed(cluster_id, pools_by_id, now):
+    """Delete every `creation_error` node of the cluster, so none holds its pool's size, each recorded first in
+    CREATION_ERRORS; their records."""
+    found = failed_nodes(scw("k8s", "node", "list", f"cluster-id={cluster_id}") or [], pools_by_id, now)
+    for record in found:
+        CREATION_ERRORS.parent.mkdir(parents=True, exist_ok=True)
+        with CREATION_ERRORS.open("a") as written:
+            written.write(json.dumps(record) + "\n")
+        scw("k8s", "node", "delete", record["node"])
+    return found
+
+
+def zone_stock(zones_asked):
+    """{(machine type, zone): Scaleway's availability} for each zone of `zones_asked`."""
+    return {(item["name"], zone): item.get("availability")
+            for zone in sorted(set(zones_asked))
+            for item in backend.scw("instance", "server-type", "list", f"zone={zone}") or []}
+
+
+def restock(euros_left, hours, now=None):
+    """The stock fallback (the module's docstring, #109): the cluster's creation_error nodes deleted and recorded,
+    each class pool's stock read, its stockout tags written and its max set by stock_caps (shrinking ones first, as
+    cap_pools); the lines saying each change."""
+    now = time.time() if now is None else now
+    found = owned_cluster(backend.account())
+    listed = pools(found["id"])
+    failed = clear_failed(found["id"], {pool["id"]: pool for pool in listed}, now)
+    class_found = class_pools()
+    caps, tags, lines = stock_caps(class_found, zone_stock(pool["zone"] for pool in class_found), euros_left, hours,
+                                   node_share(len(class_found)), now)
+    for pool in class_found:
+        if pool["name"] in tags:
+            scw("k8s", "pool", "update", pool["id"], *(f"tags.{number}={tag}"
+                                                       for number, tag in enumerate(tags[pool["name"]])))
+    for pool in sorted(class_found, key=lambda item: caps[item["name"]] - item["max"]):
+        if caps[pool["name"]] != pool["max"]:
+            scw("k8s", "pool", "update", pool["id"], f"max-size={caps[pool['name']]}")
+    return [f"{record['pool']}: node {record['name']} deleted, creation_error in {record['zone']}: "
+            f"{record['error']}" for record in failed] + lines
 
 
 def nodes():
