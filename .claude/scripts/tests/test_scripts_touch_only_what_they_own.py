@@ -24,7 +24,9 @@ The break that turns each test red (applied once each, seen red, reverted):
   `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped); or main prints the report also
   when empty (the idle hook speaks); or (an env1 run's code worktree was reaped mid-run and while paused, 2026-10-31)
   reap's `or entry.name in in_use` dropped, held_by_processes returns `set()` (only the cwd and locked_cwd worktrees
-  go), or named_by_runs returns `set()` (only registered and paused go).
+  go), or named_by_runs returns `set()` (only registered and paused go); or (~45 worktrees left beside the
+  repositories, 2026-11-25) linked_worktrees keeps only roots under `.claude/worktrees` (beside stays), or
+  sister_checkouts returns `[]` (sister stays).
 - its sandbox-home row (owner's rule: tests use small fixtures, never the real store or home, 2026-10-28):
   sandbox-home's read_only_command drops `--ro-bind`; or run's `finally` drops `shutil.rmtree(temp, ...)`; or
   make_sandbox links the real home's work/ into the sandbox.
@@ -234,11 +236,12 @@ def gate(name, changed, command, environ, said):
     return case(name, run(["gate-scope.py", *command], environ, said=said), changed=changed)
 
 
-def tree(name, lock=None, at="HEAD~1", dirty=False, local_commit=False, idle=False, held=False, named_by=None):
+def tree(name, lock=None, at="HEAD~1", dirty=False, local_commit=False, idle=False, held=False, named_by=None,
+         place=None):
     """A worktree: locked by a session alive or dead, its commit, unsaved work, a commit of its own, untouched for a
     day, a process working in it, and the this-PC run whose record names it (running, finished, paused)."""
     return {"name": name, "lock": lock, "at": at, "dirty": dirty, "local_commit": local_commit, "idle": idle,
-            "held": held, "named_by": named_by}
+            "held": held, "named_by": named_by, "place": place}
 
 
 THIS_PC = {"SCORE_THIS_PC_HOME": "{tmp}/this-pc"}
@@ -351,13 +354,17 @@ CASES = [
              tree("locked_cwd", lock="dead", held=True),  # its session is dead, a process it started is not
              tree("registered", idle=True, named_by="running"),  # a running this-PC run's registry entry names it
              tree("finished", idle=True, named_by="finished"),  # only a finished run's entry names it: reaped
-             tree("paused", at="HEAD", idle=True, named_by="paused")],  # checked out at the paused run's commit
-             said=f"Reaped 3 orphaned worktree(s): finished, gone, idle. {DIRTY_LEFT}\n"),
+             tree("paused", at="HEAD", idle=True, named_by="paused"),  # checked out at the paused run's commit
+             tree("beside", idle=True, place="beside"),  # made next to the repo, not under it: still reaped
+             tree("beside_dirty", dirty=True, idle=True, place="beside"),  # misplaced but holding work: kept
+             tree("sister", idle=True, place="sister")],  # a worktree_repos repository's: reaped by the same rules
+             said=f"Reaped 5 orphaned worktree(s): finished, gone, idle, repo-wt-beside, sister. {DIRTY_LEFT}\n"),
          run(["worktree-reap.py"], HOOK, add=[tree("gone_later", lock="dead")],  # off the paused run's commit
              said={"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext":
                                           f"Reaped 1 orphaned worktree(s): gone_later. {DIRTY_LEFT}"}}),
-         changed=set(),
-         files=[(f"{{repo}}/.claude/worktrees/{name}", name in LEFT) for name in REAPED + LEFT],
+         changed=set(), config={"repo": "acme/widget", "worktree_repos": ["../sister"]},
+         files=[(f"{{repo}}/.claude/worktrees/{name}", name in LEFT) for name in REAPED + LEFT]
+         + [("{tmp}/repo-wt-beside", False), ("{tmp}/repo-wt-beside_dirty", True), ("{tmp}/sister-wt/sister", False)],
          branches={"worktree-gone": False, "worktree-gone_later": False, "worktree-dirty": True,
                    "worktree-unmerged": True, "worktree-live": True, "worktree-kept": True}),
     case("worktree-reap outside a git repo does nothing",
@@ -393,19 +400,28 @@ def dead_pid():
 
 
 def lay_out(repo, spec, this_pc, held):
-    """Add one worktree as its spec says; a process working in it joins held."""
+    """Add one worktree as its spec says (place: None under .claude/worktrees, "beside" next to the repo, "sister" in
+    a clone of it at {tmp}/sister); a process working in it joins held."""
+    owner = repo
     path = repo / ".claude" / "worktrees" / spec["name"]
-    git(repo, "worktree", "add", "-q", "-b", f"worktree-{spec['name']}", str(path), spec["at"])
+    if spec["place"] == "beside":
+        path = repo.parent / f"repo-wt-{spec['name']}"
+    elif spec["place"] == "sister":
+        owner = repo.parent / "sister"
+        if not owner.exists():
+            git(repo.parent, "clone", "-q", str(repo), str(owner))
+        path = repo.parent / "sister-wt" / spec["name"]
+    git(owner, "worktree", "add", "-q", "-b", f"worktree-{spec['name']}", str(path), spec["at"])
     if spec["lock"]:
         pid = os.getpid() if spec["lock"] == "live" else dead_pid()
-        git(repo, "worktree", "lock", "--reason", f"claude agent {spec['name']} (pid {pid} start 1)", str(path))
+        git(owner, "worktree", "lock", "--reason", f"claude agent {spec['name']} (pid {pid} start 1)", str(path))
     if spec["dirty"]:
         (path / "work.txt").write_text("unsaved")
     if spec["local_commit"]:
         git(path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local")
     if spec["idle"]:  # its git admin files a day old, past IDLE_HOURS
-        admin = pathlib.Path(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "worktrees"
-        for part in (admin / spec["name"]).rglob("*"):
+        admin = pathlib.Path(git(path, "rev-parse", "--path-format=absolute", "--git-dir"))
+        for part in admin.rglob("*"):
             if part.is_file():
                 os.utime(part, (time.time() - 86400, time.time() - 86400))
     if spec["held"]:

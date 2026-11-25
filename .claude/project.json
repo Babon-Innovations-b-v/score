@@ -7,6 +7,7 @@
     "owner": "Babon-Innovations-b-v"
   },
   "backlog_prd": 36,
+  "worktree_repos": ["../score_lib"],
   "area_label_prefix": "area:",
   "areas": [],
   "people": {
