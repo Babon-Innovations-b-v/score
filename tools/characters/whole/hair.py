@@ -19,7 +19,8 @@ face looking along +z, the person's left +x):
   two sides left a bare strip some 5 to 10 mm wide, "hairline is also still just crazy gap", owner 2026-11-25), each
   strand with its own lean (LEAN) and layer (LAYER_SPREAD) so the hair is not laid in flat sheets, turning to gravity
   below the crown, lying LAYER over the skin (a strand rooted nearer the parting higher, as hair lies over the hair
-  rooted under it), free once below the head's widest (HUG_OVER_EYES_M) so the bob hangs as a curtain. A strand in
+  rooted under it), free once below the head's widest (HUG_OVER_EYES_M) so the bob hangs as a curtain, one the skin
+  holds from falling moved out over it (`draped`). A strand in
   front of the head never falls over the face: within the face's width it runs across (the fringe to the style's
   fringe side) until it is past the eyes. Its end falls at the bob's line (END_BELOW_EYES_M under the eyes, spread
   ENDS_SPREAD_M), its tip turned in; the style's wave across it; POINTS points, its radius tapered RADIUS.
@@ -70,6 +71,7 @@ PART_ENDS_BEHIND_M = 0.02  # the parting ends this far behind the head's middle 
 PART_FADE_M = 0.03  # over which the comb turns from across to straight back
 TURN = 0.4  # how much of its wanted direction a strand lying on the head takes each step
 TURN_HANGING = 0.8  # and one hanging: it drops as soon as it leaves the head
+SNAG_DOWN = 0.7  # a hanging strand heading down at least this steeply that the skin holds is snagged (`draped`)
 HANG_OUT = 0.08  # a hanging strand's lean out from the head's upright, for each metre down
 END_BELOW_EYES_M = 0.105  # the bob's ends: the jaw and the neck's top under the eyes
 ENDS_SPREAD_M = 0.012
@@ -244,6 +246,7 @@ def stepped(points, faces, eyes, style, rng):
         free = moved[:, 1] < middle[1] + HUG_OVER_EYES_M
         lift = np.where(free, np.maximum(wanted_height - height, 0.0), wanted_height - height)
         moved = moved + normal * lift[:, None]
+        moved = draped(moved, place, direction, free, centre)
         alive &= (moved[:, 1] > ends) & (travelled + STEP_M <= reach)
         place = np.where(alive[:, None], moved, place)
         travelled += np.where(alive, STEP_M, 0.0)
@@ -251,6 +254,16 @@ def stepped(points, faces, eyes, style, rng):
         if not alive.any():
             break
     return np.stack(path, axis=1), centre, inner
+
+
+def draped(moved, place, direction, free, centre):
+    """A hanging strand heading down that the skin held from going half its step down (snagged behind an ear, where
+    the skin turns under, it stood still and was left out as a strand that never left its root, a hole of roots
+    there, 2026-11-25) moved half a step out from the head's upright, so it falls over what holds it."""
+    snagged = free & (direction[:, 1] < -SNAG_DOWN) & (moved[:, 1] - place[:, 1] > -0.5 * STEP_M * -direction[:, 1])
+    outward = np.zeros((len(moved), 3))
+    outward[:, [0, 2]] = moved[:, [0, 2]] - centre[[0, 2]]
+    return moved + unit(outward) * (0.5 * STEP_M * snagged)[:, None]
 
 
 def part_lean(rooted, side, parting, centre, rng):

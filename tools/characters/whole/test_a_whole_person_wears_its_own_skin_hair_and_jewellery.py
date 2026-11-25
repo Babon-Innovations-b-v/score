@@ -1,13 +1,14 @@
 """A whole person wears its own skin, hair and jewellery: the face's body laid on the clips rig's mean body comes back
 on it point for point (scaled by height, moved along the floor, its limbs turned onto the mean's); a bob combed on a
 round toy head (rooted as densely as a head) passes the hair's checks, and a root lifted off the scalp, strand points
-before the eyes, the crown's strands taken away, 1500 strands gathered into one, no roots within 3 mm of the parting, a
-root-free patch and the roots under the hairline's full density taken away (a hard hairline) each fail theirs; hair
-inside the skin is put out to its clearance and hair outside left; a ring goes round the finger it is meant for (read
-off a toy hand's skin), a watch round its wrist with its case on the back of the wrist, a chain round the neck on its
-skin and moving with it; and `faults` names a piece pushed into the skin; a toy hand's fingers bend towards its palm
-(the side its thumb stands to) past the knuckles, their length kept, the palm left where it was. Each row is one toy (no
-SOMA, Newton or Blender).
+before the eyes, the crown's strands taken away, 1500 strands gathered into one, no roots within 3 mm of the parting,
+a root-free patch and the roots under the hairline's full density taken away (a hard hairline) each fail theirs; a
+hanging strand the skin holds is moved out over it and one falling freely left; hair inside the skin is put out to
+its clearance and hair outside left; a ring goes round the finger it is meant for (read off a toy hand's skin), a
+watch round its wrist with its case on the back of the wrist, a chain round the neck on its skin and moving with it;
+and `faults` names a piece pushed into the skin; a toy hand's fingers bend towards its palm (the side its thumb
+stands to) past the knuckles, their length kept, the palm left where it was. Each row is one toy (no SOMA, Newton or
+Blender).
 
 Breaks that turn it red (each applied once, seen red, reverted): the limbs' turns left out (`posed_like_mean`
 returning its points: the toy arm 15 degrees off the mean's); the comb's face guard left out (`direction[front]`
@@ -22,7 +23,8 @@ only the first frame (the chain left behind as the neck turns); `hand_frame`'s p
 side (`-np.sign`: the fingers bend back; seen red 2026-11-25); `part_lean` left out (the toy's parting bare 6.3 mm
 from above); the hairline's roots not thinned (`roots` keeping every one: the roots rising within 4 mm); `root_gap`
 reading the mean distance (the root-free patch passes); `parting_bare` counting no run as on the parting's line (the
-bare band passes the parting's check; each seen red 2026-11-25)."""
+bare band passes the parting's check); `draped` returning `moved` (the snagged strand left where the skin held it;
+each seen red 2026-11-25)."""
 import functools
 
 import numpy as np
@@ -111,6 +113,7 @@ def toy_hands():
 @pytest.mark.parametrize("case", ["laid on the mean", "hair combed on its head", "hair rooted off the scalp",
                                   "hair before the eyes", "hair leaving the crown bald", "hair in a clump",
                                   "hair parted wide", "hair with a gap in its roots", "hair with a hard hairline",
+                                  "hair draped over a snag",
                                   "hair kept out",
                                   "ring round its finger",
                                   "watch round its wrist", "chain round the neck", "ring pushed in",
@@ -128,6 +131,13 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         turns = whole.limb_turns(low * scale + shift, mean, weights, NAMES)
         back = whole.posed_like_mean(low * scale + shift, weights, turns)
         assert np.abs(back - mean).max() < 1e-6
+    if case == "hair draped over a snag":  # two hanging strands heading down beside a head, one held by the skin
+        place = np.array([[0.08, 0.0, 0.0], [0.0, 0.0, -0.08]])
+        moved = place + [[0.0, -0.0001, 0.0], [0.0, -hair.STEP_M, 0.0]]
+        down = np.tile([0.0, -1.0, 0.0], (2, 1))
+        out = hair.draped(moved, place, down, np.array([True, True]), np.zeros(3))
+        assert out[0] == pytest.approx(moved[0] + [0.5 * hair.STEP_M, 0.0, 0.0])
+        assert out[1] == pytest.approx(moved[1])
     if case == "fingers relaxed":
         points, weights, names, bind = toy_hands()
         moved, tones = whole.relaxed_hands(points, weights, names, bind)
