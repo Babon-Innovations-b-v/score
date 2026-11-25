@@ -25,6 +25,13 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
 - `water`: a harbour's water, one slab `wide` x `deep` and `depth` deep, its top at y = 0, shaded flat (its top's
   normals straight up: the pad's harbour laid as blocks drew smooth, each chamfered corner's lean spread over strips
   kilometres long, and the near water mirrored the city in a patch cut off by a ruler-straight edge); part water.
+- `coast`: a stretch of coast round a harbour (2099 #161, the owner: "zero terrain", the pad on a flat plane with no
+  land, shore or sea round it): one closed solid `wide` (x, centred) whose shoreline wobbles about z = 0 (the
+  waterline y = 0, seeded), its land rolling inland (-z) `deep` metres in seeded hills up to `rise` over a `shore`
+  band (a beach or rock edge rising to its `berm`), its sea bed sinking seaward (+z) `sea` metres out to `depth`
+  under the water; each `site` [x, z, radius, height] levelled at its height and eased into the land round it (a
+  launch site's deck); parts land and shore (the shore band and the sea bed: a sand or rock look). Lay `water` over it
+  for the sea itself.
 - `ferry`: a harbour ferry on the water (its waterline at y = 0): a hull with a pointed bow, a two-deck cabin with
   its window bands lit, and its wake spreading behind it on the water; parts hull, cabin, window, wake.
 - `door_wall`: a flat wall `wide` (x, centred) by `high` (y, its foot on 0) and `thick` (z, centred) holding a
@@ -413,6 +420,79 @@ def water(wide=12000.0, deep=12000.0, depth=3.0):
     return [piece("water", points, triangles, False)]
 
 
+COAST_WAVES = 4  # the seeded sines summed for a coast's shoreline and its hills each
+
+
+def seeded_waves(generator, count, longest, size):
+    """A smooth seeded relief, a function of (x, z) in [-size, size]: `count` sines of wavelengths from `longest` down
+    by halves, each at a random heading and phase, its amplitude halving with them."""
+    waves = [(generator.uniform(0, 2 * math.pi), generator.uniform(0, 2 * math.pi), longest / 2 ** number,
+              size / 2 ** number) for number in range(count)]
+    total = sum(wave[3] for wave in waves)
+
+    def relief(x, z):
+        return sum(height * np.sin(2 * math.pi * (x * math.cos(heading) + z * math.sin(heading)) / length + phase)
+                   for heading, phase, length, height in waves) * size / total
+
+    return relief
+
+
+def coast_heights(x, z, wide, deep, sea, rise, shore, berm, depth, sites, seed):
+    """A coast's surface height at (x, z) and how far inland of its shoreline each point is (metres; negative out
+    at sea): the sea bed falling from the waterline to `depth` over the first quarter of `sea`, the shore band rising
+    to `berm`, the hills inland rising to `rise` over a third of `deep` (coast's words), every site levelled."""
+    generator = np.random.default_rng(seed)
+    shoreline = seeded_waves(generator, COAST_WAVES, wide / 2, shore * 1.5)
+    hills = seeded_waves(generator, COAST_WAVES, deep, 0.5)
+    inland = shoreline(x, 0.0) - z
+    out = np.clip(-inland / (sea * 0.25), 0.0, 1.0)
+    height = np.where(inland <= 0, -depth * out * out * (3 - 2 * out), berm * np.clip(inland / shore, 0.0, 1.0))
+    past = np.clip(inland - shore, 0.0, None)
+    height = height + rise * (1.0 - np.exp(-past / (deep / 3))) * (0.6 + hills(x, z))
+    for across, along, radius, level in sites:
+        reach = np.hypot(x - across, z - along)
+        ease = np.clip((reach - radius) / (radius * 0.5), 0.0, 1.0)
+        ease = ease * ease * (3 - 2 * ease)
+        height = level + (height - level) * ease
+    return height, inland
+
+
+def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, depth=8.0, cell=20.0, sites=(),
+          seed=0):
+    """A coast (the docstring's `coast`): a heightfield on a grid of `cell` metres, closed by a flat bottom 2 m under
+    the sea bed's deepest and its four sides; parts land and shore (inland of the shore band, or not)."""
+    across = np.linspace(-wide / 2, wide / 2, int(round(wide / cell)) + 1)
+    along = np.linspace(-deep, sea, int(round((deep + sea) / cell)) + 1)
+    grid_x, grid_z = np.meshgrid(across, along, indexing="ij")
+    heights, inland = coast_heights(grid_x, grid_z, wide, deep, sea, rise, shore, berm, depth,
+                                    [tuple(float(value) for value in site) for site in sites], seed)
+    count_x, count_z = grid_x.shape
+    top = np.column_stack([grid_x.ravel(), heights.ravel(), grid_z.ravel()])
+    floor = float(heights.min()) - 2.0
+    points = np.vstack([top, np.column_stack([grid_x.ravel(), np.full(grid_x.size, floor), grid_z.ravel()])])
+    below = len(top)
+    cells = np.arange(count_x * count_z).reshape(count_x, count_z)[:-1, :-1].ravel()
+    corners = np.column_stack([cells, cells + 1, cells + count_z + 1, cells + count_z])
+    upward = np.vstack([corners[:, [0, 1, 2]], corners[:, [0, 2, 3]]])  # +z then +x under a corner: faces up
+    middle_inland = inland.ravel()[upward].mean(axis=1)
+    rim = ([cells_at for cells_at in range(0, count_z)]
+           + [column * count_z + count_z - 1 for column in range(1, count_x)]
+           + [(count_x - 1) * count_z + row for row in range(count_z - 2, -1, -1)]
+           + [column * count_z for column in range(count_x - 2, 0, -1)])
+    sides = []
+    for here, there in zip(rim, rim[1:] + rim[:1]):
+        sides += [[here, there, there + below], [here, there + below, here + below]]
+    sides = np.asarray(sides)
+    centre = np.array([0.0, 0.0, (sea - deep) / 2])
+    faces = points[sides]
+    normal = np.cross(faces[:, 1] - faces[:, 0], faces[:, 2] - faces[:, 0])
+    inward = np.einsum("ij,ij->i", normal[:, [0, 2]], (faces.mean(axis=1) - centre)[:, [0, 2]]) < 0
+    sides[inward] = sides[inward][:, ::-1]
+    closed = np.vstack([upward[middle_inland <= shore], upward[:, ::-1] + below, sides])
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece("land", points, upward[middle_inland > shore], True), piece("shore", points, closed, True)]
+
+
 HATCH_GAP = 0.0005  # metres between a hatched ship's band and the hull under it and the nose over it (no face shared)
 
 
@@ -567,7 +647,7 @@ def hatch_band(radius_at, low, high, around, sill, rows, thick=0.05, segments=96
 
 KINDS = {"ship": ship, "launch_ring": launch_ring, "lattice": lattice, "railing": railing, "flood_head": flood_head,
          "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound, "ferry": ferry,
-         "water": water, "door_wall": door_wall}
+         "water": water, "coast": coast, "door_wall": door_wall}
 
 
 def doorways(kind, sizes):

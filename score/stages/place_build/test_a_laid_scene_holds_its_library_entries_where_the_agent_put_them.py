@@ -91,6 +91,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.ferry: its wake laid under the waterline -> the ferry's wake is not on the water
 - launch_kit.water: shaded smooth -> the harbour's top normals lean off straight up
 - launch_kit.door_wall: the reveal's sides left off -> the wall with a round doorway is no closed solid
+- launch_kit.coast: its sides left off -> the coast is no closed solid; its bottom wound up -> its edges are not
+  walked once each way
+- launch_kit.coast_heights: the sites unread -> the coast's launch site stands off its 3 m; the sea bed left at the
+  waterline -> the coast's sea bed 60 m out is not 8 m down; the hills left flat -> its land rises no higher than
+  its berm
 - launch_kit.hatch_band: a hatch row's run laid as a whole ring -> the hatched ship's skin stands across its hatch
 - launch_kit.hatched: the band laid on the hull with no gap -> the hatched ship's hull shares a face with its band
 - launch_kit.door_wall: the rows' sill row left out of the doorway -> the wall's volume is a round doorway's short
@@ -1124,6 +1129,20 @@ def launched(folder):
     normals = cockpit_kit.corner_normals(points, triangles, harbour[0][3]).reshape(-1, 3, 3)
     tops = normals[np.all(np.abs(points[triangles][:, :, 1]) < 1e-9, axis=1)].reshape(-1, 3)
     assert len(tops) and tops[:, 1].min() > 1.0 - 1e-6, "the harbour's top leans"
+    coast = launch_kit.coast(wide=400.0, deep=200.0, sea=100.0, rise=20.0, shore=10.0, cell=5.0,
+                             sites=[[0.0, -100.0, 20.0, 3.0]])  # land, a shore, the sea bed, a launch site levelled
+    assert [piece[0] for piece in coast] == ["land", "shore"], coast
+    points, triangles = cockpit_kit.welded(coast[0][1], np.vstack([coast[0][2], coast[1][2]]))
+    edges = triangles[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2)  # each walked once each way: closed, wound alike
+    _, uses = np.unique(np.sort(edges, axis=1), axis=0, return_counts=True)
+    corners = points[triangles]
+    assert (uses == 2).all() and len(np.unique(edges, axis=0)) == len(edges) and np.einsum("ij,ij->i", corners[:, 0], np.cross(corners[:, 1], corners[:, 2])).sum() > 0, \
+        "the coast is no closed solid facing out"
+    top = points[points[:, 1] > points[:, 1].min() + 1.0]
+    land = coast[0][1][np.unique(coast[0][2])]
+    site = top[np.hypot(top[:, 0], top[:, 2] + 100.0) < 15.0]
+    assert np.allclose(site[:, 1], 3.0) and top[top[:, 2] > 60.0][:, 1].max() < -8.0 + 1e-6, (site, top.max(axis=0))
+    assert land[:, 1].max() > 2.5 + 10.0 and land[:, 1].min() > 0.0, (land.min(axis=0), land.max(axis=0))  # above the sea
     circle = [[0.6 + 0.6 * math.sin(angle), -0.6 * math.cos(angle) - 0.01, 0.6 * math.cos(angle) + 0.01]
               for angle in np.linspace(-math.pi / 2, math.pi / 2, 31)]
     _, points, triangles, _ = launch_kit.door_wall(2.4, 2.6, 0.1, circle)[0]

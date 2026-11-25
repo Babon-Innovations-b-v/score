@@ -229,7 +229,12 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   a harbour ferry with its lit window bands and its wake on the water; a harbour's `water`, one closed flat-shaded
   slab whose top grid is finer near the place (blocks draw smooth: a 12 km strip leant its top from its chamfers and
   the near water mirrored the city in a patch with a ruler-straight edge; the check keeps a ground's faces by their
-  corners near the place, so one huge face would be dropped). The ship with `ring` 0 is one seamless steel
+  corners near the place, so one huge face would be dropped); a `coast` under that water (2099 #161, the owner: "zero
+  terrain", the pad on a flat plane with no land, shore or sea round it): one closed heightfield solid, its seeded
+  shoreline at the waterline, land rolling up inland in hills (part land: a grass, soil or rock look), a shore band
+  rising to its berm and the sea bed sinking under the water (part shore: the library's sand or rock), each `sites`
+  [x, z, radius, height] levelled (the launch deck, the square's promenade) and eased into the land; laid `fixed`,
+  or `kit --ground` where it is walked. The ship with `ring` 0 is one seamless steel
   barrel (the pad's judge: "evenly spaced ring bands"), its canards and aft flaps sized by `fore`, `aft`, `aft_chord`.
   The pad's join to the capsule (2099 #161, 2026-11-24: the walkway's 1.41 x 2.06 m door led into the ship's steel):
   the ship's `hatch` makes its skin a band `thick` deep from `low` to `high` round a hollow the crew capsule sits in,
