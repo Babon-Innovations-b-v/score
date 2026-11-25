@@ -22,6 +22,9 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `publish`: the `built[PARENT] = parent` write left out  -> the accepted publish's images.json.
 - `judge_only_packages`: the first-build pass without `== []` (a first image's models passed unread)  -> row
   `first build with a model`.
+- `unpinned`: every word kept (an apt pin read as an instruction change)  -> rows `apt pin added`, `apt pin changed`,
+  `apt pin removed`; `APT_PIN` matching any word, or the install state never reset at `&&`  -> rows `unpinned package
+  added`, `pin outside apt-get install`.
 """
 import json
 import pathlib
@@ -41,6 +44,9 @@ NEWTON_PINS = {"newton": "1.7.0", "mujoco": "3.15.0", "mujoco-warp": "3.15.0", "
                "typing-extensions": "4.16.0"}
 CONDUCTOR = {"python": "python 3.12", "versions": {"terrain": "a1", "assembly": "b2"}}
 IMAGE = "registry/score-moss:1-x@sha256:y"
+DOCKERFILE = ("FROM base:1\n# a comment\nARG B=9.1\nRUN apt-get update -qq \\\n && apt-get install -y -qq "
+              "--no-install-recommends git \\\n      \"a=1.2-1\" \"b=${B}\" >/dev/null \\\n"
+              " && echo cmake=3\n")
 
 
 class Tone(tuple):
@@ -170,6 +176,18 @@ def test_image_proofs_pass_only_a_proof_that_did_its_jobs(tmp_path):
                                 ("a row moved", {**CONDUCTOR, "versions": {"terrain": "a1", "assembly": "c3"}},
                                  ["assembly: c3 in the image, b2 here"])):
         assert images.version_faults(image, CONDUCTOR) == faults, name
+    # (row, the Dockerfile, the same instructions as the published one's): an apt version pin is a package move
+    for name, dockerfile, same in (
+            ("dockerfile as published", DOCKERFILE, True),
+            ("apt pin added", DOCKERFILE.replace('"b=${B}"', '"b=${B}" "b-headers=${B}"'), True),
+            ("apt pin changed", DOCKERFILE.replace('"a=1.2-1"', '"a=1.3-1"'), True),
+            ("apt pin removed", DOCKERFILE.replace(' "b=${B}"', ""), True),
+            ("command changed", DOCKERFILE.replace("--no-install-recommends", "--install-recommends"), False),
+            ("new RUN", DOCKERFILE + "RUN pip install c\n", False),
+            ("FROM changed", DOCKERFILE.replace("base:1", "base:2"), False),
+            ("unpinned package added", DOCKERFILE.replace('"b=${B}"', '"b=${B}" d'), False),
+            ("pin outside apt-get install", DOCKERFILE.replace("cmake=3", "cmake=4"), False)):
+        assert images.same_instructions(DOCKERFILE, dockerfile) == same, name
 
     published = tmp_path / "images.json"
     published.write_text("{}")

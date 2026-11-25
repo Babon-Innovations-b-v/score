@@ -215,9 +215,40 @@ def file_at(commit, path):
                           cwd=REPO, check=True).stdout
 
 
+APT_PIN = re.compile(r'"?[a-z0-9][a-z0-9.+-]*=[^\s"]+"?')
+SHELL_BREAKS = {"&&", "||", ";", "|"}
+
+
 def instructions(dockerfile_text):
-    """A Dockerfile's lines less its comments and blank lines."""
-    return [line for line in dockerfile_text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+    """A Dockerfile's instructions, each joined across its continued lines into its words; comments and blanks left out."""
+    lines = [line for line in dockerfile_text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+    joined = []
+    for line in lines:
+        if joined and joined[-1].endswith("\\"):
+            joined[-1] = joined[-1][:-1] + " " + line
+        else:
+            joined.append(line)
+    return [tuple(line.split()) for line in joined]
+
+
+def unpinned(words):
+    """An instruction's words less each exact apt version pin (`name=version`) of an apt-get install: a package move."""
+    kept, installing = [], False
+    for word in words:
+        if word in SHELL_BREAKS:
+            installing = False
+        elif word == "install" and "apt-get" in kept[-3:]:
+            installing = True
+        elif installing and APT_PIN.fullmatch(word):
+            continue
+        kept.append(word)
+    return tuple(kept)
+
+
+def same_instructions(before_text, after_text):
+    """Whether two Dockerfiles' instructions are the same once their apt version pins are left out."""
+    return [unpinned(words) for words in instructions(before_text)] == \
+        [unpinned(words) for words in instructions(after_text)]
 
 
 def moved_packages(before_text, after):
@@ -246,8 +277,8 @@ def judge_only_packages(kind):
         folder = IMAGES / kind
         changed = [name for name, same in (
             ("models.json", file_at(commit, folder / "models.json") == (output / "models.json").read_text()),
-            ("Dockerfile", instructions(file_at(commit, folder / "Dockerfile"))
-             == instructions((output / "Dockerfile").read_text()))) if not same]
+            ("Dockerfile", same_instructions(file_at(commit, folder / "Dockerfile"),
+                                             (output / "Dockerfile").read_text()))) if not same]
         moved = moved_packages(file_at(commit, folder / "requirements.txt"), output / "requirements.txt")
         if changed:
             return checks.Verdict("only packages moved", checks.FAIL,
