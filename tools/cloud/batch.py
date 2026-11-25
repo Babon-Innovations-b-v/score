@@ -116,6 +116,10 @@ START_MINUTES = 5
 # STOCK_RETRY_MOST_MINUTES (2026-10-22: pixal@people asked every 3 min for over an hour while Scaleway had no cards).
 STOCK_RETRY_MINUTES = 3
 STOCK_RETRY_MOST_MINUTES = 30
+# How long a claim whose caller gives no `wanted` (a single-card call: blender_cloud, scene, characters --hold) waits
+# for stock in all: its run's deadline is held while it waits (#96), so without this bound only a signal would end a
+# stockout's wait, its call and node holding their --jobs slot for hours. A claim with `wanted` waits while it says.
+STOCK_WAIT_LIMIT_MINUTES = 60
 # The backend's stock words (provider.Offer.stock_word) at which nothing is ordered: Scaleway's shortage, and park.py's
 # `parked` (a shortage where one of our runs parked a machine, taken through park.adopt, never ordered anew). Every
 # order at a shortage made a machine that never started and billed its disk and address (438 of them, EUR 2.19 on
@@ -456,7 +460,8 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
     one, or when a machine it rented was billed and did not answer (BootFailed: the slot is a gap, nothing is
     rented in its place). A round that finds no stock anywhere is tried again after stock_wait_minutes with the
     backend's offers read afresh, across every class the offers named and every zone, for as long as `still_wanted`
-    (the run's deadline and the caller's `wanted`) says: a slot never gives up on its first
+    (the run's deadline and the caller's `wanted`; with no `wanted`, STOCK_WAIT_LIMIT_MINUTES) says: a slot never
+    gives up on its first
     round (six of seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on
     its kind's queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py). Under a run
     that opened a card pool (pool.py) it rents nothing: it takes the next warm pool card, waiting for one while the
@@ -478,19 +483,22 @@ def claim_rounds(run, account, offers, number, kind, disk_gb, wanted):
     """claim's rounds: a parked machine first, else one round of offers, asked again after stock_wait_minutes (longer
     each round, never past the run's deadline) while the run still wants one; BootFailed passes through. The wait for
     stock is not the run's work: its deadline is held as far ahead as when the claim began (pool.paused, as under a
-    warm pool), so a claim gives up only when the run no longer wants it, never because the zone was short (#96:
-    Batch 1's checkout 25, about 20 surfaces-bake calls ended "on 0 machines" after their 12 min went on waiting)."""
+    warm pool), so a claim gives up when the run no longer wants it, never because the zone was short for its job
+    minutes (#96: Batch 1's checkout 25, about 20 surfaces-bake calls ended "on 0 machines" after their 12 min went on
+    waiting); a claim with no `wanted` gives up after STOCK_WAIT_LIMIT_MINUTES of no stock in all."""
     import pool
 
     left = run.deadline - time.time() if getattr(run, "deadline", None) else None
     machine = (park_taken(run, offers, number, kind, disk_gb)
                or claim_round(run, account, offers, number, kind, disk_gb))
     rounds = 0
+    give_up = time.time() + STOCK_WAIT_LIMIT_MINUTES * 60 if wanted is None else None
     while machine is None:
         pool.paused(run, left)
-        if not still_wanted(run, wanted):
+        if not still_wanted(run, wanted) or (give_up is not None and time.time() >= give_up):
             break
-        wait = min(stock_wait_minutes(rounds) * 60, max(0.0, run.deadline - time.time()))
+        wait = min(stock_wait_minutes(rounds) * 60, max(0.0, run.deadline - time.time()),
+                   max(0.0, give_up - time.time()) if give_up is not None else float("inf"))
         rounds += 1
         say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
             f"in {wait / 60:.0f} min")

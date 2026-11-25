@@ -25,6 +25,8 @@ red (applied once, seen red, reverted):
   time.time()))` -> `stock_wait_minutes(rounds) * 60`.
 - stock-wait-keeps-the-job-minutes: in `claim_rounds`, drop both `pool.paused(run, left)` calls (the wait for stock
   spends the run's deadline and the claim gives up "on 0 machines", #96).
+- stock-wait-ends-for-a-caller-without-wanted: in `claim_rounds`, `if wanted is None else None` -> `if False else
+  None` (a single-card call's claim waits for stock until a signal, its deadline held, #96 review).
 - stock-wait-marked-waiting: in `parked_within`, drop both `preflight.mark_waiting()` calls.
 - failed-job-is-a-gap-never-sent-again: in `collect`, `fleet.gaps(failed, ...)` -> `fleet.again([{"name": name} for
   name in failed])`.
@@ -268,6 +270,19 @@ def stock_wait_held(patch):
                   lambda run, offers, number, kind, disk_gb, seconds, left=None: now.__setitem__(0, now[0] + seconds))
     claimed = batch.claim_rounds(run, "account", [], 1, "pixal", 60, None)
     return {"claimed": claimed, "minutes left": round((run.deadline - now[0]) / 60)}
+
+
+def stock_wait_bounded(patch):
+    """claim_rounds with no `wanted` and 12 min to its deadline, on a clock each wait moves on, never finding stock:
+    what it claimed and the minutes it waited in all."""
+    now = [1000.0]
+    patch.setattr(time, "time", lambda: now[0])
+    run = types.SimpleNamespace(deadline=now[0] + 12 * 60)
+    patch.setattr(batch, "claim_round", lambda *arguments: None)
+    patch.setattr(batch, "parked_within",
+                  lambda run, offers, number, kind, disk_gb, seconds, left=None: now.__setitem__(0, now[0] + seconds))
+    claimed = batch.claim_rounds(run, "account", [], 1, "pixal", 60, None)
+    return {"claimed": claimed, "minutes waited": round((now[0] - 1000.0) / 60)}
 
 
 def waiting_marks(patch):
@@ -985,6 +1000,11 @@ CASES = [
     # outside a pool the wait for stock is not the run's work: its job minutes are all still there once it rents (#96)
     case("stock-wait-keeps-the-job-minutes", lambda here, patch: stock_wait_held(patch), Observed(**{
         "claimed": {"machine": 1}, "minutes left": 12}),
+         ((batch, "park_taken", lambda *arguments: None), (batch, "fresh_offers", lambda run, offers: offers))),
+    # a caller with no `wanted` (blender_cloud, scene, characters --hold) gives up after its own wait limit, since its
+    # held deadline never passes (#96 review: a stockout held the call and its --jobs slot until a signal)
+    case("stock-wait-ends-for-a-caller-without-wanted", lambda here, patch: stock_wait_bounded(patch), Observed(**{
+        "claimed": None, "minutes waited": batch.STOCK_WAIT_LIMIT_MINUTES}),
          ((batch, "park_taken", lambda *arguments: None), (batch, "fresh_offers", lambda run, offers: offers))),
     # the wait for stock is marked as one, so the runaway watch leaves it out (2026-11-05, people-clips-made)
     case("stock-wait-marked-waiting", lambda here, patch: waiting_marks(patch), Observed(**{
