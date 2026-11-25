@@ -259,6 +259,8 @@ the file and the exact change. The Square's wording tests read kept plans of the
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: edit_inside's `plan, moved = people_moved_out(plan, inventory or {"rows": []})` dropped
         (greenhouse's redrawn astronaut_2 kept in its grow light frame, 2026-11-08)
+    The concept-to-plan map refuses a fit on rows laid at one spot (#106, 2026-11-25).
+    Break: score/review/plan_checks.py: projection's `< SPREAD_LEAST:` -> `< 0.0:` (the engine room's map kept)
 - test_the_owners_word_stands, its EDIT_FIXED rows (the free fixes of his edit or a redrawing, plans.edit_inside;
   wiped with the plan writer on 2026-11-16, #128, they came back on 2026-11-23 after the kept plans of the hangar and
   the walkway lost them and plan@hangar and @walkway failed `held`, #156; each row as it stood in FIXED before the wipe):
@@ -2294,7 +2296,27 @@ LINKED = {"items": [["MODULE 1", 0.0, 8.0, 10.0, 10.0, None, "item"], ["LINK 1",
           "rows": {"MODULE 1": ["module"], "LINK 1": ["link"]}}
 LOCK = {"place": "lock", "row": "module", "x": 0.0, "y": 8.0, "w": 10.0, "d": 10.0, "turn": 45}
 LINK = {"place": "link", "row": "link", "x": 6.0, "y": 3.0, "w": 5.656854, "d": 5.656854, "turn": 45}
+# Three floor rows boxed apart on a concept 1000 x 500 px and laid on the plan at `spots` (one thing each, 1 m square):
+# the engine room's grating, doors and windows, each laid round the room's middle, fitted a map sending every box to
+# one spot (2026-11-06, #106).
+ANCHOR_ROWS = {"picture": [1000, 500], "rows": [{"id": name, "anchor": "floor", "boxes": [box]} for name, box in (
+    ("grating", [100, 300, 200, 400]), ("doors", [700, 200, 800, 350]), ("windows", [400, 100, 500, 250]))]}
+
+
+def anchored_plan(spots):
+    """A plan laying ANCHOR_ROWS' things with their middles at `spots`."""
+    names = [row["id"] for row in ANCHOR_ROWS["rows"]]
+    return {"items": [[f"{name.upper()} 1", x - 0.5, y - 0.5, 1.0, 1.0, None, "item"] for name, (x, y) in
+                      zip(names, spots)], "rows": {f"{name.upper()} 1": [name] for name in names}}
+
+
 HELD_SPOTS = [  # (row, the held-spot judging function, its arguments, the outcome as `holds` reads it, or a Refusal)
+    # the concept-to-plan map the holders' relations and the far objects share refuses rows laid within 0.5 m of their
+    # middle, which would send every box to one spot (the engine room, #106); rows laid apart fit it
+    ("a map fitted on rows laid at one spot is refused", plan_checks.projection,
+     (anchored_plan([(4.63, 5.60), (4.70, 5.45), (4.55, 5.75)]), ANCHOR_ROWS), None),
+    ("a map fitted on rows laid apart is kept", plan_checks.projection,
+     (anchored_plan([(1.0, 8.0), (8.0, 5.0), (5.0, 2.0)]), ANCHOR_ROWS), Meets(lambda fitted: fitted is not None)),
     # a hold turned 90 degrees takes its plan's size turned (#72: the base's hangar, drawn wide, its plan long)
     ("a quarter-turned hold lays the shed's own 4 x 10 m turned", plans.laid_own_size,
      (THE_STORE, {"place": "shed", "turn": 90, "x": 0.0, "y": 0.0, "w": 1.0, "d": 1.0}), [10.0, 4.0]),

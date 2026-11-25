@@ -847,13 +847,21 @@ def projection_anchors(plan, inventory):
     return found
 
 
+SPREAD_LEAST = 0.5  # metres the rows a projection is fitted on must lay their things' middles apart at least
+
+
 def projection(plan, inventory):
     """The fitted map (a 3 x 2 matrix) from [a box's middle across, its foot, 1] as shares of the concept to its spot
     [x, y] on the plan, fitted on the rows boxed and laid alike (`projection_anchors`); None with fewer than three
-    such rows."""
+    such rows, or when their spots on the plan all lie within SPREAD_LEAST of their middle: such a fit sends every box
+    to that one spot (the engine room's grating, doors and windows, each laid round the room's middle: its missing
+    railings were laid on one spot and piled 1 to 4 m, 2026-11-06), for the holders' relations and the far objects
+    alike (e503dcd3's plan fix guard, #106)."""
     fitted = projection_anchors(plan, inventory)
     if len(fitted) < 3:
         return None
     source = numpy.array([[seen[0], seen[1], 1.0] for seen, _ in fitted])
     target = numpy.array([spot for _, spot in fitted], dtype=float)
+    if float(numpy.linalg.norm(target - target.mean(axis=0), axis=1).max()) < SPREAD_LEAST:
+        return None
     return numpy.linalg.lstsq(source, target, rcond=None)[0]
