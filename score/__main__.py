@@ -1645,8 +1645,9 @@ def phase_locked_line(runner, places, options):
         lock = runner.lock_phase(options.phase, nodes)
     except (ValueError, FileExistsError) as refused:
         sys.exit(f"score lock-phase: {refused}")
-    return (f"phase {lock['phase']} locked (lock {lock['n']}, {lock['at']}): {len(lock['nodes'])} nodes, "
-            f"{len(lock['not standing'])} not standing accepted, left out")
+    return (f"phase {lock['phase']} locked (lock {lock['n']}, {lock['at']}): {len(lock['nodes'])} nodes "
+            f"({lock['standing']['accepted']} by their accept, {lock['standing']['by an earlier lock']} kept by an "
+            f"earlier lock), {len(lock['not standing'])} not standing accepted, left out")
 
 
 def exit_status(found, lines):

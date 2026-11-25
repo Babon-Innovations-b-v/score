@@ -2044,20 +2044,27 @@ class Runner:
 
     def locked_standing(self, stage, place):
         """The node's entry in a phase lock ({"output", "key", "commit"}) when it stands accepted now: a record on
-        its current key whose output is its accepted output. None otherwise (blocked, not made, not accepted)."""
+        its current key whose output is its accepted output, or one an earlier phase lock keeps there, its key moved
+        by code alone (kept_by_phase_lock, its record written under today's key; #103: after a code-only move the
+        surfaces lock counted 0 of 372 standing while the plan kept them all), its entry then saying so (`kept by`:
+        that lock's phase and number). None otherwise (blocked, not made, not accepted)."""
         node = node_name(stage, place)
         try:
             keyed = self.key(stage, place)
         except Blocked:
             return None
-        record = self.store.record(node, keyed["key"])
+        record = self.store.record(node, keyed["key"]) or self.kept_by_phase_lock(stage, place, keyed)
         if record is None or self.store.accepted(node) != record["output"]:
             return None
-        return {"output": record["output"], "key": keyed["key"], "commit": record.get("commit")}
+        entry = {"output": record["output"], "key": keyed["key"], "commit": record.get("commit")}
+        carried = record.get("carried", {})
+        return {**entry, "kept by": {"phase": carried["phase"], "lock": carried["lock"]}} if "phase" in carried \
+            else entry
 
     def lock_phase(self, phase, nodes):
-        """Lock one phase of this environment: each of `nodes` ((stage, place)) standing accepted now, its accepted
-        output and the key it stands under, with the commit and time, written once as the phase's next lock
+        """Lock one phase of this environment: each of `nodes` ((stage, place)) standing accepted now, by its accept
+        or by an earlier phase lock (locked_standing; `standing` counts each), its accepted output and the key it
+        stands under, with the commit and time, written once as the phase's next lock
         (PHASE_LOCKS/<environment>/<phase>/<n>.json). The lock written; ValueError on a phase name that is no path
         part or when no node stands, FileExistsError when another lock took that n first. Not an owner decision: no
         accept, reject, waiver or spend is written."""
@@ -2072,6 +2079,8 @@ class Runner:
         number = len(list(self.store.objects.keys(prefix))) + 1
         lock = {"environment": self.world.name, "phase": phase, "n": number, "at": now(), "by": score_store.RUNNER,
                 "commit": _code.git_commit(), "nodes": locked,
+                "standing": {"accepted": sum("kept by" not in entry for entry in locked.values()),
+                             "by an earlier lock": sum("kept by" in entry for entry in locked.values())},
                 "not standing": sorted(node for node, entry in found.items() if entry is None)}
         self.store.write_once(f"{prefix}{number}.json", lock)
         return lock

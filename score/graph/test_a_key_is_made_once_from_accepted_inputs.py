@@ -640,6 +640,8 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     Break: score/graph/__init__.py: '        with self.still():\n            return self.key(stage, place)'
     -> '        if True:\n            return self.key(stage, place)'
     Break: score/graph/_code.py: '                                      "score/stages/library/backend.py",\n' -> ''
+    Break: score/graph/__init__.py: 'record = self.store.record(node, keyed["key"]) or self.kept_by_phase_lock(stage,
+    place, keyed)' -> 'record = self.store.record(node, keyed["key"])' (#103: a node an earlier lock keeps not counted).
     (#90: the library's backend in every paid row reaching the concept review).
     Break: score/graph/__init__.py: 'if drives and self.moved_since(stage, place, drives):' -> 'if False:' (count made
     on the stale key).
@@ -1890,6 +1892,11 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
                     finally:
                         pathlib.Path.resolve = resolve
                     assert then and again == then and not resolved, resolved
+                if case == 18:  # locked again after the code-only move: kept by lock 1, it stands (#103)
+                    relock = a_runner(world, store, (stage,)).lock_phase(phase, [(stage, "hangar")])
+                    assert relock["nodes"] == {node: {"output": old["output"], "key": keyed["key"],
+                                                      "commit": old["commit"], "kept by": {"phase": phase, "lock": 1}}} \
+                        and relock["standing"] == {"accepted": 0, "by an earlier lock": 1} and relock["n"] == 2, relock
                 planned = command.buy_check(runner, ["hangar"], True, None, None)  # `score plan`'s to_run: the same
                 assert (node in planned["to_run"]) != kept, (change, planned["to_run"])  # rows the drive makes
                 done = runner.run(["hangar"])[node]
@@ -5466,6 +5473,7 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
     locked = {}
     fake = types.SimpleNamespace(stages=table, nodes=lambda places: [(stage, "hangar") for stage in table.values()],
                                  lock_phase=lambda phase, nodes: locked.update(phase=phase, nodes=nodes) or {
-                                     "phase": phase, "n": 1, "at": "now", "nodes": {}, "not standing": []})
+                                     "phase": phase, "n": 1, "at": "now", "nodes": {}, "not standing": [],
+                                     "standing": {"accepted": 0, "by an earlier lock": 0}})
     command.phase_locked_line(fake, ["hangar"], argparse.Namespace(phase="models", stage=None, node=None))
     assert locked == {"phase": "models", "nodes": [(table["pixal"], "hangar")]}, locked
