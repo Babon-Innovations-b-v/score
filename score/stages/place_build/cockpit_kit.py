@@ -766,10 +766,36 @@ def words(text="", high=0.012, part="ink", **_):
     return moved(lettering(part, text, high), offset=(0.0, 0.0, 0.0))
 
 
+def cover(wide=0.12, high=0.08, **_):
+    """A closed access cover (2099 #246, the owner on the capsule: "i cant do anything with this"; a panel with no
+    worked control on it is closed equipment): a flat plate `wide` by `high` with rounded corners standing a little
+    off the panel, held by a screw in each corner, with nothing on it a hand could take for a control."""
+    found = rounded_box("plate", (-wide / 2, -high / 2, 0.0), (wide / 2, high / 2, 0.003), 0.004, steps=2, inside=1)
+    head = [(0.0, 0.0), (0.0028, 0.0), (0.0028, 0.001), (0.002, 0.0017), (0.0, 0.0017)]
+    for x in (-wide / 2 + 0.008, wide / 2 - 0.008):
+        for y in (-high / 2 + 0.008, high / 2 - 0.008):
+            found += moved(turned("bolt", head, segments=10), offset=(x, y, 0.0028))
+    return found
+
+
+def vent(wide=0.12, high=0.06, slats=6, **_):
+    """A vent grille: a dark recess `wide` by `high` behind `slats` level louvres of the panel's metal, each a slat
+    leaning out across the opening, so it reads as an equipment bay's air grille and never as a row of switches."""
+    found = box("dark", (-wide / 2, -high / 2, 0.0), (wide / 2, high / 2, 0.0015), 0.0004)
+    found += frame_ring("bezel", rounded_rectangle(wide + 0.008, high + 0.008, 0.003),
+                        rounded_rectangle(wide, high, 0.002), 0.0, 0.004)
+    pitch = high / slats
+    for slat in range(slats):
+        y = -high / 2 + pitch * (slat + 0.5)
+        found += box("plate", (-wide / 2 + 0.001, y - pitch * 0.32, 0.0012), (wide / 2 - 0.001, y + pitch * 0.12,
+                                                                                0.0032), 0.0003)
+    return found
+
+
 ITEMS = {"toggle": toggle, "lamp": lamp, "gauge": gauge, "bars": bars, "readout": readout, "screen": screen,
          "keypad": keypad, "scope": scope, "button": button, "rotary": rotary, "wheel": wheel, "slider": slider,
          "guarded_button": guarded_button, "breakers": breakers, "ball": ball, "words": words,
-         "annunciator": annunciator, "talk_key": talk_key}
+         "annunciator": annunciator, "talk_key": talk_key, "cover": cover, "vent": vent}
 
 
 def laid_items(items, height):
