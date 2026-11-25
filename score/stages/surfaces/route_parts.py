@@ -89,7 +89,7 @@ PRINT_TRIM, PRINT_FEWEST = 0.005, 50  # a panel's box drawn in to its print's pi
 PANEL_GROW = 8
 PANEL_TURN = 35  # degrees: a face under a printed panel turned further off its faces' median is not its plate (an edge)
 LETTER_WIDEST = 3.0  # and at most this many times as wide as it is tall (a line's end in the box is not a letter)
-# A pattern's facing (#210, pattern_facing) is the mean normal of the faces of its part seen on a FACING_GRID x
+# A pattern's facing (#210, pattern_facing) is the median normal of the faces of its part seen on a FACING_GRID x
 # FACING_GRID grid across its box: its ink is its openings, which TRELLIS.2 cuts as pits and holes whose faces turn
 # every way (the tc6 locker's door holes show the cabinet's inside), and the face under its middle is often one.
 FACING_GRID = 9
@@ -775,8 +775,9 @@ def near_plate(points, facing):
 
 
 def pattern_facing(box, placement, part_of, normals, cast_pixels):
-    """A pattern's facing (#210): the mean of the normals of its part's faces seen on a FACING_GRID x FACING_GRID grid
-    across its `box`, of length 1; its placement's own normal when none is."""
+    """A pattern's facing (#210): the median of the normals of its part's faces seen on a FACING_GRID x FACING_GRID
+    grid across its `box`, of length 1 (the mean tilts with TRELLIS.2's hole walls: #229, r15g's locker vents 15 to
+    20 degrees off and sized 0.054 m for 0.093); its placement's own normal when none is."""
     left, top, wide, tall = box
     steps = (np.arange(FACING_GRID) + 0.5) / FACING_GRID
     grid = np.array([[left + across * wide, top + down * tall] for down in steps for across in steps])
@@ -785,9 +786,9 @@ def pattern_facing(box, placement, part_of, normals, cast_pixels):
     faces = faces[part_of[faces] == placement["part"]]
     if not len(faces):
         return np.asarray(placement["normal"], dtype=float)
-    mean = normals[faces].mean(0)
-    length = float(np.linalg.norm(mean))
-    return np.asarray(placement["normal"], dtype=float) if length < 1e-6 else mean / length
+    middle = np.median(normals[faces], axis=0)
+    length = float(np.linalg.norm(middle))
+    return np.asarray(placement["normal"], dtype=float) if length < 1e-6 else middle / length
 
 
 def part_wear(rows, finishes, mesh, part_of, finish_of):

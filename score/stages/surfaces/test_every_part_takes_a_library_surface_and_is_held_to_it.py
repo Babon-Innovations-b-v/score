@@ -547,7 +547,7 @@ tests it turned red:
   pattern offered); route_parts.py placement's pattern fields dropped (the drawer has no rows); pattern_decals.py
   centres' `- 1 if moved` dropped (a staggered row's last opening past the box), `inside(...)` -> `True` (the diamond
   drawn as a full grid), pitches' `(columns - 1 + fill_across)` -> `(columns + 0)` (openings short of the box's
-  edges); near_plate's `<= PLATE_DEPTH` -> `<= 1.0` (what the holes show 0.3 m behind sizes the pattern); pattern_facing's part check
+  edges); near_plate's `<= PLATE_DEPTH` -> `<= 1.0` (what the holes show 0.3 m behind sizes the pattern); pattern_facing's median -> mean (a vent two in five of whose faces are hole walls faces 33 degrees off its plate, #229); pattern_facing's part check
   dropped (a cabinet face of another part tilts the facing); placement's same-finish probes -> same part (the
   humidifier's ribs a gap); probe_edge's PATTERN_EDGE_IN -> EDGE_IN (its probes off the cylinder); recipes.py
   decal_depth's `if decal.get("relief"):` -> `if False:` (the ribs printed in a band round the cylinder)
@@ -3245,6 +3245,12 @@ def pattern_marks_held():
     tilted = lambda pixels: (np.arange(len(pixels)) % 2, None)  # noqa: E731
     facing = route_parts.pattern_facing([0, 0, 90, 90], {"part": 0, "normal": [0.0, 1.0, 0.0]},
                                         np.array([0, 1]), normals, tilted)
+    assert np.allclose(facing, [0.0, 0.0, 1.0]), facing
+    # two in five of its faces a hole's wall (r15g's locker: the mean tilted 15 to 20 degrees and sized its left vents
+    # 0.054 m for 0.093): the plate still faces +z
+    walled = lambda pixels: ((np.arange(len(pixels)) % 5 < 2).astype(int), None)  # noqa: E731
+    facing = route_parts.pattern_facing([0, 0, 90, 90], {"part": 0, "normal": [0.0, 1.0, 0.0]},
+                                        np.array([0, 0]), normals, walled)
     assert np.allclose(facing, [0.0, 0.0, 1.0]), facing
 
 
