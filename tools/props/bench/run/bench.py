@@ -678,6 +678,20 @@ def branch_b(kept, row, material, rgba, scratch, library):
         folders = {step: checked_out(kept, row["id"], "B", step, scratch / "B" / f"parted-{step}")
                    for step in ("final", "finish", "physics")}
         run_steps(kept, row["id"], "B", [("parts", parts_step(folders, row, rgba))], scratch)
+    if not kept.entry(row["id"], "B", "joints") and kept_output(kept, row["id"], "B", "parts"):
+        parted = checked_out(kept, row["id"], "B", "parts", scratch / "B" / "jointed-parts")
+        record = json.loads((parted / "parts.json").read_text())
+        if record.get("parts"):  # a model with no moving parts has nothing to run: no step, no gap
+            run_steps(kept, row["id"], "B", [("joints", joints_step(parted / "parted.glb", record))], scratch)
+
+
+def joints_step(model, record):
+    """The made model's moving parts run in Newton (tools/props/bench/joints, #177): each part's joint driven to its
+    limits, joints.json its travel and whether it passed; the card taken under SCORE_CARD_LOCK as card_queue's jobs."""
+    def make(folder):
+        from tools.props.bench import joints
+        joints.trialled(model, record, folder, lock=os.environ.get("SCORE_CARD_LOCK"))
+    return make
 
 
 def parts_step(folders, row, picture):
