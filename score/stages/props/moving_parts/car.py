@@ -31,12 +31,16 @@ ARCH_ROOM = 1.12  # an arch's radius over its wheel's
 DOOR = (0.47, 0.69)  # the front door's rear and front edges as shares of the length (its hinge at the front)
 DOOR_FOOT = 0.20  # the door's foot as a share of the height
 SKIN = 0.03  # a door's thickness, in metres
-LIGHT_BAR = 0.07  # the light bar's height on the roof, in metres (the car's height its top)
-WHEEL_FACES = 40
+LIGHT_BAR = 0.12  # the light bar's height on the roof, in metres (the car's height its top)
+WHEEL_FACES = 64
+SPOKES = 5  # a rim's spokes
+GLASS_SEEN = 0.8  # how much of what is behind the car's tinted glass it hides (glTF alpha): the cabin dim behind it
+ROOF_BAND = 0.9  # the greenhouse's roof cap: the ring's points this high up its section and over
 FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal", "car_body_paint"),
             "glass": ("glass", "car_window"), "door_window": ("glass", "car_window"),
             "cabin": ("rubber", "lantern_cable"), "trim": ("bare_metal", "car_chrome"),
-            "headlamps": ("glowing", "lamp_head_glow"), "tail_lamps": ("rubber", "barrier_plastic_red"),
+            "headlamps": ("glowing", "lamp_head_glow"), "tail_lamps": ("glowing", "sign_lettering_red"),
+            "bar_base": ("rubber", "tyre_rubber"),
             "siren_blue": ("glowing", "siren_blue"), "siren_red": ("glowing", "siren_red"),
             "plates": ("painted_metal", "licence_plate"), "tyre": ("rubber", "tyre_rubber"),
             "rim": ("bare_metal", "car_chrome")}
@@ -163,13 +167,22 @@ def greenhouse(across, tall, along_length, span):
         heights = belt + (roof - belt) * np.clip(points[:, 1], 0.0, 1.0)
         rise = np.clip(points[:, 1], 0.0, 1.0)
         sections.append(np.column_stack([points[:, 0] * half * (GLASS_IN + (ROOF_IN - GLASS_IN) * rise), heights]))
-    vertices, faces, at_section, _ = lofted(sections, places)
-    middles = vertices[faces].mean(axis=1)
+    vertices, faces, at_section, round_at = lofted(sections, places)
     window = door_faces(vertices, faces, at_section, places, span, belt, tall * 0.93, -1)
-    roof = (middles[:, 1] > np.interp(middles[:, 2], places, [along(GREENHOUSE, share, 1) * tall for share in shares])
-            - 0.045) & ~window
+    roof = roof_faces(at_section, round_at, [along(GREENHOUSE, share, 1) for share in shares]) & ~window
     glass = kept(vertices, faces, ~window & ~roof)
     return glass, shell(kept(vertices, faces, window), 0.006), kept(vertices, faces, roof)
+
+
+def roof_faces(at_section, round_at, roof_shares):
+    """The greenhouse's faces under its painted roof cap: a band of whole ring points along whole sections, so its
+    edges run straight along the car and across it (picked by face middles they were jagged, night car round 1)."""
+    points = ring(1.0, 0.0, 1.0, power=3.0)[:, 1]
+    count = len(points)
+    high = (points >= ROOF_BAND) & (np.roll(points, -1) >= ROOF_BAND)
+    flat = np.asarray(roof_shares) >= max(roof_shares) * 0.97
+    inside = at_section >= 0
+    return inside & high[np.where(inside, round_at, 0) % count] & flat[np.clip(at_section, 0, len(flat) - 1)]
 
 
 def cabin(across, tall, along_length):
@@ -214,7 +227,8 @@ def cabin(across, tall, along_length):
 
 
 def lamps(across, tall, along_length):
-    """(headlamps, tail lamps, plates, a light bar's blue and red halves, the trim: a grille bar and door handles)."""
+    """(headlamps, tail lamps, plates, the light bar's blue and red lenses, its dark base, the trim: a grille bar and door
+    handles, the wing mirrors in the body's paint)."""
     import trimesh
     nose, tail = along_length / 2, -along_length / 2
 
@@ -223,33 +237,68 @@ def lamps(across, tall, along_length):
 
     head_y, tail_y = along(LOWER, 0.97, 1) * tall - 0.06, along(LOWER, 0.03, 1) * tall - 0.05
     headlamps = [strip((across * 0.24, 0.05, 0.04), (side * across * 0.32, head_y, nose - 0.035)) for side in (-1, 1)]
-    tail_lamps = [strip((across * 0.78, 0.045, 0.03), (0, tail_y, tail + 0.03))]
+    # Two lamp clusters at the tail's corners and a thin bar between them, as the concept's saloon shows them lit.
+    tail_lamps = [strip((across * 0.2, 0.085, 0.035), (side * across * 0.33, tail_y, tail + 0.04)) for side in (-1, 1)]
+    tail_lamps.append(strip((across * 0.46, 0.022, 0.03), (0, tail_y + 0.02, tail + 0.03)))
     plates = [strip((0.52, 0.12, 0.012), (0, 0.42 * tall * 0.9, nose - 0.01)),
               strip((0.52, 0.12, 0.012), (0, 0.45 * tall * 0.9, tail + 0.01))]
-    roof = along(GREENHOUSE, 0.47, 1) * tall
-    bar_tall = tall + LIGHT_BAR - roof + 0.01  # sunk 1 cm into the roof, its top the car's height
-    bar = (across * 0.3, bar_tall, 0.22)
-    blue = [strip(bar, (-across * 0.16, roof - 0.01 + bar_tall / 2, -0.05))]
-    red = [strip(bar, (across * 0.16, roof - 0.01 + bar_tall / 2, -0.05))]
+    blue, red, base = light_bar(across, tall)
     grille = [strip((across * 0.36, 0.025, 0.03), (0, head_y - 0.02, nose - 0.025))]
     handle_y = along(LOWER, 0.5, 1) * tall - 0.1
     handles = [strip((0.03, 0.025, 0.16), (side * (across / 2 - 0.016), handle_y, (share - 0.5) * along_length))
                for side, share in ((1, 0.52), (1, 0.33), (-1, 0.33))]
-    return headlamps, tail_lamps, plates, blue, red, grille + handles
+    mirror_y = along(LOWER, 0.74, 1) * tall + 0.08
+    mirrors = [strip((0.16, 0.1, 0.07), (side * (across / 2 - 0.08), mirror_y, (0.735 - 0.5) * along_length))
+               for side in (-1, 1)]  # within the body's width: the row's size is the car's
+    return headlamps, tail_lamps, plates, blue, red, base, grille + handles, mirrors
+
+
+def light_bar(across, tall):
+    """The roof's light bar: (its blue lenses, its red lenses, its dark base), the base a long low housing across the
+    roof sunk 1 cm into it, each half's lens a rounded block on it (a capsule lying across), its top the car's height."""
+    import trimesh
+    roof = along(GREENHOUSE, 0.47, 1) * tall
+    wide, deep, base_tall = across * 0.66, 0.26, 0.045
+    base = trimesh.creation.box(extents=(wide, base_tall + 0.01, deep))
+    base.apply_translation((0, roof - 0.01 + (base_tall + 0.01) / 2, -0.05))
+    lens_tall = tall + LIGHT_BAR - roof - base_tall
+    lens_long = wide / 2 - 0.03
+
+    def lens(side):
+        lens_mesh = trimesh.creation.capsule(height=lens_long - lens_tall, radius=lens_tall / 2, count=[24, 12])
+        lens_mesh.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, (0, 1, 0)))
+        lens_mesh.apply_scale((1.0, 1.0, (deep - 0.04) / lens_tall))
+        return lens_mesh.apply_translation((side * (lens_long / 2 + 0.01), roof + base_tall + lens_tall / 2, -0.05))
+
+    return [lens(-1)], [lens(1)], [base]
 
 
 def wheel_meshes(radius, width, middle, side):
-    """A tyre (a ring round its axle, x) and its rim (a disc set in on its outer side) at `middle`."""
+    """A tyre (a ring round its axle, x) and its rim (a dish set in on its outer side, its spokes, its hub and a dark
+    barrel behind them, so the arch is never seen through) at `middle`."""
     import trimesh
-    tyre = trimesh.creation.annulus(r_min=radius * RIM_SHARE, r_max=radius, height=width, sections=WHEEL_FACES)
     turn = trimesh.geometry.align_vectors([0, 0, 1], [1, 0, 0])
+    inner = radius * RIM_SHARE
+    tyre = trimesh.creation.annulus(r_min=inner * 0.97, r_max=radius, height=width, sections=WHEEL_FACES)
     tyre.apply_transform(turn)
-    rim = trimesh.creation.cylinder(radius=radius * RIM_SHARE, height=width * 0.8, sections=WHEEL_FACES)
-    rim.apply_transform(turn)
-    hub = trimesh.creation.cylinder(radius=radius * 0.18, height=width * 0.9, sections=16)
+    barrel = trimesh.creation.cylinder(radius=inner * 0.98, height=width * 0.5, sections=WHEEL_FACES)
+    barrel.apply_transform(turn)
+    barrel.apply_translation((-side * width * 0.2, 0, 0))
+    face = side * width * 0.36  # the rim's outer face, a little in from the tyre's wall
+    lip = trimesh.creation.annulus(r_min=inner * 0.86, r_max=inner, height=width * 0.12, sections=WHEEL_FACES)
+    lip.apply_transform(turn)
+    lip.apply_translation((face, 0, 0))
+    hub = trimesh.creation.cylinder(radius=radius * 0.17, height=width * 0.2, sections=24)
     hub.apply_transform(turn)
-    hub.apply_translation((side * width * 0.08, 0, 0))
-    return tyre.apply_translation(middle), [rim.apply_translation(middle), hub.apply_translation(middle)]
+    hub.apply_translation((face, 0, 0))
+    rim = [lip, hub]
+    for number in range(SPOKES):
+        spoke = trimesh.creation.box(extents=(width * 0.1, inner * 0.8, inner * 0.2))
+        spoke.apply_translation((face - side * width * 0.03, inner * 0.5, 0))
+        spoke.apply_transform(trimesh.transformations.rotation_matrix(2 * np.pi * number / SPOKES, (1, 0, 0)))
+        rim.append(spoke)
+    return tyre.apply_translation(middle), barrel.apply_translation(middle), \
+        [mesh.apply_translation(middle) for mesh in rim]
 
 
 def finished(name, meshes, key, pivot=(0.0, 0.0, 0.0), joint=None, axis=None, sign=1):
@@ -269,19 +318,20 @@ def car_parts(size):
     axles = [(share - 0.5) * along_length for share in AXLES]
     body, door, span = body_and_door(across, tall, along_length, axles, radius)
     glass, window, roof = greenhouse(across, tall, along_length, span)
-    headlamps, tail_lamps, plates, blue, red, trim = lamps(across, tall, along_length)
+    headlamps, tail_lamps, plates, blue, red, bar_base, trim, mirrors = lamps(across, tall, along_length)
     hinge = (-across / 2, tall * 0.5, span[1])
-    parts = [finished("body", [body, roof], "body"), finished("glass", [glass], "glass"),
+    parts = [finished("body", [body, roof, *mirrors], "body"), finished("glass", [glass], "glass"),
              finished("cabin", cabin(across, tall, along_length), "cabin"),
              finished("headlamps", headlamps, "headlamps"), finished("tail_lamps", tail_lamps, "tail_lamps"),
              finished("plates", plates, "plates"), finished("siren_blue", blue, "siren_blue"),
-             finished("siren_red", red, "siren_red"), finished("trim", trim, "trim"),
+             finished("siren_red", red, "siren_red"), finished("bar_base", bar_base, "bar_base"),
+             finished("trim", trim, "trim"),
              finished("door", [door], "door", hinge, "hinge", "y", 1),
              finished("door_window", [window], "door_window", hinge, "hinge", "y", 1)]
     for number, (side, axle) in enumerate(((side, axle) for axle in axles for side in (-1, 1)), 1):
         middle = (side * (across / 2 - width / 2 - 0.02), radius, axle)
-        tyre, rim = wheel_meshes(radius, width, middle, side)
-        parts += [finished(f"wheel_{number}", [tyre], "tyre", middle, "spin", "x", 1),
+        tyre, barrel, rim = wheel_meshes(radius, width, middle, side)
+        parts += [finished(f"wheel_{number}", [tyre, barrel], "tyre", middle, "spin", "x", 1),
                   finished(f"rim_{number}", rim, "rim", middle, "spin", "x", 1)]
     return parts
 
@@ -307,7 +357,7 @@ def material_of(palette, recipe, name):
     variant = variant_of(palette, name)
     colour = linear(palette["tokens"][variant["token"]])
     if recipe == "glass":
-        return trimesh.visual.material.PBRMaterial(name=name, baseColorFactor=[*colour, 0.45], alphaMode="BLEND",
+        return trimesh.visual.material.PBRMaterial(name=name, baseColorFactor=[*colour, GLASS_SEEN], alphaMode="BLEND",
                                                    roughnessFactor=variant["roughness"], metallicFactor=0.0,
                                                    doubleSided=True)
     glow = colour if recipe == "glowing" else [0.0, 0.0, 0.0]
