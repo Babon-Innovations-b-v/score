@@ -46,6 +46,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   -> the mark nobody read is read as its words; bench.look_step not reading the marks -> no read.json;
   bench.look_found not reading read.json (`if (looked / "read.json").exists()` -> `if False`) -> the look group holds
   its holes alone
+- bench.look_step not holding its look to NVIDIA's (`found.update(look_torn(...))` dropped, #159 r15) -> the look
+  group has no torn marks measure
 - finish.part_spec: a colour setting the variant names none of not filled -> painted_metal's look is drawn with no
   `bare` (the rack's KeyError, #182); a pictured recipe given no clear picture -> printed is drawn with no `image`
 - finish.drawn_patterns: the close-up read for the look too (`pictures["pattern"]` NVIDIA's) -> the box drawn
@@ -717,8 +719,8 @@ def test_every_asset_is_framed_whole_and_every_step_kept(tmp_path, monkeypatch, 
               "plate_point": [0.2, -0.3, 0.2], "box": [-0.03, -0.03, 0.03, 0.03]}, 4.2),
             ((3 * judge.SHOWN, judge.SHOWN), [(0, 0, 200), (200, 200, 200), (200, 0, 0)])), name
         assert bench.look_found(tmp_path / "look") == {
-            "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "stretched": 4.2, "read": 0.5,
-            "misread": [{"text": "Patient room", "read": None}]}
+            "holes": round(200 / (finish.LOOK_SIDE // 2) ** 2, 5), "stretched": 4.2, "torn": 0.0, "torn_marks": [],
+            "read": 0.5, "misread": [{"text": "Patient room", "read": None}]}
         assert undrawn(tmp_path) == {}, "the look draws every recipe family"
         drawn, own = recoloured_step()
         assert drawn == pytest.approx(own, abs=0.5), (drawn, own)

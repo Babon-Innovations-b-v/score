@@ -22,6 +22,8 @@ asset it was made from, every measure a plain number, each judged at its bar.
                                                           read back where its look drew them (#185)
     printed(look, nvidia, panels)                     -> {"printed", "panels"}: each printed panel drawn whole and in
                                                           its colours, held to NVIDIA's look (#159 round 15)
+    torn(look, nvidia)                                -> {"torn", "marks"}: the dark marks the look draws on a plate
+                                                          NVIDIA's look shows flat and light (#159 round 15)
 
 `truth` and `made` are plain dicts, metres, Z up: {"vertices" (N, 3), "faces" (T, 3), "face_material" (T,) material
 or part per face, "face_seen" (T,) the made face's pixels in its look (its specks only those drawn, _edges),
@@ -169,6 +171,13 @@ BARS = (
     # (2026-11-24, the stove's front panel, r15p's box): NVIDIA's look against itself 0.96; r14's torn look 0.75
     # (0.75 of its pixels near, its shares 0.22 off).
     ("look", "printed", "least", 0.80),
+    # Dark torn marks on a flat painted plate (torn, #159 round 15: the band 1 remesh kept TRELLIS.2's holes in the
+    # locker's doors, two vents cast through them onto the cabinet's inside, and the doors drew black torn marks where
+    # those vents belonged): the share of NVIDIA's flat light plate the look draws as small dark marks ringed by its own
+    # light plate. Calibration (2026-11-25, the same look, 1080 px): NVIDIA's look against itself 0 on all 26 tc6
+    # objects and the locker; r15s's locker 0.0013 (seven marks, 5 to 74 px), r14's 0.00017 (a 27 px mark low on its
+    # left door), tc6's 0.0004, tc6's folding ladder 0.00036 (two black tears on its side rail); 22 of tc6's others 0.
+    ("look", "torn", "most", 0.0001),
 )
 
 
@@ -417,6 +426,42 @@ def printed(look, nvidia, panels):
     if not found:
         return None
     return {"printed": round(min(min(near, 1 - apart) for near, apart in found), 4), "panels": found}
+
+
+# torn: a pixel is dark under TORN_DARK L*, NVIDIA's plate light at TORN_PLAIN L* or over with its L* spread under
+# TORN_FLAT over a disk TORN_REACH pixels wide round it (chrome, seams, vents and edges are not a flat plate), and a
+# mark one of the look's dark pieces at least TORN_INSIDE on that plate whose ring TORN_RING pixels wide is at least
+# TORN_LIT the look's own light plate (a dark part laid a little off NVIDIA's is no mark: its ring is not plate).
+TORN_DARK = 35.0
+TORN_PLAIN = 60.0
+TORN_FLAT = 12.0
+TORN_REACH = 6
+TORN_RING = 3
+TORN_INSIDE = 0.7
+TORN_LIT = 0.5
+
+
+def torn(look, nvidia):
+    """{"torn": the share of NVIDIA's flat light plate (`nvidia`'s look) that the made `look` draws as dark marks
+    ringed by its own light plate, "marks": each mark's pixels, largest first}; `look` and `nvidia` RGBA 0-255 of one
+    camera. NVIDIA's own look against itself is 0."""
+    from scipy import ndimage
+    made, truth = lab_picture(look)[..., 0], lab_picture(nvidia)[..., 0]
+    made_on, truth_on = np.asarray(look)[..., 3] >= 128, np.asarray(nvidia)[..., 3] >= 128
+    reach = np.hypot(*np.mgrid[-TORN_REACH:TORN_REACH + 1, -TORN_REACH:TORN_REACH + 1]) <= TORN_REACH
+    spread = (ndimage.maximum_filter(np.where(truth_on, truth, 0.0), footprint=reach)
+              - ndimage.minimum_filter(np.where(truth_on, truth, 100.0), footprint=reach))
+    plate = ndimage.binary_erosion(truth_on, reach) & (truth >= TORN_PLAIN) & (spread <= TORN_FLAT)
+    pieces, _ = ndimage.label(made_on & (made < TORN_DARK))
+    marks = []
+    for number, box in enumerate(ndimage.find_objects(pieces), 1):
+        box = tuple(slice(max(side.start - TORN_RING - 1, 0), side.stop + TORN_RING + 1) for side in box)
+        piece = pieces[box] == number
+        ring = ndimage.binary_dilation(piece, iterations=TORN_RING) & ~piece
+        lit = made_on[box][ring] & (made[box][ring] >= TORN_PLAIN)
+        if plate[box][piece].mean() >= TORN_INSIDE and lit.mean() >= TORN_LIT:
+            marks.append(int(piece.sum()))
+    return {"torn": round(sum(marks) / max(int(plate.sum()), 1), 6), "marks": sorted(marks, reverse=True)}
 
 
 def picks(made, classes, never):

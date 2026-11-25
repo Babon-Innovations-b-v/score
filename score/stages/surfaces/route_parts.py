@@ -94,6 +94,10 @@ LETTER_WIDEST = 3.0  # and at most this many times as wide as it is tall (a line
 # every way (the tc6 locker's door holes show the cabinet's inside), and the face under its middle is often one.
 FACING_GRID = 9
 PLATE_DEPTH = 0.01  # a pattern's ink further than this off its plate is seen through its holes (near_plate)
+# A pattern's plate (plate_probed) is the most common height of its grid's faces in PLATE_BIN bins, cast on at least
+# PLATE_FEWEST of its FACING_GRID x FACING_GRID cells.
+PLATE_BIN = 0.001
+PLATE_FEWEST = 12
 # A pattern's probes lie PATTERN_EDGE_IN inside its box (#210): its box runs to its outer openings, and on the
 # humidifier's fluted body, a cylinder, the fitted camera's error put the probes at EDGE_IN off the model and on the
 # white band above it.
@@ -260,12 +264,50 @@ def decal_placements(marks, part_of, normals, cast, seen, finish_of=None):
             gaps.append({"what": mark.get("what", ""), "why": mark.get("gap") or "no library decal named"})
             continue
         faces, points = cast(mark_probes(mark["box"], probe_edge(mark)))
+        if mark.get("shape") == pattern_decals.SHAPE:
+            faces, points = plate_probed(mark["box"], faces, points, normals, cast)
         found, why = placement(mark, number, faces, points, part_of, normals, seen, finish_of)
         if found is None:
             gaps.append({"what": mark.get("what", ""), "decal": mark["decal"], "why": why})
         else:
             placements.append(found)
     return placements, gaps
+
+
+def plate_probed(box, faces, points, normals, cast):
+    """A pattern's probes (`faces`, `points`: mark_probes' cast) held to its plate (#159 r15): a probe whose ray went
+    through one of TRELLIS.2's holes in the plate (off the model, or further than PLATE_DEPTH behind it) is laid where
+    its pixel lies on the plate, its face the nearest plate face's. The plate is cast on a FACING_GRID x FACING_GRID
+    grid across the `box`: its facing the median normal of the faces hit, its level their most common height along
+    it (in PLATE_BIN bins: the bumps stand 4 mm proud, the holes show the cabinet's inside 0.24 m back), and the
+    pixels' points on it fitted as one affine map, a plate's piece being flat. At band 1 the locker's middle probes of
+    two vents went through their doors' holes onto the cabinet's inside (r15s: the upper left door's top vent placed
+    on its inner side wall, the lower right's bottom one on its back) and their doors drew TRELLIS.2's black holes."""
+    left, top, wide, tall = box
+    steps = (np.arange(FACING_GRID) + 0.5) / FACING_GRID
+    pixels = np.array([[left + across * wide, top + down * tall] for down in steps for across in steps])
+    grid_faces, grid_points = cast(pixels)
+    hit = grid_faces >= 0
+    if hit.sum() < PLATE_FEWEST:
+        return faces, points
+    facing = np.median(normals[grid_faces[hit]], axis=0)
+    facing = facing / max(float(np.linalg.norm(facing)), 1e-9)
+    heights = grid_points[hit] @ facing
+    bins = np.floor(heights / PLATE_BIN).astype(int)
+    level = (np.bincount(bins - bins.min()).argmax() + bins.min() + 0.5) * PLATE_BIN
+    on_plate = np.zeros(len(pixels), dtype=bool)
+    on_plate[hit] = np.abs(heights - level) <= PLATE_DEPTH
+    points = np.asarray(points, dtype=float)
+    probes = np.asarray(mark_probes(box, PATTERN_EDGE_IN), dtype=float)
+    through = (np.asarray(faces) < 0) | (np.nan_to_num(points @ facing, nan=-np.inf) < level - PLATE_DEPTH)
+    if not through.any() or on_plate.sum() < PLATE_FEWEST:
+        return faces, points
+    affine = np.linalg.lstsq(np.c_[pixels[on_plate], np.ones(on_plate.sum())], grid_points[on_plate], rcond=None)[0]
+    faces, points = np.array(faces), points.copy()
+    for probe in np.flatnonzero(through):
+        points[probe] = np.r_[probes[probe], 1.0] @ affine
+        faces[probe] = grid_faces[on_plate][np.argmin(np.linalg.norm(pixels[on_plate] - probes[probe], axis=1))]
+    return faces, points
 
 
 def close_up_seen(folders):
@@ -804,7 +846,7 @@ def parts_take(folders, entry, finishes, surfaces, marks=(), inks=None):
     lit = [number for number, finish in enumerate(finishes) if finish.get("family") in finish_parts.LIT_FAMILIES]
     pieces, piece_gaps = take_hardware(seen, [mark for mark in marks if mark.get("shape") == finish_ask.PIECE],
                                        finish_of, part_of, folders.get("close_up"),
-                                       [mark for mark in marks if mark.get("shape") == panel_decals.SHAPE])
+                                       [mark for mark in marks if mark.get("shape") == panel_decals.SHAPE], marks)
     marks = cut_marks(marks, pieces, seen[0], finish_of, part_of)
     covered, covers, kept = covered_prints(seen, marks, finish_of, part_of, lit) if seen[0] is not None \
         else (0, [], None)
@@ -880,16 +922,20 @@ def cut_marks(marks, pieces, model, finish_of, part_of):
     return found
 
 
-def take_hardware(seen, marks, finish_of, part_of, close_up, panels=()):
+def take_hardware(seen, marks, finish_of, part_of, close_up, panels=(), patterns=()):
     """(placements, gaps) of a take's hardware marks (#212, hardware_pieces.placements) cast through its own
     close-up's camera (`seen`, close_up_seen) and measured on that `close_up`, each printed panel's (`panels`, its
     marks) box and the finishes seen in it given (a cut inside it tears no print: the panel's picture is printed over
-    it, #159 round 15); a take whose close-up cannot be cast lays none, each mark a gap naming why."""
+    it, #159 round 15), and the finish only vent patterns print (`patterns`, the take's other marks: their openings,
+    pattern_finishes) given each mark as its `openings`; a take whose close-up cannot be cast lays none, each mark a
+    gap naming why."""
     if not marks:
         return [], []
     model, camera, size, why = seen
     if model is None:
         return [], [{"what": mark.get("what", ""), "hardware": mark.get("hardware"), "why": why} for mark in marks]
+    openings = sorted(pattern_finishes(patterns))
+    marks = [dict(mark, openings=openings) for mark in marks]
     from PIL import Image
     with Image.open(close_up) as shown:
         picture = np.asarray(shown.convert("RGBA"))
@@ -900,6 +946,16 @@ def take_hardware(seen, marks, finish_of, part_of, close_up, panels=()):
         faces, _ = cast.cast_points(model, camera, size, panel_decals.box_grid(panel["box"]))
         printed.append((panel["box"], {int(finish) for finish in np.unique(finish_of[faces[faces >= 0]])}))
     return hardware_pieces.placements(marks, model, camera, size, finish_of, part_of, picture, printed)
+
+
+def pattern_finishes(marks):
+    """The finishes only pattern marks print (their openings' `print_finish`), none a text, line or panel mark prints
+    too."""
+    patterned = {mark["print_finish"] for mark in marks if mark.get("shape") == pattern_decals.SHAPE
+                 and not mark.get("gap") and mark.get("print_finish") is not None}
+    other = {mark.get("print_finish") for mark in marks if mark.get("shape") != pattern_decals.SHAPE
+             and mark.get("shape") != finish_ask.PIECE}
+    return {int(finish) for finish in patterned - other}
 
 
 def make_parts(inputs, out, seed, params):

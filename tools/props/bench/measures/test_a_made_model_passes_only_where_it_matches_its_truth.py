@@ -90,7 +90,10 @@ Breaks (each applied once, seen red, reverted), in tools/props/bench/measures/:
   5.0 -> the same; PICTURED_BARS without it -> the pictured lock closed to its point passes; without its look.printed
   row (#159 round 15) -> the whole panel has no row (KeyError); printed's `(apart <= PRINT_NEAR).mean()` -> `1.0` ->
   the torn panel passes; its `min(near, 1 - apart)` -> `near` -> the blank white panel passes; PRINT_INKS 6 -> 1 ->
-  the whole panel fails.
+  the whole panel fails. Without its look.torn row (#159 round 15) -> the torn door plate has no row (KeyError);
+  torn's ring test dropped (TORN_LIT 0) -> the handle on its grey mount laid 20 px off fails; its flat test dropped
+  (TORN_FLAT 1000) -> the dark reflection on the chrome band fails; its plate test dropped (TORN_INSIDE 0) -> the
+  clean plate's vent fails.
 - _joints (#177, the hung cabinet: the box with a door slab hinged on its left edge; NVIDIA's hinge about -z, limits -90
   to 0): moving_bodies taking a joint's body0 (the carcass) -> the door cut as NVIDIA's fails its faces;
   count_gap never counting
@@ -663,6 +666,10 @@ CASES = [
      False),
     ("its panel's white drawn grey", lambda: panel_look("grey"), "look.printed", False),
     ("its panel's swoosh and name box lost under white", lambda: panel_look("blank"), "look.printed", False),
+    ("its door plate clean, its dark vent where NVIDIA's is", lambda: plate_look("clean"), "look.torn", True),
+    ("its door plate torn black beside the vent (r15s's locker)", lambda: plate_look("torn"), "look.torn", False),
+    ("its dark handle on its grey mount laid 20 px off NVIDIA's", lambda: plate_look("moved"), "look.torn", True),
+    ("a dark reflection on its chrome band where NVIDIA's", lambda: plate_look("chrome"), "look.torn", True),
     ("pictured: the box as its close-up shows it", lambda: pictured(box()), None, True),
     ("pictured: its outline off the close-up", lambda: pictured(box(), fit=0.8), "shape.closeup", False),
     ("pictured: 20% too big all round", lambda: pictured(box((0.6, 0.48, 0.96))), "size.size", False),
@@ -724,6 +731,30 @@ def panel_look(kind):
     theirs, own = np.zeros(truth.shape[:2], dtype=bool), np.zeros(truth.shape[:2], dtype=bool)
     theirs[10:130, 20:220], own[20:140, 20:220] = True, True
     return {"look": {"printed": measures.printed(made, truth, [(own, theirs)])["printed"]}}
+
+
+def plate_look(kind):
+    """{"look": {"torn"}} of a light door plate drawn by NVIDIA with a dark 20 px vent, a dark 30 x 10 px handle and a
+    chrome band (light rows striped 3 px apart), and by the made look `clean` (as NVIDIA's), `torn` (two black 8 x 6 px
+    marks on the plain plate beside the vent, r15s's locker), `moved` (its handle 20 px lower on its own grey mount: a
+    part laid off, its ring not the plate) or `chrome` (a dark reflection across the chrome band, the hand drill's)."""
+    truth = np.zeros((160, 200, 4), dtype=np.uint8)
+    truth[10:150, 10:190] = (225, 225, 225, 255)
+    truth[40:60, 40:60] = (20, 20, 20, 255)
+    truth[90:100, 120:150] = (30, 30, 30, 255)
+    truth[20:32, 100:180] = (150, 150, 150, 255)
+    truth[20:32:3, 100:180] = (240, 240, 240, 255)
+    made = truth.copy()
+    if kind == "torn":
+        made[40:46, 90:98] = (15, 15, 15, 255)
+        made[80:86, 60:68] = (15, 15, 15, 255)
+    if kind == "moved":
+        made[90:100, 120:150] = (225, 225, 225, 255)
+        made[106:124, 116:154] = (110, 110, 110, 255)
+        made[110:120, 120:150] = (30, 30, 30, 255)
+    if kind == "chrome":
+        made[23:29, 120:150] = (15, 15, 15, 255)
+    return {"look": {"torn": measures.torn(made, truth)["torn"]}}
 
 
 def case_found(index):

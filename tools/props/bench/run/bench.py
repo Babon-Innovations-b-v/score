@@ -759,8 +759,9 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalib
               close_up=None):
     """The finish's look as the bake paints it (#182, finish.look_job): the made model whole, each slot's recipe mixed
     by its texel mask on the model's own UVs, drawn by look.py through the card queue from the close-up's `camera`;
-    look.png, its job and masks, a LOOK_SMALL side copy for a page, holes.json (its holes, look_holes, and how far
-    closing its hardware cuts stretched the mesh round them, look.py's closed.json: #212), and each text mark read back
+    look.png, its job and masks, a LOOK_SMALL side copy for a page, holes.json (its holes, look_holes, how far
+    closing its hardware cuts stretched the mesh round them, look.py's closed.json: #212, and its dark torn marks
+    against `nvidia`, look_torn), and each text mark read back
     where it was drawn (finish.marks_read, `ask` a test's: marks.json, read.json; #185). Not drawn where
     `uncalibrated` names why the look's light is not held to the close-up (unheld_light, #206): the step's gap. Its
     sheet.png (sheet, #159): `nvidia` (NVIDIA's model through the same look, nvidia_look_step's look.png; a pictured
@@ -774,6 +775,8 @@ def look_step(model, parted, row, camera, draw=queued_blender, ask=None, uncalib
             drawn.resize((LOOK_SMALL, LOOK_SMALL), Image.LANCZOS).save(folder / f"look-{LOOK_SMALL}.png")
         closed = json.loads((folder / "closed.json").read_text())  # look.py's: its cuts' stretch (#212)
         found = {"holes": look_holes(folder / "look.png", folder / "bare.png"), "stretched": closed["stretched"]}
+        if nvidia is not None:  # its dark torn marks on NVIDIA's flat plate (#159 round 15)
+            found.update(look_torn(folder / "look.png", nvidia))
         if nvidia is not None and close_up is not None:  # each printed panel held to NVIDIA's (#159 round 15)
             found.update(panels_printed(folder, nvidia, parted, row["id"], close_up))
         (folder / "holes.json").write_text(json.dumps(found))
@@ -930,6 +933,16 @@ def panels_printed(looked, nvidia, parted, take, close_up):
     with Image.open(looked / "look.png") as drawn, Image.open(nvidia) as truth:
         found = measures.printed(np.asarray(drawn.convert("RGBA")), np.asarray(truth.convert("RGBA")), panels)
     return {} if found is None else {"printed": found["printed"], "printed_panels": found["panels"]}
+
+
+def look_torn(look, nvidia):
+    """{"torn", "torn_marks"}: the dark marks the `look` draws on the plate NVIDIA's look (`nvidia`, the same
+    camera) shows flat and light (measures.torn, #159 round 15: r15s's locker's black torn marks beside its vents)."""
+    from PIL import Image
+    from tools.props.bench import measures
+    with Image.open(look) as drawn, Image.open(nvidia) as truth:
+        found = measures.torn(np.asarray(drawn.convert("RGBA")), np.asarray(truth.convert("RGBA")))
+    return {"torn": found["torn"], "torn_marks": found["marks"]}
 
 
 def look_holes(look, bare):

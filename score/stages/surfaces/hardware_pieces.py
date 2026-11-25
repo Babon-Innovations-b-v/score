@@ -39,7 +39,10 @@ the cut is the piece's own spot and half diagonal.
 A piece is laid only where its cut leaves the print round it whole (`torn`): the cut draws the face's own paint in
 over the blob, so where the face it moves outside the piece's own box holds another finish than the face's, the
 piece's or the blob's, the mark is a gap and TRELLIS.2's own blob is kept (#159 round 13: r13's gas stove's 44 mm
-library dials over its 65 mm knob blobs tore the panel's red and white print).
+library dials over its 65 mm knob blobs tore the panel's red and white print). A vent pattern's openings' finish (the
+mark's `openings`, route_parts.take_hardware) is no print it tears: the pattern is drawn as its decal on its plate,
+and that finish outside it is TRELLIS.2's own holes painted dark (#159 r15: the band 1 remesh kept them, and the
+locker's lower-left lock was refused for the dark hole finish beside it, its blob left standing off its spot).
 """
 import numpy as np
 
@@ -346,7 +349,8 @@ def placement(mark, number, model, seen, finish_of, part_of, taken, printed=()):
             "cut": {"at": rounded(cut_at), "radius": round(radius, 5), "depth": CUT_DEPTH, "rise": round(rise, 5),
                     "falloff": round(falloff, 4), "edge_turn": EDGE_TURN, "stands": CUT_STANDS},
             "what": mark.get("what", ""), "from": {"close_up_box": mark["box"], "seen": "close-up"}}
-    tears = torn(model, laid, finish_of, (mark["on_finish"], own, *panel_finishes(mark["box"], printed)))
+    tears = torn(model, laid, finish_of, (mark["on_finish"], own, *panel_finishes(mark["box"], printed),
+                                          *mark.get("openings", ())))
     if tears:
         return None, f"its cut would tear the print round it (finishes {tears} outside its footprint)"
     laid["cut"]["closed"] = cut_closed(model, part_of == part, cut_at, normal, up, (radius * (1 - falloff), radius),

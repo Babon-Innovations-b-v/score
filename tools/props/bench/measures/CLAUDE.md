@@ -23,6 +23,9 @@ elsewhere in the bench and hand in `{vertices, faces, face_material, box, mass, 
   ring's ways and the input's; `shape.missing_part` the largest piece of NVIDIA's silhouette further than
   MISSING_REACH (2% of the frame) from the made one's, `shape.outline_detail` the made outline's length, holes' rims
   included, over NVIDIA's at its least way. NVIDIA's masks are drawn once a truth (`truth_masks`).
+- **Dark torn marks** (`torn`, `look.torn`, #159 r15: the locker's doors drew TRELLIS.2's black holes beside their
+  vents): the share of NVIDIA's flat light plate in its look the made look draws as small dark pieces ringed by its
+  own light plate (bench/run look_torn, in the look step against NVIDIA's look by the same camera).
 - **Reuse, never copies.** The ring is tools/usd/compare.py's (YAWS, ELEVATION, FOV), the input view the close-up's
   (tools/props/closeup/check.py TURN_DEGREES, look_down), ownership split_compare.py's rule (OWN_PURITY,
   FINISH_LEAST, finishes_owned), the flat share and swell place_build/shapes', the least wall the model gate's,

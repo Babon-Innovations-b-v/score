@@ -559,7 +559,11 @@ tests it turned red:
   `or mark.get("hardware")` dropped (the blob's chrome kept on the flattened face); hardware_pieces.py placement's
   `if tears:` -> `if False:` (a cut through the print round the blob laid), torn's blob finish dropped from its own
   (the blob's paint on the face under it read as a print torn), placement's `mark["on_finish"]` dropped from torn's
-  own (the face's own finish read as a print torn); decal_plates.py closed_round's
+  own (the face's own finish read as a print torn), its `*mark.get("openings", ())` dropped (#159 r15: the vent's
+  openings' finish round the lock read as a print torn, the lock left a gap); route_parts.py pattern_finishes' `-
+  other` dropped (a label's ink shared with a vent's openings read as no print); plate_probed's `return faces, points`
+  for `if not through.any()...` made unconditional (the vent's middle probe through the door's hole laid it 0.24 m
+  back, on the cabinet's inside); decal_plates.py closed_round's
   `lines` -> `[]` (the cut's card laid over the door's groove), its `most` -> BUMP_MOST (the blob 2 cm high left
   standing in its box) (#212, r14l: closed to its point, the blob drew white cracks and starbursts)
 - The list's own token and its marks' print held against the lit close-up (#159, #176, tc3s), each ->
@@ -3078,6 +3082,12 @@ def pattern_marks_held():
     other = route_parts.decal_placements(marked[:1], np.array([0, 1, 2]), np.array([[0.0, 0.0, 1.0]] * 3),
                                          plane_cast([0, 2, 2, 2, 2]), "close-up", np.array([0, 0, 1]))
     assert not other[0] and other[1][0]["why"] == "it spans more than its part 0", other
+    # its probes held to its plate (#159 r15): the band 1 remesh kept TRELLIS.2's holes in the locker's doors, and a
+    # vent's middle probe went through one onto the cabinet's inside 0.24 m back; laid on the door, never there
+    holed = route_parts.decal_placements([dict(marked[0], box=[0, 0, 100, 100])], np.array([0, 1]),
+                                         np.array([[0.0, 0.0, 1.0]] * 2), holed_cast(), "close-up")
+    assert holed[0] and np.allclose(holed[0][0]["at"], [0.05, -0.05, 0.0]) and holed[0][0]["size"] == [0.1, 0.1], \
+        holed
     # its side probes lie PATTERN_EDGE_IN inside its box (the fitted camera's error put EDGE_IN's off the cylinder)
     assert route_parts.mark_probes([0, 0, 100, 100], route_parts.probe_edge(marked[0]))[1:3] == [[25, 50], [75, 50]]
     for case, placement, count in PATTERN_PICTURES:
@@ -3345,15 +3355,21 @@ def hardware_marks_held():
             ("a print round the blob inside its cut: the piece is a gap, the blob kept",
              {5: (round_blob > 0.017) & (round_blob < laid["cut"]["radius"]) & (middles[:, 2] < 0.002),
               4: middles[:, 2] >= 0.002},
-             "its cut would tear the print round it (finishes [5] outside its footprint)")]:
+             "its cut would tear the print round it (finishes [5] outside its footprint)"),
+            ("a vent's openings' finish round the blob (TRELLIS.2's holes painted dark, r15s's locker): laid",
+             {6: (round_blob > 0.017) & (round_blob < laid["cut"]["radius"]) & (middles[:, 2] < 0.002),
+              4: middles[:, 2] >= 0.002}, None)]:
             finishes = np.full(len(model.mesh.faces), marked[0]["on_finish"], dtype=np.int64)  # the face's own
             for finish, faces in finished.items():
                 finishes[faces] = finish
-            found, gaps = hardware_pieces.placements([dict(marked[0], box=box)], model, camera, (1000, 1000),
-                                                     finishes, part_of, seen)
+            found, gaps = hardware_pieces.placements([dict(marked[0], box=box, openings=[6])], model, camera,
+                                                     (1000, 1000), finishes, part_of, seen)
             assert [gap["why"] for gap in gaps] == ([expected] if expected else []), (name, found, gaps)
             assert len(found) == (expected is None), (name, found)
     assert route_parts.covering(dict(marked[0], print_finish=2)) and not route_parts.covering(marked[1])
+    # the openings are the finishes only patterns print: a label's ink in the same finish is a print a cut tears
+    assert route_parts.pattern_finishes([{"shape": "pattern", "print_finish": 6}, {"shape": "pattern",
+                                         "print_finish": 7}, {"shape": "text", "print_finish": 7}]) == {6}
     # a cut's box ends short of a groove (a door's edge) and its core is pressed past it: the door's handle, 3 cm
     # proud, closed with a groove 2 cm under its middle (r13's locks over their doors' edge grooves)
     mesh, part_of = door(seams=(0.125,))
@@ -3361,6 +3377,17 @@ def hardware_marks_held():
                                         "size": [0.04, 0.04]}, mesh, part_of == 0, 0.05, 0.03)
     assert (-0.018 <= closed["box"][1] < 0.0, closed["box"][3] >= 0.015, closed["pressed"][0]["box"][1],
             closed["most"]) == (True, True, -0.02, 0.05), closed
+
+
+def holed_cast(scale=0.001):
+    """plane_cast's face z = 0 (part 0) with a hole 30 px across round the pixel (50, 50), seen through onto the
+    cabinet's inside 0.24 m behind it (r15s's locker door)."""
+    def cast(pixels):
+        pixels = np.asarray(pixels, dtype=float)
+        inside = np.hypot(pixels[:, 0] - 50, pixels[:, 1] - 50) < 15
+        return np.zeros(len(pixels), dtype=np.int64), np.c_[pixels[:, 0] * scale, -pixels[:, 1] * scale,
+                                                             np.where(inside, -0.24, 0.0)]
+    return cast
 
 
 def plane_cast(parts, scale=0.001):

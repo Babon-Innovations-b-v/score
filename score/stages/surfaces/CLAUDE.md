@@ -58,7 +58,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   outline, opening share, the way it runs, the token inside it; asked when score_lib holds surfaces of family
   `pattern`, `decal_library.patterns`, whose tags give the opening's shape, length share, relief and roughness), its
   library pattern's address its `decal`; `surfaces-parts` places it as a decal sized by its openings' ink on its
-  part's plate (`pattern_facing`, `near_plate`: not what its holes show behind) and draws it tiled inside its outline
+  part's plate (`pattern_facing`, `near_plate`: not what its holes show behind; `plate_probed`: a probe whose ray
+  went through one of TRELLIS.2's holes is laid on the plate, #159 r15) and draws it tiled inside its outline
   (`pattern_decals.py`); the bake prints its openings in the token's ink and sinks them by its `relief`
   (recipes.decal_relief); the route's own openings finish under it is covered as a print under a text mark is.
   **The made shape under a mark is flat and closed** (#214, #159 round 13: the pattern drawn over TRELLIS.2's 4 mm
@@ -93,7 +94,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`cut_marks`). A piece is laid only where its cut leaves the print round it whole (`torn`, #159 round 13: r13's
   stove knobs, library dials too small for their blobs, tore the panel's print): a face the cut covers outside the
   piece's box in another finish than the face's, the piece's or the blob's makes the mark a gap, TRELLIS.2's blob
-  kept. The bench's look draws it (tools/props/bench/run); a
+  kept; a vent pattern's openings' finish is no print (`pattern_finishes`, #159 r15). The bench's look draws it (tools/props/bench/run); a
   place's bake does not yet, nor do the physics and parts steps add the piece (a gap on #212).
   parts.json stays contract
   v1: its new fields are additive, so no accepted parts or paid bake is invalidated.
