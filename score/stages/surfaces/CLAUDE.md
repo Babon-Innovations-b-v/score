@@ -214,8 +214,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   no measure is unknown. `place_line.make_paint` (rented) stays the people's. Check:
   `route_check.py`, bake_check's against the bake's specs.json, a surface with its own wear held at that wear
   (`own_wear_checked`). Recheck (paid, one batch, the one-shot sort after the bake): a take the parts left off
-  its colour is a gap with no ask; the rest are drawn from every view, each part flat in its library surface's
-  colour (its token's where it has settings), and asked once against the close-up; all match passes, else "no
+  its colour is a gap with no ask; the rest are drawn from every view in the bake's own base colour map (#100,
+  `baked_recheck.py`, set on the row by `stages.baked_rechecked`, surfaces-bake its input: the baked model mapped back
+  onto the raw take's faces by an affine frame fitted on the labelled take's faces, so the hub's consoles show their
+  rust), else, where it cannot be mapped (drawn.json says why), each part flat in its library surface's colour (its
+  token's where it has settings, as finish-route-picks draws its drafted parts before any bake), and asked once
+  against the close-up; all match passes, else "no
   library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
   roughness and metal kept as the gap's `suggested`. The list's settings never edit materials.json.
 - **The recheck's picks are applied before the parts** (#118 point 3; a list asked again returns its cached mis-pick):

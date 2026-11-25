@@ -334,6 +334,11 @@ tests it turned red:
   = lambda name: {**palette_library.specs(palette)}`  -> every_part_takes_a_library_surface_and_is_held_to_it (the spec the bake baked)
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its WORDED rows)
+- baked_recheck.py: `for _ in range(FIT_ROUNDS):` -> `for _ in range(1):`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its BAKED_DRAWN "feet levelled" row: the frame misses by 4 mm)
+- __init__.py (score/stages): baked_rechecked's `return dataclasses.replace(row, make=baked_recheck.make_recheck,` ->
+  `return row` (its `after` dropped with it)  -> every_part_takes_a_library_surface_and_is_held_to_it (the recheck row
+  made flat, the bake no input of it)
 - route_recheck.py: `wrong = failed(finishes, answers)` -> `wrong = []`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its RECHECKS rows)
 - route_recheck.py: `if faults: found[take] = {"colour_faults"` -> `if False: found[take] = {"colour_faults"`  ->
@@ -1633,7 +1638,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         return {take: json.dumps(ON_PALETTE if told else first[0]) for take, body in bodies.items() if body}
     monkeypatch.setattr(claude_asks.claude_code, "asked", claude_asked)
     for name, module in {"finish-route-palette": scene_palette, "surface-library": scene_library,
-                         "finish-route-list": route_list, "finish-route-recheck": route_recheck}.items():
+                         "finish-route-list": route_list, "finish-route-recheck": stages.baked_recheck}.items():
         assert ROWS[name].make.__wrapped__.__module__ == module.__name__, name
         gemini = module.ask
 
@@ -1872,6 +1877,25 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert record["fault"] is None if fault is None else record["fault"].startswith(fault), (case, record)
         assert verdict.answer == judged and (finding is None or finding in verdict.findings[0]), (case, verdict)
         assert (out / TAKE / "checked-front.png").exists() is bool(asks), case
+    # the row as the table makes it (baked_recheck.make_recheck, #100): with a bake of no model the take drawn and
+    # asked flat as before; drawn on its bake, every face its baked colour and the question the baked one
+    for case, baked, question in BAKED_ASKED:
+        out, bake = world / f"recheck baked {case}", world / f"bake {case}"
+        bake.mkdir()
+        with monkeypatch.context() as held:
+            if baked:
+                held.setattr(stages.baked_recheck, "baked_faces", all_green)
+            asked = []
+            held.setattr(stages.baked_recheck, "ask", lambda bodies: asked.append(bodies) or {
+                take: json.dumps(RECHECKS[0][2]) for take in bodies})
+            out.mkdir()
+            stages.baked_recheck.make_recheck({**parts_of[1000.0], "surfaces-bake": bake}, out, 7, {"objects": [TAKE]})
+        text = asked[0][TAKE]["contents"][0]["parts"][-1]["text"]
+        assert question in text and json.loads((out / "recheck.json").read_text())[TAKE]["passed"], case
+        assert json.loads((out / "drawn.json").read_text())[TAKE]["drawn"] == ("baked" if baked else "flat"), case
+        front = np.asarray(Image.open(out / TAKE / "checked-front.png").convert("RGB")).reshape(-1, 3)
+        assert bool(((front[:, 1] > 120) & (front[:, 0] < 80)).any()) is baked, case  # green drawn only from the bake
+        assert stages.baked_recheck.route_recheck.drawn is stages.baked_recheck.FLAT_DRAWN, case  # its own put back
     for case, listing, change, token, not_picked, by in PICKS:
         answer = None if change is None else {"finishes": [{**FAILING_RED, **change},
                                                            {"finish": 2, "matches": True, "why": "blue"}]}
@@ -2940,6 +2964,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     hardware_marks_held()  # small locks and knobs laid as library pieces, TRELLIS.2's blobs cut away (#212)
     kept_list_held()  # a take's finish list asked once and read back by name after (#229)
     panels_held()  # a printed panel one picture decal from the close-up, its print covered whole (#159 round 15)
+    baked_recheck_held(monkeypatch)  # the recheck draws what the bake made, rust and all (#100)
 
 
 # A text mark's picture (text_decals.drawn) at its density: (case, its placement, its picture's rows). At #161's 3,000
@@ -5945,3 +5970,103 @@ PAINT_TURNS = [
     ("a final moved off its finished file's vertices turned gets no turn", "crate_1", 0.05, None, False),
     ("a raw take still facing +Z is laid on its final by its recovered turn", "stool_1", 0.0, STOOL_TILT.T, True),
 ]
+
+
+# The recheck drawn on the bake (baked_recheck.py, #100): (case, the labelled take's change, the bake's change, how the
+# views are drawn, the share of faces drawn their own baked colour at least). The raw take is a sphere, its hull the
+# faces below y 0.3, its trim the cap above; laid on its finished model (scaled 3, shifted) and into the kit frame by
+# a quarter turn and its row's size; its bake the laid faces, rust red where the raw face lies at z over 0, grey else.
+BAKED_DRAWN = [
+    ("turned, refitted and stood square: every face drawn its own baked colour", None, None, "baked", 1.0),
+    ("the hull cut to its box (a face dropped): fitted on the trim alone", "cut hull", None, "baked", 0.99),
+    ("its feet levelled: the moved pairs left out of the fit", "feet", None, "baked", 0.9),
+    ("both surfaces cut: nothing to pair, drawn flat", "cut both", None, "flat", 0.0),
+    ("the bake made no model of the take: drawn flat", None, "no model", "flat", 0.0),
+    ("the bake left no base colour map: drawn flat", None, "no map", "flat", 0.0),
+]
+# The nearest baked colour, a face further than its reach kept flat: (case, points, reach, colours, reached).
+BAKED_REACH = [
+    ("on the bake: its triangle's colour", [[0.0, 0.0, 0.0]], 0.1, [[255, 0, 0]], [True]),
+    ("past the reach: not reached", [[5.0, 0.0, 0.0]], 0.1, [[0, 0, 255]], [False]),
+]
+
+
+# The recheck row made as the table makes it: (case, drawn on its bake, words its question holds).
+BAKED_ASKED = [
+    ("a bake with no model of the take: drawn and asked flat", False, "no shine, wear or pattern is drawn"),
+    ("drawn on its bake: the baked colours and the baked question", True, "colour and wear from the pictures"),
+]
+
+
+def all_green(views, bake, take):
+    """baked_recheck.baked_faces faked: every face of the views' model baked green and reached."""
+    count = len(np.load(views / "model.npz")["faces"])
+    return (np.tile(np.array([[20, 200, 30]], dtype=np.uint8), (count, 1)), np.ones(count, dtype=bool),
+            {"drawn": "baked"})
+
+
+def cut_faces(surface, code, name, change):
+    """The raw faces of surface `code` its labelled .ply keeps under BAKED_DRAWN's `change`: all, or all but its
+    first where the change cuts it."""
+    faces = np.flatnonzero(surface == code)
+    return faces[1:] if change == "cut both" or change == "cut hull" and name == "hull" else faces
+
+
+def baked_take(folder, change, bake_change):
+    """A views folder and a bake folder of TAKE (BAKED_DRAWN's world), the faked bake (its geometry, maps and each
+    triangle's colour) and each raw face's baked colour (0-255)."""
+    raw = trimesh.creation.icosphere(subdivisions=3)
+    views, bake = folder / "views" / TAKE, folder / "bake"
+    views.mkdir(parents=True)
+    np.savez(views / "model.npz", vertices=raw.vertices, faces=raw.faces)
+    centres = raw.triangles_center
+    surface = (centres[:, 1] > 0.3).astype(int)
+    labelled = bake / "labelled" / TAKE
+    labelled.mkdir(parents=True)
+    np.savez(labelled / "faces.npz", surface=surface.astype(np.int16), names=np.array(["hull", "trim"]))
+    finished = raw.copy()
+    finished.vertices = finished.vertices * 3.0 + [0.5, 2.0, -1.0]
+    if change == "feet":
+        low = finished.vertices[:, 1] < finished.vertices[:, 1].min() + 0.3
+        finished.vertices[low, 1] -= 0.4
+    for code, name in enumerate(("hull", "trim")):
+        finished.submesh([cut_faces(surface, code, name, change)], append=True).export(labelled / f"{name}.ply")
+    quarter = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
+    entry = {"parts": TAKE, "base": sum(quarter, []), "size": [1.2, 0.9, 0.6]}
+    (bake / "baked.json").write_text(json.dumps({} if bake_change == "no model" else {"two_boxes": entry}))
+    names, laid, _, _ = bake_check.laid_parts(labelled, entry)
+    order = np.concatenate([cut_faces(surface, ("hull", "trim").index(name), name, change) for name in names])
+    rust = np.where((centres[:, 2] > 0)[:, None], [0.6, 0.1, 0.05], [0.5, 0.5, 0.5])
+    geometry = {"positions": np.asarray(laid.vertices), "triangles": np.asarray(laid.faces)}
+    maps = [{}] if bake_change == "no map" else [{"base_color": "baked.png"}]
+    return views, bake, (geometry, maps, rust[order]), (rust * 255).astype(np.uint8)
+
+
+def baked_recheck_held(monkeypatch):
+    """The recheck row draws each take's views in the bake's own base colour map, mapped from the refitted, turned
+    and stood baked model back onto the raw take's faces, and asks the baked question; a take it cannot map is
+    drawn flat and asked as before (#100)."""
+    from score.stages.surfaces import baked_recheck
+    import baked_gltf
+    row = ROWS["finish-route-recheck"]
+    assert inspect.unwrap(row.make) is baked_recheck.make_recheck and "surfaces-bake" in row.after
+    assert "no shine, wear or pattern is drawn" in baked_recheck.route_recheck.QUESTION
+    assert "wear or pattern is drawn" not in baked_recheck.QUESTION and "colour and wear from" in baked_recheck.QUESTION
+    for case, change, bake_change, how, least in BAKED_DRAWN:
+        folder = pathlib.Path(tempfile.mkdtemp())
+        views, bake, (geometry, maps, colours), expected = baked_take(folder, change, bake_change)
+        with monkeypatch.context() as held:
+            held.setattr(baked_recheck, "baked_model", lambda gltf: (geometry, maps))
+            held.setattr(baked_gltf, "base_colours", lambda found, pictures: (colours, None, None, None))
+            drawn, reached, note = baked_recheck.baked_faces(views, bake, TAKE)
+        assert note["drawn"] == how, (case, note)
+        if how == "baked":
+            own = np.all(np.abs(drawn.astype(int) - expected) <= 1, axis=1) & reached
+            assert own.mean() >= least and note["miss_m"] <= 1e-4, (case, own.mean(), note)  # the frame exact
+        else:
+            assert drawn is None and note["why"], case
+        shutil.rmtree(folder)
+    for case, points, reach, colours, reached in BAKED_REACH:
+        found, near = baked_recheck.face_colours(np.array(points), np.array([[0.0, 0.0, 0.0], [5.0, 0.0, 0.3]]),
+                                                 np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]), reach)
+        assert found.tolist() == colours and near.tolist() == reached, case

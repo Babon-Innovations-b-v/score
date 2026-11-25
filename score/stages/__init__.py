@@ -43,7 +43,7 @@ from score.stages import (assembly, cast, complete, demo_film, design_layers, ea
                           surface_tiles, surfaces, terrain)
 from score.stages.cast import feet as cast_feet  # cast's make: its own module, so no other row's key moves with it
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
-    parts_kept, recheck_picks, route_check, uv_layout, bake_fitted
+    parts_kept, recheck_picks, route_check, uv_layout, bake_fitted, baked_recheck
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -772,6 +772,16 @@ def layout_fitted(row):
     return dataclasses.replace(row, make=bake_fitted.make_bake)
 
 
+def baked_rechecked(row):
+    """finish-route-recheck made by baked_recheck.make_recheck on surfaces-bake, now an input of it: each take's views
+    drawn in the bake's own base colour map, so the recheck sees a worn recipe's bare (#100, owner's option 1,
+    2026-11-25). Set here, as layout_fitted is, so no row reading route_recheck.py (finish-route-picks) moves."""
+    if row.name != "finish-route-recheck":
+        return row
+    return dataclasses.replace(row, make=baked_recheck.make_recheck,
+                               after={**row.after, "surfaces-bake": ("surfaces-bake", 1)})
+
+
 def code_marked(row):
     """surfaces-parts with each code-built take's mark as a file (route_parts.files: a light built in code takes the
     scene library's glowing surface). Set here, as feet_checked is, so no row reading the surfaces package moves."""
@@ -1048,8 +1058,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(layout_fitted, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
-              close_up_laid, map(pictures_hashed, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))))))),
+          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(baked_rechecked, map(layout_fitted,map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
+              close_up_laid, map(pictures_hashed, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS,
