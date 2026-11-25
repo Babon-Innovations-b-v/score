@@ -1,7 +1,7 @@
 """A made model's moving parts run in Newton (#177, PRD #159): each part the parts step cut (place_build/maker/parts.py,
 its node `<part>__<joint>_<axis>[n]` at its pivot) laid in a place of its own, joined by the physics layer
 (tools/usd/physics.write_parted: a revolute joint for a hinge or a spin, a prismatic for a slide, its limits, its kg),
-driven toward its far limit for the trial's seconds, and stepped by the physics trial (score/stages/physics/inside/
+driven toward its far limit for the trial's seconds (its force by its kg), and stepped by the physics trial (score/stages/physics/inside/
 physics_trial.py: Newton with MuJoCo's solver, in its own Python). Measured per part: how much of its range it
 travelled and how far past its limit it went; a spin how far it turned.
 
@@ -13,8 +13,9 @@ travelled and how far past its limit it went; a spin how far it turned.
     python -m tools.props.bench.joints <parted.glb> <parts.json> <folder>      prints one line; joints.json in folder
 
 The object is the joints' still frame (a hinge's frame is static, write_parted), so only the parts move. A part
-passes when it travels at least REACHED of its range and never more than PAST_SLACK past its limit; a spin when it
-turns at least SPIN_DEGREES.
+passes when it travels at least REACHED of its range and never more than PAST_SLACK or PAST_SHARE of its range
+(the larger) past its limit; a spin when it turns at least SPIN_DEGREES and at most SPIN_FASTEST times its drive's
+sweep.
 """
 import json
 import os
@@ -32,10 +33,14 @@ PLACE = "bench_joints"
 SECONDS = 4.0
 DRIVE_SECONDS = (0.2, 3.5)  # the drive's start and end: it opens its part in about two seconds, then holds
 REACHED = 0.9  # of its range a hinge or slide travels
-PAST_SLACK = {"hinge": 2.0, "slide": 0.01}  # degrees, metres past its limit
+# How far past its limit a part may go: the larger of an absolute slack (degrees, metres) and a share of its range, so
+# a drill's 8 mm lever is held to 0.8 mm, not to a door's slack (r16: it went 3.6 mm past and passed at 1 cm).
+PAST_SLACK = {"hinge": 2.0, "slide": 0.0005}
+PAST_SHARE = 0.1
 SPIN_DEGREES = 90.0
+SPIN_FASTEST = 2.0  # times its drive's own sweep a spin may turn: past it the solve ran away (r16: a dial 48,574 degrees)
 TORQUE_PER_KG = 20.0  # N m (a hinge or spin) or N (a slide) a kg of its part, at least LEAST_TORQUE
-LEAST_TORQUE = 5.0
+LEAST_TORQUE = 0.05  # (r16: a 5 N m floor on a 44 g dial ran its solve away)
 MATERIALS = json.loads((REPO / "data/physics/materials.json").read_text())
 
 
@@ -94,14 +99,15 @@ def measured(out, record):
         way = [value * (1 if part["sign"] > 0 else -1) for value in track]
         travelled = max(way)
         if part["joint"] == "spin":
-            found[part["node"]] = {"joint": "spin", "travelled": round(travelled, 3),
-                                   "passes": travelled >= SPIN_DEGREES}
+            sweep = driven(part)["speed"] * (DRIVE_SECONDS[1] - DRIVE_SECONDS[0])
+            found[part["node"]] = {"joint": "spin", "travelled": round(travelled, 3), "sweep": round(sweep, 3),
+                                   "passes": SPIN_DEGREES <= travelled <= SPIN_FASTEST * sweep}
             continue
         span = float(part["limits"][1])
-        past = travelled - span
+        past, slack = travelled - span, max(PAST_SLACK[part["joint"]], PAST_SHARE * span)
         found[part["node"]] = {"joint": part["joint"], "range": span, "travelled": round(travelled, 4),
                                "reached": round(travelled / span, 3) if span else None, "past": round(past, 4),
-                               "passes": travelled >= REACHED * span and past <= PAST_SLACK[part["joint"]]}
+                               "slack": round(slack, 4), "passes": travelled >= REACHED * span and past <= slack}
     return found
 
 

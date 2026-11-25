@@ -8,7 +8,9 @@ pass; elsewhere (make tests' sandbox home) that run is skipped and said so.
 
 Breaks (each seen red 2026-11-25):
 - measured's `* (1 if part["sign"] > 0 else -1)` dropped -> the door opening its negative way reads as never opened.
-- measured's `past <= PAST_SLACK[part["joint"]]` made `True` -> the drawer 0.05 m past its limit passes.
+- measured's `past <= slack` made `True` -> the drawer 0.05 m past its limit passes.
+- measured's slack `max(PAST_SLACK[...], PAST_SHARE * span)` made `0.01` (a door's) -> the 8 mm lever 3.6 mm past passes.
+- measured's spin `<= SPIN_FASTEST * sweep` dropped -> the dial run away to 48,574 degrees passes.
 - staged without `gltf.converted` (the GLB referenced as it is) -> no part node to join: write_parted raises.
 """
 import json
@@ -27,6 +29,8 @@ DOOR = {"node": "door_01__hinge_yn", "joint": "hinge", "axis": "y", "sign": -1, 
 DRAWER = {"node": "drawer_01__slide_z", "joint": "slide", "axis": "z", "sign": 1, "limits": [0.0, 0.3], "kg": 2.0,
           "pivot": [0.0, 0.15, 0.215]}
 KNOB = {"node": "knob_01__spin_z", "joint": "spin", "axis": "z", "sign": 1, "limits": None, "kg": 0.1}
+LEVER = {"node": "lever_01__slide_y", "joint": "slide", "axis": "y", "sign": 1, "limits": [0.0, 0.008], "kg": 0.004}
+DIAL = {"node": "dial_01__spin_y", "joint": "spin", "axis": "y", "sign": 1, "limits": None, "kg": 0.044}
 
 
 def cabinet(path):
@@ -52,13 +56,17 @@ def test_a_made_models_parts_open_to_their_limits_in_newton(tmp_path):
     assert [part["drive"]["speed"] for part in trial["parted"][0]["parts"]] == [50.0, 0.15], trial
     # measured: the door its negative way to -99.5 degrees, the drawer 0.05 m past its 0.3 m, a knob that turned 30
     # degrees, a part the trial has no joint for
+    # r16's drill: a lever 3.6 mm past its 8 mm, a dial run away to 48,574 degrees
     out = {"hinges": {"model/door_01__hinge_yn": {"angles": [0.0, -50.0, -99.5]},
-                      "model/knob_01__spin_z": {"angles": [0.0, 30.0]}},
-           "slides": {"model/drawer_01__slide_z": {"metres": [0.0, 0.2, 0.35]}}}
+                      "model/knob_01__spin_z": {"angles": [0.0, 30.0]},
+                      "model/dial_01__spin_y": {"angles": [0.0, 48574.2]}},
+           "slides": {"model/drawer_01__slide_z": {"metres": [0.0, 0.2, 0.35]},
+                      "model/lever_01__slide_y": {"metres": [0.0, 0.0116]}}}
     lost = {**DOOR, "node": "lid_01__hinge_x"}
-    found = joints.measured(out, {"parts": [DOOR, DRAWER, KNOB, lost]})
+    found = joints.measured(out, {"parts": [DOOR, DRAWER, KNOB, lost, LEVER, DIAL]})
     assert {node: entry["passes"] for node, entry in found.items()} == {
-        "door_01__hinge_yn": True, "drawer_01__slide_z": False, "knob_01__spin_z": False, "lid_01__hinge_x": False}
+        "door_01__hinge_yn": True, "drawer_01__slide_z": False, "knob_01__spin_z": False, "lid_01__hinge_x": False,
+        "lever_01__slide_y": False, "dial_01__spin_y": False}, found
     assert found["drawer_01__slide_z"]["past"] == 0.05 and found["lid_01__hinge_x"]["why"].startswith("the trial")
     # staged and joined: the part nodes laid under the object, each joined by its own joint
     folder = joints.staged(cabinet(tmp_path / "parted.glb"), record, tmp_path / "place")
