@@ -15,7 +15,12 @@ The package docstring is the contract.
 - **Writes are conditional** (`If-None-Match: *`, PutObject or CompleteMultipartUpload; a failed multipart upload is
   aborted): a 412 means the key is taken, for a blob the same bytes. Each object carries its sha256 as metadata,
   from the bytes hashed just before the upload. Probed 2026-11-04 from this PC: the second put and the second
-  complete both 412, HEAD gives the size and the metadata, a missing key 404.
+  complete both 412, HEAD gives the size and the metadata, a missing key 404. A single put sends its file with
+  botocore's `Expect: 100-continue`; on the 412 botocore sends no body yet keeps the connection, and the bucket read
+  the next request on it as the promised body (HTTP 400, no code: every new blob after a "there", #81, 2026-11-25).
+  So every request carrying that Expect also says `Connection: close` (`closed_after_expect`, on `before-sign`): one
+  request per push still, a fresh connection per put, right on the race too. Parts and the complete send bytes
+  whole, no Expect, and keep their connection.
 - **What the bucket checks** (#81, probed 2026-11-25): Scaleway verifies `x-amz-checksum-sha256` (a put whose body
   does not hash to it is refused `InvalidRequest`) and ignores `x-amz-content-sha256` (a signed put with a wrong
   payload hash landed), so payload signing is not used. A single put sends `ChecksumSHA256`, the base64 of the sha256

@@ -83,6 +83,7 @@ class Bucket:
         # checks: a body changed on the way is refused (#81, probed 2026-11-25; it ignores x-amz-content-sha256, so
         # payload signing proves nothing there). when_required: a request sent without a sum of ours gets no crc32
         # trailer of botocore's (1.36+) either
+        self.client.meta.events.register("before-sign.s3", closed_after_expect)
 
     def put_policy(self, document):
         """`document` (store_policy's) as the bucket's one policy, replacing any it had. Only with the key of the
@@ -158,6 +159,16 @@ class Bucket:
         for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.name, Prefix=prefix):
             found |= {item["Key"] for item in page.get("Contents", [])}
         return found
+
+
+def closed_after_expect(request, **_):
+    """A request botocore sends with Expect: 100-continue (a put of a file) asks for its connection to close after
+    it. On a final answer instead of 100 (the bucket's 412 on If-None-Match), botocore sends no body yet keeps the
+    connection, so the bucket reads the next request on it as the body it was promised: an HTTP 400 with no code
+    (#81, 2026-11-25: every new blob pushed after a "there"). A part's or complete's body is bytes, sent whole with
+    no Expect, so it keeps its connection."""
+    if request.headers.get("Expect") in ("100-continue", b"100-continue"):
+        request.headers["Connection"] = "close"
 
 
 def checksum(digest):

@@ -25,6 +25,8 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.Bucket.put_new: drop `ChecksumSHA256=...` from put_object (no x-amz-checksum-sha256: Scaleway checks no
   sha256, it ignores x-amz-content-sha256, so a put changed at the right length lands: refused here), or in put_parts
   drop a part's `ChecksumAlgorithm`/`ChecksumSHA256` or the complete's per-part `ChecksumSHA256` (red, 2026-11-25).
+- offload.Bucket: drop the `before-sign` registration of closed_after_expect (a put refused 412 before its body keeps
+  its connection, the next request on it read as that body: every new blob after a "there" failed HTTP 400, #81).
 - offload.store_policy: the runtime-locks Resource `{bucket}/*` (the runtime key may delete any blob), or the keeper
   statement dropped (the user applying it is shut out of the bucket).
 - offload.push: `for tried in range(PUSH_TRIES):` -> `for tried in range(1):` (a put whose connection the bucket drops
@@ -46,13 +48,15 @@ from score.conductor import disk
 from score.store import Store, file_hash, offload, runtime_store
 
 
-BUCKET_SENDS = [  # (the file's bytes, the bytes its sha256 was hashed from, put_new's outcome, the requests answered)
-    (b"body", b"body", True, ["put"]),
-    (b"bodx", b"body", "InvalidRequest", ["put refused"]),  # changed after it was hashed: the bucket refuses it
-    (b"0123456789", b"0123456789", True, ["create", "part", "part", "part", "complete"]),
+BUCKET_SENDS = [  # (the file's bytes, the bytes its sha256 was hashed from, its key, put_new's outcome, the requests)
+    (b"body", b"body", "key", True, ["put"]),
+    (b"bodx", b"body", "key", "InvalidRequest", ["put refused"]),  # changed after it was hashed: the bucket refuses it
+    (b"0123456789", b"0123456789", "key", True, ["create", "part", "part", "part", "complete"]),
+    (b"body", b"body", "taken", False, ["put there"]),  # a 412 before the body: its connection must not be reused
 ]
 CREATED = (b"<InitiateMultipartUploadResult><Bucket>store</Bucket><Key>key</Key><UploadId>up</UploadId>"
            b"</InitiateMultipartUploadResult>")
+TAKEN = b"<Error><Code>PreconditionFailed</Code><Message>taken</Message></Error>"
 REFUSED = b"<Error><Code>InvalidRequest</Code><Message>checksum</Message></Error>"
 
 
@@ -81,6 +85,9 @@ def answered(request, sent):
     summed = offload.checksum(hashlib.sha256(body).digest())
     if request.method == "PUT":
         kind = "part" if "partNumber=" in query else "put"
+        if request.url.split("?", 1)[0].endswith("/taken"):  # If-None-Match: * on a taken key, answered before the body
+            sent.append((f"{kind} there", headers))
+            return AWSResponse(request.url, 412, {}, Answer(TAKEN))
         if headers.get("x-amz-checksum-sha256") != summed:
             sent.append((f"{kind} refused", headers))
             return AWSResponse(request.url, 400, {}, Answer(REFUSED))
@@ -150,18 +157,20 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
                            "access_key": "key", "secret_key": "secret"})
     sent = []
     real.client.meta.events.register("before-send.s3", lambda request, **_: answered(request, sent))
-    for body, hashed, landed, kinds in BUCKET_SENDS:
+    for body, hashed, key, landed, kinds in BUCKET_SENDS:
         sent.clear()
         (tmp_path / "upload").write_bytes(body)
         try:
             with monkeypatch.context() as small_parts:
                 small_parts.setattr(runtime_store, "part_size", lambda size: 4)  # a 10-byte file in three parts
-                outcome = real.put_new(tmp_path / "upload", "key", hashlib.sha256(hashed).hexdigest())
+                outcome = real.put_new(tmp_path / "upload", key, hashlib.sha256(hashed).hexdigest())
         except botocore.exceptions.ClientError as error:
             outcome = error.response["Error"]["Code"]
         assert (outcome, [kind for kind, _ in sent]) == (landed, kinds), (body, sent)
         assert not any(name.lower().startswith(("x-amz-checksum-crc", "x-amz-trailer"))
                        for _, headers in sent for name in headers), sent  # no crc32 of botocore's beside it
+        assert all(headers.get("connection") == "close" for _, headers in sent  # a request botocore may leave without
+                   if headers.get("expect") == "100-continue"), sent  # its body never shares its connection after
     # its policy: the runtime key lists, reads and writes, deletes only under locks/; the keeper keeps every right
     policy = offload.store_policy("store", "app-1", "user-1")
     granted = [(statement["Principal"]["SCW"], action, resource) for statement in policy["Statement"]
