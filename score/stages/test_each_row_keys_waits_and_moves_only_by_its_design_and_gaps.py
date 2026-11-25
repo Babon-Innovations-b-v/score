@@ -282,6 +282,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py:
 - score/graph/_code.py `source_files`: FRAMEWORK not left out  -> the TREE_EDITS framework-only row.
 - score/graph/rebuy.py `buys`: `if remade[name]` read as `if not remade[name]`  -> the TREE_EDITS row moved through
   what it reads.
+- score/stages/moved.py `rebuys`: `kept.update(paid & held)` -> `pass`  -> the TREE_EDITS phase-locked row (#107:
+  a row only re-keyed said apart from one bought again).
 - `snapshot`: `shutil.rmtree(holder)` made `pass`, or its `worktree remove` made `pass`  -> the snapshot of an unknown
   commit or a failing tree.
 """
@@ -1581,16 +1583,23 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     with toy() as repo:
         store = made(repo)
         before = snap(repo, store)
-        for case, files, table, buys, moved_now in TREE_EDITS:
+        for case, files, table, buys, moved_now, rekeyed in TREE_EDITS:
+            locked, table = table.get("locked", ()), {part: value for part, value in table.items() if part != "locked"}
+            if locked:  # the phase locked before the edit: its code-only move keeps the row as it is (#107)
+                locking = a_runner(repo, store, **table)
+                locking.lock_phase("toy-models", [(locking.stages[name], "hangar") for name in locked])
             for name, text in files.items():
                 (repo / name).write_text(text)
             if buys is not None:
-                found = rebought(repo, store, **table)
+                found, kept = rebought(repo, store, **table)
                 assert [(row.node, row.euros, row.why) for row in found["toy"]] == buys, (case, found)
-                printed, code = exit_code(main.moved_check, found)
+                assert kept == {"toy": rekeyed}, (case, kept)
+                printed, code = exit_code(main.moved_check, found, kept)
                 assert code == (moved.MOVED_EXIT if buys else 0), (case, printed)
                 assert f"about EUR {sum(euros for _, euros, _ in buys):.2f}" in printed, (case, printed)
                 assert all(f"toy {node}: EUR {euros:.2f}, {why}" in printed for node, euros, why in buys), printed
+                assert f"re-keyed only: {len(rekeyed)} paid rows" in printed and all(
+                    f"  toy {node}" in printed for node in rekeyed), (case, printed)
             found = moved.moved_rows(before, snap(repo, store, **table))
             assert moves(found) == moved_now, (case, found)
             git(repo, "checkout", "--", ".")
@@ -2122,8 +2131,9 @@ def made(repo):
 
 
 def rebought(repo, store, **table):
-    runner = a_runner(repo, store, **table)
-    return {"toy": moved.rebuys(runner, list(runner.nodes(["hangar"])))}
+    """({"toy": the paid rows `score moved` lists}, {"toy": the paid rows it says are re-keyed only})."""
+    runner, kept = a_runner(repo, store, **table), set()
+    return {"toy": moved.rebuys(runner, list(runner.nodes(["hangar"])), kept)}, {"toy": kept}
 
 
 def exit_code(call, *args):
@@ -2155,18 +2165,22 @@ def moves(found):
     return {name: (row["paid"], row["code"], row["files"]) for name, row in found.items()}
 
 
-# (case, files written over the toy's commit, the table's change, the paid rows `score moved` lists (node, euros, why),
-# the rows `score.stages.moved` finds moved): a declared file moves its paid row; a framework-only edit nothing; a free
-# row's file the paid row reading it; a table edit (a row's params here; a contract, a model or an after alike) moves
-# the row with no file of its own changed
+# (case, files written over the toy's commit, the table's change ("locked": rows phase locked before the edit), the
+# paid rows `score moved` lists (node, euros, why), the rows `score.stages.moved` finds moved, the paid rows `score
+# moved` says are only re-keyed): a declared file moves its paid row; a framework-only edit nothing; a free row's file
+# the paid row reading it; a table edit (a row's params here; a contract, a model or an after alike) moves the row with
+# no file of its own changed; a code edit of a phase-locked row moves its key and buys nothing (#107; last: its lock
+# stays in the store)
 TREE_EDITS = [
-    ("nothing changed", {}, {}, [], {}),
+    ("nothing changed", {}, {}, [], {}, set()),
     ("a file one paid row reads", {"bake.txt": "a hall's brighter light"}, {}, [("bake@hangar", 3.0, "brief changed")],
-     {"bake": (True, False, {"bake.txt": ["hangar"]})}),
-    ("a framework-only edit", {"toy_frame.py": 'WORD = "made by the framework: "\n'}, {}, [], {}),
+     {"bake": (True, False, {"bake.txt": ["hangar"]})}, set()),
+    ("a framework-only edit", {"toy_frame.py": 'WORD = "made by the framework: "\n'}, {}, [], {}, set()),
     ("a row moved through what it reads", {"draw.txt": "a hall's new plan"}, {}, [("film@hangar", 2.0, "reads draw@hangar")],
-     {"draw": (False, False, {"draw.txt": ["hangar"]})}),
-    ("a move no file explains", {}, {"bake_params": {"light": 2}}, None, {"bake": (True, True, {})}),
+     {"draw": (False, False, {"draw.txt": ["hangar"]})}, set()),
+    ("a move no file explains", {}, {"bake_params": {"light": 2}}, None, {"bake": (True, True, {})}, set()),
+    ("a phase-locked row's code edited", {"toy_render.py": RENDER_MAKE + "\nEXTRA = 1\n"}, {"locked": ("render",)}, [],
+     {"render": (True, True, {})}, {"render@hangar"}),
 ]
 
 # --- a per-take function the table keeps reads only what its key holds -------------------------------------------------

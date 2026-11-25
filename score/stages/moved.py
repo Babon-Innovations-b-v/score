@@ -33,7 +33,7 @@ import subprocess
 import sys
 import tempfile
 
-from score.graph import _code
+from score.graph import _code, node_name
 
 from score.graph import rebuy
 
@@ -165,9 +165,17 @@ def edited_into_framework(base, head=None):
     return sorted(found.stdout.split())
 
 
-def rebuys(runner, nodes):
-    """[rebuy.Buy] of every paid node among `nodes` that has an accepted output and that a drive would buy again."""
-    return [buy for buy in rebuy.buys(runner, nodes) if buy.again]
+def rebuys(runner, nodes, kept=None):
+    """[rebuy.Buy] of every paid node among `nodes` that has an accepted output and that a drive would buy again;
+    `kept`, a set given, gets each paid node among them whose key moved but which a drive keeps as it is (rebuy.KEPT:
+    a phase lock, a proof, a content carry), so `score moved` says apart what would truly change and what is only
+    re-keyed (#107)."""
+    held = set()
+    found = [buy for buy in rebuy.buys(runner, nodes, held) if buy.again]
+    if kept is not None:
+        paid = {node_name(stage, place) for stage, place in nodes if stage.paid}
+        kept.update(paid & held)
+    return found
 
 
 def total(rows_by_world):
@@ -175,12 +183,17 @@ def total(rows_by_world):
     return sum(row.euros for rows in rows_by_world.values() for row in rows)
 
 
-def listing(rows_by_world, what="paid rows with an accepted output this tree would buy again"):
-    """The lines `score moved` prints: the count and total, then each row with its price and why it moved."""
+def listing(rows_by_world, what="paid rows with an accepted output this tree would buy again", kept_by_world=None):
+    """The lines `score moved` prints: the count and total, then each row with its price and why it moved; with
+    `kept_by_world` ({world: paid nodes re-keyed only, rebuys' `kept`}), then those, which a drive keeps as they are."""
     count = sum(len(rows) for rows in rows_by_world.values())
     lines = [f"moved rows: {count} {what}, about EUR {total(rows_by_world):.2f}"]
     for world, rows in rows_by_world.items():
         lines += [f"  {world} {row.node}: EUR {row.euros:.2f}, {row.why}" for row in rows]
+    if kept_by_world is not None:
+        lines.append(f"re-keyed only: {sum(len(nodes) for nodes in kept_by_world.values())} paid rows whose key moved, "
+                     "kept as they are (a phase lock, a proof or the same content)")
+        lines += [f"  {world} {node}" for world, nodes in kept_by_world.items() for node in sorted(nodes)]
     return "\n".join(lines)
 
 

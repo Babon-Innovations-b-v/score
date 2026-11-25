@@ -1535,20 +1535,24 @@ def status_json(world, lines):
 
 
 def every_world_moved():
-    """{world: [rebuy.Buy]} of every world's re-buys against the framework store, each world's places, line nodes and
-    re-buys worked out in one still pass (Runner.still: it writes nothing to the store; the places and line nodes
-    listed outside it took 84 of the check's 161 s, 2026-11-07)."""
-    found = {}
+    """({world: [rebuy.Buy]} of every world's re-buys against the framework store, {world: {paid node re-keyed only}}
+    (moved.rebuys' `kept`, #107)), each world's places, line nodes and re-buys worked out in one still pass
+    (Runner.still: it writes nothing to the store; the places and line nodes listed outside it took 84 of the check's
+    161 s, 2026-11-07)."""
+    found, kept = {}, {}
     for name, make in sorted(stages.WORLDS.items()):
         runner = stages.runner(world=make())
+        kept[name] = set()
         with runner.still():
-            found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world, runner.store), True))
-    return found
+            found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world, runner.store), True),
+                                       kept[name])
+    return found, kept
 
 
-def moved_check(rows_by_world):
-    """Print the moved rows; exit moved.MOVED_EXIT above EUR 0."""
-    print(moved.listing(rows_by_world), flush=True)
+def moved_check(rows_by_world, kept_by_world=None):
+    """Print the moved rows, and the paid rows only re-keyed when `kept_by_world` is given; exit moved.MOVED_EXIT above
+    EUR 0."""
+    print(moved.listing(rows_by_world, kept_by_world=kept_by_world), flush=True)
     if moved.total(rows_by_world) > 0:
         sys.exit(moved.MOVED_EXIT)
 
@@ -1852,7 +1856,7 @@ def main(argv=None):
         return
     if options.command == "moved":
         signal.signal(signal.SIGTERM, stop_on_term)
-        moved_check(every_world_moved())
+        moved_check(*every_world_moved())
         return
     if options.command == "resume":
         runs.resume(options.dry, say=lambda line: print(line, flush=True))
