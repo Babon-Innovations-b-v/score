@@ -294,7 +294,7 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
             continue
         if machine is None:
             return
-        if shares.deadline and machine.get("pool"):  # the time waited on the pool is not the work's (pool.paused)
+        if shares.deadline:  # the time waited on the pool or for stock is not the work's (pool.paused; #96)
             shares.deadline = max(shares.deadline, run.deadline)
         if not tend(run, machine, kind, shares, prepare, do, at_once):
             setup_deaths += 1

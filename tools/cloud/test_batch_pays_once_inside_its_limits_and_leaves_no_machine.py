@@ -23,6 +23,8 @@ red (applied once, seen red, reverted):
   not pool_open():`.
 - stock-wait-never-past-the-deadline: in `claim_rounds`, `min(stock_wait_minutes(rounds) * 60, max(0.0, run.deadline -
   time.time()))` -> `stock_wait_minutes(rounds) * 60`.
+- stock-wait-keeps-the-job-minutes: in `claim_rounds`, drop both `pool.paused(run, left)` calls (the wait for stock
+  spends the run's deadline and the claim gives up "on 0 machines", #96).
 - stock-wait-marked-waiting: in `parked_within`, drop both `preflight.mark_waiting()` calls.
 - failed-job-is-a-gap-never-sent-again: in `collect`, `fleet.gaps(failed, ...)` -> `fleet.again([{"name": name} for
   name in failed])`.
@@ -247,10 +249,25 @@ def stock_waits(patch):
     run = types.SimpleNamespace(deadline=time.time() + 20 * 60)
     patch.setattr(batch, "claim_round", lambda *arguments: rounds.append(1) or (
         None if len(rounds) < 5 else {"machine": 1}))
-    patch.setattr(batch, "parked_within", lambda run, offers, number, kind, disk_gb, seconds: waits.append(seconds))
+    patch.setattr(batch, "parked_within",
+                  lambda run, offers, number, kind, disk_gb, seconds, left=None: waits.append(seconds))
     claimed = batch.claim_rounds(run, "account", [], 1, "pixal", 60, None)
     return {"claimed": claimed, "first waits": [round(wait / 60) for wait in waits[:3]], "waits": len(waits),
             "fourth cut to the 20 min left": 19 * 60 < waits[3] <= 20 * 60}
+
+
+def stock_wait_held(patch):
+    """claim_rounds with 12 min to its deadline on a clock each wait moves on, renting on its fifth round (after 3 + 6
+    + 12 + 12 min of no stock): what it claimed and the minutes its run still has to work after it rents."""
+    now, rounds = [1000.0], []
+    patch.setattr(time, "time", lambda: now[0])
+    run = types.SimpleNamespace(deadline=now[0] + 12 * 60)
+    patch.setattr(batch, "claim_round", lambda *arguments: rounds.append(1) or (
+        None if len(rounds) < 5 else {"machine": 1}))
+    patch.setattr(batch, "parked_within",
+                  lambda run, offers, number, kind, disk_gb, seconds, left=None: now.__setitem__(0, now[0] + seconds))
+    claimed = batch.claim_rounds(run, "account", [], 1, "pixal", 60, None)
+    return {"claimed": claimed, "minutes left": round((run.deadline - now[0]) / 60)}
 
 
 def waiting_marks(patch):
@@ -964,6 +981,10 @@ CASES = [
                                                                      for rounds in range(6)], [3, 6, 12, 24, 30, 30]),
     case("stock-wait-never-past-the-deadline", lambda here, patch: stock_waits(patch), Observed(**{
         "claimed": {"machine": 1}, "first waits": [3, 6, 12], "fourth cut to the 20 min left": True, "waits": 4}),
+         ((batch, "park_taken", lambda *arguments: None), (batch, "fresh_offers", lambda run, offers: offers))),
+    # outside a pool the wait for stock is not the run's work: its job minutes are all still there once it rents (#96)
+    case("stock-wait-keeps-the-job-minutes", lambda here, patch: stock_wait_held(patch), Observed(**{
+        "claimed": {"machine": 1}, "minutes left": 12}),
          ((batch, "park_taken", lambda *arguments: None), (batch, "fresh_offers", lambda run, offers: offers))),
     # the wait for stock is marked as one, so the runaway watch leaves it out (2026-11-05, people-clips-made)
     case("stock-wait-marked-waiting", lambda here, patch: waiting_marks(patch), Observed(**{

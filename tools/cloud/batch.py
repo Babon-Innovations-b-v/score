@@ -476,16 +476,26 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
 
 def claim_rounds(run, account, offers, number, kind, disk_gb, wanted):
     """claim's rounds: a parked machine first, else one round of offers, asked again after stock_wait_minutes (longer
-    each round, never past the run's deadline) while the run still wants one; BootFailed passes through."""
+    each round, never past the run's deadline) while the run still wants one; BootFailed passes through. The wait for
+    stock is not the run's work: its deadline is held as far ahead as when the claim began (pool.paused, as under a
+    warm pool), so a claim gives up only when the run no longer wants it, never because the zone was short (#96:
+    Batch 1's checkout 25, about 20 surfaces-bake calls ended "on 0 machines" after their 12 min went on waiting)."""
+    import pool
+
+    left = run.deadline - time.time() if getattr(run, "deadline", None) else None
     machine = (park_taken(run, offers, number, kind, disk_gb)
                or claim_round(run, account, offers, number, kind, disk_gb))
     rounds = 0
-    while machine is None and still_wanted(run, wanted):
+    while machine is None:
+        pool.paused(run, left)
+        if not still_wanted(run, wanted):
+            break
         wait = min(stock_wait_minutes(rounds) * 60, max(0.0, run.deadline - time.time()))
         rounds += 1
         say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
             f"in {wait / 60:.0f} min")
-        machine = parked_within(run, offers, number, kind, disk_gb, wait)
+        machine = parked_within(run, offers, number, kind, disk_gb, wait, left)
+        pool.paused(run, left)
         if machine is not None or not still_wanted(run, wanted):
             break
         offers = fresh_offers(run, offers)
@@ -499,18 +509,21 @@ def stock_wait_minutes(rounds):
     return min(STOCK_RETRY_MINUTES * 2 ** rounds, STOCK_RETRY_MOST_MINUTES)
 
 
-def parked_within(run, offers, number, kind, disk_gb, seconds):
+def parked_within(run, offers, number, kind, disk_gb, seconds, left=None):
     """A machine of `kind` parked within `seconds` (looked for every park.PARKED_POLL_SECONDS), taken for `run`; None
     when none came or a signal came. The run is marked waiting the whole time (preflight.mark_waiting), so its
     runaway watch leaves a wait for stock out of its minutes as it does a warm pool's (2026-11-05: people-clips-made,
-    with no pool, waited 25 min for an L4, worked 13 and was stopped at twice its forecast)."""
+    with no pool, waited 25 min for an L4, worked 13 and was stopped at twice its forecast); its deadline is held
+    `left` seconds ahead on every look when given (pool.paused)."""
     import park
+    import pool
     import preflight
 
     give_up = time.time() + seconds
     try:
         preflight.mark_waiting()
         while not STOPPING.wait(min(park.PARKED_POLL_SECONDS, max(0.0, give_up - time.time()))):
+            pool.paused(run, left)
             preflight.mark_waiting()
             machine = park_taken(run, offers, number, kind, disk_gb)
             if machine is not None or time.time() >= give_up:

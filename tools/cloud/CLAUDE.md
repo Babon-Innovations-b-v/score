@@ -436,7 +436,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   offer that is refused or out of stock for a minute (nothing billed), and spreads a run's machines over the zones. A dropped offer is dropped for one round only: a claim that finds
   nothing in stock asks every class and zone again after `stock_wait_minutes` (3, 6, 12, 24, then 30 min, never past
   the deadline; the Pixal3D fleet's wait starts again at 3 once a round rents) until its run has no work for it
-  or its deadline (2026-10-09: six of seven spread slots gave up on their first round and one L4 did all the work);
+  or its deadline (2026-10-09: six of seven spread slots gave up on their first round and one L4 did all the work),
+  the wait itself outside that deadline (`batch.claim_rounds` holds it as `pool.paused` does under a pool; #96: 2026-11-05,
+  about 20 surfaces-bake calls spent their 12 min waiting and ended "on 0 machines");
   `rent` orders nothing from an offer the backend's stock read says is out (`NO_STOCK`: shortage or parked), since
   each such order billed a disk and an address for a machine that never started (pixal@people, 2026-10-22: 438
   orders, EUR 2.19). A refused order's loose address and disk are deleted at once
