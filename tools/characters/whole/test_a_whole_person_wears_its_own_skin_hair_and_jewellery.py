@@ -1,24 +1,29 @@
 """A whole person wears its own skin, hair and jewellery: the face's body laid on the clips rig's mean body comes back
-on it point for point (scaled by height, moved along the floor, its limbs turned onto the mean's); hair grown over a
-shell that stands off the scalp is brought down onto it with its layers kept, hair inside the skin is put out to its
+on it point for point (scaled by height, moved along the floor, its limbs turned onto the mean's); a bob combed on a
+round toy head passes the hair's checks, and a root lifted off the scalp, strand points before the eyes, the crown's
+strands taken away and 400 strands gathered into one each fail theirs; hair inside the skin is put out to its
 clearance and hair outside left; a ring goes round the finger it is meant for (read off a toy hand's skin), a watch
 round its wrist with its case on the back of the wrist, a chain round the neck on its skin and moving with it; and
 `faults` names a piece pushed into the skin. Each row is one toy (no SOMA, Newton or Blender).
 
 Breaks that turn it red (each applied once, seen red, reverted): the limbs' turns left out (`posed_like_mean`
-returning its points: the toy arm 15 degrees off the mean's); the roots' gap left out of `hair_fitted` (the hair left
-standing off the scalp); the hair pushed along the nearest point's way instead of the skin's outward normal (`away`
+returning its points: the toy arm 15 degrees off the mean's); the comb's face guard left out (`direction[front]`
+not turned across: the bob falls over the toy's eyes); `bald_share` giving the covered share; roots off the scalp
+read at five times ROOT_OFF_M (the lifted root passes); the eye box read behind the eyes (the combed bob's back hair
+in it); the hair pushed along the nearest point's way instead of the skin's outward normal (`away`
 for `normals` in `pushed_out`: a point inside left inside); the ring sized off its finger's nearest skin rather than
 its farthest (`.min()` for `.max()` of the radius in `ring`: the ring inside the finger); the fingers counted from the
 thickest (`sizes[-1] < sizes[0]` turned: the ring on the middle finger); the watch's case on the wrist's front
 (`-back`); `deepest` reading only the first frame (a ring pushed in on the last frame passes); `skin_carried` carrying
 only the first frame (the chain left behind as the neck turns)."""
+import functools
+
 import numpy as np
 import pytest
 import trimesh
 
 from tools.characters import whole
-from tools.characters.whole import jewellery
+from tools.characters.whole import hair, jewellery
 
 NAMES = np.array(["Chest", "LeftArm"])
 
@@ -56,6 +61,20 @@ def toy_hand():
     return np.asarray(joined.vertices), np.asarray(joined.faces)
 
 
+@functools.lru_cache(maxsize=1)
+def toy_groom():
+    """A round head (9 cm, eyes on its front at its middle's height) and the bob combed on it with few roots: the
+    head's points, faces, eyes and the groom (counts, points, radius)."""
+    sphere = trimesh.creation.icosphere(subdivisions=5, radius=0.09)
+    points, faces = np.asarray(sphere.vertices), np.asarray(sphere.faces)
+    eyes = np.array([[0.032, 0.0, 0.07], [-0.032, 0.0, 0.07]])
+    style = {"length_m": 0.2, "wave_m": 0.0015, "wave_period_m": 0.06, "parting_m": 0.025, "parting_side": "left",
+             "fringe_side": "right"}
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(hair, "ROOTS", 6000)
+        return points, faces, eyes, hair.combed(points, faces, eyes, style)
+
+
 def tube_skin(radius, start, end, sections=48):
     """A dense tube's surface from `start` to `end` along x (points, faces)."""
     tube = trimesh.creation.cylinder(radius=radius, segment=[start, end], sections=sections)
@@ -63,7 +82,9 @@ def tube_skin(radius, start, end, sections=48):
     return np.asarray(tube.vertices), np.asarray(tube.faces)
 
 
-@pytest.mark.parametrize("case", ["laid on the mean", "hair brought onto the scalp", "hair kept out",
+@pytest.mark.parametrize("case", ["laid on the mean", "hair combed on its head", "hair rooted off the scalp",
+                                  "hair before the eyes", "hair leaving the crown bald", "hair in a clump",
+                                  "hair kept out",
                                   "ring round its finger",
                                   "watch round its wrist", "chain round the neck", "ring pushed in",
                                   "chain carried by the skin"])
@@ -125,13 +146,23 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         carried = whole.skin_carried(whole.skin_bound(points, neck, faces), frames, faces)
         assert len(carried) == 2
         assert np.abs(carried[1] - trimesh.transform_points(points, turn)).max() < 1e-3
-    if case == "hair brought onto the scalp":
-        sphere = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
-        directions = np.array([[0.0, 1.0, 0.0], [0.6, 0.8, 0.0], [-0.6, 0.8, 0.0]])
-        strands = np.concatenate([directions * radius for radius in (0.115, 0.12, 0.125)])  # root, then layers out
-        order = np.array([0, 3, 6, 1, 4, 7, 2, 5, 8])
-        fitted = whole.hair_fitted(np.array([3, 3, 3]), strands[order], np.asarray(sphere.vertices),
-                                   np.asarray(sphere.faces))
-        radii = np.linalg.norm(fitted, axis=1).reshape(3, 3)
-        assert radii[:, 0] == pytest.approx(0.1 + whole.HAIR_OFF_M, abs=5e-4)
-        assert radii[:, 2] == pytest.approx(0.1 + whole.HAIR_OFF_M + 0.01, abs=5e-4)
+    if case in ("hair combed on its head", "hair rooted off the scalp", "hair before the eyes",
+                "hair leaving the crown bald", "hair in a clump"):
+        head, faces, eyes, combed = toy_groom()
+        counts, points = combed[0], combed[1].copy()
+        strands = points.reshape(len(counts), -1, 3)
+        if case == "hair rooted off the scalp":
+            strands[0] += [0.0, 0.0, 0.004]
+        if case == "hair before the eyes":
+            strands[1, -4:] = eyes[0] + [0.0, 0.0, 0.01]
+        if case == "hair leaving the crown bald":
+            strands = strands[strands[:, 0, 1] < 0.07]
+        if case == "hair in a clump":
+            strands[:400] = strands[0] + np.random.default_rng(0).normal(0.0, 0.0003, (400, 1, 3))
+        counts = np.full(len(strands), strands.shape[1])
+        found = hair.measured(counts, strands.reshape(-1, 3), head, faces, eyes)
+        named = {"hair combed on its head": "", "hair rooted off the scalp": "roots off the scalp",
+                 "hair before the eyes": "in front of the eyes", "hair leaving the crown bald": "bald",
+                 "hair in a clump": "clump"}[case]
+        lines = hair.faults(found)
+        assert (lines == []) if not named else any(named in line for line in lines), (found, lines)

@@ -14,13 +14,12 @@ the bones fitted to the made person). The skin is carried there as one:
   skinned from the mean's bind onto the build's: the body the garments are draped on, its shoes fitted on, drawn;
 - `head_carried`: the face's other pieces (eyes, teeth, mouth, tears, brows, lashes) and the hair, moved by the Head
   joint alone, as the head's skin is (its weights all the Head's);
-- `hair_fitted`: the hair grown on the made person's shell (groom.py, Blender's Z up, mirrored in x: `GROOM_TO_RIG`)
-  brought down onto this scalp by the gap its roots stand over it, then (`pushed_out`, each drawn frame) every
-  strand point kept `HAIR_OFF_M` out of the skin and, over the brows, `BROW_CLEAR_M` past the brows' hair, so no
-  strand runs through the skin or under a brow hair.
+- the hair is combed on this head's own scalp at the build's bind (`hair.py`), then each drawn frame (`pushed_out`)
+  every strand point is kept `HAIR_OFF_M` out of the skin and, over the brows, `BROW_CLEAR_M` past the brows' hair, so
+  no strand runs through the skin or under a brow hair.
 
 A fault fails the run (`faults`): skin points whose nearest low-body triangle is further than `BIND_LIMIT_M` (the skin
-is not this body's); the jewellery's own (`jewellery.faults`).
+is not this body's); the hair's own (`hair.faults`) and the jewellery's (`jewellery.faults`).
 """
 import numpy as np
 import trimesh
@@ -31,12 +30,7 @@ SEGMENT_WEIGHT = 0.9  # a low-body point carried this much by one joint is that 
 SCALE_BY = "height"  # the identity is scaled to the clips rig's mean height (the build's bones are fitted to that)
 BIND_LIMIT_M = 0.03  # a skin point further than this from the low body is not the same body's
 HAIR_OFF_M = 0.002  # a hair point is kept this far outside the skin
-ROOT_NEIGHBOURS = 8  # the roots whose gap over the scalp a hair point is brought down by
 BROW_CLEAR_M = 0.002  # and this far past the brows' hair over the brows
-# The made shell's hair (groom.py, Blender Z up) in the rig's frame (Y up): Blender's z is the rig's y, Blender's y
-# the rig's z and its x the rig's -x (the made person's glTF read mirrored). Read off the groom: 4 mm median off the
-# shell this way, 50 mm the plain Z-up turn (2026-11-24).
-GROOM_TO_RIG = np.array([[-1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
 
 
 def laid(low_points, mean_points, trunk=None):
@@ -133,11 +127,6 @@ def head_carried(points, moves):
     return np.einsum("fij,pj->fpi", moves, homogeneous)[..., :3]
 
 
-def hair_in_rig(groom_points):
-    """The groom's points (Blender's Z up, the made shell's frame) in the rig's frame (Y up)."""
-    return np.asarray(groom_points, float) @ GROOM_TO_RIG.T
-
-
 def pushed_out(points, skin_points, skin_faces, clear):
     """Each point kept at least `clear` (m, one a point) outside the skin along its nearest triangle's outward normal
     (the skin is open at the eyes and mouth, so inside is read off that normal, not a closed volume): the moved points,
@@ -165,23 +154,6 @@ def faults(skin):
         return [f"skin not this body's: a point {most * 1000.0:.1f} mm off the low body (limit "
                 f"{BIND_LIMIT_M * 1000.0:.0f})"]
     return []
-
-
-def hair_fitted(counts, points, skin_points, skin_faces):
-    """The groom (grown over the made shell, which stands over the scalp by the hair's volume: her roots 16 mm off
-    her skin at the median, 42 mm at the 90th, 2026-11-24) brought onto this head: every point's height off the skin
-    less the gap its nearest roots stand at (the mean of ROOT_NEIGHBOURS), never under HAIR_OFF_M, along its nearest
-    skin's outward normal; the layers keep their order and the roots sit on the scalp."""
-    from scipy.spatial import cKDTree
-    mesh = trimesh.Trimesh(skin_points, skin_faces, process=False)
-    roots = np.concatenate([[0], np.cumsum(counts)[:-1]])
-    root_on, root_off, _ = closest(mesh, points[roots])
-    nearest, _, triangle = closest(mesh, points)
-    normals = mesh.face_normals[triangle]
-    height = np.einsum("pi,pi->p", points - nearest, normals)
-    _, neighbours = cKDTree(root_on).query(nearest, k=min(ROOT_NEIGHBOURS, len(roots)))
-    gap = root_off[neighbours].mean(axis=1)
-    return nearest + normals * np.maximum(height - gap + HAIR_OFF_M, HAIR_OFF_M)[:, None]
 
 
 def skin_bound(points, skin_points, skin_faces):

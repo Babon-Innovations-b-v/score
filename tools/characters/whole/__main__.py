@@ -1,5 +1,5 @@
 """python -m tools.characters.whole <outfit.json> --dressed <garments run folder> --clip <clip> --face <face.npz>
---face-body <body.npz> --groom <groom bind usd> --style <its style json> --frame <clip frame> --name <pose> --out
+--face-body <body.npz> --style <its hair style json> --frame <clip frame> --name <pose> --out
 <folder>: the whole person (the package docstring) at one clip frame of a dressed run (`python -m
 tools.characters.garments ... --face`), drawn from the front, the back, both sides and three quarters (render.py,
 Blender through this PC's card queue); its measures and faults in <out>/<pose>-measures.json, the run failing on a
@@ -14,6 +14,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from tools.characters import garments, whole
+from tools.characters.whole import hair as strands
 from tools.characters.whole import jewellery
 
 VIEWS = {"front": 0.0, "three_quarter": 35.0, "left": 90.0, "back": 180.0, "right": 270.0}
@@ -82,16 +83,6 @@ def face_pieces(face, skin, moves, lift):
     return found
 
 
-def groom_read(usd):
-    """The groom at its bind (groom.py's, written by basis_curves.py): counts, points (the rig's frame), radius."""
-    from pxr import Usd, UsdGeom
-    stage = Usd.Stage.Open(str(usd))  # held: a prim of a stage let go is invalid
-    curves = UsdGeom.BasisCurves(stage.GetPrimAtPath("/Groom/Hair"))
-    return (np.asarray(curves.GetCurveVertexCountsAttr().Get(), np.int64),
-            whole.hair_in_rig(np.asarray(curves.GetPointsAttr().Get(), float)),
-            np.asarray(curves.GetWidthsAttr().Get(), float) / 2.0)
-
-
 def head_region(body, skin_points, head_y):
     """The skin's triangles from HEAD_ABOVE_M under the Head joint up: what the hair is kept off."""
     faces = np.asarray(body["faces"])
@@ -99,14 +90,11 @@ def head_region(body, skin_points, head_y):
 
 
 def hair_laid(groom, body, frame, skin_points, brows, head_y):
-    """The hair at `frame` (an index of the body's `worlds`): brought onto the scalp at the build's bind
-    (`whole.hair_fitted`), carried by the head, every point kept HAIR_OFF_M out of the skin and those near a brow
-    hair BROW_CLEAR_M past the brows; (points, the most a point was short of its clearance then, m)."""
-    counts, points, _ = groom
-    names = [str(name) for name in body["names"]]
-    head = names.index("Head")
-    bind_region = head_region(body, np.asarray(body["bind"]), float(np.asarray(body["joints"])[head, 1, 3]))
-    points = whole.hair_fitted(counts, points, np.asarray(body["bind"]), bind_region)
+    """The hair combed at the build's bind (`hair.combed`) at `frame` (an index of the body's `worlds`): carried by
+    the head, every point kept HAIR_OFF_M out of the skin and those near a brow hair BROW_CLEAR_M past the brows;
+    (points, the most a point was short of its clearance then, m)."""
+    points = groom[1]
+    head = [str(name) for name in body["names"]].index("Head")
     move = np.asarray(body["worlds"])[frame, head] @ np.linalg.inv(np.asarray(body["joints"])[head])
     points = points @ move[:3, :3].T + move[:3, 3]
     region = head_region(body, skin_points, head_y)
@@ -232,8 +220,7 @@ def main():
     parser.add_argument("--clip", default="walking")
     parser.add_argument("--face", required=True)
     parser.add_argument("--face-body", required=True)
-    parser.add_argument("--groom", required=True)
-    parser.add_argument("--style", required=True, help="the groom's style (data/people/hair/<look>.json)")
+    parser.add_argument("--style", required=True, help="the hair's style (data/people/hair/<look>.json)")
     parser.add_argument("--frame", type=int, default=0, help="the clip frame drawn")
     parser.add_argument("--name", required=True)
     parser.add_argument("--out", required=True)
@@ -259,11 +246,14 @@ def main():
     moves = np.asarray(body["worlds"])[at, head] @ np.linalg.inv(np.asarray(whole.clips_bind())[head])
     pieces.update(face_pieces(face, skin, moves, lift))
     skin_points = np.asarray(body["frames"])[at]
-    groom = groom_read(given.groom)
+    style = json.loads(pathlib.Path(given.style).read_text())
+    eyes = eyes_at(face, skin, body)
+    groom = strands.combed(np.asarray(body["bind"]), np.asarray(body["faces"]), eyes, style)
+    hair_found = strands.measured(*groom[:2], np.asarray(body["bind"]), np.asarray(body["faces"]), eyes)
     brows = {"points": pieces["brows"]["points"] - [0.0, lift, 0.0]}
     hair, short = hair_laid(groom, body, at, skin_points, brows, float(np.asarray(body["worlds"])[at, head, 1, 3]))
     pieces["hair"] = {"counts": groom[0], "points": hair + [0.0, lift, 0.0], "radius": groom[2],
-                      "surfaces": [json.loads(pathlib.Path(given.style).read_text())["library"]]}
+                      "surfaces": [style["library"]]}
     worn, found = jewels(outfit, body, face, skin, start, count, at)
     for name, piece in worn.items():
         piece["points"] = piece["points"] + [0.0, lift, 0.0]
@@ -271,8 +261,8 @@ def main():
     measures = {"skin off its low body mm": {"most": round(float(skin["off"].max()) * 1000.0, 1),
                                               "99th": round(float(np.percentile(skin["off"], 99)) * 1000.0, 1)},
                 "scale": round(skin["scale"], 5), "hair moved out most mm": round(short * 1000.0, 2),
-                "jewellery": found}
-    faults = whole.faults(skin) + found.get("faults", [])
+                "hair": hair_found, "jewellery": found}
+    faults = whole.faults(skin) + strands.faults(hair_found) + found.get("faults", [])
     measures["faults"] = faults
     (out / f"{given.name}-measures.json").write_text(json.dumps(measures, indent=1))
     scene = scene_file(pieces, given.name, out / f"{given.name}-scene.npz", garment_names)
@@ -282,4 +272,5 @@ def main():
         raise SystemExit("the whole person has faults:\n" + "\n".join(faults))
 
 
-main()
+if __name__ == "__main__":  # imported by tests and tools for its pieces, never run then
+    main()
