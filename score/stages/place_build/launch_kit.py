@@ -12,6 +12,8 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
   seamless barrel with `ring` 0), an ogive nose with its black heat-shield tip and the black band under it, two
   forward flaps (canards, `fore` metres out) on the nose and two aft flaps (`aft` out, `aft_chord` along the hull) at
   its foot, a skirt and its engine bells; parts hull, seam (only with seams), tiles, flap, engine.
+- `ship_trim`: a ship's paint scheme and panel work laid over it at its own pose: weld seam rings and vertical panel
+  lines, the raceway's long fairing, marking bands and a marking panel; parts seam, raceway, marking.
 - `launch_ring`: the round launch mount: a ring on slanted legs over a round plinth, its clamps, hoses down to the
   deck and orange-lit hardware boxes round its rim; parts ring, leg, plinth, clamp, hose, glow.
 - `lattice`: a square tower's straight X-bracing, bay over bay on its four faces between its corner posts, with a
@@ -131,6 +133,51 @@ def ship(radius=3.74, high=54.0, nose=13.5, ring=2.0, segments=96, engines=6, fo
     found += stood(turned("hull", [(skirt - 0.4, 0.0), (skirt, 0.0), (skirt, foot + 0.05), (skirt - 0.4, foot + 0.05),
                                    (skirt - 0.4, 0.0)], segments=segments))
     return moved(found, None, (0.0, 0.0, 0.0))
+
+
+TRIM_SINK = 0.03  # metres a trim reaches in under the hull's face, so it shares no face with the hull
+TRIM_CLEAR = 14.0  # degrees either side of a flap's line (x) and the raceway kept free of stringers
+
+
+def ring_band(part, radius, low, high, proud, segments):
+    """A closed ring standing `proud` metres out of a barrel of `radius` from `low` to `high` (sunk TRIM_SINK in)."""
+    inside, outside = radius - TRIM_SINK, radius + proud
+    return stood(turned(part, [(inside, low), (outside, low), (outside, high), (inside, high), (inside, low)],
+                        segments=segments))
+
+
+def on_hull(part, radius, angle, wide, low, high, proud):
+    """A straight closed strip `wide` across, standing `proud` out of a barrel of `radius` at `angle` degrees round
+    from +x towards +z, from `low` to `high` (sunk TRIM_SINK in; a strip this narrow lies on the curve)."""
+    strip = box(part, (radius - TRIM_SINK, low, -wide / 2), (radius + proud, high, wide / 2), 0.004)
+    return moved(strip, about("y", -angle))
+
+
+def ship_trim(radius=4.5, foot=1.4, shoulder=35.5, ring=2.4, stringers=16, raceway=90.0, segments=96,
+              bands=(4.2, 31.0), patch=(120.0, 20.0, 2.6, 1.6)):
+    """A ship's paint scheme and panel work (2099 #161, the owner on the pad's plain white ship: "yuck"), laid over a
+    `ship` of the same `radius`, `foot` and `shoulder` (its nose's foot) at the ship's own pose: a weld seam ring every
+    `ring` metres up the barrel and `stringers` vertical panel lines round it (part seam, never on a flap's line, x,
+    or the raceway), the raceway's long fairing at `raceway` degrees round from +x towards +z (part raceway), a marking
+    band round the barrel at each height of `bands` and a marking panel (`patch`: degrees round, its middle's height,
+    its height, its width) (part marking). Each is a closed solid sunk TRIM_SINK under the hull's face."""
+    found = []
+    barrel_low, barrel_high = foot + 0.9, shoulder - 1.2  # the barrel's straight run (its flare and the black band off)
+    height = foot + 0.8 + ring
+    while ring > 0 and height < barrel_high:
+        found += ring_band("seam", radius, height - 0.035, height + 0.035, 0.014, segments)
+        height += ring
+    for number in range(stringers):
+        angle = 360.0 * (number + 0.5) / stringers
+        if min(abs((angle - away + 180.0) % 360.0 - 180.0) for away in (0.0, 180.0, raceway)) < TRIM_CLEAR:
+            continue
+        found += on_hull("seam", radius, angle, 0.05, barrel_low, barrel_high, 0.01)
+    found += on_hull("raceway", radius, raceway, 0.42, foot + 2.0, shoulder - 1.6, 0.22)
+    for middle in bands:
+        found += ring_band("marking", radius, middle - 0.3, middle + 0.3, 0.02, segments)
+    around, middle, high, wide = patch
+    found += on_hull("marking", radius, around, wide, middle - high / 2, middle + high / 2, 0.025)
+    return found
 
 
 def launch_ring(outer=6.2, inner=3.4, top=6.0, thick=1.3, legs=6, clamps=12, hoses=3):
@@ -645,7 +692,8 @@ def hatch_band(radius_at, low, high, around, sill, rows, thick=0.05, segments=96
     return thickened("hull", front, lambda keys: placed(keys, 0.0), lambda keys: placed(keys, thick))
 
 
-KINDS = {"ship": ship, "launch_ring": launch_ring, "lattice": lattice, "railing": railing, "flood_head": flood_head,
+KINDS = {"ship": ship, "ship_trim": ship_trim, "launch_ring": launch_ring, "lattice": lattice, "railing": railing,
+         "flood_head": flood_head,
          "ferris_wheel": ferris_wheel, "skyscraper": skyscraper, "mound": mound, "ferry": ferry,
          "water": water, "coast": coast, "door_wall": door_wall}
 
