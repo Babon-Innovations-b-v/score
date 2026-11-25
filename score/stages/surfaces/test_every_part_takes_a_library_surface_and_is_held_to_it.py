@@ -249,12 +249,13 @@ tests it turned red:
 - route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
   REGIONS, seed=seed, minit="++")[0]`  -> every_part_takes_a_library_surface_and_is_held_to_it (its red among
   greys and rust)
-- route_views.py merged_centres: `+ 2e3 * (centre_groups[:, None] != centre_groups[None]))` -> `)`, or
+- route_views.py merged_centres: `+ 1e3 * (centre_groups[:, None] != centre_groups[None])` -> `+ 0`, or
   colour_regions `if (every_group > 0).mean() < PIECE_SHARE:` -> `if True:`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its board's grey underside and its legs' grey, #174)
-- route_views.py merged_centres: `last = apart + 1e3 * two_materials(centres, counts)` -> `last = apart`  ->
+- route_views.py merged_centres: `+ 2e3 * two_materials(centres, counts))` -> `)`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its slate body and grey battery among shading ramps and
-  accents: merged into one region under seeds 8 and 11, #202)
+  accents: merged into one region under seeds 8 and 11, #202); and, apart, its `1e3` and `2e3` swapped -> the same
+  test (its nine materials over two pieces: a material of the main piece merged before the grey on both, #174)
 - route_split.py voted_finishes: `joined[held] = own[held]` dropped -> every_part_takes_a_library_surface_and_is_held_
   to_it (its HELD_ISLANDS row of a hub the views agree on: joined into the tyre round it, #202)
 - route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
@@ -2402,6 +2403,16 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert (found[20000] != found[-1]) == (groups is not None), (seed, groups, found[[20000, -1]])
         assert groups is None or not np.isin(found[:26000], found[26000:]).any(), seed
         assert groups is None or sorted(set(region_groups)) == [0, 1], (seed, region_groups)
+    # nine materials over two pieces, one over the cap (#174): the main piece's five (a grey and four hues) and the
+    # rest's four (the same grey and three hues), each a ninth of the pixels; the one grey on both pieces merges, never
+    # two materials of one piece
+    hues = [[128, 128, 128], [200, 40, 40], [40, 160, 60], [40, 70, 200], [220, 200, 40],
+            [128, 128, 128], [40, 200, 200], [200, 50, 200], [240, 140, 30]]
+    lab = route_cast.lab_of(np.array(hues, dtype=np.uint8))
+    merged, merged_groups = route_views.merged_centres(np.repeat(lab, 1000, axis=0), lab.copy(),
+                                                       (np.repeat(np.r_[[0] * 5, [1] * 4], 1000), np.r_[[0] * 5, [1] * 4]))
+    assert len(merged) == route_views.REGIONS and all(np.linalg.norm(merged - colour, axis=1).min() < 1e-6
+                                                      for colour in lab), (merged, merged_groups)
     # the list, split and parts rows on the two boxes, each world's batches faked (LISTED)
     worlds = {}
     for case, (colours, answer, again, takes, laid), (asks, used, again_words, past_views, last_words), \

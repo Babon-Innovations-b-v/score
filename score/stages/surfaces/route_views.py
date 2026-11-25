@@ -148,16 +148,17 @@ def merged_centres(every, centres, groups):
     """(`centres` and their piece groups) with the groups of fewer than ACCENT_LEAST of `every`'s pixels dropped
     (their pixels go to the nearest group left), then the two nearest merged (weighed by their pixels) until REGIONS
     are left: shading steps of one colour lie close and merge first, a colour far from the rest keeps its own region
-    however small, two materials (two_materials) merge only when no other two groups are left, and two of other piece
-    groups (`groups`: each pixel's and each centre's, colour_regions) last of all."""
+    however small, two of other piece groups (`groups`: each pixel's and each centre's, colour_regions) only when no
+    other two groups are left, and two materials (two_materials) last of all, so the one colour on two pieces merges
+    before a piece loses one of its materials (#174)."""
     every_group, centre_groups = groups
     counts = np.bincount(assigned(every, every_group, centres, centre_groups), minlength=len(centres)).astype(float)
     kept = counts >= min(ACCENT_LEAST, counts.max())
     centres, counts, centre_groups = centres[kept], counts[kept], centre_groups[kept]
     while len(centres) > REGIONS:
         apart = np.linalg.norm(centres[:, None] - centres[None], axis=-1) + np.diag(np.full(len(centres), np.inf))
-        last = (apart + 1e3 * two_materials(centres, counts)  # 1000: past any two CIELAB colours' distance
-                + 2e3 * (centre_groups[:, None] != centre_groups[None]))
+        last = (apart + 1e3 * (centre_groups[:, None] != centre_groups[None])  # 1000: past any two CIELAB colours'
+                + 2e3 * two_materials(centres, counts))  # distance; two materials after every piece group merge
         first, second = np.unravel_index(last.argmin(), apart.shape)
         centres[first] = (centres[first] * counts[first] + centres[second] * counts[second]) \
             / (counts[first] + counts[second])
