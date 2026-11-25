@@ -15,6 +15,11 @@ changes, each for the pad's rocket (place/pad@10's `rocket`, 48 m high, its hull
   scale left as it was;
 - the foot's ring round this hull: 4.6 to 5.2 m out (the record's 0.6 m band), 0.257 of its height tall, its middle
   0.146 of its height over the foot, as the record stood it;
+- round 2 (2026-11-26), the game's pictures against the footage: the record's puffs (0.6 and 1.0 m before scaling, at
+  0.08 and 0.06 opacity, the vent's speed 2 to 3 m/s) drew a faint mottled veil on the hull where the footage shows a
+  bright white cloud, so the puffs are 1.4 and 2.0 m, 0.16 and 0.14 opaque, the vent's jet 3 to 5 m/s living 9 s and
+  the foot's vapour 1.0 to 2.6 m/s, each still inside every footage check (the vent's cloud about 0.33 of the rocket
+  long, the foot's reaching about 0.45 out);
 - looped, not let out once from 12 s before the stage to lift-off: the footage's boil-off goes on through the whole
   countdown (nasa-DSCOVR-blog), and the game stops the emitters at ignition.
 """
@@ -61,11 +66,11 @@ SOURCES = {
                     "and is topped up to the last moments"}}
 LICENCE = "NASA photographs (not copyrighted in the United States) and a CC0 photograph, used only as measurements."
 LOX = {"name": "lox_vent", "kind": "cryogenic_vent", "look": "puff", "card": "plain", "placement": {},
-       "emitter": {"shape": "sphere", "radius": 0.1 * SCALE}, "count": 20000, "lifetime": 7.0,
-       "direction": [1.0, -0.6, 0.0], "spread": 14.0, "speed": [2.0 * SCALE, 3.0 * SCALE],
-       "damping": [0.3 * SCALE, 0.5 * SCALE], "gravity": [0.0, -0.3 * SCALE, 0.0], "size": 0.6 * SCALE,
+       "emitter": {"shape": "sphere", "radius": 0.1 * SCALE}, "count": 20000, "lifetime": 9.0,
+       "direction": [1.0, -0.6, 0.0], "spread": 14.0, "speed": [3.0 * SCALE, 5.0 * SCALE],
+       "damping": [0.3 * SCALE, 0.5 * SCALE], "gravity": [0.0, -0.3 * SCALE, 0.0], "size": 1.4 * SCALE,
        "scale": [0.7, 1.4], "size_over_life": [[0.0, 0.4], [0.3, 2.0], [1.0, 5.0]], "colour": "#eef2f6",
-       "opacity": 0.08, "opacity_over_life": [[0.0, 0.0], [0.05, 1.0], [0.6, 0.6], [1.0, 0.0]],
+       "opacity": 0.16, "opacity_over_life": [[0.0, 0.0], [0.05, 1.0], [0.6, 0.6], [1.0, 0.0]],
        "turbulence": {"strength": 0.5, "scale": 0.3, "influence": [0.005, 0.02]}, "near_fade": [1.0, 6.0],
        "space": "world", "seed": 701,
        "from": "footage: NHQ202302270024, commons-CRS-5-16512101410, nasa-DSCOVR-blog (the liquid oxygen boiling off "
@@ -75,9 +80,9 @@ LOX = {"name": "lox_vent", "kind": "cryogenic_vent", "look": "puff", "card": "pl
 FOOT = {"name": "foot_vapour", "kind": "cryogenic_vent_foot", "look": "puff", "card": "plain", "placement": {},
         "emitter": {"shape": "ring", "radius": FOOT_RING[0], "inner": FOOT_RING[1], "height": FOOT_RING[2]},
         "count": 16000, "lifetime": 12.0, "direction": [1.0, 0.0, 0.0], "spread": 180.0, "flatness": 0.6,
-        "speed": [0.4 * SCALE, 1.2 * SCALE], "damping": [0.02 * SCALE, 0.05 * SCALE],
-        "gravity": [0.0, -0.05 * SCALE, 0.0], "size": 1.0 * SCALE, "scale": [0.7, 1.4],
-        "size_over_life": [[0.0, 0.5], [0.3, 2.5], [1.0, 5.0]], "colour": "#eef2f6", "opacity": 0.06,
+        "speed": [1.0 * SCALE, 2.6 * SCALE], "damping": [0.02 * SCALE, 0.05 * SCALE],
+        "gravity": [0.0, -0.05 * SCALE, 0.0], "size": 2.0 * SCALE, "scale": [0.7, 1.4],
+        "size_over_life": [[0.0, 0.5], [0.3, 2.5], [1.0, 5.0]], "colour": "#eef2f6", "opacity": 0.14,
         "opacity_over_life": [[0.0, 0.0], [0.05, 1.0], [0.7, 0.6], [1.0, 0.0]],
         "turbulence": {"strength": 0.4, "scale": 0.15, "influence": [0.02, 0.06]}, "near_fade": [1.0, 6.0],
         "space": "world", "seed": 702,
