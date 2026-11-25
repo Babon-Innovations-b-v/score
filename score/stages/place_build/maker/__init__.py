@@ -47,7 +47,7 @@ ENV = "envs/trellis2"  # under PROPS_HOME: setup.sh's
 SAMPLES = 20000  # surface points a fit and a grade read
 CARD_GB = 13.5  # TRELLIS.2's card share: the queue's whole card (card_queue.BUDGET_GB). generate.py's allocator may
 # take the card's free memory (generate.capped); a printer box measured 13.15 GB with the lean decoders (#169)
-MEMORY = "20G"  # its RAM cap (the test: 16.2 GB at the most)
+MEMORY = "16G"  # its RAM cap and queue claim: 11.0 GB at the most, each flow model read on use (#159, the toaster)
 SOURCE = "trellis2"  # score_lib config/sources.toml
 
 

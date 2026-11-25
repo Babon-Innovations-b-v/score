@@ -40,7 +40,11 @@ SEE_THROUGH = 0.01  # the share of its voxels see-through that makes a model gla
 # shaded from (bake.seamed), never shown. Cut to FACES whatever the model's own faces (a 20k-face toaster still shades
 # from the seams 500k faces hold); its own texture is never read, so it is drawn at DECODED_TEXTURE and left out.
 DECODED_TEXTURE = 256
-# 1024_cascade never uses the 512 texture flow model, so it is not loaded (2.6 GB of RAM).
+# 1024_cascade never uses the 512 texture flow model, so it is not loaded (2.6 GB of RAM). The DROPPED flow models are
+# each read from its checkpoint when its stage first asks for it (OnUse) and dropped after it, so a make holds about one
+# in RAM, not all four (#159, 2026-11-25: 15.7 GB at the most with all read at once, 11.0 GB read on use, the toaster's
+# make 95.5 s against 92.7). Two makes side by side were slower, not faster (the four: 2 to 3 times each one's time
+# alone, each held at its memory cap), so a make has the card to itself.
 MODELS = ["sparse_structure_decoder", "sparse_structure_flow_model", "shape_slat_decoder", "shape_slat_flow_model_512",
           "shape_slat_flow_model_1024", "tex_slat_decoder", "tex_slat_flow_model_1024"]
 DROPPED = ("sparse_structure_flow_model", "shape_slat_flow_model_512", "shape_slat_flow_model_1024",
@@ -156,20 +160,46 @@ def unfilled(load):
     return built
 
 
+class OnUse(dict):
+    """TRELLIS.2's models: those held, and each of `paths` (DROPPED) read by `load` when a stage first asks for it,
+    torch's random state kept round the read (the seeded sampling draws as if every model were read before), set to
+    drop itself after its stage (its `cpu` to the meta device)."""
+
+    def __init__(self, held, paths, load):
+        super().__init__(held)
+        self.paths, self.load = paths, load
+
+    def __contains__(self, key):
+        return key in self.paths or super().__contains__(key)
+
+    def __missing__(self, key):
+        import torch
+        if key not in self.paths:
+            raise KeyError(key)
+        with torch.random.fork_rng(devices=[torch.cuda.current_device()] if torch.cuda.is_available() else []):
+            model = self.load(self.paths[key])
+        model.eval()
+        model.cpu = types.MethodType(lambda self: self.to("meta"), model)
+        self[key] = model
+        return model
+
+
 def loaded(env):
-    """The pipeline on the card, its flow models set to drop themselves after their stage."""
+    """The pipeline on the card, its held models (MODELS less DROPPED) read now, each DROPPED one when its stage asks
+    (OnUse), dropped after it."""
     import trellis2.models
     from trellis2.pipelines import Trellis2ImageTo3DPipeline
     import trellis2.pipelines.rembg as rembg_module
     trellis2.models.from_pretrained = unfilled(trellis2.models.from_pretrained)
     rembg_module.BiRefNet = lambda **kwargs: None  # never loaded: the picture's alpha is the cut-out
     weights = env / "weights"
-    Trellis2ImageTo3DPipeline.model_names_to_load = MODELS
-    pipeline = Trellis2ImageTo3DPipeline.from_pretrained(str(weights / "TRELLIS.2-4B"), local_pipeline(weights))
+    Trellis2ImageTo3DPipeline.model_names_to_load = [name for name in MODELS if name not in DROPPED]
+    root = weights / "TRELLIS.2-4B"
+    pipeline = Trellis2ImageTo3DPipeline.from_pretrained(str(root), local_pipeline(weights))
     pipeline.cuda()
-    for key in DROPPED:
-        model = pipeline.models[key]
-        model.cpu = types.MethodType(lambda self: self.to("meta"), model)
+    listed = pipeline._pretrained_args["models"]
+    pipeline.models = OnUse(pipeline.models, {name: str(root / listed[name]) for name in DROPPED},
+                            trellis2.models.from_pretrained)
     return pipeline
 
 

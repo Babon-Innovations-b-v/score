@@ -106,8 +106,9 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: in `blocks`, drop `or now - waiter["since"] >= BACKFILL_SECONDS` -> the MOSS claim is passed for ever; or
   return True for the same rank -> the Blender claims wait behind MOSS again; or drop `and could_fit(waiter, held)`
   -> the likeness claim waits behind segment for ever.
-  A session's own card lock (SCORE_CARD_LOCK) is held by `run` for its job alone. Break: `run` calls `shared_run`
-  without `with session_lock():` -> the job starts while the other session holds the lock.
+  A session's own card lock (SCORE_CARD_LOCK) is held by `run` for its job alone, shared among the queue's own jobs.
+  Break: `run` calls `shared_run` without `with session_lock():` -> the job starts while the other session holds the
+  lock; LOCK_SH -> LOCK_EX in `session_lock` -> the second look waits behind the first.
   Break: read `BUDGET_GB` as the constant 13.5 again -> the rented card's 78 GB is capped at this PC's; or
   `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
   the side job starts before the waiting env-run claim; or drop `"film": 1` from `RANK` -> a run frozen before the rename
@@ -608,6 +609,9 @@ ASKS = [
         ("sized", {"SCORE_CARD_BUDGET_GB": "78", "SCORE_CARD_DESKTOP_GB": "0"}, ["78.0", "0.0"])]),
     # n25, 2026-11-25: a flock over a whole bench phase kept the card waiting 10,078 s for 93 s of card work
     ("a session's own card lock is held for each queued job alone", [("session lock", "make")]),
+    # two queued jobs that fit together, each holding the session lock: shared, it keeps neither waiting
+    ("the session lock is shared among the queue's own jobs", [
+        ("run", "look-a", 6), ("run", "look-b", 6), ("end", "look-a"), ("end", "look-b")]),
     # round 38, 2026-10-31: sim body's 3 GB and one Blender claim's 9.7 GB held 12.7 of 13.5 GB; a MOSS claim (10 GB)
     # waited first, and two more Blender claims, which join their group's held share and add no card, waited behind it
     # while the card stood nearly idle
@@ -879,10 +883,11 @@ def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_
         elif kind == "run":
             noted = tmp_path / f"{step[1]}.starts"
             command = f"import os, sys; open({str(noted)!r}, 'a').write(f'{{os.getpid()}}\\n'); sys.stdin.read()"
-            runs[step[1]] = subprocess.Popen(
+            runs[step[1]] = subprocess.Popen(  # every run holds one session lock: shared, it orders none of them
                 [sys.executable, card_queue.__file__, "run", "--job", step[1], "--card-gb", str(step[2]), "--",
                  sys.executable, "-c", command],
-                stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
+                stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder),
+                                            "SCORE_CARD_LOCK": str(tmp_path / "shared.lock")})
             request.addfinalizer(runs[step[1]].kill)  # a red run leaves no queue runner behind
             assert until(lambda: noted.exists() and f"held {step[1]}" in card_queue.status()), where
         elif kind == "session lock":

@@ -64,7 +64,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   normals -> the inside-out cube stays inside out; repair.facing_normals: no normal set to its faces' -> the five
   normals turned into the cubes stay turned (#159: the printer box's black holes); generate.unfilled (#159): the
   unread-weight refusal dropped -> a checkpoint missing 0.bias builds; the fills not given back -> torch's fills after it
-  are the stand-ins (where torch is); glb.with_views: a view it does not replace left where it was ->
+  are the stand-ins (where torch is); generate.OnUse: its read outside torch.random.fork_rng -> the seeded draws after
+  it change; its cpu not to the meta device -> the flow model stays in RAM after its stage; glb.with_views: a view it does not replace left where it was ->
   the second image's bytes read back wrong
 """
 import importlib.util
@@ -552,6 +553,19 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
         raise AssertionError("a checkpoint missing a weight was built unfilled")
     except SystemExit as why:
         assert "0.bias" in str(why), why
+
+    def drawing_load(path):  # a model whose making draws from torch's generator, as a stand-in for any that might
+        torch.rand(3)
+        return torch.nn.Linear(2, 2)
+    held = {"decoder": torch.nn.Linear(1, 1)}
+    on_use = generate.OnUse(held, {"flow": "flow.safetensors"}, drawing_load)
+    torch.manual_seed(42)
+    expected = torch.rand(4)
+    torch.manual_seed(42)
+    assert "flow" in on_use and "flow" not in dict(on_use) and not on_use["flow"].training
+    assert torch.equal(torch.rand(4), expected)  # read on use, the seeded draws as if it were read before
+    on_use["flow"].cpu()
+    assert next(on_use["flow"].parameters()).device.type == "meta" and set(on_use) == {"decoder", "flow"}
     coords = torch.tensor(random.integers(0, 50, (40, 3)), dtype=torch.int32)
     signs = torch.tensor(random.integers(-1, 2, (40, 3)), dtype=torch.int32)
     table = remesh.tables("cpu")

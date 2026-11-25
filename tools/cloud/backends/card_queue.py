@@ -397,16 +397,17 @@ def stop(child):
 
 @contextlib.contextmanager
 def session_lock():
-    """SCORE_CARD_LOCK's exclusive flock for the block, waited for; nothing without it. A session whose own card work
-    runs outside the queue (an ad hoc `flock <file> <command>`) names its lock file there, so the queue's jobs hold it
-    for each card job alone, never for a whole phase of CPU steps between them (n25, 2026-11-25: 10,078 s waited behind
-    a phase-long flock that held 93 s of card work)."""
+    """SCORE_CARD_LOCK's flock for the block, shared, waited for; nothing without it. A session whose own card work
+    runs outside the queue (an ad hoc `flock <file> <command>`, exclusive) names its lock file there, so the queue's
+    jobs hold it for each card job alone, never for a whole phase of CPU steps between them (n25, 2026-11-25: 10,078 s
+    waited behind a phase-long flock that held 93 s of card work); shared, as the queue itself shares the card among
+    its own jobs."""
     path = os.environ.get("SCORE_CARD_LOCK")
     if not path:
         yield
         return
     with open(path, "a") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+        fcntl.flock(handle, fcntl.LOCK_SH)
         yield
 
 
