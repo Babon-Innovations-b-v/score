@@ -76,9 +76,11 @@ class Bucket:
                                    aws_access_key_id=spec["access_key"], aws_secret_access_key=spec["secret_key"],
                                    config=botocore.config.Config(max_pool_connections=WORKERS,
                                                                  retries={"mode": "standard"},
+                                                                 request_checksum_calculation="when_required",
                                                                  s3={"payload_signing_enabled": True}))
         # every body signed with its sha256 (x-amz-content-sha256), so the bucket itself refuses a put or part whose
-        # bytes changed on the way, not only at another length (#81); boto3 sends UNSIGNED-PAYLOAD over https otherwise
+        # bytes changed on the way, not only at another length (#81); boto3 sends UNSIGNED-PAYLOAD over https without
+        # payload signing, and botocore 1.36+ STREAMING-UNSIGNED-PAYLOAD-TRAILER (a crc32) unless only when_required
 
     def put_policy(self, document):
         """`document` (store_policy's) as the bucket's one policy, replacing any it had. Only with the key of the

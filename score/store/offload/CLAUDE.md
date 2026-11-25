@@ -16,7 +16,10 @@ The package docstring is the contract.
   aborted): a 412 means the key is taken, for a blob the same bytes. Each object carries its sha256 as metadata,
   from the bytes hashed just before the upload. Probed 2026-11-04 from this PC: the second put and the second
   complete both 412, HEAD gives the size and the metadata, a missing key 404. Every body is signed with its sha256
-  (`payload_signing_enabled`, x-amz-content-sha256), so the bucket itself checks each put and part (#81).
+  (`payload_signing_enabled`, x-amz-content-sha256), so the bucket itself checks each put and part (#81); it takes
+  `request_checksum_calculation="when_required"` too, since botocore 1.36+ otherwise sends every put and part as
+  STREAMING-UNSIGNED-PAYLOAD-TRAILER (a crc32 trailer, no sha256) whatever payload signing says. The test reads the
+  header each request would send.
 - **The policy** (`store_policy`, applied by `Bucket.put_policy` with the keeper's own key, never the runtime key's):
   Scaleway's 2023-04-17 version allows only what it lists, so it has no Deny; the runtime application lists, reads
   and writes, and deletes only under `locks/`; the keeper user keeps every right. No condition key reads
