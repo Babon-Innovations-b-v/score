@@ -25,7 +25,7 @@ ARG CUDNN=9.27.0.42-1
 RUN apt-get update -qq \
  && apt-get install -y -qq --no-install-recommends build-essential cmake git wget unzip libjpeg-dev libpng-dev \
       libzstd-dev liblz4-dev libopencv-dev libgl1-mesa-dev libglew-dev "cuda-toolkit-12-6=${CUDA_TOOLKIT}" \
-      "libcudnn9-cuda-12=${CUDNN}" "libcudnn9-dev-cuda-12=${CUDNN}" >/dev/null \
+      "libcudnn9-cuda-12=${CUDNN}" "libcudnn9-headers-cuda-12=${CUDNN}" "libcudnn9-dev-cuda-12=${CUDNN}" >/dev/null \
  && rm -rf /var/lib/apt/lists/*
 RUN fetch() { git init -q "$3" && git -C "$3" fetch -q --depth 1 "$1" "$2" && git -C "$3" checkout -q FETCH_HEAD \
       && test "$(git -C "$3" rev-parse HEAD)" = "$2"; } \
