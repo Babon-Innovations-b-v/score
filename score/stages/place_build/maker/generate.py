@@ -50,6 +50,13 @@ DROPPED = ("sparse_structure_flow_model", "shape_slat_flow_model_512", "shape_sl
 CONVOLUTION = "implicit_gemm"
 MARGIN_GIB = 0.25  # card memory left beside the allocator's cap: the kernels' and libraries' own
 ROWS_AT_ONCE = 2**26  # values a chunked norm takes at once (256 MB of float32)
+# torch's fills of a model's weights as it is built (torch.nn.init), each one overwritten by TRELLIS.2's checkpoint:
+# 36 of the load's 49 s (#159, 2026-11-25: kaiming_uniform_ 22.5 s, normal_ 13.4 s; the files read in 5.2 s), skipped
+# while its models are built (unfilled). COMPUTED: what a model makes itself and no checkpoint holds (the structure
+# flow model's rope phases, from its positions), the one thing a load may leave unread.
+FILLS = ("kaiming_uniform_", "kaiming_normal_", "normal_", "uniform_", "xavier_uniform_", "xavier_normal_",
+         "trunc_normal_", "constant_", "zeros_", "ones_")
+COMPUTED = frozenset({"rope_phases"})
 
 
 def chunked_layer_norm(self, x):
@@ -118,10 +125,43 @@ def local_pipeline(weights):
     return path.name
 
 
+def unfilled(load):
+    """`load` (trellis2.models.from_pretrained: a model built, then its checkpoint read with strict=False) with torch's
+    weight fills (FILLS) skipped while it builds, so the model is the checkpoint's alone; refused when the checkpoint
+    leaves anything but COMPUTED unread, which would then hold no fill at all."""
+    import torch
+
+    def built(path, **kwargs):
+        fills = {name: getattr(torch.nn.init, name) for name in FILLS}
+        reading = torch.nn.Module.load_state_dict
+        unread = []
+
+        def read(module, state, *arguments, **keywords):
+            result = reading(module, state, *arguments, **keywords)
+            unread.extend(key for key in result.missing_keys if key.rsplit(".", 1)[-1] not in COMPUTED)
+            return result
+        for name in FILLS:
+            setattr(torch.nn.init, name, lambda tensor, *arguments, **keywords: tensor)
+        torch.nn.Module.load_state_dict = read
+        try:
+            model = load(path, **kwargs)
+        finally:
+            for name, fill in fills.items():
+                setattr(torch.nn.init, name, fill)
+            torch.nn.Module.load_state_dict = reading
+        if unread:
+            raise SystemExit(f"{path}: its checkpoint holds no {', '.join(unread[:5])}; built unfilled, they would "
+                             f"hold nothing")
+        return model
+    return built
+
+
 def loaded(env):
     """The pipeline on the card, its flow models set to drop themselves after their stage."""
+    import trellis2.models
     from trellis2.pipelines import Trellis2ImageTo3DPipeline
     import trellis2.pipelines.rembg as rembg_module
+    trellis2.models.from_pretrained = unfilled(trellis2.models.from_pretrained)
     rembg_module.BiRefNet = lambda **kwargs: None  # never loaded: the picture's alpha is the cut-out
     weights = env / "weights"
     Trellis2ImageTo3DPipeline.model_names_to_load = MODELS

@@ -62,7 +62,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   (3 pieces, not 6); repair.stuck: nothing cut -> the fold's edge stays held by four faces; repair.NUDGE made 0 ->
   the copies stay one corner; repair.LOOSE made 0 -> the crumb stays; repair.outward: the piece never turned to its
   normals -> the inside-out cube stays inside out; repair.facing_normals: no normal set to its faces' -> the five
-  normals turned into the cubes stay turned (#159: the printer box's black holes); glb.with_views: a view it does not replace left where it was ->
+  normals turned into the cubes stay turned (#159: the printer box's black holes); generate.unfilled (#159): the
+  unread-weight refusal dropped -> a checkpoint missing 0.bias builds; the fills not given back -> torch's fills after it
+  are the stand-ins (where torch is); glb.with_views: a view it does not replace left where it was ->
   the second image's bytes read back wrong
 """
 import importlib.util
@@ -531,6 +533,25 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     in_place = generate.layer_norm_in_place(lone.clone(), (5,), eps=1e-6)
     generate.ROWS_AT_ONCE = rows_at_once
     assert torch.equal(chunked, whole) and torch.equal(in_place, torch.nn.functional.layer_norm(lone, (5,), eps=1e-6))
+
+    def checkpoint_load(held):  # trellis2.models.from_pretrained's way: built, then read with strict=False
+        def load(path):
+            model = torch.nn.Sequential(torch.nn.Linear(4, 3), torch.nn.LayerNorm(3))
+            model.register_buffer("rope_phases", torch.arange(3.0))  # made by the model itself
+            model.load_state_dict(held, strict=False)
+            return model
+        return load
+    saved = {key: torch.full_like(value, 0.5) for key, value in checkpoint_load({})("whole").state_dict().items()
+             if key != "rope_phases"}
+    fills = [getattr(torch.nn.init, name) for name in generate.FILLS]
+    built = generate.unfilled(checkpoint_load(saved))("whole")
+    assert all(torch.equal(built.state_dict()[key], value) for key, value in saved.items())
+    assert fills == [getattr(torch.nn.init, name) for name in generate.FILLS]  # torch's fills given back
+    try:
+        generate.unfilled(checkpoint_load({key: value for key, value in saved.items() if key != "0.bias"}))("short")
+        raise AssertionError("a checkpoint missing a weight was built unfilled")
+    except SystemExit as why:
+        assert "0.bias" in str(why), why
     coords = torch.tensor(random.integers(0, 50, (40, 3)), dtype=torch.int32)
     signs = torch.tensor(random.integers(-1, 2, (40, 3)), dtype=torch.int32)
     table = remesh.tables("cpu")
