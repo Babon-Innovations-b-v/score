@@ -71,3 +71,37 @@ def keys(path, basis, seat=None):
     for key, yaw in zip(found, unwound([key["rotation"]["yaw"] for key in found])):
         key["rotation"]["yaw"] = yaw
     return {"fps": made.get("fps", 24), "frames": len(found), "filmback": list(FILMBACK), "keys": found}
+
+
+def view_planes(key, filmback=FILMBACK):
+    """The four side planes of a key's view (Unreal's frame: x ahead at yaw 0, z up; its rotation in degrees, no
+    roll) and the one through its eye square to its aim, each an inward unit normal: a point p is in view when every
+    plane's normal dotted with p minus the eye is at least 0."""
+    yaw, pitch = math.radians(key["rotation"]["yaw"]), math.radians(key["rotation"]["pitch"])
+    ahead = [math.cos(pitch) * math.cos(yaw), math.cos(pitch) * math.sin(yaw), math.sin(pitch)]
+    right = [-math.sin(yaw), math.cos(yaw), 0.0]
+    up = [-math.sin(pitch) * math.cos(yaw), -math.sin(pitch) * math.sin(yaw), math.cos(pitch)]
+    planes = [ahead]
+    for side, half in ((right, filmback[0] / 2.0), (up, filmback[1] / 2.0)):
+        for sign in (1.0, -1.0):
+            normal = [key["focal_length"] * forward - sign * half * across for forward, across in zip(ahead, side)]
+            length = math.sqrt(sum(value * value for value in normal))
+            planes.append([value / length for value in normal])
+    return planes
+
+
+def lights_in_view(lamps, shots):
+    """The lamps (layout.lamps') whose reach meets some frame's view of the film (`shots`: keys()), and the names of
+    the rest: a lamp whose sphere of reach lies wholly outside every frame's view lights nothing the camera sees
+    (#222 run 16: the street's 52 lamps with the square's 238 overran Vulkan's descriptors and the render crashed).
+    A key with a roll keeps every lamp: its view is not worked out here."""
+    if any(abs(key["rotation"].get("roll", 0.0)) > 1e-6 for key in shots["keys"]):
+        return list(lamps), []
+    views = [(key["location"], view_planes(key, shots.get("filmback", FILMBACK))) for key in shots["keys"]]
+    kept, dropped = [], []
+    for lamp in lamps:
+        seen = any(all(sum(normal[axis] * (lamp["location"][axis] - eye[axis]) for axis in range(3)) >= -lamp["reach"]
+                       for normal in planes) for eye, planes in views)
+        (kept if seen else dropped).append(lamp if seen else lamp["name"])
+    return kept, dropped
+

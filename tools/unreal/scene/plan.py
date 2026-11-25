@@ -18,6 +18,7 @@ writes <into>/plan.json and the textures to import under <into>/textures, and pr
     environment        {sun, moon, sky, exposure_bias, ambient, background, grade}: layout.environment, a night's sky its
                        ambient, the grade its tonemapper material's HLSL
     camera             camera.keys of the film path laid on the package's seat (seat_of), or null
+                       (in_view then keeps only the lamps whose reach meets one of its frames' views)
     left_out           scene.json's
 """
 import argparse
@@ -82,13 +83,25 @@ def planned(package, into, path=None, basis=frames.BASIS):
         raise ValueError(f"{package}: not a score.scene version 1 package (a piece list has no baked looks)")
     textures = {}
     meshes, materials = meshes_and_materials(package, scene, textures)
+    shots = camera.keys(path, basis, seat_of(scene)) if path else None
     return {"format": "score.unreal", "version": 1, "place": scene["place"], "package": str(package),
             "caps": scene.get("textures"), "draft": "draft" in scene, "basis": [list(row) for row in basis],
             "textures": looks.written_textures(textures, into),
             "materials": [materials[name] for name in sorted(materials)], "meshes": meshes,
             "actors": layout.actors(scene, basis), "lamps": layout.lamps(scene, basis),
             "environment": layout.lit_by_ambient(layout.environment(scene, package, basis), into),
-            "camera": camera.keys(path, basis, seat_of(scene)) if path else None, "left_out": scene.get("left_out", [])}
+            "camera": shots, "left_out": scene.get("left_out", [])}
+
+
+def in_view(made, shots):
+    """The plan with only the lamps whose reach meets the film's view (camera.lights_in_view, `shots` the film's
+    keys: its own for the shot's place, the shot's for a neighbour laid beside it), the rest added to `left_out`;
+    unchanged with no film."""
+    if shots is None:
+        return made
+    kept, dropped = camera.lights_in_view(made["lamps"], shots)
+    return dict(made, lamps=kept, left_out=made["left_out"] + [
+        {"name": name, "why": "a lamp whose reach meets no frame's view"} for name in dropped])
 
 
 def main():
@@ -98,6 +111,7 @@ def main():
     parser.add_argument("--path", help="the place's film/path.json, for the Level Sequence's camera")
     args = parser.parse_args()
     made = planned(args.package, args.into, args.path)
+    made = in_view(made, made["camera"])
     (pathlib.Path(args.into) / "plan.json").write_text(json.dumps(made, indent=1) + "\n")
     print(f"{made['place']}: {len(made['meshes'])} meshes ({sum(mesh['nanite'] for mesh in made['meshes'])} Nanite), "
           f"{len(made['actors'])} actors, {len(made['materials'])} materials, {len(made['textures'])} textures, "

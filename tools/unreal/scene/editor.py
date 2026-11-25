@@ -529,14 +529,17 @@ def main(arguments):
     step("measuring the import's axes")
     basis = measured_basis(into)
     made = planning.planned(package, into, arguments[2] if len(arguments) > 2 else None, basis)
-    neighbours = [planning.planned(folder, into / "among" / str(number), None, basis)
-                  for number, folder in enumerate(among)]
+    neighbours = [planning.in_view(planning.planned(folder, into / "among" / str(number), None, basis),
+                                   made["camera"]) for number, folder in enumerate(among)]
+    made = planning.in_view(made, made["camera"])
     step(f"a new level for {made['place']}")
     level_made(made["place"])
     faults = []
     counts = place_laid(made, faults)
     beside = [dict(place_laid(neighbour, faults), place=neighbour["place"], actors=len(neighbour["actors"]),
-                   lamps=len(neighbour["lamps"])) for neighbour in neighbours]
+                   lamps=len(neighbour["lamps"]), lamps_out_of_view=sum(
+                       "reach meets no frame" in out["why"] for out in neighbour["left_out"]))
+              for neighbour in neighbours]
     step("the sun, sky and exposure")
     attempted(faults, "sun and moon", bodies_laid, made["environment"])
     if made["environment"]["sky"]:
