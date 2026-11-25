@@ -11,6 +11,9 @@ The one reader of the creator's library (score_lib's `entries/` and `index/`) on
   (`Unread`). A new score_lib schema is a change here first, then in the callers.
 - **An entry's replacement** (#155): `replacement(record)` the entry a withdrawn one names (`replaced_by`); `replaced_end`
   follows that chain to its end, refusing a loop. place_build lays the end, the library check traces to it.
-- **Pure.** json, os and pathlib only: the hosted cockpit imports it (`score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py`, its hosted-light case).
+- **One command.** `command(values)` builds the library's own command's words (SCORE_LIB_COMMAND, else
+  `score-lib`) for every score-side run of it (backend, library_files, the cockpit's lock and withdraw, the bench,
+  pixal's take-in, the concept handover; #38).
+- **Pure.** json, os, pathlib and shlex only: the hosted cockpit imports it (`score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py`, its hosted-light case).
   Never import score_lib's own code.
 - `test_read_only_at_known_schema.py`: pytest, a temp library.

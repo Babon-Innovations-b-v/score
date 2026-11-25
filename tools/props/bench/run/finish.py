@@ -33,7 +33,6 @@ measures read the parts, which name every face's surface.
 """
 import json
 import pathlib
-import shlex
 import subprocess
 import sys
 
@@ -118,7 +117,7 @@ def records(addresses):
                if not library_files.cache_folder().joinpath("score_lib", *address.replace("@", "/").split("/"),
                                                             RECORD).is_file()]
     if missing:
-        words = shlex.split(values.get("SCORE_LIB_COMMAND") or library_files.DEFAULT_COMMAND) + [
+        words = library_files.library.command(values) + [
             "--root", values["SCORE_LIB_ROOT"], "fetch", *missing, "--file", RECORD,
             "--into", str(library_files.cache_folder())]
         done = subprocess.run(words, env=library_files.blob_store(values), cwd=values["SCORE_LIB_ROOT"],

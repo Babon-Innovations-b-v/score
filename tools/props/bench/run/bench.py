@@ -76,7 +76,6 @@ import json
 import math
 import os
 import pathlib
-import shlex
 import shutil
 import subprocess
 import sys
@@ -240,7 +239,7 @@ def library_values(library):
 def fetched(address, values, into):
     """The entry fetched by the library's own command into `into` (job scratch); its record and its root USD."""
     import library_files
-    words = shlex.split(values.get("SCORE_LIB_COMMAND") or library_files.DEFAULT_COMMAND) + [
+    words = library_files.library.command(values) + [
         "--root", values["SCORE_LIB_ROOT"], "fetch", address, "--into", str(into)]
     done = subprocess.run(words, env=values, cwd=values["SCORE_LIB_ROOT"], capture_output=True, text=True,
                           timeout=library_files.TIMEOUT)

@@ -6,7 +6,6 @@ applied at once. Applying is refused in any process an agent started: an agent n
 own command (SCORE_LIB_COMMAND, `<command> lock <address>...` and `<command> withdraw <address>`) in SCORE_LIB_ROOT,
 then commits and pushes there.
 """
-import shlex
 import subprocess
 
 from django.conf import settings
@@ -14,6 +13,7 @@ from django.conf import settings
 from score.dashboard.pages import actions
 from score.dashboard.pages.models import SyncRequest
 from score.dashboard.state.library import ADDRESS, library
+from score.library import command
 
 ACTIONS = {"lock": "draft", "withdraw": "locked"}  # what each does, and the state it takes an entry from
 PAST = {"lock": "locked", "withdraw": "withdrawn"}
@@ -74,7 +74,7 @@ def run(arguments):
 
 
 def library_command():
-    return shlex.split(settings.SCORE_LIB_COMMAND)
+    return command({"SCORE_LIB_COMMAND": settings.SCORE_LIB_COMMAND})
 
 
 def changed(action, addresses):

@@ -24,7 +24,6 @@ import json
 import os
 import pathlib
 import re
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -145,7 +144,7 @@ def listing(takes, folder, commit):
 def library_command(values, *words):
     """The library's own command with `words` in its root, the blob store in its environment only; the finished
     process."""
-    command = shlex.split(values.get("SCORE_LIB_COMMAND") or library_files.DEFAULT_COMMAND)
+    command = library_files.library.command(values)
     return subprocess.run([*command, "--root", values["SCORE_LIB_ROOT"], *words],
                           env=library_files.blob_store(values, write=True), cwd=values["SCORE_LIB_ROOT"], capture_output=True,
                           text=True, timeout=library_files.TIMEOUT * 6)

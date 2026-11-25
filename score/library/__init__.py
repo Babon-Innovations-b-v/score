@@ -8,6 +8,7 @@ fetches its files).
     library.index(root, kind)             # index/<kind>.json
     library.replacement(record)           # the address a withdrawn entry names as its replacement, or None
     library.replaced_end(root, address)   # the address at the end of an entry's replacement chain
+    library.command(values)               # the library's own command as words (SCORE_LIB_COMMAND, else score-lib)
 
 An entry is MIT unless it carries a `licence` block ({id, source, credit, url}: an adopted set's CC-BY-4.0 part, its
 credit kept with it), and a withdrawn entry may name the entry that replaces it (`replaced_by`,
@@ -15,15 +16,17 @@ credit kept with it), and a withdrawn entry may name the entry that replaces it 
 
 Every file is checked against the schema version this reader was written for (`ENTRY_SCHEMA`, `INDEX_SCHEMA`); a
 file of another version is refused (`Unread`), never half read. A new score_lib schema is a change here first.
-Pure: json and pathlib only, so the hosted cockpit may import it.
+Pure: json, os, pathlib and shlex only, so the hosted cockpit may import it.
 """
 import json
 import os
 import pathlib
+import shlex
 
 ENTRY_SCHEMA = "score-lib-entry/1"
 INDEX_SCHEMA = "score-lib-index/1"
 ENTRY_FILES = "entries/*/*/*/entry.json"
+COMMAND = "score-lib"  # the library's command when SCORE_LIB_COMMAND names none
 
 
 class Unread(ValueError):
@@ -39,6 +42,12 @@ def checked(record, schema, path):
 
 def read_json(path, schema):
     return checked(json.loads(pathlib.Path(path).read_text()), schema, path)
+
+
+def command(values):
+    """The library's own command as words: `values`' SCORE_LIB_COMMAND split as a shell splits it, else COMMAND. Every
+    score-side run of the library builds its command here (#38)."""
+    return shlex.split(values.get("SCORE_LIB_COMMAND") or COMMAND)
 
 
 def root_from_environment():

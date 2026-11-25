@@ -13,6 +13,8 @@ The test turns red under each break written here (each applied once and seen red
 - environment: make root_from_environment skip `.strip()`.
 - replacing (#155): make library.replacement read `replaced_by` whatever the entry's state (the ring in force reads as
   replaced), or drop replaced_end's `if following in seen` (the ring's loop never ends: the run times out).
+- the command (#38): drop library.command's `or COMMAND` (an unset SCORE_LIB_COMMAND runs nothing), or split it on
+  spaces (the quoted folder becomes two words).
 """
 import json
 import pathlib
@@ -66,7 +68,8 @@ def refused(version):
     pytest.param(" {root} ", "score-lib-entry/1", "score-lib-index/1",
                  {"entries": ALL_ENTRIES, "crate@2": "model/crate@2", "lamp@1": "model/lamp@1",
                   "index": INDEX_ENTRIES,
-                  "replacements": ["model/crate@2", None, None, "model/ring@2", "model/ring@1", None], **CHAINS},
+                  "replacements": ["model/crate@2", None, None, "model/ring@2", "model/ring@1", None], **CHAINS,
+                  "command": ["lib", "--root dir"], "command unset": ["score-lib"]},
                  id="known-schemas-padded-root"),
     pytest.param("{root}", "score-lib-entry/2", "score-lib-index/1",
                  {"entries": refused("score-lib-entry/2"), "crate@2": "model/crate@2",
@@ -102,6 +105,8 @@ def test_read_only_at_known_schema(tmp_path, monkeypatch, environment, lamp_sche
         **{read: answer(lambda read=read: library.replaced_end(found, "model/" + read.split()[0]))
            for read in ("crate@1 end", "crate@2 end", "ring@3 end", "ring@1 end")},
         "missing end": answer(lambda: library.replaced_end(found, "model/crate@9")),
+        "command": library.command({"SCORE_LIB_COMMAND": "lib '--root dir'"}),
+        "command unset": library.command({"SCORE_LIB_COMMAND": ""}),
     }
     for read, want in expected.items():
         assert want(got[read]) if callable(want) else got[read] == want, f"{read}: got {got[read]!r}, want {want!r}"

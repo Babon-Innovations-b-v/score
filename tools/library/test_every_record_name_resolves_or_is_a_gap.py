@@ -225,10 +225,12 @@ def game_names(path):
 
 
 def strings(value, key=None):
-    """Every (key, string) a JSON value holds outside its note keys, a list's items under the list's key."""
+    """Every (key, string) a JSON value holds outside its note keys, a list's items under the list's key; a record
+    naming its entry's `address` and one `file` of it beside (an outfit's model) gives that file as its reference."""
     if isinstance(value, dict):
+        addressed = isinstance(value.get("address"), str) and isinstance(value.get("file"), str)
         for inner, item in value.items():
-            yield from strings(item, inner)
+            yield from strings(f"{value['address']}/{item}" if addressed and inner == "file" else item, inner)
     elif isinstance(value, list):
         for item in value:
             yield from strings(item, key)

@@ -66,7 +66,6 @@ import json
 import re
 import math
 import pathlib
-import shlex
 import subprocess
 import sys
 import urllib.error
@@ -249,6 +248,7 @@ def handed_over(store, place, run=subprocess.run):
     """Hand the place's standing pick to the creator's library with its own command (`score-lib concept`: the picked
     draw locked as concept/<place>, or withdrawn on an unlock); what it did, in words. Never raises: the pick stands
     in the store whatever the library answers, and the words say what did not happen."""
+    from score import library
     from score.stages.library import backend
     values = backend.settings()
     if backend.kind(values) == backend.NONE:
@@ -256,7 +256,7 @@ def handed_over(store, place, run=subprocess.run):
     world = json.loads((DATA / "definitions/world.json").read_text())["name"]
     commit = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True,
                             text=True).stdout.strip()
-    words = [*shlex.split(values.get("SCORE_LIB_COMMAND") or backend.DEFAULT_COMMAND), "--root",
+    words = [*library.command(values), "--root",
              values["SCORE_LIB_ROOT"], "concept", "--world", world, "--place", place, "--commit", commit, "--store",
              str(store.objects.root)]
     try:

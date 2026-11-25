@@ -41,13 +41,13 @@ import threading
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/library"))
 import library_files  # noqa: E402
 
+from score import library  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FROZEN_VARIABLES = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_FROZEN_CHANGES")
 VARIABLES = ("SCORE_LIB_BACKEND", "SCORE_LIB_ROOT", "SCORE_LIB_COMMAND", "SCORE_LIB_BLOBS_DIR", "SCORE_LIB_HANDOVER")
 COMMAND, NONE = "command", "none"
-DEFAULT_COMMAND = "score-lib"
 DEFAULT_TEMPLATE = ("{command} --root {root} handover --world {world} --place {place} --seed {seed} --commit {commit} "
                     "--route {route} --store {store} --repo {repo} --out {out}")
 # One handover run may take this long before it counts as a dropped connection (graph.transient: tried again).
@@ -106,7 +106,7 @@ def arguments(values, run):
             index += 2
             continue
         if word == "{command}":
-            words += shlex.split(values.get("SCORE_LIB_COMMAND") or DEFAULT_COMMAND)
+            words += library.command(values)
         else:
             words.append(word.format(**filled))
         index += 1

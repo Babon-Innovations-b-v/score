@@ -38,9 +38,12 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from score import library  # noqa: E402
+
 REFERENCE = re.compile(r"^(?P<address>(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(?:\.[a-z0-9_]+)?)@(?P<version>[1-9][0-9]*))"
                        r"/(?P<file>[^@]+)$")
-DEFAULT_COMMAND = "score-lib"
 CLOUD = REPO / "tools/cloud"
 # The backend whose secret store holds the public copy's write token, whichever backend SCORE_CLOUD sends the compute
 # to (this PC's, the cluster's).
@@ -88,7 +91,7 @@ def defaults():
     if root is None:
         return {}
     command = root / ".venv/bin/score-lib"
-    return {"SCORE_LIB_ROOT": str(root), "SCORE_LIB_COMMAND": str(command) if command.is_file() else DEFAULT_COMMAND}
+    return {"SCORE_LIB_ROOT": str(root), "SCORE_LIB_COMMAND": str(command) if command.is_file() else library.COMMAND}
 
 
 def settings():
@@ -161,7 +164,7 @@ def recorded_sha(root, parts):
 
 def fetched(values, parts, target):
     """The file fetched into the cache by the library's own command; LibraryUnreachable when it fails."""
-    words = shlex.split(values.get("SCORE_LIB_COMMAND") or DEFAULT_COMMAND) + [
+    words = library.command(values) + [
         "--root", values["SCORE_LIB_ROOT"], "fetch", parts["address"], "--file", parts["file"],
         "--into", str(cache_folder())]
     if target.exists():
