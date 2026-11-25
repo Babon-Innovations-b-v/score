@@ -8,7 +8,9 @@ is in an environment shows up in the library by construction, never by an agent'
   `SCORE_LIB_HANDOVER`) and reads only the report it writes, `handover.json`. No provider, host or company name in
   the template, the code or the data: every setting is an environment variable, else its default (the score_lib
   checkout beside score; the blob store the cloud backend's `object_store()`, its key from the secret store, handed
-  to the command in its environment only, never a settings file: owner, 2026-10-20).
+  to the command in its environment only, never a settings file: owner, 2026-10-20). `backend.py` is in
+  `_code.FRAMEWORK` (#90: the concept review imports it, which put it in 30 rows' keys, 7 paid); a new library
+  re-keys these rows by their `library` param (`backend.identity`), never by the backend's code.
 - **The route** (`route`, `runner_route`): the route stages' code versions and contracts hashed, a callable param
   the runner works out, so a new route re-keys these rows and the handover (`--route`) stamps it into every entry's
   provenance; prepare's library match reads it. Never a hand-bumped constant.

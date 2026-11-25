@@ -24,6 +24,9 @@ OUTSIDE = (REPO / ".venv", REPO / ".git")
 # (score/stages/shapes_first/__init__.py) is the table's wiring too: it defines no make or check, only the rows, and
 # scene_palette's `from score.stages.shapes_first import align` put it and the whole prop route behind it into
 # surface-library's, the palette's and body-face's keys (2026-10-28: a likeness_row edit moved body-face-earth).
+# The library's backend (which library, and the command that hands to it) is the handover's machinery: a new library
+# re-keys the library rows by their `backend` identity param and a new route by `route`, while the concept review's
+# import of it put it into 30 rows' keys, 8c152137's handover edit re-keying 7 paid ones (#90).
 FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__.py", "score/graph/_code.py",
                                       "score/graph/pod.py",
                                       "score/review/__init__.py", "score/review/__main__.py",
@@ -41,6 +44,7 @@ FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__
                                       "tools/cloud/google_bill.py", "tools/cloud/blender_cloud.py",
                                       "tools/cloud/ledger.py", "tools/cloud/inputs.py",
                                       "tools/library/pixal_takes.py", "score/stages/library/handed.py",
+                                      "score/stages/library/backend.py",
                                       "score/store/offload", "score/stages/props/same_content.py",
                                       "score/stages/rough_model/same_content.py",
                                       "score/stages/people/same_content.py", "score/stages/phases")}

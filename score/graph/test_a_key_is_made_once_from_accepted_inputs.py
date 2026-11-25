@@ -639,6 +639,8 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     minute past it).
     Break: score/graph/__init__.py: '        with self.still():\n            return self.key(stage, place)'
     -> '        if True:\n            return self.key(stage, place)'
+    Break: score/graph/_code.py: '                                      "score/stages/library/backend.py",\n' -> ''
+    (#90: the library's backend in every paid row reaching the concept review).
     Break: score/graph/__init__.py: 'if drives and self.moved_since(stage, place, drives):' -> 'if False:' (count made
     on the stale key).
     Break: score/graph/__init__.py: 'self.gatherable(stage, place, self.ran)' -> 'self.gatherable(stage, place)'
@@ -1262,6 +1264,7 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
         found = a_runner(world, store, (stage,)).run(["hangar"])  # the import added moves its key: made again
         assert found == {"versioned@hangar": "made: pass"} and len(store.records("versioned@hangar")) == 2, found
         assert store.accepted("versioned@hangar") == accepted  # the same bytes: the accepted output stands
+    from score import stages
     from score.stages import surfaces
     from score.stages.surfaces import scene_palette
     _code.search_folders.cache_clear()  # the stage's folders on the path, as a run's table import puts them first
@@ -1273,6 +1276,10 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
               {"score/stages/surfaces/scene_palette.py"}, set(), WIRING, False)  # what it reads stays in
              for row in surfaces.ROWS if row.name in ("finish-route-palette", "surface-library")]
     assert sorted(row[0] for row in rows[3:]) == ["finish-route-palette", "surface-library"], [row[0] for row in rows]
+    # a library handover edit moves no paid row (#90: the concept review imports the library's backend, and 8c152137
+    # moved body-face, light-passes, physics-trial, scene-clips and settle; the backend is FRAMEWORK now)
+    rows += [(row.name, versioned(graph.code_functions(row), _code.REPO), set(),
+              {"score/stages/library/backend.py"}, (), False) for row in stages.STAGES if row.paid]
     for name, files, holds, refused, folders, only in rows:
         assert files == holds if only else holds <= files, (name, sorted(files ^ holds if only else holds - files))
         wrong = {path for path in files if path in refused or path.startswith(folders)}
