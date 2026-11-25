@@ -24,6 +24,10 @@ VIEWS = {"front": 0.0, "three_quarter": 35.0}  # the camera's turn about the hea
 LENS_MM = 85.0  # a portrait lens
 SIZE = (1024, 1280)
 SAMPLES = 256
+# A strand's colour scaled between these round the library colour, and Cycles' Random Roughness: brown hair's strands
+# differ in shade from strand to strand; a fifth either way is a choice read off the renders, not a measure.
+STRAND_SHADE = (0.8, 1.2)
+STRAND_ROUGHNESS_SPREAD = 0.25
 
 
 def arguments():
@@ -165,7 +169,8 @@ def library_colour(material):
 
 def strands_material(library, surface):
     """The hair route's finish (#227): Cycles' Principled Hair BSDF in direct colouring, its colour the library
-    surface's own. score_lib holds no hair recipe yet, so its roughness and coat are Blender's defaults."""
+    surface's own, each strand its own shade of it. score_lib holds no hair recipe yet, so its roughness and coat are
+    Blender's defaults."""
     name = f"{surface}.strands"
     if name in bpy.data.materials:
         return bpy.data.materials[name]
@@ -175,7 +180,20 @@ def strands_material(library, surface):
     nodes.remove(nodes["Principled BSDF"])
     bsdf = nodes.new("ShaderNodeBsdfHairPrincipled")
     bsdf.parametrization = "COLOR"
-    bsdf.inputs["Color"].default_value = (*library_colour(library_material(library, surface)), 1.0)
+    # Each strand its own shade round the library colour (STRAND_SHADE, by Cycles' per-strand random) and its own
+    # roughness: one colour on every strand read as a smooth helmet (owner, 2026-11-25: "too smooth and uniform").
+    # Direct colouring takes no Random Color of its own (that is the melanin parametrization's), so the colour is
+    # scaled per strand before it.
+    info = nodes.new("ShaderNodeHairInfo")
+    shade = nodes.new("ShaderNodeMapRange")
+    shade.inputs["To Min"].default_value, shade.inputs["To Max"].default_value = STRAND_SHADE
+    scaled = nodes.new("ShaderNodeVectorMath")
+    scaled.operation = "SCALE"
+    scaled.inputs[0].default_value = library_colour(library_material(library, surface))
+    hair.node_tree.links.new(info.outputs["Random"], shade.inputs["Value"])
+    hair.node_tree.links.new(shade.outputs["Result"], scaled.inputs["Scale"])
+    hair.node_tree.links.new(scaled.outputs["Vector"], bsdf.inputs["Color"])
+    bsdf.inputs["Random Roughness"].default_value = STRAND_ROUGHNESS_SPREAD
     hair.node_tree.links.new(bsdf.outputs[0], nodes["Material Output"].inputs["Surface"])
     return hair
 

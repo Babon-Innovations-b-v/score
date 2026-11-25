@@ -12,12 +12,12 @@ face looking along +z, the person's left +x):
   the hairline's height over the eyes round the head (the forehead's front, the temples, over the ears, the nape),
   and the ears (skin standing EAR_OUT_M further off the head's upright than the skull round it) are left out.
 - `combed`: ROOTS roots on the scalp by area; each strand stepped STEP_M at a time away from the parting (the style's
-  side and offset), turning to gravity below the crown, lying LAYER over the skin (a strand rooted nearer the
-  parting higher, as hair lies over the hair rooted under it), free once below the head's widest (HUG_OVER_EYES_M)
-  so the bob hangs as a curtain. A strand in front of the head never falls over the face: within the face's width it
-  runs across (the fringe to the style's fringe side) until it is past the eyes. Its end falls at the bob's line
-  (END_BELOW_EYES_M under the eyes, spread ENDS_SPREAD_M), its tip turned in; the style's wave across it; POINTS
-  points, its radius tapered RADIUS.
+  side and offset; the parting ends at the crown, the hair behind it combed straight back), turning to gravity below the
+  crown, lying LAYER over the skin (a strand rooted nearer the parting higher, as hair lies over the hair rooted under
+  it), free once below the head's widest (HUG_OVER_EYES_M) so the bob hangs as a curtain. A strand in front of the head
+  never falls over the face: within the face's width it runs across (the fringe to the style's fringe side) until it is
+  past the eyes. Its end falls at the bob's line (END_BELOW_EYES_M under the eyes, spread ENDS_SPREAD_M), its tip turned
+  in; the style's wave across it; POINTS points, its radius tapered RADIUS.
 
 `measured` reads the groom on its head and `faults` names what is past a limit:
 - roots off the scalp: a root further than ROOT_OFF_M from the scalp's skin (off the skin, or on the face or an ear);
@@ -49,6 +49,8 @@ ROOT_RISE_M = 0.012  # along which a strand rises from its root to its layer
 FACE_HALF_M = 0.058  # the face's half width from the eyes' middle: a strand within it in front never falls
 FACE_FRONT_M = 0.035  # a place this far in front of the head's middle is in front of the head
 SWEEP_DOWN = 0.18  # how much a strand running across the forehead falls for each metre across
+PART_ENDS_BEHIND_M = 0.02  # the parting ends this far behind the head's middle (the crown)
+PART_FADE_M = 0.03  # over which the comb turns from across to straight back
 TURN = 0.4  # how much of its wanted direction a strand lying on the head takes each step
 TURN_HANGING = 0.8  # and one hanging: it drops as soon as it leaves the head
 HANG_OUT = 0.08  # a hanging strand's lean out from the head's upright, for each metre down
@@ -147,7 +149,10 @@ def comb(places, normals, side, sweep, middle, centre, hanging):
     the face's width, across to `sweep` and only a little down."""
     count = len(places)
     down = np.tile([0.0, -1.0, 0.0], (count, 1))
-    away = np.stack([side, np.zeros(count), np.full(count, -0.35)], axis=1)
+    # The parting runs from the hairline to the crown only: behind it the hair is combed straight back and down, never
+    # away from a parting down the back of the head (one there showed the scalp in a strip to the nape, 2026-11-25).
+    behind = np.clip((centre[2] - places[:, 2] - PART_ENDS_BEHIND_M) / PART_FADE_M, 0.0, 1.0)
+    away = np.stack([side * (1.0 - behind), np.zeros(count), -0.35 - 0.65 * behind], axis=1)
     over = tangent(away, normals)
     fall = np.clip((middle[1] + CROWN_ABOVE_EYES_M - places[:, 1]) / FALL_M, 0.0, 1.0)[:, None]
     direction = over * (1.0 - fall) + (over * 0.25 + tangent(down, normals)) * fall
