@@ -56,6 +56,18 @@ COLUMN_INSET = 0.02
 # A hinge's motor follows its speed as closely as its torque allows: a velocity drive this stiff (newton metres a
 # second a degree).
 STIFF_DRIVE = 1e6
+# A made model's part (#177) weighs grams to kilograms: its drive's damping is its own inertia about its joint (its mass
+# for a slide) times PART_DRIVE_SHARE over the trial's substep (TRIAL_STEPS a frame, physics_trial.SUBSTEPS), so its
+# speed settles within a step or two and never swings past it (r16: a 44 g drill dial under STIFF_DRIVE spun 8,607
+# degrees for a 297 degree sweep). Its inertia is its own box's as a solid, which MuJoCo always accepts (r16: a thin
+# locker door's hull gave one that broke A + B >= C).
+PART_DRIVE_SHARE = 1.5  # under explicit Euler's bound of 2
+TRIAL_STEPS = 20
+# A slide's speed is at least LIFT_MARGIN times what its damping needs to lift its own weight: at a stable damping a
+# drive at a slow speed pushed 2.4 N of a 2 kg drawer's 19.6 N, so an upward slide never moved (r16's drills). (A drive
+# by position settled every part at a third of its target in Newton 1.7, 2026-11-25, so parts drive by speed.)
+LIFT_MARGIN = 2.0
+GRAVITY = 9.81
 # An adopted asset's physics comes in one variant set an engine, each `Enabled` or `Disabled` (#155): the trial runs
 # Newton's, the ready check's settle MuJoCo's.
 ENGINES = ("MuJoCo", "Newton", "PhysX")
@@ -327,12 +339,13 @@ def joint_frames(joint, one, other, point):
 def write_drive(joint, drive, rate, kind=UsdPhysics.Tokens.angular):
     """The hinge's motor: an angular velocity drive (`speed` degrees a second) whose torque is capped at `torque`
     newton metres between its seconds and is nothing outside them (time samples a frame either side); a slide's
-    (`kind` linear) the same in metres a second and newtons."""
+    (`kind` linear) the same in metres a second and newtons. Its damping is the drive's own `damping` when given, else
+    STIFF_DRIVE."""
     api = UsdPhysics.DriveAPI.Apply(joint, kind)
     api.CreateTypeAttr(UsdPhysics.Tokens.force)
     api.CreateTargetVelocityAttr(drive["speed"])
     api.CreateStiffnessAttr(0.0)
-    api.CreateDampingAttr(STIFF_DRIVE)
+    api.CreateDampingAttr(drive.get("damping", STIFF_DRIVE))
     force = api.CreateMaxForceAttr()
     start, end = drive["start"] * rate, drive["end"] * rate
     for code, value in ((start - 1, 0.0), (start, drive["torque"]), (end, drive["torque"]), (end + 1, 0.0)):
@@ -405,13 +418,37 @@ def part_frames(joint, holder, part):
     joint.CreateBody1Rel().SetTargets([part.GetPath()])
 
 
+def part_inertia(part, kg):
+    """(its middle, its diagonal inertia) of a part as a solid box of its drawn meshes' extent in its own frame."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    box = cache.ComputeRelativeBound(part, part).ComputeAlignedRange()
+    low, high = np.array(box.GetMin()), np.array(box.GetMax())
+    wide, tall, deep = np.maximum(high - low, 1e-4)
+    return (low + high) / 2, [kg / 12 * (tall ** 2 + deep ** 2), kg / 12 * (wide ** 2 + deep ** 2),
+                              kg / 12 * (wide ** 2 + tall ** 2)]
+
+
+def part_drive(spec, inertia, rate):
+    """A part's drive by speed sized to its own inertia (its mass for a slide) at the trial's substep: its damping
+    PART_DRIVE_SHARE of the inertia over the step (UsdPhysics' angular damping per degree, the inertia per radian), its
+    speed the way its sign opens it, a slide's at least what lifts its own weight (LIFT_MARGIN)."""
+    held = float(spec["kg"]) if spec["joint"] == "slide" else float(inertia["xyz".index(spec["axis"])])
+    per = 1.0 if spec["joint"] == "slide" else np.pi / 180.0
+    damping = PART_DRIVE_SHARE * held * rate * TRIAL_STEPS
+    speed = float(spec["drive"]["speed"])
+    if spec["joint"] == "slide":
+        speed = max(speed, LIFT_MARGIN * held * GRAVITY / damping)
+    return {**spec["drive"], "speed": speed * spec["sign"], "damping": damping * per}
+
+
 def write_parted(stage, parted, rate):
     """Each moving part of a made model laid whole (#177: maker/parts.py's nodes, the record's `parted` entry
     {object, parts: [{node, joint hinge|slide|spin, axis x|y|z, sign, limits, kg, drive (optional)}]}) its own body:
     its drawn mesh out of the collision, colliding by its convex hull (a guide copy of it, bound to its physics
     material), weighing its own `kg`; joined to its object (static, as a hinge's frame is) by a RevoluteJoint (hinge,
     spin) or PrismaticJoint (slide) about or along its own `axis` through its origin (the pivot), its limits the
-    way its `sign` says (a spin free), hard as the hinge's are, filtered against its object's still meshes."""
+    way its `sign` says (a spin free), hard as the hinge's are, filtered against its object's still meshes and its
+    sibling parts; its mass a solid box's (part_inertia) and its drive sized to it (part_drive)."""
     holder = object_prim(stage, parted["object"])
     joints = place_path(stage).AppendPath("Physics/Joints")
     for spec in parted["parts"]:
@@ -419,7 +456,11 @@ def write_parted(stage, parted, rate):
         if not part:
             raise ValueError(f"{parted['object']}: no part {spec['node']} to join")
         UsdPhysics.RigidBodyAPI.Apply(part)
-        UsdPhysics.MassAPI.Apply(part).CreateMassAttr(float(spec["kg"]))
+        mass = UsdPhysics.MassAPI.Apply(part)
+        mass.CreateMassAttr(float(spec["kg"]))
+        middle, inertia = part_inertia(part, float(spec["kg"]))
+        mass.CreateCenterOfMassAttr(Gf.Vec3f(*middle))
+        mass.CreateDiagonalInertiaAttr(Gf.Vec3f(*inertia))
         part.CreateAttribute(WEIGHED, Sdf.ValueTypeNames.Bool).Set(True)
         drawn = own_meshes(part)
         material = UsdShade.MaterialBindingAPI(drawn[0].GetPrim()).ComputeBoundMaterial("physics")[0]
@@ -450,8 +491,14 @@ def write_parted(stage, parted, rate):
         for mesh in own_meshes(holder):
             pairs.AddTarget(mesh.GetPath())
         if spec.get("drive"):
-            write_drive(joint.GetPrim(), {**spec["drive"], "speed": spec["drive"]["speed"] * spec["sign"]}, rate,
-                        UsdPhysics.Tokens.linear if spec["joint"] == "slide" else UsdPhysics.Tokens.angular)
+            write_drive(joint.GetPrim(), part_drive(spec, inertia, rate),
+                        rate, UsdPhysics.Tokens.linear if spec["joint"] == "slide" else UsdPhysics.Tokens.angular)
+    nodes = [holder.GetChild(spec["node"]) for spec in parted["parts"]]
+    for part in nodes:  # a model's own parts never meet: a cut's hull may reach a neighbour's (r16's locker doors)
+        pairs = UsdPhysics.FilteredPairsAPI(part).GetFilteredPairsRel()
+        for other in nodes:
+            if other != part:
+                pairs.AddTarget(other.GetPath())
 
 
 def write_push(stage, push, rate):

@@ -33,6 +33,9 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
   made `CreateAxisAttr(UsdPhysics.Tokens.x)` (the glass door's leaf slides across its doorway's depth, not its width),
   or bodies_of's slides line dropped (the leaf is no body, the joint holds nothing that moves).
 
+- a_made_door_and_drawer_join_their_cabinet (#177): part_drive's speed not turned by the sign (30, not -30);
+  write_parted's sibling filter dropped (the drawer left out of the door's pairs); part_inertia's box made a thin
+  rod's (0, 0, kg) (fails A + B >= C) (each seen red 2026-11-25);
 - a_made_door_and_drawer_join_their_cabinet (#177): write_parted's limits not turned for the negative way (0 to 100),
   part_frames' rotation the world's (joint_frames') -> the turned cabinet's drawer slides along the world's z; the
   drive's speed not turned with the sign; the hull copy's approximation left unset.
@@ -370,10 +373,15 @@ def a_made_door_and_drawer_join_their_cabinet():
         hull = door_prim.GetChild("geo_hull")
         assert UsdPhysics.MeshCollisionAPI(hull).GetApproximationAttr().Get() == "convexHull" and \
             UsdGeom.Imageable(hull).ComputePurpose() == "guide"
+        # the door driven by speed its negative way, damped by its own inertia (not STIFF_DRIVE); its inertia a solid
+        # box's (A + B >= C, which MuJoCo checks); kept off the cabinet's body and its sibling drawer
         drive = UsdPhysics.DriveAPI(hinge.GetPrim(), "angular")
         assert drive.GetTargetVelocityAttr().Get() == -30.0 and drive.GetMaxForceAttr().Get(12) == 50.0
+        assert 0 < drive.GetDampingAttr().Get() < physics.STIFF_DRIVE
+        inertia = sorted(UsdPhysics.MassAPI(door_prim).GetDiagonalInertiaAttr().Get())
+        assert inertia[0] > 0 and inertia[0] + inertia[1] >= inertia[2], inertia
         assert UsdPhysics.FilteredPairsAPI(door_prim).GetFilteredPairsRel().GetTargets() == [
-            Sdf.Path(f"/{PLACE}/Objects/cabinet_1/geo")]
+            Sdf.Path(f"/{PLACE}/Objects/cabinet_1/geo"), Sdf.Path(f"/{PLACE}/Objects/cabinet_1/drawer_01__slide_z")]
 
 
 def a_blocked_fall_is_refused():

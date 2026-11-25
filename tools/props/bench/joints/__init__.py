@@ -40,7 +40,7 @@ PAST_SHARE = 0.1
 SPIN_DEGREES = 90.0
 SPIN_FASTEST = 2.0  # times its drive's own sweep a spin may turn: past it the solve ran away (r16: a dial 48,574 degrees)
 TORQUE_PER_KG = 20.0  # N m (a hinge or spin) or N (a slide) a kg of its part, at least LEAST_TORQUE
-LEAST_TORQUE = 0.05  # (r16: a 5 N m floor on a 44 g dial ran its solve away)
+LEAST_TORQUE = 1.0  # the drive's damping is the part's own (tools/usd/physics.PART_DRIVE_SHARE), so a cap only limits
 MATERIALS = json.loads((REPO / "data/physics/materials.json").read_text())
 
 
@@ -116,7 +116,7 @@ def ran(stage, out, env, lock):
     command = [str(pathlib.Path(env) / "bin/python"), str(TRIAL), str(stage), str(out)]
     done = subprocess.run((["flock", str(lock)] if lock else []) + command, capture_output=True, text=True)
     if done.returncode:
-        raise RuntimeError(f"the physics trial failed: {done.stderr[-1500:]}")
+        raise RuntimeError(f"the physics trial failed: {done.stderr[-6000:]}")
     return json.loads(pathlib.Path(out).read_text())
 
 
