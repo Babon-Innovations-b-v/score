@@ -394,7 +394,11 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     are kept here, and the next pod making the node puts them back instead of making them again, the same
     listing."""
     from score.graph import pod
-    from score.store import offload
+    from score.store import offload, runtime_store
+    for owner, name in ((runtime_store.FolderStore, "path"), (runtime_store.FolderStore, "exists"),
+                        (Store, "put_blob")):  # offload.install undone after the test (#81)
+        monkeypatch.setattr(owner, name, getattr(owner, name))
+    monkeypatch.setattr(offload, "OPENER", {"open": None, "bucket": None})
     folder = pathlib.Path(tempfile.mkdtemp())
     bucket_root = folder / "bucket"
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub", "dock": "a dock"}), a_store()

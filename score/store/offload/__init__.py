@@ -75,7 +75,15 @@ class Bucket:
         self.client = boto3.client("s3", endpoint_url=spec["endpoint"], region_name=spec["region"],
                                    aws_access_key_id=spec["access_key"], aws_secret_access_key=spec["secret_key"],
                                    config=botocore.config.Config(max_pool_connections=WORKERS,
-                                                                 retries={"mode": "standard"}))
+                                                                 retries={"mode": "standard"},
+                                                                 s3={"payload_signing_enabled": True}))
+        # every body signed with its sha256 (x-amz-content-sha256), so the bucket itself refuses a put or part whose
+        # bytes changed on the way, not only at another length (#81); boto3 sends UNSIGNED-PAYLOAD over https otherwise
+
+    def put_policy(self, document):
+        """`document` (store_policy's) as the bucket's one policy, replacing any it had. Only with the key of the
+        user it names as keeper: the runtime key may not put a policy under it."""
+        self.client.put_bucket_policy(Bucket=self.name, Policy=json.dumps(document))
 
     def answer(self, key):
         """(size, sha256 metadata or None) of the object at `key`, or None on a 404; any other error raises."""
@@ -213,6 +221,25 @@ def open_bucket():
     return bucket
 
 
+def store_policy(bucket, runtime_application, keeper):
+    """The store bucket's policy (#81) in Scaleway's 2023-04-17 version, where only what a policy allows is allowed
+    (so it holds no Deny): the runtime key's application (`runtime_application`, its id) lists the bucket and reads
+    and writes every object, and deletes only under locks/; `keeper`, the id of the user who applies it, keeps every
+    right, so nobody is shut out (the organisation's owner can always put the policy again). An overwrite cannot be
+    refused by it (no condition key reads If-None-Match): every put stays conditional on the client's side."""
+    def allowed(sid, principal, actions, resources):
+        return {"Sid": sid, "Effect": "Allow", "Principal": {"SCW": principal}, "Action": actions,
+                "Resource": resources}
+
+    runtime = f"application_id:{runtime_application}"
+    return {"Version": "2023-04-17", "Id": f"{bucket}-store", "Statement": [
+        allowed("keeper", f"user_id:{keeper}", ["s3:*"], [bucket, f"{bucket}/*"]),
+        allowed("runtime-list", runtime, ["s3:ListBucket", "s3:ListBucketMultipartUploads"], [bucket]),
+        allowed("runtime-objects", runtime, ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload",
+                                             "s3:ListMultipartUploadParts"], [f"{bucket}/*"]),
+        allowed("runtime-locks", runtime, ["s3:DeleteObject"], [f"{bucket}/locks/*"])]}
+
+
 def blob_key(sha):
     return f"{BLOBS}{sha}"
 
@@ -289,13 +316,14 @@ def copy_blob(sha, target, key):
 
 # --- fetch on demand: install() -------------------------------------------------------------------------------------
 
-OPENER = {"open": open_bucket, "bucket": None}  # the bucket a fetch reads, opened at the first fetch
+OPENER = {"open": None, "bucket": None}  # the bucket a fetch reads, opened at the first fetch (None: open_bucket)
 
 
 def bucket_now():
-    """The bucket fetches read from, opened once a process."""
+    """The bucket fetches read from, opened once a process: by install's opener, else by open_bucket looked up by
+    name now, so a patched open_bucket is the one that opens it (#81)."""
     if OPENER["bucket"] is None:
-        OPENER["bucket"] = OPENER["open"]()
+        OPENER["bucket"] = (OPENER["open"] or open_bucket)()
     return OPENER["bucket"]
 
 
@@ -378,7 +406,7 @@ def install(opener=None):
     (idempotent); `opener` gives the bucket (a FolderBucket in the tests), open_bucket by default."""
     from score.store import Store
 
-    OPENER["open"], OPENER["bucket"] = opener or open_bucket, None
+    OPENER["open"], OPENER["bucket"] = opener, None
     runtime_store.FolderStore.path = fetching_path
     runtime_store.FolderStore.exists = present
     if not getattr(Store.put_blob, "as_a_write", False):

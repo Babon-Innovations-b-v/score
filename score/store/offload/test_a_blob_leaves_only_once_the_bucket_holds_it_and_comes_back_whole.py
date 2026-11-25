@@ -20,6 +20,12 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.install: drop the as_a_write wrap of Store.put_blob (a new blob's write asks the bucket; a bucket that
   fails on the network fails the write: red).
 - offload.fetched: catch the bucket's error and return (a network error read as absent).
+- offload.bucket_now: `OPENER["open"]` bound to open_bucket at import again (a patched open_bucket is not the one a
+  fetch opens, so a test reaches the real store bucket with the runtime key, #81).
+- offload.Bucket: drop `s3={"payload_signing_enabled": True}` (a body is sent UNSIGNED-PAYLOAD, so the bucket never
+  checks its sha256 and a put corrupted at the right length lands).
+- offload.store_policy: the runtime-locks Resource `{bucket}/*` (the runtime key may delete any blob), or the keeper
+  statement dropped (the user applying it is shut out of the bucket).
 - offload.push: `for tried in range(PUSH_TRIES):` -> `for tried in range(1):` (a put whose connection the bucket drops
   is never sent again: a pod's large output failed to reach the bucket, surfaces-paint@tube 2026-11-07).
 - disk.least_used_over: drop the sort by st_atime (a capped store-evict evicts by name, a blob read since kept by none),
@@ -81,7 +87,24 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
     monkeypatch.setattr(runtime_store.FolderStore, "path", runtime_store.FolderStore.path)  # restored after
     monkeypatch.setattr(runtime_store.FolderStore, "exists", runtime_store.FolderStore.exists)
     monkeypatch.setattr(Store, "put_blob", Store.put_blob)
-    home = tmp_path / "home"
+    monkeypatch.setattr(offload, "OPENER", {"open": None, "bucket": None})  # install's bucket undone after too
+
+    # the bucket checks each body's sha256 itself: every request is signed with it (SigV4's x-amz-content-sha256)
+    real = offload.Bucket({"endpoint": "https://s3.example.invalid", "region": "fr-par", "bucket": "store",
+                           "access_key": "key", "secret_key": "secret"})  # a client only, no request made
+    assert real.client.meta.config.s3["payload_signing_enabled"] is True
+    # its policy: the runtime key lists, reads and writes, deletes only under locks/; the keeper keeps every right
+    policy = offload.store_policy("store", "app-1", "user-1")
+    granted = [(statement["Principal"]["SCW"], action, resource) for statement in policy["Statement"]
+               for action in statement["Action"] for resource in statement["Resource"]]
+    runtime = [(action, resource) for principal, action, resource in granted if principal == "application_id:app-1"]
+    assert all(statement["Effect"] == "Allow" for statement in policy["Statement"]), policy
+    assert {action for action, _ in runtime} >= {"s3:GetObject", "s3:PutObject", "s3:ListBucket"}, runtime
+    assert all(resource.startswith("store/locks/") for action, resource in runtime
+               if action.startswith("s3:Delete") or action in ("*", "s3:*")), runtime
+    assert ("user_id:user-1", "s3:*", "store/*") in granted and ("user_id:user-1", "s3:*", "store") in granted
+
+    home =tmp_path / "home"
     store = Store.in_folder(home / "store")
     blobs = home / "store" / "objects" / "blobs"
     outputs = {name: stored(store, tmp_path, name, f"{name}-".encode() * 4096)  # no 64-hex word in any
@@ -157,6 +180,11 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
     with pytest.raises(offload.BlobMismatch):
         store.objects.read_bytes(offload.blob_key(bad))
     assert not (blobs / bad).exists() and not list(blobs.glob("*.partial"))
+
+    # install with no opener opens the bucket by open_bucket's name at the first fetch: one patched after is used
+    offload.install()
+    monkeypatch.setattr(offload, "open_bucket", lambda: bucket)
+    assert offload.bucket_now() is bucket
 
     # a network error is never read as absent: it propagates, the blob still marked
     offload.install(lambda: FailingFetch(tmp_path / "bucket"))

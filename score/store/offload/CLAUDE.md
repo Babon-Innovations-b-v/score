@@ -15,7 +15,12 @@ The package docstring is the contract.
 - **Writes are conditional** (`If-None-Match: *`, PutObject or CompleteMultipartUpload; a failed multipart upload is
   aborted): a 412 means the key is taken, for a blob the same bytes. Each object carries its sha256 as metadata,
   from the bytes hashed just before the upload. Probed 2026-11-04 from this PC: the second put and the second
-  complete both 412, HEAD gives the size and the metadata, a missing key 404.
+  complete both 412, HEAD gives the size and the metadata, a missing key 404. Every body is signed with its sha256
+  (`payload_signing_enabled`, x-amz-content-sha256), so the bucket itself checks each put and part (#81).
+- **The policy** (`store_policy`, applied by `Bucket.put_policy` with the keeper's own key, never the runtime key's):
+  Scaleway's 2023-04-17 version allows only what it lists, so it has no Deny; the runtime application lists, reads
+  and writes, and deletes only under `locks/`; the keeper user keeps every right. No condition key reads
+  If-None-Match, so overwrites stay refused only by the conditional puts.
 - **Evicting**: `score/conductor/disk.py` store-evict (its own command and the door's verb, never the sweep) picks which blobs (one link, nothing but output listings naming
   them, no output a node stands on, no text naming blobs, no run live) and calls `proven` then `evict`. The mark
   `store/evicted/<sha256>` is written and synced before the copy goes.
