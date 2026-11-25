@@ -311,7 +311,7 @@ def wait_ready(cluster_id):
 
 
 def class_pools():
-    """The cluster's class pools: name, id, class, machine type, zone, its max size and its price."""
+    """The cluster's class pools: name, id, class, machine type, zone, its max size, its live nodes and its price."""
     found = []
     for pool in pools(owned_cluster(backend.account())["id"]):
         machine_class = provider.capability_class((pool.get("labels") or {}).get(CLASS_LABEL))
@@ -320,7 +320,7 @@ def class_pools():
         per_minute, unit_minutes = price(pool["node_type"], pool["zone"])
         found.append({"name": pool["name"], "id": pool["id"], "class": machine_class,
                       "type": machine_type_name(pool["node_type"]), "zone": pool["zone"],
-                      "max": pool.get("max_size", 0), "tags": list(pool.get("tags") or []),
+                      "max": pool.get("max_size", 0), "size": pool.get("size", 0), "tags": list(pool.get("tags") or []),
                       "euros_a_minute": per_minute, "unit_minutes": unit_minutes})
     return found
 
@@ -385,7 +385,9 @@ def stock_caps(pools, stock, euros_left, hours, share, now):
     saying each change and its price). A pool whose zone is out of its type (`stock`: {(type, zone): availability},
     a type unlisted counted out), or still inside its `stockout-until`, is held at 0; every other gets the nodes the
     euros left pay for `hours` each within `share` (cap_pools' pricing), so a fallback to a dearer zone or class grows
-    only what the batch can carry, and a class with no pool left that it can carry is said refused."""
+    only what the batch can carry, and a class with no pool left that it can carry is said refused. No cap goes under
+    a pool's live nodes (`size`): a held or underpaid pool keeps the nodes running its paid jobs, and Kapsule is never
+    asked to shrink them."""
     caps, tags, lines, held = {}, {}, [], set()
     for pool in pools:
         out = stock.get((pool["type"], pool["zone"])) in (*NO_STOCK, None)
@@ -395,11 +397,12 @@ def stock_caps(pools, stock, euros_left, hours, share, now):
         until = tag_number(after, STOCKOUT_UNTIL)
         if until is not None and until > now:
             held.add(pool["name"])
-        caps[pool["name"]] = 0 if pool["name"] in held else affordable_nodes(euros_left, pool["euros_a_minute"],
-                                                                             hours, share)
+        paid = 0 if pool["name"] in held else affordable_nodes(euros_left, pool["euros_a_minute"], hours, share)
+        caps[pool["name"]] = max(paid, pool["size"])
         if pool["name"] in held and pool["max"]:
-            lines.append(f"{pool['name']}: {pool['type']} out of stock in {pool['zone']}; held at 0 until "
-                         f"{time.strftime('%H:%M', time.gmtime(until))} UTC")
+            live = " (its live nodes)" if pool["size"] else ""
+            lines.append(f"{pool['name']}: {pool['type']} out of stock in {pool['zone']}; held at "
+                         f"{caps[pool['name']]}{live} until {time.strftime('%H:%M', time.gmtime(until))} UTC")
         elif pool["name"] not in held and caps[pool["name"]] != pool["max"]:
             lines.append(f"{pool['name']}: max {pool['max']} -> {caps[pool['name']]} at EUR "
                          f"{pool['euros_a_minute'] * 60:.2f} an hour ({pool['type']} in {pool['zone']})")
