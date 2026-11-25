@@ -23,8 +23,8 @@ hole TRELLIS.2 cut through the plate outside every closed region (holes_closed),
 
     held(placement, mesh, same, pattern)   the placement on its plate, closed; (None, why) when a pattern cannot be
                                            placed clear of a seam
-    holes_closed(placements, mesh, sames)  the placements with the holes through their plates outside every closed
-                                           region closed too (`also`)
+    holes_closed(placements, mesh, sames, shown=None)  the placements with the holes through their plates outside
+                                           every closed region closed too (`also`)
     closed_round(placement, mesh, same, most, reach)  a hardware cut's region closed on its plate (#212), or None
 """
 import numpy as np
@@ -54,11 +54,23 @@ LIP = 2
 # the locker's vents, 1 to 2 cm across, seeing the cabinet's inside 0.24 m behind its door): a patch of the plate's
 # grid HOLE_STEP apart (coarser where the plate holds over HOLE_CELLS) whose rays meet nothing or meet the model more
 # than HOLE_DEEP behind the plate (the door sheet is 7 mm), at most HOLE_MOST across, ringed LIP cells wide by its
-# part within BUMP_MOST of the plate, is closed by a box of its own round it.
+# part within BUMP_MOST of the plate, is closed by a box of its own round it. So is one of any size the close-up shows
+# as its plate (`shown`): every ray of it HOLE_THROUGH behind the plate or meeting nothing (right through the sheet,
+# never a pocket: a recessed handle's back lies 2 to 4 cm in), HOLE_RING of the cells round it that are no hole its
+# part at most BUMP_MOST proud (the hole's own wall, sunk into the sheet, counted with the plate), and the close-up's
+# lightness across it within HOLE_SHOWN L* of the plate's round it (HOLE_SEEN cells out), that plate at least
+# HOLE_LIGHT: r15f's locker's band 1 remesh kept bars up to 14 cm long through its light doors, which its close-up shows
+# plain, onto the cabinet's back 0.48 m behind, its rims 6 to 8 mm down; on a dark plate (r15f's tool cart, L* 15 to
+# 30) the close-up cannot tell a hole from the plate, and the hole is left as made.
 HOLE_STEP = 0.002
 HOLE_CELLS = 250000
 HOLE_DEEP = 0.01
 HOLE_MOST = 0.025
+HOLE_THROUGH = 0.05
+HOLE_RING = 0.95
+HOLE_SHOWN = 10.0
+HOLE_LIGHT = 50.0
+HOLE_SEEN = (LIP + 1, 3 * LIP)
 PLATE_SAME = 0.999  # two closed marks' normals this alike (cosine), and their plates within BUMP_MOST, share one
 
 
@@ -311,9 +323,10 @@ def plate_extent(placement, mesh, same):
     return laid.min(0), laid.max(0)
 
 
-def plate_holes(placement, mesh, same):
+def plate_holes(placement, mesh, same, shown=None):
     """[[left, bottom, right, top]] across and up from the placement's `at` of each hole through its part's plate (the
-    module's HOLE_ rule), each grown LIP cells: its plate cast over the whole of its part's extent on it."""
+    module's HOLE_ rule; one the close-up shows as plate only with `shown`, the close-up's L* at points of the model's
+    frame, NaN off it), each grown LIP cells: its plate cast over the whole of its part's extent on it."""
     extent = plate_extent(placement, mesh, same)
     if extent is None:
         return []
@@ -323,6 +336,7 @@ def plate_holes(placement, mesh, same):
         np.arange(low[0], high[0] + step / 2, step), np.arange(low[1], high[1] + step / 2, step)))
     through = np.isnan(height) | (height < -HOLE_DEEP)
     plate = mine & (np.abs(height) <= BUMP_MOST)
+    seen = None if shown is None else seen_lightness(placement, across, upward, shown)
     labels, _ = ndimage.label(through)
     found = []
     for number, cells in enumerate(ndimage.find_objects(labels), start=1):
@@ -331,15 +345,39 @@ def plate_holes(placement, mesh, same):
         if (rows.start < LIP or columns.start < LIP or rows.stop > across.shape[0] - LIP
                 or columns.stop > across.shape[1] - LIP):
             continue
-        if max(np.ptp(across[cells][hole]), np.ptp(upward[cells][hole])) + step > HOLE_MOST:
-            continue
-        ring = ndimage.binary_dilation(labels == number, iterations=LIP) & (labels != number)
-        if not plate[ring].all():
+        cut = labels == number
+        small = max(np.ptp(across[cells][hole]), np.ptp(upward[cells][hole])) + step <= HOLE_MOST
+        if not (small and plate[ndimage.binary_dilation(cut, iterations=LIP) & ~cut].all()) and not (
+                seen is not None and shown_plate(cut, through, height, mine, seen)):
             continue
         found.append([round(float(value), 5) for value in (
             across[cells][hole].min() - LIP * step, upward[cells][hole].min() - LIP * step,
             across[cells][hole].max() + LIP * step, upward[cells][hole].max() + LIP * step)])
     return found
+
+
+def seen_lightness(placement, across, upward, shown):
+    """The close-up's L* (`shown`) at each cell of the grid `across`, `upward` on the placement's face."""
+    right, up, _ = axes(placement)
+    points = (np.asarray(placement["at"], dtype=float) + across.reshape(-1, 1) * right
+              + upward.reshape(-1, 1) * up)
+    return np.asarray(shown(points), dtype=float).reshape(across.shape)
+
+
+def shown_plate(cut, through, height, mine, seen):
+    """Whether the hole `cut` (cells of the plate's grid) is one the close-up shows as its plate (the module's HOLE_
+    rule): right through, ringed by its plate, and seen as light as the plate round it."""
+    if not (np.isnan(height[cut]) | (height[cut] < -HOLE_THROUGH)).all():
+        return False
+    ring = ndimage.binary_dilation(cut, iterations=LIP) & ~through
+    if not ring.any() or (mine & (height <= BUMP_MOST))[ring].mean() < HOLE_RING:
+        return False
+    round_it = (ndimage.binary_dilation(cut, iterations=HOLE_SEEN[1])
+                & ~ndimage.binary_dilation(cut, iterations=HOLE_SEEN[0]) & ~through)
+    inside, plate = seen[cut], seen[round_it]
+    if np.isnan(inside).all() or np.isnan(plate).all():
+        return False
+    return bool(np.nanmedian(plate) >= HOLE_LIGHT and np.nanmedian(inside) >= np.nanmedian(plate) - HOLE_SHOWN)
 
 
 def in_frame(box, source, target):
@@ -363,11 +401,12 @@ def shared_plate(first, second):
                 <= BUMP_MOST)
 
 
-def holes_closed(placements, mesh, sames):
+def holes_closed(placements, mesh, sames, shown=None):
     """The placements with each hole TRELLIS.2 cut through a closed one's plate outside every region closed on it
     (plate_holes) closed too: its box in the `also` of the closed placement on that plate (its part's faces the same,
-    `sames` a placement's) nearest it. r13's locker drew a black dot through each door above its vents, 1 to 2 cm
-    outside their closed boxes; a plate is cast once for all its marks."""
+    `sames` a placement's) nearest it, unless it lies wholly in a region closed already (inside_closed); one the
+    close-up shows as its plate only with `shown` (plate_holes). r13's locker drew a black dot through each door above
+    its vents, 1 to 2 cm outside their closed boxes; a plate is cast once for all its marks."""
     found = [dict(placement, closed=dict(placement["closed"])) if placement.get("closed") else placement
              for placement in placements]
     done = []
@@ -379,7 +418,7 @@ def holes_closed(placements, mesh, sames):
         done.append(number)
         group = [other for other, each in enumerate(found) if each.get("closed") and shared_plate(placement, each)
                  and np.array_equal(sames[other], sames[number])]
-        for hole in plate_holes(placement, mesh, sames[number]):
+        for hole in plate_holes(placement, mesh, sames[number], shown):
             laid = {other: in_frame(hole, placement, found[other]) for other in group}
             if any(inside_closed(laid[other], found[other]["closed"]) for other in group):
                 continue
@@ -391,9 +430,9 @@ def holes_closed(placements, mesh, sames):
 
 
 def inside_closed(box, closed):
-    """Whether a box's middle lies in a closed region's own `box` or any of its `also`."""
-    across, upward = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
-    return any(left <= across <= right and bottom <= upward <= top
+    """Whether a box lies wholly in a closed region's own `box` or in one of its `also`: a hole whose middle alone lay
+    in one was left open past it (r15f's locker: the bars through its doors 3 to 4 cm past its vents' boxes)."""
+    return any(left <= box[0] and box[2] <= right and bottom <= box[1] and box[3] <= top
                for left, bottom, right, top in [closed["box"], *closed.get("also", [])])
 
 

@@ -715,14 +715,37 @@ def take_decals(seen, marks, part_of, out, inks=None, close_up=None, finish_of=N
                                   px_per_m=drawer.density(placement))
         drawer.drawn(placements[number]).save(out / placements[number]["picture"])
     panels, panel_gaps = panel_placed(seen, marks, placements, part_of, out, close_up, colours, inks, plates)
-    return on_plates(panels + placements, gaps + panel_gaps, cast.own_mesh(model), part_of, finish_of)
+    return on_plates(panels + placements, gaps + panel_gaps, cast.own_mesh(model), part_of, finish_of,
+                     lightness_seen(close_up, camera, size))
 
 
-def on_plates(placements, gaps, mesh, part_of, finish_of=None):
+def lightness_seen(close_up, camera, size):
+    """A function giving the `close_up`'s L* at points of the model's own frame seen through its `camera` (NaN off it
+    or where it is clear); None without a close-up."""
+    if not close_up:
+        return None
+    from PIL import Image
+    with Image.open(close_up) as opened:
+        picture = np.asarray(opened.convert("RGBA"))
+    lightness = cast.lab_of(picture[..., :3].reshape(-1, 3)).reshape(picture.shape[:2] + (3,))[..., 0]
+    lightness[picture[..., 3] < 128] = np.nan
+
+    def shown(points):
+        pixels = np.round(hardware_pieces.seen_at(camera, size, points)).astype(int)
+        inside = ((pixels[:, 0] >= 0) & (pixels[:, 0] < lightness.shape[1]) & (pixels[:, 1] >= 0)
+                  & (pixels[:, 1] < lightness.shape[0]))
+        found = np.full(len(pixels), np.nan)
+        found[inside] = lightness[pixels[inside, 1], pixels[inside, 0]]
+        return found
+    return shown
+
+
+def on_plates(placements, gaps, mesh, part_of, finish_of=None, shown=None):
     """(placements, gaps) with each placement held to its part's plate (decal_plates.held, #159 round 13: the made
     shape under a mark flat and closed, a pattern moved clear of a seam its box crosses), on its finish's parts for a
-    pattern (placement's `finish_of`), and the holes through those plates closed too (decal_plates.holes_closed); a
-    pattern that cannot be placed clear of a seam a gap naming why."""
+    pattern (placement's `finish_of`), and the holes through those plates closed too (decal_plates.holes_closed, one
+    the close-up shows as its plate where `shown` gives its lightness, lightness_seen); a pattern that cannot be
+    placed clear of a seam a gap naming why."""
     held, sames, refused = [], [], []
     for placement in placements:
         patterned = placement.get("shape") == pattern_decals.SHAPE
@@ -736,7 +759,7 @@ def on_plates(placements, gaps, mesh, part_of, finish_of=None):
         else:
             held.append(found)
             sames.append(same)
-    return decal_plates.holes_closed(held, mesh, sames), gaps + refused
+    return decal_plates.holes_closed(held, mesh, sames, shown), gaps + refused
 
 
 def part_faces(part_of, placement):

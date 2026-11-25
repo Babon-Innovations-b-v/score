@@ -6,7 +6,8 @@ its decoded mesh holds (#159: bake.seamed, TRELLIS.2's mesh before the remesh cl
 3 mm deep across the decoded panel darkens the panel's texels over it and nowhere else; of a seam's run, a pinhole's
 dot, a hole's blot and a hole's slot dark in a decoded occlusion, only the seam shades (bake.seam_shade). And a door
 closed under a mark (#159 round 13, bake.pressed_under and cards_over) has its bump in the mark's region pressed onto its plate and
-one card over the region in the finish of its plate.
+one card over the region in the finish of its plate, and a cut's blob pressed past its box over the next face eases into
+it (bake.closed_points, #159 r15f).
 
 Breaks (each applied once, seen red, reverted, 2026-11-24):
 - bake.occlusion not taking the other meshes out (`others = []`) -> the slab over the floor shuts its open end too;
@@ -30,6 +31,12 @@ Breaks (each applied once, seen red, reverted, 2026-11-24):
   dots); closed_points' `pressed` loop dropped -> the blob past the cut's box left standing (a lump beside the lock),
   its `least` -> 0 -> the face's own step pressed too (the neighbouring door's white crumpled strip); cards_over laying
   one card a decal (`closing_cards(decal)` -> its first) -> two cards, the hole's rim uncovered (#212, r14l).
+- bake.closed_points' `surface_under(...)` -> `np.zeros(len(offset))` -> the strip's blob pressed straight onto the
+  plate beside the next face, stretched 4.2; PRESS_ROUNDS 200 -> 1 -> stretched 2.6; its near points'
+  `height >= -PRESS_SURFACE / 2` dropped -> laid toward the sheet's back, stretched 6.9; their
+  `lowered <= PRESS_SURFACE` dropped -> the bumps beside the handle raised toward it (1.4 mm) (#159 r15f, seen red in
+  numpy on the strip, 2026-11-25; the edge band, `eased = inside & (depth < PRESS_REACH)`, on r15f's locker: its
+  upper right lock stretched 3.2 without it, 1.43 with).
 """
 import json
 import os
@@ -165,6 +172,24 @@ door_decals = [{"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.
                                                                           "least": 0.006}],
                            "most": 0.05, "plate_point": [-0.35, -0.15, 0.0]}}]
 bake.pressed_under(door, door_decals)
+strip_across, strip_upward = np.meshgrid(np.arange(-0.09, 0.0705, 0.001), np.arange(-0.004, 0.0045, 0.001))
+strip_points = np.c_[strip_across.ravel(), strip_upward.ravel(), (
+    0.005 * np.clip((-0.048 - strip_across) / 0.004, 0.0, 1.0)  # the next face, 5 mm proud past a slope at the box
+    + 0.02 * np.exp(-((strip_across + 0.04) ** 2) / (2 * 0.012 ** 2))  # the blob, its tail over that face
+    + np.where((strip_across > 0.0455) & (strip_across < 0.05), 0.001, 0.0)  # 1 mm bumps at the box's other edge
+    + np.where((strip_across > 0.0525) & (strip_across < 0.0605), 0.03, 0.0)).ravel()]  # a handle 3 cm proud past it
+strip_back = strip_points[strip_points[:, 0] < -0.05] * [1, 1, 0] + [0, 0, -0.007]  # the next face's sheet's back
+strip_side = strip_across.shape[1]
+strip_corner = (np.arange(strip_across.shape[0] - 1)[:, None] * strip_side + np.arange(strip_side - 1)[None, :]).ravel()
+strip_faces = np.r_[np.c_[strip_corner, strip_corner + 1, strip_corner + strip_side + 1],
+                    np.c_[strip_corner, strip_corner + strip_side + 1, strip_corner + strip_side]]
+strip_pressed = bake.closed_points(np.r_[strip_points, strip_back], {
+    "at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0],
+    "closed": {"box": [-0.05, -0.05, 0.05, 0.05], "pressed": [{"box": [-0.09, -0.05, 0.05, 0.05], "least": 0.006}],
+               "most": 0.05, "plate_point": [0.0, 0.03, 0.0]}})[:len(strip_points)]
+def strip_longest(found):
+    return np.max([np.linalg.norm(found[strip_faces[:, first]] - found[strip_faces[:, second]], axis=1)
+                   for first, second in ((0, 1), (1, 2), (2, 0))], axis=0)
 cards = bake.cards_over(door, door_decals)
 laid_cards = {}
 for face in door.data.polygons[101:]:
@@ -180,7 +205,11 @@ print("FOUND", json.dumps({"cards": cards, "faces": len(door.data.polygons), "bu
                            "panel": on_panel(0.75, 0.5), "seam": float(shade[24, 10]), "dot": float(shade[50, 50]),
                            "blot": float(shade[24, 36]), "slot": float(shade[50, 22]),
                            "part_crease": float(alone[16, 0, 0]), "part_open": float(alone[16, 62, 0]),
-                           "part_size": list(apart.size)}))
+                           "part_size": list(apart.size),
+                           "strip_grown": float((strip_longest(strip_pressed) / strip_longest(strip_points)).max()),
+                           "strip_most": float(strip_pressed[strip_points[:, 0] < 0.05, 2].max()),
+                           "strip_inside": float(np.abs(strip_pressed[(np.abs(strip_points[:, 0]) < 0.05)
+                                                                     & (strip_points[:, 0] > -0.04), 2]).max())}))
 '''
 
 
@@ -212,3 +241,9 @@ def test_a_model_shades_into_its_own_creases(tmp_path):
             found["panel"] > 0.97, found["seam"] < 0.9, found["dot"], found["blot"], found["slot"],
             found["part_crease"] < 0.8, found["part_open"] > 0.9, found["part_size"]) == \
         (True, True, 16, True, True, True, True, 1.0, 1.0, 1.0, True, True, [64, 32]), json.dumps(found)
+    # a cut's blob pressed past its box over the next face 5 mm proud, the box's edge on that face's slope (r15f's
+    # locker's right locks): laid on the surface round it, never that face's sheet's back nor a handle standing past
+    # the box's other edge, no face stretched past look.stretched's 1.5 (pressed straight onto the plate, 4.2), the
+    # blob gone, the box flat to its edge beside the handle
+    assert (found["strip_grown"] < 1.5, found["strip_most"] <= 0.006, found["strip_inside"] < 1e-6) == (True,) * 3, \
+        json.dumps(found)

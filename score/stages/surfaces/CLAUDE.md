@@ -69,7 +69,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   region (box, pressed height, plate point) is pressed flat and covered by one card in the plate's finish where the
   look and the place's bake draw it (tools/props/library/inside/bake.pressed_under, cards_over); a mark whose plate is not flat
   is left `open`. A hole TRELLIS.2 cut through a closed mark's plate outside every closed region (r13's black dot above
-  each locker vent) is closed too, a box of its own in the nearest mark's `also` (`holes_closed`, a plate cast once).
+  each locker vent) is closed too, a box of its own in the nearest mark's `also` (`holes_closed`, a plate cast once);
+  so is one of any size right through a light plate the close-up shows plain there (`shown`, route_parts.lightness_seen:
+  r15f's band 1 locker's 14 cm bars through its doors), never one the close-up cannot tell from a dark plate.
   **Printed panels** (#159 round 15, r14's gas stove: its red and white control panel drawn as torn white and red
   pieces with a grey box): a printed area of several inks on one flat face is one mark of shape `panel`
   (finish_ask.PANEL), its words still text marks. `surfaces-parts` covers every face under it that faces its plate
@@ -87,7 +89,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   it, the finish it is mounted on and the finish it is); `surfaces-parts` lays it (`hardware_pieces.py`, parts.json's
   `hardware` and `hardware_gaps`): its box measured again on the close-up (`piece_box`), its face read round it, its
   library piece stood on that face and fitted to the box (`fitted`: its size and spot the close-up's, its depth seen
-  aslant included), the model's own blob beside it found and cut (`blob_cut`, stopping short of the face's edge) and
+  aslant included), the model's own blob beside it found and cut (`blob_cut`, stopping short of the face's edge; a blob joined low to a
+  door's raised edge parted from it standing higher, `parted`, r15f) and
   closed on its plate as a mark's is (the cut's `closed`, `decal_plates.closed_round`: pressed straight onto the
   plate, one card over it short of a seam, the blob's core pressed past it; closed to a point in r13 it drew white
   cracks and starbursts), the blob's faces covered as a print under a mark is, onto the part it is laid on

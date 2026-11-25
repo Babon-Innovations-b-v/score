@@ -34,8 +34,10 @@ own bumps stand under it); the nearest group no other piece took is cut (TRELLIS
 knob 0.14 m off its lock), its middle the cut's `at`, its farthest vertex across the face grown by CUT_MARGIN its
 flat core (the radius less its falloff, so no part of the blob is only eased); the cut's `at` and the piece's are then laid on the model's own surface round each (`surface_height`), the
 piece's on its cut's where it stands in it. A cut stops short of its face's edge (blob_cut), so it presses no edge to
-another face. With no such group, or one reaching past CUT_MOST half diagonals,
-the cut is the piece's own spot and half diagonal.
+another face. A group reaching past CUT_MOST half diagonals is read again
+standing higher, BLOB_STEP at a time up to BLOB_HIGH, until it parts (`parted`: a blob joined low to a door's raised
+edge beside it). With no such group, or one still reaching past CUT_MOST half diagonals, the cut is the piece's own
+spot and half diagonal.
 A piece is laid only where its cut leaves the print round it whole (`torn`): the cut draws the face's own paint in
 over the blob, so where the face it moves outside the piece's own box holds another finish than the face's, the
 piece's or the blob's, the mark is a gap and TRELLIS.2's own blob is kept (#159 round 13: r13's gas stove's 44 mm
@@ -78,6 +80,11 @@ SEARCH = 5.0      # the blob is looked for within this many of the piece's half 
 FIT_ROUNDS = 4    # rounds of fitted's scale and move
 CUT_MOST = 4.0    # a group reaching further than this many half diagonals is no blob but the face standing off its plane
 BLOB_LOW, BLOB_HIGH = 0.004, 0.008  # metres: a blob's vertex stands this over the face; a blob this at its highest
+# A group reaching past CUT_MOST is read again standing BLOB_STEP higher at a time, up to BLOB_HIGH, until it parts into
+# groups that do not (r15f's locker: the lower right lock's blob joined at 4 mm to its door's raised edge 3 cm beside
+# it, one group 0.11 x 0.28 m, so no blob was cut and TRELLIS.2's lump stood round the lock; at 6 mm the blob stands
+# apart, 0.07 x 0.07 m, as its upper right one does at 4 mm).
+BLOB_STEP = 0.001
 PIECE_GROW = 1.0  # a piece is looked for in its box grown this many of its sides each way (piece_box)
 # sRGB distance from the face's colour (the grown box's median) of a piece's pixels, and the openings that drop a thin
 # line from them: at 25 and one opening the tc6 locker's right locks joined their door's seam and its soft shadow,
@@ -162,22 +169,42 @@ def piece_box(box, picture):
 
 def blob_groups(model, at, normal, half, rise):
     """([its vertices' indices] of each group of the model's vertices standing BLOB_LOW to `rise` over the face within
-    SEARCH half diagonals of `at`, joined by the mesh's edges, that stands BLOB_HIGH at its highest; the model's
-    vertices in the take's own frame)."""
-    from scipy import sparse
-    from scipy.sparse.csgraph import connected_components
+    SEARCH half diagonals of `at`, joined by the mesh's edges (one reaching past CUT_MOST parted standing higher:
+    `parted`), that stands BLOB_HIGH at its highest; the model's vertices in the take's own frame)."""
     middle, side = model.frame
     vertices = np.asarray(model.mesh.vertices) * side + middle
     offset = vertices - at
     height = offset @ normal
     across = np.linalg.norm(offset - np.outer(height, normal), axis=1)
     standing = (height > BLOB_LOW) & (height < rise) & (across < SEARCH * half)
+    laid = offset - np.outer(height, normal)
+    found = [part for members in joined(model, standing) for part in parted(model, members, height, laid, half)]
+    return [members for members in found if height[members].max() >= BLOB_HIGH], vertices
+
+
+def joined(model, standing):
+    """[its vertices' indices] of each group of the `standing` vertices joined by the mesh's edges."""
+    from scipy import sparse
+    from scipy.sparse.csgraph import connected_components
     edges = model.mesh.edges_unique
     edges = edges[standing[edges[:, 0]] & standing[edges[:, 1]]]
-    graph = sparse.coo_matrix((np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(len(vertices),) * 2)
+    graph = sparse.coo_matrix((np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(len(standing),) * 2)
     _, group = connected_components(graph, directed=False)
-    found = [np.flatnonzero(standing & (group == number)) for number in np.unique(group[standing])]
-    return [members for members in found if height[members].max() >= BLOB_HIGH], vertices
+    return [np.flatnonzero(standing & (group == number)) for number in np.unique(group[standing])]
+
+
+def parted(model, members, height, laid, half, low=BLOB_LOW):
+    """[members] of a group standing over `low`, or, where its farthest vertex across the face (`laid`) from its
+    middle grown by CUT_MARGIN reaches past CUT_MOST half diagonals (blob_cut's no blob), the groups its vertices
+    standing BLOB_STEP higher part into, each parted again, up to BLOB_HIGH."""
+    points = laid[members]
+    if (np.linalg.norm(points - points.mean(0), axis=1).max() * CUT_MARGIN <= CUT_MOST * half
+            or low + BLOB_STEP > BLOB_HIGH):
+        return [members]
+    standing = np.zeros(len(height), dtype=bool)
+    standing[members[height[members] > low + BLOB_STEP]] = True
+    return [part for group in joined(model, standing) for part in parted(model, group, height, laid, half,
+                                                                         low + BLOB_STEP)]
 
 
 def surface_height(vertices, centre, normal, reach):

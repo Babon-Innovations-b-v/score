@@ -537,6 +537,15 @@ tests it turned red:
   holes_closed's `in_frame(...)` -> the hole's box as cast (laid in the wrong vent's frame), its nearest mark ->
   `group[0]` (the hole closed by the far vent); plate_holes' `height < -HOLE_DEEP` -> `< -0.5` (the hole through
   to the wall 0.3 m behind not seen) (#159 r13, r14l).
+- TRELLIS.2's bars through a light plate and a lock's blob joined to its door's edge (#159 r15f's locker, 2026-11-25),
+  each -> every_part_takes_a_library_surface_and_is_held_to_it (plates_held, hardware_marks_held): decal_plates.py
+  shown_plate's `np.nanmedian(plate) >= HOLE_LIGHT and` dropped (the slot through a dark plate closed); its
+  `and np.nanmedian(inside) >= ... - HOLE_SHOWN` dropped (the slot the close-up shows dark closed); its right-through
+  check -> `if False:` (the pocket closed); its ring's `height <= BUMP_MOST` -> `np.abs(height) <= BUMP_MOST` (the
+  slot with its rim sunk 7 mm left open); route_parts.py on_plates' `holes_closed(..., shown)` without `shown` (the
+  slot the close-up shows as plate left open); inside_closed's whole box -> its middle (a hole half past a region
+  read as closed); hardware_pieces.py parted's `or low + BLOB_STEP > BLOB_HIGH` -> `or True` (the blob joined to the
+  door's edge not cut, the cut the lock's own spot).
 - Printed panels (#159 round 15), each -> every_part_takes_a_library_surface_and_is_held_to_it (panels_held):
   finish_ask.py marks_of's `elif shape == PANEL:` -> `elif False:` (the panel read as a picture mark, a gap);
   drawn_gap's `if lacking:` -> `if False:` (the stove's 爐 set as an empty box); route_parts.py covering's panel
@@ -3112,13 +3121,15 @@ def pattern_marks_held():
     assert np.allclose(facing, [0.0, 0.0, 1.0]), facing
 
 
-def door(seams=(-0.06,), round_too=False, dot=False):
+def door(seams=(-0.06,), round_too=False, dot=False, slot=None, rim=False):
     """A locker door as TRELLIS.2 makes one (#159 round 13), facing +z at z = 0 on a 2 mm grid, 0.5 m square: 3 mm bumps
     in a 6 cm square round (0.1, 0.1), a bar 8 cm long cut through it at (0.1, 0.07) to a wall 0.3 m behind, a handle
     3 cm proud just above them at (0.1, 0.145), a groove 4 mm wide and 3 mm deep across it at each of `seams` (y),
     and, `round_too`, the door bent round an 8 cm cylinder along y for x under -0.12 (a label 4 cm wide on it lies
     1.5 mm off its tangent plane over 39% of its grid, 0.8 mm over 28%), and, `dot`, a hole 1 cm square cut through it
-    at (0.1, 0.0) (r13's locker: a black dot under each vent). The mesh and each face's part (the bar's wall the
+    at (0.1, 0.0) (r13's locker: a black dot under each vent), and, `slot`, a slot 10 cm by 1 cm at (0.1, -0.15) cut
+    through it ("through") or sunk 3 cm into it ("pocket", a recessed handle) (r15f's locker: TRELLIS.2's bars through
+    its doors), `rim` its rim sunk 7 mm into the sheet round it. The mesh and each face's part (the bar's wall the
     second)."""
     step = 0.002
     grid = np.arange(-0.25, 0.25 + step / 2, step)
@@ -3132,6 +3143,11 @@ def door(seams=(-0.06,), round_too=False, dot=False):
     if round_too:
         bent = across < -0.12
         height[bent] = np.sqrt(np.maximum(0.08 ** 2 - (across[bent] + 0.2) ** 2, 0.0)) - 0.08
+    slotted = (np.abs(across - 0.1) < 0.05) & (np.abs(upward + 0.15) < 0.005)
+    if rim:
+        height[(np.abs(across - 0.1) < 0.053) & (np.abs(upward + 0.15) < 0.008) & ~slotted] = -0.007
+    if slot == "pocket":
+        height[slotted] = -0.03
     points = np.c_[across.ravel(), upward.ravel(), height.ravel()]
     side = len(grid)
     corner = (np.arange(side - 1)[:, None] * side + np.arange(side - 1)[None, :]).ravel()
@@ -3141,6 +3157,9 @@ def door(seams=(-0.06,), round_too=False, dot=False):
     if dot:
         middles = points[faces].mean(1)
         faces = faces[~((np.abs(middles[:, 0] - 0.1) < 0.005) & (np.abs(middles[:, 1]) < 0.005))]
+    if slot == "through":
+        middles = points[faces].mean(1)
+        faces = faces[~((np.abs(middles[:, 0] - 0.1) < 0.05) & (np.abs(middles[:, 1] + 0.15) < 0.005))]
     wall = np.array([[-0.25, -0.25, -0.3], [0.25, -0.25, -0.3], [0.25, 0.25, -0.3], [-0.25, 0.25, -0.3]])
     mesh = trimesh.Trimesh(np.r_[points, wall], np.r_[faces, len(points) + np.array([[0, 1, 2], [0, 2, 3]])],
                            process=False)
@@ -3175,6 +3194,26 @@ def plates_held():
     assert (abs((left + right) / 2) < 0.003, abs((bottom + top) / 2 + 0.1) < 0.003, 0.01 < right - left < 0.02,
             "also" in held[0]["closed"], "also" in route_parts.on_plates([vent], [], *door())[0][0]["closed"]) == (
         True, True, True, False, False), held
+    # A slot 10 cm long cut right through the door under the vent (r15f's locker: TRELLIS.2's bars through its light
+    # doors, 14 cm long, which its close-up shows plain) is closed by a box of its own wherever the close-up shows its
+    # light plate across it (`shown`, the close-up's L* at points), its rim sunk 7 mm into the sheet counted with the
+    # plate; never where the close-up shows it dark, on a dark plate (r15f's cart: the close-up cannot tell), as a
+    # pocket 3 cm deep (a recessed handle), or with no close-up; and a hole only partly in a closed box is closed
+    # past it.
+    light = lambda points: np.full(len(points), 80.0)  # noqa: E731
+    in_slot = lambda points: (np.abs(points[:, 0] - 0.1) < 0.05) & (np.abs(points[:, 1] + 0.15) < 0.005)  # noqa
+    dark_slot = lambda points: np.where(in_slot(points), 5.0, 80.0)  # noqa: E731
+    dark_plate = lambda points: np.full(len(points), 25.0)  # noqa: E731
+    slot_closed = []
+    for slot, rim, shown in [("through", False, light), ("through", True, light), ("through", False, None),
+                             ("through", False, dark_slot), ("through", False, dark_plate), ("pocket", False, light)]:
+        held, _ = route_parts.on_plates([vent], [], *door(slot=slot, rim=rim), shown=shown)
+        slot_closed.append(any(left <= -0.05 and right >= 0.05 and bottom <= -0.255 and top >= -0.245
+                               for left, bottom, right, top in held[0]["closed"].get("also", [])))  # from the vent
+    assert slot_closed == [True, True, False, False, False, False], slot_closed
+    assert (decal_plates.inside_closed([0.04, 0.0, 0.06, 0.01], {"box": [-0.05, -0.05, 0.05, 0.05]}),
+            decal_plates.inside_closed([0.0, 0.0, 0.04, 0.01], {"box": [-0.05, -0.05, 0.05, 0.05], "also": []})) == (
+        False, True)
     mesh, part_of = door(seams=(-0.06, 0.1, 0.12), round_too=True)
     found, why = decal_plates.held(dict(crossing, at=[0.0, 0.11, 0.0]), mesh, part_of == 0, True)
     assert found is None and why.startswith("its box crosses a seam"), (found, why)
@@ -3191,12 +3230,16 @@ PIECES = [{"address": "model/hardware_lock_locker_b03_4cf5ce2c@1", "kind": "lock
            "moves": "turn", "title": "knob from toaster (hardware)"}]
 
 
-def hardware_plate(folder):
+def hardware_plate(folder, ridge=False):
     """A 0.4 m square plate facing +z (a grid of 2 mm-high bumps' worth of noise-free quads) with a blob 20 mm high
-    and 30 mm across standing 50 mm right of its middle (TRELLIS.2's lump where a lock was), as a route_cast Model."""
+    and 30 mm across standing 50 mm right of its middle (TRELLIS.2's lump where a lock was), and, `ridge`, a door's
+    raised edge 4.5 mm high running up the plate 14 mm left of the blob, joined to it (r15f's locker's lower right lock),
+    as a route_cast Model."""
     across = np.linspace(-0.2, 0.2, 121)
     columns, rows = np.meshgrid(across, across)
     height = 0.02 * np.exp(-((columns - 0.05) ** 2 + rows ** 2) / (2 * 0.008 ** 2))
+    if ridge:
+        height = np.maximum(height, np.where(np.abs(columns - 0.036) < 0.002, 0.0045, 0.0) + height)
     vertices = np.c_[columns.ravel(), rows.ravel(), height.ravel()]
     side = len(across)
     faces = [[row * side + column, row * side + column + 1, (row + 1) * side + column + 1] for row in range(side - 1)
@@ -3366,6 +3409,12 @@ def hardware_marks_held():
                                                      (1000, 1000), finishes, part_of, seen)
             assert [gap["why"] for gap in gaps] == ([expected] if expected else []), (name, found, gaps)
             assert len(found) == (expected is None), (name, found)
+    # a blob joined low to a door's raised edge beside it is parted from it standing higher and cut whole (r15f's
+    # locker: its lower right lock's blob and door edge one group 0.11 x 0.28 m at 4 mm, no blob cut, the lump left)
+    with tempfile.TemporaryDirectory() as folder:
+        centre, radius, _, _ = hardware_pieces.blob_cut(hardware_plate(folder, ridge=True), np.array([0.0, 0.025, 0.0]),
+                                                        np.array([0.0, 0.0, 1.0]), 0.029, 0.06, set())
+        assert np.allclose(centre[:2], [0.05, 0.0], atol=0.004) and radius < 0.04, (centre, radius)
     assert route_parts.covering(dict(marked[0], print_finish=2)) and not route_parts.covering(marked[1])
     # the openings are the finishes only patterns print: a label's ink in the same finish is a print a cut tears
     assert route_parts.pattern_finishes([{"shape": "pattern", "print_finish": 6}, {"shape": "pattern",

@@ -98,6 +98,14 @@ OCCLUSION_SHARE = 0.1
 # A closing card (cards_over, score #159 round 13) lies this far in front of the plate it closes, over the points
 # pressed onto it.
 CARD_PROUD = 0.0003
+# A closed region's points within PRESS_REACH metres of its edge, and those pressed past it, are laid on the
+# surface round them read within PRESS_REACH (surface_under, PRESS_ROUNDS rounds of means): the face's own points
+# standing at most PRESS_SURFACE over the plate (decal_plates.BUMP_MOST) and at most half that under it (never its
+# sheet's back, 7 mm behind), PRESS_CHUNK points at a time.
+PRESS_REACH = 0.005
+PRESS_SURFACE = 0.006
+PRESS_CHUNK = 64
+PRESS_ROUNDS = 200
 FACING_PLATE = 0.7  # a face its card takes its finish from faces the plate's way at least this much (cosine)
 SEAM_CAGE = 0.004
 SEAM_REACH = 4
@@ -333,23 +341,67 @@ def closed_points(points, decal):
     standing proud of its plate by up to its `most` pressed straight onto the plate: TRELLIS.2's vent bumps
     under a pattern (tc6's locker's doors, 4 mm proud), shading under its drawn holes; the holes it cut through a plate
     round them (`also`, decal_plates.holes_closed); and its blob under a hardware piece (score #212, its cut's `closed`:
-    closed to its point, the blob drew white cracks and starbursts round r13's locks)."""
+    closed to its point, the blob drew white cracks and starbursts round r13's locks). A point pressed past it
+    (`pressed`), and one within PRESS_REACH of its region's edge, is laid on the surface round it (surface_under), so
+    the region eases into the face beyond its edge."""
     right, up, normal = (np.asarray(axis, dtype=float) for axis in recipes.decal_axes(decal))
     closed = decal["closed"]
     offset = np.asarray(points, dtype=float) - np.asarray(decal["at"], dtype=float)
     across, upward, height = offset @ right, offset @ up, offset @ normal
-    def boxed(box):
+    def boxed(box, grown=0.0):
         left, bottom, right_end, top = box
-        return (across >= left) & (across <= right_end) & (upward >= bottom) & (upward <= top)
-    inside = np.zeros(len(offset), dtype=bool)
-    for box in closed_boxes(closed):
-        inside |= boxed(box) & (height > 0)
+        return ((across >= left - grown) & (across <= right_end + grown) & (upward >= bottom - grown)
+                & (upward <= top + grown))
+    standing = (height > 0) & (height <= closed["most"])
+    depth = np.full(len(offset), -np.inf)  # how far inside its region's boxes a point lies
+    for left, bottom, right_end, top in closed_boxes(closed):
+        depth = np.maximum(depth, np.minimum.reduce([across - left, right_end - across, upward - bottom,
+                                                     top - upward]))
+    inside = standing & (depth >= 0)
+    eased = inside & (depth < PRESS_REACH)
     for pressed in closed.get("pressed", []):
-        inside |= boxed(pressed["box"]) & (height > pressed["least"])
-    inside &= height <= closed["most"]
-    pressed = np.array(points, dtype=float)
-    pressed[inside] -= np.outer(height[inside], normal)
-    return pressed
+        eased |= ~inside & boxed(pressed["box"]) & (height > pressed["least"]) & standing
+    reach = np.zeros(len(offset), dtype=bool)
+    for box in [*closed_boxes(closed), *(pressed["box"] for pressed in closed.get("pressed", []))]:
+        reach |= boxed(box, 2 * PRESS_REACH)
+    lowered = np.where(inside, 0.0, height)
+    near = reach & ~eased & (depth < 2 * PRESS_REACH) & (height >= -PRESS_SURFACE / 2) & (lowered <= PRESS_SURFACE)
+    lowered[eased] = surface_under(np.c_[across, upward], eased, near, lowered)[eased]
+    found = np.array(points, dtype=float)
+    found -= np.outer(height - lowered, normal)
+    return found
+
+
+def surface_under(laid, over, near, heights):
+    """`heights` with the `over` points (`laid` across and up) laid on the surface round them: each the mean of the
+    points within PRESS_REACH of it, the `near` points at their `heights` (as pressed) and the `over` points as laid
+    so far, each weighed by how much nearer than PRESS_REACH it lies, PRESS_ROUNDS times over (a smooth fill from the
+    surface round them, the plate (0) where none reaches). A blob pressed onto the plate past its cut's box (score
+    #212) beside a face standing 5 mm over it (r15f's locker: its right locks' blobs over their doors' raised edge),
+    and its box's edge laid across that face's slope, drew 5 mm cliffs where its points were pressed and their
+    neighbours were not, its faces stretched 2.2 to 3.2 times; laid on the surface round it, it eases down to the
+    plate."""
+    found = np.array(heights, dtype=float)
+    targets, sources = np.flatnonzero(over), np.flatnonzero(over | near)
+    found[targets] = 0.0
+    if not len(targets):
+        return found
+    rows, columns, weights = [], [], []
+    for start in range(0, len(targets), PRESS_CHUNK):
+        chunk = targets[start:start + PRESS_CHUNK]
+        weight = np.maximum(PRESS_REACH - np.linalg.norm(laid[chunk][:, None, :] - laid[sources][None, :, :], axis=2),
+                            0.0)
+        weight[chunk[:, None] == sources[None, :]] = 0.0
+        row, column = np.nonzero(weight)
+        rows.append(row + start)
+        columns.append(sources[column])
+        weights.append(weight[row, column])
+    rows, columns, weights = np.concatenate(rows), np.concatenate(columns), np.concatenate(weights)
+    total = np.bincount(rows, weights=weights, minlength=len(targets))
+    for _ in range(PRESS_ROUNDS):
+        found[targets] = np.where(total > 0, np.bincount(rows, weights=weights * found[columns], minlength=len(targets))
+                                  / np.maximum(total, 1e-12), 0.0)
+    return found
 
 
 def closed_boxes(closed):
