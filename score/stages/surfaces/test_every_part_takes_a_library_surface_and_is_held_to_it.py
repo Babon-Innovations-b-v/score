@@ -569,7 +569,9 @@ tests it turned red:
   shown_plate's `np.nanmedian(plate) >= HOLE_LIGHT and` dropped (the slot through a dark plate closed); its
   `and np.nanmedian(inside) >= ... - HOLE_SHOWN` dropped (the slot the close-up shows dark closed); its right-through
   check -> `if False:` (the pocket closed); its ring's `height <= BUMP_MOST` -> `np.abs(height) <= BUMP_MOST` (the
-  slot with its rim sunk 7 mm left open); route_parts.py on_plates' `holes_closed(..., shown)` without `shown` (the
+  slot with its rim sunk 7 mm left open); plate_holes without `bump_patches` (#229: the bump patch outside the low
+  vent's box left open) and plate_point without its `clear` (#229: the card's point beside the bumps), each seen red
+  2026-11-25; route_parts.py on_plates' `holes_closed(..., shown)` without `shown` (the
   slot the close-up shows as plate left open); inside_closed's whole box -> its middle (a hole half past a region
   read as closed); hardware_pieces.py parted's `or low + BLOB_STEP > BLOB_HIGH` -> `or True` (the blob joined to the
   door's edge not cut, the cut the lock's own spot).
@@ -3315,6 +3317,17 @@ def plates_held():
     assert (-0.044 < left < -0.040, 0.040 < right < 0.044, -0.038 < bottom < -0.034, 0.030 < top < 0.034,
             found["closed"]["most"], abs(found["closed"]["plate_point"][2]) < 1e-4) == (
         True, True, True, True, decal_plates.BUMP_MOST, True), found["closed"]
+    # a vent laid partly over the bumps (r16k's locker: TRELLIS.2's bumps off where the close-up has the vent) reads its
+    # card's finish clear of them, never on the plate between them (#229: there it took their baked shade, grey cards)
+    grid = np.arange(-0.06, 0.0605, 0.002)
+    across, upward = np.meshgrid(grid, grid)
+    rows, columns = np.indices(across.shape)
+    ring = (np.maximum(np.abs(across), np.abs(upward)) > 0.021) & (np.maximum(np.abs(across), np.abs(upward)) < 0.04)
+    dots = ring & (rows % 3 == 0) & (columns % 3 == 0)  # TRELLIS.2's bumps 6 mm apart round the box, plate between
+    flat = dict(vent, at=[0.0, 0.0, 0.0], size=[0.04, 0.04], normal=[0.0, 0.0, 1.0], up=[0.0, 1.0, 0.0])
+    point = decal_plates.plate_point(flat, across, upward, dots, (0.0, 0.0, 0.0))
+    nearest_dot = np.hypot(across[dots] - point[0], upward[dots] - point[1]).min()
+    assert nearest_dot > decal_plates.BUMP_JOIN * 0.002, (point, nearest_dot)
     crossing = dict(vent, at=[-0.05, -0.05, 0.0], normal=[0.0, 0.0, 1.0], up=[0.0, 1.0, 0.0])
     found, why = decal_plates.held(crossing, mesh, part_of == 0, True)  # its box's bottom put just over the seam
     assert why is None and found["from"]["moved"] == pytest.approx([0.0, 0.025], abs=0.003), found
@@ -3344,6 +3357,17 @@ def plates_held():
         slot_closed.append(any(left <= -0.05 and right >= 0.05 and bottom <= -0.255 and top >= -0.245
                                for left, bottom, right, top in held[0]["closed"].get("also", [])))  # from the vent
     assert slot_closed == [True, True, False, False, False, False], slot_closed
+    # a patch of TRELLIS.2's bumps outside every closed region (#229, r16k's locker: its vent bumps 8 cm off the
+    # close-up's vent, left as scribbles) is closed by a box of its own where the close-up shows its plate plain there,
+    # never where the close-up shows the patch darker (a vent it shows there) or with no close-up
+    dark_bumps = lambda points: np.where((np.abs(points[:, 0] - 0.1) < 0.03) & (np.abs(points[:, 1] - 0.1) < 0.03),
+                                         45.0, 80.0)  # noqa: E731
+    bumps_closed = []
+    for shown in (light, dark_bumps, None):
+        held, _ = route_parts.on_plates([vent_low], [], *door(), shown=shown)
+        bumps_closed.append([box for box in held[0]["closed"].get("also", [])  # in the low vent's frame
+                             if box[0] <= 0.175 and box[2] >= 0.225 and box[1] <= 0.225 and box[3] >= 0.275])
+    assert [bool(boxes) for boxes in bumps_closed] == [True, False, False], bumps_closed
     assert (decal_plates.inside_closed([0.04, 0.0, 0.06, 0.01], {"box": [-0.05, -0.05, 0.05, 0.05]}),
             decal_plates.inside_closed([0.0, 0.0, 0.04, 0.01], {"box": [-0.05, -0.05, 0.05, 0.05], "also": []})) == (
         False, True)

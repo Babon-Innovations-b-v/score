@@ -71,6 +71,12 @@ HOLE_RING = 0.95
 HOLE_SHOWN = 10.0
 HOLE_LIGHT = 50.0
 HOLE_SEEN = (LIP + 1, 3 * LIP)
+# A patch of TRELLIS.2's bumps on a closed mark's plate outside every closed region (#229, r16k's locker: 12 vent bump
+# patches for the close-up's 8 vents, some 8 cm off where the close-up has them, left as white scribbles) is closed
+# too, where the close-up shows its plate plain there: cells of its part over TOLERANCE proud and at most BUMP_MOST,
+# joined across BUMP_JOIN cells of plate (a vent's dots), at least BUMP_PATCH metres across, ringed by its own plate.
+BUMP_JOIN = 3
+BUMP_PATCH = 0.01
 PLATE_SAME = 0.999  # two closed marks' normals this alike (cosine), and their plates within BUMP_MOST, share one
 
 
@@ -246,10 +252,14 @@ def on_plate(placement, plane):
 
 def plate_point(placement, across, upward, off, plane):
     """A point of the plate (a cell on it, of its part) nearest the placement's middle outside its box, on the fitted
-    `plane`: whose finish the closing card takes; None when there is none."""
+    `plane`, at least BUMP_JOIN cells clear of any cell off it where one is (#229, r16k's locker: a point between
+    TRELLIS.2's bumps took their baked shade, the grey closing cards): whose finish the closing card takes; None when
+    there is none."""
     right, up, normal = axes(placement)
     wide, tall = placement["size"]
     outside = ~off & ((np.abs(across) > wide / 2) | (np.abs(upward) > tall / 2))
+    clear = outside & ~ndimage.binary_dilation(off, iterations=BUMP_JOIN)  # not between bumps, where the bake shades
+    outside = clear if clear.any() else outside
     if not outside.any():
         return None
     nearest = np.argmin(np.where(outside, np.hypot(across, upward), np.inf))
@@ -326,7 +336,8 @@ def plate_extent(placement, mesh, same):
 def plate_holes(placement, mesh, same, shown=None):
     """[[left, bottom, right, top]] across and up from the placement's `at` of each hole through its part's plate (the
     module's HOLE_ rule; one the close-up shows as plate only with `shown`, the close-up's L* at points of the model's
-    frame, NaN off it), each grown LIP cells: its plate cast over the whole of its part's extent on it."""
+    frame, NaN off it), and with `shown` each patch of bumps on it the close-up shows as plain plate (bump_patches),
+    each grown LIP cells: its plate cast over the whole of its part's extent on it."""
     extent = plate_extent(placement, mesh, same)
     if extent is None:
         return []
@@ -353,6 +364,34 @@ def plate_holes(placement, mesh, same, shown=None):
         found.append([round(float(value), 5) for value in (
             across[cells][hole].min() - LIP * step, upward[cells][hole].min() - LIP * step,
             across[cells][hole].max() + LIP * step, upward[cells][hole].max() + LIP * step)])
+    return found + (bump_patches(across, upward, height, mine, through, seen, step) if seen is not None else [])
+
+
+def bump_patches(across, upward, height, mine, through, seen, step):
+    """[[left, bottom, right, top]] of each patch of bumps on a plate's grid (the module's BUMP_ rule) grown LIP cells:
+    its part's cells over TOLERANCE proud and at most BUMP_MOST, joined across BUMP_JOIN cells, at least BUMP_PATCH
+    across, ringed by its own part (its plate, a fitting on it, or holes through it), and seen (`seen`, the close-up's L* a cell) as light as that
+    plate: a vent the close-up shows there is darker, and stays."""
+    proud = mine & ~through & (height > TOLERANCE) & (height <= BUMP_MOST)
+    joined = ndimage.binary_closing(proud, iterations=BUMP_JOIN) & ~through
+    labels, _ = ndimage.label(joined)
+    found = []
+    for number, cells in enumerate(ndimage.find_objects(labels), start=1):
+        patch = labels == number
+        if max(np.ptp(across[patch]), np.ptp(upward[patch])) + step < BUMP_PATCH:
+            continue
+        ring = ndimage.binary_dilation(patch, iterations=LIP) & ~patch
+        plain = mine & ~through & (np.abs(height) <= TOLERANCE)
+        if not ring.any() or (mine | through)[ring].mean() < HOLE_RING or not plain[ring].any():
+            continue
+        inside, plate = seen[patch], seen[ring & plain]
+        if np.isnan(inside).all() or np.isnan(plate).all():
+            continue
+        if not (np.nanmedian(plate) >= HOLE_LIGHT and np.nanmedian(inside) >= np.nanmedian(plate) - HOLE_SHOWN):
+            continue
+        found.append([round(float(value), 5) for value in (
+            across[patch].min() - LIP * step, upward[patch].min() - LIP * step,
+            across[patch].max() + LIP * step, upward[patch].max() + LIP * step)])
     return found
 
 
