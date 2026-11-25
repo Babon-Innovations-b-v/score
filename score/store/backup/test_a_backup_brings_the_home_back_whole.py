@@ -26,7 +26,12 @@ Breaks (each applied once, seen red, reverted), in score/store/backup/:
 - password from the reader only: _restic.environment keeps RESTIC_PASSWORD_FILE and _COMMAND.
 - the owner's open yes: conductor_yes.move_allowed is true for any named yes.
 - one content hash: _staging.content_hash hashes the file's bytes.
+- the motion home backed up, never restored as the home (#125): backup drops its motion_snapshot call, or restore
+  takes `restic.newest()` (the motion snapshot, the drill missing the home).
+- a stale lock never stops forget or check (#125, the old VM's lock of 2026-11-04): forget drops `unlocked(restic)`.
 """
+import subprocess
+import time
 import json
 import os
 import shutil
@@ -169,9 +174,17 @@ def test_a_backup_brings_the_home_back_whole(setting, monkeypatch):
     assert backups.compare(backups.read_manifest(pc), backups.read_manifest(conductor)) == []
     assert rows(conductor / "dashboard" / "dashboard.sqlite3") == COMMITTED_ROWS
 
-    # A plain backup of a store's machine, the database still being written, and its restore drill.
+    # A plain backup of a store's machine, the database still being written, and its restore drill; the motion home
+    # beside it is its own snapshot, its env left out, and the drill still restores the home
     write(pc / "machine.json", "{}")
-    assert backups.backup(pc)["snapshot"]
+    motion = setting / "motion"
+    write(motion / "candidates" / "officer" / "route.json", '{"take": 1}')
+    write(motion / "env" / "bin" / "python", "rebuilt")
+    monkeypatch.setattr(backups, "MOTION_HOME", motion)
+    made = backups.backup(pc)
+    assert made["snapshot"] and made["detail"]["motion"]["snapshot"] != made["snapshot"]
+    backups._core.restore(backups.Restic(), made["detail"]["motion"]["snapshot"], setting / "motion-back")
+    assert relative_files(setting / "motion-back") == ["candidates/officer/route.json"]
     live.close()
     (pc / "lost+found").chmod(0o700)
     backups.restore(drill, home=pc)
@@ -229,6 +242,16 @@ def test_a_backup_brings_the_home_back_whole(setting, monkeypatch):
         (["backup"], locked_database, "backup", False, "OperationalError: database is locked"),
     ]
     for argv, fault, kind, ok, error in commands:
+        if argv == ["forget"]:  # a lock left by a process gone (the old VM's, 2026-11-04): forget clears it first
+            held = subprocess.Popen(["restic", "backup", "--stdin", "--stdin-filename", "held", "-q"],
+                                    stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                    env=backups.Restic().environ)
+            for _ in range(100):
+                if backups.Restic().run("list", "locks", "--no-lock").stdout.strip():
+                    break
+                time.sleep(0.05)
+            held.kill()
+            held.wait()
         with monkeypatch.context() as patch:
             if fault:
                 patch.setattr(backups, "backup", fault)

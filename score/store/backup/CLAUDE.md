@@ -13,6 +13,10 @@ nl-ams, made by `tools/cloud/conductor/machine.py up`); its units are `tools/clo
   copy (`_staging`: Python's `Connection.backup`, the API the CLI's `.backup` runs; no sqlite3 CLI needed), staged in
   `backup-staging/` inside the home, the live file and its -wal, -shm and -journal left out; a restore moves each copy
   back to its own path. A copy of one state is the same bytes every time, so its hash names the database's state.
+- **The motion home too** (#125): the people routes' `~/.farm-factory-motion` (`MOTION_HOME`, its `env` left out), a
+  snapshot of its own tagged `motion` after each home backup; a restore of `latest` takes the newest snapshot that is
+  not it (`newest_home`). forget and check first run `restic unlock` (stale locks only: a dead process's on this
+  host, or any not refreshed in 30 min), so a lock left by a machine gone (the VM's of 2026-11-04) stops neither.
 - **The manifest** (`_manifest.py`): the store's `listing_hash` over `store/objects` (with its listing, so a mismatch
   names objects), and sha256 and size of every file in design, cloud, runs, dashboard (databases as copies) and work.
   It reads the store only through its public `tree_listing` and `listing_hash`; never edit `score/store/__init__.py` or

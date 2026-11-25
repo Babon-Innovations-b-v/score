@@ -74,7 +74,8 @@ WRITER_LABEL = "score.dev/store-writer"  # every pod that writes the store: plac
 UID = 1100  # user score on the VM
 HOME = "/home/score"
 # `motion`: the people routes' candidate folders (prop_person.CANDIDATES, the door's route-log), on the VM's root disk
-# under ~/.farm-factory-motion and in no backup; copied once off a snapshot of it at the cutover (2026-11-08: the
+# under ~/.farm-factory-motion, backed up beside the home (score.store.backup MOTION_HOME, #125); copied once off a
+# snapshot of it at the cutover (2026-11-08: the
 # characters rows found no motion home in the cluster).
 MOUNTS = (("props", f"{HOME}/.farm-factory-props"), ("projects", f"{HOME}/projects"),
           ("config-score", f"{HOME}/.config/score"), ("local", f"{HOME}/.local"),
