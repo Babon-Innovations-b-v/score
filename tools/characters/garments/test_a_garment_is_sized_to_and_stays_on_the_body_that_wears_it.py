@@ -1,9 +1,10 @@
 """A garment is sized to the body that wears it and stays where its pattern seats it: measure.py reads GarmentCode's
 measurements off a body's own surface (girths at their levels, the arm's length and angle, the shoulders' width, the
 neck's base) and carries the rest from GarmentCode's mean body by the girth each follows or by the height; seated.py
-fails a garment sewn off centre, a shoulder seam sliding off its shoulder, a neckline dropping, or the body standing
-out through the cloth that covers it, or a garment under it out through it (the toy torso worn as a garment under
-the tee), and passes one that sways with the body; shaped.py gives a body another build (wider and taller as its
+fails a garment sewn off centre, a shoulder seam sliding off its shoulder, a neckline dropping, the body standing out
+through the cloth that covers it, cloth torn (part of it left behind as the body walks on), or a garment under it out
+through it (the toy torso worn as a garment under the tee), and passes one that sways with the body;
+shaped.py gives a body another build (wider and taller as its
 shape model and height say) and turns its arms out of a wider torso, the least it needs, refusing one past its most;
 bands.py cuts a band out of a garment's cloth along its edges, a set height over its hem; details.py lays a garment's
 construction marks on its cloth (a seam's mark on one panel's side and its other side's on the other, an edge's along
@@ -24,8 +25,9 @@ seam taken for the shoulder seam (the lower chain), the neckline's fall read off
 rather than their places on the moving skin, the body's outward normal not turning the cloth's (a covered point under
 inward-wound cloth read as out), or a seam's place on the shoulder judged by its distance off the skin alone (a seam
 slid down the arm's side in the turn, lying on the skin, read as seated); a garment under another judged by its winding
-point by point or not at all (a garment wound inward read as through), against its sewn shape rather than its frames,
-or never failed. In shaped.py: the arms turned in rather than out, an arm point read sunk outside the torso, the
+point by point or not at all (a garment wound inward read as through), against its sewn shape rather than its frames, or
+never failed; torn edges never failed. In shaped.py: the arms turned in rather than out, an arm point read sunk
+outside the torso, the
 armpit's fold counted or every arm point left out, a shape's standard deviations not scaling its direction, the height
 not set, or the joints left unscaled with the skin. In bands.py: the triangles taken whole by their middles (not cut on
 the band's edges), or a cut's point made once per panel rather than once per seam point (the cloth opened along its
@@ -202,6 +204,10 @@ def worn(wear, body, cloth, record, scale):
         for height, drop in ((0.565, 0.03), (0.545, 0.015)):
             ring = np.flatnonzero(np.isclose(cloth[:, 1], height))
             cloths[later, ring, 1] -= drop
+    if wear == "torn into a flap":
+        # from the middle frame the left side's lower half left behind where it was, the rest walking on
+        flap = np.flatnonzero((cloth[:, 0] > 0.0) & (cloth[:, 1] < (TOP - 0.15) * scale))
+        cloths[later, flap] = sewn[flap] + moves[FRAMES // 2]
     if wear == "body out through the cloth":
         belly = np.flatnonzero((body[:, 1] > 0.2) & (body[:, 1] < 0.3) & (body[:, 2] > 0.1))
         bodies[later][:, belly] += np.stack([body[belly, 0], np.zeros(len(belly)), body[belly, 2]], axis=1) * (
@@ -429,8 +435,10 @@ def seam_rested(wear):
     (1.0, "a seam moved under its limit", []),
     (1.0, "sewn off centre", ["off centre"]),
     (1.0, "slid off the left shoulder", ["left shoulder seam"]),
-    (1.15, "slid down the left arm in the turn", ["body through cloth", "left shoulder seam", "under through over"]),
+    (1.15, "slid down the left arm in the turn", ["body through cloth", "left shoulder seam", "torn",
+                                                  "under through over"]),
     (1.0, "neckline dropped", ["neckline drop"]),
+    (1.0, "torn into a flap", ["body through cloth", "torn", "under through over"]),
     (1.0, "body out through the cloth", ["body through cloth", "under through over"]),
     (1.0, "arms clear of a mean torso", 0.0),
     (1.0, "arms sunk in a wide torso", 14.0),
@@ -505,5 +513,5 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
     lines += seated.layer_faults("under", "over", seated.layered(
         under, {"sewn": sewn, "worn": cloths, "faces": cloth_faces}, torso * scale * [0.9, 0.95, 0.9]))
     assert sorted(kind for kind in ["off centre", "left shoulder seam", "right shoulder seam", "neckline drop",
-                                    "body through cloth", "under through over"]
+                                    "body through cloth", "under through over", "torn"]
                   if any(kind in line for line in lines)) == failed, lines

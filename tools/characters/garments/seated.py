@@ -19,6 +19,9 @@ the A-pose stretch the skin under a seam, never the place a seated seam is on).
 - body through cloth: the body's points the sewn garment covers (cloth within COVER_M of them, not at an open edge)
   that stand out past the cloth over them, between its points too (the cloth's triangles, not only its points): the
   most on a frame and the deepest.
+- torn: the cloth's edges stretched past TORN_STRETCH times their sewn length on a frame, the most on one frame. A
+  woven or knit cloth barely stretches; a tee caught under the walking arm was left behind in the world and drawn
+  out into a flap a metre long (2026-11-25), its edges up to 16 times their length, every other check passing.
 """
 import numpy as np
 from scipy.spatial import cKDTree
@@ -31,6 +34,8 @@ NECK_DROP_M = 0.025  # a neckline point's fall below its place on the skin that 
 COVER_M = 0.02  # a body point with the sewn cloth this near is covered by it
 THROUGH_M = 0.003  # a covered body point this far out past its cloth pokes through (the cloth's thickness)
 OVER_DEGREES = 60.0  # cloth whose normal is further off the body point's is beside it, not over it
+TORN_STRETCH = 2.0  # an edge this many times its sewn length is torn
+TORN_EDGES = 20  # this many torn edges on a frame fail the garment (a sewn tee standing has 2: its seams' ends)
 NEAREST = 6  # cloth points whose triangles are searched for a body point's nearest place on the cloth
 
 
@@ -261,7 +266,18 @@ def measured(garment, body):
     found["body points covered"] = int(len(covered))
     found["most body points through on a frame"] = int(poking.sum(axis=1).max())
     found["body through deepest mm"] = round(float(max(0.0, np.nanmax(out))) * 1000.0, 1)
+    stretch = stretched(sewn, worn, garment["faces"])
+    found["most edges torn on a frame"] = int((stretch > TORN_STRETCH).sum(axis=1).max())
+    found["most stretched edge"] = round(float(stretch.max()), 2)
     return found
+
+
+def stretched(sewn, worn, faces):
+    """Each of the cloth's edges' length on every frame over its sewn length (frames x edges)."""
+    faces = np.asarray(faces)
+    edges = np.unique(np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1), axis=0)
+    rest = np.maximum(np.linalg.norm(sewn[edges[:, 0]] - sewn[edges[:, 1]], axis=1), 1e-9)
+    return np.linalg.norm(worn[:, edges[:, 0]] - worn[:, edges[:, 1]], axis=2) / rest
 
 
 def outward_sides(points, faces, body):
@@ -322,4 +338,7 @@ def faults(found):
     if found.get("most body points through on a frame", 0):
         lines.append(f"body through cloth: {found['most body points through on a frame']} points on a frame, "
                      f"{found['body through deepest mm']} mm deep (limit {THROUGH_M * 1000.0:.0f} mm)")
+    if found.get("most edges torn on a frame", 0) > TORN_EDGES:
+        lines.append(f"torn: {found['most edges torn on a frame']} edges past {TORN_STRETCH:.0f} times their length "
+                     f"on a frame (limit {TORN_EDGES}), the most {found['most stretched edge']} times")
     return lines
