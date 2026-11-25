@@ -125,6 +125,41 @@ def skin_normals(skin, faces):
     return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)
 
 
+def worn_places(points, skin, faces):
+    """Where a waistband's held points (`points`, its box mesh's top ring as laid) are worn: each where the level way
+    from it to the ring's middle (its points' mean, across x and z) first meets the skin, so the band's top is worn at
+    the level its pattern cuts it for, as GarmentCode's drape attaches its `lower_interface` at the waist's level: (the
+    skin triangle of each, its corners' weights). Carried to the skin point nearest them instead, the box's flat front
+    and back panels, laid 7 to 15 cm off woman_stair's hips at one level, were worn on a line up to 6 cm higher at the
+    back's sides (the skin nearest them up on the waist over her seat), longer than the band is cut; the side seams
+    were held 6 to 15 cm open, the band stood 3.6 cm off her hips there, and the tee laid over it crossed it however
+    far out (2026-11-25). A point whose level way meets no skin is refused."""
+    points, skin, faces = np.asarray(points, dtype=float), np.asarray(skin, dtype=float), np.asarray(faces)
+    middle = points.mean(axis=0)
+    corner = skin[faces[:, 0]]
+    first, second = skin[faces[:, 1]] - corner, skin[faces[:, 2]] - corner
+    triangles, weights = np.zeros(len(points), dtype=np.int64), np.zeros((len(points), 3))
+    for index, point in enumerate(points):
+        towards = np.array([middle[0] - point[0], 0.0, middle[2] - point[2]])
+        towards /= max(np.linalg.norm(towards), 1e-12)
+        across = np.cross(towards, second)
+        determinant = np.sum(first * across, axis=1)
+        usable = np.abs(determinant) > 1e-14
+        inverse = 1.0 / np.where(usable, determinant, 1.0)
+        offset = point - corner
+        one = np.sum(offset * across, axis=1) * inverse
+        turned = np.cross(offset, first)
+        two = (turned @ towards) * inverse
+        along = np.sum(second * turned, axis=1) * inverse
+        hit = usable & (one >= 0.0) & (two >= 0.0) & (one + two <= 1.0) & (along > 0.0)
+        if not hit.any():
+            raise RuntimeError(f"a held point at {np.round(point, 3).tolist()} meets no skin on its level way in")
+        found = np.flatnonzero(hit)[np.argmin(along[hit])]
+        triangles[index] = found
+        weights[index] = [1.0 - one[found] - two[found], one[found], two[found]]
+    return triangles, weights
+
+
 def edges_of(faces):
     """The mesh's edges, each once (point pairs, the lower first)."""
     found = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)

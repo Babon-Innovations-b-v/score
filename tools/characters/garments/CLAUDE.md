@@ -17,7 +17,9 @@ runs them (an outfit file per look in `data/people/outfits/`).
   stage's own conversion), never typed here. Solver and contact numbers name their source in `DRAPE`.
 - **GarmentCode's own steps, Newton's solver**: the box mesh's triangles rest at their flat panels (going over to them
   from as laid while the gravity-free fifth of sewing runs: rested flat at once, the seam triangles laid 15 to 50 times
-  their panel overran Newton's float32 membrane), seams sewn by shared points, a waistband's top worn on the skin, a neckline's halves kept inside the planes either side of
+  their panel overran Newton's float32 membrane), seams sewn by shared points, a waistband's top worn on the skin at its own level (`laying.worn_places`: carried
+  to the skin nearest it, the box's flat panels 7 to 15 cm off her hips put the top 6 cm higher at the back's sides
+  and held the side seams open), a neckline's halves kept inside the planes either side of
   the neck (`holds`, GarmentCode's attachments: one-sided, a point inside its plane left), speeds capped only while
   sewing.
 - **Runs on this PC's card through the card queue** (`tools/cloud/backends/card_queue.py`), each step in its own

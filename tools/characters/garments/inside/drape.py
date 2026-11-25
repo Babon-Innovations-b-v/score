@@ -111,18 +111,6 @@ def signed_distance(mesh: wp.uint64, points: wp.array[wp.vec3], reach: float, fo
         found[index] = reach
 
 
-@wp.kernel
-def nearest(mesh: wp.uint64, points: wp.array[wp.vec3], reach: float, faces: wp.array[wp.int32],
-            uvs: wp.array[wp.vec2]):
-    """Each point's nearest place on the mesh: its triangle (-1 past `reach`) and barycentric u, v."""
-    index = wp.tid()
-    query = wp.mesh_query_point_no_sign(mesh, points[index], reach)
-    faces[index] = -1
-    if query.result:
-        faces[index] = query.face
-        uvs[index] = wp.vec2(query.u, query.v)
-
-
 def body_inside(skin, faces):
     """Which of a set of points stand inside the body at `skin` (the card's winding number, a metre's reach): for
     laying.laid_out."""
@@ -404,18 +392,10 @@ class Outfit:
         self.share = share
 
     def worn_on(self, garment):
-        """Where each held point is worn: the body's nearest surface point to it at the bind, out by the cloth's
-        radius along that triangle's normal, as arrays on the card: (particles, the triangles' corners, barycentric
-        weights, the box mesh's start, the radius)."""
-        mesh = wp.Mesh(points=wp.array(self.bind, dtype=wp.vec3), indices=wp.array(self.faces.ravel(), dtype=wp.int32))
-        count = len(garment.held)
-        faces, uvs = wp.zeros(count, dtype=wp.int32), wp.zeros(count, dtype=wp.vec2)
-        wp.launch(nearest, dim=count, inputs=[mesh.id, wp.array(garment.points[garment.held], dtype=wp.vec3), 1.0,
-                                              faces, uvs])
-        faces, uvs = faces.numpy(), uvs.numpy()
-        if (faces < 0).any():
-            raise RuntimeError(f"{garment.name}: a held point is over a metre off the body")
-        weights = np.stack([1.0 - uvs[:, 0] - uvs[:, 1], uvs[:, 0], uvs[:, 1]], axis=1)
+        """Where each held point is worn: the skin at the bind where its level way in meets it (`laying.worn_places`),
+        out by the cloth's radius along that triangle's normal, as arrays on the card: (particles, the triangles'
+        corners, barycentric weights, the box mesh's start, the radius)."""
+        faces, weights = laying.worn_places(garment.points[garment.held], self.bind, self.faces)
         radius = float(self.model.particle_radius.numpy()[garment.first])
         return (wp.array((garment.first + garment.held).astype(np.int32), dtype=wp.int32),
                 wp.array(self.faces[faces].astype(np.int32), dtype=wp.vec3i), wp.array(weights, dtype=wp.vec3),
