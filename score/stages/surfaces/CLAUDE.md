@@ -302,8 +302,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   and family alone the kit took 161 finishes, handrails as floor grating, counters as tiles, rusted steel as clean
   paint, and the re-pick took gold foil to silver, red cables to black hose, glows to glass): the same recipe (so a
   glow stays a glow and a floor pattern stays off what the list did not pattern), and the hue its finish's colour
-  words name (`COLOUR_WORDS`, `HUES`), else within `HUE_DE` 10 of the listed colour in a*b*, lightness free; none
-  such, it is off its colour. The parts row's gate "kept the list's meaning" (`route_parts.judge_meaning`, wired in
+  words name (`COLOUR_WORDS`, `HUES`), else within `HUE_DE` 10 of the listed colour in a*b*, lightness free, and the
+  list's metal (`metal_kept`: a metal at `METAL_LEAST` 0.5 or over exactly where the list's settings say so, #194: a
+  moved surface carries its own spec, and the rack's red painted beams drew as a metal 1.0 paint); none such, it is
+  off its colour. The parts row's gate "kept the list's meaning" (`route_parts.judge_meaning`, wired in
   the table, `stages.meaning_checked`) fails a moved finish whose painted look (`looks`) lost them, and a take whose
   largest finish moved off the colour its row's name names. A finish is measured on its label's brighter half, a
   dark one (library L* under `DARK_L` 35) on all its pixels: the light lifts blacks' brighter half to L* 40 to 45.

@@ -474,8 +474,24 @@ def look_of(spec):
 
 def meaning_kept(finish, listed, spec):
     """True when a library spec taken over the `listed` one (listed_spec) keeps what the list meant by `finish`
-    (look_kept on its finish words)."""
-    return "colour" in spec and look_kept(finish.get("finish", ""), look_of(listed), look_of(spec))
+    (look_kept on its finish words, metal_kept)."""
+    return ("colour" in spec and look_kept(finish.get("finish", ""), look_of(listed), look_of(spec))
+            and metal_kept(finish, listed, spec))
+
+
+# A moved surface carries its own spec (route_settings.applied), so a move across this metal draws the list's paint as
+# bare metal or its metal as paint: the rack's "red painted steel" (metal 0) moved to a metallic red paint of metal
+# 1.0, drawn and measured as metal against NVIDIA's 0.155 and 0.35 (#194).
+METAL_LEAST = 0.5
+
+
+def metal_kept(finish, listed, spec):
+    """True when `spec` is a metal (METAL_LEAST, module constant) exactly where the list's finish is: its settings'
+    metal, else its `listed` surface's; True where either says no metal."""
+    metal = (finish.get("settings") or {}).get("metal", listed.get("metal"))
+    if metal is None or spec.get("metal") is None:
+        return True
+    return (float(metal) >= METAL_LEAST) == (float(spec["metal"]) >= METAL_LEAST)
 
 
 def looked(finishes, every):

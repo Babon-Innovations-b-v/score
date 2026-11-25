@@ -205,6 +205,8 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED beacon row)
 - finish_parts.py: `and meaning_kept(record, listed, every[name]))` -> `)`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
+- finish_parts.py: `and metal_kept(finish, listed, spec))` -> `)`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED rack beams row, #194)
 - finish_parts.py: `and meaning_kept(finish, listed, spec)]` -> `]`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED rows)
 - finish_parts.py: `return in_named_colour(named, lab, recipe)` -> `return True`  ->
@@ -4011,6 +4013,10 @@ STEELWORK = {"bare_steel": {"family": "steel", "recipe": "bare_metal", "colour":
              "silver_foil": {"family": "foil", "recipe": "anodized", "colour": [0.20, 0.20, 0.20]}}
 SEEN_STEEL = {name: finish_parts.library_lab(spec) for name, spec in STEELWORK.items()}
 KIT = ["deck_grate", "hull_panel", "seam_paint", "deck_plate"]
+# the rack's: its painted red beams (metal 0) and a metallic red paint of the same recipe and hue, metal 1.0 (#194)
+RED_PAINTS = {"red_paint": {"family": "paint", "recipe": "painted_metal", "colour": [0.10, 0.005, 0.002], "metal": 0.0},
+              "metallic_red": {"family": "paint", "recipe": "painted_metal", "colour": [0.60, 0.05, 0.02],
+                               "metal": 1.0}}
 HANDRAIL = {"finish": "steel handrail", "parts": "rails", "surface": "bare_steel", "fits": True}
 BRUSHED = {"finish": "brushed steel", "parts": "frame", "surface": "bare_steel", "fits": True}
 WALKWAY = [HANDRAIL, {"finish": "rusted riveted steel", "parts": "tube", "surface": "rusted_steel", "fits": True},
@@ -4074,6 +4080,12 @@ CHECKED = [
     ("brushed steel seen as the room's deck plate takes it", {"kind": "module", "object": "module"}, [BRUSHED],
      [SEEN_STEEL["deck_plate"]], STEELWORK, KIT, False,
      [{"surface": "deck_plate", "by": "the room's kit surface by colour"}]),
+    ("red painted steel seen as a metallic red paint is off its colour, never drawn as metal (the rack's beams, #194)",
+     {"kind": "rack", "object": "rack"},
+     [{"finish": "red painted steel", "parts": "beams", "surface": "red_paint", "fits": True,
+       "settings": {"token": "rack-red", "roughness": 0.5, "metal": 0.0}}],
+     [finish_parts.library_lab(RED_PAINTS["metallic_red"])], RED_PAINTS, None, False,
+     [{"surface": "red_paint", "by": "off its colour"}]),
     ("gold foil seen silver is off its colour, never silver foil", {"kind": "module", "object": "module"},
      [{"finish": "gold MLI foil", "parts": "module", "surface": "gold_foil", "fits": True}],
      [SEEN_STEEL["silver_foil"]], STEELWORK, KIT, False, [{"surface": "gold_foil", "by": "off its colour"}]),
