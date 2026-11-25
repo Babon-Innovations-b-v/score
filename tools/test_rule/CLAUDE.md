@@ -21,7 +21,8 @@ rule had drifted). `check.py` is the way in; `make tests` runs it first and fail
   names the file with the reason. `make tests` runs the guard over the whole tree, TESTS given or not.
 - **Modules come from the tree** (#121): every folder of code is a module and every folder over two or more modules a
   module group; one with no test (a group's in its own folder) is a fault unless `UNTESTED` or `UNGROUPED` names it.
-  Both are dated 2026-11-25 and only shrink: write the test and delete the entry, never add one.
+  Both are dated 2026-11-25 and only shrink: an entry not on origin/main's list is a fault. Write the test and
+  delete the entry, never add one.
 - **No stacked folds**: old tests renamed and called from a list (a loop over them, or a parametrize of them) are a
   fault; their checks become rows of one table.
 - **A flat tool folder** (`FLAT_TOOL_FOLDERS`: tools/cloud, tools/props, tools/review, tools/usd) counts each top-level

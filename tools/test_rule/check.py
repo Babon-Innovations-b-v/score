@@ -31,7 +31,7 @@ Over the whole tree (no files named), its modules are found from the tree, not f
 holding a .py file of code (no test file, conftest.py or empty __init__.py), a `tests/` folder its parent's and a flat
 tool folder's script its own, is a module, and each folder under which two or more modules sit a module group. A
 module with no test is a fault, and so is a group with no test in its own folder, unless `UNTESTED` (or `UNGROUPED`)
-names it: those list what had none on 2026-11-25, and only shrink.
+names it: those list what had none on 2026-11-25, and only shrink (an entry not on origin/main's list is a fault).
 
 `ALLOWLIST` holds the modules other agents' sweeps are still reworking, dated, each pattern with the test files and
 test functions it covered on 2026-11-07; like `FUNCTION_DEBT` it only shrinks (a pattern covering more is a fault, one
@@ -492,28 +492,44 @@ def exempt(module, allowlist):
     return any(fnmatch.fnmatch(f"{module}/", pattern) or fnmatch.fnmatch(str(module), pattern) for pattern in allowlist)
 
 
-def owed_faults(kind, present, tested, owed, name, allowlist):
+def base_lists(root, base):
+    """UNTESTED and UNGROUPED as this file holds them at the git ref `base`, as two sets, or (None, None) when the file
+    (or the ref) is not there."""
+    here = pathlib.Path(__file__).resolve().relative_to(REPO)
+    shown = subprocess.run(["git", "-C", str(root), "show", f"{base}:{here}"], capture_output=True, text=True)
+    tree = parse(shown.stdout)[0] if shown.returncode == 0 else None
+    lists = {target.id: set(ast.literal_eval(node.value)) for node in (tree.body if tree else ())
+             if isinstance(node, ast.Assign) for target in node.targets
+             if isinstance(target, ast.Name) and target.id in ("UNTESTED", "UNGROUPED")}
+    return lists.get("UNTESTED"), lists.get("UNGROUPED")
+
+
+def owed_faults(kind, present, tested, owed, name, allowlist, before):
     """The faults of one kind (module or module group) against its debt list `owed` (`name`): one with no test not on
-    it, and an entry that has its test now or is no longer one of `present`."""
-    found = [f"{entry}: a {kind} with no test (write its test_<invariant>.py there)"
+    it, an entry that has its test now or is no longer one of `present`, and an entry not on `before`, the list on
+    origin/main (None when there is none: nothing to weigh)."""
+    found = [f"{entry}: on {name} but not on origin/main's, the list only shrinks (write its test_<invariant>.py)"
+             for entry in sorted(owed - (owed if before is None else before))]
+    found += [f"{entry}: a {kind} with no test (write its test_<invariant>.py there)"
              for entry in sorted(present - tested - owed) if not exempt(entry, allowlist)]
     found += [f"{entry}: on {name} but has its test now, delete its entry" for entry in sorted(owed & tested)]
     found += [f"{entry}: on {name} but no {kind} of the tree, delete its entry" for entry in sorted(owed - present - tested)]
     return found
 
 
-def tree_faults(root, untested=None, ungrouped=None, allowlist=None):
+def tree_faults(root, untested=None, ungrouped=None, allowlist=None, base="origin/main"):
     """The tree's faults (owner, 2026-11-13, #121): a module with no test, a module group with no test in its own
-    folder, and an UNTESTED or UNGROUPED entry with its test now or gone from the tree. `untested`, `ungrouped` and
-    `allowlist` are UNTESTED, UNGROUPED and ALLOWLIST when None."""
+    folder, and an UNTESTED or UNGROUPED entry with its test now, gone from the tree or not on the list at `base`.
+    `untested`, `ungrouped` and `allowlist` are UNTESTED, UNGROUPED and ALLOWLIST when None."""
     root = pathlib.Path(root)
     allowlist = ALLOWLIST if allowlist is None else allowlist
+    before = base_lists(root, base)
     modules = tree_modules(root)
     tested = {str(module_of(root, path, docstring(root, path))) for path in test_files(root)}
     found = owed_faults("module", {str(module) for module in modules}, tested,
-                        set(UNTESTED if untested is None else untested), "UNTESTED", allowlist)
+                        set(UNTESTED if untested is None else untested), "UNTESTED", allowlist, before[0])
     found += owed_faults("module group", {str(group) for group in module_groups(modules)}, tested,
-                         set(UNGROUPED if ungrouped is None else ungrouped), "UNGROUPED", allowlist)
+                         set(UNGROUPED if ungrouped is None else ungrouped), "UNGROUPED", allowlist, before[1])
     parse.cache_clear()
     return sorted(found)
 

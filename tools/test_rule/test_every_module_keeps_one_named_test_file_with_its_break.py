@@ -36,6 +36,8 @@ Breaks (each applied once, seen red, reverted), in tools/test_rule/check.py:
   `owed & tested` -> `set()`; its `owed - present - tested` -> `set()`; tree_modules' empty-__init__ clause dropped
   (an empty package is a module); code_module's conftest clause dropped; code_module's flat-folder line ->
   `return path.parent` (tools/cloud's tools are one module); module_groups' `count > 1` -> `count > 0`.
+- UNTESTED and UNGROUPED only shrink: owed_faults' first list -> `[]` (an entry not on origin/main's list passes);
+  base_lists' `{base}:` -> `HEAD:`.
 - a run that printed skipped fails: ran_faults' `skipped = any(...)` -> `skipped = False`; ONLY_SKIPS' ` skipped\\b`
   -> ` xskipped\\b`; the MAY_SKIP `fnmatch` -> `False`.
 """
@@ -173,6 +175,14 @@ CASES = {
          "score/review: on UNTESTED but has its test now, delete its entry",
          "score/gone: on UNTESTED but no module of the tree, delete its entry"],
         {"tree": (("score/review", "score/gone", "tools/props/one"), ("tools/cloud",))}),
+    "an UNTESTED or UNGROUPED entry not on origin/main's list is a fault: they only shrink": (
+        {"score/store/__init__.py": "X = 1\n", "tools/cloud/pool.py": "", "tools/cloud/batch.py": ""}, {}, "", (), {},
+        ["tools/cloud/batch: on UNTESTED but not on origin/main's, the list only shrinks (write its"
+         " test_<invariant>.py)",
+         "tools: on UNGROUPED but not on origin/main's, the list only shrinks (write its test_<invariant>.py)"],
+        {"base": {"tools/test_rule/check.py": 'UNTESTED = ("score/store", "tools/cloud/pool")\n'
+                                              'UNGROUPED = ("tools/cloud",)\n'},
+         "tree": (("score/store", "tools/cloud/pool", "tools/cloud/batch"), ("tools/cloud", "tools"))}),
     "a debt file at its count": (
         {"score/graph/test_a.py": THREE}, {}, "", (), {"score/graph/test_a.py": 3}, []),
     "a debt file that grew": (
