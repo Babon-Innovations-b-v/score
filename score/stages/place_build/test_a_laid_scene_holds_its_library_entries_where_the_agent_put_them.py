@@ -98,6 +98,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.coast_heights: the sites unread -> the coast's launch site stands off its 3 m; the sea bed left at the
   waterline -> the coast's sea bed 60 m out is not 8 m down; the hills left flat -> its land rises no higher than
   its berm
+- launch_kit.coast_dressing: a road's slab wound inward or left open -> a coast road is no closed solid facing out;
+  laid at its ground's height less its slab -> a coast road is under its ground; the sites unread -> the coast's night
+  dressing stands on its launch site
 - launch_kit.hatch_band: a hatch row's run laid as a whole ring -> the hatched ship's skin stands across its hatch
 - launch_kit.hatched: the band laid on the hull with no gap -> the hatched ship's hull shares a face with its band
 - launch_kit.door_wall: the rows' sill row left out of the doorway -> the wall's volume is a round doorway's short
@@ -1159,6 +1162,22 @@ def launched(folder):
     site = top[np.hypot(top[:, 0], top[:, 2] + 100.0) < 15.0]
     assert np.allclose(site[:, 1], 3.0) and top[top[:, 2] > 60.0][:, 1].max() < -8.0 + 1e-6, (site, top.max(axis=0))
     assert land[:, 1].max() > 2.5 + 10.0 and land[:, 1].min() > 0.0, (land.min(axis=0), land.max(axis=0))  # above the sea
+    dressed = launch_kit.coast(wide=400.0, deep=200.0, sea=100.0, rise=20.0, shore=10.0, cell=5.0,
+                               sites=[[0.0, -100.0, 20.0, 3.0]], scrub=0.999, roads=2, houses=6)
+    found = {part: [each for each in dressed if each[0] == part] for part in {each[0] for each in dressed}}
+    assert {"scrub", "road", "post", "lamp", "house", "window"} <= set(found), sorted(found)
+    ground = launch_kit.coast_ground(400.0, 200.0, 100.0, 20.0, 10.0, 2.5, 8.0, [[0.0, -100.0, 20.0, 3.0]], 0)
+    for _, road_points, road_triangles, _ in found["road"]:
+        rails = road_points.reshape(4, -1, 3)
+        middle = (rails[0] + rails[1]) / 2  # the road's top along its middle
+        assert (middle[:, 1] > ground(middle[:, 0], middle[:, 2])[0]).all(), "a coast road is under its ground"
+        road_points, road_triangles = cockpit_kit.welded(road_points, road_triangles)
+        corners = road_points[road_triangles]
+        edges = road_triangles[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2)
+        assert len(np.unique(edges, axis=0)) == len(edges) and np.einsum(
+            "ij,ij->i", corners[:, 0], np.cross(corners[:, 1], corners[:, 2])).sum() > 0, "a coast road is no closed solid facing out"
+    lit = np.vstack([each[1] for part in ("lamp", "house", "window") for each in found[part]])
+    assert np.hypot(lit[:, 0], lit[:, 2] + 100.0).min() > 20.0, "the coast's night dressing stands on its launch site"
     circle = [[0.6 + 0.6 * math.sin(angle), -0.6 * math.cos(angle) - 0.01, 0.6 * math.cos(angle) + 0.01]
               for angle in np.linspace(-math.pi / 2, math.pi / 2, 31)]
     _, points, triangles, _ = launch_kit.door_wall(2.4, 2.6, 0.1, circle)[0]

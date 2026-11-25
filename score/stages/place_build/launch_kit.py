@@ -505,9 +505,10 @@ def coast_heights(x, z, wide, deep, sea, rise, shore, berm, depth, sites, seed):
 
 
 def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, depth=8.0, cell=20.0, sites=(),
-          seed=0):
+          seed=0, scrub=0.0, roads=0, houses=0):
     """A coast (the docstring's `coast`): a heightfield on a grid of `cell` metres, closed by a flat bottom 2 m under
-    the sea bed's deepest and its four sides; parts land and shore (inland of the shore band, or not)."""
+    the sea bed's deepest and its four sides; parts land and shore (inland of the shore band, or not), the land's
+    gentle faces (up-normal over `scrub`) part scrub, and its night dressing (coast_dressing) when asked."""
     across = np.linspace(-wide / 2, wide / 2, int(round(wide / cell)) + 1)
     along = np.linspace(-deep, sea, int(round((deep + sea) / cell)) + 1)
     grid_x, grid_z = np.meshgrid(across, along, indexing="ij")
@@ -537,7 +538,146 @@ def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, 
     sides[inward] = sides[inward][:, ::-1]
     closed = np.vstack([upward[middle_inland <= shore], upward[:, ::-1] + below, sides])
     from score.stages.place_build.cockpit_kit import piece
-    return [piece("land", points, upward[middle_inland > shore], True), piece("shore", points, closed, True)]
+    land = upward[middle_inland > shore]
+    gentle = np.zeros(len(land), dtype=bool)
+    if scrub > 0:
+        corners_up = points[land]
+        normal_up = np.cross(corners_up[:, 1] - corners_up[:, 0], corners_up[:, 2] - corners_up[:, 0])
+        gentle = normal_up[:, 1] / np.linalg.norm(normal_up, axis=1) > scrub
+    found = [piece("land", points, land[~gentle], True), piece("shore", points, closed, True)]
+    if gentle.any():
+        found.append(piece("scrub", points, land[gentle], True))
+    if roads or houses:
+        found += coast_dressing(wide, deep, sea, rise, shore, berm, depth, sites, seed, roads, houses)
+    return found
+
+
+ROAD_WIDE, ROAD_THICK, ROAD_STEP = 7.0, 0.6, 10.0  # a coast road's width, slab and the metres between its points
+LAMP_EVERY, LAMP_HIGH = 40.0, 8.0  # a road lamp every so many metres along its road, its head that high over it
+
+
+def coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed):
+    """The coast's surface as a function of (x, z) arrays: (height, inland), coast_heights with the coast's own words."""
+    sites = [tuple(float(value) for value in site) for site in sites]
+    return lambda x, z: coast_heights(np.asarray(x, dtype=np.float64), np.asarray(z, dtype=np.float64), wide, deep,
+                                      sea, rise, shore, berm, depth, sites, seed)
+
+
+def off_sites(x, z, sites, margin):
+    """Whether (x, z) stands clear of every levelled site by `margin` times its radius."""
+    return all(math.hypot(x - site[0], z - site[1]) > site[2] * margin for site in sites)
+
+
+def road_line(ground, wide, inland_at, shore_at):
+    """A road along the coast `inland_at` metres inland of its shoreline: [(x, y, z)] every ROAD_STEP across."""
+    across = np.arange(-wide / 2 + ROAD_STEP, wide / 2 - ROAD_STEP / 2, ROAD_STEP)
+    along = shore_at(across) - inland_at
+    heights, _ = ground(across, along)
+    return np.column_stack([across, heights, along])
+
+
+def road_slab(line):
+    """A closed slab ROAD_WIDE wide under `line`'s points, its top ROAD_THICK / 2 over them and its foot sunk
+    1.5 ROAD_THICK under them (a road across a slope stays on its ground); part road."""
+    ahead = np.gradient(line[:, [0, 2]], axis=0)
+    ahead /= np.linalg.norm(ahead, axis=1, keepdims=True)
+    side = np.column_stack([-ahead[:, 1], np.zeros(len(line)), ahead[:, 0]]) * ROAD_WIDE / 2
+    lift = np.array([0.0, ROAD_THICK / 2, 0.0])
+    points = np.vstack([line - side + lift, line + side + lift, line + side - lift * 3, line - side - lift * 3])
+    count = len(line)
+    triangles, centres = [], []
+    for rail in range(4):
+        here, there = rail * count, ((rail + 1) % 4) * count
+        for step in range(count - 1):
+            triangles += [[here + step, here + step + 1, there + step + 1], [here + step, there + step + 1, there + step]]
+            centres += [(line[step] + line[step + 1]) / 2 - lift] * 2
+    for end, away in ((0, -1.0), (count - 1, 1.0)):
+        for corners in ([end, count + end, 2 * count + end], [end, 2 * count + end, 3 * count + end]):
+            triangles.append(corners)
+            centres.append(line[end] - lift - away * np.array([ahead[end][0], 0.0, ahead[end][1]]))
+    triangles = np.asarray(triangles)
+    corners = points[triangles]
+    faces = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    outward = np.einsum("ij,ij->i", faces, corners.mean(axis=1) - np.asarray(centres)) >= 0
+    triangles[~outward] = triangles[~outward][:, ::-1]
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece("road", points, triangles, False)]
+
+
+def road_lamps(line, sites):
+    """A lamp on a post every LAMP_EVERY metres along a road's `line`, at its seaward edge, clear of the sites: parts
+    post and lamp (the lamp's head, a glow)."""
+    found = []
+    every = max(1, int(round(LAMP_EVERY / ROAD_STEP)))
+    for x, y, z in line[::every]:
+        if not off_sites(x, z, sites, 1.2):
+            continue
+        found += box("post", (x - 0.15, y - 1.0, z + ROAD_WIDE / 2 - 0.15), (x + 0.15, y + LAMP_HIGH, z + ROAD_WIDE / 2 + 0.15), 0.0)
+        found += box("lamp", (x - 0.9, y + LAMP_HIGH, z + ROAD_WIDE / 2 - 0.9), (x + 0.9, y + LAMP_HIGH + 0.6, z + ROAD_WIDE / 2 + 0.9), 0.0)
+    return found
+
+
+def coast_house(generator, x, ground_low, z, lit=0.55, floor=3.2):
+    """A house on the coast's hills, its foot sunk under its footprint's lowest ground `ground_low`: parts house and
+    window (a `lit` share of its windows, seeded, a lit pane proud of each face)."""
+    half_x, half_z = generator.uniform(5.0, 11.0), generator.uniform(4.0, 8.0)
+    floors = int(generator.integers(2, 6))
+    top = ground_low + 1.0 + floors * floor
+    found = box("house", (x - half_x, ground_low - 2.0, z - half_z), (x + half_x, top, z + half_z), 0.05)
+    for axis, half_across, half_depth in (("x", half_x, half_z), ("z", half_z, half_x)):
+        columns = max(1, int(2 * half_across / 3.5))
+        pitch = 2 * half_across / columns
+        for side in (-1.0, 1.0):
+            for level in range(floors):
+                for column in range(columns):
+                    if generator.random() > lit:
+                        continue
+                    left = -half_across + column * pitch + pitch * 0.25
+                    bottom = ground_low + 1.0 + level * floor + 0.9
+                    low = [left, bottom, side * half_depth - 0.1]
+                    high = [left + pitch * 0.5, bottom + 1.4, side * half_depth + 0.1]
+                    if axis == "z":
+                        low, high = [low[2], low[1], low[0]], [high[2], high[1], high[0]]
+                    found += box("window", (x + low[0], low[1], z + low[2]), (x + high[0], high[1], z + high[2]), 0.0)
+    return found
+
+
+def coast_dressing(wide, deep, sea, rise, shore, berm, depth, sites, seed, roads, houses):
+    """A coast's night: `roads` roads along its shoreline, the first on the shore band and each next higher up the
+    hills, a lamp on a post along each (road_lamps), and `houses` houses (coast_house) on its lower hills between
+    them, each lit window a glow, all clear of its sites; parts road, post, lamp, house, window."""
+    sites = [tuple(float(value) for value in site) for site in sites]
+    ground = coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed)
+    shoreline = seeded_waves(np.random.default_rng(seed), COAST_WAVES, wide / 2, shore * 1.5)
+    shore_at = lambda across: shoreline(across, 0.0)  # noqa: E731
+    found = []
+    reach = deep * 0.45
+    for number in range(roads):
+        inland_at = shore * 0.6 + number * reach / max(1, roads)
+        line = road_line(ground, wide, inland_at, shore_at)
+        clear = np.array([off_sites(x, z, sites, 1.05) for x, _, z in line])
+        start = 0
+        for stop in list(np.flatnonzero(~clear)) + [len(line)]:
+            if stop - start >= 3:
+                found += road_slab(line[start:stop]) + road_lamps(line[start:stop], sites)
+            start = stop + 1
+    generator = np.random.default_rng(seed + 1)
+    laid = 0
+    for _ in range(houses * 20):
+        if laid >= houses:
+            break
+        x = generator.uniform(-wide / 2 + 30.0, wide / 2 - 30.0)
+        inland_at = generator.uniform(shore * 1.5, shore + reach)
+        z = float(shore_at(np.array([x]))[0]) - inland_at
+        if not off_sites(x, z, sites, 1.3):
+            continue
+        if any(abs(inland_at - (shore * 0.6 + number * reach / max(1, roads))) < 16.0 for number in range(roads)):
+            continue  # off the roads
+        corner_x, corner_z = np.array([x - 11, x + 11, x - 11, x + 11]), np.array([z - 8, z - 8, z + 8, z + 8])
+        heights, _ = ground(corner_x, corner_z)
+        found += coast_house(generator, x, float(heights.min()), z)
+        laid += 1
+    return found
 
 
 HATCH_GAP = 0.0005  # metres between a hatched ship's band and the hull under it and the nose over it (no face shared)
