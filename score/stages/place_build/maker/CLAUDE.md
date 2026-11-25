@@ -13,8 +13,10 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   the meshparts image's TRELLIS.2 (SegviGen's checkout of its code, its author's wheels), weights from the node cache
   (images/meshparts/models.json `trellis2-4b-make`, `trellis-image-large-ssdec`), any pictures in one job, each in its
   own process; kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
-  itself still uses the card queue (tools/cloud/backends/card_queue.py, a 20 GB scope): one model a process, about four
-  minutes and the whole card (CARD_GB). A made model is kept under `<folder>/made/<entry>/` and not made again.
+  itself still uses the card queue (tools/cloud/backends/card_queue.py, a 16 GB scope): one model a process, the whole
+  card (CARD_GB), about two minutes. Its TRELLIS.2 models are built without torch's random fills (generate.unfilled, the
+  load 38 s to 4 to 12 s) and each flow model read when its stage asks (generate.OnUse, 11.0 GB at the most); two makes
+  side by side were slower, 2 to 3 times each (#159). A made model is kept under `<folder>/made/<entry>/` and not made again.
 - **Fits this PC's card, the model unchanged** (#169: a printer box and a fridge stopped with 'CUDA driver error:
   device not ready', WSL's answer to a card overrun): `generate.lean` runs the sparse convs on FlexGEMM's implicit
   GEMM, LayerNorm32 and the decoders' last norm a block of rows at a time, and the remesh on `remesh.py` (CuMesh's,
