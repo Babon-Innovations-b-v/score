@@ -252,6 +252,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.written_scene: an object's `library` left out (#143) -> the cabinet names no model/cabinet@1
 - scene_package.shade_of: every object shaded (finished.picture_made unread) -> the monitor's maps ask the take's
   occlusion too; gltf_written not asking it (`asked["shade"]` dropped) -> the re-finished cup's maps ask none (#209)
+- scene_package.finish_of: a decal's picture left out of the sha256 -> the cup's finish key is not its files' (#213)
 - scene_package.face_looks: the parts' subsets ignored -> the crate's lid top has no steel look
 - scene_package.pbr: the map's tint left off -> the sand's base colour is white
 - scene_package.gprim_pieces: the tile ignored (the mesh's own st) -> the dune has no tiled coordinates
@@ -1634,6 +1635,17 @@ def packaged(folder, out):
     decoded = folder / "made/cup/cup-decoded.glb"  # the take's decoded mesh as make keeps one (#209)
     decoded.parent.mkdir(parents=True)
     decoded.write_bytes(tmp_glb(out.parent))
+    look = folder / "made/cup/finish/look/look.json"  # the finish route's look job, as finished/route.py keeps it (#213)
+    look.parent.mkdir(parents=True)
+    for name in ("mask-0.png", "mask-1.png", "decal.png"):
+        Image.new("L", (4, 4), len(name)).save(look.parent / name)
+    look.write_text(json.dumps({"glb": str(decoded), "masks": [
+        {"slot": "white", "mask": str(look.parent / "mask-0.png"), "spec": {"recipe": "paint"}},
+        {"slot": "green", "mask": str(look.parent / "mask-1.png"),
+         "spec": {"recipe": "paint", "decals": [{"image": str(look.parent / "decal.png")}]}}]}))
+    finish_digest = hashlib.sha256(look.read_bytes())
+    for name in (decoded, look.parent / "mask-0.png", look.parent / "mask-1.png", look.parent / "decal.png"):
+        finish_digest.update(name.read_bytes())
     (out / "old.json").touch()
     events, held_written, held_glb = [], scene_package.written, scene_package.skinned.character_glb
     scene_package.written = lambda out, name, glb: events.append(("written", name)) or held_written(out, name, glb)
@@ -1671,6 +1683,9 @@ def packaged(folder, out):
     assert (set(shades), all(bool(job.get("shade")) for job in asked if job["gltf"] == cup_file),
             shades[cup_file]["decoded"], shades[cup_file]["decoded_sha256"]) == (
         {cup_file}, True, str(decoded.resolve()), hashlib.sha256(decoded.read_bytes()).hexdigest()), shades
+    # its maps bake its finish route's masks and decals, keyed by every file of them, the copy unstretched (#213)
+    assert shades[cup_file]["finish"] == {"look": str(look.resolve()), "sha256": finish_digest.hexdigest(),
+                                          "stretch": None}, shades[cup_file]
     boxes = {item["name"]: np.array(item["box"]) for item in place_build.listing(folder)["objects"]}
     for name, copy in ((name, copy) for name, copy in copies.items() if copy["kind"] != "character"):
         model = trimesh.load(out / scene["objects"][copy["object"]]["file"], force="mesh")

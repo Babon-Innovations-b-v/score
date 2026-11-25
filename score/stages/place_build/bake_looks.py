@@ -8,7 +8,10 @@ on a flat GROUND_TILE square and blended seamless (seamless), the package box-pr
 A picture-made model's part (a job's `shade`, scene_package.shade_of, #209) has its base colour darkened by the model's
 own ambient occlusion on its map, every other part of the model shading it too (tools/props/library/inside/bake.py
 occlusion, as the bench's look and make_chunky's take bake give theirs, #206), and in the seams its decoded mesh holds
-where make kept one (bake.seamed, #159 route C): so the place's bake draws it as its bench look does.
+where make kept one (bake.seamed, #159 route C): so the place's bake draws it as its bench look does. Where the
+finish route ran on the model in its place (the shade's `finish`, scene_package.finish_of, #213), each of its maps is
+baked from the model itself (finish_model, bake_finished): its slots' recipes and decals mixed by their texel masks on
+its own UVs, at the place's wear and dirt, darkened by its own occlusion, as bake.bake_from bakes a take's masks.
 
     blender -b --python bake_looks.py -- <jobs.json>        (scene_package.blender_baked, through the card queue)
 
@@ -24,6 +27,7 @@ import time
 
 import bpy
 import numpy as np
+from mathutils import Matrix
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/props/library/inside"))
@@ -38,6 +42,9 @@ import scene_setup  # noqa: E402
 SAMPLES = 16  # the props' bake samples (make_chunky.BAKE_SAMPLES): the wear's bevel and the dirt's occlusion
 MARGIN = 4  # pixels a bake bleeds past each chart (scene_package.PADDING)
 CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
+# How far a part's bake looks for its finish's model (bake_finished): the part is that model's own surface, converted,
+# so a share of the model's box diagonal, at least FINISH_LEAST metres.
+FINISH_REACH, FINISH_LEAST = 0.01, 0.002
 
 
 def picture(name, size, colour):
@@ -188,6 +195,73 @@ def bake(item, channels, size):
     return found
 
 
+def finish_model(finish, decoded):
+    """The finish route's model (its look job's `glb`: finished/route.py, #213) imported, its meshes laid in the model's
+    own frame as the bench look lays them (look.py `laid`: the decals and the recipes' metres are placed there) and
+    stood at the copy's turn and stretch (`stretch`, scene_package.finish_of) as their objects' place, so they lie on
+    the part baked while reading their finish in their own frame: (its meshes, the look job, the model's own ambient
+    occlusion on its own UVs at its masks' side, darkened in the seams of its `decoded` mesh where there is one, as the
+    bench look's: look.py `occluded`)."""
+    look = json.loads(pathlib.Path(finish["look"]).read_text())
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=look["glb"])
+    meshes = [item for item in bpy.context.scene.objects if item not in before and item.type == "MESH"]
+    stood = Matrix(finish["stretch"]) if finish.get("stretch") else Matrix.Identity(4)
+    for item in meshes:
+        placed = item.matrix_world.copy()
+        item.parent = None
+        item.data.transform(placed)
+        item.data.update()
+        item.matrix_world = stood
+    bpy.context.view_layer.update()
+    side = bpy.data.images.load(look["masks"][0]["mask"], check_existing=True).size[0]
+    reach = props_bake.occlusion_reach(meshes)
+    shut = props_bake.occlusion(meshes, "", side, reach) if decoded is None else props_bake.seamed(
+        meshes, decoded, "", side, reach)
+    shut.use_fake_user = True  # kept through each map's freed()
+    return meshes, look, shut
+
+
+def bake_finished(item, finish, wear, dirt, size):
+    """The finish route's masked recipes (each slot's spec, its decals with it, mixed by its texel mask on the model's
+    own UVs: recipes.masked, as bake.bake_from mixes a take's) baked from the model (`finish`, finish_model's) onto the
+    part `item`'s texture coordinates at the place's `wear` and `dirt`, its base colour darkened by the model's own
+    occlusion: {channel: pixels}, each material and picture removed once read."""
+    meshes, look, shut = finish
+    entries = [(mask["mask"], recipes.channels(mask["spec"], wear, dirt, mask["spec"]["seed"]))
+               for mask in look["masks"]]
+    low, high = props_bake.box_of(meshes)
+    reach = max(FINISH_LEAST, FINISH_REACH * (high - low).length)
+    across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
+    bpy.ops.object.select_all(action="DESELECT")
+    for mesh in meshes:
+        mesh.select_set(True)
+    item.select_set(True)
+    bpy.context.view_layer.objects.active = item
+    found = {}
+    for channel, colour in CHANNELS + (("normal", False),):
+        target = picture(f"bake_{channel}", size, colour)
+        if channel == "normal":
+            material = props_bake.bumped(recipes.masked(entries, recipes.shaded, uv_map="").item())
+        else:
+            material = recipes.masked(entries, lambda channels: recipes.emitted(getattr(channels, channel)),
+                                      relief=False, uv_map="", occlusion=shut).item()
+        for mesh in meshes:
+            worn(mesh, material)
+        holder = bpy.data.materials.new("finish_target")
+        holder.use_nodes = True
+        worn(item, targeted(holder, target))
+        bpy.ops.object.bake(type="NORMAL" if channel == "normal" else "EMIT", margin=MARGIN, use_clear=True,
+                            normal_space="TANGENT", **across)
+        found[channel] = pixels_of(target)
+        for mesh in meshes + [item]:
+            mesh.data.materials.clear()
+        bpy.data.materials.remove(material)
+        bpy.data.materials.remove(holder)
+        bpy.data.images.remove(target)
+    return found
+
+
 def written(found, size, tiled, into, key):
     """A bake's pictures as glTF reads them (scene_package.PICTURES): base colour, metal-roughness (roughness in green,
     metal in blue) and the normal map, a tile's made seamless first, as <into>/<key>_<picture>.png, then its
@@ -212,13 +286,18 @@ def baked_file(out, into, gltf, jobs):
     model = [item for item in bpy.context.scene.objects if item.type == "MESH"]
     shade = next((job["shade"] for job in jobs if job.get("shade")), None)
     decoded = decoded_of(shade) if shade else None
+    finish = finish_model(shade["finish"], decoded) if shade and shade.get("finish") else None
     for job in jobs:
         began = time.time()
         spec = job["spec"]
-        channels = recipes.channels(spec, spec["wear"], spec["dirt"], recipes.SEED)
         item = tile_square(job["tile"]) if job["tile"] else bpy.data.objects[job["mesh"]]
-        shut = occlusion_of(item, model, decoded, job["size"]) if job.get("shade") else None
-        found = bake(item, channels if shut is None else occluded(channels, shut), job["size"])
+        shut = None
+        if finish and job.get("shade"):
+            found = bake_finished(item, finish, spec["wear"], spec["dirt"], job["size"])
+        else:
+            channels = recipes.channels(spec, spec["wear"], spec["dirt"], recipes.SEED)
+            shut = occlusion_of(item, model, decoded, job["size"]) if job.get("shade") else None
+            found = bake(item, channels if shut is None else occluded(channels, shut), job["size"])
         if shut is not None:
             bpy.data.images.remove(shut)
         written(found, job["size"], bool(job["tile"]), into, job["key"])

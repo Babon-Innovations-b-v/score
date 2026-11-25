@@ -838,11 +838,44 @@ def stretched_decoded(source, baked):
     return target
 
 
+# glTF's frame (y up, -z forward) onto Blender's (z up), as its importer turns a model: a stretch in the one is
+# GLTF_TO_BLENDER @ it @ its inverse in the other.
+GLTF_TO_BLENDER = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
+
+
+def finish_of(folder, prim, baked):
+    """The finish route's look job (finished/route.py: the model's texel masks and decals) kept for the object's entry
+    in the place's made/ folder, or None where there is none: {look: its path, sha256: of the look job, its model,
+    its masks and its decals' pictures, so a finish run again bakes again, stretch: the copy's turn and stretch
+    (`baked`, the object frame's row-major 3 x 3) as Blender's 4 x 4 for the model it reads, or None}."""
+    from score.stages.place_build.finished import route
+    address = text_of(prim, "score:library") or ""
+    if "/" not in address:
+        return None
+    look = pathlib.Path(folder) / "made" / address.split("/", 1)[1].split("@")[0] / route.FINISH / route.LOOK
+    if not look.is_file():
+        return None
+    job = json.loads(look.read_text())
+    digest = hashlib.sha256(look.read_bytes())
+    for path in [job["glb"]] + [mask["mask"] for mask in job["masks"]] + [
+            decal["image"] for mask in job["masks"] for decal in mask["spec"].get("decals") or []]:
+        digest.update(pathlib.Path(path).read_bytes())
+    stretch = None
+    if baked is not None:
+        turned = GLTF_TO_BLENDER @ np.asarray(baked, dtype=np.float64).T @ GLTF_TO_BLENDER.T
+        stretch = np.eye(4)
+        stretch[:3, :3] = turned
+        stretch = stretch.round(9).tolist()
+    return {"look": str(look.resolve()), "sha256": digest.hexdigest(), "stretch": stretch}
+
+
 def shade_of(folder, prim, baked, held):
     """How a picture-made model's maps are shaded in the bake (bake_looks.py, #209), or None for any other object: its
     own ambient occlusion (`code` the hash of tools/props/library/inside/bake.py, which bakes it, so a change there
-    bakes it again) and, where make kept its decoded mesh (decoded_source), that mesh's path (stretched_decoded) and
-    sha256, whose seams it is darkened in (bake.seamed). `held` keeps each answer by entry and stretch."""
+    bakes it again), where make kept its decoded mesh (decoded_source), that mesh's path (stretched_decoded) and
+    sha256, whose seams it is darkened in (bake.seamed), and where the finish route ran on it in the place
+    (finish_of, #213), its look job, whose masked recipes and decals the bake draws in place of its parts' palette
+    variants. `held` keeps each answer by entry and stretch."""
     from score.stages.place_build import finished
     key = (text_of(prim, "score:library"), None if baked is None else np.asarray(baked).round(9).tobytes())
     if key not in held:
@@ -855,6 +888,9 @@ def shade_of(folder, prim, baked, held):
             if source is not None:
                 decoded = stretched_decoded(source, baked)
                 shade.update(decoded=str(decoded.resolve()), decoded_sha256=library_files.sha256(decoded))
+            finish = finish_of(folder, prim, baked)
+            if finish is not None:
+                shade["finish"] = finish
         held[key] = shade
     return held[key]
 

@@ -12,9 +12,12 @@ re-finished at once. An adopted model's own material naming a surface the librar
 and one naming a surface it does not hold is `own paint`; a look naming a surface the library withdrew for another
 passes as its replacement (#155), its mesh and material standing under an instanceable prim (a SimReady model's)
 told too; a take whose parts stand so (the crate) is re-finished per part as the stool is (#156). Afterwards the
-scene's finishes are told no fault.
+scene's finishes are told no fault. A made model's finish route (#213) reads the place's palette at its
+wear and dirt, its row the model's words and box, and refuses any picture but the one it was made from.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
+- finished.route.route_library: the place's wear read as the level `new` -> the route's palette is not
+  the lab's worked wear (#213)
 - finished.object_faults: the whole-look rule left out (`len(parts) >= PARTS` made `False`) -> the grey generator
   passes
 - grade.parts: PART_DELTA made 1000 -> the generator's red and grey are one paint, its grey look passes;
@@ -50,6 +53,7 @@ from pxr import Sdf, Usd, UsdGeom, UsdShade, Vt
 
 from score.stages import place_build
 from score.stages.place_build import dome_shell, finished
+from score.stages.place_build.finished import route
 
 BROWN, DARK, RED, GREY = (138, 106, 72), (40, 40, 44), (200, 30, 30), (170, 168, 164)
 
@@ -194,6 +198,19 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
         place_build.put(folder, name, address, at=(at, 0, 0))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
     assert "crop_leaf" in finished.variant_colours(folder) and "sand_ground" not in finished.variant_colours(folder)
+    # the finish route's library is the place's palette at the wear level nearest its wear, its dirt (#213)
+    content, offered, _, _ = route.route_library(folder)
+    assert ("place_wear" not in content, content["wear_levels"]["worked"], offered) == (True, 0.4, {
+        "tokens": content["tokens"], "wear": {"level": "worked", "dirt": 0.3, "dirt_token": "dust"}}), offered
+    made = {"picture": {"source": "the picture concept.png", "sha256": "0" * 64}, "size_m": [0.5, 1.2, 0.3]}
+    assert route.row_of("sink_unit_trellis.camp", made) == {"id": "sink_unit_trellis.camp", "words": "sink unit",
+                                                             "size": [0.5, 0.3, 1.2]}
+    cut = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    cut.paste((200, 60, 40, 255), (0, 0, 8, 2))
+    cut.paste((200, 60, 40, 255), (0, 0, 2, 8))  # an L cut out of its background
+    cut.save(tmp_path / "stool.png")
+    with pytest.raises(place_build.Refused, match="not the picture the model was made from"):
+        route.held_picture(folder, str(tmp_path / "stool.png"), made, tmp_path)
     with monkeypatch.context() as patched:  # the generator as a scene laid before the refusal held it
         patched.setattr(place_build, "whole_over_parts", lambda prim: None)
         place_build.surface(folder, "gen", "palette/grey_paint")

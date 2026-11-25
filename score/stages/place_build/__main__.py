@@ -33,6 +33,7 @@
     python -m score.stages.place_build hollow <folder> <name> --region x0,y0,z0,x1,y1,z1 [--region ...]
     python -m score.stages.place_build door <folder> <name> [--opens] [--slide] [--lock chamber --side inner|outer]
     python -m score.stages.place_build refinish <folder> <name>
+    python -m score.stages.place_build finish <folder> <name> <take/<take>|concept/<n>|picture.png>
     python -m score.stages.place_build plan <folder> <plan.json>
     python -m score.stages.place_build dress <folder> <name> <address> <row> <N|S|E|W|floor> [--support wall]
                                        [--height m] [--every m] [--front +x|-x|+z|-z]
@@ -307,6 +308,9 @@ def run(args):
     if args.step == "check":
         from score.stages.place_build import ready
         return ready.check(args.folder, not args.no_settle, dict(given.split("=", 1) for given in args.among or []))
+    if args.step == "finish":
+        from score.stages.place_build.finished import route
+        return route.finish(args.folder, args.name, args.source)
     if args.step == "make":
         from score.stages.place_build import maker
         return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height,
@@ -526,6 +530,10 @@ def parser():
     step.add_argument("--no-settle", action="store_true")
     step.add_argument("--among", action="append", help="place=folder: a neighbour the area seats it beside (both "
                       "`area --seat`ed), read in as the game lays it; again for each")
+    step = steps.add_parser("finish")
+    step.add_argument("folder")
+    step.add_argument("name")
+    step.add_argument("source", help="the picture the model was made from, as make takes it")
     step = steps.add_parser("make")
     for name in ("folder", "name", "source"):
         step.add_argument(name)

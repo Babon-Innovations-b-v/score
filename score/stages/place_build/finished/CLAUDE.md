@@ -23,4 +23,10 @@ the rules; ready/ reports its faults in ready.json's `finishes`, and the place i
   A later whole `surface` on a one-paint model replaces that re-finish.
 - A re-finish's parts are face subsets `paint<k>` laid over the model's mesh in the scene, its own colour subsets
   deactivated there (the model file is never changed); a laid layer (a monitor's lit screen) keeps its look.
+- **A made model's own finish route** (`finish <folder> <object> <picture>`, route.py, #213): the surfaces finish
+  route (bench/run/finish.py's views, list, split, parts) run on a laid TRELLIS.2 model with the place's palette as
+  its library (at the wear level nearest the place's), from the picture its record says it was made from (any other
+  refused by sha256), its texel masks and decals kept as the bench look's job in `made/<entry>/finish/look/`. The
+  package's bake draws it from there (scene_package.finish_of); the preview and the finish check still read its
+  refinish parts. Its hardware pieces are not drawn by the bake yet.
 - Test: `test_every_shown_part_wears_a_library_finish.py` (a temp library, no Blender).
