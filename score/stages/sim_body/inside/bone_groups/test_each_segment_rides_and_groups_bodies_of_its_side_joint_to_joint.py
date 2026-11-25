@@ -1,18 +1,16 @@
 """bone_groups: a `{Side}` name is written out for both sides, each segment rides its group's frame body, one of the
 group's own bodies on its side, and every bone group spans the same joints as its SOMA segment: its SOMA stretch runs
 from the segment's joint to that joint's child in SOMA's tree (SOMA_PARENTS: the template rig's, written out by hand),
-each
-SOMA joint is the same MyoFullBody centre in every group it ends or starts (and each centre one SOMA joint), every
-body is in one group of its own side (pure: the score venv runs it).
+each SOMA joint is the same MyoFullBody centre in every group it ends or starts (and each centre one SOMA joint), every
+body is in one group of its own side (pure: the score venv runs it). One test reads the written-out table `groups()`
+once: its entries worked by hand (WRITTEN) and `sided` over GROUPS' names, then every group's stretch and bodies.
 
-Breaks (each applied once, seen red, reverted), 2026-10-28:
-- _written's `side=side[0].lower()` made `side=side[0]`: LeftLeg's table writes `femur_L`, not `femur_l`.
-- sided's `("Left", "Right")` made `("Left",)`: `{Side}Arm` is LeftArm only.
+Breaks (each applied once, seen red, reverted), 2026-10-28, again 2026-11-13 on the one test:
+- _written's `side=side[0].lower()` made `side=side[0]`: LeftLeg's entry writes `femur_L`, not `femur_l`.
+- sided's `("Left", "Right")` made `("Left",)`: `{Side}Arm` is LeftArm only, not the table's segments.
 - GROUPS' Spine2 MyoFullBody start `"L3_L4"` made `"L2_L3"`: SOMA's Spine2 is two MyoFullBody centres.
 - GROUPS' `{Side}Shin` SOMA end `"{Side}Foot"` made `"{Side}ToeBase"`: the shin's stretch skips a joint.
 - GROUPS' `{Side}Foot` bodies `"talus_{side}"` made `"talus_l"`: the right foot holds a left body.
-
-Run: .venv/bin/python score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py
 """
 import pathlib
 import sys
@@ -29,38 +27,42 @@ SOMA_PARENTS = {"Hips": "Root", "Spine1": "Hips", "Spine2": "Spine1", "Chest": "
                         ("Leg", "Hips"), ("Shin", "{}Leg"), ("Foot", "{}Shin"), ("ToeBase", "{}Foot"),
                         ("ToeEnd", "{}ToeBase"))}}
 
-
-def a_side_name_is_written_for_both_sides():
-    """Worked by hand: `{Side}Arm` is LeftArm and RightArm, a plain name stays; a `{Side}` table gives `_l` and `_r`
-    bodies, a tuple value written out part by part."""
-    problems = []
-    if bone_groups.sided(["Hips", "{Side}Arm"]) != ["Hips", "LeftArm", "RightArm"]:
-        problems.append(f"sided gave {bone_groups.sided(['Hips', '{Side}Arm'])}")
-    wanted = {"LeftLeg": "femur_l", "RightLeg": "femur_r", "Hips": "pelvis", "LeftHand": ("lunate_l", "Left"),
-              "RightHand": ("lunate_r", "Right")}
-    found = bone_groups.sided_map({"{Side}Leg": "femur_{side}", "Hips": "pelvis",
-                                   "{Side}Hand": ("lunate_{side}", "{Side}")})
-    return problems + ([] if found == wanted else [f"sided_map gave {found}"])
+# Entries of the written-out table worked by hand (stretch, centres, frame, first bodies): a plain name stays, a
+# `{Side}` name gives LeftX and RightX with `_l` and `_r` bodies, a nested tuple written out part by part.
+WRITTEN = {
+    "Hips": (("hipmid", "Spine1"), ("hipmid", "L5_S1"), "pelvis", ("Full Body", "pelvis", "sacrum")),
+    "LeftLeg": (("LeftLeg", "LeftShin"), ("hip_l", "knee_l"), "femur_l", ("femur_l",)),
+    "RightLeg": (("RightLeg", "RightShin"), ("hip_r", "knee_r"), "femur_r", ("femur_r",)),
+    "LeftHand": (("LeftHand", "LeftHand tip"), ("wrist_l", "finger_tip_l"), "lunate_l", ("lunate_l", "scaphoid_l")),
+    "RightHand": (("RightHand", "RightHand tip"), ("wrist_r", "finger_tip_r"), "lunate_r", ("lunate_r", "scaphoid_r")),
+}
 
 
-def every_bone_group_spans_its_segments_joints():
-    """Each group's SOMA stretch: Hips from the hip joints' middle (`hipmid`) to Spine1, the hand to its mesh tip,
-    every other segment from its own joint to its joint's child; each SOMA joint one MyoFullBody centre wherever it
-    appears and each centre one joint; each body in one group, a side's group holding only its side's bodies."""
-    problems, centres, joints, owner = [], {}, {}, {}
-    for segment, ((start, end), (myo_start, myo_end), frame, bodies) in bone_groups.groups().items():
-        wanted = "hipmid" if segment == "Hips" else segment
-        if start != wanted:
+def test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint():
+    """The written-out table holds WRITTEN's entries and exactly `sided`'s names of GROUPS; each group's SOMA stretch
+    runs from its joint (Hips from the hip joints' middle, `hipmid`) to its joint's child or its own mesh tip, each SOMA
+    joint one MyoFullBody centre wherever it appears and each centre one joint, each body in one group, a side's group
+    holding only its side's bodies, its frame one of its bodies."""
+    written = bone_groups.groups()
+    problems = [] if list(written) == bone_groups.sided(list(bone_groups.GROUPS)) else [
+        f"sided gave {bone_groups.sided(list(bone_groups.GROUPS))}, the table {list(written)}"]
+    for segment, (stretch, centres, frame, bodies) in WRITTEN.items():
+        found = written.get(segment)
+        if found is None or found[:3] != (stretch, centres, frame) or found[3][:len(bodies)] != bodies:
+            problems.append(f"{segment} written {found}, by hand {(stretch, centres, frame, bodies)}")
+    centre_of, joint_of, owner = {}, {}, {}
+    for segment, ((start, end), (myo_start, myo_end), frame, bodies) in written.items():
+        if start != ("hipmid" if segment == "Hips" else segment):
             problems.append(f"{segment} starts at {start}")
-        if not end.endswith(" tip") and SOMA_PARENTS.get(end) != segment:
-            problems.append(f"{segment} ends at {end}, not a child of its joint")
         if end.endswith(" tip") and end != f"{segment} tip":
             problems.append(f"{segment} ends at {end}")
+        if not end.endswith(" tip") and SOMA_PARENTS.get(end) != segment:
+            problems.append(f"{segment} ends at {end}, not a child of its joint")
         for joint, centre in ((start, myo_start), (end, myo_end)):
-            if centres.setdefault(joint, centre) != centre:
-                problems.append(f"SOMA's {joint} is {centres[joint]} and {centre}")
-            if joints.setdefault(centre, joint) != joint:
-                problems.append(f"{centre} is SOMA's {joints[centre]} and {joint}")
+            if centre_of.setdefault(joint, centre) != centre:
+                problems.append(f"SOMA's {joint} is {centre_of[joint]} and {centre}")
+            if joint_of.setdefault(centre, joint) != joint:
+                problems.append(f"{centre} is SOMA's {joint_of[centre]} and {joint}")
         letter = {"Left": "_l", "Right": "_r"}.get(segment[:4] if segment.startswith("Left") else segment[:5])
         for body in bodies:
             if owner.setdefault(body, segment) != segment:
@@ -69,17 +71,4 @@ def every_bone_group_spans_its_segments_joints():
                 problems.append(f"{segment} holds {body}")
         if bodies and frame not in bodies:
             problems.append(f"{segment}'s frame {frame} is not one of its bodies")
-    return problems
-
-
-CHECKS = (a_side_name_is_written_for_both_sides, every_bone_group_spans_its_segments_joints)
-
-
-if __name__ == "__main__":
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[5] / "conftest.py"))["refuse_outside_sandbox"]()
-    failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
-    for failure in failures:
-        print(failure)
-    print("ok" if not failures else f"{len(failures)} failed")
-    sys.exit(1 if failures else 0)
+    assert not problems, "\n".join(problems)
