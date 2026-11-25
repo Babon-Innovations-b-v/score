@@ -22,12 +22,10 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
   and its words; `--seat` also writes each into its folder's place.json `seat`, and `package` then lays the place in
   the area's frame (scene_package.seated, on the session layer: the scene file never moves), because the game lays
   an area's places where their packages put them, so no game-side offset remains.
-- **One grade an area** (2099 #161, 2026-11-24: the stairwell, lit for its own exposure 3.75, drew 6.8 times too
-  dark under the square's 0.55): every seat carries the `exposure` of the place that grades the area (`--graded`, the
-  game's lighter, 2099's area.json `light`: the prologue's street at 4.5; default the outside) when its folder is given, and
-  the piece list lights the place for it (pieces.relit: lamps, sky light and glows times its own exposure over the
-  area's, `environment.exposure` the area's). The game keeps the package's watts and grades the area once; a place is
-  never brightened in the game. Give the grading place's folder to every `area --seat` run.
+- **Each place its own exposure** (2099 #161, 2026-11-25 review of the Godot plan: lighting the prologue at the
+  street's 4.5 blew the square, drawn for 0.55, out to white): a seat carries no exposure and no place is relit for
+  an area. Each piece list keeps its own lamps' watts and its Environment's exposure (`environment.exposure`), and
+  the game exposes each place at its own value, easing between them at a join.
 - **The joins check**: sills within LEVEL, middles within ALIGN, facing within FACING, a leaf no wider than the
   doorway it is seated in (ready.FIT), and a walker's way WALKWAY wide from INSIDE in from one doorway to INSIDE in
   from the other over both places' objects round the join (their backdrops left out, as the game leaves them), seated, every doorway open (ready.route_on, as the walkway

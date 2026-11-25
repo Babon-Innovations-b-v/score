@@ -95,8 +95,9 @@ GROUND_TILE = 8.0  # metres one seamless tile of a laid ground's recipe covers: 
 FLAT_RECIPES = ("glass", "glowing")  # recipes of one colour, roughness and glow: their factors are exact, no bake
 GLASS_IOR = 1.5  # a see-through look's glass (blender_views.GLASS_IOR)
 TEXTURES = "textures"  # the baked pictures' folder beside the objects' .gltf files
-HELD_TEXELS = 2048  # the longest side a package's picture is written at: the side the game holds it at (2099 #161,
-# PlaceTextures.MostTexels), so a picture over it is written as the game's own taken-down mip, never decoded at 4096
+HELD_TEXELS = package.HELD_TEXELS  # 2048, the longest side a package's picture is written at: the side the game
+# holds it at (2099 #161, PlaceTextures.MostTexels), so a picture over it is written as the game's own taken-down
+# mip, never decoded at 4096
 # A film package's texture caps (`package --film`, an Unreal film render, #215, #221): a game's package keeps the game's
 # own (HELD_TEXELS the side 2099 holds a picture at, LARGEST its biggest baked map); a film's keeps every baked map
 # whole (held no smaller than its largest map) on maps up to 8192 a side, Unreal's own texture limit, since quality is

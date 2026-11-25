@@ -55,12 +55,12 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          no face, the sky's dome, a character that cannot be carried as drawn, saying why)
     environment          [place_build] the sky and light as the final render draws them: `sky` {file (under the
                          package), projection, turn (degrees about up), strength, library} or null, `ambient` [r, g, b]
-                         (linear), `background` [r, g, b] or null, `exposure` (a multiplier), `view_transform` and
+                         (linear), `background` [r, g, b] or null, `exposure` (a multiplier: the place's own, the value
+                         its render was drawn at, never an area's; an engine exposes each place at its own and eases
+                         between them at a join, 2099 #161), `view_transform` and
                          `look` (the grade the engine's tone mapping takes), `sun` {name, elevation, heading (degrees
                          round from +x towards +z), strength (Blender's W/m²), colour, angle} or null, `night` {moon
-                         (as the sun), glow {threshold, intensity} or null} or null, `relit` {times, why} when a piece
-                         list seated in an area is lit for the area's exposure (its lamps, sky light and glows times
-                         its own exposure over the area's, `exposure` then the area's), `ground_albedo` [r, g, b] (linear: the laid ground's
+                         (as the sun), glow {threshold, intensity} or null} or null, `ground_albedo` [r, g, b] (linear: the laid ground's
                          baked tile's mean base colour, the light it throws back up) or null, `grade` {file (a
                          16-bit PNG under the package), size, low, high, middle, display, layout}: the view transform
                          and look as Blender draws them, each scene linear channel at middle * 2 ** (low + c * (high -
@@ -92,6 +92,14 @@ and instances:
                          normals, no material and no texture coordinates (an engine tiles its look in the piece's own
                          frame); a character's is version 1's skinned glTF in its own texture, its pictures apart, each once at
                          made/pictures/<sha256>.<ending> (images[].uri)
+    pictures             {held: {library reference (a look's map `kind/id@version/file`, a library glTF's picture
+                         beside it `<its glTF's reference minus the file>/<uri>`, or one in its buffer
+                         `<its glTF's reference>#images/<n>`): {file (made/pictures/<sha256>.png under the package),
+                         size [w, h], from [w, h] (the library picture's)}}, unread [library references found
+                         neither in the place's assets nor in the library: not measured]}: every library picture the
+                         list names that is over HELD_TEXELS a side, held once taken down, so an engine reads that one
+                         file for every look and piece naming the reference; every other picture the list names is at
+                         most HELD_TEXELS already
     looks                {id: a palette recipe's {library (its surface's address), spec (its score:recipe:spec word
                          for word: recipe, token, colour, second, bare, dirt_colour, wear, dirt, seed, roughness...)},
                          or another library surface's {library, colour, roughness, metal, opacity, glow, maps {input:
@@ -103,7 +111,8 @@ and instances:
 The version 2 check refuses a piece list with a library piece the library does not hold, has withdrawn or holds at
 another digest, names a gltf its entry does not hold, or whose mesh is missing, hashes otherwise or does not hold its
 parts as named meshes, a made piece whose file is missing, hashes otherwise or does not hold its parts as named meshes, a
-piece no copy uses, a copy of no piece, a matrix that is no transform, a part of a copy's piece with no look, a look
+picture under made/pictures or held in `pictures` over HELD_TEXELS a side, a held picture missing or hashing otherwise,
+an environment whose exposure is no positive number, a piece no copy uses, a copy of no piece, a matrix that is no transform, a part of a copy's piece with no look, a look
 id the list does not hold, an own look of no piece, or a count of copies that differs from `counts`.
 
 The check refuses a package with a missing or unreadable model file, buffer or picture, a model that failed its model
@@ -125,6 +134,7 @@ INVENTORIES = REPO / "data/inventory"
 FORMAT = "score.scene"
 VERSION = 1
 PIECES = 2  # the piece list's version (above)
+HELD_TEXELS = 2048  # the longest side of any picture a piece list holds: the side 2099 holds a picture at (#161)
 EVERY_PART = "*"  # a copy's look on every part of its piece
 # How far a kit room's copy may stretch its model on any side before the package is refused: a model is made at the
 # size it is laid at, so a stretch past this is a layout that no longer matches its bake.
@@ -395,12 +405,34 @@ def copy_problems(index, copy, scene):
                     if look not in scene["looks"]]
 
 
+def picture_problems(out, scene):
+    """What is wrong with a piece list's pictures and exposure: a picture under made/pictures or held in `pictures`
+    over HELD_TEXELS a side, a held picture missing or not hashing to its name, an exposure that is no positive
+    number."""
+    import hashlib
+    from PIL import Image
+    found = []
+    exposure = (scene.get("environment") or {}).get("exposure")
+    if not isinstance(exposure, (int, float)) or isinstance(exposure, bool) or not exposure > 0:
+        found.append(f"environment: its exposure {exposure!r} is no positive number")
+    for reference, given in ((scene.get("pictures") or {}).get("held") or {}).items():
+        path = out / given["file"]
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != path.stem:
+            found.append(f"picture {reference}: {given['file']} is missing or does not hash to its name")
+    for path in sorted((out / "made/pictures").glob("*")) if (out / "made/pictures").is_dir() else ():
+        with Image.open(path) as picture:
+            if max(picture.size) > HELD_TEXELS:
+                found.append(f"picture {path.relative_to(out)}: {picture.size[0]} x {picture.size[1]}, over "
+                             f"{HELD_TEXELS} a side")
+    return found
+
+
 def pieces_problems(out, scene, held=None):
     """Everything wrong with a piece list (version 2) at <out>, its library pieces against the library's index
     (`held`, held_entries by default); [] when it is sound."""
     addresses = sorted({piece["library"] for piece in scene["pieces"].values() if "library" in piece})
     held = held_entries(addresses) if held is None else held
-    found = []
+    found = picture_problems(out, scene)
     for name, piece in scene["pieces"].items():
         found += piece_problems(out, name, piece, held)
     used = {copy["piece"] for copy in scene["copies"]}

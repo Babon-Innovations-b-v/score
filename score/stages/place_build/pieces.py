@@ -24,9 +24,14 @@ any other surface's factors (colour, roughness, metal, opacity, glow) and its ma
 (the piece's own texture: a picture-made model left in its bake, a character). Lamps, doors, chambers, colliders and
 the environment are version 1's (scene_package), but the sky is named by its library reference, never copied, and
 nothing drawn by Blender is written: no grade lattice (the same for every place: scene_package.VIEW and GRADE) and no
-ground albedo (it came from the bake). A place seated in an area whose seat names the area's exposure (area.area) is
-lit for it (relit): its lamps, sky light and glows scaled by its own exposure over the area's, its exposure the area's,
-so it draws in the area's one grade as its own render drew it.
+ground albedo (it came from the bake). Every place, seated in an area or not, keeps its own light and its own
+exposure (`environment.exposure`, its Environment's score:exposure: the value its own render was drawn at), never an
+area's: the game exposes each place at its own value and eases between them at a join (2099 #161: the prologue lit
+at the street's 4.5 blew the square, drawn for 0.55, out to white).
+Every picture the list names is at most scene_package.HELD_TEXELS a side as the game holds it: a character's taken
+down as it is set apart (pictures_apart), and a library picture over it (a look's map, a library glTF's own picture)
+held once taken down at made/pictures/<sha256>.png, every look and piece naming it reading that one (held_pictures,
+the list's `pictures`).
 """
 import hashlib
 import json
@@ -357,8 +362,9 @@ ENDINGS = {"image/png": "png", "image/jpeg": "jpg"}
 
 
 def pictures_apart(glb):
-    """A skinned GLB with its embedded pictures taken out into files of their own: (the GLB naming each as
-    pictures/<sha256>.<ending> beside it, {that name: its bytes}). A crowd's copies of one character differ in a few
+    """A skinned GLB with its embedded pictures taken out into files of their own, each at most HELD_TEXELS a side as
+    the game holds it (scene_package.taken_down): (the GLB naming each as pictures/<sha256>.<ending> beside it, {that
+    name: its bytes}). A crowd's copies of one character differ in a few
     pose keys only, so each copy's GLB is its own but their pictures, nearly all their bytes, are held once (the
     square's 1,081 people were 13.8 GB of GLBs, 702 distinct, 20 MB of them pictures each)."""
     document, binary = scene_package.unpacked(glb, None)
@@ -369,8 +375,10 @@ def pictures_apart(glb):
             continue
         view = views[image.pop("bufferView")]
         start = view.get("byteOffset", 0)
-        data = binary[start:start + view["byteLength"]]
-        name = f"{PICTURES}/{hashlib.sha256(data).hexdigest()}.{ENDINGS.get(image.pop('mimeType', ''), 'png')}"
+        own = image.pop("mimeType", "")
+        data, mime = scene_package.taken_down(binary[start:start + view["byteLength"]])
+        mime = mime or own
+        name = f"{PICTURES}/{hashlib.sha256(data).hexdigest()}.{ENDINGS.get(mime, 'png')}"
         pictures[name] = data
         image["uri"] = name
         taken[id(view)] = True
@@ -390,6 +398,81 @@ def pictures_apart(glb):
     if document.get("buffers"):
         document["buffers"][0]["byteLength"] = len(packed)
     return scene_package.packed(document, bytes(packed)), pictures
+
+
+def library_file(folder, reference):
+    """The file a library reference (`kind/id@version/file`) names: the place's assets copy (library_files'
+    stage_name: assets/kind/id/version/file, the inverse of scene_package.library_reference), else the library's own
+    (library_files.resolve, fetched into its capped cache); None when neither holds it."""
+    kind, rest = reference.split("/", 1)
+    address, name = rest.split("/", 1)
+    entry_id, version = address.rsplit("@", 1)
+    copied = pathlib.Path(folder) / "assets" / kind / entry_id / version / name
+    if copied.is_file():
+        return copied
+    return place_build.library_files.resolve(reference)
+
+
+def library_pictures(folder, looks, pieces):
+    """{library reference: its bytes' getter} of every library picture the piece list names: each look's maps, and
+    each library glTF piece's own pictures (a file beside it by its uri, `<glTF's folder>/<uri>`, or one in its
+    buffer, `<glTF>#images/<n>`), each read where library_file finds it; and [the references neither the place's
+    assets nor the library hold]."""
+    found, unread = {}, []
+    for look in looks.values():
+        for given in (look.get("maps") or {}).values():
+            found[given["file"]] = library_file(folder, given["file"])
+    for piece in pieces.values():
+        if "gltf" not in piece:
+            continue
+        reference = f"{piece['library']}/{piece['gltf']}"
+        path = library_file(folder, reference)
+        if path is None:
+            unread.append(reference)
+            continue
+        data = path.read_bytes()
+        if data[:4] == b"glTF":
+            document, binary = scene_package.unpacked(data, None)
+        else:  # a .gltf: its buffer the file its uri names beside it
+            document = json.loads(data)
+            uri = (document.get("buffers") or [{}])[0].get("uri")
+            binary = b""
+            if uri and not uri.startswith("data:"):
+                beside = library_file(folder, f"{piece['library']}/{pathlib.PurePosixPath(piece['gltf']).parent / uri}")
+                binary = beside.read_bytes() if beside else b""
+        for number, image in enumerate(document.get("images", [])):
+            if "bufferView" in image:
+                view = document["bufferViews"][image["bufferView"]]
+                start = view.get("byteOffset", 0)
+                found[f"{reference}#images/{number}"] = bytes(binary[start:start + view["byteLength"]])
+            elif not image.get("uri", "data:").startswith("data:"):
+                beside = f"{piece['library']}/{pathlib.PurePosixPath(piece['gltf']).parent / image['uri']}"
+                found[beside] = library_file(folder, beside)
+    unread += [reference for reference, given in found.items() if given is None]
+    return {reference: given for reference, given in found.items() if given is not None}, sorted(unread)
+
+
+def held_pictures(folder, out, looks, pieces):
+    """The list's `pictures`: {held: {library reference: {file (made/pictures/<sha256>.png under the package), size
+    [w, h], from [w, h]}}, unread [references]}: every library picture it names (library_pictures) that is over
+    scene_package.HELD_TEXELS a side written once taken down (scene_package.taken_down), so every look and piece naming
+    it reads the one copy at the size the game holds it; `unread` the references no copy of which was found, so not
+    measured."""
+    import io
+    from PIL import Image
+    found, unread = library_pictures(folder, looks, pieces)
+    held = {}
+    for reference, given in sorted(found.items()):
+        data = given if isinstance(given, bytes) else given.read_bytes()
+        size = Image.open(io.BytesIO(data)).size
+        if max(size) <= scene_package.HELD_TEXELS:
+            continue
+        taken, _ = scene_package.taken_down(data)
+        name = f"{MADE}/{PICTURES}/{hashlib.sha256(taken).hexdigest()}.png"
+        (out / name).parent.mkdir(parents=True, exist_ok=True)
+        (out / name).write_bytes(taken)
+        held[reference] = {"file": name, "size": list(Image.open(io.BytesIO(taken)).size), "from": list(size)}
+    return {"held": held, "unread": unread}
 
 
 def character_pieces(out, prim, kind, pieces, made, looks):
@@ -417,37 +500,6 @@ def character_pieces(out, prim, kind, pieces, made, looks):
         copy.update(looks={EVERY_PART: f"own-{piece}"}, plays=facts["plays"])
         copies.append(copy)
     return copies, refused
-
-
-def relit(lamps, environment, looks, exposure):
-    """A seated place's light made for its area's one grade, in place: every lamp, its ambient, background, sun and
-    moon and every look's glow times its own exposure over the area's (`exposure`, its seat's: the area's outside
-    place's), and its exposure the area's, so the place draws as its own render did once graded at the area's exposure
-    (2099 grades an area once, at its lighter's: the stairwell's lamps, lit for 3.75, drew 6.8 times too dark under the
-    square's 0.55). `environment.relit` says by how much; nothing changes when no exposure is given."""
-    if not exposure:
-        return
-    times = environment["exposure"] / float(exposure)
-    for lamp in lamps:
-        for key in ("intensity", "watts", "strength"):
-            if key in lamp:
-                lamp[key] = round(lamp[key] * times, 6)
-    for key in ("ambient", "background"):
-        if environment.get(key):
-            environment[key] = [round(value * times, 6) for value in environment[key]]
-    for light in (environment.get("sun"), (environment.get("night") or {}).get("moon")):
-        if light:
-            light["strength"] *= times
-    for look in looks.values():
-        numbers = look.get("spec") or look
-        glow = numbers.get("glow")
-        if isinstance(glow, list):
-            numbers["glow"] = [round(value * times, 6) for value in glow]
-        elif glow:
-            numbers["glow"] = round(glow * times, 6)
-    environment.update(exposure=float(exposure), relit={
-        "times": round(times, 6), "why": f"lit for the area's exposure {float(exposure):g}, not its own "
-                                         f"{float(exposure) * times:g}: its lamps, sky light and glows times {times:.4g}"})
 
 
 def write(folder, out):
@@ -508,14 +560,13 @@ def written_pieces(folder, out, stage, place, seat):
     environment = scene_package.environment_of(stage, place, None)
     environment.update(ground_albedo=None, grade=None)
     lamps = [lamp for lamp in scene_package.lamps_of(stage, place) if lamp["name"] not in neighbours]
-    relit(lamps, environment, looks, (seat or {}).get("exposure"))
     scene = {"format": package.FORMAT, "version": package.PIECES, "place": place,
              "frame": f"the area {seat['area']}'s frame (the place's seat, {seat['from']}): metres, y up"
              if seat else "the place's own frame: metres, y up", "units": "metre", "up": "+y",
              "ground": scene_package.GROUND, "on_seat": [0.0, 0.0], "pieces": pieces, "looks": looks,
              "copies": copies, "lamps": lamps,
              "counts": counts, "physics": "ready.json" if roles is not None else None, "left_out": left_out,
-             "chambers": chambers, "environment": environment}
+             "chambers": chambers, "environment": environment, "pictures": held_pictures(folder, out, looks, pieces)}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     return scene
 

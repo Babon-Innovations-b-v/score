@@ -326,7 +326,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.own_look: a look bound inside the object taken for its own whatever it names -> the kit's door in a library
   surface is its own bake, and the engine draws the materialless mesh white (2099 #161, the flat's wardrobe)
 - pieces.pictures_apart: the picture's view kept in the buffer, or the accessors' views not renumbered -> the
-  character's GLB still holds its picture, or its keys read the picture's bytes
+  character's GLB still holds its picture, or its keys read the picture's bytes; its picture kept at its own size
+  (taken_down unread) -> the 64 texel picture is set apart at 64, over the game's 32
+- pieces.held_pictures: every library picture left as the library holds it -> the dune's 62 texel sand map is named
+  over the game's 32 with no held copy
+- package.picture_problems: a held picture's hash unread -> a held sand changed passes; the exposure unread -> a
+  piece list exposed at 0 passes
 - scene_package.mass_of: the asset's authored mass left unread (usd_physics.authored_mass skipped) -> the adopted
   prop weighs its record's 3 kg, not its asset's 1.5496 kg times its scale cubed (#155)
 - scene_package.metal_rough: the texture output read left off (`channel(found[0], "r")`) -> the adopted look's
@@ -1773,6 +1778,7 @@ def pieced(folder, root, out):
     UsdGeom.Xformable(copied).ClearXformOpOrder()
     UsdGeom.Xformable(copied).AddTranslateOp().Set(Gf.Vec3d(50, 0, 60))
     stage.Save()
+    scene_package.HELD_TEXELS = package.HELD_TEXELS = 32  # the game's side under the sand's 62: held taken down
     try:
         made = pieces.packaged(folder, out)
     finally:
@@ -1794,7 +1800,7 @@ def pieced(folder, root, out):
     assert made["check"] == "sound" and scene["version"] == 2 and not list(out.glob("objects")), made
     assert copies["kerb_copy"]["piece"] == copies["kerb"]["piece"] == "kerb" and copies["kerb2"]["piece"] == "box_piece"
     assert sorted(path.name for path in (out / "made").iterdir()) == sorted(
-        f"{name}.glb" for name, piece in scene["pieces"].items() if "made" in piece)
+        [f"{name}.glb" for name, piece in scene["pieces"].items() if "made" in piece] + ["pictures"])
     mesh = (out / "meshes/box_piece.glb").read_bytes()
     mesh_document = json.loads(mesh[20:20 + int.from_bytes(mesh[12:16], "little")])
     assert scene["pieces"]["box_piece"] == {"library": "kit/box_piece@1", "digest": "d-kit/box_piece@1",
@@ -1814,15 +1820,24 @@ def pieced(folder, root, out):
     assert scene["looks"][copies["crate"]["looks"]["top"]]["library"] == "surface/steel@1" != scene["looks"][
         copies["crate"]["looks"]["geo"]]["library"]
     assert scene["looks"][copies["dune"]["looks"]["top"]]["maps"]["diffuseColor"]["file"] == "surface/sand@1/colour.jpg"
-    picture, keys = b"\x89PNG a picture", np.arange(6, dtype=np.float32).tobytes()
+    assert scene["pictures"]["unread"] == [] and scene["pictures"]["held"] == {"surface/sand@1/colour.jpg": {
+        "file": scene["pictures"]["held"]["surface/sand@1/colour.jpg"]["file"], "size": [32, 32], "from": [62, 62]}}
+    held_sand = out / scene["pictures"]["held"]["surface/sand@1/colour.jpg"]["file"]
+    assert Image.open(held_sand).size == (32, 32) and held_sand.parent == out / "made/pictures"
+    written = io.BytesIO()
+    Image.new("RGB", (64, 8), (200, 0, 0)).save(written, format="PNG")
+    picture, keys = written.getvalue(), np.arange(6, dtype=np.float32).tobytes()
+    after = len(picture) + -len(picture) % 4  # the keys' view, after the picture's
     embedded = scene_package.packed({"images": [{"bufferView": 0, "mimeType": "image/png"}], "bufferViews": [
-        {"buffer": 0, "byteLength": len(picture)}, {"buffer": 0, "byteOffset": 16, "byteLength": len(keys)}],
+        {"buffer": 0, "byteLength": len(picture)}, {"buffer": 0, "byteOffset": after, "byteLength": len(keys)}],
         "accessors": [{"bufferView": 1, "componentType": 5126, "count": 2, "type": "VEC3"}],
-        "buffers": [{"byteLength": 16 + len(keys)}]}, picture + b"\0" * (16 - len(picture)) + keys)
+        "buffers": [{"byteLength": after + len(keys)}]}, picture + b"\0" * (after - len(picture)) + keys)
     apart, held = pieces.pictures_apart(embedded)
+    scene_package.HELD_TEXELS = package.HELD_TEXELS = 2048
     apart_document, apart_binary = scene_package.unpacked(apart, None)
-    name = f"pictures/{hashlib.sha256(picture).hexdigest()}.png"
-    assert held == {name: picture} and apart_document["images"] == [{"uri": name}]  # the picture once, apart
+    [(name, data)] = held.items()
+    assert name == f"pictures/{hashlib.sha256(data).hexdigest()}.png" and apart_document["images"] == [{"uri": name}]
+    assert Image.open(io.BytesIO(data)).size == (32, 4)  # the picture once, apart, at the game's side
     view = apart_document["bufferViews"][apart_document["accessors"][0]["bufferView"]]
     assert apart_binary[view["byteOffset"]:view["byteOffset"] + view["byteLength"]] == keys  # the keys still read
     assert copies["leader"]["looks"] == {"*": "own-leader"} and scene["pieces"]["leader"]["skinned"] is True
@@ -1833,8 +1848,12 @@ def pieced(folder, root, out):
     (root / "index/kit.json").write_text(json.dumps(index))
     (out / "made/kerb.glb").write_bytes(glb + b"    ")
     del copies["crate"]["looks"]["top"]
+    scene["environment"]["exposure"] = 0
+    held_sand.write_bytes(held_sand.read_bytes() + b"    ")
     (out / "scene.json").write_text(json.dumps(scene))
     found = package.problems(out)
+    assert any("its exposure 0 is no positive number" in line for line in found) and any(
+        "picture surface/sand@1/colour.jpg" in line and "does not hash" in line for line in found), found
     withdrawn = package.problems(out, held={"kit/box_piece@1": {"digest": "d-kit/box_piece@1", "state": "withdrawn"}})
     assert any("piece box_piece: its digest" in line for line in found), found
     assert any("kerb.glb does not hash" in line for line in found) and any(
