@@ -827,7 +827,9 @@ The house standard for a module, so a reader can predict the shape of code they 
   tests`, fails on a module with more than one test file, a test file not named `test_<invariant>.py`, or one whose
   docstring names no break. A module is the directory a test file sits in, a `tests/` folder counting as its parent's;
   in the flat tool folders (`tools/cloud`, `tools/props`, `tools/review`, `tools/usd`) each tool script is a module and
-  a top-level test belongs to the script its docstring names first. Its dated allowlist holds only the modules a sweep
+  a top-level test belongs to the script its docstring names first. It also finds the modules from the tree: a
+  module, or a module group (its test in its own folder), with no test is a fault unless its dated list names it
+  (#121), and old tests called from a list are stacking. Its dated allowlist holds only the modules a sweep
   was still reworking on 2026-10-26, and only shrinks.
 - **A test file runs in at most 60 seconds (hard rule, owner 2026-10-21; 60 s 2026-11-07: "we have a one test max of 60
   sec").** A small fixture world

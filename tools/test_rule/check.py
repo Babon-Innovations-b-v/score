@@ -24,6 +24,15 @@ A test file is a file named `test_*.py` or `*_test.py`, tracked or new (not igno
   a top-level test file belongs to the tool script its docstring names first (as `tools/<folder>/<tool>.py`, else as
   `<tool>.py`, else as the bare name), and one that names none is a fault of its own.
 
+- **stacked old tests** (owner, 2026-11-13): two or more of the file's own asserting functions in one literal that a
+  loop walks calling them, or that a parametrize hands the test, are old tests renamed and called from a list.
+
+Over the whole tree (no files named), its modules are found from the tree, not from its test files (#121): each folder
+holding a .py file of code (no test file, conftest.py or empty __init__.py), a `tests/` folder its parent's and a flat
+tool folder's script its own, is a module, and each folder under which two or more modules sit a module group. A
+module with no test is a fault, and so is a group with no test in its own folder, unless `UNTESTED` (or `UNGROUPED`)
+names it: those list what had none on 2026-11-25, and only shrink.
+
 `ALLOWLIST` holds the modules other agents' sweeps are still reworking, dated, each pattern with the test files and
 test functions it covered on 2026-11-07; like `FUNCTION_DEBT` it only shrinks (a pattern covering more is a fault, one
 covering less must lower its entry, one covering none must go), and nothing else goes in it.
@@ -123,6 +132,88 @@ FUNCTION_DEBT = {
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
 }
 
+# The modules (tree_modules) and module groups (module_groups) with no test on 2026-11-25 (#121); each only shrinks. A
+# flat tool folder is a group no test can be in yet: a top-level test there belongs to one of its tools.
+UNTESTED_DATE = "2026-11-25"
+UNTESTED = (
+    ".claude/hooks/local",
+    ".claude/skills/improve-env/scripts/stills",
+    ".claude/skills/my-issues/scripts",
+    "docs/adr/tools",
+    "score",
+    "score/dashboard",
+    "score/dashboard/films/preview",
+    "score/dashboard/launch",
+    "score/dashboard/pages",
+    "score/dashboard/pages/migrations",
+    "score/dashboard/site",
+    "score/stages/demo_film/blender",
+    "score/stages/effects/inside",
+    "score/stages/library/demo",
+    "score/stages/light/inside",
+    "score/stages/motion/inside",
+    "score/stages/people/inside",
+    "score/stages/people_bodies",
+    "score/stages/people_cloth/inside",
+    "score/stages/place_build/maker/shim/flash_attn",
+    "score/stages/place_build/maker/shim/nvdiffrast",
+    "score/stages/sim_body/inside",
+    "score/stages/surfaces/inside",
+    "tools/characters/clips",
+    "tools/characters/garments/inside",
+    "tools/characters/maker/inside",
+    "tools/cloud/closeups_cloud",
+    "tools/cloud/delight_worker",
+    "tools/cloud/finish_masks",
+    "tools/cloud/finish_masks_worker",
+    "tools/cloud/geosam2_worker",
+    "tools/cloud/google_bill",
+    "tools/cloud/images/newton",
+    "tools/cloud/images/runner",
+    "tools/cloud/input_fetch",
+    "tools/cloud/judge_worker",
+    "tools/cloud/machine_run",
+    "tools/cloud/moss_generate",
+    "tools/cloud/picture_worker",
+    "tools/cloud/provider",
+    "tools/cloud/secret_store",
+    "tools/cloud/segment_worker",
+    "tools/cloud/segvigen_worker",
+    "tools/cloud/self_delete",
+    "tools/cloud/similar",
+    "tools/cloud/similar_worker",
+    "tools/cloud/unirig",
+    "tools/cloud/unirig_worker",
+    "tools/props/baked_gltf",
+    "tools/props/blender_clean_bake",
+    "tools/props/finish_elsewhere",
+    "tools/props/heavy",
+    "tools/props/paths",
+    "tools/props/picture",
+    "tools/props/review",
+    "tools/review/characters",
+    "tools/review/layers_lift",
+    "tools/review/opening",
+    "tools/review/records",
+    "tools/review/renders",
+    "tools/sound",
+)
+UNGROUPED = (
+    ".claude",
+    ".claude/skills",
+    "score",
+    "score/adapters",
+    "score/dashboard",
+    "score/stages/place_build/maker/shim",
+    "score/stages/sim_body/inside",
+    "tools",
+    "tools/cloud",
+    "tools/props",
+    "tools/props/bench",
+    "tools/review",
+    "tools/sound",
+)
+
 # The docstring line that excuses a second test function, with its reason after the colon.
 SECOND_TEST = re.compile(r"^\s*second test:\s*\S", re.IGNORECASE | re.MULTILINE)
 
@@ -140,12 +231,17 @@ def is_test_file(path):
         name.startswith("test_") or name.endswith("_test.py"))
 
 
-def test_files(root):
-    """The repository's test files, tracked or new and not ignored, that exist on disk, as paths from the root."""
+def tree_paths(root):
+    """The repository's files, tracked or new and not ignored, that exist on disk, as paths from the root."""
     listed = subprocess.run(["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
                             check=True, capture_output=True, text=True).stdout
     paths = {pathlib.PurePosixPath(entry) for entry in listed.split("\0") if entry}
-    return sorted(path for path in paths if is_test_file(path) and (root / path).is_file())
+    return sorted(path for path in paths if (root / path).is_file())
+
+
+def test_files(root):
+    """The repository's test files (tree_paths), as paths from the root."""
+    return [path for path in tree_paths(root) if is_test_file(path)]
 
 
 def allowlisted(path, allowlist):
@@ -287,6 +383,147 @@ def file_faults(path, text, raised=()):
     return faults
 
 
+def asserting_functions(tree):
+    """The names of a tree's top-level functions that hold an `assert`: old tests, when a list of them is called."""
+    return {node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and any(isinstance(inner, ast.Assert) for inner in ast.walk(node))}
+
+
+def listed_names(node):
+    """Every bare name a literal list, tuple, set or dict (its values) holds, `pytest.param(...)`'s arguments too."""
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return {name for entry in node.elts for name in listed_names(entry)}
+    if isinstance(node, ast.Dict):
+        return {name for entry in node.values for name in listed_names(entry)}
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "param":
+        return {name for entry in node.args for name in listed_names(entry)}
+    return set()
+
+
+def literal_of(node, bound):
+    """The literal a loop or a parametrize walks: `node` itself, the top-level literal a name is bound to (`bound`),
+    or the literal under an `enumerate(...)`, a `.items()` or a `.values()`; None for anything else."""
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "enumerate" and node.args:
+        node = node.args[0]
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in ("items", "values"):
+        node = node.func.value
+    if isinstance(node, ast.Name):
+        node = bound.get(node.id)
+    return node if isinstance(node, (ast.List, ast.Tuple, ast.Set, ast.Dict)) else None
+
+
+def loops_of(node):
+    """(target, what it walks, its body) of a `for` statement or of each of a comprehension's generators."""
+    if isinstance(node, ast.For):
+        return [(node.target, node.iter, node.body)]
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        return [(generator.target, generator.iter, [node.elt]) for generator in node.generators]
+    if isinstance(node, ast.DictComp):
+        return [(generator.target, generator.iter, [node.key, node.value]) for generator in node.generators]
+    return []
+
+
+def walked_tests(node, bound, asserting):
+    """The asserting functions a node hands on as tests: in a literal its loop walks, calling what it takes, or in a
+    literal a parametrize gives the test; an empty set when none."""
+    for target, walked, body in loops_of(node):
+        literal = literal_of(walked, bound)
+        found = listed_names(literal) & asserting if literal is not None else set()
+        taken = {name.id for name in ast.walk(target) if isinstance(name, ast.Name)}
+        if len(found) > 1 and any(isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                                  and call.func.id in taken for part in body for call in ast.walk(part)):
+            return found
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "parametrize" \
+            and len(node.args) > 1:
+        literal = literal_of(node.args[1], bound)
+        return listed_names(literal) & asserting if literal is not None else set()
+    return set()
+
+
+def stacked(tree):
+    """The old tests a file stacks (owner, 2026-11-13: "per test one actual test function, so stacking checks cant
+    happen"): two or more of its asserting functions handed on as tests (walked_tests), sorted; empty when none."""
+    asserting = asserting_functions(tree)
+    bound = {target.id: node.value for node in tree.body if isinstance(node, ast.Assign)
+             for target in node.targets if isinstance(target, ast.Name)}
+    for node in ast.walk(tree):
+        found = walked_tests(node, bound, asserting)
+        if len(found) > 1:
+            return sorted(found)
+    return []
+
+
+def stacked_faults(root, path):
+    """A test file's fault when it stacks old tests (stacked)."""
+    tree, _ = parsed(root, path)
+    found = stacked(tree) if tree is not None else []
+    if not found:
+        return []
+    shown = ", ".join(found[:3]) + (", ..." if len(found) > 3 else "")
+    return [f"{path}: stacks {len(found)} old tests called from a list ({shown}): fold their checks into rows of one"
+            " table"]
+
+
+def code_module(path):
+    """The module a file of code (a .py file that is no test file, no conftest.py and outside vendor/) is, as a path
+    from the root, a `tests/` folder counting as its parent's and a flat tool folder's script its own module; None for
+    any other file (a flat tool folder's __init__.py too)."""
+    if path.suffix != ".py" or is_test_file(path) or path.name == "conftest.py" or path.parts[:1] == ("vendor",):
+        return None
+    if str(path.parent) in FLAT_TOOL_FOLDERS:
+        return None if path.name == "__init__.py" else path.parent / path.stem
+    return path.parent.parent if path.parent.name == "tests" else path.parent
+
+
+def tree_modules(root):
+    """Every module the tree holds (code_module of each of its files, an empty __init__.py making none), sorted."""
+    return sorted({module for path in tree_paths(root) if (module := code_module(path)) is not None
+                   and not (path.name == "__init__.py" and not (root / path).read_text(encoding="utf-8").strip())})
+
+
+def module_groups(modules):
+    """The module groups (CONTEXT.md): each folder under which two or more of the modules sit, sorted."""
+    under = {}
+    for module in modules:
+        for parent in module.parents:
+            if str(parent) != ".":
+                under[parent] = under.get(parent, 0) + 1
+    return sorted(group for group, count in under.items() if count > 1)
+
+
+def exempt(module, allowlist):
+    """Whether a module or group sits where the allowlist still exempts the test files."""
+    return any(fnmatch.fnmatch(f"{module}/", pattern) or fnmatch.fnmatch(str(module), pattern) for pattern in allowlist)
+
+
+def owed_faults(kind, present, tested, owed, name, allowlist):
+    """The faults of one kind (module or module group) against its debt list `owed` (`name`): one with no test not on
+    it, and an entry that has its test now or is no longer one of `present`."""
+    found = [f"{entry}: a {kind} with no test (write its test_<invariant>.py there)"
+             for entry in sorted(present - tested - owed) if not exempt(entry, allowlist)]
+    found += [f"{entry}: on {name} but has its test now, delete its entry" for entry in sorted(owed & tested)]
+    found += [f"{entry}: on {name} but no {kind} of the tree, delete its entry" for entry in sorted(owed - present - tested)]
+    return found
+
+
+def tree_faults(root, untested=None, ungrouped=None, allowlist=None):
+    """The tree's faults (owner, 2026-11-13, #121): a module with no test, a module group with no test in its own
+    folder, and an UNTESTED or UNGROUPED entry with its test now or gone from the tree. `untested`, `ungrouped` and
+    `allowlist` are UNTESTED, UNGROUPED and ALLOWLIST when None."""
+    root = pathlib.Path(root)
+    allowlist = ALLOWLIST if allowlist is None else allowlist
+    modules = tree_modules(root)
+    tested = {str(module_of(root, path, docstring(root, path))) for path in test_files(root)}
+    found = owed_faults("module", {str(module) for module in modules}, tested,
+                        set(UNTESTED if untested is None else untested), "UNTESTED", allowlist)
+    found += owed_faults("module group", {str(group) for group in module_groups(modules)}, tested,
+                         set(UNGROUPED if ungrouped is None else ungrouped), "UNGROUPED", allowlist)
+    parse.cache_clear()
+    return sorted(found)
+
+
 def allowlist_faults(root, listed, allowlist):
     """The allowlist's own faults: a pattern covering more test files or functions than its entry, less, or none."""
     found = []
@@ -358,6 +595,7 @@ def faults(root, named=(), debt=None, allowlist=None, main_only=None, base="orig
             found.extend(count_faults(path, test_count(root, path), text, debt,
                                       functools.partial(base_count, root, path, base)))
             found.extend(main_faults(root, path, main_only))
+            found.extend(stacked_faults(root, path))
     parse.cache_clear()  # the trees held to the interpreter's exit cost it two seconds to free
     return sorted(set(found))
 
@@ -378,7 +616,7 @@ def main(argv):
         for fault in found:
             print(f"  {fault}")
         return 1 if found else 0
-    found = faults(REPO, argv)
+    found = faults(REPO, argv) + ([] if argv else tree_faults(REPO))
     print(f"test rule: {len(found)} fault(s) (allowlist of {ALLOWLIST_DATE}: {len(ALLOWLIST)} entries)")
     for fault in found:
         print(f"  {fault}")

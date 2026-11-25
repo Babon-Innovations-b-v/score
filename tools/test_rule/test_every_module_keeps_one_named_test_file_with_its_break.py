@@ -29,6 +29,13 @@ Breaks (each applied once, seen red, reverted), in tools/test_rule/check.py:
   `if not only and ...` -> `if False:`; runs_only_under_main's `if tree is None or pytest_tests(tree):` ->
   `if tree is None:`; stale_faults' MAIN_ONLY pair dropped.
 - no SyntaxWarning: file_faults' warning list -> `[]`.
+- no stacked fold: walked_tests' `if len(found) > 1 and any(...)` -> `if False:` (a loop over old tests passes);
+  its parametrize branch's `return listed_names(literal) & asserting ...` -> `return set()`; asserting_functions'
+  `isinstance(inner, ast.Assert)` -> `False`.
+- modules from the tree (#121): owed_faults' first list -> `[]` (a module or group with no test passes); its
+  `owed & tested` -> `set()`; its `owed - present - tested` -> `set()`; tree_modules' empty-__init__ clause dropped
+  (an empty package is a module); code_module's conftest clause dropped; code_module's flat-folder line ->
+  `return path.parent` (tools/cloud's tools are one module); module_groups' `count > 1` -> `count > 0`.
 - a run that printed skipped fails: ran_faults' `skipped = any(...)` -> `skipped = False`; ONLY_SKIPS' ` skipped\\b`
   -> ` xskipped\\b`; the MAY_SKIP `fnmatch` -> `False`.
 """
@@ -55,13 +62,19 @@ SCRIPT = GOOD + ("def check_a():\n    pass\n\n\ndef check_c():\n    pass\n\n\nde
                  "if __name__ == \"__main__\":\n    print([check() for check in CHECKS])\n")
 MAIN = "\n\nif __name__ == \"__main__\":\n    test_a()\n"
 ESCAPE = GOOD + "PATTERN = \"\\d+\"\n"
+CHECKED = "def a():\n    assert 1\n\n\ndef b():\n    assert 2\n\n\n"
+STACKED = GOOD + CHECKED + "OLD = (a, b)\n\n\ndef test_all():\n    for name, check in enumerate(OLD):\n        check()\n"
+PARAMETRIZED = GOOD + "import pytest\n\n\n" + CHECKED + (
+    "@pytest.mark.parametrize(\"check\", [pytest.param(a), pytest.param(b)])\ndef test_all(check):\n    check()\n")
+HELPERS = GOOD + CHECKED + "def test_all():\n    for value in (a, b, 3):\n        print(value)\n"
 SKIPPED = {"score/graph/test_a.py": "skipped: no Newton env built\n",
            "score/stages/sim_body/inside/fit/test_b.py": "skipped: no Newton env built\n",
            "score/store/test_c.py": "sss\n3 skipped in 0.12s\n", "score/checks/test_d.py": "..s\n2 passed, 1 skipped in 0.1s\n",
            "score/review/test_e.py": "ok\n"}
 
 # id: (files, untracked new files, .gitignore, named files, function debt, the faults the rule says it has, and
-# optionally {"base": files committed as origin/main, "allowlist": ..., "main_only": ..., "ran": {file: its output}})
+# optionally {"base": files committed as origin/main, "allowlist": ..., "main_only": ..., "ran": {file: its output},
+# "tree": (UNTESTED, UNGROUPED), which adds the tree's faults})
 CASES = {
     "one named file with its break, a tests/ folder its parent's": (
         {"score/graph/__init__.py": "", "score/graph/test_a_key_is_made_once.py": GOOD,
@@ -141,6 +154,25 @@ CASES = {
          " with the reason)",
          "score/store/test_c.py: printed skipped, so it did not run (run it where it can, or name it in MAY_SKIP"
          " with the reason)"], {"ran": SKIPPED}),
+    "old tests called from a list or a parametrize are stacked; helpers in a list are not": (
+        {"score/graph/test_a.py": STACKED, "score/store/test_b.py": PARAMETRIZED, "score/review/test_c.py": HELPERS},
+        {}, "", (), {},
+        ["score/graph/test_a.py: stacks 2 old tests called from a list (a, b): fold their checks into rows of one table",
+         "score/store/test_b.py: stacks 2 old tests called from a list (a, b): fold their checks into rows of one"
+         " table"]),
+    "every module and group of the tree has its test, or is on its list till it does": (
+        {"score/graph/__init__.py": "X = 1\n", "score/graph/test_a.py": ONE, "score/store/__init__.py": "X = 1\n",
+         "score/review/web.py": "", "score/review/test_c.py": ONE, "score/empty/__init__.py": "\n",
+         "conftest.py": "", "tools/cloud/pool.py": "", "tools/cloud/batch.py": "",
+         "tools/cloud/test_pool_books.py": TOOL.format("Invariant of pool.py.") + "def test_a():\n    pass\n",
+         "tools/props/one.py": ""}, {}, "", (), {},
+        ["score/store: a module with no test (write its test_<invariant>.py there)",
+         "tools/cloud/batch: a module with no test (write its test_<invariant>.py there)",
+         "score: a module group with no test (write its test_<invariant>.py there)",
+         "tools: a module group with no test (write its test_<invariant>.py there)",
+         "score/review: on UNTESTED but has its test now, delete its entry",
+         "score/gone: on UNTESTED but no module of the tree, delete its entry"],
+        {"tree": (("score/review", "score/gone", "tools/props/one"), ("tools/cloud",))}),
     "a debt file at its count": (
         {"score/graph/test_a.py": THREE}, {}, "", (), {"score/graph/test_a.py": 3}, []),
     "a debt file that grew": (
@@ -189,6 +221,8 @@ def test_the_guard_lists_exactly_the_faults_the_rule_names(tmp_path, case):
     extra = extra[0] if extra else {}
     root = world(tmp_path, files, new, ignore, extra.get("base", {}))
     found = check.faults(root, named, debt, extra.get("allowlist", {}), extra.get("main_only", ()))
+    if "tree" in extra:
+        found += check.tree_faults(root, *extra["tree"], extra.get("allowlist", {}))
     for path, output in sorted(extra.get("ran", {}).items()):
         found += check.ran_faults(path, output, {"score/stages/sim_body/inside/*": "needs a GPU"})
     assert found == sorted(expected)
