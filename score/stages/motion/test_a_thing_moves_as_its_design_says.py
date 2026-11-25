@@ -720,7 +720,7 @@ CASES = [
     ("a rocket climbs at its push less Earth's pull, and its exhaust, drawn or not, holds covered", {
         "toy": {"rows": ROWS + UNMADE, "extra": (SKY_ROCKET,)},
         "record": [(("moves", "rocket_1", "climb"), {"lift": 0.0, "push": 12.485, "pull": 9.82}),
-                   (("moves", "rocket_1", "loop"), False)],
+                   (("moves", "rocket_1", "loop"), False), (("moves", "rocket_1", "row"), "rocket")],
         "middles": [(ROCKET, 20.0, None, "risen", (0.0, (0.0, 533.0, 0.0), 0.01))],
         "gates": {"speeds": gate(checks.PASS, measures={"rocket_1 push": (12.485, 0.01)}), "grounded": gate(checks.PASS),
                   "follows": gate(checks.PASS), "steps": gate(checks.PASS), "covered": gate(checks.FAIL, UNCOVERED)},
@@ -990,6 +990,8 @@ def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
         `push = 2.0 * risen / (seconds - lift) ** 2 + float(entry["climb"]["pull"])`
     Break: score/stages/motion/from_design.py: `return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust")
         else []` -> `return []`
+    The launch names its row by id, as every other move does (#122).
+    Break: score/stages/motion/from_design.py: launched's `launch(path, row["id"], ...)` -> `launch(path, row, ...)`
     Break: score/stages/motion/from_design.py: `elif rule.get("airless") and airless(body):` -> `elif False:`
     A recorded gap naming the exhaust's rocket and the turbine moves `covered`'s faults; one naming the turbine alone
     leaves the rocket's fault failing it.

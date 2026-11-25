@@ -469,7 +469,7 @@ def launched(path, row, rule, motion_kind, body, moves, still):
         still[path] = (f"its push of {middle_speed(motion_kind, 'push'):g} m/s/s does not lift it off "
                        f"{body['name']}'s pull of {float(body['gravity']):g}")
         return []
-    moves.append(launch(path, row, rule, motion_kind, body=body))
+    moves.append(launch(path, row["id"], rule, motion_kind, body=body))
     return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust") else []
 
 
