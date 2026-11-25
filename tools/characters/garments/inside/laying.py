@@ -123,3 +123,75 @@ def skin_normals(skin, faces):
     for corner in range(3):
         np.add.at(found, faces[:, corner], crossed)
     return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)
+
+
+def edges_of(faces):
+    """The mesh's edges, each once (point pairs, the lower first)."""
+    found = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    return np.unique(found, axis=0)
+
+
+def through(points, edges, other, faces, edge_wise):
+    """Which of the segments `edges` (on `points`) pass through which triangles `faces` (on `other`): (segment,
+    triangle) index pairs. Candidates are the triangles near each segment (`edge_wise`: looked for round each
+    segment, for long segments and small triangles; else round each triangle)."""
+    middles, half = points[edges].mean(axis=1), np.linalg.norm(points[edges[:, 1]] - points[edges[:, 0]], axis=1) / 2.0
+    centres = other[faces].mean(axis=1)
+    sizes = np.linalg.norm(other[faces] - centres[:, None], axis=2).max(axis=1)
+    if edge_wise:
+        near = cKDTree(centres).query_ball_point(middles, half + sizes.max())
+        segment = np.repeat(np.arange(len(edges)), [len(each) for each in near])
+        triangle = np.fromiter((index for each in near for index in each), int, len(segment))
+    else:
+        near = cKDTree(middles).query_ball_point(centres, sizes + half.max())
+        triangle = np.repeat(np.arange(len(faces)), [len(each) for each in near])
+        segment = np.fromiter((index for each in near for index in each), int, len(triangle))
+    start, along = points[edges[segment, 0]], points[edges[segment, 1]] - points[edges[segment, 0]]
+    corner = other[faces[triangle, 0]]
+    first, second = other[faces[triangle, 1]] - corner, other[faces[triangle, 2]] - corner
+    across = np.cross(along, second)
+    determinant = np.sum(first * across, axis=1)
+    usable = np.abs(determinant) > 1e-14
+    inverse = 1.0 / np.where(usable, determinant, 1.0)
+    offset = start - corner
+    one = np.sum(offset * across, axis=1) * inverse
+    turned = np.cross(offset, first)
+    two = np.sum(along * turned, axis=1) * inverse
+    share = np.sum(second * turned, axis=1) * inverse
+    hit = usable & (one >= 0.0) & (two >= 0.0) & (one + two <= 1.0) & (share >= 0.0) & (share <= 1.0)
+    return segment[hit], triangle[hit]
+
+
+def crossing_filters(points, triangles, edges):
+    """The self contact pairs of a cloth that already crosses itself (`points`, its `triangles` and its contact
+    `edges`, as point pairs, by number), left out of VBD's self contact as Newton's external filter maps: ({point:
+    triangles}, {edge: edges}). Each edge through a triangle that shares no corner with it gives its two points against
+    that triangle, the triangle's corners against the triangles on that edge, and the edge against the triangle's
+    edges, both ways. VBD's self contact keeps a pair from passing through each other and so holds a pair that already
+    has: woman_stair_modern's tee, its sleeve caps laid through its torso by GarmentCode's box mesh at both armholes,
+    was held there while she walked, left 5 cm behind her body by walk frame 3 and blown up at frame 41 (2026-11-25);
+    left out, it followed her."""
+    triangles, edges = np.asarray(triangles), np.asarray(edges)
+    every = edges_of(triangles)
+    segment, triangle = through(np.asarray(points, dtype=float), every, points, triangles, edge_wise=True)
+    apart = ~(every[segment][:, :, None] == triangles[triangle][:, None, :]).any(axis=(1, 2))
+    segment, triangle = segment[apart], triangle[apart]
+    numbered = {tuple(sorted(pair)): number for number, pair in enumerate(edges.tolist())}
+    beside = {}
+    for number, corners in enumerate(triangles.tolist()):
+        for corner in range(3):
+            beside.setdefault(tuple(sorted((corners[corner], corners[(corner + 1) % 3]))), []).append(number)
+    points_to, edges_to = {}, {}
+    for crossing, crossed in zip(every[segment].tolist(), triangle.tolist()):
+        corners = triangles[crossed].tolist()
+        for point in crossing:
+            points_to.setdefault(int(point), set()).add(int(crossed))
+        for point in corners:
+            points_to.setdefault(int(point), set()).update(beside[tuple(sorted(crossing))])
+        mine = numbered.get(tuple(sorted(crossing)))
+        theirs = [numbered.get(tuple(sorted((corners[corner], corners[(corner + 1) % 3])))) for corner in range(3)]
+        for other in theirs:
+            if mine is not None and other is not None:
+                edges_to.setdefault(mine, set()).add(other)
+                edges_to.setdefault(other, set()).add(mine)
+    return points_to, edges_to

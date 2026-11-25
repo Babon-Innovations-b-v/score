@@ -10,7 +10,8 @@ bands.py cuts a band out of a garment's cloth along its edges, a set height over
 construction marks on its cloth (a seam's mark on one panel's side and its other side's on the other, an edge's along
 each open edge, a plain seam left bare, a patch at its anchor), each a hair's breadth outside the cloth's drawn face; inside/laying.py lays a box mesh's points that stand inside the
 body out of it (in a thigh, and between two thighs that cross each other) and leaves one with no way out inside, for
-the drape to refuse; inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
+the drape to refuse, and leaves a sleeve cap's sheet laid through a torso panel out of self contact against it;
+inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
 and at its flat panel (as Newton's builder rests a triangle) when it ends, so float32 reads its area as the seam
 closes, and a laid sliver at its flat panel throughout. Each row is a toy body of
 tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
@@ -38,7 +39,9 @@ its nearest skin), no way out along the axes for a point the first step leaves i
 at again, or a point the layer's reach moves into a fold of the skin kept there; a seam's triangle rested at its flat
 panel from the start (its float32 area ratio lost as the seam is crushed), a rest's corner 2 put the other way along
 its first edge or its shape transposed (not Newton's), the share not reaching the flat panel, or a laid sliver kept as
-its start."""
+its start; a crossing's points not left out against the triangle it passes through, its edge not against that
+triangle's edges, or an edge sharing a corner with a triangle taken for one through it (cloth that crosses nothing
+leaving its own neighbours out of self contact)."""
 import json
 import math
 import pathlib
@@ -429,6 +432,40 @@ def seam_rested(wear):
             float(half[0]))
 
 
+def grid(columns, rows, corner, across, up):
+    """A sheet of triangles: (columns + 1) x (rows + 1) points from `corner` along `across` and `up` (m a step)."""
+    points = np.array([np.asarray(corner) + column * np.asarray(across) + row * np.asarray(up)
+                       for row in range(rows + 1) for column in range(columns + 1)], dtype=float)
+    faces = []
+    for row in range(rows):
+        for column in range(columns):
+            here = row * (columns + 1) + column
+            faces += [[here, here + 1, here + columns + 1], [here + 1, here + columns + 2, here + columns + 1]]
+    return points, np.asarray(faces)
+
+
+def sleeve_crossed(wear):
+    """A toy torso panel (a 10 x 10 sheet of 1 cm triangles, bent as a back is round, so neighbouring triangles are not
+    in one plane) and a sleeve cap's strip (3 mm wide, its edges 1 cm long) standing across it, poked through the
+    middle of one of its triangles or a centimetre clear of it, as one cloth: its crossing filters
+    (`laying.crossing_filters`, every edge a contact edge), the strip's edge through the torso, the torso triangles it
+    may pass through and that edge's number."""
+    torso, torso_faces = grid(10, 10, [0.0, 0.0, 0.0], [0.01, 0.0, 0.0], [0.0, 0.01, 0.0])
+    torso[:, 2] = 2.0 * (torso[:, 0] - 0.05) ** 2
+    sleeve, sleeve_faces = grid(1, 2, [0.0505, 0.052, -0.0105 if "through" in wear else 0.01],
+                                [0.003, 0.0, 0.0], [0.0, 0.0, 0.01])
+    points, triangles = np.concatenate([torso, sleeve]), np.concatenate([torso_faces, sleeve_faces + len(torso)])
+    edges = laying.edges_of(triangles)
+    points_to, edges_to = laying.crossing_filters(points, triangles, edges)
+    # the strip's edge at x 5.05 cm from its second row (z -0.05 cm) to its third (z 0.95 cm) passes through the torso
+    # between 5 and 6 cm, where no torso edge meets the strip
+    lower, upper = len(torso) + 2, len(torso) + 4
+    under = [number for number, face in enumerate(torso_faces)
+             if (torso[face][:, :2] >= 0.0499).all() and (torso[face][:, :2] <= 0.0601).all()]
+    crossing = int(np.flatnonzero((edges == sorted((lower, upper))).all(axis=1))[0])
+    return points_to, edges_to, (lower, upper), under, crossing
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
@@ -452,6 +489,8 @@ def seam_rested(wear):
     (1.0, "pants laid with too short a way out", 1),
     (1.0, "a seam's triangle laid across the body", "rests as laid"),
     (1.0, "a sliver laid", "rests flat"),
+    (1.0, "a sleeve cap laid through its torso", True),
+    (1.0, "a sleeve cap laid clear of its torso", False),
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed, tmp_path):
     points, faces, weights, bind, built = toy_body(scale)
@@ -491,6 +530,18 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         else:
             assert stretch > 20.0, stretch
         assert off_newton == pytest.approx(0.0, abs=1e-6) and half_area > 0.0
+        return
+    if wear.startswith("a sleeve cap"):
+        points_to, edges_to, (lower, upper), under, crossing = sleeve_crossed(wear)
+        if failed:
+            # the crossing edge's points are left out against the torso triangle it passes through, and the edge
+            # against that triangle's edges both ways
+            assert all(under[0] in points_to.get(point, set()) or under[1] in points_to.get(point, set())
+                       for point in (lower, upper)), points_to
+            assert crossing in edges_to and all(crossing in edges_to[other] for other in edges_to[crossing])
+        else:
+            # cloth that crosses nothing (its own triangles sharing corners never counted) leaves nothing out
+            assert points_to == {} and edges_to == {}, (points_to, edges_to)
         return
     if wear.startswith("marks"):
         counts, off, past, middle = marked(tmp_path, failed)

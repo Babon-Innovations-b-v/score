@@ -35,7 +35,7 @@ plays the clip. Each substep the body mesh's points and velocities are set where
 the mesh refitted, so the cloth meets the moving body with its own speed (Newton reads mesh velocities for contact).
 A belt, once sewn (from the turn on), holds the cloth under it in: each substep a point of a belted garment over
 the band's skin and further off it than that garment's limit is moved BELT_SHARE of the way back to its limit along
-the skin's normal; a point of a garment over the belt nearer the skin than its `outside` is moved out the same way. Cloth and cloth collide (self contact, between garments too). No cloth damping of its
+the skin's normal; a point of a garment over the belt nearer the skin than its `outside` is moved out the same way. Cloth and cloth collide (self contact, between garments too), except while a box mesh closes in the gravity-free fifth of sewing, and never between a pair that already crosses when self contact starts (`laying.crossing_filters`, looked for again before the turn): self contact holds such a pair crossed. No cloth damping of its
 own. VBD's run-to-run deterministic mode is off: on this card it took a substep from 10 ms to 180 ms (2026-11-24).
 
 out.npz: per garment `<name>` clip frames x points x 3 (m, world, each clip frame's end), `<name>/sewn` points x 3 (at
@@ -228,44 +228,6 @@ def laid_over(points, faces, skin, skin_faces, under, clear):
     return uncrossed(points + away * (least - height)[:, None], faces, away, under_points, under_faces)
 
 
-def edges_of(faces):
-    """The mesh's edges, each once (point pairs, the lower first)."""
-    found = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
-    return np.unique(found, axis=0)
-
-
-def through(points, edges, other, faces, edge_wise):
-    """Which of the segments `edges` (on `points`) pass through which triangles `faces` (on `other`): (segment,
-    triangle) index pairs. Candidates are the triangles near each segment (`edge_wise`: looked for round each
-    segment, for long segments and small triangles; else round each triangle)."""
-    from scipy.spatial import cKDTree
-    middles, half = points[edges].mean(axis=1), np.linalg.norm(points[edges[:, 1]] - points[edges[:, 0]], axis=1) / 2.0
-    centres = other[faces].mean(axis=1)
-    sizes = np.linalg.norm(other[faces] - centres[:, None], axis=2).max(axis=1)
-    if edge_wise:
-        near = cKDTree(centres).query_ball_point(middles, half + sizes.max())
-        segment = np.repeat(np.arange(len(edges)), [len(each) for each in near])
-        triangle = np.fromiter((index for each in near for index in each), int, len(segment))
-    else:
-        near = cKDTree(middles).query_ball_point(centres, sizes + half.max())
-        triangle = np.repeat(np.arange(len(faces)), [len(each) for each in near])
-        segment = np.fromiter((index for each in near for index in each), int, len(triangle))
-    start, along = points[edges[segment, 0]], points[edges[segment, 1]] - points[edges[segment, 0]]
-    corner = other[faces[triangle, 0]]
-    first, second = other[faces[triangle, 1]] - corner, other[faces[triangle, 2]] - corner
-    across = np.cross(along, second)
-    determinant = np.sum(first * across, axis=1)
-    usable = np.abs(determinant) > 1e-14
-    inverse = 1.0 / np.where(usable, determinant, 1.0)
-    offset = start - corner
-    one = np.sum(offset * across, axis=1) * inverse
-    turned = np.cross(offset, first)
-    two = np.sum(along * turned, axis=1) * inverse
-    share = np.sum(second * turned, axis=1) * inverse
-    hit = usable & (one >= 0.0) & (two >= 0.0) & (one + two <= 1.0) & (share >= 0.0) & (share <= 1.0)
-    return segment[hit], triangle[hit]
-
-
 def uncrossed(points, faces, away, under_points, under_faces):
     """An outer garment's laid points moved out (`away`: each point's way off the skin) CROSS_STEP_M a round until
     none of its edges passes through the cloth under it and none of that cloth's edges through its triangles, at
@@ -273,10 +235,10 @@ def uncrossed(points, faces, away, under_points, under_faces):
     crossed point from moving (a coat's and shirt's crossed points were left in the air as the body walked on, and the
     trousers caught in them blew up at clip frame 29, 2026-11-25)."""
     points = np.array(points, dtype=float)
-    edges, under_edges = edges_of(faces), edges_of(under_faces)
+    edges, under_edges = laying.edges_of(faces), laying.edges_of(under_faces)
     for _ in range(CROSS_ROUNDS):
-        crossing, _ = through(points, edges, under_points, under_faces, edge_wise=True)
-        _, pierced = through(under_points, under_edges, points, faces, edge_wise=False)
+        crossing, _ = laying.through(points, edges, under_points, under_faces, edge_wise=True)
+        _, pierced = laying.through(under_points, under_edges, points, faces, edge_wise=False)
         moved = np.unique(np.concatenate([edges[crossing].ravel(), faces[pierced].ravel()]))
         if not len(moved):
             return points
@@ -398,10 +360,14 @@ class Outfit:
         self.mesh = self.body.mesh  # the wp.Mesh the model collides with, its points moved each substep
         self.pipeline = newton.CollisionPipeline(self.model, soft_contact_gap=contact["margin"])
         self.contacts = self.pipeline.contacts()
-        self.solver = newton.solvers.SolverVBD(
-            self.model, iterations=job["iterations"], particle_enable_self_contact=True,
-            particle_self_contact_margin=job["self"]["margin"], particle_self_contact_gap=job["self"]["gap"])
+        self.iterations, self.self_contact = job["iterations"], job["self"]
         self.now, self.next = self.model.state(), self.model.state()
+        self.solver = self.contact_solver()
+        # A box mesh not yet sewn closes its seams in the gravity-free fifth of sewing with no self contact: with it,
+        # woman_stair_modern's tee, 108 of its box mesh's points laid crossed at the armholes, was sewn with 178
+        # crossed; without it, 70 (2026-11-25).
+        self.loose = None if placed else newton.solvers.SolverVBD(self.model, iterations=job["iterations"])
+        self.solving = self.solver
         self.control = self.model.control()
         self.rate, self.substeps = job["rate"], job["substeps"]
         self.holds = [(wp.array(points.astype(np.int32), dtype=wp.int32), axis, wp.array(levels, dtype=wp.float32),
@@ -411,6 +377,18 @@ class Outfit:
         self.neck = np.asarray(job.get("neck", []), dtype=np.int64)
         self.belt = self.belted(job.get("belt"))
         self.holding = HOLDING[job.get("holds_until", "sewn")]
+
+    def contact_solver(self):
+        """VBD with cloth self contact, the pairs the cloth crosses at where it stands now left out of it
+        (`laying.crossing_filters`)."""
+        triangles, edges = self.model.tri_indices.numpy(), self.model.edge_indices.numpy()[:, 2:4]
+        points_to, edges_to = laying.crossing_filters(self.now.particle_q.numpy(), triangles, edges)
+        print(f"self contact: {len(points_to)} points of cloth that crosses cloth left out of it", flush=True)
+        return newton.solvers.SolverVBD(
+            self.model, iterations=self.iterations, particle_enable_self_contact=True,
+            particle_self_contact_margin=self.self_contact["margin"], particle_self_contact_gap=self.self_contact["gap"],
+            particle_external_vertex_contact_filtering_map=points_to,
+            particle_external_edge_contact_filtering_map=edges_to)
 
     def rested(self, share):
         """Every triangle's rest `share` of the way from as laid to its flat panel (`laying.rest_lengths`), set on the
@@ -497,7 +475,7 @@ class Outfit:
                                                            self.now.particle_q, self.now.particle_qd])
         self.now.clear_forces()
         self.pipeline.collide(self.now, self.contacts)
-        self.solver.step(self.now, self.next, self.control, self.contacts, 1.0 / (self.rate * self.substeps))
+        self.solving.step(self.now, self.next, self.control, self.contacts, 1.0 / (self.rate * self.substeps))
         self.now, self.next = self.next, self.now
         if sewing:
             wp.launch(capped, dim=self.model.particle_count, inputs=[self.now.particle_qd, SEW_SPEED])
@@ -536,8 +514,11 @@ def sewn(outfit, job):
     began, frames = time.monotonic(), int(job["sew_seconds"] * job["rate"])
     for count in range(frames):
         outfit.rested(count / (frames // 5))
+        outfit.solving = outfit.loose if outfit.loose is not None and count < frames // 5 else outfit.solver
         if count == frames // 5:
             outfit.model.set_gravity((0.0, -job["gravity"], 0.0))
+            if outfit.loose is not None:
+                outfit.solver = outfit.solving = outfit.contact_solver()
         outfit.frame(0, carry=min(1.0, count / (frames / 2.0)), sewing=True, moving=False)
         if count % 30 == 29:
             if not np.isfinite(outfit.now.particle_q.numpy()).all():
@@ -548,7 +529,9 @@ def sewn(outfit, job):
 
 def worn(outfit, job, clip_start):
     """The turn from the bind to the clip's first frame, `still_seconds` standing, then the clip: each garment's
-    points at each clip frame's end, and the clip's wall seconds."""
+    points at each clip frame's end, and the clip's wall seconds. Self contact starts again with what sewing left
+    crossed left out of it."""
+    outfit.solver = outfit.solving = outfit.contact_solver()
     for frame in range(clip_start):
         outfit.frame(frame, holding=outfit.holding >= HOLDING["turned"])
     for _ in range(int(job["still_seconds"] * job["rate"])):
