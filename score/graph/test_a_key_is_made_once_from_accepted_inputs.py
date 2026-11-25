@@ -805,6 +805,7 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     copy's line of its pool), its calls 2.00 + the unfinished one's estimate 0.15, and one paid run open (other@far's
     is not this run's).
     Break: score/graph/__init__.py: 'os.environ[variable] = str(threads if own is None else min(own, threads))' -> 'os.environ[variable] = str(threads)'
+    Break: score/graph/__init__.py: '    if argv[:1] != ["run"]:\n        return' -> '    return' (BEFORE_LOAD: a run's drive loads OpenBLAS at every core and each forked node starts its idle threads again, #102)
     Break: score/graph/__init__.py: '        with logged(log):\n            try:\n                cap_threads(threads)' -> '        cap_threads(threads)\n        with logged(log):\n            try:'
     Break: score/graph/__init__.py: '        except BaseException as error:  # noqa: BLE001 - raised where' -> '        except KeyError as error:  # noqa: BLE001 - raised where'
     Break: score/graph/__init__.py: '        if own and not (own.isdigit() and int(own) > 0):' -> '        if own and not own.isdigit():'
@@ -1676,6 +1677,14 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
         import scipy.linalg  # noqa: F401
         threaded.delenv("OPENBLAS_NUM_THREADS", raising=False)  # the pool sized by the cap (one_openblas_thread_a_node)
         threaded.setattr(os, "cpu_count", lambda: 24)
+        for row, (argv, own, after) in BEFORE_LOAD.items():  # the pools the drive loads are a node's size (#102)
+            if own is None:
+                threaded.delenv("OPENBLAS_NUM_THREADS", raising=False)
+            else:
+                threaded.setenv("OPENBLAS_NUM_THREADS", own)
+            graph.cap_openblas_before_load(argv, lambda: 12)
+            assert os.environ.get("OPENBLAS_NUM_THREADS") == after, (row, os.environ.get("OPENBLAS_NUM_THREADS"))
+        threaded.delenv("OPENBLAS_NUM_THREADS", raising=False)
         threaded.setattr(graph, "HEARTBEAT", 0.1)
         nodes = {case: f"slow-{number}@hangar" for number, case in enumerate(ONE_NODE)}  # a ticket: "<node> <key>"
         runners = {case: a_runner(world, store, (graph.Stage(nodes[case].partition("@")[0], "place",
@@ -4409,6 +4418,18 @@ class OneNode:
 
 BROKEN = {"cap": ("OPENBLAS_SETTERS", ("no_such_setter",)), "log": ("logged", full_disk)}
 OVER = "refused: 25 jobs of 1 thread(s) each ask for 25 threads on 24 cores; lower --jobs or pass --oversubscribe"
+# The OPENBLAS_NUM_THREADS a `score run` sets before numpy and scipy load (graph.cap_openblas_before_load, #102), on 24
+# cores: {row: (its command line, the owner's own value or None, the value after or None for unset)}. Its default
+# --jobs is 12.
+BEFORE_LOAD = {
+    "a run's --jobs 8 gives 3": (["run", "toy", "--jobs", "8"], None, "3"),
+    "--jobs=4 gives 6": (["run", "toy", "--jobs=4"], None, "6"),
+    "no --jobs takes the default's share": (["run", "toy", "--place", "hangar"], None, "2"),
+    "an owner's smaller count stands": (["run", "toy", "--jobs", "2"], "1", "1"),
+    "another command is left alone": (["status", "toy"], None, None),
+    "a --jobs argparse refuses is left to it": (["run", "toy", "--jobs", "0"], None, None),
+    "an owner's count that is no count is left for the run's refusal": (["run", "toy"], "auto", "auto"),
+}
 GAUGED = "a long node's beats carry this run's gauges"
 ONE_NODE = {
     "24 cores over 6 jobs: 4 threads each, the OpenBLAS loaded before the fork too":

@@ -132,7 +132,22 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != REPO / "score"]
 sys.path.insert(0, str(REPO))
 
-from score import conductor, graph, stages  # noqa: E402
+from score import conductor, graph  # noqa: E402
+
+
+def default_jobs():
+    """--jobs when not given: on the cluster's home the jobs its drive pod is given (score/conductor/cluster.py: its
+    price and its pod agree, whatever node answers), else the conductor's (every core on one) or graph.JOBS. Here, not
+    in score.conductor, whose module is in rows' code versions."""
+    from score.conductor import cluster
+    found = cluster.record()
+    return cluster.jobs(found) if found is not None else conductor.default_jobs(graph.JOBS)
+
+
+if __name__ == "__main__":  # before score.stages loads numpy's and scipy's OpenBLAS (#102)
+    graph.cap_openblas_before_load(sys.argv[1:], default_jobs)
+
+from score import stages  # noqa: E402
 from score.graph import _code, frozen, rebuy, runs, stopped  # noqa: E402
 from score.stages import moved, phases  # noqa: E402
 from score.store import Store  # noqa: E402
@@ -303,15 +318,6 @@ def left_out_stages(options, table):
     if unknown:
         sys.exit(f"score: {', '.join(unknown)} is no stage of this environment's table (--leave-out, {LEAVE_OUT})")
     return frozenset(names)
-
-
-def default_jobs():
-    """--jobs when not given: on the cluster's home the jobs its drive pod is given (score/conductor/cluster.py: its
-    price and its pod agree, whatever node answers), else the conductor's (every core on one) or graph.JOBS. Here, not
-    in score.conductor, whose module is in rows' code versions."""
-    from score.conductor import cluster
-    found = cluster.record()
-    return cluster.jobs(found) if found is not None else conductor.default_jobs(graph.JOBS)
 
 
 def jobs_count(text):

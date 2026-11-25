@@ -1018,6 +1018,26 @@ def oversubscribed(jobs):
             "or pass --oversubscribe")
 
 
+def cap_openblas_before_load(argv, default_jobs):
+    """In a `score run` (`argv` its command line, the command first) OPENBLAS_NUM_THREADS lowered to the node_threads
+    of its --jobs (`default_jobs()` when it names none) before numpy's and scipy's OpenBLAS load, so the pools the
+    drive loads and every forked node inherits are no bigger than a node's cap: a pool sized at load to every core
+    starts its cores-1 idle threads again in each node that resizes it (#102; the graph test's CPU was 235 of 246 s of
+    them). Another command, a --jobs argparse refuses, or an owner's thread variable that is no count (the run refuses
+    it itself, checked_thread_variables) leaves the environment as it is."""
+    if argv[:1] != ["run"]:
+        return
+    asked = next((given for word, given in zip(argv, [*argv[1:], None]) if word == "--jobs"), None)
+    asked = next((word.split("=", 1)[1] for word in argv if word.startswith("--jobs=")), asked)
+    if asked is not None and not (asked.isdigit() and int(asked) > 0):
+        return
+    own = os.environ.get("OPENBLAS_NUM_THREADS", "").strip()
+    if own and not (own.isdigit() and int(own) > 0):
+        return
+    threads = node_threads(int(asked) if asked is not None else default_jobs())
+    os.environ["OPENBLAS_NUM_THREADS"] = str(min(int(own), threads) if own else threads)
+
+
 def cap_threads(threads):
     """This process's thread pools, those already loaded included, and every child it starts run on at most
     `threads`."""
