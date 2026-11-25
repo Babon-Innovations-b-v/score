@@ -12,8 +12,9 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
   seamless barrel with `ring` 0), an ogive nose with its black heat-shield tip and the black band under it, two
   forward flaps (canards, `fore` metres out) on the nose and two aft flaps (`aft` out, `aft_chord` along the hull) at
   its foot, a skirt and its engine bells; parts hull, seam (only with seams), tiles, flap, engine.
-- `ship_trim`: a ship's paint scheme and panel work laid over it at its own pose: weld seam rings and vertical panel
-  lines, the raceway's long fairing, marking bands and a marking panel; parts seam, raceway, marking.
+- `ship_trim`: a ship's paint scheme and panel work laid over it at its own pose: weld seam rings and, in each ring
+  course, a few vertical weld lines turned round from the course below's (never one grid of full-length lines), the
+  raceway's long fairing, marking bands and a marking panel; parts seam, raceway, marking.
 - `launch_ring`: the round launch mount: a ring on slanted legs over a round plinth, its clamps, hoses down to the
   deck and orange-lit hardware boxes round its rim; parts ring, leg, plinth, clamp, hose, glow.
 - `lattice`: a square tower's straight X-bracing, bay over bay on its four faces between its corner posts, with a
@@ -153,25 +154,32 @@ def on_hull(part, radius, angle, wide, low, high, proud):
     return moved(strip, about("y", -angle))
 
 
-def ship_trim(radius=4.5, foot=1.4, shoulder=35.5, ring=2.4, stringers=16, raceway=90.0, segments=96,
+def ship_trim(radius=4.5, foot=1.4, shoulder=35.5, ring=2.4, stringers=3, raceway=90.0, segments=96,
               bands=(4.2, 31.0), patch=(120.0, 20.0, 2.6, 1.6)):
-    """A ship's paint scheme and panel work (2099 #161, the owner on the pad's plain white ship: "yuck"), laid over a
-    `ship` of the same `radius`, `foot` and `shoulder` (its nose's foot) at the ship's own pose: a weld seam ring every
-    `ring` metres up the barrel and `stringers` vertical panel lines round it (part seam, never on a flap's line, x,
-    or the raceway), the raceway's long fairing at `raceway` degrees round from +x towards +z (part raceway), a marking
-    band round the barrel at each height of `bands` and a marking panel (`patch`: degrees round, its middle's height,
-    its height, its width) (part marking). Each is a closed solid sunk TRIM_SINK under the hull's face."""
+    """A ship's paint scheme and panel work (2099 #161, the owner on the pad's plain white ship: "yuck", then on its
+    panel lines run full length: they read as a grid), laid over a `ship` of the same `radius`, `foot` and `shoulder`
+    (its nose's foot) at the ship's own pose: a weld seam ring every `ring` metres up the barrel and, as a steel ship's
+    rings are each rolled from a few sheets, `stringers` vertical weld lines in each ring course between two seams, every
+    other course's turned half their spacing round (laid as bricks are), so no line runs on into the next course (part seam, never
+    on a flap's line, x, or the raceway); the raceway's long fairing at `raceway` degrees round from +x towards +z (part
+    raceway), a marking band round the barrel at each height of `bands` and a marking panel (`patch`: degrees round,
+    its middle's height, its height, its width) (part marking). Each is a closed solid sunk TRIM_SINK under the hull's
+    face. With `ring` 0 the lines run the barrel's whole straight run."""
     found = []
     barrel_low, barrel_high = foot + 0.9, shoulder - 1.2  # the barrel's straight run (its flare and the black band off)
+    heights = []
     height = foot + 0.8 + ring
     while ring > 0 and height < barrel_high:
         found += ring_band("seam", radius, height - 0.035, height + 0.035, 0.014, segments)
+        heights.append(height)
         height += ring
-    for number in range(stringers):
-        angle = 360.0 * (number + 0.5) / stringers
-        if min(abs((angle - away + 180.0) % 360.0 - 180.0) for away in (0.0, 180.0, raceway)) < TRIM_CLEAR:
-            continue
-        found += on_hull("seam", radius, angle, 0.05, barrel_low, barrel_high, 0.01)
+    courses = list(zip([barrel_low] + heights, heights + [barrel_high]))
+    for course, (low, high) in enumerate(courses):
+        for number in range(stringers):
+            angle = 360.0 * (number + 0.5 + 0.5 * (course % 2)) / stringers
+            if min(abs((angle - away + 180.0) % 360.0 - 180.0) for away in (0.0, 180.0, raceway)) < TRIM_CLEAR:
+                continue
+            found += on_hull("seam", radius, angle, 0.05, low + 0.035, high - 0.035, 0.01)
     found += on_hull("raceway", radius, raceway, 0.42, foot + 2.0, shoulder - 1.6, 0.22)
     for middle in bands:
         found += ring_band("marking", radius, middle - 0.3, middle + 0.3, 0.02, segments)

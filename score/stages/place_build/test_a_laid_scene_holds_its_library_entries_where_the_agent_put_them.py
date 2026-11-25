@@ -89,7 +89,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.lattice: a brace drawn as a stair of boxes -> a brace's points stray from the straight line between its ends
 - launch_kit.ship: `ring` 0 read as the default 2 m of seams -> the seamless ship has a seam part
 - launch_kit.ship_trim: a panel line laid on a flap's line, or a trim not sunk under the hull's face -> the ship's trim
-  stands on its flaps or floats off its hull
+  stands on its flaps or floats off its hull; its panel lines run on through the seams, or a course's lines stand
+  where the course below's do -> the ship's panel lines read as one grid
 - launch_kit.ferry: its wake laid under the waterline -> the ferry's wake is not on the water
 - launch_kit.water: shaded smooth -> the harbour's top normals lean off straight up
 - launch_kit.door_wall: the reveal's sides left off -> the wall with a round doorway is no closed solid
@@ -1133,12 +1134,20 @@ def launched(folder):
     for part in ("marking", "raceway", "seam"):  # a turned ring is a piece a band, so each part's whole reach
         reach = np.linalg.norm(np.vstack([piece[1] for piece in trim if piece[0] == part])[:, [0, 2]], axis=1)
         assert reach.min() < 1.0 - 1e-6 < reach.max(), f"a {part} trim floats off the hull or stays inside it"
+    lines = {}  # each panel line's angle round, by the course it stands in
     for part, points, _, _ in trim:
-        if part == "seam" and np.ptp(points[:, 1]) > 3.0:  # a stringer, not a ring
+        if part == "seam" and np.ptp(points[:, 0]) < 0.5:  # a panel line, not a ring
             middle = points.mean(axis=0)
-            assert abs(math.degrees(math.atan2(middle[2], middle[0]))) % 180.0 > launch_kit.TRIM_CLEAR - 1.0 and \
-                abs(math.degrees(math.atan2(middle[2], middle[0]))) % 180.0 < 180.0 - launch_kit.TRIM_CLEAR + 1.0, \
+            angle = math.degrees(math.atan2(middle[2], middle[0]))
+            assert launch_kit.TRIM_CLEAR - 1.0 < abs(angle) % 180.0 < 180.0 - launch_kit.TRIM_CLEAR + 1.0, \
                 "a panel line stands on a flap's line"
+            assert np.ptp(points[:, 1]) < 2.0, "a panel line runs on through a seam"
+            lines.setdefault(round(float(middle[1]), 1), []).append(angle)
+    courses = [lines[key] for key in sorted(lines)]
+    assert len(courses) >= 3, lines
+    for below, above in zip(courses, courses[1:]):
+        assert min(abs((one - two + 180.0) % 360.0 - 180.0) for one in below for two in above) > 5.0, \
+            "a course's panel lines stand where the course below's do: one grid"
     assert "seam" not in seamless, seamless
     ferry = launch_kit.ferry(long=20.0, wide=5.0, wake=30.0)
     wake = np.concatenate([piece[1] for piece in ferry if piece[0] == "wake"])
