@@ -395,9 +395,31 @@ def stop(child):
         child.wait()
 
 
+@contextlib.contextmanager
+def session_lock():
+    """SCORE_CARD_LOCK's exclusive flock for the block, waited for; nothing without it. A session whose own card work
+    runs outside the queue (an ad hoc `flock <file> <command>`) names its lock file there, so the queue's jobs hold it
+    for each card job alone, never for a whole phase of CPU steps between them (n25, 2026-11-25: 10,078 s waited behind
+    a phase-long flock that held 93 s of card work)."""
+    path = os.environ.get("SCORE_CARD_LOCK")
+    if not path:
+        yield
+        return
+    with open(path, "a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
+
+
 def run(job, card_gb, priority, command, memory=0):
+    """`command` run while `job` holds its share (and SCORE_CARD_LOCK, taken first: session_lock), stopped and started
+    again each time the share is asked back; its exit code. A stop signal to `run` ends the command first."""
+    with session_lock():
+        return shared_run(job, card_gb, priority, command, memory)
+
+
+def shared_run(job, card_gb, priority, command, memory=0):
     """`command` run while `job` holds its share, stopped and started again each time the share is asked back; its
-    exit code. A stop signal to `run` ends the command first."""
+    exit code."""
     child = None
 
     def end(number, _frame):

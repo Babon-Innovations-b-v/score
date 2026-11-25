@@ -7,7 +7,10 @@ way in (its docstring has the commands); `closeup.py` runs inside Blender.
 - **Free, on this PC's card only.** The render goes through the card queue (place_build/render.queued); route A's
   takes through `tools/cloud/batch.py` and its finish through `blender_cloud.py`, both under `SCORE_CLOUD=local`
   (score/stages/props/pixal_row's own calls); route B's TRELLIS.2 through `make`'s card queue. `route` is refused
-  without `SCORE_CLOUD=local`. Nothing paid runs here: the close-up redraw (Nano Banana Pro, tier 2) is not called;
+  without `SCORE_CLOUD=local`. A session's own card lock goes in `SCORE_CARD_LOCK` (card_queue holds it for each card
+  job alone), never a `flock` round a whole command: n25 waited 10,078 s behind one that held 93 s of card work. B's
+  assets are made ROUTES_AT_ONCE (2) side by side, one on the card while the other runs its processor and Claude steps.
+  Nothing paid runs here: the close-up redraw (Nano Banana Pro, tier 2) is not called;
   on branch A the finish route and the solid copy are recorded as not run (`NOT_RUN`).
 - **Branch B's finish** (`finish.py`, #168): the final model through the surface stage's finish route (views, list,
   split, parts; the list asked of Claude as a place's line asks it, EUR 0), on the benchmark place's surface library:

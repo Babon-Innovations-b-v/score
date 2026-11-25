@@ -133,6 +133,11 @@ CARD_GB = 6
 MEMORY_GB = 12
 RENDER_SECONDS = 1800
 RENDERS_AT_ONCE = 2  # close-ups drawn side by side (the card queue gives each its share; card_turn's two slots)
+# B's assets made side by side: TRELLIS.2 asks the card queue for the whole card, so one asset's processor and Claude
+# steps (hulls, the finish list, physics, parts, storing) run while the other is on the card (n25, 2026-11-25: route B
+# 11,037 s with the card busy 6,603 s of it, one asset after another). Two, as TRELLIS.2's 17 GB of memory beside the
+# other asset's steps leaves this PC's room for the other sessions.
+ROUTES_AT_ONCE = 2
 NOT_RUN = {"finish-route": "a place's surface line (views, list, split, parts, bake); its list is a paid Gemini call",
            "solid": "the bake's solid copy cut to size runs inside the finish route's bake"}
 
@@ -1441,9 +1446,10 @@ def route_all(rows, kept, run, branch):
             branch_a(kept, found, closeups, material, inventory_for(found, run_folder(run)), scratch, run_folder(run))
         else:
             library = functools.cache(lambda: finish.bench_library(os.environ["SCORE_LIB_ROOT"]))
-            for row in found:
-                branch_b(kept, row, material[row["id"]], given[row["id"]][1] / "rgba.png", scratch[row["id"]],
-                         library)
+            with concurrent.futures.ThreadPoolExecutor(ROUTES_AT_ONCE) as pool:
+                for done in [pool.submit(branch_b, kept, row, material[row["id"]], given[row["id"]][1] / "rgba.png",
+                                         scratch[row["id"]], library) for row in found]:
+                    done.result()
     finally:
         shutil.rmtree(props_home() / "tmp" / f"{PLACE}-{run}", ignore_errors=True)
 
