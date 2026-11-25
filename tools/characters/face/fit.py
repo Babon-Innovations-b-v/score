@@ -12,7 +12,7 @@ import numpy as np
 import trimesh
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import breadth_first_order, connected_components, dijkstra
-from scipy.spatial import cKDTree
+from scipy.spatial import ConvexHull, cKDTree
 
 import ict
 
@@ -31,6 +31,14 @@ TRIM_METRES = 0.012  # a face point further than this from the body's skin is le
 KEEP_SHARE = 0.9  # and only the nearest share of the rest are taken, so lids and lips that differ do not pull
 BLEND_METRES = 0.04  # how far in from the face's border the body's skin still shapes the face
 BORDER_SMOOTHING = 3  # border points each side whose moves onto the skin are averaged for the band behind them
+# The throat is the body's: ICT's face piece runs down the front of the neck to the collar, its own generic throat
+# stood 8 to 10 mm proud of SOMA's in the band (a lump down the throat) and the strip folded over where the two met (a
+# ridge from under the ear to the collar; owner, 2026-11-25: "also geeze neck"). Below the jaw's outline seen from the
+# front (iBUG 3 to 13 on ICT's neutral face) the face lies on the body's (smoothed) skin, fading in over THROAT_FADE_CM
+# under the outline and in from its ends, so no ear lobe is reached.
+THROAT_FADE_CM = 1.5
+THROAT_OUTLINE = range(3, 14)
+SMOOTH_ROUNDS = 2  # Loop subdivisions of the body's head skin the throat is laid on (its flat facets not copied)
 WALL_REACH = 0.05  # metres: no leg of the wall along the face's border is longer
 # A body point this near the face's border (metres) whose nearest face point lies more than BORDER_INSIDE in from the
 # border is cut with the face's middle. The wall's points are the body points nearest the border, half of them inside
@@ -38,6 +46,12 @@ WALL_REACH = 0.05  # metres: no leg of the wall along the face's border is longe
 # notches over the scalp).
 BORDER_NEAR = 0.025
 BORDER_INSIDE = 0.001
+# A point of the cut's border nearer the face's border than this (metres), or lying over the face this near it (its
+# nearest face point more than BORDER_INSIDE in from the face's border, where the band lies a millimetre under the
+# body's skin), is cut too, until none is: left, the cut ran along and across the face's border by fractions of a
+# millimetre and the strip between them folded over itself (67 of woman_stair's 335 strip triangles faced into the
+# head: a ridge down the side of the neck, folds at the hairline and the temples; 2026-11-25).
+LOOP_CLEAR = 0.003
 CENTRE_BEHIND = 0.08  # the head's centre for the border's projection: this far behind the eyes
 CENTRE_BELOW = 0.03  # and this far below them
 MODEL_METRE = 100.0  # ICT-FaceKit's points are in centimetres
@@ -51,6 +65,23 @@ EAR_BACK_FACING = 0.5
 EAR_REACH = 0.01
 EAR_PROTRUSION_MM = (12.0, 30.0)
 EAR_DEPTH_MM = (3.0, 15.0)
+# The neck against the person's height. Its girth (the tape round it just under the larynx, square to the neck: the
+# least girth square to the Neck1 to Head line, NECK_SPAN of the way along it) is about 0.20 of the stature in women
+# and 0.23 in men (ANSUR II, Gordon et al. 2014: 33.0 cm, SD 1.9, at 162.9 cm; 40.6 cm at 175.6 cm); its length, chin
+# (menton, iBUG 8) to the sternal notch with the head upright, 0.077 of it, SD 0.011 (sternomental distance in the
+# neutral position, 12.3 +- 1.8 cm at a mean height of 160 cm, JCDR 2024;18(7):UC01). A neck outside these is refused.
+NECK_GIRTH_OF_HEIGHT = (0.17, 0.26)
+NECK_LENGTH_OF_HEIGHT = (0.054, 0.10)
+NECK_SPAN = (0.2, 0.8)
+NECK_RINGS = 13  # girths taken along that span
+MIDLINE = 0.005  # metres either side of the middle the front's profile is read from
+NOTCH_BELOW_NECK = 0.06  # the notch is looked for from this far under the Neck1 joint
+NOTCH_UNDER_CHIN = 0.02  # up to this far under the chin
+PROFILE_STEP = 0.005  # metres: the profile's slices
+# The join is smooth: no strip triangle turns more than this from the body's skin under it (the ears' backs, which
+# meet the head in a crease, aside). Before the cut was cleared off the face's border 67 of 335 faced into the head.
+SEAM_TURN_DEGREES = 45.0
+SLIVER_METRES = 0.0002  # a strip triangle this flat (its height over its longest side) has no turn to judge
 
 
 def eye_centres(points):
@@ -208,6 +239,89 @@ def ears_standing(measured):
     return measured
 
 
+def ring_girth(skin, origin, axis):
+    """The tape's girth (the convex hull's perimeter) of the ring the plane through `origin` square to `axis` cuts
+    from the skin round `origin`, or None when none closes round it."""
+    lines = trimesh.intersections.mesh_plane(skin, axis, origin)
+    if not len(lines):
+        return None
+    welded, ends = np.unique(np.round(lines.reshape(-1, 3), 6), axis=0, return_inverse=True)
+    ends = ends.reshape(-1, 2)
+    labels = connected_components(coo_matrix((np.ones(len(ends)), (ends[:, 0], ends[:, 1])),
+                                             shape=(len(welded), len(welded))), directed=False)[1]
+    first = np.cross(axis, [1.0, 0.0, 0.0])
+    first /= np.linalg.norm(first)
+    second = np.cross(axis, first)
+    found = []
+    for label in np.unique(labels):
+        flat = np.stack([(welded[labels == label] - origin) @ first, (welded[labels == label] - origin) @ second], 1)
+        turns = np.unique(np.floor((np.arctan2(flat[:, 1], flat[:, 0]) + np.pi) / (2 * np.pi) * 36))
+        if len(turns) >= 34 and len(flat) > 2:
+            found.append((np.linalg.norm(flat, axis=1).mean(), ConvexHull(flat).area))
+    return min(found)[1] if found else None
+
+
+def neck_girth(skin, neck, head):
+    """The neck's least girth square to the Neck1 (`neck`) to Head (`head`) line, over NECK_SPAN of it (m)."""
+    axis = (head - neck) / np.linalg.norm(head - neck)
+    girths = [ring_girth(skin, neck + share * (head - neck), axis) for share in np.linspace(*NECK_SPAN, NECK_RINGS)]
+    girths = [girth for girth in girths if girth is not None]
+    if not girths:
+        raise RuntimeError("no ring of skin closes round the neck")
+    return min(girths)
+
+
+def sternal_notch(points, neck, chin):
+    """The sternal notch on the skin's points: on the front's middle profile (its foremost point in each
+    PROFILE_STEP slice within MIDLINE of the middle), the slice drawn furthest back between NOTCH_BELOW_NECK under
+    the Neck1 joint and NOTCH_UNDER_CHIN under the chin."""
+    middle = points[(np.abs(points[:, 0]) < MIDLINE) & (points[:, 2] > neck[2])]
+    slices = np.floor((middle[:, 1] - (neck[1] - NOTCH_BELOW_NECK)) / PROFILE_STEP).astype(int)
+    reach = int((chin[1] - NOTCH_UNDER_CHIN - (neck[1] - NOTCH_BELOW_NECK)) // PROFILE_STEP)
+    front = [middle[slices == step][np.argmax(middle[slices == step, 2])] for step in range(reach + 1)
+             if (slices == step).any()]
+    return min(front, key=lambda point: point[2])
+
+
+def neck_measures(skin, neck, head, chin, height):
+    """The neck's girth and length (chin to the sternal notch) in mm and as shares of the height."""
+    girth = neck_girth(skin, neck, head)
+    length = float(np.linalg.norm(chin - sternal_notch(np.asarray(skin.vertices), neck, chin)))
+    return {"girth_mm": round(girth * 1000, 1), "length_mm": round(length * 1000, 1),
+            "girth_of_height": round(float(girth / height), 4), "length_of_height": round(float(length / height), 4)}
+
+
+def neck_normal(measured):
+    """The neck's measures, refused when its girth or length is outside the normal range for the height."""
+    for name, (low, high) in (("girth_of_height", NECK_GIRTH_OF_HEIGHT), ("length_of_height", NECK_LENGTH_OF_HEIGHT)):
+        if not low <= measured[name] <= high:
+            raise RuntimeError(f"the neck is out of the normal range: its {name} is {measured[name]} (wanted "
+                               f"{low} to {high}; {measured})")
+    return measured
+
+
+def seam_turns(points, strip, skin, aside):
+    """Each strip triangle's turn from the body's skin under it, in degrees (a fold faces into the head, past 90),
+    the strip triangles with a corner in `aside` and slivers (SLIVER_METRES) left out."""
+    corners = points[strip[~np.isin(strip, aside).any(axis=1)]]
+    normal = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    longest = np.linalg.norm(corners - np.roll(corners, 1, axis=1), axis=2).max(axis=1)
+    standing = np.linalg.norm(normal, axis=1) / longest > SLIVER_METRES
+    corners, normal = corners[standing], normal[standing]
+    normal /= np.linalg.norm(normal, axis=1, keepdims=True)
+    _, _, under = trimesh.proximity.closest_point(skin, corners.mean(axis=1))
+    return np.degrees(np.arccos(np.clip(np.einsum("td,td->t", normal, skin.face_normals[under]), -1.0, 1.0)))
+
+
+def seam_smooth(turns):
+    """The largest of the strip's turns (degrees), refused past SEAM_TURN_DEGREES: a ridge or a fold on the join."""
+    largest = round(float(turns.max()), 1)
+    if largest > SEAM_TURN_DEGREES:
+        raise RuntimeError(f"the join has a ridge: {int((turns > SEAM_TURN_DEGREES).sum())} strip triangles turn "
+                           f"past {SEAM_TURN_DEGREES} degrees from the skin under them (most {largest})")
+    return largest
+
+
 def piece_triangles(model, piece):
     """The model's triangles of one piece (every corner within its points)."""
     first, last = ict.PIECES[piece]
@@ -269,8 +383,46 @@ def graph_distance(points, triangles, sources):
 def body_share(distance):
     """How much of the body's skin shapes a face point at a distance in from the border: 1 on it, 0 past
     BLEND_METRES, smooth between."""
-    along = np.clip(1.0 - distance / BLEND_METRES, 0.0, 1.0)
+    return smoothstep(1.0 - distance / BLEND_METRES)
+
+
+def smoothstep(along):
+    """0 at or below 0, 1 at or above 1, smooth between."""
+    along = np.clip(along, 0.0, 1.0)
     return along * along * (3.0 - 2.0 * along)
+
+
+def throat_share(model):
+    """Each model point's share of the throat (1 under the jaw, 0 on the face and off the skin): how far below the
+    jaw's outline seen from the front (THROAT_OUTLINE on ICT's neutral face) it lies, and how far in from the
+    outline's ends, each over THROAT_FADE_CM."""
+    neutral = model["neutral"]
+    outline = neutral[model["landmarks"][list(THROAT_OUTLINE)]]
+    outline = outline[np.argsort(outline[:, 0])]
+    skin = np.unique(skin_triangles(model))
+    across = neutral[skin, 0]
+    below = np.interp(across, outline[:, 0], outline[:, 1]) - neutral[skin, 1]
+    inside = np.minimum(across - outline[0, 0], outline[-1, 0] - across)
+    share = np.zeros(len(neutral))
+    share[skin] = smoothstep(below / THROAT_FADE_CM) * smoothstep(inside / THROAT_FADE_CM)
+    return share
+
+
+def smooth_skin(head):
+    """The head's skin Loop-subdivided SMOOTH_ROUNDS times (only the points its triangles use)."""
+    used, renumbered = np.unique(head.faces, return_inverse=True)
+    points, triangles = trimesh.remesh.subdivide_loop(head.vertices[used], renumbered.reshape(-1, 3),
+                                                      iterations=SMOOTH_ROUNDS)
+    return trimesh.Trimesh(points, triangles, process=False)
+
+
+def throat_laid(points, throat, head):
+    """The points moved onto the head's smoothed skin by their throat share."""
+    reached = np.flatnonzero(throat > 0.0)
+    snapped, _, _ = trimesh.proximity.closest_point(smooth_skin(head), points[reached])
+    laid = points.copy()
+    laid[reached] += throat[reached, None] * (snapped - points[reached])
+    return laid
 
 
 def laid_on_skin(points, face_triangles, loop, head):
@@ -296,6 +448,11 @@ def laid_on_skin(points, face_triangles, loop, head):
     _, owner = cKDTree(points[skin]).query(points[rest])
     move[rest] = move[skin[owner]]
     return points + move, share
+
+
+def joint(body, name):
+    """A body joint's place at rest (body_face.py's `joint_names`, `joint_places`)."""
+    return np.asarray(body["joint_places"])[[str(item) for item in body["joint_names"]].index(name)]
 
 
 def head_centre(body):
@@ -340,10 +497,9 @@ def wall(graph, stops):
     return np.array(path)
 
 
-def under_face(points, face_points, face_triangles, loop):
-    """Which points lie under the face: their nearest face point more than BORDER_INSIDE in from its border (a point
-    beside the face is nearest the border) and they on its underside (the body's scalp behind an ear is nearest the
-    ear's back, but on its outer side)."""
+def face_depths(points, face_points, face_triangles, loop):
+    """Each point's nearest place on the face: how far in from the face's border that place lies, the point's distance
+    from it, and its height over the face's outer side there."""
     mesh = trimesh.Trimesh(face_points, face_triangles, process=False)
     closest, apart, triangle = trimesh.proximity.closest_point(mesh, points)
     inward, _ = graph_distance(face_points, face_triangles, loop)
@@ -351,6 +507,14 @@ def under_face(points, face_points, face_triangles, loop):
     weights = trimesh.triangles.points_to_barycentric(face_points[corners], closest)
     depth = np.einsum("pc,pc->p", weights, inward[corners])
     above = np.einsum("pd,pd->p", points - closest, mesh.face_normals[triangle])
+    return depth, apart, above
+
+
+def under_face(points, face_points, face_triangles, loop):
+    """Which points lie under the face: their nearest face point more than BORDER_INSIDE in from its border (a point
+    beside the face is nearest the border) and they on its underside (the body's scalp behind an ear is nearest the
+    ear's back, but on its outer side)."""
+    depth, apart, above = face_depths(points, face_points, face_triangles, loop)
     return (depth > BORDER_INSIDE) & (apart < BORDER_NEAR) & (above < BORDER_INSIDE)
 
 
@@ -416,6 +580,29 @@ def kept_body(triangles, under):
         under |= passes > 2
 
 
+def off_polyline(points, line):
+    """Each point's distance from a closed polyline."""
+    segment = np.roll(line, -1, axis=0) - line
+    offset = points[:, None, :] - line[None]
+    along = np.clip(np.einsum("mnd,nd->mn", offset, segment) / np.einsum("nd,nd->n", segment, segment), 0.0, 1.0)
+    return np.linalg.norm(offset - along[..., None] * segment[None], axis=2).min(axis=1)
+
+
+def cleared(body_points, triangles, under, face_points, face_triangles, loop):
+    """The body's kept triangles (kept_body) once every point of the cut's border nearer the face's border polyline
+    than LOOP_CLEAR, or lying over the face within LOOP_CLEAR of it, is cut too, round after round until none is."""
+    under = under.copy()
+    while True:
+        kept = kept_body(triangles, under)
+        border = np.unique(np.array(sorted(border_edges(kept))))
+        depth, apart, _ = face_depths(body_points[border], face_points, face_triangles, loop)
+        near = border[(off_polyline(body_points[border], face_points[loop]) < LOOP_CLEAR) |
+                      ((depth > BORDER_INSIDE) & (apart < LOOP_CLEAR))]
+        if not len(near):
+            return kept
+        under[near] = True
+
+
 def border_places(points, border):
     """Each point's place along a closed polyline (its nearest point on it, in segments from the polyline's first
     point), counted on from the first point's place so that no step between neighbours goes more than half round."""
@@ -475,7 +662,7 @@ def seam(body_points, body_triangles, face_points, face_triangles, loop, centre,
     furthest, _ = cKDTree(face_points[loop]).query(face_points[used])
     under = covered(body_points, body_triangles, face_points, face_triangles, loop,
                     face_points[used[np.argmax(furthest)]]) | filled
-    kept = kept_body(body_triangles, under)
+    kept = cleared(body_points, body_triangles, under, face_points, face_triangles, loop)
     face_loop = same_way(loop, face_points, centre)
     body_loop = alongside(border_loop(kept), body_points, face_loop, face_points)
     strip = zipper(face_loop + len(body_points), body_loop, face_points[face_loop], body_points[body_loop])
@@ -500,18 +687,29 @@ def outward(triangles, points, centre):
 def fitted(body, model):
     """The face laid on the body: every model point in metres, the similarity and identity, the face's share of the
     body per model point, the body's kept triangles and the strip joining them (strip indices: body points first,
-    then the model's points offset by the body's count), and each ear's measures (ears_standing: refused when one is
-    squashed)."""
+    then the model's points offset by the body's count), each ear's measures (ears_standing: refused when one is
+    squashed), the neck's (neck_normal: refused out of the normal range for the height) and the join's largest turn
+    (seam_smooth: refused on a ridge or a fold)."""
     scale, turn, shift, coefficients = fit_pose_and_identity(model, body)
     within_population(coefficients)
     points = scale * shaped(model, coefficients) @ turn.T + shift
     face_triangles = skin_triangles(model)
     loop = border_loop(face_triangles)
-    points, share = laid_on_skin(points, face_triangles, loop, head_mesh(body))
+    head = head_mesh(body)
+    points, share = laid_on_skin(points, face_triangles, loop, head)
+    throat = throat_share(model)
+    points, share = throat_laid(points, throat, head), np.maximum(share, throat)
     kept, strip, face_loop, body_loop = seam(body["points"], body["triangles"], points, face_triangles, loop,
                                              head_centre(body), body["filled"])
-    behind = trimesh.Trimesh(np.vstack([body["points"], points]), np.vstack([kept, strip]), process=False)
+    joined = np.vstack([body["points"], points])
+    behind = trimesh.Trimesh(joined, np.vstack([kept, strip]), process=False)
     measured = ears_standing(ear_measures(points, ears(model), face_triangles, behind))
+    turn_most = seam_smooth(seam_turns(joined, outward(strip, joined, head_centre(body)), head,
+                                       np.concatenate(ear_backs(model)) + len(body["points"])))
+    neck = neck_normal(neck_measures(
+        trimesh.Trimesh(joined, joined_skin(body["points"], kept, strip, points, face_triangles, head_centre(body)),
+                        process=False),
+        joint(body, "Neck1"), joint(body, "Head"), points[model["landmarks"][8]], np.ptp(body["points"][:, 1])))
     return {"points": points, "scale": scale, "turn": turn, "shift": shift, "identity": coefficients,
             "share": share, "kept": kept, "strip": strip, "face_loop": face_loop, "body_loop": body_loop,
-            "ears": measured}
+            "ears": measured, "neck": neck, "seam_turn_most": turn_most}

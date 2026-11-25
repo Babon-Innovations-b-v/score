@@ -16,9 +16,15 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
   helix was glued flat onto the head); the band within `BLEND_METRES` of its border moved by its border's (smoothed)
   moves onto the skin, by its share of the body (ICT's jaw stood 20 mm off the officer's), the body cut inside a wall
   of body points drawn along the border plus the skin under the face near the border joined to that cut, SOMA-X's
-  filled eye and mouth bags cut with it, and a strip zipped between the two loops by their places along the face's
-  border: one shut skin. `ears_standing` refuses a squashed ear (its edge's distance off the head and its back's
-  depth, `EAR_PROTRUSION_MM`, `EAR_DEPTH_MM`); the run's measures go to `<out>/measures.json`.
+  filled eye and mouth bags cut with it, the cut cleared off the face's border (`cleared`, `LOOP_CLEAR`: left on it,
+  the strip folded into a ridge down the neck), and a strip zipped between the two loops by their places along the
+  face's border: one shut skin. The throat is the body's (`throat_share`, `throat_laid`): ICT's face piece runs down
+  the neck to the collar, and below the jaw's outline it lies on SOMA's smoothed skin (its own stood 8 to 10 mm proud,
+  a lump down the throat; owner, 2026-11-25: "also geeze neck"). `ears_standing` refuses a squashed ear (its edge's
+  distance off the head and its back's depth, `EAR_PROTRUSION_MM`, `EAR_DEPTH_MM`), `neck_normal` a neck whose girth
+  or chin-to-notch length is outside the normal range for the height (ANSUR II, the sternomental distance), and
+  `seam_smooth` a ridge or fold on the join (a strip triangle turned more than `SEAM_TURN_DEGREES` from the skin under
+  it); the run's measures go to `<out>/measures.json`.
 - `expressions.py`: MHR's control names onto ICT's ARKit-named expressions; a control ICT has none for moves the face
   by the body's own MHR offsets. On the face, each control is ICT's expression blended into the body's offsets by the
   face's share of the body (1 on the border), so the seam never opens.
@@ -32,7 +38,7 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
   `strands.py`, tears); `tones` marks each skin point's flush (cheeks, nose, chin, ears), thin bluish skin (under the
   eyes) and lips round ICT's 68 landmarks, the skin's library record saying what each region is toned to; `cornea` is a
   clear shell over each eye, Gullstrand's corneal dome over the iris and a tear film over the white, so the eye
-  catches the sky; `face.npz`, and the stills through the card queue (`blender_face.py`, Cycles, each finish the library
+  catches the sky; `face.npz`, and the stills (front, three quarters and the side, which shows the neck) through the card queue (`blender_face.py`, Cycles, each finish the library
   entry's own `material.usda` imported by Blender's USD reader). `finishes.py` writes the face's own finishes as
   score_lib drafts (taken in with `score-lib take-in`): what UsdPreviewSurface cannot hold (light through the skin,
   pores, regions, crevices, the oil's coat, the eye white's vessels, the iris's fibres, the cornea's glass) rides in

@@ -20,7 +20,7 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-VIEWS = {"front": 0.0, "three_quarter": 35.0}  # the camera's turn about the head's upright, degrees
+VIEWS = {"front": 0.0, "three_quarter": 35.0, "side": 90.0}  # the camera's turn about the head's upright, degrees
 LENS_MM = 85.0  # a portrait lens
 SIZE = (1024, 1280)
 SAMPLES = 256

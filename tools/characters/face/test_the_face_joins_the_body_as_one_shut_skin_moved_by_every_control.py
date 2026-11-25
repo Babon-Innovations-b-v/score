@@ -1,7 +1,10 @@
 """The face joins the body as one shut skin moved by every control (#226): the face's border, the body cut under it and
 the strip between them make one skin with no open edge, every triangle turned the same way and the cut within one body
 edge of the face's border all round (fit.seam and
-fit.joined_skin), the body's skin shapes the face fully on its border and not past the blend (fit.body_share), a face
+fit.joined_skin) with no strip triangle standing as a ridge or folded into the head (fit.cleared, fit.seam_turns), a
+fold or a ridge on a join refused (fit.seam_smooth), a neck too thick or long for the height refused and one in the
+normal range passing (fit.neck_measures, fit.neck_normal), the throat laid on the body's skin (fit.throat_laid), the
+body's skin shapes the face fully on its border and not past the blend (fit.body_share), a face
 standing off the head is laid on it at its border and keeps its middle, an ear standing off within the band keeps
 its height (fit.laid_on_skin), an ear squashed onto the head is refused and one standing off it passes
 (fit.ear_measures, fit.ears_standing), the skin under the face near its border is cut and the skin beside it kept
@@ -13,13 +16,21 @@ MHR's 72 controls each move the face, through ICT expressions or the body's own 
 and the cornea rises over the iris to Gullstrand's height and meets the eye at the iris's edge (face.dome).
 
 Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it (one
-with a bump for an ear); a strip standing off a sphere for an ear; one card triangle for a lash.
+with a bump for an ear); a strip standing off a sphere for an ear; one card triangle for a lash; a cylinder for a
+neck.
 
 Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - the shut skin: zipper's `advance_outer` made `at_outer < count_outer` (the strip walks the face's loop first and
   leaves triangles that cross); and, apart, joined_skin's `outward(strip, ...)` made `strip` (the strip turned
   against the body's skin); and, apart, covered's `blocked[wall(graph, stops)] = True` made
   `blocked[stops[:1]] = True` (no wall along the border: the fill under the face leaks and is refused).
+- the join's ridge: seam's `cleared(...)` made `kept_body(body_triangles, under)` (the cut left on the face's border:
+  a strip triangle folds; seen red 2026-11-25); and, apart, seam_smooth's `largest > SEAM_TURN_DEGREES` made
+  `largest > 180.0` (a fold and a ridge pass; seen red 2026-11-25).
+- the neck: neck_normal's range test made `False` (a thick and a long neck pass; seen red 2026-11-25); and, apart,
+  sternal_notch's `min(front, ...)` made `max` (the notch read at the chin: the lengths change; seen red 2026-11-25).
+- the throat: throat_laid's `throat[reached, None] *` made `0.0 *` (the throat stands 8 mm off the skin; seen red
+  2026-11-25).
 - the ear: laid_on_skin's band moved by its border's moves made each point's own snap onto the skin (the ears were
   crushed flat onto the head; seen red 2026-11-24).
 - the squashed ear: ears_standing's range test made `True` (a squashed ear passes; seen red 2026-11-24).
@@ -81,6 +92,78 @@ def shut_skin():
                                axis=1).max()
     apart = np.linalg.norm(face_points[face_loop][:, None] - body.vertices[body_loop][None], axis=2).min(axis=1)
     return bool((undirected == 2).all() and (each_way == 1).all() and apart.max() < body_edge)
+
+
+def join_smooth():
+    """The fixture's join (shut_skin's): the largest turn of a strip triangle from the body's skin under it, under
+    SEAM_TURN_DEGREES (no ridge or fold)."""
+    body = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    finer = trimesh.creation.icosphere(subdivisions=5, radius=0.1)
+    cap = np.flatnonzero(finer.vertices[:, 2] > 0.06)
+    inside = np.isin(finer.faces, cap).all(axis=1)
+    used, renumbered = np.unique(finer.faces[inside], return_inverse=True)
+    face_points, face_triangles = finer.vertices[used], renumbered.reshape(-1, 3)
+    loop = fit.border_loop(face_triangles)
+    kept, strip, _, _ = fit.seam(body.vertices, body.faces, face_points, face_triangles, loop, np.zeros(3),
+                                 np.zeros(len(body.vertices), dtype=bool))
+    points = np.vstack([body.vertices, face_points])
+    turns = fit.seam_turns(points, fit.outward(strip, points, np.zeros(3)), body, np.array([], dtype=int))
+    return bool(turns.max() < fit.SEAM_TURN_DEGREES)
+
+
+def ridges_judged():
+    """A strip of the skin's own triangles passes seam_smooth; the same turned over (a fold) and with a corner lifted
+    1 cm off the skin (a ridge) are refused."""
+    skin = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    strip = skin.faces[skin.triangles_center[:, 2] > 0.09]
+    lifted = skin.vertices.copy()
+    lifted[strip[0, 0]] *= 1.1
+    judged = []
+    for points, triangles in ((skin.vertices, strip), (skin.vertices, strip[:, ::-1]), (lifted, strip)):
+        try:
+            fit.seam_smooth(fit.seam_turns(points, triangles, skin, np.array([], dtype=int)))
+            judged.append("passes")
+        except RuntimeError:
+            judged.append("refused")
+    return judged
+
+
+def neck_judged():
+    """A neck as a cylinder round the Neck1 to Head line, its front drawn furthest back at 1.36 m (the notch): 53 mm
+    in radius (her 334 mm girth) with the chin 110 mm from the notch passes neck_normal for a 1.668 m person; one 75
+    mm in radius (too thick) and one whose chin stands 196 mm off the notch (too long) are refused; with each girth and
+    length (mm, rounded)."""
+    neck, head, height = np.array([0.0, 1.383, 0.0]), np.array([0.0, 1.507, 0.0]), 1.668
+    judged = []
+    for radius, chin_y in ((0.053, 1.46), (0.075, 1.46), (0.053, 1.55)):
+        tube = trimesh.creation.cylinder(radius=radius, height=0.3, sections=96)
+        tube = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(tube.vertices, tube.faces, max_edge=0.004))
+        tube.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1.0, 0.0, 0.0]))
+        tube.apply_translation([0.0, 1.43, 0.0])
+        front = tube.vertices[:, 2] > 0.0
+        tube.vertices[front, 2] *= 1.0 + 10.0 * (tube.vertices[front, 1] - 1.36) ** 2
+        chin = np.array([0.0, chin_y, 0.1])
+        measured = fit.neck_measures(tube, neck, head, chin, height)
+        try:
+            fit.neck_normal(measured)
+            judged.append("passes")
+        except RuntimeError:
+            judged.append("refused")
+        judged += [round(measured["girth_mm"]), round(measured["length_mm"])]
+    return judged
+
+
+def throat_on_skin():
+    """A cap standing 8 mm off the head (ICT's throat stood so off SOMA's), its lower half given a throat share of 1:
+    laid by throat_laid, those points lie on the skin (under 0.5 mm off, mm rounded to tenths) and the rest keep
+    their place."""
+    head = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
+    cap = trimesh.creation.icosphere(subdivisions=4, radius=0.108).vertices
+    cap = cap[cap[:, 2] > 0.06]
+    throat = (cap[:, 1] < 0.0).astype(float)
+    laid = fit.throat_laid(cap, throat, head)
+    _, apart, _ = trimesh.proximity.closest_point(head, laid[throat == 1.0])
+    return [bool(apart.max() < 0.0005), bool(np.allclose(laid[throat == 0.0], cap[throat == 0.0]))]
 
 
 def border_on_skin():
@@ -239,6 +322,12 @@ def cornea_domed():
 
 @pytest.mark.parametrize("case, made, wanted", [
     ("the face's border, the cut and the strip are one shut skin", shut_skin, True),
+    ("the join lies on the skin: no strip triangle stands as a ridge or folds", join_smooth, True),
+    ("a join lying on the skin passes, a fold or a ridge on it is refused", ridges_judged,
+     ["passes", "refused", "refused"]),
+    ("a neck in the normal range for the height passes, a thick or long one is refused", neck_judged,
+     ["passes", 335, 109, "refused", 474, 101, "refused", 335, 194]),
+    ("the throat lies on the body's skin, the face above it keeps its place", throat_on_skin, [True, True]),
     ("the body's skin shapes the face fully on the border and not past the blend", shares, [1.0, 0.5, 0.0]),
     ("a face standing off the head is laid on it at its border and keeps its middle", border_on_skin, [0.0, True]),
     ("an ear standing off the head inside the band keeps its height", ear_kept, True),

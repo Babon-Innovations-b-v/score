@@ -274,7 +274,9 @@ def main(body_path, out):
     made = pieces(body, model, laid, expressions.mapping(model["expression_names"]))
     face_path = face_file(made, body, out / "face.npz")
     stills = drawn(face_path, fetched_surfaces(out), out / "stills")
-    (out / "measures.json").write_text(json.dumps({"ears_mm": laid["ears"], "brows": made["brows"]["measures"],
+    (out / "measures.json").write_text(json.dumps({"ears_mm": laid["ears"], "neck": laid["neck"],
+                                                   "seam_turn_most_degrees": laid["seam_turn_most"],
+                                                   "brows": made["brows"]["measures"],
                                                    "lashes": int(len(made["lashes"]["counts"]))}, indent=1))
     print(f"face: scale {laid['scale']:.5f}, {len(made['skin']['triangles'])} skin triangles, ears {laid['ears']}, "
           f"brows {made['brows']['measures']}, {len(stills)} stills -> {out / 'stills'}")
