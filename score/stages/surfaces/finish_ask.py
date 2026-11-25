@@ -109,10 +109,10 @@ openings' middles (0.1 to 0.9); "along" for slots and ribs, "up" when they run t
 the finish they are cut into, and "print_finish" the finish in your list that is the openings themselves, when you
 listed them as a finish of their own, else 0. Count the openings in the picture; do not guess."""
 # Added to MARKS when the library holds hardware pieces (#212, decal_library.hardware): a small lock, knob, handle,
-# hinge or latch is a mark of its own, laid as a library piece at its measured size and spot, never TRELLIS.2's blob.
+# hinge, latch or push button (#229) is a mark of its own, laid as a library piece at its measured size and spot, never TRELLIS.2's blob.
 HARDWARE = """
 Also list each small piece of hardware mounted on a surface (a lock or cam lock, a knob or dial, a handle or pull, a
-hinge, a latch) as a mark of shape "hardware", one mark for each piece, its box tight round the piece itself as seen.
+hinge, a latch, a push button that stands out of its panel) as a mark of shape "hardware", one mark for each piece, its box tight round the piece itself as seen.
 Give its "kind", one of {kinds}, and "hardware": the code of the library piece below most like it in shape (same kind
 first); its size is measured from its box, so pick by shape, not size. Give "on_finish" the finish of the surface it is
 mounted on, and "print_finish" the finish in your list that is the piece itself (its metal or plastic), else 0.
