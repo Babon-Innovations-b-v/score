@@ -4,11 +4,15 @@ score/stages/row_kinds.py) as the assembly lays them, each lifted DROP_OVER stra
 fall back onto it, under the gravity of the body the scene stands on in the environment's physics (its top scene's
 site, data/physics/setting.json, the body's values from the reference table). A loose object something else stands in
 the fall of is left out of the trial, named in `left out`. Doors move in the motion layer, so the trial hangs no hinge
-and says why (`no_hinges`).
+and says why (`no_hinges`). A laid made model with moving parts (#177: maker/parts.py's nodes under its object, the
+joints, limits and kg in its library record's `moving_parts`) gets its `parted` entry, each part its own body on its
+joint (tools/usd/physics.write_parted); a made model the trial drops falls as one piece.
 
     ground(place, within, setting)                  (the body the scene stands on, its gravity in m/s²)
     trial(place, stage, inventory, kinds, ground)   the trial record tools/usd/physics.py writes
+    parted(stage, dropped, record_of)               each laid made model's moving parts, the record's `parted`
 """
+import json
 import pathlib
 import sys
 
@@ -68,6 +72,37 @@ def view_of(stage, names):
     return {"name": "trial", "eye": eye, "aim": [float(value) for value in aim], "up": [0.0, 1.0, 0.0], "fov": FOV}
 
 
+def made_record(address):
+    """A library model's record (its `<id>.json`, place_build/maker's), or None when the address names no such file."""
+    if str(REPO / "tools/library") not in sys.path:
+        sys.path.insert(0, str(REPO / "tools/library"))
+    import library_files
+    found = library_files.parsed(address)
+    if not found:
+        return None
+    path = library_files.resolve(library_files.reference(address, f"{found['id']}.json"))
+    return json.loads(pathlib.Path(path).read_text()) if path and pathlib.Path(path).is_file() else None
+
+
+def parted(stage, dropped, record_of=made_record):
+    """The record's `parted` entries: each laid object not `dropped` holding part nodes (motion's PART names) whose
+    library record (`record_of(address)`) lists its `moving_parts`, each part laid there its node, joint, axis, sign,
+    limits and kg."""
+    from score.stages.motion import from_design
+    found = []
+    for prim in physics.laid_objects(stage):
+        nodes = {child.GetName() for child in prim.GetChildren() if from_design.PART.match(child.GetName())}
+        address = prim.GetAttribute("score:library").Get() if prim.HasAttribute("score:library") else None
+        if not nodes or prim.GetName() in dropped or not address:
+            continue
+        moving = (record_of(address) or {}).get("moving_parts") or {}
+        parts = [{key: part[key] for key in ("node", "joint", "axis", "sign", "limits", "kg")}
+                 for part in moving.get("parts", []) if part["node"] in nodes]
+        if parts:
+            found.append({"object": prim.GetName(), "parts": parts})
+    return found
+
+
 def trial(place, stage, inventory, kinds, under):
     """The trial record: every loose row's laid object whose fall is clear dropped back onto its own spot."""
     loose = [row["id"] for row in row_kinds.rows_that(inventory, "loose", kinds)]
@@ -80,6 +115,7 @@ def trial(place, stage, inventory, kinds, under):
     body, gravity = under
     return {"place": place, "body": body, "gravity": gravity, "material": MATERIAL, "seconds": SECONDS,
             "drops": drops, "hinges": [], "no_hinges": NO_HINGES, "pushes": [], "moved": [],
+            "parted": parted(stage, {drop["object"] for drop in drops}),
             "left out": [f"{name}: something stands in its fall" for name in left],
             "views": [view_of(stage, [drop["object"] for drop in drops])] if drops else [],
             "moments": list(MOMENTS), "size": list(SIZE),

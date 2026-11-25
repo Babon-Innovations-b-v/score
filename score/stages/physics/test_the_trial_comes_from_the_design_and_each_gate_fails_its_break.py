@@ -16,6 +16,8 @@ contract.
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
 - the_loose_rows_drop_where_they_stand: design.falls' `return drop, not physics.faults(...)` made `return drop, True`
   (a blocked fall dropped).
+- the_loose_rows_drop_where_they_stand (#177, seen red 2026-11-25): design.parted's `if part["node"] in nodes`
+  dropped (a part with no node laid joined, so write_parted would raise).
 - the_gravity_is_the_body_s_under_the_top_site: design.ground's `holder = within[holder]` made `holder = place` (no
   climb up the holders).
 - a_body_no_row_has_fails_designed: judge_designed's `strangers = row_kinds.strangers(...)` made `strangers = []`.
@@ -94,6 +96,20 @@ def the_loose_rows_drop_where_they_stand():
         assert abs(lifted[0][1] - 0.5) < 1e-6 and abs(lifted[0][0] - 1.85) < 1e-6, lifted
         scene = written_stage.GetPrimAtPath(f"/{toy.PLACE}/Physics/Scene")
         assert abs(scene.GetAttribute("physics:gravityMagnitude").Get() - 1.62) < 1e-6
+        # a laid made model's moving parts (#177): its part nodes and its library record's `moving_parts` give its
+        # `parted` entry; a part its record lists but the stage lays no node for is not joined; dropped, none
+        stage = toy_with_shelf(pathlib.Path(folder) / "made")
+        holder = UsdGeom.Xform.Define(stage, f"/{toy.PLACE}/Objects/cabinet_1")
+        holder.GetPrim().CreateAttribute("score:library", Sdf.ValueTypeNames.String).Set("model/cabinet_1@1")
+        toy.mesh(stage, f"/{toy.PLACE}/Objects/cabinet_1/geo", [((-0.25, 0.0, -0.2), (0.25, 0.8, 0.2))], (0, 0, 0))
+        UsdGeom.Xform.Define(stage, f"/{toy.PLACE}/Objects/cabinet_1/door_01__hinge_yn")
+        door = {"node": "door_01__hinge_yn", "joint": "hinge", "axis": "y", "sign": -1, "limits": [0.0, 100.0],
+                "kg": 4.0}
+        moving = {"moving_parts": {"parts": [{**door, "pivot": [0, 0, 0], "faces": 10},
+                                             {**door, "node": "drawer_01__slide_z", "joint": "slide"}]}}
+        assert design.parted(stage, set(), lambda address: moving if address == "model/cabinet_1@1" else None) == [
+            {"object": "cabinet_1", "parts": [door]}]
+        assert design.parted(stage, {"cabinet_1"}, lambda address: moving) == []
 
 
 def the_gravity_is_the_body_s_under_the_top_site():
