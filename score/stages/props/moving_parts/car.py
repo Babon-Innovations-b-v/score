@@ -34,7 +34,8 @@ SKIN = 0.03  # a door's thickness, in metres
 LIGHT_BAR = 0.12  # the light bar's height on the roof, in metres (the car's height its top)
 WHEEL_FACES = 64
 SPOKES = 5  # a rim's spokes
-GLASS_SEEN = 0.93  # how much of what is behind the car's tinted glass it hides (glTF alpha): the cabin dim behind it
+GLASS_SEEN = 0.97  # how much of what is behind the car's tinted glass it hides (glTF alpha): a patrol car's dark tint (at 0.93
+# the seat backs stood as black slabs through the side glass, night car round 3)
 ROOF_BAND = 0.9  # the greenhouse's roof cap: the ring's points this high up its section and over
 FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal", "car_body_paint"),
             "glass": ("glass", "car_window"), "door_window": ("glass", "car_window"),
@@ -277,19 +278,44 @@ def lamps(across, tall, along_length):
     return headlamps, tail_lamps, plates, blue, red, base, grille + handles, mirrors
 
 
+PLATE_TEXT = "PL 2099"  # each plate's characters, drawn as seven-segment strokes (a space is a gap)
+SEGMENTS = {"P": "abefg", "L": "def", "0": "abcdef", "2": "abdeg", "9": "abcdfg"}
+GLYPH_WIDE, GLYPH_TALL, STROKE = 0.044, 0.07, 0.01  # a character's box and its strokes' width, in metres
+
+
+def glyph_strokes(character, middle_x, height, depth, face):
+    """A plate character's strokes (boxes) as seven segments a-g round its box at `middle_x`, `height`, `depth`, read
+    facing the plate on the `face` end (1 the nose, -1 the tail: its right towards -x)."""
+    import trimesh
+    half_wide, half_tall = GLYPH_WIDE / 2, GLYPH_TALL / 2
+    level = (GLYPH_WIDE, STROKE, 0.006)
+    upright = (STROKE, half_tall + STROKE / 2, 0.006)
+    places = {"a": (level, 0, half_tall), "g": (level, 0, 0), "d": (level, 0, -half_tall),
+              "f": (upright, -half_wide, half_tall / 2), "b": (upright, half_wide, half_tall / 2),
+              "e": (upright, -half_wide, -half_tall / 2), "c": (upright, half_wide, -half_tall / 2)}
+    strokes = []
+    for name in SEGMENTS[character]:
+        extents, across, up = places[name]
+        strokes.append(trimesh.creation.box(extents=extents).apply_translation((middle_x + face * across, height + up, depth)))
+    return strokes
+
+
 def plate_marks(across, tall, along_length):
-    """Each plate's dark surround and its six raised characters (a plate blank and white was the brightest thing on the
-    car's back, night car round 2), and a dark bumper band across the nose and the tail under it."""
+    """Each plate's dark surround and its characters (PLATE_TEXT in seven-segment strokes: six blocks read as a blank
+    plate, night car round 3; one blank and white was the brightest thing on the car's back, round 2), and a dark
+    bumper band across the nose and the tail under it."""
     import trimesh
     nose, tail = along_length / 2, -along_length / 2
+    pitch = GLYPH_WIDE + 0.02
     marks = []
     for end, face, height in ((nose, 1, 0.31 * tall), (tail, -1, 0.335 * tall)):
         marks.append(trimesh.creation.box(extents=(0.56, 0.145, 0.004)).apply_translation(
             (0, height, end - face * 0.02)))
-        for place in range(6):
-            glyph = trimesh.creation.box(extents=(0.05, 0.068, 0.006))
-            marks.append(glyph.apply_translation(((place - 2.5) * 0.07 + (0.02 if place > 2 else -0.02), height,
-                                                  end - face * 0.003)))
+        for place, character in enumerate(PLATE_TEXT):
+            if character != " ":
+                # Left to right as read facing the plate: towards +x at the nose, towards -x at the tail.
+                middle_x = face * (place - (len(PLATE_TEXT) - 1) / 2) * pitch
+                marks += glyph_strokes(character, middle_x, height, end - face * 0.003, face)
         marks.append(trimesh.creation.box(extents=(across * 0.8, 0.04, 0.03)).apply_translation(
             (0, 0.255 * tall, end - face * 0.015)))
     return marks
