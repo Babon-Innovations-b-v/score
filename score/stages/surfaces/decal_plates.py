@@ -336,11 +336,11 @@ def plate_extent(placement, mesh, same):
 def plate_holes(placement, mesh, same, shown=None):
     """[[left, bottom, right, top]] across and up from the placement's `at` of each hole through its part's plate (the
     module's HOLE_ rule; one the close-up shows as plate only with `shown`, the close-up's L* at points of the model's
-    frame, NaN off it), and with `shown` each patch of bumps on it the close-up shows as plain plate (bump_patches),
-    each grown LIP cells: its plate cast over the whole of its part's extent on it."""
+    frame, NaN off it), each grown LIP cells, and with `shown` each patch of bumps on it the close-up shows as plain
+    plate (bump_patches): (holes, bumps), its plate cast once over the whole of its part's extent on it."""
     extent = plate_extent(placement, mesh, same)
     if extent is None:
-        return []
+        return [], []
     low, high = extent
     step = max(HOLE_STEP, float(np.sqrt(np.prod(high - low + HOLE_STEP) / HOLE_CELLS)))
     across, upward, height, mine, _ = cast(placement, mesh, same, *np.meshgrid(
@@ -364,7 +364,7 @@ def plate_holes(placement, mesh, same, shown=None):
         found.append([round(float(value), 5) for value in (
             across[cells][hole].min() - LIP * step, upward[cells][hole].min() - LIP * step,
             across[cells][hole].max() + LIP * step, upward[cells][hole].max() + LIP * step)])
-    return found + (bump_patches(across, upward, height, mine, through, seen, step) if seen is not None else [])
+    return found, (bump_patches(across, upward, height, mine, through, seen, step) if seen is not None else [])
 
 
 def bump_patches(across, upward, height, mine, through, seen, step):
@@ -445,7 +445,10 @@ def holes_closed(placements, mesh, sames, shown=None):
     (plate_holes) closed too: its box in the `also` of the closed placement on that plate (its part's faces the same,
     `sames` a placement's) nearest it, unless it lies wholly in a region closed already (inside_closed); one the
     close-up shows as its plate only with `shown` (plate_holes). r13's locker drew a black dot through each door above
-    its vents, 1 to 2 cm outside their closed boxes; a plate is cast once for all its marks."""
+    its vents, 1 to 2 cm outside their closed boxes; a plate is cast once for all its marks. Each bump patch it shows
+    plain (plate_holes' bumps) goes in that placement's `flat`: pressed onto the plate with no card over it, its own
+    texels and the shading of its pressed shape kept (#229: carded, r16k3 and r16k4 drew the patches as grey or pale
+    stickers on the locker's door)."""
     found = [dict(placement, closed=dict(placement["closed"])) if placement.get("closed") else placement
              for placement in placements]
     done = []
@@ -457,22 +460,24 @@ def holes_closed(placements, mesh, sames, shown=None):
         done.append(number)
         group = [other for other, each in enumerate(found) if each.get("closed") and shared_plate(placement, each)
                  and np.array_equal(sames[other], sames[number])]
-        for hole in plate_holes(placement, mesh, sames[number], shown):
-            laid = {other: in_frame(hole, placement, found[other]) for other in group}
-            if any(inside_closed(laid[other], found[other]["closed"]) for other in group):
-                continue
-            nearest = min(group, key=lambda other: np.hypot(laid[other][0] + laid[other][2],
-                                                            laid[other][1] + laid[other][3]))
-            found[nearest]["closed"] = dict(found[nearest]["closed"],
-                                            also=[*found[nearest]["closed"].get("also", []), laid[nearest]])
+        holes, bumps = plate_holes(placement, mesh, sames[number], shown)
+        for kind, boxes in (("also", holes), ("flat", bumps)):
+            for box in boxes:
+                laid = {other: in_frame(box, placement, found[other]) for other in group}
+                if any(inside_closed(laid[other], found[other]["closed"]) for other in group):
+                    continue
+                nearest = min(group, key=lambda other: np.hypot(laid[other][0] + laid[other][2],
+                                                                laid[other][1] + laid[other][3]))
+                found[nearest]["closed"] = dict(found[nearest]["closed"],
+                                                **{kind: [*found[nearest]["closed"].get(kind, []), laid[nearest]]})
     return found
 
 
 def inside_closed(box, closed):
-    """Whether a box lies wholly in a closed region's own `box` or in one of its `also`: a hole whose middle alone lay
+    """Whether a box lies wholly in a closed region's own `box` or in one of its `also` or `flat`: a hole whose middle alone lay
     in one was left open past it (r15f's locker: the bars through its doors 3 to 4 cm past its vents' boxes)."""
     return any(left <= box[0] and box[2] <= right and bottom <= box[1] and box[3] <= top
-               for left, bottom, right, top in [closed["box"], *closed.get("also", [])])
+               for left, bottom, right, top in [closed["box"], *closed.get("also", []), *closed.get("flat", [])])
 
 
 def closed_round(placement, mesh, same, most, reach):

@@ -3367,14 +3367,15 @@ def plates_held():
                                for left, bottom, right, top in held[0]["closed"].get("also", [])))  # from the vent
     assert slot_closed == [True, True, False, False, False, False], slot_closed
     # a patch of TRELLIS.2's bumps outside every closed region (#229, r16k's locker: its vent bumps 8 cm off the
-    # close-up's vent, left as scribbles) is closed by a box of its own where the close-up shows its plate plain there,
+    # close-up's vent, left as scribbles) is pressed flat by a box of its own, in `flat` (no card over it: carded, it
+    # drew as grey or pale stickers, r16k3 and r16k4), where the close-up shows its plate plain there,
     # never where the close-up shows the patch darker (a vent it shows there) or with no close-up
     dark_bumps = lambda points: np.where((np.abs(points[:, 0] - 0.1) < 0.03) & (np.abs(points[:, 1] - 0.1) < 0.03),
                                          45.0, 80.0)  # noqa: E731
     bumps_closed = []
     for shown in (light, dark_bumps, None):
         held, _ = route_parts.on_plates([vent_low], [], *door(), shown=shown)
-        bumps_closed.append([box for box in held[0]["closed"].get("also", [])  # in the low vent's frame
+        bumps_closed.append([box for box in held[0]["closed"].get("flat", [])  # in the low vent's frame
                              if box[0] <= 0.175 and box[2] >= 0.225 and box[1] <= 0.225 and box[3] >= 0.275])
     assert [bool(boxes) for boxes in bumps_closed] == [True, False, False], bumps_closed
     assert (decal_plates.inside_closed([0.04, 0.0, 0.06, 0.01], {"box": [-0.05, -0.05, 0.05, 0.05]}),

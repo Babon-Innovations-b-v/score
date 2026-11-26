@@ -357,7 +357,7 @@ def closed_points(points, decal):
                 & (upward <= top + grown))
     standing = (height > 0) & (height <= closed["most"])
     depth = np.full(len(offset), -np.inf)  # how far inside its region's boxes a point lies
-    for left, bottom, right_end, top in closed_boxes(closed):
+    for left, bottom, right_end, top in pressed_boxes(closed):
         depth = np.maximum(depth, np.minimum.reduce([across - left, right_end - across, upward - bottom,
                                                      top - upward]))
     inside = standing & (depth >= 0)
@@ -365,7 +365,7 @@ def closed_points(points, decal):
     for pressed in closed.get("pressed", []):
         eased |= ~inside & boxed(pressed["box"]) & (height > pressed["least"]) & standing
     reach = np.zeros(len(offset), dtype=bool)
-    for box in [*closed_boxes(closed), *(pressed["box"] for pressed in closed.get("pressed", []))]:
+    for box in [*pressed_boxes(closed), *(pressed["box"] for pressed in closed.get("pressed", []))]:
         reach |= boxed(box, 2 * PRESS_REACH)
     lowered = np.where(inside, 0.0, height)
     near = reach & ~eased & (depth < 2 * PRESS_REACH) & (height >= -PRESS_SURFACE / 2) & (lowered <= PRESS_SURFACE)
@@ -408,9 +408,15 @@ def surface_under(laid, over, near, heights):
 
 
 def closed_boxes(closed):
-    """The boxes of a decal's `closed` region ([left, bottom, right, top] across and up from its `at`): its own `box`,
-    then each of its `also` (decal_plates.holes_closed)."""
+    """The boxes of a decal's `closed` region ([left, bottom, right, top] across and up from its `at`) a card covers:
+    its own `box`, then each of its `also` (decal_plates.holes_closed)."""
     return [closed["box"], *closed.get("also", [])]
+
+
+def pressed_boxes(closed):
+    """The boxes of a decal's `closed` region pressed onto its plate: those a card covers (closed_boxes), then each of
+    its `flat` (decal_plates.holes_closed: TRELLIS.2's bump patches, pressed with no card, #229)."""
+    return [*closed_boxes(closed), *closed.get("flat", [])]
 
 
 def closing_cards(decal, first=0):

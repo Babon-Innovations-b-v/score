@@ -271,8 +271,9 @@ def main():
         bake.pressed_under(meshes[0], cuts)
         stretch = stretched(meshes[0], before, job.get("hardware") or [])  # the cuts' own, before the marks'
         bake.pressed_under(meshes[0], marked)
-    if decoded is not None:  # its blobs pressed too: standing, they shaded the face round each card
-        bake.pressed_under(decoded, cuts)
+    if decoded is not None:  # its blobs and bumps pressed too: standing, they shaded the face round each card, and a
+        bake.pressed_under(decoded, cuts)  # flat patch with no card over it (#229)
+        bake.pressed_under(decoded, marked)
     material = look_material(job["masks"], occluded(meshes, job["masks"], decoded))
     if closing:
         bake.cards_over(meshes[0], marked + cuts)

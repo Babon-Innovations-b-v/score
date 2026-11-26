@@ -23,7 +23,9 @@ Breaks (each applied once, seen red, reverted, 2026-11-24):
   -> the slot, 6 texels wide, shades.
 - bake.closed_points `<= decal["closed"]["most"]` -> `<= 0.0` -> the bump is left standing; closing_card's
   `+ CARD_PROUD * normal` dropped -> the card lies in the plate; closing_cards' `(first + number) * CARD_STEP` -> 0
-  -> the cards in one plane (#229, r16k3's grey streaks; seen red 2026-11-26); cards_over's `face.material_index` -> 0 -> the
+  -> the cards in one plane (#229, r16k3's grey streaks; seen red 2026-11-26); closed_points over closed_boxes, not
+  pressed_boxes -> the flat box's bump left standing, and closing_cards over pressed_boxes -> a fourth card over the
+  flat box (#229, r16k4's pale stickers); cards_over's `face.material_index` -> 0 -> the
   card in the steel, not the paint its plate point is in; plate_texel's middle -> its first loop's -> the card's
   texel on its face's rim; plate_texel's facing filter dropped -> the card in the steel
   of the sheet's back; its `closed` filter dropped (`list(decals)`) -> a decal with no region
@@ -165,7 +167,8 @@ for loop in mesh.loops:
 door = bpy.data.objects.new("door", mesh)
 scene.collection.objects.link(door)
 door_decals = [{"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2],
-                "closed": {"box": [-0.25, -0.25, 0.25, 0.25], "also": [[0.35, -0.45, 0.45, -0.35]], "most": 0.006,
+                "closed": {"box": [-0.25, -0.25, 0.25, 0.25], "also": [[0.35, -0.45, 0.45, -0.35]],
+                           "flat": [[0.3, 0.3, 0.45, 0.45]], "most": 0.006,
                            "plate_point": [0.48, 0.08, 0.0]}},
                {"at": [0.0, 0.0, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0], "size_m": [0.2, 0.2]},
                {"at": [-0.4, -0.4, 0.0], "normal": [0.0, 0.0, 1.0], "up": [0.0, 1.0, 0.0],
@@ -207,6 +210,8 @@ print("FOUND", json.dumps({"cards": cards, "faces": len(door.data.polygons), "bu
                            "blot": float(shade[24, 36]), "slot": float(shade[50, 22]),
                            "part_crease": float(alone[16, 0, 0]), "part_open": float(alone[16, 62, 0]),
                            "part_size": list(apart.size),
+                           "flat_pressed": bake.closed_points(np.array([[0.4, 0.4, 0.002], [0.6, 0.6, 0.002]]),
+                                                              door_decals[0])[:, 2].round(6).tolist(),
                            "strip_grown": float((strip_longest(strip_pressed) / strip_longest(strip_points)).max()),
                            "strip_most": float(strip_pressed[strip_points[:, 0] < 0.05, 2].max()),
                            "strip_inside": float(np.abs(strip_pressed[(np.abs(strip_points[:, 0]) < 0.05)
@@ -234,6 +239,7 @@ def test_a_model_shades_into_its_own_creases(tmp_path):
     # rim far off it in its `also` pressed and carded the same (r13's dots); a hardware cut's blob pressed in its box
     # and past it in its `pressed` where it stands over its `least`, the face's own step there left, one card over
     # its box alone in its own plate's finish (#212, r14l)
+    assert found["flat_pressed"] == [0.0, 0.002], found["flat_pressed"]  # a flat box pressed, nothing past it (#229)
     assert (found["cards"], found["faces"], found["bump"], found["outside"], found["rims"], found["laid_cards"]) == (
         3, 104, 0.0, pytest.approx(0.003), [0.0, 0.0, 0.0, pytest.approx(0.004)],
         {"[0.0, 0.0]": [1, [0.0003] * 4, [0.95, 0.55]], "[0.4, -0.4]": [1, [0.0004] * 4, [0.95, 0.55]],
