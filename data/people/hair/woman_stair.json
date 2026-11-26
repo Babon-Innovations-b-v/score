@@ -15,5 +15,6 @@
  "colour": "mid ash brown",
  "surface": "hair_brown__hair_brown_r070_m000_s2053097327",
  "surface_from": "the people line's scene library (surface-library@people), the variant woman_stair's dress names for its hair (dress_woman_stair_made, bake close_up)",
- "library": "hair_brown"
+ "library": "hair_strands_ash_brown",
+ "library_why": "the strand finish for a mid ash brown (tools/characters/hair/finish.py, #223, 2026-11-26): pbrt-v3's brown eumelanin with a little pheomelanin, a human fibre's index, roughness and cuticle tilt; hair_brown is a flat shell colour, which through the Hair BSDF's direct colouring lit the parting orange"
 }

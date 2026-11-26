@@ -2,7 +2,9 @@
 on it point for point (scaled by height, moved along the floor, its limbs turned onto the mean's); a bob combed on a
 round toy head (rooted as densely as a head) passes the hair's checks, and a root lifted off the scalp, strand points
 before the eyes, the crown's strands taken away, 1500 strands gathered into one, no roots within 3 mm of the parting,
-a root-free patch and the roots under the hairline's full density taken away (a hard hairline) each fail theirs; a
+a root-free patch, the roots under the hairline's full density taken away (a hard hairline), strands three times a
+hair's thickness, every hanging strand cut at one height and the hair under the ears' tops moved 12 mm out on one
+side (a ledge) each fail theirs; a
 hanging strand the skin holds is moved out over it and one falling freely left; hair inside the skin is put out to
 its clearance and hair outside left; a ring goes round the finger it is meant for (read off a toy hand's skin), a
 watch round its wrist with its case on the back of the wrist, a chain round the neck on its skin and moving with it;
@@ -30,7 +32,9 @@ reading the mean distance (the root-free patch passes); `parting_bare` counting 
 bare band passes the parting's check); `draped` returning `moved` (the snagged strand left where the skin held it;
 each seen red 2026-11-25); the meter's solid angle without the cosine of the latitude (the even sky reads 4.0, not pi,
 on the card), its turn read the other way (`way @ turned(turn).T`: the patch lights the card from behind; each seen red
-2026-11-26)."""
+2026-11-26); the thickest strand read as the thinnest (`np.min` of the radius: the cord passes); `cut_spread` reading
+every end, not only the hanging ones (the fringe's ends spread the blunt cut); `outline_step` reading one side only
+(the ledge on the other passes; each seen red 2026-11-26)."""
 import functools
 import math
 
@@ -79,7 +83,8 @@ def toy_hand():
 
 TOY_STYLE = {"length_m": 0.09, "wave_m": 0.0015, "wave_period_m": 0.06, "parting_m": 0.025, "parting_side": "left",
              "fringe_side": "right"}
-TOY_ROOTS = 40000  # the toy's scalp (450 cm2) as densely rooted as a head's
+TOY_ROOTS = 60000  # the toy's scalp (450 cm2) as densely rooted as a head's (100 000 on 748 cm2)
+TOY_GUIDES = 7200  # and as densely guided (12 000)
 
 
 @functools.lru_cache(maxsize=1)
@@ -91,6 +96,7 @@ def toy_groom():
     eyes = np.array([[0.032, 0.0, 0.07], [-0.032, 0.0, 0.07]])
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(hair, "ROOTS", TOY_ROOTS)
+        patch.setattr(hair, "GUIDES", TOY_GUIDES)
         return points, faces, eyes, hair.combed(points, faces, eyes, TOY_STYLE)
 
 
@@ -121,6 +127,7 @@ def toy_hands():
 @pytest.mark.parametrize("case", ["laid on the mean", "hair combed on its head", "hair rooted off the scalp",
                                   "hair before the eyes", "hair leaving the crown bald", "hair in a clump",
                                   "hair parted wide", "hair with a gap in its roots", "hair with a hard hairline",
+                                  "hair as thick as cord", "hair cut blunt", "hair standing out round the ears",
                                   "hair draped over a snag",
                                   "hair kept out",
                                   "ring round its finger",
@@ -219,7 +226,8 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         assert np.abs(carried[1] - trimesh.transform_points(points, turn)).max() < 1e-3
     if case in ("hair combed on its head", "hair rooted off the scalp", "hair before the eyes",
                 "hair leaving the crown bald", "hair in a clump", "hair parted wide", "hair with a gap in its roots",
-                "hair with a hard hairline"):
+                "hair with a hard hairline", "hair as thick as cord", "hair cut blunt",
+                "hair standing out round the ears"):
         head, faces, eyes, combed = toy_groom()
         counts, points = combed[0], combed[1].copy()
         strands = points.reshape(len(counts), -1, 3)
@@ -232,6 +240,14 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
             strands[1, -4:] = eyes[0] + [0.0, 0.0, 0.01]
         if case == "hair in a clump":
             strands[:1500] = strands[0] + np.random.default_rng(0).normal(0.0, 0.0003, (1500, 1, 3))
+        if case == "hair as thick as cord":  # the old groom's strands, 240 um across
+            widths = widths * 3.0
+        if case == "hair cut blunt":  # every hanging strand ending at one height
+            low = eyes[:, 1].mean() - hair.OUTLINE_READ["under_eyes_m"]
+            ends = strands[:, -1, 1]
+            strands[..., 1] = np.maximum(strands[..., 1], np.median(ends[ends < low]) + 0.01)
+        if case == "hair standing out round the ears":  # on her right, the hair under the ears' tops 12 mm further out
+            strands[..., 0] -= 0.012 * ((strands[..., 1] < eyes[:, 1].mean() + 0.01) & (strands[..., 0] < -0.05))
         kept = np.ones(len(strands), dtype=bool)
         if case == "hair leaving the crown bald":
             kept = strands[:, 0, 1] < 0.07
@@ -247,6 +263,8 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         named = {"hair combed on its head": "", "hair rooted off the scalp": "roots off the scalp",
                  "hair before the eyes": "in front of the eyes", "hair leaving the crown bald": "bald",
                  "hair in a clump": "clump", "hair parted wide": "parting", "hair with a gap in its roots":
-                 "gap in the roots", "hair with a hard hairline": "hard hairline"}[case]
+                 "gap in the roots", "hair with a hard hairline": "hard hairline",
+                 "hair as thick as cord": "thicker than a hair", "hair cut blunt": "blunt cut",
+                 "hair standing out round the ears": "ledge"}[case]
         lines = hair.faults(found)
         assert (lines == []) if not named else any(named in line for line in lines), (found, lines)

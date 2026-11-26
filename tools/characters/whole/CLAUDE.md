@@ -20,9 +20,12 @@ itself (`render.py`). `__init__.py`'s docstring has how the face's body is carri
   model, once adopted, replaces the made shape and keeps the checks.
 - **The hair is combed on the head it is worn on**, never brought over from another head: Blender's groom grown on
   the made person's hair shell (#227), dropped point by point onto the face's head, lay in flat blocks over the eyes
-  with a bald crown (2026-11-25). `hair.py` roots it on this scalp and checks it there: roots off the scalp, strands
-  before the eyes, a bald scalp, clumps and strays, the parting's bare strip seen from above, gaps in the roots and
-  a hard hairline (owner, 2026-11-25: "hairline is also still just crazy gap"). The render's hair close-ups
+  with a bald crown (2026-11-25). `hair.py` combs guides on this scalp over the head's hull (ears and all) and grows
+  a head's 100 000 strands, a human hair thick, from them in locks with a soft, uneven cut and a few flyaways (owner,
+  2026-11-25: a helmet, a hard flat cut line, stringy wiry strands), and checks them there: roots off the scalp,
+  strands before the eyes, a bald scalp, clumps and strays, the parting's bare strip seen from above, gaps in the
+  roots, a hard hairline (owner, 2026-11-25: "hairline is also still just crazy gap"), a strand thicker than a hair, a
+  blunt cut and a ledge in the outline seen from behind ("earmuffs"). The render's hair close-ups
   (`<pose>-hair-*.png`: the parting from above, the hairline from the front and three quarters) are where to look.
 - **A fault fails the run** after its pictures (a skin point off its low body, a piece through the skin, an earring
   out of its lobe, the hair's). Limits are never loosened to pass.

@@ -10,9 +10,12 @@ pxr) are the whole route; nothing here is a row of the runner yet.
   non-commercial: the deep dive on #56). A learned prior comes only from grooms made here.
 - **The style is read, not invented**: `data/people/hair/<look>.json` holds what the look's close-up shows (length,
   curl, parting, fringe, colour) with who read it and when; groom.py takes its numbers from there.
-- **The finish is the library's**: the hair's colour is the people line's library surface the style names (its
-  `colour`, linear), the shell under the strands that surface's colour and roughness. score_lib has no hair recipe
-  yet, so the Hair BSDF's own roughness and coat are Blender's defaults: a gap on #227, never a typed value.
+- **The finish is the library's**: groom.py's shell route draws the people line's library surface the style names
+  (its `surface`, colour and roughness). The whole person's strands wear the style's `library` surface: a strand
+  finish written by `finish.py` (`hair_strands_ash_brown`, taken into score_lib as a draft) carries a `hair` block, a
+  fibre's melanin and redness, roughness, radial roughness, coat, index and cuticle tilt from pbrt-v3's hair material
+  (Chiang et al. 2016), each strand's spread and the tips' lightening, which `../face/blender_face.strands_material`
+  draws in the Principled Hair BSDF's melanin terms. A new look's colour is a new finish there, with its source.
 - **Nothing through the body**: every strand is kept off the rest surface, resampled and kept off again, and a strand
   that still crosses it at rest is left out whole (`uncrossed`); a root whose UV does not find it again is left out
   (`untorn`). `measures.json` counts roots off the surface and segments crossing the body at the bind and every clip

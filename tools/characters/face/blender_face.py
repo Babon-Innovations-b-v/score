@@ -417,6 +417,10 @@ def strands_material(library, surface):
     nodes = hair.node_tree.nodes
     nodes.remove(nodes["Principled BSDF"])
     bsdf = nodes.new("ShaderNodeBsdfHairPrincipled")
+    fibre = library_record(library, surface).get("hair")
+    if fibre:  # a strand finish (../hair/finish.py): the fibre's own pigment and scattering
+        fibred_hair(hair, bsdf, fibre)
+        return hair
     bsdf.parametrization = "COLOR"
     # Each strand its own shade round the library colour (STRAND_SHADE, by Cycles' per-strand random) and its own
     # roughness: one colour on every strand read as a smooth helmet (owner, 2026-11-25: "too smooth and uniform").
@@ -434,6 +438,31 @@ def strands_material(library, surface):
     bsdf.inputs["Random Roughness"].default_value = STRAND_ROUGHNESS_SPREAD
     hair.node_tree.links.new(bsdf.outputs[0], nodes["Material Output"].inputs["Surface"])
     return hair
+
+
+def library_record(library, surface):
+    """The score_lib surface's surface.json (empty when it has none)."""
+    found = sorted((pathlib.Path(library) / "surface" / surface).glob("*/surface.json"))
+    return json.loads(found[-1].read_text()) if found else {}
+
+
+def fibred_hair(hair, bsdf, fibre):
+    """The Principled Hair BSDF in melanin terms from a strand finish's `hair` block: each strand its own melanin
+    and roughness (Random Color, Random Roughness), the melanin falling towards the tip by its `tip_lighter`."""
+    nodes, links = hair.node_tree.nodes, hair.node_tree.links
+    bsdf.parametrization = "MELANIN"
+    bsdf.inputs["Melanin Redness"].default_value = fibre["redness"]
+    for name, key in (("Roughness", "roughness"), ("Radial Roughness", "radial_roughness"), ("Coat", "coat"),
+                      ("IOR", "ior"), ("Random Color", "random_color"), ("Random Roughness", "random_roughness")):
+        bsdf.inputs[name].default_value = fibre[key]
+    bsdf.inputs["Offset"].default_value = math.radians(fibre["offset_deg"])
+    info = nodes.new("ShaderNodeHairInfo")
+    along = nodes.new("ShaderNodeMapRange")
+    along.inputs["To Min"].default_value = fibre["melanin"]
+    along.inputs["To Max"].default_value = fibre["melanin"] * (1.0 - fibre["tip_lighter"])
+    links.new(info.outputs["Intercept"], along.inputs["Value"])
+    links.new(along.outputs["Result"], bsdf.inputs["Melanin"])
+    links.new(bsdf.outputs[0], nodes["Material Output"].inputs["Surface"])
 
 
 def strands_object(face, piece, library):
