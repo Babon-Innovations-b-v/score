@@ -52,6 +52,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pieces.walks_of: the end left in the instancer's own frame -> the walker's far end is off by the crowd's offset
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
 - pipe_run.round_run: the elbow sleeves left out -> the drainpipe's bend carries no elbow
+- pipe_run.wall_way: the round wall's side ignored -> the silo pipe's brackets stand off away from the silo
 - pipe_run.catenary: the hang's sign turned -> the lantern string's middle rises over its ends
 - place_build.pipe: the missing looks check left out -> a run with bare parts is laid
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
@@ -426,7 +427,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, UsdSkel, Vt
 
 from score.stages import place_build
-from score.stages.place_build import cockpit_kit, film, measure, ready, relief, render, review, stair_core
+from score.stages.place_build import cockpit_kit, film, measure, pipe_run, ready, relief, render, review, stair_core
 
 
 def library(root, files):
@@ -853,6 +854,11 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     hung = np.asarray(piped[1]["spots"])
     assert len(hung) == 5 and np.allclose(hung[:, 2], 40) and abs(hung[2, 1] - 4.4) < 0.02 and hung[0, 1] > hung[2, 1]
     assert "no look for its part(s) bracket, fitting" in piped[2]["refused"] and "rigid" in piped[3]["refused"]
+    silo = pipe_run.write(tmp_path / "silo.usda", {"profile": "round", "radius": 0.1, "path": [[2.4, 0, 0], [2.4, 3, 0]],
+                                                   "wall": {"axis": [0, 0], "side": "in"}, "stand": 0.4})
+    silo_stage = Usd.Stage.Open(str(tmp_path / "silo.usda"))
+    silo_points = np.asarray(UsdGeom.Mesh(silo_stage.GetPrimAtPath("/piece/geo")).GetPointsAttr().Get())
+    assert silo["parts"] == ["bracket", "pipe"] and np.isclose(silo_points[:, 0].min(), 2.0, atol=1e-3)  # on the silo
     del pipe_stage
     place_build.remove(folder, "drain")
     place_build.remove(folder, "string")

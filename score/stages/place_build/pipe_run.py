@@ -21,7 +21,8 @@ stands where its points say. `spec`:
   string, a cord between a lamp and its socket);
 - `bend` the bend radius at each corner (BEND_RADII of its radius by default; a cable's wider, FLEXIBLE_RADII);
 - `face` the way a flat, box or channel section's depth points (default up), carried along the run;
-- `wall` the way from the run to the wall it is held on and `stand` the metres from its middle to that wall: a
+- `wall` the way from the run to the wall it is held on (or a round wall, {"axis": [x, z], "side": "out" | "in"}: a
+  cabin's lining round the run, a silo the run stands round) and `stand` the metres from its middle to that wall: a
   bracket every `brackets` metres (BRACKET_GAP), each a clamp round the run on a stand-off and a plate on the wall;
 - `joints` metres between a rigid run's collars (a drainpipe's sockets; none by default), `caps` its ends closed by
   a cap, `clamps` metres between a bundle's ties (TIE_GAP), `buckles` [[x, y, z]] a strap's buckles;
@@ -467,8 +468,23 @@ def pieces_of(spec):
             if stand <= reach:
                 raise ValueError(f"a run held {stand} m off its wall must stand clear of it (its reach {reach:.3f} m)")
             for centre, way in along(laid, float(spec.get("brackets") or BRACKET_GAP)):
-                found += bracket(centre, way, spec["wall"], stand, reach)
+                found += bracket(centre, way, wall_way(spec["wall"], centre), stand, reach)
     return found, centrelines
+
+
+def wall_way(wall, centre):
+    """The way from a bracket at `centre` to its wall: `wall` itself ([x, y, z]), or for a round wall {"axis": [x, z],
+    "side": "out" | "in"} level from that upright axis, outward for a run inside a round wall (a capsule's lining)
+    and inward for one outside it (a silo's pipes)."""
+    if not isinstance(wall, dict):
+        return wall
+    if wall.get("side") not in ("out", "in"):
+        raise ValueError(f"a round wall's side is out or in, not {wall.get('side')!r}")
+    axis = np.asarray(wall["axis"], dtype=np.float64)
+    level = np.array([centre[0] - axis[0], 0.0, centre[2] - axis[1]])
+    if np.linalg.norm(level) < 1e-6:
+        raise ValueError("a run on a round wall cannot stand on its axis")
+    return unit(level) * (1.0 if wall["side"] == "out" else -1.0)
 
 
 def spots_of(centrelines, hang):
