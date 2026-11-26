@@ -20,8 +20,10 @@ import trimesh
 import ict
 
 BROW_LANDMARKS = {"right": [21, 20, 19, 18, 17], "left": [22, 23, 24, 25, 26]}  # head (by the nose) to tail
-BROW_HAIRS = 650  # a brow holds about 250 to 600 hairs
-BROW_HEIGHT = (0.011, 0.004)  # metres the brow's band spans at its head and its tail
+BROW_HAIRS = 450  # a brow holds about 250 to 600 hairs (650 drew the brows as dark blocks, round 1, 2026-11-26)
+BROW_HEIGHT = (0.011, 0.0025)  # metres the brow's band spans at its head and its tail (it tapers to a point)
+BROW_SOFT = 0.6  # the band's lower edge thins out over this share of its height: a soft edge, not a ruled line
+BROW_TAIL = (0.7, 0.75)  # from this share along, the hairs thin out, by up to the second share at the tail's end
 BROW_DROP = 0.7  # the band's middle this share of its height below the landmarks, which follow its upper part
 BROW_LENGTH = {"head": (0.004, 0.007), "body": (0.007, 0.010), "tail": (0.004, 0.007)}  # metres, by where it grows
 BROW_ROUND = 0.08  # the brow's head rounds off over this share of its length: its band and its hairs thin out
@@ -31,12 +33,12 @@ BROW_SPREAD = 8.0  # degrees of each hair's own turn
 BROW_POINTS = 7
 LIFT = 0.0006  # metres a brow hair lies off the skin once it has risen
 RISE = 0.0015  # metres along a brow hair over which it rises to LIFT
-BROW_RADIUS = (0.00006, 0.000012)  # a hair's radius at its root and tip (a brow hair is 0.08 to 0.15 mm thick)
-LASHES_A_CARD = {"upper": 40, "lower": 22}  # three cards a lid: about 120 upper lashes and 66 lower, as on a lid
+BROW_RADIUS = (0.000055, 0.00001)  # a hair's radius at its root and tip (a brow hair is 0.08 to 0.15 mm thick)
+LASHES_A_CARD = {"upper": 50, "lower": 25}  # three cards a lid: about 150 upper lashes and 75 lower, as on a lid
 LASH_LENGTH = {"upper": (0.008, 0.011), "lower": (0.005, 0.007)}  # metres
 LASH_CURL = {"upper": 0.35, "lower": 0.2}  # how far the tip rises off the root's line, as a share of the length
 LASH_POINTS = 7
-LASH_RADIUS = (0.00006, 0.00001)
+LASH_RADIUS = (0.00007, 0.00001)  # a lash 0.1 to 0.15 mm at its root (0.12 mm drew the lashes faint, round 1)
 ROOT_OFF = 0.0003  # metres: a root further from the skin than this has left it
 INSIDE = 0.00005  # metres: a strand point further than this behind the skin passes into it
 SEED = 226
@@ -70,6 +72,14 @@ def brow_angle(along, across, rng):
     return np.radians(angle - BROW_MEET * across + rng.normal(0.0, BROW_SPREAD, len(along)))
 
 
+def thinned(along, across):
+    """The share of hairs kept at each place in the band, as many a square metre as the head's in its middle: fewer
+    towards its lower edge (BROW_SOFT, a soft edge) and towards its tail's end (BROW_TAIL, a tapering tail)."""
+    lower = np.clip((across + 1.0) / (2.0 * BROW_SOFT), 0.0, 1.0)
+    tail = 1.0 - BROW_TAIL[1] * np.clip((along - BROW_TAIL[0]) / (1.0 - BROW_TAIL[0]), 0.0, 1.0)
+    return (0.25 + 0.75 * lower) * tail
+
+
 def brow_strands(mesh, offsets, line, up, rng):
     """One brow's strands on the skin `mesh` (its points' offsets per control `offsets`) along `line` (head to tail,
     metres), `up` the head's up: (counts, points, radius, shapes)."""
@@ -77,7 +87,7 @@ def brow_strands(mesh, offsets, line, up, rng):
     across = rng.uniform(-1.0, 1.0, len(along))
     rounded = np.sqrt(np.clip(along / BROW_ROUND, 0.25, 1.0))  # the head's band rounded, not cut square
     height = (BROW_HEIGHT[0] + (BROW_HEIGHT[1] - BROW_HEIGHT[0]) * along) * rounded
-    keep = rng.random(len(along)) < height / BROW_HEIGHT[0]  # as many hairs a square metre at the tail as the head
+    keep = rng.random(len(along)) < height / BROW_HEIGHT[0] * thinned(along, across)
     along, across, height = along[keep][:BROW_HAIRS], across[keep][:BROW_HAIRS], height[keep][:BROW_HAIRS]
     centre, outward = band_place(line, along)
     rough = centre + (across[:, None] / 2.0 - BROW_DROP) * height[:, None] * up

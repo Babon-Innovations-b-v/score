@@ -45,7 +45,9 @@ SQUARE = (1900, 625, 320)
 # Colour over more than this (the scan's light, the broad tone) is the finish's own, not the tile's: wide enough to keep
 # the blotches a few millimetres across that make skin read uneven (3 mm left only a speckle; the face read as wax).
 COLOUR_SIGMA_MM = 6.0
-HEIGHT_SIGMA_MM = 1.0  # relief: pores and fine creases are under a millimetre across
+# relief: pores and fine creases are a tenth to a half of a millimetre across; the scan's albedo taken as height
+# over 1 mm drew blobs a millimetre wide, a stucco over the whole skin (photoreal round 1, 2026-11-26)
+HEIGHT_SIGMA_MM = 0.45
 # The scan is a JPEG: its 8-pixel blocks' edges and its half-size, blocky colour would come up as a grid and blue
 # speckle once the broad tone is taken out, so the brightness is smoothed a little under a pore's size and the colour
 # (each channel over the brightness) over a JPEG's colour pixel.

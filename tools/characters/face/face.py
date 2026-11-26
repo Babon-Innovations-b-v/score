@@ -25,8 +25,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 SURFACES = {"skin": ["surface/face_skin_light"], "mouth": ["surface/face_mouth_inside"],
             "teeth": ["surface/simready_m_opaque_ceramic_glossy_white_a01_ab8f1883"],
             "eyes": ["surface/face_sclera", "surface/face_iris_brown", "surface/face_pupil"],
-            "cornea": ["surface/face_cornea"],
-            "lashes": ["surface/face_lash_dark"], "brows": ["surface/face_lash_dark"],
+            "cornea": ["surface/face_cornea", "surface/face_eye_film"],
+            "lashes": ["surface/face_lash_dark"], "brows": ["surface/face_brow_brown"],
             "tears": ["surface/face_tear_film"]}
 # The model's pieces drawn in each piece of the face besides the skin's own (fit.skin_triangles: the face and the
 # ears' backs); the eye blend and occlusion meshes are shading helpers for ICT's own renderer, not surfaces, and are
@@ -40,30 +40,51 @@ IRIS_UV = 0.125
 PUPIL_UV = 0.048
 # The cornea (Gullstrand's schematic eye): its front a sphere of 7.7 mm radius on an eye of about 12 mm, so a dome
 # CORNEA_OF_EYE of the eye's radius rising over the iris and meeting the eye at its edge (the limbus); the rest of the
-# eye's front under a tear film TEAR_FILM_M thick. The shell covers the eye out to EYE_FRONT_UV, past what the lids show.
+# eye's front under a tear film TEAR_FILM_M thick. The shell covers the eye out to EYE_FRONT_UV, past what the lids show;
+# its triangles past LIMBUS_UV wear the tear film's finish (glossy, bending no light), the rest the cornea's glass.
 CORNEA_OF_EYE = 7.7 / 12.0
 TEAR_FILM_M = 0.0001
 EYE_FRONT_UV = 0.3
+LIMBUS_UV = 0.135
 # The skin's tones by region, read on ICT's neutral face (centimetres, y up, the face along +z) round its 68 landmarks
-# (iBUG order): each a centre (a landmark or a mean of them, then moved), a spread (x, y) and a strength, its channel 0
-# the redder flush, 1 the bluish thin skin, 2 the lips. Where they sit is anatomy: the flush on the cheeks' apples,
-# the nose's tip and wings, the chin and the ears; the blue in the hollow under the lower lids; the lips inside their
-# outer line. Their colours and shares are the skin's library record's (`regions`), not here.
+# (iBUG order): each a centre (a landmark or a mean of them, then moved), a spread (x, y) and a strength. Where they
+# sit is anatomy; their colours, gloss and depths are the skin's library record's (`regions`), not here. The channels
+# (TONES, in order): the redder flush on the cheeks' apples, the nose's tip and wings, the chin and the ears; the bluish
+# thin skin in the hollow under the lower lids; the lips inside their outer line; the lids' own darker, browner skin
+# (the upper lid to its crease and the inner corner by the nose's root); the T-zone's oily sheen (the forehead's middle,
+# the nose's ridge and tip, the chin); the relief's change on the face from the scanned forehead's (signed: the nose's
+# and the cheeks' larger pores deeper, the lids', the under-eyes' and the lips' finer skin shallower); the wet skin
+# (each lid's waterline within WET_CM of its eyeball and the conjunctiva lining the socket, the caruncle at the inner
+# corner); and the face itself (1 on the face's skin, 0 on the body's, whose relief is the record's `body` share).
+TONES = ("flush", "thin", "lips", "lids", "sheen", "relief", "wet", "face")
 FLUSH = [((40, 41), (0.3, -2.2), (1.6, 1.4), 0.8), ((46, 47), (-0.3, -2.2), (1.6, 1.4), 0.8),
-         ((30,), (0.0, 0.0), (0.9, 0.8), 0.9), ((31,), (0.0, 0.0), (0.6, 0.6), 0.7), ((35,), (0.0, 0.0), (0.6, 0.6), 0.7),
+         ((30,), (0.0, 0.0), (0.9, 0.8), 0.9), ((31,), (0.0, 0.0), (0.6, 0.6), 0.8), ((35,), (0.0, 0.0), (0.6, 0.6), 0.8),
          ((8,), (0.0, 0.5), (1.4, 1.0), 0.35)]
 UNDER_EYE = [((39, 40, 41), (0.0, -0.55), (1.0, 0.4), 0.9), ((42, 46, 47), (0.0, -0.55), (1.0, 0.4), 0.9)]
+LIDS = [((37, 38), (0.0, 0.45), (1.3, 0.5), 0.9), ((43, 44), (0.0, 0.45), (1.3, 0.5), 0.9),
+        ((39,), (-0.35, 0.35), (0.45, 0.45), 0.7), ((42,), (0.35, 0.35), (0.45, 0.45), 0.7)]
+SHEEN = [((19, 24), (0.0, 2.6), (2.4, 1.4), 0.9), ((27, 28), (0.0, 0.0), (0.55, 1.2), 0.8),
+         ((29, 30), (0.0, 0.0), (0.6, 0.9), 1.0), ((8,), (0.0, 0.9), (1.1, 0.7), 0.6)]
+COARSE = [((30, 31, 35), (0.0, 0.2), (1.2, 1.1), 0.6), ((40, 41), (0.4, -2.4), (1.8, 1.5), 0.2),
+          ((46, 47), (-0.4, -2.4), (1.8, 1.5), 0.2)]
+FINE = [((37, 38, 40, 41), (0.0, 0.0), (1.4, 1.0), 0.7), ((43, 44, 46, 47), (0.0, 0.0), (1.4, 1.0), 0.7)]
+LIPS_FINE = 0.85  # the lips' relief taken down by this share inside their line
+CARUNCLE = [((39,), (0.12, 0.0), (0.16, 0.14), 1.0), ((42,), (-0.12, 0.0), (0.16, 0.14), 1.0)]
+WET_CM = (0.1, 0.2)  # a lid's skin this near its eyeball is wet, fading to dry by the second
 EAR_SIDE_CM = 7.0  # a face point further out to the side than this, and over the jaw's angle, is an ear's,
 EAR_FADE_CM = 1.0  # its flush fading in over this much before it
 # and under the ear's top, this much over the brows' (the flush fading out over EAR_FADE_CM over it): read as all the
 # side of the head over the jaw's angle, the ears' flush reached up the temples onto the scalp under the hair (#227).
 EAR_TOP_OVER_BROWS_CM = 0.5
-LIP_EDGE_CM = 0.15  # the lips' tone fades in over this inside their outer line
+LIP_EDGE_CM = 0.06  # the lips' tone fades in over this inside their outer line: a defined vermilion border
 SHOTS = [{"name": "neutral", "weights": {}},
          {"name": "smile", "weights": {"lipCornerPuller_L": 1.0, "lipCornerPuller_R": 1.0, "cheekRaiser_L": 0.6,
                                        "cheekRaiser_R": 0.6}},
          {"name": "blink", "weights": {"eyesClosed_L": 1.0, "eyesClosed_R": 1.0}},
          {"name": "jaw_open", "weights": {"jawDrop": 0.8}}]
+# The stills' light: the score_lib sky the whole person is photographed under (../whole/__main__.py's SETTING), so a
+# face is judged in the light it is seen in (a studio light hid the orange lids and nostrils round 1's sky showed).
+SKY = "polyhaven_cloudy_vondelpark"
 CARD_GB = 3  # the stills' share of the card (a 26k-point face at 1024 x 1280 holds under 2 GB)
 LENS_DISTANCE = 0.75  # metres from the face: a head and neck fill an 85 mm portrait
 
@@ -131,20 +152,44 @@ def lips(points, landmarks):
     return inside * np.clip(edge / LIP_EDGE_CM, 0.0, 1.0)
 
 
+def eyeball_gap(model, points):
+    """Each point's distance (cm) off the nearer eyeball's surface on ICT's neutral face (each eyeball a sphere: its
+    points' mean and median reach)."""
+    gaps = []
+    for eye in ("left", "right"):
+        first, last = ict.PIECES[f"eyeball_{eye}"]
+        ball = model["neutral"][first:last + 1]
+        centre = ball.mean(axis=0)
+        gaps.append(np.linalg.norm(points - centre, axis=1) - np.median(np.linalg.norm(ball - centre, axis=1)))
+    return np.min(gaps, axis=0)
+
+
 def tones(model):
-    """Each model point's skin tones (flush, thin blue, lips; 0 to 1) from its place on ICT's neutral face; zero off
-    the face's skin."""
+    """Each model point's skin tones (TONES, each 0 to 1 but the signed relief) from its place on ICT's neutral face;
+    zero off the face's skin. The eye sockets' lining is wet and smooth."""
     neutral = model["neutral"]
     landmarks = neutral[model["landmarks"]]
-    found = np.zeros((len(neutral), 3))
+    found = np.zeros((len(neutral), len(TONES)))
     skin = np.unique(fit.skin_triangles(model))
     points = neutral[skin]
     ear = np.clip((np.abs(points[:, 0]) - EAR_SIDE_CM) / EAR_FADE_CM + 1.0, 0.0, 1.0) * (points[:, 1] > landmarks[3, 1])
     ear_top = landmarks[[19, 24], 1].max() + EAR_TOP_OVER_BROWS_CM
     ear = ear * np.clip((ear_top - points[:, 1]) / EAR_FADE_CM + 1.0, 0.0, 1.0)
-    found[skin, 0] = np.maximum(blobs(points, landmarks, FLUSH), 0.7 * ear)
-    found[skin, 1] = blobs(points, landmarks, UNDER_EYE)
-    found[skin, 2] = lips(points, landmarks)
+    lip = lips(points, landmarks)
+    wet = np.clip((WET_CM[1] - eyeball_gap(model, points)) / (WET_CM[1] - WET_CM[0]), 0.0, 1.0)
+    found[skin, TONES.index("flush")] = np.maximum(blobs(points, landmarks, FLUSH), 0.7 * ear)
+    found[skin, TONES.index("thin")] = blobs(points, landmarks, UNDER_EYE)
+    found[skin, TONES.index("lips")] = lip
+    found[skin, TONES.index("lids")] = blobs(points, landmarks, LIDS) * (1.0 - wet)
+    found[skin, TONES.index("sheen")] = blobs(points, landmarks, SHEEN)
+    found[skin, TONES.index("relief")] = (blobs(points, landmarks, COARSE) - blobs(points, landmarks, FINE)
+                                         - LIPS_FINE * lip - wet)
+    found[skin, TONES.index("wet")] = np.maximum(wet, blobs(points, landmarks, CARUNCLE))
+    found[skin, TONES.index("face")] = 1.0
+    sockets = np.concatenate([np.arange(ict.PIECES[name][0], ict.PIECES[name][1] + 1) for name in MODEL_PIECES["skin"]])
+    found[sockets, TONES.index("wet")] = 1.0
+    found[sockets, TONES.index("face")] = 1.0
+    found[sockets, TONES.index("relief")] = -1.0
     return found
 
 
@@ -167,8 +212,9 @@ def dome(direction, axis, radius, limbus):
 
 
 def cornea(eyes):
-    """The clear shell over each eye's front (out to EYE_FRONT_UV): the cornea's dome over the iris and a tear film
-    over the white, each point over its eye's point and moving with it; a piece as the eyes are."""
+    """The clear shell over each eye's front (out to EYE_FRONT_UV): the cornea's dome over the iris (finish 0) and a
+    tear film over the white (finish 1, past LIMBUS_UV), each point over its eye's point and moving with it; a piece as
+    the eyes are."""
     out = np.linalg.norm(corner_values(eyes["triangles"], eyes["uv"], len(eyes["points"])) - 0.5, axis=1)
     points = eyes["points"].copy()
     side = points[:, 0] > np.median(points[:, 0])
@@ -186,7 +232,7 @@ def cornea(eyes):
     triangles = eyes["triangles"][front]
     used, renumbered = np.unique(triangles, return_inverse=True)
     return {"points": points[used], "triangles": renumbered.reshape(triangles.shape),
-            "finish": np.zeros(len(triangles), np.int64), "shapes": eyes["shapes"][:, used]}
+            "finish": (out[triangles].mean(axis=1) > LIMBUS_UV).astype(np.int64), "shapes": eyes["shapes"][:, used]}
 
 
 def eye_finish(uv):
@@ -207,7 +253,7 @@ def pieces(body, model, laid, matrix):
     joined_shapes = np.concatenate([body["offsets"].astype(np.float64), offsets], axis=1)
     skin = fit.joined_skin(body["points"], laid["kept"], laid["strip"], laid["points"], face_triangles, centre)
     points, triangles, shapes = compact(joined_points, skin, joined_shapes)
-    joined_tones = np.vstack([np.zeros((len(body["points"]), 3)), tones(model)])
+    joined_tones = np.vstack([np.zeros((len(body["points"]), len(TONES))), tones(model)])
     made["skin"] = {"points": points, "triangles": triangles, "finish": np.zeros(len(triangles), np.int64),
                     "shapes": shapes, "tones": joined_tones[np.unique(skin)]}
     brow_skin = trimesh.Trimesh(laid["points"], fit.outward(fit.piece_triangles(model, "face"), laid["points"], centre),
@@ -233,7 +279,7 @@ def face_file(made, body, out):
     """Write the pieces, their surfaces, the shots and the camera's aim as `blender_face.py` reads them."""
     eyes = (body["joint_LeftEye"] + body["joint_RightEye"]) / 2.0
     arrays = {"pieces": np.array(list(made)), "shape_names": np.array(expressions.MHR_EXPRESSIONS),
-              "shots": np.array(json.dumps(SHOTS)), "aim": eyes + [0.0, -0.04, 0.0],
+              "shots": np.array(json.dumps(SHOTS)), "aim": eyes + [0.0, -0.04, 0.0], "sky": np.array(SKY),
               "eye_distance": np.array(LENS_DISTANCE)}
     for name, piece in made.items():
         arrays[f"{name}.surfaces"] = np.array([address.split("/", 1)[1] for address in SURFACES[name]])
@@ -249,7 +295,7 @@ def fetched_surfaces(folder):
     """Every surface the face wears copied from score_lib under `folder`'s assets (place_build's fetch)."""
     sys.path.insert(0, str(REPO))
     from score.stages import place_build
-    for address in sorted({address for addresses in SURFACES.values() for address in addresses}):
+    for address in sorted({address for addresses in SURFACES.values() for address in addresses}) + [f"light/{SKY}"]:
         place_build.fetch(folder, address)
     return folder / "assets"
 

@@ -26,6 +26,19 @@ IDENTITY_PULL = 0.3
 # ICT's identity modes come scaled to their spread (each smaller than the one before), so a weight is in standard
 # deviations of its population: a face whose largest weight is past this is a caricature, not a person, and is refused.
 IDENTITY_LIMIT = 3.0
+# An adult's face proportions (Farkas's anthropometry, read on ICT's 68 landmarks): the face's height from the nose's
+# root to the chin (27 to 8) at least FACE_INDEX of its width at the cheeks (1 to 15), the jaw's width at its angles
+# (4 to 12) at most JAW_OF_FACE of it. ICT's mean face stands at 0.78 and 0.79, woman_stair's fit at 0.80 and 0.78:
+# short and broad in the jaw, read as a child's or a man's face on an adult woman (photoreal round 1, 2026-11-26), so
+# a face outside them is shaped towards them through its own identity modes (`adult_shaped`), the population check
+# still on it. Held still near the border, the jaw's angles barely move (woman_stair's stays 0.78: the jaw there is the
+# body's); the face's length reaches 0.85.
+FACE_INDEX = 0.85
+JAW_OF_FACE = 0.74
+ADULT_ROUNDS = 10
+ADULT_FADE_CM = 4.0  # the shaping fades out over this under the chin and in from the face's border (model cm)
+ADULT_HOLD = 30.0  # a point at the border weighs this much more than one inside in holding still (moved 5 mm by the
+# modes' spread, the join under the jaw folded: 3 strip triangles turned 176 degrees, 2026-11-26)
 EYE_WEIGHT = 40.0  # each eye centre's weight against one face point's, so the eyes sit in the body's eye joints
 TRIM_METRES = 0.012  # a face point further than this from the body's skin is left out of a round's solve
 KEEP_SHARE = 0.9  # and only the nearest share of the rest are taken, so lids and lips that differ do not pull
@@ -155,6 +168,53 @@ def fit_pose_and_identity(model, body):
                                                                                       len(eye_row))
                                                                               for eye_row in eye_rows]))
     return scale, turn, shift, coefficients
+
+
+def proportions(points, landmarks):
+    """The face's height over its width (FACE_INDEX's) and its jaw's width over the face's (JAW_OF_FACE's)."""
+    marks = points[landmarks]
+    width = np.linalg.norm(marks[1] - marks[15])
+    return {"face_index": float(np.linalg.norm(marks[27] - marks[8]) / width),
+            "jaw_of_face": float(np.linalg.norm(marks[4] - marks[12]) / width)}
+
+
+def adult_moves(points, landmarks):
+    """Each point's move (model units) towards an adult's proportions: the lower face (fading in from the nose's base
+    to the chin, and out again over ADULT_FADE_CM under the chin, so the neck keeps its girth) narrowed towards the
+    middle until its jaw is JAW_OF_FACE of the face, and lowered until the face is FACE_INDEX as high as wide; none
+    when it already is."""
+    marks = points[landmarks]
+    measured = proportions(points, landmarks)
+    width = np.linalg.norm(marks[1] - marks[15])
+    lower = (smoothstep((marks[33, 1] - points[:, 1]) / (marks[33, 1] - marks[8, 1]))
+             * smoothstep(1.0 - (marks[8, 1] - points[:, 1]) / ADULT_FADE_CM))
+    narrower = max(0.0, 1.0 - JAW_OF_FACE / measured["jaw_of_face"])
+    longer = max(0.0, (FACE_INDEX - measured["face_index"]) * width)
+    middle = marks[[27, 30, 8], 0].mean()
+    moves = np.zeros_like(points)
+    moves[:, 0] = -(points[:, 0] - middle) * narrower * lower
+    moves[:, 1] = -longer * lower
+    return moves
+
+
+def adult_shaped(model, coefficients):
+    """The identity weights moved, through ICT's own identity modes, towards an adult's proportions (adult_moves on
+    the face's skin, held still within ADULT_FADE_CM of its border, where it is joined to the body; the pull as the
+    fit's, so the face stays one of the population)."""
+    triangles = skin_triangles(model)
+    rows = np.unique(triangles)
+    border = model["neutral"][border_loop(triangles)]
+    held = smoothstep(cKDTree(border).query(model["neutral"][rows])[0] / ADULT_FADE_CM)
+    marks = np.searchsorted(rows, model["landmarks"])
+    root = np.repeat(np.sqrt(1.0 + ADULT_HOLD * (1.0 - held)), 3)
+    modes = model["identities"][:, rows, :].astype(np.float64).reshape(len(model["identities"]), -1).T * root[:, None]
+    normal = modes.T @ modes
+    pull = IDENTITY_PULL * np.trace(normal) / len(normal)
+    for _ in range(ADULT_ROUNDS):
+        moves = adult_moves(shaped(model, coefficients)[rows], marks) * held[:, None]
+        coefficients = coefficients + np.linalg.solve(normal + pull * np.eye(len(normal)),
+                                                      modes.T @ (moves.reshape(-1) * root))
+    return coefficients
 
 
 def within_population(coefficients):
@@ -691,7 +751,7 @@ def fitted(body, model):
     squashed), the neck's (neck_normal: refused out of the normal range for the height) and the join's largest turn
     (seam_smooth: refused on a ridge or a fold)."""
     scale, turn, shift, coefficients = fit_pose_and_identity(model, body)
-    within_population(coefficients)
+    coefficients = within_population(adult_shaped(model, coefficients))
     points = scale * shaped(model, coefficients) @ turn.T + shift
     face_triangles = skin_triangles(model)
     loop = border_loop(face_triangles)

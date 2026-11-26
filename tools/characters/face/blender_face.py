@@ -31,9 +31,16 @@ STRAND_ROUGHNESS_SPREAD = 0.25
 # The hand's close-up: the hand's points within this of the skin's furthest point, the camera this far off and lifted
 # this much over level, so the back of the hand, its knuckles and nails fill the frame.
 HAND_REACH_M = 0.12
+# The eye's close-up: the subject's left eye from this far, turned this much towards its outer corner, so the
+# waterline, the caruncle, both lids' lashes and the white's vessels fill the frame.
+EYE_CLOSE_M = 0.16
+EYE_TURN_DEGREES = 15.0
 HAND_DISTANCE_M = 0.9
 HAND_LIFT_DEGREES = 35.0
 SCAN_BOX_BLEND = 0.3  # how far the scan's three box projections fade into each other where the skin turns
+# The skin's region channels, in face.TONES's order (the test holds the two the same), three to a colour attribute:
+# `tones` the first three, `tones1` the next, and so on.
+TONES = ("flush", "thin", "lips", "lids", "sheen", "relief", "wet", "face")
 
 
 def arguments():
@@ -108,32 +115,48 @@ def times(tree, first, second):
     return node.outputs[0]
 
 
-def regioned(material, regions):
-    """The skin's regions (the mesh's `tones` attribute: 0 the flush, 1 the thin skin, 2 the lips; zero on a mesh
-    without it) toning the base colour towards each region's colour by its share, veins in the thin skin, the lips'
-    gloss raised."""
-    tree = material.node_tree
-    principled = principled_of(material)
+def tone(tree, name):
+    """The skin's region channel `name` (TONES) as a socket: its colour attribute's component (zero on a mesh without
+    it)."""
+    index = TONES.index(name)
     attribute = tree.nodes.new("ShaderNodeAttribute")
-    attribute.attribute_name = "tones"
+    attribute.attribute_name = "tones" + (str(index // 3) if index >= 3 else "")
     channels = tree.nodes.new("ShaderNodeSeparateColor")
     tree.links.new(attribute.outputs["Color"], channels.inputs["Color"])
-    flush, thin, lip = channels.outputs[0], channels.outputs[1], channels.outputs[2]
-    for name, channel in (("flush", flush), ("thin", thin)):
-        toned(tree, principled.inputs["Base Color"], channel, regions[name]["share"], regions[name]["towards"])
+    return channels.outputs[index % 3]
+
+
+def regioned(material, regions):
+    """The skin's regions (TONES) toning the base colour towards each region's colour by its share (the flush, the
+    thin skin with its veins, the lids, the wet skin of the waterline and the caruncle, the lips), and the gloss moved
+    by the regions that carry a `roughness` change (the lips', the wet skin's, the T-zone's sheen)."""
+    tree = material.node_tree
+    principled = principled_of(material)
+    for name in ("flush", "thin", "lids"):
+        if name in regions:
+            toned(tree, principled.inputs["Base Color"], tone(tree, name), regions[name]["share"],
+                  regions[name]["towards"])
     veins = regions["veins"]
     lines = vein_lines(tree, veins["spacing_m"], veins["width"], tree.nodes.new("ShaderNodeTexCoord").outputs["Object"])
-    toned(tree, principled.inputs["Base Color"], times(tree, lines, thin), veins["share"], veins["towards"])
-    toned(tree, principled.inputs["Base Color"], lip, regions["lips"]["share"], regions["lips"]["towards"])
+    toned(tree, principled.inputs["Base Color"], times(tree, lines, tone(tree, "thin")), veins["share"],
+          veins["towards"])
+    for name in ("lips", "wet"):
+        if name in regions:
+            toned(tree, principled.inputs["Base Color"], tone(tree, name), regions[name]["share"],
+                  regions[name]["towards"])
     rough = principled.inputs["Roughness"]
-    glossier = tree.nodes.new("ShaderNodeMath")
-    glossier.operation = "ADD"
-    if rough.is_linked:
-        tree.links.new(rough.links[0].from_socket, glossier.inputs[0])
-    else:
-        glossier.inputs[0].default_value = rough.default_value
-    tree.links.new(scaled_by(tree, lip, regions["lips"]["roughness"]), glossier.inputs[1])
-    tree.links.new(glossier.outputs[0], rough)
+    for name in ("lips", "wet", "sheen"):
+        if "roughness" not in regions.get(name, {}):
+            continue
+        glossier = tree.nodes.new("ShaderNodeMath")
+        glossier.operation = "ADD"
+        glossier.use_clamp = True
+        if rough.is_linked:
+            tree.links.new(rough.links[0].from_socket, glossier.inputs[0])
+        else:
+            glossier.inputs[0].default_value = rough.default_value
+        tree.links.new(scaled_by(tree, tone(tree, name), regions[name]["roughness"]), glossier.inputs[1])
+        tree.links.new(glossier.outputs[0], rough)
 
 
 def vein_lines(tree, spacing, width, vector):
@@ -219,12 +242,13 @@ def fibred(material, fibres):
 
 def creviced(material, crevices):
     """Folds and holes darker and redder: the colour toned towards `towards` by how much other surfaces close round a
-    point within `reach_m` (Cycles' ambient occlusion, every object's)."""
+    point within `reach_m` (Cycles' ambient occlusion: the object's own surfaces when the record says `own`, else
+    every object's; the skin's own, so the hair, brows and lashes over it are no crevice)."""
     tree = material.node_tree
     principled = principled_of(material)
     closed = tree.nodes.new("ShaderNodeAmbientOcclusion")
     closed.samples = 16
-    closed.only_local = False
+    closed.only_local = bool(crevices.get("own", False))
     closed.inputs["Distance"].default_value = crevices["reach_m"]
     shut = tree.nodes.new("ShaderNodeMath")
     shut.operation = "SUBTRACT"
@@ -258,9 +282,28 @@ def clear(material, transmission):
     see_through = tree.nodes.new("ShaderNodeBsdfTransparent")
     mix = tree.nodes.new("ShaderNodeMixShader")
     tree.links.new(path.outputs["Is Shadow Ray"], mix.inputs["Fac"])
-    tree.links.new(principled.outputs["BSDF"], mix.inputs[1])
+    surface = principled.outputs["BSDF"]
+    if isinstance(transmission, dict) and transmission.get("thin"):
+        surface = thin_film(tree, principled)
+    tree.links.new(surface, mix.inputs[1])
     tree.links.new(see_through.outputs["BSDF"], mix.inputs[2])
     tree.links.new(mix.outputs["Shader"], output.inputs["Surface"])
+
+
+def thin_film(tree, principled):
+    """A film too thin to bend light (the tear film over the eye's white): its gloss by Fresnel's share at its index,
+    the rest passing straight through. Drawn as glass, the shell's steep edge at the limbus bent the white into bright
+    streaks beside the iris (a CG streak, 2026-11-26)."""
+    gloss = tree.nodes.new("ShaderNodeBsdfGlossy")
+    gloss.inputs["Roughness"].default_value = principled.inputs["Roughness"].default_value
+    through = tree.nodes.new("ShaderNodeBsdfTransparent")
+    share = tree.nodes.new("ShaderNodeFresnel")
+    share.inputs["IOR"].default_value = principled.inputs["IOR"].default_value
+    film = tree.nodes.new("ShaderNodeMixShader")
+    tree.links.new(share.outputs["Fac"], film.inputs["Fac"])
+    tree.links.new(through.outputs["BSDF"], film.inputs[1])
+    tree.links.new(gloss.outputs["BSDF"], film.inputs[2])
+    return film.outputs["Shader"]
 
 
 def grain_texture(tree, spacing, coordinates):
@@ -339,7 +382,7 @@ def scanned(tree, principled, scan, folder, coordinates):
     height = scan_image(tree, folder / scan["height"], coordinates, scan["tile_m"])
     bump = tree.nodes.new("ShaderNodeBump")
     bump.inputs["Distance"].default_value = scan["depth_m"]
-    tree.links.new(height.outputs["Color"], bump.inputs["Height"])
+    tree.links.new(relief_scaled(tree, height.outputs["Color"], scan.get("body", 1.0)), bump.inputs["Height"])
     tree.links.new(bump.outputs["Normal"], principled.inputs["Normal"])
     tree.links.new(bump.outputs["Normal"], principled.inputs["Coat Normal"])  # the oil follows the skin's relief
     spread = tree.nodes.new("ShaderNodeMapRange")
@@ -350,9 +393,56 @@ def scanned(tree, principled, scan, folder, coordinates):
     tree.links.new(spread.outputs["Result"], principled.inputs["Roughness"])
 
 
+def relief_scaled(tree, height_socket, body):
+    """The scan's height scaled by the skin's relief where it is: `body` of the scanned forehead's on the body, the
+    forehead's on the face moved by its `relief` channel (the nose's pores deeper, the lids' and lips' skin finer;
+    never below none). A mesh without the channels is all body."""
+    face_part = scaled_by(tree, tone(tree, "face"), 1.0 - body)
+    factor = tree.nodes.new("ShaderNodeMath")
+    factor.operation = "ADD"
+    tree.links.new(face_part, factor.inputs[0])
+    tree.links.new(tone(tree, "relief"), factor.inputs[1])
+    total = tree.nodes.new("ShaderNodeMath")
+    total.operation = "ADD"
+    total.inputs[1].default_value = body
+    tree.links.new(factor.outputs[0], total.inputs[0])
+    floor = tree.nodes.new("ShaderNodeMath")
+    floor.operation = "MAXIMUM"
+    floor.inputs[1].default_value = 0.0
+    tree.links.new(total.outputs[0], floor.inputs[0])
+    return times(tree, height_socket, floor.outputs[0])
+
+
+def spotted(tree, principled, spots, coordinates):
+    """Freckles and moles: a Voronoi's cells `spacing_m` across on the object, a round spot `radius` of a cell at the
+    centre of `density` of them, toning the colour towards `towards` by `share`; `where` a region channel (TONES) the
+    spots keep to, else everywhere."""
+    for row in spots:
+        cells = tree.nodes.new("ShaderNodeTexVoronoi")
+        cells.inputs["Scale"].default_value = 1.0 / row["spacing_m"]
+        cells.inputs["Randomness"].default_value = 0.9
+        tree.links.new(coordinates.outputs["Object"], cells.inputs["Vector"])
+        round_spot = tree.nodes.new("ShaderNodeMapRange")
+        round_spot.inputs["From Min"].default_value = row["radius"] * 0.6
+        round_spot.inputs["From Max"].default_value = row["radius"]
+        round_spot.inputs["To Min"].default_value, round_spot.inputs["To Max"].default_value = 1.0, 0.0
+        tree.links.new(cells.outputs["Distance"], round_spot.inputs["Value"])
+        chance = tree.nodes.new("ShaderNodeSeparateColor")
+        tree.links.new(cells.outputs["Color"], chance.inputs["Color"])
+        chosen = tree.nodes.new("ShaderNodeMath")
+        chosen.operation = "LESS_THAN"
+        chosen.inputs[1].default_value = row["density"]
+        tree.links.new(chance.outputs[0], chosen.inputs[0])
+        spot = times(tree, round_spot.outputs["Result"], chosen.outputs[0])
+        if row.get("where"):
+            spot = times(tree, spot, tone(tree, row["where"]))
+        toned(tree, principled.inputs["Base Color"], spot, row["share"], row["towards"])
+
+
 def grained(material, detail, folder):
     """The record's grain on the imported material, on the object's own coordinates: the photographed skin's tiles
-    (`scan`, read from the entry's `folder`), and blotches wider than the scan's tile toning the base colour."""
+    (`scan`, read from the entry's `folder`), blotches wider than the scan's tile toning the base colour, and the
+    freckles and moles (`spots`)."""
     tree = material.node_tree
     principled = principled_of(material)
     coordinates = tree.nodes.new("ShaderNodeTexCoord")
@@ -363,6 +453,7 @@ def grained(material, detail, folder):
     ramp.inputs["From Min"].default_value, ramp.inputs["From Max"].default_value = (0.45, 0.75)
     tree.links.new(texture.outputs["Fac"], ramp.inputs["Value"])
     toned(tree, principled.inputs["Base Color"], ramp.outputs["Result"], mottle["share"], mottle["towards"])
+    spotted(tree, principled, detail.get("spots", []), coordinates)
 
 
 def z_up(points):
@@ -384,10 +475,15 @@ def piece_object(face, piece, library, shape_names):
     if f"{piece}.uv" in face:
         layer = mesh.uv_layers.new(name="st")
         layer.data.foreach_set("uv", face[f"{piece}.uv"].reshape(-1).astype(np.float32))
-    if f"{piece}.tones" in face:  # the skin's regions (face.tones), read by the skin's `regions`
-        tones = mesh.color_attributes.new(name="tones", type="FLOAT_COLOR", domain="POINT")
-        rgba = np.concatenate([face[f"{piece}.tones"], np.ones((len(points), 1))], axis=1)
-        tones.data.foreach_set("color", rgba.reshape(-1).astype(np.float32))
+    if f"{piece}.tones" in face:  # the skin's regions (face.tones, TONES), three to an attribute
+        values = np.asarray(face[f"{piece}.tones"], np.float64)
+        for first in range(0, values.shape[1], 3):
+            three = np.zeros((len(points), 4))
+            three[:, :min(3, values.shape[1] - first)] = values[:, first:first + 3]
+            three[:, 3] = 1.0
+            layer = mesh.color_attributes.new(name="tones" + (str(first // 3) if first else ""), type="FLOAT_COLOR",
+                                              domain="POINT")
+            layer.data.foreach_set("color", three.reshape(-1).astype(np.float32))
     mesh.update()
     item = bpy.data.objects.new(piece, mesh)
     bpy.context.scene.collection.objects.link(item)
@@ -576,17 +672,40 @@ def renderer():
     scene.view_settings.view_transform = "AgX"
 
 
+def eye_aim(face):
+    """The middle of the subject's left eye (the eyes piece's points on the +x side), in Blender's frame."""
+    points = z_up(face["eyes.points"])
+    return Vector(points[points[:, 0] > np.median(points[:, 0])].mean(axis=0).tolist())
+
+
+def lit(face, library, aim, distance):
+    """The face's light: the library sky the whole person is photographed under (`sky`, a score_lib light entry; the
+    whole route's own place, ground and incident meter, so a face check sees the light the person is judged in),
+    else the plain portrait light; the scene's exposure."""
+    scene = bpy.context.scene
+    renderer()
+    if "sky" not in face:
+        lights(aim, distance)
+        return
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "whole"))
+    import render as whole_render
+    points = z_up(face["skin.points"])
+    middle = Vector((float(points[:, 0].mean()), float(points[:, 1].mean()), 0.0))
+    scene.view_settings.exposure = whole_render.place(library, middle, {"sky": str(face["sky"])})
+    scene.view_settings.look = whole_render.LOOK
+
+
 def main(face_path, library, out):
-    """Draw every shot from every view into `out` as <shot>-<view>.png, and the hand at rest as hand.png."""
+    """Draw every shot from every view into `out` as <shot>-<view>.png, the eye at rest close up as eye.png and the
+    hand at rest as hand.png."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     face = dict(np.load(face_path, allow_pickle=False))
     shape_names = [str(name) for name in face.get("shape_names", [])]
     items = [strands_object(face, str(piece), library) if f"{piece}.counts" in face else
              piece_object(face, str(piece), library, shape_names) for piece in face["pieces"]]
     aim, distance = Vector(z_up(face["aim"]).tolist()), float(face["eye_distance"])
-    lights(aim, distance)
     look = camera(aim, distance)
-    renderer()
+    lit(face, library, aim, distance)
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)
     for shot in json.loads(str(face["shots"])):
         for item in items:
@@ -600,6 +719,12 @@ def main(face_path, library, out):
             bpy.context.scene.render.filepath = str(pathlib.Path(out) / f"{shot['name']}-{view}.png")
             bpy.ops.render.render(write_still=True)
             print(f"drew {shot['name']}-{view}")
+        if shot["name"] == "neutral" and "eyes.points" in face:  # the eye close up, at rest
+            camera(eye_aim(face), EYE_CLOSE_M)(EYE_TURN_DEGREES)
+            bpy.context.scene.render.filepath = str(pathlib.Path(out) / "eye.png")
+            bpy.ops.render.render(write_still=True)
+            print("drew eye")
+            look = camera(aim, distance)
     if "skin.points" in face:  # the skin's look on the body: one hand, at rest
         hand_camera(hand_aim(face))
         bpy.context.scene.render.filepath = str(pathlib.Path(out) / "hand.png")

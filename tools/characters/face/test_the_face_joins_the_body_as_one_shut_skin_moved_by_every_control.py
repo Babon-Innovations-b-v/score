@@ -14,9 +14,13 @@ turns with its card (strands.lash_frame, strands.lash_line), and
 MHR's 72 controls each move the face, through ICT expressions or the body's own offsets, a name ICT lacks refused
 (expressions.mapping), an identity past three standard deviations refused as a caricature (fit.within_population),
 the cornea rises over the iris to Gullstrand's height and meets the eye at the iris's edge (face.dome), the
-photographed skin's tile repeats with no seam (skin_scan.periodic), and the scanned skin finish is listed with the
+photographed skin's tile repeats with no seam (skin_scan.periodic), the scanned skin finish is listed with the
 scan's tiles as its files, the scan named as carried and its CC BY 3.0 licence block with its credit
-(finishes.written).
+(finishes.written), a short, broad-jawed face is moved towards an adult's proportions and an adult's is not
+(fit.adult_moves), the skin's region channels are one order where marked and drawn (face.TONES, blender_face.TONES),
+a lid's skin by its eyeball is wet (face.eyeball_gap), a brow thins at its lower edge and tail (strands.thinned), the
+shell over the eye is glass over the iris and a thin film over the white (face.cornea), and the skin's crevices are
+its own (finishes' `own`).
 
 Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it (one
 with a bump for an ear); a strip standing off a sphere for an ear; one card triangle for a lash; a cylinder for a
@@ -56,6 +60,15 @@ Breaks that turn it red (each applied once and seen red, 2026-11-24):
   seen red 2026-11-25).
 - the skin's tile: periodic's `return values - ...` made `return values` (the tile's edges jump by the slope; seen
   red 2026-11-26).
+- the adult's proportions: adult_moves' `longer = max(0.0, ...)` made the bare difference (an adult's face is
+  moved; seen red 2026-11-26).
+- the region channels: blender_face's TONES with "lids" and "sheen" swapped (seen red 2026-11-26).
+- the waterline: eyeball_gap's `- np.median(...)` made `+` (seen red 2026-11-26).
+- the brow's edge: thinned's `(0.25 + 0.75 * lower) * tail` made `tail` (a ruled lower edge; seen red 2026-11-26).
+- the eye's film: cornea's `> LIMBUS_UV` made `> 1.0` (all glass; seen red 2026-11-26).
+- the skin's own crevices: face_skin_light's crevices `"own": True` dropped (seen red 2026-11-26); and, apart,
+  READER_KEYS without "hair" (the lashes' melanin never reaches the record: they drew brown, round 2; seen red
+  2026-11-26).
 - the scanned finish: written's `entry["licence"] = ...` dropped (the scan's bytes go out with no credit; seen red
   2026-11-26); and, apart, the `"carried": True` dropped from its made_with (seen red 2026-11-26).
 """
@@ -367,6 +380,100 @@ def scanned_listed():
             skin.get("licence", {}).get("credit") == skin_scan.CREDIT]
 
 
+def adult_proportions():
+    """A short face broad in the jaw (its height 0.79 of its width, its jaw 0.79 of it) has its chin moved down and its
+    jaw's angles in towards the middle; a face already at an adult's proportions is not moved (landmarks only, cm)."""
+    def face_of(height, jaw):
+        marks = np.zeros((68, 3))
+        marks[1], marks[15] = [-7.0, 1.5, 0.0], [7.0, 1.5, 0.0]
+        marks[27], marks[30], marks[33] = [0.0, 3.0, 2.0], [0.0, -1.0, 3.0], [0.0, -2.0, 2.0]
+        marks[8] = [0.0, 3.0 - height, 1.0]
+        marks[4], marks[12] = [-jaw / 2.0, -4.5, 0.0], [jaw / 2.0, -4.5, 0.0]
+        return marks
+    short = fit.adult_moves(face_of(11.0, 11.0), np.arange(68))
+    adult = fit.adult_moves(face_of(12.6, 10.0), np.arange(68))
+    return [bool(short[8, 1] < -0.5), bool(short[4, 0] > 0.05 and short[12, 0] < -0.05), float(np.abs(adult).max())]
+
+
+def tones_agree():
+    """The skin's region channels are named in one order where the face marks them (face.TONES) and where they are
+    drawn (blender_face.TONES, read from its source: it runs inside Blender)."""
+    import ast
+    source = ast.parse(pathlib.Path(face.__file__).with_name("blender_face.py").read_text())
+    drawn = next(ast.literal_eval(node.value) for node in source.body if isinstance(node, ast.Assign)
+                 and getattr(node.targets[0], "id", "") == "TONES")
+    return list(drawn) == list(face.TONES)
+
+
+def waterline_found():
+    """A lid's skin 0.5 mm off its eyeball is wet, one 1.5 mm off half so, one 3 mm off dry (cm off the sphere of the
+    eyeball piece's points, ICT's own layout)."""
+    import ict
+    model = {"neutral": np.zeros((ict.PIECES["eyeball_right"][1] + 1, 3))}
+    for eye, side in (("left", 1.0), ("right", -1.0)):
+        first, last = ict.PIECES[f"eyeball_{eye}"]
+        ball = trimesh.creation.icosphere(subdivisions=3, radius=1.2).vertices
+        model["neutral"][first:last + 1] = ball[np.arange(last + 1 - first) % len(ball)] + [3.2 * side, 3.6, 8.4]
+    lid = np.array([[3.2, 3.6, 8.4 + 1.2 + gap] for gap in (0.05, 0.15, 0.3)])
+    gaps = face.eyeball_gap(model, lid)
+    return [round(float(value), 1) for value in
+            np.clip((face.WET_CM[1] - gaps) / (face.WET_CM[1] - face.WET_CM[0]), 0.0, 1.0)]
+
+
+def brows_thinned():
+    """The brow's hairs kept fewer at its lower edge than in its middle (a soft edge) and fewer at its tail's end than
+    where the tail starts (a tapering tail)."""
+    kept = strands.thinned(np.array([0.5, 0.5, 0.7, 1.0]), np.array([-1.0, 0.5, 0.0, 0.0]))
+    return [bool(kept[0] < 0.5 * kept[1]), bool(kept[3] < 0.5 * kept[2])]
+
+
+def eye_film_split():
+    """The clear shell over an eye: its middle wears the cornea's glass (finish 0), its part over the white past the
+    limbus the thin tear film (finish 1)."""
+    ball = trimesh.creation.icosphere(subdivisions=4, radius=0.012)
+    direction = ball.vertices / 0.012
+    angle = np.arccos(np.clip(direction[:, 2], -1.0, 1.0))
+    around = direction[:, :2] / np.maximum(np.linalg.norm(direction[:, :2], axis=1, keepdims=True), 1e-9)
+    uv = 0.5 + around * (angle * face.IRIS_UV / np.arcsin(0.00585 / 0.012))[:, None]  # the iris ring 11.7 mm across
+    eyes = {"points": np.vstack([ball.vertices, ball.vertices + [0.06, 0.0, 0.0]]),
+            "triangles": np.vstack([ball.faces, ball.faces + len(ball.vertices)])}
+    eyes["uv"] = np.vstack([uv, uv])[eyes["triangles"]]
+    eyes["shapes"] = np.zeros((1, len(eyes["points"]), 3))
+    shell = face.cornea(eyes)
+    centres = shell["points"][shell["triangles"]].mean(axis=1)
+    middle = np.linalg.norm(centres[:, :2], axis=1).argmin()
+    white = np.abs(np.arccos(np.clip(centres[:, 2] / np.linalg.norm(centres, axis=1), -1.0, 1.0))
+                   - np.radians(50.0)).argmin()
+    return [int(shell["finish"][middle]), int(shell["finish"][white]), bool(0 < shell["finish"].mean() < 1)]
+
+
+def own_crevices():
+    """The skin finishes darken their crevices by their own closeness only (`own`), the tear film over the white is
+    thin, bending no light, and the lashes' and brows' records carry their fibre's melanin (`hair`) for the strands'
+    shader."""
+    from PIL import Image
+
+    def stand_in(folder):
+        for name in ("skin_detail_colour.png", "skin_detail_height.png"):
+            Image.new("L", (4, 4), 128).save(pathlib.Path(folder) / name)
+        return {"colour": "skin_detail_colour.png", "height": "skin_detail_height.png", "tile_m": 0.04}
+
+    real = finishes.skin_scan.tiles
+    finishes.skin_scan.tiles = stand_in
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            finishes.written(folder, "test")
+            records = {name: json.loads((pathlib.Path(folder) / name / "surface.json").read_text())
+                       for name in ("face_skin_light", "face_skin_dark", "face_eye_film", "face_lash_dark",
+                                    "face_brow_brown")}
+    finally:
+        finishes.skin_scan.tiles = real
+    return [records["face_skin_light"]["crevices"].get("own"), records["face_skin_dark"]["crevices"].get("own"),
+            records["face_eye_film"]["transmission"].get("thin"),
+            records["face_lash_dark"].get("hair", {}).get("melanin", 0.0) > 0.99,
+            records["face_brow_brown"].get("hair", {}).get("melanin", 0.0) > 0.8]
+
+
 @pytest.mark.parametrize("case, made, wanted", [
     ("the face's border, the cut and the strip are one shut skin", shut_skin, True),
     ("the join lies on the skin: no strip triangle stands as a ridge or folds", join_smooth, True),
@@ -392,6 +499,15 @@ def scanned_listed():
     ("the photographed skin's tile repeats with no seam and keeps its speckle", tile_repeats, [True, True]),
     ("the scanned skin finish carries the scan's tiles under its licence and credit", scanned_listed,
      [["skin_detail_colour.png", "skin_detail_height.png"], ["infinite_head_scan"], "CC-BY-3.0", True]),
+    ("a short, broad-jawed face is moved to an adult's proportions, an adult's is not", adult_proportions,
+     [True, True, 0.0]),
+    ("the skin's region channels are one order where marked and where drawn", tones_agree, True),
+    ("a lid's skin by its eyeball is wet, fading to dry 2 mm off", waterline_found, [1.0, 0.5, 0.0]),
+    ("a brow thins out at its lower edge and its tail", brows_thinned, [True, True]),
+    ("the shell over the eye is the cornea's glass in its middle and a thin tear film over the white",
+     eye_film_split, [0, 1, True]),
+    ("the skin's crevices are its own, the tear film over the white is thin, the lashes and brows have melanin",
+     own_crevices, [True, True, True, True, True]),
 ])
 def test_the_face_joins_the_body_as_one_shut_skin_moved_by_every_control(case, made, wanted):
     assert made() == wanted, case

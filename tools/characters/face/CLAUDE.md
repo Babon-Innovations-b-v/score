@@ -11,7 +11,10 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
 - `fit.py`: the face's similarity and identity solved to the body's head (eyes on the eye joints, the narrow face on
   the skin), the identity held near ICT's mean (`IDENTITY_PULL`; weakly held it chased SOMA's coarse head into puffed
   cheeks and a lump down the throat, 2026-11-25) and refused past `IDENTITY_LIMIT` standard deviations
-  (`within_population`, a caricature); the face's skin is ICT's face piece plus each ear's back (`ear_backs`: head_and_neck points grown from the
+  (`within_population`, a caricature), and moved towards an adult's proportions through its own identity modes
+  (`adult_shaped`: a face index of at least `FACE_INDEX`, a jaw of at most `JAW_OF_FACE` of the face, held still
+  within `ADULT_FADE_CM` of the border, where the jaw is the body's; round 1's face read short, broad and childlike);
+  the face's skin is ICT's face piece plus each ear's back (`ear_backs`: head_and_neck points grown from the
   face's border while they face the head; ICT's face piece ends on the helix's back, and laid as the border, the
   helix was glued flat onto the head); the band within `BLEND_METRES` of its border moved by its border's (smoothed)
   moves onto the skin, by its share of the body (ICT's jaw stood 20 mm off the officer's), the body cut inside a wall
@@ -33,12 +36,16 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
   pointing up at the head and outward and down at the tail, each point bound to the skin under it; lashes rooted on
   ICT's lash cards' root edges (the lids' margins) and curled off them (ICT's cards are flat strips standing straight
   out, their curl painted in ICT's picture), each bound to its root's card triangle so it turns with a blink.
-  `checked` refuses brow hairs off or inside the skin.
+  `checked` refuses brow hairs off or inside the skin; `thinned` keeps fewer hairs at the brow's lower edge and its
+  tail's end (a soft edge and a tapering tail, not a drawn block).
 - `face.py`: the pieces (skin with its region tones, mouth, teeth, eyes by UV ring, the cornea, brows and lashes from
-  `strands.py`, tears); `tones` marks each skin point's flush (cheeks, nose, chin, ears), thin bluish skin (under the
-  eyes) and lips round ICT's 68 landmarks, the skin's library record saying what each region is toned to; `cornea` is a
-  clear shell over each eye, Gullstrand's corneal dome over the iris and a tear film over the white, so the eye
-  catches the sky; `face.npz`, and the stills (front, three quarters and the side, which shows the neck) through the card queue (`blender_face.py`, Cycles, each finish the library
+  `strands.py`, tears); `tones` marks each skin point's regions (`TONES`, drawn three to a colour attribute: the flush,
+  the thin bluish skin, the lips, the lids, the T-zone's sheen, the relief's change from the scanned forehead's, the
+  wet waterline, socket lining and caruncle, and the face itself) round ICT's 68 landmarks and the eyeballs, the skin's
+  library record saying what each region is toned to; `cornea` is a clear shell over each eye, Gullstrand's corneal
+  dome of glass over the iris and a thin tear film (`face_eye_film`, glossy, bending no light) over the white, so the
+  eye catches the sky; `face.npz`, and the stills (front, three quarters, the side, which shows the neck, and an eye
+  close up, in the library sky the whole person is photographed under, `SKY`) through the card queue (`blender_face.py`, Cycles, each finish the library
   entry's own `material.usda` imported by Blender's USD reader). `finishes.py` writes the face's own finishes as
   score_lib drafts (taken in with `score-lib take-in`): what UsdPreviewSurface cannot hold (light through the skin,
   regions, crevices, the oil's coat, the eye white's vessels, the iris's fibres, the cornea's glass) rides in each
@@ -46,7 +53,7 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
   is one finish over the whole body, so a face and a hand show the same skin.
 - `skin_scan.py`: the skin's small detail photographed, not procedural (procedural pores and noise read as wax,
   owner 2026-11-25): a 41 mm forehead square of Infinite-Realities' head scan (CC BY 3.0) made periodic, its colour
-  over 6 mm and its relief over 1 mm taken out, written as the skin finish's own tiles (`skin_detail_colour.png`,
+  over 6 mm and its relief over 0.45 mm taken out, written as the skin finish's own tiles (`skin_detail_colour.png`,
   `skin_detail_height.png`) and laid by box projection on the object's coordinates; the scan cached under
   `~/.cache/score/skin-scan/<commit>/`, checked by its sha256.
 - Run: `<motion python> body_face.py <identity.npz> <body.npz>`, then `python face.py <body.npz> <out>` (SCORE_LIB_ROOT
