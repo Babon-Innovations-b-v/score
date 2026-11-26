@@ -23,7 +23,8 @@ Parts, for their library surfaces (place_build.surface --part):
   through, in place of its window nearest the shaft; each facade window a sill under it and a hood over it, proud),
   and the shaft's own front wall with a window over each landing and flight;
 - `balusters` and `handrail`: the railings along the open front and the well, BALUSTER bars every BALUSTER_STEP and a
-  rail RAIL high over the pitch line (LANDING_RAIL over a landing).
+  rail RAIL high over the pitch line (LANDING_RAIL over a landing); the handrail a rounded wooden cap, the newel posts
+  steel with the balusters.
 
     core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_block=False, joined=(), street=False)
                                   the core written as a USD file at `path` (`mirror`: the other hand,
@@ -80,7 +81,7 @@ BALUSTER = 0.018
 BALUSTER_STEP = 0.12
 RAIL = 0.9  # a flight's handrail over its pitch line
 LANDING_RAIL = 1.0
-RAIL_SIZE = (0.06, 0.05)  # the handrail's width and height
+RAIL_SIZE = (0.055, 0.045)  # the handrail's width and height: a rounded wooden cap (rounded_beam)
 RAIL_INSET = 0.05  # a railing's line in from the edge it guards
 NEWEL = 0.08  # a newel post's side: where a flight's handrail meets its landings' railings
 TILE = 1.5  # the ground slab's pieces, metres each way
@@ -131,6 +132,22 @@ def beam(start, end, wide, high):
                for point in (start, end) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
     faces = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
     return [tuple(map(float, point)) for point in corners], [list(face) for face in faces]
+
+
+def rounded_beam(start, end, wide, high, sides=8):
+    """A closed bar of rounded section (`sides` corners on an ellipse `wide` by `high`) from `start` to `end`: a
+    handrail's wooden cap on its steel balusters (2099 judge, 2026-11-26: the square timber beam read as a placeholder)."""
+    start, end = np.asarray(start, dtype=float), np.asarray(end, dtype=float)
+    along = (end - start) / np.linalg.norm(end - start)
+    side = np.cross(along, (0.0, 1.0, 0.0))
+    side = side / np.linalg.norm(side) if np.linalg.norm(side) > 1e-9 else np.array([1.0, 0.0, 0.0])
+    up = np.cross(side, along)
+    turns = [2 * np.pi * (number + 0.5) / sides for number in range(sides)]
+    ring = [side * np.cos(turn) * wide / 2 + up * np.sin(turn) * high / 2 for turn in turns]
+    corners = [point + offset for point in (start, end) for offset in ring]
+    faces = [list(range(sides))[::-1], list(range(sides, 2 * sides))]
+    faces += [[one, (one + 1) % sides, sides + (one + 1) % sides, sides + one] for one in range(sides)]
+    return [tuple(map(float, point)) for point in corners], faces
 
 
 def prism(profile, near, far):
@@ -414,8 +431,8 @@ def railing(points_along, height_of, rail_high, z, handrail=True):
         pieces.append(("balusters", box((x - BALUSTER / 2, floor, z - BALUSTER / 2),
                                         (x + BALUSTER / 2, floor + rail_high - RAIL_SIZE[1] / 2, z + BALUSTER / 2))))
     if handrail:
-        pieces.append(("handrail", beam((start, height_of(start) + rail_high, z),
-                                        (end, height_of(end) + rail_high, z), *RAIL_SIZE)))
+        pieces.append(("handrail", rounded_beam((start, height_of(start) + rail_high, z),
+                                                (end, height_of(end) + rail_high, z), *RAIL_SIZE)))
     pieces.append(("balusters", beam((start, height_of(start) + 0.1, z), (end, height_of(end) + 0.1, z),
                                      0.03, 0.02)))
     return pieces
@@ -429,7 +446,8 @@ def cross_railing(x, z_from, z_to, floor):
         z = z_from + (z_to - z_from) * number / (count - 1)
         pieces.append(("balusters", box((x - BALUSTER / 2, floor, z - BALUSTER / 2),
                                         (x + BALUSTER / 2, floor + LANDING_RAIL - RAIL_SIZE[1] / 2, z + BALUSTER / 2))))
-    pieces.append(("handrail", beam((x, floor + LANDING_RAIL, z_from), (x, floor + LANDING_RAIL, z_to), *RAIL_SIZE)))
+    pieces.append(("handrail", rounded_beam((x, floor + LANDING_RAIL, z_from), (x, floor + LANDING_RAIL, z_to),
+                                            *RAIL_SIZE)))
     return pieces
 
 
@@ -442,10 +460,10 @@ def newelled(foot_x, foot_y, way, z, reach):
     for x, floor in ((foot_x - way * reach, foot_y), (foot_x + way * (RUN + reach), foot_y + STOREY / 2)):
         rail = pitch(foot_x, foot_y, way, x) + RAIL
         top = max(rail, floor + LANDING_RAIL) + RAIL_SIZE[1] / 2 + 0.02
-        pieces.append(("handrail", box((x - NEWEL / 2, floor, z - NEWEL / 2), (x + NEWEL / 2, top, z + NEWEL / 2))))
+        pieces.append(("balusters", box((x - NEWEL / 2, floor, z - NEWEL / 2), (x + NEWEL / 2, top, z + NEWEL / 2))))
     start, end = foot_x - way * reach, foot_x + way * (RUN + reach)
-    pieces.append(("handrail", beam((start, pitch(foot_x, foot_y, way, start) + RAIL, z),
-                                    (end, pitch(foot_x, foot_y, way, end) + RAIL, z), *RAIL_SIZE)))
+    pieces.append(("handrail", rounded_beam((start, pitch(foot_x, foot_y, way, start) + RAIL, z),
+                                            (end, pitch(foot_x, foot_y, way, end) + RAIL, z), *RAIL_SIZE)))
     return pieces
 
 

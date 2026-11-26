@@ -973,7 +973,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     front_stage = Usd.Stage.Open(str(tmp_path / "front.usda"))
     front = np.asarray(UsdGeom.Mesh(front_stage.GetPrimAtPath("/stair_front/geo")).GetPointsAttr().Get())
     assert ((front[:, 0] > 0) & (front[:, 0] < stair_core.LONG) & (front[:, 2] < 0) & (front[:, 1] > 0.5)).any()
-    newels = [np.asarray(points) for part, (points, _) in stair_core.railings(1) if part == "handrail"
+    newels = [np.asarray(points) for part, (points, _) in stair_core.railings(1) if part == "balusters"
               and np.allclose(np.ptp(np.asarray(points)[:, [0, 2]], axis=0), stair_core.NEWEL)]
     inset, landing, head = stair_core.RAIL_INSET, stair_core.LANDING, stair_core.LANDING + stair_core.RUN
     joints = [(landing, 0.0, inset), (landing - inset, stair_core.STOREY, stair_core.DEEP - stair_core.WIDE + inset),
