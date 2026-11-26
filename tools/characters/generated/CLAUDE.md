@@ -59,16 +59,12 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   the outermost hair seen from the head's middle (`volume.py`), never a normal's side or ray parity alone.
 - **The strands' finish** is the library's strand finish (`../hair/finish.py`, `hair_strands_ash_brown`) with only
   melanin and redness fitted to the close-up's hair colour (`fibre.py`; its lightness-to-pigment table is an estimate,
-  checked by eye on the sheet); the scalp and the skin under the beard wear the model's own skin colour. Brows stay
-  paint for now.
+  checked by eye on the sheet); the scalp and the skin under the beard wear the model's own skin colour.
 - **Styles**: `data/people/hair/gen_<look>.json`, read off the close-up: `length_m` (the strands' cap), `reach_m`
   (how far under the top hair is labelled), `wave_m`, `wave_period_m`, `parting` side/none/back, `parting_m`,
   `parting_side`, `fringe_side` none/left/right/down, `beard` and its `beard_length_m`, `beard_stubble_m`.
 - **Look at the sheet.** The labels picture says the split follows the paint; only the photographs say whether the
   hair reads as hair, the hairline as skin and the beard as a beard.
-- Not here: lashes (the model has none; the face module's grow on ICT's lid cards, which a generated head lacks) and
-  lids reshaped to the photo's opening (the lids stay the model's).
-- Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step.
 - **Head swap** (`head_swap.py`, inside Blender, CPU): the detailed head-and-shoulders model (made from a head
   close-up) put on the whole body. Its scale is scanned (a free-scale ICP slides along a long valley), at each scale a
   rigid two-way trimmed ICP of the head above the body's chin onto the body's head, hair and all; one level cut low on
@@ -78,3 +74,29 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   holds the head-to-body matrix in the glTF frame: strand hair and eyes made on the head model follow onto the body
   with it. Run: `blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out.json> [<hood>]`
   (about a minute, under 2 GB); look at the seam close up, front and back, before keeping a cut depth.
+- **Lids, lashes and brows** (`lids.py`, after the eyes; the photo's landmarks by `marks.py`, drawn by
+  `blender_lids.py`, the sheet by `lids_sheet.py`): each lid opening reshaped to the photo's (MediaPipe Face
+  Landmarker's lid margins laid on the model by the iris, held inside the ball's silhouette: the photo's inner corner
+  is the caruncle's, past a 12 mm ball), the lids' triangles refined (2.8 mm to 0.35 mm at the margin, closed with no
+  crack) and moved: the lid's front 1.5 mm over the eye with a rounded margin, the rim's inner wall run into the ball
+  (never ended under its clear film: it showed through as black), the socket's floor (anything more than 2 mm inside
+  the old edge) only moved across and sunk behind the ball (laid on the margin, it folded the lid into black
+  wedges). The eyeball stays `eyes.py`'s; where it sits deep (the generated corners stand 6 to 8 mm in front of it)
+  the lid is pulled back over a longer fall (DEPTH_SLOPE), or the light never reaches the eye's sides. Lashes are the
+  face module's (`../face/strands.py`'s lengths, curl, radius and `lash_line`) rooted on the new margins; the painted
+  brows are painted over on the texture from the front view's light skin round them and regrown as hairs on the
+  photo's brow band, as dense as the photo is dark there, turned as the face module's brows (`brow_angle`). The
+  lashes' and brows' finish is `fibre.fibre_of` on the photo's darkest lash and brow pixels.
+  Run: `uv run --no-project -p 3.12 --with mediapipe==1.2.3 --with pillow python -m
+  tools.characters.generated.marks <photo> <marks.json>` (MediaPipe stays out of the repo's own environment; it
+  needs libGLESv2 and libEGL, unpacked from Ubuntu's packages onto LD_LIBRARY_PATH on a box without them), then
+  `python -m tools.characters.generated.lids <model.glb> <eyes out> <photo> <marks.json> <out> --height <m>` (half a
+  minute, 1 GB), then `blender -b --python blender_lids.py -- <model.glb> <eyes.npz> <library> <height> <samples>
+  <renders> <lids out>` (CPU; `blender_eyes.py` and `blender_sheet.py` import cleanly for it), then `python -m
+  tools.characters.generated.lids_sheet <name> <eyes renders> <lids renders> <photo> <eyes stats.json> <lids
+  stats.json> <sheet.jpg>`.
+- **Look for black in the opening.** Black inside a lid opening is the head, never the eye: a fold (the floor laid on
+  the margin), the wall under the clear film, or a slot too narrow for the light. Ray-cast the pixel in Blender
+  (`scene.ray_cast`) before guessing.
+- Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step
+  (`marks.py` reads a real photo with MediaPipe and has no row; `lids.py` reads its JSON).

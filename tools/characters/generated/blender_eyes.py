@@ -22,7 +22,7 @@ import numpy as np
 from mathutils import Vector
 from mathutils.kdtree import KDTree
 
-# blender_skin.py imports this file with its own arguments after these six
+# blender_skin.py and blender_lids.py import this file with their own arguments after these six
 MODEL, EYES, LIBRARY, HEIGHT, SAMPLES, OUT = sys.argv[sys.argv.index("--") + 1:][:6]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "whole"))
 import render  # noqa: E402

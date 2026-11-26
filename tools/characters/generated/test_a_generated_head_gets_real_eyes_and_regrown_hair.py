@@ -47,6 +47,18 @@ holds the nose, not the cheek (`skin.grid_share`, `skin.point_shares`, `skin.tzo
 off); no shading taken off (`skin.SHADING_RANGE` (1, 1)); no gloss pressed (`skin.GLOSS` left 1); every slope facing
 (`skin.FACING` (-1, -0.5): the turned side wears the photo); every point on the front (`skin.VISIBLE_M` 1: the hidden
 point wears it); no fade at the eye (`skin.EYE_CLEAR_M` below 0: the eye's floor wears it).
+
+The lids (`lids.py`), on two spheres behind a flat face 4 mm in front of them, each opening an ellipse 13 mm tall over
+a deep floor, the photo's 9 mm: the refined mesh keeps its area, leaves no crack and carries its UVs; the photo's
+opening is read round each eye at its own scale and held inside the ball; after the reshape the opening's top and
+bottom lie on the photo's, the lid's front LID_M over the eye just outside them and no lid point inside the eye; upper
+lashes root just outside the margin and rise, lower ones fall, all leaving forward; a brow's hairs grow where its photo
+is dark and lie on the skin; a painted brow is painted over with the skin round it. Breaks that turn their rows red
+(each applied once, seen red, reverted, 2026-11-26): only the chosen triangles split, their neighbours not closed
+(`lids.refined`); the corner hold dropped (`lids.photo_outline`); the lid's front 3 mm over the eye
+(`lids.lid_profile`); the points not moved across (`lids.moved_across`); the lid let 3 mm into the eye
+(`lids.reshaped`); the lashes' curl turned round (`lids.lid_lashes`); every brow place kept whatever the photo's
+darkness (`lids.brow_hairs`); the brow left painted (`lids.unpainted`).
 """
 import functools
 
@@ -55,7 +67,7 @@ import pytest
 import trimesh
 from scipy.spatial import cKDTree
 
-from tools.characters.generated import __main__, eyes, fibre, head_swap, labels, scalp, skin, strands, volume
+from tools.characters.generated import __main__, eyes, fibre, head_swap, labels, lids, scalp, skin, strands, volume
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -523,6 +535,157 @@ def skin_shares():
     zone = skin.tzone(np.array([[0.0, 0.0, 0.1], [0.045, 0.01, 0.1]]), np.zeros(3))
     return [bool(shares[0] > 0.95), *(bool(value < 0.05) for value in shares[1:]), bool(zone[0] > 0.9),
             bool(zone[1] < 0.1)]
+LID_EYES = np.array([[-0.032, 0.0, 0.0], [0.032, 0.0, 0.0]])
+LID_BALL = 0.012
+
+
+def grid_mesh(xs, ys, depth):
+    """A height-field mesh over the grid lines `xs`, `ys` with depth `depth(x, y)`: (points, triangles)."""
+    grid_x, grid_y = np.meshgrid(xs, ys)
+    points = np.column_stack([grid_x.ravel(), grid_y.ravel(), depth(grid_x, grid_y).ravel()])
+    width = len(xs)
+    corner = (np.arange(len(ys) - 1)[:, None] * width + np.arange(width - 1)[None, :]).ravel()
+    return points, np.vstack([np.column_stack([corner, corner + 1, corner + width + 1]),
+                              np.column_stack([corner, corner + width + 1, corner + width])])
+
+
+def split_closed():
+    """Whether half a grid's triangles split in four keep its area, leave no crack (a side inside the square used by
+    one triangle only) and carry the UVs along (each new point's UV its place)."""
+    points, triangles = grid_mesh(np.linspace(0, 1, 7), np.linspace(0, 1, 7), lambda x, y: 0.0 * x)
+    chosen = points[triangles].mean(axis=1)[:, 0] < 0.5
+    fine, carried, made = lids.refined(points, points[:, :2], triangles, chosen)
+    corners = fine[made]
+    area = 0.5 * np.abs(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])[:, 2]).sum()
+    sides = np.sort(np.vstack([made[:, [0, 1]], made[:, [1, 2]], made[:, [2, 0]]]), axis=1)
+    found, counts = np.unique(sides, axis=0, return_counts=True)
+    middle = fine[found].mean(axis=1)
+    inside = (middle[:, :2] > 1e-9).all(axis=1) & (middle[:, :2] < 1 - 1e-9).all(axis=1)
+    return [bool(abs(area - 1.0) < 1e-9), bool((counts[inside] == 2).all()), bool(np.allclose(carried, fine[:, :2]))]
+
+
+def lid_marks(half_width, half_height):
+    """A photo's marks: two irises (10 px across) 200 px apart, each eye's lids an ellipse round its iris."""
+    eyes_marks = []
+    for col in (100.0, 300.0):
+        turn = np.linspace(0.0, np.pi, 9)
+        inner = 1.0 if col < 200 else -1.0  # the inner corner is towards the picture's middle
+        upper = np.column_stack([col + inner * half_width * np.cos(turn), 100.0 - half_height * np.sin(turn)])
+        lower = np.column_stack([col + inner * half_width * np.cos(turn), 100.0 + half_height * np.sin(turn)])
+        eyes_marks.append({"upper": upper.tolist(), "lower": lower.tolist(), "iris_centre": [col, 100.0],
+                           "iris_radius": 10.0})
+    brows = [{"upper": [[60.0 + 80 * (col > 200) + 80 * k, 40.0] for k in (1, 0)],
+              "lower": [[60.0 + 80 * (col > 200) + 80 * k, 60.0] for k in (1, 0)]} for col in (100.0, 300.0)]
+    return {"eyes": eyes_marks, "brows": brows}
+
+
+def photo_opening():
+    """The photo's opening read round each eye (mm at 90 degrees, its half height laid by the frame's scale) and held
+    inside the ball's silhouette at its corners."""
+    laid = lids.photo_frame(lid_marks(30.0, 12.0), LID_EYES, 0.006)
+    edges = lids.photo_outline(lid_marks(30.0, 12.0), laid, LID_EYES, LID_BALL)
+    tall = [lids.edge_at(edge, 90.0) / (12.0 * laid.scale) for edge in edges]
+    wide = [lids.edge_at(edge, 0.0) <= lids.CORNER_SHARE * LID_BALL + 1e-9 for edge in edges]
+    return [bool(abs(value - 1.0) < 0.03) for value in tall] + [bool(value) for value in wide]
+
+
+@functools.lru_cache(maxsize=1)
+def lid_scene():
+    """Two eyes (spheres) behind a face standing 4 mm in front of them, each opening an ellipse 13 mm tall with a deep
+    floor inside; the photo's openings 9 mm tall: (points, triangles, eye views, old outlines, new edges)."""
+    def depth(x, y):
+        shares = [np.hypot((x - centre[0]) / 0.0115, y / 0.0065) for centre in LID_EYES]
+        return np.where(np.min(shares, axis=0) < 1.0, -0.004, LID_BALL + 0.004)
+
+    points, triangles = grid_mesh(np.arange(-0.06, 0.0601, 0.0007), np.arange(-0.027, 0.0271, 0.0007), depth)
+    ball = trimesh.creation.icosphere(subdivisions=4, radius=LID_BALL)
+    views = []
+    for centre in LID_EYES:
+        view = lids.front_view(np.asarray(ball.vertices) + centre, np.asarray(ball.faces), lids.eye_box(centre),
+                               -np.inf)
+        view["ball"] = view
+        views.append(view)
+    heads = [lids.front_view(points, triangles, lids.eye_box(centre), -1.0) for centre in LID_EYES]
+    was = [lids.model_outline(head, view, centre) for head, view, centre in zip(heads, views, LID_EYES)]
+    wanted = [1.0 / np.sqrt(np.cos(np.radians(lids.DEGREES)) ** 2 / 0.011 ** 2
+                            + np.sin(np.radians(lids.DEGREES)) ** 2 / 0.0045 ** 2)] * 2
+    return points, triangles, views, was, wanted
+
+
+def lids_reshaped():
+    """After the reshape: the opening's top and bottom on the photo's (within 0.4 mm), the lid's front just over the
+    top and bottom margins LID_M over the eye (within 0.3 mm), and no lid point outside the opening inside the eye."""
+    points, triangles, views, was, wanted = lid_scene()
+    moved = lids.reshaped(points, np.zeros(len(points), bool), LID_EYES, LID_BALL,
+                          [(old[0], old[1], new) for old, new in zip(was, wanted)], views)
+    edge_ok, thin_ok, outside_ok = [], [], []
+    for centre, view, new in zip(LID_EYES, views, wanted):
+        head = lids.front_view(moved, triangles, lids.eye_box(centre), -1.0)
+        found, _ = lids.model_outline(head, view, centre)
+        edge_ok.append(all(abs(lids.edge_at(found, angle) - lids.edge_at(new, angle)) < 0.0004 for angle in (90, 270)))
+        for angle in (90.0, 270.0):
+            out = lids.edge_at(new, angle) + 0.001
+            x, y = centre[0], out * np.sin(np.radians(angle))
+            over = eyes.depth_at(head, [x], [y])[0] - eyes.depth_at(view, [x], [y])[0]
+            thin_ok.append(abs(over - lids.LID_M) < 0.0003)
+        degrees, reach = lids.polar(moved, centre)
+        outside = (reach > lids.edge_at(new, degrees) + 0.0003) & (np.abs(moved[:, 0] - centre[0]) < 0.03)
+        surface = eyes.depth_at(view, moved[outside, 0], moved[outside, 1])
+        held = np.isfinite(surface)
+        outside_ok.append(bool((moved[outside][held, 2] >= surface[held] + lids.GAP_M - 1e-6).all()))
+    return [all(edge_ok), all(thin_ok), all(outside_ok)]
+
+
+def lashes_grown():
+    """Upper lashes root just outside the margin and rise to their tips, lower ones fall, all leaving forward."""
+    points, triangles = grid_mesh(np.linspace(-0.03, 0.03, 31), np.linspace(-0.03, 0.03, 31),
+                                  lambda x, y: 0.0 * x + 0.014)
+    centre = np.zeros(3)
+    head = lids.front_view(points, triangles, lids.eye_box(centre), -1.0)
+    edge = np.full(len(lids.DEGREES), 0.008)
+    found = []
+    for upper in (True, False):
+        made, _ = lids.lid_lashes(head, centre, edge, lids.lid_span(0.0, 180.0, upper), upper, 40,
+                                  np.random.default_rng(1))
+        out = np.hypot(made[:, 0, 0], made[:, 0, 1]) - 0.008
+        rise = (made[:, -1, 1] - made[:, 0, 1]) * (1 if upper else -1)
+        found += [bool(((out >= lids.LASH_ROOT_M[0] - 1e-9) & (out <= lids.LASH_ROOT_M[1] + 1e-9)).all()),
+                  bool((rise > 0).all()), bool((made[:, -1, 2] > made[:, 0, 2]).all())]
+    return found
+
+
+def brows_follow_photo():
+    """A brow whose photo is dark on its outer half only grows its hairs there (90 percent or more), each lying on
+    the skin."""
+    marks = lid_marks(30.0, 12.0)
+    photo = np.full((200, 400, 3), 0.8)
+    photo[35:66, 60:100] = 0.3  # the left brow's outer half (its inner end by the picture's middle, at 140 px)
+    laid = lids.photo_frame(marks, LID_EYES, 0.006)
+    points, triangles = grid_mesh(np.linspace(-0.07, 0.07, 71), np.linspace(-0.01, 0.05, 31),
+                                  lambda x, y: 0.0 * x + 0.02)
+    head = lids.front_view(points, triangles, lids.brow_box(marks["brows"][0], 0, laid), -1.0)
+    hairs, _ = lids.brow_hairs(marks["brows"][0], 0, laid, lids.photo_lightness(photo), head,
+                               np.random.default_rng(2))
+    outer = laid(np.array([[100.0, 50.0]]), 0)[0, 0]
+    share = float((hairs[:, 0, 0] < outer).mean()) if len(hairs) else 0.0
+    lying = bool((np.abs(hairs[..., 2] - 0.02) < 0.001).all())
+    return [bool(len(hairs) > 20 and share >= 0.9), lying]
+
+
+def brow_painted_over():
+    """The painted brow over an eye painted over with the skin round it (each texel within a tenth of the skin's
+    colour), and the skin beside it left as it was."""
+    points, triangles = grid_mesh(np.linspace(-0.06, 0.06, 121), np.linspace(-0.03, 0.06, 91),
+                                  lambda x, y: 0.0 * x + 0.02)
+    uv = np.column_stack([(points[:, 0] + 0.06) / 0.12, (points[:, 1] + 0.03) / 0.09])
+    texture = np.ones((180, 240, 3)) * np.array(SKIN)
+    rows, cols = np.mgrid[:180, :240]
+    place_x, place_y = cols / 239 * 0.12 - 0.06, (179 - rows) / 179 * 0.09 - 0.03
+    brow = (np.abs(place_x + 0.032) < 0.018) & (np.abs(place_y - 0.018) < 0.004)
+    texture[brow] = (0.25, 0.18, 0.12)
+    painted, count = lids.unpainted(points, triangles, uv, texture, LID_EYES)
+    covered = np.abs(painted[brow] - np.array(SKIN)).max(axis=1) < 0.1 * np.array(SKIN).max()
+    return [bool(count > 0 and covered.mean() > 0.98), bool(np.allclose(painted[~brow & (place_x > 0.0)], SKIN))]
 
 
 @pytest.mark.parametrize("case, made_value, wanted", [
@@ -556,6 +719,13 @@ def skin_shares():
     ("the photo's shading and gloss are taken off, plain skin kept", skin_light_off, [True, True, True]),
     ("a point wears the photo only facing forward, on the front, in the photo's face, clear of the eye; the T-zone "
      "holds the nose", skin_shares, [True] * 7),
+    ("the lids' triangles split in four and closed round them with no crack", split_closed, [True, True, True]),
+    ("the photo's opening is read round each eye and held inside the ball", photo_opening, [True] * 4),
+    ("the lids moved onto the photo's opening, thin over the eye and never inside it", lids_reshaped,
+     [True, True, True]),
+    ("upper lashes rise from the margin, lower ones fall, all leaving forward", lashes_grown, [True] * 6),
+    ("the brow's hairs grow where the photo's brow is dark, lying on the skin", brows_follow_photo, [True, True]),
+    ("the painted brow is painted over with the skin round it", brow_painted_over, [True, True]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
