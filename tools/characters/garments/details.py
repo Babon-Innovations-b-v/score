@@ -62,7 +62,9 @@ def panel_edges(record):
 
 def classified(record, edges):
     """Each panel's boundary edges sorted: {panel: {"seam:<other panel>": [...], "edge": [...], "neck": [...]}}, a
-    seam being an edge whose two box points another panel's boundary joins too."""
+    seam being an edge whose two box points another panel's boundary joins too, the neck every open edge with a point
+    GarmentCode labels a collar's: it leaves the centre front's corner unlabelled, and the neckline's last 1.4 cm
+    there took the hem's mark, its two stitch rows a smeared mark under the rib at her throat (#225 round 9)."""
     box = np.asarray(record["box"])
     owners = {}
     for panel, sides in edges.items():
@@ -80,7 +82,7 @@ def classified(record, edges):
             others = owners[key] - {panel}
             if others:
                 group = f"seam:{min(others)}"
-            elif key[0] in collar and key[1] in collar:
+            elif key[0] in collar or key[1] in collar:
                 group = "neck"
             else:
                 group = "edge"

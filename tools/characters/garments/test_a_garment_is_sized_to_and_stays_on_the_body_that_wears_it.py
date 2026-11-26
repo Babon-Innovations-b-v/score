@@ -36,7 +36,7 @@ not set, or the joints left unscaled with the skin. In bands.py: the triangles t
 the band's edges), or a cut's point made once per panel rather than once per seam point (the cloth opened along its
 seams). In details.py: a seam taken for an open edge (two panels sharing box points not matched), a plain seam marked,
 a strip laid outside its panel (its inward normal not turned), the lift not past the thickness on outward-wound cloth,
-or a patch's side taken towards the body's middle. In inside/laying.py: no point inside put out (each moved straight off
+or a patch's side taken towards the body's middle, or a neckline's edge at its unlabelled centre corner taken for a hem. In inside/laying.py: no point inside put out (each moved straight off
 its nearest skin), no way out along the axes for a point the first step leaves inside, that step's points not looked
 at again, or a point the layer's reach moves into a fold of the skin kept there; a seam's triangle rested at its flat
 panel from the start (its float32 area ratio lost as the seam is crushed), a rest's corner 2 put the other way along
@@ -340,6 +340,18 @@ def toy_sheet():
     return record, points
 
 
+def necklines():
+    """The toy sheet with the top edge's points from 2 to 18 cm out labelled a collar's, its corners not (as GarmentCode
+    labels a tee's front neckline, its centre front corner left out): how many of each panel's open edges details.py
+    takes for the neck."""
+    record, _ = toy_sheet()
+    box, flat = np.asarray(record["box"]), np.asarray(record["flat"])
+    top = np.unique(box[(flat[:, 1] == 30.0) & (np.abs(flat[:, 0]) >= 2.0) & (np.abs(flat[:, 0]) <= 18.0)])
+    record = {**record, "label/right_collar": top[top < 0], "label/left_collar": top}
+    return [len(groups.get("neck", [])) for _, groups in sorted(details.classified(
+        record, details.panel_edges(record)).items())]
+
+
 def marked(library, plain):
     """The toy sheet's marks (a 6 mm seam mark, a 10 mm edge mark, a 4 x 2 cm patch 5 cm towards the left panel's
     side and 5 cm down from its top inner corner): each mark's triangle count, the farthest any point lies off the
@@ -605,8 +617,9 @@ def fabric_repeats():
         rgba = drawn().maps()[0].astype(float)
         inside = np.abs(np.diff(rgba, axis=1)).max(axis=(1, 2))
         broken += int(np.sum(np.abs(rgba[:, 0] - rgba[:, -1]).max(axis=1) > inside + 1e-9))
-    colour = fabrics.denim_maps()[0].mean(axis=-1)
-    blurred = uniform_filter(colour, size=int(round(0.01 / fabrics.TILE_M * fabrics.TILE_PX)), mode="wrap")
+    size = fabrics.TILE_PX // 2  # four pixels a thread: the threads still drawn, the tile drawn in a quarter the time
+    colour = fabrics.denim_maps(size=size)[0].mean(axis=-1)
+    blurred = uniform_filter(colour, size=int(round(0.01 / fabrics.TILE_M * size)), mode="wrap")
     return broken, float(blurred.std() / colour.mean())
 
 
@@ -630,6 +643,7 @@ def fabric_repeats():
     (1.15, "a band round the torso", 0.05),
     (1.0, "marks on a seam, its edges and a pocket", False),
     (1.0, "marks with the seam plain", True),
+    (1.0, "a neckline's marks run to its centre seam", [10, 10]),
     (1.0, "pants laid round thighs that touch", 0),
     (1.0, "pants laid with too short a way out", 1),
     (1.0, "trouser legs laid over the legs", True),
@@ -721,6 +735,10 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         else:
             # cloth that crosses nothing (its own triangles sharing corners never counted) leaves nothing out
             assert points_to == {} and edges_to == {}, (points_to, edges_to)
+        return
+    if wear.startswith("a neckline"):
+        # each panel's ten top edges are the neck's, those at its unlabelled corners too, and no side edge
+        assert necklines() == failed
         return
     if wear.startswith("marks"):
         counts, off, past, middle = marked(tmp_path, failed)
