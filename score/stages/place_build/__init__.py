@@ -1344,9 +1344,9 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>) or, with `ground`, as the
     place's walked ground (the cabin's floor, the gantry), its file written once under the place's assets for its
     kind and `sizes`; each of its parts then wears its look from `looks` ({part: surface address,
-    `palette/<variant>` too}), refused when a part has none, so no part is left in its placeholder grey. A doorway the
-    piece holds (launch_kit.doorways: a door wall's) is recorded in place.json `doorways` (`<name>_<key>`, the
-    scene's frame, `of` the piece), so a neighbour place joins it there (area/), as the stair core records its own."""
+    `palette/<variant>` too, or {address, colour} for a recipe surface in a palette colour}), refused when a part
+    has none, so no part is left in its placeholder grey. A doorway the piece holds (launch_kit.doorways: a door
+    wall's) is recorded in place.json `doorways` (`<name>_<key>`, the scene's frame, `of` the piece), so a neighbour place joins it there (area/), as the stair core records its own."""
     if role not in BLOCK_ROLES and not ground:
         raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
     import hashlib
@@ -1379,7 +1379,11 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     laid = laid_doorways(prim, held)
     saved(stage)
     for part in parts:
-        surface(folder, name, looks[part], part=part)
+        look = looks[part]  # a surface address, or {address, colour} for a recipe in a palette colour
+        if isinstance(look, dict):
+            surface(folder, name, look["address"], colour=look.get("colour"), part=part)
+        else:
+            surface(folder, name, look, part=part)
     record = record_of(folder)
     if held or any(spot.get("of") == name for spot in (record.get("doorways") or {}).values()):
         record["doorways"] = {**{key: spot for key, spot in (record.get("doorways") or {}).items()
