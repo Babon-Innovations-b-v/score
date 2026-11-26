@@ -47,7 +47,7 @@ BEZEL = 0.010  # how far a panel's bezel stands over its plate
 LETTER_ROWS = 7  # the lettering's dot rows (a 5 x 7 face)
 LINE = 0.0025  # a screen graphic's line width
 FLAT_KINDS = ("hull", "lining", "ceiling", "floor", "skirt", "nose", "lip", "through_wall", "tread", "gantry",
-              "cables")
+              "cables", "ribs")
 
 FONT = {
     "A": (" ### ", "#   #", "#   #", "#####", "#   #", "#   #", "#   #"),
@@ -1920,10 +1920,85 @@ def wall_screws(cut=None, holes=(), flats=(), sector=(0.0, 360.0), pitch=0.11, o
     return found
 
 
+def rib_clear(cone, theta, y, cut, holes, flats, clear):
+    """Whether a rib may stand at (theta radians, y): outside the cut-away, `clear` metres off every hole's flange
+    (`holes` [theta, y, radius] as the lining's fades) and off every mounting plate (`flats`, as the lining's)."""
+    if cut and (in_cut(theta, y, cut) or cut_distance(cone, theta, y, cut) < clear):
+        return False
+    face = cone.sizes["gap"] + cone.sizes["lining"]
+    skin = cone.at(theta, y, face)
+    if any(off_axis(cone, skin[None], hole_theta, hole_y)[0] < radius + clear for hole_theta, hole_y, radius in holes):
+        return False
+    back = cone.at(theta, y, cone.sizes["gap"])
+    for flat_theta, flat_y, wide, high in flats:
+        _, _, (right, up, _) = flat_spot(flat_theta, flat_y, wide, high, **cone.sizes)
+        offset = back - cone.at(math.radians(flat_theta), flat_y, cone.sizes["gap"])
+        if abs(offset @ right) < wide / 2 + clear and abs(offset @ up) < high / 2 + clear:
+            return False
+    return True
+
+
+def rib_strip(cone, theta, heights, face, wide, stand):
+    """One straight run of a rib: a flat strap `wide` across and `stand` deep on the lining's face `face` in, up the
+    cone's meridian at `theta` (radians) through `heights`, its ends capped (part rib)."""
+    right, _, inward = cone.frame(theta)
+    corners = [(-wide / 2, 0.0), (wide / 2, 0.0), (wide / 2, stand), (-wide / 2, stand)]
+    centres = cone.at(theta, np.asarray(heights), face)
+    points = np.asarray([centre + right * across + inward * deep for centre in centres for across, deep in corners])
+    triangles, ways = [], []
+    upward = centres[-1] - centres[0]
+    upward /= np.linalg.norm(upward)
+    for step in range(len(centres) - 1):
+        middle = (centres[step] + centres[step + 1]) / 2 + inward * stand / 2
+        for side in range(4):
+            here, there = step * 4 + side, step * 4 + (side + 1) % 4
+            quad = [[here, there, there + 4], [here, there + 4, here + 4]]
+            triangles += quad
+            ways += [points[quad[0]].mean(axis=0) - middle] * 2
+    last = (len(centres) - 1) * 4
+    triangles += [[0, 1, 2], [0, 2, 3], [last, last + 1, last + 2], [last, last + 2, last + 3]]
+    ways += [-upward, -upward, upward, upward]
+    triangles = np.asarray(triangles)
+    return [piece("rib", points, facing(points, triangles, np.asarray(ways)), False)]
+
+
+def ribs(cut=None, holes=(), flats=(), sector=(0.0, 360.0), bottom=0.06, top=1.76, wide=0.05, stand=0.012,
+         clear=0.03, pitch=0.12, **sizes):
+    """The capsule's frame ribs (2099 #246, the night judge: "no panel seams, ribs, trim or wiring runs"): a flat
+    strap `wide` across standing `stand` off the face of a panelled lining (CONE's `panels`) over each upright joint
+    in `sector` [from, to] degrees, from `bottom` to `top` metres up, broken round the cut-away, the holes' flanges
+    and the mounting plates (rib_clear, `clear` metres off), a bolt down its middle every `pitch` metres; a real
+    cabin's structure between its wall panels, in the capsule's frame."""
+    cone = Cone(**sizes)
+    face = cone.sizes["gap"] + cone.sizes["lining"] + cone.sizes["panel_puff"]
+    low, high = (math.radians(value) for value in sector)
+    head = [(0.0, 0.0), (0.0045, 0.0), (0.0045, 0.0012), (0.0034, 0.0024), (0.0, 0.003)]
+    found = []
+    for step in range(int(cone.sizes["panels"])):
+        theta = math.radians(cone.sizes["panel_from"] + 360.0 * step / cone.sizes["panels"])
+        if (theta - low) % (2 * math.pi) >= (high - low) % (2 * math.pi):
+            continue
+        heights = np.arange(bottom, top + 1e-9, 0.02)
+        kept = [rib_clear(cone, theta, float(y), cut, holes, flats, clear) for y in heights]
+        run = []
+        for y, keep in zip(list(heights) + [None], kept + [False]):
+            if keep:
+                run.append(float(y))
+                continue
+            if len(run) >= 4:
+                found += rib_strip(cone, theta, run, face, wide, stand)
+                right, up, inward = cone.frame(theta)
+                for bolt_y in np.arange(run[0] + pitch / 2, run[-1] - 0.02, pitch):
+                    found += moved(turned("bolt", head, segments=8), np.column_stack([right, up, inward]),
+                                   cone.at(theta, float(bolt_y), face + stand - 0.0004))
+            run = []
+    return found
+
+
 KINDS = {"hull": hull, "lining": lining, "ceiling": ceiling, "floor": floor, "skirt": skirt, "nose": nose, "lip": lip,
          "through_wall": through_wall, "tread": tread, "hatch_leaf": hatch_leaf, "gantry": gantry, "panel": panel, "console": console,
          "switch_box": switch_box, "mount": mount, "seat": seat, "throttle": throttle, "stick": stick, "lamp_fixture": lamp_fixture,
-         "handrail": handrail, "cables": cables, **ITEMS}
+         "handrail": handrail, "cables": cables, "ribs": ribs, **ITEMS}
 
 
 # --- writing --------------------------------------------------------------------------------------------------------
