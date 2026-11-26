@@ -40,6 +40,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
 - place_build.tinted: the colour set on the diffuse input though a map feeds it -> the sand's map keeps no tint
 - place_build.look_shader: `strongerThanDescendants` made `weakerThanDescendants` -> the piece's own look wins
+- place_build.look_shader: the look laid on the name before kept (no RemovePrim) -> the redone box's steel keeps
+  the palette paint's red colour over its own; the old look cleared before a refusal -> a refused recipe in a batch
+  leaves the redone box's look empty once the next step saves
 - place_build.usd_file: the first file taken whatever its role -> a record-only entry is laid
 - place_build.rebind: the whole look left off the unnamed parts -> the crate's lid keeps its baked green
 - place_build.laid_reference: the prim defined as an Xform -> the character's prim is an Xform, not its SkelRoot
@@ -773,7 +776,16 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     paper_colour, page_tinted = tuple(paper.Get()), bool(page_scale and page_scale.Get() is not None)
     del papered
     place_build.surface(folder, "panel", "palette/hull_paint")
-    batched = place_build.batch(folder, [
+    place_build.put(folder, "redone", "kit/box_piece", at=(16, 0, 0))
+    place_build.surface(folder, "redone", "palette/hull_paint")
+    place_build.surface(folder, "redone", "surface/steel")  # a variant over a recipe's look: none of it stays
+    refused_recipe = place_build.batch(folder, [{"step": "surface", "name": "redone", "address": "surface/pane"},
+                                                {"step": "snap", "name": "redone", "grid": 0.5}])[0]
+    restaged = Usd.Stage.Open(str(folder / "scene.usda"))
+    resurfaced = bound_colour(restaged, "/yard/Objects/redone/geo")
+    del restaged
+    place_build.remove(folder, "redone")
+    batched =place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
         {"step": "put", "name": "missing", "address": "kit/plan_only"},
         {"step": "put", "name": "cabinet", "address": "model/cabinet"},
@@ -869,6 +881,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.isclose(pane_opacity, method["opacity"]), pane_opacity  # the method's, as palette_spec takes it
     assert page_file and page_file.endswith("page/1/decal.png"), page_file  # the decal's page is its colour
     assert np.allclose(paper_colour, (1.0, 0.0, 0.0)) and not page_tinted  # its ink kept, laid on paper of the colour
+    assert np.allclose(resurfaced, (0.3, 0.3, 0.4)), resurfaced  # a look laid before leaves nothing over the new one
+    assert "no colour of its own" in refused_recipe["refused"]  # and a refused one leaves the look as it was
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/glow/geo"), (1.0, 0.0, 0.0))
     assert np.allclose(bound_colour(stage, "/yard/Objects/screen/geo"), (0.0, 1.0, 0.0))
     holed = UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/holed/geo"))

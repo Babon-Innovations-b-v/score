@@ -1664,24 +1664,25 @@ def look_shader(stage, path, copied, colour):
     """The look's shader at `path`: the variant's own (its material.usda referenced, its colour replaced by `colour`
     when one is given), else a UsdPreviewSurface of `colour` and the recipe's roughness and opacity (glass seen
     through), a setting its entry lacks taken from the method's (data/library/materials.json), as palette_spec does
-    (a recipe has no colour of its own, so it needs one)."""
+    (a recipe has no colour of its own, so it needs one). A look laid on the name before is cleared first: its own
+    colour, metal and cut connections stayed over the new variant's, so the pad's stainless rocket kept its picture
+    model's dark grade and a steel took a paint's colour with its map cut off (2099 #161)."""
+    own = None if "material.usda" in copied else json.loads(copied["surface.json"].read_text())
+    picture = None if own is None else (own.get("maps") or {}).get("decal")
+    if own is not None and colour is None and picture is None:
+        raise Refused("a recipe surface has no colour of its own: give --colour #rrggbb")
+    stage.RemovePrim(path)
     look = UsdShade.Material.Define(stage, path)
     look.GetPrim().GetReferences().ClearReferences()  # a surface laid before (a ground's) composes no more (#154)
-    if "material.usda" in copied:
+    if own is None:
         look.GetPrim().GetReferences().AddReference("./" + copied["material.usda"].resolve().relative_to(
             pathlib.Path(stage.GetRootLayer().realPath).parent).as_posix())
         shader = UsdShade.Shader(stage.GetPrimAtPath(f"{path}/surface"))
     else:
-        own = json.loads(copied["surface.json"].read_text())
-        picture = (own.get("maps") or {}).get("decal")
-        if colour is None and picture is None:
-            raise Refused("a recipe surface has no colour of its own: give --colour #rrggbb")
         shader = UsdShade.Shader.Define(stage, f"{path}/surface")
         shader.CreateIdAttr("UsdPreviewSurface")
         if picture is not None:
             decal_read(stage, path, shader, copied[picture])
-        elif shader.GetInput("diffuseColor"):
-            shader.GetInput("diffuseColor").DisconnectSource()  # a decal laid here before no longer colours it
         method = json.loads((REPO / "data/library/materials.json").read_text())["recipes"].get(own.get("recipe"), {})
         settings = {**method, **own.get("settings", {})}  # a recipe entry made before glass carried its opacity
         shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(settings.get("roughness", 0.6)))
