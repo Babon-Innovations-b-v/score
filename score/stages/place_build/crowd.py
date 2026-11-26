@@ -185,10 +185,8 @@ class Solids:
         points = np.asarray(points, float).reshape(-1, 3)
         gaps = np.full(len(points), np.inf)
         origins = points + [0.0, ready.RAY_START, 0.0]
-        ways = np.tile([0.0, -1.0, 0.0], (len(points), 1))
-        for start in range(0, len(points), 20000):
-            where, rays, _ = ready.cast(self.triangles, origins[start:start + 20000], ways[start:start + 20000])
-            np.minimum.at(gaps, start + rays, origins[start + rays, 1] - where[:, 1] - ready.RAY_START)
+        where, rays, _ = ready.cast(self.triangles, origins, np.tile([0.0, -1.0, 0.0], (len(points), 1)))
+        np.minimum.at(gaps, rays, origins[rays, 1] - where[:, 1] - ready.RAY_START)
         return gaps
 
 
@@ -258,24 +256,32 @@ def feet_points(body):
     return feet
 
 
-def lift_of(solids, feet):
-    """How far a person with these feet (feet_points) moves up so its lower foot stands on what is under it, or None
-    where a foot finds nothing under it or its other foot would then stand over STEP off its own."""
-    if feet is None:
-        return None
-    gaps = solids.under(np.vstack(feet))
-    lowest = [float(gaps[:len(feet[0])].min()), float(gaps[len(feet[0]):].min())]
-    if not all(np.isfinite(lowest)) or abs(lowest[0] - lowest[1]) > STEP:
-        return None
-    return -min(lowest)
+def lifts_of(solids, people_feet):
+    """How far each person of `people_feet` (feet_points each) moves up so its lower foot stands on what is under it,
+    or None where a foot finds nothing under it or its other foot would then stand over STEP off its own (all their
+    rays cast at once: one ray structure of the solids, never one a person)."""
+    feet = [foot for one in people_feet if one is not None for foot in one]
+    gaps = solids.under(np.vstack(feet)) if feet else np.zeros(0)
+    lifts, start = [], 0
+    for one in people_feet:
+        if one is None:
+            lifts.append(None)
+            continue
+        lowest = []
+        for foot in one:
+            lowest.append(float(gaps[start:start + len(foot)].min()))
+            start += len(foot)
+        standing = all(np.isfinite(lowest)) and abs(lowest[0] - lowest[1]) <= STEP
+        lifts.append(-min(lowest) if standing else None)
+    return lifts
 
 
 def stood(stage, solids, people_laid):
     """The laid crowd stood on its floor by its feet (lift_of, each one's translate moved up or down); the names of
     those that cannot stand, their prims removed."""
     fallen = set()
-    for prim in people_laid:
-        lift = lift_of(solids, feet_points(ready.people.posed_body(prim)))
+    lifts = lifts_of(solids, [feet_points(ready.people.posed_body(prim)) for prim in people_laid])
+    for prim, lift in zip(people_laid, lifts):
         if lift is None:
             fallen.add(prim.GetName())
             continue
@@ -288,23 +294,22 @@ def stood(stage, solids, people_laid):
 
 
 def stood_rows(stage, solids, path, prototypes, rows):
-    """`rows` [(prototype number, feet, yaw, ...)] stood on their floor by their copies' feet (lift_of on each copy
+    """`rows` [(prototype number, feet, yaw, ...)] stood on their floor by their copies' feet (lifts_of over the copies
     as the package and the check read it, skinned.copies_of), those that cannot stand left out; the instancer at
     `path` written with them."""
     from score.stages.place_build import skinned  # skinned reads the package, which reads this module's place_build
     instancer = instanced(stage, path, prototypes, rows)
-    feet, frames, kept = {}, {}, []
-    for row, (root, _, world) in zip(rows, skinned.copies_of(instancer.GetPrim())):
+    feet, frames, copied = {}, {}, []
+    for root, _, world in skinned.copies_of(instancer.GetPrim()):
         key = str(root.GetPath())
         if key not in feet:
             feet[key] = feet_points(ready.people.posed_body(root))
             frames[key] = np.linalg.inv(np.asarray(
                 UsdGeom.Xformable(root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())))
         move = frames[key] @ world
-        lift = None if feet[key] is None else lift_of(
-            solids, [points @ move[:3, :3] + move[3, :3] for points in feet[key]])
-        if lift is not None:
-            kept.append((row[0], (row[1][0], row[1][1] + lift, row[1][2]), *row[2:]))
+        copied.append(None if feet[key] is None else [points @ move[:3, :3] + move[3, :3] for points in feet[key]])
+    kept = [(row[0], (row[1][0], row[1][1] + lift, row[1][2]), *row[2:])
+            for row, lift in zip(rows, lifts_of(solids, copied)) if lift is not None]
     instanced(stage, path, prototypes, kept)
     return kept
 
@@ -421,9 +426,10 @@ def crowd(folder, toward, prefix="person"):
     people = [stage.GetPrimAtPath(path) for path in kept if path.name not in removed]
     for prim in people:
         faced(prim, toward)
+    kept = [prim.GetPath() for prim in people]
     fallen = stood(stage, solids, people)
     removed |= fallen
-    people = [prim for prim in people if prim.GetName() not in fallen]
+    people = [stage.GetPrimAtPath(path) for path in kept if path.name not in fallen]
     feet = np.array([feet_of(prim) for prim in people])
     prototypes = prototypes_of(stage, place, people)
     paths = [path for path, _ in prototypes]
