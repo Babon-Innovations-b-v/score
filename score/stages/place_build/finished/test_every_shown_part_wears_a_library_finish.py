@@ -6,7 +6,8 @@ piece's part, #156), is `no material`; a look naming a surface the library does 
 `unknown surface`; a character's own paint passes only under a written exception (the player models'); an entry the
 library withdrew is never its paint and is refused at `put`; while a one-paint box under one look passes. `refinish` mends each: the generator shows its own
 library paint whole again; a lantern of the same paint under a whole glowing look keeps the glow on its red part
-alone, its grey part in its own library paint; the take's parts laid as the palette variants nearest their colours
+alone, its grey part in its own library paint, and one laid with no look lit the same by `refinish --glow` (a
+glowing variant only); the take's parts laid as the palette variants nearest their colours
 (its brown part a paint, never the sand ground of the same colour); and a take `put` after the palette is laid
 re-finished at once. An adopted model's own material naming a surface the library holds (`score:surface`) passes
 and one naming a surface it does not hold is `own paint`; a look naming a surface the library withdrew for another
@@ -37,6 +38,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - finished.own_surface: always True -> the stall's material naming no held surface passes
 - finished.object_faults: its walk without Usd.TraverseInstanceProxies() -> the booth, the stall's model laid under an
   instanceable prim, shows nothing and passes (#155)
+- finished.refinish: `glow` unread -> the unlit lantern shows its own paint whole, no glowing part
+- finished.glow_look: the recipe rule left out -> a dark paint is taken as the glow
 - finished.refinish: instances_opened unread -> the crate's re-finish authors under an instance proxy and fails (#156)
 - finished.held_surface: the replacement chain unread (`entry_of(address)` for `entry_of(end)`) -> the box's look
   naming the retired metal is `unknown surface`
@@ -194,7 +197,8 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     for name, address, at in (("gen", "model/generator", 0), ("box", "model/box", 4), ("stool", "take/stool", 8),
                               ("bare", "model/bare", 12), ("lantern", "model/generator", 20),
                               ("kiosk", "model/kiosk", 24), ("stall", "model/stall", 28), ("plain", "kit/plain", 32),
-                              ("booth", "model/booth", 36), ("crate", "take/crate", 40)):
+                              ("booth", "model/booth", 36), ("crate", "take/crate", 40),
+                              ("unlit", "model/generator", 44)):
         place_build.put(folder, name, address, at=(at, 0, 0))
     place_build.palette(folder, tmp_path / "palette.json", wear=0.4, dirt=0.3)
     assert "crop_leaf" in finished.variant_colours(folder) and "sand_ground" not in finished.variant_colours(folder)
@@ -234,6 +238,9 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     place_build.remove(folder, "stall")
     place_build.remove(folder, "booth")
     mended = {name: place_build.refinish(folder, name) for name in ("gen", "stool", "lantern", "crate")}
+    mended["unlit"] = place_build.refinish(folder, "unlit", glow="lamp_glow")
+    with pytest.raises(place_build.Refused, match="not a glowing variant"):
+        place_build.refinish(folder, "unlit", glow="dark_paint")
     put_after = place_build.put(folder, "stool2", "take/stool", at=(16, 0, 0))
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     found = finished.faults(stage, "camp")
@@ -241,6 +248,7 @@ def test_every_shown_part_wears_a_library_finish(tmp_path, monkeypatch):
     assert mended["gen"]["finish"] == "its model's own library paint" and not finished.part_looks(stage, "camp", \
         stage.GetPrimAtPath("/camp/Objects/gen")), mended
     assert set(mended["lantern"]["parts"].values()) == {"palette/lamp_glow", "its model's own library paint"}, mended
+    assert mended["unlit"]["parts"] == mended["lantern"]["parts"], mended  # an unlit lantern lit by `glow`
     assert sorted(mended["stool"]["parts"].values()) == ["palette/dark_paint", "palette/wood_paint"], mended
     assert put_after["finish"]["parts"] == mended["stool"]["parts"] == mended["crate"]["parts"], (put_after, mended)
     bound = finished.bound_parts(stage.GetPrimAtPath("/camp/Objects/lantern/geo"))

@@ -277,7 +277,7 @@ def run(args):
         return place_build.door(args.folder, args.name, args.opens, "slide" if args.slide else "hinge", args.lock,
                                 args.side, args.crouch)
     if args.step == "refinish":
-        return place_build.refinish(args.folder, args.name)
+        return place_build.refinish(args.folder, args.name, args.glow)
     if args.step == "plan":
         return place_build.plan(args.folder, args.source)
     if args.step == "dress":
@@ -503,6 +503,8 @@ def parser():
         step = steps.add_parser(name)
         step.add_argument("folder")
         step.add_argument("name")
+        if name == "refinish":
+            step.add_argument("--glow", help="a glowing palette variant its nearest part wears (a lantern's paper)")
     step = steps.add_parser("hollow")
     step.add_argument("folder")
     step.add_argument("name")

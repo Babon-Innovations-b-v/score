@@ -521,9 +521,19 @@ def nearest_part(painted, laid, colour):
     return min(laid, key=lambda number: float(np.linalg.norm(painted.parts[number][0] - colour)))
 
 
-def refinish(folder, name):
+def glow_look(folder, variant):
+    """A glowing palette variant as the look a re-finish keeps on one part (earlier_look's answer); Refused for a
+    variant that gives off no light."""
+    spec = place_build.palette_spec(folder, variant)
+    if spec["recipe"] not in GLOWS:
+        raise place_build.Refused(f"palette/{variant} is a {spec['recipe']}, not a glowing variant")
+    return {"address": f"palette/{variant}", "hex": None, "colour": grade.hex_lab(spec["hex"])}
+
+
+def refinish(folder, name, glow=None):
     """The object re-finished per part: its looks taken off; a paint the library made shows whole, but for the part
-    nearest a glowing look it wore (a lantern's paper), which keeps that glow; a paint no library surface made is
+    nearest a glowing look it wore (a lantern's paper), or the glowing palette variant `glow` given, which keeps that
+    glow; a paint no library surface made is
     split into its parts, the one nearest the look it wore keeping that look and every other wearing the place's
     palette variant nearest its colour (`surface --part`)."""
     stage, place = place_build.opened(folder)
@@ -537,7 +547,7 @@ def refinish(folder, name):
             raise place_build.Refused(f"{name} lays no model file to re-finish")
         library = library_painted(prim, record_of(prim))
         painted = paint(asset)
-        earlier = earlier_look(stage, place, prim, library)
+        earlier = glow_look(folder, glow) if glow else earlier_look(stage, place, prim, library)
         if not library and not painted.parts:
             raise place_build.Refused(f"{name}'s model has no paint to read parts from: lay a surface on it")
         colours = None if library else variant_colours(folder)
