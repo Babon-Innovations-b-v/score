@@ -8,7 +8,7 @@ travelled and how far past its limit it went; a spin how far it turned.
     staged(model, record, folder)       the one-object place: the parted GLB laid as `model` over nothing, its stage
     trial_record(record)                the physics layer's record: no drop, each part driven (DRIVE_SECONDS)
     measured(out, record)               {node: {joint, range, travelled, reached, past, passes}} of the trial's out.json
-    trialled(model, record, folder, env=LOCAL_ENV, lock=None)   all three, the trial run (holding `lock`, the card's)
+    trialled(model, record, folder, env=LOCAL_ENV)   all three, the trial run on the processor
 
     python -m tools.props.bench.joints <parted.glb> <parts.json> <folder>      prints one line; joints.json in folder
 
@@ -111,29 +111,30 @@ def measured(out, record):
     return found
 
 
-def ran(stage, out, env, lock):
-    """The physics trial on `stage` in `env`'s Python, holding `lock` (a file) while it runs when given."""
+def ran(stage, out, env):
+    """The physics trial on `stage` in `env`'s Python, on the processor (Warp's CPU device): a model's few parts take
+    seconds there, the same answer as on the card (the cabinet: 100.32 degrees and 0.3011 m both ways), and a run never
+    waits on the card's lock (r16k5's locker waited 39 min behind another session's card job, 2026-11-26)."""
     command = [str(pathlib.Path(env) / "bin/python"), str(TRIAL), str(stage), str(out)]
-    done = subprocess.run((["flock", str(lock)] if lock else []) + command, capture_output=True, text=True)
+    done = subprocess.run(command, capture_output=True, text=True, env={**os.environ, "CUDA_VISIBLE_DEVICES": ""})
     if done.returncode:
         raise RuntimeError(f"the physics trial failed: {done.stderr[-6000:]}")
     return json.loads(pathlib.Path(out).read_text())
 
 
-def trialled(model, record, folder, env=LOCAL_ENV, lock=None):
+def trialled(model, record, folder, env=LOCAL_ENV):
     """The model's parts staged, joined, driven and run: measured(...), written as joints.json in `folder` too."""
     folder = staged(model, record, folder)
     written = physics.write(folder, trial_record(record), MATERIALS)
     if written.get("faults"):
         raise ValueError(f"the physics layer refused the parts: {written['faults']}")
-    found = measured(ran(folder / f"{PLACE}.usda", folder / "out.json", env, lock), record)
+    found = measured(ran(folder / f"{PLACE}.usda", folder / "out.json", env), record)
     (folder / "joints.json").write_text(json.dumps(found, indent=1))
     return found
 
 
 if __name__ == "__main__":
     given_model, given_record, given_folder = sys.argv[1:4]
-    result = trialled(given_model, json.loads(pathlib.Path(given_record).read_text()), given_folder,
-                      lock=os.environ.get("SCORE_CARD_LOCK"))
+    result = trialled(given_model, json.loads(pathlib.Path(given_record).read_text()), given_folder)
     print(f"joints: {sum(entry['passes'] for entry in result.values())}/{len(result)} parts pass, "
           f"{pathlib.Path(given_folder) / 'joints.json'}")

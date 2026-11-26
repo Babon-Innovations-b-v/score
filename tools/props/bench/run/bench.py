@@ -687,10 +687,10 @@ def branch_b(kept, row, material, rgba, scratch, library):
 
 def joints_step(model, record):
     """The made model's moving parts run in Newton (tools/props/bench/joints, #177): each part's joint driven to its
-    limits, joints.json its travel and whether it passed; the card taken under SCORE_CARD_LOCK as card_queue's jobs."""
+    limits, joints.json its travel and whether it passed; on the processor, never waiting on the card."""
     def make(folder):
         from tools.props.bench import joints
-        joints.trialled(model, record, folder, lock=os.environ.get("SCORE_CARD_LOCK"))
+        joints.trialled(model, record, folder)
     return make
 
 

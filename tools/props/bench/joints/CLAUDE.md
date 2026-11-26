@@ -8,6 +8,7 @@ each part measured: how much of its range it travels, how far past its limit it 
 - The object is the parts' still frame; only the parts move. A part passes at `REACHED` of its range and no more
   than `PAST_SLACK` past it. Never loosen a bar to pass a model: a part that does not open is the cut's or the
   joint's fault, found at its source (maker/parts.py).
-- The trial runs on this PC's card: pass the card's lock (`SCORE_CARD_LOCK`), held only while the trial runs.
+- The trial runs on the processor (Warp's CPU device), never the card: a model's few parts take seconds, the same
+  answer as on the card, and the step never waits behind another session's card job.
 - Test: `test_a_made_models_parts_open_to_their_limits_in_newton.py` (its Newton run only where the trial's Python
   is built; skipped in make tests' sandbox home, said so).
