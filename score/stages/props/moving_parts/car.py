@@ -232,22 +232,25 @@ def cabin(across, tall, along_length):
     liner.fix_normals()
     liner.invert()
     parts = [liner]
+    # The seats, bench and dash within the greenhouse's roof width: sized by the loop's last (widest, frontmost) body
+    # half they stood out through the side glass as black posts (night car round 4: 2099-preview/night/car/round3-side.png).
+    room = along(LOWER, 0.5, 3) * across / 2 * ROOF_IN - 0.08
     for side in (-1, 1):
-        seat = trimesh.creation.box(extents=(half * 0.75, tall * 0.12, 0.5))
-        seat.apply_translation((side * half * 0.48, tall * 0.33, along_length * 0.04))
-        back = trimesh.creation.box(extents=(half * 0.75, tall * 0.42, 0.12))
+        seat = trimesh.creation.box(extents=(room * 0.8, tall * 0.12, 0.5))
+        seat.apply_translation((side * room * 0.5, tall * 0.33, along_length * 0.04))
+        back = trimesh.creation.box(extents=(room * 0.8, tall * 0.36, 0.12))
         back.apply_transform(trimesh.transformations.rotation_matrix(-0.2, (1, 0, 0)))
-        back.apply_translation((side * half * 0.48, tall * 0.58, along_length * 0.04 - 0.28))
+        back.apply_translation((side * room * 0.5, tall * 0.55, along_length * 0.04 - 0.28))
         parts += [seat, back]
-    bench = trimesh.creation.box(extents=(half * 1.8, tall * 0.12, 0.5))
+    bench = trimesh.creation.box(extents=(room * 1.9, tall * 0.12, 0.5))
     bench.apply_translation((0, tall * 0.33, -along_length * 0.12))
-    bench_back = trimesh.creation.box(extents=(half * 1.8, tall * 0.4, 0.12))
-    bench_back.apply_translation((0, tall * 0.56, -along_length * 0.12 - 0.3))
-    dash = trimesh.creation.box(extents=(half * 1.9, tall * 0.14, 0.35))
+    bench_back = trimesh.creation.box(extents=(room * 1.9, tall * 0.34, 0.12))
+    bench_back.apply_translation((0, tall * 0.53, -along_length * 0.12 - 0.3))
+    dash = trimesh.creation.box(extents=(room * 2.0, tall * 0.14, 0.35))
     dash.apply_translation((0, tall * 0.6, front - 0.2))
     wheel = trimesh.creation.torus(0.18, 0.018)
     wheel.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2 - 0.4, (1, 0, 0)))
-    wheel.apply_translation((-half * 0.48, tall * 0.66, front - 0.48))
+    wheel.apply_translation((-room * 0.5, tall * 0.66, front - 0.48))
     return parts + [bench, bench_back, dash, wheel]
 
 
