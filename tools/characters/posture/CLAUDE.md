@@ -19,7 +19,8 @@ it plays (the clothes are draped and the whole person drawn on that), so the run
   (`clearance`, the garments' `shaped.sunk` against the torso and thighs); its forearm turns in or out at the elbow first
   (in to bring the hand to the thigh, out, a carrying angle, to keep it off), and where that is not enough its shoulder comes a few degrees
   forward (woman_stair's walking right arm, against the side of her chest). A wide build's arms hang further out; that is the build, not the
-  clip.
+  clip. Angles are tried a degree apart and an arm is landed on the one tried (`brought_to`), so it rests against
+  its own side (man_coat's walking right arm at 11, not 12.06 over the limit).
 - **The gaze is the face's.** `rest_gaze` reads the face's own look at rest (its corneas off its eyeballs), so a face
   that sits looking up on SOMA's head is levelled with the head, not by the face fit.
 - **Hands at rest** (owner, 2026-11-25: "stiff splayed fingers", a thumb out): `finger_joints` reads each hand's

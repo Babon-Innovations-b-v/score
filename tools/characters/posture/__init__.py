@@ -36,6 +36,8 @@ import numpy as np
 RELAXED = ("standing", "walking")
 ARM_HANG_DEGREES = 6.0  # an upper arm's median angle out from the side, at ease, where the body lets it
 ARM_HANG_STEP = 1.0  # degrees between the angles tried
+LANDED_DEGREES = 0.01  # an arm's median within this of the angle it is brought to has landed there
+LANDING_TRIES = 4  # turns at most an arm is brought to its angle in
 FOREARM_STEPS = np.arange(-8.0, 16.0, 4.0)  # the forearm's turns at the elbow tried, in (negative) to out, degrees
 # The shoulder's turns forward tried where the forearm's are not enough, degrees: on woman_stair's walk with her hands
 # at rest the right upper arm's top sank into the side of her chest at 12 degrees out (22 skin points past the
@@ -121,8 +123,8 @@ def hung(local, parents, names, forward, clears):
         start = tries[0][1]
         for hang in np.arange(min(ARM_HANG_DEGREES, start), start + 1e-9, ARM_HANG_STEP):
             cleared = None
-            for forth, now in tries:
-                arm = turned(forth, parents, names.index(f"{side}Arm"), forward, -sign * max(0.0, now - hang))
+            for forth, _ in tries:
+                arm = brought_to(forth, parents, names, side, forward, hang)
                 tried = (turned(arm, parents, names.index(f"{side}ForeArm"), forward, sign * out)
                          for out in FOREARM_STEPS)
                 cleared = next((clip for clip in tried if clears(clip, side)), None)
@@ -132,6 +134,29 @@ def hung(local, parents, names, forward, clears):
                 local = cleared
                 break
     return local
+
+
+def brought_to(local, parents, names, side, forward, hang):
+    """`local` with the `side` upper arm turned in about the body's `forward` line (one a frame) until its median over
+    the clip is `hang` degrees out (`arms_out`), left where it is when it is in that far already. A turn moves an arm
+    swung forward or back less than its own angle (man_coat's walking right arm, brought to 12 by one turn of the angle
+    off, stood at 12.06, 2026-11-26), so each next turn is read off the last two (a secant), LANDING_TRIES at most."""
+    from tools.characters import played
+    joint, sign = names.index(f"{side}Arm"), dict(SIDES)[side]
+
+    def off(turn):
+        moved = turned(local, parents, joint, forward, -sign * turn) if turn else local
+        return moved, float(np.median(arms_out(played.chained(moved, parents), names)[side])) - hang
+    found, before = off(0.0)
+    if before <= 0.0:
+        return local
+    last, turn = 0.0, before
+    for _ in range(LANDING_TRIES):
+        found, now = off(turn)
+        if abs(now) <= LANDED_DEGREES or now == before:
+            break
+        last, turn, before = turn, max(0.0, turn - now * (turn - last) / (now - before)), now
+    return found
 
 
 def clearance(skin, names, parents, bind, played_clip):

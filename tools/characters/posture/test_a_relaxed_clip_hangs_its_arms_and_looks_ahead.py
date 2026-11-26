@@ -2,7 +2,8 @@
 holds its arms out or gazes up. Each row is a toy rig (the clips rig's joint names, straight bones) posed with its
 upper arms some degrees out and its head some degrees back, with a gaze at rest some degrees up (the face's), feet
 some way apart: measured as played, its faults are the ones it shows; relaxed, its arms hang at ARM_HANG_DEGREES (or
-where a body that blocks them lets them, its shoulders brought forward where only that clears them), its highest gaze is GAZE_TOP_DEGREES up, its feet under its hips, and it has
+where a body that blocks them lets them, to the degree, its shoulders brought forward where only that clears them;
+within 0.05 degrees, an arm swung forward too), its highest gaze is GAZE_TOP_DEGREES up, its feet under its hips, and it has
 no faults. A welded toy hand (a 3 mm grid slab, fingers fanned, thumb out) is read into its five fingers' joints off
 its skin; its thumb out, fingers spread and held straight (or bent back) are each faulted, and laid at rest it has no
 fault, every bone its length, the fingertips towards the palm, the thumb's tip on the palm's side and the palm where it
@@ -45,6 +46,9 @@ Each seen red 2026-11-26 (round 2):
 - swung's COUNTER_SHARE sign dropped: the swung chest still turns with the hips.
 - swung's scale held at 1: the stiff walk's 30 degree swing stays.
 - walk_faults' chest check made `> COUNTER_MOST`: a chest that never turns (no correlation) passes.
+Each seen red 2026-11-26 (man_coat's walking right arm, cleared only at 12 and landed at 12.06, over the limit):
+- ARM_HANG_STEP back at 2: the arm a body lets in to 11 is left at 12.
+- brought_to's one turn by the angle off (LANDING_TRIES 1): the arm swung forward stands at 9.9, not 6.
 """
 import numpy as np
 import pytest
@@ -66,12 +70,14 @@ OFFSETS = np.array([[0, 0, 0], [0, 1.0, 0], [0, 0.1, 0], [0, 0.1, 0], [0, 0.15, 
                     [0, -0.06, 0.13]], dtype=float)
 FRAMES = 12
 PELVIS_TURN = 6.0  # a toy walk's hips' turn each way about the upright, degrees
+ARMS_SWUNG_DEGREES = 45.0  # a toy's upper arms swung forward (a walk's), so a turn about forward moves them less
 TOE_OFF_DEGREES = 40.0  # a toy walk's foot tipped toes down as it pushes off
 
 
-def toy(arms_out, head_back, feet_out, bind_head=0.0):
+def toy(arms_out, head_back, feet_out, bind_head=0.0, swing=0.0):
     """The toy clip against its parents, its bind and its gaze at rest (level, under the bind's head turned
-    `bind_head` degrees about x): each upper arm `arms_out` degrees out (a degree of sway over the clip), the
+    `bind_head` degrees about x): each upper arm `arms_out` degrees out (a degree of sway over the clip) and swung
+    `swing` degrees forward, the
     head `head_back` degrees back off its bind's turn, each thigh turned out so the ankles stand `feet_out` m further
     from the hips."""
     local = np.tile(np.eye(4), (FRAMES, len(NAMES), 1, 1))
@@ -80,7 +86,8 @@ def toy(arms_out, head_back, feet_out, bind_head=0.0):
     bind[0, NAMES.index("Head"), :3, :3] = Rotation.from_euler("x", bind_head, degrees=True).as_matrix()
     sway = np.linspace(-1.0, 1.0, FRAMES)
     for name, sign in (("LeftArm", 1.0), ("RightArm", -1.0)):
-        local[:, NAMES.index(name), :3, :3] = Rotation.from_euler("z", sign * (arms_out + sway)[:, None], degrees=True).as_matrix()
+        local[:, NAMES.index(name), :3, :3] = Rotation.from_euler("x", -swing, degrees=True).as_matrix() @ \
+            Rotation.from_euler("z", sign * (arms_out + sway)[:, None], degrees=True).as_matrix()
     for name, sign in (("LeftLeg", 1.0), ("RightLeg", -1.0)):
         local[:, NAMES.index(name), :3, :3] = Rotation.from_euler(
             "z", sign * np.degrees(np.arcsin(feet_out / 0.9)), degrees=True).as_matrix()
@@ -215,6 +222,8 @@ def shown_of(found):
     ("arms", 20.0, 4.0, 0.1, 0.0, blocked_below(12.0), {"left", "right"}, 12.0),
     ("arms", 4.0, -6.0, 0.0, 0.0, None, set(), 4.0),
     ("arms", 20.0, 0.0, 0.0, 0.0, shoulders_forward(3.0), {"left", "right"}, posture.ARM_HANG_DEGREES),
+    ("arms", 20.0, 4.0, 0.1, 0.0, blocked_below(11.0), {"left", "right"}, 11.0),
+    ("arms swung", 20.0, 0.0, 0.0, 0.0, None, {"left", "right"}, posture.ARM_HANG_DEGREES),
     ("hand", 12.0, 50.0, None, None, None, {"thumb", "spread", "straight"}, None),
     ("hand", 0.0, 45.0, None, None, None, {"thumb", "straight"}, None),
     ("hand bent back", 0.0, 45.0, None, None, None, {"thumb", "straight"}, None),
@@ -236,8 +245,8 @@ def shown_of(found):
 ])
 def test_a_relaxed_clip_hangs_its_arms_and_looks_ahead(case, arms, head, feet, bind_head, clears, played_faults,
                                                        hang):
-    if case == "arms":
-        local, bind, gaze = toy(arms, head, feet, bind_head)
+    if case.startswith("arms"):
+        local, bind, gaze = toy(arms, head, feet, bind_head, ARMS_SWUNG_DEGREES if case == "arms swung" else 0.0)
         found = posture.faults(posture.measured(local, PARENTS, NAMES, bind, gaze))
         shown = {word for word in ("left", "right", "gaze") if any(word in fault for fault in found)}
         relaxed = posture.relaxed(local, PARENTS, NAMES, bind, gaze, clears or (lambda clip, side: True))
@@ -245,7 +254,7 @@ def test_a_relaxed_clip_hangs_its_arms_and_looks_ahead(case, arms, head, feet, b
         medians = [values["median"] for values in measures["arms out degrees"].values()]
         tops = measures["gaze up degrees"]["most"]
         assert (shown, posture.faults(measures)) == (played_faults, [])
-        assert np.allclose(medians, hang, atol=0.6), medians
+        assert np.allclose(medians, hang, atol=0.05), medians
         assert tops == pytest.approx(min(posture.GAZE_TOP_DEGREES, head + 0.0), abs=0.2) if head > 0 else tops <= 0.0
         assert feet_apart(relaxed) <= 1.0 + 1e-6
     if case.startswith("hand"):  # arms: the fingers' fan, head: the thumb's angle out
