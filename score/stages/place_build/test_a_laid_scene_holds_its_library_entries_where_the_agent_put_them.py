@@ -358,6 +358,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   left unread -> the cup, cut into paint0, names a glTF that holds no such part
 - pieces.packaged: `scene["rests"]` left out of what it refuses -> the list whose kerb its check tells floating is
   written sound (2099 #161)
+- pieces.writing: the folder's lock left untaken -> a second package started over a running one clears its made pieces
+  (2099 #161, the square's crowd package's made/pictures)
 - pieces.sourced: no mesh written for an entry without a glTF -> the USD-only box piece has no meshes/box_piece.glb
 - pieces.same_look: two looks of one part told apart by their prims alone -> the SimReady kit's two doors, each
   carrying its own copy of one material, refuse its piece list (#156)
@@ -387,10 +389,12 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.ground_points: its walk without Usd.TraverseInstanceProxies() -> the adopted ground laid under an
   instanceable prim reads no ground (#155)
 """
+import fcntl
 import hashlib
 import io
 import json
 import math
+import os
 import pathlib
 
 import trimesh
@@ -2074,6 +2078,11 @@ def pieced(folder, root, out):
     with pytest.raises(place_build.Refused, match="kerb floating: floats 5.0 cm"):
         pieces.packaged(folder, out.parent / "pieces_floating")
     ready_file.write_text(json.dumps(checked))
+    held = os.open(out, os.O_RDONLY)  # a package already writing into the folder
+    fcntl.flock(held, fcntl.LOCK_EX)
+    with pytest.raises(place_build.Refused, match="another package is writing"):
+        pieces.packaged(folder, out)
+    os.close(held)
 
 
 def held_pictures(out, scene):

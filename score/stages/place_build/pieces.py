@@ -33,8 +33,11 @@ down as it is set apart (pictures_apart), and a library picture over it (a look'
 held once taken down at made/pictures/<sha256>.png, every look and piece naming it reading that one (held_pictures,
 the list's `pictures`).
 """
+import contextlib
+import fcntl
 import hashlib
 import json
+import os
 import pathlib
 import shutil
 import time
@@ -524,10 +527,29 @@ def write(folder, out):
     """The laid place in <folder> as a piece list in <out>, laid at its area seat (scene_package.seated); scene.json's
     content."""
     folder, out = pathlib.Path(folder), pathlib.Path(out)
-    stage, place = place_build.opened(folder)
-    seat = place_build.record_of(folder).get("seat")
-    with scene_package.seated(stage, place, seat):
-        return written_pieces(folder, out, stage, place, seat)
+    with writing(out):
+        stage, place = place_build.opened(folder)
+        seat = place_build.record_of(folder).get("seat")
+        with scene_package.seated(stage, place, seat):
+            return written_pieces(folder, out, stage, place, seat)
+
+
+@contextlib.contextmanager
+def writing(out):
+    """<out> held by this writer alone while its piece list is written (a lock on the folder itself, so the list holds
+    no file of it): a second writer is refused, never let clear the made pieces the first is writing (2099 #161: a
+    square's crowd package started over a running one failed on its made/pictures)."""
+    out.mkdir(parents=True, exist_ok=True)
+    held = os.open(out, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise place_build.Refused(f"another package is writing {out}; two writers would clear each other's made "
+                                      "pieces") from None
+        yield
+    finally:
+        os.close(held)
 
 
 def written_pieces(folder, out, stage, place, seat):
