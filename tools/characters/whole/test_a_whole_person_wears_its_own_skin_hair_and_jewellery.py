@@ -1,7 +1,9 @@
 """A whole person wears its own skin, hair and jewellery: the face's body laid on the clips rig's mean body comes back
 on it point for point (scaled by height, moved along the floor, its limbs turned onto the mean's); a bob combed on a
-round toy head (rooted as densely as a head) passes the hair's checks, and a root lifted off the scalp, strand points
-before the eyes, the crown's strands taken away, 1500 strands gathered into one, no roots within 3 mm of the parting,
+round toy head (rooted a quarter as densely as a head with hairs four times as thick, the same cover) passes the hair's
+checks (the scalp seen from above against the toy's own cover limits), and each broken groom read again by its own
+check fails it: a root lifted off the scalp, strand points before the eyes, the crown's strands taken away (seen bare
+from above), 1500 strands gathered into one, no roots within 3 mm of the parting curve (seen bare from above),
 a root-free patch, the roots under the hairline's full density taken away (a hard hairline), strands three times a
 hair's thickness, every hanging strand cut at one height and the hair under the ears' tops moved 12 mm out on one
 side (a ledge) each fail theirs; a
@@ -18,7 +20,7 @@ Blender).
 
 Breaks that turn it red (each applied once, seen red, reverted): the limbs' turns left out (`posed_like_mean`
 returning its points: the toy arm 15 degrees off the mean's); the comb's face guard left out (`direction[front]`
-not turned across: the bob falls over the toy's eyes); `bald_share` giving the covered share; roots off the scalp
+not turned across: the bob falls over the toy's eyes); roots off the scalp
 read at five times ROOT_OFF_M (the lifted root passes); the eye box read behind the eyes (the combed bob's back hair
 in it); the hair pushed along the nearest point's way instead of the skin's outward normal (`away`
 for `normals` in `pushed_out`: a point inside left inside); the ring sized off its finger's nearest skin rather than
@@ -26,21 +28,23 @@ its farthest (`.min()` for `.max()` of the radius in `ring`: the ring inside the
 thickest (`sizes[-1] < sizes[0]` turned: the ring on the middle finger); the watch's case on the wrist's front
 (`-back`); `deepest` reading only the first frame (a ring pushed in on the last frame passes); `skin_carried` carrying
 only the first frame (the chain left behind as the neck turns); the hand laid on the left hand's palm for both
-(`palm_frame`'s handedness sign dropped: the right hand's fingers bend back; seen red 2026-11-26); `part_lean` left out (the toy's parting bare 6.3 mm
-from above); the hairline's roots not thinned (`roots` keeping every one: the roots rising within 4 mm); `root_gap`
-reading the mean distance (the root-free patch passes); `parting_bare` counting no run as on the parting's line (the
-bare band passes the parting's check); `draped` returning `moved` (the snagged strand left where the skin held it;
+(`palm_frame`'s handedness sign dropped: the right hand's fingers bend back; seen red 2026-11-26); the hairline's
+roots not thinned (`roots` keeping every one: the roots rising within 4 mm); `root_gap` reading the mean distance (the
+root-free patch passes); `draped` returning `moved` (the snagged strand left where the skin held it;
 each seen red 2026-11-25); the meter's solid angle without the cosine of the latitude (the even sky reads 4.0, not pi,
 on the card), its turn read the other way (`way @ turned(turn).T`: the patch lights the card from behind; each seen red
 2026-11-26); the thickest strand read as the thinnest (`np.min` of the radius: the cord passes); `cut_spread` reading
 every end, not only the hanging ones (the fringe's ends spread the blunt cut); `outline_step` reading one side only
-(the ledge on the other passes; each seen red 2026-11-26)."""
+(the ledge on the other passes; each seen red 2026-11-26); the hair read from above only within 3 mm of the scalp
+(TOP_READ near_m: the combed toy's laid hair left out, 47% of its scalp bare); the parting's line excused 3 cm either
+side (TOP_READ part_half_m: the root-free band along the parting passes; each seen red 2026-11-26)."""
 import functools
 import math
 
 import numpy as np
 import pytest
 import trimesh
+from scipy.spatial import cKDTree
 
 from tools.characters import whole
 from tools.characters.whole import hair, jewellery, meter
@@ -83,8 +87,13 @@ def toy_hand():
 
 TOY_STYLE = {"length_m": 0.09, "wave_m": 0.0015, "wave_period_m": 0.06, "parting_m": 0.025, "parting_side": "left",
              "fringe_side": "right"}
-TOY_ROOTS = 60000  # the toy's scalp (450 cm2) as densely rooted as a head's (100 000 on 748 cm2)
-TOY_GUIDES = 7200  # and as densely guided (12 000)
+TOY_GUIDES = 7200  # the toy's scalp (450 cm2) as densely guided as a head's (12 000 on 748 cm2)
+TOY_THIN = 4.0  # and rooted a quarter as densely with hairs four times as thick: the same cover from above, a quarter
+# of the strands to read (the strands' thickness limit four times a hair's with them)
+TOY_READ = {"pixel_m": 0.0004, "step_m": 0.0004}  # the toy rendered from above at 0.4 mm pixels (a head's: 0.2 mm)
+# The toy's own cover limits from above: its 9 cm bob on a 9 cm ball lies over less of the scalp than a head's (the
+# combed toy shows some 3% bare, patches of 24 mm2; round 1's head 6.4% and 367 mm2)
+TOY_TOP = {"TOP_BARE_LIMIT": 0.05, "TOP_PATCH_LIMIT_M2": 50e-6}
 
 
 @functools.lru_cache(maxsize=1)
@@ -95,9 +104,24 @@ def toy_groom():
     points, faces = np.asarray(sphere.vertices), np.asarray(sphere.faces)
     eyes = np.array([[0.032, 0.0, 0.07], [-0.032, 0.0, 0.07]])
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(hair, "ROOTS", TOY_ROOTS)
         patch.setattr(hair, "GUIDES", TOY_GUIDES)
+        patch.setattr(hair, "DENSITY", {name: value / TOY_THIN for name, value in hair.DENSITY.items()})
+        patch.setattr(hair, "RADIUS", hair.RADIUS * TOY_THIN)
         return points, faces, eyes, hair.combed(points, faces, eyes, TOY_STYLE)
+
+
+def toy_measured(counts, points, head, faces, eyes, radius, parts):
+    """`hair.measured`'s `parts` of a groom on the toy head, rendered from above at TOY_READ."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(hair, "TOP_READ", {**hair.TOP_READ, **TOY_READ})
+        return hair.measured(counts, points, head, faces, eyes, TOY_STYLE, radius, parts)
+
+
+@functools.lru_cache(maxsize=1)
+def toy_measures():
+    """Every measure of the combed toy bob."""
+    head, faces, eyes, (counts, points, radius) = toy_groom()
+    return toy_measured(counts, points, head, faces, eyes, radius, tuple(hair.MEASURES))
 
 
 def tube_skin(radius, start, end, sections=48):
@@ -233,14 +257,13 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         strands = points.reshape(len(counts), -1, 3)
         widths = combed[2].reshape(len(counts), -1)
         _, centre, _ = hair.head_frame(head, eyes)
-        parting = eyes[:, 0].mean() + TOY_STYLE["parting_m"]
         if case == "hair rooted off the scalp":
-            strands[0] += [0.0, 0.0, 0.004]
+            strands[0] += 0.004 * strands[0, 0] / np.linalg.norm(strands[0, 0])  # 4 mm out from the round head
         if case == "hair before the eyes":
             strands[1, -4:] = eyes[0] + [0.0, 0.0, 0.01]
         if case == "hair in a clump":
             strands[:1500] = strands[0] + np.random.default_rng(0).normal(0.0, 0.0003, (1500, 1, 3))
-        if case == "hair as thick as cord":  # the old groom's strands, 240 um across
+        if case == "hair as thick as cord":  # three times a hair's thickness (the old groom's, 240 um across)
             widths = widths * 3.0
         if case == "hair cut blunt":  # every hanging strand ending at one height
             low = eyes[:, 1].mean() - hair.OUTLINE_READ["under_eyes_m"]
@@ -252,19 +275,31 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         if case == "hair leaving the crown bald":
             kept = strands[:, 0, 1] < 0.07
         if case == "hair parted wide":  # no root within 3 mm of the parting: a bare band along it
-            kept = np.abs(strands[:, 0, 0] - parting) > 0.003
+            line, _ = hair.parting_line(head, faces, eyes, TOY_STYLE)
+            kept = cKDTree(line).query(strands[:, 0])[0] > 0.003
         if case == "hair with a gap in its roots":  # a root-free patch 1 cm across at the back of the head
             kept = np.linalg.norm(strands[:, 0] - [0.0, 0.05, -0.075], axis=1) > 0.005
         if case == "hair with a hard hairline":  # every root under its full density's height taken away
-            kept = hair.over_hairline(strands[:, 0], eyes, centre) > hair.HAIRLINE_SOFT_M
+            kept = hair.over_hairline(strands[:, 0], eyes, centre) > hair.HAIRLINE_RAMP_M
         strands, widths = strands[kept], widths[kept]
         counts = np.full(len(strands), strands.shape[1])
-        found = hair.measured(counts, strands.reshape(-1, 3), head, faces, eyes, TOY_STYLE, widths.reshape(-1))
+        # every check on the combed bob; each broken groom read again by its own check only
+        part = {"hair combed on its head": tuple(hair.MEASURES), "hair rooted off the scalp": ("roots",),
+                "hair before the eyes": ("dense",), "hair leaving the crown bald": ("top",),
+                "hair in a clump": ("dense",), "hair parted wide": ("top",), "hair with a gap in its roots": ("gap",),
+                "hair with a hard hairline": ("hairline",), "hair as thick as cord": ("thickness",),
+                "hair cut blunt": ("cut",), "hair standing out round the ears": ("outline",)}[case]
+        found = {**toy_measures(), **toy_measured(counts, strands.reshape(-1, 3), head, faces, eyes,
+                                                  widths.reshape(-1), part)}
         named = {"hair combed on its head": "", "hair rooted off the scalp": "roots off the scalp",
-                 "hair before the eyes": "in front of the eyes", "hair leaving the crown bald": "bald",
-                 "hair in a clump": "clump", "hair parted wide": "parting", "hair with a gap in its roots":
+                 "hair before the eyes": "in front of the eyes", "hair leaving the crown bald": "bare",
+                 "hair in a clump": "clump", "hair parted wide": "bare", "hair with a gap in its roots":
                  "gap in the roots", "hair with a hard hairline": "hard hairline",
                  "hair as thick as cord": "thicker than a hair", "hair cut blunt": "blunt cut",
                  "hair standing out round the ears": "ledge"}[case]
-        lines = hair.faults(found)
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(hair, "HAIR_RADIUS_LIMIT_M", hair.HAIR_RADIUS_LIMIT_M * TOY_THIN)
+            for name, limit in TOY_TOP.items():
+                patch.setattr(hair, name, limit)
+            lines = hair.faults(found)
         assert (lines == []) if not named else any(named in line for line in lines), (found, lines)

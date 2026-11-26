@@ -31,5 +31,8 @@ pxr) are the whole route; nothing here is a row of the runner yet.
 - Run on this PC's card through the card queue (`tools/cloud/backends/card_queue.py run ... -- <blender> -b
   --python groom.py -- ...`), about 4 minutes. Its outputs (npz frames, USD, pictures) go to a tmp folder outside
   the repo; nothing generated is committed.
+- **The head's check pictures**: `heads.py` (Blender) draws a whole person's scene.npz (`../whole`) close from the
+  front, three quarters, the side, the back and above, in the whole person's own setting, lens and meter, through the
+  card queue like `../whole/render.py`; the comb itself and its checks are `../whole/hair.py`'s.
 - Tests: `test_a_groom_reads_back_strand_for_strand_or_is_refused.py` (the writer; groom.py is proven by its pictures
   and measures, it needs Blender).
