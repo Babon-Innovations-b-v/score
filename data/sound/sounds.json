@@ -547,7 +547,7 @@
 		},
 		"radio_click_in": {
 			"pick": {
-				"page": "game",
+				"page": "prologue",
 				"category": "shot",
 				"where": "the radio keying on in the helmet",
 				"prompts": [
@@ -558,7 +558,7 @@
 		},
 		"radio_click_out": {
 			"pick": {
-				"page": "game",
+				"page": "prologue",
 				"category": "shot",
 				"where": "the radio keying off in the helmet",
 				"prompts": [
@@ -591,7 +591,7 @@
 		},
 		"cockpit_switch": {
 			"pick": {
-				"page": "game",
+				"page": "prologue",
 				"category": "shot",
 				"where": "a switch on the launch capsule's console flipped by the player's gloved hand",
 				"prompts": [
@@ -828,7 +828,7 @@
 		},
 		"rocket_hull_roar": {
 			"pick": {
-				"page": "game",
+				"page": "prologue",
 				"category": "shot",
 				"where": "the launch heard from inside the capsule, through the hull",
 				"prompts": [
@@ -904,7 +904,7 @@
 		},
 		"launch_pad": {
 			"pick": {
-				"page": "world1",
+				"page": "prologue",
 				"category": "room",
 				"where": "the launch view's air: the launch site at night before lift-off",
 				"prompts": [
