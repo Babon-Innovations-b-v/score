@@ -10,16 +10,20 @@ clip or commercially usable motion dataset is retargeted onto the clips rig yet,
 is wrong in them is moved, each by one fixed turn for the whole clip (a clip's own sway, swing and nods are kept),
 in the people route's way of bringing Kimodo's wide feet in (`tools/characters/people/stance.py`):
 
-- `relaxed`: the feet brought in to the hips' width (`stance.narrowed`); each upper arm turned in towards the side
+- `relaxed`: the feet brought in to the hips' width (`stance.narrowed`); a stand's weight put on one leg
+  (`weight_shifted`) and a walk's arms swung and chest turned against its hips (`swung`, round 1's judges, #223); each
+  upper arm turned in towards the side
   about the body's forward line, its median over the clip to ARM_HANG_DEGREES out or, where the body that plays it
   is in the way (`hung`, `clearance`: on woman_stair's own skin her hands met her thighs at 12 degrees), the least
-  angle above it that clears, its forearm turned out at the elbow first; the head turned down about
-  the body's left-right line, half at the neck's base and half at the head, until its highest gaze over the clip is
-  GAZE_TOP_DEGREES up (so a walk's nods look a little down, as people walking look at the ground ahead);
+  angle above it that clears, its forearm turned in or out at the elbow first; the head carried back over the chest
+  as the bind carries it (`neck_upright`), then turned down at the head alone until its highest gaze over the clip is
+  GAZE_TOP_DEGREES up (so a walk's nods look a little down, as people walking look at the ground ahead; turned half
+  at the neck's base, round 1's head jutted forward);
 - `measured` and `faults`: the upper arms' angle out from the sides and the gaze's angle above level on every frame;
   a clip with an arm's median past ARM_MOST_DEGREES or the gaze past GAZE_UP_MOST_DEGREES on any frame is faulted;
-- the hands at rest (`finger_joints`, `hand_rested`, `hand_faults`), the wrists, the arms' reach and a walk's swing,
-  heels and knees (`clip_faults`): each block below says what it reads and why.
+- the hands at rest (`finger_joints`, `hand_rested`, `hand_faults`), the wrists, the arms' reach, the head's carriage
+  (`head_faults`), a stand's weight (`stance_faults`) and a walk's swing, chest, heels and knees (`clip_faults`): each
+  block below says what it reads and why.
 
 The angles are choices read off people at rest, not a study's: a relaxed arm hangs a few degrees out so the elbow
 clears the hip, and a walk swings it a little further; a person at ease looks ahead, not up. Measured on woman_stair
@@ -31,13 +35,13 @@ import numpy as np
 # The clips whose sentence asks nothing of the arms or the head (people/clips.py): the ones made to stand at ease.
 RELAXED = ("standing", "walking")
 ARM_HANG_DEGREES = 6.0  # an upper arm's median angle out from the side, at ease, where the body lets it
-ARM_HANG_STEP = 2.0  # degrees between the angles tried
-FOREARM_STEPS = np.arange(0.0, 16.0, 4.0)  # the forearm's turns out at the elbow tried, degrees (a carrying angle)
+ARM_HANG_STEP = 1.0  # degrees between the angles tried
+FOREARM_STEPS = np.arange(-8.0, 16.0, 4.0)  # the forearm's turns at the elbow tried, in (negative) to out, degrees
 # The shoulder's turns forward tried where the forearm's are not enough, degrees: on woman_stair's walk with her hands
 # at rest the right upper arm's top sank into the side of her chest at 12 degrees out (22 skin points past the
 # played clip's 11 on its worst frame, 2026-11-26), and 4 degrees forward cleared it; a walk carries the shoulders a
 # few degrees forward and back with the arms' swing.
-SHOULDER_STEPS = (0.0, 2.0, 4.0)
+SHOULDER_STEPS = (0.0, 2.0, 4.0, 6.0)
 # An upper arm whose median over the clip is further out than this is held out, not hanging (its median: a walk's
 # swing takes it further out for a few frames).
 ARM_MOST_DEGREES = 12.0
@@ -158,19 +162,255 @@ def clearance(skin, names, parents, bind, played_clip):
 
 
 def relaxed(local, parents, names, bind, gaze, clears):
-    """A clip (frames x joints x 4 x 4 against the parents) standing at ease: its feet under the hips, its upper arms
-    hanging as close to the sides as `clears` lets them (`hung`), its gaze level (the module's header says how)."""
+    """A clip (frames x joints x 4 x 4 against the parents) standing or walking at ease: its feet under the hips, a
+    stand's weight on one leg (`weight_shifted`), a walk's arms swinging and its chest turning against its hips
+    (`swung`), its upper arms hanging as close to the sides as `clears` lets them (`hung`), its head carried over the
+    chest as the body's own bind carries it (`neck_upright`) and its gaze level, turned at the head alone (the module's
+    header says how)."""
     from tools.characters import played
     from tools.characters.people import stance
     names = [str(name) for name in names]
     local = locals_of(stance.narrowed(played.chained(local, parents), names, parents), parents)
-    world = played.chained(local, parents)
-    across, forward = facing(world, names)
+    if walks(played.chained(local, parents), names):
+        local = swung(local, parents, names)
+    else:
+        local = weight_shifted(local, parents, names)
+    local = neck_upright(local, parents, names, bind)
+    _, forward = facing(played.chained(local, parents), names)
     local = hung(local, parents, names, forward, clears)
+    world = played.chained(local, parents)
+    across, _ = facing(world, names)
     excess = float(gaze_up(world, names, bind, gaze).max()) - GAZE_TOP_DEGREES
     if excess > 0.0:
-        for joint in ("Neck1", "Head"):
-            local = turned(local, parents, names.index(joint), across, excess / 2.0)
+        local = turned(local, parents, names.index("Head"), across, excess)
+    return local
+
+
+# A clip's kind read off its hips: a walk carries them faster than this over the floor (median, the clips rig's
+# CLIP_RATE frames a second; score/stages/sim_body/_body.py RATE).
+CLIP_RATE = 30.0
+WALKING_SPEED_MPS = 0.3
+
+
+def walks(world, names):
+    """Whether the clip walks: its hips' median speed over the floor past WALKING_SPEED_MPS."""
+    hips = world[:, names.index("Hips"), :3, 3][:, [0, 2]]
+    return bool(np.median(np.linalg.norm(np.diff(hips, axis=0), axis=1)) * CLIP_RATE > WALKING_SPEED_MPS)
+
+
+# Standing at ease, the weight on one leg (owner's judges, round 1 #223: "square stance with no weight shift"):
+# Kimodo's standing clip holds both knees bent alike (13 and 15 degrees on woman_stair), the pelvis level (0.6 degrees)
+# and the hips over the middle of the feet (2 mm off). A person at rest stands on one leg: that knee straight, the
+# other soft, the pelvis dropped on the free side and the hips over the standing foot, the shoulders tipped a little
+# the other way and the head kept upright (contrapposto). The amounts are choices read off people standing at rest,
+# not a study's.
+STANCE_SHIFT_M = 0.045  # the hips moved over towards the standing foot
+PELVIS_DROP_DEGREES = 5.0  # the pelvis turned down on the free leg's side
+SHOULDER_TILT_DEGREES = 2.0  # the shoulders tipped down on the standing leg's side
+STANCE_KNEE_DEGREES = 4.0  # the standing knee's bend, its median over the clip
+# The check: a stand with its pelvis tipped less than this, its hips less far over the standing foot than this or its
+# knees bent less apart than this stands square.
+PELVIS_TILT_LEAST_DEGREES = 3.0
+HIPS_OVER_LEAST_M = 0.025
+KNEES_APART_LEAST_DEGREES = 8.0
+
+
+def knee_bends(world, names):
+    """Each knee's bend on every frame, degrees (0 straight): {side: frames}."""
+    found = {}
+    for side, _ in SIDES:
+        knee = world[:, names.index(f"{side}Shin"), :3, 3]
+        upper = world[:, names.index(f"{side}Leg"), :3, 3] - knee
+        lower = world[:, names.index(f"{side}Foot"), :3, 3] - knee
+        cosine = np.einsum("fd,fd->f", upper, lower) / np.linalg.norm(upper, axis=1) / np.linalg.norm(lower, axis=1)
+        found[side] = 180.0 - np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
+    return found
+
+
+def legs_reaching(world, moved, names, parents):
+    """`moved` (world transforms whose hips were moved off `world`'s) with each leg turned at the hip and bent at the
+    knee to reach its foot where `world` has it, the foot and toes kept as `world` holds them (people/stance.py's two
+    bones, solved exactly in the plane the leg bends in)."""
+    from tools.characters.people import stance
+    found = moved.copy()
+    for side, _ in SIDES:
+        hip_joint, knee_joint, foot_joint = (names.index(side + bone) for bone in stance.LEG)
+        feet = stance.below(foot_joint, parents)
+        shin = [joint for joint in stance.below(knee_joint, parents) if joint not in feet]
+        for frame in range(len(world)):
+            hip, knee, ankle = (moved[frame, joint, :3, 3] for joint in (hip_joint, knee_joint, foot_joint))
+            target = world[frame, foot_joint, :3, 3]
+            new_knee = stance.knee_for(hip, knee, ankle, target)
+            thigh_turn = stance.turn_between(knee - hip, new_knee - hip)
+            shin_turn = stance.turn_between(thigh_turn @ (ankle - knee), target - new_knee) @ thigh_turn
+            found[frame, hip_joint, :3, :3] = thigh_turn @ moved[frame, hip_joint, :3, :3]
+            for joint in shin:
+                found[frame, joint, :3, :3] = shin_turn @ moved[frame, joint, :3, :3]
+                found[frame, joint, :3, 3] = new_knee + shin_turn @ (moved[frame, joint, :3, 3] - knee)
+            found[frame, feet] = world[frame, feet]
+    return found
+
+
+def standing_side(world, names):
+    """The leg a stand puts its weight on: the one whose knee it holds straighter (median), and its sign across the
+    hips (the left +1)."""
+    bends = knee_bends(world, names)
+    return min(SIDES, key=lambda pair: float(np.median(bends[pair[0]])))
+
+
+def weight_shifted(local, parents, names):
+    """A standing clip with its weight on one leg (`standing_side`), by one fixed move for the whole clip (the header
+    above `knee_bends`): the pelvis turned down PELVIS_DROP_DEGREES on the free side and moved STANCE_SHIFT_M over the
+    standing foot, then up or down until the standing knee's median bend is STANCE_KNEE_DEGREES; the spine turned back
+    so the shoulders tip SHOULDER_TILT_DEGREES the other way, the neck so the head is upright and the upper arms so
+    they hang as they did; the feet kept where
+    they stand, each leg reaching its own."""
+    from tools.characters import played
+    world = played.chained(local, parents)
+    across, forward = facing(world, names)
+    line = np.median(across, axis=0)
+    line /= np.linalg.norm(line)
+    side, sign = standing_side(world, names)
+    local = turned(local, parents, names.index("Hips"), forward, sign * PELVIS_DROP_DEGREES)
+    local = turned(local, parents, names.index("Spine1"), forward,
+                   -sign * (PELVIS_DROP_DEGREES + SHOULDER_TILT_DEGREES))
+    for joint in ("Neck1", "LeftArm", "RightArm"):  # the head upright, the arms hanging as they did
+        local = turned(local, parents, names.index(joint), forward, sign * SHOULDER_TILT_DEGREES)
+    turned_world = played.chained(local, parents)
+    hip, ankle = turned_world[:, names.index(f"{side}Leg"), :3, 3] + sign * STANCE_SHIFT_M * line, \
+        world[:, names.index(f"{side}Foot"), :3, 3]
+    thigh = np.linalg.norm(world[0, names.index(f"{side}Shin"), :3, 3] - world[0, names.index(f"{side}Leg"), :3, 3])
+    shin = np.linalg.norm(world[0, names.index(f"{side}Foot"), :3, 3] - world[0, names.index(f"{side}Shin"), :3, 3])
+    reach = np.sqrt(thigh ** 2 + shin ** 2 + 2.0 * thigh * shin * np.cos(np.radians(STANCE_KNEE_DEGREES)))
+    level = np.linalg.norm((hip - ankle)[:, [0, 2]], axis=1)
+    drop = float(np.median((hip - ankle)[:, 1] - np.sqrt(np.maximum(reach ** 2 - level ** 2, 0.0))))
+    move = sign * STANCE_SHIFT_M * line - drop * UP
+    root = names.index("Hips")
+    parent_turn = turned_world[:, parents[root], :3, :3]
+    local[:, root, :3, 3] += np.einsum("fji,j->fi", parent_turn, move)
+    return locals_of(legs_reaching(world, played.chained(local, parents), names, parents), parents)
+
+
+def stance_measured(world, names):
+    """A stand's weight shift: its standing side, the pelvis's tip (degrees, the free side down), the hips' middle over
+    towards the standing foot from the feet's middle (m) and the free knee's bend past the standing one's (degrees),
+    medians over the clip."""
+    across, _ = facing(world, names)
+    side, sign = standing_side(world, names)
+    free = "Right" if side == "Left" else "Left"
+    hips = np.stack([world[:, names.index("LeftLeg"), :3, 3], world[:, names.index("RightLeg"), :3, 3]], axis=1)
+    tip = np.degrees(np.arcsin((hips[:, 0, 1] - hips[:, 1, 1]) / np.linalg.norm(hips[:, 0] - hips[:, 1], axis=1)))
+    feet = (world[:, names.index("LeftFoot"), :3, 3] + world[:, names.index("RightFoot"), :3, 3]) / 2.0
+    over = sign * np.einsum("fd,fd->f", hips.mean(axis=1) - feet, across)
+    bends = knee_bends(world, names)
+    return {"standing": side, "pelvis tip degrees": round(float(np.median(sign * tip)), 1),
+            "hips over m": round(float(np.median(over)), 3),
+            "knees apart degrees": round(float(np.median(bends[free] - bends[side])), 1)}
+
+
+def stance_faults(measures):
+    """What is wrong with a stand's weight (`stance_measured`): a level pelvis, hips over the middle, knees alike."""
+    found = []
+    if measures["pelvis tip degrees"] < PELVIS_TILT_LEAST_DEGREES:
+        found.append(f"stands square: the pelvis tips {measures['pelvis tip degrees']} degrees to the free leg (least "
+                     f"{PELVIS_TILT_LEAST_DEGREES})")
+    if measures["hips over m"] < HIPS_OVER_LEAST_M:
+        found.append(f"stands square: the hips are {measures['hips over m']} m over the standing foot (least "
+                     f"{HIPS_OVER_LEAST_M})")
+    if measures["knees apart degrees"] < KNEES_APART_LEAST_DEGREES:
+        found.append(f"stands square: the knees bend only {measures['knees apart degrees']} degrees apart, the free "
+                     f"one the more (least {KNEES_APART_LEAST_DEGREES})")
+    return found
+
+
+# The head over the shoulders (judges, round 1: "head forward"): levelling the gaze at the neck's base pushed the head
+# forward, and Kimodo's walk carries it forward over the chest (woman_stair: the Chest-to-Head line leans 4.9 degrees
+# further forward than at her bind, which stands it 3.9 degrees back of upright; standing 0.6). The neck is turned back
+# at its base until the head sits over the chest as at the bind (`head_lean`: that line's lean forward in the body's
+# own upright plane, against the bind's), and the gaze is then levelled at the head alone.
+HEAD_LEAN_MOST_DEGREES = 3.0  # a head carried further forward than the bind's (median) juts
+
+
+def head_lean(world, names, bind):
+    """The Chest-to-Head line's lean forward of upright, in the upright plane through the body's forward, past the
+    bind's on every frame, degrees."""
+    def lean(frames):
+        _, forward = facing(frames, names)
+        line = frames[:, names.index("Head"), :3, 3] - frames[:, names.index("Chest"), :3, 3]
+        return np.degrees(np.arctan2(np.einsum("fd,fd->f", line, forward), line[:, 1]))
+    return lean(world) - float(lean(np.asarray(bind, float)[None])[0])
+
+
+def neck_upright(local, parents, names, bind):
+    """`local` with the upper chest and the neck's base turned back alike until the head's median lean (`head_lean`)
+    is the bind's (turned at the neck alone, a walk's neck bent back over a chest held forward); a head carried
+    behind the bind's is kept."""
+    from tools.characters import played
+    for _ in range(6):  # the neck's base sits above the chest, so a turn there moves the line less than it turns
+        world = played.chained(local, parents)
+        excess = float(np.median(head_lean(world, names, bind)))
+        if excess <= 0.1:
+            break
+        across, _ = facing(world, names)
+        for joint in ("Chest", "Neck1"):
+            local = turned(local, parents, names.index(joint), across, -excess / 2.0)
+    return local
+
+
+def head_faults(world, names, bind):
+    """A head carried forward of the shoulders: its median lean (`head_lean`) past HEAD_LEAN_MOST_DEGREES."""
+    lean = float(np.median(head_lean(world, names, bind)))
+    if lean > HEAD_LEAN_MOST_DEGREES:
+        return [f"the head juts {lean:.1f} degrees forward of the body's own carriage (most {HEAD_LEAN_MOST_DEGREES})"]
+    return []
+
+
+# A walk's arms and chest (judges, round 1: "no arm swing walking", a rigid torso): Kimodo's walk on woman_stair
+# swings the upper arms 34 degrees, the elbows bent alike through the swing, and turns the shoulders' line with the
+# hips' (correlation -0.16) where a walker's chest turns against the hips. `swung` scales each upper arm's and
+# forearm's swing about its own middle until the upper arm swings ARM_SWING_TARGET_DEGREES (the clip's own rhythm
+# kept, the elbow never straighter than ELBOW_LEAST_DEGREES), and turns the chest (a third at each spine joint, the
+# neck turned back so the head keeps its look) so the shoulders' line turns COUNTER_SHARE of the hips' turn the other
+# way. Choices read off people walking at an easy pace, not a study's.
+ARM_SWING_TARGET_DEGREES = 45.0
+ELBOW_LEAST_DEGREES = 8.0
+COUNTER_SHARE = 0.5
+COUNTER_MOST = -0.5  # a walk whose shoulders' turn correlates with its hips' more than this turns as one block
+CHEST_TURN_LEAST_DEGREES = 4.0  # a walk whose shoulders' line turns less than this (over the walk) holds it rigid
+SPINE = ("Spine1", "Spine2", "Chest")
+
+
+def yaws(world, names, left, right):
+    """The line from `right` to `left` turned about the upright on every frame, degrees off its median."""
+    line = world[:, names.index(left), :3, 3] - world[:, names.index(right), :3, 3]
+    angle = np.unwrap(np.arctan2(-line[:, 2], line[:, 0]))
+    return np.degrees(angle - np.median(angle))
+
+
+def swung(local, parents, names):
+    """A walk with its chest turning against its hips and its arms swinging (the header above `yaws`)."""
+    from tools.characters import played
+    world = played.chained(local, parents)
+    pelvis, chest = yaws(world, names, "LeftLeg", "RightLeg"), yaws(world, names, "LeftArm", "RightArm")
+    change = -COUNTER_SHARE * pelvis - chest
+    upright = np.tile(UP, (len(local), 1))
+    for joint in SPINE:
+        local = turned(local, parents, names.index(joint), upright, change[:, None] / len(SPINE))
+    local = turned(local, parents, names.index("Neck1"), upright, -change[:, None])
+    world = played.chained(local, parents)
+    across, forward = facing(world, names)
+    for side, _ in SIDES:
+        joint = {name: names.index(f"{side}{name}") for name in ("Arm", "ForeArm", "Hand")}
+        place = lambda frames, name: frames[:, joint[name], :3, 3]  # noqa: E731 (one line)
+        arm = forward_angle(place(world, "ForeArm") - place(world, "Arm"), forward)
+        fore = forward_angle(place(world, "Hand") - place(world, "ForeArm"), forward)
+        scale = max(1.0, ARM_SWING_TARGET_DEGREES / float(np.ptp(arm)))
+        arm_wanted = np.median(arm) + scale * (arm - np.median(arm))
+        fore_wanted = np.maximum(np.median(fore) + scale * (fore - np.median(fore)), arm_wanted + ELBOW_LEAST_DEGREES)
+        local = turned(local, parents, joint["Arm"], across, -(arm_wanted - arm)[:, None])
+        moved = played.chained(local, parents)
+        now = forward_angle(place(moved, "Hand") - place(moved, "ForeArm"), forward)
+        local = turned(local, parents, joint["ForeArm"], across, -(fore_wanted - now)[:, None])
     return local
 
 
@@ -214,15 +454,19 @@ def rest_gaze(face):
 # thumb bent at its two joints and turned at its base to lie along the index finger's side.
 FINGERS = ("Index", "Middle", "Ring", "Pinky")
 # Each finger's bend at rest from its palm bone to its end bone, degrees, the bend it lacks shared out over its
-# knuckle, middle and end joints by FINGER_BEND_SHARES.
-FINGER_BEND_DEGREES = {"Index": 55.0, "Middle": 65.0, "Ring": 75.0, "Pinky": 85.0}
+# knuckle, middle and end joints by FINGER_BEND_SHARES. At 55 to 85 degrees (round 1, #223) the hanging hands read
+# "stiff and curled like a mannequin's" to the judges: a hand hanging at rest is open, the index finger nearly
+# straight and each finger towards the little one a little more bent.
+FINGER_BEND_DEGREES = {"Index": 36.0, "Middle": 45.0, "Ring": 54.0, "Pinky": 63.0}
 FINGER_BEND_SHARES = (0.35, 0.45, 0.2)
 BEND_TRIES = 4
-# Each finger's first bone's angle off the middle finger's across the palm, at rest (towards the thumb positive).
-FINGER_SPREAD_DEGREES = {"Index": 4.0, "Middle": 0.0, "Ring": -4.0, "Pinky": -9.0}
+# Each finger's first bone's angle off the middle finger's across the palm, at rest (towards the thumb positive): a
+# little apart, not pressed together.
+FINGER_SPREAD_DEGREES = {"Index": 6.0, "Middle": 0.0, "Ring": -5.0, "Pinky": -11.0}
 THUMB_BEND_DEGREES = (15.0, 15.0)  # at the thumb's joints 2 and 3
-# The thumb's tip laid this far out from the index finger's middle bone, towards the thumb's side and the palm's, m.
-THUMB_REST_OFF_M = (0.012, 0.008)
+# The thumb's tip laid this far out from the index finger's middle bone (or its knuckle, whichever is nearer the
+# palm), towards the thumb's side and the palm's, m.
+THUMB_REST_OFF_M = (0.012, 0.012)
 THUMB_TURN_MOST_DEGREES = 60.0  # the most the thumb's base is turned to lay it there
 BONE_BLEND_M = 0.002  # a hand point is carried by the bones within about this much of its nearest one
 # The hand checks: a thumb's tip further than this from the index finger's bones stands out from the hand; two
@@ -442,7 +686,9 @@ def chains_posed(joints, side):
             for joint, degrees in zip((2, 3), THUMB_BEND_DEGREES):
                 turn(joint, about(placed[chain[joint]], bend_axis, degrees))
             index_middle = (placed[f"{side}HandIndex3"] + placed[f"{side}HandIndex4"]) / 2.0
-            target = index_middle + THUMB_REST_OFF_M[0] * thumb_side + THUMB_REST_OFF_M[1] * palm
+            # never on the back's side of the knuckles, where an index finger held up (bent back) would take it
+            palmward = max(0.0, float((placed[f"{side}HandIndex2"] - index_middle) @ palm))
+            target = index_middle + THUMB_REST_OFF_M[0] * thumb_side + (THUMB_REST_OFF_M[1] + palmward) * palm
             base = placed[chain[1]]
             now, then = placed[chain[-1]] - base, target - base
             axis = np.cross(now, then)
@@ -514,8 +760,10 @@ def hand_faults(measures, side):
 WRIST_ULNAR_MOST_DEGREES = 15.0  # a hanging wrist turned further to the little finger's side hooks the hand out
 WRIST_BEND_DEGREES = (-15.0, 30.0)  # a hanging wrist's bend towards the palm (back negative), its median, at ease
 # A walk's arms: the upper arm's swing forward and back over the walk, degrees, and how much it swings against the
-# leg on its side (the correlation of the two; a walk swings each arm with the other leg).
-ARM_SWING_DEGREES = (20.0, 60.0)
+# leg on its side (the correlation of the two; a walk swings each arm with the other leg). Kimodo's 34 degrees read as
+# "no arm swing" to round 1's judges (#223), so a walk swings at least 38 (`swung` brings it to
+# ARM_SWING_TARGET_DEGREES).
+ARM_SWING_DEGREES = (38.0, 65.0)
 ARM_AGAINST_LEG_MOST = -0.5
 HEEL_STRIKE_LEAST_DEGREES = 5.0  # the foot's most toes up over its flat stance: a walk lands on the heel
 KNEE_SWING_DEGREES = (50.0, 75.0)  # the knee's most bend over a walk (its swing)
@@ -563,11 +811,17 @@ def forward_angle(bone, forward):
 
 
 def walk_measured(world, names):
-    """A walk's arms, heels and knees: each upper arm's swing (degrees) and its correlation with its own side's
-    thigh's swing, each foot's most toes up over its flat stance and each knee's most bend (degrees)."""
+    """A walk's arms, heels, knees and chest: each upper arm's swing (degrees) and its correlation with its own
+    side's thigh's swing, each foot's most toes up over its flat stance and each knee's most bend (degrees); and the
+    correlation of the shoulders' line's turn about the upright with the hips' (`yaws`, under "chest")."""
     _, forward = facing(world, names)
     joint = {name: world[:, names.index(name), :3, 3] for name in names}
-    found = {}
+    # turns read to a millionth of a degree: a chest held still turns by rounding's noise, which correlates anyhow
+    chest, hips = (np.round(yaws(world, names, left, right), 6) for left, right in (("LeftArm", "RightArm"),
+                                                                                  ("LeftLeg", "RightLeg")))
+    with np.errstate(invalid="ignore", divide="ignore"):  # a chest or hips that never turn have no correlation
+        together = float(np.corrcoef(chest, hips)[0, 1])
+    found = {"chest": {"turn with hips": round(together, 2), "turn": round(float(np.ptp(chest)), 1)}}
     for side, _ in SIDES:
         arm = forward_angle(joint[f"{side}ForeArm"] - joint[f"{side}Arm"], forward)
         thigh = forward_angle(joint[f"{side}Shin"] - joint[f"{side}Leg"], forward)
@@ -587,7 +841,15 @@ def walk_faults(measures):
     """What is wrong with a walk (`walk_measured`): arms held still or flung, swung with their own leg, landing flat
     or on the toes, legs stiff or high-stepping."""
     found = []
+    if not measures["chest"]["turn with hips"] <= COUNTER_MOST:  # never turning against them (no correlation) too
+        found.append(f"the chest turns with the hips as one block (correlation {measures['chest']['turn with hips']}, "
+                     f"most {COUNTER_MOST})")
+    if measures["chest"]["turn"] < CHEST_TURN_LEAST_DEGREES:
+        found.append(f"the chest is held rigid: its shoulders turn {measures['chest']['turn']} degrees (least "
+                     f"{CHEST_TURN_LEAST_DEGREES})")
     for side, values in measures.items():
+        if side == "chest":
+            continue
         side = side.lower()
         if not ARM_SWING_DEGREES[0] <= values["arm swing"] <= ARM_SWING_DEGREES[1]:
             found.append(f"the {side} arm swings {values['arm swing']} degrees (from {ARM_SWING_DEGREES[0]} to "
@@ -617,14 +879,17 @@ def reach_faults(world, names, height):
 
 
 def clip_faults(local, parents, names, bind, gaze, clip, height, hands=None):
-    """Everything wrong with a relaxed clip as played (`faults`, `reach_faults`, `wrist_faults` when the `hands`'
-    joints at the bind are known, `walk_faults` for the walk)."""
+    """Everything wrong with a relaxed clip as played (`faults`, `reach_faults`, `head_faults`, `wrist_faults` when
+    the `hands`' joints at the bind are known, `walk_faults` for the walk, `stance_faults` for the stand)."""
     from tools.characters import played
     names = [str(name) for name in names]
     world = played.chained(local, parents)
-    found = faults(measured(local, parents, names, bind, gaze)) + reach_faults(world, names, height)
+    found = faults(measured(local, parents, names, bind, gaze)) + reach_faults(world, names, height) + \
+        head_faults(world, names, bind)
     if hands is not None:
         found += wrist_faults(world, names, bind, hands)
     if clip == "walking":
         found += walk_faults(walk_measured(world, names))
+    else:
+        found += stance_faults(stance_measured(world, names))
     return found

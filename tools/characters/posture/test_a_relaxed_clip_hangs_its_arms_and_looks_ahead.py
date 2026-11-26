@@ -8,7 +8,11 @@ its skin; its thumb out, fingers spread and held straight (or bent back) are eac
 fault, every bone its length, the fingertips towards the palm, the thumb's tip on the palm's side and the palm where it
 was. A toy's hands hooked to the little finger's side or bent back fault their wrists; a toy walk whose arms swing
 with their own legs, whose arms hardly swing and feet land flat, or whose knees hardly bend faults its walk, a good one
-none; a toy standing whose elbows and wrists sit too high for its height faults its reach.
+none; a toy standing whose elbows and wrists sit too high for its height faults its reach. A toy walk whose chest
+turns with its hips, or not at all, faults its chest; a stiff toy walk (little swing, the chest turning with the
+hips), swung, has no walk fault. A toy standing square (level pelvis, hips over the middle, straight knees) faults its
+stance and, relaxed, stands on one leg with its feet where they were; a toy whose neck leans its head forward faults
+its head and, relaxed, carries it as its bind does.
 
 Breaks that turn it red (each applied once, seen red, reverted), 2026-11-25:
 - faults' `values["median"] > ARM_MOST_DEGREES` made `> 90`: an arm held 20 degrees out passes.
@@ -31,6 +35,16 @@ Each seen red 2026-11-26:
 - the bones' blend read over 1 m: the palm moves with the fingers.
 - the four fingers left in their skin's order: the index told from the little finger wrongly.
 - hung's SHOULDER_STEPS left at (0,): the arms a chest blocks unless the shoulders come forward stay out.
+Each seen red 2026-11-26 (round 2):
+- weight_shifted's pelvis turned `-sign`: the relaxed stand tips its pelvis the wrong way and stands square.
+- stance_faults' knees check dropped: the square toy's straight knees pass.
+- legs_reaching's feet left as moved: the relaxed stand's feet leave where they stood.
+- walks' speed compared `<`: the stand reads as a walk and the walk as a stand.
+- neck_upright's turn made `+excess / 2.0`: the head is pushed further forward, not carried back.
+- head_faults' lean read at 90 degrees: the forward head passes.
+- swung's COUNTER_SHARE sign dropped: the swung chest still turns with the hips.
+- swung's scale held at 1: the stiff walk's 30 degree swing stays.
+- walk_faults' chest check made `> COUNTER_MOST`: a chest that never turns (no correlation) passes.
 """
 import numpy as np
 import pytest
@@ -38,6 +52,7 @@ import trimesh
 from scipy.spatial.transform import Rotation
 
 from tools.characters import played, posture
+from tools.characters.people import stance
 
 NAMES = ["Root", "Hips", "Spine1", "Spine2", "Chest", "Neck1", "Neck2", "Head", "HeadEnd",
          "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm",
@@ -50,6 +65,7 @@ OFFSETS = np.array([[0, 0, 0], [0, 1.0, 0], [0, 0.1, 0], [0, 0.1, 0], [0, 0.15, 
                     [0, -0.45, 0], [-0.1, 0, 0], [0, -0.45, 0], [0, -0.45, 0], [0, -0.06, 0.13],
                     [0, -0.06, 0.13]], dtype=float)
 FRAMES = 12
+PELVIS_TURN = 6.0  # a toy walk's hips' turn each way about the upright, degrees
 TOE_OFF_DEGREES = 40.0  # a toy walk's foot tipped toes down as it pushes off
 
 
@@ -103,14 +119,18 @@ def turned_about_x(local, name, degrees):
     return local
 
 
-def toy_walk(arm_with_leg=-0.7, foot_lift=20.0, knee=60.0):
+def toy_walk(arm_with_leg=-0.9, foot_lift=20.0, knee=60.0, counter=0.5):
     """A toy walk of two strides (each thigh swinging 25 degrees, its knee bending to `knee` in the swing, its foot
     kept level but tipped `foot_lift` degrees toes up as it lands and TOE_OFF_DEGREES toes down as it pushes off,
-    each upper arm swinging `arm_with_leg` times its
-    own thigh)."""
+    each upper arm swinging `arm_with_leg` times its own thigh, the hips turning PELVIS_TURN degrees each way with
+    the legs and the chest turning `counter` times that the other way)."""
     local = np.tile(np.eye(4), (FRAMES * 4, len(NAMES), 1, 1))
     local[:, :, :3, 3] = OFFSETS
     phase = np.linspace(0.0, 4.0 * np.pi, FRAMES * 4, endpoint=False)
+    pelvis = PELVIS_TURN * np.sin(phase)
+    local[:, NAMES.index("Hips"), :3, :3] = Rotation.from_euler("y", pelvis[:, None], degrees=True).as_matrix()
+    local[:, NAMES.index("Spine1"), :3, :3] = Rotation.from_euler("y", -(1.0 + counter) * pelvis[:, None],
+                                                                  degrees=True).as_matrix()
     for name, shift in (("Left", 0.0), ("Right", np.pi)):
         thigh = -25.0 * np.sin(phase + shift)  # about x, negative forward
         shin = knee * np.clip(np.sin(phase + shift - np.pi / 2), 0.0, None)
@@ -175,7 +195,9 @@ def toy_hanging_hands(local):
     return hands
 
 
-KINDS = {"thumb's tip stands": "thumb", "are spread": "spread", "held straight": "straight", "wrist is turned": "turned",
+KINDS = {"one block": "one block", "held rigid": "rigid", "pelvis tips": "tip", "over the standing foot": "over",
+         "bend only": "knees", "juts": "juts", "thumb's tip stands": "thumb", "are spread": "spread",
+         "held straight": "straight", "wrist is turned": "turned",
          "wrist is bent": "bent", "with its own leg": "swings with", "degrees (from": "swings", "lands": "heel",
          "knee bends": "knee", "joint stands": "joint stands"}
 
@@ -199,10 +221,16 @@ def shown_of(found):
     ("wrist", 25.0, 0.0, None, None, None, {"turned"}, None),
     ("wrist", 0.0, -40.0, None, None, None, {"bent"}, None),
     ("wrist", 5.0, 10.0, None, None, None, set(), None),
-    ("walk", -0.7, 20.0, 60.0, None, None, set(), None),
-    ("walk", 0.7, 20.0, 60.0, None, None, {"swings with"}, None),
-    ("walk", -0.2, 0.0, 60.0, None, None, {"swings", "heel"}, None),
-    ("walk", -0.7, 20.0, 20.0, None, None, {"knee"}, None),
+    ("walk", -0.9, 20.0, 60.0, 0.5, None, set(), None),
+    ("walk", 0.9, 20.0, 60.0, 0.5, None, {"swings with"}, None),
+    ("walk", -0.2, 0.0, 60.0, 0.5, None, {"swings", "heel"}, None),
+    ("walk", -0.9, 20.0, 20.0, 0.5, None, {"knee"}, None),
+    ("walk", -0.9, 20.0, 60.0, -0.6, None, {"one block"}, None),
+    ("walk", -0.9, 20.0, 60.0, 0.0, None, {"one block", "rigid"}, None),
+    ("swung", -0.6, 20.0, 60.0, -0.2, None, {"swings", "one block", "rigid"}, None),
+    ("stand", 4.0, 0.0, 0.05, None, None, {"tip", "over", "knees"}, None),
+    ("head", 4.0, 12.0, 0.0, None, None, {"juts"}, None),
+    ("head", 4.0, 2.0, 0.0, None, None, set(), None),
     ("reach", 1.8, None, None, None, None, set(), None),
     ("reach", 1.5, None, None, None, None, {"joint stands"}, None),
 ])
@@ -252,10 +280,39 @@ def test_a_relaxed_clip_hangs_its_arms_and_looks_ahead(case, arms, head, feet, b
         local[:, NAMES.index("RightHand"), :3, :3] = Rotation.from_euler("xz", [arms, -head], degrees=True).as_matrix()
         world = played.chained(local, PARENTS)
         assert shown_of(posture.wrist_faults(world, NAMES, bind, hands)) == played_faults
-    if case == "walk":  # arms: the arm's swing with its leg, head: the heel's lift, feet: the knee's swing
-        world = played.chained(toy_walk(arms, head, feet), PARENTS)
+    if case == "walk":  # arms: the arm's swing with its leg, head: the heel's lift, feet: the knee's swing,
+        # bind_head: the chest's turn against the hips
+        world = played.chained(toy_walk(arms, head, feet, bind_head), PARENTS)
         assert shown_of(posture.walk_faults(posture.walk_measured(world, NAMES))) == played_faults
         assert posture.reach_faults(world[:1], NAMES, 1.8) == []
+    if case == "swung":  # a stiff walk, the toy walk's columns; carried forward 1.2 m/s it walks
+        local = toy_walk(arms, head, feet, bind_head)
+        local[:, NAMES.index("Root"), 2, 3] = np.arange(len(local)) * 1.2 / posture.CLIP_RATE
+        world = played.chained(local, PARENTS)
+        assert posture.walks(world, NAMES)
+        assert shown_of(posture.walk_faults(posture.walk_measured(world, NAMES))) == played_faults
+        swung = played.chained(posture.swung(local, PARENTS, NAMES), PARENTS)
+        assert posture.walk_faults(posture.walk_measured(swung, NAMES)) == []
+    if case == "stand":  # arms: the upper arms out, feet: the ankles' spread
+        local, bind, gaze = toy(arms, head, feet)
+        world = played.chained(local, PARENTS)
+        assert not posture.walks(world, NAMES)
+        assert shown_of(posture.stance_faults(posture.stance_measured(world, NAMES))) == played_faults
+        relaxed = played.chained(posture.relaxed(local, PARENTS, NAMES, bind, gaze, lambda clip, side: True), PARENTS)
+        assert posture.stance_faults(posture.stance_measured(relaxed, NAMES)) == []
+        feet = [NAMES.index(name) for name in ("LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase")]
+        narrowed = played.chained(posture.locals_of(stance.narrowed(world, NAMES, PARENTS), PARENTS), PARENTS)
+        assert np.abs(relaxed[:, feet] - narrowed[:, feet]).max() < 1e-6  # each foot stays where it stood
+        bends = posture.knee_bends(relaxed, NAMES)
+        assert np.median(bends["Left"]) == pytest.approx(posture.STANCE_KNEE_DEGREES, abs=0.5)
+    if case == "head":  # head: the neck's lean forward at its base
+        local, bind, gaze = toy(arms, 0.0, feet)
+        local = turned_about_x(local, "Neck1", head)
+        world = played.chained(local, PARENTS)
+        assert shown_of(posture.head_faults(world, NAMES, bind)) == played_faults
+        relaxed = played.chained(posture.relaxed(local, PARENTS, NAMES, bind, gaze, lambda clip, side: True), PARENTS)
+        assert np.median(posture.head_lean(relaxed, NAMES, bind)) < 0.3
+        assert posture.head_faults(relaxed, NAMES, bind) == []
     if case == "reach":  # arms: the person's height
         local, _, _ = toy(5.0, 0.0, 0.0)
         assert shown_of(posture.reach_faults(played.chained(local, PARENTS), NAMES, arms)) == played_faults
