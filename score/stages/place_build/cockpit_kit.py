@@ -460,11 +460,13 @@ def bars(count=3, wide=0.05, high=0.09, levels=(0.7, 0.45, 0.85), colour="green"
 
 
 def readout(wide=0.07, high=0.026, digits="2830", colour="green", **_):
-    """A small lit number window: a dark recess in a bright frame and its digits lit."""
+    """A small lit number window: a dark recess in a bright frame and its digits lit, never wider than it (2099 #246:
+    a radio's "042.0" ran past its window's right edge)."""
     found = frame_ring("metal", rounded_rectangle(wide + 0.008, high + 0.008, 0.003),
                        rounded_rectangle(wide, high, 0.002), 0.0, 0.004)
     found += box("dark", (-wide / 2 - 0.001, -high / 2 - 0.001, 0.0003), (wide / 2 + 0.001, high / 2 + 0.001, 0.002), 0.0003)
-    found += moved(lettering(LAMP_PARTS[colour], digits, high * 0.6, 0.0006), offset=(0.0, 0.0, 0.002))
+    fits = 0.9 * wide * LETTER_ROWS / max(1, 6 * len(digits) - 1)  # the digits' height whose run fills 90% of the window
+    found += moved(lettering(LAMP_PARTS[colour], digits, min(high * 0.6, fits), 0.0006), offset=(0.0, 0.0, 0.002))
     return found
 
 
