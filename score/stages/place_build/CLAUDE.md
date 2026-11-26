@@ -254,6 +254,16 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `<name>_door` (`of` the piece), so the arm's end is cut to the capsule's round hatch and joined there with no leaf
   of its own (one leaf a join: the capsule's hatch). `remove` takes a removed object's doorways and the joins read
   from it or them out of place.json.
+- **Pipe runs** (`pipe`, batch only; pipe_run.py, `algorithm/pipe_run`, 2099 ADR-0008, 2026-11-26): a place's long
+  thin parts from the library, never a picture's model of a pipe: a run laid along its `spec`'s `path` (or `paths`)
+  with its `profile` (round pipe, conduit, drainpipe or rail; corrugated hose; cord; bundle of cables; flat strap; box
+  bar or rib; channel tray; railing of posts, rails and bars or glass), `sag` a flexible run's catenary between its
+  points (an overhead cable, a lantern string), its corners bent on a bend radius, a rigid run's elbow sleeves over
+  ELBOW_TURN, collars every `joints`, caps, `wall` brackets every BRACKET_GAP (clamp, stand-off, plate), a bundle's
+  ties, a strap's buckles; one section all along (never a sausage), every piece closed; each part (the run's own, `fitting`,
+  `bracket`, `post`, `infill`, `buckle`) wears its look from `looks`, refused when one has none. Its answer gives the
+  run's length and its `hang` spots in the scene's frame, where a string's lanterns are `put`. Cached by spec and
+  code under `assets/algorithm/pipe_run/`.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
   and a moon light; `haze` a body of haze (tools/usd/scene.py's haze body) the renderer fills, a box or, with

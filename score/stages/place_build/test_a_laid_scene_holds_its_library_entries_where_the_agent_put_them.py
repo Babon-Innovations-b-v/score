@@ -51,6 +51,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - people.copies_posed: each copy's move left out -> every copy reads as its prototype at the origin, inside the stage
 - pieces.walks_of: the end left in the instancer's own frame -> the walker's far end is off by the crowd's offset
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
+- pipe_run.round_run: the elbow sleeves left out -> the drainpipe's bend carries no elbow
+- pipe_run.catenary: the hang's sign turned -> the lantern string's middle rises over its ends
+- place_build.pipe: the missing looks check left out -> a run with bare parts is laid
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
 - place_build.tinted: the colour set on the diffuse input though a map feeds it -> the sand's map keeps no tint
 - place_build.look_shader: `strongerThanDescendants` made `weakerThanDescendants` -> the piece's own look wins
@@ -812,6 +815,36 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     resurfaced = bound_colour(restaged, "/yard/Objects/redone/geo")
     del restaged
     place_build.remove(folder, "redone")
+    hull = "palette/hull_paint"  # pipe runs (pipe_run.py): a drainpipe on a wall, a sagging lantern string
+    drain = {"profile": "round", "radius": 0.05, "path": [[0, 6, 0], [0, 0.3, 0], [0.4, 0, 0]], "wall": [0, 0, -1]}
+    piped = place_build.batch(folder, [
+        {"step": "pipe", "name": "drain", "spec": drain, "at": [30, 0, 30], "role": "mount", "support": "wall:wall",
+         "looks": {"pipe": hull, "fitting": hull, "bracket": "surface/steel"}},
+        {"step": "pipe", "name": "string", "spec": {"profile": "cord", "radius": 0.005, "path": [[0, 5, 0], [10, 5, 0]],
+                                                    "sag": 0.6, "hang": 2.0}, "at": [30, 0, 40], "looks": {"cable": hull}},
+        {"step": "pipe", "name": "bare", "spec": drain, "looks": {"pipe": hull}},
+        {"step": "pipe", "name": "sagging", "spec": {**drain, "sag": 0.2}, "looks": {"pipe": hull}}])
+    pipe_stage = Usd.Stage.Open(str(folder / "scene.usda"))
+    drain_prim = pipe_stage.GetPrimAtPath("/yard/Objects/drain")
+    drain_mesh = UsdGeom.Mesh(pipe_stage.GetPrimAtPath(drain_prim.GetPath().AppendPath(Sdf.Path("geo"))))
+    drain_points = np.asarray(drain_mesh.GetPointsAttr().Get())
+    pipe_faces = [subset for subset in UsdGeom.Subset.GetAllGeomSubsets(drain_mesh) if subset.GetPrim().GetName() == "pipe"]
+    corners = np.asarray(drain_mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+    run_points = drain_points[np.unique(corners[np.asarray(pipe_faces[0].GetIndicesAttr().Get())])]
+    straight = run_points[(run_points[:, 1] > 1.0) & (run_points[:, 1] < 5.9)]  # the upright leg, off its ends
+    across = np.hypot(straight[:, 0], straight[:, 2])
+    elbow = [point for point in drain_points if point[1] < 0.3 and point[0] < 0.3
+             and np.hypot(point[0] - 0.0, point[1] - 0.0) > 0.05 * 1.2]  # the sleeve stands proud round the bend
+    assert drain_prim.GetAttribute("score:library").Get() == "algorithm/pipe_run" \
+        and drain_prim.GetAttribute("score:support").Get() == "wall:wall" and piped[0]["parts"] == ["bracket", "fitting", "pipe"]
+    assert np.allclose(across, 0.05, atol=1e-4), (across.min(), across.max())  # one section all along: no sausage
+    assert elbow and drain_points[:, 2].min() < -0.06  # an elbow at the bend, its brackets back to the wall at -z
+    hung = np.asarray(piped[1]["spots"])
+    assert len(hung) == 5 and np.allclose(hung[:, 2], 40) and abs(hung[2, 1] - 4.4) < 0.02 and hung[0, 1] > hung[2, 1]
+    assert "no look for its part(s) bracket, fitting" in piped[2]["refused"] and "rigid" in piped[3]["refused"]
+    del pipe_stage
+    place_build.remove(folder, "drain")
+    place_build.remove(folder, "string")
     batched =place_build.batch(folder, [
         {"step": "put", "name": "floor", "address": "kit/box_piece", "at": [0, -2, 0], "scale": 4, "ground": True},
         {"step": "put", "name": "missing", "address": "kit/plan_only"},

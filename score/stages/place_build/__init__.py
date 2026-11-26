@@ -40,6 +40,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        a cockpit piece built in code (cockpit_kit.py: a quilted
                                                        lining, a panel and its hardware, a seat) as one object, each
                                                        part in its look
+    pipe(folder, name, spec, at, turn, role, support, looks, ground)
+                                                       a long thin run (pipe_run.py: a pipe, conduit, cable bundle,
+                                                       hose, cord, strap, rib, tray or railing) along its path with
+                                                       its profile and fittings, each part in its look
     snap(folder, name, grid)                           a kit piece's spot onto the grid, its turns onto quarter turns
     palette(folder, library, wear, dirt)               the place's one surface library (its scene palette's families
                                                        and tokens, as its props were painted from) taken in
@@ -117,6 +121,7 @@ RAIN = "algorithm/rain"  # the rain algorithm's library address (its code: rainf
 DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its code: dome_shell.py)
 STAIRS = "algorithm/stair_core"  # the stair core algorithm's (stair_core.py)
 KIT = "algorithm/place_build"  # the cockpit kit's (cockpit_kit.py, part of the placing tool's own algorithm entry)
+PIPE = "algorithm/pipe_run"  # the pipe run algorithm's (pipe_run.py): pipes, cables, hoses, straps, ribs, railings
 
 
 class Refused(ValueError):
@@ -1378,6 +1383,47 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
             **({"doorways": sorted(f"{name}_{key}" for key in laid)} if laid else {})}
 
 
+PIPE_ROLES = ("prop", "fixed", "mount")  # what a pipe run may be: a loose cord, a run on a floor, one on a wall
+
+
+def pipe(folder, name, spec, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="fixed", support=None, looks=None,
+         ground=False):
+    """A long thin run (pipe_run.py: its `spec`'s path, profile, sag, fittings and brackets) laid as Objects/<name>
+    of `role` (PIPE_ROLES; a mount with its `support`, wall:<object>), or with `ground` walked on (a cable ramp), its
+    file written once under the place's assets by its spec and the algorithm's code; each of its parts then wears its
+    look from `looks` ({part: surface address, `palette/<variant>` too}), refused when a part has none. Its answer
+    names its parts, its centreline's length and its `hang` spots in the scene's frame (where a string's lanterns
+    are laid)."""
+    if role not in PIPE_ROLES and not ground:
+        raise Refused(f"a pipe run is a {', '.join(PIPE_ROLES)}, not {role}")
+    import hashlib
+    from score.stages.place_build import pipe_run
+    code = hashlib.sha256(pathlib.Path(pipe_run.__file__).read_bytes()).hexdigest()
+    key = hashlib.sha256(json.dumps([spec, code], sort_keys=True).encode()).hexdigest()[:16]
+    target = pathlib.Path(folder) / "assets" / "algorithm" / PIPE.split("/", 1)[1] / f"run_{key}.usda"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        made = pipe_run.write(target, spec) if not target.exists() else json.loads(
+            pathlib.Path(f"{target}.json").read_text())
+    except ValueError as why:
+        raise Refused(f"{name}: {why}") from why
+    missing = [part for part in made["parts"] if part not in (looks or {})]
+    if missing:
+        raise Refused(f"{name}: no look for its part(s) {', '.join(missing)} (its parts are {', '.join(made['parts'])})")
+    stage, place = opened(folder)
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, PIPE, "algorithm",
+                              (at, turn, (1.0, 1.0, 1.0)), bool(ground))
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    marked(prim, None if ground else role, None if ground else support)
+    frame = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    spots = [[round(value, 4) for value in frame.Transform(Gf.Vec3d(*spot))] for spot in made["spots"]]
+    saved(stage)
+    for part in made["parts"]:
+        surface(folder, name, looks[part], part=part)
+    return {"name": name, "address": PIPE, "usd": relative, "parts": made["parts"], "length": made["length"],
+            **({"spots": spots} if spots else {})}
+
+
 HOLLOW_LEAST = 0.02  # metres: a box's piece left thinner than this by a hollow is dropped (a sliver, no wall)
 FITTING_REACH = 0.5  # metres round a fitting the wall it is mounted on must still stand after a hollow (a rack's wash)
 
@@ -2354,7 +2400,7 @@ def refinish(folder, name, glow=None):
 
 STEPS = {"put": put, "palette": palette, "dome": dome, "ground": ground, "terrain": terrain, "tube": tube, "stairs": stairs, "surface": surface, "light": light, "snap": snap, "remove": remove,
          "cut": camera_cut, "backdrop": backdrop, "hollow": hollow, "kind": kind, "door": door,
-         "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "kit": kit, "night": night,
+         "camera": camera, "sky": sky, "sky-at": sky_at, "view": view, "blocks": blocks, "kit": kit, "pipe": pipe, "night": night,
          "haze": haze, "shaft": shaft, "refinish": refinish, "hold": hold, "plan": plan, "dress": dress}
 
 
