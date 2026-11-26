@@ -18,6 +18,10 @@ LETTER_PROUD = 0.018  # metres the letters stand out of the face
 TEXT_TALL = 0.68  # share of the face's height the words' ink fills (at most; a long line is held to the face's width)
 TEXT_WIDE = 0.92  # share of the face's width the words may fill
 ROWS = 96  # raster rows a line of words is cut into: a row is a run's height
+# The share of its glowing colour the face gives off: a lightbox's tubes shine through a diffusing face, dimmer than
+# a bare lamp, so its red words stand out of it. At a whole glow the street's face (sign-cream) drew white at the
+# night's exposure and its words read pink in its bloom (2099 #161, round 3).
+FACE_GLOW = 0.3
 FINISHES = {"casing": ("painted_metal", "gunmetal_steel"), "face": ("glowing", "sign_lightbox_cream"),
             "letters": ("glowing", "sign_lettering_red")}
 
@@ -79,4 +83,8 @@ def build(text, size, palette, look="bold sans"):
         scene.add_geometry(mesh, node_name=name, geom_name=name)
         recipe, variant = FINISHES[name]
         record["parts"].append({"name": name, "finish": recipe, "variant": variant})
-    return car.painted(scene, record, palette), record
+    car.painted(scene, record, palette)
+    material = scene.geometry["face"].visual.material
+    material.emissiveFactor = [value * FACE_GLOW for value in material.emissiveFactor]
+    record["face_glow"] = FACE_GLOW
+    return scene, record

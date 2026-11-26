@@ -8,6 +8,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/signs/__init__.p
     `top - (row + 1) * cell` -> `top + (row + 1) * cell` (the words drawn upside down, out of the face)
     runs' `zip(edges[0::2], edges[1::2])` -> `zip(edges[1::2], edges[0::2])` (every run empty or reversed)
     FINISHES' letters `"sign_lettering_red"` -> `"sign_lightbox_cream"` (the words the face's colour: unreadable)
+    build's `value * FACE_GLOW` -> `value` (the face glows whole: white, its words pink in its bloom)
 """
 import numpy as np
 
@@ -48,5 +49,8 @@ def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
     assert finishes == {"casing": ("painted_metal", "gunmetal_steel"), "face": ("glowing", "sign_lightbox_cream"),
                         "letters": ("glowing", "sign_lettering_red")}
     face_glow, letter_glow = (np.asarray(scene.geometry[name].visual.material.emissiveFactor) for name in ("face", "letters"))
-    assert face_glow.min() > 0.5 and letter_glow[0] > 2 * letter_glow[1], "the face glows cream, the letters red"
+    face_colour = np.asarray(scene.geometry["face"].visual.material.baseColorFactor[:3]) / 255.0
+    assert np.allclose(face_glow, face_colour * lightbox.FACE_GLOW, atol=0.01) and 0.0 < lightbox.FACE_GLOW < 1.0, \
+        "the face glows its cream through a diffuser, dimmer than its words"
+    assert letter_glow[0] > 2 * letter_glow[1] and letter_glow[0] > face_glow.max(), "the letters glow red over it"
     assert not np.any(scene.geometry["casing"].visual.material.emissiveFactor)
