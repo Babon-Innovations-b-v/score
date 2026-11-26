@@ -4,9 +4,11 @@ in it, and the words standing proud of the face as raised letters, each set in t
 (text_decals.FONTS, SIL OFL) and cut into runs of a raster's rows, so they read sharp from the street with no picture.
 Every part is a palette variant of its library recipe (car.painted), the face and letters glowing.
 
-    sign_parts(text, size, look)    the parts of a sign of `size` (across, tall, deep; y up, its face towards +z, its
-                                    foot on y 0, centred across and in depth): casing, face, letters
-    build(text, size, palette)      (trimesh.Scene, record): the parts painted from the palette
+    sign_parts(text, size, look, vertical)  the parts of a sign of `size` (across, tall, deep; y up, its face towards
+                                    +z, its foot on y 0, centred across and in depth): casing, face, letters; a
+                                    vertical sign's characters stacked top to bottom, as a Hong Kong blade sign's
+    build(text, size, palette, look, finishes, vertical)  (trimesh.Scene, record): the parts painted from the palette,
+                                    FINISHES unless `finishes` names others (a neon blade: a dark face, glowing letters)
 """
 import numpy as np
 
@@ -22,17 +24,35 @@ ROWS = 96  # raster rows a line of words is cut into: a row is a run's height
 # a bare lamp, so its red words stand out of it. At a whole glow the street's face (sign-cream) drew white at the
 # night's exposure and its words read pink in its bloom (2099 #161, round 3).
 FACE_GLOW = 0.3
+# The share of its colour a glowing face reflects: a diffuser is lit from behind, so the street's lamps over it must not
+# light it as a cream wall (at its whole colour the sign under its 18.8 W lamp drew a white slab, round 3).
+FACE_BASE = 0.35
+# The share of their colour a lightbox's letters give off: red film over the tubes, deeper than the face, so the words
+# read red, not salmon in the face's bloom (round 3). A neon sign's letters (a glowing finish over a face that does not
+# glow) give off their whole colour.
+LETTER_GLOW = 0.45
+GAP = 0.12  # share of a character's height between a vertical sign's characters
 FINISHES = {"casing": ("painted_metal", "gunmetal_steel"), "face": ("glowing", "sign_lightbox_cream"),
             "letters": ("glowing", "sign_lettering_red")}
 
 
-def ink(text, look):
-    """The words' ink as a boolean raster ROWS tall (True where a letter is), cropped to its ink."""
+def ink(text, look, vertical=False):
+    """The words' ink as a boolean raster (True where a letter is), cropped to its ink: one line ROWS tall, or for a
+    vertical sign each character ROWS tall, centred across, stacked top to bottom GAP of a character apart."""
     from PIL import Image
     from score.stages.surfaces import text_decals
-    line = text_decals.set_line(text, look)
-    wide = max(1, round(line.width * ROWS / line.height))
-    return np.asarray(line.resize((wide, ROWS), Image.LANCZOS)) >= 128
+    if not vertical:
+        line = text_decals.set_line(text, look)
+        wide = max(1, round(line.width * ROWS / line.height))
+        return np.asarray(line.resize((wide, ROWS), Image.LANCZOS)) >= 128
+    characters = [ink(character, look) for character in text if not character.isspace()]
+    wide = max(character.shape[1] for character in characters)
+    gap = np.zeros((round(ROWS * GAP), wide), dtype=bool)
+    stacked = []
+    for number, character in enumerate(characters):
+        left = (wide - character.shape[1]) // 2
+        stacked += [gap] * bool(number) + [np.pad(character, ((0, 0), (left, wide - character.shape[1] - left)))]
+    return np.vstack(stacked)
 
 
 def runs(raster):
@@ -52,7 +72,7 @@ def box(low, high):
                                 transform=trimesh.transformations.translation_matrix((low + high) / 2.0))
 
 
-def sign_parts(text, size, look="bold sans"):
+def sign_parts(text, size, look="bold sans", vertical=False):
     """[(part, mesh)]: the casing, the face inset by BORDER standing FACE_PROUD out of it, and the letters standing
     LETTER_PROUD out of the face, the words centred on it as large as TEXT_TALL and TEXT_WIDE let them."""
     import trimesh
@@ -61,7 +81,7 @@ def sign_parts(text, size, look="bold sans"):
     casing = box((-across / 2, 0.0, -deep / 2), (across / 2, tall, front))
     face_low, face_high = np.array([-across / 2 + BORDER, BORDER]), np.array([across / 2 - BORDER, tall - BORDER])
     face = box((*face_low, front), (*face_high, front + FACE_PROUD))
-    raster = ink(text, look)
+    raster = ink(text, look, vertical)
     span = face_high - face_low
     cell = min(span[1] * TEXT_TALL / raster.shape[0], span[0] * TEXT_WIDE / raster.shape[1])
     middle = (face_low + face_high) / 2.0
@@ -73,18 +93,26 @@ def sign_parts(text, size, look="bold sans"):
     return [("casing", casing), ("face", face), ("letters", letters)]
 
 
-def build(text, size, palette, look="bold sans"):
-    """(trimesh.Scene, record) of the sign: each part a node of its own name in its palette variant (FINISHES), the
-    record naming its text, size and parts as car.painted reads them."""
+def build(text, size, palette, look="bold sans", finishes=None, vertical=False):
+    """(trimesh.Scene, record) of the sign: each part a node of its own name in its palette variant (FINISHES, or
+    `finishes` {part: (recipe, variant)} over them), the record naming its text, size and parts as car.painted reads
+    them. A glowing face gives off FACE_GLOW and reflects FACE_BASE of its colour, its letters then LETTER_GLOW."""
     import trimesh
+    chosen = dict(FINISHES, **(finishes or {}))
     scene = trimesh.Scene()
-    record = {"rule": "lightbox", "text": text, "look": look, "size": [float(value) for value in size], "parts": []}
-    for name, mesh in sign_parts(text, size, look):
+    record = {"rule": "lightbox", "text": text, "look": look, "size": [float(value) for value in size],
+              "vertical": bool(vertical), "parts": []}
+    for name, mesh in sign_parts(text, size, look, vertical):
         scene.add_geometry(mesh, node_name=name, geom_name=name)
-        recipe, variant = FINISHES[name]
+        recipe, variant = chosen[name]
         record["parts"].append({"name": name, "finish": recipe, "variant": variant})
     car.painted(scene, record, palette)
-    material = scene.geometry["face"].visual.material
-    material.emissiveFactor = [value * FACE_GLOW for value in material.emissiveFactor]
-    record["face_glow"] = FACE_GLOW
+    if chosen["face"][0] == "glowing":
+        face = scene.geometry["face"].visual.material
+        face.emissiveFactor = [value * FACE_GLOW for value in face.emissiveFactor]
+        base = np.asarray(face.baseColorFactor, dtype=float)
+        face.baseColorFactor = [*(base[:3] * FACE_BASE / 255.0), base[3] / 255.0]
+        letters = scene.geometry["letters"].visual.material
+        letters.emissiveFactor = [value * LETTER_GLOW for value in letters.emissiveFactor]
+        record.update(face_glow=FACE_GLOW, face_base=FACE_BASE, letter_glow=LETTER_GLOW)
     return scene, record
