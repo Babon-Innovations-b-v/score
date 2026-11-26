@@ -34,6 +34,12 @@ LETTER_GLOW = 0.45
 GAP = 0.12  # share of a character's height between a vertical sign's characters
 FINISHES = {"casing": ("painted_metal", "gunmetal_steel"), "face": ("glowing", "sign_lightbox_cream"),
             "letters": ("glowing", "sign_lettering_red")}
+# A street lamp's square head is a lightbox with no words on a pole (2099 #161 round 5: the concept's HK lamp; a
+# Victorian lantern stood there). Its head gives off LAMP_GLOW of its colour, so it reads lit, not a white bloom blob.
+LAMP_FINISHES = {"pole": ("painted_metal", "gunmetal_steel"), "cap": ("painted_metal", "gunmetal_steel"),
+                 "head": ("glowing", "lamp_head_glow")}
+LAMP_GLOW = 0.35
+POLE_WIDE = 0.12  # metres across the pole's square section
 
 
 def ink(text, look, vertical=False):
@@ -115,4 +121,34 @@ def build(text, size, palette, look="bold sans", finishes=None, vertical=False):
         letters = scene.geometry["letters"].visual.material
         letters.emissiveFactor = [value * LETTER_GLOW for value in letters.emissiveFactor]
         record.update(face_glow=FACE_GLOW, face_base=FACE_BASE, letter_glow=LETTER_GLOW)
+    return scene, record
+
+
+def lamp_parts(tall, head):
+    """[(part, mesh)] of a square lamp `tall` metres to its cap: a pole up to the head, the head a cube `head` across,
+    and a cap BORDER thick and BORDER wider than the head on top of it."""
+    under = tall - head - BORDER
+    pole = box((-POLE_WIDE / 2, 0.0, -POLE_WIDE / 2), (POLE_WIDE / 2, under, POLE_WIDE / 2))
+    lantern = box((-head / 2, under, -head / 2), (head / 2, under + head, head / 2))
+    reach = head / 2 + BORDER / 2
+    cap = box((-reach, under + head, -reach), (reach, tall, reach))
+    return [("pole", pole), ("head", lantern), ("cap", cap)]
+
+
+def build_lamp(tall, head, palette):
+    """(trimesh.Scene, record) of a square lamp: each part a node of its own name in its LAMP_FINISHES variant, the
+    head giving off LAMP_GLOW of its glow and reflecting FACE_BASE of its colour."""
+    import trimesh
+    scene = trimesh.Scene()
+    record = {"rule": "lightbox lamp", "size": [head, float(tall), head], "parts": []}
+    for name, mesh in lamp_parts(float(tall), float(head)):
+        scene.add_geometry(mesh, node_name=name, geom_name=name)
+        recipe, variant = LAMP_FINISHES[name]
+        record["parts"].append({"name": name, "finish": recipe, "variant": variant})
+    car.painted(scene, record, palette)
+    glow = scene.geometry["head"].visual.material
+    glow.emissiveFactor = [value * LAMP_GLOW for value in glow.emissiveFactor]
+    base = np.asarray(glow.baseColorFactor, dtype=float)
+    glow.baseColorFactor = [*(base[:3] * FACE_BASE / 255.0), base[3] / 255.0]
+    record.update(head_glow=LAMP_GLOW, head_base=FACE_BASE)
     return scene, record
