@@ -395,32 +395,48 @@ def stop(child):
         child.wait()
 
 
-@contextlib.contextmanager
 def session_lock():
-    """SCORE_CARD_LOCK's flock for the block, shared, waited for; nothing without it. A session whose own card work
-    runs outside the queue (an ad hoc `flock <file> <command>`, exclusive) names its lock file there, so the queue's
-    jobs hold it for each card job alone, never for a whole phase of CPU steps between them (n25, 2026-11-25: 10,078 s
-    waited behind a phase-long flock that held 93 s of card work); shared, as the queue itself shares the card among
-    its own jobs."""
+    """SCORE_CARD_LOCK's flock, shared, asked without waiting: its open file once held, None while another session
+    holds it exclusive, "" when no lock is named. A session whose own card work runs outside the queue (an ad hoc
+    `flock <file> <command>`, exclusive) names its lock file there, so the queue's jobs hold it for each card job
+    alone, never for a whole phase of CPU steps between them (n25, 2026-11-25: 10,078 s waited behind a phase-long
+    flock that held 93 s of card work); shared, as the queue itself shares the card among its own jobs. Never waited
+    for and never held while a share is waited for (2026-11-26: a whole-person job that gave way held the lock 11 h
+    waiting for its share again, and the parts session's bench, behind the same file, waited 10 h on an idle card)."""
     path = os.environ.get("SCORE_CARD_LOCK")
     if not path:
-        yield
-        return
-    with open(path, "a") as handle:
-        fcntl.flock(handle, fcntl.LOCK_SH)
-        yield
+        return ""
+    handle = open(path, "a")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
 
 
 def run(job, card_gb, priority, command, memory=0):
-    """`command` run while `job` holds its share (and SCORE_CARD_LOCK, taken first: session_lock), stopped and started
-    again each time the share is asked back; its exit code. A stop signal to `run` ends the command first."""
-    with session_lock():
-        return shared_run(job, card_gb, priority, command, memory)
+    """`command` run while `job` holds its share and SCORE_CARD_LOCK (session_lock), stopped and started again each
+    time the share is asked back; its exit code. A stop signal to `run` ends the command first."""
+    return shared_run(job, card_gb, priority, command, memory)
+
+
+def locked_share(job, card_gb, priority, memory):
+    """`job`'s share and SCORE_CARD_LOCK held together: the share waited for first with no lock held, then the lock
+    asked without waiting; while another session holds the lock the share is given back and both are asked again, so
+    a waiter never holds what another waits for. (watched share, the lock's open file or "")."""
+    while True:
+        handle = watch(share_for(job, card_gb, priority, memory))
+        lock = session_lock()
+        if lock is not None:
+            return handle, lock
+        release(handle)
+        time.sleep(LOOK_SECONDS)
 
 
 def shared_run(job, card_gb, priority, command, memory=0):
-    """`command` run while `job` holds its share, stopped and started again each time the share is asked back; its
-    exit code."""
+    """`command` run while `job` holds its share and the session lock, stopped and started again each time the share
+    is asked back, both let go while it waits again; its exit code."""
     child = None
 
     def end(number, _frame):
@@ -431,18 +447,22 @@ def shared_run(job, card_gb, priority, command, memory=0):
     signal.signal(signal.SIGTERM, end)
     signal.signal(signal.SIGINT, end)
     while True:
-        handle = watch(share_for(job, card_gb, priority, memory))
+        handle, lock = locked_share(job, card_gb, priority, memory)
         before = resource.getrusage(resource.RUSAGE_CHILDREN)
         child = subprocess.Popen(command, start_new_session=True, preexec_fn=ends_with_parent)
         while child.poll() is None and not asked_back(handle):
             with contextlib.suppress(subprocess.TimeoutExpired):
                 child.wait(LOOK_SECONDS)
         if child.poll() is not None:
+            if lock:
+                lock.close()
             release(handle, *used_since(before, handle.began))
             return child.returncode
         print(f"card_queue: {job} gives the card way to a waiting earlier-ranked claim; it starts again after",
               file=sys.stderr, flush=True)
         stop(child)
+        if lock:
+            lock.close()
         release(handle, *used_since(before, handle.began))
 
 
