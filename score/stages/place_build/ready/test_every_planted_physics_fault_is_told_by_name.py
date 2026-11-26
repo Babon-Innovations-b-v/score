@@ -1,5 +1,5 @@
 """Invariant: the physics ready check tells the placing agent, by object, every planted fault that keeps a place from
-being walked in and pushed (a crate floating 40 cm over the ground; a crate standing 3 degrees off it, one edge down; two crates 10 cm inside each other; a door standing
+being walked in and pushed (a crate floating 40 cm over the ground; a crate standing 3 degrees off it, one edge down; a slab of structure 22 cm over it; two crates 10 cm inside each other; a door standing
 free of any wall; a door's far side walled off by a crate so no way 0.9 m wide reaches it, unless that door's leaf is joined to a
 neighbour there (place.json `joins`), whose side the area's joins check walks; a tunnel whose far end
 joins nothing; a tunnel too low to walk in; a box half off a desk that tips, and moves when let go in MuJoCo; an object
@@ -7,7 +7,7 @@ with no triangles; a door 40 cm narrower than its opening and one lying 20 cm ov
 over the ground; a walker (time-sampled) 30 cm over it, told by its planted foot alone; a round hatch in a square doorway; a person with no head and no right hand; a person whose sleeve tears from its chest to its hand),
 while what rests right passes (the walls, a walker stepping with its left foot 10 cm up, the door filling its opening, the desk, a monitor laid `on` the desk, a
 panel mounted `on` a wall, a block over an adopted bench's gap held by the convex hull its MuJoCo physics
-collides by, a crate on the ground, a rock sunk 30 cm into it, a round hatch in the doorway its tunnel's end wall cut to its own
+collides by, a crate on the ground, a rock sunk 30 cm into it, a footing sunk 0.4 m into it, a round hatch in the doorway its tunnel's end wall cut to its own
 outline (`tube --cap_door`), a person laid at rest on the ground though its SkelRoot's box
 reaches 40 cm under its feet); and `on` lays an object in contact with its support, `upright` standing a leaning one level first;
 and a walker's route goes round a crate in its way on that same floor and through every spot it is sent through, every point of it standing there, and is refused
@@ -38,7 +38,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - ready.support_faults: `gaps[nearest] > TOLERANCE` made `> 1.0` -> the floating crate passes
 - ready.tilt_faults: `degrees <= TILT` made `degrees <= 90` -> the crate standing 3 degrees off the ground passes
 - ready.placed_on: `upright`'s levelled turn left out -> the crate laid `on` the floor `upright` still stands tilted
-- ready.support_faults: `bedded` taken as False -> the rock sunk 30 cm reads as standing on nothing
+- ready.support_faults: `bedded` taken as False -> the rock sunk 30 cm reads as standing on nothing; a structure left
+  out of `bedded` -> the footing sunk 0.4 m reads as standing on nothing (2099 #161: the square's plaza read floating)
 - ready.crossing_depths: `count % 2` made `count % 2 == 0` -> the overlapping crates pass
 - ready.door_faults: the `open_sides` list left empty -> the free-standing door passes
 - ready.room_for_walkway: ERODED made 0 -> the blocked door's far side reads reached
@@ -465,6 +466,9 @@ def planted(folder):
     leaning.GetAttribute("xformOp:rotateXYZ").Set(Gf.Vec3f(0, 0, 3))
     leaning.GetAttribute("xformOp:translate").Set(Gf.Vec3d(-2.4, -0.02 + 0.5 * np.sin(np.radians(3)) + 0.2 * np.cos(
         np.radians(3)), -4.3))
+    for name, size, low in (("footing", (1.0, 0.6, 1.0), (4.0, -0.42, -3.0)),  # a structure sunk 0.4 m in the ground
+                            ("slab_float", (1.0, 0.2, 1.0), (-4.5, 0.2, -5.5))):  # one 22 cm over it
+        box(stage, place, name, size, low).CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("structure")
     box(stage, place, "crate_a", (0.5, 0.5, 0.5), (1.5, 0.0, -3.5))
     box(stage, place, "crate_b", (0.5, 0.5, 0.5), (1.9, 0.0, -3.5))
     desk(stage, place)
@@ -740,6 +744,7 @@ def test_every_planted_physics_fault_is_told_by_name(tmp_path, monkeypatch):
         sides = {name: spot for name, spot in ready.walkway_targets(laid, joined)[0].items() if name.startswith("door (")}
         assert len(sides) == kept and (kept == 2 or all(spot[2] > 0.0 for spot in sides.values())), (joined, sides)
     assert "floating" in told["crate_float"], found["crate_float"]
+    assert "footing" not in told and "floating" in told["slab_float"], (found.get("footing"), found.get("slab_float"))
     assert told["crate_tilted"] == {"tilted"}, found["crate_tilted"]
     ready.on(folder, "crate_tilted", "floor", upright=True)  # stood level on its base, then laid at rest
     assert ready.support_faults(ready.Place(*place_build.opened(folder)), "crate_tilted") == []

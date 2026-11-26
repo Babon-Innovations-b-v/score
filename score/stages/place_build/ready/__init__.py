@@ -456,7 +456,8 @@ def support_faults(laid, name):
     """A standing object's floating, missing support and tipping, each with its measure."""
     mesh = laid.meshes[name]
     lowest = lowest_points(mesh)
-    bedded = laid.roles[name] == "fixed"  # a rock may lie sunk to any depth: its rays start at its own top
+    bedded = laid.roles[name] in ("fixed", "structure")  # a rock or a footing may lie sunk to any depth: its rays
+    # start at its own top (2099 #161: the square's plaza, sunk 0.4 m into its promenade, read floating 3.4 cm over it)
     gaps, under = gaps_down(laid, name, lowest, start=float(np.ptp(mesh.bounds[:, 1])) if bedded else RAY_START)
     if not np.isfinite(gaps).any():
         return [{"fault": "no support", "why": "nothing lies under it to stand on"}]
