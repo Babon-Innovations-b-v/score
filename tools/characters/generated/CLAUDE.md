@@ -20,6 +20,26 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   <out>/stats.json <sheet.jpg>`.
 - **Look at the eye close-up.** A found pupil and a ball behind its margins say the numbers are right; only the 9 cm
   frame says whether a lid still shows paint over the ball or the white stares.
+- **Skin** (`skin.py`, drawn by `blender_skin.py`, the sheet by `skin_sheet.py`): TRELLIS.2's 2K paint is a blurred
+  copy of the close-up photo with the face a small part of it, so the skin reads waxy. `skin.py` gives the face its own
+  4K texture: the photo seen from the front over the face's box (a planar UV, `face`), registered to the model's front
+  from the pupils (`eyes.pupils` onto `eyes.photo_iris`) and refined by matching the paint's detail to the photo's
+  patch by patch on a 9 x 9 grid (an affine plus a smooth displacement; `check.png` shows paint and photo as a board),
+  only on the photo's face (`face_mask`: its skin in one piece, holes filled; the paint's hair is not the photo's).
+  The photo's light is flattened, not removed: the broad shading fitted first-order in the front's normal divided out
+  (clipped to `SHADING_RANGE`, a crease's shade is the skin's own) and highlights over the matte skin pressed down and
+  recoloured (`gloss_free`), the pixel's own pores scaled, never replaced. The texture's alpha is the photo's share
+  (the photo's face, how squarely the point faces the camera, clear of the eye's opening), and where it fades the
+  photo is toned to the paint's broad colour, so there is no seam. `blender_skin.py` mixes it into the model's paint
+  in score_lib's `face_skin_light` (its random-walk skin light, oil coat and scanned pore tiles on metric
+  coordinates; the T-zone a little glossier by its `sheen` region's roughness): the finish is the library's, the
+  colour the person's own (data/checks/library-exceptions.json: a generated model keeps its own paint).
+  Run: `python -m tools.characters.generated.skin <model.glb> <photo> <eyes.npz> <out> --height <m>` (about a minute,
+  under 2 GB), then `blender -b --python blender_skin.py -- <model.glb> <eyes.npz> <library> <height> <samples>
+  <renders> <out>` (CPU; the eyes are laid as `blender_eyes.py` lays them), then `python -m
+  tools.characters.generated.skin_sheet <name> <renders> <photo> <out>/stats.json <sheet.jpg>`.
+- **Look at the close-up.** The detail correlation says the photo lies on the paint; only the 6 cm cheek and nose
+  frame says whether the skin reads as a photograph or as wax, and the three quarters whether the edge shows.
 - **Hair** (`labels.py` → `scalp.py` → `volume.py` → `strands.py`, `beard.py`, `fibre.py`; run by `__main__.py`, drawn
   by `blender_sheet.py`, the sheet by `sheet.py`; the steps are in `__init__.py`'s docstring): the hair TRELLIS.2 paints
   on one solid shell with the head is split off (its triangles labelled by the model's own paint and place), a smooth

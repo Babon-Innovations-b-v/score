@@ -22,7 +22,8 @@ import numpy as np
 from mathutils import Vector
 from mathutils.kdtree import KDTree
 
-MODEL, EYES, LIBRARY, HEIGHT, SAMPLES, OUT = sys.argv[sys.argv.index("--") + 1:]
+# blender_skin.py imports this file with its own arguments after these six
+MODEL, EYES, LIBRARY, HEIGHT, SAMPLES, OUT = sys.argv[sys.argv.index("--") + 1:][:6]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "whole"))
 import render  # noqa: E402
 import blender_face  # noqa: E402  (on the path render.py put it)
@@ -207,4 +208,5 @@ def main():
     print("EYES RENDER DONE", flush=True)
 
 
-main()
+if __name__ == "__main__":
+    main()

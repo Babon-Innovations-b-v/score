@@ -37,6 +37,16 @@ reflection guard dropped (`sign` left the identity: the mirror image fitted by a
 target's spread, not the source's (`target_centred.var`); the ICP fitting every pair, not the kept share (`kept`
 1.0: the strays pull the fit off); `lowest` returning the scanned step (0.26, not 0.257); `head_swap.eased` rising,
 not falling, with height; `gltf_matrix`'s frame change applied on one side only (`blender_matrix @ to_blender`).
+
+The skin, on a flat front painted with soft blobs and a photo of it under a known map: the photo is found from a start
+4 px and 2% off to within a pixel (`skin.registered`); a shading that follows the normal is divided out, a highlight's
+excess mostly pressed off and recoloured to the skin's, plain skin kept (`skin.shading`, `skin.gloss_free`); a point
+wears the photo only facing forward, on the front, inside the photo's face and clear of the eye's floor, and the T-zone
+holds the nose, not the cheek (`skin.grid_share`, `skin.point_shares`, `skin.tzone`). Breaks that turn its rows red
+(each applied once, seen red, reverted, 2026-11-26): one search of half a millimetre (`skin.ROUNDS` (0.0005,): 8.7 px
+off); no shading taken off (`skin.SHADING_RANGE` (1, 1)); no gloss pressed (`skin.GLOSS` left 1); every slope facing
+(`skin.FACING` (-1, -0.5): the turned side wears the photo); every point on the front (`skin.VISIBLE_M` 1: the hidden
+point wears it); no fade at the eye (`skin.EYE_CLEAR_M` below 0: the eye's floor wears it).
 """
 import functools
 
@@ -45,7 +55,7 @@ import pytest
 import trimesh
 from scipy.spatial import cKDTree
 
-from tools.characters.generated import __main__, eyes, fibre, head_swap, labels, scalp, strands, volume
+from tools.characters.generated import __main__, eyes, fibre, head_swap, labels, scalp, skin, strands, volume
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -442,6 +452,77 @@ def frames_agree():
     moved_blender = matrix @ point_blender
     moved_gltf = head_swap.gltf_matrix(matrix) @ point_gltf
     return float(np.abs(moved_gltf - np.array([moved_blender[0], moved_blender[2], -moved_blender[1], 1.0])).max())
+def skin_flat_grid(colour, size_m=0.1):
+    """A flat front grid for the skin's step: `colour(x, y)` painted, every pixel seen and facing forward."""
+    xs = (np.arange(int(size_m / skin.STEP_M)) + 0.5) * skin.STEP_M - size_m / 2
+    grid_x, grid_y = np.meshgrid(xs, xs)
+    ones = np.ones_like(grid_x)
+    return {"xs": xs, "ys": xs, "depth": ones * 0.1, "seen": ones > 0, "facing": ones, "normal_x": 0 * ones,
+            "normal_y": 0 * ones, "colour": colour(grid_x, grid_y)}
+
+
+def skin_blobs(x, y):
+    """A seeded paint of soft blobs a few millimetres across (the face's detail), sRGB."""
+    rng = np.random.default_rng(3)
+    total = np.zeros(np.shape(x))
+    for centre_x, centre_y, radius in zip(rng.uniform(-0.05, 0.05, 160), rng.uniform(-0.05, 0.05, 160),
+                                          rng.uniform(0.002, 0.005, 160)):
+        total += np.exp(-0.5 * ((x - centre_x) ** 2 + (y - centre_y) ** 2) / radius ** 2)
+    return np.stack([0.75 - 0.2 * np.tanh(total), 0.55 - 0.15 * np.tanh(total), 0.45 - 0.1 * np.tanh(total)], -1)
+
+
+def skin_registered():
+    """The photo found from a start 4 px and 2% off: its true place under half a pixel off over the face."""
+    truth = skin.similarity(np.array([[-0.03, 0.0], [0.03, 0.0]]), np.array([[136.0, 210.0], [376.0, 200.0]]))
+    rows, cols = np.mgrid[:420, :512]
+    inverse = np.linalg.inv(np.vstack([truth, [0, 0, 1]]))
+    model_x = inverse[0, 0] * cols + inverse[0, 1] * rows + inverse[0, 2]
+    model_y = inverse[1, 0] * cols + inverse[1, 1] * rows + inverse[1, 2]
+    photo = skin_blobs(model_x, model_y)
+    grid = skin_flat_grid(skin_blobs, 0.08)
+    start = truth * np.array([[1.02], [1.02]]) + np.array([[0, 0, 4.0], [0, 0, -3.0]])
+    warp, _ = skin.registered(grid, photo, start)
+    inner = slice(40, -40)
+    found = np.stack(skin.mapped(warp, grid["xs"][inner], grid["ys"][inner]), -1)
+    true = np.stack(skin.mapped({**warp, "matrix": truth, "displacement": 0 * warp["displacement"]},
+                                grid["xs"][inner], grid["ys"][inner]), -1)
+    return bool(np.abs(found - true).max() < 1.0), round(float(np.abs(found - true).max()), 3)
+
+
+def skin_light_off():
+    """The photo's light taken off: a shading that follows the normal flattened, a nose's gloss taken out, plain
+    skin kept."""
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
+    tilt = np.sin(grid["xs"] * 20.0)[None, :] * np.ones((len(grid["ys"]), 1))
+    grid["normal_x"], grid["facing"] = tilt, np.sqrt(1 - tilt ** 2)
+    albedo = np.array([0.5, 0.3, 0.22])
+    lit = albedo * (0.9 + 0.1 * tilt)[..., None]
+    light, _ = skin.shading(grid, lit, np.ones(tilt.shape))
+    flat = eyes.luminance(lit / light[..., None])
+    glossy = albedo + 0.12
+    cleaned, excess = skin.gloss_free(np.array([glossy, albedo]), np.full(2, eyes.luminance(albedo)),
+                                      np.tile(albedo / albedo[0], (2, 1)))
+    left = eyes.luminance(cleaned[0]) / eyes.luminance(albedo) - 1.0
+    return [bool(flat.std() / flat.mean() < 0.02),
+            bool(left < excess[0] / 2.0 and np.allclose(cleaned[0] / cleaned[0, 0], albedo / albedo[0], atol=0.01)),
+            bool(np.abs(cleaned[1] - albedo).max() < 0.005)]
+
+
+def skin_shares():
+    """A point wears the photo only facing forward, on the front, inside the photo's face and clear of the eye."""
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
+    grid["facing"][:, :40] = 0.15  # the left side turned away
+    mask = np.ones(grid["depth"].shape)
+    mask[:40, :] = 0.0  # the bottom outside the photo's face
+    turn = np.linspace(0, 2 * np.pi, 200)
+    floor = np.column_stack([0.02 + np.outer(np.linspace(0, 0.005, 10), np.cos(turn)).ravel(),
+                             np.outer(np.linspace(0, 0.005, 10), np.sin(turn)).ravel(), np.full(2000, 0.1)])
+    coarse = {"share": skin.grid_share(grid, mask, skin.eye_floor_distance(grid, floor))}
+    points = np.array([[0.0, 0.02, 0.1], [-0.04, 0.02, 0.1], [0.0, -0.04, 0.1], [0.02, 0.0, 0.1], [0.0, 0.02, 0.05]])
+    shares = skin.point_shares(grid, coarse, points)
+    zone = skin.tzone(np.array([[0.0, 0.0, 0.1], [0.045, 0.01, 0.1]]), np.zeros(3))
+    return [bool(shares[0] > 0.95), *(bool(value < 0.05) for value in shares[1:]), bool(zone[0] > 0.9),
+            bool(zone[1] < 0.1)]
 
 
 @pytest.mark.parametrize("case, made_value, wanted", [
@@ -470,6 +551,11 @@ def frames_agree():
     ("a UV triangle's texels are those inside it", lambda: (0.5 <= texel_share()[0] < 0.56, texel_share()[1]),
      (True, True)),
     ("the head-to-body matrix moves a glTF point as Blender's moves it", lambda: frames_agree() < 1e-12, True),
+    ("the close-up photo is registered onto the model's front from a start off by pixels and scale",
+     lambda: skin_registered()[0], True),
+    ("the photo's shading and gloss are taken off, plain skin kept", skin_light_off, [True, True, True]),
+    ("a point wears the photo only facing forward, on the front, in the photo's face, clear of the eye; the T-zone "
+     "holds the nose", skin_shares, [True] * 7),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
