@@ -49,6 +49,7 @@
     python -m score.stages.place_build make <folder> <name> <take/<take>|concept/<n>|like|picture.png> --material class
                                        (--like model/<id> | --height m | --size wide,deep,tall) [--no-take-in]
     python -m score.stages.place_build route <folder> --through x,y,z --through x,y,z [--through x,y,z ...]
+    python -m score.stages.place_build crowd <folder> --toward <object> [--people prefix]
     python -m score.stages.place_build package <folder> <out>
 
 `--split` runs SAM 3 over the concept (score/review/concept_objects.py) on this PC's card (SCORE_CLOUD=local, free),
@@ -331,6 +332,9 @@ def run(args):
         return {"seats": {name: seat["from"] for name, seat in record["seats"].items()},
                 "joins": len(record["joins"]), "failed": len(record["faults"]), "faults": record["faults"][:6],
                 "out": args.out}
+    if args.step == "crowd":
+        from score.stages.place_build import crowd
+        return crowd.crowd(args.folder, args.toward, args.people)
     if args.step == "package":
         from score.stages.place_build import scene_package
         if args.pieces:
@@ -550,6 +554,11 @@ def parser():
     step.add_argument("--size", help="wide,deep,tall metres: its longest side the model's, turned as its close-up "
                       "picture shows it (the prop benchmark)")
     step.add_argument("--no-take-in", action="store_true", help="keep the made files here, take nothing into score_lib")
+    step = steps.add_parser("crowd", help="the laid crowd faced to --toward, the floor round it packed and walkers' "
+                            "lanes laid, all measured clear on the scene's solids (crowd.py)")
+    step.add_argument("folder")
+    step.add_argument("--toward", required=True, help="the laid object the crowd faces (the leader)")
+    step.add_argument("--people", default="person", help="the laid crowd's name prefix")
     step = steps.add_parser("route")
     step.add_argument("folder")
     step.add_argument("--through", action="append", required=True)

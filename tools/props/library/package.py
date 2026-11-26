@@ -42,7 +42,9 @@ scene.json (a field marked [place_build] is written only by scene_package.py):
                          unit way)}, between [the enclosure past its face along `through`, the one against it] (null:
                          outside), and in a chamber lock, side ("inner" or "outer") and leads (where it opens to)};
                          a character's copy `plays` {animation, starts (the place's second its first key falls at: a
-                         crowd copy's phase starts before 0), loops (a clip that runs round)} or null (its rest pose)
+                         crowd copy's phase starts before 0), loops (a clip that runs round)} or null (its rest pose);
+                         a crowd walker's copy `walks` {to [x, y, z]}: it walks from where it stands to `to`, over and
+                         over, on its walking clip, its way checked clear on the scene's floor (place_build/crowd.py)
     chambers             [place_build] [{name, inner [doors], outer [doors], air_volume (m³: the convex hull of the
                          enclosure over its deck's top)}]: an airlock, a shell or connector that a door from another
                          enclosure and a door from outside open into

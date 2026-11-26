@@ -269,6 +269,15 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   views; a physics check's faults (`check.json` {"faults": [{"object", "kind"}]}) boxed in red. A crowd of one entry
   (the stones) never frames the region. `viewer` writes the scene as one Draco GLB (viewer_glb.py, no card), its
   textures halved until it fits 15 MB, for the owner to orbit.
+- **A square's crowd** (`crowd <folder> --toward <object>`, crowd.py; 2099 #161, owner 2026-11-26: "people walking
+  through walls and the stage"): where every person of a crowd stands, faces and walks is the scene's. Its laid people
+  (`--people`, `person*`) are turned to face the leader by their toes (score_lib's people face their model's -z); the
+  floor round them packed (`crowd`, a PointInstancer of PROTOTYPES of them, shoulder to shoulder before the leader,
+  thinning away); two walkers' lanes laid out through it (`crowd_walkers`, each walker's far end in `score:walks_to`,
+  the piece list's copy `walks`). Every spot is kept only where nine rays down its body's column find the crowd's
+  floor with nothing within HEADROOM over it and no solid round it (an odd count of faces over a point: inside a
+  wall), every lane step where its corridor does; a laid person whose column is not clear, or who stands on a lane,
+  is taken out. A game only draws them.
 - **`make`** (maker/, its own overlay): a prop's model made with TRELLIS.2 on this PC's card from its picture (a take's
   close-up, a concept crop by its SAM 3 mask), set over the model it replaces, graded to the palette, CoACD hulls and
   mass, taken into score_lib as a draft entry that `put` lays like any made model.

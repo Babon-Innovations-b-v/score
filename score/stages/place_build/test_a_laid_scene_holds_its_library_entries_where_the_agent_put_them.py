@@ -35,7 +35,15 @@ or named missing when the library holds none, black under the airless sky at the
 site's sun reddened through its dust under its day dome, whose light is its ambient light; a body with air the dust
 table lacks is refused.
 
+A square's crowd (crowd.py) faces its leader by its toes, packs the floor round it with no one in the stage, a wall
+or another, takes out a laid person standing in a wall, and walks lanes whose every step stands on clear floor, each
+walker's far end carried into the piece list.
+
 Breaks that turn this red (each applied once and seen red, then reverted):
+- crowd.column_floors: the middle ray alone (no BODY rays round it) -> a packed person stands half into the stage
+- crowd.toes_forward: the model's +z taken as its front -> every person turns its back on the leader
+- crowd.laid_removed: the column check left out -> the person laid in the wall stays
+- pieces.walks_of: the end left in the instancer's own frame -> the walker's far end is off by the crowd's offset
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
 - place_build.tinted: the colour set on the diffuse input though a map feeds it -> the sand's map keeps no tint
@@ -1073,6 +1081,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     replaced(tmp_path)
     hinged_converted(tmp_path / "hinged")
     footprinted(tmp_path)
+    crowded(tmp_path / "crowded")
 
 
 def kitted(tmp_path):
@@ -2515,3 +2524,93 @@ def hollowed(folder):
     stage, place = place_build.opened(folder)
     paving = stage.GetPrimAtPath(f"/{place}/Objects/paving")
     assert paved["ground"] and paving.GetAttribute("score:ground").Get() and not paving.GetAttribute("score:role"), paved
+
+
+def toed_person(path):
+    """A person asset as score_lib's people stand: a skeleton whose feet's toes point along its model's -z, splayed 18
+    degrees out to each side, a box body; written to `path`."""
+    body = Usd.Stage.CreateNew(str(path))
+    UsdGeom.SetStageUpAxis(body, UsdGeom.Tokens.y)
+    root = UsdSkel.Root.Define(body, "/Person")
+    body.SetDefaultPrim(root.GetPrim())
+    skeleton = UsdSkel.Skeleton.Define(body, "/Person/Skeleton")
+    joints = ["Hips", "Hips/LeftFoot", "Hips/LeftFoot/LeftToeBase", "Hips/RightFoot", "Hips/RightFoot/RightToeBase"]
+    splay = math.radians(18.0)
+    rests = [Gf.Matrix4d().SetTranslate((0, 1, 0)), Gf.Matrix4d().SetTranslate((0.1, -0.9, 0)),
+             Gf.Matrix4d().SetTranslate((0.15 * math.sin(splay), -0.08, -0.15 * math.cos(splay))),
+             Gf.Matrix4d().SetTranslate((-0.1, -0.9, 0)),
+             Gf.Matrix4d().SetTranslate((-0.15 * math.sin(splay), -0.08, -0.15 * math.cos(splay)))]
+    skeleton.CreateJointsAttr(joints)
+    skeleton.CreateRestTransformsAttr(rests)
+    skeleton.CreateBindTransformsAttr([Gf.Matrix4d(1)] * len(joints))
+    UsdGeom.Cube.Define(body, "/Person/Body").CreateSizeAttr(0.4)
+    body.Save()
+
+
+def crowded(folder):
+    """A square's crowd laid by crowd.py on a 40 x 40 m floor with a stage (4 x 1 x 4 m) and a wall in the crowd: 45
+    laid people facing anywhere round the leader on the stage, one standing in the wall. Each kept person faces the
+    leader by its toes within 3 degrees and the one in the wall is taken out (and those on a lane); every packed person stands on the floor
+    clear of the stage and the wall (its body's BODY round its middle), none two nearer than NEAREST, each facing the
+    leader; the walkers walk lanes whose every point lies on the floor clear of both, and the piece list's walks
+    carry each walker's far end in the scene's frame."""
+    from score.stages.place_build import crowd, pieces
+    folder.mkdir(parents=True)
+    toed_person(folder / "person.usda")
+    place_build.new_stage(place_build.scene_path(folder), "sq")
+    stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
+    objects = "/sq/Objects"
+    solids = {"floor": ((0.0, -0.5, 10.0), (40.0, 1.0, 40.0)), "stage": ((0.0, 0.5, 0.0), (4.0, 1.0, 4.0)),
+              "wall": ((5.0, 1.5, 12.0), (0.3, 3.0, 6.0))}
+    for name, (middle, size) in solids.items():
+        holder = UsdGeom.Xform.Define(stage, f"{objects}/{name}")
+        cube = UsdGeom.Cube.Define(stage, f"{objects}/{name}/geo")
+        cube.CreateSizeAttr(1.0)
+        cube.AddTranslateOp().Set(Gf.Vec3d(*middle))
+        cube.AddScaleOp().Set(Gf.Vec3f(*size))
+        holder.GetPrim().CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set(
+            {"floor": "ground", "stage": "structure", "wall": "structure"}[name])
+    leader = UsdGeom.Xform.Define(stage, f"{objects}/leader")
+    leader.AddTranslateOp().Set(Gf.Vec3d(0.0, 1.0, 0.0))
+    spots = [(-6.0 + 1.5 * (number % 9), 0.0, 6.0 + 1.6 * (number // 9)) for number in range(44)] + [(5.0, 0.0, 12.0)]
+    for number, at in enumerate(spots):
+        person = stage.DefinePrim(f"{objects}/person{number}", "SkelRoot")
+        person.GetReferences().AddReference("./person.usda")
+        person.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("character")
+        place_build.posed(person, at, (0.0, 37.0 * number, 0.0), (1.0, 1.0, 1.0))
+    stage.GetRootLayer().Save()
+    done = crowd.crowd(folder, "leader")
+    assert "person44" in done["removed"] and done["faced"] == 45 - len(done["removed"]) >= 35, done
+    stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
+    toward = np.array([0.0, 1.0, 0.0])
+
+    def off(forward, at):
+        want = toward - np.asarray(at, float)
+        return abs(math.degrees(crowd.heading(np.array([want[0], 0.0, want[2]])) - crowd.heading(forward)) + 180) % 360 - 180
+
+    for prim in crowd.laid_crowd(stage, "sq", "person"):
+        world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        assert abs(off(np.array([0.0, 0.0, -1.0]) @ world[:3, :3], world[3, :3])) < 3.0, prim.GetName()
+
+    def clear(x, z, reach=crowd.BODY * math.cos(math.radians(22.5))):  # what eight rays round a middle make sure of
+        return all(math.hypot(max(abs(x - middle[0]) - size[0] / 2, 0.0), max(abs(z - middle[2]) - size[2] / 2, 0.0))
+                   >= reach - 1e-6 for middle, size in (solids["stage"], solids["wall"]))
+
+    packed = UsdGeom.PointInstancer(stage.GetPrimAtPath(f"{objects}/crowd"))
+    worlds = packed.ComputeInstanceTransformsAtTime(Usd.TimeCode.Default(), Usd.TimeCode.Default())
+    at = np.array([np.asarray(world)[3, :3] for world in worlds])
+    assert len(at) > 200 and np.allclose(at[:, 1], 0.0) and all(clear(x, z) for x, _, z in at)
+    assert all(abs(off(np.array([0.0, 0.0, -1.0]) @ np.asarray(world)[:3, :3], spot)) < 3.0 for world, spot in zip(worlds, at))
+    gaps = np.linalg.norm(at[:, None, [0, 2]] - at[None, :, [0, 2]], axis=2) + np.eye(len(at)) * 9
+    assert gaps.min() >= crowd.NEAREST - 1e-6
+    walkers = stage.GetPrimAtPath(f"{objects}/crowd_walkers")
+    starts = UsdGeom.PointInstancer(walkers).GetPositionsAttr().Get()
+    ends = walkers.GetAttribute("score:walks_to").Get()
+    assert done["walkers"] >= 1 and len(starts) == len(ends) == done["walkers"]
+    for start, end in zip(starts, ends):
+        for share in np.linspace(0.0, 1.0, 40):
+            x, _, z = np.asarray(start) + (np.asarray(end) - np.asarray(start)) * share
+            assert clear(x, z) and abs(x) < 20 and -10 < z < 30, (start, end)
+    UsdGeom.Xformable(walkers).AddTranslateOp().Set(Gf.Vec3d(3.0, 0.0, 0.0))
+    walks = pieces.walks_of(walkers)
+    assert np.allclose(walks["crowd_walkers_0"]["to"], np.asarray(ends[0]) + (3.0, 0.0, 0.0), atol=1e-3)

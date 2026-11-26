@@ -480,6 +480,7 @@ def character_pieces(out, prim, kind, pieces, made, looks):
     made pieces in their own texture, their pictures apart and held once (pictures_apart): [copy] and [{name, why}] of
     those not carried."""
     laid, refused = scene_package.character_copies(prim)
+    walks = walks_of(prim)
     copies = []
     for name, frame, scale, embedded, facts, check in laid:
         glb, pictures = pictures_apart(embedded)
@@ -498,8 +499,24 @@ def character_pieces(out, prim, kind, pieces, made, looks):
         looks.setdefault(f"own-{piece}", {"own": piece})
         copy = placed_copy(name, piece, kind, frame)
         copy.update(looks={EVERY_PART: f"own-{piece}"}, plays=facts["plays"])
+        if name in walks:
+            copy["walks"] = walks[name]
         copies.append(copy)
     return copies, refused
+
+
+def walks_of(prim):
+    """{copy name: {"to": [x, y, z]}} of a crowd's walkers (a PointInstancer whose `score:walks_to` names each
+    instance's far end, crowd.py): the end in the scene's frame, the copy walking to it over and over on its walking clip;
+    {} for any other character."""
+    attribute = prim.GetAttribute("score:walks_to") if prim.IsA(UsdGeom.PointInstancer) else None
+    ends = attribute.Get() if attribute and attribute.HasValue() else None
+    if not ends:
+        return {}
+    world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    return {f"{prim.GetName()}_{number}": {"to": [round(float(value), 4) for value in
+                                                 (np.array([*end, 1.0]) @ world)[:3]]}
+            for number, end in enumerate(ends)}
 
 
 def write(folder, out):
