@@ -38,8 +38,9 @@ SEE_THROUGH = 0.01  # the share of its voxels see-through that makes a model gla
 # The decoded mesh before the remesh (#159, r11): TRELLIS.2's own surface holds every drawer seam and panel line a voxel
 # or less wide, which the remesh closes with #191's pinholes, so it is kept beside the model as the shape its seams are
 # shaded from (bake.seamed), never shown. Cut to FACES whatever the model's own faces (a 20k-face toaster still shades
-# from the seams 500k faces hold); its own texture is never read, so it is drawn at DECODED_TEXTURE and left out.
-DECODED_TEXTURE = 256
+# from the seams 500k faces hold). Only its shape is kept, so it is cleaned and cut as to_glb's no-remesh branch does
+# and written with no UV unwrap and no texture bake (decoded_shape): to_glb's xatlas unwrap of 500k raw faces ran on
+# the processor while the make held the card, 1 min 54 s of a 3 min 21 s generate (2026-11-26, tower top mast).
 # 1024_cascade never uses the 512 texture flow model, so it is not loaded (2.6 GB of RAM). The DROPPED flow models are
 # each read from its checkpoint when its stage first asks for it (OnUse) and dropped after it, so a make holds about one
 # in RAM, not all four (#159, 2026-11-25: 15.7 GB at the most with all read at once, 11.0 GB read on use, the toaster's
@@ -208,17 +209,35 @@ def decoded_path(out):
     return out.with_name(f"{out.stem}-decoded.glb")
 
 
+def decoded_shape(vertices, faces, target):
+    """TRELLIS.2's decoded `vertices` and `faces` (card tensors) cleaned and cut to `target` faces by
+    o_voxel.postprocess.to_glb's own no-remesh steps, in its order, and turned to its GLB frame (Y up); its vertices
+    and faces as arrays. The steps to_glb takes after these (UV unwrap, texture bake) never move a vertex."""
+    import cumesh
+    mesh = cumesh.CuMesh()
+    mesh.init(vertices.cuda(), faces.cuda())
+    mesh.fill_holes(max_hole_perimeter=3e-2)
+    mesh.simplify(target * 3, verbose=False)
+    for cut in (target, None):
+        mesh.remove_duplicate_faces()
+        mesh.repair_non_manifold_edges()
+        mesh.remove_small_connected_components(1e-5)
+        mesh.fill_holes(max_hole_perimeter=3e-2)
+        if cut:
+            mesh.simplify(cut, verbose=False)
+    mesh.unify_face_orientations()
+    shaped, cells = (part.cpu().numpy() for part in mesh.read())
+    shaped[:, 1], shaped[:, 2] = shaped[:, 2], -shaped[:, 1]
+    return shaped, cells
+
+
 def decoded_written(mesh, out):
-    """TRELLIS.2's decoded `mesh` cut to FACES with no remesh, its shape alone (no texture) written at
+    """TRELLIS.2's decoded `mesh` cut to FACES with no remesh, its shape alone (decoded_shape), written at
     decoded_path(out) in the model's own frame (to_glb's, as `out`'s); its faces."""
-    import o_voxel.postprocess
     import trimesh
-    shaped = o_voxel.postprocess.to_glb(
-        vertices=mesh.vertices, faces=mesh.faces, attr_volume=mesh.attrs, coords=mesh.coords,
-        attr_layout=mesh.layout, voxel_size=mesh.voxel_size, aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
-        decimation_target=FACES, texture_size=DECODED_TEXTURE, remesh=False, verbose=False)
-    trimesh.Trimesh(vertices=shaped.vertices, faces=shaped.faces, process=False).export(str(decoded_path(out)))
-    return int(len(shaped.faces))
+    shaped, cells = decoded_shape(mesh.vertices, mesh.faces, FACES)
+    trimesh.Trimesh(vertices=shaped, faces=cells, process=False).export(str(decoded_path(out)))
+    return int(len(cells))
 
 
 def see_through(mesh):
