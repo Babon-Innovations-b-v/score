@@ -119,7 +119,11 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   connected garments through the front view; one median and spread move per garment, its folds kept). Run: `python
   -m tools.characters.generated.colour <model.glb> <cut-out.png> <out.glb> <report.json>` (10 s, 0.5 GB); the
   report lists each cluster's paint and photo colour. Look at the front render beside the photo: the boxes laid by
-  their bounds miss on the head, so a head cluster that lands mostly on specks keeps its paint.
+  their bounds miss on the head, so a head cluster that lands mostly on specks keeps its paint. **Garments only**:
+  skin, hair, beard, brows, lips and eyes are never toned (the skin step repaints the face, the hair is regrown); a
+  cluster landing mostly on the photo's body (`colour.body_zone`: its skin pieces, the head down to its skin's lowest
+  row, the hands) keeps its paint, and a garment whose paint clusters differ past a photo garment's limits is split
+  (round 1, 2026-11-26: a bearded man's skin, hair and beard moved as one to his photo's skin, ears and neck cream).
 - Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step
   (`marks.py` reads a real photo with MediaPipe and has no row; `lids.py` reads its JSON).
 - **Cloth** (`cloth.py`, drawn by `blender_cloth.py`, the sheet and film by `cloth_sheet.py`; owner 2026-11-26 of the

@@ -94,7 +94,12 @@ few Lab units of the photo's, and the jacket's painted folds keep most of their 
 (each applied once, seen red, reverted, 2026-11-26): no height in the clusters (`colour.HEIGHT_LAB` 0: the boots
 fall in with the trousers and miss their brown); each cluster its own move (`colour.merged` and `garments` giving every
 cluster its own garment: the fold stripes flattened to the photo's plain jacket); no spread kept
-(`colour.SPREAD_RANGE` (0, 0): the folds gone).
+(`colour.SPREAD_RANGE` (0, 0): the folds gone). On a toy bust (dark hair on top, a face painted skin in its left
+half and dark in its right, the hollow head's back seen through it, over a jacket painted dark grey-green; its photo
+dark hair, a light skin face and a sage jacket), the hair and both face halves keep their paint within 2 Lab units and
+the jacket still moves to within 6 of the photo's. Break that turns its row red (applied once, seen red, reverted,
+2026-11-26): no body kept (`colour.bodily` all False: the face's two halves joined into one garment and moved to the
+photo's skin, the dark half cream, as on b_hoodie_man's head).
 """
 import functools
 
@@ -956,6 +961,52 @@ def colour_toy():
     return points, uv, paint, photo
 
 
+def colour_body_toy():
+    """A toy bust as `colour_toy`'s front: (points, uv, paint, photo, the paint's texture rows as heights)."""
+    xs, ys = np.meshgrid(np.linspace(0.0, 0.6, 150), np.linspace(0.0, 1.2, 300))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+    uv = np.column_stack([xs.ravel() / 0.6, ys.ravel() / 1.2])
+    height = 1.0 - (np.arange(128) + 0.5) / 128
+    paint = np.zeros((128, 64, 4), np.uint8)
+    paint[..., 3] = 255
+    paint[height > 0.9, :, :3] = (47, 37, 32)
+    paint[(height <= 0.9) & (height > 0.6), :32, :3] = (166, 109, 99)
+    paint[(height <= 0.9) & (height > 0.6), 32:, :3] = (55, 39, 35)
+    paint[height <= 0.6, :, :3] = (65, 72, 68)
+    grain = np.random.default_rng(2).integers(-3, 4, paint[..., :3].shape)
+    paint[..., :3] = np.clip(paint[..., :3].astype(int) + grain, 0, 255).astype(np.uint8)
+    photo = np.zeros((280, 160, 4), np.uint8)
+    rows = 1.0 - (np.arange(240) + 0.5) / 240
+    person = photo[20:260, 20:140]
+    person[..., 3] = 255
+    person[rows > 0.9, :, :3] = (36, 28, 23)
+    person[(rows <= 0.9) & (rows > 0.6), :, :3] = (208, 158, 137)
+    person[rows <= 0.6, :, :3] = (131, 137, 123)
+    noise = np.random.default_rng(3).integers(-3, 4, person[..., :3].shape)
+    person[..., :3] = np.clip(person[..., :3].astype(int) + noise, 0, 255).astype(np.uint8)
+    return points, uv, paint, photo, height
+
+
+def colour_body_kept():
+    """The toy bust toned: its hair, the face's skin half and its dark half each within 2 Lab units of their paint;
+    the jacket within 6 of the photo's sage."""
+    from skimage.color import rgb2lab
+    points, uv, paint, photo, height = colour_body_toy()
+    centres, table, _ = colour.fitted(points, uv, paint, photo)
+    before = rgb2lab(paint[..., :3] / 255.0)
+    after = rgb2lab(colour.toned_texture(paint, points, uv, centres, table)[..., :3] / 255.0)
+    face = (height < 0.88) & (height > 0.62)
+
+    def moved(rows, columns):
+        return float(np.linalg.norm(after[rows][:, columns].reshape(-1, 3).mean(0)
+                                    - before[rows][:, columns].reshape(-1, 3).mean(0)))
+
+    sage = rgb2lab(np.array([[[131, 137, 123]]], float) / 255.0)[0, 0]
+    jacket = float(np.linalg.norm(after[height < 0.55].reshape(-1, 3).mean(0) - sage))
+    return [moved(height > 0.92, slice(None)) < 2.0, moved(face, slice(2, 30)) < 2.0,
+            moved(face, slice(34, 62)) < 2.0, jacket < 6.0]
+
+
 def colour_toned():
     """The toy's paint toned toward its photo: the jacket, trousers and boots within 6 Lab units of the photo's (the
     boots' trace of red never lost to the trousers), and the jacket's fold stripes keeping over half their depth."""
@@ -1039,6 +1090,8 @@ def colour_toned():
      "whole", cloth_drawn_rides, [True, True, 1, True]),
     ("the paint is toned toward the photo garment by garment: the jacket's sage, the boots' brown under trousers "
      "painted as black, the folds kept", colour_toned, [True] * 4),
+    ("the body is never toned: hair and a face painted half skin, half dark keep their paint, the jacket is toned",
+     colour_body_kept, [True] * 4),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

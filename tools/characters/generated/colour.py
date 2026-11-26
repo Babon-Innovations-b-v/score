@@ -28,6 +28,11 @@ fewer than MIN_PIXELS front pixels, or landing mostly on the photo's specks, kee
 stays its own (a generated model keeps its own paint: data/checks/library-exceptions.json); only its colour is
 brought back to its photo's. Run it on the raw model, before the head swap, the hair and still_rig's grade.
 
+Garments only: the person's body (skin, hair, beard, brows, lips, eyes) keeps its paint. A paint cluster landing
+mostly on the photo's body (`body_zone`: its skin pieces, the head, the hands) has no garment (`bodily`), and a
+garment whose paint clusters differ past a photo garment's limits is split before its move (`split`: the hollow head's
+dark back seen through a face is never moved with its skin by one median).
+
 Run: `python -m tools.characters.generated.colour <model.glb> <cut-out photo.png> <out.glb> <report.json>` (under
 a minute, under 2 GB).
 """
@@ -47,6 +52,7 @@ from scipy.spatial.distance import squareform
 from scipy.spatial import cKDTree
 from skimage.color import lab2rgb, rgb2lab
 
+from tools.characters.generated import labels
 from tools.props import glb_file
 
 PAINT_CLUSTERS = 16
@@ -64,6 +70,9 @@ GARMENT_L = 30.0  # ... and this close in lightness are one garment
 SAMPLES = 60000  # front pixels each clustering is fitted on
 ALPHA_CUT = 127
 BAND_ROWS = 128  # texture rows toned at once
+FACE_LEAST = 0.005  # the face is the highest photo skin piece with at least this share of the person's pixels
+HAND_SHARE = 0.4  # a skin piece under the head is a hand when no larger than this share of the head's largest
+BODY_SHARE = 0.5  # a paint cluster with this share of its front pixels on the photo's body is the body's: kept
 
 
 def model_of(path):
@@ -178,6 +187,55 @@ def photo_regions(colour_garment, person):
     return regions
 
 
+def skin_pieces(regions, photo_lab):
+    """The photo's skin: its garment pieces (`photo_regions`) whose median colour is a skin's (`labels.skin_like`);
+    {piece: its pixels' mask}."""
+    pieces = {}
+    for piece in np.unique(regions[regions >= 0]):
+        mask = regions == piece
+        if labels.skin_like(np.median(photo_lab[mask], 0)[None])[0]:
+            pieces[piece] = mask
+    return pieces
+
+
+def body_zone(regions, photo_lab):
+    """Where the photo shows the person's own body, never a garment. The face is the skin piece (`skin_pieces`) of at
+    least FACE_LEAST of the person's pixels lying highest (by its middle row); the head's skin is every skin piece
+    reaching over the face's middle row, and the head's bottom their lowest row (the chin, or the neck's shaded
+    side). The body is the head's skin, every piece of any colour whose middle row lies over the head's bottom (the
+    hair, a beard, brows, lips and eyes) down to that row (grey hair and a white scarf can be one colour piece), and
+    the hands: skin pieces under the head of at most HAND_SHARE of the head's
+    largest skin piece, clear of the picture's bottom row (a skin-hued coat is larger, and a bust's cut runs through
+    its clothes). A hood or a hat over the head lies in it too and keeps its paint."""
+    pieces = skin_pieces(regions, photo_lab)
+    zone = np.zeros(regions.shape, bool)
+    least = FACE_LEAST * (regions >= 0).sum()
+    faces = {piece: np.nonzero(mask)[0] for piece, mask in pieces.items() if mask.sum() >= least}
+    if not faces:
+        return zone
+    middle = min(rows.mean() for rows in faces.values())
+    head = [piece for piece, mask in pieces.items() if np.nonzero(mask)[0].min() <= middle]
+    bottom = max(np.nonzero(pieces[piece])[0].max() for piece in head)
+    hand_most = HAND_SHARE * max(int(pieces[piece].sum()) for piece in head)
+    for piece in np.unique(regions[regions >= 0]):
+        mask = regions == piece
+        hand = piece in pieces and mask.sum() <= hand_most and not mask[-1].any()
+        if piece in head or hand:
+            zone |= mask
+        elif np.nonzero(mask)[0].mean() <= bottom:
+            zone[:bottom + 1] |= mask[:bottom + 1]
+    return zone
+
+
+def bodily(paint_labels, on_body, count):
+    """Which paint clusters are the person's body (skin, hair, beard, brows, lips, eyes): at least BODY_SHARE of their
+    front pixels land on the photo's body (`body_zone`). The skin step repaints the face from the photo and the hair
+    is regrown, so the body is never toned (round 1, 2026-11-26: a bearded man's skin, hair and beard joined into one
+    garment and moved to his photo's skin, the ears and neck cream)."""
+    return np.array([on_body[paint_labels == cluster].mean() >= BODY_SHARE if (paint_labels == cluster).any()
+                     else False for cluster in range(count)])
+
+
 def garments(paint_labels, photo_labels, count):
     """Each paint cluster's garment: the photo garment most of its front pixels land on; -1 (its paint kept) when it
     has fewer than MIN_PIXELS front pixels or most land on specks (`photo_regions`' -1)."""
@@ -215,7 +273,21 @@ def merged(chosen, centres, paint_labels, photo_lab, photo_labels):
                                      and alike(targets[chosen[first]], targets[chosen[second]]))
     joined |= chosen[:, None] == chosen[None, :]
     components = connected_components(joined, directed=False)[1]
-    return np.where(chosen >= 0, components, -1)
+    return np.where(chosen >= 0, split(components, centres), -1)
+
+
+def split(components, centres):
+    """Each garment split into groups whose paint is of one colour (`photo_garments`' complete linkage on the paint
+    clusters' Lab): clusters landing on one photo garment whose paint differs past GARMENT_AB or GARMENT_L (a skin
+    painted light beside paint seen dark through the hollow head) are never moved by one median."""
+    out = np.zeros_like(components)
+    count = 0
+    for garment in np.unique(components):
+        members = np.flatnonzero(components == garment)
+        groups = photo_garments(centres[members, :3])
+        out[members] = groups + count
+        count += groups.max() + 1
+    return out
 
 
 def moves(paint_lab, paint_labels, photo_lab, photo_labels, chosen):
@@ -275,11 +347,15 @@ def fitted(points, uv, texture, photo_rgba):
     photo_centres, photo_clusters = clustered(rgb2lab(photo[person]), PHOTO_CLUSTERS)
     colour_garment = np.full(person.shape, -1)
     colour_garment[person] = photo_garments(photo_centres)[photo_clusters]
-    photo_labels = photo_regions(colour_garment, person)[both]
-    chosen = merged(garments(paint_labels, photo_labels, len(centres)), centres, paint_labels, photo_lab,
-                    photo_labels)
+    regions = photo_regions(colour_garment, person)
+    photo_labels = regions[both]
+    photo_grid = np.zeros(person.shape + (3,))
+    photo_grid[person] = rgb2lab(photo[person])
+    body = bodily(paint_labels, (body_zone(regions, photo_grid) & person)[both], len(centres))
+    chosen = np.where(body, -1, garments(paint_labels, photo_labels, len(centres)))
+    chosen = merged(chosen, centres, paint_labels, photo_lab, photo_labels)
     table = moves(paint_lab, paint_labels, photo_lab, photo_labels, chosen)
-    report = [{"cluster": cluster, "garment": int(chosen[cluster]),
+    report = [{"cluster": cluster, "garment": int(chosen[cluster]), "body": bool(body[cluster]),
                "height": round(float(centres[cluster, 3] / HEIGHT_LAB), 3),
                "pixels": int((paint_labels == cluster).sum()),
                "paint_srgb": srgb255(move[0]) if move is not None else srgb255(centres[cluster, :3]),
