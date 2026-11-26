@@ -61,17 +61,24 @@ def main():
     face = {"face": given.face, "body": given.face_body} if given.face else None
     body = garments.built_body(outfit["look"], given.clip, outfit.get("body"), face)
     pattern_folder = garments.patterns(outfit, body, out)
-    drape = dict(np.load(garments.draped(outfit, body, pattern_folder, out, given.frames)))
+    library = fetched(outfit, out)
+    chosen, start = outfit.get("accessories", {}), int(body["clip_start"])
+    count = given.frames or len(body["frames"]) - start
+    shoes = accessories.shoes_worn(chosen["shoes"], body, start, count, library) if "shoes" in chosen else {}
+    drape = dict(np.load(garments.draped(outfit, body, pattern_folder, out, given.frames, shoes)))
     records = {garment["name"]: dict(np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz"))
                for garment in outfit["garments"]}
     found = garments.measures(drape, dict(np.load(out / "body.npz")), records, out, outfit)
-    library = fetched(outfit, out)
-    dressed = accessories.worn(outfit.get("accessories", {}), body, drape, records, library)
+    dressed = accessories.worn(chosen, body, drape, records, library, shoes)
     found["accessories"] = dict(dressed["found"], faults=dressed["faults"])
     (out / "measures.json").write_text(json.dumps(found, indent=1))
     usd = out / "outfit.usda"
     usd.unlink(missing_ok=True)
-    stage = cache.written(usd, dict(np.load(out / "body.npz")), drape, records, outfit, library, garments.RATE)
+    drawn = dict(np.load(out / "body.npz"))  # the skin as it is drawn: tucked into its shoes
+    start, count = int(drawn["clip_start"]), len(drape[outfit["garments"][0]["name"]])
+    drawn["frames"] = drawn["frames"].copy()
+    drawn["frames"][start:start + count] = accessories.tucked_frames(dressed, body, range(start, start + count))
+    stage = cache.written(usd, drawn, drape, records, outfit, library, garments.RATE)
     accessories.written_into(stage, dressed, outfit.get("accessories", {}), library)
     stage.GetRootLayer().Save()
     clip_frames = len(drape[outfit["garments"][0]["name"]])

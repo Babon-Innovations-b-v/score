@@ -8,11 +8,16 @@ An outfit garment's `details` names them:
     "plain seams": [[panel, panel], ...]  seams GarmentCode cuts that a real garment has none of (a tee's centre
                          front: GarmentCode halves its torso), left bare
     "edge": a surface    the mark along each open edge (a hem, a cuff, a waistband's top)
+    "dart": a surface    the mark along a dart (a panel's edge sewn to its own other edge); none when not given:
+                         GarmentCode shapes Pants' waist with darts a pair of jeans has none of (a back yoke takes their
+                         place), and taken for open edges they were stitched as hems, three stray lines down each
+                         front and through the back pockets (#223 photoreal round 1)
     "neck": a surface    the mark along a neckline's edge (its points labelled right_collar / left_collar)
-    "patches": [{"mark": a surface, "panel": name, "anchor": "top-centre" | "top-side" | "top-middle",
-                 "across_cm": cm, "down_cm": cm}]  a patch mark (a pocket, a fly's stitching, a loop, a rivet) at its
-                         library size, its middle `across_cm` towards the panel's side seam and `down_cm` down from the
-                         anchor, its u towards the side seam and its v up.
+    "patches": [{"mark": a surface, "panel": name, "anchor": "top-centre" | "top-side" | "top-middle" | "middle",
+                 "across_cm": cm, "down_cm": cm}]  a patch mark (a pocket, a fly's stitching, a loop, a rivet, a
+                         knee's fading) at its library size, its middle `across_cm` towards the panel's side seam and
+                         `down_cm` down from the anchor (for "middle", the middle of the panel's width `down_cm` under
+                         its top: a leg's knee wherever its cut narrows), its u towards the side seam and its v up.
 
 A strip mark's st runs along its line (u, a unit every strip period, fabrics.STRIP_PERIOD_MM) and across it (v, 0 at
 the seam or edge, 1 at its width), each taken from the fetched library entry's surface.json (`size_m`, `form`).
@@ -28,12 +33,15 @@ CLEAR_M = 0.0006  # off the cloth's outer face
 STEP_CM = 0.5  # a strip's points along its line
 PATCH_STEP_CM = 1.0  # a patch's grid
 INSIDE_CM = 0.02  # a strip's seam side laid this far inside its panel
+# a neckline's rib run on past its ends: where a tee's halves meet at the centre front at an angle, the two ribs,
+# each cut square to its own edge, left a wedge open between them (#223 photoreal round 1: "tee rib split at the front")
+NECK_OVERRUN_CM = 0.8
 
 
 def surfaces(garment):
     """Every library surface the garment's marks wear."""
     chosen = garment.get("details", {})
-    found = [chosen[key] for key in ("seam", "seam other side", "edge", "neck") if key in chosen]
+    found = [chosen[key] for key in ("seam", "seam other side", "edge", "neck", "dart") if key in chosen]
     return found + [spec["mark"] for spec in chosen.get("patches", [])]
 
 
@@ -61,15 +69,18 @@ def panel_edges(record):
 
 
 def classified(record, edges):
-    """Each panel's boundary edges sorted: {panel: {"seam:<other panel>": [...], "edge": [...], "neck": [...]}}, a
-    seam being an edge whose two box points another panel's boundary joins too, the neck every open edge with a point
+    """Each panel's boundary edges sorted: {panel: {"seam:<other panel>": [...], "dart": [...], "edge": [...],
+    "neck": [...]}}, a seam being an edge whose two box points another panel's boundary joins too, a dart one the
+    panel's own boundary joins twice (sewn to itself), the neck every open edge with a point
     GarmentCode labels a collar's: it leaves the centre front's corner unlabelled, and the neckline's last 1.4 cm
     there took the hem's mark, its two stitch rows a smeared mark under the rib at her throat (#225 round 9)."""
     box = np.asarray(record["box"])
-    owners = {}
+    owners, uses = {}, {}
     for panel, sides in edges.items():
         for side in sides:
-            owners.setdefault(tuple(sorted((box[side[0]], box[side[1]]))), set()).add(panel)
+            key = tuple(sorted((box[side[0]], box[side[1]])))
+            owners.setdefault(key, set()).add(panel)
+            uses[(panel, key)] = uses.get((panel, key), 0) + 1
     collar = set()
     for label in ("right_collar", "left_collar"):
         if f"label/{label}" in record:
@@ -82,6 +93,8 @@ def classified(record, edges):
             others = owners[key] - {panel}
             if others:
                 group = f"seam:{min(others)}"
+            elif uses[(panel, key)] > 1:
+                group = "dart"
             elif key[0] in collar or key[1] in collar:
                 group = "neck"
             else:
@@ -152,10 +165,15 @@ def inward(record, panel, line_cm):
     return normal if weights.min() >= -1e-6 else -normal
 
 
-def strip(record, panel, copies, size_m, period_m):
-    """A strip mark along a line of copies: its flat points (two rows: on the line and its width in), quads and st."""
+def strip(record, panel, copies, size_m, period_m, overrun_cm=0.0):
+    """A strip mark along a line of copies: its flat points (two rows: on the line and its width in), quads and st;
+    run on `overrun_cm` past each end along it."""
     flat = np.asarray(record["flat"], float)
     line, along = resampled(flat[copies], STEP_CM)
+    if overrun_cm:
+        ends = [line[0] - (line[1] - line[0]) / np.linalg.norm(line[1] - line[0]) * overrun_cm,
+                line[-1] + (line[-1] - line[-2]) / np.linalg.norm(line[-1] - line[-2]) * overrun_cm]
+        line, along = np.vstack([ends[0], line, ends[1]]), np.r_[-overrun_cm, along, along[-1] + overrun_cm]
     normal = inward(record, panel, line)
     width_cm = size_m[1] * 100.0
     points = np.concatenate([line + normal * INSIDE_CM, line + normal * width_cm])
@@ -194,12 +212,27 @@ def anchor_point(record, panel, anchor, up, side):
     return flat[np.argmax(height + weight * across)]
 
 
+def level_middle(record, panel, down_cm, up, side):
+    """The middle of the panel's width `down_cm` under its top, in its flat points (cm): halfway between its
+    farthest points either way across within 1 cm of that level, at that level."""
+    flat = np.asarray(record["flat"], float)[np.asarray(record["panel"]) == panel]
+    height, across = flat @ up, flat @ side
+    level = height.max() - down_cm
+    near = np.abs(height - level) < 1.0
+    if not near.any():
+        raise ValueError(f"panel {panel}: nothing {down_cm} cm under its top")
+    return up * level + side * (across[near].min() + across[near].max()) / 2.0
+
+
 def patch(record, panel_names, spec, size_m):
     """A patch mark's flat points, quads and st, and its panel's number."""
     panel = [str(name) for name in panel_names].index(spec["panel"])
     up, side = panel_axes(record, panel)
-    centre = (anchor_point(record, panel, spec["anchor"], up, side) + side * spec["across_cm"]
-              - up * spec["down_cm"])
+    if spec["anchor"] == "middle":
+        centre = level_middle(record, panel, spec["down_cm"], up, side) + side * spec["across_cm"]
+    else:
+        centre = (anchor_point(record, panel, spec["anchor"], up, side) + side * spec["across_cm"]
+                  - up * spec["down_cm"])
     width, height = size_m[0] * 100.0, size_m[1] * 100.0
     columns = max(int(np.ceil(width / PATCH_STEP_CM)) + 1, 2)
     rows = max(int(np.ceil(height / PATCH_STEP_CM)) + 1, 2)
@@ -251,8 +284,8 @@ def pieces(record, garment, library):
                 continue
             mark = mark_record(library, surface)
             for line in chained(sides):
-                found.append((surface, panel, *strip(record, panel, line, mark["size_m"],
-                                                       mark["size_m"][0])))
+                found.append((surface, panel, *strip(record, panel, line, mark["size_m"], mark["size_m"][0],
+                                                       NECK_OVERRUN_CM if group == "neck" else 0.0)))
     for spec in details.get("patches", []):
         mark = mark_record(library, spec["mark"])
         panel, points, quads, st = patch(record, names, spec, mark["size_m"])

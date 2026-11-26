@@ -18,6 +18,14 @@ surface the outfit names (`accessories.shoes.finish`).
   nearest them, so it moves with the foot and bends with the toes.
 - `out_of`: how far each of the foot's covered skin points is out of the worn shoe on a clip frame: the point taken
   to where the shoe was fitted through the skinning of the shoe point nearest it, then its clearance read.
+- `tucked`: the foot's skin under the shoe's own top (`top_heights` of the sheets that wall the foot in: the highest
+  each step along, the heel counter over the collar's dip at the sides kept) moved in from the shoe's walls, MARGIN_M inside them, fading out over
+  TUCK_FADE_M under that top: a heel counter rises over the dip the cavity is cut at, the skin behind it was never
+  asked to be inside it, and the Achilles stood out through the runner's heel in a torn V (#223 photoreal round 1).
+  `walls_out` reads how far a point is out through the shoe's walls: no shoe surface outwards of it from the shoe's
+  middle, the nearest inwards.
+- `shell`: the same skin moved out to the shoe's outside, the shoe as the drape's cloth meets it (the garments' drape
+  collides with the body alone; a jeans hem cut onto the shoe went through it).
 """
 import numpy as np
 import numpy as np
@@ -44,6 +52,11 @@ STRETCH_ROUNDS = 5
 ENDS_M = 0.008  # the foot's toes' and heel's ends: this far of the foot from each end
 ENDS_LOW_M = 0.035  # and this low (over the heel the collar's padding hugs the Achilles)
 STRETCH_ENDS_M = 0.03  # the foot's middle line ends this far in from its toe and its heel, in the model's metres
+TUCK_FADE_M = 0.01  # the tuck fades out over this much under the shoe's top
+SHELL_CLEAR_M = 0.002  # the drape's shoe this far outside the shoe
+HEEL_SHARE = 0.25  # the back of the shoe whose top is read leaning (its heel counter)
+LEAN_M = 0.04  # how far ahead of the heel's skin its counter's rim may lean, in the model's metres
+TUCK_ROUNDS = 3  # the tuck's rounds into the cavity
 
 
 def read(path):
@@ -56,8 +69,10 @@ def read(path):
     steps = np.arange(points[:, 0].min(), points[:, 0].max() + STEP_M, STEP_M)
     points = levelled(points, steps, insole_heights(largest_sheet(points, faces), steps))
     upper = largest_sheet(points, faces)
+    import trimesh
+    walled = trimesh.util.concatenate(walls({"points": points, "faces": faces}))
     return {"points": points, "faces": faces, "uv": uv, "floor": (steps, insole_heights(upper, steps)),
-            "collar": (steps, collar_heights(upper, steps))}
+            "collar": (steps, collar_heights(upper, steps)), "top": (steps, leaning(top_heights(walled, steps), steps))}
 
 
 def levelled(points, steps, floor):
@@ -96,9 +111,17 @@ def insole_heights(upper, steps):
 
 
 def collar_heights(upper, steps):
-    """The collar's height at each step along the model: the lower of the upper's highest point on either side, at
-    most its lowest over the back half (a slice over the collar's dip at the sides is open all along, so nothing over
-    it is inside, the heel cup's top neither)."""
+    """The collar's height at each step along the model: its top there (`top_heights`), at most its lowest over the
+    back half (a slice over the collar's dip at the sides is open all along, so nothing over it is inside, the heel
+    cup's top neither)."""
+    found = top_heights(upper, steps)
+    share = (steps - steps[0]) / np.ptp(steps)
+    return np.minimum(found, found[(share > 0.1) & (share < 0.5)].min())
+
+
+def top_heights(upper, steps):
+    """The top of `upper` (a sheet, or the sheets that wall the foot in: a heel counter sewn on is one) at each step
+    along the model: the lower of its highest point on either side (the heel counter over the collar's dip kept)."""
     points = np.asarray(upper.vertices)
     middle = (points[:, 2].max() + points[:, 2].min()) / 2.0
     found = []
@@ -108,9 +131,18 @@ def collar_heights(upper, steps):
         found.append(min(side.max() for side in sides) if all(len(side) for side in sides) else np.nan)
     found = np.asarray(found)
     known = ~np.isnan(found)
-    found = np.interp(steps, steps[known], found[known])
-    share = (steps - steps[0]) / np.ptp(steps)
-    return np.minimum(found, found[(share > 0.1) & (share < 0.5)].min())
+    return np.interp(steps, steps[known], found[known])
+
+
+def leaning(top, steps):
+    """The top over the heel's skin: at each step of the shoe's back HEEL_SHARE, the highest top within LEAN_M ahead
+    of it (a runner's heel counter leans forward over the Achilles, its rim 3.5 cm ahead of its foot; read at the
+    skin's own step, the Achilles behind the leaning counter was taken for skin over the shoe, #223)."""
+    found = top.copy()
+    heel = steps < steps[0] + HEEL_SHARE * np.ptp(steps)
+    for index in np.flatnonzero(heel):
+        found[index] = top[(steps >= steps[index]) & (steps <= steps[index] + LEAN_M)].max()
+    return found
 
 
 def walls(model):
@@ -395,14 +427,128 @@ def fitted(body, side, model, grid):
     _, forward, _, _ = place["frame"]
     return {"points": bind, "faces": faces, "uv": model["uv"], "blend": blend, "weights": weights,
             "covered": covered, "place": place, "frame": place["frame"], "model": worn, "grid": grid,
-            "fit moves": fit_moves,
+            "fit moves": fit_moves, "under top": near[under_top(worn, place, points[near])],
             "least clearance mm": round(least * 1000.0, 2), "foot length m": float(np.ptp(points[first] @ forward))}
 
 
-def out_of(made, skin, moves):
-    """How far each covered skin point (`skin`, posed) is out of the worn shoe, metres, nought inside: each point
-    taken to where the shoe was fitted through the skinning of the shoe point nearest it (`moves`: the joints' moves
-    off the bind this frame, joints x 4 x 4), then into the model's frame."""
+def under_top(model, place, skin_points, below=0.0):
+    """Which of `skin_points` (where the shoe was fitted) lie under the shoe's top less `below` (m) and along it."""
+    inside = to_model(skin_points, place["frame"], place)
+    top = np.interp(inside[:, 0], *model["top"])
+    return (inside[:, 1] < top - below / place["scale"][1]) & (inside[:, 0] > model["points"][:, 0].min()) & (
+        inside[:, 0] < model["points"][:, 0].max())
+
+
+def middle_line(inside):
+    """The shoe's middle under points in its frame: each point's step along, clipped STRETCH_ENDS_M in from the
+    points' ends, at the mean height and width of the points in its step."""
+    steps = np.arange(inside[:, 0].min(), inside[:, 0].max() + STEP_M, STEP_M)
+    bins = np.clip(np.searchsorted(steps, inside[:, 0]), 0, len(steps) - 1)
+    held = np.unique(bins)
+    middle = np.array([inside[bins == each, 1:].mean(axis=0) for each in held])
+    along = np.clip(inside[:, 0], inside[:, 0].min() + STRETCH_ENDS_M, inside[:, 0].max() - STRETCH_ENDS_M)
+    return np.stack([along, *[np.interp(along, steps[held], middle[:, axis]) for axis in range(2)]], axis=1)
+
+
+def walls_out(model, inside, middle):
+    """How far each point (the model's frame) is out through the shoe's walls (negative: inside them by that much)
+    and the unit way in, level, from it to the shoe's middle: no surface of the shoe outwards, the distance to the
+    nearest inwards (a surface outwards, any of the model's sheets, covers it from sight); a point with neither is
+    neither (0)."""
+    import trimesh
+    mesh = trimesh.Trimesh(model["points"], model["faces"], process=False)
+    way_in = (middle - inside) * np.array([1.0, 0.0, 1.0])
+    way_in /= np.maximum(np.linalg.norm(way_in, axis=1, keepdims=True), 1e-12)
+    found = np.zeros(len(inside))
+    for sign in (-1.0, 1.0):  # outwards, then inwards
+        hits, rays, _ = mesh.ray.intersects_location(inside, way_in * sign, multiple_hits=True)
+        distance = np.full(len(inside), np.inf)
+        np.minimum.at(distance, rays, np.linalg.norm(hits - inside[rays], axis=1))
+        if sign < 0:
+            covered = np.isfinite(distance)
+            found[covered] = -distance[covered]
+        else:
+            out = ~covered & np.isfinite(distance)
+            found[out] = distance[out]
+    return found, way_in
+
+
+def skin_at_fit(made, body):
+    """The skin under the shoe's top where the shoe was fitted: each point's skinning there (points x 4 x 4) and its
+    place in the model's frame."""
+    place = made["place"]
+    matrices = np.einsum("pj,jab->pab", np.asarray(body["weights"], float)[made["under top"]], made["fit moves"])
+    bind = np.asarray(body["bind"], float)[made["under top"]]
+    fitted = np.einsum("pab,pb->pa", matrices, np.c_[bind, np.ones(len(bind))])[:, :3]
+    return matrices, to_model(fitted, place["frame"], place)
+
+
+def bind_moves(made, matrices, inside, steps):
+    """Moves of points in the model's frame (`steps`, model metres) as moves at the bind: {"points" (the body's under
+    top points), "moves"}, carried by each point's skinning on a frame (`tuck_at`)."""
+    place = made["place"]
+    moved = from_model(inside + steps, place["frame"], place) - from_model(inside, place["frame"], place)
+    return {"points": made["under top"], "moves": np.einsum("pab,pb->pa", np.linalg.inv(matrices[:, :3, :3]), moved)}
+
+
+def tucked(made, body):
+    """The foot's skin under the shoe's top moved in from its walls to MARGIN_M inside them where the shoe was
+    fitted, level towards the shoe's middle, then where the cavity is closed up its clearance's slope till it is
+    MARGIN_M inside it, fading out over TUCK_FADE_M under the top: each moved point's move at the bind
+    (`bind_moves`)."""
+    worn, scale = made["model"], made["place"]["scale"][1]
+    matrices, inside = skin_at_fit(made, body)
+    out, way_in = walls_out(worn, inside, middle_line(inside))
+    fade = np.clip((np.interp(inside[:, 0], *worn["top"]) - inside[:, 1]) * scale / TUCK_FADE_M, 0.0, 1.0)
+    steps = way_in * (np.clip(out + MARGIN_M / scale, 0.0, None) * fade)[:, None]
+    # then into the cavity where it is closed (under the collar): the level way in misses skin pressing up through the
+    # tongue (the foot 1.9 mm out of its runner's cavity, #223 round 1)
+    gradient = np.stack(np.gradient(made["grid"]["clearance"]), axis=-1)
+    closed = inside[:, 1] < np.interp(inside[:, 0], *worn["collar"]) - COVERED_UNDER_M / scale
+    for _ in range(TUCK_ROUNDS):
+        moved = inside + steps
+        short = np.clip(MARGIN_M - asked(worn, made["grid"], moved, scale), 0.0, None) * closed * fade
+        if not short.any():
+            break
+        cells = np.clip(np.floor((moved - made["grid"]["origin"]) / PITCH_M).astype(int), 0,
+                        np.array(gradient.shape[:3]) - 1)
+        way = gradient[tuple(cells.T)]
+        way /= np.maximum(np.linalg.norm(way, axis=1, keepdims=True), 1e-12)
+        steps = steps + way * (short / scale + PITCH_M / 2.0 * (short > 0.0))[:, None]
+    return bind_moves(made, matrices, inside, steps)
+
+
+def shell(made, body):
+    """The skin under the shoe's top moved out to the shoe's outside and SHELL_CLEAR_M past it where the shoe was
+    fitted (`bind_moves`): the shoe as the drape's cloth meets it (a jeans hem breaks over it, not through it). Each
+    point moved level out from the shoe's middle to the farthest of the shoe's surfaces that way; one with none, or
+    standing on the insole (under the foot, where no cloth comes), stays."""
+    import trimesh
+    worn, scale = made["model"], made["place"]["scale"][1]
+    matrices, inside = skin_at_fit(made, body)
+    mesh = trimesh.Trimesh(worn["points"], worn["faces"], process=False)
+    way_out = (inside - middle_line(inside)) * np.array([1.0, 0.0, 1.0])
+    way_out /= np.maximum(np.linalg.norm(way_out, axis=1, keepdims=True), 1e-12)
+    hits, rays, _ = mesh.ray.intersects_location(inside, way_out, multiple_hits=True)
+    farthest = np.zeros(len(inside))
+    np.maximum.at(farthest, rays, np.linalg.norm(hits - inside[rays], axis=1))
+    standing = inside[:, 1] - np.interp(inside[:, 0], *worn["floor"]) < STANDING_M / scale  # the sole: no cloth
+    need = np.where((farthest > 0.0) & ~standing, farthest + SHELL_CLEAR_M / scale, 0.0)
+    return bind_moves(made, matrices, inside, way_out * need[:, None])
+
+
+def tuck_at(tuck, body, frame, skin):
+    """`skin` (the body's points on `frame`) with the tuck's points moved by their moves turned by their own skinning
+    there."""
+    turned = np.einsum("pj,jab->pab", np.asarray(body["weights"], float)[tuck["points"]], moves_at(body, frame))
+    found = np.array(skin, float)
+    found[tuck["points"]] += np.einsum("pab,pb->pa", turned[:, :3, :3], tuck["moves"])
+    return found
+
+
+def at_fit(made, skin, moves):
+    """`skin` (posed by `moves`, the joints' moves off the bind this frame) taken to where the shoe was fitted through
+    the skinning of the shoe point nearest each, in the model's frame."""
     from scipy.spatial import cKDTree
     weights = made["weights"]
     posed = np.einsum("pj,jab->pab", weights, moves)
@@ -410,5 +556,24 @@ def out_of(made, skin, moves):
     _, nearest = cKDTree(shoe).query(skin)
     there = np.einsum("pj,jab->pab", weights[nearest], made["fit moves"]) @ np.linalg.inv(posed[nearest])
     back = np.einsum("pab,pb->pa", there, np.c_[skin, np.ones(len(skin))])[:, :3]
-    inside = to_model(back, made["frame"], made["place"])
+    return to_model(back, made["frame"], made["place"])
+
+
+def out_of(made, skin, moves):
+    """How far each covered skin point (`skin`, posed) is out of the worn shoe, metres, nought inside: each point
+    taken to where the shoe was fitted (`at_fit`, `moves` the joints' moves off the bind this frame, joints x 4 x 4),
+    its clearance read there."""
+    inside = at_fit(made, skin, moves)
     return np.maximum(-asked(made["model"], made["grid"], inside, made["place"]["scale"][1], 0.0), 0.0)
+
+
+def top_out(made, skin, moves):
+    """How far each of the foot's skin points under the shoe's top (`skin`, posed: the body's `under top` points) is
+    out through the shoe's walls (`walls_out`), metres, nought inside or within COVERED_UNDER_M of the top."""
+    inside = at_fit(made, skin, moves)
+    scale = made["place"]["scale"][1]
+    under = inside[:, 1] < np.interp(inside[:, 0], *made["model"]["top"]) - COVERED_UNDER_M / scale
+    found = np.zeros(len(skin))
+    if under.any():
+        found[under] = np.maximum(walls_out(made["model"], inside[under], middle_line(inside)[under])[0], 0.0) * scale
+    return found

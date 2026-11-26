@@ -571,17 +571,16 @@ def faults(found):
     return lines
 
 
-def worn(chosen, body, drape, records, library=None):
+def worn(chosen, body, drape, records, library=None, shoes=None):
     """The outfit's accessories (its `accessories`: "shoes" and a "belt" "on" a garment) over the drape's clip
     frames: {"shoes": {side: shoe with its "frames"}, "belt": belt() or None, "lift", "found", "faults"}. Shoes that
     name a library `model` are that model fitted on each foot (`shoe_model`, read from the fetched `library`), else
-    made on the foot (`shoe`)."""
+    made on the foot (`shoe`); `shoes` already fitted (the drape's, `shoes_worn`) are those."""
     start = int(body["clip_start"])
     names = [name for name in drape if name in records]
     count = len(drape[names[0]])
-    shoes = {}
-    if "shoes" in chosen:
-        shoes = shoes_worn(chosen["shoes"], body, start, count, library)
+    if shoes is None:
+        shoes = shoes_worn(chosen["shoes"], body, start, count, library) if "shoes" in chosen else {}
     belted = None
     if "belt" in chosen:
         under, over = chosen["belt"]["on"], chosen["belt"].get("covered by", [])
@@ -599,7 +598,7 @@ def worn(chosen, body, drape, records, library=None):
 
 def shoes_worn(chosen, body, start, count, library):
     """Each side's shoe carried over the clip's `count` frames from `start` ("frames"); a library model's with how far
-    the foot is out of it each frame ("outs", `shoe_model.out_of`)."""
+    the foot is out of it each frame ("outs", `model_out`) once tucked into it ("tuck")."""
     from tools.characters.accessories import shoe_model
     found = {}
     if "model" in chosen:
@@ -611,10 +610,43 @@ def shoes_worn(chosen, body, start, count, library):
         made = shoe_model.fitted(body, side, model, grid) if "model" in chosen else shoe(body, side)
         made["frames"] = carried(made["points"], made["weights"], body)[start:start + count]
         if "model" in chosen:
-            made["outs"] = [float(shoe_model.out_of(made, np.asarray(body["frames"])[frame][made["covered"]],
-                                                    shoe_model.moves_at(body, frame)).max())
-                            for frame in range(start, start + count)]
+            made["tuck"] = shoe_model.tucked(made, body)
+            made["outs"] = [model_out(made, body, frame) for frame in range(start, start + count)]
         found[side] = made
+    return found
+
+
+def model_out(made, body, frame):
+    """How far the foot's skin, tucked into its library shoe (`shoe_model.tucked`), is out of it on `frame`: the most
+    of the covered skin out of the cavity and the skin under the shoe's top out through its walls."""
+    from tools.characters.accessories import shoe_model
+    moves = shoe_model.moves_at(body, frame)
+    skin = shoe_model.tuck_at(made["tuck"], body, frame, np.asarray(body["frames"])[frame])
+    return float(max(shoe_model.out_of(made, skin[made["covered"]], moves).max(),
+                     shoe_model.top_out(made, skin[made["under top"]], moves).max()))
+
+
+def shod_frames(shoes, body, frames):
+    """The body's points on `frames` (clip frame numbers) with the skin under each library shoe moved out to the shoe's
+    outside (`shoe_model.shell`): the body the garments are draped on, so a hem breaks over the shoes."""
+    from tools.characters.accessories import shoe_model
+    found = np.array(np.asarray(body["frames"])[frames], float)
+    for made in shoes.values():
+        if "tuck" in made:
+            outside = shoe_model.shell(made, body)
+            found = np.stack([shoe_model.tuck_at(outside, body, frame, points) for frame, points in zip(frames, found)])
+    return found
+
+
+def tucked_frames(dressed, body, frames):
+    """The body's points on `frames` (clip frame numbers) with each library shoe's tuck: the skin the shoes are fitted
+    over, as it is drawn."""
+    from tools.characters.accessories import shoe_model
+    found = np.array(np.asarray(body["frames"])[frames], float)
+    for made in dressed["shoes"].values():
+        if "tuck" in made:
+            found = np.stack([shoe_model.tuck_at(made["tuck"], body, frame, points)
+                              for frame, points in zip(frames, found)])
     return found
 
 

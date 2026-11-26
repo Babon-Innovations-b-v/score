@@ -36,7 +36,7 @@ not set, or the joints left unscaled with the skin. In bands.py: the triangles t
 the band's edges), or a cut's point made once per panel rather than once per seam point (the cloth opened along its
 seams). In details.py: a seam taken for an open edge (two panels sharing box points not matched), a plain seam marked,
 a strip laid outside its panel (its inward normal not turned), the lift not past the thickness on outward-wound cloth,
-or a patch's side taken towards the body's middle, or a neckline's edge at its unlabelled centre corner taken for a hem. In inside/laying.py: no point inside put out (each moved straight off
+or a patch's side taken towards the body's middle, a dart (a panel sewn to itself) taken for an open edge, a "middle" patch's level read at the panel's top, a neck's rib stopped at its ends, or a neckline's edge at its unlabelled centre corner taken for a hem. In inside/laying.py: no point inside put out (each moved straight off
 its nearest skin), no way out along the axes for a point the first step leaves inside, that step's points not looked
 at again, or a point the layer's reach moves into a fold of the skin kept there; a seam's triangle rested at its flat
 panel from the start (its float32 area ratio lost as the seam is crushed), a rest's corner 2 put the other way along
@@ -381,6 +381,40 @@ def marked(library, plain):
     return counts, off, past, (patch[:, :2].min(axis=0) + patch[:, :2].max(axis=0)) / 2.0 * 100.0
 
 
+def darted(library):
+    """The toy sheet as one panel sewn to itself down its middle (a dart: GarmentCode shapes Pants' waist with them),
+    a 6 mm seam mark and a 10 mm edge mark given and no dart mark: each mark's triangle count."""
+    record, points = toy_sheet()
+    record = {**record, "panel": np.ones_like(record["panel"])}
+    for name, size in {"seam": [0.012, 0.006], "edge": [0.012, 0.010]}.items():
+        own = pathlib.Path(library) / "surface" / name / "1"
+        own.mkdir(parents=True, exist_ok=True)
+        (own / "surface.json").write_text(json.dumps({"size_m": size}))
+    garment = {"details": {name: {"name": name, "address": f"surface/{name}@1"} for name in ("seam", "edge")}}
+    _, _, _, finish, surfaces = details.laid(record, garment, library, points[None], points - [0.0, 0.0, 0.1], 0.003)
+    return {known["name"]: int((finish == index).sum()) for index, known in enumerate(surfaces)}
+
+
+def neck_ends():
+    """The toy sheet's left panel's top edge (0 to 20 cm) as a neckline's rib strip, 1.9 cm wide: its flat points'
+    least and most x (cm)."""
+    record, _ = toy_sheet()
+    flat, panel_of = np.asarray(record["flat"]), np.asarray(record["panel"])
+    copies = np.flatnonzero((panel_of == 1) & (flat[:, 1] == 30.0))
+    copies = copies[np.argsort(flat[copies, 0])]
+    points = details.strip(record, 1, copies, [0.012, 0.019], 0.012, details.NECK_OVERRUN_CM)[0]
+    return [float(points[:, 0].min()), float(points[:, 0].max())]
+
+
+def middle_patch():
+    """The middle (cm) of a 4 x 2 cm patch laid on the toy sheet's left panel (20 cm wide) at its width's middle 10 cm
+    under its top, 2 cm towards its side."""
+    record, points = toy_sheet()
+    spec = {"panel": "left", "anchor": "middle", "across_cm": 2.0, "down_cm": 10.0}
+    _, flat_points, _, _ = details.patch(record, ["right", "left"], spec, [0.04, 0.02])
+    return (flat_points.min(axis=0) + flat_points.max(axis=0)) / 2.0
+
+
 def toy_thighs():
     """Two closed thighs, 6 cm round and 10 cm apart, so they overlap 2 cm between them (as a SOMA body's touching
     thighs cross each other): (points, faces)."""
@@ -643,6 +677,9 @@ def fabric_repeats():
     (1.15, "a band round the torso", 0.05),
     (1.0, "marks on a seam, its edges and a pocket", False),
     (1.0, "marks with the seam plain", True),
+    (1.0, "a patch at its panel's middle, at its level", [12.0, 20.0]),
+    (1.0, "a neck's rib run on past its ends", [-0.8, 20.8]),
+    (1.0, "a dart's sides left unmarked", {"edge": 2 * 2 * (20 * 2 + 30) * 2}),
     (1.0, "a neckline's marks run to its centre seam", [10, 10]),
     (1.0, "pants laid round thighs that touch", 0),
     (1.0, "pants laid with too short a way out", 1),
@@ -735,6 +772,19 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         else:
             # cloth that crosses nothing (its own triangles sharing corners never counted) leaves nothing out
             assert points_to == {} and edges_to == {}, (points_to, edges_to)
+        return
+    if wear.startswith("a neck's rib"):
+        # the rib runs on past the neckline's ends so two halves meeting at an angle leave no wedge between them
+        assert neck_ends() == pytest.approx(failed, abs=1e-6)
+        return
+    if wear.startswith("a patch at"):
+        # a knee's fading wherever the leg narrows: the middle of the panel's width at the patch's level
+        assert middle_patch() == pytest.approx(failed, abs=1e-6)
+        return
+    if wear.startswith("a dart"):
+        # the sheet's outer edge marked all round (140 cm, a strip every 0.5 cm), its middle (a dart, a panel sewn
+        # to itself) neither a seam nor a hem
+        assert darted(tmp_path) == failed
         return
     if wear.startswith("a neckline"):
         # each panel's ten top edges are the neck's, those at its unlabelled corners too, and no side edge

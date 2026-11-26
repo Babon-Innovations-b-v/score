@@ -22,7 +22,13 @@ across its width; a patch mark covers its patch once, its u towards the garment'
 - a tee's coverstitch hem: two tonal rows 6.4 mm apart, 15 and 21.4 mm up, the turned allowance's ridge at 25 mm,
 - a tee's crew neck: a 13 mm 1x1 rib band, its seam's coverstitch under it,
 - jeans pockets: a five-sided back patch pocket with its double topstitch and an arc stitch, a front scoop with its
-  coin pocket, the fly's J-stitch, a belt loop, and a copper rivet.
+  coin pocket, the fly's J-stitch, a belt loop, and a copper rivet;
+- a jeans back yoke's felled seam, falling from the centre back to the side seam (GarmentCode shapes Pants' back with
+  darts, which a pair of jeans has none of), and the waistband's brass tack button;
+- a worn pair's fading where the cloth creases and rubs (#223 photoreal round 1: "denim wash and fading with knee and
+  crotch creases"): whiskers fanning from the crotch over the thighs' tops, the knees' rubbed lighter, honeycombs
+  behind the knees; the faded indigo laid partly over the twill (it shows through), each crease's ridge raised and its
+  fold sunk.
 
 Colours are linear albedo; each mark's thread colour is named beside it. Writes each surface's material.usda,
 surface.json and maps under <folder>/<id>/, and <folder>/take-in.json for `score-lib take-in`.
@@ -47,6 +53,8 @@ JERSEY = {"wales": 128, "courses": 160, "dark": (0.30, 0.30, 0.295), "light": (0
 GOLD_THREAD = (0.58, 0.26, 0.045)  # jeans' tobacco gold topstitch thread, sRGB (200, 140, 60)
 GREY_THREAD = (0.24, 0.24, 0.235)  # a heather grey tee's tonal thread, a shade under its cloth
 COPPER = (0.80, 0.42, 0.25)  # a copper rivet's base colour (metallic)
+BRASS = (0.62, 0.45, 0.20)  # a jeans tack button's antique brass (metallic)
+FADED = (0.30, 0.42, 0.62)  # indigo worn down to its ring-dyed core's lighter blue where it creases and rubs
 
 
 def periodic_noise(size, cycles, seed):
@@ -392,6 +400,104 @@ def rivet_mark():
     return mark
 
 
+def yoke_mark(colour=GOLD_THREAD):
+    """A jeans back yoke's felled seam across one back panel (230 x 90 mm, u from the centre back towards the side
+    seam, v up, its top at the panel's top): falling from 70 mm under the top at the centre back to 35 mm at the side,
+    its fold's shadow on the seat side, the felled allowance's ridge and two gold rows 1.5 and 7.5 mm under it."""
+    width, height = 230.0, 90.0
+    mark = Mark(width, height, PATCH_PX_PER_MM)
+    line = np.array([[0.0, height - 70.0], [width, height - 35.0]])
+    slope = (line[1, 1] - line[0, 1]) / width
+    under = (line[0, 1] + slope * mark.u_mm - mark.v_mm) / math.hypot(1.0, slope)  # mm under the seam, + below it
+    mark.shadow(np.where(under > 0.0, under, np.inf), 1.2, 0.55)
+    mark.shadow(np.abs(under + 2.0), 1.0, 0.25)  # the yoke's fold over the seam
+    mark.shadow(np.abs(under - 9.0), 1.5, 0.18)  # the felled allowance's edge under the cloth
+    mark.height = 0.15 * np.exp(-((under - 4.5) / 3.0) ** 2)
+    for row in (1.5, 7.5):
+        drop = row * math.hypot(1.0, slope)
+        mark.stitched(line - [0.0, drop], colour)
+    return mark
+
+
+def button_mark():
+    """A jeans waistband's 17 mm tack button (22 x 22 mm): its domed antique brass head, a rolled rim and a stamped
+    ring of beads, the cloth's dimple's shadow round it."""
+    mark = Mark(22.0, 22.0, PATCH_PX_PER_MM * 4)
+    distance = np.hypot(mark.u_mm - 11.0, mark.v_mm - 11.0)
+    mark.shadow(np.where(distance > 8.5, distance - 8.5, np.inf), 2.0, 0.55)
+    head = np.clip((8.5 - distance) * mark.px_per_mm, 0.0, 1.0)
+    angle = np.arctan2(mark.v_mm - 11.0, mark.u_mm - 11.0)
+    beads = (np.abs(distance - 6.6) < 0.45) * (np.cos(angle * 24.0) > 0.2)
+    shade = 0.75 + 0.25 * np.clip(1.0 - distance / 8.5, 0.0, 1.0) - 0.25 * beads - 0.2 * (np.abs(distance - 7.8) < 0.3)
+    mark.laid(head, np.asarray(BRASS) * shade[..., None])
+    mark.height = head * (1.2 * np.sqrt(np.clip(1.0 - (distance / 8.5) ** 2, 0.0, 1.0)) + 0.25 * (distance > 7.5)
+                          - 0.12 * beads)
+    return mark
+
+
+def crease_fade(mark, centre_line, half_width_mm, strength):
+    """One worn crease along a polyline (mm): the faded indigo laid over the twill, strongest along its ridge and
+    tapering to its ends, the ridge raised and a sunk fold beside it."""
+    line = np.asarray(centre_line, float)
+    distance = np.full(mark.shape, np.inf)
+    share = np.zeros(mark.shape)
+    lengths = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(line, axis=0), axis=1))]
+    for index, (start, end) in enumerate(zip(line[:-1], line[1:])):
+        span = end - start
+        along = np.clip(((mark.u_mm - start[0]) * span[0] + (mark.v_mm - start[1]) * span[1]) / (span @ span), 0, 1)
+        here = np.hypot(mark.u_mm - start[0] - along * span[0], mark.v_mm - start[1] - along * span[1])
+        nearer = here < distance
+        distance = np.where(nearer, here, distance)
+        share = np.where(nearer, (lengths[index] + along * np.linalg.norm(span)) / lengths[-1], share)
+    taper = np.sin(np.pi * np.clip(share, 0.0, 1.0)) ** 0.6
+    width = half_width_mm * taper + 1e-6
+    cover = strength * taper * np.exp(-(distance / width) ** 2)
+    mark.laid(cover, FADED)
+    mark.height = mark.height + 0.35 * taper * np.exp(-(distance / (0.6 * width)) ** 2) \
+        - 0.25 * taper * np.exp(-((distance - 1.2 * width) / (0.4 * width)) ** 2)
+
+
+def whiskers_mark():
+    """Whiskers over a thigh's top (170 x 100 mm, u from the crotch side towards the side seam, v up): six creases
+    fanning from the crotch up and out over the thigh, the longest in the middle, a soft fade under them."""
+    width, height = 170.0, 100.0
+    mark = Mark(width, height, PATCH_PX_PER_MM)
+    mark.laid(0.18 * np.exp(-(((mark.u_mm - 60.0) / 70.0) ** 2 + ((mark.v_mm - 55.0) / 40.0) ** 2)), FADED)
+    for number, (rise, length) in enumerate(((4.0, 90.0), (10.0, 120.0), (17.0, 140.0), (24.0, 130.0),
+                                             (31.0, 105.0), (38.0, 80.0))):
+        sweep = np.linspace(0.0, 1.0, 24)
+        start = np.array([8.0 + 4.0 * number, 18.0 + 7.0 * number])
+        line = start + np.stack([sweep * length, sweep * rise + 8.0 * np.sin(sweep * np.pi) * (number % 2 - 0.5)],
+                                axis=1)
+        crease_fade(mark, line, 3.0, 0.3)
+    return mark
+
+
+def knee_mark():
+    """A knee's rub (130 x 160 mm, centred on the knee): an oval fade lighter at its middle, two soft creases across
+    it where the knee bends."""
+    width, height = 130.0, 160.0
+    mark = Mark(width, height, PATCH_PX_PER_MM)
+    mark.laid(0.3 * np.exp(-(((mark.u_mm - 65.0) / 45.0) ** 2 + ((mark.v_mm - 80.0) / 60.0) ** 2) * 1.5), FADED)
+    for level, bow in ((58.0, 6.0), (104.0, -5.0)):
+        sweep = np.linspace(0.0, 1.0, 24)
+        crease_fade(mark, np.stack([20.0 + sweep * 90.0, level + bow * np.sin(sweep * np.pi)], axis=1), 4.0, 0.25)
+    return mark
+
+
+def honeycomb_mark():
+    """Honeycombs behind a knee (140 x 90 mm, centred on the knee's fold): three or four short creases stacked across
+    the fold, each bowed, a soft fade round them."""
+    width, height = 140.0, 90.0
+    mark = Mark(width, height, PATCH_PX_PER_MM)
+    mark.laid(0.15 * np.exp(-(((mark.u_mm - 70.0) / 55.0) ** 2 + ((mark.v_mm - 45.0) / 30.0) ** 2)), FADED)
+    for level, start, length, bow in ((18.0, 25.0, 90.0, 5.0), (36.0, 15.0, 110.0, -4.0), (54.0, 20.0, 100.0, 5.0),
+                                      (72.0, 35.0, 70.0, -3.0)):
+        sweep = np.linspace(0.0, 1.0, 24)
+        crease_fade(mark, np.stack([start + sweep * length, level + bow * np.sin(sweep * np.pi)], axis=1), 3.0, 0.4)
+    return mark
+
+
 FABRICS = {
     "denim_indigo_twill": {"title": "Denim, mid indigo 3/1 twill", "maps": denim_maps, "spec": DENIM,
                            "why": "a 12 oz jeans denim: 3/1 right-hand twill, 26 ends and picks a cm, ring-dyed "
@@ -411,6 +517,13 @@ MARKS = {
     "fly_jeans_gold": ("Jeans fly J-stitch (decal)", fly_mark, 0.6, 0.0, "patch"),
     "belt_loop_jeans_gold": ("Jeans belt loop (decal)", belt_loop_mark, 0.6, 0.0, "patch"),
     "rivet_copper": ("Copper jeans rivet (decal)", rivet_mark, 0.35, 1.0, "patch"),
+    "yoke_jeans_gold": ("Jeans back yoke seam, two gold rows (decal)", yoke_mark, 0.6, 0.0, "patch"),
+    "button_jeans_brass": ("Jeans waistband tack button, antique brass (decal)", button_mark, 0.4, 1.0, "patch"),
+    "whiskers_denim_fade": ("Denim whiskers, faded creases over the thigh (decal)", whiskers_mark, 0.85, 0.0,
+                            "patch"),
+    "knee_denim_fade": ("Denim knee rub, faded (decal)", knee_mark, 0.85, 0.0, "patch"),
+    "honeycomb_denim_fade": ("Denim honeycombs behind the knee, faded creases (decal)", honeycomb_mark, 0.85, 0.0,
+                             "patch"),
 }
 
 

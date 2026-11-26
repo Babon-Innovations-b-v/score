@@ -242,16 +242,24 @@ def belt_job(outfit):
             "limits": limits, "outside": {name: least for name in over}}
 
 
-def draped(outfit, body, pattern_folder, out, frames):
-    """The outfit sewn, draped and worn over the clip on Newton, through this PC's card queue: drape.npz."""
+def draped(outfit, body, pattern_folder, out, frames, shoes=None):
+    """The outfit sewn, draped and worn over the clip on Newton, through this PC's card queue: drape.npz. With
+    library `shoes` fitted (accessories.shoes_worn), the body the cloth meets wears them (`shod.npz`,
+    accessories.shod_frames); body.npz is the skin alone either way."""
+    from tools.characters import accessories
     clip_end = int(body["clip_start"]) + frames if frames else len(body["frames"])
     np.savez(out / "body.npz", bind=body["bind"], faces=body["faces"], frames=body["frames"][:clip_end],
              clip_start=body["clip_start"])
+    met = out / "body.npz"
+    if shoes and any("tuck" in made for made in shoes.values()):
+        met = out / "shod.npz"
+        np.savez(met, bind=body["bind"], faces=body["faces"],
+                 frames=accessories.shod_frames(shoes, body, range(clip_end)), clip_start=body["clip_start"])
     shift = centre(body)
     measurements = json.loads((pattern_folder / "measurements.json").read_text())
     records = {garment["name"]: np.load(pattern_folder / garment["name"] / f"{garment['name']}.npz")
                for garment in outfit["garments"]}
-    job = dict(DRAPE, body=str(out / "body.npz"), neck=neck(body, measurements, shift), garments=[
+    job = dict(DRAPE, body=str(met), neck=neck(body, measurements, shift), garments=[
         {"name": garment["name"], "record": str(pattern_folder / garment["name"] / f"{garment['name']}.npz"),
          "offset": shift.tolist(), "worn": garment.get("worn", []), "layer_m": float(garment.get("layer_m", 0.0)),
          "holds": holds(garment, records[garment["name"]], measurements, shift,

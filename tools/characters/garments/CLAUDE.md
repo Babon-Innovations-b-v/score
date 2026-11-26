@@ -83,7 +83,15 @@ runs them (an outfit file per look in `data/people/outfits/`).
   pattern's panels: a seam is an edge two panels share), patches at an anchor of a panel, each point carried by its
   flat triangle and lifted past the cloth's drawn thickness. GarmentCode's halved panels' centre seams a real
   garment has none of are listed `plain seams`.
-- **Accessories** (shoes, a belt: `../accessories`, #228) are fitted after the drape from the outfit file's
-  `accessories` and written into the same `outfit.usda`; their faults fail the run like a garment's.
+- **Accessories** (shoes, a belt: `../accessories`, #228) are written into the same `outfit.usda`; their faults fail
+  the run like a garment's. Library shoes are fitted before the drape and the cloth is draped on the body wearing them
+  (`shod.npz`, `accessories.shod_frames`: the skin under each shoe moved out to its outside), so a jeans hem cut onto
+  the shoe breaks over it; `body.npz` stays the bare skin every check reads, and the skin drawn is tucked into the
+  shoes (`accessories.tucked_frames`). The belt is laid after the drape.
+- **Darts are not seams** (`details.classified`): a panel's edge sewn to its own other edge is a `dart`, marked only
+  when an outfit names a `dart` mark; jeans have none (GarmentCode shapes Pants with darts; marked as hems they read as
+  stray stitch lines, #223 photoreal round 1), a back yoke mark takes their place. A patch's `middle` anchor lays it
+  at the middle of the panel's width at its level (a knee's fading wherever the leg narrows); a neckline's rib runs
+  NECK_OVERRUN_CM past its ends, so two halves meeting at an angle leave no wedge.
 - Tests: `test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it.py` (a toy body of tubes measured, a toy tee
   on a toy torso worn each way; no GarmentCode, Newton or Blender).

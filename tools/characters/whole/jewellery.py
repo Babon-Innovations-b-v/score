@@ -23,11 +23,16 @@ import numpy as np
 import trimesh
 
 EAR_REACH_M = 0.035
-EARRING = {"major": 0.009, "wire": 0.0009, "through": 0.0015}  # m; `through`: the hoop's top this far inside the lobe
+# m; `through`: the hoop's top this far inside the lobe. A small huggie hoop, 12 mm across (#223 photoreal round 1:
+# "small earrings"; 18 mm read as a statement hoop)
+EARRING = {"major": 0.006, "wire": 0.0009, "through": 0.0015}
 NECKLACE = {"over_neck": 0.02, "drop": 0.08, "turns": 96}  # m over the Neck1 joint, m lower at the front
 CHAIN = {"wire": 0.0011, "clear": 0.0015, "sides": 8}
-WATCH = {"from_hand": 0.05, "strap": 0.018, "strap_thick": 0.0025, "clear": 0.003, "case": 0.0155,
-         "case_tall": 0.007, "glass": 0.0008, "turns": 48, "slice": 0.012}
+# A women's watch (#223 photoreal round 1: "the watch sized right and sitting on the wrist"): a 28 mm case on a 14 mm
+# strap just over the wrist bone, 3 cm up from the wrist's joint, the strap 1.5 mm off the skin (at 5 cm up the
+# forearm, a 31 mm case on an 18 mm strap 3 mm off it stood out as a man's watch slid up the arm)
+WATCH = {"from_hand": 0.03, "strap": 0.014, "strap_thick": 0.0025, "clear": 0.0015, "case": 0.014,
+         "case_tall": 0.0065, "glass": 0.0008, "turns": 48, "slice": 0.012}
 # `at`: of the way from the wrist to the fingertips, the fingers' first bones; `least`: triangles a finger's cut has
 RING = {"at": 0.62, "wire": 0.0011, "clear": 0.0004, "least": 6}
 RINGS = (("Left", 1), ("Right", 2))  # the left ring finger and the right middle finger, counted from the little one
