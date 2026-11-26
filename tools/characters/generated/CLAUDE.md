@@ -100,3 +100,21 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   (`scene.ray_cast`) before guessing.
 - Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step
   (`marks.py` reads a real photo with MediaPipe and has no row; `lids.py` reads its JSON).
+- **Cloth** (`cloth.py`, drawn by `blender_cloth.py`, the sheet and film by `cloth_sheet.py`; owner 2026-11-26 of the
+  skinned walk: "moving creates a lot of warping"): still_rig's rigged person (rig it `--person` with a palette of no
+  tokens: its own paint, ungraded) is split by its paint and place into head, skin, jacket, T-shirt, jeans and shoes
+  (a vote over the faces' edges settles each cut onto the paint's edge); the jacket and the jeans hang as cloth on
+  Newton's VBD through the people cloth stage's own run (`score/stages/people_cloth/inside/cloth.py`, reused, never
+  copied), everything else stays skinned. The garment is the shell's own surface (its folds and paint stay); its rest
+  is the generated shape. Riding points: the jacket's collar and shoulder yoke and its cuffs, the jeans' waistband;
+  the rest is free. The collision body is the SOMA mean on the bind pushed under the shell (`body_under`), the shell's
+  own shoes on the feet. The person is sized to her own height (`--height`, the person's measured height, not the
+  template body's). Cloth values are `data/physics/cloth.json`'s rows, never typed: no puffer row exists, so the
+  jacket hangs as denim (named in cloth.json's record). Run: `python -m tools.characters.generated.cloth <body.glb>
+  <clips rig.npz> <out> --height <m> [--device cuda:0]` (on the processor about 6 s a frame: about 25 min for the
+  walk; on the card through the card queue), then `blender -b --python blender_cloth.py -- <repo> <body.glb>
+  <out>/cloth.npz <library> <renders> cloth|skinned <samples> <size> [<film samples> <film size>]` (CPU) for each of
+  the two, then `python -m tools.characters.generated.cloth_sheet <cloth renders> <skinned renders> <out>/cloth.json
+  <sheet.png> <title> [<film.mp4>]`.
+- **Look at the film.** The deepest loose point inside the body, the stretch and the drift say the run held; only the
+  side-by-side film says whether the jeans swing and the jacket hangs as cloth or still read as a stretched skin.

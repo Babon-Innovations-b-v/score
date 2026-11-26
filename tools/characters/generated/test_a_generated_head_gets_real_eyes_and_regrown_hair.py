@@ -59,6 +59,15 @@ is dark and lie on the skin; a painted brow is painted over with the skin round 
 (`lids.lid_profile`); the points not moved across (`lids.moved_across`); the lid let 3 mm into the eye
 (`lids.reshaped`); the lashes' curl turned round (`lids.lid_lashes`); every brow place kept whatever the photo's
 darkness (`lids.brow_hairs`); the brow left painted (`lids.unpainted`).
+
+The cloth (`cloth.py`), on toys: a grid painted jacket over jeans with a fleck of T-shirt and stray jeans faces in the
+jacket comes out clean after the vote and the islands; a tube's distance over its surface from its top loop is its
+height under it, so the jeans ride a waistband's width; a walk whose last frame repeats its first is a cycle a frame
+shorter and its travel carries on cycle after cycle; the body under the clothes is pushed in to the margin under a
+close shell and not at all under a far one. Breaks that turn its rows red (each applied once, seen red, reverted,
+2026-11-26): no islands joined (`cloth.ISLAND_FACES` 0: 2 stray faces); the distance counted in edges, not metres
+(`over_surface` lengths all 1); no closed cycle seen (`cloth.CLOSED_DEGREES` 0: 5 frames a cycle); the push read
+the wrong way (`margin + over` in `cloth.pushes`).
 """
 import functools
 
@@ -67,7 +76,8 @@ import pytest
 import trimesh
 from scipy.spatial import cKDTree
 
-from tools.characters.generated import __main__, eyes, fibre, head_swap, labels, lids, scalp, skin, strands, volume
+from tools.characters.generated import (__main__, cloth, eyes, fibre, head_swap, labels, lids, scalp, skin, strands,
+                                        volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -688,6 +698,73 @@ def brow_painted_over():
     return [bool(count > 0 and covered.mean() > 0.98), bool(np.allclose(painted[~brow & (place_x > 0.0)], SKIN))]
 
 
+def cloth_grid(rows=30, columns=30):
+    """A flat grid (x right, y up, 1 cm apart) as triangles: (points, faces)."""
+    x, y = np.meshgrid(np.arange(columns) * 0.01, np.arange(rows) * 0.01)
+    points = np.stack([x.ravel(), y.ravel(), np.zeros(x.size)], 1)
+    corner = (np.arange(rows - 1)[:, None] * columns + np.arange(columns - 1)[None]).ravel()
+    faces = np.concatenate([np.stack([corner, corner + 1, corner + columns], 1),
+                            np.stack([corner + 1, corner + columns + 1, corner + columns], 1)])
+    return points, faces
+
+
+def cloth_kinds_settled():
+    """A grid painted jacket over jeans with a fleck of shirt in the jacket and a few jeans faces in it: after the
+    vote and the islands, how many faces are of the wrong kind (0)."""
+    points, faces = cloth_grid()
+    middles = points[faces].mean(1)
+    wanted = np.where(middles[:, 1] > 0.15, cloth.KINDS.index("jacket"), cloth.KINDS.index("jeans"))
+    found = wanted.copy()
+    found[np.flatnonzero(middles[:, 1] > 0.2)[[5, 40, 41, 300]]] = cloth.KINDS.index("shirt")
+    found[np.flatnonzero(middles[:, 1] > 0.2)[[100, 230]]] = cloth.KINDS.index("jeans")
+    free = np.ones(len(faces), bool)
+    return int((cloth.islands_joined(faces, cloth.settled(faces, found, free), free) != wanted).sum())
+
+
+def cloth_waistband():
+    """A tube (radius 15 cm, 40 cm long) whose top loop is the jeans' top: each point's distance over its surface from
+    that loop against its height under it (within 2 mm), and which ride (the band's width under the top)."""
+    turns, rows = 60, 41
+    angle, height = np.meshgrid(np.arange(turns) * 2 * np.pi / turns, np.arange(rows) * 0.01)
+    points = np.stack([0.15 * np.cos(angle.ravel()), height.ravel(), 0.15 * np.sin(angle.ravel())], 1)
+    corner = (np.arange(rows - 1)[:, None] * turns + np.arange(turns)[None]).ravel()
+    right = (corner // turns) * turns + (corner + 1) % turns
+    faces = np.concatenate([np.stack([corner, right, corner + turns], 1),
+                            np.stack([right, right + turns, corner + turns], 1)])
+    top = np.flatnonzero(points[:, 1] > 0.395)
+    distance = cloth.over_surface(points, faces, top)
+    under = 0.40 - points[:, 1]
+    riding = distance < cloth.WAISTBAND_M
+    return [bool(np.abs(distance - under).max() < 0.002), bool(np.all(riding == (under < cloth.WAISTBAND_M - 1e-9)))]
+
+
+def cloth_walk_tiled():
+    """A two-joint walk of 5 frames whose last repeats its first 0.3 m on: its cycle (4 frames, 0.3 m), and the
+    tiled walk's tenth frame (the third cycle's second frame) 0.6 m on from the clip's second."""
+    worlds = np.tile(np.eye(4), (5, 2, 1, 1))
+    for frame in range(5):
+        worlds[frame, :, 2, 3] = 0.075 * frame
+        turn = np.radians(20.0 * np.sin(frame / 4 * 2 * np.pi))
+        worlds[frame, 1, :3, :3] = [[np.cos(turn), -np.sin(turn), 0], [np.sin(turn), np.cos(turn), 0], [0, 0, 1]]
+    length, travel = cloth.cycle_of(worlds)
+    played, inside, cycle, _ = cloth.tiled(worlds, 12)
+    moved = played[9, 0, 2, 3] - worlds[1, 0, 2, 3]
+    return [length, round(float(travel[2]), 6), int(inside[9]), round(float(moved), 6)]
+
+
+def cloth_body_pushed():
+    """A body ball (radius 1) under a shell ball: pushed in to the margin under a shell 5 mm over it, never moved
+    under a shell 10 cm over it, never outward."""
+    ball = trimesh.creation.icosphere(subdivisions=3)
+    found = []
+    for shell_radius in (1.005, 1.1):
+        moves = cloth.pushes(ball.vertices, ball.faces, ball.vertex_normals, ball.vertices * shell_radius,
+                             ball.faces, cloth.MARGIN_M)
+        inward = -np.einsum("pd,pd->p", moves, ball.vertex_normals)
+        found.append(round(float(inward.mean()), 3))
+    return found
+
+
 @pytest.mark.parametrize("case, made_value, wanted", [
     ("each painted pupil is found on the face", pupils_found, [True, True]),
     ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
@@ -726,6 +803,13 @@ def brow_painted_over():
     ("upper lashes rise from the margin, lower ones fall, all leaving forward", lashes_grown, [True] * 6),
     ("the brow's hairs grow where the photo's brow is dark, lying on the skin", brows_follow_photo, [True, True]),
     ("the painted brow is painted over with the skin round it", brow_painted_over, [True, True]),
+    ("a garment's kinds follow the paint: a fleck or stray faces join the piece round them", cloth_kinds_settled, 0),
+    ("the jeans ride the skin a waistband's width under their top, measured over the cloth", cloth_waistband,
+     [True, True]),
+    ("a walk's repeated last frame is dropped and its travel carried on cycle after cycle", cloth_walk_tiled,
+     [4, 0.3, 1, 0.6]),
+    ("the body under the clothes is pushed in to the margin under a close shell, never under a far one",
+     cloth_body_pushed, [round(cloth.MARGIN_M - 0.005, 3), 0.0]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
