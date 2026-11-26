@@ -168,6 +168,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.block: the corner pier left out -> the slot between the facade and the shaft's side wall stays open
 - stair_core.block: `holes + door` -> `holes` -> the street door's doorway stands walled in the lobby's facade
 - stair_core.block: the ground window kept with `street` -> a pane stands across the street door's doorway
+- stair_core.slab_front: -PAVEMENT with `street` -> the ground slab reaches 1.8 m past the facade under the street's
+  pavement, both floors at one height drawn through each other (2099 #161)
 - stair_core.block: `ledges(holes)` left out -> a facade window has no sill proud of the facade under it
 - stair_core.newelled: `inset` -> `0.0` at the well -> a flight's handrail stops short of the well's cross
   railing
@@ -287,6 +289,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.look_shader: a recipe entry's settings alone (the method's defaults unread) -> the panel's recipe glass
   laid from the library carries no opacity (opaque in the package: the stairwell's glass, 2099 2026-11-22)
 - scene_package.held_image: its sides left as halved (no BLOCK_TEXELS) -> the dune's 62 texel sand is held at 31
+- place_build.hollow: `ground` False on the re-lay -> the hollowed paving stands as a structure, no longer the ground
 - place_build.blocks: no rebind after laying -> the hollowed block's wall loses the look laid on it (a re-laid blocks
   file drops the old one's overs: the street's facades went white, 2099 2026-11-23)
 - place_build.taken_with: a fitting kept whatever wall is left (FITTING_REACH unread) -> the hollowed block's rack and
@@ -992,6 +995,8 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
                    & np.isclose(across[:, 1, 2], -stair_core.FACADE - stair_core.LEDGE[2], atol=1e-5)
                    & np.isclose(across[:, 1, 1], sill, atol=1e-5)]  # each sill's front face
     assert len(proud) == len(stair_core.WINDOWS), proud  # each facade window a sill proud of the facade under it
+    paved = part_bounds(lobby, "slab")  # the street lays the pavement past the facade: no slab under it there
+    assert paved[:, 0, 2].min() >= -stair_core.FACADE - 1e-5, paved[:, 0, 2].min()
     place_build.start(tmp_path / "well", "well", tmp_path / "concept.png")  # a cut core laid again in one batch
     relaid = place_build.batch(tmp_path / "well", [{"step": "stairs", "name": "core", "storeys": 1, "cut": True},
                                                    {"step": "stairs", "name": "core", "storeys": 1, "cut": True,
@@ -2505,3 +2510,8 @@ def hollowed(folder):
     assert all(UsdShade.MaterialBindingAPI(wall).GetDirectBinding().GetMaterialPath() == f"/{place}/Looks/block__wall"
                for wall in walls), walls  # its parts' looks kept through the re-lay
     assert all(stage.GetPrimAtPath(f"/{place}/Objects/{name}") for name in ("sign", "gate", "next_block")), made
+    place_build.blocks(folder, "paving", [[30, -0.4, -2, 44, 0.2, 2, "kerb"]], ground=True)  # a ground under a lobby
+    paved = place_build.hollow(folder, "paving", [[36.0, -1.0, -1.0, 38.0, 0.5, 2.0]])
+    stage, place = place_build.opened(folder)
+    paving = stage.GetPrimAtPath(f"/{place}/Objects/paving")
+    assert paved["ground"] and paving.GetAttribute("score:ground").Get() and not paving.GetAttribute("score:role"), paved

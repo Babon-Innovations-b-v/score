@@ -12,7 +12,7 @@ waist parallel to its pitch (so the flight under it keeps a full head height).
 
 Parts, for their library surfaces (place_build.surface --part):
 
-- `slab`: the ground slab (with the pavement round the entrance), floor and half landings, the roof (SLAB thick);
+- `slab`: the ground slab (with the pavement round the entrance, none past the facade with `street`), floor and half landings, the roof (SLAB thick);
 - `steps`: the flights;
 - `soffit`: a plaster skin SOFFIT_SKIN thick under every landing, the roof and each flight's waist, so a ceiling wears
   plaster where the floor wears stone (the 2099 judge, 2026-11-26: the flight overhead read as speckled terrazzo);
@@ -101,6 +101,12 @@ PANE = 0.7  # a window's panes no wider than this between mullions
 CURTAIN_PIER = 0.15  # a curtain front's corner piers, in from the shaft's side walls
 CURTAIN_SPANDREL = 0.05  # a curtain front's opening's clearance over its floor and under the slab over it
 CURTAIN_PANE = 1.4  # a curtain front's mullions no further apart than this
+
+
+def slab_front(street):
+    """Where the ground slab's front stands (z): PAVEMENT in front of the cut, or the facade's line with `street` (a
+    street place's pavement meets the facade there)."""
+    return -FACADE if street else -PAVEMENT
 
 
 def top(storeys):
@@ -244,11 +250,13 @@ def doorway_spots(storeys=STOREYS, mirror=False, street=False):
     return found
 
 
-def structure(storeys, joined=()):
+def structure(storeys, joined=(), street=False):
     """The slabs, flights, walls and hall stubs: [(part, (points, faces))]; a `joined` storey's flat door opens onto
-    a place of its own (area/: the flat seated at it), so no hall stub stands behind it to wall the walker off."""
+    a place of its own (area/: the flat seated at it), so no hall stub stands behind it to wall the walker off. With
+    `street` the ground slab ends at the facade (slab_front): the street place it opens onto lays its own pavement
+    there, and a slab under it at the pavement's height drew both floors through each other (2099 #161)."""
     high = top(storeys)
-    pieces = [("slab", made) for made in tiled((-2 * WALL - BLOCK - PAVEMENT, -0.3, -PAVEMENT),
+    pieces = [("slab", made) for made in tiled((-2 * WALL - BLOCK - PAVEMENT, -0.3, slab_front(street)),
                                                 (LONG + 2 * WALL + BLOCK + PAVEMENT, 0.0, DEEP + WALL))]
     for storey in range(1, storeys + 1):
         floor = storey * STOREY
@@ -562,7 +570,7 @@ def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_bloc
     cuts it at render), with `one_block` only the
     flats' block the entrance opens into, the shaft's far side wall standing free to the street, with `joined` no
     hall stub behind those storeys' flat doors, with `street` a street door in that block's facade onto its lobby."""
-    pieces = structure(storeys, joined) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1, street) \
+    pieces = structure(storeys, joined, street) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1, street) \
         + ([] if one_block else block(storeys, LONG + WALL, 1)) \
         + soffits(storeys) + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces

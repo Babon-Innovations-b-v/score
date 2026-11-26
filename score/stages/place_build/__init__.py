@@ -1433,7 +1433,8 @@ def hollow(folder, name, regions):
     outside every region, in its parts and at its pose and role; every other object or light standing wholly in a
     region (a shop's tables, its lamps; a neighbouring block reaching into it stays) and every fitting mounted on it (`support` wall:<name>, or on a fitting taken
     out) that no box left stands within FITTING_REACH of is taken out, a door leaf never (a join's leaf stays), nor
-    the place's backdrop (place.json `backdrop`: its own renders draw it)."""
+    the place's backdrop (place.json `backdrop`: its own renders draw it). A ground (the street's kerbed pavements,
+    2099 #161: its kerb under the seated stairwell's lobby, one height with the lobby's floor) stays the ground."""
     regions = [[float(value) for value in region] for region in regions]
     if not regions or any(len(region) != 6 or any(region[axis + 3] <= region[axis] for axis in range(3))
                           for region in regions):
@@ -1456,9 +1457,10 @@ def hollow(folder, name, regions):
              @ world)[:, :3] for box in kept]
     gone = taken_with(stage, place, name, regions, [(corners.min(axis=0), corners.max(axis=0)) for corners in left],
                       set(record_of(folder).get("backdrop") or []))
+    ground = bool(prim.GetAttribute("score:ground").Get()) if prim.GetAttribute("score:ground") else False
     held = prim.GetMetadata("references")
     before = [str(item.assetPath) for item in held.GetAddedOrExplicitItems()] if held else []
-    laid = blocks(folder, name, kept, at=at, turn=turn, ground=False, role=role or "structure", support=support)
+    laid = blocks(folder, name, kept, at=at, turn=turn, ground=ground, role=role or "structure", support=support)
     for taken in gone:
         remove(folder, taken)
     text = scene_path(folder).read_text()

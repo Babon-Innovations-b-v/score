@@ -140,7 +140,7 @@ one command at a time and reads `compare.png` and the measures to choose the nex
 - **A block giving way** (`hollow <folder> <name> --region x0,y0,z0,x1,y1,z1`): a blocks object re-laid without what
   stands in each region (the scene's frame), its boxes read back from its laid mesh and cut, its parts, pose and role
   kept; what stands wholly in a region (a shop's tables, its lamps) and fittings left with no wall within
-  FITTING_REACH go with it, a door leaf never, nor a neighbouring block reaching in (each hollowed in its turn). The street's wall_l1 round the seated stairwell and flat: the walker began inside it.
+  FITTING_REACH go with it, a door leaf never, nor a neighbouring block reaching in (each hollowed in its turn). The street's wall_l1 round the seated stairwell and flat: the walker began inside it. A ground stays the ground (the street's kerb under the stairwell's lobby, 2099 #161: one height with the lobby's floor, the two drawn through each other).
 - **Places of one area** (area/, its own overlay): `join` marks the doorway leading to a neighbour place, `area` seats
   the places at the plans' storey heights with their joined doors meeting and checks every join (seats.json).
 - **A physical sky from where and when** (`sky-at`, #154; every library sky dome is withdrawn): an airless body's
