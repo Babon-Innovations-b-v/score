@@ -1,0 +1,250 @@
+"""A generated head gets real eyes behind its lids (#223). Each break named below turns its row red: each painted pupil
+is found on the face (eyes.pupils, a pupil missed or found on a lid or brow turns it red), the eyeball sits behind
+its lid margins with its cornea behind their rim (eyes.eye_depth: a ball bulging past the lids, or one sunk far
+behind them, turns it red), the painted floor inside the ball is removed and nothing outside the lid opening is
+(eyes.buried), the floor beside the ball is pushed straight back and no lid point moves (eyes.pushed: a lid pushed in
+or a floor left standing turns it red), the wet line lies on the lids' inner rims round both eyes (eyes.wet_strip),
+both eyes gaze at one point straight ahead (eyes.made's gaze, eyes.placed: a crossed or wall-eyed pair turns it red),
+the iris's colour is read off the photo's iris (eyes.photo_iris: a colour read off the eye's white or the skin round
+it turns it red), a lid margin is read where the lid stands, steep or gentle, never on a bump or a curve of the
+painted floor (eyes.margin_along: a margin taken on the floor lets the floor beyond it cover the iris and turns it
+red), and an eye with no lid margin over or under it is refused (eyes.eye_depth).
+
+Shapes made here: a face as a height field (a curved front, a nose, two sunken lid openings with steep walls and a
+flat painted floor, an iris and a pupil painted on each floor), its paint a small picture; a sphere with rings of UV
+standing in for ICT-FaceKit's eyeball; a small photo of two irises on skin with a pupil and a highlight.
+"""
+import functools
+
+import numpy as np
+import pytest
+import trimesh
+
+from tools.characters.generated import eyes
+
+NOSE_Y = 0.06
+EYES_OVER_NOSE = 0.037
+EYES_APART = 0.064
+OPENING_M = (0.013, 0.006)  # half width and half height of each lid opening
+SOCKET_DEPTH_M = 0.006
+WALL_SHARE = 0.8  # the opening's wall rises from this share of its size to its edge
+SKIN = (0.8, 0.6, 0.5)
+PAINTED_IRIS = (0.3, 0.2, 0.1)
+
+
+def spaced(low, high, fine_low, fine_high, fine, coarse):
+    """Grid lines from low to high, `fine` apart between fine_low and fine_high and `coarse` apart elsewhere."""
+    return np.unique(np.concatenate([np.arange(low, high + 1e-9, coarse), np.arange(fine_low, fine_high, fine)]))
+
+
+def opening_share(x, y):
+    """Each point's place in the nearer lid opening: 0 at its middle, 1 on its edge."""
+    shares = [np.hypot((x - side * EYES_APART / 2) / OPENING_M[0], (y - NOSE_Y - EYES_OVER_NOSE) / OPENING_M[1])
+              for side in (-1, 1)]
+    return np.min(shares, axis=0)
+
+
+def front_of(x, y):
+    """The face's depth without its sockets: a curved front and a nose."""
+    return 0.10 - 3.0 * x ** 2 + 0.025 * np.exp(-0.5 * ((x / 0.008) ** 2 + ((y - NOSE_Y) / 0.008) ** 2))
+
+
+def surface(x, y):
+    """The face's depth: its front with two sockets sunk SOCKET_DEPTH_M inside steep walls."""
+    front = front_of(x, y)
+    sunk = np.clip((1.0 - opening_share(x, y)) / (1.0 - WALL_SHARE), 0.0, 1.0)
+    return front - SOCKET_DEPTH_M * sunk
+
+
+@functools.lru_cache(maxsize=None)
+def face():
+    """The height-field face: (points, triangles, uv, texture), y up, looking along +z, its top at 0.24 m."""
+    eye_y = NOSE_Y + EYES_OVER_NOSE
+    xs = spaced(-0.075, 0.075, -0.05, 0.05, 0.0004, 0.002)
+    ys = spaced(0.0, 0.24, eye_y - 0.012, eye_y + 0.012, 0.0004, 0.002)
+    grid_x, grid_y = np.meshgrid(xs, ys)
+    points = np.column_stack([grid_x.ravel(), grid_y.ravel(), surface(grid_x, grid_y).ravel()])
+    width = len(xs)
+    corner = (np.arange(len(ys) - 1)[:, None] * width + np.arange(width - 1)[None, :]).ravel()
+    triangles = np.vstack([np.column_stack([corner, corner + 1, corner + width + 1]),
+                           np.column_stack([corner, corner + width + 1, corner + width])])
+    uv = np.column_stack([(points[:, 0] + 0.075) / 0.15, points[:, 1] / 0.24])
+    rows, cols = np.mgrid[:600, :600]
+    paint_x, paint_y = cols / 599 * 0.15 - 0.075, (599 - rows) / 599 * 0.24
+    texture = np.ones((600, 600, 3)) * SKIN
+    for side in (-1, 1):
+        out = np.hypot(paint_x - side * EYES_APART / 2, paint_y - eye_y)
+        texture[out < 0.00585] = PAINTED_IRIS
+        texture[out < 0.002] = 0.02
+    return points, triangles, uv, texture
+
+
+def photo(iris):
+    """A 400 px photo of two irises of sRGB colour `iris` on skin, each with its white, pupil and highlight."""
+    picture = np.ones((400, 400, 3)) * (0.78, 0.66, 0.6)
+    rows, cols = np.mgrid[:400, :400]
+    for col in (170, 230):
+        white = np.hypot((cols - col) / 2.2, rows - 160) < 6.5
+        out = np.hypot(cols - col, rows - 160)
+        picture[white] = (0.85, 0.82, 0.8)
+        picture[out < 5.6] = iris
+        picture[out < 2.0] = 0.02
+        picture[np.hypot(cols - col - 2, rows - 158) < 1.0] = 1.0
+    return picture
+
+
+def face_module_iris_uv():
+    """The face module's iris ring on the eyeball's UV."""
+    return eyes.face_modules()[0].IRIS_UV
+
+
+def sphere_eye():
+    """A stand-in for ICT-FaceKit's eyeball (cm): a sphere looking along +z, its UV in rings out from its front."""
+    ball = trimesh.creation.icosphere(subdivisions=4, radius=1.2)
+    points = np.asarray(ball.vertices)
+    theta = np.arccos(np.clip(points[:, 2] / 1.2, -1, 1))
+    phi = np.arctan2(points[:, 1], points[:, 0])
+    out = face_module_iris_uv() * theta / np.radians(28.0)  # the iris's edge 28 degrees off the front, as on ICT's eye
+    point_uv = 0.5 + out[:, None] * np.column_stack([np.cos(phi), np.sin(phi)])
+    triangles = np.asarray(ball.faces)
+    eye = {"points": points, "triangles": triangles, "uv": point_uv[triangles]}
+    face_module, _ = eyes.face_modules()
+    return {**eye, "finish": face_module.eye_finish(eye["uv"]), "centre": np.zeros(3), "axis": np.array([0, 0, 1.0]),
+            "radius": 1.2}
+
+
+@functools.lru_cache(maxsize=None)
+def made():
+    """The eyes made on the height-field face with brown irises in its photo."""
+    points, triangles, uv, texture = face()
+    return eyes.made(points, triangles, uv, texture, photo((0.36, 0.2, 0.12)),
+                     {"right": sphere_eye(), "left": sphere_eye()})
+
+
+def pupils_found():
+    """Each found pupil within half a millimetre of its painted one."""
+    found = np.array(made()["stats"]["pupils_m"])
+    painted = np.array([[-EYES_APART / 2, NOSE_Y + EYES_OVER_NOSE], [EYES_APART / 2, NOSE_Y + EYES_OVER_NOSE]])
+    return (np.linalg.norm(found - painted, axis=1) < 0.0005).tolist()
+
+
+def behind_lids():
+    """Whether the ball is behind every lid margin over and under the pupil (by at least RIM_GAP_M less a tenth of a
+    millimetre) and its cornea's apex behind the opening's rim but within 2 mm of it."""
+    result = made()
+    centres = np.array(result["stats"]["eye_centres_m"])
+    radius = result["stats"]["eye_diameter_mm"] / 2000.0
+    gaps, apexes = [], []
+    for centre in centres:
+        angles = np.radians(np.r_[np.arange(45, 140, 10), np.arange(225, 320, 10)])
+        edge = 1.0 / np.sqrt(np.cos(angles) ** 2 / OPENING_M[0] ** 2 + np.sin(angles) ** 2 / OPENING_M[1] ** 2)
+        x, y = centre[0] + edge * np.cos(angles), centre[1] + edge * np.sin(angles)
+        margin = surface(x, y)
+        gaps.append(margin - (centre[2] + np.sqrt(radius ** 2 - edge ** 2)))
+        apexes.append(margin.mean() - (centre[2] + radius * (1 + eyes.CORNEA_RISE)))
+    return [bool(np.min(gaps) > eyes.RIM_GAP_M - 0.0001), bool(0.0 < np.min(apexes) < 0.002)]
+
+
+def floor_removed():
+    """Whether every removed triangle lies inside the opening and the floor under each pupil is removed."""
+    removed = made()["removed"]
+    if not len(removed):
+        return [True, False]
+    inside = opening_share(removed[:, 0], removed[:, 1]) < 1.0
+    under = [np.min(np.hypot(removed[:, 0] - side * EYES_APART / 2, removed[:, 1] - NOSE_Y - EYES_OVER_NOSE)) < 0.001
+             for side in (-1, 1)]
+    return [bool(inside.all()), all(under)]
+
+
+def floor_pushed_lids_kept():
+    """Whether every pushed point lay inside an opening at least LID_EDGE_M (less 0.2 mm, the margin found a little
+    under the front's top) behind the face's front, so no lid moved, and went straight back (never forward or
+    sideways), the floor beside the ball now as deep as the ball's middle (within the stats' rounding)."""
+    result = made()
+    start, end = result["moved_from"], result["moved_to"]
+    centres = np.array(result["stats"]["eye_centres_m"])
+    radius = result["stats"]["eye_diameter_mm"] / 2000.0
+    on_floor = ((opening_share(start[:, 0], start[:, 1]) < 1.0)
+                & (front_of(start[:, 0], start[:, 1]) - start[:, 2] > eyes.LID_EDGE_M - 0.0002))
+    straight_back = np.allclose(start[:, :2], end[:, :2]) and bool((end[:, 2] <= start[:, 2]).all())
+    across = np.min([np.hypot(end[:, 0] - centre[0], end[:, 1] - centre[1]) for centre in centres], axis=0)
+    beside = across >= radius
+    shaded = bool((end[beside, 2] <= centres[:, 2].max() + 1e-5).all())
+    return [bool(on_floor.all()), straight_back, shaded, bool(len(start) > 0)]
+
+
+def wet_line_on_rims():
+    """Whether the wet line lies on the lids' inner rims (each triangle's centre inside or by an opening's edge and no
+    deeper than a millimetre past LID_EDGE_M behind the face's front there) and runs round both eyes."""
+    strip = made()["wet"]
+    wet = strip["points"][strip["triangles"]].mean(axis=1)
+    near_edge = opening_share(wet[:, 0], wet[:, 1]) <= 1.1
+    below_front = front_of(wet[:, 0], wet[:, 1]) - wet[:, 2]
+    on_rim = (below_front > -0.0002) & (below_front < eyes.LID_EDGE_M + 0.001)
+    sides = {int(np.sign(x)) for x in wet[:, 0]}
+    return [bool(near_edge.all()), bool(on_rim.all()), sides == {-1, 1}]
+
+
+def gaze_agrees():
+    """Whether both eyes' pupils (the eyeball's pupil finish) look at one point, straight ahead within a degree."""
+    result = made()
+    eye_points, centres = result["eyes"], np.array(result["stats"]["eye_centres_m"])
+    pupil_triangles = eye_points["triangles"][eye_points["finish"] == 2]
+    pupil_points = eye_points["points"][pupil_triangles].mean(axis=1)
+    looks = []
+    for centre in centres:
+        own = pupil_points[np.linalg.norm(pupil_points - centre, axis=1) < 0.02]
+        way = own.mean(axis=0) - centre
+        looks.append(way / np.linalg.norm(way))
+    target = np.array([centres[:, 0].mean(), centres[:, 1].mean(), centres[:, 2].max() + eyes.GAZE_M])
+    aimed = [np.degrees(np.arccos(np.clip(look @ ((target - centre) / np.linalg.norm(target - centre)), -1, 1)))
+             for look, centre in zip(looks, centres)]
+    return bool(max(aimed) < 1.0)
+
+
+def iris_read(srgb):
+    """Whether the photo's iris colour is read within a tenth of its own (linear), the pupil and highlight left out."""
+    colour, _, _ = eyes.photo_iris(photo(srgb))
+    wanted = eyes.srgb_to_linear(srgb)
+    return bool(np.all(np.abs(colour - wanted) <= 0.1 * wanted + 0.002))
+
+
+def margins_read():
+    """Where margin_along puts the lid on three rays out from a pupil (millimetres out, the ray sampled every
+    STEP_M): a steep lid at 6 mm, a gentle one (rising 2 mm over 3.5 mm) ending at 9 mm, and a steep lid at 8 mm
+    behind a 1.2 mm bump on the floor at 4 mm; and nothing along a floor that only curves up slowly."""
+    out = np.arange(0.0, 0.014, eyes.STEP_M)
+    steep = np.clip((out - 0.005) / 0.001, 0.0, 1.0) * 0.005
+    gentle = np.clip((out - 0.0055) / 0.0035, 0.0, 1.0) * 0.002
+    bumped = 0.0012 * np.exp(-0.5 * ((out - 0.004) / 0.0004) ** 2) + np.clip((out - 0.007) / 0.001, 0, 1) * 0.005
+    curved = 0.19 * out
+    found = [eyes.margin_along(depth, 1.0, 0.0) for depth in (steep, gentle, bumped, curved)]
+    return [None if index is None else round(out[index] * 1000) for index in found]
+
+
+def lidless_refused():
+    """An eye with lid margins only beside it (none over or under) is refused."""
+    margins = np.array([[0.012, 0.0, 0.1, 0.0], [-0.012, 0.0, 0.1, 180.0]])
+    try:
+        eyes.eye_depth(np.zeros(2), margins, 0.012)
+    except ValueError:
+        return "refused"
+    return "placed"
+
+
+@pytest.mark.parametrize("case, made_value, wanted", [
+    ("each painted pupil is found on the face", pupils_found, [True, True]),
+    ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
+    ("the painted floor inside the ball is removed, nothing outside the opening is", floor_removed, [True, True]),
+    ("the floor beside the ball is pushed straight back into the socket's shade, the lids stay", floor_pushed_lids_kept,
+     [True, True, True, True]),
+    ("the wet line runs on the lids' inner rims round both eyes", wet_line_on_rims, [True, True, True]),
+    ("both eyes gaze at one point straight ahead", gaze_agrees, True),
+    ("a brown iris is read off the photo", lambda: iris_read((0.36, 0.2, 0.12)), True),
+    ("a grey-blue iris is read off the photo", lambda: iris_read((0.4, 0.47, 0.52)), True),
+    ("a lid margin is read steep or gentle, past a bump on the floor, and never on a curved floor", margins_read,
+     [6, 9, 8, None]),
+    ("an eye with no lid over or under it is refused", lidless_refused, "refused"),
+])
+def test_a_generated_head_gets_real_eyes_behind_its_lids(case, made_value, wanted):
+    assert made_value() == wanted, case
