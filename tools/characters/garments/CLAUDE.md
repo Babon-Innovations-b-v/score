@@ -17,7 +17,10 @@ runs them (an outfit file per look in `data/people/outfits/`).
   stage's own conversion), never typed here. Solver and contact numbers name their source in `DRAPE`.
 - **GarmentCode's own steps, Newton's solver**: the box mesh's triangles rest at their flat panels (going over to them
   from as laid while the gravity-free fifth of sewing runs: rested flat at once, the seam triangles laid 15 to 50 times
-  their panel overran Newton's float32 membrane), seams sewn by shared points, a waistband's top worn on the skin at its own level (`laying.worn_places`: carried
+  their panel overran Newton's float32 membrane), seams sewn by shared points, a waistband's box mesh laid with its top at the level its rise and band are cut for
+  (`inside/pattern.py` `cut_top`: GarmentCode lays a band at the waist whatever the rise, and woman_stair's mid rise
+  jeans were held 10 cm over their cut, the crotch seam dragged down between her legs, #225 round 9), over a floor at
+  the skin's lowest point (`centre`), a waistband's top worn on the skin at its own level (`laying.worn_places`: carried
   to the skin nearest it, the box's flat panels 7 to 15 cm off her hips put the top 6 cm higher at the back's sides
   and held the side seams open), its whole ring held, the side seams' tops too, and spaced round her as it is cut
   (`laying.top_ring`: held at the flat panels' points alone, the side seams were left 16.5 cm unheld and the band's
