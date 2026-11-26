@@ -18,7 +18,8 @@ photographed skin's tile repeats with no seam (skin_scan.periodic), the scanned 
 scan's tiles as its files, the scan named as carried and its CC BY 3.0 licence block with its credit
 (finishes.written), a short, broad-jawed face is moved towards an adult's proportions and an adult's is not
 (fit.adult_moves), the skin's region channels are one order where marked and drawn (face.TONES, blender_face.TONES),
-a lid's skin by its eyeball is wet (face.eyeball_gap), a brow thins at its lower edge and tail (strands.thinned), the
+a lid's skin by its eyeball is wet (face.eyeball_gap), a brow thins at its lower edge and tail (strands.thinned), a
+lash at the eye's corner is shorter (strands.cornered), the
 shell over the eye is glass over the iris and a thin film over the white (face.cornea), and the skin's crevices are
 its own (finishes' `own`).
 
@@ -65,6 +66,7 @@ Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - the region channels: blender_face's TONES with "lids" and "sheen" swapped (seen red 2026-11-26).
 - the waterline: eyeball_gap's `- np.median(...)` made `+` (seen red 2026-11-26).
 - the brow's edge: thinned's `(0.25 + 0.75 * lower) * tail` made `tail` (a ruled lower edge; seen red 2026-11-26).
+- the lashes' corners: cornered's `1.0 - LASH_CORNER * ...` made `1.0` (seen red 2026-11-26).
 - the eye's film: cornea's `> LIMBUS_UV` made `> 1.0` (all glass; seen red 2026-11-26).
 - the skin's own crevices: face_skin_light's crevices `"own": True` dropped (seen red 2026-11-26); and, apart,
   READER_KEYS without "hair" (the lashes' melanin never reaches the record: they drew brown, round 2; seen red
@@ -427,6 +429,14 @@ def brows_thinned():
     return [bool(kept[0] < 0.5 * kept[1]), bool(kept[3] < 0.5 * kept[2])]
 
 
+def lashes_cornered():
+    """A lash rooted over the eye's middle keeps its full length, one at the eye's corner is LASH_CORNER shorter (a
+    12 mm eyeball's points, roots over its middle, halfway out and at its widest)."""
+    ball = trimesh.creation.icosphere(subdivisions=2, radius=0.012).vertices
+    roots = np.array([[0.0, 0.01, 0.0], [0.006, 0.01, 0.0], [0.012, 0.01, 0.0]])
+    return [round(float(share), 3) for share in strands.cornered(roots, np.zeros(3), ball)]
+
+
 def eye_film_split():
     """The clear shell over an eye: its middle wears the cornea's glass (finish 0), its part over the white past the
     limbus the thin tear film (finish 1)."""
@@ -504,6 +514,7 @@ def own_crevices():
     ("the skin's region channels are one order where marked and where drawn", tones_agree, True),
     ("a lid's skin by its eyeball is wet, fading to dry 2 mm off", waterline_found, [1.0, 0.5, 0.0]),
     ("a brow thins out at its lower edge and its tail", brows_thinned, [True, True]),
+    ("a lash at the eye's corner is shorter than one over its middle", lashes_cornered, [1.0, 0.863, 0.45]),
     ("the shell over the eye is the cornea's glass in its middle and a thin tear film over the white",
      eye_film_split, [0, 1, True]),
     ("the skin's crevices are its own, the tear film over the white is thin, the lashes and brows have melanin",

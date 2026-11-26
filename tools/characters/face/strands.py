@@ -34,9 +34,11 @@ BROW_POINTS = 7
 LIFT = 0.0006  # metres a brow hair lies off the skin once it has risen
 RISE = 0.0015  # metres along a brow hair over which it rises to LIFT
 BROW_RADIUS = (0.000055, 0.00001)  # a hair's radius at its root and tip (a brow hair is 0.08 to 0.15 mm thick)
-LASHES_A_CARD = {"upper": 50, "lower": 25}  # three cards a lid: about 150 upper lashes and 75 lower, as on a lid
-LASH_LENGTH = {"upper": (0.008, 0.011), "lower": (0.005, 0.007)}  # metres
+LASHES_A_CARD = {"upper": 50, "lower": 18}  # three cards a lid: about 150 upper lashes and 54 lower, as on a lid
+LASH_LENGTH = {"upper": (0.008, 0.011), "lower": (0.004, 0.006)}  # metres (lower ones 5 to 7 mm, as many as 75, read
+# as a doll's, round 2)
 LASH_CURL = {"upper": 0.35, "lower": 0.2}  # how far the tip rises off the root's line, as a share of the length
+LASH_CORNER = 0.55  # a lash at the eye's corner is this much shorter than one over its middle
 LASH_POINTS = 7
 LASH_RADIUS = (0.00007, 0.00001)  # a lash 0.1 to 0.15 mm at its root (0.12 mm drew the lashes faint, round 1)
 ROOT_OFF = 0.0003  # metres: a root further from the skin than this has left it
@@ -176,6 +178,14 @@ def lash_line(root, forward, normal, length, curl):
     return root + along * length * forward + (along ** 2) * curl * length * normal
 
 
+def cornered(roots, eyeball, ball):
+    """Each lash's share of its full length by where it roots along the lid: whole over the eye's middle, shorter
+    towards its corners by LASH_CORNER of it at the eyeball's widest (left full at the corners, the outer lashes stood
+    out sideways as a pale brush, round 2, 2026-11-26)."""
+    reach = np.abs(roots[:, 0] - eyeball[0]) / np.abs(ball[:, 0] - eyeball[0]).max()
+    return 1.0 - LASH_CORNER * np.clip(reach, 0.0, 1.0) ** 2
+
+
 def lashes(model, points, offsets):
     """The lashes grown on the lids' margins: each rooted on its lash card's root edge (the one nearer the eyeball)
     and grown out along the card from root to tip, curling up off the upper lid and down off the lower
@@ -203,7 +213,8 @@ def lashes(model, points, offsets):
             ends = [card_weights(card_uv, card_triangles, np.stack([across, np.full(count, at)], axis=1))
                     for at in (root, root + 0.25 * (tip - root))]
             (root_corners, root_weights), (out_corners, out_weights) = ends
-            length = rng.uniform(*LASH_LENGTH[side], count)
+            roots = np.einsum("lc,lcd->ld", root_weights, points[root_corners])
+            length = rng.uniform(*LASH_LENGTH[side], count) * cornered(roots, eyeball, points[first:last + 1])
             curl = LASH_CURL[side] * rng.uniform(0.8, 1.2, count)
             for lash in range(count):
                 places = ((root_corners[lash], root_weights[lash]), (out_corners[lash], out_weights[lash]))

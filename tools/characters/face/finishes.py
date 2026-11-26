@@ -26,28 +26,31 @@ import skin_scan
 
 FINISHES = {
     "face_skin_light": {"title": "Skin, light, photographed detail, light through it", "family": "skin",
-                        "constants": {"diffuseColor": [0.76815116, 0.4507858, 0.28314874], "roughness": 0.42,
+                        "constants": {"diffuseColor": [0.807, 0.515, 0.412], "roughness": 0.42,
                                       "metallic": 0.0, "ior": 1.4},
                         "subsurface": {"weight": 1.0, "radius_mm": [1.1, 0.42, 0.22], "anisotropy": 0.8,
                                        "ior": 1.4, "method": "RANDOM_WALK_SKIN"},
                         "detail": {"scan": {"depth_m": 0.00018, "roughness_spread": 0.12, "body": 0.6},
-                                   "mottle": {"spacing_m": 0.03, "share": 0.12,
-                                              "towards": [0.62, 0.3, 0.2]},
+                                   "mottle": {"spacing_m": 0.03, "share": 0.18,
+                                              "towards": [0.66, 0.36, 0.3]},
                                    "spots": [{"spacing_m": 0.007, "radius": 0.16, "density": 0.08, "share": 0.3,
                                               "towards": [0.48, 0.25, 0.14], "where": "flush"},
                                              {"spacing_m": 0.06, "radius": 0.022, "density": 0.06, "share": 0.8,
                                               "towards": [0.2, 0.1, 0.07]}]},
-                        "regions": {"flush": {"share": 0.6, "towards": [0.62, 0.19, 0.2]},
+                        "regions": {"flush": {"share": 0.75, "towards": [0.62, 0.19, 0.2]},
                                     "thin": {"share": 0.3, "towards": [0.42, 0.3, 0.38]},
                                     "veins": {"spacing_m": 0.02, "width": 0.1, "share": 0.18,
                                               "towards": [0.3, 0.3, 0.45]},
-                                    "lids": {"share": 0.3, "towards": [0.42, 0.25, 0.24]},
+                                    "lids": {"share": 0.25, "towards": [0.5, 0.34, 0.33]},
                                     "lips": {"share": 0.85, "towards": [0.42, 0.1, 0.11], "roughness": -0.08},
                                     "wet": {"share": 0.8, "towards": [0.6, 0.24, 0.23], "roughness": -0.34},
                                     "sheen": {"roughness": -0.1}},
-                        "crevices": {"reach_m": 0.004, "share": 0.35, "towards": [0.3, 0.13, 0.11], "own": True},
+                        "crevices": {"reach_m": 0.004, "share": 0.25, "towards": [0.32, 0.2, 0.18], "own": True},
                         "coat": {"weight": 0.15, "roughness": 0.35, "ior": 1.45},
-                        "why": "the cockpit palette's skin-light token (world1), the officer's place; the light under "
+                        "why": "a light skin's albedo (sRGB #E8BEAC, linear 0.81, 0.52, 0.41): the cockpit palette's "
+                               "skin-light token (world1) was more orange (red over blue 2.7, a light skin's is about "
+                               "2) and every shadowed hollow, the eye sockets most, went orange-brown in a real sky "
+                               "(red over blue 2.2 against the forehead's 1.2, round 2, 2026-11-26); the light under "
                                "it red-led, red reaching 1.1 mm (forward scattering 0.8, index 1.4): Jensen et al. "
                                "2001's measured paths (3.67, 1.37, 0.68 mm) washed every crease out and lit the "
                                "nostrils orange, wax (owner, 2026-11-25), and 2 mm still lit the thin lids and the "
@@ -62,10 +65,10 @@ FINISHES = {
                                "blotches wider than the square as a faint noise, a few freckles on the cheeks and "
                                "nose and a few moles anywhere (`spots`); a flush, crimson rather than orange, on the "
                                "cheeks, nose, chin and ears, a bluish cast and veins where the skin is thin (under the "
-                               "eyes), the lids a little darker and browner, the waterline and the caruncle a wet "
+                               "eyes), the lids a little darker and greyer, the waterline and the caruncle a wet "
                                "pink, the T-zone a little glossier, the lips a deeper rose with a defined border and a "
                                "little glossier (lips read colourless with a wet "
-                               "blob of highlight, owner 2026-11-25), folds and nostrils a little darker and redder by "
+                               "blob of highlight, owner 2026-11-25), folds and nostrils a little darker by "
                                "the skin's own closeness only (`own`: the brows, lashes and hair over it toned the "
                                "lids and the parting orange, round 1), and a thin oily coat (#223, "
                                "2026-11-25: the skin read as wax)"},
