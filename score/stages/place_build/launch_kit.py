@@ -651,20 +651,22 @@ def trunk(x, foot, z, top, girth, turn, lean=(0.0, 0.0), sides=3):
 
 
 def tree_crown(x, ground, z, high, wide, turn, generator=None):
-    """One broadleaf tree: a trunk of five sides, its foot sunk 0.5 m under `ground`, under a crown of three
-    overlapping closed lobes (crown_lobe), the main one `wide` across from a third of `high` up and two smaller ones
-    set off it round and up, so the crown breaks into the clumped outline of a subtropical hill wood rather than one
+    """One broadleaf tree: a trunk of five sides, its foot sunk 0.5 m under `ground`, under a crown of three to five
+    overlapping closed lobes (crown_lobe), the main one `wide` across from 15 to 30 % of `high` up (a short bole, not a
+    lollipop's stick) and two to four smaller ones set off it round and up, so the crown breaks into the clumped outline of a subtropical hill wood rather than one
     egg; (points, triangles), each solid wound out."""
     generator = generator or np.random.default_rng(int(abs(x * 31 + z * 17)) % 100000)
-    bottom = ground + high * 0.3
-    solids = [trunk(x, ground - 0.5, z, bottom + high * 0.2, max(0.18, wide * 0.05), turn, sides=5),
-              crown_lobe(x, bottom, z, high * 0.7, wide, turn)]
-    for lobe in range(2):
-        angle = turn + generator.uniform(0, 2 * math.pi) + lobe * math.pi
-        reach = wide * generator.uniform(0.25, 0.4)
-        size = generator.uniform(0.5, 0.7)
-        solids.append(crown_lobe(x + reach * math.cos(angle), bottom + high * generator.uniform(0.1, 0.35),
-                                 z + reach * math.sin(angle), high * 0.7 * size, wide * size, turn + lobe))
+    bottom = ground + high * generator.uniform(0.15, 0.3)
+    top = ground + high
+    solids = [trunk(x, ground - 0.5, z, bottom + (top - bottom) * 0.3, max(0.18, wide * 0.05), turn, sides=5),
+              crown_lobe(x, bottom, z, (top - bottom) * 0.85, wide, turn)]
+    lobes = int(generator.integers(2, 5))
+    for lobe in range(lobes):
+        angle = turn + generator.uniform(0, 2 * math.pi) + lobe * 2 * math.pi / lobes
+        reach = wide * generator.uniform(0.35, 0.6)
+        size = generator.uniform(0.5, 0.75)
+        solids.append(crown_lobe(x + reach * math.cos(angle), bottom - high * 0.08 + (top - bottom) * generator.uniform(0.0, 0.3),
+                                 z + reach * math.sin(angle), (top - bottom) * 0.8 * size, wide * size, turn + lobe))
     return joined(solids)
 
 
@@ -776,7 +778,7 @@ def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, r
             spires.append(tree_spire(x, height, z, high * 1.2, high * generator.uniform(0.3, 0.45),
                                      generator.uniform(0, math.pi), generator))
         else:
-            points.append(tree_crown(x, height, z, high, high * generator.uniform(0.55, 0.9),
+            points.append(tree_crown(x, height, z, high, high * generator.uniform(0.75, 1.15),
                                      generator.uniform(0, math.pi), generator))
         count += 1
     from score.stages.place_build.cockpit_kit import piece
