@@ -768,13 +768,19 @@ def words(text="", high=0.012, part="ink", **_):
     return moved(lettering(part, text, high), offset=(0.0, 0.0, 0.0))
 
 
+DATA_PLATES = (("PN 7741-20", "SN 0417", "28 VDC 15 A"), ("PN 3310-04", "SN 1186", "115 VAC 400 HZ"),
+               ("PN 5528-11", "SN 0932", "28 VDC 40 A"))  # a closed cover's stamped data plate, chosen by its size
+
+
 def cover(wide=0.12, high=0.08, **_):
     """A closed access cover (2099 #246, the owner on the capsule: "i cant do anything with this"; a panel with no
     worked control on it is closed equipment): a plate `wide` by `high` with rounded corners standing a little off the
     panel, nothing on it a hand could take for a control. Night wave 2 (the judge: "large empty plates"): a real
     equipment bay's cover, a stiffening bead pressed round its face inside its edge, a piano hinge down its left edge in
     knuckles, two quarter-turn fasteners with their slots at its right, and on a big enough cover a small riveted data
-    plate of fine engraved lines (no word: a closed panel names nothing)."""
+    plate of fine engraved lines. Night wave 2 round 5 (the judge: "blank label plates with grey line placeholders"):
+    the data plate stamped with a part number, a serial and the bay's rating (DATA_PLATES; still no word that names a
+    control: a closed panel names nothing a hand works)."""
     found = rounded_box("plate", (-wide / 2, -high / 2, 0.0), (wide / 2, high / 2, 0.003), 0.004, steps=2, inside=1)
     inset = 0.014
     if wide > 4 * inset and high > 4 * inset:
@@ -796,10 +802,12 @@ def cover(wide=0.12, high=0.08, **_):
         plate_wide, plate_high = min(0.05, wide * 0.34), min(0.024, high * 0.28)
         top = high / 2 - inset - 0.008
         found += box("metal", (-plate_wide / 2, top - plate_high, 0.0029), (plate_wide / 2, top, 0.0039), 0.0004)
-        for line, share in enumerate((0.8, 0.55, 0.7)):
+        lines = DATA_PLATES[int(round(wide * 1000 + high * 100)) % len(DATA_PLATES)]
+        letters = min(plate_high / 4.6, plate_wide * 0.84 / (6 * max(len(line) for line in lines) / LETTER_ROWS))
+        for line, text in enumerate(lines):
             y = top - plate_high * (line + 1) / 4
-            found += ribbon("ink", [(-plate_wide * 0.4, y), (-plate_wide * 0.4 + plate_wide * 0.8 * share, y)], 0.0011,
-                            0.0039, 0.0004)
+            found += moved(lettering("ink", text, letters, 0.0005, align="left"),
+                           offset=(-plate_wide * 0.42, y, 0.0039))
         rivet = [(0.0, 0.0), (0.0011, 0.0), (0.0011, 0.0006), (0.0, 0.0009)]
         for x in (-plate_wide / 2 + 0.0022, plate_wide / 2 - 0.0022):
             for y in (top - 0.0022, top - plate_high + 0.0022):
@@ -1689,12 +1697,14 @@ def mount(wide=0.4, high=0.3, thick=0.016, corner=0.03, **_):
     return found
 
 
-def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0.0, grille=0.4, rear=0.0, **_):
+def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0.0, grille=0.4, rear=0.0, covers=False,
+            **_):
     """The long low console before the pilot: a box `wide` across, `deep` from the pilot's side (+z) back, its top
     sloping up from `front_high` to `back_high` away from the pilot, its far face sloping in `lean` metres to its
     foot, a bright lip round its top, a slatted vent grille `grille` wide on its pilot's side (and `rear` wide on its
     far face, standing upright when `lean` is 0: a pod seen from behind) and its `items` laid on its top (their `at`
-    [u, v] up the slope from its middle)."""
+    [u, v] up the slope from its middle). With `covers` its sides and, where it has no grille, its pilot's side carry
+    closed equipment covers (console_covers)."""
     side = [(lean, 0.0), (deep, 0.0), (deep, front_high), (0.0, back_high)]
     found = []
     points = [(-wide / 2, y, z) for z, y in side] + [(wide / 2, y, z) for z, y in side]
@@ -1726,6 +1736,26 @@ def console(wide=1.0, deep=0.4, front_high=0.6, back_high=0.74, items=(), lean=0
             x = -rear / 2 + 0.015 + step * 0.03
             found += box("lip", (x - 0.006, 0.135, -0.008), (x + 0.006, back_high - 0.165, -0.0015), 0.0015)
     found += box("lip", (-wide / 2 - 0.006, 0.0, lean * 0.9 - 0.006), (wide / 2 + 0.006, 0.05, deep + 0.006), 0.004)
+    if covers:
+        found += console_covers(wide, deep, front_high, lean, bool(grille))
+    return found
+
+
+def console_covers(wide, deep, front_high, lean, grille):
+    """A console's closed equipment bays (2099 #246, night wave 2 round 4, the judge: "console sides are blank flat
+    boxes"): a cover (hinge, fasteners, data plate) on each side face between the kick lip and the top, and on the
+    pilot's side, where no grille is, a cover over a vent grille, each standing 0.5 mm off its face."""
+    found = []
+    side_wide, side_high = deep - lean / 2 - 0.06, front_high - 0.13
+    if side_wide > 0.05 and side_high > 0.05:
+        for way in (1.0, -1.0):
+            found += moved(cover(side_wide, side_high), np.asarray(about("y", 90.0 * way)),
+                           (way * (wide / 2 + 0.0005), 0.07 + side_high / 2, lean / 2 + 0.03 + side_wide / 2))
+    if not grille and wide > 0.2 and front_high > 0.3:
+        bay_wide, vent_high = wide * 0.62, 0.07
+        bay_high = front_high - 0.05 - 0.04 - vent_high - 0.03 - 0.03
+        found += moved(cover(bay_wide, bay_high), offset=(0.0, front_high - 0.04 - bay_high / 2, deep + 0.0005))
+        found += moved(vent(bay_wide, vent_high, slats=5), offset=(0.0, 0.08 + vent_high / 2, deep + 0.0005))
     return found
 
 
@@ -1813,12 +1843,32 @@ def stick(**_):
 
 
 def lamp_fixture(size=0.2, **_):
-    """A round ceiling lamp `size` across: a bright ring and a white glowing lens (facing +z)."""
+    """A round cabin lamp `size` across (facing +z): a gunmetal mounting flange screwed down at four points, a stepped
+    housing, a bright bezel ring round a frosted lens glowing white set down inside it, and a wire guard of three bars
+    across the lens on a ring (2099 #246, night wave 2 round 4, the judge: "the ceiling lamp is still a flat cream disc
+    with no fixture detail")."""
     radius = size / 2
-    found = turned("metal", [(0.0, 0.0), (radius, 0.0), (radius, 0.012), (radius * 0.85, 0.018), (0.0, 0.018)],
-                   segments=40)
-    found += turned("lamp_white", [(0.0, 0.016), (radius * 0.85, 0.016), (radius * 0.6, 0.026), (0.0, 0.03)], segments=40,
-                    smooth=True)
+    found = turned("frame", [(0.0, 0.0), (radius, 0.0), (radius, 0.005), (radius * 0.9, 0.007), (radius * 0.86, 0.024),
+                             (radius * 0.8, 0.028), (0.0, 0.028)], segments=48)
+    head = [(0.0, 0.0), (radius * 0.045, 0.0), (radius * 0.045, 0.002), (radius * 0.03, 0.0032), (0.0, 0.0032)]
+    for angle in (45.0, 135.0, 225.0, 315.0):
+        spot = (radius * 0.94 * math.cos(math.radians(angle)), radius * 0.94 * math.sin(math.radians(angle)), 0.005)
+        found += moved(turned("bolt", head, segments=12), offset=spot)
+    lens = radius * 0.7
+    found += turned("metal", [(radius * 0.8, 0.027), (radius * 0.8, 0.032), (lens * 1.04, 0.036), (lens, 0.034),
+                              (lens, 0.026)], segments=48)
+    found += turned("lamp_white", [(0.0, 0.027), (lens, 0.027), (lens * 0.92, 0.036), (lens * 0.55, 0.043), (0.0, 0.045)],
+                    segments=48, smooth=True)
+    wire = radius * 0.025
+    found += tube("metal", [(lens * 0.98 * math.cos(math.radians(step * 10.0)),
+                             lens * 0.98 * math.sin(math.radians(step * 10.0)), 0.038) for step in range(37)], wire, 8)
+    for angle in (0.0, 60.0, 120.0):
+        along = np.array([math.cos(math.radians(angle)), math.sin(math.radians(angle)), 0.0])
+        path = []
+        for share in np.linspace(-1.0, 1.0, 11):
+            height = 0.038 + 0.012 * (1.0 - share * share)
+            path.append(tuple(along * lens * 0.98 * share + np.array([0.0, 0.0, height])))
+        found += tube("metal", path, wire, 8)
     return found
 
 
