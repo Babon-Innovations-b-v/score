@@ -14,6 +14,7 @@ import sys
 import numpy as np
 import trimesh
 from matplotlib.path import Path
+from scipy.spatial import cKDTree
 
 import expressions
 import fit
@@ -71,11 +72,11 @@ FINE = [((37, 38, 40, 41), (0.0, 0.0), (1.4, 1.0), 0.7), ((43, 44, 46, 47), (0.0
 LIPS_FINE = 0.85  # the lips' relief taken down by this share inside their line
 CARUNCLE = [((39,), (0.12, 0.0), (0.16, 0.14), 1.0), ((42,), (-0.12, 0.0), (0.16, 0.14), 1.0)]
 WET_CM = (0.1, 0.2)  # a lid's skin this near its eyeball is wet, fading to dry by the second
-EAR_SIDE_CM = 7.0  # a face point further out to the side than this, and over the jaw's angle, is an ear's,
-EAR_FADE_CM = 1.0  # its flush fading in over this much before it
-# and under the ear's top, this much over the brows' (the flush fading out over EAR_FADE_CM over it): read as all the
-# side of the head over the jaw's angle, the ears' flush reached up the temples onto the scalp under the hair (#227).
-EAR_TOP_OVER_BROWS_CM = 0.5
+# An ear's flush: the skin within EAR_REACH_CM of its helix's rim and back (fit.ears, fit.ear_backs), fading out over
+# EAR_FADE_CM, and none past EAR_FADE_CM over the rim's top. Read as all the side of the head over the jaw's angle, the
+# flush reached up the temples onto the scalp (#227) and showed as a pink patch over each ear (photoreal round 2).
+EAR_REACH_CM = 1.5
+EAR_FADE_CM = 0.5
 LIP_EDGE_CM = 0.06  # the lips' tone fades in over this inside their outer line: a defined vermilion border
 SHOTS = [{"name": "neutral", "weights": {}},
          {"name": "smile", "weights": {"lipCornerPuller_L": 1.0, "lipCornerPuller_R": 1.0, "cheekRaiser_L": 0.6,
@@ -164,6 +165,16 @@ def eyeball_gap(model, points):
     return np.min(gaps, axis=0)
 
 
+def ear_share(model, points):
+    """Each point's share of an ear's flush (EAR_REACH_CM of its rim, under its top), on ICT's neutral face (cm)."""
+    rims = np.concatenate([np.concatenate([rim, np.asarray(back)])
+                           for (rim, _), back in zip(fit.ears(model), fit.ear_backs(model))])
+    near = cKDTree(model["neutral"][rims]).query(points)[0]
+    top = model["neutral"][rims][:, 1].max()
+    return (np.clip((EAR_REACH_CM + EAR_FADE_CM - near) / EAR_FADE_CM, 0.0, 1.0)
+            * np.clip((top + EAR_FADE_CM - points[:, 1]) / EAR_FADE_CM, 0.0, 1.0))
+
+
 def tones(model):
     """Each model point's skin tones (TONES, each 0 to 1 but the signed relief) from its place on ICT's neutral face;
     zero off the face's skin. The eye sockets' lining is wet and smooth."""
@@ -172,9 +183,7 @@ def tones(model):
     found = np.zeros((len(neutral), len(TONES)))
     skin = np.unique(fit.skin_triangles(model))
     points = neutral[skin]
-    ear = np.clip((np.abs(points[:, 0]) - EAR_SIDE_CM) / EAR_FADE_CM + 1.0, 0.0, 1.0) * (points[:, 1] > landmarks[3, 1])
-    ear_top = landmarks[[19, 24], 1].max() + EAR_TOP_OVER_BROWS_CM
-    ear = ear * np.clip((ear_top - points[:, 1]) / EAR_FADE_CM + 1.0, 0.0, 1.0)
+    ear = ear_share(model, points)
     lip = lips(points, landmarks)
     wet = np.clip((WET_CM[1] - eyeball_gap(model, points)) / (WET_CM[1] - WET_CM[0]), 0.0, 1.0)
     found[skin, TONES.index("flush")] = np.maximum(blobs(points, landmarks, FLUSH), 0.7 * ear)

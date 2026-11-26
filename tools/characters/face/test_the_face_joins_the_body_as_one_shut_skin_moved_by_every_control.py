@@ -19,7 +19,7 @@ scan's tiles as its files, the scan named as carried and its CC BY 3.0 licence b
 (finishes.written), a short, broad-jawed face is moved towards an adult's proportions and an adult's is not
 (fit.adult_moves), the skin's region channels are one order where marked and drawn (face.TONES, blender_face.TONES),
 a lid's skin by its eyeball is wet (face.eyeball_gap), a brow thins at its lower edge and tail (strands.thinned), a
-lash at the eye's corner is shorter (strands.cornered), the
+lash at the eye's corner is shorter (strands.cornered), an ear's flush keeps to the ear (face.ear_share), the
 shell over the eye is glass over the iris and a thin film over the white (face.cornea), and the skin's crevices are
 its own (finishes' `own`).
 
@@ -66,6 +66,8 @@ Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - the region channels: blender_face's TONES with "lids" and "sheen" swapped (seen red 2026-11-26).
 - the waterline: eyeball_gap's `- np.median(...)` made `+` (seen red 2026-11-26).
 - the brow's edge: thinned's `(0.25 + 0.75 * lower) * tail` made `tail` (a ruled lower edge; seen red 2026-11-26).
+- the ear's flush: ear_share's `* np.clip((top + EAR_FADE_CM - ...` dropped (the temple over the ear flushed; seen
+  red 2026-11-26).
 - the lashes' corners: cornered's `1.0 - LASH_CORNER * ...` made `1.0` (seen red 2026-11-26).
 - the eye's film: cornea's `> LIMBUS_UV` made `> 1.0` (all glass; seen red 2026-11-26).
 - the skin's own crevices: face_skin_light's crevices `"own": True` dropped (seen red 2026-11-26); and, apart,
@@ -429,6 +431,19 @@ def brows_thinned():
     return [bool(kept[0] < 0.5 * kept[1]), bool(kept[3] < 0.5 * kept[2])]
 
 
+def ear_flushed():
+    """An ear's flush lies on the ear (by its rim), not on the temple over it nor the cheek before it (cm; the ears'
+    rims and backs stood in by three points)."""
+    model = {"neutral": np.array([[7.0, 0.0, 0.0], [7.0, 3.0, 0.0], [7.5, 1.5, -1.0]])}
+    real = fit.ears, fit.ear_backs
+    fit.ears, fit.ear_backs = (lambda model: [(np.array([0, 1]), None)]), (lambda model: [np.array([2])])
+    try:
+        shares = face.ear_share(model, np.array([[7.2, 1.5, 0.0], [7.0, 4.2, 0.0], [4.0, 0.0, 3.0]]))
+    finally:
+        fit.ears, fit.ear_backs = real
+    return [round(float(share), 2) for share in shares]
+
+
 def lashes_cornered():
     """A lash rooted over the eye's middle keeps its full length, one at the eye's corner is LASH_CORNER shorter (a
     12 mm eyeball's points, roots over its middle, halfway out and at its widest)."""
@@ -515,6 +530,7 @@ def own_crevices():
     ("a lid's skin by its eyeball is wet, fading to dry 2 mm off", waterline_found, [1.0, 0.5, 0.0]),
     ("a brow thins out at its lower edge and its tail", brows_thinned, [True, True]),
     ("a lash at the eye's corner is shorter than one over its middle", lashes_cornered, [1.0, 0.863, 0.45]),
+    ("an ear's flush lies on the ear, not on the temple over it", ear_flushed, [1.0, 0.0, 0.0]),
     ("the shell over the eye is the cornea's glass in its middle and a thin tear film over the white",
      eye_film_split, [0, 1, True]),
     ("the skin's crevices are its own, the tear film over the white is thin, the lashes and brows have melanin",
