@@ -13,6 +13,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/signs/__init__.p
     build's `value * LETTER_GLOW` -> `value` (the words glow brighter than the face: salmon in its bloom)
     ink's `[gap] * bool(number) + [...]` -> `[...]` and `np.vstack` -> `np.hstack` (a vertical sign set as one line)
     build's `if chosen["face"][0] == "glowing":` -> `if True:` (a neon blade's letters dimmed as a lightbox's)
+    lamp_parts' `under = tall - head - BORDER` -> `under = tall - head` (the lamp's cap above its height)
+    build_lamp's `value * LAMP_GLOW` -> `value` (the lamp's head a white bloom blob)
 """
 import numpy as np
 
@@ -22,7 +24,8 @@ PALETTE = {"tokens": {"steel-gunmetal": "#3a3f45", "sign-cream": "#f4ead2", "sig
            "families": {"steel": {"variants": {"gunmetal_steel": {"token": "steel-gunmetal", "roughness": 0.45,
                                                                   "metal": 0.0}}},
                         "plastic": {"variants": {"sign_lightbox_cream": {"token": "sign-cream", "roughness": 0.3},
-                                                 "sign_lettering_red": {"token": "sign-red-text", "roughness": 0.3}}}}}
+                                                 "sign_lettering_red": {"token": "sign-red-text", "roughness": 0.3},
+                                                 "lamp_head_glow": {"token": "sign-cream", "roughness": 0.3}}}}}
 
 
 def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
@@ -72,3 +75,14 @@ def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
     assert not np.any(blade.geometry["face"].visual.material.emissiveFactor) and np.allclose(
         blade.geometry["letters"].visual.material.emissiveFactor, lightbox.car.linear("#c8382a"), atol=0.01), \
         "a neon blade: a dark face, its letters glowing their whole colour"
+    lamp, lamp_record = lightbox.build_lamp(3.0, 0.42, PALETTE)
+    assert np.allclose(lamp.bounds, [[-0.21 - lightbox.BORDER / 2, 0.0, -0.21 - lightbox.BORDER / 2],
+                                     [0.21 + lightbox.BORDER / 2, 3.0, 0.21 + lightbox.BORDER / 2]]), \
+        "a square lamp stands on y 0 to its height, its cap the widest part"
+    head = lamp.geometry["head"]
+    assert np.isclose(head.bounds[1, 1], lamp.geometry["cap"].bounds[0, 1]) \
+        and np.isclose(head.bounds[0, 1], lamp.geometry["pole"].bounds[1, 1]), "the head sits on the pole under the cap"
+    assert np.allclose(head.visual.material.emissiveFactor,
+                       np.asarray(head.visual.material.baseColorFactor[:3]) / 255.0 / lightbox.FACE_BASE * lightbox.LAMP_GLOW,
+                       atol=0.01) and not np.any(lamp.geometry["pole"].visual.material.emissiveFactor), \
+        "the lamp's head glows part of its colour, its pole does not"
