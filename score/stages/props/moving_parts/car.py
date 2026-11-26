@@ -23,9 +23,9 @@ LOWER = ((0.0, 0.42, 0.24, 0.86), (0.025, 0.58, 0.14, 0.95), (0.08, 0.63, 0.12, 
 # to the windscreen's.
 GREENHOUSE = ((0.20, 0.655), (0.27, 0.86), (0.36, 0.985), (0.58, 1.0), (0.66, 0.92), (0.75, 0.655))
 GLASS_IN, ROOF_IN = 0.88, 0.70  # the greenhouse's half width at the beltline and at its roof, as shares of the body's
-SECTIONS, AROUND = 140, 48  # sections along the length and points round each
+SECTIONS, AROUND = 240, 72  # sections along the length and points round each
 ROUNDNESS = 5.0  # the sections' superellipse power: higher is boxier
-WHEEL_RADIUS, TYRE_WIDE, RIM_SHARE = 0.235, 0.115, 0.68  # as shares of the height and width; the rim's of the tyre
+WHEEL_RADIUS, TYRE_WIDE, RIM_SHARE = 0.215, 0.115, 0.66  # as shares of the height and width; the rim's of the tyre
 AXLES = (0.17, 0.82)  # the axles as shares of the length from the rear
 ARCH_ROOM = 1.12  # an arch's radius over its wheel's
 DOOR = (0.47, 0.69)  # the front door's rear and front edges as shares of the length (its hinge at the front)
@@ -34,7 +34,7 @@ SKIN = 0.03  # a door's thickness, in metres
 LIGHT_BAR = 0.12  # the light bar's height on the roof, in metres (the car's height its top)
 WHEEL_FACES = 64
 SPOKES = 5  # a rim's spokes
-GLASS_SEEN = 0.8  # how much of what is behind the car's tinted glass it hides (glTF alpha): the cabin dim behind it
+GLASS_SEEN = 0.93  # how much of what is behind the car's tinted glass it hides (glTF alpha): the cabin dim behind it
 ROOF_BAND = 0.9  # the greenhouse's roof cap: the ring's points this high up its section and over
 FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal", "car_body_paint"),
             "glass": ("glass", "car_window"), "door_window": ("glass", "car_window"),
@@ -43,13 +43,19 @@ FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal
             "bar_base": ("rubber", "tyre_rubber"),
             "siren_blue": ("glowing", "siren_blue"), "siren_red": ("glowing", "siren_red"),
             "plates": ("painted_metal", "licence_plate"), "tyre": ("rubber", "tyre_rubber"),
-            "rim": ("bare_metal", "car_chrome")}
+            "rim": ("painted_metal", "gunmetal_steel"), "seams": ("rubber", "tyre_rubber")}
+SEAMS = (0.27, 0.47, 0.69)  # the doors' shut lines as shares of the length from the rear, on both sides
+END_ROOM = 0.03  # the body stops this short of the car's ends, metres: room for the plates and bumper bands on them
+SEAM_WIDE, SEAM_PROUD = 0.008, 0.002  # a shut line's width and how far it stands off the skin, in metres
 
 
 def along(table, share, column):
-    """A column of a profile table at a share of the length, eased between its rows."""
+    """A column of a profile table at a share of the length, eased between its rows by a monotone cubic, so the body's
+    lines run smooth through its rows (straight between them they creased the bonnet and boot into facets, night car
+    round 2)."""
+    from scipy.interpolate import PchipInterpolator
     shares = [row[0] for row in table]
-    return float(np.interp(share, shares, [row[column] for row in table]))
+    return float(PchipInterpolator(shares, [row[column] for row in table])(np.clip(share, shares[0], shares[-1])))
 
 
 def ring(half_wide, bottom, top, power=ROUNDNESS, count=AROUND):
@@ -91,6 +97,13 @@ def mesh_of(vertices, faces):
     import trimesh
     mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
     mesh.fix_normals()
+    # Facing out from the car's long middle line: on an open skin (its door cut out) fix_normals chose its winding by
+    # chance and turned the whole body inward, so the game drew its sides away and the cabin stood bare (night car
+    # round 3).
+    centres = mesh.triangles_center
+    out = centres[:, :2] - np.array([0.0, centres[:, 1].mean()])
+    if np.sum(np.einsum("ij,ij->i", mesh.face_normals[:, :2], out) * mesh.area_faces) < 0:
+        mesh.invert()
     return mesh
 
 
@@ -137,15 +150,18 @@ def shell(mesh, thickness):
     return joined
 
 
+def body_section(across, tall, along_length, axles, radius, place):
+    """The lower body's section (a ring of points, x and y) at a length `place` from the car's middle."""
+    share = place / along_length + 0.5
+    bottom = arch_bottom(place, along(LOWER, share, 2) * tall, axles, radius)
+    top = along(LOWER, share, 1) * tall
+    return ring(along(LOWER, share, 3) * across / 2, min(bottom, top - 0.08), top)
+
+
 def body_and_door(across, tall, along_length, axles, radius):
     """The lower body (its door's skin cut out) and the door's skin."""
-    places = np.linspace(-along_length / 2, along_length / 2, SECTIONS)
-    shares = (places + along_length / 2) / along_length
-    sections = []
-    for place, share in zip(places, shares):
-        bottom = arch_bottom(place, along(LOWER, share, 2) * tall, axles, radius)
-        top = along(LOWER, share, 1) * tall
-        sections.append(ring(along(LOWER, share, 3) * across / 2, min(bottom, top - 0.08), top))
+    places = np.linspace(-along_length / 2 + END_ROOM, along_length / 2 - END_ROOM, SECTIONS)
+    sections = [body_section(across, tall, along_length, axles, radius, place) for place in places]
     vertices, faces, at_section, _ = lofted(sections, places)
     span = [(share - 0.5) * along_length for share in DOOR]
     door = door_faces(vertices, faces, at_section, places, span, DOOR_FOOT * tall, along(LOWER, 0.6, 1) * tall + 0.01,
@@ -164,7 +180,11 @@ def greenhouse(across, tall, along_length, span):
         roof = along(GREENHOUSE, share, 1) * tall
         half = along(LOWER, share, 3) * across / 2
         points = ring(1.0, 0.0, 1.0, power=3.0)
-        heights = belt + (roof - belt) * np.clip(points[:, 1], 0.0, 1.0)
+        # Its foot just under the body's own top at that length, not one beltline height: over the boot deck's rise the
+        # glass's foot ran a centimetre under the paint, the two met in a stepped seam and the tint showed under the
+        # rear screen (night car round 2).
+        foot = along(LOWER, share, 1) * tall - 0.02
+        heights = foot + (roof - foot) * np.clip(points[:, 1], 0.0, 1.0)
         rise = np.clip(points[:, 1], 0.0, 1.0)
         sections.append(np.column_stack([points[:, 0] * half * (GLASS_IN + (ROOF_IN - GLASS_IN) * rise), heights]))
     vertices, faces, at_section, round_at = lofted(sections, places)
@@ -191,17 +211,21 @@ def cabin(across, tall, along_length):
     dashboard and a steering wheel."""
     import trimesh
     half = across / 2 * 0.86
-    rear, front = (0.27 - 0.5) * along_length, (0.73 - 0.5) * along_length
+    rear, front = (0.28 - 0.5) * along_length, (0.71 - 0.5) * along_length
     belt = along(LOWER, 0.5, 1) * tall - 0.02
     places = np.linspace(rear, front, 24)
     sections = []
     for place in places:
         share = place / along_length + 0.5
-        low_half = along(LOWER, share, 3) * across / 2 - 0.06
-        roof_half = low_half * ROOF_IN
-        top = max(along(GREENHOUSE, share, 1) * tall - 0.05, belt + 0.02)
-        sections.append(np.array([(-low_half, tall * 0.22), (-low_half, belt), (-roof_half, top), (roof_half, top),
-                                  (low_half, belt), (low_half, tall * 0.22)])[::-1])
+        half = along(LOWER, share, 3) * across / 2
+        low_half = half - 0.06
+        # Inside the glass all the way up: at the beltline the glass stands GLASS_IN in from the body, and a liner as
+        # wide as the body below came through it in a stepped line along both sides (night car round 3).
+        belt_half, roof_half = half * GLASS_IN - 0.04, half * ROOF_IN - 0.06
+        top = max(along(GREENHOUSE, share, 1) * tall - 0.06, belt + 0.02)
+        sections.append(np.array([(-low_half, tall * 0.22), (-low_half, belt - 0.03), (-belt_half, belt),
+                                  (-roof_half, top), (roof_half, top), (belt_half, belt), (low_half, belt - 0.03),
+                                  (low_half, tall * 0.22)])[::-1])
     vertices, faces, _, _ = lofted(sections, places)
     liner = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
     liner.fix_normals()
@@ -240,8 +264,8 @@ def lamps(across, tall, along_length):
     # Two lamp clusters at the tail's corners and a thin bar between them, as the concept's saloon shows them lit.
     tail_lamps = [strip((across * 0.2, 0.085, 0.035), (side * across * 0.33, tail_y, tail + 0.04)) for side in (-1, 1)]
     tail_lamps.append(strip((across * 0.46, 0.022, 0.03), (0, tail_y + 0.02, tail + 0.03)))
-    plates = [strip((0.52, 0.12, 0.012), (0, 0.42 * tall * 0.9, nose - 0.01)),
-              strip((0.52, 0.12, 0.012), (0, 0.45 * tall * 0.9, tail + 0.01))]
+    plates = [strip((0.52, 0.11, 0.012), (0, 0.31 * tall, nose - 0.012)),
+              strip((0.52, 0.11, 0.012), (0, 0.335 * tall, tail + 0.012))]  # in the room left before the body's ends
     blue, red, base = light_bar(across, tall)
     grille = [strip((across * 0.36, 0.025, 0.03), (0, head_y - 0.02, nose - 0.025))]
     handle_y = along(LOWER, 0.5, 1) * tall - 0.1
@@ -251,6 +275,69 @@ def lamps(across, tall, along_length):
     mirrors = [strip((0.16, 0.1, 0.07), (side * (across / 2 - 0.08), mirror_y, (0.735 - 0.5) * along_length))
                for side in (-1, 1)]  # within the body's width: the row's size is the car's
     return headlamps, tail_lamps, plates, blue, red, base, grille + handles, mirrors
+
+
+def plate_marks(across, tall, along_length):
+    """Each plate's dark surround and its six raised characters (a plate blank and white was the brightest thing on the
+    car's back, night car round 2), and a dark bumper band across the nose and the tail under it."""
+    import trimesh
+    nose, tail = along_length / 2, -along_length / 2
+    marks = []
+    for end, face, height in ((nose, 1, 0.31 * tall), (tail, -1, 0.335 * tall)):
+        marks.append(trimesh.creation.box(extents=(0.56, 0.145, 0.004)).apply_translation(
+            (0, height, end - face * 0.02)))
+        for place in range(6):
+            glyph = trimesh.creation.box(extents=(0.05, 0.068, 0.006))
+            marks.append(glyph.apply_translation(((place - 2.5) * 0.07 + (0.02 if place > 2 else -0.02), height,
+                                                  end - face * 0.003)))
+        marks.append(trimesh.creation.box(extents=(across * 0.8, 0.04, 0.03)).apply_translation(
+            (0, 0.255 * tall, end - face * 0.015)))
+    return marks
+
+
+def seam_ribbon(points, place):
+    """A thin dark ribbon standing off the skin along a section's `points` (k x 2, in order) at length `place`: two rows
+    of points SEAM_WIDE apart along the car, each moved SEAM_PROUD out along the section's own outward normal."""
+    import trimesh
+    middle = points.mean(axis=0)
+    steps = np.gradient(points, axis=0)
+    normals = np.column_stack([steps[:, 1], -steps[:, 0]])
+    normals /= np.linalg.norm(normals, axis=1, keepdims=True) + 1e-9
+    outward = np.sign(np.sum(normals * (points - middle), axis=1, keepdims=True))
+    outward[outward == 0] = 1.0
+    lifted = points + normals * outward * SEAM_PROUD
+    count = len(lifted)
+    vertices = np.vstack([np.column_stack([lifted, np.full(count, place - SEAM_WIDE / 2)]),
+                          np.column_stack([lifted, np.full(count, place + SEAM_WIDE / 2)])])
+    faces = [face for at in range(count - 1)
+             for face in ((at, at + 1, at + count + 1), (at, at + count + 1, at + count))]
+    return mesh_of(vertices, np.array(faces))
+
+
+def seams(across, tall, along_length, axles, radius):
+    """The doors' shut lines down both sides (SEAMS, from the doors' foot to the beltline) and the bonnet's and boot
+    lid's across the top: the body's own section at that length, so each lies on the skin (a flat side with no lines
+    read as a toy, night car round 2)."""
+    lines = []
+    for share in SEAMS:
+        place = (share - 0.5) * along_length
+        section = body_section(across, tall, along_length, axles, radius, place)
+        top = along(LOWER, share, 1) * tall
+        for side in (-1, 1):
+            chosen = section[(np.sign(section[:, 0]) == side) & (section[:, 1] > DOOR_FOOT * tall) &
+                             (section[:, 1] < top - 0.015) & (np.abs(section[:, 0]) > 0.6 * across / 2)]
+            if len(chosen) > 1:
+                lines.append(seam_ribbon(chosen[np.argsort(chosen[:, 1])], place))
+    for share in (0.79, 0.11):  # the bonnet's rear edge and the boot lid's front edge
+        place = (share - 0.5) * along_length
+        section = body_section(across, tall, along_length, axles, radius, place)
+        top = along(LOWER, share, 1) * tall
+        chosen = section[section[:, 1] > top - 0.04]
+        if len(chosen) > 1:
+            lines.append(seam_ribbon(chosen[np.argsort(chosen[:, 0])], place))
+    for line in lines:  # within the car's width: standing off its widest point they made it 4 mm wider than its row
+        line.vertices[:, 0] = np.clip(line.vertices[:, 0], -across / 2, across / 2)
+    return lines
 
 
 def light_bar(across, tall):
@@ -326,6 +413,8 @@ def car_parts(size):
              finished("plates", plates, "plates"), finished("siren_blue", blue, "siren_blue"),
              finished("siren_red", red, "siren_red"), finished("bar_base", bar_base, "bar_base"),
              finished("trim", trim, "trim"),
+             finished("seams", seams(across, tall, along_length, axles, radius) +
+                      plate_marks(across, tall, along_length), "seams"),
              finished("door", [door], "door", hinge, "hinge", "y", 1),
              finished("door_window", [window], "door_window", hinge, "hinge", "y", 1)]
     for number, (side, axle) in enumerate(((side, axle) for axle in axles for side in (-1, 1)), 1):
