@@ -7,7 +7,10 @@ hanging strand the skin holds is moved out over it and one falling freely left; 
 its clearance and hair outside left; a ring goes round the finger it is meant for (read off a toy hand's skin), a
 watch round its wrist with its case on the back of the wrist, a chain round the neck on its skin and moving with it;
 and `faults` names a piece pushed into the skin; a toy hand's fingers bend towards its palm (the side its thumb
-stands to) past the knuckles, their length kept, the palm left where it was. Each row is one toy (no SOMA, Newton or
+stands to) past the knuckles, their length kept, the palm left where it was; the photograph's incident meter reads pi
+under an even sky of radiance 1 on the card facing the camera and on the ground (so an 18% card needs no exposure
+change, and a sky four times as bright two stops less), a bright patch lights the card only when the sky's turn puts
+it on the camera's side, and its white balance makes the card neutral. Each row is one toy (no SOMA, Newton or
 Blender).
 
 Breaks that turn it red (each applied once, seen red, reverted): the limbs' turns left out (`posed_like_mean`
@@ -24,15 +27,18 @@ side (`-np.sign`: the fingers bend back; seen red 2026-11-25); `part_lean` left 
 from above); the hairline's roots not thinned (`roots` keeping every one: the roots rising within 4 mm); `root_gap`
 reading the mean distance (the root-free patch passes); `parting_bare` counting no run as on the parting's line (the
 bare band passes the parting's check); `draped` returning `moved` (the snagged strand left where the skin held it;
-each seen red 2026-11-25)."""
+each seen red 2026-11-25); the meter's solid angle without the cosine of the latitude (the even sky reads 4.0, not pi,
+on the card), its turn read the other way (`way @ turned(turn).T`: the patch lights the card from behind; each seen red
+2026-11-26)."""
 import functools
+import math
 
 import numpy as np
 import pytest
 import trimesh
 
 from tools.characters import whole
-from tools.characters.whole import hair, jewellery
+from tools.characters.whole import hair, jewellery, meter
 
 NAMES = np.array(["Chest", "LeftArm"])
 
@@ -117,8 +123,22 @@ def toy_hands():
                                   "hair kept out",
                                   "ring round its finger",
                                   "watch round its wrist", "chain round the neck", "ring pushed in",
-                                  "chain carried by the skin", "fingers relaxed"])
+                                  "chain carried by the skin", "fingers relaxed", "a sky metered at the person"])
 def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
+    if case == "a sky metered at the person":
+        even = np.ones((64, 128, 3))
+        found = meter.metered(even, 37.0)
+        assert found["front"] == pytest.approx([math.pi] * 3, rel=0.01)
+        assert found["ground"] == pytest.approx([math.pi] * 3, rel=0.01)
+        assert meter.exposure_of(found) == pytest.approx(0.0, abs=0.02)
+        assert meter.exposure_of(meter.metered(even * 4.0, 0.0)) == pytest.approx(-2.0, abs=0.02)
+        way, _ = meter.directions(128, 64)
+        patch = np.zeros((64, 128, 3))
+        patch[way @ [1.0, 0.0, 0.0] > np.cos(np.radians(20.0))] = 1.0  # a bright patch along +x of the panorama
+        assert meter.metered(patch, 90.0)["front"][0] > 0.3  # turned onto the camera's side: it lights the card
+        assert meter.metered(patch, -90.0)["front"][0] < 0.01  # turned behind the card: it does not
+        warm = meter.metered(even * [2.0, 1.0, 0.5], 0.0)
+        assert np.ptp(meter.balance_of(warm) * warm["front"]) < 1e-9
     if case == "laid on the mean":
         mean, weights = toy_mean()
         arm = weights[:, 1] > 0.5

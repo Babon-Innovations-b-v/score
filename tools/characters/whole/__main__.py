@@ -19,8 +19,8 @@ from tools.characters.whole import jewellery
 
 VIEWS = {"front": 0.0, "three_quarter": 35.0, "left": 90.0, "back": 180.0, "right": 270.0}
 FACE_PIECES = ("eyes", "cornea", "teeth", "mouth", "tears", "brows", "lashes")
-SETTING = {"floor": "simready_m_opaque_concrete_bare_c01_3a571927",  # the daylight setting's (render.py): NVIDIA
-           "wall": "simready_m_opaque_concrete_plain_wall_a01_8c6d57b1"}  # SimReady concretes, CC BY 4.0
+SETTING = {"sky": "polyhaven_cloudy_vondelpark"}  # the real place the person is photographed in (render.py): score_lib
+# light: Poly Haven's CC0 overcast park, its sky and its own ground (owner, 2026-11-26: "photorealism is the goal")
 THICK_M = garments.THICKNESS_M
 HEAD_ABOVE_M = 0.25  # the skin this far under the Head joint and up is what the hair is kept off
 BROW_REACH_M = 0.012  # a hair point this near a brow hair keeps clear of the brows
@@ -191,13 +191,12 @@ def scene_file(pieces, name, path, cloth, views=VIEWS):
 
 
 def fetched(pieces, out):
-    """Every library surface the pieces wear, and the setting's, fetched from score_lib into `out`/library."""
+    """Every library surface the pieces wear, and the setting's sky, fetched from score_lib into `out`/library."""
     from tools.characters.garments.__main__ import SCORE_LIB
-    names = sorted({surface for piece in pieces.values() for surface in piece["surfaces"]}
-                   | set(SETTING.values()))
+    names = sorted({surface for piece in pieces.values() for surface in piece["surfaces"]})
     folder = out / "library"
     subprocess.run([str(SCORE_LIB / ".venv/bin/score-lib"), "--root", str(SCORE_LIB), "fetch",
-                    *[f"surface/{name}@1" for name in names],
+                    *[f"surface/{name}@1" for name in names], f"light/{SETTING['sky']}@1",
                     "--into", str(folder)], check=True, cwd=SCORE_LIB, stdout=subprocess.DEVNULL)
     return folder / "score_lib"
 
