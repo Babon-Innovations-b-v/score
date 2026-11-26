@@ -53,6 +53,29 @@ FINISHES = {
                                "eyes), the lips a deeper rose and a little glossier (lips read colourless with a wet "
                                "blob of highlight, owner 2026-11-25), folds and nostrils darker and redder, and a thin oily coat (#223, "
                                "2026-11-25: the skin read as wax)"},
+    "face_skin_dark": {"title": "Skin, dark, photographed detail, light through it", "family": "skin",
+                       "constants": {"diffuseColor": [0.20155625, 0.08228270, 0.04091520], "roughness": 0.4,
+                                     "metallic": 0.0, "ior": 1.4},
+                       "subsurface": {"weight": 1.0, "radius_mm": [1.4, 0.3, 0.15], "anisotropy": 0.8,
+                                      "ior": 1.4, "method": "RANDOM_WALK_SKIN"},
+                       "detail": {"scan": {"depth_m": 0.0003, "roughness_spread": 0.12},
+                                  "mottle": {"spacing_m": 0.03, "share": 0.15,
+                                             "towards": [0.15, 0.06, 0.03]}},
+                       "regions": {"flush": {"share": 0.35, "towards": [0.22, 0.06, 0.04]},
+                                   "thin": {"share": 0.25, "towards": [0.12, 0.08, 0.09]},
+                                   "veins": {"spacing_m": 0.02, "width": 0.04, "share": 0.1,
+                                             "towards": [0.1, 0.07, 0.09]},
+                                   "lips": {"share": 0.6, "towards": [0.11, 0.035, 0.035], "roughness": -0.08},
+                                   },
+                       "crevices": {"reach_m": 0.006, "share": 0.6, "towards": [0.06, 0.02, 0.012]},
+                       "coat": {"weight": 0.18, "roughness": 0.33, "ior": 1.45},
+                       "why": "the cockpit palette's skin-dark token (#7c5139, design/tokens/tokens.json) as the base, "
+                              "for the people whose skin is dark (man_coat; his plain skin_dark had no detail, no "
+                              "light through it and no regions, a flat body under a detailed face, 2026-11-26); the "
+                              "same photographed detail as face_skin_light (skin_scan.py's tiles multiply the base); "
+                              "melanin takes most of the light under the skin, so the scatter is shorter (1.4 mm red) "
+                              "and the flush, the thin skin's bluish cast and the veins show less, the lips a deeper "
+                              "brown-rose, folds darker, a little more sheen from the oil's coat (#223)"},
     "face_mouth_inside": {"title": "Mouth inside, gums and tongue (constant)", "family": "skin",
                           "constants": {"diffuseColor": [0.35, 0.09, 0.08], "roughness": 0.3, "metallic": 0.0},
                           "why": "a wet mucosa's red, glossier than the skin"},
@@ -91,7 +114,7 @@ FINISHES = {
 
 
 # A finish whose detail is the photographed skin carries skin_scan's tiles as its own files, under the scan's licence.
-SCANNED = ("face_skin_light",)
+SCANNED = ("face_skin_light", "face_skin_dark")
 READER_KEYS = ("subsurface", "detail", "regions", "crevices", "coat", "veins", "fibres", "transmission")
 
 

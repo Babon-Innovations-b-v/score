@@ -80,8 +80,8 @@
   }
  ],
  "body surface": {
-  "name": "skin_dark",
-  "address": "surface/skin_dark@1"
+  "name": "face_skin_dark",
+  "address": "surface/face_skin_dark@1"
  },
  "accessories": {
   "shoes": {
