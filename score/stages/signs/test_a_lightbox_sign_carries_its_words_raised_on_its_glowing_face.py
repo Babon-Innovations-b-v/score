@@ -1,0 +1,52 @@
+"""A shop's lightbox sign is built with its words raised on its glowing face (2099 #161, the street's 未来茶餐厅): its
+casing fills its size with its foot on y 0, its face sits inside the casing's border and stands just out of its front,
+its letters stand out of the face within the face's bounds, centred on it, their runs covering the words' ink, and each
+part takes its palette variant: the casing painted metal, the face and the letters glowing in their own colours.
+
+Breaks (each applied once, seen red, reverted), in score/stages/signs/__init__.py:
+    sign_parts' `face_front = front + FACE_PROUD` -> `face_front = front` (the letters sink into the face)
+    `top - (row + 1) * cell` -> `top + (row + 1) * cell` (the words drawn upside down, out of the face)
+    runs' `zip(edges[0::2], edges[1::2])` -> `zip(edges[1::2], edges[0::2])` (every run empty or reversed)
+    FINISHES' letters `"sign_lettering_red"` -> `"sign_lightbox_cream"` (the words the face's colour: unreadable)
+"""
+import numpy as np
+
+from score.stages import signs as lightbox
+
+PALETTE = {"tokens": {"steel-gunmetal": "#3a3f45", "sign-cream": "#f4ead2", "sign-red-text": "#c8382a"},
+           "families": {"steel": {"variants": {"gunmetal_steel": {"token": "steel-gunmetal", "roughness": 0.45,
+                                                                  "metal": 0.0}}},
+                        "plastic": {"variants": {"sign_lightbox_cream": {"token": "sign-cream", "roughness": 0.3},
+                                                 "sign_lettering_red": {"token": "sign-red-text", "roughness": 0.3}}}}}
+
+
+def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
+    size = (3.0, 1.0, 0.36)
+    scene, record = lightbox.build("未来茶餐厅", size, PALETTE)
+    parts = {name: scene.geometry[name] for name in ("casing", "face", "letters")}
+    casing, face, letters = (parts[name].bounds for name in ("casing", "face", "letters"))
+    assert np.allclose(casing, [[-1.5, 0.0, -0.18], [1.5, 1.0, 0.18]])
+    assert np.allclose(face[:, :2], [[-1.5 + lightbox.BORDER, lightbox.BORDER], [1.5 - lightbox.BORDER, 1.0 - lightbox.BORDER]])
+    assert np.isclose(face[0, 2], 0.18) and np.isclose(face[1, 2], 0.18 + lightbox.FACE_PROUD)
+    assert np.isclose(letters[0, 2], face[1, 2]) and np.isclose(letters[1, 2], face[1, 2] + lightbox.LETTER_PROUD)
+    assert np.all(letters[0, :2] >= face[0, :2] - 1e-9) and np.all(letters[1, :2] <= face[1, :2] + 1e-9)
+    assert np.allclose((letters[0, :2] + letters[1, :2]) / 2.0, (face[0, :2] + face[1, :2]) / 2.0, atol=0.02)
+    raster = lightbox.ink("未来茶餐厅", "bold sans")
+    covered = np.zeros_like(raster)
+    for row, first, past in lightbox.runs(raster):
+        assert past > first
+        covered[row, first:past] = True
+    assert np.array_equal(covered, raster) and raster.mean() > 0.2, "the runs are the words' ink"
+    cell = (letters[1, 0] - letters[0, 0]) / raster.shape[1]
+    centres = parts["letters"].triangles_center
+    centres = centres[np.isclose(centres[:, 2], letters[1, 2])]  # the letters' fronts
+    for row in (0, raster.shape[0] // 2, raster.shape[0] - 1):  # each raster row's ink at its own height, top down
+        band = centres[np.abs(centres[:, 1] - (letters[1, 1] - (row + 0.5) * cell)) < cell * 0.49]
+        columns = np.unique(np.clip(((band[:, 0] - letters[0, 0]) / cell).astype(int), 0, raster.shape[1] - 1))
+        assert set(columns) <= set(np.flatnonzero(raster[row])) and len(columns), row
+    finishes = {part["name"]: (part["finish"], part["variant"]) for part in record["parts"]}
+    assert finishes == {"casing": ("painted_metal", "gunmetal_steel"), "face": ("glowing", "sign_lightbox_cream"),
+                        "letters": ("glowing", "sign_lettering_red")}
+    face_glow, letter_glow = (np.asarray(scene.geometry[name].visual.material.emissiveFactor) for name in ("face", "letters"))
+    assert face_glow.min() > 0.5 and letter_glow[0] > 2 * letter_glow[1], "the face glows cream, the letters red"
+    assert not np.any(scene.geometry["casing"].visual.material.emissiveFactor)
