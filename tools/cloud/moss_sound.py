@@ -87,7 +87,8 @@ def price(jobs, account):
         raise SystemExit(f"refused: {refused}")
     if euros > BUDGET_EUROS:
         raise SystemExit(f"refused: €{euros:.2f} is over this run's €{BUDGET_EUROS:.2f}")
-    budget_minutes = BUDGET_EUROS / (dearest * count)
+    # This PC's card is free (local's price list, €0.00 an hour): only the ledger's minutes bound it.
+    budget_minutes = BUDGET_EUROS / (dearest * count) if dearest else float("inf")
     return found, count, min(ledger.minutes_allowed(dearest * count), budget_minutes)
 
 

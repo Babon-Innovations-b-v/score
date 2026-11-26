@@ -1228,6 +1228,91 @@
 			},
 			"bus": "effects",
 			"reach": 12.0
+		},
+		"rain_city": {
+			"pick": {
+				"page": "prologue",
+				"category": "room",
+				"where": "rain on the street, its awnings and the stairwell's windows in the prologue's Hong Kong night",
+				"prompts": [
+					"Steady night rain falling on a narrow city street between old apartment blocks: rain hissing on wet pavement, pattering on metal awnings and plastic canopies, dripping from gutters and running in a drain, constant and even, no thunder, no voices, no traffic close by."
+				],
+				"seconds": 15,
+				"loop": true,
+				"bed": {
+					"plays": "layer",
+					"heard": "open",
+					"nouns": [
+						"rain"
+					]
+				}
+			},
+			"bus": "ambience"
+		},
+		"crowd_roar": {
+			"pick": {
+				"page": "prologue",
+				"category": "shot",
+				"where": "the square's crowd cheering the leader's speech: a roar that swells and falls",
+				"prompts": [
+					"A huge crowd of thousands in a city square at night bursting into a loud cheer and roar of approval after a speech, swelling quickly, holding with whistles and shouts, then slowly falling back to a murmur, no music, no clear words."
+				],
+				"seconds": 10
+			},
+			"bus": "ambience",
+			"near": 200.0
+		},
+		"launch_deluge": {
+			"pick": {
+				"page": "prologue",
+				"category": "shot",
+				"where": "the pad at ignition: the deluge system's water roaring onto the flame trench and the steam bursting off it",
+				"prompts": [
+					"The water deluge system of a rocket launch pad opening at ignition: a massive roar of water gushing onto concrete, then a violent hiss of steam billowing off hot metal, heard from a few hundred metres away in the open, no voices, no music."
+				],
+				"seconds": 12
+			},
+			"bus": "effects",
+			"near": 300.0
+		},
+		"launch_crackle": {
+			"pick": {
+				"page": "prologue",
+				"category": "shot",
+				"where": "the rocket's plume after lift-off, heard outside: its crackle and rumble",
+				"prompts": [
+					"The crackling, popping roar of a large rocket engine plume heard outdoors a kilometre away after lift-off: harsh tearing crackle over a deep rumble, slowly fading as it climbs, no voices, no music."
+				],
+				"seconds": 12
+			},
+			"bus": "effects",
+			"near": 300.0
+		},
+		"tower_klaxon": {
+			"pick": {
+				"page": "prologue",
+				"category": "shot",
+				"where": "the launch tower's warning klaxon before ignition, carried over the pad",
+				"prompts": [
+					"A loud industrial warning klaxon on a launch tower sounding three long blaring honks with short pauses, echoing over an open concrete pad at night, nothing else."
+				],
+				"seconds": 8
+			},
+			"bus": "effects",
+			"near": 400.0
+		},
+		"cabin_relays": {
+			"pick": {
+				"page": "prologue",
+				"category": "shot",
+				"where": "the capsule cabin's switch relays clicking as systems come on",
+				"prompts": [
+					"Electrical relays inside a spacecraft control panel clicking on one after another: a short run of crisp mechanical clicks and clacks with tiny pauses, in a small quiet cabin, nothing else."
+				],
+				"seconds": 4
+			},
+			"bus": "effects",
+			"reach": 3.0
 		}
 	}
 }
