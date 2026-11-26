@@ -23,18 +23,22 @@ Steps:
    triangles are painted skin (the rest keeps the model's own material); `tzone`: the oily T-zone (the forehead's
    middle, the nose, the chin), for the skin's `sheen` region.
 
-Writes <out>/face.png (TEXTURE square, sRGB, its alpha the photo's share), <out>/skin.npz (the box in the model's own
-units, every model point with whether it is the front the photo saw and its T-zone, the middles of the painted skin's
-triangles) and <out>/stats.json; prints one line. `blender_skin.py` lays it.
+5. `paint_toned`: the model's own paint on the skin's triangles given the photo skin's colour statistics (PAINT_TONE),
+   so where the photo fades or does not reach the paint is the photo's skin, not TRELLIS.2's warm dark paint.
+
+Writes <out>/face.png (TEXTURE square, sRGB, its alpha the photo's share), <out>/paint.png (the toned paint, sRGB),
+<out>/skin.npz (the box in the model's own units, every model point with whether it is the front the photo saw and
+its T-zone, the middles of the painted skin's triangles) and <out>/stats.json; prints one line. `blender_skin.py`
+lays it.
 """
 import argparse
 import json
 import pathlib
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from scipy import ndimage
-from skimage.color import rgb2lab
+from skimage.color import lab2rgb, rgb2lab
 
 from tools.characters.generated import eyes, labels
 
@@ -50,8 +54,12 @@ PATCH_SURE = 0.3  # and kept when its best correlation is at least this
 ROUNDS = (0.006, 0.003, 0.0015, 0.0015)  # each round's search reach (m)
 SMOOTH_NODES = 0.7  # the displacement smoothed over this many nodes
 REGISTER_FACING = 0.5  # registered only where the face looks at least this squarely forward
-FACING = (0.25, 0.6)  # a point's share rises from the first to the second (the normal's forward part)
-VISIBLE_M = 0.0015  # a point wears the photo when it is within this of the front-most surface over it
+# a point's share rises from the first to the second (the normal's forward part; round 2, 2026-11-26: from 0.25 to 0.6
+# it left the nose's sides, the lids' creases and the temples to the paint, orange under the skin light)
+FACING = (0.1, 0.35)
+VISIBLE_M = 0.0015  # a point wears the photo when it is within this of the front-most surface over it, more on a slope:
+VISIBLE_SLOPE = 1.5  # this many front pixels times the slope (a steep brow's points missed it, half of them paint)
+VISIBLE_MAX_M = 0.004
 EYE_CLEAR_M = (0.0008, 0.0025)  # the photo fades in from the first to the second away from the painted eye's floor
 SHARE_SIGMA_M = 0.001  # the share smoothed over this, so its edge is soft
 MASK_ERODE_M = 0.002  # the photo's face mask pulled this far in from hair and background
@@ -70,6 +78,12 @@ CHECK_SQUARE = 40  # check.png's board of paint and registered photo, squares th
 # orange under the random-walk skin light).
 PAINT_SHADE = {"local_m": 0.0015, "broad_m": 0.01, "gain": 2.0, "chroma": (0.7, 1.4), "dark": (0.05, 0.3),
                "under": 0.3}
+# The model's own paint on the skin the photo does not cover (its sides, ears and neck, a fold's hidden side) given the
+# photo's skin colour (round 2, 2026-11-26: TRELLIS.2's warm, dark paint read as rust and orange blotches round the
+# eyes, the nose and the temples): in CIELAB, the paint's broad colour (over `broad_m`) moved to the photo skin's mean
+# and its spread scaled to the photo's, its detail too (`detail`: never sharper, its baked creases are no pores); the
+# photo skin is the flattened photo where its share is over `share` and it is skin-coloured (`labels.skin_like`).
+PAINT_TONE = {"broad_m": 0.01, "detail": (0.5, 1.0), "share": 0.8, "grow_px": 3}
 TZONE = [  # (centre over the nose tip (x, y) m, radii (x, y) m): the forehead's middle, the nose, the chin
     ((0.0, 0.075), (0.03, 0.022)), ((0.0, 0.022), (0.009, 0.03)), ((0.0, 0.0), (0.012, 0.01)),
     ((0.0, -0.062), (0.018, 0.012))]
@@ -378,9 +392,13 @@ def at_points(grid, values, points):
 
 
 def visible(grid, points):
-    """Which model points lie on the front-most surface over them (within VISIBLE_M)."""
+    """Which model points lie on the front-most surface over them: within VISIBLE_M, more on a slope (VISIBLE_SLOPE
+    front pixels times the steepest slope round it, up to VISIBLE_MAX_M)."""
     depth = np.where(grid["seen"], grid["depth"], -1e3)
-    return np.abs(points[:, 2] - at_points(grid, depth, points)) < VISIBLE_M
+    facing = np.clip(ndimage.minimum_filter(grid["facing"], size=3), 1e-3, 1.0)
+    slope = np.sqrt(1.0 / facing ** 2 - 1.0)
+    reach = np.minimum(VISIBLE_M + VISIBLE_SLOPE * STEP_M * at_points(grid, slope, points), VISIBLE_MAX_M)
+    return np.abs(points[:, 2] - at_points(grid, depth, points)) < reach
 
 
 def tzone(points, tip):
@@ -433,17 +451,78 @@ def coarse_maps(grid, warp, photo):
     matte, chroma = matte_skin(flat, skin)
     cleaned, _ = gloss_free(flat, matte, chroma)
     share = grid_share(grid, mask, grid["floor_distance"])
-    paint = linear(grid["colour"])
+    coarse = {"shading": light, "matte": matte, "chroma": chroma, "share": share, "light_fit": fitted, "photo": seen,
+              "cleaned": cleaned}
+    coarse.update(fade_toning(grid, coarse))
+    return coarse
+
+
+def fade_toning(grid, coarse):
+    """Where the photo fades into the model's paint, how far its broad tone moves to the paint's (`toning`, 1 at the
+    edge) and by what ratio (`tone_ratio`): the grid's paint over the flattened photo, both over BLEND_SIGMA_M."""
+    share = coarse["share"]
     sigma = BLEND_SIGMA_M / STEP_M
     held = (share > 0.05).astype(np.float64)
-    tone_ratio = np.clip(smoothed_over(paint, held, sigma) / np.maximum(smoothed_over(cleaned, held, sigma), 1e-4),
-                         0.5, 2.0)
+    tone_ratio = np.clip(smoothed_over(linear(grid["colour"]), held, sigma)
+                         / np.maximum(smoothed_over(coarse["cleaned"], held, sigma), 1e-4), 0.5, 2.0)
     whole = ndimage.binary_fill_holes(share > 0.3).astype(np.float64)  # the eyes, nostrils and lips' edges are inside
     toning = 1.0 - ndimage.gaussian_filter(np.clip(ndimage.gaussian_filter(whole, sigma / 2.0) - 0.5, 0.0, 0.5) * 2.0,
                                            sigma / 4.0)
-    return {"shading": light, "matte": matte, "chroma": chroma, "tone_ratio": tone_ratio, "toning": toning,
-            "share": share,
-            "light_fit": fitted, "photo": seen}
+    return {"tone_ratio": tone_ratio, "toning": toning}
+
+
+def photo_skin(coarse):
+    """The flattened photo's skin on the front grid as CIELAB (sRGB) and where it is (its share over PAINT_TONE's
+    `share`, skin-coloured)."""
+    lab = rgb2lab(encoded(coarse["cleaned"]))
+    held = (coarse["share"] > PAINT_TONE["share"]) & labels.skin_like(lab.reshape(-1, 3)).reshape(lab.shape[:2])
+    if held.sum() < 100:
+        raise ValueError("the photo's face shows too little skin to tone the paint by")
+    return lab, held
+
+
+def broad_and_spread(lab, held, sigma):
+    """A CIELAB picture's skin (`held`) statistics: its broad colour (over `sigma` pixels, normalised over `held`) and
+    the broad mean, the broad spread and the detail's spread over `held`, per channel."""
+    broad = smoothed_over(lab, held.astype(np.float64), sigma)
+    return broad, broad[held].mean(axis=0), broad[held].std(axis=0), (lab - broad)[held].std(axis=0)
+
+
+def texture_mask(corner_uv, chosen, shape):
+    """The texels (rows top down) of `chosen` triangles' UVs (glTF's: v up)."""
+    picture = Image.new("L", (shape[1], shape[0]), 0)
+    draw = ImageDraw.Draw(picture)
+    corners = corner_uv[chosen] * [shape[1] - 1, -(shape[0] - 1)] + [0.0, shape[0] - 1]
+    for trio in corners:
+        draw.polygon([tuple(point) for point in trio], fill=255)
+    return np.asarray(picture) > 0
+
+
+def texels_per_m(points, triangles, corner_uv, chosen, shape):
+    """The texture's texels a metre on `chosen` triangles (their UV area over their area)."""
+    corners = points[triangles[chosen]]
+    area = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1).sum()
+    flat = corner_uv[chosen] * [shape[1], shape[0]]
+    first, second = flat[:, 1] - flat[:, 0], flat[:, 2] - flat[:, 0]
+    uv_area = np.abs(first[:, 0] * second[:, 1] - first[:, 1] * second[:, 0]).sum()
+    return float(np.sqrt(uv_area / max(area, 1e-12)))
+
+
+def paint_toned(texture, mask, per_m, photo_lab, photo_held):
+    """The model's texture (sRGB 0 to 1) with its skin texels (`mask`) given the photo skin's colour statistics
+    (PAINT_TONE): broad colour and spread, then detail, per CIELAB channel, read on the mask and laid on it grown by
+    `grow_px` (the texture's filtering reads past a UV island's edge); with the per channel scales used."""
+    lab = rgb2lab(texture)
+    broad, mean, spread, fine = broad_and_spread(lab, mask, PAINT_TONE["broad_m"] * per_m)
+    _, photo_mean, photo_spread, photo_fine = broad_and_spread(photo_lab, photo_held, PAINT_TONE["broad_m"] / STEP_M)
+    broad_scale = np.clip(photo_spread / np.maximum(spread, 1e-6), 0.0, 1.0)
+    detail_scale = np.clip(photo_fine / np.maximum(fine, 1e-6), *PAINT_TONE["detail"])
+    toned = photo_mean + (broad - mean) * broad_scale + (lab - broad) * detail_scale
+    grown = ndimage.binary_dilation(mask, iterations=PAINT_TONE["grow_px"])
+    result = texture.copy()
+    result[grown] = np.clip(lab2rgb(toned[grown]), 0.0, 1.0)
+    return result, {"paint_lab": mean.round(1).tolist(), "photo_lab": photo_mean.round(1).tolist(),
+                    "broad_scale": broad_scale.round(3).tolist(), "detail_scale": detail_scale.round(3).tolist()}
 
 
 def face_texture(grid, warp, photo, coarse, out):
@@ -535,10 +614,10 @@ def corner_split(points, triangles, corner_uv):
     return points[triangles].reshape(-1, 3), np.arange(3 * count).reshape(count, 3), corner_uv.reshape(-1, 2)
 
 
-def repainted(painted, texture, photo, model_pupils, floor, out, raw=None):
-    """The whole step for one head (`painted` its (points in metres, triangles, uv); `model_pupils` its painted pupils'
-    (x, y), `floor` the painted eye's floor points, none when its lids are laid on the photo's): registered and
-    face.png written under `out`; (the front grid, its coarse maps, the nose tip, the stats). Registered on the `raw`
+def repainted(painted, texture, photo, model_pupils, floor, raw=None):
+    """The photo registered on one head (`painted` its (points in metres, triangles, uv); `model_pupils` its painted
+    pupils' (x, y), `floor` the painted eye's floor points, none when its lids are laid on the photo's): (the front
+    grid, its coarse maps, the nose tip, the stats, the warp). Registered on the `raw`
     paint where given (`colour.py`'s toning moves the face's clusters apart and the detail match lost its patches,
     round 1, 2026-11-26: correlation 0.25 to 0.16); toned towards `texture`."""
     view = eyes.front_view(*painted, texture)
@@ -556,22 +635,30 @@ def repainted(painted, texture, photo, model_pupils, floor, out, raw=None):
     stats.update({"photo_pupils_px": photo_pupils.round(1).tolist(),
                   "photo_px_per_m": round(float(np.sqrt(abs(np.linalg.det(warp["matrix"][:, :2])))), 1),
                   "close_photo_px": [round(float(column[0, 0]), 1), round(float(row[0, 0]), 1)]})
-    coarse = coarse_maps(grid, warp, photo)
-    out.mkdir(parents=True, exist_ok=True)
-    face_texture(grid, warp, photo, coarse, out / "face.png")
-    return grid, coarse, tip, stats
+    return grid, coarse_maps(grid, warp, photo), tip, stats, warp
 
 
 def repainted_written(mesh, painted, texture, photo, model_pupils, floor, out, scale, raw=None):
     """`repainted`, then which of `mesh`'s triangles (its (points in metres, triangles), one for one with `painted`'s)
-    are skin and skin.npz, stats.json and check.png written (the model's units, `scale` its to metres); its stats."""
-    grid, coarse, tip, stats = repainted(painted, texture, photo, model_pupils, floor, out, raw)
+    are skin, the paint on them toned to the photo's skin (`paint_toned`) and face.png (faded into that paint),
+    paint.png (the toned texture, sRGB), skin.npz, stats.json and check.png written under `out` (the model's units,
+    `scale` its to metres); (its stats, the toned texture)."""
+    grid, coarse, tip, stats, warp = repainted(painted, texture, photo, model_pupils, floor, raw)
     points, triangles = mesh
     likeness = labels.skin_like(labels.face_colours(painted[1], painted[2], texture * 255.0)).astype(np.float64)
     skin = skin_triangles(points, triangles, likeness, point_shares(grid, coarse, points))
     stats["skin_triangles"] = int(skin.sum())
+    corner_uv = painted[2][painted[1]]
+    mask = texture_mask(corner_uv, skin, texture.shape)
+    toned, stats["paint_toned"] = paint_toned(texture, mask, texels_per_m(painted[0], painted[1], corner_uv, skin,
+                                                                          texture.shape), *photo_skin(coarse))
+    grid["colour"] = eyes.painted(toned, grid["texel"])
+    coarse.update(fade_toning(grid, coarse))
+    out.mkdir(parents=True, exist_ok=True)
+    face_texture(grid, warp, photo, coarse, out / "face.png")
+    Image.fromarray(np.round(toned * 255.0).astype(np.uint8)).save(out / "paint.png")
     written(out, scale, grid, coarse, points, triangles, tip, stats, skin)
-    return stats
+    return stats, toned
 
 
 def arguments():
@@ -594,8 +681,8 @@ def main():
     floor = np.concatenate([found["moved_from"], found["removed"]]) * scale
     view = eyes.front_view(points, triangles, uv, texture)
     model_pupils = eyes.pupils(view, eyes.nose_tip(view))
-    stats = repainted_written((points, triangles), (points, triangles, uv), texture, photo, model_pupils, floor,
-                              options.out, scale)
+    stats, _ = repainted_written((points, triangles), (points, triangles, uv), texture, photo, model_pupils, floor,
+                                 options.out, scale)
     print(f"skin: {options.out}/face.png, {stats['points_with_photo']} of {stats['points']} points wear the photo, "
           f"detail correlation {stats['detail_correlation_before']} -> {stats['detail_correlation_after']}, "
           f"shading {stats['shading_range']}")

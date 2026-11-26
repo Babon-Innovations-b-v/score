@@ -131,7 +131,8 @@ def textured(tree, image, uv_name, colour_space):
 
 
 def skin_material(head, library, folder, space):
-    """The library skin with the face texture mixed into the model's paint (its dark baked shading lifted by
+    """The library skin with the face texture mixed into the model's paint (the skin step's paint.png where it wrote
+    one: its skin toned to the photo's; its dark baked shading lifted by
     `paint_gain`) as its base colour, by the texture's alpha (the photo's share) where the point is the front the photo
     saw (`photo_front`), on the skin's faces; the light under the surface down to UNDER_DARK of the library's where
     the paint the photo does not cover was dark (`thin_dark`); the rest (hair, clothes) keeps the glTF's own
@@ -147,7 +148,8 @@ def skin_material(head, library, folder, space):
     blender_face.light_through(material, record["subsurface"])
     blender_face.coated(material, record["coat"])
     own_uv = head.data.uv_layers[0].name
-    own = textured(tree, own_image(head), own_uv, "sRGB")
+    toned = pathlib.Path(folder) / "paint.png"
+    own = textured(tree, bpy.data.images.load(str(toned)) if toned.exists() else own_image(head), own_uv, "sRGB")
     image = bpy.data.images.load(str(pathlib.Path(folder) / "face.png"))
     image.alpha_mode = "CHANNEL_PACKED"
     photo = textured(tree, image, FACE_UV, "sRGB")

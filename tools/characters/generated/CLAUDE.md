@@ -108,8 +108,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   long as the photo's dark pixels over the upper margin say (`lids.lash_share`). Registered on the raw paint (the
   toning moves the face's clusters apart). Where the photo does not reach, the paint's dark baked shading is lifted
   and its light under the surface lowered (`skin.paint_shade`): TRELLIS.2's dark socket and nose paint goes orange
-  under the random-walk skin. Run: `python -m tools.characters.generated.head <model.glb> <cut-out.png> <close-up>
-  <marks.json> <out> --height <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
+  under the random-walk skin. Round 2 (2026-11-26): the skin's paint is first given the photo skin's colour
+  statistics in CIELAB (`skin.paint_toned`, written as skin/paint.png and worn by head.glb), the photo covers slopes
+  down to a tenth facing forward (`skin.FACING`) and a steep point counts as the front (`skin.visible`), and a layer
+  hidden under the lid is never pulled through it by the lid's move (`lids.layers_kept`: the hollow sheet's inner
+  wall came through as black flecks at the outer corners). Lashes shorten by the photo's lash share itself.
+  Run: `python -m tools.characters.generated.head <model.glb> <cut-out.png> <close-up> <marks.json> <out> --height
+  <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
   <out>/eyes/eyes.npz <library> <height> <samples> <renders> <out>` (CPU; before is the raw model), then `python -m
   tools.characters.generated.skin_sheet <name> <renders> <photo> <out>/skin/stats.json <sheet.jpg>`.
 - **Colour** (`colour.py`, before every other step): TRELLIS.2's paint drifts from its photo on glossy and dark

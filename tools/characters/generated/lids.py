@@ -85,6 +85,11 @@ HOLD_OUT_M = 0.012  # and fades out over this far past the ball's silhouette (fa
 # 6 to 8 mm in front of the ball, a cliff and a dark pit between, 2026-11-26)
 BALL_EDGE = 0.95  # off the eye (and past this share of its radius) the lid follows the ball's depth here
 LIFT_LIMIT_M = 0.009  # a lid is never moved further than this in depth
+# A layer hidden under the face (the hollow sheet's inner wall, more than `hidden_m` behind the front-most point within
+# a `cell_m` cell) is never moved forward more than the face over it, so it stays `hidden_m` behind (round 1,
+# 2026-11-26: pulled onto the same lid depth, or forward under a sunk floor, it came through the lid as black specks
+# and flecks at the eye's outer corners, 5,000 back-facing 0.1 mm pixels round each eye)
+LAYERS = {"cell_m": 0.0005, "hidden_m": 0.001}
 UPPER_LASHES = 130
 LOWER_LASHES = 45
 LASH_ROOT_M = (0.0002, 0.0007)  # lashes root this far out from the margin (two or three rows)
@@ -97,8 +102,9 @@ LASH_READ_STEPS = 4  # a lash root off the head's front is read up to this many 
 # millimetre to each side (an older woman's outer corner runs out in a crack along the lash's ray, round 1, 2026-11-26)
 # How many lashes the photo shows: the share of its pixels over each upper margin (each `bands_mm` band over it, the
 # iris marks.py's measure for the millimetre, IRIS_DIAMETER_M) darker than `dark` of the band's `light` percentile;
-# over `full` the face module's full lashes, under it fewer (by the share squared) and shorter (by its root), never
-# under `least` (round 1, 2026-11-26: a man's and an older woman's lashes stood as thick as a made-up woman's).
+# over `full` the face module's full lashes, under it fewer (by the share squared) and shorter (by the share), never
+# under `least` (round 1, 2026-11-26: a man's and an older woman's lashes stood as thick as a made-up woman's; round 2:
+# shorter by its root, a man's still read long).
 LASH_PHOTO = {"bands_mm": ((0.8, 2.5), (1.2, 3.0), (0.5, 2.0)), "along": (0.2, 0.95), "dark": 0.6, "light": 80,
               "full": 0.45, "least": 0.35}
 BROW_BAND_GROW = 0.35  # the photo's brow band (between its marks) widened by this share of its height each way
@@ -363,6 +369,29 @@ def depth_falls(centre, radius, was_depth, wanted_edge, eye):
     return np.clip(DEPTH_SLOPE * (was_depth - surface - LID_M), DEPTH_FALL_M, DEPTH_FALL_MAX_M)
 
 
+def layers_kept(was, moved, free):
+    """`moved`'s depths with every hidden point (more than LAYERS' `hidden_m` behind the front-most of `was` within its
+    cell and the cells round it) among `free` brought no further forward than the front's own move over it (the mean
+    depth change of the front's points in its cell, the nearest cell's where none lies in it)."""
+    cell = LAYERS["cell_m"]
+    corner = was[:, :2].min(axis=0)
+    index = np.floor((was[:, :2] - corner) / cell).astype(int)
+    shape = tuple(index.max(axis=0) + 1)
+    front = np.full(shape, -np.inf)
+    np.maximum.at(front, (index[:, 0], index[:, 1]), was[:, 2])
+    front = ndimage.maximum_filter(front, size=3, mode="nearest")
+    hidden = free & (was[:, 2] < front[index[:, 0], index[:, 1]] - LAYERS["hidden_m"])
+    shown = ~hidden
+    total, count = np.zeros(shape), np.zeros(shape)
+    np.add.at(total, (index[shown, 0], index[shown, 1]), moved[shown, 2] - was[shown, 2])
+    np.add.at(count, (index[shown, 0], index[shown, 1]), 1.0)
+    nearest = ndimage.distance_transform_edt(count == 0, return_distances=False, return_indices=True)
+    change = (total / np.maximum(count, 1.0))[nearest[0], nearest[1]]
+    result = moved[:, 2].copy()
+    result[hidden] = np.minimum(result[hidden], was[hidden, 2] + change[index[hidden, 0], index[hidden, 1]])
+    return result
+
+
 def reshaped(points, floor, centres, radius, outlines, eye_views):
     """The points round each eye moved so its opening is the photo's and its lids are thin (the module's step 3).
     `floor` marks the painted floor `eyes.py` pushed back; it and the socket deeper than LID_EDGE_M behind the old
@@ -394,6 +423,7 @@ def reshaped(points, floor, centres, radius, outlines, eye_views):
         sunk = np.where(np.isfinite(eyes.depth_at(eye, across[:, 0], across[:, 1])),
                         np.minimum(points[rows, 2], ball - 2.0 * eyes.BURIED_M), points[rows, 2])
         moved[rows, 2] = np.where(own_floor, sunk, depth)
+        moved[rows, 2] = layers_kept(points[rows], moved[rows], ~own_floor & ~wall)
     return moved
 
 
@@ -481,7 +511,7 @@ def lid_lashes(head, centre, edge, span, upper, count, rng, share=1.0):
                          f"{np.round(degrees[~np.isfinite(roots[:, 2])], 1).tolist()} degrees")
     corner = np.clip(np.abs(np.cos(angle)) * 1.15 - 0.15, 0.0, 1.0)
     length = (rng.uniform(*face.LASH_LENGTH[side], count) * (1.0 - face.LASH_CORNER * corner ** 2)
-              * np.sqrt(share))
+              * share)
     curl = face.LASH_CURL[side] * rng.uniform(0.8, 1.2, count)
     tilt = np.radians(LASH_OUT_DEGREES[side] + rng.normal(0.0, LASH_SPREAD_DEGREES, count))
     forward = np.cos(tilt)[:, None] * np.array([0.0, 0.0, 1.0]) + np.sin(tilt)[:, None] * radial

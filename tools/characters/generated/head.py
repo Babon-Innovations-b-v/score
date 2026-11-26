@@ -11,15 +11,16 @@
    the photo's own brows come with the skin (round 1, 2026-11-26: regrown strands over the leftover painted blocks
    read as smudges).
 4. **Skin** (`skin.py`) on the lids' mended mesh: the photo reaches the lid margins (the lids lie on the photo's, so
-   no clearance from the eye's floor), its brows painted on, the model's own dark baked shading lifted where the
-   photo does not reach (`skin.paint_shade`); registered on the raw paint (the toning moves the face's clusters
-   apart), its fade toned to the toned paint.
+   no clearance from the eye's floor), its brows painted on, the model's own paint on the skin given the photo
+   skin's colour (`skin.paint_toned`) and its dark baked shading lifted where the photo does not reach
+   (`skin.paint_shade`); registered on the raw paint (the toning moves the face's clusters apart), its fade toned to
+   that paint.
 5. The hair (later) and the swap onto the body (`head_swap.py`) follow.
 
 Writes <out>/colour.glb and colour.json (not with --keep-paint), <out>/eyes/, <out>/lids/ and <out>/skin/ (each
 step's own files), <out>/iris.png (the photo's iris on the eyeball's UV, sRGB), <out>/head.glb (the model's own
-units and frame: the mended head in its toned paint, the eyeballs wearing iris.png, the cornea's clear shell) and
-stats.json; prints one line.
+units and frame: the mended head in its paint, its skin toned to the photo's, the eyeballs wearing iris.png, the
+cornea's clear shell) and stats.json; prints one line.
 The face texture (skin/face.png on its planar UV), the library skin and the lashes are laid by `blender_head.py`.
 """
 import argparse
@@ -100,9 +101,9 @@ def made(model, cutout, photo_path, marks_path, out, height, toning=True):
     painted = skin.corner_split(*mesh, lid_result["uv"])
     pupils_at = np.array(eye_result["stats"]["pupils_m"])
     _, _, _, raw = eyes.loaded(model)
-    skin_stats = skin.repainted_written(mesh, painted, texture, photo, pupils_at, np.zeros((0, 3)), out / "skin", scale,
-                                        raw)
-    head_scene((lid_result["points"] / scale, lid_result["triangles"], lid_result["uv"]), texture, eyes_npz,
+    skin_stats, toned = skin.repainted_written(mesh, painted, texture, photo, pupils_at, np.zeros((0, 3)),
+                                               out / "skin", scale, raw)
+    head_scene((lid_result["points"] / scale, lid_result["triangles"], lid_result["uv"]), toned, eyes_npz,
                iris).export(out / "head.glb")
     return {"eyes": eye_result["stats"], "iris": iris_stats, "lids": lid_result["stats"], "skin": skin_stats}
 

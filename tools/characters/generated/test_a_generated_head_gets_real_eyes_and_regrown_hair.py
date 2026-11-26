@@ -69,6 +69,12 @@ red (each applied once, seen red, reverted): MediaPipe's iris circle taken as it
 read at 0.26); no reflection taken off and no detail clipped (`eyes.IRIS_PICTURE` catchlight 100, detail (0, 10):
 the reflection ten times the iris); every photo full of lashes (`lids.LASH_PHOTO` full 0.01); no lift
 (`skin.PAINT_SHADE` gain 1); the photo's share ignored (`skin.skin_triangles` with no shares: the brow left).
+Round 2 (2026-11-26): a point on a steep side is on the front (`skin.visible`); the paint on the skin is given the
+photo skin's mean and spread, the hair left (`skin.paint_toned`); a hidden layer stays behind the face the lid's
+move pulls forward (`lids.layers_kept`). Breaks that turn their rows red (each applied once, seen red, reverted):
+no slope allowance (`skin.VISIBLE_SLOPE` 0: the steep point is paint); no broad scale (`paint_toned`'s
+`broad_scale` 1: the rust patch and shade band keep their spread); the mask ignored (every texel toned: the hair
+too); nothing hidden (`lids.LAYERS` hidden_m 1: the hidden layer pulled onto the face).
 
 The cloth (`cloth.py`), on toys: a grid painted jacket over jeans with a fleck of T-shirt and stray jeans faces in the
 jacket comes out clean after the vote and the islands; a tube's distance over its surface from its top loop is its
@@ -567,7 +573,7 @@ def skin_light_off():
 def skin_shares():
     """A point wears the photo only facing forward, on the front, inside the photo's face and clear of the eye."""
     grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
-    grid["facing"][:, :40] = 0.15  # the left side turned away
+    grid["facing"][:, :40] = 0.05  # the left side turned away
     mask = np.ones(grid["depth"].shape)
     mask[:40, :] = 0.0  # the bottom outside the photo's face
     turn = np.linspace(0, 2 * np.pi, 200)
@@ -636,6 +642,57 @@ def paint_lifted():
     plain = skin.linear(grid["colour"][middle + 40, 50])
     return [bool(np.abs(lifted / plain - 1.0).max() < 0.15), bool(np.allclose(gain[middle + 40, 50], 1.0)),
             bool(dark[middle, 190] == 0.0)]
+
+
+def steep_point_seen():
+    """A point on a steep side (facing 0.3, its depth read 2 mm off by the front's pixels) is on the front; one 5 mm
+    behind it is not."""
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
+    grid["facing"][:] = 0.3
+    points = np.array([[0.0, 0.0, 0.102], [0.0, 0.0, 0.095]])
+    return skin.visible(grid, points).tolist()
+
+
+def paint_toned():
+    """The model's warm, dark skin paint (its broad tone a shade band and a rust patch) given the photo skin's colour
+    statistics: its mean within a Lab unit of the photo's, its broad spread no wider than the photo's, its hair (not
+    skin) untouched."""
+    rows, cols = np.mgrid[:200, :200]
+    texture = np.ones((200, 200, 3)) * np.array([0.55, 0.33, 0.22])
+    texture[60:80] *= 0.6  # a baked shade band
+    texture[120:160, 20:80] = (0.62, 0.3, 0.12)  # a rust patch
+    texture[:, 180:] = (0.1, 0.08, 0.07)  # hair
+    mask = cols < 170
+    photo = np.ones((150, 150, 3)) * np.array([0.82, 0.62, 0.54])
+    photo *= (1.0 + 0.03 * np.sin(np.arange(150) / 7.0))[:, None, None]
+    photo_lab = skin.rgb2lab(photo)
+    held = np.ones((150, 150), bool)
+    toned, _ = skin.paint_toned(texture, mask, 2000.0, photo_lab, held)
+    lab = skin.rgb2lab(toned)
+    inner = (cols < 160) & (cols > 10)
+    broad = skin.smoothed_over(lab, inner.astype(float), skin.PAINT_TONE["broad_m"] * 2000.0)
+    photo_broad = skin.smoothed_over(photo_lab, held.astype(float), skin.PAINT_TONE["broad_m"] / skin.STEP_M)
+    return [bool(np.abs(lab[inner].mean(axis=0) - photo_lab.mean(axis=(0, 1))).max() < 1.5),
+            bool((broad[inner].std(axis=0) <= photo_broad.std(axis=(0, 1)) + 0.5).all()),
+            bool(np.array_equal(toned[:, 180:], texture[:, 180:]))]
+
+
+def layers_kept():
+    """A hidden layer 3 mm behind the face, both pulled 5 mm forward onto one depth by the lid's move: the hidden layer
+    stays at least LAYERS' `hidden_m` behind the face, the face moves as it was moved, a layer not free is left."""
+    grid_x, grid_y = np.meshgrid(np.linspace(-0.005, 0.005, 21), np.linspace(-0.005, 0.005, 21))
+    face = np.column_stack([grid_x.ravel(), grid_y.ravel(), np.zeros(grid_x.size)])
+    hidden = face - [0.0, 0.0, 0.003]
+    was = np.vstack([face, hidden])
+    moved = was.copy()
+    moved[:, 2] = 0.005
+    free = np.ones(len(was), bool)
+    kept = lids.layers_kept(was, moved, free)
+    free[len(face):] = False
+    left = lids.layers_kept(was, moved, free)
+    count = len(face)
+    return [bool((kept[:count] - kept[count:]).min() >= lids.LAYERS["hidden_m"] - 1e-9),
+            bool(np.allclose(kept[:count], 0.005)), bool(np.allclose(left[count:], 0.005))]
 
 
 def skin_wears_photo():
@@ -1067,6 +1124,10 @@ def colour_toned():
      paint_lifted, [True, True, True]),
     ("a painted brow wearing the photo is skin, one not wearing it keeps its own material", skin_wears_photo,
      [True, True]),
+    ("a point on a steep side is on the front, one behind it is not", steep_point_seen, [True, False]),
+    ("the paint on the skin gets the photo skin's colour and spread, the hair keeps its paint", paint_toned,
+     [True, True, True]),
+    ("a hidden layer never comes through the lid the move pulls forward", layers_kept, [True, True, True]),
     ("the lids' triangles split in four and closed round them with no crack", split_closed, [True, True, True]),
     ("the photo's opening is read round each eye and held inside the ball", photo_opening, [True] * 4),
     ("the lids moved onto the photo's opening, thin over the eye and never inside it", lids_reshaped,
