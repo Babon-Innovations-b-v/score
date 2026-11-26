@@ -565,7 +565,14 @@ what proves it.
   seen (or heard) the layer.
 - **The people line** (`score/stages/people`, `tools/characters/maker`): Pixal3D bodies rigged with SOMA-X and Kimodo's
   clips. Proven when its looks pass every body gate on every clip and the owner picks them.
-- **The face** (`tools/characters/face`, PRD #223, #226): ICT-FaceKit's face (MIT) fitted onto a SOMA body's head and
+- **The generated person** (PRD #223, owner 2026-11-26; CONTEXT.md): a whole clothed person from one photo by TRELLIS.2 on a
+  cluster card (`score/stages/place_build/maker/cloud.py`, the #128 still route), its head made again from a head close-up
+  of the same person, its hair split off and regrown as strands, the face refined; clothes and shoes kept as generated.
+  It replaces the built-up route (SOMA body, GarmentCode drapes, the fitted face, combed hair) as the base for every
+  person: three test people in modern clothes read as real from every side while the built-up ones never did. Proven
+  when a split, rigged generated person passes as a photograph from four sides standing and walking and the owner
+  picks it.
+- **The face** (`tools/characters/face`, PRD #223, #226; built-up route, replaced as the base by the generated person): ICT-FaceKit's face (MIT) fitted onto a SOMA body's head and
   joined into its skin, with eyes, teeth and lashes, MHR's 72 expressions its controls, its finishes score_lib's.
   Proven when a person's face reaches the people line's bodies and the owner picks its stills.
 - **The animal route** (`tools/characters/animals/`, `make.py --experimental`; no animal rows since #128). Proven when an
