@@ -4,6 +4,13 @@ The placing agent's tool (#128, owner 2026-11-16): a place laid by hand from sco
 its render reads as its locked concept (same room, layout, main objects, mood). The agent (a vision model) drives it
 one command at a time and reads `compare.png` and the measures to choose the next correction; nothing here judges.
 
+- **A place is done only through the full route** (2099 ADR-0008, owner 2026-11-26: "u fill them with quick made
+  garbage and throw out the entire openusd scene, concept, the full score framework"). Before laying, read the concept
+  into a full scene inventory, down to the small things. Then per row: a library entry on a strict fit, else a
+  TRELLIS.2 model from its close-up (`make`); a library surface on every finish, never one flat paint. Then lay by the
+  plan and run the checks. A place short of that is reported as not done, with what it lacks, and is never pinned.
+  The kits below (`cockpit_kit`, `launch_kit`) are not a place's content: a row they cover is remade by the route.
+  No stand-ins in a taken-in version. Where a place's people stand, face and walk is part of the scene, not the game's.
 - **A concept's cut is the camera's, never the building's** (owner and the 2099 session, 2026-11-19). Every inside
   place is built closed: walls, roof, floor, and a door shut in each doorway (glass and windows in their openings).
   A concept drawn as a cut-away or section (a front wall missing, a roof lifted off) is a camera's look: build the
