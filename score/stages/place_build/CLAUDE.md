@@ -229,6 +229,20 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `cover` is a real bay cover (a pressed bead, a knuckled piano hinge, two quarter-turn fasteners, a riveted data plate
   of engraved lines, no word), and the lining's joints are left to the panels' own roll (a `seam` look darker than the
   wall drew them as broken floating bars on the lining's cells).
+- **The cabin shell** (`kit`, batch only; cabin_shell.py, laid as `algorithm/cabin_shell`; 2099 #246, the owner: a
+  real Apollo/Soyuz-like cabin, flat Beta-cloth panels, no quilted padding; ADR-0008: a structure row laid by its
+  inventory row, never a kit stand-in): the cabin's structure inside the capsule's cone (cockpit_kit.Cone).
+  `cabin_wall` (rows wall lining panels, lining panel frames, wall ribs): a flat panel between each two `joints` (from
+  16 degrees, 24 apart, so each porthole sits in one panel's middle) and each two course lines (COURSES, then the
+  shoulder's straight chamfer in INSET to the ceiling ring), each a flat slab inscribed in the cone (on a cone its four
+  corners lie in one plane) SEAM short of its joints, a recessed frame channel under every joint, a riveted T-section
+  rib over each upright joint of the wall courses, round-headed fasteners along every panel edge; holes, `fades`, the
+  cut-away's `plug`, `sector` and `rise` as the cockpit lining's. `cabin_floor` (rows floor, floor plate seams): a
+  deck of removable walkway plates (four in the middle disc, `plates` round it) whose open seams show the joists under
+  them, countersunk fasteners at their corners, and the bay's bulkhead at the hull's foot, the bay between clear for
+  the underfloor rows. `cabin_ceiling` (row ceiling lining): a flat middle panel and a ring of flat panels over a
+  backing plate. Parts panel, back, frame, rib, fastener; deck, joist, fastener, bay; each takes its library surface
+  per part. Nothing in it shares a face with another part (a fastener's foot sinks SEAT into its seat).
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its

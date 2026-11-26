@@ -37,9 +37,10 @@ stronger than anything inside it, so a model's own baked colour never shows; its
     blocks(folder, name, boxes, at, turn, ground)      solid chamfered boxes (dome_shell.blocks_file) as one object: a
                                                        road and kerbed pavements (ground) or a building (structure)
     kit(folder, name, piece, sizes, at, turn, role, support, looks, ground)
-                                                       a cockpit piece built in code (cockpit_kit.py: a quilted
-                                                       lining, a panel and its hardware, a seat) as one object, each
-                                                       part in its look
+                                                       a piece built in code (cockpit_kit.py: a panel and its
+                                                       hardware, a seat; cabin_shell.py: a capsule's flat-panelled
+                                                       wall, its deck over the underfloor bay, its ceiling) as one
+                                                       object, each part in its look
     pipe(folder, name, spec, at, turn, role, support, looks, ground)
                                                        a long thin run (pipe_run.py: a pipe, conduit, cable bundle,
                                                        hose, cord, strap, rib, tray or railing) along its path with
@@ -122,6 +123,7 @@ DOME = "algorithm/dome_shell"  # the dome shell algorithm's library address (its
 STAIRS = "algorithm/stair_core"  # the stair core algorithm's (stair_core.py)
 KIT = "algorithm/place_build"  # the cockpit kit's (cockpit_kit.py, part of the placing tool's own algorithm entry)
 PIPE = "algorithm/pipe_run"  # the pipe run algorithm's (pipe_run.py): pipes, cables, hoses, straps, ribs, railings
+CABIN = "algorithm/cabin_shell"  # the cabin shell algorithm's (cabin_shell.py: a capsule's flat-panelled wall, deck, ceiling)
 
 
 class Refused(ValueError):
@@ -1335,7 +1337,8 @@ def blocks(folder, name, boxes, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), ground
 def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0), role="mount", support=None,
         looks=None, ground=False):
     """A piece built in code at its real size (cockpit_kit.py: the capsule's hull and quilted lining, an instrument
-    panel, a toggle, a seat; launch_kit.py: a ship, a launch ring, a tower's bracing, a far city's tower) laid as
+    panel, a toggle, a seat; cabin_shell.py, laid as algorithm/cabin_shell: the cabin's flat-panelled wall, its deck
+    over the underfloor bay and its ceiling; launch_kit.py: a ship, a launch ring, a tower's bracing, a far city's tower) laid as
     Objects/<name> of `role` (BLOCK_ROLES; a mount with its `support`, wall:<object>) or, with `ground`, as the
     place's walked ground (the cabin's floor, the gantry), its file written once under the place's assets for its
     kind and `sizes`; each of its parts then wears its look from `looks` ({part: surface address,
@@ -1345,22 +1348,24 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     if role not in BLOCK_ROLES and not ground:
         raise Refused(f"a kit piece is a {', '.join(BLOCK_ROLES)}, not {role}")
     import hashlib
-    from score.stages.place_build import cockpit_kit, launch_kit
-    kinds = {**cockpit_kit.KINDS, **launch_kit.KINDS}
+    from score.stages.place_build import cabin_shell, cockpit_kit, launch_kit
+    kinds = {**cockpit_kit.KINDS, **launch_kit.KINDS, **cabin_shell.KINDS}
     if piece not in kinds:
         raise Refused(f"no kit piece {piece!r} (pieces are {', '.join(sorted(kinds))})")
     sizes = dict(sizes or {})
-    maker = launch_kit if piece in launch_kit.KINDS else cockpit_kit
+    maker = (launch_kit if piece in launch_kit.KINDS else cabin_shell if piece in cabin_shell.KINDS
+             else cockpit_kit)
+    address = CABIN if maker is cabin_shell else KIT
     # The file's name holds the kit's own code too, so a changed kit writes its piece again rather than the place
     # keeping the file an older kit wrote for the same sizes (2099 #161: the coast houses' roofs never landed).
     code = hashlib.sha256(pathlib.Path(maker.__file__).read_bytes()).hexdigest()
     key = hashlib.sha256(json.dumps([piece, sizes, code], sort_keys=True).encode()).hexdigest()[:16]
-    target = pathlib.Path(folder) / "assets" / "algorithm" / KIT.split("/", 1)[1] / f"{piece}_{key}.usda"
+    target = pathlib.Path(folder) / "assets" / "algorithm" / address.split("/", 1)[1] / f"{piece}_{key}.usda"
     target.parent.mkdir(parents=True, exist_ok=True)
     writer = maker.write
     parts = writer(target, piece, sizes) if not target.exists() else None
     stage, place = opened(folder)
-    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, KIT, "algorithm",
+    relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, address, "algorithm",
                               (at, turn, (1.0, 1.0, 1.0)), bool(ground))
     prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
     marked(prim, None if ground else role, None if ground else support)
@@ -1379,7 +1384,7 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
                                  if spot.get("of") != name},
                               **{f"{name}_{key}": {**spot, "of": name} for key, spot in laid.items()}}
         write_record(folder, record)
-    return {"name": name, "address": KIT, "usd": relative, "piece": piece, "parts": parts,
+    return {"name": name, "address": address, "usd": relative, "piece": piece, "parts": parts,
             **({"doorways": sorted(f"{name}_{key}" for key in laid)} if laid else {})}
 
 

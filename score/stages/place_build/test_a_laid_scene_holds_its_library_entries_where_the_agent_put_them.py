@@ -104,6 +104,14 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - cockpit_kit.wheel: the rim's ends laid on one face again -> the valve handwheel is no closed solid
 - cockpit_kit.vent: a louvre laid as one face, not a slat -> the closed panel's vent grille is no closed solid
 - cockpit_kit.wall_screws: a hole's clearance dropped -> a wall panel's screw stands on the porthole's flange
+- cabin_shell.bar: its frame turned left-handed again -> a frame or rib of the cabin wall faces inward (negative
+  volume)
+- cabin_shell.rivets: a short rib run given two rivets on one spot again -> the wall's welded rivets are no closed
+  solid
+- cabin_shell.flat_panel: a panel's face bowed onto the cone (or puffed) again -> a wall panel's face is not flat
+- cabin_shell.panel_fasteners: the fades left out -> a fastener stands on the porthole's flange
+- cabin_shell.cabin_floor: the deck laid as a solid disc down to the bulkhead again -> the bay under the deck is filled
+- place_build.kit: a cabin shell piece laid under the cockpit kit's address -> the wall is not algorithm/cabin_shell
 - launch_kit.ship: the barrel and the nose turned as two solids (the barrel's top left open) -> the ship's welded
   mesh has an edge used three times (no closed solid)
 - launch_kit.ship: the aft skirt left off -> the ship's lowest points are its engine bells', not the skirt it stands on
@@ -1190,7 +1198,44 @@ def kitted(tmp_path):
             [found[2] + sum(len(earlier[1]) for earlier in built[:number]) for number, found in enumerate(built)]))
         assert all(body.is_watertight for body in trimesh.Trimesh(points, triangles, process=False).split(
             only_watertight=False)), kind
+    cabined(folder)
     launched(folder)
+
+
+def cabined(folder):
+    """The cabin shell (cabin_shell, `kit`): laid as algorithm/cabin_shell, every body of its wall (a porthole and
+    the cut-away through it), deck and ceiling a closed solid facing out; each wall panel's face one flat plane; its
+    fasteners clear of the porthole's flange; the deck's top the floor and the bay under it clear down to its
+    bulkhead."""
+    from score.stages.place_build import cabin_shell, cockpit_kit
+    holes, fades, cut = [[28.0, 1.54, 0.209]], [[28.0, 1.54, 0.244]], [100.0, 20.0, 1.0, 0.9, 4.0]
+    wall = place_build.kit(folder, "lining", "cabin_wall", {"holes": holes, "fades": fades, "cut": cut,
+                                                            "sector": [16.0, 112.0], "rise": [-1.0, 1.8]},
+                           role="structure", looks={part: "palette/hull_paint" for part in
+                                                    ("back", "fastener", "frame", "panel", "rib")})
+    assert wall["address"] == "algorithm/cabin_shell" and wall["parts"] == ["back", "fastener", "frame", "panel",
+                                                                            "rib"], wall
+    built = {kind: cabin_shell.KINDS[kind](**sizes) for kind, sizes in (
+        ("cabin_wall", {"holes": holes, "fades": fades, "cut": cut, "sector": [16.0, 112.0]}),
+        ("cabin_floor", {}), ("cabin_ceiling", {}))}
+    for kind, pieces in built.items():
+        points, triangles = cockpit_kit.welded(np.vstack([found[1] for found in pieces]), np.vstack(
+            [found[2] + sum(len(earlier[1]) for earlier in pieces[:number]) for number, found in enumerate(pieces)]))
+        bodies = trimesh.Trimesh(points, triangles, process=False).split(only_watertight=False)
+        assert all(body.is_watertight and body.volume > 0 for body in bodies), kind
+    cone = cockpit_kit.Cone()
+    corners = cabin_shell.panel_corners(cone, math.radians(16.0), math.radians(40.0), 0.0, 1.8)
+    faces = [found[1] for found in cabin_shell.flat_panel(cone, corners, holes, None, "main") if found[0] == "panel"]
+    _, _, normal = cabin_shell.panel_frame(corners)
+    heights = np.vstack(faces) @ normal
+    assert heights.max() - heights.min() < 1e-9, "a wall panel's face is not flat"
+    heads = np.array([found[1].mean(axis=0) for found in built["cabin_wall"] if found[0] == "fastener"])
+    assert min(cockpit_kit.off_axis(cone, heads, 28.0, 1.54)) > 0.244, "a fastener stands on the porthole's flange"
+    floor = np.vstack([found[1] for found in built["cabin_floor"]])
+    deck = np.vstack([found[1] for found in built["cabin_floor"] if found[0] == "deck"])
+    assert abs(deck[:, 1].max()) < 1e-9
+    below = -cabin_shell.DECK - cabin_shell.JOIST[1]
+    assert not ((floor[:, 1] < below - 1e-9) & (floor[:, 1] > cabin_shell.BAY[1] + 1e-9)).any(), "the bay is filled"
 
 
 def launched(folder):
