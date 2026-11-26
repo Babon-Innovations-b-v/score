@@ -47,7 +47,8 @@ runs them (an outfit file per look in `data/people/outfits/`).
   faults stops the run.
 - **Layers** (an outfit's `layer_m` per garment): sewn a layer at a time, innermost first (`sewn_in_layers`); an
   outer garment is sewn alone on the skin as the cloth under it wears it (`laying.worn_skin`: sewn on the bare skin,
-  man_coat's sleeves crossed themselves at the armpits and no move out cleared his shirt), its box mesh laid that much
+  man_coat's sleeves crossed themselves at the armpits and no move out cleared his shirt; skin facing skin, an arm
+  against the torso, lifted only half the room between them, so the two meet rather than stand in each other), its box mesh laid that much
   further off, then laid outside the cloth sewn under it, so a shirt and the coat over it start apart and meet by
   contact as they are sewn (laid all at once, a jacket's hem lay inside the
   trousers' waistband box and the two tangled as the waistband was carried in). A garment over another's neckline

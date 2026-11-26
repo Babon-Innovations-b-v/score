@@ -40,6 +40,7 @@ LEG_LEVELS = 9  # levels of a leg's lower half its move across is read at
 RING_WAYS = 360  # level ways out from a waistband's middle the skin's ring round her is read along
 CROTCH_GAP_M = 0.01  # a leg moved in towards the crotch's middle keeps its points this far off it (the legs apart)
 UNDER_FOOT_M = 0.03  # sewn cloth whose nearest skin lies this near a point's is the cloth over (or under) it
+FACING_DEGREES = 45.0  # off a skin point's normal, the skin ahead of it that faces it is looked for
 
 
 def winding(points, skin, faces):
@@ -201,7 +202,8 @@ def skin_normals(skin, faces):
 def worn_skin(skin, faces, under, clear):
     """The skin as the cloth sewn on it wears it (`under`: that cloth's points): each skin point moved out along its
     normal to `clear` (m) past the furthest cloth whose nearest skin lies within UNDER_FOOT_M of it (each cloth point's
-    height read along its nearest skin point's normal), a skin point with no cloth over it left. An outer layer is sewn
+    height read along its nearest skin point's normal), but no further than half its `room_ahead`, a skin point with no
+    cloth over it left. An outer layer is sewn
     alone on this skin (drape.sewn_in_layers), so it is sewn outside the cloth under it: sewn alone on the bare skin,
     a coat's sleeve backs crossed themselves where the arm meets the torso (a box mesh closes with no self contact), the
     shirt's under them crossed too, and moved out along the skin's normals from there (the arm's pointing into the
@@ -215,7 +217,29 @@ def worn_skin(skin, faces, under, clear):
     for index, near in enumerate(cKDTree(skin[nearest]).query_ball_point(skin, UNDER_FOOT_M)):
         if near:
             lift[index] = max(height[near].max() + clear, 0.0)
+    lift = np.minimum(lift, room_ahead(skin, normals, 2.0 * lift) / 2.0)
     return skin + normals * lift[:, None]
+
+
+def room_ahead(skin, normals, reach):
+    """Each skin point's room along its normal (m): how far ahead of it the nearest skin facing it stands (a point
+    within FACING_DEGREES of its normal whose own normal turns back towards it), looked for out to `reach` (m, one a
+    point), infinite where none is. `worn_skin` lifts a point at most half its room, so skin that faces skin (an arm
+    hanging against the torso, the thighs) meets in the middle rather than lifting each side through the other:
+    lifted in full, man_coat's arm and torso stood inside each other's lifted skin under his shirt, and a coat point
+    laid out of one into the other could not leave the two (3 left inside, 2026-11-26)."""
+    room = np.full(len(skin), np.inf)
+    ahead = np.flatnonzero(np.asarray(reach) > 0.0)
+    slope = np.tan(np.radians(FACING_DEGREES))
+    for index, near in zip(ahead, cKDTree(skin).query_ball_point(skin[ahead], np.asarray(reach)[ahead])):
+        near = np.asarray(near, dtype=np.int64)
+        way = skin[near] - skin[index]
+        along = way @ normals[index]
+        side = np.linalg.norm(way - along[:, None] * normals[index], axis=1)
+        facing = (along > 0.0) & (side <= slope * along) & (normals[near] @ normals[index] < 0.0)
+        if facing.any():
+            room[index] = along[facing].min()
+    return room
 
 
 def top_ring(record, labels, scale):
