@@ -29,8 +29,6 @@ import math
 import pathlib
 import sys
 
-from tools.characters.face.finishes import material_usda
-
 EUMELANIN = 1.3
 PHEOMELANIN = 0.05
 FINISHES = {
@@ -48,6 +46,18 @@ FINISHES = {
                "helmet with an orange parting)"},
 }
 READER_KEYS = ("hair",)
+
+
+def material_usda(surface, constants):
+    """One UsdPreviewSurface material named `surface` with the constants (the fibre's mean colour for a reader that
+    knows no hair; the face's finishes write theirs the same way)."""
+    lines = [f"        color3f inputs:{name} = ({', '.join(f'{number:g}' for number in value)})"
+             if isinstance(value, list) else f"        float inputs:{name} = {value:g}"
+             for name, value in constants.items()]
+    return (f'#usda 1.0\n(\n    defaultPrim = "{surface}"\n)\n\ndef Material "{surface}"\n{{\n'
+            f'    token outputs:surface.connect = </{surface}/surface.outputs:surface>\n\n'
+            f'    def Shader "surface"\n    {{\n        uniform token info:id = "UsdPreviewSurface"\n'
+            + "\n".join(lines) + '\n        token outputs:surface\n    }\n}\n')
 
 
 def written(folder, commit):
