@@ -1339,10 +1339,14 @@ def kit(folder, name, piece, sizes=None, at=(0.0, 0.0, 0.0), turn=(0.0, 0.0, 0.0
     if piece not in kinds:
         raise Refused(f"no kit piece {piece!r} (pieces are {', '.join(sorted(kinds))})")
     sizes = dict(sizes or {})
-    key = hashlib.sha256(json.dumps([piece, sizes], sort_keys=True).encode()).hexdigest()[:16]
+    maker = launch_kit if piece in launch_kit.KINDS else cockpit_kit
+    # The file's name holds the kit's own code too, so a changed kit writes its piece again rather than the place
+    # keeping the file an older kit wrote for the same sizes (2099 #161: the coast houses' roofs never landed).
+    code = hashlib.sha256(pathlib.Path(maker.__file__).read_bytes()).hexdigest()
+    key = hashlib.sha256(json.dumps([piece, sizes, code], sort_keys=True).encode()).hexdigest()[:16]
     target = pathlib.Path(folder) / "assets" / "algorithm" / KIT.split("/", 1)[1] / f"{piece}_{key}.usda"
     target.parent.mkdir(parents=True, exist_ok=True)
-    writer = launch_kit.write if piece in launch_kit.KINDS else cockpit_kit.write
+    writer = maker.write
     parts = writer(target, piece, sizes) if not target.exists() else None
     stage, place = opened(folder)
     relative = laid_reference(stage, f"/{place}/Objects/{name}", folder, target, KIT, "algorithm",
