@@ -9,7 +9,38 @@
 #     bash setup.sh [<env folder, default $PROPS_HOME/envs/trellis2>]
 #
 # Idempotent: a built piece or a fetched weight is kept. Writes <env>/ready.json last, naming what it built from.
+#
+#     bash setup.sh closeup [<env folder, default $PROPS_HOME/envs/closeup>]
+#
+# The close-up picture model beside it: FLUX.2 klein 4B (black-forest-labs, Apache-2.0, code and weights) through
+# diffusers' Flux2KleinPipeline, for a clean centred picture of a small object whose concept crop is too few pixels for
+# TRELLIS.2. Its weights are a cache under <env>/weights at the revision tools/cloud/images/pictures/models.json pins;
+# about 8 GB of card with the pipeline's CPU offload, so it fits the 16 GB card one picture at a time.
 set -euo pipefail
+export UV_HTTP_TIMEOUT=600 UV_HTTP_RETRIES=8
+
+if [ "${1:-}" = closeup ]; then
+  KLEIN=e7b7dc27f91deacad38e78976d1f2b499d76a294  # black-forest-labs/FLUX.2-klein-4B
+  ENV=${2:-${PROPS_HOME:?set PROPS_HOME or name the env folder}/envs/closeup}
+  PY=$ENV/venv/bin/python
+  mkdir -p "$ENV/weights"
+  [ -x "$PY" ] || uv venv -q --python 3.12 "$ENV/venv"
+  uv pip install -q --python "$PY" --index-url https://download.pytorch.org/whl/cu130 \
+    --extra-index-url https://pypi.org/simple torch==2.11.0 torchvision==0.26.0
+  uv pip install -q --python "$PY" diffusers==0.42.1 transformers==5.22.2 accelerate==1.15.0 pillow==12.0.0 \
+    huggingface_hub==2.4.0 hf_xet safetensors numpy scipy==1.18.1
+  "$PY" - "$ENV/weights/FLUX.2-klein-4B" "$KLEIN" <<'PY'
+import sys
+from huggingface_hub import snapshot_download
+snapshot_download("black-forest-labs/FLUX.2-klein-4B", revision=sys.argv[2], local_dir=sys.argv[1],
+                  allow_patterns=["model_index.json", "scheduler/*", "text_encoder/*", "tokenizer/*",
+                                  "transformer/*", "vae/*", "LICENSE.md"])
+PY
+  "$PY" -c "from diffusers import Flux2KleinPipeline"
+  printf '{"flux2_klein_4b": "%s", "diffusers": "0.42.1", "licence": "Apache-2.0"}\n' "$KLEIN" > "$ENV/ready.json"
+  echo CLOSEUP-READY "$ENV"
+  exit 0
+fi
 
 TRELLIS2=75fbf0183001ed9876c8dbb35de6b68552ee08bd
 FLEXGEMM=de6411284d20a6d41362db27a59a6923aeceebfe  # v1.0.0, the version TRELLIS.2's code at TRELLIS2 calls
@@ -26,7 +57,6 @@ DINOV3_SHA=dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179
 ENV=${1:-${PROPS_HOME:?set PROPS_HOME or name the env folder}/envs/trellis2}
 PY=$ENV/venv/bin/python
 SITE=$ENV/venv/lib/python3.12/site-packages
-export UV_HTTP_TIMEOUT=600 UV_HTTP_RETRIES=8
 mkdir -p "$ENV/src" "$ENV/weights"
 [ -x "$PY" ] || uv venv -q --python 3.12 "$ENV/venv"
 PIP=(uv pip install -q --python "$PY")

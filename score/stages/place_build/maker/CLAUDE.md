@@ -9,6 +9,9 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   glibc 2.41+'s noexcept rsqrt); no prebuilt wheel from a third-party account. No flash-attn (`shim/flash_attn`, torch's
   own attention) and no NVIDIA nvdiffrast (`shim/nvdiffrast`, a UV rasterizer). Weights at pinned revisions and hashes.
   Never edit setup.sh while it runs (bash reads it as it goes).
+- **The close-up picture model** (`setup.sh closeup`, `$PROPS_HOME/envs/closeup`, 2026-11-26): FLUX.2 klein 4B
+  (Apache-2.0) in diffusers, weights a cache at the revision images/pictures/models.json pins; free on this PC for 2099,
+  which has no money: it redraws a concept crop too small for TRELLIS.2 (45x32 px) as a clean close-up on plain ground.
 - **On a cloud card** (`cloud.made`, 2026-11-19: GPU work goes to the cloud; the player models' stills): generate.py in
   the meshparts image's TRELLIS.2 (SegviGen's checkout of its code, its author's wheels), weights from the node cache
   (images/meshparts/models.json `trellis2-4b-make`, `trellis-image-large-ssdec`), any pictures in one job, each in its
