@@ -46,7 +46,10 @@ triangle's edges, or an edge sharing a corner with a triangle taken for one thro
 leaving its own neighbours out of self contact); a waistband's top worn where the skin is nearest it (off its level
 on a body that narrows above the hips), its side seams' tops not held (the ring open at the seams), each point worn
 where its own level way in meets the skin, spaced by count rather than by its cut, or run the other way round her (left
-and right swapped), or a side seam closed by the point under its top."""
+and right swapped), or a side seam closed by the point under its top. In inside/pattern.py: a waistband laid where
+GarmentCode lays it rather than at the level it is cut for, moved up rather than down, its flat copies left behind its
+points, or a garment with no worn top moved. In fabrics.py: a strip mark's pattern not a whole number of times in its
+repeat (the rib's 1.6 mm ribs in 12 mm), or the denim's wear mottled across its tile."""
 import json
 import math
 import pathlib
@@ -54,7 +57,7 @@ import pathlib
 import numpy as np
 import pytest
 
-from tools.characters.garments import bands, details, measure, seated, shaped
+from tools.characters.garments import bands, details, fabrics, measure, seated, shaped
 from tools.characters.garments.inside import laying
 
 NAMES = ["Hips", "Spine2", "Chest", "Neck1", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm",
@@ -574,6 +577,39 @@ def waistband_worn():
             int(np.sum(sided & (np.sign(worn[:, [0, 2]]) != np.sign(ring[:, [0, 2]])))))
 
 
+def band_lowered(top):
+    """The toy waistband's box mesh (cm) laid by pattern.py at the level `top` its top is cut for: (its worn top's
+    levels, each point's and each copy's move, cm), and a tee's record (no worn top) and the band with no cut level
+    left as laid (True)."""
+    from tools.characters.garments.inside import pattern
+    record, laid = toy_band()
+    record = {**record, "points": laid * 100.0, "copies": np.asarray(record["copies"], dtype=float) + [0.0, 30.0, 0.0]}
+    lowered = pattern.lowered_to_cut(record, top)
+    ring = lowered["points"][record["label/lower_interface"], 1]
+    moves = np.concatenate([lowered[key] - record[key] for key in ("points", "copies")])
+    tee = {key: value for key, value in record.items() if key != "label/lower_interface"}
+    kept = all(np.array_equal(pattern.lowered_to_cut(given, cut)[key], given[key])
+               for given, cut in ((tee, top), (record, None)) for key in ("points", "copies"))
+    return ring, moves, kept
+
+
+def fabric_repeats():
+    """How cleanly the drawn fabrics repeat: the strip marks' rows whose step across the repeat (last column to first)
+    is bigger than any step inside them, and the denim tile's colour blurred over a centimetre, its spread over its
+    mean (a blotch larger than the threads repeating every tile)."""
+    from scipy.ndimage import uniform_filter
+    broken = 0
+    for title, drawn, _, _, form in fabrics.MARKS.values():
+        if form != "strip":
+            continue
+        rgba = drawn().maps()[0].astype(float)
+        inside = np.abs(np.diff(rgba, axis=1)).max(axis=(1, 2))
+        broken += int(np.sum(np.abs(rgba[:, 0] - rgba[:, -1]).max(axis=1) > inside + 1e-9))
+    colour = fabrics.denim_maps()[0].mean(axis=-1)
+    blurred = uniform_filter(colour, size=int(round(0.01 / fabrics.TILE_M * fabrics.TILE_PX)), mode="wrap")
+    return broken, float(blurred.std() / colour.mean())
+
+
 @pytest.mark.parametrize("scale, wear, failed", [
     (1.0, "seated", []),
     (1.15, "seated", []),
@@ -603,6 +639,8 @@ def waistband_worn():
     (1.0, "a sleeve cap laid through its torso", True),
     (1.0, "a sleeve cap laid clear of its torso", False),
     (1.0, "a waistband's top worn at its level", 0.0),
+    (1.0, "a waistband laid at the level it is cut for", 25.0),
+    (1.0, "fabrics drawn to repeat cleanly", 0.05),
 ])
 def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, failed, tmp_path):
     points, faces, weights, bind, built = toy_body(scale)
@@ -651,6 +689,18 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         else:
             assert stretch > 20.0, stretch
         assert off_newton == pytest.approx(0.0, abs=1e-6) and half_area > 0.0
+        return
+    if wear.startswith("fabrics"):
+        # every strip mark runs on across its repeat; the denim's shade varies under 5% over a centimetre (its 3 cm
+        # wear clouds, 10%, read as an acid wash tiled every 10 cm, #225 round 9)
+        broken, blotches = fabric_repeats()
+        assert broken == 0 and blotches < failed, (broken, blotches)
+        return
+    if wear.startswith("a waistband laid"):
+        # the top ring at its cut level (laid at 30 cm), every point and every flat copy moved down alike by the 5 cm
+        ring, moves, kept = band_lowered(failed)
+        assert ring == pytest.approx(failed, abs=1e-9) and kept, (ring, kept)
+        assert moves == pytest.approx(np.tile([0.0, failed - 30.0, 0.0], (len(moves), 1)), abs=1e-9), moves
         return
     if wear.startswith("a waistband"):
         # the ring closed by both side seams' tops (14 labelled, 16 held), worn on the skin at its own level (the

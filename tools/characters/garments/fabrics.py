@@ -20,7 +20,7 @@ across its width; a patch mark covers its patch once, its u towards the garment'
 - jeans topstitching: two rows of 3 mm stitches in a tobacco gold thread 1.5 and 7.5 mm off a felled seam,
 - a jeans hem: the fold's roll and one gold chain stitch 11 mm up,
 - a tee's coverstitch hem: two tonal rows 6.4 mm apart, 15 and 21.4 mm up, the turned allowance's ridge at 25 mm,
-- a tee's crew neck: an 18 mm 1x1 rib band, its seam's coverstitch under it,
+- a tee's crew neck: a 13 mm 1x1 rib band, its seam's coverstitch under it,
 - jeans pockets: a five-sided back patch pocket with its double topstitch and an arc stitch, a front scoop with its
   coin pocket, the fly's J-stitch, a belt loop, and a copper rivet.
 
@@ -76,7 +76,7 @@ def encoded(linear):
 
 def denim_maps(spec=DENIM, size=TILE_PX):
     """Denim's colour (linear), height (mm) and roughness: the twill's cells, each end's shade and slubs, worn
-    ridges."""
+    ridges, streaks along the warp."""
     pixel = np.arange(size)
     across, along = np.meshgrid(pixel * spec["ends"] / size, pixel * spec["picks"] / size, indexing="xy")
     end, pick = np.floor(across).astype(int), np.floor(along).astype(int)
@@ -89,13 +89,14 @@ def denim_maps(spec=DENIM, size=TILE_PX):
     end_shade = rng.normal(0.0, 0.12, spec["ends"])[end % spec["ends"]]  # each end dyed its own depth
     slubs = periodic_noise(size, 40.0, 11)  # ring-spun slubs: streaks along the warp
     streak = np.repeat(periodic_noise(size, 6.0, 12).mean(axis=0, keepdims=True), size, axis=0)
-    mottle = periodic_noise(size, 3.0, 13)
-    worn = np.clip(0.25 + 0.18 * mottle + 0.15 * streak + 0.1 * slubs * (np.abs(slubs) > 1.2), 0.0, 1.0)
+    # no wear mottle across the tile: 3 cm clouds repeating every 10 cm read as an acid wash painted on (#225 round
+    # 9); a jeans' fading follows the body, not the tile
+    worn = np.clip(0.25 + 0.15 * streak + 0.1 * slubs * (np.abs(slubs) > 1.2), 0.0, 1.0)
     warp_colour = np.asarray(spec["warp"]) * (1.0 + end_shade + 0.08 * slubs)[..., None]
     warp_colour = warp_colour + (np.asarray(spec["worn"]) - np.asarray(spec["warp"])) * (worn * height)[..., None]
     weft_colour = np.asarray(spec["weft"]) * (0.92 + 0.08 * periodic_noise(size, 60.0, 14))[..., None]
     colour = np.where(warp_up[..., None], warp_colour, weft_colour) * (0.75 + 0.25 * height)[..., None]
-    roughness = spec["roughness"] + 0.05 * mottle
+    roughness = spec["roughness"] + 0.03 * slubs
     return colour, height * spec["relief_mm"], roughness
 
 
@@ -239,18 +240,19 @@ def coverstitch_hem_mark(colour=GREY_THREAD):
 
 
 def rib_neck_mark(cloth=JERSEY, colour=GREY_THREAD):
-    """A crew neck's 18 mm 1x1 rib band (the tee's own melange, ribs 1.6 mm apart) from the edge, its join's shadow
-    and the coverstitch 3 mm under it."""
-    mark = Mark(STRIP_PERIOD_MM, 24.0, MARK_PX_PER_MM)
-    band = mark.v_mm < 18.0
-    ribs = 0.5 + 0.5 * np.cos(mark.u_mm / 1.6 * 2 * np.pi)
+    """A women's fitted crew neck's 13 mm 1x1 rib band (the tee's own melange, ribs 1.5 mm apart, eight to the strip's
+    repeat) from the edge, its join's shadow and the coverstitch 3 mm under it. Owner 2026-11-25: the 18 mm band, its
+    1.6 mm ribs broken every 12 mm repeat, read as "neck rib too thick" and a band of blocks."""
+    mark = Mark(STRIP_PERIOD_MM, 19.0, MARK_PX_PER_MM)
+    band = mark.v_mm < 13.0
+    ribs = 0.5 + 0.5 * np.cos(mark.u_mm / 1.5 * 2 * np.pi)
     melange = np.where(ribs[..., None] > 0.5, np.asarray(cloth["light"]), np.asarray(cloth["dark"]) * 1.3)
     mark.laid(band * 1.0, (0.0, 0.0, 0.0))
     mark.colour = np.where(band[..., None], melange * (0.7 + 0.3 * ribs)[..., None], mark.colour)
     mark.height = band * 0.3 * ribs
-    mark.shadow(np.abs(mark.v_mm - 18.0), 1.2, 0.45)
+    mark.shadow(np.abs(mark.v_mm - 13.0), 1.2, 0.45)
     mark.shadow(mark.v_mm, 0.6, 0.3)
-    strip_row(mark, 21.0, colour)
+    strip_row(mark, 16.0, colour)
     return mark
 
 

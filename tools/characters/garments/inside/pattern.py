@@ -16,7 +16,8 @@ Writes <out>/measurements.yaml and .json (the 26 measurements the patterns are s
 garment: GarmentCode's pattern (<name>_specification.json, design.yaml, the body's
 measurements) and <name>.npz, the garment as the drape reads it (centimetres, GarmentCode's frame: y up, facing +z):
     points      the box mesh's points, each seam's point shared by the panels it joins
-    copies      every panel's own points laid round the body (a seam's point once in each panel it joins)
+    copies      every panel's own points laid round the body (a seam's point once in each panel it joins), a garment
+                with a worn top laid with it at the level it is cut for (`lowered_to_cut`)
     box         for each copy, the box mesh point it is
     panel       for each copy, its panel's number; panel_names names them
     flat        for each copy, its place on its flat panel (cm): the cloth's rest shape and its texture coordinates
@@ -157,8 +158,31 @@ def slim_legs(made, body, design, legs, ease):
               f"({legs['calf_circ']:.1f})", flush=True)
 
 
+def cut_top(made, body):
+    """The level (cm over the floor) a garment's top is cut to be worn at, or None for one with no lower garment or
+    with an upper one (a dress, worn from its shoulders):
+    its waistband's top (the band's rise, as GarmentCode cuts it, and its width over the hips' level), else its lower
+    garment's top at its rise. GarmentCode lays a waistband at the waist whatever the rise (bands.py StraightWB), and
+    held where it was laid, woman_stair's mid rise jeans were worn 10 cm over their cut, their crotch seam as far over
+    her crotch, dragged down between her legs and hanging there (#225 round 9, owner 2026-11-25: "pants so weird")."""
+    from assets.garment_programs.base_classes import BaseBand, BaseBottoms
+    if made.upper_name:
+        return None
+    parts = list(getattr(made, "subs", []))
+    band = next((part for part in parts if isinstance(part, BaseBand)), None)
+    lower = next((part for part in parts if isinstance(part, BaseBottoms)), None)
+    hips = body["_waist_level"] - body["hips_line"]
+    if band is not None:
+        return float(hips + body["hips_line"] * band.rise + band.width)
+    if lower is not None:
+        rise = lower.get_rise()
+        return float(hips + body["hips_line"] * (1.0 if rise is None else rise))
+    return None
+
+
 def pattern(garmentcode, measurements_file, garment, folder, legs):
-    """The garment's sewing pattern on the body, serialised in `folder`; its specification file."""
+    """The garment's sewing pattern on the body, serialised in `folder`: its specification file and the level its top
+    is cut to be worn at (`cut_top`)."""
     import yaml
     from assets.bodies.body_params import BodyParameters
     from assets.garment_programs.meta_garment import MetaGarment
@@ -174,7 +198,7 @@ def pattern(garmentcode, measurements_file, garment, folder, legs):
     written = pathlib.Path(built.serialize(str(folder.parent), tag="", to_subfolder=True, with_3d=False,
                                            with_text=False, view_ids=False, with_printable=False))
     (written / "design.yaml").write_text(yaml.safe_dump({"design": design}))
-    return written / f"{garment['name']}_specification.json"
+    return written / f"{garment['name']}_specification.json", cut_top(made, body)
 
 
 def box_record(box):
@@ -204,6 +228,18 @@ def box_record(box):
             **{f"label/{name}": np.asarray(points, dtype=np.int64) for name, points in box.vertex_labels.items()}}
 
 
+def lowered_to_cut(record, top):
+    """The box mesh laid with its worn top (`label/lower_interface`) at the level it is cut for (`top`, cm), every
+    point moved down alike; one with no worn top, or no cut level, as laid."""
+    if top is None or "label/lower_interface" not in record:
+        return record
+    drop = float(np.mean(record["points"][record["label/lower_interface"], 1])) - top
+    moved = dict(record)
+    for key in ("points", "copies"):
+        moved[key] = record[key] - np.array([0.0, drop, 0.0])
+    return moved
+
+
 def made(job):
     """Every garment's pattern and box mesh in the job's folder."""
     import yaml
@@ -219,13 +255,13 @@ def made(job):
     for garment in job["garments"]:
         folder = out / garment["name"]
         folder.mkdir(parents=True, exist_ok=True)
-        spec = pattern(job["garmentcode"], measurements, garment, folder, job["measured"])
+        spec, top = pattern(job["garmentcode"], measurements, garment, folder, job["measured"])
         box = boxmeshgen.BoxMesh(str(spec), float(job["resolution"]))
         # The box mesh's own look for panels crossing themselves only warns (a coat's SimpleLapel, 2026-11-24).
         if box.is_self_intersecting():
             raise SystemExit(f"{garment['name']}: GarmentCode's box mesh has panels crossing themselves")
         box.load()
-        record = box_record(box)
+        record = lowered_to_cut(box_record(box), top)
         np.savez(folder / f"{garment['name']}.npz", **record)
         print(f"{garment['name']}: {len(record['points'])} points, {len(record['faces'])} triangles, "
               f"{len(record['panel_names'])} panels", flush=True)

@@ -142,10 +142,11 @@ def turned(bind, first, parents):
 
 
 def centre(body):
-    """The point under the person's chest (Spine2) on its floor: GarmentCode lays a pattern round x = z = 0."""
+    """The point under the person's chest (Spine2) on its floor (its skin's lowest): GarmentCode lays a pattern round
+    x = z = 0 over a floor at 0 (at y 0, woman_stair's clothes were laid 1.85 cm over the levels they were cut for)."""
     names = [str(name) for name in body["names"]]
     spine = np.asarray(body["joints"])[names.index("Spine2")][:3, 3]
-    return np.array([spine[0], 0.0, spine[2]])
+    return np.array([spine[0], float(np.asarray(body["bind"])[:, 1].min()), spine[2]])
 
 
 def measured_body(body):
@@ -214,7 +215,7 @@ def neck(body, measurements, shift):
     """The body's points round its neck's base (height less head_l, within 3 cm of it and NECK_REACH_CM round the
     neck's middle): the drape moves the neckline's holds with their mean."""
     points = np.asarray(body["bind"])
-    level = (measurements["height"] - measurements["head_l"]) / 100.0
+    level = shift[1] + (measurements["height"] - measurements["head_l"]) / 100.0
     reach = (measurements["neck_w"] / 2.0 + NECK_REACH_CM) / 100.0
     return np.flatnonzero((np.abs(points[:, 1] - level) < 0.03) & (np.abs(points[:, 0] - shift[0]) < reach)
                           & (np.abs(points[:, 2] - shift[2]) < reach)).tolist()
