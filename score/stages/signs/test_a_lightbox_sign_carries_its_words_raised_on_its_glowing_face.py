@@ -9,6 +9,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/signs/__init__.p
     runs' `zip(edges[0::2], edges[1::2])` -> `zip(edges[1::2], edges[0::2])` (every run empty or reversed)
     FINISHES' letters `"sign_lettering_red"` -> `"sign_lightbox_cream"` (the words the face's colour: unreadable)
     build's `value * FACE_GLOW` -> `value` (the face glows whole: white, its words pink in its bloom)
+    build's `base[:3] * FACE_BASE / 255.0` -> `base[:3] / 255.0` (the face reflects the street's lamps as a cream wall)
+    build's `value * LETTER_GLOW` -> `value` (the words glow brighter than the face: salmon in its bloom)
+    ink's `[gap] * bool(number) + [...]` -> `[...]` and `np.vstack` -> `np.hstack` (a vertical sign set as one line)
+    build's `if chosen["face"][0] == "glowing":` -> `if True:` (a neon blade's letters dimmed as a lightbox's)
 """
 import numpy as np
 
@@ -50,7 +54,21 @@ def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
                         "letters": ("glowing", "sign_lettering_red")}
     face_glow, letter_glow = (np.asarray(scene.geometry[name].visual.material.emissiveFactor) for name in ("face", "letters"))
     face_colour = np.asarray(scene.geometry["face"].visual.material.baseColorFactor[:3]) / 255.0
-    assert np.allclose(face_glow, face_colour * lightbox.FACE_GLOW, atol=0.01) and 0.0 < lightbox.FACE_GLOW < 1.0, \
-        "the face glows its cream through a diffuser, dimmer than its words"
-    assert letter_glow[0] > 2 * letter_glow[1] and letter_glow[0] > face_glow.max(), "the letters glow red over it"
+    assert np.allclose(face_glow, face_colour / lightbox.FACE_BASE * lightbox.FACE_GLOW, atol=0.01) \
+        and 0.0 < lightbox.FACE_GLOW < 1.0 and 0.0 < lightbox.FACE_BASE < 1.0, \
+        "the face glows its cream through a diffuser and reflects only part of it"
+    assert letter_glow[0] > 2 * letter_glow[1] and letter_glow.sum() < face_glow.sum(), \
+        "the letters glow red, deeper than the face, so they read red on it"
     assert not np.any(scene.geometry["casing"].visual.material.emissiveFactor)
+    blade, blade_record = lightbox.build("未来酒店", (0.8, 2.8, 0.2), PALETTE, vertical=True,
+                                         finishes={"face": ("painted_metal", "gunmetal_steel"),
+                                                   "letters": ("glowing", "sign_lettering_red")})
+    tall = lightbox.ink("未来酒店", "bold sans", vertical=True)
+    one = lightbox.ink("未", "bold sans")
+    assert tall.shape[0] == 4 * one.shape[0] + 3 * round(lightbox.ROWS * lightbox.GAP) and tall.shape[1] < 2 * one.shape[1], \
+        "a vertical sign's characters stack top to bottom, a gap between each"
+    blade_letters = blade.geometry["letters"].bounds
+    assert blade_letters[1, 1] - blade_letters[0, 1] > 2 * (blade_letters[1, 0] - blade_letters[0, 0])
+    assert not np.any(blade.geometry["face"].visual.material.emissiveFactor) and np.allclose(
+        blade.geometry["letters"].visual.material.emissiveFactor, lightbox.car.linear("#c8382a"), atol=0.01), \
+        "a neon blade: a dark face, its letters glowing their whole colour"
