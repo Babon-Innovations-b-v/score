@@ -169,6 +169,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.railings: `newelled` left out -> the flights' handrails stop in mid-air at every turn
 - stair_core.newelled: `turn_rail(x, floor)` -> the post's own flight's rail -> the well's two posts at a turn stand
   at two heights, the cross rail between them meeting neither cap
+- stair_core.railings: a landing's railings at LANDING_RAIL -> its rail meets the flights' newel posts 8-12 cm
+  under their caps
 - place_build.rewritten: the open layer's content not taken (`write(path)` over it) -> a cut core laid again in one
   batch fails: USD makes no new layer where its front's is open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
@@ -996,6 +998,15 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     for post in newels:
         tops.setdefault((round(post[:, 0].mean(), 3), round(post[:, 1].min(), 3)), set()).add(round(post[:, 1].max(), 4))
     assert all(len(level) == 1 for level in tops.values()), tops  # the well's two posts at one turn stand level
+    rails = [rail for part, (points, _) in stair_core.railings(1) if part == "handrail"
+             for rail in [np.asarray(points)] if np.ptp(rail[:, 1]) <= stair_core.RAIL_SIZE[1] + 1e-6]  # landings'
+    short = [(round(post[:, 0].mean(), 3), round(post[:, 1].max() - rail[near][:, 1].max(), 3))
+             for post in newels for rail in rails
+             for near in [(np.abs(rail[:, 0] - post[:, 0].mean()) <= stair_core.NEWEL)
+                          & (np.abs(rail[:, 2] - post[:, 2].mean()) <= stair_core.NEWEL)
+                          & (rail[:, 1] >= post[:, 1].min()) & (rail[:, 1] <= post[:, 1].max() + 0.2)] if near.any()
+             and post[:, 1].max() - rail[near][:, 1].max() > stair_core.RAIL_SIZE[1] / 2 + 0.03]
+    assert not short, short  # every landing's handrail meeting a newel post reaches its cap
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)

@@ -497,19 +497,25 @@ def railings(storeys):
         else:
             pieces += railing(ends, on_flight, RAIL, near + inset, handrail=False)
             pieces += newelled(foot_x, foot_y, way, near + inset, inset)
+    top = storeys * STOREY
+    # every landing's railing at the height of the flights' rails at its newel posts, so each meets their caps (2099
+    # judge, 2026-11-26: the landing rails ended 8-12 cm under the posts' caps, beside them)
+    top_rail = turn_rail(LANDING - inset, top) - top
     for storey in range(1, storeys + 1):
         floor = storey * STOREY
-        pieces += railing((inset, LANDING), lambda x, floor=floor: floor, LANDING_RAIL, inset)
+        rail_high = top_rail if storey == storeys else turn_rail(LANDING, floor) - floor
+        pieces += railing((inset, LANDING), lambda x, floor=floor: floor, rail_high, inset)
     for storey in range(storeys):
         half = storey * STOREY + STOREY / 2
-        pieces += railing((LANDING + RUN, LONG - inset), lambda x, half=half: half, LANDING_RAIL, inset)
+        pieces += railing((LANDING + RUN, LONG - inset), lambda x, half=half: half,
+                          turn_rail(LANDING + RUN, half) - half, inset)
         turn = LANDING + RUN + inset
         pieces += cross_railing(turn, WIDE - inset, WIDE + WELL + inset, half, turn_rail(turn, half) - half)
     for storey in range(1, storeys):
         floor = storey * STOREY
         pieces += cross_railing(LANDING - inset, WIDE - inset, WIDE + WELL + inset, floor,
                                 turn_rail(LANDING - inset, floor) - floor)
-    pieces += cross_railing(LANDING - inset, inset, WIDE + WELL + inset, storeys * STOREY)
+    pieces += cross_railing(LANDING - inset, inset, WIDE + WELL + inset, top, top_rail)
     return pieces
 
 
