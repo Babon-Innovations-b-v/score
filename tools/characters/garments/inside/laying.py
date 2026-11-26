@@ -420,3 +420,62 @@ def crossing_filters(points, triangles, edges):
                 edges_to.setdefault(mine, set()).add(other)
                 edges_to.setdefault(other, set()).add(mine)
     return points_to, edges_to
+
+
+def crossed_cloth(points, triangles):
+    """Which points of a cloth (`points`, its `triangles`) stand where it crosses itself: both ends of each edge through
+    one of its own triangles that shares no corner with it, and that triangle's corners (the cloth `crossing_filters`
+    leaves out of self contact)."""
+    points, triangles = np.asarray(points, dtype=float), np.asarray(triangles)
+    every = edges_of(triangles)
+    segment, triangle = through(points, every, points, triangles, edge_wise=True)
+    apart = ~(every[segment][:, :, None] == triangles[triangle][:, None, :]).any(axis=(1, 2))
+    found = np.zeros(len(points), dtype=bool)
+    found[every[segment[apart]].ravel()] = True
+    found[triangles[triangle[apart]].ravel()] = True
+    return found
+
+
+def crossings(points, faces, under_points, under_faces):
+    """Where a cloth (`points`, `faces`) and the cloth under it pass through each other: ((edge, under triangle) pairs
+    of the cloth's edges through the under cloth's triangles, (under edge, triangle) pairs the other way), each pair's
+    points on the cloth and on the under cloth (as two lists of point arrays, a pair's to a row)."""
+    edges, under_edges = edges_of(faces), edges_of(under_faces)
+    segment, triangle = through(points, edges, under_points, under_faces, edge_wise=True)
+    under_segment, pierced = through(under_points, under_edges, points, faces, edge_wise=False)
+    pairs = (list(zip(segment.tolist(), triangle.tolist())), list(zip(under_segment.tolist(), pierced.tolist())))
+    mine = (edges[segment], faces[pierced])
+    theirs = (under_faces[triangle], under_edges[under_segment])
+    return pairs, mine, theirs
+
+
+def kept_clear(given, laid, faces, under_points, under_faces):
+    """An outer garment's points as `laid` off its points as sewn alone (`given`), each point whose cloth the laying
+    takes through the cloth under it (an edge-triangle pair either way that `given` did not have) put back where it was
+    sewn, until none is: man_coat's coat, sewn alone outside his shirt where his shirt and coat do not cross themselves,
+    was moved out along the skin's normals and the move took it through the shirt at 176 more pairs (100 as sewn),
+    the arm's and the torso's normals pointing into each other in the armpit (2026-11-26); put back, 79 of its 629
+    moved points, it crossed at the 100 it was sewn with."""
+    given, laid = np.asarray(given, dtype=float), np.array(laid, dtype=float)
+    before = [set(pairs) for pairs in crossings(given, faces, under_points, under_faces)[0]]
+    while True:
+        pairs, mine, _ = crossings(laid, faces, under_points, under_faces)
+        new = [np.array([pair not in seen for pair in found], dtype=bool) for found, seen in zip(pairs, before)]
+        back = np.unique(np.concatenate([points[fresh].ravel() for points, fresh in zip(mine, new)]))
+        back = back[np.any(laid[back] != given[back], axis=1)]
+        if not len(back):
+            return laid
+        laid[back] = given[back]
+
+
+def held_crossings(points, faces, under_points, under_faces, crossed, under_crossed):
+    """The points of a cloth whose crossings with the cloth under it VBD's self contact would hold (`crossings`): a
+    pair with a point at cloth that crosses itself (`crossed`, `under_crossed`: `crossed_cloth` of each as sewn) is
+    left out, as `crossing_filters` leaves it out of self contact. A sleeve sewn through its own torso at the armpit
+    (GarmentCode's box mesh lays the sleeve caps through the torso panels: man_coat's shirt at 257 points, his coat at
+    444) takes the cloth over or under it through with it: of the 267 points his coat still crossed his shirt at 16 cm
+    out, 260 lay within 5 cm of where the coat crossed itself, and moving them further out only crossed more
+    (2026-11-26)."""
+    _, mine, theirs = crossings(points, faces, under_points, under_faces)
+    held = [~(crossed[own].any(axis=1) | under_crossed[other].any(axis=1)) for own, other in zip(mine, theirs)]
+    return np.unique(np.concatenate([own[keep].ravel() for own, keep in zip(mine, held)]))

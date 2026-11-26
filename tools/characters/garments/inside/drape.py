@@ -197,7 +197,8 @@ def laid_over(points, faces, skin, skin_faces, under, clear):
     triangle is the cloth's own small one. Moved along the way from its nearest skin point instead, cloth sewn a
     centimetre off a skin of 4.5 mm triangles went along the skin as much as off it (for 30% of woman_stair_modern's
     tee more than 60 degrees off the normal), neighbouring points apart, and a tee triangle at her back's waist was
-    pulled to 18 cm and through her jeans however far out (2026-11-25)."""
+    pulled to 18 cm and through her jeans however far out (2026-11-25). A point the move takes through that cloth is
+    put back where it was sewn (`laying.kept_clear`)."""
     from scipy.spatial import cKDTree
     skin_tree = cKDTree(skin)
     normals = laying.skin_normals(skin, skin_faces)
@@ -212,21 +213,22 @@ def laid_over(points, faces, skin, skin_faces, under, clear):
     for index, near in enumerate(feet.query_ball_point(skin[nearest], laying.UNDER_FOOT_M)):
         if near:
             least[index] = max(least[index], under_height[near].max() + clear)
-    return uncrossed(points + away * (least - height)[:, None], faces, away, under_points, under_faces)
+    laid = laying.kept_clear(points, points + away * (least - height)[:, None], faces, under_points, under_faces)
+    return uncrossed(laid, faces, away, under, (laying.crossed_cloth(points, faces),
+                                                laying.crossed_cloth(under_points, under_faces)))
 
 
-def uncrossed(points, faces, away, under_points, under_faces):
+def uncrossed(points, faces, away, under, crossed):
     """An outer garment's laid points moved out (`away`: each point's way off the skin) CROSS_STEP_M a round until
-    none of its edges passes through the cloth under it and none of that cloth's edges through its triangles, at
-    most CROSS_ROUNDS rounds, else refused: cloth that starts crossed stays tangled, VBD's self contact keeps a
-    crossed point from moving (a coat's and shirt's crossed points were left in the air as the body walked on, and the
-    trousers caught in them blew up at clip frame 29, 2026-11-25)."""
+    none of its edges passes through the cloth under it (`under`: its points and faces) and none of that cloth's edges
+    through its triangles, but where either crosses itself (`crossed`: `laying.crossed_cloth` of each as sewn, a pair
+    VBD's self contact leaves out, `laying.held_crossings`), at most CROSS_ROUNDS rounds, else refused: cloth that
+    starts crossed stays tangled, VBD's self contact keeps a crossed point from moving (a coat's and shirt's crossed
+    points were left in the air as the body walked on, and the trousers caught in them blew up at clip frame 29,
+    2026-11-25)."""
     points = np.array(points, dtype=float)
-    edges, under_edges = laying.edges_of(faces), laying.edges_of(under_faces)
     for _ in range(CROSS_ROUNDS):
-        crossing, _ = laying.through(points, edges, under_points, under_faces, edge_wise=True)
-        _, pierced = laying.through(under_points, under_edges, points, faces, edge_wise=False)
-        moved = np.unique(np.concatenate([edges[crossing].ravel(), faces[pierced].ravel()]))
+        moved = laying.held_crossings(points, faces, *under, *crossed)
         if not len(moved):
             return points
         points[moved] += away[moved] * CROSS_STEP_M

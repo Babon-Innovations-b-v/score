@@ -49,9 +49,15 @@ runs them (an outfit file per look in `data/people/outfits/`).
   outer garment is sewn alone on the skin as the cloth under it wears it (`laying.worn_skin`: sewn on the bare skin,
   man_coat's sleeves crossed themselves at the armpits and no move out cleared his shirt; skin facing skin, an arm
   against the torso, lifted only half the room between them, so the two meet rather than stand in each other), its box mesh laid that much
-  further off, then laid outside the cloth sewn under it, so a shirt and the coat over it start apart and meet by
-  contact as they are sewn (laid all at once, a jacket's hem lay inside the
-  trousers' waistband box and the two tangled as the waistband was carried in). A garment over another's neckline
+  further off, then laid outside the cloth sewn under it (a point the lay takes through that cloth put back as sewn,
+  `laying.kept_clear`: moved along the skin's normals, which point into each other in an armpit, man_coat's coat
+  crossed his shirt at 176 more pairs than the 100 it was sewn with), so a shirt and the coat over it start apart and
+  meet by contact as they are sewn. The laying refuses a crossing that self contact would hold, never one at cloth
+  that crosses itself (`laying.held_crossings`): GarmentCode's box mesh lays the sleeve caps through the torso panels
+  (man_coat's shirt at 257 points, his coat at 444), a sleeve sewn through its torso at the armpit takes the cloth
+  over it through with it, and no move out undoes that (his coat's 267 points at 16 cm out, 260 within 5 cm of its own
+  crossing, 2026-11-26); such a pair is left out of self contact like the garment's own. Laid all at once instead, a jacket's hem lay
+  inside the trousers' waistband box and the two tangled as the waistband was carried in. A garment over another's neckline
   holds its own neckline two cloth thicknesses further out per neckline under it.
 - **A box mesh starts outside the body** (`inside/laying.py`): GarmentCode lays its panels round its own mean body,
   and on ours some points stand inside (a tee's sleeve fronts up to 5.7 cm in the arms, jeans' front crotch curve

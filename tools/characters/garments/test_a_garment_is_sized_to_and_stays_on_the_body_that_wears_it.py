@@ -14,7 +14,9 @@ body out of it (in a thigh, and between two thighs that cross each other) and le
 the drape to refuse, moves trouser legs laid as GarmentCode lays them (wide of the legs) across over the legs, short of
 the crotch's middle, and leaves a sleeve cap's sheet laid through a torso panel out of self contact against it;
 inside/laying.py lifts the skin under sewn cloth to stand clear outside it (where an outer layer is sewn alone), two
-thighs that face each other only to the middle between them, and leaves the bare skin; inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
+thighs that face each other only to the middle between them, and leaves the bare skin; inside/laying.py puts back an
+outer layer's points its lay takes through the cloth under it, and counts its crossings with that cloth only where
+neither crosses itself (a toy coat strip through a toy shirt, the shirt's sleeve or the coat's own sheet through it); inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
 and at its flat panel (as Newton's builder rests a triangle) when it ends, so float32 reads its area as the seam
 closes, and a laid sliver at its flat panel throughout. Each row is a toy body of
 tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
@@ -49,7 +51,10 @@ on a body that narrows above the hips), its side seams' tops not held (the ring 
 where its own level way in meets the skin, spaced by count rather than by its cut, or run the other way round her (left
 and right swapped), or a side seam closed by the point under its top; the skin an outer layer is sewn alone on not
 past the cloth under it by its clear, moved in rather than out, or moved where no cloth lies, or lifted in full where two
-thighs face (each through the other's, its room ahead not halved: seen red 2026-11-26). In inside/pattern.py: a waistband laid where
+thighs face (each through the other's, its room ahead not halved: seen red 2026-11-26); an outer layer's points the
+lay takes through the cloth under it not put back, a crossing at cloth that crosses itself held (neither cloth's own
+crossings, or only one's, looked at) or every crossing left out, or cloth that crosses nothing read as crossing itself
+by its triangles sharing a corner (seen red 2026-11-26). In inside/pattern.py: a waistband laid where
 GarmentCode lays it rather than at the level it is cut for, moved up rather than down, its flat copies left behind its
 points, or a garment with no worn top moved. In fabrics.py: a strip mark's pattern not a whole number of times in its
 repeat (the rib's 1.6 mm ribs in 12 mm), or the denim's wear mottled across its tile."""
@@ -602,6 +607,42 @@ def sleeve_crossed(wear):
     return points_to, edges_to, (lower, upper), under, crossing
 
 
+def coat_kept_clear():
+    """A toy coat (a 10 x 10 sheet of 1 cm triangles 1 cm over a toy shirt's) laid out along `normals` that point into
+    the shirt at its middle row (an arm's and a torso's in the armpit) and away from it elsewhere
+    (`laying.kept_clear`): the edge-triangle pairs it then crosses the shirt at, its points left moved (all but the
+    middle row and the rows either side of it, each crossing edge's two points put back) and its middle row's points
+    left moved."""
+    shirt, shirt_faces = grid(10, 10, [0.0, 0.0, 0.0], [0.01, 0.0, 0.0], [0.0, 0.01, 0.0])
+    coat, coat_faces = grid(10, 10, [0.0, 0.0, 0.01], [0.01, 0.0, 0.0], [0.0, 0.01, 0.0])
+    middle = np.abs(coat[:, 1] - 0.05) < 1e-9
+    laid = coat + np.where(middle, -0.02, 0.005)[:, None] * [0.0, 0.0, 1.0]
+    kept = laying.kept_clear(coat, laid, coat_faces, shirt, shirt_faces)
+    pairs, _, _ = laying.crossings(kept, coat_faces, shirt, shirt_faces)
+    moved = np.linalg.norm(kept - coat, axis=1) > 0.0
+    return sum(map(len, pairs)), int(moved.sum()), int(moved[middle].sum())
+
+
+def coat_held(wear):
+    """A toy shirt (a 10 x 10 sheet of 1 cm triangles, a sleeve's strip through it at its middle when `wear` says the
+    shirt crosses itself) and a toy coat's strip (3 mm wide, through the shirt's middle triangle, or through its corner
+    one, bent, with a sheet of its own it passes through when `wear` says the coat crosses itself): the coat's points whose
+    crossings with the shirt VBD's self contact would hold (`laying.held_crossings`, each cloth's `crossed_cloth`)."""
+    shirt, shirt_faces = grid(10, 10, [0.0, 0.0, 0.0], [0.01, 0.0, 0.0], [0.0, 0.01, 0.0])
+    if "shirt crosses itself" in wear:
+        sleeve, sleeve_faces = grid(1, 2, [0.0505, 0.052, -0.0105], [0.003, 0.0, 0.0], [0.0, 0.0, 0.01])
+        shirt, shirt_faces = np.concatenate([shirt, sleeve]), np.concatenate([shirt_faces, sleeve_faces + 121])
+    corner = [0.004, 0.001, -0.0105] if "at the corner" in wear else [0.054, 0.051, -0.0105]
+    coat, coat_faces = grid(1, 2, corner, [0.003, 0.0, 0.0], [0.0, 0.0, 0.01])
+    coat[[3, 4], 1] += 0.001  # bent, so neighbouring triangles are not in one plane
+    if "coat crosses itself" in wear:
+        own, own_faces = grid(2, 2, [corner[0] - 0.005, corner[1] - 0.005, 0.005], [0.01, 0.0, 0.0], [0.0, 0.01, 0.0])
+        coat, coat_faces = np.concatenate([coat, own]), np.concatenate([coat_faces, own_faces + len(coat)])
+    held = laying.held_crossings(coat, coat_faces, shirt, shirt_faces, laying.crossed_cloth(coat, coat_faces),
+                                 laying.crossed_cloth(shirt, shirt_faces))
+    return held.tolist()
+
+
 def toy_band():
     """A toy waistband's box mesh as pattern.py records it: a front panel (+z) and a back panel, each 9 columns by 2
     rows, sewn at the side seams by their end columns' shared points, laid as GarmentCode's box mesh lays them (flat
@@ -726,6 +767,11 @@ def fabric_repeats():
     (1.0, "a sliver laid", "rests flat"),
     (1.0, "a sleeve cap laid through its torso", True),
     (1.0, "a sleeve cap laid clear of its torso", False),
+    (1.0, "a coat laid out through its shirt put back", (0, 88, 0)),
+    (1.0, "a coat through its shirt in the middle, the shirt crosses itself there", []),
+    (1.0, "a coat through its shirt in the middle, the coat crosses itself there", []),
+    (1.0, "a coat through its shirt in the middle, neither crosses itself", [2, 3, 4, 5]),
+    (1.0, "a coat through its shirt at the corner, the shirt crosses itself in the middle", [2, 3, 4, 5]),
     (1.0, "a waistband's top worn at its level", 0.0),
     (1.0, "a skin worn under the cloth sewn on it", 0.005),
     (1.0, "skins worn where two thighs face", 0.02),
@@ -812,6 +858,16 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         held, level, off, most, least, swapped = waistband_worn()
         assert held == 16 and level == pytest.approx(failed, abs=1e-9) and off < 0.0005, (held, level, off)
         assert most / least < 1.02 and swapped == 0, (most, least, swapped)
+        return
+    if wear.startswith("a coat laid"):
+        # the coat's points the lay takes through the shirt (its middle row and the triangles on it) put back as sewn,
+        # the rest left out: it crosses the shirt nowhere
+        assert coat_kept_clear() == failed
+        return
+    if wear.startswith("a coat through"):
+        # a crossing where either cloth crosses itself is left out, as self contact leaves it out; one elsewhere,
+        # beside cloth that crosses itself or not, is held
+        assert coat_held(wear) == failed
         return
     if wear.startswith("a sleeve cap"):
         points_to, edges_to, (lower, upper), under, crossing = sleeve_crossed(wear)
