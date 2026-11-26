@@ -1209,6 +1209,8 @@ def laid_objects(stage, place):
                 left_out.append({"name": prim.GetName(), "why": "the place's sky dome: scene.json's environment"})
             elif skinned.is_character(prim):
                 characters.append((prim, "character" if kind in ("object", "model") else kind))
+            elif text_of(prim, "score:library") == place_build.RAIN and text_of(prim, "score:rain:height"):
+                continue  # the environment's rain (rains_of): the game makes it fall
             elif animated(prim) and not moving_door(prim):
                 left_out.append({"name": prim.GetName(), "why": "it moves over time: not converted"})
             else:
@@ -1359,7 +1361,42 @@ def environment_of(stage, place, out):
                 key: float(text_of(sky, f"score:glow_{key}")) for key in ("threshold", "intensity")}
                 if text_of(sky, "score:glow_threshold") is not None else None}
     found["haze"] = hazes_of(stage, place)
+    found["rain"] = rains_of(stage, place)
     return found
+
+
+def rains_of(stage, place):
+    """[{name, low, high, density, seed, fall, lean, streak_long, streak_wide, colour}] of the place's rain (the rain
+    algorithm's Effects, place_build.rain): its box in the package's frame from the ground to its height, the drops a
+    cubic metre, how fast they fall and lean (rainfall.FALL, LEAN), a streak's size and the look's colour (scene
+    linear), so the game makes the same rain fall (2099 #161: the street's rain was left out as moving over time, and
+    the game's wet night street had none)."""
+    from score.stages.place_build import rainfall
+    holder = stage.GetPrimAtPath(f"/{place}/Effects")
+    found = []
+    for prim in holder.GetChildren() if holder else []:
+        height = text_of(prim, "score:rain:height")
+        if text_of(prim, "score:library") != place_build.RAIN or not height:
+            continue
+        low, high = text_of(prim, "score:rain:low"), text_of(prim, "score:rain:high")
+        world = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        corners = [world.Transform(Gf.Vec3d(float(low[0]), 0.0, float(low[1]))),
+                   world.Transform(Gf.Vec3d(float(high[0]), float(height), float(high[1])))]
+        colour = (text_of(prim, "score:surface:colour") or "#ffffff").lstrip("#")
+        found.append({"name": prim.GetName(),
+                      "low": [round(min(corner[axis] for corner in corners), 4) for axis in range(3)],
+                      "high": [round(max(corner[axis] for corner in corners), 4) for axis in range(3)],
+                      "density": round(float(text_of(prim, "score:rain:density")), 6),
+                      "seed": int(text_of(prim, "score:rain:seed") or 0), "fall": rainfall.FALL,
+                      "lean": [rainfall.LEAN, 0.0, rainfall.LEAN * 0.3], "streak_long": round(rainfall.STREAK_LONG, 4),
+                      "streak_wide": rainfall.STREAK_WIDE,
+                      "colour": [round(srgb_linear(int(colour[at:at + 2], 16) / 255.0), 6) for at in (0, 2, 4)]})
+    return found
+
+
+def srgb_linear(value):
+    """An sRGB value (0 to 1) in scene linear."""
+    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
 
 
 def hazes_of(stage, place):

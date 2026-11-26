@@ -212,6 +212,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - rainfall.falling: the lean left out of the slide -> the streaks fall straight down across their own lean
 - rainfall.landings: ceil taken as floor -> a splash shows a frame before its drop reaches the ground
 - rainfall.shown: the frame's mesh left at the ground -> splashes stand where no drop has landed
+- scene_package.rains_of: the laid rain's sizes not read (or place_build.rain not keeping them) -> the package has no rain to fall
 - ground_tracks.rut_rows: LIFT left off -> the ruts' floor sinks into the ground
 - place_build.remove: Effects not looked in -> the removed ruts stay laid
 - place_build.usd_file: an effect's `usd` root unread -> the wisp lays its clip.usdc, not its emitter
@@ -1560,6 +1561,10 @@ def rained(folder):
     assert hazed and all(prim.GetAttribute("score:from").Get().endswith(place_build.HAZE_ALGORITHM) for prim in hazed) \
         and any(prim.IsA(UsdShade.Material) for prim in hazed), [str(prim.GetPath()) for prim in hazed]
     effect = stage.GetPrimAtPath("/yard/Effects/rain")
+    from score.stages.place_build import scene_package
+    packaged = scene_package.rains_of(stage, "yard")
+    assert [(rain["name"], rain["low"][0], rain["low"][2], rain["high"][0], rain["high"][1] - rain["low"][1], rain["high"][2],
+             rain["density"], rain["fall"]) for rain in packaged] == [("rain", 60.0, 60.0, 64.0, 3.0, 64.0, 2.0, rainfall.FALL)], packaged
     fall = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Effects/rain/Fall"))
     period = rainfall.period_frames(3.0)
     slid = [np.array(fall.ComputeLocalToWorldTransform(code).ExtractTranslation()) for code in (0.0, period - 0.02,
@@ -1791,7 +1796,8 @@ def packaged(folder, out):
     bulb = scene["lamps"][0]
     assert np.isclose(bulb["strength"], bulb["intensity"] * np.pi) and bulb["watts"] == bulb["strength"]
     assert np.isclose(scene["lamps"][3]["strength"], scene["lamps"][3]["intensity"] * 4.0)  # the render's sun units
-    assert {"walker", "rain", "sky", "crew"} <= {item["name"] for item in scene["left_out"]}
+    assert {"walker", "sky", "crew"} <= {item["name"] for item in scene["left_out"]}
+    assert [rain["name"] for rain in scene["environment"]["rain"]] == ["rain"], "the rain falls in the game, not left out"
     skinned_characters(folder, out, scene, copies)
     panel, panel_looks = gltf_of(out, scene, copies["panel"]["object"])
     ground, ground_looks = gltf_of(out, scene, copies["regolith"]["object"])

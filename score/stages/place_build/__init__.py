@@ -938,8 +938,14 @@ def rain(folder, name, low, high, height, density, seed=0, address=RAIN):
     UsdGeom.Scope.Define(stage, f"/{place}/Effects")
     relative = laid_reference(stage, f"/{place}/Effects/{name}", folder, target, address, "effect",
                               ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)), False)
-    stage.GetPrimAtPath(f"/{place}/Effects/{name}").CreateAttribute(
-        "score:role", Sdf.ValueTypeNames.String).Set("effect")
+    laid = stage.GetPrimAtPath(f"/{place}/Effects/{name}")
+    laid.CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set("effect")
+    for key, value, kind in (("low", Gf.Vec2d(*map(float, low)), Sdf.ValueTypeNames.Double2),
+                             ("high", Gf.Vec2d(*map(float, high)), Sdf.ValueTypeNames.Double2),
+                             ("height", float(height), Sdf.ValueTypeNames.Double),
+                             ("density", float(density), Sdf.ValueTypeNames.Double),
+                             ("seed", int(seed), Sdf.ValueTypeNames.Int)):
+        laid.CreateAttribute(f"score:rain:{key}", kind).Set(value)  # its sizes, for the package's rain (rains_of)
     saved(stage)
     return {"name": name, "address": address, "usd": relative, "counts": counts}
 
