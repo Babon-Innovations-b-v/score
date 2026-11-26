@@ -15,6 +15,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/signs/__init__.p
     build's `if chosen["face"][0] == "glowing":` -> `if True:` (a neon blade's letters dimmed as a lightbox's)
     lamp_parts' `under = tall - head - BORDER` -> `under = tall - head` (the lamp's cap above its height)
     build_lamp's `value * LAMP_GLOW` -> `value` (the lamp's head a white bloom blob)
+    sign_parts' `border, ... = BORDER * relief, ...` -> `= BORDER, ...` (a 3 cm label plate's face turned inside out)
 """
 import numpy as np
 
@@ -75,6 +76,13 @@ def test_a_lightbox_sign_carries_its_words_raised_on_its_glowing_face():
     assert not np.any(blade.geometry["face"].visual.material.emissiveFactor) and np.allclose(
         blade.geometry["letters"].visual.material.emissiveFactor, lightbox.car.linear("#c8382a"), atol=0.01), \
         "a neon blade: a dark face, its letters glowing their whole colour"
+    label, label_record = lightbox.build("TALK", (0.1, 0.03, 0.005), PALETTE, relief=0.05,
+                                         finishes={"face": ("painted_metal", "gunmetal_steel")})
+    label_face, label_letters = label.geometry["face"].bounds, label.geometry["letters"].bounds
+    assert label_record["relief"] == 0.05 and np.allclose(label_face[:, :2], [[-0.05 + 0.003, 0.003], [0.05 - 0.003, 0.027]]) \
+        and np.all(label_letters[0, :2] >= label_face[0, :2] - 1e-9) and np.all(label_letters[1, :2] <= label_face[1, :2] + 1e-9) \
+        and np.isclose(label_letters[1, 2] - label_letters[0, 2], lightbox.LETTER_PROUD * 0.05), \
+        "a small label plate keeps a face inside its border, its letters on it, both reliefs scaled"
     lamp, lamp_record = lightbox.build_lamp(3.0, 0.42, PALETTE)
     assert np.allclose(lamp.bounds, [[-0.21 - lightbox.BORDER / 2, 0.0, -0.21 - lightbox.BORDER / 2],
                                      [0.21 + lightbox.BORDER / 2, 3.0, 0.21 + lightbox.BORDER / 2]]), \

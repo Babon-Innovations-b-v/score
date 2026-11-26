@@ -7,7 +7,7 @@ Every part is a palette variant of its library recipe (car.painted), the face an
     sign_parts(text, size, look, vertical)  the parts of a sign of `size` (across, tall, deep; y up, its face towards
                                     +z, its foot on y 0, centred across and in depth): casing, face, letters; a
                                     vertical sign's characters stacked top to bottom, as a Hong Kong blade sign's
-    build(text, size, palette, look, finishes, vertical)  (trimesh.Scene, record): the parts painted from the palette,
+    build(text, size, palette, look, finishes, vertical, relief)  (trimesh.Scene, record): the parts painted from the palette,
                                     FINISHES unless `finishes` names others (a neon blade: a dark face, glowing letters)
 """
 import numpy as np
@@ -78,37 +78,39 @@ def box(low, high):
                                 transform=trimesh.transformations.translation_matrix((low + high) / 2.0))
 
 
-def sign_parts(text, size, look="bold sans", vertical=False):
+def sign_parts(text, size, look="bold sans", vertical=False, relief=1.0):
     """[(part, mesh)]: the casing, the face inset by BORDER standing FACE_PROUD out of it, and the letters standing
-    LETTER_PROUD out of the face, the words centred on it as large as TEXT_TALL and TEXT_WIDE let them."""
+    LETTER_PROUD out of the face, the words centred on it as large as TEXT_TALL and TEXT_WIDE let them; `relief` scales
+    the border and both reliefs, so a label plate a few centimetres tall keeps a face (at a whole BORDER it has none)."""
     import trimesh
     across, tall, deep = (float(value) for value in size)
+    border, face_proud, letter_proud = BORDER * relief, FACE_PROUD * relief, LETTER_PROUD * relief
     front = deep / 2.0
     casing = box((-across / 2, 0.0, -deep / 2), (across / 2, tall, front))
-    face_low, face_high = np.array([-across / 2 + BORDER, BORDER]), np.array([across / 2 - BORDER, tall - BORDER])
-    face = box((*face_low, front), (*face_high, front + FACE_PROUD))
+    face_low, face_high = np.array([-across / 2 + border, border]), np.array([across / 2 - border, tall - border])
+    face = box((*face_low, front), (*face_high, front + face_proud))
     raster = ink(text, look, vertical)
     span = face_high - face_low
     cell = min(span[1] * TEXT_TALL / raster.shape[0], span[0] * TEXT_WIDE / raster.shape[1])
     middle = (face_low + face_high) / 2.0
     left, top = middle[0] - raster.shape[1] * cell / 2.0, middle[1] + raster.shape[0] * cell / 2.0
-    face_front = front + FACE_PROUD
+    face_front = front + face_proud
     letters = trimesh.util.concatenate([
         box((left + first * cell, top - (row + 1) * cell, face_front),
-            (left + past * cell, top - row * cell, face_front + LETTER_PROUD)) for row, first, past in runs(raster)])
+            (left + past * cell, top - row * cell, face_front + letter_proud)) for row, first, past in runs(raster)])
     return [("casing", casing), ("face", face), ("letters", letters)]
 
 
-def build(text, size, palette, look="bold sans", finishes=None, vertical=False):
+def build(text, size, palette, look="bold sans", finishes=None, vertical=False, relief=1.0):
     """(trimesh.Scene, record) of the sign: each part a node of its own name in its palette variant (FINISHES, or
     `finishes` {part: (recipe, variant)} over them), the record naming its text, size and parts as car.painted reads
-    them. A glowing face gives off FACE_GLOW and reflects FACE_BASE of its colour, its letters then LETTER_GLOW."""
+    them, and its `relief` (sign_parts). A glowing face gives off FACE_GLOW and reflects FACE_BASE of its colour, its letters then LETTER_GLOW."""
     import trimesh
     chosen = dict(FINISHES, **(finishes or {}))
     scene = trimesh.Scene()
     record = {"rule": "lightbox", "text": text, "look": look, "size": [float(value) for value in size],
-              "vertical": bool(vertical), "parts": []}
-    for name, mesh in sign_parts(text, size, look, vertical):
+              "vertical": bool(vertical), "relief": float(relief), "parts": []}
+    for name, mesh in sign_parts(text, size, look, vertical, relief):
         scene.add_geometry(mesh, node_name=name, geom_name=name)
         recipe, variant = chosen[name]
         record["parts"].append({"name": name, "finish": recipe, "variant": variant})
