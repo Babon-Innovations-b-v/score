@@ -63,7 +63,6 @@ BELT_REACH = 0.1  # m: a cloth point further than this from the skin is not look
 # walk frame 25 (2026-11-24).
 BELT_SHARE = 0.1
 HOLD_SHARE = 1.0  # of the way back to its level a drawn point past it moves each substep while held
-UNDER_FOOT_M = 0.03  # sewn cloth whose nearest skin lies this near an outer point's is the cloth under it
 CROSS_STEP_M = 0.004  # how far out a laid point whose cloth crosses the cloth under it is moved a round
 CROSS_ROUNDS = 40  # rounds of that before the laying is refused (16 cm out)
 
@@ -190,15 +189,15 @@ def held_on(particles: wp.array[wp.int32], corners: wp.array[wp.vec3i], weights:
 
 def laid_over(points, faces, skin, skin_faces, under, clear):
     """A garment sewn alone on the body (`points`, its `faces`) laid outside the cloth sewn under it (`under`: its
-    points and faces): each point moved out along the skin's normal at the skin point nearest it until it stands
-    `clear` (m) further off the skin than that cloth (where the cloth's nearest skin lies within UNDER_FOOT_M of the
-    point's), then `uncrossed`. Its box mesh laid over the sewn cloth, a seam's long triangles (a front panel's edge to
-    the back panel's, 16 to 18 cm) cut through it however far out the points were laid: a jacket's side seams through
-    the trousers' waistband, a coat's through its shirt at the sides and armpits (2026-11-25); sewn, every triangle is
-    the cloth's own small one. Moved along the way from its nearest skin point instead, cloth sewn a centimetre off a
-    skin of 4.5 mm triangles went along the skin as much as off it (for 30% of woman_stair_modern's tee more than 60
-    degrees off the normal), neighbouring points apart, and a tee triangle at her back's waist was pulled to 18 cm
-    and through her jeans however far out (2026-11-25)."""
+    points and faces): each point moved out along the skin's normal at the skin point nearest it until it stands `clear`
+    (m) further off the skin than that cloth (where the cloth's nearest skin lies within laying.UNDER_FOOT_M of the
+    point's), then `uncrossed`. Its box mesh laid over the sewn cloth, a seam's long triangles (a front panel's edge
+    to the back panel's, 16 to 18 cm) cut through it however far out the points were laid: a jacket's side seams
+    through the trousers' waistband, a coat's through its shirt at the sides and armpits (2026-11-25); sewn, every
+    triangle is the cloth's own small one. Moved along the way from its nearest skin point instead, cloth sewn a
+    centimetre off a skin of 4.5 mm triangles went along the skin as much as off it (for 30% of woman_stair_modern's
+    tee more than 60 degrees off the normal), neighbouring points apart, and a tee triangle at her back's waist was
+    pulled to 18 cm and through her jeans however far out (2026-11-25)."""
     from scipy.spatial import cKDTree
     skin_tree = cKDTree(skin)
     normals = laying.skin_normals(skin, skin_faces)
@@ -210,7 +209,7 @@ def laid_over(points, faces, skin, skin_faces, under, clear):
     _, under_nearest = skin_tree.query(under_points)
     under_height = np.sum((under_points - skin[under_nearest]) * normals[under_nearest], axis=1)
     feet = cKDTree(skin[under_nearest])
-    for index, near in enumerate(feet.query_ball_point(skin[nearest], UNDER_FOOT_M)):
+    for index, near in enumerate(feet.query_ball_point(skin[nearest], laying.UNDER_FOOT_M)):
         if near:
             least[index] = max(least[index], under_height[near].max() + clear)
     return uncrossed(points + away * (least - height)[:, None], faces, away, under_points, under_faces)
@@ -535,8 +534,9 @@ def worn(outfit, job, clip_start):
 
 def sewn_in_layers(job, body):
     """The outfit sewn a layer at a time, innermost first (each garment's `layer_m`): a layer over sewn cloth is
-    first sewn alone on the body, then `laid_over` that cloth, then sewn with it in place (all laid at once, a
-    trousers' waistband carried in to the skin from its box passed through the jacket's hem over it, 2026-11-24).
+    first sewn alone on the skin as that cloth wears it (`laying.worn_skin`), then `laid_over` that cloth, then sewn
+    with it in place (all laid at once, a trousers' waistband carried in to the skin from its box passed through the
+    jacket's hem over it, 2026-11-24).
     The last stage's outfit (the belt in it) and the wall seconds of every stage."""
     layers = sorted({float(spec.get("layer_m", 0.0)) for spec in job["garments"]})
     placed, seconds = {}, 0.0
@@ -547,12 +547,14 @@ def sewn_in_layers(job, body):
         new = [spec for spec in job["garments"] if float(spec.get("layer_m", 0.0)) == layer]
         if placed:
             under = [spec for spec in job["garments"] if spec["name"] in placed]
-            alone = Outfit({key: value for key, value in stage.items() if key != "belt"} | {"garments": new}, body)
+            cloth = sewn_cloth([placed[spec["name"]] for spec in under], [welded_faces(spec) for spec in under])
+            clear = max(layer - max(float(spec.get("layer_m", 0.0)) for spec in under), 2.0 * job["self"]["gap"])
+            worn = laying.worn_skin(skin, body["faces"], cloth[0], clear)
+            alone = Outfit({key: value for key, value in stage.items() if key != "belt"} | {"garments": new},
+                           body | {"bind": worn, "frames": worn[None]})
             print(f"sewing layer {number + 1} of {len(layers)} alone: {', '.join(spec['name'] for spec in new)}",
                   flush=True)
             seconds += sewn(alone, job)
-            cloth = sewn_cloth([placed[spec["name"]] for spec in under], [welded_faces(spec) for spec in under])
-            clear = max(layer - max(float(spec.get("layer_m", 0.0)) for spec in under), 2.0 * job["self"]["gap"])
             for garment, spec in zip(alone.garments, new):
                 placed[spec["name"]] = laid_over(alone.points(garment), garment.faces, skin, body["faces"], cloth,
                                                  clear)

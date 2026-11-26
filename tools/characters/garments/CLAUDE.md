@@ -46,8 +46,10 @@ runs them (an outfit file per look in `data/people/outfits/`).
   and their gaze levelled with the face's own look counted, before any build clears the arms; a posture that still
   faults stops the run.
 - **Layers** (an outfit's `layer_m` per garment): sewn a layer at a time, innermost first (`sewn_in_layers`); an
-  outer garment's box mesh is laid that much further off the skin and outside the cloth sewn under it, so a shirt and
-  the coat over it start apart and meet by contact as they are sewn (laid all at once, a jacket's hem lay inside the
+  outer garment is sewn alone on the skin as the cloth under it wears it (`laying.worn_skin`: sewn on the bare skin,
+  man_coat's sleeves crossed themselves at the armpits and no move out cleared his shirt), its box mesh laid that much
+  further off, then laid outside the cloth sewn under it, so a shirt and the coat over it start apart and meet by
+  contact as they are sewn (laid all at once, a jacket's hem lay inside the
   trousers' waistband box and the two tangled as the waistband was carried in). A garment over another's neckline
   holds its own neckline two cloth thicknesses further out per neckline under it.
 - **A box mesh starts outside the body** (`inside/laying.py`): GarmentCode lays its panels round its own mean body,

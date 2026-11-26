@@ -39,6 +39,7 @@ LEVEL_M = 0.01  # the band a level's points and skin are read in (half its heigh
 LEG_LEVELS = 9  # levels of a leg's lower half its move across is read at
 RING_WAYS = 360  # level ways out from a waistband's middle the skin's ring round her is read along
 CROTCH_GAP_M = 0.01  # a leg moved in towards the crotch's middle keeps its points this far off it (the legs apart)
+UNDER_FOOT_M = 0.03  # sewn cloth whose nearest skin lies this near a point's is the cloth over (or under) it
 
 
 def winding(points, skin, faces):
@@ -195,6 +196,26 @@ def skin_normals(skin, faces):
     for corner in range(3):
         np.add.at(found, faces[:, corner], crossed)
     return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)
+
+
+def worn_skin(skin, faces, under, clear):
+    """The skin as the cloth sewn on it wears it (`under`: that cloth's points): each skin point moved out along its
+    normal to `clear` (m) past the furthest cloth whose nearest skin lies within UNDER_FOOT_M of it (each cloth point's
+    height read along its nearest skin point's normal), a skin point with no cloth over it left. An outer layer is sewn
+    alone on this skin (drape.sewn_in_layers), so it is sewn outside the cloth under it: sewn alone on the bare skin,
+    a coat's sleeve backs crossed themselves where the arm meets the torso (a box mesh closes with no self contact), the
+    shirt's under them crossed too, and moved out along the skin's normals from there (the arm's pointing into the
+    torso, the torso's into the arm) the coat still crossed the shirt at 307 points 16 cm out (man_coat, 2026-11-26)."""
+    skin = np.asarray(skin, dtype=float)
+    normals = skin_normals(skin, faces)
+    tree = cKDTree(skin)
+    _, nearest = tree.query(under)
+    height = np.sum((np.asarray(under, dtype=float) - skin[nearest]) * normals[nearest], axis=1)
+    lift = np.zeros(len(skin))
+    for index, near in enumerate(cKDTree(skin[nearest]).query_ball_point(skin, UNDER_FOOT_M)):
+        if near:
+            lift[index] = max(height[near].max() + clear, 0.0)
+    return skin + normals * lift[:, None]
 
 
 def top_ring(record, labels, scale):

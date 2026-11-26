@@ -13,7 +13,8 @@ each open edge, a plain seam left bare, a patch at its anchor), each a hair's br
 body out of it (in a thigh, and between two thighs that cross each other) and leaves one with no way out inside, for
 the drape to refuse, moves trouser legs laid as GarmentCode lays them (wide of the legs) across over the legs, short of
 the crotch's middle, and leaves a sleeve cap's sheet laid through a torso panel out of self contact against it;
-inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
+inside/laying.py lifts the skin under sewn cloth to stand clear outside it (where an outer layer is sewn alone) and
+leaves the bare skin; inside/laying.py rests a seam's triangle laid 15 times its panel as laid when sewing starts
 and at its flat panel (as Newton's builder rests a triangle) when it ends, so float32 reads its area as the seam
 closes, and a laid sliver at its flat panel throughout. Each row is a toy body of
 tubes measured, and a toy tee (torso, shoulders, a collar band, sleeve panels between the side and shoulder seams)
@@ -46,7 +47,8 @@ triangle's edges, or an edge sharing a corner with a triangle taken for one thro
 leaving its own neighbours out of self contact); a waistband's top worn where the skin is nearest it (off its level
 on a body that narrows above the hips), its side seams' tops not held (the ring open at the seams), each point worn
 where its own level way in meets the skin, spaced by count rather than by its cut, or run the other way round her (left
-and right swapped), or a side seam closed by the point under its top. In inside/pattern.py: a waistband laid where
+and right swapped), or a side seam closed by the point under its top; the skin an outer layer is sewn alone on not
+past the cloth under it by its clear, moved in rather than out, or moved where no cloth lies. In inside/pattern.py: a waistband laid where
 GarmentCode lays it rather than at the level it is cut for, moved up rather than down, its flat copies left behind its
 points, or a garment with no worn top moved. In fabrics.py: a strip mark's pattern not a whole number of times in its
 repeat (the rib's 1.6 mm ribs in 12 mm), or the denim's wear mottled across its tile."""
@@ -449,6 +451,24 @@ def pants_laid(clear):
     return int(inside(laid).sum())
 
 
+def skin_worn_under(clear):
+    """A toy thigh's skin (`toy_thighs`' left one) worn by cloth sewn 1 cm off it from 20 to 40 cm up
+    (`laying.worn_skin`, `clear` past it): each skin point's distance off its axis well inside the cloth's span and
+    well outside it, and the most a point moved."""
+    points, faces = toy_thighs()
+    keep = np.flatnonzero(points[:, 0] > 0.0)
+    skin, faces = points[keep], np.searchsorted(keep, faces[np.isin(faces, keep).all(axis=1)])
+    ring = skin[(skin[:, 1] >= 0.2) & (skin[:, 1] <= 0.4)]
+    cloth = ring + np.concatenate([(ring[:, [0, 2]] - [0.05, 0.0]) / 0.06 * 0.01, np.zeros((len(ring), 1))],
+                                  axis=1)[:, [0, 2, 1]]
+    worn = laying.worn_skin(skin, faces, cloth, clear)
+    off = np.linalg.norm(worn[:, [0, 2]] - [0.05, 0.0], axis=1)
+    side = np.linalg.norm(skin[:, [0, 2]] - [0.05, 0.0], axis=1) > 0.059
+    covered = side & (skin[:, 1] > 0.25) & (skin[:, 1] < 0.35)
+    bare = side & ((skin[:, 1] < 0.15) | (skin[:, 1] > 0.45))
+    return off[covered], off[bare], float(np.linalg.norm(worn - skin, axis=1).max())
+
+
 def legs_laid(moved):
     """Toy trousers laid as GarmentCode lays them (each leg's front and back panels flat, 24 cm wide, from 6 cm off the
     crotch's middle outwards, a crotch point both legs hold) beside two toy legs 8 cm either side of the middle, 8 cm
@@ -690,6 +710,7 @@ def fabric_repeats():
     (1.0, "a sleeve cap laid through its torso", True),
     (1.0, "a sleeve cap laid clear of its torso", False),
     (1.0, "a waistband's top worn at its level", 0.0),
+    (1.0, "a skin worn under the cloth sewn on it", 0.005),
     (1.0, "a waistband laid at the level it is cut for", 25.0),
     (1.0, "fabrics drawn to repeat cleanly", 0.05),
 ])
@@ -724,6 +745,13 @@ def test_a_garment_is_sized_to_and_stays_on_the_body_that_wears_it(scale, wear, 
         # crotch's middle than the gap, the crotch seam where it was laid; as GarmentCode lays them, a quarter out
         assert (share == pytest.approx(1.0)) == failed, share
         assert nearest >= laying.CROTCH_GAP_M - 1e-9 and crotch == 0.0, (nearest, crotch)
+        return
+    if wear.startswith("a skin worn"):
+        # the skin under the cloth stands its clear outside it (the 48-gon's sides 0.1% inside its circle), out along
+        # its own normal; the bare skin is where it was
+        covered, bare, most = skin_worn_under(failed)
+        assert covered == pytest.approx(0.07 + failed, abs=0.0005), covered
+        assert bare == pytest.approx(0.06, abs=1e-9) and most < 0.01 + failed + 0.0005, (bare, most)
         return
     if wear.startswith("pants"):
         # the drape refuses a garment with a point left inside the body, never sews it
