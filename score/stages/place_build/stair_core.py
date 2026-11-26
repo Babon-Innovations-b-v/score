@@ -438,17 +438,30 @@ def railing(points_along, height_of, rail_high, z, handrail=True):
     return pieces
 
 
-def cross_railing(x, z_from, z_to, floor):
-    """A short landing railing across z at `x` (where a landing ends over the well or a flight below)."""
+def cross_railing(x, z_from, z_to, floor, rail_high=LANDING_RAIL):
+    """A short landing railing across z at `x` (where a landing ends over the well or a flight below), its handrail
+    `rail_high` over the floor (at the well's turn the flights' own rail height there, so it joins their caps)."""
     pieces = []
     count = max(2, int(abs(z_to - z_from) / BALUSTER_STEP) + 1)
     for number in range(count):
         z = z_from + (z_to - z_from) * number / (count - 1)
         pieces.append(("balusters", box((x - BALUSTER / 2, floor, z - BALUSTER / 2),
-                                        (x + BALUSTER / 2, floor + LANDING_RAIL - RAIL_SIZE[1] / 2, z + BALUSTER / 2))))
-    pieces.append(("handrail", rounded_beam((x, floor + LANDING_RAIL, z_from), (x, floor + LANDING_RAIL, z_to),
+                                        (x + BALUSTER / 2, floor + rail_high - RAIL_SIZE[1] / 2, z + BALUSTER / 2))))
+    pieces.append(("handrail", rounded_beam((x, floor + rail_high, z_from), (x, floor + rail_high, z_to),
                                             *RAIL_SIZE)))
     return pieces
+
+
+def turn_rail(x, floor):
+    """The handrail's height at `x` over the landing at `floor`: the highest of the two flights' rails that turn
+    there (the one arriving and the one leaving) and the landing's own, so the well's two newel posts at one turn
+    stand level and the cross rail between them meets both caps (2099 judge, 2026-11-26: the posts at a turn stood at
+    two heights with the cross rail's block poking out between them)."""
+    half = not math.isclose(floor % STOREY, 0.0, abs_tol=1e-6)
+    turning = ((LANDING, floor - STOREY / 2, 1), (LANDING + RUN, floor, -1)) if half else \
+        ((LANDING, floor, 1), (LANDING + RUN, floor - STOREY / 2, -1))
+    return max([pitch(foot_x, foot_y, way, x) + RAIL for foot_x, foot_y, way in turning if foot_y >= 0.0]
+               + [floor + LANDING_RAIL])
 
 
 def newelled(foot_x, foot_y, way, z, reach):
@@ -458,8 +471,7 @@ def newelled(foot_x, foot_y, way, z, reach):
     stubs at different heights with a gap at every turn)."""
     pieces = []
     for x, floor in ((foot_x - way * reach, foot_y), (foot_x + way * (RUN + reach), foot_y + STOREY / 2)):
-        rail = pitch(foot_x, foot_y, way, x) + RAIL
-        top = max(rail, floor + LANDING_RAIL) + RAIL_SIZE[1] / 2 + 0.02
+        top = turn_rail(x, floor) + RAIL_SIZE[1] / 2 + 0.02
         pieces.append(("balusters", box((x - NEWEL / 2, floor, z - NEWEL / 2), (x + NEWEL / 2, top, z + NEWEL / 2))))
     start, end = foot_x - way * reach, foot_x + way * (RUN + reach)
     pieces.append(("handrail", rounded_beam((start, pitch(foot_x, foot_y, way, start) + RAIL, z),
@@ -491,9 +503,12 @@ def railings(storeys):
     for storey in range(storeys):
         half = storey * STOREY + STOREY / 2
         pieces += railing((LANDING + RUN, LONG - inset), lambda x, half=half: half, LANDING_RAIL, inset)
-        pieces += cross_railing(LANDING + RUN + inset, WIDE - inset, WIDE + WELL + inset, half)
+        turn = LANDING + RUN + inset
+        pieces += cross_railing(turn, WIDE - inset, WIDE + WELL + inset, half, turn_rail(turn, half) - half)
     for storey in range(1, storeys):
-        pieces += cross_railing(LANDING - inset, WIDE - inset, WIDE + WELL + inset, storey * STOREY)
+        floor = storey * STOREY
+        pieces += cross_railing(LANDING - inset, WIDE - inset, WIDE + WELL + inset, floor,
+                                turn_rail(LANDING - inset, floor) - floor)
     pieces += cross_railing(LANDING - inset, inset, WIDE + WELL + inset, storeys * STOREY)
     return pieces
 
