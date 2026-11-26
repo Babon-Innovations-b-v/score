@@ -74,6 +74,11 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   (2026-11-22: the square's looks, cast all at once against the whole plaza, held past 12 GB), and a cast over
   COLLECTED faces frees its ray structure at once (`gc.collect`: a Trimesh holds itself round, so each batch's stayed). A new phase that
   grows with the scene gets its estimate there; never loosen a measure to fit.
+- **Standing at a wrong angle** (`tilted`, 2099 #161, owner 2026-11-26: objects "stand at wrong angles in every
+  place"): a prop's base (`base_of`: its convex hull's largest flat face looking down and holding its lowest point, a
+  crate's bottom or the face its legs' ends span) turned past TILT off level; `floating` takes only the nearest foot,
+  so a lamp made leaning on one edge passed before. An object with no flat base (a round bottom) is not judged. The fix
+  is `on ... --upright` (its turn stands the base level, then it is laid at rest), never a wider TILT.
 - **A planted fault per measure** is in the test fixture; a new measure gets its fault there, seen caught.
 - Test: `test_every_planted_physics_fault_is_told_by_name.py` (its MuJoCo part prints skipped in a sandbox home with
   no newton_env; link `$PROPS_HOME/envs/newton_env` to run it whole).

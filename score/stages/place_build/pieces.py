@@ -51,6 +51,7 @@ MESHES = "meshes"  # the folder of a library piece's geometry as laid, for an en
 WEB_COPY = "web3d/full.glb"  # an entry's whole web 3D copy (score_lib's web3d), a glTF of it
 EVERY_PART = package.EVERY_PART  # a copy's look on every part of its piece (a character in its own texture)
 LIBRARY_KINDS = ("model", "take", "kit", "effect", "ground")  # a laid entry of these kinds is a library piece
+RESTING = ("floating", "no support", "tilted", "tips")  # how ready.json tells a copy not resting on its support
 
 
 # --- a piece's parts ------------------------------------------------------------------------------------------------
@@ -533,7 +534,8 @@ def written_pieces(folder, out, stage, place, seat):
     """write's body: every object a copy of a piece, every character a skinned made piece, the place's looks, lamps,
     doors and environment (version 1's), the library digests read from its index."""
     ready_file = folder / "ready.json"
-    roles = json.loads(ready_file.read_text())["roles"] if ready_file.is_file() else None
+    checked = json.loads(ready_file.read_text()) if ready_file.is_file() else None
+    roles = checked["roles"] if checked is not None else None
     for written in (MADE, MESHES):  # a piece list written before: its made pieces, meshes and scene.json
         if (out / written).exists():
             shutil.rmtree(out / written)
@@ -582,10 +584,23 @@ def written_pieces(folder, out, stage, place, seat):
              if seat else "the place's own frame: metres, y up", "units": "metre", "up": "+y",
              "ground": scene_package.GROUND, "on_seat": [0.0, 0.0], "pieces": pieces, "looks": looks,
              "copies": copies, "lamps": lamps,
-             "counts": counts, "physics": "ready.json" if roles is not None else None, "left_out": left_out,
+             "counts": counts, "physics": "ready.json" if roles is not None else None,
+             "rests": rests_of(folder, checked, [copy["name"] for copy in copies]), "left_out": left_out,
              "chambers": chambers, "environment": environment, "pictures": held_pictures(folder, out, looks, pieces)}
     (out / "scene.json").write_text(json.dumps(scene, indent=1) + "\n")
     return scene
+
+
+def rests_of(folder, checked, names):
+    """How the listed copies rest, by the place's check (ready.json): [{name, fault, why}] of every one floating,
+    standing on nothing, tilted or tipping (RESTING), [] when none is; None when the place has no check, or one older
+    than its scene (laid again since: its measures are of another scene)."""
+    if checked is None or (folder / "ready.json").stat().st_mtime < place_build.scene_path(folder).stat().st_mtime:
+        return None
+    listed = set(names)
+    return [{"name": name, "fault": fault["fault"], "why": fault.get("why", "")}
+            for name, faults in sorted(checked.get("objects", {}).items()) if name in listed
+            for fault in faults if fault["fault"] in RESTING]
 
 
 def packaged(folder, out):
@@ -593,6 +608,8 @@ def packaged(folder, out):
     started = time.monotonic()
     scene = write(folder, out)
     found = package.problems(pathlib.Path(out))
+    if scene["rests"]:
+        found = [f"{rest['name']} {rest['fault']}: {rest['why']}" for rest in scene["rests"]] + found
     if found:
         raise place_build.Refused(f"the piece list fails its check: {'; '.join(found[:12])}")
     made_bytes = sum(path.stat().st_size for folder in (MADE, MESHES) for path in (pathlib.Path(out) / folder).rglob("*")

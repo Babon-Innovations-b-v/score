@@ -21,7 +21,9 @@ left out of every measure, `out_of_reach`). The faults, each with its measure:
 - `no collision geometry`: an object with no triangles to collide by.
 - `floating`: a prop, fixed piece, structure or door whose lowest points clear what is under them by over TOLERANCE
   (the gap and the support named); `no support`: nothing at all under it; `tips`: its weight (the middle of its
-  surface) falls over BALANCE outside what it touches (resting.py's measures).
+  surface) falls over BALANCE outside what it touches (resting.py's measures); `tilted`: a prop whose base (the largest
+  flat face of its convex hull looking down, holding its lowest point: a crate's bottom, the face its legs' ends span)
+  turns more than TILT degrees off level.
 - `penetration`: a sample of an object's surface lies inside another (a ray from the object's middle to the point
   crosses the other's surface an odd number of times; the depth is how far past its last crossing), or its middle
   lies inside another closed object; joined structure and a rock bedded in the ground are not faults.
@@ -86,7 +88,13 @@ TOLERANCE = resting.TOLERANCE  # metres off a support, or into another, that sti
 BALANCE = resting.BALANCE
 RAY_START = 0.1  # rays down start this far over each point, so a point bedded a little still finds its support's top
 FOOT = 300  # how many of an object's lowest points look down for its support
+BASE_ANGLE = 30.0  # degrees off straight down a face of an object's hull may look and still be its base (`base_of`)
+BASE_SHARE = 0.3  # of its foot's box an object's base covers at least, else it has none (a round bottom)
+BASE_SLICE = 0.1  # of its height over its lowest point an object's foot reaches (`base_of`)
+TILT = 2.0  # degrees a prop's base may turn off level before it stands at a wrong angle (`tilt_faults`)
 SAMPLES = 500  # how many points of an object's surface are tested for lying inside another
+MOUNT_SAMPLES = 1000  # points of a mount's surface whose nearest to its wall is its gap (200 read a street lantern
+# touching its string, 7 mm off, as hanging 3.1 cm off it: 2099 #161)
 PIECE = 0.01  # a connected part with less of an object's surface is no piece of its own (its middle unused)
 INSIDE_WAYS = ((0.0, 1.0, 0.0), (0.37, 0.81, 0.45), (-0.52, 0.29, -0.8))  # odd ways, off any axis
 MAX_SPLIT = 200_000  # an object with more faces is taken whole, not split into its pieces
@@ -462,7 +470,43 @@ def support_faults(laid, name):
     if outside > BALANCE and laid.roles[name] == "prop":
         return [{"fault": "tips", "outside": round(float(outside), 3), "support": support,
                  "why": f"its weight falls {outside * 100:.0f} cm outside what it stands on ({support})"}]
-    return []
+    return tilt_faults(laid, name, support) if laid.roles[name] == "prop" else []
+
+
+def base_of(mesh):
+    """An object's base: the largest flat face of its convex hull that looks down within BASE_ANGLE of straight down
+    and holds its lowest point (coplanar hull triangles merged), as (its normal, its area); None for an object with no
+    flat base of at least BASE_SHARE of its foot's box (its hull's corners in its lowest BASE_SLICE of its height: a lamp's
+    base, not its shade), so a bowl's round bottom or a ball has none."""
+    hull = mesh.convex_hull
+    groups = [list(facet) for facet in hull.facets]
+    grouped = {int(face) for facet in hull.facets for face in facet}
+    groups += [[face] for face in range(len(hull.faces)) if face not in grouped]
+    lowest = float(hull.vertices[:, 1].min())
+    low = hull.vertices[hull.vertices[:, 1] <= lowest + max(TOLERANCE, BASE_SLICE * float(np.ptp(hull.vertices[:, 1])))]
+    footprint = float(np.prod(np.ptp(low[:, [0, 2]], axis=0)))
+    best = None
+    for faces in groups:
+        area = float(hull.area_faces[faces].sum())
+        normal = (hull.face_normals[faces] * hull.area_faces[faces][:, None]).sum(axis=0)
+        normal = normal / (np.linalg.norm(normal) or 1.0)
+        touches = float(hull.vertices[hull.faces[faces].ravel(), 1].min()) <= lowest + TOLERANCE
+        if -normal[1] >= np.cos(np.radians(BASE_ANGLE)) and touches and (best is None or area > best[1]):
+            best = (normal, area)
+    return best if best is not None and best[1] >= BASE_SHARE * footprint else None
+
+
+def tilt_faults(laid, name, support):
+    """A prop standing at a wrong angle: its base (base_of, the flat underside it stands on: a crate's bottom, the
+    face its legs' ends span) turned more than TILT degrees off level."""
+    base = base_of(laid.meshes[name])
+    if base is None:
+        return []
+    degrees = float(np.degrees(np.arccos(min(1.0, -float(base[0][1])))))
+    if degrees <= TILT:
+        return []
+    return [{"fault": "tilted", "degrees": round(degrees, 1), "support": support,
+             "why": f"stands {degrees:.1f} degrees off level on {support}"}]
 
 
 # --- one solid inside another -------------------------------------------------------------------------------------
@@ -1564,7 +1608,7 @@ def mount_faults(laid, name):
     if support not in laid.meshes or laid.meshes[support] is None:
         return [{"fault": "no support", "why": f"mounted on {support or 'no wall'}, which the scene does not hold"}]
     distance = float(trimesh.proximity.closest_point(laid.meshes[support],
-                                                     surface_samples(laid.meshes[name], 200))[1].min())
+                                                     surface_samples(laid.meshes[name], MOUNT_SAMPLES))[1].min())
     if distance > TOLERANCE:
         return [{"fault": "floating", "gap": round(distance, 3), "support": support,
                  "why": f"hangs {distance * 100:.1f} cm off {support}, the wall it is mounted on"}]
@@ -1768,13 +1812,36 @@ def levels_under(laid, support, spot, across=(0.0, 0.0)):
     return levels
 
 
-def placed_on(stage, place, name, support, level=None, height=None):
-    """The object moved to rest in contact on its support (see `on`); its new spot and what it rests on."""
+def levelled(turn, mesh):
+    """The laid turn (rotateXYZ degrees) that stands the object's base (base_of) level, turned about its own spot, so
+    its base looks straight down; the turn as it was for an object with no base."""
+    from scipy.spatial.transform import Rotation
+    base = base_of(mesh)
+    if base is None:
+        return list(turn)
+    down = np.array([0.0, -1.0, 0.0])
+    axis = np.cross(base[0], down)
+    if np.linalg.norm(axis) < 1e-9:
+        return list(turn)
+    angle = float(np.arccos(np.clip(base[0] @ down, -1.0, 1.0)))
+    fix = Rotation.from_rotvec(axis / np.linalg.norm(axis) * angle)
+    # USD's rotateXYZ turns about x, then y, then z: scipy's extrinsic "xyz"
+    return [float(value) for value in (fix * Rotation.from_euler("xyz", turn, degrees=True)).as_euler("xyz", degrees=True)]
+
+
+def placed_on(stage, place, name, support, level=None, height=None, upright=False):
+    """The object moved to rest in contact on its support (see `on`), first stood level on its base when `upright`
+    (levelled); its new spot and what it rests on."""
     laid = Place(stage, place)
     if name not in laid.meshes or laid.meshes[name] is None:
         raise place_build.Refused(f"the scene holds no object {name} with a shape")
     prim = laid.prims[name]
     at, turn, scale = place_build.pose_of(prim)
+    if upright:
+        turn = levelled(turn, laid.meshes[name])
+        place_build.posed(prim, at, turn, scale)
+        laid = Place(stage, place)
+        prim = laid.prims[name]
     mesh = laid.meshes[name]
     if support.startswith("wall:"):
         return mounted(laid, name, support.removeprefix("wall:"), height, (at, turn, scale))
@@ -1843,12 +1910,13 @@ def mounted(laid, name, wall, height, pose):
     return {"name": name, "on": f"wall:{wall}", "at": spot}
 
 
-def on(folder, name, support, level=None, height=None):
+def on(folder, name, support, level=None, height=None, upright=False):
     """Lay an object at rest, in contact, on a named support: `floor` (the ground, a deck or a floor under it),
     an object (its top under the object, or with `level` its n-th surface that looks up, from 0 at the bottom, -1 the
     top: a shelf level), or `wall:<object>` (mounted `height` metres over the floor, moved straight to the wall until it
-    touches). Only its height (or, mounted, its height and its way to the wall) changes; the scene is saved."""
+    touches). Only its height (or, mounted, its height and its way to the wall) changes, and with `upright` its turn,
+    so its base stands level (a model made leaning, told `tilted`); the scene is saved."""
     stage, place = place_build.opened(folder)
-    answer = placed_on(stage, place, name, support, level, height)
+    answer = placed_on(stage, place, name, support, level, height, upright)
     place_build.saved(stage)
     return answer

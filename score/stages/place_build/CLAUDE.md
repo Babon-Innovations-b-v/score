@@ -320,7 +320,10 @@ HELD_TEXELS: the game's PlaceTextures.MostTexels, a
   and no walkers' eyes read, each palette recipe its plain colour, metal and roughness (an image surface keeps its
   own pictures), scene.json `draft` (scene_package.DRAFT); score-lib take-in --place refuses a folder carrying it.
   **`package --pieces`** (pieces.py, 2099 #245) writes the piece list beside it, score.scene version 2 in package.py's
-  format and check: no Blender and no bake, in seconds. A laid library entry (model, take, kit, effect, ground) is a
+  format and check: no Blender and no bake, in seconds. Its `rests` is how its copies rest by the place's check
+  (ready.json, pieces.RESTING: floating, no support, tilted, tips; null with no check or one older than the scene), and
+  a list with any is refused (2099 #161, owner 2026-11-26: objects floating and standing at wrong angles in every place);
+  2099 fetches a pinned place only with `rests` [], so run `check` after the last lay and before the package. A laid library entry (model, take, kit, effect, ground) is a
   piece by its address and its index's digest, never written; everything made for the place (an algorithm's blocks,
   stair core, dome, terrain) a made/<name>.glb of one mesh a part, positions and normals only; each copy its whole
   matrix and a look id a part (a recipe's spec word for word, a surface's factors and library maps, or `own`).

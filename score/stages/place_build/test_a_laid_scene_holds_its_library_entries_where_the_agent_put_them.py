@@ -354,6 +354,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - package.piece_problems: the digest left unchecked -> the box piece's stale digest passes the check
 - pieces.engine_source: the laid USD's stem not matched -> a take of two glTFs names neither; the re-finished parts
   left unread -> the cup, cut into paint0, names a glTF that holds no such part
+- pieces.packaged: `scene["rests"]` left out of what it refuses -> the list whose kerb its check tells floating is
+  written sound (2099 #161)
 - pieces.sourced: no mesh written for an entry without a glTF -> the USD-only box piece has no meshes/box_piece.glb
 - pieces.same_look: two looks of one part told apart by their prims alone -> the SimReady kit's two doors, each
   carrying its own copy of one material, refuse its piece list (#156)
@@ -1929,7 +1931,7 @@ def pieced(folder, root, out):
     stood by its whole matrix (a stretch kept in it), filling its laid box; a palette look's spec word for word, a
     part's own look, an image surface's map as its library reference, a glTF model's own texture; the characters
     skinned; the check sound, and refusing a stale digest, a withdrawn entry, a made file changed and a part with no
-    look."""
+    look; and the list refused for a copy its place's check, run after the last lay, tells floating."""
     from score.stages.place_build import pieces, scene_package
     import package
     (root / "index").mkdir(exist_ok=True)
@@ -2061,6 +2063,12 @@ def pieced(folder, root, out):
     assert pieces.paged(own)["face"][2] is own["face"][2]  # its own coordinates kept where they lay a page
     glb = pieces.made_glb(own, pages=True)
     assert b"TEXCOORD_0" in glb and b"TEXCOORD_0" not in pieces.made_glb(own)  # a made piece carries none
+    ready_file = folder / "ready.json"  # the place's check, run after its last lay, tells the kerb floating
+    checked = json.loads(ready_file.read_text())
+    ready_file.write_text(json.dumps({**checked, "objects": {"kerb": [{"fault": "floating", "why": "floats 5.0 cm"}]}}))
+    with pytest.raises(place_build.Refused, match="kerb floating: floats 5.0 cm"):
+        pieces.packaged(folder, out.parent / "pieces_floating")
+    ready_file.write_text(json.dumps(checked))
 
 
 def held_pictures(out, scene):

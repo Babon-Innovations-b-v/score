@@ -43,6 +43,7 @@
     python -m score.stages.place_build review <folder> [--box x0,z0,x1,z1 | --prefix name] [--width pixels] [--out dir]
     python -m score.stages.place_build viewer <folder> [--glb path] [--box x0,z0,x1,z1 | --prefix name] [--megabytes m]
     python -m score.stages.place_build on <folder> <name> <floor|object|wall:object> [--level n] [--height m]
+                                       [--upright]
     python -m score.stages.place_build check <folder> [--no-settle] [--among <place>=<folder> ...]
     python -m score.stages.place_build film <folder> [--through 'stop;stop'] [--seconds s] [--eye m] [--seed n]
     python -m score.stages.place_build film-render <folder> [--every n] [--final] [--out dir]
@@ -307,7 +308,7 @@ def run(args):
         return review.viewer(args.folder, args.glb, box, args.prefix, args.megabytes)
     if args.step == "on":
         from score.stages.place_build import ready
-        return ready.on(args.folder, args.name, args.support, args.level, args.height)
+        return ready.on(args.folder, args.name, args.support, args.level, args.height, args.upright)
     if args.step == "check":
         from score.stages.place_build import ready
         return ready.check(args.folder, not args.no_settle, dict(given.split("=", 1) for given in args.among or []))
@@ -536,6 +537,7 @@ def parser():
         step.add_argument(name)
     step.add_argument("--level", type=int)
     step.add_argument("--height", type=float)
+    step.add_argument("--upright", action="store_true", help="first stand its base level (a model made leaning)")
     step = steps.add_parser("check")
     step.add_argument("folder")
     step.add_argument("--no-settle", action="store_true")
