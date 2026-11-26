@@ -946,7 +946,8 @@ def coast_house(generator, x, ground_low, z, lit=0.55, floor=3.2):
 def coast_dressing(wide, deep, sea, rise, shore, berm, depth, sites, seed, roads, houses):
     """A coast's night: `roads` roads along its shoreline, the first on the shore band and each next higher up the
     hills, a lamp on a post along each (road_lamps), and `houses` houses (coast_house) on its lower hills between
-    them, each lit window a glow, all clear of its sites; parts road, post, lamp, house, window."""
+    them in villages (VILLAGE_SHARE of them gathered round seeded village middles, VILLAGE_SPREAD across, the rest
+    alone), each lit window a glow, all clear of its sites; parts road, post, lamp, house, window."""
     sites = [tuple(float(value) for value in site) for site in sites]
     ground = coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed)
     shoreline = seeded_waves(np.random.default_rng(seed), COAST_WAVES, wide / 2, shore * 1.5)
@@ -963,22 +964,37 @@ def coast_dressing(wide, deep, sea, rise, shore, berm, depth, sites, seed, roads
                 found += road_slab(line[start:stop]) + road_lamps(line[start:stop], sites)
             start = stop + 1
     generator = np.random.default_rng(seed + 1)
-    laid = 0
+    villages = [(generator.uniform(-wide / 2 + 60.0, wide / 2 - 60.0), generator.uniform(shore * 2.0, shore + reach))
+                for _ in range(max(1, houses // VILLAGE_HOUSES))]
+    laid, standing = 0, []
     for _ in range(houses * 20):
         if laid >= houses:
             break
-        x = generator.uniform(-wide / 2 + 30.0, wide / 2 - 30.0)
-        inland_at = generator.uniform(shore * 1.5, shore + reach)
+        if generator.random() < VILLAGE_SHARE:
+            middle_x, middle_inland = villages[int(generator.integers(len(villages)))]
+            x = float(np.clip(middle_x + generator.normal(0.0, VILLAGE_SPREAD), -wide / 2 + 30.0, wide / 2 - 30.0))
+            inland_at = float(np.clip(middle_inland + generator.normal(0.0, VILLAGE_SPREAD * 0.6), shore * 1.5,
+                                      shore + reach))
+        else:
+            x = generator.uniform(-wide / 2 + 30.0, wide / 2 - 30.0)
+            inland_at = generator.uniform(shore * 1.5, shore + reach)
         z = float(shore_at(np.array([x]))[0]) - inland_at
-        if not off_sites(x, z, sites, 1.3):
-            continue
+        if any(math.hypot(x - across, z - along) < radius * 1.3 + HOUSE_REACH for across, along, radius, _ in sites):
+            continue  # its whole footprint, not its middle alone, clear of each site
         if any(abs(inland_at - (shore * 0.6 + number * reach / max(1, roads))) < 16.0 for number in range(roads)):
             continue  # off the roads
+        if any(abs(x - other_x) < 22.0 and abs(z - other_z) < 16.0 for other_x, other_z in standing):
+            continue  # clear of the houses laid (their widest footprint)
+        standing.append((x, z))
         corner_x, corner_z = np.array([x - 11, x + 11, x - 11, x + 11]), np.array([z - 8, z - 8, z + 8, z + 8])
         heights, _ = ground(corner_x, corner_z)
         found += coast_house(generator, x, float(heights.min()), z)
         laid += 1
     return found
+
+
+HOUSE_REACH = 13.6  # metres from a coast house's middle to its footprint's farthest corner (11 by 8 at most)
+VILLAGE_HOUSES, VILLAGE_SHARE, VILLAGE_SPREAD = 25, 0.8, 45.0  # houses a village holds, the share in villages, metres across one (a standard deviation); no two houses' footprints meet
 
 
 HATCH_GAP = 0.0005  # metres between a hatched ship's band and the hull under it and the nose over it (no face shared)
