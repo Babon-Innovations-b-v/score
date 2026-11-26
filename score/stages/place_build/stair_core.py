@@ -14,6 +14,8 @@ Parts, for their library surfaces (place_build.surface --part):
 
 - `slab`: the ground slab (with the pavement round the entrance), floor and half landings, the roof (SLAB thick);
 - `steps`: the flights;
+- `soffit`: a plaster skin SOFFIT_SKIN thick under every landing, the roof and each flight's waist, so a ceiling wears
+  plaster where the floor wears stone (the 2099 judge, 2026-11-26: the flight overhead read as speckled terrazzo);
 - `wall`: the left, right and back walls (WALL thick) with the doorways cut in them, and each flat's hall stub (a
   floor, two side walls, an end wall and a ceiling behind its door, so both sides of every door are floor);
 - `dado`: the painted band DADO high along the walls over every floor line and flight (DADO_SKIN proud of the wall);
@@ -77,6 +79,7 @@ HALL = 1.4  # a flat's hall stub: its width and depth behind its door
 HALL_HIGH = 2.6
 DADO = 1.2
 DADO_SKIN = 0.008
+SOFFIT_SKIN = 0.006
 BALUSTER = 0.018
 BALUSTER_STEP = 0.12
 RAIL = 0.9  # a flight's handrail over its pitch line
@@ -389,6 +392,20 @@ def band(line, cuts=()):
     return outlines
 
 
+def soffits(storeys):
+    """The plaster skins under the floor and half landings, the roof and each flight's waist: [(part, solid)]."""
+    pieces = [("soffit", box((0.0, storey * STOREY - SLAB - SOFFIT_SKIN, 0.0), (LANDING, storey * STOREY - SLAB, DEEP)))
+              for storey in range(1, storeys + 1)]
+    pieces += [("soffit", box((LANDING + RUN, storey * STOREY + STOREY / 2 - SLAB - SOFFIT_SKIN, 0.0),
+                              (LONG, storey * STOREY + STOREY / 2 - SLAB, DEEP))) for storey in range(storeys)]
+    pieces.append(("soffit", box((0.0, top(storeys) - SOFFIT_SKIN, 0.0), (LONG, top(storeys), DEEP))))
+    for foot_x, foot_y, way, near, far in flights(storeys):
+        low, high = (foot_x, foot_y - WAIST), (foot_x + way * RUN, foot_y + STOREY / 2 - WAIST)
+        under = [low, high, (high[0], high[1] - SOFFIT_SKIN), (low[0], low[1] - SOFFIT_SKIN)]
+        pieces.append(("soffit", prism(under, near, far)))
+    return pieces
+
+
 def dado(storeys):
     """The dado bands on the back, left and right walls' inner faces: [(part, (points, faces))]."""
     pieces = []
@@ -547,7 +564,7 @@ def core(path, storeys=STOREYS, mirror=False, curtain=False, cut=False, one_bloc
     hall stub behind those storeys' flat doors, with `street` a street door in that block's facade onto its lobby."""
     pieces = structure(storeys, joined) + ([] if cut else front(storeys, curtain)) + block(storeys, -WALL, -1, street) \
         + ([] if one_block else block(storeys, LONG + WALL, 1)) \
-        + dado(storeys) + railings(storeys)
+        + soffits(storeys) + dado(storeys) + railings(storeys)
     pieces = [mirrored(piece) for piece in pieces] if mirror else pieces
     dome_shell.written(path, "stair_core", [outward(piece) for piece in pieces], flat=True)
     return doorways(storeys, street)
