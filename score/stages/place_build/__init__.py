@@ -288,7 +288,8 @@ def localised(folder):
     found the library on its search path, PXR_AR_DEFAULT_SEARCH_PATH) pointed at that file in the folder's assets,
     its entry copied there whole as `fetch` lays one (a withdrawn one too: the place opens as it was kept, and the
     finish check tells it), until no layer names one; the entries copied, sorted (#154: a fetched stairwell's cables
-    and doors opened as nothing)."""
+    and doors opened as nothing; 2099 #161: a look's map, which no composition arc names, was pointed at but never
+    copied, so flat@42's family portrait refused its piece list)."""
     from pxr import UsdUtils
     folder = pathlib.Path(folder)
     entries, done = set(), set()
@@ -300,7 +301,12 @@ def localised(folder):
         for path in layers:
             done.add(path)
             layer = Sdf.Layer.FindOrOpen(str(path))
-            named = {asset for asset in layer.GetCompositionAssetDependencies() if SEARCHED.match(asset)}
+            named = set()
+            def heard(asset):  # every asset path the layer names, a look's map too, not its composition's alone
+                if SEARCHED.match(asset):
+                    named.add(asset)
+                return asset
+            UsdUtils.ModifyAssetPaths(layer, heard)
             if not named:
                 continue
             for asset in sorted(named):

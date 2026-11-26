@@ -214,6 +214,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   every file copied again -> the place's edited piece.json is lost
 - place_build.from_library: `entries = localised(folder)` -> `entries = []` (and its key) -> the lane's box names the
   library on USD's search path and opens as nothing
+- place_build.localised: the named assets read off the layer's composition alone -> the lane's map is pointed into
+  its assets but its sand entry never copied there (2099 #161: flat@42's family portrait)
 - place_build.blocks: the role always structure -> the knob reads a structure
 - place_build.blocks: `None if ground else support` -> `None` -> the couplet is a mount on no wall
 - ready.inward: shells and connectors alone -> the plug set in the cell's walls of blocks is set in none
@@ -1569,19 +1571,22 @@ def from_library(tmp_path, root, files):
     (held / "assets/model").mkdir(parents=True)
     (held / "scene.usda").write_text('#usda 1.0\n(\n    defaultPrim = "lane"\n    subLayers = [@layers/walkers/'
                                      'people.usda@]\n)\ndef Xform "lane" {\n    def "box" (\n        prepend '
-                                     'references = @score_lib/kit/box_piece/1/piece.usda@\n    ) {}\n}\n')
+                                     'references = @score_lib/kit/box_piece/1/piece.usda@\n    ) {}\n    def '
+                                     'Shader "map" {\n        asset inputs:file = @score_lib/surface/sand/1/'
+                                     'surface.json@\n    }\n}\n')
     (held / "place.json").write_text(json.dumps({"place": "lane"}))
     (held / "assets/model/kerb.usda").write_text('#usda 1.0\ndef "kerb" (\n    prepend references = '
                                                  '@score_lib/kit/box_piece/1/piece.usda@\n) {}\n')
     laid = place_build.from_library("place/lane", tmp_path / "fetched")
     stage, place = place_build.opened(tmp_path / "fetched")
     assert laid == {"address": "place/lane@1", "files": 3, "dropped": ["layers/walkers/people.usda"],
-                    "entries": ["kit/box_piece@1"]}, laid
+                    "entries": ["kit/box_piece@1", "surface/sand@1"]}, laid  # a look's map is no composition arc
     assert place == "lane" and list(stage.GetRootLayer().subLayerPaths) == [] and \
         (tmp_path / "fetched/assets/model/kerb.usda").is_file()
     kerb = Sdf.Layer.FindOrOpen(str(tmp_path / "fetched/assets/model/kerb.usda"))
     assert stage.GetPrimAtPath("/lane/box").IsValid() and stage.GetPrimAtPath("/lane/box").GetChildren() and \
         (tmp_path / "fetched/assets/kit/box_piece/1/piece.json").is_file() and \
+        (tmp_path / "fetched/assets/surface/sand/1/surface.json").is_file() and \
         kerb.GetCompositionAssetDependencies() == ["../kit/box_piece/1/piece.usda"]  # on no search path
     try:
         place_build.from_library("place/lane", tmp_path / "fetched")
