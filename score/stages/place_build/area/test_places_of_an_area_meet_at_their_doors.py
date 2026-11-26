@@ -14,7 +14,9 @@ lays the place: the flat's front door packaged on the stairwell's doorway, the s
 scene file unseated. A block of the
 flat's own standing in the stairwell's core is told (seated shells may not stand inside each other); listed as the
 flat's backdrop (a neighbour place stands for it) it is no shell of the flat and its package leaves it out; such a
-backdrop block standing across the way in from the flat's door walls no walker off (the game leaves it out).
+backdrop block standing across the way in from the flat's door walls no walker off (the game leaves it out). A slab of
+the flat's flush with its floor, reaching through its door onto the core's landing, is told (two seated places' floors
+may not lie at one height over each other: 2099 #161's street kerb under the stairwell's lobby).
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - area.seat_onto: `rise` left out of the seat's height -> the flat sits at the street's level, 3 m under its doorway
@@ -33,6 +35,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - scene_package.environment_of: the Environment's score:exposure unread -> the flat's piece list says 1, not its
   own 2
 - area.area: shells_crossed unread -> the flat's block standing in the stairwell's core passes
+- area.area: floors_met unread -> the flat's slab on the core's landing passes
 - scene_package.written_scene: the seat left out of scene.json -> the package carries no seat to lay its film path on
   (an engine's camera stands where the place stood unseated, #222 run 9)
 - scene_package.written_scene: the backdrop packaged when seated -> the flat's block is packaged beside its front door
@@ -115,6 +118,7 @@ def flat(folder, joined_back, wide, backdrop, block):
 
 BLOCK = ((1.0, -0.5, 0.2), (3.0, 3.5, 4.0))  # the flat's concept block (low corner, size): in the core, off the way
 ACROSS = ((-2.0, 0.0, -1.3), (4.0, 2.5, 0.3))  # the flat's concept block across its way in, 1 m in from its door
+LANDING = ((-0.5, -0.2, 0.05), (1.0, 0.2, 1.4))  # a slab of the flat's, flush with its floor, on the core's landing
 
 
 ROWS = [  # (case, the core's joined storeys, the stairwell's flat door sill on the plans, the flat joins back, its
@@ -134,6 +138,8 @@ ROWS = [  # (case, the core's joined storeys, the stairwell's flat door sill on 
      "has no doorway joined to stairwell"),
     ("the flat's block stands in the stairwell", [1], 3.0, True, 0.96, 0.0, None, False, "town",
      "flat's block and stairwell's core stand"),
+    ("the flat's floor lies on the stairwell's landing", [1], 3.0, True, 0.96, 0.0, None, False, "town",
+     "flat's block and stairwell's core lay floors at one height"),
 ]
 
 
@@ -142,7 +148,7 @@ ROWS = [  # (case, the core's joined storeys, the stairwell's flat door sill on 
 def test_places_of_an_area_meet_at_their_doors(tmp_path, case, joined, sill, joined_back, wide, apart, stands,
                                                backdrop, outside, told):
     from score.stages.place_build import scene_package
-    block = ACROSS if "across its way in" in case else BLOCK
+    block = ACROSS if "across its way in" in case else LANDING if "landing" in case else BLOCK
     folders = {"stairwell": stairwell(tmp_path / "stairwell", joined),
                "flat": flat(tmp_path / "flat", joined_back, wide, backdrop, block)}
     if told == "holder":  # the outside drawn at 0.5, the flat at 2 by a 100 W bulb

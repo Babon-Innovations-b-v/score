@@ -35,6 +35,11 @@ place_build's (`join`, `area`); this module seats and tells, it never moves a pl
   `backdrop` left out) may stand at most CROSSED cubic metres inside each other, counted at points STEP apart inside
   both closed solids. A crossing is fixed in a place (`hollow` its block, `backdrop` its concept's stand-in), never
   by a looser CROSSED.
+- **The floors check** (`floors_met`, 2099 #161 2026-11-26: the street's kerb under the stairwell's lobby and the
+  stairwell's slab under the street's pavement, all at 0, drew through each other in the game): every two seated
+  places' objects' upward faces (ready.solids, a place's `backdrop` left out) may lie at one height (FLOOR_LEVEL) over
+  at most FLOORS_MET square metres of the same ground, counted in FLOOR_CELL cells. A meeting is fixed in a place
+  (`hollow` a ground, end a kit's slab), never by a looser FLOORS_MET.
 - **One leaf a join**: the place whose plan names the door lays its leaf; its neighbour's joined doorway stays a bare
   opening. The closed-inside check counts a look through a joined doorway as closed (ready.through_joins, #154), so
   neither place lays a second leaf to pass it.

@@ -49,6 +49,10 @@ SHELLS = ("shell", "connector", "structure")  # the roles a place's built shell 
 CROSSED = 1.0  # cubic metres two seated places' shells may stand inside each other (a sill on a reveal, a seam)
 STEP = 0.1  # metres between the points the crossed volume is counted at
 POINTS = 200_000  # points counted at most in one pair of solids' common box (STEP grown to keep within it)
+FLOOR_LEVEL = 0.01  # metres two seated places' upward faces may stand apart in height and still lie at one height
+FLOOR_CELL = 0.1  # metres a side of the cells a floor's ground is counted in
+FLOORS_MET = 0.5  # square metres two seated places' floors may cover at one height (a threshold's sliver)
+UPWARD = 0.99  # a face's normal's share up for it to be a floor
 
 
 def leaf_doorway(stage, place, name):
@@ -427,15 +431,75 @@ def shells_crossed(folders, seats):
     return faults
 
 
+def floor_cells(triangles):
+    """{height in FLOOR_LEVEL steps: {(x, z) cell}} of the upward faces among `triangles` (n x 3 x 3): each FLOOR_CELL
+    cell whose middle one covers, at its height."""
+    triangles = np.asarray(triangles, dtype=float).reshape(-1, 3, 3)
+    normals = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0])
+    upward = normals[:, 1] > UPWARD * (np.linalg.norm(normals, axis=1) + 1e-12)
+    found = {}
+    for face in triangles[upward]:
+        flat = face[:, [0, 2]]
+        low = np.floor(flat.min(axis=0) / FLOOR_CELL).astype(int)
+        high = np.floor(flat.max(axis=0) / FLOOR_CELL).astype(int)
+        cells = np.stack(np.meshgrid(np.arange(low[0], high[0] + 1), np.arange(low[1], high[1] + 1), indexing="ij"),
+                         axis=-1).reshape(-1, 2)
+        middles = (cells + 0.5) * FLOOR_CELL
+        inside = covered(flat, middles)
+        if inside.any():
+            level = int(round(float(face[:, 1].mean()) / FLOOR_LEVEL))
+            found.setdefault(level, set()).update(map(tuple, cells[inside]))
+    return found
+
+
+def covered(corners, points):
+    """Which `points` (m x 2) the triangle of `corners` (3 x 2) covers, its edges included."""
+    edges = [(corners[(at + 1) % 3] - corners[at], points - corners[at]) for at in range(3)]
+    sides = [edge[0] * to[:, 1] - edge[1] * to[:, 0] for edge, to in edges]
+    sides = np.stack(sides, axis=1)
+    return np.all(sides >= -1e-9, axis=1) | np.all(sides <= 1e-9, axis=1)
+
+
+def seated_floors(folder, seat):
+    """{object: floor_cells} of every solid the place's walkers meet (ready.solids), seated in the area; its place.json
+    `backdrop` (a neighbour place stands for it) left out."""
+    import trimesh
+    neighbours = set(place_build.record_of(folder).get("backdrop") or [])
+    return {name: floor_cells(trimesh.transform_points(np.asarray(triangles).reshape(-1, 3), seat).reshape(-1, 3, 3))
+            for name, triangles in ready.solids(folder).items() if name not in neighbours and len(triangles)}
+
+
+def floors_met(folders, seats):
+    """A fault for each two seated places' objects whose upward faces lie at one height (within FLOOR_LEVEL) over
+    more than FLOORS_MET square metres of the same ground (2099 #161: the street's kerb under the stairwell's lobby and
+    the stairwell's slab under the street's pavement, all at 0, drew through each other in the game): one of them is
+    hollowed or ended where the other lies, never this loosened."""
+    floors = {name: seated_floors(folder, seats[name]["matrix"]) for name, folder in sorted(folders.items())}
+    faults = []
+    names = sorted(floors)
+    for number, name in enumerate(names):
+        for other in names[number + 1:]:
+            for own, levels in floors[name].items():
+                for theirs, other_levels in floors[other].items():
+                    shared = sum(len(cells & set().union(*(other_levels.get(level + step, set())
+                                                           for step in (-1, 0, 1))))
+                                 for level, cells in levels.items())
+                    met = shared * FLOOR_CELL ** 2
+                    if met > FLOORS_MET:
+                        faults.append(f"{name}'s {own} and {other}'s {theirs} lay floors at one height over "
+                                      f"{met:.1f} m2, seated (floors may meet over {FLOORS_MET:g} m2)")
+    return faults
+
+
 def area(plans, outside, folders, out=None, seat=False, stands=None):
-    """The area's seats and its joins and shells checks as one record (written to `out` when given): every place's
+    """The area's seats and its joins, shells and floors checks as one record (written to `out` when given): every place's
     seat (`stands` laid as it is, seated), every planned join judged, every two places' shells crossed, and every
     fault; with `seat`, each place's seat also written
     into its folder's place.json `seat` (the package then lays the place in the area's frame: scene_package.seated).
     A seat carries no exposure: every place keeps its own light and exposure (pieces' docstring, 2099 #161)."""
     seats, joins, faults = seated(plans, outside, folders, stands)
     judged_joins = [judged(folders, seats, ends) for ends in joins]
-    faults += shells_crossed(folders, seats)
+    faults += shells_crossed(folders, seats) + floors_met(folders, seats)
     record = {"area": outside, "plans": str(plans),
               "seats": {name: {"matrix": np.round(seat["matrix"].T, 6).flatten().tolist(), "from": seat["from"]}
                         for name, seat in sorted(seats.items())},
