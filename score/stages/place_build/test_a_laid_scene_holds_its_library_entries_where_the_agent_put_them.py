@@ -106,7 +106,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - launch_kit.coast_trees: a crown left open or wound inward -> the coast's woods are no closed solids facing out; laid
   at its ground's height -> a coast tree floats; the sites unread -> a coast tree stands on its launch site
 - launch_kit.coast_palms: a frond or trunk left open or wound inward -> a coast frond (palm) is no closed solid facing
-  out; the sites unread -> a coast palm stands on its launch site
+  out; the sites unread -> a coast palm stands on its launch site; a clump of undergrowth or an evergreen left open or wound
+  inward -> a coast shrub (tree_spire) is no closed solid facing out; undergrowth laid on its site -> a coast shrub
+  stands on its launch site; the evergreens never grown -> the parts read palm, frond, shrub without tree_spire
 - launch_kit.hatch_band: a hatch row's run laid as a whole ring -> the hatched ship's skin stands across its hatch
 - launch_kit.hatched: the band laid on the hull with no gap -> the hatched ship's hull shares a face with its band
 - launch_kit.door_wall: the rows' sill row left out of the doorway -> the wall's volume is a round doorway's short
@@ -1226,15 +1228,18 @@ def launched(folder):
     feet = wood_points[wood_points[:, 1] < ground(wood_points[:, 0], wood_points[:, 2])[0] - 0.4]
     assert len(feet) >= 3 * 40 * 0.5, "a coast tree floats"
     assert np.hypot(wood_points[:, 0], wood_points[:, 2] + 100.0).min() > 30.0, "a coast tree stands on its launch site"
-    for part, palm_points, palm_triangles, _ in launch_kit.coast_palms(400.0, 200.0, 100.0, 20.0, 10.0, 2.5, 8.0,
-                                                                       [[0.0, -100.0, 20.0, 3.0]], 0, 12):
+    growth = [*launch_kit.coast_palms(400.0, 200.0, 100.0, 20.0, 10.0, 2.5, 8.0, [[0.0, -100.0, 20.0, 3.0]], 0, 12),
+              *launch_kit.coast_shrubs(400.0, 200.0, 100.0, 20.0, 10.0, 2.5, 8.0, [[0.0, -100.0, 20.0, 3.0]], 0, 30),
+              *launch_kit.coast_trees(400.0, 200.0, 100.0, 20.0, 10.0, 2.5, 8.0, [[0.0, -100.0, 20.0, 3.0]], 0, 40, 2)[1:]]
+    assert [each[0] for each in growth] == ["palm", "frond", "shrub", "tree_spire"], [each[0] for each in growth]
+    for part, palm_points, palm_triangles, _ in growth:
         palm_points, palm_triangles = cockpit_kit.welded(palm_points, palm_triangles)
         edges = palm_triangles[:, [[0, 1], [1, 2], [2, 0]]].reshape(-1, 2)
         _, uses = np.unique(np.sort(edges, axis=1), axis=0, return_counts=True)
         corners = palm_points[palm_triangles]
         assert (uses == 2).all() and len(np.unique(edges, axis=0)) == len(edges) and np.einsum(
             "ij,ij->i", corners[:, 0], np.cross(corners[:, 1], corners[:, 2])).sum() > 0, f"a coast {part} is no closed solid facing out"
-        assert np.hypot(palm_points[:, 0], palm_points[:, 2] + 100.0).min() > 15.0, "a coast palm stands on its launch site"
+        assert np.hypot(palm_points[:, 0], palm_points[:, 2] + 100.0).min() > 15.0, f"a coast {part} stands on its launch site"
     circle = [[0.6 + 0.6 * math.sin(angle), -0.6 * math.cos(angle) - 0.01, 0.6 * math.cos(angle) + 0.01]
               for angle in np.linspace(-math.pi / 2, math.pi / 2, 31)]
     _, points, triangles, _ = launch_kit.door_wall(2.4, 2.6, 0.1, circle)[0]

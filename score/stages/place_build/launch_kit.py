@@ -525,11 +525,12 @@ def coast_heights(x, z, wide, deep, sea, rise, shore, berm, depth, sites, seed):
 
 
 def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, depth=8.0, cell=20.0, sites=(),
-          seed=0, scrub=0.0, roads=0, houses=0, trees=0, palms=0):
+          seed=0, scrub=0.0, roads=0, houses=0, trees=0, palms=0, shrubs=0):
     """A coast (the docstring's `coast`): a heightfield on a grid of `cell` metres, closed by a flat bottom 2 m under
     the sea bed's deepest and its four sides; parts land and shore (inland of the shore band, or not), the land's
-    gentle faces (up-normal over `scrub`) part scrub, its night dressing (coast_dressing), its woods (coast_trees)
-    and its promenade palms (coast_palms) when asked."""
+    gentle faces (up-normal over `scrub`, the line moved up to SCRUB_PATCH either way by a seeded relief so scrub and
+    rock meet in patches, not bands along the slopes) part scrub, its night dressing (coast_dressing), its woods
+    (coast_trees), its promenade palms (coast_palms) and its undergrowth (coast_shrubs) when asked."""
     across = np.linspace(-wide / 2, wide / 2, int(round(wide / cell)) + 1)
     along = np.linspace(-deep, sea, int(round((deep + sea) / cell)) + 1)
     grid_x, grid_z = np.meshgrid(across, along, indexing="ij")
@@ -564,7 +565,9 @@ def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, 
     if scrub > 0:
         corners_up = points[land]
         normal_up = np.cross(corners_up[:, 1] - corners_up[:, 0], corners_up[:, 2] - corners_up[:, 0])
-        gentle = normal_up[:, 1] / np.linalg.norm(normal_up, axis=1) > scrub
+        middles = corners_up.mean(axis=1)
+        patches = seeded_waves(np.random.default_rng(seed + 13), COAST_WAVES, 300.0, 1.0)(middles[:, 0], middles[:, 2])
+        gentle = normal_up[:, 1] / np.linalg.norm(normal_up, axis=1) > scrub - SCRUB_PATCH * np.tanh(2.0 * patches)
     found = [piece("land", points, land[~gentle], True), piece("shore", points, closed, True)]
     if gentle.any():
         found.append(piece("scrub", points, land[gentle], True))
@@ -574,7 +577,12 @@ def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, 
         found += coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, roads)
     if palms:
         found += coast_palms(wide, deep, sea, rise, shore, berm, depth, sites, seed, palms)
+    if shrubs:
+        found += coast_shrubs(wide, deep, sea, rise, shore, berm, depth, sites, seed, shrubs)
     return found
+
+
+SCRUB_PATCH = 0.08  # how far a coast's seeded patches move its scrub line in up-normal (scrub on steeper ground, rock on gentler)
 
 
 TREE_SIDES, TREE_RINGS = 7, 4  # a crown lobe's sides round and its rings up (a closed seven-sided ellipsoid)
@@ -660,6 +668,38 @@ def tree_crown(x, ground, z, high, wide, turn, generator=None):
     return joined(solids)
 
 
+def tree_spire(x, ground, z, high, wide, turn, generator):
+    """One tall evergreen of the hill wood (a pine or cypress form): a trunk under three to four closed lobes stacked
+    up it (crown_lobe), each narrower than the one under it, so its outline tapers to a point instead of rounding;
+    (points, triangles), each solid wound out."""
+    tiers = int(generator.integers(3, 5))
+    solids = [trunk(x, ground - 0.5, z, ground + high * 0.35, max(0.15, wide * 0.06), turn, sides=5)]
+    for tier in range(tiers):
+        share = tier / tiers
+        size = 1.0 - 0.75 * share
+        solids.append(crown_lobe(x + generator.uniform(-0.2, 0.2) * wide, ground + high * (0.18 + 0.62 * share), z
+                                 + generator.uniform(-0.2, 0.2) * wide, high * 0.42 * (1.0 - 0.3 * share), wide * size,
+                                 turn + tier))
+    return joined(solids)
+
+
+SPIRE_SHARE = 0.3  # the share of a coast's trees that grow as tall evergreens (tree_spire), the rest broadleaf (tree_crown)
+SHRUB_HIGH = (0.8, 2.6)  # metres: an undergrowth clump's least and greatest height
+
+
+def shrub(x, ground, z, high, turn, generator):
+    """One clump of undergrowth: two to four low closed lobes (crown_lobe) side by side, sunk 0.3 m under `ground`,
+    wider than high; (points, triangles)."""
+    solids = []
+    for lobe in range(int(generator.integers(2, 5))):
+        angle = turn + generator.uniform(0, 2 * math.pi)
+        reach = high * generator.uniform(0.0, 0.8) * (lobe > 0)
+        size = generator.uniform(0.6, 1.0)
+        solids.append(crown_lobe(x + reach * math.cos(angle), ground - 0.3, z + reach * math.sin(angle),
+                                 high * size + 0.3, high * size * generator.uniform(1.3, 2.0), turn + lobe))
+    return joined(solids)
+
+
 PALM_FRONDS, PALM_HIGH = 13, (7.0, 13.0)  # a palm's fronds and its least and greatest height (Washingtonia, Hong Kong's promenades)
 
 
@@ -708,7 +748,8 @@ def palm(x, ground, z, high, turn, generator):
 def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, roads=0):
     """A coast's woods: `trees` trees (tree_crown) seeded over its land inland of twice its shore band, thicker up the
     hills and in clumps (a second seeded relief), clear of its sites by twice their radius and of its roads by 8 m;
-    one piece of part tree, each crown sized and turned by the seed."""
+    a SPIRE_SHARE of them tall evergreens (tree_spire, part tree_spire) and the rest broadleaf (tree_crown, part tree),
+    so the wood holds two forms and two greens; each tree sized and turned by the seed."""
     sites = [tuple(float(value) for value in site) for site in sites]
     ground = coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed)
     shoreline = seeded_waves(np.random.default_rng(seed), COAST_WAVES, wide / 2, shore * 1.5)
@@ -716,7 +757,7 @@ def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, r
     reach = deep * 0.45
     road_at = [shore * 0.6 + number * reach / max(1, roads) for number in range(roads)]
     generator = np.random.default_rng(seed + 2)
-    points = []
+    points, spires = [], []
     count = 0
     for _ in range(trees * 30):
         if count >= trees:
@@ -731,13 +772,51 @@ def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, r
             continue
         height = float(ground(np.array([x]), np.array([z]))[0][0])
         high = generator.uniform(*TREE_HIGH)
-        points.append(tree_crown(x, height, z, high, high * generator.uniform(0.55, 0.9), generator.uniform(0, math.pi),
-                                 generator))
+        if generator.random() < SPIRE_SHARE:
+            spires.append(tree_spire(x, height, z, high * 1.2, high * generator.uniform(0.3, 0.45),
+                                     generator.uniform(0, math.pi), generator))
+        else:
+            points.append(tree_crown(x, height, z, high, high * generator.uniform(0.55, 0.9),
+                                     generator.uniform(0, math.pi), generator))
         count += 1
-    if not points:
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece(part, *joined(solids), False) for part, solids in (("tree", points), ("tree_spire", spires)) if solids]
+
+
+def coast_shrubs(wide, deep, sea, rise, shore, berm, depth, sites, seed, shrubs):
+    """A coast's undergrowth: `shrubs` clumps (shrub) over its land from its shore band inland, thickest near the shore
+    and in a ring round each site (from 1.05 to 1.6 times its radius, the edge of the levelled ground), none on a
+    site; one piece of part shrub."""
+    sites = [tuple(float(value) for value in site) for site in sites]
+    ground = coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed)
+    shoreline = seeded_waves(np.random.default_rng(seed), COAST_WAVES, wide / 2, shore * 1.5)
+    generator = np.random.default_rng(seed + 9)
+    clumps = []
+    ringed = shrubs // 5 if sites else 0
+    for _ in range(ringed):
+        across, along, radius, _ = sites[int(generator.integers(len(sites)))]
+        angle, reach = generator.uniform(0, 2 * math.pi), radius * generator.uniform(1.05, 1.6)
+        x, z = across + reach * math.cos(angle), along + reach * math.sin(angle)
+        if float(ground(np.array([x]), np.array([z]))[1][0]) < shore * 0.8:
+            continue
+        clumps.append(shrub(x, float(ground(np.array([x]), np.array([z]))[0][0]), z,
+                            generator.uniform(*SHRUB_HIGH), generator.uniform(0, math.pi), generator))
+    for _ in range(shrubs * 30):
+        if len(clumps) >= shrubs:
+            break
+        x = generator.uniform(-wide / 2 + 10.0, wide / 2 - 10.0)
+        inland_at = shore * 0.9 + generator.exponential(deep * 0.15)
+        if inland_at > deep * 0.95:
+            continue
+        z = float(shoreline(x, 0.0)) - inland_at
+        if not off_sites(x, z, sites, 1.05):
+            continue
+        clumps.append(shrub(x, float(ground(np.array([x]), np.array([z]))[0][0]), z,
+                            generator.uniform(*SHRUB_HIGH), generator.uniform(0, math.pi), generator))
+    if not clumps:
         return []
     from score.stages.place_build.cockpit_kit import piece
-    return [piece("tree", *joined(points), False)]
+    return [piece("shrub", *joined(clumps), False)]
 
 
 def coast_palms(wide, deep, sea, rise, shore, berm, depth, sites, seed, palms):
