@@ -68,6 +68,15 @@ close shell and not at all under a far one. Breaks that turn its rows red (each 
 2026-11-26): no islands joined (`cloth.ISLAND_FACES` 0: 2 stray faces); the distance counted in edges, not metres
 (`over_surface` lengths all 1); no closed cycle seen (`cloth.CLOSED_DEGREES` 0: 5 frames a cycle); the push read
 the wrong way (`margin + over` in `cloth.pushes`).
+
+The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
+painted black, boots at the bottom painted as black as the trousers with a trace of red) and its photo (a sage
+jacket with no stripes, navy trousers, brown boots): after toning, the jacket, trousers and boots each read within a
+few Lab units of the photo's, and the jacket's painted folds keep most of their depth. Breaks that turn its rows red
+(each applied once, seen red, reverted, 2026-11-26): no height in the clusters (`colour.HEIGHT_LAB` 0: the boots
+fall in with the trousers and miss their brown); each cluster its own move (`colour.merged` and `garments` giving every
+cluster its own garment: the fold stripes flattened to the photo's plain jacket); no spread kept
+(`colour.SPREAD_RANGE` (0, 0): the folds gone).
 """
 import functools
 
@@ -76,8 +85,8 @@ import pytest
 import trimesh
 from scipy.spatial import cKDTree
 
-from tools.characters.generated import (__main__, cloth, eyes, fibre, head_swap, labels, lids, scalp, skin, strands,
-                                        volume)
+from tools.characters.generated import (__main__, cloth, colour, eyes, fibre, head_swap, labels, lids, scalp, skin,
+                                        strands, volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -765,6 +774,57 @@ def cloth_body_pushed():
     return found
 
 
+def colour_toy():
+    """A toy front (points on a plane facing +z, 0.6 m by 1.2 m, UV its box) painted as TRELLIS.2 paints, and its photo
+    (RGBA, a margin of air round the person): (points, uv, paint texture, photo)."""
+    xs, ys = np.meshgrid(np.linspace(0.0, 0.6, 150), np.linspace(0.0, 1.2, 300))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+    uv = np.column_stack([xs.ravel() / 0.6, ys.ravel() / 1.2])
+    height = 1.0 - (np.arange(128) + 0.5) / 128  # the texture's rows, top down, as heights
+    paint = np.zeros((128, 64, 4), np.uint8)
+    paint[..., 3] = 255
+    fold = (np.arange(128) // 6) % 2 == 1
+    paint[height > 0.5, :, :3] = (65, 72, 68)
+    paint[(height > 0.5) & fold, :, :3] = (48, 54, 51)
+    paint[(height <= 0.5) & (height > 0.1), :, :3] = (7, 7, 8)
+    paint[height <= 0.1, :, :3] = (14, 3, 0)
+    grain = np.random.default_rng(2).integers(-5, 6, paint[..., :3].shape)  # boots, trousers overlap
+    paint[..., :3] = np.clip(paint[..., :3].astype(int) + grain, 0, 255).astype(np.uint8)
+    photo = np.zeros((280, 160, 4), np.uint8)
+    rows = 1.0 - (np.arange(240) + 0.5) / 240
+    person = photo[20:260, 20:140]
+    person[..., 3] = 255
+    person[rows > 0.5, :, :3] = (131, 137, 123)
+    person[(rows <= 0.5) & (rows > 0.1), :, :3] = (15, 15, 21)
+    person[rows <= 0.1, :, :3] = (89, 51, 41)
+    noise = np.random.default_rng(3).integers(-3, 4, person[..., :3].shape)
+    person[..., :3] = np.clip(person[..., :3].astype(int) + noise, 0, 255).astype(np.uint8)
+    return points, uv, paint, photo
+
+
+def colour_toned():
+    """The toy's paint toned toward its photo: the jacket, trousers and boots within 6 Lab units of the photo's (the
+    boots' trace of red never lost to the trousers), and the jacket's fold stripes keeping over half their depth."""
+    from skimage.color import rgb2lab
+    points, uv, paint, photo = colour_toy()
+    centres, table, _ = colour.fitted(points, uv, paint, photo)
+    toned = rgb2lab(colour.toned_texture(paint, points, uv, centres, table)[..., :3] / 255.0)
+    height = 1.0 - (np.arange(128) + 0.5) / 128
+    fold = (np.arange(128) // 6) % 2 == 1
+
+    def lab_of(rgb):
+        return rgb2lab(np.array(rgb, float)[None, None] / 255.0)[0, 0]
+
+    def off(rows, rgb):
+        return float(np.linalg.norm(toned[rows].reshape(-1, 3).mean(0) - lab_of(rgb)))
+
+    jacket, flat = height > 0.55, (height > 0.55) & ~fold
+    depth_before = lab_of((65, 72, 68))[0] - lab_of((48, 54, 51))[0]
+    depth_after = toned[flat].reshape(-1, 3)[:, 0].mean() - toned[jacket & fold].reshape(-1, 3)[:, 0].mean()
+    return [off(jacket, (131, 137, 123)) < 6.0, off((height < 0.45) & (height > 0.15), (15, 15, 21)) < 6.0,
+            off(height < 0.06, (89, 51, 41)) < 6.0, bool(depth_after > 0.5 * depth_before)]
+
+
 @pytest.mark.parametrize("case, made_value, wanted", [
     ("each painted pupil is found on the face", pupils_found, [True, True]),
     ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
@@ -810,6 +870,8 @@ def cloth_body_pushed():
      [4, 0.3, 1, 0.6]),
     ("the body under the clothes is pushed in to the margin under a close shell, never under a far one",
      cloth_body_pushed, [round(cloth.MARGIN_M - 0.005, 3), 0.0]),
+    ("the paint is toned toward the photo garment by garment: the jacket's sage, the boots' brown under trousers "
+     "painted as black, the folds kept", colour_toned, [True] * 4),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

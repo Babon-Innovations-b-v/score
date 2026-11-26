@@ -98,6 +98,14 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - **Look for black in the opening.** Black inside a lid opening is the head, never the eye: a fold (the floor laid on
   the margin), the wall under the clear film, or a slot too narrow for the light. Ray-cast the pixel in Blender
   (`scene.ray_cast`) before guessing.
+- **Colour** (`colour.py`, before every other step): TRELLIS.2's paint drifts from its photo on glossy and dark
+  garments (2026-11-26, sRGB photo against paint: a sage puffer (131, 137, 123) painted (65, 72, 68), brown boots
+  (89, 51, 41) painted (14, 3, 0)); its metalness is 0 and Blender's import reads the maps rightly, so the paint is
+  toned toward the cut-out photo garment by garment in CIELAB (clusters of paint and height matched to the photo's
+  connected garments through the front view; one median and spread move per garment, its folds kept). Run: `python
+  -m tools.characters.generated.colour <model.glb> <cut-out.png> <out.glb> <report.json>` (10 s, 0.5 GB); the
+  report lists each cluster's paint and photo colour. Look at the front render beside the photo: the boxes laid by
+  their bounds miss on the head, so a head cluster that lands mostly on specks keeps its paint.
 - Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step
   (`marks.py` reads a real photo with MediaPipe and has no row; `lids.py` reads its JSON).
 - **Cloth** (`cloth.py`, drawn by `blender_cloth.py`, the sheet and film by `cloth_sheet.py`; owner 2026-11-26 of the
