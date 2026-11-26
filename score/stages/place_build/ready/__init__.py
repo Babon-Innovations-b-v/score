@@ -1151,11 +1151,20 @@ def moves_by(laid, name):
     return "slide" if text_of(laid.prims[name], MOVE) == "slide" else "hinge"
 
 
+def floor_kept(standing, pieces):
+    """The walkers' floor's standing pieces' sizes in cells, largest first, compared in turn: a door's open leaf that
+    keeps the largest piece whole but cuts another in two ranks below one that cuts nothing (stairwell@32's entrance
+    door hinged at its jamb by the stair's foot: the street's side the largest piece either way, its open leaf cut
+    the core's floor from the foot of its flight and walled the walkers in at it, 2099 #161)."""
+    sizes = np.bincount(pieces[standing]) if standing.any() else np.zeros(0, dtype=int)
+    return tuple(sorted((int(size) for size in sizes if size), reverse=True))
+
+
 def swing_of(laid, name, toward=None):
     """An opening door's swing: its hinge (an edge of its leaf, on its middle's plane) and its turn (SWING), the leaf
     swinging to the side `toward` (+1 or -1 along its through axis: a pressure door's high-pressure side,
     scene_package.locks_of), else into the shell it is set in (an entrance opens inward; either way when in none), on
-    the hinge whose open leaf keeps the most walkers' floor joined in one piece (an open leaf never cuts a way off),
+    the hinge whose open leaf keeps the walkers' floor most whole (floor_kept: an open leaf never cuts a way off),
     then whose free half, above a knee, stands farthest (up to ROOM) from every other solid but the ground:
     {"hinge": [x, y, z], "degrees": d}."""
     middle, axes, half = frame_of(laid, name)
@@ -1170,7 +1179,7 @@ def swing_of(laid, name, toward=None):
             if side is not None and (opened.centroid - middle) @ axes[2] * side < 0:
                 continue
             *_, standing, pieces = walkers_floor(laid, {name: opened}, near=name)
-            joined = int(np.bincount(pieces[standing]).max()) if standing.any() else 0
+            joined = floor_kept(standing, pieces)
             points = np.asarray(opened.vertices)
             free = points[(np.hypot(*(points - hinge)[:, [0, 2]].T) > half[0])
                           & (points[:, 1] > leaf.bounds[0][1] + reach.KNEE)]
@@ -1193,7 +1202,7 @@ def overlap(low, high, boxes):
 
 def slide_of(laid, name):
     """An opening sliding door's slide: its leaf moved its own width along its face (frame_of's across axis), the way
-    whose open leaf keeps the most walkers' floor joined in one piece, then whose box crosses the least of every other
+    whose open leaf keeps the walkers' floor most whole (floor_kept), then whose box crosses the least of every other
     solid's but the ground's (it slides alongside its fixed pane or into its wall's pocket, not across a wall
     standing out of the face): {"by": [x, y, z]}."""
     middle, axes, half = frame_of(laid, name)
@@ -1205,7 +1214,7 @@ def slide_of(laid, name):
         by = axes[0] * 2 * half[0] * way
         opened = leaf.copy().apply_translation(by)
         *_, standing, pieces = walkers_floor(laid, {name: opened}, near=name)
-        joined = int(np.bincount(pieces[standing]).max()) if standing.any() else 0
+        joined = floor_kept(standing, pieces)
         crossed = overlap(*opened.bounds, boxes)
         if best is None or (joined, -round(crossed, 6)) > best[0]:
             best = ((joined, -round(crossed, 6)), {"by": np.round(by, 4).tolist()})

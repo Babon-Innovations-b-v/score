@@ -17,7 +17,7 @@ a place_build scene for the walkers (sim body) and pushed objects, and its `on` 
   workshop's adopted desk collides by an `sdf` (PhysX only) in its default variant and by its hull in MuJoCo's.
 - **The walkers' ground and routes** (#128, 2026-11-16): `solids` is what a walker stands on and runs into (every
   object the check reads, every door as it stands for the walkers: shut, or swung open when marked `score:opens`
-  (`swing_of`: into the shell it is set in, on the hinge that keeps the most floor joined), no characters), the ground sim body and scene clips read for a place_build
+  (`swing_of`: into the shell it is set in, on the hinge that keeps the walkers' floor most whole, `floor_kept`), no characters), the ground sim body and scene clips read for a place_build
   scene (their input `place-build`, INPUT); `route` (`place_build route --through`) is a walker's way through spots on
   the check's own walkers' floor (WALKWAY wide): the shortest way over standing spans, its corners kept by line of
   sight and rounded over ROUND, so a walk path never leaves the floor the check judged. `route_on` walks a Place already read (area/:

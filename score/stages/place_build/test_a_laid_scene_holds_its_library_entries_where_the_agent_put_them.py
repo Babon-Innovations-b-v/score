@@ -13,7 +13,7 @@ library) laid as a recipe spec on a look at its wear and dirt; a dome cut at an 
 with a doorway in its end wall (its rim round on the tube's circle, never stepped), its skin trimmed by the dome it
 joins and solid below its glass; a model's glow layer
 laid with it as a part; a stair core whose treads look up (the walkers' floor reads them as floor) and rise no more
-than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; a street's block turned a quarter hollowed where a neighbour place is seated in it (its boxes cut, its parts, pose and role kept, the shop's table and lamp and the fittings left with no wall taken out, a door leaf, a sign on what is left and a neighbouring block reaching in kept); a recipe's glass laid from the library see-through at the method's opacity; every packaged picture's sides a multiple of four; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
+than a knee, its flat's doorway cut through its back wall, its facade closed onto the shaft and its faces flat-shaded, a street door's doorway cut in its lobby's facade; a street's block turned a quarter hollowed where a neighbour place is seated in it (its boxes cut, its parts, pose and role kept, the shop's table and lamp and the fittings left with no wall taken out, a door leaf, a sign on what is left and a neighbouring block reaching in kept); a recipe's glass laid from the library see-through at the method's opacity; every packaged picture's sides a multiple of four; a door's swing ranked by every floor piece its open leaf leaves, the largest first; an airlock packaged with each door's hinge, opening, mark and sides and its chamber's inner and outer door and air, each pressure door swinging to its high-pressure side, and an airlock built from blocks given its chamber and doors by their marks, its plug door sliding aside, a door a walker swings over time packaged shut with its door block and any other keyed object left out; a final render at 1920x1080; a film's path held on the concept's view, round a wall at eye height and clear of it, easing to a stop; a named view listed beside the
 concept's for the render; and the compare measures the render's silhouette against the concept's object masks (overlap, each object's cover) and the
 colour difference of the two pictures, and draws them side by side; and a review of a region holds its laid objects
 (never the ground or the sky), each dome shell structure a compartment, a door's eye-height view, a plan seen
@@ -210,6 +210,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   swings into the chamber like a closet door, not out to the porch
 - scene_package.locks_of: the marked doors left unread (marked_locks empty) -> the blocks-built cell is no chamber
 - scene_package.door_block: every door written a hinge -> the cell's plug door has no slide
+- ready.floor_kept: only the largest piece's size kept -> a swing cutting the second floor piece in two ties one
+  cutting nothing (stairwell@32's entrance door walled the walkers in at its stair's foot, 2099 #161)
 - scene_package.moving_door: every keyed object taken for still (False) -> the lock's swinging inner door is
   left out as moving, so it lays no door
 - scene_package.moving_door: the role read off (every keyed object a door) -> the keyed fan is packaged
@@ -2436,6 +2438,8 @@ def doored(tmp_path):
     swung = {name: ready.opened_leaf(laid, name, {"hinge": door["pivot"], "degrees": door["open"]}).centroid
              for name, door in doors.items()}
     assert swung["inner_door"][2] < 0.0 and swung["outer_hatch"][2] < 2.84, swung  # to the porch; into the chamber
+    standing = np.ones(6, dtype=bool)  # a swing that cuts the second piece in two ranks below one that cuts nothing
+    assert ready.floor_kept(standing, np.array([0, 0, 0, 1, 1, 1])) > ready.floor_kept(standing, np.array([0, 0, 0, 1, 2, 2]))
     blocks_lock(tmp_path)
 
 
