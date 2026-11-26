@@ -19,7 +19,7 @@ import soma.assets
 from soma.body import SOMALayer
 
 EXPRESSIONS = 72  # MHR v1's face expression count, facebookresearch/MHR docs/face-expressions.md
-FACE_JOINTS = ("Head", "LeftEye", "RightEye", "Jaw")
+FACE_JOINTS = ("Neck1", "Head", "LeftEye", "RightEye", "Jaw")
 
 
 def person_layer(identity, lod="mid"):

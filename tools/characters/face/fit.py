@@ -451,8 +451,8 @@ def laid_on_skin(points, face_triangles, loop, head):
 
 
 def joint(body, name):
-    """A body joint's place at rest (body_face.py's `joint_names`, `joint_places`)."""
-    return np.asarray(body["joint_places"])[[str(item) for item in body["joint_names"]].index(name)]
+    """A body joint's place at rest (body_face.py's `joint_<name>`, its `FACE_JOINTS`)."""
+    return np.asarray(body[f"joint_{name}"], dtype=float)
 
 
 def head_centre(body):
