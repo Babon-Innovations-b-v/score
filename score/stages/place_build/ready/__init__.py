@@ -37,7 +37,8 @@ left out of every measure, `out_of_reach`). The faults, each with its measure:
   lattice gate's gaps between its bars are the gate's, never the opening's.
 - `person floating` / `person sinks`: a person's feet (each foot's lowest skin; a walker's planted, lower foot alone,
   `walks`), or, seated, the seat, more than
-  CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above.
+  CONTACT over or into what is under them; a person's skin inside another object is `penetration` as above. A crowd
+  (a PointInstancer of laid people) is judged copy by copy, each named as the package names it (`<crowd>_<n>`).
 - `broken body`: a person's skin torn by its skinning, a missing head, hand or foot, or a height or proportions no
   person has (people.shape_faults).
 - `walkway`: the walkers' floor (reach.py's Recast-style spans of every surface, doors open, eroded by half of WALKWAY)
@@ -348,8 +349,17 @@ class Place:
         self.prims = {prim.GetName(): prim for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren()}
         self.roles = {name: role_of(prim) for name, prim in self.prims.items()}
         self.meshes = {name: solid_of(prim) for name, prim in self.prims.items() if self.roles[name] not in UNSOLID}
-        self.people = {name: people.posed_body(prim) for name, prim in self.prims.items()
-                       if self.roles[name] == "character"}
+        self.people, self.walking = {}, set()  # a crowd's copies by the package's names; those that walk (crowd.py)
+        for name, prim in self.prims.items():
+            if self.roles[name] != "character":
+                continue
+            if not prim.IsA(UsdGeom.PointInstancer):
+                self.people[name] = people.posed_body(prim)
+                continue
+            copies = people.copies_posed(prim)
+            self.people.update(copies)
+            if prim.HasAttribute("score:walks_to"):
+                self.walking.update(copies)
         for name in out_of_reach(self.roles, self.meshes, self.people):
             self.roles[name] = "scenery"
             del self.meshes[name]
@@ -742,7 +752,7 @@ def person_faults(laid, name):
         return [{"fault": "no collision geometry", "why": "it has no skinned mesh to collide by"}]
     feet = {side[0]: contact_of(laid, body.points_of(*people.PARTS["feet"], side=side))
             for side in (people.LEFT, people.RIGHT)}
-    if walks(laid.prims[name]):  # a walker always has a foot in the air: its planted (lower) foot is held to CONTACT
+    if name in laid.walking or (name in laid.prims and walks(laid.prims[name])):  # a walker always has a foot in the air: its planted (lower) foot is held to CONTACT
         planted = min(feet, key=lambda side: abs(feet[side][0]) if np.isfinite(feet[side][0]) else np.inf)
         feet = {planted: feet[planted]}
     seat_joints = body.seat_joints()

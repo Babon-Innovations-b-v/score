@@ -11,11 +11,17 @@ each spot kept only where its body's column is clear: rays straight down at its 
 floor, facing up, with no solid within HEADROOM over it (a stage's top, a stair, a wall, a lamp). Two lanes run out
 from `toward` through the crowd (LANE_ANGLE either side of the way to its middle, from LANES_FROM), each as long as
 its LANE_WIDTH corridor finds the same clear floor every LANE_STEP; no one stands on a lane, and WALKERS_EVERY metres of
-lane gets a walker. Every person faces `toward` by its toes (score_lib's people face their model's -Z).
+lane gets a walker. Every person faces `toward` by its toes (score_lib's people face their model's -Z), and stands
+on its floor by its feet as the check reads them (ready.person_faults: each foot's lowest skin, rays down from
+ready.RAY_START over it): lifted or lowered so its lower foot stands on what is under it, and taken out where its other
+foot would stand more than STEP off (a step's edge, a kerb), so none sinks or floats (2099 #161: a laid person turned
+about its feet on the promenade stood its left foot 1.5 cm in).
 
 What it writes: each laid crowd person turned to face `toward` (its rotateXYZ's y), a laid person whose column is not
 clear (inside the stage, a wall) or who stands on a lane taken out; `Objects/crowd`, a PointInstancer of PROTOTYPES of
-the laid people (each one's prim copied whole, its Held pose with it) at the packed spots, each turned to `toward`; and
+the laid people (each one's prim copied whole, its Held pose with it) at the packed spots, each turned to `toward`
+(its turns written in float as `orientationsf` beside USD's half `orientations`, which no half can hold at unit length:
+each copy read as stretched 0.05% across, so the package converted every copy apart and passed 24 GB); and
 `Objects/crowd_walkers`, one of the same prototypes at its lane's near or far end, facing along it, its far end in
 `score:walks_to` (the package carries it as the copy's `walks`; a game walks it there, over and over, on its walking
 clip).
@@ -51,6 +57,7 @@ WALKERS_EVERY = 7.0  # metres of lane a walker
 WALKER_SIDE = 0.35  # metres off the lane's line a walker keeps (out on one side, back on the other)
 PROTOTYPES = 24  # the laid people the packed crowd is copied from
 RAY_TOP = 40.0  # metres over the highest floor the rays down start
+STEP = 0.5 * ready.CONTACT  # metres a person's two feet may stand apart off their floors: it stands on its lower one
 
 
 def spacing(metres):
@@ -172,6 +179,18 @@ class Solids:
                 found[start + ray].append((float(at[1]), bool(abs(self.up[face]) > 0.7 and self.up[face] != 0)))
         return [sorted(hits, key=lambda hit: -hit[0]) for hits in found]
 
+    def under(self, points):
+        """How far each of `points` (n, 3) stands over the nearest face straight under it, as ready.under_gap reads it
+        (from ready.RAY_START over the point; negative: into it); inf where nothing lies under it."""
+        points = np.asarray(points, float).reshape(-1, 3)
+        gaps = np.full(len(points), np.inf)
+        origins = points + [0.0, ready.RAY_START, 0.0]
+        ways = np.tile([0.0, -1.0, 0.0], (len(points), 1))
+        for start in range(0, len(points), 20000):
+            where, rays, _ = ready.cast(self.triangles, origins[start:start + 20000], ways[start:start + 20000])
+            np.minimum.at(gaps, start + rays, origins[start + rays, 1] - where[:, 1] - ready.RAY_START)
+        return gaps
+
 
 def column_floors(solids, spots, levels, top):
     """The floor each spot's body column stands on (floor_of at its middle and at eight points BODY round it, all on
@@ -223,6 +242,71 @@ def laid_crowd(stage, place, prefix):
 
 def feet_of(prim):
     return np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))[3, :3]
+
+
+def feet_points(body):
+    """The lowest skin of each foot of a posed body (ready.contact_of's FOOT // 10 points), left then right; None for a
+    body with no skin or no foot."""
+    if body is None:
+        return None
+    feet = []
+    for side in (ready.people.LEFT, ready.people.RIGHT):
+        points = body.points_of(*ready.people.PARTS["feet"], side=side)
+        if not len(points):
+            return None
+        feet.append(points[np.argsort(points[:, 1])[:ready.FOOT // 10]])
+    return feet
+
+
+def lift_of(solids, feet):
+    """How far a person with these feet (feet_points) moves up so its lower foot stands on what is under it, or None
+    where a foot finds nothing under it or its other foot would then stand over STEP off its own."""
+    if feet is None:
+        return None
+    gaps = solids.under(np.vstack(feet))
+    lowest = [float(gaps[:len(feet[0])].min()), float(gaps[len(feet[0]):].min())]
+    if not all(np.isfinite(lowest)) or abs(lowest[0] - lowest[1]) > STEP:
+        return None
+    return -min(lowest)
+
+
+def stood(stage, solids, people_laid):
+    """The laid crowd stood on its floor by its feet (lift_of, each one's translate moved up or down); the names of
+    those that cannot stand, their prims removed."""
+    fallen = set()
+    for prim in people_laid:
+        lift = lift_of(solids, feet_points(ready.people.posed_body(prim)))
+        if lift is None:
+            fallen.add(prim.GetName())
+            continue
+        translate = {op.GetOpName(): op for op in UsdGeom.Xformable(prim).GetOrderedXformOps()}["xformOp:translate"]
+        at = translate.Get()
+        translate.Set(type(at)(at[0], at[1] + lift, at[2]))
+    for path in [prim.GetPath() for prim in people_laid if prim.GetName() in fallen]:
+        stage.RemovePrim(path)
+    return fallen
+
+
+def stood_rows(stage, solids, path, prototypes, rows):
+    """`rows` [(prototype number, feet, yaw, ...)] stood on their floor by their copies' feet (lift_of on each copy
+    as the package and the check read it, skinned.copies_of), those that cannot stand left out; the instancer at
+    `path` written with them."""
+    from score.stages.place_build import skinned  # skinned reads the package, which reads this module's place_build
+    instancer = instanced(stage, path, prototypes, rows)
+    feet, frames, kept = {}, {}, []
+    for row, (root, _, world) in zip(rows, skinned.copies_of(instancer.GetPrim())):
+        key = str(root.GetPath())
+        if key not in feet:
+            feet[key] = feet_points(ready.people.posed_body(root))
+            frames[key] = np.linalg.inv(np.asarray(
+                UsdGeom.Xformable(root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())))
+        move = frames[key] @ world
+        lift = None if feet[key] is None else lift_of(
+            solids, [points @ move[:3, :3] + move[3, :3] for points in feet[key]])
+        if lift is not None:
+            kept.append((row[0], (row[1][0], row[1][1] + lift, row[1][2]), *row[2:]))
+    instanced(stage, path, prototypes, kept)
+    return kept
 
 
 def faced(prim, toward):
@@ -299,8 +383,9 @@ def instanced(stage, path, prototypes, rows):
     instancer.CreatePrototypesRel().SetTargets([Sdf.Path(prototype) for prototype in prototypes])
     instancer.CreateProtoIndicesAttr().Set(Vt.IntArray([row[0] for row in rows]))
     instancer.CreatePositionsAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*map(float, row[1])) for row in rows]))
-    instancer.CreateOrientationsAttr().Set(Vt.QuathArray([
-        Gf.Quath(Gf.Rotation(Gf.Vec3d(0.0, 1.0, 0.0), float(row[2])).GetQuat()) for row in rows]))
+    turns = [Gf.Rotation(Gf.Vec3d(0.0, 1.0, 0.0), float(row[2])).GetQuat() for row in rows]
+    instancer.CreateOrientationsAttr().Set(Vt.QuathArray([Gf.Quath(turn) for turn in turns]))
+    instancer.CreateOrientationsfAttr().Set(Vt.QuatfArray([Gf.Quatf(turn) for turn in turns]))
     instancer.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("character")
     return instancer
 
@@ -336,13 +421,16 @@ def crowd(folder, toward, prefix="person"):
     people = [stage.GetPrimAtPath(path) for path in kept if path.name not in removed]
     for prim in people:
         faced(prim, toward)
+    fallen = stood(stage, solids, people)
+    removed |= fallen
+    people = [prim for prim in people if prim.GetName() not in fallen]
     feet = np.array([feet_of(prim) for prim in people])
     prototypes = prototypes_of(stage, place, people)
-    rows = packed_rows(solids, feet, levels, lanes, toward, prototypes, top)
-    instanced(stage, f"/{place}/Objects/crowd", [path for path, _ in prototypes], rows)
-    walkers = walker_rows(lanes, prototypes)
-    walking = instanced(stage, f"/{place}/Objects/crowd_walkers", [path for path, _ in prototypes],
-                        [(number, at, yaw) for number, at, yaw, _ in walkers])
+    paths = [path for path, _ in prototypes]
+    rows = stood_rows(stage, solids, f"/{place}/Objects/crowd", paths,
+                      packed_rows(solids, feet, levels, lanes, toward, prototypes, top))
+    walkers = stood_rows(stage, solids, f"/{place}/Objects/crowd_walkers", paths, walker_rows(lanes, prototypes))
+    walking = UsdGeom.PointInstancer(stage.GetPrimAtPath(f"/{place}/Objects/crowd_walkers"))
     walking.GetPrim().CreateAttribute("score:walks_to", Sdf.ValueTypeNames.Point3fArray).Set(
         Vt.Vec3fArray([Gf.Vec3f(*map(float, to)) for *_, to in walkers]))
     place_build.saved(stage)

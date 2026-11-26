@@ -277,7 +277,11 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   the piece list's copy `walks`). Every spot is kept only where nine rays down its body's column find the crowd's
   floor with nothing within HEADROOM over it and no solid round it (an odd count of faces over a point: inside a
   wall), every lane step where its corridor does; a laid person whose column is not clear, or who stands on a lane,
-  is taken out. A game only draws them.
+  is taken out. Every laid person and copy then stands by its feet as the check reads them (`stood`, `stood_rows`:
+  its lower foot on what is under it, taken out where the other would stand over STEP off), and the copies' turns are
+  written in float too (`orientationsf`: a half quaternion is never unit length, so each copy read 0.05% stretched and
+  the package converted all 2,038 apart, 24 GB). The check reads a crowd copy by copy under the package's names
+  (`<crowd>_<n>`, ready/people.copies_posed), never its prototype at the origin. A game only draws them.
 - **`make`** (maker/, its own overlay): a prop's model made with TRELLIS.2 on this PC's card from its picture (a take's
   close-up, a concept crop by its SAM 3 mask), set over the model it replaces, graded to the palette, CoACD hulls and
   mass, taken into score_lib as a draft entry that `put` lays like any made model.

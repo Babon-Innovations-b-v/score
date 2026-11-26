@@ -3,7 +3,12 @@ skin posed as the renderer poses it (UsdSkel skinning, the clip's correctives ap
 the measures that say the body is whole.
 
     posed_body(prim) -> Body | None
+    copies_posed(prim) -> {copy name: Body | None}
     shape_faults(body) -> [fault]
+
+A crowd (a PointInstancer of laid people, crowd.py) is read copy by copy as the package names them (`<crowd>_<n>`,
+skinned.copies_of): each copy its prototype's posed skin moved to where the copy stands, never the prototype itself
+where it lies under the crowd (at the origin: the square's crowd read 39.8 cm inside its stage, 2099 #161).
 
 A body is broken when a triangle's longest edge grows past route_stretch.MOST_METRES from its bind, or over TORN of
 one garment's triangles more than double (bad skinning: a garment torn where a joint bends), when a head, a hand or a foot has no skin of its own (a missing part), or when
@@ -112,6 +117,29 @@ def posed_body(prim, time=Usd.TimeCode.Default()):
     if not pieces:
         return None
     return Body(trimesh.util.concatenate(pieces), joint_of, drawn, bind_joints)
+
+
+def copies_posed(prim):
+    """A crowd's every copy posed (skinned.copies_of's names): its prototype's posed skin (posed_body, once a prototype)
+    carried from the prototype's own frame to the copy's; None for a copy whose prototype holds no skinned mesh."""
+    from score.stages.place_build import skinned  # skinned reads the package, which reads the check
+    bodies, frames, copies = {}, {}, {}
+    for root, name, world in skinned.copies_of(prim):
+        path = str(root.GetPath())
+        if path not in bodies:
+            bodies[path] = posed_body(root)
+            frames[path] = np.linalg.inv(np.asarray(
+                UsdGeom.Xformable(root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())))
+        copies[name] = moved(bodies[path], frames[path] @ world)
+    return copies
+
+
+def moved(body, move):
+    """`body` carried by the row-major transform `move` (its skin's points only; its joints and bind are its own)."""
+    if body is None:
+        return None
+    points = np.asarray(body.mesh.vertices) @ move[:3, :3] + move[3, :3]
+    return Body(trimesh.Trimesh(points, body.mesh.faces, process=False), body.joint_of, body.drawn, body.bind_joints)
 
 
 def dominant_joints(target, order, count):

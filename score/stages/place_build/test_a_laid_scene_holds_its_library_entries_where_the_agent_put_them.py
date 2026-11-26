@@ -37,12 +37,17 @@ table lacks is refused.
 
 A square's crowd (crowd.py) faces its leader by its toes, packs the floor round it with no one in the stage, a wall
 or another, takes out a laid person standing in a wall, and walks lanes whose every step stands on clear floor, each
-walker's far end carried into the piece list.
+walker's far end carried into the piece list; every laid person and every copy stands by its feet on what is under it
+(a low dais too) as the check reads it, copy by copy, and the crowd's turns are written in float.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - crowd.column_floors: the middle ray alone (no BODY rays round it) -> a packed person stands half into the stage
 - crowd.toes_forward: the model's +z taken as its front -> every person turns its back on the leader
 - crowd.laid_removed: the column check left out -> the person laid in the wall stays
+- crowd.stood: left out -> the people laid on the dais stand 3 cm into it
+- crowd.stood_rows: the lift left off the rows -> the copies packed on the dais stand 3 cm into it
+- crowd.instanced: orientationsf left out -> a copy's turn reads stretched off even (the package converts each apart)
+- people.copies_posed: each copy's move left out -> every copy reads as its prototype at the origin, inside the stage
 - pieces.walks_of: the end left in the instancer's own frame -> the walker's far end is off by the crowd's offset
 - place_build.posed: the rotate op left out -> the turned piece's box stays unturned
 - place_build.snap: `on_grid` on the height too -> the lifted piece drops to the grid
@@ -2550,7 +2555,8 @@ def hollowed(folder):
 
 def toed_person(path):
     """A person asset as score_lib's people stand: a skeleton whose feet's toes point along its model's -z, splayed 18
-    degrees out to each side, a box body; written to `path`."""
+    degrees out to each side, a skinned skin of three boxes (a body on the hips, a shoe on each foot, its sole at its
+    feet's height); written to `path`."""
     body = Usd.Stage.CreateNew(str(path))
     UsdGeom.SetStageUpAxis(body, UsdGeom.Tokens.y)
     root = UsdSkel.Root.Define(body, "/Person")
@@ -2564,8 +2570,23 @@ def toed_person(path):
              Gf.Matrix4d().SetTranslate((-0.15 * math.sin(splay), -0.08, -0.15 * math.cos(splay)))]
     skeleton.CreateJointsAttr(joints)
     skeleton.CreateRestTransformsAttr(rests)
-    skeleton.CreateBindTransformsAttr([Gf.Matrix4d(1)] * len(joints))
-    UsdGeom.Cube.Define(body, "/Person/Body").CreateSizeAttr(0.4)
+    worlds = [rests[0], rests[1] * rests[0], rests[2] * rests[1] * rests[0], rests[3] * rests[0],
+              rests[4] * rests[3] * rests[0]]
+    skeleton.CreateBindTransformsAttr(worlds)
+    corners = np.array([[x, y, z] for x in (0, 1) for y in (0, 1) for z in (0, 1)], float)
+    boxes = [(0, (-0.2, 0.9, -0.15), (0.4, 0.7, 0.3)), (1, (0.05, 0.0, -0.13), (0.1, 0.08, 0.2)),
+             (3, (-0.15, 0.0, -0.13), (0.1, 0.08, 0.2))]
+    cube = [0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3]
+    points = np.vstack([np.asarray(low) + corners * size for _, low, size in boxes])
+    skin = UsdGeom.Mesh.Define(body, "/Person/Skin")
+    skin.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(*map(float, point)) for point in points]))
+    skin.CreateFaceVertexCountsAttr([4] * 18)
+    skin.CreateFaceVertexIndicesAttr([corner + 8 * number for number in range(3) for corner in cube])
+    binding = UsdSkel.BindingAPI.Apply(skin.GetPrim())
+    binding.CreateSkeletonRel().SetTargets([skeleton.GetPath()])
+    binding.CreateJointIndicesPrimvar(False, 1).Set([joint for joint, _, _ in boxes for _ in range(8)])
+    binding.CreateJointWeightsPrimvar(False, 1).Set([1.0] * 24)
+    binding.CreateGeomBindTransformAttr(Gf.Matrix4d(1))
     body.Save()
 
 
@@ -2583,7 +2604,7 @@ def crowded(folder):
     stage = Usd.Stage.Open(str(place_build.scene_path(folder)))
     objects = "/sq/Objects"
     solids = {"floor": ((0.0, -0.5, 10.0), (40.0, 1.0, 40.0)), "stage": ((0.0, 0.5, 0.0), (4.0, 1.0, 4.0)),
-              "wall": ((5.0, 1.5, 12.0), (0.3, 3.0, 6.0))}
+              "wall": ((5.0, 1.5, 12.0), (0.3, 3.0, 6.0)), "dais": ((-1.5, 0.015, 9.25), (1.5, 0.03, 4.5))}
     for name, (middle, size) in solids.items():
         holder = UsdGeom.Xform.Define(stage, f"{objects}/{name}")
         cube = UsdGeom.Cube.Define(stage, f"{objects}/{name}/geo")
@@ -2591,7 +2612,7 @@ def crowded(folder):
         cube.AddTranslateOp().Set(Gf.Vec3d(*middle))
         cube.AddScaleOp().Set(Gf.Vec3f(*size))
         holder.GetPrim().CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set(
-            {"floor": "ground", "stage": "structure", "wall": "structure"}[name])
+            {"floor": "ground", "stage": "structure", "wall": "structure", "dais": "structure"}[name])
     leader = UsdGeom.Xform.Define(stage, f"{objects}/leader")
     leader.AddTranslateOp().Set(Gf.Vec3d(0.0, 1.0, 0.0))
     spots = [(-6.0 + 1.5 * (number % 9), 0.0, 6.0 + 1.6 * (number // 9)) for number in range(44)] + [(5.0, 0.0, 12.0)]
@@ -2621,7 +2642,19 @@ def crowded(folder):
     packed = UsdGeom.PointInstancer(stage.GetPrimAtPath(f"{objects}/crowd"))
     worlds = packed.ComputeInstanceTransformsAtTime(Usd.TimeCode.Default(), Usd.TimeCode.Default())
     at = np.array([np.asarray(world)[3, :3] for world in worlds])
-    assert len(at) > 200 and np.allclose(at[:, 1], 0.0) and all(clear(x, z) for x, _, z in at)
+    assert len(at) > 200 and all(clear(x, z) for x, _, z in at)
+    assert packed.GetOrientationsfAttr().HasValue()
+    on_dais = (np.abs(at[:, 0] + 1.5) < 0.5) & (np.abs(at[:, 2] - 9.25) < 2.0)
+    assert on_dais.any() and np.allclose(at[on_dais, 1], 0.03, atol=1e-4), at[on_dais, 1]
+    raised = [crowd.feet_of(prim)[1] for prim in crowd.laid_crowd(stage, "sq", "person")
+              if prim.GetName() in ("person12", "person21", "person30")]  # laid at 0 on the dais
+    assert raised and np.allclose(raised, 0.03, atol=1e-4), raised
+    laid = ready.Place(stage, "sq")
+    copies = sorted(name for name in laid.people if name.startswith("crowd_") and not name.startswith("crowd_w"))
+    assert "crowd" not in laid.people and len(copies) == len(at) and laid.walking, sorted(laid.people)[:5]
+    standing = {name: [fault["fault"] for fault in ready.person_faults(laid, name)
+                       if fault["fault"] in ("person sinks", "person floating", "penetration")] for name in laid.people}
+    assert not any(standing.values()), {name: faults for name, faults in standing.items() if faults}
     assert all(abs(off(np.array([0.0, 0.0, -1.0]) @ np.asarray(world)[:3, :3], spot)) < 3.0 for world, spot in zip(worlds, at))
     gaps = np.linalg.norm(at[:, None, [0, 2]] - at[None, :, [0, 2]], axis=2) + np.eye(len(at)) * 9
     assert gaps.min() >= crowd.NEAREST - 1e-6
