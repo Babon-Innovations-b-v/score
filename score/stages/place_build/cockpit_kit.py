@@ -1920,9 +1920,11 @@ def wall_screws(cut=None, holes=(), flats=(), sector=(0.0, 360.0), pitch=0.11, o
     return found
 
 
-def rib_clear(cone, theta, y, cut, holes, flats, clear):
+def rib_clear(cone, theta, y, cut, holes, flats, clear, butt=0.0):
     """Whether a rib may stand at (theta radians, y): outside the cut-away, `clear` metres off every hole's flange
-    (`holes` [theta, y, radius] as the lining's fades) and off every mounting plate (`flats`, as the lining's)."""
+    (`holes` [theta, y, radius] as the lining's fades) and `butt` metres off every mounting plate (`flats`, as the
+    lining's): 0 runs it up to a housing's edge, so it reads as the frame the housing hangs on (wave 2 round 4: a rib
+    stopped short of FLIGHT's housing read as a block floating under it)."""
     if cut and (in_cut(theta, y, cut) or cut_distance(cone, theta, y, cut) < clear):
         return False
     face = cone.sizes["gap"] + cone.sizes["lining"]
@@ -1933,7 +1935,7 @@ def rib_clear(cone, theta, y, cut, holes, flats, clear):
     for flat_theta, flat_y, wide, high in flats:
         _, _, (right, up, _) = flat_spot(flat_theta, flat_y, wide, high, **cone.sizes)
         offset = back - cone.at(math.radians(flat_theta), flat_y, cone.sizes["gap"])
-        if abs(offset @ right) < wide / 2 + clear and abs(offset @ up) < high / 2 + clear:
+        if abs(offset @ right) < wide / 2 + butt and abs(offset @ up) < high / 2 + butt:
             return False
     return True
 
