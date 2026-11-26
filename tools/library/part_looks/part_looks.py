@@ -922,7 +922,8 @@ def make(arguments):
 PICTURE_CLASS = {"label": "plastic", "keypad": "plastic", "stripes": "plastic", "stencil": "metal", "note": "paper",
                  "sheet": "paper", "hanzi_sheets": "paper", "calendar": "paper", "plan": "paper", "status": "glass",
                  "readout": "glass", "lens": "glass"}
-SHAPE_CLASS = {"banner": "fabric", "couplet": "paper", "poster": "paper", "plate": "metal"}  # a hanzi picture's, by shape
+SHAPE_CLASS = {"banner": "fabric", "couplet": "paper", "poster": "paper", "plate": "metal",
+               "square": "paper"}  # a hanzi picture's, by shape (a square: a fu luck paper on a door)
 DRAWN_CLASS = {"toolboard_outlines": "wood"}
 DECAL_WHAT = ("an old picture of score's library (data/library/pictures at score {old}, drawn from its materials.json "
               "`pictures` row) taken in as a decal, so the October code-built models remade by part_looks print it")
