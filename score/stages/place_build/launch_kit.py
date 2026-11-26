@@ -513,11 +513,11 @@ def coast_heights(x, z, wide, deep, sea, rise, shore, berm, depth, sites, seed):
 
 
 def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, depth=8.0, cell=20.0, sites=(),
-          seed=0, scrub=0.0, roads=0, houses=0, trees=0):
+          seed=0, scrub=0.0, roads=0, houses=0, trees=0, palms=0):
     """A coast (the docstring's `coast`): a heightfield on a grid of `cell` metres, closed by a flat bottom 2 m under
     the sea bed's deepest and its four sides; parts land and shore (inland of the shore band, or not), the land's
-    gentle faces (up-normal over `scrub`) part scrub, its night dressing (coast_dressing) and its woods (coast_trees)
-    when asked."""
+    gentle faces (up-normal over `scrub`) part scrub, its night dressing (coast_dressing), its woods (coast_trees)
+    and its promenade palms (coast_palms) when asked."""
     across = np.linspace(-wide / 2, wide / 2, int(round(wide / cell)) + 1)
     along = np.linspace(-deep, sea, int(round((deep + sea) / cell)) + 1)
     grid_x, grid_z = np.meshgrid(across, along, indexing="ij")
@@ -560,21 +560,21 @@ def coast(wide=4000.0, deep=1500.0, sea=800.0, rise=60.0, shore=40.0, berm=2.5, 
         found += coast_dressing(wide, deep, sea, rise, shore, berm, depth, sites, seed, roads, houses)
     if trees:
         found += coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, roads)
+    if palms:
+        found += coast_palms(wide, deep, sea, rise, shore, berm, depth, sites, seed, palms)
     return found
 
 
-TREE_SIDES, TREE_RINGS = 7, 4  # a tree crown's sides round and its rings up (a closed seven-sided ellipsoid)
+TREE_SIDES, TREE_RINGS = 7, 4  # a crown lobe's sides round and its rings up (a closed seven-sided ellipsoid)
 TREE_HIGH = (6.0, 16.0)  # metres: a tree's least and greatest height (subtropical hill wood: Hong Kong's is 5 to 15 m)
 
 
-def tree_crown(x, ground, z, high, wide, turn):
-    """One tree: a closed crown of TREE_SIDES by TREE_RINGS (an ellipsoid `wide` across, its widest a third of the
-    way up) on a short trunk of three sides, its foot sunk 0.5 m under `ground`; (points, triangles) wound out."""
-    foot = ground - 0.5
-    bottom = ground + high * 0.3
-    rings = [(bottom + (high - (bottom - ground)) * (1 - math.cos(math.pi * step / TREE_RINGS)) / 2,
+def crown_lobe(x, low, z, high, wide, turn):
+    """One closed lobe of a tree's crown: an ellipsoid of TREE_SIDES by TREE_RINGS from `low` up `high`, `wide`
+    across, its widest a third of the way up; (points, triangles) wound out."""
+    rings = [(low + high * (1 - math.cos(math.pi * step / TREE_RINGS)) / 2,
               wide / 2 * math.sin(math.pi * step / TREE_RINGS) ** 0.8) for step in range(1, TREE_RINGS)]
-    points = [(x, bottom, z), (x, ground + high, z)]
+    points = [(x, low, z), (x, low + high, z)]
     for height, radius in rings:
         for side in range(TREE_SIDES):
             angle = turn + 2 * math.pi * side / TREE_SIDES
@@ -584,29 +584,113 @@ def tree_crown(x, ground, z, high, wide, turn):
         after = (side + 1) % TREE_SIDES
         triangles.append([0, 2 + side, 2 + after])
         for ring in range(len(rings) - 1):
-            low, up = 2 + ring * TREE_SIDES, 2 + (ring + 1) * TREE_SIDES
-            triangles += [[low + side, up + side, up + after], [low + side, up + after, low + after]]
+            lower, upper = 2 + ring * TREE_SIDES, 2 + (ring + 1) * TREE_SIDES
+            triangles += [[lower + side, upper + side, upper + after], [lower + side, upper + after, lower + after]]
         top = 2 + (len(rings) - 1) * TREE_SIDES
         triangles.append([1, top + after, top + side])
-    trunk = len(points)
-    girth = max(0.15, wide * 0.05)
-    for level in (foot, bottom + 0.3):
-        for side in range(3):
-            angle = turn + 2 * math.pi * side / 3
-            points.append((x + girth * math.cos(angle), level, z + girth * math.sin(angle)))
-    for side in range(3):
-        after = (side + 1) % 3
-        triangles += [[trunk + side, trunk + after, trunk + 3 + after], [trunk + side, trunk + 3 + after, trunk + 3 + side]]
-    triangles += [[trunk, trunk + 2, trunk + 1], [trunk + 3, trunk + 4, trunk + 5]]
+    return outward(np.asarray(points), np.asarray(triangles), (x, low + high / 2, z))
+
+
+def outward(points, triangles, middle):
+    """The triangles of one closed solid round `middle` wound to face out."""
+    corners = points[triangles]
+    faces = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    inward = np.einsum("ij,ij->i", faces, corners.mean(axis=1) - np.asarray(middle)) < 0
+    triangles = triangles.copy()
+    triangles[inward] = triangles[inward][:, ::-1]
+    return points, triangles
+
+
+def joined(solids):
+    """Closed solids [(points, triangles)] as one (points, triangles)."""
+    points, triangles, count = [], [], 0
+    for solid_points, solid_triangles in solids:
+        points.append(solid_points)
+        triangles.append(solid_triangles + count)
+        count += len(solid_points)
+    return np.vstack(points), np.vstack(triangles)
+
+
+def trunk(x, foot, z, top, girth, turn, lean=(0.0, 0.0), sides=3):
+    """A closed trunk of `sides` from `foot` to `top`, `girth` round at its foot and two thirds of that at its top,
+    its top moved by `lean` (x, z)."""
+    points = []
+    for level, share, scale in ((foot, 0.0, 1.0), (top, 1.0, 0.65)):
+        for side in range(sides):
+            angle = turn + 2 * math.pi * side / sides
+            points.append((x + lean[0] * share + girth * scale * math.cos(angle), level,
+                           z + lean[1] * share + girth * scale * math.sin(angle)))
+    triangles = []
+    for side in range(sides):
+        after = (side + 1) % sides
+        triangles += [[side, after, sides + after], [side, sides + after, sides + side]]
+    triangles += [[0, index + 1, index] for index in range(1, sides - 1)]
+    triangles += [[sides, sides + index, sides + index + 1] for index in range(1, sides - 1)]
+    return outward(np.asarray(points, dtype=np.float64), np.asarray(triangles),
+                   (x + lean[0] / 2, (foot + top) / 2, z + lean[1] / 2))
+
+
+def tree_crown(x, ground, z, high, wide, turn, generator=None):
+    """One broadleaf tree: a trunk of five sides, its foot sunk 0.5 m under `ground`, under a crown of three
+    overlapping closed lobes (crown_lobe), the main one `wide` across from a third of `high` up and two smaller ones
+    set off it round and up, so the crown breaks into the clumped outline of a subtropical hill wood rather than one
+    egg; (points, triangles), each solid wound out."""
+    generator = generator or np.random.default_rng(int(abs(x * 31 + z * 17)) % 100000)
+    bottom = ground + high * 0.3
+    solids = [trunk(x, ground - 0.5, z, bottom + high * 0.2, max(0.18, wide * 0.05), turn, sides=5),
+              crown_lobe(x, bottom, z, high * 0.7, wide, turn)]
+    for lobe in range(2):
+        angle = turn + generator.uniform(0, 2 * math.pi) + lobe * math.pi
+        reach = wide * generator.uniform(0.25, 0.4)
+        size = generator.uniform(0.5, 0.7)
+        solids.append(crown_lobe(x + reach * math.cos(angle), bottom + high * generator.uniform(0.1, 0.35),
+                                 z + reach * math.sin(angle), high * 0.7 * size, wide * size, turn + lobe))
+    return joined(solids)
+
+
+PALM_FRONDS, PALM_HIGH = 9, (7.0, 13.0)  # a palm's fronds and its least and greatest height (Washingtonia, Hong Kong's promenades)
+
+
+def frond(x, top, z, heading, length, droop):
+    """One closed palm frond from a palm's head at (x, top, z): a thin leaf swept out along `heading` in five steps,
+    rising then arching down by `droop`, widest at its middle; (points, triangles) wound out."""
+    steps = 5
+    points = []
+    way = np.array([math.cos(heading), 0.0, math.sin(heading)])
+    side_way = np.array([-math.sin(heading), 0.0, math.cos(heading)])
+    for step in range(steps + 1):
+        share = step / steps
+        middle = np.array([x, top, z]) + way * length * share + np.array([0.0, length * 0.35 * share - droop * share ** 2, 0.0])
+        half = length * 0.16 * math.sin(math.pi * min(0.96, max(0.04, share))) + 0.03
+        for across, up in ((-half, 0.0), (0.0, 0.06), (half, 0.0), (0.0, -0.06)):
+            points.append(tuple(middle + side_way * across + np.array([0.0, up - abs(across) * 0.25, 0.0])))
+    triangles = []
+    for step in range(steps):
+        low, up = step * 4, (step + 1) * 4
+        for side in range(4):
+            after = (side + 1) % 4
+            triangles += [[low + side, low + after, up + after], [low + side, up + after, up + side]]
+    end = steps * 4
+    triangles += [[0, 2, 1], [0, 3, 2], [end, end + 1, end + 2], [end, end + 2, end + 3]]
     points = np.asarray(points)
     triangles = np.asarray(triangles)
-    for start, stop, middle in ((0, len(triangles) - 8, (x, bottom + (high - (bottom - ground)) / 2, z)),
-                                (len(triangles) - 8, len(triangles), (x, (foot + bottom + 0.3) / 2, z))):
-        corners = points[triangles[start:stop]]
-        faces = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
-        inward = np.einsum("ij,ij->i", faces, corners.mean(axis=1) - np.asarray(middle)) < 0
-        triangles[start:stop][inward] = triangles[start:stop][inward][:, ::-1]
+    # The sweep's faces share one winding; a leaf's sweep is not convex round one middle, so its sign is read from
+    # its volume and the whole leaf turned out when it came out inward.
+    corners = points[triangles]
+    if np.einsum("ij,ij->i", corners[:, 0], np.cross(corners[:, 1], corners[:, 2])).sum() < 0:
+        triangles = triangles[:, ::-1]
     return points, triangles
+
+
+def palm(x, ground, z, high, turn, generator):
+    """One palm: a leaning seven-sided trunk from 0.5 m under `ground` to `high` and a head of PALM_FRONDS fronds
+    (frond) round it, each drooping; (trunk points, trunk triangles), (fronds points, fronds triangles)."""
+    lean = (generator.uniform(-0.8, 0.8), generator.uniform(-0.8, 0.8))
+    stem = trunk(x, ground - 0.5, z, ground + high, 0.28, turn, lean, sides=7)
+    head = [frond(x + lean[0], ground + high - 0.2, z + lean[1], turn + 2 * math.pi * number / PALM_FRONDS
+                  + generator.uniform(-0.2, 0.2), generator.uniform(3.2, 4.6), generator.uniform(2.0, 3.4))
+            for number in range(PALM_FRONDS)]
+    return stem, joined(head)
 
 
 def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, roads=0):
@@ -620,7 +704,7 @@ def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, r
     reach = deep * 0.45
     road_at = [shore * 0.6 + number * reach / max(1, roads) for number in range(roads)]
     generator = np.random.default_rng(seed + 2)
-    points, triangles = [], []
+    points = []
     count = 0
     for _ in range(trees * 30):
         if count >= trees:
@@ -635,14 +719,38 @@ def coast_trees(wide, deep, sea, rise, shore, berm, depth, sites, seed, trees, r
             continue
         height = float(ground(np.array([x]), np.array([z]))[0][0])
         high = generator.uniform(*TREE_HIGH)
-        crown, faces = tree_crown(x, height, z, high, high * generator.uniform(0.55, 0.9), generator.uniform(0, math.pi))
-        triangles.append(faces + sum(len(done) for done in points))
-        points.append(crown)
+        points.append(tree_crown(x, height, z, high, high * generator.uniform(0.55, 0.9), generator.uniform(0, math.pi),
+                                 generator))
         count += 1
     if not points:
         return []
     from score.stages.place_build.cockpit_kit import piece
-    return [piece("tree", np.vstack(points), np.vstack(triangles), False)]
+    return [piece("tree", *joined(points), False)]
+
+
+def coast_palms(wide, deep, sea, rise, shore, berm, depth, sites, seed, palms):
+    """A coast's promenade palms: `palms` palms (palm) along its shore band, a few metres inland of the waterline,
+    clear of its sites by 1.1 times their radius; parts palm (the trunks) and frond (the heads)."""
+    sites = [tuple(float(value) for value in site) for site in sites]
+    ground = coast_ground(wide, deep, sea, rise, shore, berm, depth, sites, seed)
+    shoreline = seeded_waves(np.random.default_rng(seed), COAST_WAVES, wide / 2, shore * 1.5)
+    generator = np.random.default_rng(seed + 5)
+    stems, heads = [], []
+    for _ in range(palms * 30):
+        if len(stems) >= palms:
+            break
+        x = generator.uniform(-wide / 2 + 10.0, wide / 2 - 10.0)
+        z = float(shoreline(x, 0.0)) - generator.uniform(shore * 0.9, shore * 1.6)
+        if not off_sites(x, z, sites, 1.1):
+            continue
+        height = float(ground(np.array([x]), np.array([z]))[0][0])
+        stem, head = palm(x, height, z, generator.uniform(*PALM_HIGH), generator.uniform(0, math.pi), generator)
+        stems.append(stem)
+        heads.append(head)
+    if not stems:
+        return []
+    from score.stages.place_build.cockpit_kit import piece
+    return [piece("palm", *joined(stems), False), piece("frond", *joined(heads), False)]
 
 
 ROAD_WIDE, ROAD_THICK, ROAD_STEP = 7.0, 0.6, 10.0  # a coast road's width, slab and the metres between its points
