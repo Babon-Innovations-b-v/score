@@ -67,6 +67,12 @@ BACKFILL_SECONDS = 600  # a waiter that does not fit is passed by smaller ones t
 YIELD_SECONDS = 60  # a claim waiting this long asks the later-ranked shares back
 STOP_SECONDS = 30  # a side command asked back has this long after SIGTERM before SIGKILL
 WAITING = {}  # {(job, priority): this process's open waiting entry}
+# QUEUE's own list of the programs this PC's owner plays on the card (foreground.json, written on the PC by the tools
+# that build them, never in this repository): while one runs, no side job ("other") takes the card and a side job on
+# it gives way, as for an earlier-ranked claim (owner, 2026-11-26: a playtest's every place at 24 fps while side jobs
+# held the card at 97%, the same frames 85 fps alone; "no card jobs while a playtest runs"). Windows is asked at most
+# every FOREGROUND_LOOK_SECONDS, its answer kept in foreground-seen.json for every holder.
+FOREGROUND_LOOK_SECONDS = 10
 
 
 @contextlib.contextmanager
@@ -98,6 +104,38 @@ def live(folder, now=None):
         path.unlink(missing_ok=True)
         (QUEUE / "yield" / path.name).unlink(missing_ok=True)
     return found
+
+
+def foreground_plays():
+    """Whether a program in QUEUE's foreground.json ([{"image": its Windows image name, "unless": a text only an agent's
+    run of it carries on its command line}]) runs now; False with no list. The answer is kept in foreground-seen.json
+    and asked of Windows again only once it is FOREGROUND_LOOK_SECONDS old."""
+    listed = QUEUE / "foreground.json"
+    if not listed.exists():
+        return False
+    seen = QUEUE / "foreground-seen.json"
+    with contextlib.suppress(FileNotFoundError, ValueError, KeyError):
+        kept = json.loads(seen.read_text())
+        if time.time() - kept["at"] < FOREGROUND_LOOK_SECONDS:
+            return kept["plays"]
+    plays = any(windows_runs(program["image"], program.get("unless", "")) for program in json.loads(listed.read_text()))
+    part = seen.with_name(f"{seen.name}.{os.getpid()}")
+    part.write_text(json.dumps({"at": time.time(), "plays": plays}))
+    part.replace(seen)
+    return plays
+
+
+def windows_runs(image, unless):
+    """Whether Windows runs a process named `image` whose command line does not hold `unless` (none named: any); False
+    where Windows cannot be asked (no powershell.exe: a rented machine, or WSL's interop off)."""
+    lacking = f" -and $_.CommandLine -notlike '*{unless}*'" if unless else ""
+    script = f"@(Get-CimInstance Win32_Process | Where-Object {{ $_.Name -eq '{image}'{lacking} }}).Count"
+    try:
+        answer = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+                                capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return int("".join(filter(str.isdigit, answer.stdout)) or 0) > 0
 
 
 def in_use(held, group, need):
@@ -140,6 +178,7 @@ def take(job, card_gb=None, priority="env-run", group=None, memory=0):
     priority, or the same one asking since earlier that fits now or has waited BACKFILL_SECONDS)."""
     need = min(card_gb or BUDGET_GB, BUDGET_GB)
     rank = RANK[priority]
+    played = rank >= RANK["other"] and foreground_plays()
     with queue_lock():
         now = time.time()
         room = memory_gb()
@@ -150,7 +189,7 @@ def take(job, card_gb=None, priority="env-run", group=None, memory=0):
         ahead = [waiter for waiter in live("waiting", now) if (RANK[waiter["priority"]], waiter["since"])
                  < (rank, since) and (mine is None or waiter["id"] != pathlib.Path(mine.name).stem)
                  and blocks(waiter, held, rank, room, now)]
-        if ahead or not fits(held, group, need, memory, room):
+        if played or ahead or not fits(held, group, need, memory, room):
             if mine is None:
                 WAITING[(job, priority)] = mine = entry("waiting", job, need, priority, group, memory)
             else:
@@ -450,7 +489,7 @@ def shared_run(job, card_gb, priority, command, memory=0):
         handle, lock = locked_share(job, card_gb, priority, memory)
         before = resource.getrusage(resource.RUSAGE_CHILDREN)
         child = subprocess.Popen(command, start_new_session=True, preexec_fn=ends_with_parent)
-        while child.poll() is None and not asked_back(handle):
+        while child.poll() is None and not asked_back(handle) and not gives_way_to_play(priority):
             with contextlib.suppress(subprocess.TimeoutExpired):
                 child.wait(LOOK_SECONDS)
         if child.poll() is not None:
@@ -458,12 +497,18 @@ def shared_run(job, card_gb, priority, command, memory=0):
                 lock.close()
             release(handle, *used_since(before, handle.began))
             return child.returncode
-        print(f"card_queue: {job} gives the card way to a waiting earlier-ranked claim; it starts again after",
+        print(f"card_queue: {job} gives the card way to a waiting earlier-ranked claim or the owner's play; it starts"
+              " again after",
               file=sys.stderr, flush=True)
         stop(child)
         if lock:
             lock.close()
         release(handle, *used_since(before, handle.began))
+
+
+def gives_way_to_play(priority):
+    """Whether a share of `priority` gives the card way now: a side job's while the owner plays (foreground_plays)."""
+    return RANK[priority] >= RANK["other"] and foreground_plays()
 
 
 def used_since(before, began):

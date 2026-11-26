@@ -106,6 +106,9 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: in `blocks`, drop `or now - waiter["since"] >= BACKFILL_SECONDS` -> the MOSS claim is passed for ever; or
   return True for the same rank -> the Blender claims wait behind MOSS again; or drop `and could_fit(waiter, held)`
   -> the likeness claim waits behind segment for ever.
+  While the owner plays a game listed in the queue's foreground.json, no side job takes the card and a side job on it
+  gives way, starting again once he stops; the env run's claims are kept. Break: drop `played or` in `take` -> the
+  proof is admitted; or drop `and not gives_way_to_play(priority)` in `shared_run` -> the tuning is never stopped.
   A session's own card lock (SCORE_CARD_LOCK) is held by `run` for its job alone, shared among the queue's own jobs.
   Break: `run` calls `shared_run` without `with session_lock():` -> the job starts while the other session holds the
   lock; LOCK_SH -> LOCK_EX in `session_lock` -> the second look waits behind the first.
@@ -557,7 +560,8 @@ ROUTE = {"card_gb": 1, "memory_gb": 3}
 # "in time" while it keeps asking), ("release", name), ("drop", job, priority: a waiter that stopped asking), ("set",
 # module, its constant, its value), ("status" or "measured", the pattern that line matches), ("sized", environment,
 # BUDGET_GB and DESKTOP_GB as a fresh process reads them), ("run", job, card GB: `card_queue run` of a command that
-# notes each start and lives until its input ends, once it holds its share), ("starts", job, its command's starts so
+# notes each start and lives until its input ends, once it holds its share), ("playing", whether the owner plays a
+# game listed in the queue's foreground.json), ("starts", job, its command's starts so
 # far, how many of the first are stopped), ("end", job: its input ends, the run exits 0), ("operators", Blender
 # operator names called at once through card_turn, the most card calls on the card together) or ("beside", the card
 # slots held, an operator that must still run within 5 s).
@@ -656,6 +660,22 @@ ASKS = [
         ("end", "tuning"),
         ("take", "after", "pixal", 10.8, "env-run", None, 0, True),  # it ended: its share is free
         ("measured", r"^tuning: 2 takes, card 6\.39 GB \(2 alone\), cores ")]),  # both runs measured
+    # 2026-11-26: a playtest's every place at 24 fps while side jobs held the card at 97% (85 fps alone)
+    ("the owner's play keeps side jobs off the card and asks a side job on it back", [
+        ("playing", True),
+        ("take", None, "proof", 1, "other", None, 0, False),  # a side job waits while he plays, the card free
+        ("take", "look", "similar", 1, "env-run", None, 0, True),  # the env run's claims are no side jobs
+        ("release", "look"), ("drop", "proof", "other"),
+        ("playing", False),
+        ("run", "tuning", 6),
+        ("playing", True),
+        # 6 + 10.8 passes the card: the env-run claim gets it only once the side job gave way (well before YIELD_SECONDS)
+        ("take", "film", "pixal", 10.8, "env-run", None, 0, "in time"),
+        ("starts", "tuning", 1, 1),  # the side job on the card was stopped
+        ("release", "film"),
+        ("playing", False),
+        ("starts", "tuning", 2, 1),  # started again once he stopped
+        ("end", "tuning")]),
     # card_turn.py, inside each Blender process: the bake and the renders take one of the card's two slots, any other
     # operator runs free beside them
     ("Blender's card calls take the card's slots, never more, and nothing else waits for them", [
@@ -931,6 +951,11 @@ def test_only_our_own_resources_are_taken_and_every_euro_and_share_they_cost_is_
             for pid in noted.read_text().split()[:step[3]]:
                 with pytest.raises(ProcessLookupError):
                     os.kill(int(pid), 0)
+        elif kind == "playing":  # the owner's play as every queue user reads it, Windows never asked
+            card_queue_folder.mkdir(parents=True, exist_ok=True)
+            (card_queue_folder / "foreground.json").write_text(json.dumps([{"image": "game.exe", "unless": "--agent"}]))
+            (card_queue_folder / "foreground-seen.json").write_text(json.dumps({"at": time.time() + 3600,
+                                                                                "plays": step[1]}))
         elif kind == "end":
             runs[step[1]].stdin.close()
             assert runs[step[1]].wait(30) == 0, where
