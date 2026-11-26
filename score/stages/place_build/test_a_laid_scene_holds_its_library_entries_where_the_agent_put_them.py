@@ -115,6 +115,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.remove: a removed door wall's doorway and join kept -> the pad's walkway still joins at a wall gone
 - place_build.haze: `shape` dropped (always a box) -> the steam puff's shell reaches its box's corners
 - place_build.shaft: the cone not turned onto its aim -> the beam's shell runs up, not toward its aim
+- scene_package.hazes_of: the shape left off (every body a box) -> the puff packaged as a box, the beam with no apex
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
 - place_build.made_by_haze: unread -> the mist's body and look name no library algorithm
@@ -1563,6 +1564,11 @@ def rained(folder):
               for name in ("puff", "beam")}
     assert np.linalg.norm(shells["puff"] - [62.0, 1.0, 62.0], axis=1).max() <= 1.0 + 1e-4, "the puff is no ellipsoid"
     assert shells["beam"][:, 0].max() > 67.0 and np.ptp(shells["beam"][:, 1]) < 4.0, "the beam runs off its aim"
+    from score.stages.place_build import scene_package
+    bodies = {body["name"]: body for body in scene_package.hazes_of(stage, "yard")}
+    assert (bodies["mist"]["shape"], bodies["puff"]["shape"], bodies["shaft_0"]["shape"]) == ("box", "ellipsoid", "cone")
+    beam = bodies["shaft_0"]
+    assert np.allclose(beam["apex"], [60.0, 5.0, 60.0], atol=1e-3) and np.allclose(beam["axis"], [1.0, 0.0, 0.0], atol=1e-4)         and abs(beam["length"] - 8.0) < 1e-3 and abs(beam["radius"] - 8.0 * np.tan(np.radians(10.0))) < 1e-2, beam
     hazed = [prim for prim in Usd.PrimRange(stage.GetPrimAtPath("/yard/Haze/mist")) if prim.HasAttribute("score:from")]
     assert hazed and all(prim.GetAttribute("score:from").Get().endswith(place_build.HAZE_ALGORITHM) for prim in hazed) \
         and any(prim.IsA(UsdShade.Material) for prim in hazed), [str(prim.GetPath()) for prim in hazed]

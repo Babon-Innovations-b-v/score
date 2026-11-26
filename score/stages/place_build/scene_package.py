@@ -1400,7 +1400,8 @@ def srgb_linear(value):
 
 
 def hazes_of(stage, place):
-    """[{name, low, high, colour, density, forward}] of the place's bodies of haze (place_build.haze, tools/usd/scene.py's
+    """[{name, low, high, colour, density, forward, shape (box, cylinder, ellipsoid, cone: a lamp's shaft, with its apex,
+    axis, length and radius)}] of the place's bodies of haze (place_build.haze, tools/usd/scene.py's
     write_haze_volume): each shell's box in the package's frame (its world bound as the stage stands, seated), the fog's
     colour, its density (thickness a metre) and how strongly it throws light forward, for the game's FogVolume (2099
     #161: the street's rain air was in the place, drawn by the renders, and never reached the game)."""
@@ -1414,12 +1415,53 @@ def hazes_of(stage, place):
         box = bounds.ComputeWorldBound(prim).ComputeAlignedRange()
         named = prim.GetParent().GetParent() if prim.GetParent().GetName() == "Sky" else prim
         forward = prim.GetAttribute("score:haze_forward")
-        found.append({"name": named.GetName(), "low": [round(float(value), 4) for value in box.GetMin()],
-                      "high": [round(float(value), 4) for value in box.GetMax()],
-                      "colour": [round(float(value), 6) for value in prim.GetAttribute("score:haze_colour").Get()],
-                      "density": round(float(density.Get()), 6),
-                      "forward": round(float(forward.Get()), 4) if forward and forward.HasValue() else 0.0})
+        points = world_points(prim)
+        body = {"name": named.GetName(), "low": [round(float(value), 4) for value in box.GetMin()],
+                "high": [round(float(value), 4) for value in box.GetMax()],
+                "colour": [round(float(value), 6) for value in prim.GetAttribute("score:haze_colour").Get()],
+                "density": round(float(density.Get()), 6),
+                "forward": round(float(forward.Get()), 4) if forward and forward.HasValue() else 0.0}
+        body.update(cone_of(points) if prim.GetParent().GetName() == "Shafts" else {"shape": shell_shape(points)})
+        found.append(body)
     return found
+
+
+def world_points(prim):
+    """A mesh's points in the stage's frame, its distinct ones only."""
+    matrix = np.array(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    points = np.asarray(UsdGeom.Mesh(prim).GetPointsAttr().Get(), dtype=np.float64)
+    moved = np.c_[points, np.ones(len(points))] @ matrix
+    return np.unique(np.round(moved[:, :3], 5), axis=0)
+
+
+def shell_shape(points):
+    """The shape a body of haze was built as (builders.haze_volume): a `box` (its eight corners), an upright
+    `cylinder` (its points on two heights) or an `ellipsoid`."""
+    if len(points) <= 8:
+        return "box"
+    return "cylinder" if len(np.unique(np.round(points[:, 1], 3))) == 2 else "ellipsoid"
+
+
+def cone_of(points):
+    """A lamp's shaft (builders.light_cone, turned and moved onto its lamp) as a cone: its `apex` (the lamp), its
+    `axis` (a unit way out), its `length` from the apex to its far lid and that lid's `radius`, read from its two
+    rings of points (the near lid's and the far lid's, the lids' centres among them)."""
+    middle = points.mean(axis=0)
+    centred = points - middle
+    axis = np.linalg.svd(centred, full_matrices=False)[2][0]
+    along = centred @ axis
+    ends = []
+    for lid in (along.min(), along.max()):
+        cap = points[np.abs(along - lid) < 1e-3]
+        centre = cap.mean(axis=0)
+        ends.append((centre, float(np.linalg.norm(cap - centre, axis=1).max())))
+    if ends[0][1] > ends[1][1]:
+        ends.reverse()
+    (near, near_radius), (far, far_radius) = ends
+    apex = near - (far - near) * near_radius / max(far_radius - near_radius, 1e-6)
+    return {"shape": "cone", "apex": [round(float(value), 4) for value in apex],
+            "axis": [round(float(value), 6) for value in (far - apex) / np.linalg.norm(far - apex)],
+            "length": round(float(np.linalg.norm(far - apex)), 4), "radius": round(far_radius, 4)}
 
 
 def converted(prim, baked, made, sights=None, draft=False, shade=None):
