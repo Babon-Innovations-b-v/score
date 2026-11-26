@@ -819,12 +819,21 @@ def road_lamps(line, sites):
 
 
 def coast_house(generator, x, ground_low, z, lit=0.55, floor=3.2):
-    """A house on the coast's hills, its foot sunk under its footprint's lowest ground `ground_low`: parts house and
-    window (a `lit` share of its windows, seeded, a lit pane proud of each face)."""
+    """A house on the coast's hills, its foot sunk under its footprint's lowest ground `ground_low`, a parapet and a
+    tank house on its flat roof: parts house and window (a `lit` share of its windows, seeded, a lit pane proud of
+    each face)."""
     half_x, half_z = generator.uniform(5.0, 11.0), generator.uniform(4.0, 8.0)
     floors = int(generator.integers(2, 6))
     top = ground_low + 1.0 + floors * floor
     found = box("house", (x - half_x, ground_low - 2.0, z - half_z), (x + half_x, top, z + half_z), 0.05)
+    # The flat roof of a Hong Kong walk-up: a parapet round its edge and a tank house on it, so the roofline breaks
+    # against the night sky instead of a plain box's.
+    for low, high in (((-half_x, -half_z), (half_x, -half_z + 0.25)), ((-half_x, half_z - 0.25), (half_x, half_z)),
+                      ((-half_x, -half_z + 0.25), (-half_x + 0.25, half_z - 0.25)),
+                      ((half_x - 0.25, -half_z + 0.25), (half_x, half_z - 0.25))):
+        found += box("house", (x + low[0], top - 0.01, z + low[1]), (x + high[0], top + 1.1, z + high[1]), 0.0)
+    tank_x, tank_z = generator.uniform(-half_x + 2.5, half_x - 2.5), generator.uniform(-half_z + 2.0, half_z - 2.0)
+    found += box("house", (x + tank_x - 1.5, top - 0.01, z + tank_z - 1.2), (x + tank_x + 1.5, top + 2.6, z + tank_z + 1.2), 0.02)
     for axis, half_across, half_depth in (("x", half_x, half_z), ("z", half_z, half_x)):
         columns = max(1, int(2 * half_across / 3.5))
         pitch = 2 * half_across / columns
