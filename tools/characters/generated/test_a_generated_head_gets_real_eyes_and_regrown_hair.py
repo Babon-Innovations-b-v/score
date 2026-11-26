@@ -60,6 +60,16 @@ is dark and lie on the skin; a painted brow is painted over with the skin round 
 (`lids.reshaped`); the lashes' curl turned round (`lids.lid_lashes`); every brow place kept whatever the photo's
 darkness (`lids.brow_hairs`); the brow left painted (`lids.unpainted`).
 
+The whole head's run (`head.py`; 2026-11-26, round 1): a photo's iris (MediaPipe's circle 15% wide, a catchlight on
+it) is unrolled onto the eyeball's UV with its pupil at the photo's share, no reflection left in the iris and the
+white outside it (`eyes.iris_picture`); a photo with dense lashes gets the full lashes and one with a few fewer
+(`lids.lash_share`); the paint's dark baked band is lifted to the skin round it, plain skin and dark hair left
+(`skin.paint_shade`); a painted brow wearing the photo is skin (`skin.skin_triangles`). Breaks that turn their rows
+red (each applied once, seen red, reverted): MediaPipe's iris circle taken as it is (`eyes.iris_found`: the pupil
+read at 0.26); no reflection taken off and no detail clipped (`eyes.IRIS_PICTURE` catchlight 100, detail (0, 10):
+the reflection ten times the iris); every photo full of lashes (`lids.LASH_PHOTO` full 0.01); no lift
+(`skin.PAINT_SHADE` gain 1); the photo's share ignored (`skin.skin_triangles` with no shares: the brow left).
+
 The cloth (`cloth.py`), on toys: a grid painted jacket over jeans with a fleck of T-shirt and stray jeans faces in the
 jacket comes out clean after the vote and the islands; a tube's distance over its surface from its top loop is its
 height under it, so the jeans ride a waistband's width; a walk whose last frame repeats its first is a cycle a frame
@@ -196,8 +206,9 @@ def pupils_found():
 
 
 def behind_lids():
-    """Whether the ball is behind every lid margin over and under the pupil (by at least RIM_GAP_M less a tenth of a
-    millimetre) and its cornea's apex behind the opening's rim but within 2 mm of it."""
+    """Whether the ball, where it rests before EYE_FORWARD_M moves it forward, is behind every lid margin over and
+    under the pupil (by at least RIM_GAP_M less a tenth of a millimetre) and its cornea's apex behind the opening's rim
+    but within 2 mm of it."""
     result = made()
     centres = np.array(result["stats"]["eye_centres_m"])
     radius = result["stats"]["eye_diameter_mm"] / 2000.0
@@ -207,8 +218,9 @@ def behind_lids():
         edge = 1.0 / np.sqrt(np.cos(angles) ** 2 / OPENING_M[0] ** 2 + np.sin(angles) ** 2 / OPENING_M[1] ** 2)
         x, y = centre[0] + edge * np.cos(angles), centre[1] + edge * np.sin(angles)
         margin = surface(x, y)
-        gaps.append(margin - (centre[2] + np.sqrt(radius ** 2 - edge ** 2)))
-        apexes.append(margin.mean() - (centre[2] + radius * (1 + eyes.CORNEA_RISE)))
+        resting = centre[2] - eyes.EYE_FORWARD_M
+        gaps.append(margin - (resting + np.sqrt(radius ** 2 - edge ** 2)))
+        apexes.append(margin.mean() - (resting + radius * (1 + eyes.CORNEA_RISE)))
     return [bool(np.min(gaps) > eyes.RIM_GAP_M - 0.0001), bool(0.0 < np.min(apexes) < 0.002)]
 
 
@@ -554,6 +566,80 @@ def skin_shares():
     zone = skin.tzone(np.array([[0.0, 0.0, 0.1], [0.045, 0.01, 0.1]]), np.zeros(3))
     return [bool(shares[0] > 0.95), *(bool(value < 0.05) for value in shares[1:]), bool(zone[0] > 0.9),
             bool(zone[1] < 0.1)]
+def iris_unrolled():
+    """A photo's iris (radius 30 px, its pupil 9 px, a catchlight on its pupil's edge, MediaPipe's circle 15% wide):
+    its pupil read at its share, the catchlight gone from the iris picture, the white outside it."""
+    picture = np.ones((300, 400, 3)) * (0.85, 0.82, 0.8)
+    rows, cols = np.mgrid[:300, :400]
+    marks = lid_marks(60.0, 40.0)
+    for eye in marks["eyes"]:
+        col, row = eye["iris_centre"][0], 150.0
+        eye["iris_centre"], eye["iris_radius"] = [col + 2.0, row - 1.0], 30.0 / eyes.IRIS_PICTURE["radius"]
+        eye["upper"] = (np.asarray(eye["upper"]) + [0.0, 50.0]).tolist()
+        eye["lower"] = (np.asarray(eye["lower"]) + [0.0, 50.0]).tolist()
+        out = np.hypot(cols - col, rows - row)
+        picture[out < 30.0] = (0.3, 0.18, 0.1) * (1.0 + 0.15 * np.sin(np.arctan2(rows - row, cols - col) * 12))[
+            out < 30.0, None]
+        picture[out < 9.0] = 0.02
+        picture[np.hypot(cols - col - 13, rows - row + 12) < 4.0] = 1.0
+    sclera = (0.68, 0.58, 0.5)
+    texture, stats = eyes.iris_picture(picture, marks, sclera, 0.125)
+    size = len(texture)
+    across = (np.arange(size) + 0.5) / size - 0.5
+    out = np.hypot(*np.meshgrid(across, across)) / 0.125
+    ring = (out > 0.4) & (out < 0.8)
+    light = eyes.luminance(texture)
+    return [bool(abs(stats["pupil_share"] - 0.3) < 0.025), bool(light[ring].max() < 1.5 * np.median(light[ring])),
+            bool(np.allclose(texture[out > 1.1], sclera))]
+
+
+def lashes_by_photo():
+    """A photo with dense dark lashes over its upper lids gets the full lashes; one with a few gets fewer, never under
+    the least."""
+    shares = []
+    for every in (2, 9):
+        picture = np.ones((200, 400, 3)) * 0.75
+        marks = lid_marks(30.0, 12.0)
+        for eye in marks["eyes"]:
+            for col, row in np.asarray(eye["upper"])[2:-2]:
+                for step in range(-12, 13, every):
+                    picture[int(row) - 14:int(row) - 1, int(col) + step] = 0.1
+        shares.append(lids.lash_share(picture, marks))
+    return [shares[0] == 1.0, lids.LASH_PHOTO["least"] <= shares[1] < 0.8]
+
+
+def paint_lifted():
+    """The paint's dark baked band (a socket's shade) lifted to the skin round it, plain skin left, a dark-haired
+    piece (not skin's colour) left alone."""
+    def paint(x, y):
+        colour = np.ones(x.shape + (3,)) * np.array([0.8, 0.62, 0.52])
+        colour[np.abs(y) < 0.003] *= 0.75
+        colour[x > 0.03] = (0.1, 0.08, 0.07)
+        return colour
+    grid = skin_flat_grid(paint, 0.1)
+    gain, dark = skin.paint_shade(grid)
+    middle = len(grid["ys"]) // 2
+    lifted = skin.linear(grid["colour"][middle, 50]) * gain[middle, 50]
+    plain = skin.linear(grid["colour"][middle + 40, 50])
+    return [bool(np.abs(lifted / plain - 1.0).max() < 0.15), bool(np.allclose(gain[middle + 40, 50], 1.0)),
+            bool(dark[middle, 190] == 0.0)]
+
+
+def skin_wears_photo():
+    """A dark painted patch (a painted brow) on skin is skin where it wears the photo and stays the model's own where
+    it does not (all but its edge, which its neighbours settle)."""
+    points, triangles = grid_mesh(np.linspace(0, 0.12, 61), np.linspace(0, 0.04, 21), lambda x, y: 0.0 * x)
+    middles = points[triangles].mean(axis=1)
+    brow = (np.abs(middles[:, 1] - 0.02) < 0.008) & ((np.abs(middles[:, 0] - 0.03) < 0.02)
+                                                     | (np.abs(middles[:, 0] - 0.09) < 0.02))
+    likeness = (~brow).astype(np.float64)
+    shares = (points[:, 0] < 0.06).astype(np.float64)
+    found = skin.skin_triangles(points, triangles, likeness, shares)
+    left = brow & (middles[:, 0] < 0.06)
+    right = brow & (middles[:, 0] > 0.06)
+    return [bool(found[left].all()), bool(found[right].mean() < 0.2)]
+
+
 LID_EYES = np.array([[-0.032, 0.0, 0.0], [0.032, 0.0, 0.0]])
 LID_BALL = 0.012
 
@@ -856,11 +942,18 @@ def colour_toned():
     ("the photo's shading and gloss are taken off, plain skin kept", skin_light_off, [True, True, True]),
     ("a point wears the photo only facing forward, on the front, in the photo's face, clear of the eye; the T-zone "
      "holds the nose", skin_shares, [True] * 7),
+    ("the photo's iris is unrolled onto the eyeball: its pupil's share read, the catchlight gone, the white outside",
+     iris_unrolled, [True, True, True]),
+    ("the paint's dark baked shade is lifted to the skin round it, plain skin and hair left",
+     paint_lifted, [True, True, True]),
+    ("a painted brow wearing the photo is skin, one not wearing it keeps its own material", skin_wears_photo,
+     [True, True]),
     ("the lids' triangles split in four and closed round them with no crack", split_closed, [True, True, True]),
     ("the photo's opening is read round each eye and held inside the ball", photo_opening, [True] * 4),
     ("the lids moved onto the photo's opening, thin over the eye and never inside it", lids_reshaped,
      [True, True, True]),
     ("upper lashes rise from the margin, lower ones fall, all leaving forward", lashes_grown, [True] * 6),
+    ("a photo with dense lashes gets the full lashes, one with a few gets fewer", lashes_by_photo, [True, True]),
     ("the brow's hairs grow where the photo's brow is dark, lying on the skin", brows_follow_photo, [True, True]),
     ("the painted brow is painted over with the skin round it", brow_painted_over, [True, True]),
     ("a garment's kinds follow the paint: a fleck or stray faces join the piece round them", cloth_kinds_settled, 0),

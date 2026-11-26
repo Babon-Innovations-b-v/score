@@ -34,12 +34,14 @@ CLOSE_FRAME_M = 0.06
 CLOSE_FSTOP = 11.0
 FACE_UV = "face"
 MATCH_M = 1e-5  # a painted skin triangle's middle found on the imported mesh within this (the model's units)
+UNDER_DARK = 0.3  # skin.PAINT_SHADE's `under`: the light under the surface where uncovered paint was dark
 
 
 def attributes(head, skin):
-    """Whether each mesh point is the front the photo saw, and its T-zone, from its nearest skin.npz point (the
-    importer splits points on seams; every copy gets the same), as the point attribute `photo_front` and the face
-    module's `tones` colours (the T-zone the `sheen` region, the whole head `face`)."""
+    """Whether each mesh point is the front the photo saw, its paint's gain and how dark it was (`skin.paint_shade`),
+    and its T-zone, from its nearest skin.npz point (the importer splits points on seams; every copy gets the same),
+    as the point attributes `photo_front`, `paint_gain` and `thin_dark` and the face module's `tones` colours (the
+    T-zone the `sheen` region, the whole head `face`)."""
     mesh = head.data
     found = blender_face.z_up(np.asarray(skin["points"], np.float64))
     tree = KDTree(len(found))
@@ -49,6 +51,11 @@ def attributes(head, skin):
     nearest = np.array([tree.find(vertex.co)[1] for vertex in mesh.vertices])
     front = mesh.attributes.new("photo_front", "FLOAT", "POINT")
     front.data.foreach_set("value", np.asarray(skin["front"], np.float32)[nearest])
+    thin = mesh.attributes.new("thin_dark", "FLOAT", "POINT")
+    thin.data.foreach_set("value", np.asarray(skin["thin_dark"], np.float32)[nearest])
+    gain = np.ones((len(nearest), 4), np.float32)
+    gain[:, :3] = np.asarray(skin["paint_gain"], np.float32)[nearest]
+    mesh.color_attributes.new("paint_gain", "FLOAT_COLOR", "POINT").data.foreach_set("color", gain.ravel())
     channels = {name: np.zeros(len(nearest), np.float32) for name in blender_face.TONES}
     channels["sheen"] = np.asarray(skin["tzone"], np.float32)[nearest]
     channels["face"][:] = 1.0
@@ -124,9 +131,11 @@ def textured(tree, image, uv_name, colour_space):
 
 
 def skin_material(head, library, folder, space):
-    """The library skin with the face texture mixed into the model's paint as its base colour, by the texture's alpha
-    (the photo's share) where the point is the front the photo saw (`photo_front`), on the painted skin's faces; the
-    rest (hair, brows, clothes) keeps the glTF's own material."""
+    """The library skin with the face texture mixed into the model's paint (its dark baked shading lifted by
+    `paint_gain`) as its base colour, by the texture's alpha (the photo's share) where the point is the front the photo
+    saw (`photo_front`), on the skin's faces; the light under the surface down to UNDER_DARK of the library's where
+    the paint the photo does not cover was dark (`thin_dark`); the rest (hair, clothes) keeps the glTF's own
+    material."""
     record = blender_face.library_record(library, SKIN)
     entry = sorted((pathlib.Path(library) / "surface" / SKIN).glob("*/surface.json"))[-1].parent
     material = bpy.data.materials.new("generated_skin")
@@ -149,7 +158,24 @@ def skin_material(head, library, folder, space):
     first, second = (next(socket for socket in mix.inputs if socket.name == name and socket.type == "RGBA")
                      for name in ("A", "B"))
     tree.links.new(blender_face.times(tree, front.outputs["Fac"], photo.outputs["Alpha"]), mix.inputs["Factor"])
-    tree.links.new(own.outputs["Color"], first)
+    gain = tree.nodes.new("ShaderNodeAttribute")
+    gain.attribute_name = "paint_gain"
+    lifted = tree.nodes.new("ShaderNodeMix")
+    lifted.data_type = "RGBA"
+    lifted.blend_type = "MULTIPLY"
+    lifted.inputs["Factor"].default_value = 1.0
+    lifted_a, lifted_b = (next(socket for socket in lifted.inputs if socket.name == name and socket.type == "RGBA")
+                          for name in ("A", "B"))
+    tree.links.new(own.outputs["Color"], lifted_a)
+    tree.links.new(gain.outputs["Color"], lifted_b)
+    tree.links.new(next(socket for socket in lifted.outputs if socket.type == "RGBA"), first)
+    thin = tree.nodes.new("ShaderNodeAttribute")
+    thin.attribute_name = "thin_dark"
+    under = tree.nodes.new("ShaderNodeMapRange")
+    under.inputs["To Min"].default_value = principled.inputs["Subsurface Scale"].default_value
+    under.inputs["To Max"].default_value = principled.inputs["Subsurface Scale"].default_value * UNDER_DARK
+    tree.links.new(thin.outputs["Fac"], under.inputs["Value"])
+    tree.links.new(under.outputs["Result"], principled.inputs["Subsurface Scale"])
     tree.links.new(photo.outputs["Color"], second)
     tree.links.new(next(socket for socket in mix.outputs if socket.type == "RGBA"), principled.inputs["Base Color"])
     coordinates = tree.nodes.new("ShaderNodeTexCoord")
@@ -222,4 +248,5 @@ def main():
     print("SKIN RENDER DONE", flush=True)
 
 
-main()
+if __name__ == "__main__":
+    main()

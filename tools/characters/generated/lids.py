@@ -27,8 +27,10 @@ under the iris: a stare), no lashes, and the brows flat paint.
 4. **Lashes** (`lashes`): rooted just in front of each new margin, upper (UPPER_LASHES, denser outward) and lower
    (LOWER_LASHES, sparse), none by the inner corner (LASH_BARE), grown as the face module's lashes
    (`../face/strands.py`: LASH_LENGTH, LASH_CURL, LASH_CORNER, LASH_RADIUS, `lash_line`): out of the margin, curling
-   up off the upper lid and down off the lower, the outer lashes swept outward.
-5. **Brows**: the model's painted brow (paint darker than the forehead's in a brow's place, `brow_seen`) painted over
+   up off the upper lid and down off the lower, the outer lashes swept outward; fewer and shorter where the photo
+   shows fewer (`lash_share`).
+5. **Brows** (not in the whole head's run, `head.py`, where the photo's brows come with the skin): the model's
+   painted brow (paint darker than the forehead's in a brow's place, `brow_seen`) painted over
    on its own texture with the skin round it as the front view sees it (`unpainted`); the brows regrown as hair
    (`brows`) on the band between the photo's brow marks laid on the model by the same frame as its eye, as many hairs
    as the photo's darkness there says (BROW_DENSITY where it is BROW_FULL_DARK darker than its skin), each turned as
@@ -91,6 +93,14 @@ LASH_OUTWARD = (1.0, 2.2)  # lashes per length of lid, the inner end to the oute
 LASH_OUT_DEGREES = {"upper": 25.0, "lower": 30.0}  # a lash leaves the margin this far off straight forward, outward
 LASH_SWEEP_DEGREES = 20.0  # the outer lashes swept outward by up to this
 LASH_SPREAD_DEGREES = 6.0
+LASH_READ_STEPS = 4  # a lash root off the head's front is read up to this many front pixels further out, and half a
+# millimetre to each side (an older woman's outer corner runs out in a crack along the lash's ray, round 1, 2026-11-26)
+# How many lashes the photo shows: the share of its pixels over each upper margin (each `bands_mm` band over it, the
+# iris marks.py's measure for the millimetre, IRIS_DIAMETER_M) darker than `dark` of the band's `light` percentile;
+# over `full` the face module's full lashes, under it fewer (by the share squared) and shorter (by its root), never
+# under `least` (round 1, 2026-11-26: a man's and an older woman's lashes stood as thick as a made-up woman's).
+LASH_PHOTO = {"bands_mm": ((0.8, 2.5), (1.2, 3.0), (0.5, 2.0)), "along": (0.2, 0.95), "dark": 0.6, "light": 80,
+              "full": 0.45, "least": 0.35}
 BROW_BAND_GROW = 0.35  # the photo's brow band (between its marks) widened by this share of its height each way
 BROW_DENSITY = 1.5e6  # hairs a m2 where the photo's brow is fully dark (some 150 a cm2)
 BROW_FULL_DARK = 0.35  # the photo's brow this much darker than its skin is fully dense
@@ -198,7 +208,9 @@ def front_view(points, triangles, box, behind):
 def model_outline(head, eye, centre):
     """The model's opening round one eye: (its edge's distance at DEGREES, the head's depth just outside it). The
     opening is where the eye shows in front of the head, or the head lies within SOCKET_M of the eyeball's centre
-    depth (the socket's floor beside the ball), joined to the eye's middle."""
+    depth (the socket's floor beside the ball), joined to the eye's middle. The depth is the first head out along the
+    ray (an older woman's outer corner runs out in a crack, round 1, 2026-11-26), else read round from its
+    neighbours."""
     head_depth, eye_depth = head["depth"], eye["depth"]
     shows = np.isfinite(eye_depth) & ~(head_depth > eye_depth)
     deep = np.isfinite(head_depth) & (head_depth < centre[2] + SOCKET_M)
@@ -218,9 +230,15 @@ def model_outline(head, eye, centre):
         out = np.flatnonzero(~opening[rows, cols])
         radius = reach[out[0]] if len(out) else reach[-1]
         radii.append(radius)
-        outside = centre[:2] + (radius + 2.0 * eyes.STEP_M) * way
-        depths.append(float(eyes.depth_at(head, [outside[0]], [outside[1]])[0]))
-    return np.array(radii), np.array(depths)
+        further = radius + 2.0 * eyes.STEP_M + reach[:len(reach) // 4]
+        along = eyes.depth_at(head, centre[0] + further * way[0], centre[1] + further * way[1])
+        found = np.flatnonzero(np.isfinite(along))  # the first head past a crack running out of the corner
+        depths.append(float(along[found[0]]) if len(found) else np.nan)
+    depths = np.array(depths)
+    held = np.isfinite(depths)
+    if not held.any():
+        raise ValueError(f"the eye at {centre} shows no head round its opening")
+    return np.array(radii), np.interp(DEGREES, DEGREES[held], depths[held], period=360.0)
 
 
 def split_sides(triangles, chosen, count):
@@ -424,7 +442,23 @@ def lash_roots(count, bare, rng):
     return np.interp((np.arange(count) + rng.random(count)) / count, cumulative, share)
 
 
-def lid_lashes(head, centre, edge, span, upper, count, rng):
+def lash_share(photo, marks):
+    """The photo's lashes over the face module's full ones (LASH_PHOTO), 0 to 1: their dark pixels' share over the
+    upper margins."""
+    lightness = eyes.luminance(photo)
+    shares = []
+    for eye in marks["eyes"]:
+        per_mm = eye["iris_radius"] / (eyes.IRIS_DIAMETER_M * 500.0)
+        line = resampled(np.asarray(eye["upper"], np.float64), np.linspace(*LASH_PHOTO["along"], 300))
+        for low, high in LASH_PHOTO["bands_mm"]:
+            band = np.concatenate([lightness[place[:, 1], place[:, 0]] for place in
+                                   (np.round(line - np.array([0.0, rise])).astype(int)
+                                    for rise in np.arange(low * per_mm, high * per_mm))])
+            shares.append((band < LASH_PHOTO["dark"] * np.percentile(band, LASH_PHOTO["light"])).mean())
+    return float(np.clip(np.mean(shares) / LASH_PHOTO["full"], LASH_PHOTO["least"], 1.0))
+
+
+def lid_lashes(head, centre, edge, span, upper, count, rng, share=1.0):
     """One lid's lashes rooted just outside its `edge` along `span` (inner to outer corner's angles), curling up
     (`upper`) or down: (points (count x LASH_POINTS x 3), radius (count x LASH_POINTS))."""
     face = face_strands()
@@ -435,17 +469,19 @@ def lid_lashes(head, centre, edge, span, upper, count, rng):
     radial = np.column_stack([np.cos(angle), np.sin(angle), np.zeros(count)])
     out = edge_at(edge, degrees) + rng.uniform(*LASH_ROOT_M, count)
     roots = np.column_stack([centre[0] + out * radial[:, 0], centre[1] + out * radial[:, 1], np.full(count, np.nan)])
-    for step in range(4):  # a root by the margin may read the opening's edge pixel: read it a pixel further out
-        missing = ~np.isfinite(roots[:, 2])
-        if not missing.any():
-            break
-        further = roots[missing, :2] + step * eyes.STEP_M * radial[missing, :2]
-        roots[missing, 2] = eyes.depth_at(head, further[:, 0], further[:, 1])
+    tangent = np.column_stack([-radial[:, 1], radial[:, 0]])
+    for step in range(LASH_READ_STEPS):  # a root by the margin may read the opening's edge pixel: read it further out
+        for aside in (0, 2, -2):  # or a crack running out of the corner along its ray: beside it
+            missing = ~np.isfinite(roots[:, 2])
+            further = (roots[missing, :2] + step * eyes.STEP_M * radial[missing, :2]
+                       + aside * eyes.STEP_M * tangent[missing])
+            roots[missing, 2] = eyes.depth_at(head, further[:, 0], further[:, 1])
     if not np.isfinite(roots[:, 2]).all():
         raise ValueError(f"lash roots round {centre[:2]} are off the head at "
                          f"{np.round(degrees[~np.isfinite(roots[:, 2])], 1).tolist()} degrees")
     corner = np.clip(np.abs(np.cos(angle)) * 1.15 - 0.15, 0.0, 1.0)
-    length = rng.uniform(*face.LASH_LENGTH[side], count) * (1.0 - face.LASH_CORNER * corner ** 2)
+    length = (rng.uniform(*face.LASH_LENGTH[side], count) * (1.0 - face.LASH_CORNER * corner ** 2)
+              * np.sqrt(share))
     curl = face.LASH_CURL[side] * rng.uniform(0.8, 1.2, count)
     tilt = np.radians(LASH_OUT_DEGREES[side] + rng.normal(0.0, LASH_SPREAD_DEGREES, count))
     forward = np.cos(tilt)[:, None] * np.array([0.0, 0.0, 1.0]) + np.sin(tilt)[:, None] * radial
@@ -460,15 +496,17 @@ def lid_lashes(head, centre, edge, span, upper, count, rng):
     return made, np.tile(np.linspace(*face.LASH_RADIUS, face.LASH_POINTS), (count, 1))
 
 
-def lashes(heads, centres, photo_edges, marks, laid, rng):
-    """Both eyes' upper and lower lashes: (counts, points, radius)."""
+def lashes(heads, centres, photo_edges, marks, laid, rng, share=1.0):
+    """Both eyes' upper and lower lashes, as many as the photo's `share` squared of the full ones: (counts, points,
+    radius)."""
     points, radii = [], []
     for index, (head, centre, edge) in enumerate(zip(heads, centres, photo_edges)):
         eye = marks["eyes"][index]
         corners = laid(np.array([eye["upper"][0], eye["upper"][-1]]), index) - centre[:2]
         inner, outer = np.degrees(np.arctan2(corners[:, 1], corners[:, 0])) % 360.0
         for upper, count in ((True, UPPER_LASHES), (False, LOWER_LASHES)):
-            made, radius = lid_lashes(head, centre, edge, lid_span(inner, outer, upper), upper, count, rng)
+            made, radius = lid_lashes(head, centre, edge, lid_span(inner, outer, upper), upper,
+                                      max(1, int(round(count * share ** 2))), rng, share)
             points.append(made)
             radii.append(radius)
     points, radii = np.concatenate(points), np.concatenate(radii)
@@ -683,10 +721,11 @@ def eye_pieces(eyes_npz, scale):
             "triangles": np.vstack([pieces[0]["triangles"], pieces[1]["triangles"] + len(pieces[0]["points"])])}
 
 
-def made(points, triangles, uv, texture, photo, marks, eyes_npz, eye_stats, scale):
+def made(points, triangles, uv, texture, photo, marks, eyes_npz, eye_stats, scale, brows_grown=True):
     """The lids, lashes and brows made for one model (metres, the model's frame; `scale` the model's units to
     metres, `eyes_npz` and `eye_stats` what `eyes.py` wrote): {points, triangles, uv, wet, lashes, brows, texture,
-    fibres, stats}."""
+    fibres, stats}. Without `brows_grown` (the whole head's run, `head.py`: the photo's own brows come with its skin)
+    the painted brows stay and none are regrown."""
     rng = np.random.default_rng(SEED)
     centres = np.array(eye_stats["eye_centres_m"])
     radius = eye_stats["eye_diameter_mm"] / 2000.0
@@ -709,9 +748,14 @@ def made(points, triangles, uv, texture, photo, marks, eyes_npz, eye_stats, scal
     kept = np.delete(fine_triangles, removed, axis=0)
     wet = eyes.wet_strip(final, kept, centres[:, :2], wet_edges(centres, radius, wanted, eye_views))
     after = [front_view(final, kept, eye_box(centre), centre[2] - ZONE_M / 2.0) for centre in centres]
-    lash_counts, lash_points, lash_radius = lashes(after, centres, wanted, marks, laid, rng)
-    brow_counts, brow_points, brow_radius, per_brow = brows(final, kept, centres, marks, laid, photo, rng)
-    texture, painted_over = unpainted(pushed, triangles, uv, texture, centres)
+    share = lash_share(photo, marks)
+    lash_counts, lash_points, lash_radius = lashes(after, centres, wanted, marks, laid, rng, share)
+    if brows_grown:
+        brow_counts, brow_points, brow_radius, per_brow = brows(final, kept, centres, marks, laid, photo, rng)
+        texture, painted_over = unpainted(pushed, triangles, uv, texture, centres)
+    else:
+        brow_counts, brow_points, brow_radius, per_brow = np.zeros(0, int), np.zeros((0, 3)), np.zeros(0), [0, 0]
+        painted_over = 0
     stats = {"photo_scale_mm_per_px": round(laid.scale * 1000, 4),
              "opening_height_mm": {"model": [round(1000 * (edge_at(old[0], 90) + edge_at(old[0], 270)), 2)
                                              for old in was],
@@ -721,7 +765,8 @@ def made(points, triangles, uv, texture, photo, marks, eyes_npz, eye_stats, scal
                                             for old in was],
                                   "photo": [round(1000 * (edge_at(new, 0) + edge_at(new, 180)), 2) for new in wanted]},
              "triangles": [int(len(triangles)), int(len(kept))], "removed_triangles": int(len(removed)),
-             "wet_triangles": int(len(wet["triangles"])), "lashes": int(len(lash_counts)), "brow_hairs": per_brow,
+             "wet_triangles": int(len(wet["triangles"])), "lashes": int(len(lash_counts)),
+             "lash_share": round(share, 3), "brow_hairs": per_brow,
              "brow_texels_painted_over": painted_over}
     welded, index = beard.welded(final, kept)
     joined = index[kept]

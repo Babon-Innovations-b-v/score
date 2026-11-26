@@ -36,7 +36,7 @@ from PIL import Image
 from scipy import ndimage
 from skimage.color import rgb2lab
 
-from tools.characters.generated import eyes
+from tools.characters.generated import eyes, labels
 
 STEP_M = 0.0005  # the front grid's pixel for registering and the shading
 TEXTURE = 4096  # the face texture's side
@@ -63,6 +63,13 @@ GLOSS = {"matte_m": 0.006, "percentile": 35, "kept": 0.05, "left": 0.25, "recolo
 CLOSE_AIM_M = (0.022, 0.012)  # the cheek and nose close-up aimed this far beside and over the nose tip
 BLEND_SIGMA_M = 0.012  # the photo is toned to the paint's broad colour where it fades into the paint
 CHECK_SQUARE = 40  # check.png's board of paint and registered photo, squares this many front pixels
+# The model's own paint where the photo does not reach: its dark baked shading (a socket's, the nose's sides) lifted
+# to its skin's broad tone (over `broad_m`, the paint over `local_m` against it, skin-coloured paint only), by up to
+# `gain` times, where it is darker than the broad tone by `dark` (from the first to the second); there the light under
+# the surface reaches `under` of the library's (round 1, 2026-11-26: TRELLIS.2's dark socket and nose paint turned
+# orange under the random-walk skin light).
+PAINT_SHADE = {"local_m": 0.0015, "broad_m": 0.01, "gain": 2.0, "chroma": (0.7, 1.4), "dark": (0.05, 0.3),
+               "under": 0.3}
 TZONE = [  # (centre over the nose tip (x, y) m, radii (x, y) m): the forehead's middle, the nose, the chin
     ((0.0, 0.075), (0.03, 0.022)), ((0.0, 0.022), (0.009, 0.03)), ((0.0, 0.0), (0.012, 0.01)),
     ((0.0, -0.062), (0.018, 0.012))]
@@ -86,7 +93,7 @@ def front_grid(points, triangles, uv, texture, box, step):
     facing = np.where(np.isfinite(facing), facing, 0.0)
     xs = box[0] + (np.arange(depth.shape[1]) + 0.5) * step
     ys = box[2] + (np.arange(depth.shape[0]) + 0.5) * step
-    return {"depth": depth, "colour": colour, "xs": xs, "ys": ys, "facing": facing, "seen": seen,
+    return {"depth": depth, "colour": colour, "texel": texel, "xs": xs, "ys": ys, "facing": facing, "seen": seen,
             "normal_x": np.nan_to_num(-slope_x * facing), "normal_y": np.nan_to_num(-slope_y * facing)}
 
 
@@ -279,7 +286,6 @@ def encoded(values):
 def face_mask(photo, pixels_per_m):
     """The photo's face (0 to 1): its skin-coloured pixels (`labels.SKIN_HUE`) in one piece, the holes in it (brows,
     eyes, lips, nostrils) filled, pulled MASK_ERODE_M in from the hair and the background and softened."""
-    from tools.characters.generated import labels
     lab = rgb2lab(np.stack([ndimage.gaussian_filter(photo[..., channel], 2.0) for channel in range(3)], axis=-1))
     skin = labels.skin_like(lab.reshape(-1, 3)).reshape(lab.shape[:2])
     pieces, count = ndimage.label(skin)
@@ -344,8 +350,12 @@ def ramp(values, low, high):
 
 
 def eye_floor_distance(grid, floor_points):
-    """Each front pixel's distance (m) from the painted eye's floor (points the eyes step pushes back or removes)."""
+    """Each front pixel's distance (m) from the painted eye's floor (points the eyes step pushes back or removes);
+    infinite with no floor (the whole head's run, `head.py`: its lids are laid on the photo's, so the photo reaches
+    their margins)."""
     near = np.zeros(grid["depth"].shape, bool)
+    if not len(floor_points):
+        return np.full(near.shape, np.inf)
     cols = np.round((floor_points[:, 0] - grid["xs"][0]) / STEP_M).astype(int)
     rows = np.round((floor_points[:, 1] - grid["ys"][0]) / STEP_M).astype(int)
     inside = (rows >= 0) & (rows < near.shape[0]) & (cols >= 0) & (cols < near.shape[1])
@@ -449,6 +459,22 @@ def face_texture(grid, warp, photo, coarse, out):
     return out
 
 
+def paint_shade(grid):
+    """The model's own paint's dark baked shading over the front grid (PAINT_SHADE): (the gain lifting it to its skin's
+    broad tone, H x W x 3; how dark it was, 0 to 1)."""
+    paint = linear(grid["colour"])
+    skin = (grid["seen"] & labels.skin_like(rgb2lab(grid["colour"]).reshape(-1, 3)).reshape(grid["seen"].shape))
+    weight = skin.astype(np.float64)
+    local = smoothed_over(paint, weight, PAINT_SHADE["local_m"] / STEP_M)
+    broad = smoothed_over(paint, weight, PAINT_SHADE["broad_m"] / STEP_M)
+    local_light, broad_light = eyes.luminance(local), eyes.luminance(broad)
+    lift = np.clip(broad_light / np.maximum(local_light, 1e-4), 1.0, PAINT_SHADE["gain"])
+    tint = np.clip((broad / np.maximum(broad_light, 1e-4)[..., None]) / np.maximum(
+        local / np.maximum(local_light, 1e-4)[..., None], 1e-4), *PAINT_SHADE["chroma"])
+    dark = ramp(1.0 - local_light / np.maximum(broad_light, 1e-4), *PAINT_SHADE["dark"]) * (weight > 0)
+    return 1.0 + (lift[..., None] * tint - 1.0) * dark[..., None], dark
+
+
 def point_shares(grid, coarse, points):
     """Each model point's photo share: the grid's share where it lies on the front-most surface, else none (the
     texture's alpha carries the share finely; a point's says only whether it is the front the photo saw)."""
@@ -463,21 +489,28 @@ def close_point(grid, tip):
     return point[0]
 
 
-def skin_triangles(points, triangles, uv, texture):
-    """Which model triangles are painted skin: `labels.skin_like` on their paint (`labels.face_colours`), settled by
-    their neighbours (`labels.settled`, so the hairline follows the paint's edge, not single triangles). The hair,
-    brows and clothes the model paints keep the model's own material."""
-    from tools.characters.generated import labels
-    likeness = labels.skin_like(labels.face_colours(triangles, uv, texture * 255.0)).astype(np.float64)
-    return labels.settled(likeness, labels.adjacency(points, triangles)) > 0.5
+def skin_triangles(points, triangles, likeness, shares):
+    """Which model triangles are skin: painted skin (`likeness`, 1 where `labels.skin_like` holds on their paint,
+    settled by their neighbours, `labels.settled`, so the hairline follows the paint's edge, not single triangles), or
+    wearing the photo (their corners' `shares` over a half: the photo's brows lie on the model's painted ones, round
+    1, 2026-11-26). The hair and clothes the model paints keep the model's own material."""
+    painted = labels.settled(likeness, labels.adjacency(points, triangles)) > 0.5
+    return painted | (shares[triangles].mean(axis=1) > 0.5)
 
 
 def written(out, scale, grid, coarse, points, triangles, tip, stats, skin):
-    """skin.npz (the model's own units), stats.json and the check pictures under `out`."""
+    """skin.npz (the model's own units; each point's paint gain and how dark its paint was where the photo does not
+    reach, `paint_shade`), stats.json and the check pictures under `out`."""
     shares = point_shares(grid, coarse, points)
     front = visible(grid, points)
     zone = tzone(points, tip) * visible(grid, points)
+    gain, dark = paint_shade(grid)
+    point_gain = np.where(front[:, None], np.stack([at_points(grid, gain[..., channel] - 1.0, points)
+                                                    for channel in range(3)], axis=-1) + 1.0, 1.0)
+    thin_dark = np.where(front, at_points(grid, dark, points), 0.0) * (1.0 - np.clip(shares, 0.0, 1.0))
+    stats["paint_lifted_points"] = int((thin_dark > 0.5).sum())
     np.savez_compressed(out / "skin.npz", points=(points / scale).astype(np.float32), front=front.astype(np.float32),
+                        paint_gain=point_gain.astype(np.float32), thin_dark=thin_dark.astype(np.float32),
                         skin_centres=(points[triangles[skin]].mean(axis=1) / scale).astype(np.float32),
                         tzone=zone.astype(np.float32), box=np.asarray(grid["box"]) / scale,
                         close_point=close_point(grid, tip) / scale)
@@ -495,24 +528,29 @@ def written(out, scale, grid, coarse, points, triangles, tip, stats, skin):
     Image.fromarray(np.round(np.clip(check, 0, 1) * 255).astype(np.uint8)).save(out / "check.png")
 
 
-def repainted(model, photo_path, eyes_npz, out, height):
-    """The whole step for one head: registered, the texture and the shares written under `out`; its stats."""
-    points, triangles, uv, texture = eyes.loaded(model)
-    scale = height / float(np.ptp(points[:, 1]))
-    points = points * scale
-    photo = np.asarray(Image.open(photo_path).convert("RGB"), np.float64) / 255.0
-    view = eyes.front_view(points, triangles, uv, texture)
+def corner_split(points, triangles, corner_uv):
+    """A mesh with its UVs per triangle corner (`lids.py`'s mended head) as one with a point per corner, as the
+    front's raster reads it: (points, triangles, uv)."""
+    count = len(triangles)
+    return points[triangles].reshape(-1, 3), np.arange(3 * count).reshape(count, 3), corner_uv.reshape(-1, 2)
+
+
+def repainted(painted, texture, photo, model_pupils, floor, out, raw=None):
+    """The whole step for one head (`painted` its (points in metres, triangles, uv); `model_pupils` its painted pupils'
+    (x, y), `floor` the painted eye's floor points, none when its lids are laid on the photo's): registered and
+    face.png written under `out`; (the front grid, its coarse maps, the nose tip, the stats). Registered on the `raw`
+    paint where given (`colour.py`'s toning moves the face's clusters apart and the detail match lost its patches,
+    round 1, 2026-11-26: correlation 0.25 to 0.16); toned towards `texture`."""
+    view = eyes.front_view(*painted, texture)
     tip = eyes.nose_tip(view)
-    model_pupils = eyes.pupils(view, tip)
     _, photo_pupils, _ = eyes.photo_iris(photo)
     box = face_box(tip)
-    grid = front_grid(points, triangles, uv, texture, box, STEP_M)
+    grid = front_grid(*painted, texture, box, STEP_M)
     grid["box"] = box
-    found = np.load(eyes_npz)
-    floor = np.concatenate([found["moved_from"], found["removed"]]) * scale
     grid["floor_distance"] = eye_floor_distance(grid, floor)
     start = similarity(model_pupils, photo_pupils)
-    warp, stats = registered(grid, photo, start)
+    matched = grid if raw is None else {**grid, "colour": eyes.painted(raw, grid["texel"])}
+    warp, stats = registered(matched, photo, start)
     close = close_point(grid, tip)
     column, row = mapped(warp, close[:1], close[1:2])
     stats.update({"photo_pupils_px": photo_pupils.round(1).tolist(),
@@ -521,7 +559,16 @@ def repainted(model, photo_path, eyes_npz, out, height):
     coarse = coarse_maps(grid, warp, photo)
     out.mkdir(parents=True, exist_ok=True)
     face_texture(grid, warp, photo, coarse, out / "face.png")
-    skin = skin_triangles(points, triangles, uv, texture)
+    return grid, coarse, tip, stats
+
+
+def repainted_written(mesh, painted, texture, photo, model_pupils, floor, out, scale, raw=None):
+    """`repainted`, then which of `mesh`'s triangles (its (points in metres, triangles), one for one with `painted`'s)
+    are skin and skin.npz, stats.json and check.png written (the model's units, `scale` its to metres); its stats."""
+    grid, coarse, tip, stats = repainted(painted, texture, photo, model_pupils, floor, out, raw)
+    points, triangles = mesh
+    likeness = labels.skin_like(labels.face_colours(painted[1], painted[2], texture * 255.0)).astype(np.float64)
+    skin = skin_triangles(points, triangles, likeness, point_shares(grid, coarse, points))
     stats["skin_triangles"] = int(skin.sum())
     written(out, scale, grid, coarse, points, triangles, tip, stats, skin)
     return stats
@@ -539,7 +586,16 @@ def arguments():
 
 def main():
     options = arguments()
-    stats = repainted(options.model, options.photo, options.eyes, options.out, options.height)
+    points, triangles, uv, texture = eyes.loaded(options.model)
+    scale = options.height / float(np.ptp(points[:, 1]))
+    points = points * scale
+    photo = np.asarray(Image.open(options.photo).convert("RGB"), np.float64) / 255.0
+    found = np.load(options.eyes)
+    floor = np.concatenate([found["moved_from"], found["removed"]]) * scale
+    view = eyes.front_view(points, triangles, uv, texture)
+    model_pupils = eyes.pupils(view, eyes.nose_tip(view))
+    stats = repainted_written((points, triangles), (points, triangles, uv), texture, photo, model_pupils, floor,
+                              options.out, scale)
     print(f"skin: {options.out}/face.png, {stats['points_with_photo']} of {stats['points']} points wear the photo, "
           f"detail correlation {stats['detail_correlation_before']} -> {stats['detail_correlation_after']}, "
           f"shading {stats['shading_range']}")

@@ -3,7 +3,7 @@ re-painted from the photo and its skin made skin (`blender_skin.py`'s pictures):
 quarters, the eyes in a 9 cm frame and the cheek and nose close up, each row led by the photo cropped the same way.
 
     python -m tools.characters.generated.skin_sheet <name> <renders folder> <close-up photo> <skin stats.json> \
-        <out.jpg>
+        <out.jpg> [<title>]
 """
 import json
 import pathlib
@@ -44,8 +44,9 @@ def photo_crops(photo_path, stats, frames):
             "photo-close": cropped(photo, stats["close_photo_px"], (close * wide, close))}
 
 
-def sheet(name, renders, photo_path, stats_path, out):
-    """The sheet written to `out` (jpg) with its title line."""
+def sheet(name, renders, photo_path, stats_path, out, title=None):
+    """The sheet written to `out` (jpg) with its title line (the skin step's, or `title` after the name: the whole
+    head's run, `blender_head.py`, draws its before as the raw model)."""
     stats = json.loads(pathlib.Path(stats_path).read_text())
     typeface = eyes_sheet.font()
     frames = json.loads((pathlib.Path(renders) / "frames.json").read_text())
@@ -53,7 +54,7 @@ def sheet(name, renders, photo_path, stats_path, out):
     pictures.update({key: Image.open(pathlib.Path(renders) / f"{key}.png").convert("RGB")
                      for row in ROWS for key, _ in row if not key.startswith("photo")})
     rows = [eyes_sheet.row_image([(pictures[key], label) for key, label in row], typeface) for row in ROWS]
-    title = (f"{name}: TRELLIS.2 head with real eyes; after: the face re-painted from the close-up photo (4K, "
+    title = f"{name}: {title}" if title else (f"{name}: TRELLIS.2 head with real eyes; after: the face re-painted from the close-up photo (4K, "
              f"{stats['texture_mm_per_px']} mm a pixel, registered at detail correlation "
              f"{stats['detail_correlation_before']} -> {stats['detail_correlation_after']}, its light flattened) in "
              f"score_lib's skin (random-walk skin light, oil coat, scanned pores, glossier T-zone)")
@@ -70,4 +71,4 @@ def sheet(name, renders, photo_path, stats_path, out):
 
 
 if __name__ == "__main__":
-    print(f"sheet: {sheet(*sys.argv[1:6])}")
+    print(f"sheet: {sheet(*sys.argv[1:7])}")

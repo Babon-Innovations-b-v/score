@@ -10,10 +10,13 @@ eye is found on the model seen from the front (its painted pupil, the darkest sm
 tip, `pupils`), its lid margins along rays out from the pupil (the first steep forward rise, `rims`, joined round the
 pupil into the opening's edge, `opening`); the eyeball, EYE_DIAMETER_M across scaled by the eyes' distance apart over
 the adult mean, is set behind the pupil, its cornea just behind the margins and the ball RIM_GAP_M under every margin
-(`eye_depth`), gazing at a point GAZE_M straight ahead (the close-up photos look into the camera; both eyes the same
-point). The painted floor is pushed straight back (`pushed`) and removed where it lies inside the ball (`buried`); the
-lids' inner rim gets a tear film over it (the wet line, `wet_strip`). The iris is the library's iris toned to the
-colour read off the photo's iris (`photo_iris`). The lids keep the model's geometry.
+(`eye_depth`), then EYE_FORWARD_M forward (the generated lid corners stand 6 to 8 mm in front of a ball sat so deep;
+`lids.py` lays the lids over it), gazing at a point GAZE_M straight ahead (the close-up photos look into the camera;
+both eyes the same point). The painted floor is pushed straight back (`pushed`) and removed where it lies inside the
+ball (`buried`); the lids' inner rim gets a tear film over it (the wet line, `wet_strip`). The iris is the library's
+iris toned to the colour read off the photo's iris (`photo_iris`); `iris_picture` unrolls the photo's own iris onto the
+eyeball's UV for the whole head's run (`head.py`): its fibres, its pupil's size and its limbal ring, the catchlights and
+the lid's shade taken off. The lids keep the model's geometry.
 
 Writes <out>/eyes.npz (in the model's own frame and units: the pieces `blender_eyes.py` draws, the points it pushes
 back and the triangles it removes) and <out>/stats.json; prints one line.
@@ -33,6 +36,7 @@ EYE_DIAMETER_M = 0.024  # an adult eyeball's axial length
 PUPIL_DISTANCE_M = 0.063  # the adult mean distance between the pupils
 EYE_SCALE_LIMITS = (0.9, 1.1)  # the eye's size follows the face's within these
 RIM_GAP_M = 0.0003  # each lid margin this far in front of the eyeball's surface
+EYE_FORWARD_M = 0.002  # and the ball then moved this far forward (round 1, 2026-11-26: 6 to 8 mm behind the corners)
 LID_EDGE_M = 0.0015  # a lid's inside rim: this deep behind its margin; deeper inside the opening is the painted floor
 WET_FROM_M = 0.0002  # the wet line runs on the rim's inside from this behind the margin to LID_EDGE_M
 SKIN_RING_M = (0.014, 0.02)  # the cheek's paint read this far out from each pupil, below it
@@ -63,6 +67,15 @@ IRIS_SURROUND = 1.6  # an iris is found as a dark disc against the ring out to t
 IRIS_CLIP = 0.9  # the window's highlights clipped at this quantile of its brightness
 IRIS_LID_DEGREES = 100.0  # the ring's top this many degrees across lies in the upper lid's shade and lashes
 IRIS_KEEP = (0.2, 0.85)  # of the ring's pixels, by brightness: drop the darkest (lashes, pupil) and the highlights
+# The photo's iris unrolled onto the eyeball's UV (`iris_picture`): `size` texels square, read on `rings` x `rays` of
+# the iris; a pixel within `lid` of a lid margin (its share of the radius) is the lid's shade or a lash, a pixel
+# `catchlight` times brighter than the iris's body a reflection, both filled from the iris turned; the
+# pupil's edge where the ring's brightness has risen `pupil_rise` of the way to the iris's; the limbal ring darkened
+# to `limbus` of its brightness from `limbus_from` of the radius out.
+IRIS_PICTURE = {"size": 1024, "rings": 96, "rays": 360, "lid": 0.15, "catchlight": 1.6, "pupil_rise": 0.5,
+                "limbus": 0.6, "limbus_from": 0.82, "pupil_linear": 0.004,
+                "radius": 0.87, "pupil_guess": 0.35,
+                "turns": (180, 90, -90, 45, -45, 135, -135), "detail": (0.75, 1.3), "grow": 3}
 
 
 def face_modules():
@@ -450,6 +463,133 @@ def photo_iris(photo):
     return srgb_to_linear(np.median(kept, axis=0)), centres, radius
 
 
+def unrolled(photo_linear, centre, radius):
+    """The photo's iris round `centre` (column, row) out to `radius` pixels on a polar grid (IRIS_PICTURE's rings out
+    by rays anticlockwise from the picture's right, up being up): (colours rings x rays x 3, columns, rows)."""
+    out = (np.arange(IRIS_PICTURE["rings"]) + 0.5) / IRIS_PICTURE["rings"]
+    angle = np.radians(np.arange(IRIS_PICTURE["rays"]) * 360.0 / IRIS_PICTURE["rays"])
+    out, angle = np.meshgrid(out, angle, indexing="ij")
+    columns = centre[0] + out * radius * np.cos(angle)
+    rows = centre[1] - out * radius * np.sin(angle)
+    colours = np.stack([ndimage.map_coordinates(photo_linear[..., channel], [rows, columns], order=1, mode="nearest")
+                        for channel in range(3)], axis=-1)
+    return colours, columns, rows
+
+
+def iris_found(lightness, eye):
+    """The photo's iris (centre (column, row), radius pixels) from marks.py's: MediaPipe's circle runs wide (laid on
+    the photos, 2026-11-26, about IRIS_PICTURE's `radius` of it is the iris) and its centre off by a few pixels, so
+    the centre is the pupil's, where a disc of IRIS_PICTURE's `pupil_guess` of the radius is darkest against its ring
+    (`iris_centre`)."""
+    radius = IRIS_PICTURE["radius"] * float(eye["iris_radius"])
+    centre = iris_centre(lightness, np.asarray(eye["iris_centre"], np.float64), IRIS_PICTURE["pupil_guess"] * radius)
+    return centre, radius
+
+
+def lid_covered(eye, columns, rows, radius):
+    """Which polar samples (at photo `columns`, `rows`) lie over the eye's upper margin or under its lower one, or
+    within IRIS_PICTURE's `lid` of the radius of them (the lid's shade, its lashes)."""
+    reach = IRIS_PICTURE["lid"] * radius
+    covered = np.zeros(columns.shape, bool)
+    for key, sign in (("upper", 1.0), ("lower", -1.0)):
+        line = np.asarray(eye[key], np.float64)
+        line = line[np.argsort(line[:, 0])]
+        margin = np.interp(columns, line[:, 0], line[:, 1])
+        covered |= sign * (margin + sign * reach - rows) > 0.0
+    return covered
+
+
+def catchlights(colours, kept):
+    """Which polar samples are reflections: brighter than the iris's body (the median of its `kept` samples 0.55 to
+    0.8 of its radius out) by IRIS_PICTURE's `catchlight`, grown by its `grow` samples (the reflection's soft rim). (A
+    ring's own median, dark by the pupil, took the iris round the pupil's edge for a reflection and the pupil read
+    large.)"""
+    lightness = luminance(colours)
+    rings = len(lightness)
+    body = kept[int(0.55 * rings):int(0.8 * rings)]
+    bright = lightness > IRIS_PICTURE["catchlight"] * np.median(lightness[int(0.55 * rings):int(0.8 * rings)][body])
+    grown = bright.copy()
+    for _ in range(IRIS_PICTURE["grow"]):
+        grown = ndimage.binary_dilation(grown, border_value=0) | np.roll(grown, 1, 1) | np.roll(grown, -1, 1)
+    return grown
+
+
+def ring_medians(colours, kept):
+    """Each polar ring's median colour over its `kept` samples (the whole iris's where a ring keeps three or fewer)."""
+    whole = np.median(colours[kept], axis=0)
+    return np.array([np.median(ring[held], axis=0) if held.sum() > 3 else whole for ring, held in zip(colours, kept)])
+
+
+def filled_iris(eye):
+    """One eye's polar iris ({colours, kept}) made whole: each ring its median colour (`ring_medians`, so the iris's
+    own rings, the collarette and the limbus, stay) times the samples' own brightness over it (the fibres and crypts),
+    a lost sample's brightness taken from the ring turned by the first of IRIS_PICTURE's `turns` that keeps it (a
+    brightness ratio, so a turned piece shows no seam), clipped to its `detail` range."""
+    colours, kept = eye["colours"], eye["kept"]
+    base = ring_medians(colours, kept)
+    ratio = luminance(colours) / np.maximum(luminance(base), 1e-6)[:, None]
+    filled, held = ratio.copy(), kept.copy()
+    rays = colours.shape[1]
+    for turn in IRIS_PICTURE["turns"]:
+        shift = int(round(turn * rays / 360.0))
+        taken = ~held & np.roll(kept, shift, axis=1)
+        filled[taken] = np.roll(ratio, shift, axis=1)[taken]
+        held |= taken
+    filled[~held] = 1.0
+    return base[:, None, :] * np.clip(filled, *IRIS_PICTURE["detail"])[..., None]
+
+
+def pupil_share(colours, kept):
+    """The pupil's radius over the iris's: where the rings' median brightness (over their `kept` samples) has risen
+    IRIS_PICTURE's `pupil_rise` of the way from the darkest inner ring to the iris's (its rings 0.55 to 0.8 out)."""
+    lightness = luminance(colours)
+    profile = np.array([np.median(ring[held]) if held.any() else np.nan for ring, held in zip(lightness, kept)])
+    profile = np.interp(np.arange(len(profile)), np.flatnonzero(np.isfinite(profile)), profile[np.isfinite(profile)])
+    rings = len(profile)
+    inner = profile[:rings // 4].min()
+    iris = np.median(profile[int(0.55 * rings):int(0.8 * rings)])
+    risen = np.flatnonzero((profile > inner + IRIS_PICTURE["pupil_rise"] * (iris - inner))
+                           & (np.arange(rings) > np.argmin(profile[:rings // 4])))
+    return float(np.clip((risen[0] + 0.5) / rings if len(risen) else 0.4, 0.15, 0.6))
+
+
+def iris_picture(photo, marks, sclera, iris_uv):
+    """The photo's iris unrolled onto the eyeball's UV (linear, IRIS_PICTURE's `size` square, rows top down; the iris
+    the disc `iris_uv` round the UV's middle, `sclera` outside it): each of the photo's irises (marks.py's centre and
+    radius refined, `iris_found`) unrolled, its lid-covered samples and catchlights lost, the one keeping more made
+    whole (`filled_iris`); the pupil set dark at the photo's own share (`pupil_share`) and the limbal ring darkened.
+    With {pupil_share, kept_share}."""
+    photo_linear = srgb_to_linear(photo)
+    lightness = luminance(photo)
+    found = []
+    for eye in marks["eyes"]:
+        centre, radius = iris_found(lightness, eye)
+        colours, columns, rows = unrolled(photo_linear, centre, radius)
+        kept = ~lid_covered(eye, columns, rows, radius)
+        kept &= ~catchlights(colours, kept)
+        found.append({"colours": colours, "kept": kept})
+    found.sort(key=lambda eye: -eye["kept"].mean())
+    polar = filled_iris(found[0])
+    share = pupil_share(found[0]["colours"], found[0]["kept"])
+    size = IRIS_PICTURE["size"]
+    texel = (np.arange(size) + 0.5) / size
+    across, up = np.meshgrid(texel - 0.5, 0.5 - texel)
+    out = np.hypot(across, up) / iris_uv
+    ray = (np.degrees(np.arctan2(up, across)) % 360.0) * IRIS_PICTURE["rays"] / 360.0
+    ring = np.clip(out * IRIS_PICTURE["rings"] - 0.5, 0.0, IRIS_PICTURE["rings"] - 1.0)
+    wrapped = np.concatenate([polar, polar[:, :1]], axis=1)
+    colour = np.stack([ndimage.map_coordinates(wrapped[..., channel], [ring, ray], order=1, mode="nearest")
+                       for channel in range(3)], axis=-1)
+    edge = 1.0 - IRIS_PICTURE["limbus"]
+    colour *= (1.0 - edge * np.clip((out - IRIS_PICTURE["limbus_from"]) / (1.0 - IRIS_PICTURE["limbus_from"]), 0, 1)
+               ** 2)[..., None]
+    dark = np.clip((share + 0.03 - out) / 0.06, 0.0, 1.0)[..., None]
+    colour = colour * (1.0 - dark) + IRIS_PICTURE["pupil_linear"] * dark
+    white = np.clip((out - 1.0) / 0.04, 0.0, 1.0)[..., None]
+    colour = colour * (1.0 - white) + np.asarray(sclera, np.float64) * white
+    return colour, {"pupil_share": round(share, 3), "kept_share": round(float(found[0]["kept"].mean()), 3)}
+
+
 def cornea_of(eyes):
     """The face module's cornea and tear film shell over the joined eyes (finish 0 the cornea, 1 the film)."""
     face, _ = face_modules()
@@ -467,7 +607,8 @@ def made(points, triangles, uv, texture, photo, sources):
     scale = eye_scale(pupil_points)
     radius = EYE_DIAMETER_M / 2.0 * scale
     margins = [rims(view, pupil, scale) for pupil in pupil_points]
-    centres = np.array([[*pupil, eye_depth(pupil, rim, radius)] for pupil, rim in zip(pupil_points, margins)])
+    centres = np.array([[*pupil, eye_depth(pupil, rim, radius) + EYE_FORWARD_M]
+                        for pupil, rim in zip(pupil_points, margins)])
     target = np.array([centres[:, 0].mean(), centres[:, 1].mean(), centres[:, 2].max() + GAZE_M])
     gazes = [(target - centre) / np.linalg.norm(target - centre) for centre in centres]
     eyes = joined([placed(sources[side], centre, gaze, radius)

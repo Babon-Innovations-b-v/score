@@ -98,6 +98,20 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - **Look for black in the opening.** Black inside a lid opening is the head, never the eye: a fold (the floor laid on
   the margin), the wall under the clear film, or a slot too narrow for the light. Ray-cast the pixel in Blender
   (`scene.ray_cast`) before guessing.
+- **The head in one run** (`head.py`, drawn by `blender_head.py`, the sheet by `skin_sheet.py`): colour → eyes → lids
+  → skin → (hair later) → onto the body, each step on what the one before made. The eyes sit `eyes.EYE_FORWARD_M`
+  forward of their rim rest and wear the photo's own iris (`eyes.iris_picture`: unrolled off the photo, its pupil at
+  the photo's share, catchlights and the lid's shade filled from the turned iris, the limbal ring darkened; the
+  pupil's triangles wear it too). The lids grow no brows and leave the painted ones (`lids.made(brows_grown=False)`):
+  the skin runs on the lids' mended mesh with no clearance from the eye's floor, so the photo covers the brows and
+  the lids up to their margins, and its triangles are skin wherever they wear the photo. Lashes come as many and as
+  long as the photo's dark pixels over the upper margin say (`lids.lash_share`). Registered on the raw paint (the
+  toning moves the face's clusters apart). Where the photo does not reach, the paint's dark baked shading is lifted
+  and its light under the surface lowered (`skin.paint_shade`): TRELLIS.2's dark socket and nose paint goes orange
+  under the random-walk skin. Run: `python -m tools.characters.generated.head <model.glb> <cut-out.png> <close-up>
+  <marks.json> <out> --height <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
+  <out>/eyes/eyes.npz <library> <height> <samples> <renders> <out>` (CPU; before is the raw model), then `python -m
+  tools.characters.generated.skin_sheet <name> <renders> <photo> <out>/skin/stats.json <sheet.jpg>`.
 - **Colour** (`colour.py`, before every other step): TRELLIS.2's paint drifts from its photo on glossy and dark
   garments (2026-11-26, sRGB photo against paint: a sage puffer (131, 137, 123) painted (65, 72, 68), brown boots
   (89, 51, 41) painted (14, 3, 0)); its metalness is 0 and Blender's import reads the maps rightly, so the paint is
