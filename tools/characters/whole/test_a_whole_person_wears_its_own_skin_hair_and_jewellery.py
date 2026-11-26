@@ -6,8 +6,9 @@ a root-free patch and the roots under the hairline's full density taken away (a 
 hanging strand the skin holds is moved out over it and one falling freely left; hair inside the skin is put out to
 its clearance and hair outside left; a ring goes round the finger it is meant for (read off a toy hand's skin), a
 watch round its wrist with its case on the back of the wrist, a chain round the neck on its skin and moving with it;
-and `faults` names a piece pushed into the skin; a toy hand's fingers bend towards its palm (the side its thumb
-stands to) past the knuckles, their length kept, the palm left where it was; the photograph's incident meter reads pi
+and `faults` names a piece pushed into the skin; both toy hands (the posture test's welded toy and its mirror) are
+laid at rest on the joints read off their skin, their fingertips towards the palm and flushed past the palm, the palm
+and forearm left where they were; the photograph's incident meter reads pi
 under an even sky of radiance 1 on the card facing the camera and on the ground (so an 18% card needs no exposure
 change, and a sky four times as bright two stops less), a bright patch lights the card only when the sky's turn puts
 it on the camera's side, and its white balance makes the card neutral. Each row is one toy (no SOMA, Newton or
@@ -22,8 +23,8 @@ for `normals` in `pushed_out`: a point inside left inside); the ring sized off i
 its farthest (`.min()` for `.max()` of the radius in `ring`: the ring inside the finger); the fingers counted from the
 thickest (`sizes[-1] < sizes[0]` turned: the ring on the middle finger); the watch's case on the wrist's front
 (`-back`); `deepest` reading only the first frame (a ring pushed in on the last frame passes); `skin_carried` carrying
-only the first frame (the chain left behind as the neck turns); `hand_frame`'s palm turned to the thumb's other
-side (`-np.sign`: the fingers bend back; seen red 2026-11-25); `part_lean` left out (the toy's parting bare 6.3 mm
+only the first frame (the chain left behind as the neck turns); the hand laid on the left hand's palm for both
+(`palm_frame`'s handedness sign dropped: the right hand's fingers bend back; seen red 2026-11-26); `part_lean` left out (the toy's parting bare 6.3 mm
 from above); the hairline's roots not thinned (`roots` keeping every one: the roots rising within 4 mm); `root_gap`
 reading the mean distance (the root-free patch passes); `parting_bare` counting no run as on the parting's line (the
 bare band passes the parting's check); `draped` returning `moved` (the snagged strand left where the skin held it;
@@ -101,19 +102,20 @@ def tube_skin(radius, start, end, sections=48):
 
 
 def toy_hands():
-    """Two toy hands (toy_hand with a thumb standing out across and towards the palm's side, -y), the left at the
-    origin and the right 1 m away, each carried by its Hand joint: points, weights, names and bind."""
-    skin, _ = toy_hand()
-    thumb = trimesh.creation.cylinder(radius=0.009, segment=[[0.03, -0.02, 0.055], [0.07, -0.03, 0.075]],
-                                      sections=16).subdivide_to_size(0.004)
-    one = np.concatenate([skin, thumb.vertices])
-    points = np.concatenate([one, one + [1.0, 0.0, 0.0]])
+    """Two toy hands (the posture test's welded toy left hand, its thumb out and fingers fanned, and its mirror across
+    z, the right, 1 m away), each carried by its Hand joint and its forearm by its ForeArm's: points, faces, weights,
+    names and bind."""
+    from tools.characters.posture import test_a_relaxed_clip_hangs_its_arms_and_looks_ahead as posture_test
+    one, one_faces, hand, _ = posture_test.toy_hand()
+    points = np.concatenate([one, one * [1.0, 1.0, -1.0] + [1.0, 0.0, 0.0]])
+    faces = np.concatenate([one_faces, one_faces[:, ::-1] + len(one)])
     names = np.array(["LeftForeArm", "LeftHand", "RightForeArm", "RightHand"])
     weights = np.zeros((len(points), 4))
-    weights[:len(one), 1] = weights[len(one):, 3] = 1.0
+    weights[:len(one), 1], weights[:len(one), 0] = hand, ~hand
+    weights[len(one):, 3], weights[len(one):, 2] = hand, ~hand
     bind = np.tile(np.eye(4), (4, 1, 1))
     bind[:, :3, 3] = [[-0.25, 0.0, 0.0], [0.0, 0.0, 0.0], [0.75, 0.0, 0.0], [1.0, 0.0, 0.0]]
-    return points, weights, names, bind
+    return points, faces, weights, names, bind
 
 
 @pytest.mark.parametrize("case", ["laid on the mean", "hair combed on its head", "hair rooted off the scalp",
@@ -159,16 +161,17 @@ def test_a_whole_person_wears_its_own_skin_hair_and_jewellery(case):
         assert out[0] == pytest.approx(moved[0] + [0.5 * hair.STEP_M, 0.0, 0.0])
         assert out[1] == pytest.approx(moved[1])
     if case == "fingers relaxed":
-        points, weights, names, bind = toy_hands()
-        moved, tones = whole.relaxed_hands(points, weights, names, bind)
-        tip = points[:, 0] == points[: len(points) // 2, 0].max()
-        assert (moved[tip, 1] - points[tip, 1]).mean() < -0.02  # towards the palm (-y), the thumb's side
-        palm = (points[:, 0] < 0.07) & (np.abs(points[:, 2]) <= 0.05)  # the palm, not its thumb
-        assert np.abs(moved[palm] - points[palm]).max() == 0.0
-        knuckle = np.array([whole.KNUCKLES_OF_HAND * 0.17, 0.0])
-        reach = np.hypot(*(moved[tip][:, :2] - knuckle).T)
-        assert reach.mean() > 0.9 * (0.17 - knuckle[0])  # bent, not shortened
-        assert tones[tip, 0].min() > tones[palm, 0].max()
+        points, faces, weights, names, bind = toy_hands()
+        moved, tones, joints = whole.relaxed_hands(points, faces, weights, names, bind)
+        for side, hand in (("Left", weights[:, 1] > 0.5), ("Right", weights[:, 3] > 0.5)):
+            tips = hand & ((points[:, 0] % 1.0) > 0.15)
+            assert (moved[tips, 1] - points[tips, 1]).mean() < -0.02  # towards the palm (-y)
+            palm = hand & ((points[:, 0] % 1.0) > 0.03) & ((points[:, 0] % 1.0) < 0.06) & \
+                (np.abs(np.abs(points[:, 2]) - 0.008) < 0.008)
+            assert np.abs(moved[palm] - points[palm]).max() < 1e-3
+            assert tones[tips, 0].min() > tones[palm, 0].max()
+            assert f"{side}HandThumbEnd" in joints
+        assert np.abs(moved[weights[:, 0] > 0.5] - points[weights[:, 0] > 0.5]).max() == 0.0  # the forearm kept
     if case == "hair kept out":
         sphere = trimesh.creation.icosphere(subdivisions=4, radius=0.1)
         points = np.array([[0.0, 0.09, 0.0], [0.105, 0.0, 0.0], [0.0, 0.0, 0.1005]])

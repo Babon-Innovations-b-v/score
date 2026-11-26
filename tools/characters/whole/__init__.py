@@ -10,10 +10,10 @@ the bones fitted to the made person). The skin is carried there as one:
 - `laid`: the identity's low body (body_face.py's `low_points`, the clips rig's own topology) put on the clips rig's
   mean body point for point, scaled by height (`SCALE_BY`) and moved by the points' mean off it, along the floor;
   `limb_turns`: each limb then turned onto the mean's (MHR's rest holds the arms otherwise than the mean's bind);
-- `relaxed_hands`: the clips rig has one joint a hand and MHR's rest holds the fingers straight and spread (owner,
-  2026-11-25: "stiff splayed fingers"), so each hand's fingers are bent towards its palm past the knuckles, a little
-  more the further out (FINGER_CURL_DEGREES at the tips), and drawn a little together (FINGER_CLOSE), as a hand
-  hangs at rest; its tones (`hand_tones`): a flush growing towards the fingers, the thin skin of the back of the hand
+- `relaxed_hands`: the clips rig has one joint a hand and MHR's rest holds the fingers straight and spread, the thumb
+  out (owner, 2026-11-25: "stiff splayed fingers"), so each hand's finger joints are read off its skin and the hand
+  laid at rest on them, the fingers bent in a cascade, drawn together and the thumb along the index finger
+  (`tools.characters.posture`, whose checks fail a hand that still stands otherwise); its tones (`hand_tones`): a flush growing towards the fingers, the thin skin of the back of the hand
   and the inner wrist;
 - `carried_skin`: every skin point given the clips rig's weights of its nearest low-body triangle (barycentric), then
   skinned from the mean's bind onto the build's: the body the garments are draped on, its shoes fitted on, drawn;
@@ -36,11 +36,6 @@ SCALE_BY = "height"  # the identity is scaled to the clips rig's mean height (th
 BIND_LIMIT_M = 0.03  # a skin point further than this from the low body is not the same body's
 HAIR_OFF_M = 0.002  # a hair point is kept this far outside the skin
 BROW_CLEAR_M = 0.002  # and this far past the brows' hair over the brows
-# A relaxed hand hanging at rest: the fingers bent about 60 degrees in all from the knuckles to the tips (the knuckle,
-# middle and end joints together, read off a hand at rest; a choice, not a measure) and drawn a fifth closer together.
-FINGER_CURL_DEGREES = 60.0
-FINGER_CLOSE = 0.2
-KNUCKLES_OF_HAND = 0.5  # the knuckles' line this far from the wrist joint along the hand's length
 HAND_FLUSH = 0.6  # the flush at the fingertips (none at the wrist)
 HAND_THIN = 0.5  # the thin bluish skin of the back of the hand and the inner wrist
 WRIST_REACH_M = 0.06  # the inner wrist: the forearm's palm side this near the wrist joint
@@ -128,62 +123,53 @@ def carried_skin(face, body, clips_rig, build_bind):
     turns = limb_turns(low, np.asarray(clips_rig["points"], float), np.asarray(clips_rig["weights"], float),
                        clips_rig["names"])
     points = posed_like_mean(points, weights, turns)
-    points, hand_tones = relaxed_hands(points, weights, clips_rig["names"], np.asarray(clips_rig["bind"], float))
+    points, hand_tones, hand_joints = relaxed_hands(points, np.asarray(face["skin.triangles"], np.int64), weights,
+                                                    clips_rig["names"], np.asarray(clips_rig["bind"], float))
     tones = np.asarray(face["skin.tones"], float).copy() if "skin.tones" in face else np.zeros((len(points), 3))
     tones[:, :2] = np.maximum(tones[:, :2], hand_tones)
     joints = np.tile(np.arange(weights.shape[1]), (len(weights), 1))
     posed = skinned(points, joints, weights, np.asarray(build_bind, float)[None], np.asarray(clips_rig["bind"]))[0]
+    names = [str(name) for name in clips_rig["names"]]
+    carried = {}
+    for side in ("Left", "Right"):
+        hand = names.index(f"{side}Hand")
+        move = np.asarray(build_bind, float)[hand] @ np.linalg.inv(np.asarray(clips_rig["bind"], float)[hand])
+        carried.update({name: move[:3, :3] @ place + move[:3, 3] for name, place in hand_joints.items()
+                        if name.startswith(side)})
     return {"points": posed, "faces": np.asarray(face["skin.triangles"], np.int64), "weights": weights,
-            "scale": scale, "shift": shift, "off": off, "turns": turns, "tones": tones}
+            "scale": scale, "shift": shift, "off": off, "turns": turns, "tones": tones, "hand_joints": carried}
 
 
-def hand_frame(points, wrist):
-    """A hand's frame from its points: the wrist, its long axis (towards the fingertips), its palm's direction (the
-    flat hand's normal, turned to the side the thumb stands to) and its across axis; and the hand's length."""
-    middle = points.mean(axis=0)
-    _, _, axes = np.linalg.svd(points - middle, full_matrices=False)
-    along = axes[0] * np.sign(axes[0] @ (middle - wrist))
-    normal, across = axes[2], axes[1]
-    reach = (points - wrist) @ along
-    sideways = (points - wrist) @ across
-    height = (points - wrist) @ normal
-    span = (reach > 0.2 * reach.max()) & (reach < 0.6 * reach.max())
-    thumb_ends = [span & (side * sideways > np.percentile(side * sideways[span], 95)) for side in (1.0, -1.0)]
-    offsets = [height[end].mean() - height[span].mean() for end in thumb_ends]
-    palm = normal * np.sign(offsets[int(np.argmax(np.abs(offsets)))])
-    return along, palm, np.cross(palm, along), float(reach.max())
-
-
-def relaxed_hands(points, weights, names, bind):
-    """The skin's points with each hand's fingers bent towards its palm past the knuckles (a bend of constant
-    curvature, FINGER_CURL_DEGREES at the tips) and drawn FINGER_CLOSE together: points of the mean's bind frame;
-    and each point's hand tones (flush, thin)."""
+def relaxed_hands(points, faces, weights, names, bind):
+    """The skin's points with each hand laid at rest (`tools.characters.posture`'s `finger_joints`, read off the
+    skin, and `hand_rested`): points of the mean's bind frame; each point's hand tones (flush, thin); and each hand's
+    joints so laid ({name: place}). A hand that still stands its thumb out, spreads or holds a finger straight fails
+    the run."""
+    from tools.characters import posture
     names = [str(name) for name in names]
     moved = points.copy()
     tones = np.zeros((len(points), 2))
+    joints = {}
     for side in ("Left", "Right"):
         wrist = bind[names.index(f"{side}Hand"), :3, 3]
         hand = weights[:, names.index(f"{side}Hand")] > 0.5
-        along, palm, across, length = hand_frame(points[hand], wrist)
+        found = posture.finger_joints(points, faces, hand, wrist, side)
+        moved[hand], laid = posture.hand_rested(points[hand], found, side)
+        faults = posture.hand_faults(posture.hand_measured(laid, side), side)
+        if faults:
+            raise ValueError("the hand at rest: " + "; ".join(faults))
+        joints.update(laid)
+        along, _, palm = posture.palm_frame(found, side)
+        knuckles = np.mean([found[f"{side}Hand{finger}2"] for finger in posture.FINGERS], axis=0)
         offset = points - wrist
-        reach, height, sideways = offset @ along, offset @ palm, offset @ across
-        knuckles = KNUCKLES_OF_HAND * length
-        fingers = hand & (reach > knuckles)
-        out = reach[fingers] - knuckles
-        bend = np.radians(FINGER_CURL_DEGREES) / (length - knuckles)
-        radius = 1.0 / bend
-        turned = out * bend
-        new_reach = knuckles + (radius - height[fingers]) * np.sin(turned)
-        new_height = radius - (radius - height[fingers]) * np.cos(turned)
-        middle = np.median(sideways[fingers])
-        new_side = middle + (sideways[fingers] - middle) * (1.0 - FINGER_CLOSE * out / (length - knuckles))
-        moved[fingers] = wrist + np.outer(new_reach, along) + np.outer(new_height, palm) + np.outer(new_side, across)
+        reach, height = offset @ along, offset @ palm
+        length = float(reach[hand].max())
         tones[hand, 0] = HAND_FLUSH * np.clip(reach[hand] / length, 0.0, 1.0)
-        back = hand & (height < 0.0) & (reach < knuckles)
+        back = hand & (height < 0.0) & (reach < (knuckles - wrist) @ along)
         inner_wrist = (weights[:, names.index(f"{side}ForeArm")] > 0.5) & (height > 0.0) & \
             (np.linalg.norm(offset, axis=1) < WRIST_REACH_M)
         tones[back | inner_wrist, 1] = HAND_THIN
-    return moved, tones
+    return moved, tones, joints
 
 
 def head_carried(points, moves):

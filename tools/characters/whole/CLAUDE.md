@@ -33,11 +33,11 @@ itself (`render.py`). `__init__.py`'s docstring has how the face's body is carri
   (`meter.py`: an 18% card reads 18% and neutral), never set by eye; an 85 mm lens with real depth of field, its
   fall-off to the corners and a fine grain. `<pose>-photo.png` and `-photo-portrait.png` are the photograph (three
   quarters, eye height, f/2) to judge her by beside a real photo.
-- **Hands at rest.** The clips rig has one joint a hand, so `relaxed_hands` bends the skin's fingers towards the
-  palm past the knuckles and draws them together (owner, 2026-11-25: stiff splayed fingers); the hands' flush and
-  thin skin join the face's region tones on the one skin.
+- **Hands at rest.** The clips rig has one joint a hand, so `relaxed_hands` reads each hand's finger joints off the
+  skin and lays the hand at rest on them (`../posture`; owner, 2026-11-25: stiff splayed fingers); a hand that still
+  stands otherwise fails the run. The hands' flush and thin skin join the face's region tones on the one skin.
 - **Look at the pictures**: front, back, both sides and three quarters, standing and mid-walk, and the face close
   up from the front and three quarters (`--views` draws fewer of the whole person's sides). The numbers say the
   pieces sit; only the pictures say whether it reads as a photograph.
 - Tests: `test_a_whole_person_wears_its_own_skin_hair_and_jewellery.py` (toy bodies, a toy head, finger, wrist and
-  neck; no SOMA, Newton or Blender).
+  neck, and the posture test's welded toy hand; no SOMA, Newton or Blender).
