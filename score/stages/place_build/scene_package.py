@@ -1249,14 +1249,28 @@ def lamps_of(stage, place):
                  "colour": [round(float(value), 6) for value in light.GetColorAttr().Get() or (1.0, 1.0, 1.0)]}
         if prim.IsA(UsdLux.SphereLight):
             watts = round(about["intensity"] * math.pi, 6)
-            lamps.append(dict(about, kind="point", at=[round(float(value), 4) for value in world[3, :3]],
-                              watts=watts, strength=watts,
-                              radius=float(UsdLux.SphereLight(prim).GetRadiusAttr().Get())))
+            lamp = dict(about, kind="point", at=[round(float(value), 4) for value in world[3, :3]],
+                        watts=watts, strength=watts, radius=float(UsdLux.SphereLight(prim).GetRadiusAttr().Get()))
+            lamps.append(dict(lamp, **spot_of(prim, world)))
         elif prim.IsA(UsdLux.DistantLight):
             shines = np.array([0.0, 0.0, -1.0]) @ world[:3, :3]
             lamps.append(dict(about, kind="sun", strength=about["intensity"] * SUN_STRENGTH,
                               shines=[round(float(value), 6) for value in shines / np.linalg.norm(shines)]))
     return lamps
+
+
+def spot_of(prim, world):
+    """A shaped sphere light's spot: {kind spot, shines (its -z in the world, a unit vector), cone (degrees either
+    side of its axis), softness} when its ShapingAPI cone is under 90 degrees (a floodlight), else {} (a point lamp)."""
+    if not prim.HasAPI(UsdLux.ShapingAPI):
+        return {}
+    shaping = UsdLux.ShapingAPI(prim)
+    cone = float(shaping.GetShapingConeAngleAttr().Get() or 180.0)
+    if cone >= 90.0:
+        return {}
+    shines = np.array([0.0, 0.0, -1.0]) @ world[:3, :3]
+    return {"kind": "spot", "shines": [round(float(value), 6) for value in shines / np.linalg.norm(shines)],
+            "cone": round(cone, 4), "softness": round(float(shaping.GetShapingConeSoftnessAttr().Get() or 0.0), 4)}
 
 
 def sky_way(prim):

@@ -736,6 +736,9 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     place_build.remove(folder, "swapped")
     place_build.surface(folder, "dune", "surface/sand", colour="#ff8000")
     place_build.light(folder, "bulb", at=(0, 2.5, 0), watts=100)
+    place_build.light(folder, "flood", at=(0, 8.0, 0), watts=200, aim=(0, 0, 6.0), angle=20.0)
+    with pytest.raises(place_build.Refused, match="both --aim and --angle"):
+        place_build.light(folder, "half", at=(0, 8.0, 0), watts=200, aim=(0, 0, 6.0))
     (tmp_path / "palette.json").write_text(json.dumps({
         "recipes": {"boards": {"roughness": 0.7}, "glass": {"roughness": 0.05}},  # glass before its opacity (#154)
         "tokens": {"hull": "#ff0000", "dust": "#00ff00"}, "dirt": "dust",
@@ -900,6 +903,7 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     assert np.allclose(boxes["tunnel"], [[18.38, -0.12, 0.0], [21.62, 3.12, 4.0]], atol=0.01)
     assert np.allclose(boxes["dome"], [[-5.18, 0.0, -5.18], [5.18, 5.1, 5.18]], atol=0.02)  # its plinth
     assert shown["lights"] == [{"name": "bulb", "at": [0.0, 2.5, 0.0], "watts": 100.0},
+                              {"name": "flood", "at": [0.0, 8.0, 0.0], "watts": 200.0},
                               {"name": "sun", "at": [0, 0, 0], "watts": 1.0}]
     assert "no USD file" in refusals[0] and "give --colour" in refusals[1] and len(refusals) == 2
     assert set(boxes) == {"wall", "crate", "floor", "cabinet", "walker", "dome", "regolith", "cup", "plain", "sky", "shelf", "tunnel", "stone", "dune", "screen", "holed", "hall", "panel", "stairwell", "stub"} and not stage.GetPrimAtPath("/yard/Objects/gone")
@@ -1779,11 +1783,14 @@ def packaged(folder, out):
     assert np.allclose(np.array(dune_uv["max"]) - dune_uv["min"], 2.0 / 0.5)  # the 2 m box over a 0.5 m tile
     assert copies["big"]["collider"] == {"shape": "convex hull", "dynamic": True, "mass_kg": 100.0}
     assert copies["wall"]["collider"] == {"shape": "mesh", "dynamic": False} and copies["crate"]["collider"] is None
-    assert [(lamp["name"], lamp["kind"]) for lamp in scene["lamps"]] == [("bulb", "point"), ("sun", "sun"),
-                                                                         ("moon", "sun")]
+    assert [(lamp["name"], lamp["kind"]) for lamp in scene["lamps"]] == [("bulb", "point"), ("flood", "spot"),
+                                                                         ("sun", "sun"), ("moon", "sun")]
+    flood = scene["lamps"][1]  # a floodlight: shines from its spot toward its aim, its cone and soft edge kept
+    assert np.allclose(flood["shines"], np.array([0, -8.0, 6.0]) / 10.0, atol=1e-4) and flood["cone"] == 20.0
+    assert flood["softness"] == place_build.SPOT_SOFTNESS and "shines" not in scene["lamps"][0]
     bulb = scene["lamps"][0]
     assert np.isclose(bulb["strength"], bulb["intensity"] * np.pi) and bulb["watts"] == bulb["strength"]
-    assert np.isclose(scene["lamps"][2]["strength"], scene["lamps"][2]["intensity"] * 4.0)  # the render's sun units
+    assert np.isclose(scene["lamps"][3]["strength"], scene["lamps"][3]["intensity"] * 4.0)  # the render's sun units
     assert {"walker", "rain", "sky", "crew"} <= {item["name"] for item in scene["left_out"]}
     skinned_characters(folder, out, scene, copies)
     panel, panel_looks = gltf_of(out, scene, copies["panel"]["object"])

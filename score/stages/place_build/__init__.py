@@ -1862,14 +1862,34 @@ def whole_over_parts(prim):
                       "one flat paint; `refinish` it (per part from the palette), or lay a surface on one part (--part)")
 
 
-def light(folder, name, at, watts, radius=0.05, colour="#ffffff", address="light/lamp"):
-    """A sphere light laid at `at` as the library's lamp: `watts` its strength, `radius` its bulb."""
+SPOT_SOFTNESS = 0.3  # a floodlight's cone edge: its light falls off over the outer 30% of its angle
+
+
+def light(folder, name, at, watts, radius=0.05, colour="#ffffff", address="light/lamp", aim=None, angle=None,
+          softness=SPOT_SOFTNESS):
+    """A sphere light laid at `at` as the library's lamp: `watts` its strength, `radius` its bulb; given `aim` and
+    `angle` a spot (a floodlight) shining from `at` toward `aim`, its cone `angle` degrees either side of its axis
+    (UsdLux ShapingAPI), its edge soft over `softness` of it."""
     address = resolved_address(address, library_root())
     if entry_of(address)["kind"] != "light":
         raise Refused(f"{address} is not a light")
+    if (aim is None) != (angle is None) or (angle is not None and not 0.0 < float(angle) < 90.0):
+        raise Refused(f"{name}: a spot needs both --aim and --angle, its angle between 0 and 90 degrees")
     stage, place = opened(folder)
     lamp = UsdLux.SphereLight.Define(stage, f"/{place}/Lights/{name}")
     posed(lamp.GetPrim(), at, (0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
+    if lamp.GetPrim().HasAPI(UsdLux.ShapingAPI):
+        lamp.GetPrim().RemoveAPI(UsdLux.ShapingAPI)
+    if aim is not None:
+        sys.path.insert(0, str(REPO / "tools/usd"))
+        import scene as usd_scene
+        xform = UsdGeom.Xformable(lamp.GetPrim())
+        xform.ClearXformOpOrder()
+        xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, at)))
+        xform.AddOrientOp().Set(Gf.Quatf(usd_scene.aim_turn(at, aim)))
+        shaping = UsdLux.ShapingAPI.Apply(lamp.GetPrim())
+        shaping.CreateShapingConeAngleAttr().Set(float(angle))
+        shaping.CreateShapingConeSoftnessAttr().Set(float(softness))
     lamp.CreateIntensityAttr(float(watts))
     lamp.CreateRadiusAttr(float(radius))
     lamp.CreateColorAttr(Gf.Vec3f(*colour_of(colour)))

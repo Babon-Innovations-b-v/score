@@ -262,7 +262,9 @@ def run(args):
     if args.step == "surface":
         return place_build.surface(args.folder, args.name, args.address, args.colour, args.part)
     if args.step == "light":
-        return place_build.light(args.folder, args.name, numbers(args.at), args.watts, args.radius, args.colour)
+        return place_build.light(args.folder, args.name, numbers(args.at), args.watts, args.radius, args.colour,
+                                 aim=numbers(args.aim) if args.aim else None, angle=args.angle,
+                                 softness=args.softness)
     if args.step == "remove":
         return place_build.remove(args.folder, args.name)
     if args.step == "cut":
@@ -499,6 +501,9 @@ def parser():
     step.add_argument("--watts", type=float, required=True)
     step.add_argument("--radius", type=float, default=0.05)
     step.add_argument("--colour", default="#ffffff")
+    step.add_argument("--aim", help="x,y,z it shines toward: a spot (with --angle)")
+    step.add_argument("--angle", type=float, help="a spot's cone, degrees either side of its axis")
+    step.add_argument("--softness", type=float, default=place_build.SPOT_SOFTNESS)
     for name in ("remove", "refinish", "cut", "backdrop"):
         step = steps.add_parser(name)
         step.add_argument("folder")
