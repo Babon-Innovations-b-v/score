@@ -49,3 +49,12 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - Not here: lashes (the model has none; the face module's grow on ICT's lid cards, which a generated head lacks) and
   lids reshaped to the photo's opening (the lids stay the model's).
 - Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step.
+- **Head swap** (`head_swap.py`, inside Blender, CPU): the detailed head-and-shoulders model (made from a head
+  close-up) put on the whole body. Its scale is scanned (a free-scale ICP slides along a long valley), at each scale a
+  rigid two-way trimmed ICP of the head above the body's chin onto the body's head, hair and all; one level cut low on
+  the neck or inside the collar, the head's cut edge laid onto the body's facing edge, eased over a band, its paint
+  blended into the body's (read along each texel's normal) over a wider band, the shading normals averaged across.
+  The body below the cut is never changed; a body's own hood round the neck can be kept (the `<hood>` depth). Its JSON
+  holds the head-to-body matrix in the glTF frame: strand hair and eyes made on the head model follow onto the body
+  with it. Run: `blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out.json> [<hood>]`
+  (about a minute, under 2 GB); look at the seam close up, front and back, before keeping a cut depth.

@@ -24,14 +24,28 @@ reach into the shell; a darker colour gets more melanin and a grey head white st
 through); the scalp tucked 6 mm under the skin (`scalp.TUCK_M` 0.006: a 5.7 mm step at its edge); the head's inside
 let into the hair's volume (`volume.inside_of` and `volume.seen_from` saying nothing is inside the head: 32% of the
 strands into it); the lightness table turned round (`fibre.REFERENCE_L`: the dark colour less melanin than the light).
+
+The head swap (`head_swap.py`), on a toy head (a squashed sphere with a nose, an ear and a bun) moved by a known
+similarity (scale 0.3, a turn, a shift): it is found again from its points, exactly by the least-squares similarity
+(which fits a turn, never a mirror, even onto the toy's mirror image) and to a millimetre (under the points' own
+spacing) by the two-way trimmed ICP from a start 15% off in scale and 8 mm off in place, upright as the real starts
+are, with a sixth of its points stray; the scan's best scale is read between its steps (the vertex of the parabola
+through the least miss); the seam's weight is all body at the cut and none at the band's top; a UV triangle's texels
+are those inside it; and the head-to-body matrix written for the glTF files moves a glTF point where the Blender
+matrix moves it. Breaks that turn its rows red (each applied once, seen red, reverted, 2026-11-26): the rotation's
+reflection guard dropped (`sign` left the identity: the mirror image fitted by a reflection); the scale read over the
+target's spread, not the source's (`target_centred.var`); the ICP fitting every pair, not the kept share (`kept`
+1.0: the strays pull the fit off); `lowest` returning the scanned step (0.26, not 0.257); `head_swap.eased` rising,
+not falling, with height; `gltf_matrix`'s frame change applied on one side only (`blender_matrix @ to_blender`).
 """
 import functools
 
 import numpy as np
 import pytest
 import trimesh
+from scipy.spatial import cKDTree
 
-from tools.characters.generated import __main__, eyes, fibre, labels, scalp, strands, volume
+from tools.characters.generated import __main__, eyes, fibre, head_swap, labels, scalp, strands, volume
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -346,6 +360,90 @@ def fibre_follows():
             f"dark {dark['melanin']}, light {light['melanin']}, grey white {grey['white_share']}")
 
 
+def toy_head(count=4000, seed=0):
+    """Points on a squashed sphere (radius about 0.1 m) with three bumps: a nose on its front (-y), an ear and a bun,
+    so no turn maps it onto itself."""
+    rng = np.random.default_rng(seed)
+    way = rng.normal(size=(count, 3))
+    way /= np.linalg.norm(way, axis=1, keepdims=True)
+    points = way * np.array([0.08, 0.1, 0.12])
+    for centre, rise in (([0, -1, 0], 0.03), ([1, 0, 0.3], 0.02), ([-0.5, 0.5, 0.7], 0.025)):
+        centre = np.array(centre, float) / np.linalg.norm(centre)
+        points += (rise * np.exp(-((way - centre) ** 2).sum(1) / 0.08))[:, None] * way
+    return points
+
+
+def turned(degrees, axis):
+    """The rotation of `degrees` about the unit `axis`."""
+    axis = np.asarray(axis, float) / np.linalg.norm(axis)
+    angle = np.radians(degrees)
+    cross = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+    return np.eye(3) + np.sin(angle) * cross + (1 - np.cos(angle)) * cross @ cross
+
+
+TRUTH = (0.3, turned(20, [0.2, 0.1, 1.0]), np.array([0.05, -0.2, 1.5]))
+
+
+def nearest_among(points):
+    """A nearest-index answer over `points` (a KD tree)."""
+    tree = cKDTree(points)
+
+    def answer(queries):
+        return tree.query(queries)[1]
+    return answer
+
+
+def similarity_found():
+    """The exact fit's largest point error (m), and its turn's determinant fitted onto the toy's mirror image (a
+    turn, +1, never a reflection)."""
+    source = toy_head()
+    found = head_swap.similarity(source, head_swap.moved(source, *TRUTH))
+    mirrored = head_swap.similarity(source, source * np.array([-1.0, 1.0, 1.0]))
+    return (float(np.abs(head_swap.moved(source, *found) - head_swap.moved(source, *TRUTH)).max()),
+            round(float(np.linalg.det(mirrored[1])), 6))
+
+
+def icp_found():
+    """The trimmed ICP's largest point error (m) on the clean points, from a start off in scale and turn, a fifth of
+    its source points stray."""
+    source = toy_head(1500, seed=1)
+    target = head_swap.moved(toy_head(6000, seed=2), *TRUTH)
+    strays = np.random.default_rng(3).uniform(-0.15, 0.15, size=(300, 3))
+    start = (TRUTH[0] * 1.15, TRUTH[1], TRUTH[2] + np.array([0.004, -0.003, 0.005]))
+    found = head_swap.trimmed_icp(np.vstack([source, strays]), target, start, nearest_among)
+    clean = toy_head(500, seed=4)
+    return float(np.abs(head_swap.moved(clean, *found[:3]) - head_swap.moved(clean, *TRUTH)).max())
+
+
+def scale_scanned():
+    """The scale `lowest` reads from misses scanned on a parabola whose least lies at 0.257."""
+    scales = np.arange(0.16, 0.38, 0.02)
+    return round(head_swap.lowest(scales, (scales - 0.257) ** 2 + 0.003), 6)
+
+
+def seam_weights():
+    """The seam's weight at the cut, halfway and at the band's top."""
+    return [round(float(weight), 6) for weight in head_swap.eased([0.0, 0.5, 1.0], 1.0)]
+
+
+def texel_share():
+    """The texels of the lower-left half of a 64-texel square texture, over all its texels."""
+    columns, _, weights = head_swap.texels_of([[0, 0], [1, 0], [0, 1]], 64)
+    return len(columns) / 64 ** 2, bool((weights.sum(1) > 0.999).all())
+
+
+def frames_agree():
+    """The largest gap between a glTF point moved by the glTF matrix and the same point moved in Blender's frame."""
+    matrix = np.eye(4)
+    matrix[:3, :3] = TRUTH[0] * TRUTH[1]
+    matrix[:3, 3] = TRUTH[2]
+    point_gltf = np.array([0.1, 0.2, 0.3, 1.0])
+    point_blender = np.array([point_gltf[0], -point_gltf[2], point_gltf[1], 1.0])
+    moved_blender = matrix @ point_blender
+    moved_gltf = head_swap.gltf_matrix(matrix) @ point_gltf
+    return float(np.abs(moved_gltf - np.array([moved_blender[0], moved_blender[2], -moved_blender[1], 1.0])).max())
+
+
 @pytest.mark.parametrize("case, made_value, wanted", [
     ("each painted pupil is found on the face", pupils_found, [True, True]),
     ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
@@ -364,6 +462,14 @@ def fibre_follows():
     ("the strands root on the scalp, stay out of the head and reach into the shell",
      lambda: bool(strands_fill()[0]), True),
     ("a darker hair gets more melanin, a grey head white strands", lambda: bool(fibre_follows()[0]), True),
+    ("a swapped head's similarity is found exactly, a turn never a mirror",
+     lambda: (similarity_found()[0] < 1e-9, similarity_found()[1]), (True, 1.0)),
+    ("a swapped head's two-way ICP lands within a millimetre", lambda: icp_found() < 1e-3, True),
+    ("the head's scale is read between the scan's steps", scale_scanned, 0.257),
+    ("the seam's weight is all body at the cut, none at the band's top", seam_weights, [1.0, 0.5, 0.0]),
+    ("a UV triangle's texels are those inside it", lambda: (0.5 <= texel_share()[0] < 0.56, texel_share()[1]),
+     (True, True)),
+    ("the head-to-body matrix moves a glTF point as Blender's moves it", lambda: frames_agree() < 1e-12, True),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
