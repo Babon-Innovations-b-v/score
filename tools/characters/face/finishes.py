@@ -8,9 +8,10 @@ Writes each finish's `material.usda` (one UsdPreviewSurface, its constants below
 constants, its family and why) under `<folder>/<id>/`, and `<folder>/take-in.json`, the listing `score-lib take-in`
 reads. Colours are linear albedo: the skin the cockpit palette's skin token (world1), the rest measured ranges for
 each tissue (an iris's dark brown, a pupil near black, a wet mucosa's red, the tear film clear with water's IOR).
-UsdPreviewSurface has no subsurface, procedural grain, clear coat or transmission, so a record carries them beside its
-constants (`subsurface`: weight, mean free paths in mm, anisotropy, index, method; `detail`: pores, a fine grain,
-blotches and freckles, each a spacing and a depth or a share of a tone, and the gloss's spread; `regions`: the tone each
+UsdPreviewSurface has no subsurface, tiled detail, clear coat or transmission, so a record carries them beside its
+constants (`subsurface`: weight, mean free paths in mm, anisotropy, index, method; `detail`: the photographed
+skin's tiles (`scan`, skin_scan.py: its files, its size, its relief's depth and the gloss's spread, the tiles the
+entry's own files under the scan's CC BY 3.0) and blotches wider than a tile (`mottle`); `regions`: the tone each
 of the skin's regions (face.tones: the flush, the thin bluish skin with its veins, the lips) is moved towards and by how
 much; `crevices`: the darker, redder tone in folds and holes such as the nostrils, by how near other surfaces close
 round a point; `coat`: the skin's oil; `veins`, `fibres`: the eye white's vessels and the iris's fibres and dark edge
@@ -21,42 +22,43 @@ import json
 import pathlib
 import sys
 
+import skin_scan
+
 FINISHES = {
-    "face_skin_light": {"title": "Skin, light, with light through it and pores", "family": "skin",
+    "face_skin_light": {"title": "Skin, light, photographed detail, light through it", "family": "skin",
                         "constants": {"diffuseColor": [0.76815116, 0.4507858, 0.28314874], "roughness": 0.42,
                                       "metallic": 0.0, "ior": 1.4},
                         "subsurface": {"weight": 1.0, "radius_mm": [2.0, 0.4, 0.2], "anisotropy": 0.8,
                                        "ior": 1.4, "method": "RANDOM_WALK_SKIN"},
-                        "detail": {"pores": {"spacing_m": 0.0009, "radius_m": 0.00013, "depth_m": 0.00015},
-                                   "fine": {"spacing_m": 0.00025, "depth_m": 0.00004},
+                        "detail": {"scan": {"depth_m": 0.0003, "roughness_spread": 0.12},
                                    "mottle": {"spacing_m": 0.03, "share": 0.12,
-                                              "towards": [0.62, 0.3, 0.2]},
-                                   "freckles": {"spacing_m": 0.004, "share": 0.06,
-                                                "towards": [0.5, 0.26, 0.15]},
-                                   "roughness_spread": 0.08},
-                        "regions": {"flush": {"share": 0.4, "towards": [0.6, 0.2, 0.15]},
+                                              "towards": [0.62, 0.3, 0.2]}},
+                        "regions": {"flush": {"share": 0.55, "towards": [0.6, 0.2, 0.15]},
                                     "thin": {"share": 0.3, "towards": [0.42, 0.32, 0.4]},
                                     "veins": {"spacing_m": 0.02, "width": 0.04, "share": 0.35,
                                               "towards": [0.3, 0.3, 0.45]},
-                                    "lips": {"share": 0.7, "towards": [0.42, 0.12, 0.11], "roughness": -0.17}},
+                                    "lips": {"share": 0.85, "towards": [0.4, 0.09, 0.09], "roughness": -0.08}},
                         "crevices": {"reach_m": 0.006, "share": 0.6, "towards": [0.25, 0.07, 0.05]},
                         "coat": {"weight": 0.15, "roughness": 0.35, "ior": 1.45},
                         "why": "the cockpit palette's skin-light token (world1), the officer's place; the light under "
                                "it red-led as Blender's own skin default (red 1, green 0.2, blue 0.1), red reaching 2 "
                                "mm (forward scattering 0.8, index 1.4): Jensen et al. 2001's measured paths (3.67, "
                                "1.37, 0.68 mm) washed every crease out and lit the nostrils orange, wax (owner, "
-                               "2026-11-25); pores small pits (a quarter millimetre across) about a millimetre apart, a "
-                               "fine grain at a quarter of that, faint blotches and small freckles; a flush on the "
-                               "cheeks, nose, chin, ears and hands, a bluish cast and veins where the skin is thin "
-                               "(under the eyes, the back of the hands, the inner wrists), the lips their own red and "
-                               "glossier, folds and nostrils darker and redder, and a thin oily coat (#223, "
+                               "2026-11-25); its pores, fine creases, capillaries and speckle photographed: a 41 mm square of "
+                               "a real forehead (skin_scan.py) repeated over the whole body, its colour multiplying "
+                               "the base, its relief 0.3 mm from its lowest pit to its highest rise (a pore's wall as steep as a real one's; 0.12 mm left the skin smooth close up, 0.4 mm read as orange peel) and its pits rougher (procedural pores and noise "
+                               "read as wax and plastic, owner 2026-11-25 and 2026-11-26: 'photorealism is the goal'), "
+                               "blotches wider than the square as a faint noise; a flush on the "
+                               "cheeks, nose, chin and ears, a bluish cast and veins where the skin is thin (under the "
+                               "eyes), the lips a deeper rose and a little glossier (lips read colourless with a wet "
+                               "blob of highlight, owner 2026-11-25), folds and nostrils darker and redder, and a thin oily coat (#223, "
                                "2026-11-25: the skin read as wax)"},
     "face_mouth_inside": {"title": "Mouth inside, gums and tongue (constant)", "family": "skin",
                           "constants": {"diffuseColor": [0.35, 0.09, 0.08], "roughness": 0.3, "metallic": 0.0},
                           "why": "a wet mucosa's red, glossier than the skin"},
     "face_iris_brown": {"title": "Iris, dark brown, with its fibres and dark edge", "family": "eye",
                         "constants": {"diffuseColor": [0.1, 0.05, 0.025], "roughness": 0.3, "metallic": 0.0},
-                        "fibres": {"iris_uv": 0.125, "count": 70, "share": 0.6, "towards": [0.3, 0.16, 0.06],
+                        "fibres": {"iris_uv": 0.125, "count": 70, "share": 0.45, "towards": [0.24, 0.14, 0.07],
                                    "edge_from": 0.82, "edge_share": 0.75, "edge_towards": [0.02, 0.012, 0.008]},
                         "why": "a dark brown iris, its radial fibres lighter amber and a darker ring at its edge (the "
                                "limbal ring); on ICT-FaceKit's eyeball UV, where the iris is the ring 0.125 out (#223, "
@@ -88,6 +90,8 @@ FINISHES = {
 }
 
 
+# A finish whose detail is the photographed skin carries skin_scan's tiles as its own files, under the scan's licence.
+SCANNED = ("face_skin_light",)
 READER_KEYS = ("subsurface", "detail", "regions", "crevices", "coat", "veins", "fibres", "transmission")
 
 
@@ -117,13 +121,22 @@ def written(folder, commit):
         record = {"family": finish["family"], "constants": finish["constants"], "why": finish["why"],
                   **{key: finish[key] for key in READER_KEYS if key in finish},
                   "made_by": "score tools/characters/face/finishes.py"}
+        files = {name: {"path": str(own / name), "from": f"score tools/characters/face/finishes.py ({surface})"}
+                 for name in ("material.usda", "surface.json")}
+        made_with = [{"what": "the finish's constants, set by score for the face (#226)", "source": "score"}]
+        entry = {"kind": "surface", "id": surface, "title": finish["title"]}
+        if surface in SCANNED:
+            scan = skin_scan.tiles(own)
+            record["detail"] = {**record["detail"], "scan": {**scan, **record["detail"]["scan"]}}
+            for name in (scan["colour"], scan["height"]):
+                files[name] = {"path": str(own / name), "from": f"score tools/characters/face/skin_scan.py from "
+                                                                f"{skin_scan.SOURCE}"}
+            made_with.append({"what": "the skin detail tiles, cut from the scan's albedo", "source":
+                              skin_scan.SOURCE_ID, "carried": True})
+            entry["licence"] = {"id": "CC-BY-3.0", "source": skin_scan.SOURCE_ID, "credit": skin_scan.CREDIT,
+                                "url": skin_scan.LICENCE_URL}
         (own / "surface.json").write_text(json.dumps(record, indent=2) + "\n")
-        entries.append({"kind": "surface", "id": surface, "title": finish["title"],
-                        "files": {name: {"path": str(own / name), "from": f"score tools/characters/face/finishes.py "
-                                                                           f"({surface})"}
-                                  for name in ("material.usda", "surface.json")},
-                        "made_with": [{"what": "the finish's constants, set by score for the face (#226)",
-                                       "source": "score"}],
+        entries.append({**entry, "files": files, "made_with": made_with,
                         "tags": {"family": [finish["family"]], "use": ["face"]}})
     listing = folder / "take-in.json"
     listing.write_text(json.dumps({"world": "world1", "commit": commit,

@@ -41,8 +41,14 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
   catches the sky; `face.npz`, and the stills (front, three quarters and the side, which shows the neck) through the card queue (`blender_face.py`, Cycles, each finish the library
   entry's own `material.usda` imported by Blender's USD reader). `finishes.py` writes the face's own finishes as
   score_lib drafts (taken in with `score-lib take-in`): what UsdPreviewSurface cannot hold (light through the skin,
-  pores, regions, crevices, the oil's coat, the eye white's vessels, the iris's fibres, the cornea's glass) rides in
-  each record and `blender_face.library_material` lays it on.
+  regions, crevices, the oil's coat, the eye white's vessels, the iris's fibres, the cornea's glass) rides in each
+  record and `blender_face.library_material` lays it on. The stills end with one hand at rest (`hand.png`): the skin
+  is one finish over the whole body, so a face and a hand show the same skin.
+- `skin_scan.py`: the skin's small detail photographed, not procedural (procedural pores and noise read as wax,
+  owner 2026-11-25): a 41 mm forehead square of Infinite-Realities' head scan (CC BY 3.0) made periodic, its colour
+  over 6 mm and its relief over 1 mm taken out, written as the skin finish's own tiles (`skin_detail_colour.png`,
+  `skin_detail_height.png`) and laid by box projection on the object's coordinates; the scan cached under
+  `~/.cache/score/skin-scan/<commit>/`, checked by its sha256.
 - Run: `<motion python> body_face.py <identity.npz> <body.npz>`, then `python face.py <body.npz> <out>` (SCORE_LIB_ROOT
   the score_lib checkout).
 - **Look at the stills.** The fit's numbers (median skin distance) say it is near; only the close-ups say the seam,
@@ -52,4 +58,7 @@ the controls of both; every finish a score_lib surface; drawn close up in Blende
 
 - ICT-FaceKit (USC ICT Vision and Graphics Lab), MIT, code and model, commit `ict.COMMIT`.
 - MHR's expressions and body (Meta), Apache-2.0, through nvidia/soma-x's `mhr_model_lod1.pt` (SOMA-X Apache-2.0).
+- The skin's detail tiles: "Infinite, 3D Head Scan by Lee Perry-Smith", CC BY 3.0 (keijiro/InfiniteScan's
+  License.txt at `skin_scan.COMMIT`); the tiles carry its licence block and credit in score_lib
+  (`infinite_head_scan`), never MIT.
 - Not here: FLAME (any version before 2023 Open), SMPL or SMPL-X files, DECA, EMOCA, Pixel3DMM, MetaHuman.

@@ -13,11 +13,15 @@ with the skin (strands.brow_strands, strands.checked), a lash curls up off an up
 turns with its card (strands.lash_frame, strands.lash_line), and
 MHR's 72 controls each move the face, through ICT expressions or the body's own offsets, a name ICT lacks refused
 (expressions.mapping), an identity past three standard deviations refused as a caricature (fit.within_population),
-and the cornea rises over the iris to Gullstrand's height and meets the eye at the iris's edge (face.dome).
+the cornea rises over the iris to Gullstrand's height and meets the eye at the iris's edge (face.dome), the
+photographed skin's tile repeats with no seam (skin_scan.periodic), and the scanned skin finish is listed with the
+scan's tiles as its files, the scan named as carried and its CC BY 3.0 licence block with its credit
+(finishes.written).
 
 Shapes made here: a coarse sphere for the body's head and a finer sphere's cap for the face, laid on it (one
 with a bump for an ear); a strip standing off a sphere for an ear; one card triangle for a lash; a cylinder for a
-neck.
+neck; a sloped, speckled square for the skin's tile (its far edge 0.5 brighter than its near one); two small
+pictures standing in for the scan's tiles.
 
 Breaks that turn it red (each applied once and seen red, 2026-11-24):
 - the shut skin: zipper's `advance_outer` made `at_outer < count_outer` (the strip walks the face's loop first and
@@ -50,8 +54,14 @@ Breaks that turn it red (each applied once and seen red, 2026-11-24):
   4.6 passes; seen red 2026-11-25).
 - the cornea: dome's `np.maximum(radius + TEAR_FILM_M, reach)` made `radius + TEAR_FILM_M` (no dome over the iris;
   seen red 2026-11-25).
+- the skin's tile: periodic's `return values - ...` made `return values` (the tile's edges jump by the slope; seen
+  red 2026-11-26).
+- the scanned finish: written's `entry["licence"] = ...` dropped (the scan's bytes go out with no credit; seen red
+  2026-11-26); and, apart, the `"carried": True` dropped from its made_with (seen red 2026-11-26).
 """
+import json
 import pathlib
+import tempfile
 import sys
 
 import numpy as np
@@ -61,7 +71,9 @@ import trimesh
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import expressions  # noqa: E402
 import face  # noqa: E402
+import finishes  # noqa: E402
 import fit  # noqa: E402
+import skin_scan  # noqa: E402
 import strands  # noqa: E402
 
 ICT_NAMES = sorted({name for weights in expressions.ICT_OF.values() for name in weights})
@@ -320,6 +332,41 @@ def cornea_domed():
     return [round(float(reach - radius) * 1000.0, 1) for reach in face.dome(directions, axis, radius, limbus)]
 
 
+def tile_repeats():
+    """A sloped, speckled square's periodic part: the jump across its wrapped edges no larger than a step inside it
+    (the square's own jump is the slope's 0.5), and its speckle kept (most of its spread across a row)."""
+    rows = np.random.default_rng(7).normal(0.0, 0.02, (64, 64))
+    square = rows + np.linspace(0.0, 0.5, 64)[None, :]
+    made = skin_scan.periodic(square)
+    inside = np.abs(np.diff(made, axis=1)).max()
+    across = np.abs(made[:, 0] - made[:, -1]).max()
+    return [bool(across <= inside), bool(made[10].std() > 0.5 * rows[10].std())]
+
+
+def scanned_listed():
+    """The skin finish's take-in listing with stand-in tiles: the tiles among its files, the scan named as carried,
+    and its licence block the scan's CC BY 3.0 with the credit."""
+    from PIL import Image
+
+    def stand_in(folder):
+        for name in ("skin_detail_colour.png", "skin_detail_height.png"):
+            Image.new("L", (4, 4), 128).save(pathlib.Path(folder) / name)
+        return {"colour": "skin_detail_colour.png", "height": "skin_detail_height.png", "tile_m": 0.04}
+
+    real = finishes.skin_scan.tiles
+    finishes.skin_scan.tiles = stand_in
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            listing = json.loads(finishes.written(folder, "test").read_text())
+    finally:
+        finishes.skin_scan.tiles = real
+    skin = next(entry for entry in listing["entries"] if entry["id"] == "face_skin_light")
+    carried = [item for item in skin["made_with"] if item.get("carried")]
+    return [sorted(name for name in skin["files"] if name.endswith(".png")),
+            [item["source"] for item in carried], skin.get("licence", {}).get("id"),
+            skin.get("licence", {}).get("credit") == skin_scan.CREDIT]
+
+
 @pytest.mark.parametrize("case, made, wanted", [
     ("the face's border, the cut and the strip are one shut skin", shut_skin, True),
     ("the join lies on the skin: no strip triangle stands as a ridge or folds", join_smooth, True),
@@ -342,6 +389,9 @@ def cornea_domed():
     ("a mapping onto an expression ICT lacks is refused", a_missing_name_refused, True),
     ("a caricature's identity is refused, a person's passes", caricature_refused, ["passes", "refused"]),
     ("the cornea rises over the iris and meets the eye at its edge", cornea_domed, [1.2, 0.1, 0.1]),
+    ("the photographed skin's tile repeats with no seam and keeps its speckle", tile_repeats, [True, True]),
+    ("the scanned skin finish carries the scan's tiles under its licence and credit", scanned_listed,
+     [["skin_detail_colour.png", "skin_detail_height.png"], ["infinite_head_scan"], "CC-BY-3.0", True]),
 ])
 def test_the_face_joins_the_body_as_one_shut_skin_moved_by_every_control(case, made, wanted):
     assert made() == wanted, case

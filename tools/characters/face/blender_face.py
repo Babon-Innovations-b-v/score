@@ -28,6 +28,12 @@ SAMPLES = 256
 # differ in shade from strand to strand; a fifth either way is a choice read off the renders, not a measure.
 STRAND_SHADE = (0.8, 1.2)
 STRAND_ROUGHNESS_SPREAD = 0.25
+# The hand's close-up: the hand's points within this of the skin's furthest point, the camera this far off and lifted
+# this much over level, so the back of the hand, its knuckles and nails fill the frame.
+HAND_REACH_M = 0.12
+HAND_DISTANCE_M = 0.9
+HAND_LIFT_DEGREES = 35.0
+SCAN_BOX_BLEND = 0.3  # how far the scan's three box projections fade into each other where the skin turns
 
 
 def arguments():
@@ -51,7 +57,7 @@ def library_material(library, surface):
     if "subsurface" in record:
         light_through(material, record["subsurface"])
     if "detail" in record:
-        grained(material, record["detail"])
+        grained(material, record["detail"], found[-1].parent)
     if "regions" in record:
         regioned(material, record["regions"])
     if "veins" in record:
@@ -257,12 +263,11 @@ def clear(material, transmission):
     tree.links.new(mix.outputs["Shader"], output.inputs["Surface"])
 
 
-def grain_texture(tree, kind, spacing, coordinates):
-    """A Voronoi (pores) or noise texture whose cells or features are `spacing` metres apart on the object."""
-    texture = tree.nodes.new("ShaderNodeTexVoronoi" if kind == "cells" else "ShaderNodeTexNoise")
+def grain_texture(tree, spacing, coordinates):
+    """A noise texture whose features are `spacing` metres apart on the object."""
+    texture = tree.nodes.new("ShaderNodeTexNoise")
     texture.inputs["Scale"].default_value = 1.0 / spacing
-    if kind != "cells":
-        texture.inputs["Detail"].default_value = 4.0
+    texture.inputs["Detail"].default_value = 4.0
     tree.links.new(coordinates.outputs["Object"], texture.inputs["Vector"])
     return texture
 
@@ -288,43 +293,76 @@ def toned(tree, colour_socket, texture_output, share, towards):
     tree.links.new(result, colour_socket)
 
 
-def grained(material, detail):
-    """The record's grain on the imported material, on the object's own coordinates (the skin has no UVs): pores
-    (Voronoi cells, the pits their edges' distance) and a fine grain bumped into the normal, blotches and freckles
-    toning the base colour, the gloss spread by the blotches."""
+def scan_image(tree, path, coordinates, tile_m):
+    """An image of the entry's own folder laid on the object's coordinates (the skin has no UVs over the body) by box
+    projection, one tile `tile_m` metres across, read as data."""
+    image = bpy.data.images.load(str(path), check_existing=True)
+    image.colorspace_settings.name = "Non-Color"
+    texture = tree.nodes.new("ShaderNodeTexImage")
+    texture.image = image
+    texture.projection = "BOX"
+    texture.projection_blend = SCAN_BOX_BLEND
+    texture.interpolation = "Cubic"
+    tree.links.new(scaled_by_vector(tree, coordinates.outputs["Object"], 1.0 / tile_m), texture.inputs["Vector"])
+    return texture
+
+
+def scaled_by_vector(tree, vector_socket, factor):
+    """A vector math node's output: `vector_socket` times `factor`."""
+    node = tree.nodes.new("ShaderNodeVectorMath")
+    node.operation = "SCALE"
+    node.inputs["Scale"].default_value = factor
+    tree.links.new(vector_socket, node.inputs[0])
+    return node.outputs["Vector"]
+
+
+def scanned(tree, principled, scan, folder, coordinates):
+    """The scan's tiles (skin_scan.py) on the material: its colour tile (each channel's ratio to its mean, stored as
+    half) multiplying the base colour, its height tile bumped into the normal and the oil's coat `depth_m` deep (a
+    smooth coat over bumped skin read as plastic film), and the gloss rougher
+    in the pits and smoother on the rises by `roughness_spread`."""
+    colour = scan_image(tree, folder / scan["colour"], coordinates, scan["tile_m"])
+    ratio = scaled_by_vector(tree, colour.outputs["Color"], 2.0)
+    mix = tree.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 1.0
+    first, second = (next(socket for socket in mix.inputs if socket.name == name and socket.type == "RGBA")
+                     for name in ("A", "B"))
+    base = principled.inputs["Base Color"]
+    if base.is_linked:
+        tree.links.new(base.links[0].from_socket, first)
+    else:
+        first.default_value = base.default_value
+    tree.links.new(ratio, second)
+    tree.links.new(next(socket for socket in mix.outputs if socket.type == "RGBA"), base)
+    height = scan_image(tree, folder / scan["height"], coordinates, scan["tile_m"])
+    bump = tree.nodes.new("ShaderNodeBump")
+    bump.inputs["Distance"].default_value = scan["depth_m"]
+    tree.links.new(height.outputs["Color"], bump.inputs["Height"])
+    tree.links.new(bump.outputs["Normal"], principled.inputs["Normal"])
+    tree.links.new(bump.outputs["Normal"], principled.inputs["Coat Normal"])  # the oil follows the skin's relief
+    spread = tree.nodes.new("ShaderNodeMapRange")
+    rough = principled.inputs["Roughness"].default_value
+    spread.inputs["To Min"].default_value = rough + scan["roughness_spread"]
+    spread.inputs["To Max"].default_value = rough - scan["roughness_spread"]
+    tree.links.new(height.outputs["Color"], spread.inputs["Value"])
+    tree.links.new(spread.outputs["Result"], principled.inputs["Roughness"])
+
+
+def grained(material, detail, folder):
+    """The record's grain on the imported material, on the object's own coordinates: the photographed skin's tiles
+    (`scan`, read from the entry's `folder`), and blotches wider than the scan's tile toning the base colour."""
     tree = material.node_tree
-    principled = next(node for node in tree.nodes if node.type == "BSDF_PRINCIPLED")
+    principled = principled_of(material)
     coordinates = tree.nodes.new("ShaderNodeTexCoord")
-    normal = None
-    for name in ("pores", "fine"):
-        texture = grain_texture(tree, "cells" if name == "pores" else "noise", detail[name]["spacing_m"], coordinates)
-        bump = tree.nodes.new("ShaderNodeBump")
-        bump.inputs["Distance"].default_value = detail[name]["depth_m"]
-        height = texture.outputs["Distance" if name == "pores" else "Fac"]
-        if "radius_m" in detail[name]:  # a pore a small pit at its cell's middle, the skin flat between
-            pit = tree.nodes.new("ShaderNodeMapRange")
-            pit.inputs["From Min"].default_value, pit.inputs["From Max"].default_value = 0.0, detail[name]["radius_m"]
-            tree.links.new(height, pit.inputs["Value"])
-            height = pit.outputs["Result"]
-        tree.links.new(height, bump.inputs["Height"])
-        if normal is not None:
-            tree.links.new(normal, bump.inputs["Normal"])
-        normal = bump.outputs["Normal"]
-    tree.links.new(normal, principled.inputs["Normal"])
-    for name in ("mottle", "freckles"):
-        texture = grain_texture(tree, "noise", detail[name]["spacing_m"], coordinates)
-        ramp = tree.nodes.new("ShaderNodeMapRange")
-        ramp.inputs["From Min"].default_value, ramp.inputs["From Max"].default_value = (0.45, 0.75)
-        tree.links.new(texture.outputs["Fac"], ramp.inputs["Value"])
-        toned(tree, principled.inputs["Base Color"], ramp.outputs["Result"], detail[name]["share"],
-              detail[name]["towards"])
-        if name == "mottle":
-            spread = tree.nodes.new("ShaderNodeMapRange")
-            base = principled.inputs["Roughness"].default_value
-            spread.inputs["To Min"].default_value = base - detail["roughness_spread"]
-            spread.inputs["To Max"].default_value = base + detail["roughness_spread"]
-            tree.links.new(texture.outputs["Fac"], spread.inputs["Value"])
-            tree.links.new(spread.outputs["Result"], principled.inputs["Roughness"])
+    scanned(tree, principled, detail["scan"], pathlib.Path(folder), coordinates)
+    mottle = detail["mottle"]
+    texture = grain_texture(tree, mottle["spacing_m"], coordinates)
+    ramp = tree.nodes.new("ShaderNodeMapRange")
+    ramp.inputs["From Min"].default_value, ramp.inputs["From Max"].default_value = (0.45, 0.75)
+    tree.links.new(texture.outputs["Fac"], ramp.inputs["Value"])
+    toned(tree, principled.inputs["Base Color"], ramp.outputs["Result"], mottle["share"], mottle["towards"])
 
 
 def z_up(points):
@@ -462,6 +500,22 @@ def camera(aim, distance):
     return look
 
 
+def hand_aim(face):
+    """The middle of the hand furthest out on the skin's +x side (the arms hang or reach out to the sides): the skin's
+    points within HAND_REACH_M of its furthest point, in Blender's frame."""
+    points = z_up(face["skin.points"])
+    furthest = points[:, 0].max()
+    return Vector(points[points[:, 0] > furthest - HAND_REACH_M].mean(axis=0).tolist())
+
+
+def hand_camera(aim):
+    """The camera on the back of the hand from the front and above, HAND_DISTANCE_M off, the hand filling the frame."""
+    item = bpy.context.scene.camera
+    lift = math.radians(HAND_LIFT_DEGREES)
+    item.location = aim + Vector((0.0, -HAND_DISTANCE_M * math.cos(lift), HAND_DISTANCE_M * math.sin(lift)))
+    item.rotation_euler = (aim - item.location).to_track_quat("-Z", "Y").to_euler()
+
+
 def on_card(scene):
     """Cycles on the card: OptiX, else CUDA (usd_views.cycles_on_card's order); refused when neither is there."""
     preferences = bpy.context.preferences.addons["cycles"].preferences
@@ -494,7 +548,7 @@ def renderer():
 
 
 def main(face_path, library, out):
-    """Draw every shot from every view into `out` as <shot>-<view>.png."""
+    """Draw every shot from every view into `out` as <shot>-<view>.png, and the hand at rest as hand.png."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     face = dict(np.load(face_path, allow_pickle=False))
     shape_names = [str(name) for name in face.get("shape_names", [])]
@@ -517,6 +571,11 @@ def main(face_path, library, out):
             bpy.context.scene.render.filepath = str(pathlib.Path(out) / f"{shot['name']}-{view}.png")
             bpy.ops.render.render(write_still=True)
             print(f"drew {shot['name']}-{view}")
+    if "skin.points" in face:  # the skin's look on the body: one hand, at rest
+        hand_camera(hand_aim(face))
+        bpy.context.scene.render.filepath = str(pathlib.Path(out) / "hand.png")
+        bpy.ops.render.render(write_still=True)
+        print("drew hand")
 
 
 if __name__ == "__main__":
