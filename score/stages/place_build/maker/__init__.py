@@ -400,11 +400,13 @@ def saved(values, root, entry, files, title, made_with, work):
     return place_build.resolved_address(f"model/{entry}", root)
 
 
-def make(folder, name, source, material, like=None, height=None, size=None, take_in=True):
+def make(folder, name, source, material, like=None, height=None, size=None, take_in=True, card_only=False):
     """One prop's model made with TRELLIS.2 from `source`'s picture, set in the place (over `like`, `height` metres
     tall, or at `size`), graded to its palette, made sim-ready, its moving parts cut and jointed (parts.made, #177:
     its record's `moving_parts`, the model's part nodes) and taken into score_lib unless not `take_in`; its address
-    (None when not taken in) and measures."""
+    (None when not taken in) and measures. With `card_only`, only its card step: TRELLIS.2's model kept in its work
+    folder, which a make after it takes from there (generated), so a queue frees the card for the next one while the
+    processor steps run."""
     try:
         sim.material(material)
     except ValueError as why:
@@ -417,6 +419,9 @@ def make(folder, name, source, material, like=None, height=None, size=None, take
     picture, said = picture_of(folder, source, like, work)
     raw = work / "trellis.glb"
     stats = generated(picture, raw, faces_for(size_of(folder, like, height, size)))
+    if card_only:
+        return {"generated": str(raw), "make_s": stats["make_s"], "card_peak_mib": stats["card_peak_mib"],
+                "folder": str(work)}
     words = name.replace("_", " ")
     document, binary, how = placed(raw, folder, like, height, size, picture, words)
     document, binary, mended = repair.repaired_glb(document, binary)

@@ -114,6 +114,8 @@ metres tall, or `--size` its longest side the size's, turned as its close-up sho
 place's palette, CoACD hulls, its `--material` class's friction (data/physics/surface_classes.json) and a real-world
 mass Claude gives (EUR 0), taken into score_lib as a draft model entry
 (`--no-take-in`: kept in the place's made/ folder only, the prop benchmark's mode, #163); `put` then lays its address.
+`--card-only` runs its card step alone (TRELLIS.2's model kept in made/<entry>/); the same make without it then
+finishes it on the processor, so a queue of makes starts the next one's card step while this one finishes.
 `route` answers a walker's way through the `--through` spots, in order, on the check's walkers' floor (doors open,
 0.9 m wide): the shortest one, its corners rounded, for a walker's cast `path` (scene clips, sim body).
 `package` writes the place as a scene package any engine loads (scene_package.py; the game 2099's Unity through
@@ -318,7 +320,8 @@ def run(args):
     if args.step == "make":
         from score.stages.place_build import maker
         return maker.make(args.folder, args.name, args.source, args.material, args.like, args.height,
-                          numbers(args.size) if args.size else None, not args.no_take_in)
+                          numbers(args.size) if args.size else None, not args.no_take_in,
+                          args.card_only)
     if args.step == "route":
         from score.stages.place_build import ready
         points, length = ready.route(args.folder, [numbers(spot) for spot in args.through])
@@ -556,6 +559,8 @@ def parser():
     step.add_argument("--size", help="wide,deep,tall metres: its longest side the model's, turned as its close-up "
                       "picture shows it (the prop benchmark)")
     step.add_argument("--no-take-in", action="store_true", help="keep the made files here, take nothing into score_lib")
+    step.add_argument("--card-only", action="store_true", help="the card step alone: TRELLIS.2's model kept in "
+                      "made/<entry>/ for a make after it to finish on the processor")
     step = steps.add_parser("crowd", help="the laid crowd faced to --toward, the floor round it packed and walkers' "
                             "lanes laid, all measured clear on the scene's solids (crowd.py)")
     step.add_argument("folder")

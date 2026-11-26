@@ -17,7 +17,7 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   (images/meshparts/models.json `trellis2-4b-make`, `trellis-image-large-ssdec`), any pictures in one job, each in its
   own process; kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
   itself still uses the card queue (tools/cloud/backends/card_queue.py, a 16 GB scope): one model a process, the whole
-  card (CARD_GB), about two minutes. Its TRELLIS.2 models are built without torch's random fills (generate.unfilled, the
+  card (CARD_GB), about two minutes. `make --card-only` runs only that card step (kept in made/<entry>/), the same make after it finishing on the processor, so a queue starts the next card step meanwhile (2026-11-26). Its TRELLIS.2 models are built without torch's random fills (generate.unfilled, the
   load 38 s to 4 to 12 s) and each flow model read when its stage asks (generate.OnUse, 11.0 GB at the most); two makes
   side by side were slower, 2 to 3 times each (#159). A made model is kept under `<folder>/made/<entry>/` and not made again.
 - **Fits this PC's card, the model unchanged** (#169: a printer box and a fridge stopped with 'CUDA driver error:
@@ -35,7 +35,7 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
   records `see_through` and `band`.
 - **The decoded mesh kept beside it** (#159 r11: the remesh closes the drawer seams, door lines and vents a voxel or
   less wide with #191's pinholes, while TRELLIS.2's decoded mesh still holds them): generate.py writes it at
-  `decoded_path` (<out>-decoded.glb, cut to FACES whatever the model's faces, its shape alone), and `make` sets it in
+  `decoded_path` (<out>-decoded.glb, cut to FACES whatever the model's faces, its shape alone: `decoded_shape`, to_glb's own no-remesh cleaning and cuts with no UV unwrap or bake, 2026-11-26: their processor work held the card 1 min 54 s of a 3 min 21 s generate; the same surface area, cumesh's cut differs run to run either way), and `make` sets it in
   the place under the placed model's root matrix (`decoded_placed`: `decoded_file`, made/<entry>/<entry>-decoded.glb).
   Never shown and never taken into score_lib: the bench look and the place's package bake (scene_package.shade_of,
   #209) shade the model's seams from it (bake.seamed), the package reading it in the place's made/ folder, so a model

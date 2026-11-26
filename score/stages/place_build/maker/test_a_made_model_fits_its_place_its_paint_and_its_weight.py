@@ -10,6 +10,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - maker.lock_file: the lock under `<root>/.git` -> a library checkout that is a git worktree (its .git a file) cannot
   take in (round 1 of 2099 #161's car: NotADirectoryError after TRELLIS.2 had made the car); maker.brought_forward
   pulling with no remote branch named -> the detached worktree is not brought forward ("not currently on a branch")
+- maker.make: `card_only` not stopped after generated -> the card step alone goes on to set in the place a model
+  the card has not made
 - maker.faces_for: FACES for every size -> the 0.3 m sprout is made at 500k faces, not LEAST_FACES
 - fit.size_matrix: one uniform scale (TRELLIS.2's proportions kept), or its sides read as wide, deep, tall in the
   model's Y-up order -> the L drawn 10% tall and 12% shallow is not laid at the size, the L's at twice (#170);
@@ -317,6 +319,14 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     assert refused == {"box": True, "opaque": True, "rgb.png": True, "concept/0": True}
     _, said = maker.picture_of(tmp_path, str(tmp_path / "cut.png"), None, tmp_path)
     assert said == "the picture cut.png"  # a public record names a loose picture, never its path on this PC
+    (tmp_path / "place.json").write_text(json.dumps({"place": "yard"}))
+    held, maker.generated = maker.generated, lambda picture, out, faces: {"make_s": 1.0, "card_peak_mib": 2}
+    try:  # the card step alone: nothing set in the place from a model the card has not made
+        carded = maker.make(tmp_path, "lever", str(tmp_path / "cut.png"), "metal", height=0.3, card_only=True)
+    finally:
+        maker.generated = held
+    assert carded["generated"] == str(tmp_path / "made/lever_trellis.yard/trellis.glb") \
+        and not list((tmp_path / "made").rglob("*-final.glb")), carded
 
     document = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": "world"}],
                 "buffers": [{"byteLength": 0}], "images": [{"bufferView": 0, "mimeType": "image/png"}],
