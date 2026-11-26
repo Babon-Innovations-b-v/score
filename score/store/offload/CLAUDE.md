@@ -35,8 +35,9 @@ The package docstring is the contract.
   Scaleway's 2023-04-17 version allows only what it lists, so it has no Deny; the runtime application lists, reads
   and writes, and deletes only under `locks/`; the keeper user keeps every right. No condition key reads
   If-None-Match, so overwrites stay refused only by the conditional puts. Applied 2026-11-25 (#81). Policy actions
-  follow the runtime application's IAM permission set (ObjectStorageFullAccess), not the policy, so the runtime key
-  can still put or delete the policy itself until that set is narrowed on the owner's side.
+  follow the runtime application's IAM permission set, not the policy: since 2026-11-26 (#81, the owner's yes) that
+  set is ObjectStorageObjectsRead, ObjectStorageObjectsWrite, ObjectStorageObjectsDelete and ObjectStorageBucketsRead
+  in place of ObjectStorageFullAccess, so the runtime key can no longer read, put or delete the policy.
 - **Evicting**: `score/conductor/disk.py` store-evict (its own command and the door's verb, never the sweep) picks which blobs (one link, nothing but output listings naming
   them, no output a node stands on, no text naming blobs, no run live) and calls `proven` then `evict`. The mark
   `store/evicted/<sha256>` is written and synced before the copy goes.
