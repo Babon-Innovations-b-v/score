@@ -87,6 +87,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - relief.padded_file: the pad's share inverted (`keep = eased`) -> the pad keeps its slope, the far ground goes flat
 - relief.turned_pads: the turn's sine signs swapped -> the pad lands off the dome's spot on the turned terrain
 - place_build.sun_frame: `towards` negated -> the sun shines up from under the ground
+- place_build.night_sky: the kind check left out -> a lamp entry is laid as the night's stars
+- scene_package.environment_of: the night's stars left out -> the package's night names no stars
 - place_build.sky: the turn left off the dome -> the sky dome stays unturned
 - place_build.sky: the exposure left off -> the stopped-down day renders at the sky entry's own exposure
 - render.views: the named views left out -> the inside view is not rendered
@@ -493,6 +495,7 @@ def library(root, files):
               '</sand/colour.outputs:rgb>\n  token outputs:surface\n }\n}\n')
     entry("surface", "sand", {"material.usda": ("usd", mapped), "surface.json": ("record", "{}")})
     entry("surface", "boards", {"surface.json": ("record", json.dumps({"settings": {"roughness": 0.7}}))})
+    entry("surface", "stars", {"stars.json": ("record", "[]"), "surface.json": ("record", "{}")})
     entry("surface", "page", {"surface.json": ("record", json.dumps({"recipe": "decal", "maps": {"decal": "decal.png"}})),
                               "decal.png": ("texture", "a page")})
     entry("surface", "pane", {"surface.json": ("record", json.dumps({"recipe": "glass",
@@ -1104,8 +1107,17 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
                                at=(50, 0, 50))
     place_build.blocks(folder, "road", [[0, -0.3, 0, 4, 0, 4, "road"]], at=(60, 0, 60), ground=True)
     place_build.put(folder, "sill", "kit/box_piece", at=(50, 1, 52), role="mount", support="wall:kerb")
+    with pytest.raises(place_build.Refused, match="not a light"):  # a night's sky draws library surfaces only
+        place_build.night(folder, [0.01, 0.04, 0.08], [0.01, 0.04, 0.08], 2.5,
+                          {"elevation": 30, "heading": 90, "strength": 0.01, "colour": [0.5, 0.7, 1.0]},
+                          sky={"stars": ["light/lamp"]})
+    with pytest.raises(place_build.Refused, match="overcast"):  # an overcast night hides every star
+        place_build.night(folder, [0.01, 0.04, 0.08], [0.01, 0.04, 0.08], 2.5,
+                          {"elevation": 30, "heading": 90, "strength": 0.01, "colour": [0.5, 0.7, 1.0]},
+                          sky={"stars": ["surface/stars"], "cover": 1.0})
     place_build.night(folder, [0.01, 0.04, 0.08], [0.01, 0.04, 0.08], 2.5,
-                      {"elevation": 30, "heading": 90, "strength": 0.01, "colour": [0.5, 0.7, 1.0]})
+                      {"elevation": 30, "heading": 90, "strength": 0.01, "colour": [0.5, 0.7, 1.0]},
+                      sky={"stars": ["surface/stars"], "cover": 0.3, "moon_face": "surface/boards"})
     stage = Usd.Stage.Open(str(folder / "scene.usda"))
     kerb = trimesh.Trimesh(*[np.array(value) for value in (
         UsdGeom.Mesh(stage.GetPrimAtPath("/yard/Objects/kerb/geo")).GetPointsAttr().Get(),
@@ -1984,6 +1996,8 @@ def packaged(folder, out):
     world = scene["environment"]
     assert world["exposure"] == np.float32(2.5) and world["sky"] is None and world["night"]["moon"]["elevation"] == 30
     assert np.isclose(world["night"]["moon"]["strength"], 0.04)  # 0.01 laid, times 4 as Blender's reader reads it
+    assert (world["night"]["stars"], world["night"]["cover"], world["night"]["moon"]["face"]) == (
+        ["surface/stars@1"], np.float32(0.3), "surface/boards@1")  # the night's drawn sky, every part from the library
     assert world["sun"]["elevation"] == 30 and world["sun"]["heading"] == 0 and world["view_transform"] == "AgX"
     assert world["look"] == "AgX - Medium High Contrast" and np.allclose(world["background"], (0.01, 0.04, 0.08))
     assert np.allclose(world["ground_albedo"], (0.2158605, 0.2158605, 1.0), atol=1e-5)  # the tile's (128, 128, 255)

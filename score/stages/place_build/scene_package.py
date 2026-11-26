@@ -1338,7 +1338,8 @@ def environment_of(stage, place, out):
     """The place's sky and light as the final render draws it (usd_views.stage_sky, blender_views): the sky picture
     (sky_picture: copied into `out`, or by its library reference with none), the dome's ambient light, the background
     the camera sees, the exposure (a multiplier), the sun,
-    the view transform and look; `night` its moon and glow where the place has a night (place_build.night); `haze`
+    the view transform and look; `night` its moon (with the library face its disc is drawn in, or None: unseen), glow,
+    the library surfaces of its stars and its cloud cover where the place has a night (place_build.night); `haze`
     its bodies of haze (hazes_of)."""
     sky = stage.GetPrimAtPath(f"/{place}/Environment")
     lights = {prim.GetName(): prim for prim in (stage.GetPrimAtPath(f"/{place}/Lights").GetChildren()
@@ -1357,9 +1358,12 @@ def environment_of(stage, place, out):
         if "moon" not in lights:
             found["sky"] = sky_picture(stage, place, out)
         else:
-            found["night"] = {"moon": distant(lights["moon"]), "glow": {
-                key: float(text_of(sky, f"score:glow_{key}")) for key in ("threshold", "intensity")}
-                if text_of(sky, "score:glow_threshold") is not None else None}
+            stars = sky.GetAttribute("score:night:stars")
+            found["night"] = {"moon": {**distant(lights["moon"]), "face": text_of(lights["moon"], "score:moon_face")},
+                              "glow": {key: float(text_of(sky, f"score:glow_{key}")) for key in ("threshold", "intensity")}
+                              if text_of(sky, "score:glow_threshold") is not None else None,
+                              "stars": list(stars.Get() or []) if stars and stars.HasValue() else [],
+                              "cover": float(text_of(sky, "score:night:cover") or 0.0)}
     found["haze"] = hazes_of(stage, place)
     found["rain"] = rains_of(stage, place)
     return found

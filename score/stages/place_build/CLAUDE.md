@@ -280,7 +280,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   code under `assets/algorithm/pipe_run/`.
 - **A night** (`night`, batch only): no sky picture; the night's physics (score/stages/light/night.py worked out for
   the place: the moonlit and city-lit air, the moon) passed in as the Environment's light, background and exposure
-  and a moon light; `haze` a body of haze (tools/usd/scene.py's haze body) the renderer fills, a box or, with
+  and a moon light; its `sky` names what of the night is drawn, each a library surface (refused for another kind or
+  a withdrawn one): `stars` (surface/stars_hyg8, surface/milky_way_eso), `cover` the share under cloud as the concept
+  shows it (an overcast night, cover 1, shows no stars) and `moon_face` (surface/moon_face) only where the concept shows
+  the Moon, carried into the package's `night` for the game's sky to draw; `haze` a body of haze (tools/usd/scene.py's haze body) the renderer fills, a box or, with
   `shape`, an ellipsoid or a cylinder (a steam plume's puffs round, never a box's stair-stepped edges); `shaft` a
   lamp's cone of lit air (scene.py's write_shafts under Haze/<name>: a floodlight's beam, never a box of haze, whose
   straight edge cut the pad's near water off from the rest).

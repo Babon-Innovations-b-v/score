@@ -62,9 +62,11 @@ stronger than anything inside it, so a model's own baked colour never shows; its
                                                        (score/stages/light/sky.py on overhead.py): its sun, discs,
                                                        bodies at true size and phase in their library faces, black
                                                        on an airless body, a dusty body's day dome (mars_sky.py)
-    night(folder, ambient, background, exposure, moon, glow)
+    night(folder, ambient, background, exposure, moon, glow, sky)
                                                        a night sky with no picture: the night's physics as the
-                                                       Environment's light and exposure, the moon a distant light
+                                                       Environment's light and exposure, the moon a distant light;
+                                                       its drawn stars, cloud cover and Moon's face named from the
+                                                       library
     haze(folder, name, centre, size, colour, density, forward, reach)
                                                        a box of haze (tools/usd/scene.py's haze body) the renderer fills
     view(folder, name, eye, aim, fov)                  a named view besides the concept's (render --views)
@@ -2230,12 +2232,50 @@ def made_by_library(stage, place, algorithm):
             look.CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(GLOWING)
 
 
-def night(folder, ambient, background, exposure, moon, glow=None):
+NIGHT_SKY_KINDS = ("surface",)  # the library kinds a night's drawn sky (its stars, the Milky Way, the Moon's face) is
+
+
+def night_sky_entry(address):
+    """The library surface `address` a night's sky draws (a star catalogue, the Milky Way's picture, a body's face),
+    resolved to its live end; Refused for another kind or a withdrawn one."""
+    address = resolved_address(address, library_root())
+    record = entry_of(address)
+    if record.get("kind") not in NIGHT_SKY_KINDS:
+        raise Refused(f"{address}: a night's sky draws library surfaces, not a {record.get('kind')}")
+    if record.get("state") == "withdrawn":
+        raise Refused(f"{address}: withdrawn from the library; lay an entry it holds")
+    return address
+
+
+def night_sky(stage, place, sky):
+    """The drawn half of a night's sky named on the stage, every entry from the library (night_sky_entry): `stars`
+    the surfaces of its stars (score:night:stars on the Environment), `cover` the share of the sky under cloud as the
+    concept shows it (score:night:cover, 0 clear to 1 overcast: an overcast night hides every star), `moon_face` the
+    surface of the Moon's disc where the concept shows the Moon (score:moon_face on Lights/moon; none: the moon
+    lights the air unseen). A game draws them (2099 game/sky reads the package's `night`)."""
+    sky = sky or {}
+    cover = float(sky.get("cover", 0.0))
+    if not 0.0 <= cover <= 1.0:
+        raise Refused(f"cover {cover}: a share of the sky, 0 to 1")
+    stars = [night_sky_entry(address) for address in sky.get("stars", [])]
+    if stars and cover >= 1.0:
+        raise Refused("an overcast night (cover 1) shows no stars: give no stars, or the cover its concept shows")
+    environment = stage.GetPrimAtPath(f"/{place}/Environment")
+    environment.CreateAttribute("score:night:stars", Sdf.ValueTypeNames.StringArray).Set(stars)
+    environment.CreateAttribute("score:night:cover", Sdf.ValueTypeNames.Float).Set(cover)
+    if sky.get("moon_face"):
+        stage.GetPrimAtPath(f"/{place}/Lights/moon").CreateAttribute(
+            "score:moon_face", Sdf.ValueTypeNames.String).Set(night_sky_entry(sky["moon_face"]))
+    return {"stars": stars, "cover": cover, "moon_face": sky.get("moon_face") and night_sky_entry(sky["moon_face"])}
+
+
+def night(folder, ambient, background, exposure, moon, glow=None, sky=None):
     """A night sky with no picture (the night's physics, score/stages/light/night.py, worked out for the place and
     passed in): /<place>/Environment a DomeLight of the moonlit and city-lit air's `ambient` light ([r, g, b], linear),
     the `background` the camera sees ([r, g, b]) and the camera's `exposure` (a multiplier); `moon` {elevation,
     heading, strength, colour [r, g, b], angle} a distant light Lights/moon; `glow` {threshold, intensity} the bloom
-    of whatever is brighter than the threshold."""
+    of whatever is brighter than the threshold; `sky` {stars, cover, moon_face} what of the night's sky is drawn
+    (night_sky)."""
     stage, place = opened(folder)
     stage.RemovePrim(f"/{place}/Environment")
     environment = UsdLux.DomeLight.Define(stage, f"/{place}/Environment")
@@ -2253,9 +2293,10 @@ def night(folder, ambient, background, exposure, moon, glow=None):
     lamp.CreateIntensityAttr(float(moon["strength"]))
     lamp.CreateAngleAttr(float(moon.get("angle", 0.5)))
     lamp.CreateColorAttr(Gf.Vec3f(*[float(value) for value in moon["colour"]]))
+    drawn = night_sky(stage, place, sky)
     made_by_library(stage, place, NIGHT_ALGORITHM)
     saved(stage)
-    return {"night": {"ambient": list(ambient), "exposure": exposure}, "moon": moon}
+    return {"night": {"ambient": list(ambient), "exposure": exposure}, "moon": moon, "sky": drawn}
 
 
 HAZE_SHAPES = ("box", "ellipsoid", "cylinder")  # tools/usd/builders.haze_volume's shapes
