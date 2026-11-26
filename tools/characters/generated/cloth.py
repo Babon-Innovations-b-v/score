@@ -16,9 +16,13 @@ split into its garments and the loose ones hang and swing on the body as cloth, 
    kind given to the kinds round it.
 3. `riding_of`: which points of a garment ride the skin (the rest hang as cloth): the jacket's collar and shoulder
    yoke (YOKE_M over its surface from where it meets the neck and hair) and its elastic cuffs (CUFF_M from the hands),
-   the jeans' waistband (WAISTBAND_M from the T-shirt and the jacket). The garment is the shell's own surface (its
-   folds and paint stay; at the still's thinning its edges are about the cloth's 1 to 1.5 cm) and its rest shape is
-   the generated one (no relaxing: the shape TRELLIS.2 drew is the hang it is let settle from).
+   the jeans' waistband (WAISTBAND_M from the T-shirt and the jacket).
+3b. `sim_of`: the garment's sim mesh (`cloth_mesh.py`): the shell's own triangles are no cloth (round 1, 2026-11-26:
+   a 2.7e-11 m^2 sliver's point went non-finite in the hang, and the run wrote NaNs on), so an even manifold mesh of
+   1.2 cm edges is laid over the body onto the garment's broad shape, its rest shape the generated one (the shape
+   TRELLIS.2 drew is the hang it is let settle from); its skin weights and riding are blended from the shell's
+   garment, a piece of it with no riding point rides whole (people_cloth's rule: loose cloth hangs by an edge), and
+   the garment's own surface (both walls, its folds and paint) is bound to it and rides along.
 4. `body_under`: the collision body, the mean SOMA surface on the bind (still_rig.soma_on: the body the shell was
    fitted to), each point pushed in under the shell by MARGIN_M where it lies nearer than that (a slim woman over the
    SOMA mean: most of its skin outside her), the push smoothed over the body; cut into one piece a joint (each face
@@ -29,10 +33,11 @@ split into its garments and the loose ones hang and swing on the body as cloth, 
    the template body's), each garment's riding points skinned along, its cloth values the library's row
    (data/physics/cloth.json: the jeans `denim`; the puffer jacket has no row of its own and hangs as `denim`, the
    stiffest the table holds, named in the record).
-6. `resampled`: the run read back at the film's FPS from WARM_CYCLES on, each frame with the clip's time and the walk's
+6. `resampled` and `cloth_mesh.carried`: the run read back at the film's FPS from WARM_CYCLES on, each frame with the clip's time and the walk's
    travel taken out (the armature in Blender plays the clip in place), and the sheet's stride points (left foot
-   ahead, passing, right foot ahead) in the last cycle; `measures`: each garment's deepest loose point inside the
-   body, its largest stretch and its drift off the skin.
+   ahead, passing, right foot ahead) in the last cycle, the drawn surface carried by the sim mesh; `measures`: each
+   garment's deepest loose point inside the body (the sim mesh's and the drawn surface's), its largest stretch, its
+   drift off the skin and its jitter.
 
     python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m>
            [--newton <python>] [--device cpu|cuda:0]
@@ -59,6 +64,9 @@ REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE.parent / "still_rig"))
 import still_rig  # noqa: E402  (still_rig's own import path brings skel_usd and prop_rig)
 import skel_usd  # noqa: E402
+
+sys.path.insert(0, str(REPO))
+from tools.characters.generated import cloth_mesh  # noqa: E402
 
 KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes")
 SIMULATED = ("jacket", "jeans")
@@ -95,8 +103,9 @@ SECONDS = 3.0  # the film
 STANDING_S = 0.4  # the standing clip run after the hang, its last frame drawn
 FPS = 24
 GRAVITY = 9.81
-SUBSTEPS = 10  # people_cloth's SUBSTEPS and ITERATIONS
-ITERATIONS = 10
+SUBSTEPS = 20  # twice people_cloth's SUBSTEPS: a 1.2 cm mesh under denim's stiffness, each substep 1/600 s
+ITERATIONS = 10  # people_cloth's ITERATIONS
+MOST_SPEED = 10.0  # m/s: a loose point is held under this (a guard: a walk's hands swing at most about 5 m/s)
 SETTLE_SPEED = 0.01  # m/s: people_cloth's REST_MOST
 SETTLE_MOST_S = 3.0  # the hang's most seconds (people_cloth's HANG_MOST is 20 on the card)
 CLOSED_DEGREES = 2.0  # a clip whose last frame turns every joint within this of its first repeats its first
@@ -438,9 +447,35 @@ def skinned(points, weights, moves):
     return np.einsum("fpab,pb->fpa", blended, homogeneous)
 
 
+def sim_of(person, kinds, kind, body, scale, used, faces, riding):
+    """A garment's sim mesh (module docstring step 3b), in metres: {points, faces, weights, riding, binding} (binding:
+    the garment's shell points `used` bound to it)."""
+    strongest = person["weights"][person["faces"]].sum(1).argmax(1)
+    chosen = np.flatnonzero(kinds == KINDS.index(kind))
+    laid = cloth_mesh.laid_over((body[0] * scale, body[1]), body[2].argmax(1),
+                                (person["points"] * scale, person["faces"]), chosen, strongest[chosen],
+                                (person["names"], person["parents"]))
+    points, sim_faces = cloth_mesh.remeshed(*cloth_mesh.cleaned(*laid))
+    shell = person["points"][used] * scale
+    weights = cloth_mesh.blended(person["weights"][used], shell, faces, points)
+    weights = np.maximum(weights, 0.0) / np.maximum(weights.sum(1, keepdims=True), 1e-12)
+    rides = anchored(sim_faces, cloth_mesh.blended(riding.astype(float), shell, faces, points) > 0.5)
+    return {"points": points, "faces": sim_faces, "weights": weights, "riding": rides,
+            "binding": cloth_mesh.bound(shell, points, sim_faces)}
+
+
+def anchored(faces, riding):
+    """`riding` with every piece of the mesh that has no riding point made to ride whole."""
+    piece = cloth_mesh.pieces_of(faces, len(riding))
+    held = np.zeros(piece.max() + 1, bool)
+    np.logical_or.at(held, piece, riding[faces].any(1))
+    loose_piece = np.zeros(len(riding), bool)
+    loose_piece[faces[~held[piece]].ravel()] = True
+    return riding | loose_piece
+
+
 def material_of(kind, points, faces):
     """Newton's cloth values for a garment from its cloth.json row (people_cloth's own conversion)."""
-    sys.path.insert(0, str(REPO))
     from score.stages.people_cloth import material_of as stage_material
     row = json.loads(CLOTH_TABLE.read_text())["recipes"][ROWS[kind]]
     return stage_material(row, points, faces, THICKNESS_M[kind])
@@ -468,13 +503,14 @@ def job_of(person, kinds, body, clip, scale, out, device):
     for kind in SIMULATED:
         used, garment_faces = garment_of(person, kinds, kind)
         riding = riding_of(person, kinds, kind, used, garment_faces)
-        rest = person["points"][used] * scale
-        motion[f"woman/{kind}/skinned"] = skinned(rest, person["weights"][used], moves)
-        parts.append({"name": kind, "rest": rest.tolist(), "faces": garment_faces.tolist(),
-                      "free": (~riding).tolist(), "material": material_of(kind, rest, garment_faces)})
-        garments[kind] = (used, garment_faces, riding)
+        sim = sim_of(person, kinds, kind, body, scale, used, garment_faces, riding)
+        motion[f"woman/{kind}/skinned"] = skinned(sim["points"], sim["weights"], moves)
+        parts.append({"name": kind, "rest": sim["points"].tolist(), "faces": sim["faces"].tolist(),
+                      "free": (~sim["riding"]).tolist(), "material": material_of(kind, sim["points"], sim["faces"])})
+        garments[kind] = (used, garment_faces, riding, sim)
     np.savez_compressed(out / f"{clip}_motion.npz", **motion)
     job = {"rate": rate, "gravity": GRAVITY, "substeps": SUBSTEPS, "iterations": ITERATIONS, "device": device,
+           "most_speed": MOST_SPEED,
            "motion": str(out / f"{clip}_motion.npz"), "settle": {"speed": SETTLE_SPEED, "seconds": SETTLE_MOST_S},
            "people": [{"name": "woman", "segments": [{"name": piece["name"], "points": piece["points"].tolist(),
                                                       "faces": piece["faces"].tolist()} for piece in pieces],
@@ -525,22 +561,22 @@ def stride_points(person, timing):
     return {"left_ahead": int(left), "passing": int(passing), "right_ahead": int(right)}
 
 
-def measures(cloth, garment, skinned_points, rest, body_posed, body_faces):
-    """A garment's numbers over the run: its loose points' deepest inside the body, its largest stretch past its
-    built or skinned length, its largest drift off the skin, its loose points' mean frame-to-frame speed change
-    (jitter, m/s^2)."""
-    sys.path.insert(0, str(REPO))
+def measures(cloth, sim, skinned_points, drawn, drawn_free, body_posed, body_faces):
+    """A garment's numbers over the run: its sim mesh's loose points' deepest inside the body and the drawn
+    surface's, the sim mesh's largest stretch past its built or skinned length, its largest drift off the skin and
+    its loose points' frame-to-frame change of step (jitter: the 99th percentile and the most, metres a frame)."""
     from score.stages.people_cloth import depths, stretches
-    used, faces, riding = garment
-    free = ~riding
+    free = ~sim["riding"]
     deep = depths(cloth[::3], free, (body_posed[::3], body_faces))
-    stretch = stretches(cloth, rest, skinned_points, faces, free)
+    deep_drawn = depths(drawn[::3], drawn_free, (body_posed[::3], body_faces))
+    stretch = stretches(cloth, sim["points"], skinned_points, sim["faces"], free)
     speed = np.diff(cloth[:, free], axis=0)
     jitter = np.linalg.norm(np.diff(speed, axis=0), axis=2)
-    return {"deepest_m": round(float(deep.max()), 4), "largest_stretch": round(float(stretch.max()), 4),
-            "stretch_99": round(float(np.percentile(stretch, 99)), 4),
+    return {"deepest_m": round(float(deep.max()), 4), "deepest_drawn_m": round(float(deep_drawn.max()), 4),
+            "largest_stretch": round(float(stretch.max()), 4), "stretch_99": round(float(np.percentile(stretch, 99)), 4),
             "drift_most_m": round(float(np.linalg.norm(cloth[:, free] - skinned_points[:, free], axis=2).max()), 4),
-            "jitter_99_m_per_frame2": round(float(np.percentile(jitter, 99)), 5)}
+            "jitter_99_m_per_frame2": round(float(np.percentile(jitter, 99)), 5),
+            "jitter_most_m_per_frame2": round(float(jitter.max()), 5)}
 
 
 def made(body_glb, rig_path, out, height, newton=NEWTON, device="cpu"):
@@ -572,15 +608,18 @@ def made(body_glb, rig_path, out, height, newton=NEWTON, device="cpu"):
         body_posed = skinned(body[0] * scale, body[2], timing["moves"])
         run = {"engine": str(result["engine"]), "seconds": seconds, "settled_s": float(result["settled"]),
                "rate": timing["rate"], "cycle_frames": timing["length"], "frames": frames, "garments": {}}
-        for kind, garment in garments.items():
+        for kind, (used, faces, riding, sim) in garments.items():
             cloth = result[f"woman/{kind}"]
-            rest = person["points"][garment[0]] * scale
-            carried = skinned(rest, person["weights"][garment[0]], timing["moves"])
-            run["garments"][kind] = {"points": len(garment[0]), "riding_share": round(float(garment[2].mean()), 3),
-                                     **measures(cloth, garment, carried, rest, body_posed, body[1])}
-            saved[f"{kind}_used"], saved[f"{kind}_faces"], saved[f"{kind}_riding"] = garment
+            carried = skinned(sim["points"], sim["weights"], timing["moves"])
+            drawn = cloth_mesh.carried(sim["binding"], cloth, sim["faces"])
+            run["garments"][kind] = {"points": len(used), "sim_points": len(sim["points"]),
+                                     "sim_faces": len(sim["faces"]),
+                                     "riding_share": round(float(sim["riding"].mean()), 3),
+                                     **measures(cloth, sim, carried, drawn, ~riding, body_posed, body[1])}
+            saved[f"{kind}_used"], saved[f"{kind}_faces"], saved[f"{kind}_riding"] = used, faces, riding
+            saved[f"{kind}_sim_points"], saved[f"{kind}_sim_faces"] = sim["points"] / scale, sim["faces"]
             for name, frame in frames.items():
-                film, times = resampled(cloth, timing, frame, count if name == "film" else 1)
+                film, times = resampled(drawn, timing, frame, count if name == "film" else 1)
                 saved[f"{clip}/{name}/{kind}"] = film / scale
                 saved[f"{clip}/{name}/time"] = times
         record["runs"][clip] = run

@@ -16,7 +16,9 @@ turned (the Shin unturned in the world); a point 0.1 m along x off the Hips goes
 of that on Hips and Shin halved. On runs written here (no engine): a good run passes every gate, a loose point 1 cm
 inside the body fails `through`, an edge 20% stretched fails `stretch`, cloth still sliding 0.05 m/s on a standing
 body fails `rests`. The make with no dressed body names each person left out and writes an empty layer. Newton itself
-is not run here (its kernels compile for a minute); the real run's numbers are on its commit.
+is not run here (its kernels compile for a minute); the real run's numbers are on its commit. The run's two guards
+are called in Newton's own Python (its module imported, nothing stepped): a part with a NaN point stops the run naming
+the frame and the part, and a speed past the job's `most_speed` is held to it while a slower one is untouched.
 
 Breaks that turn the one test red (each applied once and seen red, reverted, 2026-11-13):
 - loose_of's `> limit` made `>= 0.0` (the loose corners).
@@ -34,10 +36,14 @@ Breaks that turn the one test red (each applied once and seen red, reverted, 202
 - stretches' `np.maximum(built[None], riding)` made `riding` (row "at built where the skin draws it short"), and made
   `built[None]` (row "long where the skin draws it long"), each seen red on its own.
 - make's `left_out.append(...)` dropped (the make's left out).
+- inside/cloth.py's finite_or_stopped `if bad.any():` made `if False:` (the NaN run goes on); held_under's
+  `np.minimum(1.0, ...)` made `most / ...` (the slow speed raised to the guard), 2026-11-26.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/people_cloth/test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure.py
 """
 import json
+import pathlib
+import subprocess
 
 import numpy as np
 from pxr import Usd
@@ -210,3 +216,16 @@ def test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure(tmp_path):
         "nev: no usable dressed and built body of its look (people-dress-astronaut-made, people-body-astronaut-made)"]
     assert people_cloth.output_faults(out) == []
     assert not list(Usd.Stage.Open(str(out / people_cloth.LAYER)).Traverse())
+
+    # the run's guards, in Newton's own Python: a NaN point stops it naming the frame and the part; a runaway speed
+    # is held to the job's most_speed, a slow one untouched
+    guards = ("import sys, numpy as np; sys.path.insert(0, 'score/stages/people_cloth/inside'); import cloth; "
+              "held = cloth.held_under(np.array([[30.0, 40.0, 0.0], [1.0, 0.0, 0.0]]), 10.0); "
+              "print(np.round(held, 6).tolist()); "
+              "cloth.finite_or_stopped({'woman/jacket': np.array([[0.0, 0.0, 0.0], [np.nan, 0.0, 0.0]])}, 'hang frame 3')")
+    newton = pathlib.Path.home() / ".farm-factory-props/envs/newton_env/bin/python"  # the box's (PROPS_HOME is a tmp)
+    ran = subprocess.run([str(newton), "-c", guards], cwd=people_cloth.REPO,
+                         capture_output=True, text=True)
+    assert ran.stdout.strip() == "[[6.0, 8.0, 0.0], [1.0, 0.0, 0.0]]", ran.stderr[-400:]
+    assert ran.returncode == 1 and ("cloth run: woman/jacket has 1 non-finite points at hang frame 3 (first point 1); "
+                                    "nothing written") in ran.stderr

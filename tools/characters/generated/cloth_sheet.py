@@ -33,7 +33,9 @@ def summary(record):
     lines = []
     for clip, run in record["runs"].items():
         parts = [f"{kind}: riding {found['riding_share']:.0%}, deepest in body {found['deepest_m'] * 1000:.0f} mm, "
-                 f"stretch {found['largest_stretch']:.2f}, drift {found['drift_most_m'] * 100:.0f} cm"
+                 f"drawn {found['deepest_drawn_m'] * 1000:.0f} mm, stretch {found['largest_stretch']:.2f}, "
+                 f"drift {found['drift_most_m'] * 100:.0f} cm, jitter p99 {found['jitter_99_m_per_frame2'] * 1000:.1f} "
+                 f"mm/frame2"
                  for kind, found in run["garments"].items()]
         lines.append(f"{clip} ({run['engine'].split(' (')[0]}, {run['seconds']:.0f} s): " + "; ".join(parts))
     return lines

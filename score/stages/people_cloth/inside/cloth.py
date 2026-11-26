@@ -9,7 +9,12 @@ job.json (written by score/stages/people_cloth): {"rate", "gravity", "substeps",
 `<person>/<part>/skinned` frames x points x 3, its points riding the skin), "people": [{"name", "segments": [{"name",
 "points" (its piece of the body surface in the segment's frame), "faces"}], "parts": [{"name", "rest" (points x 3, the
 part as built, at the bind), "faces", "free" (one bool a point: loose, simulated), "material": {"density" kg/m2,
-"mu" N/m, "lambda" N/m, "bending" N (Newton's edge stiffness), "radius" m}}]}], "settle": {"speed" m/s, "seconds"}}.
+"mu" N/m, "lambda" N/m, "bending" N (Newton's edge stiffness), "radius" m}}]}], "settle": {"speed" m/s, "seconds"},
+and optionally "most_speed" (m/s: a loose point's speed is held under it after each substep, a guard against a
+runaway, never reached by cloth following a walk)}.
+
+A point gone non-finite stops the run at once, naming the hang or run frame and the part (#223, 2026-11-26: a sliver's
+point went NaN in the hang and the run wrote NaNs on for 129 frames): nothing is written.
 
 Each person is a Newton world of its own (every sim-body run stands in the person's own frame, so two would overlap
 and meet). Each segment is a kinematic body carrying its piece of the body surface as a mesh collider, its pose set
@@ -115,6 +120,7 @@ class Scene:
         self.now, self.next = self.model.state(), self.model.state()
         self.control = self.model.control()
         self.substeps = job["substeps"]
+        self.most_speed = job.get("most_speed")
         self.started()
 
     def started(self):
@@ -158,6 +164,8 @@ class Scene:
             self.now.clear_forces()
             self.pipeline.collide(self.now, self.contacts)
             self.solver.step(self.now, self.next, self.control, self.contacts, step)
+            if self.most_speed is not None:
+                self.next.particle_qd.assign(held_under(self.next.particle_qd.numpy(), self.most_speed))
             self.now, self.next = self.next, self.now
 
     def settled(self, speed, most_seconds):
@@ -168,6 +176,7 @@ class Scene:
             before = self.points()
             self.frame(0, moving=False)
             after = self.points()
+            finite_or_stopped(after, f"hang frame {count + 1}")
             if all(np.linalg.norm(after[key][part["free"]] - before[key][part["free"]], axis=1).mean() * self.rate
                    <= speed for key, part in self.loose()):
                 return (count + 1) / self.rate
@@ -184,6 +193,21 @@ class Scene:
                 for person in self.people for part in person["parts"]}
 
 
+def held_under(speeds, most):
+    """Speeds (points x 3) each scaled down to at most `most` long."""
+    length = np.linalg.norm(speeds, axis=1, keepdims=True)
+    return speeds * np.minimum(1.0, most / np.maximum(length, 1e-12))
+
+
+def finite_or_stopped(points, when):
+    """Stops the run when a part's point is not finite ({person/part: points x 3}), naming `when` and the part."""
+    for key, value in points.items():
+        bad = ~np.isfinite(value).all(axis=1)
+        if bad.any():
+            raise SystemExit(f"cloth run: {key} has {int(bad.sum())} non-finite points at {when} (first point "
+                             f"{int(np.flatnonzero(bad)[0])}); nothing written")
+
+
 def run(job_path, out_path):
     job = json.loads(job_path.read_text())
     motion = dict(np.load(job["motion"]))
@@ -193,8 +217,12 @@ def run(job_path, out_path):
     found = {key: [value] for key, value in scene.points().items()}
     for frame in range(frames - 1):
         scene.frame(frame)
-        for key, value in scene.points().items():
+        points = scene.points()
+        finite_or_stopped(points, f"run frame {frame + 1}")
+        for key, value in points.items():
             found[key].append(value)
+        if (frame + 1) % 10 == 0:
+            print(f"cloth run: frame {frame + 1} of {frames - 1}", flush=True)
     engine = (f"newton {newton.__version__} SolverVBD ({job['iterations']} iterations, {job['substeps']} substeps a "
               f"frame, run-to-run deterministic) on {job['device']}")
     np.savez_compressed(out_path, engine=np.array(engine), settled=np.array(settled),

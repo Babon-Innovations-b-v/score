@@ -78,6 +78,14 @@ close shell and not at all under a far one. Breaks that turn its rows red (each 
 2026-11-26): no islands joined (`cloth.ISLAND_FACES` 0: 2 stray faces); the distance counted in edges, not metres
 (`over_surface` lengths all 1); no closed cycle seen (`cloth.CLOSED_DEGREES` 0: 5 frames a cycle); the push read
 the wrong way (`margin + over` in `cloth.pushes`).
+The sim mesh (`cloth_mesh.py`), on toys: a body column inside a two-walled open garment tube with a sliver and a speck
+is laid onto the inner wall as one manifold piece whose only rims are the tube's two ends; a needle left in a grid is
+collapsed and two triangles meeting at a point are made two fans; points bound over and under a bent sheet come back
+exactly at rest and are carried rigidly when it turns and moves, and a piece of mesh with no riding point rides
+whole. Breaks that turn their rows red (each applied once, seen red, reverted, 2026-11-26): the last hit taken for
+the first (`laid_over`'s `first`: the outer wall); no collapse rounds (`slivers_collapsed` rounds 0); no extra fan
+(`fans_split`'s `extra` empty); the offset added unturned (`carried` without its frame); `anchored` returning
+`riding` alone.
 
 The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
 painted black, boots at the bottom painted as black as the trousers with a trace of red) and its photo (a sage
@@ -860,6 +868,66 @@ def cloth_body_pushed():
     return found
 
 
+def cloth_tube_laid():
+    """A body column (radius 10 cm, 60 cm tall, closed) inside a two-walled garment tube (walls at 12.6 and 13 cm,
+    40 cm tall, open at both ends) with a sliver and a speck off it: the sim mesh laid over the body and cleaned is one
+    piece with two rims (the tube's ends), no edge on three faces, at the inner wall's radius."""
+    turn = trimesh.transformations.rotation_matrix(np.pi / 2, (1, 0, 0))
+    body = trimesh.creation.cylinder(radius=0.1, height=0.6, sections=48, transform=turn)
+    walls = []
+    for radius in (0.126, 0.13):
+        wall = trimesh.creation.cylinder(radius=radius, height=0.4, sections=64, transform=turn)
+        wall.update_faces(np.abs(wall.face_normals[:, 1]) < 0.5)  # the caps off: an open tube
+        wall.remove_unreferenced_vertices()
+        walls.append(wall)
+    sliver = trimesh.Trimesh([[0.2, 0.0, 0.0], [0.2, 0.01, 0.0], [0.2, 0.02, 1e-12]], [[0, 1, 2]])
+    speck = trimesh.Trimesh([[0.5, 0.0, 0.0], [0.5, 0.01, 0.0], [0.5, 0.0, 0.01]], [[0, 1, 2]])
+    shell = trimesh.util.concatenate(walls + [sliver, speck])
+    garment = np.arange(len(shell.faces))
+    points, faces = cloth.cloth_mesh.laid_over((body.vertices, body.faces), np.zeros(len(body.vertices), int),
+                                               (shell.vertices, shell.faces), garment, np.zeros(len(garment), int),
+                                               (["Hips"], [-1]), edge=0.02)
+    points, faces = cloth.cloth_mesh.cleaned(points, faces)
+    edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    shared = np.unique(edges, axis=0, return_counts=True)[1].max()
+    radius = np.hypot(points[:, 0], points[:, 2])
+    return [len(cloth.cloth_mesh.rims(faces)), len(np.unique(cloth.cloth_mesh.pieces_of(faces, len(points)))),
+            int(shared), bool(np.abs(radius - 0.126).max() < 0.002)]
+
+
+def cloth_mesh_mended():
+    """A needle triangle in a grid collapsed (no corner under ANGLE_LEAST, the grid's other faces kept), and two
+    triangles meeting at one point only made two fans (that point given twice)."""
+    points, faces = cloth_grid(6, 6)
+    points = np.vstack([points, [[0.0195, 0.0101, 0.0]]])  # half a millimetre off point 8: a needle to 13
+    needle = int(np.flatnonzero((faces == 7).any(1) & (faces == 8).any(1) & (faces == 13).any(1))[0])
+    faces = np.vstack([np.delete(faces, needle, axis=0), [[7, 36, 13], [36, 8, 13]]])
+    mended_points, mended_faces = cloth.cloth_mesh.slivers_collapsed(points, faces)
+    bow = cloth.cloth_mesh.fans_split(np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, -1, 0.0]]),
+                                      np.array([[0, 1, 2], [0, 3, 4]]))
+    return [bool(cloth.cloth_mesh.corner_angles(mended_points, mended_faces).min() >= cloth.cloth_mesh.ANGLE_LEAST),
+            len(mended_faces) >= len(faces) - 3, len(bow[0]), sorted(bow[1].ravel().tolist())]
+
+
+def cloth_drawn_rides():
+    """Points over and under a bent sheet bound to it come back exactly at rest and are carried rigidly when the sheet
+    turns and moves; a piece of the mesh with no riding point rides whole, one with a riding point keeps its loose."""
+    points, faces = cloth_grid(8, 8)
+    points[:, 2] = 0.3 * points[:, 0] ** 2
+    render = np.random.default_rng(4).uniform([0.005, 0.005, -0.01], [0.065, 0.065, 0.01], (200, 3))
+    binding = cloth.cloth_mesh.bound(render, points, faces)
+    turn = trimesh.transformations.rotation_matrix(0.7, (0.3, 1.0, 0.2))[:3, :3]
+    moved = np.stack([points, points @ turn.T + (0.4, -0.1, 0.2)])
+    drawn = cloth.cloth_mesh.carried(binding, moved, faces)
+    two = np.vstack([faces, faces + len(points)])
+    riding = np.zeros(2 * len(points), bool)
+    riding[0] = True
+    anchored = cloth.anchored(two, riding)
+    return [bool(np.abs(drawn[0] - render).max() < 1e-9),
+            bool(np.abs(drawn[1] - (render @ turn.T + (0.4, -0.1, 0.2))).max() < 1e-9),
+            int(anchored[:len(points)].sum()), bool(anchored[len(points):].all())]
+
+
 def colour_toy():
     """A toy front (points on a plane facing +z, 0.6 m by 1.2 m, UV its box) painted as TRELLIS.2 paints, and its photo
     (RGBA, a margin of air round the person): (points, uv, paint texture, photo)."""
@@ -963,6 +1031,12 @@ def colour_toned():
      [4, 0.3, 1, 0.6]),
     ("the body under the clothes is pushed in to the margin under a close shell, never under a far one",
      cloth_body_pushed, [round(cloth.MARGIN_M - 0.005, 3), 0.0]),
+    ("a garment's sim mesh is laid over the body onto its inner wall: one piece, its two ends its only rims, manifold, "
+     "the sliver and the speck gone", cloth_tube_laid, [2, 1, 2, True]),
+    ("a remeshed needle is collapsed and a bow tie split into two fans", cloth_mesh_mended,
+     [True, True, 6, [0, 1, 2, 3, 4, 5]]),
+    ("the drawn surface rides its sim mesh exactly at rest and rigidly when it moves; a piece hung by nothing rides "
+     "whole", cloth_drawn_rides, [True, True, 1, True]),
     ("the paint is toned toward the photo garment by garment: the jacket's sage, the boots' brown under trousers "
      "painted as black, the folds kept", colour_toned, [True] * 4),
 ])

@@ -127,16 +127,28 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   tokens: its own paint, ungraded) is split by its paint and place into head, skin, jacket, T-shirt, jeans and shoes
   (a vote over the faces' edges settles each cut onto the paint's edge); the jacket and the jeans hang as cloth on
   Newton's VBD through the people cloth stage's own run (`score/stages/people_cloth/inside/cloth.py`, reused, never
-  copied), everything else stays skinned. The garment is the shell's own surface (its folds and paint stay); its rest
-  is the generated shape. Riding points: the jacket's collar and shoulder yoke and its cuffs, the jeans' waistband;
-  the rest is free. The collision body is the SOMA mean on the bind pushed under the shell (`body_under`), the shell's
-  own shoes on the feet. The person is sized to her own height (`--height`, the person's measured height, not the
-  template body's). Cloth values are `data/physics/cloth.json`'s rows, never typed: no puffer row exists, so the
-  jacket hangs as denim (named in cloth.json's record). Run: `python -m tools.characters.generated.cloth <body.glb>
-  <clips rig.npz> <out> --height <m> [--device cuda:0]` (on the processor about 6 s a frame: about 25 min for the
-  walk; on the card through the card queue), then `blender -b --python blender_cloth.py -- <repo> <body.glb>
-  <out>/cloth.npz <library> <renders> cloth|skinned <samples> <size> [<film samples> <film size>]` (CPU) for each of
-  the two, then `python -m tools.characters.generated.cloth_sheet <cloth renders> <skinned renders> <out>/cloth.json
-  <sheet.png> <title> [<film.mp4>]`.
+  copied), everything else stays skinned. Riding points: the jacket's collar and shoulder yoke and its cuffs, the
+  jeans' waistband; the rest is free.
+  The collision body is the SOMA mean on the bind pushed under the shell (`body_under`), the shell's own shoes on the
+  feet. The person is sized to her own height (`--height`, the person's measured height, not the template body's).
+  Cloth values are `data/physics/cloth.json`'s rows, never typed: no puffer row exists, so the jacket hangs as denim
+  (named in cloth.json's record). Run: `python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out>
+  --height <m> [--device cuda:0]` (20 substeps, 10 iterations, a 10 m/s speed guard; the run stops at the first
+  non-finite point naming its frame; on the processor at nice 19, its seconds in cloth.json; on the card through the card queue), then
+  `blender -b --python blender_cloth.py -- <repo> <body.glb> <out>/cloth.npz <library> <renders> cloth|skinned
+  <samples> <size> [<film samples> <film size>]` (CPU) for each of the two, then `python -m
+  tools.characters.generated.cloth_sheet <cloth renders> <skinned renders> <out>/cloth.json <sheet.png> <title>
+  [<film.mp4>]`.
+- **The cloth runs on a sim mesh, never on the shell's triangles** (`cloth_mesh.py`; round 1, 2026-11-26: a 2.7e-11
+  m^2 sliver's point went NaN in the hang before the first frame and the run wrote NaNs on). A garment's shell is two
+  walls 3 to 4 mm apart with slivers, duplicates and three-face edges, and its outer wall alone fell apart into 28
+  pieces, so the sim mesh is the collision body split to 1.2 cm and laid out along its normals onto the garment's
+  first face whose joint is on the same limb (no armpit lands on the sleeve beside it, no hip on the hand by it; the
+  head, hands and feet lay nothing), the reach smoothed a little (more pulls it inside a flare), cleaned to one
+  manifold mesh and remeshed even (gpytoolbox's remesh_botsch in its own `uv run`, MIT; the rims resampled first, it
+  keeps rim points fixed; a needle it leaves collapsed). The drawn surface (both walls, folds, paint) is bound to it
+  by nearest triangle, barycentric place and an offset in the place's normal frame, exact at rest; skin weights and
+  riding are blended over, and a piece with no riding point rides whole. The sleeves' inner sides, where TRELLIS.2
+  fused them to the trunk, lay nothing: the sleeve is open there and its drawn points ride the nearest cloth.
 - **Look at the film.** The deepest loose point inside the body, the stretch and the drift say the run held; only the
   side-by-side film says whether the jeans swing and the jacket hangs as cloth or still read as a stretched skin.
