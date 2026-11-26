@@ -27,8 +27,9 @@ The steps:
    black tears in the film) is closed by a fan from its middle (`closed`) after the fit (whose inside test the fans,
    reaching across the hollow, would mislead: 21% of the skin outside against 4%).
 5. The weights: Robust Skin Weights Transfer from the SOMA surface (prop_rig.transferred: closest-surface matches
-   within its distance and angle, each limb only from its own limb, the rest inpainted and smoothed), then the helmet
-   and visor rigid on the head and the backpack rigid on the chest (`rigid`), the suit next to them eased onto their
+   within its distance and angle, each limb only from its own limb, the rest inpainted and smoothed), nothing above a
+   foot's ankle on that foot (`off_the_feet`: a wide trouser leg inpainted from its hem swung back from the calf at
+   every push-off), then the helmet and visor rigid on the head and the backpack rigid on the chest (`rigid`), the suit next to them eased onto their
    joint by its distance over the surface (`rigid`), so nothing tears where a hard part meets the cloth. Last, every
    cloth point within CLIFF_REACH of an edge across which the weights change faster than CLIFF (the crotch, where each
    leg's points may hang only from their own leg, and the shoulders' rims) is smoothed towards its neighbours
@@ -519,6 +520,23 @@ def seamed(points, faces, part_of, weights, names):
     return out / out.sum(1, keepdims=True)
 
 
+def off_the_feet(points, weights, names, bind):
+    """No point above a foot's ankle hangs from that foot: each side's Foot and toe weights moved onto its Shin,
+    wholly ANKLE_BLEND over the Foot joint's bind height, less and less down to it. Cloth the surface match missed
+    (a wide trouser leg standing off the shin) is inpainted from its matched neighbours, and the hem's on the shoe
+    carried the foot up the leg: the generated stairwell woman's wide jeans hung a quarter of their points from the
+    foot up to 0.5 m, and every push-off swung their calves back in a fin (2026-11-26)."""
+    out = weights.copy()
+    for side in ("Left", "Right"):
+        ankle = bind[names.index(f"{side}Foot"), 1, 3]
+        feet = [names.index(f"{side}{joint}") for joint in FOOT_JOINTS if f"{side}{joint}" in names]
+        share = np.clip((points[:, 1] - ankle) / ANKLE_BLEND, 0.0, 1.0)
+        moved = out[:, feet] * share[:, None]
+        out[:, feet] -= moved
+        out[:, names.index(f"{side}Shin")] += moved.sum(1)
+    return out
+
+
 def eased_cliffs(points, faces, weights, fixed):
     """The weights smoothed on every point not `fixed` within CLIFF_REACH over the surface of an edge across which
     they change faster than CLIFF over its length: CLIFF_ROUNDS rounds of moving CLIFF_ALPHA towards the neighbours'
@@ -845,6 +863,7 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     part_of = parts_of(mesh, colours, body, names, bind, person)
     fit = prop_rig.landmarks(prop_rig.sampled(mesh))
     weights, matched, smoothed = prop_rig.transferred(body, body_weights, mesh, np.array(names), fit)
+    weights = off_the_feet(mesh.vertices, weights, names, bind)
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)
     weights = eased_cliffs(mesh.vertices, mesh.faces, weights, hard_points(mesh.faces, part_of, len(mesh.vertices)))
     out.mkdir(parents=True, exist_ok=True)

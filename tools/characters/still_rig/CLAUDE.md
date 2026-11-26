@@ -29,6 +29,9 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   3.4 cm past her toes, stood 2 cm in every tread. Each arm of the bind is turned onto the line from its
   shoulder through the middle of the still's sleeve (`arms_turned`): turned only parallel to it, the woman's arms
   hung 10 cm behind her sleeves, whose upper half took her chest's weights and bulged at the shoulder.
+  Nothing above a foot's ankle hangs from that foot (`off_the_feet`, 2026-11-26): the generated stairwell woman's
+  wide jeans, inpainted up from their hem, hung a quarter of their calf points from the foot and finned back at
+  every push-off.
 - **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
   the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the
   work bodies' (leaning, pointing, checking, clipboard, cheering, waiting, clapping, shifting) from their own sentences
