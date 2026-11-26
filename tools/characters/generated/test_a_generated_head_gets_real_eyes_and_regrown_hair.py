@@ -1,4 +1,5 @@
-"""A generated head gets real eyes behind its lids (#223). Each break named below turns its row red: each painted pupil
+"""A generated head gets real eyes behind its lids and its painted hair regrown (#223). Each break named below turns
+its row red: each painted pupil
 is found on the face (eyes.pupils, a pupil missed or found on a lid or brow turns it red), the eyeball sits behind
 its lid margins with its cornea behind their rim (eyes.eye_depth: a ball bulging past the lids, or one sunk far
 behind them, turns it red), the painted floor inside the ball is removed and nothing outside the lid opening is
@@ -13,6 +14,16 @@ red), and an eye with no lid margin over or under it is refused (eyes.eye_depth)
 Shapes made here: a face as a height field (a curved front, a nose, two sunken lid openings with steep walls and a
 flat painted floor, an iris and a pupil painted on each floor), its paint a small picture; a sphere with rings of UV
 standing in for ICT-FaceKit's eyeball; a small photo of two irises on skin with a pupil and a highlight.
+
+The hair, on a toy painted head (a ball, its top half pushed out as a hair shell and painted dark, a nose, a body
+under it in a coat's colour): the labels cover the painted top and nothing else; the scalp leaves no hole over the
+hair, stays under its shell and meets the skin at its edge; the strands root on the scalp, stay out of the head and
+reach into the shell; a darker colour gets more melanin and a grey head white strands. Breaks that turn its rows red
+(each applied once, seen red, reverted, 2026-11-26): every triangle hair whatever its neighbours
+(`labels.HAIR_SHARE` 0: extra 119%); the scalp let out through the shell (`scalp.CLEAR_M` -0.03: 165 directions
+through); the scalp tucked 6 mm under the skin (`scalp.TUCK_M` 0.006: a 5.7 mm step at its edge); the head's inside
+let into the hair's volume (`volume.inside_of` and `volume.seen_from` saying nothing is inside the head: 32% of the
+strands into it); the lightness table turned round (`fibre.REFERENCE_L`: the dark colour less melanin than the light).
 """
 import functools
 
@@ -20,7 +31,8 @@ import numpy as np
 import pytest
 import trimesh
 
-from tools.characters.generated import eyes
+from tools.characters.generated import __main__, eyes, fibre, labels, scalp, strands, volume
+from tools.characters.whole import hair
 
 NOSE_Y = 0.06
 EYES_OVER_NOSE = 0.037
@@ -232,6 +244,108 @@ def lidless_refused():
     return "placed"
 
 
+HEAD = np.array([0.0, 1.6, 0.0])
+RADIUS = 0.09
+SHELL_M = 0.015
+COLOURS = {"hair": (8.0, 2.0, 3.0), "skin": (70.0, 15.0, 24.0), "coat": (40.0, -5.0, 0.0)}
+
+
+@functools.lru_cache(maxsize=1)
+def toy():
+    """(points, faces, Lab colour per face, hair truth per face, frame)."""
+    ball = trimesh.creation.icosphere(subdivisions=4, radius=RADIUS)
+    points = np.asarray(ball.vertices).copy()
+    up = points[:, 1] / RADIUS
+    front = points[:, 2] / RADIUS
+    cap = np.clip((up - 0.05) / 0.15, 0.0, 1.0) * (front < 0.75)
+    points += points / RADIUS * (SHELL_M * cap)[:, None]
+    nose = np.exp(-((points[:, 0] / 0.015) ** 2 + ((points[:, 1] + 0.035) / 0.02) ** 2)) * (front > 0.0)
+    points[:, 2] += 0.02 * nose
+    points += HEAD
+    body = trimesh.creation.cylinder(radius=0.16, height=0.45)
+    body.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2.0, [1, 0, 0]))
+    body.apply_translation([0.0, 1.6 - RADIUS - 0.04 - 0.225, 0.0])
+    body = body.subdivide().subdivide()
+    faces = np.vstack([np.asarray(ball.faces), np.asarray(body.faces) + len(points)])
+    points = np.vstack([points, np.asarray(body.vertices)])
+    truth = np.zeros(len(faces), dtype=bool)
+    truth[:len(ball.faces)] = cap[np.asarray(ball.faces)].mean(axis=1) > 0.5
+    colours = np.tile(COLOURS["skin"], (len(faces), 1))
+    colours[truth] = COLOURS["hair"]
+    colours[len(ball.faces):] = COLOURS["coat"]
+    colours += np.random.default_rng(1).normal(0.0, 1.0, colours.shape)
+    return points, faces, colours, truth, labels.head_frame(points, faces, colours)
+
+
+def labelled():
+    points, faces, colours, _, frame = toy()
+    return labels.hair_labels(points, faces, colours, frame, False, 0.3)[0]
+
+
+def labels_hold():
+    found, truth = labelled(), toy()[3]
+    missed = (truth & ~found).sum() / truth.sum()
+    extra = (found & ~truth).sum() / truth.sum()
+    return missed < 0.05 and extra < 0.05, f"missed {missed:.3f}, extra {extra:.3f}"
+
+
+def scalp_closes():
+    points, faces, _, _, frame = toy()
+    hair_faces = labelled()
+    patch = scalp.scalp_patch(points, faces, hair_faces, frame)
+    start = scalp.origin(frame)
+    directions = trimesh.creation.icosphere(subdivisions=3).vertices
+    over_hair = directions[(directions[:, 1] > 0.35) & (directions[:, 2] < 0.5)]
+    shell = scalp.first_hit(points, faces[hair_faces], start, over_hair)
+    under = scalp.first_hit(patch["points"], patch["triangles"], start, over_hair)
+    holes = int((~np.isfinite(under)).sum())
+    through = int((under > shell - 0.001).sum())
+    skin = trimesh.Trimesh(points, faces[~hair_faces], process=False)
+    seam = patch["points"][~patch["hole"]]
+    step = float(np.percentile(skin.nearest.on_surface(seam)[1], 95))
+    return holes == 0 and through == 0 and step < 0.002, f"holes {holes}, through {through}, step {step * 1000:.2f} mm"
+
+
+def strands_fill():
+    """The strands, at a fortieth of a head's density from 1500 guides (the toy's size, not the route's)."""
+    saved = hair.DENSITY, strands.GUIDES, strands.CANDIDATES
+    hair.DENSITY = {key: value / 40.0 for key, value in saved[0].items()}
+    strands.GUIDES, strands.CANDIDATES = 1500, 40000
+    try:
+        return strands_measured()
+    finally:
+        hair.DENSITY, strands.GUIDES, strands.CANDIDATES = saved
+
+
+def strands_measured():
+    points, faces, colours, _, frame = toy()
+    hair_faces = labelled()
+    patch = scalp.scalp_patch(points, faces, hair_faces, frame)
+    body = __main__.body_of(points, faces, hair_faces, patch, None, frame)
+    model, model_labels = __main__.model_near_hair(points, faces, hair_faces)
+    space = volume.hair_volume(model, model_labels, body, np.random.default_rng(2), scalp.origin(frame))
+    style = {"length_m": 0.3, "wave_m": 0.001, "wave_period_m": 0.05, "parting": "none", "fringe_side": "none"}
+    skin_like = labels.skin_like(colours)
+    hairline = __main__.hairline_of(points, faces, hair_faces, skin_like, frame)
+    counts, strand_points, _ = strands.regrown(space, patch, (points, faces[~hair_faces & skin_like]), hairline, frame,
+                                               style)
+    each = strand_points.reshape(len(counts), -1, 3)
+    roots_off = trimesh.Trimesh(patch["points"], patch["triangles"]).nearest.on_surface(each[:, 0])[1]
+    into = np.linalg.norm(each - HEAD, axis=2).min(axis=1) < RADIUS - 0.004
+    reach = np.linalg.norm(each[:, -1] - each[:, 0], axis=1)
+    return (np.percentile(roots_off, 99) < 0.002 and into.mean() < 0.01 and np.median(reach) > 0.02,
+            f"roots off {np.percentile(roots_off, 99) * 1000:.2f} mm, into {into.mean():.3f}, "
+            f"reach {np.median(reach) * 1000:.1f} mm")
+
+
+def fibre_follows():
+    dark = fibre.fibre_of(np.array([0.1, 0.07, 0.05]), np.array([8.0, 2.0, 3.0]))
+    light = fibre.fibre_of(np.array([0.5, 0.4, 0.3]), np.array([45.0, 4.0, 12.0]))
+    grey = fibre.fibre_of(np.array([0.65, 0.65, 0.64]), np.array([70.0, 0.5, 1.0]))
+    return (dark["melanin"] > light["melanin"] and grey["white_share"] > 0.3 and light["white_share"] == 0.0,
+            f"dark {dark['melanin']}, light {light['melanin']}, grey white {grey['white_share']}")
+
+
 @pytest.mark.parametrize("case, made_value, wanted", [
     ("each painted pupil is found on the face", pupils_found, [True, True]),
     ("the eyeball sits behind its lid margins, its cornea just behind their rim", behind_lids, [True, True]),
@@ -245,6 +359,11 @@ def lidless_refused():
     ("a lid margin is read steep or gentle, past a bump on the floor, and never on a curved floor", margins_read,
      [6, 9, 8, None]),
     ("an eye with no lid over or under it is refused", lidless_refused, "refused"),
+    ("the hair's labels cover the painted top and nothing else", lambda: bool(labels_hold()[0]), True),
+    ("the scalp closes the hair's hole under its shell, flush with the skin", lambda: bool(scalp_closes()[0]), True),
+    ("the strands root on the scalp, stay out of the head and reach into the shell",
+     lambda: bool(strands_fill()[0]), True),
+    ("a darker hair gets more melanin, a grey head white strands", lambda: bool(fibre_follows()[0]), True),
 ])
-def test_a_generated_head_gets_real_eyes_behind_its_lids(case, made_value, wanted):
+def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

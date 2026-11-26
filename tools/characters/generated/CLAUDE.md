@@ -20,5 +20,32 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   <out>/stats.json <sheet.jpg>`.
 - **Look at the eye close-up.** A found pupil and a ball behind its margins say the numbers are right; only the 9 cm
   frame says whether a lid still shows paint over the ball or the white stares.
+- **Hair** (`labels.py` → `scalp.py` → `volume.py` → `strands.py`, `beard.py`, `fibre.py`; run by `__main__.py`, drawn
+  by `blender_sheet.py`, the sheet by `sheet.py`; the steps are in `__init__.py`'s docstring): the hair TRELLIS.2 paints
+  on one solid shell with the head is split off (its triangles labelled by the model's own paint and place), a smooth
+  scalp closes the hole, and the hair is regrown as strands in the shell's own shape; a man's lumpy painted beard the
+  same way, as short facial hair on the beard's skin smoothed. Run: `python -m tools.characters.generated <model.glb>
+  <style.json> <out> --height <m> --closeup <photo>` (about a minute on the CPU, under 2 GB), then `blender -b
+  --python blender_sheet.py -- <model.glb> <out> <score_lib folder> <lift m> <samples> <renders>` (CPU), then `python
+  -m tools.characters.generated.sheet <renders> <out> <photo> <sheet.jpg>`.
+- **Reuse `../whole/hair.py`, never copy it.** Density, baby hairs, the parting and whorl's comb, locks, the cut,
+  wave, flyaways and frizz are its functions and constants; the hair here only adds what a generated model needs (the
+  labels, the scalp, the volume the guides are grown through, the beard).
+- **The hair's shape is the model's.** Guides end where they would leave the hair's volume, never at a length that
+  overrides the shell (the style's `length_m` only caps it). The hairline is the paint's edge (`labels.HAIR_SHARE`);
+  behind the temples never under hair.py's HAIRLINE table (the paint there is hair hanging over the neck).
+- **A generated model is a thin two-sided sheet** (its head hollow, open through the eyes or a bust's cut, triangles
+  wound either way): the hair's volume is what its surface and the new scalp close off from the air, or what lies under
+  the outermost hair seen from the head's middle (`volume.py`), never a normal's side or ray parity alone.
+- **The strands' finish** is the library's strand finish (`../hair/finish.py`, `hair_strands_ash_brown`) with only
+  melanin and redness fitted to the close-up's hair colour (`fibre.py`; its lightness-to-pigment table is an estimate,
+  checked by eye on the sheet); the scalp and the skin under the beard wear the model's own skin colour. Brows stay
+  paint for now.
+- **Styles**: `data/people/hair/gen_<look>.json`, read off the close-up: `length_m` (the strands' cap), `reach_m`
+  (how far under the top hair is labelled), `wave_m`, `wave_period_m`, `parting` side/none/back, `parting_m`,
+  `parting_side`, `fringe_side` none/left/right/down, `beard` and its `beard_length_m`, `beard_stubble_m`.
+- **Look at the sheet.** The labels picture says the split follows the paint; only the photographs say whether the
+  hair reads as hair, the hairline as skin and the beard as a beard.
 - Not here: lashes (the model has none; the face module's grow on ICT's lid cards, which a generated head lacks) and
   lids reshaped to the photo's opening (the lids stay the model's).
+- Test: one file for the module (`test_a_generated_head_gets_real_eyes_and_regrown_hair.py`), a row per step.

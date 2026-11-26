@@ -1,0 +1,174 @@
+"""The scalp under the removed hair (`scalp_patch`): a smooth skull-shaped surface closing the hole the hair's triangles
+leave, joined to the skin round it without a ridge. Where the hair hung behind the neck the model has no neck at all:
+a direction that meets nothing there (down to NECK_LOWEST) is the hole too, and under it `neck_back` closes the neck:
+the back half of an upright elliptic tube as wide as the neck's own skin (between NECK_BAND_M under the eyes), from
+NECK_BELOW_M under that band up into the scalp.
+
+The head is read from its own middle (`origin`: the eyes' height plus ORIGIN_OVER_EYES_M, over the cap's middle) along
+DIRECTIONS (an icosphere's corners): along each, the first skin and the first hair met (rays against the model). A
+direction whose hair comes before any skin is the hole; RING steps round it into the skin are the seam, where the
+scalp runs TUCK_M under the skin (no gap at the edge, no step over it). Over the hole the scalp's distance from the
+origin is an ellipsoid fitted to the skin at the seam (the skull's shape) plus the seam's own difference from it spread
+over the hole smoothly (harmonic, so the scalp meets the skin at the skin's own height all round), kept CLEAR_M inside
+the hair's shell; then smoothed SMOOTH times with the seam held. A seam direction whose skin stands more than
+EAR_OUT of the ellipsoid off it (an ear) is not held to its skin.
+"""
+import numpy as np
+import trimesh
+from scipy.sparse import coo_matrix, diags
+from scipy.sparse.linalg import spsolve
+from scipy.spatial import cKDTree
+
+ORIGIN_OVER_EYES_M = 0.02
+SUBDIVISIONS = 6  # the icosphere's: 40 962 directions, some 1.5 mm apart at a skull's distance
+REACH_M = 0.2  # a ray reads no farther than this
+RING = 3
+TUCK_M = 0.0008
+CLEAR_M = 0.002
+EAR_OUT = 0.12
+SMOOTH = 20
+SMOOTH_SHARE = 0.5
+NECK_LOWEST = -0.87  # a direction meeting nothing (where the hair hung over a neck the model never had) is the
+# hole too, down to 60 degrees under level; under it the neck's back (`neck_back`) closes it
+NECK_BAND_M = (0.13, 0.17)  # the neck's skin read this far under the eyes
+NECK_DEPTH = 0.9  # the neck's depth front to back, a share of its width
+NECK_BELOW_M = 0.03  # the tube reaches this far under the band (into the collar)
+NECK_SPREAD = (10, 90)  # the neck's width between these percentiles of its skin's (the jaw's edge is not the neck)
+NECK_TUCK = 0.9  # the tube this share of the neck skin's width, so its sides stay behind the skin
+NECK_AROUND, NECK_UP = 48, 80
+OPEN_NECK = 50
+HEAD_M = 0.25  # only the model's triangles this near the origin are read
+
+
+def origin(frame):
+    """The point the head is read from."""
+    return np.array([frame["middle_x"], frame["eyes_middle"][1] + ORIGIN_OVER_EYES_M, frame["centre"][2]])
+
+
+def first_hit(points, faces, start, directions):
+    """Each direction's distance from `start` to the first of the triangles it meets (inf when none within
+    REACH_M)."""
+    mesh = trimesh.Trimesh(points, faces, process=False)
+    found = np.full(len(directions), np.inf)
+    where, ray, _ = mesh.ray.intersects_location(np.repeat(start[None], len(directions), axis=0), directions,
+                                                multiple_hits=True)
+    distance = np.linalg.norm(where - start, axis=1)
+    np.minimum.at(found, ray, distance)
+    found[found > REACH_M] = np.inf
+    return found
+
+
+def sphere_neighbours(sphere):
+    """The icosphere's corners' neighbours as a sparse matrix (1 per edge)."""
+    edges = np.asarray(sphere.edges_unique)
+    count = len(sphere.vertices)
+    ones = np.ones(len(edges) * 2)
+    return coo_matrix((ones, (np.r_[edges[:, 0], edges[:, 1]], np.r_[edges[:, 1], edges[:, 0]])),
+                      shape=(count, count)).tocsr()
+
+
+def grown_ring(start, neighbours, steps):
+    """The corners within `steps` edges of the `start` corners (a boolean mask)."""
+    reached = start.copy()
+    for _ in range(steps):
+        reached = reached | (neighbours @ reached.astype(float) > 0)
+    return reached
+
+
+def ellipsoid_fit(directions, distances):
+    """An axis-aligned ellipsoid round the origin through the points (least squares on 1/r^2 = sum d_i^2 / a_i^2, its
+    height's axis held near the mean of the other two, which the seam alone hardly settles): the three 1/a_i^2."""
+    rows = directions ** 2
+    wanted = 1.0 / distances ** 2
+    weight = 0.3 * np.sqrt(len(rows))
+    rows = np.vstack([rows, weight * np.array([[-0.5, 1.0, -0.5]])])
+    wanted = np.r_[wanted, 0.0]
+    return np.linalg.lstsq(rows, wanted, rcond=None)[0]
+
+
+def ellipsoid_at(inverse_squares, directions):
+    """The fitted ellipsoid's distance from the origin along each direction."""
+    return 1.0 / np.sqrt(np.maximum((directions ** 2) @ inverse_squares, 1e-6))
+
+
+def harmonic(values, known, neighbours):
+    """`values` spread smoothly (harmonic over the corners' graph) from the `known` corners to the rest; a corner
+    with no known corner reachable keeps 0 (a weak pull to 0 holds the system)."""
+    unknown = np.flatnonzero(~known)
+    inner = neighbours[unknown][:, unknown]
+    degree = np.asarray(neighbours[unknown].sum(axis=1)).ravel()
+    system = diags(degree + 1e-6) - inner
+    right = neighbours[unknown][:, np.flatnonzero(known)] @ values[known]
+    result = values.copy()
+    result[unknown] = spsolve(system.tocsc(), right)
+    return result
+
+
+def smoothed(distance, held, neighbours, ceiling):
+    """The distances averaged with their neighbours SMOOTH times, the `held` corners kept, never past `ceiling`."""
+    degree = np.maximum(np.asarray(neighbours.sum(axis=1)).ravel(), 1.0)
+    for _ in range(SMOOTH):
+        average = (neighbours @ distance) / degree
+        distance = np.where(held, distance, np.minimum(distance + SMOOTH_SHARE * (average - distance), ceiling))
+    return distance
+
+
+def scalp_patch(points, faces, hair, frame):
+    """The scalp: {points, triangles, depth: each point's distance into the hole from the seam (m), hole: whether
+    each point is over the hole (not the seam's tuck), open_neck: whether the hair hung over a neck the model never
+    had (directions under level that meet nothing, more than OPEN_NECK of them)}. `hair` labels the model's
+    triangles."""
+    start = origin(frame)
+    near = np.linalg.norm(points[faces].mean(axis=1) - start, axis=1) < HEAD_M
+    sphere = trimesh.creation.icosphere(subdivisions=SUBDIVISIONS)
+    directions = np.asarray(sphere.vertices)
+    skin_at = first_hit(points, faces[near & ~hair], start, directions)
+    hair_at = first_hit(points, faces[near & hair], start, directions)
+    neighbours = sphere_neighbours(sphere)
+    nothing = ~np.isfinite(hair_at) & ~np.isfinite(skin_at)
+    hole = (hair_at < skin_at) | (nothing & (directions[:, 1] >= NECK_LOWEST))
+    seam = grown_ring(hole, neighbours, RING) & ~hole & np.isfinite(skin_at)
+    fit = ellipsoid_fit(directions[seam], skin_at[seam])
+    skull = ellipsoid_at(fit, directions)
+    held = seam & (np.abs(skin_at - skull) < EAR_OUT * skull)
+    fit = ellipsoid_fit(directions[held], skin_at[held])
+    skull = ellipsoid_at(fit, directions)
+    difference = np.where(held, skin_at - TUCK_M - skull, 0.0)
+    shaped = skull + harmonic(difference, held, neighbours)
+    ceiling = np.where(np.isfinite(hair_at), hair_at - CLEAR_M, np.inf)
+    distance = smoothed(np.minimum(shaped, ceiling), held, neighbours, ceiling)
+    used = hole | held
+    kept_faces = np.asarray(sphere.faces)[used[np.asarray(sphere.faces)].all(axis=1)]
+    corners = np.unique(kept_faces)
+    renumber = np.full(len(directions), -1)
+    renumber[corners] = np.arange(len(corners))
+    placed = start + directions[corners] * distance[corners, None]
+    seam_points = start + directions[held] * distance[held, None]
+    depth = cKDTree(seam_points).query(placed)[0] * hole[corners]
+    open_neck = int((nothing & (directions[:, 1] < 0.0)).sum()) > OPEN_NECK
+    return {"points": placed, "triangles": renumber[kept_faces], "depth": depth, "hole": hole[corners],
+            "open_neck": open_neck}
+
+
+def neck_back(points, faces, hair, colours_skin_like, frame):
+    """The neck's back where the hair hung over it: (points, triangles). `colours_skin_like` marks the model's skin
+    triangles; the tube is fitted to the neck's skin (its width, its front), its depth NECK_DEPTH of its width."""
+    middles = points[faces].mean(axis=1)
+    eyes = frame["eyes_middle"]
+    band = (~hair & colours_skin_like & (middles[:, 1] < eyes[1] - NECK_BAND_M[0])
+            & (middles[:, 1] > eyes[1] - NECK_BAND_M[1]) & (np.abs(middles[:, 0] - frame["middle_x"]) < 0.08))
+    neck = middles[band]
+    spread = np.percentile(neck[:, 0], NECK_SPREAD[1]) - np.percentile(neck[:, 0], NECK_SPREAD[0])
+    half_width = NECK_TUCK * 0.5 * float(spread)
+    half_depth = NECK_DEPTH * half_width
+    front = float(np.percentile(neck[:, 2], 90))
+    middle = np.array([frame["middle_x"], front - half_depth])
+    low, high = eyes[1] - NECK_BAND_M[1] - NECK_BELOW_M, origin(frame)[1]
+    angles = np.linspace(np.pi / 2.0, 3.0 * np.pi / 2.0, NECK_AROUND)
+    heights = np.linspace(low, high, NECK_UP)
+    angle, height = np.meshgrid(angles, heights, indexing="ij")
+    placed = np.stack([middle[0] + half_width * np.sin(angle), height, middle[1] + half_depth * np.cos(angle)],
+                      axis=-1).reshape(-1, 3)
+    corner = np.arange(NECK_AROUND * NECK_UP).reshape(NECK_AROUND, NECK_UP)
+    quads = np.stack([corner[:-1, :-1], corner[1:, :-1], corner[1:, 1:], corner[:-1, 1:]], axis=-1).reshape(-1, 4)
+    return placed, np.vstack([quads[:, [0, 1, 2]], quads[:, [0, 2, 3]]])
