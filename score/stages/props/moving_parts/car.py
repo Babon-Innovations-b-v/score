@@ -16,12 +16,16 @@ import numpy as np
 
 # The car's sides as shares of its length from the rear (0) to the front (1): (share, top of its lower body, its
 # bottom, its half width), the tops the boot deck, the beltline and the bonnet; heights as shares of its height.
-LOWER = ((0.0, 0.42, 0.24, 0.86), (0.025, 0.58, 0.14, 0.95), (0.08, 0.63, 0.12, 0.99), (0.24, 0.65, 0.12, 1.0),
-         (0.70, 0.65, 0.12, 1.0), (0.80, 0.61, 0.12, 1.0), (0.93, 0.55, 0.13, 0.97), (0.985, 0.47, 0.16, 0.92),
-         (1.0, 0.36, 0.24, 0.86))
+# A 2099 patrol car, not a 2000s saloon (night judge, wave 2 round 2: "a low-poly, generic sedan from the 2000s"): a
+# wedge, its nose low and its tail cut off high.
+LOWER = ((0.0, 0.50, 0.24, 0.90), (0.02, 0.60, 0.14, 0.97), (0.08, 0.62, 0.12, 1.0), (0.24, 0.62, 0.12, 1.0),
+         (0.62, 0.60, 0.12, 1.0), (0.78, 0.53, 0.12, 0.99), (0.92, 0.44, 0.13, 0.96), (0.985, 0.38, 0.15, 0.92),
+         (1.0, 0.32, 0.20, 0.88))
 # The greenhouse over the beltline: (share, roof height as a share of the car's height), from the rear screen's foot
 # to the windscreen's.
-GREENHOUSE = ((0.20, 0.655), (0.27, 0.86), (0.36, 0.985), (0.58, 1.0), (0.66, 0.92), (0.75, 0.655))
+# Cab-forward: a fastback down to the short tail and one long raked windscreen down to the bonnet's front half.
+GREENHOUSE = ((0.13, 0.625), (0.22, 0.82), (0.32, 0.97), (0.40, 1.0), (0.58, 1.0), (0.66, 0.92), (0.75, 0.74),
+              (0.84, 0.545))
 GLASS_IN, ROOF_IN = 0.88, 0.70  # the greenhouse's half width at the beltline and at its roof, as shares of the body's
 SECTIONS, AROUND = 240, 72  # sections along the length and points round each
 ROUNDNESS = 5.0  # the sections' superellipse power: higher is boxier
@@ -33,9 +37,10 @@ DOOR_FOOT = 0.20  # the door's foot as a share of the height
 SKIN = 0.03  # a door's thickness, in metres
 LIGHT_BAR = 0.12  # the light bar's height on the roof, in metres (the car's height its top)
 WHEEL_FACES = 64
-SPOKES = 5  # a rim's spokes
-GLASS_SEEN = 0.97  # how much of what is behind the car's tinted glass it hides (glTF alpha): a patrol car's dark tint (at 0.93
-# the seat backs stood as black slabs through the side glass, night car round 3)
+SPOKES = 10  # a rim's spokes: slim, as an aero wheel's
+GLASS_SEEN = 0.9  # how much of what is behind the car's tinted glass it hides (glTF alpha): a patrol car's dark tint (at 0.93
+# the seat backs stood as black slabs through the side glass, night car round 3; at 0.97 the windows read opaque black
+# with no cabin behind, wave 2 round 2: the dash's lit screen now shows through)
 ROOF_BAND = 0.9  # the greenhouse's roof cap: the ring's points this high up its section and over
 FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal", "car_body_paint"),
             "glass": ("glass", "car_window"), "door_window": ("glass", "car_window"),
@@ -44,7 +49,8 @@ FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal
             "bar_base": ("rubber", "tyre_rubber"),
             "siren_blue": ("glowing", "siren_blue"), "siren_red": ("glowing", "siren_red"),
             "plates": ("painted_metal", "licence_plate"), "tyre": ("rubber", "tyre_rubber"),
-            "rim": ("painted_metal", "gunmetal_steel"), "seams": ("rubber", "tyre_rubber")}
+            "rim": ("painted_metal", "gunmetal_steel"), "seams": ("rubber", "tyre_rubber"),
+            "accent": ("glowing", "neon_cyan"), "screen": ("glowing", "screen_glow")}
 SEAMS = (0.27, 0.47, 0.69)  # the doors' shut lines as shares of the length from the rear, on both sides
 END_ROOM = 0.03  # the body stops this short of the car's ends, metres: room for the plates and bumper bands on them
 SEAM_WIDE, SEAM_PROUD = 0.008, 0.002  # a shut line's width and how far it stands off the skin, in metres
@@ -263,20 +269,22 @@ def lamps(across, tall, along_length):
     def strip(size, middle):
         return trimesh.creation.box(extents=size).apply_translation(middle)
 
-    head_y, tail_y = along(LOWER, 0.97, 1) * tall - 0.06, along(LOWER, 0.03, 1) * tall - 0.05
-    headlamps = [strip((across * 0.24, 0.05, 0.04), (side * across * 0.32, head_y, nose - 0.035)) for side in (-1, 1)]
-    # Two lamp clusters at the tail's corners and a thin bar between them, as the concept's saloon shows them lit.
-    tail_lamps = [strip((across * 0.2, 0.085, 0.035), (side * across * 0.33, tail_y, tail + 0.04)) for side in (-1, 1)]
-    tail_lamps.append(strip((across * 0.46, 0.022, 0.03), (0, tail_y + 0.02, tail + 0.03)))
+    head_y, tail_y = along(LOWER, 0.985, 1) * tall - 0.05, along(LOWER, 0.02, 1) * tall - 0.06
+    # One thin lit line across the whole nose and the whole tail, a short upright at each corner (two flat white bars
+    # read as a 2000s saloon's, wave 2 round 2).
+    headlamps = [strip((across * 0.82, 0.026, 0.03), (0, head_y, nose - 0.03))]
+    headlamps += [strip((across * 0.05, 0.07, 0.03), (side * across * 0.385, head_y - 0.022, nose - 0.04)) for side in (-1, 1)]
+    tail_lamps = [strip((across * 0.84, 0.03, 0.03), (0, tail_y, tail + 0.03))]
+    tail_lamps += [strip((across * 0.05, 0.09, 0.03), (side * across * 0.39, tail_y - 0.03, tail + 0.035)) for side in (-1, 1)]
     plates = [strip((0.52, 0.11, 0.012), (0, 0.31 * tall, nose - 0.012)),
               strip((0.52, 0.11, 0.012), (0, 0.335 * tall, tail + 0.012))]  # in the room left before the body's ends
     blue, red, base = light_bar(across, tall)
-    grille = [strip((across * 0.36, 0.025, 0.03), (0, head_y - 0.02, nose - 0.025))]
+    grille = [strip((across * 0.5, 0.02, 0.03), (0, head_y - 0.1, nose - 0.04))]
     handle_y = along(LOWER, 0.5, 1) * tall - 0.1
     handles = [strip((0.03, 0.025, 0.16), (side * (across / 2 - 0.016), handle_y, (share - 0.5) * along_length))
                for side, share in ((1, 0.52), (1, 0.33), (-1, 0.33))]
-    mirror_y = along(LOWER, 0.74, 1) * tall + 0.08
-    mirrors = [strip((0.16, 0.1, 0.07), (side * (across / 2 - 0.08), mirror_y, (0.735 - 0.5) * along_length))
+    mirror_y = along(LOWER, 0.79, 1) * tall + 0.07
+    mirrors = [strip((0.16, 0.08, 0.07), (side * (across / 2 - 0.08), mirror_y, (0.79 - 0.5) * along_length))
                for side in (-1, 1)]  # within the body's width: the row's size is the car's
     return headlamps, tail_lamps, plates, blue, red, base, grille + handles, mirrors
 
@@ -301,6 +309,25 @@ def glyph_strokes(character, middle_x, height, depth, face):
         extents, across, up = places[name]
         strokes.append(trimesh.creation.box(extents=extents).apply_translation((middle_x + face * across, height + up, depth)))
     return strokes
+
+
+def accents(across, tall, along_length):
+    """Thin lit lines down both sills between the wheel arches, the patrol car's mark of its year (with nothing lit on
+    its flanks it read as a black 2000s saloon, wave 2 round 2)."""
+    import trimesh
+    rear, front = (0.26 - 0.5) * along_length, (0.73 - 0.5) * along_length
+    return [trimesh.creation.box(extents=(0.012, 0.018, front - rear)).apply_translation(
+        (side * (across / 2 - 0.0065), 0.24 * tall, (rear + front) / 2)) for side in (-1, 1)]
+
+
+def dash_screen(across, tall, along_length):
+    """The dash's lit screen across the cabin under the windscreen, tilted to the seats, so through the tinted glass
+    the cabin reads as a cabin, not a black void (wave 2 round 2)."""
+    import trimesh
+    room = along(LOWER, 0.5, 3) * across / 2 * ROOF_IN - 0.08
+    screen = trimesh.creation.box(extents=(room * 1.6, 0.1, 0.01))
+    screen.apply_transform(trimesh.transformations.rotation_matrix(-0.5, (1, 0, 0)))
+    return [screen.apply_translation((0, tall * 0.6 + 0.09, (0.71 - 0.5) * along_length - 0.36))]
 
 
 def plate_marks(across, tall, along_length):
@@ -357,7 +384,7 @@ def seams(across, tall, along_length, axles, radius):
                              (section[:, 1] < top - 0.015) & (np.abs(section[:, 0]) > 0.6 * across / 2)]
             if len(chosen) > 1:
                 lines.append(seam_ribbon(chosen[np.argsort(chosen[:, 1])], place))
-    for share in (0.79, 0.11):  # the bonnet's rear edge and the boot lid's front edge
+    for share in (0.87, 0.08):  # the bonnet's rear edge and the boot lid's front edge
         place = (share - 0.5) * along_length
         section = body_section(across, tall, along_length, axles, radius, place)
         top = along(LOWER, share, 1) * tall
@@ -441,7 +468,8 @@ def car_parts(size):
              finished("headlamps", headlamps, "headlamps"), finished("tail_lamps", tail_lamps, "tail_lamps"),
              finished("plates", plates, "plates"), finished("siren_blue", blue, "siren_blue"),
              finished("siren_red", red, "siren_red"), finished("bar_base", bar_base, "bar_base"),
-             finished("trim", trim, "trim"),
+             finished("trim", trim, "trim"), finished("accent", accents(across, tall, along_length), "accent"),
+             finished("screen", dash_screen(across, tall, along_length), "screen"),
              finished("seams", seams(across, tall, along_length, axles, radius) +
                       plate_marks(across, tall, along_length), "seams"),
              finished("door", [door], "door", hinge, "hinge", "y", 1),
