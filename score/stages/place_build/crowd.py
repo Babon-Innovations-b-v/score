@@ -8,7 +8,9 @@ The crowd is the laid people whose names start with `prefix` (SkelRoots under Ob
 of them stand on (to 0.1 m), the floor round them is packed: a jittered CELL grid kept at the spacing of a spot's
 distance from `toward` (PACKED within PACKED_WITHIN, thinning to THIN from THIN_FROM; never two nearer than NEAREST),
 each spot kept only where its body's column is clear: rays straight down at its middle and eight BODY round it each find that
-floor, facing up, with no solid within HEADROOM over it (a stage's top, a stair, a wall, a lamp). Two lanes run out
+floor, facing up, with no solid within HEADROOM over it (a stage's top, a stair, a wall, a lamp), and level rays
+from its middle at REACH_HEIGHTS meet no solid within its body's reach (REACH, or the most the prototypes' posed
+skins reach round their feet) nor, all eight ways at one height, one object (inside a hollow building). Two lanes run out
 from `toward` through the crowd (LANE_ANGLE either side of the way to its middle, from LANES_FROM), each as long as
 its LANE_WIDTH corridor finds the same clear floor every LANE_STEP; no one stands on a lane, and WALKERS_EVERY metres of
 lane gets a walker. Every person faces `toward` by its toes (score_lib's people face their model's -Z), and stands
@@ -45,6 +47,10 @@ SHAKE = 0.12  # metres a candidate is shaken off its cell's middle either way
 HEADROOM = 2.4  # metres over a spot's floor no solid may stand
 ON_LEVEL = 0.12  # metres a floor hit may stand off a crowd's floor
 BODY = 0.22  # metres round a spot's middle its body's column is read (four rays)
+# metres a standing person's skin reaches round its feet in plan (score_lib's people: 0.30 to 0.33 m, a hand at hip
+# height; the square's crowd stood 0.22 m clear of the east tenement's facade and its hands cut 26 cm into it, 2099 #161)
+REACH = 0.36
+REACH_HEIGHTS = (0.25, 0.6, 0.95, 1.3, 1.65)  # metres over a spot's floor its body's reach is read across
 LEAST = 40  # a floor is a crowd's when at least this many of its people stand on it
 AREA_ROUND = 4.5  # metres round its own people a floor is packed
 LANES_FROM = 7.0  # metres from `toward` a lane may start
@@ -144,11 +150,12 @@ def crowded(taken, x, z):
 
 
 class Solids:
-    """The scene's solids near the crowd (every object under Objects but people and sky domes, ready.role_of), their
-    faces within `low`..`high` (x, z) as one mesh, for rays straight down."""
+    """The scene's solids near the crowd (every object under Objects but people and sky domes, ready.role_of) as one
+    mesh, for rays straight down and across: a ground's faces within `low`..`high` (x, z), every other object's whole
+    when any of its faces is (a building reaching out of the crowd still closes round a spot inside it)."""
 
     def __init__(self, stage, place, low, high):
-        triangles = []
+        triangles, owners, grounds = [], [], []
         for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
             if ready.role_of(prim) in ready.UNSOLID or prim.IsA(UsdGeom.PointInstancer):
                 continue
@@ -159,10 +166,15 @@ class Solids:
             plan_low, plan_high = faces[:, :, [0, 2]].min(axis=1), faces[:, :, [0, 2]].max(axis=1)
             near = np.all(plan_high >= low, axis=1) & np.all(plan_low <= high, axis=1)
             if near.any():
+                ground = ready.role_of(prim) == "ground"
+                near = near if ground else np.ones(len(faces), bool)
                 triangles.append(faces[near])
+                owners.append(np.full(int(near.sum()), len(grounds)))
+                grounds.append(ground)
         if not triangles:
             raise place_build.Refused("no solid lies under the crowd")
         self.triangles = np.concatenate(triangles)
+        self.owner, self.ground = np.concatenate(owners), np.array(grounds)
         normals = np.cross(self.triangles[:, 1] - self.triangles[:, 0], self.triangles[:, 2] - self.triangles[:, 0])
         self.up = normals[:, 1] / np.maximum(np.linalg.norm(normals, axis=1), 1e-12)
 
@@ -179,6 +191,17 @@ class Solids:
                 found[start + ray].append((float(at[1]), bool(abs(self.up[face]) > 0.7 and self.up[face] != 0)))
         return [sorted(hits, key=lambda hit: -hit[0]) for hits in found]
 
+    def across(self, origins, ways):
+        """Each ray's first hit: (its distance, the object it meets: -1 for none), inf where it meets nothing."""
+        distances, owners = np.full(len(origins), np.inf), np.full(len(origins), -1)
+        for start in range(0, len(origins), 20000):
+            where, rays, faces = ready.cast(self.triangles, origins[start:start + 20000], ways[start:start + 20000],
+                                            multiple_hits=False)
+            rays = rays + start
+            distances[rays] = np.linalg.norm(where - origins[rays], axis=1)
+            owners[rays] = self.owner[faces]
+        return distances, owners
+
     def under(self, points):
         """How far each of `points` (n, 3) stands over the nearest face straight under it, as ready.under_gap reads it
         (from ready.RAY_START over the point; negative: into it); inf where nothing lies under it."""
@@ -190,9 +213,10 @@ class Solids:
         return gaps
 
 
-def column_floors(solids, spots, levels, top):
+def column_floors(solids, spots, levels, top, reach=REACH):
     """The floor each spot's body column stands on (floor_of at its middle and at eight points BODY round it, all on
-    one level), or None where any of its nine rays finds no clear floor or another level."""
+    one level), or None where any of its nine rays finds no clear floor or another level, or where its body is not
+    clear round it (reached_into)."""
     turns = np.radians(np.arange(0.0, 360.0, 45.0))
     offsets = np.vstack([[0.0, 0.0], BODY * np.column_stack([np.cos(turns), np.sin(turns)])])
     spots = np.asarray(spots, float).reshape(-1, 2)
@@ -201,7 +225,31 @@ def column_floors(solids, spots, levels, top):
     for number in range(len(spots)):
         found = {floor_of(hits[number * len(offsets) + ray], levels) for ray in range(len(offsets))}
         floors.append(found.pop() if len(found) == 1 else None)
+    standing = [number for number, floor in enumerate(floors) if floor is not None]
+    if standing:
+        for number in np.asarray(standing)[reached_into(solids, spots[standing], [floors[n] for n in standing], reach)]:
+            floors[number] = None
     return floors
+
+
+def reached_into(solids, spots, floors, reach):
+    """Which spots' bodies are not clear round them, read by level rays from the middle at REACH_HEIGHTS over its
+    floor, eight ways: one meets a solid within `reach` (over by the most the eight ways leave between them: a hand
+    in a facade the rays down never see, its wall a thin skin), or every ray at one height meets one object that is
+    not a ground (the spot stands inside a hollow building, its roof and floor slabs an even count of faces over it)."""
+    turns = np.radians(np.arange(0.0, 360.0, 45.0))
+    ways = np.column_stack([np.cos(turns), np.zeros(len(turns)), np.sin(turns)])
+    heights = np.asarray(REACH_HEIGHTS)
+    middles = np.column_stack([spots[:, 0], floors, spots[:, 1]])
+    origins = (middles[:, None, None, :] + heights[None, :, None, None] * [0.0, 1.0, 0.0]
+               + np.zeros((1, 1, len(ways), 1))).reshape(-1, 3)
+    distances, owners = solids.across(origins, np.tile(ways, (len(spots) * len(heights), 1)))
+    distances = distances.reshape(len(spots), len(heights), len(ways))
+    owners = owners.reshape(len(spots), len(heights), len(ways))
+    near = (distances < reach / math.cos(math.radians(22.5))).any(axis=(1, 2))
+    walled = (owners >= 0) & ~solids.ground[np.maximum(owners, 0)]
+    enclosed = (walled.all(axis=2) & (owners == owners[:, :, :1]).all(axis=2)).any(axis=1)
+    return near | enclosed
 
 
 def toes_forward(prim):
@@ -433,8 +481,9 @@ def crowd(folder, toward, prefix="person"):
     feet = np.array([feet_of(prim) for prim in people])
     prototypes = prototypes_of(stage, place, people)
     paths = [path for path, _ in prototypes]
+    reach = max([REACH] + [reach_of(ready.people.posed_body(stage.GetPrimAtPath(path))) for path in paths])
     rows = stood_rows(stage, solids, f"/{place}/Objects/crowd", paths,
-                      packed_rows(solids, feet, levels, lanes, toward, prototypes, top))
+                      packed_rows(solids, feet, levels, lanes, toward, prototypes, top, reach))
     walkers = stood_rows(stage, solids, f"/{place}/Objects/crowd_walkers", paths, walker_rows(lanes, prototypes))
     walking = UsdGeom.PointInstancer(stage.GetPrimAtPath(f"/{place}/Objects/crowd_walkers"))
     walking.GetPrim().CreateAttribute("score:walks_to", Sdf.ValueTypeNames.Point3fArray).Set(
@@ -459,7 +508,16 @@ def laid_removed(stage, solids, people, feet, lanes, top):
     return removed
 
 
-def packed_rows(solids, feet, levels, lanes, toward, prototypes, top):
+def reach_of(body):
+    """How far a prototype's posed skin reaches round its feet (it stands unturned at the origin) in plan: 0 with no
+    skin."""
+    if body is None:
+        return 0.0
+    points = np.asarray(body.mesh.vertices)
+    return float(np.hypot(points[:, 0], points[:, 2]).max(initial=0.0))
+
+
+def packed_rows(solids, feet, levels, lanes, toward, prototypes, top, reach=REACH):
     """The packed crowd's instances [(prototype number, feet, yaw)]: fill's spots round each floor's own people whose
     body's column stands clear on that floor and clear of the laid people, each a prototype by a stable spread."""
     rows = []
@@ -480,7 +538,7 @@ def packed_rows(solids, feet, levels, lanes, toward, prototypes, top):
         high = own[:, [0, 2]].max(axis=0) + AREA_ROUND
         spots = [spot for spot in fill(low, high, toward[[0, 2]], in_area, lanes)
                  if not crowded(taken, *spot)]
-        floors = column_floors(solids, spots, levels, top) if spots else []
+        floors = column_floors(solids, spots, levels, top, reach) if spots else []
         for number, ((x, z), floor) in enumerate(zip(spots, floors)):
             if floor is None or abs(floor - level) > 0.01:
                 continue

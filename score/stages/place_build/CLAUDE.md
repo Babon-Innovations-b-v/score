@@ -276,7 +276,9 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   thinning away); two walkers' lanes laid out through it (`crowd_walkers`, each walker's far end in `score:walks_to`,
   the piece list's copy `walks`). Every spot is kept only where nine rays down its body's column find the crowd's
   floor with nothing within HEADROOM over it and no solid round it (an odd count of faces over a point: inside a
-  wall), every lane step where its corridor does; a laid person whose column is not clear, or who stands on a lane,
+  wall), and where level rays from its middle meet no solid within its body's reach (REACH, or the prototypes' posed
+  skins' most) nor one object all round (inside a hollow building: the square's east tenement held 51 copies, one
+  with its hands 26 cm in its facade), every lane step where its corridor does; a laid person whose column is not clear, or who stands on a lane,
   is taken out. Every laid person and copy then stands by its feet as the check reads them (`stood`, `stood_rows`:
   its lower foot on what is under it, taken out where the other would stand over STEP off), and the copies' turns are
   written in float too (`orientationsf`: a half quaternion is never unit length, so each copy read 0.05% stretched and

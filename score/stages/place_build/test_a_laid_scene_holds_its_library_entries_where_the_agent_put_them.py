@@ -42,6 +42,7 @@ walker's far end carried into the piece list; every laid person and every copy s
 
 Breaks that turn this red (each applied once and seen red, then reverted):
 - crowd.column_floors: the middle ray alone (no BODY rays round it) -> a packed person stands half into the stage
+- crowd.reached_into: left out -> packed people stand inside the hollow house, one with its hands in its thin wall
 - crowd.toes_forward: the model's +z taken as its front -> every person turns its back on the leader
 - crowd.laid_removed: the column check left out -> the person laid in the wall stays
 - crowd.stood: left out -> the people laid on the dais stand 3 cm into it
@@ -2591,10 +2592,11 @@ def toed_person(path):
 
 
 def crowded(folder):
-    """A square's crowd laid by crowd.py on a 40 x 40 m floor with a stage (4 x 1 x 4 m) and a wall in the crowd: 45
-    laid people facing anywhere round the leader on the stage, one standing in the wall. Each kept person faces the
-    leader by its toes within 3 degrees and the one in the wall is taken out (and those on a lane); every packed person stands on the floor
-    clear of the stage and the wall (its body's BODY round its middle), none two nearer than NEAREST, each facing the
+    """A square's crowd laid by crowd.py on a 40 x 40 m floor with a stage (4 x 1 x 4 m), a wall and a hollow house
+    (thin walls and a roof slab, one object) in the crowd: 45 laid people facing anywhere round the leader on the
+    stage, one standing in the wall. Each kept person faces the leader by its toes within 3 degrees and the one in the
+    wall is taken out (and those on a lane); every packed person stands on the floor clear of the stage, the wall and
+    the house, outside it (its body's REACH round its middle), none two nearer than NEAREST, each facing the
     leader; the walkers walk lanes whose every point lies on the floor clear of both, and the piece list's walks
     carry each walker's far end in the scene's frame."""
     from score.stages.place_build import crowd, pieces
@@ -2605,14 +2607,20 @@ def crowded(folder):
     objects = "/sq/Objects"
     solids = {"floor": ((0.0, -0.5, 10.0), (40.0, 1.0, 40.0)), "stage": ((0.0, 0.5, 0.0), (4.0, 1.0, 4.0)),
               "wall": ((5.0, 1.5, 12.0), (0.3, 3.0, 6.0)), "dais": ((-1.5, 0.015, 9.25), (1.5, 0.03, 4.5))}
-    for name, (middle, size) in solids.items():
+    house = {"house": ((-10.5, 1.5, 9.0), (4.0, 3.0, 4.0))}  # its outline; its skins 2 cm, its roof slab 0.2 m
+    skins = [((-10.5, 1.5, 7.01), (4.0, 3.0, 0.02)), ((-10.5, 1.5, 10.99), (4.0, 3.0, 0.02)),
+             ((-12.49, 1.5, 9.0), (0.02, 3.0, 4.0)), ((-8.51, 1.5, 9.0), (0.02, 3.0, 4.0)),
+             ((-10.5, 2.9, 9.0), (4.0, 0.2, 4.0))]
+    for name, shapes in [(name, [box]) for name, box in solids.items()] + [("house", skins)]:
         holder = UsdGeom.Xform.Define(stage, f"{objects}/{name}")
-        cube = UsdGeom.Cube.Define(stage, f"{objects}/{name}/geo")
-        cube.CreateSizeAttr(1.0)
-        cube.AddTranslateOp().Set(Gf.Vec3d(*middle))
-        cube.AddScaleOp().Set(Gf.Vec3f(*size))
+        for number, (middle, size) in enumerate(shapes):
+            cube = UsdGeom.Cube.Define(stage, f"{objects}/{name}/geo{number or ''}")
+            cube.CreateSizeAttr(1.0)
+            cube.AddTranslateOp().Set(Gf.Vec3d(*middle))
+            cube.AddScaleOp().Set(Gf.Vec3f(*size))
         holder.GetPrim().CreateAttribute("score:role", Sdf.ValueTypeNames.String).Set(
-            {"floor": "ground", "stage": "structure", "wall": "structure", "dais": "structure"}[name])
+            {"floor": "ground", "stage": "structure", "wall": "structure", "dais": "structure",
+             "house": "structure"}[name])
     leader = UsdGeom.Xform.Define(stage, f"{objects}/leader")
     leader.AddTranslateOp().Set(Gf.Vec3d(0.0, 1.0, 0.0))
     spots = [(-6.0 + 1.5 * (number % 9), 0.0, 6.0 + 1.6 * (number // 9)) for number in range(44)] + [(5.0, 0.0, 12.0)]
@@ -2635,14 +2643,14 @@ def crowded(folder):
         world = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
         assert abs(off(np.array([0.0, 0.0, -1.0]) @ world[:3, :3], world[3, :3])) < 3.0, prim.GetName()
 
-    def clear(x, z, reach=crowd.BODY * math.cos(math.radians(22.5))):  # what eight rays round a middle make sure of
+    def clear(x, z, reach=crowd.REACH):  # what the level rays round a middle make sure of
         return all(math.hypot(max(abs(x - middle[0]) - size[0] / 2, 0.0), max(abs(z - middle[2]) - size[2] / 2, 0.0))
-                   >= reach - 1e-6 for middle, size in (solids["stage"], solids["wall"]))
+                   >= reach - 1e-6 for middle, size in (solids["stage"], solids["wall"], house["house"]))
 
     packed = UsdGeom.PointInstancer(stage.GetPrimAtPath(f"{objects}/crowd"))
     worlds = packed.ComputeInstanceTransformsAtTime(Usd.TimeCode.Default(), Usd.TimeCode.Default())
     at = np.array([np.asarray(world)[3, :3] for world in worlds])
-    assert len(at) > 200 and all(clear(x, z) for x, _, z in at)
+    assert len(at) > 200 and all(clear(x, z) for x, _, z in at), (len(at), [tuple(spot) for spot in at if not clear(spot[0], spot[2])][:8])
     assert packed.GetOrientationsfAttr().HasValue()
     on_dais = (np.abs(at[:, 0] + 1.5) < 0.5) & (np.abs(at[:, 2] - 9.25) < 2.0)
     assert on_dais.any() and np.allclose(at[on_dais, 1], 0.03, atol=1e-4), at[on_dais, 1]
@@ -2651,7 +2659,7 @@ def crowded(folder):
     assert raised and np.allclose(raised, 0.03, atol=1e-4), raised
     laid = ready.Place(stage, "sq")
     copies = sorted(name for name in laid.people if name.startswith("crowd_") and not name.startswith("crowd_w"))
-    assert "crowd" not in laid.people and len(copies) == len(at) and laid.walking, sorted(laid.people)[:5]
+    assert "crowd" not in laid.people and len(copies) == len(at) and laid.walking, (done, len(copies), len(at))
     standing = {name: [fault["fault"] for fault in ready.person_faults(laid, name)
                        if fault["fault"] in ("person sinks", "person floating", "penetration")] for name in laid.people}
     assert not any(standing.values()), {name: faults for name, faults in standing.items() if faults}
