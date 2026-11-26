@@ -29,15 +29,20 @@ def row(folder):
 
 
 def summary(record):
-    """The run's numbers in one line a clip."""
+    """The run's numbers, one line a clip and garment: the tethered cloth's, then plain skinning's in brackets."""
     lines = []
     for clip, run in record["runs"].items():
-        parts = [f"{kind}: riding {found['riding_share']:.0%}, deepest in body {found['deepest_m'] * 1000:.0f} mm, "
-                 f"drawn {found['deepest_drawn_m'] * 1000:.0f} mm, stretch {found['largest_stretch']:.2f}, "
-                 f"drift {found['drift_most_m'] * 100:.0f} cm, jitter p99 {found['jitter_99_m_per_frame2'] * 1000:.1f} "
-                 f"mm/frame2"
-                 for kind, found in run["garments"].items()]
-        lines.append(f"{clip} ({run['engine'].split(' (')[0]}, {run['seconds']:.0f} s): " + "; ".join(parts))
+        for kind, found in run["garments"].items():
+            plain = run["skinned"][kind]
+
+            def pair(key, factor, digits):
+                return f"{found[key] * factor:.{digits}f} ({plain[key] * factor:.{digits}f})"
+
+            flap = (f", flap at passing {pair('flap_passing_m', 100, 1)} cm" if "flap_passing_m" in found else "")
+            lines.append(f"{clip} {kind}: deepest in body {pair('deepest_m', 1000, 0)} mm, drawn "
+                         f"{pair('deepest_drawn_m', 1000, 0)} mm, stretch {pair('largest_stretch', 1, 2)}, drift "
+                         f"{pair('drift_most_m', 100, 1)} cm, jitter p99 {pair('jitter_99_m_per_frame2', 1000, 1)} "
+                         f"mm/frame2{flap}")
     return lines
 
 
@@ -48,12 +53,14 @@ def sheet(cloth, skinned, record, out, title):
         font = ImageFont.load_default()
     rows = [("cloth", row(cloth)), ("skinned", row(skinned))]
     width = sum(picture.width for picture in rows[0][1]) + GAP * (len(PANELS) - 1)
-    top = 30 * (2 + len(record["runs"]))
+    lines = summary(record)
+    top = 30 * (2 + len(lines))
     picture = Image.new("RGB", (width, top + 2 * (HEIGHT + 30)), "white")
     draw = ImageDraw.Draw(picture)
-    draw.text((6, 6), f"{title}: {record['height_m']} m, garments as cloth (above) and skinned whole (below)",
+    draw.text((6, 6), f"{title}: {record['height_m']} m, garments as tethered cloth (above) and skinned whole (below); "
+              "numbers tethered (skinned)",
               fill="black", font=font)
-    for number, line in enumerate(summary(record)):
+    for number, line in enumerate(lines):
         draw.text((6, 36 + 30 * number), line, fill="black", font=font)
     y = top
     for name, pictures in rows:

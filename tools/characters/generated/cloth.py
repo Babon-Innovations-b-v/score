@@ -1,8 +1,10 @@
 """A generated person's clothes moved as cloth while she walks (#223; owner 2026-11-26, of the skinned walking sheet:
 "moving creates a lot of warping"). TRELLIS.2 makes a person as one fused shell; still_rig skins it whole on the
 dressed body's skeleton, so wide jeans fin at the passing step and a jacket stretches like skin. Here the shell is
-split into its garments and the loose ones hang and swing on the body as cloth, on Newton's VBD
-(score/stages/people_cloth/inside/cloth.py, the people cloth stage's own run, reused as it is).
+split into its garments and the loose ones swing and sag on the body as tethered cloth (`cloth_tether.py`: each sim
+point simulated but held within a tether of its skinned place, as games move clothes). Two free runs on Newton's VBD
+(round 1 and 2, 2026-11-26) tore: the jeans stretched 90 cm down to and between the shoes, 19 cm deep in the body,
+and the jacket shredded; free cloth was stopped for the tether.
 
 1. `person_of`: still_rig's rigged person (body.glb, its own paint: rig it with a palette of no tokens) read back: its
    skeleton at the bind, its clips, its shell welded with each face's paint (its base colour map at the face's texture
@@ -25,22 +27,20 @@ split into its garments and the loose ones hang and swing on the body as cloth, 
    the garment's own surface (both walls, its folds and paint) is bound to it and rides along.
 4. `body_under`: the collision body, the mean SOMA surface on the bind (still_rig.soma_on: the body the shell was
    fitted to), each point pushed in under the shell by MARGIN_M where it lies nearer than that (a slim woman over the
-   SOMA mean: most of its skin outside her), the push smoothed over the body; cut into one piece a joint (each face
-   to its corners' strongest joint), the head's and the feet's left out and the shell's own shoes laid on the feet
-   instead (the jeans' hems fall on the shoes).
-5. `job_of`: the run's job: the clip tiled over WARM_CYCLES and the clip's seconds (`tiled`: a walk's travel carried
-   on from cycle to cycle), the whole person scaled to her own height (`--height`: the person's measured height, not
-   the template body's), each garment's riding points skinned along, its cloth values the library's row
-   (data/physics/cloth.json: the jeans `denim`; the puffer jacket has no row of its own and hangs as `denim`, the
-   stiffest the table holds, named in the record).
+   SOMA mean: most of its skin outside her), the push smoothed over the body.
+5. `garments_of`, `timing_of` and `moved`: each garment's tethers (none riding and at a hem near the shoes, rising
+   over the loose cloth), the clip tiled over
+   WARM_CYCLES and the clip's seconds (`tiled`: a walk's travel carried on from cycle to cycle), the whole person
+   scaled to her own height (`--height`: the person's measured height, not the template body's), and the cloth run
+   on its targets after SETTLE_S held on the first frame.
 6. `resampled` and `cloth_mesh.carried`: the run read back at the film's FPS from WARM_CYCLES on, each frame with the clip's time and the walk's
    travel taken out (the armature in Blender plays the clip in place), and the sheet's stride points (left foot
    ahead, passing, right foot ahead) in the last cycle, the drawn surface carried by the sim mesh; `measures`: each
    garment's deepest loose point inside the body (the sim mesh's and the drawn surface's), its largest stretch, its
-   drift off the skin and its jitter.
+   drift off the skin and its jitter, beside the same numbers for plain skinning, and the jeans' flap at the passing
+   step (`flap`: the farthest a lower-leg point stands off the body).
 
     python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m>
-           [--newton <python>] [--device cpu|cuda:0]
 
 writes <out>/cloth.npz (what blender_cloth.py draws) and <out>/cloth.json (the kinds' faces, the garments' points and
 riding share, the run's engine and seconds, the measures). `blender_cloth.py` draws it beside the skinned person.
@@ -48,7 +48,6 @@ riding share, the run's engine and seconds, the measures). `blender_cloth.py` dr
 import argparse
 import json
 import pathlib
-import subprocess
 import sys
 import time
 
@@ -66,15 +65,14 @@ import still_rig  # noqa: E402  (still_rig's own import path brings skel_usd and
 import skel_usd  # noqa: E402
 
 sys.path.insert(0, str(REPO))
-from tools.characters.generated import cloth_mesh  # noqa: E402
+from tools.characters.generated import cloth_mesh, cloth_tether  # noqa: E402
 
 KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes")
 SIMULATED = ("jacket", "jeans")
-ROWS = {"jacket": "denim", "jeans": "denim"}  # data/physics/cloth.json rows: no puffer row exists, denim the stiffest
-THICKNESS_M = {"jacket": 0.006, "jeans": 0.003}  # drawn thickness (Blender's solidify) and twice the particle radius
-INSIDE = REPO / "score/stages/people_cloth/inside/cloth.py"
-CLOTH_TABLE = REPO / "data/physics/cloth.json"
-NEWTON = pathlib.Path.home() / ".farm-factory-props/envs/newton_env/bin/python"
+THICKNESS_M = {"jacket": 0.006, "jeans": 0.003}  # drawn thickness (Blender's solidify); half of it the clearance
+SETTLE_S = 1.0  # the cloth hangs this long on the first frame before the run
+ENGINE = (f"tethered position-based cloth (cloth_tether, numpy on the processor, {cloth_tether.SUBSTEPS} substeps "
+          f"a frame, {cloth_tether.ITERATIONS} iterations, deterministic)")
 WELD = 1e-6  # metres: shell points this near are one point (still_rig's texture seams split them)
 SETTLE = 4  # rounds of neighbour votes on each face's kind
 ISLAND_FACES = 150  # a connected piece of a kind with fewer faces joins the kinds round it
@@ -96,18 +94,10 @@ CUFF_M = 0.04  # and this far from the hands (a puffer's elastic cuffs)
 WAISTBAND_M = 0.08  # the jeans ride the skin this far from their top
 MARGIN_M = 0.012  # the body lies at least this far under the shell
 SMOOTH_ROUNDS = 10  # rounds the body's push is smoothed over its edges
-LEFT_OUT = ("Head", "HeadEnd", "LeftFoot", "LeftToeBase", "LeftToeEnd", "RightFoot", "RightToeBase", "RightToeEnd")
-FEET = ("LeftFoot", "LeftToeBase", "LeftToeEnd", "RightFoot", "RightToeBase", "RightToeEnd")
 WARM_CYCLES = 1  # the clip's cycles run before the film starts (the cloth leaves its first frame's standstill)
 SECONDS = 3.0  # the film
 STANDING_S = 0.4  # the standing clip run after the hang, its last frame drawn
 FPS = 24
-GRAVITY = 9.81
-SUBSTEPS = 20  # twice people_cloth's SUBSTEPS: a 1.2 cm mesh under denim's stiffness, each substep 1/600 s
-ITERATIONS = 10  # people_cloth's ITERATIONS
-MOST_SPEED = 10.0  # m/s: a loose point is held under this (a guard: a walk's hands swing at most about 5 m/s)
-SETTLE_SPEED = 0.01  # m/s: people_cloth's REST_MOST
-SETTLE_MOST_S = 3.0  # the hang's most seconds (people_cloth's HANG_MOST is 20 on the card)
 CLOSED_DEGREES = 2.0  # a clip whose last frame turns every joint within this of its first repeats its first
 LOOK_JOINT = "Hips"
 
@@ -368,37 +358,6 @@ def pushes(points, faces, normals, shell_points, shell_faces, margin):
     return -depth[:, None] * normals
 
 
-def segment_pieces(points, faces, weights, names, bind, extra=()):
-    """The body cut into one piece a joint (each face to the joint most of its corners hang from most), each piece in
-    its joint's bind frame; LEFT_OUT joints' pieces dropped and `extra` (points, faces, joint names a face) added:
-    [{name, joint, points, faces}]."""
-    owner = weights.argmax(1)
-    face_owner = np.array([np.bincount(row, minlength=len(names)).argmax() for row in owner[faces]])
-    gathered = {}
-    for joint, name in enumerate(names):
-        if name not in LEFT_OUT:
-            gathered[joint] = [(points, faces[face_owner == joint])]
-    for extra_points, extra_faces, extra_owner in extra:
-        for joint in np.unique(extra_owner):
-            gathered.setdefault(int(joint), []).append((extra_points, extra_faces[extra_owner == joint]))
-    found = []
-    for joint, sets in gathered.items():
-        laid, laid_faces, count = [], [], 0
-        for set_points, set_faces in sets:
-            if not len(set_faces):
-                continue
-            used, renumbered = np.unique(set_faces, return_inverse=True)
-            laid.append(set_points[used])
-            laid_faces.append(renumbered.reshape(-1, 3) + count)
-            count += len(used)
-        if not laid:
-            continue
-        frame = np.linalg.inv(bind[joint])
-        local = np.concatenate(laid) @ frame[:3, :3].T + frame[:3, 3]
-        found.append({"name": names[joint], "joint": joint, "points": local, "faces": np.concatenate(laid_faces)})
-    return found
-
-
 # --- 5. the job -----------------------------------------------------------------------------------------------------
 
 def clip_of(person, name):
@@ -474,57 +433,51 @@ def anchored(faces, riding):
     return riding | loose_piece
 
 
-def material_of(kind, points, faces):
-    """Newton's cloth values for a garment from its cloth.json row (people_cloth's own conversion)."""
-    from score.stages.people_cloth import material_of as stage_material
-    row = json.loads(CLOTH_TABLE.read_text())["recipes"][ROWS[kind]]
-    return stage_material(row, points, faces, THICKNESS_M[kind])
-
-
-def job_of(person, kinds, body, clip, scale, out, device):
-    """The run's job (job.json, motion.npz in `out`) for one clip; {kind: (used, faces, riding)} and the run's
-    frames' clip frames and cycles."""
+def timing_of(person, clip, scale):
+    """A clip's run: the clip tiled over WARM_CYCLES and the film (a walk) or STANDING_S (standing), the person scaled;
+    {rate, length, inside, cycle, travel, moves (frames, joints, 4, 4), played}."""
     worlds, rate = clip_of(person, clip)
     length, _ = cycle_of(worlds)
     frames = (length * WARM_CYCLES + int(np.ceil(SECONDS * rate)) + 2 if clip == "walking" else
               int(np.ceil(STANDING_S * rate)))
     played, inside, cycle, travel = tiled(worlds, frames)
     played = scaled(played, scale)
-    bind = scaled(person["bind"], scale)
-    moves = played @ np.linalg.inv(bind)
-    points, faces, weights = body
-    shoes_used, shoes_faces = garment_of(person, kinds, "shoes")
-    shoe_owner = person["weights"][shoes_used].argmax(1)[shoes_faces].tolist()
-    shoe_owner = np.array([max(set(row), key=row.count) for row in shoe_owner])
-    pieces = segment_pieces(points * scale, faces, weights, person["names"], bind,
-                            [(person["points"][shoes_used] * scale, shoes_faces, shoe_owner)])
-    motion = {"woman/segments": played[:, [piece["joint"] for piece in pieces]]}
-    parts, garments = [], {}
+    moves = played @ np.linalg.inv(scaled(person["bind"], scale))
+    return {"rate": rate, "length": length, "inside": inside, "cycle": cycle, "travel": travel * scale,
+            "moves": moves, "played": played}
+
+
+def garments_of(person, kinds, body, scale):
+    """{kind: (used, faces, riding, sim)} for the simulated garments, each sim mesh with its tethers."""
+    shoes_used, _ = garment_of(person, kinds, "shoes")
+    shoes = person["points"][shoes_used] * scale
+    garments = {}
     for kind in SIMULATED:
         used, garment_faces = garment_of(person, kinds, kind)
         riding = riding_of(person, kinds, kind, used, garment_faces)
         sim = sim_of(person, kinds, kind, body, scale, used, garment_faces, riding)
-        motion[f"woman/{kind}/skinned"] = skinned(sim["points"], sim["weights"], moves)
-        parts.append({"name": kind, "rest": sim["points"].tolist(), "faces": sim["faces"].tolist(),
-                      "free": (~sim["riding"]).tolist(), "material": material_of(kind, sim["points"], sim["faces"])})
+        held = cloth_tether.pinned(sim["points"], sim["riding"], shoes)
+        sim["tether"] = cloth_tether.tethers(kind, over_surface(sim["points"], sim["faces"], np.flatnonzero(held)))
         garments[kind] = (used, garment_faces, riding, sim)
-    np.savez_compressed(out / f"{clip}_motion.npz", **motion)
-    job = {"rate": rate, "gravity": GRAVITY, "substeps": SUBSTEPS, "iterations": ITERATIONS, "device": device,
-           "most_speed": MOST_SPEED,
-           "motion": str(out / f"{clip}_motion.npz"), "settle": {"speed": SETTLE_SPEED, "seconds": SETTLE_MOST_S},
-           "people": [{"name": "woman", "segments": [{"name": piece["name"], "points": piece["points"].tolist(),
-                                                      "faces": piece["faces"].tolist()} for piece in pieces],
-                       "parts": parts}]}
-    (out / f"{clip}_job.json").write_text(json.dumps(job))
-    return garments, {"rate": rate, "length": length, "inside": inside, "cycle": cycle, "travel": travel * scale,
-                      "moves": moves, "played": played}
+    return garments
 
 
-def ran(newton, job, out):
-    """inside/cloth.py run on `job` in Newton's own Python; its output and the seconds it took."""
+def moved(sim, kind, timing, body_posed, body_faces):
+    """A garment's sim mesh over the run, tethered to its targets (its skinned places), kept out of the body to half
+    its thickness or as deep as the skinning draws it, after SETTLE_S held on the first frame; (positions (frames,
+    points, 3), seconds)."""
     started = time.monotonic()
-    subprocess.run([str(newton), str(INSIDE), str(job), str(out)], check=True)
-    return dict(np.load(out)), round(time.monotonic() - started, 1)
+    targets = skinned(sim["points"], sim["weights"], timing["moves"])
+    least = cloth_tether.allowances(targets, body_posed, body_faces, THICKNESS_M[kind] / 2)
+    held = int(round(SETTLE_S * timing["rate"]))
+
+    def led(values):
+        return np.concatenate([np.repeat(values[:1], held, axis=0), values])
+
+    gravity = cloth_tether.turned_gravity(sim["weights"], timing["moves"])
+    run = cloth_tether.tethered(led(targets), sim["tether"], sim["faces"], led(body_posed), body_faces,
+                                timing["rate"], led(least), led(gravity))
+    return run[held:], round(time.monotonic() - started, 1)
 
 
 # --- 6. read back ---------------------------------------------------------------------------------------------------
@@ -579,47 +532,62 @@ def measures(cloth, sim, skinned_points, drawn, drawn_free, body_posed, body_fac
             "jitter_most_m_per_frame2": round(float(jitter.max()), 5)}
 
 
-def made(body_glb, rig_path, out, height, newton=NEWTON, device="cpu"):
-    """The whole make: kinds, garments, body, the walking and standing runs, cloth.npz and cloth.json in `out`."""
+def flap(positions, sim, names, body_posed):
+    """The farthest a lower-leg point (mostly on the shin, foot and toes) stands off the posed body at one frame
+    (metres): the wide leg's back panel swung up behind the calf as a fin at the passing step stands far off."""
+    lower = [names.index(f"{side}{part}") for side in ("Left", "Right") for part in ("Shin", "Foot", "ToeBase",
+                                                                                       "ToeEnd")]
+    chosen = sim["weights"][:, lower].sum(1) > 0.5
+    return round(float(cKDTree(body_posed).query(positions[chosen])[0].max()), 4)
+
+
+def frames_of(person, timing, clip):
+    """{name: run frame} drawn from a clip: the film's start and the stride points of a walk, standing's last."""
+    if clip == "standing":
+        return {"standing": len(timing["played"]) - 3}
+    return {"film": timing["length"] * WARM_CYCLES, **stride_points(person, timing)}
+
+
+def made(body_glb, rig_path, out, height):
+    """The whole make: kinds, garments, body, the walking and standing runs, cloth.npz and cloth.json in `out`; each
+    garment measured as tethered cloth (`garments`) and as plain skinning (`skinned`)."""
     out.mkdir(parents=True, exist_ok=True)
     person = person_of(body_glb)
     kinds = kinds_of(person)
-    rig = dict(np.load(rig_path))
-    body = body_under(person, rig)
+    body = body_under(person, dict(np.load(rig_path)))
     scale = height / float(np.ptp(person["points"][:, 1]))
     saved = {"scale": scale, "kinds": kinds, "shell_points": person["points"], "shell_faces": person["faces"],
              "body_points": body[0], "body_faces": body[1], "body_weights": body[2],
              "joint_names": np.array(person["names"])}
     record = {"body": str(body_glb), "height_m": height, "scale": round(scale, 4),
               "faces": {kind: int((kinds == number).sum()) for number, kind in enumerate(KINDS)},
-              "rows": {kind: ROWS[kind] for kind in SIMULATED},
-              "note": "no puffer row in data/physics/cloth.json: the jacket hangs as denim, the stiffest row",
-              "runs": {}}
+              "tether_m": cloth_tether.TETHER_M, "runs": {}}
+    garments = garments_of(person, kinds, body, scale)
     for clip in ("walking", "standing"):
-        garments, timing = job_of(person, kinds, body, clip, scale, out, device)
-        result, seconds = ran(newton, out / f"{clip}_job.json", out / f"{clip}_cloth.npz")
-        start = timing["length"] * WARM_CYCLES
-        count = int(SECONDS * FPS) if clip == "walking" else 1
-        if clip == "standing":
-            start = len(timing["played"]) - 3
-        frames = {"film": start} if clip == "walking" else {"standing": start}
-        if clip == "walking":
-            frames.update(stride_points(person, timing))
+        timing = timing_of(person, clip, scale)
+        frames = frames_of(person, timing, clip)
         body_posed = skinned(body[0] * scale, body[2], timing["moves"])
-        run = {"engine": str(result["engine"]), "seconds": seconds, "settled_s": float(result["settled"]),
-               "rate": timing["rate"], "cycle_frames": timing["length"], "frames": frames, "garments": {}}
+        run = {"engine": ENGINE, "seconds": 0.0, "rate": timing["rate"], "cycle_frames": timing["length"],
+               "frames": frames, "garments": {}, "skinned": {}}
         for kind, (used, faces, riding, sim) in garments.items():
-            cloth = result[f"woman/{kind}"]
+            cloth, seconds = moved(sim, kind, timing, body_posed, body[1])
+            run["seconds"] = round(run["seconds"] + seconds, 1)
             carried = skinned(sim["points"], sim["weights"], timing["moves"])
+            shape = {"points": len(used), "sim_points": len(sim["points"]), "sim_faces": len(sim["faces"]),
+                     "riding_share": round(float(sim["riding"].mean()), 3)}
+            for label, positions in (("garments", cloth), ("skinned", carried)):
+                drawn = cloth_mesh.carried(sim["binding"], positions, sim["faces"])
+                run[label][kind] = {**shape, **measures(positions, sim, carried, drawn, ~riding, body_posed, body[1])}
+                if kind == "jeans" and clip == "walking":
+                    passing = frames["passing"]
+                    run[label][kind]["flap_passing_m"] = flap(positions[passing], sim, person["names"],
+                                                              body_posed[passing])
             drawn = cloth_mesh.carried(sim["binding"], cloth, sim["faces"])
-            run["garments"][kind] = {"points": len(used), "sim_points": len(sim["points"]),
-                                     "sim_faces": len(sim["faces"]),
-                                     "riding_share": round(float(sim["riding"].mean()), 3),
-                                     **measures(cloth, sim, carried, drawn, ~riding, body_posed, body[1])}
             saved[f"{kind}_used"], saved[f"{kind}_faces"], saved[f"{kind}_riding"] = used, faces, riding
             saved[f"{kind}_sim_points"], saved[f"{kind}_sim_faces"] = sim["points"] / scale, sim["faces"]
             for name, frame in frames.items():
-                film, times = resampled(drawn, timing, frame, count if name == "film" else 1)
+                count = int(SECONDS * FPS) if name == "film" else 1
+                film, times = resampled(drawn, timing, frame, count)
                 saved[f"{clip}/{name}/{kind}"] = film / scale
                 saved[f"{clip}/{name}/time"] = times
         record["runs"][clip] = run
@@ -634,10 +602,8 @@ def main():
     parser.add_argument("rig", type=pathlib.Path)
     parser.add_argument("out", type=pathlib.Path)
     parser.add_argument("--height", type=float, required=True)
-    parser.add_argument("--newton", type=pathlib.Path, default=NEWTON)
-    parser.add_argument("--device", default="cpu")
     options = parser.parse_args()
-    record = made(options.body, options.rig, options.out, options.height, options.newton, options.device)
+    record = made(options.body, options.rig, options.out, options.height)
     print(f"cloth: {record['faces']}; " + "; ".join(
         f"{clip} {run['seconds']} s: " + ", ".join(f"{kind} deepest {found['deepest_m']} m stretch "
                                                     f"{found['largest_stretch']}" for kind, found in

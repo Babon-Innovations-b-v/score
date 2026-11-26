@@ -42,7 +42,6 @@ import json
 import pathlib
 
 import numpy as np
-import trimesh
 from PIL import Image
 from scipy import ndimage
 from scipy.cluster.vq import kmeans2
@@ -75,11 +74,31 @@ HAND_SHARE = 0.4  # a skin piece under the head is a hand when no larger than th
 BODY_SHARE = 0.5  # a paint cluster with this share of its front pixels on the photo's body is the body's: kept
 
 
-def model_of(path):
-    """The glb's one mesh: (points, per-vertex UV, base colour texture as RGBA uint8)."""
-    mesh = trimesh.load(str(path), force="mesh", process=False)
-    texture = np.asarray(mesh.visual.material.baseColorTexture.convert("RGBA"))
-    return np.asarray(mesh.vertices, float), np.asarray(mesh.visual.uv, float), texture
+def parts_of(document, views):
+    """The model's textured primitives, each its own: (points, per-vertex UV with v up from the picture's bottom,
+    base colour image index). Read off the file's own primitives, never through trimesh's `force="mesh"`, which packs
+    a swapped head's and body's pictures into one atlas with its own UVs (round 2, 2026-11-26: that atlas, written
+    over the body's picture, scrambled the whole paint)."""
+    if any(key in node for node in document["nodes"] for key in ("matrix", "translation", "rotation", "scale")):
+        raise ValueError("a node with its own transform is not handled")
+    parts = []
+    for mesh in document["meshes"]:
+        for primitive in mesh["primitives"]:
+            material = document["materials"][primitive["material"]] if "material" in primitive else {}
+            base = material.get("pbrMetallicRoughness", {}).get("baseColorTexture")
+            if base is None:
+                continue
+            attributes = primitive["attributes"]
+            points = glb_file.accessor_array(document, views, attributes["POSITION"]).astype(float)
+            uv = glb_file.accessor_array(document, views, attributes[f"TEXCOORD_{base.get('texCoord', 0)}"])
+            uv = np.column_stack([uv[:, 0], 1.0 - uv[:, 1]]).astype(float)
+            parts.append((points, uv, document["textures"][base["index"]]["source"]))
+    return parts
+
+
+def picture_of(document, views, image):
+    """An image of the file as RGBA uint8."""
+    return np.asarray(Image.open(io.BytesIO(views[document["images"][image]["bufferView"]])).convert("RGBA"))
 
 
 def texel_colours(texture, uv):
@@ -317,10 +336,11 @@ def toned_lab(lab, height, centres, table):
     return out
 
 
-def toned_texture(texture, points, uv, centres, table):
-    """The texture's RGB toned in Lab, its alpha kept; toned BAND_ROWS rows at a time to keep memory small."""
+def toned_texture(texture, heights, uv, centres, table):
+    """The texture's RGB toned in Lab, its alpha kept; toned BAND_ROWS rows at a time to keep memory small. `heights`
+    are the UV points' heights over the whole model (`heights_of` of all its parts)."""
     out = texture.copy()
-    tree_heights = heights_of(points)
+    tree_heights = heights
     tree = cKDTree(uv)
     height, width = texture.shape[:2]
     for top in range(0, height, BAND_ROWS):
@@ -334,9 +354,10 @@ def toned_texture(texture, points, uv, centres, table):
     return out
 
 
-def fitted(points, uv, texture, photo_rgba):
-    """The colour fit: (paint cluster centres, per-cluster moves, report rows)."""
-    values = np.column_stack([texel_colours(texture, uv), heights_of(points)])
+def fitted(points, colours, photo_rgba):
+    """The colour fit from the model's points and their paint (RGB 0 to 1): (paint cluster centres, per-cluster moves,
+    report rows)."""
+    values = np.column_stack([colours, heights_of(points)])
     view, seen = front_view(points, values, GRID_PIXELS)
     rows, cols = view_box(seen)
     view, seen = view[rows, cols], seen[rows, cols]
@@ -369,24 +390,42 @@ def srgb255(lab):
     return (np.clip(lab2rgb(np.asarray(lab, float)[None, None])[0, 0], 0, 1) * 255).round().astype(int).tolist()
 
 
-def written(model, texture, out):
-    """The glb again with its base colour image replaced by `texture` (PNG); every other byte's meaning kept."""
-    document, views = glb_file.read(model)
-    material = document["materials"][0]["pbrMetallicRoughness"]
-    image = document["images"][document["textures"][material["baseColorTexture"]["index"]]["source"]]
-    buffer = io.BytesIO()
-    Image.fromarray(texture).save(buffer, format="PNG")
-    views[image["bufferView"]] = buffer.getvalue()
-    image["mimeType"] = "image/png"
+def written(document, views, pictures, out):
+    """The glb again with each toned image (index: RGBA picture) replaced, as PNG at its own size; every other byte's
+    meaning kept."""
+    for image, texture in pictures.items():
+        buffer = io.BytesIO()
+        Image.fromarray(texture).save(buffer, format="PNG")
+        views[document["images"][image]["bufferView"]] = buffer.getvalue()
+        document["images"][image]["mimeType"] = "image/png"
     glb_file.write(document, views, out)
 
 
+def toned_pictures(textures, parts, centres, table):
+    """Each base colour image (index: RGBA picture) toned through its own primitives' UVs, the points' heights taken
+    over the whole model."""
+    heights = heights_of(np.vstack([part[0] for part in parts]))
+    starts = np.cumsum([0] + [len(part[0]) for part in parts])
+    pictures = {}
+    for image, texture in textures.items():
+        members = [index for index, part in enumerate(parts) if part[2] == image]
+        uv = np.vstack([parts[index][1] for index in members])
+        own_heights = np.concatenate([heights[starts[index]:starts[index + 1]] for index in members])
+        pictures[image] = toned_texture(texture, own_heights, uv, centres, table)
+    return pictures
+
+
 def toned(model, photo_path, out, report_path):
-    """The model's paint toned toward its photo, written to `out`; the fit written to `report_path`."""
-    points, uv, texture = model_of(model)
+    """The model's paint toned toward its photo, written to `out`; the fit written to `report_path`. The fit reads
+    every textured primitive together (a swapped head beside its body); each image is written back in place."""
+    document, views = glb_file.read(model)
+    parts = parts_of(document, views)
+    textures = {image: picture_of(document, views, image) for image in sorted({part[2] for part in parts})}
+    points = np.vstack([part[0] for part in parts])
+    colours = np.vstack([texel_colours(textures[image], uv) for _, uv, image in parts])
     photo = np.asarray(Image.open(photo_path).convert("RGBA"))
-    centres, table, report = fitted(points, uv, texture, photo)
-    written(model, toned_texture(texture, points, uv, centres, table), out)
+    centres, table, report = fitted(points, colours, photo)
+    written(document, views, toned_pictures(textures, parts, centres, table), out)
     pathlib.Path(report_path).write_text(json.dumps({"model": str(model), "photo": str(photo_path),
                                                      "clusters": report}, indent=1))
     return report

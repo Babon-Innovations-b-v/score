@@ -117,8 +117,10 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
   <out>/eyes/eyes.npz <library> <height> <samples> <renders> <out>` (CPU; before is the raw model), then `python -m
   tools.characters.generated.skin_sheet <name> <renders> <photo> <out>/skin/stats.json <sheet.jpg>`.
-- **Colour** (`colour.py`, before every other step): TRELLIS.2's paint drifts from its photo on glossy and dark
-  garments (2026-11-26, sRGB photo against paint: a sage puffer (131, 137, 123) painted (65, 72, 68), brown boots
+- **Colour** (`colour.py`, before every other step; it reads and writes each glTF primitive's own picture through
+  its own UVs, never through trimesh's `force="mesh"`, which packed a swapped head's and body's pictures into one atlas
+  and wrote it over the body's: the whole paint scrambled, round 2 of the cloth, 2026-11-26): TRELLIS.2's paint drifts
+  from its photo on glossy and dark garments (2026-11-26, sRGB photo against paint: a sage puffer (131, 137, 123) painted (65, 72, 68), brown boots
   (89, 51, 41) painted (14, 3, 0)); its metalness is 0 and Blender's import reads the maps rightly, so the paint is
   toned toward the cut-out photo garment by garment in CIELAB (clusters of paint and height matched to the photo's
   connected garments through the front view; one median and spread move per garment, its folds kept). Run: `python
@@ -134,16 +136,19 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - **Cloth** (`cloth.py`, drawn by `blender_cloth.py`, the sheet and film by `cloth_sheet.py`; owner 2026-11-26 of the
   skinned walk: "moving creates a lot of warping"): still_rig's rigged person (rig it `--person` with a palette of no
   tokens: its own paint, ungraded) is split by its paint and place into head, skin, jacket, T-shirt, jeans and shoes
-  (a vote over the faces' edges settles each cut onto the paint's edge); the jacket and the jeans hang as cloth on
-  Newton's VBD through the people cloth stage's own run (`score/stages/people_cloth/inside/cloth.py`, reused, never
-  copied), everything else stays skinned. Riding points: the jacket's collar and shoulder yoke and its cuffs, the
-  jeans' waistband; the rest is free.
-  The collision body is the SOMA mean on the bind pushed under the shell (`body_under`), the shell's own shoes on the
-  feet. The person is sized to her own height (`--height`, the person's measured height, not the template body's).
-  Cloth values are `data/physics/cloth.json`'s rows, never typed: no puffer row exists, so the jacket hangs as denim
-  (named in cloth.json's record). Run: `python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out>
-  --height <m> [--device cuda:0]` (20 substeps, 10 iterations, a 10 m/s speed guard; the run stops at the first
-  non-finite point naming its frame; on the processor at nice 19, its seconds in cloth.json; on the card through the card queue), then
+  (a vote over the faces' edges settles each cut onto the paint's edge); the jacket and the jeans move as **tethered
+  cloth** (`cloth_tether.py`, game cloth's max distance, anim drive and backstop), everything else stays skinned. Each
+  sim point is simulated but held within a tether of its skinned place: none at the riding points (the jacket's collar,
+  shoulder yoke and cuffs, the jeans' waistband) and at a hem near the shoes, rising by a slope over the surface to 5
+  cm on the jacket and 6 cm on the jeans; it feels only the gravity its limb's turn adds to its made hang, and the
+  body draws it back toward its target, never sideways and never deeper than the skinning draws it.
+  **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
+  down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as
+  stable as plain skinning; cloth.json records every garment's numbers both ways (`garments` tethered, `skinned`).
+  The collision body is the SOMA mean on the bind pushed under the shell (`body_under`). The person is sized to her own
+  height (`--height`, the person's measured height, not the template body's). Run: `python -m
+  tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m>` (numpy on the processor, about 4
+  minutes and 0.9 GB at nice 19, its seconds in cloth.json), then
   `blender -b --python blender_cloth.py -- <repo> <body.glb> <out>/cloth.npz <library> <renders> cloth|skinned
   <samples> <size> [<film samples> <film size>]` (CPU) for each of the two, then `python -m
   tools.characters.generated.cloth_sheet <cloth renders> <skinned renders> <out>/cloth.json <sheet.png> <title>

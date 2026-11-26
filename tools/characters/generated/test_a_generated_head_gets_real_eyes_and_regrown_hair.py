@@ -105,7 +105,19 @@ half and dark in its right, the hollow head's back seen through it, over a jacke
 dark hair, a light skin face and a sage jacket), the hair and both face halves keep their paint within 2 Lab units and
 the jacket still moves to within 6 of the photo's. Break that turns its row red (applied once, seen red, reverted,
 2026-11-26): no body kept (`colour.bodily` all False: the face's two halves joined into one garment and moved to the
-photo's skin, the dark half cream, as on b_hoodie_man's head).
+photo's skin, the dark half cream, as on b_hoodie_man's head). A swapped model (its head and body two primitives, each
+on its own picture) is toned through the file: each picture keeps its size and each half's jacket reaches the photo's
+sage. Break that turns its row red (applied once, seen red, reverted, 2026-11-26): the model read through trimesh's
+`force="mesh"` (the old `model_of`: one 512 x 256 atlas written over the first picture, both jackets off the sage).
+
+The tethered cloth (`cloth_tether.py`), on a curtain swung toward and away from a ball behind it, its top row riding,
+feeling g toward the ball: the riding row stays on its targets, every point within its tether, none deeper toward the
+ball than its target or the clearance, the loose cloth hangs over a centimetre off its targets and no edge stretches
+past 5%; the gravity felt beyond the rest hang is none unturned, g times the square root of two turned a quarter and
+twice g turned over; round a box body a point is inside only where all its nearest body points' planes say so. Breaks
+that turn their rows red (each applied once, seen red, reverted, 2026-11-27): no retraction (`retracted` returning its
+positions: the curtain into the ball past its target); one plane asked (`NEIGHBOURS` 1: 48 outside points pushed); the
+whole of g felt (`turned_gravity` returning GRAVITY).
 """
 import functools
 
@@ -114,8 +126,8 @@ import pytest
 import trimesh
 from scipy.spatial import cKDTree
 
-from tools.characters.generated import (__main__, cloth, colour, eyes, fibre, head_swap, labels, lids, scalp, skin,
-                                        strands, volume)
+from tools.characters.generated import (__main__, cloth, cloth_tether, colour, eyes, fibre, head_swap, labels, lids,
+                                        scalp, skin, strands, volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -1049,9 +1061,9 @@ def colour_body_kept():
     the jacket within 6 of the photo's sage."""
     from skimage.color import rgb2lab
     points, uv, paint, photo, height = colour_body_toy()
-    centres, table, _ = colour.fitted(points, uv, paint, photo)
+    centres, table, _ = colour.fitted(points, colour.texel_colours(paint, uv), photo)
     before = rgb2lab(paint[..., :3] / 255.0)
-    after = rgb2lab(colour.toned_texture(paint, points, uv, centres, table)[..., :3] / 255.0)
+    after = rgb2lab(colour.toned_texture(paint, colour.heights_of(points), uv, centres, table)[..., :3] / 255.0)
     face = (height < 0.88) & (height > 0.62)
 
     def moved(rows, columns):
@@ -1069,8 +1081,8 @@ def colour_toned():
     boots' trace of red never lost to the trousers), and the jacket's fold stripes keeping over half their depth."""
     from skimage.color import rgb2lab
     points, uv, paint, photo = colour_toy()
-    centres, table, _ = colour.fitted(points, uv, paint, photo)
-    toned = rgb2lab(colour.toned_texture(paint, points, uv, centres, table)[..., :3] / 255.0)
+    centres, table, _ = colour.fitted(points, colour.texel_colours(paint, uv), photo)
+    toned = rgb2lab(colour.toned_texture(paint, colour.heights_of(points), uv, centres, table)[..., :3] / 255.0)
     height = 1.0 - (np.arange(128) + 0.5) / 128
     fold = (np.arange(128) // 6) % 2 == 1
 
@@ -1085,6 +1097,103 @@ def colour_toned():
     depth_after = toned[flat].reshape(-1, 3)[:, 0].mean() - toned[jacket & fold].reshape(-1, 3)[:, 0].mean()
     return [off(jacket, (131, 137, 123)) < 6.0, off((height < 0.45) & (height > 0.15), (15, 15, 21)) < 6.0,
             off(height < 0.06, (89, 51, 41)) < 6.0, bool(depth_after > 0.5 * depth_before)]
+
+
+def colour_two_parts():
+    """The toy front as a swapped model's two textured primitives (its left half on the paint, its right half on the
+    paint at twice the size), toned through the file: each picture keeps its size and each half's jacket reads within
+    6 Lab units of the photo's sage."""
+    import pathlib
+    import tempfile
+    from PIL import Image
+    from skimage.color import rgb2lab
+    from tools.props import glb_file
+    points, uv, paint, photo = colour_toy()
+    grid = np.arange(points.shape[0]).reshape(300, 150)
+    scene = trimesh.Scene()
+    halves = (("left", slice(0, 75), paint), ("right", slice(74, 150), paint.repeat(2, 0).repeat(2, 1)))
+    for name, columns, picture in halves:
+        block = grid[:, columns]
+        corners = block[:-1, :-1].ravel(), block[:-1, 1:].ravel(), block[1:, :-1].ravel(), block[1:, 1:].ravel()
+        triangles = np.vstack([np.column_stack([corners[0], corners[1], corners[3]]),
+                               np.column_stack([corners[0], corners[3], corners[2]])])
+        used = np.unique(triangles)
+        mesh = trimesh.Trimesh(points[used], np.searchsorted(used, triangles), process=False)
+        material = trimesh.visual.material.PBRMaterial(name=name, baseColorTexture=Image.fromarray(picture))
+        mesh.visual = trimesh.visual.TextureVisuals(uv=uv[used], material=material)
+        scene.add_geometry(mesh, geom_name=name)
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        scene.export(folder / "model.glb")
+        Image.fromarray(photo).save(folder / "photo.png")
+        colour.toned(folder / "model.glb", folder / "photo.png", folder / "toned.glb", folder / "colour.json")
+        document, views = glb_file.read(folder / "toned.glb")
+        parts = colour.parts_of(document, views)
+        pictures = [colour.picture_of(document, views, image) for _, _, image in parts]
+    sage = rgb2lab(np.array([[[131, 137, 123]]], float) / 255.0)[0, 0]
+    jackets = [rgb2lab(colour.texel_colours(picture, part_uv)[part_points[:, 1] > 0.7]).mean(0)
+               for (part_points, part_uv, _), picture in zip(parts, pictures)]
+    return [[picture.shape[:2] for picture in pictures], [bool(np.linalg.norm(jacket - sage) < 6.0) for jacket in jackets]]
+
+
+def tether_curtain():
+    """A curtain (30 cm square, 2 cm apart, its top row riding) swung 2.5 cm toward and away from a ball behind it,
+    as tethered cloth feeling g toward the ball (its limb turned a quarter): [its riding row on its targets, every point
+    within its tether, no point deeper toward the ball than its target or half a millimetre past the clearance, the
+    loose cloth hanging over a centimetre off its targets, no edge stretched past 5%]."""
+    xs, ys = np.meshgrid(np.linspace(-0.15, 0.15, 16), np.linspace(0.0, -0.3, 16))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+    grid = np.arange(256).reshape(16, 16)
+    corners = grid[:-1, :-1].ravel(), grid[:-1, 1:].ravel(), grid[1:, :-1].ravel(), grid[1:, 1:].ravel()
+    faces = np.vstack([np.column_stack([corners[0], corners[2], corners[1]]),
+                       np.column_stack([corners[1], corners[2], corners[3]])])
+    riding = np.zeros(256, bool)
+    riding[:16] = True
+    ball = trimesh.creation.icosphere(3, 0.1)
+    centre = np.array([0.0, -0.25, -0.13])
+    frames = 45
+    targets = np.repeat(points[None], frames, axis=0)
+    targets[:, :, 2] -= 0.025 * np.sin(np.arange(frames) / 30.0 * 4.0 * np.pi)[:, None]
+    body = np.repeat((np.asarray(ball.vertices) + centre)[None], frames, axis=0)
+    tether = cloth_tether.tethers("jeans", -points[:, 1])
+    least = cloth_tether.allowances(targets, body, np.asarray(ball.faces), 0.0015)
+    run = cloth_tether.tethered(targets, tether, faces, body, np.asarray(ball.faces), 30.0, least,
+                                np.tile([0.0, 0.0, -9.81], (frames, 256, 1)))
+
+    def depth(positions):
+        return 0.1 - np.linalg.norm(positions - centre, axis=2)
+
+    edges = cloth_tether.edges_of(faces)
+    built = np.linalg.norm(points[edges[:, 0]] - points[edges[:, 1]], axis=1)
+    now = np.linalg.norm(run[:, edges[:, 0]] - run[:, edges[:, 1]], axis=2)
+    return [float(np.abs(run[:, riding] - targets[:, riding]).max()) == 0.0,
+            bool((np.linalg.norm(run - targets, axis=2) - tether).max() < 1e-9),
+            bool((depth(run) - np.maximum(depth(targets), -0.0015)).max() < 0.0005),
+            bool(np.linalg.norm(run - targets, axis=2).max() > 0.01), bool((now / built - 1.0).max() < 0.05)]
+
+
+def tether_gravity():
+    """The gravity a point feels beyond its rest hang (m/s^2), its limb unturned, turned a quarter and turned over."""
+    moves = np.repeat(np.eye(4)[None, None], 3, axis=0)
+    moves[1, 0, :3, :3] = [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+    moves[2, 0, :3, :3] = np.diag([-1.0, -1.0, 1.0])
+    felt = cloth_tether.turned_gravity(np.ones((1, 1)), moves)[:, 0]
+    return [round(float(np.linalg.norm(force)), 2) for force in felt]
+
+
+def tether_inside_read():
+    """A box body's points round it: (outside points the planes push past 1 mm, inside points they leave past 1 mm
+    in, inside points), each read off the box's NEIGHBOURS nearest points' planes."""
+    box = trimesh.creation.box((0.2, 0.4, 0.1)).subdivide().subdivide().subdivide()
+    points = np.random.default_rng(0).uniform([-0.15, -0.25, -0.08], [0.15, 0.25, 0.08], (3000, 3))
+    truth = trimesh.proximity.signed_distance(box, points)
+    corners = np.asarray(box.vertices)
+    over, normals = cloth_tether.outside(points, corners, cloth_tether.vertex_normals(corners, np.asarray(box.faces)))
+    pushed = points + np.maximum(0.0, 0.002 - over)[:, None] * normals
+    after = trimesh.proximity.signed_distance(box, pushed)
+    moved = np.linalg.norm(pushed - points, axis=1)
+    return [int(((truth < -0.003) & (moved > 0.001)).sum()), int(((truth > 0.001) & (after > 0.001)).sum()),
+            int((truth > 0.001).sum())]
 
 
 @pytest.mark.parametrize("case, made_value, wanted", [
@@ -1153,6 +1262,13 @@ def colour_toned():
      "painted as black, the folds kept", colour_toned, [True] * 4),
     ("the body is never toned: hair and a face painted half skin, half dark keep their paint, the jacket is toned",
      colour_body_kept, [True] * 4),
+    ("a swapped model's head and body pictures are each toned through their own UVs and kept at their own size",
+     colour_two_parts, [[(128, 64), (256, 128)], [True, True]]),
+    ("tethered cloth: riding points on their targets, every point within its tether, never deeper than its target, "
+     "the loose cloth swinging, the edges held", tether_curtain, [True] * 5),
+    ("tethered cloth feels only the gravity its turn adds to its rest hang", tether_gravity, [0.0, 13.87, 19.62]),
+    ("a point is inside the body only where all its nearest body points' planes say so",
+     lambda: (lambda found: (found[0] <= 5, found[1] <= 0.03 * found[2]))(tether_inside_read()), (True, True)),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
