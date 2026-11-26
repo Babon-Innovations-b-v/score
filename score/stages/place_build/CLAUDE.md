@@ -233,7 +233,8 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   real Apollo/Soyuz-like cabin, flat Beta-cloth panels, no quilted padding; ADR-0008: a structure row laid by its
   inventory row, never a kit stand-in): the cabin's structure inside the capsule's cone (cockpit_kit.Cone).
   `cabin_wall` (rows wall lining panels, lining panel frames, wall ribs): a flat panel between each two `joints` (from
-  16 degrees, 24 apart, so each porthole sits in one panel's middle) and each two course lines (COURSES, then the
+  4 degrees, 24 apart: the capsule lining's own, its walls' mounts laid by them; a porthole on a joint cuts both
+  panels, the joint's frame and rib stopping at its flange) and each two course lines (COURSES, then the
   shoulder's straight chamfer in INSET to the ceiling ring), each a flat slab inscribed in the cone (on a cone its four
   corners lie in one plane) SEAM short of its joints, a recessed frame channel under every joint, a riveted T-section
   rib over each upright joint of the wall courses, round-headed fasteners along every panel edge; holes, `fades`, the

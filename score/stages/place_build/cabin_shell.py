@@ -39,8 +39,9 @@ COURSES = (0.0, 1.80)  # the wall's course lines, metres up the cone from the fl
 # real cabin's wall (the inventory's lining panels, 0.8 x 1.9 m); the shoulder runs from the last to the ceiling ring
 CEILING = 2.05  # metres up: the ceiling ring, where the shoulder's chamfer meets the ceiling's panels
 INSET = 0.30  # metres the shoulder's chamfer comes in toward the axis from the wall's line by the ceiling ring
-JOINTS = tuple(16.0 + 24.0 * step for step in range(15))  # degrees round: the panels' joints; from 16, so each
-# porthole of the capsule (theta 28 and 76) lies in one panel's middle, its joints clear of the glass
+JOINTS = tuple(4.0 + 24.0 * step for step in range(15))  # degrees round: the panels' joints, the capsule lining's
+# own (its walls lining_004 to lining_340 and the panels, lockers and mounting rails laid on them by their middles); a
+# porthole on a joint (theta 28 and 76) cuts both panels and stops the joint's frame and rib at its flange
 FOOT = 0.015  # metres up the cone a joint's frame and rib start: the cone leans in, so a rib's cap, laid square
 # off the wall, would reach down into the deck from the floor line
 SEAT = 0.0003  # metres a fastener's foot sinks into what it is driven into, so no face of it lies on that face
