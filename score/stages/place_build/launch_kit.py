@@ -15,7 +15,7 @@ Every piece is built standing up (y up, its foot on y = 0, centred on x = z = 0 
 - `ship_trim`: a ship's paint scheme and panel work laid over it at its own pose: weld seam rings and, in each ring
   course, a few vertical weld lines turned round from the course below's (never one grid of full-length lines), the
   raceway's long fairing, marking bands and a marking panel; parts seam, raceway, marking.
-- `launch_ring`: the round launch mount: a ring on slanted legs over a round plinth, its clamps, hoses down to the
+- `launch_ring`: the round launch mount: a ring on upright square columns over a round plinth and flame diverter, its clamps, hoses down to the
   deck and orange-lit hardware boxes round its rim; parts ring, leg, plinth, clamp, hose, glow.
 - `lattice`: a square tower's straight X-bracing, bay over bay on its four faces between its corner posts, with a
   girder at each bay; parts brace, girder.
@@ -188,23 +188,28 @@ def ship_trim(radius=4.5, foot=1.4, shoulder=35.5, ring=2.4, stringers=3, racewa
     return found
 
 
-def launch_ring(outer=6.2, inner=3.4, top=6.0, thick=1.3, legs=6, clamps=12, hoses=3):
-    """The launch mount: a ring `outer` x `inner` with its top at `top`, on `legs` slanted legs over a round plinth,
+def launch_ring(outer=6.2, inner=3.4, top=6.0, thick=1.3, legs=6, clamps=12, hoses=3, column=1.3):
+    """The launch mount (2099 #161: the concept's heavy steel table under the ship, where slanted round legs read as a
+    lander): a ring `outer` x `inner` with its top at `top` on `legs` upright square columns `column` across, tied by a
+    ring girder at half height, over a round plinth with the flame diverter's steel cone under the ring's opening,
     `clamps` clamps on its top, its rim's hardware boxes lit orange, and `hoses` hoses down to the deck."""
     low = top - thick
     found = stood(turned("ring", [(inner, low), (outer, low), (outer, top), (inner, top), (inner, low)], segments=96))
     found += stood(turned("plinth", [(0.0, 0.0), (outer + 3.0, 0.0), (outer + 2.8, 0.35), (0.0, 0.35)], segments=96))
-    found += stood(turned("leg", [(inner - 0.6, 0.35), (inner + 0.2, 0.35), (inner + 0.2, 0.9), (inner - 0.6, 0.9),
-                                  (inner - 0.6, 0.35)], segments=64))
+    found += stood(turned("leg", [(0.0, 0.35), (inner - 0.3, 0.35), (inner - 0.3, 0.75), (0.35, low - 1.4),
+                                  (0.0, low - 1.4)], segments=64))
+    middle = (inner + outer) / 2
+    girder = low * 0.5
+    found += stood(turned("leg", [(middle - 0.35, girder - 0.45), (middle + 0.35, girder - 0.45),
+                                  (middle + 0.35, girder + 0.45), (middle - 0.35, girder + 0.45),
+                                  (middle - 0.35, girder - 0.45)], segments=96))
+    half = column / 2
     for number in range(legs):
-        angle = 2 * math.pi * (number + 0.5) / legs
-        out = np.array([math.cos(angle), 0.0, math.sin(angle)])
-        foot = out * (outer + 1.6) + np.array([0.0, 0.35, 0.0])
-        head = out * (outer - 0.6) + np.array([0.0, low, 0.0])
-        found += tube("leg", [foot, head], 0.42, 16)
-        across = np.array([-out[2], 0.0, out[0]])
-        middle = (foot + head) / 2
-        found += tube("leg", [out * (inner + 0.1) + np.array([0.0, 0.9, 0.0]), middle - across * 0.0], 0.22, 12)
+        angle = 360.0 * (number + 0.5) / legs
+        found += moved(box("leg", (middle - half, 0.35, -half), (middle + half, low + 0.05, half), 0.06),
+                       about("y", -angle))
+        found += moved(box("clamp", (middle - half - 0.15, 0.35, -half - 0.15), (middle + half + 0.15, 1.1, half + 0.15),
+                           0.04), about("y", -angle))
     for number in range(clamps):
         angle = 2 * math.pi * number / clamps
         clamp = box("clamp", (-0.35, top, inner + 0.45), (0.35, top + 0.8, inner + 1.35), 0.04)
