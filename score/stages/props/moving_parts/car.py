@@ -34,7 +34,8 @@ SKIN = 0.03  # a door's thickness, in metres
 LIGHT_BAR = 0.12  # the light bar's height on the roof, in metres (the car's height its top)
 WHEEL_FACES = 64
 SPOKES = 5  # a rim's spokes
-GLASS_SEEN = 0.93  # how much of what is behind the car's tinted glass it hides (glTF alpha): the cabin dim behind it
+GLASS_SEEN = 0.97  # how much of what is behind the car's tinted glass it hides (glTF alpha): a patrol car's dark tint (at 0.93
+# the seat backs stood as black slabs through the side glass, night car round 3)
 ROOF_BAND = 0.9  # the greenhouse's roof cap: the ring's points this high up its section and over
 FINISHES = {"body": ("painted_metal", "car_body_paint"), "door": ("painted_metal", "car_body_paint"),
             "glass": ("glass", "car_window"), "door_window": ("glass", "car_window"),
@@ -231,22 +232,25 @@ def cabin(across, tall, along_length):
     liner.fix_normals()
     liner.invert()
     parts = [liner]
+    # The seats, bench and dash within the greenhouse's roof width: sized by the loop's last (widest, frontmost) body
+    # half they stood out through the side glass as black posts (night car round 4: 2099-preview/night/car/round3-side.png).
+    room = along(LOWER, 0.5, 3) * across / 2 * ROOF_IN - 0.08
     for side in (-1, 1):
-        seat = trimesh.creation.box(extents=(half * 0.75, tall * 0.12, 0.5))
-        seat.apply_translation((side * half * 0.48, tall * 0.33, along_length * 0.04))
-        back = trimesh.creation.box(extents=(half * 0.75, tall * 0.42, 0.12))
+        seat = trimesh.creation.box(extents=(room * 0.8, tall * 0.12, 0.5))
+        seat.apply_translation((side * room * 0.5, tall * 0.33, along_length * 0.04))
+        back = trimesh.creation.box(extents=(room * 0.8, tall * 0.36, 0.12))
         back.apply_transform(trimesh.transformations.rotation_matrix(-0.2, (1, 0, 0)))
-        back.apply_translation((side * half * 0.48, tall * 0.58, along_length * 0.04 - 0.28))
+        back.apply_translation((side * room * 0.5, tall * 0.55, along_length * 0.04 - 0.28))
         parts += [seat, back]
-    bench = trimesh.creation.box(extents=(half * 1.8, tall * 0.12, 0.5))
+    bench = trimesh.creation.box(extents=(room * 1.9, tall * 0.12, 0.5))
     bench.apply_translation((0, tall * 0.33, -along_length * 0.12))
-    bench_back = trimesh.creation.box(extents=(half * 1.8, tall * 0.4, 0.12))
-    bench_back.apply_translation((0, tall * 0.56, -along_length * 0.12 - 0.3))
-    dash = trimesh.creation.box(extents=(half * 1.9, tall * 0.14, 0.35))
+    bench_back = trimesh.creation.box(extents=(room * 1.9, tall * 0.34, 0.12))
+    bench_back.apply_translation((0, tall * 0.53, -along_length * 0.12 - 0.3))
+    dash = trimesh.creation.box(extents=(room * 2.0, tall * 0.14, 0.35))
     dash.apply_translation((0, tall * 0.6, front - 0.2))
     wheel = trimesh.creation.torus(0.18, 0.018)
     wheel.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2 - 0.4, (1, 0, 0)))
-    wheel.apply_translation((-half * 0.48, tall * 0.66, front - 0.48))
+    wheel.apply_translation((-room * 0.5, tall * 0.66, front - 0.48))
     return parts + [bench, bench_back, dash, wheel]
 
 
@@ -277,19 +281,44 @@ def lamps(across, tall, along_length):
     return headlamps, tail_lamps, plates, blue, red, base, grille + handles, mirrors
 
 
+PLATE_TEXT = "PL 2099"  # each plate's characters, drawn as seven-segment strokes (a space is a gap)
+SEGMENTS = {"P": "abefg", "L": "def", "0": "abcdef", "2": "abdeg", "9": "abcdfg"}
+GLYPH_WIDE, GLYPH_TALL, STROKE = 0.044, 0.07, 0.01  # a character's box and its strokes' width, in metres
+
+
+def glyph_strokes(character, middle_x, height, depth, face):
+    """A plate character's strokes (boxes) as seven segments a-g round its box at `middle_x`, `height`, `depth`, read
+    facing the plate on the `face` end (1 the nose, -1 the tail: its right towards -x)."""
+    import trimesh
+    half_wide, half_tall = GLYPH_WIDE / 2, GLYPH_TALL / 2
+    level = (GLYPH_WIDE, STROKE, 0.006)
+    upright = (STROKE, half_tall + STROKE / 2, 0.006)
+    places = {"a": (level, 0, half_tall), "g": (level, 0, 0), "d": (level, 0, -half_tall),
+              "f": (upright, -half_wide, half_tall / 2), "b": (upright, half_wide, half_tall / 2),
+              "e": (upright, -half_wide, -half_tall / 2), "c": (upright, half_wide, -half_tall / 2)}
+    strokes = []
+    for name in SEGMENTS[character]:
+        extents, across, up = places[name]
+        strokes.append(trimesh.creation.box(extents=extents).apply_translation((middle_x + face * across, height + up, depth)))
+    return strokes
+
+
 def plate_marks(across, tall, along_length):
-    """Each plate's dark surround and its six raised characters (a plate blank and white was the brightest thing on the
-    car's back, night car round 2), and a dark bumper band across the nose and the tail under it."""
+    """Each plate's dark surround and its characters (PLATE_TEXT in seven-segment strokes: six blocks read as a blank
+    plate, night car round 3; one blank and white was the brightest thing on the car's back, round 2), and a dark
+    bumper band across the nose and the tail under it."""
     import trimesh
     nose, tail = along_length / 2, -along_length / 2
+    pitch = GLYPH_WIDE + 0.02
     marks = []
     for end, face, height in ((nose, 1, 0.31 * tall), (tail, -1, 0.335 * tall)):
         marks.append(trimesh.creation.box(extents=(0.56, 0.145, 0.004)).apply_translation(
             (0, height, end - face * 0.02)))
-        for place in range(6):
-            glyph = trimesh.creation.box(extents=(0.05, 0.068, 0.006))
-            marks.append(glyph.apply_translation(((place - 2.5) * 0.07 + (0.02 if place > 2 else -0.02), height,
-                                                  end - face * 0.003)))
+        for place, character in enumerate(PLATE_TEXT):
+            if character != " ":
+                # Left to right as read facing the plate: towards +x at the nose, towards -x at the tail.
+                middle_x = face * (place - (len(PLATE_TEXT) - 1) / 2) * pitch
+                marks += glyph_strokes(character, middle_x, height, end - face * 0.003, face)
         marks.append(trimesh.creation.box(extents=(across * 0.8, 0.04, 0.03)).apply_translation(
             (0, 0.255 * tall, end - face * 0.015)))
     return marks

@@ -115,6 +115,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - place_build.remove: a removed door wall's doorway and join kept -> the pad's walkway still joins at a wall gone
 - place_build.haze: `shape` dropped (always a box) -> the steam puff's shell reaches its box's corners
 - place_build.shaft: the cone not turned onto its aim -> the beam's shell runs up, not toward its aim
+- scene_package.hazes_of: the shape left off (every body a box) -> the puff packaged as a box, the beam with no apex
 - place_build.put: role and support not written -> a window flush on its wall reads as a floating prop
 - place_build.night: the exposure left off -> the night renders at the day's exposure
 - place_build.made_by_haze: unread -> the mist's body and look name no library algorithm
@@ -168,6 +169,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - stair_core.railings: `newelled` left out -> the flights' handrails stop in mid-air at every turn
 - stair_core.newelled: `turn_rail(x, floor)` -> the post's own flight's rail -> the well's two posts at a turn stand
   at two heights, the cross rail between them meeting neither cap
+- stair_core.railings: a landing's railings at LANDING_RAIL -> its rail meets the flights' newel posts 8-12 cm
+  under their caps
 - place_build.rewritten: the open layer's content not taken (`write(path)` over it) -> a cut core laid again in one
   batch fails: USD makes no new layer where its front's is open
 - dome_shell.written: `flat` ignored -> the stair core carries no faceVarying normals (it renders pillowed)
@@ -995,6 +998,15 @@ def test_a_laid_scene_holds_its_library_entries_where_the_agent_put_them(tmp_pat
     for post in newels:
         tops.setdefault((round(post[:, 0].mean(), 3), round(post[:, 1].min(), 3)), set()).add(round(post[:, 1].max(), 4))
     assert all(len(level) == 1 for level in tops.values()), tops  # the well's two posts at one turn stand level
+    rails = [rail for part, (points, _) in stair_core.railings(1) if part == "handrail"
+             for rail in [np.asarray(points)] if np.ptp(rail[:, 1]) <= stair_core.RAIL_SIZE[1] + 1e-6]  # landings'
+    short = [(round(post[:, 0].mean(), 3), round(post[:, 1].max() - rail[near][:, 1].max(), 3))
+             for post in newels for rail in rails
+             for near in [(np.abs(rail[:, 0] - post[:, 0].mean()) <= stair_core.NEWEL)
+                          & (np.abs(rail[:, 2] - post[:, 2].mean()) <= stair_core.NEWEL)
+                          & (rail[:, 1] >= post[:, 1].min()) & (rail[:, 1] <= post[:, 1].max() + 0.2)] if near.any()
+             and post[:, 1].max() - rail[near][:, 1].max() > stair_core.RAIL_SIZE[1] / 2 + 0.03]
+    assert not short, short  # every landing's handrail meeting a newel post reaches its cap
     listed_views = render.views(place_build.record_of(folder), 80, ["inside"])["views"]
     assert [view["name"] for view in listed_views] == ["concept", "inside"] and listed_views[1]["look_only"]
     assert (compared["layout_iou"], compared["objects"][0]["covered"], compared["colour"]["mean"]) == (0.5, 0.5, 0.0)
@@ -1563,6 +1575,11 @@ def rained(folder):
               for name in ("puff", "beam")}
     assert np.linalg.norm(shells["puff"] - [62.0, 1.0, 62.0], axis=1).max() <= 1.0 + 1e-4, "the puff is no ellipsoid"
     assert shells["beam"][:, 0].max() > 67.0 and np.ptp(shells["beam"][:, 1]) < 4.0, "the beam runs off its aim"
+    from score.stages.place_build import scene_package
+    bodies = {body["name"]: body for body in scene_package.hazes_of(stage, "yard")}
+    assert (bodies["mist"]["shape"], bodies["puff"]["shape"], bodies["shaft_0"]["shape"]) == ("box", "ellipsoid", "cone")
+    beam = bodies["shaft_0"]
+    assert np.allclose(beam["apex"], [60.0, 5.0, 60.0], atol=1e-3) and np.allclose(beam["axis"], [1.0, 0.0, 0.0], atol=1e-4)         and abs(beam["length"] - 8.0) < 1e-3 and abs(beam["radius"] - 8.0 * np.tan(np.radians(10.0))) < 1e-2, beam
     hazed = [prim for prim in Usd.PrimRange(stage.GetPrimAtPath("/yard/Haze/mist")) if prim.HasAttribute("score:from")]
     assert hazed and all(prim.GetAttribute("score:from").Get().endswith(place_build.HAZE_ALGORITHM) for prim in hazed) \
         and any(prim.IsA(UsdShade.Material) for prim in hazed), [str(prim.GetPath()) for prim in hazed]
