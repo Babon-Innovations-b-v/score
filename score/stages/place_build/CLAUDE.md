@@ -218,7 +218,10 @@ one command at a time and reads `compare.png` and the measures to choose the nex
   `part` "metal" on the hatch); the hatch leaf's lit ring is gone and it carries its locking gear, a gearbox drum
   under the wheel and eight latch dogs at its rim on link rods; a toggle's wickets are 5.6 mm bars a third taller
   than the bat; `breakers` takes a `size` (the wall rows at 1.3, an index tick under each); `talk_key` takes a
-  `guard`, a bar each side arching over it.
+  `guard`, a bar each side arching over it. Night wave 2 (the judge: "blank placeholder boxes"): a closed panel's
+  `cover` is a real bay cover (a pressed bead, a knuckled piano hinge, two quarter-turn fasteners, a riveted data plate
+  of engraved lines, no word), and the lining's joints are left to the panels' own roll (a `seam` look darker than the
+  wall drew them as broken floating bars on the lining's cells).
 - **The launch kit** (`kit`, batch only; launch_kit.py, the pad, the 2099 judge 2026-11-23: "the wrong ship and looks
   messy", "a plain grey rectangular slab box", "stair-stepped block zigzags"): a launch site's big pieces in code at
   real size, laid like the cockpit kit's (same `kit` step, looks, cache): the steel ship of welded rings with its

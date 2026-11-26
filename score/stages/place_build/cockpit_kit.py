@@ -770,13 +770,40 @@ def words(text="", high=0.012, part="ink", **_):
 
 def cover(wide=0.12, high=0.08, **_):
     """A closed access cover (2099 #246, the owner on the capsule: "i cant do anything with this"; a panel with no
-    worked control on it is closed equipment): a flat plate `wide` by `high` with rounded corners standing a little
-    off the panel, held by a screw in each corner, with nothing on it a hand could take for a control."""
+    worked control on it is closed equipment): a plate `wide` by `high` with rounded corners standing a little off the
+    panel, nothing on it a hand could take for a control. Night wave 2 (the judge: "large empty plates"): a real
+    equipment bay's cover, a stiffening bead pressed round its face inside its edge, a piano hinge down its left edge in
+    knuckles, two quarter-turn fasteners with their slots at its right, and on a big enough cover a small riveted data
+    plate of fine engraved lines (no word: a closed panel names nothing)."""
     found = rounded_box("plate", (-wide / 2, -high / 2, 0.0), (wide / 2, high / 2, 0.003), 0.004, steps=2, inside=1)
-    head = [(0.0, 0.0), (0.0028, 0.0), (0.0028, 0.001), (0.002, 0.0017), (0.0, 0.0017)]
-    for x in (-wide / 2 + 0.008, wide / 2 - 0.008):
-        for y in (-high / 2 + 0.008, high / 2 - 0.008):
-            found += moved(turned("bolt", head, segments=10), offset=(x, y, 0.0028))
+    inset = 0.014
+    if wide > 4 * inset and high > 4 * inset:
+        outer = rounded_rectangle(wide - 2 * inset, high - 2 * inset, 0.006)
+        inner = rounded_rectangle(wide - 2 * inset - 0.007, high - 2 * inset - 0.007, 0.0045)
+        found += frame_ring("plate", outer, inner, 0.0024, 0.0052)
+    knuckles = max(2, int((high - 0.012) / 0.03))
+    pitch = (high - 0.012) / knuckles
+    for knuckle in range(knuckles):
+        low = -high / 2 + 0.006 + knuckle * pitch + 0.0007
+        found += tube("metal", [(-wide / 2 + 0.0045, low, 0.0046), (-wide / 2 + 0.0045, low + pitch - 0.0014, 0.0046)],
+                      0.0025, 10)
+    head = [(0.0, 0.0), (0.0042, 0.0), (0.0042, 0.0012), (0.0033, 0.002), (0.0, 0.002)]
+    for y in (-high / 2 + 0.016, high / 2 - 0.016) if high > 0.05 else (0.0,):
+        found += moved(turned("metal", head, segments=16), offset=(wide / 2 - 0.0085, y, 0.0028))
+        found += moved(box("dark", (-0.0031, -0.0006, 0.0041), (0.0031, 0.0006, 0.0053), 0.0002), np.asarray(
+            about("z", 35.0)), (wide / 2 - 0.0085, y, 0.0))
+    if wide > 0.1 and high > 0.07:
+        plate_wide, plate_high = min(0.05, wide * 0.34), min(0.024, high * 0.28)
+        top = high / 2 - inset - 0.008
+        found += box("metal", (-plate_wide / 2, top - plate_high, 0.0029), (plate_wide / 2, top, 0.0039), 0.0004)
+        for line, share in enumerate((0.8, 0.55, 0.7)):
+            y = top - plate_high * (line + 1) / 4
+            found += ribbon("ink", [(-plate_wide * 0.4, y), (-plate_wide * 0.4 + plate_wide * 0.8 * share, y)], 0.0011,
+                            0.0039, 0.0004)
+        rivet = [(0.0, 0.0), (0.0011, 0.0), (0.0011, 0.0006), (0.0, 0.0009)]
+        for x in (-plate_wide / 2 + 0.0022, plate_wide / 2 - 0.0022):
+            for y in (top - 0.0022, top - plate_high + 0.0022):
+                found += moved(turned("bolt", rivet, segments=8), offset=(x, y, 0.0037))
     return found
 
 
