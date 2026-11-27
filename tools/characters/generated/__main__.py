@@ -57,9 +57,9 @@ def hairline_of(points, faces, labelled, skin_like, frame):
     return edge[hair.over_hairline(edge, frame["eyes"], frame["centre"]) > -HAIRLINE_TABLE_SLACK_M]
 
 
-def scalp_colours(patch, skin_srgb, hair_srgb, frame):
+def scalp_colours(patch, skin_srgb, hair_srgb, frame, fringed):
     """Each scalp point's colour (sRGB): the skin's, darker towards the hair's where the roots are full."""
-    grows = strands.grows_here(patch["points"], frame)
+    grows = strands.grows_here(patch["points"], frame, fringed)
     share = SCALP_DARK * np.clip(patch["depth"] / SCALP_DARK_M, 0.0, 1.0) * grows
     return skin_srgb * (1.0 - share[:, None]) + hair_srgb * share[:, None]
 
@@ -106,7 +106,7 @@ def scalp_hair(points, faces, paint, frame, labelled, style):
     skin_like = labels.skin_like(colours)
     patch = scalp.scalp_patch(points, faces, labelled, frame)
     points = scalp.laid(points, faces, labelled, patch, frame)
-    neck = scalp.neck_back(points, faces, labelled, skin_like, frame) if patch["open_neck"] else None
+    neck = scalp.neck_back(points, faces, labelled, skin_like, frame, patch) if patch["open_neck"] else None
     body = body_of(points, faces, labelled, patch, neck, frame, skin_like)
     model, model_labels = model_near_hair(points, faces, labelled)
     space = volume.hair_volume(model, model_labels, body, np.random.default_rng(strands.SEED), scalp.origin(frame))
@@ -200,7 +200,7 @@ def main():
     patch, neck = grown["patch"], grown["neck"]
     np.savez_compressed(
         out / "groom.npz", scalp_points=patch["points"], scalp_triangles=patch["triangles"],
-        scalp_colours=scalp_colours(patch, skin_srgb, hair_srgb, frame),
+        scalp_colours=scalp_colours(patch, skin_srgb, hair_srgb, frame, style["fringe_side"] != "none"),
         neck_points=neck[0] if neck is not None else np.zeros((0, 3)),
         neck_triangles=neck[1] if neck is not None else np.zeros((0, 3), np.int64), skin_colour=skin_srgb,
         counts=grown["counts"], points=grown["points"].astype(np.float32), radius=grown["radius"].astype(np.float32),

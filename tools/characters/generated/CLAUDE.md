@@ -66,16 +66,26 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   melanin, redness and a grey head's white share fitted to the close-up's hair colour (`fibre.py`), read over the
   photo's whole hair (`labels.photo_hair`: off a backdrop found as smooth, not by colour, joined to the crown, down to
   under the pupils). The fit is drawn, not estimated: `data/people/hair/melanin_swatch.json` holds a strand swatch per
-  melanin, redness and white share (`blender_swatch.py`, drawn as the sheet draws a head, at the photos' scale; run
-  `blender -b -t 8 --python blender_swatch.py -- none none <library> 0 96 <out>`, about 107 pictures of 20 s, then
+  melanin, redness and white share, every share at every redness (`blender_swatch.py`, drawn as the sheet draws a
+  head, at the photos' scale; run through the card's queue, `blender -b -t 8 --python blender_swatch.py -- none none
+  <library> 0 96 <out>`, 237 pictures, some 13 minutes on the card, then
   `python -m tools.characters.generated.fibre <out> data/people/hair/melanin_swatch.json`; redraw it when the library
-  strand finish or the sheet's light changes). A grey head's share and melanin are the swatch's matching its median
-  lightness and its spread: mixed by lightness (round 2), an older woman's silver-white bob drew dark grey. The sheet prints
+  strand finish or the sheet's light changes). Melanin and redness (and a grey head's white share) are the swatch's
+  whose CIELAB is nearest the photo's less `fibre.DRAWN_OFFSET` (a head on the sheet draws some 5 L darker than the
+  swatch's ball); a grey head's spread counts too: mixed by lightness (round 2), an older woman's silver-white bob drew
+  dark grey, and with redness fitted by one fibre's hue (round 3) a warm brown head drew neutral black. The sheet prints
   the photo's hair colour against the drawn one's (`sheet.colours`, <groom>/colour.json). The scalp and the skin
   under the beard wear the model's own skin colour.
+- **The strands reach the shell's outer surface** (round 4, 2026-11-27: a long wavy head's outer surface 86.6%
+  covered): a hugging guide climbs to its depth from its root (`strands.CLIMB`; from 1 cm on it lay 13 mm under a
+  side parting's swoop), a guide ending within 2 cm of its root is grown again against the comb up the swoop's front
+  (`guides_against`), a guide about to leave the volume follows the shell's own curl (`curled_on`), the hair's own
+  surface is volume even beside the skin (`volume.shell_voxels`: lock ends curled on the neck's sides lay inside the
+  body), and the forehead's floor holds only under a fringe. The neck's back meets the scalp's foot
+  (`scalp.nape_of`): 5 cm inside an older woman's collar it showed under her bob as a dark strip.
 - **A hair-white bit is hair.** A fringe's white bits the clothes' colours claim (a cream scarf) are still strays
   above any collar (`labels.over_clothes`), and only paint darker than the skin is brows; the forehead never roots
-  under hair.py's table less 2 cm (`strands.FOREHEAD`): a painted fringe lies on skin (round 3, 2026-11-27: a white
+  under hair.py's table less 2 cm under a fringe (`strands.FOREHEAD`): a painted fringe lies on skin (round 3, 2026-11-27: a white
   shell bit and a clump of forehead-rooted strands on an older woman's brow).
 - **Styles**: `data/people/hair/gen_<look>.json`, read off the close-up: `length_m` (the strands' cap), `reach_m`
   (how far under the top hair is labelled), `parting` side/none/back, `parting_m`,

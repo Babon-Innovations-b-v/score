@@ -1179,6 +1179,1436 @@
     3.64
    ],
    "spread": 17.52
+  },
+  {
+   "melanin": 0.15,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    64.11,
+    2.1,
+    19.13
+   ],
+   "spread": 17.49
+  },
+  {
+   "melanin": 0.3,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    53.88,
+    4.84,
+    18.99
+   ],
+   "spread": 17.13
+  },
+  {
+   "melanin": 0.45,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    46.85,
+    5.84,
+    15.33
+   ],
+   "spread": 16.47
+  },
+  {
+   "melanin": 0.6,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    41.88,
+    5.67,
+    10.8
+   ],
+   "spread": 15.85
+  },
+  {
+   "melanin": 0.7,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    39.45,
+    5.05,
+    7.86
+   ],
+   "spread": 15.52
+  },
+  {
+   "melanin": 0.8,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    37.47,
+    4.11,
+    5.19
+   ],
+   "spread": 15.24
+  },
+  {
+   "melanin": 0.86,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    36.51,
+    3.37,
+    3.72
+   ],
+   "spread": 15.1
+  },
+  {
+   "melanin": 0.9,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    35.94,
+    2.81,
+    2.8
+   ],
+   "spread": 15.01
+  },
+  {
+   "melanin": 0.93,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    35.63,
+    2.32,
+    2.12
+   ],
+   "spread": 14.94
+  },
+  {
+   "melanin": 0.95,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    35.34,
+    2.0,
+    1.68
+   ],
+   "spread": 14.92
+  },
+  {
+   "melanin": 0.97,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    35.18,
+    1.69,
+    1.32
+   ],
+   "spread": 14.9
+  },
+  {
+   "melanin": 0.985,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    34.99,
+    1.47,
+    1.13
+   ],
+   "spread": 14.9
+  },
+  {
+   "melanin": 0.995,
+   "redness": 0.5,
+   "white_share": 0.4,
+   "lab": [
+    34.86,
+    1.34,
+    1.03
+   ],
+   "spread": 14.91
+  },
+  {
+   "melanin": 0.15,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    68.22,
+    1.05,
+    16.09
+   ],
+   "spread": 17.39
+  },
+  {
+   "melanin": 0.3,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    60.55,
+    3.26,
+    16.61
+   ],
+   "spread": 17.61
+  },
+  {
+   "melanin": 0.45,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    54.98,
+    4.35,
+    13.95
+   ],
+   "spread": 17.51
+  },
+  {
+   "melanin": 0.6,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    50.83,
+    4.55,
+    10.25
+   ],
+   "spread": 17.27
+  },
+  {
+   "melanin": 0.7,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    48.64,
+    4.22,
+    7.72
+   ],
+   "spread": 17.11
+  },
+  {
+   "melanin": 0.8,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    46.95,
+    3.55,
+    5.38
+   ],
+   "spread": 16.99
+  },
+  {
+   "melanin": 0.86,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    46.17,
+    2.97,
+    4.15
+   ],
+   "spread": 16.91
+  },
+  {
+   "melanin": 0.9,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    45.58,
+    2.49,
+    3.36
+   ],
+   "spread": 16.89
+  },
+  {
+   "melanin": 0.93,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    45.3,
+    2.08,
+    2.76
+   ],
+   "spread": 16.86
+  },
+  {
+   "melanin": 0.95,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    45.08,
+    1.79,
+    2.5
+   ],
+   "spread": 16.86
+  },
+  {
+   "melanin": 0.97,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    44.83,
+    1.5,
+    2.18
+   ],
+   "spread": 16.87
+  },
+  {
+   "melanin": 0.985,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    44.77,
+    1.3,
+    1.89
+   ],
+   "spread": 16.85
+  },
+  {
+   "melanin": 0.995,
+   "redness": 0.5,
+   "white_share": 0.6,
+   "lab": [
+    44.71,
+    1.17,
+    1.79
+   ],
+   "spread": 16.87
+  },
+  {
+   "melanin": 0.15,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    71.59,
+    0.28,
+    13.06
+   ],
+   "spread": 17.06
+  },
+  {
+   "melanin": 0.3,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    66.37,
+    1.78,
+    14.12
+   ],
+   "spread": 17.53
+  },
+  {
+   "melanin": 0.45,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    62.31,
+    2.79,
+    12.41
+   ],
+   "spread": 17.76
+  },
+  {
+   "melanin": 0.6,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    59.12,
+    3.19,
+    9.62
+   ],
+   "spread": 17.81
+  },
+  {
+   "melanin": 0.7,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    57.41,
+    3.13,
+    7.67
+   ],
+   "spread": 17.82
+  },
+  {
+   "melanin": 0.8,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    55.95,
+    2.74,
+    5.78
+   ],
+   "spread": 17.83
+  },
+  {
+   "melanin": 0.86,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    55.25,
+    2.35,
+    4.77
+   ],
+   "spread": 17.84
+  },
+  {
+   "melanin": 0.9,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    54.78,
+    1.98,
+    4.12
+   ],
+   "spread": 17.84
+  },
+  {
+   "melanin": 0.93,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    54.47,
+    1.66,
+    3.67
+   ],
+   "spread": 17.85
+  },
+  {
+   "melanin": 0.95,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    54.32,
+    1.42,
+    3.42
+   ],
+   "spread": 17.88
+  },
+  {
+   "melanin": 0.97,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    54.09,
+    1.19,
+    3.08
+   ],
+   "spread": 17.89
+  },
+  {
+   "melanin": 0.985,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    53.96,
+    1.02,
+    2.94
+   ],
+   "spread": 17.89
+  },
+  {
+   "melanin": 0.995,
+   "redness": 0.5,
+   "white_share": 0.75,
+   "lab": [
+    53.9,
+    0.91,
+    2.82
+   ],
+   "spread": 17.91
+  },
+  {
+   "melanin": 0.15,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    73.96,
+    -0.0,
+    10.72
+   ],
+   "spread": 16.82
+  },
+  {
+   "melanin": 0.3,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    70.41,
+    0.81,
+    11.76
+   ],
+   "spread": 17.28
+  },
+  {
+   "melanin": 0.45,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    67.65,
+    1.59,
+    10.78
+   ],
+   "spread": 17.55
+  },
+  {
+   "melanin": 0.6,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    65.43,
+    2.0,
+    8.92
+   ],
+   "spread": 17.75
+  },
+  {
+   "melanin": 0.7,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    64.21,
+    2.03,
+    7.48
+   ],
+   "spread": 17.86
+  },
+  {
+   "melanin": 0.8,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    63.17,
+    1.84,
+    6.03
+   ],
+   "spread": 17.93
+  },
+  {
+   "melanin": 0.86,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    62.65,
+    1.61,
+    5.3
+   ],
+   "spread": 17.98
+  },
+  {
+   "melanin": 0.9,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    62.23,
+    1.35,
+    4.77
+   ],
+   "spread": 18.02
+  },
+  {
+   "melanin": 0.93,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    61.99,
+    1.12,
+    4.42
+   ],
+   "spread": 18.03
+  },
+  {
+   "melanin": 0.95,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    61.88,
+    0.94,
+    4.17
+   ],
+   "spread": 18.05
+  },
+  {
+   "melanin": 0.97,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    61.68,
+    0.76,
+    3.97
+   ],
+   "spread": 18.08
+  },
+  {
+   "melanin": 0.985,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    61.62,
+    0.66,
+    3.87
+   ],
+   "spread": 18.09
+  },
+  {
+   "melanin": 0.995,
+   "redness": 0.5,
+   "white_share": 0.85,
+   "lab": [
+    61.6,
+    0.56,
+    3.8
+   ],
+   "spread": 18.11
+  },
+  {
+   "melanin": 0.15,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    76.06,
+    -0.2,
+    8.53
+   ],
+   "spread": 16.53
+  },
+  {
+   "melanin": 0.3,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    74.31,
+    0.04,
+    9.21
+   ],
+   "spread": 16.85
+  },
+  {
+   "melanin": 0.45,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    72.76,
+    0.48,
+    8.72
+   ],
+   "spread": 17.09
+  },
+  {
+   "melanin": 0.6,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    71.52,
+    0.73,
+    7.7
+   ],
+   "spread": 17.28
+  },
+  {
+   "melanin": 0.7,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    70.85,
+    0.8,
+    6.9
+   ],
+   "spread": 17.39
+  },
+  {
+   "melanin": 0.8,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    70.27,
+    0.72,
+    6.11
+   ],
+   "spread": 17.5
+  },
+  {
+   "melanin": 0.86,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.97,
+    0.61,
+    5.64
+   ],
+   "spread": 17.55
+  },
+  {
+   "melanin": 0.9,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.78,
+    0.5,
+    5.4
+   ],
+   "spread": 17.59
+  },
+  {
+   "melanin": 0.93,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.7,
+    0.35,
+    5.18
+   ],
+   "spread": 17.61
+  },
+  {
+   "melanin": 0.95,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.54,
+    0.27,
+    5.03
+   ],
+   "spread": 17.63
+  },
+  {
+   "melanin": 0.97,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.48,
+    0.16,
+    4.9
+   ],
+   "spread": 17.65
+  },
+  {
+   "melanin": 0.985,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.43,
+    0.13,
+    4.83
+   ],
+   "spread": 17.66
+  },
+  {
+   "melanin": 0.995,
+   "redness": 0.5,
+   "white_share": 0.93,
+   "lab": [
+    69.44,
+    0.03,
+    4.79
+   ],
+   "spread": 17.67
+  },
+  {
+   "melanin": 0.15,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    65.08,
+    2.49,
+    22.26
+   ],
+   "spread": 17.36
+  },
+  {
+   "melanin": 0.3,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    55.42,
+    6.21,
+    22.3
+   ],
+   "spread": 17.14
+  },
+  {
+   "melanin": 0.45,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    48.42,
+    7.76,
+    18.34
+   ],
+   "spread": 16.58
+  },
+  {
+   "melanin": 0.6,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    43.25,
+    7.82,
+    13.34
+   ],
+   "spread": 16.01
+  },
+  {
+   "melanin": 0.7,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    40.6,
+    7.2,
+    10.09
+   ],
+   "spread": 15.64
+  },
+  {
+   "melanin": 0.8,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    38.42,
+    6.09,
+    6.93
+   ],
+   "spread": 15.34
+  },
+  {
+   "melanin": 0.86,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    37.3,
+    5.14,
+    5.17
+   ],
+   "spread": 15.2
+  },
+  {
+   "melanin": 0.9,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    36.62,
+    4.39,
+    4.08
+   ],
+   "spread": 15.08
+  },
+  {
+   "melanin": 0.93,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    36.19,
+    3.67,
+    3.24
+   ],
+   "spread": 15.0
+  },
+  {
+   "melanin": 0.95,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    35.86,
+    3.18,
+    2.71
+   ],
+   "spread": 14.96
+  },
+  {
+   "melanin": 0.97,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    35.54,
+    2.67,
+    2.23
+   ],
+   "spread": 14.94
+  },
+  {
+   "melanin": 0.985,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    35.37,
+    2.32,
+    1.91
+   ],
+   "spread": 14.94
+  },
+  {
+   "melanin": 0.995,
+   "redness": 1.0,
+   "white_share": 0.4,
+   "lab": [
+    35.28,
+    2.12,
+    1.68
+   ],
+   "spread": 14.93
+  },
+  {
+   "melanin": 0.15,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    69.12,
+    1.13,
+    18.91
+   ],
+   "spread": 17.25
+  },
+  {
+   "melanin": 0.3,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    61.8,
+    4.04,
+    19.63
+   ],
+   "spread": 17.57
+  },
+  {
+   "melanin": 0.45,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    56.3,
+    5.7,
+    16.74
+   ],
+   "spread": 17.52
+  },
+  {
+   "melanin": 0.6,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    51.95,
+    6.17,
+    12.75
+   ],
+   "spread": 17.34
+  },
+  {
+   "melanin": 0.7,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    49.67,
+    5.93,
+    9.91
+   ],
+   "spread": 17.17
+  },
+  {
+   "melanin": 0.8,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    47.73,
+    5.17,
+    7.16
+   ],
+   "spread": 17.05
+  },
+  {
+   "melanin": 0.86,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    46.71,
+    4.45,
+    5.64
+   ],
+   "spread": 16.99
+  },
+  {
+   "melanin": 0.9,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    46.13,
+    3.81,
+    4.67
+   ],
+   "spread": 16.93
+  },
+  {
+   "melanin": 0.93,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    45.68,
+    3.24,
+    3.95
+   ],
+   "spread": 16.89
+  },
+  {
+   "melanin": 0.95,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    45.48,
+    2.79,
+    3.56
+   ],
+   "spread": 16.91
+  },
+  {
+   "melanin": 0.97,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    45.11,
+    2.35,
+    3.15
+   ],
+   "spread": 16.9
+  },
+  {
+   "melanin": 0.985,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    44.98,
+    2.05,
+    2.83
+   ],
+   "spread": 16.91
+  },
+  {
+   "melanin": 0.995,
+   "redness": 1.0,
+   "white_share": 0.6,
+   "lab": [
+    44.86,
+    1.85,
+    2.64
+   ],
+   "spread": 16.92
+  },
+  {
+   "melanin": 0.15,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    72.28,
+    0.19,
+    15.48
+   ],
+   "spread": 16.96
+  },
+  {
+   "melanin": 0.3,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    67.23,
+    2.12,
+    16.69
+   ],
+   "spread": 17.4
+  },
+  {
+   "melanin": 0.45,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    63.3,
+    3.53,
+    14.93
+   ],
+   "spread": 17.67
+  },
+  {
+   "melanin": 0.6,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    60.06,
+    4.25,
+    11.92
+   ],
+   "spread": 17.76
+  },
+  {
+   "melanin": 0.7,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    58.17,
+    4.27,
+    9.72
+   ],
+   "spread": 17.78
+  },
+  {
+   "melanin": 0.8,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    56.61,
+    3.9,
+    7.54
+   ],
+   "spread": 17.8
+  },
+  {
+   "melanin": 0.86,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    55.79,
+    3.43,
+    6.35
+   ],
+   "spread": 17.8
+  },
+  {
+   "melanin": 0.9,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    55.25,
+    2.98,
+    5.55
+   ],
+   "spread": 17.83
+  },
+  {
+   "melanin": 0.93,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    54.86,
+    2.53,
+    4.98
+   ],
+   "spread": 17.83
+  },
+  {
+   "melanin": 0.95,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    54.68,
+    2.19,
+    4.6
+   ],
+   "spread": 17.83
+  },
+  {
+   "melanin": 0.97,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    54.47,
+    1.83,
+    4.29
+   ],
+   "spread": 17.85
+  },
+  {
+   "melanin": 0.985,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    54.32,
+    1.59,
+    4.09
+   ],
+   "spread": 17.85
+  },
+  {
+   "melanin": 0.995,
+   "redness": 1.0,
+   "white_share": 0.75,
+   "lab": [
+    54.21,
+    1.42,
+    3.91
+   ],
+   "spread": 17.87
+  },
+  {
+   "melanin": 0.15,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    74.32,
+    -0.18,
+    12.85
+   ],
+   "spread": 16.72
+  },
+  {
+   "melanin": 0.3,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    71.15,
+    0.91,
+    14.01
+   ],
+   "spread": 17.17
+  },
+  {
+   "melanin": 0.45,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    68.39,
+    1.94,
+    12.99
+   ],
+   "spread": 17.46
+  },
+  {
+   "melanin": 0.6,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    66.2,
+    2.58,
+    10.99
+   ],
+   "spread": 17.68
+  },
+  {
+   "melanin": 0.7,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    64.87,
+    2.71,
+    9.42
+   ],
+   "spread": 17.81
+  },
+  {
+   "melanin": 0.8,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    63.78,
+    2.57,
+    7.8
+   ],
+   "spread": 17.89
+  },
+  {
+   "melanin": 0.86,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    63.19,
+    2.3,
+    6.87
+   ],
+   "spread": 17.96
+  },
+  {
+   "melanin": 0.9,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    62.71,
+    1.99,
+    6.28
+   ],
+   "spread": 17.98
+  },
+  {
+   "melanin": 0.93,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    62.45,
+    1.68,
+    5.83
+   ],
+   "spread": 18.02
+  },
+  {
+   "melanin": 0.95,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    62.27,
+    1.44,
+    5.54
+   ],
+   "spread": 18.03
+  },
+  {
+   "melanin": 0.97,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    62.12,
+    1.18,
+    5.27
+   ],
+   "spread": 18.05
+  },
+  {
+   "melanin": 0.985,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    61.94,
+    0.99,
+    5.1
+   ],
+   "spread": 18.07
+  },
+  {
+   "melanin": 0.995,
+   "redness": 1.0,
+   "white_share": 0.85,
+   "lab": [
+    61.94,
+    0.88,
+    4.99
+   ],
+   "spread": 18.08
+  },
+  {
+   "melanin": 0.15,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    76.38,
+    -0.46,
+    10.31
+   ],
+   "spread": 16.46
+  },
+  {
+   "melanin": 0.3,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    74.72,
+    -0.0,
+    11.1
+   ],
+   "spread": 16.76
+  },
+  {
+   "melanin": 0.45,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    73.31,
+    0.5,
+    10.62
+   ],
+   "spread": 16.99
+  },
+  {
+   "melanin": 0.6,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    72.07,
+    0.9,
+    9.5
+   ],
+   "spread": 17.21
+  },
+  {
+   "melanin": 0.7,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    71.29,
+    1.02,
+    8.63
+   ],
+   "spread": 17.31
+  },
+  {
+   "melanin": 0.8,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    70.69,
+    0.99,
+    7.74
+   ],
+   "spread": 17.43
+  },
+  {
+   "melanin": 0.86,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    70.41,
+    0.86,
+    7.24
+   ],
+   "spread": 17.48
+  },
+  {
+   "melanin": 0.9,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    70.09,
+    0.71,
+    6.88
+   ],
+   "spread": 17.52
+  },
+  {
+   "melanin": 0.93,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    69.98,
+    0.54,
+    6.65
+   ],
+   "spread": 17.54
+  },
+  {
+   "melanin": 0.95,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    69.89,
+    0.41,
+    6.48
+   ],
+   "spread": 17.56
+  },
+  {
+   "melanin": 0.97,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    69.81,
+    0.28,
+    6.35
+   ],
+   "spread": 17.61
+  },
+  {
+   "melanin": 0.985,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    69.76,
+    0.16,
+    6.23
+   ],
+   "spread": 17.61
+  },
+  {
+   "melanin": 0.995,
+   "redness": 1.0,
+   "white_share": 0.93,
+   "lab": [
+    69.71,
+    0.13,
+    6.18
+   ],
+   "spread": 17.62
   }
  ]
 }

@@ -94,7 +94,10 @@ def outward_by(places, normals, inside, low):
 def shell_voxels(samples, low, shape):
     """The voxels the hair's own surface passes through, grown by SHELL_VOXELS: a bob's hanging ends and a lock's thin
     sheet, open to the air or beside the neck where no ray from the head's middle meets skin, are hair too (round 2's
-    first volume left a bob's lowest 4 cm out, its outer surface 40% covered, 2026-11-26)."""
+    first volume left a bob's lowest 4 cm out, its outer surface 40% covered, 2026-11-26), and so even beside the skin
+    unless inside the head seen from its middle (round 4, 2026-11-27: by the skin's own normals, a long wavy head's
+    front locks, their ends curled in on the neck's sides, lay inside the body and stood bare, 3% of the outer
+    surface)."""
     shell = np.zeros(shape, dtype=bool)
     at = np.round((samples - low) / VOXEL_M).astype(int)
     at = at[((at >= 0) & (at < np.asarray(shape))).all(axis=1)]
@@ -174,7 +177,7 @@ def hair_volume(model, hair, body, rng, start):
     under, in_head = seen_from(middles, (points, faces[hair]), (body[0], body[1][body[4]]), start)
     outside_head = (~inside_body & ~in_head).reshape(shape)
     filled = (inside_model | under.reshape(shape)) & near_hair & outside_head
-    filled |= shell_voxels(model_samples[hair[model_on]], low, shape) & outside_head
+    filled |= shell_voxels(model_samples[hair[model_on]], low, shape) & ~in_head.reshape(shape)
     pieces, count = ndimage.label(filled)
     sizes = ndimage.sum(filled, pieces, index=np.arange(1, count + 1))
     filled = np.isin(pieces, 1 + np.flatnonzero(sizes >= FEWEST_VOXELS))

@@ -33,6 +33,11 @@ clothes: the forehead island 0% hair) or brows taken whatever their paint (`labe
 rule: 0%), or never (+inf: the dark brows 100% hair); the forehead rooted wherever the paint says
 (`strands.FOREHEAD["deg"]` 0: roots 3 cm over the eyes).
 
+Round 4 of the hair (2026-11-27), each break applied once, seen red, reverted: the redness left out of the fit
+(`fibre.coloured_fit` giving redness 0: the warm dark head none); the neck's back not reaching the scalp's foot
+(`scalp.nape_of` ignored: the tube's back at z -0.029, not -0.079); the forehead's floor under every style
+(`strands.grows_here` always fringed: no roots 3 cm over the eyes with no fringe).
+
 Round 2 of the hair (2026-11-26): the skin at the hole's edge is laid onto the scalp (`scalp.laid`, over the toy with
 its hair's foot raised 3 mm more into a lip, standing up to 11 mm); the layer runs from the scalp's side to the outer
 surface of a 2 cm spherical shell (`volume.layered`); the grooves of a corrugated plane and the streaks painted 30
@@ -494,6 +499,24 @@ def strands_measured():
             f"reach {np.median(reach) * 1000:.1f} mm")
 
 
+def neck_meets_nape():
+    """The neck's back closed under a bob over a neck the model never had: its deepest point behind (z, m), over a 10 cm
+    neck of skin 15 cm under the eyes whose scalp's foot lies at z -0.08, 8 cm behind its middle."""
+    neck = trimesh.creation.cylinder(radius=0.05, height=0.1, sections=32)
+    neck.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2.0, [1, 0, 0]))
+    neck.apply_translation([0.0, -0.15, 0.0])
+    neck = neck.subdivide().subdivide()
+    faces = np.asarray(neck.faces)
+    frame = {"eyes_middle": np.zeros(3), "middle_x": 0.0, "centre": np.array([0.0, 0.0, -0.02])}
+    heights = np.linspace(-0.03, 0.05, 9)
+    foot = np.stack([np.zeros(9), heights, -0.08 - 0.2 * (heights + 0.03)], axis=1)
+    patch = {"points": np.vstack([foot, [[0.0, 0.05, 0.09]]]), "hole": np.ones(10, dtype=bool),
+             "directions": np.vstack([np.tile([0.0, 0.0, -1.0], (9, 1)), [[0.0, 0.0, 1.0]]])}
+    tube, _ = scalp.neck_back(np.asarray(neck.vertices), faces, np.zeros(len(faces), dtype=bool),
+                              np.ones(len(faces), dtype=bool), frame, patch)
+    return round(float(tube[:, 2].min()), 4)
+
+
 def shell_layers():
     """The layer read across a 2 cm thick spherical shell of hair round a head's middle: at its inner 2 mm and at its
     outer 2 mm (0 is the scalp's side, 1 the outer surface)."""
@@ -574,7 +597,7 @@ def roots_and_beard_fade():
     fade = strands.hairline_fade(np.array([0.0, 0.002, 0.004]))
     frame = {"centre": np.zeros(3), "eyes": np.array([[-0.03, 0.0, 0.08], [0.03, 0.0, 0.08]]),
              "eyes_middle": np.array([0.0, 0.0, 0.08]), "nose": np.array([0.0, -0.035, 0.1])}
-    chin = strands.grows_here(np.array([[0.0, -0.1, 0.06]]), frame)[0]
+    chin = strands.grows_here(np.array([[0.0, -0.1, 0.06]]), frame, False)[0]
     smooth = np.array([[0.0, -0.14, 0.05], [0.0, -0.14 + beard.NECK_FADE_M, 0.05], [1.0, 1.0, 1.0]])
     places = np.repeat(smooth[:2], 2000, axis=0)
     faces = np.array([[0, 0, 2], [0, 1, 1]])
@@ -585,8 +608,8 @@ def roots_and_beard_fade():
 
 def swatch_rows():
     """A strand swatch table as `fibre.swatch_table` writes one, from a made-up smooth law: a pure head's lightness
-    falling with its melanin (lighter for more redness), a grey head's the white strands' and the pigmented ones'
-    mixed, its spread rising as they differ."""
+    falling with its melanin (lighter for more redness) and its a* rising with its redness and melanin, a grey head's
+    the white strands' and the pigmented ones' mixed, its spread rising as they differ."""
     rows, whitest = [], 80.0 * (1.0 - fibre.SWATCH["melanin"][0]) ** 0.7 + 6.0
     for case in fibre.swatch_cases():
         pigmented = 80.0 * (1.0 - case["melanin"]) ** 0.7 + 6.0 + 4.0 * case["redness"]
@@ -594,23 +617,30 @@ def swatch_rows():
         lightness = white * whitest + (1.0 - white) * pigmented
         spread = 4.0 + 0.4 * white * (1.0 - white) * (whitest - pigmented)
         rows.append({**{key: case[key] for key in ("melanin", "redness", "white_share")},
-                     "lab": [lightness, 2.0, 3.0], "spread": spread})
+                     "lab": [lightness, 1.0 + 6.0 * case["redness"] * case["melanin"] * (1.0 - white), 3.0],
+                     "spread": spread})
     return rows
 
 
 def fibre_fitted():
-    """A darker head gets more melanin, a redder hue more redness, and a grey head the white share and melanin whose
-    swatch shows its lightness and spread (0.7 and 0.6 here)."""
+    """A darker head gets more melanin; a warm head darker than the darkest swatch its hue's redness (1 here); a grey
+    head the white share, melanin and redness whose swatch shows its colour and spread (0.7, 0.6 and 0.5). Each photo
+    colour is the swatch's plus `fibre.DRAWN_OFFSET` (the sheet's head draws darker than the swatch's ball)."""
     rows = swatch_rows()
-    dark = fibre.fibre_of(np.array([0.1, 0.07, 0.05]), np.array([12.0, 2.0, 3.0]), 6.0, rows)
-    light = fibre.fibre_of(np.array([0.5, 0.4, 0.3]), np.array([45.0, 4.0, 12.0]), 6.0, rows)
-    pigmented, whitest = 80.0 * 0.4 ** 0.7 + 6.0, 80.0 * (1.0 - fibre.SWATCH["melanin"][0]) ** 0.7 + 6.0
-    grey = fibre.fibre_of(np.array([0.65, 0.65, 0.64]), np.array([0.7 * whitest + 0.3 * pigmented, 2.0, 3.0]),
+    offset = fibre.DRAWN_OFFSET
+    dark = fibre.fibre_of(np.array([0.1, 0.07, 0.05]), np.array([12.0, 2.0, 3.0]) + offset, 6.0, rows)
+    light = fibre.fibre_of(np.array([0.5, 0.4, 0.3]), np.array([45.0, 4.0, 12.0]) + offset, 6.0, rows)
+    warm = fibre.fibre_of(np.array([0.08, 0.06, 0.05]), np.array([12.0, 7.0, 3.0]) + offset, 6.0, rows)
+    pigmented, whitest = 80.0 * 0.4 ** 0.7 + 6.0 + 2.0, 80.0 * (1.0 - fibre.SWATCH["melanin"][0]) ** 0.7 + 6.0
+    grey = fibre.fibre_of(np.array([0.65, 0.65, 0.64]),
+                          np.array([0.7 * whitest + 0.3 * pigmented, 1.0 + 6.0 * 0.5 * 0.6 * 0.3, 3.0]) + offset,
                           4.0 + 0.4 * 0.7 * 0.3 * (whitest - pigmented), rows)
-    return (dark["melanin"] > light["melanin"] and light["redness"] > dark["redness"] - 1e-9
-            and light["white_share"] == 0.0 and abs(grey["white_share"] - 0.7) < 0.03
-            and abs(grey["melanin"] - 0.6) < 0.03,
-            f"dark {dark['melanin']}, light {light['melanin']}, grey white {grey['white_share']} m {grey['melanin']}")
+    return (dark["melanin"] > light["melanin"] and light["white_share"] == 0.0
+            and warm["redness"] > 0.95 and warm["melanin"] > 0.95
+            and abs(grey["white_share"] - 0.7) < 0.03 and abs(grey["melanin"] - 0.6) < 0.03
+            and abs(grey["redness"] - 0.5) < 0.06,
+            f"dark {dark['melanin']}, light {light['melanin']}, warm m {warm['melanin']} r {warm['redness']}, grey "
+            f"white {grey['white_share']} m {grey['melanin']} r {grey['redness']}")
 
 
 def silver_photo():
@@ -661,12 +691,12 @@ def white_bits_kept_as_hair():
 
 def forehead_roots():
     """Whether hair roots 3 cm over the eyes in front of the forehead, beside it 40 degrees round, and 6 cm over
-    them in front."""
+    them in front: under a fringe, then with none (the paint's hairline holds)."""
     frame = {"centre": np.zeros(3), "eyes": np.array([[-0.03, 0.0, 0.08], [0.03, 0.0, 0.08]]),
              "eyes_middle": np.array([0.0, 0.0, 0.08])}
     turned = np.radians(40.0)
     places = np.array([[0.0, 0.03, 0.09], [0.09 * np.sin(turned), 0.03, 0.09 * np.cos(turned)], [0.0, 0.06, 0.08]])
-    return tuple(strands.grows_here(places, frame).tolist())
+    return tuple(tuple(strands.grows_here(places, frame, fringed).tolist()) for fringed in (True, False))
 
 
 def toy_head(count=4000, seed=0):
@@ -1779,14 +1809,16 @@ def tether_inside_read():
     ("the photo's straight hair reads straight, its waves their size", photo_waves, (True, True)),
     ("the roots fade in over the hairline, none on the chin, the beard fades down the neck", roots_and_beard_fade,
      (True, True, True)),
-    ("a darker hair gets more melanin, a grey head the white share and melanin whose swatch shows its lightness and "
-     "spread", lambda: bool(fibre_fitted()[0]), True),
+    ("the neck's back under a bob meets the scalp's foot behind it", neck_meets_nape, -0.0792),
+    ("a darker hair gets more melanin, a warm one its hue's redness, a grey head the white share, melanin and redness "
+     "whose swatch shows its colour and spread", lambda: bool(fibre_fitted()[0]), True),
     ("the photo's hair holds a silver bob as light as its backdrop and little else",
      lambda: (lambda found: (found[0] > 0.9, found[1] < 0.05))(silver_hair_read()), (True, True)),
     ("a hair-white bit on the forehead the clothes' colour claims is hair, the dark brows there never",
      white_bits_kept_as_hair, (1, 1.0, 0.0)),
-    ("no roots on the forehead under the hairline table, beside it and over it the paint's", forehead_roots,
-     (0.0, 1.0, 1.0)),
+    ("under a fringe no roots on the forehead under the hairline table, beside it and over it the paint's; with no "
+     "fringe the paint's", forehead_roots,
+     ((0.0, 1.0, 1.0), (1.0, 1.0, 1.0))),
     ("a swapped head's similarity is found exactly, a turn never a mirror",
      lambda: (similarity_found()[0] < 1e-9, similarity_found()[1]), (True, 1.0)),
     ("a swapped head's two-way ICP lands within a millimetre", lambda: icp_found() < 1e-3, True),

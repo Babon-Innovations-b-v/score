@@ -1,7 +1,8 @@
 """The scalp under the removed hair (`scalp_patch`): a smooth skull-shaped surface closing the hole the hair's triangles
 leave, joined to the skin round it without a ridge. Where the hair hung behind the neck the model has no neck at all:
 a direction that meets nothing there (down to NECK_LOWEST) is the hole too, and under it `neck_back` closes the neck:
-the back half of an upright elliptic tube as wide as the neck's own skin (between NECK_BAND_M under the eyes), from
+the back half of an upright elliptic tube as wide as the neck's own skin (between NECK_BAND_M under the eyes), its back
+meeting the scalp's foot (`nape_of`), from
 NECK_BELOW_M under that band up into the scalp.
 
 The head is read from its own middle (`origin`: the eyes' height plus ORIGIN_OVER_EYES_M, over the cap's middle) along
@@ -44,6 +45,10 @@ NECK_BELOW_M = 0.03  # the tube reaches this far under the band (into the collar
 NECK_SPREAD = (10, 90)  # the neck's width between these percentiles of its skin's (the jaw's edge is not the neck)
 NECK_TUCK = 0.9  # the tube this share of the neck skin's width, so its sides stay behind the skin
 NECK_AROUND, NECK_UP = 48, 80
+# the scalp's foot behind the neck: its points behind the head this near the middle, in their lowest band; the tube's
+# back meets it (round 4, 2026-11-27: a tube 0.9 of the neck's width deep stood 5 cm inside an older woman's collar and
+# the scalp's foot, and showed between her bob's ends and the collar as a dark strip)
+NAPE = {"behind": 0.5, "half_width_m": 0.03, "band_m": 0.01}
 OPEN_NECK = 50
 HEAD_M = 0.25  # only the model's triangles this near the origin are read
 BEHIND = 0.2  # a direction meeting nothing is the neck's back only this far behind level (its z, unit)
@@ -186,9 +191,18 @@ def laid(points, faces, removed, patch, frame):
     return moved
 
 
-def neck_back(points, faces, hair, colours_skin_like, frame):
+def nape_of(patch, frame):
+    """How far back (z) the scalp's foot lies behind the neck: the median of its hole's points behind the head
+    (direction z under -NAPE["behind"]) within NAPE["half_width_m"] of the middle, in their lowest NAPE["band_m"]."""
+    places = patch["points"][patch["hole"] & (patch["directions"][:, 2] < -NAPE["behind"])
+                             & (np.abs(patch["points"][:, 0] - frame["middle_x"]) < NAPE["half_width_m"])]
+    return float(np.median(places[places[:, 1] < places[:, 1].min() + NAPE["band_m"], 2]))
+
+
+def neck_back(points, faces, hair, colours_skin_like, frame, patch):
     """The neck's back where the hair hung over it: (points, triangles). `colours_skin_like` marks the model's skin
-    triangles; the tube is fitted to the neck's skin (its width, its front), its depth NECK_DEPTH of its width."""
+    triangles; the tube is fitted to the neck's skin (its width, its front), its depth NECK_DEPTH of its width or, where
+    the scalp's foot lies further back, deep enough that its back meets it (TUCK_M inside; `nape_of`)."""
     middles = points[faces].mean(axis=1)
     eyes = frame["eyes_middle"]
     band = (~hair & colours_skin_like & (middles[:, 1] < eyes[1] - NECK_BAND_M[0])
@@ -196,8 +210,8 @@ def neck_back(points, faces, hair, colours_skin_like, frame):
     neck = middles[band]
     spread = np.percentile(neck[:, 0], NECK_SPREAD[1]) - np.percentile(neck[:, 0], NECK_SPREAD[0])
     half_width = NECK_TUCK * 0.5 * float(spread)
-    half_depth = NECK_DEPTH * half_width
     front = float(np.percentile(neck[:, 2], 90))
+    half_depth = max(NECK_DEPTH * half_width, (front - nape_of(patch, frame) - TUCK_M) / 2.0)
     middle = np.array([frame["middle_x"], front - half_depth])
     low, high = eyes[1] - NECK_BAND_M[1] - NECK_BELOW_M, origin(frame)[1]
     angles = np.linspace(np.pi / 2.0, 3.0 * np.pi / 2.0, NECK_AROUND)

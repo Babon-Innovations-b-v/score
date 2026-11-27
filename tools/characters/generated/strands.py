@@ -42,7 +42,10 @@ ROOT_RISE_M = 0.010  # along which a guide rises from its root to its layer
 ROOT_OUT = 0.6  # leaving its root a guide rises out of the scalp this much (a share of its way) over ROOT_RISE_M
 ENTER_LAYER = 0.12  # and is drawn at least this far in, so it enters a thin shell before GRACE_M (round 2's first
 # try skimmed along the scalp under a 6 mm shell and ended there: four guides in ten 6 mm long)
-CORRECT = 0.25  # how much of its layer's error a strand mends each step, never more than a step
+CLIMB = 3.0  # a hugging guide climbs to its depth by up to this many steps a step, from its root (round 4,
+# 2026-11-27: hugging only from ROOT_RISE_M, a quarter of its error a step, the strands under a 3 cm swoop by a side
+# parting lay 13 mm under its surface at the root and 6 mm 3 cm on, and the swoop's front stood bare)
+CORRECT = 0.6  # how much of its layer's error a strand mends each step, never more than a step
 FLOW_TRUST = 0.9  # how much a guide takes the shell's own flow where it points clearly
 CLEAR = (0.08, 0.35)  # the flow's coherence from which it is trusted at all, and fully
 HOLD_M = 0.006  # a guide stepping out of the volume is drawn back in by up to this (`held_in`)
@@ -58,23 +61,25 @@ SIDE_DEG = 100.0
 LOWEST_UNDER_EYES_M = 0.04
 # the forehead (this far round from the face) never roots more than `under_table_m` under hair.py's HAIRLINE table: a
 # fringe painted onto the forehead is hair lying on skin, and rooted there it grew a clump down onto the brows
-# (round 3, 2026-11-27: an older woman's fringe, roots 1.6 to 4.6 cm over the eyes)
+# (round 3, 2026-11-27: an older woman's fringe, roots 1.6 to 4.6 cm over the eyes); only under a fringe: with none
+# the paint's hairline is the hairline, and the floor left a bare wedge in front of a side parting (round 4)
 FOREHEAD = {"deg": 25.0, "under_table_m": 0.02}
 SEED = 223
 BEHIND_BLEND_M = 0.03
+SHORT_M = 0.02  # a full hair's guide ending this near its root is dropped, unless grown against the comb it reaches
 CANDIDATES = 400000  # places on the scalp a root is drawn from
 
 
-def roots_on(scalp, skin, hairline, frame, rng, count=None):
+def roots_on(scalp, skin, hairline, frame, fringed, rng, count=None):
     """Roots: (places, 1 for a full hair's and 0 for a baby hair's). Over the scalp's hole by its depth from the seam,
-    on the skin within BABY_BAND_M of the hairline (`hairline`: places on the hair's edge) as baby hairs; `count` of
-    them, or as many as a head holds."""
+    on the skin within BABY_BAND_M of the hairline (`hairline`: places on the hair's edge) as baby hairs, where hair
+    grows (`grows_here`, `fringed` for a style with a fringe); `count` of them, or as many as a head holds."""
     hole = scalp["triangles"][scalp["rooted"][scalp["triangles"]].all(axis=1)]
     on_scalp, picked, _ = hair.on_triangles(scalp["points"], hole, CANDIDATES, rng)
     band, band_over = baby_band(skin, hairline, rng, CANDIDATES / scalp_area(scalp["points"], hole))
     candidates = np.vstack([on_scalp, band])
     over = np.concatenate([scalp["depth"][hole[picked]].mean(axis=1), band_over])
-    share = hairline_fade(over) * full_density(over) / hair.DENSITY["vertex"] * grows_here(candidates, frame)
+    share = hairline_fade(over) * full_density(over) / hair.DENSITY["vertex"] * grows_here(candidates, frame, fringed)
     scalp_share = len(on_scalp) / len(candidates)
     area = scalp_area(scalp["points"], hole) / scalp_share
     wanted = count or int(area * np.mean(share) * hair.DENSITY["vertex"])
@@ -99,14 +104,14 @@ def full_density(over):
     return hair.DENSITY["temple"] + (hair.DENSITY["vertex"] - hair.DENSITY["temple"]) * rise
 
 
-def grows_here(places, frame):
-    """1 where hair grows: in front of FRONT_DEG round from the face wherever the paint says (on the forehead never
-    FOREHEAD's under hair.py's HAIRLINE table), behind it only over the table (less its baby band); in front of
-    SIDE_DEG never LOWEST_UNDER_EYES_M under the eyes."""
+def grows_here(places, frame, fringed):
+    """1 where hair grows: in front of FRONT_DEG round from the face wherever the paint says (on the forehead under a
+    fringe, `fringed`, never FOREHEAD's under hair.py's HAIRLINE table), behind it only over the table (less its baby
+    band); in front of SIDE_DEG never LOWEST_UNDER_EYES_M under the eyes."""
     angle, _ = hair.around(places, frame["centre"])
     over = hair.over_hairline(places, frame["eyes"], frame["centre"])
     chin = (angle < SIDE_DEG) & (places[:, 1] < frame["eyes_middle"][1] - LOWEST_UNDER_EYES_M)
-    forehead = (angle < FOREHEAD["deg"]) & (over < -FOREHEAD["under_table_m"])
+    forehead = (angle < FOREHEAD["deg"]) & (over < -FOREHEAD["under_table_m"]) & fringed
     return (((angle < FRONT_DEG) | (over > -hair.BABY_BAND_M)) & ~chin & ~forehead).astype(float)
 
 
@@ -194,19 +199,19 @@ def across_at(space, place):
 
 
 def mended(space, place, depth, layer, inner, travelled):
-    """Each guide's move across the shell this step towards its place in it (at most a step): a hugging guide's
-    towards its depth under the outer surface, the rest towards their layer, both rising from the root over
-    ROOT_RISE_M (entering at least ENTER_LAYER); a baby hair stays at BABY_LAYER."""
+    """Each guide's move across the shell this step towards its place in it: a hugging guide's towards its depth under
+    the outer surface from its root (at most CLIMB steps), the rest towards their layer rising from the root over
+    ROOT_RISE_M (entering at least ENTER_LAYER; at most a step); a baby hair stays at BABY_LAYER."""
     rise = np.clip(travelled / ROOT_RISE_M, 0.0, 1.0)
     across = across_at(space, place)
     layer = np.where(inner > 0, layer, BABY_LAYER)
     target = np.maximum(layer * rise, np.minimum(layer, ENTER_LAYER))
     error = (target - hair_space.read(space, "layer", place)) * hair_space.read(space, "thick", place)
     move = across * np.clip(CORRECT * error, -hair.STEP_M, hair.STEP_M)[:, None]
-    hugging = np.isfinite(depth) & (inner > 0) & (rise >= 1.0)
+    hugging = np.isfinite(depth) & (inner > 0)
     under = hair_space.read(space, "under", place) - np.nan_to_num(depth)
     out = hair.unit(hair_space.read(space, "outward", place))
-    hug = out * np.clip(CORRECT * under, -hair.STEP_M, hair.STEP_M)[:, None]
+    hug = out * np.clip(CORRECT * under, -hair.STEP_M, CLIMB * hair.STEP_M)[:, None]
     return np.where(hugging[:, None], hug, move)
 
 
@@ -215,13 +220,15 @@ def signed(axis, reference):
     return axis * np.where(np.einsum("pi,pi->p", axis, reference) < 0.0, -1.0, 1.0)[:, None]
 
 
-def flow_way(space, field, place, prior, direction):
+def flow_way(space, field, place, prior, direction, against):
     """Each guide's wanted way: the shell's flow where it points clearly, the comb's `prior` where it does not. The
     flow is signed by the guide's last step and the comb together (at the root by the comb), so a guide never runs
     against the comb: signed by its last step alone it ran round a painted curl's flow and never reached the shoulders
-    (2026-11-26)."""
+    (2026-11-26). A guide grown `against` the comb is signed against it at the root and by its last step after."""
     axis, clear = flow.read_axis(field, space, place)
-    axis = signed(axis, prior if direction is None else hair.unit(direction + prior))
+    flip = np.where(against, -1.0, 1.0)[:, None]
+    reference = prior * flip if direction is None else direction + prior * (~against)[:, None]
+    axis = signed(axis, hair.unit(reference))
     trust = FLOW_TRUST * np.clip((clear - CLEAR[0]) / (CLEAR[1] - CLEAR[0]), 0.0, 1.0)[:, None]
     return hair.unit(trust * axis + (1.0 - trust) * prior)
 
@@ -268,9 +275,9 @@ def turned_in(space, place, direction, held, inside):
     return held, inside
 
 
-def guides_grown(space, field, rooted, inner, line, frame, style, rng):
+def guides_grown(space, field, rooted, inner, line, frame, style, rng, against):
     """Every guide's path through the volume (guides x steps x 3; a guide that ended stays at its last place) and
-    each guide's lock (its middle guide's index)."""
+    each guide's lock (its middle guide's index); those `against` the comb follow the flow's other way (`flow_way`)."""
     side = sides(rooted, line)
     fringe = style.get("fringe_side", "none")
     sweep = (np.where(side > 0.0, 1.0, 1.0 if fringe == "left" else -1.0) if fringe in ("left", "right")
@@ -287,14 +294,15 @@ def guides_grown(space, field, rooted, inner, line, frame, style, rng):
     for _ in range(int(style["length_m"] / hair.STEP_M)):
         across = across_at(space, place)
         prior = wanted_way(place, across, line, sweep, frame, whorl, style.get("parting") == "back")
-        wanted = hair.unit(hair.tangent(flow_way(space, field, place, prior, direction) + lean, across))
+        wanted = hair.unit(hair.tangent(flow_way(space, field, place, prior, direction, against) + lean, across))
         rising = np.clip(1.0 - travelled / ROOT_RISE_M, 0.0, 1.0)[:, None]
         wanted = hair.unit(wanted + across * ROOT_OUT * rising * (inner > 0)[:, None])
         direction = (hair.unit(wanted + crossing) if direction is None
                      else hair.unit(direction * (1.0 - hair.TURN) + wanted * hair.TURN))
         direction = along_edge(space, place, direction)
-        moved, inside = held_in(space, place, direction, place + direction * hair.STEP_M
-                                + mended(space, place, depth, layer, inner, travelled))
+        mend = mended(space, place, depth, layer, inner, travelled)
+        moved, inside = held_in(space, place, direction, place + direction * hair.STEP_M + mend)
+        direction, moved, inside = curled_on(space, field, place, (direction, moved, inside), mend)
         alive &= (inside | (travelled < GRACE_M)) & (travelled + hair.STEP_M <= reach)
         place = np.where(alive[:, None], moved, place)
         travelled += np.where(alive, hair.STEP_M, 0.0)
@@ -302,6 +310,42 @@ def guides_grown(space, field, rooted, inner, line, frame, style, rng):
         if not alive.any():
             break
     return np.stack(path, axis=1), lock, side
+
+
+def guides_against(space, field, rooted, inner, line, frame, style, rng):
+    """The guides (`guides_grown`), those of full hairs ending within SHORT_M of their roots grown again against the
+    comb, kept where that reaches further: (paths, locks, sides). The hair at the foot of a swoop rises up its front
+    against the comb (round 4, 2026-11-27: combed down, a side parting's front hairline's guides left the shell at once
+    and the swoop's front stood bare)."""
+    path, lock, side = guides_grown(space, field, rooted, inner, line, frame, style, rng,
+                                    np.zeros(len(rooted), dtype=bool))
+    reach = np.linalg.norm(path[:, -1] - path[:, 0], axis=1)
+    short = np.flatnonzero((inner > 0) & (reach <= SHORT_M))
+    if not len(short):
+        return path, lock, side
+    again = guides_grown(space, field, rooted[short], inner[short], line, frame, style, np.random.default_rng(SEED),
+                         np.ones(len(short), dtype=bool))[0]
+    better = np.linalg.norm(again[:, -1] - again[:, 0], axis=1) > reach[short]
+    steps = max(path.shape[1], again.shape[1])
+    path, again = (np.concatenate([each, np.repeat(each[:, -1:], steps - each.shape[1], axis=1)], axis=1)
+                   for each in (path, again))
+    path[short[better]] = again[better]
+    return path, lock, side
+
+
+def curled_on(space, field, place, stepped, mend):
+    """The guides about to leave the volume (`stepped`: their ways, places and whether inside) turned to the shell's
+    own flow signed by their way alone, where it points clearly and that step stays inside: (ways, places, inside).
+    A lock's end curling up (a wave's last turn) runs on round its curl instead of ending at its turn (round 4,
+    2026-11-27: signed by the comb, the guides left a long wavy head's front locks at their turn and the curled ends
+    stood bare, 4% of the shell's outer surface)."""
+    direction, moved, inside = stepped
+    axis, clear = flow.read_axis(field, space, place)
+    curled = hair.unit(signed(axis, direction))
+    trying = ~inside & (clear > CLEAR[0])
+    again, landed = held_in(space, place, curled, place + curled * hair.STEP_M + mend)
+    took = trying & landed
+    return (np.where(took[:, None], curled, direction), np.where(took[:, None], again, moved), inside | took)
 
 
 def whorl_lean(rooted, whorl, rng):
@@ -334,16 +378,17 @@ def regrown(space, field, scalp, skin, hairline, frame, style):
     """The strands: (counts, points (n x 3), radius per point); POINTS points a strand (hair.py's)."""
     rng = np.random.default_rng(SEED)
     line = parting(scalp, frame, style)
-    guide_roots, guide_inner = roots_on(scalp, skin, hairline, frame, rng, GUIDES)
-    path, lock, guide_side = guides_grown(space, field, guide_roots, guide_inner, line, frame, style, rng)
-    moved = np.linalg.norm(path[:, -1] - path[:, 0], axis=1) > np.where(guide_inner > 0, 0.02, 0.004)
+    fringed = style.get("fringe_side", "none") != "none"
+    guide_roots, guide_inner = roots_on(scalp, skin, hairline, frame, fringed, rng, GUIDES)
+    path, lock, guide_side = guides_against(space, field, guide_roots, guide_inner, line, frame, style, rng)
+    moved = np.linalg.norm(path[:, -1] - path[:, 0], axis=1) > np.where(guide_inner > 0, SHORT_M, 0.004)
     kept = np.flatnonzero(moved)
     renumber = np.full(len(path), -1)
     renumber[kept] = np.arange(len(kept))
     lock_kept = renumber[lock[kept]]
     lock_kept = np.where(lock_kept < 0, np.arange(len(kept)), lock_kept)
     guides = smoothed(path[kept])
-    rooted, inner = roots_on(scalp, skin, hairline, frame, rng)
+    rooted, inner = roots_on(scalp, skin, hairline, frame, fringed, rng)
     strands = hair.grown(guides, rooted, sides(rooted, line), inner, {**style, "length_from": "nearest"}, rng,
                          guide_side[kept], lock_kept, frame["centre"])
     fine = hair.BABY_RADIUS + (1.0 - hair.BABY_RADIUS) * inner
