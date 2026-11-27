@@ -29,12 +29,14 @@ The steps:
 5. The weights: Robust Skin Weights Transfer from the SOMA surface (prop_rig.transferred: closest-surface matches
    within its distance and angle, each limb only from its own limb, the rest inpainted and smoothed), nothing above a
    foot's ankle on that foot (`off_the_feet`: a wide trouser leg inpainted from its hem swung back from the calf at
-   every push-off), then the helmet and visor rigid on the head and the backpack rigid on the chest (`rigid`), the suit next to them eased onto their
-   joint by its distance over the surface (`rigid`), so nothing tears where a hard part meets the cloth. Last, every
-   cloth point within CLIFF_REACH of an edge across which the weights change faster than CLIFF (the crotch, where each
-   leg's points may hang only from their own leg, and the shoulders' rims) is smoothed towards its neighbours
-   (`eased_cliffs`), so a stride bends the cloth over a few centimetres instead of one edge (walking's worst edge 11.9
-   times its length before, 9.1 after; its 99.9th percentile 3.7 and 2.5).
+   every push-off) and nothing well over a knee on that shin (`off_the_shins`: the same jeans hung thigh points from
+   the shin and spiked 18 cm off the thigh at every stride), then the helmet and visor rigid on the head and the
+   backpack rigid on the chest (`rigid`), the suit next to them eased onto their joint by its distance over the
+   surface (`rigid`), so nothing tears where a hard part meets the cloth. Last, every cloth point within CLIFF_REACH
+   of an edge across which the weights change faster than CLIFF (the crotch, where each leg's points may hang only
+   from their own leg, and the shoulders' rims) is smoothed towards its neighbours (`eased_cliffs`), so a stride
+   bends the cloth over a few centimetres instead of one edge (walking's worst edge 11.9 times its length before, 9.1
+   after; its 99.9th percentile 3.7 and 2.5).
 6. The finish is the still's own paint (owner 2026-11-19, of the TRELLIS.2 astronaut beside the one laid in library
    surfaces a part: "this pure trellis is just so much better ... the segmentation of the visor isnt perf and the
    seams, all player models have this problem"; the library rule's written exception for player models): the rigged
@@ -85,6 +87,7 @@ HEIGHTS = np.arange(1.70, 1.951, 0.01)  # the heights the fit tries, metres
 FOOT_JOINTS = ("Foot", "ToeBase", "ToeEnd")  # a side's foot skin (feet_fitted), after Left or Right
 SOLE_BIN, SOLE_OFF = 0.02, 0.01  # metres: a sole's bins along the foot, and how far over its line a bin is dropped
 ANKLE_BLEND = 0.08  # metres over the body's ankle across which a person's shoe fit gives way to the leg
+KNEE_BLEND = 0.06  # metres over the knee (the Shin joint) across which the shin's weights give way to the thigh's
 HELMET_REACH = 0.25  # metres from the head's middle (between Head and HeadEnd) a helmet face lies within (the
 # suit's visor reaches 0.24 at its chin, the collar 0.26: at 0.21 the visor's lower half was cut off as suit cloth)
 VISOR_DARK = 0.5  # a helmet face darker than this (its baked colour's mean; the suit's visor 0.43 to 0.47, its shell
@@ -537,6 +540,21 @@ def off_the_feet(points, weights, names, bind):
     return out
 
 
+def off_the_shins(points, weights, names, bind):
+    """No point well over a knee hangs from that shin: each side's Shin weights moved onto its Leg (the thigh),
+    wholly KNEE_BLEND over the Shin joint's bind height, less and less down to it. The generated stairwell woman's
+    wide jeans hung 175 thigh points up to 27 cm over the knee wholly from the shin (inpainted down the wide leg), and
+    every stride swung them 18 cm off the thigh in a spike (round 4 of the cloth, 2026-11-27)."""
+    out = weights.copy()
+    for side in ("Left", "Right"):
+        shin = names.index(f"{side}Shin")
+        share = np.clip((points[:, 1] - bind[shin, 1, 3]) / KNEE_BLEND, 0.0, 1.0)
+        moved = out[:, shin] * share
+        out[:, shin] -= moved
+        out[:, names.index(f"{side}Leg")] += moved
+    return out
+
+
 def eased_cliffs(points, faces, weights, fixed):
     """The weights smoothed on every point not `fixed` within CLIFF_REACH over the surface of an edge across which
     they change faster than CLIFF over its length: CLIFF_ROUNDS rounds of moving CLIFF_ALPHA towards the neighbours'
@@ -863,7 +881,7 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     part_of = parts_of(mesh, colours, body, names, bind, person)
     fit = prop_rig.landmarks(prop_rig.sampled(mesh))
     weights, matched, smoothed = prop_rig.transferred(body, body_weights, mesh, np.array(names), fit)
-    weights = off_the_feet(mesh.vertices, weights, names, bind)
+    weights = off_the_shins(mesh.vertices, off_the_feet(mesh.vertices, weights, names, bind), names, bind)
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)
     weights = eased_cliffs(mesh.vertices, mesh.faces, weights, hard_points(mesh.faces, part_of, len(mesh.vertices)))
     out.mkdir(parents=True, exist_ok=True)

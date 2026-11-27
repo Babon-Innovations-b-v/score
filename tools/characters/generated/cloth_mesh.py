@@ -22,10 +22,13 @@ rims metres long. So the cloth is laid over the body instead, and the shell's su
    remesh_botsch, MIT; kept out of the repo's environment as MediaPipe is) makes an even mesh of EDGE_M edges over the
    surface, reprojected onto it; a triangle left with a corner under ANGLE_LEAST has its shortest edge collapsed
    (`slivers_collapsed`: the remesher left a 1e-19 m^2 needle, 2026-11-26).
-4. `bound` and `carried`: each point of the detailed render surface (the garment as the shell has it, both walls and
-   its specks) bound to its sim mesh's nearest triangle, its barycentric place and its offset in a frame of the
-   triangle's interpolated normal, so its folds and paint ride along and the rest shape comes back exactly;
-   `blended` carries any per-point value (skin weights, riding) from the shell's garment onto the sim mesh.
+4. `bound` and `displaced`: each point of the detailed render surface (the garment as the shell has it, both walls and
+   its specks) bound to its sim mesh's nearest triangle at its barycentric place, and moved off its own skinned place
+   by as much as the cloth there stands off its target, so its folds and paint ride along, the rest shape comes back
+   exactly and a cloth on its targets is drawn as the skinned person is (round 4, 2026-11-27: carried in a frame of
+   the triangle's normal, a puffer standing up to 10 cm off its sim mesh was drawn 17 mm rough at its 95th
+   percentile against the skinned shell, lumpy and dark beside it); `blended` carries any per-point value (skin
+   weights, riding) from the shell's garment onto the sim mesh.
 """
 import json
 import pathlib
@@ -371,42 +374,16 @@ def blended(values, points, faces, at):
     return np.einsum("pk,pk...->p...", weights, values[faces[triangle]])
 
 
-def frames_of(points, faces, triangle, weights):
-    """Each bound point's frame on its triangle (points x 3 x 3, rows: across, normal, along) and its place on it."""
-    corners = points[faces[triangle]]
-    normals = vertex_normals(points, faces)[faces[triangle]]
-    normal = np.einsum("pk,pkd->pd", weights, normals)
-    normal /= np.maximum(np.linalg.norm(normal, axis=1, keepdims=True), 1e-12)
-    along = corners[:, 1] - corners[:, 0]
-    along -= np.einsum("pd,pd->p", along, normal)[:, None] * normal
-    along /= np.maximum(np.linalg.norm(along, axis=1, keepdims=True), 1e-12)
-    across = np.cross(normal, along)
-    return np.stack([across, normal, along], axis=1), np.einsum("pk,pkd->pd", weights, corners)
-
-
-def vertex_normals(points, faces):
-    """Area-weighted point normals (unit)."""
-    face = np.cross(points[faces[:, 1]] - points[faces[:, 0]], points[faces[:, 2]] - points[faces[:, 0]])
-    found = np.zeros_like(points)
-    for corner in range(3):
-        np.add.at(found, faces[:, corner], face)
-    return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)
-
-
 def bound(render, points, faces):
-    """The render points bound to the sim mesh (points, faces) at rest: {triangle, weights, offset} (each point's
-    nearest triangle, its barycentric place there, its offset in that place's frame)."""
+    """The render points bound to the sim mesh (points, faces) at rest: {triangle, weights} (each point's nearest
+    triangle and its barycentric place there)."""
     mesh = trimesh.Trimesh(points, faces, process=False)
     nearest, _, triangle = trimesh.proximity.closest_point(mesh, render)
-    weights = barycentric(nearest, mesh.triangles[triangle])
-    frame, place = frames_of(points, faces, triangle, weights)
-    return {"triangle": triangle, "weights": weights, "offset": np.einsum("pab,pb->pa", frame, render - place)}
+    return {"triangle": triangle, "weights": barycentric(nearest, mesh.triangles[triangle])}
 
 
-def carried(binding, positions, faces):
-    """The render points where the sim mesh at `positions` (frames x points x 3) carries them (frames x render x 3)."""
-    found = np.empty((len(positions), len(binding["triangle"]), 3))
-    for index, points in enumerate(positions):
-        frame, place = frames_of(points, faces, binding["triangle"], binding["weights"])
-        found[index] = place + np.einsum("pab,pa->pb", frame, binding["offset"])
-    return found
+def displaced(binding, positions, targets, faces):
+    """How far the sim mesh at `positions` stands off its `targets` (both frames x points x 3) at each bound render
+    point (frames x render x 3): the moves of its triangle's corners blended by its barycentric place."""
+    moves = (positions - targets)[:, faces[binding["triangle"]]]
+    return np.einsum("pk,fpkd->fpd", binding["weights"], moves)

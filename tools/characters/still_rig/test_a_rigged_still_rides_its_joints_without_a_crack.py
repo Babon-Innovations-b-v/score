@@ -31,7 +31,9 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   2 cm in every tread and 18 cm under the next step).
 - a trouser point 30 cm above its ankle keeps a weight on its foot or toes, a point under the ankle loses its foot, or
   a row stops summing to one (`off_the_feet`: the generated stairwell woman's wide jeans, inpainted from the hem,
-  swung back from the calf in a fin at every push-off).
+  swung back from the calf in a fin at every push-off); a point 20 cm over its knee keeps a weight on its shin, or a
+  point under the knee loses its shin (`off_the_shins`: the same jeans' thigh points hung from the shin and spiked
+  18 cm off the thigh at every stride).
 - a body's file grown by the place clips (`clips_added`) reads its rest offsets other than its bind's (a clip then
   played on the wrong bones), takes a clips rig's joints in the rig's order rather than the skin's, loses a byte of the
   numbers it had (the clips it was built with changed), or a climb keeps its height's run over the loop, gives a rise
@@ -196,6 +198,14 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     freed = still_rig.off_the_feet(hem, hung, leg_names, leg_bind)
     assert np.allclose(freed.sum(1), 1.0) and np.allclose(freed[0], [1, 0, 0, 0, 0, 0])
     assert np.allclose(freed[1], hung[1]) and np.allclose(freed[2], [0, 0, 0, 0.75, 0.25, 0])
+    knee_names = ["LeftLeg", "LeftShin", "RightLeg", "RightShin"]
+    knee_bind = np.repeat(np.eye(4)[None], 4, axis=0)
+    knee_bind[:, 1, 3] = [0.9, 0.48, 0.9, 0.48]
+    thigh = np.array([[0.1, 0.68, 0.0], [0.1, 0.3, 0.0], [-0.1, 0.51, 0.0]])
+    shin_hung = np.array([[0.0, 1.0, 0, 0], [0.2, 0.8, 0, 0], [0, 0, 0.0, 1.0]])
+    unhung = still_rig.off_the_shins(thigh, shin_hung, knee_names, knee_bind)
+    assert np.allclose(unhung.sum(1), 1.0) and np.allclose(unhung[0], [1, 0, 0, 0])
+    assert np.allclose(unhung[1], shin_hung[1]) and np.allclose(unhung[2], [0, 0, 0.5, 0.5])
 
     rest = np.repeat(np.eye(4)[None], 3, axis=0)
     rest[:, 1, 3] = [0.0, 1.0, 1.4]

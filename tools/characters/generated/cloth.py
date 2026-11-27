@@ -13,7 +13,9 @@ and the jacket shredded; free cloth was stopped for the tether.
    the kind whose colour, read off the person where only that kind can be (`seeds`: the upper sleeves the jacket, the
    shins the jeans, the soles' height the shoes, the chest's middle in front the T-shirt, the fingers the skin), lies
    nearest its own in that kind's spread, among the kinds its place allows (`allowed`: shoes only under the ankles,
-   jeans never on the arms nor over the waist, the T-shirt only on the trunk). Settled by its neighbours (SETTLE
+   jeans never on the arms nor over the waist, the T-shirt only on the trunk, the jacket never on a face hanging from
+   a leg: 47 such faces by the hands, bound to the jacket's sim mesh, hung 30 cm off their place as blue shards at
+   the hem; round 4, 2026-11-27). Settled by its neighbours (SETTLE
    rounds of votes over the faces' edges, so a cut runs along the paint's edge) and a piece under ISLAND_FACES of a
    kind given to the kinds round it.
 3. `riding_of`: which points of a garment ride the skin (the rest hang as cloth): the jacket's collar and shoulder
@@ -33,12 +35,15 @@ and the jacket shredded; free cloth was stopped for the tether.
    WARM_CYCLES and the clip's seconds (`tiled`: a walk's travel carried on from cycle to cycle), the whole person
    scaled to her own height (`--height`: the person's measured height, not the template body's), and the cloth run
    on its targets after SETTLE_S held on the first frame.
-6. `resampled` and `cloth_mesh.carried`: the run read back at the film's FPS from WARM_CYCLES on, each frame with the clip's time and the walk's
-   travel taken out (the armature in Blender plays the clip in place), and the sheet's stride points (left foot
-   ahead, passing, right foot ahead) in the last cycle, the drawn surface carried by the sim mesh; `measures`: each
-   garment's deepest loose point inside the body (the sim mesh's and the drawn surface's), its largest stretch, its
-   drift off the skin and its jitter, beside the same numbers for plain skinning, and the jeans' flap at the passing
-   step (`flap`: the farthest a lower-leg point stands off the body).
+6. `resampled` and `cloth_mesh.displaced`: the run read back at the film's FPS from WARM_CYCLES on, each frame with
+   the clip's time and the walk's travel taken out (the armature in Blender plays the clip in place), and the
+   sheet's stride points (left foot ahead, passing, right foot ahead) in the last cycle, the drawn surface its own
+   skinned place moved by as much as the sim mesh there stands off its target and shaded by its own smooth normals
+   as skinning turns them (`skinned_normals`; the skinned person's own, so a cloth on its targets is drawn exactly
+   as the skinned person is); `measures`: each garment's deepest loose point inside the body (the sim mesh's and
+   the drawn surface's), its largest stretch, its drift off the skin and its jitter, beside the same numbers for
+   plain skinning, and the jeans' flap at the passing step (`flap`: the farthest a lower-leg point stands off the
+   body; `swing`: the farthest beyond its standoff at rest).
 
     python -m tools.characters.generated.cloth <body.glb> <clips rig.npz> <out> --height <m>
 
@@ -69,7 +74,7 @@ from tools.characters.generated import cloth_mesh, cloth_tether  # noqa: E402
 
 KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes")
 SIMULATED = ("jacket", "jeans")
-THICKNESS_M = {"jacket": 0.006, "jeans": 0.003}  # drawn thickness (Blender's solidify); half of it the clearance
+THICKNESS_M = {"jacket": 0.006, "jeans": 0.003}  # the cloth's thickness; half of it its clearance off the body
 SETTLE_S = 1.0  # the cloth hangs this long on the first frame before the run
 ENGINE = (f"tethered position-based cloth (cloth_tether, numpy on the processor, {cloth_tether.SUBSTEPS} substeps "
           f"a frame, {cloth_tether.ITERATIONS} iterations, deterministic)")
@@ -81,6 +86,7 @@ SPREAD_LEAST = 4.0  # CIELAB: a kind's colour spread is never read tighter than 
 ARMS = ("LeftArm", "LeftForeArm", "LeftHand", "RightArm", "RightForeArm", "RightHand", "LeftShoulder",
         "RightShoulder")
 TRUNK = ("Hips", "Spine1", "Spine2", "Chest", "Neck1")
+LEGS = ("LeftLeg", "RightLeg", "LeftShin", "RightShin")
 SKIN_JOINTS = ("LeftHand", "RightHand", "Neck1", "Neck2", "Head", "HeadEnd")
 ANKLE_OVER_M = 0.05  # shoes lie at most this far over the ankle (the Foot joint)
 SHIN_SEED_M = 0.12  # the jeans' colour is read on the shins this far over the ankle and higher
@@ -106,11 +112,12 @@ LOOK_JOINT = "Hips"
 
 def person_of(path):
     """still_rig's body.glb read back: {document, blob, names, bind, parents, points (welded shell), faces, head
-    (each face from the head part), lab (each face's paint, CIELAB), weights (points x joints)}."""
+    (each face from the head part), lab (each face's paint, CIELAB), weights (points x joints), normals (the shell's
+    own smooth normals, the ones the skinned person is shaded by, averaged where welded)}."""
     document, blob, names, bind, parents = still_rig.skeleton_of(path)
     node = next(node for node in document["nodes"] if node.get("name") == still_rig.OUTFIT)
     picture = None
-    all_points, all_faces, all_weights, all_head, all_colours, count = [], [], [], [], [], 0
+    all_points, all_faces, all_weights, all_normals, all_head, all_colours, count = [], [], [], [], [], [], 0
     for primitive in document["meshes"][node["mesh"]]["primitives"]:
         attributes = primitive["attributes"]
         points = skel_usd.accessor(document, blob, attributes["POSITION"]).astype(float)
@@ -118,6 +125,7 @@ def person_of(path):
         places = skel_usd.accessor(document, blob, attributes["TEXCOORD_0"]).astype(float)
         joints = skel_usd.accessor(document, blob, attributes["JOINTS_0"]).astype(int)
         shares = skel_usd.accessor(document, blob, attributes["WEIGHTS_0"]).astype(float)
+        all_normals.append(skel_usd.accessor(document, blob, attributes["NORMAL"]).astype(float))
         if picture is None:
             picture = base_picture(document, blob, primitive["material"])
         weights = np.zeros((len(points), len(names)))
@@ -132,10 +140,12 @@ def person_of(path):
     points, faces, index = welded(np.concatenate(all_points), np.concatenate(all_faces))
     weights = np.zeros((len(points), len(names)))
     weights[index] = np.concatenate(all_weights)
+    normals = np.zeros_like(points)
+    np.add.at(normals, index, np.concatenate(all_normals))
     kept = faces_kept(index, np.concatenate(all_faces))
     return {"document": document, "blob": blob, "names": names, "bind": bind, "parents": parents, "points": points,
             "faces": faces, "head": np.concatenate(all_head)[kept], "lab": np.concatenate(all_colours)[kept],
-            "weights": weights}
+            "weights": weights, "normals": normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)}
 
 
 def base_picture(document, blob, material):
@@ -195,7 +205,7 @@ def allowed(person, middles, strongest):
     chest = joint_at(person, "Chest")
     front = (np.abs(middles[:, 0] - chest[0]) < SHIRT_HALF_M) & (middles[:, 2] > chest[2])
     return {"skin": np.isin(strongest, SKIN_JOINTS),
-            "jacket": middles[:, 1] > hips - TUCKED_M,
+            "jacket": (middles[:, 1] > hips - TUCKED_M) & ~np.isin(strongest, LEGS),
             "shirt": front & ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck),
             "jeans": ~on_arms & (middles[:, 1] < waist),
             "shoes": middles[:, 1] < ankle + ANKLE_OVER_M}
@@ -406,6 +416,15 @@ def skinned(points, weights, moves):
     return np.einsum("fpab,pb->fpa", blended, homogeneous)
 
 
+def skinned_normals(normals, weights, moves):
+    """Unit normals turned by their points' blended joint turns over joint moves (frames, joints, 4, 4): (frames,
+    points, 3), as the armature turns the skinned person's (a zero normal stays zero: Blender then shades the point
+    from its faces, as it does the skinned person's)."""
+    turns = np.einsum("pj,fjab->fpab", weights, moves[:, :, :3, :3])
+    found = np.einsum("fpab,pb->fpa", np.linalg.inv(turns).transpose(0, 1, 3, 2), normals)
+    return found / np.maximum(np.linalg.norm(found, axis=2, keepdims=True), 1e-12)
+
+
 def sim_of(person, kinds, kind, body, scale, used, faces, riding):
     """A garment's sim mesh (module docstring step 3b), in metres: {points, faces, weights, riding, binding} (binding:
     the garment's shell points `used` bound to it)."""
@@ -541,6 +560,17 @@ def flap(positions, sim, names, body_posed):
     return round(float(cKDTree(body_posed).query(positions[chosen])[0].max()), 4)
 
 
+def swing(positions, sim, names, body_posed, body_rest):
+    """The farthest a lower-leg point (as `flap` chooses them) stands off the posed body at one frame beyond how far
+    it stands off the body at rest (metres): `flap` alone is never under the wide hem's own standoff (12 cm round the
+    ankle), so a leg that swings out is told from one that is only wide."""
+    lower = [names.index(f"{side}{part}") for side in ("Left", "Right") for part in ("Shin", "Foot", "ToeBase",
+                                                                                       "ToeEnd")]
+    chosen = sim["weights"][:, lower].sum(1) > 0.5
+    rest = cKDTree(body_rest).query(sim["points"][chosen])[0]
+    return round(float((cKDTree(body_posed).query(positions[chosen])[0] - rest).max()), 4)
+
+
 def frames_of(person, timing, clip):
     """{name: run frame} drawn from a clip: the film's start and the stride points of a walk, standing's last."""
     if clip == "standing":
@@ -573,22 +603,30 @@ def made(body_glb, rig_path, out, height):
             cloth, seconds = moved(sim, kind, timing, body_posed, body[1])
             run["seconds"] = round(run["seconds"] + seconds, 1)
             carried = skinned(sim["points"], sim["weights"], timing["moves"])
+            own = skinned(person["points"][used] * scale, person["weights"][used], timing["moves"])
             shape = {"points": len(used), "sim_points": len(sim["points"]), "sim_faces": len(sim["faces"]),
                      "riding_share": round(float(sim["riding"].mean()), 3)}
             for label, positions in (("garments", cloth), ("skinned", carried)):
-                drawn = cloth_mesh.carried(sim["binding"], positions, sim["faces"])
+                drawn = own + cloth_mesh.displaced(sim["binding"], positions, carried, sim["faces"])
                 run[label][kind] = {**shape, **measures(positions, sim, carried, drawn, ~riding, body_posed, body[1])}
                 if kind == "jeans" and clip == "walking":
                     passing = frames["passing"]
                     run[label][kind]["flap_passing_m"] = flap(positions[passing], sim, person["names"],
                                                               body_posed[passing])
-            drawn = cloth_mesh.carried(sim["binding"], cloth, sim["faces"])
+                    run[label][kind]["swing_passing_m"] = swing(positions[passing], sim, person["names"],
+                                                                body_posed[passing], body[0] * scale)
+            drawn = own + cloth_mesh.displaced(sim["binding"], cloth, carried, sim["faces"])
+            normals = skinned_normals(person["normals"][used], person["weights"][used], timing["moves"])
+            del own
             saved[f"{kind}_used"], saved[f"{kind}_faces"], saved[f"{kind}_riding"] = used, faces, riding
             saved[f"{kind}_sim_points"], saved[f"{kind}_sim_faces"] = sim["points"] / scale, sim["faces"]
             for name, frame in frames.items():
                 count = int(SECONDS * FPS) if name == "film" else 1
                 film, times = resampled(drawn, timing, frame, count)
                 saved[f"{clip}/{name}/{kind}"] = film / scale
+                turned = at_times(normals, frame + np.arange(count) * timing["rate"] / FPS)
+                saved[f"{clip}/{name}/{kind}_normal"] = (
+                    turned / np.maximum(np.linalg.norm(turned, axis=2, keepdims=True), 1e-12)).astype(np.float32)
                 saved[f"{clip}/{name}/time"] = times
         record["runs"][clip] = run
     np.savez_compressed(out / "cloth.npz", **saved)

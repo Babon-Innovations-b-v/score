@@ -141,7 +141,12 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   sim point is simulated but held within a tether of its skinned place: none at the riding points (the jacket's collar,
   shoulder yoke and cuffs, the jeans' waistband) and at a hem near the shoes, rising by a slope over the surface to 5
   cm on the jacket and 6 cm on the jeans; it feels only the gravity its limb's turn adds to its made hang, and the
-  body draws it back toward its target, never sideways and never deeper than the skinning draws it.
+  body draws it back toward its target, never sideways and never deeper than the skinning draws it. The drawn
+  cloth is its own skinned place moved by as much as the sim mesh there stands off its target
+  (`cloth_mesh.displaced`), shaded by its own normals as skinning turns them (round 4, 2026-11-27: carried in the sim
+  triangle's frame, the puffer standing up to 10 cm off its sim mesh drew 17 mm rough, lumpy and dark beside the
+  skinned person), so a cloth on its targets is drawn exactly as the skinned person is. A face hanging from a leg is
+  never jacket.
   **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
   down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as
   stable as plain skinning; cloth.json records every garment's numbers both ways (`garments` tethered, `skinned`).
@@ -161,8 +166,8 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   head, hands and feet lay nothing), the reach smoothed a little (more pulls it inside a flare), cleaned to one
   manifold mesh and remeshed even (gpytoolbox's remesh_botsch in its own `uv run`, MIT; the rims resampled first, it
   keeps rim points fixed; a needle it leaves collapsed). The drawn surface (both walls, folds, paint) is bound to it
-  by nearest triangle, barycentric place and an offset in the place's normal frame, exact at rest; skin weights and
-  riding are blended over, and a piece with no riding point rides whole. The sleeves' inner sides, where TRELLIS.2
-  fused them to the trunk, lay nothing: the sleeve is open there and its drawn points ride the nearest cloth.
+  by nearest triangle and barycentric place and moved off its own skinned place by the cloth's move there; skin
+  weights and riding are blended over, and a piece with no riding point rides whole. The sleeves' inner sides, where
+  TRELLIS.2 fused them to the trunk, lay nothing: the sleeve is open there and its drawn points ride the nearest cloth.
 - **Look at the film.** The deepest loose point inside the body, the stretch and the drift say the run held; only the
   side-by-side film says whether the jeans swing and the jacket hangs as cloth or still read as a stretched skin.

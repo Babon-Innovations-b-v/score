@@ -31,7 +31,8 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   hung 10 cm behind her sleeves, whose upper half took her chest's weights and bulged at the shoulder.
   Nothing above a foot's ankle hangs from that foot (`off_the_feet`, 2026-11-26): the generated stairwell woman's
   wide jeans, inpainted up from their hem, hung a quarter of their calf points from the foot and finned back at
-  every push-off.
+  every push-off; nothing well over a knee hangs from that shin (`off_the_shins`, 2026-11-27: the same jeans hung
+  thigh points 27 cm over the knee from the shin and spiked 18 cm off the thigh at every stride).
 - **The place clips** (2099 #161: the places' people had only the dressed body's five clips): `place_clips.py` makes
   the prologue's clips (talking, stairs up and down, the rail lean, looking out, waving, swaying) and makes again the
   work bodies' (leaning, pointing, checking, clipboard, cheering, waiting, clapping, shifting) from their own sentences

@@ -8,9 +8,11 @@ CC0 park sky as world and ground, the incident meter, 85 mm): standing front; wa
         <samples> <size> [<film samples> <film size>]
 
 The cloth: the shell's faces of each simulated garment (cloth.SIMULATED) taken off the skinned shell into a mesh of
-their own, its points set every frame to the run's (each Blender point to the nearest garment point at the bind),
-thickened inward by cloth.THICKNESS_M; the collision body drawn under them, so a lifted hem shows a body and a T-shirt,
-never the hollow shell. The armature plays the clip at the run's clip time, in place (the run's travel taken out).
+their own, its points and their normals set every frame to the run's (each Blender point to the nearest garment
+point at the bind), never thickened (the shell is the skinned person's own: a solidify's inner layer poked through
+its thin noisy walls as dark blotches all over the jacket; round 4, 2026-11-27); the collision body drawn under them,
+so a lifted hem shows a body and a T-shirt, never the hollow shell. The armature plays the clip at the run's clip
+time, in place (the run's travel taken out).
 """
 import math
 import pathlib
@@ -31,7 +33,6 @@ import render  # noqa: E402
 
 KINDS = ("head", "skin", "jacket", "shirt", "jeans", "shoes")  # cloth.KINDS (cloth.py needs scipy: not imported here)
 SIMULATED = ("jacket", "jeans")
-THICKNESS_M = {"jacket": 0.006, "jeans": 0.003}
 SHELL = "work"  # still_rig.OUTFIT: the rigged shell's node
 SETTING = {"sky": "polyhaven_cloudy_vondelpark"}
 VIEWS = (("side", 270.0), ("three_quarter", 215.0))
@@ -101,8 +102,6 @@ def split_off(shell, kinds, kind):
     mesh.to_mesh(garment.data)
     mesh.free()
     garment.vertex_groups.clear()
-    if "custom_normal" in garment.data.attributes:  # the import's normals would stay put as the cloth moves
-        garment.data.attributes.remove(garment.data.attributes["custom_normal"])
     garment.data.shade_smooth()
     return garment
 
@@ -115,13 +114,6 @@ def kept_only(shell, kinds, dropped):
     bmesh.ops.delete(mesh, geom=[face for face in mesh.faces if kinds[face.index] in dropped], context="FACES")
     mesh.to_mesh(shell.data)
     mesh.free()
-
-
-def thickened(garment, metres, scale):
-    """A solidify inward of `metres` (the object is drawn `scale` of its own size)."""
-    modifier = garment.modifiers.new("thickness", "SOLIDIFY")
-    modifier.thickness = metres / scale
-    modifier.offset = -1.0
 
 
 def body_made(armature, shell, data):
@@ -164,7 +156,6 @@ def garments_made(shell, data):
         used = data[f"{kind}_used"]
         tree = tree_of(to_blender(data["shell_points"][used]))
         mapping = np.array([tree.find(Vector(point))[1] for point in coordinates(garment.data)])
-        thickened(garment, THICKNESS_M[kind], float(data["scale"]))
         found[kind] = (garment, mapping)
     kept_only(shell, kinds, [KINDS.index(kind) for kind in SIMULATED])
     return found
@@ -178,10 +169,13 @@ def posed(armature, action, seconds):
 
 
 def laid(garments, data, key, index):
-    """Each garment's points set to the run's at `key` frame `index` (the run's points are in the glTF frame)."""
+    """Each garment's points set to the run's at `key` frame `index` (the run's points are in the glTF frame), each
+    shaded by its own smooth normal as the run turns it (the shell's, as the skinned person is: the moved surface's
+    own faces drew it lumpy)."""
     for kind, (garment, mapping) in garments.items():
         points = to_blender(data[f"{key}/{kind}"][index])[mapping]
         garment.data.vertices.foreach_set("co", points.ravel())
+        garment.data.normals_split_custom_set_from_vertices(to_blender(data[f"{key}/{kind}_normal"][index])[mapping])
         garment.data.update()
 
 

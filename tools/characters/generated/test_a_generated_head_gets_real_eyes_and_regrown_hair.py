@@ -91,7 +91,10 @@ exactly at rest and are carried rigidly when it turns and moves, and a piece of 
 whole. Breaks that turn their rows red (each applied once, seen red, reverted, 2026-11-26): the last hit taken for
 the first (`laid_over`'s `first`: the outer wall); no collapse rounds (`slivers_collapsed` rounds 0); no extra fan
 (`fans_split`'s `extra` empty); the offset added unturned (`carried` without its frame); `anchored` returning
-`riding` alone.
+`riding` alone. Round 4 (2026-11-27), each applied once, seen red, reverted: the normals unturned (`skinned_normals`
+returning its normals: the cloth shaded as it stood); the drawn surface not moved off its skinned place (`displaced`
+returning zeros); the jacket allowed on a leg (`allowed` without `LEGS`: the shards
+at the hem).
 
 The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
 painted black, boots at the bottom painted as black as the trousers with a trace of red) and its photo (a sage
@@ -984,22 +987,36 @@ def cloth_mesh_mended():
 
 
 def cloth_drawn_rides():
-    """Points over and under a bent sheet bound to it come back exactly at rest and are carried rigidly when the sheet
-    turns and moves; a piece of the mesh with no riding point rides whole, one with a riding point keeps its loose."""
+    """Points over and under a bent sheet bound to it move by none of the sheet's own move off its targets at rest and
+    by all of a move the whole sheet makes off them; normals turn with their skinned turn (a zero one stays zero); a
+    piece of the mesh with no riding point rides whole, one with a riding point keeps its loose."""
     points, faces = cloth_grid(8, 8)
     points[:, 2] = 0.3 * points[:, 0] ** 2
     render = np.random.default_rng(4).uniform([0.005, 0.005, -0.01], [0.065, 0.065, 0.01], (200, 3))
     binding = cloth.cloth_mesh.bound(render, points, faces)
-    turn = trimesh.transformations.rotation_matrix(0.7, (0.3, 1.0, 0.2))[:3, :3]
-    moved = np.stack([points, points @ turn.T + (0.4, -0.1, 0.2)])
-    drawn = cloth.cloth_mesh.carried(binding, moved, faces)
+    targets = np.stack([points, points + (0.0, 0.1, 0.0)])
+    positions = np.stack([points, points + (0.0, 0.1, 0.03)])
+    off = cloth.cloth_mesh.displaced(binding, positions, targets, faces)
+    turn = trimesh.transformations.rotation_matrix(0.7, (0.3, 1.0, 0.2))
+    moves = np.stack([np.eye(4), turn])[:, None]
+    normals = np.array([[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]])
+    shaded = cloth.skinned_normals(normals, np.ones((2, 1)), moves)
     two = np.vstack([faces, faces + len(points)])
     riding = np.zeros(2 * len(points), bool)
     riding[0] = True
     anchored = cloth.anchored(two, riding)
-    return [bool(np.abs(drawn[0] - render).max() < 1e-9),
-            bool(np.abs(drawn[1] - (render @ turn.T + (0.4, -0.1, 0.2))).max() < 1e-9),
-            int(anchored[:len(points)].sum()), bool(anchored[len(points):].all())]
+    return [bool(np.abs(off[0]).max() < 1e-12), bool(np.abs(off[1] - (0.0, 0.0, 0.03)).max() < 1e-12),
+            int(anchored[:len(points)].sum()), bool(anchored[len(points):].all()),
+            bool(np.abs(shaded[1, 0] - turn[:3, 2]).max() < 1e-9), bool(np.abs(shaded[:, 1]).max() == 0.0)]
+
+def cloth_jacket_off_legs():
+    """[a face at the hips hanging from the hips may be jacket, the same face hanging from a thigh may not]."""
+    names = ["Hips", "Spine2", "Neck2", "Chest", "LeftFoot", "RightFoot"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.0, 1.15, 1.5, 1.3, 0.06, 0.06]
+    middles = np.array([[0.1, 0.92, 0.1], [0.1, 0.92, 0.1]])
+    places = cloth.allowed({"names": names, "bind": bind}, middles, np.array(["Hips", "LeftLeg"]))
+    return places["jacket"].tolist()
 
 
 def colour_toy():
@@ -1257,7 +1274,8 @@ def tether_inside_read():
     ("a remeshed needle is collapsed and a bow tie split into two fans", cloth_mesh_mended,
      [True, True, 6, [0, 1, 2, 3, 4, 5]]),
     ("the drawn surface rides its sim mesh exactly at rest and rigidly when it moves; a piece hung by nothing rides "
-     "whole", cloth_drawn_rides, [True, True, 1, True]),
+     "whole; its own normals turn with its skinning", cloth_drawn_rides, [True, True, 1, True, True, True]),
+    ("a face hanging from a leg is never jacket", cloth_jacket_off_legs, [True, False]),
     ("the paint is toned toward the photo garment by garment: the jacket's sage, the boots' brown under trousers "
      "painted as black, the folds kept", colour_toned, [True] * 4),
     ("the body is never toned: hair and a face painted half skin, half dark keep their paint, the jacket is toned",
