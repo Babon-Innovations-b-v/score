@@ -264,7 +264,7 @@ def posed(armature, action, seconds):
 def laid(garments, data, key, index):
     """Each garment's points set to the run's at `key` frame `index` (the run's points are in the glTF frame), each
     shaded by its own smooth normal as the run turns it (the shell's, as the skinned person is: the moved surface's
-    own faces drew it lumpy)."""
+    own faces drew it lumpy), the cover and flaps too (their own faces, wound either way, drew the cover dark)."""
     for kind, (garment, mapping, flaps) in garments.items():
         points = to_blender(data[f"{key}/{kind}"][index])
         garment.data.vertices.foreach_set("co", points[mapping].ravel())
@@ -272,6 +272,8 @@ def laid(garments, data, key, index):
         garment.data.update()
         if flaps:
             flaps[0].data.vertices.foreach_set("co", points[flaps[1]].ravel())
+            flaps[0].data.normals_split_custom_set_from_vertices(
+                to_blender(data[f"{key}/{kind}_normal"][index])[flaps[1]])
             flaps[0].data.update()
 
 
