@@ -187,12 +187,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   Round 5 (2026-11-27): a garment reaching under the hip joints hangs as a skirt (`skirted`: its weights there across
   both thighs and the pelvis, the pelvis more lower down and toward the middle, never on its sleeves), so a coat's
   hem hangs as one piece instead of splitting with the thighs (the coat's middle between the legs grew 4.9 times its
-  length skinned, `between_legs` in cloth.json); a jacket's sleeves fused to its sides are cut off them where its
-  faces turn from the arm's to the trunk's, 8 cm or more under the shoulder (`sleeves_cut`), each piece's weights
-  eased onto its own limb and each cut edge closed by a flap turned in toward the body (`flaps_of`), so the sleeve
-  swings with the arm and the side stays; the sleeve's region spans the whole side under the arm, so its half on the
-  trunk's side of the arm's line is copied onto the trunk 4 mm in under it (`covered`: cut alone, the coat's back
-  opened wide as the sleeve left); blender_cloth splits the drawn garment the same way.
+  length skinned, `between_legs` in cloth.json). **A sleeve TRELLIS.2 fused to the side stays fused** (round 6,
+  2026-11-27): round 5 cut it off the side where the faces turn from the arm's weights to the trunk's, eased each
+  piece onto its own limb, closed the cut with flaps and covered the side; on the shell's two noisy walls that
+  boundary is speckled, and the eased weights alone (no split drawn, no flaps, no cover) tore all three jackets into
+  slats and flaps, standing too, while plain skinning drew them whole. The side's gap as the arm swings is open.
+  The skirt eases in over 8 cm of the garment's surface from its points on an arm (`SKIRT_ARM_EASE_M`; round 6:
+  eased point by point by each point's own arm weights, the coat by the older woman's hands tore into holes).
   The pelvis takes its share only toward the middle between the legs (0.3 to 0.6 there), the cloth over each thigh
   swings with it: a pelvis share over the thighs let the lifted thigh 11 to 12.7 cm through the coat's front, and
   pushing the targets out of the body point by point tore it (stretch 4.5). The hands' depth in
