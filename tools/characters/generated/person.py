@@ -52,13 +52,18 @@ CLIPS = pathlib.Path(os.environ.get("SCORE_PEOPLE_CLIPS",
 # Each person's measures: her height (m), the head model's height as drawn (m), the swap's cut under the crown (body
 # heights: some 5 mm under the head model's chin, read off its side profile; the body's neck, collar and scarf under it
 # stay the body's), where a collar rises above that cut the depth under the crown from which down the body keeps it
-# (`collar_depth`, `head_swap`'s hood: the stairwell woman's puffer collar reaches 0.13), the dressed body whose
-# skeleton and clips she plays; `tether` a garment's longest tether where her clothes want other than
+# (`collar_depth`, `head_swap`'s hood: the stairwell woman's puffer collar reaches 0.13; `hood_open_front` where it is
+# open under the chin, a hoodie's, so the chin and beard stay the head's), the dressed body whose
+# skeleton and clips she plays (in DRESSED_LIBRARY, or in LIBRARY when `dressed_in` says "props": the hoodie man's
+# dress_person_made_v2 is only there); `tether` a garment's longest tether where her clothes want other than
 # cloth_tether.TETHER_M (`cloth.made`'s reach: a long coat's hem).
 PEOPLE = {"a_stairwell_woman": {"height_m": 1.68, "head_m": 0.42, "cut_depth": 0.145, "collar_depth": 0.125,
                                 "dressed": "character/dress_woman_stair_made/1/body.glb"},
           "c_older_woman": {"height_m": 1.64, "head_m": 0.42, "cut_depth": 0.14,
-                            "dressed": "character/dress_woman_stair_made/1/body.glb", "tether": {"jacket": 0.10}}}
+                            "dressed": "character/dress_woman_stair_made/1/body.glb", "tether": {"jacket": 0.10}},
+          "b_hoodie_man": {"height_m": 1.80, "head_m": 0.42, "cut_depth": 0.155, "collar_depth": 0.11,
+                           "hood_open_front": True,
+                           "dressed": "character/dress_person_made_v2/1/body.glb", "dressed_in": "props"}}
 STEPS = ("head", "hair", "swap", "rig", "pieces", "cloth", "render", "sheet")
 FILM_SECONDS = 4.0  # the walking film (cloth.SECONDS is the cloth sheet's 3 s)
 # still_rig's thinning: the detailed head takes some 60% of the faces; at 100k the clothes kept 35k and folded onto
@@ -145,9 +150,16 @@ def swap_step(given, out, person, name):
     folder.mkdir(parents=True, exist_ok=True)
     colour.toned(given["body"], given["body_cutout"], folder / "body_toned.glb", folder / "colour.json")
     head_alone(out / "head/head.glb", folder / "head.glb")
-    hood = [person["collar_depth"]] if "collar_depth" in person else []
+    hood = ([person["collar_depth"]] + (["open"] if person.get("hood_open_front") else [])
+            if "collar_depth" in person else [])
     blender("head_swap.py", [folder / "body_toned.glb", folder / "head.glb", person["cut_depth"],
                              folder / f"{name}.glb", folder / f"{name}.json", *hood], out / "swap.log")
+
+
+def dressed_body(person):
+    """The dressed body whose skeleton and clips the person plays: in LIBRARY when her `dressed_in` is "props", else
+    in DRESSED_LIBRARY."""
+    return (LIBRARY if person.get("dressed_in") == "props" else DRESSED_LIBRARY) / person["dressed"]
 
 
 def rig_step(out, person, name):
@@ -155,7 +167,7 @@ def rig_step(out, person, name):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "palette.json").write_text(json.dumps({"tokens": {}}))
     run([sys.executable, REPO / "tools/characters/still_rig/still_rig.py", out / "swap" / f"{name}.glb",
-         DRESSED_LIBRARY / person["dressed"], CLIPS, folder / "palette.json", folder, "--faces", RIG_FACES,
+         dressed_body(person), CLIPS, folder / "palette.json", folder, "--faces", RIG_FACES,
          "--person"], out / "rig.log")
 
 

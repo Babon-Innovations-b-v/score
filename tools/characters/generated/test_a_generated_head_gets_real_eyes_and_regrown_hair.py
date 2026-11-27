@@ -185,7 +185,10 @@ the throat read as the column's highest slice (no chin found, the row's refusal 
 Under the hood's depth the head model keeps only its neck (`head_swap.kept_region`): its throat in front kept, a chin's
 underside turned down kept, its own collar standing 10 cm out in front and at the side given to the body, a face
 inside a neck ring turned in refused. Break (applied once, seen red, reverted, 2026-11-27): the front kept whole
-again (the head's front collar kept: the stairwell woman's torn collar shards).
+again (the head's front collar kept: the stairwell woman's torn collar shards). Under a hood open in front (a
+hoodie's, `open_front`) the whole front is the head's down to the cut, its side still the body's. Break: `open_front`
+ignored (the hoodie man's chin and beard given to the body, whose own longer beard stood under his face as a dark
+lump).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
@@ -1857,24 +1860,26 @@ def old_hair_painted_over():
     return [cloth.KINDS[kind] for kind in kinds[[1, 3, 4]]], over.tolist(), int(weights[3].argmax())
 
 
-def hood_kept():
+def hood_kept(open_front=False):
     """A body 1 high whose neck (4 cm radius) rises out of a high collar (a ring 10 to 12 cm out) above a cut at 0.80,
-    the hood kept from 0.85 down (`head_swap.kept_region`): which of the head's faces under the hood's depth it keeps
-    (the throat in front, the chin's underside in front turned down, the collar's front at 10 cm, the collar's side
-    at 10 cm, the neck's side turned out, the neck's side turned in)."""
+    the hood kept from 0.85 down (`head_swap.kept_region`; `open_front`, a hoodie's): which of the head's faces under
+    the hood's depth it keeps (the throat in front, the chin's underside in front turned down, the collar's front at
+    10 cm, the collar's side at 10 cm, the neck's side turned out, the neck's side turned in, a bearded chin's front
+    8.5 cm out)."""
     angles = np.linspace(-np.pi, np.pi, 72, endpoint=False)
     heights = np.linspace(0.80, 0.82, 5)
     neck = [(0.04 * np.sin(angle), -0.04 * np.cos(angle), height) for angle in angles for height in heights]
     collar = [(radius * np.sin(angle), -radius * np.cos(angle), height) for angle in angles for height in heights
               for radius in (0.10, 0.12)]
-    kept = head_swap.kept_region(0.80, 1.0, 1.0, (0.0, 0.0), 0.15, np.array(neck + collar))
+    kept = head_swap.kept_region(0.80, 1.0, 1.0, (0.0, 0.0), 0.15, np.array(neck + collar), open_front)
     point = types.SimpleNamespace
     faces = [(point(x=0.0, y=-0.04, z=0.81), point(x=0.0, y=-1.0, z=0.0)),
              (point(x=0.0, y=-0.03, z=0.84), point(x=0.0, y=0.0, z=-1.0)),
              (point(x=0.05, y=-0.087, z=0.81), point(x=0.0, y=-1.0, z=0.0)),
              (point(x=-0.1, y=0.0, z=0.81), point(x=-1.0, y=0.0, z=0.0)),
              (point(x=-0.04, y=0.0, z=0.81), point(x=-1.0, y=0.0, z=0.0)),
-             (point(x=-0.04, y=0.0, z=0.81), point(x=1.0, y=0.0, z=0.0))]
+             (point(x=-0.04, y=0.0, z=0.81), point(x=1.0, y=0.0, z=0.0)),
+             (point(x=0.0, y=-0.085, z=0.83), point(x=0.0, y=-1.0, z=0.0))]
     return [bool(kept(centre, normal)) for centre, normal in faces]
 
 
@@ -2045,7 +2050,9 @@ def tether_inside_read():
     ("a socket the photo shades deeper than the fit is lifted to the open skin, a stain on open skin kept dark",
      skin_socket_shade_off, [True, True]),
     ("under the hood's depth the head keeps its neck alone, its own collar front and side given to the body",
-     hood_kept, [True, True, False, False, True, False]),
+     hood_kept, [True, True, False, False, True, False, False]),
+    ("under a hood open in front (a hoodie's) the head keeps its whole front, chin and beard, down to the cut",
+     lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
     ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",
      neck_fans_found, [48, 0, 0, 1]),
     ("the body's own collar over the cut is released, the head's neck and the body under not; the hair read on it",

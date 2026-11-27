@@ -293,7 +293,10 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   neck). The cut now lies just under the chin (`person.PEOPLE`'s `cut_depth`, read off the head model's side profile:
   0.145 and 0.14), so the body's own neck, collar and scarf stay as the body model made them and only the face,
   scalp, ears and hair come from the head; `collar_depth` only where a collar rises above that cut (the stairwell
-  woman's puffer, to 0.13). There the two cut edges are one closed loop each: `laid_path` closes a body path whose
+  woman's puffer, to 0.13; a hoodie's hood open under the chin, `hood_open_front`, keeps the head's whole front
+within FRONT_HALF_ANGLE down to the cut: the hoodie man's chin and beard stand past NECK_FALLBACK under his hood's
+0.11, and given to the body his body model's own longer beard stood under his face as a dark lump; his cut 0.155 lies
+under his beard's underside). There the two cut edges are one closed loop each: `laid_path` closes a body path whose
   ends lie within SEAM_BODY_LINK and opens it where the head's starts (read as an open path, the isotonic fit pooled
   the head's loop onto its ends: the older woman's edge 3.5% laid; closed, her outer wall all laid, no fold). The
   release band reaches past still_rig's head sphere (RELEASE_BAND 0.09) and the collision body stays 4.5 cm under the

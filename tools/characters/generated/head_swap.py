@@ -5,7 +5,7 @@ into the body's across a narrow band above the cut. Everything of the body below
 stays as the body model made it; the head model gives only the face, scalp, ears and hair.
 
 Inside Blender (CPU):
-    blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out transform.json> [<hood>]
+    blender -b --python head_swap.py -- <body.glb> <head.glb> <cut depth> <out.glb> <out transform.json> [<hood> [open]]
 
 <cut depth>: the cut's depth under the body's crown, in the body's heights (a head, crown to chin, is about 0.13; the
 cut lies some 5 mm under the head model's chin, 0.14 to 0.145, where the jaw's shade and the hair hide it). Cut low on
@@ -13,7 +13,8 @@ the neck or inside the collar (0.15 to 0.18, whole person rounds 1 to 7, 2026-11
 old hair lying on it and the seam at once: dark gaps in the collar and a dark line across the neck. <hood>: when the
 body's own hood or high collar rises round the neck above the cut, the depth under the crown (body heights) from which
 down the body keeps everything round the neck but the neck itself and the throat: its hood stays, the head model's is
-dropped.
+dropped. `open` after it: the hood is open in front (a hoodie's, under the chin), so the front is the head's down to the
+cut.
 
 The transform JSON holds the head-to-body similarity (scale, rotation, translation) in the glTF frame of the two files,
 so anything made on the head model (hair strands, eyes) follows onto the body with the same matrix; the cut's level,
@@ -828,13 +829,17 @@ def direction_bin(across):
     return np.clip(((angle + 180.0) / 360.0 * HOOD_ANGLES).astype(int), 0, HOOD_ANGLES - 1)
 
 
-def kept_region(level, crown, height, axis, hood, body_points):
+def kept_region(level, crown, height, axis, hood, body_points, open_front=False):
     """The test (face centre, normal -> bool) of what the head model gives above the cut: within KEEP_RADIUS of the
     head's axis; with `hood` (a depth under the crown, body heights), under that depth only what lies inside the empty
     ring parting the neck from the body's hood or high collar (`neck_gaps`) and within the neck's reach
     (NECK_FALLBACK), so that hood stays the body's. Given a face's normal (the head's faces), only faces turned outward
     count (a neck is, a hood's inside is not), the front (chin and throat, within FRONT_HALF_ANGLE of -y) excepted;
-    the body loses all inside the ring."""
+    the body loses all inside the ring. A hood `open_front` (a hoodie's, open under the chin) lies only round the
+    sides and back: in the front the head keeps all down to the cut (the hoodie man's chin and beard stand 0.085 out
+    under his hood's 0.11, past NECK_FALLBACK: given to the body, his body model's own longer beard stood under the
+    head's face as a dark lump, 2026-11-27). The front stays FRONT_HALF_ANGLE wide: opened to 55 to 90 degrees, the
+    hood's own front folds beside the jaw were cut and torn (Workbench close-ups, 2026-11-27)."""
     top = crown - hood * height if hood is not None else None
     gaps = neck_gaps(body_points, axis, level, height) if hood is not None else None
 
@@ -845,9 +850,11 @@ def kept_region(level, crown, height, axis, hood, body_points):
             return False
         if top is None or centre.z > top:
             return True
+        front = abs(math.degrees(math.atan2(across[0], -across[1]))) < FRONT_HALF_ANGLE
+        if open_front and front:
+            return True
         if radius > min(gaps[direction_bin(across)], NECK_FALLBACK * height):
             return False
-        front = abs(math.degrees(math.atan2(across[0], -across[1]))) < FRONT_HALF_ANGLE
         return front or normal is None or normal.x * across[0] + normal.y * across[1] > 0
     return kept
 
@@ -858,6 +865,7 @@ def main():
     arguments = sys.argv[sys.argv.index("--") + 1:]
     body_path, head_path, cut_depth, out_glb, out_json = arguments[:5]
     hood = float(arguments[5]) if len(arguments) > 5 else None
+    open_front = len(arguments) > 6 and arguments[6] == "open"
     name = pathlib.Path(out_glb).stem
     bpy.ops.wm.read_factory_settings(use_empty=True)
     body = imported(body_path, "body")
@@ -873,7 +881,7 @@ def main():
     points = vertices_of(body)
     head_part = points[points[:, 2] > crown - TARGET_SPAN * height]
     axis = (middle_x, float(np.median(head_part[:, 1])))
-    kept = kept_region(level, crown, height, axis, hood, points)
+    kept = kept_region(level, crown, height, axis, hood, points, open_front)
     body_surface = Surface(body)
     body_images = {role: image_array(image) for role, image in textures_of(body).items()}
     dropped(split_at(body, level), body, lambda centre, normal: not kept(centre))
