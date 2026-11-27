@@ -41,6 +41,13 @@ def picture(linear):
     return Image.fromarray(np.round(skin.encoded(linear) * 255.0).astype(np.uint8))
 
 
+def paint_picture(srgb):
+    """An sRGB picture (0 to 1: the skin step's toned paint, already encoded) as an 8-bit image, as it is (round 3,
+    2026-11-27: encoded again by `picture`, head.glb's paint came out a light, washed copy of paint.png, L 0.30 to
+    0.55, and the hair's labels, the swap's head and the whole person's face wore it)."""
+    return Image.fromarray(np.round(np.clip(srgb, 0.0, 1.0) * 255.0).astype(np.uint8))
+
+
 def textured_mesh(points, triangles, uv, image):
     """A trimesh mesh of `points` (one UV each) wearing `image` as its base colour."""
     material = trimesh.visual.material.PBRMaterial(baseColorTexture=image, metallicFactor=0.0, roughnessFactor=0.5)
@@ -56,10 +63,10 @@ def corners_welded(points, triangles, corner_uv):
 
 
 def head_scene(mended, texture, eyes_npz, iris):
-    """head.glb's scene (the model's own units): the mended head in its paint, the eyeballs in the iris picture, the
+    """head.glb's scene (the model's own units): the mended head in its paint (`texture`, sRGB), the eyeballs in the iris picture, the
     cornea's clear shell."""
     scene = trimesh.Scene()
-    scene.add_geometry(textured_mesh(*corners_welded(*mended), picture(texture)), geom_name="head")
+    scene.add_geometry(textured_mesh(*corners_welded(*mended), paint_picture(texture)), geom_name="head")
     eye_points, eye_triangles, eye_uv = corners_welded(eyes_npz["eyes.points"], eyes_npz["eyes.triangles"],
                                                        eyes_npz["eyes.uv"])
     scene.add_geometry(textured_mesh(eye_points, eye_triangles, eye_uv, picture(iris)), geom_name="eyes")

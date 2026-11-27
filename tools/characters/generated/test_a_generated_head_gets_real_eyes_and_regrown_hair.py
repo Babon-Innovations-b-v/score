@@ -156,6 +156,13 @@ twice g turned over; round a box body a point is inside only where all its neare
 that turn their rows red (each applied once, seen red, reverted, 2026-11-27): no retraction (`retracted` returning its
 positions: the curtain into the ball past its target); one plane asked (`NEIGHBOURS` 1: 48 outside points pushed); the
 whole of g felt (`turned_gravity` returning GRAVITY).
+
+The whole person (`person.py`): the hair step's removed triangles are read back from kept.glb's faces, and a body
+thinned to a third and moved by a known similarity is framed again from a start 5% and 3 cm off. Breaks that turn
+their rows red (each applied once, seen red, reverted, 2026-11-27): the kept faces' keys read in another order
+(`removed_faces` keying kept by its corners reversed: every face removed); the fit's scale held (`framed` with
+`free_scale` False: the scale stays 5% off). And head.glb wears the skin step's paint as written (`head.paint_picture`;
+break: encoded again by `head.picture`, 0.5 written as 188, the washed paint the whole person's first render showed).
 """
 import functools
 
@@ -165,7 +172,7 @@ import trimesh
 from scipy.spatial import cKDTree
 
 from tools.characters.generated import (__main__, beard, cloth, cloth_tether, colour, curl, eyes, fibre, flow,
-                                        head_swap, labels, lids, scalp, skin, strands, volume)
+                                        head, head_swap, labels, lids, person, scalp, skin, strands, volume)
 from tools.characters.whole import hair
 
 NOSE_Y = 0.06
@@ -1632,6 +1639,30 @@ def tether_gravity():
     return [round(float(np.linalg.norm(force)), 2) for force in felt]
 
 
+def person_hair_removed():
+    """The hair step's removed triangles read back from kept.glb's faces (`person.removed_faces`)."""
+    faces = np.random.default_rng(3).integers(0, 50, (40, 3))
+    taken = np.zeros(40, bool)
+    taken[[1, 7, 8, 30]] = True
+    return np.flatnonzero(person.removed_faces(faces, faces[~taken])).tolist()
+
+
+def person_framed():
+    """A body (a box with a nose) thinned to a third, moved by a known similarity (scale 1.7, a 6 degree turn, a shift) and given half a
+    millimetre of noise, framed again from a start 5% off in scale and 3 cm off in place (`person.framed`): (scale
+    within 0.5%, every point within 2 mm)."""
+    rng = np.random.default_rng(5)
+    nose = trimesh.creation.icosphere(2, 0.05)
+    nose.apply_translation((0.06, 0.3, 0.1))
+    shape = trimesh.util.concatenate([trimesh.creation.box((0.3, 1.0, 0.2)), nose])
+    source = trimesh.sample.sample_surface(shape, 6000, seed=5)[0]
+    rotation = turned(6.0, [0.0, 1.0, 0.0])
+    target = 1.7 * source[::3] @ rotation.T + (0.02, 0.9, -0.01) + rng.normal(scale=5e-4, size=(2000, 3))
+    scale, found, shift, _ = person.framed(source, target, (1.7 * 1.05, np.eye(3), np.array((0.05, 0.9, 0.0))))
+    off = np.linalg.norm(scale * source @ found.T + shift - (1.7 * source @ rotation.T + (0.02, 0.9, -0.01)), axis=1)
+    return [bool(abs(scale / 1.7 - 1.0) < 0.005), bool(off.max() < 0.002)]
+
+
 def tether_inside_read():
     """A box body's points round it: (outside points the planes push past 1 mm, inside points they leave past 1 mm
     in, inside points), each read off the box's NEIGHBOURS nearest points' planes."""
@@ -1750,6 +1781,11 @@ def tether_inside_read():
     ("tethered cloth feels only the gravity its turn adds to its rest hang", tether_gravity, [0.0, 13.87, 19.62]),
     ("a point is inside the body only where all its nearest body points' planes say so",
      lambda: (lambda found: (found[0] <= 5, found[1] <= 0.03 * found[2]))(tether_inside_read()), (True, True)),
+    ("the hair step's removed triangles are read back from the faces it kept", person_hair_removed, [1, 7, 8, 30]),
+    ("head.glb wears the skin step's sRGB paint as it is, never encoded again",
+     lambda: np.asarray(head.paint_picture(np.full((2, 2, 3), 0.5)))[0, 0].tolist(), [128, 128, 128]),
+    ("a body thinned and stood by a turn, a scale and a shift is framed again onto the rig", person_framed,
+     [True, True]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case

@@ -221,3 +221,19 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   TRELLIS.2 fused them to the trunk, lay nothing: the sleeve is open there and its drawn points ride the nearest cloth.
 - **Look at the film.** The deepest loose point inside the body, the stretch and the drift say the run held; only the
   side-by-side film says whether the jeans swing and the jacket hangs as cloth or still read as a stretched skin.
+- **The whole person** (`person.py`, drawn by `blender_person.py`; 2026-11-27): one entry point runs head → hair →
+  swap → rig → cloth → pieces → render → sheet for a person by name (her measures in `person.PEOPLE`, her inputs in a
+  sources folder laid out by name: head/glb, head/cutouts, head/closeups, head/marks, body/glb, body/cutouts). The
+  swap takes the mended head alone (head.glb's `head`, no eyeballs) onto the colour-toned body; still_rig stands her
+  at the dressed body's height and the cloth's `scale` brings her to her own (1.68 m: 0.942). The drawing is
+  `blender_cloth.py`'s body (its functions run, its `main` not) with the swap's own head primitive in place of the
+  rig's thinned one: the rig's faces above the cut it covers taken off, the head laid in the head model's own frame
+  so `blender_head.py`'s face texture, library skin, eyes, iris and lashes and the hair step's scalp and strands lay
+  on it as on head.glb, every piece reaching the rig through `pieces.npz`'s head_to_rig (the swap's matrix after the
+  body-to-rig similarity `person.framed` finds, 2.5 mm rms). The head mesh copies the rig's nearest weights at the
+  cut and rides the Head alone from `RIGID_OVER_CUT` up; the eyes, lashes, scalp and strands ride the Head joint.
+  Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
+  2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
+  film with 240k strands, 5.7 GB).
+- **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
+  washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.
