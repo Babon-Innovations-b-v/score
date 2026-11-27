@@ -145,6 +145,8 @@ EDGE_LEAST_M = 0.002  # and at least this long (a shell sliver's growth reads in
 CUT_UNDER_SHOULDER_M = 0.08  # metres under the shoulder (the Arm joint) the cut starts (the sleeve's seam above stays)
 CUT_EASE_M = 0.04  # metres over each piece from the cut over which its weights become its limb's alone
 FLAP_M = 0.02  # each cut edge closed by a flap turned in toward the body this deep (or 0.8 of the way to it)
+COVER_IN_M = 0.004  # the side's cover (`covered`: the sleeve's inner half copied onto the trunk) lies this far in under
+# the sleeve (round 5: cut, the sleeve's region spans the whole side under the arm, and the back opened wide as it left)
 
 
 # --- 1. the rigged person -------------------------------------------------------------------------------------------
@@ -548,9 +550,9 @@ def sleeves_cut(person, garment):
     cut off the side panel (module docstring; CUT_*): the edges between a face mostly on an arm (its corners' arm
     weights over half) and one mostly on the trunk, CUT_UNDER_SHOULDER_M or more under that side's shoulder, are
     opened (the sleeve's faces take copies of their points), each piece's weights eased onto its own limb alone over
-    CUT_EASE_M (the sleeve its arm's, the side the trunk's), and each cut edge of each piece closed by a flap turned
-    in toward the body (`flaps_of`). Adds `sleeve` (each face's), `cut` (each point's: on a cut, either copy) and
-    `flaps` (the flaps' faces), and `source` holds the point each point was copied from; a garment with no cut is
+    CUT_EASE_M (the sleeve its arm's, the side the trunk's), the side covered where the sleeve leaves it (`covered`)
+    and each cut edge of each piece closed by a flap turned in toward the body (`flaps_of`). Adds `sleeve` (each face's), `cut` (each point's: on a cut, either copy) and
+    `flaps` (the cover's and the flaps' faces), and `source` holds the point each point was copied from; a garment with no cut is
     returned with them empty."""
     names, points, faces, weights = person["names"], garment["points"], garment["faces"], garment["weights"]
     chains = arm_chains(names)
@@ -594,7 +596,43 @@ def sleeves_cut(person, garment):
                 limb = limb_only(weights[mine], trunk, names.index("Chest"))
             weights[mine] = weights[mine] * (1.0 - reach[mine, None]) + limb * reach[mine, None]
     found["weights"] = weights
-    return flaps_of(found, cut_edges, copy_of, person)
+    return flaps_of(covered(found, person, chains), cut_edges, copy_of, person)
+
+
+def covered(garment, person, chains):
+    """The garment with the side's cover: the sleeve's faces under the cut's top on the trunk's side of their arm (the
+    line from its shoulder to its wrist at the bind) copied, COVER_IN_M in toward the trunk's middle line, onto the
+    trunk alone (their weights the trunk's), as faces of `flaps` (drawn apart from the shell's), so the side stays
+    closed where the sleeve swings away from it. Each copy's `source` is the point it was copied from."""
+    names, points, faces = person["names"], garment["points"], garment["faces"]
+    middle_x = joint_at(person, "Hips")[0]
+    inner = np.zeros(len(faces), bool)
+    for side, chain in chains.items():
+        start, end = joint_at(person, side + "Arm"), joint_at(person, side + "Hand")
+        centres = points[faces].mean(1)
+        along = np.clip((centres - start) @ (end - start) / float((end - start) @ (end - start)), 0.0, 1.0)
+        axis = start + along[:, None] * (end - start)
+        trunk_side = np.abs(centres[:, 0] - middle_x) < np.abs(axis[:, 0] - middle_x)
+        mine = garment["sleeve"] & (np.sign(centres[:, 0] - middle_x) == np.sign(start[0] - middle_x))
+        inner |= mine & trunk_side & (points[faces][:, :, 1].max(1) < start[1] - CUT_UNDER_SHOULDER_M)
+    if not inner.any():
+        return {**garment, "flaps": np.zeros((0, 3), int)}
+    copied = np.unique(faces[inner])
+    number = np.full(len(points), -1)
+    number[copied] = len(points) + np.arange(len(copied))
+    toward = np.c_[middle_x - points[copied, 0], np.zeros(len(copied)), joint_at(person, "Chest")[2] - points[copied, 2]]
+    toward /= np.maximum(np.linalg.norm(toward, axis=1, keepdims=True), 1e-12)
+    arms = np.concatenate(list(chains.values()))
+    trunk = [joint for joint in range(len(names)) if joint not in arms]
+    found = dict(garment)
+    found["points"] = np.r_[points, points[copied] + toward * COVER_IN_M]
+    found["weights"] = np.r_[garment["weights"], limb_only(garment["weights"][copied], trunk, names.index("Chest"))]
+    for key in ("riding", "normals", "cut"):
+        found[key] = np.r_[garment[key], garment[key][copied]]
+    found["cut"][len(points):] = False
+    found["source"] = np.r_[garment["source"], copied]
+    found["flaps"] = number[faces[inner]]
+    return found
 
 
 def flaps_of(garment, cut_edges, copy_of, person):
@@ -620,7 +658,7 @@ def flaps_of(garment, cut_edges, copy_of, person):
     found["points"] = np.r_[points, moved]
     found["cut"] = np.r_[garment["cut"], np.zeros(len(rims), bool)]
     edges = np.r_[cut_edges, copy_of[cut_edges]]
-    found["flaps"] = np.r_[np.c_[edges[:, 0], edges[:, 1], flap_of[edges[:, 1]]],
+    found["flaps"] = np.r_[garment["flaps"], np.c_[edges[:, 0], edges[:, 1], flap_of[edges[:, 1]]],
                            np.c_[edges[:, 0], flap_of[edges[:, 1]], flap_of[edges[:, 0]]]]
     return found
 

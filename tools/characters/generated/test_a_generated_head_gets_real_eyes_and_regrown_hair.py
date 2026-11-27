@@ -121,7 +121,7 @@ band (`outer_share` the plain share: the hem stays at its start, 0.9 m); the sca
 places: the top's red read as the bottom's blue); the under body's sRGB left unlinearised (`under_colours`: the
 jacket's grey 0.5, not 0.214). Cloth round 5 (2026-11-27), each applied once, seen red, reverted: no skirt (`skirted`'s
 share 0: the coat's middle on one thigh); the sleeve's faces not given their copies (`sleeves_cut`: sleeve and side
-still share points under the shoulder); `SHORT_LEAST` 0 (the 1 mm edge kept); `pushed_out` adding no push (the
+still share points under the shoulder); no cover (`covered` returning no faces); `SHORT_LEAST` 0 (the 1 mm edge kept); `pushed_out` adding no push (the
 sheet left inside the ball).
 
 The colour (`colour.py`), on a toy front (a jacket painted dark grey-green with darker fold stripes over trousers
@@ -1294,7 +1294,9 @@ def cloth_sleeve_cut():
     25 cm out: under 8 cm below the shoulder its sleeve (faces mostly the arm's) shares no point with its side, the
     sleeve's cut points are the arm's alone and the side's the chest's alone, a sleeve point 2.5 cm off the cut is
     eased toward the arm and one 10 cm off keeps its weights, every cut edge is closed by two flap faces on each
-    piece and every flap point stands FLAP_M in from its edge point; over the cut's top the two pieces stay joined."""
+    piece and every flap point stands FLAP_M in from its edge point; over the cut's top the two pieces stay joined;
+    the sleeve's faces between the cut and the arm's line (25 cm out) are copied onto the chest COVER_IN_M in, under
+    the cut's top only, so the side stays closed where the sleeve leaves it."""
     x, y = np.meshgrid(np.linspace(0.0, 0.3, 13), np.linspace(0.9, 1.5, 25))
     points = np.c_[x.ravel(), y.ravel(), np.full(x.size, 0.1)]
     corner = (np.arange(24)[:, None] * 13 + np.arange(12)[None]).ravel()
@@ -1305,7 +1307,10 @@ def cloth_sleeve_cut():
     weights[:, SKIRT_NAMES.index("Chest")] = 1.0 - arm
     garment = {"points": points, "faces": faces, "weights": weights, "riding": np.zeros(len(points), bool),
                "normals": np.tile([0.0, 0.0, 1.0], (len(points), 1)), "source": np.arange(len(points))}
-    found = cloth.sleeves_cut(skirt_person(points, faces, weights), garment)
+    person = skirt_person(points, faces, weights)
+    for name in ("LeftArm", "LeftHand"):  # the arm's line down the sleeve's middle, 25 cm out
+        person["bind"][SKIRT_NAMES.index(name), 0, 3] = 0.25
+    found = cloth.sleeves_cut(person, garment)
     sleeve, cut, flaps = found["sleeve"], found["cut"], found["flaps"]
     count = len(points) + int(cut.sum()) // 2
     shared = np.intersect1d(found["faces"][sleeve], found["faces"][~sleeve])
@@ -1315,13 +1320,21 @@ def cloth_sleeve_cut():
     pick = lambda x_place, y_place: int(np.flatnonzero(  # noqa: E731
         np.isclose(found["points"][:count, 0], x_place) & np.isclose(found["points"][:count, 1], y_place))[-1])
     eased = found["weights"][pick(0.225, 1.0), SKIRT_NAMES.index("LeftArm")]
-    flap_points = np.unique(flaps[:, 2])
+    edge_count = len(copies) - 1
+    cover, closing = flaps[:len(flaps) - 4 * edge_count], flaps[len(flaps) - 4 * edge_count:]
+    flap_points = np.unique(closing[:, 2])
     depth = np.linalg.norm(found["points"][flap_points] - found["points"][found["source"][flap_points]], axis=1)
+    cover_points = np.unique(cover)
+    cover_middles = found["points"][found["source"][cover]].mean(1)
+    covers = [bool(len(cover) > 0), bool(np.allclose(found["weights"][cover_points, SKIRT_NAMES.index("Chest")], 1.0)),
+              bool(np.allclose(np.linalg.norm(found["points"][cover_points] - found["points"][found["source"][
+                  cover_points]], axis=1), cloth.COVER_IN_M)),
+              bool((cover_middles[:, 0] < 0.25).all() and (cover_middles[:, 1] < 1.4 - cloth.CUT_UNDER_SHOULDER_M).all())]
     return [bool(len(copies) > 0), int(low.sum()), bool(shared.size > 0),
             bool(np.allclose(found["weights"][copies, SKIRT_NAMES.index("LeftArm")], 1.0)),
             bool(np.allclose(found["weights"][originals, SKIRT_NAMES.index("Chest")], 1.0)),
             bool(0.8 < eased < 0.95), bool(np.allclose(found["weights"][pick(0.3, 1.0)], weights[pick(0.3, 1.0)])),
-            len(flaps) == 4 * (len(copies) - 1), bool(np.allclose(depth, cloth.FLAP_M))]
+            bool(np.all(closing[:, 2] >= count)), bool(np.allclose(depth, cloth.FLAP_M)), covers]
 
 
 def cloth_short_edge_collapsed():
@@ -1646,7 +1659,8 @@ def tether_inside_read():
     ("a long coat under the hip joints hangs from both thighs and the pelvis as a skirt; its cuff, its top and a "
      "short jacket keep their own", cloth_skirted, [0.8, True, [0.6, 0.0, 0.4], True, True, True, True]),
     ("a sleeve fused to the side is cut off it under the shoulder, each piece eased onto its own limb, every cut "
-     "edge closed by a flap", cloth_sleeve_cut, [True, 0, True, True, True, True, True, True, True]),
+     "edge closed by a flap, the side covered", cloth_sleeve_cut,
+     [True, 0, True, True, True, True, True, True, True, [True, True, True, True]]),
     ("a remeshed edge under a third of the mesh's edge is collapsed", cloth_short_edge_collapsed, [True, True]),
     ("a face's paint is read at its own row of the picture, glTF's v running down", cloth_paint_read_from_top, True),
     ("the body under the clothes wears the person's own shirt and trousers", cloth_under_coloured, [True, True, True]),

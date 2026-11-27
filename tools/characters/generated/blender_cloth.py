@@ -206,7 +206,8 @@ def mapped(garment, data, kind, flags):
 
 
 def flaps_made(garment, data, kind, mapping):
-    """The flaps closing each cut edge (cloth.flaps_of) as their own mesh in the garment's material, each corner
+    """The side's cover and the flaps closing each cut edge (cloth.covered, cloth.flaps_of) as their own mesh in the
+    garment's material, each corner
     wearing its edge point's texture place (cloth.npz's `source`: the point each was copied from); (object, its
     points' garment points) or None."""
     flaps = data[f"{kind}_flaps"]
@@ -233,7 +234,7 @@ def flaps_made(garment, data, kind, mapping):
     if garment.data.polygons:
         common = np.bincount([polygon.material_index for polygon in garment.data.polygons]).argmax()
         mesh.polygons.foreach_set("material_index", np.full(len(mesh.polygons), common, np.int32))
-    mesh.shade_flat()
+    mesh.shade_smooth()
     flap = bpy.data.objects.new(f"{kind}_flaps", mesh)
     bpy.context.scene.collection.objects.link(flap)
     flap.parent, flap.matrix_world = garment.parent, garment.matrix_world.copy()
