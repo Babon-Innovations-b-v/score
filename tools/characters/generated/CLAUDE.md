@@ -95,7 +95,7 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
 - **Head swap** (`head_swap.py`, inside Blender, CPU): the detailed head-and-shoulders model (made from a head
   close-up) put on the whole body. Its scale is scanned (a free-scale ICP slides along a long valley), at each scale a
   rigid two-way trimmed ICP of the head above the body's chin onto the body's head, hair and all; one level cut low on
-  the neck or inside the collar, the head's cut edge laid onto the body's facing edge, eased over a band, its paint
+  the neck or inside the collar, the head's cut edge laid onto the body's (`seam_shifts`, below), its paint
   blended into the body's (read along each texel's normal) over a wider band, the shading normals averaged across.
   The body below the cut is never changed; a body's own hood round the neck can be kept (the `<hood>` depth). Its JSON
   holds the head-to-body matrix in the glTF frame: strand hair and eyes made on the head model follow onto the body
@@ -277,9 +277,16 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   the head's), and those the cloth reads by paint as every other face (the skin's anywhere), keeping the head only
   where the paint is the hair's (read on the swap's head faces on the hair step's hair); `blender_person.old_hair_of`
   takes those off, and a fan is also any face over FAN_BAND under the cut whose middle lies FAN_MIDDLE_M off the
-  swapped model. The neck's mark just over the cut is the swap's seam (`head_swap.seam_closed`): the throat's ragged
-  two-walled cut edge laid onto the body's, neighbours' shifts 1.8 cm apart within 7 mm, folds 4.7% of the band's
-  edges (none before the seam); averaging or re-laying the shifts left 1.1 to 1.9% or opened the seam: open.
+  swapped model. The neck's mark just over the cut was the swap's seam: the throat's ragged two-walled cut edge laid
+  point by point onto the body's nearest facing edge, neighbours' shifts 1.8 cm apart within 7 mm, folded 4.7% of the
+  band's edges (averaging the shifts left 1.1 to 1.9% or opened the seam). `head_swap.seam_shifts` (on welded
+  vertices: glTF splits them at UV seams) lays each side's outer wall only (edges facing out from the axis, pieces
+  joined end to end), each head path along its nearest body path in order (arc length between anchors held by an
+  isotonic fit), moves the rest of the band by the harmonic shift of those points (inner wall, ragged bits and side
+  walls follow, never a target of their own) and halves a laid point's shift where the move folds the band; measured
+  on the stairwell and older women: new folds 0 (from 155 and 122 of the 1 cm band's edges), the older woman's outer
+  edge 78% laid (gap max 1.6 mm). Open: the stairwell woman's body edge hooks back into her collar on her right of the
+  throat 1.5 cm off the head's, so 23% is laid there and the head's edge stands up to 8 mm off the body's.
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

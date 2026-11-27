@@ -35,6 +35,24 @@ HEAD_SPAN = 0.13  # crown to chin: the fit's part of both models
 TARGET_SPAN = 0.16  # the body's head and neck, for the swap's axis
 SNAP_REACH = 0.012  # a head cut-edge point is laid onto the body's cut edge only within this distance (2 cm)
 BAND = 0.02  # the shape's band above the cut (3.4 cm): the head's cut edge laid on the body's eases out across it
+# The seam (`seam_shifts`), in body heights: each side's cut edge read as its outer wall's paths (edges facing out from
+# the axis: the shells are two walls 3 to 4 mm apart, ragged), a body path's pieces joined across SEAM_BODY_LINK, a
+# head path's across SEAM_HEAD_LINK; a head path is laid along its nearest body path in order, its parameter there by
+# arc length between anchors (its points within SEAM_ANCHOR, kept in order, and its two ends): laid point by point
+# onto the nearest edge, the throat's ragged two-walled edge folded 4.7% of the band's edges (whole person round 6,
+# 2026-11-27)
+SEAM_ANCHOR = 0.003
+SEAM_BODY_LINK = 0.01
+SEAM_HEAD_LINK = 0.004
+SEAM_BODY_LEAST = 0.005  # body paths shorter than this (strays) are not laid on
+SEAM_HEAD_LEAST = 0.003  # head paths shorter than this are not laid
+WELD = 1e-6  # vertices this close are one (glTF splits them at UV seams)
+SEAM_ROUNDS = 3000  # relaxation rounds of the band's harmonic shift (warm starts take a third)
+FOLD_DEGREES = 150.0  # two faces bent past this are folded over each other
+SEAM_RELEASES = 120  # rounds of easing the laid points nearest the band's new folds
+RELEASED_PER_FOLD = 2  # laid points eased per new fold each round
+EASED_SHARE = 0.5  # an eased point keeps this share of its shift
+EASED_LEAST = 0.0005  # a shift eased under this (body heights, under 1 mm) lets the point go: it follows the band
 PAINT_BAND = 0.035  # the paint's band above the cut (6 cm): the head's paint blends from the body's across it
 NORMAL_AGREE = 0.3  # two surfaces face the same way when their normals' dot is over this (a neck and a collar's
 # inside do not)
@@ -142,6 +160,258 @@ def eased(height, band):
     """The seam's weight at `height` above the cut: 1 at the cut, easing (smoothstep) to 0 at `band`, 0 above."""
     share = np.clip(1.0 - np.asarray(height, float) / band, 0.0, 1.0)
     return share * share * (3.0 - 2.0 * share)
+
+
+def welded(points):
+    """Each vertex's representative (the first vertex at its place, within WELD): glTF splits a mesh's vertices at
+    its UV seams, so the faces' own indices never meet across them."""
+    _, first, inverse = np.unique(np.round(np.asarray(points) / WELD).astype(np.int64), axis=0, return_index=True,
+                                  return_inverse=True)
+    return first[inverse.ravel()]
+
+
+def edges_counted(triangles):
+    """The triangles' edges (sorted index pairs, each once) and how many faces share each."""
+    pairs = np.sort(np.vstack([triangles[:, [0, 1]], triangles[:, [1, 2]], triangles[:, [2, 0]]]), axis=1)
+    return np.unique(pairs, axis=0, return_counts=True)
+
+
+def chains(pairs):
+    """The edge graph `pairs` (k, 2) as ordered vertex paths: each runs between vertices not of two edges (ends and
+    branchings); a cycle is opened at one of its vertices."""
+    neighbours = {}
+    for start, end in np.asarray(pairs, int):
+        neighbours.setdefault(start, []).append(end)
+        neighbours.setdefault(end, []).append(start)
+    walked = set()
+
+    def walk(start, following):
+        path = [start, following]
+        walked.add(frozenset((start, following)))
+        while len(neighbours[path[-1]]) == 2:
+            onward = [vertex for vertex in neighbours[path[-1]] if frozenset((path[-1], vertex)) not in walked]
+            if not onward:
+                break
+            walked.add(frozenset((path[-1], onward[0])))
+            path.append(onward[0])
+        return path
+    paths = []
+    for only_ends in (True, False):
+        for vertex, around in neighbours.items():
+            if only_ends and len(around) == 2:
+                continue
+            paths += [walk(vertex, other) for other in around if frozenset((vertex, other)) not in walked]
+    return paths
+
+
+def along(points):
+    """The arc length from a polyline's first point to each of its points."""
+    return np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(points, axis=0), axis=1))])
+
+
+def linked(lines, reach):
+    """Polylines (n, >=3 columns, the first three the place) joined end to end, either way round, while two ends lie
+    within `reach`, the nearest pair first."""
+    lines = [np.asarray(line) for line in lines]
+    while True:
+        best = None
+        for first_number, first in enumerate(lines):
+            for second_number, second in enumerate(lines):
+                if first_number == second_number:
+                    continue
+                for first_turned, first_end in ((False, first[-1]), (True, first[0])):
+                    for second_turned, second_start in ((False, second[0]), (True, second[-1])):
+                        gap = float(np.linalg.norm(first_end[:3] - second_start[:3]))
+                        if gap < reach and (best is None or gap < best[0]):
+                            best = (gap, first_number, second_number, first_turned, second_turned)
+        if best is None:
+            return lines
+        _, first_number, second_number, first_turned, second_turned = best
+        first = lines[first_number][::-1] if first_turned else lines[first_number]
+        second = lines[second_number][::-1] if second_turned else lines[second_number]
+        lines = [line for number, line in enumerate(lines) if number not in (first_number, second_number)]
+        lines.append(np.vstack([first, second]))
+
+
+def isotonic(values, weights):
+    """The non-decreasing sequence nearest `values` in weighted least squares (pooling adjacent violators)."""
+    blocks = []
+    for value, weight in zip(values, weights):
+        blocks.append([value * weight, weight, 1])
+        while len(blocks) > 1 and blocks[-2][0] / blocks[-2][1] > blocks[-1][0] / blocks[-1][1]:
+            total, mass, count = blocks.pop()
+            blocks[-1][0] += total
+            blocks[-1][1] += mass
+            blocks[-1][2] += count
+    return np.concatenate([np.full(count, total / mass) for total, mass, count in blocks])
+
+
+def on_polyline(queries, line, lengths):
+    """Each query's closest point on the polyline `line` (its arc lengths `lengths`): (arc parameter, distance)."""
+    starts, steps = line[:-1], np.diff(line, axis=0)
+    squared = np.maximum((steps * steps).sum(1), 1e-20)
+    share = np.clip(((queries[:, None] - starts[None]) * steps[None]).sum(2) / squared[None], 0.0, 1.0)
+    gaps = np.linalg.norm(starts[None] + share[..., None] * steps[None] - queries[:, None], axis=2)
+    best = gaps.argmin(1)
+    rows = np.arange(len(queries))
+    return lengths[best] + share[rows, best] * np.sqrt(squared[best]), gaps[rows, best]
+
+
+def at_parameter(line, lengths, parameter):
+    """The polyline's points at arc parameters `parameter`."""
+    step = np.clip(np.searchsorted(lengths, parameter, side="right") - 1, 0, len(line) - 2)
+    share = (parameter - lengths[step]) / np.maximum(lengths[step + 1] - lengths[step], 1e-20)
+    return line[step] + share[:, None] * (line[step + 1] - line[step])
+
+
+def laid_path(head_line, body_line, anchor, reach):
+    """The head path's points laid along the body path keeping their order: each one's parameter on the body path by
+    arc length between anchors (its points within `anchor` of the body path, held in order by an isotonic fit, and
+    its two ends). A point is laid when its target falls inside the body path's ends and within `reach`. Returns
+    (targets, laid)."""
+    lengths = along(body_line)
+    parameter, gaps = on_polyline(head_line, body_line, lengths)
+    head_lengths = along(head_line)
+    weights = 1.0 / (gaps + 1e-4)
+    way = 1.0 if np.polyfit(head_lengths, parameter, 1, w=weights)[0] >= 0 else -1.0
+    anchors = gaps < anchor
+    anchors[[0, -1]] = True
+    held = np.flatnonzero(anchors)
+    parameter = np.interp(head_lengths, head_lengths[held], way * isotonic(way * parameter[held], weights[held]))
+    targets = at_parameter(body_line, lengths, parameter)
+    inside = (parameter > 1e-9) & (parameter < lengths[-1] - 1e-9)
+    return targets, inside & (np.linalg.norm(targets - head_line, axis=1) < reach)
+
+
+def harmonic(count, pairs, fixed, values, rounds, start=None):
+    """Shifts (count, 3) over the edge graph `pairs`: `fixed` vertices hold `values`, every other vertex with an edge
+    takes its neighbours' mean, relaxed `rounds` times (Jacobi) from `start` (zero when None)."""
+    shifts = np.zeros((count, 3)) if start is None else start.copy()
+    shifts[fixed] = values[fixed]
+    degree = np.bincount(pairs.ravel(), minlength=count).astype(float)
+    free = ~fixed & (degree > 0)
+    for _ in range(rounds):
+        total = np.stack([np.bincount(pairs[:, 0], shifts[pairs[:, 1], axis], count)
+                          + np.bincount(pairs[:, 1], shifts[pairs[:, 0], axis], count) for axis in range(3)], 1)
+        shifts[free] = total[free] / degree[free, None]
+    return shifts
+
+
+def face_pairs(triangles):
+    """The pairs of faces sharing an edge that only they share (m, 2)."""
+    count = len(triangles)
+    pairs = np.sort(np.vstack([triangles[:, [0, 1]], triangles[:, [1, 2]], triangles[:, [2, 0]]]), axis=1)
+    faces = np.tile(np.arange(count), 3)
+    order = np.lexsort((pairs[:, 1], pairs[:, 0]))
+    pairs, faces = pairs[order], faces[order]
+    same = (pairs[1:] == pairs[:-1]).all(1)
+    starts = np.flatnonzero(same)
+    alone = np.ones(len(starts), bool)
+    alone &= ~np.isin(starts + 1, starts)  # not a third face on the edge
+    alone &= ~np.isin(starts - 1, starts)
+    return np.stack([faces[starts[alone]], faces[starts[alone] + 1]], 1)
+
+
+def bends(points, triangles, pairs):
+    """The bend (degrees) between each face pair's normals."""
+    corners = points[triangles]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-30)
+    return np.degrees(np.arccos(np.clip((normals[pairs[:, 0]] * normals[pairs[:, 1]]).sum(1), -1.0, 1.0)))
+
+
+def outer_paths(pairs, points, normals, axis, least, link):
+    """The outer wall's paths among the edges `pairs` (those whose ends' normals face out from the vertical axis at
+    `axis`), joined across `link`, the ones at least `least` long; each an index array."""
+    middles = points[pairs].mean(1)
+    facing = ((middles[:, :2] - np.asarray(axis)) * normals[pairs].sum(1)[:, :2]).sum(1) > 0
+    lines = [np.column_stack([points[path], np.array(path, float)]) for path in chains(pairs[facing])]
+    return [line[:, 3].astype(int) for line in linked(lines, link) if along(line[:, :3])[-1] >= least]
+
+
+def seam_laid(points, normals, edge_pairs, body_lines, axis, height, reach):
+    """The head's outer cut-edge points laid along the body's outer cut-edge paths (`laid_path`, each head path on its
+    nearest body path): (indices, shifts)."""
+    indices, shifts = [], []
+    for path in outer_paths(edge_pairs, points, normals, axis, SEAM_HEAD_LEAST * height, SEAM_HEAD_LINK * height):
+        line = points[path]
+        misses = [np.median(on_polyline(line, body, along(body))[1]) for body in body_lines]
+        targets, laid = laid_path(line, body_lines[int(np.argmin(misses))], SEAM_ANCHOR * height, reach)
+        indices.append(path[laid])
+        shifts.append((targets - line)[laid])
+    if not indices:
+        return np.zeros(0, int), np.zeros((0, 3))
+    indices, shifts = np.concatenate(indices), np.concatenate(shifts)
+    _, once = np.unique(indices, return_index=True)  # a vertex two paths share is laid by the first
+    return indices[once], shifts[once]
+
+
+def body_paths(starts, ends, normals, axis, height):
+    """The body's outer cut-edge paths (point arrays) from its cut segments and their normals."""
+    ends_together = np.vstack([starts, ends])
+    owner = welded(ends_together)
+    pairs = np.stack([owner[:len(starts)], owner[len(starts):]], 1)
+    vertex_normals = np.zeros_like(ends_together)
+    np.add.at(vertex_normals, pairs[:, 0], normals)
+    np.add.at(vertex_normals, pairs[:, 1], normals)
+    paths = outer_paths(pairs, ends_together, vertex_normals, axis, SEAM_BODY_LEAST * height,
+                        SEAM_BODY_LINK * height)
+    return [ends_together[path] for path in paths]
+
+
+def seam_shifts(points, triangles, normals, level, band, axis, body_segments, height, reach):
+    """The head's points with its cut edge (at z = `level`) laid onto the body's: its outer wall's paths laid in order
+    along the body's (`seam_laid`), every other point within `band` above the cut moved by the harmonic shift those
+    laid points and the band's still top give it (its inner wall, ragged bits and side walls follow their
+    neighbours, never a target of their own); the laid points nearest a fold the move makes (two faces bent past
+    FOLD_DEGREES that were not before) keep half their shift (let go under EASED_LEAST) and the band is solved again. `body_segments`: the body's cut
+    (starts, ends, normals). Returns (points, laid share of the head's cut-edge vertices, new folds left)."""
+    owner = welded(points)
+    welded_triangles = owner[triangles]
+    edge_pairs, counts = edges_counted(welded_triangles)
+    on_cut = (np.abs(points[edge_pairs, 2] - level) < 1e-5 * height).all(1)
+    cut_pairs = edge_pairs[(counts == 1) & on_cut]
+    summed = np.zeros_like(points)
+    np.add.at(summed, owner, normals)
+    body_lines = body_paths(*body_segments, axis, height)
+    if not len(cut_pairs) or not body_lines:
+        return points.copy(), 0.0, 0
+    laid, laid_shifts = seam_laid(points, summed, cut_pairs, body_lines, axis, height, reach)
+    kept = np.unique(owner)
+    in_band = kept[points[kept, 2] < level + band]
+    local = -np.ones(len(points), int)
+    local[in_band] = np.arange(len(in_band))
+    graph = local[edge_pairs]
+    reaching_top = (graph >= 0).sum(1) == 1
+    graph = graph[(graph >= 0).all(1)]
+    fixed = np.zeros(len(in_band), bool)
+    fixed[local[edge_pairs[reaching_top]].max(1)] = True  # the band's top row holds still
+    values = np.zeros((len(in_band), 3))
+    values[local[laid]] = laid_shifts
+    held = local[laid]
+    fixed[held] = True
+    pairs = face_pairs(welded_triangles)
+    centres = (points[welded_triangles[pairs[:, 0]]].mean(1) + points[welded_triangles[pairs[:, 1]]].mean(1)) / 2.0
+    watched = (centres[:, 2] > level - 1e-5 * height) & (centres[:, 2] < level + band)
+    pairs, centres = pairs[watched], centres[watched]
+    folded_before = bends(points, welded_triangles, pairs) > FOLD_DEGREES
+    shifts, rounds, new = None, SEAM_ROUNDS, np.zeros(0, bool)
+    for _ in range(SEAM_RELEASES + 1):
+        shifts = harmonic(len(in_band), graph, fixed, values, rounds, shifts)
+        moved = points.copy()
+        moved[in_band] += shifts
+        moved = moved[owner]
+        new = (bends(moved, welded_triangles, pairs) > FOLD_DEGREES) & ~folded_before
+        still = held[fixed[held]]
+        if not new.any() or not len(still):
+            break
+        distances = np.linalg.norm(points[in_band[still]][:, None] - centres[new][None], axis=2)
+        easing = np.unique(still[np.argsort(distances, axis=0)[:RELEASED_PER_FOLD].ravel()])
+        values[easing] *= EASED_SHARE
+        fixed[easing[np.linalg.norm(values[easing], axis=1) < EASED_LEAST * height]] = False
+        rounds = SEAM_ROUNDS // 3
+    cut_vertices = np.unique(cut_pairs)
+    return moved, float(np.isin(cut_vertices, in_band[held[fixed[held]]]).mean()), int(new.sum())
 
 
 def texels_of(triangle_uv, size, slack=TEXEL_SLACK):
@@ -307,17 +577,6 @@ def dropped(built, mesh, keep):
     mesh.data.update()
 
 
-def cut_edge(mesh, level):
-    """The mesh's open-edge vertices lying on the cut: (indices, positions)."""
-    import bmesh
-    built = bmesh.new()
-    built.from_mesh(mesh.data)
-    found = [vertex.index for vertex in built.verts if vertex.is_boundary and abs(vertex.co.z - level) < 1e-5]
-    built.free()
-    points = vertices_of(mesh)
-    return np.array(found, int), points[found]
-
-
 def cut_segments(mesh, level):
     """The body's open edges along the cut, as (start points, end points, unit normals: their ends' mean)."""
     import bmesh
@@ -333,43 +592,22 @@ def cut_segments(mesh, level):
     return pairs[:, 0], pairs[:, 1], normals
 
 
-def onto_segments(points, normals, starts, ends, segment_normals):
-    """Each point's closest point on the segments facing its way (normals agreeing by NORMAL_AGREE: a neck's edge is
-    never laid on a collar's inside), brute force in chunks (the cut holds a few thousand); a point no segment faces
-    gets its own place."""
-    found = np.zeros_like(points)
-    along = ends - starts
-    length = np.maximum((along * along).sum(1), 1e-20)
-    for first in range(0, len(points), 256):
-        chunk = points[first:first + 256]
-        share = np.clip(((chunk[:, None] - starts[None]) * along[None]).sum(2) / length[None], 0.0, 1.0)
-        closest = starts[None] + share[..., None] * along[None]
-        gaps = ((closest - chunk[:, None]) ** 2).sum(2)
-        facing = normals[first:first + 256] @ segment_normals.T > NORMAL_AGREE
-        gaps[~facing] = np.inf
-        pick = np.argmin(gaps, 1)
-        chosen = closest[np.arange(len(chunk)), pick]
-        found[first:first + 256] = np.where(facing.any(1)[:, None], chosen, chunk)
-    return found
-
-
-def seam_closed(head, body, level, reach, band):
-    """The head's cut edge laid onto the body's (each edge point within `reach` of a body cut edge facing its way
-    moved onto it), the move eased out over `band` above the cut. Returns the share of the head's edge laid."""
-    edge_indices, edge_points = cut_edge(head, level)
-    targets = onto_segments(edge_points, normals_of(head)[edge_indices], *cut_segments(body, level))
-    shifts = targets - edge_points
-    gaps = np.linalg.norm(shifts, axis=1)
-    laid = (gaps < reach) & (gaps > 0)
-    shifts[~laid] = 0.0
-    points = vertices_of(head)
-    near = np.where(points[:, 2] < level + band)[0]
-    owner = nearest_on(edge_points)
-    points[near] += shifts[owner(points[near])] * eased(points[near, 2] - level, band)[:, None]
-    points[edge_indices] = edge_points + shifts
+def seam_closed(head, body, level, reach, band, axis):
+    """The head's cut edge laid onto the body's (`seam_shifts`) and written back to the head. Returns the share of
+    the head's cut edge laid."""
+    import bmesh
+    built = bmesh.new()
+    built.from_mesh(head.data)
+    bmesh.ops.triangulate(built, faces=[face for face in built.faces if len(face.verts) > 3])
+    triangles = np.array([[vertex.index for vertex in face.verts] for face in built.faces], int)
+    built.free()
+    height = band / BAND
+    points, laid, folds = seam_shifts(vertices_of(head), triangles, normals_of(head), level, band, axis,
+                                      cut_segments(body, level), height, reach)
+    print(f"SEAM laid {laid:.3f} of the head's cut edge, {folds} new folds in the band", flush=True)
     head.data.vertices.foreach_set("co", points.ravel())
     head.data.update()
-    return float(laid.mean())
+    return laid
 
 
 def image_array(image):
@@ -588,12 +826,13 @@ def main():
     band = BAND * height
     points = vertices_of(body)
     head_part = points[points[:, 2] > crown - TARGET_SPAN * height]
-    kept = kept_region(level, crown, height, (middle_x, float(np.median(head_part[:, 1]))), hood, points)
+    axis = (middle_x, float(np.median(head_part[:, 1])))
+    kept = kept_region(level, crown, height, axis, hood, points)
     body_surface = Surface(body)
     body_images = {role: image_array(image) for role, image in textures_of(body).items()}
     dropped(split_at(body, level), body, lambda centre, normal: not kept(centre))
     dropped(split_at(head, level), head, kept)
-    laid = seam_closed(head, body, level, SNAP_REACH * height, band)
+    laid = seam_closed(head, body, level, SNAP_REACH * height, band, axis)
     texels = paint_blended(head, body_surface, body_images, level, PAINT_BAND * height, SNAP_REACH * height,
                            pathlib.Path(out_glb).parent, name)
     print(f"SEAM level {level:.4f}, band {band:.4f}, head edge laid {laid:.3f}, texels blended {texels}", flush=True)

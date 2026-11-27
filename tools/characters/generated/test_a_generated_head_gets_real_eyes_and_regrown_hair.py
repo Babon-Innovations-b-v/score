@@ -62,6 +62,12 @@ reflection guard dropped (`sign` left the identity: the mirror image fitted by a
 target's spread, not the source's (`target_centred.var`); the ICP fitting every pair, not the kept share (`kept`
 1.0: the strays pull the fit off); `lowest` returning the scanned step (0.26, not 0.257); `head_swap.eased` rising,
 not falling, with height; `gltf_matrix`'s frame change applied on one side only (`blender_matrix @ to_blender`).
+The seam: a head path that doubles back is laid along the body's path keeping its order, every target on the body
+path, where each point's nearest body point does not (`head_swap.laid_path`); a ragged two-walled head band laid onto a
+body cut edge 2 to 5 mm in front lays its outer wall's edge on the body's exactly and folds none of its faces
+(`head_swap.seam_shifts`). Breaks that turn their rows red (each applied once, seen red, reverted, 2026-11-27): the
+isotonic hold dropped (`isotonic` returning its values: the targets run back on the doubled leg); the outer wall not
+chosen (`outer_paths` taking every edge: both walls joined into one path, the outer edge laid off the body's).
 
 The skin, on a flat front painted with soft blobs and a photo of it under a known map: the photo is found from a start
 4 px and 2% off to within a pixel (`skin.registered`); a shading that follows the normal is divided out, a highlight's
@@ -1845,6 +1851,61 @@ def hood_kept():
     return [bool(kept(centre, normal)) for centre, normal in faces]
 
 
+def seam_order():
+    """A head path that runs 3 cm and doubles back 1 cm, 6 mm further on, laid along a straight body path 2 mm in front
+    of its first leg (`head_swap.laid_path`): (whether the points' nearest body points keep the head's order, whether
+    the laid targets do, the targets' largest distance off the body path in mm)."""
+    head_line = np.vstack([np.column_stack([np.linspace(0.0, 0.03, 31), np.zeros(31), np.zeros(31)]),
+                           np.column_stack([np.linspace(0.029, 0.02, 10), np.full(10, -0.006), np.zeros(10)])])
+    body_line = np.array([[0.0, -0.002, 0.0], [0.04, -0.002, 0.0]])
+    lengths = head_swap.along(body_line)
+    nearest, _ = head_swap.on_polyline(head_line, body_line, lengths)
+    targets, laid = head_swap.laid_path(head_line, body_line, 0.003, 0.012)
+    placed, off = head_swap.on_polyline(targets[laid], body_line, lengths)
+    return [bool((np.diff(nearest) >= -1e-12).all()), bool((np.diff(placed) >= -1e-12).all()),
+            round(float(off.max()) * 1000, 6)]
+
+
+def seam_band():
+    """A head's band, two walls 3 mm apart (the outer facing out, the inner in, joined at the sides) with a ragged
+    edge (every other edge point 1.5 mm off), laid onto a body cut edge 2 to 5 mm in front of it
+    (`head_swap.seam_shifts`, a body 1 high): (new folds, the outer edge's share laid at least 0.9, its laid points'
+    largest distance off the body's edge under a micrometre)."""
+    columns, rows, level, band = 61, 14, 0.0, head_swap.BAND
+    across = np.linspace(-0.03, 0.03, columns)
+    heights = np.linspace(level, level + band * 1.3, rows)
+    walls = []
+    for depth, facing in ((0.0, -1.0), (0.003, 1.0)):
+        grid = np.zeros((rows, columns, 3))
+        grid[..., 0] = across[None]
+        grid[..., 1] = -0.010 + depth + 0.002 * np.sin(60 * across)[None]
+        grid[0, 1::2, 1] += 0.0015
+        grid[..., 2] = heights[:, None]
+        walls.append((grid.reshape(-1, 3), facing))
+    points = np.vstack([wall for wall, _ in walls])
+    normals = np.vstack([np.tile([0.0, facing, 0.0], (rows * columns, 1)) for _, facing in walls])
+    triangles = []
+    for wall in range(2):
+        start = wall * rows * columns
+        for row in range(rows - 1):
+            for column in range(columns - 1):
+                corner = start + row * columns + column
+                triangles += [[corner, corner + 1, corner + columns], [corner + 1, corner + columns + 1, corner + columns]]
+    for side in (0, columns - 1):  # the walls joined at the sides
+        for row in range(rows - 1):
+            outer, inner = row * columns + side, rows * columns + row * columns + side
+            triangles += [[outer, inner, outer + columns], [inner, inner + columns, outer + columns]]
+    body_x = np.linspace(-0.035, 0.035, 71)
+    body = np.column_stack([body_x, -0.0135 + 0.0015 * np.sin(60 * body_x + 0.5), np.zeros(71)])
+    segments = (body[:-1], body[1:], np.tile([0.0, -1.0, 0.0], (70, 1)))
+    moved, _, new = head_swap.seam_shifts(points, np.array(triangles), normals, level, band, (0.0, 0.02), segments,
+                                          1.0, head_swap.SNAP_REACH)
+    edge = np.arange(columns)
+    shifted = np.linalg.norm(moved[edge] - points[edge], axis=1) > 1e-9
+    _, off = head_swap.on_polyline(moved[edge][shifted], body, head_swap.along(body))
+    return [new, bool(shifted.mean() >= 0.9), bool(off.max() < 1e-6)]
+
+
 def chin_read():
     """A face's middle column over the cut: the throat 1 cm forward up to 2 cm, the chin and face 5 cm forward above,
     a shoulder 9 cm forward off the column (`head_swap.chin_over_cut`): (the chin's height, a column with no chin
@@ -2018,6 +2079,8 @@ def tether_inside_read():
      [True, True]),
     ("the chin is the lowest slice standing forward of the throat, a shoulder off the face's column never",
      chin_read, [0.02, "refused"]),
+    ("a head path that doubles back is laid along the body path in order, on the path", seam_order, [False, True, 0.0]),
+    ("a ragged two-walled band is laid onto the body's cut edge with no fold", seam_band, [0, True, True]),
 ])
 def test_a_generated_head_gets_real_eyes_and_regrown_hair(case, made_value, wanted):
     assert made_value() == wanted, case
