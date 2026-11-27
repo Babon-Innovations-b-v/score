@@ -141,6 +141,11 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   (`model_hair_free`), its own fringe and lid openings are left out of its face (`hair`, `eye_openings`: a second
   iris under an older woman's lids), and its share rises over 6 mm from its outer edge (the paint's edge at the
   temples).
+  The whole person's round 3 (2026-11-27), the band still L 44 against the photo's 52 (its cheek 74 against 80) in the
+  park light: the gloss step's matte skin was read over the brows, lashes and lid openings too, so the socket's plain
+  skin counted as a 31% highlight and was pressed 19% darker and recoloured; the matte is now read over plain skin
+  (`plain_skin`, MATTE_DARK), and the shade the photo keeps in a hollow deeper than the one fitted line is divided out
+  as far as the model's own occlusion shuts it (`hollows`): the texture's band over cheek 0.71 to 0.83.
   Run: `python -m tools.characters.generated.head <model.glb> <cut-out.png> <close-up> <marks.json> <out> --height
   <m>` (under 2 minutes, 1.6 GB), then `blender -b --python blender_head.py -- <model.glb>
   <out>/eyes/eyes.npz <library> <height> <samples> <renders> <out>` (CPU; before is the raw model), then `python -m
@@ -238,7 +243,13 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   half the neck and the lower lip tore off as she stood and walked, 2026-11-27); the eyes, lashes, scalp and strands
   ride the Head joint. The swap keeps the body's own collar round the neck from just under the chin down
   (`collar_depth`, head_swap's hood) and the rig's cut never takes a cloth garment's faces: the head model's collar,
-  kept to the cut, stood in shards against the jacket's.
+  kept to the cut, stood in shards against the jacket's. still_rig closes every open loop with a fan from its middle
+  (`still_rig.closed`), and the swap's head and body meet at the cut as two open loops: fans reached across the neck's
+  hollow and out under the hair, drawn as dark grey wedges between the neck and the collar (round 3, 2026-11-27, ray
+  cast off the close-ups: 957 rig faces). `person.neck_fans` finds them (near the cut, a point off every point of the
+  swapped model; pieces.npz's `fan_centres`) and `blender_person.shell_cut` takes them off; the collision body is drawn
+  only from UNDER_NECK under the cut down (`under_cut`: pushed under the rig's neck, it stood out of the swap's slimmer
+  one as dark strips at the collar).
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).

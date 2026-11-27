@@ -79,6 +79,17 @@ EDGE_FEATHER_M = 0.006  # the photo's share rises over this from its outer edge 
 # the highlights: brighter than the matte skin (the brightness's lower `percentile` within `matte_m`) by more than
 # `kept`, the rest of the excess pressed to `left` of it and its colour moved to the matte skin's over `recolour`
 GLOSS = {"matte_m": 0.006, "percentile": 35, "kept": 0.05, "left": 0.25, "recolour": 0.1}
+# the matte skin is read over plain skin only: a pixel darker than `dark` of the skin's brightness over `matte_m` (a
+# brow, the lashes, a lid's crease) is filled from the plain skin round it (the whole person's round 3, 2026-11-27: read over the brows,
+# lashes and eye openings too, the matte in the socket fell under the skin there, the socket band counted as a 31%
+# highlight and was pressed 19% darker and recoloured, the brown band round the eyes)
+MATTE_DARK = 0.7
+# The photo's broad shade left in the model's own hollows after the fit (the fit is one line over the whole face, a
+# socket's shade is deeper than it): where the model's smoothed `occlusion` rises from the first to the second of
+# `shut`, the plain skin's brightness over SHADING_SIGMA_M against its brightness over `broad_m` is divided out too
+# (down to SHADING_RANGE's floor): the render makes the hollow's shade again (the whole person's round 3, 2026-11-27: the socket band
+# rendered L 44 against the photo's 52, its cheek 74 against 80).
+HOLLOW = {"shut": (0.15, 0.35), "broad_m": 0.012}
 CLOSE_AIM_M = (0.022, 0.012)  # the cheek and nose close-up aimed this far beside and over the nose tip
 BLEND_SIGMA_M = 0.012  # the photo is toned to the paint's broad colour where it fades into the paint
 CHECK_SQUARE = 40  # check.png's board of paint and registered photo, squares this many front pixels
@@ -412,6 +423,19 @@ def shading(grid, photo_linear, skin):
     return np.clip(light / light[held].mean(axis=0), *SHADING_RANGE), fitted
 
 
+def hollows(grid, flat, skin):
+    """The photo's broad shade left in the model's hollows (HOLLOW): per front pixel 1 on open skin, in a hollow the
+    plain skin's (`plain_skin`) brightness over SHADING_SIGMA_M against its brightness over `broad_m`, as far as the
+    model's own smoothed `occlusion` shuts it, clipped to SHADING_RANGE's floor and 1. `flat`: the photo with the
+    fitted shading divided out."""
+    brightness = eyes.luminance(flat)
+    plain = plain_skin(brightness, skin, int(GLOSS["matte_m"] / STEP_M))
+    local = smoothed_over(brightness, plain, SHADING_SIGMA_M / STEP_M)
+    broad = smoothed_over(brightness, plain, HOLLOW["broad_m"] / STEP_M)
+    shut = smoothed_over(occlusion(grid), skin, SHADING_SIGMA_M / STEP_M)
+    return np.clip(local / np.maximum(broad, 1e-4), SHADING_RANGE[0], 1.0) ** ramp(shut, *HOLLOW["shut"])
+
+
 def gloss_free(colour, matte, chroma):
     """Linear colours with the photo's highlights pressed down: brightness over the matte skin round it (`matte`) past
     GLOSS's `kept` excess (a pore's or a freckle's own) scaled by its `left` share, and the colour of such a highlight
@@ -425,13 +449,21 @@ def gloss_free(colour, matte, chroma):
     return pressed * (1.0 - moved) + recoloured * moved, excess
 
 
+def plain_skin(brightness, skin, reach):
+    """The skin's weight (`skin`, 0 to 1) where it is no darker than MATTE_DARK of its brightness over `reach` pixels:
+    a brow, the lashes and a crease left out."""
+    return skin * (brightness > MATTE_DARK * smoothed_over(brightness, skin, reach))
+
+
 def matte_skin(flat, skin):
     """The matte skin's brightness and chromaticity (each channel over red) over the front grid: the brightness's
-    lower GLOSS `percentile` within `matte_m` (a highlight is smaller than that), smoothed; the chromaticity averaged
-    over it where the skin is no brighter than that."""
+    lower GLOSS `percentile` within `matte_m` (a highlight is smaller than that) over the plain skin (`plain_skin`,
+    the rest filled from it), smoothed; the chromaticity averaged over it where the skin is no brighter than that."""
     brightness = eyes.luminance(flat)
     reach = int(GLOSS["matte_m"] / STEP_M)
-    matte = ndimage.gaussian_filter(ndimage.percentile_filter(brightness, GLOSS["percentile"], size=reach), reach / 4.0)
+    plain = plain_skin(brightness, skin, reach)
+    filled = np.where(plain > 0, brightness, smoothed_over(brightness, plain, reach / 2.0))
+    matte = ndimage.gaussian_filter(ndimage.percentile_filter(filled, GLOSS["percentile"], size=reach), reach / 4.0)
     weight = skin * (brightness < matte * (1.0 + GLOSS["kept"]))
     chroma = smoothed_over(flat / np.maximum(flat[..., :1], 1e-4), weight, reach / 2.0)
     return matte, chroma
@@ -535,6 +567,7 @@ def coarse_maps(grid, warp, photo, pupils, marks=None):
             * model_hair_free(grid, model_pupils))
     skin = mask * grid["seen"] * (grid["facing"] > 0.3)
     light, fitted = shading(grid, seen, skin)
+    light = light * hollows(grid, seen / light, skin)[..., None]
     flat = seen / light
     matte, chroma = matte_skin(flat, skin)
     cleaned, _ = gloss_free(flat, matte, chroma)

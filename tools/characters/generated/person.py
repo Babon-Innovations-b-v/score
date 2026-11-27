@@ -59,6 +59,13 @@ FRAME_KEPT = 0.8  # the body-to-rig fit's share of closest pairs (the feet are m
 FRAME_ROUNDS = 30
 FRAME_POINTS = 20000
 OVER_KNEES = 0.35  # the fit reads the body above this share of its height (the shoes are laid on the dressed feet)
+# still_rig closes every open loop with a fan from its middle (`still_rig.closed`); the swap's head and body meet at the
+# cut as two open loops, so fans reach across the neck's hollow and out under the hair (whole person round 3,
+# 2026-11-27: their wedges stood as dark grey shards between the neck and the jacket collar in both close-ups). A rig
+# face within FAN_BAND body heights of the cut with a point more than FAN_OFF_M (the rig's metres) off every point of
+# the swapped model is such a fan: the drawing takes it off. The armpits' and boots' fans lie far under the band.
+FAN_BAND = 0.04
+FAN_OFF_M = 0.012
 SAMPLES, SIZE, FILM_SAMPLES, FILM_WIDTH = 64, 1200, 64, 720
 THREADS = 8
 TILE = 400  # the sheets' picture height (px)
@@ -170,15 +177,31 @@ def removed_faces(faces, kept):
     return ~np.isin(keys, kept_keys)
 
 
+def neck_fans(swapped, to_rig, level, height, faces_points):
+    """Which rig faces (`faces_points`, each face's three points in the rig's glTF frame) are still_rig's fans across
+    the cut's loops: within FAN_BAND of the swapped body's `level` (its glTF y; `height` its height) and with a point
+    more than FAN_OFF_M off every point of the swapped model (`swapped`, its glTF frame; `to_rig` onto the rig's)."""
+    on_rig = swapped @ to_rig[:3, :3].T + to_rig[:3, 3]
+    off = cKDTree(on_rig).query(faces_points.reshape(-1, 3))[0].reshape(-1, 3).max(axis=1)
+    back = np.linalg.inv(to_rig)
+    heights = (faces_points.mean(axis=1) @ back[:3, :3].T + back[:3, 3])[:, 1]
+    return (np.abs(heights - level) < FAN_BAND * height) & (off > FAN_OFF_M)
+
+
 def pieces_of(out, name):
     """<out>/pieces.npz: head_to_rig (the head model's glTF frame onto the rig's), body_to_rig, the cut's level (the
     swapped body's glTF y), the hair step's face middles and removed faces, its points and how far each was laid
-    onto the scalp (`hair_*`, the head model's own units) and the hair's scale (its metres over the model's units)."""
+    onto the scalp (`hair_*`, the head model's own units), the hair's scale (its metres over the model's units) and the
+    middles of still_rig's fans across the cut's loops (`neck_fans`, the rig's glTF frame)."""
     record = json.loads((out / "swap" / f"{name}.json").read_text())
     swapped = trimesh.load(str(out / "swap" / f"{name}.glb"), force="mesh", process=False).vertices
     rigged = trimesh.load(str(out / "rig/body.glb"), process=False).geometry
     shell = np.vstack([np.asarray(item.vertices) for key, item in rigged.items() if not key.startswith("far")])
     to_rig, rms = body_to_rig(np.asarray(swapped, float), shell)
+    triangles = np.vstack([np.asarray(item.vertices)[np.asarray(item.faces)] for key, item in rigged.items()
+                           if not key.startswith("far")])
+    fans = neck_fans(np.asarray(swapped, float), to_rig, float(record["cut_level_gltf_y"]),
+                     float(record["body_height_units"]), triangles)
     model = trimesh.load(str(out / "head/head.glb"), force="mesh", process=False)
     kept = trimesh.load(str(out / "hair/kept.glb"), force="mesh", process=False)
     points = np.asarray(model.vertices, float)
@@ -190,10 +213,10 @@ def pieces_of(out, name):
              "level": record["cut_level_gltf_y"], "hair_centres": points[faces].mean(1).astype(np.float32),
              "hair_removed": removed_faces(faces, np.asarray(kept.faces)), "hair_points": points.astype(np.float32),
              "hair_laid": (np.asarray(kept.vertices) / hair_scale - points).astype(np.float32),
-             "hair_scale": hair_scale}
+             "hair_scale": hair_scale, "fan_centres": triangles[fans].mean(axis=1).astype(np.float32)}
     np.savez_compressed(out / "pieces.npz", **saved)
     return {"body_to_rig_rms_m": round(float(rms), 5), "hair_removed": int(saved["hair_removed"].sum()),
-            "laid_points": int((np.linalg.norm(saved["hair_laid"], axis=1) > 1e-7).sum())}
+            "laid_points": int((np.linalg.norm(saved["hair_laid"], axis=1) > 1e-7).sum()), "neck_fans": int(fans.sum())}
 
 
 def render_step(given, out):

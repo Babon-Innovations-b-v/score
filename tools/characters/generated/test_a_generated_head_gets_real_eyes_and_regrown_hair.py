@@ -168,6 +168,12 @@ The chin over the cut (`head_swap.chin_over_cut`, from which up the whole face r
 slice of the face's middle column standing 2.5 cm forward of the throat; a column with no chin is refused. Breaks
 (each applied once, seen red, reverted, 2026-11-27): the column's width left out (the shoulder read as the chin, 0.005);
 the throat read as the column's highest slice (no chin found, the row's refusal raised).
+still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
+Breaks (each applied once, seen red, reverted, 2026-11-27): `FAN_BAND` 1 (the armpit's fan taken too); `FAN_OFF_M` 1
+(no fan found). The skin's matte is read over plain skin (`skin.plain_skin`) and a socket's shade deeper than the
+fitted line is taken off (`skin.hollows`), a stain on open skin kept. Breaks (each applied once, seen red, reverted,
+2026-11-27): `skin.MATTE_DARK` 0 (the skin between a brow and the lashes pressed as a highlight); `skin.HOLLOW`'s
+`shut` (5, 6) (the socket left 18% dark); `shut` (-2, -1) with `MATTE_DARK` 0 (the stain lifted).
 """
 import functools
 
@@ -816,6 +822,46 @@ def skin_hollow_light_off():
     inner = np.hypot(rows - 100, cols - 100) < 10
     return [bool(shut[inner].mean() > shut[~pit].mean() + 0.3),
             bool(np.abs(flat[inner].mean(axis=0) / flat[~pit].mean(axis=0) - 1.0).max() < 0.08)]
+
+
+def skin_matte_beside_brows():
+    """Plain skin between a dark brow and a dark lid opening is no highlight (`skin.matte_skin` reads its matte over
+    plain skin, `skin.plain_skin`): pressed by under 1%, while a real highlight on the cheek is still pressed."""
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
+    rows, cols = np.indices(grid["seen"].shape)
+    albedo = np.array([0.5, 0.3, 0.22])
+    flat = np.ones(rows.shape + (3,)) * albedo
+    flat[(rows > 60) & (rows < 72)] *= 0.12  # a brow
+    flat[(rows > 80) & (rows < 88)] *= 0.05  # the lashes and the lid opening
+    flat[(np.abs(rows - 150) < 3) & (np.abs(cols - 100) < 3)] *= 1.4  # a highlight on the cheek
+    matte, chroma = skin.matte_skin(flat, np.ones(rows.shape))
+    cleaned, _ = skin.gloss_free(flat, matte, chroma)
+    between = (rows > 73) & (rows < 79)
+    left = eyes.luminance(cleaned[between]) / eyes.luminance(albedo)
+    spot = eyes.luminance(cleaned[150, 100]) / eyes.luminance(albedo)
+    return [bool(np.abs(left - 1.0).max() < 0.01), bool(spot < 1.25)]
+
+
+def skin_socket_shade_off():
+    """A socket the model's own front shuts, the photo's shade in it deeper than one line fitted over the whole face
+    takes off (`skin.hollows`): within 10% of the open skin after (18% under before), and a stain on open skin keeps
+    its own dark."""
+    grid = skin_flat_grid(lambda x, y: np.ones(x.shape + (3,)) * 0.5)
+    rows, cols = np.indices(grid["depth"].shape)
+    pit = np.hypot(rows - 60, cols - 100) < 22
+    grid["depth"] = np.where(pit, 0.1 - 0.015, 0.1)
+    shut = skin.occlusion(grid)
+    albedo = np.array([0.5, 0.3, 0.22])
+    stain = np.hypot(rows - 150, cols - 100) < 10
+    lit = albedo * (1.0 - shut[..., None] * [0.6, 0.8, 0.9])
+    lit[stain] *= 0.6
+    skin_weight = np.ones(rows.shape)
+    light, _ = skin.shading(grid, lit, skin_weight)
+    light = light * skin.hollows(grid, lit / light, skin_weight)[..., None]
+    flat = eyes.luminance(lit / light)
+    level = flat[~(pit | stain) & (np.hypot(rows - 100, cols - 100) < 90)].mean()
+    return [bool(abs(flat[np.hypot(rows - 60, cols - 100) < 8].mean() / level - 1.0) < 0.1),
+            bool(flat[np.hypot(rows - 150, cols - 100) < 5].mean() / level < 0.7)]
 
 
 def skin_photo_kept_off():
@@ -1610,6 +1656,30 @@ def person_hair_removed():
     return np.flatnonzero(person.removed_faces(faces, faces[~taken])).tolist()
 
 
+def neck_fans_found():
+    """A neck tube open at the cut (the swapped model's points) and a rig made of its faces, a fan from the cut loop's
+    middle and one from a loop far under it (an armpit's): `person.neck_fans` finds the cut's fan alone (its faces
+    found, the tube's kept, the armpit's kept)."""
+    angles = np.linspace(0.0, 2.0 * np.pi, 48, endpoint=False)
+    heights = np.linspace(0.0, 0.2, 41)
+    ring = np.stack([np.cos(angles) * 0.05, np.zeros(48), np.sin(angles) * 0.05], -1)
+    tube = np.concatenate([ring + (0.0, height, 0.0) for height in heights])
+    faces = []
+    for level in range(40):
+        for step in range(48):
+            first, second = level * 48 + step, level * 48 + (step + 1) % 48
+            faces += [[first, second, second + 48], [first, second + 48, first + 48]]
+    tube_faces = tube[np.array(faces)]
+    cut_ring = ring + (0.0, 0.2, 0.0)
+    cut_fan = np.stack([cut_ring, np.roll(cut_ring, -1, 0), np.tile((0.0, 0.2, 0.0), (48, 1))], 1)
+    low_ring = ring * 0.6 + (0.3, -0.2, 0.0)
+    low_fan = np.stack([low_ring, np.roll(low_ring, -1, 0), np.tile((0.3, -0.2, 0.0), (48, 1))], 1)
+    swapped = np.concatenate([tube, low_ring])
+    found = person.neck_fans(swapped, np.eye(4), 0.2, 1.7, np.concatenate([tube_faces, cut_fan, low_fan]))
+    return [int(found[len(tube_faces):len(tube_faces) + 48].sum()), int(found[:len(tube_faces)].sum()),
+            int(found[len(tube_faces) + 48:].sum())]
+
+
 def chin_read():
     """A face's middle column over the cut: the throat 1 cm forward up to 2 cm, the chin and face 5 cm forward above,
     a shoulder 9 cm forward off the column (`head_swap.chin_over_cut`): (the chin's height, a column with no chin
@@ -1699,6 +1769,12 @@ def tether_inside_read():
     ("the close-up photo is registered onto the model's front from a start off by pixels and scale",
      lambda: skin_registered()[0], True),
     ("the photo's shading and gloss are taken off, plain skin kept", skin_light_off, [True, True, True]),
+    ("plain skin between a brow and the lashes is no highlight, a cheek's highlight still is", skin_matte_beside_brows,
+     [True, True]),
+    ("a socket the photo shades deeper than the fit is lifted to the open skin, a stain on open skin kept dark",
+     skin_socket_shade_off, [True, True]),
+    ("still_rig's fan across the cut's loop is found, the neck and an armpit's fan are kept", neck_fans_found,
+     [48, 0, 0]),
     ("a hollow the model shuts reads shut, the photo's darker, warmer light in it divided out", skin_hollow_light_off,
      [True, True]),
     ("the photo's fringe and lid openings are kept off, its brows and moustache kept; the model's painted fringe "

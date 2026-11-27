@@ -73,6 +73,8 @@ import render  # noqa: E402
 from blender_eyes import blender_face  # noqa: E402
 
 TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))  # glTF (y up) to Blender (z up)
+FAN_MATCH = 1e-4  # a shell face whose middle lies this near a fan's middle in pieces.npz (the rig's units) is that fan
+UNDER_NECK = 0.02  # the collision body is drawn only this far (body heights) under the cut and lower
 COVER_M = 0.015  # a rig face above the cut this near the swap's head (the rig's metres) is the head's: taken off
 STANDING = {"front": 180.0, "three_quarter": 215.0, "side": 270.0, "back": 0.0}  # blender_cloth's turns
 FACE_FRAME_M = render.FACE_FRAME_M  # the close-ups: the head and the neck's top
@@ -179,7 +181,9 @@ def above_cut(local, pieces):
 
 def shell_cut(shell, head, pieces, garment):
     """The rig's faces above the cut that the swap's head covers taken off the shell, never a cloth garment's
-    (`garment`, per polygon: the jacket's collar round the neck is the body's, drawn by the cloth); how many."""
+    (`garment`, per polygon: the jacket's collar round the neck is the body's, drawn by the cloth), and still_rig's
+    fans across the cut's loops (pieces.npz's `fan_centres`, `person.neck_fans`: wedges reaching across the neck's
+    hollow and out under the hair, drawn as dark shards between the neck and the collar); how many."""
     to_head = (head.matrix_world.inverted() @ shell.matrix_world)
     tree = tree_of([head.matrix_world @ vertex.co for vertex in head.data.vertices])
     centres = np.array([to_head @ polygon.center for polygon in shell.data.polygons])
@@ -189,6 +193,8 @@ def shell_cut(shell, head, pieces, garment):
         world = shell.matrix_world @ shell.data.polygons[int(index)].center
         if tree.find(world)[2] < COVER_M:
             doomed.add(int(index))
+    fans = tree_of(cloth.to_blender(pieces["fan_centres"]))
+    doomed.update(polygon.index for polygon in shell.data.polygons if fans.find(polygon.center)[2] < FAN_MATCH)
     edit = bmesh.new()
     edit.from_mesh(shell.data)
     edit.faces.ensure_lookup_table()
@@ -196,6 +202,23 @@ def shell_cut(shell, head, pieces, garment):
     edit.to_mesh(shell.data)
     edit.free()
     shell.data.update()
+    return len(doomed)
+
+
+def under_cut(body, head, pieces):
+    """The collision body's faces above UNDER_NECK under the cut taken off (it is drawn for a garment's gaps; pushed
+    under the rig's neck, it stood out of the swap's slimmer one as dark strips at the collar, whole person round 3,
+    2026-11-27); how many."""
+    to_head = head.matrix_world.inverted() @ body.matrix_world
+    centres = np.array([to_head @ polygon.center for polygon in body.data.polygons])
+    doomed = np.flatnonzero(over_cut(centres, pieces) > -UNDER_NECK)
+    edit = bmesh.new()
+    edit.from_mesh(body.data)
+    edit.faces.ensure_lookup_table()
+    bmesh.ops.delete(edit, geom=[edit.faces[int(index)] for index in doomed], context="FACES")
+    edit.to_mesh(body.data)
+    edit.free()
+    body.data.update()
     return len(doomed)
 
 
@@ -391,7 +414,8 @@ def main():
     bpy.context.view_layer.update()
     head, frame, space, eyes = head_dressed(armature, shell, pieces, data)
     garments = cloth.garments_made(shell, data)
-    cloth.body_made(armature, shell, data)
+    print(f"collision body faces at the neck taken off: {under_cut(cloth.body_made(armature, shell, data), head, pieces)}",
+          flush=True)
     armature.data.pose_position = "POSE"
     holder, turntable = cloth.staged(float(data["scale"]))
     bpy.context.view_layer.update()
