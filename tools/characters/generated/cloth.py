@@ -114,6 +114,11 @@ SHIRT_HALF_M = 0.11  # the T-shirt shows only this near the chest's middle in fr
 # glossy jacket's highlights read as white elsewhere
 FINGER_SEED_M = 0.05  # the skin's colour: the hand faces this near the hand's furthest point
 TUCKED_M = 0.12  # the T-shirt reaches this far under the Hips joint (tucked in)
+# The garment under the jacket shows round the neck too, from this far under the Neck2 joint up off the arms: a
+# hoodie's hood over the overshirt's collar (the hoodie man, 2026-11-27: the shirt only in front, his grey hood was
+# read as the jacket and hung torn on its sim mesh, dark at the head's edge); the paint still decides (a puffer's
+# sage collar there stays the jacket's)
+ROUND_NECK_M = 0.12
 YOKE_M = 0.16  # the jacket rides the skin this far over its surface from the neck and hair
 CUFF_M = 0.04  # and this far from the hands (a puffer's elastic cuffs)
 WAISTBAND_M = 0.08  # the jeans ride the skin this far from their top
@@ -264,7 +269,8 @@ def allowed(person, middles, strongest, hem=None):
     """{kind: which faces its place allows} for the kinds read from paint (every kind but the head). The jacket reaches
     down to `hem` (`jacket_hem`; TUCKED_M under the hips when None) and onto a leg only where it reaches past that
     (a long coat over the thighs; a short jacket's faces hanging from a leg are the hands' jeans), never on a hand
-    under its wrist (the camel coat's paint read nearer the older woman's hands than her fingers' did)."""
+    under its wrist (the camel coat's paint read nearer the older woman's hands than her fingers' did). The T-shirt
+    is the garment under the jacket: in the open front and round the neck (ROUND_NECK_M: a hoodie's hood)."""
     ankle = max(joint_at(person, "LeftFoot")[1], joint_at(person, "RightFoot")[1])
     waist = joint_at(person, "Spine2")[1]
     hips = joint_at(person, "Hips")[1]
@@ -272,6 +278,7 @@ def allowed(person, middles, strongest, hem=None):
     on_arms = np.isin(strongest, ARMS)
     chest = joint_at(person, "Chest")
     front = (np.abs(middles[:, 0] - chest[0]) < SHIRT_HALF_M) & (middles[:, 2] > chest[2])
+    round_neck = (middles[:, 1] > neck - ROUND_NECK_M) & ~np.isin(strongest, ARMS[:6])
     short = hips - TUCKED_M
     hem = short if hem is None else min(hem, short)
     hand = np.zeros(len(middles), bool)
@@ -279,7 +286,7 @@ def allowed(person, middles, strongest, hem=None):
         hand |= (strongest == f"{side}Hand") & (middles[:, 1] < joint_at(person, f"{side}Hand")[1])
     return {"skin": np.isin(strongest, SKIN_JOINTS),
             "jacket": (middles[:, 1] > hem) & (~np.isin(strongest, LEGS) | (hem < short)) & ~hand,
-            "shirt": front & ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck),
+            "shirt": (front & ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck)) | round_neck,
             "jeans": ~on_arms & (middles[:, 1] < waist),
             "shoes": middles[:, 1] < ankle + ANKLE_OVER_M,
             "scarf": ~on_arms & (middles[:, 1] > hips - TUCKED_M) & (middles[:, 1] < neck)}
@@ -514,8 +521,8 @@ def over_surface(points, faces, sources):
 
 
 def riding_of(person, kinds, kind, used, faces):
-    """Which of a garment's points ride the skin: the jacket's yoke (under a scarf too) and cuffs, the jeans'
-    waistband, a scarf round the neck."""
+    """Which of a garment's points ride the skin: the jacket's yoke (under a scarf or a hood too) and cuffs, the
+    jeans' waistband, a scarf round the neck."""
     points = person["points"][used]
     local = {point: number for number, point in enumerate(used)}
 
@@ -530,6 +537,7 @@ def riding_of(person, kinds, kind, used, faces):
     if kind == "jacket":
         chest = joint_at(person, "Chest")[1]
         return ((from_border(("head", "skin", "scarf"), high=chest) < YOKE_M)
+                | (from_border(("shirt",), high=joint_at(person, "Neck2")[1] - ROUND_NECK_M) < YOKE_M)
                 | (from_border(("skin",), low=chest) < CUFF_M))
     if kind == "scarf":
         others = [other for other in KINDS if other != "scarf"]

@@ -316,5 +316,11 @@ under his beard's underside). There the two cut edges are one closed loop each: 
   Run: `python -m tools.characters.generated.person <name> <sources> <out> [--from <step> | --only <step>]` (head
   2 min, hair 5, swap 1.5, rig 3.5, cloth 5 to 10 at nice 19; the render some hours: 13 sheet frames and the 96-frame
   film with 240k strands, 5.7 GB).
+- **A man's beard comes through the whole route** (b_hoodie_man, 2026-11-27): `blender_person.groomed` lays the hair
+  step's beard skin and beard strands as `blender_sheet.groomed` does (without them the painted beard was taken off
+  and the head's hollow showed as a flat brown slab). **A hood is the garment under the jacket**: `cloth.allowed`
+  lets the T-shirt kind show round the neck off the arms (ROUND_NECK_M under Neck2), so a hoodie's grey hood over an
+  overshirt is skinned with the hoodie, not hung torn on the jacket's sim mesh, and the jacket's yoke rides where it
+  meets it.
 - **head.glb's paint is the skin step's sRGB paint as written** (`head.paint_picture`): encoded again, it came out a
   washed copy (L 0.30 to 0.55), and the hair's labels and the swap's head wore it until 2026-11-27.

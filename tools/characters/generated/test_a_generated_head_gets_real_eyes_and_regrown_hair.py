@@ -197,6 +197,8 @@ again (the head's front collar kept: the stairwell woman's torn collar shards). 
 hoodie's, `open_front`) the whole front is the head's down to the cut, its side still the body's. Break: `open_front`
 ignored (the hoodie man's chin and beard given to the body, whose own longer beard stood under his face as a dark
 lump).
+The T-shirt, the garment under the jacket, may show round the neck off the arms (`cloth.allowed`, ROUND_NECK_M: a
+hoodie's hood). Break: `round_neck` left out (the hoodie man's grey hood read as the jacket, torn on its sim mesh).
 A jeans hem resting on a shoe turns with the foot (`cloth.hem_on_shoes`). Break (applied once, seen red, reverted,
 2026-11-27): HEM_SHOE_M 0 (the hem left on the shin, sliding in and out of the shoe).
 still_rig's fan across the cut's loop (`person.neck_fans`) is found, the neck tube and a fan far under the cut kept.
@@ -1400,6 +1402,18 @@ def cloth_jacket_off_legs():
     return [short, long["jacket"].tolist()]
 
 
+def cloth_shirt_round_neck():
+    """[a face behind the neck 5 cm under Neck2 may be the T-shirt (a hood), one behind the chest 20 cm under it may
+    not, one at the hood's height hanging from an upper arm may not, one in the open front at the chest may]
+    (`allowed`: the garment under the jacket round the neck, ROUND_NECK_M)."""
+    names = ["Hips", "Spine2", "Neck2", "Chest", "LeftFoot", "RightFoot", "LeftHand", "RightHand"]
+    bind = np.repeat(np.eye(4)[None], len(names), axis=0)
+    bind[:, 1, 3] = [1.0, 1.15, 1.5, 1.3, 0.06, 0.06, 0.85, 0.85]
+    person = {"names": names, "bind": bind}
+    middles = np.array([[0.0, 1.45, -0.1], [0.0, 1.3, -0.1], [0.15, 1.45, 0.0], [0.0, 1.3, 0.1]])
+    return cloth.allowed(person, middles, np.array(["Chest", "Chest", "LeftArm", "Chest"]))["shirt"].tolist()
+
+
 def cloth_laid_hands_skin():
     """A person's laid hand (still_rig's hand part) whose wrist faces hang from the forearm and are painted the
     jacket's colour: [those faces' kinds are the skin's, the sleeve's are the jacket's] (`kinds_of` not taking the
@@ -2108,6 +2122,8 @@ def tether_inside_read():
      skin_socket_shade_off, [True, True]),
     ("under the hood's depth the head keeps its neck alone, its own collar front and side given to the body",
      hood_kept, [True, True, False, False, True, False, False]),
+    ("the garment under the jacket may show round the neck (a hood) off the arms, not behind the chest",
+     cloth_shirt_round_neck, [True, False, False, True]),
     ("under a hood open in front (a hoodie's) the head keeps its whole front, chin and beard, down to the cut",
      lambda: hood_kept(open_front=True), [True, True, True, False, True, False, True]),
     ("still_rig's fan across the cut's loop and one out over it are found, the neck and an armpit's fan are kept",

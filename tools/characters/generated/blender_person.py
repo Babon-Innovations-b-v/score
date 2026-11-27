@@ -330,7 +330,9 @@ def riding(armature, matrix):
 
 
 def groomed(frame, pieces):
-    """The scalp, the neck's back and the strands (the hair step's, in its metres) under `frame`; the objects."""
+    """The scalp, the neck's back, a man's beard skin and the strands (the hair step's, in its metres: hair and
+    beard, as `blender_sheet.groomed` lays them) under `frame`; the objects. Without the beard's, the hoodie man's
+    painted beard was taken off and nothing laid there (2026-11-27: the head's hollow showed as a flat brown slab)."""
     groom = dict(np.load(MADE / "hair/groom.npz"))
     fibre = json.loads((MADE / "hair/fibre.json").read_text())
     space = bpy.data.objects.new("groom_space", None)
@@ -344,6 +346,11 @@ def groomed(frame, pieces):
         neck = blender_sheet.mesh_of("neck", groom["neck_points"], groom["neck_triangles"], space)
         blender_sheet.painted(neck, np.tile(groom["skin_colour"], (len(groom["neck_points"]), 1)))
         items.append(neck)
+    if len(groom["beard_skin_points"]):
+        beard_skin = blender_sheet.mesh_of("beard_skin", groom["beard_skin_points"], groom["beard_skin_triangles"],
+                                           space)
+        blender_sheet.painted(beard_skin, groom["beard_skin_colours"])
+        items.append(beard_skin)
     for item in items:  # never below the cut, inside the collar
         local = np.array([(Matrix.Diagonal((*space.scale, 1.0)) @ vertex.co)[:] for vertex in item.data.vertices])
         under = ~above_cut(local, pieces)
@@ -356,6 +363,9 @@ def groomed(frame, pieces):
         edit.free()
     items += blender_sheet.strand_pieces("hair", groom["counts"], groom["points"], groom["radius"], fibre["hair"],
                                          space)
+    if len(groom["beard_skin_points"]):
+        items += blender_sheet.strand_pieces("beard", groom["beard_counts"], groom["beard_points"],
+                                             groom["beard_radius"], fibre["beard"], space)
     return items
 
 
