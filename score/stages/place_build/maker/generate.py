@@ -92,22 +92,50 @@ def layer_norm_in_place(input, normalized_shape, weight=None, bias=None, eps=1e-
     return input
 
 
+def closed_skipped(fill_holes):
+    """CuMesh's `fill_holes` left undone on a mesh with no boundary edge, as TRELLIS.2's own Mesh.fill_holes does: the
+    meshparts image's cumesh wheel (its author's, 2025-12-10) lacks CuMesh's 2025-12-18 early return for no boundary
+    (5bc2fd1), so a closed mesh launched its kernels on an empty grid (2026-11-27, 2099 prologue on the cluster: 9 of
+    191 makes stopped at 'clean_up.cu line 385, invalid configuration argument', each sinking its run of 5). A closed
+    mesh has no hole, so the model is the same."""
+    def filled(mesh, max_hole_perimeter=3e-2):
+        mesh.cu_mesh.get_boundary_info()
+        if mesh.cu_mesh.num_boundaries() == 0:
+            return None
+        return fill_holes(mesh, max_hole_perimeter)
+    return filled
+
+
+def cache_emptied(fill_holes):
+    """TRELLIS.2's Mesh.fill_holes (decode_latent's, before any remesh) with torch's cached card blocks given back
+    first: CuMesh allocates outside torch, so the decoders' cache left it short (2026-11-27: two cluster makes, a hedge
+    and stacked bowls, 'out of memory' in CuMesh's get_edges on a 24 GB card)."""
+    def filled(mesh, *arguments, **keywords):
+        import torch
+        torch.cuda.empty_cache()
+        return fill_holes(mesh, *arguments, **keywords)
+    return filled
+
+
 def lean():
     """TRELLIS.2's card memory cut to what fits this PC's card beside the Windows desktop, its model bit for bit the
     same (#169: a printer box's and a fridge's 1024 decoders and remesh passed the 16 GB card and stopped with 'CUDA
     driver error: device not ready'): the sparse convs on FlexGEMM's implicit GEMM, the norms a block of rows at a
-    time, the remesh on remesh.py."""
+    time, the remesh on remesh.py; and two guards the meshparts image's wheels need (closed_skipped, cache_emptied)."""
     import types
     import torch
     import cumesh.remeshing
     from trellis2.modules import norm
     from trellis2.modules.sparse.conv import config
     from trellis2.models.sc_vaes import sparse_unet_vae
+    from trellis2.representations.mesh import base as mesh_base
     import remesh
     config.FLEX_GEMM_ALGO = CONVOLUTION
     norm.LayerNorm32.forward = chunked_layer_norm
     sparse_unet_vae.F = types.SimpleNamespace(**{**vars(torch.nn.functional), "layer_norm": layer_norm_in_place})
     cumesh.remeshing.remesh_narrow_band_dc = remesh.remesh_narrow_band_dc
+    cumesh.CuMesh.fill_holes = closed_skipped(cumesh.CuMesh.fill_holes)
+    mesh_base.Mesh.fill_holes = cache_emptied(mesh_base.Mesh.fill_holes)
 
 
 def capped(torch):

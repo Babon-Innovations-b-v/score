@@ -15,7 +15,7 @@ score_lib as a draft `model/<name>_trellis.<place>` entry. `__init__.py` is the 
 - **On a cloud card** (`cloud.made`, 2026-11-19: GPU work goes to the cloud; the player models' stills): generate.py in
   the meshparts image's TRELLIS.2 (SegviGen's checkout of its code, its author's wheels), weights from the node cache
   (images/meshparts/models.json `trellis2-4b-make`, `trellis-image-large-ssdec`), any pictures in one job, each in its
-  own process; kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
+  own process (its cumesh wheel of 2025-12-10 predates CuMesh's no-boundary returns: `generate.closed_skipped` skips fill_holes on a closed mesh, `generate.cache_emptied` gives torch's cache back before decode's; 2026-11-27, 12 of 191 cluster makes stopped there); kept apart from `make`, whose package the finish's code version hashes (finished imports grade). `make`
   itself still uses the card queue (tools/cloud/backends/card_queue.py, a 16 GB scope): one model a process, the whole
   card (CARD_GB), about two minutes. `make --card-only` runs only that card step (kept in made/<entry>/), the same make after it finishing on the processor, so a queue starts the next card step meanwhile (2026-11-26). Its TRELLIS.2 models are built without torch's random fills (generate.unfilled, the
   load 38 s to 4 to 12 s) and each flow model read when its stage asks (generate.OnUse, 11.0 GB at the most); two makes
