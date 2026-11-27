@@ -184,14 +184,14 @@ def faces_for(size):
 
 
 def size_of(folder, like, height, size=None):
-    """The longest side (m) the model will stand at in the place: `like`'s box, else `height`, else `size`'s longest
-    side; None when none is given."""
+    """The longest side (m) the model will stand at in the place: `like`'s box, else `size`'s longest side (a row's
+    full size wins over its height: a 22 m beam 0.5 m tall is 22 m across), else `height`; None when none is given."""
     if like:
         points = np.asarray(like_points(folder, like))
         return float(np.ptp(points, axis=0).max()) if len(points) else None
-    if height:
-        return float(height)
-    return max(float(side) for side in size) if size else None
+    if size:
+        return max(float(side) for side in size)
+    return float(height) if height else None
 
 
 def generated(picture, out, faces=None):
@@ -266,17 +266,18 @@ def sized_matrix(points, picture, size, raw, words):
 
 def placed(raw, folder, like, height, size=None, picture=None, words=None):
     """The raw model's GLB document and binary set in the place's frame (at a `size`, turned as its close-up
-    `picture` of the object's `words` shows it); how it was set."""
+    `picture` of the object's `words` shows it); how it was set. A `size` wins over a `height`: a long or flat object
+    fitted by its height alone comes out its proportions' times off (2099's 22 m beam, its manhole cover)."""
     document, binary = glb.read(raw)
     points = surface_points(raw)[0]
     if like:
         matrix, how = fit.fitted_matrix(points, like_points(folder, like))
         how["like"] = like
-    elif height:
-        matrix, how = fit.height_matrix(points, float(height)), {"height_m": float(height)}
     elif size:
         matrix, how = sized_matrix(points, picture, size, raw, words)
         how["size_m"] = [float(side) for side in size]
+    elif height:
+        matrix, how = fit.height_matrix(points, float(height)), {"height_m": float(height)}
     else:
         raise place_build.Refused("give --like (the library model it replaces), --height (metres) or --size "
                                   "(wide,deep,tall metres)")

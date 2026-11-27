@@ -17,6 +17,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   model's Y-up order -> the L drawn 10% tall and 12% shallow is not laid at the size, the L's at twice (#170);
   STRETCH made unbounded -> the L drawn twice as deep is squashed to the size's depth, not held a quarter off;
   maker.size_of: `size` ignored -> a model made at a size is made at FACES, not its size's faces
+- maker.placed and maker.size_of taking a row's `height` before its `size` -> the 24 x 6 m glass slab 0.3 m tall is
+  laid 9 m wide, its height's 5 times the slab's 6 cm, not 24 m (2099's beams, slabs and manhole covers 2.5 to 6x off)
 - fit.fitted_matrix: YAWS made (0.0,) -> the L turned a quarter is not covered (yaw and distance wrong)
 - fit.headed: its quarter turns not tried (TRELLIS.2's own heading kept), or fit.view_axes turned the other way, or
   straight down taken with the front up -> a desk L made long along x, its close-up long along depth, is laid
@@ -239,7 +241,7 @@ def picture_box(corners, camera, size):
     return [*((seen.min(0) - 1) / size).tolist(), *((seen.max(0) + 1) / size).tolist()]
 
 
-def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
+def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path, monkeypatch):
     like = ell_points()
     made = fit.applied(fit.yawed(90.0), like) * 0.4 + [3.0, 1.0, -2.0]
     matrix, how = fit.fitted_matrix(made, like)
@@ -380,6 +382,12 @@ def test_a_made_model_fits_its_place_its_paint_and_its_weight(tmp_path):
     laid = shape["nodes"][shape["scenes"][0]["nodes"][0]]["matrix"]
     assert kept == [False, True] and np.allclose(glb.root_matrix(placed), moved) and laid == placed["nodes"][-1][
         "matrix"], (kept, glb.root_matrix(placed), laid)
+    monkeypatch.setattr(maker, "sized_matrix", lambda points, picture, size, raw, words: fit.size_matrix(points, size))
+    document, binary, how = maker.placed(slab, tmp_path, None, 0.3, (24.0, 6.0, 0.3))  # 2099's glass slab, 0.3 m tall
+    glb.write(tmp_path / "sized.glb", document, binary)
+    sides = np.ptp(maker.surface_points(tmp_path / "sized.glb")[0], 0)
+    assert abs(sides[0] - 24.0) < 0.1 and "height_m" not in how, (sides, how)  # by height: 1.8 m x 5, 9 m
+    assert maker.size_of(tmp_path, None, 0.3, (24.0, 6.0, 0.3)) == 24.0
 
     tokens = {"olive": "#6e7052", "sky": "#1a2238"}
     near = np.ones((4, 4, 3)) * np.array([0x70, 0x78, 0x50]) / 255
