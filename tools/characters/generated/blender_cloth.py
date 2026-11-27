@@ -129,7 +129,7 @@ def kept_only(shell, kinds, dropped):
 
 def body_made(armature, shell, data):
     """The collision body under the clothes, skinned by its own weights, coloured by its points' strongest joints
-    (UNDER) in the person's own shirt's and trousers' paint (cloth.under_colours; UNDER_COLOURS for a run without)."""
+    (UNDER) in the person's own jacket's and trousers' paint (cloth.under_colours; UNDER_COLOURS for a run without)."""
     weights = data["body_weights"]
     kinds = data["joint_names"][weights.argmax(1)]
     region_of = np.array([0 if kind in UNDER["trunk"] else 1 if kind in UNDER["legs"] else 2 for kind in kinds])

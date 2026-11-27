@@ -169,6 +169,9 @@ own paint) and brings in only what the generator cannot make, from the repo's ow
   hem), and cloth.json records each garment's hem swing. The paint is read at the file's own row (`file_places`:
   read as stored, glTF's v running down, every face read its mirror row, and round 4's kinds came from places alone).
   The sheets and films are developed in plain sRGB (`blender_cloth.VIEW`, as `blender_eyes.VIEW`).
+  The body under the clothes wears the person's own jacket and trousers (`under_colours`): where a sleeve fused to
+  the trunk opens at the side, the gap shows the jacket's colour, not a fixed white (nor a turtleneck's black, which
+  read as holes in a camel coat).
   **Free cloth is stopped** (coordinator, 2026-11-26): two free runs on Newton's VBD tore (the jeans stretched 90 cm
   down to and between the shoes, 19 cm inside the body; the jacket shredded). The tether makes the result at least as
   stable as plain skinning; cloth.json records every garment's numbers both ways (`garments` tethered, `skinned`).

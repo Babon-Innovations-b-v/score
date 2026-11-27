@@ -393,11 +393,12 @@ def islands_joined(faces, found, free, least=ISLAND_FACES):
 
 def under_colours(person, kinds):
     """The body under the clothes' colours, linear RGB (blender_cloth draws it where a gap shows it): the trunk the
-    shirt's paint (the jacket's where none shows), the legs the jeans'; each its kind's median paint (round 5,
+    jacket's paint (the shirt's where there is no jacket), the legs the jeans'; each its kind's median paint (round 5,
     2026-11-27: a fixed white T-shirt and blue denim showed as white and blue patches where the older woman's camel
-    coat and the hoodie man's overshirt, fused to their arms, opened at the side)."""
+    coat and the hoodie man's overshirt, fused to their arms, opened at the side; her black turtleneck's paint there
+    still read as holes in the coat)."""
     found = []
-    for wanted in (("shirt", "jacket"), ("jeans",)):
+    for wanted in (("jacket", "shirt"), ("jeans",)):
         kind = next((kind for kind in wanted if (kinds == KINDS.index(kind)).any()), None)
         lab = np.median(person["lab"][kinds == KINDS.index(kind)], axis=0) if kind else np.array([50.0, 0.0, 0.0])
         srgb = np.clip(lab2rgb(lab[None, None])[0, 0], 0.0, 1.0)
