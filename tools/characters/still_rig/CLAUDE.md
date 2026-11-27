@@ -48,7 +48,15 @@ A still picture-made model (a TRELLIS.2 mesh, no skeleton) rigged as a player mo
   TRELLIS.2's fused lumps; each is cut off from the wrist (`hand_cut`) and the whole route's relaxed hand with real
   fingers laid on (`hands.py` writes them beside the clips rig from a whole-route skin, `whole.carried_skin`, whose
   posture checks fail a splayed hand), its stub under the cuff, painted the person's own skin read off the middle of
-  the face (`face_skin`: the hoodie man's lumps read near black at their tips). While a hand goes more than
+  the face (`face_skin`: the hoodie man's lumps read near black at their tips). Round 2 (2026-11-27): the hands are laid a
+  little more closed than whole's open rest (`hands.curled`: fingers curled and together, the thumb in) with their nails
+  marked (`hands.nails`), painted the photo's skin (`--skin-stats`, the face skin step's photo CIELAB) and drawn in
+  score_lib's face skin (`generated/blender_cloth.py`'s `hands_skinned`); nothing the cut leaves hangs from a hand,
+  and what is painted as the cloth beside the hand rather than the sleeve hangs from no arm (`off_the_hands`: the
+  hoodie man's trousers, labelled down to the fingertips, swung out with the arms as dark wings at the hips), the
+  surface torn between them (`torn`, eased only within each side) and each side's tear closed (`tears_closed`); the
+  cut's rims are smoothed and the lumps' leftover skin paint on the cloth repainted. Open: a coat one colour with its
+  fused sleeves (the older woman's) still swings its flanks with the arms; taken off by place, its cuffs tore away. While a hand goes more than
   HAND_CLEAR into the clothes over a clip, that arm is turned out the fewest whole degrees more while it hangs that
   bring it out (`hands_cleared`, every degree to HAND_CLEAR_MOST tried: the depth plateaus), and rig.json records
   each clip's hands (degrees, depth); a hand resting on a lap (bench, seated), where the arm does not hang, keeps

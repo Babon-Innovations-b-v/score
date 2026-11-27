@@ -50,6 +50,20 @@ above it touching the backpack, and a stray backpack face inside the cloth. Each
   brought across the trunk to -20 (a hand on the far knee) is moved, the hand's bone changes its length, or the
   written local turn and its parent's world miss the arm's world. Breaks applied once, seen red, reverted
   (2026-11-27): the floor's turn left at zero; `ARM_ACROSS_DEGREES` 1000 (the arm across pushed out).
+- a person's hands (round 2, 2026-11-27; each break applied once, seen red, reverted): open stick hands laid again by
+  `hands.curled` keep a finger bent under nine tenths of CURL_DEGREES, two fingers spread more than 6 degrees, the
+  thumb's tip 2 cm or more off the index finger, or the fingertips where they were (the curl skipped; the spread
+  left at whole's fan); `hands.nails` marks points off the back of the end bones (the back's sign flipped); a trouser
+  point a fused arm's labels hung from the hand keeps the hand (`off_the_hands`'s cloth weights skipped: the hoodie
+  man's dark wings at the hips), a cuff point stays on the hand rather than the forearm, or any other weight moves,
+  or a point is taken off the arm where the sleeve and the cloth beside it are one colour (the older woman's coat:
+  her cuffs left on her hips),
+  or a tear's sides are not each closed by their own fan (`tears_closed`: the hollow showed black), a fan spans the
+  tear, or a face still spans the sleeve and the thigh after `torn` (eased instead, his walk stretched edges by 15 cm or his
+  hands stood 5 cm beside his cuffs), or a torn face moves or a copy loses its point's other values;
+  a jagged rim keeps its jags or shrinks (`smoothed_rims` with no rounds); a skin speck on the sleeve by the cut
+  keeps the lump's skin paint (`lump_patches` skipped); a nail is painted as the skin or as rough; the hands' skin is
+  not the stats file's photo CIELAB (`photo_skin`).
 """
 import pathlib
 import sys
@@ -61,6 +75,7 @@ from scipy.spatial.transform import Rotation
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import clips_added  # noqa: E402
+from tools.characters import posture  # noqa: E402
 import hands as relaxed_hands  # noqa: E402
 import still_rig  # noqa: E402
 
@@ -82,6 +97,41 @@ def strip():
     weights = np.zeros((len(points), len(NAMES)))
     weights[:, NAMES.index("Hips")] = 1.0
     return points, faces, part_of, weights, heights
+
+
+def open_hands():
+    """Two open stick hands at a toy bind, back up (+y), fingers along +x, each finger 4 bones fanned 12 degrees apart
+    and its thumb 45 degrees out (the left's on +z, the right's mirrored), points on rings 4 mm round every bone, all
+    on their Hand joint: (names, joints, points, weights)."""
+    joints, rings = {}, []
+    for side, sign in (("Left", 1.0), ("Right", -1.0)):
+        joints[f"{side}Hand"] = np.zeros(3)
+        for number, finger in enumerate(posture.FINGERS):
+            turn = np.radians(12.0 * (1.5 - number))
+            line = np.array([np.cos(turn), 0.0, sign * np.sin(turn)])
+            knuckle = np.array([0.08, 0.0, sign * (0.0225 - 0.015 * number)])
+            chain = posture.finger_chain(side, finger)
+            joints[chain[1]] = 0.4 * knuckle
+            for joint, reach in zip(chain[2:], (0.0, 0.04, 0.065, 0.085)):
+                joints[joint] = knuckle + reach * line
+        thumb = np.array([np.cos(np.radians(45.0)), 0.0, sign * np.sin(np.radians(45.0))])
+        for joint, reach in zip(posture.finger_chain(side, "Thumb")[1:], (0.0, 0.025, 0.045, 0.065)):
+            joints[joint] = np.array([0.02, 0.0, sign * 0.02]) + reach * thumb
+    names = ["Root", "LeftHand", "RightHand"]
+    weights = []
+    for side in ("Left", "Right"):
+        for finger in posture.FINGERS + ("Thumb",):
+            chain = posture.finger_chain(side, finger)
+            for start, end in zip(chain[1:], chain[2:]):
+                span = joints[end] - joints[start]
+                across = np.cross(span, [0.0, 1.0, 0.0])
+                across /= np.linalg.norm(across)
+                for share in np.linspace(0.0, 1.0, 6):
+                    for angle in np.linspace(0, 2 * np.pi, 12, endpoint=False):
+                        rings.append(joints[start] + share * span + 0.004 * (np.cos(angle) * across +
+                                                                             np.sin(angle) * np.array([0, 1.0, 0])))
+                        weights.append([0.0, 1.0, 0.0] if side == "Left" else [0.0, 0.0, 1.0])
+    return names, joints, np.array(rings), np.array(weights)
 
 
 def test_a_rigged_still_rides_its_joints_without_a_crack():
@@ -345,8 +395,24 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     for side, x in (("Left", 0.3), ("Right", -0.3)):
         kept = cut_out[f"{side}.points"]
         assert (np.abs(kept[:, 0] - x) < 0.05).all() and kept[:, 1].max() <= 0.8 + relaxed_hands.STUB + 1e-9
-        assert kept[:, 1].min() < 0.61 and len(cut_out[f"{side}.tones"][0]) == 2
+        assert kept[:, 1].min() < 0.61 and len(cut_out[f"{side}.tones"][0]) == 3
         assert cut_out[f"{side}.faces"].max() == len(kept) - 1
+
+    toy_names, toy_joints, toy_points, toy_weights = open_hands()
+    curled, curled_joints = relaxed_hands.curled(toy_points, toy_weights, toy_names, toy_joints)
+    for side in ("Left", "Right"):
+        measured = posture.hand_measured(curled_joints, side)
+        assert all(bend >= 0.9 * relaxed_hands.CURL_DEGREES[finger] for finger, bend in measured["bend degrees"].items())
+        assert max(measured["spread degrees"]) <= 6.0 and measured["thumb gap m"] < 0.02  # together, the thumb in
+    tips = toy_points[:, 0] > 0.15
+    assert curled[tips, 1].mean() < toy_points[tips, 1].mean() - 0.02  # the fingertips curled towards the palm (-y)
+    nailed = relaxed_hands.nails(curled, toy_weights, toy_names, curled_joints).astype(bool)
+    assert 10 < nailed.sum() < 0.2 * len(toy_points)
+    open_nails = relaxed_hands.nails(toy_points, toy_weights, toy_names, toy_joints).astype(bool)
+    assert (toy_points[open_nails, 1] > 0.0019).all() and abs(open_nails.sum() - nailed.sum()) < 0.2 * nailed.sum()
+    fingertip = np.linalg.norm(toy_points[:, [0, 2]], axis=1) > 0.08 + 0.065 - 0.04  # past the fingers' last joints
+    thumb_tip = np.linalg.norm(np.abs(toy_points[:, [0, 2]]) - [0.02 + 0.055 * 0.707] * 2, axis=1) < 0.03
+    assert (fingertip | thumb_tip)[open_nails].all()  # on the back (+y) of the end bones only
 
     cloth_colour, skin_colour = np.array([0.6, 0.45, 0.3]), np.array([0.85, 0.65, 0.55])
     colours = np.tile(cloth_colour, (len(skin_points), 1))
@@ -397,7 +463,8 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
 
     part_with = np.zeros(len(skin_faces), int)
     joined = still_rig.with_hands(skin_points, skin_faces, part_with, on, colours, cut_faces, laid_hands, skin_colour)
-    joined_points, joined_faces, joined_parts, joined_weights, joined_paint, joined_hand = joined
+    joined_points, joined_faces, joined_parts, joined_weights, joined_paint, joined_rough = joined
+    joined_hand = np.isfinite(joined_rough).all(1)
     hand_count = sum(len(laid_hands[side][1]) for side in ("Left", "Right"))
     still_faces = joined_faces[joined_parts != still_rig.PARTS.index("hand")]
     assert (joined_parts == still_rig.PARTS.index("hand")).sum() == hand_count
@@ -407,10 +474,85 @@ def test_a_rigged_still_rides_its_joints_without_a_crack():
     assert joined_hand.sum() == sum(len(laid_hands[side][0]) for side in ("Left", "Right"))
     assert np.allclose(joined_paint[joined_hand].min(0), skin_colour, atol=0.05)
     assert np.allclose(joined_weights.sum(1), 1.0)
-    new_points = ~joined_hand & (cKDTree(skin_points).query(joined_points)[0] > 1e-9)  # the fans' middles
+    new_points = ~joined_hand & (np.arange(len(joined_points)) >= len(np.unique(skin_faces[~cut_faces])))  # fans' middles
     cuffs = new_points & (np.abs(np.abs(joined_points[:, 0]) - 0.3) < 0.05) & (joined_points[:, 1] < 0.83) & (
         joined_points[:, 1] > 0.6)
     assert cuffs.sum() == 2 and np.allclose(joined_paint[cuffs], cloth_colour)  # the cuff's fan in the cloth's paint
+    kept_points = np.zeros(len(skin_points), bool)
+    kept_points[np.unique(skin_faces[~cut_faces])] = True
+    at_still = np.zeros(len(skin_points), int)
+    at_still[kept_points] = np.arange(kept_points.sum())  # the kept points come first, in their order
+    on_arms = np.abs(np.abs(skin_points[:, 0]) - 0.3) < 0.05
+    assert np.allclose(joined_paint[at_still[speck & kept_points & on_arms]], cloth_colour)  # the lump's speck repainted
+    thigh = np.abs(skin_points[:, 0] - 0.12) < 0.06
+    assert np.isnan(joined_paint[at_still[thigh]]).all()  # a bare thigh 9 cm off the cut keeps its own paint
+    tones_nail = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    nail_paint = still_rig.hand_paint(skin_colour, tones_nail)
+    assert np.allclose(nail_paint[0], skin_colour) and (nail_paint[1] > skin_colour).all()  # a nail paler
+    assert still_rig.hand_roughness(tones_nail)[1, 1] < still_rig.hand_roughness(tones_nail)[0, 1]  # and glossier
+    assert np.allclose(still_rig.hand_roughness(tones_nail[:, :2])[:, 1], still_rig.HAND_METAL_ROUGHNESS[1])
+    stats_file = pathlib.Path(__import__("tempfile").mkdtemp()) / "stats.json"
+    stats_file.write_text('{"paint_toned": {"photo_lab": [68.2, 15.5, 18.2]}}')
+    assert np.allclose(still_rig.photo_skin(stats_file), [0.80, 0.61, 0.53], atol=0.01)  # the older woman's photo
+
+    angles = np.linspace(0, 2 * np.pi, 16, endpoint=False)
+    jagged = np.r_[np.c_[np.cos(angles), np.zeros(16), np.sin(angles)] * (0.04 + 0.005 * (-1) ** np.arange(16))[:, None],
+                   [[0.0, 0.0, 0.0]]]
+    rim_fans = np.c_[np.arange(16), (np.arange(16) + 1) % 16, np.full(16, 16)]
+    smooth = np.linalg.norm(still_rig.smoothed_rims(jagged, rim_fans)[:16], axis=1)
+    assert smooth.std() < 0.001 and abs(smooth.mean() - 0.04) < 0.002  # the jags gone, the opening its size
+
+    sleeve_weights = on.copy()  # a cuff ring kept on the hand, the thigh beside it hung from the hand (fused labels)
+    left_arm = np.abs(skin_points[:, 0] - 0.3) < 0.05
+    cuff = (np.abs(np.abs(skin_points[:, 0]) - 0.3) < 0.05) & (skin_points[:, 1] < 0.8) & (skin_points[:, 1] > 0.784)
+    hung = thigh & (skin_points[:, 1] < 0.75) & (skin_points[:, 1] > 0.6)
+    sleeve_weights[hung] = 0.0
+    sleeve_weights[hung, hand_names.index("LeftHand")] = 1.0
+    fused_cut = (left_arm[skin_faces].all(1) & (skin_points[skin_faces, 1].max(1) < 0.79)) | (
+        np.abs(skin_points[skin_faces, 0] + 0.3) < 0.05).all(1) & (skin_points[skin_faces, 1].max(1) < 0.79)
+    garments = np.tile(cloth_colour, (len(skin_points), 1))  # a camel sleeve, dark trousers on the thigh
+    garments[thigh] = [0.1, 0.1, 0.15]
+    taken_off, off_points = still_rig.off_the_hands(skin_points, skin_faces, fused_cut, sleeve_weights, garments,
+                                                    hand_names, hand_bind)
+    assert off_points[hung].all() and not off_points[~hung].any()
+    camel = np.tile(cloth_colour, (len(skin_points), 1))
+    camel[thigh] -= 0.05  # the coat's flank a shade darker than its sleeve: still one garment
+    one_coat, none_off = still_rig.off_the_hands(skin_points, skin_faces, fused_cut, sleeve_weights, camel,
+                                                 hand_names, hand_bind)
+    assert not none_off.any() and np.allclose(one_coat[hung, hand_names.index("LeftForeArm")], 1.0)  # one garment
+    assert np.allclose(taken_off[hung, hand_names.index("LeftLeg")], 1.0)  # the thigh back on its leg
+    assert np.allclose(taken_off[cuff & left_arm, hand_names.index("LeftForeArm")], 1.0)  # the cuff on the forearm
+    assert np.allclose(taken_off[cuff & ~left_arm, hand_names.index("RightForeArm")], 1.0)
+    strip_points = np.array([[x, y, 0.0] for y in (0.0, 0.01) for x in (0.0, 0.01, 0.02, 0.03)])
+    strip_faces = np.array([[0, 1, 5], [0, 5, 4], [1, 2, 6], [1, 6, 5], [2, 3, 7], [2, 7, 6]])
+    strip_weights = np.zeros((8, len(hand_names)))
+    strip_weights[[0, 1, 4, 5], hand_names.index("LeftForeArm")] = 1.0  # a sleeve beside a thigh, fused
+    strip_weights[[2, 3, 6, 7], hand_names.index("LeftLeg")] = 1.0
+    strip_weights[6] = 0.0
+    strip_weights[6, [hand_names.index("LeftForeArm"), hand_names.index("LeftLeg")]] = 0.3, 0.7
+    split, split_faces, split_weights, (split_tag,) = still_rig.torn(strip_points, strip_faces, strip_weights,
+                                                                     hand_names, np.ones(6, bool), np.arange(8.0))
+    share = still_rig.arm_share(split_weights, hand_names)[split_faces]
+    assert (share.max(1) - share.min(1) < still_rig.TEAR).all() and len(split) > 8  # nothing spans the tear
+    assert np.allclose(split[split_faces], strip_points[strip_faces]) and np.allclose(strip_points[split_tag.astype(int)], split)
+    assert np.allclose(split_weights[:8], strip_weights) and np.allclose(split_weights.sum(1), 1.0)
+    grid = np.array([[x, y, 0.0] for y in (0.0, 0.01, 0.02, 0.03) for x in (0.0, 0.01, 0.02, 0.03)])  # a slit's sides
+    grid_faces = np.array([[row * 4 + column, row * 4 + column + 1, row * 4 + column + 5] for row in range(3)
+                           for column in range(3)] + [[row * 4 + column, row * 4 + column + 5, row * 4 + column + 4]
+                                                      for row in range(3) for column in range(3)])
+    grid_weights = np.zeros((16, len(hand_names)))
+    grid_weights[grid[:, 0] < 0.015, hand_names.index("LeftForeArm")] = 1.0
+    grid_weights[grid[:, 0] > 0.015, hand_names.index("LeftLeg")] = 1.0
+    slit, slit_faces, slit_weights, (slit_from,) = still_rig.torn(grid, grid_faces, grid_weights, hand_names,
+                                                                  np.ones(18, bool), np.arange(16))
+    shut_points, shut_faces, shut_parts, shut_weights, (shut_tag,) = still_rig.tears_closed(
+        slit, slit_faces, np.zeros(len(slit_faces), int), slit_weights, hand_names, slit_from, slit[:, :1])
+    shut_share = still_rig.arm_share(shut_weights, hand_names)[shut_faces]
+    assert len(shut_faces) > len(slit_faces) and len(shut_points) == len(slit) + 2  # each side's run fanned
+    assert (shut_share.max(1) - shut_share.min(1) < still_rig.TEAR).all()  # no fan across the tear
+    assert len(shut_parts) == len(shut_faces) and np.allclose(shut_weights.sum(1), 1.0) and len(shut_tag) == len(
+        shut_points)
+    assert np.allclose(taken_off[~hung & ~cuff], sleeve_weights[~hung & ~cuff]) and np.allclose(taken_off.sum(1), 1.0)
 
     laid_paint = np.full((len(stood), 3), np.nan)
     laid_paint[painted.vertices[:, 0] > 0] = [0.9, 0.6, 0.5]

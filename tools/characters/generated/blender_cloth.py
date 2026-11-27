@@ -13,6 +13,12 @@ point at the bind), never thickened (the shell is the skinned person's own: a so
 its thin noisy walls as dark blotches all over the jacket; round 4, 2026-11-27); the collision body drawn under them,
 so a lifted hem shows a body and a T-shirt, never the hollow shell. The armature plays the clip at the run's clip
 time, in place (the run's travel taken out).
+
+The hands (still_rig's laid relaxed hands, the shell's `own_hand` material) wear score_lib's face skin finish
+(`hands_skinned`: SKIN's random-walk light under the surface, its oil coat, its scanned pores' colour and relief, its
+mottle and spots) over their own base colour (the photo's skin with whole's flush and thin tones and the nails, laid
+by still_rig): drawn in the glTF's material alone they read as smooth pink rubber (2026-11-27). The pores lie on the
+hand's rest points in metres (`REST`), so they ride the hand as it moves.
 """
 import math
 import pathlib
@@ -30,6 +36,7 @@ FILM = ARGS[8:] if len(ARGS) > 8 else None
 sys.path.insert(0, str(pathlib.Path(REPO) / "tools/characters/whole"))
 sys.path.insert(0, str(pathlib.Path(REPO) / "tools/characters/generated"))
 import render  # noqa: E402
+import blender_face  # noqa: E402  (on the path render.py put it)
 
 # The people are developed plainly (sRGB), as blender_eyes.VIEW, not in the whole route's AgX look (2026-11-27: its
 # medium high contrast look takes lit skin's chroma down and a shadow's up).
@@ -43,6 +50,10 @@ UNDER = {"trunk": ("Hips", "Spine1", "Spine2", "Chest", "Neck1", "LeftShoulder",
          "legs": ("LeftLeg", "RightLeg", "LeftShin", "RightShin")}
 # the body under the clothes, seen only through a gap: the T-shirt's white on the trunk and arms, dark denim on the
 # legs; its head, hands and feet are never drawn (the shell's own are)
+SKIN = "face_skin_light"  # score_lib's skin finish, the generated face's (blender_skin.SKIN)
+HAND = "own_hand"  # still_rig's hand part's material (material_of)
+HAND_ROUGHNESS = 0.55  # still_rig.HAND_METAL_ROUGHNESS's roughness: the map's skin; a nail's lower scales the finish's
+REST = "rest_m"  # the shell's rest points, metres, as a point attribute: the pores' coordinates
 UNDER_COLOURS = {"trunk": (0.78, 0.78, 0.76, 1.0), "legs": (0.06, 0.1, 0.2, 1.0)}
 
 
@@ -125,6 +136,56 @@ def kept_only(shell, kinds, dropped):
     bmesh.ops.delete(mesh, geom=[face for face in mesh.faces if kinds[face.index] in dropped], context="FACES")
     mesh.to_mesh(shell.data)
     mesh.free()
+
+
+class RestCoordinates:
+    """The shell's rest points (REST) standing in for a Texture Coordinate node's Object output, the one output
+    blender_face's skin detail reads (`scanned`, `grain_texture`, `spotted`)."""
+
+    def __init__(self, tree):
+        node = tree.nodes.new("ShaderNodeAttribute")
+        node.attribute_name = REST
+        self.outputs = {"Object": node.outputs["Vector"]}
+
+
+def hands_skinned(shell):
+    """The shell's hand material (HAND) given the library's skin (SKIN) over its own base colour: the finish's
+    roughness, index, light under the surface, oil coat, scanned pores, mottle and spots (as blender_face's `grained`
+    lays them, on the rest points), the map's roughness (a nail's glossier) scaling the finish's over HAND_ROUGHNESS.
+    The number of hand materials made so."""
+    record = blender_face.library_record(LIBRARY, SKIN)
+    if not record:
+        raise FileNotFoundError(f"score_lib surface {SKIN} is not fetched under {LIBRARY}")
+    entry = sorted((pathlib.Path(LIBRARY) / "surface" / SKIN).glob("*/surface.json"))[-1].parent
+    rest = shell.data.attributes.new(REST, "FLOAT_VECTOR", "POINT")
+    rest.data.foreach_set("vector", coordinates(shell.data).ravel())
+    made = 0
+    for material in {slot.material for slot in shell.material_slots if slot.material is not None
+                     and slot.material.name.startswith(HAND)}:
+        tree = material.node_tree
+        principled = blender_face.principled_of(material)
+        rough = principled.inputs["Roughness"]
+        own = rough.links[0].from_socket if rough.is_linked else None
+        for link in list(rough.links):
+            tree.links.remove(link)
+        rough.default_value = record["constants"]["roughness"]
+        principled.inputs["IOR"].default_value = record["constants"]["ior"]
+        blender_face.light_through(material, record["subsurface"])
+        blender_face.coated(material, record["coat"])
+        rest = RestCoordinates(tree)
+        blender_face.scanned(tree, principled, record["detail"]["scan"], entry, rest)
+        mottle = record["detail"]["mottle"]
+        ramp = tree.nodes.new("ShaderNodeMapRange")
+        ramp.inputs["From Min"].default_value, ramp.inputs["From Max"].default_value = (0.45, 0.75)
+        tree.links.new(blender_face.grain_texture(tree, mottle["spacing_m"], rest).outputs["Fac"], ramp.inputs["Value"])
+        blender_face.toned(tree, principled.inputs["Base Color"], ramp.outputs["Result"], mottle["share"],
+                           mottle["towards"])
+        blender_face.spotted(tree, principled, record["detail"].get("spots", []), rest)
+        if own is not None:
+            share = blender_face.scaled_by(tree, own, 1.0 / HAND_ROUGHNESS)
+            tree.links.new(blender_face.times(tree, rough.links[0].from_socket, share), rough)
+        made += 1
+    return made
 
 
 def body_made(armature, shell, data):
@@ -237,6 +298,7 @@ def main():
     if MODE == "cloth":
         garments = garments_made(shell, data)
         body_made(armature, shell, data)
+    print(f"hand materials skinned: {hands_skinned(shell)}", flush=True)
     holder, turntable = staged(float(data["scale"]))
     scene = bpy.context.scene
     standing = playing(armature, "standing")

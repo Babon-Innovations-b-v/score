@@ -4,7 +4,7 @@ body's own skeleton, so it plays every clip and sim-body motion that body plays.
 trimesh); no model runs.
 
     .venv/bin/python tools/characters/still_rig/still_rig.py <still.glb> <dressed body.glb> <clips rig.npz>
-        <palette.json> <out folder> [--faces 60000] [--person]
+        <palette.json> <out folder> [--faces 60000] [--person] [--skin-stats <face skin stats.json>]
 
 The steps:
 
@@ -43,9 +43,11 @@ The steps:
    (`hand_cut`: the arm's faces past the wrist, and its skin-painted ones up to the cuff, the skin read off the
    face, `face_skin`) and the whole route's relaxed hands with real fingers laid on in their place (`hands.py`'s
    file beside the clips rig; `hands_laid`: sized by the forearm, moved by their own weights onto the bind, and
-   across the forearm into the middle of the sleeve's opening, `sleeve_offsets`;
-   `with_hands`: the hand part, painted the face's skin with whole's flush and thin tones, `hand_paint`), their
-   stubs hidden in the sleeves.
+   across the forearm into the middle of the sleeve's opening, `sleeve_offsets`; nothing left by the cut hanging
+   from a hand or off the sleeve from the arm, `off_the_hands`; `with_hands`: the cut's holes closed with their rims
+   smoothed, the lump's leftover skin paint on the cloth repainted, the hand part painted the photo's skin
+   (`--skin-stats`, `photo_skin`; else the face's) with whole's flush and thin tones and its nails, `hand_paint`,
+   `hand_roughness`), their stubs hidden in the sleeves.
 6. The finish is the still's own paint (owner 2026-11-19, of the TRELLIS.2 astronaut beside the one laid in library
    surfaces a part: "this pure trellis is just so much better ... the segmentation of the visor isnt perf and the
    seams, all player models have this problem"; the library rule's written exception for player models): the rigged
@@ -157,6 +159,13 @@ HAND_AROUND = 0.15  # metres from the wrist the cloth beside the hand (off the a
 HAND_SETTLE = 3  # rounds of neighbours' votes on which faces are the hand's (`hand_pieces`)
 HAND_PIECE = 30  # faces: a piece of hand smaller than this is a speck of skin paint on the cloth
 SKIN_NEAR = 0.12  # a face whose paint lies this near the person's skin (RGB, 0 to 1) is skin
+SLEEVE_RING = (-0.12, -0.02)  # metres along the forearm from the wrist the sleeve's paint is read between
+PAINT_NEIGHBOURS = 12  # the kept points whose paint a point's is averaged over when told sleeve from cloth
+TEAR_PASSES = 3
+TEAR = 0.3  # a face whose corners' arm shares differ this much or more spans a sleeve and the cloth it touched
+# (the hoodie man's fused sleeve points half on the forearm beside the thigh's: 0.49 apart, stretched 35 times)
+ARM_LEFT_SHARE = 0.5  # a point keeps its own weights off the arm when this much or more of them is off the arms
+CLOTH_NEIGHBOURS = 8  # the cloth points off the arms whose weights a point taken off the hand takes, averaged
 HAND_RIM_REACH = 0.12  # metres from the wrist the sleeve's opening left by the cut is read within (`sleeve_offsets`)
 FACE_HALF, FACE_FRONT = 0.03, 0.05  # metres: the face's middle strip the skin is read from (`face_skin`): its half
 FACE_SPAN = (0.04, 0.06)  # width, how far before the Head joint, and how far under and over it
@@ -164,6 +173,13 @@ FACE_LEAST = 50  # points the strip holds at least
 HAND_FLUSH_TINT = (0.05, -0.03, -0.03)  # the base colour's change at whole's full flush towards the fingertips
 HAND_THIN_TINT = (-0.03, -0.01, 0.02)  # and at its full thin skin (the back of the hand, the inner wrist)
 HAND_METAL_ROUGHNESS = (1.0, 0.55, 0.0)  # glTF's packing (occlusion, roughness, metal): skin
+NAIL_METAL_ROUGHNESS = (1.0, 0.25, 0.0)  # and a nail's, glossier
+NAIL_COLOUR = (0.93, 0.78, 0.74)  # a nail's pale pink over its bed
+NAIL_SHARE = 0.45  # how far a nail's base colour goes from the skin's to NAIL_COLOUR
+CUFF_SMOOTH_ROUNDS = 8  # rounds the cut holes' rims are smoothed along themselves (`smoothed_rims`)
+RIM_SHARE = 0.5  # how far a rim point moves to its rim neighbours' middle each even round
+RIM_BACK = 0.53  # and away from it each odd round
+PATCH_REACH = 0.05  # metres from the cut a leftover patch of the lump's skin paint is looked for within
 HAND_NEAR = 0.03  # metres: clothes within this of a hand point are read for its depth in them (`hands_in`)
 HAND_FRAMES = 3  # every this many frames of a clip is read for the hands' depth
 HAND_REACH = 0.45  # metres: the clothes this near a hand at the bind are the ones its depth is read in
@@ -856,25 +872,222 @@ def sleeve_offsets(points, faces, cut, weights, names, bind):
     return found
 
 
+def off_the_hands(points, faces, cut, weights, colours, names, bind):
+    """The weights with nothing the `cut` leaves hanging from a hand joint (the hand is replaced) and no other garment
+    hanging from the arm below the wrist; and which points were taken off the arm. Of each side's kept points hanging
+    at all from its Hand, or from its ForeArm past the wrist, those whose paint (`colours`, each point's averaged over
+    its PAINT_NEIGHBOURS nearest kept points: a plaid's dark stripes are no trousers) lies nearer the cloth beside the
+    hand (`cloth_round`'s colours off the arm) than the sleeve's are taken off: they lose that forearm's and hand's
+    weights, and keep the rest of their own when ARM_LEFT_SHARE or more of it is off every arm, else take the mean
+    weights of their CLOTH_NEIGHBOURS nearest kept points hanging from no arm; the rest (the sleeve, and everything
+    where the sleeve and the cloth beside it are one colour) ride the forearm, the hand's weight moved onto it. Taken
+    off by place as well (off the sleeve's line), the older woman's camel coat, one colour with her sleeves and fused
+    to them, kept its flanks but her cuffs tore off as flaps beside it and her hands hung bare below them; so a
+    one-colour fused coat still swings its flanks with the arms (2026-11-27, an open gap). A fused person's arm is labelled down to its fingertips (`fused_landmarks`), so the
+    trousers the hoodie man's hands rested on hung from the hands; with the lumps cut they swung out with the arm as
+    dark wings at the hips (2026-11-27)."""
+    names = [str(name) for name in names]
+    found = weights.copy()
+    kept = np.zeros(len(points), bool)
+    kept[np.unique(faces[~cut])] = True
+    arms = [names.index(side + joint) for side in relaxed_hands.SIDES for joint in ("Arm", "ForeArm", "Hand")
+            if side + joint in names]
+    clear = kept & (weights[:, arms].sum(1) < 0.1)
+    tree = cKDTree(points[clear])
+    kept_index = np.flatnonzero(kept)
+    paint = np.zeros_like(colours)
+    paint[kept] = colours[kept_index[cKDTree(points[kept]).query(points[kept], PAINT_NEIGHBOURS)[1]]].mean(1)
+    strongest = weights.argmax(1)
+    taken_off = np.zeros(len(points), bool)
+    for side in relaxed_hands.SIDES:
+        hand, fore = names.index(side + "Hand"), names.index(side + "ForeArm")
+        wrist, elbow = bind[hand, :3, 3], bind[fore, :3, 3]
+        along = (points - wrist) @ ((wrist - elbow) / np.linalg.norm(wrist - elbow))
+        taken = kept & ((weights[:, hand] > 0.0) | ((weights[:, fore] > 0.0) & (along > 0.0)))
+        sleeve_ring = kept & (strongest == fore) & (along > SLEEVE_RING[0]) & (along < SLEEVE_RING[1])
+        beside = clear & (np.linalg.norm(points - wrist, axis=1) < HAND_AROUND)
+        off = np.zeros(len(points), bool)
+        if sleeve_ring.any() and beside.any():
+            sleeve_paint, beside_paint = np.median(paint[sleeve_ring], 0), np.median(paint[beside], 0)
+            if np.linalg.norm(sleeve_paint - beside_paint) >= SKIN_NEAR:  # two garments to tell apart
+                off = taken & (np.linalg.norm(paint - beside_paint, axis=1) < np.linalg.norm(paint - sleeve_paint,
+                                                                                            axis=1))
+        sleeve = taken & ~off
+        found[sleeve, fore] += found[sleeve, hand]
+        found[sleeve, hand] = 0.0
+        found[off, fore] = found[off, hand] = 0.0
+        left = found.sum(1) - found[:, arms].sum(1) >= ARM_LEFT_SHARE  # this much of its own off every arm
+        own = np.flatnonzero(off & left)
+        found[own] /= found[own].sum(1, keepdims=True)
+        cloth = np.flatnonzero(off & ~left)
+        if len(cloth):
+            _, nearest = tree.query(points[cloth], CLOTH_NEIGHBOURS)
+            found[cloth] = weights[np.flatnonzero(clear)[nearest]].mean(1)
+        taken_off |= off
+    return found, taken_off
+
+
+def arm_share(weights, names, joints=("Arm", "ForeArm", "Hand")):
+    """Each point's weight on the arms' `joints` (both sides)."""
+    names = [str(name) for name in names]
+    return weights[:, [names.index(side + joint) for side in relaxed_hands.SIDES for joint in joints
+                       if side + joint in names]].sum(1)
+
+
+def torn(points, faces, weights, names, near, *per_point, passes=TEAR_PASSES):
+    """The surface torn where a sleeve meets the cloth it was fused to (`off_the_hands` leaves the cliff sharp, and
+    the fused arm's labels left others): a face whose corners' arm shares (`arm_share`) differ by TEAR or more, one
+    of them TEAR or more on a forearm or hand, among the faces `near` (those touching what `off_the_hands` took off
+    the arm: elsewhere a fused sleeve's blend into the coat is no tear, and torn there the older woman's sleeves tore
+    into flaps), goes
+    to the arm side when their mean is over the middle of their range, else to the cloth's, and its corners on the
+    other side of that middle are copies of themselves taking the mean weights of its own side's corners; again, up
+    to `passes` times, while a face spans TEAR (a corner between its two sides stays on one). Joined, every such face stretched with the swinging forearm: eased either way, the hoodie man's
+    walk stretched edges by 15 cm (cloth half on the arm), or his cuffs hung half from his hips and his hands, turned
+    out of his trousers, stood 5 cm beside them (2026-11-27). (points, faces, weights, [each of `per_point` with
+    the copies' rows])."""
+    share = arm_share(weights, names)
+    corner = share[faces]
+    low = (arm_share(weights, names, ("ForeArm", "Hand"))[faces] >= TEAR).any(1)
+    bridge = np.flatnonzero((corner.max(1) - corner.min(1) >= TEAR) & low & near)
+    if not len(bridge):
+        return points, faces, weights, list(per_point)
+    faces = faces.copy()
+    middle = (corner[bridge].max(1) + corner[bridge].min(1)) / 2.0
+    on_arm = corner[bridge].mean(1) >= middle
+    copies, rows, new_weights = {}, [], []
+    for face, arm, cut_at in zip(bridge, on_arm, middle):
+        mine = (share[faces[face]] >= cut_at) == arm
+        mean = weights[faces[face][mine]].mean(0)
+        for slot in np.flatnonzero(~mine):
+            key = (int(faces[face, slot]), bool(arm))
+            if key not in copies:
+                copies[key] = len(points) + len(rows)
+                rows.append(key[0])
+                new_weights.append(mean)
+            faces[face, slot] = copies[key]
+    rows = np.array(rows)
+    found = (np.r_[points, points[rows]], faces, np.r_[weights, np.array(new_weights)],
+             [np.r_[values, values[rows]] for values in per_point])
+    return torn(*found[:3], names, near, *found[3], passes=passes - 1) if passes > 1 else found
+
+
+def tears_closed(points, faces, part_of, weights, names, torn_from, *per_point):
+    """The holes `torn` leaves closed on each side: its open edges between points it copied or copied from
+    (`torn_from`, each point's original, itself where it is none), each edge the arm's when both its points hang half
+    or more from a forearm or hand (`arm_share`), else the cloth's, each side's connected runs fanned from their middle
+    (turned as the face they border, as `closed`), the middle hanging and painted as its run on average: open, the
+    shell's hollow showed black through the older woman's coat and the hoodie man's trousers where they tore from the
+    sleeves (2026-11-27). (points, faces, part_of, weights, [each of `per_point` with the middles' rows])."""
+    involved = np.zeros(len(points), bool)
+    involved[torn_from[torn_from != np.arange(len(points))]] = True
+    involved[np.flatnonzero(torn_from != np.arange(len(points)))] = True
+    edges = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]])
+    keys = edges[:, 0].astype(np.int64) * len(points) + edges[:, 1]
+    back = edges[:, 1].astype(np.int64) * len(points) + edges[:, 0]
+    border = edges[~np.isin(keys, back) & involved[edges].all(1)]
+    if not len(border):
+        return points, faces, part_of, weights, list(per_point)
+    on_arm = (arm_share(weights, names)[border] >= 0.5).all(1)
+    middles, fans, rows = [], [], []
+    for side in (True, False):
+        mine = border[on_arm == side]
+        if not len(mine):
+            continue
+        _, run_of = connected_components(sparse_graph(mine, len(points)), directed=False)
+        for run in np.unique(run_of[mine[:, 0]]):
+            run_edges = mine[run_of[mine[:, 0]] == run]
+            if len(run_edges) < 2:
+                continue
+            members = np.unique(run_edges)
+            number = len(points) + len(middles)
+            middles.append(points[members].mean(0))
+            rows.append(members)
+            fans += [[second, first, number] for first, second in run_edges]
+    if not middles:
+        return points, faces, part_of, weights, list(per_point)
+    mean_of = lambda values: np.array([np.nanmean(values[members], axis=0) if np.isfinite(values[members]).any()
+                                       else np.full(values.shape[1:], np.nan) for members in rows])  # noqa: E731
+    return (np.r_[points, np.array(middles)], np.r_[faces, np.array(fans)],
+            np.r_[part_of, np.full(len(fans), PARTS.index("suit"))], np.r_[weights, mean_of(weights)],
+            [np.r_[values, mean_of(values)] for values in per_point])
+
+
 def hand_paint(skin, tones):
     """A laid hand's base colour at each point: its skin's colour, flushed towards the fingertips and paler blue over
-    the thin skin by whole's hand tones (flush, thin)."""
-    return np.clip(skin + tones[:, :1] * np.array(HAND_FLUSH_TINT) + tones[:, 1:2] * np.array(HAND_THIN_TINT), 0, 1)
+    the thin skin by whole's hand tones (flush, thin), and over a nail (the third tone, `hands.nails`, where there is
+    one) NAIL_SHARE of the way to NAIL_COLOUR."""
+    found = skin + tones[:, :1] * np.array(HAND_FLUSH_TINT) + tones[:, 1:2] * np.array(HAND_THIN_TINT)
+    if tones.shape[1] > 2:
+        found += tones[:, 2:3] * NAIL_SHARE * (np.array(NAIL_COLOUR) - found)
+    return np.clip(found, 0, 1)
 
 
-def with_hands(points, faces, part_of, weights, colours, cut, laid, skin):
+def hand_roughness(tones):
+    """A laid hand's metal and roughness at each point (glTF's packing): skin's HAND_METAL_ROUGHNESS, a nail's
+    NAIL_METAL_ROUGHNESS (the nail's third tone, where there is one)."""
+    nail = tones[:, 2:3] if tones.shape[1] > 2 else np.zeros((len(tones), 1))
+    return np.array(HAND_METAL_ROUGHNESS) + nail * (np.array(NAIL_METAL_ROUGHNESS) - np.array(HAND_METAL_ROUGHNESS))
+
+
+def smoothed_rims(points, fans, rounds=CUFF_SMOOTH_ROUNDS):
+    """`points` with the rim points of the fans closing the cut's holes (each fan face a rim edge and its loop's
+    middle) moved RIM_SHARE of the way to their two rim neighbours' middle and then RIM_BACK away from it, `rounds`
+    times (Taubin's smoothing: the jags go, the opening does not shrink): the cut ran along the still's own triangles,
+    and the sleeve's edge stood jagged round the laid hand's wrist (2026-11-27)."""
+    found = points.copy()
+    rim = np.unique(fans[:, :2])
+    for step in range(rounds):
+        total, count = np.zeros_like(found), np.zeros(len(found))
+        for first, second in ((fans[:, 0], fans[:, 1]), (fans[:, 1], fans[:, 0])):
+            np.add.at(total, first, found[second])
+            np.add.at(count, first, 1.0)
+        middle = total[rim] / np.maximum(count[rim], 1.0)[:, None]
+        found[rim] += (RIM_SHARE if step % 2 == 0 else -RIM_BACK) * (middle - found[rim])
+    return found
+
+
+def lump_patches(points, colours, cut_points, skin, sides):
+    """Which of the kept still's points are leftover patches of a hand lump's skin paint (on the coat or the trousers
+    beside the hand, crumpled pink on the older woman's coat, 2026-11-27): within PATCH_REACH of a point of the cut,
+    and nearer the `skin` paint than the cloth round them there (the median paint of the points so near that side's
+    cut, `sides` each cut point's side, that lie SKIN_NEAR or more from the skin)."""
+    found = np.zeros(len(points), bool)
+    if not len(cut_points):
+        return found
+    distance, nearest = cKDTree(cut_points).query(points)
+    near = distance < PATCH_REACH
+    clothy = np.linalg.norm(colours - skin, axis=1) >= SKIN_NEAR
+    for side in np.unique(sides):
+        mine = near & (sides[nearest] == side)
+        if not (mine & clothy).any():
+            continue
+        cloth = np.median(colours[mine & clothy], axis=0)
+        found |= mine & (np.linalg.norm(colours - skin, axis=1) < np.linalg.norm(colours - cloth, axis=1))
+    return found
+
+
+def with_hands(points, faces, part_of, weights, colours, cut, laid, skin, hand_skin=None):
     """The still with its `cut` faces off (points no face uses dropped), the holes they leave closed by fans
     (`closed`: where a lump joined the trousers or a coat's flank, and the sleeve's opening, which the laid hand's
-    stub passes through; open, the shell's hollow showed black), each fan's middle hanging as its loop on average
-    and painted as its loop's cloth (its points away from the `skin` paint: the lump's pink rim smeared the older
-    woman's coat), a rim point in the skin paint painted so too, and the `laid` hands (`hands_laid`) added as the hand part: (points, faces, part_of, weights, each
-    point's laid paint or NaN where the still's own is read, whether each point is a hand's)."""
+    stub passes through; open, the shell's hollow showed black), their rims smoothed (`smoothed_rims`), each fan's
+    middle hanging as its loop on average and painted as its loop's cloth (its points away from the `skin` paint: the
+    lump's pink rim smeared the older woman's coat), a rim point in the skin paint painted so too, the lump's leftover
+    skin patches (`lump_patches`) painted their nearest cloth point's paint, and the `laid` hands (`hands_laid`) added
+    as the hand part, painted `hand_skin` (the person's photo skin; else `skin`, the face's paint) by `hand_paint`:
+    (points, faces, part_of, weights, each point's laid paint or NaN where the still's own is read, each point's laid
+    metal and roughness or NaN off the hands)."""
     used, renumbered = np.unique(faces[~cut], return_inverse=True)
     still = trimesh.Trimesh(points[used], renumbered.reshape(-1, 3), process=False)
     shut = closed(still)
     fans = shut.faces[len(still.faces):]
     middles = len(shut.vertices) - len(still.vertices)
     loop = fans[:, 2] - len(still.vertices)
+    shut_points = smoothed_rims(shut.vertices, fans)
+    rim_sum, rim_count = np.zeros((middles, 3)), np.zeros(middles)
+    np.add.at(rim_sum, loop, shut_points[fans[:, 0]])
+    np.add.at(rim_count, loop, 1.0)
+    shut_points[len(still.vertices):] = rim_sum / rim_count[:, None]
     cloth = np.linalg.norm(colours[used] - skin, axis=1) >= SKIN_NEAR  # a rim point not in the lump's skin paint
     loop_weights, loop_paint = np.zeros((middles, weights.shape[1])), np.zeros((middles, 3))
     counts, cloth_counts = np.zeros(middles), np.zeros(middles)
@@ -891,20 +1104,29 @@ def with_hands(points, faces, part_of, weights, colours, cut, laid, skin):
     for corner in (0, 1):
         rim = fans[:, corner]
         paint[rim] = np.where(cloth[rim][:, None], colours[used][rim], loop_paint[loop])
-    all_points, all_faces = [shut.vertices], [shut.faces]
+    cut_points = np.unique(faces[cut])
+    if len(cut_points) and laid:
+        hands_middles = np.array([hand[0].mean(0) for hand in laid.values()])
+        sides = cKDTree(hands_middles).query(points[cut_points])[1]
+        patch = lump_patches(points[used], colours[used], points[cut_points], skin, sides)
+        source = np.flatnonzero(~patch & cloth)
+        if patch.any() and len(source):
+            paint[np.flatnonzero(patch)] = colours[used][source[cKDTree(points[used][source]).query(
+                points[used][patch])[1]]]
+    all_points, all_faces = [shut_points], [shut.faces]
     all_weights = [np.r_[weights[used], loop_weights / counts[:, None]]]
-    all_paint, all_hand = [paint], [np.zeros(len(shut.vertices), bool)]
+    all_paint, all_rough = [paint], [np.full((len(shut.vertices), 3), np.nan)]
     parts, count = [np.r_[part_of[~cut], np.full(len(fans), PARTS.index("suit"))]], len(shut.vertices)
     for side, (hand_points, hand_faces, hand_weights, tones) in laid.items():
         all_points.append(hand_points)
         all_faces.append(hand_faces + count)
         all_weights.append(hand_weights)
-        all_paint.append(hand_paint(skin, tones))
-        all_hand.append(np.ones(len(hand_points), bool))
+        all_paint.append(hand_paint(skin if hand_skin is None else hand_skin, tones))
+        all_rough.append(hand_roughness(tones))
         parts.append(np.full(len(hand_faces), PARTS.index("hand")))
         count += len(hand_points)
     return (np.concatenate(all_points), np.concatenate(all_faces), np.concatenate(parts),
-            np.concatenate(all_weights), np.concatenate(all_paint), np.concatenate(all_hand))
+            np.concatenate(all_weights), np.concatenate(all_paint), np.concatenate(all_rough))
 
 
 def hands_depth(points, faces, part_of, order, kept, names):
@@ -1100,13 +1322,13 @@ def bled(picture, filled):
     return picture[nearest[0], nearest[1]]
 
 
-def own_maps(points, faces, places, back, source, tokens, size=MAP, laid_paint=None, laid_hand=None):
+def own_maps(points, faces, places, back, source, tokens, size=MAP, laid_paint=None, laid_rough=None):
     """The rigged still's own maps ({role: (size, size, 3) uint8}: base colour and, where the still has them, metal and
     roughness), each texel the still's own paint nearest its point taken back into the still's frame (`back`), the
     base colour graded toward the palette's `tokens` as the made props' paint is (grade.py); and the grade's groups.
     `laid_paint` (each point's base colour, NaN where none: a person's laid hands and the fans closing where its own
     were cut, `with_hands`) paints the faces whose every corner has one instead, nearest point's, after the grade,
-    those on the hands (`laid_hand`) as skin (HAND_METAL_ROUGHNESS)."""
+    and `laid_rough` their metal and roughness where it has one (the hands' skin and nails, `hand_roughness`)."""
     rows, columns, found = texels_of(points, faces, places, size)
     paint = source.paint(back(found))
     filled = np.zeros((size, size), bool)
@@ -1117,9 +1339,8 @@ def own_maps(points, faces, places, back, source, tokens, size=MAP, laid_paint=N
         laid_rows, laid_columns, laid_found = texels_of(points, faces[painted[faces].all(1)], places, size)
         nearest = np.flatnonzero(painted)[cKDTree(points[painted]).query(laid_found)[1]]
         laid = {"base_color": laid_paint[nearest]}
-        if laid_hand is not None:
-            on_hand = laid_hand[nearest]
-            laid["metal_roughness"] = np.where(on_hand[:, None], HAND_METAL_ROUGHNESS, np.nan)
+        if laid_rough is not None:
+            laid["metal_roughness"] = laid_rough[nearest]
         filled[laid_rows, laid_columns] = True
     maps, report = {}, []
     for role, values in paint.items():
@@ -1270,9 +1491,20 @@ def taken_back(still_points, rig_points):
     return lambda points: np.c_[points, np.ones(len(points))] @ solved
 
 
-def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=False):
+def photo_skin(stats_path):
+    """The person's skin colour off its close-up photo (sRGB, 0 to 1): the face skin step's (`generated/skin.py`)
+    photo skin CIELAB in its stats.json (`paint_toned`'s `photo_lab`). The paint's face reads pinker than the photo's
+    (the older woman's 0.80, 0.55, 0.51 against her photo's 0.80, 0.61, 0.53), and her hands in it read as pink
+    rubber (2026-11-27)."""
+    from skimage.color import lab2rgb
+    lab = json.loads(pathlib.Path(stats_path).read_text())["paint_toned"]["photo_lab"]
+    return np.clip(lab2rgb(np.asarray(lab, float)[None, None])[0, 0], 0.0, 1.0)
+
+
+def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=False, skin_stats=None):
     """The still rigged on the dressed body's skeleton into `out` (body.glb, rig.json); the record. A `person` has a
-    head and clothes for parts (parts_of)."""
+    head and clothes for parts (parts_of); its laid hands wear its photo's skin (`photo_skin`, from the face skin
+    step's `skin_stats`) where it has one, else its face's paint."""
     document, blob, names, dressed_bind, parents = skeleton_of(dressed)
     rig = np.load(rig_path)
     body, body_weights = soma_on(rig, names, dressed_bind)
@@ -1297,17 +1529,28 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     weights = off_the_shins(mesh.vertices, off_the_feet(mesh.vertices, weights, names, bind), names, bind)
     weights = rigid(mesh.vertices, mesh.faces, part_of, weights, names)
     weights = eased_cliffs(mesh.vertices, mesh.faces, weights, hard_points(mesh.faces, part_of, len(mesh.vertices)))
-    laid_paint, laid_hand, hands_record = None, None, {}
+    laid_paint, laid_rough, hands_record = None, None, {}
     if person:
         skin = face_skin(mesh.vertices, mesh.faces, part_of, colours, names, bind)
+        hand_skin = skin if skin_stats is None else photo_skin(skin_stats)
         cut = hand_cut(mesh.vertices, mesh.faces, colours, weights, names, bind, skin)
         laid = hands_laid(hands_file(rig_path), names, rig["bind"], bind)
         offsets = sleeve_offsets(mesh.vertices, mesh.faces, cut, weights, names, bind)
+        weights, taken_off = off_the_hands(mesh.vertices, mesh.faces, cut, weights, colours, names, bind)
         laid = {side: (hand[0] + offsets[side], *hand[1:]) for side, hand in laid.items()}
-        points, faces_now, part_of, weights, laid_paint, laid_hand = with_hands(
-            mesh.vertices, mesh.faces, part_of, weights, colours, cut, laid, skin)
+        points, faces_now, part_of, weights, laid_paint, laid_rough = with_hands(
+            mesh.vertices, mesh.faces, part_of, weights, colours, cut, laid, skin, hand_skin)
+        near = np.zeros(len(faces_now), bool)  # with_hands keeps the uncut faces first, in their order
+        near[:int((~cut).sum())] = taken_off[mesh.faces[~cut]].any(1)
+        points, faces_now, weights, (laid_paint, laid_rough, torn_from) = torn(
+            points, faces_now, weights, names, near, laid_paint, laid_rough, np.arange(len(points)))
+        points, faces_now, part_of, weights, (laid_paint, laid_rough) = tears_closed(
+            points, faces_now, part_of, weights, names, torn_from, laid_paint, laid_rough)
+        weights = eased_cliffs(points, faces_now, weights, hard_points(faces_now, part_of, len(points)))  # the
+        # cliffs left eased as the others, never across the tear
         mesh = trimesh.Trimesh(points, faces_now, process=False)
         hands_record = {"cut_faces": int(cut.sum()), "skin": np.round(skin, 3).tolist(),
+                        "hand_skin": np.round(hand_skin, 3).tolist(),
                         "to_sleeve_m": {side: np.round(off, 3).tolist() for side, off in offsets.items()}}
     out.mkdir(parents=True, exist_ok=True)
     tokens = json.loads(pathlib.Path(palette_path).read_text()).get("tokens", {})
@@ -1315,7 +1558,7 @@ def rigged(still, dressed, rig_path, palette_path, out, faces=FACES, person=Fals
     mapping, split_faces, places = unwrapped(mesh.vertices, mesh.faces, normals)
     maps, grade = own_maps(mesh.vertices[mapping], split_faces, places, taken_back(thin.vertices, fitted.vertices),
                            source, tokens, laid_paint=None if laid_paint is None else laid_paint[mapping],
-                           laid_hand=None if laid_paint is None else laid_hand[mapping])
+                           laid_rough=None if laid_paint is None else laid_rough[mapping])
     laid = {"points": mesh.vertices, "faces": mesh.faces, "part_of": part_of, "weights": weights, "normals": normals,
             "mapping": mapping, "split_faces": split_faces, "places": places}
     order, kept = strongest(weights)
@@ -1360,9 +1603,11 @@ def main():
     parser.add_argument("--faces", type=int, default=FACES)
     parser.add_argument("--person", action="store_true",
                         help="a person: a head and clothes, no helmet, visor or backpack")
+    parser.add_argument("--skin-stats", type=pathlib.Path,
+                        help="a person's face skin step stats.json: its hands wear the photo's skin")
     options = parser.parse_args()
     record = rigged(options.still, options.dressed, options.rig, options.palette, options.out, options.faces,
-                    options.person)
+                    options.person, options.skin_stats)
     print(f"still rig: {record['height_m']} m, {record['triangles']} triangles, parts {record['parts']}, matched "
           f"{record['matched_share']:.0%}, stretch {({name: clip['stretch_most'] for name, clip in record['clips'].items()})}; "
           f"{options.out / 'rig.json'}", flush=True)
